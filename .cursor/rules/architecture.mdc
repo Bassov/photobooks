@@ -8,4 +8,5 @@ alwaysApply: true
 - Local-first: prefer on-device file APIs and client-side processing.
 - Heavy work (image decode, render, imposition, later AVIF encode) MUST run in Web Workers (`createImageBitmap`, OffscreenCanvas) — never block the main thread.
 - Keep domain logic in pure functions under `src/` testable without DOM when possible.
+- Organize features as `src/<capability>/` (pure domain + worker + thin UI); avoid growing god components — prefer composition.
 - LoAF budget: blocking tasks ≤ 200 ms in scenario tests (`src/perf/loafObserver.ts`).

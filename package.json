@@ -22,6 +22,7 @@
     "test:lhci": "node scripts/with-playwright-env.mjs pnpm build && node scripts/with-playwright-env.mjs lhci autorun --config=lighthouserc.cjs",
     "stryker": "stryker run",
     "stryker:diff": "node scripts/stryker-diff.mjs",
+    "audit:ci": "pnpm audit --audit-level=high --prod",
     "verify:fast": "pnpm typecheck && pnpm lint && pnpm test",
     "verify": "pnpm verify:fast && pnpm test:e2e",
     "playwright:libs": "node scripts/bootstrap-playwright-libs.mjs",
