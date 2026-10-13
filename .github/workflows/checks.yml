@@ -9,6 +9,10 @@ concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -43,7 +47,22 @@ jobs:
 
       - name: Coverage summary
         if: always()
-        run: node scripts/coverage-step-summary.mjs
+        id: coverage_summary
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
+            node scripts/coverage-step-summary.mjs
+            exit 0
+          fi
+          echo "has_report=true" >> "$GITHUB_OUTPUT"
+          node scripts/coverage-step-summary.mjs | tee /tmp/coverage-pr-comment.md
+
+      - name: Sticky coverage comment
+        if: always() && steps.coverage_summary.outputs.has_report == 'true' && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage-summary
+          path: /tmp/coverage-pr-comment.md
 
       - name: Build
         run: pnpm build

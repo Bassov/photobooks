@@ -27,7 +27,7 @@ Unit test coverage SHALL enforce a no-regression floor in CI, and coverage resul
 #### Scenario: Codecov upload and PR comment config
 
 - **WHEN** coverage is produced in the checks workflow
-- **THEN** coverage is uploaded to Codecov using the project Codecov config (including PR comment settings) and a repository Codecov token when configured
+- **THEN** coverage is uploaded to Codecov using the project Codecov config (PR comments enabled even when coverage is unchanged) and a repository Codecov token when configured
 
 ### Requirement: Dependabot dependency updates
 
@@ -104,12 +104,17 @@ The pull-request mutation job SHALL publish a PR-visible mutation summary and a 
 
 ### Requirement: Coverage Step Summary
 
-The checks workflow SHALL write a compact coverage summary to the job Step Summary after coverage runs.
+The checks workflow SHALL write a compact coverage summary to the job Step Summary after coverage runs, and on pull requests SHALL upsert a sticky comment with the same totals when a coverage summary file is available.
 
 #### Scenario: Coverage visible in Actions Summary
 
 - **WHEN** the checks workflow finishes the coverage step
 - **THEN** the job Step Summary includes coverage totals
+
+#### Scenario: Coverage sticky comment on pull request
+
+- **WHEN** the checks workflow produces coverage summary JSON on a pull request
+- **THEN** it upserts a sticky pull-request comment with coverage totals
 
 ### Requirement: Operator documentation for secrets
 
