@@ -2,11 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { enablePerfHooks, shouldEnablePerfHooks } from './perf/exposePerf'
 
-if (import.meta.env.DEV) {
-  void import('./perf/loafObserver.ts').then(({ startLoafObserver }) => {
-    startLoafObserver()
-  })
+if (shouldEnablePerfHooks()) {
+  enablePerfHooks()
 }
 
 const rootElement = document.getElementById('root')

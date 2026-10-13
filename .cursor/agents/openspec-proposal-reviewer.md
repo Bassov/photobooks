@@ -12,6 +12,7 @@ You review OpenSpec change proposals only. Do not edit files.
 ## Inputs
 
 Read the active change's `proposal.md` under `openspec/changes/<id>/`.
+Honor `openspec/config.yaml` `rules.proposal`.
 
 ## Checks
 
@@ -20,6 +21,8 @@ Read the active change's `proposal.md` under `openspec/changes/<id>/`.
 3. **No implementation dump:** fail if API shapes, file trees, pseudocode, or long how-to appear — those belong in design.
 4. **Scope:** in/out are concrete and testable; success criteria are observable.
 5. **Narrowness:** if the proposal tries to do too much, recommend splitting changes.
+6. **UI:** if UI is in scope, success criteria MUST include observable UX (not only "it works").
+7. **Security:** if File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export are in scope, risks MUST include an explicit security bullet.
 
 ## Output
 

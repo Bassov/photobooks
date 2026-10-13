@@ -19,6 +19,30 @@ if (libDirs.length > 0) {
     : prefix
 }
 
+if (!env.CHROME_PATH) {
+  const cacheDir = path.join(process.env.HOME ?? '', '.cache', 'ms-playwright')
+  if (fs.existsSync(cacheDir)) {
+    const chrome = fs
+      .readdirSync(cacheDir)
+      .filter((name) => name.startsWith('chromium'))
+      .flatMap((name) => {
+        const base = path.join(cacheDir, name)
+        return [
+          path.join(
+            base,
+            'chrome-headless-shell-linux64',
+            'chrome-headless-shell',
+          ),
+          path.join(base, 'chrome-linux64', 'chrome'),
+        ]
+      })
+      .find((candidate) => fs.existsSync(candidate))
+    if (chrome) {
+      env.CHROME_PATH = chrome
+    }
+  }
+}
+
 const [command, ...args] = process.argv.slice(2)
 if (!command) {
   console.error('Usage: with-playwright-env <command> [...args]')

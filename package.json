@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "deploy": "pnpm build && wrangler deploy",
+    "deploy:preview": "pnpm build && wrangler preview",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -19,15 +21,18 @@
     "test:e2e": "node scripts/with-playwright-env.mjs playwright test",
     "test:lhci": "node scripts/with-playwright-env.mjs pnpm build && node scripts/with-playwright-env.mjs lhci autorun --config=lighthouserc.cjs",
     "stryker": "stryker run",
-    "stryker:diff": "stryker run --since origin/main",
+    "stryker:diff": "node scripts/stryker-diff.mjs",
+    "audit:ci": "pnpm audit --audit-level=high --prod",
     "verify:fast": "pnpm typecheck && pnpm lint && pnpm test",
     "verify": "pnpm verify:fast && pnpm test:e2e",
     "playwright:libs": "node scripts/bootstrap-playwright-libs.mjs",
     "prepare": "lefthook install"
   },
   "dependencies": {
+    "exifr": "^7.1.3",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -48,17 +53,21 @@
     "fast-check": "^4.10.2",
     "globals": "^16.5.0",
     "happy-dom": "^21.0.1",
+    "jpeg-js": "^0.4.4",
     "lefthook": "^2.2.2",
     "prettier": "^3.6.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.50.0",
     "vite": "^8.3.0",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.4",
+    "wrangler": "^4.150.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "lefthook",
-      "esbuild"
+      "esbuild",
+      "workerd",
+      "sharp"
     ],
     "patchedDependencies": {
       "@stryker-mutator/vitest-runner@10.0.0": "patches/@stryker-mutator__vitest-runner@10.0.0.patch"

@@ -1,25 +1,8 @@
 ---
-description: Mandatory OpenSpec agent workflow with review subagents
+description: Pointer to OpenSpec per-change mandates
 alwaysApply: true
 ---
 
 # Agent workflow
 
-Required sequence for every OpenSpec change:
-
-1. `/opsx-propose` → write `proposal.md`
-2. Launch Cursor subagent **`openspec-proposal-reviewer`** (readonly). Fix findings until **pass**.
-3. Only then write `design.md` / `tasks.md`
-4. `/opsx-apply` implement tasks
-5. Run Verification gates from `tasks.md`:
-   - `pnpm typecheck`
-   - `pnpm lint`
-   - `pnpm test`
-   - `pnpm test:e2e` (or `pnpm verify`)
-   - `pnpm stryker:diff`
-   - `pnpm test:lhci` when UI/bundle affected
-6. Launch Cursor subagent **`openspec-implementation-reviewer`**. Fix until **pass**.
-7. `/opsx-archive` only after implementation review passes
-
-Proposal size limits and mandatory checklist text live in `openspec/config.yaml`.
-Do not skip review subagents.
+Per-change OpenSpec sequence, verification checklists, and archive rules live only in `openspec/config.yaml` (`rules` + `operations`). Do not duplicate them here.

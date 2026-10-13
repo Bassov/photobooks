@@ -15,24 +15,37 @@ context: |
   - Mutation testing: pnpm stryker:diff on changed modules; nightly full Stryker on main
   - Perf: Lighthouse CI budgets (budget.json); LoAF blockingDuration ≤ 200 ms in scenario tests
   - Heavy work (decode/render/imposition) MUST run in Web Workers, never on the main thread
+  - Tests MUST exercise public module/component APIs; no private/`as any`/deep-internal hacks — if blocked, reuse an existing seam or extend the public API in the same change
+  - Shared factories, fixtures, and helpers; do not copy-paste Arrange/setup across cases or suites
+  - Mock I/O boundaries only (fs, network, time, worker edges); do not assert internal helper call counts
+  - Detailed test style: skill `write-tests`
 
-  Agent workflow (mandatory):
-  1. After writing proposal.md → launch Cursor subagent `openspec-proposal-reviewer` before design/tasks
-  2. After apply → run verify gates from tasks.md (typecheck, lint, tests, e2e, stryker:diff)
-  3. Then launch Cursor subagent `openspec-implementation-reviewer`
-  4. Archive only after implementation-reviewer passes (no open critical/high findings)
+  Doc budget:
+  - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
+  - AGENTS.md is a navigation map (≤150 lines). Specs are behavior SoT.
+
+  Security surface (tag changes that touch these):
+  - File System Access, workers/postMessage, blob/object URLs, CSP/headers, dependency bumps, export pipelines
 
 rules:
   proposal:
     - Keep proposals under 400 words (~one screen). Prefer bullets over prose.
-    - Include only: problem, why now, scope in/out, success criteria, risks.
+    - 'Include only: problem, why now, scope in/out, success criteria, risks.'
     - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
     - If content does not fit, narrow scope — never inflate the proposal.
     - Immediately after writing proposal.md, the parent agent MUST launch subagent `openspec-proposal-reviewer` and wait for pass before creating design.md or tasks.md.
+    - If UI is in scope, success criteria MUST include observable UX (not only "it works").
+    - If the security surface is in scope, risks MUST include an explicit security bullet.
   design:
     - Keep design under ~600 words.
     - Include implementation detail only where apply would otherwise be ambiguous.
     - Prefer references to existing modules over inventing new layers.
+    - MUST include a touch-set (concrete files/modules in scope) sized for one apply context.
+    - MUST state composition/module boundaries when code changes; prefer small composable units over god-files.
+    - When tests are in scope, note which public API is under test and which shared fixtures/helpers to reuse or add.
+    - If heavy image/decode/render/encode work is in scope, MUST place it in Web Workers.
+    - If the security surface is in scope, MUST include a Security section.
+    - Immediately after writing design.md, the parent agent MUST launch subagent `openspec-design-reviewer` and wait for pass before finalizing tasks.md or starting apply.
   tasks:
     - Break work into small, checkable tasks.
     - |
@@ -43,16 +56,27 @@ rules:
       - [ ] pnpm test:e2e (or pnpm verify)
       - [ ] pnpm stryker:diff
       - [ ] pnpm test:lhci when UI or bundle size is affected
+      - [ ] Agent docs: if module map / commands / security surface / durable conventions changed → update AGENTS.md (≤150 lines); update .cursor/rules or skills only when a lasting convention changed; do not add alwaysApply rules without merging/removing another
+      - [ ] pnpm audit:ci when package.json/lockfile or security-tagged change
+      - [ ] Launch openspec-design-reviewer was pass before apply (evidenced)
       - [ ] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive
+      - [ ] High-risk security surface: Cursor Security Review subagent before archive
 
 operations:
   apply:
     guidance:
       - Do not treat apply as complete until Verification checklist items are green.
+      - Require evidenced openspec-design-reviewer pass before or at start of apply when design.md exists.
       - Run pnpm stryker:diff on changed production modules before requesting implementation review.
+      - Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.
       - After verify gates pass, launch Cursor subagent `openspec-implementation-reviewer`.
+      - For high-risk security surface changes, launch Cursor Security Review before archive.
       - Do not archive while critical or high review findings remain open.
   archive:
     guidance:
       - Archive only after openspec-implementation-reviewer returned pass.
+      - ALWAYS sync delta specs into main openspec/specs/ before moving the change (inline sync, then verify merge).
+      - NEVER choose "Archive without syncing" / skip-sync when delta specs exist.
+      - If sync is blocked or verification fails, STOP — do not archive until fixed.
+      - If there are no delta specs, archive may proceed; note "No delta specs".
       - Summarize what merged into specs/ in a few bullets.
