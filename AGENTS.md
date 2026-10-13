@@ -23,8 +23,10 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 | Command             | Use                                           |
 | ------------------- | --------------------------------------------- |
-| `pnpm verify:fast`  | typecheck + lint + vitest                     |
+| `pnpm verify:fast`  | typecheck + lint + deps + knip + vitest       |
 | `pnpm verify`       | verify:fast + Playwright                      |
+| `pnpm deps`         | dependency-cruiser layer rules                |
+| `pnpm knip`         | unused exports / deps                         |
 | `pnpm stryker:diff` | mutations vs `origin/main`                    |
 | `pnpm test:lhci`    | Lighthouse budgets                            |
 | `pnpm audit:ci`     | high-severity **production** dependency audit |
@@ -44,6 +46,11 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 File System Access, workers/`postMessage`, blob/object URLs, CSP/headers, dependency bumps, export. CI: `audit:ci` + CodeQL + dependency-review + gitleaks (see `ci-gates`). High-risk changes: Security Review before archive (see OpenSpec config).
 
 Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments; enable GitHub Secret scanning and Push protection.
+
+## Docs
+
+- Lessons journal: `docs/lessons.md` (read before apply; append when a finding repeats — mandates in OpenSpec config).
+- Deferred book-core / visual regression: `docs/future-architecture.md`.
 
 ## Doc budget
 

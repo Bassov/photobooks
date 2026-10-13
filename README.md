@@ -23,24 +23,26 @@ pnpm dev
 
 ## Scripts
 
-| Command               | Description                              |
-| --------------------- | ---------------------------------------- |
-| `pnpm dev`            | Vite dev server                          |
-| `pnpm typecheck`      | TypeScript project build check           |
-| `pnpm build`          | Typecheck and production build           |
-| `pnpm preview`        | Preview production build                 |
-| `pnpm deploy`         | Build + deploy to Cloudflare Workers     |
-| `pnpm deploy:preview` | Build + upload a Workers preview version |
-| `pnpm lint`           | ESLint (strict-type-checked)             |
-| `pnpm format`         | Prettier write                           |
-| `pnpm test`           | Vitest unit + PBT                        |
-| `pnpm test:e2e`       | Playwright                               |
-| `pnpm test:lhci`      | Build + Lighthouse CI (`budget.json`)    |
-| `pnpm stryker`        | Full mutation testing                    |
-| `pnpm stryker:diff`   | Mutations since `origin/main`            |
-| `pnpm verify:fast`    | typecheck + lint + vitest                |
-| `pnpm verify`         | verify:fast + Playwright                 |
-| `pnpm bench`          | Vitest benchmarks                        |
+| Command               | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `pnpm dev`            | Vite dev server                              |
+| `pnpm typecheck`      | TypeScript project build check               |
+| `pnpm build`          | Typecheck and production build               |
+| `pnpm preview`        | Preview production build                     |
+| `pnpm deploy`         | Build + deploy to Cloudflare Workers         |
+| `pnpm deploy:preview` | Build + upload a Workers preview version     |
+| `pnpm lint`           | ESLint (strict-type-checked, max-warnings=0) |
+| `pnpm format`         | Prettier write                               |
+| `pnpm deps`           | dependency-cruiser layer rules               |
+| `pnpm knip`           | Unused exports / dependencies                |
+| `pnpm test`           | Vitest unit + PBT                            |
+| `pnpm test:e2e`       | Playwright                                   |
+| `pnpm test:lhci`      | Build + Lighthouse CI (`budget.json`)        |
+| `pnpm stryker`        | Full mutation testing                        |
+| `pnpm stryker:diff`   | Mutations since `origin/main`                |
+| `pnpm verify:fast`    | typecheck + lint + deps + knip + vitest      |
+| `pnpm verify`         | verify:fast + Playwright                     |
+| `pnpm bench`          | Vitest benchmarks                            |
 
 Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm verify`.
 

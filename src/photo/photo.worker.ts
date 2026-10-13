@@ -52,7 +52,10 @@ async function readOrientation(buffer: ArrayBuffer): Promise<ExifOrientation> {
       return raw as ExifOrientation
     }
     if (typeof raw === 'string' && Object.hasOwn(ORIENTATION_LABELS, raw)) {
-      return ORIENTATION_LABELS[raw]
+      const mapped = ORIENTATION_LABELS[raw]
+      if (mapped !== undefined) {
+        return mapped
+      }
     }
     const parsed: unknown = await exifr.parse(buffer, {
       pick: ['Orientation'],

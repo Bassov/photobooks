@@ -1,0 +1,8 @@
+# Lessons
+
+Living journal of repeated review findings. Read before OpenSpec apply. Append one durable rule when a finding repeats; do not turn this into a checklist duplicate of `openspec/config.yaml`.
+
+- Do not store `File` / `Blob` in persisted book or photo domain models — use ids; binary data stays in platform/store layers.
+- Heavy image decode, render, and encode MUST run in Web Workers — never block the main thread.
+- Do not weaken `tsconfig` / ESLint, add blanket `eslint-disable` / `@ts-ignore` / `as any`, or skip tests to make checks green.
+- Bugs found via exploratory browser or MCP sessions MUST be locked in with a Playwright test under `e2e/` that would have failed before the fix.

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/photo/photo.worker.ts!",
+    "e2e/**/*.ts",
+    "e2e/fixtures/*.{mjs,js}",
+    "scripts/**/*.{mjs,js,cjs}",
+    "lighthouserc.cjs!"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "e2e/**/*.{ts,mjs,js}",
+    "scripts/**/*.{mjs,js,cjs}"
+  ],
+  "ignoreBinaries": ["apt-get", "dpkg-deb"],
+  "ignoreDependencies": ["@lhci/cli", "fast-check"],
+  "ignoreIssues": {
+    "src/perf/exposePerf.ts": ["types"],
+    "src/photo/exifSchema.ts": ["types"]
+  }
+}

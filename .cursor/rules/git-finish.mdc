@@ -1,0 +1,15 @@
+---
+description: After finishing a task, commit and open a PR unless told not to
+alwaysApply: true
+---
+
+# Finish with commit + PR
+
+When an agreed implementation task is **complete** (verify gates green; OpenSpec archived when in scope):
+
+1. **Commit** outstanding relevant changes (follow the project's git commit protocol: status/diff/log, HEREDOC message, no secrets, no `--no-verify`).
+2. **Push** the feature branch and **open a pull request** with `gh pr create` (Summary + Test plan), unless a PR for this branch already exists — then push and update the existing PR.
+
+**Do not** commit or open a PR when the user explicitly opted out (e.g. "don't commit", "no PR", "только локально", "без пуша").
+
+If still on `main`/`master`, create a descriptive `feat/`/`fix/` branch before committing. Never force-push `main`/`master`.

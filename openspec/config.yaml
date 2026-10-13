@@ -9,7 +9,7 @@ context: |
   Package manager: pnpm only. Repo language: English. Do not commit `.local_dev/`.
 
   Quality bar:
-  - TypeScript strict + exactOptionalPropertyTypes; ESLint strict-type-checked + stylistic-type-checked
+  - TypeScript strict + exactOptionalPropertyTypes + noUncheckedIndexedAccess; ESLint strict-type-checked + stylistic-type-checked with --max-warnings=0
   - After code changes: pnpm verify (or verify:fast for tight loops); read the output
   - Property-based tests via @fast-check/vitest (numRuns ~100 local; higher in CI)
   - Mutation testing: pnpm stryker:diff on changed modules; nightly full Stryker on main
@@ -19,10 +19,13 @@ context: |
   - Shared factories, fixtures, and helpers; do not copy-paste Arrange/setup across cases or suites
   - Mock I/O boundaries only (fs, network, time, worker edges); do not assert internal helper call counts
   - Detailed test style: skill `write-tests`
+  - Read docs/lessons.md before apply; append a lesson when a review finding repeats
+  - Bugs found via exploratory browser or MCP sessions MUST be locked in with a Playwright test under e2e/ that would have failed before the fix
 
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
   - AGENTS.md is a navigation map (≤150 lines). Specs are behavior SoT.
+  - Durable deferred architecture notes: docs/future-architecture.md; lessons journal: docs/lessons.md
 
   Security surface (tag changes that touch these):
   - File System Access, workers/postMessage, blob/object URLs, CSP/headers, dependency bumps, export pipelines
@@ -66,6 +69,8 @@ operations:
   apply:
     guidance:
       - Do not treat apply as complete until Verification checklist items are green.
+      - Read docs/lessons.md before apply; append a one-line lesson when a review finding repeats.
+      - If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode before treating apply as complete.
       - Require evidenced openspec-design-reviewer pass before or at start of apply when design.md exists.
       - Run pnpm stryker:diff on changed production modules before requesting implementation review.
       - Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.
