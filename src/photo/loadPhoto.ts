@@ -1,7 +1,7 @@
 import { aspectRatio } from './aspectRatio'
 import { formatBytes } from './formatBytes'
 import { isAcceptedPhotoMime } from './mime'
-import type { PhotoWorkerRequest, PhotoWorkerResponse } from './photo.worker'
+import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { UnsupportedPhotoFormatError, type PhotoCardModel } from './types'
 
 let workerInstance: Worker | null = null
@@ -12,6 +12,12 @@ function getWorker(): Worker {
     type: 'module',
   })
   return workerInstance
+}
+
+/** Terminates and clears the cached photo worker (tests / teardown). */
+export function resetPhotoWorker(): void {
+  workerInstance?.terminate()
+  workerInstance = null
 }
 
 function requestPhoto(file: File): Promise<PhotoWorkerResponse> {

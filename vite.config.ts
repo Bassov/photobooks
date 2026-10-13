@@ -12,14 +12,16 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.{test,spec}.{ts,tsx}',
+        'src/**/*.test-helpers.ts',
+        'src/**/*.{bench,benchmark}.{ts,tsx}',
+        'src/**/*.d.ts',
         'src/main.tsx',
-        'src/photo/photo.worker.ts',
       ],
       thresholds: {
-        statements: 43,
-        branches: 46,
-        functions: 33,
-        lines: 43,
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80,
       },
     },
     benchmark: {

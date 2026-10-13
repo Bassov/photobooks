@@ -17,17 +17,31 @@ The checks workflow SHALL fail when the repository fails Prettier check (`format
 
 ### Requirement: Coverage thresholds and Codecov
 
-Unit test coverage SHALL enforce a no-regression floor in CI, and coverage results SHALL be uploaded to Codecov with configuration that enables PR comments when a Codecov token is available.
+Unit test coverage SHALL enforce an **80%** floor in CI (statements, branches, functions, lines), and coverage results SHALL be uploaded to Codecov with configuration that enables PR comments when a Codecov token is available.
 
 #### Scenario: Coverage below floor fails checks
 
 - **WHEN** the checks workflow runs unit tests with coverage
-- **THEN** the job fails if measured coverage is below the configured Vitest thresholds
+- **THEN** the job fails if any of statements, branches, functions, or lines coverage is below 80%
 
 #### Scenario: Codecov upload and PR comment config
 
 - **WHEN** coverage is produced in the checks workflow
-- **THEN** coverage is uploaded to Codecov using the project Codecov config (PR comments enabled even when coverage is unchanged) and a repository Codecov token when configured
+- **THEN** coverage is uploaded to Codecov using the project Codecov config (project target 80%, PR comments enabled even when coverage is unchanged) and a repository Codecov token when configured
+
+### Requirement: Coverage instrumentation scope
+
+Vitest coverage SHALL include product sources under `src/**/*.{ts,tsx}` and SHALL exclude tests, benchmark files, TypeScript declaration files, test helpers (`*.test-helpers.ts`), and the app bootstrap entry `src/main.tsx`. Photo worker processing logic under `src/photo/` SHALL remain inside the coverage denominator (not excluded).
+
+#### Scenario: Benches and declarations excluded
+
+- **WHEN** coverage is collected
+- **THEN** `*.bench.ts` / `*.benchmark.ts` and `*.d.ts` files do not reduce the coverage totals
+
+#### Scenario: Worker processing is instrumented
+
+- **WHEN** coverage is collected
+- **THEN** photo worker processing code under `src/photo/` that implements file→preview/metadata processing is included in the coverage report
 
 ### Requirement: Dependabot dependency updates
 
