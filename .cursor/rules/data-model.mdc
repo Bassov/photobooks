@@ -1,0 +1,13 @@
+---
+description: Photobook data model guidance
+alwaysApply: false
+globs: src/**/*.{ts,tsx}
+---
+
+# Data model
+
+Target shape (not fully implemented yet): `book.json` as book → spreads → pages → slots → assets.
+
+- Validate boundaries with Zod when introducing book/EXIF I/O.
+- Prefer immutable updates and serializable plain objects for persisted state.
+- Do not invent parallel schemas without an OpenSpec change.

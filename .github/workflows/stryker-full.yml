@@ -1,0 +1,45 @@
+name: stryker-full
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: stryker-full-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  stryker-full:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Full mutation testing
+        run: pnpm stryker
+
+      - name: Benchmarks
+        run: pnpm bench
+        env:
+          FC_NUM_RUNS: '500'
+
+      - name: Upload Stryker report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-report
+          path: reports/mutation/
+          retention-days: 14

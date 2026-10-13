@@ -1,0 +1,19 @@
+---
+description: Testing and verify loop requirements
+alwaysApply: true
+---
+
+# Testing
+
+After substantive code changes, run and **read** the output of:
+
+- `pnpm verify:fast` for tight loops (typecheck + lint + vitest)
+- `pnpm verify` before push / finishing apply (adds Playwright)
+
+Also available:
+
+- `pnpm stryker:diff` — mutations on files changed vs `origin/main`
+- `pnpm test:lhci` — Lighthouse CI against `budget.json`
+- `pnpm bench` — vitest bench
+
+PBT: use `@fast-check/vitest`; default `numRuns` ~100 locally; CI may raise via `FC_NUM_RUNS`.

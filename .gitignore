@@ -11,6 +11,18 @@ node_modules
 dist
 dist-ssr
 *.local
+coverage
+reports
+.stryker-tmp
+.lighthouseci
+# WSL interop artifact if LHCI resolves a Windows Chrome path
+/C:*/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +34,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

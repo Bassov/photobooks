@@ -1,6 +1,6 @@
 # Photobooks
 
-Local-first photobook editor. Phase 1 scaffold: Vite + React + TypeScript.
+Local-first photobook editor. Vite + React + TypeScript with OpenSpec, verify loop, and CI.
 
 ## Requirements
 
@@ -11,23 +11,45 @@ Local-first photobook editor. Phase 1 scaffold: Vite + React + TypeScript.
 
 ```bash
 pnpm install
+pnpm exec playwright install chromium
+# Prefer system deps (needs sudo):
+#   pnpm exec playwright install-deps chromium
+# Or without sudo (WSL): extract libs into .local_dev/ (gitignored):
+#   pnpm playwright:libs
 pnpm dev
 ```
 
+`pnpm test:e2e` / `pnpm verify` auto-load `.local_dev/playwright-libs` via `scripts/with-playwright-env.mjs` when present.
+
 ## Scripts
 
-| Command          | Description                               |
-| ---------------- | ----------------------------------------- |
-| `pnpm dev`       | Start the Vite dev server                 |
-| `pnpm typecheck` | TypeScript project build check (`tsc -b`) |
-| `pnpm build`     | Typecheck and production build            |
-| `pnpm preview`   | Preview the production build              |
-| `pnpm lint`      | Run ESLint                                |
-| `pnpm format`    | Format with Prettier                      |
+| Command             | Description                           |
+| ------------------- | ------------------------------------- |
+| `pnpm dev`          | Vite dev server                       |
+| `pnpm typecheck`    | TypeScript project build check        |
+| `pnpm build`        | Typecheck and production build        |
+| `pnpm preview`      | Preview production build              |
+| `pnpm lint`         | ESLint (strict-type-checked)          |
+| `pnpm format`       | Prettier write                        |
+| `pnpm test`         | Vitest unit + PBT                     |
+| `pnpm test:e2e`     | Playwright                            |
+| `pnpm test:lhci`    | Build + Lighthouse CI (`budget.json`) |
+| `pnpm stryker`      | Full mutation testing                 |
+| `pnpm stryker:diff` | Mutations since `origin/main`         |
+| `pnpm verify:fast`  | typecheck + lint + vitest             |
+| `pnpm verify`       | verify:fast + Playwright              |
+| `pnpm bench`        | Vitest benchmarks                     |
 
-## Stack (phase 1)
+Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm verify`.
 
-- Vite + React + TypeScript (`strict`, `exactOptionalPropertyTypes`)
-- ESLint (`typescript-eslint`) + Prettier
+## OpenSpec
 
-OpenSpec, CI, and the first photo-card feature arrive in later phases.
+- Config: `openspec/config.yaml` (quality bar, short proposal limits, mandatory verify + review gates)
+- Cursor skills/commands under `.cursor/`
+- Review subagents: `.cursor/agents/openspec-proposal-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`
+
+Workflow: propose → proposal-reviewer → design/tasks → apply → verify gates → implementation-reviewer → archive.
+
+## CI
+
+GitHub Actions: `checks`, `integration`, `lighthouse` (PR), `stryker-diff` (PR), `stryker-full` (nightly on `main`).

@@ -1,0 +1,13 @@
+---
+description: Photobooks product overview and repo conventions
+alwaysApply: true
+---
+
+# Photobooks overview
+
+Local-first photobook editor (Vite + React 19 + TypeScript + pnpm).
+
+- Repository language: **English** (code, comments, commits, OpenSpec artifacts, CI).
+- Russian only in chat and `.local_dev/` — never commit `.local_dev/`.
+- Toolchain: Node 22 (`.tool-versions`), pnpm 10 (`packageManager`).
+- Spec-driven workflow via OpenSpec (`openspec/`, `/opsx-*` commands).

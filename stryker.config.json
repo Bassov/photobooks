@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": {
+    "configFile": "vite.config.ts",
+    "related": true
+  },
+  "mutate": [
+    "src/lib/**/*.ts",
+    "!src/lib/**/*.{test,spec}.{ts,tsx}",
+    "!src/lib/**/*.{bench,benchmark}.{ts,tsx}"
+  ],
+  "ignorePatterns": [
+    ".local_dev",
+    "dist",
+    "coverage",
+    "reports",
+    "test-results",
+    "playwright-report",
+    ".lighthouseci",
+    ".stryker-tmp",
+    "e2e",
+    "C:*"
+  ],
+  "reporters": ["clear-text", "html"],
+
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": 60
+  },
+  "ignoreStatic": true
+}

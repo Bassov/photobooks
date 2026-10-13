@@ -1,0 +1,58 @@
+schema: spec-driven
+
+context: |
+  Language: en
+  All artifacts must be written in English.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Product: Photobooks — local-first photobook editor (Vite + React 19 + TypeScript).
+  Package manager: pnpm only. Repo language: English. Do not commit `.local_dev/`.
+
+  Quality bar:
+  - TypeScript strict + exactOptionalPropertyTypes; ESLint strict-type-checked + stylistic-type-checked
+  - After code changes: pnpm verify (or verify:fast for tight loops); read the output
+  - Property-based tests via @fast-check/vitest (numRuns ~100 local; higher in CI)
+  - Mutation testing: pnpm stryker:diff on changed modules; nightly full Stryker on main
+  - Perf: Lighthouse CI budgets (budget.json); LoAF blockingDuration ≤ 200 ms in scenario tests
+  - Heavy work (decode/render/imposition) MUST run in Web Workers, never on the main thread
+
+  Agent workflow (mandatory):
+  1. After writing proposal.md → launch Cursor subagent `openspec-proposal-reviewer` before design/tasks
+  2. After apply → run verify gates from tasks.md (typecheck, lint, tests, e2e, stryker:diff)
+  3. Then launch Cursor subagent `openspec-implementation-reviewer`
+  4. Archive only after implementation-reviewer passes (no open critical/high findings)
+
+rules:
+  proposal:
+    - Keep proposals under 400 words (~one screen). Prefer bullets over prose.
+    - Include only: problem, why now, scope in/out, success criteria, risks.
+    - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
+    - If content does not fit, narrow scope — never inflate the proposal.
+    - Immediately after writing proposal.md, the parent agent MUST launch subagent `openspec-proposal-reviewer` and wait for pass before creating design.md or tasks.md.
+  design:
+    - Keep design under ~600 words.
+    - Include implementation detail only where apply would otherwise be ambiguous.
+    - Prefer references to existing modules over inventing new layers.
+  tasks:
+    - Break work into small, checkable tasks.
+    - |
+      Every tasks.md MUST end with this Verification checklist (unchecked at creation):
+      - [ ] pnpm typecheck
+      - [ ] pnpm lint
+      - [ ] pnpm test
+      - [ ] pnpm test:e2e (or pnpm verify)
+      - [ ] pnpm stryker:diff
+      - [ ] pnpm test:lhci when UI or bundle size is affected
+      - [ ] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive
+
+operations:
+  apply:
+    guidance:
+      - Do not treat apply as complete until Verification checklist items are green.
+      - Run pnpm stryker:diff on changed production modules before requesting implementation review.
+      - After verify gates pass, launch Cursor subagent `openspec-implementation-reviewer`.
+      - Do not archive while critical or high review findings remain open.
+  archive:
+    guidance:
+      - Archive only after openspec-implementation-reviewer returned pass.
+      - Summarize what merged into specs/ in a few bullets.

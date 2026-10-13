@@ -6,13 +6,32 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist'] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    ignores: [
+      'dist',
+      'coverage',
+      'test-results',
+      'playwright-report',
+      'blob-report',
+      'reports',
+      '.lighthouseci',
+      'lighthouserc.cjs',
+    ],
+  },
+  {
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+    ],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2023,
       globals: globals.browser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -24,6 +43,14 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    files: ['e2e/**/*.{ts,tsx}', '**/*.{test,spec}.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
   eslintConfigPrettier,

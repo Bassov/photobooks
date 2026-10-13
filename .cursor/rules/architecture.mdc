@@ -1,0 +1,11 @@
+---
+description: Architecture constraints for photobook editor
+alwaysApply: true
+---
+
+# Architecture
+
+- Local-first: prefer on-device file APIs and client-side processing.
+- Heavy work (image decode, render, imposition, later AVIF encode) MUST run in Web Workers (`createImageBitmap`, OffscreenCanvas) — never block the main thread.
+- Keep domain logic in pure functions under `src/` testable without DOM when possible.
+- LoAF budget: blocking tasks ≤ 200 ms in scenario tests (`src/perf/loafObserver.ts`).
