@@ -14,6 +14,7 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 | Perf / LoAF       | `src/perf/`                      | (covered by photo-card / quality bar) |
 | Shared helpers    | `src/lib/`                       | —                                     |
 | Preview hosting   | `wrangler.jsonc`, deploy scripts | `openspec/specs/preview-hosting/`     |
+| CI quality gates  | `.github/`, `codecov.yml`        | `openspec/specs/ci-gates/`            |
 | Agent pipeline    | `.cursor/`, `AGENTS.md`          | `openspec/specs/agent-context/`       |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
@@ -40,7 +41,9 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Security surface
 
-File System Access, workers/`postMessage`, blob/object URLs, CSP/headers, dependency bumps, export. CI: `audit:ci` + CodeQL. High-risk changes: Security Review before archive (see OpenSpec config).
+File System Access, workers/`postMessage`, blob/object URLs, CSP/headers, dependency bumps, export. CI: `audit:ci` + CodeQL + dependency-review + gitleaks (see `ci-gates`). High-risk changes: Security Review before archive (see OpenSpec config).
+
+Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments; enable GitHub Secret scanning and Push protection.
 
 ## Doc budget
 

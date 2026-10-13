@@ -8,9 +8,15 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'lcov'],
+      reporter: ['text', 'lcov', 'json-summary'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.{test,spec}.{ts,tsx}', 'src/main.tsx'],
+      thresholds: {
+        statements: 43,
+        branches: 46,
+        functions: 33,
+        lines: 43,
+      },
     },
     benchmark: {
       include: ['src/**/*.{bench,benchmark}.{ts,tsx}'],

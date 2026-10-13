@@ -31,6 +31,15 @@ jobs:
       - name: Full mutation testing
         run: pnpm stryker
 
+      - name: Mutation summary
+        if: always()
+        run: |
+          if [ -f reports/mutation/mutation.json ]; then
+            node scripts/stryker-pr-summary.mjs
+          else
+            echo "No mutation report produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Benchmarks
         run: pnpm bench
         env:

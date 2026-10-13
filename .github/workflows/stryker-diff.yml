@@ -7,6 +7,10 @@ concurrency:
   group: stryker-diff-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   stryker-diff:
     runs-on: ubuntu-latest
@@ -28,4 +32,32 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Mutation test changed files
+        id: mutate
         run: pnpm stryker:diff
+
+      - name: Mutation summary
+        if: always()
+        id: summary
+        run: |
+          if [ ! -f reports/mutation/mutation.json ]; then
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
+            echo "No mutation report (empty mutate set or early exit)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "has_report=true" >> "$GITHUB_OUTPUT"
+          node scripts/stryker-pr-summary.mjs > /tmp/stryker-pr-comment.md
+
+      - name: Upload Stryker report
+        if: always() && steps.summary.outputs.has_report == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-report
+          path: reports/mutation/
+          retention-days: 7
+
+      - name: Sticky mutation comment
+        if: always() && steps.summary.outputs.has_report == 'true' && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: stryker-mutation
+          path: /tmp/stryker-pr-comment.md

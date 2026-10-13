@@ -2,6 +2,8 @@ name: lighthouse
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 concurrency:
   group: lighthouse-${{ github.workflow }}-${{ github.ref }}
@@ -26,4 +28,18 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lighthouse CI
+        id: lhci
         run: pnpm test:lhci
+
+      - name: Lighthouse summary
+        if: always()
+        run: |
+          {
+            echo "## Lighthouse CI"
+            echo ""
+            if [ "${{ steps.lhci.outcome }}" = "success" ]; then
+              echo "Budgets passed (\`pnpm test:lhci\`)."
+            else
+              echo "Budgets failed or job errored — see job logs and \`.lighthouseci/\` if present."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
