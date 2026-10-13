@@ -50,7 +50,8 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 ## Docs
 
 - Lessons journal: `docs/lessons.md` (read before apply; append when a finding repeats — mandates in OpenSpec config).
-- Deferred book-core / visual regression: `docs/future-architecture.md`.
+- Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
+- Execution plan (one OpenSpec change per checkbox): `docs/roadmap.md`.
 
 ## Doc budget
 
