@@ -2,10 +2,16 @@ name: lighthouse
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 concurrency:
   group: lighthouse-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   lighthouse:
@@ -26,4 +32,18 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lighthouse CI
+        id: lhci
         run: pnpm test:lhci
+
+      - name: Lighthouse summary
+        if: always()
+        env:
+          LHCI_OUTCOME: ${{ steps.lhci.outcome }}
+        run: node scripts/lighthouse-pr-summary.mjs > /tmp/lighthouse-pr-comment.md
+
+      - name: Sticky Lighthouse comment
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: lighthouse-ci
+          path: /tmp/lighthouse-pr-comment.md

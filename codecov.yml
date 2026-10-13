@@ -1,0 +1,29 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 43%
+        threshold: 1%
+    patch:
+      default:
+        informational: true
+
+flag_management:
+  default_rules:
+    carryforward: true
+
+comment:
+  layout: 'reach,diff,flags,files'
+  behavior: default
+  require_changes: false
+  require_base: false
+
+ignore:
+  - 'e2e/**'
+  - 'scripts/**'
+
+flags:
+  unit:
+    paths:
+      - src/
+    carryforward: true

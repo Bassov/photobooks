@@ -54,7 +54,11 @@ Workflow: propose → proposal-reviewer → design/tasks → apply → verify ga
 
 ## CI
 
-GitHub Actions: `checks`, `integration`, `lighthouse` (PR), `stryker-diff` (PR), `stryker-full` (nightly on `main`).
+GitHub Actions: `checks` (typecheck, lint, format, coverage floors, audit, Codecov), `integration`, `lighthouse` (PR + `main`), `stryker-diff` (PR + mutation comment), `stryker-full` (nightly), `dependency-review`, `gitleaks`, CodeQL.
+
+PR reports (comments): Codecov (when coverage-relevant files change — install the [Codecov GitHub App](https://github.com/apps/codecov)), sticky Lighthouse summary + HTML link, sticky Stryker mutation summary when the mutate set is non-empty.
+
+Operators: add repository secret `CODECOV_TOKEN` (Codecov upload / PR comments). In GitHub → Settings → Code security, enable Secret scanning and Push protection.
 
 ## Hosting (Cloudflare Workers Free)
 

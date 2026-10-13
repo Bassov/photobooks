@@ -7,7 +7,7 @@ export function formatBytes(bytes: number): string {
   }
 
   if (bytes < THRESHOLD) {
-    return `${String(Math.round(bytes))} B`
+    return `${Math.round(bytes).toString()} B`
   }
 
   let value = bytes
