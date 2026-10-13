@@ -42,3 +42,8 @@ playwright/.cache/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Generated e2e photo fixtures (scripts recreate them)
+e2e/fixtures/large-24mp.jpg
+e2e/fixtures/sample-3x2.png
+e2e/fixtures/sample-orient6.jpg

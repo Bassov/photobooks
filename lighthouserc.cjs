@@ -39,20 +39,16 @@ module.exports = {
     collect: {
       staticDistDir: './dist',
       numberOfRuns: 1,
+      ...(chromePath ? { chromePath } : {}),
       settings: {
         preset: 'desktop',
         budgetsPath: './budget.json',
-        ...(chromePath
-          ? {
-              chromePath,
-              chromeFlags: [
-                '--headless',
-                '--no-sandbox',
-                '--disable-gpu',
-                `--user-data-dir=${userDataDir}`,
-              ],
-            }
-          : {}),
+        chromeFlags: [
+          '--headless=new',
+          '--no-sandbox',
+          '--disable-gpu',
+          `--user-data-dir=${userDataDir}`,
+        ],
       },
     },
     assert: {

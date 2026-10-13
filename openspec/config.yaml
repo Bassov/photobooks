@@ -25,7 +25,7 @@ context: |
 rules:
   proposal:
     - Keep proposals under 400 words (~one screen). Prefer bullets over prose.
-    - Include only: problem, why now, scope in/out, success criteria, risks.
+    - 'Include only: problem, why now, scope in/out, success criteria, risks.'
     - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
     - If content does not fit, narrow scope — never inflate the proposal.
     - Immediately after writing proposal.md, the parent agent MUST launch subagent `openspec-proposal-reviewer` and wait for pass before creating design.md or tasks.md.
