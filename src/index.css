@@ -1,0 +1,41 @@
+:root {
+  --ink: #1c2421;
+  --ink-soft: #2f3b36;
+  --muted: #5a675f;
+  --paper: #e8efe6;
+  --paper-deep: #d3ddd4;
+  --accent: #0f6b5c;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 700px at 12% -10%, #f4f8f2 0%, transparent 55%),
+    radial-gradient(900px 600px at 100% 0%, #c9d8cf 0%, transparent 50%),
+    linear-gradient(165deg, var(--paper) 0%, var(--paper-deep) 100%);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+}
+
+a {
+  color: var(--accent);
+}
