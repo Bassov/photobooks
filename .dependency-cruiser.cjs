@@ -17,7 +17,7 @@ module.exports = {
         'Pure photo helpers must not import React (keep them unit/mutation-testable).',
       severity: 'error',
       from: {
-        path: '^src/photo/(aspectRatio|formatBytes|mime|normalizeOrientation|jpegSof|exifSchema)\\.ts$',
+        path: '^src/photo/(aspectRatio|formatBytes|mime|normalizeOrientation|jpegSof|exifSchema|exifOrientationLabel)\\.ts$',
       },
       to: {
         path: 'node_modules/(react|react-dom)(/|$)',

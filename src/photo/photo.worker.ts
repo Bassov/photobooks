@@ -1,4 +1,5 @@
 import exifr from 'exifr'
+import { exifOrientationFromLabel } from './exifOrientationLabel'
 import { exifParseSchema } from './exifSchema'
 import { readJpegSofSize, stripJpegExif } from './jpegSof'
 import { normalizeOrientation } from './normalizeOrientation'
@@ -34,25 +35,14 @@ export type PhotoWorkerResponse = PhotoWorkerSuccess | PhotoWorkerFailure
 
 const PREVIEW_MAX_EDGE = 1280
 
-const ORIENTATION_LABELS: Record<string, ExifOrientation> = {
-  'Horizontal (normal)': 1,
-  'Mirror horizontal': 2,
-  'Rotate 180': 3,
-  'Mirror vertical': 4,
-  'Mirror horizontal and rotate 270 CW': 5,
-  'Rotate 90 CW': 6,
-  'Mirror horizontal and rotate 90 CW': 7,
-  'Rotate 270 CW': 8,
-}
-
 async function readOrientation(buffer: ArrayBuffer): Promise<ExifOrientation> {
   try {
     const raw: unknown = await exifr.orientation(buffer)
     if (typeof raw === 'number' && raw >= 1 && raw <= 8) {
       return raw as ExifOrientation
     }
-    if (typeof raw === 'string' && Object.hasOwn(ORIENTATION_LABELS, raw)) {
-      const mapped = ORIENTATION_LABELS[raw]
+    if (typeof raw === 'string') {
+      const mapped = exifOrientationFromLabel(raw)
       if (mapped !== undefined) {
         return mapped
       }
