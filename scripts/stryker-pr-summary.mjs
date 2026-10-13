@@ -71,11 +71,6 @@ if (survivedSamples.length > 0) {
   lines.push('### Sample survived mutants', '', ...survivedSamples, '')
 }
 
-lines.push(
-  '_Full HTML report is attached as the workflow artifact `stryker-report`._',
-  '',
-)
-
 const markdown = lines.join('\n')
 process.stdout.write(markdown)
 

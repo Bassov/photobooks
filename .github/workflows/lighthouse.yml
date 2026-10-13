@@ -9,6 +9,10 @@ concurrency:
   group: lighthouse-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
@@ -33,13 +37,13 @@ jobs:
 
       - name: Lighthouse summary
         if: always()
-        run: |
-          {
-            echo "## Lighthouse CI"
-            echo ""
-            if [ "${{ steps.lhci.outcome }}" = "success" ]; then
-              echo "Budgets passed (\`pnpm test:lhci\`)."
-            else
-              echo "Budgets failed or job errored — see job logs and \`.lighthouseci/\` if present."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          LHCI_OUTCOME: ${{ steps.lhci.outcome }}
+        run: node scripts/lighthouse-pr-summary.mjs > /tmp/lighthouse-pr-comment.md
+
+      - name: Sticky Lighthouse comment
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: lighthouse-ci
+          path: /tmp/lighthouse-pr-comment.md

@@ -79,6 +79,15 @@ Lighthouse CI budgets SHALL run on push to the default branch as well as on pull
 - **WHEN** a push lands on the default branch
 - **THEN** the Lighthouse CI workflow runs
 
+### Requirement: Lighthouse reporting on pull requests
+
+The Lighthouse CI job on a pull request SHALL publish a sticky pull-request comment with category scores and a link to the HTML report when LHCI output is available.
+
+#### Scenario: Lighthouse sticky comment
+
+- **WHEN** the Lighthouse workflow finishes on a pull request
+- **THEN** it upserts a sticky pull-request comment with scores and report link(s)
+
 ### Requirement: Mutation reporting on pull requests
 
 The pull-request mutation job SHALL publish a PR-visible mutation summary and a downloadable HTML mutation report, and SHALL write a job Step Summary with the mutation score.
