@@ -23,6 +23,7 @@ artifacts and diffs; you may run read-only checks (`pnpm typecheck`, `pnpm lint`
 1. **Traceability:** implementation matches proposal scope and design decisions; no silent scope creep.
 2. **Tasks:** unfinished or falsely checked tasks → fail.
 3. **Tests:** unit/PBT/e2e coverage matches success criteria; missing critical cases → high.
+   3b. **Test style:** flag private/`as any`/deep-internal access, copy-pasted Arrange/helpers, or internal-call-count mocks as high (see skill `write-tests` and config quality bar). Prefer shared fixtures/factories and public API.
 4. **Quality bar:** type safety, ESLint expectations, workers rule for heavy work, no obvious regressions.
 5. **Verify gates:** confirm typecheck/lint/test/e2e/stryker:diff were run (from conversation or artifacts); if not evidenced, verdict is revise.
 6. **Design reviewer:** if design.md exists, require evidenced `openspec-design-reviewer` pass before apply.

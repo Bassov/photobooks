@@ -6,10 +6,7 @@ import type { ExifOrientation } from './types'
 
 export interface PhotoWorkerRequest {
   id: string
-  buffer: ArrayBuffer
-  mimeType: string
-  name: string
-  byteLength: number
+  file: File
 }
 
 export interface PhotoWorkerSuccess {
@@ -123,9 +120,14 @@ async function handleRequest(
   request: PhotoWorkerRequest,
 ): Promise<PhotoWorkerResponse> {
   try {
-    const orientation = await readOrientation(request.buffer)
+    const buffer = await request.file.arrayBuffer()
+    const mimeType = request.file.type || 'application/octet-stream'
+    const name = request.file.name
+    const byteLength = request.file.size
 
-    const sizeRaw: unknown = await exifr.parse(request.buffer, {
+    const orientation = await readOrientation(buffer)
+
+    const sizeRaw: unknown = await exifr.parse(buffer, {
       pick: ['ImageWidth', 'ImageHeight', 'ExifImageWidth', 'ExifImageHeight'],
       translateValues: false,
       reviveValues: false,
@@ -140,13 +142,13 @@ async function handleRequest(
       .parse(sizeRaw ?? {})
 
     const decodeBuffer =
-      request.mimeType === 'image/jpeg' || request.mimeType === 'image/jpg'
-        ? stripJpegExif(request.buffer)
-        : request.buffer
-    const sof = readJpegSofSize(request.buffer)
+      mimeType === 'image/jpeg' || mimeType === 'image/jpg'
+        ? stripJpegExif(buffer)
+        : buffer
+    const sof = readJpegSofSize(buffer)
 
     const blob = new Blob([new Uint8Array(decodeBuffer)], {
-      type: request.mimeType,
+      type: mimeType,
     })
     const bitmap = await createImageBitmap(blob, {
       imageOrientation: 'none',
@@ -167,9 +169,9 @@ async function handleRequest(
       return {
         id: request.id,
         ok: true,
-        name: request.name,
-        mimeType: request.mimeType,
-        byteLength: request.byteLength,
+        name,
+        mimeType,
+        byteLength,
         width,
         height,
         correctedWidth: transform.correctedW,

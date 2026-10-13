@@ -36,6 +36,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `react-composition`   | component APIs, composition      |
 | `react-perf-spa`      | SPA bundle / re-render / workers |
 | `ui-review`           | UI a11y / anti-slop audit        |
+| `write-tests`         | unit / e2e / PBT authorship      |
 
 ## Security surface
 

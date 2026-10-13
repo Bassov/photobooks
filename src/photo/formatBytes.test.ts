@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { test, fc } from '@fast-check/vitest'
 import { formatBytes } from './formatBytes'
 
 describe('formatBytes', () => {
@@ -29,4 +30,13 @@ describe('formatBytes', () => {
     )
     expect(() => formatBytes(Number.NaN)).toThrow(RangeError)
   })
+
+  test.prop([fc.integer({ min: 0, max: 1024 ** 4 })])(
+    'non-negative finite inputs yield non-empty unit labels',
+    (bytes) => {
+      const label = formatBytes(bytes)
+      expect(label.length).toBeGreaterThan(0)
+      expect(label).toMatch(/\s(B|KB|MB|GB|TB)$/)
+    },
+  )
 })

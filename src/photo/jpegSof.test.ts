@@ -1,22 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { execFileSync } from 'node:child_process'
+import {
+  ensurePhotoFixtures,
+  photoFixturePaths,
+} from '../../e2e/fixtures/ensurePhotoFixtures'
 import { readJpegSofSize, stripJpegExif } from './jpegSof'
 import exifr from 'exifr'
 
-const fixturesDir = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../e2e/fixtures',
-)
-
 describe('jpegSof', () => {
   it('reads SOF size and strips EXIF from orientation fixture', async () => {
-    execFileSync(process.execPath, [join(fixturesDir, 'write-exif-jpeg.mjs')], {
-      stdio: 'pipe',
-    })
-    const original = readFileSync(join(fixturesDir, 'sample-orient6.jpg'))
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const original = readFileSync(photoFixturePaths.sampleOrient6)
     const size = readJpegSofSize(
       original.buffer.slice(
         original.byteOffset,

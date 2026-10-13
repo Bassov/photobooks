@@ -14,10 +14,7 @@ function getWorker(): Worker {
   return workerInstance
 }
 
-function requestPhoto(
-  file: File,
-  buffer: ArrayBuffer,
-): Promise<PhotoWorkerResponse> {
+function requestPhoto(file: File): Promise<PhotoWorkerResponse> {
   const worker = getWorker()
   const id = `photo-${String((requestCounter += 1))}`
 
@@ -40,14 +37,8 @@ function requestPhoto(
     worker.addEventListener('message', onMessage)
     worker.addEventListener('error', onError)
 
-    const request: PhotoWorkerRequest = {
-      id,
-      buffer,
-      mimeType: file.type,
-      name: file.name,
-      byteLength: file.size,
-    }
-    worker.postMessage(request, [buffer])
+    const request: PhotoWorkerRequest = { id, file }
+    worker.postMessage(request)
   })
 }
 
@@ -57,8 +48,7 @@ export async function loadPhoto(file: File): Promise<PhotoCardModel> {
     throw new UnsupportedPhotoFormatError(mimeType)
   }
 
-  const buffer = await file.arrayBuffer()
-  const response = await requestPhoto(file, buffer)
+  const response = await requestPhoto(file)
 
   if (!response.ok) {
     throw new Error(response.error)

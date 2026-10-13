@@ -17,3 +17,5 @@ Also available:
 - `pnpm bench` — vitest bench
 
 PBT: use `@fast-check/vitest`; default `numRuns` ~100 locally; CI may raise via `FC_NUM_RUNS`.
+
+Test authorship conventions: skill `write-tests` (mandates in `openspec/config.yaml` quality bar).

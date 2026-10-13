@@ -21,12 +21,17 @@ function toLoafEntry(entry: LoafLikeEntry): LoafEntry {
   }
 }
 
-export function startLoafObserver(): void {
+export function isLoafObserving(): boolean {
+  return observer !== null
+}
+
+/** Starts LoAF observation. Returns whether the observer is active. */
+export function startLoafObserver(): boolean {
   if (typeof PerformanceObserver === 'undefined') {
-    return
+    return false
   }
   if (observer !== null) {
-    return
+    return true
   }
 
   try {
@@ -37,8 +42,10 @@ export function startLoafObserver(): void {
     })
 
     observer.observe({ type: 'long-animation-frame', buffered: true })
+    return true
   } catch {
     observer = null
+    return false
   }
 }
 
@@ -58,6 +65,11 @@ export function clearLoafEntries(): void {
 export function assertNoExcessiveBlocking(
   budgetMs: number = LOAF_BLOCKING_BUDGET_MS,
 ): void {
+  if (!isLoafObserving()) {
+    throw new Error(
+      'LoAF observer is not active; cannot assert blocking budget',
+    )
+  }
   const offenders = entries.filter((e) => e.blockingDuration > budgetMs)
   if (offenders.length > 0) {
     const worst = offenders.reduce((a, b) =>
