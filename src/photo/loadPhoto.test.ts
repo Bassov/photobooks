@@ -4,46 +4,18 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from '../../e2e/fixtures/ensurePhotoFixtures'
-import { loadPhoto } from './loadPhoto'
-import type { PhotoWorkerSuccess } from './photo.worker'
+import { loadPhoto, resetPhotoWorker, revokePhotoPreview } from './loadPhoto'
+import {
+  makePhotoCardModel,
+  mockWorkerFailure,
+  mockWorkerRuntimeError,
+  mockWorkerSuccess,
+} from './photo.test-helpers'
 import { UnsupportedPhotoFormatError } from './types'
-
-function mockWorkerSuccess(response: Omit<PhotoWorkerSuccess, 'id'>): void {
-  class MockWorker {
-    private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
-
-    addEventListener(
-      type: string,
-      listener: (event: MessageEvent) => void,
-    ): void {
-      const set = this.listeners.get(type) ?? new Set()
-      set.add(listener)
-      this.listeners.set(type, set)
-    }
-
-    removeEventListener(
-      type: string,
-      listener: (event: MessageEvent) => void,
-    ): void {
-      this.listeners.get(type)?.delete(listener)
-    }
-
-    postMessage(data: { id: string }): void {
-      const payload: PhotoWorkerSuccess = { ...response, id: data.id }
-      queueMicrotask(() => {
-        const event = { data: payload } as MessageEvent
-        for (const listener of this.listeners.get('message') ?? []) {
-          listener(event)
-        }
-      })
-    }
-  }
-
-  vi.stubGlobal('Worker', MockWorker)
-}
 
 describe('loadPhoto', () => {
   afterEach(() => {
+    resetPhotoWorker()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -91,5 +63,34 @@ describe('loadPhoto', () => {
     expect(model.orientation).toBe(6)
     expect(model.previewUrl).toBe('blob:mock-preview')
     expect(createObjectURL).toHaveBeenCalledOnce()
+  })
+
+  it('throws when worker returns ok false', async () => {
+    const file = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    mockWorkerFailure('worker blew up')
+
+    await expect(loadPhoto(file)).rejects.toThrow('worker blew up')
+  })
+
+  it('throws when worker emits error event', async () => {
+    const file = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    mockWorkerRuntimeError('Photo worker failed')
+
+    await expect(loadPhoto(file)).rejects.toThrow('Photo worker failed')
+  })
+
+  it('revokes preview object URL', () => {
+    const revoke = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined)
+    const model = makePhotoCardModel({ previewUrl: 'blob:to-revoke' })
+
+    revokePhotoPreview(model)
+
+    expect(revoke).toHaveBeenCalledWith('blob:to-revoke')
   })
 })
