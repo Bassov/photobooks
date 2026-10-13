@@ -2,30 +2,33 @@
 export function readJpegSofSize(
   buffer: ArrayBuffer,
 ): { width: number; height: number } | null {
-  const bytes = new Uint8Array(buffer)
-  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+  if (buffer.byteLength < 4) {
+    return null
+  }
+  const view = new DataView(buffer)
+  if (view.getUint8(0) !== 0xff || view.getUint8(1) !== 0xd8) {
     return null
   }
 
   let offset = 2
-  while (offset + 9 < bytes.length) {
-    if (bytes[offset] !== 0xff) {
+  while (offset + 9 < view.byteLength) {
+    if (view.getUint8(offset) !== 0xff) {
       offset += 1
       continue
     }
-    const marker = bytes[offset + 1]
+    const marker = view.getUint8(offset + 1)
     if (marker === 0xd9 || marker === 0xda) {
       return null
     }
     if (marker >= 0xc0 && marker <= 0xc3) {
-      const height = (bytes[offset + 5] << 8) | bytes[offset + 6]
-      const width = (bytes[offset + 7] << 8) | bytes[offset + 8]
+      const height = view.getUint16(offset + 5, false)
+      const width = view.getUint16(offset + 7, false)
       if (width > 0 && height > 0) {
         return { width, height }
       }
       return null
     }
-    const length = (bytes[offset + 2] << 8) | bytes[offset + 3]
+    const length = view.getUint16(offset + 2, false)
     if (length < 2) {
       return null
     }
@@ -36,19 +39,23 @@ export function readJpegSofSize(
 
 /** Drop APP1 Exif segments so decoders cannot auto-apply orientation. */
 export function stripJpegExif(buffer: ArrayBuffer): ArrayBuffer {
-  const bytes = new Uint8Array(buffer)
-  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+  if (buffer.byteLength < 4) {
+    return buffer
+  }
+  const view = new DataView(buffer)
+  if (view.getUint8(0) !== 0xff || view.getUint8(1) !== 0xd8) {
     return buffer
   }
 
+  const bytes = new Uint8Array(buffer)
   const parts: Uint8Array[] = [bytes.subarray(0, 2)]
   let offset = 2
-  while (offset + 3 < bytes.length) {
-    if (bytes[offset] !== 0xff) {
+  while (offset + 3 < view.byteLength) {
+    if (view.getUint8(offset) !== 0xff) {
       parts.push(bytes.subarray(offset))
       break
     }
-    const marker = bytes[offset + 1]
+    const marker = view.getUint8(offset + 1)
     if (marker === 0xda) {
       parts.push(bytes.subarray(offset))
       break
@@ -57,18 +64,19 @@ export function stripJpegExif(buffer: ArrayBuffer): ArrayBuffer {
       parts.push(bytes.subarray(offset, offset + 2))
       break
     }
-    const length = (bytes[offset + 2] << 8) | bytes[offset + 3]
+    const length = view.getUint16(offset + 2, false)
     const segmentEnd = offset + 2 + length
-    if (length < 2 || segmentEnd > bytes.length) {
+    if (length < 2 || segmentEnd > view.byteLength) {
       parts.push(bytes.subarray(offset))
       break
     }
     const isExifApp1 =
       marker === 0xe1 &&
-      bytes[offset + 4] === 0x45 &&
-      bytes[offset + 5] === 0x78 &&
-      bytes[offset + 6] === 0x69 &&
-      bytes[offset + 7] === 0x66
+      length >= 6 &&
+      view.getUint8(offset + 4) === 0x45 &&
+      view.getUint8(offset + 5) === 0x78 &&
+      view.getUint8(offset + 6) === 0x69 &&
+      view.getUint8(offset + 7) === 0x66
     if (!isExifApp1) {
       parts.push(bytes.subarray(offset, segmentEnd))
     }

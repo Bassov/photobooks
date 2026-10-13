@@ -27,6 +27,7 @@ const PURE_PHOTO = new Set([
   'src/photo/formatBytes.ts',
   'src/photo/mime.ts',
   'src/photo/normalizeOrientation.ts',
+  'src/photo/exifOrientationLabel.ts',
 ])
 
 const mutateFiles = [...changed]

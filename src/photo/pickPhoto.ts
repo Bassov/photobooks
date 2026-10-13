@@ -22,11 +22,15 @@ export async function pickPhotoWithFilePicker(): Promise<File | null> {
   }
 
   try {
-    const [handle] = await openFilePicker({
+    const handles = await openFilePicker({
       multiple: false,
       types: PICKER_TYPES,
       excludeAcceptAllOption: true,
     })
+    const handle = handles[0]
+    if (!handle) {
+      return null
+    }
     return await handle.getFile()
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {

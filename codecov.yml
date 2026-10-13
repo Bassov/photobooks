@@ -21,6 +21,7 @@ comment:
 ignore:
   - 'e2e/**'
   - 'scripts/**'
+  - 'src/photo/photo.worker.ts'
 
 flags:
   unit:

@@ -19,5 +19,14 @@ export function formatBytes(bytes: number): string {
 
   const rounded = Math.round(value * 10) / 10
   const label = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
-  return `${label} ${UNITS[unitIndex]}`
+  switch (unitIndex) {
+    case 1:
+      return `${label} KB`
+    case 2:
+      return `${label} MB`
+    case 3:
+      return `${label} GB`
+    default:
+      return `${label} TB`
+  }
 }

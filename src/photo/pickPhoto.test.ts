@@ -32,6 +32,17 @@ describe('pickPhotoWithFilePicker', () => {
     expect(showOpenFilePicker).toHaveBeenCalledOnce()
   })
 
+  it('returns null when picker yields no handles', async () => {
+    const showOpenFilePicker = vi.fn().mockResolvedValue([])
+    Object.defineProperty(window, 'showOpenFilePicker', {
+      configurable: true,
+      writable: true,
+      value: showOpenFilePicker,
+    })
+
+    await expect(pickPhotoWithFilePicker()).resolves.toBeNull()
+  })
+
   it('returns null on AbortError', async () => {
     const showOpenFilePicker = vi
       .fn()

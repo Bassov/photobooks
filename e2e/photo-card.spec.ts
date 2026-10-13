@@ -10,6 +10,8 @@ interface PhotobooksPerfApi {
   getLoafEntries: () => readonly unknown[]
   assertNoExcessiveBlocking: (budgetMs?: number) => void
   isLoafObserving: () => boolean
+  stopLoafObserver: () => void
+  loafBlockingBudgetMs: number
 }
 
 declare global {

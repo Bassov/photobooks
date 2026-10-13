@@ -3,7 +3,9 @@ import {
   clearLoafEntries,
   getLoafEntries,
   isLoafObserving,
+  LOAF_BLOCKING_BUDGET_MS,
   startLoafObserver,
+  stopLoafObserver,
 } from './loafObserver'
 
 export interface PhotobooksPerfApi {
@@ -11,6 +13,8 @@ export interface PhotobooksPerfApi {
   getLoafEntries: typeof getLoafEntries
   assertNoExcessiveBlocking: typeof assertNoExcessiveBlocking
   isLoafObserving: typeof isLoafObserving
+  stopLoafObserver: typeof stopLoafObserver
+  loafBlockingBudgetMs: typeof LOAF_BLOCKING_BUDGET_MS
 }
 
 declare global {
@@ -33,5 +37,7 @@ export function enablePerfHooks(): void {
     getLoafEntries,
     assertNoExcessiveBlocking,
     isLoafObserving,
+    stopLoafObserver,
+    loafBlockingBudgetMs: LOAF_BLOCKING_BUDGET_MS,
   }
 }

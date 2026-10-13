@@ -37,6 +37,12 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Dependency boundaries
+        run: pnpm deps
+
+      - name: Unused code (knip)
+        run: pnpm knip
+
       - name: Format check
         run: pnpm format:check
 
