@@ -60,13 +60,13 @@ GitHub Actions: `checks`, `integration`, `lighthouse` (PR), `stryker-diff` (PR),
 
 Assets-only Worker serves `dist/` as a SPA (`wrangler.jsonc`). Static asset requests are free/unlimited on the Workers Free plan; keep the Worker assets-only (no `main` script) so preview traffic does not consume the free daily Workers request quota.
 
-| Workers Builds setting | Value                                |
-| ---------------------- | ------------------------------------ |
-| Production branch      | `main`                               |
-| Build command          | `pnpm install && pnpm build`         |
-| Deploy command         | `pnpm exec wrangler deploy`          |
-| Preview command        | `pnpm exec wrangler versions upload` |
-| Output / assets        | `./dist` (from Wrangler config)      |
+| Workers Builds setting | Value                           |
+| ---------------------- | ------------------------------- |
+| Production branch      | `main`                          |
+| Build command          | `pnpm install && pnpm build`    |
+| Deploy command         | `pnpm exec wrangler deploy`     |
+| Preview command        | `pnpm exec wrangler preview`    |
+| Output / assets        | `./dist` (from Wrangler config) |
 
 Production URL (Workers Free, assets-only): https://photobooks.photobooks-bassov.workers.dev
 
