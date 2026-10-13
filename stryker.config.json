@@ -13,6 +13,7 @@
     "src/photo/mime.ts",
     "src/photo/normalizeOrientation.ts",
     "src/photo/exifOrientationLabel.ts",
+    "src/photo/processPhoto.ts",
     "!src/**/*.{test,spec}.{ts,tsx}",
     "!src/**/*.{bench,benchmark}.{ts,tsx}"
   ],

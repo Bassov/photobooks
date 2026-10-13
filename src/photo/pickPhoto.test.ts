@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { canUseOpenFilePicker, pickPhotoWithFilePicker } from './pickPhoto'
+import {
+  canUseOpenFilePicker,
+  photoInputAccept,
+  pickPhotoWithFilePicker,
+} from './pickPhoto'
 
 describe('pickPhotoWithFilePicker', () => {
   afterEach(() => {
@@ -54,5 +58,24 @@ describe('pickPhotoWithFilePicker', () => {
     })
 
     await expect(pickPhotoWithFilePicker()).resolves.toBeNull()
+  })
+
+  it('exposes accept attribute for the file input', () => {
+    expect(photoInputAccept()).toContain('image/jpeg')
+  })
+
+  it('rethrows non-Abort errors', async () => {
+    const showOpenFilePicker = vi
+      .fn()
+      .mockRejectedValue(new DOMException('Denied', 'NotAllowedError'))
+    Object.defineProperty(window, 'showOpenFilePicker', {
+      configurable: true,
+      writable: true,
+      value: showOpenFilePicker,
+    })
+
+    await expect(pickPhotoWithFilePicker()).rejects.toMatchObject({
+      name: 'NotAllowedError',
+    })
   })
 })

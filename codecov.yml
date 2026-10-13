@@ -2,7 +2,7 @@ coverage:
   status:
     project:
       default:
-        target: 43%
+        target: 80%
         threshold: 1%
     patch:
       default:
@@ -21,7 +21,10 @@ comment:
 ignore:
   - 'e2e/**'
   - 'scripts/**'
-  - 'src/photo/photo.worker.ts'
+  - 'src/**/*.{bench,benchmark}.{ts,tsx}'
+  - 'src/**/*.d.ts'
+  - 'src/**/*.test-helpers.ts'
+  - 'src/main.tsx'
 
 flags:
   unit:
