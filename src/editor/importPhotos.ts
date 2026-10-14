@@ -75,7 +75,7 @@ async function importPhotoFilesInner(
     }
 
     if (prepared.length === 0) {
-      report({
+      options.onProgress?.({
         total: rejected.length,
         completed: rejected.length,
         errors: earlyErrors,

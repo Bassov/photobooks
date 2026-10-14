@@ -22,12 +22,23 @@ const changed = new Set([
   ...gitLines(['ls-files', '--others', '--exclude-standard']),
 ])
 
-const PURE_PHOTO = new Set([
+// Pure helpers + production modules with unit coverage (skip workers / thick UI).
+const PHOTO_MUTATE = new Set([
   'src/photo/aspectRatio.ts',
   'src/photo/formatBytes.ts',
   'src/photo/mime.ts',
   'src/photo/normalizeOrientation.ts',
   'src/photo/exifOrientationLabel.ts',
+  'src/photo/pickPhoto.ts',
+  'src/photo/pickPhotos.ts',
+  'src/photo/assetPool.ts',
+  'src/photo/objectUrlLru.ts',
+])
+
+const EDITOR_MUTATE = new Set([
+  'src/editor/bookStore.ts',
+  'src/editor/importPhotos.ts',
+  'src/editor/thumbCache.ts',
 ])
 
 const mutateFiles = [...changed]
@@ -38,7 +49,10 @@ const mutateFiles = [...changed]
   .filter((file) => !file.endsWith('photo.worker.ts'))
   .filter((file) => {
     if (file.startsWith('src/photo/')) {
-      return PURE_PHOTO.has(file)
+      return PHOTO_MUTATE.has(file)
+    }
+    if (file.startsWith('src/editor/')) {
+      return EDITOR_MUTATE.has(file)
     }
     if (file.startsWith('src/lib/')) {
       return true

@@ -9,3 +9,4 @@ Living journal of repeated review findings. Read before OpenSpec apply. Append o
 - Bugs found via exploratory browser or MCP sessions MUST be locked in with a Playwright test under `e2e/` that would have failed before the fix.
 - Copy `input.files` into an array before setting `input.value = ''` — `FileList` is live and empties on clear.
 - `useSyncExternalStore` getSnapshot return values must be referentially stable when data is unchanged (do not allocate a new object/array each call).
+- When adding a new `src/<capability>/` domain module, extend `scripts/stryker-diff.mjs` (and `stryker.config.json` mutate) or `stryker:diff` will skip and the PR will have no mutation comment.
