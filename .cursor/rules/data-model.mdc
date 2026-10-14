@@ -6,8 +6,10 @@ globs: src/**/*.{ts,tsx}
 
 # Data model
 
-Target shape (not fully implemented yet): `book.json` as book → spreads → pages → slots → assets.
+Canonical shape (see `src/core` / `openspec/specs/book-core/`): `book.json` as book → spreads → frames, plus assets map and ordered gallery of asset ids. Pages are derived from spreads — do not store `pages[]` or slots.
 
-- Validate boundaries with Zod when introducing book/EXIF I/O.
-- Prefer immutable updates and serializable plain objects for persisted state.
+- Physical units are millimeters; crop is `{ zoom ≥ 1, center }` in normalized source space.
+- Validate load boundaries with Zod (`parseBook`); refuse newer `schemaVersion`.
+- Prefer immutable updates with structural sharing (`updateSpread` / `updateFrame`).
+- Do not store `File` / `Blob` / handles in the document — assets are ids only.
 - Do not invent parallel schemas without an OpenSpec change.

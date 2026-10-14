@@ -31,7 +31,7 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
 
 **Review cut:** the core editing loop works at 60 fps — add your photos to the filmstrip, drag them onto spreads on a zoomable pasteboard and back. Validates the document model, the shared renderer (including its pan/zoom performance) and drop semantics. Nothing is persisted yet.
 
-- [ ] [prep] `frame-budget-gates` — 60 fps measurement and gates (Security Review: headers)
+- [x] [prep] `frame-budget-gates` — 60 fps measurement and gates (Security Review: headers)
   - [x] `src/perf/`: rAF frame-pacing sampler, Event Timing (INP) observer, `performance.measure` helpers for hot handlers; exposed via `__photobooksPerf`
   - [x] Playwright perf fixture: CDP CPU throttling, scenario windows, assertions (zero LoAF, INP, handler p95), frame stats as a CI artifact; throttling rate calibrated on CI runners
   - [x] `pnpm perf`: the same scenarios on a real machine with frame-pacing assertions
@@ -41,11 +41,11 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
   - [x] Enable React Compiler (or remove the assumption from `react-perf-spa`)
   - [x] Existing photo-card import scenario passes the new zero-LoAF gate
 - [ ] [prep] `book-core-schema` — pure book document in `src/core`
-  - [ ] Zod schema v1: book settings (trim size mm, bleed, safe margin), layout grid (margins, columns, rows, gutters) and guides (book-level, per-spread), assets, per-book gallery (ordered asset ids), spreads, frames (rect mm, z, assetId?, crop)
-  - [ ] Parse / serialize, `schemaVersion`, migration chain scaffold, reject newer versions
-  - [ ] Invariants: no dangling asset refs, every placed asset is in the gallery; PBT round-trip
-  - [ ] Immutable updates with structural sharing (unchanged spreads keep their reference)
-  - [ ] dependency-cruiser `core-is-pure`; update `.cursor/rules/data-model.mdc` and `AGENTS.md` module map
+  - [x] Zod schema v1: book settings (trim size mm, bleed, safe margin), layout grid (margins, columns, rows, gutters) and guides (book-level, per-spread), assets, per-book gallery (ordered asset ids), spreads, frames (rect mm, z, assetId?, crop)
+  - [x] Parse / serialize, `schemaVersion`, migration chain scaffold, reject newer versions
+  - [x] Invariants: no dangling asset refs, every placed asset is in the gallery; PBT round-trip
+  - [x] Immutable updates with structural sharing (unchanged spreads keep their reference)
+  - [x] dependency-cruiser `core-is-pure`; update `.cursor/rules/data-model.mdc` and `AGENTS.md` module map
 - [ ] [prep] `layout-geometry` — templates, resolver, ops
   - [ ] Templates as frame generators aligned to the layout grid: full-bleed spread, one per page, 2-up, 4-grid
   - [ ] `resolveSpread` → resolved items with source crop rect; derived page cut lines; memoized by spread reference

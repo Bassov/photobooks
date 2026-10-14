@@ -43,6 +43,10 @@ const mutateFiles = [...changed]
     if (file.startsWith('src/lib/')) {
       return true
     }
+    if (file.startsWith('src/core/')) {
+      // Skip barrel and test fixtures; mutate production core modules only.
+      return !file.endsWith('/index.ts') && !file.includes('/testing/')
+    }
     return false
   })
   .filter((file) => existsSync(file))

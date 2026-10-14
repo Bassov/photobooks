@@ -12,6 +12,16 @@ module.exports = {
       },
     },
     {
+      name: 'core-is-pure',
+      comment:
+        'src/core must stay pure: no React/DOM UI modules or photo/perf/App imports.',
+      severity: 'error',
+      from: { path: '^src/core' },
+      to: {
+        path: ['^src/(photo|perf|App)', 'node_modules/(react|react-dom)(/|$)'],
+      },
+    },
+    {
       name: 'photo-helpers-no-react',
       comment:
         'Pure photo helpers must not import React (keep them unit/mutation-testable).',

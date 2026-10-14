@@ -16,6 +16,7 @@ export default tseslint.config(
       'reports',
       '.lighthouseci',
       'lighthouserc.cjs',
+      '.stryker-tmp',
     ],
   },
   {

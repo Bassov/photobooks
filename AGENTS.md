@@ -10,6 +10,7 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 
 | Area              | Code                             | Spec                              |
 | ----------------- | -------------------------------- | --------------------------------- |
+| Book document     | `src/core/`                      | `openspec/specs/book-core/`       |
 | Photo open / card | `src/photo/`                     | `openspec/specs/photo-card/`      |
 | Perf / 60 fps     | `src/perf/`                      | `openspec/specs/frame-budget/`    |
 | Shared helpers    | `src/lib/`                       | —                                 |
