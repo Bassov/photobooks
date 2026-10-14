@@ -94,12 +94,14 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
 
     callbacks[0]?.(0)
-    expect(getBookStoreSnapshot().book.gallery).toHaveLength(8)
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(4)
     callbacks[1]?.(0)
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(8)
+    callbacks[2]?.(0)
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(10)
   })
 
-  it('freezes gallery snapshot while import is running', () => {
+  it('exposes flushed gallery ids while import is running', () => {
     vi.stubGlobal(
       'requestAnimationFrame',
       (cb: FrameRequestCallback): number => {
@@ -118,7 +120,7 @@ describe('bookStore', () => {
     expect(galleryListener).toHaveBeenCalled()
 
     enqueueGalleryAssets([{ assetId: 'during' }])
-    expect(getGalleryIdsSnapshot()).toEqual(['before'])
+    expect(getGalleryIdsSnapshot()).toEqual(['before', 'during'])
     expect(getBookStoreSnapshot().book.gallery).toEqual(['before', 'during'])
 
     setImportRunning(false)

@@ -234,27 +234,13 @@ export function resetAssetPool(): void {
   requestCounter = 0
 }
 
-/** Prefer these asset ids when scheduling queued thumb jobs; abort scrolled-away work. */
+/**
+ * Prefer these asset ids when scheduling queued thumb jobs.
+ * Does not abort off-screen work — import batches must finish for every gallery
+ * id (Filmstrip reveal / windowing would otherwise leave permanent gray placeholders).
+ */
 export function setVisibleAssetIds(assetIds: readonly string[]): void {
   visibleAssetIds = new Set(assetIds)
-  for (const id of assetIds) {
-    if (!abortByAsset.has(id)) {
-      abortByAsset.set(id, new AbortController())
-    }
-  }
-  for (const [id, controller] of abortByAsset) {
-    if (!visibleAssetIds.has(id)) {
-      controller.abort()
-      abortByAsset.delete(id)
-    }
-  }
-  queue = queue.filter((job) => {
-    if (job.signal?.aborted) {
-      job.reject(new DOMException('Aborted', 'AbortError'))
-      return false
-    }
-    return true
-  })
   pump()
 }
 

@@ -17,7 +17,7 @@ export interface BookStoreState {
   importExpectedCount: number
 }
 
-const GALLERY_FLUSH_CHUNK = 8
+const GALLERY_FLUSH_CHUNK = 4
 
 function createSessionBook(): Book {
   return {
@@ -68,8 +68,6 @@ let assetSeq = 0
 let flushScheduled = false
 let pendingGalleryIds: string[] = []
 let pendingMeta = new Map<string, AssetSessionMeta>()
-/** Gallery ids frozen at import start so Filmstrip does not remount per chunk. */
-let gallerySnapshotDuringImport: readonly string[] | null = null
 
 const galleryListeners = new Set<Listener>()
 
@@ -145,9 +143,6 @@ export function subscribeGallery(listener: Listener): () => void {
 }
 
 export function getGalleryIdsSnapshot(): readonly string[] {
-  if (state.importRunning && gallerySnapshotDuringImport) {
-    return gallerySnapshotDuringImport
-  }
   return state.book.gallery
 }
 
@@ -205,11 +200,6 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
   ) {
     return
   }
-  if (running) {
-    gallerySnapshotDuringImport = state.book.gallery
-  } else {
-    gallerySnapshotDuringImport = null
-  }
   state = {
     ...state,
     importRunning: running,
@@ -230,6 +220,5 @@ export function resetBookStore(next?: BookStoreState): void {
   pendingMeta = new Map()
   flushScheduled = false
   assetSeq = 0
-  gallerySnapshotDuringImport = null
   emit()
 }
