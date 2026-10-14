@@ -9,7 +9,7 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
 - Tags:
   - **[prep]** — groundwork with no new user-facing UI (pure modules, adapters, workers). Verified by tests.
   - **[feature]** — a visible change on the Cloudflare preview URL. The **Browser check** line describes what to verify.
-- **60 fps is part of done.** Every `[feature]` ships a perf scenario for the interaction it adds (gates in `docs/future-architecture.md`, "Performance model"); a regression blocks the PR. **Perf:** lines name the techniques the change must use. The **Browser check** includes watching the interaction for stutter (DevTools Performance panel, frame rendering stats).
+- **60 fps is part of done.** Every `[feature]` ships a perf scenario for the interaction it adds (gates in `docs/future-architecture.md`, "Performance model"); a regression blocks the PR. **Perf:** lines name the techniques the change must use. The **Browser check** includes watching the interaction for stutter (DevTools Performance panel, frame rendering stats). For features with an in-app scrollport, the Browser check also verifies no page-level H/V scroll — the named region is the scrollport (Playwright: `assertDocumentFitsViewport`).
 - Milestones are review cuts: at the end of each, stop and review the product as a whole before continuing.
 - Tick a top-level box only after the change is archived and the PR is merged.
 
@@ -46,26 +46,26 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
   - [x] Invariants: no dangling asset refs, every placed asset is in the gallery; PBT round-trip
   - [x] Immutable updates with structural sharing (unchanged spreads keep their reference)
   - [x] dependency-cruiser `core-is-pure`; update `.cursor/rules/data-model.mdc` and `AGENTS.md` module map
-- [ ] [prep] `layout-geometry` — templates, resolver, ops
+- [x] [prep] `layout-geometry` — templates, resolver, ops
   - [x] Templates as frame generators aligned to the layout grid: full-bleed spread, one per page, 2-up, 4-grid
   - [x] `resolveSpread` → resolved items with source crop rect; derived page cut lines; memoized by spread reference
   - [x] Pure ops: add to / remove from gallery (cascades placements), place, replace, unplace, swap, apply template, add / remove / move spread
   - [x] Selectors: placement count per asset, unplaced assets
   - [x] PBT for geometry and op invariants; `pnpm bench` budgets for resolve, ops and selectors on a 40-spread / 1000-asset book
 - [ ] [feature] `editor-shell-filmstrip` — editor layout and gallery
-  - [ ] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
-  - [ ] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery
-  - [ ] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), cancellation when a thumbnail scrolls away, transferables; folder scan and file reads inside the worker; per-file errors do not abort the batch; progress
-  - [ ] Horizontal virtualized filmstrip (React Aria GridList + Virtualizer); placeholders with aspect ratio first, thumbnails stream in
-  - [ ] Bounded object-URL LRU with revoke on eviction
+  - [x] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
+  - [x] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery
+  - [x] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), cancellation when a thumbnail scrolls away, transferables; folder scan and file reads inside the worker; per-file errors do not abort the batch; progress
+  - [x] Horizontal virtualized filmstrip (React Aria GridList + Virtualizer); placeholders with aspect ratio first, thumbnails stream in
+  - [x] Bounded object-URL LRU with revoke on eviction
   - **Perf:** pre-sized thumbnails only, `decoding="async"`, gallery updates batched per frame; scenario: import 200 photos while scrolling the filmstrip — zero LoAF.
-  - **Browser check:** add a folder of 100+ photos, scroll the filmstrip during import without stutter; add more files later.
+  - **Browser check:** add a folder of 100+ photos, scroll the filmstrip during import without stutter; document does not grow H/V scrollbars; filmstrip is the horizontal scrollport; add more files later.
 - [ ] [feature] `pasteboard-workspace` — shared DOM painter on a pasteboard
   - [ ] `src/render/SpreadView` draws resolved items; empty frames show placeholders
   - [ ] Pasteboard: all spreads stacked vertically, off-screen spreads virtualized, active spread follows scroll
   - [ ] New book starts with a few spreads; choose a template per spread; add spread
   - **Perf:** `contain` + `content-visibility` per spread, per-spread store subscription (an edit re-renders one spread), active-spread tracking via `IntersectionObserver` (no scroll-handler layout reads). Gate: ~40 spreads × 4 photos, scroll top to bottom — zero LoAF, frame pacing within budget; if it fails, stop and revisit the painter choice.
-  - **Browser check:** scroll through the book like an InDesign pasteboard, switch templates, add a spread — no dropped frames.
+  - **Browser check:** scroll through the book like an InDesign pasteboard, switch templates, add a spread — no dropped frames; document does not grow H/V scrollbars; pasteboard is the vertical scrollport.
 - [ ] [feature] `camera-zoom-pan` — zoom and pan
   - [ ] Ctrl/Cmd+wheel and pinch zoom around the cursor, `+` / `-`, fit spread, fit width, 100%; Space+drag pan; zoom indicator
   - [ ] Zoom-aware image tiers: smallest preview covering on-screen size × DPR; worker generates tiers into a bounded in-memory LRU

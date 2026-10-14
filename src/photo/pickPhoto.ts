@@ -1,45 +1,16 @@
-import { acceptedPhotoAcceptAttr } from './mime'
+import {
+  canUseOpenFilePicker,
+  photoInputAccept,
+  pickPhotosWithFilePicker,
+} from './pickPhotos'
 
-const PICKER_TYPES = [
-  {
-    description: 'Images',
-    accept: {
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/webp': ['.webp'],
-    },
-  },
-]
+export { canUseOpenFilePicker, photoInputAccept }
 
-export function canUseOpenFilePicker(): boolean {
-  return typeof window.showOpenFilePicker === 'function'
-}
-
+/** Single-file FSA pick (legacy helper). Prefer `pickPhotosWithFilePicker`. */
 export async function pickPhotoWithFilePicker(): Promise<File | null> {
-  const openFilePicker = window.showOpenFilePicker
-  if (typeof openFilePicker !== 'function') {
+  const files = await pickPhotosWithFilePicker()
+  if (files === null) {
     return null
   }
-
-  try {
-    const handles = await openFilePicker({
-      multiple: false,
-      types: PICKER_TYPES,
-      excludeAcceptAllOption: true,
-    })
-    const handle = handles[0]
-    if (!handle) {
-      return null
-    }
-    return await handle.getFile()
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return null
-    }
-    throw error
-  }
-}
-
-export function photoInputAccept(): string {
-  return acceptedPhotoAcceptAttr()
+  return files[0] ?? null
 }

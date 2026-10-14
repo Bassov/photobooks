@@ -1,85 +1,83 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makePhotoCardModel } from './photo/photo.test-helpers'
-import type { PhotoCardModel } from './photo/types'
-
-const useOpenPhotoMock = vi.fn()
-
-vi.mock('./photo/useOpenPhoto', () => ({
-  useOpenPhoto: (): unknown => useOpenPhotoMock() as unknown,
-}))
-
 import App from './App'
+import { getBookStoreSnapshot, resetBookStore } from './editor/bookStore'
+import { resetThumbCache } from './editor/thumbCache'
+import { resetAssetPool } from './photo/assetPool'
+import { mockWorkerSuccess } from './photo/photo.test-helpers'
 
-function stubOpenPhoto(overrides: {
-  photo?: PhotoCardModel | null
-  error?: string | null
-  busy?: boolean
-  onOpenPhoto?: () => Promise<void>
-}): {
-  onOpenPhoto: ReturnType<typeof vi.fn>
-} {
-  const onOpenPhoto = overrides.onOpenPhoto ?? vi.fn()
-  useOpenPhotoMock.mockReturnValue({
-    inputId: 'photo-input',
-    inputRef: { current: null },
-    photo: overrides.photo ?? null,
-    error: overrides.error ?? null,
-    busy: overrides.busy ?? false,
-    accept: 'image/jpeg',
-    onOpenPhoto,
-    onFileInputChange: vi.fn(),
-  })
-  return { onOpenPhoto: onOpenPhoto as ReturnType<typeof vi.fn> }
-}
-
-describe('App', () => {
+describe('App editor shell', () => {
   afterEach(() => {
     cleanup()
-    vi.clearAllMocks()
+    resetBookStore()
+    resetThumbCache()
+    resetAssetPool()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
-  it('shows idle open-photo CTA and invokes open handler', () => {
-    const { onOpenPhoto } = stubOpenPhoto({})
+  it('shows editor shell with workspace and filmstrip', () => {
     render(<App />)
-
-    expect(screen.getByRole('button', { name: 'Open photo' })).toBeTruthy()
+    expect(screen.getByTestId('editor-shell')).toBeTruthy()
+    expect(screen.getByTestId('editor-workspace')).toBeTruthy()
+    expect(screen.getByTestId('filmstrip')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add photos' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add folder' })).toBeTruthy()
     expect(screen.queryByTestId('photo-card')).toBeNull()
-    expect(screen.queryByTestId('photo-error')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Open photo' }))
-    expect(onOpenPhoto).toHaveBeenCalledOnce()
   })
 
-  it('shows loading label when busy', () => {
-    stubOpenPhoto({ busy: true })
-    render(<App />)
-
-    const button = screen.getByRole('button', { name: 'Loading…' })
-    expect(button).toBeTruthy()
-    expect((button as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('shows error alert', () => {
-    stubOpenPhoto({ error: 'Unsupported format: image/tiff' })
-    render(<App />)
-
-    expect(screen.getByTestId('photo-error').textContent).toBe(
-      'Unsupported format: image/tiff',
-    )
-  })
-
-  it('shows photo card when a photo is loaded', () => {
-    stubOpenPhoto({
-      photo: makePhotoCardModel({
-        correctedWidth: 20,
-        correctedHeight: 40,
-        aspectLabel: '1:2',
-        sizeLabel: '1.0 KB',
-      }),
+  it('imports a file via the hidden input into the gallery', async () => {
+    const previewBuffer = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]).buffer
+    mockWorkerSuccess({
+      ok: true,
+      name: 'a.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 4,
+      width: 30,
+      height: 20,
+      correctedWidth: 30,
+      correctedHeight: 20,
+      orientation: 1,
+      previewBuffer,
+      previewMimeType: 'image/jpeg',
     })
-    render(<App />)
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-thumb')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
-    expect(screen.getByTestId('photo-card')).toBeTruthy()
-    expect(screen.getByTestId('photo-dimensions').textContent).toBe('20×40')
+    render(<App />)
+    const input = screen.getByTestId('photo-file-input')
+    const file = new File([new Uint8Array([1, 2, 3])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    fireEvent.change(input, { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBeGreaterThan(0)
+    })
+    await waitFor(() => {
+      expect(screen.getAllByTestId('filmstrip-item').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('shows per-file error for TIFF without aborting', async () => {
+    render(<App />)
+    const input = screen.getByTestId('photo-file-input')
+    const bad = new File([new Uint8Array([1])], 'scan.tiff', {
+      type: 'image/tiff',
+    })
+    fireEvent.change(input, { target: { files: [bad] } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('import-errors').textContent).toMatch(
+        /Unsupported/i,
+      )
+    })
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
   })
 })

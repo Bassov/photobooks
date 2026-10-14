@@ -8,6 +8,8 @@ import type { ExifOrientation } from './types'
 export interface PhotoWorkerRequest {
   id: string
   file: File
+  /** Long-edge cap for the preview JPEG (default PREVIEW_MAX_EDGE). */
+  maxEdge?: number
 }
 
 export interface PhotoWorkerSuccess {
@@ -34,6 +36,7 @@ export interface PhotoWorkerFailure {
 export type PhotoWorkerResponse = PhotoWorkerSuccess | PhotoWorkerFailure
 
 const PREVIEW_MAX_EDGE = 1280
+export const THUMB_MAX_EDGE = 320
 
 async function readOrientation(buffer: ArrayBuffer): Promise<ExifOrientation> {
   try {
@@ -82,6 +85,7 @@ function applyOrientationTransform(
 async function buildPreview(
   bitmap: ImageBitmap,
   orientation: ExifOrientation,
+  maxEdge: number,
 ): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
   const rawW = bitmap.width
   const rawH = bitmap.height
@@ -91,7 +95,7 @@ async function buildPreview(
     rawH,
   )
 
-  const scale = Math.min(1, PREVIEW_MAX_EDGE / Math.max(correctedW, correctedH))
+  const scale = Math.min(1, maxEdge / Math.max(correctedW, correctedH))
   const outW = Math.max(1, Math.round(correctedW * scale))
   const outH = Math.max(1, Math.round(correctedH * scale))
 
@@ -157,7 +161,8 @@ export async function processPhotoRequest(
         bitmap.height
 
       const transform = normalizeOrientation(orientation, width, height)
-      const preview = await buildPreview(bitmap, orientation)
+      const maxEdge = request.maxEdge ?? PREVIEW_MAX_EDGE
+      const preview = await buildPreview(bitmap, orientation, maxEdge)
 
       return {
         id: request.id,

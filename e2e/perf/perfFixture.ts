@@ -47,15 +47,9 @@ export async function applyCpuThrottling(page: Page): Promise<void> {
 
 export async function enablePerfScenario(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    // Abort FSA so Open photo falls through to the hidden file input.
-    ;(
-      window as Window & {
-        showOpenFilePicker?: () => Promise<FileSystemFileHandle[]>
-      }
-    ).showOpenFilePicker = () =>
-      Promise.reject(
-        new DOMException('The user aborted a request.', 'AbortError'),
-      )
+    // Force the file-input fallback so Playwright can setInputFiles / filechooser.
+    Reflect.deleteProperty(window, 'showOpenFilePicker')
+    Reflect.deleteProperty(window, 'showDirectoryPicker')
   })
   await page.goto('/?perf=1')
   await page.waitForFunction(() => window.__photobooksPerf !== undefined)

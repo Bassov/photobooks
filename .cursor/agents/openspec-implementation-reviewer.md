@@ -24,8 +24,11 @@ artifacts and diffs; you may run read-only checks (`pnpm typecheck`, `pnpm lint`
 2. **Tasks:** unfinished or falsely checked tasks → fail.
 3. **Tests:** unit/PBT/e2e coverage matches success criteria; missing critical cases → high.
    3b. **Test style:** flag private/`as any`/deep-internal access, copy-pasted Arrange/helpers, or internal-call-count mocks as high (see skill `write-tests` and config quality bar). Prefer shared fixtures/factories and public API.
+   3c. **Scrollport:** if an in-app scrollport was introduced or changed, require Playwright `assertDocumentFitsViewport` (and `assertNamedScrollport` when content overflows); element `scrollLeft` alone is not enough.
+   3d. **UI smoke:** if UI is in scope, require evidenced empty + happy + primary scroll/interact coverage (Playwright preferred) and skill `ui-review` (incl. layout smoke). Missing → high / revise. Green typecheck/unit alone is not enough.
+   3e. **Virtualized lists:** if a virtualizer or variable-size list changed, require mid-scroll scrollport-coverage assertions (not only item count / LoAF). Missing → high.
 4. **Quality bar:** type safety, ESLint expectations, workers rule for heavy work, no obvious regressions.
-5. **Verify gates:** confirm typecheck/lint/test/e2e/stryker:diff were run (from conversation or artifacts); if not evidenced, verdict is revise.
+5. **Verify gates:** confirm typecheck/lint/test/e2e/stryker:diff were run (from conversation or artifacts); if not evidenced, verdict is revise. For UI scope, also require evidenced browser smoke before `pass`.
 6. **Design reviewer:** if design.md exists, require evidenced `openspec-design-reviewer` pass before apply.
 7. **Agent docs:** if module map / commands / security surface / durable conventions changed, `AGENTS.md` (and rules/skills only when lasting) must be updated; `AGENTS.md` must stay ≤150 lines and must not duplicate OpenSpec checklists.
 8. **Audit:** if `package.json`/lockfile or security-tagged change, require `pnpm audit:ci` evidence.

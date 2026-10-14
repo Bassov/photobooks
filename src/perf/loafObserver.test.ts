@@ -126,7 +126,7 @@ describe('loafObserver', () => {
     captured.callback?.({
       getEntries: () => [
         {
-          startTime: 0,
+          startTime: performance.now() + 1,
           duration: 60,
           blockingDuration: 40,
         } as PerformanceEntry & { blockingDuration: number },

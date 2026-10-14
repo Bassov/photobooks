@@ -12,6 +12,8 @@ interface LoafLikeEntry extends PerformanceEntry {
 
 const entries: LoafEntry[] = []
 let observer: PerformanceObserver | null = null
+/** Entries with startTime < watermark are ignored (cleared scenario window). */
+let watermarkMs = 0
 
 function toLoafEntry(entry: LoafLikeEntry): LoafEntry {
   return {
@@ -37,7 +39,11 @@ export function startLoafObserver(): boolean {
   try {
     observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        entries.push(toLoafEntry(entry))
+        const loaf = toLoafEntry(entry)
+        if (loaf.startTime < watermarkMs) {
+          continue
+        }
+        entries.push(loaf)
       }
     })
 
@@ -52,6 +58,7 @@ export function startLoafObserver(): boolean {
 export function stopLoafObserver(): void {
   observer?.disconnect()
   observer = null
+  watermarkMs = 0
 }
 
 export function getLoafEntries(): readonly LoafEntry[] {
@@ -60,6 +67,7 @@ export function getLoafEntries(): readonly LoafEntry[] {
 
 export function clearLoafEntries(): void {
   entries.length = 0
+  watermarkMs = observer === null ? 0 : performance.now()
 }
 
 /** Asserts zero LoAF entries during the scenario window (60 fps gate). */

@@ -159,3 +159,41 @@ The repository SHALL provide `docs/roadmap.md` as the execution plan for the pho
 
 - **WHEN** an agent loads project context from `openspec/config.yaml`
 - **THEN** the Doc budget text mentions `docs/roadmap.md`
+
+### Requirement: Scrollport success criteria and Playwright lock-in
+
+When an OpenSpec change introduces or changes an in-app scrollport (`overflow: auto` or `scroll` region), proposal success criteria SHALL state that the document MUST NOT gain page-level horizontal or vertical scroll, and that scrolling MUST occur only inside the named scrollport(s). Apply guidance and the quality bar SHALL require Playwright assertions that the document element fits the viewport (and that the named scrollport overflows when content is longer than the viewport), using shared e2e helpers — not `ui-review` as a gate, and not element `scrollLeft` alone as proof of page containment.
+
+#### Scenario: Proposal names scrollport containment
+
+- **WHEN** a proposal's scope includes introducing or changing an in-app scrollport
+- **THEN** its success criteria MUST include no page-level H/V scroll and scrolling only inside the named scrollport(s)
+
+#### Scenario: Playwright page-fit helpers are mandated
+
+- **WHEN** such a change is applied
+- **THEN** the change MUST include Playwright coverage that asserts `document.documentElement` scroll size does not exceed client size, via shared helpers under `e2e/`, before apply is treated as complete
+
+#### Scenario: Page overflow is not a ui-review gate
+
+- **WHEN** an agent loads OpenSpec quality-bar or apply guidance from `openspec/config.yaml`
+- **THEN** the returned text states that page overflow containment is a Playwright invariant and MUST NOT treat skill `ui-review` as the sole gate for that page-overflow invariant
+
+### Requirement: UI browser smoke before push
+
+When an OpenSpec change includes UI in scope, apply SHALL NOT be treated as complete (and SHALL NOT push/archive) until evidenced browser smoke covers empty state, happy path of the change, and primary scroll/interact, and skill `ui-review` (including layout smoke) has been applied. Observable UX claims in success criteria (packing, aspect silhouette, empty copy readability, viewport fill, object-fit, etc.) MUST have matching Playwright assertions before apply completes. Virtualized or variable-size lists MUST assert mounted-window coverage of the scrollport mid-scroll when more items remain — fixed item counts or LoAF alone are insufficient. Green typecheck/unit verify alone is not apply-complete for UI scope.
+
+#### Scenario: Verification checklist names UI smoke
+
+- **WHEN** an agent creates `tasks.md` for a change
+- **THEN** the Verification checklist MUST include a UI-in-scope browser smoke item (empty + happy + primary scroll/interact; skill `ui-review`)
+
+#### Scenario: Apply guidance blocks push without smoke
+
+- **WHEN** an agent loads apply guidance from `openspec/config.yaml`
+- **THEN** the guidance MUST require evidenced UI browser smoke and `ui-review` before push/archive when UI is in scope
+
+#### Scenario: Implementation reviewer fails missing UI smoke
+
+- **WHEN** `openspec-implementation-reviewer` reviews a UI-scoped change lacking empty/happy/scroll e2e or layout smoke evidence
+- **THEN** the verdict MUST NOT be `pass` (missing coverage is high / revise)

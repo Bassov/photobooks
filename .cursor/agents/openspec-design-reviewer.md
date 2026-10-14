@@ -21,7 +21,7 @@ You review OpenSpec design documents only. Do not edit files.
 2. **Composition:** UI/domain split or module boundaries stated when code changes are proposed; prefer small composable units over god-files.
 3. **Workers:** if heavy image/decode/render/encode work is in scope, design MUST place it off the main thread.
 4. **Security:** if scope touches File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export — design MUST include a Security section.
-5. **UI:** if UI is in scope, design should be reviewable against skill `ui-review` (a11y, anti-slop, states); flag missing UX constraints.
+5. **UI:** if UI is in scope, design should be reviewable against skill `ui-review` (a11y, anti-slop, states, layout smoke) and MUST name empty / happy / scroll-or-interact e2e lock-ins; flag missing UX or test constraints.
 6. **Scope:** no silent expansion beyond proposal; no dumping full API trees when references to existing modules suffice.
 7. **Length:** roughly within design word budget from config (~600 words).
 

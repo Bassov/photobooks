@@ -22,6 +22,7 @@ Honor `openspec/config.yaml` `rules.proposal`.
 4. **Scope:** in/out are concrete and testable; success criteria are observable.
 5. **Narrowness:** if the proposal tries to do too much, recommend splitting changes.
 6. **UI:** if UI is in scope, success criteria MUST include observable UX (not only "it works").
+   6b. **Scrollport:** if the change introduces or changes an in-app scrollport (`overflow: auto|scroll`), success criteria MUST state no page-level H/V scroll and scrolling only inside the named scrollport(s).
 7. **Security:** if File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export are in scope, risks MUST include an explicit security bullet.
 
 ## Output
