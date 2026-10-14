@@ -19,3 +19,4 @@ Living journal of repeated review findings. Read before OpenSpec apply. Append o
 - Empty gallery UI must not render inside a 1px / min-width virtualizer window — empty copy lives at full scrollport width with its own e2e geometry assertion.
 - Progressive reveal must not lag behind scrollLeft while the spacer is full gallery width (windowing already limits DOM); otherwise mid-scroll shows a dead zone.
 - UI-scoped apply is not complete on green verify alone — empty + happy + scroll/interact browser smoke (and `ui-review` layout smoke) before push.
+- Cloudflare Workers Builds runs asdf and only the image's preinstalled Node patches. `.tool-versions` must name that exact `nodejs` version, or `pnpm` fails before install.
