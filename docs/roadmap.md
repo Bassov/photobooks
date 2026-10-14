@@ -40,18 +40,18 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
   - [x] Cross-origin isolation (COOP / COEP via Workers static-asset headers); verify `crossOriginIsolated` on the preview URL
   - [x] Enable React Compiler (or remove the assumption from `react-perf-spa`)
   - [x] Existing photo-card import scenario passes the new zero-LoAF gate
-- [ ] [prep] `book-core-schema` — pure book document in `src/core`
+- [x] [prep] `book-core-schema` — pure book document in `src/core`
   - [x] Zod schema v1: book settings (trim size mm, bleed, safe margin), layout grid (margins, columns, rows, gutters) and guides (book-level, per-spread), assets, per-book gallery (ordered asset ids), spreads, frames (rect mm, z, assetId?, crop)
   - [x] Parse / serialize, `schemaVersion`, migration chain scaffold, reject newer versions
   - [x] Invariants: no dangling asset refs, every placed asset is in the gallery; PBT round-trip
   - [x] Immutable updates with structural sharing (unchanged spreads keep their reference)
   - [x] dependency-cruiser `core-is-pure`; update `.cursor/rules/data-model.mdc` and `AGENTS.md` module map
 - [ ] [prep] `layout-geometry` — templates, resolver, ops
-  - [ ] Templates as frame generators aligned to the layout grid: full-bleed spread, one per page, 2-up, 4-grid
-  - [ ] `resolveSpread` → resolved items with source crop rect; derived page cut lines; memoized by spread reference
-  - [ ] Pure ops: add to / remove from gallery (cascades placements), place, replace, unplace, swap, apply template, add / remove / move spread
-  - [ ] Selectors: placement count per asset, unplaced assets
-  - [ ] PBT for geometry and op invariants; `pnpm bench` budgets for resolve, ops and selectors on a 40-spread / 1000-asset book
+  - [x] Templates as frame generators aligned to the layout grid: full-bleed spread, one per page, 2-up, 4-grid
+  - [x] `resolveSpread` → resolved items with source crop rect; derived page cut lines; memoized by spread reference
+  - [x] Pure ops: add to / remove from gallery (cascades placements), place, replace, unplace, swap, apply template, add / remove / move spread
+  - [x] Selectors: placement count per asset, unplaced assets
+  - [x] PBT for geometry and op invariants; `pnpm bench` budgets for resolve, ops and selectors on a 40-spread / 1000-asset book
 - [ ] [feature] `editor-shell-filmstrip` — editor layout and gallery
   - [ ] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
   - [ ] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery

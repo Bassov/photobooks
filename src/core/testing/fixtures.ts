@@ -87,3 +87,41 @@ export function makeBookWithAsset(
     spreads: [makeSpread({ frames: [frame] })],
   })
 }
+
+/** Large book for benches: `spreadCount` spreads and `assetCount` gallery assets. */
+export function largeBook(spreadCount = 40, assetCount = 1000): Book {
+  const assets: Book['assets'] = {}
+  const gallery: string[] = []
+  for (let i = 0; i < assetCount; i += 1) {
+    const id = `asset-${String(i)}`
+    assets[id] = {}
+    gallery.push(id)
+  }
+
+  const spreads: Spread[] = []
+  for (let s = 0; s < spreadCount; s += 1) {
+    const spreadId = `spread-${String(s)}`
+    const frames: Frame[] = []
+    for (let f = 0; f < 4; f += 1) {
+      const assetId = gallery[(s * 4 + f) % gallery.length]
+      frames.push(
+        makeFrame({
+          id: `${spreadId}-f${String(f)}`,
+          z: f,
+          rect: {
+            x: 10 + f * 5,
+            y: 10 + f * 5,
+            width: 80,
+            height: 80,
+          },
+          ...(assetId === undefined
+            ? {}
+            : { assetId, crop: { zoom: 1, center: { x: 0.5, y: 0.5 } } }),
+        }),
+      )
+    }
+    spreads.push(makeSpread({ id: spreadId, frames }))
+  }
+
+  return makeBook({ assets, gallery, spreads })
+}
