@@ -22,6 +22,20 @@ test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
 })
 
+test('empty filmstrip message spans the scrollport', async ({ page }) => {
+  await page.goto('/')
+  const empty = page.getByTestId('filmstrip-empty')
+  await expect(empty).toBeVisible()
+  const box = await empty.boundingBox()
+  expect(box).toBeTruthy()
+  if (!box) {
+    return
+  }
+  // Bug: 1px virtualizer window stacked one word per line.
+  expect(box.width).toBeGreaterThan(240)
+  expect(box.height).toBeLessThan(72)
+})
+
 test('imports PNG into the filmstrip via input fallback', async ({ page }) => {
   await page.goto('/')
   await page
@@ -76,6 +90,69 @@ test('portrait and landscape cards differ; thumbs use contain', async ({
     .first()
     .evaluate((node) => getComputedStyle(node).objectFit)
   expect(objectFit).toBe('contain')
+})
+
+test('portrait gallery fills the scrollport while scrolling', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  // Many identical portraits — fixed WINDOW_SIZE left a hole on wide viewports.
+  const files = Array.from(
+    { length: 36 },
+    () => photoFixturePaths.sampleOrient6,
+  )
+  await page.goto('/')
+  await page.getByTestId('photo-file-input').setInputFiles(files)
+
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 120_000 },
+    )
+    .toBe('36')
+
+  const scroll = page.getByTestId('filmstrip-scroll')
+  const maxScroll = await scroll.evaluate(
+    (node) => node.scrollWidth - node.clientWidth,
+  )
+  expect(maxScroll).toBeGreaterThan(0)
+
+  // Mid-scroll is the regression: fixed WINDOW_SIZE left a hole while more
+  // cards still exist to the right. End-of-strip may legitimately not fill.
+  for (const left of [0, Math.floor(maxScroll / 2)]) {
+    await scroll.evaluate((node, nextLeft) => {
+      node.scrollLeft = nextLeft
+    }, left)
+    await page.waitForTimeout(50)
+
+    const coverage = await page.evaluate(() => {
+      const port = document.querySelector('[data-testid="filmstrip-scroll"]')
+      if (!(port instanceof HTMLElement)) {
+        return { ok: false, reason: 'no-scrollport' }
+      }
+      const portBox = port.getBoundingClientRect()
+      const items = Array.from(
+        document.querySelectorAll('[data-testid="filmstrip-item"]'),
+      )
+      if (items.length === 0) {
+        return { ok: false, reason: 'no-items' }
+      }
+      let maxRight = 0
+      for (const el of items) {
+        const box = el.getBoundingClientRect()
+        if (box.right > maxRight) {
+          maxRight = box.right
+        }
+      }
+      // Rightmost mounted card should reach near the scrollport's right edge
+      // (allow scrollbar / padding slack). A fixed 16-item window leaves >400px.
+      const hole = portBox.right - maxRight
+      return { ok: hole < 120, hole, itemCount: items.length }
+    })
+
+    expect(coverage.ok, JSON.stringify(coverage)).toBe(true)
+  }
 })
 
 test('mixed aspect cards pack with uniform gaps from each card end', async ({

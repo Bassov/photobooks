@@ -12,7 +12,15 @@ import {
 import { Filmstrip } from './Filmstrip'
 import { seedGallery } from './gallery.test-helpers'
 import { resetThumbCache } from './thumbCache'
-import { spacerWidthPx, thumbSlotSize, thumbStride } from './thumbSlotSize'
+import {
+  buildStridePrefix,
+  indexFromScrollOffset,
+  spacerWidthPx,
+  thumbSlotSize,
+  thumbStride,
+  windowCountForCover,
+  THUMB_WIDTH_MAX,
+} from './thumbSlotSize'
 
 const filmstripCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'Filmstrip.css'),
@@ -47,6 +55,21 @@ function seedMixedAspectGallery(): void {
     importRunning: false,
     importExpectedCount: 0,
   })
+}
+
+function stubScrollportWidth(width: number): () => void {
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get() {
+      return (this as HTMLElement).getAttribute('data-testid') ===
+        'filmstrip-scroll'
+        ? width
+        : 0
+    },
+  })
+  return () => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+  }
 }
 
 describe('Filmstrip viewport containment', () => {
@@ -98,23 +121,8 @@ describe('Filmstrip aspect cards', () => {
   })
 
   it('renders distinct widths for landscape, portrait, and square', () => {
-    const callbacks: FrameRequestCallback[] = []
-    const previousRaf = globalThis.requestAnimationFrame
-    globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number => {
-      callbacks.push(cb)
-      return callbacks.length
-    }
-
     seedMixedAspectGallery()
     render(<Filmstrip />)
-    for (let i = 0; i < 12; i += 1) {
-      act(() => {
-        const batch = callbacks.splice(0, callbacks.length)
-        for (const cb of batch) {
-          cb(0)
-        }
-      })
-    }
 
     const items = screen.getAllByTestId('filmstrip-item')
     expect(items).toHaveLength(3)
@@ -142,8 +150,6 @@ describe('Filmstrip aspect cards', () => {
     expect(items[2]?.style.left).toBe(
       `${String(thumbStride(1.5) + thumbStride(0.5))}px`,
     )
-
-    globalThis.requestAnimationFrame = previousRaf
   })
 
   it('shows gallery count on the status strip', () => {
@@ -167,5 +173,85 @@ describe('Filmstrip aspect cards', () => {
     expect(screen.getByTestId('import-progress').textContent).toMatch(
       /Importing 3 \/ 10/,
     )
+  })
+
+  it('keeps empty-state copy full-width (not a 1px virtualizer window)', () => {
+    resetBookStore()
+    render(<Filmstrip />)
+
+    const empty = screen.getByTestId('filmstrip-empty')
+    expect(empty.textContent).toMatch(/Add a folder or photos/)
+    // Bug: empty lived inside width:1px window → one word per line.
+    expect(document.querySelector('.filmstrip-window')).toBeNull()
+    expect(empty.parentElement?.getAttribute('data-testid')).toBe(
+      'filmstrip-scroll',
+    )
+    expect(filmstripCss).toMatch(/\.filmstrip-empty\s*\{[^}]*width:\s*100%/s)
+  })
+
+  it('mounts enough portrait items to cover a wide scrollport', () => {
+    const restore = stubScrollportWidth(1200)
+    try {
+      seedGallery(40, 0.5)
+      render(<Filmstrip />)
+
+      const aspects = Array.from({ length: 40 }, () => 0.5)
+      const prefix = buildStridePrefix(aspects)
+      const coverPx = 1200 + THUMB_WIDTH_MAX * 2
+      const expected = windowCountForCover(prefix, 0, coverPx)
+      expect(expected).toBeGreaterThan(16)
+
+      const windowEl = screen.getByTestId('filmstrip-window')
+      expect(Number(windowEl.getAttribute('data-window-count'))).toBe(expected)
+      expect(screen.getAllByTestId('filmstrip-item')).toHaveLength(expected)
+    } finally {
+      restore()
+    }
+  })
+
+  it('keeps the sliding window covering the scrollport after scroll', () => {
+    const restore = stubScrollportWidth(1000)
+    const callbacks: FrameRequestCallback[] = []
+    const previousRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+      callbacks.push(cb)
+      return callbacks.length
+    }
+
+    try {
+      seedGallery(50, 0.5)
+      render(<Filmstrip />)
+
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const prefix = buildStridePrefix(Array.from({ length: 50 }, () => 0.5))
+      const scrollLeft = prefix[12] ?? 0
+
+      act(() => {
+        Object.defineProperty(scroll, 'scrollLeft', {
+          configurable: true,
+          value: scrollLeft,
+          writable: true,
+        })
+        scroll.dispatchEvent(new Event('scroll'))
+        for (const cb of callbacks.splice(0, callbacks.length)) {
+          cb(0)
+        }
+      })
+
+      const windowStart = indexFromScrollOffset(scrollLeft, prefix)
+      const coverPx = 1000 + THUMB_WIDTH_MAX * 2
+      const expected = windowCountForCover(prefix, windowStart, coverPx)
+      expect(expected).toBeGreaterThan(16)
+      expect(
+        Number(
+          screen
+            .getByTestId('filmstrip-window')
+            .getAttribute('data-window-count'),
+        ),
+      ).toBe(expected)
+    } finally {
+      globalThis.requestAnimationFrame = previousRaf
+      restore()
+    }
   })
 })

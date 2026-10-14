@@ -24,15 +24,13 @@ import {
   indexFromScrollOffset,
   spacerWidthPx,
   THUMB_HEIGHT,
+  THUMB_WIDTH_MAX,
+  windowCountForCover,
 } from './thumbSlotSize'
 import './Filmstrip.css'
 
-/**
- * Visible window size. Items are absolutely packed by actual aspect width
- * (not Virtualizer estimatedRowSize — that left max-width leftover gaps).
- */
-const WINDOW_SIZE = 16
-const REVEAL_PER_FRAME = 1
+/** Extra cover beyond the scrollport so fast scroll does not flash holes. */
+const WINDOW_OVERSCAN_PX = THUMB_WIDTH_MAX * 2
 
 export const Filmstrip = memo(function Filmstrip({
   progress = null,
@@ -55,7 +53,8 @@ export const Filmstrip = memo(function Filmstrip({
     getGalleryAspectsSnapshot,
   )
   const [windowStart, setWindowStart] = useState(0)
-  const [revealed, setRevealed] = useState(0)
+  const [viewportWidth, setViewportWidth] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const scrollRaf = useRef(0)
   const pendingStart = useRef(0)
   const total = gallery.length
@@ -67,31 +66,35 @@ export const Filmstrip = memo(function Filmstrip({
   )
 
   useEffect(() => {
-    if (revealed >= total) {
+    const node = scrollRef.current
+    if (!node) {
       return
     }
-    const id = requestAnimationFrame(() => {
-      setRevealed((current) => Math.min(total, current + REVEAL_PER_FRAME))
-    })
+    const update = (): void => {
+      setViewportWidth(node.clientWidth)
+    }
+    update()
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+    const observer = new ResizeObserver(update)
+    observer.observe(node)
     return () => {
-      cancelAnimationFrame(id)
+      observer.disconnect()
     }
-  }, [revealed, total])
+  }, [])
 
-  useEffect(() => {
-    if (total === 0) {
-      setRevealed(0)
-    }
-  }, [total])
-
-  const start = Math.min(windowStart, Math.max(0, revealed - 1))
+  const coverPx = Math.max(viewportWidth, 1) + WINDOW_OVERSCAN_PX
+  const windowSize = Math.max(
+    windowCountForCover(prefix, windowStart, coverPx),
+    1,
+  )
   const windowKey = gallery
-    .slice(0, revealed)
-    .slice(start, start + WINDOW_SIZE)
+    .slice(windowStart, windowStart + windowSize)
     .join('\0')
-  const windowOffset = prefix[start] ?? 0
+  const windowOffset = prefix[windowStart] ?? 0
   const windowCount = windowKey ? windowKey.split('\0').length : 0
-  const windowEnd = Math.min(start + windowCount, prefix.length - 1)
+  const windowEnd = Math.min(windowStart + windowCount, prefix.length - 1)
   const windowWidth = (prefix[windowEnd] ?? windowOffset) - windowOffset
 
   const items = useMemo(() => {
@@ -99,14 +102,14 @@ export const Filmstrip = memo(function Filmstrip({
       return [] as { id: string; name: string; offsetLeft: number }[]
     }
     return windowKey.split('\0').map((assetId, index) => {
-      const absolute = prefix[start + index] ?? 0
+      const absolute = prefix[windowStart + index] ?? 0
       return {
         id: assetId,
         name: assetId,
         offsetLeft: absolute - windowOffset,
       }
     })
-  }, [windowKey, prefix, start, windowOffset])
+  }, [windowKey, prefix, windowStart, windowOffset])
 
   useEffect(() => {
     setVisibleAssetIds(items.map((item) => item.id))
@@ -126,6 +129,8 @@ export const Filmstrip = memo(function Filmstrip({
     })
   }
 
+  const isEmpty = total === 0
+
   return (
     <section
       className="filmstrip"
@@ -135,44 +140,48 @@ export const Filmstrip = memo(function Filmstrip({
     >
       <FilmstripStatus photoCount={total} progress={progress} />
       <div
+        ref={scrollRef}
         className="filmstrip-scroll"
         data-testid="filmstrip-scroll"
         onScroll={onScroll}
       >
-        <div className="filmstrip-spacer" style={{ width: spacerWidth }}>
-          <div
-            className="filmstrip-window"
-            style={{
-              transform: `translateX(${String(windowOffset)}px)`,
-              width: Math.max(windowWidth, 1),
-              height: THUMB_HEIGHT + 24,
-            }}
-          >
-            <GridList
-              aria-label="Book gallery"
-              orientation="horizontal"
-              items={items}
-              className="filmstrip-list"
+        {isEmpty ? (
+          <p className="filmstrip-empty" data-testid="filmstrip-empty">
+            Add a folder or photos to build the gallery.
+          </p>
+        ) : (
+          <div className="filmstrip-spacer" style={{ width: spacerWidth }}>
+            <div
+              className="filmstrip-window"
+              data-testid="filmstrip-window"
+              data-window-count={windowCount}
               style={{
-                height: THUMB_HEIGHT + 24,
+                transform: `translateX(${String(windowOffset)}px)`,
                 width: Math.max(windowWidth, 1),
+                height: THUMB_HEIGHT + 24,
               }}
-              renderEmptyState={() => (
-                <p className="filmstrip-empty" data-testid="filmstrip-empty">
-                  Add a folder or photos to build the gallery.
-                </p>
-              )}
             >
-              {(item) => (
-                <FilmstripItemView
-                  id={item.id}
-                  name={item.name}
-                  offsetLeft={item.offsetLeft}
-                />
-              )}
-            </GridList>
+              <GridList
+                aria-label="Book gallery"
+                orientation="horizontal"
+                items={items}
+                className="filmstrip-list"
+                style={{
+                  height: THUMB_HEIGHT + 24,
+                  width: Math.max(windowWidth, 1),
+                }}
+              >
+                {(item) => (
+                  <FilmstripItemView
+                    id={item.id}
+                    name={item.name}
+                    offsetLeft={item.offsetLeft}
+                  />
+                )}
+              </GridList>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   )

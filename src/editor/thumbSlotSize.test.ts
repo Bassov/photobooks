@@ -11,6 +11,7 @@ import {
   THUMB_WIDTH_MIN,
   thumbSlotSize,
   thumbStride,
+  windowCountForCover,
 } from './thumbSlotSize'
 
 describe('thumbSlotSize', () => {
@@ -75,6 +76,45 @@ describe('filmstrip stride prefix', () => {
     expect(spacerWidthPx(known, 5, 1)).toBe(
       thumbStride(1.5) + thumbStride(0.5) + 3 * thumbStride(1),
     )
+  })
+
+  it('returns zero spacer width when the gallery is empty', () => {
+    expect(spacerWidthPx([], 0)).toBe(0)
+  })
+
+  it('needs more portrait items than landscape to cover the same viewport', () => {
+    // Fixed WINDOW_SIZE=16 left a hole: 16×portrait ≈ 896px < typical scrollport.
+    const coverPx = 1200
+    const portraits = Array.from({ length: 40 }, () => 0.5)
+    const landscapes = Array.from({ length: 40 }, () => 1.5)
+    const portCount = windowCountForCover(
+      buildStridePrefix(portraits),
+      0,
+      coverPx,
+    )
+    const landCount = windowCountForCover(
+      buildStridePrefix(landscapes),
+      0,
+      coverPx,
+    )
+    expect(portCount).toBeGreaterThan(16)
+    expect(portCount).toBeGreaterThan(landCount)
+    const portPrefix = buildStridePrefix(portraits)
+    expect(
+      (portPrefix[portCount] ?? 0) - (portPrefix[0] ?? 0),
+    ).toBeGreaterThanOrEqual(coverPx)
+  })
+
+  it('covers the viewport after a scrolled start index', () => {
+    const aspects = Array.from({ length: 50 }, () => 0.5)
+    const prefix = buildStridePrefix(aspects)
+    const start = 10
+    const coverPx = 800
+    const count = windowCountForCover(prefix, start, coverPx)
+    expect(count).toBeGreaterThan(0)
+    expect(
+      (prefix[start + count] ?? 0) - (prefix[start] ?? 0),
+    ).toBeGreaterThanOrEqual(coverPx)
   })
 })
 

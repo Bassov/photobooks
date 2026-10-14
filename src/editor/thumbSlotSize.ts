@@ -77,12 +77,37 @@ export function indexFromScrollOffset(
   return Math.max(0, lo - overscan)
 }
 
+/**
+ * How many items from `start` are needed so their packed width covers `coverPx`.
+ * Fixed WINDOW_SIZE left a viewport hole for narrow (portrait) cards.
+ */
+export function windowCountForCover(
+  prefix: readonly number[],
+  start: number,
+  coverPx: number,
+): number {
+  const itemCount = prefix.length - 1
+  if (itemCount <= 0 || start >= itemCount) {
+    return 0
+  }
+  const origin = prefix[start] ?? 0
+  const target = origin + Math.max(coverPx, 0)
+  let end = start + 1
+  while (end < itemCount && (prefix[end] ?? 0) < target) {
+    end += 1
+  }
+  return end - start
+}
+
 export function spacerWidthPx(
   aspects: readonly number[],
   reservedCount: number,
   defaultAspect = 1,
 ): number {
-  const count = Math.max(aspects.length, reservedCount, 1)
+  const count = Math.max(aspects.length, reservedCount)
+  if (count === 0) {
+    return 0
+  }
   let total = 0
   for (let i = 0; i < count; i += 1) {
     total += thumbStride(aspects[i] ?? defaultAspect)

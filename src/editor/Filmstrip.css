@@ -92,4 +92,8 @@
   margin: 1.5rem 0.5rem;
   font-family: var(--font-body);
   color: var(--muted);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
 }
