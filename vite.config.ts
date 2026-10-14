@@ -6,6 +6,10 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    reporters: ['default', 'junit'],
+    outputFile: {
+      junit: 'reports/vitest-junit.xml',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary'],

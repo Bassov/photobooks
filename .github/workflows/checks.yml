@@ -51,6 +51,16 @@ jobs:
         env:
           FC_NUM_RUNS: '200'
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && hashFiles('reports/vitest-junit.xml') != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: reports/vitest-junit.xml
+          flags: unit
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
+
       - name: Coverage summary
         if: always()
         id: coverage_summary
