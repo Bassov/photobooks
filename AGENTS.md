@@ -57,6 +57,10 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
 - Execution plan (one OpenSpec change per checkbox): `docs/roadmap.md`.
 
+## Cursor Cloud
+
+`pnpm install` exits non-zero while `core.hooksPath` points at Cursor agent hooks, because `prepare` runs `lefthook install`. Install with `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev server: `pnpm exec vite --host 0.0.0.0 --port 5173` (an extra `--` makes Vite ignore `--host`).
+
 ## Doc budget
 
 - One `AGENTS.md` (≤150 lines), no workflow checklists here.
