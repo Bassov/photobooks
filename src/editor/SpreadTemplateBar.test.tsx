@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { Pasteboard } from './Pasteboard'
+import { SpreadTemplateBar } from './SpreadTemplateBar'
 
 const editorShellCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'EditorShell.css'),
@@ -55,5 +56,97 @@ describe('SpreadTemplateBar', () => {
     expect(after[1]?.frames).toHaveLength(middle)
     expect(after[2]?.frames).toHaveLength(last)
     expect(screen.getAllByTestId('spread-frame-placeholder')).toHaveLength(4)
+  })
+
+  it('ignores a template change when no spread is marked', () => {
+    resetBookStore()
+    const before = getBookStoreSnapshot().book
+    render(<SpreadTemplateBar spreadId={null} onAddSpread={() => undefined} />)
+    const radio = screen.getByRole('radio', { name: '4-grid' })
+    expect(radio).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Add spread' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    fireEvent.change(radio)
+    expect(getBookStoreSnapshot().book).toBe(before)
+  })
+
+  it('scrolls the pasteboard to the spread added at the end', () => {
+    resetBookStore()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    Object.defineProperty(scroll, 'scrollHeight', {
+      configurable: true,
+      value: 900,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+    expect(getBookStoreSnapshot().book.spreads).toHaveLength(4)
+    expect(scroll.scrollTop).toBe(900)
+  })
+
+  it('marks the spread that fills the pasteboard', () => {
+    resetBookStore()
+    const ratios = [0.4, 1, 0.2]
+    class FakeIntersectionObserver {
+      lastTarget: Element | undefined
+
+      constructor(private readonly callback: IntersectionObserverCallback) {}
+
+      observe(target: Element): void {
+        this.lastTarget = target
+        const index = Number((target as HTMLElement).dataset.slotIndex)
+        const ratio = ratios[index] ?? 0
+        this.callback(
+          [
+            {
+              target,
+              intersectionRatio: ratio,
+            } as IntersectionObserverEntry,
+          ],
+          this as unknown as IntersectionObserver,
+        )
+      }
+
+      unobserve(target: Element): void {
+        this.lastTarget = target
+      }
+
+      disconnect(): void {
+        this.lastTarget = undefined
+      }
+
+      takeRecords(): IntersectionObserverEntry[] {
+        return []
+      }
+    }
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
+    const clientHeight = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'clientHeight',
+    )
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get() {
+        return 800
+      },
+    })
+
+    try {
+      render(<Pasteboard />)
+      const active = screen
+        .getAllByTestId('pasteboard-slot')
+        .find((slot) => slot.getAttribute('data-active') === 'true')
+      expect(active?.getAttribute('data-slot-index')).toBe('1')
+    } finally {
+      vi.unstubAllGlobals()
+      if (clientHeight !== undefined) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'clientHeight',
+          clientHeight,
+        )
+      }
+    }
   })
 })

@@ -123,4 +123,55 @@ describe('pickActiveSpread', () => {
       null,
     )
   })
+
+  it('returns a spread that only partly fills the port', () => {
+    expect(pickActiveSpread([{ id: 'spread-1', ratio: 0.5, index: 0 }])).toBe(
+      'spread-1',
+    )
+  })
+
+  it('keeps the earlier spread when the ratio gap is exactly the tie threshold', () => {
+    expect(
+      pickActiveSpread([
+        { id: 'later', ratio: 0, index: 1 },
+        { id: 'earlier', ratio: 0.02, index: 0 },
+      ]),
+    ).toBe('earlier')
+  })
+
+  it('keeps the earlier spread when a later one is exactly the tie threshold more visible', () => {
+    expect(
+      pickActiveSpread([
+        { id: 'earlier', ratio: 0.5, index: 0 },
+        { id: 'later', ratio: 0.52, index: 1 },
+      ]),
+    ).toBe('earlier')
+  })
+
+  it('keeps the earlier spread when a later one is only slightly less visible', () => {
+    expect(
+      pickActiveSpread([
+        { id: 'earlier', ratio: 1, index: 0 },
+        { id: 'later', ratio: 0.99, index: 1 },
+      ]),
+    ).toBe('earlier')
+  })
+
+  it('keeps a clearly visible later spread ahead of a barely visible earlier one', () => {
+    expect(
+      pickActiveSpread([
+        { id: 'later', ratio: 1, index: 1 },
+        { id: 'earlier', ratio: 0.4, index: 0 },
+      ]),
+    ).toBe('later')
+  })
+
+  it('keeps the first entry when two observations share an index', () => {
+    expect(
+      pickActiveSpread([
+        { id: 'first', ratio: 1, index: 0 },
+        { id: 'second', ratio: 1, index: 0 },
+      ]),
+    ).toBe('first')
+  })
 })

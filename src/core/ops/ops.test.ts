@@ -239,6 +239,49 @@ describe('spread ops', () => {
     expect(next.spreads[2]).toBe(book.spreads[2])
   })
 
+  it('keeps identity when a non-catalog template id changes page role', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b' }),
+        makeSpread({ id: 'c', templateId: 'not-a-template' }),
+      ],
+    })
+    const next = addSpread(book, { id: 'd' })
+    expect(next.spreads[2]).toBe(book.spreads[2])
+  })
+
+  it('keeps a hand-edited catalog spread when its page count stays the same', () => {
+    let book = makeBook({ id: 'session', spreads: [] })
+    book = addSpread(book, { id: 'spread-1' })
+    book = addSpread(book, { id: 'spread-2' })
+    book = addSpread(book, { id: 'spread-3' })
+    const first = book.spreads[0]
+    const middle = book.spreads[1]
+    const last = book.spreads[2]
+    const frame = middle?.frames[0]
+    if (
+      first === undefined ||
+      middle === undefined ||
+      last === undefined ||
+      frame === undefined
+    ) {
+      throw new Error('expected session spreads')
+    }
+    const editedMiddle = {
+      ...middle,
+      frames: [
+        { ...frame, rect: { ...frame.rect, width: 1 } },
+        ...middle.frames.slice(1),
+      ],
+    }
+    const next = addSpread(
+      { ...book, spreads: [first, editedMiddle, last] },
+      { id: 'spread-4' },
+    )
+    expect(next.spreads[1]?.frames[0]?.rect.width).toBe(1)
+  })
+
   it('addSpread inserts at index', () => {
     const book = makeBook({
       spreads: [makeSpread({ id: 'a' }), makeSpread({ id: 'b' })],
