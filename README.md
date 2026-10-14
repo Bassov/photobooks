@@ -4,7 +4,7 @@ Local-first photobook editor. Vite + React + TypeScript with OpenSpec, verify lo
 
 ## Requirements
 
-- Node.js 22 (`.tool-versions` pins `22.23.3`, the Node 22 patch preinstalled on the Cloudflare Workers Builds image)
+- Node.js 22 (`.tool-versions` pins `22.23.2`, the Node 22 patch preinstalled on the Cloudflare Workers Builds image)
 - pnpm 10 (`corepack enable`)
 
 ## Setup
