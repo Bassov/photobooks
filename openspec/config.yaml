@@ -22,6 +22,8 @@ context: |
   - Read docs/lessons.md before apply; append a lesson when a review finding repeats
   - Bugs found via exploratory browser or MCP sessions MUST be locked in with a Playwright test under e2e/ that would have failed before the fix
   - Page overflow containment (document fits viewport; scroll only inside named scrollports) is a Playwright invariant via shared e2e helpers — not a `ui-review` gate; do not treat element scrollLeft alone as proof of page containment
+  - UI in scope: green verify is not enough — require evidenced browser smoke (Playwright and/or MCP browser) for empty, happy-path, and primary scroll/interact before push/archive; skill `ui-review` is mandatory (includes layout smoke)
+  - Observable UX claims in success criteria (empty copy, packing, viewport fill, contain, etc.) MUST have matching Playwright assertions before apply is complete — not only after a human finds the bug
 
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
@@ -39,6 +41,7 @@ rules:
     - If content does not fit, narrow scope — never inflate the proposal.
     - Immediately after writing proposal.md, the parent agent MUST launch subagent `openspec-proposal-reviewer` and wait for pass before creating design.md or tasks.md.
     - If UI is in scope, success criteria MUST include observable UX (not only "it works").
+    - 'If UI is in scope, success criteria MUST name empty + happy-path + primary interact/scroll observables that e2e will lock in.'
     - 'If the change introduces or changes an in-app scrollport (overflow auto/scroll), success criteria MUST state: no page-level H/V scroll; scrolling only inside the named scrollport(s).'
     - If the security surface is in scope, risks MUST include an explicit security bullet.
   design:
@@ -49,6 +52,7 @@ rules:
     - MUST state composition/module boundaries when code changes; prefer small composable units over god-files.
     - When tests are in scope, note which public API is under test and which shared fixtures/helpers to reuse or add.
     - When a scrollport is in scope, note reuse of e2e `assertDocumentFitsViewport` / `assertNamedScrollport` (or equivalent shared helpers).
+    - 'When UI is in scope, note empty / happy / scroll-or-interact e2e cases and that skill `ui-review` (incl. layout smoke) runs before push.'
     - If heavy image/decode/render/encode work is in scope, MUST place it in Web Workers.
     - If the security surface is in scope, MUST include a Security section.
     - Immediately after writing design.md, the parent agent MUST launch subagent `openspec-design-reviewer` and wait for pass before finalizing tasks.md or starting apply.
@@ -62,6 +66,7 @@ rules:
       - [ ] pnpm test:e2e (or pnpm verify)
       - [ ] pnpm stryker:diff
       - [ ] pnpm test:lhci when UI or bundle size is affected
+      - [ ] UI in scope: browser smoke evidenced (empty + happy + primary scroll/interact via Playwright and/or MCP browser); skill `ui-review` pass
       - [ ] Agent docs: if module map / commands / security surface / durable conventions changed → update AGENTS.md (≤150 lines); update .cursor/rules or skills only when a lasting convention changed; do not add alwaysApply rules without merging/removing another
       - [ ] pnpm audit:ci when package.json/lockfile or security-tagged change
       - [ ] Launch openspec-design-reviewer was pass before apply (evidenced)
@@ -75,12 +80,16 @@ operations:
       - Read docs/lessons.md before apply; append a one-line lesson when a review finding repeats.
       - If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode before treating apply as complete.
       - When a change introduces or changes an in-app scrollport, include Playwright calls to `assertDocumentFitsViewport` (and `assertNamedScrollport` when content overflows the viewport) before treating apply as complete.
+      - 'When UI is in scope: before push/archive, run skill `ui-review` and evidenced browser smoke (empty state readable; happy path of the change; primary scroll/interact with no large dead zone while more content exists). Prefer Playwright assertions; MCP browser screenshots/notes are supporting evidence, not a substitute for locking bugs into e2e.'
+      - 'When UI success criteria claim geometry (packing, aspect silhouettes, empty copy, viewport fill, object-fit), add matching Playwright coverage before treating apply as complete.'
+      - 'Virtualized or variable-size lists: e2e MUST assert the mounted window covers the scrollport mid-scroll when more items remain — fixed item counts / LoAF alone are not enough.'
       - Require evidenced openspec-design-reviewer pass before or at start of apply when design.md exists.
       - Run pnpm stryker:diff on changed production modules before requesting implementation review.
       - Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.
       - After verify gates pass, launch Cursor subagent `openspec-implementation-reviewer`.
       - For high-risk security surface changes, launch Cursor Security Review before archive.
       - Do not archive while critical or high review findings remain open.
+      - Do not push a UI-scoped PR when empty/happy/scroll smoke is missing or failing — green typecheck/unit alone is not apply-complete.
   archive:
     guidance:
       - Archive only after openspec-implementation-reviewer returned pass.

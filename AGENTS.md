@@ -37,13 +37,13 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Skills (on demand)
 
-| Skill                 | When                             |
-| --------------------- | -------------------------------- |
-| OpenSpec `openspec-*` | propose / apply / archive / sync |
-| `react-composition`   | component APIs, composition      |
-| `react-perf-spa`      | SPA bundle / re-render / workers |
-| `ui-review`           | UI a11y / anti-slop audit        |
-| `write-tests`         | unit / e2e / PBT authorship      |
+| Skill                 | When                               |
+| --------------------- | ---------------------------------- |
+| OpenSpec `openspec-*` | propose / apply / archive / sync   |
+| `react-composition`   | component APIs, composition        |
+| `react-perf-spa`      | SPA bundle / re-render / workers   |
+| `ui-review`           | UI a11y / layout smoke / anti-slop |
+| `write-tests`         | unit / e2e / PBT authorship        |
 
 ## Security surface
 

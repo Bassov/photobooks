@@ -8,6 +8,23 @@
   overflow: hidden;
 }
 
+.filmstrip-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  margin: 0 0 0.35rem;
+  min-height: 1.25rem;
+}
+
+.filmstrip-count,
+.filmstrip-status .import-progress {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
 .filmstrip-scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -32,12 +49,15 @@
   outline: none;
   overflow: visible;
   display: block;
+  position: relative;
   padding: 0;
   margin: 0;
 }
 
 .filmstrip-item {
-  display: inline-flex;
+  position: absolute;
+  top: 0;
+  display: flex;
   align-items: stretch;
   justify-content: center;
   outline: none;
@@ -54,7 +74,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .filmstrip-placeholder {
@@ -72,4 +92,8 @@
   margin: 1.5rem 0.5rem;
   font-family: var(--font-body);
   color: var(--muted);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
 }

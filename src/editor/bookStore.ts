@@ -71,6 +71,16 @@ let pendingMeta = new Map<string, AssetSessionMeta>()
 
 const galleryListeners = new Set<Listener>()
 
+const DEFAULT_ASPECT = 1
+let galleryAspectsSnapshot: readonly number[] = Object.freeze([])
+let galleryAspectsFor: readonly string[] | null = null
+let galleryAspectsMeta: ReadonlyMap<string, AssetSessionMeta> | null = null
+
+function invalidateGalleryAspectsCache(): void {
+  galleryAspectsFor = null
+  galleryAspectsMeta = null
+}
+
 function emit(): void {
   for (const listener of listeners) {
     listener()
@@ -116,6 +126,7 @@ function scheduleFlush(): void {
       importRunning: state.importRunning,
       importExpectedCount: state.importExpectedCount,
     }
+    invalidateGalleryAspectsCache()
     if (galleryChanged) {
       emitGallery()
     } else {
@@ -148,6 +159,28 @@ export function getGalleryIdsSnapshot(): readonly string[] {
 
 export function getSpacerCountSnapshot(): number {
   return Math.max(state.book.gallery.length, state.importExpectedCount)
+}
+
+/** Per-asset aspect for filmstrip slots; defaults to 1 when meta is missing. */
+export function getAssetAspectSnapshot(assetId: string): number {
+  return state.sessionMeta.get(assetId)?.aspect ?? DEFAULT_ASPECT
+}
+
+/**
+ * Gallery-ordered aspects; referentially stable while gallery identity and
+ * sessionMeta map identity are unchanged.
+ */
+export function getGalleryAspectsSnapshot(): readonly number[] {
+  const gallery = state.book.gallery
+  const meta = state.sessionMeta
+  if (galleryAspectsFor === gallery && galleryAspectsMeta === meta) {
+    return galleryAspectsSnapshot
+  }
+  const next = gallery.map((id) => meta.get(id)?.aspect ?? DEFAULT_ASPECT)
+  galleryAspectsSnapshot = next
+  galleryAspectsFor = gallery
+  galleryAspectsMeta = meta
+  return galleryAspectsSnapshot
 }
 
 export function getBookStoreSnapshot(): BookStoreState {
@@ -220,5 +253,6 @@ export function resetBookStore(next?: BookStoreState): void {
   pendingMeta = new Map()
   flushScheduled = false
   assetSeq = 0
+  invalidateGalleryAspectsCache()
   emit()
 }

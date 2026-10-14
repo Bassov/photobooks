@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   enqueueGalleryAssets,
+  getAssetAspectSnapshot,
   getBookStoreSnapshot,
+  getGalleryAspectsSnapshot,
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
   mintAssetId,
@@ -172,5 +174,43 @@ describe('bookStore', () => {
     })
     expect(storeListener).toHaveBeenCalled()
     expect(galleryListener).not.toHaveBeenCalled()
+  })
+
+  it('exposes stable gallery aspects that update with session meta', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([
+      {
+        assetId: 'a1',
+        meta: {
+          name: 'a.jpg',
+          correctedWidth: 30,
+          correctedHeight: 20,
+          orientation: 1,
+          aspect: 1.5,
+        },
+      },
+    ])
+    expect(getAssetAspectSnapshot('a1')).toBe(1.5)
+    expect(getAssetAspectSnapshot('missing')).toBe(1)
+    const first = getGalleryAspectsSnapshot()
+    expect(first).toEqual([1.5])
+    expect(getGalleryAspectsSnapshot()).toBe(first)
+
+    setAssetSessionMeta('a1', {
+      name: 'a.jpg',
+      correctedWidth: 20,
+      correctedHeight: 40,
+      orientation: 1,
+      aspect: 0.5,
+    })
+    const second = getGalleryAspectsSnapshot()
+    expect(second).toEqual([0.5])
+    expect(second).not.toBe(first)
   })
 })
