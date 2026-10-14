@@ -22,6 +22,7 @@ export interface PhotobooksPerfApi {
   ) => void
   isFramePacingSampling: () => boolean
   getEventTimingEntries: () => readonly unknown[]
+  flushEventTimingEntries: () => void
   getInpMs: () => number | null
   assertInpWithinBudget: (budgetMs?: number) => void
   isEventTimingObserving: () => boolean

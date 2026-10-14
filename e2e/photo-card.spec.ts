@@ -80,12 +80,21 @@ test('24MP JPEG import stays within frame-budget gates', async ({
   await clearPerfScenario(page)
 
   const fileChooserPromise = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Open photo' }).click()
+  await page.getByRole('button', { name: 'Open photo' }).click({ delay: 20 })
   const fileChooser = await fileChooserPromise
   await fileChooser.setFiles(photoFixturePaths.largeJpeg)
 
   await expect(page.getByTestId('photo-card')).toBeVisible({ timeout: 90_000 })
   await expect(page.getByTestId('photo-dimensions')).toHaveText('6000×4000')
+
+  await page.waitForFunction(() => {
+    const perf = window.__photobooksPerf
+    if (!perf) {
+      return false
+    }
+    perf.flushEventTimingEntries()
+    return perf.getEventTimingEntries().length > 0
+  })
 
   await assertCiPerfGates(page)
   await collectFrameStatsArtifact(page, testInfo)

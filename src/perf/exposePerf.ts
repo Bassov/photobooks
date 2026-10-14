@@ -2,6 +2,7 @@ import { PERF_BUDGETS } from './budgets'
 import {
   assertInpWithinBudget,
   clearEventTimingEntries,
+  flushEventTimingEntries,
   getEventTimingEntries,
   getInpMs,
   isEventTimingObserving,
@@ -41,6 +42,7 @@ export interface PhotobooksPerfApi {
   assertFramePacingWithinBudget: typeof assertFramePacingWithinBudget
   isFramePacingSampling: typeof isFramePacingSampling
   getEventTimingEntries: typeof getEventTimingEntries
+  flushEventTimingEntries: typeof flushEventTimingEntries
   getInpMs: typeof getInpMs
   assertInpWithinBudget: typeof assertInpWithinBudget
   isEventTimingObserving: typeof isEventTimingObserving
@@ -88,6 +90,7 @@ export function enablePerfHooks(): void {
     assertFramePacingWithinBudget,
     isFramePacingSampling,
     getEventTimingEntries,
+    flushEventTimingEntries,
     getInpMs,
     assertInpWithinBudget,
     isEventTimingObserving,

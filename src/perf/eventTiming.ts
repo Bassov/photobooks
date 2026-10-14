@@ -19,6 +19,12 @@ interface EventTimingLike extends PerformanceEntry {
 const entries: EventTimingEntry[] = []
 let observer: PerformanceObserver | null = null
 
+function ingest(list: PerformanceObserverEntryList): void {
+  for (const entry of list.getEntries()) {
+    entries.push(toEntry(entry))
+  }
+}
+
 function toEntry(entry: PerformanceEntry): EventTimingEntry {
   const timed = entry as EventTimingLike
   const processingStart = timed.processingStart ?? entry.startTime
@@ -46,9 +52,7 @@ export function startEventTimingObserver(): boolean {
   }
   try {
     observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        entries.push(toEntry(entry))
-      }
+      ingest(list)
     })
     observer.observe({
       type: 'event',
@@ -61,15 +65,22 @@ export function startEventTimingObserver(): boolean {
     // Fallback without durationThreshold for older engines.
     try {
       observer = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          entries.push(toEntry(entry))
-        }
+        ingest(list)
       })
       observer.observe({ type: 'event', buffered: true })
       return true
     } catch {
       observer = null
       return false
+    }
+  }
+}
+
+/** Flush buffered observer entries into the local store. */
+export function flushEventTimingEntries(): void {
+  if (observer && 'takeRecords' in observer) {
+    for (const entry of observer.takeRecords()) {
+      entries.push(toEntry(entry))
     }
   }
 }
@@ -101,6 +112,7 @@ export function assertInpWithinBudget(
   if (!isEventTimingObserving()) {
     throw new Error('Event Timing observer is not active; cannot assert INP')
   }
+  flushEventTimingEntries()
   const inp = getInpMs()
   if (inp === null) {
     throw new Error('No Event Timing entries; cannot assert INP')
