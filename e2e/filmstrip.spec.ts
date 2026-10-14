@@ -100,6 +100,49 @@ function writeBulkImportFixtures(count: number): string[] {
   return paths
 }
 
+test('long gallery scrolls inside the filmstrip without widening the page', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const files = writeBulkImportFixtures(80)
+
+  await page.goto('/')
+  await page.getByTestId('photo-file-input').setInputFiles(files)
+
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 120_000 },
+    )
+    .toBe('80')
+
+  const metrics = await page.evaluate(() => {
+    const doc = document.documentElement
+    const scroll = document.querySelector('[data-testid="filmstrip-scroll"]')
+    if (!(scroll instanceof HTMLElement)) {
+      throw new Error('filmstrip-scroll missing')
+    }
+    const before = scroll.scrollLeft
+    scroll.scrollLeft = Math.min(scroll.scrollWidth, before + 480)
+    return {
+      pageScrollWidth: doc.scrollWidth,
+      pageClientWidth: doc.clientWidth,
+      pageScrollHeight: doc.scrollHeight,
+      pageClientHeight: doc.clientHeight,
+      stripScrollWidth: scroll.scrollWidth,
+      stripClientWidth: scroll.clientWidth,
+      stripScrollLeft: scroll.scrollLeft,
+      stripScrollBefore: before,
+    }
+  })
+
+  expect(metrics.pageScrollWidth).toBeLessThanOrEqual(metrics.pageClientWidth)
+  expect(metrics.pageScrollHeight).toBeLessThanOrEqual(metrics.pageClientHeight)
+  expect(metrics.stripScrollWidth).toBeGreaterThan(metrics.stripClientWidth)
+  expect(metrics.stripScrollLeft).toBeGreaterThan(metrics.stripScrollBefore)
+})
+
 test('bulk filmstrip import while scrolling stays within frame-budget gates', async ({
   page,
 }, testInfo) => {

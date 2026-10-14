@@ -3,12 +3,17 @@
   background: color-mix(in srgb, var(--paper) 70%, #fff);
   padding: 0.5rem 0.75rem 0.75rem;
   min-height: 8rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .filmstrip-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .filmstrip-spacer {
