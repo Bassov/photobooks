@@ -19,7 +19,7 @@ import './Filmstrip.css'
 
 const WINDOW_SIZE = 48
 const ITEM_STRIDE = THUMB_WIDTH + 8
-const REVEAL_PER_FRAME = 2
+const REVEAL_PER_FRAME = 1
 
 export const Filmstrip = memo(function Filmstrip() {
   const gallery = useSyncExternalStore(

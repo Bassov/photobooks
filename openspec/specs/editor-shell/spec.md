@@ -36,14 +36,17 @@ The system SHALL let the user add a local folder or individual image files to th
 
 ### Requirement: Filmstrip placeholders and thumbnails
 
-The filmstrip SHALL list gallery assets horizontally with virtualization for long galleries. Each new asset MUST show an aspect-ratio placeholder before its thumbnail is ready. Thumbnails MUST be orientation-corrected pre-sized previews loaded with asynchronous decoding. The system MUST keep object URLs for thumbnails in a bounded cache and MUST revoke URLs on eviction.
+The filmstrip SHALL list gallery assets horizontally with virtualization for long galleries. Each new asset MUST show an aspect-ratio placeholder before its thumbnail is ready. Thumbnails MUST be orientation-corrected pre-sized previews loaded with asynchronous decoding. The system MUST keep object URLs for thumbnails in a bounded cache and MUST revoke URLs on eviction. During an active multi-file import the filmstrip MUST expose newly enqueued gallery ids as they become part of the gallery (paced so interaction stays within frame-budget gates); it MUST NOT withhold the full batch until import settles. The system MAY reserve scroll extent via a progress spacer for the expected batch size.
 
 #### Scenario: Placeholder then thumbnail
 
-- **WHEN** a supported image import batch completes (or a single-file import finishes)
+- **WHEN** a supported image enters the gallery during or after import (including a single-file import)
 - **THEN** a filmstrip item appears with a placeholder and later shows a preview thumbnail without requiring a full page reload
 
-During an active multi-file import the filmstrip may freeze its visible id list (keeping already-imported assets) and reserve scroll extent via progress spacer so GridList does not remount per chunk; new ids enter the strip after the batch settles.
+#### Scenario: Placeholders appear during multi-file import
+
+- **WHEN** a multi-file import is running and gallery ids have been enqueued for accepted files
+- **THEN** the filmstrip’s visible gallery count increases before the import progress reaches completion, and placeholders are available to scroll without waiting for the whole batch to finish
 
 #### Scenario: Scroll a long gallery
 

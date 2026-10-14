@@ -73,10 +73,14 @@ describe('thumbCache', () => {
 
     callbacks[0]?.(0)
     expect(getThumbUrl('a')).toBe('blob:t-1')
-    expect(getThumbUrl('b')).toBe('blob:t-2')
+    expect(getThumbUrl('b')).toBeUndefined()
     expect(getThumbUrl('c')).toBeUndefined()
 
     callbacks[1]?.(0)
+    expect(getThumbUrl('b')).toBe('blob:t-2')
+    expect(getThumbUrl('c')).toBeUndefined()
+
+    callbacks[2]?.(0)
     expect(getThumbUrl('c')).toBe('blob:t-3')
   })
 

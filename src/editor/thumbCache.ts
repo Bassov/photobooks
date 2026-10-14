@@ -1,7 +1,7 @@
 import { ObjectUrlLru } from '../photo/objectUrlLru'
 
 const DEFAULT_CAPACITY = 256
-const FLUSH_PER_FRAME = 2
+const FLUSH_PER_FRAME = 1
 
 const lru = new ObjectUrlLru({ capacity: DEFAULT_CAPACITY })
 const assetListeners = new Map<string, Set<() => void>>()

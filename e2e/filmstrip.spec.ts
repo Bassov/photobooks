@@ -152,6 +152,22 @@ test('bulk filmstrip import while scrolling stays within frame-budget gates', as
     timeout: 30_000,
   })
 
+  // Progressive visibility: gallery ids flush into the strip before the batch settles.
+  await expect
+    .poll(
+      async () => {
+        const count = Number(
+          (await page
+            .getByTestId('filmstrip')
+            .getAttribute('data-gallery-count')) ?? '0',
+        )
+        const importing = await page.getByTestId('import-progress').isVisible()
+        return count > 0 && importing
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(true)
+
   // Interaction window: scroll while import continues (exclude picker/setFiles LoAF).
   await page.evaluate(() => {
     window.__photobooksPerf?.clearLoafEntries()
