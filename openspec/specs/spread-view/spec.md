@@ -63,27 +63,54 @@ An edit that changes a single spread SHALL update only that spread's painted out
 
 ### Requirement: Painter fixture on query
 
-When the URL query `fixture=painter` is present, the system SHALL load an in-memory book of 40 spreads on the 4-grid template with four frames each, leave the first frame of the first spread empty, supply synthetic previews for the other frames, and paint every spread in the workspace.
+When the URL query `fixture=painter` is present, the system SHALL load an in-memory book of 40 spreads on the 4-grid template with four frames each, leave the first frame of the first spread empty, supply synthetic previews for the other frames, and represent that book on the pasteboard without mounting every spread.
 
 #### Scenario: Fixture paints forty spreads
 
 - **WHEN** the app opens with `fixture=painter`
-- **THEN** the workspace shows 40 painted spreads and the first spread's first frame is an empty placeholder
+- **THEN** the first spread's first frame is an empty placeholder, the pasteboard scroll extent represents 40 spreads, and fewer than 40 spreads are mounted
 
-### Requirement: Fixture workspace scrollport
+### Requirement: Pasteboard stacks spreads
 
-With the painter fixture loaded, the workspace SHALL be the vertical scrollport for the spread stack. The document MUST NOT gain page-level horizontal or vertical scroll.
+The workspace SHALL stack every spread of the current book vertically in one pasteboard, centered horizontally with a gap between spreads.
 
-#### Scenario: Scroll stays inside the workspace
-
-- **WHEN** the fixture stack is taller than the workspace
-- **THEN** the workspace element scrolls vertically and the document element does not scroll
-
-### Requirement: Default workspace stays a placeholder
-
-Without `fixture=painter`, the workspace SHALL keep its placeholder and MUST NOT paint the fixture book.
-
-#### Scenario: Normal visit
+#### Scenario: Session book shows its spread
 
 - **WHEN** the user opens the app without `fixture=painter`
-- **THEN** the workspace placeholder is visible and no spread is painted
+- **THEN** the workspace shows that book's one spread and does not show a placeholder sentence
+
+### Requirement: Off-screen spreads stay unmounted
+
+Spreads outside the near-viewport window MUST NOT be mounted. The scroll extent MUST still represent the full stack, and the mounted window MUST cover the visible scrollport while more spreads remain beyond it.
+
+#### Scenario: Mid-scroll window covers the port
+
+- **WHEN** the user scrolls the fixture pasteboard to the middle and more spreads remain below
+- **THEN** mounted spreads cover the visible scrollport and the mounted count stays below the full stack
+
+### Requirement: Active spread follows scroll
+
+The pasteboard SHALL mark exactly one spread as active: the spread that occupies the scrollport. When scrolling brings a different spread into the port, that spread MUST become the marked one.
+
+#### Scenario: Active spread changes with scroll
+
+- **WHEN** the fixture pasteboard is scrolled so a later spread occupies the scrollport
+- **THEN** that later spread is marked active and the first spread is not
+
+### Requirement: Mounted spread skips off-screen paint
+
+Each mounted spread MUST contain layout, paint, and style, use content-visibility that skips off-screen painting, and declare an intrinsic block size equal to its slot in the stack.
+
+#### Scenario: Mounted spread declares containment
+
+- **WHEN** a spread is mounted on the pasteboard
+- **THEN** that spread contains layout, paint, and style, skips off-screen painting via content-visibility, and has an intrinsic block size
+
+### Requirement: Pasteboard scrollport
+
+The pasteboard SHALL be the vertical scrollport for the spread stack. The document MUST NOT gain page-level horizontal or vertical scroll.
+
+#### Scenario: Scroll stays inside the pasteboard
+
+- **WHEN** the fixture stack is taller than the workspace
+- **THEN** the pasteboard scrolls vertically and the document element does not scroll

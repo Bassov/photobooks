@@ -78,40 +78,34 @@
 }
 
 .editor-workspace {
-  display: grid;
-  place-items: center;
-  padding: clamp(1.5rem, 4vw, 3rem);
+  display: block;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
-.editor-workspace-fixture {
-  display: block;
-  padding: 0.75rem 0;
-  overflow: hidden;
-}
-
-.spread-fixture-scroll {
+.pasteboard-scroll {
   height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: auto;
 }
 
-.spread-fixture-scroll:focus-visible {
+.pasteboard-scroll:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-.workspace-placeholder {
-  margin: 0;
-  max-width: 28rem;
-  text-align: center;
-  font-family: var(--font-body);
-  font-size: 1.05rem;
-  line-height: 1.5;
-  color: var(--muted);
+.pasteboard-spacer {
+  min-width: 0;
+}
+
+.pasteboard-slot {
+  box-sizing: border-box;
+  width: fit-content;
+  margin-inline: auto;
+  contain: layout paint style;
+  content-visibility: auto;
 }
 
 .photo-file-input {

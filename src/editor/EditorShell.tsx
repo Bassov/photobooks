@@ -9,8 +9,8 @@ import {
 } from '../photo/pickPhotos'
 import { Filmstrip } from './Filmstrip'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
+import { Pasteboard } from './Pasteboard'
 import { loadPainterFixture } from './bookStore'
-import { PainterFixtureWorkspace } from './PainterFixtureWorkspace'
 import { isPainterFixtureQuery } from './painterFixtureQuery'
 import './EditorShell.css'
 
@@ -182,22 +182,8 @@ export function EditorShell() {
         ) : null}
       </header>
 
-      <main
-        className={
-          painterFixture
-            ? 'editor-workspace editor-workspace-fixture'
-            : 'editor-workspace'
-        }
-        data-testid="editor-workspace"
-      >
-        {painterFixture ? (
-          <PainterFixtureWorkspace />
-        ) : (
-          <p className="workspace-placeholder">
-            Pasteboard workspace arrives in the next milestone. Use the
-            filmstrip below to import your gallery.
-          </p>
-        )}
+      <main className="editor-workspace" data-testid="editor-workspace">
+        <Pasteboard />
       </main>
 
       <Filmstrip progress={progress} />

@@ -38,6 +38,7 @@ const PHOTO_MUTATE = new Set([
 const EDITOR_MUTATE = new Set([
   'src/editor/bookStore.ts',
   'src/editor/importPhotos.ts',
+  'src/editor/pasteboardWindow.ts',
   'src/editor/thumbCache.ts',
 ])
 

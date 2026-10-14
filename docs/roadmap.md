@@ -81,8 +81,8 @@ Slicing rules when adding or splitting items:
   - [x] `src/render/SpreadView` draws resolved items; empty frames show placeholders
   - [x] Per-spread store subscription (an edit re-renders one spread)
   - [x] Fixture book (~40 spreads × 4 photos) for painter tests and perf scenarios, loadable on the preview URL via a dev/test-only query parameter
-- [ ] [feature] `pasteboard-workspace` — spreads on a pasteboard
-  - [ ] Pasteboard: all spreads stacked vertically, off-screen spreads virtualized, active spread follows scroll
+- [x] [feature] `pasteboard-workspace` — spreads on a pasteboard
+  - [x] Pasteboard: all spreads stacked vertically, off-screen spreads virtualized, active spread follows scroll
   - **Perf:** `contain` + `content-visibility` per spread, active-spread tracking via `IntersectionObserver` (no scroll-handler layout reads). Gate: fixture book (~40 spreads × 4 photos), scroll top to bottom — zero LoAF, frame pacing within budget; if it fails, stop and re-plan per "Painter risk" in `docs/future-architecture.md`.
   - **Browser check:** scroll through the fixture book like an InDesign pasteboard — no dropped frames; document does not grow H/V scrollbars; pasteboard is the vertical scrollport.
 - [ ] [feature] `spread-templates-ui` — start a book

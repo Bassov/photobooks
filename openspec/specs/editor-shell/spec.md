@@ -90,3 +90,12 @@ The editor shell SHALL fill the viewport without creating page-level horizontal 
 
 - **WHEN** the gallery is longer than the visible filmstrip region
 - **THEN** the filmstrip scroll element has `scrollWidth` greater than `clientWidth`, and changing its `scrollLeft` scrolls the gallery without requiring document horizontal scroll
+
+### Requirement: Workspace hosts the pasteboard
+
+The editor workspace SHALL show the book's pasteboard. It MUST NOT show a placeholder sentence in place of that pasteboard.
+
+#### Scenario: Workspace is not a placeholder
+
+- **WHEN** the user opens the app
+- **THEN** the workspace shows the pasteboard and does not show a sentence that the pasteboard arrives later
