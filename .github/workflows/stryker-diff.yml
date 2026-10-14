@@ -41,11 +41,15 @@ jobs:
         run: |
           if [ ! -f reports/mutation/mutation.json ]; then
             echo "has_report=false" >> "$GITHUB_OUTPUT"
+            echo "summary=No report" >> "$GITHUB_OUTPUT"
             echo "No mutation report (empty mutate set or early exit)." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            echo "⏳ No mutation report (empty mutate set or early exit)." > /tmp/stryker-pr-comment.md
+          else
+            echo "has_report=true" >> "$GITHUB_OUTPUT"
+            node scripts/stryker-pr-summary.mjs > /tmp/stryker-pr-comment.md
+            SCORE=$(node -p "const r=JSON.parse(require('fs').readFileSync('reports/mutation/mutation.json','utf8'));const f=r.files??{};let k=0,s=0,t=0,n=0;for(const file of Object.values(f)){for(const m of file.mutants??[]){if(m.status==='Killed')k++;else if(m.status==='Survived')s++;else if(m.status==='Timeout'||m.status==='TimedOut')t++;else if(m.status==='NoCoverage')n++}};const d=k+t,v=d+s+n;v===0?100:Math.round((d/v)*1000)/10")
+            echo "summary=Score: ${SCORE}%" >> "$GITHUB_OUTPUT"
           fi
-          echo "has_report=true" >> "$GITHUB_OUTPUT"
-          node scripts/stryker-pr-summary.mjs > /tmp/stryker-pr-comment.md
 
       - name: Upload Stryker report
         if: always() && steps.summary.outputs.has_report == 'true'
@@ -55,9 +59,15 @@ jobs:
           path: reports/mutation/
           retention-days: 7
 
-      - name: Sticky mutation comment
-        if: always() && steps.summary.outputs.has_report == 'true' && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v3
-        with:
-          header: stryker-mutation
-          path: /tmp/stryker-pr-comment.md
+      - name: Update consolidated CI comment
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/update-consolidated-ci-comment.mjs \
+            mutation \
+            ${{ steps.mutate.outcome == 'success' && 'success' || 'failure' }} \
+            /tmp/stryker-pr-comment.md \
+            "${{ steps.summary.outputs.summary }}"

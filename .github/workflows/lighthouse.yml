@@ -37,13 +37,28 @@ jobs:
 
       - name: Lighthouse summary
         if: always()
+        id: lighthouse_summary
         env:
           LHCI_OUTCOME: ${{ steps.lhci.outcome }}
-        run: node scripts/lighthouse-pr-summary.mjs > /tmp/lighthouse-pr-comment.md
+        run: |
+          node scripts/lighthouse-pr-summary.mjs > /tmp/lighthouse-pr-comment.md
+          LHR_FILE=$(ls -t .lighthouseci/lhr-*.json 2>/dev/null | head -1 || echo "")
+          if [ -n "$LHR_FILE" ]; then
+            PERF_SCORE=$(node -p "Math.round(JSON.parse(require('fs').readFileSync('$LHR_FILE', 'utf8')).categories?.performance?.score * 100 || 0)")
+            echo "summary=Performance: ${PERF_SCORE}" >> "$GITHUB_OUTPUT"
+          else
+            echo "summary=Budgets: ${{ steps.lhci.outcome }}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Sticky Lighthouse comment
+      - name: Update consolidated CI comment
         if: always() && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v3
-        with:
-          header: lighthouse-ci
-          path: /tmp/lighthouse-pr-comment.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/update-consolidated-ci-comment.mjs \
+            lighthouse \
+            ${{ steps.lhci.outcome == 'success' && 'success' || 'failure' }} \
+            /tmp/lighthouse-pr-comment.md \
+            "${{ steps.lighthouse_summary.outputs.summary }}"

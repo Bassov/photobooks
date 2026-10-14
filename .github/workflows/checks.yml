@@ -67,18 +67,28 @@ jobs:
         run: |
           if [ ! -f coverage/coverage-summary.json ]; then
             echo "has_report=false" >> "$GITHUB_OUTPUT"
-            node scripts/coverage-step-summary.mjs
-            exit 0
+            echo "summary=No report" >> "$GITHUB_OUTPUT"
+            node scripts/coverage-step-summary.mjs > /tmp/coverage-pr-comment.md
+          else
+            echo "has_report=true" >> "$GITHUB_OUTPUT"
+            node scripts/coverage-step-summary.mjs | tee /tmp/coverage-pr-comment.md
+            LINE_COV=$(node -p "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json','utf8')).total.lines.pct")
+            echo "summary=Lines: ${LINE_COV}%" >> "$GITHUB_OUTPUT"
           fi
-          echo "has_report=true" >> "$GITHUB_OUTPUT"
-          node scripts/coverage-step-summary.mjs | tee /tmp/coverage-pr-comment.md
 
-      - name: Sticky coverage comment
-        if: always() && steps.coverage_summary.outputs.has_report == 'true' && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v3
-        with:
-          header: coverage-summary
-          path: /tmp/coverage-pr-comment.md
+      - name: Update consolidated CI comment
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          STATUS="${{ steps.coverage_summary.outputs.has_report == 'true' && 'success' || 'pending' }}"
+          node scripts/update-consolidated-ci-comment.mjs \
+            coverage \
+            "$STATUS" \
+            /tmp/coverage-pr-comment.md \
+            "${{ steps.coverage_summary.outputs.summary }}"
 
       - name: Build
         run: pnpm build
