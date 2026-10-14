@@ -11,6 +11,7 @@
     "src/core/**/*.ts",
     "!src/core/index.ts",
     "!src/core/**/testing/**",
+    "src/render/frameBox.ts",
     "src/editor/bookStore.ts",
     "src/editor/importPhotos.ts",
     "src/editor/thumbCache.ts",

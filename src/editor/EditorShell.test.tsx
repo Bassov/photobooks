@@ -17,10 +17,31 @@ const editorShellCss = readFileSync(
 describe('EditorShell viewport containment', () => {
   afterEach(() => {
     cleanup()
+    window.history.pushState({}, '', '/')
     resetBookStore()
     resetThumbCache()
     resetAssetPool()
     vi.restoreAllMocks()
+  })
+
+  it('keeps the workspace placeholder without the fixture query', () => {
+    window.history.pushState({}, '', '/')
+    render(<EditorShell />)
+
+    expect(screen.getByText(/Pasteboard workspace arrives/)).toBeTruthy()
+    expect(screen.queryByTestId('spread-view')).toBeNull()
+  })
+
+  it('paints the fixture book in the workspace scrollport', () => {
+    window.history.pushState({}, '', '/?fixture=painter')
+    render(<EditorShell />)
+
+    expect(screen.getAllByTestId('spread-view')).toHaveLength(40)
+    expect(
+      screen.getAllByTestId('spread-frame-placeholder').length,
+    ).toBeGreaterThan(0)
+    expect(screen.getByRole('region', { name: 'Spreads' })).toBeTruthy()
+    expect(screen.queryByText(/Pasteboard workspace arrives/)).toBeNull()
   })
 
   it('locks the shell to the viewport when the gallery is long', () => {
