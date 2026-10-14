@@ -104,6 +104,57 @@ function writeBulkImportFixtures(count: number): string[] {
   return paths
 }
 
+test('bulk import fills every revealed placeholder even while scrolling', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const count = 24
+  const files = writeBulkImportFixtures(count)
+
+  await page.goto('/')
+  await page.getByTestId('photo-file-input').setInputFiles(files)
+
+  await expect(page.getByTestId('import-progress')).toBeVisible({
+    timeout: 30_000,
+  })
+
+  // Shift the visible window during import — must not cancel off-screen decode.
+  for (let i = 0; i < 20; i += 1) {
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft += 120
+    })
+    await page.waitForTimeout(32)
+  }
+
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 120_000 },
+    )
+    .toBe(String(count))
+
+  await expect(page.getByTestId('import-progress')).toBeHidden({
+    timeout: 60_000,
+  })
+
+  const scroll = page.getByTestId('filmstrip-scroll')
+  const maxScroll = await scroll.evaluate(
+    (node) => node.scrollWidth - node.clientWidth,
+  )
+  for (let left = 0; left <= maxScroll; left += 160) {
+    await scroll.evaluate((node, nextLeft) => {
+      node.scrollLeft = nextLeft
+    }, left)
+    await expect(page.getByTestId('filmstrip-placeholder')).toHaveCount(0, {
+      timeout: 15_000,
+    })
+    await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
+      timeout: 15_000,
+    })
+  }
+})
+
 test('long gallery scrolls inside the filmstrip without widening the page', async ({
   page,
 }) => {

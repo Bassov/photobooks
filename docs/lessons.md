@@ -13,3 +13,4 @@ Living journal of repeated review findings. Read before OpenSpec apply. Append o
 - CSS Grid children default to `min-width: auto`; a wide virtualized spacer will stretch the page unless the shell locks to the viewport (`overflow: hidden`, `max-width: 100%`) and grid/filmstrip children set `min-width: 0`.
 - Asserting `scrollLeft` on an overflow element does not prove page containment — assert `documentElement` scroll size ≤ client size (shared e2e `assertDocumentFitsViewport`).
 - Progressive mid-import filmstrip mounts need tighter rAF pacing (gallery flush / reveal / thumb flush) — do not re-freeze the gallery id list to pass LoAF.
+- Filmstrip visibility may boost decode priority but must not abort off-screen import jobs — aborted assets never retry and leave permanent gray placeholders.

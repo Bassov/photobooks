@@ -168,7 +168,6 @@ describe('assetPool', () => {
 
   it('skips abort errors inside a batch without recording them', async () => {
     hangWorker()
-    setVisibleAssetIds(['gone'])
     const pending = runImportBatch(
       [
         {
@@ -180,15 +179,59 @@ describe('assetPool', () => {
       ],
       { priority: 'prefetch' },
     )
-    setVisibleAssetIds(['other'])
+    await Promise.resolve()
+    resetAssetPool()
     const { results, errors } = await pending
     expect(results).toHaveLength(0)
     expect(errors).toHaveLength(0)
   })
 
-  it('aborts in-flight work when an asset scrolls away', async () => {
+  it('does not abort in-flight import work when visibility changes', async () => {
+    const previewBuffer = new Uint8Array([9]).buffer
+    mockWorkerSuccess({
+      ok: true,
+      name: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 4,
+      height: 4,
+      correctedWidth: 4,
+      correctedHeight: 4,
+      orientation: 1,
+      previewBuffer,
+      previewMimeType: 'image/jpeg',
+    })
+    warmAssetPool()
+    setVisibleAssetIds(['visible-only'])
+    const pending = runImportBatch(
+      [
+        {
+          assetId: 'offscreen-a',
+          file: new File([new Uint8Array([1])], 'a.jpg', {
+            type: 'image/jpeg',
+          }),
+        },
+        {
+          assetId: 'offscreen-b',
+          file: new File([new Uint8Array([2])], 'b.jpg', {
+            type: 'image/jpeg',
+          }),
+        },
+      ],
+      { priority: 'prefetch', maxEdge: 64 },
+    )
+    setVisibleAssetIds(['visible-only'])
+    const { results, errors } = await pending
+    expect(errors).toHaveLength(0)
+    expect(results.map((r) => r.assetId).sort()).toEqual([
+      'offscreen-a',
+      'offscreen-b',
+    ])
+  })
+
+  it('rejects when the caller aborts via an explicit signal', async () => {
     hangWorker()
-    setVisibleAssetIds(['gone'])
+    const controller = new AbortController()
     const file = new File([new Uint8Array([1])], 'gone.jpg', {
       type: 'image/jpeg',
     })
@@ -196,8 +239,9 @@ describe('assetPool', () => {
       assetId: 'gone',
       file,
       priority: 'prefetch',
+      signal: controller.signal,
     })
-    setVisibleAssetIds(['other'])
+    controller.abort()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
   })
 
