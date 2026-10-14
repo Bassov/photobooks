@@ -16,9 +16,9 @@ function getSectionMarkers(section) {
     start: `<!-- SECTION:${section}:START -->`,
     end: `<!-- SECTION:${section}:END -->`,
     statusStart: `<!-- STATUS:${section}:`,
-    statusEnd: '-->',
+    statusEnd: '--!?>',
     summaryStart: `<!-- SUMMARY:${section}:`,
-    summaryEnd: '-->',
+    summaryEnd: '--!?>',
   }
 }
 
