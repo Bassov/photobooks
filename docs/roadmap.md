@@ -69,7 +69,7 @@ Slicing rules when adding or splitting items:
   - [x] Pure ops: add to / remove from gallery (cascades placements), place, replace, unplace, swap, apply template, add / remove / move spread
   - [x] Selectors: placement count per asset, unplaced assets
   - [x] PBT for geometry and op invariants; `pnpm bench` budgets for resolve, ops and selectors on a 40-spread / 1000-asset book
-- [ ] [feature] `editor-shell-filmstrip` — editor layout and gallery
+- [x] [feature] `editor-shell-filmstrip` — editor layout and gallery
   - [x] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
   - [x] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery
   - [x] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), cancellation when a thumbnail scrolls away, transferables; folder scan and file reads inside the worker; per-file errors do not abort the batch; progress
