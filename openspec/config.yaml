@@ -39,6 +39,8 @@ rules:
     - 'Include only: problem, why now, scope in/out, success criteria, risks.'
     - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
     - If content does not fit, narrow scope — never inflate the proposal.
+    - 'Size budget (one apply context): at most ONE new subsystem (definition: docs/roadmap.md "How to use"), at most 8 implementation tasks, guideline ~1000 changed lines of source + tests (excluding lockfile, openspec/, docs/).'
+    - 'Over budget: before design/apply, narrow scope to one subsystem and add the remainder to docs/roadmap.md as new top-level checkboxes (needed infra as a preceding [prep], gate fallbacks as [contingency]).'
     - Immediately after writing proposal.md, the parent agent MUST launch subagent `openspec-proposal-reviewer` and wait for pass before creating design.md or tasks.md.
     - If UI is in scope, success criteria MUST include observable UX (not only "it works").
     - 'If UI is in scope, success criteria MUST name empty + happy-path + primary interact/scroll observables that e2e will lock in.'
@@ -58,6 +60,7 @@ rules:
     - Immediately after writing design.md, the parent agent MUST launch subagent `openspec-design-reviewer` and wait for pass before finalizing tasks.md or starting apply.
   tasks:
     - Break work into small, checkable tasks.
+    - At most 8 implementation tasks (the Verification checklist does not count). More means the change exceeds the size budget in rules.proposal — split it in the roadmap instead of inflating tasks.
     - |
       Every tasks.md MUST end with this Verification checklist (unchecked at creation):
       - [ ] pnpm typecheck
