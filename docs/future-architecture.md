@@ -134,7 +134,7 @@ References: InDesign / Affinity Publisher (pasteboard, guides), Google Slides (s
 - **Left panel:** spread thumbnails (same `SpreadView`), reorder by drag, click to scroll the pasteboard.
 - **Bottom filmstrip:** the book's gallery (horizontal, virtualized, adjustable height / thumbnail size).
 - **Presentation mode:** fullscreen, one spread at a time, arrow keys, no editor chrome. Same `SpreadView`; the site viewer later reuses it.
-- **Painter risk:** the DOM painter on a transformed pasteboard must hold 60 fps pan / zoom for ~40 spreads, from a single-photo detail up to the whole book. This is verified by the perf gates in `pasteboard-workspace` and `camera-zoom-pan`; if they fail, apply the LOD fallback first, then swap only the painter (the geometry resolver stays).
+- **Painter risk:** the DOM painter on a transformed pasteboard must hold 60 fps pan / zoom for ~40 spreads, from a single-photo detail up to the whole book. This is verified by the perf gates in `pasteboard-workspace` and `camera-zoom-pan`; if they fail, apply the LOD fallback first (`far-zoom-lod`), then swap only the painter (the geometry resolver stays).
 
 ## Grids and guides
 
@@ -218,7 +218,7 @@ The app depends on domain-level interfaces only; file layout, format, `.bak` rot
 - **Imposition is post-processing:** a pure function computes sheet order (saddle-stitch first), and the imposed PDF is assembled from the per-page PDF via page embedding. Page-count padding to multiples of 4 is part of the pure function.
 - **Printer profiles are data:** trim size, bleed, safe margin, page-count rules, spine-width formula (pages × paper caliper + board). Cover = front + spine + back resolved by the same geometry code.
 - Preflight checks (effective DPI from crop zoom and frame size, safe-zone intrusion, page count) are pure functions in `src/core`.
-- Memory risk: `pdf-lib` builds the whole document in memory, and embedding original JPEGs for a 40-spread book can reach hundreds of MB. Verify peak memory in `pdf-export`; if it is too high, build per-page chunks and stream them to the output file.
+- Memory risk: `pdf-lib` builds the whole document in memory, and embedding original JPEGs for a 40-spread book can reach hundreds of MB. Verify peak memory in `pdf-export`; if it is too high, build per-page chunks and stream them to the output file (`pdf-streaming`).
 - Out of scope until real printer tests: PDF/X, ICC output intents, CMYK conversion.
 
 ## Static site
