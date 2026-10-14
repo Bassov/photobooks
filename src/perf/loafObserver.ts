@@ -1,10 +1,10 @@
+import { PERF_BUDGETS } from './budgets'
+
 export interface LoafEntry {
   startTime: number
   duration: number
   blockingDuration: number
 }
-
-export const LOAF_BLOCKING_BUDGET_MS = 200
 
 interface LoafLikeEntry extends PerformanceEntry {
   blockingDuration?: number
@@ -62,21 +62,19 @@ export function clearLoafEntries(): void {
   entries.length = 0
 }
 
-export function assertNoExcessiveBlocking(
-  budgetMs: number = LOAF_BLOCKING_BUDGET_MS,
+/** Asserts zero LoAF entries during the scenario window (60 fps gate). */
+export function assertNoLoafEntries(
+  maxEntries: number = PERF_BUDGETS.loafEntriesMax,
 ): void {
   if (!isLoafObserving()) {
-    throw new Error(
-      'LoAF observer is not active; cannot assert blocking budget',
-    )
+    throw new Error('LoAF observer is not active; cannot assert LoAF budget')
   }
-  const offenders = entries.filter((e) => e.blockingDuration > budgetMs)
-  if (offenders.length > 0) {
-    const worst = offenders.reduce((a, b) =>
+  if (entries.length > maxEntries) {
+    const worst = entries.reduce((a, b) =>
       a.blockingDuration > b.blockingDuration ? a : b,
     )
     throw new Error(
-      `LoAF blockingDuration ${String(worst.blockingDuration)}ms exceeds budget ${String(budgetMs)}ms`,
+      `LoAF entries ${String(entries.length)} exceed max ${String(maxEntries)} (worst blockingDuration ${String(worst.blockingDuration)}ms)`,
     )
   }
 }

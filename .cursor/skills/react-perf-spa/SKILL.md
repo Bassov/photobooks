@@ -12,7 +12,7 @@ Inspired by Vercel React best practices; SPA-only subset.
 
 ## Critical
 
-- **Workers**: decode/render/orientation off main thread; keep main thread ≤ LoAF 200 ms blocking.
+- **Workers**: decode/render/orientation off main thread; interaction scenarios must record zero LoAF entries (see `src/perf/budgets.ts`).
 - **No waterfalls in UI**: do not chain awaits that could start together when loading local files or worker jobs.
 - **Bundle**: avoid barrel re-exports that pull unused modules; prefer direct imports for heavy libs.
 - **Lazy**: route- or feature-level `React.lazy` + `Suspense` when a capability is large.
@@ -20,7 +20,7 @@ Inspired by Vercel React best practices; SPA-only subset.
 ## Re-renders
 
 - Put interaction logic in event handlers, not in render-time sync work.
-- Do not add `useMemo` / `useCallback` / `memo` by default; follow React Compiler guidance in this repo.
+- Do not add `useMemo` / `useCallback` / `memo` by default; React Compiler is enabled (`oxc-transform-react` via `@vitejs/plugin-react` `compiler: true`).
 - Prefer derived state during render over effect mirrors.
 
 ## Assets
