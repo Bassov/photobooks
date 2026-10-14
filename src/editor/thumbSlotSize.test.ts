@@ -3,8 +3,10 @@ import { test, fc } from '@fast-check/vitest'
 import {
   buildStridePrefix,
   indexFromScrollOffset,
+  itemOriginOffsets,
   spacerWidthPx,
   THUMB_HEIGHT,
+  THUMB_WIDTH_DEFAULT,
   THUMB_WIDTH_MAX,
   THUMB_WIDTH_MIN,
   thumbSlotSize,
@@ -46,6 +48,19 @@ describe('filmstrip stride prefix', () => {
     expect(prefix[0]).toBe(0)
     expect(prefix[1]).toBe(thumbStride(1.5))
     expect(prefix[2]).toBe(thumbStride(1.5) + thumbStride(0.5))
+  })
+
+  it('packs origins from each card end, not a fixed max-width stride', () => {
+    // Landscape then two portraits — regresses Virtualizer estimatedRowSize=144 packing.
+    const aspects = [1.5, 0.5, 0.5]
+    const origins = itemOriginOffsets(aspects)
+    const maxStride = THUMB_WIDTH_DEFAULT + 8
+    expect(origins[0]).toBe(0)
+    expect(origins[1]).toBe(thumbStride(1.5))
+    expect(origins[2]).toBe(thumbStride(1.5) + thumbStride(0.5))
+    // Fixed max-width stride would place the second portrait too far right.
+    expect(origins[2]).toBeLessThan(2 * maxStride)
+    expect(origins[2]).not.toBe(2 * maxStride)
   })
 
   it('maps scroll offset to an index with overscan', () => {

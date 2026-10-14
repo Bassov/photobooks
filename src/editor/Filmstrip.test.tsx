@@ -81,6 +81,15 @@ describe('Filmstrip viewport containment', () => {
     )
     expect(filmstripCss).toMatch(/\.filmstrip-scroll\s*\{[^}]*min-width:\s*0/s)
   })
+
+  it('packs variable-width items with flex gap from each card end', () => {
+    // Regresses Virtualizer estimatedRowSize packing (max-width slots + leftover gap).
+    expect(filmstripCss).toMatch(/\.filmstrip-list\s*\{[^}]*display:\s*flex/s)
+    expect(filmstripCss).toMatch(/\.filmstrip-list\s*\{[^}]*gap:\s*8px/s)
+    expect(filmstripCss).toMatch(
+      /\.filmstrip-item\s*\{[^}]*flex:\s*0\s+0\s+auto/s,
+    )
+  })
 })
 
 describe('Filmstrip aspect cards', () => {

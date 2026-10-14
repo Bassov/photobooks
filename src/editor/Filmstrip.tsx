@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
   type UIEvent,
 } from 'react'
-import { GridList, ListLayout, Virtualizer } from 'react-aria-components'
+import { GridList } from 'react-aria-components'
 import { setVisibleAssetIds } from '../photo/assetPool'
 import {
   getGalleryAspectsSnapshot,
@@ -25,7 +25,6 @@ import {
   spacerWidthPx,
   THUMB_GAP,
   THUMB_HEIGHT,
-  THUMB_WIDTH_DEFAULT,
 } from './thumbSlotSize'
 import './Filmstrip.css'
 
@@ -101,17 +100,6 @@ export const Filmstrip = memo(function Filmstrip({
     setVisibleAssetIds(items.map((item) => item.id))
   }, [items])
 
-  const layout = useMemo(
-    () =>
-      new ListLayout({
-        orientation: 'horizontal',
-        estimatedRowSize: THUMB_WIDTH_DEFAULT,
-        gap: THUMB_GAP,
-        padding: 8,
-      }),
-    [],
-  )
-
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
     const scrollLeft = event.currentTarget.scrollLeft
     pendingStart.current = indexFromScrollOffset(scrollLeft, prefix)
@@ -127,23 +115,6 @@ export const Filmstrip = memo(function Filmstrip({
   }
 
   const windowOffset = prefix[start] ?? 0
-
-  const list = (
-    <GridList
-      aria-label="Book gallery"
-      orientation="horizontal"
-      items={items}
-      className="filmstrip-list"
-      style={{ height: THUMB_HEIGHT + 24, width: '100%' }}
-      renderEmptyState={() => (
-        <p className="filmstrip-empty" data-testid="filmstrip-empty">
-          Add a folder or photos to build the gallery.
-        </p>
-      )}
-    >
-      {(item) => <FilmstripItemView id={item.id} name={item.name} />}
-    </GridList>
-  )
 
   return (
     <section
@@ -165,11 +136,20 @@ export const Filmstrip = memo(function Filmstrip({
               transform: `translateX(${String(windowOffset)}px)`,
             }}
           >
-            {import.meta.env.MODE === 'test' ? (
-              list
-            ) : (
-              <Virtualizer layout={layout}>{list}</Virtualizer>
-            )}
+            <GridList
+              aria-label="Book gallery"
+              orientation="horizontal"
+              items={items}
+              className="filmstrip-list"
+              style={{ height: THUMB_HEIGHT + 24, gap: THUMB_GAP }}
+              renderEmptyState={() => (
+                <p className="filmstrip-empty" data-testid="filmstrip-empty">
+                  Add a folder or photos to build the gallery.
+                </p>
+              )}
+            >
+              {(item) => <FilmstripItemView id={item.id} name={item.name} />}
+            </GridList>
           </div>
         </div>
       </div>

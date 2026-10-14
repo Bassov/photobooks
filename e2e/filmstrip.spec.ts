@@ -78,6 +78,64 @@ test('portrait and landscape cards differ; thumbs use contain', async ({
   expect(objectFit).toBe('contain')
 })
 
+test('mixed aspect cards pack with uniform gaps from each card end', async ({
+  page,
+}) => {
+  await page.goto('/')
+  // Two landscapes then three portraits — fixed max-width stride leaves huge gaps
+  // between portraits (see aspect filmstrip packing bug).
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles([
+      photoFixturePaths.samplePng,
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+      photoFixturePaths.sampleOrient6,
+      photoFixturePaths.sampleOrient6,
+    ])
+
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(5, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(5, {
+    timeout: 30_000,
+  })
+  await expect(
+    page.locator(
+      '[data-testid="filmstrip-item"][data-orientation="landscape"]',
+    ),
+  ).toHaveCount(2, { timeout: 30_000 })
+  await expect(
+    page.locator('[data-testid="filmstrip-item"][data-orientation="portrait"]'),
+  ).toHaveCount(3, { timeout: 30_000 })
+
+  const gaps = await page.evaluate(() => {
+    const items = Array.from(
+      document.querySelectorAll('[data-testid="filmstrip-item"]'),
+    )
+    const boxes = items.map((el) => el.getBoundingClientRect())
+    const nextGaps: number[] = []
+    for (let i = 1; i < boxes.length; i += 1) {
+      const prev = boxes[i - 1]
+      const curr = boxes[i]
+      if (!prev || !curr) {
+        continue
+      }
+      nextGaps.push(curr.left - prev.right)
+    }
+    return nextGaps
+  })
+
+  expect(gaps).toHaveLength(4)
+  const expectedGap = gaps[0] ?? 0
+  for (const gap of gaps) {
+    expect(Math.abs(gap - expectedGap)).toBeLessThan(2)
+  }
+  // Flex gap is 8px; max-width stride leftovers are ~96px between portraits.
+  expect(expectedGap).toBeGreaterThan(4)
+  expect(expectedGap).toBeLessThan(20)
+})
+
 test('EXIF orientation 6 shows a filmstrip thumb', async ({ page }) => {
   await page.goto('/')
   await page

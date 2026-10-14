@@ -42,6 +42,17 @@ export function buildStridePrefix(
   return prefix
 }
 
+/**
+ * Left origin of each item when packed by actual card width + gap
+ * (not a fixed max-width stride).
+ */
+export function itemOriginOffsets(
+  aspects: readonly number[],
+): readonly number[] {
+  const prefix = buildStridePrefix(aspects)
+  return prefix.slice(0, -1)
+}
+
 /** Largest index whose prefix offset is ≤ scrollLeft (with overscan pull-back). */
 export function indexFromScrollOffset(
   scrollLeft: number,
