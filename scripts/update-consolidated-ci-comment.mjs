@@ -30,15 +30,37 @@ function parseExistingComment(body) {
     const endIdx = body.indexOf(markers.end)
 
     if (startIdx !== -1 && endIdx !== -1) {
+      const sectionBody = body.substring(startIdx, endIdx + markers.end.length)
       const content = body.substring(startIdx + markers.start.length, endIdx).trim()
-      
-      const statusMatch = body.match(new RegExp(`${markers.statusStart}([^>]+)${markers.statusEnd}`))
-      const summaryMatch = body.match(new RegExp(`${markers.summaryStart}([^>]+)${markers.summaryEnd}`))
-      
+
+      const extractMarkerValue = (source, markerStart) => {
+        const valueStart = source.indexOf(markerStart)
+        if (valueStart === -1) return null
+
+        const from = valueStart + markerStart.length
+        const endStandard = source.indexOf('-->', from)
+        const endBang = source.indexOf('--!>', from)
+
+        let to = -1
+        if (endStandard !== -1 && endBang !== -1) {
+          to = Math.min(endStandard, endBang)
+        } else if (endStandard !== -1) {
+          to = endStandard
+        } else if (endBang !== -1) {
+          to = endBang
+        }
+
+        if (to === -1) return null
+        return source.substring(from, to)
+      }
+
+      const status = extractMarkerValue(sectionBody, markers.statusStart)
+      const summary = extractMarkerValue(sectionBody, markers.summaryStart)
+
       sections[section] = {
         content,
-        status: statusMatch ? statusMatch[1] : 'pending',
-        summary: summaryMatch ? summaryMatch[1] : '',
+        status: status ?? 'pending',
+        summary: summary ?? '',
       }
     }
   }
