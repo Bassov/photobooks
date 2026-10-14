@@ -156,17 +156,6 @@ export function EditorShell() {
             }}
           />
         </div>
-        {progress?.running || (progress && progress.errors.length > 0) ? (
-          <p
-            className="import-progress"
-            data-testid="import-progress"
-            aria-live="polite"
-          >
-            {progress.running
-              ? `Importing ${String(progress.completed)} / ${String(progress.total)}…`
-              : `Imported with ${String(progress.errors.length)} error(s)`}
-          </p>
-        ) : null}
         {errors.length > 0 ? (
           <ul
             className="import-errors"
@@ -189,7 +178,7 @@ export function EditorShell() {
         </p>
       </main>
 
-      <Filmstrip />
+      <Filmstrip progress={progress} />
     </div>
   )
 }

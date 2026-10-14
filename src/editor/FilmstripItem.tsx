@@ -1,9 +1,18 @@
 import { useSyncExternalStore } from 'react'
 import { GridListItem } from 'react-aria-components'
+import { getAssetAspectSnapshot, subscribeBookStore } from './bookStore'
 import { getThumbUrl, subscribeThumb } from './thumbCache'
+import { thumbSlotSize } from './thumbSlotSize'
 
-export const THUMB_HEIGHT = 96
-export const THUMB_WIDTH = 144
+function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
+  if (aspect < 0.95) {
+    return 'portrait'
+  }
+  if (aspect > 1.05) {
+    return 'landscape'
+  }
+  return 'square'
+}
 
 export function FilmstripItemView({ id, name }: { id: string; name: string }) {
   const thumbUrl = useSyncExternalStore(
@@ -11,6 +20,12 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
     () => getThumbUrl(id),
     () => getThumbUrl(id),
   )
+  const aspect = useSyncExternalStore(
+    subscribeBookStore,
+    () => getAssetAspectSnapshot(id),
+    () => getAssetAspectSnapshot(id),
+  )
+  const { width, height } = thumbSlotSize(aspect)
 
   return (
     <GridListItem
@@ -19,9 +34,11 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
       className="filmstrip-item"
       data-testid="filmstrip-item"
       data-asset-id={id}
+      data-aspect={String(aspect)}
+      data-orientation={orientationLabel(aspect)}
       style={{
-        width: THUMB_WIDTH,
-        height: THUMB_HEIGHT,
+        width,
+        height,
       }}
     >
       {thumbUrl ? (
@@ -31,8 +48,8 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
           src={thumbUrl}
           alt=""
           decoding="async"
-          width={THUMB_WIDTH}
-          height={THUMB_HEIGHT}
+          width={width}
+          height={height}
         />
       ) : (
         <div

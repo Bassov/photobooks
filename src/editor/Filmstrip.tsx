@@ -10,18 +10,33 @@ import {
 import { GridList, ListLayout, Virtualizer } from 'react-aria-components'
 import { setVisibleAssetIds } from '../photo/assetPool'
 import {
+  getGalleryAspectsSnapshot,
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
+  subscribeBookStore,
   subscribeGallery,
 } from './bookStore'
-import { FilmstripItemView, THUMB_HEIGHT, THUMB_WIDTH } from './FilmstripItem'
+import { FilmstripItemView } from './FilmstripItem'
+import { FilmstripStatus } from './FilmstripStatus'
+import type { ImportProgress } from './importPhotos'
+import {
+  buildStridePrefix,
+  indexFromScrollOffset,
+  spacerWidthPx,
+  THUMB_GAP,
+  THUMB_HEIGHT,
+  THUMB_WIDTH_DEFAULT,
+} from './thumbSlotSize'
 import './Filmstrip.css'
 
 const WINDOW_SIZE = 48
-const ITEM_STRIDE = THUMB_WIDTH + 8
 const REVEAL_PER_FRAME = 1
 
-export const Filmstrip = memo(function Filmstrip() {
+export const Filmstrip = memo(function Filmstrip({
+  progress = null,
+}: {
+  progress?: ImportProgress | null
+}) {
   const gallery = useSyncExternalStore(
     subscribeGallery,
     getGalleryIdsSnapshot,
@@ -32,11 +47,22 @@ export const Filmstrip = memo(function Filmstrip() {
     getSpacerCountSnapshot,
     getSpacerCountSnapshot,
   )
+  const aspects = useSyncExternalStore(
+    subscribeBookStore,
+    getGalleryAspectsSnapshot,
+    getGalleryAspectsSnapshot,
+  )
   const [windowStart, setWindowStart] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const scrollRaf = useRef(0)
   const pendingStart = useRef(0)
   const total = gallery.length
+
+  const prefix = useMemo(() => buildStridePrefix(aspects), [aspects])
+  const spacerWidth = useMemo(
+    () => spacerWidthPx(aspects, spacerCount),
+    [aspects, spacerCount],
+  )
 
   useEffect(() => {
     if (revealed >= total) {
@@ -79,8 +105,8 @@ export const Filmstrip = memo(function Filmstrip() {
     () =>
       new ListLayout({
         orientation: 'horizontal',
-        rowSize: THUMB_WIDTH,
-        gap: 8,
+        estimatedRowSize: THUMB_WIDTH_DEFAULT,
+        gap: THUMB_GAP,
         padding: 8,
       }),
     [],
@@ -88,7 +114,7 @@ export const Filmstrip = memo(function Filmstrip() {
 
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
     const scrollLeft = event.currentTarget.scrollLeft
-    pendingStart.current = Math.max(0, Math.floor(scrollLeft / ITEM_STRIDE) - 4)
+    pendingStart.current = indexFromScrollOffset(scrollLeft, prefix)
     if (scrollRaf.current !== 0) {
       return
     }
@@ -99,6 +125,8 @@ export const Filmstrip = memo(function Filmstrip() {
       )
     })
   }
+
+  const windowOffset = prefix[start] ?? 0
 
   const list = (
     <GridList
@@ -124,19 +152,17 @@ export const Filmstrip = memo(function Filmstrip() {
       data-gallery-count={total}
       aria-label="Gallery"
     >
+      <FilmstripStatus photoCount={total} progress={progress} />
       <div
         className="filmstrip-scroll"
         data-testid="filmstrip-scroll"
         onScroll={onScroll}
       >
-        <div
-          className="filmstrip-spacer"
-          style={{ width: Math.max(spacerCount, 1) * ITEM_STRIDE }}
-        >
+        <div className="filmstrip-spacer" style={{ width: spacerWidth }}>
           <div
             className="filmstrip-window"
             style={{
-              transform: `translateX(${String(start * ITEM_STRIDE)}px)`,
+              transform: `translateX(${String(windowOffset)}px)`,
             }}
           >
             {import.meta.env.MODE === 'test' ? (

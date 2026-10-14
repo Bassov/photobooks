@@ -34,6 +34,48 @@ test('imports PNG into the filmstrip via input fallback', async ({ page }) => {
   await expect(page.getByTestId('filmstrip-thumb')).toBeVisible({
     timeout: 30_000,
   })
+  await expect(page.getByTestId('filmstrip-count')).toContainText('1 photo')
+})
+
+test('portrait and landscape cards differ; thumbs use contain', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles([
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+    ])
+
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('filmstrip-count')).toContainText('2 photos')
+
+  const land = page.locator(
+    '[data-testid="filmstrip-item"][data-orientation="landscape"]',
+  )
+  const port = page.locator(
+    '[data-testid="filmstrip-item"][data-orientation="portrait"]',
+  )
+  await expect(land).toHaveCount(1, { timeout: 30_000 })
+  await expect(port).toHaveCount(1, { timeout: 30_000 })
+
+  const landBox = await land.boundingBox()
+  const portBox = await port.boundingBox()
+  expect(landBox).toBeTruthy()
+  expect(portBox).toBeTruthy()
+  expect((portBox?.width ?? 0) < (landBox?.width ?? 0)).toBe(true)
+
+  const objectFit = await page
+    .getByTestId('filmstrip-thumb')
+    .first()
+    .evaluate((node) => getComputedStyle(node).objectFit)
+  expect(objectFit).toBe('contain')
 })
 
 test('EXIF orientation 6 shows a filmstrip thumb', async ({ page }) => {
