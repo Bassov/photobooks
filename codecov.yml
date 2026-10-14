@@ -8,15 +8,34 @@ coverage:
       default:
         informational: true
 
+bundle_analysis:
+  warning_threshold: '5%'
+  status: informational
+
 flag_management:
   default_rules:
     carryforward: true
 
 comment:
-  layout: 'reach,diff,flags,files'
+  layout: 'reach,diff,flags,components,files'
   behavior: default
   require_changes: false
   require_base: false
+
+component_management:
+  individual_components:
+    - component_id: photo
+      name: photo
+      paths:
+        - src/photo/**
+    - component_id: perf
+      name: perf
+      paths:
+        - src/perf/**
+    - component_id: lib
+      name: lib
+      paths:
+        - src/lib/**
 
 ignore:
   - 'e2e/**'

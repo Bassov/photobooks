@@ -1,3 +1,4 @@
+import { codecovVitePlugin } from '@codecov/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -7,10 +8,19 @@ const isolationHeaders = {
   'Cross-Origin-Embedder-Policy': 'credentialless',
 } as const
 
+const codecovToken = process.env.CODECOV_TOKEN
+
 export default defineConfig({
   plugins: [
     react({
       compiler: true,
+    }),
+    codecovVitePlugin({
+      enableBundleAnalysis: Boolean(codecovToken),
+      bundleName: 'photobooks',
+      ...(codecovToken ? { uploadToken: codecovToken } : {}),
+      gitService: 'github',
+      telemetry: false,
     }),
   ],
   server: {
@@ -22,6 +32,10 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    reporters: ['default', 'junit'],
+    outputFile: {
+      junit: 'reports/vitest-junit.xml',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary'],
