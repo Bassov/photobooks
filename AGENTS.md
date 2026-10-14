@@ -13,6 +13,7 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 | Book document      | `src/core/`                         | `openspec/specs/book-core/`       |
 | Layout geometry    | `src/core/` (templates/ops/resolve) | `openspec/specs/layout-geometry/` |
 | Editor shell       | `src/editor/`                       | `openspec/specs/editor-shell/`    |
+| Spread painter     | `src/render/`                       | `openspec/specs/spread-view/`     |
 | Photo / asset pool | `src/photo/`                        | `openspec/specs/photo-card/`      |
 | Perf / 60 fps      | `src/perf/`                         | `openspec/specs/frame-budget/`    |
 | Shared helpers     | `src/lib/`                          | —                                 |
@@ -56,6 +57,10 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 - Lessons journal: `docs/lessons.md` (read before apply; append when a finding repeats — mandates in OpenSpec config).
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
 - Execution plan (one OpenSpec change per checkbox): `docs/roadmap.md`.
+
+## Cursor Cloud
+
+`pnpm install` exits non-zero while `core.hooksPath` points at Cursor agent hooks, because `prepare` runs `lefthook install`. Install with `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev server: `pnpm exec vite --host 0.0.0.0 --port 5173` (an extra `--` makes Vite ignore `--host`).
 
 ## Doc budget
 

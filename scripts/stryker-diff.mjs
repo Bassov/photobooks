@@ -41,6 +41,8 @@ const EDITOR_MUTATE = new Set([
   'src/editor/thumbCache.ts',
 ])
 
+const RENDER_MUTATE = new Set(['src/render/frameBox.ts'])
+
 const mutateFiles = [...changed]
   .filter((file) => file.startsWith('src/'))
   .filter((file) => /\.(ts|tsx)$/.test(file))
@@ -53,6 +55,9 @@ const mutateFiles = [...changed]
     }
     if (file.startsWith('src/editor/')) {
       return EDITOR_MUTATE.has(file)
+    }
+    if (file.startsWith('src/render/')) {
+      return RENDER_MUTATE.has(file)
     }
     if (file.startsWith('src/lib/')) {
       return true
