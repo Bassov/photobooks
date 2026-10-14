@@ -3,6 +3,10 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
+  assertDocumentFitsViewport,
+  assertNamedScrollport,
+} from './fixtures/assertDocumentFitsViewport'
+import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
@@ -117,30 +121,8 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
     )
     .toBe('80')
 
-  const metrics = await page.evaluate(() => {
-    const doc = document.documentElement
-    const scroll = document.querySelector('[data-testid="filmstrip-scroll"]')
-    if (!(scroll instanceof HTMLElement)) {
-      throw new Error('filmstrip-scroll missing')
-    }
-    const before = scroll.scrollLeft
-    scroll.scrollLeft = Math.min(scroll.scrollWidth, before + 480)
-    return {
-      pageScrollWidth: doc.scrollWidth,
-      pageClientWidth: doc.clientWidth,
-      pageScrollHeight: doc.scrollHeight,
-      pageClientHeight: doc.clientHeight,
-      stripScrollWidth: scroll.scrollWidth,
-      stripClientWidth: scroll.clientWidth,
-      stripScrollLeft: scroll.scrollLeft,
-      stripScrollBefore: before,
-    }
-  })
-
-  expect(metrics.pageScrollWidth).toBeLessThanOrEqual(metrics.pageClientWidth)
-  expect(metrics.pageScrollHeight).toBeLessThanOrEqual(metrics.pageClientHeight)
-  expect(metrics.stripScrollWidth).toBeGreaterThan(metrics.stripClientWidth)
-  expect(metrics.stripScrollLeft).toBeGreaterThan(metrics.stripScrollBefore)
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'filmstrip-scroll')
 })
 
 test('bulk filmstrip import while scrolling stays within frame-budget gates', async ({
@@ -202,6 +184,8 @@ test('bulk filmstrip import while scrolling stays within frame-budget gates', as
       { timeout: 120_000 },
     )
     .toBe('200')
+
+  await assertDocumentFitsViewport(page)
 
   await expect(page.getByTestId('filmstrip-item').first()).toBeVisible({
     timeout: 60_000,

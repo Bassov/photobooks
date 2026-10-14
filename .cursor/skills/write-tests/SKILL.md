@@ -40,6 +40,7 @@ description: >-
 - Prefer `getByRole` / `getByTestId` over CSS/XPath tied to layout.
 - Reuse fixture files and generators; do not inline binary setup in every test.
 - One user-visible behavior per test when practical.
+- For scrollports: reuse `assertDocumentFitsViewport` / `assertNamedScrollport` from `e2e/fixtures/`; do not treat element `scrollLeft` alone as proof the page fits the viewport.
 
 ## Anti-patterns (fail review)
 
