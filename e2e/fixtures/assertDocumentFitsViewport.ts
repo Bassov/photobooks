@@ -24,33 +24,47 @@ export async function assertDocumentFitsViewport(page: Page): Promise<void> {
 export async function assertNamedScrollport(
   page: Page,
   testId: string,
-  options?: { nudgeHorizontal?: boolean },
+  options?: { nudgeHorizontal?: boolean; axis?: 'horizontal' | 'vertical' },
 ): Promise<void> {
-  const nudgeHorizontal = options?.nudgeHorizontal ?? true
+  const axis = options?.axis ?? 'horizontal'
+  const nudge = options?.nudgeHorizontal ?? true
 
   const metrics = await page.evaluate(
-    ({ id, nudge }) => {
+    ({ id, shouldNudge, scrollAxis }) => {
       const scroll = document.querySelector(`[data-testid="${id}"]`)
       if (!(scroll instanceof HTMLElement)) {
         throw new Error(`scrollport missing: ${id}`)
       }
+      if (scrollAxis === 'vertical') {
+        const before = scroll.scrollTop
+        if (shouldNudge) {
+          scroll.scrollTop = Math.min(scroll.scrollHeight, before + 480)
+        }
+        return {
+          extent: scroll.scrollHeight,
+          client: scroll.clientHeight,
+          position: scroll.scrollTop,
+          before,
+          nudged: shouldNudge,
+        }
+      }
       const before = scroll.scrollLeft
-      if (nudge) {
+      if (shouldNudge) {
         scroll.scrollLeft = Math.min(scroll.scrollWidth, before + 480)
       }
       return {
-        scrollWidth: scroll.scrollWidth,
-        clientWidth: scroll.clientWidth,
-        scrollLeft: scroll.scrollLeft,
-        scrollBefore: before,
-        nudged: nudge,
+        extent: scroll.scrollWidth,
+        client: scroll.clientWidth,
+        position: scroll.scrollLeft,
+        before,
+        nudged: shouldNudge,
       }
     },
-    { id: testId, nudge: nudgeHorizontal },
+    { id: testId, shouldNudge: nudge, scrollAxis: axis },
   )
 
-  expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth)
+  expect(metrics.extent).toBeGreaterThan(metrics.client)
   if (metrics.nudged) {
-    expect(metrics.scrollLeft).toBeGreaterThan(metrics.scrollBefore)
+    expect(metrics.position).toBeGreaterThan(metrics.before)
   }
 }

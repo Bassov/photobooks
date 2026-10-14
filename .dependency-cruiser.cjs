@@ -14,11 +14,24 @@ module.exports = {
     {
       name: 'core-is-pure',
       comment:
-        'src/core must stay pure: no React/DOM UI modules or photo/perf/App imports.',
+        'src/core must stay pure: no React/DOM UI modules or photo/perf/App/render imports.',
       severity: 'error',
       from: { path: '^src/core' },
       to: {
-        path: ['^src/(photo|perf|App)', 'node_modules/(react|react-dom)(/|$)'],
+        path: [
+          '^src/(photo|perf|App|editor|render)',
+          'node_modules/(react|react-dom)(/|$)',
+        ],
+      },
+    },
+    {
+      name: 'render-no-platform',
+      comment:
+        'src/render paints resolved items only and must not import editor, photo, or platform modules.',
+      severity: 'error',
+      from: { path: '^src/render' },
+      to: {
+        path: ['^src/(editor|photo|project|publish|perf|App)'],
       },
     },
     {

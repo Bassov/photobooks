@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ImportFileError } from '../photo/assetPool'
 import {
   canUseDirectoryPicker,
@@ -9,9 +9,20 @@ import {
 } from '../photo/pickPhotos'
 import { Filmstrip } from './Filmstrip'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
+import { loadPainterFixture } from './bookStore'
+import { PainterFixtureWorkspace } from './PainterFixtureWorkspace'
+import { isPainterFixtureQuery } from './painterFixtureQuery'
 import './EditorShell.css'
 
 export function EditorShell() {
+  const painterFixture = isPainterFixtureQuery()
+  useEffect(() => {
+    if (!painterFixture) {
+      return
+    }
+    loadPainterFixture()
+  }, [painterFixture])
+
   const filesInputId = useId()
   const folderInputId = useId()
   const filesInputRef = useRef<HTMLInputElement>(null)
@@ -171,11 +182,22 @@ export function EditorShell() {
         ) : null}
       </header>
 
-      <main className="editor-workspace" data-testid="editor-workspace">
-        <p className="workspace-placeholder">
-          Pasteboard workspace arrives in the next milestone. Use the filmstrip
-          below to import your gallery.
-        </p>
+      <main
+        className={
+          painterFixture
+            ? 'editor-workspace editor-workspace-fixture'
+            : 'editor-workspace'
+        }
+        data-testid="editor-workspace"
+      >
+        {painterFixture ? (
+          <PainterFixtureWorkspace />
+        ) : (
+          <p className="workspace-placeholder">
+            Pasteboard workspace arrives in the next milestone. Use the
+            filmstrip below to import your gallery.
+          </p>
+        )}
       </main>
 
       <Filmstrip progress={progress} />

@@ -1,0 +1,31 @@
+.spread-view {
+  position: relative;
+  margin: 0 auto 0.75rem;
+  background: #fbfcfb;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+.spread-frame {
+  position: absolute;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--paper) 55%, #fff);
+}
+
+.spread-frame-placeholder {
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--ink) 6%, var(--paper));
+  outline: 1px dashed color-mix(in srgb, var(--ink) 35%, transparent);
+  outline-offset: -1px;
+}
+
+.spread-frame-image {
+  position: absolute;
+  max-width: none;
+}
+
+.spread-page-cut {
+  position: absolute;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+}
