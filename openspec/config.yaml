@@ -25,7 +25,7 @@ context: |
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
   - AGENTS.md is a navigation map (≤150 lines). Specs are behavior SoT.
-  - Durable deferred architecture notes: docs/future-architecture.md; lessons journal: docs/lessons.md
+  - Durable docs: docs/future-architecture.md (target architecture); docs/roadmap.md (execution plan); docs/lessons.md (lessons journal)
 
   Security surface (tag changes that touch these):
   - File System Access, workers/postMessage, blob/object URLs, CSP/headers, dependency bumps, export pipelines
