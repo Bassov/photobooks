@@ -77,10 +77,10 @@ Slicing rules when adding or splitting items:
   - [x] Bounded object-URL LRU with revoke on eviction
   - **Perf:** pre-sized thumbnails only, `decoding="async"`, gallery updates batched per frame; scenario: import 200 photos while scrolling the filmstrip — zero LoAF.
   - **Browser check:** add a folder of 100+ photos, scroll the filmstrip during import without stutter; document does not grow H/V scrollbars; filmstrip is the horizontal scrollport; add more files later.
-- [ ] [prep] `spread-view-painter` — shared DOM painter
-  - [ ] `src/render/SpreadView` draws resolved items; empty frames show placeholders
-  - [ ] Per-spread store subscription (an edit re-renders one spread)
-  - [ ] Fixture book (~40 spreads × 4 photos) for painter tests and perf scenarios, loadable on the preview URL via a dev/test-only query parameter
+- [x] [prep] `spread-view-painter` — shared DOM painter
+  - [x] `src/render/SpreadView` draws resolved items; empty frames show placeholders
+  - [x] Per-spread store subscription (an edit re-renders one spread)
+  - [x] Fixture book (~40 spreads × 4 photos) for painter tests and perf scenarios, loadable on the preview URL via a dev/test-only query parameter
 - [ ] [feature] `pasteboard-workspace` — spreads on a pasteboard
   - [ ] Pasteboard: all spreads stacked vertically, off-screen spreads virtualized, active spread follows scroll
   - **Perf:** `contain` + `content-visibility` per spread, active-spread tracking via `IntersectionObserver` (no scroll-handler layout reads). Gate: fixture book (~40 spreads × 4 photos), scroll top to bottom — zero LoAF, frame pacing within budget; if it fails, stop and re-plan per "Painter risk" in `docs/future-architecture.md`.

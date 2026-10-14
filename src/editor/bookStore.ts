@@ -1,4 +1,13 @@
-import { applyBookOp, CURRENT_SCHEMA_VERSION, type Book } from '../core'
+import {
+  applyBookOp,
+  CURRENT_SCHEMA_VERSION,
+  resolveSpread,
+  type Book,
+  type BookOp,
+  type ResolvedSpread,
+  type Spread,
+} from '../core'
+import { makePainterFixture } from '../core/testing/painterFixture'
 import type { ExifOrientation } from '../photo/types'
 
 export interface AssetSessionMeta {
@@ -12,9 +21,20 @@ export interface AssetSessionMeta {
 export interface BookStoreState {
   book: Book
   sessionMeta: ReadonlyMap<string, AssetSessionMeta>
+  /** Synthetic or cached preview URLs keyed by asset id. Not part of the document. */
+  previewUrls: ReadonlyMap<string, string>
   importRunning: boolean
   /** Reserved filmstrip scroll width in items (avoids per-chunk spacer layout). */
   importExpectedCount: number
+}
+
+export interface SpreadPaintSnapshot {
+  resolved: ResolvedSpread
+  previewUrlFor: (assetId: string) => string | undefined
+}
+
+type BookStoreInit = Omit<BookStoreState, 'previewUrls'> & {
+  previewUrls?: BookStoreState['previewUrls']
 }
 
 const GALLERY_FLUSH_CHUNK = 4
@@ -59,11 +79,20 @@ type Listener = () => void
 let state: BookStoreState = {
   book: createSessionBook(),
   sessionMeta: new Map(),
+  previewUrls: new Map(),
   importRunning: false,
   importExpectedCount: 0,
 }
 
 const listeners = new Set<Listener>()
+const spreadListeners = new Map<string, Set<Listener>>()
+
+interface CachedSpreadPaint extends SpreadPaintSnapshot {
+  spread: Spread
+  inputKey: string
+}
+
+const paintCache = new Map<string, CachedSpreadPaint>()
 let assetSeq = 0
 let flushScheduled = false
 let pendingGalleryIds: string[] = []
@@ -120,13 +149,16 @@ function scheduleFlush(): void {
     for (const [id, meta] of metaBatch) {
       sessionMeta.set(id, meta)
     }
+    const prev = state
     state = {
       book,
       sessionMeta,
+      previewUrls: state.previewUrls,
       importRunning: state.importRunning,
       importExpectedCount: state.importExpectedCount,
     }
     invalidateGalleryAspectsCache()
+    notifyAffectedSpreads(prev, state)
     if (galleryChanged) {
       emitGallery()
     } else {
@@ -233,26 +265,207 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
   ) {
     return
   }
+  const prev = state
   state = {
     ...state,
     importRunning: running,
     importExpectedCount: running ? expectedCount : 0,
   }
+  notifyAffectedSpreads(prev, state)
   emitGallery()
 }
 
-/** Test helper: replace store state immediately. */
-export function resetBookStore(next?: BookStoreState): void {
-  state = next ?? {
-    book: createSessionBook(),
+export function dispatchBookOp(op: BookOp): void {
+  const book = applyBookOp(state.book, op)
+  if (book === state.book) {
+    return
+  }
+  const prev = state
+  state = { ...state, book }
+  if (book.gallery !== prev.book.gallery) {
+    invalidateGalleryAspectsCache()
+  }
+  notifyAffectedSpreads(prev, state)
+  if (book.gallery !== prev.book.gallery) {
+    emitGallery()
+  } else {
+    emit()
+  }
+}
+
+/** Replace the in-memory book with the painter fixture and its preview URLs. */
+export function loadPainterFixture(): void {
+  const fixture = makePainterFixture()
+  resetBookStore({
+    book: fixture.book,
     sessionMeta: new Map(),
+    previewUrls: fixture.previewUrls,
     importRunning: false,
     importExpectedCount: 0,
+  })
+}
+
+export function subscribeSpread(
+  spreadId: string,
+  listener: Listener,
+): () => void {
+  const existing = spreadListeners.get(spreadId)
+  const set = existing ?? new Set<Listener>()
+  if (existing === undefined) {
+    spreadListeners.set(spreadId, set)
   }
+  set.add(listener)
+  return () => {
+    set.delete(listener)
+    if (set.size === 0) {
+      spreadListeners.delete(spreadId)
+    }
+  }
+}
+
+export function getSpreadPaintSnapshot(
+  spreadId: string,
+): SpreadPaintSnapshot | undefined {
+  const spread = state.book.spreads.find(
+    (candidate) => candidate.id === spreadId,
+  )
+  if (spread === undefined) {
+    return undefined
+  }
+  const inputKey = paintInputKey(
+    state.book,
+    spread,
+    state.sessionMeta,
+    state.previewUrls,
+  )
+  const cached = paintCache.get(spreadId)
+  if (cached?.spread === spread && cached.inputKey === inputKey) {
+    return cached
+  }
+  const urls = state.previewUrls
+  const meta = state.sessionMeta
+  const resolved = resolveSpread(state.book, spreadId, {
+    getAspectRatio: (assetId) => meta.get(assetId)?.aspect ?? 1,
+  })
+  if (resolved === undefined) {
+    return undefined
+  }
+  const next: CachedSpreadPaint = {
+    spread,
+    inputKey,
+    resolved,
+    previewUrlFor: (assetId) => urls.get(assetId),
+  }
+  paintCache.set(spreadId, next)
+  return next
+}
+
+let spreadIdsSnapshot: readonly string[] = []
+let spreadIdsFor: Book['spreads'] | null = null
+
+export function getSpreadIdsSnapshot(): readonly string[] {
+  const spreads = state.book.spreads
+  if (spreadIdsFor === spreads) {
+    return spreadIdsSnapshot
+  }
+  spreadIdsSnapshot = spreads.map((spread) => spread.id)
+  spreadIdsFor = spreads
+  return spreadIdsSnapshot
+}
+
+function paintInputKey(
+  book: Book,
+  spread: Spread | undefined,
+  sessionMeta: BookStoreState['sessionMeta'],
+  previewUrls: BookStoreState['previewUrls'],
+): string {
+  if (spread === undefined) {
+    return ''
+  }
+  const index = book.spreads.indexOf(spread)
+  const { trim, bleedMm, safeMarginMm } = book.settings
+  let key = `${String(index)}:${String(book.spreads.length)}:${String(trim.widthMm)}:${String(trim.heightMm)}:${String(bleedMm)}:${String(safeMarginMm)}`
+  for (const frame of spread.frames) {
+    const assetId = frame.assetId
+    if (assetId === undefined) {
+      key += '|'
+      continue
+    }
+    const aspect = sessionMeta.get(assetId)?.aspect ?? 1
+    const url = previewUrls.get(assetId) ?? ''
+    key += `|${assetId}:${String(aspect)}:${url}`
+  }
+  return key
+}
+
+function notifySpread(spreadId: string): void {
+  const set = spreadListeners.get(spreadId)
+  if (set === undefined) {
+    return
+  }
+  for (const listener of set) {
+    listener()
+  }
+}
+
+function notifyAffectedSpreads(
+  prev: BookStoreState,
+  next: BookStoreState,
+): void {
+  const ids = new Set<string>()
+  for (const spread of prev.book.spreads) {
+    ids.add(spread.id)
+  }
+  for (const spread of next.book.spreads) {
+    ids.add(spread.id)
+  }
+  for (const id of ids) {
+    const before = prev.book.spreads.find((spread) => spread.id === id)
+    const after = next.book.spreads.find((spread) => spread.id === id)
+    const beforeKey = paintInputKey(
+      prev.book,
+      before,
+      prev.sessionMeta,
+      prev.previewUrls,
+    )
+    const afterKey = paintInputKey(
+      next.book,
+      after,
+      next.sessionMeta,
+      next.previewUrls,
+    )
+    if (before !== after || beforeKey !== afterKey) {
+      paintCache.delete(id)
+      notifySpread(id)
+    }
+  }
+}
+
+/** Test helper: replace store state immediately. */
+export function resetBookStore(next?: BookStoreInit): void {
+  const prev = state
+  state = next
+    ? {
+        book: next.book,
+        sessionMeta: next.sessionMeta,
+        previewUrls: next.previewUrls ?? new Map(),
+        importRunning: next.importRunning,
+        importExpectedCount: next.importExpectedCount,
+      }
+    : {
+        book: createSessionBook(),
+        sessionMeta: new Map(),
+        previewUrls: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      }
   pendingGalleryIds = []
   pendingMeta = new Map()
   flushScheduled = false
   assetSeq = 0
+  paintCache.clear()
+  spreadIdsFor = null
   invalidateGalleryAspectsCache()
+  notifyAffectedSpreads(prev, state)
   emit()
 }
