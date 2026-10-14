@@ -9,7 +9,7 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
 - Tags:
   - **[prep]** — groundwork with no new user-facing UI (pure modules, adapters, workers). Verified by tests.
   - **[feature]** — a visible change on the Cloudflare preview URL. The **Browser check** line describes what to verify.
-- **60 fps is part of done.** Every `[feature]` ships a perf scenario for the interaction it adds (gates in `docs/future-architecture.md`, "Performance model"); a regression blocks the PR. **Perf:** lines name the techniques the change must use. The **Browser check** includes watching the interaction for stutter (DevTools Performance panel, frame rendering stats).
+- **60 fps is part of done.** Every `[feature]` ships a perf scenario for the interaction it adds (gates in `docs/future-architecture.md`, "Performance model"); a regression blocks the PR. **Perf:** lines name the techniques the change must use. The **Browser check** includes watching the interaction for stutter (DevTools Performance panel, frame rendering stats). For features with an in-app scrollport, the Browser check also verifies no page-level H/V scroll — the named region is the scrollport (Playwright: `assertDocumentFitsViewport`).
 - Milestones are review cuts: at the end of each, stop and review the product as a whole before continuing.
 - Tick a top-level box only after the change is archived and the PR is merged.
 
@@ -59,13 +59,13 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
   - [x] Horizontal virtualized filmstrip (React Aria GridList + Virtualizer); placeholders with aspect ratio first, thumbnails stream in
   - [x] Bounded object-URL LRU with revoke on eviction
   - **Perf:** pre-sized thumbnails only, `decoding="async"`, gallery updates batched per frame; scenario: import 200 photos while scrolling the filmstrip — zero LoAF.
-  - **Browser check:** add a folder of 100+ photos, scroll the filmstrip during import without stutter; add more files later.
+  - **Browser check:** add a folder of 100+ photos, scroll the filmstrip during import without stutter; document does not grow H/V scrollbars; filmstrip is the horizontal scrollport; add more files later.
 - [ ] [feature] `pasteboard-workspace` — shared DOM painter on a pasteboard
   - [ ] `src/render/SpreadView` draws resolved items; empty frames show placeholders
   - [ ] Pasteboard: all spreads stacked vertically, off-screen spreads virtualized, active spread follows scroll
   - [ ] New book starts with a few spreads; choose a template per spread; add spread
   - **Perf:** `contain` + `content-visibility` per spread, per-spread store subscription (an edit re-renders one spread), active-spread tracking via `IntersectionObserver` (no scroll-handler layout reads). Gate: ~40 spreads × 4 photos, scroll top to bottom — zero LoAF, frame pacing within budget; if it fails, stop and revisit the painter choice.
-  - **Browser check:** scroll through the book like an InDesign pasteboard, switch templates, add a spread — no dropped frames.
+  - **Browser check:** scroll through the book like an InDesign pasteboard, switch templates, add a spread — no dropped frames; document does not grow H/V scrollbars; pasteboard is the vertical scrollport.
 - [ ] [feature] `camera-zoom-pan` — zoom and pan
   - [ ] Ctrl/Cmd+wheel and pinch zoom around the cursor, `+` / `-`, fit spread, fit width, 100%; Space+drag pan; zoom indicator
   - [ ] Zoom-aware image tiers: smallest preview covering on-screen size × DPR; worker generates tiers into a bounded in-memory LRU
