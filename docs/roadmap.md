@@ -32,14 +32,14 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
 **Review cut:** the core editing loop works at 60 fps — add your photos to the filmstrip, drag them onto spreads on a zoomable pasteboard and back. Validates the document model, the shared renderer (including its pan/zoom performance) and drop semantics. Nothing is persisted yet.
 
 - [ ] [prep] `frame-budget-gates` — 60 fps measurement and gates (Security Review: headers)
-  - [ ] `src/perf/`: rAF frame-pacing sampler, Event Timing (INP) observer, `performance.measure` helpers for hot handlers; exposed via `__photobooksPerf`
-  - [ ] Playwright perf fixture: CDP CPU throttling, scenario windows, assertions (zero LoAF, INP, handler p95), frame stats as a CI artifact; throttling rate calibrated on CI runners
-  - [ ] `pnpm perf`: the same scenarios on a real machine with frame-pacing assertions
-  - [ ] Budgets in one config read by tests and benches
-  - [ ] Replace the 200 ms LoAF budget in `.cursor/rules/architecture.mdc`, `openspec/config.yaml` quality bar, `photo-card` spec, `react-perf-spa` skill, `LOAF_BLOCKING_BUDGET_MS`; add the 60 fps rule to `docs/lessons.md`
-  - [ ] Cross-origin isolation (COOP / COEP via Workers static-asset headers); verify `crossOriginIsolated` on the preview URL
-  - [ ] Enable React Compiler (or remove the assumption from `react-perf-spa`)
-  - [ ] Existing photo-card import scenario passes the new zero-LoAF gate
+  - [x] `src/perf/`: rAF frame-pacing sampler, Event Timing (INP) observer, `performance.measure` helpers for hot handlers; exposed via `__photobooksPerf`
+  - [x] Playwright perf fixture: CDP CPU throttling, scenario windows, assertions (zero LoAF, INP, handler p95), frame stats as a CI artifact; throttling rate calibrated on CI runners
+  - [x] `pnpm perf`: the same scenarios on a real machine with frame-pacing assertions
+  - [x] Budgets in one config read by tests and benches
+  - [x] Replace the 200 ms LoAF budget in `.cursor/rules/architecture.mdc`, `openspec/config.yaml` quality bar, `photo-card` spec, `react-perf-spa` skill, `LOAF_BLOCKING_BUDGET_MS`; add the 60 fps rule to `docs/lessons.md`
+  - [x] Cross-origin isolation (COOP / COEP via Workers static-asset headers); verify `crossOriginIsolated` on the preview URL
+  - [x] Enable React Compiler (or remove the assumption from `react-perf-spa`)
+  - [x] Existing photo-card import scenario passes the new zero-LoAF gate
 - [ ] [prep] `book-core-schema` — pure book document in `src/core`
   - [ ] Zod schema v1: book settings (trim size mm, bleed, safe margin), layout grid (margins, columns, rows, gutters) and guides (book-level, per-spread), assets, per-book gallery (ordered asset ids), spreads, frames (rect mm, z, assetId?, crop)
   - [ ] Parse / serialize, `schemaVersion`, migration chain scaffold, reject newer versions

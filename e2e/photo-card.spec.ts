@@ -3,22 +3,13 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
-
-/** Mirrors `PhotobooksPerfApi` without importing app modules into the e2e TS project. */
-interface PhotobooksPerfApi {
-  clearLoafEntries: () => void
-  getLoafEntries: () => readonly unknown[]
-  assertNoExcessiveBlocking: (budgetMs?: number) => void
-  isLoafObserving: () => boolean
-  stopLoafObserver: () => void
-  loafBlockingBudgetMs: number
-}
-
-declare global {
-  interface Window {
-    __photobooksPerf?: PhotobooksPerfApi
-  }
-}
+import {
+  assertCiPerfGates,
+  assertCrossOriginIsolated,
+  clearPerfScenario,
+  collectFrameStatsArtifact,
+  enablePerfScenario,
+} from './perf/perfFixture'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: true })
@@ -70,35 +61,41 @@ test('unsupported TIFF shows error', async ({ page }) => {
   await expect(page.getByTestId('photo-card')).toHaveCount(0)
 })
 
-test('24MP JPEG import stays within LoAF budget', async ({ page }) => {
+test('SPA is cross-origin isolated under preview headers', async ({ page }) => {
+  await page.goto('/')
+  await assertCrossOriginIsolated(page)
+})
+
+test('24MP JPEG import stays within frame-budget gates', async ({
+  page,
+}, testInfo) => {
   test.setTimeout(120_000)
-  await page.goto('/?loaf=1')
-  await page.waitForFunction(() => window.__photobooksPerf !== undefined)
+  await enablePerfScenario(page)
 
   const observing = await page.evaluate(() => {
     return window.__photobooksPerf?.isLoafObserving() ?? false
   })
   expect(observing).toBe(true)
 
-  await page.evaluate(() => {
-    const perf = window.__photobooksPerf
-    if (!perf) {
-      throw new Error('window.__photobooksPerf is not available')
-    }
-    perf.clearLoafEntries()
-  })
+  await clearPerfScenario(page)
 
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles(photoFixturePaths.largeJpeg)
+  const fileChooserPromise = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Open photo' }).click({ delay: 20 })
+  const fileChooser = await fileChooserPromise
+  await fileChooser.setFiles(photoFixturePaths.largeJpeg)
+
   await expect(page.getByTestId('photo-card')).toBeVisible({ timeout: 90_000 })
   await expect(page.getByTestId('photo-dimensions')).toHaveText('6000×4000')
 
-  await page.evaluate(() => {
+  await page.waitForFunction(() => {
     const perf = window.__photobooksPerf
     if (!perf) {
-      throw new Error('window.__photobooksPerf is not available')
+      return false
     }
-    perf.assertNoExcessiveBlocking(200)
+    perf.flushEventTimingEntries()
+    return perf.getEventTimingEntries().length > 0
   })
+
+  await assertCiPerfGates(page)
+  await collectFrameStatsArtifact(page, testInfo)
 })

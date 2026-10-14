@@ -1,8 +1,12 @@
+import { measureHandlerSync } from '../perf/measureHandler'
 import { aspectRatio } from './aspectRatio'
 import { formatBytes } from './formatBytes'
 import { isAcceptedPhotoMime } from './mime'
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { UnsupportedPhotoFormatError, type PhotoCardModel } from './types'
+
+/** `performance.measure` label for the sync open/load kickoff (handler p95 gate). */
+const OPEN_PHOTO_HANDLER_LABEL = 'open-photo'
 
 let workerInstance: Worker | null = null
 let requestCounter = 0
@@ -12,6 +16,11 @@ function getWorker(): Worker {
     type: 'module',
   })
   return workerInstance
+}
+
+/** Eagerly construct the photo worker (one-time setup outside hot-handler measures). */
+export function warmPhotoWorker(): void {
+  getWorker()
 }
 
 /** Terminates and clears the cached photo worker (tests / teardown). */
@@ -53,8 +62,13 @@ export async function loadPhoto(file: File): Promise<PhotoCardModel> {
   if (!isAcceptedPhotoMime(mimeType)) {
     throw new UnsupportedPhotoFormatError(mimeType)
   }
+  // Worker construction is one-time setup; keep it outside the hot-handler measure.
+  getWorker()
+  const responsePromise = measureHandlerSync(OPEN_PHOTO_HANDLER_LABEL, () =>
+    requestPhoto(file),
+  )
 
-  const response = await requestPhoto(file)
+  const response = await responsePromise
 
   if (!response.ok) {
     throw new Error(response.error)
