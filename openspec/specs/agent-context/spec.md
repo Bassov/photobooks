@@ -177,4 +177,23 @@ When an OpenSpec change introduces or changes an in-app scrollport (`overflow: a
 #### Scenario: Page overflow is not a ui-review gate
 
 - **WHEN** an agent loads OpenSpec quality-bar or apply guidance from `openspec/config.yaml`
-- **THEN** the returned text states that page overflow containment is a Playwright invariant and MUST NOT treat optional skill `ui-review` as the gate for that invariant
+- **THEN** the returned text states that page overflow containment is a Playwright invariant and MUST NOT treat skill `ui-review` as the sole gate for that page-overflow invariant
+
+### Requirement: UI browser smoke before push
+
+When an OpenSpec change includes UI in scope, apply SHALL NOT be treated as complete (and SHALL NOT push/archive) until evidenced browser smoke covers empty state, happy path of the change, and primary scroll/interact, and skill `ui-review` (including layout smoke) has been applied. Observable UX claims in success criteria (packing, aspect silhouette, empty copy readability, viewport fill, object-fit, etc.) MUST have matching Playwright assertions before apply completes. Virtualized or variable-size lists MUST assert mounted-window coverage of the scrollport mid-scroll when more items remain — fixed item counts or LoAF alone are insufficient. Green typecheck/unit verify alone is not apply-complete for UI scope.
+
+#### Scenario: Verification checklist names UI smoke
+
+- **WHEN** an agent creates `tasks.md` for a change
+- **THEN** the Verification checklist MUST include a UI-in-scope browser smoke item (empty + happy + primary scroll/interact; skill `ui-review`)
+
+#### Scenario: Apply guidance blocks push without smoke
+
+- **WHEN** an agent loads apply guidance from `openspec/config.yaml`
+- **THEN** the guidance MUST require evidenced UI browser smoke and `ui-review` before push/archive when UI is in scope
+
+#### Scenario: Implementation reviewer fails missing UI smoke
+
+- **WHEN** `openspec-implementation-reviewer` reviews a UI-scoped change lacking empty/happy/scroll e2e or layout smoke evidence
+- **THEN** the verdict MUST NOT be `pass` (missing coverage is high / revise)
