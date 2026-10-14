@@ -82,6 +82,8 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Assert dist isolation headers
         run: node scripts/assert-dist-headers.mjs

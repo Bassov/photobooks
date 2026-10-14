@@ -8,6 +8,10 @@ coverage:
       default:
         informational: true
 
+bundle_analysis:
+  warning_threshold: '5%'
+  status: informational
+
 flag_management:
   default_rules:
     carryforward: true

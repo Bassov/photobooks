@@ -1,3 +1,4 @@
+import { codecovVitePlugin } from '@codecov/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -7,10 +8,19 @@ const isolationHeaders = {
   'Cross-Origin-Embedder-Policy': 'credentialless',
 } as const
 
+const codecovToken = process.env.CODECOV_TOKEN
+
 export default defineConfig({
   plugins: [
     react({
       compiler: true,
+    }),
+    codecovVitePlugin({
+      enableBundleAnalysis: Boolean(codecovToken),
+      bundleName: 'photobooks',
+      ...(codecovToken ? { uploadToken: codecovToken } : {}),
+      gitService: 'github',
+      telemetry: false,
     }),
   ],
   server: {
