@@ -24,23 +24,35 @@ describe('EditorShell viewport containment', () => {
     vi.restoreAllMocks()
   })
 
-  it('keeps the workspace placeholder without the fixture query', () => {
+  it('paints the session spread instead of a placeholder', () => {
     window.history.pushState({}, '', '/')
     render(<EditorShell />)
 
-    expect(screen.getByText(/Pasteboard workspace arrives/)).toBeTruthy()
-    expect(screen.queryByTestId('spread-view')).toBeNull()
+    expect(screen.queryByText(/Pasteboard workspace arrives/)).toBeNull()
+    expect(screen.getAllByTestId('spread-view')).toHaveLength(1)
+    expect(screen.getByTestId('spread-frame-placeholder')).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Spreads' })).toBeTruthy()
+    expect(
+      screen.getByRole('region', { name: 'Spreads' }).getAttribute('tabindex'),
+    ).toBe('0')
+    expect(
+      screen.getByTestId('pasteboard-slot').getAttribute('data-active'),
+    ).toBe('true')
   })
 
-  it('paints the fixture book in the workspace scrollport', () => {
+  it('mounts a window of the fixture book, not every spread', () => {
     window.history.pushState({}, '', '/?fixture=painter')
     render(<EditorShell />)
 
-    expect(screen.getAllByTestId('spread-view')).toHaveLength(40)
+    expect(screen.getByTestId('pasteboard-scroll').dataset.spreadCount).toBe(
+      '40',
+    )
+    const mounted = screen.getAllByTestId('spread-view')
+    expect(mounted.length).toBeGreaterThan(0)
+    expect(mounted.length).toBeLessThan(40)
     expect(
       screen.getAllByTestId('spread-frame-placeholder').length,
     ).toBeGreaterThan(0)
-    expect(screen.getByRole('region', { name: 'Spreads' })).toBeTruthy()
     expect(screen.queryByText(/Pasteboard workspace arrives/)).toBeNull()
   })
 

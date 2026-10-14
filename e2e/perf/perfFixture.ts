@@ -45,13 +45,16 @@ export async function applyCpuThrottling(page: Page): Promise<void> {
   })
 }
 
-export async function enablePerfScenario(page: Page): Promise<void> {
+export async function enablePerfScenario(
+  page: Page,
+  url = '/?perf=1',
+): Promise<void> {
   await page.addInitScript(() => {
     // Force the file-input fallback so Playwright can setInputFiles / filechooser.
     Reflect.deleteProperty(window, 'showOpenFilePicker')
     Reflect.deleteProperty(window, 'showDirectoryPicker')
   })
-  await page.goto('/?perf=1')
+  await page.goto(url)
   await page.waitForFunction(() => window.__photobooksPerf !== undefined)
   await applyCpuThrottling(page)
 }
