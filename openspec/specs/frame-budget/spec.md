@@ -30,7 +30,12 @@ Automated Playwright interaction scenarios in CI MUST run with CDP CPU throttlin
 
 #### Scenario: Photo import scenario fails on LoAF
 
-- **WHEN** a throttled CI scenario imports a ~24MP JPEG through the photo-card flow and at least one LoAF entry is recorded during the scenario window
+- **WHEN** a throttled CI scenario imports photos through the gallery filmstrip flow (bulk import while scrolling) and at least one LoAF entry is recorded during the scenario window
+- **THEN** the scenario fails
+
+#### Scenario: Filmstrip bulk import scenario fails on LoAF
+
+- **WHEN** a throttled CI scenario imports ~200 photos into the filmstrip while scrolling and at least one LoAF entry is recorded during the scenario window
 - **THEN** the scenario fails
 
 #### Scenario: Frame pacing is report-only in CI

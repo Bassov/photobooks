@@ -8,16 +8,17 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 
 ## Module map
 
-| Area              | Code                                | Spec                              |
-| ----------------- | ----------------------------------- | --------------------------------- |
-| Book document     | `src/core/`                         | `openspec/specs/book-core/`       |
-| Layout geometry   | `src/core/` (templates/ops/resolve) | `openspec/specs/layout-geometry/` |
-| Photo open / card | `src/photo/`                        | `openspec/specs/photo-card/`      |
-| Perf / 60 fps     | `src/perf/`                         | `openspec/specs/frame-budget/`    |
-| Shared helpers    | `src/lib/`                          | —                                 |
-| Preview hosting   | `wrangler.jsonc`, deploy scripts    | `openspec/specs/preview-hosting/` |
-| CI quality gates  | `.github/`, `codecov.yml`           | `openspec/specs/ci-gates/`        |
-| Agent pipeline    | `.cursor/`, `AGENTS.md`             | `openspec/specs/agent-context/`   |
+| Area               | Code                                | Spec                              |
+| ------------------ | ----------------------------------- | --------------------------------- |
+| Book document      | `src/core/`                         | `openspec/specs/book-core/`       |
+| Layout geometry    | `src/core/` (templates/ops/resolve) | `openspec/specs/layout-geometry/` |
+| Editor shell       | `src/editor/`                       | `openspec/specs/editor-shell/`    |
+| Photo / asset pool | `src/photo/`                        | `openspec/specs/photo-card/`      |
+| Perf / 60 fps      | `src/perf/`                         | `openspec/specs/frame-budget/`    |
+| Shared helpers     | `src/lib/`                          | —                                 |
+| Preview hosting    | `wrangler.jsonc`, deploy scripts    | `openspec/specs/preview-hosting/` |
+| CI quality gates   | `.github/`, `codecov.yml`           | `openspec/specs/ci-gates/`        |
+| Agent pipeline     | `.cursor/`, `AGENTS.md`             | `openspec/specs/agent-context/`   |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
 

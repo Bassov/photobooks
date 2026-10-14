@@ -2,57 +2,72 @@
 
 ## Purpose
 
-Lets the user open a single local image and see a photo card with corrected preview and basic file metadata, or a clear error for unsupported types.
+Lets the user import local images into the editor gallery filmstrip with worker-based decode/EXIF, or show a clear per-file error for unsupported types.
 
 ## Requirements
 
 ### Requirement: Open a local image file
 
-The system SHALL let the user choose one local image file. When the File System Access API is available, the system MUST prefer it. The system MUST also provide a file input path suitable for automated tests.
+The system SHALL let the user choose local image files (one or many) or a folder for import into the editor gallery. When the File System Access API is available, the system MUST prefer it for picking. The system MUST also provide a file input path suitable for automated tests.
 
 #### Scenario: Open via primary picker
 
-- **WHEN** the user activates Open photo and the File System Access API is available
-- **THEN** the system presents a file picker and loads the chosen image into the photo-card flow
+- **WHEN** the user activates Add photos or Add folder and the File System Access API is available
+- **THEN** the system presents the appropriate picker and imports chosen images into the gallery filmstrip flow
 
 #### Scenario: Open via file input fallback
 
-- **WHEN** a supported image file is supplied through the hidden file input
-- **THEN** the system loads that file into the same photo-card flow as the primary picker
+- **WHEN** supported image files are supplied through the hidden file input
+- **THEN** the system imports those files into the same gallery filmstrip flow as the primary picker
 
 ### Requirement: Accepted and rejected image types
 
-The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other types, including TIFF, and MUST show a visible error without rendering a success card.
+The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other types, including TIFF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. A rejected file in a batch MUST NOT abort import of other accepted files.
 
 #### Scenario: Accept JPEG
 
-- **WHEN** the user opens an `image/jpeg` file
-- **THEN** the system shows a photo card for that file
+- **WHEN** the user imports an `image/jpeg` file
+- **THEN** the system adds that asset to the gallery filmstrip
 
 #### Scenario: Reject TIFF
 
-- **WHEN** the user opens an `image/tiff` file
-- **THEN** the system shows a visible unsupported-format error and does not show a success card
+- **WHEN** the user imports an `image/tiff` file
+- **THEN** the system shows a visible unsupported-format error for that file and does not add it as a successful gallery asset
 
-### Requirement: Photo card content
+### Requirement: Filmstrip asset representation
 
-After a successful load, the system SHALL display one photo card that includes an orientation-corrected preview, corrected pixel dimensions, a reduced aspect-ratio label, and a human-readable file size.
+After a successful import of an asset, the system SHALL represent it in the filmstrip with an orientation-corrected preview thumbnail once ready. Corrected pixel dimensions and aspect metadata MUST be available for that asset for later layout use.
+
+#### Scenario: Filmstrip shows orientation-corrected preview
+
+- **WHEN** a supported image with non-default EXIF orientation imports successfully
+- **THEN** the filmstrip thumbnail is displayed with that orientation applied so the subject appears upright
+
+#### Scenario: Aspect metadata available after import
+
+- **WHEN** a supported image imports successfully
+- **THEN** corrected width and height (or equivalent aspect) for that asset are retained for layout consumers
 
 #### Scenario: Card shows metadata
 
-- **WHEN** a supported image loads successfully
-- **THEN** the card shows corrected width×height, a reduced aspect ratio (for example `3:2`), and a byte size label using KB/MB/GB thresholds
+- **WHEN** a supported image imports successfully
+- **THEN** corrected dimensions and aspect are retained for that asset (legacy card UI is not required)
 
 #### Scenario: Preview respects EXIF orientation
 
 - **WHEN** the image has a non-default EXIF orientation
-- **THEN** the preview is displayed with that orientation applied so the subject appears upright
+- **THEN** the filmstrip preview is displayed with that orientation applied so the subject appears upright
 
-### Requirement: Main-thread budget on import
+### Requirement: Main-thread budget on gallery import
 
-Image decode and preview preparation for import MUST NOT run as blocking work on the main thread. An automated import scenario for a ~24MP JPEG MUST record zero LoAF entries during the scenario window (under the project's calibrated CDP CPU throttling when run in CI).
+Image decode and preview preparation for import MUST NOT run as blocking work on the main thread. An automated scenario that imports many photos into the filmstrip while scrolling MUST record zero LoAF entries during the scenario window (under the project's calibrated CDP CPU throttling when run in CI).
+
+#### Scenario: Bulk filmstrip import stays within LoAF budget
+
+- **WHEN** ~200 supported images are imported through the gallery filmstrip flow while the filmstrip is scrolled in the LoAF scenario test
+- **THEN** no LoAF entry is recorded during the scenario window
 
 #### Scenario: Large JPEG import stays within LoAF budget
 
-- **WHEN** a ~24MP JPEG is imported through the photo-card flow in the LoAF scenario test
+- **WHEN** a large JPEG is included in a filmstrip import LoAF scenario
 - **THEN** no LoAF entry is recorded during the scenario window

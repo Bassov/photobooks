@@ -11,5 +11,5 @@ export const PERF_BUDGETS = {
   droppedFrameRatio: 0.02,
 } as const
 
-/** Must match `OPEN_PHOTO_HANDLER_LABEL` in `src/photo/loadPhoto.ts`. */
-export const OPEN_PHOTO_HANDLER_LABEL = 'open-photo'
+/** Must match `IMPORT_PHOTOS_HANDLER_LABEL` in `src/editor/importPhotos.ts`. */
+export const OPEN_PHOTO_HANDLER_LABEL = 'import-photos'

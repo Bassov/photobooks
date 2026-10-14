@@ -46,18 +46,18 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
   - [x] Invariants: no dangling asset refs, every placed asset is in the gallery; PBT round-trip
   - [x] Immutable updates with structural sharing (unchanged spreads keep their reference)
   - [x] dependency-cruiser `core-is-pure`; update `.cursor/rules/data-model.mdc` and `AGENTS.md` module map
-- [ ] [prep] `layout-geometry` — templates, resolver, ops
+- [x] [prep] `layout-geometry` — templates, resolver, ops
   - [x] Templates as frame generators aligned to the layout grid: full-bleed spread, one per page, 2-up, 4-grid
   - [x] `resolveSpread` → resolved items with source crop rect; derived page cut lines; memoized by spread reference
   - [x] Pure ops: add to / remove from gallery (cascades placements), place, replace, unplace, swap, apply template, add / remove / move spread
   - [x] Selectors: placement count per asset, unplaced assets
   - [x] PBT for geometry and op invariants; `pnpm bench` budgets for resolve, ops and selectors on a 40-spread / 1000-asset book
 - [ ] [feature] `editor-shell-filmstrip` — editor layout and gallery
-  - [ ] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
-  - [ ] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery
-  - [ ] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), cancellation when a thumbnail scrolls away, transferables; folder scan and file reads inside the worker; per-file errors do not abort the batch; progress
-  - [ ] Horizontal virtualized filmstrip (React Aria GridList + Virtualizer); placeholders with aspect ratio first, thumbnails stream in
-  - [ ] Bounded object-URL LRU with revoke on eviction
+  - [x] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
+  - [x] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery
+  - [x] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), cancellation when a thumbnail scrolls away, transferables; folder scan and file reads inside the worker; per-file errors do not abort the batch; progress
+  - [x] Horizontal virtualized filmstrip (React Aria GridList + Virtualizer); placeholders with aspect ratio first, thumbnails stream in
+  - [x] Bounded object-URL LRU with revoke on eviction
   - **Perf:** pre-sized thumbnails only, `decoding="async"`, gallery updates batched per frame; scenario: import 200 photos while scrolling the filmstrip — zero LoAF.
   - **Browser check:** add a folder of 100+ photos, scroll the filmstrip during import without stutter; add more files later.
 - [ ] [feature] `pasteboard-workspace` — shared DOM painter on a pasteboard
