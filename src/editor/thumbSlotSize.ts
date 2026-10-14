@@ -1,7 +1,7 @@
 import { clamp } from '../lib/clamp'
 
 export const THUMB_HEIGHT = 96
-export const THUMB_GAP = 8
+const THUMB_GAP = 8
 /** Default landscape width before aspect is known (legacy 3:2 at THUMB_HEIGHT). */
 export const THUMB_WIDTH_DEFAULT = 144
 export const THUMB_WIDTH_MIN = 48

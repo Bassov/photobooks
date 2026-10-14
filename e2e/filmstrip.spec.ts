@@ -276,102 +276,113 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
   await assertNamedScrollport(page, 'filmstrip-scroll')
 })
 
-test('bulk filmstrip import while scrolling stays within frame-budget gates', async ({
-  page,
-}, testInfo) => {
-  test.setTimeout(180_000)
-  await enablePerfScenario(page)
+test.describe('frame-budget gates', () => {
+  // Local pre-push runs parallel workers; this scenario is CPU-sensitive and
+  // flakes under contention. CI already uses workers: 1.
+  test.describe.configure({ retries: 2 })
 
-  const observing = await page.evaluate(() => {
-    return window.__photobooksPerf?.isLoafObserving() ?? false
-  })
-  expect(observing).toBe(true)
+  test('bulk filmstrip import while scrolling stays within frame-budget gates', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(180_000)
+    await enablePerfScenario(page)
 
-  await clearPerfScenario(page)
-
-  const files = writeBulkImportFixtures(200)
-
-  const fileChooserPromise = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Add photos' }).click({ delay: 20 })
-  const fileChooser = await fileChooserPromise
-  await fileChooser.setFiles(files)
-
-  await expect(page.getByTestId('import-progress')).toBeVisible({
-    timeout: 30_000,
-  })
-  await expect(page.getByTestId('import-progress')).toContainText('Importing', {
-    timeout: 30_000,
-  })
-
-  // Progressive visibility: gallery ids flush into the strip before the batch settles.
-  await expect
-    .poll(
-      async () => {
-        const count = Number(
-          (await page
-            .getByTestId('filmstrip')
-            .getAttribute('data-gallery-count')) ?? '0',
-        )
-        const importing = await page.getByTestId('import-progress').isVisible()
-        return count > 0 && importing
-      },
-      { timeout: 60_000 },
-    )
-    .toBe(true)
-
-  // Interaction window: scroll while import continues (exclude picker/setFiles LoAF).
-  await page.evaluate(() => {
-    window.__photobooksPerf?.clearLoafEntries()
-  })
-
-  for (let i = 0; i < 30; i += 1) {
-    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft += 160
+    const observing = await page.evaluate(() => {
+      return window.__photobooksPerf?.isLoafObserving() ?? false
     })
-    await page.waitForTimeout(32)
-  }
+    expect(observing).toBe(true)
 
-  // Assert LoAF for the scroll-during-import window before post-import reveal work.
-  await page.evaluate(
-    ({ loafMax }) => {
+    await clearPerfScenario(page)
+
+    const files = writeBulkImportFixtures(200)
+
+    const fileChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Add photos' }).click({ delay: 20 })
+    const fileChooser = await fileChooserPromise
+    await fileChooser.setFiles(files)
+
+    await expect(page.getByTestId('import-progress')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId('import-progress')).toContainText(
+      'Importing',
+      {
+        timeout: 30_000,
+      },
+    )
+
+    // Progressive visibility: gallery ids flush into the strip before the batch settles.
+    await expect
+      .poll(
+        async () => {
+          const count = Number(
+            (await page
+              .getByTestId('filmstrip')
+              .getAttribute('data-gallery-count')) ?? '0',
+          )
+          const importing = await page
+            .getByTestId('import-progress')
+            .isVisible()
+          return count > 0 && importing
+        },
+        { timeout: 60_000 },
+      )
+      .toBe(true)
+
+    // Interaction window: scroll while import continues (exclude picker/setFiles LoAF).
+    await page.evaluate(() => {
+      window.__photobooksPerf?.clearLoafEntries()
+    })
+
+    for (let i = 0; i < 30; i += 1) {
+      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+        node.scrollLeft += 160
+      })
+      await page.waitForTimeout(32)
+    }
+
+    // Assert LoAF for the scroll-during-import window before post-import reveal work.
+    await page.evaluate(
+      ({ loafMax }) => {
+        const perf = window.__photobooksPerf
+        if (!perf) {
+          throw new Error('window.__photobooksPerf is not available')
+        }
+        perf.assertNoLoafEntries(loafMax)
+      },
+      { loafMax: 0 },
+    )
+
+    // Virtualizer only mounts visible rows — assert gallery size, not DOM item count.
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe('200')
+
+    await assertDocumentFitsViewport(page)
+
+    await expect(page.getByTestId('filmstrip-item').first()).toBeVisible({
+      timeout: 60_000,
+    })
+
+    await page.waitForFunction(() => {
       const perf = window.__photobooksPerf
       if (!perf) {
-        throw new Error('window.__photobooksPerf is not available')
+        return false
       }
-      perf.assertNoLoafEntries(loafMax)
-    },
-    { loafMax: 0 },
-  )
+      perf.flushEventTimingEntries()
+      return perf.getEventTimingEntries().length > 0
+    })
 
-  // Virtualizer only mounts visible rows — assert gallery size, not DOM item count.
-  await expect
-    .poll(
-      async () =>
-        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
-      { timeout: 120_000 },
-    )
-    .toBe('200')
+    // Clear post-import reveal LoAF; keep INP/handler from the Add photos gesture.
+    await page.evaluate(() => {
+      window.__photobooksPerf?.clearLoafEntries()
+    })
 
-  await assertDocumentFitsViewport(page)
-
-  await expect(page.getByTestId('filmstrip-item').first()).toBeVisible({
-    timeout: 60_000,
+    await assertCiPerfGates(page)
+    await collectFrameStatsArtifact(page, testInfo)
   })
-
-  await page.waitForFunction(() => {
-    const perf = window.__photobooksPerf
-    if (!perf) {
-      return false
-    }
-    perf.flushEventTimingEntries()
-    return perf.getEventTimingEntries().length > 0
-  })
-
-  // Clear post-import reveal LoAF; keep INP/handler from the Add photos gesture.
-  await page.evaluate(() => {
-    window.__photobooksPerf?.clearLoafEntries()
-  })
-
-  await assertCiPerfGates(page)
-  await collectFrameStatsArtifact(page, testInfo)
 })

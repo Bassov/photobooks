@@ -23,12 +23,15 @@ import {
   buildStridePrefix,
   indexFromScrollOffset,
   spacerWidthPx,
-  THUMB_GAP,
   THUMB_HEIGHT,
 } from './thumbSlotSize'
 import './Filmstrip.css'
 
-const WINDOW_SIZE = 48
+/**
+ * Visible window size. Items are absolutely packed by actual aspect width
+ * (not Virtualizer estimatedRowSize — that left max-width leftover gaps).
+ */
+const WINDOW_SIZE = 16
 const REVEAL_PER_FRAME = 1
 
 export const Filmstrip = memo(function Filmstrip({
@@ -86,15 +89,24 @@ export const Filmstrip = memo(function Filmstrip({
     .slice(0, revealed)
     .slice(start, start + WINDOW_SIZE)
     .join('\0')
+  const windowOffset = prefix[start] ?? 0
+  const windowCount = windowKey ? windowKey.split('\0').length : 0
+  const windowEnd = Math.min(start + windowCount, prefix.length - 1)
+  const windowWidth = (prefix[windowEnd] ?? windowOffset) - windowOffset
 
   const items = useMemo(() => {
     if (!windowKey) {
-      return [] as { id: string; name: string }[]
+      return [] as { id: string; name: string; offsetLeft: number }[]
     }
-    return windowKey
-      .split('\0')
-      .map((assetId) => ({ id: assetId, name: assetId }))
-  }, [windowKey])
+    return windowKey.split('\0').map((assetId, index) => {
+      const absolute = prefix[start + index] ?? 0
+      return {
+        id: assetId,
+        name: assetId,
+        offsetLeft: absolute - windowOffset,
+      }
+    })
+  }, [windowKey, prefix, start, windowOffset])
 
   useEffect(() => {
     setVisibleAssetIds(items.map((item) => item.id))
@@ -114,8 +126,6 @@ export const Filmstrip = memo(function Filmstrip({
     })
   }
 
-  const windowOffset = prefix[start] ?? 0
-
   return (
     <section
       className="filmstrip"
@@ -134,6 +144,8 @@ export const Filmstrip = memo(function Filmstrip({
             className="filmstrip-window"
             style={{
               transform: `translateX(${String(windowOffset)}px)`,
+              width: Math.max(windowWidth, 1),
+              height: THUMB_HEIGHT + 24,
             }}
           >
             <GridList
@@ -141,14 +153,23 @@ export const Filmstrip = memo(function Filmstrip({
               orientation="horizontal"
               items={items}
               className="filmstrip-list"
-              style={{ height: THUMB_HEIGHT + 24, gap: THUMB_GAP }}
+              style={{
+                height: THUMB_HEIGHT + 24,
+                width: Math.max(windowWidth, 1),
+              }}
               renderEmptyState={() => (
                 <p className="filmstrip-empty" data-testid="filmstrip-empty">
                   Add a folder or photos to build the gallery.
                 </p>
               )}
             >
-              {(item) => <FilmstripItemView id={item.id} name={item.name} />}
+              {(item) => (
+                <FilmstripItemView
+                  id={item.id}
+                  name={item.name}
+                  offsetLeft={item.offsetLeft}
+                />
+              )}
             </GridList>
           </div>
         </div>

@@ -12,7 +12,7 @@ import {
 import { Filmstrip } from './Filmstrip'
 import { seedGallery } from './gallery.test-helpers'
 import { resetThumbCache } from './thumbCache'
-import { spacerWidthPx, thumbSlotSize } from './thumbSlotSize'
+import { spacerWidthPx, thumbSlotSize, thumbStride } from './thumbSlotSize'
 
 const filmstripCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'Filmstrip.css'),
@@ -82,12 +82,9 @@ describe('Filmstrip viewport containment', () => {
     expect(filmstripCss).toMatch(/\.filmstrip-scroll\s*\{[^}]*min-width:\s*0/s)
   })
 
-  it('packs variable-width items with flex gap from each card end', () => {
-    // Regresses Virtualizer estimatedRowSize packing (max-width slots + leftover gap).
-    expect(filmstripCss).toMatch(/\.filmstrip-list\s*\{[^}]*display:\s*flex/s)
-    expect(filmstripCss).toMatch(/\.filmstrip-list\s*\{[^}]*gap:\s*8px/s)
+  it('absolutely packs items from each card end (not max-width slots)', () => {
     expect(filmstripCss).toMatch(
-      /\.filmstrip-item\s*\{[^}]*flex:\s*0\s+0\s+auto/s,
+      /\.filmstrip-item\s*\{[^}]*position:\s*absolute/s,
     )
   })
 })
@@ -132,6 +129,19 @@ describe('Filmstrip aspect cards', () => {
     expect(items[1]?.style.width).toBe(`${String(portW)}px`)
     expect(items[2]?.style.width).toBe(`${String(squareW)}px`)
     expect(portW).toBeLessThan(landW)
+
+    // Origins follow each card's end + gap — not a fixed max-width stride.
+    expect(items[0]?.getAttribute('data-offset-left')).toBe('0')
+    expect(items[1]?.getAttribute('data-offset-left')).toBe(
+      String(thumbStride(1.5)),
+    )
+    expect(items[2]?.getAttribute('data-offset-left')).toBe(
+      String(thumbStride(1.5) + thumbStride(0.5)),
+    )
+    expect(items[1]?.style.left).toBe(`${String(thumbStride(1.5))}px`)
+    expect(items[2]?.style.left).toBe(
+      `${String(thumbStride(1.5) + thumbStride(0.5))}px`,
+    )
 
     globalThis.requestAnimationFrame = previousRaf
   })

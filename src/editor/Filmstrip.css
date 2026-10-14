@@ -48,19 +48,16 @@
 .filmstrip-list {
   outline: none;
   overflow: visible;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 8px;
+  display: block;
+  position: relative;
   padding: 0;
   margin: 0;
-  width: max-content;
 }
 
 .filmstrip-item {
+  position: absolute;
+  top: 0;
   display: flex;
-  flex: 0 0 auto;
   align-items: stretch;
   justify-content: center;
   outline: none;

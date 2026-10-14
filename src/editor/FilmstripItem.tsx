@@ -14,7 +14,16 @@ function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
   return 'square'
 }
 
-export function FilmstripItemView({ id, name }: { id: string; name: string }) {
+export function FilmstripItemView({
+  id,
+  name,
+  offsetLeft,
+}: {
+  id: string
+  name: string
+  /** Left origin within the filmstrip window from actual-width prefix sums. */
+  offsetLeft: number
+}) {
   const thumbUrl = useSyncExternalStore(
     (listener) => subscribeThumb(id, listener),
     () => getThumbUrl(id),
@@ -36,7 +45,11 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
       data-asset-id={id}
       data-aspect={String(aspect)}
       data-orientation={orientationLabel(aspect)}
+      data-offset-left={String(offsetLeft)}
       style={{
+        position: 'absolute',
+        top: 0,
+        left: offsetLeft,
         width,
         height,
       }}
