@@ -8,28 +8,29 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 
 ## Module map
 
-| Area              | Code                             | Spec                                  |
-| ----------------- | -------------------------------- | ------------------------------------- |
-| Photo open / card | `src/photo/`                     | `openspec/specs/photo-card/`          |
-| Perf / LoAF       | `src/perf/`                      | (covered by photo-card / quality bar) |
-| Shared helpers    | `src/lib/`                       | —                                     |
-| Preview hosting   | `wrangler.jsonc`, deploy scripts | `openspec/specs/preview-hosting/`     |
-| CI quality gates  | `.github/`, `codecov.yml`        | `openspec/specs/ci-gates/`            |
-| Agent pipeline    | `.cursor/`, `AGENTS.md`          | `openspec/specs/agent-context/`       |
+| Area              | Code                             | Spec                              |
+| ----------------- | -------------------------------- | --------------------------------- |
+| Photo open / card | `src/photo/`                     | `openspec/specs/photo-card/`      |
+| Perf / 60 fps     | `src/perf/`                      | `openspec/specs/frame-budget/`    |
+| Shared helpers    | `src/lib/`                       | —                                 |
+| Preview hosting   | `wrangler.jsonc`, deploy scripts | `openspec/specs/preview-hosting/` |
+| CI quality gates  | `.github/`, `codecov.yml`        | `openspec/specs/ci-gates/`        |
+| Agent pipeline    | `.cursor/`, `AGENTS.md`          | `openspec/specs/agent-context/`   |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
 
 ## Commands (reference)
 
-| Command             | Use                                           |
-| ------------------- | --------------------------------------------- |
-| `pnpm verify:fast`  | typecheck + lint + deps + knip + vitest       |
-| `pnpm verify`       | verify:fast + Playwright                      |
-| `pnpm deps`         | dependency-cruiser layer rules                |
-| `pnpm knip`         | unused exports / deps                         |
-| `pnpm stryker:diff` | mutations vs `origin/main`                    |
-| `pnpm test:lhci`    | Lighthouse budgets                            |
-| `pnpm audit:ci`     | high-severity **production** dependency audit |
+| Command             | Use                                                   |
+| ------------------- | ----------------------------------------------------- |
+| `pnpm verify:fast`  | typecheck + lint + deps + knip + vitest               |
+| `pnpm verify`       | verify:fast + Playwright                              |
+| `pnpm perf`         | Playwright frame-budget scenarios (hard frame pacing) |
+| `pnpm deps`         | dependency-cruiser layer rules                        |
+| `pnpm knip`         | unused exports / deps                                 |
+| `pnpm stryker:diff` | mutations vs `origin/main`                            |
+| `pnpm test:lhci`    | Lighthouse budgets                                    |
+| `pnpm audit:ci`     | high-severity **production** dependency audit         |
 
 ## Skills (on demand)
 

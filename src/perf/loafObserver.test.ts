@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  assertNoExcessiveBlocking,
+  assertNoLoafEntries,
   clearLoafEntries,
   getLoafEntries,
   isLoafObserving,
@@ -69,9 +69,9 @@ describe('loafObserver', () => {
       { startTime: 2, duration: 40, blockingDuration: 40 },
     ])
 
-    assertNoExcessiveBlocking(200)
     clearLoafEntries()
     expect(getLoafEntries()).toEqual([])
+    assertNoLoafEntries()
 
     stopLoafObserver()
     expect(isLoafObserving()).toBe(false)
@@ -95,11 +95,11 @@ describe('loafObserver', () => {
 
   it('throws when asserting without an active observer', () => {
     expect(() => {
-      assertNoExcessiveBlocking()
+      assertNoLoafEntries()
     }).toThrow(/LoAF observer is not active/)
   })
 
-  it('throws when blocking duration exceeds budget', () => {
+  it('throws when any LoAF entry is recorded', () => {
     interface List {
       getEntries: () => PerformanceEntry[]
     }
@@ -127,14 +127,14 @@ describe('loafObserver', () => {
       getEntries: () => [
         {
           startTime: 0,
-          duration: 300,
-          blockingDuration: 250,
+          duration: 60,
+          blockingDuration: 40,
         } as PerformanceEntry & { blockingDuration: number },
       ],
     })
 
     expect(() => {
-      assertNoExcessiveBlocking(200)
-    }).toThrow(/exceeds budget/)
+      assertNoLoafEntries()
+    }).toThrow(/exceed max/)
   })
 })

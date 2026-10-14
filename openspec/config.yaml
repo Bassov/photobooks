@@ -13,7 +13,7 @@ context: |
   - After code changes: pnpm verify (or verify:fast for tight loops); read the output
   - Property-based tests via @fast-check/vitest (numRuns ~100 local; higher in CI)
   - Mutation testing: pnpm stryker:diff on changed modules; nightly full Stryker on main
-  - Perf: Lighthouse CI budgets (budget.json); LoAF blockingDuration ≤ 200 ms in scenario tests
+  - Perf: Lighthouse CI budgets (budget.json); 60 fps proxies — zero LoAF, handler p95 ≤ 2 ms, INP ≤ 100 ms in scenario tests (`src/perf/budgets.ts`); frame pacing via `pnpm perf`
   - Heavy work (decode/render/imposition) MUST run in Web Workers, never on the main thread
   - Tests MUST exercise public module/component APIs; no private/`as any`/deep-internal hacks — if blocked, reuse an existing seam or extend the public API in the same change
   - Shared factories, fixtures, and helpers; do not copy-paste Arrange/setup across cases or suites

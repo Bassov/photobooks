@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { enablePerfHooks, shouldEnablePerfHooks } from './perf/exposePerf'
+import { warmPhotoWorker } from './photo/loadPhoto'
 
 if (shouldEnablePerfHooks()) {
   enablePerfHooks()
+  warmPhotoWorker()
 }
 
 const rootElement = document.getElementById('root')

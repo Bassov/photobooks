@@ -1,8 +1,24 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
+const isolationHeaders = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  // credentialless: keep Google Fonts loading while enabling crossOriginIsolated.
+  'Cross-Origin-Embedder-Policy': 'credentialless',
+} as const
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      compiler: true,
+    }),
+  ],
+  server: {
+    headers: { ...isolationHeaders },
+  },
+  preview: {
+    headers: { ...isolationHeaders },
+  },
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],

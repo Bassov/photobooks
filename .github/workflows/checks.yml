@@ -83,6 +83,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Assert dist isolation headers
+        run: node scripts/assert-dist-headers.mjs
+
       - name: Dependency audit
         run: pnpm audit:ci
 

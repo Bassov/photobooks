@@ -60,7 +60,7 @@ Hard product requirement: every interaction runs at 60 fps with no main-thread s
 
 - External store with fine-grained selectors: changing one frame re-renders only that frame's spread. `resolveSpread` is memoized by spread reference (structural sharing makes reference equality reliable).
 - Non-urgent updates (gallery sort / filter, template switch on many spreads, panel thumbnails) go through `startTransition` / `useDeferredValue`.
-- React Compiler: `react-perf-spa` already assumes it, but it is not installed; enable it (or drop the assumption) in `frame-budget-gates`.
+- React Compiler: enabled via `@vitejs/plugin-react` `compiler: true` (`oxc-transform-react`); `react-perf-spa` assumes it.
 - Unavoidable main-thread loops are chunked with `scheduler.yield()` (fallback: `MessageChannel`), ≤ 5 ms per chunk.
 
 ### Workers
@@ -93,7 +93,7 @@ Shared CI runners have no GPU and noisy CPUs, so they cannot prove 60 fps direct
 | Load                                | Lighthouse CI                                   | `budget.json`                                       |
 
 - Every `[feature]` change ships a perf scenario for the interaction it adds; a regression blocks the PR.
-- The current "LoAF `blockingDuration` ≤ 200 ms" budget (`.cursor/rules/architecture.mdc`, `openspec/config.yaml`, `photo-card` spec, `react-perf-spa` skill, `LOAF_BLOCKING_BUDGET_MS`) allows ~12 dropped frames and is replaced by this model in `frame-budget-gates`.
+- The former "LoAF `blockingDuration` ≤ 200 ms" budget was replaced by this model in `frame-budget-gates` (`src/perf/budgets.ts`).
 
 ## Target module map
 
