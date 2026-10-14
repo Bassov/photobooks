@@ -202,6 +202,43 @@ describe('spread ops', () => {
     expect(next.spreads[0]).toBe(book.spreads[0])
   })
 
+  it('re-applies a catalog template when addSpread changes page role', () => {
+    let book = makeBook({ id: 'session', spreads: [] })
+    book = addSpread(book, { id: 'spread-1' })
+    book = addSpread(book, { id: 'spread-2' })
+    book = addSpread(book, { id: 'spread-3' })
+    const first = book.spreads[0]
+    const middle = book.spreads[1]
+    expect(first?.frames).toHaveLength(1)
+    expect(middle?.frames).toHaveLength(2)
+    expect(book.spreads[2]?.frames).toHaveLength(1)
+
+    const next = addSpread(book, { id: 'spread-4' })
+    expect(next.spreads[0]).toBe(first)
+    expect(next.spreads[1]).toBe(middle)
+    expect(next.spreads[2]?.templateId).toBe('one-per-page')
+    expect(next.spreads[2]?.frames).toHaveLength(2)
+    expect(
+      next.spreads[2]?.frames.every((frame) => frame.assetId === undefined),
+    ).toBe(true)
+    expect(next.spreads[3]?.templateId).toBe('one-per-page')
+    expect(next.spreads[3]?.frames).toHaveLength(1)
+  })
+
+  it('keeps identity when page role changes without a catalog template', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b' }),
+        makeSpread({ id: 'c' }),
+      ],
+    })
+    const next = addSpread(book, { id: 'd' })
+    expect(next.spreads[0]).toBe(book.spreads[0])
+    expect(next.spreads[1]).toBe(book.spreads[1])
+    expect(next.spreads[2]).toBe(book.spreads[2])
+  })
+
   it('addSpread inserts at index', () => {
     const book = makeBook({
       spreads: [makeSpread({ id: 'a' }), makeSpread({ id: 'b' })],

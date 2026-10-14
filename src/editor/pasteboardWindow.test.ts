@@ -4,6 +4,7 @@ import {
   PASTEBOARD_GAP_PX,
   pasteboardStridePx,
   pasteboardWindow,
+  pickActiveSpread,
 } from './pasteboardWindow'
 
 describe('pasteboardStridePx', () => {
@@ -96,3 +97,30 @@ test.prop(
     expect(window.end * stride).toBeGreaterThanOrEqual(to)
   },
 )
+
+describe('pickActiveSpread', () => {
+  it('keeps the earlier spread when ratios differ only by subpixels', () => {
+    expect(
+      pickActiveSpread([
+        { id: 'spread-2', ratio: 1, index: 1 },
+        { id: 'spread-1', ratio: 0.998, index: 0 },
+        { id: 'spread-3', ratio: 0.79, index: 2 },
+      ]),
+    ).toBe('spread-1')
+  })
+
+  it('picks the spread that occupies more of the port', () => {
+    expect(
+      pickActiveSpread([
+        { id: 'spread-1', ratio: 0.4, index: 0 },
+        { id: 'spread-2', ratio: 1, index: 1 },
+      ]),
+    ).toBe('spread-2')
+  })
+
+  it('returns null when nothing intersects', () => {
+    expect(pickActiveSpread([{ id: 'spread-1', ratio: 0, index: 0 }])).toBe(
+      null,
+    )
+  })
+})

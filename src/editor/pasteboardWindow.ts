@@ -2,6 +2,32 @@ import { clamp } from '../lib/clamp'
 
 export const PASTEBOARD_GAP_PX = 24
 
+/** Subpixel clipping must not steal "active" from the spread above. */
+const ACTIVE_RATIO_EPSILON = 0.02
+
+export function pickActiveSpread(
+  entries: readonly { id: string; ratio: number; index: number }[],
+): string | null {
+  let bestId: string | null = null
+  let bestRatio = -1
+  let bestIndex = Number.POSITIVE_INFINITY
+  for (const entry of entries) {
+    const nearlyTied = Math.abs(entry.ratio - bestRatio) <= ACTIVE_RATIO_EPSILON
+    if (
+      entry.ratio > bestRatio + ACTIVE_RATIO_EPSILON ||
+      (nearlyTied && entry.index < bestIndex)
+    ) {
+      bestId = entry.id
+      bestRatio = entry.ratio
+      bestIndex = entry.index
+    }
+  }
+  if (bestId === null || bestRatio <= 0) {
+    return null
+  }
+  return bestId
+}
+
 export interface PasteboardWindow {
   readonly start: number
   readonly end: number

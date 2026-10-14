@@ -85,8 +85,8 @@ Slicing rules when adding or splitting items:
   - [x] Pasteboard: all spreads stacked vertically, off-screen spreads virtualized, active spread follows scroll
   - **Perf:** `contain` + `content-visibility` per spread, active-spread tracking via `IntersectionObserver` (no scroll-handler layout reads). Gate: fixture book (~40 spreads × 4 photos), scroll top to bottom — zero LoAF, frame pacing within budget; if it fails, stop and re-plan per "Painter risk" in `docs/future-architecture.md`.
   - **Browser check:** scroll through the fixture book like an InDesign pasteboard — no dropped frames; document does not grow H/V scrollbars; pasteboard is the vertical scrollport.
-- [ ] [feature] `spread-templates-ui` — start a book
-  - [ ] New book starts with a few spreads; choose a template per spread; add spread
+- [x] [feature] `spread-templates-ui` — start a book
+  - [x] New book starts with a few spreads; choose a template per spread; add spread
   - **Perf:** a template switch re-renders only the affected spread.
   - **Browser check:** switch templates, add a spread — no dropped frames.
 - [ ] [feature] `camera-zoom-pan` — zoom and pan

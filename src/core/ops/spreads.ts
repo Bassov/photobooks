@@ -1,5 +1,7 @@
+import { getSpreadPageCount } from '../geometry/spreadSize'
 import type { Book, Spread } from '../schema'
 import { applyTemplate } from '../templates/apply'
+import { isTemplateId } from '../templates/types'
 
 export function addSpread(
   book: Book,
@@ -15,7 +17,30 @@ export function addSpread(
   const spreads = book.spreads.slice()
   spreads.splice(insertAt, 0, empty)
   const withSpread: Book = { ...book, spreads }
-  return applyTemplate(withSpread, id, 'one-per-page')
+  const inserted = applyTemplate(withSpread, id, 'one-per-page')
+  return reapplyChangedPageRoles(book, inserted)
+}
+
+function reapplyChangedPageRoles(before: Book, after: Book): Book {
+  let next = after
+  for (const spread of before.spreads) {
+    const oldIndex = before.spreads.indexOf(spread)
+    const newIndex = next.spreads.findIndex((item) => item.id === spread.id)
+    if (newIndex < 0) {
+      continue
+    }
+    const oldCount = getSpreadPageCount(oldIndex, before.spreads.length)
+    const newCount = getSpreadPageCount(newIndex, next.spreads.length)
+    if (oldCount === newCount) {
+      continue
+    }
+    const templateId = spread.templateId
+    if (templateId === undefined || !isTemplateId(templateId)) {
+      continue
+    }
+    next = applyTemplate(next, spread.id, templateId)
+  }
+  return next
 }
 
 export function removeSpread(book: Book, spreadId: string): Book {

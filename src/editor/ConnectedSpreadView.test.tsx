@@ -91,31 +91,7 @@ describe('per-spread paint subscription', () => {
 
   it('does not update the sibling painted output when one spread changes', () => {
     const book = twoSpreadBook()
-    resetBookStore({
-      book,
-      sessionMeta: new Map(),
-      previewUrls: new Map([['a', 'data:image/svg+xml,sibling']]),
-      importRunning: false,
-      importExpectedCount: 0,
-    })
-    const renders = { count: 0 }
-    function Harness() {
-      return (
-        <>
-          <ConnectedSpreadView spreadId="s0" />
-          <Profiler
-            id="s1"
-            onRender={() => {
-              renders.count += 1
-            }}
-          >
-            <ConnectedSpreadView spreadId="s1" />
-          </Profiler>
-        </>
-      )
-    }
-    render(<Harness />)
-    const before = renders.count
+    const renders = mountSiblingPaint(book)
     const frameId = book.spreads[0]?.frames[0]?.id
     if (frameId === undefined) {
       throw new Error('expected frame')
@@ -128,7 +104,54 @@ describe('per-spread paint subscription', () => {
       })
     })
 
-    expect(renders.count).toBe(before)
+    expect(renders.count).toBe(renders.before)
     expect(screen.getAllByTestId('spread-frame-image')).toHaveLength(1)
   })
+
+  it('does not update the sibling painted output when a template changes', () => {
+    const book = twoSpreadBook()
+    const renders = mountSiblingPaint(book)
+    act(() => {
+      dispatchBookOp({
+        type: 'applyTemplate',
+        spreadId: 's0',
+        templateId: '4-grid',
+      })
+    })
+
+    expect(renders.count).toBe(renders.before)
+    expect(screen.getAllByTestId('spread-view')).toHaveLength(2)
+  })
 })
+
+function mountSiblingPaint(book: ReturnType<typeof twoSpreadBook>): {
+  count: number
+  before: number
+} {
+  resetBookStore({
+    book,
+    sessionMeta: new Map(),
+    previewUrls: new Map([['a', 'data:image/svg+xml,sibling']]),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+  const renders = { count: 0, before: 0 }
+  function Harness() {
+    return (
+      <>
+        <ConnectedSpreadView spreadId="s0" />
+        <Profiler
+          id="s1"
+          onRender={() => {
+            renders.count += 1
+          }}
+        >
+          <ConnectedSpreadView spreadId="s1" />
+        </Profiler>
+      </>
+    )
+  }
+  render(<Harness />)
+  renders.before = renders.count
+  return renders
+}
