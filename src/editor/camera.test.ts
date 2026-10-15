@@ -175,6 +175,18 @@ describe('fitZoom', () => {
     ).toBe(0.5)
   })
 
+  it('uses width when contain has no height', () => {
+    expect(
+      fitZoom({
+        contentWidthPx: 100,
+        contentHeightPx: 0,
+        viewportWidth: 250,
+        viewportHeight: 0,
+        mode: 'contain',
+      }),
+    ).toBe(2.5)
+  })
+
   it('returns 1 when the viewport has no width', () => {
     expect(
       fitZoom({
@@ -243,6 +255,19 @@ describe('centerSpreadScroll', () => {
         contentHeight: 10,
       }),
     ).toEqual({ scrollLeft: 0, scrollTop: 0 })
+
+    expect(
+      centerSpreadScroll({
+        spreadLeftPx: 80,
+        spreadTopPx: 70,
+        spreadWidthPx: 40,
+        spreadHeightPx: 40,
+        viewportWidth: 20,
+        viewportHeight: 20,
+        contentWidth: 100,
+        contentHeight: 90,
+      }),
+    ).toEqual({ scrollLeft: 80, scrollTop: 70 })
   })
 })
 
