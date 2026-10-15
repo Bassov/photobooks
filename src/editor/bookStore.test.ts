@@ -5,6 +5,7 @@ import {
   enqueueGalleryAssets,
   loadPainterFixture,
   getAssetAspectSnapshot,
+  getPlacementCountSnapshot,
   getBookStoreSnapshot,
   getGalleryAspectsSnapshot,
   getGalleryIdsSnapshot,
@@ -23,6 +24,15 @@ describe('bookStore', () => {
     resetAssetSources()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('updates placement counts when the book changes', () => {
+    expect(getPlacementCountSnapshot('painter-b')).toBe(0)
+
+    loadPainterFixture()
+
+    expect(getPlacementCountSnapshot('painter-b')).toBeGreaterThan(0)
+    expect(getPlacementCountSnapshot('missing')).toBe(0)
   })
 
   it('retains a session file for each painter fixture asset', () => {

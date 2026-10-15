@@ -3,12 +3,15 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { placeAsset } from '../core'
 import { resetAssetPool } from '../photo/assetPool'
 import {
   getBookStoreSnapshot,
   resetBookStore,
   type AssetSessionMeta,
 } from './bookStore'
+import { ASSET_DRAG_MIME } from './dropTargets'
+import { getSelectedAssetId, resetGallerySelection } from './gallerySelection'
 import { Filmstrip } from './Filmstrip'
 import { seedGallery } from './gallery.test-helpers'
 import { resetThumbCache } from './thumbCache'
@@ -78,6 +81,7 @@ describe('Filmstrip viewport containment', () => {
     resetBookStore()
     resetThumbCache()
     resetAssetPool()
+    resetGallerySelection()
   })
 
   it('sizes the spacer from aspect-driven strides', () => {
@@ -251,6 +255,81 @@ describe('Filmstrip aspect cards', () => {
       ).toBe(expected)
     } finally {
       globalThis.requestAnimationFrame = previousRaf
+      restore()
+    }
+  })
+
+  it('shows a Placed badge on a placed asset and keeps it in the gallery', () => {
+    const ids = seedGallery(2)
+    const snap = getBookStoreSnapshot()
+    const spread = snap.book.spreads[0]
+    const frameId = spread?.frames[0]?.id
+    const placedId = ids[0]
+    if (
+      spread === undefined ||
+      frameId === undefined ||
+      placedId === undefined
+    ) {
+      throw new Error('expected a frame and an asset')
+    }
+    const book = placeAsset(snap.book, spread.id, frameId, placedId)
+    resetBookStore({
+      book,
+      sessionMeta: snap.sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const restore = stubScrollportWidth(800)
+
+    try {
+      render(<Filmstrip />)
+
+      const items = screen.getAllByTestId('filmstrip-item')
+      expect(items).toHaveLength(2)
+      expect(
+        items[0]?.querySelector('[data-testid="filmstrip-placed"]'),
+      ).not.toBeNull()
+      expect(
+        items[1]?.querySelector('[data-testid="filmstrip-placed"]'),
+      ).toBeNull()
+      expect(getBookStoreSnapshot().book.gallery).toEqual([...ids])
+    } finally {
+      restore()
+    }
+  })
+
+  it('puts the asset id on dragstart and selects that item', () => {
+    const ids = seedGallery(1)
+    const assetId = ids[0]
+    if (assetId === undefined) {
+      throw new Error('expected an asset')
+    }
+    const restore = stubScrollportWidth(400)
+
+    try {
+      render(<Filmstrip />)
+      const dataTransfer = new DataTransfer()
+      const event = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(event, 'dataTransfer', { value: dataTransfer })
+      const item = screen.getByTestId('filmstrip-item')
+      const handle = item.querySelector('.filmstrip-drag')
+      if (!(handle instanceof HTMLElement)) {
+        throw new Error('expected a drag handle')
+      }
+      act(() => {
+        handle.dispatchEvent(event)
+      })
+
+      expect(handle.getAttribute('draggable')).toBe('true')
+      expect(getSelectedAssetId()).toBe(assetId)
+      expect(dataTransfer.getData(ASSET_DRAG_MIME)).toBe(assetId)
+      expect(
+        screen.getByTestId('filmstrip-item').getAttribute('aria-selected'),
+      ).toBe('true')
+    } finally {
       restore()
     }
   })

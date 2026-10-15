@@ -2,6 +2,7 @@ import {
   addSpread,
   applyBookOp,
   CURRENT_SCHEMA_VERSION,
+  placementCountByAsset,
   resolveSpread,
   type Book,
   type BookOp,
@@ -193,6 +194,18 @@ export function getSpacerCountSnapshot(): number {
 /** Per-asset aspect for filmstrip slots; defaults to 1 when meta is missing. */
 export function getAssetAspectSnapshot(assetId: string): number {
   return state.sessionMeta.get(assetId)?.aspect ?? DEFAULT_ASPECT
+}
+
+let placementCountsFor: Book | null = null
+let placementCounts: ReadonlyMap<string, number> = new Map()
+
+export function getPlacementCountSnapshot(assetId: string): number {
+  const book = state.book
+  if (placementCountsFor !== book) {
+    placementCounts = placementCountByAsset(book)
+    placementCountsFor = book
+  }
+  return placementCounts.get(assetId) ?? 0
 }
 
 /**
@@ -467,6 +480,7 @@ export function resetBookStore(next?: BookStoreInit): void {
   pendingGalleryIds = []
   pendingMeta = new Map()
   flushScheduled = false
+  placementCountsFor = null
   assetSeq = 0
   paintCache.clear()
   spreadIdsFor = null

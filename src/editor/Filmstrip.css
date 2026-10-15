@@ -70,11 +70,30 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 
+.filmstrip-drag {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .filmstrip-thumb {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.filmstrip-placed {
+  position: absolute;
+  left: 0.3rem;
+  bottom: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 90%, #fff);
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
 }
 
 .filmstrip-placeholder {

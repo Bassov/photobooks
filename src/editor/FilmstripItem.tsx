@@ -1,6 +1,12 @@
 import { useSyncExternalStore } from 'react'
 import { GridListItem } from 'react-aria-components'
-import { getAssetAspectSnapshot, subscribeBookStore } from './bookStore'
+import {
+  getAssetAspectSnapshot,
+  getPlacementCountSnapshot,
+  subscribeBookStore,
+} from './bookStore'
+import { ASSET_DRAG_MIME } from './dropTargets'
+import { setSelectedAssetId } from './gallerySelection'
 import { getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotSize } from './thumbSlotSize'
 
@@ -34,6 +40,11 @@ export function FilmstripItemView({
     () => getAssetAspectSnapshot(id),
     () => getAssetAspectSnapshot(id),
   )
+  const placementCount = useSyncExternalStore(
+    subscribeBookStore,
+    () => getPlacementCountSnapshot(id),
+    () => getPlacementCountSnapshot(id),
+  )
   const { width, height } = thumbSlotSize(aspect)
 
   return (
@@ -54,22 +65,37 @@ export function FilmstripItemView({
         height,
       }}
     >
-      {thumbUrl ? (
-        <img
-          className="filmstrip-thumb"
-          data-testid="filmstrip-thumb"
-          src={thumbUrl}
-          alt=""
-          decoding="async"
-          width={width}
-          height={height}
-        />
-      ) : (
-        <div
-          className="filmstrip-placeholder"
-          data-testid="filmstrip-placeholder"
-        />
-      )}
+      <div
+        className="filmstrip-drag"
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData(ASSET_DRAG_MIME, id)
+          event.dataTransfer.effectAllowed = 'copy'
+          setSelectedAssetId(id)
+        }}
+      >
+        {thumbUrl ? (
+          <img
+            className="filmstrip-thumb"
+            data-testid="filmstrip-thumb"
+            src={thumbUrl}
+            alt=""
+            decoding="async"
+            width={width}
+            height={height}
+          />
+        ) : (
+          <div
+            className="filmstrip-placeholder"
+            data-testid="filmstrip-placeholder"
+          />
+        )}
+        {placementCount > 0 ? (
+          <span className="filmstrip-placed" data-testid="filmstrip-placed">
+            Placed
+          </span>
+        ) : null}
+      </div>
     </GridListItem>
   )
 }

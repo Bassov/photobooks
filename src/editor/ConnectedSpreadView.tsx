@@ -5,6 +5,7 @@ import { selectImageTier } from '../photo/imageTiers'
 import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import { getSpreadPaintSnapshot, subscribeSpread } from './bookStore'
+import { activateSelectedFrame } from './galleryDrop'
 import {
   clearSpreadTiers,
   getTierDisplaySnapshot,
@@ -103,6 +104,16 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         tierSnapshot.urls.get(assetId)?.url ?? snapshot.previewUrlFor(assetId)
       }
       tierFor={(assetId) => tierSnapshot.urls.get(assetId)?.tier}
+      frameControlFor={(item) => ({
+        label: item.assetId === undefined ? 'Place photo' : 'Replace photo',
+        onActivate: () => {
+          activateSelectedFrame(
+            spreadId,
+            item.frameId,
+            item.assetId !== undefined,
+          )
+        },
+      })}
     />
   )
 })

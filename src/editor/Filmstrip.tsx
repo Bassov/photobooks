@@ -17,6 +17,11 @@ import {
   subscribeGallery,
 } from './bookStore'
 import { FilmstripItemView } from './FilmstripItem'
+import {
+  getSelectedAssetId,
+  setSelectedAssetId,
+  subscribeGallerySelection,
+} from './gallerySelection'
 import { FilmstripStatus } from './FilmstripStatus'
 import type { ImportProgress } from './importPhotos'
 import {
@@ -129,6 +134,11 @@ export const Filmstrip = memo(function Filmstrip({
     })
   }
 
+  const selectedId = useSyncExternalStore(
+    subscribeGallerySelection,
+    getSelectedAssetId,
+    getSelectedAssetId,
+  )
   const isEmpty = total === 0
 
   return (
@@ -164,6 +174,15 @@ export const Filmstrip = memo(function Filmstrip({
               <GridList
                 aria-label="Book gallery"
                 orientation="horizontal"
+                selectionMode="single"
+                selectedKeys={selectedId === null ? [] : [selectedId]}
+                onSelectionChange={(keys) => {
+                  if (keys === 'all') {
+                    return
+                  }
+                  const next = keys.values().next().value
+                  setSelectedAssetId(typeof next === 'string' ? next : null)
+                }}
                 items={items}
                 className="filmstrip-list"
                 style={{

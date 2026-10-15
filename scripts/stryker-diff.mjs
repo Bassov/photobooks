@@ -46,6 +46,7 @@ const EDITOR_MUTATE = new Set([
   'src/editor/pasteboardWindow.ts',
   'src/editor/thumbCache.ts',
   'src/editor/tierDisplay.ts',
+  'src/editor/dropTargets.ts',
 ])
 
 const RENDER_MUTATE = new Set(['src/render/frameBox.ts'])

@@ -10,6 +10,7 @@ import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { CameraBar } from './CameraBar'
 import { getCommittedCamera, subscribeCommitted } from './cameraStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
+import { installGalleryDrop, type DropGeometry } from './galleryDrop'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
 import { usePasteboardCamera } from './usePasteboardCamera'
 import {
@@ -67,6 +68,11 @@ export const Pasteboard = memo(function Pasteboard() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
+  const geometryRef = useRef<DropGeometry>({
+    pxPerMm,
+    stridePx: stride,
+    worldWidthPx: 0,
+  })
   const scrollRaf = useRef(0)
   const pendingTop = useRef(0)
   const pendingEpoch = useRef(0)
@@ -103,6 +109,14 @@ export const Pasteboard = memo(function Pasteboard() {
   }, [])
 
   useEffect(() => {
+    const scroll = scrollRef.current
+    if (scroll === null) {
+      return
+    }
+    return installGalleryDrop(scroll, () => geometryRef.current)
+  }, [])
+
+  useEffect(() => {
     if (!scrollToEnd.current) {
       return
     }
@@ -136,6 +150,9 @@ export const Pasteboard = memo(function Pasteboard() {
   const widestPages = spreadIds.length >= 2 ? 2 : 1
   const stackWidth = trimWidthMm * widestPages * pxPerMm
   const worldWidth = Math.max(viewport.width, stackWidth)
+  geometryRef.current.pxPerMm = pxPerMm
+  geometryRef.current.stridePx = stride
+  geometryRef.current.worldWidthPx = worldWidth
   const camera = usePasteboardCamera({
     scrollRef,
     worldRef,
