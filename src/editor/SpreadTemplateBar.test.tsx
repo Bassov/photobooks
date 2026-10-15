@@ -244,6 +244,28 @@ describe('SpreadTemplateBar', () => {
     }
   })
 
+  it('nudges again when the spread sits outside after layout', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    let reads = 0
+    const restore = stubNewSpreadBox(() => {
+      reads += 1
+      if (reads === 1) {
+        return new DOMRect(PORT_LEFT, PORT_TOP, 200, 180)
+      }
+      return new DOMRect(PORT_LEFT, PORT_TOP + 250, 200, 180)
+    })
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      expect(scroll.scrollTop).toBe(190)
+      expect(scroll.scrollLeft).toBe(40)
+    } finally {
+      restore()
+    }
+  })
+
   it('leaves a spread that is already inside the pasteboard', () => {
     resetBookStore()
     commitZoom(2, 40, 50)

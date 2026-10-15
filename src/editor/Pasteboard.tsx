@@ -49,6 +49,17 @@ function findPasteboardSlot(
   return null
 }
 
+function spreadBoxContained(port: DOMRect, box: DOMRect): boolean {
+  return (
+    box.width >= 1 &&
+    box.height >= 1 &&
+    box.top >= port.top - 1 &&
+    box.bottom <= port.bottom + 1 &&
+    box.left >= port.left - 1 &&
+    box.right <= port.right + 1
+  )
+}
+
 function revealLaidOutSpread(scroll: HTMLElement, slot: HTMLElement): boolean {
   const previousVisibility = slot.style.contentVisibility
   slot.style.contentVisibility = 'visible'
@@ -61,7 +72,16 @@ function revealLaidOutSpread(scroll: HTMLElement, slot: HTMLElement): boolean {
   }
   nudgeBoxIntoPort(scroll, box)
   slot.style.contentVisibility = previousVisibility
-  return true
+  const port = scroll.getBoundingClientRect()
+  const after = target.getBoundingClientRect()
+  const fits = after.height <= port.height + 1 && after.width <= port.width + 1
+  if (!spreadBoxContained(port, after) && fits) {
+    nudgeBoxIntoPort(scroll, after)
+  }
+  return spreadBoxContained(
+    scroll.getBoundingClientRect(),
+    target.getBoundingClientRect(),
+  )
 }
 
 function nudgeBoxIntoPort(scroll: HTMLElement, box: DOMRect): void {
@@ -135,6 +155,8 @@ export const Pasteboard = memo(function Pasteboard() {
   const pendingTop = useRef(0)
   const pendingEpoch = useRef(0)
   const revealSpreadId = useRef<string | null>(null)
+  const revealTries = useRef(0)
+  const [revealTick, setRevealTick] = useState(0)
 
   useEffect(() => {
     const node = scrollRef.current
@@ -177,6 +199,7 @@ export const Pasteboard = memo(function Pasteboard() {
   const onAddSpread = (): void => {
     const before = new Set(getSpreadIdsSnapshot())
     dispatchBookOp({ type: 'addSpread' })
+    revealTries.current = 0
     revealSpreadId.current =
       getSpreadIdsSnapshot().find((id) => !before.has(id)) ?? null
   }
@@ -230,14 +253,21 @@ export const Pasteboard = memo(function Pasteboard() {
       return
     }
     if (!revealLaidOutSpread(scroll, slot)) {
+      if (revealTries.current < 8) {
+        revealTries.current += 1
+        requestAnimationFrame(() => {
+          setRevealTick((tick) => tick + 1)
+        })
+      }
       return
     }
+    revealTries.current = 0
     revealSpreadId.current = null
     const top = scroll.scrollTop
     setTrackedScroll((current) =>
       current.top === top && current.epoch === epoch ? current : { top, epoch },
     )
-  }, [spreadIds, stride, windowKey])
+  }, [spreadIds, stride, windowKey, revealTick])
 
   useEffect(() => {
     const root = scrollRef.current

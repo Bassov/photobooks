@@ -102,10 +102,15 @@ const DEFAULT_ASPECT = 1
 let galleryAspectsSnapshot: readonly number[] = Object.freeze([])
 let galleryAspectsFor: readonly string[] | null = null
 let galleryAspectsMeta: ReadonlyMap<string, AssetSessionMeta> | null = null
+let galleryNamesSnapshot: readonly string[] = Object.freeze([])
+let galleryNamesFor: readonly string[] | null = null
+let galleryNamesMeta: ReadonlyMap<string, AssetSessionMeta> | null = null
 
 function invalidateGalleryAspectsCache(): void {
   galleryAspectsFor = null
   galleryAspectsMeta = null
+  galleryNamesFor = null
+  galleryNamesMeta = null
 }
 
 function emit(): void {
@@ -196,6 +201,15 @@ export function getAssetAspectSnapshot(assetId: string): number {
   return state.sessionMeta.get(assetId)?.aspect ?? DEFAULT_ASPECT
 }
 
+/** Filmstrip label: session file name when present, otherwise the asset id. */
+export function getAssetDisplayName(assetId: string): string {
+  const name = state.sessionMeta.get(assetId)?.name
+  if (name === undefined || name.length === 0) {
+    return assetId
+  }
+  return name
+}
+
 let placementCountsFor: Book | null = null
 let placementCounts: ReadonlyMap<string, number> = new Map()
 
@@ -223,6 +237,22 @@ export function getGalleryAspectsSnapshot(): readonly number[] {
   galleryAspectsFor = gallery
   galleryAspectsMeta = meta
   return galleryAspectsSnapshot
+}
+
+/**
+ * Gallery-ordered thumbnail labels; referentially stable while gallery
+ * identity and sessionMeta map identity are unchanged.
+ */
+export function getGalleryDisplayNamesSnapshot(): readonly string[] {
+  const gallery = state.book.gallery
+  const meta = state.sessionMeta
+  if (galleryNamesFor === gallery && galleryNamesMeta === meta) {
+    return galleryNamesSnapshot
+  }
+  galleryNamesSnapshot = gallery.map((id) => getAssetDisplayName(id))
+  galleryNamesFor = gallery
+  galleryNamesMeta = meta
+  return galleryNamesSnapshot
 }
 
 export function getBookStoreSnapshot(): BookStoreState {

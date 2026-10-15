@@ -4,8 +4,15 @@ import {
   type AssetSessionMeta,
 } from './bookStore'
 
-/** Seed the in-memory gallery immediately (no rAF flush). */
-export function seedGallery(count: number, aspect = 1.5): readonly string[] {
+/**
+ * Seed the in-memory gallery immediately (no rAF flush).
+ * `displayName` is stored on every asset; omit it to label each asset with its id.
+ */
+export function seedGallery(
+  count: number,
+  aspect = 1.5,
+  displayName?: string,
+): readonly string[] {
   resetBookStore()
   const ids = Array.from(
     { length: count },
@@ -19,7 +26,7 @@ export function seedGallery(count: number, aspect = 1.5): readonly string[] {
   for (const id of ids) {
     assets[id] = {}
     sessionMeta.set(id, {
-      name: id,
+      name: displayName ?? id,
       correctedWidth: width,
       correctedHeight: height,
       orientation: 1,

@@ -2,12 +2,14 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyTemplate, placeAsset } from '../core'
 import { resetAssetPool } from '../photo/assetPool'
 import {
   getBookStoreSnapshot,
+  getGalleryIdsSnapshot,
   resetBookStore,
+  setAssetSessionMeta,
   type AssetSessionMeta,
 } from './bookStore'
 import { clearDropHover } from './dropHover'
@@ -84,6 +86,73 @@ function stubScrollportWidth(width: number): () => void {
     Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
   }
 }
+
+const CYRILLIC_FILE_NAME = 'фото отпуск 01.jpg'
+
+describe('Filmstrip thumbnail file name', () => {
+  afterEach(() => {
+    cleanup()
+    resetBookStore()
+    resetThumbCache()
+    resetAssetPool()
+    resetGallerySelection()
+    resetFrameSelection()
+    clearDropHover()
+    vi.unstubAllGlobals()
+  })
+
+  it('uses the session file name as the thumbnail accessible name', () => {
+    const ids = seedGallery(1, 1.5, CYRILLIC_FILE_NAME)
+    const assetId = ids[0]
+    if (assetId === undefined) {
+      throw new Error('expected an asset')
+    }
+
+    render(<Filmstrip />)
+
+    expect(screen.getByRole('row', { name: CYRILLIC_FILE_NAME })).toBeTruthy()
+    expect(screen.queryByRole('row', { name: assetId })).toBeNull()
+  })
+
+  it('uses the asset id when the session file name is blank', () => {
+    const ids = seedGallery(1, 1.5, '')
+    const assetId = ids[0]
+    if (assetId === undefined) {
+      throw new Error('expected an asset')
+    }
+
+    render(<Filmstrip />)
+
+    expect(screen.getByRole('row', { name: assetId })).toBeTruthy()
+  })
+
+  it('updates the thumbnail name when session meta arrives', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const ids = seedGallery(1, 1.5, '')
+    const assetId = ids[0]
+    if (assetId === undefined) {
+      throw new Error('expected an asset')
+    }
+    const meta = getBookStoreSnapshot().sessionMeta.get(assetId)
+    if (meta === undefined) {
+      throw new Error('expected session meta')
+    }
+    render(<Filmstrip />)
+
+    act(() => {
+      setAssetSessionMeta(assetId, { ...meta, name: CYRILLIC_FILE_NAME })
+    })
+
+    expect(getGalleryIdsSnapshot()).toEqual(ids)
+    expect(screen.getByRole('row', { name: CYRILLIC_FILE_NAME })).toBeTruthy()
+  })
+})
 
 describe('Filmstrip viewport containment', () => {
   afterEach(() => {
