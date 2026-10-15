@@ -4,9 +4,48 @@ import { fileURLToPath } from 'node:url'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
-import { resetCameraStore } from './cameraStore'
+import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
+
+const PORT_TOP = 100
+const PORT_LEFT = 40
+
+function stubNewSpreadBox(
+  boxFor: (scroll: HTMLElement) => DOMRect,
+): () => void {
+  const original = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    'getBoundingClientRect',
+  )
+  Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value(this: HTMLElement): DOMRect {
+      if (this.dataset.testid === 'pasteboard-scroll') {
+        return new DOMRect(PORT_LEFT, PORT_TOP, 500, 400)
+      }
+      if (
+        this.dataset.testid === 'spread-view' &&
+        this.closest('[data-slot-index="3"]') instanceof HTMLElement
+      ) {
+        const scroll = this.closest('[data-testid="pasteboard-scroll"]')
+        if (scroll instanceof HTMLElement) {
+          return boxFor(scroll)
+        }
+      }
+      return new DOMRect(0, 0, 0, 0)
+    },
+  })
+  return () => {
+    if (original !== undefined) {
+      Object.defineProperty(
+        HTMLElement.prototype,
+        'getBoundingClientRect',
+        original,
+      )
+    }
+  }
+}
 
 const editorShellCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'EditorShell.css'),
@@ -74,8 +113,9 @@ describe('SpreadTemplateBar', () => {
     expect(getBookStoreSnapshot().book).toBe(before)
   })
 
-  it('scrolls the pasteboard to the spread added at the end', () => {
+  it('keeps the committed zoom when a spread is added', () => {
     resetBookStore()
+    commitZoom(2, 0, 0)
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
     Object.defineProperty(scroll, 'scrollHeight', {
@@ -84,7 +124,141 @@ describe('SpreadTemplateBar', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
     expect(getBookStoreSnapshot().book.spreads).toHaveLength(4)
-    expect(scroll.scrollTop).toBe(900)
+    expect(getCommittedZoom()).toBe(2)
+    expect(scroll.scrollTop).not.toBe(900)
+    expect(
+      scroll
+        .querySelector('[data-pasteboard-slot]')
+        ?.getAttribute('data-slot-index'),
+    ).toBe('2')
+    expect(scroll.querySelector('[data-slot-index="3"]')).toBeTruthy()
+  })
+
+  it('does not reveal the last spread before add', () => {
+    resetBookStore()
+    render(<Pasteboard />)
+    expect(
+      screen
+        .getByTestId('pasteboard-scroll')
+        .querySelector('[data-pasteboard-slot]')
+        ?.getAttribute('data-slot-index'),
+    ).toBe('0')
+  })
+
+  it('scrolls the laid-out spread into the pasteboard', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const restore = stubNewSpreadBox(
+      (scroll) =>
+        new DOMRect(
+          PORT_LEFT + 600 - scroll.scrollLeft,
+          PORT_TOP + 900 - scroll.scrollTop,
+          200,
+          180,
+        ),
+    )
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      Object.defineProperty(scroll, 'scrollHeight', {
+        configurable: true,
+        value: 9000,
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      expect(scroll.scrollTop).toBe(790)
+      expect(scroll.scrollLeft).toBe(450)
+      expect(scroll.scrollTop).not.toBe(9000)
+    } finally {
+      restore()
+    }
+  })
+
+  it.each([
+    {
+      label: 'pulls a tall spread down when its top is above the port',
+      top: PORT_TOP - 30,
+      left: PORT_LEFT,
+      width: 200,
+      height: 420,
+      scrollTop: 20,
+      scrollLeft: 40,
+    },
+    {
+      label: 'pushes a tall spread up when its bottom is below the port',
+      top: PORT_TOP,
+      left: PORT_LEFT,
+      width: 200,
+      height: 420,
+      scrollTop: 70,
+      scrollLeft: 40,
+    },
+    {
+      label: 'pulls a wide spread right when its left is outside the port',
+      top: PORT_TOP,
+      left: PORT_LEFT - 30,
+      width: 520,
+      height: 180,
+      scrollTop: 50,
+      scrollLeft: 10,
+    },
+    {
+      label: 'pushes a wide spread left when its right is outside the port',
+      top: PORT_TOP,
+      left: PORT_LEFT,
+      width: 520,
+      height: 180,
+      scrollTop: 50,
+      scrollLeft: 60,
+    },
+  ])('$label', ({ top, left, width, height, scrollTop, scrollLeft }) => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const restore = stubNewSpreadBox(
+      () => new DOMRect(left, top, width, height),
+    )
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      expect(scroll.scrollTop).toBe(scrollTop)
+      expect(scroll.scrollLeft).toBe(scrollLeft)
+    } finally {
+      restore()
+    }
+  })
+
+  it('pulls a short spread down when only its top is above the port', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const restore = stubNewSpreadBox(
+      () => new DOMRect(PORT_LEFT, PORT_TOP - 30, 200, 180),
+    )
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      expect(scroll.scrollTop).toBe(0)
+      expect(scroll.scrollLeft).toBe(40)
+    } finally {
+      restore()
+    }
+  })
+
+  it('leaves a spread that is already inside the pasteboard', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const restore = stubNewSpreadBox(
+      () => new DOMRect(PORT_LEFT - 1, PORT_TOP - 1, 200, 180),
+    )
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      expect(scroll.scrollTop).toBe(50)
+      expect(scroll.scrollLeft).toBe(40)
+    } finally {
+      restore()
+    }
   })
 
   it('marks the spread that fills the pasteboard', () => {
