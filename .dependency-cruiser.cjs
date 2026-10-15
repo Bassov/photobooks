@@ -19,7 +19,7 @@ module.exports = {
       from: { path: '^src/core' },
       to: {
         path: [
-          '^src/(photo|perf|App|editor|render)',
+          '^src/(photo|perf|App|editor|render|project)',
           'node_modules/(react|react-dom)(/|$)',
         ],
       },
