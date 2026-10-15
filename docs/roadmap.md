@@ -89,8 +89,8 @@ Slicing rules when adding or splitting items:
   - [x] New book starts with a few spreads; choose a template per spread; add spread
   - **Perf:** a template switch re-renders only the affected spread.
   - **Browser check:** switch templates, add a spread — no dropped frames.
-- [ ] [feature] `camera-zoom-pan` — zoom and pan
-  - [ ] Ctrl/Cmd+wheel and pinch zoom around the cursor, `+` / `-`, fit spread, fit width, 100%; Space+drag pan; zoom indicator
+- [x] [feature] `camera-zoom-pan` — zoom and pan
+  - [x] Ctrl/Cmd+wheel and pinch zoom around the cursor, `+` / `-`, fit spread, fit width, 100%; Space+drag pan; zoom indicator
   - **Perf:** camera is one `transform` written in rAF outside React; `will-change` only while zooming; zoom indicator updates through a narrow subscription. Gate: continuous zoom from whole book to 400% and back — zero LoAF, wheel handler p95 ≤ 2 ms. If whole-book zoom fails, do `far-zoom-lod`.
   - **Browser check:** zoom from the whole book to a single photo detail and back without stutter (images may stay soft until `zoom-image-tiers`).
 - [ ] [feature] `zoom-image-tiers` — sharp images at every zoom

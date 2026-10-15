@@ -13,6 +13,8 @@
     "!src/core/**/testing/**",
     "src/render/frameBox.ts",
     "src/editor/bookStore.ts",
+    "src/editor/camera.ts",
+    "src/editor/cameraStore.ts",
     "src/editor/importPhotos.ts",
     "src/editor/pasteboardWindow.ts",
     "src/editor/thumbCache.ts",
