@@ -15,6 +15,7 @@ import {
 } from '../core/testing/painterFixture'
 import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
+import { setEditorStatus, unplacedFromSpreadStatus } from './editorStatus'
 
 export interface AssetSessionMeta {
   name: string
@@ -301,6 +302,35 @@ export function dispatchBookOp(op: BookOp): void {
   } else {
     emit()
   }
+  if (op.type === 'applyTemplate') {
+    const removed = removedPlacementCount(prev.book, book, op.spreadId)
+    if (removed > 0) {
+      setEditorStatus(unplacedFromSpreadStatus(removed))
+    }
+  }
+}
+
+function removedPlacementCount(
+  before: Book,
+  after: Book,
+  spreadId: string,
+): number {
+  const prevSpread = before.spreads.find((spread) => spread.id === spreadId)
+  const nextSpread = after.spreads.find((spread) => spread.id === spreadId)
+  if (prevSpread === undefined || nextSpread === undefined) {
+    return 0
+  }
+  let removed = 0
+  for (
+    let index = nextSpread.frames.length;
+    index < prevSpread.frames.length;
+    index += 1
+  ) {
+    if (prevSpread.frames[index]?.assetId !== undefined) {
+      removed += 1
+    }
+  }
+  return removed
 }
 
 /** Replace the in-memory book with the painter fixture and its preview URLs. */

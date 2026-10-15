@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getAssetSource, resetAssetSources } from '../photo/assetSources'
+import { makePlacedTemplateBook } from '../core/testing/fixtures'
 import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
 import {
   enqueueGalleryAssets,
@@ -16,12 +17,15 @@ import {
   setImportRunning,
   subscribeBookStore,
   subscribeGallery,
+  dispatchBookOp,
 } from './bookStore'
+import { getEditorStatus, setEditorStatus } from './editorStatus'
 
 describe('bookStore', () => {
   afterEach(() => {
     resetBookStore()
     resetAssetSources()
+    setEditorStatus('')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -236,4 +240,56 @@ describe('bookStore', () => {
     expect(second).toEqual([0.5])
     expect(second).not.toBe(first)
   })
+
+  it('announces a plural count when a smaller template drops placements', () => {
+    loadPlacedBook(['a', 'b', 'c', 'd'])
+
+    dispatchBookOp({
+      type: 'applyTemplate',
+      spreadId: 'spread-1',
+      templateId: 'one-per-page',
+    })
+
+    expect(getEditorStatus()).toBe('3 photos were unplaced from the spread')
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['a', 'b', 'c', 'd'])
+    expect(
+      getBookStoreSnapshot().book.spreads[0]?.frames.map(
+        (frame) => frame.assetId,
+      ),
+    ).toEqual(['a'])
+  })
+
+  it('announces one photo when a smaller template drops a single placement', () => {
+    loadPlacedBook(['a', 'b'])
+
+    dispatchBookOp({
+      type: 'applyTemplate',
+      spreadId: 'spread-1',
+      templateId: 'one-per-page',
+    })
+
+    expect(getEditorStatus()).toBe('1 photo was unplaced from the spread')
+  })
+
+  it('leaves the status unchanged when a template change drops nothing', () => {
+    loadPlacedBook(['a'])
+    setEditorStatus('Photo moved')
+
+    dispatchBookOp({
+      type: 'applyTemplate',
+      spreadId: 'spread-1',
+      templateId: 'one-per-page',
+    })
+
+    expect(getEditorStatus()).toBe('Photo moved')
+  })
 })
+
+function loadPlacedBook(assetIds: readonly string[]): void {
+  resetBookStore({
+    book: makePlacedTemplateBook('4-grid', assetIds),
+    sessionMeta: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+}

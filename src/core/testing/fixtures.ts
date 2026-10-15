@@ -1,5 +1,9 @@
+import { addToGallery } from '../ops/gallery'
+import { placeAsset } from '../ops/place'
 import type { Book, Frame, Spread } from '../schema'
 import { CURRENT_SCHEMA_VERSION } from '../schema'
+import { applyTemplate } from '../templates/apply'
+import type { TemplateId } from '../templates/types'
 
 export type BookOverrides = Partial<Omit<Book, 'settings' | 'layoutGrid'>> & {
   settings?: Partial<Book['settings']> & {
@@ -71,6 +75,27 @@ export function makeBook(overrides: BookOverrides = {}): Book {
     gallery,
     spreads,
   }
+}
+
+export function makePlacedTemplateBook(
+  templateId: TemplateId,
+  assetIds: readonly string[],
+): Book {
+  let book = applyTemplate(
+    addToGallery(makeBook(), assetIds),
+    'spread-1',
+    templateId,
+  )
+  const frames = book.spreads[0]?.frames ?? []
+  for (let index = 0; index < assetIds.length; index += 1) {
+    const frame = frames[index]
+    const assetId = assetIds[index]
+    if (frame === undefined || assetId === undefined) {
+      break
+    }
+    book = placeAsset(book, 'spread-1', frame.id, assetId)
+  }
+  return book
 }
 
 export function makeBookWithAsset(

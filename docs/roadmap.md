@@ -111,6 +111,7 @@ Slicing rules when adding or splitting items:
   - [x] Keyboard-accessible alternative for swap, move and unplace
   - **Perf:** reuses the cached drop targets; one op per drop. Gate: drag a frame across a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
   - **Browser check:** drag photos back to the filmstrip, swap two frames; placed badges update; dragging stays smooth.
+- [x] [feature] `template-unplace-notice` — a smaller template still drops overflow placements, photos stay in the gallery, and a polite status says how many were unplaced
 
 ## M2 — Project on disk
 
