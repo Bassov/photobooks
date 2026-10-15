@@ -47,6 +47,7 @@ jobs:
         run: pnpm format:check
 
       - name: Unit and property tests
+        id: unit
         run: pnpm test:coverage
         env:
           FC_NUM_RUNS: '200'
@@ -63,22 +64,27 @@ jobs:
 
       - name: Coverage summary
         if: always()
-        id: coverage_summary
-        run: |
-          if [ ! -f coverage/coverage-summary.json ]; then
-            echo "has_report=false" >> "$GITHUB_OUTPUT"
-            node scripts/coverage-step-summary.mjs
-            exit 0
-          fi
-          echo "has_report=true" >> "$GITHUB_OUTPUT"
-          node scripts/coverage-step-summary.mjs | tee /tmp/coverage-pr-comment.md
+        run: node scripts/coverage-step-summary.mjs | tee /tmp/coverage-pr-comment.md
 
-      - name: Sticky coverage comment
-        if: always() && steps.coverage_summary.outputs.has_report == 'true' && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v3
+      - name: Pack coverage section
+        if: always()
+        run: |
+          node scripts/ci-report-comment.mjs pack \
+            --section coverage \
+            --step-outcome "${{ steps.unit.outcome }}" \
+            --missing-report job-failed \
+            --report coverage/coverage-summary.json \
+            --body-file /tmp/coverage-pr-comment.md \
+            --out ci-section/section.json
+
+      - name: Upload coverage section
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
-          header: coverage-summary
-          path: /tmp/coverage-pr-comment.md
+          name: ci-section-coverage
+          path: ci-section/section.json
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Build
         run: pnpm build
@@ -99,3 +105,32 @@ jobs:
           flags: unit
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
+
+  ci-comment:
+    needs: checks
+    if: always() && github.event_name == 'pull_request' && needs.checks.result != 'cancelled'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-report-${{ github.event.pull_request.number }}
+      queue: max
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download coverage section
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: ci-section-coverage
+          path: ci-section
+
+      - name: Update CI report comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-report-comment.mjs apply --section coverage --artifact ci-section/section.json
