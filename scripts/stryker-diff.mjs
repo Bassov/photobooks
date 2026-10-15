@@ -33,6 +33,9 @@ const PHOTO_MUTATE = new Set([
   'src/photo/pickPhotos.ts',
   'src/photo/assetPool.ts',
   'src/photo/objectUrlLru.ts',
+  'src/photo/imageTiers.ts',
+  'src/photo/assetSources.ts',
+  'src/photo/tierCache.ts',
 ])
 
 const EDITOR_MUTATE = new Set([
@@ -42,6 +45,7 @@ const EDITOR_MUTATE = new Set([
   'src/editor/importPhotos.ts',
   'src/editor/pasteboardWindow.ts',
   'src/editor/thumbCache.ts',
+  'src/editor/tierDisplay.ts',
 ])
 
 const RENDER_MUTATE = new Set(['src/render/frameBox.ts'])

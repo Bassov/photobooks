@@ -10,6 +10,8 @@ export interface PhotoWorkerRequest {
   file: File
   /** Long-edge cap for the preview JPEG (default PREVIEW_MAX_EDGE). */
   maxEdge?: number
+  /** When true, the preview long edge equals maxEdge even if the source is smaller. */
+  cover?: boolean
 }
 
 export interface PhotoWorkerSuccess {
@@ -86,6 +88,7 @@ async function buildPreview(
   bitmap: ImageBitmap,
   orientation: ExifOrientation,
   maxEdge: number,
+  cover: boolean,
 ): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
   const rawW = bitmap.width
   const rawH = bitmap.height
@@ -95,7 +98,8 @@ async function buildPreview(
     rawH,
   )
 
-  const scale = Math.min(1, maxEdge / Math.max(correctedW, correctedH))
+  const longEdge = Math.max(1, correctedW, correctedH)
+  const scale = cover ? maxEdge / longEdge : Math.min(1, maxEdge / longEdge)
   const outW = Math.max(1, Math.round(correctedW * scale))
   const outH = Math.max(1, Math.round(correctedH * scale))
 
@@ -162,7 +166,12 @@ export async function processPhotoRequest(
 
       const transform = normalizeOrientation(orientation, width, height)
       const maxEdge = request.maxEdge ?? PREVIEW_MAX_EDGE
-      const preview = await buildPreview(bitmap, orientation, maxEdge)
+      const preview = await buildPreview(
+        bitmap,
+        orientation,
+        maxEdge,
+        request.cover === true,
+      )
 
       return {
         id: request.id,

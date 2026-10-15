@@ -12,6 +12,7 @@ import {
   setAssetSessionMeta,
   setImportRunning,
 } from './bookStore'
+import { retainAssetSource } from '../photo/assetSources'
 import { setThumbUrl } from './thumbCache'
 
 /** `performance.measure` label for the sync import kickoff (handler p95 gate). */
@@ -43,10 +44,11 @@ async function importPhotoFilesInner(
     message: reason,
   }))
 
-  const prepared = accepted.map((file) => ({
-    assetId: mintAssetId(file.name),
-    file,
-  }))
+  const prepared = accepted.map((file) => {
+    const assetId = mintAssetId(file.name)
+    retainAssetSource(assetId, file)
+    return { assetId, file }
+  })
 
   setImportRunning(true, accepted.length + rejected.length)
   try {

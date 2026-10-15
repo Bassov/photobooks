@@ -13,11 +13,13 @@ export function SpreadView({
   spreadId,
   resolved,
   previewUrlFor,
+  tierFor,
   pxPerMm = SPREAD_PX_PER_MM,
 }: {
   spreadId: string
   resolved: ResolvedSpread
   previewUrlFor: (assetId: string) => string | undefined
+  tierFor?: (assetId: string) => number | undefined
   pxPerMm?: number
 }) {
   return (
@@ -37,6 +39,9 @@ export function SpreadView({
           pxPerMm={pxPerMm}
           previewUrl={
             item.assetId === undefined ? undefined : previewUrlFor(item.assetId)
+          }
+          tier={
+            item.assetId === undefined ? undefined : tierFor?.(item.assetId)
           }
         />
       ))}
@@ -75,10 +80,12 @@ export function SpreadView({
 function SpreadFrame({
   item,
   previewUrl,
+  tier,
   pxPerMm,
 }: {
   item: ResolvedItem
   previewUrl: string | undefined
+  tier: number | undefined
   pxPerMm: number
 }) {
   const box = frameBox(item.rectMm, pxPerMm)
@@ -109,6 +116,7 @@ function SpreadFrame({
           alt=""
           decoding="async"
           src={previewUrl}
+          data-tier={tier}
           style={{
             left: crop.left,
             top: crop.top,

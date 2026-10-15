@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getAssetSource, resetAssetSources } from '../photo/assetSources'
+import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
 import {
   enqueueGalleryAssets,
+  loadPainterFixture,
   getAssetAspectSnapshot,
   getBookStoreSnapshot,
   getGalleryAspectsSnapshot,
@@ -17,8 +20,18 @@ import {
 describe('bookStore', () => {
   afterEach(() => {
     resetBookStore()
+    resetAssetSources()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('retains a session file for each painter fixture asset', () => {
+    loadPainterFixture()
+
+    for (const assetId of PAINTER_ASSET_IDS) {
+      expect(getAssetSource(assetId)?.type).toBe('image/png')
+    }
+    expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
   })
 
   it('mints unique asset ids with sanitized names', () => {

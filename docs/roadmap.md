@@ -93,8 +93,8 @@ Slicing rules when adding or splitting items:
   - [x] Ctrl/Cmd+wheel and pinch zoom around the cursor, `+` / `-`, fit spread, fit width, 100%; Space+drag pan; zoom indicator
   - **Perf:** camera is one `transform` written in rAF outside React; `will-change` only while zooming; zoom indicator updates through a narrow subscription. Gate: continuous zoom from whole book to 400% and back — zero LoAF, wheel handler p95 ≤ 2 ms. If whole-book zoom fails, do `far-zoom-lod`.
   - **Browser check:** zoom from the whole book to a single photo detail and back without stutter (images may stay soft until `zoom-image-tiers`).
-- [ ] [feature] `zoom-image-tiers` — sharp images at every zoom
-  - [ ] Zoom-aware image tiers: smallest preview covering on-screen size × DPR; worker generates tiers into a bounded in-memory LRU
+- [x] [feature] `zoom-image-tiers` — sharp images at every zoom
+  - [x] Zoom-aware image tiers: smallest preview covering on-screen size × DPR; worker generates tiers into a bounded in-memory LRU
   - **Perf:** tier switch after the gesture settles with `img.decode()` before swap. Gate: the `camera-zoom-pan` zoom scenario with tier switches — zero LoAF.
   - **Browser check:** zoom from the whole book to a single photo detail and back; images stay sharp, no flashes, no stutter.
 - [ ] [contingency] `far-zoom-lod` — only if the `camera-zoom-pan` whole-book gate fails

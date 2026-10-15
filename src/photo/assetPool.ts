@@ -1,10 +1,11 @@
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { THUMB_MAX_EDGE } from './processPhoto'
 
-export type AssetJobPriority = 'visible' | 'prefetch' | 'background'
+export type AssetJobPriority = 'visible' | 'zoom' | 'prefetch' | 'background'
 
 const PRIORITY_RANK: Record<AssetJobPriority, number> = {
-  visible: 3,
+  visible: 4,
+  zoom: 3,
   prefetch: 2,
   background: 1,
 }
@@ -41,6 +42,7 @@ export interface ProcessAssetOptions {
   priority?: AssetJobPriority
   signal?: AbortSignal
   maxEdge?: number
+  cover?: boolean
 }
 
 interface QueueItem {
@@ -49,6 +51,7 @@ interface QueueItem {
   file: File
   priority: AssetJobPriority
   maxEdge: number
+  cover: boolean
   signal?: AbortSignal
   resolve: (result: AssetProcessResult) => void
   reject: (error: Error) => void
@@ -208,6 +211,9 @@ function runOnSlot(slot: WorkerSlot, job: QueueItem): void {
     file: job.file,
     maxEdge: job.maxEdge,
   }
+  if (job.cover) {
+    request.cover = true
+  }
   worker.postMessage(request)
 }
 
@@ -261,6 +267,7 @@ export function processAsset(
       file: options.file,
       priority: options.priority ?? 'prefetch',
       maxEdge: options.maxEdge ?? THUMB_MAX_EDGE,
+      cover: options.cover === true,
       resolve,
       reject,
     }

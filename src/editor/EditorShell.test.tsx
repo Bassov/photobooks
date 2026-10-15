@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
+import { resetAssetSources } from '../photo/assetSources'
+import { resetTierCache } from '../photo/tierCache'
 import { resetBookStore } from './bookStore'
+import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
@@ -23,6 +26,10 @@ describe('EditorShell viewport containment', () => {
     resetCameraStore()
     resetThumbCache()
     resetAssetPool()
+    resetTierCache()
+    resetTierDisplay()
+    resetAssetSources()
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
@@ -48,6 +55,23 @@ describe('EditorShell viewport containment', () => {
   })
 
   it('mounts a window of the fixture book, not every spread', () => {
+    vi.stubGlobal(
+      'Worker',
+      class {
+        addEventListener(): void {
+          // hang — the fixture test does not need a decode
+        }
+        removeEventListener(): void {
+          // no-op
+        }
+        postMessage(): void {
+          // no-op
+        }
+        terminate(): void {
+          // no-op
+        }
+      },
+    )
     window.history.pushState({}, '', '/?fixture=painter')
     render(<EditorShell />)
 
