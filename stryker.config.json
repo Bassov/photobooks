@@ -17,7 +17,8 @@
     "!src/core/index.ts",
     "!src/project/index.ts",
     "!src/main.tsx",
-    "!src/photo/photo.worker.ts"
+    "!src/photo/photo.worker.ts",
+    "!src/project/fsa/bookLoad.worker.ts"
   ],
   "ignorePatterns": [
     ".local_dev",

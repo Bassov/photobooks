@@ -8,7 +8,7 @@ export interface LibraryStorageContractHarness {
   storage: LibraryStorage
   setPermissionRequired: (required: boolean) => void
   setLockedElsewhere: (locked: boolean) => void
-  seedRawBook: (id: string, raw: unknown) => void
+  seedRawBook: (id: string, raw: unknown) => void | Promise<void>
 }
 
 export function runLibraryStorageContract(
@@ -107,7 +107,7 @@ export function runLibraryStorageContract(
 
     it('returns corrupted when stored data is not a valid book', async () => {
       const harness = createHarness()
-      harness.seedRawBook('bad-book', { not: 'a-book' })
+      await harness.seedRawBook('bad-book', { not: 'a-book' })
 
       expect(await harness.storage.loadBook('bad-book')).toEqual({
         ok: false,
@@ -118,7 +118,7 @@ export function runLibraryStorageContract(
     it('returns newer-schema when stored schemaVersion is unsupported', async () => {
       const harness = createHarness()
       const book = makeBook({ id: 'future-book' })
-      harness.seedRawBook('future-book', {
+      await harness.seedRawBook('future-book', {
         ...book,
         schemaVersion: CURRENT_SCHEMA_VERSION + 1,
       })

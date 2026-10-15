@@ -130,10 +130,10 @@ Slicing rules when adding or splitting items:
 - [x] [prep] `library-storage` — book persistence contract
   - [x] Domain-level `LibraryStorage` interface (no paths/bytes in its API); typed results (`permission-required`, `locked-elsewhere`, `not-found`, `corrupted`, `newer-schema`, `already-exists`)
   - [x] Memory adapter; one shared contract-test suite
-- [ ] [prep] `library-storage-fsa` — library on the file system
-  - [ ] File System Access adapter passing the shared contract suite
-  - [ ] Library layout (`library.json`, `books/<id>/book.json`), writes via writable stream + `.bak` rotation, migrations on load
-  - [ ] Load (parse, Zod, migrations) in a worker; serialization cost benchmarked on a 1000-asset book
+- [x] [prep] `library-storage-fsa` — library on the file system
+  - [x] File System Access adapter passing the shared contract suite
+  - [x] Library layout (`library.json`, `books/<id>/book.json`), writes via writable stream + `.bak` rotation, migrations on load
+  - [x] Load (parse, Zod, migrations) in a worker; serialization cost benchmarked on a 1000-asset book
 - [ ] [prep] `session-state` — per-browser state
   - [ ] `SessionState` adapter: handles in IndexedDB, Web Locks per book
 - [ ] [prep] `asset-record-schema` — asset identity in the document
