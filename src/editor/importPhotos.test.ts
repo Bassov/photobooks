@@ -4,6 +4,7 @@ import {
   getGalleryIdsSnapshot,
   resetBookStore,
 } from './bookStore'
+import { getAssetSource, resetAssetSources } from '../photo/assetSources'
 import { getThumbUrl, resetThumbCache } from './thumbCache'
 
 const runImportBatch = vi.hoisted(() => vi.fn())
@@ -26,6 +27,7 @@ describe('importPhotoFiles', () => {
   afterEach(() => {
     resetBookStore()
     resetThumbCache()
+    resetAssetSources()
     runImportBatch.mockReset()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -155,6 +157,7 @@ describe('importPhotoFiles', () => {
     expect(assetId.length).toBeGreaterThan(0)
     expect(getBookStoreSnapshot().sessionMeta.get(assetId)?.aspect).toBe(2)
     expect(getThumbUrl(assetId)).toBe('blob:imported')
+    expect(getAssetSource(assetId)?.name).toBe('a.jpg')
     expect(getBookStoreSnapshot().importRunning).toBe(false)
   })
 

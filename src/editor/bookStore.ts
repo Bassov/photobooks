@@ -8,7 +8,11 @@ import {
   type ResolvedSpread,
   type Spread,
 } from '../core'
-import { makePainterFixture } from '../core/testing/painterFixture'
+import {
+  makePainterFixture,
+  PAINTER_ASSET_IDS,
+} from '../core/testing/painterFixture'
+import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
 
 export interface AssetSessionMeta {
@@ -296,6 +300,9 @@ export function loadPainterFixture(): void {
     importRunning: false,
     importExpectedCount: 0,
   })
+  for (const assetId of PAINTER_ASSET_IDS) {
+    retainAssetSource(assetId, painterSourceFile(assetId), { cover: true })
+  }
 }
 
 export function subscribeSpread(

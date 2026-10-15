@@ -144,6 +144,7 @@ export function stubImageDecodeApis(options?: {
   width?: number
   height?: number
   previewBytes?: ArrayBuffer
+  onCanvas?: (width: number, height: number) => void
 }): void {
   const width = options?.width ?? 40
   const height = options?.height ?? 20
@@ -165,6 +166,7 @@ export function stubImageDecodeApis(options?: {
     constructor(w: number, h: number) {
       this.width = w
       this.height = h
+      options?.onCanvas?.(w, h)
     }
 
     getContext(): {

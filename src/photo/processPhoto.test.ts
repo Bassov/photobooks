@@ -192,6 +192,49 @@ describe('processPhotoRequest', () => {
     expect(result.orientation).toBe(1)
   })
 
+  it('keeps the preview within the source size when cover is off', async () => {
+    const file = samplePngFile()
+    const sizes: number[] = []
+    stubImageDecodeApis({
+      width: 4,
+      height: 2,
+      onCanvas: (width, height) => {
+        sizes.push(width, height)
+      },
+    })
+
+    const result = await processPhotoRequest({
+      id: 'req-cap',
+      file,
+      maxEdge: 8,
+    })
+
+    expect(result.ok).toBe(true)
+    expect(sizes).toEqual([4, 2])
+  })
+
+  it('enlarges the preview to the requested edge when cover is on', async () => {
+    const file = samplePngFile()
+    const sizes: number[] = []
+    stubImageDecodeApis({
+      width: 4,
+      height: 2,
+      onCanvas: (width, height) => {
+        sizes.push(width, height)
+      },
+    })
+
+    const result = await processPhotoRequest({
+      id: 'req-cover',
+      file,
+      maxEdge: 8,
+      cover: true,
+    })
+
+    expect(result.ok).toBe(true)
+    expect(sizes).toEqual([8, 4])
+  })
+
   it('fails when OffscreenCanvas 2d context is unavailable', async () => {
     const file = sampleOrient6File()
     exifrApi.orientation.mockResolvedValue(6)

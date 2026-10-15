@@ -360,6 +360,31 @@ test.describe('frame-budget gates', () => {
     await collectFrameStatsArtifact(page, testInfo)
   })
 
+  test('zoomed fixture photos keep a covering tier inside the pasteboard', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000)
+    await page.goto('/?fixture=painter')
+    const first = page.getByTestId('spread-view').first()
+    await expect(first.getByTestId('spread-frame-placeholder')).toHaveCount(1)
+    await expect(first.getByTestId('spread-frame-image').first()).toBeVisible()
+
+    await dispatchCtrlWheel(page, -300, 28)
+    await expect
+      .poll(async () =>
+        percentOf(await page.getByTestId('zoom-indicator').innerText()),
+      )
+      .toBeGreaterThanOrEqual(400)
+    await expect.poll(async () => gestureLabel(page)).toBe('')
+    await expect
+      .poll(async () => tierCovers(await readFilledTier(page)), {
+        timeout: 30_000,
+      })
+      .toBe(true)
+    await assertDocumentFitsViewport(page)
+    await assertNamedScrollport(page, 'pasteboard-scroll', { axis: 'vertical' })
+  })
+
   test('continuous zoom stays within frame-budget gates', async ({
     page,
   }, testInfo) => {
@@ -369,6 +394,7 @@ test.describe('frame-budget gates', () => {
     await dispatchCtrlWheel(page, 500, 24)
     await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
     await clearPerfScenario(page)
+    const tierAtFit = await readFilledTier(page)
 
     await dispatchCtrlWheel(page, -300, 28)
     await expect
@@ -393,6 +419,20 @@ test.describe('frame-budget gates', () => {
         el instanceof HTMLElement ? Number.parseFloat(el.style.width) : 0,
       )
     expect(laidOutWidth).toBeGreaterThanOrEqual(300 * (96 / 25.4) * 4 - 1)
+    await expect
+      .poll(
+        async () => {
+          const sample = await readFilledTier(page)
+          return (
+            sample.tier !== null &&
+            sample.tier !== tierAtFit.tier &&
+            sample.src.length > 0 &&
+            tierCovers(sample)
+          )
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true)
     await dispatchCtrlWheel(page, 300, 36)
 
     await page.evaluate((handlerBudgetMs) => {
@@ -438,6 +478,45 @@ async function readSpreadSlots(page: Page): Promise<SpreadSlotSnapshot[]> {
 
 function percentOf(label: string): number {
   return Number.parseInt(label, 10)
+}
+
+async function gestureLabel(page: Page): Promise<string> {
+  return page.getByTestId('pasteboard-world').evaluate((el) => {
+    if (!(el instanceof HTMLElement)) {
+      return 'missing'
+    }
+    return el.dataset.gesture ?? el.style.transform
+  })
+}
+
+interface TierSample {
+  tier: number | null
+  longEdge: number
+  src: string
+}
+
+async function readFilledTier(page: Page): Promise<TierSample> {
+  return page.evaluate(() => {
+    const image = document.querySelector('[data-testid="spread-frame-image"]')
+    if (!(image instanceof HTMLImageElement)) {
+      return { tier: null, longEdge: 0, src: '' }
+    }
+    const box = image.getBoundingClientRect()
+    const raw = image.dataset.tier
+    const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1
+    return {
+      tier: raw === undefined || raw === '' ? null : Number(raw),
+      longEdge: Math.max(box.width, box.height) * ratio,
+      src: image.getAttribute('src') ?? '',
+    }
+  })
+}
+
+function tierCovers(sample: TierSample): boolean {
+  if (sample.tier === null || !(sample.src.length > 0)) {
+    return false
+  }
+  return sample.tier >= sample.longEdge || sample.tier === 2560
 }
 
 interface AnchorSample {

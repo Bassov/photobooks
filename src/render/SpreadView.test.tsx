@@ -77,6 +77,7 @@ describe('SpreadView', () => {
     const image = screen.getByTestId('spread-frame-image')
     const crop = imageCropBox(item.sourceCropRect)
     expect(image.getAttribute('decoding')).toBe('async')
+    expect(image.hasAttribute('data-tier')).toBe(false)
     expect(image.getAttribute('alt')).toBe('')
     expect(image.style.left).toBe(crop.left)
     expect(image.style.top).toBe(crop.top)
