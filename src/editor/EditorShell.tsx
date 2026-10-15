@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import type { ImportFileError } from '../photo/assetPool'
 import {
   canUseDirectoryPicker,
@@ -7,7 +7,9 @@ import {
   pickFolderWithDirectoryPicker,
   pickPhotosWithFilePicker,
 } from '../photo/pickPhotos'
+import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
 import { Filmstrip } from './Filmstrip'
+import { installEditorKeys } from './galleryDrop'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
 import { loadPainterFixture } from './bookStore'
@@ -16,6 +18,12 @@ import './EditorShell.css'
 
 export function EditorShell() {
   const painterFixture = isPainterFixtureQuery()
+  const editorStatus = useSyncExternalStore(
+    subscribeEditorStatus,
+    getEditorStatus,
+    getEditorStatus,
+  )
+  useEffect(() => installEditorKeys(), [])
   useEffect(() => {
     if (!painterFixture) {
       return
@@ -101,6 +109,9 @@ export function EditorShell() {
 
   return (
     <div className="editor-shell" data-testid="editor-shell">
+      <p className="editor-live" data-testid="editor-status" aria-live="polite">
+        {editorStatus}
+      </p>
       <header className="editor-chrome">
         <p className="brand">Photobooks</p>
         <div className="editor-actions">

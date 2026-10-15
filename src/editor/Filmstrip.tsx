@@ -17,6 +17,8 @@ import {
   subscribeGallery,
 } from './bookStore'
 import { FilmstripItemView } from './FilmstripItem'
+import { installFilmstripUnplace, unplaceSelectedFrame } from './galleryDrop'
+import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import {
   getSelectedAssetId,
   setSelectedAssetId,
@@ -139,7 +141,20 @@ export const Filmstrip = memo(function Filmstrip({
     getSelectedAssetId,
     getSelectedAssetId,
   )
+  const frameSource = useSyncExternalStore(
+    subscribeFrameSelection,
+    getFrameSource,
+    getFrameSource,
+  )
   const isEmpty = total === 0
+
+  useEffect(() => {
+    const node = scrollRef.current
+    if (!node) {
+      return
+    }
+    return installFilmstripUnplace(node)
+  }, [])
 
   return (
     <section
@@ -147,8 +162,23 @@ export const Filmstrip = memo(function Filmstrip({
       data-testid="filmstrip"
       data-gallery-count={total}
       aria-label="Gallery"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          setSelectedAssetId(null)
+        }
+      }}
     >
       <FilmstripStatus photoCount={total} progress={progress} />
+      <button
+        type="button"
+        className="filmstrip-unplace"
+        disabled={frameSource === null}
+        onClick={() => {
+          unplaceSelectedFrame()
+        }}
+      >
+        Unplace
+      </button>
       <div
         ref={scrollRef}
         className="filmstrip-scroll"

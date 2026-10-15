@@ -1,11 +1,21 @@
 import { memo, useEffect, useSyncExternalStore } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
-import { SpreadView } from '../render/SpreadView'
+import { SpreadView, type FrameControl } from '../render/SpreadView'
 import { selectImageTier } from '../photo/imageTiers'
 import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import { getSpreadPaintSnapshot, subscribeSpread } from './bookStore'
-import { activateSelectedFrame } from './galleryDrop'
+import { armFrameDragClick, activateFrame } from './galleryDrop'
+import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
+import {
+  frameControlLabel,
+  getFrameSource,
+  subscribeFrameSelection,
+} from './frameSelection'
+import {
+  getSelectedAssetId,
+  subscribeGallerySelection,
+} from './gallerySelection'
 import {
   clearSpreadTiers,
   getTierDisplaySnapshot,
@@ -41,6 +51,16 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     subscribeTierDisplay,
     getTierDisplaySnapshot,
     getTierDisplaySnapshot,
+  )
+  const galleryAssetId = useSyncExternalStore(
+    subscribeGallerySelection,
+    getSelectedAssetId,
+    getSelectedAssetId,
+  )
+  const frameSource = useSyncExternalStore(
+    subscribeFrameSelection,
+    getFrameSource,
+    getFrameSource,
   )
 
   useEffect(() => {
@@ -104,16 +124,36 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         tierSnapshot.urls.get(assetId)?.url ?? snapshot.previewUrlFor(assetId)
       }
       tierFor={(assetId) => tierSnapshot.urls.get(assetId)?.tier}
-      frameControlFor={(item) => ({
-        label: item.assetId === undefined ? 'Place photo' : 'Replace photo',
-        onActivate: () => {
-          activateSelectedFrame(
-            spreadId,
-            item.frameId,
-            item.assetId !== undefined,
-          )
-        },
-      })}
+      frameControlFor={(item) => {
+        const filled = item.assetId !== undefined
+        const frame = { spreadId, frameId: item.frameId }
+        const pressed =
+          frameSource !== null &&
+          frameSource.spreadId === spreadId &&
+          frameSource.frameId === item.frameId
+        const control: FrameControl = {
+          label: frameControlLabel(
+            filled,
+            galleryAssetId !== null,
+            frameSource,
+            frame,
+          ),
+          onActivate: () => {
+            activateFrame(spreadId, item.frameId, filled)
+          },
+        }
+        if (pressed) {
+          control.pressed = true
+        }
+        if (filled) {
+          control.onDragStart = (event) => {
+            event.dataTransfer.setData(FRAME_DRAG_MIME, encodeFrameDrag(frame))
+            event.dataTransfer.effectAllowed = 'move'
+            armFrameDragClick()
+          }
+        }
+        return control
+      }}
     />
   )
 })

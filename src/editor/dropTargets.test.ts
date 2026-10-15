@@ -2,9 +2,14 @@ import { fc, test } from '@fast-check/vitest'
 import { describe, expect, it } from 'vitest'
 import {
   ASSET_DRAG_MIME,
+  FRAME_DRAG_MIME,
   buildDropIndex,
+  decodeFrameDrag,
+  encodeFrameDrag,
   hitTestDrop,
   isAssetDrag,
+  isFrameDrag,
+  resolveFrameActivation,
   type DropFrameInput,
   type DropIndexInput,
   type DropSpreadInput,
@@ -244,6 +249,85 @@ describe('dropTargets', () => {
     const asset = new DataTransfer()
     asset.setData(ASSET_DRAG_MIME, 'a')
     expect(isAssetDrag(asset)).toBe(true)
+    expect(isFrameDrag(asset)).toBe(false)
+  })
+
+  it('round-trips a frame payload and rejects a broken one', () => {
+    const payload = encodeFrameDrag({ spreadId: 's0', frameId: 'f0' })
+    expect(decodeFrameDrag(payload)).toEqual({ spreadId: 's0', frameId: 'f0' })
+    expect(decodeFrameDrag('')).toBeNull()
+    expect(decodeFrameDrag('only-spread')).toBeNull()
+    expect(decodeFrameDrag('\nf0')).toBeNull()
+    expect(decodeFrameDrag('s0\n')).toBeNull()
+    expect(decodeFrameDrag('s0\nf0\nextra')).toBeNull()
+    const frame = new DataTransfer()
+    frame.setData(FRAME_DRAG_MIME, payload)
+    expect(isFrameDrag(frame)).toBe(true)
+    expect(isFrameDrag(null)).toBe(false)
+  })
+
+  it('lets a gallery selection place or replace and ignores the frame source', () => {
+    const target = { spreadId: 's1', frameId: 'f1', filled: false }
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: 'a',
+        source: { spreadId: 's0', frameId: 'f0' },
+        target,
+      }),
+    ).toEqual({ type: 'place', assetId: 'a' })
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: 'a',
+        source: null,
+        target: { ...target, filled: true },
+      }),
+    ).toEqual({ type: 'replace', assetId: 'a' })
+  })
+
+  it('selects a filled frame, swaps a different one, and clears the same frame', () => {
+    const source = { spreadId: 's0', frameId: 'f0' }
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: null,
+        source: null,
+        target: { ...source, filled: true },
+      }),
+    ).toEqual({ type: 'select-source' })
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: null,
+        source: null,
+        target: { ...source, filled: false },
+      }),
+    ).toEqual({ type: 'noop' })
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: null,
+        source,
+        target: { spreadId: 's0', frameId: 'f1', filled: false },
+      }),
+    ).toEqual({ type: 'swap', source })
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: null,
+        source,
+        target: { ...source, filled: true },
+      }),
+    ).toEqual({ type: 'clear-source' })
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: '',
+        source: null,
+        target: { ...source, filled: true },
+      }),
+    ).toEqual({ type: 'select-source' })
+    expect(
+      resolveFrameActivation({
+        galleryAssetId: null,
+        source,
+        target: { spreadId: 's1', frameId: 'f0', filled: true },
+      }),
+    ).toEqual({ type: 'swap', source })
   })
 
   it('misses outside every frame and ignores a non-finite point', () => {

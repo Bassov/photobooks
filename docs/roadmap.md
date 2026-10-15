@@ -106,9 +106,9 @@ Slicing rules when adding or splitting items:
   - [x] Keyboard-accessible alternative for place and replace
   - **Perf:** native drag image; drop targets resolved from cached mm rects (no DOM queries in `dragover`); hover highlight toggles one attribute; one op per drop. Gate: drag across a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
   - **Browser check:** lay out a few spreads by hand; placed badges update; dragging stays smooth.
-- [ ] [feature] `drag-swap-unplace` — rearrange and take back
-  - [ ] Frame ↔ frame (swap / move), frame → filmstrip (unplace)
-  - [ ] Keyboard-accessible alternative for swap, move and unplace
+- [x] [feature] `drag-swap-unplace` — rearrange and take back
+  - [x] Frame ↔ frame (swap / move), frame → filmstrip (unplace)
+  - [x] Keyboard-accessible alternative for swap, move and unplace
   - **Perf:** reuses the cached drop targets; one op per drop. Gate: drag a frame across a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
   - **Browser check:** drag photos back to the filmstrip, swap two frames; placed badges update; dragging stays smooth.
 

@@ -164,12 +164,12 @@ The editor SHALL place a selected gallery photo into an empty frame and SHALL re
 
 ### Requirement: Empty gallery shows no placements
 
-When the gallery is empty, the filmstrip MUST NOT show a Placed badge, and activating a frame MUST leave every frame a placeholder.
+When the gallery is empty, the filmstrip MUST NOT show a Placed badge or an Unplace control, and activating a frame MUST leave every frame a placeholder named “Place photo”.
 
 #### Scenario: Empty gallery activation
 
 - **WHEN** the gallery has no photos and a frame is activated
-- **THEN** no Placed badge is shown and every frame remains a placeholder
+- **THEN** no Placed badge is shown, no Unplace control is shown, and every frame remains a placeholder named “Place photo”
 
 ### Requirement: Place and replace keep page scroll inside existing ports
 
@@ -178,4 +178,123 @@ Placing or replacing a photo MUST NOT create page-level horizontal or vertical s
 #### Scenario: Document stays contained after place
 
 - **WHEN** a gallery photo is placed on a frame
+- **THEN** the document has no page-level horizontal or vertical scroll
+
+### Requirement: Swap or move between frames
+
+The editor SHALL swap the placements of two frames when a filled frame is dropped on another filled frame, including a frame on another spread. Dropping a filled frame on an empty frame SHALL move the placement. Dropping a frame on itself MUST NOT change the book. Each accepted drop MUST apply one document operation. Both photos MUST remain in the filmstrip.
+
+#### Scenario: Swap two filled frames
+
+- **WHEN** a filled frame is dropped on another filled frame
+- **THEN** the two frames exchange photos, both photos remain in the filmstrip, and both filmstrip items show a Placed badge
+
+#### Scenario: Move onto an empty frame
+
+- **WHEN** a filled frame is dropped on an empty frame
+- **THEN** the source frame is empty, the target frame shows that photo, and that filmstrip item still shows a Placed badge
+
+#### Scenario: Drop on the same frame
+
+- **WHEN** a filled frame is dropped on itself
+- **THEN** every frame stays as it was
+
+### Requirement: Unplace onto the filmstrip
+
+The editor SHALL clear a filled frame when that frame is dropped on the filmstrip. The photo MUST remain in the filmstrip. The Placed badge MUST disappear when that photo has no placements left.
+
+#### Scenario: Unplace the only placement
+
+- **WHEN** a frame holding a photo with no other placement is dropped on the filmstrip
+- **THEN** that frame is empty, the photo remains in the filmstrip, and that filmstrip item has no Placed badge
+
+### Requirement: Keyboard swap, move, and unplace
+
+With no gallery photo selected, the editor SHALL let a keyboard user mark a filled frame as the move source, then swap or move by activating another frame, or unplace with a filmstrip control. A selected gallery photo MUST still place or replace and MUST clear the move source. The move source MUST be the only pressed frame.
+
+#### Scenario: Keyboard swap
+
+- **WHEN** no gallery photo is selected, a filled frame named “Select photo to move” is activated, and another filled frame named “Swap photos” is activated
+- **THEN** the two frames exchange photos and both Placed badges stay
+
+#### Scenario: Keyboard move
+
+- **WHEN** a move source is set and an empty frame named “Move photo here” is activated
+- **THEN** the source frame is empty, the target shows the photo, and the Placed badge stays
+
+#### Scenario: Keyboard unplace
+
+- **WHEN** a move source is set and the filmstrip control named “Unplace” is activated
+- **THEN** the source frame is empty, the photo remains in the filmstrip, and the Placed badge is removed when that photo has no other placement
+
+#### Scenario: Gallery selection still replaces
+
+- **WHEN** a gallery photo is selected and a filled frame is activated
+- **THEN** that frame shows the selected photo, is named “Replace photo”, and the move source is cleared
+
+#### Scenario: Activate the source again
+
+- **WHEN** a filled frame is the move source and that same frame, named “Cancel move”, is activated
+- **THEN** the move source is cleared and no frame stays pressed
+
+#### Scenario: Escape clears move mode
+
+- **WHEN** a move source or a gallery photo is selected and Escape is pressed in the editor
+- **THEN** the move source and the gallery selection are both cleared
+
+#### Scenario: Delete unplaces the focused frame
+
+- **WHEN** a filled frame has focus and Delete or Backspace is pressed
+- **THEN** that frame is empty, the photo remains in the filmstrip, and the Placed badge is removed when that photo has no other placement
+
+#### Scenario: Delete ignores a text field
+
+- **WHEN** focus is in a text field and Backspace or Delete is pressed
+- **THEN** every frame stays as it was
+
+#### Scenario: Unplace keeps focus and announces
+
+- **WHEN** the move source is set and Unplace is activated
+- **THEN** focus is on the emptied frame, not the document body, and a polite live region reports that the photo was unplaced
+
+#### Scenario: Status follows swap and move
+
+- **WHEN** a move source is chosen, then swapped or moved
+- **THEN** the live region reports the selection, then that the photos were swapped or the photo was moved
+
+### Requirement: Move source matches a filled frame
+
+The editor MUST clear the move source when its frame is missing or empty, including after a template change or a book reset. An Unplace control MUST stay in the filmstrip and MUST be unavailable while no move source is set, so the filmstrip does not change height. A frame drag MUST unplace or swap only when that drag started in this document and the dropped payload is that same frame. A drag MUST clear the keyboard move source only when the dragged frame is that source.
+
+#### Scenario: Template change drops a stale source
+
+- **WHEN** the move source is a frame that a template change removes
+- **THEN** the move source is cleared and Unplace is unavailable
+
+#### Scenario: Foreign frame drop
+
+- **WHEN** a frame payload is dropped on the filmstrip without a matching drag started in this document
+- **THEN** every frame stays as it was
+
+#### Scenario: Unrelated drag keeps the move source
+
+- **WHEN** a keyboard move source is set and a different frame is dragged onto another frame
+- **THEN** the move source stays on the original frame
+
+### Requirement: Pressed move source stays visible
+
+The move source frame MUST show a visible outline while it is pressed, including when the book is zoomed far out.
+
+#### Scenario: Pressed frame has an outline
+
+- **WHEN** a filled frame is the move source
+- **THEN** that frame’s outline is wider than zero
+
+### Requirement: Rearrange keeps page scroll inside existing ports
+
+Swapping, moving, or unplacing MUST NOT create page-level horizontal or vertical scroll. Horizontal scrolling MUST stay inside the filmstrip, and vertical scrolling MUST stay inside the pasteboard.
+
+#### Scenario: Document stays contained after unplace
+
+- **WHEN** a photo is unplaced from a frame
 - **THEN** the document has no page-level horizontal or vertical scroll

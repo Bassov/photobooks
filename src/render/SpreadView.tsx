@@ -1,8 +1,11 @@
+import type { DragEvent as ReactDragEvent } from 'react'
 import type { ResolvedItem, ResolvedSpread } from '../core'
 
 export interface FrameControl {
   label: string
+  pressed?: boolean
   onActivate: () => void
+  onDragStart?: (event: ReactDragEvent<HTMLDivElement>) => void
 }
 import {
   frameBox,
@@ -107,7 +110,7 @@ function SpreadFrame({
     height: box.height,
     zIndex: item.z,
   }
-  const body =
+  const image =
     previewUrl === undefined ? (
       <div
         className="spread-frame-placeholder"
@@ -129,13 +132,24 @@ function SpreadFrame({
         }}
       />
     )
+  // Stay mounted when a frame empties mid-drop so dragend still reaches document.
+  // A draggable element inside a button is invalid HTML; Chromium still drags it.
+  const body = (
+    <div
+      className="spread-frame-body"
+      draggable={control?.onDragStart !== undefined}
+      onDragStart={control?.onDragStart}
+    >
+      {image}
+    </div>
+  )
   if (control === undefined) {
     return (
       <div
         className="spread-frame"
         data-testid="spread-frame"
         data-frame-id={item.frameId}
-        data-filled={previewUrl === undefined ? 'false' : 'true'}
+        data-filled={item.assetId === undefined ? 'false' : 'true'}
         style={style}
       >
         {body}
@@ -148,8 +162,9 @@ function SpreadFrame({
       className="spread-frame"
       data-testid="spread-frame"
       data-frame-id={item.frameId}
-      data-filled={previewUrl === undefined ? 'false' : 'true'}
+      data-filled={item.assetId === undefined ? 'false' : 'true'}
       aria-label={control.label}
+      aria-pressed={control.pressed === true ? true : undefined}
       style={style}
       onClick={control.onActivate}
     >

@@ -22,14 +22,20 @@ button.spread-frame {
   cursor: pointer;
 }
 
-button.spread-frame:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+button.spread-frame:focus-visible,
+button.spread-frame[aria-pressed='true'] {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
 }
 
 .spread-frame[data-drop-hover='true'] {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+.spread-frame-body {
+  width: 100%;
+  height: 100%;
 }
 
 .spread-frame-placeholder {

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveSpread } from '../core'
-import { makeBook } from '../core/testing/fixtures'
+import { makeBook, makeBookWithAsset } from '../core/testing/fixtures'
 import { frameBox, imageCropBox, SPREAD_PX_PER_MM } from './frameBox'
 import { SpreadView } from './SpreadView'
 
@@ -220,5 +220,48 @@ describe('SpreadView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Place photo' }))
     expect(onActivate).toHaveBeenCalledOnce()
+  })
+
+  it('makes a filled frame body draggable without pressing an empty frame', () => {
+    const empty = resolveSpread(makeBook(), 'spread-1')
+    const filled = resolveSpread(makeBookWithAsset(), 'spread-1')
+    if (empty === undefined || filled === undefined) {
+      throw new Error('expected resolved spreads')
+    }
+
+    const { unmount } = render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={empty}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({ label: 'Place photo', onActivate: vi.fn() })}
+      />,
+    )
+    expect(
+      document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
+    ).toBe('false')
+    unmount()
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={filled}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Select photo to move',
+          pressed: true,
+          onActivate: vi.fn(),
+          onDragStart: vi.fn(),
+        })}
+      />,
+    )
+    expect(
+      document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
+    ).toBe('true')
+    expect(
+      screen
+        .getByRole('button', { name: 'Select photo to move' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
   })
 })

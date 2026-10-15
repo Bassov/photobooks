@@ -9,7 +9,8 @@ Living journal of repeated review findings. Read before OpenSpec apply. Append o
 - Bugs found via exploratory browser or MCP sessions MUST be locked in with a Playwright test under `e2e/` that would have failed before the fix.
 - Copy `input.files` into an array before setting `input.value = ''` — `FileList` is live and empties on clear.
 - `useSyncExternalStore` getSnapshot return values must be referentially stable when data is unchanged (do not allocate a new object/array each call).
-- When adding a new `src/<capability>/` domain module, extend `scripts/stryker-diff.mjs` (and `stryker.config.json` mutate) or `stryker:diff` will skip and the PR will have no mutation comment.
+- When adding a new `src/<capability>/` domain module or an editor module that holds drop, selection, or dispatch logic, extend both `scripts/stryker-diff.mjs` and `stryker.config.json` `mutate`, or `stryker:diff` will skip it and the PR will have no mutation comment.
+- Do not unmount a drag source during drop. `dragend` on a detached node never reaches `document`, so a click-suppress flag armed at `dragstart` stays stuck.
 - CSS Grid children default to `min-width: auto`; a wide virtualized spacer will stretch the page unless the shell locks to the viewport (`overflow: hidden`, `max-width: 100%`) and grid/filmstrip children set `min-width: 0`.
 - Asserting `scrollLeft` on an overflow element does not prove page containment — assert `documentElement` scroll size ≤ client size (shared e2e `assertDocumentFitsViewport`).
 - Progressive mid-import filmstrip mounts need tighter rAF pacing (gallery flush / reveal / thumb flush) — do not re-freeze the gallery id list to pass LoAF.

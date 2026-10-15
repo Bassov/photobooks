@@ -3,6 +3,64 @@ import { frameBox } from '../render/frameBox'
 
 export const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
+export const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
+
+export interface FrameDragSource {
+  spreadId: string
+  frameId: string
+}
+
+export type FrameActivation =
+  | { type: 'place'; assetId: string }
+  | { type: 'replace'; assetId: string }
+  | { type: 'select-source' }
+  | { type: 'clear-source' }
+  | { type: 'swap'; source: FrameDragSource }
+  | { type: 'noop' }
+
+export function encodeFrameDrag(source: FrameDragSource): string {
+  return `${source.spreadId}\n${source.frameId}`
+}
+
+export function decodeFrameDrag(payload: string): FrameDragSource | null {
+  const split = payload.indexOf('\n')
+  if (
+    split <= 0 ||
+    split !== payload.lastIndexOf('\n') ||
+    split >= payload.length - 1
+  ) {
+    return null
+  }
+  return {
+    spreadId: payload.slice(0, split),
+    frameId: payload.slice(split + 1),
+  }
+}
+
+export function resolveFrameActivation(input: {
+  galleryAssetId: string | null
+  source: FrameDragSource | null
+  target: FrameDragSource & { filled: boolean }
+}): FrameActivation {
+  const galleryAssetId = input.galleryAssetId
+  if (galleryAssetId !== null && galleryAssetId !== '') {
+    return input.target.filled
+      ? { type: 'replace', assetId: galleryAssetId }
+      : { type: 'place', assetId: galleryAssetId }
+  }
+  const source = input.source
+  if (source === null) {
+    return input.target.filled ? { type: 'select-source' } : { type: 'noop' }
+  }
+  if (
+    source.spreadId === input.target.spreadId &&
+    source.frameId === input.target.frameId
+  ) {
+    return { type: 'clear-source' }
+  }
+  return { type: 'swap', source }
+}
+
 export interface DropFrameInput {
   frameId: string
   z: number
@@ -110,11 +168,24 @@ export function hitTestDrop(
 export function isAssetDrag(
   dataTransfer: DataTransfer | null | undefined,
 ): boolean {
+  return dragTypeIncludes(dataTransfer, ASSET_DRAG_MIME)
+}
+
+export function isFrameDrag(
+  dataTransfer: DataTransfer | null | undefined,
+): boolean {
+  return dragTypeIncludes(dataTransfer, FRAME_DRAG_MIME)
+}
+
+function dragTypeIncludes(
+  dataTransfer: DataTransfer | null | undefined,
+  mime: string,
+): boolean {
   if (dataTransfer == null) {
     return false
   }
   for (const type of dataTransfer.types) {
-    if (type === ASSET_DRAG_MIME) {
+    if (type === mime) {
       return true
     }
   }
