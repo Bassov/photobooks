@@ -13,6 +13,7 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 | Book document      | `src/core/`                         | `openspec/specs/book-core/`       |
 | Layout geometry    | `src/core/` (templates/ops/resolve) | `openspec/specs/layout-geometry/` |
 | Library storage    | `src/project/`                      | `openspec/specs/library-storage/` |
+| Session state      | `src/project/session/`              | `openspec/specs/session-state/`   |
 | Editor shell       | `src/editor/`                       | `openspec/specs/editor-shell/`    |
 | Spread painter     | `src/render/`                       | `openspec/specs/spread-view/`     |
 | Photo / asset pool | `src/photo/`                        | `openspec/specs/photo-card/`      |

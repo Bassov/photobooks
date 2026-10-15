@@ -12,3 +12,5 @@ Each `!` pattern in `stryker.config.json` `mutate` has one reason here. JSON can
 - `!src/main.tsx` — Vite entry
 - `!src/photo/photo.worker.ts` — onmessage wrapper; logic lives in processPhoto.ts
 - `!src/project/fsa/bookLoad.worker.ts` — onmessage wrapper; logic lives in bookLoad.ts
+- `!src/project/session/idb.ts` — IndexedDB open/get/set/del shell; SessionIdb port covered via injected fakes in browserSessionState tests
+- `!src/project/session/locks.ts` — navigator.locks thin adapter; lock name + ifAvailable covered via injected SessionLocks in browserSessionState tests
