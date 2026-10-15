@@ -11,15 +11,19 @@ import { Filmstrip } from './Filmstrip'
 import {
   frameControlLabel,
   getFrameSource,
+  getSpreadFrameSourceKey,
   resetFrameSelection,
   setFrameSource,
   subscribeFrameSelection,
+  subscribeSpreadFrameSource,
   withSelectionSync,
 } from './frameSelection'
 import {
+  getGalleryPhotoSelected,
   getSelectedAssetId,
   resetGallerySelection,
   setSelectedAssetId,
+  subscribeGalleryPhotoSelected,
   subscribeGallerySelection,
 } from './gallerySelection'
 
@@ -115,6 +119,7 @@ describe('frameSelection', () => {
       'Select photo to move',
     )
     expect(frameControlLabel(true, false, frame, frame)).toBe('Cancel move')
+    expect(frameControlLabel(false, false, frame, frame)).toBe('Place photo')
     expect(frameControlLabel(true, false, frame, other)).toBe('Swap photos')
     expect(frameControlLabel(false, false, frame, other)).toBe(
       'Move photo here',
@@ -163,5 +168,69 @@ describe('frameSelection', () => {
     expect(
       document.querySelector('.filmstrip-unplace')?.hasAttribute('disabled'),
     ).toBe(true)
+  })
+
+  it('notifies gallery subscribers only when a photo becomes selected or cleared', () => {
+    let calls = 0
+    const unsubscribe = subscribeGalleryPhotoSelected(() => {
+      calls += 1
+    })
+
+    expect(getGalleryPhotoSelected()).toBe(false)
+    setSelectedAssetId('a')
+    expect(calls).toBe(1)
+    expect(getGalleryPhotoSelected()).toBe(true)
+
+    setSelectedAssetId('b')
+    expect(calls).toBe(1)
+    expect(getGalleryPhotoSelected()).toBe(true)
+
+    setSelectedAssetId(null)
+    expect(calls).toBe(2)
+    expect(getGalleryPhotoSelected()).toBe(false)
+
+    unsubscribe()
+    setSelectedAssetId('c')
+    expect(calls).toBe(2)
+  })
+
+  it('keys a spread source as missing, elsewhere, or this frame', () => {
+    let calls = 0
+    let ownCalls = 0
+    const unsubscribe = subscribeSpreadFrameSource('s1', () => {
+      calls += 1
+    })
+    const unsubscribeOwn = subscribeSpreadFrameSource('s0', () => {
+      ownCalls += 1
+    })
+
+    expect(getSpreadFrameSourceKey('s1')).toBeNull()
+    setFrameSource({ spreadId: 's0', frameId: 'f0' })
+    expect(calls).toBe(1)
+    expect(ownCalls).toBe(1)
+    expect(getSpreadFrameSourceKey('s1')).toBe('')
+    expect(getSpreadFrameSourceKey('s0')).toBe('f0')
+
+    setFrameSource({ spreadId: 's0', frameId: 'f1' })
+    expect(calls).toBe(1)
+    expect(ownCalls).toBe(2)
+    expect(getSpreadFrameSourceKey('s1')).toBe('')
+    expect(getSpreadFrameSourceKey('s0')).toBe('f1')
+
+    setFrameSource({ spreadId: 's1', frameId: 'g' })
+    expect(calls).toBe(2)
+    expect(getSpreadFrameSourceKey('s1')).toBe('g')
+
+    setFrameSource(null)
+    expect(calls).toBe(3)
+    expect(getSpreadFrameSourceKey('s1')).toBeNull()
+
+    expect(ownCalls).toBe(4)
+
+    unsubscribe()
+    unsubscribeOwn()
+    setFrameSource({ spreadId: 's1', frameId: 'g' })
+    expect(calls).toBe(3)
+    expect(ownCalls).toBe(4)
   })
 })
