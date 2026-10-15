@@ -7,8 +7,11 @@ import {
   type UIEvent,
 } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
+import { CameraBar } from './CameraBar'
+import { getCommittedCamera, subscribeCommitted } from './cameraStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
+import { usePasteboardCamera } from './usePasteboardCamera'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -26,6 +29,10 @@ function getTrimHeightMm(): number {
   return getBookStoreSnapshot().book.settings.trim.heightMm
 }
 
+function getTrimWidthMm(): number {
+  return getBookStoreSnapshot().book.settings.trim.widthMm
+}
+
 export const Pasteboard = memo(function Pasteboard() {
   const spreadIds = useSyncExternalStore(
     subscribeBookStore,
@@ -37,13 +44,32 @@ export const Pasteboard = memo(function Pasteboard() {
     getTrimHeightMm,
     getTrimHeightMm,
   )
-  const stride = pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM)
-  const [scrollTop, setScrollTop] = useState(0)
-  const [viewportPx, setViewportPx] = useState(0)
+  const trimWidthMm = useSyncExternalStore(
+    subscribeBookStore,
+    getTrimWidthMm,
+    getTrimWidthMm,
+  )
+  const cameraFrame = useSyncExternalStore(
+    subscribeCommitted,
+    getCommittedCamera,
+    getCommittedCamera,
+  )
+  const committedZoom = cameraFrame.zoom
+  const pxPerMm = SPREAD_PX_PER_MM * committedZoom
+  const stride =
+    pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM) * committedZoom
+  const [trackedScroll, setTrackedScroll] = useState({ top: 0, epoch: 0 })
+  const scrollTop =
+    trackedScroll.epoch >= cameraFrame.epoch
+      ? trackedScroll.top
+      : cameraFrame.scrollTop
+  const [viewport, setViewport] = useState({ width: 0, height: 0 })
   const [activeId, setActiveId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const worldRef = useRef<HTMLDivElement>(null)
   const scrollRaf = useRef(0)
   const pendingTop = useRef(0)
+  const pendingEpoch = useRef(0)
   const scrollToEnd = useRef(false)
 
   useEffect(() => {
@@ -52,7 +78,13 @@ export const Pasteboard = memo(function Pasteboard() {
       return
     }
     const update = (): void => {
-      setViewportPx(node.clientHeight)
+      const width = node.clientWidth
+      const height = node.clientHeight
+      setViewport((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { width, height },
+      )
     }
     update()
     const observer = new ResizeObserver(update)
@@ -81,7 +113,7 @@ export const Pasteboard = memo(function Pasteboard() {
     }
     const top = node.scrollHeight
     node.scrollTop = top
-    setScrollTop(top)
+    setTrackedScroll({ top, epoch: getCommittedCamera().epoch })
   }, [spreadIds])
 
   const onAddSpread = (): void => {
@@ -93,13 +125,26 @@ export const Pasteboard = memo(function Pasteboard() {
     count: spreadIds.length,
     stridePx: stride,
     scrollTop,
-    viewportPx,
+    viewportPx: viewport.height,
     overscanPx: stride,
   })
   const mounted = spreadIds.slice(range.start, range.end)
   const windowKey = mounted.join('\0')
   const markedId =
     activeId !== null && mounted.includes(activeId) ? activeId : mounted[0]
+  const activeIndex = markedId === undefined ? 0 : spreadIds.indexOf(markedId)
+  const widestPages = spreadIds.length >= 2 ? 2 : 1
+  const stackWidth = trimWidthMm * widestPages * pxPerMm
+  const worldWidth = Math.max(viewport.width, stackWidth)
+  const camera = usePasteboardCamera({
+    scrollRef,
+    worldRef,
+    spreadCount: spreadIds.length,
+    trimWidthMm,
+    trimHeightMm,
+    activeIndex: activeIndex < 0 ? 0 : activeIndex,
+    committedEpoch: cameraFrame.epoch,
+  })
 
   useEffect(() => {
     const root = scrollRef.current
@@ -145,13 +190,18 @@ export const Pasteboard = memo(function Pasteboard() {
 
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
     pendingTop.current = event.currentTarget.scrollTop
+    pendingEpoch.current = getCommittedCamera().epoch
     if (scrollRaf.current !== 0) {
       return
     }
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
-      setScrollTop((current) =>
-        current === pendingTop.current ? current : pendingTop.current,
+      const top = pendingTop.current
+      const epoch = pendingEpoch.current
+      setTrackedScroll((current) =>
+        current.top === top && current.epoch === epoch
+          ? current
+          : { top, epoch },
       )
     })
   }
@@ -161,6 +211,11 @@ export const Pasteboard = memo(function Pasteboard() {
       <SpreadTemplateBar
         spreadId={markedId ?? null}
         onAddSpread={onAddSpread}
+      />
+      <CameraBar
+        onFitSpread={camera.fitSpread}
+        onFitWidth={camera.fitWidth}
+        onActualSize={camera.actualSize}
       />
       <div
         ref={scrollRef}
@@ -172,38 +227,45 @@ export const Pasteboard = memo(function Pasteboard() {
         tabIndex={0}
         onScroll={onScroll}
       >
-        {range.leadPx > 0 ? (
-          <div
-            className="pasteboard-spacer"
-            data-testid="pasteboard-lead"
-            style={{ height: range.leadPx }}
-          />
-        ) : null}
-        {mounted.map((spreadId, index) => (
-          <div
-            key={spreadId}
-            className="pasteboard-slot"
-            data-pasteboard-slot=""
-            data-testid="pasteboard-slot"
-            data-spread-id={spreadId}
-            data-slot-index={range.start + index}
-            data-active={markedId === spreadId ? 'true' : 'false'}
-            style={{
-              height: stride,
-              paddingBottom: PASTEBOARD_GAP_PX,
-              containIntrinsicBlockSize: `auto ${String(stride)}px`,
-            }}
-          >
-            <ConnectedSpreadView spreadId={spreadId} />
-          </div>
-        ))}
-        {range.tailPx > 0 ? (
-          <div
-            className="pasteboard-spacer"
-            data-testid="pasteboard-tail"
-            style={{ height: range.tailPx }}
-          />
-        ) : null}
+        <div
+          ref={worldRef}
+          className="pasteboard-world"
+          data-testid="pasteboard-world"
+          style={{ width: worldWidth }}
+        >
+          {range.leadPx > 0 ? (
+            <div
+              className="pasteboard-spacer"
+              data-testid="pasteboard-lead"
+              style={{ height: range.leadPx }}
+            />
+          ) : null}
+          {mounted.map((spreadId, index) => (
+            <div
+              key={spreadId}
+              className="pasteboard-slot"
+              data-pasteboard-slot=""
+              data-testid="pasteboard-slot"
+              data-spread-id={spreadId}
+              data-slot-index={range.start + index}
+              data-active={markedId === spreadId ? 'true' : 'false'}
+              style={{
+                height: stride,
+                paddingBottom: PASTEBOARD_GAP_PX * committedZoom,
+                containIntrinsicBlockSize: `auto ${String(stride)}px`,
+              }}
+            >
+              <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+            </div>
+          ))}
+          {range.tailPx > 0 ? (
+            <div
+              className="pasteboard-spacer"
+              data-testid="pasteboard-tail"
+              style={{ height: range.tailPx }}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   )

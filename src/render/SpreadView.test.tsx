@@ -155,4 +155,30 @@ describe('SpreadView', () => {
       `${String(book.settings.trim.widthMm * SPREAD_PX_PER_MM)}px`,
     )
   })
+
+  it('sizes frames with the camera px per mm', () => {
+    const book = makeBook()
+    const spread = book.spreads[0]
+    if (spread === undefined) {
+      throw new Error('expected spread')
+    }
+    const resolved = resolveSpread(book, spread.id)
+    if (resolved === undefined) {
+      throw new Error('expected resolved spread')
+    }
+    const pxPerMm = SPREAD_PX_PER_MM * 2
+
+    render(
+      <SpreadView
+        spreadId={spread.id}
+        resolved={resolved}
+        previewUrlFor={() => undefined}
+        pxPerMm={pxPerMm}
+      />,
+    )
+
+    expect(screen.getByTestId('spread-view').style.width).toBe(
+      `${String(resolved.spreadWidthMm * pxPerMm)}px`,
+    )
+  })
 })

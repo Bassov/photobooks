@@ -13,10 +13,12 @@ export function SpreadView({
   spreadId,
   resolved,
   previewUrlFor,
+  pxPerMm = SPREAD_PX_PER_MM,
 }: {
   spreadId: string
   resolved: ResolvedSpread
   previewUrlFor: (assetId: string) => string | undefined
+  pxPerMm?: number
 }) {
   return (
     <div
@@ -24,21 +26,22 @@ export function SpreadView({
       data-testid="spread-view"
       data-spread-id={spreadId}
       style={{
-        width: resolved.spreadWidthMm * SPREAD_PX_PER_MM,
-        height: resolved.spreadHeightMm * SPREAD_PX_PER_MM,
+        width: resolved.spreadWidthMm * pxPerMm,
+        height: resolved.spreadHeightMm * pxPerMm,
       }}
     >
       {resolved.items.map((item) => (
         <SpreadFrame
           key={item.frameId}
           item={item}
+          pxPerMm={pxPerMm}
           previewUrl={
             item.assetId === undefined ? undefined : previewUrlFor(item.assetId)
           }
         />
       ))}
       {resolved.pageCuts.map((cut) => {
-        const line = pageCutLine(cut)
+        const line = pageCutLine(cut, pxPerMm)
         const vertical = line.orientation === 'vertical'
         return (
           <div
@@ -72,11 +75,13 @@ export function SpreadView({
 function SpreadFrame({
   item,
   previewUrl,
+  pxPerMm,
 }: {
   item: ResolvedItem
   previewUrl: string | undefined
+  pxPerMm: number
 }) {
-  const box = frameBox(item.rectMm)
+  const box = frameBox(item.rectMm, pxPerMm)
   const crop = imageCropBox(item.sourceCropRect ?? FULL_CROP)
   return (
     <div

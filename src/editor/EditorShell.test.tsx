@@ -5,6 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetBookStore } from './bookStore'
+import { resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
 import { resetThumbCache } from './thumbCache'
@@ -19,6 +20,7 @@ describe('EditorShell viewport containment', () => {
     cleanup()
     window.history.pushState({}, '', '/')
     resetBookStore()
+    resetCameraStore()
     resetThumbCache()
     resetAssetPool()
     vi.restoreAllMocks()

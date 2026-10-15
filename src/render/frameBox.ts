@@ -1,6 +1,6 @@
 import type { NormalizedRect, PageCut, RectMm } from '../core'
 
-/** Screen scale until the camera owns zoom. */
+/** Layout scale at camera zoom 1. The camera multiplies this. */
 export const SPREAD_PX_PER_MM = 0.5
 
 export interface PxBox {

@@ -8,6 +8,7 @@ import {
   collectFrameStatsArtifact,
   enablePerfScenario,
 } from './perf/perfFixture'
+import { PERF_BUDGETS } from './perf/budgets'
 
 test('normal visit paints three empty spreads on the pasteboard', async ({
   page,
@@ -33,6 +34,7 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
   expect(box?.width ?? 0).toBeGreaterThan(40)
   expect(box?.height ?? 0).toBeGreaterThan(40)
   await expect(page.getByRole('region', { name: 'Spreads' })).toBeVisible()
+  await expect(page.getByTestId('zoom-indicator')).toHaveText('13%')
   await assertDocumentFitsViewport(page)
 })
 
@@ -210,6 +212,91 @@ test('painter fixture scrolls inside the pasteboard', async ({ page }) => {
     .toBe(true)
 })
 
+test('camera controls set physical size, fit width, and fit spread', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(page.getByTestId('zoom-indicator')).toHaveText('13%')
+
+  await page.getByRole('button', { name: '100%' }).click()
+  await expect(page.getByTestId('zoom-indicator')).toHaveText('100%')
+  const physical = await readSpreadSlots(page)
+  expect(physical[0]?.widthPx).toBeCloseTo(300 * (96 / 25.4), 0)
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'horizontal',
+  })
+
+  await page.getByRole('button', { name: 'Fit width' }).click()
+  const portWidth = await page
+    .getByTestId('pasteboard-scroll')
+    .evaluate((el) => el.clientWidth)
+  const fittedWidth = await readSpreadSlots(page)
+  const activeWidth = fittedWidth.find((slot) => slot.active)
+  expect(activeWidth?.widthPx).toBeCloseTo(portWidth, 0)
+
+  await page.getByRole('button', { name: 'Fit spread' }).click()
+  const port = await page.getByTestId('pasteboard-scroll').evaluate((el) => ({
+    width: el.clientWidth,
+    height: el.clientHeight,
+  }))
+  const box = await page.getByTestId('spread-view').first().boundingBox()
+  expect(box).not.toBeNull()
+  expect(box?.width ?? 0).toBeLessThanOrEqual(port.width + 1)
+  expect(box?.height ?? 0).toBeLessThanOrEqual(port.height + 1)
+  await assertDocumentFitsViewport(page)
+})
+
+test('wheel, keys, pinch, and space-drag stay inside the pasteboard', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '100%' }).click()
+  const beforeKey = await readCenterAnchor(page)
+  await page.keyboard.press('+')
+  expectAnchorHeld(beforeKey, await readCenterAnchor(page))
+
+  const beforeWheel = await readCenterAnchor(page)
+  await dispatchCtrlWheel(page, -240, 2)
+  expectAnchorHeld(beforeWheel, await readCenterAnchor(page))
+
+  const beforePinch = await readCenterAnchor(page)
+  await dispatchPinch(page)
+  expectAnchorHeld(beforePinch, await readCenterAnchor(page))
+
+  await page.getByRole('button', { name: '100%' }).click()
+  const scroll = page.getByTestId('pasteboard-scroll')
+  await scroll.focus()
+  const topBefore = await scroll.evaluate((el) => el.scrollTop)
+  const box = await scroll.boundingBox()
+  expect(box).not.toBeNull()
+  await page.keyboard.down('Space')
+  await page.mouse.move(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + 120,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + 30,
+  )
+  await page.mouse.up()
+  await page.keyboard.up('Space')
+  expect(await scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(topBefore)
+  await assertDocumentFitsViewport(page)
+})
+
+test('whole-book zoom mounts every fixture spread', async ({ page }) => {
+  await page.goto('/?fixture=painter')
+  await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+    'data-spread-count',
+    '40',
+  )
+  await dispatchCtrlWheel(page, 500, 24)
+  await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+  await assertDocumentFitsViewport(page)
+})
+
 test.describe('frame-budget gates', () => {
   test.describe.configure({ retries: 2 })
 
@@ -272,6 +359,52 @@ test.describe('frame-budget gates', () => {
     }, 0)
     await collectFrameStatsArtifact(page, testInfo)
   })
+
+  test('continuous zoom stays within frame-budget gates', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1')
+    await expect(page.getByTestId('spread-view').first()).toBeVisible()
+    await dispatchCtrlWheel(page, 500, 24)
+    await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+    await clearPerfScenario(page)
+
+    await dispatchCtrlWheel(page, -300, 28)
+    await expect
+      .poll(async () =>
+        percentOf(await page.getByTestId('zoom-indicator').innerText()),
+      )
+      .toBeGreaterThanOrEqual(400)
+    await expect
+      .poll(async () =>
+        page.getByTestId('pasteboard-world').evaluate((el) => {
+          if (!(el instanceof HTMLElement)) {
+            return 'missing'
+          }
+          return el.dataset.gesture ?? el.style.transform
+        }),
+      )
+      .toBe('')
+    const laidOutWidth = await page
+      .getByTestId('spread-view')
+      .first()
+      .evaluate((el) =>
+        el instanceof HTMLElement ? Number.parseFloat(el.style.width) : 0,
+      )
+    expect(laidOutWidth).toBeGreaterThanOrEqual(300 * (96 / 25.4) * 4 - 1)
+    await dispatchCtrlWheel(page, 300, 36)
+
+    await page.evaluate((handlerBudgetMs) => {
+      const perf = window.__photobooksPerf
+      if (!perf) {
+        throw new Error('window.__photobooksPerf is not available')
+      }
+      perf.assertNoLoafEntries(0)
+      perf.assertHandlerP95WithinBudget('wheel-zoom', handlerBudgetMs)
+    }, PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate)
+    await collectFrameStatsArtifact(page, testInfo)
+  })
 })
 
 interface SpreadSlotSnapshot {
@@ -301,4 +434,95 @@ async function readSpreadSlots(page: Page): Promise<SpreadSlotSnapshot[]> {
       },
     )
   })
+}
+
+function percentOf(label: string): number {
+  return Number.parseInt(label, 10)
+}
+
+interface AnchorSample {
+  scrollLeft: number
+  scrollTop: number
+  width: number
+  anchorX: number
+  anchorY: number
+}
+
+async function readCenterAnchor(page: Page): Promise<AnchorSample> {
+  return page.getByTestId('pasteboard-scroll').evaluate((el) => {
+    const port = el.getBoundingClientRect()
+    const view = el.querySelector('[data-testid="spread-view"]')
+    const width =
+      view instanceof HTMLElement ? view.getBoundingClientRect().width : 0
+    return {
+      scrollLeft: el.scrollLeft,
+      scrollTop: el.scrollTop,
+      width,
+      anchorX: port.width / 2,
+      anchorY: port.height / 2,
+    }
+  })
+}
+
+function expectAnchorHeld(before: AnchorSample, after: AnchorSample): void {
+  expect(before.width).toBeGreaterThan(0)
+  const scale = after.width / before.width
+  expect(scale).toBeGreaterThan(1)
+  const heldX = (before.scrollLeft + before.anchorX) * scale - after.scrollLeft
+  const heldY = (before.scrollTop + before.anchorY) * scale - after.scrollTop
+  expect(heldX).toBeCloseTo(before.anchorX, 0)
+  expect(heldY).toBeCloseTo(before.anchorY, 0)
+}
+
+async function dispatchCtrlWheel(
+  page: Page,
+  deltaY: number,
+  times: number,
+): Promise<void> {
+  await page.getByTestId('pasteboard-scroll').evaluate(
+    (el, input) => {
+      const rect = el.getBoundingClientRect()
+      for (let index = 0; index < input.times; index += 1) {
+        el.dispatchEvent(
+          new WheelEvent('wheel', {
+            deltaY: input.deltaY,
+            ctrlKey: true,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+            bubbles: true,
+            cancelable: true,
+          }),
+        )
+      }
+    },
+    { deltaY, times },
+  )
+  await page.waitForTimeout(200)
+}
+
+async function dispatchPinch(page: Page): Promise<void> {
+  await page.getByTestId('pasteboard-scroll').evaluate((el) => {
+    const rect = el.getBoundingClientRect()
+    const cy = rect.top + rect.height / 2
+    const cx = rect.left + rect.width / 2
+    const fire = (type: string, id: number, x: number): void => {
+      el.dispatchEvent(
+        new PointerEvent(type, {
+          pointerId: id,
+          clientX: x,
+          clientY: cy,
+          bubbles: true,
+          cancelable: true,
+          pointerType: 'touch',
+        }),
+      )
+    }
+    fire('pointerdown', 1, cx - 30)
+    fire('pointerdown', 2, cx + 30)
+    fire('pointermove', 1, cx - 90)
+    fire('pointermove', 2, cx + 90)
+    fire('pointerup', 1, cx - 90)
+    fire('pointerup', 2, cx + 90)
+  })
+  await page.waitForTimeout(200)
 }

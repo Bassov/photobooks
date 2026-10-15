@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import { resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
 
@@ -16,6 +17,7 @@ describe('SpreadTemplateBar', () => {
   afterEach(() => {
     cleanup()
     resetBookStore()
+    resetCameraStore()
   })
 
   it('applies 4-grid to the marked spread only', () => {
