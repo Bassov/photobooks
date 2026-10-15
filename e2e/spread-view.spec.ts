@@ -236,14 +236,21 @@ test('camera controls set physical size, fit width, and fit spread', async ({
   expect(activeWidth?.widthPx).toBeCloseTo(portWidth, 0)
 
   await page.getByRole('button', { name: 'Fit spread' }).click()
-  const port = await page.getByTestId('pasteboard-scroll').evaluate((el) => ({
-    width: el.clientWidth,
-    height: el.clientHeight,
-  }))
-  const box = await page.getByTestId('spread-view').first().boundingBox()
-  expect(box).not.toBeNull()
-  expect(box?.width ?? 0).toBeLessThanOrEqual(port.width + 1)
-  expect(box?.height ?? 0).toBeLessThanOrEqual(port.height + 1)
+  await expect
+    .poll(async () => {
+      const port = await page
+        .getByTestId('pasteboard-scroll')
+        .evaluate((el) => ({
+          width: el.clientWidth,
+          height: el.clientHeight,
+        }))
+      const box = await page.getByTestId('spread-view').first().boundingBox()
+      if (box === null) {
+        return false
+      }
+      return box.width <= port.width + 1 && box.height <= port.height + 1
+    })
+    .toBe(true)
   await assertDocumentFitsViewport(page)
 })
 
