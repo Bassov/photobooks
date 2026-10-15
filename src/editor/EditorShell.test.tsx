@@ -29,7 +29,12 @@ describe('EditorShell viewport containment', () => {
     render(<EditorShell />)
 
     expect(screen.queryByText(/Pasteboard workspace arrives/)).toBeNull()
-    expect(screen.getAllByTestId('spread-view')).toHaveLength(1)
+    expect(screen.getByTestId('pasteboard-scroll').dataset.spreadCount).toBe(
+      '3',
+    )
+    const mounted = screen.getAllByTestId('spread-view')
+    expect(mounted.length).toBeGreaterThan(0)
+    expect(mounted.length).toBeLessThan(3)
     expect(screen.getByTestId('spread-frame-placeholder')).toBeTruthy()
     expect(screen.getByRole('region', { name: 'Spreads' })).toBeTruthy()
     expect(

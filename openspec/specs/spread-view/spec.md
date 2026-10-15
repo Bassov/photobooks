@@ -61,6 +61,11 @@ An edit that changes a single spread SHALL update only that spread's painted out
 - **WHEN** two spreads are painted and only the first spread's frames change
 - **THEN** the second spread's painted output does not update
 
+#### Scenario: Template switch leaves siblings unchanged
+
+- **WHEN** two spreads are painted and only the first spread's template changes
+- **THEN** the second spread's painted output does not update
+
 ### Requirement: Painter fixture on query
 
 When the URL query `fixture=painter` is present, the system SHALL load an in-memory book of 40 spreads on the 4-grid template with four frames each, leave the first frame of the first spread empty, supply synthetic previews for the other frames, and represent that book on the pasteboard without mounting every spread.
@@ -77,7 +82,7 @@ The workspace SHALL stack every spread of the current book vertically in one pas
 #### Scenario: Session book shows its spread
 
 - **WHEN** the user opens the app without `fixture=painter`
-- **THEN** the workspace shows that book's one spread and does not show a placeholder sentence
+- **THEN** the workspace shows three spreads and does not show a placeholder sentence: the first and last are single-page with one empty frame placeholder each, and the middle is two-page with two empty frame placeholders
 
 ### Requirement: Off-screen spreads stay unmounted
 

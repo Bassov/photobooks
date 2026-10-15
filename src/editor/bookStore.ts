@@ -1,4 +1,5 @@
 import {
+  addSpread,
   applyBookOp,
   CURRENT_SCHEMA_VERSION,
   resolveSpread,
@@ -40,7 +41,7 @@ type BookStoreInit = Omit<BookStoreState, 'previewUrls'> & {
 const GALLERY_FLUSH_CHUNK = 4
 
 function createSessionBook(): Book {
-  return {
+  const empty: Book = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     id: 'session-book',
     settings: {
@@ -58,20 +59,12 @@ function createSessionBook(): Book {
     guides: [],
     assets: {},
     gallery: [],
-    spreads: [
-      {
-        id: 'spread-1',
-        frames: [
-          {
-            id: 'frame-1',
-            rect: { x: 15, y: 15, width: 270, height: 270 },
-            z: 0,
-          },
-        ],
-        templateId: 'one-per-page',
-      },
-    ],
+    spreads: [],
   }
+  return ['spread-1', 'spread-2', 'spread-3'].reduce<Book>(
+    (book, id) => addSpread(book, { id }),
+    empty,
+  )
 }
 
 type Listener = () => void
@@ -362,6 +355,11 @@ export function getSpreadPaintSnapshot(
 
 let spreadIdsSnapshot: readonly string[] = []
 let spreadIdsFor: Book['spreads'] | null = null
+
+export function getSpreadTemplateId(spreadId: string): string | null {
+  const spread = state.book.spreads.find((item) => item.id === spreadId)
+  return spread?.templateId ?? null
+}
 
 export function getSpreadIdsSnapshot(): readonly string[] {
   const spreads = state.book.spreads
