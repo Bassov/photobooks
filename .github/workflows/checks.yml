@@ -43,6 +43,9 @@ jobs:
       - name: Unused code (knip)
         run: pnpm knip
 
+      - name: Mutation scope
+        run: pnpm mutation-scope
+
       - name: Format check
         run: pnpm format:check
 
