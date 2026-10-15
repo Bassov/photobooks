@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
@@ -26,6 +26,8 @@ test('empty filmstrip message spans the scrollport', async ({ page }) => {
   await page.goto('/')
   const empty = page.getByTestId('filmstrip-empty')
   await expect(empty).toBeVisible()
+  await expect(empty).toHaveText('Add a folder or photos to build the gallery.')
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   const box = await empty.boundingBox()
   expect(box).toBeTruthy()
   if (!box) {
@@ -34,6 +36,25 @@ test('empty filmstrip message spans the scrollport', async ({ page }) => {
   // Bug: 1px virtualizer window stacked one word per line.
   expect(box.width).toBeGreaterThan(240)
   expect(box.height).toBeLessThan(72)
+})
+
+test('non-ASCII file name is the filmstrip thumbnail name', async ({
+  page,
+}) => {
+  const fileName = 'фото отпуск 01.jpg'
+  await page.goto('/')
+  await page.getByTestId('photo-file-input').setInputFiles({
+    name: fileName,
+    mimeType: 'image/png',
+    buffer: readFileSync(photoFixturePaths.samplePng),
+  })
+
+  const thumb = page.getByRole('row', { name: fileName })
+  await expect(thumb).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('row', { name: /^asset-/ })).toHaveCount(0)
+  await thumb.click()
+  await expect(thumb).toHaveAttribute('aria-selected', 'true')
+  await assertDocumentFitsViewport(page)
 })
 
 test('imports PNG into the filmstrip via input fallback', async ({ page }) => {

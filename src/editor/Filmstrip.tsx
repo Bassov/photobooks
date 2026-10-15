@@ -11,6 +11,7 @@ import { GridList } from 'react-aria-components'
 import { setVisibleAssetIds } from '../photo/assetPool'
 import {
   getGalleryAspectsSnapshot,
+  getGalleryDisplayNamesSnapshot,
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
   subscribeBookStore,
@@ -58,6 +59,11 @@ export const Filmstrip = memo(function Filmstrip({
     subscribeBookStore,
     getGalleryAspectsSnapshot,
     getGalleryAspectsSnapshot,
+  )
+  const displayNames = useSyncExternalStore(
+    subscribeBookStore,
+    getGalleryDisplayNamesSnapshot,
+    getGalleryDisplayNamesSnapshot,
   )
   const [windowStart, setWindowStart] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(0)
@@ -112,11 +118,11 @@ export const Filmstrip = memo(function Filmstrip({
       const absolute = prefix[windowStart + index] ?? 0
       return {
         id: assetId,
-        name: assetId,
+        name: displayNames[windowStart + index] ?? assetId,
         offsetLeft: absolute - windowOffset,
       }
     })
-  }, [windowKey, prefix, windowStart, windowOffset])
+  }, [windowKey, prefix, windowStart, windowOffset, displayNames])
 
   useEffect(() => {
     setVisibleAssetIds(items.map((item) => item.id))
