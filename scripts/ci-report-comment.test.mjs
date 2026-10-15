@@ -4,6 +4,8 @@ import {
   classifySection,
   decodeState,
   isLegacyStickyComment,
+  isLighthouseReportFile,
+  metricRows,
   renderComment,
   shouldWrite,
   upsertSection,
@@ -131,10 +133,12 @@ describe('renderComment', () => {
     )
     const rendered = renderComment(state)
 
-    expect(rendered).toContain('### Lighthouse\nWaiting.')
-    expect(rendered).toContain('Skipped. No changed files to mutate.')
+    expect(rendered).toContain('### ⏳ Lighthouse\n\n**Waiting**')
     expect(rendered).toContain(
-      'Job failed. Job finished before a report was produced.',
+      '### ⏭️ Mutation testing\n\n**Skipped** — No changed files to mutate.',
+    )
+    expect(rendered).toContain(
+      '### ❌ Coverage\n\n**Job failed** — Job finished before a report was produced.',
     )
     expect(rendered).not.toContain('<details>')
     expect(rendered).not.toContain('| Check |')
@@ -153,8 +157,42 @@ describe('renderComment', () => {
 
     expect(twice).toBe(once)
     expect(once.match(/<details>/g)).toHaveLength(1)
-    expect(once).toContain('Job succeeded. Check passed.')
+    expect(once).toContain('### ✅ Lighthouse')
+    expect(once).toContain('**Job succeeded · Check passed**')
+    expect(once).toContain('| **90%** |')
+    expect(once.indexOf('| **90%** |')).toBeLessThan(once.indexOf('<details>'))
     expect(once).toContain(passed.body)
+  })
+
+  it('shows a failed check and lays metric columns in one row', () => {
+    const body = [
+      '## Lighthouse CI',
+      '',
+      '| Category | Score |',
+      '| --- | --- |',
+      '| Performance | 99 (median) |',
+      '| Accessibility | 95 |',
+      '| Budgets | **passed** |',
+    ].join('\n')
+    const rendered = renderComment(
+      upsertSection(
+        null,
+        'lighthouse',
+        classifySection({ ...passed, stepOutcome: 'failure', body }),
+        'sha',
+      ),
+    )
+
+    expect(rendered).toContain('### ⚠️ Lighthouse')
+    expect(rendered).toContain('**Job succeeded · Check failed**')
+    expect(rendered).toContain(
+      '| Performance | Accessibility | Budgets |\n| :---: | :---: | :---: |\n| **99** | **95** | **passed** |',
+    )
+    expect(metricRows(body)).toEqual([
+      { label: 'Performance', value: '99 (median)' },
+      { label: 'Accessibility', value: '95' },
+      { label: 'Budgets', value: 'passed' },
+    ])
   })
 })
 
@@ -163,6 +201,18 @@ describe('shouldWrite', () => {
     expect(shouldWrite('abc', 'abc')).toBe(true)
     expect(shouldWrite('abc', 'def')).toBe(false)
     expect(shouldWrite('', 'abc')).toBe(false)
+  })
+})
+
+describe('isLighthouseReportFile', () => {
+  it.each([
+    ['lhr-1.json', true],
+    ['lhr-.json', true],
+    ['links.json', false],
+    ['lhr-1.JSON', false],
+    ['xlhr-1.json', false],
+  ])('treats %s as a lighthouse report: %s', (name, expected) => {
+    expect(isLighthouseReportFile(name)).toBe(expected)
   })
 })
 

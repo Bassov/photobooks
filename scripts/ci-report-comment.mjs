@@ -17,6 +17,14 @@ const SECTION_TITLES = {
   coverage: 'Coverage',
 }
 
+const DETAILS_SUMMARY = {
+  lighthouse: 'Category scores and links',
+  mutation: 'Mutation breakdown',
+  coverage: 'Coverage breakdown',
+}
+
+const METRIC_HEADER_LABELS = new Set(['Category', 'Metric'])
+
 const MARKER_START = '<!-- ci-report-comment\n'
 const MARKER_END = '\n-->'
 
@@ -107,40 +115,96 @@ export function isLegacyStickyComment(body) {
   return LEGACY_STICKY_HEADERS.some((header) => body.includes(header))
 }
 
-function statusLines(section) {
+function sectionMark(section) {
+  if (section.kind === 'waiting') return '⏳'
+  if (section.kind === 'skipped') return '⏭️'
+  if (section.kind === 'job-failed') return '❌'
+  return section.check === 'passed' ? '✅' : '⚠️'
+}
+
+function statusLine(section) {
   switch (section.kind) {
     case 'waiting':
-      return ['Waiting.']
+      return '**Waiting**'
     case 'skipped':
-      return [`Skipped. ${section.reason}`]
+      return `**Skipped** — ${section.reason}`
     case 'job-failed':
-      return [`Job failed. ${section.reason}`]
+      return `**Job failed** — ${section.reason}`
     case 'job-succeeded':
-      return [
-        `Job succeeded. Check ${section.check === 'passed' ? 'passed' : 'failed'}.`,
-        '',
-        '<details>',
-        '<summary>Details</summary>',
-        '',
-        section.body.trim(),
-        '',
-        '</details>',
-      ]
+      return section.check === 'passed'
+        ? '**Job succeeded · Check passed**'
+        : '**Job succeeded · Check failed**'
     default:
       throw new Error(`Unknown section kind: ${section.kind}`)
   }
 }
 
+export function metricRows(body) {
+  const rows = []
+  for (const line of body.split('\n')) {
+    if (!line.startsWith('|')) continue
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map((cell) => cell.trim())
+    if (cells.length < 2) continue
+    const label = cells[0]
+    const value = cells[1]
+    if (!label || !value) continue
+    if (/^:?-+:?$/.test(label) || /^:?-+:?$/.test(value)) continue
+    if (METRIC_HEADER_LABELS.has(label)) continue
+    rows.push({ label, value: value.replaceAll('**', '') })
+  }
+  return rows
+}
+
+function glanceValue(value) {
+  return value.replace(/\s*\([^)]*\)\s*$/, '')
+}
+
+function scoreboard(rows) {
+  if (rows.length === 0) return []
+  return [
+    `| ${rows.map((row) => row.label).join(' | ')} |`,
+    `| ${rows.map(() => ':---:').join(' | ')} |`,
+    `| ${rows.map((row) => `**${glanceValue(row.value)}**`).join(' | ')} |`,
+  ]
+}
+
+function sectionBlock(sectionId, section) {
+  const lines = [
+    `### ${sectionMark(section)} ${SECTION_TITLES[sectionId]}`,
+    '',
+    statusLine(section),
+  ]
+  if (section.kind !== 'job-succeeded') return lines.join('\n')
+
+  const board = scoreboard(metricRows(section.body ?? ''))
+  if (board.length > 0) lines.push('', ...board)
+  lines.push(
+    '',
+    '<details>',
+    `<summary>${DETAILS_SUMMARY[sectionId]}</summary>`,
+    '',
+    (section.body ?? '').trim(),
+    '',
+    '</details>',
+  )
+  return lines.join('\n')
+}
+
 export function renderComment(state) {
-  const blocks = SECTIONS.map((sectionId) => {
-    const title = SECTION_TITLES[sectionId]
-    const lines = statusLines(state.sections[sectionId])
-    return [`### ${title}`, ...lines].join('\n')
-  })
+  const blocks = SECTIONS.map((sectionId) =>
+    sectionBlock(sectionId, state.sections[sectionId]),
+  )
 
   return [encodeState(state), '', '## CI Report', '', blocks.join('\n\n')].join(
     '\n',
   )
+}
+
+export function isLighthouseReportFile(name) {
+  return name.startsWith('lhr-') && name.endsWith('.json')
 }
 
 function parseArgs(argv) {
@@ -167,8 +231,9 @@ function reportIsPresent(args) {
   if (args.report) return existsSync(args.report)
   if (!args['report-dir']) return false
   if (!existsSync(args['report-dir'])) return false
-  const pattern = new RegExp(args['report-match'])
-  return readdirSync(args['report-dir']).some((name) => pattern.test(name))
+  return readdirSync(args['report-dir']).some((name) =>
+    isLighthouseReportFile(name),
+  )
 }
 
 function pack(args) {

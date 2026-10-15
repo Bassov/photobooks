@@ -95,7 +95,7 @@ Lighthouse CI budgets SHALL run on push to the default branch as well as on pull
 
 ### Requirement: Consolidated CI report comment
 
-On a pull request, the Lighthouse workflow, the diff-mutation workflow, and the checks workflow SHALL update one shared CI report comment, each workflow only its own section. The comment SHALL NOT add a rollup table or a link whose only target is another section.
+On a pull request, the Lighthouse workflow, the diff-mutation workflow, and the checks workflow SHALL update one shared CI report comment, each workflow only its own section. The comment SHALL NOT add a rollup table or a link whose only target is another section. Each section SHALL show its own status. When a succeeded section's summary markdown contains a two-column metric table, those metrics SHALL also appear in one horizontal row above that section's details disclosure.
 
 #### Scenario: One comment and one section per workflow
 
@@ -120,7 +120,7 @@ On a pull request, the Lighthouse workflow, the diff-mutation workflow, and the 
 #### Scenario: Section job succeeded
 
 - **WHEN** a report file exists for that section
-- **THEN** the section shows Job succeeded, Check passed or Check failed matching the producer step outcome, and one details disclosure whose body is that check's existing summary markdown
+- **THEN** the section shows Job succeeded, Check passed or Check failed matching the producer step outcome, one horizontal metric row when the summary has a metric table, and one details disclosure whose body is that check's existing summary markdown
 
 #### Scenario: Repeat update keeps other sections
 

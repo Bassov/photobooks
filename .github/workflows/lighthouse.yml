@@ -49,7 +49,6 @@ jobs:
             --step-outcome "${{ steps.lhci.outcome }}" \
             --missing-report job-failed \
             --report-dir .lighthouseci \
-            --report-match '^lhr-.*\.json$' \
             --body-file /tmp/lighthouse-pr-comment.md \
             --out ci-section/section.json
 
