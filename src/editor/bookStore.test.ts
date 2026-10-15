@@ -5,9 +5,11 @@ import {
   enqueueGalleryAssets,
   loadPainterFixture,
   getAssetAspectSnapshot,
+  getAssetDisplayName,
   getPlacementCountSnapshot,
   getBookStoreSnapshot,
   getGalleryAspectsSnapshot,
+  getGalleryDisplayNamesSnapshot,
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
   mintAssetId,
@@ -16,7 +18,18 @@ import {
   setImportRunning,
   subscribeBookStore,
   subscribeGallery,
+  type AssetSessionMeta,
 } from './bookStore'
+
+function sessionFile(name: string, aspect = 1.5): AssetSessionMeta {
+  return {
+    name,
+    correctedWidth: 30,
+    correctedHeight: 20,
+    orientation: 1,
+    aspect,
+  }
+}
 
 describe('bookStore', () => {
   afterEach(() => {
@@ -235,5 +248,45 @@ describe('bookStore', () => {
     const second = getGalleryAspectsSnapshot()
     expect(second).toEqual([0.5])
     expect(second).not.toBe(first)
+  })
+
+  it('keeps gallery display names stable until the session file name changes', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'a1', meta: sessionFile('фото отпуск 01.jpg') },
+    ])
+
+    expect(getAssetDisplayName('a1')).toBe('фото отпуск 01.jpg')
+    expect(getAssetDisplayName('missing')).toBe('missing')
+    const first = getGalleryDisplayNamesSnapshot()
+    expect(first).toEqual(['фото отпуск 01.jpg'])
+    expect(getGalleryDisplayNamesSnapshot()).toBe(first)
+
+    setAssetSessionMeta('a1', sessionFile('later.jpg'))
+
+    const second = getGalleryDisplayNamesSnapshot()
+    expect(second).toEqual(['later.jpg'])
+    expect(second).not.toBe(first)
+    expect(getGalleryIdsSnapshot()).toEqual(['a1'])
+  })
+
+  it('falls back to the asset id when the session file name is blank', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([{ assetId: 'a1', meta: sessionFile('') }])
+
+    expect(getAssetDisplayName('a1')).toBe('a1')
+    expect(getGalleryDisplayNamesSnapshot()).toEqual(['a1'])
   })
 })
