@@ -90,6 +90,40 @@ test('add spread keeps the new spread inside the pasteboard', async ({
   })
 })
 
+test('add spread keeps the fitted zoom and reveals the new spread', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Fit spread' }).click()
+  const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
+  const fitted = await readSpreadView(page, 0)
+  expect(fitted).not.toBeNull()
+  expect(fittedPercent).not.toBe('')
+
+  await page.getByRole('button', { name: 'Add spread' }).click()
+
+  await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
+  await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+    'data-spread-count',
+    '4',
+  )
+  await expect.poll(async () => readSpreadView(page, 2)).not.toBeNull()
+  const previous = await readSpreadView(page, 2)
+  expect(previous?.heightPx).toBeCloseTo(fitted?.heightPx ?? 0, 0)
+  expect(previous?.widthPx).toBeCloseTo((fitted?.widthPx ?? 0) * 2, 0)
+  expect(previous?.placeholders).toBe(2)
+  await expect.poll(async () => spreadViewContained(page, 3)).toBe(true)
+  const added = await readSpreadView(page, 3)
+  expect(added?.placeholders).toBe(1)
+  expect(added?.widthPx).toBeCloseTo(fitted?.widthPx ?? 0, 0)
+  expect(added?.heightPx).toBeCloseTo(fitted?.heightPx ?? 0, 0)
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+})
+
 test('painter fixture scrolls inside the pasteboard', async ({ page }) => {
   await page.goto('/?fixture=painter')
 
@@ -482,6 +516,59 @@ async function readSpreadSlots(page: Page): Promise<SpreadSlotSnapshot[]> {
       },
     )
   })
+}
+
+interface SpreadViewMetrics {
+  widthPx: number
+  heightPx: number
+  placeholders: number
+}
+
+async function readSpreadView(
+  page: Page,
+  slotIndex: number,
+): Promise<SpreadViewMetrics | null> {
+  return page.getByTestId('pasteboard-scroll').evaluate((el, index) => {
+    const slot = el.querySelector(`[data-slot-index="${String(index)}"]`)
+    const view = slot?.querySelector('[data-testid="spread-view"]')
+    if (!(slot instanceof HTMLElement) || !(view instanceof HTMLElement)) {
+      return null
+    }
+    const box = view.getBoundingClientRect()
+    const styleHeight = Number.parseFloat(view.style.height)
+    const styleWidth = Number.parseFloat(view.style.width)
+    return {
+      widthPx: styleWidth,
+      heightPx: box.height > 1 ? box.height : styleHeight,
+      placeholders: slot.querySelectorAll(
+        '[data-testid="spread-frame-placeholder"]',
+      ).length,
+    }
+  }, slotIndex)
+}
+
+async function spreadViewContained(
+  page: Page,
+  slotIndex: number,
+): Promise<boolean> {
+  return page.getByTestId('pasteboard-scroll').evaluate((el, index) => {
+    const slot = el.querySelector(`[data-slot-index="${String(index)}"]`)
+    const view = slot?.querySelector('[data-testid="spread-view"]')
+    if (!(view instanceof HTMLElement)) {
+      return false
+    }
+    const port = el.getBoundingClientRect()
+    const box = view.getBoundingClientRect()
+    if (box.width < 1 || box.height < 1) {
+      return false
+    }
+    return (
+      box.top >= port.top - 1 &&
+      box.bottom <= port.bottom + 1 &&
+      box.left >= port.left - 1 &&
+      box.right <= port.right + 1
+    )
+  }, slotIndex)
 }
 
 function percentOf(label: string): number {

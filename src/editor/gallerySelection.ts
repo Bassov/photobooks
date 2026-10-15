@@ -9,6 +9,22 @@ export function getSelectedAssetId(): string | null {
   return selected
 }
 
+export function getGalleryPhotoSelected(): boolean {
+  return selected !== null
+}
+
+export function subscribeGalleryPhotoSelected(listener: Listener): () => void {
+  let current = getGalleryPhotoSelected()
+  return subscribeGallerySelection(() => {
+    const next = getGalleryPhotoSelected()
+    if (next === current) {
+      return
+    }
+    current = next
+    listener()
+  })
+}
+
 export function setSelectedAssetId(assetId: string | null): void {
   if (selected === assetId) {
     return
