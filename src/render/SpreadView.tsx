@@ -1,4 +1,9 @@
 import type { ResolvedItem, ResolvedSpread } from '../core'
+
+export interface FrameControl {
+  label: string
+  onActivate: () => void
+}
 import {
   frameBox,
   imageCropBox,
@@ -14,12 +19,14 @@ export function SpreadView({
   resolved,
   previewUrlFor,
   tierFor,
+  frameControlFor,
   pxPerMm = SPREAD_PX_PER_MM,
 }: {
   spreadId: string
   resolved: ResolvedSpread
   previewUrlFor: (assetId: string) => string | undefined
   tierFor?: (assetId: string) => number | undefined
+  frameControlFor?: (item: ResolvedItem) => FrameControl
   pxPerMm?: number
 }) {
   return (
@@ -43,6 +50,7 @@ export function SpreadView({
           tier={
             item.assetId === undefined ? undefined : tierFor?.(item.assetId)
           }
+          control={frameControlFor?.(item)}
         />
       ))}
       {resolved.pageCuts.map((cut) => {
@@ -82,49 +90,70 @@ function SpreadFrame({
   previewUrl,
   tier,
   pxPerMm,
+  control,
 }: {
   item: ResolvedItem
   previewUrl: string | undefined
   tier: number | undefined
   pxPerMm: number
+  control: FrameControl | undefined
 }) {
   const box = frameBox(item.rectMm, pxPerMm)
   const crop = imageCropBox(item.sourceCropRect ?? FULL_CROP)
+  const style = {
+    left: box.left,
+    top: box.top,
+    width: box.width,
+    height: box.height,
+    zIndex: item.z,
+  }
+  const body =
+    previewUrl === undefined ? (
+      <div
+        className="spread-frame-placeholder"
+        data-testid="spread-frame-placeholder"
+      />
+    ) : (
+      <img
+        className="spread-frame-image"
+        data-testid="spread-frame-image"
+        alt=""
+        decoding="async"
+        src={previewUrl}
+        data-tier={tier}
+        style={{
+          left: crop.left,
+          top: crop.top,
+          width: crop.width,
+          height: crop.height,
+        }}
+      />
+    )
+  if (control === undefined) {
+    return (
+      <div
+        className="spread-frame"
+        data-testid="spread-frame"
+        data-frame-id={item.frameId}
+        data-filled={previewUrl === undefined ? 'false' : 'true'}
+        style={style}
+      >
+        {body}
+      </div>
+    )
+  }
   return (
-    <div
+    <button
+      type="button"
       className="spread-frame"
       data-testid="spread-frame"
       data-frame-id={item.frameId}
       data-filled={previewUrl === undefined ? 'false' : 'true'}
-      style={{
-        left: box.left,
-        top: box.top,
-        width: box.width,
-        height: box.height,
-        zIndex: item.z,
-      }}
+      aria-label={control.label}
+      style={style}
+      onClick={control.onActivate}
     >
-      {previewUrl === undefined ? (
-        <div
-          className="spread-frame-placeholder"
-          data-testid="spread-frame-placeholder"
-        />
-      ) : (
-        <img
-          className="spread-frame-image"
-          data-testid="spread-frame-image"
-          alt=""
-          decoding="async"
-          src={previewUrl}
-          data-tier={tier}
-          style={{
-            left: crop.left,
-            top: crop.top,
-            width: crop.width,
-            height: crop.height,
-          }}
-        />
-      )}
-    </div>
+      {body}
+    </button>
   )
 }

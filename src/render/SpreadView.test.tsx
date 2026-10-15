@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveSpread } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { frameBox, imageCropBox, SPREAD_PX_PER_MM } from './frameBox'
@@ -181,5 +181,44 @@ describe('SpreadView', () => {
     expect(screen.getByTestId('spread-view').style.width).toBe(
       `${String(resolved.spreadWidthMm * pxPerMm)}px`,
     )
+  })
+
+  it('keeps a plain frame when no control is provided', () => {
+    const book = makeBook()
+    const resolved = resolveSpread(book, 'spread-1')
+    if (resolved === undefined) {
+      throw new Error('expected resolved spread')
+    }
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+      />,
+    )
+
+    expect(screen.getByTestId('spread-frame').tagName).toBe('DIV')
+  })
+
+  it('calls onActivate from the frame button', () => {
+    const book = makeBook()
+    const resolved = resolveSpread(book, 'spread-1')
+    if (resolved === undefined) {
+      throw new Error('expected resolved spread')
+    }
+    const onActivate = vi.fn()
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({ label: 'Place photo', onActivate })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Place photo' }))
+    expect(onActivate).toHaveBeenCalledOnce()
   })
 })

@@ -97,13 +97,13 @@ Slicing rules when adding or splitting items:
   - [x] Zoom-aware image tiers: smallest preview covering on-screen size × DPR; worker generates tiers into a bounded in-memory LRU
   - **Perf:** tier switch after the gesture settles with `img.decode()` before swap. Gate: the `camera-zoom-pan` zoom scenario with tier switches — zero LoAF.
   - **Browser check:** zoom from the whole book to a single photo detail and back; images stay sharp, no flashes, no stutter.
-- [ ] [contingency] `far-zoom-lod` — only if the `camera-zoom-pan` whole-book gate fails
-  - [ ] LOD fallback: far-zoom spreads render as single worker-rasterized bitmaps (OffscreenCanvas from the same resolved items); only that zoom level swaps painter
+- [x] [contingency] `far-zoom-lod` — not needed (gate passed in `camera-zoom-pan`)
+  - [x] LOD fallback: far-zoom spreads render as single worker-rasterized bitmaps (OffscreenCanvas from the same resolved items); only that zoom level swaps painter
   - **Browser check:** whole-book zoom holds the `camera-zoom-pan` gate.
-- [ ] [feature] `drag-place-replace` — drop photos onto frames
-  - [ ] Filmstrip → empty frame (place), → filled frame (replace)
-  - [ ] "Placed" badge on filmstrip thumbnails; photo stays in the filmstrip after placing
-  - [ ] Keyboard-accessible alternative for place and replace
+- [x] [feature] `drag-place-replace` — drop photos onto frames
+  - [x] Filmstrip → empty frame (place), → filled frame (replace)
+  - [x] "Placed" badge on filmstrip thumbnails; photo stays in the filmstrip after placing
+  - [x] Keyboard-accessible alternative for place and replace
   - **Perf:** native drag image; drop targets resolved from cached mm rects (no DOM queries in `dragover`); hover highlight toggles one attribute; one op per drop. Gate: drag across a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
   - **Browser check:** lay out a few spreads by hand; placed badges update; dragging stays smooth.
 - [ ] [feature] `drag-swap-unplace` — rearrange and take back
