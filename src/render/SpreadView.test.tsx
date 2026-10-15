@@ -237,7 +237,9 @@ describe('SpreadView', () => {
         frameControlFor={() => ({ label: 'Place photo', onActivate: vi.fn() })}
       />,
     )
-    expect(document.querySelector('.spread-frame-body')).toBeNull()
+    expect(
+      document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
+    ).toBe('false')
     unmount()
 
     render(

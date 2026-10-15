@@ -284,7 +284,7 @@ describe('dropTargets', () => {
     ).toEqual({ type: 'replace', assetId: 'a' })
   })
 
-  it('selects a filled frame, swaps a different one, and ignores the same frame', () => {
+  it('selects a filled frame, swaps a different one, and clears the same frame', () => {
     const source = { spreadId: 's0', frameId: 'f0' }
     expect(
       resolveFrameActivation({
@@ -313,7 +313,7 @@ describe('dropTargets', () => {
         source,
         target: { ...source, filled: true },
       }),
-    ).toEqual({ type: 'noop' })
+    ).toEqual({ type: 'clear-source' })
     expect(
       resolveFrameActivation({
         galleryAssetId: '',

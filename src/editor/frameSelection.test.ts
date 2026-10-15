@@ -1,21 +1,62 @@
+import { createElement } from 'react'
+import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { addToGallery, applyTemplate, placeAsset } from '../core'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  resetBookStore,
+} from './bookStore'
+import { Filmstrip } from './Filmstrip'
 import {
   frameControlLabel,
   getFrameSource,
   resetFrameSelection,
   setFrameSource,
+  subscribeFrameSelection,
   withSelectionSync,
 } from './frameSelection'
 import {
   getSelectedAssetId,
   resetGallerySelection,
   setSelectedAssetId,
+  subscribeGallerySelection,
 } from './gallerySelection'
 
 describe('frameSelection', () => {
   afterEach(() => {
+    cleanup()
     resetFrameSelection()
     resetGallerySelection()
+    resetBookStore()
+  })
+
+  it('stops notifying after the gallery selection unsubscribes', () => {
+    let calls = 0
+    const unsubscribe = subscribeGallerySelection(() => {
+      calls += 1
+    })
+    setSelectedAssetId('a')
+    expect(calls).toBe(1)
+    unsubscribe()
+    setSelectedAssetId('b')
+    expect(calls).toBe(1)
+  })
+
+  it('stops notifying after unsubscribe and clears on reset', () => {
+    let calls = 0
+    const unsubscribe = subscribeFrameSelection(() => {
+      calls += 1
+    })
+    setFrameSource({ spreadId: 's', frameId: 'f' })
+    expect(calls).toBe(1)
+    unsubscribe()
+    setFrameSource({ spreadId: 's', frameId: 'g' })
+    expect(calls).toBe(1)
+    expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'g' })
+
+    resetFrameSelection()
+    expect(getFrameSource()).toBeNull()
   })
 
   it('clears the gallery asset when a frame source is set, and the reverse', () => {
@@ -73,12 +114,54 @@ describe('frameSelection', () => {
     expect(frameControlLabel(true, false, null, frame)).toBe(
       'Select photo to move',
     )
-    expect(frameControlLabel(true, false, frame, frame)).toBe(
-      'Select photo to move',
-    )
+    expect(frameControlLabel(true, false, frame, frame)).toBe('Cancel move')
     expect(frameControlLabel(true, false, frame, other)).toBe('Swap photos')
     expect(frameControlLabel(false, false, frame, other)).toBe(
       'Move photo here',
     )
+  })
+
+  it('clears a source whose frame disappears with the template', () => {
+    resetBookStore()
+    let book = addToGallery(getBookStoreSnapshot().book, ['a'])
+    const spreadId = book.spreads[0]?.id
+    if (spreadId === undefined) {
+      throw new Error('expected a spread')
+    }
+    book = applyTemplate(book, spreadId, '4-grid')
+    const frameId = book.spreads[0]?.frames[3]?.id
+    if (frameId === undefined) {
+      throw new Error('expected a fourth frame')
+    }
+    book = placeAsset(book, spreadId, frameId, 'a')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setFrameSource({ spreadId, frameId })
+    dispatchBookOp({
+      type: 'applyTemplate',
+      spreadId,
+      templateId: 'one-per-page',
+    })
+
+    expect(getFrameSource()).toBeNull()
+    render(createElement(Filmstrip))
+    expect(
+      document.querySelector('.filmstrip-unplace')?.hasAttribute('disabled'),
+    ).toBe(true)
+  })
+
+  it('clears a source when the book is reset without that frame', () => {
+    setFrameSource({ spreadId: 'gone', frameId: 'gone' })
+    resetBookStore()
+
+    expect(getFrameSource()).toBeNull()
+    render(createElement(Filmstrip))
+    expect(
+      document.querySelector('.filmstrip-unplace')?.hasAttribute('disabled'),
+    ).toBe(true)
   })
 })

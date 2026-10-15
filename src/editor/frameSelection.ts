@@ -1,9 +1,9 @@
+import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import type { FrameDragSource } from './dropTargets'
+import { setEditorStatus } from './editorStatus'
 import { setSelectedAssetId } from './gallerySelection'
 
-export interface FrameSource {
-  spreadId: string
-  frameId: string
-}
+export type FrameSource = FrameDragSource
 
 type Listener = () => void
 
@@ -60,7 +60,10 @@ export function frameControlLabel(
   if (gallerySelected) {
     return filled ? 'Replace photo' : 'Place photo'
   }
-  if (frameSource === null || sameSource(frameSource, frame)) {
+  if (sameSource(frameSource, frame)) {
+    return filled ? 'Cancel move' : 'Place photo'
+  }
+  if (frameSource === null) {
     return filled ? 'Select photo to move' : 'Place photo'
   }
   return filled ? 'Swap photos' : 'Move photo here'
@@ -81,3 +84,19 @@ function emit(): void {
     listener()
   }
 }
+
+function sourceFrameFilled(current: FrameSource): boolean {
+  const book = getBookStoreSnapshot().book
+  const spread = book.spreads.find((item) => item.id === current.spreadId)
+  const frame = spread?.frames.find((item) => item.id === current.frameId)
+  return frame?.assetId !== undefined
+}
+
+subscribeBookStore(() => {
+  const current = source
+  if (current === null || sourceFrameFilled(current)) {
+    return
+  }
+  setFrameSource(null)
+  setEditorStatus('')
+})

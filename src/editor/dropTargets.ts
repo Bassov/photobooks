@@ -14,6 +14,7 @@ export type FrameActivation =
   | { type: 'place'; assetId: string }
   | { type: 'replace'; assetId: string }
   | { type: 'select-source' }
+  | { type: 'clear-source' }
   | { type: 'swap'; source: FrameDragSource }
   | { type: 'noop' }
 
@@ -23,15 +24,17 @@ export function encodeFrameDrag(source: FrameDragSource): string {
 
 export function decodeFrameDrag(payload: string): FrameDragSource | null {
   const split = payload.indexOf('\n')
-  if (split <= 0 || split !== payload.lastIndexOf('\n')) {
+  if (
+    split <= 0 ||
+    split !== payload.lastIndexOf('\n') ||
+    split >= payload.length - 1
+  ) {
     return null
   }
-  const spreadId = payload.slice(0, split)
-  const frameId = payload.slice(split + 1)
-  if (spreadId === '' || frameId === '') {
-    return null
+  return {
+    spreadId: payload.slice(0, split),
+    frameId: payload.slice(split + 1),
   }
-  return { spreadId, frameId }
 }
 
 export function resolveFrameActivation(input: {
@@ -53,7 +56,7 @@ export function resolveFrameActivation(input: {
     source.spreadId === input.target.spreadId &&
     source.frameId === input.target.frameId
   ) {
-    return { type: 'noop' }
+    return { type: 'clear-source' }
   }
   return { type: 'swap', source }
 }

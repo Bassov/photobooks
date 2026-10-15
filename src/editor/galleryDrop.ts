@@ -15,8 +15,15 @@ import {
   type DropSpreadInput,
   type FrameDragSource,
 } from './dropTargets'
+import {
+  STATUS_MOVED,
+  STATUS_SELECTED,
+  STATUS_SWAPPED,
+  STATUS_UNPLACED,
+  setEditorStatus,
+} from './editorStatus'
 import { getFrameSource, setFrameSource } from './frameSelection'
-import { getSelectedAssetId } from './gallerySelection'
+import { getSelectedAssetId, setSelectedAssetId } from './gallerySelection'
 
 export interface DropGeometry {
   pxPerMm: number
@@ -38,6 +45,7 @@ type DropSession = DropSessionBase &
   )
 
 let session: DropSession | null = null
+let localFrameDrag: FrameDragSource | null = null
 let suppressFrameClick = false
 
 export function dropSpreadsFromBook(
@@ -70,6 +78,16 @@ export function dropSpreadsFromBook(
 
 export function armFrameDragClick(): void {
   suppressFrameClick = true
+}
+
+function releaseFrameDragClick(): void {
+  suppressFrameClick = false
+}
+
+function releaseFrameDragClickSoon(): void {
+  queueMicrotask(() => {
+    suppressFrameClick = false
+  })
 }
 
 function takeFrameDragClick(): boolean {
@@ -108,6 +126,12 @@ export function activateFrame(
   }
   if (action.type === 'select-source') {
     setFrameSource({ spreadId, frameId })
+    setEditorStatus(STATUS_SELECTED)
+    return
+  }
+  if (action.type === 'clear-source') {
+    setFrameSource(null)
+    setEditorStatus('')
     return
   }
   if (action.type === 'swap') {
@@ -119,6 +143,7 @@ export function activateFrame(
       frameIdB: frameId,
     })
     setFrameSource(null)
+    setEditorStatus(filled ? STATUS_SWAPPED : STATUS_MOVED)
   }
 }
 
@@ -128,6 +153,7 @@ export function unplaceSelectedFrame(): void {
     return
   }
   unplaceFrame(selected)
+  focusFrameButton(selected)
 }
 
 function unplaceFrame(source: FrameDragSource): void {
@@ -144,6 +170,31 @@ function unplaceFrame(source: FrameDragSource): void {
   ) {
     setFrameSource(null)
   }
+  setEditorStatus(STATUS_UNPLACED)
+}
+
+function sameFrame(a: FrameDragSource, b: FrameDragSource): boolean {
+  return a.spreadId === b.spreadId && a.frameId === b.frameId
+}
+
+function focusFrameButton(source: FrameDragSource): void {
+  const spread = document.querySelector(
+    `[data-testid="spread-view"][data-spread-id="${CSS.escape(source.spreadId)}"]`,
+  )
+  const button = spread?.querySelector(
+    `button[data-frame-id="${CSS.escape(source.frameId)}"]`,
+  )
+  if (button instanceof HTMLElement) {
+    button.focus()
+  }
+}
+
+function matchesLocalFrameDrag(payload: FrameDragSource | null): boolean {
+  return (
+    localFrameDrag !== null &&
+    payload !== null &&
+    sameFrame(localFrameDrag, payload)
+  )
 }
 
 function assetIdFrom(event: DragEvent): string | null {
@@ -160,26 +211,7 @@ function assetIdFrom(event: DragEvent): string | null {
 }
 
 function frameSourceFrom(event: DragEvent): FrameDragSource | null {
-  const transfer = event.dataTransfer
-  const decoded = decodeFrameDrag(transfer?.getData(FRAME_DRAG_MIME) ?? '')
-  if (decoded !== null) {
-    return decoded
-  }
-  if (!(event.target instanceof Element)) {
-    return null
-  }
-  const node = event.target.closest('[data-frame-id]')
-  const frameId = node?.getAttribute('data-frame-id')
-  const spreadId = node
-    ?.closest('[data-spread-id]')
-    ?.getAttribute('data-spread-id')
-  if (frameId === null || frameId === undefined || frameId === '') {
-    return null
-  }
-  if (spreadId === null || spreadId === undefined || spreadId === '') {
-    return null
-  }
-  return { spreadId, frameId }
+  return decodeFrameDrag(event.dataTransfer?.getData(FRAME_DRAG_MIME) ?? '')
 }
 
 function frameElements(scroll: HTMLElement): Map<string, HTMLElement> {
@@ -236,6 +268,7 @@ export function installGalleryDrop(
 
   const begin = (event: DragEvent): void => {
     if (isAssetDrag(event.dataTransfer)) {
+      localFrameDrag = null
       const assetId = assetIdFrom(event)
       if (assetId === null) {
         return
@@ -250,6 +283,7 @@ export function installGalleryDrop(
     if (source === null) {
       return
     }
+    localFrameDrag = source
     session = beginSession(scroll, readGeometry, { kind: 'frame', source })
   }
 
@@ -291,6 +325,7 @@ export function installGalleryDrop(
   }
 
   const onDrop = (event: DragEvent): void => {
+    releaseFrameDragClickSoon()
     if (session === null || world?.dataset.gesture === 'zoom') {
       clearDropHover()
       session = null
@@ -337,9 +372,15 @@ export function installGalleryDrop(
         filled: target.filled,
       },
     })
-    if (action.type !== 'swap') {
+    const payload = frameSourceFrom(event)
+    const sameDrag = matchesLocalFrameDrag(payload)
+    localFrameDrag = null
+    if (action.type !== 'swap' || !sameDrag) {
       return
     }
+    const dragged = current.source
+    const keyboard = getFrameSource()
+    const clearKeyboard = keyboard !== null && sameFrame(keyboard, dragged)
     dispatchBookOp({
       type: 'swap',
       spreadIdA: action.source.spreadId,
@@ -347,11 +388,15 @@ export function installGalleryDrop(
       spreadIdB: target.spreadId,
       frameIdB: target.frameId,
     })
-    setFrameSource(null)
+    if (clearKeyboard) {
+      setFrameSource(null)
+    }
+    setEditorStatus(target.filled ? STATUS_SWAPPED : STATUS_MOVED)
   }
 
   const end = (): void => {
     session = null
+    localFrameDrag = null
     clearDropHover()
     requestAnimationFrame(() => {
       suppressFrameClick = false
@@ -359,11 +404,15 @@ export function installGalleryDrop(
   }
 
   document.addEventListener('dragstart', begin)
+  document.addEventListener('pointerdown', releaseFrameDragClick, true)
+  document.addEventListener('keydown', releaseFrameDragClick, true)
   scroll.addEventListener('dragover', onDragOver)
   scroll.addEventListener('drop', onDrop)
   document.addEventListener('dragend', end)
   return () => {
     document.removeEventListener('dragstart', begin)
+    document.removeEventListener('pointerdown', releaseFrameDragClick, true)
+    document.removeEventListener('keydown', releaseFrameDragClick, true)
     scroll.removeEventListener('dragover', onDragOver)
     scroll.removeEventListener('drop', onDrop)
     document.removeEventListener('dragend', end)
@@ -371,9 +420,68 @@ export function installGalleryDrop(
   }
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest('input, textarea, select, [contenteditable="true"]') !== null
+  )
+}
+
+export function installEditorKeys(): () => void {
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape') {
+      setFrameSource(null)
+      setSelectedAssetId(null)
+      setEditorStatus('')
+      return
+    }
+    if (event.key !== 'Delete' && event.key !== 'Backspace') {
+      return
+    }
+    if (isTypingTarget(event.target) || !(event.target instanceof Element)) {
+      return
+    }
+    const button = event.target.closest('button.spread-frame')
+    if (!(button instanceof HTMLElement)) {
+      return
+    }
+    if (button.getAttribute('data-filled') !== 'true') {
+      return
+    }
+    const frameId = button.getAttribute('data-frame-id')
+    const spreadId = button
+      .closest('[data-spread-id]')
+      ?.getAttribute('data-spread-id')
+    if (
+      frameId === null ||
+      frameId === '' ||
+      spreadId === null ||
+      spreadId === undefined ||
+      spreadId === ''
+    ) {
+      return
+    }
+    event.preventDefault()
+    const source = { spreadId, frameId }
+    unplaceFrame(source)
+    focusFrameButton(source)
+  }
+  document.addEventListener('keydown', onKeyDown)
+  return () => {
+    document.removeEventListener('keydown', onKeyDown)
+  }
+}
+
 export function installFilmstripUnplace(scroll: HTMLElement): () => void {
-  const onDragOver = (event: DragEvent): void => {
+  const onDragStart = (event: DragEvent): void => {
     if (!isFrameDrag(event.dataTransfer)) {
+      return
+    }
+    localFrameDrag = frameSourceFrom(event)
+  }
+
+  const onDragOver = (event: DragEvent): void => {
+    if (!isFrameDrag(event.dataTransfer) || localFrameDrag === null) {
       return
     }
     event.preventDefault()
@@ -384,28 +492,32 @@ export function installFilmstripUnplace(scroll: HTMLElement): () => void {
   }
 
   const onDrop = (event: DragEvent): void => {
+    releaseFrameDragClickSoon()
     if (!isFrameDrag(event.dataTransfer)) {
       return
     }
     event.preventDefault()
-    const source = decodeFrameDrag(
-      event.dataTransfer?.getData(FRAME_DRAG_MIME) ?? '',
-    )
+    const source = frameSourceFrom(event)
+    const sameDrag = matchesLocalFrameDrag(source)
+    localFrameDrag = null
     clearDropHover()
-    if (source === null) {
+    if (!sameDrag || source === null) {
       return
     }
     unplaceFrame(source)
   }
 
   const end = (): void => {
+    localFrameDrag = null
     clearDropHover()
   }
 
+  document.addEventListener('dragstart', onDragStart)
   scroll.addEventListener('dragover', onDragOver)
   scroll.addEventListener('drop', onDrop)
   document.addEventListener('dragend', end)
   return () => {
+    document.removeEventListener('dragstart', onDragStart)
     scroll.removeEventListener('dragover', onDragOver)
     scroll.removeEventListener('drop', onDrop)
     document.removeEventListener('dragend', end)

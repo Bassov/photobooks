@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { placeAsset } from '../core'
+import { applyTemplate, placeAsset } from '../core'
 import { resetAssetPool } from '../photo/assetPool'
 import {
   getBookStoreSnapshot,
@@ -381,7 +381,9 @@ describe('Filmstrip aspect cards', () => {
       ).toBeUndefined()
       expect(getBookStoreSnapshot().book.gallery).toEqual([placedId])
       expect(screen.queryByTestId('filmstrip-placed')).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Unplace' })).toBeNull()
+      expect(
+        document.querySelector('.filmstrip-unplace')?.hasAttribute('disabled'),
+      ).toBe(true)
     } finally {
       restore()
     }
@@ -417,6 +419,12 @@ describe('Filmstrip aspect cards', () => {
         FRAME_DRAG_MIME,
         encodeFrameDrag({ spreadId: spread.id, frameId }),
       )
+      const start = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(start, 'dataTransfer', { value: dataTransfer })
+      document.dispatchEvent(start)
       const over = new DragEvent('dragover', {
         bubbles: true,
         cancelable: true,
@@ -434,6 +442,145 @@ describe('Filmstrip aspect cards', () => {
       ).toBeUndefined()
       expect(getBookStoreSnapshot().book.gallery).toEqual([placedId])
       expect(scroll.getAttribute('data-drop-hover')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('ignores a frame drop that did not start in this document', () => {
+    const ids = seedGallery(1)
+    const snap = getBookStoreSnapshot()
+    const spread = snap.book.spreads[0]
+    const frameId = spread?.frames[0]?.id
+    const placedId = ids[0]
+    if (
+      spread === undefined ||
+      frameId === undefined ||
+      placedId === undefined
+    ) {
+      throw new Error('expected a frame and an asset')
+    }
+    const book = placeAsset(snap.book, spread.id, frameId, placedId)
+    resetBookStore({
+      book,
+      sessionMeta: snap.sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const restore = stubScrollportWidth(400)
+
+    try {
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData(
+        FRAME_DRAG_MIME,
+        encodeFrameDrag({ spreadId: spread.id, frameId }),
+      )
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true })
+      Object.defineProperty(drop, 'dataTransfer', { value: dataTransfer })
+      scroll.dispatchEvent(drop)
+
+      expect(getBookStoreSnapshot().book.spreads[0]?.frames[0]?.assetId).toBe(
+        placedId,
+      )
+    } finally {
+      restore()
+    }
+  })
+
+  it('ignores a filmstrip drop whose payload is not the drag that started here', () => {
+    const ids = seedGallery(1)
+    const snap = getBookStoreSnapshot()
+    const spread = snap.book.spreads[0]
+    const frameId = spread?.frames[0]?.id
+    const placedId = ids[0]
+    if (
+      spread === undefined ||
+      frameId === undefined ||
+      placedId === undefined
+    ) {
+      throw new Error('expected a frame and an asset')
+    }
+    const book = placeAsset(snap.book, spread.id, frameId, placedId)
+    resetBookStore({
+      book,
+      sessionMeta: snap.sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const restore = stubScrollportWidth(400)
+
+    try {
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const started = new DataTransfer()
+      started.setData(
+        FRAME_DRAG_MIME,
+        encodeFrameDrag({ spreadId: 'other-spread', frameId: 'other-frame' }),
+      )
+      const start = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(start, 'dataTransfer', { value: started })
+      document.dispatchEvent(start)
+
+      const dropped = new DataTransfer()
+      dropped.setData(
+        FRAME_DRAG_MIME,
+        encodeFrameDrag({ spreadId: spread.id, frameId }),
+      )
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true })
+      Object.defineProperty(drop, 'dataTransfer', { value: dropped })
+      scroll.dispatchEvent(drop)
+
+      expect(getBookStoreSnapshot().book.spreads[0]?.frames[0]?.assetId).toBe(
+        placedId,
+      )
+    } finally {
+      restore()
+    }
+  })
+
+  it('keeps the Placed badge when another placement of that photo remains', () => {
+    const ids = seedGallery(1)
+    const snap = getBookStoreSnapshot()
+    const spreadId = snap.book.spreads[0]?.id
+    const placedId = ids[0]
+    if (spreadId === undefined || placedId === undefined) {
+      throw new Error('expected a spread and an asset')
+    }
+    let book = applyTemplate(snap.book, spreadId, '4-grid')
+    const firstId = book.spreads[0]?.frames[0]?.id
+    const secondId = book.spreads[0]?.frames[1]?.id
+    if (firstId === undefined || secondId === undefined) {
+      throw new Error('expected two frames')
+    }
+    book = placeAsset(book, spreadId, firstId, placedId)
+    book = placeAsset(book, spreadId, secondId, placedId)
+    resetBookStore({
+      book,
+      sessionMeta: snap.sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setFrameSource({ spreadId, frameId: firstId })
+    const restore = stubScrollportWidth(400)
+
+    try {
+      render(<Filmstrip />)
+      act(() => {
+        screen.getByRole('button', { name: 'Unplace' }).click()
+      })
+
+      expect(
+        getBookStoreSnapshot().book.spreads[0]?.frames[0]?.assetId,
+      ).toBeUndefined()
+      expect(getBookStoreSnapshot().book.spreads[0]?.frames[1]?.assetId).toBe(
+        placedId,
+      )
+      expect(screen.getByTestId('filmstrip-placed')).toBeTruthy()
     } finally {
       restore()
     }

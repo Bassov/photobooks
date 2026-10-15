@@ -169,17 +169,16 @@ export const Filmstrip = memo(function Filmstrip({
       }}
     >
       <FilmstripStatus photoCount={total} progress={progress} />
-      {frameSource !== null ? (
-        <button
-          type="button"
-          className="filmstrip-unplace"
-          onClick={() => {
-            unplaceSelectedFrame()
-          }}
-        >
-          Unplace
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className="filmstrip-unplace"
+        disabled={frameSource === null}
+        onClick={() => {
+          unplaceSelectedFrame()
+        }}
+      >
+        Unplace
+      </button>
       <div
         ref={scrollRef}
         className="filmstrip-scroll"

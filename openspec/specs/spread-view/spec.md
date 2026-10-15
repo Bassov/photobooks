@@ -208,3 +208,12 @@ While a filled frame is dragged, at most one drop-hover attribute SHALL be set. 
 
 - **WHEN** a gallery photo is dragged onto a frame
 - **THEN** the drag identifies that gallery asset and does not identify a source frame
+
+### Requirement: Pressed frame outline
+
+A frame button that is the move source MUST show an outline wider than zero while `aria-pressed` is true.
+
+#### Scenario: Pressed outline is visible
+
+- **WHEN** a frame button is pressed
+- **THEN** its computed outline width is greater than zero

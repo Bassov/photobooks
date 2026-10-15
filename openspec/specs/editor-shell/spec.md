@@ -230,7 +230,65 @@ With no gallery photo selected, the editor SHALL let a keyboard user mark a fill
 #### Scenario: Gallery selection still replaces
 
 - **WHEN** a gallery photo is selected and a filled frame is activated
-- **THEN** that frame shows the selected photo and is named “Replace photo”
+- **THEN** that frame shows the selected photo, is named “Replace photo”, and the move source is cleared
+
+#### Scenario: Activate the source again
+
+- **WHEN** a filled frame is the move source and that same frame, named “Cancel move”, is activated
+- **THEN** the move source is cleared and no frame stays pressed
+
+#### Scenario: Escape clears move mode
+
+- **WHEN** a move source or a gallery photo is selected and Escape is pressed in the editor
+- **THEN** the move source and the gallery selection are both cleared
+
+#### Scenario: Delete unplaces the focused frame
+
+- **WHEN** a filled frame has focus and Delete or Backspace is pressed
+- **THEN** that frame is empty, the photo remains in the filmstrip, and the Placed badge is removed when that photo has no other placement
+
+#### Scenario: Delete ignores a text field
+
+- **WHEN** focus is in a text field and Backspace or Delete is pressed
+- **THEN** every frame stays as it was
+
+#### Scenario: Unplace keeps focus and announces
+
+- **WHEN** the move source is set and Unplace is activated
+- **THEN** focus is on the emptied frame, not the document body, and a polite live region reports that the photo was unplaced
+
+#### Scenario: Status follows swap and move
+
+- **WHEN** a move source is chosen, then swapped or moved
+- **THEN** the live region reports the selection, then that the photos were swapped or the photo was moved
+
+### Requirement: Move source matches a filled frame
+
+The editor MUST clear the move source when its frame is missing or empty, including after a template change or a book reset. An Unplace control MUST stay in the filmstrip and MUST be unavailable while no move source is set, so the filmstrip does not change height. A frame drag MUST unplace or swap only when that drag started in this document and the dropped payload is that same frame. A drag MUST clear the keyboard move source only when the dragged frame is that source.
+
+#### Scenario: Template change drops a stale source
+
+- **WHEN** the move source is a frame that a template change removes
+- **THEN** the move source is cleared and Unplace is unavailable
+
+#### Scenario: Foreign frame drop
+
+- **WHEN** a frame payload is dropped on the filmstrip without a matching drag started in this document
+- **THEN** every frame stays as it was
+
+#### Scenario: Unrelated drag keeps the move source
+
+- **WHEN** a keyboard move source is set and a different frame is dragged onto another frame
+- **THEN** the move source stays on the original frame
+
+### Requirement: Pressed move source stays visible
+
+The move source frame MUST show a visible outline while it is pressed, including when the book is zoomed far out.
+
+#### Scenario: Pressed frame has an outline
+
+- **WHEN** a filled frame is the move source
+- **THEN** that frame’s outline is wider than zero
 
 ### Requirement: Rearrange keeps page scroll inside existing ports
 
