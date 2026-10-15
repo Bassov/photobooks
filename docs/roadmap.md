@@ -127,9 +127,9 @@ Slicing rules when adding or splitting items:
 
 **Review cut:** the book survives reloads, browser restarts and moved photo folders — and saving never causes a hitch.
 
-- [ ] [prep] `library-storage` — book persistence contract
-  - [ ] Domain-level `LibraryStorage` interface (no paths/bytes in its API); typed results (`permission-required`, `locked-elsewhere`, `not-found`, `corrupted`, `newer-schema`)
-  - [ ] Memory adapter; one shared contract-test suite
+- [x] [prep] `library-storage` — book persistence contract
+  - [x] Domain-level `LibraryStorage` interface (no paths/bytes in its API); typed results (`permission-required`, `locked-elsewhere`, `not-found`, `corrupted`, `newer-schema`, `already-exists`)
+  - [x] Memory adapter; one shared contract-test suite
 - [ ] [prep] `library-storage-fsa` — library on the file system
   - [ ] File System Access adapter passing the shared contract suite
   - [ ] Library layout (`library.json`, `books/<id>/book.json`), writes via writable stream + `.bak` rotation, migrations on load

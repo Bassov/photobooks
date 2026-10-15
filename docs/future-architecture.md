@@ -197,7 +197,7 @@ The app depends on domain-level interfaces only; file layout, format, `.bak` rot
 | `SessionState`   | Directory handles, recents, UI prefs, Web Locks            | Disposable, per browser     |
 
 - Interfaces speak domain types (`listBooks`, `loadBook(id)`, `saveBook(book)`), never paths or bytes.
-- Platform conditions surface as typed results, not exceptions leaking API details: `permission-required`, `locked-elsewhere`, `not-found`, `corrupted`, `newer-schema`.
+- Platform conditions surface as typed results, not exceptions leaking API details: `permission-required`, `locked-elsewhere`, `not-found`, `corrupted`, `newer-schema`. Domain insert conflicts use `already-exists`.
 - Each interface has a memory adapter and a browser adapter; both run the same contract-test suite. UI and e2e scenarios may use the memory adapters.
 
 ## Image pipeline
