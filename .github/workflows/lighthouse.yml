@@ -41,9 +41,51 @@ jobs:
           LHCI_OUTCOME: ${{ steps.lhci.outcome }}
         run: node scripts/lighthouse-pr-summary.mjs > /tmp/lighthouse-pr-comment.md
 
-      - name: Sticky Lighthouse comment
-        if: always() && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v3
+      - name: Pack Lighthouse section
+        if: always()
+        run: |
+          node scripts/ci-report-comment.mjs pack \
+            --section lighthouse \
+            --step-outcome "${{ steps.lhci.outcome }}" \
+            --missing-report job-failed \
+            --report-dir .lighthouseci \
+            --body-file /tmp/lighthouse-pr-comment.md \
+            --out ci-section/section.json
+
+      - name: Upload Lighthouse section
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
-          header: lighthouse-ci
-          path: /tmp/lighthouse-pr-comment.md
+          name: ci-section-lighthouse
+          path: ci-section/section.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+  ci-comment:
+    needs: lighthouse
+    if: always() && github.event_name == 'pull_request' && needs.lighthouse.result != 'cancelled'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-report-${{ github.event.pull_request.number }}
+      queue: max
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download Lighthouse section
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: ci-section-lighthouse
+          path: ci-section
+
+      - name: Update CI report comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-report-comment.mjs apply --section lighthouse --artifact ci-section/section.json

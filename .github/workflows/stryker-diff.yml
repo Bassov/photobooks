@@ -55,9 +55,51 @@ jobs:
           path: reports/mutation/
           retention-days: 7
 
-      - name: Sticky mutation comment
-        if: always() && steps.summary.outputs.has_report == 'true' && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v3
+      - name: Pack mutation section
+        if: always()
+        run: |
+          node scripts/ci-report-comment.mjs pack \
+            --section mutation \
+            --step-outcome "${{ steps.mutate.outcome }}" \
+            --missing-report skipped \
+            --report reports/mutation/mutation.json \
+            --body-file /tmp/stryker-pr-comment.md \
+            --out ci-section/section.json
+
+      - name: Upload mutation section
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
-          header: stryker-mutation
-          path: /tmp/stryker-pr-comment.md
+          name: ci-section-mutation
+          path: ci-section/section.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+  ci-comment:
+    needs: stryker-diff
+    if: always() && github.event_name == 'pull_request' && needs['stryker-diff'].result != 'cancelled'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-report-${{ github.event.pull_request.number }}
+      queue: max
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download mutation section
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: ci-section-mutation
+          path: ci-section
+
+      - name: Update CI report comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-report-comment.mjs apply --section mutation --artifact ci-section/section.json
