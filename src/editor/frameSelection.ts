@@ -15,6 +15,31 @@ export function getFrameSource(): FrameSource | null {
   return source
 }
 
+export function getSpreadFrameSourceKey(spreadId: string): string | null {
+  if (source === null) {
+    return null
+  }
+  if (source.spreadId !== spreadId) {
+    return ''
+  }
+  return source.frameId
+}
+
+export function subscribeSpreadFrameSource(
+  spreadId: string,
+  listener: Listener,
+): () => void {
+  let current = getSpreadFrameSourceKey(spreadId)
+  return subscribeFrameSelection(() => {
+    const next = getSpreadFrameSourceKey(spreadId)
+    if (next === current) {
+      return
+    }
+    current = next
+    listener()
+  })
+}
+
 export function setFrameSource(next: FrameSource | null): void {
   if (sameSource(source, next)) {
     return

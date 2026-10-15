@@ -9,12 +9,13 @@ import { armFrameDragClick, activateFrame } from './galleryDrop'
 import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
 import {
   frameControlLabel,
-  getFrameSource,
-  subscribeFrameSelection,
+  getSpreadFrameSourceKey,
+  subscribeSpreadFrameSource,
+  type FrameSource,
 } from './frameSelection'
 import {
-  getSelectedAssetId,
-  subscribeGallerySelection,
+  getGalleryPhotoSelected,
+  subscribeGalleryPhotoSelected,
 } from './gallerySelection'
 import {
   clearSpreadTiers,
@@ -24,6 +25,24 @@ import {
   setSpreadTiers,
   subscribeTierDisplay,
 } from './tierDisplay'
+
+const SOURCE_ON_ANOTHER_SPREAD: FrameSource = {
+  spreadId: '',
+  frameId: '',
+}
+
+function sourceFromKey(
+  spreadId: string,
+  key: string | null,
+): FrameSource | null {
+  if (key === null) {
+    return null
+  }
+  if (key === '') {
+    return SOURCE_ON_ANOTHER_SPREAD
+  }
+  return { spreadId, frameId: key }
+}
 
 function devicePixelRatio(): number {
   const ratio = globalThis.devicePixelRatio
@@ -52,16 +71,17 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     getTierDisplaySnapshot,
     getTierDisplaySnapshot,
   )
-  const galleryAssetId = useSyncExternalStore(
-    subscribeGallerySelection,
-    getSelectedAssetId,
-    getSelectedAssetId,
+  const galleryPhotoSelected = useSyncExternalStore(
+    subscribeGalleryPhotoSelected,
+    getGalleryPhotoSelected,
+    getGalleryPhotoSelected,
   )
-  const frameSource = useSyncExternalStore(
-    subscribeFrameSelection,
-    getFrameSource,
-    getFrameSource,
+  const frameSourceKey = useSyncExternalStore(
+    (listener) => subscribeSpreadFrameSource(spreadId, listener),
+    () => getSpreadFrameSourceKey(spreadId),
+    () => getSpreadFrameSourceKey(spreadId),
   )
+  const frameSource = sourceFromKey(spreadId, frameSourceKey)
 
   useEffect(() => {
     if (snapshot === undefined) {
@@ -128,13 +148,13 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         const filled = item.assetId !== undefined
         const frame = { spreadId, frameId: item.frameId }
         const pressed =
-          frameSource !== null &&
-          frameSource.spreadId === spreadId &&
-          frameSource.frameId === item.frameId
+          frameSourceKey !== null &&
+          frameSourceKey !== '' &&
+          frameSourceKey === item.frameId
         const control: FrameControl = {
           label: frameControlLabel(
             filled,
-            galleryAssetId !== null,
+            galleryPhotoSelected,
             frameSource,
             frame,
           ),
