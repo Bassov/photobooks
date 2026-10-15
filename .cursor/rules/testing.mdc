@@ -7,7 +7,7 @@ alwaysApply: true
 
 After substantive code changes, run and **read** the output of:
 
-- `pnpm verify:fast` for tight loops (typecheck + lint + vitest)
+- `pnpm verify:fast` for tight loops (typecheck + lint + deps + knip + mutation-scope + vitest)
 - `pnpm verify` before push / finishing apply (adds Playwright)
 
 Also available:

@@ -46,6 +46,7 @@ rules:
     - 'If UI is in scope, success criteria MUST name empty + happy-path + primary interact/scroll observables that e2e will lock in.'
     - 'If the change introduces or changes an in-app scrollport (overflow auto/scroll), success criteria MUST state: no page-level H/V scroll; scrolling only inside the named scrollport(s).'
     - If the security surface is in scope, risks MUST include an explicit security bullet.
+    - 'Roadmap [feature] item: success criteria MUST cover its **Browser check:** and **Perf:** lines; if the item lacks them, write them into the item in docs/roadmap.md in this change (record as an assumption) instead of asking.'
   design:
     - Keep design under ~600 words.
     - Include implementation detail only where apply would otherwise be ambiguous.
@@ -61,6 +62,7 @@ rules:
   tasks:
     - Break work into small, checkable tasks.
     - At most 8 implementation tasks (the Verification checklist does not count). More means the change exceeds the size budget in rules.proposal — split it in the roadmap instead of inflating tasks.
+    - After writing tasks.md, run `openspec validate <change> --strict` and fix every error before apply.
     - |
       Every tasks.md MUST end with this Verification checklist (unchecked at creation):
       - [ ] pnpm typecheck
@@ -70,34 +72,39 @@ rules:
       - [ ] pnpm stryker:diff
       - [ ] pnpm test:lhci when UI or bundle size is affected
       - [ ] UI in scope: browser smoke evidenced (empty + happy + primary scroll/interact via Playwright and/or MCP browser); skill `ui-review` pass
-      - [ ] Agent docs: if module map / commands / security surface / durable conventions changed → update AGENTS.md (≤150 lines); update .cursor/rules or skills only when a lasting convention changed; do not add alwaysApply rules without merging/removing another
+      - [ ] Docs/rules sync: if behavior, commands, CI output, module map or the roadmap item changed → update README.md, AGENTS.md (≤150 lines), affected .cursor/rules/*.mdc and skills, docs/future-architecture.md notes, and annotate docs/roadmap.md where the shipped scope deviates; do not add alwaysApply rules without merging/removing another
       - [ ] pnpm audit:ci when package.json/lockfile or security-tagged change
       - [ ] Launch openspec-design-reviewer was pass before apply (evidenced)
       - [ ] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive
+      - [ ] Manual check (after implementation review pass, before archive): drive `pnpm dev` in the browser through the roadmap item's Browser check (or the spec scenarios for [prep]); record numbered steps and observed results under `## Manual test scenarios` at the end of this file (N/A for non-UI); a bug found → Playwright test + fix + re-run implementation review on the delta
       - [ ] High-risk security surface: Cursor Security Review subagent before archive
 
 operations:
   apply:
     guidance:
       - Do not treat apply as complete until Verification checklist items are green.
-      - Read docs/lessons.md before apply; append a one-line lesson when a review finding repeats.
+      - Read docs/lessons.md before design and apply. Before archive, for each reviewer finding tagged `[repeat]` append one durable line, and for `[lesson]` sharpen the existing line instead of adding a new one.
       - If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode before treating apply as complete.
       - When a change introduces or changes an in-app scrollport, include Playwright calls to `assertDocumentFitsViewport` (and `assertNamedScrollport` when content overflows the viewport) before treating apply as complete.
       - 'When UI is in scope: before push/archive, run skill `ui-review` and evidenced browser smoke (empty state readable; happy path of the change; primary scroll/interact with no large dead zone while more content exists). Prefer Playwright assertions; MCP browser screenshots/notes are supporting evidence, not a substitute for locking bugs into e2e.'
       - 'When UI success criteria claim geometry (packing, aspect silhouettes, empty copy, viewport fill, object-fit), add matching Playwright coverage before treating apply as complete.'
       - 'Virtualized or variable-size lists: e2e MUST assert the mounted window covers the scrollport mid-scroll when more items remain — fixed item counts / LoAF alone are not enough.'
       - Require evidenced openspec-design-reviewer pass before or at start of apply when design.md exists.
-      - Run pnpm stryker:diff on changed production modules before requesting implementation review.
+      - Run pnpm stryker:diff and pnpm test:coverage before requesting implementation review. Add tests through public APIs (skill `write-tests`) for survived / no-coverage mutants and uncovered lines in code this change touched that encode specified behavior; list the rest (equivalent, logging, perf instrumentation) with a one-line reason under the tasks.md stryker item.
       - Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.
       - After verify gates pass, launch Cursor subagent `openspec-implementation-reviewer`.
+      - After that review passes, do the Manual check item; its `## Manual test scenarios` section is the source for the PR section of the same name.
       - For high-risk security surface changes, launch Cursor Security Review before archive.
       - Do not archive while critical or high review findings remain open.
       - Do not push a UI-scoped PR when empty/happy/scroll smoke is missing or failing — green typecheck/unit alone is not apply-complete.
   archive:
     guidance:
       - Archive only after openspec-implementation-reviewer returned pass.
+      - Archive only after the Manual check and Docs/rules sync items in tasks.md are checked.
+      - Before moving the change, grep README.md, AGENTS.md, .cursor/rules, docs/ for terms the change touched; fix drift or note "No doc changes" next to the spec-sync bullets.
       - ALWAYS sync delta specs into main openspec/specs/ before moving the change (inline sync, then verify merge).
       - NEVER choose "Archive without syncing" / skip-sync when delta specs exist.
       - If sync is blocked or verification fails, STOP — do not archive until fixed.
       - If there are no delta specs, archive may proceed; note "No delta specs".
+      - After moving the change, tick its top-level item in docs/roadmap.md on the same branch (the PR merge closes it); tick a [contingency] closed as "not needed" with it. Change only those lines.
       - Summarize what merged into specs/ in a few bullets.

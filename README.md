@@ -23,26 +23,26 @@ pnpm dev
 
 ## Scripts
 
-| Command               | Description                                  |
-| --------------------- | -------------------------------------------- |
-| `pnpm dev`            | Vite dev server                              |
-| `pnpm typecheck`      | TypeScript project build check               |
-| `pnpm build`          | Typecheck and production build               |
-| `pnpm preview`        | Preview production build                     |
-| `pnpm deploy`         | Build + deploy to Cloudflare Workers         |
-| `pnpm deploy:preview` | Build + upload a Workers preview version     |
-| `pnpm lint`           | ESLint (strict-type-checked, max-warnings=0) |
-| `pnpm format`         | Prettier write                               |
-| `pnpm deps`           | dependency-cruiser layer rules               |
-| `pnpm knip`           | Unused exports / dependencies                |
-| `pnpm test`           | Vitest unit + PBT                            |
-| `pnpm test:e2e`       | Playwright                                   |
-| `pnpm test:lhci`      | Build + Lighthouse CI (`budget.json`)        |
-| `pnpm stryker`        | Full mutation testing                        |
-| `pnpm stryker:diff`   | Mutations since `origin/main`                |
-| `pnpm verify:fast`    | typecheck + lint + deps + knip + vitest      |
-| `pnpm verify`         | verify:fast + Playwright                     |
-| `pnpm bench`          | Vitest benchmarks                            |
+| Command               | Description                                              |
+| --------------------- | -------------------------------------------------------- |
+| `pnpm dev`            | Vite dev server                                          |
+| `pnpm typecheck`      | TypeScript project build check                           |
+| `pnpm build`          | Typecheck and production build                           |
+| `pnpm preview`        | Preview production build                                 |
+| `pnpm deploy`         | Build + deploy to Cloudflare Workers                     |
+| `pnpm deploy:preview` | Build + upload a Workers preview version                 |
+| `pnpm lint`           | ESLint (strict-type-checked, max-warnings=0)             |
+| `pnpm format`         | Prettier write                                           |
+| `pnpm deps`           | dependency-cruiser layer rules                           |
+| `pnpm knip`           | Unused exports / dependencies                            |
+| `pnpm test`           | Vitest unit + PBT                                        |
+| `pnpm test:e2e`       | Playwright                                               |
+| `pnpm test:lhci`      | Build + Lighthouse CI (`budget.json`)                    |
+| `pnpm stryker`        | Full mutation testing                                    |
+| `pnpm stryker:diff`   | Mutations since `origin/main`                            |
+| `pnpm verify:fast`    | typecheck + lint + deps + knip + mutation-scope + vitest |
+| `pnpm verify`         | verify:fast + Playwright                                 |
+| `pnpm bench`          | Vitest benchmarks                                        |
 
 Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm verify`.
 
@@ -50,15 +50,15 @@ Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm verify`.
 
 - Config: `openspec/config.yaml` (quality bar, short proposal limits, mandatory verify + review gates)
 - Cursor skills/commands under `.cursor/`
-- Review subagents: `.cursor/agents/openspec-proposal-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`
+- Review subagents: `.cursor/agents/openspec-proposal-reviewer.md`, `.cursor/agents/openspec-design-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`
 
-Workflow: propose → proposal-reviewer → design/tasks → apply → verify gates → implementation-reviewer → archive.
+Workflow: propose → proposal-reviewer → design → design-reviewer → tasks → apply → verify gates → implementation-reviewer → manual check → archive → PR. Unattended one-item run: `/next-roadmap-item`.
 
 ## CI
 
 GitHub Actions: `checks` (typecheck, lint, format, coverage floors, audit, Codecov), `integration`, `lighthouse` (PR + `main`), `stryker-diff` (PR + mutation comment), `stryker-full` (nightly), `dependency-review`, `gitleaks`, CodeQL.
 
-PR reports (comments): Codecov (when coverage-relevant files change — install the [Codecov GitHub App](https://github.com/apps/codecov)), sticky Lighthouse summary + HTML link, sticky Stryker mutation summary when the mutate set is non-empty.
+PR reports (comments): one CI report comment (coverage, Lighthouse, mutation sections; `ci-gates` spec). Install the [Codecov GitHub App](https://github.com/apps/codecov) when coverage-relevant files change.
 
 Operators: add repository secret `CODECOV_TOKEN` (Codecov upload / PR comments). In GitHub → Settings → Code security, enable Secret scanning and Push protection.
 

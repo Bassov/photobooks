@@ -108,7 +108,7 @@ Shared CI runners have no GPU and noisy CPUs, so they cannot prove 60 fps direct
 | `src/site/`    | Viewer entry (separate Vite entry), static export writer                                                                   | UI + platform               |
 | `src/publish/` | Deploy adapters                                                                                                            | Platform                    |
 
-dependency-cruiser: add `core-is-pure` (core imports nothing from UI/React/platform modules) when `src/core` appears; `render` must not import `project`/`publish`.
+dependency-cruiser: `core-is-pure` (core imports nothing from UI/React/platform modules); `render` must not import `project`/`publish`.
 
 ## Document model
 
@@ -122,7 +122,6 @@ dependency-cruiser: add `core-is-pure` (core imports nothing from UI/React/platf
 - **Versioning:** integer `schemaVersion`, chain of pure migrations, Zod parse at every load boundary. Refuse to open a newer `schemaVersion` instead of trying to preserve unknown fields.
 - **No `File` / `Blob` / handles** in the document (see `docs/lessons.md`). Assets are referenced by id.
 - Required invariants (property-based tests): save → load round-trips losslessly; no op leaves a dangling asset reference; undo after do restores the previous document.
-- `.cursor/rules/data-model.mdc` still says "book → spreads → pages → slots → assets"; update it in the change that introduces `src/core`.
 
 ## Editor layout
 

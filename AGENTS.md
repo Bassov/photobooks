@@ -25,16 +25,17 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Commands (reference)
 
-| Command             | Use                                                      |
-| ------------------- | -------------------------------------------------------- |
-| `pnpm verify:fast`  | typecheck + lint + deps + knip + mutation scope + vitest |
-| `pnpm verify`       | verify:fast + Playwright                                 |
-| `pnpm perf`         | Playwright frame-budget scenarios (hard frame pacing)    |
-| `pnpm deps`         | dependency-cruiser layer rules                           |
-| `pnpm knip`         | unused exports / deps                                    |
-| `pnpm stryker:diff` | mutations vs `origin/main`                               |
-| `pnpm test:lhci`    | Lighthouse budgets                                       |
-| `pnpm audit:ci`     | high-severity **production** dependency audit            |
+| Command              | Use                                                      |
+| -------------------- | -------------------------------------------------------- |
+| `/next-roadmap-item` | one roadmap item end to end (unattended)                 |
+| `pnpm verify:fast`   | typecheck + lint + deps + knip + mutation scope + vitest |
+| `pnpm verify`        | verify:fast + Playwright                                 |
+| `pnpm perf`          | Playwright frame-budget scenarios (hard frame pacing)    |
+| `pnpm deps`          | dependency-cruiser layer rules                           |
+| `pnpm knip`          | unused exports / deps                                    |
+| `pnpm stryker:diff`  | mutations vs `origin/main`                               |
+| `pnpm test:lhci`     | Lighthouse budgets                                       |
+| `pnpm audit:ci`      | high-severity **production** dependency audit            |
 
 ## Skills (on demand)
 

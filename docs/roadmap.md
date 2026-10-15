@@ -12,7 +12,7 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
   - **[contingency]** — a fallback for a gate owned by a named item; done only if that gate fails. When the gate-owning change is archived with the gate green, tick it as "not needed (gate passed in `<name>`)".
 - **60 fps is part of done.** Every `[feature]` ships a perf scenario for the interaction it adds (gates in `docs/future-architecture.md`, "Performance model"); a regression blocks the PR. **Perf:** lines name the techniques the change must use. The **Browser check** includes watching the interaction for stutter (DevTools Performance panel, frame rendering stats). For features with an in-app scrollport, the Browser check also verifies no page-level H/V scroll — the named region is the scrollport (Playwright: `assertDocumentFitsViewport`).
 - Milestones are review cuts: at the end of each, stop and review the product as a whole before continuing.
-- Tick a top-level box only after the change is archived and the PR is merged. Exception: a `[contingency]` closed as "not needed" is ticked together with its gate-owning item.
+- A top-level box is ticked in the change's own PR right after archive, so the merge closes it (`openspec/config.yaml` `operations.archive`). A `[contingency]` closed as "not needed" is ticked together with its gate-owning item.
 
 ### Change size
 
@@ -72,7 +72,7 @@ Slicing rules when adding or splitting items:
 - [x] [feature] `editor-shell-filmstrip` — editor layout and gallery
   - [x] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
   - [x] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery
-  - [x] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), cancellation when a thumbnail scrolls away, transferables; folder scan and file reads inside the worker; per-file errors do not abort the batch; progress
+  - [x] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), transferables; per-file errors do not abort the batch; progress. **Shipped note:** folder scan still runs on the main thread; off-screen import jobs are not aborted (see `docs/lessons.md`) — visibility may boost priority only.
   - [x] Horizontal virtualized filmstrip (React Aria GridList + Virtualizer); placeholders with aspect ratio first, thumbnails stream in
   - [x] Bounded object-URL LRU with revoke on eviction
   - **Perf:** pre-sized thumbnails only, `decoding="async"`, gallery updates batched per frame; scenario: import 200 photos while scrolling the filmstrip — zero LoAF.
@@ -113,9 +113,15 @@ Slicing rules when adding or splitting items:
   - **Browser check:** drag photos back to the filmstrip, swap two frames; placed badges update; dragging stays smooth.
 - [x] [prep] `mutation-scope-guard` — mutate all of `src` by default; exclude only files that are pointless to mutate; diff run uses that scope; CI fails when a new production file is neither in scope nor excluded
 - [x] [feature] `filmstrip-file-name` — filmstrip label uses `sessionMeta.name` (File.name), not the sanitized asset id
+  - **Perf:** label reads session metadata only; no gallery id-list rebuild on name refresh.
+  - **Browser check:** import a non-ASCII file name; the filmstrip thumbnail accessible name matches the file name; selecting it stays smooth; filmstrip remains the horizontal scrollport.
 - [x] [feature] `template-unplace-notice` — applying a smaller template still drops overflow placements, photos stay in the gallery, and a polite editor status says how many were unplaced (no status when zero)
+  - **Perf:** status update is a narrow live-region write; template apply still re-renders only the affected spread.
+  - **Browser check:** shrink a filled spread template — overflow photos stay in the gallery, Placed badges clear, polite status announces the count (silent when zero); no page-level H/V scroll.
 - [x] [prep] `selection-render-scope` — ConnectedSpreadView subscribes to stable derived selection snapshots so other spreads do not re-render
 - [x] [feature] `add-spread-camera` — Add spread keeps the committed zoom and reveals the new spread after layout, without jumping scrollHeight early
+  - **Perf:** reveal runs after layout; committed zoom is one camera write (no React zoom reset).
+  - **Browser check:** Fit spread, then Add spread — zoom percent unchanged; new spread appears inside the pasteboard after layout; no page-level H/V scroll.
 
 ## M2 — Project on disk
 

@@ -10,7 +10,8 @@ alwaysApply: true
 When an agreed implementation task is **complete** (verify gates green; OpenSpec archived when in scope):
 
 1. **Commit** outstanding relevant changes (follow the project's git commit protocol: status/diff/log, HEREDOC message, no secrets, no `--no-verify`).
-2. **Push** the feature branch and **open a pull request** with `gh pr create` using `.github/PULL_REQUEST_TEMPLATE.md` (Summary + OpenSpec status only — no Verification / Test plan checkboxes; those live in OpenSpec `tasks.md` and CI). Unless a PR for this branch already exists — then push and update the existing PR.
+2. **Push** the feature branch and **open a pull request** with `gh pr create` filling every section of `.github/PULL_REQUEST_TEMPLATE.md` (no Verification / Test plan checkboxes; those live in OpenSpec `tasks.md` and CI; Manual test scenarios are copied from the change's `tasks.md`). Unless a PR for this branch already exists — then push and update the existing PR.
+3. **Wait for green**: `gh pr checks --watch --fail-fast --interval 30` (stryker-diff takes up to ~10 min; do not poll with sleep loops). On a red check read `gh run view <run-id> --log-failed`, fix, commit, push (pre-push runs `pnpm verify`; never `--no-verify`), and wait again. After 3 red rounds, or if the PR conflicts with `main`, stop and report. Fixes after archive must not change specified behavior; if they would, stop and ask. When green, skim the CI report comment; add tests only for mutants/lines this PR touched that the local stryker:diff missed.
 
 **Do not** commit or open a PR when the user explicitly opted out (e.g. "don't commit", "no PR", "только локально", "без пуша").
 
