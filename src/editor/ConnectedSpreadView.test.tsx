@@ -1,7 +1,7 @@
 import { Profiler } from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { addSpread, placeAsset } from '../core'
+import { addSpread, applyTemplate, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { selectImageTier } from '../photo/imageTiers'
@@ -10,6 +10,8 @@ import { resetAssetSources, retainAssetSource } from '../photo/assetSources'
 import { mockWorkerSuccess } from '../photo/photo.test-helpers'
 import { resetTierCache } from '../photo/tierCache'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
+import { resetFrameSelection, setFrameSource } from './frameSelection'
+import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
 import { getCommittedZoom, resetCameraStore } from './cameraStore'
 import { getDisplayedPreview, resetTierDisplay } from './tierDisplay'
 import {
@@ -47,6 +49,8 @@ describe('per-spread paint subscription', () => {
     resetAssetSources()
     resetAssetPool()
     resetCameraStore()
+    resetFrameSelection()
+    resetGallerySelection()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -220,11 +224,86 @@ describe('per-spread paint subscription', () => {
       String(selectImageTier(edge * getCommittedZoom(), 1)),
     )
   })
+
+  it('re-renders a spread for selection only when its labels change', () => {
+    let book = twoSpreadBook()
+    book = applyTemplate(book, 's0', '4-grid')
+    const otherFrames = book.spreads[0]?.frames
+    const ownFrame = book.spreads[1]?.frames[0]?.id
+    const sourceFrame = otherFrames?.[0]?.id
+    const nextFrame = otherFrames?.[1]?.id
+    if (
+      sourceFrame === undefined ||
+      nextFrame === undefined ||
+      ownFrame === undefined
+    ) {
+      throw new Error('expected frames')
+    }
+    const renders = mountSiblingPaint(book)
+
+    act(() => {
+      setSelectedAssetId('a')
+    })
+    expect(renders.selfCount).toBeGreaterThan(renders.selfBefore)
+    expect(renders.count).toBeGreaterThan(renders.before)
+    const selected = { self: renders.selfCount, sibling: renders.count }
+
+    act(() => {
+      setSelectedAssetId('b')
+    })
+    expect(renders.selfCount).toBe(selected.self)
+    expect(renders.count).toBe(selected.sibling)
+    expect(
+      screen.getAllByRole('button', { name: 'Replace photo' }),
+    ).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Place photo' })).toHaveLength(
+      3,
+    )
+
+    act(() => {
+      setSelectedAssetId(null)
+    })
+    expect(renders.selfCount).toBeGreaterThan(selected.self)
+    expect(renders.count).toBeGreaterThan(selected.sibling)
+    const cleared = renders.count
+
+    act(() => {
+      setFrameSource({ spreadId: 's0', frameId: sourceFrame })
+    })
+    expect(renders.count).toBeGreaterThan(cleared)
+    const sourced = renders.count
+    expect(screen.getByRole('button', { name: 'Cancel move' })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Swap photos' })).toHaveLength(
+      1,
+    )
+    expect(
+      screen.getAllByRole('button', { name: 'Move photo here' }),
+    ).toHaveLength(3)
+
+    act(() => {
+      setFrameSource({ spreadId: 's0', frameId: nextFrame })
+    })
+    expect(renders.count).toBe(sourced)
+
+    act(() => {
+      setFrameSource({ spreadId: 's1', frameId: ownFrame })
+    })
+    expect(renders.count).toBeGreaterThan(sourced)
+    const moved = renders.count
+    expect(screen.getByRole('button', { name: 'Cancel move' })).toBeTruthy()
+
+    act(() => {
+      setFrameSource(null)
+    })
+    expect(renders.count).toBeGreaterThan(moved)
+  })
 })
 
 function mountSiblingPaint(book: ReturnType<typeof twoSpreadBook>): {
   count: number
   before: number
+  selfCount: number
+  selfBefore: number
 } {
   resetBookStore({
     book,
@@ -233,11 +312,18 @@ function mountSiblingPaint(book: ReturnType<typeof twoSpreadBook>): {
     importRunning: false,
     importExpectedCount: 0,
   })
-  const renders = { count: 0, before: 0 }
+  const renders = { count: 0, before: 0, selfCount: 0, selfBefore: 0 }
   function Harness() {
     return (
       <>
-        <ConnectedSpreadView spreadId="s0" />
+        <Profiler
+          id="s0"
+          onRender={() => {
+            renders.selfCount += 1
+          }}
+        >
+          <ConnectedSpreadView spreadId="s0" />
+        </Profiler>
         <Profiler
           id="s1"
           onRender={() => {
@@ -251,5 +337,6 @@ function mountSiblingPaint(book: ReturnType<typeof twoSpreadBook>): {
   }
   render(<Harness />)
   renders.before = renders.count
+  renders.selfBefore = renders.selfCount
   return renders
 }
