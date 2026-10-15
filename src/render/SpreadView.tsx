@@ -1,8 +1,11 @@
+import type { DragEvent as ReactDragEvent } from 'react'
 import type { ResolvedItem, ResolvedSpread } from '../core'
 
 export interface FrameControl {
   label: string
+  pressed?: boolean
   onActivate: () => void
+  onDragStart?: (event: ReactDragEvent<HTMLDivElement>) => void
 }
 import {
   frameBox,
@@ -107,7 +110,7 @@ function SpreadFrame({
     height: box.height,
     zIndex: item.z,
   }
-  const body =
+  const image =
     previewUrl === undefined ? (
       <div
         className="spread-frame-placeholder"
@@ -128,6 +131,18 @@ function SpreadFrame({
           height: crop.height,
         }}
       />
+    )
+  const body =
+    control?.onDragStart === undefined ? (
+      image
+    ) : (
+      <div
+        className="spread-frame-body"
+        draggable
+        onDragStart={control.onDragStart}
+      >
+        {image}
+      </div>
     )
   if (control === undefined) {
     return (
@@ -150,6 +165,7 @@ function SpreadFrame({
       data-frame-id={item.frameId}
       data-filled={previewUrl === undefined ? 'false' : 'true'}
       aria-label={control.label}
+      aria-pressed={control.pressed === true ? true : undefined}
       style={style}
       onClick={control.onActivate}
     >

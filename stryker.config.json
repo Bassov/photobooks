@@ -20,6 +20,7 @@
     "src/editor/thumbCache.ts",
     "src/editor/tierDisplay.ts",
     "src/editor/dropTargets.ts",
+    "src/editor/frameSelection.ts",
     "src/photo/aspectRatio.ts",
     "src/photo/formatBytes.ts",
     "src/photo/mime.ts",

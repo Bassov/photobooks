@@ -1,3 +1,5 @@
+import { setFrameSource, withSelectionSync } from './frameSelection'
+
 type Listener = () => void
 
 let selected: string | null = null
@@ -12,6 +14,15 @@ export function setSelectedAssetId(assetId: string | null): void {
     return
   }
   selected = assetId
+  emit()
+  if (assetId !== null) {
+    withSelectionSync(() => {
+      setFrameSource(null)
+    })
+  }
+}
+
+function emit(): void {
   for (const listener of listeners) {
     listener()
   }

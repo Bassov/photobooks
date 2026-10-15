@@ -47,6 +47,7 @@ const EDITOR_MUTATE = new Set([
   'src/editor/thumbCache.ts',
   'src/editor/tierDisplay.ts',
   'src/editor/dropTargets.ts',
+  'src/editor/frameSelection.ts',
 ])
 
 const RENDER_MUTATE = new Set(['src/render/frameBox.ts'])
