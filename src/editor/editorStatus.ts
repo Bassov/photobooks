@@ -12,6 +12,13 @@ export const STATUS_MOVED = 'Photo moved'
 
 export const STATUS_UNPLACED = 'Photo unplaced'
 
+export function unplacedFromSpreadStatus(count: number): string {
+  if (count === 1) {
+    return '1 photo was unplaced from the spread'
+  }
+  return `${String(count)} photos were unplaced from the spread`
+}
+
 export function getEditorStatus(): string {
   return text
 }

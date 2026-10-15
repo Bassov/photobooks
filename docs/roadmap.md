@@ -113,7 +113,7 @@ Slicing rules when adding or splitting items:
   - **Browser check:** drag photos back to the filmstrip, swap two frames; placed badges update; dragging stays smooth.
 - [x] [prep] `mutation-scope-guard` — mutate all of `src` by default; exclude only files that are pointless to mutate; diff run uses that scope; CI fails when a new production file is neither in scope nor excluded
 - [x] [feature] `filmstrip-file-name` — filmstrip label uses `sessionMeta.name` (File.name), not the sanitized asset id
-- [ ] [feature] `template-unplace-notice` — applying a smaller template still drops overflow placements, photos stay in the gallery, and a polite editor status says how many were unplaced (no status when zero)
+- [x] [feature] `template-unplace-notice` — applying a smaller template still drops overflow placements, photos stay in the gallery, and a polite editor status says how many were unplaced (no status when zero)
 - [x] [prep] `selection-render-scope` — ConnectedSpreadView subscribes to stable derived selection snapshots so other spreads do not re-render
 - [x] [feature] `add-spread-camera` — Add spread keeps the committed zoom and reveals the new spread after layout, without jumping scrollHeight early
 

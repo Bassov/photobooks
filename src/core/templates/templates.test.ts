@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { applyTemplate, generateTemplateFrames, isTemplateId } from '../index'
-import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
+import {
+  makeBook,
+  makeFrame,
+  makePlacedTemplateBook,
+  makeSpread,
+} from '../testing/fixtures'
 
 describe('isTemplateId', () => {
   it('accepts catalog ids and rejects others', () => {
@@ -190,6 +195,15 @@ describe('applyTemplate', () => {
     const again = applyTemplate(book, 'spread-1', '2-up')
     expect(again).toBe(book)
     expect(again.spreads[0]).toBe(book.spreads[0])
+  })
+
+  it('keeps slotted asset ids and leaves overflow ids in the gallery', () => {
+    const book = makePlacedTemplateBook('4-grid', ['a', 'b', 'c', 'd'])
+
+    const next = applyTemplate(book, 'spread-1', 'one-per-page')
+
+    expect(next.spreads[0]?.frames.map((frame) => frame.assetId)).toEqual(['a'])
+    expect(next.gallery).toEqual(['a', 'b', 'c', 'd'])
   })
 
   it('returns the same book for unknown spread id', () => {

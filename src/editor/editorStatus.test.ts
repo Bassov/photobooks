@@ -3,6 +3,7 @@ import {
   getEditorStatus,
   setEditorStatus,
   subscribeEditorStatus,
+  unplacedFromSpreadStatus,
 } from './editorStatus'
 
 describe('editorStatus', () => {
@@ -23,5 +24,12 @@ describe('editorStatus', () => {
     setEditorStatus('Photo moved')
     expect(calls).toBe(1)
     expect(getEditorStatus()).toBe('Photo moved')
+  })
+
+  it.each([
+    [1, '1 photo was unplaced from the spread'],
+    [3, '3 photos were unplaced from the spread'],
+  ])('states %i unplaced photos as %s', (count, sentence) => {
+    expect(unplacedFromSpreadStatus(count)).toBe(sentence)
   })
 })
