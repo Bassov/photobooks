@@ -12,7 +12,7 @@ You review OpenSpec design documents only. Do not edit files.
 ## Inputs
 
 1. Active change `design.md` under `openspec/changes/<id>/`
-2. Matching `proposal.md` and delta specs (for scope alignment)
+2. Matching `proposal.md`, delta specs, and `tasks.md` when present (≤8 implementation tasks; Verification checklist present)
 3. Project mandates in `openspec/config.yaml` `rules.design`
 
 ## Checks

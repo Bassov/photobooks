@@ -28,9 +28,9 @@ artifacts and diffs; you may run read-only checks (`pnpm typecheck`, `pnpm lint`
    3d. **UI smoke:** if UI is in scope, require evidenced empty + happy + primary scroll/interact coverage (Playwright preferred) and skill `ui-review` (incl. layout smoke). Missing → high / revise. Green typecheck/unit alone is not enough.
    3e. **Virtualized lists:** if a virtualizer or variable-size list changed, require mid-scroll scrollport-coverage assertions (not only item count / LoAF). Missing → high.
 4. **Quality bar:** type safety, ESLint expectations, workers rule for heavy work, no obvious regressions.
-5. **Verify gates:** confirm typecheck/lint/test/e2e/stryker:diff were run (from conversation or artifacts); if not evidenced, verdict is revise. For UI scope, also require evidenced browser smoke before `pass`.
+5. **Verify gates:** confirm typecheck/lint/test/e2e/stryker:diff were run (from conversation or artifacts); if not evidenced, verdict is `fix`. For UI scope, also require evidenced browser smoke before `pass`. Remaining survivors must be listed with one-line reasons in `tasks.md`.
 6. **Design reviewer:** if design.md exists, require evidenced `openspec-design-reviewer` pass before apply.
-7. **Agent docs:** if module map / commands / security surface / durable conventions changed, `AGENTS.md` (and rules/skills only when lasting) must be updated; `AGENTS.md` must stay ≤150 lines and must not duplicate OpenSpec checklists.
+7. **Docs/rules sync:** if behavior, commands, CI output, module map or the roadmap item changed, README.md, AGENTS.md (≤150 lines, no checklists), affected `.cursor/rules/*.mdc`, `docs/future-architecture.md` and `docs/roadmap.md` must match the diff. A stale statement contradicted by the diff is `medium`; a roadmap line that overstates what shipped is `high`.
 8. **Audit:** if `package.json`/lockfile or security-tagged change, require `pnpm audit:ci` evidence.
 9. **Diff quality:** unnecessary files, dead code, English-only repo violations.
 
@@ -45,6 +45,8 @@ Findings:
 ```
 
 Severities: critical, high, medium, low.
+
+Prefix a finding with `[lesson]` when `docs/lessons.md` already states that rule, or `[repeat]` when it was raised in an earlier round for this change.
 
 `pass` only with no open critical/high findings and verify gates evidenced.
 Parent must not archive until `pass`.
