@@ -197,7 +197,7 @@ export function EditorShell() {
             }}
             disabled={pickerBusy}
           >
-            Create library
+            New library
           </button>
           <button
             type="button"
@@ -208,7 +208,7 @@ export function EditorShell() {
             }}
             disabled={pickerBusy}
           >
-            Open library
+            Open
           </button>
           <button
             type="button"
@@ -219,7 +219,7 @@ export function EditorShell() {
             }}
             disabled={pickerBusy || !libraryReady}
           >
-            Create book
+            New book
           </button>
           <button
             type="button"
