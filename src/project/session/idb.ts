@@ -9,10 +9,14 @@ const LEGACY_LIBRARY_ID = 'library'
 export type SessionIdbGetResult =
   { present: true; value: unknown } | { present: false }
 
+type SessionIdbMutation =
+  { op: 'set'; key: string; value: unknown } | { op: 'del'; key: string }
+
 export interface SessionIdb {
   get: (key: string) => Promise<SessionIdbGetResult>
   set: (key: string, value: unknown) => Promise<void>
   del: (key: string) => Promise<void>
+  runReadwrite: (mutations: readonly SessionIdbMutation[]) => Promise<void>
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -62,6 +66,20 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   })
 }
 
+function waitForTransaction(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => {
+      resolve()
+    }
+    tx.onerror = () => {
+      reject(tx.error ?? new Error('indexedDB transaction failed'))
+    }
+    tx.onabort = () => {
+      reject(tx.error ?? new Error('indexedDB transaction aborted'))
+    }
+  })
+}
+
 export function createSessionIdb(): SessionIdb {
   return {
     async get(key) {
@@ -81,21 +99,24 @@ export function createSessionIdb(): SessionIdb {
       }
     },
     async set(key, value) {
-      const db = await openDb()
-      try {
-        const tx = db.transaction(STORE_NAME, 'readwrite')
-        const store = tx.objectStore(STORE_NAME)
-        await requestToPromise(store.put(value, key))
-      } finally {
-        db.close()
-      }
+      await this.runReadwrite([{ op: 'set', key, value }])
     },
     async del(key) {
+      await this.runReadwrite([{ op: 'del', key }])
+    },
+    async runReadwrite(mutations) {
       const db = await openDb()
       try {
         const tx = db.transaction(STORE_NAME, 'readwrite')
         const store = tx.objectStore(STORE_NAME)
-        await requestToPromise(store.delete(key))
+        for (const mutation of mutations) {
+          if (mutation.op === 'set') {
+            store.put(mutation.value, mutation.key)
+          } else {
+            store.delete(mutation.key)
+          }
+        }
+        await waitForTransaction(tx)
       } finally {
         db.close()
       }

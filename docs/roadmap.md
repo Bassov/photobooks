@@ -161,10 +161,16 @@ Slicing rules when adding or splitting items:
   - [x] Permission re-grant flow; Web Locks single writer with a clear "open in another tab" message
   - **Perf:** chrome status/banner updates only; existing save/autosave gesture gates stay green.
   - **Browser check:** after a browser restart, access is re-granted in one step; a second tab is blocked from editing.
-- [x] [feature] `recents-home` — returning user
+- [ ] [feature] `recents-home` — returning user (hardening on PR #71: Home control, re-grant correctness, dedup, IDB/error/loading/busy, New library clean start)
   - [x] Home screen with books in the library and recent libraries (handles in IndexedDB)
   - **Perf:** home is static list chrome; existing save/gesture gates stay green.
-  - **Browser check:** reopen the app; the home screen lists recent libraries and their books; one click opens a book.
+  - **Browser check:** reopen the app; the home screen lists recent libraries and their books; one click opens a book; Home returns to home; same folder does not duplicate.
+- [ ] [feature] `recents-home-quality` — home polish after correctness
+  - [ ] A11y: home `h1`, selected library announcement, focus ring, no redundant aria on headings
+  - [ ] `HomeScreen.test.tsx` (empty / list / error / permission / busy / keyboard); reserved-key mutation tests; Codecov HomeScreen patch target
+  - [ ] LHCI measures editor surface again; restore empty-editor asserts in `open-save.spec`
+  - **Perf:** no new interaction; existing gates stay green.
+  - **Browser check:** keyboard-only home; narrow ~900px; Lighthouse still budgets the editor path.
 - [ ] [feature] `missing-assets-relink` — moved photo folders
   - [ ] Missing-assets view; relink by rescanning a folder and matching hashes (scan and hashing in the worker)
   - **Perf:** rescan progress batched per frame. Gate: scroll the filmstrip while a rescan runs — zero LoAF.

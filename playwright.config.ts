@@ -20,7 +20,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm build && pnpm preview --host 127.0.0.1 --port 4173',
+    // VITE_E2E exposes `__photobooksProject` in the production preview build.
+    command:
+      'VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !isCi,
     timeout: 180_000,

@@ -125,6 +125,115 @@ test('fresh visit lists recent library books and one click opens', async ({
   await expect(page.getByTestId('filmstrip')).toBeVisible()
 })
 
+test('Home button returns to home and reload stays on home', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  const libraryFolder = `photobooks-e2e-home-btn-${String(process.pid)}-${String(Date.now())}`
+
+  await page.goto('/')
+  await page.getByTestId('start-session').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  const prepared = await page.evaluate(async (folderName) => {
+    const api = window.__photobooksProject
+    if (!api?.attachOpfsTestLibrary) {
+      return { ok: false as const, reason: 'missing api' }
+    }
+    const attached = await api.attachOpfsTestLibrary(folderName)
+    if (!attached.ok) {
+      return { ok: false as const, reason: attached.code }
+    }
+    const created = await api.createBookInLibrary()
+    if (!created.ok || !created.value) {
+      return { ok: false as const, reason: created.code ?? 'create' }
+    }
+    api.saveBookNow()
+    await new Promise<void>((resolve, reject) => {
+      const started = Date.now()
+      const tick = (): void => {
+        const snap = api.getSnapshot() as {
+          savePhase: string
+          dirty: boolean
+        }
+        if (snap.savePhase === 'idle' && !snap.dirty) {
+          resolve()
+          return
+        }
+        if (Date.now() - started > 20_000) {
+          reject(new Error('save timed out'))
+          return
+        }
+        requestAnimationFrame(() => {
+          tick()
+        })
+      }
+      tick()
+    })
+    return { ok: true as const, bookId: created.value.id }
+  }, libraryFolder)
+  expect(prepared.ok).toBe(true)
+
+  await page.getByTestId('go-home').click()
+  await expect(page.getByTestId('home-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.reload()
+  await expect(page.getByTestId('home-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('editor-shell')).toHaveCount(0)
+})
+
+test('same-folder reopen does not duplicate recents', async ({ page }) => {
+  test.setTimeout(90_000)
+  const libraryFolder = `photobooks-e2e-dedup-${String(process.pid)}-${String(Date.now())}`
+
+  await page.goto('/')
+  await expect(page.getByTestId('home-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  const result = await page.evaluate(async (folderName) => {
+    const api = window.__photobooksProject
+    if (!api) {
+      return { ok: false as const, reason: 'missing api' }
+    }
+    const root = await navigator.storage.getDirectory()
+    const dir = await root.getDirectoryHandle(folderName, { create: true })
+    let seq = 0
+    api.configureProjectSession({
+      nowId: () => {
+        seq += 1
+        return `dedup-id-${String(seq)}`
+      },
+      pickDirectory: () => Promise.resolve(dir),
+    })
+    const first = await api.openLibrary()
+    if (!first.ok) {
+      return { ok: false as const, reason: first.code }
+    }
+    await api.leaveEditorForHome()
+    const second = await api.openLibrary()
+    if (!second.ok) {
+      return { ok: false as const, reason: second.code }
+    }
+    await api.leaveEditorForHome()
+    const listed = await api.listRecents()
+    if (!listed.ok || !listed.value) {
+      return { ok: false as const, reason: listed.code ?? 'list' }
+    }
+    return { ok: true as const, count: listed.value.length }
+  }, libraryFolder)
+
+  expect(result.ok).toBe(true)
+  if (result.ok) {
+    expect(result.count).toBe(1)
+  }
+})
+
 test('home overflow scrolls only inside the named home scrollport', async ({
   page,
 }) => {

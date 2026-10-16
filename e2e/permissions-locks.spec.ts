@@ -63,7 +63,11 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
           Promise.resolve({ ok: true, value: undefined }),
         clearLibraryHandle: () =>
           Promise.resolve({ ok: true, value: undefined }),
-        listRecentLibraries: () => Promise.resolve([]),
+        listRecentLibraries: () => Promise.resolve({ ok: true, value: [] }),
+        peekLibraryHandle: () =>
+          Promise.resolve({ ok: false, code: 'not-found' }),
+        removeRecentLibrary: () =>
+          Promise.resolve({ ok: true, value: undefined }),
         setActiveIds: () => Promise.resolve({ ok: true, value: undefined }),
         getActiveIds: () => Promise.resolve({ libraryId: null, bookId: null }),
         acquireBookLock: () =>

@@ -1,5 +1,6 @@
 import type { StorageFailure, StorageResult } from '../types'
 import {
+  isReservedSessionKey,
   labelForHandle,
   parseActiveIds,
   removeRecent,
@@ -38,6 +39,9 @@ export function createMemorySessionState(): MemorySessionState {
     },
 
     rememberLibraryHandle(libraryId, handle, label) {
+      if (isReservedSessionKey(libraryId)) {
+        return Promise.resolve(failure('not-found'))
+      }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
@@ -50,6 +54,9 @@ export function createMemorySessionState(): MemorySessionState {
     },
 
     recallLibraryHandle(libraryId) {
+      if (isReservedSessionKey(libraryId)) {
+        return Promise.resolve(failure('not-found'))
+      }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
@@ -60,7 +67,21 @@ export function createMemorySessionState(): MemorySessionState {
       return Promise.resolve(success(handle))
     },
 
+    peekLibraryHandle(libraryId) {
+      if (isReservedSessionKey(libraryId)) {
+        return Promise.resolve(failure('not-found'))
+      }
+      const handle = handles.get(libraryId)
+      if (handle === undefined) {
+        return Promise.resolve(failure('not-found'))
+      }
+      return Promise.resolve(success(handle))
+    },
+
     clearLibraryHandle(libraryId) {
+      if (isReservedSessionKey(libraryId)) {
+        return Promise.resolve(failure('not-found'))
+      }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
@@ -72,8 +93,12 @@ export function createMemorySessionState(): MemorySessionState {
       return Promise.resolve(success(undefined))
     },
 
+    removeRecentLibrary(libraryId) {
+      return this.clearLibraryHandle(libraryId)
+    },
+
     listRecentLibraries() {
-      return Promise.resolve(recents.map((entry) => ({ ...entry })))
+      return Promise.resolve(success(recents.map((entry) => ({ ...entry }))))
     },
 
     setActiveIds(ids) {
@@ -96,13 +121,13 @@ export function createMemorySessionState(): MemorySessionState {
         return Promise.resolve(failure('locked-elsewhere'))
       }
       heldLocks.add(bookId)
-      const lock: BookLock = {
+      const bookLock: BookLock = {
         release() {
           heldLocks.delete(bookId)
           return Promise.resolve()
         },
       }
-      return Promise.resolve(success(lock))
+      return Promise.resolve(success(bookLock))
     },
   }
 }

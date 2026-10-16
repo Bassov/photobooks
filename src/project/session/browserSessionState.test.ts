@@ -23,6 +23,16 @@ function createMemoryIdb(): SessionIdb {
       map.delete(key)
       return Promise.resolve()
     },
+    runReadwrite(mutations) {
+      for (const mutation of mutations) {
+        if (mutation.op === 'set') {
+          map.set(mutation.key, mutation.value)
+        } else {
+          map.delete(mutation.key)
+        }
+      }
+      return Promise.resolve()
+    },
   }
 }
 

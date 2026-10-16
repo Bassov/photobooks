@@ -7,6 +7,7 @@ import {
   openBookFromHome,
   openLibrary,
   regrantLibrary,
+  removeRecentFromHome,
   selectRecentLibrary,
   startSessionEditor,
   subscribeProjectSession,
@@ -24,57 +25,97 @@ export function HomeScreen() {
     null,
   )
   const [books, setBooks] = useState<readonly { id: string }[]>([])
-  const [busy, setBusy] = useState(false)
-  const [listError, setListError] = useState<string | null>(null)
+  const [listFailed, setListFailed] = useState(false)
+
+  const busy = project.actionBusy || project.restorePending
+  const interactive = !busy
+
+  const refreshRecents = async (): Promise<void> => {
+    const listed = await listRecents()
+    if (!listed.ok) {
+      setListFailed(true)
+      setRecents([])
+      return
+    }
+    setListFailed(false)
+    setRecents(listed.value)
+    const active = listed.value.find((entry) => entry.id === project.libraryId)
+    if (active) {
+      setSelectedLibraryId(active.id)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    void listRecents().then((next) => {
-      if (!cancelled) {
-        setRecents(next)
-      }
-    })
-    return () => {
-      cancelled = true
+    if (project.restorePending) {
+      return
     }
-  }, [project.accessPhase, project.libraryId, project.recentsRevision])
-
-  const onSelectRecent = async (libraryId: string): Promise<void> => {
-    setBusy(true)
-    setListError(null)
-    setSelectedLibraryId(libraryId)
-    try {
-      const listed = await selectRecentLibrary(libraryId)
+    void (async () => {
+      const listed = await listRecents()
       if (!listed.ok) {
-        setBooks([])
-        if (listed.code !== 'permission-required') {
-          setListError(`Could not list books: ${listed.code}`)
-        }
+        setListFailed(true)
+        setRecents([])
         return
       }
-      setBooks(listed.value)
-    } finally {
-      setBusy(false)
+      setListFailed(false)
+      setRecents(listed.value)
+      const preferred =
+        listed.value.find((entry) => entry.id === project.preferredLibraryId) ??
+        listed.value[0]
+      if (preferred === undefined || selectedLibraryId !== null) {
+        return
+      }
+      setSelectedLibraryId(preferred.id)
+      const booksListed = await selectRecentLibrary(preferred.id)
+      if (!booksListed.ok) {
+        return
+      }
+      setBooks(booksListed.value)
+    })()
+    // Only re-run when restore settles or recents revision changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [
+    project.accessPhase,
+    project.libraryId,
+    project.recentsRevision,
+    project.restorePending,
+  ])
+
+  const onSelectRecent = async (libraryId: string): Promise<void> => {
+    if (!interactive) {
+      return
     }
+    setSelectedLibraryId(libraryId)
+    setBooks([])
+    const listed = await selectRecentLibrary(libraryId)
+    if (!listed.ok) {
+      setBooks([])
+      return
+    }
+    setBooks(listed.value)
   }
 
   const onOpenBook = async (
     libraryId: string,
     bookId: string,
   ): Promise<void> => {
-    setBusy(true)
-    setListError(null)
-    try {
-      const opened = await openBookFromHome(libraryId, bookId)
-      if (!opened.ok && opened.code !== 'permission-required') {
-        setListError(`Could not open book: ${opened.code}`)
-      }
-    } finally {
-      setBusy(false)
+    if (!interactive) {
+      return
     }
+    await openBookFromHome(libraryId, bookId)
   }
 
-  const empty = recents.length === 0
+  if (project.restorePending) {
+    return (
+      <div className="home-screen" data-testid="home-screen">
+        <p className="home-loading" data-testid="home-loading" role="status">
+          Loading…
+        </p>
+      </div>
+    )
+  }
+
+  const empty = !listFailed && recents.length === 0
+  const permissionRequired = project.accessPhase === 'permission-required'
 
   return (
     <div className="home-screen" data-testid="home-screen">
@@ -85,7 +126,7 @@ export function HomeScreen() {
             type="button"
             className="editor-action editor-action-secondary"
             data-testid="create-library"
-            disabled={busy}
+            disabled={!interactive}
             onClick={() => {
               void createLibrary()
             }}
@@ -96,7 +137,7 @@ export function HomeScreen() {
             type="button"
             className="editor-action editor-action-secondary"
             data-testid="open-library"
-            disabled={busy}
+            disabled={!interactive}
             onClick={() => {
               void openLibrary()
             }}
@@ -107,19 +148,19 @@ export function HomeScreen() {
             type="button"
             className="editor-action editor-action-secondary"
             data-testid="start-session"
-            disabled={busy}
+            disabled={!interactive}
             onClick={() => {
               startSessionEditor()
             }}
           >
             Start editing
           </button>
-          {project.accessPhase === 'permission-required' ? (
+          {permissionRequired ? (
             <button
               type="button"
               className="editor-action"
               data-testid="regrant-library"
-              disabled={busy}
+              disabled={!interactive}
               onClick={() => {
                 void regrantLibrary()
               }}
@@ -134,20 +175,45 @@ export function HomeScreen() {
         data-testid="home-scroll"
         data-scrollport="home"
       >
+        {listFailed ? (
+          <div className="home-error-panel" data-testid="home-idb-error">
+            <p className="home-error" role="alert">
+              Could not load recent libraries. Check that site storage is
+              available, then retry.
+            </p>
+            <button
+              type="button"
+              className="editor-action"
+              data-testid="home-retry"
+              disabled={!interactive}
+              onClick={() => {
+                void refreshRecents()
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {project.homeError ? (
+          <p className="home-error" role="status" data-testid="home-error">
+            {project.homeError}
+          </p>
+        ) : null}
         {empty ? (
           <p className="home-empty" data-testid="home-empty">
             No recent libraries yet. Create a new library or open an existing
             folder to get started.
           </p>
-        ) : (
+        ) : null}
+        {!listFailed && !empty ? (
           <div className="home-columns">
-            <section
-              className="home-panel"
-              aria-label="Recent libraries"
-              data-testid="home-recents"
-            >
+            <section className="home-panel" data-testid="home-recents">
               <h2 className="home-heading">Recent libraries</h2>
-              <ul className="home-list">
+              <ul
+                className="home-list"
+                role="listbox"
+                aria-label="Recent libraries"
+              >
                 {recents.map((recent) => (
                   <li key={recent.id}>
                     <button
@@ -158,35 +224,57 @@ export function HomeScreen() {
                           : 'home-list-item'
                       }
                       data-testid={`home-recent-${recent.id}`}
-                      disabled={busy}
+                      disabled={!interactive}
+                      aria-current={
+                        selectedLibraryId === recent.id ? 'true' : undefined
+                      }
+                      aria-selected={selectedLibraryId === recent.id}
                       onClick={() => {
                         void onSelectRecent(recent.id)
                       }}
                     >
                       {recent.label}
                     </button>
+                    <button
+                      type="button"
+                      className="home-remove"
+                      data-testid={`home-remove-${recent.id}`}
+                      disabled={!interactive}
+                      aria-label={`Remove ${recent.label}`}
+                      onClick={() => {
+                        void removeRecentFromHome(recent.id).then(() => {
+                          if (selectedLibraryId === recent.id) {
+                            setSelectedLibraryId(null)
+                            setBooks([])
+                          }
+                          void refreshRecents()
+                        })
+                      }}
+                    >
+                      Remove
+                    </button>
                   </li>
                 ))}
               </ul>
             </section>
-            <section
-              className="home-panel"
-              aria-label="Books"
-              data-testid="home-books"
-            >
+            <section className="home-panel" data-testid="home-books">
               <h2 className="home-heading">Books</h2>
-              {listError ? (
-                <p className="home-error" role="status">
-                  {listError}
-                </p>
-              ) : null}
               {selectedLibraryId === null ? (
                 <p className="home-hint">Select a library to see its books.</p>
-              ) : books.length === 0 &&
-                project.accessPhase !== 'permission-required' &&
-                !listError ? (
+              ) : null}
+              {permissionRequired && selectedLibraryId !== null ? (
+                <p className="home-hint" data-testid="home-permission-hint">
+                  This library needs folder access. Use Grant access to
+                  continue.
+                </p>
+              ) : null}
+              {!permissionRequired &&
+              selectedLibraryId !== null &&
+              books.length === 0 &&
+              !project.homeError ? (
                 <p className="home-hint">No books in this library yet.</p>
-              ) : (
+              ) : null}
+              {!permissionRequired && books.length > 0 ? (
                 <ul className="home-list">
                   {books.map((book) => (
                     <li key={book.id}>
@@ -194,7 +282,7 @@ export function HomeScreen() {
                         type="button"
                         className="home-list-item"
                         data-testid={`home-book-${book.id}`}
-                        disabled={busy}
+                        disabled={!interactive}
                         onClick={() => {
                           if (selectedLibraryId) {
                             void onOpenBook(selectedLibraryId, book.id)
@@ -206,10 +294,10 @@ export function HomeScreen() {
                     </li>
                   ))}
                 </ul>
-              )}
+              ) : null}
             </section>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )

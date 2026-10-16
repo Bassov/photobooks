@@ -18,6 +18,7 @@ import {
   createBookInLibrary,
   createLibrary,
   getProjectSessionSnapshot,
+  leaveEditorForHome,
   openLibrary,
   regrantLibrary,
   saveBookNow,
@@ -159,11 +160,22 @@ export function EditorShell() {
           <button
             type="button"
             className="editor-action editor-action-secondary"
+            data-testid="go-home"
+            onClick={() => {
+              void leaveEditorForHome()
+            }}
+            disabled={pickerBusy || project.actionBusy}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            className="editor-action editor-action-secondary"
             data-testid="create-library"
             onClick={() => {
               void createLibrary()
             }}
-            disabled={pickerBusy}
+            disabled={pickerBusy || project.actionBusy}
           >
             New library
           </button>
@@ -174,7 +186,7 @@ export function EditorShell() {
             onClick={() => {
               void openLibrary()
             }}
-            disabled={pickerBusy}
+            disabled={pickerBusy || project.actionBusy}
           >
             Open
           </button>
@@ -186,7 +198,7 @@ export function EditorShell() {
               onClick={() => {
                 void regrantLibrary()
               }}
-              disabled={pickerBusy}
+              disabled={pickerBusy || project.actionBusy}
             >
               Grant access
             </button>
@@ -206,7 +218,7 @@ export function EditorShell() {
               }
               void createBookInLibrary()
             }}
-            disabled={pickerBusy || !libraryReady}
+            disabled={pickerBusy || project.actionBusy || !libraryReady}
           >
             New book
           </button>

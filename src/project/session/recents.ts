@@ -26,12 +26,15 @@ export function labelForHandle(
   return libraryId === 'library' ? 'Library' : libraryId
 }
 
+const MAX_RECENT_LIBRARIES = 10
+
 export function upsertRecentFront(
   current: readonly RecentLibrary[],
   entry: RecentLibrary,
+  max = MAX_RECENT_LIBRARIES,
 ): RecentLibrary[] {
   const without = current.filter((item) => item.id !== entry.id)
-  return [entry, ...without]
+  return [entry, ...without].slice(0, max)
 }
 
 export function removeRecent(

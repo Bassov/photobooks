@@ -49,6 +49,23 @@ describe('session recents helpers', () => {
     ])
   })
 
+  it('caps recent libraries at the max length', () => {
+    let list: { id: string; label: string }[] = []
+    for (let i = 0; i < 12; i += 1) {
+      list = upsertRecentFront(
+        list,
+        {
+          id: `id-${String(i)}`,
+          label: `L${String(i)}`,
+        },
+        10,
+      )
+    }
+    expect(list).toHaveLength(10)
+    expect(list[0]?.id).toBe('id-11')
+    expect(list.some((entry) => entry.id === 'id-0')).toBe(false)
+  })
+
   it('removes a library from recents', () => {
     expect(
       removeRecent(

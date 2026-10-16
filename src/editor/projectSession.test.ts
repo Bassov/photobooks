@@ -25,6 +25,7 @@ import {
   getProjectSessionSnapshot,
   holdExternalBookLockForTests,
   isLibraryBacked,
+  leaveEditorForHome,
   listRecents,
   openBookFromHome,
   openLibrary,
@@ -949,13 +950,17 @@ describe('projectSession', () => {
       const blocked = await tryActivateLibraryBookForTests(first.value.id)
       expect(blocked).toEqual({ ok: false, code: 'locked-elsewhere' })
       expect(getProjectSessionSnapshot().accessPhase).toBe('locked-elsewhere')
-      expect(getEditorStatus()).toBe('This book is open in another tab')
+      expect(getEditorStatus()).toBe(
+        'This book is open in another tab. Close it there and try again.',
+      )
       expect(getProjectSessionSnapshot().bookId).toBeNull()
       expect(getBookStoreSnapshot().book.id).toBe('locked-placeholder')
       expect(getBookStoreSnapshot().book.gallery).toEqual([])
 
       saveBookNow()
-      expect(getEditorStatus()).toBe('This book is open in another tab')
+      expect(getEditorStatus()).toBe(
+        'This book is open in another tab. Close it there and try again.',
+      )
 
       configureProjectSession({ nowId: () => 'book-locked-2' })
       const second = await createBookInLibrary()
@@ -983,7 +988,9 @@ describe('projectSession', () => {
       expect(getProjectSessionSnapshot().accessPhase).toBe('locked-elsewhere')
       await tryActivateLibraryBookForTests(created.value.id)
       expect(getProjectSessionSnapshot().accessPhase).toBe('locked-elsewhere')
-      expect(getEditorStatus()).toBe('This book is open in another tab')
+      expect(getEditorStatus()).toBe(
+        'This book is open in another tab. Close it there and try again.',
+      )
     })
 
     it('releases the book lock so another holder can acquire it', async () => {
@@ -1088,7 +1095,10 @@ describe('projectSession', () => {
       }
 
       const recents = await listRecents()
-      expect(recents).toEqual([{ id: 'library', label: 'My Library' }])
+      expect(recents).toEqual({
+        ok: true,
+        value: [{ id: 'library', label: 'My Library' }],
+      })
 
       const listed = await selectRecentLibrary('library')
       expect(listed.ok).toBe(true)
@@ -1115,6 +1125,8 @@ describe('projectSession', () => {
         session: {
           ...denied,
           listRecentLibraries: session.listRecentLibraries.bind(session),
+          peekLibraryHandle: session.peekLibraryHandle.bind(session),
+          removeRecentLibrary: session.removeRecentLibrary.bind(session),
           recallLibraryHandle: () =>
             Promise.resolve({ ok: false, code: 'permission-required' }),
         },
@@ -1159,6 +1171,279 @@ describe('projectSession', () => {
       )
       expect(getProjectSessionSnapshot().surface).toBe('home')
       expect(getProjectSessionSnapshot().bookId).toBeNull()
+    })
+
+    it('leaveEditorForHome clears the in-tab book id and stays on home after reload gate', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const storageKey = (() => {
+        const map = new Map<string, string>()
+        return {
+          get length() {
+            return map.size
+          },
+          clear() {
+            map.clear()
+          },
+          getItem(key: string) {
+            return map.get(key) ?? null
+          },
+          key(index: number) {
+            return [...map.keys()][index] ?? null
+          },
+          removeItem(key: string) {
+            map.delete(key)
+          },
+          setItem(key: string, value: string) {
+            map.set(key, value)
+          },
+        }
+      })()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        storageKey,
+      })
+      await attachLibraryForTests({ storage, session })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      expect(storageKey.getItem('photobooks.activeBookId')).toBe(
+        created.value.id,
+      )
+
+      await leaveEditorForHome()
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+      expect(storageKey.getItem('photobooks.activeBookId')).toBeNull()
+
+      const restored = await tryRestore()
+      expect(restored).toEqual({ ok: true, value: null })
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+    })
+
+    it('reuses a recent library id when peeking the same handle without permission', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const handle = { name: 'SameFolder', id: 'same-folder' }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () =>
+          Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+        nowId: () => 'fresh-id',
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        libraryId: 'existing-lib',
+        handle,
+      })
+      session.setPermissionRequired(true)
+      const before = await session.listRecentLibraries()
+      expect(before.ok).toBe(true)
+      if (!before.ok) {
+        throw new Error('expected recents')
+      }
+      expect(before.value).toHaveLength(1)
+
+      session.setPermissionRequired(false)
+      const opened = await openLibrary()
+      expect(opened.ok).toBe(true)
+      const after = await session.listRecentLibraries()
+      expect(after.ok).toBe(true)
+      if (!after.ok) {
+        throw new Error('expected recents')
+      }
+      expect(after.value).toHaveLength(1)
+      expect(after.value[0]?.id).toBe('existing-lib')
+    })
+
+    it('failed restore clears stale session book id', async () => {
+      const session = createMemorySessionState()
+      const storageKey = (() => {
+        const map = new Map<string, string>([
+          ['photobooks.libraryId', 'lib-missing'],
+          ['photobooks.activeBookId', 'book-missing'],
+        ])
+        return {
+          get length() {
+            return map.size
+          },
+          clear() {
+            map.clear()
+          },
+          getItem(key: string) {
+            return map.get(key) ?? null
+          },
+          key(index: number) {
+            return [...map.keys()][index] ?? null
+          },
+          removeItem(key: string) {
+            map.delete(key)
+          },
+          setItem(key: string, value: string) {
+            map.set(key, value)
+          },
+        }
+      })()
+      configureProjectSession({ session, storageKey })
+      const restored = await tryRestore()
+      expect(restored.ok).toBe(true)
+      expect(storageKey.getItem('photobooks.activeBookId')).toBeNull()
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+      expect(getProjectSessionSnapshot().restorePending).toBe(false)
+    })
+
+    it('regrant Dont Allow shows a home error and does not bind', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const handle = {
+        name: 'DeniedFolder',
+        kind: 'directory' as const,
+        requestPermission: () => Promise.resolve('denied' as PermissionState),
+        queryPermission: () => Promise.resolve('prompt' as PermissionState),
+      }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () => Promise.resolve(null),
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        libraryId: 'denied-lib',
+        handle,
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      await leaveEditorForHome()
+      session.setPermissionRequired(true)
+      await openBookFromHome('denied-lib', created.value.id)
+      const denied = await regrantLibrary()
+      expect(denied).toEqual({ ok: false, code: 'permission-required' })
+      expect(getProjectSessionSnapshot().homeError).toMatch(/denied/i)
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+      expect(getProjectSessionSnapshot().libraryOpen).toBe(false)
+    })
+
+    it('regrant picker mismatch does not replace the recent handle', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const stored = { name: 'StoredFolder', id: 'stored' }
+      const wrong = { name: 'WrongFolder', id: 'wrong' }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () =>
+          Promise.resolve(wrong as unknown as FileSystemDirectoryHandle),
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        libraryId: 'mismatch-lib',
+        handle: stored,
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      await leaveEditorForHome()
+      session.setPermissionRequired(true)
+      await openBookFromHome('mismatch-lib', created.value.id)
+      // Force picker fallback: no requestPermission on stored handle.
+      const peeked = await session.peekLibraryHandle('mismatch-lib')
+      expect(peeked.ok).toBe(true)
+      const granted = await regrantLibrary()
+      expect(granted.ok).toBe(false)
+      expect(getProjectSessionSnapshot().homeError).toMatch(/does not match/i)
+      const still = await session.peekLibraryHandle('mismatch-lib')
+      expect(still.ok).toBe(true)
+      if (still.ok) {
+        expect(still.value).toBe(stored)
+      }
+    })
+
+    it('regrant from home opens the pending book after requestPermission', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const handle = {
+        name: 'GrantFolder',
+        kind: 'directory' as const,
+        requestPermission: () => Promise.resolve('granted' as PermissionState),
+        queryPermission: () => Promise.resolve('granted' as PermissionState),
+      }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () => Promise.resolve(null),
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        libraryId: 'grant-lib',
+        handle,
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      await leaveEditorForHome()
+      session.setPermissionRequired(true)
+      const opened = await openBookFromHome('grant-lib', created.value.id)
+      expect(opened).toEqual({ ok: false, code: 'permission-required' })
+      session.setPermissionRequired(false)
+      const granted = await regrantLibrary()
+      expect(granted).toEqual({ ok: true, value: undefined })
+      expect(getProjectSessionSnapshot().surface).toBe('editor')
+      expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
+    })
+
+    it('createLibrary while a book is open starts from a clean empty book', async () => {
+      const firstStorage = createMemoryLibraryStorage()
+      const secondStorage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => firstStorage,
+      })
+      await attachLibraryForTests({
+        storage: firstStorage,
+        session,
+        handle: { name: 'first' },
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      const firstBookId = created.value.id
+      expect(getProjectSessionSnapshot().bookId).toBe(firstBookId)
+
+      configureProjectSession({
+        session,
+        createStorage: () => secondStorage,
+        pickDirectory: () =>
+          Promise.resolve({
+            name: 'second-folder',
+          } as unknown as FileSystemDirectoryHandle),
+      })
+      const createdLib = await createLibrary()
+      expect(createdLib.ok).toBe(true)
+      expect(getProjectSessionSnapshot().libraryOpen).toBe(true)
+      expect(getProjectSessionSnapshot().bookId).not.toBe(firstBookId)
+      expect(getBookStoreSnapshot().book.gallery).toEqual([])
+      const listed = await secondStorage.listBooks()
+      expect(listed.ok).toBe(true)
+      if (listed.ok) {
+        expect(listed.value.some((book) => book.id === firstBookId)).toBe(false)
+      }
     })
   })
 })

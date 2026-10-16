@@ -138,3 +138,48 @@
   color: #8b2e2e;
   margin-bottom: 0.75rem;
 }
+
+.home-loading {
+  margin: 2rem auto;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+}
+
+.home-error-panel {
+  max-width: 28rem;
+  margin-bottom: 1rem;
+}
+
+.home-list > li {
+  display: flex;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.home-list > li .home-list-item {
+  flex: 1;
+}
+
+.home-list-item-selected:focus-visible,
+.home-list-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home-remove {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink) 65%, transparent);
+  cursor: pointer;
+}
+
+.home-remove:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

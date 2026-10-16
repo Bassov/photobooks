@@ -26,8 +26,13 @@ export interface SessionState {
   recallLibraryHandle: (
     libraryId: string,
   ) => Promise<StorageResult<SessionDirectoryHandle>>
+  /** Opaque stored handle without requiring readwrite permission. */
+  peekLibraryHandle: (
+    libraryId: string,
+  ) => Promise<StorageResult<SessionDirectoryHandle>>
   clearLibraryHandle: (libraryId: string) => Promise<StorageResult<void>>
-  listRecentLibraries: () => Promise<readonly RecentLibrary[]>
+  removeRecentLibrary: (libraryId: string) => Promise<StorageResult<void>>
+  listRecentLibraries: () => Promise<StorageResult<readonly RecentLibrary[]>>
   setActiveIds: (ids: SessionActiveIds) => Promise<StorageResult<void>>
   getActiveIds: () => Promise<SessionActiveIds>
   acquireBookLock: (bookId: string) => Promise<StorageResult<BookLock>>

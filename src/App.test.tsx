@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { getBookStoreSnapshot, resetBookStore } from './editor/bookStore'
 import { resetProjectSessionForTests } from './editor/projectSession'
@@ -13,7 +13,22 @@ import { resetThumbCache } from './editor/thumbCache'
 import { resetAssetPool } from './photo/assetPool'
 import { mockWorkerSuccess } from './photo/photo.test-helpers'
 
+async function enterEditorFromHome(): Promise<void> {
+  await waitFor(() => {
+    expect(screen.getByTestId('start-session')).toBeTruthy()
+  })
+  fireEvent.click(screen.getByTestId('start-session'))
+  expect(screen.getByTestId('editor-shell')).toBeTruthy()
+}
+
 describe('App editor shell', () => {
+  beforeEach(() => {
+    resetBookStore()
+    resetProjectSessionForTests()
+    resetThumbCache()
+    resetAssetPool()
+  })
+
   afterEach(() => {
     cleanup()
     resetBookStore()
@@ -24,11 +39,10 @@ describe('App editor shell', () => {
     vi.restoreAllMocks()
   })
 
-  it('shows home then editor shell with workspace and filmstrip', () => {
+  it('shows home then editor shell with workspace and filmstrip', async () => {
     render(<App />)
     expect(screen.getByTestId('home-screen')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('start-session'))
-    expect(screen.getByTestId('editor-shell')).toBeTruthy()
+    await enterEditorFromHome()
     expect(screen.getByTestId('editor-workspace')).toBeTruthy()
     expect(screen.getByTestId('filmstrip')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add photos' })).toBeTruthy()
@@ -55,7 +69,7 @@ describe('App editor shell', () => {
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
     render(<App />)
-    fireEvent.click(screen.getByTestId('start-session'))
+    await enterEditorFromHome()
     const input = screen.getByTestId('photo-file-input')
     const file = new File([new Uint8Array([1, 2, 3])], 'a.jpg', {
       type: 'image/jpeg',
@@ -72,7 +86,7 @@ describe('App editor shell', () => {
 
   it('shows per-file error for TIFF without aborting', async () => {
     render(<App />)
-    fireEvent.click(screen.getByTestId('start-session'))
+    await enterEditorFromHome()
     const input = screen.getByTestId('photo-file-input')
     const bad = new File([new Uint8Array([1])], 'scan.tiff', {
       type: 'image/tiff',

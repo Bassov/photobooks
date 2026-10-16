@@ -60,6 +60,23 @@ async function readRecents(idb: SessionIdb): Promise<RecentLibrary[]> {
   return parseRecents(stored.value)
 }
 
+async function readStoredHandle(
+  idb: SessionIdb,
+  libraryId: string,
+): Promise<StorageResult<SessionDirectoryHandle>> {
+  if (isReservedSessionKey(libraryId)) {
+    return failure('not-found')
+  }
+  const stored = await idb.get(libraryId)
+  if (!stored.present) {
+    return failure('not-found')
+  }
+  if (!isFileSystemHandle(stored.value)) {
+    return failure('not-found')
+  }
+  return success(stored.value)
+}
+
 export function createBrowserSessionState(
   options: CreateBrowserSessionStateOptions = {},
 ): SessionState {
@@ -71,68 +88,99 @@ export function createBrowserSessionState(
       if (isReservedSessionKey(libraryId)) {
         return failure('not-found')
       }
-      await idb.set(libraryId, handle)
-      const recents = await readRecents(idb)
-      await idb.set(
-        RECENTS_KEY,
-        upsertRecentFront(recents, {
+      try {
+        const recents = await readRecents(idb)
+        const nextRecents = upsertRecentFront(recents, {
           id: libraryId,
           label: labelForHandle(libraryId, handle, label),
-        }),
-      )
-      return success(undefined)
+        })
+        await idb.runReadwrite([
+          { op: 'set', key: libraryId, value: handle },
+          { op: 'set', key: RECENTS_KEY, value: nextRecents },
+        ])
+        return success(undefined)
+      } catch {
+        return failure('not-found')
+      }
     },
 
     async recallLibraryHandle(libraryId) {
-      if (isReservedSessionKey(libraryId)) {
-        return failure('not-found')
+      const peeked = await readStoredHandle(idb, libraryId)
+      if (!peeked.ok) {
+        return peeked
       }
-      const stored = await idb.get(libraryId)
-      if (!stored.present) {
-        return failure('not-found')
-      }
-      if (!isFileSystemHandle(stored.value)) {
-        return failure('not-found')
-      }
-      if (!(await hasReadwritePermission(stored.value))) {
+      if (
+        !(await hasReadwritePermission(
+          peeked.value as FileSystemDirectoryHandle,
+        ))
+      ) {
         return failure('permission-required')
       }
-      const handle: SessionDirectoryHandle = stored.value
-      return success(handle)
+      return peeked
+    },
+
+    async peekLibraryHandle(libraryId) {
+      return readStoredHandle(idb, libraryId)
     },
 
     async clearLibraryHandle(libraryId) {
       if (isReservedSessionKey(libraryId)) {
         return failure('not-found')
       }
-      const stored = await idb.get(libraryId)
-      if (!stored.present) {
+      try {
+        const stored = await idb.get(libraryId)
+        if (!stored.present) {
+          return failure('not-found')
+        }
+        const recents = await readRecents(idb)
+        await idb.runReadwrite([
+          { op: 'del', key: libraryId },
+          {
+            op: 'set',
+            key: RECENTS_KEY,
+            value: removeRecent(recents, libraryId),
+          },
+        ])
+        return success(undefined)
+      } catch {
         return failure('not-found')
       }
-      await idb.del(libraryId)
-      const recents = await readRecents(idb)
-      await idb.set(RECENTS_KEY, removeRecent(recents, libraryId))
-      return success(undefined)
+    },
+
+    async removeRecentLibrary(libraryId) {
+      return this.clearLibraryHandle(libraryId)
     },
 
     async listRecentLibraries() {
-      return readRecents(idb)
+      try {
+        return success(await readRecents(idb))
+      } catch {
+        return failure('not-found')
+      }
     },
 
     async setActiveIds(ids) {
-      await idb.set(ACTIVE_KEY, {
-        libraryId: ids.libraryId,
-        bookId: ids.bookId,
-      })
-      return success(undefined)
+      try {
+        await idb.set(ACTIVE_KEY, {
+          libraryId: ids.libraryId,
+          bookId: ids.bookId,
+        })
+        return success(undefined)
+      } catch {
+        return failure('not-found')
+      }
     },
 
     async getActiveIds() {
-      const stored = await idb.get(ACTIVE_KEY)
-      if (!stored.present) {
+      try {
+        const stored = await idb.get(ACTIVE_KEY)
+        if (!stored.present) {
+          return { libraryId: null, bookId: null }
+        }
+        return parseActiveIds(stored.value)
+      } catch {
         return { libraryId: null, bookId: null }
       }
-      return parseActiveIds(stored.value)
     },
 
     async acquireBookLock(bookId) {
