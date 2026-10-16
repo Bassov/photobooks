@@ -178,7 +178,29 @@ describe('projectSession', () => {
     const result = await createBookInLibrary()
     expect(result).toEqual({ ok: false, code: 'not-found' })
     expect(getEditorStatus()).toContain('not-found')
+    expect(getProjectSessionSnapshot().status).toEqual({
+      kind: 'error',
+      code: 'not-found',
+      action: 'create book',
+    })
     expect(isLibraryBacked()).toBe(false)
+  })
+
+  it('reports not-found when adopting or saving without a library', async () => {
+    const adopted = await adoptCurrentBookInLibrary()
+    expect(adopted).toEqual({ ok: false, code: 'not-found' })
+    expect(getProjectSessionSnapshot().status).toEqual({
+      kind: 'error',
+      code: 'not-found',
+      action: 'adopt book',
+    })
+
+    saveBookNow()
+    expect(getProjectSessionSnapshot().status).toEqual({
+      kind: 'error',
+      code: 'not-found',
+      action: 'save',
+    })
   })
 
   it('createLibrary and openLibrary bind via the directory picker', async () => {
