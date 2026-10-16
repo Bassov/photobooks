@@ -24,6 +24,8 @@
     "!src/project/session/idb.ts",
     "!src/project/session/locks.ts",
     "!src/editor/EditorShell.tsx",
+    "!src/editor/HomeScreen.tsx",
+    "!src/App.tsx",
     "!src/editor/previewAspect.ts",
     "!src/editor/upgradeSessionAssets.ts",
     "!src/editor/usePasteboardCamera.ts",

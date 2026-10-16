@@ -161,8 +161,9 @@ Slicing rules when adding or splitting items:
   - [x] Permission re-grant flow; Web Locks single writer with a clear "open in another tab" message
   - **Perf:** chrome status/banner updates only; existing save/autosave gesture gates stay green.
   - **Browser check:** after a browser restart, access is re-granted in one step; a second tab is blocked from editing.
-- [ ] [feature] `recents-home` — returning user
-  - [ ] Home screen with books in the library and recent libraries (handles in IndexedDB)
+- [x] [feature] `recents-home` — returning user
+  - [x] Home screen with books in the library and recent libraries (handles in IndexedDB)
+  - **Perf:** home is static list chrome; existing save/gesture gates stay green.
   - **Browser check:** reopen the app; the home screen lists recent libraries and their books; one click opens a book.
 - [ ] [feature] `missing-assets-relink` — moved photo folders
   - [ ] Missing-assets view; relink by rescanning a folder and matching hashes (scan and hashing in the worker)

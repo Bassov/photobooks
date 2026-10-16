@@ -4,6 +4,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -12,7 +13,7 @@ test.beforeAll(() => {
 test('empty gallery template change leaves status empty and shows no Placed badge', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
 
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
   await expect(page.getByTestId('editor-status')).toHaveText('')
@@ -31,7 +32,7 @@ test.describe('template change with photos', () => {
     page,
   }) => {
     test.setTimeout(120_000)
-    await page.goto('/')
+    await openSessionEditor(page)
     await page
       .getByTestId('photo-file-input')
       .setInputFiles([
@@ -83,7 +84,7 @@ test.describe('template change with photos', () => {
     page,
   }) => {
     test.setTimeout(120_000)
-    await page.goto('/')
+    await openSessionEditor(page)
     await page
       .getByTestId('photo-file-input')
       .setInputFiles(photoFixturePaths.samplePng)

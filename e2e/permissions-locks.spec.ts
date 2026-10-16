@@ -6,9 +6,9 @@ test.afterEach(async ({ page }) => {
   await clearProjectSession(page)
 })
 
-test('empty shell has no re-grant control or lock banner', async ({ page }) => {
+test('empty home has no re-grant control or lock banner', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByTestId('editor-shell')).toBeVisible({
+  await expect(page.getByTestId('home-screen')).toBeVisible({
     timeout: 15_000,
   })
   await expect(page.getByTestId('regrant-library')).toHaveCount(0)
@@ -19,6 +19,7 @@ test('empty shell has no re-grant control or lock banner', async ({ page }) => {
 test('Grant access regrant restores the persisted book', async ({ page }) => {
   test.setTimeout(60_000)
   await page.goto('/')
+  await page.getByTestId('start-session').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
   })
@@ -62,6 +63,9 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
           Promise.resolve({ ok: true, value: undefined }),
         clearLibraryHandle: () =>
           Promise.resolve({ ok: true, value: undefined }),
+        listRecentLibraries: () => Promise.resolve([]),
+        setActiveIds: () => Promise.resolve({ ok: true, value: undefined }),
+        getActiveIds: () => Promise.resolve({ libraryId: null, bookId: null }),
         acquireBookLock: () =>
           Promise.resolve({
             ok: true,
@@ -113,6 +117,7 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
 test('locked-elsewhere shows banner and blocks Save', async ({ page }) => {
   test.setTimeout(60_000)
   await page.goto('/')
+  await page.getByTestId('start-session').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
   })

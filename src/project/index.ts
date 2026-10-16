@@ -21,6 +21,8 @@ export {
 } from './fsa/handles'
 export type {
   BookLock,
+  RecentLibrary,
+  SessionActiveIds,
   SessionDirectoryHandle,
   SessionState,
 } from './session/types'

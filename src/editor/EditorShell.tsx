@@ -13,19 +13,15 @@ import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
-import { getBookStoreSnapshot, loadPainterFixture } from './bookStore'
-import { isPainterFixtureQuery } from './painterFixtureQuery'
+import { getBookStoreSnapshot } from './bookStore'
 import {
-  attachOpfsTestLibrary,
   createBookInLibrary,
   createLibrary,
-  exposeProjectSessionTestApi,
   getProjectSessionSnapshot,
   openLibrary,
   regrantLibrary,
   saveBookNow,
   subscribeProjectSession,
-  tryRestore,
 } from './projectSession'
 import './EditorShell.css'
 
@@ -39,23 +35,7 @@ function editorHasContent(): boolean {
   )
 }
 
-function isTestLibraryQuery(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
-  return new URLSearchParams(window.location.search).has('testLibrary')
-}
-
-async function ensureTestLibrary(): Promise<void> {
-  const restored = await tryRestore()
-  if (restored.ok && restored.value !== null) {
-    return
-  }
-  await attachOpfsTestLibrary()
-}
-
 export function EditorShell() {
-  const painterFixture = isPainterFixtureQuery()
   const editorStatus = useSyncExternalStore(
     subscribeEditorStatus,
     getEditorStatus,
@@ -68,20 +48,6 @@ export function EditorShell() {
   )
   useEffect(() => installEditorKeys(), [])
   useEffect(() => installDocumentDragGesture(), [])
-  useEffect(() => {
-    exposeProjectSessionTestApi()
-  }, [])
-  useEffect(() => {
-    if (painterFixture) {
-      loadPainterFixture()
-      return
-    }
-    if (isTestLibraryQuery()) {
-      void ensureTestLibrary()
-      return
-    }
-    void tryRestore()
-  }, [painterFixture])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {

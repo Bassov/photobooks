@@ -10,11 +10,12 @@ import {
   enablePerfScenario,
 } from './perf/perfFixture'
 import { PERF_BUDGETS } from './perf/budgets'
+import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test('normal visit paints three empty spreads on the pasteboard', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
 
   await expect(page.getByText(/Pasteboard workspace arrives/)).toHaveCount(0)
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
@@ -42,7 +43,7 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
 test('choosing 4-grid paints four placeholders on the active spread only', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   const before = await readSpreadSlots(page)
   const activeIndex = before.findIndex((slot) => slot.active)
   expect(activeIndex).toBe(0)
@@ -67,7 +68,7 @@ test('choosing 4-grid paints four placeholders on the active spread only', async
 test('add spread keeps the new spread inside the pasteboard', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByRole('button', { name: 'Add spread' }).click()
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
@@ -93,7 +94,7 @@ test('add spread keeps the new spread inside the pasteboard', async ({
 test('add spread keeps the fitted zoom and reveals the new spread', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByRole('button', { name: 'Fit spread' }).click()
   const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
   const fitted = await readSpreadView(page, 0)
@@ -250,7 +251,7 @@ test('painter fixture scrolls inside the pasteboard', async ({ page }) => {
 test('camera controls set physical size, fit width, and fit spread', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await expect(page.getByTestId('zoom-indicator')).toHaveText('13%')
 
   await page.getByRole('button', { name: '100%' }).click()
@@ -292,7 +293,7 @@ test('camera controls set physical size, fit width, and fit spread', async ({
 test('wheel, keys, pinch, and space-drag stay inside the pasteboard', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByRole('button', { name: '100%' }).click()
   const beforeKey = await readCenterAnchor(page)
   await page.keyboard.press('+')

@@ -1,5 +1,17 @@
 import type { StorageFailure, StorageResult } from '../types'
-import type { BookLock, SessionDirectoryHandle, SessionState } from './types'
+import {
+  labelForHandle,
+  parseActiveIds,
+  removeRecent,
+  upsertRecentFront,
+} from './recents'
+import type {
+  BookLock,
+  RecentLibrary,
+  SessionActiveIds,
+  SessionDirectoryHandle,
+  SessionState,
+} from './types'
 
 export type MemorySessionState = SessionState & {
   setPermissionRequired: (required: boolean) => void
@@ -15,6 +27,8 @@ function success<T>(value: T): StorageResult<T> {
 
 export function createMemorySessionState(): MemorySessionState {
   const handles = new Map<string, SessionDirectoryHandle>()
+  let recents: RecentLibrary[] = []
+  let activeIds: SessionActiveIds = { libraryId: null, bookId: null }
   const heldLocks = new Set<string>()
   let permissionRequired = false
 
@@ -23,11 +37,15 @@ export function createMemorySessionState(): MemorySessionState {
       permissionRequired = required
     },
 
-    rememberLibraryHandle(libraryId, handle) {
+    rememberLibraryHandle(libraryId, handle, label) {
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
       handles.set(libraryId, handle)
+      recents = upsertRecentFront(recents, {
+        id: libraryId,
+        label: labelForHandle(libraryId, handle, label),
+      })
       return Promise.resolve(success(undefined))
     },
 
@@ -50,7 +68,24 @@ export function createMemorySessionState(): MemorySessionState {
         return Promise.resolve(failure('not-found'))
       }
       handles.delete(libraryId)
+      recents = removeRecent(recents, libraryId)
       return Promise.resolve(success(undefined))
+    },
+
+    listRecentLibraries() {
+      return Promise.resolve(recents.map((entry) => ({ ...entry })))
+    },
+
+    setActiveIds(ids) {
+      activeIds = {
+        libraryId: ids.libraryId,
+        bookId: ids.bookId,
+      }
+      return Promise.resolve(success(undefined))
+    },
+
+    getActiveIds() {
+      return Promise.resolve(parseActiveIds(activeIds))
     },
 
     acquireBookLock(bookId) {

@@ -17,13 +17,14 @@ import {
   collectFrameStatsArtifact,
   enablePerfScenario,
 } from './perf/perfFixture'
+import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
 })
 
 test('empty filmstrip message spans the scrollport', async ({ page }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   const empty = page.getByTestId('filmstrip-empty')
   await expect(empty).toBeVisible()
   await expect(empty).toHaveText('Add a folder or photos to build the gallery.')
@@ -42,7 +43,7 @@ test('non-ASCII file name is the filmstrip thumbnail name', async ({
   page,
 }) => {
   const fileName = 'фото отпуск 01.jpg'
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByTestId('photo-file-input').setInputFiles({
     name: fileName,
     mimeType: 'image/png',
@@ -58,7 +59,7 @@ test('non-ASCII file name is the filmstrip thumbnail name', async ({
 })
 
 test('imports PNG into the filmstrip via input fallback', async ({ page }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page
     .getByTestId('photo-file-input')
     .setInputFiles(photoFixturePaths.samplePng)
@@ -75,7 +76,7 @@ test('imports PNG into the filmstrip via input fallback', async ({ page }) => {
 test('portrait and landscape cards differ; thumbs use contain', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page
     .getByTestId('photo-file-input')
     .setInputFiles([
@@ -122,7 +123,7 @@ test('portrait gallery fills the scrollport while scrolling', async ({
     { length: 36 },
     () => photoFixturePaths.sampleOrient6,
   )
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByTestId('photo-file-input').setInputFiles(files)
 
   await expect
@@ -179,7 +180,7 @@ test('portrait gallery fills the scrollport while scrolling', async ({
 test('mixed aspect cards pack with uniform gaps from each card end', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   // Two landscapes then three portraits — fixed max-width stride leaves huge gaps
   // between portraits (see aspect filmstrip packing bug).
   await page
@@ -235,7 +236,7 @@ test('mixed aspect cards pack with uniform gaps from each card end', async ({
 })
 
 test('EXIF orientation 6 shows a filmstrip thumb', async ({ page }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page
     .getByTestId('photo-file-input')
     .setInputFiles(photoFixturePaths.sampleOrient6)
@@ -251,7 +252,7 @@ test('EXIF orientation 6 shows a filmstrip thumb', async ({ page }) => {
 test('unsupported TIFF shows import error without gallery entry', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByTestId('photo-file-input').setInputFiles({
     name: 'scan.tiff',
     mimeType: 'image/tiff',
@@ -264,7 +265,7 @@ test('unsupported TIFF shows import error without gallery entry', async ({
 })
 
 test('second import appends to the gallery', async ({ page }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await page
     .getByTestId('photo-file-input')
     .setInputFiles(photoFixturePaths.samplePng)
@@ -281,7 +282,7 @@ test('second import appends to the gallery', async ({ page }) => {
 })
 
 test('SPA is cross-origin isolated under preview headers', async ({ page }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await assertCrossOriginIsolated(page)
 })
 
@@ -309,7 +310,7 @@ test('bulk import fills every revealed placeholder even while scrolling', async 
   const count = 24
   const files = writeBulkImportFixtures(count)
 
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByTestId('photo-file-input').setInputFiles(files)
 
   await expect(page.getByTestId('import-progress')).toBeVisible({
@@ -359,7 +360,7 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
   test.setTimeout(120_000)
   const files = writeBulkImportFixtures(80)
 
-  await page.goto('/')
+  await openSessionEditor(page)
   await page.getByTestId('photo-file-input').setInputFiles(files)
 
   await expect

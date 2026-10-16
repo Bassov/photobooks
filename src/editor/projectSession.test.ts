@@ -25,12 +25,16 @@ import {
   getProjectSessionSnapshot,
   holdExternalBookLockForTests,
   isLibraryBacked,
+  listRecents,
+  openBookFromHome,
   openLibrary,
   regrantLibrary,
   regrantLibraryWithHandleForTests,
   resetProjectSessionForTests,
   saveBookNow,
+  selectRecentLibrary,
   setAccessPhaseForTests,
+  startSessionEditor,
   tryActivateLibraryBookForTests,
   tryRestore,
 } from './projectSession'
@@ -439,9 +443,7 @@ describe('projectSession', () => {
     const denied = createMemorySessionState()
     configureProjectSession({
       session: {
-        rememberLibraryHandle: denied.rememberLibraryHandle.bind(denied),
-        clearLibraryHandle: denied.clearLibraryHandle.bind(denied),
-        acquireBookLock: denied.acquireBookLock.bind(denied),
+        ...denied,
         recallLibraryHandle: () =>
           Promise.resolve({ ok: false, code: 'permission-required' }),
       },
@@ -860,9 +862,7 @@ describe('projectSession', () => {
 
       configureProjectSession({
         session: {
-          rememberLibraryHandle: session.rememberLibraryHandle.bind(session),
-          clearLibraryHandle: session.clearLibraryHandle.bind(session),
-          acquireBookLock: session.acquireBookLock.bind(session),
+          ...session,
           recallLibraryHandle: () =>
             Promise.resolve({ ok: false, code: 'permission-required' }),
         },
@@ -1033,9 +1033,7 @@ describe('projectSession', () => {
       })
       configureProjectSession({
         session: {
-          rememberLibraryHandle: session.rememberLibraryHandle.bind(session),
-          clearLibraryHandle: session.clearLibraryHandle.bind(session),
-          acquireBookLock: session.acquireBookLock.bind(session),
+          ...session,
           recallLibraryHandle: () =>
             Promise.resolve({ ok: false, code: 'permission-required' }),
         },
@@ -1054,6 +1052,113 @@ describe('projectSession', () => {
       })
       expect(granted.ok).toBe(true)
       expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
+    })
+  })
+
+  describe('recents home', () => {
+    it('stays on home when tryRestore has no active book id', async () => {
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+      const restored = await tryRestore()
+      expect(restored).toEqual({ ok: true, value: null })
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+      expect(getProjectSessionSnapshot().libraryOpen).toBe(false)
+    })
+
+    it('startSessionEditor enters the editor surface', () => {
+      startSessionEditor()
+      expect(getProjectSessionSnapshot().surface).toBe('editor')
+    })
+
+    it('lists recents after attach and opens a book from home', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        handle: { name: 'My Library' },
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+
+      const recents = await listRecents()
+      expect(recents).toEqual([{ id: 'library', label: 'My Library' }])
+
+      const listed = await selectRecentLibrary('library')
+      expect(listed.ok).toBe(true)
+      if (!listed.ok) {
+        throw new Error('expected list')
+      }
+      expect(listed.value.some((book) => book.id === created.value.id)).toBe(
+        true,
+      )
+
+      const opened = await openBookFromHome('library', created.value.id)
+      expect(opened.ok).toBe(true)
+      expect(getProjectSessionSnapshot().surface).toBe('editor')
+      expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
+    })
+
+    it('selectRecentLibrary sets permission-required without empty books', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      await attachLibraryForTests({ storage, session })
+      const denied = createMemorySessionState()
+      denied.setPermissionRequired(true)
+      configureProjectSession({
+        session: {
+          ...denied,
+          listRecentLibraries: session.listRecentLibraries.bind(session),
+          recallLibraryHandle: () =>
+            Promise.resolve({ ok: false, code: 'permission-required' }),
+        },
+        createStorage: () => storage,
+      })
+
+      const listed = await selectRecentLibrary('library')
+      expect(listed).toEqual({ ok: false, code: 'permission-required' })
+      expect(getProjectSessionSnapshot().accessPhase).toBe(
+        'permission-required',
+      )
+    })
+
+    it('openBookFromHome sets permission-required without entering the editor', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+      })
+      await attachLibraryForTests({ storage, session })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      resetProjectSessionForTests()
+      configureProjectSession({
+        session: {
+          ...session,
+          recallLibraryHandle: () =>
+            Promise.resolve({ ok: false, code: 'permission-required' }),
+        },
+        createStorage: () => storage,
+      })
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+
+      const opened = await openBookFromHome('library', created.value.id)
+      expect(opened).toEqual({ ok: false, code: 'permission-required' })
+      expect(getProjectSessionSnapshot().accessPhase).toBe(
+        'permission-required',
+      )
+      expect(getProjectSessionSnapshot().surface).toBe('home')
+      expect(getProjectSessionSnapshot().bookId).toBeNull()
     })
   })
 })

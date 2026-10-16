@@ -1,6 +1,10 @@
 const DB_NAME = 'photobooks-session'
 const STORE_NAME = 'library-handles'
-const DB_VERSION = 1
+const DB_VERSION = 2
+
+export const RECENTS_KEY = '__recents'
+export const ACTIVE_KEY = '__active'
+const LEGACY_LIBRARY_ID = 'library'
 
 export type SessionIdbGetResult =
   { present: true; value: unknown } | { present: false }
@@ -19,8 +23,26 @@ function openDb(): Promise<IDBDatabase> {
     }
     request.onupgradeneeded = () => {
       const db = request.result
+      const tx = request.transaction
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME)
+      }
+      if (!tx) {
+        return
+      }
+      const store = tx.objectStore(STORE_NAME)
+      const legacy = store.get(LEGACY_LIBRARY_ID)
+      legacy.onsuccess = () => {
+        if (legacy.result === undefined) {
+          return
+        }
+        const recentsGet = store.get(RECENTS_KEY)
+        recentsGet.onsuccess = () => {
+          if (recentsGet.result !== undefined) {
+            return
+          }
+          store.put([{ id: LEGACY_LIBRARY_ID, label: 'Library' }], RECENTS_KEY)
+        }
       }
     }
     request.onsuccess = () => {

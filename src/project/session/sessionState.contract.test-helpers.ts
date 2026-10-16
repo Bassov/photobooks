@@ -91,5 +91,58 @@ export function runSessionStateContract(
 
       expect(recalled).toEqual({ ok: false, code: 'permission-required' })
     })
+
+    it('lists empty recents for a fresh session', async () => {
+      const { session } = createHarness()
+
+      await expect(session.listRecentLibraries()).resolves.toEqual([])
+    })
+
+    it('orders recents with the latest remember first', async () => {
+      const { session, createHandle } = createHarness()
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+      await session.rememberLibraryHandle('b', createHandle(), 'Beta')
+
+      await expect(session.listRecentLibraries()).resolves.toEqual([
+        { id: 'b', label: 'Beta' },
+        { id: 'a', label: 'Alpha' },
+      ])
+    })
+
+    it('moves a re-remembered library to the front of recents', async () => {
+      const { session, createHandle } = createHarness()
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+      await session.rememberLibraryHandle('b', createHandle(), 'Beta')
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+
+      await expect(session.listRecentLibraries()).resolves.toEqual([
+        { id: 'a', label: 'Alpha' },
+        { id: 'b', label: 'Beta' },
+      ])
+    })
+
+    it('removes a cleared library from recents', async () => {
+      const { session, createHandle } = createHarness()
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+      await session.clearLibraryHandle('a')
+
+      await expect(session.listRecentLibraries()).resolves.toEqual([])
+    })
+
+    it('persists and recalls active library and book ids', async () => {
+      const { session } = createHarness()
+
+      await session.setActiveIds({ libraryId: 'lib-1', bookId: 'book-1' })
+      await expect(session.getActiveIds()).resolves.toEqual({
+        libraryId: 'lib-1',
+        bookId: 'book-1',
+      })
+
+      await session.setActiveIds({ libraryId: 'lib-1', bookId: null })
+      await expect(session.getActiveIds()).resolves.toEqual({
+        libraryId: 'lib-1',
+        bookId: null,
+      })
+    })
   })
 }

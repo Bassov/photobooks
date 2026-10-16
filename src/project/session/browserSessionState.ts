@@ -1,9 +1,22 @@
 import type { StorageFailure, StorageResult } from '../types'
 import type { SessionIdb } from './idb'
-import { createSessionIdb } from './idb'
+import { ACTIVE_KEY, createSessionIdb, RECENTS_KEY } from './idb'
 import type { SessionLocks } from './locks'
 import { bookLockName, createNavigatorSessionLocks } from './locks'
-import type { BookLock, SessionDirectoryHandle, SessionState } from './types'
+import {
+  isReservedSessionKey,
+  labelForHandle,
+  parseActiveIds,
+  parseRecents,
+  removeRecent,
+  upsertRecentFront,
+} from './recents'
+import type {
+  BookLock,
+  RecentLibrary,
+  SessionDirectoryHandle,
+  SessionState,
+} from './types'
 
 export interface CreateBrowserSessionStateOptions {
   idb?: SessionIdb
@@ -39,6 +52,14 @@ async function hasReadwritePermission(
   return state === 'granted'
 }
 
+async function readRecents(idb: SessionIdb): Promise<RecentLibrary[]> {
+  const stored = await idb.get(RECENTS_KEY)
+  if (!stored.present) {
+    return []
+  }
+  return parseRecents(stored.value)
+}
+
 export function createBrowserSessionState(
   options: CreateBrowserSessionStateOptions = {},
 ): SessionState {
@@ -46,12 +67,26 @@ export function createBrowserSessionState(
   const locks = options.locks ?? createNavigatorSessionLocks()
 
   return {
-    async rememberLibraryHandle(libraryId, handle) {
+    async rememberLibraryHandle(libraryId, handle, label) {
+      if (isReservedSessionKey(libraryId)) {
+        return failure('not-found')
+      }
       await idb.set(libraryId, handle)
+      const recents = await readRecents(idb)
+      await idb.set(
+        RECENTS_KEY,
+        upsertRecentFront(recents, {
+          id: libraryId,
+          label: labelForHandle(libraryId, handle, label),
+        }),
+      )
       return success(undefined)
     },
 
     async recallLibraryHandle(libraryId) {
+      if (isReservedSessionKey(libraryId)) {
+        return failure('not-found')
+      }
       const stored = await idb.get(libraryId)
       if (!stored.present) {
         return failure('not-found')
@@ -67,12 +102,37 @@ export function createBrowserSessionState(
     },
 
     async clearLibraryHandle(libraryId) {
+      if (isReservedSessionKey(libraryId)) {
+        return failure('not-found')
+      }
       const stored = await idb.get(libraryId)
       if (!stored.present) {
         return failure('not-found')
       }
       await idb.del(libraryId)
+      const recents = await readRecents(idb)
+      await idb.set(RECENTS_KEY, removeRecent(recents, libraryId))
       return success(undefined)
+    },
+
+    async listRecentLibraries() {
+      return readRecents(idb)
+    },
+
+    async setActiveIds(ids) {
+      await idb.set(ACTIVE_KEY, {
+        libraryId: ids.libraryId,
+        bookId: ids.bookId,
+      })
+      return success(undefined)
+    },
+
+    async getActiveIds() {
+      const stored = await idb.get(ACTIVE_KEY)
+      if (!stored.present) {
+        return { libraryId: null, bookId: null }
+      }
+      return parseActiveIds(stored.value)
     },
 
     async acquireBookLock(bookId) {
