@@ -4,12 +4,27 @@
 
 ### Requirement: Leave editor for home
 
-While the editor surface is active, the shell MUST provide a Home control. Activating it MUST release the current book lock, clear the in-tab active book id, and show the home screen. A same-tab reload after that MUST land on home, not the editor.
+While the editor surface is active, the shell MUST provide a Home control. Activating Home MUST flush pending saves, then release the book lock, clear the in-tab active book id, reset the in-memory document and session assets, and show home. Flush or save-error failure MUST keep the editor with a readable message. After Home, another library MUST NOT receive the previous book file.
 
 #### Scenario: Home control returns to home
 
-- **WHEN** the user activates Home in the editor chrome
-- **THEN** the home screen is shown and a same-tab reload does not restore the previous book into the editor
+- **WHEN** the user activates Home in the editor chrome and any pending save succeeds (or there is nothing to flush)
+- **THEN** the home screen is shown, the in-memory book is cleared, and a same-tab reload does not restore the previous book into the editor
+
+#### Scenario: Home after edit persists then leaves
+
+- **WHEN** the user edits a library-backed book and activates Home before the autosave debounce fires
+- **THEN** that edit is persisted and the home screen is shown
+
+#### Scenario: Home blocked when save is in error
+
+- **WHEN** the active book is in a save error phase and the user activates Home
+- **THEN** the editor stays active with a human-readable message and the book is not cleared
+
+#### Scenario: Home then open other library does not leak the book
+
+- **WHEN** the user leaves a library-backed book with placements via Home, then opens a different library that already has its own book
+- **THEN** the editor shows the opened library’s book and that library’s storage does not gain a copy of the previous book file
 
 ### Requirement: Re-grant from home opens the remembered book
 
@@ -95,7 +110,7 @@ The home screen MUST remain viewport-contained (no page-level H/V scroll). When 
 
 ### Requirement: Open book from home in one click
 
-From the home screen, activating a listed book MUST open that book into the editor in one activation when the library handle is granted. The editor MUST show that book’s gallery and placements. After a successful open, filmstrip and pasteboard MUST be the named editor scrollports. When recall returns `permission-required`, the system MUST remember that book for re-grant and show the re-grant control. A failed open MUST leave recent order unchanged and MUST show a human-readable error on home. Home create, open, grant, and open-book actions MUST be serialized while busy without stealing focus from the active control.
+From the home screen, activating a listed book MUST open that book into the editor in one activation when the library handle is granted. The editor MUST show that book’s gallery and placements. After a successful open, filmstrip and pasteboard MUST be the named editor scrollports. When recall returns `permission-required`, the system MUST remember that book for re-grant and show the re-grant control. A failed open MUST leave recent order unchanged and MUST show a human-readable error on home. Home create, open, grant, and open-book actions MUST be serialized while busy. After a locked-elsewhere failure from home, the home surface MUST clear the locked access phase so later Start editing does not show a lock banner.
 
 #### Scenario: One click opens a book
 
@@ -112,10 +127,10 @@ From the home screen, activating a listed book MUST open that book into the edit
 - **WHEN** opening a book fails because it is locked elsewhere
 - **THEN** the home screen shows a human-readable locked message and the recent-libraries order is unchanged
 
-#### Scenario: Busy keeps focus on the active control
+#### Scenario: Locked-elsewhere from home clears on home surface
 
-- **WHEN** a home action sets busy and disables sibling controls
-- **THEN** focus remains on the control the user activated
+- **WHEN** opening a book from home fails with locked-elsewhere
+- **THEN** the home surface does not keep a locked access phase that would banner Start editing
 
 ### Requirement: Editor shell layout
 
@@ -142,7 +157,7 @@ When the editor surface is active, the editor workspace SHALL show the book's pa
 
 ### Requirement: Create or open a library folder
 
-The system SHALL let the user create or open a library folder via a directory picker when File System Access is available, and MUST provide a test seam so automated tests can attach a library without a real picker in development and e2e builds only. With no library open, create/open actions MUST be available from the home screen (and MAY remain reachable from editor chrome after leaving home). Opening or creating MUST remember the library handle and update the recent-libraries list only after success. When create library runs while a library-backed book is open, the system MUST release that book first and start a clean empty book in the new folder without copying the previous book file; the filmstrip MUST reflect the new folder. After a successful create with no active book id and no library-backed book open, the system MUST adopt the current in-memory book so Save can persist it. After a successful open of a library that already contains books, when the editor has no gallery or placements, the system MUST load a stored book into the editor (preferring a book with content over an empty placeholder). When the editor already has session content, open MUST still adopt that work without clearing gallery or placements. The shell MUST remain viewport-contained (no page-level H/V scroll; home, filmstrip, and pasteboard stay the named scrollports for their respective surfaces).
+The system SHALL let the user create or open a library folder via a directory picker when File System Access is available, and MUST provide a test seam so automated tests can attach a library without a real picker in development and e2e builds only. With no library open, create/open actions MUST be available from the home screen (and MAY remain reachable from editor chrome after leaving home). Opening or creating MUST remember the library handle and update the recent-libraries list only after success. When create library runs while a library-backed book is open, the system MUST obtain a picked folder first; cancelling the picker MUST leave the current book open with its lock held. After a successful pick, the system MUST flush pending saves, release the previous book, and start a clean empty book in the new folder without copying the previous book file; the filmstrip MUST reflect the new folder. After a successful create with no active book id and no library-backed book open, the system MUST adopt the current in-memory book so Save can persist it. After a successful open of a library that already contains books, when the editor has no gallery or placements (including after Home cleared the document), the system MUST load a stored book into the editor (preferring a book with content over an empty placeholder) and MUST NOT adopt a document that belonged to another library. When the editor already has unsaved session-only content and no library-backed book is open, open MUST still adopt that work without clearing gallery or placements. Editor create/open/Home actions MUST be disabled or no-op while restore is pending. The shell MUST remain viewport-contained (no page-level H/V scroll; home, filmstrip, and pasteboard stay the named scrollports for their respective surfaces).
 
 #### Scenario: Empty chrome offers library actions
 
@@ -161,8 +176,13 @@ The system SHALL let the user create or open a library folder via a directory pi
 
 #### Scenario: Create library while a book is open starts clean
 
-- **WHEN** the user creates a new library while a library-backed book is open in the editor
-- **THEN** the previous book is released, the new folder does not receive a copy of that book, and the editor shows a clean book with the new folder’s photos in the filmstrip
+- **WHEN** the user creates a new library while a library-backed book is open in the editor and picks a folder
+- **THEN** the previous book is released after the pick, the new folder does not receive a copy of that book, and the editor shows a clean book with the new folder’s photos in the filmstrip
+
+#### Scenario: Create library picker cancel keeps the book
+
+- **WHEN** the user activates New library while a library-backed book is open and cancels the folder picker
+- **THEN** the same book remains open with its lock still held and the library binding unchanged
 
 #### Scenario: Open existing library loads stored book
 
@@ -174,9 +194,14 @@ The system SHALL let the user create or open a library folder via a directory pi
 - **WHEN** the library contains an empty session-book placeholder and another book with gallery content, and the editor is empty
 - **THEN** open activates the filled book
 
+#### Scenario: Editor actions wait for restore
+
+- **WHEN** in-tab restore is still pending
+- **THEN** editor New library, Open, and Home actions are not interactive
+
 ### Requirement: Restore book after reload when handle is granted
 
-After a successful save, when the tab is reloaded and session state can recall a library handle that still has readwrite permission **and** an in-tab active book id is still present, the system SHALL restore the previously active library-backed book so gallery ids and placements match what was saved. When the tab opens without an in-tab active book id, the system MUST show the home screen instead of auto-entering the editor. When restore fails, the system MUST clear stale in-tab and session active ids and library binding and show home.
+After a successful save, when the tab is reloaded and session state can recall a library handle that still has readwrite permission **and** an in-tab active book id is still present, the system SHALL restore the previously active library-backed book so gallery ids and placements match what was saved. When the tab opens without an in-tab active book id, the system MUST show the home screen instead of auto-entering the editor. When restore fails, the system MUST clear stale in-tab and session active ids and library binding and show home. While restore is pending, the editor chrome MUST NOT accept library-switching actions.
 
 #### Scenario: Reload restores saved book
 

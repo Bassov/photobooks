@@ -243,6 +243,171 @@ test('same-folder reopen does not duplicate recents', async ({ page }) => {
   }
 })
 
+test('Home then Open other library does not copy the previous book', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  const libA = `photobooks-e2e-n1-a-${String(process.pid)}-${String(Date.now())}`
+  const libB = `photobooks-e2e-n1-b-${String(process.pid)}-${String(Date.now())}`
+
+  await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await page.getByTestId('start-session').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  const result = await page.evaluate(
+    async ({ folderA, folderB }) => {
+      const api = window.__photobooksProject
+      if (!api?.attachOpfsTestLibrary) {
+        return { ok: false as const, reason: 'missing api' }
+      }
+      const waitSaved = async (): Promise<void> => {
+        await new Promise<void>((resolve, reject) => {
+          const started = Date.now()
+          const tick = (): void => {
+            const snap = api.getSnapshot() as {
+              savePhase: string
+              dirty: boolean
+            }
+            if (snap.savePhase === 'idle' && !snap.dirty) {
+              resolve()
+              return
+            }
+            if (Date.now() - started > 20_000) {
+              reject(new Error('save timed out'))
+              return
+            }
+            requestAnimationFrame(() => {
+              tick()
+            })
+          }
+          tick()
+        })
+      }
+      const attachedA = await api.attachOpfsTestLibrary(folderA)
+      if (!attachedA.ok) {
+        return { ok: false as const, reason: attachedA.code }
+      }
+      const bookA = await api.createBookInLibrary()
+      if (!bookA.ok || !bookA.value) {
+        return { ok: false as const, reason: bookA.code ?? 'create-a' }
+      }
+      const idA = bookA.value.id
+      api.saveBookNow()
+      await waitSaved()
+      await api.leaveEditorForHome()
+
+      const attachedB = await api.attachOpfsTestLibrary(folderB)
+      if (!attachedB.ok) {
+        return { ok: false as const, reason: attachedB.code }
+      }
+      const bookB = await api.createBookInLibrary()
+      if (!bookB.ok || !bookB.value) {
+        return { ok: false as const, reason: bookB.code ?? 'create-b' }
+      }
+      const idB = bookB.value.id
+      await api.leaveEditorForHome()
+
+      const opened = await api.openOpfsTestLibrary(folderA)
+      if (!opened.ok) {
+        return { ok: false as const, reason: opened.code }
+      }
+      const snap = api.getSnapshot() as { bookId: string | null }
+      const root = await navigator.storage.getDirectory()
+      const dirA = await root.getDirectoryHandle(folderA)
+      const booksDir = await dirA.getDirectoryHandle('books')
+      const bookIds: string[] = []
+      const iterable = booksDir as FileSystemDirectoryHandle & {
+        values: () => AsyncIterableIterator<FileSystemHandle>
+      }
+      for await (const handle of iterable.values()) {
+        if (handle.kind === 'directory') {
+          bookIds.push(handle.name)
+        }
+      }
+      return {
+        ok: true as const,
+        activeBookId: snap.bookId,
+        bookA: idA,
+        bookB: idB,
+        bookIds,
+      }
+    },
+    { folderA: libA, folderB: libB },
+  )
+
+  expect(result.ok).toBe(true)
+  if (!result.ok) {
+    throw new Error(result.reason)
+  }
+  expect(result.bookIds).toContain(result.bookA)
+  expect(result.bookIds).not.toContain(result.bookB)
+  expect(result.bookIds).toContain(result.activeBookId)
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+})
+
+test('edit then immediate Home persists the edit on reopen', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  const libraryFolder = `photobooks-e2e-n2-${String(process.pid)}-${String(Date.now())}`
+
+  await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await page.getByTestId('start-session').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  const prepared = await page.evaluate(async (folderName) => {
+    const api = window.__photobooksProject
+    if (!api?.attachOpfsTestLibrary) {
+      return { ok: false as const, reason: 'missing api' }
+    }
+    api.configureProjectSession({ autosaveDebounceMs: 60_000 })
+    const attached = await api.attachOpfsTestLibrary(folderName)
+    if (!attached.ok) {
+      return { ok: false as const, reason: attached.code }
+    }
+    const created = await api.createBookInLibrary()
+    if (!created.ok || !created.value) {
+      return { ok: false as const, reason: created.code ?? 'create' }
+    }
+    return { ok: true as const, bookId: created.value.id }
+  }, libraryFolder)
+  expect(prepared.ok).toBe(true)
+  if (!prepared.ok) {
+    throw new Error(prepared.reason)
+  }
+
+  await page
+    .getByRole('radiogroup', { name: 'Spread template' })
+    .getByRole('radio', { name: '2-up' })
+    .click()
+  await page.getByTestId('go-home').click()
+  await expect(page.getByTestId('home-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  const recentButton = page.locator('[data-testid^="home-recent-"]').first()
+  await recentButton.click()
+  await page.getByTestId(`home-book-${prepared.bookId}`).click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible({
+    timeout: 20_000,
+  })
+  await expect(
+    page
+      .getByRole('radiogroup', { name: 'Spread template' })
+      .getByRole('radio', { name: '2-up' }),
+  ).toBeChecked()
+})
+
 test('home overflow scrolls only inside the named home scrollport', async ({
   page,
 }) => {

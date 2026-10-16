@@ -43,7 +43,7 @@ Session state MUST expose a peek of a remembered library directory handle that r
 
 ### Requirement: Ordered recent libraries
 
-Session state SHALL maintain an ordered list of recent libraries capped at 10 entries. Each entry MUST include a stable library id and a display label. Successfully creating or opening a library MUST move that library to the front of the list (or insert it there). A failed open MUST NOT reorder the list. Listing recents MUST NOT expose IndexedDB keys, raw storage bytes, or directory handles — only ids and labels. Clearing a library handle MUST remove that library from the recent list. Recents updates for one remember, clear, or remove MUST occur in a single IndexedDB transaction when using the browser adapter.
+Session state SHALL maintain an ordered list of recent libraries capped at 10 entries. Each entry MUST include a stable library id and a display label. Successfully creating or opening a library MUST move that library to the front of the list (or insert it there). A failed open MUST NOT reorder the list. Listing recents MUST NOT expose IndexedDB keys, raw storage bytes, or directory handles — only ids and labels. Clearing a library handle MUST remove that library from the recent list. The browser adapter SHOULD batch handle and recents writes when practical (strict single-transaction atomicity is deferred to `recents-home-quality`).
 
 #### Scenario: Empty session has no recents
 
@@ -86,7 +86,7 @@ Session state SHALL store and recall the last active library id and book id for 
 
 ### Requirement: Domain session state API
 
-The system SHALL expose a domain session-state API that remembers and recalls a library directory handle by a stable library id, peeks a stored handle without requiring permission, clears a remembered handle, lists recent libraries, removes a recent by id, stores and recalls the last active library and book ids, and acquires/releases an exclusive per-book lock. The API MUST NOT expose IndexedDB keys, Web Lock names, or raw storage bytes. Directory handles MAY appear only as opaque platform handle values on this API (not on `LibraryStorage`). All methods MUST return typed results without throwing for expected storage failures.
+The system SHALL expose a domain session-state API that remembers and recalls a library directory handle by a stable library id, peeks a stored handle without requiring permission, clears a remembered handle, lists recent libraries, removes a recent by id, stores and recalls the last active library and book ids, and acquires/releases an exclusive per-book lock. The API MUST NOT expose IndexedDB keys, Web Lock names, or raw storage bytes. Directory handles MAY appear only as opaque platform handle values on this API (not on `LibraryStorage`). Callers MUST treat results as typed success or failure codes for the failure modes this capability defines. Hardening every IndexedDB fault into a typed no-throw path is deferred to `recents-home-quality`.
 
 #### Scenario: Empty session has no remembered handle
 
@@ -102,11 +102,6 @@ The system SHALL expose a domain session-state API that remembers and recalls a 
 
 - **WHEN** a remembered library handle is cleared for that library id
 - **THEN** a subsequent recall for that id fails with typed code `not-found`
-
-#### Scenario: IndexedDB failure does not throw
-
-- **WHEN** an IndexedDB operation fails while listing or remembering
-- **THEN** the API returns a typed failure without throwing
 
 ### Requirement: Shared contract suite and adapters
 

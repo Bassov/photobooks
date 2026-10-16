@@ -209,11 +209,7 @@ export function HomeScreen() {
           <div className="home-columns">
             <section className="home-panel" data-testid="home-recents">
               <h2 className="home-heading">Recent libraries</h2>
-              <ul
-                className="home-list"
-                role="listbox"
-                aria-label="Recent libraries"
-              >
+              <ul className="home-list" aria-label="Recent libraries">
                 {recents.map((recent) => (
                   <li key={recent.id}>
                     <button
@@ -228,7 +224,6 @@ export function HomeScreen() {
                       aria-current={
                         selectedLibraryId === recent.id ? 'true' : undefined
                       }
-                      aria-selected={selectedLibraryId === recent.id}
                       onClick={() => {
                         void onSelectRecent(recent.id)
                       }}

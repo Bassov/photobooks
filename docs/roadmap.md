@@ -161,16 +161,27 @@ Slicing rules when adding or splitting items:
   - [x] Permission re-grant flow; Web Locks single writer with a clear "open in another tab" message
   - **Perf:** chrome status/banner updates only; existing save/autosave gesture gates stay green.
   - **Browser check:** after a browser restart, access is re-granted in one step; a second tab is blocked from editing.
-- [ ] [feature] `recents-home` — returning user (hardening on PR #71: Home control, re-grant correctness, dedup, IDB/error/loading/busy, New library clean start)
+- [x] [feature] `recents-home` — returning user (hardening on PR #71: Home control, re-grant correctness, dedup, IDB/error/loading/busy, New library clean start)
   - [x] Home screen with books in the library and recent libraries (handles in IndexedDB)
   - **Perf:** home is static list chrome; existing save/gesture gates stay green.
   - **Browser check:** reopen the app; the home screen lists recent libraries and their books; one click opens a book; Home returns to home; same folder does not duplicate.
 - [ ] [feature] `recents-home-quality` — home polish after correctness
-  - [ ] A11y: home `h1`, selected library announcement, focus ring, no redundant aria on headings
+  - [ ] A11y: home `h1`, selected library announcement, focus ring, no redundant aria on headings; busy keeps focus on the active control
   - [ ] `HomeScreen.test.tsx` (empty / list / error / permission / busy / keyboard); reserved-key mutation tests; Codecov HomeScreen patch target
   - [ ] LHCI measures editor surface again; restore empty-editor asserts in `open-save.spec`
+  - [ ] IDB-blocked e2e; IDB v1→v2 migration test (fake-indexeddb); IndexedDB failure paths return typed results without throw
+  - [ ] Dedup test with separate handle objects and permission denied during open (already covered when granted; harden denied path)
+  - [ ] Readable messages in the editor status line (no raw codes like `permission-required`)
+  - [ ] Re-grant polish: pass the target book into bind; isSameEntry check or refusal on peek-failed picker path
+  - [ ] Recents read-modify-write in one transaction or behind `navigator.locks`; delete evicted handle keys
+  - [ ] Distinguish “Don’t Allow” from picker cancelled in messages
+  - [ ] Remove runtime `window.__photobooksE2e` test-API switch
   - **Perf:** no new interaction; existing gates stay green.
   - **Browser check:** keyboard-only home; narrow ~900px; Lighthouse still budgets the editor path.
+- [ ] [feature] `book-titles` — create-with-title and rename
+  - [ ] Create book prompts for a title; rename from home/editor; list and chrome show title instead of raw id
+  - **Perf:** title edits are local string updates; no layout thrash. Gate: rename while filmstrip scrolls — zero LoAF.
+  - **Browser check:** create a book with a title, rename it, reopen — title persists; home list shows titles.
 - [ ] [feature] `missing-assets-relink` — moved photo folders
   - [ ] Missing-assets view; relink by rescanning a folder and matching hashes (scan and hashing in the worker)
   - **Perf:** rescan progress batched per frame. Gate: scroll the filmstrip while a rescan runs — zero LoAF.

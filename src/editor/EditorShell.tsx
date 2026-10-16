@@ -164,7 +164,9 @@ export function EditorShell() {
             onClick={() => {
               void leaveEditorForHome()
             }}
-            disabled={pickerBusy || project.actionBusy}
+            disabled={
+              pickerBusy || project.actionBusy || project.restorePending
+            }
           >
             Home
           </button>
@@ -175,7 +177,9 @@ export function EditorShell() {
             onClick={() => {
               void createLibrary()
             }}
-            disabled={pickerBusy || project.actionBusy}
+            disabled={
+              pickerBusy || project.actionBusy || project.restorePending
+            }
           >
             New library
           </button>
@@ -186,7 +190,9 @@ export function EditorShell() {
             onClick={() => {
               void openLibrary()
             }}
-            disabled={pickerBusy || project.actionBusy}
+            disabled={
+              pickerBusy || project.actionBusy || project.restorePending
+            }
           >
             Open
           </button>
@@ -198,7 +204,9 @@ export function EditorShell() {
               onClick={() => {
                 void regrantLibrary()
               }}
-              disabled={pickerBusy || project.actionBusy}
+              disabled={
+                pickerBusy || project.actionBusy || project.restorePending
+              }
             >
               Grant access
             </button>
@@ -218,7 +226,12 @@ export function EditorShell() {
               }
               void createBookInLibrary()
             }}
-            disabled={pickerBusy || project.actionBusy || !libraryReady}
+            disabled={
+              pickerBusy ||
+              project.actionBusy ||
+              project.restorePending ||
+              !libraryReady
+            }
           >
             New book
           </button>
