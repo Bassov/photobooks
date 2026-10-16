@@ -51,11 +51,13 @@ describe('projectSession', () => {
     const attached = await attachLibraryForTests({ storage, session })
     expect(attached).toEqual({ ok: true, value: undefined })
     expect(getProjectSessionSnapshot().libraryOpen).toBe(true)
-    expect(getProjectSessionSnapshot().status).toEqual({
+    expect(getProjectSessionSnapshot().bookId).not.toBeNull()
+    expect(getProjectSessionSnapshot().status).toMatchObject({
       kind: 'open',
       libraryId: 'library',
-      bookId: null,
     })
+    expect(isLibraryBacked()).toBe(true)
+    expect(getEditorStatus()).toBe('Book created in library')
 
     const created = await createBookInLibrary()
     expect(created.ok).toBe(true)
@@ -129,7 +131,7 @@ describe('projectSession', () => {
     expect(getEditorStatus()).toBe('Book restored')
   })
 
-  it('restores an open library with no active book as null', async () => {
+  it('restores the auto-adopted book after library attach', async () => {
     const storage = createMemoryLibraryStorage()
     const session = createMemorySessionState()
     configureProjectSession({
@@ -137,11 +139,17 @@ describe('projectSession', () => {
       createStorage: () => storage,
     })
     await attachLibraryForTests({ storage, session })
+    const adoptedId = getProjectSessionSnapshot().bookId
+    expect(adoptedId).not.toBeNull()
 
     const restored = await tryRestore()
-    expect(restored).toEqual({ ok: true, value: null })
+    expect(restored.ok).toBe(true)
+    if (!restored.ok) {
+      throw new Error('expected tryRestore success')
+    }
+    expect(restored.value?.id).toBe(adoptedId)
     expect(getProjectSessionSnapshot().libraryOpen).toBe(true)
-    expect(getProjectSessionSnapshot().bookId).toBeNull()
+    expect(getProjectSessionSnapshot().bookId).toBe(adoptedId)
     expect(getProjectSessionSnapshot().status.kind).toBe('open')
   })
 
@@ -208,6 +216,33 @@ describe('projectSession', () => {
       ok: false,
       code: 'not-found',
     })
+  })
+
+  it('saveBookNow awaits pending hashes before writing', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    await attachLibraryForTests({ storage, session })
+
+    let resolveHash!: (value: string) => void
+    const hashPromise = new Promise<string>((resolve) => {
+      resolveHash = resolve
+    })
+    const { trackHashJob } = await import('./pendingHashes')
+    void trackHashJob(hashPromise)
+
+    saveBookNow()
+    expect(getProjectSessionSnapshot().saving).toBe(true)
+    await new Promise((resolve) => {
+      setTimeout(resolve, 30)
+    })
+    expect(getEditorStatus()).not.toBe('Book saved')
+    expect(getProjectSessionSnapshot().saving).toBe(true)
+
+    resolveHash('x'.repeat(64))
+    await vi.waitFor(() => {
+      expect(getEditorStatus()).toBe('Book saved')
+    })
+    expect(getProjectSessionSnapshot().saving).toBe(false)
   })
 
   it('adoptCurrentBookInLibrary persists the in-memory book', async () => {

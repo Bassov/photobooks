@@ -1,5 +1,5 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
-import { tierPresetId } from '../assets/derivedCache/presets'
+import { THUMB_PRESET_ID, tierPresetId } from '../assets/derivedCache/presets'
 import { processAsset } from './assetPool'
 import { assetSourceCovers, getAssetSource } from './assetSources'
 import { ObjectUrlLru } from './objectUrlLru'
@@ -23,6 +23,9 @@ interface PendingTier {
 
 const pending: PendingTier[] = []
 let flushScheduled = false
+
+/** Last encoded tier bytes per cache key for put-after-hash. */
+const lastTier = new Map<string, { buffer: ArrayBuffer; mimeType: string }>()
 
 function tierCacheKey(assetId: string, tier: number): string {
   return `${assetId}:${String(tier)}`
@@ -74,9 +77,11 @@ export function requestTier(
           return
         }
         if (got.ok) {
+          const bytes = got.value.bytes.slice(0)
+          lastTier.set(key, { buffer: bytes, mimeType: got.value.mimeType })
           pending.push({
             key,
-            buffer: got.value.bytes,
+            buffer: bytes,
             mimeType: got.value.mimeType,
           })
           scheduleFlush()
@@ -86,6 +91,24 @@ export function requestTier(
 
       const file = getAssetSource(assetId)
       if (file === undefined) {
+        if (contentHash !== undefined && contentHash.length > 0) {
+          const cache = await getDerivedCache()
+          if (inflight.get(key)?.controller !== controller) {
+            return
+          }
+          const thumb = await cache.get(contentHash, THUMB_PRESET_ID)
+          if (inflight.get(key)?.controller !== controller || !thumb.ok) {
+            return
+          }
+          const bytes = thumb.value.bytes.slice(0)
+          lastTier.set(key, { buffer: bytes, mimeType: thumb.value.mimeType })
+          pending.push({
+            key,
+            buffer: bytes,
+            mimeType: thumb.value.mimeType,
+          })
+          scheduleFlush()
+        }
         return
       }
       const cover = assetSourceCovers(assetId)
@@ -101,10 +124,15 @@ export function requestTier(
         if (inflight.get(key)?.controller !== controller) {
           return
         }
+        const retained = result.previewBuffer.slice(0)
+        lastTier.set(key, {
+          buffer: retained,
+          mimeType: result.previewMimeType,
+        })
         if (contentHash !== undefined && contentHash.length > 0) {
           const cache = await getDerivedCache()
           await cache.put(contentHash, tierPresetId(tier), {
-            bytes: result.previewBuffer,
+            bytes: retained.slice(0),
             mimeType: result.previewMimeType,
           })
         }
@@ -113,7 +141,7 @@ export function requestTier(
         }
         pending.push({
           key,
-          buffer: result.previewBuffer,
+          buffer: retained,
           mimeType: result.previewMimeType,
         })
         scheduleFlush()
@@ -138,9 +166,40 @@ export function cancelTier(assetId: string, tier: number): void {
   job.controller.abort()
 }
 
+/** Put last hot tier buffers for an asset into DerivedCache once hash is known. */
+export async function putCachedTierForHash(
+  assetId: string,
+  contentHash: string,
+): Promise<void> {
+  if (contentHash.length === 0) {
+    return
+  }
+  const prefix = `${assetId}:`
+  const cache = await getDerivedCache()
+  const puts: Promise<unknown>[] = []
+  for (const [key, entry] of lastTier) {
+    if (!key.startsWith(prefix)) {
+      continue
+    }
+    const tierPart = key.slice(prefix.length)
+    const tier = Number(tierPart)
+    if (!Number.isFinite(tier)) {
+      continue
+    }
+    puts.push(
+      cache.put(contentHash, tierPresetId(tier), {
+        bytes: entry.buffer.slice(0),
+        mimeType: entry.mimeType,
+      }),
+    )
+  }
+  await Promise.all(puts)
+}
+
 export function resetTierCache(): void {
   pending.length = 0
   flushScheduled = false
+  lastTier.clear()
   for (const job of inflight.values()) {
     job.controller.abort()
   }

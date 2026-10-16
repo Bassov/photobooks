@@ -23,7 +23,9 @@
     "!src/project/fsa/bookLoad.worker.ts",
     "!src/project/session/idb.ts",
     "!src/project/session/locks.ts",
-    "!src/editor/EditorShell.tsx"
+    "!src/editor/EditorShell.tsx",
+    "!src/editor/previewAspect.ts",
+    "!src/editor/upgradeSessionAssets.ts"
   ],
   "ignorePatterns": [
     ".local_dev",

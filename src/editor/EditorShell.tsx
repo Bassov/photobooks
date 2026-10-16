@@ -7,16 +7,15 @@ import {
   pickFolderWithDirectoryPicker,
   pickPhotosWithFilePicker,
 } from '../photo/pickPhotos'
-import { createFsaLibraryStorage } from '../project'
 import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
 import { Filmstrip } from './Filmstrip'
 import { installEditorKeys } from './galleryDrop'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
-import { loadPainterFixture } from './bookStore'
+import { getBookStoreSnapshot, loadPainterFixture } from './bookStore'
 import { isPainterFixtureQuery } from './painterFixtureQuery'
 import {
-  attachLibraryForTests,
+  attachOpfsTestLibrary,
   createBookInLibrary,
   createLibrary,
   exposeProjectSessionTestApi,
@@ -27,6 +26,16 @@ import {
   tryRestore,
 } from './projectSession'
 import './EditorShell.css'
+
+function editorHasContent(): boolean {
+  const book = getBookStoreSnapshot().book
+  if (book.gallery.length > 0) {
+    return true
+  }
+  return book.spreads.some((spread) =>
+    spread.frames.some((frame) => frame.assetId !== undefined),
+  )
+}
 
 function isTestLibraryQuery(): boolean {
   if (typeof window === 'undefined') {
@@ -40,17 +49,7 @@ async function ensureTestLibrary(): Promise<void> {
   if (restored.ok && restored.value !== null) {
     return
   }
-  if (typeof navigator.storage.getDirectory !== 'function') {
-    return
-  }
-  const root = await navigator.storage.getDirectory()
-  const dir = await root.getDirectoryHandle('photobooks-e2e-library', {
-    create: true,
-  })
-  await attachLibraryForTests({
-    storage: createFsaLibraryStorage({ root: dir }),
-    handle: dir,
-  })
+  await attachOpfsTestLibrary()
 }
 
 export function EditorShell() {
@@ -89,7 +88,7 @@ export function EditorShell() {
       ) {
         return
       }
-      if (!project.libraryOpen || project.bookId === null) {
+      if (!project.libraryOpen) {
         return
       }
       event.preventDefault()
@@ -99,7 +98,7 @@ export function EditorShell() {
     return () => {
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [project.libraryOpen, project.bookId])
+  }, [project.libraryOpen])
 
   const filesInputId = useId()
   const folderInputId = useId()
@@ -178,7 +177,6 @@ export function EditorShell() {
   }
 
   const libraryReady = project.libraryOpen
-  const bookReady = libraryReady && project.bookId !== null
 
   return (
     <div className="editor-shell" data-testid="editor-shell">
@@ -215,6 +213,14 @@ export function EditorShell() {
             className="editor-action editor-action-secondary"
             data-testid="create-book"
             onClick={() => {
+              if (editorHasContent()) {
+                const ok = window.confirm(
+                  'Create a new empty book? Current gallery and layout will be replaced.',
+                )
+                if (!ok) {
+                  return
+                }
+              }
               void createBookInLibrary()
             }}
             disabled={pickerBusy || !libraryReady}
@@ -228,7 +234,7 @@ export function EditorShell() {
             onClick={() => {
               saveBookNow()
             }}
-            disabled={pickerBusy || !bookReady || project.saving}
+            disabled={pickerBusy || !libraryReady || project.saving}
           >
             Save
           </button>

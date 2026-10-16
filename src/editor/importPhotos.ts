@@ -16,8 +16,10 @@ import {
   setAssetSessionMeta,
   setImportRunning,
 } from './bookStore'
+import { trackHashJob } from './pendingHashes'
 import { isLibraryBacked, registerAssetSource } from './projectSession'
-import { setThumbUrl } from './thumbCache'
+import { putCachedThumbForHash, setThumbUrl } from './thumbCache'
+import { putCachedTierForHash } from '../photo/tierCache'
 
 /** `performance.measure` label for the sync import kickoff (handler p95 gate). */
 const IMPORT_PHOTOS_HANDLER_LABEL = 'import-photos'
@@ -90,13 +92,18 @@ async function importPhotoFilesInner(
                   entry.file.lastModified,
                 )
                 if (typeof Worker !== 'undefined') {
-                  void hashContent(bytes.slice(0))
-                    .then((contentHash) => {
+                  void trackHashJob(
+                    hashContent(bytes.slice(0)).then(async (contentHash) => {
                       patchAssetRecord(entry.assetId, { contentHash })
-                    })
-                    .catch(() => {
-                      // Hash is best-effort; identity path/size/mtime still persist.
-                    })
+                      await Promise.all([
+                        putCachedThumbForHash(entry.assetId, contentHash),
+                        putCachedTierForHash(entry.assetId, contentHash),
+                      ])
+                      return contentHash
+                    }),
+                  ).catch(() => {
+                    // Hash is best-effort; identity path/size/mtime still persist.
+                  })
                 }
               }
               return {

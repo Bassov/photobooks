@@ -149,6 +149,10 @@ Slicing rules when adding or splitting items:
   - [x] Save (Ctrl/Cmd+S) and restore on reopen
   - **Perf:** serialization at background priority (worker if over budget). Gate: save during a drag — zero LoAF.
   - **Browser check:** build a book, save, reload the tab, reopen the folder — same book.
+- [x] [feature] `fix-open-save-adopt-hydrate` — adopt session work; durable preview hydrate
+  - [x] After create/open library, Save adopts the in-memory book (no «New book» wipe); session assets get identity + hash; DerivedCache put-after-hash; tier falls back to thumb; aspect restored from hydrate
+  - **Perf:** Save stays off the gesture path; existing save-during-drag gate remains green.
+  - **Browser check:** import without library → New library → Save → reload — thumbs and placed frames visible, landscape crop not square-forced; document stays viewport-contained.
 - [ ] [feature] `autosave` — never lose work
   - [ ] Debounced autosave, save indicator
   - **Perf:** autosave never runs during an active gesture; serialization at background priority (worker if over budget). Gate: continuous drag while autosave fires — zero LoAF.

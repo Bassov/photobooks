@@ -14,6 +14,8 @@ import {
 } from '../project'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { setEditorStatus } from './editorStatus'
+import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
+import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
 
 const DEFAULT_LIBRARY_ID = 'library'
 
@@ -252,6 +254,7 @@ export function resetProjectSessionForTests(): void {
   status = { kind: 'idle' }
   saving = false
   assetSources.clear()
+  resetPendingHashesForTests()
   refreshSnapshot()
 }
 
@@ -320,6 +323,10 @@ async function bindLibrary(
   bookId = null
   persistIds()
   setStatus({ kind: 'open', libraryId: nextLibraryId, bookId: null })
+  const adopted = await adoptCurrentBookInLibrary()
+  if (!adopted.ok) {
+    return { ok: false, code: adopted.code }
+  }
   return { ok: true, value: undefined }
 }
 
@@ -376,8 +383,8 @@ export async function attachMemoryLibraryForTests(): Promise<
 }
 
 /**
- * Persist the in-memory editor book into an attached library (perf / test seam).
- * Creates the book when missing, then marks it active.
+ * Persist the in-memory editor book into an attached library.
+ * Upgrades session assets, creates the book when missing, then marks it active.
  */
 export async function adoptCurrentBookInLibrary(): Promise<
   StorageResult<Book>
@@ -387,6 +394,7 @@ export async function adoptCurrentBookInLibrary(): Promise<
     setStatus({ kind: 'error', code: 'not-found', action: 'adopt book' })
     return failure
   }
+  await upgradeSessionAssetsForLibrary(registerAssetSource)
   const current = getBookStoreSnapshot().book
   const existing = await storage.loadBook(current.id)
   if (existing.ok) {
@@ -403,6 +411,7 @@ export async function adoptCurrentBookInLibrary(): Promise<
   bookId = created.value.id
   persistIds()
   setStatus({ kind: 'open', libraryId, bookId })
+  setEditorStatus('Book created in library')
   return created
 }
 
@@ -433,7 +442,7 @@ export async function createBookInLibrary(): Promise<StorageResult<Book>> {
 }
 
 export function saveBookNow(): void {
-  if (!storage || !bookId) {
+  if (!storage) {
     setStatus({ kind: 'error', code: 'not-found', action: 'save' })
     return
   }
@@ -442,11 +451,18 @@ export function saveBookNow(): void {
   }
   saving = true
   emit()
-  const snapshot = getBookStoreSnapshot().book
   const activeStorage = storage
   scheduleBackground(async () => {
     try {
-      const result = await activeStorage.saveBook(snapshot)
+      if (!bookId) {
+        const adopted = await adoptCurrentBookInLibrary()
+        if (!adopted.ok) {
+          return
+        }
+      }
+      await awaitPendingHashes()
+      const bookSnapshot = getBookStoreSnapshot().book
+      const result = await activeStorage.saveBook(bookSnapshot)
       if (!result.ok) {
         setStatus({ kind: 'error', code: result.code, action: 'save' })
         return
@@ -466,6 +482,21 @@ export function saveBookNow(): void {
   })
 }
 
+/** E2E seam: attach an OPFS library folder without a directory picker. */
+export async function attachOpfsTestLibrary(): Promise<StorageResult<void>> {
+  if (typeof navigator.storage.getDirectory !== 'function') {
+    return { ok: false, code: 'not-found' }
+  }
+  const root = await navigator.storage.getDirectory()
+  const dir = await root.getDirectoryHandle('photobooks-e2e-library', {
+    create: true,
+  })
+  return attachLibraryForTests({
+    storage: createFsaLibraryStorage({ root: dir }),
+    handle: dir,
+  })
+}
+
 export function exposeProjectSessionTestApi(): void {
   if (typeof window === 'undefined') {
     return
@@ -473,6 +504,7 @@ export function exposeProjectSessionTestApi(): void {
   window.__photobooksProject = {
     attachLibraryForTests,
     attachMemoryLibraryForTests,
+    attachOpfsTestLibrary,
     adoptCurrentBookInLibrary,
     saveBookNow,
     createBookInLibrary,
@@ -486,6 +518,7 @@ declare global {
     __photobooksProject?: {
       attachLibraryForTests: typeof attachLibraryForTests
       attachMemoryLibraryForTests: typeof attachMemoryLibraryForTests
+      attachOpfsTestLibrary: typeof attachOpfsTestLibrary
       adoptCurrentBookInLibrary: typeof adoptCurrentBookInLibrary
       saveBookNow: typeof saveBookNow
       createBookInLibrary: typeof createBookInLibrary

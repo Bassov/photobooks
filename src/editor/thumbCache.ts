@@ -1,6 +1,7 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
 import { ObjectUrlLru } from '../photo/objectUrlLru'
+import { restoreAspectFromPreview } from './previewAspect'
 
 const DEFAULT_CAPACITY = 256
 const FLUSH_PER_FRAME = 1
@@ -19,6 +20,9 @@ let flushScheduled = false
 
 const hydrateInflight = new Map<string, AbortController>()
 
+/** Last encoded thumb bytes per asset for put-after-hash. */
+const lastThumb = new Map<string, { buffer: ArrayBuffer; mimeType: string }>()
+
 function notifyAsset(assetId: string): void {
   const set = assetListeners.get(assetId)
   if (set) {
@@ -32,8 +36,12 @@ function enqueuePending(
   assetId: string,
   buffer: ArrayBuffer,
   mimeType: string,
+  restoreAspect: boolean,
 ): void {
   pending.push({ assetId, buffer, mimeType })
+  if (restoreAspect) {
+    restoreAspectFromPreview(assetId, buffer, mimeType)
+  }
   if (!flushScheduled) {
     flushScheduled = true
     requestAnimationFrame(flushPending)
@@ -80,12 +88,36 @@ export function setThumbUrl(
   mimeType: string,
   contentHash?: string,
 ): void {
-  enqueuePending(assetId, buffer, mimeType)
+  const retained = buffer.slice(0)
+  lastThumb.set(assetId, { buffer: retained, mimeType })
+  enqueuePending(assetId, retained, mimeType, false)
   if (contentHash !== undefined && contentHash.length > 0) {
     void getDerivedCache().then((cache) =>
-      cache.put(contentHash, THUMB_PRESET_ID, { bytes: buffer, mimeType }),
+      cache.put(contentHash, THUMB_PRESET_ID, {
+        bytes: retained.slice(0),
+        mimeType,
+      }),
     )
   }
+}
+
+/** Put the last hot thumb into DerivedCache once contentHash is known. */
+export async function putCachedThumbForHash(
+  assetId: string,
+  contentHash: string,
+): Promise<void> {
+  if (contentHash.length === 0) {
+    return
+  }
+  const last = lastThumb.get(assetId)
+  if (last === undefined) {
+    return
+  }
+  const cache = await getDerivedCache()
+  await cache.put(contentHash, THUMB_PRESET_ID, {
+    bytes: last.buffer.slice(0),
+    mimeType: last.mimeType,
+  })
 }
 
 export function ensureThumb(assetId: string, contentHash?: string): void {
@@ -110,7 +142,12 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
       if (lru.has(assetId)) {
         return
       }
-      enqueuePending(assetId, got.value.bytes, got.value.mimeType)
+      const bytes = got.value.bytes.slice(0)
+      lastThumb.set(assetId, {
+        buffer: bytes,
+        mimeType: got.value.mimeType,
+      })
+      enqueuePending(assetId, bytes, got.value.mimeType, true)
     } finally {
       if (hydrateInflight.get(assetId) === controller) {
         hydrateInflight.delete(assetId)
@@ -122,6 +159,7 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
 export function resetThumbCache(): void {
   pending.length = 0
   flushScheduled = false
+  lastThumb.clear()
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }

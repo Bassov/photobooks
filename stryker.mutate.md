@@ -17,3 +17,5 @@ Each `!` pattern in `stryker.config.json` `mutate` has one reason here. JSON can
 - `!src/project/session/idb.ts` — IndexedDB open/get/set/del shell; SessionIdb port covered via injected fakes in browserSessionState tests
 - `!src/project/session/locks.ts` — navigator.locks thin adapter; lock name + ifAvailable covered via injected SessionLocks in browserSessionState tests
 - `!src/editor/EditorShell.tsx` — thin React chrome wiring for library open/save; behavior locked by `projectSession` unit tests and e2e `open-save` / save-during-drag scenarios
+- `!src/editor/previewAspect.ts` — JPEG SOF aspect restore covered by unit tests; non-JPEG path only delegates to `processAsset` (mutated via `assetPool`)
+- `!src/editor/upgradeSessionAssets.ts` — identity upgrade on adopt locked by `upgradeSessionAssets.test.ts` via `attachMemoryLibraryForTests` / public adopt path; hashing delegates to `hashContent`

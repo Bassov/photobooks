@@ -37,8 +37,12 @@ declare global {
     __photobooksPerf?: PhotobooksPerfApi
     __photobooksProject?: {
       attachMemoryLibraryForTests: () => Promise<unknown>
+      attachOpfsTestLibrary: () => Promise<{ ok: boolean; code?: string }>
       adoptCurrentBookInLibrary: () => Promise<{ ok: boolean; code?: string }>
       saveBookNow: () => void
+      createBookInLibrary: () => Promise<{ ok: boolean; code?: string }>
+      tryRestore: () => Promise<unknown>
+      getSnapshot: () => unknown
     }
   }
 }
