@@ -6,6 +6,7 @@ import {
   createMemoryLibraryStorage,
   createMemorySessionState,
   fromFileSystemDirectoryHandle,
+  type BookLock,
   type LibraryStorage,
   type SessionDirectoryHandle,
   type SessionState,
@@ -39,6 +40,8 @@ type ProjectSessionStatus =
 
 type SavePhase = 'idle' | 'pending' | 'saving' | 'error'
 
+type AccessPhase = 'idle' | 'permission-required' | 'locked-elsewhere'
+
 type Listener = () => void
 
 export interface ProjectSessionSnapshot {
@@ -50,6 +53,8 @@ export interface ProjectSessionSnapshot {
   savePhase: SavePhase
   /** True while `savePhase === 'saving'` (manual or autosave). */
   saving: boolean
+  accessPhase: AccessPhase
+  blockedBookId: string | null
 }
 
 export interface ProjectSessionDeps {
@@ -110,6 +115,12 @@ let ignoreBookStoreDirty = false
 let lastBookRef: Book | null = getBookStoreSnapshot().book
 let autosaveDebounceMs = DEFAULT_AUTOSAVE_DEBOUNCE_MS
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null
+let accessPhase: AccessPhase = 'idle'
+let blockedBookId: string | null = null
+let heldBookLock: BookLock | null = null
+let externalBookLockForTests: BookLock | null = null
+/** Bumped to invalidate in-flight saves before releasing a book lock. */
+let saveEpoch = 0
 const assetSources = new Map<string, AssetSource>()
 const listeners = new Set<Listener>()
 let snapshot: ProjectSessionSnapshot = {
@@ -120,7 +131,11 @@ let snapshot: ProjectSessionSnapshot = {
   dirty: false,
   savePhase: 'idle',
   saving: false,
+  accessPhase: 'idle',
+  blockedBookId: null,
 }
+
+const LOCK_BANNER_MESSAGE = 'This book is open in another tab'
 
 function refreshSnapshot(): boolean {
   const next: ProjectSessionSnapshot = {
@@ -131,6 +146,8 @@ function refreshSnapshot(): boolean {
     dirty,
     savePhase,
     saving: savePhase === 'saving',
+    accessPhase,
+    blockedBookId,
   }
   if (
     next.libraryOpen === snapshot.libraryOpen &&
@@ -139,12 +156,68 @@ function refreshSnapshot(): boolean {
     next.status === snapshot.status &&
     next.dirty === snapshot.dirty &&
     next.savePhase === snapshot.savePhase &&
-    next.saving === snapshot.saving
+    next.saving === snapshot.saving &&
+    next.accessPhase === snapshot.accessPhase &&
+    next.blockedBookId === snapshot.blockedBookId
   ) {
     return false
   }
   snapshot = next
   return true
+}
+
+async function releaseHeldBookLock(): Promise<void> {
+  cancelAutosaveTimer()
+  saveEpoch += 1
+  if (savePhase === 'saving') {
+    savePhase = 'idle'
+  }
+  if (heldBookLock === null) {
+    return
+  }
+  const lock = heldBookLock
+  heldBookLock = null
+  await lock.release()
+}
+
+function clearDocumentWhileLocked(): void {
+  withoutDirtyTracking(() => {
+    resetBookStore({
+      book: createEmptyLibraryBook('locked-placeholder'),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+  })
+  dirty = false
+  savePhase = 'idle'
+  cancelAutosaveTimer()
+}
+
+async function takeBookLock(nextBookId: string): Promise<StorageResult<void>> {
+  await releaseHeldBookLock()
+  const acquired = await session.acquireBookLock(nextBookId)
+  if (!acquired.ok) {
+    if (acquired.code === 'locked-elsewhere') {
+      accessPhase = 'locked-elsewhere'
+      blockedBookId = nextBookId
+      bookId = null
+      persistIds()
+      clearDocumentWhileLocked()
+      setEditorStatus(LOCK_BANNER_MESSAGE)
+      emit()
+    }
+    return { ok: false, code: acquired.code }
+  }
+  heldBookLock = acquired.value
+  accessPhase = 'idle'
+  blockedBookId = null
+  return { ok: true, value: undefined }
+}
+
+function setPermissionRequiredAccess(): void {
+  accessPhase = 'permission-required'
+  emit()
 }
 
 function cancelAutosaveTimer(): void {
@@ -174,7 +247,11 @@ function armAutosaveDebounce(): void {
 }
 
 function markDirtyFromUserEdit(): void {
-  if (storage === null || bookId === null) {
+  if (
+    storage === null ||
+    bookId === null ||
+    accessPhase === 'locked-elsewhere'
+  ) {
     return
   }
   dirty = true
@@ -374,6 +451,9 @@ export function configureProjectSession(deps: ProjectSessionDeps): void {
 /** Reset module singletons (unit tests). */
 export function resetProjectSessionForTests(): void {
   cancelAutosaveTimer()
+  void releaseHeldBookLock()
+  void externalBookLockForTests?.release()
+  externalBookLockForTests = null
   session = createMemorySessionState()
   createStorageFromHandle = defaultStorageFromHandle
   pickDirectory = () => Promise.resolve(null)
@@ -388,6 +468,10 @@ export function resetProjectSessionForTests(): void {
   savePhase = 'idle'
   editGeneration = 0
   ignoreBookStoreDirty = false
+  accessPhase = 'idle'
+  blockedBookId = null
+  heldBookLock = null
+  saveEpoch = 0
   assetSources.clear()
   resetPendingHashesForTests()
   resetEditorGestureForTests()
@@ -454,9 +538,13 @@ function bookHasContent(book: Book): boolean {
   )
 }
 
-function activateLoadedBook(book: Book): StorageResult<Book> {
+async function activateLoadedBook(book: Book): Promise<StorageResult<Book>> {
   if (!libraryId) {
     return { ok: false, code: 'not-found' }
+  }
+  const locked = await takeBookLock(book.id)
+  if (!locked.ok) {
+    return { ok: false, code: locked.code }
   }
   bookId = book.id
   persistIds()
@@ -495,7 +583,7 @@ async function pickAndActivateLibraryBook(
       continue
     }
     if (summary.id === currentId) {
-      return activateLoadedBook(loaded.value)
+      return await activateLoadedBook(loaded.value)
     }
     withContent ??= loaded.value
   }
@@ -544,6 +632,7 @@ async function bindLibrary(
     setStatus({ kind: 'error', code: remembered.code, action: 'open library' })
     return remembered
   }
+  await releaseHeldBookLock()
   storage = nextStorage
   libraryId = nextLibraryId
   bookId = null
@@ -558,6 +647,9 @@ async function bindLibrary(
   dirty = false
   savePhase = 'idle'
   cancelAutosaveTimer()
+  if (accessPhase === 'permission-required') {
+    accessPhase = 'idle'
+  }
   emit()
   return { ok: true, value: undefined }
 }
@@ -634,6 +726,10 @@ export async function adoptCurrentBookInLibrary(): Promise<
     if (!bookHasContent(current)) {
       return activateLoadedBook(existing.value)
     }
+    const locked = await takeBookLock(current.id)
+    if (!locked.ok) {
+      return { ok: false, code: locked.code }
+    }
     bookId = current.id
     persistIds()
     setStatus({ kind: 'open', libraryId, bookId })
@@ -643,6 +739,10 @@ export async function adoptCurrentBookInLibrary(): Promise<
   if (!created.ok) {
     setStatus({ kind: 'error', code: created.code, action: 'adopt book' })
     return created
+  }
+  const locked = await takeBookLock(created.value.id)
+  if (!locked.ok) {
+    return { ok: false, code: locked.code }
   }
   bookId = created.value.id
   persistIds()
@@ -663,6 +763,10 @@ export async function createBookInLibrary(): Promise<StorageResult<Book>> {
   if (!created.ok) {
     setStatus({ kind: 'error', code: created.code, action: 'create book' })
     return created
+  }
+  const locked = await takeBookLock(created.value.id)
+  if (!locked.ok) {
+    return { ok: false, code: locked.code }
   }
   bookId = created.value.id
   persistIds()
@@ -687,32 +791,42 @@ function runSave(): void {
     setStatus({ kind: 'error', code: 'not-found', action: 'save' })
     return
   }
+  if (accessPhase === 'locked-elsewhere') {
+    setEditorStatus(LOCK_BANNER_MESSAGE)
+    return
+  }
   if (savePhase === 'saving') {
     return
   }
   if (bookId === null) {
     // Manual Save may still adopt; autosave never calls this path without bookId.
     cancelAutosaveTimer()
+    const epochAtStart = saveEpoch
     savePhase = 'saving'
     emit()
     const activeStorage = storage
     scheduleBackground(async () => {
       try {
+        if (epochAtStart !== saveEpoch) {
+          return
+        }
         const adopted = await withoutDirtyTrackingAsync(() =>
           adoptCurrentBookInLibrary(),
         )
         if (!adopted.ok) {
-          savePhase = 'error'
-          dirty = true
+          if (epochAtStart === saveEpoch) {
+            savePhase = 'error'
+            dirty = true
+          }
           return
         }
-        await persistBookSnapshot(activeStorage, editGeneration)
+        await persistBookSnapshot(activeStorage, editGeneration, epochAtStart)
       } finally {
-        if (savePhase === 'saving') {
+        if (epochAtStart === saveEpoch && savePhase === 'saving') {
           savePhase = dirty ? 'pending' : 'idle'
         }
         emit()
-        if (dirty && savePhase === 'pending') {
+        if (epochAtStart === saveEpoch && dirty && savePhase === 'pending') {
           armAutosaveDebounce()
         }
       }
@@ -721,18 +835,19 @@ function runSave(): void {
   }
   cancelAutosaveTimer()
   const generationAtStart = editGeneration
+  const epochAtStart = saveEpoch
   savePhase = 'saving'
   emit()
   const activeStorage = storage
   scheduleBackground(async () => {
     try {
-      await persistBookSnapshot(activeStorage, generationAtStart)
+      await persistBookSnapshot(activeStorage, generationAtStart, epochAtStart)
     } finally {
-      if (savePhase === 'saving') {
+      if (epochAtStart === saveEpoch && savePhase === 'saving') {
         savePhase = dirty ? 'pending' : 'idle'
       }
       emit()
-      if (dirty && savePhase === 'pending') {
+      if (epochAtStart === saveEpoch && dirty && savePhase === 'pending') {
         armAutosaveDebounce()
       }
     }
@@ -742,13 +857,31 @@ function runSave(): void {
 async function persistBookSnapshot(
   activeStorage: LibraryStorage,
   generationAtStart: number,
+  epochAtStart: number,
 ): Promise<void> {
   await awaitPendingHashes()
+  if (
+    epochAtStart !== saveEpoch ||
+    heldBookLock === null ||
+    bookId === null ||
+    accessPhase === 'locked-elsewhere'
+  ) {
+    return
+  }
   const bookSnapshot = getBookStoreSnapshot().book
+  if (bookSnapshot.id !== bookId) {
+    return
+  }
   const result = await activeStorage.saveBook(bookSnapshot)
+  if (epochAtStart !== saveEpoch) {
+    return
+  }
   if (!result.ok) {
     savePhase = 'error'
     dirty = true
+    if (result.code === 'permission-required') {
+      setPermissionRequiredAccess()
+    }
     setStatus({ kind: 'error', code: result.code, action: 'save' })
     return
   }
@@ -778,7 +911,76 @@ export function saveBookNow(): void {
     setStatus({ kind: 'error', code: 'not-found', action: 'save' })
     return
   }
+  if (accessPhase === 'locked-elsewhere') {
+    setEditorStatus(LOCK_BANNER_MESSAGE)
+    return
+  }
   runSave()
+}
+
+async function regrantWithHandle(
+  handle: SessionDirectoryHandle,
+): Promise<StorageResult<void>> {
+  const midSession = bookId !== null && storage !== null
+  const persistedBookId = readPersistedIds().bookId
+  const nextStorage = createStorageFromHandle(handle)
+  if (midSession) {
+    const id = libraryId ?? DEFAULT_LIBRARY_ID
+    const remembered = await session.rememberLibraryHandle(id, handle)
+    if (!remembered.ok) {
+      setStatus({ kind: 'error', code: remembered.code, action: 're-grant' })
+      return remembered
+    }
+    storage = nextStorage
+    libraryId = id
+    accessPhase = 'idle'
+    emit()
+    runSave()
+    return { ok: true, value: undefined }
+  }
+  const meta = await nextStorage.getLibrary()
+  if (!meta.ok) {
+    setStatus({ kind: 'error', code: meta.code, action: 're-grant' })
+    return meta
+  }
+  const bound = await bindLibrary(
+    DEFAULT_LIBRARY_ID,
+    handle,
+    nextStorage,
+    'open',
+  )
+  if (!bound.ok) {
+    return bound
+  }
+  if (persistedBookId && storage && bookId !== persistedBookId) {
+    const loaded = await storage.loadBook(persistedBookId)
+    if (loaded.ok) {
+      const activated = await activateLoadedBook(loaded.value)
+      if (!activated.ok) {
+        return { ok: false, code: activated.code }
+      }
+    }
+  }
+  return { ok: true, value: undefined }
+}
+
+/**
+ * One-step re-grant after `permission-required`: directory picker, then
+ * restore-time open or mid-session rebind + save retry.
+ */
+export async function regrantLibrary(): Promise<StorageResult<void>> {
+  const handle = await pickDirectory()
+  if (!handle) {
+    return { ok: false, code: 'not-found' }
+  }
+  return regrantWithHandle(handle)
+}
+
+/** Test seam: complete re-grant without a real directory picker. */
+export async function regrantLibraryWithHandleForTests(
+  handle: SessionDirectoryHandle = { id: 'regrant-test-handle' },
+): Promise<StorageResult<void>> {
+  return regrantWithHandle(handle)
 }
 
 async function opfsTestLibraryHandle(
@@ -821,6 +1023,56 @@ async function openOpfsTestLibrary(
   })
 }
 
+/** Test seam: force access chrome phase without a real FSA denial. */
+export function setAccessPhaseForTests(phase: AccessPhase): void {
+  accessPhase = phase
+  if (phase === 'permission-required') {
+    setStatus({
+      kind: 'error',
+      code: 'permission-required',
+      action: 'restore library',
+    })
+    return
+  }
+  if (phase === 'locked-elsewhere') {
+    setEditorStatus(LOCK_BANNER_MESSAGE)
+    emit()
+    return
+  }
+  emit()
+}
+
+/** Test seam: release this tab's book lock, then hold it externally. */
+export async function holdExternalBookLockForTests(
+  nextBookId: string,
+): Promise<StorageResult<void>> {
+  await releaseHeldBookLock()
+  if (externalBookLockForTests) {
+    await externalBookLockForTests.release()
+    externalBookLockForTests = null
+  }
+  const acquired = await session.acquireBookLock(nextBookId)
+  if (!acquired.ok) {
+    return { ok: false, code: acquired.code }
+  }
+  externalBookLockForTests = acquired.value
+  return { ok: true, value: undefined }
+}
+
+/** Test seam: try to activate a stored book (exercises lock acquire). */
+export async function tryActivateLibraryBookForTests(
+  nextBookId: string,
+): Promise<StorageResult<Book>> {
+  if (!storage || !libraryId) {
+    return { ok: false, code: 'not-found' }
+  }
+  const loaded = await storage.loadBook(nextBookId)
+  if (!loaded.ok) {
+    return loaded
+  }
+  return activateLoadedBook(loaded.value)
+}
+
 export function exposeProjectSessionTestApi(): void {
   if (typeof window === 'undefined') {
     return
@@ -834,6 +1086,12 @@ export function exposeProjectSessionTestApi(): void {
     saveBookNow,
     createBookInLibrary,
     tryRestore,
+    regrantLibrary,
+    regrantLibraryWithHandleForTests,
+    setAccessPhaseForTests,
+    holdExternalBookLockForTests,
+    tryActivateLibraryBookForTests,
+    configureProjectSession,
     getSnapshot: getProjectSessionSnapshot,
   }
 }
@@ -849,6 +1107,12 @@ declare global {
       saveBookNow: typeof saveBookNow
       createBookInLibrary: typeof createBookInLibrary
       tryRestore: typeof tryRestore
+      regrantLibrary: typeof regrantLibrary
+      regrantLibraryWithHandleForTests: typeof regrantLibraryWithHandleForTests
+      setAccessPhaseForTests: typeof setAccessPhaseForTests
+      holdExternalBookLockForTests: typeof holdExternalBookLockForTests
+      tryActivateLibraryBookForTests: typeof tryActivateLibraryBookForTests
+      configureProjectSession: typeof configureProjectSession
       getSnapshot: typeof getProjectSessionSnapshot
     }
   }
@@ -866,6 +1130,14 @@ export async function tryRestore(): Promise<StorageResult<Book | null>> {
   }
   if (!recalled.ok) {
     if (recalled.code === 'permission-required') {
+      await releaseHeldBookLock()
+      storage = null
+      bookId = null
+      libraryId = null
+      dirty = false
+      savePhase = 'idle'
+      cancelAutosaveTimer()
+      setPermissionRequiredAccess()
       setStatus({
         kind: 'error',
         code: 'permission-required',
@@ -880,6 +1152,7 @@ export async function tryRestore(): Promise<StorageResult<Book | null>> {
   const activeBookId = persisted.bookId
   if (!activeBookId) {
     persistIds()
+    accessPhase = 'idle'
     setStatus({ kind: 'open', libraryId: id, bookId: null })
     return { ok: true, value: null }
   }
@@ -888,20 +1161,5 @@ export async function tryRestore(): Promise<StorageResult<Book | null>> {
     setStatus({ kind: 'error', code: loaded.code, action: 'restore book' })
     return loaded
   }
-  bookId = loaded.value.id
-  persistIds()
-  withoutDirtyTracking(() => {
-    resetBookStore({
-      book: loaded.value,
-      sessionMeta: new Map(),
-      importRunning: false,
-      importExpectedCount: 0,
-    })
-  })
-  dirty = false
-  savePhase = 'idle'
-  cancelAutosaveTimer()
-  setStatus({ kind: 'open', libraryId: id, bookId })
-  setEditorStatus('Book restored')
-  return loaded
+  return activateLoadedBook(loaded.value)
 }

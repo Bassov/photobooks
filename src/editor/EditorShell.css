@@ -73,6 +73,14 @@
   cursor: wait;
 }
 
+.book-lock-banner {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
 .save-indicator {
   margin: 0;
   font-family: var(--font-body);

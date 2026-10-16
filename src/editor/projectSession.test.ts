@@ -23,10 +23,15 @@ import {
   createLibrary,
   exposeProjectSessionTestApi,
   getProjectSessionSnapshot,
+  holdExternalBookLockForTests,
   isLibraryBacked,
   openLibrary,
+  regrantLibrary,
+  regrantLibraryWithHandleForTests,
   resetProjectSessionForTests,
   saveBookNow,
+  setAccessPhaseForTests,
+  tryActivateLibraryBookForTests,
   tryRestore,
 } from './projectSession'
 
@@ -445,6 +450,7 @@ describe('projectSession', () => {
     const restored = await tryRestore()
     expect(restored).toEqual({ ok: true, value: null })
     expect(getEditorStatus()).toContain('permission-required')
+    expect(getProjectSessionSnapshot().accessPhase).toBe('permission-required')
   })
 
   it('exposes the project test API on window', () => {
@@ -817,6 +823,237 @@ describe('projectSession', () => {
       await vi.waitFor(() => {
         expect(getProjectSessionSnapshot().savePhase).toBe('idle')
       })
+    })
+  })
+
+  describe('permissions and locks', () => {
+    it('setAccessPhaseForTests drives permission-required chrome phase', () => {
+      setAccessPhaseForTests('permission-required')
+      expect(getProjectSessionSnapshot().accessPhase).toBe(
+        'permission-required',
+      )
+      setAccessPhaseForTests('idle')
+      expect(getProjectSessionSnapshot().accessPhase).toBe('idle')
+    })
+
+    it('restore-time regrant loads the persisted book', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const handle = { id: 'lib-handle' }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () =>
+          Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+      })
+      await attachLibraryForTests({ storage, session, handle })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      const bookId = created.value.id
+      saveBookNow()
+      await vi.waitFor(() => {
+        expect(getEditorStatus()).toBe('Book saved')
+      })
+
+      configureProjectSession({
+        session: {
+          rememberLibraryHandle: session.rememberLibraryHandle.bind(session),
+          clearLibraryHandle: session.clearLibraryHandle.bind(session),
+          acquireBookLock: session.acquireBookLock.bind(session),
+          recallLibraryHandle: () =>
+            Promise.resolve({ ok: false, code: 'permission-required' }),
+        },
+        createStorage: () => storage,
+        pickDirectory: () =>
+          Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+      })
+      const denied = await tryRestore()
+      expect(denied).toEqual({ ok: true, value: null })
+      expect(getProjectSessionSnapshot().accessPhase).toBe(
+        'permission-required',
+      )
+
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () =>
+          Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+      })
+      const granted = await regrantLibrary()
+      expect(granted.ok).toBe(true)
+      expect(getProjectSessionSnapshot().accessPhase).toBe('idle')
+      expect(getProjectSessionSnapshot().bookId).toBe(bookId)
+      expect(getEditorStatus()).toBe('Book restored')
+    })
+
+    it('mid-session regrant keeps dirty edits and retries save', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const handle = { id: 'lib-handle-mid' }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () =>
+          Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+      })
+      await attachLibraryForTests({ storage, session, handle })
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      expect(getProjectSessionSnapshot().dirty).toBe(true)
+
+      storage.setPermissionRequired(true)
+      saveBookNow()
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot().savePhase).toBe('error')
+      })
+      expect(getProjectSessionSnapshot().accessPhase).toBe(
+        'permission-required',
+      )
+      expect(getProjectSessionSnapshot().dirty).toBe(true)
+      const before = getBookStoreSnapshot().book
+
+      storage.setPermissionRequired(false)
+      const granted = await regrantLibrary()
+      expect(granted.ok).toBe(true)
+      expect(getProjectSessionSnapshot().accessPhase).toBe('idle')
+      expect(getBookStoreSnapshot().book).toBe(before)
+      await vi.waitFor(() => {
+        expect(getEditorStatus()).toBe('Book saved')
+      })
+      expect(getProjectSessionSnapshot().dirty).toBe(false)
+    })
+
+    it('locked-elsewhere blocks activate and clears on a new book', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        nowId: () => 'book-locked-1',
+      })
+      await attachLibraryForTests({ storage, session })
+      const first = await createBookInLibrary()
+      expect(first.ok).toBe(true)
+      if (!first.ok) {
+        throw new Error('expected create')
+      }
+      const held = await holdExternalBookLockForTests(first.value.id)
+      expect(held.ok).toBe(true)
+
+      const blocked = await tryActivateLibraryBookForTests(first.value.id)
+      expect(blocked).toEqual({ ok: false, code: 'locked-elsewhere' })
+      expect(getProjectSessionSnapshot().accessPhase).toBe('locked-elsewhere')
+      expect(getEditorStatus()).toBe('This book is open in another tab')
+      expect(getProjectSessionSnapshot().bookId).toBeNull()
+      expect(getBookStoreSnapshot().book.id).toBe('locked-placeholder')
+      expect(getBookStoreSnapshot().book.gallery).toEqual([])
+
+      saveBookNow()
+      expect(getEditorStatus()).toBe('This book is open in another tab')
+
+      configureProjectSession({ nowId: () => 'book-locked-2' })
+      const second = await createBookInLibrary()
+      expect(second.ok).toBe(true)
+      expect(getProjectSessionSnapshot().accessPhase).toBe('idle')
+      expect(getProjectSessionSnapshot().bookId).toBe('book-locked-2')
+    })
+
+    it('keeps locked-elsewhere when retrying the same contended book', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        nowId: () => 'book-retry-lock',
+      })
+      await attachLibraryForTests({ storage, session })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      await holdExternalBookLockForTests(created.value.id)
+      await tryActivateLibraryBookForTests(created.value.id)
+      expect(getProjectSessionSnapshot().accessPhase).toBe('locked-elsewhere')
+      await tryActivateLibraryBookForTests(created.value.id)
+      expect(getProjectSessionSnapshot().accessPhase).toBe('locked-elsewhere')
+      expect(getEditorStatus()).toBe('This book is open in another tab')
+    })
+
+    it('releases the book lock so another holder can acquire it', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        nowId: () => 'book-release-1',
+      })
+      await attachLibraryForTests({ storage, session })
+      const first = await createBookInLibrary()
+      expect(first.ok).toBe(true)
+      if (!first.ok) {
+        throw new Error('expected create')
+      }
+      configureProjectSession({ nowId: () => 'book-release-2' })
+      const second = await createBookInLibrary()
+      expect(second.ok).toBe(true)
+      const again = await session.acquireBookLock('book-release-1')
+      expect(again.ok).toBe(true)
+      if (again.ok) {
+        await again.value.release()
+      }
+    })
+
+    it('regrantLibraryWithHandleForTests restores after permission-required', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        handle: { id: 'handle-a' },
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      saveBookNow()
+      await vi.waitFor(() => {
+        expect(getEditorStatus()).toBe('Book saved')
+      })
+      configureProjectSession({
+        session: {
+          rememberLibraryHandle: session.rememberLibraryHandle.bind(session),
+          clearLibraryHandle: session.clearLibraryHandle.bind(session),
+          acquireBookLock: session.acquireBookLock.bind(session),
+          recallLibraryHandle: () =>
+            Promise.resolve({ ok: false, code: 'permission-required' }),
+        },
+        createStorage: () => storage,
+      })
+      await tryRestore()
+      expect(getProjectSessionSnapshot().accessPhase).toBe(
+        'permission-required',
+      )
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+      })
+      const granted = await regrantLibraryWithHandleForTests({
+        id: 'handle-a',
+      })
+      expect(granted.ok).toBe(true)
+      expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
     })
   })
 })
