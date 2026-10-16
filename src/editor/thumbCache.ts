@@ -1,6 +1,7 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
 import { ObjectUrlLru } from '../photo/objectUrlLru'
+import { trackHashJob } from './pendingHashes'
 import { restoreAspectFromPreview } from './previewAspect'
 
 const DEFAULT_CAPACITY = 256
@@ -92,11 +93,15 @@ export function setThumbUrl(
   lastThumb.set(assetId, { buffer: retained, mimeType })
   enqueuePending(assetId, retained, mimeType, false)
   if (contentHash !== undefined && contentHash.length > 0) {
-    void getDerivedCache().then((cache) =>
-      cache.put(contentHash, THUMB_PRESET_ID, {
-        bytes: retained.slice(0),
-        mimeType,
-      }),
+    // Encode-after-hash path: put must be awaited by Save (awaitPendingHashes),
+    // otherwise reload hydrates gray placeholders for late gallery assets.
+    void trackHashJob(
+      getDerivedCache().then((cache) =>
+        cache.put(contentHash, THUMB_PRESET_ID, {
+          bytes: retained.slice(0),
+          mimeType,
+        }),
+      ),
     )
   }
 }

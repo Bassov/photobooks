@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { getAssetAspectSnapshot, resetBookStore } from './bookStore'
+import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
   ensureThumb,
   getThumbUrl,
@@ -28,6 +29,7 @@ describe('thumbCache', () => {
 
   afterEach(() => {
     resetThumbCache()
+    resetPendingHashesForTests()
     resetBookStore()
     setDerivedCacheForTests(undefined)
     vi.unstubAllGlobals()
@@ -151,12 +153,65 @@ describe('thumbCache', () => {
 
     setThumbUrl('a1', new Uint8Array([1, 2]).buffer, 'image/jpeg', SAMPLE_HASH)
     callbacks[0]?.(0)
-    await Promise.resolve()
+    await awaitPendingHashes()
     const got = await cache.get(SAMPLE_HASH, 'thumb')
     expect(got.ok).toBe(true)
     if (got.ok) {
       expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([1, 2]))
     }
+  })
+
+  it('awaits encode-after-hash put so Save cannot race reload hydrate', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        void Promise.resolve().then(() => {
+          cb(0)
+        })
+        return 1
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:race-thumb')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+
+    const inner = createMemoryDerivedCache()
+    let releasePut: (() => void) | undefined
+    const putGate = new Promise<void>((resolve) => {
+      releasePut = resolve
+    })
+    setDerivedCacheForTests({
+      get: (hash, preset) => inner.get(hash, preset),
+      put: async (hash, preset, entry) => {
+        await putGate
+        return inner.put(hash, preset, entry)
+      },
+      delete: (hash, preset) => inner.delete(hash, preset),
+      clear: () => inner.clear(),
+    })
+
+    // Hash finished first — putCachedThumbForHash no-ops without lastThumb.
+    await putCachedThumbForHash('late-asset', SAMPLE_HASH)
+    expect((await inner.get(SAMPLE_HASH, 'thumb')).ok).toBe(false)
+
+    setThumbUrl(
+      'late-asset',
+      new Uint8Array([9, 9, 9]).buffer,
+      'image/jpeg',
+      SAMPLE_HASH,
+    )
+
+    let hashesSettled = false
+    const waiting = awaitPendingHashes().then(() => {
+      hashesSettled = true
+    })
+    await Promise.resolve()
+    expect(hashesSettled).toBe(false)
+
+    releasePut?.()
+    await waiting
+    expect(hashesSettled).toBe(true)
+    const got = await inner.get(SAMPLE_HASH, 'thumb')
+    expect(got.ok).toBe(true)
   })
 
   it('does not put into DerivedCache without a contentHash', async () => {

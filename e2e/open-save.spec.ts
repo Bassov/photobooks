@@ -1,3 +1,6 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import {
   assertDocumentFitsViewport,
@@ -7,6 +10,22 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+
+function writeBulkImportFixtures(count: number): string[] {
+  const dir = join(tmpdir(), `photobooks-open-save-bulk-${String(process.pid)}`)
+  mkdirSync(dir, { recursive: true })
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  const paths: string[] = []
+  for (let i = 0; i < count; i += 1) {
+    const path = join(dir, `bulk-${String(i).padStart(3, '0')}.png`)
+    writeFileSync(path, png)
+    paths.push(path)
+  }
+  return paths
+}
 
 test('empty chrome offers create and open library without page scroll', async ({
   page,
@@ -154,6 +173,67 @@ test('session import then attach library saves without New book; reload hydrates
     axis: 'vertical',
     nudgeHorizontal: false,
   })
+})
+
+test('bulk library import reload hydrates thumbs across the filmstrip', async ({
+  page,
+}) => {
+  test.setTimeout(180_000)
+  const count = 24
+  const files = writeBulkImportFixtures(count)
+
+  await page.goto('/?testLibrary=1')
+  await expect(page.getByTestId('create-book')).toBeEnabled({
+    timeout: 15_000,
+  })
+  await page.getByTestId('create-book').click()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book created')
+
+  await page.getByTestId('photo-file-input').setInputFiles(files)
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 120_000 },
+    )
+    .toBe(String(count))
+  await expect(page.getByTestId('import-progress')).toBeHidden({
+    timeout: 60_000,
+  })
+
+  await page.getByTestId('save-book').click()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
+    timeout: 60_000,
+  })
+
+  await page.reload()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
+    timeout: 30_000,
+  })
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 30_000 },
+    )
+    .toBe(String(count))
+
+  const scroll = page.getByTestId('filmstrip-scroll')
+  const maxScroll = await scroll.evaluate(
+    (node) => node.scrollWidth - node.clientWidth,
+  )
+  // Cover start, mid, and end — late assets are most likely to miss put-before-save.
+  for (const left of [0, Math.floor(maxScroll / 2), maxScroll]) {
+    await scroll.evaluate((node, nextLeft) => {
+      node.scrollLeft = nextLeft
+    }, left)
+    await expect(page.getByTestId('filmstrip-placeholder')).toHaveCount(0, {
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
+      timeout: 15_000,
+    })
+  }
 })
 
 test('New book confirm accept replaces content with an empty book', async ({
