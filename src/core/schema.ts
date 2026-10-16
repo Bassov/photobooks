@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 1 as const
+export const CURRENT_SCHEMA_VERSION = 2 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -43,7 +43,13 @@ const cropSchema = z.object({
   }),
 })
 
-const assetSchema = z.object({})
+const assetSchema = z.object({
+  sourceRootId: z.string().min(1).optional(),
+  relativePath: z.string().min(1).optional(),
+  byteSize: z.number().int().nonnegative().optional(),
+  mtimeMs: z.number().optional(),
+  contentHash: z.string().min(1).optional(),
+})
 
 const frameSchema = z.object({
   id: z.string().min(1),
@@ -94,6 +100,7 @@ export const bookSchema = z.object({
   spreads: z.array(spreadSchema).min(1),
 })
 
+export type Asset = z.infer<typeof assetSchema>
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
 export type Book = z.infer<typeof bookSchema>

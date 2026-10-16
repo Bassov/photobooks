@@ -23,9 +23,30 @@ function readSchemaVersion(input: unknown): number | undefined {
     : undefined
 }
 
+function migrateV1ToV2(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const assetsIn = input.assets
+  const assets: Record<string, Record<string, never>> = {}
+  if (
+    assetsIn !== null &&
+    typeof assetsIn === 'object' &&
+    !Array.isArray(assetsIn)
+  ) {
+    for (const key of Object.keys(assetsIn)) {
+      assets[key] = {}
+    }
+  }
+  return {
+    ...input,
+    schemaVersion: 2,
+    assets,
+  }
+}
+
 /**
- * Pure migration scaffold: reject newer versions; identity for v1.
- * Future versions append steps here before Zod validation of the current shape.
+ * Pure migration: reject newer versions; upgrade supported older versions
+ * before Zod validation of the current shape.
  */
 export function migrateToCurrent(input: unknown): MigrateResult {
   const schemaVersion = readSchemaVersion(input)
@@ -51,6 +72,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
       message: `Unsupported schemaVersion ${String(schemaVersion)}`,
     }
   }
-  // v1 identity — later: for (let v = schemaVersion; v < CURRENT; v++) apply step
-  return { ok: true, value: input }
+
+  let value: unknown = input
+  if (schemaVersion === 1) {
+    value = migrateV1ToV2(input as Record<string, unknown>)
+  }
+  return { ok: true, value }
 }
