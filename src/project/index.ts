@@ -19,3 +19,16 @@ export {
   type LibraryDirectoryHandle,
   type LibraryFileHandle,
 } from './fsa/handles'
+export type {
+  BookLock,
+  SessionDirectoryHandle,
+  SessionState,
+} from './session/types'
+export {
+  createMemorySessionState,
+  type MemorySessionState,
+} from './session/memorySessionState'
+export {
+  createBrowserSessionState,
+  type CreateBrowserSessionStateOptions,
+} from './session/browserSessionState'

@@ -134,8 +134,8 @@ Slicing rules when adding or splitting items:
   - [x] File System Access adapter passing the shared contract suite
   - [x] Library layout (`library.json`, `books/<id>/book.json`), writes via writable stream + `.bak` rotation, migrations on load
   - [x] Load (parse, Zod, migrations) in a worker; serialization cost benchmarked on a 1000-asset book
-- [ ] [prep] `session-state` — per-browser state
-  - [ ] `SessionState` adapter: handles in IndexedDB, Web Locks per book
+- [x] [prep] `session-state` — per-browser state
+  - [x] `SessionState` adapter: handles in IndexedDB, Web Locks per book
 - [ ] [prep] `asset-record-schema` — asset identity in the document
   - [ ] Schema version bump with migration: asset record (source root, relative path, size, mtime, hash)
 - [ ] [prep] `asset-identity` — content-addressed assets
