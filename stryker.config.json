@@ -16,8 +16,10 @@
     "!src/core/testing/**",
     "!src/core/index.ts",
     "!src/project/index.ts",
+    "!src/assets/index.ts",
     "!src/main.tsx",
     "!src/photo/photo.worker.ts",
+    "!src/assets/hash.worker.ts",
     "!src/project/fsa/bookLoad.worker.ts",
     "!src/project/session/idb.ts",
     "!src/project/session/locks.ts"

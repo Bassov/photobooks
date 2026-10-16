@@ -48,7 +48,10 @@ const assetSchema = z.object({
   relativePath: z.string().min(1).optional(),
   byteSize: z.number().int().nonnegative().optional(),
   mtimeMs: z.number().optional(),
-  contentHash: z.string().min(1).optional(),
+  contentHash: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/, 'contentHash must be 64 lowercase hex')
+    .optional(),
 })
 
 const frameSchema = z.object({

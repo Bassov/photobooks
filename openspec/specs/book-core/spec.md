@@ -50,11 +50,11 @@ The system SHALL refuse documents whose `schemaVersion` is greater than the supp
 
 ### Requirement: Asset record fields
 
-Each asset map value SHALL be a record that MAY include `sourceRootId` (non-empty string), `relativePath` (non-empty string), `byteSize` (non-negative integer), `mtimeMs` (finite number), and `contentHash` (non-empty string). All five fields are optional. When present, values MUST satisfy those constraints. The record MUST NOT include File, Blob, or filesystem handles.
+Each asset map value SHALL be a record that MAY include `sourceRootId` (non-empty string), `relativePath` (non-empty string), `byteSize` (non-negative integer), `mtimeMs` (finite number), and `contentHash` (64-character lowercase hexadecimal SHA-256 digest). All five fields are optional. When present, values MUST satisfy those constraints. The record MUST NOT include File, Blob, or filesystem handles.
 
 #### Scenario: Full asset record parses
 
-- **WHEN** an asset value includes valid `sourceRootId`, `relativePath`, `byteSize`, `mtimeMs`, and `contentHash`
+- **WHEN** an asset value includes valid `sourceRootId`, `relativePath`, `byteSize`, `mtimeMs`, and a 64-character lowercase hex `contentHash`
 - **THEN** parse accepts the document and retains those fields
 
 #### Scenario: Empty asset record parses
@@ -70,6 +70,11 @@ Each asset map value SHALL be a record that MAY include `sourceRootId` (non-empt
 #### Scenario: Empty string identity field rejected
 
 - **WHEN** an asset value has `sourceRootId`, `relativePath`, or `contentHash` equal to `""`
+- **THEN** parse fails
+
+#### Scenario: Non-SHA-256 contentHash rejected
+
+- **WHEN** an asset value has `contentHash` that is not a 64-character lowercase hexadecimal string
 - **THEN** parse fails
 
 ### Requirement: Referential invariants at parse

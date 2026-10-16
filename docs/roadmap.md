@@ -138,10 +138,10 @@ Slicing rules when adding or splitting items:
   - [x] `SessionState` adapter: handles in IndexedDB, Web Locks per book
 - [x] [prep] `asset-record-schema` — asset identity in the document
   - [x] Schema version bump with migration: asset record (source root, relative path, size, mtime, hash)
-- [ ] [prep] `asset-identity` — content-addressed assets
-  - [ ] `AssetSource` interface (read-only originals, folder scan) with memory and File System Access adapters
-  - [ ] SHA-256 hashing in the worker at lowest priority; size + mtime fast path
-  - [ ] Pure matching / relink function
+- [x] [prep] `asset-identity` — content-addressed assets
+  - [x] `AssetSource` interface (read-only originals, folder scan) with memory and File System Access adapters
+  - [x] SHA-256 hashing in the worker at lowest priority; size + mtime fast path
+  - [x] Pure matching / relink function
 - [ ] [prep] `derived-cache-opfs` — persistent preview cache
   - [ ] `DerivedCache` interface; OPFS adapter keyed by `(assetHash, presetId)`; zoom tiers and thumbnails move from the in-memory LRU to OPFS
 - [ ] [feature] `open-save-project` — library on disk

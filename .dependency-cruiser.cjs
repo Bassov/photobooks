@@ -19,7 +19,7 @@ module.exports = {
       from: { path: '^src/core' },
       to: {
         path: [
-          '^src/(photo|perf|App|editor|render|project)',
+          '^src/(photo|perf|App|editor|render|project|assets)',
           'node_modules/(react|react-dom)(/|$)',
         ],
       },
@@ -31,7 +31,17 @@ module.exports = {
       severity: 'error',
       from: { path: '^src/render' },
       to: {
-        path: ['^src/(editor|photo|project|publish|perf|App)'],
+        path: ['^src/(editor|photo|project|publish|perf|App|assets)'],
+      },
+    },
+    {
+      name: 'assets-no-react',
+      comment:
+        'src/assets is domain/platform adapters and must not import React or App UI.',
+      severity: 'error',
+      from: { path: '^src/assets' },
+      to: {
+        path: ['^src/(App|editor)', 'node_modules/(react|react-dom)(/|$)'],
       },
     },
     {

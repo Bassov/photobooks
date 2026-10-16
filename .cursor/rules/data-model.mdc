@@ -8,7 +8,7 @@ globs: src/**/*.{ts,tsx}
 
 Canonical shape (see `src/core` / `openspec/specs/book-core/`): `book.json` as book → spreads → frames, plus assets map and ordered gallery of asset ids. Pages are derived from spreads — do not store `pages[]` or slots.
 
-- Current `schemaVersion` is 2. Asset map values are records with optional `sourceRootId`, `relativePath`, `byteSize`, `mtimeMs`, `contentHash` (all omitted until identity/import fills them).
+- Current `schemaVersion` is 2. Asset map values are records with optional `sourceRootId`, `relativePath`, `byteSize`, `mtimeMs`, `contentHash` (64 lowercase hex SHA-256 when present; all omitted until identity/import fills them).
 - Physical units are millimeters; crop is `{ zoom ≥ 1, center }` in normalized source space.
 - Validate load boundaries with Zod (`parseBook`); refuse newer `schemaVersion`; migrate supported older versions.
 - Prefer immutable updates with structural sharing (`updateSpread` / `updateFrame`).
