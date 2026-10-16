@@ -232,6 +232,114 @@ describe('projectSession', () => {
     expect(getProjectSessionSnapshot().libraryOpen).toBe(true)
   })
 
+  it('openLibrary loads a saved book into an empty editor without adopt wipe', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    const handle = { id: 'picked-dir' }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+      pickDirectory: () =>
+        Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+    })
+    await createLibrary()
+    const adoptedId = getProjectSessionSnapshot().bookId
+    expect(adoptedId).toBe('session-book')
+
+    resetBookStore({
+      book: {
+        ...getBookStoreSnapshot().book,
+        gallery: ['asset-open'],
+        assets: {
+          'asset-open': {
+            sourceRootId: 'root-a',
+            relativePath: 'open.jpg',
+            byteSize: 4,
+            mtimeMs: 1,
+          },
+        },
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    saveBookNow()
+    await vi.waitFor(() => {
+      expect(getEditorStatus()).toBe('Book saved')
+    })
+
+    resetBookStore()
+    resetProjectSessionForTests()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+      pickDirectory: () =>
+        Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+    })
+    expect(getBookStoreSnapshot().book.gallery).toEqual([])
+
+    const opened = await openLibrary()
+    expect(opened).toEqual({ ok: true, value: undefined })
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['asset-open'])
+    expect(getProjectSessionSnapshot().bookId).toBe('session-book')
+    expect(getEditorStatus()).toBe('Book restored')
+  })
+
+  it('openLibrary prefers a filled book over an empty session-book', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    const handle = { id: 'picked-dir' }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+      pickDirectory: () =>
+        Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+    })
+    await createLibrary()
+    const created = await createBookInLibrary()
+    expect(created.ok).toBe(true)
+    if (!created.ok) {
+      throw new Error('expected createBookInLibrary success')
+    }
+
+    resetBookStore({
+      book: {
+        ...created.value,
+        gallery: ['asset-filled'],
+        assets: {
+          'asset-filled': {
+            sourceRootId: 'root-b',
+            relativePath: 'filled.jpg',
+            byteSize: 8,
+            mtimeMs: 2,
+          },
+        },
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    saveBookNow()
+    await vi.waitFor(() => {
+      expect(getEditorStatus()).toBe('Book saved')
+    })
+
+    resetBookStore()
+    resetProjectSessionForTests()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+      pickDirectory: () =>
+        Promise.resolve(handle as unknown as FileSystemDirectoryHandle),
+    })
+
+    const opened = await openLibrary()
+    expect(opened).toEqual({ ok: true, value: undefined })
+    expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['asset-filled'])
+    expect(getEditorStatus()).toBe('Book restored')
+  })
+
   it('createLibrary returns not-found when the picker is cancelled', async () => {
     configureProjectSession({
       pickDirectory: () => Promise.resolve(null),

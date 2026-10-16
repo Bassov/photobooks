@@ -119,16 +119,17 @@ test('session import then attach library saves without New book; reload hydrates
     timeout: 30_000,
   })
 
-  const attached = await page.evaluate(async () => {
+  const libraryFolder = `photobooks-e2e-adopt-${String(process.pid)}-${String(Date.now())}`
+  const attached = await page.evaluate(async (folderName) => {
     const api = window.__photobooksProject
     if (!api?.attachOpfsTestLibrary) {
       return { ok: false as const, reason: 'missing api' }
     }
-    const result = await api.attachOpfsTestLibrary()
+    const result = await api.attachOpfsTestLibrary(folderName)
     return result.ok
       ? { ok: true as const }
       : { ok: false as const, reason: result.code }
-  })
+  }, libraryFolder)
   expect(attached.ok).toBe(true)
   await expect(page.getByTestId('save-book')).toBeEnabled()
   await expect(page.getByTestId('editor-status')).toHaveText(
@@ -234,6 +235,121 @@ test('bulk library import reload hydrates thumbs across the filmstrip', async ({
       timeout: 15_000,
     })
   }
+})
+
+test('fresh session Open loads saved book with thumbs and frames', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  const libraryFolder = `photobooks-e2e-open-${String(process.pid)}-${String(Date.now())}`
+
+  await page.goto('/')
+  await expect(page.getByTestId('save-book')).toBeDisabled()
+
+  const attached = await page.evaluate(async (folderName) => {
+    const api = window.__photobooksProject
+    if (!api?.attachOpfsTestLibrary) {
+      return { ok: false as const, reason: 'missing api' }
+    }
+    const result = await api.attachOpfsTestLibrary(folderName)
+    return result.ok
+      ? { ok: true as const }
+      : { ok: false as const, reason: result.code }
+  }, libraryFolder)
+  expect(attached.ok).toBe(true)
+  await expect(page.getByTestId('save-book')).toBeEnabled()
+
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles([
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+    ])
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+
+  const first = page.getByTestId('filmstrip-item').nth(0)
+  await first.focus()
+  await page.keyboard.press('Space')
+  await expect(first).toHaveAttribute('aria-selected', 'true')
+  const place = page.getByRole('button', { name: 'Place photo' }).first()
+  await place.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+
+  await page.getByTestId('save-book').click()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
+    timeout: 30_000,
+  })
+
+  // Simulate a fresh browser session: no sessionStorage / remembered handles.
+  await page.evaluate(async () => {
+    sessionStorage.clear()
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase('photobooks-session')
+      request.onsuccess = () => {
+        resolve()
+      }
+      request.onerror = () => {
+        reject(request.error ?? new Error('indexedDB delete failed'))
+      }
+      request.onblocked = () => {
+        resolve()
+      }
+    })
+  })
+  await page.goto('/')
+  await expect(page.getByTestId('save-book')).toBeDisabled()
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+
+  const opened = await page.evaluate(async (folderName) => {
+    const api = window.__photobooksProject
+    if (!api?.openOpfsTestLibrary) {
+      return { ok: false as const, reason: 'missing api' }
+    }
+    const result = await api.openOpfsTestLibrary(folderName)
+    return result.ok
+      ? { ok: true as const }
+      : { ok: false as const, reason: result.code }
+  }, libraryFolder)
+  expect(opened.ok).toBe(true)
+
+  await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
+    timeout: 20_000,
+  })
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
+    timeout: 20_000,
+  })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+
+  await page.reload()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
+    timeout: 20_000,
+  })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
 })
 
 test('New book confirm accept replaces content with an empty book', async ({
