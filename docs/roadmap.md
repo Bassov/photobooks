@@ -136,8 +136,8 @@ Slicing rules when adding or splitting items:
   - [x] Load (parse, Zod, migrations) in a worker; serialization cost benchmarked on a 1000-asset book
 - [x] [prep] `session-state` — per-browser state
   - [x] `SessionState` adapter: handles in IndexedDB, Web Locks per book
-- [ ] [prep] `asset-record-schema` — asset identity in the document
-  - [ ] Schema version bump with migration: asset record (source root, relative path, size, mtime, hash)
+- [x] [prep] `asset-record-schema` — asset identity in the document
+  - [x] Schema version bump with migration: asset record (source root, relative path, size, mtime, hash)
 - [ ] [prep] `asset-identity` — content-addressed assets
   - [ ] `AssetSource` interface (read-only originals, folder scan) with memory and File System Access adapters
   - [ ] SHA-256 hashing in the worker at lowest priority; size + mtime fast path

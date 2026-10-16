@@ -1,6 +1,7 @@
 export {
   CURRENT_SCHEMA_VERSION,
   bookSchema,
+  type Asset,
   type Book,
   type Frame,
   type Spread,

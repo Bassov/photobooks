@@ -46,6 +46,78 @@ describe('parseBook', () => {
       expect(result.book).toEqual(book)
     }
   })
+
+  it('parses empty and full asset records', () => {
+    const empty = parseBook(makeBookWithAsset('photo-a'))
+    expect(empty.ok).toBe(true)
+    if (empty.ok) {
+      expect(empty.book.assets['photo-a']).toEqual({})
+    }
+
+    const record = {
+      sourceRootId: 'root-1',
+      relativePath: 'vacation/IMG_001.jpg',
+      byteSize: 1024,
+      mtimeMs: 1_700_000_000_000,
+      contentHash: 'abc123',
+    }
+    const full = parseBook(
+      makeBook({
+        assets: { 'photo-a': record },
+        gallery: ['photo-a'],
+      }),
+    )
+    expect(full.ok).toBe(true)
+    if (full.ok) {
+      expect(full.book.assets['photo-a']).toEqual(record)
+    }
+  })
+
+  it.each([
+    [{ byteSize: -1 }],
+    [{ byteSize: 1.5 }],
+    [{ mtimeMs: Number.NaN }],
+    [{ sourceRootId: '' }],
+    [{ relativePath: '' }],
+    [{ contentHash: '' }],
+  ])('rejects malformed asset field %j', (asset) => {
+    expect(
+      parseBook(
+        makeBook({
+          assets: { a: asset },
+          gallery: ['a'],
+        }),
+      ),
+    ).toMatchObject({ ok: false, code: 'invalid-shape' })
+  })
+
+  it('parses a migrated v1 book with empty assets', () => {
+    const v1 = {
+      ...makeBookWithAsset('photo-a'),
+      schemaVersion: 1,
+      assets: { 'photo-a': {} },
+    }
+    const result = parseBook(v1)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.book.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+      expect(result.book.assets['photo-a']).toEqual({})
+    }
+  })
+
+  it('rejects duplicate gallery ids at the schema boundary', () => {
+    const result = parseBook(
+      makeBook({
+        assets: { a: {} },
+        gallery: ['a', 'a'],
+      }),
+    )
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'invalid-shape',
+      message: 'Gallery ids must be unique',
+    })
+  })
 })
 
 const assetIdArb = fc.stringMatching(/^[a-z][a-z0-9-]{0,11}$/)
