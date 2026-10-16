@@ -35,6 +35,11 @@ export interface PhotobooksPerfApi {
 declare global {
   interface Window {
     __photobooksPerf?: PhotobooksPerfApi
+    __photobooksProject?: {
+      attachMemoryLibraryForTests: () => Promise<unknown>
+      adoptCurrentBookInLibrary: () => Promise<{ ok: boolean; code?: string }>
+      saveBookNow: () => void
+    }
   }
 }
 

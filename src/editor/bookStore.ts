@@ -4,6 +4,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   placementCountByAsset,
   resolveSpread,
+  type Asset,
   type Book,
   type BookOp,
   type ResolvedSpread,
@@ -147,6 +148,22 @@ function scheduleFlush(): void {
     let galleryChanged = false
     if (ids.length > 0) {
       book = applyBookOp(book, { type: 'addToGallery', assetIds: ids })
+      if (pendingAssetRecords.size > 0) {
+        let assets = book.assets
+        let assetsChanged = false
+        for (const id of ids) {
+          const record = pendingAssetRecords.get(id)
+          if (record === undefined) {
+            continue
+          }
+          pendingAssetRecords.delete(id)
+          assets = { ...assets, [id]: { ...assets[id], ...record } }
+          assetsChanged = true
+        }
+        if (assetsChanged) {
+          book = { ...book, assets }
+        }
+      }
       galleryChanged = book.gallery !== state.book.gallery
     }
     const sessionMeta = new Map(state.sessionMeta)
@@ -205,6 +222,25 @@ export function getAssetAspectSnapshot(assetId: string): number {
 /** Optional content hash from the book asset record; undefined when unset. */
 export function getAssetContentHash(assetId: string): string | undefined {
   return state.book.assets[assetId]?.contentHash
+}
+
+/** Merge identity fields onto an existing gallery asset record. */
+export function patchAssetRecord(assetId: string, patch: Partial<Asset>): void {
+  const existing = state.book.assets[assetId]
+  if (existing === undefined) {
+    return
+  }
+  const nextAsset: Asset = { ...existing, ...patch }
+  const prev = state
+  state = {
+    ...state,
+    book: {
+      ...state.book,
+      assets: { ...state.book.assets, [assetId]: nextAsset },
+    },
+  }
+  notifyAffectedSpreads(prev, state)
+  emit()
 }
 
 /** Filmstrip label: session file name when present, otherwise the asset id. */
@@ -272,15 +308,21 @@ export function mintAssetId(fileName: string): string {
   return `asset-${String(assetSeq)}-${safe}`
 }
 
+let pendingAssetRecords = new Map<string, Asset>()
+
 /** Queue gallery append + optional placeholder meta; flushed in chunks per animation frame. */
 export function enqueueGalleryAssets(
   entries: readonly {
     assetId: string
     meta?: AssetSessionMeta
+    asset?: Asset
   }[],
 ): void {
   for (const entry of entries) {
     pendingGalleryIds.push(entry.assetId)
+    if (entry.asset) {
+      pendingAssetRecords.set(entry.assetId, entry.asset)
+    }
     if (entry.meta) {
       pendingMeta.set(entry.assetId, entry.meta)
     } else {
@@ -544,6 +586,7 @@ export function resetBookStore(next?: BookStoreInit): void {
       }
   pendingGalleryIds = []
   pendingMeta = new Map()
+  pendingAssetRecords = new Map()
   flushScheduled = false
   placementCountsFor = null
   assetSeq = 0

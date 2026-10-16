@@ -7,6 +7,7 @@ import {
   pickFolderWithDirectoryPicker,
   pickPhotosWithFilePicker,
 } from '../photo/pickPhotos'
+import { createFsaLibraryStorage } from '../project'
 import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
 import { Filmstrip } from './Filmstrip'
 import { installEditorKeys } from './galleryDrop'
@@ -14,7 +15,43 @@ import { importPhotoFiles, type ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
 import { loadPainterFixture } from './bookStore'
 import { isPainterFixtureQuery } from './painterFixtureQuery'
+import {
+  attachLibraryForTests,
+  createBookInLibrary,
+  createLibrary,
+  exposeProjectSessionTestApi,
+  getProjectSessionSnapshot,
+  openLibrary,
+  saveBookNow,
+  subscribeProjectSession,
+  tryRestore,
+} from './projectSession'
 import './EditorShell.css'
+
+function isTestLibraryQuery(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return new URLSearchParams(window.location.search).has('testLibrary')
+}
+
+async function ensureTestLibrary(): Promise<void> {
+  const restored = await tryRestore()
+  if (restored.ok && restored.value !== null) {
+    return
+  }
+  if (typeof navigator.storage.getDirectory !== 'function') {
+    return
+  }
+  const root = await navigator.storage.getDirectory()
+  const dir = await root.getDirectoryHandle('photobooks-e2e-library', {
+    create: true,
+  })
+  await attachLibraryForTests({
+    storage: createFsaLibraryStorage({ root: dir }),
+    handle: dir,
+  })
+}
 
 export function EditorShell() {
   const painterFixture = isPainterFixtureQuery()
@@ -23,13 +60,46 @@ export function EditorShell() {
     getEditorStatus,
     getEditorStatus,
   )
+  const project = useSyncExternalStore(
+    subscribeProjectSession,
+    getProjectSessionSnapshot,
+    getProjectSessionSnapshot,
+  )
   useEffect(() => installEditorKeys(), [])
   useEffect(() => {
-    if (!painterFixture) {
+    exposeProjectSessionTestApi()
+  }, [])
+  useEffect(() => {
+    if (painterFixture) {
+      loadPainterFixture()
       return
     }
-    loadPainterFixture()
+    if (isTestLibraryQuery()) {
+      void ensureTestLibrary()
+      return
+    }
+    void tryRestore()
   }, [painterFixture])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        event.key.toLowerCase() !== 's'
+      ) {
+        return
+      }
+      if (!project.libraryOpen || project.bookId === null) {
+        return
+      }
+      event.preventDefault()
+      saveBookNow()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [project.libraryOpen, project.bookId])
 
   const filesInputId = useId()
   const folderInputId = useId()
@@ -107,6 +177,9 @@ export function EditorShell() {
     }
   }
 
+  const libraryReady = project.libraryOpen
+  const bookReady = libraryReady && project.bookId !== null
+
   return (
     <div className="editor-shell" data-testid="editor-shell">
       <p className="editor-live" data-testid="editor-status" aria-live="polite">
@@ -115,6 +188,50 @@ export function EditorShell() {
       <header className="editor-chrome">
         <p className="brand">Photobooks</p>
         <div className="editor-actions">
+          <button
+            type="button"
+            className="editor-action editor-action-secondary"
+            data-testid="create-library"
+            onClick={() => {
+              void createLibrary()
+            }}
+            disabled={pickerBusy}
+          >
+            Create library
+          </button>
+          <button
+            type="button"
+            className="editor-action editor-action-secondary"
+            data-testid="open-library"
+            onClick={() => {
+              void openLibrary()
+            }}
+            disabled={pickerBusy}
+          >
+            Open library
+          </button>
+          <button
+            type="button"
+            className="editor-action editor-action-secondary"
+            data-testid="create-book"
+            onClick={() => {
+              void createBookInLibrary()
+            }}
+            disabled={pickerBusy || !libraryReady}
+          >
+            Create book
+          </button>
+          <button
+            type="button"
+            className="editor-action editor-action-secondary"
+            data-testid="save-book"
+            onClick={() => {
+              saveBookNow()
+            }}
+            disabled={pickerBusy || !bookReady || project.saving}
+          >
+            Save
+          </button>
           <button
             type="button"
             className="editor-action"

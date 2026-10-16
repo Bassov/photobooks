@@ -144,9 +144,9 @@ Slicing rules when adding or splitting items:
   - [x] Pure matching / relink function
 - [x] [prep] `derived-cache-opfs` — persistent preview cache
   - [x] `DerivedCache` interface; OPFS adapter keyed by `(assetHash, presetId)`; zoom tiers and thumbnails persist via DerivedCache (OPFS) while keeping a bounded hot object-URL LRU
-- [ ] [feature] `open-save-project` — library on disk
-  - [ ] Create / open library folder, create book; gallery and layout persist in `book.json`, added folders/files register source roots
-  - [ ] Save (Ctrl/Cmd+S) and restore on reopen
+- [x] [feature] `open-save-project` — library on disk
+  - [x] Create / open library folder, create book; gallery and layout persist in `book.json`, added folders/files register source roots
+  - [x] Save (Ctrl/Cmd+S) and restore on reopen
   - **Perf:** serialization at background priority (worker if over budget). Gate: save during a drag — zero LoAF.
   - **Browser check:** build a book, save, reload the tab, reopen the folder — same book.
 - [ ] [feature] `autosave` — never lose work
