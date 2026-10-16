@@ -11,6 +11,7 @@ import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
+import { resetProjectSessionForTests } from './projectSession'
 import { resetThumbCache } from './thumbCache'
 
 const editorShellCss = readFileSync(
@@ -29,6 +30,7 @@ describe('EditorShell viewport containment', () => {
     resetTierCache()
     resetTierDisplay()
     resetAssetSources()
+    resetProjectSessionForTests()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })

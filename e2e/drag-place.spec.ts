@@ -243,4 +243,102 @@ test.describe('frame-budget gates', () => {
     }, PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate)
     await collectFrameStatsArtifact(page, testInfo)
   })
+
+  test('save during drag stays within frame-budget gates', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1')
+    await expect(page.getByTestId('spread-view').first()).toBeVisible()
+    await dispatchCtrlWheel(page, 500, 24)
+    await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+
+    await page.evaluate(async () => {
+      const project = window.__photobooksProject
+      if (!project) {
+        throw new Error('window.__photobooksProject is not available')
+      }
+      await project.attachMemoryLibraryForTests()
+      const adopted = await project.adoptCurrentBookInLibrary()
+      if (!adopted.ok) {
+        const code = adopted.code ?? 'unknown'
+        throw new Error(`adopt failed: ${code}`)
+      }
+    })
+
+    const points = await page.evaluate((mime) => {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData(mime, 'painter-b')
+      document.dispatchEvent(
+        new DragEvent('dragstart', { bubbles: true, dataTransfer }),
+      )
+      const scroll = document.querySelector('[data-testid="pasteboard-scroll"]')
+      if (!(scroll instanceof HTMLElement)) {
+        return []
+      }
+      return Array.from(scroll.querySelectorAll<HTMLElement>('[data-frame-id]'))
+        .map((frame) => {
+          const box = frame.getBoundingClientRect()
+          return {
+            x: box.left + box.width / 2,
+            y: box.top + box.height / 2,
+            width: box.width,
+          }
+        })
+        .filter((point) => point.width > 0)
+        .map(({ x, y }) => ({ x, y }))
+    }, ASSET_DRAG_MIME)
+    expect(points.length).toBeGreaterThan(40)
+
+    await clearPerfScenario(page)
+    await page.evaluate(
+      async ({ mime, points: dragPoints }) => {
+        const project = window.__photobooksProject
+        if (!project) {
+          throw new Error('window.__photobooksProject is not available')
+        }
+        const scroll = document.querySelector(
+          '[data-testid="pasteboard-scroll"]',
+        )
+        if (!(scroll instanceof HTMLElement)) {
+          throw new Error('missing scroll')
+        }
+        const dataTransfer = new DataTransfer()
+        dataTransfer.setData(mime, 'painter-b')
+        for (let index = 0; index < dragPoints.length; index += 1) {
+          const point = dragPoints[index]
+          if (!point) {
+            continue
+          }
+          scroll.dispatchEvent(
+            new DragEvent('dragover', {
+              bubbles: true,
+              cancelable: true,
+              clientX: point.x,
+              clientY: point.y,
+              dataTransfer,
+            }),
+          )
+          if (index === 8) {
+            project.saveBookNow()
+          }
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => {
+              resolve()
+            })
+          })
+        }
+      },
+      { mime: ASSET_DRAG_MIME, points },
+    )
+
+    await page.evaluate(() => {
+      const perf = window.__photobooksPerf
+      if (!perf) {
+        throw new Error('window.__photobooksPerf is not available')
+      }
+      perf.assertNoLoafEntries(0)
+    })
+    await collectFrameStatsArtifact(page, testInfo)
+  })
 })

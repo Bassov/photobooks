@@ -7,6 +7,7 @@ import {
   TIER_CACHE_CAPACITY,
   cancelTier,
   getTierUrl,
+  putCachedTierForHash,
   requestTier,
   resetTierCache,
   subscribeTier,
@@ -340,6 +341,93 @@ describe('tierCache', () => {
     resetTierCache()
     expect(listener).toHaveBeenCalled()
     expect(getTierUrl('a', 320)).toBeUndefined()
+  })
+
+  it('putCachedTierForHash no-ops on empty hash', async () => {
+    const cache = createMemoryDerivedCache()
+    const put = vi.spyOn(cache, 'put')
+    setDerivedCacheForTests(cache)
+    await putCachedTierForHash('a', '')
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('putCachedTierForHash writes last encoded tier after hash arrives', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:late-hash')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    mockWorkerSuccess({
+      ok: true,
+      name: 'a.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([6]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    retainAssetSource('a', jpeg('a.jpg'))
+
+    requestTier('a', 320)
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+    expect(getTierUrl('a', 320)).toBe('blob:late-hash')
+
+    await putCachedTierForHash('a', SAMPLE_HASH)
+    const stored = await cache.get(SAMPLE_HASH, 'tier-320')
+    expect(stored.ok).toBe(true)
+    if (stored.ok) {
+      expect(new Uint8Array(stored.value.bytes)).toEqual(new Uint8Array([6]))
+    }
+  })
+
+  it('falls back to thumb preset when File is gone and tier miss', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb-fallback')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    await cache.put(SAMPLE_HASH, 'thumb', {
+      bytes: new Uint8Array([4, 5]).buffer,
+      mimeType: 'image/jpeg',
+    })
+    const worker = vi.fn()
+    vi.stubGlobal('Worker', worker)
+
+    requestTier('missing-file', 320, SAMPLE_HASH)
+    for (let step = 0; step < 5; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+
+    expect(getTierUrl('missing-file', 320)).toBe('blob:thumb-fallback')
+    expect(worker).not.toHaveBeenCalled()
   })
 
   it('hydrates a hashed tier from DerivedCache without encoding', async () => {

@@ -184,6 +184,7 @@ References: InDesign / Affinity Publisher (pasteboard, guides), Google Slides (s
 - **Writes:** `FileSystemWritableFileStream` already writes to a swap file and commits on `close()`; add `.bak` rotation, not a temp-file dance.
 - **Single writer:** Web Locks API per book so two tabs cannot overwrite each other.
 - **Browser state is disposable:** IndexedDB (`idb-keyval`-level, no Dexie) for directory handles, recents and UI prefs; OPFS for thumbnail/derivative cache keyed by asset hash. Everything there must be rebuildable from the library folder.
+- **Open/save (editor):** `src/editor/projectSession.ts` wires create/open library, create book, Ctrl/Cmd+S, and restore when the remembered library handle is still granted. Photo-folder `AssetSource` handles stay in-session; after reload, document + DerivedCache hydrate, full original reattach is `missing-assets-relink`.
 
 ### Storage boundaries
 
