@@ -73,6 +73,24 @@
   cursor: wait;
 }
 
+.save-indicator {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+  white-space: nowrap;
+}
+
+.save-indicator[data-save-phase='error'] {
+  color: #8b2e2e;
+}
+
+.save-indicator[data-save-phase='pending'],
+.save-indicator[data-save-phase='saving'] {
+  color: var(--ink);
+}
+
 .import-progress {
   margin: 0;
   width: 100%;

@@ -9,6 +9,7 @@ import {
 } from '../photo/pickPhotos'
 import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
 import { Filmstrip } from './Filmstrip'
+import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
@@ -65,6 +66,7 @@ export function EditorShell() {
     getProjectSessionSnapshot,
   )
   useEffect(() => installEditorKeys(), [])
+  useEffect(() => installDocumentDragGesture(), [])
   useEffect(() => {
     exposeProjectSessionTestApi()
   }, [])
@@ -238,6 +240,23 @@ export function EditorShell() {
           >
             Save
           </button>
+          {libraryReady ? (
+            <span
+              className="save-indicator"
+              data-testid="save-indicator"
+              data-save-phase={project.savePhase}
+              data-dirty={project.dirty ? 'true' : 'false'}
+              aria-live="polite"
+            >
+              {project.savePhase === 'saving'
+                ? 'Saving…'
+                : project.savePhase === 'error'
+                  ? 'Save failed'
+                  : project.savePhase === 'pending' || project.dirty
+                    ? 'Unsaved'
+                    : 'Saved'}
+            </span>
+          ) : null}
           <button
             type="button"
             className="editor-action"

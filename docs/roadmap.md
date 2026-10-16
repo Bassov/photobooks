@@ -153,8 +153,8 @@ Slicing rules when adding or splitting items:
   - [x] After create/open library, Save adopts the in-memory book (no «New book» wipe); session assets get identity + hash; DerivedCache put-after-hash; tier falls back to thumb; aspect restored from hydrate
   - **Perf:** Save stays off the gesture path; existing save-during-drag gate remains green.
   - **Browser check:** import without library → New library → Save → reload — thumbs and placed frames visible, landscape crop not square-forced; document stays viewport-contained.
-- [ ] [feature] `autosave` — never lose work
-  - [ ] Debounced autosave, save indicator
+- [x] [feature] `autosave` — never lose work
+  - [x] Debounced autosave, save indicator
   - **Perf:** autosave never runs during an active gesture; serialization at background priority (worker if over budget). Gate: continuous drag while autosave fires — zero LoAF.
   - **Browser check:** edit, reload without saving — changes are kept; editing never hitches on save.
 - [ ] [feature] `permissions-locks-ux` — access and single writer

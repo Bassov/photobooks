@@ -12,12 +12,22 @@ import {
   type StorageFailureCode,
   type StorageResult,
 } from '../project'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  resetBookStore,
+  subscribeBookStore,
+} from './bookStore'
+import {
+  isEditorGestureActive,
+  resetEditorGestureForTests,
+  subscribeEditorGesture,
+} from './editorGesture'
 import { setEditorStatus } from './editorStatus'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
 
 const DEFAULT_LIBRARY_ID = 'library'
+const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 1000
 
 const ACTIVE_BOOK_KEY = 'photobooks.activeBookId'
 const LIBRARY_ID_KEY = 'photobooks.libraryId'
@@ -27,6 +37,8 @@ type ProjectSessionStatus =
   | { kind: 'open'; libraryId: string; bookId: string | null }
   | { kind: 'error'; code: StorageFailureCode; action: string }
 
+type SavePhase = 'idle' | 'pending' | 'saving' | 'error'
+
 type Listener = () => void
 
 export interface ProjectSessionSnapshot {
@@ -34,6 +46,9 @@ export interface ProjectSessionSnapshot {
   bookId: string | null
   libraryId: string | null
   status: ProjectSessionStatus
+  dirty: boolean
+  savePhase: SavePhase
+  /** True while `savePhase === 'saving'` (manual or autosave). */
   saving: boolean
 }
 
@@ -43,6 +58,7 @@ export interface ProjectSessionDeps {
   pickDirectory?: () => Promise<FileSystemDirectoryHandle | null>
   storageKey?: Storage
   nowId?: () => string
+  autosaveDebounceMs?: number
 }
 
 function defaultStorageFromHandle(
@@ -87,7 +103,13 @@ let storage: LibraryStorage | null = null
 let libraryId: string | null = null
 let bookId: string | null = null
 let status: ProjectSessionStatus = { kind: 'idle' }
-let saving = false
+let dirty = false
+let savePhase: SavePhase = 'idle'
+let editGeneration = 0
+let ignoreBookStoreDirty = false
+let lastBookRef: Book | null = getBookStoreSnapshot().book
+let autosaveDebounceMs = DEFAULT_AUTOSAVE_DEBOUNCE_MS
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 const assetSources = new Map<string, AssetSource>()
 const listeners = new Set<Listener>()
 let snapshot: ProjectSessionSnapshot = {
@@ -95,21 +117,126 @@ let snapshot: ProjectSessionSnapshot = {
   bookId: null,
   libraryId: null,
   status: { kind: 'idle' },
+  dirty: false,
+  savePhase: 'idle',
   saving: false,
 }
 
-function refreshSnapshot(): void {
-  snapshot = {
+function refreshSnapshot(): boolean {
+  const next: ProjectSessionSnapshot = {
     libraryOpen: storage !== null,
     bookId,
     libraryId,
     status,
-    saving,
+    dirty,
+    savePhase,
+    saving: savePhase === 'saving',
+  }
+  if (
+    next.libraryOpen === snapshot.libraryOpen &&
+    next.bookId === snapshot.bookId &&
+    next.libraryId === snapshot.libraryId &&
+    next.status === snapshot.status &&
+    next.dirty === snapshot.dirty &&
+    next.savePhase === snapshot.savePhase &&
+    next.saving === snapshot.saving
+  ) {
+    return false
+  }
+  snapshot = next
+  return true
+}
+
+function cancelAutosaveTimer(): void {
+  if (autosaveTimer !== null) {
+    clearTimeout(autosaveTimer)
+    autosaveTimer = null
   }
 }
 
+function armAutosaveDebounce(): void {
+  if (storage === null || bookId === null || !dirty || savePhase === 'error') {
+    return
+  }
+  if (savePhase === 'saving') {
+    return
+  }
+  savePhase = 'pending'
+  cancelAutosaveTimer()
+  autosaveTimer = setTimeout(() => {
+    autosaveTimer = null
+    if (savePhase !== 'pending' || !dirty || isEditorGestureActive()) {
+      return
+    }
+    runSave()
+  }, autosaveDebounceMs)
+  emit()
+}
+
+function markDirtyFromUserEdit(): void {
+  if (storage === null || bookId === null) {
+    return
+  }
+  dirty = true
+  editGeneration += 1
+  if (savePhase === 'error') {
+    savePhase = 'pending'
+  }
+  if (savePhase !== 'saving') {
+    armAutosaveDebounce()
+  } else {
+    emit()
+  }
+}
+
+function withoutDirtyTracking(fn: () => void): void {
+  ignoreBookStoreDirty = true
+  try {
+    fn()
+  } finally {
+    ignoreBookStoreDirty = false
+    lastBookRef = getBookStoreSnapshot().book
+  }
+}
+
+async function withoutDirtyTrackingAsync<T>(fn: () => Promise<T>): Promise<T> {
+  ignoreBookStoreDirty = true
+  try {
+    return await fn()
+  } finally {
+    ignoreBookStoreDirty = false
+    lastBookRef = getBookStoreSnapshot().book
+  }
+}
+
+function onBookStoreChanged(): void {
+  const book = getBookStoreSnapshot().book
+  if (book === lastBookRef) {
+    return
+  }
+  lastBookRef = book
+  if (ignoreBookStoreDirty) {
+    return
+  }
+  markDirtyFromUserEdit()
+}
+
+function onGestureChanged(): void {
+  if (isEditorGestureActive()) {
+    return
+  }
+  if (savePhase === 'pending' && dirty) {
+    armAutosaveDebounce()
+  }
+}
+
+subscribeBookStore(onBookStoreChanged)
+subscribeEditorGesture(onGestureChanged)
+
 function emit(): void {
-  refreshSnapshot()
+  if (!refreshSnapshot()) {
+    return
+  }
   for (const listener of listeners) {
     listener()
   }
@@ -239,22 +366,32 @@ export function configureProjectSession(deps: ProjectSessionDeps): void {
   if (deps.nowId) {
     nowId = deps.nowId
   }
+  if (deps.autosaveDebounceMs !== undefined) {
+    autosaveDebounceMs = deps.autosaveDebounceMs
+  }
 }
 
 /** Reset module singletons (unit tests). */
 export function resetProjectSessionForTests(): void {
+  cancelAutosaveTimer()
   session = createMemorySessionState()
   createStorageFromHandle = defaultStorageFromHandle
   pickDirectory = () => Promise.resolve(null)
   storageKey = createMemoryStorageKey()
   nowId = () => crypto.randomUUID()
+  autosaveDebounceMs = DEFAULT_AUTOSAVE_DEBOUNCE_MS
   storage = null
   libraryId = null
   bookId = null
   status = { kind: 'idle' }
-  saving = false
+  dirty = false
+  savePhase = 'idle'
+  editGeneration = 0
+  ignoreBookStoreDirty = false
   assetSources.clear()
   resetPendingHashesForTests()
+  resetEditorGestureForTests()
+  lastBookRef = getBookStoreSnapshot().book
   refreshSnapshot()
 }
 
@@ -323,10 +460,16 @@ async function bindLibrary(
   bookId = null
   persistIds()
   setStatus({ kind: 'open', libraryId: nextLibraryId, bookId: null })
-  const adopted = await adoptCurrentBookInLibrary()
+  const adopted = await withoutDirtyTrackingAsync(() =>
+    adoptCurrentBookInLibrary(),
+  )
   if (!adopted.ok) {
     return { ok: false, code: adopted.code }
   }
+  dirty = false
+  savePhase = 'idle'
+  cancelAutosaveTimer()
+  emit()
   return { ok: true, value: undefined }
 }
 
@@ -430,15 +573,111 @@ export async function createBookInLibrary(): Promise<StorageResult<Book>> {
   }
   bookId = created.value.id
   persistIds()
-  resetBookStore({
-    book: created.value,
-    sessionMeta: new Map(),
-    importRunning: false,
-    importExpectedCount: 0,
+  withoutDirtyTracking(() => {
+    resetBookStore({
+      book: created.value,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
   })
+  dirty = false
+  savePhase = 'idle'
+  cancelAutosaveTimer()
   setStatus({ kind: 'open', libraryId, bookId })
   setEditorStatus('Book created')
   return created
+}
+
+function runSave(): void {
+  if (!storage) {
+    setStatus({ kind: 'error', code: 'not-found', action: 'save' })
+    return
+  }
+  if (savePhase === 'saving') {
+    return
+  }
+  if (bookId === null) {
+    // Manual Save may still adopt; autosave never calls this path without bookId.
+    cancelAutosaveTimer()
+    savePhase = 'saving'
+    emit()
+    const activeStorage = storage
+    scheduleBackground(async () => {
+      try {
+        const adopted = await withoutDirtyTrackingAsync(() =>
+          adoptCurrentBookInLibrary(),
+        )
+        if (!adopted.ok) {
+          savePhase = 'error'
+          dirty = true
+          return
+        }
+        await persistBookSnapshot(activeStorage, editGeneration)
+      } finally {
+        if (savePhase === 'saving') {
+          savePhase = dirty ? 'pending' : 'idle'
+        }
+        emit()
+        if (dirty && savePhase === 'pending') {
+          armAutosaveDebounce()
+        }
+      }
+    })
+    return
+  }
+  cancelAutosaveTimer()
+  const generationAtStart = editGeneration
+  savePhase = 'saving'
+  emit()
+  const activeStorage = storage
+  scheduleBackground(async () => {
+    try {
+      await persistBookSnapshot(activeStorage, generationAtStart)
+    } finally {
+      if (savePhase === 'saving') {
+        savePhase = dirty ? 'pending' : 'idle'
+      }
+      emit()
+      if (dirty && savePhase === 'pending') {
+        armAutosaveDebounce()
+      }
+    }
+  })
+}
+
+async function persistBookSnapshot(
+  activeStorage: LibraryStorage,
+  generationAtStart: number,
+): Promise<void> {
+  await awaitPendingHashes()
+  const bookSnapshot = getBookStoreSnapshot().book
+  const result = await activeStorage.saveBook(bookSnapshot)
+  if (!result.ok) {
+    savePhase = 'error'
+    dirty = true
+    setStatus({ kind: 'error', code: result.code, action: 'save' })
+    return
+  }
+  withoutDirtyTracking(() => {
+    // Keep lastBookRef aligned if save path ever rewrites the book.
+    lastBookRef = getBookStoreSnapshot().book
+  })
+  bookId = result.value.id
+  persistIds()
+  setStatus({
+    kind: 'open',
+    libraryId: libraryId ?? DEFAULT_LIBRARY_ID,
+    bookId,
+  })
+  setEditorStatus('Book saved')
+  if (editGeneration === generationAtStart) {
+    dirty = false
+    savePhase = 'idle'
+  } else {
+    dirty = true
+    savePhase = 'pending'
+  }
 }
 
 export function saveBookNow(): void {
@@ -446,40 +685,7 @@ export function saveBookNow(): void {
     setStatus({ kind: 'error', code: 'not-found', action: 'save' })
     return
   }
-  if (saving) {
-    return
-  }
-  saving = true
-  emit()
-  const activeStorage = storage
-  scheduleBackground(async () => {
-    try {
-      if (!bookId) {
-        const adopted = await adoptCurrentBookInLibrary()
-        if (!adopted.ok) {
-          return
-        }
-      }
-      await awaitPendingHashes()
-      const bookSnapshot = getBookStoreSnapshot().book
-      const result = await activeStorage.saveBook(bookSnapshot)
-      if (!result.ok) {
-        setStatus({ kind: 'error', code: result.code, action: 'save' })
-        return
-      }
-      bookId = result.value.id
-      persistIds()
-      setStatus({
-        kind: 'open',
-        libraryId: libraryId ?? DEFAULT_LIBRARY_ID,
-        bookId,
-      })
-      setEditorStatus('Book saved')
-    } finally {
-      saving = false
-      emit()
-    }
-  })
+  runSave()
 }
 
 /** E2E seam: attach an OPFS library folder without a directory picker. */
@@ -529,6 +735,7 @@ declare global {
 }
 
 export async function tryRestore(): Promise<StorageResult<Book | null>> {
+  cancelAutosaveTimer()
   const persisted = readPersistedIds()
   const id = persisted.libraryId ?? DEFAULT_LIBRARY_ID
   let recalled: StorageResult<SessionDirectoryHandle>
@@ -563,12 +770,17 @@ export async function tryRestore(): Promise<StorageResult<Book | null>> {
   }
   bookId = loaded.value.id
   persistIds()
-  resetBookStore({
-    book: loaded.value,
-    sessionMeta: new Map(),
-    importRunning: false,
-    importExpectedCount: 0,
+  withoutDirtyTracking(() => {
+    resetBookStore({
+      book: loaded.value,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
   })
+  dirty = false
+  savePhase = 'idle'
+  cancelAutosaveTimer()
   setStatus({ kind: 'open', libraryId: id, bookId })
   setEditorStatus('Book restored')
   return loaded

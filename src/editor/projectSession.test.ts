@@ -5,11 +5,13 @@ import {
   createMemorySessionState,
 } from '../project'
 import {
+  dispatchBookOp,
   getBookStoreSnapshot,
   getAssetContentHash,
   patchAssetRecord,
   resetBookStore,
 } from './bookStore'
+import { isEditorGestureActive, setEditorGestureActive } from './editorGesture'
 import { getEditorStatus } from './editorStatus'
 import { ensureThumb, getThumbUrl, resetThumbCache } from './thumbCache'
 import {
@@ -414,5 +416,299 @@ describe('projectSession', () => {
       }
     }
     expect(getThumbUrl('asset-restore')).toBe('blob:restored-thumb')
+  })
+
+  describe('autosave', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      configureProjectSession({ autosaveDebounceMs: 1000 })
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    async function attachLibraryBackedBook(): Promise<void> {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        autosaveDebounceMs: 1000,
+      })
+      await attachLibraryForTests({ storage, session })
+      expect(getProjectSessionSnapshot().bookId).not.toBeNull()
+      expect(getProjectSessionSnapshot()).toMatchObject({
+        dirty: false,
+        savePhase: 'idle',
+      })
+    }
+
+    it('does not dirty on library attach or restore', async () => {
+      await attachLibraryBackedBook()
+      expect(getProjectSessionSnapshot().dirty).toBe(false)
+      expect(getProjectSessionSnapshot().savePhase).toBe('idle')
+    })
+
+    it('debounces idle edits into a successful autosave', async () => {
+      await attachLibraryBackedBook()
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      expect(spreadId).toBeTypeOf('string')
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      expect(getProjectSessionSnapshot()).toMatchObject({
+        dirty: true,
+        savePhase: 'pending',
+      })
+
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot()).toMatchObject({
+          dirty: false,
+          savePhase: 'idle',
+        })
+      })
+      expect(getEditorStatus()).toBe('Book saved')
+    })
+
+    it('blocks autosave while a gesture is active then re-arms after end', async () => {
+      await attachLibraryBackedBook()
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '4-grid' })
+      setEditorGestureActive(true)
+      expect(isEditorGestureActive()).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(getProjectSessionSnapshot().savePhase).toBe('pending')
+      expect(getProjectSessionSnapshot().dirty).toBe(true)
+      expect(getEditorStatus()).not.toBe('Book saved')
+
+      setEditorGestureActive(false)
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot()).toMatchObject({
+          dirty: false,
+          savePhase: 'idle',
+        })
+      })
+      expect(getEditorStatus()).toBe('Book saved')
+    })
+
+    it('keeps dirty and re-arms when an edit arrives mid-save', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const releaseHold = { current: null as (() => void) | null }
+      let blockNextSave = true
+      const originalSave = storage.saveBook.bind(storage)
+      storage.saveBook = async (book) => {
+        if (blockNextSave) {
+          blockNextSave = false
+          await new Promise<void>((resolve) => {
+            releaseHold.current = resolve
+          })
+        }
+        return originalSave(book)
+      }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        autosaveDebounceMs: 1000,
+      })
+      await attachLibraryForTests({ storage, session })
+      const spreads = getBookStoreSnapshot().book.spreads
+      const first = spreads[0]?.id
+      const second = spreads[1]?.id
+      if (first === undefined || second === undefined) {
+        throw new Error('expected two spreads')
+      }
+
+      dispatchBookOp({
+        type: 'applyTemplate',
+        spreadId: first,
+        templateId: '2-up',
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot().saving).toBe(true)
+      })
+
+      dispatchBookOp({
+        type: 'applyTemplate',
+        spreadId: second,
+        templateId: '4-grid',
+      })
+      expect(getProjectSessionSnapshot().dirty).toBe(true)
+
+      expect(releaseHold.current).toBeTypeOf('function')
+      releaseHold.current?.()
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot().savePhase).toBe('pending')
+      })
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot()).toMatchObject({
+          dirty: false,
+          savePhase: 'idle',
+        })
+      })
+    })
+
+    it('does not silent-retry after a save error until the next edit', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        autosaveDebounceMs: 1000,
+      })
+      await attachLibraryForTests({ storage, session })
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+
+      storage.setPermissionRequired(true)
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot().savePhase).toBe('error')
+      })
+      expect(getProjectSessionSnapshot().dirty).toBe(true)
+
+      setEditorGestureActive(true)
+      setEditorGestureActive(false)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(getProjectSessionSnapshot().savePhase).toBe('error')
+
+      storage.setPermissionRequired(false)
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '4-grid' })
+      expect(getProjectSessionSnapshot().savePhase).toBe('pending')
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot()).toMatchObject({
+          dirty: false,
+          savePhase: 'idle',
+        })
+      })
+    })
+
+    it('manual save clears dirty', async () => {
+      await attachLibraryBackedBook()
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      expect(getProjectSessionSnapshot().dirty).toBe(true)
+      saveBookNow()
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot()).toMatchObject({
+          dirty: false,
+          savePhase: 'idle',
+        })
+      })
+    })
+
+    it('does not mark dirty without an open library', () => {
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      expect(getProjectSessionSnapshot()).toMatchObject({
+        dirty: false,
+        savePhase: 'idle',
+        libraryOpen: false,
+      })
+    })
+
+    it('resets the debounce when edits keep arriving', async () => {
+      await attachLibraryBackedBook()
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      await vi.advanceTimersByTimeAsync(800)
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '4-grid' })
+      await vi.advanceTimersByTimeAsync(800)
+      expect(getProjectSessionSnapshot().savePhase).toBe('pending')
+      expect(getEditorStatus()).not.toBe('Book saved')
+      await vi.advanceTimersByTimeAsync(200)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot()).toMatchObject({
+          dirty: false,
+          savePhase: 'idle',
+        })
+      })
+    })
+
+    it('ignores a second save while one is in flight', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const releaseHold = { current: null as (() => void) | null }
+      let saveCount = 0
+      const originalSave = storage.saveBook.bind(storage)
+      storage.saveBook = async (book) => {
+        saveCount += 1
+        await new Promise<void>((resolve) => {
+          releaseHold.current = resolve
+        })
+        return originalSave(book)
+      }
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        autosaveDebounceMs: 1000,
+      })
+      await attachLibraryForTests({ storage, session })
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      saveBookNow()
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot().saving).toBe(true)
+      })
+      saveBookNow()
+      await vi.waitFor(() => {
+        expect(saveCount).toBe(1)
+      })
+      releaseHold.current?.()
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot().saving).toBe(false)
+      })
+      expect(saveCount).toBe(1)
+    })
+
+    it('uses a configured debounce interval', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        autosaveDebounceMs: 250,
+      })
+      await attachLibraryForTests({ storage, session })
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      await vi.advanceTimersByTimeAsync(249)
+      expect(getProjectSessionSnapshot().savePhase).toBe('pending')
+      await vi.advanceTimersByTimeAsync(1)
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot().savePhase).toBe('idle')
+      })
+    })
   })
 })
