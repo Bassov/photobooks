@@ -341,4 +341,134 @@ test.describe('frame-budget gates', () => {
     })
     await collectFrameStatsArtifact(page, testInfo)
   })
+
+  test('autosave during continuous drag stays within frame-budget gates', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1')
+    await expect(page.getByTestId('spread-view').first()).toBeVisible()
+    await dispatchCtrlWheel(page, 500, 24)
+    await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+
+    await page.evaluate(async () => {
+      const project = window.__photobooksProject
+      if (!project) {
+        throw new Error('window.__photobooksProject is not available')
+      }
+      await project.attachMemoryLibraryForTests()
+      const adopted = await project.adoptCurrentBookInLibrary()
+      if (!adopted.ok) {
+        const code = adopted.code ?? 'unknown'
+        throw new Error(`adopt failed: ${code}`)
+      }
+    })
+
+    // Dirty the book so autosave debounce arms, then drag longer than 1s.
+    await page.getByRole('radio', { name: '2-up' }).click()
+    await expect(page.getByTestId('save-indicator')).toHaveText('Unsaved')
+
+    const points = await page.evaluate((mime) => {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData(mime, 'painter-b')
+      document.dispatchEvent(
+        new DragEvent('dragstart', { bubbles: true, dataTransfer }),
+      )
+      const scroll = document.querySelector('[data-testid="pasteboard-scroll"]')
+      if (!(scroll instanceof HTMLElement)) {
+        return []
+      }
+      return Array.from(scroll.querySelectorAll<HTMLElement>('[data-frame-id]'))
+        .map((frame) => {
+          const box = frame.getBoundingClientRect()
+          return {
+            x: box.left + box.width / 2,
+            y: box.top + box.height / 2,
+            width: box.width,
+          }
+        })
+        .filter((point) => point.width > 0)
+        .map(({ x, y }) => ({ x, y }))
+    }, ASSET_DRAG_MIME)
+    expect(points.length).toBeGreaterThan(40)
+
+    await clearPerfScenario(page)
+    const midDrag = await page.evaluate(
+      async ({ mime, points: dragPoints }) => {
+        const scroll = document.querySelector(
+          '[data-testid="pasteboard-scroll"]',
+        )
+        if (!(scroll instanceof HTMLElement)) {
+          throw new Error('missing scroll')
+        }
+        const dataTransfer = new DataTransfer()
+        dataTransfer.setData(mime, 'painter-b')
+        const started = performance.now()
+        let sawSavedMidDrag = false
+        let sawSavingMidDrag = false
+        for (let index = 0; index < dragPoints.length; index += 1) {
+          const point = dragPoints[index]
+          if (!point) {
+            continue
+          }
+          scroll.dispatchEvent(
+            new DragEvent('dragover', {
+              bubbles: true,
+              cancelable: true,
+              clientX: point.x,
+              clientY: point.y,
+              dataTransfer,
+            }),
+          )
+          const indicator = document.querySelector(
+            '[data-testid="save-indicator"]',
+          )
+          const text = indicator?.textContent ?? ''
+          if (text === 'Saved') {
+            sawSavedMidDrag = true
+          }
+          if (text === 'Saving…') {
+            sawSavingMidDrag = true
+          }
+          // Keep the gesture active across the 1s autosave debounce.
+          if (index % 4 === 0) {
+            await new Promise<void>((resolve) => {
+              window.setTimeout(() => {
+                resolve()
+              }, 40)
+            })
+          } else {
+            await new Promise<void>((resolve) => {
+              requestAnimationFrame(() => {
+                resolve()
+              })
+            })
+          }
+        }
+        document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+        return {
+          elapsedMs: performance.now() - started,
+          sawSavedMidDrag,
+          sawSavingMidDrag,
+        }
+      },
+      { mime: ASSET_DRAG_MIME, points },
+    )
+    expect(midDrag.elapsedMs).toBeGreaterThan(1000)
+    expect(midDrag.sawSavedMidDrag).toBe(false)
+    expect(midDrag.sawSavingMidDrag).toBe(false)
+
+    await page.evaluate(() => {
+      const perf = window.__photobooksPerf
+      if (!perf) {
+        throw new Error('window.__photobooksPerf is not available')
+      }
+      perf.assertNoLoafEntries(0)
+    })
+    await collectFrameStatsArtifact(page, testInfo)
+
+    await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+      timeout: 15_000,
+    })
+  })
 })

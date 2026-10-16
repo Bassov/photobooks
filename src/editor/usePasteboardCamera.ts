@@ -22,6 +22,7 @@ import {
   getCommittedZoom,
   setLiveZoom,
 } from './cameraStore'
+import { setEditorGestureActive } from './editorGesture'
 import { pasteboardStridePx } from './pasteboardWindow'
 
 const GESTURE_SETTLE_MS = 80
@@ -317,6 +318,33 @@ export function usePasteboardCamera({
       rafRef.current = requestAnimationFrame(paint)
     }
 
+    let zoomGestureHeld = false
+    let panGestureHeld = false
+    const holdZoomGesture = (): void => {
+      if (!zoomGestureHeld) {
+        zoomGestureHeld = true
+        setEditorGestureActive(true)
+      }
+    }
+    const releaseZoomGesture = (): void => {
+      if (zoomGestureHeld) {
+        zoomGestureHeld = false
+        setEditorGestureActive(false)
+      }
+    }
+    const holdPanGesture = (): void => {
+      if (!panGestureHeld) {
+        panGestureHeld = true
+        setEditorGestureActive(true)
+      }
+    }
+    const releasePanGesture = (): void => {
+      if (panGestureHeld) {
+        panGestureHeld = false
+        setEditorGestureActive(false)
+      }
+    }
+
     const settle = (): void => {
       settleRef.current = 0
       const gesture = gestureRef.current
@@ -325,11 +353,13 @@ export function usePasteboardCamera({
       const port = scrollRef.current
       if (gesture === null) {
         clearGesturePaint(world, port)
+        releaseZoomGesture()
         return
       }
       if (gesture.frame.zoom === getCommittedZoom()) {
         clearGesturePaint(world, port)
         setLiveZoom(gesture.frame.zoom)
+        releaseZoomGesture()
         return
       }
       commitZoom(
@@ -337,6 +367,7 @@ export function usePasteboardCamera({
         gesture.frame.scrollLeft,
         gesture.frame.scrollTop,
       )
+      releaseZoomGesture()
     }
 
     const scheduleSettle = (): void => {
@@ -351,6 +382,9 @@ export function usePasteboardCamera({
       const existing = gestureRef.current
       if (existing !== null && existing.mode === mode) {
         return existing
+      }
+      if (existing === null) {
+        holdZoomGesture()
       }
       const rect = port.getBoundingClientRect()
       const book = bookRef.current
@@ -442,6 +476,7 @@ export function usePasteboardCamera({
           left: port.scrollLeft,
           top: port.scrollTop,
         }
+        holdPanGesture()
         port.setPointerCapture(event.pointerId)
         return
       }
@@ -524,6 +559,7 @@ export function usePasteboardCamera({
       pointersRef.current.delete(event.pointerId)
       if (panRef.current?.id === event.pointerId) {
         panRef.current = null
+        releasePanGesture()
       }
       if (
         pointersRef.current.size < 2 &&
@@ -601,7 +637,10 @@ export function usePasteboardCamera({
     const onKeyUp = (event: KeyboardEvent): void => {
       if (event.code === 'Space' || event.key === ' ') {
         spaceRef.current = false
-        panRef.current = null
+        if (panRef.current !== null) {
+          panRef.current = null
+          releasePanGesture()
+        }
       }
     }
 
@@ -632,6 +671,8 @@ export function usePasteboardCamera({
         setLiveZoom(getCommittedZoom())
       }
       clearGesturePaint(world, scroll)
+      releaseZoomGesture()
+      releasePanGesture()
       pointers.clear()
     }
   }, [scrollRef, worldRef])

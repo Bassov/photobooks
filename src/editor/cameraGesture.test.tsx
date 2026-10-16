@@ -2,6 +2,10 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { resetBookStore } from './bookStore'
 import { resetCameraStore } from './cameraStore'
+import {
+  isEditorGestureActive,
+  resetEditorGestureForTests,
+} from './editorGesture'
 import { Pasteboard } from './Pasteboard'
 
 async function flushGesture(): Promise<void> {
@@ -38,6 +42,7 @@ describe('pasteboard camera gestures', () => {
     cleanup()
     resetBookStore()
     resetCameraStore()
+    resetEditorGestureForTests()
   })
 
   it('zooms from wheel, keys, and pinch, then pans with space', async () => {
@@ -50,7 +55,9 @@ describe('pasteboard camera gestures', () => {
     expect(indicator.textContent).toBe('13%')
 
     wheel(scroll, { deltaY: -240, ctrlKey: true })
+    expect(isEditorGestureActive()).toBe(true)
     await flushGesture()
+    expect(isEditorGestureActive()).toBe(false)
     expect(indicator.textContent).not.toBe('13%')
 
     const afterWheel = indicator.textContent

@@ -25,7 +25,9 @@
     "!src/project/session/locks.ts",
     "!src/editor/EditorShell.tsx",
     "!src/editor/previewAspect.ts",
-    "!src/editor/upgradeSessionAssets.ts"
+    "!src/editor/upgradeSessionAssets.ts",
+    "!src/editor/usePasteboardCamera.ts",
+    "!src/editor/projectSession.ts"
   ],
   "ignorePatterns": [
     ".local_dev",
