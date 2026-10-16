@@ -52,9 +52,7 @@ declare global {
       }>
       tryRestore: () => Promise<unknown>
       listRecents: () => Promise<readonly { id: string; label: string }[]>
-      selectRecentLibrary: (
-        libraryId: string,
-      ) => Promise<{
+      selectRecentLibrary: (libraryId: string) => Promise<{
         ok: boolean
         code?: string
         value?: readonly { id: string }[]
