@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { resetAssetPool, runImportBatch } from './assetPool'
 import { resetAssetSources, retainAssetSource } from './assetSources'
 import { mockWorkerSuccess } from './photo.test-helpers'
@@ -11,6 +12,9 @@ import {
   subscribeTier,
 } from './tierCache'
 
+const SAMPLE_HASH =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
 function jpeg(name: string): File {
   return new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
 }
@@ -20,6 +24,7 @@ describe('tierCache', () => {
     resetTierCache()
     resetAssetSources()
     resetAssetPool()
+    setDerivedCacheForTests(undefined)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -335,5 +340,121 @@ describe('tierCache', () => {
     resetTierCache()
     expect(listener).toHaveBeenCalled()
     expect(getTierUrl('a', 320)).toBeUndefined()
+  })
+
+  it('hydrates a hashed tier from DerivedCache without encoding', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:hydrated')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    await cache.put(SAMPLE_HASH, 'tier-320', {
+      bytes: new Uint8Array([9]).buffer,
+      mimeType: 'image/jpeg',
+    })
+    const worker = vi.fn()
+    vi.stubGlobal('Worker', worker)
+
+    requestTier('a', 320, SAMPLE_HASH)
+    await Promise.resolve()
+    await Promise.resolve()
+    callbacks[0]?.(0)
+
+    expect(getTierUrl('a', 320)).toBe('blob:hydrated')
+    expect(worker).not.toHaveBeenCalled()
+  })
+
+  it('puts encoded tiers into DerivedCache when hashed', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:encoded')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    mockWorkerSuccess({
+      ok: true,
+      name: 'a.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([7]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    retainAssetSource('a', jpeg('a.jpg'))
+
+    requestTier('a', 320, SAMPLE_HASH)
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+
+    expect(getTierUrl('a', 320)).toBe('blob:encoded')
+    const stored = await cache.get(SAMPLE_HASH, 'tier-320')
+    expect(stored.ok).toBe(true)
+    if (stored.ok) {
+      expect(new Uint8Array(stored.value.bytes)).toEqual(new Uint8Array([7]))
+    }
+  })
+
+  it('does not put into DerivedCache when unhashed', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:plain')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    const put = vi.spyOn(cache, 'put')
+    setDerivedCacheForTests(cache)
+    mockWorkerSuccess({
+      ok: true,
+      name: 'a.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    retainAssetSource('a', jpeg('a.jpg'))
+
+    requestTier('a', 320)
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+
+    expect(getTierUrl('a', 320)).toBe('blob:plain')
+    expect(put).not.toHaveBeenCalled()
   })
 })

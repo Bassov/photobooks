@@ -202,6 +202,11 @@ export function getAssetAspectSnapshot(assetId: string): number {
   return state.sessionMeta.get(assetId)?.aspect ?? DEFAULT_ASPECT
 }
 
+/** Optional content hash from the book asset record; undefined when unset. */
+export function getAssetContentHash(assetId: string): string | undefined {
+  return state.book.assets[assetId]?.contentHash
+}
+
 /** Filmstrip label: session file name when present, otherwise the asset id. */
 export function getAssetDisplayName(assetId: string): string {
   const name = state.sessionMeta.get(assetId)?.name

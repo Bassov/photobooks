@@ -1,3 +1,5 @@
+import { getDerivedCache } from '../assets/derivedCache/instance'
+import { tierPresetId } from '../assets/derivedCache/presets'
 import { processAsset } from './assetPool'
 import { assetSourceCovers, getAssetSource } from './assetSources'
 import { ObjectUrlLru } from './objectUrlLru'
@@ -48,45 +50,82 @@ export function subscribeTier(
   }
 }
 
-export function requestTier(assetId: string, tier: number): void {
+export function requestTier(
+  assetId: string,
+  tier: number,
+  contentHash?: string,
+): void {
   const key = tierCacheKey(assetId, tier)
   if (lru.has(key) || inflight.has(key)) {
     return
   }
-  const file = getAssetSource(assetId)
-  if (file === undefined) {
-    return
-  }
   const controller = new AbortController()
   inflight.set(key, { controller })
-  const cover = assetSourceCovers(assetId)
-  void processAsset({
-    assetId,
-    file,
-    priority: 'zoom',
-    maxEdge: tier,
-    signal: controller.signal,
-    cover,
-  })
-    .then((result) => {
-      if (controller.signal.aborted) {
+
+  void (async () => {
+    try {
+      if (contentHash !== undefined && contentHash.length > 0) {
+        const cache = await getDerivedCache()
+        if (inflight.get(key)?.controller !== controller) {
+          return
+        }
+        const got = await cache.get(contentHash, tierPresetId(tier))
+        if (inflight.get(key)?.controller !== controller) {
+          return
+        }
+        if (got.ok) {
+          pending.push({
+            key,
+            buffer: got.value.bytes,
+            mimeType: got.value.mimeType,
+          })
+          scheduleFlush()
+          return
+        }
+      }
+
+      const file = getAssetSource(assetId)
+      if (file === undefined) {
         return
       }
-      pending.push({
-        key,
-        buffer: result.previewBuffer,
-        mimeType: result.previewMimeType,
-      })
-      scheduleFlush()
-    })
-    .catch(() => {
-      // Aborted and failed tier jobs stay uncached; the caller can request again.
-    })
-    .finally(() => {
+      const cover = assetSourceCovers(assetId)
+      try {
+        const result = await processAsset({
+          assetId,
+          file,
+          priority: 'zoom',
+          maxEdge: tier,
+          signal: controller.signal,
+          cover,
+        })
+        if (inflight.get(key)?.controller !== controller) {
+          return
+        }
+        if (contentHash !== undefined && contentHash.length > 0) {
+          const cache = await getDerivedCache()
+          await cache.put(contentHash, tierPresetId(tier), {
+            bytes: result.previewBuffer,
+            mimeType: result.previewMimeType,
+          })
+        }
+        if (inflight.get(key)?.controller !== controller) {
+          return
+        }
+        pending.push({
+          key,
+          buffer: result.previewBuffer,
+          mimeType: result.previewMimeType,
+        })
+        scheduleFlush()
+      } catch {
+        // Aborted and failed tier jobs stay uncached; the caller can request again.
+      }
+    } finally {
       if (inflight.get(key)?.controller === controller) {
         inflight.delete(key)
       }
-    })
+    }
+  })()
 }
 
 export function cancelTier(assetId: string, tier: number): void {

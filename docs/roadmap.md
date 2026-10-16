@@ -142,8 +142,8 @@ Slicing rules when adding or splitting items:
   - [x] `AssetSource` interface (read-only originals, folder scan) with memory and File System Access adapters
   - [x] SHA-256 hashing in the worker at lowest priority; size + mtime fast path
   - [x] Pure matching / relink function
-- [ ] [prep] `derived-cache-opfs` — persistent preview cache
-  - [ ] `DerivedCache` interface; OPFS adapter keyed by `(assetHash, presetId)`; zoom tiers and thumbnails move from the in-memory LRU to OPFS
+- [x] [prep] `derived-cache-opfs` — persistent preview cache
+  - [x] `DerivedCache` interface; OPFS adapter keyed by `(assetHash, presetId)`; zoom tiers and thumbnails persist via DerivedCache (OPFS) while keeping a bounded hot object-URL LRU
 - [ ] [feature] `open-save-project` — library on disk
   - [ ] Create / open library folder, create book; gallery and layout persist in `book.json`, added folders/files register source roots
   - [ ] Save (Ctrl/Cmd+S) and restore on reopen
