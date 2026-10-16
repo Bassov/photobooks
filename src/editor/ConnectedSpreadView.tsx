@@ -4,7 +4,11 @@ import { SpreadView, type FrameControl } from '../render/SpreadView'
 import { selectImageTier } from '../photo/imageTiers'
 import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
-import { getSpreadPaintSnapshot, subscribeSpread } from './bookStore'
+import {
+  getAssetContentHash,
+  getSpreadPaintSnapshot,
+  subscribeSpread,
+} from './bookStore'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
 import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
 import {
@@ -118,7 +122,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
           }
         }),
       )
-      requestTier(assetId, tier)
+      requestTier(assetId, tier, getAssetContentHash(assetId))
       const ready = getTierUrl(assetId, tier)
       if (ready !== undefined) {
         queueTierSwap(assetId, tier, ready)

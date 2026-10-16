@@ -129,7 +129,7 @@ References: InDesign / Affinity Publisher (pasteboard, guides), Google Slides (s
 
 - **Pasteboard workspace:** all spreads stacked vertically on a zoomable, pannable surface (`SpreadView` per spread + overlay layer). Off-screen spreads are virtualized.
 - **Camera** (session state, never in the document or history): zoom via Ctrl/Cmd+wheel, pinch, `+` / `-`; fit spread, fit width, 100% (physical size); pan via scroll and Space+drag; zoom level indicator.
-- **Zoom-aware image tiers:** each placed image uses the smallest cached preview that covers its on-screen size × devicePixelRatio, so zooming in stays sharp and zooming out stays light. Tiers switch after the gesture settles (see "Performance model"). Until `DerivedCache` exists (M2), tiers live in a bounded in-memory LRU.
+- **Zoom-aware image tiers:** each placed image uses the smallest cached preview that covers its on-screen size × devicePixelRatio, so zooming in stays sharp and zooming out stays light. Tiers switch after the gesture settles (see "Performance model"). Hot object URLs stay in a bounded in-memory LRU; when `contentHash` is known, tier (and thumbnail) bytes also persist in `DerivedCache` (OPFS).
 - **Left panel:** spread thumbnails (same `SpreadView`), reorder by drag, click to scroll the pasteboard.
 - **Bottom filmstrip:** the book's gallery (horizontal, virtualized, adjustable height / thumbnail size).
 - **Presentation mode:** fullscreen, one spread at a time, arrow keys, no editor chrome. Same `SpreadView`; the site viewer later reuses it.

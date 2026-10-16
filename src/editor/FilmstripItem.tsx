@@ -1,13 +1,14 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { GridListItem } from 'react-aria-components'
 import {
   getAssetAspectSnapshot,
+  getAssetContentHash,
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
 import { ASSET_DRAG_MIME } from './dropTargets'
 import { setSelectedAssetId } from './gallerySelection'
-import { getThumbUrl, subscribeThumb } from './thumbCache'
+import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotSize } from './thumbSlotSize'
 
 function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
@@ -40,11 +41,22 @@ export function FilmstripItemView({
     () => getAssetAspectSnapshot(id),
     () => getAssetAspectSnapshot(id),
   )
+  const contentHash = useSyncExternalStore(
+    subscribeBookStore,
+    () => getAssetContentHash(id),
+    () => getAssetContentHash(id),
+  )
   const placementCount = useSyncExternalStore(
     subscribeBookStore,
     () => getPlacementCountSnapshot(id),
     () => getPlacementCountSnapshot(id),
   )
+  useEffect(() => {
+    if (contentHash === undefined || contentHash.length === 0) {
+      return
+    }
+    ensureThumb(id, contentHash)
+  }, [id, contentHash])
   const { width, height } = thumbSlotSize(aspect)
 
   return (

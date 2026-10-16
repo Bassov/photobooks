@@ -1,14 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import {
+  ensureThumb,
   getThumbUrl,
   resetThumbCache,
   setThumbUrl,
   subscribeThumb,
 } from './thumbCache'
 
+const SAMPLE_HASH =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
 describe('thumbCache', () => {
   afterEach(() => {
     resetThumbCache()
+    setDerivedCacheForTests(undefined)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -112,5 +118,97 @@ describe('thumbCache', () => {
 
     callbacks[1]?.(0)
     expect(getThumbUrl('pending')).toBeUndefined()
+  })
+
+  it('puts into DerivedCache when setThumbUrl receives a contentHash', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+
+    setThumbUrl('a1', new Uint8Array([1, 2]).buffer, 'image/jpeg', SAMPLE_HASH)
+    callbacks[0]?.(0)
+    await Promise.resolve()
+    const got = await cache.get(SAMPLE_HASH, 'thumb')
+    expect(got.ok).toBe(true)
+    if (got.ok) {
+      expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([1, 2]))
+    }
+  })
+
+  it('does not put into DerivedCache without a contentHash', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    const put = vi.spyOn(cache, 'put')
+    setDerivedCacheForTests(cache)
+
+    setThumbUrl('a1', new Uint8Array([1]).buffer, 'image/jpeg')
+    callbacks[0]?.(0)
+    await Promise.resolve()
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('ensureThumb hydrates from DerivedCache when hashed', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:hydrated-thumb')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    await cache.put(SAMPLE_HASH, 'thumb', {
+      bytes: new Uint8Array([3, 4, 5]).buffer,
+      mimeType: 'image/png',
+    })
+
+    ensureThumb('a1', SAMPLE_HASH)
+    for (let step = 0; step < 5; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+    expect(getThumbUrl('a1')).toBe('blob:hydrated-thumb')
+  })
+
+  it('ensureThumb is a no-op without contentHash', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const cache = createMemoryDerivedCache()
+    const get = vi.spyOn(cache, 'get')
+    setDerivedCacheForTests(cache)
+    ensureThumb('a1')
+    await Promise.resolve()
+    expect(get).not.toHaveBeenCalled()
+    expect(callbacks).toHaveLength(0)
   })
 })

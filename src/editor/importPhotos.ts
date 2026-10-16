@@ -8,6 +8,7 @@ import { partitionImportFiles } from '../photo/pickPhotos'
 import type { ExifOrientation } from '../photo/types'
 import {
   enqueueGalleryAssets,
+  getAssetContentHash,
   mintAssetId,
   setAssetSessionMeta,
   setImportRunning,
@@ -101,6 +102,7 @@ async function importPhotoFilesInner(
           result.assetId,
           result.previewBuffer,
           result.previewMimeType,
+          getAssetContentHash(result.assetId),
         )
       },
     })

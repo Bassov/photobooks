@@ -6,6 +6,7 @@ import {
   enqueueGalleryAssets,
   loadPainterFixture,
   getAssetAspectSnapshot,
+  getAssetContentHash,
   getAssetDisplayName,
   getPlacementCountSnapshot,
   getBookStoreSnapshot,
@@ -335,6 +336,24 @@ describe('bookStore', () => {
 
     expect(getAssetDisplayName('a1')).toBe('a1')
     expect(getGalleryDisplayNamesSnapshot()).toEqual(['a1'])
+  })
+
+  it('exposes optional contentHash from the book asset record', () => {
+    const hash =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    const book = makePlacedTemplateBook('4-grid', ['a1'])
+    resetBookStore({
+      book: {
+        ...book,
+        assets: { a1: { contentHash: hash } },
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    expect(getAssetContentHash('a1')).toBe(hash)
+    expect(getAssetContentHash('missing')).toBeUndefined()
   })
 })
 
