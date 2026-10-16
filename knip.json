@@ -3,7 +3,9 @@
   "entry": [
     "src/core/index.ts",
     "src/project/index.ts",
+    "src/assets/index.ts",
     "src/photo/photo.worker.ts!",
+    "src/assets/hash.worker.ts!",
     "e2e/**/*.ts",
     "e2e/fixtures/*.{mjs,js}",
     "scripts/**/*.{mjs,js,cjs}",
@@ -19,6 +21,7 @@
   "ignoreIssues": {
     "src/core/index.ts": ["types", "exports"],
     "src/project/index.ts": ["types", "exports"],
+    "src/assets/index.ts": ["types", "exports"],
     "src/perf/exposePerf.ts": ["types"],
     "src/photo/exifSchema.ts": ["types"]
   }

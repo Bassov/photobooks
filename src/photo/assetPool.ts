@@ -1,13 +1,25 @@
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { THUMB_MAX_EDGE } from './processPhoto'
 
-export type AssetJobPriority = 'visible' | 'zoom' | 'prefetch' | 'background'
+interface HashWorkerRequest {
+  id: string
+  buffer: ArrayBuffer
+}
+
+type HashWorkerResponse =
+  | { id: string; ok: true; hash: string }
+  | { id: string; ok: false; error: string }
+
+export type DecodeJobPriority = 'visible' | 'zoom' | 'prefetch' | 'background'
+
+type AssetJobPriority = DecodeJobPriority | 'hash'
 
 const PRIORITY_RANK: Record<AssetJobPriority, number> = {
   visible: 4,
   zoom: 3,
   prefetch: 2,
   background: 1,
+  hash: 0,
 }
 
 export interface AssetProcessResult {
@@ -39,23 +51,35 @@ export interface ImportBatchState {
 export interface ProcessAssetOptions {
   assetId: string
   file: File
-  priority?: AssetJobPriority
+  priority?: DecodeJobPriority
   signal?: AbortSignal
   maxEdge?: number
   cover?: boolean
 }
 
-interface QueueItem {
+interface DecodeQueueItem {
+  kind: 'decode'
   requestId: string
   assetId: string
   file: File
-  priority: AssetJobPriority
+  priority: DecodeJobPriority
   maxEdge: number
   cover: boolean
   signal?: AbortSignal
   resolve: (result: AssetProcessResult) => void
   reject: (error: Error) => void
 }
+
+interface HashQueueItem {
+  kind: 'hash'
+  requestId: string
+  buffer: ArrayBuffer
+  priority: 'hash'
+  resolve: (hash: string) => void
+  reject: (error: Error) => void
+}
+
+type QueueItem = DecodeQueueItem | HashQueueItem
 
 interface WorkerSlot {
   worker: Worker
@@ -70,20 +94,28 @@ function poolSize(): number {
   return Math.max(1, cores - 1)
 }
 
-let slots: WorkerSlot[] = []
+let decodeSlots: WorkerSlot[] = []
+let hashSlots: WorkerSlot[] = []
 let queue: QueueItem[] = []
 let requestCounter = 0
 let visibleAssetIds = new Set<string>()
 const abortByAsset = new Map<string, AbortController>()
 
 function ensureSlots(): void {
-  if (slots.length > 0) {
-    return
+  if (decodeSlots.length === 0) {
+    const size = poolSize()
+    for (let i = 0; i < size; i += 1) {
+      decodeSlots.push({
+        worker: new Worker(new URL('./photo.worker.ts', import.meta.url), {
+          type: 'module',
+        }),
+        busy: false,
+      })
+    }
   }
-  const size = poolSize()
-  for (let i = 0; i < size; i += 1) {
-    slots.push({
-      worker: new Worker(new URL('./photo.worker.ts', import.meta.url), {
+  if (hashSlots.length === 0) {
+    hashSlots.push({
+      worker: new Worker(new URL('../assets/hash.worker.ts', import.meta.url), {
         type: 'module',
       }),
       busy: false,
@@ -91,30 +123,51 @@ function ensureSlots(): void {
   }
 }
 
-function sortQueue(): void {
-  queue.sort((a, b) => {
-    const aBoost = visibleAssetIds.has(a.assetId) ? 10 : 0
-    const bBoost = visibleAssetIds.has(b.assetId) ? 10 : 0
-    const aRank = PRIORITY_RANK[a.priority] + aBoost
-    const bRank = PRIORITY_RANK[b.priority] + bBoost
-    return bRank - aRank
-  })
+function jobRank(job: QueueItem): number {
+  if (job.kind === 'hash') {
+    return PRIORITY_RANK.hash
+  }
+  const boost = visibleAssetIds.has(job.assetId) ? 10 : 0
+  return PRIORITY_RANK[job.priority] + boost
 }
 
-function takeNextJob(): QueueItem | undefined {
+function sortQueue(): void {
+  queue.sort((a, b) => jobRank(b) - jobRank(a))
+}
+
+function takeNextDecodeJob(): DecodeQueueItem | undefined {
   sortQueue()
-  while (queue.length > 0) {
-    const next = queue.shift()
-    if (!next) {
-      return undefined
-    }
-    if (next.signal?.aborted) {
-      next.reject(new DOMException('Aborted', 'AbortError'))
-      continue
-    }
-    return next
+  const index = queue.findIndex((job) => job.kind === 'decode')
+  if (index < 0) {
+    return undefined
   }
-  return undefined
+  const job = queue[index]
+  if (job?.kind !== 'decode') {
+    return undefined
+  }
+  queue.splice(index, 1)
+  if (job.signal?.aborted) {
+    job.reject(new DOMException('Aborted', 'AbortError'))
+    return takeNextDecodeJob()
+  }
+  return job
+}
+
+function takeNextHashJob(): HashQueueItem | undefined {
+  sortQueue()
+  if (queue.some((job) => job.kind === 'decode')) {
+    return undefined
+  }
+  const index = queue.findIndex((job) => job.kind === 'hash')
+  if (index < 0) {
+    return undefined
+  }
+  const job = queue[index]
+  if (job?.kind !== 'hash') {
+    return undefined
+  }
+  queue.splice(index, 1)
+  return job
 }
 
 function pump(): void {
@@ -122,20 +175,31 @@ function pump(): void {
     return
   }
   ensureSlots()
-  for (const slot of slots) {
+  for (const slot of decodeSlots) {
     if (slot.busy) {
       continue
     }
-    const job = takeNextJob()
+    const job = takeNextDecodeJob()
     if (!job) {
-      return
+      break
     }
     slot.busy = true
-    runOnSlot(slot, job)
+    runDecodeOnSlot(slot, job)
+  }
+  for (const slot of hashSlots) {
+    if (slot.busy) {
+      continue
+    }
+    const job = takeNextHashJob()
+    if (!job) {
+      break
+    }
+    slot.busy = true
+    runHashOnSlot(slot, job)
   }
 }
 
-function runOnSlot(slot: WorkerSlot, job: QueueItem): void {
+function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   const { worker } = slot
   let settled = false
 
@@ -217,6 +281,58 @@ function runOnSlot(slot: WorkerSlot, job: QueueItem): void {
   worker.postMessage(request)
 }
 
+function runHashOnSlot(slot: WorkerSlot, job: HashQueueItem): void {
+  const { worker } = slot
+  let settled = false
+
+  const settle = (fn: () => void): void => {
+    if (settled) {
+      return
+    }
+    settled = true
+    cleanup()
+    slot.busy = false
+    fn()
+    pump()
+  }
+
+  const onMessage = (event: MessageEvent<HashWorkerResponse>) => {
+    if (event.data.id !== job.requestId) {
+      return
+    }
+    const response = event.data
+    if (!response.ok) {
+      settle(() => {
+        job.reject(new Error(response.error))
+      })
+      return
+    }
+    settle(() => {
+      job.resolve(response.hash)
+    })
+  }
+
+  const onError = (event: ErrorEvent) => {
+    settle(() => {
+      job.reject(new Error(event.message || 'Hash worker failed'))
+    })
+  }
+
+  const cleanup = (): void => {
+    worker.removeEventListener('message', onMessage)
+    worker.removeEventListener('error', onError)
+  }
+
+  worker.addEventListener('message', onMessage)
+  worker.addEventListener('error', onError)
+
+  const request: HashWorkerRequest = {
+    id: job.requestId,
+    buffer: job.buffer,
+  }
+  worker.postMessage(request, [job.buffer])
+}
+
 /** Eagerly construct the worker pool (one-time setup outside hot-handler measures). */
 export function warmAssetPool(): void {
   ensureSlots()
@@ -224,10 +340,14 @@ export function warmAssetPool(): void {
 
 /** Terminates workers and clears the queue (tests / teardown). */
 export function resetAssetPool(): void {
-  for (const slot of slots) {
+  for (const slot of decodeSlots) {
     slot.worker.terminate()
   }
-  slots = []
+  decodeSlots = []
+  for (const slot of hashSlots) {
+    slot.worker.terminate()
+  }
+  hashSlots = []
   for (const job of queue) {
     job.reject(new Error('Asset pool reset'))
   }
@@ -261,7 +381,8 @@ export function processAsset(
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
-    const item: QueueItem = {
+    const item: DecodeQueueItem = {
+      kind: 'decode',
       requestId,
       assetId: options.assetId,
       file: options.file,
@@ -279,6 +400,23 @@ export function processAsset(
   })
 }
 
+/** Enqueue SHA-256 hashing at the lowest pool priority. */
+export function enqueueHash(buffer: ArrayBuffer): Promise<string> {
+  ensureSlots()
+  const requestId = `hash-${String((requestCounter += 1))}`
+  return new Promise((resolve, reject) => {
+    queue.push({
+      kind: 'hash',
+      requestId,
+      buffer,
+      priority: 'hash',
+      resolve,
+      reject,
+    })
+    pump()
+  })
+}
+
 export type ImportBatchListener = (state: ImportBatchState) => void
 
 /**
@@ -290,7 +428,7 @@ export async function runImportBatch(
   options: {
     onProgress?: ImportBatchListener
     onResult?: (result: AssetProcessResult) => void
-    priority?: AssetJobPriority
+    priority?: DecodeJobPriority
     maxEdge?: number
   } = {},
 ): Promise<{

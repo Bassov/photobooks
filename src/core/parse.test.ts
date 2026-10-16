@@ -59,7 +59,8 @@ describe('parseBook', () => {
       relativePath: 'vacation/IMG_001.jpg',
       byteSize: 1024,
       mtimeMs: 1_700_000_000_000,
-      contentHash: 'abc123',
+      contentHash:
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     }
     const full = parseBook(
       makeBook({
@@ -80,6 +81,13 @@ describe('parseBook', () => {
     [{ sourceRootId: '' }],
     [{ relativePath: '' }],
     [{ contentHash: '' }],
+    [{ contentHash: 'abc123' }],
+    [
+      {
+        contentHash:
+          'E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855',
+      },
+    ],
   ])('rejects malformed asset field %j', (asset) => {
     expect(
       parseBook(
