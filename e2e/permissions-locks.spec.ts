@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import { clearProjectSession } from './fixtures/clearProjectSession'
+
+test.afterEach(async ({ page }) => {
+  await clearProjectSession(page)
+})
 
 test('empty shell has no re-grant control or lock banner', async ({ page }) => {
   await page.goto('/')
