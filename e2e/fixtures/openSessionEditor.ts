@@ -6,6 +6,12 @@ export async function openSessionEditor(page: Page): Promise<void> {
   await expect(page.getByTestId('home-screen')).toBeVisible({
     timeout: 15_000,
   })
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('start-session')).toBeVisible({
+    timeout: 15_000,
+  })
   await page.getByTestId('start-session').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,

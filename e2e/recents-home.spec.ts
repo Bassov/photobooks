@@ -16,6 +16,9 @@ test('empty home shows copy and library actions without page scroll', async ({
   await expect(page.getByTestId('home-screen')).toBeVisible({
     timeout: 15_000,
   })
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
   await expect(page.getByTestId('home-empty')).toBeVisible()
   await expect(page.getByTestId('create-library')).toBeVisible()
   await expect(page.getByTestId('open-library')).toBeVisible()
@@ -30,6 +33,9 @@ test('fresh visit lists recent library books and one click opens', async ({
   const libraryFolder = `photobooks-e2e-recents-${String(process.pid)}-${String(Date.now())}`
 
   await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
   await page.getByTestId('start-session').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
@@ -132,6 +138,9 @@ test('Home button returns to home and reload stays on home', async ({
   const libraryFolder = `photobooks-e2e-home-btn-${String(process.pid)}-${String(Date.now())}`
 
   await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
   await page.getByTestId('start-session').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,

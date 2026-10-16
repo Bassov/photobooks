@@ -19,6 +19,9 @@ test('empty home has no re-grant control or lock banner', async ({ page }) => {
 test('Grant access regrant restores the persisted book', async ({ page }) => {
   test.setTimeout(60_000)
   await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
   await page.getByTestId('start-session').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
@@ -121,6 +124,9 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
 test('locked-elsewhere shows banner and blocks Save', async ({ page }) => {
   test.setTimeout(60_000)
   await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
   await page.getByTestId('start-session').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,

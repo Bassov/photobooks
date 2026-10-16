@@ -109,6 +109,10 @@ export async function enablePerfScenario(
   await page.waitForFunction(() => window.__photobooksPerf !== undefined)
   const home = page.getByTestId('home-screen')
   if (await home.isVisible()) {
+    await page
+      .getByTestId('home-loading')
+      .waitFor({ state: 'hidden' })
+      .catch(() => undefined)
     await page.getByTestId('start-session').click()
     await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
   }
