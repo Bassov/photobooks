@@ -16,6 +16,7 @@ Living journal of repeated review findings. Read before OpenSpec apply. Append o
 - Progressive mid-import filmstrip mounts need tighter rAF pacing (gallery flush / reveal / thumb flush) — do not re-freeze the gallery id list to pass LoAF.
 - Filmstrip visibility may boost decode priority but must not abort off-screen import jobs — aborted assets never retry and leave permanent gray placeholders.
 - DerivedCache puts from `setThumbUrl` (encode-after-hash) must go through `trackHashJob` so Save/`awaitPendingHashes` cannot finish before OPFS writes — otherwise reload leaves gray filmstrip holes, worst at the gallery tail.
+- Open of an existing library must load a stored book into an empty editor (prefer contentful books). Never treat “same id as `session-book` already exists” as a no-op adopt — that leaves the empty in-memory placeholder on screen while disk has the real document.
 - Variable-width filmstrip packing uses absolute offsets from each card’s end + gap — never a fixed max-width stride (`estimatedRowSize` / uniform slot).
 - Sliding virtual windows MUST cover scrollport width (+ overscan) from aspect strides — a fixed item count leaves mid-scroll holes for narrow (portrait) cards.
 - Empty gallery UI must not render inside a 1px / min-width virtualizer window — empty copy lives at full scrollport width with its own e2e geometry assertion.

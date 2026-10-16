@@ -445,10 +445,99 @@ export function getRegisteredAssetSource(
   return assetSources.get(rootId)
 }
 
+function bookHasContent(book: Book): boolean {
+  if (book.gallery.length > 0) {
+    return true
+  }
+  return book.spreads.some((spread) =>
+    spread.frames.some((frame) => frame.assetId !== undefined),
+  )
+}
+
+function activateLoadedBook(book: Book): StorageResult<Book> {
+  if (!libraryId) {
+    return { ok: false, code: 'not-found' }
+  }
+  bookId = book.id
+  persistIds()
+  withoutDirtyTracking(() => {
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+  })
+  dirty = false
+  savePhase = 'idle'
+  cancelAutosaveTimer()
+  setStatus({ kind: 'open', libraryId, bookId })
+  setEditorStatus('Book restored')
+  return { ok: true, value: book }
+}
+
+async function pickAndActivateLibraryBook(
+  summaries: readonly { id: string }[],
+): Promise<StorageResult<Book>> {
+  if (!storage) {
+    return { ok: false, code: 'not-found' }
+  }
+  const currentId = getBookStoreSnapshot().book.id
+  let first: Book | null = null
+  let withContent: Book | null = null
+  for (const summary of summaries) {
+    const loaded = await storage.loadBook(summary.id)
+    if (!loaded.ok) {
+      continue
+    }
+    first ??= loaded.value
+    if (!bookHasContent(loaded.value)) {
+      continue
+    }
+    if (summary.id === currentId) {
+      return activateLoadedBook(loaded.value)
+    }
+    withContent ??= loaded.value
+  }
+  const chosen = withContent ?? first
+  if (!chosen) {
+    return adoptCurrentBookInLibrary()
+  }
+  return activateLoadedBook(chosen)
+}
+
+async function activateLibraryAfterBind(
+  mode: 'adopt' | 'open',
+): Promise<StorageResult<void>> {
+  if (mode === 'open' && !bookHasContent(getBookStoreSnapshot().book)) {
+    if (!storage) {
+      return { ok: false, code: 'not-found' }
+    }
+    const listed = await storage.listBooks()
+    if (!listed.ok) {
+      setStatus({ kind: 'error', code: listed.code, action: 'open library' })
+      return listed
+    }
+    if (listed.value.length > 0) {
+      const opened = await pickAndActivateLibraryBook(listed.value)
+      if (!opened.ok) {
+        return { ok: false, code: opened.code }
+      }
+      return { ok: true, value: undefined }
+    }
+  }
+  const adopted = await adoptCurrentBookInLibrary()
+  if (!adopted.ok) {
+    return { ok: false, code: adopted.code }
+  }
+  return { ok: true, value: undefined }
+}
+
 async function bindLibrary(
   nextLibraryId: string,
   handle: SessionDirectoryHandle,
   nextStorage: LibraryStorage,
+  mode: 'adopt' | 'open' = 'adopt',
 ): Promise<StorageResult<void>> {
   const remembered = await session.rememberLibraryHandle(nextLibraryId, handle)
   if (!remembered.ok) {
@@ -460,11 +549,11 @@ async function bindLibrary(
   bookId = null
   persistIds()
   setStatus({ kind: 'open', libraryId: nextLibraryId, bookId: null })
-  const adopted = await withoutDirtyTrackingAsync(() =>
-    adoptCurrentBookInLibrary(),
+  const activated = await withoutDirtyTrackingAsync(() =>
+    activateLibraryAfterBind(mode),
   )
-  if (!adopted.ok) {
-    return { ok: false, code: adopted.code }
+  if (!activated.ok) {
+    return activated
   }
   dirty = false
   savePhase = 'idle'
@@ -484,7 +573,7 @@ export async function createLibrary(): Promise<StorageResult<void>> {
     setStatus({ kind: 'error', code: written.code, action: 'create library' })
     return written
   }
-  return bindLibrary(DEFAULT_LIBRARY_ID, handle, nextStorage)
+  return bindLibrary(DEFAULT_LIBRARY_ID, handle, nextStorage, 'adopt')
 }
 
 export async function openLibrary(): Promise<StorageResult<void>> {
@@ -498,7 +587,7 @@ export async function openLibrary(): Promise<StorageResult<void>> {
     setStatus({ kind: 'error', code: meta.code, action: 'open library' })
     return meta
   }
-  return bindLibrary(DEFAULT_LIBRARY_ID, handle, nextStorage)
+  return bindLibrary(DEFAULT_LIBRARY_ID, handle, nextStorage, 'open')
 }
 
 /** Test / e2e seam: attach an already-built storage without a directory picker. */
@@ -507,13 +596,14 @@ export async function attachLibraryForTests(options: {
   session?: SessionState
   libraryId?: string
   handle?: SessionDirectoryHandle
+  mode?: 'adopt' | 'open'
 }): Promise<StorageResult<void>> {
   if (options.session) {
     session = options.session
   }
   const id = options.libraryId ?? DEFAULT_LIBRARY_ID
   const handle = options.handle ?? { id: 'test-library-handle' }
-  return bindLibrary(id, handle, options.storage)
+  return bindLibrary(id, handle, options.storage, options.mode ?? 'adopt')
 }
 
 /** Test / e2e seam: memory library without a directory picker. */
@@ -541,6 +631,9 @@ export async function adoptCurrentBookInLibrary(): Promise<
   const current = getBookStoreSnapshot().book
   const existing = await storage.loadBook(current.id)
   if (existing.ok) {
+    if (!bookHasContent(current)) {
+      return activateLoadedBook(existing.value)
+    }
     bookId = current.id
     persistIds()
     setStatus({ kind: 'open', libraryId, bookId })
@@ -688,18 +781,43 @@ export function saveBookNow(): void {
   runSave()
 }
 
-/** E2E seam: attach an OPFS library folder without a directory picker. */
-export async function attachOpfsTestLibrary(): Promise<StorageResult<void>> {
+async function opfsTestLibraryHandle(
+  folderName = 'photobooks-e2e-library',
+): Promise<FileSystemDirectoryHandle | null> {
   if (typeof navigator.storage.getDirectory !== 'function') {
-    return { ok: false, code: 'not-found' }
+    return null
   }
   const root = await navigator.storage.getDirectory()
-  const dir = await root.getDirectoryHandle('photobooks-e2e-library', {
-    create: true,
-  })
+  return root.getDirectoryHandle(folderName, { create: true })
+}
+
+/** E2E seam: attach an OPFS library folder without a directory picker. */
+export async function attachOpfsTestLibrary(
+  folderName?: string,
+): Promise<StorageResult<void>> {
+  const dir = await opfsTestLibraryHandle(folderName)
+  if (!dir) {
+    return { ok: false, code: 'not-found' }
+  }
   return attachLibraryForTests({
     storage: createFsaLibraryStorage({ root: dir }),
     handle: dir,
+    mode: 'adopt',
+  })
+}
+
+/** E2E seam: open an existing OPFS library (load books; do not adopt empty session). */
+async function openOpfsTestLibrary(
+  folderName?: string,
+): Promise<StorageResult<void>> {
+  const dir = await opfsTestLibraryHandle(folderName)
+  if (!dir) {
+    return { ok: false, code: 'not-found' }
+  }
+  return attachLibraryForTests({
+    storage: createFsaLibraryStorage({ root: dir }),
+    handle: dir,
+    mode: 'open',
   })
 }
 
@@ -711,6 +829,7 @@ export function exposeProjectSessionTestApi(): void {
     attachLibraryForTests,
     attachMemoryLibraryForTests,
     attachOpfsTestLibrary,
+    openOpfsTestLibrary,
     adoptCurrentBookInLibrary,
     saveBookNow,
     createBookInLibrary,
@@ -725,6 +844,7 @@ declare global {
       attachLibraryForTests: typeof attachLibraryForTests
       attachMemoryLibraryForTests: typeof attachMemoryLibraryForTests
       attachOpfsTestLibrary: typeof attachOpfsTestLibrary
+      openOpfsTestLibrary: typeof openOpfsTestLibrary
       adoptCurrentBookInLibrary: typeof adoptCurrentBookInLibrary
       saveBookNow: typeof saveBookNow
       createBookInLibrary: typeof createBookInLibrary

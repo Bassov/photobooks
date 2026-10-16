@@ -377,7 +377,7 @@ When `contentHash` is absent, thumbnail caching MUST remain memory-only without 
 
 ### Requirement: Create or open a library folder
 
-The system SHALL let the user create or open a library folder via a directory picker when File System Access is available, and MUST provide a test seam so automated tests can attach a library without a real picker. With no library open, chrome MUST offer create/open actions. Opening or creating MUST remember the library handle in session state for later restore. After a successful create or open with no active book id, the system MUST adopt the current in-memory book so Save can persist it without a destructive empty-book create. The shell MUST remain viewport-contained (no page-level H/V scroll; filmstrip and pasteboard stay the named scrollports).
+The system SHALL let the user create or open a library folder via a directory picker when File System Access is available, and MUST provide a test seam so automated tests can attach a library without a real picker. With no library open, chrome MUST offer create/open actions. Opening or creating MUST remember the library handle in session state for later restore. After a successful **create** with no active book id, the system MUST adopt the current in-memory book so Save can persist it without a destructive empty-book create. After a successful **open** of a library that already contains books, when the editor has no gallery or placements, the system MUST load a stored book into the editor (preferring a book with content over an empty placeholder) instead of adopting a fresh empty session book. When the editor already has session content, open MUST still adopt that work without clearing gallery or placements. The shell MUST remain viewport-contained (no page-level H/V scroll; filmstrip and pasteboard stay the named scrollports).
 
 #### Scenario: Empty chrome offers library actions
 
@@ -391,17 +391,32 @@ The system SHALL let the user create or open a library folder via a directory pi
 
 #### Scenario: Create library adopts in-memory book
 
-- **WHEN** the user creates or opens a library while an in-memory book is already in the editor and no book id is active
+- **WHEN** the user creates a library while an in-memory book is already in the editor and no book id is active
 - **THEN** that book becomes the active library-backed book without clearing gallery or placements
+
+#### Scenario: Open existing library loads stored book
+
+- **WHEN** the user opens a library that already contains a saved book and the editor is empty
+- **THEN** the editor shows that book’s gallery and placements without requiring a reload
+
+#### Scenario: Open prefers filled book over empty session book
+
+- **WHEN** the library contains an empty session-book placeholder and another book with gallery content, and the editor is empty
+- **THEN** open activates the filled book
 
 ### Requirement: Adopt in-memory book into open library
 
-When a library is open and no library-backed book id is active yet, the system SHALL adopt the current in-memory editor book into that library (persist it and mark it active) without clearing gallery or placements. Create/open library MUST leave a path to Save without requiring a destructive empty-book create. Save and Ctrl/Cmd+S MUST be available whenever a library is open (adopting first when needed).
+When a library is open and no library-backed book id is active yet, the system SHALL adopt the current in-memory editor book into that library (persist it and mark it active) without clearing gallery or placements. When adopt finds an existing book id already on disk and the editor is empty, it MUST load that stored document into the editor instead of leaving the empty in-memory placeholder active. Create library and open-of-empty-library MUST leave a path to Save without requiring a destructive empty-book create. Save and Ctrl/Cmd+S MUST be available whenever a library is open (adopting first when needed).
 
 #### Scenario: Save after create library keeps session work
 
-- **WHEN** the user has imported or edited a session-only book, creates or opens a library, and saves without creating a new empty book
+- **WHEN** the user has imported or edited a session-only book, creates a library, and saves without creating a new empty book
 - **THEN** the in-memory gallery and placements become the active library-backed book and persist under that book id
+
+#### Scenario: Adopt of existing id hydrates empty editor
+
+- **WHEN** the in-memory editor is empty, a library is bound, and storage already has a book with the same id that has gallery content
+- **THEN** the editor loads that stored book (gallery and placements) as the active document
 
 #### Scenario: Cancel keeps document when confirming new book
 
