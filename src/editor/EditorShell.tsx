@@ -22,6 +22,7 @@ import {
   exposeProjectSessionTestApi,
   getProjectSessionSnapshot,
   openLibrary,
+  regrantLibrary,
   saveBookNow,
   subscribeProjectSession,
   tryRestore,
@@ -179,6 +180,7 @@ export function EditorShell() {
   }
 
   const libraryReady = project.libraryOpen
+  const writeBlocked = project.accessPhase === 'locked-elsewhere'
 
   return (
     <div className="editor-shell" data-testid="editor-shell">
@@ -210,6 +212,19 @@ export function EditorShell() {
           >
             Open
           </button>
+          {project.accessPhase === 'permission-required' ? (
+            <button
+              type="button"
+              className="editor-action"
+              data-testid="regrant-library"
+              onClick={() => {
+                void regrantLibrary()
+              }}
+              disabled={pickerBusy}
+            >
+              Grant access
+            </button>
+          ) : null}
           <button
             type="button"
             className="editor-action editor-action-secondary"
@@ -236,11 +251,23 @@ export function EditorShell() {
             onClick={() => {
               saveBookNow()
             }}
-            disabled={pickerBusy || !libraryReady || project.saving}
+            disabled={
+              pickerBusy || !libraryReady || project.saving || writeBlocked
+            }
           >
             Save
           </button>
-          {libraryReady ? (
+          {writeBlocked ? (
+            <span
+              className="book-lock-banner"
+              data-testid="book-lock-banner"
+              role="status"
+              aria-live="polite"
+            >
+              This book is open in another tab
+            </span>
+          ) : null}
+          {libraryReady && !writeBlocked ? (
             <span
               className="save-indicator"
               data-testid="save-indicator"
@@ -263,7 +290,7 @@ export function EditorShell() {
             onClick={() => {
               void onAddPhotos()
             }}
-            disabled={pickerBusy}
+            disabled={pickerBusy || writeBlocked}
           >
             Add photos
           </button>
@@ -273,7 +300,7 @@ export function EditorShell() {
             onClick={() => {
               void onAddFolder()
             }}
-            disabled={pickerBusy}
+            disabled={pickerBusy || writeBlocked}
           >
             Add folder
           </button>

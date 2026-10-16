@@ -157,8 +157,9 @@ Slicing rules when adding or splitting items:
   - [x] Debounced autosave, save indicator
   - **Perf:** autosave never runs during an active gesture; serialization at background priority (worker if over budget). Gate: continuous drag while autosave fires — zero LoAF.
   - **Browser check:** edit, reload without saving — changes are kept; editing never hitches on save.
-- [ ] [feature] `permissions-locks-ux` — access and single writer
-  - [ ] Permission re-grant flow; Web Locks single writer with a clear "open in another tab" message
+- [x] [feature] `permissions-locks-ux` — access and single writer
+  - [x] Permission re-grant flow; Web Locks single writer with a clear "open in another tab" message
+  - **Perf:** chrome status/banner updates only; existing save/autosave gesture gates stay green.
   - **Browser check:** after a browser restart, access is re-granted in one step; a second tab is blocked from editing.
 - [ ] [feature] `recents-home` — returning user
   - [ ] Home screen with books in the library and recent libraries (handles in IndexedDB)

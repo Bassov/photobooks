@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources } from '../photo/assetSources'
@@ -11,7 +11,11 @@ import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
-import { resetProjectSessionForTests } from './projectSession'
+import {
+  attachMemoryLibraryForTests,
+  resetProjectSessionForTests,
+  setAccessPhaseForTests,
+} from './projectSession'
 import { resetThumbCache } from './thumbCache'
 
 const editorShellCss = readFileSync(
@@ -110,5 +114,42 @@ describe('EditorShell viewport containment', () => {
     expect(editorShellCss).toMatch(
       /\.editor-workspace\s*\{[^}]*min-width:\s*0/s,
     )
+  })
+
+  it('shows Grant access only when permission is required', () => {
+    render(<EditorShell />)
+    expect(screen.queryByTestId('regrant-library')).toBeNull()
+    expect(screen.queryByTestId('book-lock-banner')).toBeNull()
+
+    act(() => {
+      setAccessPhaseForTests('permission-required')
+    })
+    const grant = screen.getByTestId('regrant-library')
+    expect(grant.textContent).toBe('Grant access')
+    expect(grant.tagName).toBe('BUTTON')
+  })
+
+  it('shows lock banner and disables Save when locked elsewhere', async () => {
+    render(<EditorShell />)
+    await act(async () => {
+      await attachMemoryLibraryForTests()
+    })
+    const saveBefore = screen.getByTestId('save-book')
+    if (!(saveBefore instanceof HTMLButtonElement)) {
+      throw new Error('expected save button')
+    }
+    expect(saveBefore.disabled).toBe(false)
+    act(() => {
+      setAccessPhaseForTests('locked-elsewhere')
+    })
+    expect(screen.getByTestId('book-lock-banner').textContent).toBe(
+      'This book is open in another tab',
+    )
+    const saveAfter = screen.getByTestId('save-book')
+    if (!(saveAfter instanceof HTMLButtonElement)) {
+      throw new Error('expected save button')
+    }
+    expect(saveAfter.disabled).toBe(true)
+    expect(screen.queryByTestId('save-indicator')).toBeNull()
   })
 })

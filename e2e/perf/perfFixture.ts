@@ -45,8 +45,26 @@ declare global {
       ) => Promise<{ ok: boolean; code?: string }>
       adoptCurrentBookInLibrary: () => Promise<{ ok: boolean; code?: string }>
       saveBookNow: () => void
-      createBookInLibrary: () => Promise<{ ok: boolean; code?: string }>
+      createBookInLibrary: () => Promise<{
+        ok: boolean
+        code?: string
+        value?: { id: string }
+      }>
       tryRestore: () => Promise<unknown>
+      regrantLibrary: () => Promise<{ ok: boolean; code?: string }>
+      regrantLibraryWithHandleForTests: (handle?: {
+        id: string
+      }) => Promise<{ ok: boolean; code?: string }>
+      setAccessPhaseForTests: (
+        phase: 'idle' | 'permission-required' | 'locked-elsewhere',
+      ) => void
+      holdExternalBookLockForTests: (
+        bookId: string,
+      ) => Promise<{ ok: boolean; code?: string }>
+      tryActivateLibraryBookForTests: (
+        bookId: string,
+      ) => Promise<{ ok: boolean; code?: string; value?: { id: string } }>
+      configureProjectSession: (deps: Record<string, unknown>) => void
       getSnapshot: () => unknown
     }
   }
