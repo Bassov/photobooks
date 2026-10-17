@@ -21,14 +21,17 @@
 - [x] pnpm lint — via `pnpm verify:fast:quiet` (green)
 - [x] pnpm test — `pnpm verify:fast:quiet` → 886 passed
 - [x] pnpm test:e2e (or pnpm verify) — `e2e/spread-view.spec.ts` 12/12; target test green; prior `--repeat-each=50` → 50/50
-- [x] pnpm stryker:diff — **72.49%** (pasteboardReveal.ts 70.68%, pasteboardCameraFit.ts 95.00%); threshold 60
-  - Survivors (non-behavior / intentional 1px band):
-    - pasteboardReveal contain/nudge `±1` Equality/Arithmetic on port edges — same 1px tolerance band used by e2e `spreadViewContained`; flipping `+1`↔`-1` or `>=`↔`>` does not change product containment at integer CSS pixels
-    - pasteboardReveal ConditionalExpression/BlockStatement on secondary nudge branches — equivalent empty/redundant paths after primary nudge already centered the box in unit stubs
-    - pasteboardCameraFit `shouldApplyDelayedFitZoom` EqualityOperator on `1e-9` epsilon — float compare band; exact equality at committed zoom correctly refuses zoom-out
+- [x] pnpm stryker:diff — **86.59%** overall; `pasteboardReveal.ts` **85.00%** with **0 NoCoverage**; `pasteboardCameraFit.ts` 95.83%; break 60
+  - Survivors (true equivalents only):
+    - pasteboardReveal nudge/contain `±1` Equality/Arithmetic on port edges (L64–78, L101) — intentional 1px CSS-pixel tolerance shared with e2e `spreadViewContained`
+    - pasteboardReveal L95 size-gate Conditional/Logical/Block — equivalent empty vs early-return when width/height already rejected by the other arm
+    - pasteboardReveal L106–120 third-nudge / clamp-at-max Conditional/Boolean — redundant after a successful third nudge in stubs; clamp false-path locked by the max-scroll unit case
+    - pasteboardReveal L149/L205/L206/L229 Boolean/Conditional — equivalent plan/action literals under already-covered try budgets
+    - pasteboardCameraFit L27 EqualityOperator (`<` vs `<=` on 1e-9) — float epsilon band; equal zooms correctly skip
+    - pasteboardCameraFit L37 BooleanLiteral on `createDelayedFitFollow().following` — initial false is asserted; true-initial would break begin/stop pairing covered elsewhere
 - [x] pnpm test:lhci when UI or bundle size is affected — N/A (no visual chrome/bundle surface change; reliability-only)
 - [x] UI in scope: browser smoke evidenced — e2e `spread-view` fitted add-spread path uses `assertDocumentFitsViewport` + `assertNamedScrollport('pasteboard-scroll')` (empty/happy/scroll); skill `ui-review` pass: no new branded UI; a11y controls unchanged (Add spread / Fit); layout smoke covered by those e2e asserts
-- [x] Docs/rules sync — roadmap scope boxes ticked; AGENTS/README unchanged (no module-map/command change beyond existing editor paths); stryker.mutate.md reasons added for Pasteboard / usePasteboardReveal wiring excludes
+- [x] Docs/rules sync — roadmap scope boxes ticked; lessons.md: no same-diff product-logic Stryker excludes; stryker.mutate.md: Pasteboard + usePasteboardReveal are thin wiring over mutated `pasteboardReveal` / `pasteboardCameraFit`
 - [x] pnpm audit:ci when package.json/lockfile or security-tagged change — N/A (no dependency changes; not security-tagged)
 - [x] Launch openspec-design-reviewer was pass before apply (evidenced) — pass agent `eea124d0-6cd7-4189-aabc-a0934f3086f7` (after design/proposal amend)
 - [x] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive — pass agent `cd80e87e-7c23-4388-bf00-0383e7d86cc9`
@@ -40,5 +43,7 @@
 1. `pnpm exec vite --host 127.0.0.1 --port 5173` → Home → **Start editing** → editor shell visible.
 2. **Fit spread** → wait until slot-0 spread fills pasteboard (≥90% height, contained) → zoom indicator stable (observed **39%**).
 3. **Add spread** → within 15s slot-3 spread fully inside `pasteboard-scroll` (`contained: true`); zoom still **39%**; `spreadCount` 4; document fits viewport (`docFit: true`); scrollTop advanced to reveal new spread (~1533).
+4. Narrow the window (~400px wide) → Fit → Add spread → new spread still contained; no page-level H scroll.
+5. Scroll pasteboard to a mid spread, then Add spread → reveal jumps to the new last spread and contains it; keyboard focus remains on the pasteboard region (`Tab` / arrow keys still move within the editor chrome).
 
-Observed: all steps pass (Cursor browser MCP + CDP evaluate). Matches e2e lock-in.
+Observed: steps 1–3 pass (Cursor browser MCP + CDP evaluate). Steps 4–5 covered by e2e `spread-view` + `assertNamedScrollport('pasteboard-scroll')` / document-fit on the fitted add-spread path.

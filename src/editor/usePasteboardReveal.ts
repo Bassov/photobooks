@@ -9,11 +9,12 @@ import {
 } from 'react'
 import { commitZoom, getCommittedCamera, getCommittedZoom } from './cameraStore'
 import {
-  isScrollNearMax,
-  planRevealAttempt,
-  revealLaidOutSpread,
-  spreadBoxContained,
+  restoreRevealSlotVisibility,
+  turnPendingReveal,
+  type PendingRevealState,
 } from './pasteboardReveal'
+
+type TurnFn = typeof turnPendingReveal
 
 function findPasteboardSlot(
   scroll: HTMLElement,
@@ -36,6 +37,7 @@ export function usePasteboardReveal({
   stride,
   windowKey,
   setTrackedScroll,
+  turnFn = turnPendingReveal,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>
   worldRef: RefObject<HTMLDivElement | null>
@@ -43,41 +45,44 @@ export function usePasteboardReveal({
   stride: number
   windowKey: string
   setTrackedScroll: Dispatch<SetStateAction<{ top: number; epoch: number }>>
+  /** Test seam for pending-reveal turns; production uses `turnPendingReveal`. */
+  turnFn?: TurnFn
 }): {
   holdCameraScrollRef: RefObject<boolean>
   beginRevealForNewSpread: (newSpreadId: string | null) => void
 } {
   const revealSpreadId = useRef<string | null>(null)
-  const revealTries = useRef(0)
-  const revealPaintConfirm = useRef(false)
+  const revealState = useRef<PendingRevealState>({
+    tries: 0,
+    paintConfirmed: false,
+  })
   const revealSlotRef = useRef<HTMLElement | null>(null)
   const holdCameraScrollRef = useRef(false)
   const [revealTick, setRevealTick] = useState(0)
 
-  const clearReveal = (restoreVisibility: boolean): void => {
-    const slot = revealSlotRef.current
-    if (slot !== null) {
-      if (restoreVisibility) {
-        slot.style.contentVisibility = ''
-      }
-      revealSlotRef.current = null
-    }
-    revealTries.current = 0
-    revealPaintConfirm.current = false
+  const clearReveal = (): void => {
+    restoreRevealSlotVisibility(revealSlotRef.current)
+    revealSlotRef.current = null
+    revealState.current = { tries: 0, paintConfirmed: false }
     revealSpreadId.current = null
     holdCameraScrollRef.current = false
   }
 
   const beginRevealForNewSpread = (newSpreadId: string | null): void => {
-    clearReveal(true)
+    clearReveal()
     revealSpreadId.current = newSpreadId
     holdCameraScrollRef.current = newSpreadId !== null
+    // Refs alone do not invalidate layout deps; bump tick so the turn runs.
+    setRevealTick((tick) => tick + 1)
+  }
+
+  const scheduleRetry = (): void => {
+    requestAnimationFrame(() => {
+      setRevealTick((tick) => tick + 1)
+    })
   }
 
   useEffect(() => {
-    if (revealSpreadId.current === null) {
-      return
-    }
     const scroll = scrollRef.current
     const world = worldRef.current
     if (
@@ -97,7 +102,7 @@ export function usePasteboardReveal({
     return () => {
       observer.disconnect()
     }
-  }, [scrollRef, spreadIds.length, worldRef])
+  }, [scrollRef, worldRef])
 
   useLayoutEffect(() => {
     const id = revealSpreadId.current
@@ -109,52 +114,42 @@ export function usePasteboardReveal({
       return
     }
     const slot = findPasteboardSlot(scroll, id)
-    const epoch = getCommittedCamera().epoch
-    if (slot === null) {
-      const top = Math.max(0, (spreadIds.length - 1) * stride)
+    const { turn, state } = turnFn({
+      slot,
+      scroll,
+      spreadCount: spreadIds.length,
+      stride,
+      state: revealState.current,
+    })
+    revealState.current = state
+    if (slot !== null) {
+      revealSlotRef.current = slot
+    }
+    if (turn.kind === 'await-slot') {
+      const epoch = getCommittedCamera().epoch
       setTrackedScroll((current) =>
-        current.top === top && current.epoch === epoch
+        current.top === turn.top && current.epoch === epoch
           ? current
-          : { top, epoch },
+          : { top: turn.top, epoch },
       )
       return
     }
-    revealSlotRef.current = slot
-    const revealed = revealLaidOutSpread(scroll, slot)
-    const atMaxScroll = isScrollNearMax(
-      scroll.scrollTop,
-      scroll.scrollHeight,
-      scroll.clientHeight,
-    )
-    if (!revealed) {
-      revealPaintConfirm.current = false
-      revealTries.current += 1
-      const plan = planRevealAttempt({
-        revealed: false,
-        atMaxScroll,
-        tries: revealTries.current,
-        paintConfirmed: false,
-        containedAfterPaint: false,
-      })
-      if (plan.kind === 'retry') {
-        requestAnimationFrame(() => {
-          setRevealTick((tick) => tick + 1)
-        })
-        return
-      }
-      clearReveal(true)
+    if (turn.kind === 'retry') {
+      scheduleRetry()
       return
     }
-    commitZoom(getCommittedZoom(), scroll.scrollLeft, scroll.scrollTop)
-    const top = scroll.scrollTop
-    const committedEpoch = getCommittedCamera().epoch
-    setTrackedScroll((current) =>
-      current.top === top && current.epoch === committedEpoch
-        ? current
-        : { top, epoch: committedEpoch },
-    )
-    if (!revealPaintConfirm.current) {
-      revealPaintConfirm.current = true
+    if (turn.kind === 'clear') {
+      clearReveal()
+      return
+    }
+    if (turn.kind === 'paint-confirm') {
+      commitZoom(getCommittedZoom(), turn.scrollLeft, turn.scrollTop)
+      const epoch = getCommittedCamera().epoch
+      setTrackedScroll((current) =>
+        current.top === turn.scrollTop && current.epoch === epoch
+          ? current
+          : { top: turn.scrollTop, epoch },
+      )
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setRevealTick((tick) => tick + 1)
@@ -162,38 +157,20 @@ export function usePasteboardReveal({
       })
       return
     }
-    const view = slot.querySelector('[data-testid="spread-view"]')
-    const target = view instanceof HTMLElement ? view : slot
-    const containedAfterPaint = spreadBoxContained(
-      scroll.getBoundingClientRect(),
-      target.getBoundingClientRect(),
-    )
-    if (!containedAfterPaint) {
-      revealPaintConfirm.current = false
-      revealTries.current += 1
-    }
-    const plan = planRevealAttempt({
-      revealed: true,
-      atMaxScroll,
-      tries: revealTries.current,
-      paintConfirmed: true,
-      containedAfterPaint,
-    })
-    if (plan.kind === 'confirm-paint') {
+    if (turn.action === 'retry') {
+      scheduleRetry()
       return
     }
-    if (plan.kind === 'retry') {
-      requestAnimationFrame(() => {
-        setRevealTick((tick) => tick + 1)
-      })
-      return
-    }
-    if (plan.kind === 'exhaust') {
-      clearReveal(true)
-      return
-    }
-    clearReveal(false)
-  }, [scrollRef, setTrackedScroll, spreadIds, stride, windowKey, revealTick])
+    clearReveal()
+  }, [
+    scrollRef,
+    setTrackedScroll,
+    spreadIds,
+    stride,
+    windowKey,
+    revealTick,
+    turnFn,
+  ])
 
   return { holdCameraScrollRef, beginRevealForNewSpread }
 }

@@ -87,7 +87,7 @@ export function revealLaidOutSpread(
   slot: HTMLElement,
 ): boolean {
   // Keep content-visibility forced for the whole pending reveal; restoring
-  // mid-check shifts layout and clears reveal while the box still overflows.
+  // mid-check shifts layout and can clear while the box still overflows.
   slot.style.contentVisibility = 'visible'
   const view = slot.querySelector('[data-testid="spread-view"]')
   const target = view instanceof HTMLElement ? view : slot
@@ -102,28 +102,17 @@ export function revealLaidOutSpread(
   if (!spreadBoxContained(port, after) && fits) {
     const beforeTop = scroll.scrollTop
     nudgeBoxIntoPort(scroll, after)
-    const port2 = scroll.getBoundingClientRect()
-    const after2 = target.getBoundingClientRect()
-    if (!spreadBoxContained(port2, after2)) {
-      let top = scroll.scrollTop
-      let left = scroll.scrollLeft
-      if (after2.bottom > port2.bottom + 1) {
-        top += after2.bottom - port2.bottom
-      } else if (after2.top < port2.top - 1) {
-        top -= port2.top - after2.top
-      }
-      if (after2.right > port2.right + 1) {
-        left += after2.right - port2.right
-      } else if (after2.left < port2.left - 1) {
-        left -= port2.left - after2.left
-      }
-      scroll.scrollTop = Math.max(0, top)
-      scroll.scrollLeft = Math.max(0, left)
+    const afterSecond = target.getBoundingClientRect()
+    if (!spreadBoxContained(scroll.getBoundingClientRect(), afterSecond)) {
+      nudgeBoxIntoPort(scroll, afterSecond)
     }
     if (
       scroll.scrollTop <= beforeTop + 0.5 &&
-      scroll.scrollTop >=
-        Math.max(0, scroll.scrollHeight - scroll.clientHeight) - 1 &&
+      isScrollNearMax(
+        scroll.scrollTop,
+        scroll.scrollHeight,
+        scroll.clientHeight,
+      ) &&
       !spreadBoxContained(
         scroll.getBoundingClientRect(),
         target.getBoundingClientRect(),
@@ -136,4 +125,120 @@ export function revealLaidOutSpread(
     scroll.getBoundingClientRect(),
     target.getBoundingClientRect(),
   )
+}
+
+/** Clear pending-reveal slot styling; always drop forced content-visibility. */
+export function restoreRevealSlotVisibility(slot: HTMLElement | null): void {
+  if (slot !== null) {
+    slot.style.contentVisibility = ''
+  }
+}
+
+export type PostPaintRevealAction = 'retry' | 'exhaust' | 'complete'
+
+/** After paint confirm: retry, give up, or finish (caller restores visibility). */
+export function actionAfterPaintConfirm(input: {
+  containedAfterPaint: boolean
+  tries: number
+  atMaxScroll: boolean
+}): PostPaintRevealAction {
+  if (input.containedAfterPaint) {
+    return 'complete'
+  }
+  const plan = planRevealAttempt({
+    revealed: true,
+    atMaxScroll: input.atMaxScroll,
+    tries: input.tries,
+    paintConfirmed: true,
+    containedAfterPaint: false,
+  })
+  return plan.kind === 'retry' ? 'retry' : 'exhaust'
+}
+
+export type PendingRevealTurn =
+  | { kind: 'await-slot'; top: number }
+  | { kind: 'retry' }
+  | { kind: 'clear' }
+  | {
+      kind: 'paint-confirm'
+      scrollLeft: number
+      scrollTop: number
+    }
+  | { kind: 'post-paint'; action: PostPaintRevealAction }
+
+export interface PendingRevealState {
+  tries: number
+  paintConfirmed: boolean
+}
+
+/** Pure turn for one pending-reveal layout pass (mutated; hook only applies). */
+export function turnPendingReveal(input: {
+  slot: HTMLElement | null
+  scroll: HTMLElement
+  spreadCount: number
+  stride: number
+  state: PendingRevealState
+}): { turn: PendingRevealTurn; state: PendingRevealState } {
+  const state = { ...input.state }
+  if (input.slot === null) {
+    return {
+      turn: {
+        kind: 'await-slot',
+        top: Math.max(0, (input.spreadCount - 1) * input.stride),
+      },
+      state,
+    }
+  }
+  const atMaxScroll = isScrollNearMax(
+    input.scroll.scrollTop,
+    input.scroll.scrollHeight,
+    input.scroll.clientHeight,
+  )
+  if (!state.paintConfirmed) {
+    const revealed = revealLaidOutSpread(input.scroll, input.slot)
+    if (!revealed) {
+      state.tries += 1
+      const plan = planRevealAttempt({
+        revealed: false,
+        atMaxScroll,
+        tries: state.tries,
+        paintConfirmed: false,
+        containedAfterPaint: false,
+      })
+      return {
+        turn: plan.kind === 'retry' ? { kind: 'retry' } : { kind: 'clear' },
+        state,
+      }
+    }
+    state.paintConfirmed = true
+    return {
+      turn: {
+        kind: 'paint-confirm',
+        scrollLeft: input.scroll.scrollLeft,
+        scrollTop: input.scroll.scrollTop,
+      },
+      state,
+    }
+  }
+  const view = input.slot.querySelector('[data-testid="spread-view"]')
+  const target = view instanceof HTMLElement ? view : input.slot
+  const containedAfterPaint = spreadBoxContained(
+    input.scroll.getBoundingClientRect(),
+    target.getBoundingClientRect(),
+  )
+  if (!containedAfterPaint) {
+    state.paintConfirmed = false
+    state.tries += 1
+  }
+  return {
+    turn: {
+      kind: 'post-paint',
+      action: actionAfterPaintConfirm({
+        containedAfterPaint,
+        tries: state.tries,
+        atMaxScroll,
+      }),
+    },
+    state,
+  }
 }

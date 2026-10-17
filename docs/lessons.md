@@ -10,6 +10,7 @@ Living journal of repeated review findings. Read before OpenSpec apply. Append o
 - Copy `input.files` into an array before setting `input.value = ''` — `FileList` is live and empties on clear.
 - `useSyncExternalStore` getSnapshot return values must be referentially stable when data is unchanged (do not allocate a new object/array each call).
 - New production files under `src/` are in mutation scope via the `stryker.config.json` globs. Exclude a file only when mutating it is pointless, with a one-line reason in `stryker.mutate.md`. `pnpm verify:fast` fails when a production file is neither covered nor excluded.
+- Do not add or widen a Stryker exclude for a file this same change modifies with new product logic — extract pure helpers (or the new hook module) into mutate scope and cover them; thin chrome excludes must not hide settle/fit/reveal behavior introduced in the PR.
 - Do not unmount a drag source during drop. `dragend` on a detached node never reaches `document`, so a click-suppress flag armed at `dragstart` stays stuck.
 - CSS Grid children default to `min-width: auto`; a wide virtualized spacer will stretch the page unless the shell locks to the viewport (`overflow: hidden`, `max-width: 100%`) and grid/filmstrip children set `min-width: 0`.
 - Asserting `scrollLeft` on an overflow element does not prove page containment — assert `documentElement` scroll size ≤ client size (shared e2e `assertDocumentFitsViewport`).

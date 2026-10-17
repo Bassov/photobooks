@@ -24,9 +24,13 @@ import {
 } from './cameraStore'
 import { setEditorGestureActive } from './editorGesture'
 import {
+  beginDelayedFitFollow,
+  createDelayedFitFollow,
   fitViewportSize,
-  shouldApplyDelayedFitZoom,
+  resolveDelayedFitFrame,
+  scheduleDelayedFitDoubleRaf,
   shouldHoldCameraScroll,
+  stopDelayedFitFollow,
 } from './pasteboardCameraFit'
 import { pasteboardStridePx } from './pasteboardWindow'
 
@@ -242,8 +246,7 @@ export function usePasteboardCamera({
   } | null>(null)
   const rafRef = useRef(0)
   const settleRef = useRef(0)
-  const followFitSpread = useRef(false)
-  const fitRafRef = useRef(0)
+  const delayedFitRef = useRef(createDelayedFitFollow())
 
   const placeZoom = (zoom: number): void => {
     const scroll = scrollRef.current
@@ -302,11 +305,7 @@ export function usePasteboardCamera({
   }
 
   const stopFollowingFit = (): void => {
-    followFitSpread.current = false
-    if (fitRafRef.current !== 0) {
-      cancelAnimationFrame(fitRafRef.current)
-      fitRafRef.current = 0
-    }
+    stopDelayedFitFollow(delayedFitRef.current, cancelAnimationFrame)
   }
 
   useLayoutEffect(() => {
@@ -731,31 +730,26 @@ export function usePasteboardCamera({
 
   return {
     fitSpread: () => {
-      followFitSpread.current = true
+      beginDelayedFitFollow(delayedFitRef.current)
       applyFitSpread()
-      if (fitRafRef.current !== 0) {
-        cancelAnimationFrame(fitRafRef.current)
-      }
       // After chrome/filmstrip finishes laying out, only zoom out if the port
       // shrank. Never zoom back in — a larger transient clientHeight overflows.
-      fitRafRef.current = requestAnimationFrame(() => {
-        fitRafRef.current = requestAnimationFrame(() => {
-          fitRafRef.current = 0
-          if (!followFitSpread.current) {
-            return
-          }
+      scheduleDelayedFitDoubleRaf(
+        delayedFitRef.current,
+        requestAnimationFrame,
+        cancelAnimationFrame,
+        () => {
           const next = fitSpreadZoom()
-          const apply = shouldApplyDelayedFitZoom(
-            followFitSpread.current,
-            next ?? Number.POSITIVE_INFINITY,
+          const resolved = resolveDelayedFitFrame(
+            delayedFitRef.current,
+            next,
             getCommittedZoom(),
           )
-          followFitSpread.current = false
-          if (apply && next !== null) {
-            placeZoom(next)
+          if (resolved.apply && resolved.zoom !== null) {
+            placeZoom(resolved.zoom)
           }
-        })
-      })
+        },
+      )
     },
     fitWidth: () => {
       stopFollowingFit()

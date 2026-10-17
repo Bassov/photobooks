@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetBookStore } from './bookStore'
-import { resetCameraStore } from './cameraStore'
+import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import {
   isEditorGestureActive,
   resetEditorGestureForTests,
@@ -124,6 +124,105 @@ describe('pasteboard camera gestures', () => {
         })
       })
     })
+  })
+
+  it('applies delayed fit zoom-out after chrome settle and cancels on fit width', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      Object.defineProperty(scroll, 'clientWidth', {
+        configurable: true,
+        get: () => 640,
+      })
+      let height = 520
+      Object.defineProperty(scroll, 'clientHeight', {
+        configurable: true,
+        get: () => height,
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Fit spread' }))
+      const afterImmediate = screen.getByTestId('zoom-indicator').textContent
+      height = 400
+      const batch1 = rafQueue.splice(0, rafQueue.length)
+      act(() => {
+        for (const cb of batch1) {
+          cb(0)
+        }
+      })
+      const batch2 = rafQueue.splice(0, rafQueue.length)
+      act(() => {
+        for (const cb of batch2) {
+          cb(1)
+        }
+      })
+      const afterDelayed = screen.getByTestId('zoom-indicator').textContent
+      expect(afterDelayed).not.toBe(afterImmediate)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Fit spread' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Fit width' }))
+      const pending = rafQueue.splice(0, rafQueue.length)
+      act(() => {
+        for (const cb of pending) {
+          cb(2)
+        }
+      })
+      // Fit width cancelled follow; draining stale rAF must not throw.
+      expect(screen.getByTestId('zoom-indicator').textContent).toBeTruthy()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('holds camera scroll restore while add-spread reveal is pending', () => {
+    const restoreRect = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'getBoundingClientRect',
+    )
+    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value(this: HTMLElement): DOMRect {
+        if (this.dataset.testid === 'pasteboard-scroll') {
+          return new DOMRect(40, 100, 500, 400)
+        }
+        if (
+          this.dataset.testid === 'spread-view' &&
+          this.closest('[data-slot-index="3"]') instanceof HTMLElement
+        ) {
+          return new DOMRect(40, 350, 200, 180)
+        }
+        return new DOMRect(0, 0, 0, 0)
+      },
+    })
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      const nudged = scroll.scrollTop
+      expect(nudged).toBeGreaterThan(0)
+      // Epoch bump would restore scrollTop from the camera store; hold skips it.
+      act(() => {
+        commitZoom(getCommittedZoom(), 0, 0)
+      })
+      expect(scroll.scrollTop).toBe(nudged)
+    } finally {
+      vi.unstubAllGlobals()
+      if (restoreRect !== undefined) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'getBoundingClientRect',
+          restoreRect,
+        )
+      }
+    }
   })
 
   it('ignores zoom keys on text fields and commits nothing when unmounted mid-gesture', async () => {

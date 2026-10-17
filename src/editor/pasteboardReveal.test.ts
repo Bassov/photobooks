@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  actionAfterPaintConfirm,
   isScrollNearMax,
   nudgeBoxIntoPort,
   planRevealAttempt,
   REVEAL_TRY_CEILING,
+  restoreRevealSlotVisibility,
   revealLaidOutSpread,
   revealTryBudget,
   spreadBoxContained,
+  turnPendingReveal,
 } from './pasteboardReveal'
 
 const PORT = { top: 100, left: 40, width: 500, height: 400 }
@@ -148,6 +151,128 @@ describe('revealTryBudget / planRevealAttempt', () => {
   })
 })
 
+describe('actionAfterPaintConfirm', () => {
+  it('completes when contained after paint', () => {
+    expect(
+      actionAfterPaintConfirm({
+        containedAfterPaint: true,
+        tries: 2,
+        atMaxScroll: false,
+      }),
+    ).toBe('complete')
+  })
+
+  it('retries or exhausts when still overflowing', () => {
+    expect(
+      actionAfterPaintConfirm({
+        containedAfterPaint: false,
+        tries: 1,
+        atMaxScroll: false,
+      }),
+    ).toBe('retry')
+    expect(
+      actionAfterPaintConfirm({
+        containedAfterPaint: false,
+        tries: REVEAL_TRY_CEILING * 2,
+        atMaxScroll: true,
+      }),
+    ).toBe('exhaust')
+  })
+})
+
+describe('turnPendingReveal', () => {
+  it('awaits a missing slot at the stack end', () => {
+    const scroll = mockScroll()
+    const result = turnPendingReveal({
+      slot: null,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: 0, paintConfirmed: false },
+    })
+    expect(result.turn).toEqual({ kind: 'await-slot', top: 300 })
+  })
+
+  it('retries then clears when layout never contains', () => {
+    const scroll = mockScroll()
+    const slot = mockSlot(() => rect(PORT.left, PORT.top + 250, 200, 180))
+    const first = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: 0, paintConfirmed: false },
+    })
+    expect(first.turn.kind).toBe('retry')
+    const last = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: REVEAL_TRY_CEILING - 1, paintConfirmed: false },
+    })
+    expect(last.turn.kind).toBe('clear')
+  })
+
+  it('schedules paint confirm after a successful layout nudge', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
+    const slot = mockSlot(() => rect(PORT.left + 10, PORT.top + 10, 200, 180))
+    const result = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: 0, paintConfirmed: false },
+    })
+    expect(result.turn.kind).toBe('paint-confirm')
+    expect(result.state.paintConfirmed).toBe(true)
+  })
+
+  it('completes after paint when still contained', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
+    const slot = mockSlot(() => rect(PORT.left + 10, PORT.top + 10, 200, 180))
+    const result = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: 0, paintConfirmed: true },
+    })
+    expect(result.turn).toEqual({
+      kind: 'post-paint',
+      action: 'complete',
+    })
+  })
+
+  it('retries after paint when the box overflows', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
+    const slot = mockSlot(() => rect(PORT.left, PORT.top + 250, 200, 180))
+    const result = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: 1, paintConfirmed: true },
+    })
+    expect(result.turn).toEqual({ kind: 'post-paint', action: 'retry' })
+    expect(result.state.paintConfirmed).toBe(false)
+    expect(result.state.tries).toBe(2)
+  })
+
+  it('exhausts after paint when tries hit the double ceiling', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
+    const slot = mockSlot(() => rect(PORT.left, PORT.top + 250, 200, 180))
+    const result = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: REVEAL_TRY_CEILING * 2 - 1, paintConfirmed: true },
+    })
+    expect(result.turn).toEqual({ kind: 'post-paint', action: 'exhaust' })
+  })
+})
+
 describe('spreadBoxContained', () => {
   it('accepts a box fully inside the port with 1px tolerance', () => {
     const port = rect(PORT.left, PORT.top, PORT.width, PORT.height)
@@ -174,6 +299,16 @@ describe('spreadBoxContained', () => {
         rect(PORT.left, PORT.top, PORT.width + 1, PORT.height + 1),
       ),
     ).toBe(true)
+    // Reject just past the +1px band on each edge.
+    expect(
+      spreadBoxContained(
+        port,
+        rect(PORT.left, PORT.top, PORT.width + 2, PORT.height),
+      ),
+    ).toBe(false)
+    expect(
+      spreadBoxContained(port, rect(PORT.left, PORT.top - 2, 200, 180)),
+    ).toBe(false)
   })
 
   it('rejects a box that overflows any edge past tolerance', () => {
@@ -347,18 +482,26 @@ describe('revealLaidOutSpread', () => {
     ).toBe(false)
   })
 
-  it('applies horizontal clamp correction when still overflowing right', () => {
+  it('accepts an exactly 1×1 laid-out box inside the port', () => {
+    const scroll = mockScroll({ scrollTop: 50 })
+    expect(
+      revealLaidOutSpread(
+        scroll,
+        mockSlot(() => rect(PORT.left + 10, PORT.top + 10, 1, 1)),
+      ),
+    ).toBe(true)
+  })
+
+  it('third-nudge path recenters when the second pass still overflows', () => {
     const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
     let calls = 0
     const slot = mockSlot(() => {
       calls += 1
-      // getBoundingClientRect: size check, after first nudge, after second nudge,
-      // after clamp correction, final contain check.
       if (calls <= 2) {
         return rect(PORT.left + 320, PORT.top + 10, 200, 180)
       }
-      if (calls === 3) {
-        return rect(PORT.left + 40, PORT.top + 10, 200, 180)
+      if (calls <= 4) {
+        return rect(PORT.left + 120, PORT.top + 10, 200, 180)
       }
       return rect(PORT.left + 10, PORT.top + 10, 200, 180)
     })
@@ -366,35 +509,44 @@ describe('revealLaidOutSpread', () => {
     expect(scroll.scrollLeft).toBeGreaterThan(40)
   })
 
-  it('applies left overflow correction after the second nudge', () => {
-    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 80 })
+  it('nudges a third time when the second pass still overflows', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
     let calls = 0
     const slot = mockSlot(() => {
       calls += 1
+      // size → after 1st nudge → after 2nd → after 3rd → final contain
       if (calls <= 2) {
-        return rect(PORT.left - 40, PORT.top + 10, 200, 180)
+        return rect(PORT.left + 320, PORT.top + 10, 200, 180)
       }
       if (calls === 3) {
-        return rect(PORT.left - 20, PORT.top + 10, 200, 180)
+        return rect(PORT.left + 80, PORT.top + 10, 200, 180)
       }
       return rect(PORT.left + 10, PORT.top + 10, 200, 180)
     })
     expect(revealLaidOutSpread(scroll, slot)).toBe(true)
+    expect(scroll.scrollLeft).toBeGreaterThan(40)
   })
 
-  it('applies top overflow correction after the second nudge', () => {
-    const scroll = mockScroll({ scrollTop: 80, scrollLeft: 40 })
-    let calls = 0
-    const slot = mockSlot(() => {
-      calls += 1
-      if (calls <= 2) {
-        return rect(PORT.left + 10, PORT.top - 40, 200, 180)
-      }
-      if (calls === 3) {
-        return rect(PORT.left + 10, PORT.top - 20, 200, 180)
-      }
-      return rect(PORT.left + 10, PORT.top + 10, 200, 180)
-    })
+  it('falls back to the slot when spread-view is missing', () => {
+    const scroll = mockScroll({ scrollTop: 50 })
+    const slot = document.createElement('div')
+    slot.getBoundingClientRect = () =>
+      rect(PORT.left + 10, PORT.top + 10, 200, 180)
     expect(revealLaidOutSpread(scroll, slot)).toBe(true)
+  })
+})
+
+describe('restoreRevealSlotVisibility', () => {
+  it('clears forced content-visibility on a slot', () => {
+    const slot = document.createElement('div')
+    slot.style.contentVisibility = 'visible'
+    restoreRevealSlotVisibility(slot)
+    expect(slot.style.contentVisibility).toBe('')
+  })
+
+  it('ignores a null slot', () => {
+    expect(() => {
+      restoreRevealSlotVisibility(null)
+    }).not.toThrow()
   })
 })

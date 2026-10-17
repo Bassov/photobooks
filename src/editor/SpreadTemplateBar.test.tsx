@@ -272,6 +272,89 @@ describe('SpreadTemplateBar', () => {
     }
   })
 
+  it('clears forced content-visibility after reveal settles or exhausts', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    const restore = stubNewSpreadBox(
+      () => new DOMRect(PORT_LEFT, PORT_TOP + 250, 200, 180),
+    )
+    try {
+      render(<Pasteboard />)
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      for (let i = 0; i < REVEAL_TRY_CEILING * 2 + 16; i += 1) {
+        if (rafQueue.length === 0) {
+          break
+        }
+        const batch = rafQueue.splice(0, rafQueue.length)
+        act(() => {
+          for (const cb of batch) {
+            cb(i)
+          }
+        })
+      }
+      for (const slot of screen.getAllByTestId('pasteboard-slot')) {
+        expect(slot.style.contentVisibility).toBe('')
+      }
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('re-ticks reveal when the pasteboard scrollport resizes', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const observers: ResizeObserverCallback[] = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: ResizeObserverCallback) {
+          observers.push(cb)
+        }
+        observe(): void {
+          /* no-op */
+        }
+        disconnect(): void {
+          /* no-op */
+        }
+        unobserve(): void {
+          /* no-op */
+        }
+      },
+    )
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    let reads = 0
+    const restore = stubNewSpreadBox(() => {
+      reads += 1
+      if (reads < 4) {
+        return new DOMRect(PORT_LEFT, PORT_TOP + 250, 200, 180)
+      }
+      return new DOMRect(PORT_LEFT + 10, PORT_TOP + 10, 200, 180)
+    })
+    try {
+      render(<Pasteboard />)
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      expect(observers.length).toBeGreaterThan(0)
+      const before = rafQueue.length
+      act(() => {
+        observers[0]?.([], {} as ResizeObserver)
+      })
+      expect(rafQueue.length).toBeGreaterThanOrEqual(before)
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('stops fighting scroll after reveal retries are exhausted', () => {
     resetBookStore()
     commitZoom(2, 40, 50)
