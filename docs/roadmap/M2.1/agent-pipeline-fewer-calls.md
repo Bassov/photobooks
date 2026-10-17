@@ -13,10 +13,10 @@ Title: Fewer /next-roadmap-item tool calls (issue #79)
 - [x] Wire `next-roadmap-item.md` to agent commands + batching guidance; compact output polish on agent/roadmap as needed
 - [x] `AGENTS.md`: `pnpm agent` + minimal MCP surface for the pipeline; delta `agent-context` (composite stages, batching, MCP)
 - [x] Tests for `agent.mjs` at roadmap CLI bar; no gate weakening
-- **Done when:** CLI wired into command; tests green; PR notes #79 URL; measurement/rtk deferred to `agent-pipeline-call-count-check`
-- **Note:** this PR does not close #79 — call-count + rtk trial stay in `agent-pipeline-call-count-check`
+- **Done when:** CLI wired into command; tests green; PR notes #79 URL; measurement/rtk deferred to `agent-pipeline-call-count-check` (now `agent-pipeline-run-audit`; rtk deferred)
+- **Note:** this PR does not close #79 — call-count + rtk trial stay in `agent-pipeline-call-count-check` (now `agent-pipeline-run-audit`; rtk deferred)
 - Issue: https://github.com/Bassov/photobooks/issues/79
 
 ## Done note
 
-CLI + command/AGENTS/agent-context shipped; call-count + rtk deferred to agent-pipeline-call-count-check; does not close issue #79
+CLI + command/AGENTS/agent-context shipped; call-count + rtk deferred to agent-pipeline-call-count-check (now `agent-pipeline-run-audit`; rtk deferred); does not close issue #79

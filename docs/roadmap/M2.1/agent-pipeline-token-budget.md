@@ -20,5 +20,5 @@ Title: Cut /next-roadmap-item token waste (issue #77)
 - [x] Generate the PR body once; paste issues as plain URLs, not GitHub page HTML
 - [x] `agent-context` spec covers the above; README Lefthook line matches pre-push
 - **Done when:** pre-push is `verify:fast`; e2e still gates every PR in CI; no coverage/mutation weakening; hygiene rules and narrow briefs are documented in command/RULES/reviewers/`agent-context`
-- **Note (deviation):** the issue #77 “Done when” transcript check (one `/next-roadmap-item` run, target ~1.5M main input) and stale-branch prune / delete-on-merge are deferred to `agent-pipeline-token-check` (and owner repo setting); this PR does not close #77
+- **Note (deviation):** the issue #77 “Done when” transcript check (one `/next-roadmap-item` run, target ~1.5M main input) and stale-branch prune / delete-on-merge are deferred to `agent-pipeline-token-check` (now `agent-pipeline-run-audit`; rtk deferred) (and owner repo setting); this PR does not close #77
 - Issue: https://github.com/Bassov/photobooks/issues/77

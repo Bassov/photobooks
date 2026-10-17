@@ -1,5 +1,6 @@
 # Deferred (not scheduled)
 
+- rtk adoption (`rtk-oss` + Cursor hook + `.rtk/filters.toml`), deferred by owner 2026-10-18; the quiet scripts stay the baseline; issue #79 §5
 - Rating / reject culling (the gallery itself is the selection)
 - HEIC input (libheif WASM), "consolidate originals" command, library export to a single archive
 - PDF/X, ICC output intents, CMYK
