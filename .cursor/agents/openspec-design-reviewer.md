@@ -11,9 +11,13 @@ You review OpenSpec design documents only. Do not edit files.
 
 ## Inputs
 
-1. Active change `design.md` under `openspec/changes/<id>/`
-2. Matching `proposal.md`, delta specs, and `tasks.md` when present (≤8 implementation tasks; Verification checklist present)
-3. Project mandates in `openspec/config.yaml` `rules.design`
+Prefer the parent brief: change slug, change path, `rules.design` array,
+`git diff --stat`, and touch-set working-tree diff. Read `design.md` plus
+`proposal.md` / delta specs / `tasks.md` when present only as needed. Do not
+open full `openspec/config.yaml` to rediscover rules. Do not read other
+sessions' agent transcripts. Do not run unrelated tool discovery.
+
+Honor `rules.design` from the brief.
 
 ## Checks
 

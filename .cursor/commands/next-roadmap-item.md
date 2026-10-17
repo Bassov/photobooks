@@ -6,7 +6,19 @@ stop between stages. Mandates live in openspec/config.yaml (rules + operations),
 .cursor/rules/git-finish.mdc, .cursor/agents and skill `roadmap`; follow them,
 do not restate them.
 
-1. Preflight: `git status` clean (else stop), then
+Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`
+(already injected). Do not re-read the item file after `roadmap next`. Take
+`rules`/`template` from `openspec instructions … --json` (e.g. pipe through a
+JSON filter for those keys). Open `openspec/config.yaml` only for `operations`,
+at most once. Specs: `rg` + targeted ranges — never `openspec show | head -c`.
+Tick item checkboxes with targeted edits, not whole-file rewrites. Prefer
+`pnpm verify:fast:quiet` / `pnpm test:e2e:quiet`; trim push/CI logs (`tail`).
+Generate the PR body once; cite issues as plain URLs only. Brief reviewers with
+slug, change path, relevant `rules`, `git diff --stat`, and touch-set
+working-tree diff — no other-session transcripts.
+
+1. Preflight: `git status` clean (else stop). Source once:
+   `source scripts/agent-env.sh` (or `. scripts/agent-env.sh`). Then
    `git fetch origin && git switch main && git pull --ff-only`.
 2. Collect slugs with an open PR or remote branch (`gh pr list --state open`,
    `git branch -r`; branch `feat/<slug>` or `fix/<slug>`), then
@@ -22,13 +34,18 @@ do not restate them.
    rules.proposal / rules.design require and loop to pass. Over budget: grow the
    roadmap with `pnpm roadmap add <new-slug> --after <slug> ...`, not the PR.
 4. /opsx-apply <slug> through the Verification checklist, including
-   openspec-implementation-reviewer pass and the Manual check.
+   openspec-implementation-reviewer pass and the Manual check. Prefer quiet
+   verify. A gate failure outside the touch-set is not fixed in this PR —
+   `pnpm roadmap add … --after <slug>` or a bug issue for a flake, then continue;
+   CI decides. Code after implementation review → re-run that reviewer on the
+   delta before archive.
 5. /opsx-archive <slug>: answer "Sync now"; confirm only when every task is
    checked. Then close the item on this branch: `pnpm roadmap done <slug>`
    (`--note "..."` when the shipped scope deviates; required for a
    [contingency]). If it reports a milestone review cut, commit the archive
    move and stop after the PR is green.
 6. `pnpm roadmap check`, then commit, PR and wait for green per git-finish.mdc.
+   At most 2 local push attempts; then stop and report in the PR description.
 
 Stop and ask only for: dirty tree, a milestone review cut, an item whose intent
 contradicts a spec or open issue, the git-finish CI stop conditions. Security-tagged
