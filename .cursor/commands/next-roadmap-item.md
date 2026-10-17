@@ -7,33 +7,34 @@ stop between stages. Mandates live in openspec/config.yaml (rules + operations),
 do not restate them.
 
 Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`
-(already injected). Do not re-read the item file after `roadmap next`. Take
-`rules`/`template` from `openspec instructions … --json` (e.g. pipe through a
-JSON filter for those keys). Open `openspec/config.yaml` only for `operations`,
-at most once. Specs: `rg` + targeted ranges — never `openspec show | head -c`.
-Tick item checkboxes with targeted edits, not whole-file rewrites. Prefer
-`pnpm verify:fast:quiet` / `pnpm test:e2e:quiet`; trim push/CI logs (`tail`).
-Generate the PR body once; cite issues as plain URLs only. Brief reviewers with
-slug, change path, relevant `rules`, `git diff --stat`, and touch-set
-working-tree diff — no other-session transcripts.
+(already injected). Do not re-read the item file after `roadmap next` / agent
+preflight. Take `rules`/`template` from preflight output or
+`openspec instructions … --json`. Open `openspec/config.yaml` only for
+`operations`, at most once. Specs: `rg` + targeted ranges — never
+`openspec show | head -c`. Tick item checkboxes with targeted edits, not
+whole-file rewrites. Prefer `pnpm verify:fast:quiet` / `pnpm test:e2e:quiet`.
+Generate the PR body once; cite issues as plain URLs only. Brief reviewers via
+`pnpm agent review-brief` (slug, change path, rules, diff stat, touch-set) —
+no other-session transcripts.
 
-1. Preflight: `git status` clean (else stop). Source once:
-   `source scripts/agent-env.sh` (or `. scripts/agent-env.sh`). Then
-   `git fetch origin && git switch main && git pull --ff-only`.
-2. Collect slugs with an open PR or remote branch (`gh pr list --state open`,
-   `git branch -r`; branch `feat/<slug>` or `fix/<slug>`), then
-   `pnpm -s roadmap next --skip <slugs>`. Its output (slug, tag, milestone goal,
-   title, file, full scope) is the item; do not read docs/roadmap.md. It skips
-   [contingency] items; take one only when its gate has failed
-   (`pnpm -s roadmap show <slug>`). State item, tag and skips.
-   `git switch -c feat/<slug>` (fix/ for bug items).
-3. Plan with the OpenSpec CLI, not /opsx-propose (its planning boundary would end
-   this run): `openspec new change <slug>`; for each ready artifact
-   `openspec instructions <id> --change <slug> --json` → write it →
+Batching: independent reads/greps in one parallel tool step; dependent shell
+steps chained with `&&` in one call; no check-then-recheck loops. OpenSpec
+artifact stages: one Write per artifact, validate once at stage end.
+
+1. Preflight: `source scripts/agent-env.sh` once, then
+   `pnpm -s agent preflight` (or `--json`). Clean tree required; it syncs
+   `main`, skips open-PR/remote `feat|fix/*` slugs, runs `roadmap next`,
+   creates `feat/<slug>` (or `fix/`), and prints one compact report. State
+   item, tag and skips from that report. Contingency items: take only when
+   their gate failed (`pnpm -s roadmap show <slug>`).
+2. Plan with the OpenSpec CLI, not /opsx-propose (its planning boundary would end
+   this run): `openspec new change <slug>` if preflight did not; for each ready
+   artifact `openspec instructions <id> --change <slug> --json` → write it →
    `openspec status --change <slug> --json`. Launch the reviewer subagents where
-   rules.proposal / rules.design require and loop to pass. Over budget: grow the
-   roadmap with `pnpm roadmap add <new-slug> --after <slug> ...`, not the PR.
-4. /opsx-apply <slug> through the Verification checklist, including
+   rules.proposal / rules.design require (brief with `pnpm -s agent review-brief`)
+   and loop to pass. Over budget: grow the roadmap with
+   `pnpm roadmap add <new-slug> --after <slug> ...`, not the PR.
+3. /opsx-apply <slug> through the Verification checklist, including
    openspec-implementation-reviewer pass and the Manual check. Prefer quiet
    verify. Out of scope only if the same test fails/flakes on unmodified
    `origin/main`; otherwise fix in this PR (even if the file is outside the
@@ -41,13 +42,15 @@ working-tree diff — no other-session transcripts.
    then continue — filing never makes a red PR mergeable; 3 red CI rounds still
    stop. Code after implementation review → re-run that reviewer on the delta
    before archive.
-5. /opsx-archive <slug>: answer "Sync now"; confirm only when every task is
+4. /opsx-archive <slug>: answer "Sync now"; confirm only when every task is
    checked. Then close the item on this branch: `pnpm roadmap done <slug>`
    (`--note "..."` when the shipped scope deviates; required for a
    [contingency]). If it reports a milestone review cut, commit the archive
    move and stop after the PR is green.
-6. `pnpm roadmap check`, then commit, PR and wait for green per git-finish.mdc.
-   At most 2 local push attempts; then stop and report in the PR description.
+5. `pnpm roadmap check`, then commit (agent owns the message). Finish with
+   `pnpm -s agent finish --title "…" --body-file <pr-body.md>` (or omit create
+   flags when updating an existing PR). At most 2 local push attempts inside
+   finish; then stop and report in the PR description.
 
 Stop and ask only for: dirty tree, a milestone review cut, an item whose intent
 contradicts a spec or open issue, the git-finish CI stop conditions. Security-tagged

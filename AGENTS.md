@@ -22,7 +22,7 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 | Shared helpers       | `src/lib/`                             | —                                                |
 | Preview hosting      | `wrangler.jsonc`, deploy scripts       | `openspec/specs/preview-hosting/`                |
 | CI quality gates     | `.github/`, `codecov.yml`              | `openspec/specs/ci-gates/`                       |
-| Agent pipeline       | `.cursor/`, `AGENTS.md`                | `openspec/specs/agent-context/`                  |
+| Agent pipeline       | `.cursor/`, `scripts/agent.mjs`        | `openspec/specs/agent-context/`                  |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
 
@@ -32,6 +32,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | ------------------------ | -------------------------------------------------------- |
 | `/next-roadmap-item`     | one roadmap item end to end (unattended)                 |
 | `pnpm roadmap`           | roadmap CLI: `next` / `show` / `add` / `done` / `check`  |
+| `pnpm agent`             | pipeline stages: `preflight` / `finish` / `review-brief` |
 | `pnpm verify:fast`       | typecheck + lint + deps + knip + mutation scope + vitest |
 | `pnpm verify:fast:quiet` | verify:fast with quiet vitest reporter                   |
 | `pnpm verify`            | verify:fast + Playwright                                 |
@@ -69,6 +70,8 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 ## Toolchain / Cursor Cloud
 
 Agent shells: `source scripts/agent-env.sh` once so asdf shims + Node from `.nvmrc` are on PATH (does not write `.tool-versions`). Lefthook pre-push runs `pnpm verify:fast`; Playwright stays in CI (`pnpm verify` / PR checks).
+
+Pipeline MCP: the unattended `/next-roadmap-item` happy path needs **no** project MCP (use shell `git` / `gh` / `pnpm` / `openspec`). Disable unused Cursor MCP servers for this repo so their tool schemas are not re-sent on every model call. Optional local shell-output proxies (e.g. rtk) are machine add-ons — see roadmap `agent-pipeline-call-count-check`.
 
 `pnpm install` exits non-zero while `core.hooksPath` points at Cursor agent hooks, because `prepare` runs `lefthook install`. Install with `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev server: `pnpm exec vite --host 0.0.0.0 --port 5173` (an extra `--` makes Vite ignore `--host`).
 
