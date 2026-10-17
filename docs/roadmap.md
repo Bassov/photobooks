@@ -23,6 +23,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [agent-pipeline-token-budget](roadmap/M2.1/agent-pipeline-token-budget.md) — Cut /next-roadmap-item token waste (issue #77)
 - [x] [prep] [agent-pipeline-fewer-calls](roadmap/M2.1/agent-pipeline-fewer-calls.md) — Fewer /next-roadmap-item tool calls (issue #79)
 - [x] [prep] [add-spread-reveal-flake](roadmap/M2.1/add-spread-reveal-flake.md) — Strict fit-zoom add-spread containment: app scroll or deterministic wait
+- [ ] [contingency] [narrow-add-spread-horizontal-contain](roadmap/M2.1/narrow-add-spread-horizontal-contain.md) — Narrow viewport: add-spread reveal must contain horizontally
 - [ ] [prep] [e2e-local-flakes](roadmap/M2.1/e2e-local-flakes.md) — Stabilize local e2e flakes (open-save, filmstrip gaps, template-unplace, drag-place)
 - [ ] [prep] [agent-pipeline-token-check](roadmap/M2.1/agent-pipeline-token-check.md) — Check one /next-roadmap-item run against issue #77 targets
 - [ ] [prep] [agent-pipeline-call-count-check](roadmap/M2.1/agent-pipeline-call-count-check.md) — Check call-count + rtk trial for issue #79

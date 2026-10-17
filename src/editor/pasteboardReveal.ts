@@ -189,15 +189,16 @@ export function turnPendingReveal(input: {
       state,
     }
   }
-  const atMaxScroll = isScrollNearMax(
-    input.scroll.scrollTop,
-    input.scroll.scrollHeight,
-    input.scroll.clientHeight,
-  )
   if (!state.paintConfirmed) {
     const revealed = revealLaidOutSpread(input.scroll, input.slot)
     if (!revealed) {
       state.tries += 1
+      // Budget depends on clamp after the nudge, not the pre-reveal scroll.
+      const atMaxScroll = isScrollNearMax(
+        input.scroll.scrollTop,
+        input.scroll.scrollHeight,
+        input.scroll.clientHeight,
+      )
       const plan = planRevealAttempt({
         revealed: false,
         atMaxScroll,
@@ -230,6 +231,11 @@ export function turnPendingReveal(input: {
     state.paintConfirmed = false
     state.tries += 1
   }
+  const atMaxScroll = isScrollNearMax(
+    input.scroll.scrollTop,
+    input.scroll.scrollHeight,
+    input.scroll.clientHeight,
+  )
   return {
     turn: {
       kind: 'post-paint',

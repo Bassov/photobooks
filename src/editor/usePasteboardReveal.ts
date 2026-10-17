@@ -13,6 +13,7 @@ import {
   turnPendingReveal,
   type PendingRevealState,
 } from './pasteboardReveal'
+import { nextTrackedScroll } from './pasteboardView'
 
 type TurnFn = typeof turnPendingReveal
 
@@ -45,11 +46,16 @@ export function usePasteboardReveal({
   stride: number
   windowKey: string
   setTrackedScroll: Dispatch<SetStateAction<{ top: number; epoch: number }>>
-  /** Test seam for pending-reveal turns; production uses `turnPendingReveal`. */
+  /**
+   * Test seam: inject a turn planner so RTL can drive exact turn kinds without
+   * stubbing layout geometry. Production always uses `turnPendingReveal`.
+   */
   turnFn?: TurnFn
 }): {
   holdCameraScrollRef: RefObject<boolean>
   beginRevealForNewSpread: (newSpreadId: string | null) => void
+  /** Monotonic layout-turn counter; exposed for tests / diagnostics. */
+  revealTick: number
 } {
   const revealSpreadId = useRef<string | null>(null)
   const revealState = useRef<PendingRevealState>({
@@ -82,6 +88,8 @@ export function usePasteboardReveal({
     })
   }
 
+  // Subscribe once on mount (stable scroll/world refs). Re-subscribing on every
+  // spread change would drop in-flight size notifications mid-reveal.
   useEffect(() => {
     const scroll = scrollRef.current
     const world = worldRef.current
@@ -127,11 +135,7 @@ export function usePasteboardReveal({
     }
     if (turn.kind === 'await-slot') {
       const epoch = getCommittedCamera().epoch
-      setTrackedScroll((current) =>
-        current.top === turn.top && current.epoch === epoch
-          ? current
-          : { top: turn.top, epoch },
-      )
+      setTrackedScroll((current) => nextTrackedScroll(current, turn.top, epoch))
       return
     }
     if (turn.kind === 'retry') {
@@ -146,9 +150,7 @@ export function usePasteboardReveal({
       commitZoom(getCommittedZoom(), turn.scrollLeft, turn.scrollTop)
       const epoch = getCommittedCamera().epoch
       setTrackedScroll((current) =>
-        current.top === turn.scrollTop && current.epoch === epoch
-          ? current
-          : { top: turn.scrollTop, epoch },
+        nextTrackedScroll(current, turn.scrollTop, epoch),
       )
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -172,5 +174,5 @@ export function usePasteboardReveal({
     turnFn,
   ])
 
-  return { holdCameraScrollRef, beginRevealForNewSpread }
+  return { holdCameraScrollRef, beginRevealForNewSpread, revealTick }
 }

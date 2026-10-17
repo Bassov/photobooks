@@ -20,12 +20,22 @@ import {
   getSpreadIdsSnapshot,
   subscribeBookStore,
 } from './bookStore'
+import { pasteboardWindow, pickActiveSpread } from './pasteboardWindow'
 import {
-  PASTEBOARD_GAP_PX,
-  pasteboardStridePx,
-  pasteboardWindow,
-  pickActiveSpread,
-} from './pasteboardWindow'
+  bindGalleryDrop,
+  cancelPendingScrollFrame,
+  nextTrackedScroll,
+  nextViewportSize,
+  pasteboardSlotPaddingBottom,
+  pasteboardStrideAtZoom,
+  pasteboardWindowKey,
+  pasteboardWorldWidthPx,
+  readPasteboardSlotEntry,
+  resolveTrackedScrollTop,
+  selectMarkedSpreadId,
+  shouldRenderSpacer,
+  spreadActiveIndex,
+} from './pasteboardView'
 
 function getTrimHeightMm(): number {
   return getBookStoreSnapshot().book.settings.trim.heightMm
@@ -58,13 +68,9 @@ export const Pasteboard = memo(function Pasteboard() {
   )
   const committedZoom = cameraFrame.zoom
   const pxPerMm = SPREAD_PX_PER_MM * committedZoom
-  const stride =
-    pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM) * committedZoom
+  const stride = pasteboardStrideAtZoom(trimHeightMm, committedZoom)
   const [trackedScroll, setTrackedScroll] = useState({ top: 0, epoch: 0 })
-  const scrollTop =
-    trackedScroll.epoch >= cameraFrame.epoch
-      ? trackedScroll.top
-      : cameraFrame.scrollTop
+  const scrollTop = resolveTrackedScrollTop(trackedScroll, cameraFrame)
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
   const [activeId, setActiveId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -86,11 +92,7 @@ export const Pasteboard = memo(function Pasteboard() {
     const update = (): void => {
       const width = node.clientWidth
       const height = node.clientHeight
-      setViewport((current) =>
-        current.width === width && current.height === height
-          ? current
-          : { width, height },
-      )
+      setViewport((current) => nextViewportSize(current, width, height))
     }
     update()
     const observer = new ResizeObserver(update)
@@ -102,18 +104,14 @@ export const Pasteboard = memo(function Pasteboard() {
 
   useEffect(() => {
     return () => {
-      if (scrollRaf.current !== 0) {
-        cancelAnimationFrame(scrollRaf.current)
-      }
+      scrollRaf.current = cancelPendingScrollFrame(scrollRaf.current)
     }
   }, [])
 
   useEffect(() => {
-    const scroll = scrollRef.current
-    if (scroll === null) {
-      return
-    }
-    return installGalleryDrop(scroll, () => geometryRef.current)
+    return bindGalleryDrop(scrollRef.current, (scroll) =>
+      installGalleryDrop(scroll, () => geometryRef.current),
+    )
   }, [])
 
   const range = pasteboardWindow({
@@ -124,13 +122,15 @@ export const Pasteboard = memo(function Pasteboard() {
     overscanPx: stride,
   })
   const mounted = spreadIds.slice(range.start, range.end)
-  const windowKey = mounted.join('\0')
-  const markedId =
-    activeId !== null && mounted.includes(activeId) ? activeId : mounted[0]
-  const activeIndex = markedId === undefined ? 0 : spreadIds.indexOf(markedId)
-  const widestPages = spreadIds.length >= 2 ? 2 : 1
-  const stackWidth = trimWidthMm * widestPages * pxPerMm
-  const worldWidth = Math.max(viewport.width, stackWidth)
+  const windowKey = pasteboardWindowKey(mounted)
+  const markedId = selectMarkedSpreadId(activeId, mounted)
+  const activeIndex = spreadActiveIndex(markedId, spreadIds)
+  const worldWidth = pasteboardWorldWidthPx({
+    viewportWidth: viewport.width,
+    trimWidthMm,
+    spreadCount: spreadIds.length,
+    pxPerMm,
+  })
   geometryRef.current.pxPerMm = pxPerMm
   geometryRef.current.stridePx = stride
   geometryRef.current.worldWidthPx = worldWidth
@@ -148,7 +148,7 @@ export const Pasteboard = memo(function Pasteboard() {
     spreadCount: spreadIds.length,
     trimWidthMm,
     trimHeightMm,
-    activeIndex: activeIndex < 0 ? 0 : activeIndex,
+    activeIndex,
     committedEpoch: cameraFrame.epoch,
     holdScrollRef: reveal.holdCameraScrollRef,
   })
@@ -169,15 +169,14 @@ export const Pasteboard = memo(function Pasteboard() {
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!(entry.target instanceof HTMLElement)) {
+          const parsed = readPasteboardSlotEntry(entry)
+          if (parsed === null) {
             continue
           }
-          const id = entry.target.dataset.spreadId
-          const index = Number(entry.target.dataset.slotIndex)
-          if (id === undefined || !Number.isFinite(index)) {
-            continue
-          }
-          ratios.set(id, { ratio: entry.intersectionRatio, index })
+          ratios.set(parsed.id, {
+            ratio: parsed.ratio,
+            index: parsed.index,
+          })
         }
         const bestId = pickActiveSpread(
           [...ratios.entries()].map(([id, entry]) => ({
@@ -212,11 +211,7 @@ export const Pasteboard = memo(function Pasteboard() {
       scrollRaf.current = 0
       const top = pendingTop.current
       const epoch = pendingEpoch.current
-      setTrackedScroll((current) =>
-        current.top === top && current.epoch === epoch
-          ? current
-          : { top, epoch },
-      )
+      setTrackedScroll((current) => nextTrackedScroll(current, top, epoch))
     })
   }
 
@@ -247,7 +242,7 @@ export const Pasteboard = memo(function Pasteboard() {
           data-testid="pasteboard-world"
           style={{ width: worldWidth }}
         >
-          {range.leadPx > 0 ? (
+          {shouldRenderSpacer(range.leadPx) ? (
             <div
               className="pasteboard-spacer"
               data-testid="pasteboard-lead"
@@ -265,14 +260,14 @@ export const Pasteboard = memo(function Pasteboard() {
               data-active={markedId === spreadId ? 'true' : 'false'}
               style={{
                 height: stride,
-                paddingBottom: PASTEBOARD_GAP_PX * committedZoom,
+                paddingBottom: pasteboardSlotPaddingBottom(committedZoom),
                 containIntrinsicBlockSize: `auto ${String(stride)}px`,
               }}
             >
               <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
             </div>
           ))}
-          {range.tailPx > 0 ? (
+          {shouldRenderSpacer(range.tailPx) ? (
             <div
               className="pasteboard-spacer"
               data-testid="pasteboard-tail"

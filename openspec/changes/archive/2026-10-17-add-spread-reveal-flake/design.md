@@ -46,7 +46,7 @@ See proposal.md. `Pasteboard` already reveals a newly added spread via layout se
 - `src/editor/usePasteboardCamera.ts` — call fit helpers + holdScrollRef
 - `src/editor/SpreadTemplateBar.test.tsx` — public add-spread reveal cases
 - `e2e/spread-view.spec.ts` — deterministic fit fill wait + contain poll timeout; never loosen `spreadViewContained`
-- `stryker.config.json` / `stryker.mutate.md` — exclude thin Pasteboard / usePasteboardReveal wiring (reasons documented)
+- `stryker.config.json` / `stryker.mutate.md` — Pasteboard + usePasteboardReveal stay in mutate scope; pure settle/fit/view helpers in `pasteboardReveal` / `pasteboardCameraFit` / `pasteboardView`
 - `openspec/changes/add-spread-reveal-flake/**` — planning artifacts
 - `docs/roadmap/M2.1/add-spread-reveal-flake.md` — tick scope via roadmap close
 
@@ -54,7 +54,7 @@ See proposal.md. `Pasteboard` already reveals a newly added spread via layout se
 
 - [Still flakes under CI load] → prove 50/50 locally with `--repeat-each`; keep settle bounded.
 - [Settle fights user scroll] → only while add-spread pending id is set; clear on success or exhaustion.
-- [Mutation excludes] → pure settle/fit modules remain in mutate scope; wiring excludes match EditorShell pattern.
+- [Mutation score on React chrome] → extract branchy view math to `pasteboardView.ts`; keep Pasteboard / reveal hook mutated with RTL seams (`turnFn`).
 
 ## Migration Plan
 

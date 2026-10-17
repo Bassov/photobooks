@@ -178,6 +178,18 @@ describe('actionAfterPaintConfirm', () => {
       }),
     ).toBe('exhaust')
   })
+
+  it('retries at the single ceiling when not at max scroll after paint', () => {
+    // Locks revealed:true in planRevealAttempt — flipping to false would exhaust
+    // at tries=64 with atMaxScroll=false (budget 64) instead of retry (*2).
+    expect(
+      actionAfterPaintConfirm({
+        containedAfterPaint: false,
+        tries: REVEAL_TRY_CEILING,
+        atMaxScroll: false,
+      }),
+    ).toBe('retry')
+  })
 })
 
 describe('turnPendingReveal', () => {
@@ -194,8 +206,9 @@ describe('turnPendingReveal', () => {
   })
 
   it('retries then clears when layout never contains', () => {
-    const scroll = mockScroll()
-    const slot = mockSlot(() => rect(PORT.left, PORT.top + 250, 200, 180))
+    // Tall box never fits; keep scrollHeight huge so we stay off max-scroll budget.
+    const scroll = mockScroll({ scrollHeight: 100_000 })
+    const slot = mockSlot(() => rect(PORT.left, PORT.top, 200, 500))
     const first = turnPendingReveal({
       slot,
       scroll,
@@ -212,6 +225,31 @@ describe('turnPendingReveal', () => {
       state: { tries: REVEAL_TRY_CEILING - 1, paintConfirmed: false },
     })
     expect(last.turn.kind).toBe('clear')
+  })
+
+  it('retries at tries=64 when the nudge reaches max scroll', () => {
+    // Pre-reveal scroll is not at max; a far-below box clamps scroll to max.
+    // Budget must use the post-nudge position (128), not the stale pre-reveal false.
+    const scroll = mockScroll({
+      scrollTop: 0,
+      scrollHeight: PORT.height + 1600,
+    })
+    const slot = mockSlot(() => rect(PORT.left, PORT.top + 2000, 200, 180))
+    expect(
+      isScrollNearMax(scroll.scrollTop, scroll.scrollHeight, PORT.height),
+    ).toBe(false)
+    const result = turnPendingReveal({
+      slot,
+      scroll,
+      spreadCount: 4,
+      stride: 100,
+      state: { tries: REVEAL_TRY_CEILING - 1, paintConfirmed: false },
+    })
+    expect(
+      isScrollNearMax(scroll.scrollTop, scroll.scrollHeight, PORT.height),
+    ).toBe(true)
+    expect(result.state.tries).toBe(REVEAL_TRY_CEILING)
+    expect(result.turn.kind).toBe('retry')
   })
 
   it('schedules paint confirm after a successful layout nudge', () => {
