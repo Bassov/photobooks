@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
-import { resetBookStore } from './bookStore'
+import { loadPainterFixture, resetBookStore } from './bookStore'
 import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
@@ -79,6 +79,7 @@ describe('EditorShell viewport containment', () => {
       },
     )
     window.history.pushState({}, '', '/?fixture=painter')
+    loadPainterFixture()
     render(<EditorShell />)
 
     expect(screen.getByTestId('pasteboard-scroll').dataset.spreadCount).toBe(

@@ -22,4 +22,6 @@ Living journal of repeated review findings. Read before OpenSpec apply. Append o
 - Empty gallery UI must not render inside a 1px / min-width virtualizer window — empty copy lives at full scrollport width with its own e2e geometry assertion.
 - Progressive reveal must not lag behind scrollLeft while the spacer is full gallery width (windowing already limits DOM); otherwise mid-scroll shows a dead zone.
 - UI-scoped apply is not complete on green verify alone — empty + happy + scroll/interact browser smoke (and `ui-review` layout smoke) before push.
-- Cloudflare Workers Builds runs asdf and only the image's preinstalled Node patches. `.tool-versions` must name that exact `nodejs` version, or `pnpm` fails before install.
+- Cloudflare Workers Builds: do not pin Node via `.tool-versions` / asdf. The image rotates which exact patches are preinstalled (logs show “Detected nodejs@24.x” for the image default — that is not our pin). Official overrides are `.nvmrc` / `.node-version` / `NODE_VERSION` (major `22` is enough). asdf + an exact missing patch fails before `pnpm install`. Separate flake: `wrangler preview` can 504 — retry, not an app bug.
+- New or changed in-app scrollports need Playwright `assertNamedScrollport` (overflow interact), not only empty/happy document-fit.
+- UI-scoped Verification must record an evidenced `ui-review` pass (layout smoke included) before implementation review / archive — chat claims alone are not enough.

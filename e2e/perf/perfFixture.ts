@@ -50,7 +50,26 @@ declare global {
         code?: string
         value?: { id: string }
       }>
+      createLibrary: () => Promise<{ ok: boolean; code?: string }>
+      openLibrary: () => Promise<{ ok: boolean; code?: string }>
       tryRestore: () => Promise<unknown>
+      listRecents: () => Promise<{
+        ok: boolean
+        code?: string
+        value?: readonly { id: string; label: string }[]
+      }>
+      selectRecentLibrary: (libraryId: string) => Promise<{
+        ok: boolean
+        code?: string
+        value?: readonly { id: string }[]
+      }>
+      openBookFromHome: (
+        libraryId: string,
+        bookId: string,
+      ) => Promise<{ ok: boolean; code?: string }>
+      startSessionEditor: () => void
+      leaveEditorForHome: () => Promise<void>
+      seedHomeRecentsForTests: (count: number) => Promise<void>
       regrantLibrary: () => Promise<{ ok: boolean; code?: string }>
       regrantLibraryWithHandleForTests: (handle?: {
         id: string
@@ -88,6 +107,15 @@ export async function enablePerfScenario(
   })
   await page.goto(url)
   await page.waitForFunction(() => window.__photobooksPerf !== undefined)
+  const home = page.getByTestId('home-screen')
+  if (await home.isVisible()) {
+    await page
+      .getByTestId('home-loading')
+      .waitFor({ state: 'hidden' })
+      .catch(() => undefined)
+    await page.getByTestId('start-session').click()
+    await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
+  }
   await applyCpuThrottling(page)
 }
 

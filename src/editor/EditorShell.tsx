@@ -13,19 +13,16 @@ import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
-import { getBookStoreSnapshot, loadPainterFixture } from './bookStore'
-import { isPainterFixtureQuery } from './painterFixtureQuery'
+import { getBookStoreSnapshot } from './bookStore'
 import {
-  attachOpfsTestLibrary,
   createBookInLibrary,
   createLibrary,
-  exposeProjectSessionTestApi,
   getProjectSessionSnapshot,
+  leaveEditorForHome,
   openLibrary,
   regrantLibrary,
   saveBookNow,
   subscribeProjectSession,
-  tryRestore,
 } from './projectSession'
 import './EditorShell.css'
 
@@ -39,23 +36,7 @@ function editorHasContent(): boolean {
   )
 }
 
-function isTestLibraryQuery(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
-  return new URLSearchParams(window.location.search).has('testLibrary')
-}
-
-async function ensureTestLibrary(): Promise<void> {
-  const restored = await tryRestore()
-  if (restored.ok && restored.value !== null) {
-    return
-  }
-  await attachOpfsTestLibrary()
-}
-
 export function EditorShell() {
-  const painterFixture = isPainterFixtureQuery()
   const editorStatus = useSyncExternalStore(
     subscribeEditorStatus,
     getEditorStatus,
@@ -68,20 +49,6 @@ export function EditorShell() {
   )
   useEffect(() => installEditorKeys(), [])
   useEffect(() => installDocumentDragGesture(), [])
-  useEffect(() => {
-    exposeProjectSessionTestApi()
-  }, [])
-  useEffect(() => {
-    if (painterFixture) {
-      loadPainterFixture()
-      return
-    }
-    if (isTestLibraryQuery()) {
-      void ensureTestLibrary()
-      return
-    }
-    void tryRestore()
-  }, [painterFixture])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -193,11 +160,26 @@ export function EditorShell() {
           <button
             type="button"
             className="editor-action editor-action-secondary"
+            data-testid="go-home"
+            onClick={() => {
+              void leaveEditorForHome()
+            }}
+            disabled={
+              pickerBusy || project.actionBusy || project.restorePending
+            }
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            className="editor-action editor-action-secondary"
             data-testid="create-library"
             onClick={() => {
               void createLibrary()
             }}
-            disabled={pickerBusy}
+            disabled={
+              pickerBusy || project.actionBusy || project.restorePending
+            }
           >
             New library
           </button>
@@ -208,7 +190,9 @@ export function EditorShell() {
             onClick={() => {
               void openLibrary()
             }}
-            disabled={pickerBusy}
+            disabled={
+              pickerBusy || project.actionBusy || project.restorePending
+            }
           >
             Open
           </button>
@@ -220,7 +204,9 @@ export function EditorShell() {
               onClick={() => {
                 void regrantLibrary()
               }}
-              disabled={pickerBusy}
+              disabled={
+                pickerBusy || project.actionBusy || project.restorePending
+              }
             >
               Grant access
             </button>
@@ -240,7 +226,12 @@ export function EditorShell() {
               }
               void createBookInLibrary()
             }}
-            disabled={pickerBusy || !libraryReady}
+            disabled={
+              pickerBusy ||
+              project.actionBusy ||
+              project.restorePending ||
+              !libraryReady
+            }
           >
             New book
           </button>

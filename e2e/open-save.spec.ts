@@ -27,20 +27,18 @@ function writeBulkImportFixtures(count: number): string[] {
   return paths
 }
 
-test('empty chrome offers create and open library without page scroll', async ({
+test('empty home offers create and open library without page scroll', async ({
   page,
 }) => {
   await page.goto('/')
+  await expect(page.getByTestId('home-screen')).toBeVisible()
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('home-empty')).toBeVisible()
   await expect(page.getByTestId('create-library')).toBeVisible()
   await expect(page.getByTestId('open-library')).toBeVisible()
-  await expect(page.getByTestId('create-book')).toBeDisabled()
-  await expect(page.getByTestId('save-book')).toBeDisabled()
   await assertDocumentFitsViewport(page)
-  // Pasteboard hosts three empty spreads; filmstrip empty state does not overflow.
-  await assertNamedScrollport(page, 'pasteboard-scroll', {
-    axis: 'vertical',
-    nudgeHorizontal: false,
-  })
 })
 
 test('save, reload, and restore keep gallery ids', async ({ page }) => {
@@ -92,6 +90,11 @@ test('session import then attach library saves without New book; reload hydrates
   test.setTimeout(120_000)
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await page.getByTestId('start-session').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
   await expect(page.getByTestId('save-book')).toBeDisabled()
 
   await page
@@ -245,6 +248,11 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
   const libraryFolder = `photobooks-e2e-open-${String(process.pid)}-${String(Date.now())}`
 
   await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await page.getByTestId('start-session').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
   await expect(page.getByTestId('save-book')).toBeDisabled()
 
   const attached = await page.evaluate(async (folderName) => {
@@ -306,6 +314,11 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
     })
   })
   await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await page.getByTestId('start-session').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
   await expect(page.getByTestId('save-book')).toBeDisabled()
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
 

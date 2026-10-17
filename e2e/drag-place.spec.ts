@@ -11,6 +11,7 @@ import {
   enablePerfScenario,
 } from './perf/perfFixture'
 import { PERF_BUDGETS } from './perf/budgets'
+import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
@@ -21,7 +22,7 @@ test.beforeAll(() => {
 test('empty gallery has no Placed badge and activation leaves placeholders', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
 
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
   const frame = page.getByRole('button', { name: 'Place photo' }).first()
@@ -42,7 +43,7 @@ test.describe('keyboard place', () => {
     page,
   }) => {
     test.setTimeout(120_000)
-    await page.goto('/')
+    await openSessionEditor(page)
     await page
       .getByTestId('photo-file-input')
       .setInputFiles([
@@ -95,7 +96,7 @@ test.describe('keyboard place', () => {
 test('drag hover follows one frame and clears off a frame', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
   await expect(page.getByTestId('spread-frame').first()).toBeVisible()
 
   const hover = await page.evaluate((mime) => {

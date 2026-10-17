@@ -91,5 +91,126 @@ export function runSessionStateContract(
 
       expect(recalled).toEqual({ ok: false, code: 'permission-required' })
     })
+
+    it('lists empty recents for a fresh session', async () => {
+      const { session } = createHarness()
+
+      await expect(session.listRecentLibraries()).resolves.toEqual({
+        ok: true,
+        value: [],
+      })
+    })
+
+    it('orders recents with the latest remember first', async () => {
+      const { session, createHandle } = createHarness()
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+      await session.rememberLibraryHandle('b', createHandle(), 'Beta')
+
+      await expect(session.listRecentLibraries()).resolves.toEqual({
+        ok: true,
+        value: [
+          { id: 'b', label: 'Beta' },
+          { id: 'a', label: 'Alpha' },
+        ],
+      })
+    })
+
+    it('moves a re-remembered library to the front of recents', async () => {
+      const { session, createHandle } = createHarness()
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+      await session.rememberLibraryHandle('b', createHandle(), 'Beta')
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+
+      await expect(session.listRecentLibraries()).resolves.toEqual({
+        ok: true,
+        value: [
+          { id: 'a', label: 'Alpha' },
+          { id: 'b', label: 'Beta' },
+        ],
+      })
+    })
+
+    it('removes a cleared library from recents', async () => {
+      const { session, createHandle } = createHarness()
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+      await session.clearLibraryHandle('a')
+
+      await expect(session.listRecentLibraries()).resolves.toEqual({
+        ok: true,
+        value: [],
+      })
+    })
+
+    it('rejects reserved keys on remember and clear', async () => {
+      const { session, createHandle } = createHarness()
+      const handle = createHandle()
+
+      await expect(
+        session.rememberLibraryHandle('__recents', handle),
+      ).resolves.toEqual({ ok: false, code: 'not-found' })
+      await expect(session.clearLibraryHandle('__active')).resolves.toEqual({
+        ok: false,
+        code: 'not-found',
+      })
+    })
+
+    it('peeks a handle without requiring permission', async () => {
+      const { session, setPermissionRequired, createHandle } = createHarness()
+      const handle = createHandle()
+      await session.rememberLibraryHandle('lib-1', handle)
+      setPermissionRequired(true)
+
+      await expect(session.peekLibraryHandle('lib-1')).resolves.toEqual({
+        ok: true,
+        value: handle,
+      })
+      await expect(session.recallLibraryHandle('lib-1')).resolves.toEqual({
+        ok: false,
+        code: 'permission-required',
+      })
+    })
+
+    it('peek is not-found when missing', async () => {
+      const { session } = createHarness()
+
+      await expect(session.peekLibraryHandle('missing')).resolves.toEqual({
+        ok: false,
+        code: 'not-found',
+      })
+    })
+
+    it('removeRecentLibrary clears handle and list entry', async () => {
+      const { session, createHandle } = createHarness()
+      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+
+      await expect(session.removeRecentLibrary('a')).resolves.toEqual({
+        ok: true,
+        value: undefined,
+      })
+      await expect(session.listRecentLibraries()).resolves.toEqual({
+        ok: true,
+        value: [],
+      })
+      await expect(session.recallLibraryHandle('a')).resolves.toEqual({
+        ok: false,
+        code: 'not-found',
+      })
+    })
+
+    it('persists and recalls active library and book ids', async () => {
+      const { session } = createHarness()
+
+      await session.setActiveIds({ libraryId: 'lib-1', bookId: 'book-1' })
+      await expect(session.getActiveIds()).resolves.toEqual({
+        libraryId: 'lib-1',
+        bookId: 'book-1',
+      })
+
+      await session.setActiveIds({ libraryId: 'lib-1', bookId: null })
+      await expect(session.getActiveIds()).resolves.toEqual({
+        libraryId: 'lib-1',
+        bookId: null,
+      })
+    })
   })
 }

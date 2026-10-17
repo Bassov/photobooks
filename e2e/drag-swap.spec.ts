@@ -11,6 +11,7 @@ import {
   enablePerfScenario,
 } from './perf/perfFixture'
 import { PERF_BUDGETS } from './perf/budgets'
+import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
 
@@ -21,7 +22,7 @@ test.beforeAll(() => {
 test('empty gallery has no Unplace control and activation leaves placeholders', async ({
   page,
 }) => {
-  await page.goto('/')
+  await openSessionEditor(page)
 
   await expect(page.getByRole('button', { name: 'Unplace' })).toHaveCount(0)
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
@@ -43,7 +44,7 @@ test.describe('keyboard rearrange', () => {
     page,
   }) => {
     test.setTimeout(120_000)
-    await page.goto('/')
+    await openSessionEditor(page)
     await page
       .getByTestId('photo-file-input')
       .setInputFiles([
@@ -193,7 +194,7 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
   page,
 }) => {
   test.setTimeout(120_000)
-  await page.goto('/')
+  await openSessionEditor(page)
   await page
     .getByTestId('photo-file-input')
     .setInputFiles([photoFixturePaths.samplePng])
