@@ -89,12 +89,22 @@ export function defaultExec(file, args, opts = {}) {
     })
     return { code: 0, stdout: String(stdout), stderr: '' }
   } catch (e) {
-    return {
-      code: typeof e.status === 'number' ? e.status : 1,
-      stdout: String(e.stdout),
-      stderr: String(e.stderr),
-    }
+    const code = typeof e.status === 'number' ? e.status : 1
+    const stdout = String(e.stdout ?? '')
+    const stderr = String(e.stderr ?? '')
+    if (!stdout && !stderr && e.message)
+      return { code, stdout: '', stderr: String(e.message) }
+    return { code, stdout, stderr }
   }
+}
+
+/** `git diff --no-index` exits 1 when files differ; treat 0/1 as success. */
+export function mustOkDiffNoIndex(r, label) {
+  if (r.code === 0 || r.code === 1) return r
+  fail(
+    `${label} failed (exit ${r.code}):\n${tailOutput(r.stdout, r.stderr)}`,
+    r.code || 1,
+  )
 }
 
 function wantQuiet(o, env) {
@@ -622,12 +632,28 @@ export function cmdReviewBrief(o, deps) {
   }
 
   const base = o.base ?? 'HEAD'
-  const headStat = sh(exec, cwd, env, quiet, 'git', ['diff', base, '--stat'])
-  const untrackedR = sh(exec, cwd, env, quiet, 'git', [
-    'ls-files',
-    '--others',
-    '--exclude-standard',
-  ])
+  if (base.startsWith('-'))
+    fail(`--base must not start with '-' (got ${JSON.stringify(base)})`)
+
+  const mergeBaseR = mustOk(
+    sh(exec, cwd, env, quiet, 'git', ['merge-base', base, 'HEAD']),
+    'git merge-base',
+  )
+  const mergeBase = mergeBaseR.stdout.trim()
+  if (!mergeBase) fail('git merge-base produced empty output')
+
+  const headStat = mustOk(
+    sh(exec, cwd, env, quiet, 'git', ['diff', mergeBase, '--stat']),
+    'git diff --stat',
+  )
+  const untrackedR = mustOk(
+    sh(exec, cwd, env, quiet, 'git', [
+      'ls-files',
+      '--others',
+      '--exclude-standard',
+    ]),
+    'git ls-files',
+  )
   const untracked = untrackedR.stdout
     .split('\n')
     .map((l) => l.trim())
@@ -635,11 +661,10 @@ export function cmdReviewBrief(o, deps) {
 
   const touchSet = new Set(touchPaths)
   const changedTracked = []
-  const nameOnly = sh(exec, cwd, env, quiet, 'git', [
-    'diff',
-    base,
-    '--name-only',
-  ])
+  const nameOnly = mustOk(
+    sh(exec, cwd, env, quiet, 'git', ['diff', mergeBase, '--name-only']),
+    'git diff --name-only',
+  )
   for (const f of nameOnly.stdout
     .split('\n')
     .map((l) => l.trim())
@@ -652,24 +677,30 @@ export function cmdReviewBrief(o, deps) {
 
   const touchDiffParts = []
   if (touchPaths.length) {
-    const td = sh(exec, cwd, env, quiet, 'git', [
-      'diff',
-      base,
-      '--',
-      ...touchPaths,
-    ])
+    const td = mustOk(
+      sh(exec, cwd, env, quiet, 'git', [
+        'diff',
+        mergeBase,
+        '--',
+        ...touchPaths,
+      ]),
+      'git diff touch-set',
+    )
     const t = stripAnsi(td.stdout).trim()
     if (t) touchDiffParts.push(t)
   }
   for (const f of untracked) {
     if (!touchSet.has(f)) continue
-    const d = sh(exec, cwd, env, quiet, 'git', [
-      'diff',
-      '--no-index',
-      '--',
-      '/dev/null',
-      f,
-    ])
+    const d = mustOkDiffNoIndex(
+      sh(exec, cwd, env, quiet, 'git', [
+        'diff',
+        '--no-index',
+        '--',
+        '/dev/null',
+        f,
+      ]),
+      `git diff --no-index ${f}`,
+    )
     const body = stripAnsi(d.stdout || d.stderr).trim()
     if (body) touchDiffParts.push(body)
   }
@@ -678,23 +709,29 @@ export function cmdReviewBrief(o, deps) {
   if (outside.length) {
     const trackedOutside = outside.filter((f) => !untracked.includes(f))
     if (trackedOutside.length) {
-      const od = sh(exec, cwd, env, quiet, 'git', [
-        'diff',
-        base,
-        '--',
-        ...trackedOutside,
-      ])
+      const od = mustOk(
+        sh(exec, cwd, env, quiet, 'git', [
+          'diff',
+          mergeBase,
+          '--',
+          ...trackedOutside,
+        ]),
+        'git diff outside touch-set',
+      )
       const t = stripAnsi(od.stdout).trim()
       if (t) outsideParts.push(t)
     }
     for (const f of outside.filter((f) => untracked.includes(f))) {
-      const d = sh(exec, cwd, env, quiet, 'git', [
-        'diff',
-        '--no-index',
-        '--',
-        '/dev/null',
-        f,
-      ])
+      const d = mustOkDiffNoIndex(
+        sh(exec, cwd, env, quiet, 'git', [
+          'diff',
+          '--no-index',
+          '--',
+          '/dev/null',
+          f,
+        ]),
+        `git diff --no-index ${f}`,
+      )
       const body = stripAnsi(d.stdout || d.stderr).trim()
       if (body) outsideParts.push(body)
     }
@@ -715,6 +752,7 @@ export function cmdReviewBrief(o, deps) {
       ? null
       : 'pass --rules-json from openspec instructions',
     base,
+    mergeBase,
     diffStat: statBits || '(empty)',
     touchSetPaths: touchPaths,
     touchNote,
@@ -775,6 +813,7 @@ function fmtBrief(r) {
     `slug: ${r.slug}`,
     `changePath: ${r.changePath}`,
     `base: ${r.base}`,
+    `mergeBase: ${r.mergeBase}`,
     `rules: ${JSON.stringify(r.rules)}`,
     `rulesNote: ${r.rulesNote}`,
     '--- diff --stat ---',

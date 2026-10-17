@@ -12,7 +12,7 @@ See proposal.md. `/next-roadmap-item` still expands preflight, finish, and revie
 
 ## Decisions
 
-1. **Mirror roadmap CLI shape** — Zero-deps ESM; `parseArgs`/`run`/`main`; `--json`, `--quiet`, `--root`; `package.json` `"agent": "node scripts/agent.mjs"`. Short text on success.
+1. **Mirror roadmap CLI shape** — Zero-deps ESM; `parseArgs`/`run`/`main` in `scripts/agent.mjs`; entry `scripts/agent-cli.mjs`; `--json`, `--quiet`, `--root`; `package.json` `"agent": "node scripts/agent-cli.mjs"`. Short text on success.
 
 2. **Inject `exec` for tests** — Default sync runner; tests pass `{code,stdout,stderr}` fakes. New harness only in `scripts/agent.test.mjs` (do not share with `roadmap.test.mjs`).
 
@@ -20,7 +20,7 @@ See proposal.md. `/next-roadmap-item` still expands preflight, finish, and revie
 
 4. **`finish`** — `verify:fast:quiet`; refuse dirty tree; push `-q` ≤2 fails; `gh pr` create (requires `--title` + `--body-file`) or update if PR exists; CI watch silent then `--json name,bucket`; red → tailed `--log-failed`. Never `git commit`.
 
-5. **`review-brief`** — `--change <slug>` (default: branch after `feat/`/`fix/`); print slug, change path, rules (from `--rules-json` or empty array + note), `git diff --stat`, touch-set diff from design.md table paths when parseable else stat + note.
+5. **`review-brief`** — `--change <slug>` (default: branch after `feat/`/`fix/`); `--base REF` (default `HEAD`) resolved via `git merge-base <base> HEAD` (reject values starting with `-`); print slug, change path, rules (from `--rules-json` or empty array + note), `git diff --stat` vs merge-base, touch-set / outside diffs from design.md table paths when parseable else stat + note.
 
 6. **Command** — Steps 1–2 → `pnpm agent preflight`; step 6 → `pnpm agent finish` after agent commit; reviewers → `review-brief`. Batching: parallel reads; shell `&&`; one Write + validate per artifact stage.
 
@@ -32,7 +32,8 @@ See proposal.md. `/next-roadmap-item` still expands preflight, finish, and revie
 
 | File                                                                      | Why                             |
 | ------------------------------------------------------------------------- | ------------------------------- |
-| `scripts/agent.mjs`                                                       | composite CLI                   |
+| `scripts/agent.mjs`                                                       | composite CLI library           |
+| `scripts/agent-cli.mjs`                                                   | `pnpm agent` entry              |
 | `scripts/agent.test.mjs`                                                  | fake-exec harness + cases       |
 | `package.json`                                                            | `"agent"` script                |
 | `.cursor/commands/next-roadmap-item.md`                                   | wire + batching                 |

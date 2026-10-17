@@ -15,6 +15,7 @@ import {
   isPassingBucket,
   main,
   mustOk,
+  mustOkDiffNoIndex,
   parseArgs,
   parseInstructions,
   parseRoadmapNext,
@@ -719,6 +720,79 @@ describe('preflight', () => {
       'extra,from-pr,from-remote',
     ])
     expect(JSON.parse(r.out).branch).toBe('feat/keep')
+  })
+
+  it('falls back to git switch when switch -c fails', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'reuse-item'), {
+      recursive: true,
+    })
+    const item = { slug: 'reuse-item', tag: 'prep', title: 't', file: 'f' }
+    const calls = []
+    const exec = (file, args) => {
+      calls.push([file, [...args]])
+      const key = `${file} ${args.join(' ')}`
+      if (key.includes('node -v'))
+        return { code: 0, stdout: 'v22.0.0\n', stderr: '' }
+      if (key.includes('command -v pnpm'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git status --porcelain'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git switch main'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git pull')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('gh pr list')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git branch -r'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('roadmap next'))
+        return { code: 0, stdout: JSON.stringify(item), stderr: '' }
+      if (key.includes('git switch -c'))
+        return { code: 1, stdout: '', stderr: 'already exists\n' }
+      if (key === 'git switch feat/reuse-item')
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('openspec instructions'))
+        return {
+          code: 0,
+          stdout: JSON.stringify({ template: 'T', rules: ['r'] }),
+          stderr: '',
+        }
+      return { code: 1, stdout: '', stderr: `unhandled ${key}` }
+    }
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec,
+      env: {},
+    })
+    expect(r.code, r.err).toBe(0)
+    expect(calls).toContainEqual(['git', ['switch', '-c', 'feat/reuse-item']])
+    expect(calls).toContainEqual(['git', ['switch', 'feat/reuse-item']])
+  })
+
+  it('reports error when switch -c and switch both fail', () => {
+    const root = tmpRoot()
+    const item = { slug: 'reuse-item', tag: 'prep', title: 't', file: 'f' }
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ...envOk,
+        ['git status --porcelain', { stdout: '' }],
+        ['git fetch origin', { code: 0 }],
+        ['git switch main', { code: 0 }],
+        ['git pull --ff-only', { code: 0 }],
+        ['gh pr list', { stdout: '' }],
+        ['git branch -r', { stdout: '' }],
+        ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+        ['git switch -c feat/reuse-item', { code: 1, stderr: 'exists\n' }],
+        ['git switch feat/reuse-item', { code: 1, stderr: 'cannot switch\n' }],
+      ]),
+      env: {},
+    })
+    expect(r.code).not.toBe(0)
+    expect(JSON.parse(r.err).error).toMatch(
+      /git switch feat\/reuse-item failed/,
+    )
+    expect(JSON.parse(r.err).error).toContain('cannot switch')
   })
 
   it('records exact argv for sync skip openspec and branch create', () => {
@@ -1528,21 +1602,26 @@ describe('review-brief', () => {
     expect(r.code, r.err).toBe(0)
     const j = JSON.parse(r.out)
     expect(j.base).toBe('HEAD')
+    expect(j.mergeBase).toMatch(/^[0-9a-f]{40}$/)
     expect(j.headDiff).toBeUndefined()
     expect(j.untracked).toEqual(
       expect.arrayContaining(['scripts/agent.mjs', 'outside.txt']),
     )
     expect(j.touchDiff).toMatch(/agent\.mjs/)
+    expect(j.inTouchSet).toEqual(['scripts/agent.mjs'])
     expect(j.outsideTouchSet).toEqual(
       expect.arrayContaining(['tracked.txt', 'outside.txt']),
     )
-    expect(j.outsideDiff).toMatch(/tracked\.txt|outside\.txt/)
+    expect(j.inTouchSet.every((f) => !j.outsideTouchSet.includes(f))).toBe(true)
+    expect(j.outsideDiff).toMatch(/tracked\.txt/)
+    expect(j.outsideDiff).toMatch(/changed/)
+    expect(j.outsideDiff).toMatch(/outside\.txt/)
     expect(j.diffStat).toMatch(/\?\?/)
     expect(j.rules).toEqual(['r'])
     expect(j.rulesNote).toBe(null)
   })
 
-  it('uses --base for committed diffs on a clean tree', () => {
+  it('uses --base merge-base for committed diffs on a clean tree', () => {
     const repo = gitInitRepo()
     const change = path.join(repo, 'openspec', 'changes', 'demo')
     fs.mkdirSync(change, { recursive: true })
@@ -1581,8 +1660,131 @@ describe('review-brief', () => {
     expect(withBase.code, withBase.err).toBe(0)
     const j = JSON.parse(withBase.out)
     expect(j.base).toBe('HEAD~1')
+    expect(j.mergeBase).toMatch(/^[0-9a-f]{40}$/)
     expect(j.touchDiff).toMatch(/committed-change/)
-    expect(j.inTouchSet).toContain('tracked.txt')
+    expect(j.inTouchSet).toEqual(['tracked.txt'])
+    expect(j.outsideTouchSet).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/openspec\/changes\/demo\/design\.md/),
+      ]),
+    )
+  })
+
+  it('rejects --base that starts with a dash', () => {
+    const repo = gitInitRepo()
+    const r = run(
+      [
+        'review-brief',
+        '--json',
+        '--change',
+        'demo',
+        '--root',
+        repo,
+        '--base',
+        '-x',
+      ],
+      { cwd: repo, env: {} },
+    )
+    expect(r.code).not.toBe(0)
+    expect(JSON.parse(r.err).error).toBe(
+      `--base must not start with '-' (got "-x")`,
+    )
+  })
+
+  it('rejects a bad --base ref', () => {
+    const repo = gitInitRepo()
+    const r = run(
+      [
+        'review-brief',
+        '--json',
+        '--change',
+        'demo',
+        '--root',
+        repo,
+        '--base',
+        'origin/mian',
+      ],
+      { cwd: repo, env: {} },
+    )
+    expect(r.code).not.toBe(0)
+    expect(JSON.parse(r.err).error).toMatch(/git merge-base failed/)
+  })
+
+  it('fails when merge-base returns empty stdout', () => {
+    const root = tmpRoot(true)
+    const r = run(
+      ['review-brief', '--json', '--change', 'demo', '--root', root],
+      {
+        cwd: root,
+        exec: fakeExec([['git merge-base', { stdout: '  \n' }]]),
+        env: {},
+      },
+    )
+    expect(r.code).not.toBe(0)
+    expect(JSON.parse(r.err).error).toBe('git merge-base produced empty output')
+  })
+
+  it('diff vs merge-base ignores commits that landed only on base', () => {
+    const repo = gitInitRepo()
+    execFileSync('git', ['branch', '-M', 'main'], {
+      cwd: repo,
+      stdio: 'ignore',
+    })
+    execFileSync('git', ['checkout', '-b', 'feat/demo'], {
+      cwd: repo,
+      stdio: 'ignore',
+    })
+    fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'on-branch\n')
+    execFileSync('git', ['add', 'branch-only.txt'], {
+      cwd: repo,
+      stdio: 'ignore',
+    })
+    execFileSync('git', ['commit', '-m', 'branch change'], {
+      cwd: repo,
+      stdio: 'ignore',
+    })
+
+    execFileSync('git', ['checkout', 'main'], { cwd: repo, stdio: 'ignore' })
+    fs.writeFileSync(path.join(repo, 'main-only.txt'), 'on-main\n')
+    execFileSync('git', ['add', 'main-only.txt'], {
+      cwd: repo,
+      stdio: 'ignore',
+    })
+    execFileSync('git', ['commit', '-m', 'main moved'], {
+      cwd: repo,
+      stdio: 'ignore',
+    })
+
+    execFileSync('git', ['checkout', 'feat/demo'], {
+      cwd: repo,
+      stdio: 'ignore',
+    })
+    const change = path.join(repo, 'openspec', 'changes', 'demo')
+    fs.mkdirSync(change, { recursive: true })
+    fs.writeFileSync(
+      path.join(change, 'design.md'),
+      `| File | Why |\n| ---- | --- |\n| \`branch-only.txt\` | ours |\n`,
+    )
+
+    const tip = run(
+      [
+        'review-brief',
+        '--json',
+        '--change',
+        'demo',
+        '--root',
+        repo,
+        '--base',
+        'main',
+      ],
+      { cwd: repo, env: {} },
+    )
+    expect(tip.code, tip.err).toBe(0)
+    const j = JSON.parse(tip.out)
+    expect(j.inTouchSet).toEqual(['branch-only.txt'])
+    expect(j.outsideTouchSet).not.toContain('main-only.txt')
+    expect(j.diffStat).not.toMatch(/main-only/)
+    expect(j.touchDiff).toMatch(/on-branch/)
   })
 
   it('rejects invalid --rules-json', () => {
@@ -1606,7 +1808,7 @@ describe('review-brief', () => {
     })
     expect(b2.code).toBe(0)
     expect(b2.out).toMatch(
-      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\n--- diff --stat ---\n/,
+      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\n--- diff --stat ---\n/,
     )
     expect(b2.out).toContain(
       'design.md missing; treating all paths as outside touch-set',
@@ -1636,7 +1838,7 @@ describe('review-brief', () => {
     expect(j.outsideDiff).toMatch(/only-out\.txt/)
   })
 
-  it('records exact git diff argv for --base and touch paths', () => {
+  it('records exact git merge-base and diff argv for --base', () => {
     const root = tmpRoot(true)
     fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo'), {
       recursive: true,
@@ -1645,10 +1847,13 @@ describe('review-brief', () => {
       path.join(root, 'openspec', 'changes', 'demo', 'design.md'),
       `| File | Why |\n| ---- | --- |\n| \`a.txt\` | t |\n`,
     )
+    const mb = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     const calls = []
     const exec = (file, args) => {
       calls.push([file, [...args]])
       const key = `${file} ${args.join(' ')}`
+      if (key.includes('git merge-base'))
+        return { code: 0, stdout: `${mb}\n`, stderr: '' }
       if (key.includes('git diff') && key.includes('--stat'))
         return { code: 0, stdout: ' 1 file changed\n', stderr: '' }
       if (key.includes('git ls-files'))
@@ -1675,20 +1880,28 @@ describe('review-brief', () => {
       { cwd: root, exec, env: {} },
     )
     expect(r.code, r.err).toBe(0)
-    expect(calls).toContainEqual(['git', ['diff', 'origin/main', '--stat']])
-    expect(calls).toContainEqual([
-      'git',
-      ['diff', 'origin/main', '--name-only'],
-    ])
-    expect(calls).toContainEqual([
-      'git',
-      ['diff', 'origin/main', '--', 'a.txt'],
-    ])
+    expect(calls).toContainEqual(['git', ['merge-base', 'origin/main', 'HEAD']])
+    expect(calls).toContainEqual(['git', ['diff', mb, '--stat']])
+    expect(calls).toContainEqual(['git', ['diff', mb, '--name-only']])
+    expect(calls).toContainEqual(['git', ['diff', mb, '--', 'a.txt']])
     expect(calls).toContainEqual([
       'git',
       ['ls-files', '--others', '--exclude-standard'],
     ])
+    expect(JSON.parse(r.out).mergeBase).toBe(mb)
     expect(JSON.parse(r.out).touchDiff).toContain('+hi')
+  })
+
+  it('fails when --no-index exits outside 0/1', () => {
+    expect(() =>
+      mustOkDiffNoIndex(
+        { code: 2, stdout: '', stderr: 'fatal\n' },
+        'git diff --no-index x',
+      ),
+    ).toThrow(/git diff --no-index x failed \(exit 2\)/)
+    expect(
+      mustOkDiffNoIndex({ code: 1, stdout: 'diff\n', stderr: '' }, 'ok'),
+    ).toEqual({ code: 1, stdout: 'diff\n', stderr: '' })
   })
 })
 
@@ -1731,6 +1944,16 @@ describe('help / errors / defaultExec / main', () => {
       'process.kill(process.pid,"SIGTERM")',
     ])
     expect(signaled.code).toBe(1)
+  })
+
+  it('defaultExec surfaces spawn ENOENT via message fallback', () => {
+    const missing = defaultExec('definitely-not-a-binary-photobooks-xyz', [
+      '--help',
+    ])
+    expect(missing.code).toBe(1)
+    expect(missing.stdout).toBe('')
+    expect(missing.stderr).toMatch(/ENOENT|not found|spawn/i)
+    expect(missing.stderr).not.toBe('null')
   })
 
   it('main writes stdout stderr with trailing newlines', () => {
