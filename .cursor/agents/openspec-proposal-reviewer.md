@@ -11,8 +11,13 @@ You review OpenSpec change proposals only. Do not edit files.
 
 ## Inputs
 
-Read the active change's `proposal.md` under `openspec/changes/<id>/`.
-Honor `openspec/config.yaml` `rules.proposal`.
+Prefer the parent brief: change slug, change path, `rules.proposal` array,
+`git diff --stat`, and touch-set working-tree diff. Read only
+`openspec/changes/<id>/proposal.md` unless a finding needs another artifact.
+Do not open full `openspec/config.yaml` to rediscover rules. Do not read other
+sessions' agent transcripts. Do not run unrelated tool discovery.
+
+Honor `rules.proposal` from the brief.
 
 ## Checks
 
@@ -39,3 +44,4 @@ Severities: critical, high, medium, low.
 
 `pass` only when there are no critical/high findings and the word budget holds.
 If `revise`, list concrete edits the parent must apply before continuing to design/tasks.
+Parent must not proceed to design until `pass`.

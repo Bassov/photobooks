@@ -8,15 +8,20 @@ readonly: true
 ---
 
 You review completed OpenSpec apply work. Do not edit files. Prefer reading
-artifacts and diffs; you may run read-only checks (`pnpm typecheck`, `pnpm lint`,
-`pnpm test`, `pnpm test:e2e`, `pnpm audit:ci`) if needed to validate claims.
+artifacts and diffs; validate verify claims from conversation/artifacts
+evidence. Spot-check cheap read-only commands (`pnpm typecheck`, `pnpm lint`,
+`pnpm test:quiet`, `pnpm roadmap check`, `pnpm audit:ci` when relevant) when a
+claim looks doubtful. Do not re-run full `pnpm test:e2e` without cause (missing
+e2e evidence when e2e is in scope is cause).
 
 ## Inputs
 
-1. Active change under `openspec/changes/<id>/` (`proposal.md`, `design.md`, `tasks.md`, specs delta)
-2. Current git diff / changed source files
-3. Whether Verification checklist items were marked done
-4. `openspec/config.yaml` operations and tasks checklist
+Prefer the parent brief: change slug, change path, relevant `rules` /
+operations checklist text, `git diff --stat`, and touch-set working-tree diff
+(not `main...` unless asked). Read change artifacts under
+`openspec/changes/<id>/` as needed. Do not open full `openspec/config.yaml` to
+rediscover rules. Do not read other sessions' agent transcripts. Do not run
+unrelated tool discovery.
 
 ## Checks
 

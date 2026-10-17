@@ -28,18 +28,20 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Commands (reference)
 
-| Command              | Use                                                      |
-| -------------------- | -------------------------------------------------------- |
-| `/next-roadmap-item` | one roadmap item end to end (unattended)                 |
-| `pnpm roadmap`       | roadmap CLI: `next` / `show` / `add` / `done` / `check`  |
-| `pnpm verify:fast`   | typecheck + lint + deps + knip + mutation scope + vitest |
-| `pnpm verify`        | verify:fast + Playwright                                 |
-| `pnpm perf`          | Playwright frame-budget scenarios (hard frame pacing)    |
-| `pnpm deps`          | dependency-cruiser layer rules                           |
-| `pnpm knip`          | unused exports / deps                                    |
-| `pnpm stryker:diff`  | mutations vs `origin/main`                               |
-| `pnpm test:lhci`     | Lighthouse budgets                                       |
-| `pnpm audit:ci`      | high-severity **production** dependency audit            |
+| Command                  | Use                                                      |
+| ------------------------ | -------------------------------------------------------- |
+| `/next-roadmap-item`     | one roadmap item end to end (unattended)                 |
+| `pnpm roadmap`           | roadmap CLI: `next` / `show` / `add` / `done` / `check`  |
+| `pnpm verify:fast`       | typecheck + lint + deps + knip + mutation scope + vitest |
+| `pnpm verify:fast:quiet` | verify:fast with quiet vitest reporter                   |
+| `pnpm verify`            | verify:fast + Playwright                                 |
+| `pnpm test:e2e:quiet`    | Playwright with dot reporter                             |
+| `pnpm perf`              | Playwright frame-budget scenarios (hard frame pacing)    |
+| `pnpm deps`              | dependency-cruiser layer rules                           |
+| `pnpm knip`              | unused exports / deps                                    |
+| `pnpm stryker:diff`      | mutations vs `origin/main`                               |
+| `pnpm test:lhci`         | Lighthouse budgets                                       |
+| `pnpm audit:ci`          | high-severity **production** dependency audit            |
 
 ## Skills (on demand)
 
@@ -64,7 +66,9 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
 - Execution plan (one OpenSpec change per item): index `docs/roadmap.md` + one file per item in `docs/roadmap/`; use `pnpm roadmap` (skill `roadmap`), never read it whole or hand-edit it. Process: `docs/roadmap/RULES.md`.
 
-## Cursor Cloud
+## Toolchain / Cursor Cloud
+
+Agent shells: `source scripts/agent-env.sh` once so asdf shims + Node from `.nvmrc` are on PATH (does not write `.tool-versions`). Lefthook pre-push runs `pnpm verify:fast`; Playwright stays in CI (`pnpm verify` / PR checks).
 
 `pnpm install` exits non-zero while `core.hooksPath` points at Cursor agent hooks, because `prepare` runs `lefthook install`. Install with `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev server: `pnpm exec vite --host 0.0.0.0 --port 5173` (an extra `--` makes Vite ignore `--host`).
 

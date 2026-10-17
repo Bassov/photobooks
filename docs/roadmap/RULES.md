@@ -45,8 +45,15 @@ Slicing rules when adding or splitting items:
 5. Split only for a new subsystem or the task limit; small adjacent work stays merged.
 6. The item that owns a gate referenced in `docs/future-architecture.md` keeps its slug.
 
+## Agent apply hygiene
+
+- Tick item-file checkboxes with targeted edits; do not rewrite the whole item file.
+- A failure is **out of scope** only when the same test also fails or flakes on unmodified `origin/main`. A test outside the touch-set that fails only with this change applied is **in scope** and must be fixed in code or tests in this PR. Out-of-scope failures are scheduled with `pnpm roadmap add <slug> --after <current>` (or a bug issue for a flake) and are not patched by enlarging this PR — but filing an item or issue never makes a red PR mergeable; the git-finish stop after 3 red CI rounds still applies.
+- At most two **failed** local push attempts under pre-push; then stop and report in the PR description instead of looping. Code changed after implementation review must be re-reviewed before archive.
+
 ## Known limits
 
 - Parallel PRs: two branches that `add` after the same item, or a `done` that archives a milestone (block removed from the index, folder moved), conflict in git. Rebase on `main` and re-run the command on a clean index instead of hand-merging it.
 - Titles and tags live in both the index line and the item file; `check` requires them to match. There is no retitle command: the owner edits both lines together.
 - LF line endings only (`.gitattributes` sets `eol=lf`); an index with CRLF line endings is not supported.
+- Stale remote branches of merged items inflate `roadmap next --skip`; prune them on the owner side (do not fix by editing the index by hand).
