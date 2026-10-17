@@ -28,7 +28,7 @@
 
 ### Requirement: Out-of-scope failures
 
-A gate failure is out of scope only when the same test also fails or flakes on unmodified `origin/main`. A test outside the design touch-set that fails only with the change applied is in scope and MUST be fixed in code or tests in the current PR. Out-of-scope failures SHALL be scheduled with `pnpm roadmap add … --after <current>` or a bug issue for a flake and MUST NOT be patched by enlarging the current PR. Filing an item or issue MUST NOT make a red PR mergeable; the git-finish stop after three red CI rounds still applies.
+A gate failure SHALL be out of scope only when the same test also fails or flakes on unmodified `origin/main`. Otherwise it MUST be treated as in scope for the current PR.
 
 #### Scenario: Failure only with the change is in scope
 
@@ -39,6 +39,11 @@ A gate failure is out of scope only when the same test also fails or flakes on u
 
 - **WHEN** pre-push or local verify fails on a test that also fails or flakes on unmodified `origin/main`
 - **THEN** the agent MUST NOT enlarge the current PR to fix it; it MUST add a roadmap item or bug issue and MUST NOT treat the PR as mergeable while checks are red
+
+#### Scenario: Filing does not waive red CI stop
+
+- **WHEN** an out-of-scope failure is scheduled as a roadmap item or bug issue
+- **THEN** filing MUST NOT make a red PR mergeable, and the git-finish stop after three red CI rounds still applies
 
 ### Requirement: Local push budget
 
@@ -88,7 +93,7 @@ Lefthook pre-push SHALL run `pnpm verify:fast` only. Full Playwright e2e SHALL r
 
 ### Requirement: Agent environment bootstrap
 
-The repository SHALL provide a POSIX-sourcable bootstrap script that makes Node matching the major in `.nvmrc` and pnpm available to non-interactive agent shells without writing a `.tool-versions` (or equivalent pin file) into the repository tree. When multiple matching asdf installs exist, it SHALL pick the highest version (`sort -V`). It SHALL set `ASDF_NODEJS_VERSION` only when that install exists, and SHALL warn on stderr if `node -v` major does not match `.nvmrc`. `AGENTS.md` SHALL document that bootstrap in navigation form (≤150 lines, no checklist).
+The repository SHALL provide a POSIX-sourcable bootstrap script that puts Node matching `.nvmrc` and pnpm on PATH for non-interactive shells without writing a `.tool-versions` file into the tree. `AGENTS.md` SHALL document it in navigation form (≤150 lines, no checklist).
 
 #### Scenario: Bootstrap without repo tool-versions
 
@@ -98,4 +103,9 @@ The repository SHALL provide a POSIX-sourcable bootstrap script that makes Node 
 #### Scenario: Highest matching Node when several installs exist
 
 - **WHEN** multiple asdf Node installs share the `.nvmrc` major
-- **THEN** the bootstrap selects the highest version via version sort, not lexical `ls` order
+- **THEN** the bootstrap selects the highest version via `sort -V`, sets `ASDF_NODEJS_VERSION` only when that install exists, and MUST NOT use lexical `ls` order alone
+
+#### Scenario: Warn on Node major mismatch
+
+- **WHEN** after bootstrap `node -v` major does not match `.nvmrc`
+- **THEN** the script MUST warn on stderr

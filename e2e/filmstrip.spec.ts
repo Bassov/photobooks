@@ -376,9 +376,8 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
 })
 
 test.describe('frame-budget gates', () => {
-  // Local full e2e (and CI without workers:1) can run parallel workers; this
-  // scenario is CPU-sensitive and flakes under contention. CI already uses
-  // workers: 1. Pre-push is verify:fast only.
+  // CPU-sensitive under parallel local workers; CI uses workers: 1. Pre-push is
+  // verify:fast only.
   test.describe.configure({ retries: 2 })
 
   test('bulk filmstrip import while scrolling stays within frame-budget gates', async ({

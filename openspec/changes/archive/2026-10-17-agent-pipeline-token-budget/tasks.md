@@ -37,4 +37,4 @@
 1. `pnpm exec lefthook run pre-push --force` — hook command is `pnpm verify:fast` only (`lefthook.yml`); run completed with verify:fast (typecheck/lint/deps/knip/mutation-scope/vitest), no Playwright in the hook summary.
 2. `env -i HOME="$HOME" PATH=/usr/bin:/bin sh -c '. scripts/agent-env.sh && node -v && command -v pnpm'` — observed `v22.23.3` and `/home/albasov/.asdf/shims/pnpm` (exit 0). Without the script the same `env -i` PATH sees `v18.19.1` and no pnpm.
 3. `test ! -f .tool-versions` — exit 0 (no file created).
-4. `pnpm test:e2e:quiet` — Playwright `--reporter=dot`; suite green (56 passed, 2 flaky retries on prior run).
+4. `pnpm test:e2e:quiet` — Playwright `--reporter=dot`; suite green (56 passed) with known local flakes filed as `e2e-local-flakes`: `open-save › fresh session Open loads saved book with thumbs and frames`, `filmstrip › mixed aspect cards pack with uniform gaps…`, `template-unplace › a smaller template unplaces overflow photos…`, and the two `drag-place` frame-budget tests.
