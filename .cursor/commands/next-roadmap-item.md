@@ -30,8 +30,13 @@ do not restate them.
    move and stop after the PR is green.
 6. `pnpm roadmap check`, then commit, PR and wait for green per git-finish.mdc.
 
-Stop and ask only for: dirty tree, a milestone review cut, a security-tagged item,
-an item whose intent contradicts a spec or open issue, the git-finish CI stop
-conditions. Otherwise record assumptions in the artifacts and continue.
+Stop and ask only for: dirty tree, a milestone review cut, an item whose intent
+contradicts a spec or open issue, the git-finish CI stop conditions. Security-tagged
+items continue; run the Security Review sub-agent before archive. Until
+`gate-ratchet`/`gate-ratchet-ci` are merged, a gate-config edit MUST be strictly
+stricter and listed in the touch-set with a reason; otherwise stop. Until
+`dependency-policy` is merged, a new or changed dependency needs `pnpm audit:ci`
+evidence and a Security Review pass before archive. Otherwise record assumptions
+in the artifacts and continue.
 Final reply in Russian: item, PR URL, check status, reviewer verdicts, skipped
 survivors, assumptions.

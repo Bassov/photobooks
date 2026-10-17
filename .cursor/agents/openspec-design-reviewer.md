@@ -17,7 +17,7 @@ You review OpenSpec design documents only. Do not edit files.
 
 ## Checks
 
-1. **Touch-set:** design lists concrete files/modules in scope; fail if missing or unbounded.
+1. **Touch-set:** design lists concrete files/modules in scope; fail if missing or unbounded. Every quality-gate config edit in scope MUST appear in the touch-set with a reason.
 2. **Composition:** UI/domain split or module boundaries stated when code changes are proposed; prefer small composable units over god-files.
 3. **Workers:** if heavy image/decode/render/encode work is in scope, design MUST place it off the main thread.
 4. **Security:** if scope touches File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export — design MUST include a Security section.
