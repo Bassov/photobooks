@@ -48,6 +48,8 @@ See proposal.md. Mandates already live in `openspec/config.yaml`; growth/split t
 | `openspec/changes/agent-rules/specs/agent-context/spec.md` | delta                                                                                                                                                           |
 | `openspec/specs/agent-context/spec.md`                     | sync at archive                                                                                                                                                 |
 | `docs/roadmap/M2.1/agent-rules.md`                         | tick scope during apply                                                                                                                                         |
+| `docs/roadmap.md`                                          | via `pnpm roadmap done agent-rules` and `pnpm roadmap add add-spread-reveal-flake --after agent-rules` (no hand edit)                                           |
+| `docs/roadmap/M2.1/add-spread-reveal-flake.md`             | scheduled flake item from PR review (strict containment; no assertion weakening)                                                                                |
 | `openspec/changes/agent-rules/tasks.md`                    | oversized dry-run section                                                                                                                                       |
 
 No gate-file threshold edits in this change (docs only). No `src/` code. No e2e assertion changes.

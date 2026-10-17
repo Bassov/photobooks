@@ -54,11 +54,12 @@ Real output:
 
 ```text
 added agent-rules-gate-values to M2.1 (after agent-rules); file docs/roadmap/M2.1/agent-rules-gate-values.md
-
 slug: agent-rules-gate-values
 tag: prep
 status: open
 milestone: M2.1 — Quality gates & dev process
+goal: **Review cut:** CI mechanically refuses changes like PR #68, #70 and #71, and no label or approval overrides it. Gate configs can only get stricter. Production logic cannot be excluded from coverage or mutation. These fail: patch coverage under 85%, a mutation score under 85, any NoCoverage mutant, a changed-but-excluded file, invalid ARIA, and a PR over 1500 changed lines. The stateful session and editor files are back in mutation scope behind unit-level fakes. Agents write failing tests first, tick tasks only with evidence, and resolve their reviewer sub-agents' blocking findings. They run the manual scenarios on the Cloudflare preview themselves and record the results in the PR.
+goal: Notes: [INTRO.md](docs/roadmap/M2.1/INTRO.md)
 title: Split gate-values file work out of an oversized agent-rules change
 file: docs/roadmap/M2.1/agent-rules-gate-values.md
 ---
