@@ -73,7 +73,7 @@ Headless `cursor-agent -p` uses project `.cursor/cli.json` (allow/deny). Gate-fi
 
 Agent shells: `source scripts/agent-env.sh` once so asdf shims + Node from `.nvmrc` are on PATH (does not write `.tool-versions`). Lefthook pre-push runs `pnpm verify:fast`; Playwright stays in CI (`pnpm verify` / PR checks).
 
-Pipeline MCP: the unattended `/next-roadmap-item` happy path needs **no** project MCP (use shell `git` / `gh` / `pnpm` / `openspec`). Disable unused Cursor MCP servers for this repo so their tool schemas are not re-sent on every model call. Optional local shell-output proxies (e.g. rtk) are machine add-ons — see roadmap `rtk-adopt`.
+Pipeline MCP: the unattended `/next-roadmap-item` happy path needs **no** project MCP (use shell `git` / `gh` / `pnpm` / `openspec`). Disable unused Cursor MCP servers for this repo so their tool schemas are not re-sent on every model call. Optional local shell-output proxies (e.g. rtk) are machine add-ons; CI and other agents do not have them, so the quiet scripts stay the baseline.
 
 `pnpm install` exits non-zero while `core.hooksPath` points at Cursor agent hooks, because `prepare` runs `lefthook install`. Install with `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev server: `pnpm exec vite --host 0.0.0.0 --port 5173` (an extra `--` makes Vite ignore `--host`).
 
