@@ -41,7 +41,7 @@ rules:
     - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
     - If content does not fit, narrow scope — never inflate the proposal.
     - 'Size budget (one apply context): at most ONE new subsystem and at most 8 implementation tasks; line-count target/max and subsystem definition live in docs/roadmap/RULES.md "Change size" (do not restate numbers here).'
-    - 'Over budget: before design/apply, narrow scope to one subsystem and add the remainder as new roadmap items right after the current one with `pnpm roadmap add <slug> --after <current> --tag prep|feature|contingency --title "..."` (needed infra as a preceding [prep], gate fallbacks as [contingency]). Deferred blocking review findings become items the same way — never vague follow-ups or a larger PR.'
+    - 'Over budget: before design/apply, narrow scope to one subsystem and add the remainder as new roadmap items right after the current one with `pnpm roadmap add <slug> --after <current> --tag prep|feature|contingency --title "..."` (needed infra as a preceding [prep], gate fallbacks as [contingency]). Deferred blocking review findings become items the same way — never vague follow-ups.'
     - Immediately after writing proposal.md, the parent agent MUST launch subagent `openspec-proposal-reviewer` and wait for pass before creating design.md or tasks.md.
     - If UI is in scope, success criteria MUST include observable UX (not only "it works").
     - 'If UI is in scope, success criteria MUST name empty + happy-path + primary interact/scroll observables that e2e will lock in.'
