@@ -113,19 +113,7 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
   expect(previous?.heightPx).toBeCloseTo(fitted?.heightPx ?? 0, 0)
   expect(previous?.widthPx).toBeCloseTo((fitted?.widthPx ?? 0) * 2, 0)
   expect(previous?.placeholders).toBe(2)
-  await expect
-    .poll(async () => {
-      return page.getByTestId('pasteboard-scroll').evaluate((el) => {
-        const slot = el.querySelector('[data-slot-index="3"]')
-        if (!(slot instanceof HTMLElement)) {
-          return false
-        }
-        const port = el.getBoundingClientRect()
-        const box = slot.getBoundingClientRect()
-        return box.bottom > port.top && box.top < port.bottom
-      })
-    })
-    .toBe(true)
+  await expect.poll(async () => spreadViewContained(page, 3)).toBe(true)
   const added = await readSpreadView(page, 3)
   expect(added?.placeholders).toBe(1)
   expect(added?.widthPx).toBeCloseTo(fitted?.widthPx ?? 0, 0)
@@ -557,6 +545,30 @@ async function readSpreadView(
         '[data-testid="spread-frame-placeholder"]',
       ).length,
     }
+  }, slotIndex)
+}
+
+async function spreadViewContained(
+  page: Page,
+  slotIndex: number,
+): Promise<boolean> {
+  return page.getByTestId('pasteboard-scroll').evaluate((el, index) => {
+    const slot = el.querySelector(`[data-slot-index="${String(index)}"]`)
+    const view = slot?.querySelector('[data-testid="spread-view"]')
+    if (!(view instanceof HTMLElement)) {
+      return false
+    }
+    const port = el.getBoundingClientRect()
+    const box = view.getBoundingClientRect()
+    if (box.width < 1 || box.height < 1) {
+      return false
+    }
+    return (
+      box.top >= port.top - 1 &&
+      box.bottom <= port.bottom + 1 &&
+      box.left >= port.left - 1 &&
+      box.right <= port.right + 1
+    )
   }, slotIndex)
 }
 

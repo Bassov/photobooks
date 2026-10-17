@@ -33,7 +33,7 @@ artifacts and diffs; you may run read-only checks (`pnpm typecheck`, `pnpm lint`
 7. **Docs/rules sync:** if behavior, commands, CI output, module map or the roadmap item changed, README.md, AGENTS.md (≤150 lines, no checklists), affected `.cursor/rules/*.mdc`, `docs/future-architecture.md` and the roadmap item (`pnpm roadmap show <slug>`: its file under `docs/roadmap/` and index line) must match the diff. A stale statement contradicted by the diff is `medium`; a roadmap item that overstates what shipped is `high`. A hand edit of `docs/roadmap.md` (anything but `pnpm roadmap` output) or a failing `pnpm roadmap check` is `high`.
 8. **Audit:** if `package.json`/lockfile or security-tagged change, require `pnpm audit:ci` evidence.
 9. **Diff quality:** unnecessary files, dead code, English-only repo violations.
-10. **Gate edits:** a quality-gate config edit (coverage thresholds, mutation config/exclusions, ESLint/tsconfig strictness, CI gate workflows, Codecov/LHCI budgets used as gates), or any config edit outside the design touch-set → **high**. Excluding from coverage or mutation a production file that the same diff modifies → **critical**.
+10. **Gate edits:** **high** when a quality-gate config edit is missing from the touch-set, has no stated reason, or makes any gate less strict (lower thresholds, higher budgets, more retries, new exclusions, removed checks, looser assertions). A listed edit that is strictly stricter is not a finding. Any other config edit outside the touch-set → **high**. Excluding from coverage or mutation a production file that the same diff modifies → **critical**.
 
 ## Output
 

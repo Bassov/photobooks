@@ -29,7 +29,7 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 
 ## Change size
 
-Every item fits one agent apply context (one agent chat) and one PR of about 1000 changed lines (1500 at most). The limits (subsystems, implementation tasks, changed lines) live in `openspec/config.yaml` `rules.proposal`; a proposal over budget is split in the roadmap before apply.
+Every item fits one agent apply context (one agent chat) and one PR of about 1000 changed lines (1500 at most). This section is the SoT for the line-count target/max and the subsystem definition; `openspec/config.yaml` `rules.proposal` carries the one-subsystem and 8-task limits and points here for line counts. A proposal over budget is split in the roadmap before apply.
 
 **The roadmap grows in place.** If planning or apply shows that a PR will go over the size budget, add the overflow as a new item right after the current one: `pnpm roadmap add <kebab-slug> --after <current> --tag prep|feature --title "…"` (same milestone, short scope, a **Done when:** line for a `[prep]`); the current PR stays within the limit — never enlarge the PR past the budget. Review findings that are deferred (blocking critical/high left for later) become items right after the current one the same way, never vague follow-ups. Items are still done in index order; the list just gets longer.
 

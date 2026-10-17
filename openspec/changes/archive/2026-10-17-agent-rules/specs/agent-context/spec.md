@@ -4,22 +4,27 @@
 
 ### Requirement: Agents must not weaken quality gates
 
-Agents SHALL NOT add or widen coverage or mutation exclusions, add inline ignore or disable comments (except equivalent-mutant disables within the budget defined by `stryker-diff-gate`), lower thresholds, or remove checks to make a gate pass. They SHALL fix failures with code, tests, or a new test seam. `openspec/config.yaml` quality bar, `docs/lessons.md`, and a navigation line in `AGENTS.md` SHALL state this rule.
+Agents SHALL NOT weaken a quality gate for any reason, including stabilizing a test. There SHALL be no `Stryker disable` until `stryker-diff-gate` defines a budget. Agents SHALL fix failures with code, tests, or a new test seam. `openspec/config.yaml` quality bar, `docs/lessons.md`, and a navigation line in `AGENTS.md` SHALL state this rule.
 
 #### Scenario: Quality bar forbids gate weakening
 
 - **WHEN** an agent loads project context or quality-bar text from `openspec/config.yaml`
-- **THEN** the returned text forbids widening exclusions, inline ignore/disable (except equivalent-mutant disables in budget), lowering thresholds, or removing checks to pass a gate
+- **THEN** the returned text forbids widening exclusions, inline ignore/disable, lowering thresholds, removing checks, loosening assertions or tolerances, retries/`skip`/`fixme`/`test.fail`, and deleting tests or helpers, for any reason, and states that no `Stryker disable` is allowed until `stryker-diff-gate` defines a budget
+
+#### Scenario: Loosening an e2e assertion to stabilize a test is gate weakening
+
+- **WHEN** an agent loosens an e2e assertion or tolerance, or replaces a strict containment check with a weaker overlap check, to stabilize a flaky test
+- **THEN** that change MUST be treated as forbidden gate weakening; the agent MUST fix with app code or a deterministic wait, or schedule a roadmap item, and MUST NOT land the looser assertion
 
 #### Scenario: Lessons and AGENTS carry the non-weaken rule
 
 - **WHEN** an agent reads `docs/lessons.md` and root `AGENTS.md`
-- **THEN** lessons extend the existing tsconfig/ESLint non-weaken rule to coverage/mutation/thresholds, and AGENTS has a single navigation line pointing agents at that mandate without a checklist
+- **THEN** lessons extend the existing tsconfig/ESLint non-weaken rule to coverage/mutation/thresholds/assertions/retries and forbid `Stryker disable` until `stryker-diff-gate` defines a budget, and AGENTS has a single navigation line pointing agents at that mandate without a checklist
 
 #### Scenario: Red CI is not fixed by gate config
 
 - **WHEN** a PR check is red and `git-finish` guidance applies
-- **THEN** the agent MUST fix with code and tests only and MUST NOT weaken gate configuration to turn the check green
+- **THEN** the agent MUST fix with code and tests only and MUST NOT weaken gate configuration or assertions to turn the check green
 
 ### Requirement: Deferred findings grow the roadmap
 
@@ -60,12 +65,17 @@ When a design's touch-set includes editing a quality-gate config file (coverage 
 
 ### Requirement: Implementation reviewer severities for gate edits
 
-`openspec-implementation-reviewer` SHALL treat a gate-file edit, or a config edit outside the design touch-set, as high. It SHALL treat excluding from coverage or mutation a production file that the same diff modifies as critical.
+`openspec-implementation-reviewer` SHALL treat as high a quality-gate config edit that is missing from the touch-set, has no stated reason, or makes any gate less strict (lower thresholds, higher budgets, more retries, new exclusions, removed checks, looser assertions). A listed edit that is strictly stricter is not a finding. Any other config edit outside the design touch-set is high. Excluding from coverage or mutation a production file that the same diff modifies is critical.
 
 #### Scenario: Gate edit outside touch-set is high
 
 - **WHEN** implementation review finds a gate-file or other config edit not listed in the design touch-set
 - **THEN** the finding severity MUST be at least high
+
+#### Scenario: Listed stricter gate edit is not blocking
+
+- **WHEN** implementation review finds a quality-gate config edit that is listed in the touch-set with a reason and is strictly stricter
+- **THEN** that edit MUST NOT be reported as a blocking finding
 
 #### Scenario: Same-diff exclusion is critical
 
@@ -76,17 +86,27 @@ When a design's touch-set includes editing a quality-gate config file (coverage 
 
 ### Requirement: Unattended roadmap item flow
 
-The project SHALL provide a Cursor command `/next-roadmap-item` that runs one open roadmap item, selected with `pnpm roadmap next`, end to end in a single session without editing CLI-generated `opsx-*` or `openspec-*` files. Per-change mandates remain in `openspec/config.yaml`; per-PR and CI-wait mandates remain in `.cursor/rules/git-finish.mdc`. Security-tagged items SHALL continue through the run and MUST obtain a Security Review pass before archive when the security surface is in scope. Gate-config edits do not stop the run; the ratchet allows only stricter values.
+The project SHALL provide `/next-roadmap-item` to run one open roadmap item (`pnpm roadmap next`) end to end without editing CLI-generated `opsx-*` or `openspec-*` files. Mandates stay in `openspec/config.yaml` and `.cursor/rules/git-finish.mdc`. Security-tagged or security-surface items continue and MUST pass Security Review before archive. Until ratchet or dependency-policy items merge, gate-config and dependency rules in the command scenarios apply.
 
 #### Scenario: Command exists and points at SoT
 
 - **WHEN** an agent opens `.cursor/commands/next-roadmap-item.md`
 - **THEN** the command describes the end-to-end stages and references `openspec/config.yaml`, `git-finish.mdc` and skill `roadmap` as mandate sources without restating their full checklists
 
-#### Scenario: Security-tagged item stops the run
+#### Scenario: Security-tagged item continues to Security Review
 
-- **WHEN** the selected roadmap item is security-tagged or touches the security surface
-- **THEN** the unattended flow MUST continue (it MUST NOT stop solely for that reason) and MUST complete Security Review before archive when the security surface is in scope
+- **WHEN** the selected roadmap item is tagged `(Security Review: …)` or touches the security surface
+- **THEN** the unattended flow MUST continue (it MUST NOT stop solely for that reason) and MUST complete Security Review before archive
+
+#### Scenario: Gate-config edit before ratchet lands
+
+- **WHEN** the selected item edits a quality-gate config and `gate-ratchet`/`gate-ratchet-ci` are not yet merged
+- **THEN** the edit MUST be strictly stricter and listed in the touch-set with a reason, or the run MUST stop
+
+#### Scenario: New dependency before dependency-policy lands
+
+- **WHEN** the change adds or changes a dependency and `dependency-policy` is not yet merged
+- **THEN** apply MUST include `pnpm audit:ci` evidence and a Security Review pass before archive
 
 #### Scenario: Item selection skips blocked work
 
@@ -100,12 +120,12 @@ The project SHALL provide a Cursor command `/next-roadmap-item` that runs one op
 
 ### Requirement: Change sizing budget
 
-Each OpenSpec change SHALL fit one agent apply context: at most one new subsystem, at most 8 implementation tasks in `tasks.md` (excluding the Verification checklist), and a guideline of about 1000 changed lines of source and tests. `openspec/config.yaml` proposal, tasks, and apply rules SHALL carry these limits and the grow-roadmap-via-`pnpm roadmap add --after` rule; the roadmap docs and agent docs SHALL reference them instead of restating them. `docs/roadmap/RULES.md` SHALL define a subsystem with examples and list the slicing rules, including that deferred review findings become items right after the current one.
+Each OpenSpec change SHALL fit one agent apply context: at most one new subsystem and at most 8 implementation tasks in `tasks.md` (excluding Verification). Line-count target/max and subsystem definition live in `docs/roadmap/RULES.md` Change size. `openspec/config.yaml` SHALL carry the subsystem/task limits and `pnpm roadmap add --after` growth rule, pointing to RULES.md for line counts. RULES.md SHALL include deferred review findings as next items.
 
 #### Scenario: Budget is loadable from OpenSpec instructions
 
 - **WHEN** an agent runs `openspec instructions proposal` or `openspec instructions tasks`
-- **THEN** the returned rules state the one-subsystem limit, the 8-task limit, and the ~1000-line guideline
+- **THEN** the returned rules state the one-subsystem limit, the 8-task limit, and point to `docs/roadmap/RULES.md` for the line-count target/max
 
 #### Scenario: Over-budget change is split before apply
 

@@ -10,11 +10,11 @@ M2.1 needs agents to keep gates ratchet-only, grow the roadmap instead of the PR
 
 ## Scope in
 
-- Quality bar, lessons, one AGENTS line: never weaken coverage/mutation/lint/type gates to pass — fix with code, tests, or a seam (equivalent-mutant disables stay in later budget)
-- Growth rule in config + roadmap Change size: over budget or deferred findings → `pnpm roadmap add --after`, finish within limit
-- Unattended command: continue security-tagged items via Security Review; no stop for gate-config (ratchet stricter-only). git-finish: red CI → code/tests only
+- Quality bar, lessons, one AGENTS line: never weaken gates for any reason (incl. looser assertions/retries/skip); no Stryker disable until `stryker-diff-gate` defines a budget — fix with code, tests, or a seam
+- Growth rule in config + roadmap Change size: over budget or deferred findings → `pnpm roadmap add --after`, finish within limit; line counts SoT in RULES.md
+- Unattended command: continue security-tagged / security-surface items via Security Review; until ratchet merges, gate-config edits need stricter+touch-set or stop; until dependency-policy, new deps need audit:ci + Security Review. git-finish: red CI → code/tests only
 - Blocking critical/high reviewer findings fixed or next checkboxes; PR records verdicts and dispositions
-- Design touch-set names gate-file edits with reasons; implementation reviewer documents gate-edit severities
+- Design touch-set names gate-file edits with reasons; implementation reviewer: high only for missing/unreasoned/weaker gate edits
 - Dry-run in the change: oversized overflow becomes the next checkbox, not a larger PR
 
 ## Scope out
@@ -24,9 +24,9 @@ M2.1 needs agents to keep gates ratchet-only, grow the roadmap instead of the PR
 ## Success criteria
 
 - Mandates load from named config/docs; AGENTS ≤150 lines nav-only
-- Unattended stop list omits security-tagged; Security Review remains archive gate for security surface
-- Gate-edit severities documented for implementation review; design requires gate edits in touch-set
-- Dry-run shows `pnpm roadmap add --after` for overflow
+- Unattended stop list omits security-tagged; Security Review gates tagged items and security-surface changes
+- Gate-edit severities narrowed; design requires gate edits in touch-set with reasons
+- Dry-run shows real scratch `pnpm roadmap add --after` output for overflow
 - `agent-context` delta covers the above; `pnpm verify:fast` green
 
 ## Risks

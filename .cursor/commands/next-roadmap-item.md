@@ -32,9 +32,11 @@ do not restate them.
 
 Stop and ask only for: dirty tree, a milestone review cut, an item whose intent
 contradicts a spec or open issue, the git-finish CI stop conditions. Security-tagged
-items continue; run the Security Review sub-agent before archive (and rely on
-`dependency-policy` for new deps). Gate-config edits need no stop — the ratchet
-allows only stricter values. Otherwise record assumptions in the artifacts and
-continue.
+items continue; run the Security Review sub-agent before archive. Until
+`gate-ratchet`/`gate-ratchet-ci` are merged, a gate-config edit MUST be strictly
+stricter and listed in the touch-set with a reason; otherwise stop. Until
+`dependency-policy` is merged, a new or changed dependency needs `pnpm audit:ci`
+evidence and a Security Review pass before archive. Otherwise record assumptions
+in the artifacts and continue.
 Final reply in Russian: item, PR URL, check status, reviewer verdicts, skipped
 survivors, assumptions.
