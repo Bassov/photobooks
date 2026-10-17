@@ -22,11 +22,13 @@ steps chained with `&&` in one call; no check-then-recheck loops. OpenSpec
 artifact stages: one Write per artifact, validate once at stage end.
 
 1. Preflight: `source scripts/agent-env.sh` once, then
-   `pnpm -s agent preflight` (or `--json`). Clean tree required; it syncs
-   `main`, skips open-PR/remote `feat|fix/*` slugs, runs `roadmap next`,
-   creates `feat/<slug>` (or `fix/`), and prints one compact report. State
-   item, tag and skips from that report. Contingency items: take only when
-   their gate failed (`pnpm -s roadmap show <slug>`).
+   `pnpm -s agent preflight --json` (prefer `--json`; text mode also prints
+   full rules/template/body). Clean tree required; it syncs `main`, skips
+   open-PR/remote `feat|fix/*` slugs, runs `roadmap next`, creates
+   `feat/<slug>` (or `fix/`), and prints one compact report. State item,
+   tag and skips from that report. Contingency items: take only when their
+   gate failed (`pnpm -s roadmap show <slug>`). POSIX/WSL: `pnpm`/`openspec`/
+   `gh`/`git` on PATH (openspec is a global CLI, not a repo dependency).
 2. Plan with the OpenSpec CLI, not /opsx-propose (its planning boundary would end
    this run): `openspec new change <slug>` if preflight did not; for each ready
    artifact `openspec instructions <id> --change <slug> --json` → write it →

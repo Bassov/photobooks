@@ -49,4 +49,5 @@ flags:
     paths:
       - src/
       - scripts/roadmap.mjs
+      - scripts/agent.mjs
     carryforward: true

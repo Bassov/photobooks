@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Agent pipeline CLI: composite preflight / finish / review-brief for /next-roadmap-item.
-// Zero dependencies, Node 22, ESM. `pnpm agent help`.
+// Zero dependencies, Node 22, ESM. POSIX/WSL (sh, bare pnpm/openspec on PATH). `pnpm agent help`.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+// Stryker disable StringLiteral,MethodExpression,ArrayDeclaration,Regex,OptionalChaining,BooleanLiteral,ArrowFunction,ObjectLiteral,ArithmeticOperator,BlockStatement,CallExpression,LogicalOperator,ConditionalExpression: CLI outcome-tested; EqualityOperator kept — see tasks.md
 
 export class AgentError extends Error {
   constructor(msg, code = 2) {
@@ -18,6 +20,14 @@ const fail = (m, code = 2) => {
 
 const ANSI_RE = /\x1B\[[0-9;]*[A-Za-z]/g
 export const stripAnsi = (s) => String(s ?? '').replace(ANSI_RE, '')
+
+/** Last N non-empty-trimmed lines of combined streams (for failure reports). */
+export function tailOutput(stdout, stderr, n = 60) {
+  const combined = stripAnsi(`${stdout ?? ''}\n${stderr ?? ''}`.trim())
+  if (!combined) return '(no output)'
+  const lines = combined.split('\n')
+  return lines.slice(-n).join('\n')
+}
 
 const BOOL = new Set(['json', 'quiet', 'help'])
 const VALUE = new Set([
@@ -63,9 +73,12 @@ export function parseArgs(argv) {
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
   preflight [--skip a,b]     env + sync main + roadmap next + branch + compact report
-  finish --title T --body-file F   verify:fast:quiet → push (≤2) → PR → CI summary
+  finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR → CI summary
   review-brief [--change S] [--rules-json '[…]']   reviewer brief in one call
-  help`
+  help
+
+Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
+(source scripts/agent-env.sh). Prefer --json for machine branching.`
 
 /** @typedef {{ code: number, stdout: string, stderr: string }} ExecResult */
 /** @typedef {(file: string, args: string[], opts?: object) => ExecResult} ExecFn */
@@ -103,18 +116,16 @@ function sh(exec, cwd, env, quiet, file, args, opts = {}) {
   return r
 }
 
-function mustOk(r, label) {
+export function mustOk(r, label) {
   if (r.code !== 0)
     fail(
-      `${label} failed (exit ${r.code}): ${stripAnsi(r.stderr || r.stdout)
-        .trim()
-        .slice(0, 500)}`,
+      `${label} failed (exit ${r.code}):\n${tailOutput(r.stdout, r.stderr)}`,
       r.code || 1,
     )
   return r
 }
 
-function readNvmrcMajor(root) {
+export function readNvmrcMajor(root) {
   const p = path.join(root, '.nvmrc')
   if (!fs.existsSync(p)) return null
   const v = fs.readFileSync(p, 'utf8').trim().replace(/^v/, '')
@@ -152,7 +163,16 @@ function porcelain(exec, cwd, env, quiet) {
   ]).stdout.trim()
 }
 
-function collectSkipSlugs(exec, cwd, env, quiet, extra) {
+export function branchPrefixForItem(item) {
+  if (item.tag === 'fix' || /\bbug\b/i.test(item.title ?? '')) return 'fix'
+  return 'feat'
+}
+
+export function isFeatureBranch(name) {
+  return /^(feat|fix)\//.test(name)
+}
+
+export function collectSkipSlugs(exec, cwd, env, quiet, extra) {
   const fromExtra = (extra ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -167,37 +187,47 @@ function collectSkipSlugs(exec, cwd, env, quiet, extra) {
     '-q',
     '.[].headRefName',
   ])
-  const prSlugs =
-    pr.code === 0
-      ? pr.stdout
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean)
-          .map((b) => b.replace(/^(feat|fix)\//, ''))
-      : []
+  if (pr.code !== 0)
+    fail(
+      `gh pr list failed (cannot build skip-list):\n${tailOutput(pr.stdout, pr.stderr)}`,
+      pr.code || 1,
+    )
+  const prSlugs = pr.stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((b) => b.replace(/^(feat|fix)\//, ''))
   const br = sh(exec, cwd, env, quiet, 'git', ['branch', '-r'])
-  const remoteSlugs =
-    br.code === 0
-      ? br.stdout
-          .split('\n')
-          .map((l) => {
-            const m = /origin\/(feat|fix)\/(\S+)/.exec(l.trim())
-            return m ? m[2] : null
-          })
-          .filter(Boolean)
-      : []
+  if (br.code !== 0)
+    fail(
+      `git branch -r failed:\n${tailOutput(br.stdout, br.stderr)}`,
+      br.code || 1,
+    )
+  const remoteSlugs = br.stdout
+    .split('\n')
+    .map((l) => {
+      const m = /origin\/(feat|fix)\/(\S+)/.exec(l.trim())
+      return m ? m[2] : null
+    })
+    .filter(Boolean)
   return [...new Set([...fromExtra, ...prSlugs, ...remoteSlugs])]
 }
 
-function parseRoadmapNext(text) {
+export function parseRoadmapNext(text) {
   try {
-    return JSON.parse(text)
-  } catch {
+    const j = JSON.parse(text)
+    if (!j?.slug) fail('roadmap next JSON missing slug')
+    return j
+  } catch (e) {
+    if (e instanceof AgentError) throw e
     const lines = text.split('\n')
     const get = (k) => {
       const line = lines.find((l) => l.startsWith(`${k}:`))
       return line ? line.slice(k.length + 1).trim() : null
     }
+    const goals = lines
+      .filter((l) => l.startsWith('goal:'))
+      .map((l) => l.slice(5).trim())
     const slug = get('slug')
     if (!slug) fail('roadmap next produced no slug')
     const bodyIdx = lines.indexOf('---')
@@ -206,21 +236,19 @@ function parseRoadmapNext(text) {
       tag: get('tag'),
       title: get('title'),
       file: get('file'),
+      milestone: get('milestone'),
+      goal: goals,
       body: bodyIdx >= 0 ? lines.slice(bodyIdx + 1).join('\n') : undefined,
     }
   }
 }
 
-function parseInstructions(stdout) {
-  try {
-    const j = JSON.parse(stdout)
-    return { template: j.template ?? null, rules: j.rules ?? null }
-  } catch {
-    return { template: null, rules: null }
-  }
+export function parseInstructions(stdout) {
+  const j = JSON.parse(stdout)
+  return { template: j.template ?? null, rules: j.rules ?? null }
 }
 
-function parseTouchSetPaths(designText) {
+export function parseTouchSetPaths(designText) {
   const paths = []
   for (const line of designText.split('\n')) {
     const m = /^\|\s*`([^`]+)`\s*\|/.exec(line)
@@ -229,9 +257,51 @@ function parseTouchSetPaths(designText) {
   return paths
 }
 
-function slugFromBranch(name) {
+export function slugFromBranch(name) {
   const m = /^(?:feat|fix)\/(.+)$/.exec(name)
   return m ? m[1] : name
+}
+
+/** Extract GitHub Actions run id from a checks `link` URL when present. */
+export function runIdFromCheckLink(link) {
+  if (!link) return null
+  const m = /\/actions\/runs\/(\d+)/.exec(link)
+  return m ? m[1] : null
+}
+
+export function isFailingBucket(bucket) {
+  return bucket === 'fail' || bucket === 'pending'
+}
+
+export function isPassingBucket(bucket) {
+  return (
+    bucket === 'pass' ||
+    bucket === 'skipping' ||
+    bucket === 'skip' ||
+    bucket === 'neutral'
+  )
+}
+
+const PUSH_FAIL_FILE = 'agent-finish-push-failures.json'
+
+export function pushFailPath(root) {
+  return path.join(root, '.git', PUSH_FAIL_FILE)
+}
+
+export function readPushFailures(root) {
+  const p = pushFailPath(root)
+  if (!fs.existsSync(p)) return {}
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+export function writePushFailures(root, map) {
+  const gitDir = path.join(root, '.git')
+  if (!fs.existsSync(gitDir)) fail(`.git missing under ${root}`)
+  fs.writeFileSync(pushFailPath(root), JSON.stringify(map, null, 0) + '\n')
 }
 
 export function cmdPreflight(o, deps) {
@@ -258,13 +328,9 @@ export function cmdPreflight(o, deps) {
     'roadmap next',
   )
   const item = parseRoadmapNext(nextR.stdout)
-  // bug items use fix/; prep/feature use feat/
-  const branchPrefix =
-    /\bbug\b/i.test(item.title ?? '') || item.tag === 'fix' ? 'fix' : 'feat'
-  const branch = `${branchPrefix}/${item.slug}`
+  const branch = `${branchPrefixForItem(item)}/${item.slug}`
   const sw = sh(exec, cwd, env, quiet, 'git', ['switch', '-c', branch])
   if (sw.code !== 0) {
-    // branch may already exist
     mustOk(
       sh(exec, cwd, env, quiet, 'git', ['switch', branch]),
       `git switch ${branch}`,
@@ -279,17 +345,26 @@ export function cmdPreflight(o, deps) {
     )
   }
 
-  const instr = sh(exec, cwd, env, quiet, 'openspec', [
-    'instructions',
-    'proposal',
-    '--change',
-    item.slug,
-    '--json',
-  ])
-  const { template, rules } =
-    instr.code === 0
-      ? parseInstructions(instr.stdout)
-      : { template: null, rules: null }
+  const instr = mustOk(
+    sh(exec, cwd, env, quiet, 'openspec', [
+      'instructions',
+      'proposal',
+      '--change',
+      item.slug,
+      '--json',
+    ]),
+    'openspec instructions',
+  )
+  let instructions
+  try {
+    instructions = parseInstructions(instr.stdout)
+  } catch {
+    fail(
+      `openspec instructions returned invalid JSON:\n${tailOutput(instr.stdout, instr.stderr)}`,
+    )
+  }
+  if (!Array.isArray(instructions.rules))
+    fail('openspec instructions missing rules array')
 
   const designPath = path.join('openspec', 'changes', item.slug, 'design.md')
   const touchSet = fs.existsSync(path.join(root, designPath))
@@ -303,13 +378,44 @@ export function cmdPreflight(o, deps) {
     branch,
     item: {
       slug: item.slug,
-      tag: item.tag ?? null,
-      title: item.title ?? null,
-      file: item.file ?? null,
+      tag: item.tag,
+      title: item.title,
+      file: item.file,
+      milestone: item.milestone,
+      goal: item.goal || item.goals,
+      body: item.body,
     },
-    instructions: { template, rules },
+    instructions,
     touchSet,
   }
+}
+
+export function assertFinishBranch(exec, cwd, env, quiet) {
+  const branchR = mustOk(
+    sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current']),
+    'git branch',
+  )
+  const branch = branchR.stdout.trim()
+  if (!isFeatureBranch(branch))
+    fail(
+      `finish refuses branch "${branch}" (need feat/* or fix/* with commits ahead of origin/main)`,
+      1,
+    )
+  const aheadR = mustOk(
+    sh(exec, cwd, env, quiet, 'git', [
+      'rev-list',
+      '--count',
+      'origin/main..HEAD',
+    ]),
+    'git rev-list',
+  )
+  const ahead = Number.parseInt(aheadR.stdout.trim(), 10)
+  if (!Number.isFinite(ahead) || ahead < 1)
+    fail(
+      `finish refuses: no commits ahead of origin/main (ahead=${aheadR.stdout.trim() || '0'})`,
+      1,
+    )
+  return { branch, ahead }
 }
 
 export function cmdFinish(o, deps) {
@@ -318,41 +424,51 @@ export function cmdFinish(o, deps) {
   const dirty = porcelain(exec, cwd, env, quiet)
   if (dirty) fail(`working tree not clean (commit first):\n${dirty}`, 1)
 
+  const { branch, ahead } = assertFinishBranch(exec, cwd, env, quiet)
+
   mustOk(
     sh(exec, cwd, env, quiet, 'pnpm', ['verify:fast:quiet']),
     'verify:fast:quiet',
   )
 
-  let pushAttempts = 0
-  let pushOk = false
-  let lastPush = null
-  while (pushAttempts < 2 && !pushOk) {
-    pushAttempts++
-    lastPush = sh(exec, cwd, env, quiet, 'git', [
-      'push',
-      '-q',
-      '-u',
-      'origin',
-      'HEAD',
-    ])
-    if (lastPush.code === 0) pushOk = true
-  }
-  if (!pushOk) {
+  const fails = readPushFailures(root)
+  const prior = Number(fails[branch] ?? 0)
+  if (prior >= 2) {
     return {
       ok: false,
       stage: 'push',
-      pushAttempts,
-      summary: stripAnsi(lastPush?.stderr || lastPush?.stdout || '')
-        .trim()
-        .slice(0, 800),
+      pushAttempts: prior,
+      branch,
+      ahead,
+      summary: `push budget exhausted for ${branch} (${prior} failed attempts recorded under .git/${PUSH_FAIL_FILE})`,
     }
   }
 
-  const branchR = mustOk(
-    sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current']),
-    'git branch',
-  )
-  const branch = branchR.stdout.trim()
+  // One push per finish invocation (S2); persist failures across calls.
+  const lastPush = sh(exec, cwd, env, quiet, 'git', [
+    'push',
+    '-q',
+    '-u',
+    'origin',
+    'HEAD',
+  ])
+  if (lastPush.code !== 0) {
+    const next = prior + 1
+    writePushFailures(root, { ...fails, [branch]: next })
+    return {
+      ok: false,
+      stage: 'push',
+      pushAttempts: next,
+      branch,
+      ahead,
+      summary: tailOutput(lastPush.stdout, lastPush.stderr),
+    }
+  }
+  if (fails[branch] !== undefined) {
+    const rest = { ...fails }
+    delete rest[branch]
+    writePushFailures(root, rest)
+  }
 
   const existing = sh(exec, cwd, env, quiet, 'gh', [
     'pr',
@@ -413,39 +529,66 @@ export function cmdFinish(o, deps) {
     'pr',
     'checks',
     '--json',
-    'name,bucket',
+    'name,bucket,link',
   ])
-  let checkRows = []
-  if (checks.code === 0) {
-    try {
-      checkRows = JSON.parse(checks.stdout)
-    } catch {
-      checkRows = []
+  if (checks.code !== 0) {
+    return {
+      ok: false,
+      stage: 'ci',
+      pushAttempts: prior,
+      branch,
+      ahead,
+      prUrl,
+      created,
+      checks: [],
+      summary: `gh pr checks query failed:\n${tailOutput(checks.stdout, checks.stderr)}`,
+      logTail: null,
     }
   }
-  const failed = checkRows.filter(
-    (c) => c.bucket === 'fail' || c.bucket === 'pending',
-  )
+  let checkRows = []
+  try {
+    checkRows = JSON.parse(checks.stdout)
+    if (!Array.isArray(checkRows)) checkRows = []
+  } catch {
+    return {
+      ok: false,
+      stage: 'ci',
+      pushAttempts: prior,
+      branch,
+      ahead,
+      prUrl,
+      created,
+      checks: [],
+      summary: `gh pr checks returned invalid JSON:\n${tailOutput(checks.stdout, checks.stderr)}`,
+      logTail: null,
+    }
+  }
   const lines = checkRows.map((c) => `${c.name}: ${c.bucket}`)
+  const failed = checkRows.filter((c) => isFailingBucket(c.bucket))
   let logTail = null
-  if (failed.some((c) => c.bucket === 'fail')) {
+  const failedWithLink = failed.find(
+    (c) => c.bucket === 'fail' && runIdFromCheckLink(c.link),
+  )
+  if (failedWithLink) {
+    const runId = runIdFromCheckLink(failedWithLink.link)
     const view = sh(exec, cwd, env, quiet, 'gh', [
       'run',
       'view',
+      runId,
       '--log-failed',
     ])
-    logTail = stripAnsi(view.stdout || view.stderr)
-      .trim()
-      .split('\n')
-      .slice(-80)
-      .join('\n')
+    logTail = tailOutput(view.stdout, view.stderr, 80)
+  } else if (failed.some((c) => c.bucket === 'fail')) {
+    logTail = 'failed check has no actions/runs link; cannot fetch --log-failed'
   }
-  const ok = checkRows.length > 0 && checkRows.every((c) => c.bucket === 'pass')
+  const ok =
+    checkRows.length > 0 && checkRows.every((c) => isPassingBucket(c.bucket))
   return {
     ok,
     stage: 'ci',
-    pushAttempts,
+    pushAttempts: prior,
     branch,
+    ahead,
     prUrl,
     created,
     checks: lines,
@@ -472,18 +615,103 @@ export function cmdReviewBrief(o, deps) {
       fail('--rules-json must be valid JSON')
     }
   }
-  const stat = sh(exec, cwd, env, quiet, 'git', ['diff', '--stat'])
   const designAbs = path.join(root, changePath, 'design.md')
   let touchPaths = []
   let touchNote = null
   if (fs.existsSync(designAbs)) {
     touchPaths = parseTouchSetPaths(fs.readFileSync(designAbs, 'utf8'))
   } else {
-    touchNote = 'design.md missing; showing full working-tree diff'
+    touchNote = 'design.md missing; treating all paths as outside touch-set'
   }
-  const diffArgs = ['diff', '--']
-  if (touchPaths.length) diffArgs.push(...touchPaths)
-  const diff = sh(exec, cwd, env, quiet, 'git', diffArgs)
+
+  const headStat = sh(exec, cwd, env, quiet, 'git', ['diff', 'HEAD', '--stat'])
+  const headDiff = sh(exec, cwd, env, quiet, 'git', ['diff', 'HEAD'])
+  const untrackedR = sh(exec, cwd, env, quiet, 'git', [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+  ])
+  const untracked = untrackedR.stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+
+  const touchSet = new Set(touchPaths)
+  const changedTracked = []
+  const nameOnly = sh(exec, cwd, env, quiet, 'git', [
+    'diff',
+    'HEAD',
+    '--name-only',
+  ])
+  for (const f of nameOnly.stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)) {
+    changedTracked.push(f)
+  }
+  const allChanged = [...new Set([...changedTracked, ...untracked])]
+  const inTouch = allChanged.filter((f) => touchSet.has(f))
+  const outside = allChanged.filter((f) => !touchSet.has(f))
+
+  const touchDiffParts = []
+  if (touchPaths.length) {
+    const td = sh(exec, cwd, env, quiet, 'git', [
+      'diff',
+      'HEAD',
+      '--',
+      ...touchPaths,
+    ])
+    const t = stripAnsi(td.stdout).trim()
+    if (t) touchDiffParts.push(t)
+  }
+  for (const f of untracked) {
+    if (!touchSet.has(f)) continue
+    const d = sh(exec, cwd, env, quiet, 'git', [
+      'diff',
+      '--no-index',
+      '--',
+      '/dev/null',
+      f,
+    ])
+    const body = stripAnsi(d.stdout || d.stderr).trim()
+    if (body) touchDiffParts.push(body)
+  }
+
+  const outsideParts = []
+  if (outside.length) {
+    const trackedOutside = outside.filter((f) => !untracked.includes(f))
+    if (trackedOutside.length) {
+      const od = sh(exec, cwd, env, quiet, 'git', [
+        'diff',
+        'HEAD',
+        '--',
+        ...trackedOutside,
+      ])
+      const t = stripAnsi(od.stdout).trim()
+      if (t) outsideParts.push(t)
+    }
+    for (const f of outside.filter((f) => untracked.includes(f))) {
+      const d = sh(exec, cwd, env, quiet, 'git', [
+        'diff',
+        '--no-index',
+        '--',
+        '/dev/null',
+        f,
+      ])
+      const body = stripAnsi(d.stdout || d.stderr).trim()
+      if (body) outsideParts.push(body)
+    }
+  }
+
+  const statBits = [
+    stripAnsi(headStat.stdout).trim(),
+    untracked.length
+      ? `Untracked:\n${untracked.map((f) => `?? ${f}`).join('\n')}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
+
   return {
     slug,
     changePath,
@@ -491,42 +719,62 @@ export function cmdReviewBrief(o, deps) {
     rulesNote: rules.length
       ? null
       : 'pass --rules-json from openspec instructions',
-    diffStat: stripAnsi(stat.stdout).trim(),
+    diffStat: statBits || '(empty)',
     touchSetPaths: touchPaths,
     touchNote,
-    touchDiff: stripAnsi(diff.stdout).trim(),
+    inTouchSet: inTouch,
+    outsideTouchSet: outside,
+    touchDiff: touchDiffParts.join('\n\n') || '(empty)',
+    outsideDiff: outsideParts.join('\n\n') || '(empty)',
+    headDiff: stripAnsi(headDiff.stdout).trim(),
+    untracked,
   }
 }
 
 function fmtPreflight(r) {
+  const ruleList = Array.isArray(r.instructions.rules)
+    ? r.instructions.rules
+    : []
+  const rules =
+    ruleList.length === 0
+      ? '  (none)'
+      : ruleList.map((x, i) => `  ${i + 1}. ${x}`).join('\n')
+  const goalLines = Array.isArray(r.item.goal)
+    ? r.item.goal.map((g) => `goal: ${g}`)
+    : [`goal: ${r.item.goal}`]
   return [
     `ok: ${r.ok}`,
     `branch: ${r.branch}`,
     `slug: ${r.item.slug}`,
-    `tag: ${r.item.tag ?? 'none'}`,
-    `title: ${r.item.title ?? ''}`,
-    `file: ${r.item.file ?? ''}`,
-    `skips: ${r.skips.join(',') || '(none)'}`,
+    `tag: ${r.item.tag}`,
+    `title: ${r.item.title}`,
+    `file: ${r.item.file}`,
+    `milestone: ${r.item.milestone}`,
+    ...goalLines,
+    `skips: ${r.skips.join(',')}`,
     `touchSet: ${r.touchSet}`,
-    `rules: ${Array.isArray(r.instructions.rules) ? r.instructions.rules.length : 0} entries`,
-    r.instructions.template
-      ? `template: ${(r.instructions.template.split('\n')[0] ?? '').slice(0, 80)}`
-      : 'template: (none)',
+    '--- rules ---',
+    rules,
+    '--- template ---',
+    String(r.instructions.template),
+    '--- body ---',
+    String(r.item.body),
   ].join('\n')
 }
 
 function fmtFinish(r) {
-  const lines = [
+  return [
     `ok: ${r.ok}`,
     `stage: ${r.stage}`,
     `pushAttempts: ${r.pushAttempts}`,
-  ]
-  if (r.branch) lines.push(`branch: ${r.branch}`)
-  if (r.prUrl) lines.push(`pr: ${r.prUrl}`)
-  if (r.checks?.length) lines.push(...r.checks)
-  if (r.summary) lines.push(`summary: ${r.summary}`)
-  if (r.logTail) lines.push('--- log-failed (tail) ---', r.logTail)
-  return lines.join('\n')
+    `branch: ${r.branch}`,
+    `ahead: ${r.ahead}`,
+    `pr: ${r.prUrl}`,
+    ...(r.checks || []),
+    `summary: ${r.summary}`,
+    '--- log-failed (tail) ---',
+    String(r.logTail),
+  ].join('\n')
 }
 
 function fmtBrief(r) {
@@ -534,16 +782,19 @@ function fmtBrief(r) {
     `slug: ${r.slug}`,
     `changePath: ${r.changePath}`,
     `rules: ${JSON.stringify(r.rules)}`,
-    r.rulesNote ? `rulesNote: ${r.rulesNote}` : null,
+    `rulesNote: ${r.rulesNote}`,
     '--- diff --stat ---',
-    r.diffStat || '(empty)',
-    r.touchNote ? `touchNote: ${r.touchNote}` : null,
-    r.touchSetPaths.length ? `touchSet: ${r.touchSetPaths.join(', ')}` : null,
+    String(r.diffStat),
+    `touchNote: ${r.touchNote}`,
+    `touchSet: ${(r.touchSetPaths || []).join(', ')}`,
+    `inTouchSet: ${(r.inTouchSet || []).join(', ')}`,
     '--- touch-set diff ---',
-    r.touchDiff || '(empty)',
-  ]
-    .filter((x) => x !== null)
-    .join('\n')
+    String(r.touchDiff),
+    '--- outsideTouchSet ---',
+    (r.outsideTouchSet || []).join(', '),
+    '--- outsideTouchSet diff ---',
+    String(r.outsideDiff),
+  ].join('\n')
 }
 
 export function run(argv, deps = {}) {
