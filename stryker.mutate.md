@@ -21,5 +21,5 @@ Each `!` pattern in `stryker.config.json` `mutate` has one reason here. JSON can
 - `!src/App.tsx` — surface switch + bootstrap wiring; locked by App RTL and e2e home/editor entry
 - `!src/editor/previewAspect.ts` — JPEG SOF aspect restore covered by unit tests; non-JPEG path only delegates to `processAsset` (mutated via `assetPool`)
 - `!src/editor/upgradeSessionAssets.ts` — identity upgrade on adopt locked by `upgradeSessionAssets.test.ts` via `attachMemoryLibraryForTests` / public adopt path; hashing delegates to `hashContent`
-- `!src/editor/usePasteboardCamera.ts` — thin `setEditorGestureActive` toggles on existing zoom/pan lifecycle; autosave gate locked by `editorGesture` + `projectSession` unit tests and autosave-during-drag e2e
+- `!src/editor/usePasteboardCamera.ts` — React gesture/lifecycle wiring; fit inset + hold-scroll + delayed zoom-out schedule/apply/cancel mutated via `pasteboardCameraFit.ts`; autosave gate locked by `editorGesture` + `projectSession` unit tests and autosave-during-drag e2e
 - `!src/editor/projectSession.ts` — library orchestration + FSA picker/restore, open-vs-adopt, book lock acquire/release, re-grant, home/recents; autosave + permissions/locks + recents-home locked by unit suite + e2e; gesture seam mutated via `editorGesture.ts`; default FSA branches no-cov in unit env

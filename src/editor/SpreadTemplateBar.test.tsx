@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
+import { REVEAL_TRY_CEILING } from './pasteboardReveal'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
 
 const PORT_TOP = 100
@@ -248,12 +249,17 @@ describe('SpreadTemplateBar', () => {
     resetBookStore()
     commitZoom(2, 40, 50)
     let reads = 0
-    const restore = stubNewSpreadBox(() => {
+    const restore = stubNewSpreadBox((scroll) => {
       reads += 1
       if (reads === 1) {
         return new DOMRect(PORT_LEFT, PORT_TOP, 200, 180)
       }
-      return new DOMRect(PORT_LEFT, PORT_TOP + 250, 200, 180)
+      return new DOMRect(
+        PORT_LEFT,
+        PORT_TOP + 250 - scroll.scrollTop + 50,
+        200,
+        180,
+      )
     })
     try {
       render(<Pasteboard />)
@@ -263,6 +269,141 @@ describe('SpreadTemplateBar', () => {
       expect(scroll.scrollLeft).toBe(40)
     } finally {
       restore()
+    }
+  })
+
+  it('clears forced content-visibility after reveal settles or exhausts', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    const restore = stubNewSpreadBox(
+      () => new DOMRect(PORT_LEFT, PORT_TOP + 250, 200, 180),
+    )
+    try {
+      render(<Pasteboard />)
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      for (let i = 0; i < REVEAL_TRY_CEILING * 2 + 16; i += 1) {
+        if (rafQueue.length === 0) {
+          break
+        }
+        const batch = rafQueue.splice(0, rafQueue.length)
+        act(() => {
+          for (const cb of batch) {
+            cb(i)
+          }
+        })
+      }
+      for (const slot of screen.getAllByTestId('pasteboard-slot')) {
+        expect(slot.style.contentVisibility).toBe('')
+      }
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('re-ticks reveal when the pasteboard scrollport resizes', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const observers: ResizeObserverCallback[] = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: ResizeObserverCallback) {
+          observers.push(cb)
+        }
+        observe(): void {
+          /* no-op */
+        }
+        disconnect(): void {
+          /* no-op */
+        }
+        unobserve(): void {
+          /* no-op */
+        }
+      },
+    )
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    let reads = 0
+    const restore = stubNewSpreadBox(() => {
+      reads += 1
+      if (reads < 4) {
+        return new DOMRect(PORT_LEFT, PORT_TOP + 250, 200, 180)
+      }
+      return new DOMRect(PORT_LEFT + 10, PORT_TOP + 10, 200, 180)
+    })
+    try {
+      render(<Pasteboard />)
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      expect(observers.length).toBeGreaterThan(0)
+      const before = rafQueue.length
+      act(() => {
+        observers[0]?.([], {} as ResizeObserver)
+      })
+      expect(rafQueue.length).toBeGreaterThanOrEqual(before)
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('stops fighting scroll after reveal retries are exhausted', () => {
+    resetBookStore()
+    commitZoom(2, 40, 50)
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    const restore = stubNewSpreadBox(
+      () => new DOMRect(PORT_LEFT, PORT_TOP + 250, 200, 180),
+    )
+    try {
+      render(<Pasteboard />)
+      const scroll = screen.getByTestId('pasteboard-scroll')
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      let frames = 0
+      for (let i = 0; i < REVEAL_TRY_CEILING * 2 + 16; i += 1) {
+        if (rafQueue.length === 0) {
+          break
+        }
+        frames += rafQueue.length
+        const batch = rafQueue.splice(0, rafQueue.length)
+        act(() => {
+          for (const cb of batch) {
+            cb(i)
+          }
+        })
+      }
+      expect(frames).toBeGreaterThanOrEqual(REVEAL_TRY_CEILING)
+      for (let i = 0; i < 400 && rafQueue.length > 0; i += 1) {
+        frames += rafQueue.length
+        const batch = rafQueue.splice(0, rafQueue.length)
+        act(() => {
+          for (const cb of batch) {
+            cb(i)
+          }
+        })
+      }
+      expect(rafQueue).toHaveLength(0)
+      const settledTop = scroll.scrollTop
+      scroll.scrollTop = settledTop + 17
+      act(() => {
+        /* exhaust cleared reveal; no further reveal rAF should enqueue */
+      })
+      expect(rafQueue).toHaveLength(0)
+      expect(scroll.scrollTop).toBe(settledTop + 17)
+    } finally {
+      restore()
+      vi.unstubAllGlobals()
     }
   })
 

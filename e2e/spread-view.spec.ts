@@ -96,6 +96,34 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
 }) => {
   await openSessionEditor(page)
   await page.getByRole('button', { name: 'Fit spread' }).click()
+  await expect
+    .poll(
+      async () => {
+        const filled = await page
+          .getByTestId('pasteboard-scroll')
+          .evaluate((el) => {
+            const view = el.querySelector(
+              '[data-slot-index="0"] [data-testid="spread-view"]',
+            )
+            if (!(view instanceof HTMLElement)) {
+              return false
+            }
+            const port = el.getBoundingClientRect()
+            const box = view.getBoundingClientRect()
+            return (
+              box.height >= port.height * 0.9 &&
+              box.width >= 1 &&
+              box.top >= port.top - 1 &&
+              box.bottom <= port.bottom + 1 &&
+              box.left >= port.left - 1 &&
+              box.right <= port.right + 1
+            )
+          })
+        return filled
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true)
   const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
   const fitted = await readSpreadView(page, 0)
   expect(fitted).not.toBeNull()
@@ -113,7 +141,9 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
   expect(previous?.heightPx).toBeCloseTo(fitted?.heightPx ?? 0, 0)
   expect(previous?.widthPx).toBeCloseTo((fitted?.widthPx ?? 0) * 2, 0)
   expect(previous?.placeholders).toBe(2)
-  await expect.poll(async () => spreadViewContained(page, 3)).toBe(true)
+  await expect
+    .poll(async () => spreadViewContained(page, 3), { timeout: 15_000 })
+    .toBe(true)
   const added = await readSpreadView(page, 3)
   expect(added?.placeholders).toBe(1)
   expect(added?.widthPx).toBeCloseTo(fitted?.widthPx ?? 0, 0)
