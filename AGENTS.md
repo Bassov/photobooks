@@ -73,3 +73,4 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 - One `AGENTS.md` (≤150 lines), no workflow checklists here.
 - ≤5 alwaysApply Cursor rules; short product invariants only.
 - Skills for repeatable workflows; specs for behavior.
+- Never weaken quality gates to pass CI — see `openspec/config.yaml` quality bar and `docs/lessons.md`.
