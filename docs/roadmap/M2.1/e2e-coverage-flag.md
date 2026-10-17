@@ -2,12 +2,14 @@
 
 Tag: prep
 Milestone: M2.1
-Title: e2e counts toward coverage (issue #72 A)
+Title: e2e counts toward coverage and codecov/patch (issue #72 A, #29)
 
 ## Scope
 
 - [ ] `vite-plugin-istanbul` and `nyc` (exact-pinned through `dependency-policy`), gated on `VITE_COVERAGE=1`, set only by the Playwright `webServer` build. Excludes come from the registry. Production, preview and LHCI builds stay uninstrumented. Source maps map back to `src/**`
 - [ ] `e2e/fixtures/coverage.ts` (`test.extend`) that every spec imports. It writes `window.__coverage__` per test. Merge with `nyc` into `coverage-e2e/lcov.info`. Worker code is not counted by e2e
-- [ ] `integration.yml` uploads with `flags: e2e` and `fail_ci_if_error`. `codecov.yml` gets `flags.e2e` (`carryforward: true`) and `notify.after_n_builds: 2`, plus an informational unit-only patch status
-- [ ] `ci-gates` spec delta: the `e2e` flag. e2e coverage never replaces unit tests (Stryker runs Vitest only)
-- **Done when:** the Codecov comment shows `unit` and `e2e` separately, a line covered only by e2e counts for `codecov/patch`, and a failed e2e upload fails `integration`.
+- [ ] `integration.yml` uploads with `flags: e2e` and `fail_ci_if_error`. `codecov.yml` gets `flags.e2e` (`carryforward: true`) and `notify.after_n_builds: 2`. **Owner decision:** e2e lines count toward the blocking `codecov/patch`; a unit-only patch status is informational only
+- [ ] e2e never replaces unit tests for mutation: Stryker runs Vitest only, and `stryker-diff-gate` NoCoverage still requires unit tests. `ci-gates` spec delta says both
+- **Done when:** the Codecov comment shows `unit` and `e2e` separately, a line covered only by e2e counts for `codecov/patch`, a failed e2e upload fails `integration`, and a line covered only by e2e still produces a NoCoverage mutant in `stryker-diff`.
+- **Size:** ~600 changed lines (target ~1000, max 1500 incl. tests)
+- **Source:** #72 A, #29
