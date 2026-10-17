@@ -8,7 +8,20 @@ export default defineConfig({
   forbidOnly: isCi,
   retries: isCi ? 2 : 0,
   ...(isCi ? { workers: 1 } : {}),
-  reporter: isCi ? [['list'], ['html', { open: 'never' }]] : 'list',
+  reporter: isCi
+    ? [
+        ['list'],
+        ['html', { open: 'never' }],
+        [
+          'json',
+          {
+            outputFile:
+              process.env.PLAYWRIGHT_JSON_OUTPUT_NAME ??
+              'test-results/e2e-results.json',
+          },
+        ],
+      ]
+    : 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'on-first-retry',
