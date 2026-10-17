@@ -6,6 +6,7 @@ import {
   isLegacyStickyComment,
   isLighthouseReportFile,
   metricRows,
+  normalizeState,
   renderComment,
   shouldWrite,
   upsertSection,
@@ -72,6 +73,25 @@ describe('classifySection', () => {
   })
 })
 
+describe('normalizeState', () => {
+  it('adds waiting e2e when decoding a legacy three-section marker', () => {
+    const legacy = {
+      version: 1,
+      headSha: 'sha',
+      sections: {
+        lighthouse: { kind: 'waiting' },
+        mutation: { kind: 'waiting' },
+        coverage: classifySection(passed),
+      },
+    }
+    const normalized = normalizeState(legacy)
+    expect(normalized.sections.e2e).toEqual({ kind: 'waiting' })
+    expect(normalized.sections.coverage).toEqual(legacy.sections.coverage)
+    expect(() => renderComment(legacy)).not.toThrow()
+    expect(renderComment(legacy)).toContain('### ⏳ E2E\n\n**Waiting**')
+  })
+})
+
 describe('upsertSection', () => {
   it('keeps neighboring sections and leaves the rest waiting', () => {
     const lighthouse = classifySection(passed)
@@ -92,6 +112,7 @@ describe('upsertSection', () => {
     expect(withCoverage.sections.lighthouse).toEqual(lighthouse)
     expect(withCoverage.sections.coverage).toEqual(coverage)
     expect(withCoverage.sections.mutation).toEqual({ kind: 'waiting' })
+    expect(withCoverage.sections.e2e).toEqual({ kind: 'waiting' })
   })
 
   it('resets other sections when the head SHA changes', () => {
@@ -140,6 +161,7 @@ describe('renderComment', () => {
     expect(rendered).toContain(
       '### ❌ Coverage\n\n**Job failed** — Job finished before a report was produced.',
     )
+    expect(rendered).toContain('### ⏳ E2E\n\n**Waiting**')
     expect(rendered).not.toContain('<details>')
     expect(rendered).not.toContain('| Check |')
     expect(rendered).not.toContain('](#')

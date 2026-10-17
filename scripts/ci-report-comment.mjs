@@ -9,18 +9,20 @@ import {
 import { dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const SECTIONS = ['lighthouse', 'mutation', 'coverage']
+export const SECTIONS = ['lighthouse', 'mutation', 'coverage', 'e2e']
 
 const SECTION_TITLES = {
   lighthouse: 'Lighthouse',
   mutation: 'Mutation testing',
   coverage: 'Coverage',
+  e2e: 'E2E',
 }
 
 const DETAILS_SUMMARY = {
   lighthouse: 'Category scores and links',
   mutation: 'Mutation breakdown',
   coverage: 'Coverage breakdown',
+  e2e: 'E2E burn-in and flaky retries',
 }
 
 const METRIC_HEADER_LABELS = new Set(['Category', 'Metric'])
@@ -74,8 +76,21 @@ export function emptyState(headSha) {
       lighthouse: { kind: 'waiting' },
       mutation: { kind: 'waiting' },
       coverage: { kind: 'waiting' },
+      e2e: { kind: 'waiting' },
     },
   }
+}
+
+/** Fill any SECTIONS id missing from a prior marker (e.g. pre-e2e comments). */
+export function normalizeState(state, headSha = state?.headSha) {
+  const base = emptyState(headSha ?? '')
+  if (!state || typeof state !== 'object') return base
+  base.headSha = state.headSha ?? headSha ?? ''
+  if (typeof state.version === 'number') base.version = state.version
+  for (const id of SECTIONS) {
+    if (state.sections?.[id]) base.sections[id] = state.sections[id]
+  }
+  return base
 }
 
 export function upsertSection(state, sectionId, section, headSha) {
@@ -85,7 +100,7 @@ export function upsertSection(state, sectionId, section, headSha) {
 
   const base =
     state && state.headSha === headSha
-      ? structuredClone(state)
+      ? normalizeState(structuredClone(state), headSha)
       : emptyState(headSha)
   base.sections[sectionId] = section
   base.headSha = headSha
@@ -194,13 +209,18 @@ function sectionBlock(sectionId, section) {
 }
 
 export function renderComment(state) {
+  const normalized = normalizeState(state, state?.headSha)
   const blocks = SECTIONS.map((sectionId) =>
-    sectionBlock(sectionId, state.sections[sectionId]),
+    sectionBlock(sectionId, normalized.sections[sectionId]),
   )
 
-  return [encodeState(state), '', '## CI Report', '', blocks.join('\n\n')].join(
-    '\n',
-  )
+  return [
+    encodeState(normalized),
+    '',
+    '## CI Report',
+    '',
+    blocks.join('\n\n'),
+  ].join('\n')
 }
 
 export function isLighthouseReportFile(name) {

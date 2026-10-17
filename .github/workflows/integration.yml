@@ -9,11 +9,20 @@ concurrency:
   group: integration-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  E2E_BURN_IN: '10'
+
 jobs:
   integration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v6
         with:
@@ -42,8 +51,94 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
+      - name: Resolve burn-in count
+        if: github.event_name == 'pull_request'
+        id: burn-in-count
+        env:
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+        run: |
+          COUNT="$(node scripts/e2e-burn-in-count.mjs)"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Burn-in count: $COUNT"
+
+      - name: Resolve burn-in targets
+        if: github.event_name == 'pull_request'
+        id: burn-in-targets
+        env:
+          STRYKER_DIFF_BASE: origin/${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          TARGETS="$(node scripts/e2e-burn-in-targets.mjs | tr '\n' ' ')"
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          if [ -z "$(echo "$TARGETS" | tr -d '[:space:]')" ]; then
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+            echo "No burn-in targets"
+          else
+            echo "has_targets=true" >> "$GITHUB_OUTPUT"
+            echo "Burn-in targets: $TARGETS"
+          fi
+
+      - name: E2E burn-in
+        if: github.event_name == 'pull_request' && steps.burn-in-targets.outputs.has_targets == 'true'
+        id: burn-in
+        run: >
+          node scripts/with-playwright-env.mjs pnpm exec playwright test
+          ${{ steps.burn-in-targets.outputs.targets }}
+          --repeat-each=${{ steps.burn-in-count.outputs.count }}
+          --retries=0
+          --workers=1
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/burn-in-results.json
+
       - name: E2E
+        id: e2e
         run: pnpm test:e2e
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-results.json
+
+      - name: Summarize e2e for CI report
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          BURN_IN_ARGS=()
+          if [ "${{ steps.burn-in-targets.outputs.has_targets }}" = "true" ]; then
+            BURN_IN_ARGS=(--burn-in "${{ steps.burn-in-count.outputs.count }}")
+          fi
+          if [ -f test-results/e2e-results.json ]; then
+            node scripts/e2e-playwright-summary.mjs \
+              --report test-results/e2e-results.json \
+              "${BURN_IN_ARGS[@]}" \
+              --out /tmp/e2e-pr-comment.md
+          else
+            echo "No main e2e JSON report" > /tmp/e2e-pr-comment.md
+          fi
+
+      - name: Pack e2e section
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          if [ -f test-results/e2e-results.json ]; then
+            node scripts/ci-report-comment.mjs pack \
+              --section e2e \
+              --step-outcome "${{ steps.e2e.outcome }}" \
+              --missing-report job-failed \
+              --report test-results/e2e-results.json \
+              --body-file /tmp/e2e-pr-comment.md \
+              --out ci-section/section.json
+          else
+            node scripts/ci-report-comment.mjs pack \
+              --section e2e \
+              --step-outcome "${{ steps.e2e.outcome }}" \
+              --missing-report job-failed \
+              --out ci-section/section.json
+          fi
+
+      - name: Upload e2e section
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-section-e2e
+          path: ci-section/section.json
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Upload frame-pacing stats (report-only)
         if: always()
@@ -63,3 +158,32 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  ci-comment:
+    needs: integration
+    if: always() && github.event_name == 'pull_request' && needs.integration.result != 'cancelled'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-report-${{ github.event.pull_request.number }}
+      queue: max
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download e2e section
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: ci-section-e2e
+          path: ci-section
+
+      - name: Update CI report comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-report-comment.mjs apply --section e2e --artifact ci-section/section.json
