@@ -30,7 +30,7 @@ artifacts and diffs; you may run read-only checks (`pnpm typecheck`, `pnpm lint`
 4. **Quality bar:** type safety, ESLint expectations, workers rule for heavy work, no obvious regressions.
 5. **Verify gates:** confirm typecheck/lint/test/e2e/stryker:diff were run (from conversation or artifacts); if not evidenced, verdict is `fix`. For UI scope, also require evidenced browser smoke before `pass`. Remaining survivors must be listed with one-line reasons in `tasks.md`.
 6. **Design reviewer:** if design.md exists, require evidenced `openspec-design-reviewer` pass before apply.
-7. **Docs/rules sync:** if behavior, commands, CI output, module map or the roadmap item changed, README.md, AGENTS.md (≤150 lines, no checklists), affected `.cursor/rules/*.mdc`, `docs/future-architecture.md` and `docs/roadmap.md` must match the diff. A stale statement contradicted by the diff is `medium`; a roadmap line that overstates what shipped is `high`.
+7. **Docs/rules sync:** if behavior, commands, CI output, module map or the roadmap item changed, README.md, AGENTS.md (≤150 lines, no checklists), affected `.cursor/rules/*.mdc`, `docs/future-architecture.md` and the roadmap item (`pnpm roadmap show <slug>`: its file under `docs/roadmap/` and index line) must match the diff. A stale statement contradicted by the diff is `medium`; a roadmap item that overstates what shipped is `high`. A hand edit of `docs/roadmap.md` (anything but `pnpm roadmap` output) or a failing `pnpm roadmap check` is `high`.
 8. **Audit:** if `package.json`/lockfile or security-tagged change, require `pnpm audit:ci` evidence.
 9. **Diff quality:** unnecessary files, dead code, English-only repo violations.
 

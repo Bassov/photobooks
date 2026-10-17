@@ -39,7 +39,6 @@ component_management:
 
 ignore:
   - 'e2e/**'
-  - 'scripts/**'
   - 'src/**/*.{bench,benchmark}.{ts,tsx}'
   - 'src/**/*.d.ts'
   - 'src/**/*.test-helpers.ts'
@@ -49,4 +48,5 @@ flags:
   unit:
     paths:
       - src/
+      - scripts/roadmap.mjs
     carryforward: true

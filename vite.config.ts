@@ -39,7 +39,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary'],
-      include: ['src/**/*.{ts,tsx}'],
+      include: ['src/**/*.{ts,tsx}', 'scripts/roadmap.mjs'],
       exclude: [
         'src/**/*.{test,spec}.{ts,tsx}',
         'src/**/*.test-helpers.ts',

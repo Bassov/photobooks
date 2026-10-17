@@ -254,6 +254,6 @@ The app depends on domain-level interfaces only; file layout, format, `.bak` rot
 
 ## Visual regression e2e
 
-Screenshot / `toHaveScreenshot` Playwright tests (Docker Playwright image parity, fixture photos including EXIF-rotated and low-DPI cases) are deferred until spread UI stabilizes (scheduled in `docs/roadmap.md`, milestone M3).
+Screenshot / `toHaveScreenshot` Playwright tests (Docker Playwright image parity, fixture photos including EXIF-rotated and low-DPI cases) are deferred until spread UI stabilizes (scheduled in `docs/roadmap.md` as `visual-regression-e2e`, milestone M2.5).
 
 Tracking issue: https://github.com/Bassov/photobooks/issues/8
