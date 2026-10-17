@@ -28,7 +28,7 @@ context: |
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
   - AGENTS.md is a navigation map (≤150 lines). Specs are behavior SoT.
-  - Durable docs: docs/future-architecture.md (target architecture); docs/roadmap.md (execution plan); docs/lessons.md (lessons journal)
+  - Durable docs: docs/future-architecture.md (target architecture); docs/roadmap.md + docs/roadmap/ (execution plan: index + one file per item, changed only via `pnpm roadmap`, skill `roadmap`); docs/lessons.md (lessons journal)
 
   Security surface (tag changes that touch these):
   - File System Access, workers/postMessage, blob/object URLs, CSP/headers, dependency bumps, export pipelines
@@ -39,14 +39,14 @@ rules:
     - 'Include only: problem, why now, scope in/out, success criteria, risks.'
     - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
     - If content does not fit, narrow scope — never inflate the proposal.
-    - 'Size budget (one apply context): at most ONE new subsystem (definition: docs/roadmap.md "How to use"), at most 8 implementation tasks, guideline ~1000 changed lines of source + tests (excluding lockfile, openspec/, docs/).'
-    - 'Over budget: before design/apply, narrow scope to one subsystem and add the remainder to docs/roadmap.md as new top-level checkboxes (needed infra as a preceding [prep], gate fallbacks as [contingency]).'
+    - 'Size budget (one apply context): at most ONE new subsystem (definition: docs/roadmap/RULES.md "Change size"), at most 8 implementation tasks, guideline ~1000 changed lines of source + tests (excluding lockfile, openspec/, docs/).'
+    - 'Over budget: before design/apply, narrow scope to one subsystem and add the remainder as new roadmap items right after the current one with `pnpm roadmap add <slug> --after <current> --tag prep|feature|contingency --title "..."` (needed infra as a preceding [prep], gate fallbacks as [contingency]).'
     - Immediately after writing proposal.md, the parent agent MUST launch subagent `openspec-proposal-reviewer` and wait for pass before creating design.md or tasks.md.
     - If UI is in scope, success criteria MUST include observable UX (not only "it works").
     - 'If UI is in scope, success criteria MUST name empty + happy-path + primary interact/scroll observables that e2e will lock in.'
     - 'If the change introduces or changes an in-app scrollport (overflow auto/scroll), success criteria MUST state: no page-level H/V scroll; scrolling only inside the named scrollport(s).'
     - If the security surface is in scope, risks MUST include an explicit security bullet.
-    - 'Roadmap [feature] item: success criteria MUST cover its **Browser check:** and **Perf:** lines; if the item lacks them, write them into the item in docs/roadmap.md in this change (record as an assumption) instead of asking.'
+    - 'Roadmap [feature] item: success criteria MUST cover its **Browser check:** and **Perf:** lines (`pnpm roadmap show <slug>`); if the item lacks them, write them into its item file docs/roadmap/<milestone>/<slug>.md in this change (record as an assumption) instead of asking. Never read the whole roadmap; use `pnpm roadmap next` / `show`.'
   design:
     - Keep design under ~600 words.
     - Include implementation detail only where apply would otherwise be ambiguous.
@@ -61,7 +61,7 @@ rules:
     - Immediately after writing design.md, the parent agent MUST launch subagent `openspec-design-reviewer` and wait for pass before finalizing tasks.md or starting apply.
   tasks:
     - Break work into small, checkable tasks.
-    - At most 8 implementation tasks (the Verification checklist does not count). More means the change exceeds the size budget in rules.proposal — split it in the roadmap instead of inflating tasks.
+    - At most 8 implementation tasks (the Verification checklist does not count). More means the change exceeds the size budget in rules.proposal — split it with `pnpm roadmap add --after` instead of inflating tasks.
     - After writing tasks.md, run `openspec validate <change> --strict` and fix every error before apply.
     - |
       Every tasks.md MUST end with this Verification checklist (unchecked at creation):
@@ -72,11 +72,11 @@ rules:
       - [ ] pnpm stryker:diff
       - [ ] pnpm test:lhci when UI or bundle size is affected
       - [ ] UI in scope: browser smoke evidenced (empty + happy + primary scroll/interact via Playwright and/or MCP browser); skill `ui-review` pass
-      - [ ] Docs/rules sync: if behavior, commands, CI output, module map or the roadmap item changed → update README.md, AGENTS.md (≤150 lines), affected .cursor/rules/*.mdc and skills, docs/future-architecture.md notes, and annotate docs/roadmap.md where the shipped scope deviates; do not add alwaysApply rules without merging/removing another
+      - [ ] Docs/rules sync: if behavior, commands, CI output, module map or the roadmap item changed → update README.md, AGENTS.md (≤150 lines), affected .cursor/rules/*.mdc and skills, docs/future-architecture.md notes, and annotate the roadmap item file (or `pnpm roadmap done <slug> --note`) where the shipped scope deviates; do not add alwaysApply rules without merging/removing another
       - [ ] pnpm audit:ci when package.json/lockfile or security-tagged change
       - [ ] Launch openspec-design-reviewer was pass before apply (evidenced)
       - [ ] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive
-      - [ ] Manual check (after implementation review pass, before archive): drive `pnpm dev` in the browser through the roadmap item's Browser check (or the spec scenarios for [prep]); record numbered steps and observed results under `## Manual test scenarios` at the end of this file (N/A for non-UI); a bug found → Playwright test + fix + re-run implementation review on the delta
+      - [ ] Manual check (after implementation review pass, before archive): drive `pnpm dev` in the browser through the roadmap item's Browser check from `pnpm roadmap show <slug>` (or the spec scenarios for [prep]); record numbered steps and observed results under `## Manual test scenarios` at the end of this file (N/A for non-UI); a bug found → Playwright test + fix + re-run implementation review on the delta
       - [ ] High-risk security surface: Cursor Security Review subagent before archive
 
 operations:
@@ -106,5 +106,5 @@ operations:
       - NEVER choose "Archive without syncing" / skip-sync when delta specs exist.
       - If sync is blocked or verification fails, STOP — do not archive until fixed.
       - If there are no delta specs, archive may proceed; note "No delta specs".
-      - After moving the change, tick its top-level item in docs/roadmap.md on the same branch (the PR merge closes it); tick a [contingency] closed as "not needed" with it. Change only those lines.
+      - After moving the change, close its roadmap item on the same branch with `pnpm roadmap done <slug>` (the PR merge closes it; add `--note` when the shipped scope deviates); close a [contingency] that is not needed with it via `pnpm roadmap done <slug> --note "not needed (gate passed in <slug>)"`. If `done` archives the milestone, commit the moved folder; run `pnpm roadmap check`. Never hand-edit docs/roadmap.md.
       - Summarize what merged into specs/ in a few bullets.

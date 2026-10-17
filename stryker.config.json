@@ -9,6 +9,7 @@
   "mutate": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "scripts/roadmap.mjs",
     "!src/**/*.{test,spec}.{ts,tsx}",
     "!src/**/*.{bench,benchmark}.{ts,tsx}",
     "!src/**/*.d.ts",

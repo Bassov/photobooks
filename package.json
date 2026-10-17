@@ -29,6 +29,7 @@
     "stryker": "stryker run",
     "stryker:diff": "node scripts/stryker-diff.mjs",
     "mutation-scope": "node scripts/check-mutation-scope.mjs",
+    "roadmap": "node scripts/roadmap.mjs",
     "audit:ci": "pnpm audit --audit-level=high --prod",
     "verify:fast": "pnpm typecheck && pnpm lint && pnpm deps && pnpm knip && pnpm mutation-scope && pnpm test",
     "verify": "pnpm verify:fast && pnpm test:e2e",

@@ -31,6 +31,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | Command              | Use                                                      |
 | -------------------- | -------------------------------------------------------- |
 | `/next-roadmap-item` | one roadmap item end to end (unattended)                 |
+| `pnpm roadmap`       | roadmap CLI: `next` / `show` / `add` / `done` / `check`  |
 | `pnpm verify:fast`   | typecheck + lint + deps + knip + mutation scope + vitest |
 | `pnpm verify`        | verify:fast + Playwright                                 |
 | `pnpm perf`          | Playwright frame-budget scenarios (hard frame pacing)    |
@@ -49,6 +50,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `react-perf-spa`      | SPA bundle / re-render / workers   |
 | `ui-review`           | UI a11y / layout smoke / anti-slop |
 | `write-tests`         | unit / e2e / PBT authorship        |
+| `roadmap`             | pick / grow / close roadmap items  |
 
 ## Security surface
 
@@ -60,7 +62,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 - Lessons journal: `docs/lessons.md` (read before apply; append when a finding repeats — mandates in OpenSpec config).
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
-- Execution plan (one OpenSpec change per checkbox): `docs/roadmap.md`.
+- Execution plan (one OpenSpec change per item): index `docs/roadmap.md` + one file per item in `docs/roadmap/`; use `pnpm roadmap` (skill `roadmap`), never read it whole or hand-edit it. Process: `docs/roadmap/RULES.md`.
 
 ## Cursor Cloud
 

@@ -2,398 +2,213 @@
 
 Execution plan for the photobook editor. Architecture and decisions: `docs/future-architecture.md`.
 
-## How to use
+This index and the item files under `docs/roadmap/` are the single source of truth for what gets built and in which order: issues, proposals and review notes are inputs until they land here. The UI kit (`uikit/`, from `uikit-import`) is the UI/UX reference for roadmap items, not a second plan.
 
-- Each top-level checkbox is **one OpenSpec change = one agent iteration = one PR**. The suggested change name is in backticks.
-- Nested checkboxes are the scope of that change; tick them during apply. Do not pull scope from later items.
-- Tags:
-  - **[prep]** — groundwork with no new user-facing UI (pure modules, adapters, workers). Verified by tests.
-  - **[feature]** — a visible change on the Cloudflare preview URL. The **Browser check** line describes what to verify.
-  - **[contingency]** — a fallback for a gate owned by a named item; done only if that gate fails. When the gate-owning change is archived with the gate green, tick it as "not needed (gate passed in `<name>`)".
-- **60 fps is part of done.** Every `[feature]` ships a perf scenario for the interaction it adds (gates in `docs/future-architecture.md`, "Performance model"); a regression blocks the PR. **Perf:** lines name the techniques the change must use. The **Browser check** includes watching the interaction for stutter (DevTools Performance panel, frame rendering stats). For features with an in-app scrollport, the Browser check also verifies no page-level H/V scroll — the named region is the scrollport (Playwright: `assertDocumentFitsViewport`).
-- Milestones are review cuts: at the end of each, stop and review the product as a whole before continuing.
-- A top-level box is ticked in the change's own PR right after archive, so the merge closes it (`openspec/config.yaml` `operations.archive`). A `[contingency]` closed as "not needed" is ticked together with its gate-owning item.
-
-### Change size
-
-Every item fits one agent apply context. The limits (subsystems, implementation tasks, changed lines) live in `openspec/config.yaml` `rules.proposal`; a proposal over budget is split here before apply.
-
-- A **subsystem** is a unit with its own lifecycle or contract: a worker or worker pool, a store, a painter or render layer, a storage or cache adapter, a new dependency, a new Vite entry, a schema version bump, a new top-level UI region (screen, panel, overlay layer). A UI region with its own view state is one subsystem; a dependency or worker that exists only to implement the item's one subsystem counts with it.
-- Not a subsystem: new job types on the existing worker pool, ops / selectors / slices on an existing store, wiring existing subsystems into UI, the change's own perf scenario.
-
-Slicing rules when adding or splitting items:
-
-1. A `[feature]` adds at most one subsystem. If it needs both new non-UI infrastructure and a new UI region, the infrastructure is a preceding `[prep]`.
-2. A book schema version bump is its own `[prep]`; pure functions over the new fields may ride along.
-3. A gate fallback with its own scope (another painter path, streaming output) is a `[contingency]` item. A stop-and-re-plan condition or an in-place implementation choice (for example, "move serialization to the worker if over budget") stays inline.
-4. Each split `[feature]` keeps its own **Browser check:** line, and a **Perf:** line with a scenario when it adds an interaction or background work the editor must stay smooth during.
-5. Split only for a new subsystem or the task limit; small adjacent work stays merged.
-6. The item that owns a gate referenced in `docs/future-architecture.md` keeps its name.
+Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<milestone>/<slug>.md`; finished milestones: `roadmap/archive/`. Change the index only with `pnpm roadmap` (`add` / `done` / `move`), never by hand.
 
 ## Order
 
-1. **M1–M4 — the local editor, complete for personal use.**
-2. **M5 — the showcase site with books**, built and previewed locally.
-3. **M6 — print.**
-4. **M7 — deploy as my own site.**
-5. **M8 — let others create their own books, sites and prints.**
+1. **M1–M4.5 — the local editor, complete for personal use.** M2.1 makes the quality gates and the agent process mechanical before any other open item (only `recents-home` finishes first), M2.2 completes the library under those gates, and M2.5 fixes the visual language before more UI is built.
+2. **M5, then M7 — books as a website:** the showcase site built and previewed locally, then deployed as my own site.
+3. **M6 — print** (after M7).
+4. **M8 — let others create their own books, sites and prints.**
 
-## M0 — Foundation (done)
+## M2.1 — Quality gates & dev process
 
-- [x] Tooling, CI quality gates, Cloudflare preview hosting, agent pipeline
-- [x] Photo card: open one local image, EXIF-corrected preview in a worker
-- [x] `raise-coverage-gates` — coverage gates hardening
+**Review cut:** CI mechanically refuses changes like PR #68, #70 and #71, and no label or approval overrides it. Gate configs can only get stricter. Production logic cannot be excluded from coverage or mutation. These fail: patch coverage under 85%, a mutation score under 85, any NoCoverage mutant, a changed-but-excluded file, invalid ARIA, and a PR over 1500 changed lines. The stateful session and editor files are back in mutation scope behind unit-level fakes. Agents write failing tests first, tick tasks only with evidence, and resolve their reviewer sub-agents' blocking findings. They run the manual scenarios on the Cloudflare preview themselves and record the results in the PR.
 
-## M1 — Editor skeleton
+Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
-**Review cut:** the core editing loop works at 60 fps — add your photos to the filmstrip, drag them onto spreads on a zoomable pasteboard and back. Validates the document model, the shared renderer (including its pan/zoom performance) and drop semantics. Nothing is persisted yet.
+- [ ] [prep] [agent-rules](roadmap/M2.1/agent-rules.md) — agents never weaken gates, grow the roadmap instead of the PR, and resolve reviewer findings themselves (issue #72 E)
+- [ ] [prep] [gate-values-file](roadmap/M2.1/gate-values-file.md) — one data file for gate thresholds
+- [ ] [prep] [gate-ratchet](roadmap/M2.1/gate-ratchet.md) — gate values can only get stricter (issue #72 K, replaced by a ratchet)
+- [ ] [prep] [gate-ratchet-ci](roadmap/M2.1/gate-ratchet-ci.md) — checks can't be removed or softened in workflows and tooling
+- [ ] [prep] [diff-size-check](roadmap/M2.1/diff-size-check.md) — hard size limit, no exception label (issue #72 H)
+- [ ] [prep] [dependency-policy](roadmap/M2.1/dependency-policy.md) — dependencies are checked automatically, not asked about
+- [ ] [prep] [test-first-evidence-rules](roadmap/M2.1/test-first-evidence-rules.md) — scenarios first, honest ticks (issue #72 D, E)
+- [ ] [prep] [adversarial-reviewer-pr-evidence](roadmap/M2.1/adversarial-reviewer-pr-evidence.md) — adversarial review and a machine-checked PR body (issue #72 F, G)
+- [ ] [prep] [preview-qa-run](roadmap/M2.1/preview-qa-run.md) — the agent runs the manual scenarios on the Cloudflare preview (issue #72 G)
+- [ ] [prep] [exclusions-registry](roadmap/M2.1/exclusions-registry.md) — only non-production code can be excluded (issue #72 J, A)
+- [ ] [prep] [codecov-patch-gate](roadmap/M2.1/codecov-patch-gate.md) — blocking patch and no-drop project coverage (issue #72 A)
+- [ ] [prep] [stryker-diff-gate](roadmap/M2.1/stryker-diff-gate.md) — honest mutation on the diff (issue #72 B, J)
+- [ ] [prep] [fsa-permission-fakes](roadmap/M2.1/fsa-permission-fakes.md) — unit-level File System Access fakes (issue #72 L)
+- [ ] [prep] [mutation-reinclude-small](roadmap/M2.1/mutation-reinclude-small.md) — mutate the small files that already have tests (issue #72 B)
+- [ ] [prep] [mutation-reinclude-camera](roadmap/M2.1/mutation-reinclude-camera.md) — mutate `usePasteboardCamera.ts` again (issue #72 B)
+- [ ] [prep] [session-idb-locks-mutation](roadmap/M2.1/session-idb-locks-mutation.md) — IndexedDB and Web Locks fakes; mutate the adapters (issue #72 L, B)
+- [ ] [prep] [editor-shell-mutation](roadmap/M2.1/editor-shell-mutation.md) — mutate `EditorShell.tsx` (issue #72 B)
+- [ ] [prep] [project-session-deps](roadmap/M2.1/project-session-deps.md) — inject the session's platform dependencies (issue #72 L)
+- [ ] [prep] [autosave-controller](roadmap/M2.1/autosave-controller.md) — extract autosave from `projectSession.ts`
+- [ ] [prep] [book-lock-controller](roadmap/M2.1/book-lock-controller.md) — extract locks and re-grant from `projectSession.ts`
+- [ ] [prep] [library-activation](roadmap/M2.1/library-activation.md) — extract library open / new / switch from `projectSession.ts`
+- [ ] [prep] [project-session-mutation](roadmap/M2.1/project-session-mutation.md) — mutate what is left of `projectSession.ts` (issue #72 B)
+- [ ] [prep] [axe-e2e](roadmap/M2.1/axe-e2e.md) — automated ARIA checks in e2e (issue #72 C, #50 item 1)
+- [ ] [prep] [lhci-key-surfaces](roadmap/M2.1/lhci-key-surfaces.md) — Lighthouse on the real surfaces with an a11y assertion (issue #72 C, #50 item 1)
+- [ ] [prep] [fsa-permission-e2e](roadmap/M2.1/fsa-permission-e2e.md) — e2e through the real permission code (issue #72 I)
+- [ ] [prep] [e2e-coverage-flag](roadmap/M2.1/e2e-coverage-flag.md) — e2e counts toward coverage (issue #72 A)
+- [ ] [prep] [keyboard-flows-e2e](roadmap/M2.1/keyboard-flows-e2e.md) — keyboard and live-region flows (#50 item 1)
+- [ ] [prep] [strict-e2e](roadmap/M2.1/strict-e2e.md) — no hidden flakes (#50 item 5)
+- [ ] [prep] [spec-trace](roadmap/M2.1/spec-trace.md) — every spec scenario has a test or a waiver (#50 item 4)
+- [ ] [prep] [deps-rules](roadmap/M2.1/deps-rules.md) — stricter dependency-cruiser rules (#50 item 7)
+- [ ] [prep] [perf-size-budgets](roadmap/M2.1/perf-size-budgets.md) — enforced bundle and Lighthouse budgets (#50 item 10, issue #48)
+- [ ] [prep] [gates-raise-90](roadmap/M2.1/gates-raise-90.md) — raise the gates to their targets (issue #72 A, B)
+- [ ] [prep] [prod-smoke](roadmap/M2.1/prod-smoke.md) — production check after every deploy (#50 item 9)
+- [ ] [prep] [agent-auto-merge](roadmap/M2.1/agent-auto-merge.md) — agents merge their own PRs (off by default)
 
-- [x] [prep] `frame-budget-gates` — 60 fps measurement and gates (Security Review: headers)
-  - [x] `src/perf/`: rAF frame-pacing sampler, Event Timing (INP) observer, `performance.measure` helpers for hot handlers; exposed via `__photobooksPerf`
-  - [x] Playwright perf fixture: CDP CPU throttling, scenario windows, assertions (zero LoAF, INP, handler p95), frame stats as a CI artifact; throttling rate calibrated on CI runners
-  - [x] `pnpm perf`: the same scenarios on a real machine with frame-pacing assertions
-  - [x] Budgets in one config read by tests and benches
-  - [x] Replace the 200 ms LoAF budget in `.cursor/rules/architecture.mdc`, `openspec/config.yaml` quality bar, `photo-card` spec, `react-perf-spa` skill, `LOAF_BLOCKING_BUDGET_MS`; add the 60 fps rule to `docs/lessons.md`
-  - [x] Cross-origin isolation (COOP / COEP via Workers static-asset headers); verify `crossOriginIsolated` on the preview URL
-  - [x] Enable React Compiler (or remove the assumption from `react-perf-spa`)
-  - [x] Existing photo-card import scenario passes the new zero-LoAF gate
-- [x] [prep] `book-core-schema` — pure book document in `src/core`
-  - [x] Zod schema v1: book settings (trim size mm, bleed, safe margin), layout grid (margins, columns, rows, gutters) and guides (book-level, per-spread), assets, per-book gallery (ordered asset ids), spreads, frames (rect mm, z, assetId?, crop)
-  - [x] Parse / serialize, `schemaVersion`, migration chain scaffold, reject newer versions
-  - [x] Invariants: no dangling asset refs, every placed asset is in the gallery; PBT round-trip
-  - [x] Immutable updates with structural sharing (unchanged spreads keep their reference)
-  - [x] dependency-cruiser `core-is-pure`; update `.cursor/rules/data-model.mdc` and `AGENTS.md` module map
-- [x] [prep] `layout-geometry` — templates, resolver, ops
-  - [x] Templates as frame generators aligned to the layout grid: full-bleed spread, one per page, 2-up, 4-grid
-  - [x] `resolveSpread` → resolved items with source crop rect; derived page cut lines; memoized by spread reference
-  - [x] Pure ops: add to / remove from gallery (cascades placements), place, replace, unplace, swap, apply template, add / remove / move spread
-  - [x] Selectors: placement count per asset, unplaced assets
-  - [x] PBT for geometry and op invariants; `pnpm bench` budgets for resolve, ops and selectors on a 40-spread / 1000-asset book
-- [x] [feature] `editor-shell-filmstrip` — editor layout and gallery
-  - [x] Editor layout: workspace above, filmstrip below (replaces the single photo-card screen; update `photo-card` spec)
-  - [x] Add a folder (directory picker, `webkitdirectory` fallback) or individual files; append to the gallery
-  - [x] Asset worker pool: sized from `hardwareConcurrency`, priority queue (visible first), transferables; per-file errors do not abort the batch; progress. **Shipped note:** folder scan still runs on the main thread; off-screen import jobs are not aborted (see `docs/lessons.md`) — visibility may boost priority only.
-  - [x] Horizontal virtualized filmstrip (React Aria GridList + Virtualizer); placeholders with aspect ratio first, thumbnails stream in
-  - [x] Bounded object-URL LRU with revoke on eviction
-  - **Perf:** pre-sized thumbnails only, `decoding="async"`, gallery updates batched per frame; scenario: import 200 photos while scrolling the filmstrip — zero LoAF.
-  - **Browser check:** add a folder of 100+ photos, scroll the filmstrip during import without stutter; document does not grow H/V scrollbars; filmstrip is the horizontal scrollport; add more files later.
-- [x] [prep] `spread-view-painter` — shared DOM painter
-  - [x] `src/render/SpreadView` draws resolved items; empty frames show placeholders
-  - [x] Per-spread store subscription (an edit re-renders one spread)
-  - [x] Fixture book (~40 spreads × 4 photos) for painter tests and perf scenarios, loadable on the preview URL via a dev/test-only query parameter
-- [x] [feature] `pasteboard-workspace` — spreads on a pasteboard
-  - [x] Pasteboard: all spreads stacked vertically, off-screen spreads virtualized, active spread follows scroll
-  - **Perf:** `contain` + `content-visibility` per spread, active-spread tracking via `IntersectionObserver` (no scroll-handler layout reads). Gate: fixture book (~40 spreads × 4 photos), scroll top to bottom — zero LoAF, frame pacing within budget; if it fails, stop and re-plan per "Painter risk" in `docs/future-architecture.md`.
-  - **Browser check:** scroll through the fixture book like an InDesign pasteboard — no dropped frames; document does not grow H/V scrollbars; pasteboard is the vertical scrollport.
-- [x] [feature] `spread-templates-ui` — start a book
-  - [x] New book starts with a few spreads; choose a template per spread; add spread
-  - **Perf:** a template switch re-renders only the affected spread.
-  - **Browser check:** switch templates, add a spread — no dropped frames.
-- [x] [feature] `camera-zoom-pan` — zoom and pan
-  - [x] Ctrl/Cmd+wheel and pinch zoom around the cursor, `+` / `-`, fit spread, fit width, 100%; Space+drag pan; zoom indicator
-  - **Perf:** camera is one `transform` written in rAF outside React; `will-change` only while zooming; zoom indicator updates through a narrow subscription. Gate: continuous zoom from whole book to 400% and back — zero LoAF, wheel handler p95 ≤ 2 ms. If whole-book zoom fails, do `far-zoom-lod`.
-  - **Browser check:** zoom from the whole book to a single photo detail and back without stutter (images may stay soft until `zoom-image-tiers`).
-- [x] [feature] `zoom-image-tiers` — sharp images at every zoom
-  - [x] Zoom-aware image tiers: smallest preview covering on-screen size × DPR; worker generates tiers into a bounded in-memory LRU
-  - **Perf:** tier switch after the gesture settles with `img.decode()` before swap. Gate: the `camera-zoom-pan` zoom scenario with tier switches — zero LoAF.
-  - **Browser check:** zoom from the whole book to a single photo detail and back; images stay sharp, no flashes, no stutter.
-- [x] [contingency] `far-zoom-lod` — not needed (gate passed in `camera-zoom-pan`)
-  - [x] LOD fallback: far-zoom spreads render as single worker-rasterized bitmaps (OffscreenCanvas from the same resolved items); only that zoom level swaps painter
-  - **Browser check:** whole-book zoom holds the `camera-zoom-pan` gate.
-- [x] [feature] `drag-place-replace` — drop photos onto frames
-  - [x] Filmstrip → empty frame (place), → filled frame (replace)
-  - [x] "Placed" badge on filmstrip thumbnails; photo stays in the filmstrip after placing
-  - [x] Keyboard-accessible alternative for place and replace
-  - **Perf:** native drag image; drop targets resolved from cached mm rects (no DOM queries in `dragover`); hover highlight toggles one attribute; one op per drop. Gate: drag across a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
-  - **Browser check:** lay out a few spreads by hand; placed badges update; dragging stays smooth.
-- [x] [feature] `drag-swap-unplace` — rearrange and take back
-  - [x] Frame ↔ frame (swap / move), frame → filmstrip (unplace)
-  - [x] Keyboard-accessible alternative for swap, move and unplace
-  - **Perf:** reuses the cached drop targets; one op per drop. Gate: drag a frame across a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
-  - **Browser check:** drag photos back to the filmstrip, swap two frames; placed badges update; dragging stays smooth.
-- [x] [prep] `mutation-scope-guard` — mutate all of `src` by default; exclude only files that are pointless to mutate; diff run uses that scope; CI fails when a new production file is neither in scope nor excluded
-- [x] [feature] `filmstrip-file-name` — filmstrip label uses `sessionMeta.name` (File.name), not the sanitized asset id
-  - **Perf:** label reads session metadata only; no gallery id-list rebuild on name refresh.
-  - **Browser check:** import a non-ASCII file name; the filmstrip thumbnail accessible name matches the file name; selecting it stays smooth; filmstrip remains the horizontal scrollport.
-- [x] [feature] `template-unplace-notice` — applying a smaller template still drops overflow placements, photos stay in the gallery, and a polite editor status says how many were unplaced (no status when zero)
-  - **Perf:** status update is a narrow live-region write; template apply still re-renders only the affected spread.
-  - **Browser check:** shrink a filled spread template — overflow photos stay in the gallery, Placed badges clear, polite status announces the count (silent when zero); no page-level H/V scroll.
-- [x] [prep] `selection-render-scope` — ConnectedSpreadView subscribes to stable derived selection snapshots so other spreads do not re-render
-- [x] [feature] `add-spread-camera` — Add spread keeps the committed zoom and reveals the new spread after layout, without jumping scrollHeight early
-  - **Perf:** reveal runs after layout; committed zoom is one camera write (no React zoom reset).
-  - **Browser check:** Fit spread, then Add spread — zoom percent unchanged; new spread appears inside the pasteboard after layout; no page-level H/V scroll.
+## M2.2 — Library & metadata
 
-## M2 — Project on disk
+**Review cut:** under the M2.1 gates — the home screen handles every permission, picker and storage failure with a readable message, books have titles you set and rename, and photo metadata (capture time, orientation, color space) is in the document, read off the main thread.
 
-**Review cut:** the book survives reloads, browser restarts and moved photo folders — and saving never causes a hitch.
+- [ ] [feature] [recents-home-quality](roadmap/M2.2/recents-home-quality.md) — home polish after correctness (what M2.1 does not cover)
+- [ ] [prep] [asset-metadata-schema](roadmap/M2.2/asset-metadata-schema.md) — photo metadata in the document
+- [ ] [feature] [book-titles](roadmap/M2.2/book-titles.md) — create-with-title and rename
+- [ ] [prep] [asset-metadata-extract](roadmap/M2.2/asset-metadata-extract.md) — fill metadata off the main thread
 
-- [x] [prep] `library-storage` — book persistence contract
-  - [x] Domain-level `LibraryStorage` interface (no paths/bytes in its API); typed results (`permission-required`, `locked-elsewhere`, `not-found`, `corrupted`, `newer-schema`, `already-exists`)
-  - [x] Memory adapter; one shared contract-test suite
-- [x] [prep] `library-storage-fsa` — library on the file system
-  - [x] File System Access adapter passing the shared contract suite
-  - [x] Library layout (`library.json`, `books/<id>/book.json`), writes via writable stream + `.bak` rotation, migrations on load
-  - [x] Load (parse, Zod, migrations) in a worker; serialization cost benchmarked on a 1000-asset book
-- [x] [prep] `session-state` — per-browser state
-  - [x] `SessionState` adapter: handles in IndexedDB, Web Locks per book
-- [x] [prep] `asset-record-schema` — asset identity in the document
-  - [x] Schema version bump with migration: asset record (source root, relative path, size, mtime, hash)
-- [x] [prep] `asset-identity` — content-addressed assets
-  - [x] `AssetSource` interface (read-only originals, folder scan) with memory and File System Access adapters
-  - [x] SHA-256 hashing in the worker at lowest priority; size + mtime fast path
-  - [x] Pure matching / relink function
-- [x] [prep] `derived-cache-opfs` — persistent preview cache
-  - [x] `DerivedCache` interface; OPFS adapter keyed by `(assetHash, presetId)`; zoom tiers and thumbnails persist via DerivedCache (OPFS) while keeping a bounded hot object-URL LRU
-- [x] [feature] `open-save-project` — library on disk
-  - [x] Create / open library folder, create book; gallery and layout persist in `book.json`, added folders/files register source roots
-  - [x] Save (Ctrl/Cmd+S) and restore on reopen
-  - **Perf:** serialization at background priority (worker if over budget). Gate: save during a drag — zero LoAF.
-  - **Browser check:** build a book, save, reload the tab, reopen the folder — same book.
-- [x] [feature] `fix-open-save-adopt-hydrate` — adopt session work; durable preview hydrate
-  - [x] After create/open library, Save adopts the in-memory book (no «New book» wipe); session assets get identity + hash; DerivedCache put-after-hash; tier falls back to thumb; aspect restored from hydrate
-  - **Perf:** Save stays off the gesture path; existing save-during-drag gate remains green.
-  - **Browser check:** import without library → New library → Save → reload — thumbs and placed frames visible, landscape crop not square-forced; document stays viewport-contained.
-- [x] [feature] `autosave` — never lose work
-  - [x] Debounced autosave, save indicator
-  - **Perf:** autosave never runs during an active gesture; serialization at background priority (worker if over budget). Gate: continuous drag while autosave fires — zero LoAF.
-  - **Browser check:** edit, reload without saving — changes are kept; editing never hitches on save.
-- [x] [feature] `permissions-locks-ux` — access and single writer
-  - [x] Permission re-grant flow; Web Locks single writer with a clear "open in another tab" message
-  - **Perf:** chrome status/banner updates only; existing save/autosave gesture gates stay green.
-  - **Browser check:** after a browser restart, access is re-granted in one step; a second tab is blocked from editing.
-- [x] [feature] `recents-home` — returning user (hardening on PR #71: Home control, re-grant correctness, dedup, IDB/error/loading/busy, New library clean start)
-  - [x] Home screen with books in the library and recent libraries (handles in IndexedDB)
-  - **Perf:** home is static list chrome; existing save/gesture gates stay green.
-  - **Browser check:** reopen the app; the home screen lists recent libraries and their books; one click opens a book; Home returns to home; same folder does not duplicate.
-- [ ] [feature] `recents-home-quality` — home polish after correctness
-  - [ ] A11y: home `h1`, selected library announcement, focus ring, no redundant aria on headings; busy keeps focus on the active control
-  - [ ] `HomeScreen.test.tsx` (empty / list / error / permission / busy / keyboard); reserved-key mutation tests; Codecov HomeScreen patch target
-  - [ ] LHCI measures editor surface again; restore empty-editor asserts in `open-save.spec`
-  - [ ] IDB-blocked e2e; IDB v1→v2 migration test (fake-indexeddb); IndexedDB failure paths return typed results without throw
-  - [ ] Dedup test with separate handle objects and permission denied during open (already covered when granted; harden denied path)
-  - [ ] Readable messages in the editor status line (no raw codes like `permission-required`)
-  - [ ] Re-grant polish: pass the target book into bind; isSameEntry check or refusal on peek-failed picker path
-  - [ ] Recents read-modify-write in one transaction or behind `navigator.locks`; delete evicted handle keys
-  - [ ] Distinguish “Don’t Allow” from picker cancelled in messages
-  - [ ] Remove runtime `window.__photobooksE2e` test-API switch
-  - **Perf:** no new interaction; existing gates stay green.
-  - **Browser check:** keyboard-only home; narrow ~900px; Lighthouse still budgets the editor path.
-- [ ] [feature] `book-titles` — create-with-title and rename
-  - [ ] Create book prompts for a title; rename from home/editor; list and chrome show title instead of raw id
-  - **Perf:** title edits are local string updates; no layout thrash. Gate: rename while filmstrip scrolls — zero LoAF.
-  - **Browser check:** create a book with a title, rename it, reopen — title persists; home list shows titles.
-- [ ] [feature] `missing-assets-relink` — moved photo folders
-  - [ ] Missing-assets view; relink by rescanning a folder and matching hashes (scan and hashing in the worker)
-  - **Perf:** rescan progress batched per frame. Gate: scroll the filmstrip while a rescan runs — zero LoAF.
-  - **Browser check:** rename/move the photo folder, reopen, relink in one step, all photos restored; the UI stays responsive during the rescan.
+## M2.5 — Design foundation
+
+**Review cut:** the UI kit is in the repo as the UI/UX reference, moved photo folders relink in one step, and the editor looks like one product — every surface uses tokens and shared primitives in light and dark themes, `docs/design.md` is the source of truth agents follow (enforced by `ui-review` and the design reviewer), screenshot baselines catch visual drift, and every existing 60 fps gate still passes.
+
+- [ ] [prep] [uikit-import](roadmap/M2.5/uikit-import.md) — UI kit in the repo as the UI/UX reference (~950 lines + lockfile; step 1 of 10, rest via the growth rule below)
+- [ ] [prep] [uikit-import-primitives-a](roadmap/M2.5/uikit-import-primitives-a.md) — button, checkbox, dialog, disclosure, field, grid-list, list-box, menu (~960 lines)
+- [ ] [prep] [uikit-import-primitives-b](roadmap/M2.5/uikit-import-primitives-b.md) — numberfield, popover, progress, searchfield, select, separator, slider, switch, tabs (~850 lines)
+- [ ] [prep] [uikit-import-primitives-c](roadmap/M2.5/uikit-import-primitives-c.md) — textfield, toast, toggle, toolbar, tooltip, Untitled UI badge / featured icon, app-density wrappers (~670 lines)
+- [ ] [prep] [uikit-import-components-page](roadmap/M2.5/uikit-import-components-page.md) — `#/components` gallery + sandbox document model, store, templates, demo data (~920 lines)
+- [ ] [prep] [uikit-import-sandbox](roadmap/M2.5/uikit-import-sandbox.md) — mock editor canvas, viewport, panel sections, spread renderer (~970 lines)
+- [ ] [prep] [uikit-import-editor-chrome](roadmap/M2.5/uikit-import-editor-chrome.md) — mock editor chrome + inspector, demo parts, feature registry and types (~850 lines)
+- [ ] [prep] [uikit-import-pages-m0-m2-5](roadmap/M2.5/uikit-import-pages-m0-m2-5.md) — M0–M2.5 feature pages (~860 lines)
+- [ ] [prep] [uikit-import-pages-m3-m4-5](roadmap/M2.5/uikit-import-pages-m3-m4-5.md) — M3–M4.5 feature pages + app screens (~910 lines)
+- [ ] [prep] [uikit-import-pages-m5-m8](roadmap/M2.5/uikit-import-pages-m5-m8.md) — M5–M8 feature pages, demo photos + `PHOTO-CREDITS.md` / `credits.json` (~980 lines; photos excluded)
+- [ ] [prep] [uikit-import-qa](roadmap/M2.5/uikit-import-qa.md) — headless `qa` / `shots` scripts (local Chrome via `CHROME_PATH`), `qa:quick` step in the `uikit` CI job (~300 lines); **Done when:** `qa` in `uikit/` passes with no missing demo, no clipped demo and no console errors in both themes at 1440×900 and 1280×800
+- [ ] [feature] [missing-assets-relink](roadmap/M2.5/missing-assets-relink.md) — moved photo folders
+- [ ] [prep] [design-reference](roadmap/M2.5/design-reference.md) — visual language and agent rule
+- [ ] [feature] [design-tokens](roadmap/M2.5/design-tokens.md) — tokens and self-hosted fonts
+- [ ] [prep] [icon-set](roadmap/M2.5/icon-set.md) — icons (Security Review: dependency, if a package is chosen)
+- [ ] [prep] [ui-primitives-actions](roadmap/M2.5/ui-primitives-actions.md) — action primitives in `src/ui/`
+- [ ] [prep] [ui-primitives-feedback](roadmap/M2.5/ui-primitives-feedback.md) — feedback primitives in `src/ui/`
+- [ ] [prep] [visual-regression-e2e](roadmap/M2.5/visual-regression-e2e.md) — screenshot tests (issue #8)
+- [ ] [prep] [a11y-contrast-gate](roadmap/M2.5/a11y-contrast-gate.md) — contrast checks on the design system
+- [ ] [feature] [editor-chrome-toolbar](roadmap/M2.5/editor-chrome-toolbar.md) — editor bars on primitives
+- [ ] [feature] [editor-chrome-states](roadmap/M2.5/editor-chrome-states.md) — editor states on tokens and primitives
+- [ ] [feature] [project-screens-adoption](roadmap/M2.5/project-screens-adoption.md) — M2 screens on the design system
+- [ ] [feature] [dark-theme](roadmap/M2.5/dark-theme.md) — dark neutral theme
 
 ## M3 — Building a real book
 
-**Review cut:** you can assemble a complete real book from your own photos without reaching for InDesign, and a 1000-photo library feels instant.
+**Review cut:** you can assemble a complete real book from your own photos without reaching for InDesign — orientation-aware templates and multi-photo drops make layout fast, the assets panel shows what is used, missing or modified — and a 1000-photo library feels instant.
 
-- [ ] [feature] `document-history` — undo / redo
-  - [ ] Snapshot history with op-key coalescing and size limit; transient state excluded
-  - [ ] Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z, toolbar buttons
-  - **Perf:** undo / redo is a pointer move over snapshots; only spreads with changed references re-render. Gate: hold Ctrl+Z through 50 steps — zero LoAF.
-  - **Browser check:** apply a template, place and swap photos, undo/redo step by step; each drop is one step.
-- [ ] [feature] `filmstrip-sort-filter` — working with the gallery
-  - [ ] Sort (capture time, name, added order); filter "unplaced only"
-  - [ ] Remove from gallery with a warning when the photo is placed
-  - **Perf:** sort / filter via `startTransition`. Gate: 1000+ photo gallery scroll and filter toggle — zero LoAF.
-  - **Browser check:** a 1000+ photo gallery scrolls smoothly; "unplaced only" shrinks as you lay out the book.
-- [ ] [feature] `filmstrip-resize-drop` — filmstrip size and desktop drop
-  - [ ] Adjustable filmstrip height / thumbnail size
-  - [ ] Desktop files dropped on the filmstrip are imported
-  - **Perf:** resizing the filmstrip resizes via `transform` / CSS variables during the drag and re-lays out the virtualizer at the end. Gate: resize the filmstrip while scrolled mid-gallery — zero LoAF.
-  - **Browser check:** resize the filmstrip and thumbnails; drop files from the desktop and they append; no gaps in the scrolled filmstrip.
-- [ ] [feature] `multi-drop-fill` — faster layout
-  - [ ] Multi-select in the filmstrip; drop several photos on a spread fills its empty frames in gallery order
-  - [ ] Drop between spreads creates a new spread with a fitting template
-  - **Browser check:** select four photos, drop them on a 4-grid spread, all frames fill in order.
-- [ ] [feature] `crop-in-frame` — non-destructive crop
-  - [ ] Pan / zoom inside a frame (pointer, wheel, keyboard nudge), reset to cover
-  - **Perf:** crop preview is a `transform` on the image in rAF; the crop op is committed at gesture end; a higher tier is requested when crop zoom exceeds the current tier. Gate: pan a crop for 5 s — zero LoAF, `pointermove` p95 ≤ 2 ms.
-  - **Browser check:** reposition a photo inside its frame smoothly; reload keeps the crop.
-- [ ] [feature] `spread-list-panel` — spread list (Google Slides style)
-  - [ ] Left panel with spread thumbnails (same `SpreadView`, smallest tier, virtualized); click scrolls the pasteboard to the spread
-  - [ ] Add / delete / duplicate spreads
-  - **Perf:** thumbnails re-render only when their spread reference changes.
-  - **Browser check:** click a thumbnail and the pasteboard scrolls to it; add, duplicate and delete spreads from the panel.
-- [ ] [feature] `spread-reorder-retemplate` — reorder and re-template spreads
-  - [ ] Reorder spreads by drag in the left panel
-  - [ ] Switch a spread's template while keeping its photos
-  - **Perf:** reorder drag moves thumbnails by `transform`.
-  - **Browser check:** reorder spreads in the left panel; the pasteboard follows; switching templates keeps photos.
-- [ ] [feature] `presentation-mode` — preview the book
-  - [ ] Fullscreen, one spread at a time, arrow keys / click / swipe, Esc to exit, no editor chrome; same `SpreadView`
-  - **Perf:** neighbouring spreads preloaded and decoded; transitions `transform` / `opacity` only. Gate: flip through 40 spreads quickly — zero LoAF, no blank frames.
-  - **Browser check:** present the book fullscreen and flip through it like a finished album.
-- [ ] [prep] `visual-regression-e2e` — screenshot tests (issue #8)
-  - [ ] Playwright Docker parity, fixtures incl. EXIF-rotated and low-DPI photos, baseline spreads
+- [ ] [prep] [editor-command-sequence-pbt](roadmap/M3/editor-command-sequence-pbt.md) — property tests over command sequences (issue #50 item 2)
+- [ ] [feature] [document-history](roadmap/M3/document-history.md) — undo / redo
+- [ ] [feature] [filmstrip-sort-filter](roadmap/M3/filmstrip-sort-filter.md) — working with the gallery
+- [ ] [feature] [filmstrip-resize-drop](roadmap/M3/filmstrip-resize-drop.md) — filmstrip size and desktop drop
+- [ ] [feature] [template-slot-aspects](roadmap/M3/template-slot-aspects.md) — orientation-aware templates
+- [ ] [feature] [multi-drop-fill](roadmap/M3/multi-drop-fill.md) — faster layout
+- [ ] [feature] [crop-in-frame](roadmap/M3/crop-in-frame.md) — non-destructive crop
+- [ ] [prep] [ui-panels](roadmap/M3/ui-panels.md) — side panel frame
+- [ ] [feature] [spread-list-panel](roadmap/M3/spread-list-panel.md) — spread list (Google Slides style)
+- [ ] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads
+- [ ] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
+- [ ] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
 
-## M4 — Grids, guides, free layout and text (local editor complete)
+## M4 — Free layout: grids, guides, frames
 
-**Review cut:** the local editor is complete for personal use — grids and guides like InDesign / Affinity / Figma, layouts beyond templates, captions, precise control, all at 60 fps.
+**Review cut:** layouts beyond templates — page layout grids and guides like InDesign / Affinity / Figma with snapping, direct manipulation, precise numeric control and photo rotation, all at 60 fps.
 
-- [ ] [prep] `frame-transform-ops` — pure free-layout math
-  - [ ] Move / resize / rotate ops; align / distribute
-- [ ] [prep] `snapping-engine` — pure snapping
-  - [ ] Snapping engine: trim / bleed edges, margins, grid columns / rows, guides, page center, other frames' edges and centers, equal gaps; returns corrected rect + active guide lines
-  - [ ] Anchor index built once at gesture start; per-move query allocation-free; `pnpm bench` budget per query on a dense spread
-- [ ] [feature] `layout-grid` — margins, columns, rows
-  - [ ] Book setup panel: margins, columns, rows, gutters; optional per-spread override; templates re-align to the grid
-  - **Browser check:** set a 12-column grid with margins; template frames follow the grid.
-- [ ] [feature] `grid-overlay` — see the grid
-  - [ ] Editor overlay layer above `SpreadView`; grid overlay with show / hide toggle
-  - **Perf:** grid overlay is one SVG pattern per spread, not per-cell elements.
-  - **Browser check:** toggle the grid on and off while scrolling and zooming; it stays aligned with template frames.
-- [ ] [feature] `rulers` — mm rulers
-  - [ ] mm rulers following the camera
-  - **Perf:** rulers drawn on a `<canvas>` per camera frame. Gate: pan / zoom with rulers visible — zero LoAF.
-  - **Browser check:** pan and zoom; ruler ticks stay aligned with the spread.
-- [ ] [feature] `guides` — guides
-  - [ ] Drag from a ruler to create a guide; move, delete, lock; numeric entry; book-level vs spread guides
-  - [ ] Show / hide guides, snap on / off (view state)
-  - **Perf:** guide drag is a `transform` in rAF, committed at gesture end.
-  - **Browser check:** pull guides from both rulers, place one at an exact mm value, zoom — guides stay aligned with rulers.
-- [ ] [feature] `frame-selection-handles` — direct manipulation
-  - [ ] Select a frame; SVG handle overlay; move and resize by dragging
-  - **Perf:** drag / resize preview in the overlay and on the frame's `transform`; op committed at gesture end. Gate: drag a frame across a dense spread — zero LoAF, `pointermove` p95 ≤ 2 ms.
-  - **Browser check:** move and resize a frame with handles — handles never lag behind the cursor.
-- [ ] [feature] `free-frames` — free layout
-  - [ ] Add / delete frames, live snap lines to grid / guides / frames, detach spread from template
-  - **Perf:** snapping via the anchor index. Gate: drag a frame across a dense spread with snapping on — zero LoAF, `pointermove` p95 ≤ 2 ms.
-  - **Browser check:** draw a frame, snap it to a grid column and a guide, resize with handles — snap lines appear without lag.
-- [ ] [feature] `inspector` — numeric properties
-  - [ ] Position, size, rotation, crop, z-order, lock
-  - **Perf:** inspector subscribes to the selection only; live values during a drag come from the transient gesture state, throttled to rAF.
-  - **Browser check:** typing values moves frames precisely; values stay in sync with dragging.
-- [ ] [prep] `text-frame-model` — text in the document
-  - [ ] Schema version bump with migration: text frames; resolved text items
-- [ ] [feature] `text-blocks` — captions
-  - [ ] Text frames with inline editing
-  - [ ] Bundled font files (later reused by the PDF painter)
-  - **Perf:** fonts preloaded before first measure; typing re-renders only the edited text frame. Gate: type 200 characters fast — INP ≤ 100 ms.
-  - **Browser check:** add a caption, edit it inline; it renders the same in the workspace and in spread thumbnails.
-- [ ] [feature] `multi-select` — group operations
-  - [ ] Shift / marquee selection, group move, align and distribute
-  - **Perf:** marquee hit-test via the spatial index; group move is one `transform` per selected frame in rAF.
-  - **Browser check:** select three frames and distribute them evenly; marquee over a full spread stays smooth.
+- [ ] [prep] [frame-geometry-schema](roadmap/M4/frame-geometry-schema.md) — rotation and lock in the document
+- [ ] [prep] [layout-grids-schema](roadmap/M4/layout-grids-schema.md) — page layout grids in the document
+- [ ] [prep] [frame-transform-ops](roadmap/M4/frame-transform-ops.md) — pure free-layout math
+- [ ] [prep] [snapping-engine](roadmap/M4/snapping-engine.md) — pure snapping
+- [ ] [prep] [ui-primitives-forms](roadmap/M4/ui-primitives-forms.md) — form primitives in `src/ui/`
+- [ ] [feature] [rulers](roadmap/M4/rulers.md) — mm rulers
+- [ ] [feature] [guides](roadmap/M4/guides.md) — guides
+- [ ] [feature] [guides-precise](roadmap/M4/guides-precise.md) — exact guides
+- [ ] [feature] [frame-selection-handles](roadmap/M4/frame-selection-handles.md) — direct manipulation
+- [ ] [feature] [layout-grids-settings](roadmap/M4/layout-grids-settings.md) — margins, columns, rows, gutters
+- [ ] [feature] [layout-grids-render-snap](roadmap/M4/layout-grids-render-snap.md) — see the grid, snap to it
+- [ ] [feature] [free-frames](roadmap/M4/free-frames.md) — free layout
+- [ ] [feature] [photo-rotate](roadmap/M4/photo-rotate.md) — rotate photos in frames
+- [ ] [feature] [inspector](roadmap/M4/inspector.md) — numeric properties
+- [ ] [feature] [arrange-lock](roadmap/M4/arrange-lock.md) — stacking and locking
+- [ ] [feature] [multi-select](roadmap/M4/multi-select.md) — group operations
+
+## M4.5 — Text, styles and reuse (local editor complete)
+
+**Review cut:** the local editor is complete for personal use — captions from photo metadata, frame styles, parent spreads that carry layout grids, guides and shared elements across the book (overridable per spread), your own templates, all at 60 fps.
+
+- [ ] [prep] [book-fonts](roadmap/M4.5/book-fonts.md) — fonts for book content
+- [ ] [prep] [text-frame-model](roadmap/M4.5/text-frame-model.md) — text in the document
+- [ ] [feature] [text-blocks](roadmap/M4.5/text-blocks.md) — captions
+- [ ] [feature] [live-captions](roadmap/M4.5/live-captions.md) — captions from photo metadata
+- [ ] [prep] [book-styles-schema](roadmap/M4.5/book-styles-schema.md) — book-level styles in the document
+- [ ] [feature] [frame-styles](roadmap/M4.5/frame-styles.md) — consistent frames across the book
+- [ ] [feature] [user-templates](roadmap/M4.5/user-templates.md) — your own layouts
+- [ ] [prep] [parent-spreads-schema](roadmap/M4.5/parent-spreads-schema.md) — parent spreads in the document
+- [ ] [feature] [parent-spreads](roadmap/M4.5/parent-spreads.md) — parent spreads
+- [ ] [feature] [layout-grids-parent-inherit](roadmap/M4.5/layout-grids-parent-inherit.md) — grids on parent spreads
+- [ ] [feature] [parent-guides](roadmap/M4.5/parent-guides.md) — guides on parent spreads
+- [ ] [feature] [parent-overrides](roadmap/M4.5/parent-overrides.md) — change one spread without touching the parent
+- [ ] [feature] [page-numbers](roadmap/M4.5/page-numbers.md) — page numbers
 
 ## M5 — Showcase site with books (local)
 
 **Review cut:** the showcase site with your books, previewed from the editor and exported to a folder, looks right and scrolls / swipes at 60 fps on a phone and on a 27″ 4K screen.
 
-- [ ] [prep] `image-derivatives` — web image pipeline
-  - [ ] Worker pool: resize presets from config, native JPEG / WebP encode, sRGB
-  - [ ] Cache via `DerivedCache` by `(assetHash, presetId)`; benchmark
-  - [ ] Derivative jobs at the lowest priority; scenario: edit with drag while derivatives encode — zero LoAF
-- [ ] [prep] `avif-encoder` — AVIF derivatives (Security Review: dependency)
-  - [ ] AVIF (multithreaded WASM, needs cross-origin isolation) + fallback where configured
-  - [ ] Scenario: edit with drag while AVIF encodes — zero LoAF
-- [ ] [prep] `publish-revisions` — draft vs published
-  - [ ] `draft | published` status, frozen `published.json` revision, pure "assets needed for the site"
-- [ ] [feature] `site-viewer` — viewer entry
-  - [ ] Separate Vite entry: catalog, book page, spread navigation, `srcset`; captions via the same `SpreadView`
-  - [ ] "Preview site" mode inside the app reading the current library
-  - **Perf:** `content-visibility` for off-screen spreads; Lighthouse budgets for the viewer entry.
-  - **Browser check:** preview the site from the editor; catalog → book → spreads; photos are light on mobile.
-- [ ] [feature] `site-lightbox` — fullscreen and swipe
-  - [ ] Fullscreen lightbox with CSS zoom; swipe between spreads
-  - **Perf:** swipe and lightbox zoom `transform`-only, neighbours preloaded and decoded; mobile scenario with CPU throttling — zero LoAF.
-  - **Browser check:** fullscreen photos are sharp on 4K, light on mobile; swiping is smooth on a phone.
-- [ ] [prep] `static-export-core` — deterministic site tree
-  - [ ] Prerendered HTML via `react-dom/server`, viewer bundle, derivatives, manifest; deterministic output
-  - [ ] Only published books, using their frozen revision
-- [ ] [feature] `static-export` — write `dist/`
-  - [ ] Prerender and file writes in a worker; progress and cancel
-  - **Perf:** scenario: edit with drag while the export writes — zero LoAF.
-  - **Browser check:** export to a folder while continuing to edit without stutter, serve it locally, open on phone and desktop; drafts are absent.
-- [ ] [feature] `derivative-tuning` — decide final sizes
-  - [ ] In-app comparison page for size/quality presets on hard fixtures (sky gradients, shadows, foliage)
-  - [ ] Record the chosen presets in config and spec
-  - **Browser check:** compare 2K vs 4K and quality levels side by side; pick defaults.
-
-## M6 — Print
-
-**Review cut:** a PDF you can send to a print shop and a booklet you can print at home; exporting never freezes the editor.
-
-- [ ] [prep] `print-profiles` — printer data and preflight
-  - [ ] Profile schema (trim, bleed, safe margin, page-count rules, spine formula); book references a profile
-  - [ ] Pure preflight: effective DPI, safe-zone intrusion, page-count rules
-- [ ] [feature] `print-overlays` — see print constraints
-  - [ ] Toggleable bleed / trim / safe overlays on the editor
-  - **Browser check:** toggle the overlays; they align with frame edges at every zoom.
-- [ ] [feature] `preflight-panel` — print warnings
-  - [ ] Warnings panel with jump-to-spread
-  - **Perf:** preflight recomputed per changed spread only, via `startTransition`.
-  - **Browser check:** a low-resolution photo scaled up shows a DPI warning; clicking it jumps to the spread.
-- [ ] [prep] `pdf-painter` — worker PDF painter (Security Review: dependency)
-  - [ ] Worker PDF painter (maintained `pdf-lib` fork): original JPEG bytes, clip + transform crop, bleed, crop marks
-- [ ] [feature] `pdf-export` — single-page print PDF
-  - [ ] Progress, cancel, download
-  - [ ] Peak memory measured on a 40-spread book against a recorded threshold; if above it, do `pdf-streaming`
-  - **Perf:** scenario: edit while the PDF builds — zero LoAF.
-  - **Browser check:** download the PDF; pages match the editor at trim size with bleed.
-- [ ] [contingency] `pdf-streaming` — only if `pdf-export` peak memory is too high
-  - [ ] Per-page chunks streamed to the file
-  - **Browser check:** a 40-spread export's peak memory stays below the threshold recorded in `pdf-export`.
-- [ ] [feature] `pdf-captions` — text in the PDF
-  - [ ] Captions with the same embedded font files as the DOM painter
-  - **Browser check:** captions in the PDF match the editor.
-- [ ] [feature] `booklet-imposition` — home printing
-  - [ ] Pure saddle-stitch sheet order with blank-page padding; imposed PDF from the page PDF (in the worker)
-  - [ ] Duplex printing instructions
-  - **Browser check:** print an 8–16 page booklet, fold, pages read in order.
-- [ ] [prep] `cover-model` — cover in the document
-  - [ ] Cover model (front / spine / back) with spine width from profile and page count (schema version bump)
-- [ ] [feature] `cover-spine` — cover
-  - [ ] Cover editing in the editor; cover PDF
-  - **Browser check:** adding pages widens the spine; cover PDF dimensions match the profile.
+- [ ] [prep] [image-derivatives](roadmap/M5/image-derivatives.md) — web image pipeline
+- [ ] [prep] [avif-encoder](roadmap/M5/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
+- [ ] [prep] [publish-revisions](roadmap/M5/publish-revisions.md) — draft vs published
+- [ ] [feature] [site-viewer](roadmap/M5/site-viewer.md) — viewer entry
+- [ ] [feature] [site-preview-mode](roadmap/M5/site-preview-mode.md) — preview the site from the editor
+- [ ] [feature] [site-lightbox](roadmap/M5/site-lightbox.md) — fullscreen and swipe
+- [ ] [prep] [static-export-core](roadmap/M5/static-export-core.md) — deterministic site tree
+- [ ] [feature] [static-export](roadmap/M5/static-export.md) — write `dist/`
+- [ ] [feature] [derivative-tuning](roadmap/M5/derivative-tuning.md) — decide final sizes
 
 ## M7 — Deploy as my site
 
 **Review cut:** your own live site with your books, updated incrementally from the editor.
 
-- [ ] [prep] `hosting-decision` — spike
-  - [ ] Verify Workers static-asset limits/terms vs R2 public bucket + custom domain; browser CORS options
-  - [ ] Record the decision in `docs/future-architecture.md`
-- [ ] [feature] `manual-deploy` — documented deploy path
-  - [ ] Script deploying an exported `dist/` to your Cloudflare account (separate from the editor app)
-  - **Browser check:** the exported site is live on its own URL.
-- [ ] [feature] `publish-credentials` — connect the editor to your hosting (Security Review)
-  - [ ] Locally stored, narrowly scoped credentials, entered from the existing export menu (no new panel); strict CSP
-  - **Browser check:** enter credentials once; they survive a reload and are never sent anywhere except the hosting API.
-- [ ] [feature] `in-app-publish` — publish button (Security Review)
-  - [ ] Incremental upload by hash manifest from a worker; progress and retry
-  - **Perf:** scenario: edit with drag while an upload runs — zero LoAF.
-  - **Browser check:** change one spread, publish, only changed files upload, the live site updates; the editor stays smooth during upload.
+- [ ] [prep] [hosting-decision](roadmap/M7/hosting-decision.md) — spike
+- [ ] [feature] [manual-deploy](roadmap/M7/manual-deploy.md) — documented deploy path
+- [ ] [feature] [publish-credentials](roadmap/M7/publish-credentials.md) — connect the editor to your hosting (Security Review)
+- [ ] [feature] [in-app-publish](roadmap/M7/in-app-publish.md) — publish button (Security Review)
+
+## M6 — Print
+
+**Review cut:** a PDF (pages or spreads, as the print shop wants) or JPEG spreads you can send to a print shop, a cover with the right spine, and a booklet you can print at home; low-resolution photos are flagged on their frames while you lay out; exporting never freezes the editor.
+
+- [ ] [prep] [print-model-schema](roadmap/M6/print-model-schema.md) — print settings and cover in the document
+- [ ] [prep] [print-profiles](roadmap/M6/print-profiles.md) — printer data and preflight
+- [ ] [feature] [dpi-badge](roadmap/M6/dpi-badge.md) — resolution while you lay out
+- [ ] [feature] [print-overlays](roadmap/M6/print-overlays.md) — see print constraints
+- [ ] [feature] [preflight-panel](roadmap/M6/preflight-panel.md) — print warnings
+- [ ] [feature] [preflight-fixes](roadmap/M6/preflight-fixes.md) — fix from the panel
+- [ ] [prep] [pdf-painter](roadmap/M6/pdf-painter.md) — worker PDF painter (Security Review: dependency)
+- [ ] [prep] [pdf-color-tagging](roadmap/M6/pdf-color-tagging.md) — keep photo colors
+- [ ] [feature] [pdf-export](roadmap/M6/pdf-export.md) — print PDF
+- [ ] [contingency] [pdf-streaming](roadmap/M6/pdf-streaming.md) — only if `pdf-export` peak memory is too high
+- [ ] [feature] [jpeg-spreads-export](roadmap/M6/jpeg-spreads-export.md) — JPEG spreads
+- [ ] [feature] [pdf-captions](roadmap/M6/pdf-captions.md) — text in the PDF
+- [ ] [feature] [print-package-report](roadmap/M6/print-package-report.md) — what the print shop needs
+- [ ] [feature] [booklet-imposition](roadmap/M6/booklet-imposition.md) — home printing
+- [ ] [feature] [cover-editor](roadmap/M6/cover-editor.md) — cover in the editor
+- [ ] [feature] [cover-pdf](roadmap/M6/cover-pdf.md) — cover PDF
 
 ## M8 — For others
 
 **Review cut:** someone else opens the editor, makes a book, prints it and publishes their own site to their own account without touching code or config files.
 
-**Re-plan:** at the M7 review cut; items are not yet sliced to the change budget.
+**Re-plan:** at the M6 review cut; items are not yet sliced to the change budget.
 
-- [ ] [prep] `publisher-targets` — generalize publishing
-  - [ ] `Publisher` interface with target capabilities; the M7 path becomes one target
-  - [ ] Contract tests shared by all targets
-- [ ] [feature] `onboarding` — first run
-  - [ ] Start screen explaining the flow, sample book, helpful empty states
-  - **Browser check:** a fresh browser profile reaches a first laid-out spread without guidance.
-- [ ] [feature] `connect-own-hosting` — bring your own hosting (Security Review)
-  - [ ] Guided connection of the user's own Cloudflare account with minimal scopes; automatic provisioning of site and storage
-  - **Browser check:** with a new Cloudflare account, connect and publish a site in one guided flow.
-- [ ] [feature] `site-settings` — personalize the showcase
-  - [ ] Site title, author, about page, theme choice
-  - **Browser check:** change the title and theme; the preview and the published site update.
-- [ ] [feature] `printer-presets` — print for everyone
-  - [ ] Catalog of common print-shop profiles plus a custom profile editor
-  - **Browser check:** pick a preset, export a PDF that matches its spec.
+- [ ] [prep] [publisher-targets](roadmap/M8/publisher-targets.md) — generalize publishing
+- [ ] [feature] [onboarding](roadmap/M8/onboarding.md) — first run
+- [ ] [feature] [connect-own-hosting](roadmap/M8/connect-own-hosting.md) — bring your own hosting (Security Review)
+- [ ] [feature] [site-settings](roadmap/M8/site-settings.md) — personalize the showcase
+- [ ] [feature] [printer-presets](roadmap/M8/printer-presets.md) — print for everyone
 
 ## Deferred (not scheduled)
 
-- Rating / reject culling (the gallery itself is the selection)
-- HEIC input (libheif WASM), "consolidate originals" command, library export to a single archive
-- PDF/X, ICC output intents, CMYK
-- Additional publish targets beyond Cloudflare (GitHub Pages, S3, …)
+Not scheduled, not items: [roadmap/DEFERRED.md](roadmap/DEFERRED.md). To schedule one, the owner asks for an `add`.
+
+## Archive
+
+- [M0 — Foundation (done)](roadmap/archive/M0/README.md)
+- [M1 — Editor skeleton](roadmap/archive/M1/README.md)
+- [M2 — Project on disk](roadmap/archive/M2/README.md)

@@ -22,7 +22,7 @@ The project SHALL keep all per-change agent mandates (proposal/design/tasks veri
 
 ### Requirement: Archive always syncs delta specs
 
-When a change has delta specs, archive SHALL sync those deltas into main `openspec/specs/` and verify the merge before moving the change. Archive MUST NOT skip-sync while delta specs exist. After the move, archive SHALL tick the matching top-level `docs/roadmap.md` checkbox on the same branch when the change maps to one, and SHALL tick a related `[contingency]` closed as not needed with its gate owner.
+When a change has delta specs, archive SHALL sync those deltas into main `openspec/specs/` and verify the merge before moving the change. Archive MUST NOT skip-sync while delta specs exist. After the move, archive SHALL close the matching roadmap item on the same branch with `pnpm roadmap done <slug>` when the change maps to one, and SHALL close a related `[contingency]` that is not needed with its gate owner via `pnpm roadmap done <slug> --note "not needed (gate passed in <gate-item>)"`.
 
 #### Scenario: Delta specs require sync before archive
 
@@ -39,15 +39,15 @@ When a change has delta specs, archive SHALL sync those deltas into main `opensp
 - **WHEN** a change has no delta specs
 - **THEN** archive MAY proceed and MUST record that no delta specs were synced
 
-#### Scenario: Roadmap tick after archive move
+#### Scenario: Roadmap item closed after archive move
 
-- **WHEN** a completed change that maps to a top-level roadmap checkbox is archived
-- **THEN** that checkbox is marked done in `docs/roadmap.md` on the same branch after the archive move
+- **WHEN** a completed change that maps to a roadmap item is archived
+- **THEN** `pnpm roadmap done <slug>` ticks its index line on the same branch after the archive move, and when it was the milestone's last item the milestone folder moves to `docs/roadmap/archive/<M>/` in the same commit
 
 #### Scenario: Contingency closed with gate owner
 
 - **WHEN** a gate-owning change archives with its gate green and a related `[contingency]` is not needed
-- **THEN** that contingency checkbox is ticked together with the gate-owning item
+- **THEN** that contingency is closed together with the gate-owning item, with a `--note` recorded in its item file
 
 #### Scenario: Drift grep before archive move
 
@@ -158,22 +158,27 @@ The repository SHALL provide `docs/future-architecture.md` describing the target
 
 ### Requirement: Product roadmap
 
-The repository SHALL provide `docs/roadmap.md` as the execution plan for the photobook editor: milestone groupings, top-level checkboxes each naming one OpenSpec change, and guidance that 60 fps is part of done for feature work. `AGENTS.md` SHALL link to this doc for navigation. `openspec/config.yaml` context Doc budget SHALL mention `docs/roadmap.md` alongside other durable docs.
+The repository SHALL provide the execution plan as an index `docs/roadmap.md` (milestone blocks with goal lines, one single-line entry per item in priority order, `## Deferred (not scheduled)` and `## Archive` sections) plus one file per item under `docs/roadmap/<milestone>/<slug>.md`, finished milestones under `docs/roadmap/archive/<milestone>/`, and a process doc `docs/roadmap/RULES.md` that states 60 fps is part of done for feature work. The index and item files SHALL change only through `scripts/roadmap.mjs` (`pnpm roadmap`), and `pnpm roadmap check` SHALL pass in `pnpm test`. `AGENTS.md` SHALL link to the roadmap and the `roadmap` skill. `openspec/config.yaml` context Doc budget SHALL mention the roadmap alongside other durable docs.
 
-#### Scenario: Roadmap doc present
+#### Scenario: Roadmap index present
 
-- **WHEN** an agent opens `docs/roadmap.md`
-- **THEN** the file exists and lists milestone-ordered OpenSpec change checkboxes including a first M1 prep item for frame-budget gates
+- **WHEN** an agent runs `pnpm roadmap next`
+- **THEN** it prints the first open non-contingency item with its milestone goal, title, file path and full scope, without the agent reading `docs/roadmap.md`
+
+#### Scenario: Layout is validated
+
+- **WHEN** `pnpm test` runs
+- **THEN** `scripts/roadmap.test.mjs` runs `check` on the repository roadmap and fails on a missing or orphan item file, a duplicate slug, a multi-line index entry, a fully done milestone left active, an incomplete archive, or an index line whose tag or title differs from its item file
 
 #### Scenario: AGENTS links roadmap
 
 - **WHEN** an agent reads root `AGENTS.md`
-- **THEN** it can find a navigation link to `docs/roadmap.md`
+- **THEN** it can find a navigation link to `docs/roadmap.md`, the `pnpm roadmap` command and the `roadmap` skill
 
 #### Scenario: Config context mentions roadmap
 
 - **WHEN** an agent loads project context from `openspec/config.yaml`
-- **THEN** the Doc budget text mentions `docs/roadmap.md`
+- **THEN** the Doc budget text mentions `docs/roadmap.md` and `pnpm roadmap`
 
 ### Requirement: Scrollport success criteria and Playwright lock-in
 
@@ -215,12 +220,12 @@ When an OpenSpec change includes UI in scope, apply SHALL NOT be treated as comp
 
 ### Requirement: Unattended roadmap item flow
 
-The project SHALL provide a Cursor command `/next-roadmap-item` that runs one unchecked top-level `docs/roadmap.md` item end to end in a single session without editing CLI-generated `opsx-*` or `openspec-*` files. Per-change mandates remain in `openspec/config.yaml`; per-PR and CI-wait mandates remain in `.cursor/rules/git-finish.mdc`.
+The project SHALL provide a Cursor command `/next-roadmap-item` that runs one open roadmap item, selected with `pnpm roadmap next`, end to end in a single session without editing CLI-generated `opsx-*` or `openspec-*` files. Per-change mandates remain in `openspec/config.yaml`; per-PR and CI-wait mandates remain in `.cursor/rules/git-finish.mdc`.
 
 #### Scenario: Command exists and points at SoT
 
 - **WHEN** an agent opens `.cursor/commands/next-roadmap-item.md`
-- **THEN** the command describes the end-to-end stages and references `openspec/config.yaml` and `git-finish.mdc` as mandate sources without restating their full checklists
+- **THEN** the command describes the end-to-end stages and references `openspec/config.yaml`, `git-finish.mdc` and skill `roadmap` as mandate sources without restating their full checklists
 
 #### Scenario: Security-tagged item stops the run
 
@@ -230,7 +235,7 @@ The project SHALL provide a Cursor command `/next-roadmap-item` that runs one un
 #### Scenario: Item selection skips blocked work
 
 - **WHEN** the command picks the next roadmap item
-- **THEN** it selects the first top-level unchecked item, skips items with an open PR or remote branch, skips `[contingency]` items whose gate has not failed, and stops at a milestone review cut
+- **THEN** it runs `pnpm roadmap next --skip <slugs with an open PR or remote branch>`, which skips those slugs and `[contingency]` items, and the run stops at a milestone review cut reported by `done`
 
 #### Scenario: Defined stop conditions only
 
@@ -282,7 +287,7 @@ When a change alters behavior, commands, CI output, the module map, or the roadm
 
 ### Requirement: Change sizing budget
 
-Each OpenSpec change SHALL fit one agent apply context: at most one new subsystem, at most 8 implementation tasks in `tasks.md` (excluding the Verification checklist), and a guideline of about 1000 changed lines of source and tests. `openspec/config.yaml` proposal and tasks rules SHALL carry these limits; `docs/roadmap.md` and agent docs SHALL reference them instead of restating them. `docs/roadmap.md` SHALL define a subsystem with examples and list the slicing rules.
+Each OpenSpec change SHALL fit one agent apply context: at most one new subsystem, at most 8 implementation tasks in `tasks.md` (excluding the Verification checklist), and a guideline of about 1000 changed lines of source and tests. `openspec/config.yaml` proposal and tasks rules SHALL carry these limits; the roadmap docs and agent docs SHALL reference them instead of restating them. `docs/roadmap/RULES.md` SHALL define a subsystem with examples and list the slicing rules.
 
 #### Scenario: Budget is loadable from OpenSpec instructions
 
@@ -292,14 +297,14 @@ Each OpenSpec change SHALL fit one agent apply context: at most one new subsyste
 #### Scenario: Over-budget change is split before apply
 
 - **WHEN** a proposed change exceeds the budget
-- **THEN** the agent narrows its scope and adds the remainder to `docs/roadmap.md` as new top-level checkboxes before apply starts
+- **THEN** the agent narrows its scope and adds the remainder with `pnpm roadmap add <slug> --after <current>` before apply starts
 
 #### Scenario: Roadmap items fit the budget
 
-- **WHEN** an agent reads an unchecked top-level item in `docs/roadmap.md` that has no OpenSpec change yet, in a milestone without a `**Re-plan:**` line
+- **WHEN** an agent reads an open roadmap item (`pnpm roadmap show <slug>`) that has no OpenSpec change yet, in a milestone without a `**Re-plan:**` line
 - **THEN** the item names at most one new subsystem, and a `[feature]` that needs both new non-UI infrastructure and a new UI region has that infrastructure in a preceding `[prep]` item
 
 #### Scenario: Risk fallbacks are explicit items
 
 - **WHEN** a roadmap item has a perf or memory gate whose named fallback adds its own scope
-- **THEN** the fallback is a separate `[contingency]` top-level item rather than a clause inside the gated item
+- **THEN** the fallback is a separate `[contingency]` item rather than a clause inside the gated item

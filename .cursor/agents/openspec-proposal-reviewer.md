@@ -20,7 +20,7 @@ Honor `openspec/config.yaml` `rules.proposal`.
 2. **Structure:** has problem, why now, scope in, scope out, success criteria, risks. Flag missing sections.
 3. **No implementation dump:** fail if API shapes, file trees, pseudocode, or long how-to appear — those belong in design.
 4. **Scope:** in/out are concrete and testable; success criteria are observable.
-5. **Narrowness:** enforce the size budget in `rules.proposal` (subsystem limit, task limit, line guideline; subsystem definition in `docs/roadmap.md` "How to use"). Over budget → `revise` (high) with a concrete split and the new roadmap checkboxes it needs.
+5. **Narrowness:** enforce the size budget in `rules.proposal` (subsystem limit, task limit, line guideline; subsystem definition in `docs/roadmap/RULES.md` "Change size"). Over budget → `revise` (high) with a concrete split and the `pnpm roadmap add <slug> --after <current>` items it needs.
 6. **UI:** if UI is in scope, success criteria MUST include observable UX (not only "it works").
    6b. **Scrollport:** if the change introduces or changes an in-app scrollport (`overflow: auto|scroll`), success criteria MUST state no page-level H/V scroll and scrolling only inside the named scrollport(s).
 7. **Security:** if File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export are in scope, risks MUST include an explicit security bullet.
