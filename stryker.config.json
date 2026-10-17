@@ -31,6 +31,8 @@
     "!src/editor/previewAspect.ts",
     "!src/editor/upgradeSessionAssets.ts",
     "!src/editor/usePasteboardCamera.ts",
+    "!src/editor/Pasteboard.tsx",
+    "!src/editor/usePasteboardReveal.ts",
     "!src/editor/projectSession.ts"
   ],
   "ignorePatterns": [

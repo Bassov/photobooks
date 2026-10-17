@@ -23,6 +23,11 @@ import {
   setLiveZoom,
 } from './cameraStore'
 import { setEditorGestureActive } from './editorGesture'
+import {
+  fitViewportSize,
+  shouldApplyDelayedFitZoom,
+  shouldHoldCameraScroll,
+} from './pasteboardCameraFit'
 import { pasteboardStridePx } from './pasteboardWindow'
 
 const GESTURE_SETTLE_MS = 80
@@ -204,6 +209,7 @@ export function usePasteboardCamera({
   trimHeightMm,
   activeIndex,
   committedEpoch,
+  holdScrollRef,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>
   worldRef: RefObject<HTMLDivElement | null>
@@ -212,6 +218,7 @@ export function usePasteboardCamera({
   trimHeightMm: number
   activeIndex: number
   committedEpoch: number
+  holdScrollRef?: RefObject<boolean>
 }): {
   fitSpread: () => void
   fitWidth: () => void
@@ -235,6 +242,8 @@ export function usePasteboardCamera({
   } | null>(null)
   const rafRef = useRef(0)
   const settleRef = useRef(0)
+  const followFitSpread = useRef(false)
+  const fitRafRef = useRef(0)
 
   const placeZoom = (zoom: number): void => {
     const scroll = scrollRef.current
@@ -262,6 +271,44 @@ export function usePasteboardCamera({
     commitZoom(next, placed.scrollLeft, placed.scrollTop)
   }
 
+  const fitSpreadZoom = (): number | null => {
+    const scroll = scrollRef.current
+    if (scroll === null) {
+      return null
+    }
+    const metrics = stackMetrics(
+      trimWidthMm,
+      trimHeightMm,
+      spreadCount,
+      activeIndex,
+    )
+    // Inset absorbs subpixel / late chrome shrink so a fitted spread stays
+    // strictly inside the pasteboard (add-spread reveal relies on this).
+    const viewport = fitViewportSize(scroll.clientWidth, scroll.clientHeight)
+    return fitZoom({
+      contentWidthPx: metrics.spreadWidth,
+      contentHeightPx: metrics.spreadHeight,
+      viewportWidth: viewport.viewportWidth,
+      viewportHeight: viewport.viewportHeight,
+      mode: 'contain',
+    })
+  }
+
+  const applyFitSpread = (): void => {
+    const next = fitSpreadZoom()
+    if (next !== null) {
+      placeZoom(next)
+    }
+  }
+
+  const stopFollowingFit = (): void => {
+    followFitSpread.current = false
+    if (fitRafRef.current !== 0) {
+      cancelAnimationFrame(fitRafRef.current)
+      fitRafRef.current = 0
+    }
+  }
+
   useLayoutEffect(() => {
     bookRef.current = {
       spreadCount,
@@ -277,11 +324,14 @@ export function usePasteboardCamera({
     if (scroll === null || world === null) {
       return
     }
+    if (shouldHoldCameraScroll(holdScrollRef)) {
+      return
+    }
     const camera = getCommittedCamera()
     clearGesturePaint(world, scroll)
     scroll.scrollLeft = camera.scrollLeft
     scroll.scrollTop = camera.scrollTop
-  }, [committedEpoch, scrollRef, worldRef])
+  }, [committedEpoch, scrollRef, worldRef, holdScrollRef])
 
   useEffect(() => {
     const scroll = scrollRef.current
@@ -383,6 +433,7 @@ export function usePasteboardCamera({
       if (existing !== null && existing.mode === mode) {
         return existing
       }
+      stopFollowingFit()
       if (existing === null) {
         holdZoomGesture()
       }
@@ -616,6 +667,7 @@ export function usePasteboardCamera({
       if (next === getCommittedZoom()) {
         return
       }
+      stopFollowingFit()
       const frame = blankFrame()
       const start = getCommittedZoom()
       zoomAtPoint(
@@ -679,27 +731,34 @@ export function usePasteboardCamera({
 
   return {
     fitSpread: () => {
-      const scroll = scrollRef.current
-      if (scroll === null) {
-        return
+      followFitSpread.current = true
+      applyFitSpread()
+      if (fitRafRef.current !== 0) {
+        cancelAnimationFrame(fitRafRef.current)
       }
-      const metrics = stackMetrics(
-        trimWidthMm,
-        trimHeightMm,
-        spreadCount,
-        activeIndex,
-      )
-      placeZoom(
-        fitZoom({
-          contentWidthPx: metrics.spreadWidth,
-          contentHeightPx: metrics.spreadHeight,
-          viewportWidth: scroll.clientWidth,
-          viewportHeight: scroll.clientHeight,
-          mode: 'contain',
-        }),
-      )
+      // After chrome/filmstrip finishes laying out, only zoom out if the port
+      // shrank. Never zoom back in — a larger transient clientHeight overflows.
+      fitRafRef.current = requestAnimationFrame(() => {
+        fitRafRef.current = requestAnimationFrame(() => {
+          fitRafRef.current = 0
+          if (!followFitSpread.current) {
+            return
+          }
+          const next = fitSpreadZoom()
+          const apply = shouldApplyDelayedFitZoom(
+            followFitSpread.current,
+            next ?? Number.POSITIVE_INFINITY,
+            getCommittedZoom(),
+          )
+          followFitSpread.current = false
+          if (apply && next !== null) {
+            placeZoom(next)
+          }
+        })
+      })
     },
     fitWidth: () => {
+      stopFollowingFit()
       const scroll = scrollRef.current
       if (scroll === null) {
         return
@@ -721,6 +780,7 @@ export function usePasteboardCamera({
       )
     },
     actualSize: () => {
+      stopFollowingFit()
       placeZoom(physicalZoom())
     },
   }

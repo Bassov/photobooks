@@ -1,7 +1,6 @@
 import {
   memo,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -14,6 +13,7 @@ import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { installGalleryDrop, type DropGeometry } from './galleryDrop'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
 import { usePasteboardCamera } from './usePasteboardCamera'
+import { usePasteboardReveal } from './usePasteboardReveal'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -33,83 +33,6 @@ function getTrimHeightMm(): number {
 
 function getTrimWidthMm(): number {
   return getBookStoreSnapshot().book.settings.trim.widthMm
-}
-
-function findPasteboardSlot(
-  scroll: HTMLElement,
-  spreadId: string,
-): HTMLElement | null {
-  for (const slot of scroll.querySelectorAll<HTMLElement>(
-    '[data-pasteboard-slot]',
-  )) {
-    if (slot.dataset.spreadId === spreadId) {
-      return slot
-    }
-  }
-  return null
-}
-
-function spreadBoxContained(port: DOMRect, box: DOMRect): boolean {
-  return (
-    box.width >= 1 &&
-    box.height >= 1 &&
-    box.top >= port.top - 1 &&
-    box.bottom <= port.bottom + 1 &&
-    box.left >= port.left - 1 &&
-    box.right <= port.right + 1
-  )
-}
-
-function revealLaidOutSpread(scroll: HTMLElement, slot: HTMLElement): boolean {
-  const previousVisibility = slot.style.contentVisibility
-  slot.style.contentVisibility = 'visible'
-  const view = slot.querySelector('[data-testid="spread-view"]')
-  const target = view instanceof HTMLElement ? view : slot
-  const box = target.getBoundingClientRect()
-  if (box.width < 1 || box.height < 1) {
-    slot.style.contentVisibility = previousVisibility
-    return false
-  }
-  nudgeBoxIntoPort(scroll, box)
-  slot.style.contentVisibility = previousVisibility
-  const port = scroll.getBoundingClientRect()
-  const after = target.getBoundingClientRect()
-  const fits = after.height <= port.height + 1 && after.width <= port.width + 1
-  if (!spreadBoxContained(port, after) && fits) {
-    nudgeBoxIntoPort(scroll, after)
-  }
-  return spreadBoxContained(
-    scroll.getBoundingClientRect(),
-    target.getBoundingClientRect(),
-  )
-}
-
-function nudgeBoxIntoPort(scroll: HTMLElement, box: DOMRect): void {
-  const port = scroll.getBoundingClientRect()
-  const contentTop = scroll.scrollTop + (box.top - port.top)
-  const contentLeft = scroll.scrollLeft + (box.left - port.left)
-  let top = scroll.scrollTop
-  let left = scroll.scrollLeft
-  if (box.height <= port.height + 1) {
-    if (box.top < port.top - 1 || box.bottom > port.bottom + 1) {
-      top = contentTop - Math.max(0, (port.height - box.height) / 2)
-    }
-  } else if (box.top < port.top - 1) {
-    top -= port.top - box.top
-  } else if (box.bottom > port.bottom + 1) {
-    top += box.bottom - port.bottom
-  }
-  if (box.width <= port.width + 1) {
-    if (box.left < port.left - 1 || box.right > port.right + 1) {
-      left = contentLeft - Math.max(0, (port.width - box.width) / 2)
-    }
-  } else if (box.left < port.left - 1) {
-    left -= port.left - box.left
-  } else if (box.right > port.right + 1) {
-    left += box.right - port.right
-  }
-  scroll.scrollTop = Math.max(0, top)
-  scroll.scrollLeft = Math.max(0, left)
 }
 
 export const Pasteboard = memo(function Pasteboard() {
@@ -154,9 +77,6 @@ export const Pasteboard = memo(function Pasteboard() {
   const scrollRaf = useRef(0)
   const pendingTop = useRef(0)
   const pendingEpoch = useRef(0)
-  const revealSpreadId = useRef<string | null>(null)
-  const revealTries = useRef(0)
-  const [revealTick, setRevealTick] = useState(0)
 
   useEffect(() => {
     const node = scrollRef.current
@@ -196,14 +116,6 @@ export const Pasteboard = memo(function Pasteboard() {
     return installGalleryDrop(scroll, () => geometryRef.current)
   }, [])
 
-  const onAddSpread = (): void => {
-    const before = new Set(getSpreadIdsSnapshot())
-    dispatchBookOp({ type: 'addSpread' })
-    revealTries.current = 0
-    revealSpreadId.current =
-      getSpreadIdsSnapshot().find((id) => !before.has(id)) ?? null
-  }
-
   const range = pasteboardWindow({
     count: spreadIds.length,
     stridePx: stride,
@@ -222,6 +134,14 @@ export const Pasteboard = memo(function Pasteboard() {
   geometryRef.current.pxPerMm = pxPerMm
   geometryRef.current.stridePx = stride
   geometryRef.current.worldWidthPx = worldWidth
+  const reveal = usePasteboardReveal({
+    scrollRef,
+    worldRef,
+    spreadIds,
+    stride,
+    windowKey,
+    setTrackedScroll,
+  })
   const camera = usePasteboardCamera({
     scrollRef,
     worldRef,
@@ -230,44 +150,15 @@ export const Pasteboard = memo(function Pasteboard() {
     trimHeightMm,
     activeIndex: activeIndex < 0 ? 0 : activeIndex,
     committedEpoch: cameraFrame.epoch,
+    holdScrollRef: reveal.holdCameraScrollRef,
   })
 
-  useLayoutEffect(() => {
-    const id = revealSpreadId.current
-    if (id === null || windowKey.length === 0) {
-      return
-    }
-    const scroll = scrollRef.current
-    if (scroll === null) {
-      return
-    }
-    const slot = findPasteboardSlot(scroll, id)
-    const epoch = getCommittedCamera().epoch
-    if (slot === null) {
-      const top = Math.max(0, (spreadIds.length - 1) * stride)
-      setTrackedScroll((current) =>
-        current.top === top && current.epoch === epoch
-          ? current
-          : { top, epoch },
-      )
-      return
-    }
-    if (!revealLaidOutSpread(scroll, slot)) {
-      if (revealTries.current < 8) {
-        revealTries.current += 1
-        requestAnimationFrame(() => {
-          setRevealTick((tick) => tick + 1)
-        })
-      }
-      return
-    }
-    revealTries.current = 0
-    revealSpreadId.current = null
-    const top = scroll.scrollTop
-    setTrackedScroll((current) =>
-      current.top === top && current.epoch === epoch ? current : { top, epoch },
-    )
-  }, [spreadIds, stride, windowKey, revealTick])
+  const onAddSpread = (): void => {
+    const before = new Set(getSpreadIdsSnapshot())
+    dispatchBookOp({ type: 'addSpread' })
+    const newId = getSpreadIdsSnapshot().find((id) => !before.has(id)) ?? null
+    reveal.beginRevealForNewSpread(newId)
+  }
 
   useEffect(() => {
     const root = scrollRef.current
