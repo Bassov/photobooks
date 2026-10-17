@@ -26,19 +26,32 @@
 - **WHEN** the agent opens or updates the pull request
 - **THEN** it generates the PR body once and cites related issues as plain URLs only
 
-### Requirement: Out-of-scope failures and push budget
+### Requirement: Out-of-scope failures
 
-A gate failure outside the change's touch-set SHALL NOT be fixed inside the current PR. The agent SHALL schedule follow-up with `pnpm roadmap add … --after <current>` or open/file a bug issue for a flaky test, then continue; CI remains the gate for the PR. Local push SHALL stop after at most two failed attempts and report in the PR description instead of looping. Any code change after `openspec-implementation-reviewer` has passed SHALL re-run that reviewer on the delta before archive.
+A gate failure is out of scope only when the same test also fails or flakes on unmodified `origin/main`. A test outside the design touch-set that fails only with the change applied is in scope and MUST be fixed in code or tests in the current PR. Out-of-scope failures SHALL be scheduled with `pnpm roadmap add … --after <current>` or a bug issue for a flake and MUST NOT be patched by enlarging the current PR. Filing an item or issue MUST NOT make a red PR mergeable; the git-finish stop after three red CI rounds still applies.
+
+#### Scenario: Failure only with the change is in scope
+
+- **WHEN** a test outside the touch-set fails only with the change applied
+- **THEN** it is in scope and the agent MUST fix it in code or tests in the current PR
 
 #### Scenario: Out-of-scope failure is scheduled not patched in-PR
 
-- **WHEN** pre-push or local verify fails on a file or test outside the design touch-set
-- **THEN** the agent MUST NOT enlarge the current PR to fix it; it MUST add a roadmap item or bug issue and proceed (or stop per push budget)
+- **WHEN** pre-push or local verify fails on a test that also fails or flakes on unmodified `origin/main`
+- **THEN** the agent MUST NOT enlarge the current PR to fix it; it MUST add a roadmap item or bug issue and MUST NOT treat the PR as mergeable while checks are red
 
-#### Scenario: Two push attempts then stop
+### Requirement: Local push budget
+
+Local push SHALL stop after at most two failed attempts under pre-push and report in the PR description instead of looping.
+
+#### Scenario: Two failed push attempts then stop
 
 - **WHEN** local `git push` fails twice under pre-push
 - **THEN** the agent MUST stop further push loops and record the failure in the PR description (or stop and ask if no PR exists yet)
+
+### Requirement: Post-review code needs re-review
+
+Any code change after `openspec-implementation-reviewer` has passed SHALL re-run that reviewer on the delta before archive.
 
 #### Scenario: Post-review code needs re-review
 
@@ -75,9 +88,14 @@ Lefthook pre-push SHALL run `pnpm verify:fast` only. Full Playwright e2e SHALL r
 
 ### Requirement: Agent environment bootstrap
 
-The repository SHALL provide a sourced bootstrap script that makes Node 22 and pnpm available to non-interactive agent shells without writing a `.tool-versions` (or equivalent pin file) into the repository tree. `AGENTS.md` SHALL document that bootstrap in navigation form (≤150 lines, no checklist).
+The repository SHALL provide a POSIX-sourcable bootstrap script that makes Node matching the major in `.nvmrc` and pnpm available to non-interactive agent shells without writing a `.tool-versions` (or equivalent pin file) into the repository tree. When multiple matching asdf installs exist, it SHALL pick the highest version (`sort -V`). It SHALL set `ASDF_NODEJS_VERSION` only when that install exists, and SHALL warn on stderr if `node -v` major does not match `.nvmrc`. `AGENTS.md` SHALL document that bootstrap in navigation form (≤150 lines, no checklist).
 
 #### Scenario: Bootstrap without repo tool-versions
 
-- **WHEN** an agent sources the bootstrap script in a clean non-interactive shell
-- **THEN** `pnpm` and Node 22 are on PATH and no `.tool-versions` file is created under the repository root
+- **WHEN** an agent sources the bootstrap script in a clean non-interactive shell that has asdf Node installs matching `.nvmrc`
+- **THEN** `pnpm` is on PATH, `node -v` reports the `.nvmrc` major, and no `.tool-versions` file is created under the repository root
+
+#### Scenario: Highest matching Node when several installs exist
+
+- **WHEN** multiple asdf Node installs share the `.nvmrc` major
+- **THEN** the bootstrap selects the highest version via version sort, not lexical `ls` order

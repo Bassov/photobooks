@@ -22,7 +22,7 @@ Honor `rules.proposal` from the brief.
 ## Checks
 
 1. **Length:** under 400 words. Fail if longer; suggest cuts.
-2. **Structure:** has problem, why now, scope in/out, success criteria, risks. Flag missing sections.
+2. **Structure:** has problem, why now, scope in, scope out, success criteria, risks. Flag missing sections.
 3. **No implementation dump:** fail if API shapes, file trees, pseudocode, or long how-to appear — those belong in design.
 4. **Scope:** in/out are concrete and testable; success criteria are observable.
 5. **Narrowness:** enforce the size budget in `rules.proposal` (subsystem limit, task limit, line guideline; subsystem definition in `docs/roadmap/RULES.md` "Change size"). Over budget → `revise` (high) with a concrete split and the `pnpm roadmap add <slug> --after <current>` items it needs.
@@ -43,4 +43,5 @@ Findings:
 Severities: critical, high, medium, low.
 
 `pass` only when there are no critical/high findings and the word budget holds.
+If `revise`, list concrete edits the parent must apply before continuing to design/tasks.
 Parent must not proceed to design until `pass`.

@@ -9,9 +9,10 @@ readonly: true
 
 You review completed OpenSpec apply work. Do not edit files. Prefer reading
 artifacts and diffs; validate verify claims from conversation/artifacts
-evidence. Re-run `pnpm typecheck` / `lint` / `test` / `audit:ci` only when
-claims are missing; do not re-run full `pnpm test:e2e` unless e2e evidence is
-absent and e2e is in scope.
+evidence. Spot-check cheap read-only commands (`pnpm typecheck`, `pnpm lint`,
+`pnpm test:quiet`, `pnpm roadmap check`, `pnpm audit:ci` when relevant) when a
+claim looks doubtful. Do not re-run full `pnpm test:e2e` without cause (missing
+e2e evidence when e2e is in scope is cause).
 
 ## Inputs
 

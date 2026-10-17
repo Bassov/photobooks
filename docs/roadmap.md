@@ -21,6 +21,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 - [x] [prep] [agent-rules](roadmap/M2.1/agent-rules.md) — agents never weaken gates, grow the roadmap instead of the PR, and resolve reviewer findings themselves (issue #72 E)
 - [x] [prep] [agent-pipeline-token-budget](roadmap/M2.1/agent-pipeline-token-budget.md) — Cut /next-roadmap-item token waste (issue #77)
+- [ ] [prep] [agent-pipeline-token-check](roadmap/M2.1/agent-pipeline-token-check.md) — Check one /next-roadmap-item run against issue #77 targets
 - [ ] [prep] [add-spread-reveal-flake](roadmap/M2.1/add-spread-reveal-flake.md) — Strict fit-zoom add-spread containment: app scroll or deterministic wait
 - [ ] [prep] [gate-values-file](roadmap/M2.1/gate-values-file.md) — one data file for gate thresholds
 - [ ] [prep] [gate-ratchet](roadmap/M2.1/gate-ratchet.md) — gate values can only get stricter (issue #72 K, replaced by a ratchet)

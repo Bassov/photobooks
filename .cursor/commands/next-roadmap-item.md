@@ -35,10 +35,12 @@ working-tree diff — no other-session transcripts.
    roadmap with `pnpm roadmap add <new-slug> --after <slug> ...`, not the PR.
 4. /opsx-apply <slug> through the Verification checklist, including
    openspec-implementation-reviewer pass and the Manual check. Prefer quiet
-   verify. A gate failure outside the touch-set is not fixed in this PR —
-   `pnpm roadmap add … --after <slug>` or a bug issue for a flake, then continue;
-   CI decides. Code after implementation review → re-run that reviewer on the
-   delta before archive.
+   verify. Out of scope only if the same test fails/flakes on unmodified
+   `origin/main`; otherwise fix in this PR (even if the file is outside the
+   touch-set). Out-of-scope: `pnpm roadmap add … --after <slug>` or a bug issue,
+   then continue — filing never makes a red PR mergeable; 3 red CI rounds still
+   stop. Code after implementation review → re-run that reviewer on the delta
+   before archive.
 5. /opsx-archive <slug>: answer "Sync now"; confirm only when every task is
    checked. Then close the item on this branch: `pnpm roadmap done <slug>`
    (`--note "..."` when the shipped scope deviates; required for a

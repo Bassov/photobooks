@@ -3,7 +3,7 @@
 ## 1. Mechanical hooks and scripts
 
 - [x] 1.1 Set Lefthook pre-push to `pnpm verify:fast`; add `verify:fast:quiet` and `test:e2e:quiet` in `package.json` — verified: `lefthook.yml` + `pnpm verify:fast:quiet` green; `pnpm test:e2e:quiet` green (full suite)
-- [x] 1.2 Add `scripts/agent-env.sh` (Node 22 + pnpm on PATH, no repo `.tool-versions`) — verify `bash -c 'source scripts/agent-env.sh && pnpm -v && node -v'` and `test ! -f .tool-versions`
+- [x] 1.2 Add `scripts/agent-env.sh` (Node 22 + pnpm on PATH, no repo `.tool-versions`) — verify `env -i HOME="$HOME" PATH=/usr/bin:/bin sh -c '. scripts/agent-env.sh && node -v | grep -q "^v22\." && command -v pnpm' && test ! -f .tool-versions`
 
 ## 2. Agent docs and reviewers
 
@@ -34,4 +34,7 @@
 
 ## Manual test scenarios
 
-N/A — non-UI `[prep]` (docs/hooks/scripts only). Spec scenarios validated via file presence, `openspec validate --strict`, `source scripts/agent-env.sh`, and `pnpm verify:fast:quiet`.
+1. `pnpm exec lefthook run pre-push --force` — hook command is `pnpm verify:fast` only (`lefthook.yml`); run completed with verify:fast (typecheck/lint/deps/knip/mutation-scope/vitest), no Playwright in the hook summary.
+2. `env -i HOME="$HOME" PATH=/usr/bin:/bin sh -c '. scripts/agent-env.sh && node -v && command -v pnpm'` — observed `v22.23.3` and `/home/albasov/.asdf/shims/pnpm` (exit 0). Without the script the same `env -i` PATH sees `v18.19.1` and no pnpm.
+3. `test ! -f .tool-versions` — exit 0 (no file created).
+4. `pnpm test:e2e:quiet` — Playwright `--reporter=dot`; suite green (56 passed, 2 flaky retries on prior run).

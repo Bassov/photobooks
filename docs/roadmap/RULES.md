@@ -48,8 +48,8 @@ Slicing rules when adding or splitting items:
 ## Agent apply hygiene
 
 - Tick item-file checkboxes with targeted edits; do not rewrite the whole item file.
-- A gate failure outside the change's touch-set is not fixed in the current PR. Schedule it with `pnpm roadmap add <slug> --after <current>` (or a bug issue for a flaky test) and move on; CI remains the PR gate.
-- At most two local push attempts when pre-push fails; then stop and report in the PR description instead of looping. Code changed after implementation review must be re-reviewed before archive.
+- A failure is **out of scope** only when the same test also fails or flakes on unmodified `origin/main`. A test outside the touch-set that fails only with this change applied is **in scope** and must be fixed in code or tests in this PR. Out-of-scope failures are scheduled with `pnpm roadmap add <slug> --after <current>` (or a bug issue for a flake) and are not patched by enlarging this PR — but filing an item or issue never makes a red PR mergeable; the git-finish stop after 3 red CI rounds still applies.
+- At most two **failed** local push attempts under pre-push; then stop and report in the PR description instead of looping. Code changed after implementation review must be re-reviewed before archive.
 
 ## Known limits
 
