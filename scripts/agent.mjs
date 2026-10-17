@@ -1,12 +1,8 @@
-#!/usr/bin/env node
-// Agent pipeline CLI: composite preflight / finish / review-brief for /next-roadmap-item.
-// Zero dependencies, Node 22, ESM. POSIX/WSL (sh, bare pnpm/openspec on PATH). `pnpm agent help`.
+// Agent pipeline CLI library: composite preflight / finish / review-brief.
+// Entry: scripts/agent-cli.mjs (`pnpm agent`). Zero deps, Node 22, ESM.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-// Stryker disable StringLiteral,MethodExpression,ArrayDeclaration,Regex,OptionalChaining,BooleanLiteral,ArrowFunction,ObjectLiteral,ArithmeticOperator,BlockStatement,CallExpression,LogicalOperator,ConditionalExpression: CLI outcome-tested; EqualityOperator kept — see tasks.md
 
 export class AgentError extends Error {
   constructor(msg, code = 2) {
@@ -37,6 +33,7 @@ const VALUE = new Set([
   'body-file',
   'rules-json',
   'skip',
+  'base',
 ])
 
 export function parseArgs(argv) {
@@ -74,7 +71,7 @@ export function parseArgs(argv) {
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
   preflight [--skip a,b]     env + sync main + roadmap next + branch + compact report
   finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR → CI summary
-  review-brief [--change S] [--rules-json '[…]']   reviewer brief in one call
+  review-brief [--change S] [--base REF] [--rules-json '[…]']   reviewer brief in one call
   help
 
 Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
@@ -90,12 +87,12 @@ export function defaultExec(file, args, opts = {}) {
       stdio: ['ignore', 'pipe', 'pipe'],
       ...opts,
     })
-    return { code: 0, stdout: String(stdout ?? ''), stderr: '' }
+    return { code: 0, stdout: String(stdout), stderr: '' }
   } catch (e) {
     return {
       code: typeof e.status === 'number' ? e.status : 1,
-      stdout: String(e.stdout ?? ''),
-      stderr: String(e.stderr ?? ''),
+      stdout: String(e.stdout),
+      stderr: String(e.stderr),
     }
   }
 }
@@ -129,7 +126,7 @@ export function readNvmrcMajor(root) {
   const p = path.join(root, '.nvmrc')
   if (!fs.existsSync(p)) return null
   const v = fs.readFileSync(p, 'utf8').trim().replace(/^v/, '')
-  const maj = Number.parseInt(v.split('.')[0] ?? '', 10)
+  const maj = Number.parseInt(v.split('.')[0], 10)
   return Number.isFinite(maj) ? maj : null
 }
 
@@ -624,8 +621,8 @@ export function cmdReviewBrief(o, deps) {
     touchNote = 'design.md missing; treating all paths as outside touch-set'
   }
 
-  const headStat = sh(exec, cwd, env, quiet, 'git', ['diff', 'HEAD', '--stat'])
-  const headDiff = sh(exec, cwd, env, quiet, 'git', ['diff', 'HEAD'])
+  const base = o.base ?? 'HEAD'
+  const headStat = sh(exec, cwd, env, quiet, 'git', ['diff', base, '--stat'])
   const untrackedR = sh(exec, cwd, env, quiet, 'git', [
     'ls-files',
     '--others',
@@ -640,7 +637,7 @@ export function cmdReviewBrief(o, deps) {
   const changedTracked = []
   const nameOnly = sh(exec, cwd, env, quiet, 'git', [
     'diff',
-    'HEAD',
+    base,
     '--name-only',
   ])
   for (const f of nameOnly.stdout
@@ -657,7 +654,7 @@ export function cmdReviewBrief(o, deps) {
   if (touchPaths.length) {
     const td = sh(exec, cwd, env, quiet, 'git', [
       'diff',
-      'HEAD',
+      base,
       '--',
       ...touchPaths,
     ])
@@ -683,7 +680,7 @@ export function cmdReviewBrief(o, deps) {
     if (trackedOutside.length) {
       const od = sh(exec, cwd, env, quiet, 'git', [
         'diff',
-        'HEAD',
+        base,
         '--',
         ...trackedOutside,
       ])
@@ -703,12 +700,10 @@ export function cmdReviewBrief(o, deps) {
     }
   }
 
-  const statBits = [
-    stripAnsi(headStat.stdout).trim(),
-    untracked.length
-      ? `Untracked:\n${untracked.map((f) => `?? ${f}`).join('\n')}`
-      : '',
-  ]
+  const untrackedBlock = untracked.length
+    ? `Untracked:\n${untracked.map((f) => `?? ${f}`).join('\n')}`
+    : ''
+  const statBits = [stripAnsi(headStat.stdout).trim(), untrackedBlock]
     .filter(Boolean)
     .join('\n')
 
@@ -719,6 +714,7 @@ export function cmdReviewBrief(o, deps) {
     rulesNote: rules.length
       ? null
       : 'pass --rules-json from openspec instructions',
+    base,
     diffStat: statBits || '(empty)',
     touchSetPaths: touchPaths,
     touchNote,
@@ -726,15 +722,12 @@ export function cmdReviewBrief(o, deps) {
     outsideTouchSet: outside,
     touchDiff: touchDiffParts.join('\n\n') || '(empty)',
     outsideDiff: outsideParts.join('\n\n') || '(empty)',
-    headDiff: stripAnsi(headDiff.stdout).trim(),
     untracked,
   }
 }
 
 function fmtPreflight(r) {
-  const ruleList = Array.isArray(r.instructions.rules)
-    ? r.instructions.rules
-    : []
+  const ruleList = r.instructions.rules
   const rules =
     ruleList.length === 0
       ? '  (none)'
@@ -770,7 +763,7 @@ function fmtFinish(r) {
     `branch: ${r.branch}`,
     `ahead: ${r.ahead}`,
     `pr: ${r.prUrl}`,
-    ...(r.checks || []),
+    ...(r.checks ?? []),
     `summary: ${r.summary}`,
     '--- log-failed (tail) ---',
     String(r.logTail),
@@ -781,17 +774,18 @@ function fmtBrief(r) {
   return [
     `slug: ${r.slug}`,
     `changePath: ${r.changePath}`,
+    `base: ${r.base}`,
     `rules: ${JSON.stringify(r.rules)}`,
     `rulesNote: ${r.rulesNote}`,
     '--- diff --stat ---',
     String(r.diffStat),
     `touchNote: ${r.touchNote}`,
-    `touchSet: ${(r.touchSetPaths || []).join(', ')}`,
-    `inTouchSet: ${(r.inTouchSet || []).join(', ')}`,
+    `touchSet: ${r.touchSetPaths.join(', ')}`,
+    `inTouchSet: ${r.inTouchSet.join(', ')}`,
     '--- touch-set diff ---',
     String(r.touchDiff),
     '--- outsideTouchSet ---',
-    (r.outsideTouchSet || []).join(', '),
+    r.outsideTouchSet.join(', '),
     '--- outsideTouchSet diff ---',
     String(r.outsideDiff),
   ].join('\n')
@@ -852,9 +846,3 @@ export function main(argv, io) {
   if (r.err) io.stderr.write(r.err + '\n')
   io.exitCode = r.code
 }
-
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  main(process.argv.slice(2), process)

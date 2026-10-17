@@ -14,8 +14,8 @@ preflight. Take `rules`/`template` from preflight output or
 `openspec show | head -c`. Tick item checkboxes with targeted edits, not
 whole-file rewrites. Prefer `pnpm verify:fast:quiet` / `pnpm test:e2e:quiet`.
 Generate the PR body once; cite issues as plain URLs only. Brief reviewers via
-`pnpm agent review-brief` (slug, change path, rules, diff stat, touch-set) —
-no other-session transcripts.
+`pnpm agent review-brief --base origin/main` (slug, change path, rules,
+diff vs base, touch-set) — no other-session transcripts.
 
 Batching: independent reads/greps in one parallel tool step; dependent shell
 steps chained with `&&` in one call; no check-then-recheck loops. OpenSpec
