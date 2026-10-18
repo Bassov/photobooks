@@ -20,8 +20,15 @@ export interface AutosaveController {
    * not gesturing.
    */
   arm: (canArm: boolean, isDirty: () => boolean, onFire: () => void) => boolean
-  /** After gesture ends: re-arm when still pending and dirty. */
-  onGestureIdle: (isDirty: () => boolean, onFire: () => void) => boolean
+  /**
+   * After gesture ends: re-arm when still pending and dirty, using the same
+   * `canArm` gate as `arm` (library-backed book present).
+   */
+  onGestureIdle: (
+    canArm: boolean,
+    isDirty: () => boolean,
+    onFire: () => void,
+  ) => boolean
   markPendingFromError: () => void
   /** Enter `saving` and cancel timer. Returns false if already saving. */
   beginSaving: () => boolean
@@ -83,9 +90,13 @@ export function createAutosaveController(
     },
     cancel,
     arm,
-    onGestureIdle(isDirty: () => boolean, onFire: () => void): boolean {
+    onGestureIdle(
+      canArm: boolean,
+      isDirty: () => boolean,
+      onFire: () => void,
+    ): boolean {
       if (savePhase === 'pending' && isDirty()) {
-        return arm(true, isDirty, onFire)
+        return arm(canArm, isDirty, onFire)
       }
       return false
     },

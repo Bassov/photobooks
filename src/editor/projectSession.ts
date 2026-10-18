@@ -389,7 +389,7 @@ function onGestureChanged(): void {
   if (isEditorGestureActive()) {
     return
   }
-  if (autosave.onGestureIdle(() => dirty, runSave)) {
+  if (autosave.onGestureIdle(canArmAutosave(), () => dirty, runSave)) {
     emit()
   }
 }

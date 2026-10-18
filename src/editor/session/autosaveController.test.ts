@@ -137,11 +137,23 @@ describe('createAutosaveController', () => {
     expect(controller.getSavePhase()).toBe('pending')
 
     gestureActive = false
-    controller.onGestureIdle(() => dirty, onFire)
+    expect(controller.onGestureIdle(true, () => dirty, onFire)).toBe(true)
     expect(capture.armed.length).toBeGreaterThanOrEqual(2)
 
     capture.flush()
     expect(onFire).toHaveBeenCalledOnce()
+  })
+
+  it('onGestureIdle with canArm false does not schedule a timer', () => {
+    const onFire = vi.fn()
+    expect(controller.arm(true, () => dirty, onFire)).toBe(true)
+    expect(capture.armed).toHaveLength(1)
+    const armedBefore = capture.armed.length
+
+    expect(controller.onGestureIdle(false, () => dirty, onFire)).toBe(false)
+    expect(controller.getSavePhase()).toBe('pending')
+    expect(capture.armed).toHaveLength(armedBefore)
+    expect(onFire).not.toHaveBeenCalled()
   })
 
   it('does not fire when dirty clears before debounce elapses', () => {
@@ -165,13 +177,13 @@ describe('createAutosaveController', () => {
   it('onGestureIdle is a no-op unless pending and dirty', () => {
     const onFire = vi.fn()
     dirty = true
-    expect(controller.onGestureIdle(() => dirty, onFire)).toBe(false)
+    expect(controller.onGestureIdle(true, () => dirty, onFire)).toBe(false)
     expect(controller.getSavePhase()).toBe('idle')
     expect(capture.armed).toHaveLength(0)
 
     dirty = false
     controller.arm(true, () => true, onFire)
-    expect(controller.onGestureIdle(() => dirty, onFire)).toBe(false)
+    expect(controller.onGestureIdle(true, () => dirty, onFire)).toBe(false)
     expect(capture.armed).toHaveLength(1)
   })
 
