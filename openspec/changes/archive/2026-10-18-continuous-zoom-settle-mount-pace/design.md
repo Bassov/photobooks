@@ -21,7 +21,7 @@ See proposal.md. `Pasteboard` mounts `spreadIds.slice(start, end)` from `pastebo
 1. **Pure pace helper** — export `pacePasteboardWindow({ current, target, viewportCover, maxNewMounts })` from `pasteboardWindow.ts`. Each step grows the mounted index range toward `target` by at most `maxNewMounts`, preferring `viewportCover` before overscan. Drop indices that left `target` immediately; if no overlap, start empty at `target.start`.
    - Rejected: sleep in e2e; loosen LoAF; uncapped cover union (fit-all cover = full stack → one-frame flood).
 
-2. **Wire in Pasteboard** — hold paced `{start,end}`; render slots from paced range; spacers from paced lead/tail (full-stack extent). On target change, rAF + ~32ms watchdog advances (lesson 25 dual-schedule).
+2. **Wire in Pasteboard** — hold paced `{start,end}`; render slots from paced range; spacers from paced lead/tail (full-stack extent). Bootstrap from viewport cover on cold start; force-include add-spread reveal index when it enters the target. On target change, rAF + ~32ms watchdog advances (lesson 25 dual-schedule).
    - Rejected: pacing inside `ConnectedSpreadView`; changing camera settle timing to dodge remount.
 
 3. **Cap** — `PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME` (=1). Cover is preferred within the cap, not uncapped.

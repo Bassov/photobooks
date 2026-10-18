@@ -96,6 +96,7 @@ export const Pasteboard = memo(function Pasteboard() {
   const paceWatchdog = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   )
+  const forceMountIndexRef = useRef<number | null>(null)
   const [paced, setPaced] = useState<PasteboardWindow | null>(null)
 
   useEffect(() => {
@@ -166,14 +167,17 @@ export const Pasteboard = memo(function Pasteboard() {
     }
 
     const advance = (): boolean => {
-      const emptyPainted: PasteboardWindow = {
-        start: targetWindow.start,
-        end: targetWindow.start,
-        leadPx: targetWindow.start * stride,
-        tailPx: (spreadIds.length - targetWindow.start) * stride,
+      // Bootstrap: treat the viewport cover as already painted so cold start and
+      // add-spread reveal see real slots immediately; only overscan (and large
+      // cover jumps from a prior paced window) are rate-limited.
+      const bootCover: PasteboardWindow = {
+        start: coverWindow.start,
+        end: coverWindow.end,
+        leadPx: coverWindow.start * stride,
+        tailPx: (spreadIds.length - coverWindow.end) * stride,
       }
-      const current = pacedRef.current ?? emptyPainted
-      const next = pacePasteboardWindow({
+      const current = pacedRef.current ?? bootCover
+      let next = pacePasteboardWindow({
         current,
         target: targetWindow,
         viewportCover: coverWindow,
@@ -181,6 +185,21 @@ export const Pasteboard = memo(function Pasteboard() {
         count: spreadIds.length,
         stridePx: stride,
       })
+      const forceIdx = forceMountIndexRef.current
+      if (
+        forceIdx !== null &&
+        forceIdx >= targetWindow.start &&
+        forceIdx < targetWindow.end
+      ) {
+        const start = Math.min(next.start, forceIdx)
+        const end = Math.max(next.end, forceIdx + 1)
+        next = {
+          start,
+          end,
+          leadPx: start * stride,
+          tailPx: (spreadIds.length - end) * stride,
+        }
+      }
       pacedRef.current = next
       setPaced((prev) =>
         prev !== null && pasteboardWindowsEqual(prev, next) ? prev : next,
@@ -234,10 +253,10 @@ export const Pasteboard = memo(function Pasteboard() {
   const range =
     paced === null
       ? {
-          start: target.start,
-          end: target.start,
-          leadPx: target.start * stride,
-          tailPx: (spreadIds.length - target.start) * stride,
+          start: viewportCover.start,
+          end: viewportCover.end,
+          leadPx: viewportCover.start * stride,
+          tailPx: (spreadIds.length - viewportCover.end) * stride,
         }
       : {
           start: paced.start,
@@ -280,7 +299,10 @@ export const Pasteboard = memo(function Pasteboard() {
   const onAddSpread = (): void => {
     const before = new Set(getSpreadIdsSnapshot())
     dispatchBookOp({ type: 'addSpread' })
-    const newId = getSpreadIdsSnapshot().find((id) => !before.has(id)) ?? null
+    const ids = getSpreadIdsSnapshot()
+    const newId = ids.find((id) => !before.has(id)) ?? null
+    const forceIdx = newId === null ? -1 : ids.indexOf(newId)
+    forceMountIndexRef.current = forceIdx >= 0 ? forceIdx : null
     reveal.beginRevealForNewSpread(newId)
   }
 
