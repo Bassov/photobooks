@@ -485,60 +485,66 @@ test.describe('frame-budget gates', () => {
     await assertNamedScrollport(page, 'pasteboard-scroll', { axis: 'vertical' })
   })
 
-  // Main-parity LoAF window (zoom-out burst + default 200 ms settle) under
-  // parent retries until continuous-zoom-settle-mount-pace extends to full
-  // gesture-end remount and moves this case to retries: 0.
-  test('continuous zoom-out burst + 200 ms settle stays within frame-budget gates (main parity)', async ({
-    page,
-  }, testInfo) => {
-    test.setTimeout(120_000)
-    await enablePerfScenario(page, '/?fixture=painter&perf=1')
-    await expect(page.getByTestId('spread-view').first()).toBeVisible()
-    await dispatchCtrlWheel(page, 500, 24)
-    await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
-    await clearPerfScenario(page)
-    const tierAtFit = await readFilledTier(page)
+  test.describe('continuous zoom settle remount (stabilized)', () => {
+    test.describe.configure({ retries: 0 })
 
-    await dispatchCtrlWheel(page, -300, 28)
-    await expect
-      .poll(async () =>
-        percentOf(await page.getByTestId('zoom-indicator').innerText()),
-      )
-      .toBeGreaterThanOrEqual(400)
-    await expect.poll(async () => gestureLabel(page)).toBe('')
-    await expect
-      .poll(
-        async () => {
-          const sample = await readFilledTier(page)
-          return (
-            sample.tier !== null &&
-            sample.tier !== tierAtFit.tier &&
-            sample.src.length > 0 &&
-            tierCovers(sample)
-          )
-        },
-        { timeout: 30_000 },
-      )
-      .toBe(true)
-    await page.evaluate(() => {
-      const perf = window.__photobooksPerf
-      if (!perf) {
-        throw new Error('window.__photobooksPerf is not available')
-      }
-      perf.clearLoafEntries()
-    })
+    // Zoom-out burst + default settle; gesture ends, then paced remount of
+    // newly visible spreads completes with zero LoAF (mounts may finish after
+    // gesture end).
+    test('continuous zoom-out burst + settle remount stays within frame-budget gates (main parity)', async ({
+      page,
+    }, testInfo) => {
+      test.setTimeout(120_000)
+      await enablePerfScenario(page, '/?fixture=painter&perf=1')
+      await expect(page.getByTestId('spread-view').first()).toBeVisible()
+      await dispatchCtrlWheel(page, 500, 24)
+      await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+      await clearPerfScenario(page)
+      const tierAtFit = await readFilledTier(page)
 
-    // Same window as main: default settleMs (200), assert immediately — no
-    // gesture-end wait (that remount coverage is the follow-up item).
-    await dispatchCtrlWheel(page, 300, 36)
-    await page.evaluate(() => {
-      const perf = window.__photobooksPerf
-      if (!perf) {
-        throw new Error('window.__photobooksPerf is not available')
-      }
-      perf.assertNoLoafEntries(0)
+      await dispatchCtrlWheel(page, -300, 28)
+      await expect
+        .poll(async () =>
+          percentOf(await page.getByTestId('zoom-indicator').innerText()),
+        )
+        .toBeGreaterThanOrEqual(400)
+      await expect.poll(async () => gestureLabel(page)).toBe('')
+      await expect
+        .poll(
+          async () => {
+            const sample = await readFilledTier(page)
+            return (
+              sample.tier !== null &&
+              sample.tier !== tierAtFit.tier &&
+              sample.src.length > 0 &&
+              tierCovers(sample)
+            )
+          },
+          { timeout: 30_000 },
+        )
+        .toBe(true)
+      await page.evaluate(() => {
+        const perf = window.__photobooksPerf
+        if (!perf) {
+          throw new Error('window.__photobooksPerf is not available')
+        }
+        perf.clearLoafEntries()
+      })
+
+      await dispatchCtrlWheel(page, 300, 36)
+      await expect.poll(async () => gestureLabel(page)).toBe('')
+      await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+      await page.evaluate(() => {
+        const perf = window.__photobooksPerf
+        if (!perf) {
+          throw new Error('window.__photobooksPerf is not available')
+        }
+        perf.assertNoLoafEntries(0)
+      })
+      // Fit-all after zoom-out may not overflow the pasteboard port vertically.
+      await assertDocumentFitsViewport(page)
+      await collectFrameStatsArtifact(page, testInfo)
     })
-    await collectFrameStatsArtifact(page, testInfo)
   })
 
   test.describe('continuous zoom (stabilized)', () => {
@@ -612,9 +618,8 @@ test.describe('frame-budget gates', () => {
         perf.clearLoafEntries()
       })
 
-      // Phase 3: continuous zoom-out burst+paint only. Main-parity burst+200ms
-      // settle LoAF is the sibling under parent retries; full gesture-end
-      // remount → continuous-zoom-settle-mount-pace.
+      // Phase 3: continuous zoom-out burst+paint only. Full gesture-end remount
+      // LoAF is the sibling under continuous zoom settle remount (stabilized).
       await dispatchCtrlWheel(page, 300, 36, { settleMs: 0 })
       await page.evaluate((handlerBudgetMs) => {
         const perf = window.__photobooksPerf
