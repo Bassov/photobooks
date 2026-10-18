@@ -425,55 +425,114 @@ export function buildRunCard(exec, cwd, env, quiet, changeSlug) {
   }
 }
 
-function parseStatsRoundsJson(text) {
-  const trimmed = String(text ?? '').trim()
-  if (!trimmed) fail('stats document is empty')
-  const lines = trimmed
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-  // Multi-line JSONL (each line a round object) before whole-file JSON.parse.
-  if (lines.length > 1 && lines.every((l) => l.startsWith('{'))) {
-    const rounds = []
-    for (const t of lines) {
-      try {
-        rounds.push(JSON.parse(t))
-      } catch {
-        fail('stats JSONL line is invalid JSON')
-      }
-    }
-    return normalizeRounds(rounds)
-  }
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    let j
-    try {
-      j = JSON.parse(trimmed)
-    } catch {
-      fail('stats JSON is invalid')
-    }
-    if (Array.isArray(j)) return normalizeRounds(j)
-    if (j && Array.isArray(j.rounds)) return normalizeRounds(j.rounds)
-    if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
-    fail('stats JSON must be {rounds:[…]} or an array of rounds')
-  }
-  const rounds = []
-  for (const t of lines) {
-    let row
-    try {
-      row = JSON.parse(t)
-    } catch {
-      fail('stats JSONL line is invalid JSON')
-    }
-    rounds.push(row)
-  }
-  return normalizeRounds(rounds)
+/** Cursor store.db estimate: chars ÷ 3.3 ≈ tokens (stated as estimate in output). */
+export const STATS_CHARS_PER_TOKEN = 3.3
+
+export function estimateTokensFromChars(chars) {
+  const n = Number(chars)
+  if (!Number.isFinite(n) || n < 0)
+    fail('estimateTokensFromChars needs a non-negative number')
+  return Math.round(n / STATS_CHARS_PER_TOKEN)
 }
 
-function normalizeRounds(rows) {
+function messageJsonSize(msg) {
+  return Buffer.byteLength(JSON.stringify(msg), 'utf8')
+}
+
+/** Read protobuf varint; returns [value, nextOffset]. */
+export function readProtobufVarint(buf, offset) {
+  let x = 0
+  let s = 0
+  let i = offset
+  while (i < buf.length) {
+    const c = buf[i++]
+    x |= (c & 0x7f) << s
+    if ((c & 0x80) === 0) return [x, i]
+    s += 7
+    if (s > 70) fail('protobuf varint too long')
+  }
+  fail('protobuf varint truncated')
+}
+
+/**
+ * Root blob field-1 length-delimited entries are 32-byte blob digests
+ * (hex id = digest.toString('hex')).
+ */
+export function blobIdsFromRootProtobuf(rootBuf) {
+  const buf = Buffer.isBuffer(rootBuf) ? rootBuf : Buffer.from(rootBuf)
+  const ids = []
+  let i = 0
+  while (i < buf.length) {
+    const [tag, i1] = readProtobufVarint(buf, i)
+    i = i1
+    const field = tag >>> 3
+    const wire = tag & 7
+    if (wire === 0) {
+      ;[, i] = readProtobufVarint(buf, i)
+    } else if (wire === 1) {
+      i += 8
+    } else if (wire === 5) {
+      i += 4
+    } else if (wire === 2) {
+      const [len, i2] = readProtobufVarint(buf, i)
+      i = i2
+      const slice = buf.subarray(i, i + len)
+      i += len
+      if (field === 1 && slice.length === 32)
+        ids.push(Buffer.from(slice).toString('hex'))
+    } else {
+      fail(`unsupported protobuf wire type ${wire}`)
+    }
+  }
+  return ids
+}
+
+export function roundFromCursorUsage(usage, modelCalls = 1) {
+  if (!usage || typeof usage !== 'object') fail('usage object required')
+  const input = Number(usage.inputTokens)
+  const output = Number(usage.outputTokens)
+  const cacheRead = Number(usage.cacheReadTokens ?? 0)
+  for (const [name, v] of [
+    ['inputTokens', input],
+    ['outputTokens', output],
+    ['cacheReadTokens', cacheRead],
+  ]) {
+    if (!Number.isFinite(v) || v < 0) fail(`usage.${name} is invalid`)
+  }
+  const calls = Number(modelCalls)
+  if (!Number.isFinite(calls) || calls < 0) fail('modelCalls is invalid')
+  return {
+    input,
+    output,
+    cacheRead,
+    modelCalls: calls,
+    context: input,
+    estimated: false,
+  }
+}
+
+function tryRoundFromObject(obj) {
+  if (!obj || typeof obj !== 'object') return null
+  if (
+    obj.usage &&
+    typeof obj.usage === 'object' &&
+    'inputTokens' in obj.usage
+  ) {
+    return roundFromCursorUsage(obj.usage, obj.modelCalls ?? 1)
+  }
+  if ('inputTokens' in obj && 'outputTokens' in obj) {
+    return roundFromCursorUsage(obj, obj.modelCalls ?? 1)
+  }
+  return null
+}
+
+export function normalizeRounds(rows) {
   if (!Array.isArray(rows) || rows.length === 0)
     fail('stats rounds must be a non-empty array')
   return rows.map((r, i) => {
     if (!r || typeof r !== 'object') fail(`stats round ${i} is not an object`)
+    const fromUsage = tryRoundFromObject(r)
+    if (fromUsage) return fromUsage
     const input = Number(r.input)
     const output = Number(r.output)
     const cacheRead = Number(r.cacheRead ?? r.cache_read ?? 0)
@@ -489,12 +548,97 @@ function normalizeRounds(rows) {
       if (!Number.isFinite(v) || v < 0)
         fail(`stats round ${i} has invalid ${name}`)
     }
-    return { input, output, cacheRead, modelCalls, context }
+    return {
+      input,
+      output,
+      cacheRead,
+      modelCalls,
+      context,
+      estimated: Boolean(r.estimated),
+    }
+  })
+}
+
+/**
+ * Split transcript messages into rounds: skip leading non-user preamble,
+ * then each user message starts a round. Token fields are char/3.3 estimates.
+ */
+export function roundsFromStoreMessages(messages) {
+  if (!Array.isArray(messages) || messages.length === 0)
+    fail('store.db has no JSON role messages')
+  let i = 0
+  while (i < messages.length && messages[i]?.role !== 'user') i++
+  if (i >= messages.length) fail('store.db has no user messages after preamble')
+  const preamble = messages.slice(0, i)
+  const rest = messages.slice(i)
+  /** @type {object[][]} */
+  const segments = []
+  /** @type {object[]|null} */
+  let cur = null
+  for (const m of rest) {
+    if (m?.role === 'user') {
+      if (cur) segments.push(cur)
+      cur = [m]
+    } else if (cur) {
+      cur.push(m)
+    }
+  }
+  if (cur) segments.push(cur)
+  if (segments.length === 0) fail('store.db produced no rounds')
+
+  let priorChars = preamble.reduce((n, m) => n + messageJsonSize(m), 0)
+  return segments.map((seg) => {
+    let cum = priorChars
+    let peakContext = 0
+    let outputChars = 0
+    let modelCalls = 0
+    let sawAssistant = false
+    for (const m of seg) {
+      if (m?.role === 'assistant') {
+        modelCalls += 1
+        const ctx = estimateTokensFromChars(cum)
+        if (!sawAssistant || ctx > peakContext) peakContext = ctx
+        sawAssistant = true
+        outputChars += messageJsonSize(m)
+      }
+      cum += messageJsonSize(m)
+    }
+    if (!sawAssistant) peakContext = estimateTokensFromChars(cum)
+    const input = estimateTokensFromChars(
+      seg
+        .filter((m) => m?.role === 'user')
+        .reduce((n, m) => n + messageJsonSize(m), 0) + priorChars,
+    )
+    priorChars = cum
+    return {
+      input,
+      output: estimateTokensFromChars(outputChars),
+      cacheRead: 0,
+      modelCalls,
+      context: peakContext,
+      estimated: true,
+    }
   })
 }
 
 function parseMetaJson(value) {
   if (value == null) return null
+  if (Buffer.isBuffer(value)) {
+    try {
+      return JSON.parse(value.toString('utf8'))
+    } catch {
+      /* hex below */
+    }
+    const s = value.toString('utf8')
+    if (/^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0) {
+      try {
+        return JSON.parse(Buffer.from(s, 'hex').toString('utf8'))
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
   const s = String(value)
   try {
     return JSON.parse(s)
@@ -512,6 +656,100 @@ function parseMetaJson(value) {
   return null
 }
 
+export function loadRoundsFromStoreDb(db) {
+  const rows = db.prepare('SELECT key, value FROM meta').all()
+  if (!rows.length) fail('store.db meta is empty')
+  let meta = null
+  for (const row of rows) {
+    const j = parseMetaJson(row.value)
+    if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
+    if (j?.rounds) return normalizeRounds(j.rounds)
+    if (j?.latestRootBlobId) meta = j
+  }
+  if (!meta?.latestRootBlobId)
+    fail('store.db meta has no latestRootBlobId (and no agentStats.rounds)')
+  const rootRow = db
+    .prepare('SELECT data FROM blobs WHERE id = ?')
+    .get(meta.latestRootBlobId)
+  if (!rootRow?.data) fail('store.db missing root blob for latestRootBlobId')
+  const ids = blobIdsFromRootProtobuf(rootRow.data)
+  if (!ids.length) fail('store.db root blob has no field-1 blob ids')
+  const messages = []
+  for (const id of ids) {
+    const row = db.prepare('SELECT data FROM blobs WHERE id = ?').get(id)
+    if (!row?.data) fail(`store.db missing blob ${id}`)
+    const raw = row.data
+    const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw)
+    if (buf.length === 0 || (buf[0] !== 0x7b && buf[0] !== 0x5b)) continue
+    try {
+      const msg = JSON.parse(buf.toString('utf8'))
+      if (msg && typeof msg === 'object' && typeof msg.role === 'string') {
+        messages.push(msg)
+      }
+    } catch {
+      fail(`store.db blob ${id} is not valid JSON`)
+    }
+  }
+  return roundsFromStoreMessages(messages)
+}
+
+export function parseStatsRoundsJson(text) {
+  const trimmed = String(text ?? '').trim()
+  if (!trimmed) fail('stats document is empty')
+  const lines = trimmed
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+  // Multi-line JSONL before whole-file JSON.parse.
+  if (lines.length > 1 && lines.every((l) => l.startsWith('{'))) {
+    const rounds = []
+    for (const t of lines) {
+      let row
+      try {
+        row = JSON.parse(t)
+      } catch {
+        fail('stats JSONL line is invalid JSON')
+      }
+      const fromUsage = tryRoundFromObject(row)
+      rounds.push(fromUsage ?? row)
+    }
+    return normalizeRounds(rounds)
+  }
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    let j
+    try {
+      j = JSON.parse(trimmed)
+    } catch {
+      fail('stats JSON is invalid')
+    }
+    const one = tryRoundFromObject(j)
+    if (one) return [one]
+    if (Array.isArray(j)) {
+      if (j.length && j.every((x) => tryRoundFromObject(x))) {
+        return j.map((x) => tryRoundFromObject(x))
+      }
+      return normalizeRounds(j)
+    }
+    if (j && Array.isArray(j.rounds)) return normalizeRounds(j.rounds)
+    if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
+    fail(
+      'stats JSON must be cursor-agent result (usage.*Tokens), {rounds:[…]}, or an array of rounds',
+    )
+  }
+  const rounds = []
+  for (const t of lines) {
+    let row
+    try {
+      row = JSON.parse(t)
+    } catch {
+      fail('stats JSONL line is invalid JSON')
+    }
+    const fromUsage = tryRoundFromObject(row)
+    rounds.push(fromUsage ?? row)
+  }
+  return normalizeRounds(rounds)
+}
+
 export function loadStatsRounds(filePath) {
   if (!fs.existsSync(filePath)) fail(`stats path not found: ${filePath}`)
   const lower = filePath.toLowerCase()
@@ -524,13 +762,7 @@ export function loadStatsRounds(filePath) {
     }
     const db = new DatabaseSync(filePath, { readOnly: true })
     try {
-      const rows = db.prepare('SELECT key, value FROM meta').all()
-      for (const row of rows) {
-        const j = parseMetaJson(row.value)
-        if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
-        if (j?.rounds) return normalizeRounds(j.rounds)
-      }
-      fail('store.db meta has no agentStats.rounds')
+      return loadRoundsFromStoreDb(db)
     } finally {
       db.close()
     }
@@ -542,7 +774,8 @@ export function summarizeStats(rounds) {
   const peakContext = Math.max(...rounds.map((r) => r.context))
   const firstInput = rounds[0].input
   const modelCalls = rounds.reduce((n, r) => n + r.modelCalls, 0)
-  return { rounds, peakContext, firstInput, modelCalls }
+  const estimated = rounds.some((r) => r.estimated)
+  return { rounds, peakContext, firstInput, modelCalls, estimated }
 }
 
 export function statsExitCode(summary) {
@@ -1634,9 +1867,15 @@ function fmtStats(r) {
     `firstInput: ${r.firstInput}`,
     `modelCalls: ${r.modelCalls}`,
   ]
-  r.rounds.forEach((row, i) => {
+  if (r.estimated) {
     lines.push(
-      `round[${i}]: input=${row.input} output=${row.output} cacheRead=${row.cacheRead} modelCalls=${row.modelCalls} context=${row.context}`,
+      'note: token fields marked estimated use chars/3.3 from store.db message JSON sizes',
+    )
+  }
+  r.rounds.forEach((row, i) => {
+    const est = row.estimated ? ' estimated=true' : ''
+    lines.push(
+      `round[${i}]: input=${row.input} output=${row.output} cacheRead=${row.cacheRead} modelCalls=${row.modelCalls} context=${row.context}${est}`,
     )
   })
   return lines.join('\n')

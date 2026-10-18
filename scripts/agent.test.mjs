@@ -50,6 +50,13 @@ import {
   writePushFailures,
   writeRunStarted,
   pushFailPath,
+  blobIdsFromRootProtobuf,
+  roundsFromStoreMessages,
+  roundFromCursorUsage,
+  parseStatsRoundsJson,
+  loadStatsRounds,
+  estimateTokensFromChars,
+  STATS_CHARS_PER_TOKEN,
 } from './agent.mjs'
 
 const tmpDirs = []
@@ -2614,6 +2621,53 @@ describe('instructions', () => {
   })
 })
 
+/** Build a Cursor-shaped store.db: hex meta + blobs root protobuf + JSON messages. */
+function writeCursorShapeStoreDb(dbPath, messages, { inflateChars = 0 } = {}) {
+  const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
+  const digests = messages.map((_, i) => {
+    const d = Buffer.alloc(32, i + 1)
+    d[31] = i
+    return d
+  })
+  const rootId = Buffer.alloc(32, 0xaa).toString('hex')
+  const rootParts = []
+  for (const d of digests) {
+    rootParts.push(Buffer.from([0x0a, 0x20]), d)
+  }
+  // optional other field to exercise non-field-1 skip (field 5 varint)
+  rootParts.push(Buffer.from([0x28, 0x01]))
+  const rootBlob = Buffer.concat(rootParts)
+  const metaObj = {
+    agentId: 'test-agent',
+    latestRootBlobId: rootId,
+    name: 'Test',
+    mode: 'default',
+    isRunEverything: true,
+    createdAt: 1,
+    blobEncryptionKey: '00'.repeat(32),
+  }
+  const db = new DatabaseSync(dbPath)
+  db.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+  db.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+  db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(
+    '0',
+    Buffer.from(JSON.stringify(metaObj), 'utf8').toString('hex'),
+  )
+  db.prepare('INSERT INTO blobs (id, data) VALUES (?, ?)').run(rootId, rootBlob)
+  messages.forEach((msg, i) => {
+    const body = { ...msg }
+    if (inflateChars > 0 && i === 0) {
+      body.pad = 'x'.repeat(inflateChars)
+    }
+    db.prepare('INSERT INTO blobs (id, data) VALUES (?, ?)').run(
+      digests[i].toString('hex'),
+      Buffer.from(JSON.stringify(body), 'utf8'),
+    )
+  })
+  db.close()
+  return { rootId, digests }
+}
+
 describe('stats', () => {
   it('prints metrics and exits 0 under thresholds', () => {
     const root = tmpRoot()
@@ -2675,6 +2729,70 @@ describe('stats', () => {
     const j = JSON.parse(r.out)
     expect(j.peakContext).toBe(25)
     expect(j.rounds).toHaveLength(2)
+  })
+
+  it('parses cursor-agent -p --output-format json usage', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'agent-result.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        usage: {
+          inputTokens: 232162,
+          outputTokens: 56110,
+          cacheReadTokens: 7817216,
+          cacheWriteTokens: 0,
+        },
+      }),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.firstInput).toBe(232162)
+    expect(j.rounds[0]).toMatchObject({
+      input: 232162,
+      output: 56110,
+      cacheRead: 7817216,
+      modelCalls: 1,
+      context: 232162,
+      estimated: false,
+    })
+    expect(j.estimated).toBe(false)
+  })
+
+  it('parses JSONL of cursor-agent usage results', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'results.jsonl')
+    fs.writeFileSync(
+      file,
+      [
+        JSON.stringify({
+          type: 'result',
+          usage: {
+            inputTokens: 100,
+            outputTokens: 10,
+            cacheReadTokens: 1,
+          },
+        }),
+        JSON.stringify({
+          type: 'result',
+          usage: {
+            inputTokens: 200,
+            outputTokens: 20,
+            cacheReadTokens: 2,
+          },
+        }),
+      ].join('\n'),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.rounds).toHaveLength(2)
+    expect(j.peakContext).toBe(200)
+    expect(j.firstInput).toBe(100)
   })
 
   it('exits 1 when peak context exceeds 300K', () => {
@@ -2747,6 +2865,165 @@ describe('stats', () => {
     const r = run(['stats', dbPath, '--json'], { cwd: root, env: {} })
     expect(r.code).toBe(0)
     expect(JSON.parse(r.out).peakContext).toBe(20)
+  })
+
+  it('estimates rounds from a real-shaped Cursor store.db', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'cursor-store.db')
+    writeCursorShapeStoreDb(dbPath, [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'hello-user' },
+      { role: 'assistant', content: 'hello-asst' },
+      { role: 'user', content: 'second' },
+      { role: 'assistant', content: 'reply2' },
+      { role: 'tool', content: [{ type: 'tool-result', result: 'ok' }] },
+    ])
+    const r = run(['stats', dbPath], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    expect(r.out).toContain('estimated=true')
+    expect(r.out).toContain('chars/3.3')
+    const j = JSON.parse(
+      run(['stats', dbPath, '--json'], { cwd: root, env: {} }).out,
+    )
+    expect(j.estimated).toBe(true)
+    expect(j.rounds.length).toBeGreaterThanOrEqual(2)
+    expect(j.rounds[0].modelCalls).toBe(1)
+    expect(j.rounds[0].estimated).toBe(true)
+    expect(j.peakContext).toBeGreaterThan(0)
+  })
+
+  it('exits 1 on real-shaped store.db whose estimated peak exceeds 300K', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'huge-store.db')
+    // chars/3.3 > 300001 ⇒ need > ~990004 chars before an assistant
+    writeCursorShapeStoreDb(
+      dbPath,
+      [
+        { role: 'system', content: 's' },
+        { role: 'user', content: 'u' },
+        { role: 'assistant', content: 'a' },
+      ],
+      { inflateChars: 1_050_000 },
+    )
+    const r = run(['stats', dbPath, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(1)
+    expect(JSON.parse(r.out).peakContext).toBeGreaterThan(300_000)
+  })
+
+  it('blobIdsFromRootProtobuf extracts field-1 digests and skips other fields', () => {
+    const id = Buffer.alloc(32, 0x42)
+    const root = Buffer.concat([
+      Buffer.from([0x0a, 0x20]),
+      id,
+      Buffer.from([0x28, 0x03]), // field 5 varint
+      Buffer.from([0x12, 0x03, 0x61, 0x62, 0x63]), // field 2 string "abc"
+    ])
+    expect(blobIdsFromRootProtobuf(root)).toEqual([id.toString('hex')])
+  })
+
+  it('roundsFromStoreMessages splits on user after preamble', () => {
+    const rounds = roundsFromStoreMessages([
+      { role: 'system', content: 's' },
+      { role: 'user', content: 'u1' },
+      { role: 'assistant', content: 'a1' },
+      { role: 'user', content: 'u2' },
+      { role: 'assistant', content: 'a2' },
+      { role: 'assistant', content: 'a3' },
+    ])
+    expect(rounds).toHaveLength(2)
+    expect(rounds[0].modelCalls).toBe(1)
+    expect(rounds[1].modelCalls).toBe(2)
+    expect(rounds.every((r) => r.estimated)).toBe(true)
+  })
+
+  it('roundFromCursorUsage and parseStatsRoundsJson reject bad inputs', () => {
+    expect(() => roundFromCursorUsage(null)).toThrow(/usage object/)
+    expect(() =>
+      roundFromCursorUsage({ inputTokens: -1, outputTokens: 1 }),
+    ).toThrow(/inputTokens/)
+    expect(() => parseStatsRoundsJson('')).toThrow(/empty/)
+    expect(() => parseStatsRoundsJson('{')).toThrow(/invalid/)
+    expect(() => parseStatsRoundsJson('{"no":"usage"}')).toThrow(/must be/)
+    expect(() => parseStatsRoundsJson('not-json\n{')).toThrow(/JSONL/)
+    expect(() => estimateTokensFromChars(-1)).toThrow(/non-negative/)
+    expect(estimateTokensFromChars(STATS_CHARS_PER_TOKEN * 10)).toBe(10)
+  })
+
+  it('loadStatsRounds fails loudly on missing path and empty cursor db', () => {
+    expect(() => loadStatsRounds('/no/such/stats.json')).toThrow(/not found/)
+    const root = tmpRoot()
+    const emptyDb = path.join(root, 'empty.db')
+    const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
+    const db = new DatabaseSync(emptyDb)
+    db.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db.close()
+    expect(() => loadStatsRounds(emptyDb)).toThrow(/meta is empty/)
+    const noRoot = path.join(root, 'noroots.db')
+    const db2 = new DatabaseSync(noRoot)
+    db2.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db2.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db2
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(JSON.stringify({ agentId: 'x' }), 'utf8').toString('hex'),
+      )
+    db2.close()
+    expect(() => loadStatsRounds(noRoot)).toThrow(/latestRootBlobId/)
+  })
+
+  it('text preflight prints run-card branches without template or rules array', () => {
+    const root = tmpRoot()
+    const item = {
+      slug: 'card-item',
+      tag: 'prep',
+      title: 't',
+      file: 'f',
+      milestone: 'M',
+      goal: ['g'],
+    }
+    const exec = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git fetch origin', { code: 0 }],
+      ['git switch main', { code: 0 }],
+      ['git pull --ff-only', { code: 0 }],
+      ['gh pr list', { stdout: '' }],
+      ['git branch -r', { stdout: '' }],
+      ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+      ['git switch -c feat/card-item', { code: 0 }],
+      ['openspec new change', { code: 0 }],
+      [
+        'openspec status',
+        {
+          stdout: JSON.stringify({
+            artifacts: [
+              { id: 'proposal', status: 'ready' },
+              { id: 'design', status: 'ready' },
+            ],
+          }),
+        },
+      ],
+      [
+        'openspec instructions proposal',
+        {
+          stdout: JSON.stringify({ template: null, rules: [] }),
+        },
+      ],
+      [
+        'openspec instructions design',
+        {
+          stdout: JSON.stringify({ template: '', rules: 'not-array' }),
+        },
+      ],
+    ])
+    const r = run(['preflight', '--root', root], { cwd: root, exec, env: {} })
+    expect(r.code, r.err).toBe(0)
+    expect(r.out).toContain('runCard.ready: proposal,design')
+    expect(r.out).toContain('--- runCard artifact: proposal (rules=0) ---')
+    expect(r.out).toContain('--- runCard artifact: design (rules=0) ---')
+    expect(r.out).toContain('--- apply/archive procedure ---')
   })
 })
 
