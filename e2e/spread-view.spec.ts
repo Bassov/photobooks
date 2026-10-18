@@ -95,35 +95,7 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  await page.getByRole('button', { name: 'Fit spread' }).click()
-  await expect
-    .poll(
-      async () => {
-        const filled = await page
-          .getByTestId('pasteboard-scroll')
-          .evaluate((el) => {
-            const view = el.querySelector(
-              '[data-slot-index="0"] [data-testid="spread-view"]',
-            )
-            if (!(view instanceof HTMLElement)) {
-              return false
-            }
-            const port = el.getBoundingClientRect()
-            const box = view.getBoundingClientRect()
-            return (
-              box.height >= port.height * 0.9 &&
-              box.width >= 1 &&
-              box.top >= port.top - 1 &&
-              box.bottom <= port.bottom + 1 &&
-              box.left >= port.left - 1 &&
-              box.right <= port.right + 1
-            )
-          })
-        return filled
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(true)
+  await fitSpreadUntilFilled(page)
   const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
   const fitted = await readSpreadView(page, 0)
   expect(fitted).not.toBeNull()
@@ -148,6 +120,60 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
   expect(added?.placeholders).toBe(1)
   expect(added?.widthPx).toBeCloseTo(fitted?.widthPx ?? 0, 0)
   expect(added?.heightPx).toBeCloseTo(fitted?.heightPx ?? 0, 0)
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+})
+
+test('narrow fitted add spread keeps the new spread contained', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 400, height: 720 })
+  await openSessionEditor(page)
+  await assertDocumentFitsViewport(page)
+  await fitSpreadUntilFilled(page)
+  const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
+
+  await page.getByRole('button', { name: 'Add spread' }).click()
+
+  await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
+  await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+    'data-spread-count',
+    '4',
+  )
+  await expect
+    .poll(async () => spreadViewContained(page, 3), { timeout: 15_000 })
+    .toBe(true)
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+})
+
+test('mid-scroll fitted add spread keeps the new spread contained', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  const scroll = page.getByTestId('pasteboard-scroll')
+  await scroll.evaluate((el) => {
+    el.scrollTop = el.scrollHeight / 2
+  })
+  await expect
+    .poll(async () => scroll.evaluate((el) => el.scrollTop > 0))
+    .toBe(true)
+  await fitSpreadUntilFilled(page)
+  const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
+
+  await page.getByRole('button', { name: 'Add spread' }).click()
+
+  await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
+  await expect(scroll).toHaveAttribute('data-spread-count', '4')
+  await expect
+    .poll(async () => spreadViewContained(page, 3), { timeout: 15_000 })
+    .toBe(true)
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',
@@ -576,6 +602,84 @@ async function readSpreadView(
       ).length,
     }
   }, slotIndex)
+}
+
+async function fitSpreadUntilFilled(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Fit spread' }).click()
+  await expect
+    .poll(
+      async () => {
+        const filled = await page
+          .getByTestId('pasteboard-scroll')
+          .evaluate((el) => {
+            const active = el.querySelector('[data-active="true"]')
+            const view =
+              active?.querySelector('[data-testid="spread-view"]') ??
+              el.querySelector(
+                '[data-slot-index="0"] [data-testid="spread-view"]',
+              )
+            if (!(view instanceof HTMLElement)) {
+              return false
+            }
+            const port = el.getBoundingClientRect()
+            const box = view.getBoundingClientRect()
+            return (
+              box.height >= port.height * 0.9 &&
+              box.width >= 1 &&
+              box.top >= port.top - 1 &&
+              box.bottom <= port.bottom + 1 &&
+              box.left >= port.left - 1 &&
+              box.right <= port.right + 1
+            )
+          })
+        return filled
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true)
+  // Delayed fit may zoom out one more double-rAF after the first contain.
+  let previousKey: string | null = null
+  await expect
+    .poll(
+      async () => {
+        const key = await page.evaluate(() => {
+          const zoom =
+            document.querySelector('[data-testid="zoom-indicator"]')
+              ?.textContent ?? ''
+          const scroll = document.querySelector(
+            '[data-testid="pasteboard-scroll"]',
+          )
+          if (!(scroll instanceof HTMLElement) || zoom === '') {
+            return null
+          }
+          const active = scroll.querySelector('[data-active="true"]')
+          const view =
+            active?.querySelector('[data-testid="spread-view"]') ??
+            scroll.querySelector(
+              '[data-slot-index="0"] [data-testid="spread-view"]',
+            )
+          if (!(view instanceof HTMLElement)) {
+            return null
+          }
+          const box = view.getBoundingClientRect()
+          if (box.width < 1 || box.height < 1) {
+            return null
+          }
+          return [zoom, box.width.toFixed(2), box.height.toFixed(2)].join('|')
+        })
+        if (key === null) {
+          previousKey = null
+          return false
+        }
+        if (previousKey !== null && previousKey === key) {
+          return true
+        }
+        previousKey = key
+        return false
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true)
 }
 
 async function spreadViewContained(

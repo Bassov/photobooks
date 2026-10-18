@@ -181,7 +181,8 @@ describe('SpreadTemplateBar', () => {
       left: PORT_LEFT,
       width: 200,
       height: 420,
-      scrollTop: 20,
+      // Fixed stub ignores scroll; OR secondary/third edge-nudges until clamp.
+      scrollTop: 0,
       scrollLeft: 40,
     },
     {
@@ -190,7 +191,7 @@ describe('SpreadTemplateBar', () => {
       left: PORT_LEFT,
       width: 200,
       height: 420,
-      scrollTop: 70,
+      scrollTop: 110,
       scrollLeft: 40,
     },
     {
@@ -200,7 +201,7 @@ describe('SpreadTemplateBar', () => {
       width: 520,
       height: 180,
       scrollTop: 50,
-      scrollLeft: 10,
+      scrollLeft: 0,
     },
     {
       label: 'pushes a wide spread left when its right is outside the port',
@@ -209,7 +210,7 @@ describe('SpreadTemplateBar', () => {
       width: 520,
       height: 180,
       scrollTop: 50,
-      scrollLeft: 60,
+      scrollLeft: 100,
     },
   ])('$label', ({ top, left, width, height, scrollTop, scrollLeft }) => {
     resetBookStore()

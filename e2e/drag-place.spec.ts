@@ -98,6 +98,85 @@ test('drag hover follows one frame and clears off a frame', async ({
 }) => {
   await openSessionEditor(page)
   await expect(page.getByTestId('spread-frame').first()).toBeVisible()
+  // Same-spread peer frames can share one rect until layout settles; wait for
+  // two distinct centers stable across consecutive polls before synthetic drag.
+  let previousPair: string | null = null
+  await expect
+    .poll(
+      async () => {
+        const key = await page.evaluate(() => {
+          const scroll = document.querySelector(
+            '[data-testid="pasteboard-scroll"]',
+          )
+          if (!(scroll instanceof HTMLElement)) {
+            return null
+          }
+          const bySpread = new Map<string, HTMLElement[]>()
+          for (const node of Array.from(
+            scroll.querySelectorAll<HTMLElement>('[data-frame-id]'),
+          )) {
+            const box = node.getBoundingClientRect()
+            if (box.width < 1) {
+              continue
+            }
+            const spreadId = node
+              .closest('[data-spread-id]')
+              ?.getAttribute('data-spread-id')
+            if (
+              spreadId === null ||
+              spreadId === undefined ||
+              spreadId === ''
+            ) {
+              continue
+            }
+            const list = bySpread.get(spreadId) ?? []
+            list.push(node)
+            bySpread.set(spreadId, list)
+          }
+          for (const frames of bySpread.values()) {
+            if (frames.length < 2) {
+              continue
+            }
+            const first = frames[0]
+            const second = frames[1]
+            if (first === undefined || second === undefined) {
+              continue
+            }
+            const a = first.getBoundingClientRect()
+            const b = second.getBoundingClientRect()
+            const ax = a.left + a.width / 2
+            const ay = a.top + a.height / 2
+            const bx = b.left + b.width / 2
+            const by = b.top + b.height / 2
+            if (Math.hypot(ax - bx, ay - by) < 8) {
+              continue
+            }
+            const idA = first.getAttribute('data-frame-id') ?? ''
+            const idB = second.getAttribute('data-frame-id') ?? ''
+            return [
+              idA,
+              idB,
+              ax.toFixed(2),
+              ay.toFixed(2),
+              bx.toFixed(2),
+              by.toFixed(2),
+            ].join('|')
+          }
+          return null
+        })
+        if (key === null) {
+          previousPair = null
+          return false
+        }
+        if (previousPair !== null && previousPair === key) {
+          return true
+        }
+        previousPair = key
+        return false
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true)
 
   const hover = await page.evaluate((mime) => {
     const dataTransfer = new DataTransfer()
@@ -109,11 +188,48 @@ test('drag hover follows one frame and clears off a frame', async ({
     if (!(scroll instanceof HTMLElement)) {
       return { error: 'missing scroll' }
     }
-    const frames = Array.from(
+    const bySpread = new Map<string, HTMLElement[]>()
+    for (const node of Array.from(
       scroll.querySelectorAll<HTMLElement>('[data-frame-id]'),
-    ).filter((frame) => frame.getBoundingClientRect().width > 0)
-    const first = frames[0]
-    const second = frames[1]
+    )) {
+      const box = node.getBoundingClientRect()
+      if (box.width < 1) {
+        continue
+      }
+      const spreadId = node
+        .closest('[data-spread-id]')
+        ?.getAttribute('data-spread-id')
+      if (spreadId === null || spreadId === undefined || spreadId === '') {
+        continue
+      }
+      const list = bySpread.get(spreadId) ?? []
+      list.push(node)
+      bySpread.set(spreadId, list)
+    }
+    let first: HTMLElement | undefined
+    let second: HTMLElement | undefined
+    for (const frames of bySpread.values()) {
+      if (frames.length < 2) {
+        continue
+      }
+      const a = frames[0]
+      const b = frames[1]
+      if (a === undefined || b === undefined) {
+        continue
+      }
+      const boxA = a.getBoundingClientRect()
+      const boxB = b.getBoundingClientRect()
+      const ax = boxA.left + boxA.width / 2
+      const ay = boxA.top + boxA.height / 2
+      const bx = boxB.left + boxB.width / 2
+      const by = boxB.top + boxB.height / 2
+      if (Math.hypot(ax - bx, ay - by) < 8) {
+        continue
+      }
+      first = a
+      second = b
+      break
+    }
     if (first === undefined || second === undefined) {
       return { error: 'need two frames' }
     }

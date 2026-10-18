@@ -98,8 +98,11 @@ export function revealLaidOutSpread(
   nudgeBoxIntoPort(scroll, box)
   const port = scroll.getBoundingClientRect()
   const after = target.getBoundingClientRect()
-  const fits = after.height <= port.height + 1 && after.width <= port.width + 1
-  if (!spreadBoxContained(port, after) && fits) {
+  const heightFits = after.height <= port.height + 1
+  const widthFits = after.width <= port.width + 1
+  // Secondary nudges when at least one axis still fits — an AND gate skipped
+  // horizontal correction for height-fit / width-overflow (and the tall twin).
+  if (!spreadBoxContained(port, after) && (heightFits || widthFits)) {
     const beforeTop = scroll.scrollTop
     nudgeBoxIntoPort(scroll, after)
     const afterSecond = target.getBoundingClientRect()
