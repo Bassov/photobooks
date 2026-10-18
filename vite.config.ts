@@ -43,6 +43,9 @@ export default defineConfig({
         'src/**/*.{ts,tsx}',
         'scripts/roadmap.mjs',
         'scripts/agent.mjs',
+        'scripts/e2e-burn-in-count.mjs',
+        'scripts/e2e-burn-in-targets.mjs',
+        'scripts/e2e-playwright-summary.mjs',
       ],
       exclude: [
         'src/**/*.{test,spec}.{ts,tsx}',

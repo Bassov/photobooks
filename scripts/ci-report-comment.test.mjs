@@ -3,9 +3,11 @@ import { fc, test } from '@fast-check/vitest'
 import {
   classifySection,
   decodeState,
+  emptyState,
   isLegacyStickyComment,
   isLighthouseReportFile,
   metricRows,
+  normalizeState,
   renderComment,
   shouldWrite,
   upsertSection,
@@ -72,6 +74,54 @@ describe('classifySection', () => {
   })
 })
 
+describe('normalizeState', () => {
+  it('adds waiting e2e when decoding a legacy three-section marker', () => {
+    const legacy = {
+      version: 1,
+      headSha: 'sha',
+      sections: {
+        lighthouse: { kind: 'waiting' },
+        mutation: { kind: 'waiting' },
+        coverage: classifySection(passed),
+      },
+    }
+    const normalized = normalizeState(legacy)
+    expect(normalized.sections.e2e).toEqual({ kind: 'waiting' })
+    expect(normalized.sections.coverage).toEqual(legacy.sections.coverage)
+    expect(() => renderComment(legacy)).not.toThrow()
+    expect(renderComment(legacy)).toContain('### ⏳ E2E\n\n**Waiting**')
+  })
+
+  it('returns emptyState for non-object state', () => {
+    expect(normalizeState(null, 'abc')).toEqual(emptyState('abc'))
+    expect(normalizeState(undefined, 'abc')).toEqual(emptyState('abc'))
+    expect(normalizeState('nope', 'abc')).toEqual(emptyState('abc'))
+  })
+
+  it('fills missing headSha from the fallback argument', () => {
+    const normalized = normalizeState({ sections: {} }, 'fallback-sha')
+    expect(normalized.headSha).toBe('fallback-sha')
+  })
+
+  it('keeps version when present and defaults when missing', () => {
+    expect(normalizeState({ headSha: 'a', version: 2 }).version).toBe(2)
+    expect(normalizeState({ headSha: 'a' }).version).toBe(1)
+  })
+
+  it('ignores unknown extra sections', () => {
+    const normalized = normalizeState({
+      headSha: 'a',
+      sections: {
+        coverage: classifySection(passed),
+        weird: { kind: 'waiting' },
+      },
+    })
+    expect(normalized.sections.coverage).toEqual(classifySection(passed))
+    expect(normalized.sections).not.toHaveProperty('weird')
+    expect(normalized.sections.e2e).toEqual({ kind: 'waiting' })
+  })
+})
+
 describe('upsertSection', () => {
   it('keeps neighboring sections and leaves the rest waiting', () => {
     const lighthouse = classifySection(passed)
@@ -92,6 +142,7 @@ describe('upsertSection', () => {
     expect(withCoverage.sections.lighthouse).toEqual(lighthouse)
     expect(withCoverage.sections.coverage).toEqual(coverage)
     expect(withCoverage.sections.mutation).toEqual({ kind: 'waiting' })
+    expect(withCoverage.sections.e2e).toEqual({ kind: 'waiting' })
   })
 
   it('resets other sections when the head SHA changes', () => {
@@ -140,6 +191,7 @@ describe('renderComment', () => {
     expect(rendered).toContain(
       '### ❌ Coverage\n\n**Job failed** — Job finished before a report was produced.',
     )
+    expect(rendered).toContain('### ⏳ E2E\n\n**Waiting**')
     expect(rendered).not.toContain('<details>')
     expect(rendered).not.toContain('| Check |')
     expect(rendered).not.toContain('](#')
