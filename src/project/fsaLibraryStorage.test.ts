@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { makeBook } from '../core/testing/fixtures'
 import { loadBookTextSync } from './fsa/bookLoadWorkerClient'
-import { createFakeBrowserDirectory } from './fsa/browserDirectory.test-helpers'
+import {
+  createFakeBrowserDirectory,
+  createFakeDirectoryPicker,
+  type FakeBrowserDirectoryHandle,
+} from './fsa/browserDirectory.test-helpers'
 import { createFsaLibraryStorage } from './fsa/fsaLibraryStorage'
 import {
   BOOK_JSON,
@@ -107,6 +111,122 @@ describe('FSA library storage layout', () => {
     expect(await storage.createBook(book)).toEqual({ ok: true, value: book })
     expect(await storage.loadBook(book.id)).toEqual({ ok: true, value: book })
     expect(await storage.listBooks()).toEqual({
+      ok: true,
+      value: [{ id: book.id }],
+    })
+  })
+})
+
+describe('FSA library storage permission paths via shared fake', () => {
+  async function bridgeFromQuery(
+    handle: FakeBrowserDirectoryHandle,
+    setPermissionRequired: (required: boolean) => void,
+  ): Promise<PermissionState> {
+    const state = await handle.queryPermission({ mode: 'readwrite' })
+    setPermissionRequired(state !== 'granted')
+    return state
+  }
+
+  async function bridgeFromRequest(
+    handle: FakeBrowserDirectoryHandle,
+    setPermissionRequired: (required: boolean) => void,
+  ): Promise<PermissionState> {
+    const state = await handle.requestPermission({ mode: 'readwrite' })
+    setPermissionRequired(state !== 'granted')
+    return state
+  }
+
+  it('deny: query denied gates list/create as permission-required', async () => {
+    const handle = createFakeBrowserDirectory()
+    handle.enqueueQueryResults('denied')
+    const storage = createFsaLibraryStorage({
+      root: handle,
+      loadBookText: loadBookTextSync,
+    })
+    const book = makeBook({ id: 'deny-book' })
+
+    await bridgeFromQuery(handle, storage.setPermissionRequired)
+
+    await expect(storage.listBooks()).resolves.toEqual({
+      ok: false,
+      code: 'permission-required',
+    })
+    await expect(storage.createBook(book)).resolves.toEqual({
+      ok: false,
+      code: 'permission-required',
+    })
+  })
+
+  it('prompt-then-deny: request denied gates as permission-required', async () => {
+    const handle = createFakeBrowserDirectory()
+    handle.enqueueQueryResults('prompt')
+    handle.enqueueRequestResults('denied')
+    const storage = createFsaLibraryStorage({
+      root: handle,
+      loadBookText: loadBookTextSync,
+    })
+
+    const queried = await bridgeFromQuery(handle, storage.setPermissionRequired)
+    expect(queried).toBe('prompt')
+    const requested = await bridgeFromRequest(
+      handle,
+      storage.setPermissionRequired,
+    )
+    expect(requested).toBe('denied')
+
+    await expect(storage.listBooks()).resolves.toEqual({
+      ok: false,
+      code: 'permission-required',
+    })
+  })
+
+  it('cancel: picker AbortError before storage bind', async () => {
+    const pick = createFakeDirectoryPicker({
+      outcomes: ['abort', createFakeBrowserDirectory()],
+    })
+    let bound = false
+
+    await expect(pick()).rejects.toMatchObject({ name: 'AbortError' })
+    expect(bound).toBe(false)
+
+    const handle = await pick()
+    createFsaLibraryStorage({
+      root: handle,
+      loadBookText: loadBookTextSync,
+    })
+    bound = true
+    expect(bound).toBe(true)
+  })
+
+  it('re-grant: request granted clears gate and list/create succeed', async () => {
+    const handle = createFakeBrowserDirectory({ initialPermission: 'denied' })
+    const storage = createFsaLibraryStorage({
+      root: handle,
+      loadBookText: loadBookTextSync,
+    })
+    const book = makeBook({ id: 'regrant-book' })
+
+    await bridgeFromQuery(handle, storage.setPermissionRequired)
+    await expect(storage.listBooks()).resolves.toEqual({
+      ok: false,
+      code: 'permission-required',
+    })
+
+    handle.enqueueRequestResults('granted')
+    const granted = await bridgeFromRequest(
+      handle,
+      storage.setPermissionRequired,
+    )
+    expect(granted).toBe('granted')
+    await expect(handle.queryPermission({ mode: 'readwrite' })).resolves.toBe(
+      'granted',
+    )
+
+    await expect(storage.createBook(book)).resolves.toEqual({
+      ok: true,
+      value: book,
+    })
+    await expect(storage.listBooks()).resolves.toEqual({
       ok: true,
       value: [{ id: book.id }],
     })
