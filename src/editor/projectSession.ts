@@ -1234,12 +1234,6 @@ export function exposeProjectSessionTestApi(): void {
     configureProjectSession,
     getSnapshot: getProjectSessionSnapshot,
   }
-  // Scratch proof: dynamic import so unit never loads the probe module (NoCoverage).
-  if (import.meta.env.VITE_E2E === '1' || import.meta.env.VITE_E2E === 'true') {
-    void import('../lib/e2eCoverageProbe').then(({ markE2eCoverageProbe }) => {
-      window.__photobooksE2eCoverageProbe = markE2eCoverageProbe()
-    })
-  }
 }
 
 declare global {
@@ -1270,7 +1264,6 @@ declare global {
       getSnapshot: typeof getProjectSessionSnapshot
     }
     __photobooksE2e?: boolean
-    __photobooksE2eCoverageProbe?: string
   }
 }
 
