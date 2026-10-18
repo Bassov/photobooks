@@ -42,6 +42,11 @@ import {
   type ProjectSessionTimers,
   type RequestReadwritePermission,
 } from './session/browserProjectSessionPlatform'
+import {
+  createLibraryActivation,
+  type LibraryActivation,
+  type LibraryActivationHost,
+} from './session/libraryActivation'
 import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
 
 const DEFAULT_LIBRARY_ID = 'library'
@@ -214,10 +219,10 @@ function buildBookLockHost(): BookLockControllerHost {
       handlesReferToSameDirectory(left, right),
     handleDisplayLabel: (handle) => handleDisplayLabel(handle),
     bindLibrary: (id, handle, nextStorage, mode) =>
-      bindLibrary(id, handle, nextStorage, mode),
+      libraryActivation.bindLibrary(id, handle, nextStorage, mode),
     resolveLibraryIdForHandle: (handle) => resolveLibraryIdForHandle(handle),
     readPersistedIds: () => readPersistedIds(),
-    activateLoadedBook: (book) => activateLoadedBook(book),
+    activateLoadedBook: (book) => libraryActivation.activateLoadedBook(book),
     withActionBusy: (task) => withActionBusy(task),
     humanMessageForCode: (code, fallback) =>
       humanMessageForCode(code, fallback),
@@ -229,6 +234,119 @@ function buildBookLockHost(): BookLockControllerHost {
 
 let bookLocks: BookLockController =
   createBookLockController(buildBookLockHost())
+
+function buildLibraryActivationHost(): LibraryActivationHost {
+  return {
+    withActionBusy: (task) => withActionBusy(task),
+    pickDirectory: () => pickDirectory(),
+    createStorageFromHandle: (handle) => createStorageFromHandle(handle),
+    resolveLibraryIdForHandle: (handle) => resolveLibraryIdForHandle(handle),
+    flushPendingSaveBeforeRelease: () => flushPendingSaveBeforeRelease(),
+    releaseHeldBookLock: () => bookLocks.releaseHeldBookLock(),
+    takeBookLock: (id) => bookLocks.takeBookLock(id),
+    setPendingRegrant: (nextLibraryId, nextBookId) => {
+      bookLocks.setPendingRegrant(nextLibraryId, nextBookId)
+    },
+    clearBlockedAndPending: () => {
+      bookLocks.clearBlockedAndPending()
+    },
+    resetAutosave: () => {
+      autosave.reset()
+    },
+    cancelAutosave: () => {
+      autosave.cancel()
+    },
+    persistIds: () => {
+      persistIds()
+    },
+    clearPersistedIdKeys: () => {
+      if (storageKey) {
+        storageKey.removeItem(ACTIVE_BOOK_KEY)
+        storageKey.removeItem(LIBRARY_ID_KEY)
+      }
+    },
+    setActiveIds: (ids) => {
+      void session.setActiveIds(ids)
+    },
+    getActiveIds: () => session.getActiveIds(),
+    rememberLibraryHandle: (id, handle, label) =>
+      session.rememberLibraryHandle(id, handle, label),
+    recallLibraryHandle: (id) => session.recallLibraryHandle(id),
+    handleDisplayLabel: (handle) => handleDisplayLabel(handle),
+    humanMessageForCode: (code, fallback) =>
+      humanMessageForCode(code, fallback),
+    setHomeError: (message) => {
+      setHomeError(message)
+    },
+    setStatus: (next) => {
+      setStatus(next)
+    },
+    setEditorStatus: (message) => {
+      setEditorStatus(message)
+    },
+    setPermissionRequiredAccess: () => {
+      setPermissionRequiredAccess()
+    },
+    getAccessPhase: () => accessPhase,
+    setAccessPhase: (phase) => {
+      accessPhase = phase
+    },
+    setSurface: (next) => {
+      surface = next
+    },
+    emit: () => {
+      emit()
+    },
+    getStorage: () => storage,
+    setStorage: (next) => {
+      storage = next
+    },
+    getLibraryId: () => libraryId,
+    setLibraryId: (id) => {
+      libraryId = id
+    },
+    getBookId: () => bookId,
+    setBookId: (id) => {
+      bookId = id
+    },
+    setDirty: (next) => {
+      dirty = next
+    },
+    getBook: () => getBookStoreSnapshot().book,
+    resetBookStore: (book) => {
+      resetBookStore({
+        book,
+        sessionMeta: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+    },
+    withoutDirtyTracking: (fn) => {
+      withoutDirtyTracking(fn)
+    },
+    withoutDirtyTrackingAsync: (fn) => withoutDirtyTrackingAsync(fn),
+    clearAssetSources: () => {
+      assetSources.clear()
+    },
+    createEmptyLibraryBook: (id) => createEmptyLibraryBook(id),
+    nowId: () => nowId(),
+    upgradeSessionAssets: () =>
+      upgradeSessionAssetsForLibrary(registerAssetSource),
+    readPersistedIds: () => readPersistedIds(),
+    setRestorePending: (next) => {
+      restorePending = next
+    },
+    setPreferredLibraryId: (id) => {
+      preferredLibraryId = id
+    },
+    defaultLibraryId: () => DEFAULT_LIBRARY_ID,
+  }
+}
+
+let libraryActivation: LibraryActivation = createLibraryActivation(
+  buildLibraryActivationHost(),
+)
+bookLocks.setHost(buildBookLockHost())
 
 function humanMessageForCode(
   code: StorageFailureCode,
@@ -597,6 +715,7 @@ export function configureProjectSession(deps: ProjectSessionDeps): void {
     requestReadwritePermission = deps.requestReadwritePermission
   }
   bookLocks.setHost(buildBookLockHost())
+  libraryActivation.setHost(buildLibraryActivationHost())
   if (deps.timers) {
     autosave.setTimers(deps.timers)
   }
@@ -644,6 +763,8 @@ export function resetProjectSessionForTests(): void {
   preferredLibraryId = null
   recentsRevision = 0
   bookLocks = createBookLockController(buildBookLockHost())
+  libraryActivation = createLibraryActivation(buildLibraryActivationHost())
+  bookLocks.setHost(buildBookLockHost())
   assetSources.clear()
   resetPendingHashesForTests()
   resetEditorGestureForTests()
@@ -701,261 +822,21 @@ export function getRegisteredAssetSource(
   return assetSources.get(rootId)
 }
 
-function bookHasContent(book: Book): boolean {
-  if (book.gallery.length > 0) {
-    return true
-  }
-  return book.spreads.some((spread) =>
-    spread.frames.some((frame) => frame.assetId !== undefined),
-  )
-}
-
-async function activateLoadedBook(book: Book): Promise<StorageResult<Book>> {
-  if (!libraryId) {
-    return { ok: false, code: 'not-found' }
-  }
-  const locked = await takeBookLock(book.id)
-  if (!locked.ok) {
-    return { ok: false, code: locked.code }
-  }
-  bookId = book.id
-  persistIds()
-  withoutDirtyTracking(() => {
-    resetBookStore({
-      book,
-      sessionMeta: new Map(),
-      importRunning: false,
-      importExpectedCount: 0,
-    })
-  })
-  dirty = false
-  autosave.reset()
-  setStatus({ kind: 'open', libraryId, bookId })
-  surface = 'editor'
-  setEditorStatus('Book restored')
-  return { ok: true, value: book }
-}
-
-async function pickAndActivateLibraryBook(
-  summaries: readonly { id: string }[],
-): Promise<StorageResult<Book>> {
-  if (!storage) {
-    return { ok: false, code: 'not-found' }
-  }
-  const currentId = getBookStoreSnapshot().book.id
-  let first: Book | null = null
-  let withContent: Book | null = null
-  for (const summary of summaries) {
-    const loaded = await storage.loadBook(summary.id)
-    if (!loaded.ok) {
-      continue
-    }
-    first ??= loaded.value
-    if (!bookHasContent(loaded.value)) {
-      continue
-    }
-    if (summary.id === currentId) {
-      return await activateLoadedBook(loaded.value)
-    }
-    withContent ??= loaded.value
-  }
-  const chosen = withContent ?? first
-  if (!chosen) {
-    return adoptCurrentBookInLibrary()
-  }
-  return activateLoadedBook(chosen)
-}
-
-async function activateLibraryAfterBind(
-  mode: 'adopt' | 'open',
-): Promise<StorageResult<void>> {
-  if (mode === 'open') {
-    if (!storage) {
-      return { ok: false, code: 'not-found' }
-    }
-    const listed = await storage.listBooks()
-    if (!listed.ok) {
-      setStatus({ kind: 'error', code: listed.code, action: 'open library' })
-      return listed
-    }
-    if (listed.value.length > 0) {
-      const opened = await pickAndActivateLibraryBook(listed.value)
-      if (!opened.ok) {
-        return { ok: false, code: opened.code }
-      }
-      return { ok: true, value: undefined }
-    }
-    // Empty library: never import a foreign in-memory document.
-    if (bookHasContent(getBookStoreSnapshot().book)) {
-      withoutDirtyTracking(() => {
-        resetBookStore({
-          book: createEmptyLibraryBook(nowId()),
-          sessionMeta: new Map(),
-          importRunning: false,
-          importExpectedCount: 0,
-        })
-      })
-      assetSources.clear()
-    }
-  }
-  const adopted = await adoptCurrentBookInLibrary()
-  if (!adopted.ok) {
-    return { ok: false, code: adopted.code }
-  }
-  return { ok: true, value: undefined }
-}
-
-async function bindLibrary(
+function bindLibrary(
   nextLibraryId: string,
   handle: SessionDirectoryHandle,
   nextStorage: LibraryStorage,
   mode: 'adopt' | 'open' = 'adopt',
 ): Promise<StorageResult<void>> {
-  await releaseHeldBookLock()
-  storage = nextStorage
-  libraryId = nextLibraryId
-  bookId = null
-  persistIds()
-  setStatus({ kind: 'open', libraryId: nextLibraryId, bookId: null })
-  const activated = await withoutDirtyTrackingAsync(() =>
-    activateLibraryAfterBind(mode),
-  )
-  if (!activated.ok) {
-    storage = null
-    libraryId = null
-    bookId = null
-    persistIds()
-    setStatus({ kind: 'error', code: activated.code, action: 'open library' })
-    emit()
-    return activated
-  }
-  const remembered = await session.rememberLibraryHandle(
-    nextLibraryId,
-    handle,
-    handleDisplayLabel(handle),
-  )
-  if (!remembered.ok) {
-    await releaseHeldBookLock()
-    storage = null
-    libraryId = null
-    bookId = null
-    persistIds()
-    accessPhase = 'idle'
-    bookLocks.clearBlockedAndPending()
-    withoutDirtyTracking(() => {
-      resetBookStore({
-        book: createEmptyLibraryBook(nowId()),
-        sessionMeta: new Map(),
-        importRunning: false,
-        importExpectedCount: 0,
-      })
-    })
-    assetSources.clear()
-    dirty = false
-    autosave.reset()
-    surface = 'home'
-    setHomeError(
-      humanMessageForCode(
-        remembered.code,
-        'Could not remember this library. Try again.',
-      ),
-    )
-    setStatus({ kind: 'error', code: remembered.code, action: 'open library' })
-    emit()
-    return remembered
-  }
-  dirty = false
-  autosave.reset()
-  if (accessPhase === 'permission-required') {
-    accessPhase = 'idle'
-  }
-  surface = 'editor'
-  emit()
-  return { ok: true, value: undefined }
-}
-
-async function releaseOpenBookForNewLibrary(): Promise<void> {
-  if (storage === null && bookId === null) {
-    return
-  }
-  await releaseHeldBookLock()
-  storage = null
-  libraryId = null
-  bookId = null
-  persistIds()
-  void session.setActiveIds({ libraryId: null, bookId: null })
-  accessPhase = 'idle'
-  bookLocks.clearBlockedAndPending()
-  withoutDirtyTracking(() => {
-    resetBookStore({
-      book: createEmptyLibraryBook(nowId()),
-      sessionMeta: new Map(),
-      importRunning: false,
-      importExpectedCount: 0,
-    })
-  })
-  dirty = false
-  autosave.reset()
-  setStatus({ kind: 'idle' })
+  return libraryActivation.bindLibrary(nextLibraryId, handle, nextStorage, mode)
 }
 
 export async function createLibrary(): Promise<StorageResult<void>> {
-  const result = await withActionBusy(async () => {
-    setHomeError(null)
-    const handle = await pickDirectory()
-    if (!handle) {
-      setHomeError('Library folder was not selected.')
-      return { ok: false as const, code: 'not-found' as const }
-    }
-    const flushed = await flushPendingSaveBeforeRelease()
-    if (!flushed.ok) {
-      return flushed
-    }
-    await releaseOpenBookForNewLibrary()
-    const nextStorage = createStorageFromHandle(handle)
-    const written = await nextStorage.updateLibrary({})
-    if (!written.ok) {
-      const message = humanMessageForCode(
-        written.code,
-        'Could not create the library folder.',
-      )
-      setHomeError(message)
-      setStatus({ kind: 'error', code: written.code, action: 'create library' })
-      return written
-    }
-    const nextId = await resolveLibraryIdForHandle(handle)
-    return bindLibrary(nextId, handle, nextStorage, 'adopt')
-  })
-  return result ?? { ok: false, code: 'not-found' }
+  return libraryActivation.createLibrary()
 }
 
 export async function openLibrary(): Promise<StorageResult<void>> {
-  const result = await withActionBusy(async () => {
-    setHomeError(null)
-    const handle = await pickDirectory()
-    if (!handle) {
-      setHomeError('Library folder was not selected.')
-      return { ok: false as const, code: 'not-found' as const }
-    }
-    const flushed = await flushPendingSaveBeforeRelease()
-    if (!flushed.ok) {
-      return flushed
-    }
-    const nextStorage = createStorageFromHandle(handle)
-    const meta = await nextStorage.getLibrary()
-    if (!meta.ok) {
-      const message = humanMessageForCode(
-        meta.code,
-        'Could not open the library folder.',
-      )
-      setHomeError(message)
-      setStatus({ kind: 'error', code: meta.code, action: 'open library' })
-      return meta
-    }
-    const nextId = await resolveLibraryIdForHandle(handle)
-    return bindLibrary(nextId, handle, nextStorage, 'open')
-  })
-  return result ?? { ok: false, code: 'not-found' }
+  return libraryActivation.openLibrary()
 }
 
 /** Leave the editor: release lock, clear in-tab book id, show home. */
@@ -1023,48 +904,10 @@ export async function attachMemoryLibraryForTests(): Promise<
   return attachLibraryForTests({ storage: next })
 }
 
-/**
- * Persist the in-memory editor book into an attached library.
- * Upgrades session assets, creates the book when missing, then marks it active.
- */
 export async function adoptCurrentBookInLibrary(): Promise<
   StorageResult<Book>
 > {
-  if (!storage || !libraryId) {
-    const failure = { ok: false as const, code: 'not-found' as const }
-    setStatus({ kind: 'error', code: 'not-found', action: 'adopt book' })
-    return failure
-  }
-  await upgradeSessionAssetsForLibrary(registerAssetSource)
-  const current = getBookStoreSnapshot().book
-  const existing = await storage.loadBook(current.id)
-  if (existing.ok) {
-    if (!bookHasContent(current)) {
-      return activateLoadedBook(existing.value)
-    }
-    const locked = await takeBookLock(current.id)
-    if (!locked.ok) {
-      return { ok: false, code: locked.code }
-    }
-    bookId = current.id
-    persistIds()
-    setStatus({ kind: 'open', libraryId, bookId })
-    return existing
-  }
-  const created = await storage.createBook(current)
-  if (!created.ok) {
-    setStatus({ kind: 'error', code: created.code, action: 'adopt book' })
-    return created
-  }
-  const locked = await takeBookLock(created.value.id)
-  if (!locked.ok) {
-    return { ok: false, code: locked.code }
-  }
-  bookId = created.value.id
-  persistIds()
-  setStatus({ kind: 'open', libraryId, bookId })
-  setEditorStatus('Book created in library')
-  return created
+  return libraryActivation.adoptCurrentBookInLibrary()
 }
 
 export async function createBookInLibrary(): Promise<StorageResult<Book>> {
@@ -1323,7 +1166,7 @@ export async function tryActivateLibraryBookForTests(
   if (!loaded.ok) {
     return loaded
   }
-  return activateLoadedBook(loaded.value)
+  return libraryActivation.activateLoadedBook(loaded.value)
 }
 
 /** Test seam: replace session with many recent libraries and stay on home. */
@@ -1449,179 +1292,17 @@ export async function removeRecentFromHome(
   return result ?? { ok: false, code: 'not-found' }
 }
 
-/**
- * Recall a recent library and list its books. Sets permission-required access
- * phase instead of returning an empty silent list when recall is denied.
- */
 export async function selectRecentLibrary(
   recentLibraryId: string,
 ): Promise<StorageResult<readonly { id: string }[]>> {
-  const result = await withActionBusy(async () => {
-    setHomeError(null)
-    let recalled: StorageResult<SessionDirectoryHandle>
-    try {
-      recalled = await session.recallLibraryHandle(recentLibraryId)
-    } catch {
-      return { ok: false as const, code: 'not-found' as const }
-    }
-    if (!recalled.ok) {
-      if (recalled.code === 'permission-required') {
-        bookLocks.setPendingRegrant(recentLibraryId, null)
-        setPermissionRequiredAccess()
-        setStatus({
-          kind: 'error',
-          code: 'permission-required',
-          action: 'open recent library',
-        })
-      } else {
-        setHomeError(
-          humanMessageForCode(
-            recalled.code,
-            'Could not open that recent library.',
-          ),
-        )
-      }
-      return { ok: false as const, code: recalled.code }
-    }
-    const nextStorage = createStorageFromHandle(recalled.value)
-    const listed = await nextStorage.listBooks()
-    if (!listed.ok) {
-      setHomeError(humanMessageForCode(listed.code, 'Could not list books.'))
-      setStatus({
-        kind: 'error',
-        code: listed.code,
-        action: 'list books',
-      })
-      return listed
-    }
-    if (accessPhase === 'permission-required') {
-      accessPhase = 'idle'
-      emit()
-    }
-    return listed
-  })
-  return result ?? { ok: false, code: 'not-found' }
+  return libraryActivation.selectRecentLibrary(recentLibraryId)
 }
 
 export async function openBookFromHome(
   recentLibraryId: string,
   nextBookId: string,
 ): Promise<StorageResult<Book>> {
-  const result = await withActionBusy(async () => {
-    setHomeError(null)
-    let recalled: StorageResult<SessionDirectoryHandle>
-    try {
-      recalled = await session.recallLibraryHandle(recentLibraryId)
-    } catch {
-      return { ok: false as const, code: 'not-found' as const }
-    }
-    if (!recalled.ok) {
-      if (recalled.code === 'permission-required') {
-        bookLocks.setPendingRegrant(recentLibraryId, nextBookId)
-        setPermissionRequiredAccess()
-        setStatus({
-          kind: 'error',
-          code: 'permission-required',
-          action: 'open book',
-        })
-      } else {
-        setHomeError(
-          humanMessageForCode(recalled.code, 'Could not open that book.'),
-        )
-      }
-      return { ok: false as const, code: recalled.code }
-    }
-    await releaseHeldBookLock()
-    const nextStorage = createStorageFromHandle(recalled.value)
-    storage = nextStorage
-    libraryId = recentLibraryId
-    bookId = null
-    if (accessPhase === 'permission-required') {
-      accessPhase = 'idle'
-    }
-    setStatus({ kind: 'open', libraryId: recentLibraryId, bookId: null })
-    const loaded = await nextStorage.loadBook(nextBookId)
-    if (!loaded.ok) {
-      storage = null
-      libraryId = null
-      bookId = null
-      persistIds()
-      accessPhase = 'idle'
-      bookLocks.clearBlockedAndPending()
-      surface = 'home'
-      setHomeError(
-        humanMessageForCode(loaded.code, 'Could not open that book.'),
-      )
-      setStatus({ kind: 'error', code: loaded.code, action: 'open book' })
-      emit()
-      return loaded
-    }
-    const activated = await activateLoadedBook(loaded.value)
-    if (!activated.ok) {
-      storage = null
-      libraryId = null
-      bookId = null
-      persistIds()
-      accessPhase = 'idle'
-      bookLocks.clearBlockedAndPending()
-      withoutDirtyTracking(() => {
-        resetBookStore({
-          book: createEmptyLibraryBook(nowId()),
-          sessionMeta: new Map(),
-          importRunning: false,
-          importExpectedCount: 0,
-        })
-      })
-      assetSources.clear()
-      surface = 'home'
-      setEditorStatus('')
-      setHomeError(
-        humanMessageForCode(activated.code, 'Could not open that book.'),
-      )
-      emit()
-      return activated
-    }
-    const remembered = await session.rememberLibraryHandle(
-      recentLibraryId,
-      recalled.value,
-      handleDisplayLabel(recalled.value),
-    )
-    if (!remembered.ok) {
-      await releaseHeldBookLock()
-      storage = null
-      libraryId = null
-      bookId = null
-      persistIds()
-      accessPhase = 'idle'
-      bookLocks.clearBlockedAndPending()
-      withoutDirtyTracking(() => {
-        resetBookStore({
-          book: createEmptyLibraryBook(nowId()),
-          sessionMeta: new Map(),
-          importRunning: false,
-          importExpectedCount: 0,
-        })
-      })
-      assetSources.clear()
-      dirty = false
-      autosave.reset()
-      surface = 'home'
-      setHomeError(
-        humanMessageForCode(
-          remembered.code,
-          'Could not remember this library. Try again.',
-        ),
-      )
-      setStatus({ kind: 'error', code: remembered.code, action: 'open book' })
-      emit()
-      return remembered
-    }
-    surface = 'editor'
-    homeError = null
-    emit()
-    return activated
-  })
-  return result ?? { ok: false, code: 'not-found' }
+  return libraryActivation.openBookFromHome(recentLibraryId, nextBookId)
 }
 
 /** Enter the editor without a library (session-only editing). */
@@ -1629,97 +1310,6 @@ export function startSessionEditor(): void {
   enterEditorSurface()
 }
 
-async function clearStaleRestoreState(): Promise<void> {
-  await releaseHeldBookLock()
-  storage = null
-  libraryId = null
-  bookId = null
-  if (storageKey) {
-    storageKey.removeItem(ACTIVE_BOOK_KEY)
-    storageKey.removeItem(LIBRARY_ID_KEY)
-  }
-  void session.setActiveIds({ libraryId: null, bookId: null })
-  dirty = false
-  autosave.reset()
-  accessPhase = 'idle'
-  bookLocks.clearBlockedAndPending()
-  setStatus({ kind: 'idle' })
-}
-
 export async function tryRestore(): Promise<StorageResult<Book | null>> {
-  const result = await withActionBusy(async () => {
-    restorePending = true
-    emit()
-    try {
-      autosave.cancel()
-      const persisted = readPersistedIds()
-      if (!persisted.bookId) {
-        surface = 'home'
-        accessPhase = 'idle'
-        emit()
-        return { ok: true as const, value: null }
-      }
-      surface = 'editor'
-      emit()
-      const id = persisted.libraryId ?? DEFAULT_LIBRARY_ID
-      let recalled: StorageResult<SessionDirectoryHandle>
-      try {
-        recalled = await session.recallLibraryHandle(id)
-      } catch {
-        await clearStaleRestoreState()
-        surface = 'home'
-        emit()
-        return { ok: true as const, value: null }
-      }
-      if (!recalled.ok) {
-        if (recalled.code === 'permission-required') {
-          await releaseHeldBookLock()
-          storage = null
-          bookId = null
-          libraryId = null
-          dirty = false
-          autosave.reset()
-          surface = 'home'
-          setPermissionRequiredAccess()
-          setStatus({
-            kind: 'error',
-            code: 'permission-required',
-            action: 'restore library',
-          })
-          return { ok: true as const, value: null }
-        }
-        await clearStaleRestoreState()
-        surface = 'home'
-        emit()
-        return { ok: true as const, value: null }
-      }
-      const nextStorage = createStorageFromHandle(recalled.value)
-      storage = nextStorage
-      libraryId = id
-      const loaded = await nextStorage.loadBook(persisted.bookId)
-      if (!loaded.ok) {
-        await clearStaleRestoreState()
-        surface = 'home'
-        setHomeError(
-          humanMessageForCode(
-            loaded.code,
-            'Could not restore the previous book.',
-          ),
-        )
-        setStatus({ kind: 'error', code: loaded.code, action: 'restore book' })
-        return loaded
-      }
-      return await activateLoadedBook(loaded.value)
-    } finally {
-      try {
-        const active = await session.getActiveIds()
-        preferredLibraryId = active.libraryId
-      } catch {
-        preferredLibraryId = null
-      }
-      restorePending = false
-      emit()
-    }
-  })
-  return result ?? { ok: true, value: null }
+  return libraryActivation.tryRestore()
 }
