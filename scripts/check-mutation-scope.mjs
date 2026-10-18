@@ -38,7 +38,7 @@ if (
   }
   if (gaps.extra.length > 0) {
     console.error(
-      `stryker.mutate.md documents excludes that are not in stryker.config.json:\n${gaps.extra.join('\n')}`,
+      `stryker.mutate.md documents excludes that are not in stryker.config.mjs:\n${gaps.extra.join('\n')}`,
     )
   }
   process.exit(1)

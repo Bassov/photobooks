@@ -1,0 +1,67 @@
+import { loadGates } from './scripts/load-gates.mjs'
+
+const gates = loadGates()
+
+const config = {
+  testRunner: 'vitest',
+  plugins: ['@stryker-mutator/vitest-runner'],
+  vitest: {
+    configFile: 'vite.config.ts',
+    related: true,
+  },
+  mutate: [
+    'src/**/*.ts',
+    'src/**/*.tsx',
+    'scripts/roadmap.mjs',
+    'scripts/agent.mjs',
+    'scripts/check.mjs',
+    'scripts/e2e-burn-in-count.mjs',
+    'scripts/e2e-burn-in-targets.mjs',
+    'scripts/e2e-changed-quiet.mjs',
+    'scripts/e2e-playwright-summary.mjs',
+    'scripts/load-gates.mjs',
+    'scripts/check-gate-values.mjs',
+    'scripts/e2e-flaky-list.mjs',
+    '!src/**/*.{test,spec}.{ts,tsx}',
+    '!src/**/*.{bench,benchmark}.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/*.test-helpers.ts',
+    '!src/core/testing/**',
+    '!src/core/index.ts',
+    '!src/project/index.ts',
+    '!src/assets/index.ts',
+    '!src/main.tsx',
+    '!src/photo/photo.worker.ts',
+    '!src/assets/hash.worker.ts',
+    '!src/project/fsa/bookLoad.worker.ts',
+    '!src/project/session/idb.ts',
+    '!src/project/session/locks.ts',
+    '!src/editor/EditorShell.tsx',
+    '!src/editor/HomeScreen.tsx',
+    '!src/App.tsx',
+    '!src/editor/previewAspect.ts',
+    '!src/editor/upgradeSessionAssets.ts',
+    '!src/editor/usePasteboardCamera.ts',
+    '!src/editor/projectSession.ts',
+  ],
+  ignorePatterns: [
+    '.local_dev',
+    'dist',
+    'coverage',
+    'reports',
+    'test-results',
+    'playwright-report',
+    '.lighthouseci',
+    '.stryker-tmp',
+    'C:*',
+  ],
+  reporters: ['clear-text', 'html', 'json'],
+  jsonReporter: {
+    fileName: 'reports/mutation/mutation.json',
+  },
+  coverageAnalysis: 'perTest',
+  thresholds: gates.stryker.thresholds,
+  ignoreStatic: true,
+}
+
+export default config

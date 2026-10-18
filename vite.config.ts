@@ -1,6 +1,9 @@
 import { codecovVitePlugin } from '@codecov/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
+import { loadGates } from './scripts/load-gates.mjs'
+
+const gates = loadGates()
 
 const isolationHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
@@ -49,6 +52,9 @@ export default defineConfig({
         'scripts/e2e-burn-in-targets.mjs',
         'scripts/e2e-changed-quiet.mjs',
         'scripts/e2e-playwright-summary.mjs',
+        'scripts/load-gates.mjs',
+        'scripts/check-gate-values.mjs',
+        'scripts/e2e-flaky-list.mjs',
       ],
       exclude: [
         'src/**/*.{test,spec}.{ts,tsx}',
@@ -57,12 +63,7 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/main.tsx',
       ],
-      thresholds: {
-        statements: 80,
-        branches: 80,
-        functions: 80,
-        lines: 80,
-      },
+      thresholds: gates.coverage,
     },
     benchmark: {
       include: ['src/**/*.{bench,benchmark}.{ts,tsx}'],

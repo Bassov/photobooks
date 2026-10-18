@@ -1,6 +1,12 @@
-import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const REASON_PATTERN = /`(![^`]+)`/g
+const DEFAULT_STRYKER_CONFIG = 'stryker.config.mjs'
+
+const { default: defaultStrykerConfig } = await import(
+  pathToFileURL(path.resolve(DEFAULT_STRYKER_CONFIG)).href
+)
 
 function escapeLiteral(char) {
   return /[.+^${}()|[\]\\]/.test(char) ? `\\${char}` : char
@@ -56,12 +62,23 @@ function matchGlob(file, pattern) {
   return globToRegExp(pattern).test(file)
 }
 
-export function loadMutatePatterns(configPath = 'stryker.config.json') {
-  const raw = JSON.parse(readFileSync(configPath, 'utf8'))
-  if (!Array.isArray(raw.mutate)) {
+/**
+ * @param {string} [configPath]
+ * @param {{ mutate?: unknown }} [config]
+ */
+export function loadMutatePatterns(
+  configPath = DEFAULT_STRYKER_CONFIG,
+  config = defaultStrykerConfig,
+) {
+  if (configPath !== DEFAULT_STRYKER_CONFIG) {
+    throw new Error(
+      `mutation scope only loads ${DEFAULT_STRYKER_CONFIG}, got ${configPath}`,
+    )
+  }
+  if (!Array.isArray(config?.mutate)) {
     throw new Error(`${configPath} mutate must be an array of glob strings`)
   }
-  return raw.mutate.map((pattern) => {
+  return config.mutate.map((pattern) => {
     if (typeof pattern !== 'string') {
       throw new Error(`${configPath} mutate entries must be strings`)
     }

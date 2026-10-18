@@ -2,6 +2,11 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 
+// LHCI loads CommonJS/JSON configs only (not ESM .mjs).
+const gates = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'quality/gates.json'), 'utf8'),
+)
+
 function resolveChromePath() {
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
     return process.env.CHROME_PATH
@@ -38,7 +43,7 @@ module.exports = {
   ci: {
     collect: {
       staticDistDir: './dist',
-      numberOfRuns: 1,
+      numberOfRuns: gates.lighthouse.numberOfRuns,
       ...(chromePath ? { chromePath } : {}),
       settings: {
         preset: 'desktop',
@@ -52,9 +57,7 @@ module.exports = {
       },
     },
     assert: {
-      assertions: {
-        'performance-budget': 'error',
-      },
+      assertions: gates.lighthouse.assertions,
     },
     upload: {
       target: 'temporary-public-storage',
