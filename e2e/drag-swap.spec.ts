@@ -158,10 +158,27 @@ test.describe('keyboard rearrange', () => {
       .first()
       .focus()
     await page.keyboard.press('Enter')
-    await page.getByRole('button', { name: 'Move photo here' }).first().focus()
+    const moveSource = page.getByRole('button', { pressed: true })
+    const moveSourceFrameId = await moveSource.getAttribute('data-frame-id')
+    const moveSourceAssetId = await moveSource.getAttribute('data-asset-id')
+    expect(moveSourceFrameId).toBeTruthy()
+    expect(moveSourceAssetId).toBeTruthy()
+    const moveTarget = page
+      .getByRole('button', { name: 'Move photo here' })
+      .first()
+    const moveTargetFrameId = await moveTarget.getAttribute('data-frame-id')
+    expect(moveTargetFrameId).toBeTruthy()
+    expect(moveTargetFrameId).not.toBe(moveSourceFrameId)
+    await moveTarget.focus()
     await page.keyboard.press('Enter')
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(2)
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(2)
+    await expect(
+      active.locator(`button[data-frame-id="${moveTargetFrameId ?? ''}"]`),
+    ).toHaveAttribute('data-asset-id', moveSourceAssetId ?? '')
+    await expect(
+      active.locator(`button[data-frame-id="${moveSourceFrameId ?? ''}"]`),
+    ).toHaveAttribute('data-filled', 'false')
     await expect
       .poll(async () => page.getByTestId('editor-status').textContent())
       .toBe('Photo moved')
@@ -372,8 +389,6 @@ test('frame drag hover moves from one frame onto another and the filmstrip', asy
 })
 
 test.describe('frame-budget gates', () => {
-  test.describe.configure({ retries: 2 })
-
   test('zoomed-out frame drag stays within frame-budget gates', async ({
     page,
   }, testInfo) => {

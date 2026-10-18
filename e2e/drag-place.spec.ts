@@ -37,8 +37,6 @@ test('empty gallery has no Placed badge and activation leaves placeholders', asy
 })
 
 test.describe('keyboard place', () => {
-  test.describe.configure({ retries: 2 })
-
   test('keyboard place then replace keeps both photos in the filmstrip', async ({
     page,
   }) => {
@@ -280,8 +278,6 @@ test('drag hover follows one frame and clears off a frame', async ({
 
 test.describe('frame-budget gates', () => {
   test.describe('stabilized drag', () => {
-    test.describe.configure({ retries: 0 })
-
     test('zoomed-out gallery drag stays within frame-budget gates', async ({
       page,
     }, testInfo) => {
@@ -470,8 +466,6 @@ test.describe('frame-budget gates', () => {
   })
 
   test.describe('autosave during drag', () => {
-    test.describe.configure({ retries: 2 })
-
     test('autosave during continuous drag stays within frame-budget gates', async ({
       page,
     }, testInfo) => {

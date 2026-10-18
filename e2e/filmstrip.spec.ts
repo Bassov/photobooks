@@ -377,10 +377,6 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
 })
 
 test.describe('frame-budget gates', () => {
-  // CPU-sensitive under parallel local workers; CI uses workers: 1. Pre-push is
-  // verify:fast only.
-  test.describe.configure({ retries: 2 })
-
   test('bulk filmstrip import while scrolling stays within frame-budget gates', async ({
     page,
   }, testInfo) => {
@@ -395,11 +391,9 @@ test.describe('frame-budget gates', () => {
     await clearPerfScenario(page)
 
     const files = writeBulkImportFixtures(200)
-
-    const fileChooserPromise = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Add photos' }).click({ delay: 20 })
-    const fileChooser = await fileChooserPromise
-    await fileChooser.setFiles(files)
+    // Use the same hidden input seam as other e2e specs — native filechooser
+    // is unreliable under headless Chromium on some hosts.
+    await page.getByTestId('photo-file-input').setInputFiles(files)
 
     await expect(page.getByTestId('import-progress')).toBeVisible({
       timeout: 30_000,

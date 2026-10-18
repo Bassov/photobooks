@@ -2,6 +2,10 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
+import {
+  excludeFlakyFromTargets,
+  loadFlakySpecPaths,
+} from './e2e-flaky-list.mjs'
 
 const SPEC_RE = /^e2e\/.+\.spec\.ts$/
 const E2E_SOURCE_RE = /^e2e\/.+\.(?:[cm]?js|[cm]?ts|jsx|tsx)$/
@@ -165,6 +169,11 @@ export function selectBurnInTargets(changedPaths, io = {}) {
   const listSources =
     io.listSources ??
     (() => listE2eSourceFiles(process.cwd(), { exists, readdir: io.readdir }))
+  const resolveFlaky =
+    io.flakyPaths !== undefined
+      ? () =>
+          typeof io.flakyPaths === 'function' ? io.flakyPaths() : io.flakyPaths
+      : () => loadFlakySpecPaths({ root: io.root ?? process.cwd() })
 
   const changed = [...new Set(changedPaths.map(normalize))]
   const targets = new Set()
@@ -174,14 +183,16 @@ export function selectBurnInTargets(changedPaths, io = {}) {
   }
 
   const changedSupport = changed.filter(isE2eSupportFile)
-  if (changedSupport.length === 0) return [...targets].sort()
+  if (changedSupport.length === 0) {
+    return excludeFlakyFromTargets([...targets].sort(), resolveFlaky())
+  }
 
   const supportSet = new Set(changedSupport)
   let sources
   try {
     sources = listSources()
   } catch {
-    return [...targets].sort()
+    return excludeFlakyFromTargets([...targets].sort(), resolveFlaky())
   }
 
   const graph = buildImportGraph(sources, { readFile, exists })
@@ -197,7 +208,7 @@ export function selectBurnInTargets(changedPaths, io = {}) {
     }
   }
 
-  return [...targets].sort()
+  return excludeFlakyFromTargets([...targets].sort(), resolveFlaky())
 }
 
 /**
