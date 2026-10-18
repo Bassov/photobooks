@@ -41,6 +41,7 @@
 2. Injected permission denial: `pnpm exec vitest run src/editor/projectSession.test.ts -t "regrant uses the injected"` → pass (`requestReadwritePermission` called with peeked handle; homeError denied)
 3. FSA Done-when via shared fakes: `pnpm exec vitest run src/editor/projectSession.test.ts -t "Dont Allow|regrant from home|browserPickDirectory AbortError|permissions and locks"` → pass
 4. Autosave via injected timers: `pnpm exec vitest run src/editor/projectSession.test.ts -t "autosave"` → pass
-5. `pnpm verify:fast:quiet` → exit 0 (103 files / 1185 tests)
-6. `pnpm stryker:diff` → `browserProjectSessionPlatform.ts` 100% (0 NoCoverage); `projectSession.ts` remains temporary-excluded
-7. Browser / `pnpm dev` — N/A ([prep] DI; no UI change)
+5. Timers DI seam (manual timers, not globalThis): `pnpm exec vitest run src/editor/projectSession.test.ts -t "schedules autosave only through the injected timers"` → pass (arm/clear/debounce via injected setTimeout; fails if call sites use bare globals)
+6. `pnpm verify:fast:quiet` → exit 0 (103 files / 1185 tests)
+7. `pnpm stryker:diff` → `browserProjectSessionPlatform.ts` 100% (0 NoCoverage); `projectSession.ts` remains temporary-excluded
+8. Browser / `pnpm dev` — N/A ([prep] DI; no UI change)

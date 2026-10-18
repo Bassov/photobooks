@@ -609,6 +609,79 @@ describe('projectSession', () => {
       expect(getEditorStatus()).toBe('Book saved')
     })
 
+    it('schedules autosave only through the injected timers seam', async () => {
+      vi.useRealTimers()
+      const armed: {
+        id: number
+        callback: () => void
+        ms: number
+      }[] = []
+      const cleared: number[] = []
+      let nextId = 1
+      const timers = {
+        setTimeout: ((callback: () => void, ms?: number) => {
+          const id = nextId
+          nextId += 1
+          armed.push({ id, callback, ms: ms ?? 0 })
+          return id as unknown as ReturnType<typeof globalThis.setTimeout>
+        }) as typeof globalThis.setTimeout,
+        clearTimeout: ((id: ReturnType<typeof globalThis.setTimeout>) => {
+          cleared.push(id as unknown as number)
+        }) as typeof globalThis.clearTimeout,
+      }
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        autosaveDebounceMs: 1000,
+        timers,
+      })
+      await attachLibraryForTests({ storage, session })
+      const spreads = getBookStoreSnapshot().book.spreads
+      const firstSpread = spreads[0]?.id
+      const secondSpread = spreads[1]?.id
+      if (firstSpread === undefined || secondSpread === undefined) {
+        throw new Error('expected two spreads')
+      }
+
+      dispatchBookOp({
+        type: 'applyTemplate',
+        spreadId: firstSpread,
+        templateId: '2-up',
+      })
+      expect(armed).toHaveLength(1)
+      expect(armed[0]?.ms).toBe(1000)
+      expect(getProjectSessionSnapshot()).toMatchObject({
+        dirty: true,
+        savePhase: 'pending',
+      })
+      expect(getEditorStatus()).not.toBe('Book saved')
+
+      dispatchBookOp({
+        type: 'applyTemplate',
+        spreadId: secondSpread,
+        templateId: '4-grid',
+      })
+      expect(cleared).toEqual([armed[0]?.id])
+      expect(armed).toHaveLength(2)
+      expect(armed[1]?.ms).toBe(1000)
+      expect(getEditorStatus()).not.toBe('Book saved')
+
+      const pending = armed[1]
+      if (pending === undefined) {
+        throw new Error('expected a second armed timer')
+      }
+      pending.callback()
+      await vi.waitFor(() => {
+        expect(getProjectSessionSnapshot()).toMatchObject({
+          dirty: false,
+          savePhase: 'idle',
+        })
+      })
+      expect(getEditorStatus()).toBe('Book saved')
+    })
+
     it('blocks autosave while a gesture is active then re-arms after end', async () => {
       await attachLibraryBackedBook()
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
