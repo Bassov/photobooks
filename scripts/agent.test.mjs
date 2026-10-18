@@ -413,21 +413,33 @@ describe('nvmrc and push failures', () => {
 
   it('pushFailPath uses git-dir in a linked worktree', () => {
     const primary = gitInitRepo()
+    expect(primary.startsWith(os.tmpdir())).toBe(true)
     execFileSync('git', ['branch', '-M', 'main'], {
       cwd: primary,
       stdio: 'ignore',
     })
-    const wt = path.join(primary, '..', `wt-${path.basename(primary)}`)
+    const wt = path.join(os.tmpdir(), `wt-${path.basename(primary)}`)
     tmpDirs.push(wt)
     execFileSync('git', ['worktree', 'add', wt, '-b', 'feat/wt-item'], {
       cwd: primary,
       stdio: 'ignore',
     })
-    writePushFailures(wt, { 'feat/wt-item': 1 })
-    const p = pushFailPath(wt)
-    expect(fs.existsSync(p)).toBe(true)
-    expect(readPushFailures(wt)).toEqual({ 'feat/wt-item': 1 })
-    expect(p.includes('.git')).toBe(true)
+    try {
+      writePushFailures(wt, { 'feat/wt-item': 1 })
+      const p = pushFailPath(wt)
+      expect(fs.existsSync(p)).toBe(true)
+      expect(readPushFailures(wt)).toEqual({ 'feat/wt-item': 1 })
+      expect(p.includes('.git')).toBe(true)
+    } finally {
+      try {
+        execFileSync('git', ['worktree', 'remove', '--force', wt], {
+          cwd: primary,
+          stdio: 'ignore',
+        })
+      } catch {
+        /* ignore */
+      }
+    }
   })
 })
 
@@ -2732,6 +2744,7 @@ describe('claimed set and merge helpers', () => {
 describe('linked worktree preflight --slug', () => {
   it('creates feat branch from origin/main while main is checked out elsewhere', () => {
     const primary = gitInitRepo()
+    expect(primary.startsWith(os.tmpdir())).toBe(true)
     execFileSync('git', ['branch', '-M', 'main'], {
       cwd: primary,
       stdio: 'ignore',
@@ -2752,91 +2765,108 @@ describe('linked worktree preflight --slug', () => {
       cwd: primary,
       stdio: 'ignore',
     })
-    fs.writeFileSync(path.join(wt, '.nvmrc'), '22\n')
-    fs.mkdirSync(path.join(wt, 'openspec', 'changes'), { recursive: true })
-    fs.mkdirSync(path.join(wt, 'docs/roadmap/M2.1'), { recursive: true })
-    fs.writeFileSync(
-      path.join(wt, 'docs/roadmap.md'),
-      '# R\n\n## M2.1 — t\n\n- [ ] [prep] [wt-slug](roadmap/M2.1/wt-slug.md) — t\n',
-    )
-    fs.writeFileSync(
-      path.join(wt, 'docs/roadmap/M2.1/wt-slug.md'),
-      '# wt-slug\n\nTag: prep\nMilestone: M2.1\nTitle: t\n',
-    )
-    execFileSync('git', ['add', '-A'], { cwd: wt, stdio: 'ignore' })
-    execFileSync(
-      'git',
-      [
-        '-c',
-        'user.email=t@t.com',
-        '-c',
-        'user.name=t',
-        'commit',
-        '-m',
-        'wt fixture',
-      ],
-      {
-        cwd: wt,
-        stdio: 'ignore',
-      },
-    )
-    // Real git for worktree ops; stub only external tools + roadmap next path via thin wrapper.
-    const real = defaultExec
-    const exec = (file, args, opts = {}) => {
-      const key = `${file} ${args.join(' ')}`
-      if (key.includes('node -v'))
-        return { code: 0, stdout: 'v22.0.0\n', stderr: '' }
-      if (key.includes('command -v pnpm'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('gh pr list')) return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('pnpm') && key.includes('roadmap next')) {
-        return {
-          code: 0,
-          stdout: JSON.stringify({
-            slug: 'wt-slug',
-            tag: 'prep',
-            title: 't',
-            file: 'docs/roadmap/M2.1/wt-slug.md',
-            milestone: 'M2.1',
-            goal: ['g'],
-          }),
-          stderr: '',
+    try {
+      fs.writeFileSync(path.join(wt, '.nvmrc'), '22\n')
+      fs.mkdirSync(path.join(wt, 'openspec', 'changes'), { recursive: true })
+      fs.mkdirSync(path.join(wt, 'docs/roadmap/M2.1'), { recursive: true })
+      fs.writeFileSync(
+        path.join(wt, 'docs/roadmap.md'),
+        '# R\n\n## M2.1 — t\n\n- [ ] [prep] [wt-slug](roadmap/M2.1/wt-slug.md) — t\n',
+      )
+      fs.writeFileSync(
+        path.join(wt, 'docs/roadmap/M2.1/wt-slug.md'),
+        '# wt-slug\n\nTag: prep\nMilestone: M2.1\nTitle: t\n',
+      )
+      execFileSync('git', ['add', '-A'], { cwd: wt, stdio: 'ignore' })
+      execFileSync(
+        'git',
+        [
+          '-c',
+          'user.email=t@t.com',
+          '-c',
+          'user.name=t',
+          'commit',
+          '-m',
+          'wt fixture',
+        ],
+        {
+          cwd: wt,
+          stdio: 'ignore',
+        },
+      )
+      // Real git for worktree ops; stub only external tools + roadmap next path via thin wrapper.
+      // Always pin cwd to the temp worktree — never inherit a caller cwd that could be the real repo.
+      const real = defaultExec
+      const exec = (file, args, _opts = {}) => {
+        const key = `${file} ${args.join(' ')}`
+        if (key.includes('node -v'))
+          return { code: 0, stdout: 'v22.0.0\n', stderr: '' }
+        if (key.includes('command -v pnpm'))
+          return { code: 0, stdout: '', stderr: '' }
+        if (key.includes('gh pr list'))
+          return { code: 0, stdout: '', stderr: '' }
+        if (key.includes('pnpm') && key.includes('roadmap next')) {
+          return {
+            code: 0,
+            stdout: JSON.stringify({
+              slug: 'wt-slug',
+              tag: 'prep',
+              title: 't',
+              file: 'docs/roadmap/M2.1/wt-slug.md',
+              milestone: 'M2.1',
+              goal: ['g'],
+            }),
+            stderr: '',
+          }
         }
-      }
-      if (key.includes('openspec new') || key.includes('openspec instructions'))
-        return {
-          code: 0,
-          stdout: JSON.stringify({ template: 'T', rules: ['r'] }),
-          stderr: '',
-        }
-      // Map origin/main for switch --no-track when remote is absent.
-      if (key.includes('git switch -c feat/wt-slug --no-track origin/main')) {
-        return real(
-          'git',
-          ['switch', '-c', 'feat/wt-slug', '--no-track', 'main'],
-          { ...opts, cwd: wt },
+        if (
+          key.includes('openspec new') ||
+          key.includes('openspec instructions')
         )
+          return {
+            code: 0,
+            stdout: JSON.stringify({ template: 'T', rules: ['r'] }),
+            stderr: '',
+          }
+        // Map origin/main for switch --no-track when remote is absent.
+        if (key.includes('git switch -c feat/wt-slug --no-track origin/main')) {
+          return real(
+            'git',
+            ['switch', '-c', 'feat/wt-slug', '--no-track', 'main'],
+            { cwd: wt },
+          )
+        }
+        if (key.includes('git fetch'))
+          return { code: 0, stdout: '', stderr: '' }
+        return real(file, args, { cwd: wt })
       }
-      if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
-      return real(file, args, { ...opts, cwd: opts.cwd ?? wt })
+      const r = cmdPreflight(
+        { slug: 'wt-slug' },
+        { root: wt, cwd: wt, env: {}, exec, quiet: true },
+      )
+      expect(r.ok).toBe(true)
+      expect(r.item.slug).toBe('wt-slug')
+      expect(r.branch).toBe('feat/wt-slug')
+      const br = execFileSync('git', ['branch', '--show-current'], {
+        cwd: wt,
+        encoding: 'utf8',
+      }).trim()
+      expect(br).toBe('feat/wt-slug')
+      const mainBr = execFileSync('git', ['branch', '--show-current'], {
+        cwd: primary,
+        encoding: 'utf8',
+      }).trim()
+      expect(mainBr).toBe('main')
+    } finally {
+      try {
+        execFileSync('git', ['worktree', 'remove', '--force', wt], {
+          cwd: primary,
+          stdio: 'ignore',
+        })
+      } catch {
+        /* ignore */
+      }
     }
-    const r = cmdPreflight(
-      { slug: 'wt-slug' },
-      { root: wt, cwd: wt, env: {}, exec, quiet: true },
-    )
-    expect(r.ok).toBe(true)
-    expect(r.item.slug).toBe('wt-slug')
-    expect(r.branch).toBe('feat/wt-slug')
-    const br = execFileSync('git', ['branch', '--show-current'], {
-      cwd: wt,
-      encoding: 'utf8',
-    }).trim()
-    expect(br).toBe('feat/wt-slug')
-    const mainBr = execFileSync('git', ['branch', '--show-current'], {
-      cwd: primary,
-      encoding: 'utf8',
-    }).trim()
-    expect(mainBr).toBe('main')
   })
 })
 
