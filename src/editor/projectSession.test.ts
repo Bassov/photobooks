@@ -709,6 +709,64 @@ describe('projectSession', () => {
       expect(getEditorStatus()).toBe('Book saved')
     })
 
+    it('gesture end does not arm autosave when bookId was cleared while pending', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const handle = { name: 'GuardLib' }
+      const saveSpy = vi.spyOn(storage, 'saveBook')
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        autosaveDebounceMs: 1000,
+        timers: {
+          setTimeout: globalThis.setTimeout.bind(globalThis),
+          clearTimeout: globalThis.clearTimeout.bind(globalThis),
+        },
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        libraryId: 'lib-guard',
+        handle,
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+      if (spreadId === undefined) {
+        throw new Error('expected a spread')
+      }
+
+      setEditorGestureActive(true)
+      dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
+      expect(getProjectSessionSnapshot()).toMatchObject({
+        dirty: true,
+        savePhase: 'pending',
+        bookId: created.value.id,
+      })
+
+      const opened = await openBookFromHome('lib-guard', 'missing-book')
+      expect(opened).toEqual({ ok: false, code: 'not-found' })
+      expect(getProjectSessionSnapshot()).toMatchObject({
+        dirty: true,
+        savePhase: 'pending',
+        bookId: null,
+        libraryOpen: false,
+      })
+
+      saveSpy.mockClear()
+      setEditorGestureActive(false)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(saveSpy).not.toHaveBeenCalled()
+      expect(getProjectSessionSnapshot().savePhase).toBe('pending')
+      expect(getProjectSessionSnapshot().status).not.toMatchObject({
+        kind: 'error',
+        action: 'save',
+      })
+    })
+
     it('keeps dirty and re-arms when an edit arrives mid-save', async () => {
       const storage = createMemoryLibraryStorage()
       const session = createMemorySessionState()
