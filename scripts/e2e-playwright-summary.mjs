@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { loadFlakySpecPaths } from './e2e-flaky-list.mjs'
 
 function asSuites(report) {
   return Array.isArray(report?.suites) ? report.suites : []
@@ -75,6 +76,7 @@ export function buildBurnInArgs({ targets, count }) {
   return [
     'playwright',
     'test',
+    '--project=chromium',
     ...list,
     `--repeat-each=${String(count)}`,
     '--retries=0',
@@ -86,6 +88,7 @@ export function buildBurnInArgs({ targets, count }) {
  * @param {{
  *   burnInCount: number | null,
  *   flakyCount: number,
+ *   flakyListCount?: number,
  *   burnInOutcome?: string | null,
  *   burnInFailedCount?: number | null,
  * }} metrics
@@ -93,6 +96,7 @@ export function buildBurnInArgs({ targets, count }) {
 export function formatE2eSectionMarkdown({
   burnInCount,
   flakyCount,
+  flakyListCount = 0,
   burnInOutcome = null,
   burnInFailedCount = null,
 }) {
@@ -102,6 +106,7 @@ export function formatE2eSectionMarkdown({
     '| Metric | Value |',
     '| --- | --- |',
     `| Flaky (retried pass) | ${String(flakyCount)} |`,
+    `| @flaky list | ${String(flakyListCount)} |`,
   ]
   if (burnInCount !== null && burnInCount !== undefined) {
     lines.push(`| Burn-in | ${String(burnInCount)} |`)
@@ -189,9 +194,14 @@ export function main(argv, io = {}) {
   }
 
   const flakyCount = countFlakyRetriedPasses(readJson(reportPath))
+  const loadFlaky =
+    io.loadFlakySpecPaths ??
+    (() => loadFlakySpecPaths({ root: io.root ?? process.cwd() }))
+  const flakyListCount = loadFlaky().length
   const body = formatE2eSectionMarkdown({
     burnInCount,
     flakyCount,
+    flakyListCount,
     burnInOutcome,
     burnInFailedCount,
   })

@@ -397,9 +397,6 @@ test('whole-book zoom mounts every fixture spread', async ({ page }) => {
 })
 
 test.describe('frame-budget gates', () => {
-  // Out-of-scope siblings still burn in behind retries until their own item.
-  test.describe.configure({ retries: 2 })
-
   test('fixture pasteboard scroll stays within frame-budget gates', async ({
     page,
   }, testInfo) => {
@@ -486,8 +483,6 @@ test.describe('frame-budget gates', () => {
   })
 
   test.describe('continuous zoom settle remount (stabilized)', () => {
-    test.describe.configure({ retries: 0 })
-
     // Zoom-out burst + default settle; gesture ends, then paced remount of
     // newly visible spreads completes with zero LoAF (mounts may finish after
     // gesture end).
@@ -548,8 +543,6 @@ test.describe('frame-budget gates', () => {
   })
 
   test.describe('continuous zoom (stabilized)', () => {
-    test.describe.configure({ retries: 0 })
-
     test('continuous zoom stays within frame-budget gates', async ({
       page,
     }, testInfo) => {

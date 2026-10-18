@@ -65,7 +65,15 @@ export function main(env = process.env, io = {}) {
     }
     const result = spawn(
       process.execPath,
-      [WRAPPER, 'playwright', 'test', ...targets, '--reporter=dot'],
+      [
+        WRAPPER,
+        'playwright',
+        'test',
+        '--project=chromium',
+        '--workers=1',
+        ...targets,
+        '--reporter=dot',
+      ],
       {
         encoding: 'utf8',
         cwd: ROOT,

@@ -102,6 +102,8 @@ describe('main', () => {
       join(process.cwd(), 'scripts/with-playwright-env.mjs'),
       'playwright',
       'test',
+      '--project=chromium',
+      '--workers=1',
       'e2e/smoke.spec.ts',
       '--reporter=dot',
     ])

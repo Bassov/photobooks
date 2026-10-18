@@ -132,9 +132,19 @@ describe('selectBurnInTargets', () => {
         ['e2e/z.spec.ts', 'e2e/a.spec.ts', 'src/main.tsx', 'e2e/a.spec.ts'],
         {
           listSources: () => [],
+          flakyPaths: [],
         },
       ),
     ).toEqual(['e2e/a.spec.ts', 'e2e/z.spec.ts'])
+  })
+
+  it('excludes paths listed in flakyPaths', () => {
+    expect(
+      selectBurnInTargets(['e2e/a.spec.ts', 'e2e/b.spec.ts'], {
+        listSources: () => [],
+        flakyPaths: ['e2e/b.spec.ts'],
+      }),
+    ).toEqual(['e2e/a.spec.ts'])
   })
 
   it('fixture change pulls in its importers', () => {

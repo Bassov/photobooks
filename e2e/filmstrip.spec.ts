@@ -377,10 +377,6 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
 })
 
 test.describe('frame-budget gates', () => {
-  // CPU-sensitive under parallel local workers; CI uses workers: 1. Pre-push is
-  // verify:fast only.
-  test.describe.configure({ retries: 2 })
-
   test('bulk filmstrip import while scrolling stays within frame-budget gates', async ({
     page,
   }, testInfo) => {
@@ -395,10 +391,14 @@ test.describe('frame-budget gates', () => {
     await clearPerfScenario(page)
 
     const files = writeBulkImportFixtures(200)
-
-    const fileChooserPromise = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Add photos' }).click({ delay: 20 })
-    const fileChooser = await fileChooserPromise
+    // Click Add photos so Event Timing / INP measure that gesture (perf=1
+    // deletes showOpenFilePicker → falls back to the hidden file input).
+    const addPhotos = page.getByRole('button', { name: 'Add photos' })
+    await expect(addPhotos).toBeEnabled()
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      addPhotos.click({ delay: 20 }),
+    ])
     await fileChooser.setFiles(files)
 
     await expect(page.getByTestId('import-progress')).toBeVisible({
