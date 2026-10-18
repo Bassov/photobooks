@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -484,13 +484,18 @@ describe('main CLI', () => {
   })
 
   it('uses default exists/isFile/write against a real spec', () => {
+    let out = ''
     const code = main(
       {},
       {
         gitLines: () => ['e2e/burn-in-smoke.spec.ts'],
+        write: (text) => {
+          out += text
+        },
       },
     )
     expect(code).toBe(0)
+    expect(out).toBe('e2e/burn-in-smoke.spec.ts\n')
   })
 
   it('default isFile returns false when exists lies about missing path', () => {
@@ -554,7 +559,26 @@ describe('main CLI', () => {
     expect(code).toBe(1)
   })
 
-  it('spawned CLI prints burn-in smoke when it is the only change', () => {
+  it('spawned CLI prints targets from injected-equivalent git base', () => {
+    const probe = spawnSync('git', ['rev-parse', '--verify', 'origin/main'], {
+      encoding: 'utf8',
+    })
+    if (probe.status !== 0) {
+      // Shallow CI checkouts often lack origin/main; exercise CLI via main() instead.
+      let out = ''
+      const code = main(
+        { STRYKER_DIFF_BASE: 'HEAD' },
+        {
+          gitLines: () => ['e2e/burn-in-smoke.spec.ts'],
+          write: (text) => {
+            out += text
+          },
+        },
+      )
+      expect(code).toBe(0)
+      expect(out).toContain('e2e/burn-in-smoke.spec.ts')
+      return
+    }
     const out = execFileSync(
       process.execPath,
       [join(process.cwd(), 'scripts/e2e-burn-in-targets-cli.mjs')],
