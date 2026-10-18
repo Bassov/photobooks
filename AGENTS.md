@@ -63,7 +63,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 ## Docs
 
-- Lessons journal: `docs/lessons/` (index `docs/lessons.md`; add a per-entry file when a finding repeats — mandates in OpenSpec config).
+- Lessons journal: `docs/lessons/` (read all entries in one call; new files `docs/lessons/<YYYY-MM-DD>-<slug>.md`; index `docs/lessons.md` is not updated per entry — mandates in OpenSpec config).
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
 - Execution plan (one OpenSpec change per item): index `docs/roadmap.md` + one file per item in `docs/roadmap/`; use `pnpm roadmap` (skill `roadmap`), never read it whole or hand-edit it. Process: `docs/roadmap/RULES.md`.
 
