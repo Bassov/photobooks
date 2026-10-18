@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { createFakeBrowserDirectory } from '../fsa/browserDirectory.test-helpers'
 import { createBrowserSessionState } from './browserSessionState'
 import type { SessionIdb, SessionIdbGetResult } from './idb'
 import type { LockRequestCallback, SessionLocks } from './locks'
 import { runSessionStateContract } from './sessionState.contract.test-helpers'
-import type { SessionDirectoryHandle } from './types'
 
 function createMemoryIdb(): SessionIdb {
   const map = new Map<string, unknown>()
@@ -54,37 +54,14 @@ function createMemoryLocks(): SessionLocks {
   }
 }
 
-interface FakeDirectoryHandle extends SessionDirectoryHandle {
-  kind: 'directory'
-  name: string
-  queryPermission: (
-    descriptor?: FileSystemHandlePermissionDescriptor,
-  ) => Promise<PermissionState>
-  setPermission: (state: PermissionState) => void
-}
-
-function createFakeDirectoryHandle(name: string): FakeDirectoryHandle {
-  let permission: PermissionState = 'granted'
-  return {
-    kind: 'directory',
-    name,
-    setPermission(state) {
-      permission = state
-    },
-    queryPermission(descriptor) {
-      if (descriptor?.mode !== undefined && descriptor.mode !== 'readwrite') {
-        return Promise.resolve('prompt')
-      }
-      return Promise.resolve(permission)
-    },
-  }
-}
-
 runSessionStateContract(() => {
   const idb = createMemoryIdb()
   const locks = createMemoryLocks()
   const session = createBrowserSessionState({ idb, locks })
-  const handles = new Map<string, FakeDirectoryHandle>()
+  const handles = new Map<
+    string,
+    ReturnType<typeof createFakeBrowserDirectory>
+  >()
   let handleSeq = 0
 
   return {
@@ -96,7 +73,9 @@ runSessionStateContract(() => {
     },
     createHandle() {
       handleSeq += 1
-      const handle = createFakeDirectoryHandle(`fake-${String(handleSeq)}`)
+      const handle = createFakeBrowserDirectory({
+        name: `fake-${String(handleSeq)}`,
+      })
       handles.set(handle.name, handle)
       return handle
     },
@@ -110,7 +89,7 @@ describe('createBrowserSessionState', () => {
       idb,
       locks: createMemoryLocks(),
     })
-    const handle = createFakeDirectoryHandle('denied')
+    const handle = createFakeBrowserDirectory({ name: 'denied' })
     await session.rememberLibraryHandle('lib-1', handle)
     handle.setPermission('denied')
 
@@ -164,13 +143,11 @@ describe('createBrowserSessionState', () => {
   it('queries permission with readwrite mode', async () => {
     const idb = createMemoryIdb()
     const modes: (string | undefined)[] = []
-    const handle = {
-      kind: 'directory' as const,
-      name: 'mode-check',
-      queryPermission(descriptor?: FileSystemHandlePermissionDescriptor) {
-        modes.push(descriptor?.mode)
-        return Promise.resolve('granted' as PermissionState)
-      },
+    const handle = createFakeBrowserDirectory({ name: 'mode-check' })
+    const query = handle.queryPermission.bind(handle)
+    handle.queryPermission = (descriptor) => {
+      modes.push(descriptor?.mode)
+      return query(descriptor)
     }
     await idb.set('lib-1', handle)
     const session = createBrowserSessionState({
@@ -201,5 +178,60 @@ describe('createBrowserSessionState', () => {
     }
 
     expect(names).toEqual(['photobooks:book:spread-9'])
+  })
+})
+
+describe('FSA permission Done-when via hasReadwritePermission / recallLibraryHandle', () => {
+  function createSession() {
+    return createBrowserSessionState({
+      idb: createMemoryIdb(),
+      locks: createMemoryLocks(),
+    })
+  }
+
+  it('deny: queryPermission denied → recallLibraryHandle permission-required', async () => {
+    const session = createSession()
+    const handle = createFakeBrowserDirectory({ name: 'deny-path' })
+    await session.rememberLibraryHandle('lib-deny', handle)
+    handle.setPermission('denied')
+
+    await expect(session.recallLibraryHandle('lib-deny')).resolves.toEqual({
+      ok: false,
+      code: 'permission-required',
+    })
+  })
+
+  it('prompt: queryPermission prompt → recallLibraryHandle permission-required', async () => {
+    const session = createSession()
+    const handle = createFakeBrowserDirectory({ name: 'prompt-path' })
+    await session.rememberLibraryHandle('lib-prompt', handle)
+    handle.setPermission('prompt')
+
+    await expect(session.recallLibraryHandle('lib-prompt')).resolves.toEqual({
+      ok: false,
+      code: 'permission-required',
+    })
+  })
+
+  it('re-grant: requestPermission granted updates sticky → recall succeeds', async () => {
+    const session = createSession()
+    const handle = createFakeBrowserDirectory({
+      name: 'regrant-path',
+      initialPermission: 'denied',
+    })
+    await session.rememberLibraryHandle('lib-regrant', handle)
+
+    await expect(session.recallLibraryHandle('lib-regrant')).resolves.toEqual({
+      ok: false,
+      code: 'permission-required',
+    })
+
+    handle.enqueueRequestResults('granted')
+    await expect(handle.requestPermission({ mode: 'readwrite' })).resolves.toBe(
+      'granted',
+    )
+
+    const recalled = await session.recallLibraryHandle('lib-regrant')
+    expect(recalled).toEqual({ ok: true, value: handle })
   })
 })
