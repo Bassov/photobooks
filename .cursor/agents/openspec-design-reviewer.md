@@ -28,6 +28,7 @@ Honor `rules.design` from the brief.
 5. **UI:** if UI is in scope, design should be reviewable against skill `ui-review` (a11y, anti-slop, states, layout smoke) and MUST name empty / happy / scroll-or-interact e2e lock-ins; flag missing UX or test constraints.
 6. **Scope:** no silent expansion beyond proposal; no dumping full API trees when references to existing modules suffice.
 7. **Length:** roughly within design word budget from config (~600 words).
+8. **Necessary minimum:** flag scope beyond the item, unrequested options/abstractions, padded sections, and re-implemented helpers that skip the reuse ladder (exists → codebase → platform → installed dependency → minimum new code). Design.md only for real decisions; N/A in one line. Never flag thorough tests or test plans as excessive (tests are exempt from necessary-minimum).
 
 ## Output
 
