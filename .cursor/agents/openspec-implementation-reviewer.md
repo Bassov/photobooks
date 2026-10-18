@@ -52,7 +52,7 @@ Findings:
 
 Severities: critical, high, medium, low.
 
-Prefix a finding with `[lesson]` when `docs/lessons.md` already states that rule, or `[repeat]` when it was raised in an earlier round for this change.
+Prefix a finding with `[lesson]` when `docs/lessons/` already states that rule, or `[repeat]` when it was raised in an earlier round for this change.
 
 `pass` only with no open critical/high findings and verify gates evidenced.
 Parent must not archive until `pass`.

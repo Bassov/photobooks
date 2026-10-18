@@ -1,0 +1,3 @@
+# Lesson 25
+
+Do not pace thumb URL publish or bookStore gallery/meta flush on `requestAnimationFrame` alone — background tabs under parallel Playwright freeze rAF and leave permanent placeholders / stale aspect. Publish thumbs when decode completes; dual-schedule gallery flush with rAF plus a short `setTimeout` watchdog (~32ms) so hidden tabs still flush without collapsing visible-tab LoAF pacing. Spread preview may fall back to the filmstrip thumb (with per-asset `subscribeThumb`, not a global publish generation) until the covering tier is ready. Tier display subscriptions must use a per-spread snapshot key — a global `version`/`urls` object re-renders every mounted spread on each swap and flakes continuous-zoom LoAF under CPU throttle.

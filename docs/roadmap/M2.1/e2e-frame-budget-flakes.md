@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Stabilize frame-budget (LoAF) e2e flakes without looser budgets
+Status: done
 
 ## Scope
 

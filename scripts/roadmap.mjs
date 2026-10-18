@@ -123,14 +123,29 @@ export function parseIndex(text) {
   return { lines, milestones, items, archived, archiveStart, problems }
 }
 
+const itemAbs = (ctx, link) => path.join(ctx.root, 'docs', link)
+/** Apply item-file Status + legacy index [x] as done SoT. */
+export function enrichItems(ctx) {
+  for (const it of ctx.items) {
+    const f = itemAbs(ctx, it.link)
+    it.indexDone = it.done
+    it.fileDone = isFile(f) && fileStatusDone(fs.readFileSync(f, 'utf8'))
+    it.done = it.indexDone || it.fileDone
+  }
+  return ctx
+}
 export function load(root) {
   const indexPath = path.join(root, INDEX_REL)
   if (!isFile(indexPath))
     fail(`index not found: ${indexPath} (use --root <repo>)`)
-  return { root, indexPath, ...parseIndex(fs.readFileSync(indexPath, 'utf8')) }
+  return enrichItems({
+    root,
+    indexPath,
+    ...parseIndex(fs.readFileSync(indexPath, 'utf8')),
+  })
 }
-const reparse = (ctx, lines) => ({ ...ctx, ...parseIndex(lines.join('\n')) })
-const itemAbs = (ctx, link) => path.join(ctx.root, 'docs', link)
+const reparse = (ctx, lines) =>
+  enrichItems({ ...ctx, ...parseIndex(lines.join('\n')) })
 
 /** slug -> { file, folder } for every item file under docs/roadmap/archive/<F>/ */
 export function archivedItems(root) {
@@ -146,8 +161,9 @@ export function archivedItems(root) {
 }
 
 // ---------- item files ----------
-export function renderItemFile({ slug, tag, milestone, title, body }) {
+export function renderItemFile({ slug, tag, milestone, title, body, status }) {
   let s = `# ${slug}\n\nTag: ${tag || 'none'}\nMilestone: ${milestone}\nTitle: ${title}\n`
+  if (status) s += `Status: ${status}\n`
   if (body && body.length) s += `\n## Scope\n\n${body.join('\n')}\n`
   return s
 }
@@ -159,7 +175,20 @@ export function parseItemFile(text) {
     tag: f('Tag'),
     milestone: f('Milestone'),
     title: f('Title'),
+    status: f('Status'),
   }
+}
+export function fileStatusDone(text) {
+  const s = parseItemFile(text).status
+  return s !== null && /^done$/i.test(s.trim())
+}
+/** Insert or replace Status header line. */
+export function withFileStatus(text, done) {
+  const line = `Status: ${done ? 'done' : 'open'}`
+  if (/^Status:\s*/m.test(text)) return text.replace(/^Status:\s*.*$/m, line)
+  if (/^Title:\s*.*$/m.test(text))
+    return text.replace(/^(Title:\s*.*)$/m, `$1\n${line}`)
+  return `${text.replace(/\n*$/, '\n')}${line}\n`
 }
 /** item file content minus the metadata header (already printed by next/show) */
 export function stripMeta(text) {
@@ -169,7 +198,7 @@ export function stripMeta(text) {
     i < lines.length &&
     (lines[i].trim() === '' ||
       (/^# /.test(lines[i]) && i === 0) ||
-      /^(Tag|Milestone|Title): /.test(lines[i]))
+      /^(Tag|Milestone|Title|Status): /.test(lines[i]))
   )
     i++
   return lines.slice(i).join('\n').replace(/\n+$/, '')
@@ -307,7 +336,26 @@ function itemView(ctx, it, withBody) {
     v.body = isFile(file) ? stripMeta(fs.readFileSync(file, 'utf8')) : null
   return v
 }
+export function assertOpenItem(ctx, slug, o = {}) {
+  if (!slug) fail('slug required')
+  const it = ctx.items.find((i) => i.slug === slug)
+  if (!it) {
+    if (archivedItems(ctx.root).has(slug))
+      fail(`already done (archived): ${slug}`)
+    fail(`unknown slug: ${slug}`)
+  }
+  if (it.done) fail(`already done: ${slug}`)
+  if (it.tag === 'contingency' && !o.includeContingency)
+    fail(
+      `${slug} is a [contingency]: pass --include-contingency (or pick it only when its gate failed)`,
+    )
+  return it
+}
 export function cmdNext(ctx, o = {}) {
+  if (o.slug) {
+    const it = assertOpenItem(ctx, o.slug, o)
+    return itemView(ctx, it, !o.noBody)
+  }
   const skip = new Set(o.skip)
   const it = ctx.items.find(
     (i) =>
@@ -316,6 +364,10 @@ export function cmdNext(ctx, o = {}) {
       !skip.has(i.slug),
   )
   return it ? itemView(ctx, it, !o.noBody) : null
+}
+export function cmdClaim(ctx, slug, o = {}) {
+  const it = assertOpenItem(ctx, slug, o)
+  return { claimed: it.slug, milestone: it.milestone, tag: it.tag }
 }
 export function cmdShow(ctx, slug, o = {}) {
   const it = ctx.items.find((i) => i.slug === slug)
@@ -427,36 +479,60 @@ export function cmdDone(ctx, slug, o = {}) {
     fail(
       `${slug} is a [contingency]: close it with --note (e.g. "not needed (gate passed in \`<gate-item>\`)")`,
     )
-  const lines = ctx.lines.map((l, i) =>
-    i === it.line ? l.replace('- [ ]', '- [x]') : l,
-  )
-  const c = reparse(ctx, lines)
+  const f = itemAbs(ctx, it.link)
+  let text = withFileStatus(fs.readFileSync(f, 'utf8'), true)
+  if (note !== null)
+    text = `${text.replace(/\n*$/, '\n')}\n## Done note\n\n${note}\n`
+  atomicWrite(f, text)
+  const c = load(ctx.root)
   const ms = c.milestones.find((m) => m.id === it.milestone)
-  const res = {
+  return {
     done: slug,
     milestone: ms.id,
     progress: `${ms.items.filter((i) => i.done).length}/${ms.items.length}`,
     note,
     archived: null,
+    indexTicked: false,
   }
-  const complete = ms.items.every((i) => i.done)
+}
+/** Tick index checkboxes for items that are file-done but index-open. */
+export function cmdSync(ctx) {
+  const lines = [...ctx.lines]
+  const ticked = []
+  for (const it of ctx.items) {
+    if (it.fileDone && !it.indexDone) {
+      lines[it.line] = lines[it.line].replace('- [ ]', '- [x]')
+      ticked.push(it.slug)
+    }
+  }
+  if (ticked.length) writeIndex(ctx, lines)
+  return { ticked, count: ticked.length }
+}
+/** Archive a fully-done milestone (post-merge operator step). */
+export function cmdArchive(ctx, msId) {
+  if (!msId) fail('usage: archive <milestone>')
+  const ms = findMilestone(ctx, msId)
+  if (!ms.items.length) fail(`milestone ${msId} has no items`)
+  if (!ms.items.every((i) => i.done))
+    fail(
+      `milestone ${msId} has open items: ${ms.items
+        .filter((i) => !i.done)
+        .map((i) => i.slug)
+        .join(', ')}`,
+    )
   const dst = path.join(ctx.root, ARCHIVE_REL, folderName(ms.id))
-  if (complete && fs.existsSync(dst))
+  if (fs.existsSync(dst))
     fail(`archive folder already exists: ${rel(ctx.root, dst)}`)
-  if (note !== null) {
-    const f = itemAbs(ctx, it.link)
-    const text = fs.readFileSync(f, 'utf8')
-    atomicWrite(f, `${text.replace(/\n*$/, '\n')}\n## Done note\n\n${note}\n`)
+  // Ensure index ticks match file-done before moving.
+  const synced = cmdSync(ctx)
+  const c = synced.count ? load(ctx.root) : ctx
+  const a = archiveMilestone(c, msId)
+  writeIndex(c, a.lines)
+  return {
+    archived: a.milestone,
+    readme: a.readme,
+    ticked: synced.ticked,
   }
-  let out = lines
-  if (complete) {
-    const a = archiveMilestone(c, ms.id)
-    out = a.lines
-    res.archived = a.milestone
-    res.readme = a.readme
-  }
-  writeIndex(ctx, out)
-  return res
 }
 export function cmdMove(ctx, slug, o) {
   if (!slug)
@@ -508,6 +584,7 @@ export function cmdMove(ctx, slug, o) {
 
 export function cmdCheck(ctx) {
   const E = []
+  const W = []
   const L = (i) => `${INDEX_REL}:${i + 1}`
   for (const p of ctx.problems) E.push(`single-line: ${L(p.line)}: ${p.msg}`)
   const seen = new Map()
@@ -550,12 +627,16 @@ export function cmdCheck(ctx) {
       E.push(
         `meta: docs/${it.link}: Title differs from index line ${L(it.line)}`,
       )
+    if (it.fileDone && !it.indexDone)
+      W.push(
+        `sync: ${it.slug} is Status: done but index still open (run roadmap sync)`,
+      )
   }
   for (const m of ctx.milestones) {
     if (!m.items.length) E.push(`milestone: ${m.id} has no items`)
     else if (m.items.every((i) => i.done))
-      E.push(
-        `archive: ${m.id} is fully done but still active (run done on its last item or archive it)`,
+      W.push(
+        `archive: ${m.id} is fully done but still active (run roadmap archive ${m.id})`,
       )
   }
   const base = path.join(ctx.root, DIR_REL)
@@ -617,6 +698,7 @@ export function cmdCheck(ctx) {
   return {
     ok: E.length === 0,
     errors: E,
+    warnings: W,
     items: ctx.items.length,
     open: ctx.items.filter((i) => !i.done).length,
     milestones: ctx.milestones.length,
@@ -999,6 +1081,7 @@ const BOOL = new Set([
 const VALUE = new Set([
   'root',
   'skip',
+  'slug',
   'milestone',
   'tag',
   'title',
@@ -1041,14 +1124,16 @@ export function parseArgs(argv) {
   return o
 }
 const HELP = `usage: pnpm roadmap <cmd> [--root <repo>] [--json]   (= node scripts/roadmap.mjs)
-  next [--skip a,b] [--include-contingency] [--no-body]   current item (first open, index order)
+  next [--slug S] [--skip a,b] [--include-contingency] [--no-body]   current item (first open, or explicit slug)
   show <slug> [--no-body]                                 one item
   list [--milestone M] [--open]                           one line per item
+  claim <slug> [--include-contingency]                    validate open slug for preflight hold
   add <slug> --tag prep|feature|contingency --title "..." (--after S | --before S | --milestone M [--top|--bottom]) [--body "..." | --body-file F]
-  done <slug> [--note "..."]                              tick (+ note in the item file; required for [contingency]);
-                                                          archives the milestone when its last item is done
+  done <slug> [--note "..."]                              mark Status: done in the item file (no index tick; required note for [contingency])
+  sync                                                    tick index [x] from item-file Status: done (post-merge)
+  archive <M>                                             archive a fully-done milestone (post-merge)
   move <slug> (--after S | --before S | --milestone M [--top|--bottom])
-  check                                                   consistency (exit 1 on errors)
+  check                                                   consistency (exit 1 on errors; warnings for pending sync/archive)
   migrate <source.md> [--rules-file RULES.md] [--force]   one-off conversion into <root>/docs/`
 
 function fmtItem(v) {
@@ -1063,7 +1148,7 @@ function fmtItem(v) {
   if (v.body !== undefined) o.push('---', v.body ?? '(file missing)')
   return o.join('\n')
 }
-const fmt = {
+export const textFormat = {
   next: (r) => (r ? fmtItem(r) : 'next: none (no open item)'),
   show: fmtItem,
   list: (r) =>
@@ -1081,16 +1166,30 @@ const fmt = {
     `added ${r.added} to ${r.milestone} (${r.position}); file ${r.file}`,
   done: (r) =>
     `done ${r.done} (${r.milestone} ${r.progress})` +
-    (r.note !== null ? `\nnote: ${r.note}` : '') +
-    (r.archived
-      ? `\narchived ${r.archived} -> ${r.readme} (milestone review cut)`
-      : ''),
+    (r.note !== null ? `\nnote: ${r.note}` : ''),
+  claim: (r) =>
+    r.tag
+      ? `claimed ${r.claimed} (${r.milestone}, ${r.tag})`
+      : `claimed ${r.claimed} (${r.milestone})`,
+  sync: (r) =>
+    r.count
+      ? `synced ${r.count} index tick(s): ${r.ticked.join(', ')}`
+      : 'sync: nothing to tick',
+  archive: (r) => {
+    const head = `archived ${r.archived} -> ${r.readme}`
+    return r.ticked?.length
+      ? `${head}\nsynced ticks: ${r.ticked.join(', ')}`
+      : head
+  },
   move: (r) =>
     `moved ${r.moved} ${r.from === r.to ? `within ${r.to}` : `${r.from} -> ${r.to}`} (${r.position}); file ${r.file}`,
-  check: (r) =>
-    r.ok
+  check: (r) => {
+    const head = r.ok
       ? `check ok: ${r.items} items (${r.open} open), ${r.milestones} active milestones, ${r.archived} archived`
-      : [...r.errors, `check failed: ${r.errors.length} error(s)`].join('\n'),
+      : [...r.errors, `check failed: ${r.errors.length} error(s)`].join('\n')
+    const warn = r.warnings.map((w) => `warning: ${w}`)
+    return warn.length ? [head, ...warn].join('\n') : head
+  },
   migrate: (r) =>
     [
       `migrated ${r.items} items (${r.done} done, ${r.open} open) in ${r.milestones} milestones; ${r.filesWritten} files`,
@@ -1101,6 +1200,7 @@ const fmt = {
       ...r.verify.missing,
     ].join('\n'),
 }
+const fmt = textFormat
 
 export function run(argv, { cwd = process.cwd() } = {}) {
   let o
@@ -1123,6 +1223,7 @@ export function run(argv, { cwd = process.cwd() } = {}) {
     switch (cmd) {
       case 'next':
         r = cmdNext(load(root), {
+          slug: o.slug,
           skip: (o.skip ?? '')
             .split(',')
             .map((s) => s.trim())
@@ -1138,6 +1239,12 @@ export function run(argv, { cwd = process.cwd() } = {}) {
       case 'list':
         r = cmdList(load(root), { milestone: o.milestone, open: !!o.open })
         break
+      case 'claim':
+        if (!arg) fail('usage: claim <slug>')
+        r = cmdClaim(load(root), arg, {
+          includeContingency: !!o['include-contingency'],
+        })
+        break
       case 'add':
         r = cmdAdd(load(root), arg, {
           ...pos,
@@ -1150,6 +1257,13 @@ export function run(argv, { cwd = process.cwd() } = {}) {
         break
       case 'done':
         r = cmdDone(load(root), arg, { note: o.note })
+        break
+      case 'sync':
+        r = cmdSync(load(root))
+        break
+      case 'archive':
+        if (!arg) fail('usage: archive <milestone>')
+        r = cmdArchive(load(root), arg)
         break
       case 'move':
         r = cmdMove(load(root), arg, pos)

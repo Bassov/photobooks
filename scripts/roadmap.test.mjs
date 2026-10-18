@@ -5,7 +5,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
+  assertOpenItem,
+  cmdArchive,
   cmdCheck,
+  cmdSync,
   folderName,
   genSlug,
   load,
@@ -14,9 +17,12 @@ import {
   parseIndex,
   parseItemFile,
   parseSource,
+  renderItemFile,
   run,
   stripMeta,
+  textFormat,
   verifyMigration,
+  withFileStatus,
 } from './roadmap.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -522,54 +528,38 @@ describe('add', () => {
 })
 
 describe('done', () => {
-  it('ticks only that line; double done refused', () => {
+  it('marks Status in the item file without ticking the index; double done refused', () => {
     const root = migrated()
     const before = idx(root)
     expect(ok(root, 'done', 'beta')).toBe('done beta (A1 2/4)')
-    const d = lineDiff(before, idx(root))
-    expect(d.removed).toEqual([
-      '- [ ] [feature] [beta](roadmap/A1/beta.md) — beta title',
-    ])
-    expect(d.added).toEqual([
-      '- [x] [feature] [beta](roadmap/A1/beta.md) — beta title',
-    ])
-    const after = idx(root)
+    expect(idx(root)).toBe(before)
+    expect(
+      fs.readFileSync(path.join(root, 'docs/roadmap/A1/beta.md'), 'utf8'),
+    ).toMatch(/^Status: done$/m)
     const r = cli(root, 'done', 'beta')
     expect(r.code).toBe(2)
     expect(r.err).toMatch(/already done: beta/)
-    expect(idx(root)).toBe(after)
     expect(cli(root, 'done', 'old-slug').err).toMatch(
       /already done \(archived\)/,
     )
     expect(cli(root, 'done', 'nope').err).toMatch(/unknown slug/)
   })
-  it('last item archives the milestone (folder moved, README, archive line), rest of index untouched', () => {
+  it('last item does not archive; archive + sync move the milestone', () => {
     const root = migrated()
     ok(root, 'done', 'beta')
     ok(root, 'done', 'gamma', '--note', 'not needed (gate passed in `beta`)')
     const before = idx(root)
     const out = ok(root, 'done', 'delta')
-    expect(out).toMatch(/archived A1 -> docs\/roadmap\/archive\/A1\/README\.md/)
-    const after = idx(root)
-    const d = lineDiff(before, after)
-    expect(d.added).toEqual(['- [A1 — First](roadmap/archive/A1/README.md)'])
-    expect(
-      d.removed[0] === '## A1 — First' &&
-        d.removed.every((l) => before.includes(l)),
-    ).toBe(true)
-    const bl = before.split('\n')
-    const s = bl.indexOf('## A1 — First')
-    const e = bl.indexOf('## A2 — Second')
-    expect(d.removed.length).toBe(e - s)
+    expect(out).toBe('done delta (A1 4/4)')
+    expect(idx(root)).toBe(before)
+    expect(exists(root, 'docs/roadmap/A1')).toBe(true)
+    const check = cli(root, 'check')
+    expect(check.code).toBe(0)
+    expect(check.out).toMatch(/warning: archive: A1 is fully done/)
+    expect(ok(root, 'archive', 'A1')).toMatch(
+      /archived A1 -> docs\/roadmap\/archive\/A1\/README\.md/,
+    )
     expect(!exists(root, 'docs/roadmap/A1')).toBe(true)
-    const readme = fs.readFileSync(
-      path.join(root, 'docs/roadmap/archive/A1/README.md'),
-      'utf8',
-    )
-    expect(readme).toMatch(/^## A1 — First\n\n\*\*Review cut:\*\* first goal\./)
-    expect(readme).toMatch(
-      /- \[x\] \[prep\] \[delta\]\(delta\.md\) — delta — with a dash in title\n$/,
-    )
     expect(exists(root, 'docs/roadmap/archive/A1/beta.md')).toBe(true)
     expect(ok(root, 'next')).toMatch(/^slug: epsilon/)
     assertCheck(root)
@@ -582,7 +572,7 @@ describe('done', () => {
     expect(
       fs.readFileSync(path.join(root, 'docs/roadmap/A1/beta.md'), 'utf8'),
     ).toMatch(
-      /Non-indented paragraph that belongs to beta\.\n\n## Done note\n\nshipped without the blank-line case\n$/,
+      /Status: done\n[\s\S]*## Done note\n\nshipped without the blank-line case\n$/,
     )
     expect(ok(root, 'show', 'beta')).toMatch(/## Done note\n\nshipped without/)
     expect(JSON.parse(ok(root, 'done', 'delta', '--json')).note).toBe(null)
@@ -605,7 +595,7 @@ describe('done', () => {
       ok(root, 'done', 'gamma', '--note', 'not needed (gate passed in `beta`)'),
     ).toMatch(/^done gamma \(A1 2\/4\)\nnote: not needed/)
   })
-  it('archiving the last milestone at EOF keeps the trailing newline and creates ## Archive', () => {
+  it('archive of the last milestone at EOF keeps the trailing newline and creates ## Archive', () => {
     const root = tmp()
     fs.mkdirSync(path.join(root, 'docs/roadmap/M1'), { recursive: true })
     fs.writeFileSync(
@@ -616,14 +606,43 @@ describe('done', () => {
       path.join(root, 'docs/roadmap/M1/a.md'),
       '# a\n\nTag: prep\nMilestone: M1\nTitle: a\n',
     )
-    expect(ok(root, 'done', 'a')).toMatch(
-      /archived M1 -> docs\/roadmap\/archive\/M1\/README\.md \(milestone review cut\)$/,
+    expect(ok(root, 'done', 'a')).toBe('done a (M1 1/1)')
+    expect(idx(root)).toMatch(/- \[ \] \[prep\] \[a\]/)
+    expect(ok(root, 'archive', 'M1')).toMatch(
+      /archived M1 -> docs\/roadmap\/archive\/M1\/README\.md/,
     )
     expect(idx(root)).toBe(
       '# R\n\n## Archive\n\n- [M1 — one](roadmap/archive/M1/README.md)\n',
     )
     assertCheck(root)
     expect(ok(root, 'next')).toMatch(/next: none/)
+  })
+  it('two parallel dones leave the shared index untouched until sync', () => {
+    const root = migrated()
+    const before = idx(root)
+    ok(root, 'done', 'beta')
+    ok(root, 'done', 'epsilon')
+    expect(idx(root)).toBe(before)
+    const sync = ok(root, 'sync')
+    expect(sync).toMatch(/synced 2 index tick/)
+    expect(idx(root)).toMatch(
+      /- \[x\] \[feature\] \[beta\]\(roadmap\/A1\/beta\.md\)/,
+    )
+    expect(idx(root)).toMatch(
+      /- \[x\] \[feature\] \[epsilon\]\(roadmap\/A2\/epsilon\.md\)/,
+    )
+  })
+  it('next --slug validates open active items', () => {
+    const root = migrated()
+    expect(ok(root, 'next', '--slug', 'beta')).toMatch(/^slug: beta/)
+    expect(cli(root, 'next', '--slug', 'nope').err).toMatch(/unknown slug/)
+    ok(root, 'done', 'beta')
+    expect(cli(root, 'next', '--slug', 'beta').err).toMatch(/already done/)
+    expect(cli(root, 'next', '--slug', 'gamma').err).toMatch(/contingency/)
+    expect(
+      ok(root, 'next', '--slug', 'gamma', '--include-contingency'),
+    ).toMatch(/^slug: gamma/)
+    expect(ok(root, 'claim', 'delta')).toMatch(/claimed delta/)
   })
 })
 
@@ -749,19 +768,6 @@ describe('check (one failing fixture per rule)', () => {
       /^single-line: .*indented/,
     ],
     [
-      'fully done milestone left active',
-      (r) => {
-        for (const s of ['beta', 'gamma', 'delta'])
-          edit(
-            r,
-            'docs/roadmap.md',
-            `- [ ] [${s === 'beta' ? 'feature' : s === 'gamma' ? 'contingency' : 'prep'}] [${s}]`,
-            `- [x] [${s === 'beta' ? 'feature' : s === 'gamma' ? 'contingency' : 'prep'}] [${s}]`,
-          )
-      },
-      /^archive: A1 is fully done but still active/,
-    ],
-    [
       'archive line without folder',
       (r) =>
         fs.renameSync(
@@ -822,6 +828,22 @@ describe('check (one failing fixture per rule)', () => {
   it('clean migration passes (exit 0)', () => {
     const root = migrated()
     expect(cli(root, 'check').code).toBe(0)
+  })
+  it('fully done milestone left active is a warning, not a failure', () => {
+    const root = migrated()
+    for (const s of ['beta', 'gamma', 'delta']) {
+      const tag =
+        s === 'beta' ? 'feature' : s === 'gamma' ? 'contingency' : 'prep'
+      edit(
+        root,
+        'docs/roadmap.md',
+        `- [ ] [${tag}] [${s}]`,
+        `- [x] [${tag}] [${s}]`,
+      )
+    }
+    const r = cli(root, 'check')
+    expect(r.code, r.out).toBe(0)
+    expect(r.out).toMatch(/warning: archive: A1 is fully done but still active/)
   })
   for (const [name, mutate, re] of cases)
     it(name, () => {
@@ -1284,14 +1306,15 @@ describe('exact outputs', () => {
     `)
     expect(JSON.parse(ok(root, 'done', 'beta', '--json')))
       .toMatchInlineSnapshot(`
-      {
-        "archived": null,
-        "done": "beta",
-        "milestone": "A1",
-        "note": null,
-        "progress": "2/4",
-      }
-    `)
+        {
+          "archived": null,
+          "done": "beta",
+          "indexTicked": false,
+          "milestone": "A1",
+          "note": null,
+          "progress": "2/4",
+        }
+      `)
     expect(idx(root)).toMatchInlineSnapshot(`
       "# Roadmap
 
@@ -1312,7 +1335,7 @@ describe('exact outputs', () => {
       **Order:** second paragraph.
 
       - [x] [prep] [alpha](roadmap/A1/alpha.md) — alpha title (Security Review: x)
-      - [x] [feature] [beta](roadmap/A1/beta.md) — beta title
+      - [ ] [feature] [beta](roadmap/A1/beta.md) — beta title
       - [ ] [contingency] [gamma](roadmap/A1/gamma.md) — only if beta fails
       - [ ] [prep] [delta](roadmap/A1/delta.md) — delta — with a dash in title
 
@@ -1344,14 +1367,16 @@ describe('exact outputs', () => {
     expect(run([]).code).toBe(2)
     expect(run(['help']).out).toMatchInlineSnapshot(`
       "usage: pnpm roadmap <cmd> [--root <repo>] [--json]   (= node scripts/roadmap.mjs)
-        next [--skip a,b] [--include-contingency] [--no-body]   current item (first open, index order)
+        next [--slug S] [--skip a,b] [--include-contingency] [--no-body]   current item (first open, or explicit slug)
         show <slug> [--no-body]                                 one item
         list [--milestone M] [--open]                           one line per item
+        claim <slug> [--include-contingency]                    validate open slug for preflight hold
         add <slug> --tag prep|feature|contingency --title "..." (--after S | --before S | --milestone M [--top|--bottom]) [--body "..." | --body-file F]
-        done <slug> [--note "..."]                              tick (+ note in the item file; required for [contingency]);
-                                                                archives the milestone when its last item is done
+        done <slug> [--note "..."]                              mark Status: done in the item file (no index tick; required note for [contingency])
+        sync                                                    tick index [x] from item-file Status: done (post-merge)
+        archive <M>                                             archive a fully-done milestone (post-merge)
         move <slug> (--after S | --before S | --milestone M [--top|--bottom])
-        check                                                   consistency (exit 1 on errors)
+        check                                                   consistency (exit 1 on errors; warnings for pending sync/archive)
         migrate <source.md> [--rules-file RULES.md] [--force]   one-off conversion into <root>/docs/"
     `)
     const errs = [
@@ -1450,6 +1475,7 @@ describe('exact outputs', () => {
         "milestones": 2,
         "ok": false,
         "open": 5,
+        "warnings": [],
       }
     `)
   })
@@ -1822,12 +1848,14 @@ Three.
       tag: 'a',
       milestone: null,
       title: null,
+      status: null,
     })
     expect(parseItemFile('# s\nSee Title: t')).toEqual({
       heading: 's',
       tag: null,
       milestone: null,
       title: null,
+      status: null,
     })
     expect(
       stripMeta(
@@ -2116,26 +2144,28 @@ Three.
     ).toBe('error: milestone A0 is archived')
   })
 
-  it('done: progress, note formatting, archive into an empty or existing ## Archive', () => {
+  it('done: progress, note formatting; archive refuses existing folder then succeeds', () => {
     const root = migrated()
     const zeta = read(root, 'docs/roadmap/A2/zeta.md')
     expect(ok(root, 'done', 'epsilon')).toBe('done epsilon (A2 1/2)')
+    expect(read(root, 'docs/roadmap/A2/epsilon.md')).toMatch(/^Status: done$/m)
     expect(read(root, 'docs/roadmap/A2/epsilon.md')).not.toContain('Done note')
     expect(ok(root, 'move', 'zeta', '--milestone', 'A2', '--top')).toBe(
       'moved zeta within A2 (A2 top); file docs/roadmap/A2/zeta.md',
     )
     fs.writeFileSync(path.join(root, 'docs/roadmap/A2/zeta.md'), zeta + '\n\n')
+    ok(root, 'done', 'zeta', '--note', 'n')
+    expect(read(root, 'docs/roadmap/A2/zeta.md')).toMatch(
+      /Status: done\n[\s\S]*## Done note\n\nn\n$/,
+    )
     fs.mkdirSync(path.join(root, 'docs/roadmap/archive/A2'))
-    const before = idx(root)
-    expect(err(root, 'done', 'zeta', '--note', 'n')).toBe(
+    expect(err(root, 'archive', 'A2')).toBe(
       'error: archive folder already exists: docs/roadmap/archive/A2',
     )
-    expect(idx(root)).toBe(before)
-    expect(read(root, 'docs/roadmap/A2/zeta.md')).toBe(zeta + '\n\n')
     fs.rmdirSync(path.join(root, 'docs/roadmap/archive/A2'))
-    expect(ok(root, 'done', 'zeta', '--note', 'n')).toMatch(/archived A2/)
-    expect(read(root, 'docs/roadmap/archive/A2/zeta.md')).toBe(
-      zeta + '\n## Done note\n\nn\n',
+    expect(ok(root, 'archive', 'A2')).toMatch(/archived A2/)
+    expect(read(root, 'docs/roadmap/archive/A2/zeta.md')).toMatch(
+      /Status: done\n[\s\S]*## Done note\n\nn\n$/,
     )
     expect(ok(root, 'list')).toMatch(/\narchived: A0, A2$/)
     expect(ok(root, 'show', 'epsilon')).toMatch(
@@ -2157,6 +2187,7 @@ Three.
     fs.rmSync(path.join(r2, 'docs/roadmap/archive'), { recursive: true })
     ok(r2, 'done', 'epsilon')
     ok(r2, 'done', 'zeta')
+    ok(r2, 'archive', 'A2')
     expect(
       idx(r2).endsWith(
         '## Archive\n\n- [A2 — Second](roadmap/archive/A2/README.md)\n',
@@ -2170,6 +2201,7 @@ Three.
     edit(r3, 'docs/roadmap.md', '## A2', archive + '\n## A2')
     ok(r3, 'done', 'epsilon')
     ok(r3, 'done', 'zeta')
+    ok(r3, 'archive', 'A2')
     expect(idx(r3).endsWith('`add`.\n')).toBe(true)
     expect(idx(r3)).toContain(
       'README.md)\n- [A2 — Second](roadmap/archive/A2/README.md)\n\n## Deferred',
@@ -2269,4 +2301,104 @@ Three.
       }
     },
   )
+})
+
+describe('withFileStatus and assertOpenItem edges', () => {
+  it('withFileStatus inserts after Title, replaces Status, or appends', () => {
+    expect(withFileStatus('# s\nTitle: T\n\nbody\n', true)).toMatch(
+      /Title: T\nStatus: done\n/,
+    )
+    expect(withFileStatus('# s\nStatus: open\nTitle: T\n', true)).toMatch(
+      /^Status: done$/m,
+    )
+    expect(withFileStatus('# s\nonly\n', false)).toMatch(/Status: open\n$/)
+  })
+
+  it('assertOpenItem covers unknown, archived, done, contingency', () => {
+    const root = migrated()
+    const ctx = load(root)
+    expect(assertOpenItem(ctx, 'beta').slug).toBe('beta')
+    expect(() => assertOpenItem(ctx, '')).toThrow(/slug required/)
+    expect(() => assertOpenItem(ctx, 'nope')).toThrow(/unknown slug/)
+    expect(() => assertOpenItem(ctx, 'old-slug')).toThrow(
+      /already done \(archived\)/,
+    )
+    ok(root, 'done', 'beta', '--note', 'n')
+    expect(() => assertOpenItem(load(root), 'beta')).toThrow(
+      /already done: beta/,
+    )
+    expect(() => assertOpenItem(load(root), 'gamma')).toThrow(/contingency/)
+    expect(
+      assertOpenItem(load(root), 'gamma', { includeContingency: true }).slug,
+    ).toBe('gamma')
+  })
+
+  it('cmdSync is a no-op when nothing pending; cmdArchive refuses open items', () => {
+    const root = migrated()
+    expect(cmdSync(load(root))).toEqual({ ticked: [], count: 0 })
+    expect(ok(root, 'sync')).toMatch(/sync: nothing to tick/)
+    expect(() => cmdArchive(load(root), 'A1')).toThrow(/has open items/)
+    expect(() => cmdArchive(load(root), '')).toThrow(/usage: archive/)
+    expect(cli(root, 'archive').err).toMatch(/usage: archive/)
+    expect(cli(root, 'claim').err).toMatch(/usage: claim/)
+  })
+
+  it('renderItemFile, claim format, empty milestone archive, archive with sync ticks', () => {
+    expect(
+      renderItemFile({
+        slug: 's',
+        tag: 'prep',
+        milestone: 'M',
+        title: 'T',
+        body: ['- [ ] x'],
+        status: 'done',
+      }),
+    ).toMatch(/^# s\n[\s\S]*Status: done\n/)
+    expect(
+      renderItemFile({
+        slug: 's',
+        tag: '',
+        milestone: 'M',
+        title: 'T',
+        body: [],
+      }),
+    ).not.toMatch(/Status:/)
+
+    const root = migrated()
+    expect(ok(root, 'claim', 'delta')).toMatch(/claimed delta \(A1, prep\)/)
+
+    const idxPath = path.join(root, 'docs/roadmap.md')
+    let text = fs.readFileSync(idxPath, 'utf8')
+    if (!text.includes('## Z9')) {
+      text = text.replace(
+        '## Deferred',
+        '## Z9 — Empty\n\nGoal: empty.\n\n## Deferred',
+      )
+      fs.writeFileSync(idxPath, text)
+    }
+    expect(cli(root, 'archive', 'Z9').err).toMatch(/has no items/)
+
+    ok(root, 'done', 'epsilon', '--note', 'n')
+    ok(root, 'done', 'zeta', '--note', 'n')
+    const arch = ok(root, 'archive', 'A2')
+    expect(arch).toMatch(/archived A2/)
+    expect(arch).toMatch(/synced ticks:/)
+
+    expect(
+      textFormat.claim({ claimed: 'x', milestone: 'M', tag: 'prep' }),
+    ).toBe('claimed x (M, prep)')
+    expect(textFormat.claim({ claimed: 'x', milestone: 'M', tag: '' })).toBe(
+      'claimed x (M)',
+    )
+    expect(
+      textFormat.archive({ archived: 'A', readme: 'r.md', ticked: [] }),
+    ).toBe('archived A -> r.md')
+    expect(
+      textFormat.archive({
+        archived: 'A',
+        readme: 'r.md',
+        ticked: ['a', 'b'],
+      }),
+    ).toBe('archived A -> r.md\nsynced ticks: a, b')
+  })
 })

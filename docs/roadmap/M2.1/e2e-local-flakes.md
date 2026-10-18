@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Stabilize functional e2e flakes (open-save, filmstrip gaps, template-unplace, autosave, drag-swap)
+Status: done
 
 ## Scope
 
