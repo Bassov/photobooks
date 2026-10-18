@@ -2,7 +2,10 @@
 // Entry: scripts/agent-cli.mjs (`pnpm agent`). Zero deps, Node 22, ESM.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
+
+const nodeRequire = createRequire(import.meta.url)
 
 export class AgentError extends Error {
   constructor(msg, code = 2) {
@@ -35,7 +38,23 @@ const VALUE = new Set([
   'skip',
   'slug',
   'base',
+  'out',
 ])
+
+/** ≤10-line apply/archive procedure embedded in the preflight run card. */
+export const APPLY_ARCHIVE_PROCEDURE = `\
+Apply/archive (≤10):
+1. After proposal+design+tasks(+specs): review-brief --out <file>; openspec-planning-reviewer once (≤1 re-review).
+2. Implement tasks; tick checkboxes; keep touch-set.
+3. pnpm check (OK lines only); e2e/stryker/lhci when in scope.
+4. openspec-implementation-reviewer (brief --out); Manual check; Security if tagged.
+5. Archive: sync delta specs, openspec archive, pnpm roadmap done <slug>.
+6. Commit; pnpm agent finish --title … --body-file … (no CI watch).
+Explore: grep ≤30; offset/limit if >400 lines; no re-read; no TodoWrite in -p.
+Task shape: reviewer skill set + brief file path only.`
+
+export const STATS_PEAK_CONTEXT_MAX = 300_000
+export const STATS_FIRST_ROUND_INPUT_MAX = 400_000
 
 export function parseArgs(argv) {
   const o = { _: [] }
@@ -70,9 +89,11 @@ export function parseArgs(argv) {
 }
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
-  preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); --slug skips local main sync
+  preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); run card
   finish --title T --body-file F   push (pre-push pnpm check once; ≤2/branch) → PR (no CI watch)
-  review-brief [--change S] [--base REF] [--rules-json '[…]']   reviewer brief in one call
+  review-brief [--change S] [--base REF] [--rules-json '[…]'] [--out FILE]   reviewer brief
+  instructions <artifact> [--change S]   template + rules for one artifact
+  stats <path>   per-round tokens; exit 1 if peak>300K or first input>400K
   help
 
 Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
@@ -330,6 +351,524 @@ export function parseRoadmapNext(text) {
 export function parseInstructions(stdout) {
   const j = JSON.parse(stdout)
   return { template: j.template ?? null, rules: j.rules ?? null }
+}
+
+/** Ready OpenSpec artifact ids from `openspec status --json`. */
+export function readyArtifactIds(statusJson) {
+  const arts = statusJson?.artifacts
+  if (!Array.isArray(arts)) return []
+  return arts.filter((a) => a && a.status === 'ready').map((a) => a.id)
+}
+
+/**
+ * Load template/rules for one artifact via openspec (CLI-internal; agents use
+ * `pnpm agent instructions` instead of raw openspec instructions).
+ */
+export function loadArtifactInstructions(
+  exec,
+  cwd,
+  env,
+  quiet,
+  artifactId,
+  change,
+) {
+  const args = ['instructions', artifactId, '--json']
+  if (change) args.push('--change', change)
+  const instr = mustOk(
+    sh(exec, cwd, env, quiet, 'openspec', args),
+    'openspec instructions',
+  )
+  try {
+    return parseInstructions(instr.stdout)
+  } catch {
+    fail(
+      `openspec instructions returned invalid JSON:\n${tailOutput(instr.stdout, instr.stderr)}`,
+    )
+  }
+}
+
+export function buildRunCard(exec, cwd, env, quiet, changeSlug) {
+  const statusR = mustOk(
+    sh(exec, cwd, env, quiet, 'openspec', [
+      'status',
+      '--change',
+      changeSlug,
+      '--json',
+    ]),
+    'openspec status',
+  )
+  let status
+  try {
+    status = JSON.parse(statusR.stdout)
+  } catch {
+    fail(
+      `openspec status returned invalid JSON:\n${tailOutput(statusR.stdout, statusR.stderr)}`,
+    )
+  }
+  const ready = readyArtifactIds(status)
+  /** @type {Record<string, { template: string|null, rules: unknown }>} */
+  const artifacts = {}
+  for (const id of ready) {
+    artifacts[id] = loadArtifactInstructions(
+      exec,
+      cwd,
+      env,
+      quiet,
+      id,
+      changeSlug,
+    )
+  }
+  return {
+    ready,
+    artifacts,
+    procedure: APPLY_ARCHIVE_PROCEDURE,
+  }
+}
+
+/** Cursor store.db estimate: chars ÷ 3.3 ≈ tokens (stated as estimate in output). */
+export const STATS_CHARS_PER_TOKEN = 3.3
+
+export function estimateTokensFromChars(chars) {
+  const n = Number(chars)
+  if (!Number.isFinite(n) || n < 0)
+    fail('estimateTokensFromChars needs a non-negative number')
+  return Math.round(n / STATS_CHARS_PER_TOKEN)
+}
+
+/** Flatten user/system string or text-part content for classification. */
+export function userMessageText(msg) {
+  const c = msg?.content
+  if (typeof c === 'string') return c
+  if (!Array.isArray(c)) return ''
+  const parts = []
+  for (const p of c) {
+    if (
+      p &&
+      typeof p === 'object' &&
+      p.type === 'text' &&
+      typeof p.text === 'string'
+    ) {
+      parts.push(p.text)
+    }
+  }
+  return parts.join('\n')
+}
+
+/**
+ * True only for task-finished notices: optional leading `<timestamp>…</timestamp>`,
+ * then the text must start with `<system_notification>`. Mentions of the tag
+ * inside a normal prompt body do not count.
+ */
+export function isSystemNotificationUser(msg) {
+  if (msg?.role !== 'user') return false
+  let t = userMessageText(msg).trimStart()
+  const ts = /^<timestamp>[\s\S]*?<\/timestamp>\s*/.exec(t)
+  if (ts) t = t.slice(ts[0].length)
+  return t.startsWith('<system_notification>')
+}
+
+export function isUserInfoPreamble(msg) {
+  return (
+    msg?.role === 'user' &&
+    userMessageText(msg).trimStart().startsWith('<user_info>')
+  )
+}
+
+export function isRoundStartingUser(msg) {
+  return (
+    msg?.role === 'user' &&
+    !isSystemNotificationUser(msg) &&
+    !isUserInfoPreamble(msg)
+  )
+}
+
+function jsonValueChars(v) {
+  if (v == null) return 0
+  if (typeof v === 'string') return v.length
+  try {
+    return JSON.stringify(v).length
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Content-only char count for token estimates: text / reasoning text /
+ * tool-call toolName+args / tool-result result. Excludes signatures,
+ * providerOptions, ids, and other metadata.
+ */
+export function messageContentChars(msg) {
+  if (!msg || typeof msg !== 'object') return 0
+  const c = msg.content
+  if (typeof c === 'string') return c.length
+  if (!Array.isArray(c)) return 0
+  let n = 0
+  for (const p of c) {
+    if (!p || typeof p !== 'object') continue
+    const t = p.type
+    if (t === 'text' || t === 'reasoning') {
+      if (typeof p.text === 'string') n += p.text.length
+    } else if (t === 'tool-call') {
+      if (typeof p.toolName === 'string') n += p.toolName.length
+      n += jsonValueChars(p.args ?? p.input)
+    } else if (t === 'tool-result' || t === 'tool_result') {
+      n += jsonValueChars(p.result)
+    }
+  }
+  return n
+}
+
+/** Read protobuf varint; returns [value, nextOffset]. */
+export function readProtobufVarint(buf, offset) {
+  let x = 0
+  let s = 0
+  let i = offset
+  while (i < buf.length) {
+    const c = buf[i++]
+    x |= (c & 0x7f) << s
+    if ((c & 0x80) === 0) return [x, i]
+    s += 7
+    if (s > 70) fail('protobuf varint too long')
+  }
+  fail('protobuf varint truncated')
+}
+
+/**
+ * Root blob field-1 length-delimited entries are 32-byte blob digests
+ * (hex id = digest.toString('hex')).
+ */
+export function blobIdsFromRootProtobuf(rootBuf) {
+  const buf = Buffer.isBuffer(rootBuf) ? rootBuf : Buffer.from(rootBuf)
+  const ids = []
+  let i = 0
+  while (i < buf.length) {
+    const [tag, i1] = readProtobufVarint(buf, i)
+    i = i1
+    const field = tag >>> 3
+    const wire = tag & 7
+    if (wire === 0) {
+      ;[, i] = readProtobufVarint(buf, i)
+    } else if (wire === 1) {
+      i += 8
+    } else if (wire === 5) {
+      i += 4
+    } else if (wire === 2) {
+      const [len, i2] = readProtobufVarint(buf, i)
+      i = i2
+      const slice = buf.subarray(i, i + len)
+      i += len
+      if (field === 1 && slice.length === 32)
+        ids.push(Buffer.from(slice).toString('hex'))
+    } else {
+      fail(`unsupported protobuf wire type ${wire}`)
+    }
+  }
+  return ids
+}
+
+export function roundFromCursorUsage(usage, modelCalls = 1) {
+  if (!usage || typeof usage !== 'object') fail('usage object required')
+  const input = Number(usage.inputTokens)
+  const output = Number(usage.outputTokens)
+  const cacheRead = Number(usage.cacheReadTokens ?? 0)
+  for (const [name, v] of [
+    ['inputTokens', input],
+    ['outputTokens', output],
+    ['cacheReadTokens', cacheRead],
+  ]) {
+    if (!Number.isFinite(v) || v < 0) fail(`usage.${name} is invalid`)
+  }
+  const calls = Number(modelCalls)
+  if (!Number.isFinite(calls) || calls < 0) fail('modelCalls is invalid')
+  return {
+    input,
+    output,
+    cacheRead,
+    modelCalls: calls,
+    context: input,
+    estimated: false,
+  }
+}
+
+function tryRoundFromObject(obj) {
+  if (!obj || typeof obj !== 'object') return null
+  if (
+    obj.usage &&
+    typeof obj.usage === 'object' &&
+    'inputTokens' in obj.usage
+  ) {
+    return roundFromCursorUsage(obj.usage, obj.modelCalls ?? 1)
+  }
+  if ('inputTokens' in obj && 'outputTokens' in obj) {
+    return roundFromCursorUsage(obj, obj.modelCalls ?? 1)
+  }
+  return null
+}
+
+export function normalizeRounds(rows) {
+  if (!Array.isArray(rows) || rows.length === 0)
+    fail('stats rounds must be a non-empty array')
+  return rows.map((r, i) => {
+    if (!r || typeof r !== 'object') fail(`stats round ${i} is not an object`)
+    const fromUsage = tryRoundFromObject(r)
+    if (fromUsage) return fromUsage
+    const input = Number(r.input)
+    const output = Number(r.output)
+    const cacheRead = Number(r.cacheRead ?? r.cache_read ?? 0)
+    const modelCalls = Number(r.modelCalls ?? r.model_calls ?? 1)
+    const context = Number(r.context)
+    for (const [name, v] of [
+      ['input', input],
+      ['output', output],
+      ['cacheRead', cacheRead],
+      ['modelCalls', modelCalls],
+      ['context', context],
+    ]) {
+      if (!Number.isFinite(v) || v < 0)
+        fail(`stats round ${i} has invalid ${name}`)
+    }
+    return {
+      input,
+      output,
+      cacheRead,
+      modelCalls,
+      context,
+      estimated: Boolean(r.estimated),
+    }
+  })
+}
+
+/**
+ * Split transcript messages into agent rounds.
+ * Round starts: user messages that are not `<user_info>` preamble and not
+ * `<system_notification>` task-finished notices. Leading system + user_info
+ * are preamble. Token fields are content-chars/3.3 estimates (no signatures).
+ */
+export function roundsFromStoreMessages(messages) {
+  if (!Array.isArray(messages) || messages.length === 0)
+    fail('store.db has no JSON role messages')
+  const startIdxs = []
+  for (let i = 0; i < messages.length; i++) {
+    if (isRoundStartingUser(messages[i])) startIdxs.push(i)
+  }
+  if (startIdxs.length === 0)
+    fail('store.db has no round-starting user messages after preamble')
+
+  /** @type {object[][]} */
+  const segments = []
+  for (let s = 0; s < startIdxs.length; s++) {
+    const from = startIdxs[s]
+    const to = s + 1 < startIdxs.length ? startIdxs[s + 1] : messages.length
+    segments.push(messages.slice(from, to))
+  }
+
+  let priorChars = 0
+  for (let i = 0; i < startIdxs[0]; i++) {
+    priorChars += messageContentChars(messages[i])
+  }
+
+  return segments.map((seg) => {
+    let cum = priorChars
+    let peakContext = 0
+    let outputChars = 0
+    let modelCalls = 0
+    let sawAssistant = false
+    for (const m of seg) {
+      if (m?.role === 'assistant') {
+        modelCalls += 1
+        const ctx = estimateTokensFromChars(cum)
+        if (!sawAssistant || ctx > peakContext) peakContext = ctx
+        sawAssistant = true
+        outputChars += messageContentChars(m)
+      }
+      cum += messageContentChars(m)
+    }
+    if (!sawAssistant) peakContext = estimateTokensFromChars(cum)
+    const input = estimateTokensFromChars(
+      priorChars +
+        seg
+          .filter((m) => m?.role === 'user' && !isSystemNotificationUser(m))
+          .reduce((n, m) => n + messageContentChars(m), 0),
+    )
+    priorChars = cum
+    return {
+      input,
+      output: estimateTokensFromChars(outputChars),
+      cacheRead: 0,
+      modelCalls,
+      context: peakContext,
+      estimated: true,
+    }
+  })
+}
+
+function parseMetaJson(value) {
+  if (value == null) return null
+  if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
+    const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
+    try {
+      return JSON.parse(buf.toString('utf8'))
+    } catch {
+      /* hex below */
+    }
+    const s = buf.toString('utf8')
+    if (/^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0) {
+      try {
+        return JSON.parse(Buffer.from(s, 'hex').toString('utf8'))
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
+  const s = String(value)
+  try {
+    return JSON.parse(s)
+  } catch {
+    /* try hex-encoded JSON (Cursor store.db meta) */
+  }
+  if (/^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0) {
+    try {
+      const raw = Buffer.from(s, 'hex').toString('utf8')
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+export function loadRoundsFromStoreDb(db) {
+  const rows = db.prepare('SELECT key, value FROM meta').all()
+  if (!rows.length) fail('store.db meta is empty')
+  let meta = null
+  for (const row of rows) {
+    const j = parseMetaJson(row.value)
+    if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
+    if (j?.rounds) return normalizeRounds(j.rounds)
+    if (j?.latestRootBlobId) meta = j
+  }
+  if (!meta?.latestRootBlobId)
+    fail('store.db meta has no latestRootBlobId (and no agentStats.rounds)')
+  const rootRow = db
+    .prepare('SELECT data FROM blobs WHERE id = ?')
+    .get(meta.latestRootBlobId)
+  if (!rootRow?.data) fail('store.db missing root blob for latestRootBlobId')
+  const ids = blobIdsFromRootProtobuf(rootRow.data)
+  if (!ids.length) fail('store.db root blob has no field-1 blob ids')
+  const messages = []
+  for (const id of ids) {
+    const row = db.prepare('SELECT data FROM blobs WHERE id = ?').get(id)
+    if (!row?.data) fail(`store.db missing blob ${id}`)
+    const raw = row.data
+    const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw)
+    if (buf.length === 0 || (buf[0] !== 0x7b && buf[0] !== 0x5b)) continue
+    try {
+      const msg = JSON.parse(buf.toString('utf8'))
+      if (msg && typeof msg === 'object' && typeof msg.role === 'string') {
+        messages.push(msg)
+      }
+    } catch {
+      fail(`store.db blob ${id} is not valid JSON`)
+    }
+  }
+  return roundsFromStoreMessages(messages)
+}
+
+export function parseStatsRoundsJson(text) {
+  const trimmed = String(text ?? '').trim()
+  if (!trimmed) fail('stats document is empty')
+  const lines = trimmed
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+  // Multi-line JSONL before whole-file JSON.parse.
+  if (lines.length > 1 && lines.every((l) => l.startsWith('{'))) {
+    const rounds = []
+    for (const t of lines) {
+      let row
+      try {
+        row = JSON.parse(t)
+      } catch {
+        fail('stats JSONL line is invalid JSON')
+      }
+      const fromUsage = tryRoundFromObject(row)
+      rounds.push(fromUsage ?? row)
+    }
+    return normalizeRounds(rounds)
+  }
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    let j
+    try {
+      j = JSON.parse(trimmed)
+    } catch {
+      fail('stats JSON is invalid')
+    }
+    const one = tryRoundFromObject(j)
+    if (one) return [one]
+    if (Array.isArray(j)) {
+      if (j.length && j.every((x) => tryRoundFromObject(x))) {
+        return j.map((x) => tryRoundFromObject(x))
+      }
+      return normalizeRounds(j)
+    }
+    if (j && Array.isArray(j.rounds)) return normalizeRounds(j.rounds)
+    if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
+    fail(
+      'stats JSON must be cursor-agent result (usage.*Tokens), {rounds:[…]}, or an array of rounds',
+    )
+  }
+  // Multi-line `{...}` JSONL is handled above. Anything else that does not
+  // start with `{`/`[` is not a supported stats document (avoid treating a
+  // prompt that merely mentions tags as a format).
+  for (const t of lines) {
+    try {
+      JSON.parse(t)
+    } catch {
+      fail('stats JSONL line is invalid JSON')
+    }
+  }
+  fail(
+    'stats document must be JSON ({rounds}/usage) or multi-line `{`-prefixed JSONL',
+  )
+}
+
+export function loadStatsRounds(filePath) {
+  if (!fs.existsSync(filePath)) fail(`stats path not found: ${filePath}`)
+  const lower = filePath.toLowerCase()
+  if (lower.endsWith('.db') || lower.endsWith('.sqlite')) {
+    let DatabaseSync
+    try {
+      ;({ DatabaseSync } = nodeRequire('node:sqlite'))
+    } catch (e) {
+      fail(`node:sqlite unavailable: ${e.message}`)
+    }
+    const db = new DatabaseSync(filePath, { readOnly: true })
+    try {
+      return loadRoundsFromStoreDb(db)
+    } finally {
+      db.close()
+    }
+  }
+  return parseStatsRoundsJson(fs.readFileSync(filePath, 'utf8'))
+}
+
+export function summarizeStats(rounds) {
+  const peakContext = Math.max(...rounds.map((r) => r.context))
+  const firstInput = rounds[0].input
+  const modelCalls = rounds.reduce((n, r) => n + r.modelCalls, 0)
+  const estimated = rounds.some((r) => r.estimated)
+  return { rounds, peakContext, firstInput, modelCalls, estimated }
+}
+
+export function statsExitCode(summary) {
+  if (
+    summary.peakContext > STATS_PEAK_CONTEXT_MAX ||
+    summary.firstInput > STATS_FIRST_ROUND_INPUT_MAX
+  ) {
+    return 1
+  }
+  return 0
 }
 
 export function parseTouchSetPaths(designText) {
@@ -769,24 +1308,12 @@ export function cmdPreflight(o, deps) {
     )
   }
 
-  const instr = mustOk(
-    sh(exec, cwd, env, quiet, 'openspec', [
-      'instructions',
-      'proposal',
-      '--change',
-      item.slug,
-      '--json',
-    ]),
-    'openspec instructions',
-  )
-  let instructions
-  try {
-    instructions = parseInstructions(instr.stdout)
-  } catch {
-    fail(
-      `openspec instructions returned invalid JSON:\n${tailOutput(instr.stdout, instr.stderr)}`,
-    )
-  }
+  const runCard = buildRunCard(exec, cwd, env, quiet, item.slug)
+  const primaryId =
+    runCard.ready.find((id) => id === 'proposal') ?? runCard.ready[0] ?? null
+  const instructions = primaryId
+    ? runCard.artifacts[primaryId]
+    : loadArtifactInstructions(exec, cwd, env, quiet, 'proposal', item.slug)
   if (!Array.isArray(instructions.rules))
     fail('openspec instructions missing rules array')
 
@@ -815,6 +1342,7 @@ export function cmdPreflight(o, deps) {
       body: item.body,
     },
     instructions,
+    runCard,
     touchSet,
   }
 }
@@ -1297,7 +1825,7 @@ export function cmdReviewBrief(o, deps) {
     .filter(Boolean)
     .join('\n')
 
-  return {
+  const brief = {
     slug,
     changePath,
     rules,
@@ -1314,6 +1842,49 @@ export function cmdReviewBrief(o, deps) {
     touchDiff: touchDiffParts.join('\n\n') || '(empty)',
     outsideDiff: outsideParts.join('\n\n') || '(empty)',
     untracked,
+  }
+  if (o.out) {
+    const outAbs = path.isAbsolute(o.out) ? o.out : path.join(cwd, o.out)
+    fs.mkdirSync(path.dirname(outAbs), { recursive: true })
+    fs.writeFileSync(outAbs, fmtBrief(brief) + '\n', 'utf8')
+    brief.outPath = outAbs
+  }
+  return brief
+}
+
+export function cmdInstructions(o, deps) {
+  const { cwd, env, exec, quiet } = deps
+  const artifact = o._[1]
+  if (!artifact) fail('usage: pnpm agent instructions <artifact> [--change S]')
+  let change = o.change
+  if (!change) {
+    const br = mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current']),
+      'git branch',
+    )
+    change = slugFromBranch(br.stdout.trim())
+  }
+  const instructions = loadArtifactInstructions(
+    exec,
+    cwd,
+    env,
+    quiet,
+    artifact,
+    change,
+  )
+  return { ok: true, change, artifact, ...instructions }
+}
+
+export function cmdStats(o, deps) {
+  const { cwd } = deps
+  const rel = o._[1]
+  if (!rel) fail('usage: pnpm agent stats <path>')
+  const filePath = path.isAbsolute(rel) ? rel : path.join(cwd, rel)
+  const rounds = loadStatsRounds(filePath)
+  const summary = summarizeStats(rounds)
+  return {
+    ok: statsExitCode(summary) === 0,
+    ...summary,
   }
 }
 
@@ -1335,8 +1906,61 @@ function fmtPreflight(r) {
     `touchSet: ${r.touchSet}`,
     `checklistIds: ${r.checklistIds.join(',')}`,
     `instructions: rules=${ruleList.length} (use --json for template/rules)`,
+    `runCard.ready: ${(r.runCard?.ready ?? []).join(',') || '(none)'}`,
   ]
   if (r.staleWarning) lines.push(`staleWarning: ${r.staleWarning}`)
+  if (r.runCard?.artifacts) {
+    for (const id of r.runCard.ready ?? []) {
+      const art = r.runCard.artifacts[id]
+      const n = Array.isArray(art?.rules) ? art.rules.length : 0
+      lines.push(`--- runCard artifact: ${id} (rules=${n}) ---`)
+      if (art?.template) lines.push(String(art.template).trimEnd())
+      if (Array.isArray(art?.rules)) {
+        for (const rule of art.rules) lines.push(`- ${rule}`)
+      }
+    }
+  }
+  if (r.runCard?.procedure) {
+    lines.push('--- apply/archive procedure ---')
+    lines.push(String(r.runCard.procedure).trimEnd())
+  }
+  return lines.join('\n')
+}
+
+function fmtInstructions(r) {
+  const lines = [
+    `ok: ${r.ok}`,
+    `change: ${r.change}`,
+    `artifact: ${r.artifact}`,
+    '--- template ---',
+    String(r.template ?? '').trimEnd(),
+    '--- rules ---',
+  ]
+  if (Array.isArray(r.rules)) {
+    for (const rule of r.rules) lines.push(`- ${rule}`)
+  }
+  return lines.join('\n')
+}
+
+function fmtStats(r) {
+  const lines = [
+    `ok: ${r.ok}`,
+    `rounds: ${r.rounds.length}`,
+    `peakContext: ${r.peakContext}`,
+    `firstInput: ${r.firstInput}`,
+    `modelCalls: ${r.modelCalls}`,
+  ]
+  if (r.estimated) {
+    lines.push(
+      'note: token fields marked estimated use content chars/3.3 (no signatures/metadata)',
+    )
+  }
+  r.rounds.forEach((row, i) => {
+    const est = row.estimated ? ' estimated=true' : ''
+    lines.push(
+      `round[${i}]: input=${row.input} output=${row.output} cacheRead=${row.cacheRead} modelCalls=${row.modelCalls} context=${row.context}${est}`,
+    )
+  })
   return lines.join('\n')
 }
 
@@ -1386,7 +2010,9 @@ export function run(argv, deps = {}) {
     const [cmd] = o._
     if (!cmd || cmd === 'help' || o.help)
       return { code: cmd || o.help ? 0 : 2, out: HELP }
-    if (o._.length > 1) fail(`unexpected argument: ${o._[1]}`)
+    const allowsArg = cmd === 'instructions' || cmd === 'stats'
+    if (o._.length > 1 && !allowsArg) fail(`unexpected argument: ${o._[1]}`)
+    if (o._.length > 2) fail(`unexpected argument: ${o._[2]}`)
     const root = path.resolve(cwd, o.root ?? '.')
     const d = { root, cwd, env, exec, quiet }
     let r
@@ -1402,6 +2028,13 @@ export function run(argv, deps = {}) {
       case 'review-brief':
         r = cmdReviewBrief(o, d)
         break
+      case 'instructions':
+        r = cmdInstructions(o, d)
+        break
+      case 'stats':
+        r = cmdStats(o, d)
+        code = statsExitCode(r)
+        break
       default:
         fail(`unknown command: ${cmd}\n${HELP}`)
     }
@@ -1411,7 +2044,11 @@ export function run(argv, deps = {}) {
         ? fmtPreflight(r)
         : cmd === 'finish'
           ? fmtFinish(r)
-          : fmtBrief(r)
+          : cmd === 'instructions'
+            ? fmtInstructions(r)
+            : cmd === 'stats'
+              ? fmtStats(r)
+              : fmtBrief(r)
     return { code, out }
   } catch (e) {
     if (!(e instanceof AgentError)) throw e

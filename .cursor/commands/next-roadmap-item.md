@@ -10,16 +10,18 @@ openspec/config.yaml (rules + operations), .cursor/rules/git-finish.mdc,
 
 Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`
 (already injected). Do not re-read the item file after `roadmap next` / agent
-preflight. Take `rules`/`template` from preflight output or
-`openspec instructions … --json`. Open `openspec/config.yaml` only for
-`operations`, at most once. Specs: `rg` + targeted ranges — never
-`openspec show | head -c`. Tick item checkboxes with targeted edits, not
-whole-file rewrites. Prefer `pnpm check` (until only OK lines) and
-`pnpm test:e2e:changed:quiet` (once when green; CI burn-in owns flake proof;
-local `--repeat-each=3` only if a flake failed then passed locally). Generate
-the PR body once; cite issues as plain URLs only. Brief reviewers via
-`pnpm agent review-brief --base origin/main` (slug, change path, rules,
-diff vs base, touch-set) — no other-session transcripts.
+preflight. Take `rules`/`template` from the preflight run card or
+`pnpm agent instructions <artifact>` (raw `openspec instructions` /
+`openspec/config.yaml` / openspec skills / agents reads are denied). Specs:
+`rg` + targeted ranges — never `openspec show | head -c`. Exploration:
+scoped grep ≤30 hits; offset/limit reads for files >400 lines; no re-read of
+unchanged files; no TodoWrite in unattended `-p`. Tick item checkboxes with
+targeted edits, not whole-file rewrites. Prefer `pnpm check` (until only OK
+lines) and `pnpm test:e2e:changed:quiet` (once when green; CI burn-in owns
+flake proof; local `--repeat-each=3` only if a flake failed then passed
+locally). Generate the PR body once; cite issues as plain URLs only. Brief
+reviewers via `pnpm agent review-brief --out <file> --base origin/main`
+(Task gets skill set + brief path only) — no other-session transcripts.
 
 Batching: independent reads/greps in one parallel tool step; dependent shell
 steps chained with `&&` in one call; no check-then-recheck loops. OpenSpec
@@ -37,10 +39,11 @@ artifact stages: one Write per artifact, validate once at stage end.
    PATH (openspec is a global CLI, not a repo dependency).
 2. Plan with the OpenSpec CLI, not /opsx-propose (its planning boundary would end
    this run): `openspec new change <slug>` if preflight did not; for each ready
-   artifact `openspec instructions <id> --change <slug> --json` → write it →
-   `openspec status --change <slug> --json`. Launch the reviewer subagents where
-   rules.proposal / rules.design require (brief with `pnpm -s agent review-brief`)
-   and loop to pass. Over budget: grow the roadmap with
+   artifact use the run card or `pnpm agent instructions <id>` → write it →
+   `openspec status --change <slug> --json`. After proposal + design + tasks
+   (+ specs when not skipped), launch `openspec-planning-reviewer` once
+   (`pnpm -s agent review-brief --out <file>`; ≤1 delta re-review). Docs-only
+   skips the design checklist. Over budget: grow the roadmap with
    `pnpm roadmap add <new-slug> --after <slug> ...`, not the PR.
 3. /opsx-apply <slug> through the Verification checklist, including
    openspec-implementation-reviewer pass and the Manual check. Prefer quiet
