@@ -18,7 +18,7 @@ After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas l
 
 **Owner one-time setup (not agent items):**
 
-- Branch protection on `main`, "Do not allow bypassing the above settings", required checks added as each first appears: today `checks`, `integration`, `lighthouse`, `stryker-diff`, `dependency-review`, `gitleaks`, `Analyze (javascript-typescript)`; add `codecov/patch`, `codecov/project` (`codecov-patch-gate`), `pr-policy` (`gate-ratchet`).
+- Branch protection on `main`, "Do not allow bypassing the above settings", required checks added as each first appears: today `checks`, `integration`, `lighthouse`, `stryker-diff`, `dependency-review`, `gitleaks`, `Analyze (javascript-typescript)`; add `codecov/patch` and `codecov/project` from `codecov-patch-gate` (owner-only — agents never edit branch protection; if Codecov posts named contexts such as `codecov/project/default` / `codecov/project/floor`, require those too), then `pr-policy` (`gate-ratchet`).
 - Repository setting "Automatically delete head branches" on (issue #77 §5), and prune the merged remote branches once.
 - Disable the Cursor MCP servers this project does not need (AGENTS.md "Pipeline MCP"); the pipeline happy path needs none.
 - `CODECOV_TOKEN` available to `checks` and `integration`.
