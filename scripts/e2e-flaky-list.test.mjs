@@ -6,6 +6,25 @@ import {
   normalizeFlakyPath,
 } from './e2e-flaky-list.mjs'
 
+function gatesWithFlaky(flakySpecs) {
+  return {
+    coverage: {
+      statements: 80,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+    },
+    stryker: { thresholds: { high: 80, low: 60, break: 60 } },
+    lighthouse: {
+      numberOfRuns: 1,
+      assertions: { 'performance-budget': 'error' },
+      budgets: [],
+    },
+    playwright: { retries: 0, flakyRetries: 2 },
+    e2e: { burnInDefault: 10, flakySpecs },
+  }
+}
+
 describe('normalizeFlakyPath', () => {
   it('trims and normalizes separators', () => {
     expect(normalizeFlakyPath(' ./e2e\\foo.spec.ts ')).toBe('e2e/foo.spec.ts')
@@ -13,44 +32,20 @@ describe('normalizeFlakyPath', () => {
 })
 
 describe('loadFlakySpecPaths', () => {
-  it('returns sorted unique paths', () => {
+  it('returns sorted unique paths from gates', () => {
     const paths = loadFlakySpecPaths({
-      root: '/repo',
-      exists: () => true,
-      readFile: () =>
-        JSON.stringify(['e2e/b.spec.ts', 'e2e/a.spec.ts', 'e2e/a.spec.ts']),
+      loadGatesFn: () =>
+        gatesWithFlaky(['e2e/b.spec.ts', 'e2e/a.spec.ts', 'e2e/a.spec.ts']),
     })
     expect(paths).toEqual(['e2e/a.spec.ts', 'e2e/b.spec.ts'])
-  })
-
-  it('rejects non-array JSON', () => {
-    expect(() =>
-      loadFlakySpecPaths({
-        root: '/repo',
-        exists: () => true,
-        readFile: () => '{}',
-      }),
-    ).toThrow(/must be a JSON array/)
   })
 
   it('rejects non-spec paths', () => {
     expect(() =>
       loadFlakySpecPaths({
-        root: '/repo',
-        exists: () => true,
-        readFile: () => JSON.stringify(['e2e/helpers/x.ts']),
+        loadGatesFn: () => gatesWithFlaky(['e2e/helpers/x.ts']),
       }),
     ).toThrow(/e2e\/\*\*\/\*\.spec\.ts/)
-  })
-
-  it('requires the file', () => {
-    expect(() =>
-      loadFlakySpecPaths({
-        root: '/repo',
-        exists: () => false,
-        readFile: () => '[]',
-      }),
-    ).toThrow(/required/)
   })
 })
 

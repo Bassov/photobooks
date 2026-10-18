@@ -1,0 +1,41 @@
+{
+  "coverage": {
+    "statements": 80,
+    "branches": 80,
+    "functions": 80,
+    "lines": 80
+  },
+  "stryker": {
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 60
+    }
+  },
+  "lighthouse": {
+    "numberOfRuns": 1,
+    "assertions": {
+      "performance-budget": "error"
+    },
+    "budgets": [
+      {
+        "path": "/*",
+        "resourceSizes": [
+          { "resourceType": "document", "budget": 20 },
+          { "resourceType": "script", "budget": 350 },
+          { "resourceType": "stylesheet", "budget": 50 },
+          { "resourceType": "total", "budget": 500 }
+        ],
+        "resourceCounts": [{ "resourceType": "third-party", "budget": 0 }]
+      }
+    ]
+  },
+  "playwright": {
+    "retries": 0,
+    "flakyRetries": 2
+  },
+  "e2e": {
+    "burnInDefault": 10,
+    "flakySpecs": []
+  }
+}

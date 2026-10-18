@@ -18,6 +18,7 @@ const CORE_CHECKS = [
   { name: 'deps', argv: ['pnpm', 'deps'] },
   { name: 'knip', argv: ['pnpm', 'knip'] },
   { name: 'mutation-scope', argv: ['pnpm', 'mutation-scope'] },
+  { name: 'gate-values', argv: ['pnpm', 'gate-values'] },
   { name: 'git-test-isolation', argv: ['pnpm', 'git-test-isolation'] },
   // Direct roadmap.mjs + INNER env avoids double-wrap via `pnpm roadmap check`.
   { name: 'roadmap', argv: ['pnpm', '-s', 'roadmap', 'check'] },

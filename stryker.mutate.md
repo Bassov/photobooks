@@ -1,6 +1,6 @@
 # Mutation excludes
 
-Each `!` pattern in `stryker.config.json` `mutate` has one reason here. JSON cannot hold comments.
+Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in this file so excludes stay reviewable in one place).
 
 - `!src/**/*.{test,spec}.{ts,tsx}` — tests are not production code
 - `!src/**/*.{bench,benchmark}.{ts,tsx}` — benches are not production code
