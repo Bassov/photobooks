@@ -16,7 +16,118 @@ env:
   E2E_BURN_IN: '10'
 
 jobs:
-  integration:
+  e2e-burn-in:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      has_targets: ${{ steps.burn-in-targets.outputs.has_targets }}
+      count: ${{ steps.burn-in-count.outputs.count }}
+      outcome: ${{ steps.finalize.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Resolve burn-in count
+        id: burn-in-count
+        env:
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+        run: |
+          COUNT="$(node scripts/e2e-burn-in-count-cli.mjs)"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Burn-in count: $COUNT"
+
+      - name: Resolve burn-in targets
+        id: burn-in-targets
+        env:
+          STRYKER_DIFF_BASE: origin/${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          TARGETS="$(node scripts/e2e-burn-in-targets-cli.mjs | tr '\n' ' ')"
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          if [ -z "$(echo "$TARGETS" | tr -d '[:space:]')" ]; then
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+            echo "No burn-in targets"
+          else
+            echo "has_targets=true" >> "$GITHUB_OUTPUT"
+            echo "Burn-in targets: $TARGETS"
+          fi
+
+      - uses: pnpm/action-setup@v6
+        if: steps.burn-in-targets.outputs.has_targets == 'true'
+        with:
+          version: 10.28.0
+
+      - name: Install dependencies
+        if: steps.burn-in-targets.outputs.has_targets == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        if: steps.burn-in-targets.outputs.has_targets == 'true'
+        uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        if: steps.burn-in-targets.outputs.has_targets == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.burn-in-targets.outputs.has_targets == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      - name: E2E burn-in
+        if: steps.burn-in-targets.outputs.has_targets == 'true'
+        id: burn-in
+        run: >
+          node scripts/with-playwright-env.mjs pnpm exec playwright test
+          ${{ steps.burn-in-targets.outputs.targets }}
+          --repeat-each=${{ steps.burn-in-count.outputs.count }}
+          --retries=0
+          --workers=1
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/burn-in-results.json
+
+      - name: Finalize burn-in meta
+        if: always()
+        id: finalize
+        run: |
+          mkdir -p burn-in-meta
+          HAS="${{ steps.burn-in-targets.outputs.has_targets }}"
+          COUNT="${{ steps.burn-in-count.outputs.count }}"
+          if [ "$HAS" = "true" ]; then
+            OUTCOME="${{ steps.burn-in.outcome }}"
+            printf '%s\n' "true" > burn-in-meta/has_targets.txt
+            if [ -f test-results/burn-in-results.json ]; then
+              cp test-results/burn-in-results.json burn-in-meta/burn-in-results.json
+            fi
+          else
+            OUTCOME="skipped"
+            printf '%s\n' "false" > burn-in-meta/has_targets.txt
+            printf '%s\n' "no targets" > burn-in-meta/status.txt
+          fi
+          printf '%s\n' "$COUNT" > burn-in-meta/count.txt
+          printf '%s\n' "$OUTCOME" > burn-in-meta/outcome.txt
+          echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload burn-in meta
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: burn-in-meta
+          path: burn-in-meta/
+          retention-days: 1
+          if-no-files-found: ignore
+
+  e2e:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,97 +163,18 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - name: Resolve burn-in count
-        if: github.event_name == 'pull_request'
-        id: burn-in-count
-        env:
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-        run: |
-          COUNT="$(node scripts/e2e-burn-in-count-cli.mjs)"
-          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
-          echo "Burn-in count: $COUNT"
-
-      - name: Resolve burn-in targets
-        if: github.event_name == 'pull_request'
-        id: burn-in-targets
-        env:
-          STRYKER_DIFF_BASE: origin/${{ github.base_ref }}
-        run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          TARGETS="$(node scripts/e2e-burn-in-targets-cli.mjs | tr '\n' ' ')"
-          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
-          if [ -z "$(echo "$TARGETS" | tr -d '[:space:]')" ]; then
-            echo "has_targets=false" >> "$GITHUB_OUTPUT"
-            echo "No burn-in targets"
-          else
-            echo "has_targets=true" >> "$GITHUB_OUTPUT"
-            echo "Burn-in targets: $TARGETS"
-          fi
-
-      - name: E2E burn-in
-        if: github.event_name == 'pull_request' && steps.burn-in-targets.outputs.has_targets == 'true'
-        id: burn-in
-        run: >
-          node scripts/with-playwright-env.mjs pnpm exec playwright test
-          ${{ steps.burn-in-targets.outputs.targets }}
-          --repeat-each=${{ steps.burn-in-count.outputs.count }}
-          --retries=0
-          --workers=1
-        env:
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/burn-in-results.json
-
       - name: E2E
-        if: always()
         id: e2e
         run: pnpm test:e2e
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-results.json
 
-      - name: Summarize e2e for CI report
-        if: always() && github.event_name == 'pull_request'
-        run: |
-          EXTRA_ARGS=()
-          if [ "${{ steps.burn-in-targets.outputs.has_targets }}" = "true" ]; then
-            EXTRA_ARGS+=(--burn-in "${{ steps.burn-in-count.outputs.count }}")
-            EXTRA_ARGS+=(--burn-in-outcome "${{ steps.burn-in.outcome }}")
-            if [ -f test-results/burn-in-results.json ]; then
-              EXTRA_ARGS+=(--burn-in-report test-results/burn-in-results.json)
-            fi
-          fi
-          if [ -f test-results/e2e-results.json ]; then
-            node scripts/e2e-playwright-summary-cli.mjs \
-              --report test-results/e2e-results.json \
-              "${EXTRA_ARGS[@]}" \
-              --out /tmp/e2e-pr-comment.md
-          else
-            echo "No main e2e JSON report" > /tmp/e2e-pr-comment.md
-          fi
-
-      - name: Pack e2e section
-        if: always() && github.event_name == 'pull_request'
-        run: |
-          if [ -f test-results/e2e-results.json ]; then
-            node scripts/ci-report-comment.mjs pack \
-              --section e2e \
-              --step-outcome "${{ steps.e2e.outcome }}" \
-              --missing-report job-failed \
-              --report test-results/e2e-results.json \
-              --body-file /tmp/e2e-pr-comment.md \
-              --out ci-section/section.json
-          else
-            node scripts/ci-report-comment.mjs pack \
-              --section e2e \
-              --step-outcome "${{ steps.e2e.outcome }}" \
-              --missing-report job-failed \
-              --out ci-section/section.json
-          fi
-
-      - name: Upload e2e section
+      - name: Upload e2e results
         if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: ci-section-e2e
-          path: ci-section/section.json
+          name: e2e-results
+          path: test-results/e2e-results.json
           retention-days: 1
           if-no-files-found: ignore
 
@@ -165,9 +197,44 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Required check name stays `integration`: fails unless full e2e succeeded and
+  # burn-in succeeded (or was skipped on non-PR). Keeps parallelism of e2e + burn-in.
+  integration:
+    needs: [e2e, e2e-burn-in]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require e2e and burn-in
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
+          BURN_IN_RESULT: ${{ needs.e2e-burn-in.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$E2E_RESULT" != "success" ]; then
+            echo "e2e job result=$E2E_RESULT (need success)"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if [ "$BURN_IN_RESULT" != "success" ]; then
+              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success on pull_request)"
+              exit 1
+            fi
+          else
+            if [ "$BURN_IN_RESULT" != "success" ] && [ "$BURN_IN_RESULT" != "skipped" ]; then
+              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success or skipped on non-PR)"
+              exit 1
+            fi
+          fi
+          echo "integration gate ok (e2e=$E2E_RESULT burn-in=$BURN_IN_RESULT)"
+
   ci-comment:
-    needs: integration
-    if: always() && github.event_name == 'pull_request' && needs.integration.result != 'cancelled'
+    needs: [e2e, e2e-burn-in, integration]
+    if: >-
+      always() && github.event_name == 'pull_request' &&
+      needs.e2e.result != 'cancelled' &&
+      needs.e2e-burn-in.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -182,12 +249,57 @@ jobs:
         with:
           node-version: 22
 
-      - name: Download e2e section
+      - name: Download e2e results
         continue-on-error: true
         uses: actions/download-artifact@v7
         with:
-          name: ci-section-e2e
-          path: ci-section
+          name: e2e-results
+          path: e2e-download
+
+      - name: Download burn-in meta
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: burn-in-meta
+          path: burn-in-meta
+
+      - name: Summarize and pack e2e section
+        env:
+          E2E_STEP_OUTCOME: ${{ needs.e2e.result }}
+        run: |
+          mkdir -p ci-section
+          EXTRA_ARGS=()
+          if [ -f burn-in-meta/has_targets.txt ] && [ "$(cat burn-in-meta/has_targets.txt)" = "true" ]; then
+            EXTRA_ARGS+=(--burn-in "$(cat burn-in-meta/count.txt)")
+            EXTRA_ARGS+=(--burn-in-outcome "$(cat burn-in-meta/outcome.txt)")
+            if [ -f burn-in-meta/burn-in-results.json ]; then
+              EXTRA_ARGS+=(--burn-in-report burn-in-meta/burn-in-results.json)
+            fi
+          fi
+          STEP_OUTCOME=failure
+          if [ "$E2E_STEP_OUTCOME" = "success" ]; then
+            STEP_OUTCOME=success
+          fi
+          if [ -f e2e-download/e2e-results.json ]; then
+            node scripts/e2e-playwright-summary-cli.mjs \
+              --report e2e-download/e2e-results.json \
+              "${EXTRA_ARGS[@]}" \
+              --out /tmp/e2e-pr-comment.md
+            node scripts/ci-report-comment.mjs pack \
+              --section e2e \
+              --step-outcome "$STEP_OUTCOME" \
+              --missing-report job-failed \
+              --report e2e-download/e2e-results.json \
+              --body-file /tmp/e2e-pr-comment.md \
+              --out ci-section/section.json
+          else
+            echo "No main e2e JSON report" > /tmp/e2e-pr-comment.md
+            node scripts/ci-report-comment.mjs pack \
+              --section e2e \
+              --step-outcome "$STEP_OUTCOME" \
+              --missing-report job-failed \
+              --out ci-section/section.json
+          fi
 
       - name: Update CI report comment
         env:

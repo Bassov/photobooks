@@ -4,17 +4,20 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { gitExec as gitExecIsolated, initTmpRepo } from './git-test-helper.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 import {
   AgentError,
   branchPrefixForItem,
+  clearRunStarted,
   collectSkipSlugs,
   cmdPreflight,
   defaultExec,
-  isFailingBucket,
+  ensureRunStarted,
+  execEnvForCwd,
+  GIT_LOCAL_ENV_VARS,
   isFeatureBranch,
-  isPassingBucket,
   main,
   mustOk,
   mustOkDiffNoIndex,
@@ -24,9 +27,12 @@ import {
   parseTouchSetPaths,
   readNvmrcMajor,
   readPushFailures,
+  readRunStarted,
   resolvePureAddIndexConflict,
+  resolveGitRelPath,
+  resolveRunStartedMs,
   run,
-  runIdFromCheckLink,
+  readRunStartedMs,
   slugFromBranch,
   slugFromFeatFix,
   stripAnsi,
@@ -36,7 +42,9 @@ import {
   tailOutput,
   tryResolveTrivialConflicts,
   mergeOriginMainIfNeeded,
+  buildPrBodyWithMetrics,
   writePushFailures,
+  writeRunStarted,
   pushFailPath,
 } from './agent.mjs'
 
@@ -59,19 +67,12 @@ function tmpRoot(withGit = false) {
 }
 
 function gitInitRepo() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-git-'))
-  tmpDirs.push(d)
-  execFileSync('git', ['init'], { cwd: d, stdio: 'ignore' })
-  execFileSync('git', ['config', 'user.email', 't@t.com'], {
-    cwd: d,
-    stdio: 'ignore',
-  })
-  execFileSync('git', ['config', 'user.name', 't'], { cwd: d, stdio: 'ignore' })
-  fs.writeFileSync(path.join(d, '.nvmrc'), '22\n')
-  fs.writeFileSync(path.join(d, 'tracked.txt'), 'base\n')
-  execFileSync('git', ['add', '.'], { cwd: d, stdio: 'ignore' })
-  execFileSync('git', ['commit', '-m', 'init'], { cwd: d, stdio: 'ignore' })
-  return d
+  return initTmpRepo(tmpDirs, { prefix: 'agent-git-' })
+}
+
+/** Test-local alias: fixtures use ignore stdio via the shared helper. */
+function gitExec(args, cwd, extra = {}) {
+  return gitExecIsolated(args, cwd, { stdio: 'ignore', ...extra })
 }
 
 function fakeExec(handlers) {
@@ -316,22 +317,198 @@ describe('branch and check helpers', () => {
     expect(slugFromBranch('fix/demo')).toBe('demo')
     expect(slugFromBranch('main')).toBe('main')
   })
+})
 
-  it('check buckets and run id', () => {
-    expect(isFailingBucket('fail')).toBe(true)
-    expect(isFailingBucket('pending')).toBe(true)
-    expect(isFailingBucket('pass')).toBe(false)
-    expect(isPassingBucket('pass')).toBe(true)
-    expect(isPassingBucket('skipping')).toBe(true)
-    expect(isPassingBucket('skip')).toBe(true)
-    expect(isPassingBucket('neutral')).toBe(true)
-    expect(isPassingBucket('fail')).toBe(false)
-    expect(runIdFromCheckLink('https://x/actions/runs/12345/job/1')).toBe(
-      '12345',
+describe('execEnvForCwd', () => {
+  it('strips repo-local GIT_* and keeps SSH / terminal prompt', () => {
+    const env = {
+      PATH: '/bin',
+      GIT_DIR: '/decoy/.git',
+      GIT_WORK_TREE: '/decoy',
+      GIT_COMMON_DIR: '/decoy/.git',
+      GIT_CONFIG: '/decoy/config',
+      GIT_CONFIG_PARAMETERS: "'core.bare=true'",
+      GIT_CONFIG_COUNT: '1',
+      GIT_PREFIX: 'x',
+      GIT_IMPLICIT_WORK_TREE: '1',
+      GIT_GRAFT_FILE: 'g',
+      GIT_SHALLOW_FILE: 's',
+      GIT_NO_REPLACE_OBJECTS: '1',
+      GIT_REPLACE_REF_BASE: 'r',
+      GIT_INTERNAL_SUPER_PREFIX: 'p',
+      GIT_INDEX_FILE: 'i',
+      GIT_OBJECT_DIRECTORY: 'o',
+      GIT_ALTERNATE_OBJECT_DIRECTORIES: 'a',
+      GIT_SSH_COMMAND: 'ssh -i key',
+      GIT_TERMINAL_PROMPT: '0',
+    }
+    const out = execEnvForCwd(env)
+    for (const key of GIT_LOCAL_ENV_VARS) expect(out[key]).toBeUndefined()
+    expect(out.PATH).toBe('/bin')
+    expect(out.GIT_SSH_COMMAND).toBe('ssh -i key')
+    expect(out.GIT_TERMINAL_PROMPT).toBe('0')
+  })
+})
+
+describe('run metrics helpers', () => {
+  it('writeRunStarted and buildPrBodyWithMetrics fill wall time and tokens', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/demo')
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(
+      body,
+      '## Summary\n\nok\n\n## Metrics\n\n- wall_time_sec: stale\n\n## OpenSpec\n\nx\n',
     )
-    expect(runIdFromCheckLink(null)).toBe(null)
-    expect(runIdFromCheckLink('')).toBe(null)
-    expect(runIdFromCheckLink('https://example.com/nope')).toBe(null)
+    const { bodyPath, wallTimeSec, tokens } = buildPrBodyWithMetrics(
+      body,
+      root,
+      { AGENT_TOKEN_USAGE: '99' },
+      defaultExec,
+      6_000,
+    )
+    expect(wallTimeSec).toBe(5)
+    expect(tokens).toBe('99')
+    const text = fs.readFileSync(bodyPath, 'utf8')
+    expect(text).toContain('wall_time_sec: 5')
+    expect(text).toContain('tokens: 99')
+    expect(text).toContain('## OpenSpec')
+    expect(text).not.toContain('stale')
+  })
+
+  it('buildPrBodyWithMetrics appends when Metrics section is absent', () => {
+    const root = tmpRoot(true)
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, '## Summary\n')
+    const { bodyPath, wallTimeSec, tokens } = buildPrBodyWithMetrics(
+      body,
+      root,
+      {},
+      defaultExec,
+      Date.now(),
+    )
+    expect(wallTimeSec).toBe(null)
+    expect(tokens).toBe(null)
+    expect(fs.readFileSync(bodyPath, 'utf8')).toMatch(
+      /## Metrics\n\n- wall_time_sec: unknown\n/,
+    )
+  })
+
+  it('buildPrBodyWithMetrics replaces trailing Metrics when no following heading', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 2_000, defaultExec, 'feat/x')
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(
+      body,
+      '## Summary\n\nok\n\n## Metrics\n\n- wall_time_sec: old\n',
+    )
+    const { bodyPath, wallTimeSec } = buildPrBodyWithMetrics(
+      body,
+      root,
+      {},
+      defaultExec,
+      7_000,
+    )
+    expect(wallTimeSec).toBe(5)
+    expect(fs.readFileSync(bodyPath, 'utf8')).toMatch(
+      /## Metrics\n\n- wall_time_sec: 5\n$/,
+    )
+    expect(fs.readFileSync(bodyPath, 'utf8')).not.toContain('old')
+  })
+
+  it('AGENT_RUN_STARTED_AT env wins over the on-disk marker', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/x')
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: '10' })).toBe(
+      10_000,
+    )
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, '## Summary\n')
+    const { wallTimeSec } = buildPrBodyWithMetrics(
+      body,
+      root,
+      { AGENT_RUN_STARTED_AT: '10' },
+      defaultExec,
+      15_000,
+    )
+    expect(wallTimeSec).toBe(5)
+  })
+
+  it('ensureRunStarted keeps the first marker for the same branch', () => {
+    const root = tmpRoot(true)
+    const first = ensureRunStarted(root, 'feat/a', 1_000)
+    expect(first.wrote).toBe(true)
+    const second = ensureRunStarted(root, 'feat/a', 9_999)
+    expect(second.wrote).toBe(false)
+    expect(second.startedAtMs).toBe(1_000)
+    expect(readRunStarted(root)).toEqual({
+      startedAtMs: 1_000,
+      branch: 'feat/a',
+    })
+  })
+
+  it('ensureRunStarted rewrites when the branch changes', () => {
+    const root = tmpRoot(true)
+    ensureRunStarted(root, 'feat/a', 1_000)
+    const next = ensureRunStarted(root, 'feat/b', 5_000)
+    expect(next.wrote).toBe(true)
+    expect(readRunStarted(root)).toEqual({
+      startedAtMs: 5_000,
+      branch: 'feat/b',
+    })
+  })
+
+  it('readRunStarted ignores corrupt or non-numeric markers', () => {
+    const root = tmpRoot(true)
+    const p = resolveGitRelPath(root, 'agent-run-started.json')
+    fs.writeFileSync(p, '{not-json')
+    expect(readRunStarted(root)).toBe(null)
+    expect(readRunStartedMs(root)).toBe(null)
+    fs.writeFileSync(p, JSON.stringify({ startedAtMs: 'nope', branch: 'x' }))
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(p, JSON.stringify({ branch: 'x' }))
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(
+      p,
+      JSON.stringify({ startedAtMs: Number.NaN, branch: 'x' }),
+    )
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(
+      p,
+      JSON.stringify({ startedAtMs: Number.POSITIVE_INFINITY, branch: 'x' }),
+    )
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(p, JSON.stringify({ startedAtMs: 42 }))
+    expect(readRunStarted(root)).toEqual({ startedAtMs: 42, branch: '' })
+    writeRunStarted(root, 7, defaultExec, null)
+    expect(readRunStarted(root)).toEqual({ startedAtMs: 7, branch: '' })
+  })
+
+  it('resolveRunStartedMs ignores non-finite AGENT_RUN_STARTED_AT', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/x')
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: 'nope' })).toBe(
+      1_000,
+    )
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: '  ' })).toBe(
+      1_000,
+    )
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: '' })).toBe(1_000)
+  })
+
+  it('resolveGitRelPath falls back when gitPath throws', () => {
+    const root = tmpRoot(true)
+    const p = resolveGitRelPath(root, 'agent-x.json', () => {
+      throw new Error('rev-parse down')
+    })
+    expect(p).toBe(path.join(root, '.git', 'agent-x.json'))
+  })
+
+  it('clearRunStarted removes the marker file', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/x')
+    expect(readRunStartedMs(root)).toBe(1_000)
+    clearRunStarted(root)
+    expect(readRunStarted(root)).toBe(null)
   })
 })
 
@@ -386,16 +563,10 @@ describe('nvmrc and push failures', () => {
 
   it('pushFailPath uses git-dir in a linked worktree', () => {
     const primary = gitInitRepo()
-    execFileSync('git', ['branch', '-M', 'main'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
+    gitExec(['branch', '-M', 'main'], primary)
     const wt = path.join(primary, '..', `wt-${path.basename(primary)}`)
     tmpDirs.push(wt)
-    execFileSync('git', ['worktree', 'add', wt, '-b', 'feat/wt-item'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
+    gitExec(['worktree', 'add', wt, '-b', 'feat/wt-item'], primary)
     writePushFailures(wt, { 'feat/wt-item': 1 })
     const p = pushFailPath(wt)
     expect(fs.existsSync(p)).toBe(true)
@@ -788,6 +959,39 @@ describe('preflight', () => {
       'extra,from-pr,from-remote',
     ])
     expect(JSON.parse(r.out).branch).toBe('feat/keep')
+    const startedAtMs = readRunStartedMs(root)
+    expect(typeof startedAtMs).toBe('number')
+    expect(startedAtMs).toBeGreaterThan(0)
+    expect(readRunStarted(root)?.branch).toBe('feat/keep')
+
+    // Second preflight on the same branch must not reset the clock.
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'keep'), {
+      recursive: true,
+    })
+    const again = run(
+      ['preflight', '--json', '--root', root, '--skip', 'extra'],
+      {
+        cwd: root,
+        exec: fakeExec([
+          ...envOk,
+          ['git status --porcelain', { stdout: '' }],
+          ['git fetch origin', { code: 0 }],
+          ['git switch main', { code: 0 }],
+          ['git pull --ff-only', { code: 0 }],
+          ['gh pr list', { stdout: 'fix/from-pr\n' }],
+          ['git branch -r', { stdout: '  origin/fix/from-remote\n' }],
+          ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+          ['git switch -c feat/keep', { code: 0 }],
+          [
+            'openspec instructions proposal',
+            { stdout: JSON.stringify({ template: 'T', rules: ['r'] }) },
+          ],
+        ]),
+        env: {},
+      },
+    )
+    expect(again.code, again.err).toBe(0)
+    expect(readRunStartedMs(root)).toBe(startedAtMs)
   })
 
   it('reuses existing local branch when switch -c fails and merge-base ok', () => {
@@ -1139,9 +1343,8 @@ describe('finish', () => {
         'branch: feat/demo',
         'ahead: 2',
         'pr: undefined',
+        'created: undefined',
         'summary: denied',
-        '--- log-failed (tail) ---',
-        'undefined',
       ].join('\n'),
     )
   })
@@ -1219,10 +1422,50 @@ describe('finish', () => {
     expect(pushes).toBe(2)
   })
 
-  it('happy path treats skipping as pass', () => {
+  it('clears prior push failures after a successful push', () => {
+    const root = tmpRoot(true)
+    writePushFailures(root, { 'feat/demo': 1, 'feat/other': 2 })
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, '## Summary\n')
+    const r = run(
+      ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
+      {
+        cwd: root,
+        exec: finishBase([
+          ['git push', { code: 0 }],
+          ['gh pr list --head', { stdout: 'null\n' }],
+          ['gh pr create', { stdout: 'https://example.com/pr/clear\n' }],
+        ]),
+        env: {},
+      },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(readPushFailures(root)).toEqual({ 'feat/other': 2 })
+  })
+
+  it('happy path creates PR and does not watch CI', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
     fs.writeFileSync(body, '## Summary\n')
+    writeRunStarted(root, Date.now() - 5000)
+    const calls = []
+    const base = finishBase([
+      ['git push', { code: 0 }],
+      ['gh pr list --head', { stdout: 'null\n' }],
+      [
+        'gh pr create',
+        (file, args) => {
+          calls.push([file, [...args]])
+          return { stdout: '\u001b[32mhttps://example.com/pr/1\u001b[0m\n' }
+        },
+      ],
+      [
+        'gh pr checks --watch',
+        () => {
+          throw new Error('must not watch CI')
+        },
+      ],
+    ])
     const r = run(
       [
         'finish',
@@ -1237,24 +1480,7 @@ describe('finish', () => {
       ],
       {
         cwd: root,
-        exec: finishBase([
-          ['git push', { code: 0 }],
-          ['gh pr list --head', { stdout: 'null\n' }],
-          [
-            'gh pr create',
-            { stdout: '\u001b[32mhttps://example.com/pr/1\u001b[0m\n' },
-          ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([
-                { name: 'a', bucket: 'pass', link: '' },
-                { name: 'b', bucket: 'skipping', link: '' },
-              ]),
-            },
-          ],
-        ]),
+        exec: base,
         env: { CI: '1' },
       },
     )
@@ -1263,57 +1489,19 @@ describe('finish', () => {
     expect(j.ok).toBe(true)
     expect(j.prUrl).toBe('https://example.com/pr/1')
     expect(j.created).toBe(true)
-    expect(j.checks).toEqual(['a: pass', 'b: skipping'])
+    expect(j.stage).toBe('pr')
+    expect(j.checks).toBeUndefined()
+    expect(j.metrics?.wallTimeSec).toBeGreaterThanOrEqual(5)
+    const createArgs = calls.find((c) => c[0] === 'gh' && c[1][1] === 'create')
+    expect(createArgs).toBeTruthy()
+    const bodyFile = createArgs[1][createArgs[1].indexOf('--body-file') + 1]
+    expect(fs.readFileSync(bodyFile, 'utf8')).toMatch(/wall_time_sec:/)
+    expect(readRunStarted(root)).toBe(null)
   })
 
-  it('fetches log-failed with run id from check link', () => {
+  it('updates existing PR without CI watch', () => {
     const root = tmpRoot(true)
-    const body = path.join(root, 'body.md')
-    fs.writeFileSync(body, 'x\n')
-    let viewed = null
-    const r = run(
-      ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
-      {
-        cwd: root,
-        exec: finishBase([
-          ['git push', { code: 0 }],
-          [
-            'gh pr list --head',
-            { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-          ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([
-                {
-                  name: 'checks',
-                  bucket: 'fail',
-                  link: 'https://github.com/o/r/actions/runs/999/job/1',
-                },
-              ]),
-            },
-          ],
-          [
-            'gh run view',
-            (file, args) => {
-              viewed = args
-              return { code: 0, stdout: 'job failed detail\n'.repeat(5) }
-            },
-          ],
-        ]),
-        env: {},
-      },
-    )
-    expect(r.code).toBe(1)
-    expect(viewed).toEqual(['run', 'view', '999', '--log-failed'])
-    expect(JSON.parse(r.out).logTail).toContain('job failed detail')
-    expect(JSON.parse(r.out).created).toBe(false)
-  })
-
-  it('reports when failed check has no actions link', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--root', root], {
+    const r = run(['finish', '--json', '--root', root], {
       cwd: root,
       exec: finishBase([
         ['git push', { code: 0 }],
@@ -1321,85 +1509,21 @@ describe('finish', () => {
           'gh pr list --head',
           { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
         ],
-        ['gh pr checks --watch', { code: 0 }],
         [
-          'gh pr checks --json',
-          {
-            stdout: JSON.stringify([
-              { name: 'x', bucket: 'fail', link: 'https://example.com/nope' },
-            ]),
+          'gh pr checks --watch',
+          () => {
+            throw new Error('must not watch CI')
           },
         ],
       ]),
       env: {},
     })
-    expect(r.code).toBe(1)
-    expect(r.out).toContain(
-      'failed check has no actions/runs link; cannot fetch --log-failed',
-    )
-    expect(r.out).toContain('ok: false')
-    expect(r.out).toContain('stage: ci')
-    expect(r.out).toContain('pr: https://pr/1')
-    expect(r.out).toContain('--- log-failed (tail) ---')
-  })
-
-  it('reports checks query failure', () => {
-    const root = tmpRoot(true)
-    writePushFailures(root, { 'feat/demo': 1 })
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 9, url: 'https://pr/9' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { code: 1, stderr: 'rate limit\n' }],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).summary).toBe(
-      'gh pr checks query failed:\nrate limit',
-    )
-    expect(readPushFailures(root)['feat/demo']).toBeUndefined()
-  })
-
-  it('reports invalid checks JSON', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 9, url: 'https://pr/9' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { stdout: '{not-array}' }],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).summary).toMatch(/invalid JSON/)
-  })
-
-  it('treats non-array checks JSON as empty failure', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { stdout: '{"nope":true}' }],
-      ]),
-      env: {},
-    })
-    expect(r.code).toBe(1)
-    expect(r.out).toMatch(/ok: false/)
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.ok).toBe(true)
+    expect(j.created).toBe(false)
+    expect(j.prUrl).toBe('https://pr/1')
+    expect(j.metrics).toBe(null)
   })
 
   it('requires --title when creating PR', () => {
@@ -1466,13 +1590,6 @@ describe('finish', () => {
           ['git push', { code: 0 }],
           ['gh pr list --head', { stdout: 'not-json{' }],
           ['gh pr create', { stdout: 'https://example.com/pr/2\n' }],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
-            },
-          ],
         ]),
         env: {},
       },
@@ -1501,13 +1618,6 @@ describe('finish', () => {
               return { stdout: 'https://example.com/pr/3\n' }
             },
           ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
-            },
-          ],
         ]),
         env: {},
       },
@@ -1528,13 +1638,6 @@ describe('finish', () => {
           ['git push', { code: 0 }],
           ['gh pr list --head', { stdout: '' }],
           ['gh pr create', { stdout: 'https://example.com/pr/4\n' }],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'skip' }]),
-            },
-          ],
         ]),
         env: {},
       },
@@ -1543,64 +1646,15 @@ describe('finish', () => {
     expect(JSON.parse(r.out).created).toBe(true)
   })
 
-  it('ok is false when checks list is empty array', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { stdout: '[]' }],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).ok).toBe(false)
-    expect(JSON.parse(r.out).checks).toEqual([])
-  })
-
-  it('pending bucket keeps ok false without log-failed fetch', () => {
-    const root = tmpRoot(true)
-    let viewed = false
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        [
-          'gh pr checks --json',
-          {
-            stdout: JSON.stringify([
-              { name: 'x', bucket: 'pending', link: '' },
-            ]),
-          },
-        ],
-        [
-          'gh run view',
-          () => {
-            viewed = true
-            return { code: 0, stdout: 'nope' }
-          },
-        ],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).ok).toBe(false)
-    expect(JSON.parse(r.out).logTail).toBe(null)
-    expect(viewed).toBe(false)
-  })
-
-  it('CI env alone enables quiet stripping', () => {
+  it('includes tokens in metrics when AGENT_TOKEN_USAGE is set', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
-    fs.writeFileSync(body, 'b\n')
+    fs.writeFileSync(
+      body,
+      '## Summary\n\n## Metrics\n\n- wall_time_sec: stale\n',
+    )
+    writeRunStarted(root, Date.now() - 1000)
+    let bodyFile = null
     const r = run(
       ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
       {
@@ -1610,23 +1664,24 @@ describe('finish', () => {
           ['gh pr list --head', { stdout: 'null\n' }],
           [
             'gh pr create',
-            { stdout: '\u001b[32mhttps://example.com/pr/ci\u001b[0m\n' },
-          ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
+            (file, args) => {
+              bodyFile = args[args.indexOf('--body-file') + 1]
+              return { stdout: 'https://example.com/pr/tok\n' }
             },
           ],
         ]),
-        env: { CI: 'true' },
+        env: { AGENT_TOKEN_USAGE: '12345' },
       },
     )
-    expect(JSON.parse(r.out).prUrl).toBe('https://example.com/pr/ci')
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.metrics.tokens).toBe('12345')
+    const written = fs.readFileSync(bodyFile, 'utf8')
+    expect(written).toContain('tokens: 12345')
+    expect(written).not.toContain('stale')
   })
 
-  it('records exact argv for push create and checks watch', () => {
+  it('records exact argv for push and create without checks watch', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
     fs.writeFileSync(body, 'body-text\n')
@@ -1652,7 +1707,7 @@ describe('finish', () => {
       if (key.includes('git rev-parse --git-path'))
         return {
           code: 0,
-          stdout: `.git/agent-finish-push-failures.json\n`,
+          stdout: `.git/${args[args.length - 1]}\n`,
           stderr: '',
         }
       if (key.includes('git push')) return { code: 0, stdout: '', stderr: '' }
@@ -1660,14 +1715,6 @@ describe('finish', () => {
         return { code: 0, stdout: 'null\n', stderr: '' }
       if (key.includes('gh pr create'))
         return { code: 0, stdout: 'https://example.com/pr/5\n', stderr: '' }
-      if (key.includes('gh pr checks --watch'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('gh pr checks --json'))
-        return {
-          code: 0,
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass', link: '' }]),
-          stderr: '',
-        }
       return { code: 1, stdout: '', stderr: `unhandled ${key}` }
     }
     const r = run(
@@ -1701,22 +1748,21 @@ describe('finish', () => {
         '.[0]',
       ],
     ])
-    expect(calls).toContainEqual([
-      'gh',
-      ['pr', 'create', '--title', 'My Title', '--body-file', body],
-    ])
-    expect(calls).toContainEqual([
-      'gh',
-      ['pr', 'checks', '--watch', '--fail-fast', '--interval', '30'],
-    ])
-    expect(calls).toContainEqual([
-      'gh',
-      ['pr', 'checks', '--json', 'name,bucket,link'],
-    ])
-    expect(calls).toContainEqual([
-      'git',
-      ['rev-list', '--count', 'origin/main..HEAD'],
-    ])
+    expect(
+      calls.some(
+        (c) =>
+          c[0] === 'gh' &&
+          c[1][0] === 'pr' &&
+          c[1][1] === 'create' &&
+          c[1].includes('My Title'),
+      ),
+    ).toBe(true)
+    expect(
+      calls.some(
+        (c) =>
+          c[0] === 'gh' && c[1].includes('checks') && c[1].includes('--watch'),
+      ),
+    ).toBe(false)
   })
 })
 
@@ -1781,14 +1827,8 @@ describe('review-brief', () => {
       `| File | Why |\n| ---- | --- |\n| \`tracked.txt\` | t |\n`,
     )
     fs.writeFileSync(path.join(repo, 'tracked.txt'), 'committed-change\n')
-    execFileSync('git', ['add', 'tracked.txt', 'openspec'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['commit', '-m', 'change'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['add', 'tracked.txt', 'openspec'], repo)
+    gitExec(['commit', '-m', 'change'], repo)
     const headEmpty = run(
       ['review-brief', '--json', '--change', 'demo', '--root', repo],
       { cwd: repo, env: {} },
@@ -1877,39 +1917,18 @@ describe('review-brief', () => {
 
   it('diff vs merge-base ignores commits that landed only on base', () => {
     const repo = gitInitRepo()
-    execFileSync('git', ['branch', '-M', 'main'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['checkout', '-b', 'feat/demo'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['branch', '-M', 'main'], repo)
+    gitExec(['checkout', '-b', 'feat/demo'], repo)
     fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'on-branch\n')
-    execFileSync('git', ['add', 'branch-only.txt'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['commit', '-m', 'branch change'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['add', 'branch-only.txt'], repo)
+    gitExec(['commit', '-m', 'branch change'], repo)
 
-    execFileSync('git', ['checkout', 'main'], { cwd: repo, stdio: 'ignore' })
+    gitExec(['checkout', 'main'], repo)
     fs.writeFileSync(path.join(repo, 'main-only.txt'), 'on-main\n')
-    execFileSync('git', ['add', 'main-only.txt'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['commit', '-m', 'main moved'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['add', 'main-only.txt'], repo)
+    gitExec(['commit', '-m', 'main moved'], repo)
 
-    execFileSync('git', ['checkout', 'feat/demo'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['checkout', 'feat/demo'], repo)
     const change = path.join(repo, 'openspec', 'changes', 'demo')
     fs.mkdirSync(change, { recursive: true })
     fs.writeFileSync(
@@ -2170,13 +2189,6 @@ describe('help / errors / defaultExec / main', () => {
       ['git push', { code: 0 }],
       ['gh pr list --head', { stdout: 'null\n' }],
       ['gh pr create', { stdout: ansiUrl }],
-      ['gh pr checks --watch', { code: 0 }],
-      [
-        'gh pr checks --json',
-        {
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass', link: '' }]),
-        },
-      ],
     ]
     const quiet = run(
       [
@@ -2825,14 +2837,6 @@ describe('claimed set and merge helpers', () => {
           }),
           stderr: '',
         }
-      if (key.includes('gh pr checks --watch'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('gh pr checks --json'))
-        return {
-          code: 0,
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
-          stderr: '',
-        }
       return { code: 1, stdout: '', stderr: `unhandled ${key}` }
     }
     const r = run(
@@ -2848,40 +2852,6 @@ describe('claimed set and merge helpers', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
     fs.writeFileSync(body, 'b\n')
-    let pushes = 0
-    const exec = fakeExec([
-      ...envOk,
-      ['git status --porcelain', { stdout: '' }],
-      ['git branch --show-current', { stdout: 'feat/demo\n' }],
-      ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
-      ['pnpm verify:fast:quiet', { code: 0 }],
-      ['git fetch origin', { code: 0 }],
-      ['git merge-base --is-ancestor', { code: 0 }],
-      [
-        'git push',
-        () => {
-          pushes++
-          if (pushes === 1)
-            return {
-              code: 1,
-              stderr: '! [rejected] non-fast-forward\n',
-            }
-          return { code: 0, stdout: '', stderr: '' }
-        },
-      ],
-      ['git merge-base --is-ancestor', { code: 1 }],
-      ['git merge origin/main', { code: 0 }],
-      [
-        'gh pr list',
-        { stdout: '{"number":1,"url":"https://example.com/pr/1"}' },
-      ],
-      ['gh pr checks --watch', { code: 0 }],
-      [
-        'gh pr checks --json',
-        { stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]) },
-      ],
-    ])
-    // Second merge-base after reject: force not-ancestor then clean merge.
     const base = fakeExec([
       ...envOk,
       ['git status --porcelain', { stdout: '' }],
@@ -2916,14 +2886,6 @@ describe('claimed set and merge helpers', () => {
           }),
           stderr: '',
         }
-      if (key.includes('gh pr checks --watch'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('gh pr checks --json'))
-        return {
-          code: 0,
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
-          stderr: '',
-        }
       return base(file, args, opts)
     }
     const r = run(
@@ -2939,26 +2901,14 @@ describe('claimed set and merge helpers', () => {
 describe('linked worktree preflight --slug', () => {
   it('creates feat branch from origin/main while main is checked out elsewhere', () => {
     const primary = gitInitRepo()
-    execFileSync('git', ['branch', '-M', 'main'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['checkout', '-b', 'origin-main-tmp'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
+    gitExec(['branch', '-M', 'main'], primary)
+    gitExec(['checkout', '-b', 'origin-main-tmp'], primary)
     // Simulate origin/main as a local ref the worktree can track.
-    execFileSync('git', ['branch', 'origin/main', 'main'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['checkout', 'main'], { cwd: primary, stdio: 'ignore' })
+    gitExec(['branch', 'origin/main', 'main'], primary)
+    gitExec(['checkout', 'main'], primary)
     const wt = path.join(os.tmpdir(), `agent-wt-${path.basename(primary)}`)
     tmpDirs.push(wt)
-    execFileSync('git', ['worktree', 'add', '--detach', wt], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
+    gitExec(['worktree', 'add', '--detach', wt], primary)
     fs.writeFileSync(path.join(wt, '.nvmrc'), '22\n')
     fs.mkdirSync(path.join(wt, 'openspec', 'changes'), { recursive: true })
     fs.mkdirSync(path.join(wt, 'docs/roadmap/M2.1'), { recursive: true })
@@ -2970,9 +2920,8 @@ describe('linked worktree preflight --slug', () => {
       path.join(wt, 'docs/roadmap/M2.1/wt-slug.md'),
       '# wt-slug\n\nTag: prep\nMilestone: M2.1\nTitle: t\n',
     )
-    execFileSync('git', ['add', '-A'], { cwd: wt, stdio: 'ignore' })
-    execFileSync(
-      'git',
+    gitExec(['add', '-A'], wt)
+    gitExec(
       [
         '-c',
         'user.email=t@t.com',
@@ -2982,10 +2931,7 @@ describe('linked worktree preflight --slug', () => {
         '-m',
         'wt fixture',
       ],
-      {
-        cwd: wt,
-        stdio: 'ignore',
-      },
+      wt,
     )
     // Real git for worktree ops; stub only external tools + roadmap next path via thin wrapper.
     const real = defaultExec
@@ -3034,16 +2980,13 @@ describe('linked worktree preflight --slug', () => {
     expect(r.ok).toBe(true)
     expect(r.item.slug).toBe('wt-slug')
     expect(r.branch).toBe('feat/wt-slug')
-    const br = execFileSync('git', ['branch', '--show-current'], {
-      cwd: wt,
-      encoding: 'utf8',
-    }).trim()
+    const br = String(gitExecIsolated(['branch', '--show-current'], wt)).trim()
     expect(br).toBe('feat/wt-slug')
-    const mainBr = execFileSync('git', ['branch', '--show-current'], {
-      cwd: primary,
-      encoding: 'utf8',
-    }).trim()
+    const mainBr = String(
+      gitExecIsolated(['branch', '--show-current'], primary),
+    ).trim()
     expect(mainBr).toBe('main')
+    expect(readRunStarted(wt)?.branch).toBe('feat/wt-slug')
   })
 })
 
