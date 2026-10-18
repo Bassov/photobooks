@@ -74,6 +74,35 @@ describe('per-spread paint subscription', () => {
     expect(image.getAttribute('src')).toBe('blob:thumb-fallback')
   })
 
+  it('updates the frame when a filmstrip thumb publishes after first paint', () => {
+    let thumbSerial = 0
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      thumbSerial += 1
+      return `blob:thumb-late-${String(thumbSerial)}`
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const book = twoSpreadBook()
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    expect(screen.queryByTestId('spread-frame-image')).toBeNull()
+    expect(screen.getByTestId('spread-frame-placeholder')).toBeTruthy()
+    const serialBefore = thumbSerial
+
+    act(() => {
+      setThumbUrl('a', new Uint8Array([1, 2, 3]).buffer, 'image/jpeg')
+    })
+    expect(thumbSerial).toBeGreaterThan(serialBefore)
+    expect(screen.getByTestId('spread-frame-image').getAttribute('src')).toBe(
+      `blob:thumb-late-${String(thumbSerial)}`,
+    )
+  })
+
   it('notifies only the edited spread and keeps the sibling snapshot', () => {
     const book = twoSpreadBook()
     resetBookStore({

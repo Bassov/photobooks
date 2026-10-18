@@ -4,11 +4,13 @@ import { getAssetAspectSnapshot, resetBookStore } from './bookStore'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
   ensureThumb,
+  getThumbPublishGeneration,
   getThumbUrl,
   putCachedThumbForHash,
   resetThumbCache,
   setThumbUrl,
   subscribeThumb,
+  subscribeThumbPublishes,
 } from './thumbCache'
 
 const SAMPLE_HASH =
@@ -34,6 +36,20 @@ describe('thumbCache', () => {
     setDerivedCacheForTests(undefined)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('notifies publish subscribers and bumps generation', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pub')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const listener = vi.fn()
+    const unsubscribe = subscribeThumbPublishes(listener)
+    const before = getThumbPublishGeneration()
+    setThumbUrl('a1', new Uint8Array([1]).buffer, 'image/jpeg')
+    expect(getThumbPublishGeneration()).toBe(before + 1)
+    expect(listener).toHaveBeenCalledTimes(1)
+    unsubscribe()
+    setThumbUrl('a1', new Uint8Array([2]).buffer, 'image/jpeg')
+    expect(listener).toHaveBeenCalledTimes(1)
   })
 
   it('stores thumb urls immediately and notifies subscribers', () => {

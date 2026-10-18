@@ -20,4 +20,6 @@ Title: Stabilize functional e2e flakes (open-save, filmstrip gaps, template-unpl
 
 ## Done note
 
-Shipped: sync thumb publish; bookStore rAF+32ms watchdog flush; ConnectedSpreadView thumb fallback+subscribeThumb; e2e bringToFront/focus asserts; removed template-unplace retries. Frame-budget LoAF flakes remain in e2e-frame-budget-flakes.
+Shipped: sync thumb publish; bookStore rAF+32ms watchdog flush (watchdog cleared on run); patchAssetRecord/getAssetContentHash pending-hash race for Open hydrate; ConnectedSpreadView thumb fallback+subscribeThumb; e2e bringToFront/focus asserts + swap asserts on `data-asset-id`; removed template-unplace retries. Frame-budget LoAF flakes remain in e2e-frame-budget-flakes.
+
+Post-merge observation: “`integration` green on three consecutive `main` runs” can only be checked after merge; a regression reopens via `e2e-frame-budget-flakes` / `strict-e2e` follow-ups.

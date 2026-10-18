@@ -8,6 +8,8 @@ const DEFAULT_CAPACITY = 256
 
 const lru = new ObjectUrlLru({ capacity: DEFAULT_CAPACITY })
 const assetListeners = new Map<string, Set<() => void>>()
+const publishListeners = new Set<() => void>()
+let publishGeneration = 0
 
 const hydrateInflight = new Map<string, AbortController>()
 
@@ -15,11 +17,15 @@ const hydrateInflight = new Map<string, AbortController>()
 const lastThumb = new Map<string, { buffer: ArrayBuffer; mimeType: string }>()
 
 function notifyAsset(assetId: string): void {
+  publishGeneration += 1
   const set = assetListeners.get(assetId)
   if (set) {
     for (const listener of set) {
       listener()
     }
+  }
+  for (const listener of publishListeners) {
+    listener()
   }
 }
 
@@ -47,6 +53,18 @@ export function subscribeThumb(
       assetListeners.delete(assetId)
     }
   }
+}
+
+/** Subscribe to any thumb publish/reset (stable useSyncExternalStore subscribe). */
+export function subscribeThumbPublishes(listener: () => void): () => void {
+  publishListeners.add(listener)
+  return () => {
+    publishListeners.delete(listener)
+  }
+}
+
+export function getThumbPublishGeneration(): number {
+  return publishGeneration
 }
 
 export function getThumbUrl(assetId: string): string | undefined {
@@ -142,9 +160,13 @@ export function resetThumbCache(): void {
   }
   hydrateInflight.clear()
   lru.clear()
+  publishGeneration += 1
   for (const set of assetListeners.values()) {
     for (const listener of set) {
       listener()
     }
+  }
+  for (const listener of publishListeners) {
+    listener()
   }
 }

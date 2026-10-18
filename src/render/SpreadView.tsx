@@ -150,6 +150,7 @@ function SpreadFrame({
         data-testid="spread-frame"
         data-frame-id={item.frameId}
         data-filled={item.assetId === undefined ? 'false' : 'true'}
+        data-asset-id={item.assetId}
         style={style}
       >
         {body}
@@ -163,6 +164,7 @@ function SpreadFrame({
       data-testid="spread-frame"
       data-frame-id={item.frameId}
       data-filled={item.assetId === undefined ? 'false' : 'true'}
+      data-asset-id={item.assetId}
       aria-label={control.label}
       aria-pressed={control.pressed === true ? true : undefined}
       style={style}
