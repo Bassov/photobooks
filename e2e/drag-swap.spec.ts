@@ -105,8 +105,13 @@ test.describe('keyboard rearrange', () => {
     const placed = active.locator('button[data-filled="true"]')
     const firstPlacedId = await placed.nth(0).getAttribute('data-frame-id')
     const secondPlacedId = await placed.nth(1).getAttribute('data-frame-id')
-    const firstSrc = await placed.nth(0).locator('img').getAttribute('src')
-    const secondSrc = await placed.nth(1).locator('img').getAttribute('src')
+    // Assert swap on asset identity — blob src can change when the frame
+    // upgrades from filmstrip thumb fallback to a covering tier URL.
+    const firstAssetId = await placed.nth(0).getAttribute('data-asset-id')
+    const secondAssetId = await placed.nth(1).getAttribute('data-asset-id')
+    expect(firstAssetId).toBeTruthy()
+    expect(secondAssetId).toBeTruthy()
+    expect(firstAssetId).not.toBe(secondAssetId)
     const pasteboardBefore = await page
       .getByTestId('pasteboard-scroll')
       .boundingBox()
@@ -139,11 +144,11 @@ test.describe('keyboard rearrange', () => {
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(2)
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
     await expect(
-      active.locator(`button[data-frame-id="${firstPlacedId ?? ''}"] img`),
-    ).toHaveAttribute('src', secondSrc ?? '')
+      active.locator(`button[data-frame-id="${firstPlacedId ?? ''}"]`),
+    ).toHaveAttribute('data-asset-id', secondAssetId ?? '')
     await expect(
-      active.locator(`button[data-frame-id="${secondPlacedId ?? ''}"] img`),
-    ).toHaveAttribute('src', firstSrc ?? '')
+      active.locator(`button[data-frame-id="${secondPlacedId ?? ''}"]`),
+    ).toHaveAttribute('data-asset-id', firstAssetId ?? '')
     await expect
       .poll(async () => page.getByTestId('editor-status').textContent())
       .toBe('Photos swapped')
@@ -195,20 +200,25 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
 }) => {
   test.setTimeout(120_000)
   await openSessionEditor(page)
+  await page.bringToFront()
   await page
     .getByTestId('photo-file-input')
     .setInputFiles([photoFixturePaths.samplePng])
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
     timeout: 30_000,
   })
+  await page.bringToFront()
   await page.getByRole('radio', { name: '4-grid' }).click()
   const active = page.getByTestId('spread-view').first()
-  await page.getByTestId('filmstrip-item').first().focus()
+  const firstItem = page.getByTestId('filmstrip-item').first()
+  await firstItem.focus()
   await page.keyboard.press('Space')
+  await expect(firstItem).toHaveAttribute('aria-selected', 'true')
   const frame = active
     .getByRole('button', { name: 'Place photo', exact: true })
     .first()
   await frame.focus()
+  await expect(frame).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,

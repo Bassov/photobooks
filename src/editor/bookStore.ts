@@ -95,8 +95,12 @@ interface CachedSpreadPaint extends SpreadPaintSnapshot {
 const paintCache = new Map<string, CachedSpreadPaint>()
 let assetSeq = 0
 let flushScheduled = false
+let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
 let pendingGalleryIds: string[] = []
 let pendingMeta = new Map<string, AssetSessionMeta>()
+let pendingAssetRecords = new Map<string, Asset>()
+/** Patches that arrived before enqueueGalleryAssets (hash-before-flush race). */
+let pendingAssetPatches = new Map<string, Partial<Asset>>()
 
 const galleryListeners = new Set<Listener>()
 
@@ -128,67 +132,87 @@ function emitGallery(): void {
   emit()
 }
 
+function flushPendingGalleryAndMeta(): void {
+  const ids = pendingGalleryIds.splice(0, GALLERY_FLUSH_CHUNK)
+  const metaBatch = pendingMeta
+  pendingMeta = new Map()
+  if (ids.length === 0 && metaBatch.size === 0) {
+    if (pendingGalleryIds.length > 0) {
+      scheduleFlush()
+    }
+    return
+  }
+  let book = state.book
+  let galleryChanged = false
+  if (ids.length > 0) {
+    book = applyBookOp(book, { type: 'addToGallery', assetIds: ids })
+    if (pendingAssetRecords.size > 0) {
+      let assets = book.assets
+      let assetsChanged = false
+      for (const id of ids) {
+        const record = pendingAssetRecords.get(id)
+        if (record === undefined) {
+          continue
+        }
+        pendingAssetRecords.delete(id)
+        assets = { ...assets, [id]: { ...assets[id], ...record } }
+        assetsChanged = true
+      }
+      if (assetsChanged) {
+        book = { ...book, assets }
+      }
+    }
+    galleryChanged = book.gallery !== state.book.gallery
+  }
+  const sessionMeta = new Map(state.sessionMeta)
+  for (const [id, meta] of metaBatch) {
+    sessionMeta.set(id, meta)
+  }
+  const prev = state
+  state = {
+    book,
+    sessionMeta,
+    previewUrls: state.previewUrls,
+    importRunning: state.importRunning,
+    importExpectedCount: state.importExpectedCount,
+  }
+  invalidateGalleryAspectsCache()
+  notifyAffectedSpreads(prev, state)
+  if (galleryChanged) {
+    emitGallery()
+  } else {
+    emit()
+  }
+  if (pendingGalleryIds.length > 0 || pendingMeta.size > 0) {
+    scheduleFlush()
+  }
+}
+
+/** Watchdog if rAF is frozen (background tab under parallel Playwright). */
+const FLUSH_RAF_WATCHDOG_MS = 32
+
 function scheduleFlush(): void {
   if (flushScheduled) {
     return
   }
   flushScheduled = true
-  requestAnimationFrame(() => {
-    flushScheduled = false
-    const ids = pendingGalleryIds.splice(0, GALLERY_FLUSH_CHUNK)
-    const metaBatch = pendingMeta
-    pendingMeta = new Map()
-    if (ids.length === 0 && metaBatch.size === 0) {
-      if (pendingGalleryIds.length > 0) {
-        scheduleFlush()
-      }
+  const run = (): void => {
+    if (!flushScheduled) {
       return
     }
-    let book = state.book
-    let galleryChanged = false
-    if (ids.length > 0) {
-      book = applyBookOp(book, { type: 'addToGallery', assetIds: ids })
-      if (pendingAssetRecords.size > 0) {
-        let assets = book.assets
-        let assetsChanged = false
-        for (const id of ids) {
-          const record = pendingAssetRecords.get(id)
-          if (record === undefined) {
-            continue
-          }
-          pendingAssetRecords.delete(id)
-          assets = { ...assets, [id]: { ...assets[id], ...record } }
-          assetsChanged = true
-        }
-        if (assetsChanged) {
-          book = { ...book, assets }
-        }
-      }
-      galleryChanged = book.gallery !== state.book.gallery
+    flushScheduled = false
+    if (flushWatchdogTimer !== undefined) {
+      clearTimeout(flushWatchdogTimer)
+      flushWatchdogTimer = undefined
     }
-    const sessionMeta = new Map(state.sessionMeta)
-    for (const [id, meta] of metaBatch) {
-      sessionMeta.set(id, meta)
-    }
-    const prev = state
-    state = {
-      book,
-      sessionMeta,
-      previewUrls: state.previewUrls,
-      importRunning: state.importRunning,
-      importExpectedCount: state.importExpectedCount,
-    }
-    invalidateGalleryAspectsCache()
-    notifyAffectedSpreads(prev, state)
-    if (galleryChanged) {
-      emitGallery()
-    } else {
-      emit()
-    }
-    if (pendingGalleryIds.length > 0 || pendingMeta.size > 0) {
-      scheduleFlush()
-    }
-  })
+    flushPendingGalleryAndMeta()
+  }
+  // Prefer rAF for LoAF pacing when the tab is visible. A short setTimeout
+  // watchdog still fires if rAF is frozen after the page was backgrounded.
+  // Clear the watchdog in `run` so a stale timer cannot flush a later batch
+  // early after rAF already ran and scheduleFlush armed a new pair.
+  requestAnimationFrame(run)
+  flushWatchdogTimer = setTimeout(run, FLUSH_RAF_WATCHDOG_MS)
 }
 
 export function subscribeBookStore(listener: Listener): () => void {
@@ -221,13 +245,25 @@ export function getAssetAspectSnapshot(assetId: string): number {
 
 /** Optional content hash from the book asset record; undefined when unset. */
 export function getAssetContentHash(assetId: string): string | undefined {
-  return state.book.assets[assetId]?.contentHash
+  return (
+    state.book.assets[assetId]?.contentHash ??
+    pendingAssetRecords.get(assetId)?.contentHash ??
+    pendingAssetPatches.get(assetId)?.contentHash
+  )
 }
 
 /** Merge identity fields onto an existing gallery asset record. */
 export function patchAssetRecord(assetId: string, patch: Partial<Asset>): void {
   const existing = state.book.assets[assetId]
   if (existing === undefined) {
+    const pending = pendingAssetRecords.get(assetId)
+    if (pending !== undefined) {
+      pendingAssetRecords.set(assetId, { ...pending, ...patch })
+      return
+    }
+    // Hash can finish before enqueueGalleryAssets; keep the patch for flush.
+    const early = pendingAssetPatches.get(assetId) ?? {}
+    pendingAssetPatches.set(assetId, { ...early, ...patch })
     return
   }
   const nextAsset: Asset = { ...existing, ...patch }
@@ -308,8 +344,6 @@ export function mintAssetId(fileName: string): string {
   return `asset-${String(assetSeq)}-${safe}`
 }
 
-let pendingAssetRecords = new Map<string, Asset>()
-
 /** Queue gallery append + optional placeholder meta; flushed in chunks per animation frame. */
 export function enqueueGalleryAssets(
   entries: readonly {
@@ -320,8 +354,19 @@ export function enqueueGalleryAssets(
 ): void {
   for (const entry of entries) {
     pendingGalleryIds.push(entry.assetId)
+    const earlyPatch = pendingAssetPatches.get(entry.assetId)
+    if (earlyPatch !== undefined) {
+      pendingAssetPatches.delete(entry.assetId)
+    }
     if (entry.asset) {
-      pendingAssetRecords.set(entry.assetId, entry.asset)
+      pendingAssetRecords.set(
+        entry.assetId,
+        earlyPatch === undefined
+          ? entry.asset
+          : { ...entry.asset, ...earlyPatch },
+      )
+    } else if (earlyPatch !== undefined) {
+      pendingAssetRecords.set(entry.assetId, earlyPatch)
     }
     if (entry.meta) {
       pendingMeta.set(entry.assetId, entry.meta)
@@ -587,7 +632,12 @@ export function resetBookStore(next?: BookStoreInit): void {
   pendingGalleryIds = []
   pendingMeta = new Map()
   pendingAssetRecords = new Map()
+  pendingAssetPatches = new Map()
   flushScheduled = false
+  if (flushWatchdogTimer !== undefined) {
+    clearTimeout(flushWatchdogTimer)
+    flushWatchdogTimer = undefined
+  }
   placementCountsFor = null
   assetSeq = 0
   paintCache.clear()

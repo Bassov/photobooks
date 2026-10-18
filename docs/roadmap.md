@@ -26,7 +26,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [e2e-burn-in](roadmap/M2.1/e2e-burn-in.md) — new and changed e2e specs are burned in on every PR
 - [x] [prep] [narrow-add-spread-horizontal-contain](roadmap/M2.1/narrow-add-spread-horizontal-contain.md) — Add-spread reveal must contain horizontally (narrow and desktop)
 - [x] [contingency] [burn-in-targets-cli-spawn-assert](roadmap/M2.1/burn-in-targets-cli-spawn-assert.md) — Burn-in targets spawn test must not assume burn-in-smoke in every PR diff
-- [ ] [prep] [e2e-local-flakes](roadmap/M2.1/e2e-local-flakes.md) — Stabilize functional e2e flakes (open-save, filmstrip gaps, template-unplace, autosave, drag-swap)
+- [x] [prep] [e2e-local-flakes](roadmap/M2.1/e2e-local-flakes.md) — Stabilize functional e2e flakes (open-save, filmstrip gaps, template-unplace, autosave, drag-swap)
 - [ ] [prep] [e2e-frame-budget-flakes](roadmap/M2.1/e2e-frame-budget-flakes.md) — Stabilize frame-budget (LoAF) e2e flakes without looser budgets
 - [ ] [prep] [strict-e2e](roadmap/M2.1/strict-e2e.md) — no hidden flakes: zero retries on PRs (#50 item 5)
 - [ ] [prep] [codecov-patch-gate](roadmap/M2.1/codecov-patch-gate.md) — blocking patch and no-drop project coverage (issue #72 A)

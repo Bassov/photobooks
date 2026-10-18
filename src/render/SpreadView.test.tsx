@@ -87,6 +87,7 @@ describe('SpreadView', () => {
 
     const box = frameBox(item.rectMm)
     const frameNode = screen.getByTestId('spread-frame')
+    expect(frameNode.getAttribute('data-asset-id')).toBe(item.assetId)
     expect(frameNode.style.left).toBe(`${String(box.left)}px`)
     expect(frameNode.style.top).toBe(`${String(box.top)}px`)
     expect(frameNode.style.width).toBe(`${String(box.width)}px`)

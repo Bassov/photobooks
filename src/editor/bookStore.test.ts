@@ -15,6 +15,7 @@ import {
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
   mintAssetId,
+  patchAssetRecord,
   resetBookStore,
   setAssetSessionMeta,
   setImportRunning,
@@ -142,6 +143,116 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(8)
     callbacks[2]?.(0)
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(10)
+  })
+
+  it('flushes gallery via setTimeout watchdog when rAF never runs', () => {
+    vi.stubGlobal('requestAnimationFrame', (): number => 1)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    enqueueGalleryAssets([{ assetId: 'hidden-a' }, { assetId: 'hidden-b' }])
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
+    vi.advanceTimersByTime(31)
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
+    vi.advanceTimersByTime(1)
+    expect(getBookStoreSnapshot().book.gallery).toEqual([
+      'hidden-a',
+      'hidden-b',
+    ])
+    vi.useRealTimers()
+  })
+
+  it('clears the flush watchdog so a stale timer cannot flush the next batch early', () => {
+    const rafCallbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        rafCallbacks.push(cb)
+        return rafCallbacks.length
+      },
+    )
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+
+    enqueueGalleryAssets([{ assetId: 'first' }])
+    expect(rafCallbacks).toHaveLength(1)
+    rafCallbacks[0]?.(0)
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['first'])
+
+    // Leave less than one watchdog period so a non-cleared first timer would
+    // still be due soon after the next enqueue.
+    vi.advanceTimersByTime(30)
+    enqueueGalleryAssets([{ assetId: 'second' }])
+    expect(rafCallbacks).toHaveLength(2)
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['first'])
+    vi.advanceTimersByTime(2)
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['first'])
+    rafCallbacks[1]?.(0)
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['first', 'second'])
+    vi.useRealTimers()
+  })
+
+  it('keeps contentHash when hash finishes before gallery flush', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const hash =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    patchAssetRecord('early-hash', { contentHash: hash })
+    expect(getAssetContentHash('early-hash')).toBe(hash)
+
+    enqueueGalleryAssets([
+      {
+        assetId: 'early-hash',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'a.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    expect(getAssetContentHash('early-hash')).toBe(hash)
+    expect(getBookStoreSnapshot().book.assets['early-hash']).toBeUndefined()
+
+    callbacks[0]?.(0)
+    expect(getBookStoreSnapshot().book.assets['early-hash']?.contentHash).toBe(
+      hash,
+    )
+    expect(getAssetContentHash('early-hash')).toBe(hash)
+  })
+
+  it('merges contentHash onto a pending asset record before flush', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const hash =
+      'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210'
+    enqueueGalleryAssets([
+      {
+        assetId: 'pending-hash',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'b.jpg',
+          byteSize: 2,
+          mtimeMs: 2,
+        },
+      },
+    ])
+    patchAssetRecord('pending-hash', { contentHash: hash })
+    expect(getAssetContentHash('pending-hash')).toBe(hash)
+
+    callbacks[0]?.(0)
+    expect(
+      getBookStoreSnapshot().book.assets['pending-hash']?.contentHash,
+    ).toBe(hash)
   })
 
   it('exposes flushed gallery ids while import is running', () => {

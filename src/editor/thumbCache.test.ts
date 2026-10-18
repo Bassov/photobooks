@@ -4,11 +4,13 @@ import { getAssetAspectSnapshot, resetBookStore } from './bookStore'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
   ensureThumb,
+  getThumbPublishGeneration,
   getThumbUrl,
   putCachedThumbForHash,
   resetThumbCache,
   setThumbUrl,
   subscribeThumb,
+  subscribeThumbPublishes,
 } from './thumbCache'
 
 const SAMPLE_HASH =
@@ -36,15 +38,21 @@ describe('thumbCache', () => {
     vi.restoreAllMocks()
   })
 
-  it('stores thumb urls after rAF flush and notifies subscribers', () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
+  it('notifies publish subscribers and bumps generation', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pub')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const listener = vi.fn()
+    const unsubscribe = subscribeThumbPublishes(listener)
+    const before = getThumbPublishGeneration()
+    setThumbUrl('a1', new Uint8Array([1]).buffer, 'image/jpeg')
+    expect(getThumbPublishGeneration()).toBe(before + 1)
+    expect(listener).toHaveBeenCalledTimes(1)
+    unsubscribe()
+    setThumbUrl('a1', new Uint8Array([2]).buffer, 'image/jpeg')
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('stores thumb urls immediately and notifies subscribers', () => {
     const revoke = vi
       .spyOn(URL, 'revokeObjectURL')
       .mockImplementation(() => undefined)
@@ -58,31 +66,18 @@ describe('thumbCache', () => {
     const unsubscribe = subscribeThumb('a1', listener)
 
     setThumbUrl('a1', new Uint8Array([1, 2, 3]).buffer, 'image/jpeg')
-    expect(getThumbUrl('a1')).toBeUndefined()
-    expect(callbacks).toHaveLength(1)
-
-    callbacks[0]?.(0)
     expect(create).toHaveBeenCalledOnce()
     expect(getThumbUrl('a1')).toBe('blob:thumb-1')
     expect(listener).toHaveBeenCalled()
 
     unsubscribe()
     setThumbUrl('a1', new Uint8Array([4]).buffer, 'image/png')
-    callbacks[1]?.(0)
     expect(listener).toHaveBeenCalledTimes(1)
     expect(getThumbUrl('a1')).toBe('blob:thumb-2')
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1')
   })
 
-  it('flushes pending thumbs across multiple animation frames', () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
+  it('publishes each setThumbUrl without waiting for rAF', () => {
     let n = 0
     vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
       n += 1
@@ -94,28 +89,12 @@ describe('thumbCache', () => {
     setThumbUrl('b', new Uint8Array([2]).buffer, 'image/jpeg')
     setThumbUrl('c', new Uint8Array([3]).buffer, 'image/jpeg')
 
-    callbacks[0]?.(0)
     expect(getThumbUrl('a')).toBe('blob:t-1')
-    expect(getThumbUrl('b')).toBeUndefined()
-    expect(getThumbUrl('c')).toBeUndefined()
-
-    callbacks[1]?.(0)
     expect(getThumbUrl('b')).toBe('blob:t-2')
-    expect(getThumbUrl('c')).toBeUndefined()
-
-    callbacks[2]?.(0)
     expect(getThumbUrl('c')).toBe('blob:t-3')
   })
 
-  it('resetThumbCache clears urls, notifies listeners, and drops pending', () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
+  it('resetThumbCache clears urls and notifies listeners', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x')
     const revoke = vi
       .spyOn(URL, 'revokeObjectURL')
@@ -124,35 +103,21 @@ describe('thumbCache', () => {
     subscribeThumb('a1', listener)
 
     setThumbUrl('a1', new Uint8Array([1]).buffer, 'image/jpeg')
-    callbacks[0]?.(0)
     expect(getThumbUrl('a1')).toBe('blob:x')
 
-    setThumbUrl('pending', new Uint8Array([2]).buffer, 'image/jpeg')
     resetThumbCache()
     expect(getThumbUrl('a1')).toBeUndefined()
     expect(listener).toHaveBeenCalled()
     expect(revoke).toHaveBeenCalledWith('blob:x')
-
-    callbacks[1]?.(0)
-    expect(getThumbUrl('pending')).toBeUndefined()
   })
 
   it('puts into DerivedCache when setThumbUrl receives a contentHash', async () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
     setDerivedCacheForTests(cache)
 
     setThumbUrl('a1', new Uint8Array([1, 2]).buffer, 'image/jpeg', SAMPLE_HASH)
-    callbacks[0]?.(0)
     await awaitPendingHashes()
     const got = await cache.get(SAMPLE_HASH, 'thumb')
     expect(got.ok).toBe(true)
@@ -162,15 +127,6 @@ describe('thumbCache', () => {
   })
 
   it('awaits encode-after-hash put so Save cannot race reload hydrate', async () => {
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        void Promise.resolve().then(() => {
-          cb(0)
-        })
-        return 1
-      },
-    )
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:race-thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
@@ -215,14 +171,6 @@ describe('thumbCache', () => {
   })
 
   it('does not put into DerivedCache without a contentHash', async () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
@@ -230,20 +178,11 @@ describe('thumbCache', () => {
     setDerivedCacheForTests(cache)
 
     setThumbUrl('a1', new Uint8Array([1]).buffer, 'image/jpeg')
-    callbacks[0]?.(0)
     await Promise.resolve()
     expect(put).not.toHaveBeenCalled()
   })
 
   it('ensureThumb hydrates from DerivedCache when hashed', async () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:hydrated-thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
@@ -256,23 +195,12 @@ describe('thumbCache', () => {
     ensureThumb('a1', SAMPLE_HASH)
     for (let step = 0; step < 5; step += 1) {
       await Promise.resolve()
-      const queued = callbacks.splice(0)
-      for (const callback of queued) {
-        callback(0)
-      }
     }
     expect(getThumbUrl('a1')).toBe('blob:hydrated-thumb')
   })
 
   it('ensureThumb restores landscape aspect from hydrated JPEG', async () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
+    vi.useFakeTimers({ toFake: ['setTimeout', 'requestAnimationFrame'] })
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:aspect-thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
@@ -283,15 +211,10 @@ describe('thumbCache', () => {
     })
 
     ensureThumb('a1', SAMPLE_HASH)
-    for (let step = 0; step < 8; step += 1) {
-      await Promise.resolve()
-      const queued = callbacks.splice(0)
-      for (const callback of queued) {
-        callback(0)
-      }
-    }
+    await vi.runAllTimersAsync()
     expect(getThumbUrl('a1')).toBe('blob:aspect-thumb')
     expect(getAssetAspectSnapshot('a1')).toBe(2)
+    vi.useRealTimers()
   })
 
   it('putCachedThumbForHash no-ops without a prior thumb or with empty hash', async () => {
@@ -304,21 +227,12 @@ describe('thumbCache', () => {
   })
 
   it('putCachedThumbForHash writes buffer encoded before hash arrived', async () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:early')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
     setDerivedCacheForTests(cache)
 
     setThumbUrl('a1', new Uint8Array([9, 8]).buffer, 'image/jpeg')
-    callbacks[0]?.(0)
     await putCachedThumbForHash('a1', SAMPLE_HASH)
     const got = await cache.get(SAMPLE_HASH, 'thumb')
     expect(got.ok).toBe(true)
@@ -328,20 +242,11 @@ describe('thumbCache', () => {
   })
 
   it('ensureThumb is a no-op without contentHash', async () => {
-    const callbacks: FrameRequestCallback[] = []
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        callbacks.push(cb)
-        return callbacks.length
-      },
-    )
     const cache = createMemoryDerivedCache()
     const get = vi.spyOn(cache, 'get')
     setDerivedCacheForTests(cache)
     ensureThumb('a1')
     await Promise.resolve()
     expect(get).not.toHaveBeenCalled()
-    expect(callbacks).toHaveLength(0)
   })
 })

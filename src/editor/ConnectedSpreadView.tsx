@@ -29,6 +29,11 @@ import {
   setSpreadTiers,
   subscribeTierDisplay,
 } from './tierDisplay'
+import {
+  getThumbPublishGeneration,
+  getThumbUrl,
+  subscribeThumbPublishes,
+} from './thumbCache'
 
 const SOURCE_ON_ANOTHER_SPREAD: FrameSource = {
   spreadId: '',
@@ -86,6 +91,12 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => getSpreadFrameSourceKey(spreadId),
   )
   const frameSource = sourceFromKey(spreadId, frameSourceKey)
+  // Stable subscribe: any thumb publish re-renders so previewUrlFor re-reads URLs.
+  const thumbPublishGeneration = useSyncExternalStore(
+    subscribeThumbPublishes,
+    getThumbPublishGeneration,
+    getThumbPublishGeneration,
+  )
 
   useEffect(() => {
     if (snapshot === undefined) {
@@ -144,9 +155,17 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
-      previewUrlFor={(assetId) =>
-        tierSnapshot.urls.get(assetId)?.url ?? snapshot.previewUrlFor(assetId)
-      }
+      previewUrlFor={(assetId) => {
+        const covering =
+          tierSnapshot.urls.get(assetId)?.url ?? snapshot.previewUrlFor(assetId)
+        if (covering !== undefined) {
+          return covering
+        }
+        // Import may publish a filmstrip thumb after first paint; read the
+        // publish generation so React Compiler keeps the subscription live.
+        const thumb = getThumbUrl(assetId)
+        return thumb ?? (thumbPublishGeneration < 0 ? '' : undefined)
+      }}
       tierFor={(assetId) => tierSnapshot.urls.get(assetId)?.tier}
       frameControlFor={(item) => {
         const filled = item.assetId !== undefined

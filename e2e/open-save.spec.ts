@@ -267,6 +267,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
   }, libraryFolder)
   expect(attached.ok).toBe(true)
   await expect(page.getByTestId('save-book')).toBeEnabled()
+  await page.bringToFront()
 
   await page
     .getByTestId('photo-file-input')
@@ -281,12 +282,14 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
     timeout: 30_000,
   })
 
+  await page.bringToFront()
   const first = page.getByTestId('filmstrip-item').nth(0)
   await first.focus()
   await page.keyboard.press('Space')
   await expect(first).toHaveAttribute('aria-selected', 'true')
   const place = page.getByRole('button', { name: 'Place photo' }).first()
   await place.focus()
+  await expect(place).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
