@@ -71,7 +71,7 @@ export function parseArgs(argv) {
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
   preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); --slug skips local main sync
-  finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR → CI summary
+  finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR (no CI watch)
   review-brief [--change S] [--base REF] [--rules-json '[…]']   reviewer brief in one call
   help
 
@@ -313,27 +313,9 @@ export function slugFromBranch(name) {
   return m ? m[1] : name
 }
 
-/** Extract GitHub Actions run id from a checks `link` URL when present. */
-export function runIdFromCheckLink(link) {
-  if (!link) return null
-  const m = /\/actions\/runs\/(\d+)/.exec(link)
-  return m ? m[1] : null
-}
-
-export function isFailingBucket(bucket) {
-  return bucket === 'fail' || bucket === 'pending'
-}
-
-export function isPassingBucket(bucket) {
-  return (
-    bucket === 'pass' ||
-    bucket === 'skipping' ||
-    bucket === 'skip' ||
-    bucket === 'neutral'
-  )
-}
-
 const PUSH_FAIL_FILE = 'agent-finish-push-failures.json'
+const RUN_STARTED_FILE = 'agent-run-started.json'
+const PR_BODY_METRICS_FILE = 'agent-pr-body-with-metrics.md'
 
 /** Resolve a path inside the git dir (works when `.git` is a file / linked worktree). */
 export function gitPath(root, relPath, exec = defaultExec) {
@@ -371,6 +353,82 @@ export function writePushFailures(root, map, exec = defaultExec) {
   const p = pushFailPath(root, exec)
   fs.mkdirSync(path.dirname(p), { recursive: true })
   fs.writeFileSync(p, JSON.stringify(map, null, 0) + '\n')
+}
+
+function resolveGitRelPath(root, relPath, exec = defaultExec) {
+  try {
+    return gitPath(root, relPath, exec)
+  } catch {
+    return path.join(root, '.git', relPath)
+  }
+}
+
+export function writeRunStarted(
+  root,
+  startedAtMs = Date.now(),
+  exec = defaultExec,
+) {
+  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
+  fs.mkdirSync(path.dirname(p), { recursive: true })
+  fs.writeFileSync(p, JSON.stringify({ startedAtMs }) + '\n')
+  return p
+}
+
+export function readRunStartedMs(root, exec = defaultExec) {
+  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
+  if (!fs.existsSync(p)) return null
+  try {
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'))
+    return typeof j.startedAtMs === 'number' ? j.startedAtMs : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Build a PR body with an auto-filled ## Metrics section.
+ * @returns {{ bodyPath: string, wallTimeSec: number | null, tokens: string | null }}
+ */
+export function buildPrBodyWithMetrics(
+  bodyPath,
+  root,
+  env = process.env,
+  exec = defaultExec,
+  nowMs = Date.now(),
+) {
+  const raw = fs.readFileSync(bodyPath, 'utf8')
+  const startedAtMs = readRunStartedMs(root, exec)
+  const wallTimeSec =
+    startedAtMs == null
+      ? null
+      : Math.max(0, Math.round((nowMs - startedAtMs) / 1000))
+  const tokensRaw = env.AGENT_TOKEN_USAGE
+  const tokens =
+    tokensRaw != null && String(tokensRaw).trim() !== ''
+      ? String(tokensRaw).trim()
+      : null
+  const metricLines = ['## Metrics', '']
+  metricLines.push(
+    wallTimeSec == null
+      ? '- wall_time_sec: unknown'
+      : `- wall_time_sec: ${wallTimeSec}`,
+  )
+  if (tokens != null) metricLines.push(`- tokens: ${tokens}`)
+  metricLines.push('')
+  const block = `${metricLines.join('\n')}\n`
+  let body
+  if (/^## Metrics\b/m.test(raw)) {
+    body = raw.replace(/^## Metrics\b[\s\S]*?(?=^## )/m, block)
+    if (body === raw) {
+      body = raw.replace(/^## Metrics\b[\s\S]*$/m, `${block.trimEnd()}\n`)
+    }
+  } else {
+    body = `${raw.trimEnd()}\n\n${block}`
+  }
+  const out = resolveGitRelPath(root, PR_BODY_METRICS_FILE, exec)
+  fs.mkdirSync(path.dirname(out), { recursive: true })
+  fs.writeFileSync(out, body)
+  return { bodyPath: out, wallTimeSec, tokens }
 }
 
 /** Path of another worktree that has `branch` checked out, or null. */
@@ -537,6 +595,8 @@ export function cmdPreflight(o, deps) {
   const touchSet = fs.existsSync(path.join(root, designPath))
     ? designPath
     : 'TBD until design.md'
+
+  writeRunStarted(root, Date.now(), exec)
 
   return {
     ok: true,
@@ -863,11 +923,13 @@ export function cmdFinish(o, deps) {
     }
   }
 
+  let metrics = null
   if (!prNumber) {
     if (!o.title) fail('finish create needs --title')
     if (!o['body-file']) fail('finish create needs --body-file')
     const bodyPath = path.resolve(cwd, o['body-file'])
     if (!fs.existsSync(bodyPath)) fail(`body file missing: ${bodyPath}`)
+    metrics = buildPrBodyWithMetrics(bodyPath, root, env, exec)
     const createdPr = mustOk(
       sh(exec, cwd, env, quiet, 'gh', [
         'pr',
@@ -875,7 +937,7 @@ export function cmdFinish(o, deps) {
         '--title',
         o.title,
         '--body-file',
-        bodyPath,
+        metrics.bodyPath,
       ]),
       'gh pr create',
     )
@@ -883,82 +945,20 @@ export function cmdFinish(o, deps) {
     created = true
   }
 
-  sh(exec, cwd, env, quiet, 'gh', [
-    'pr',
-    'checks',
-    '--watch',
-    '--fail-fast',
-    '--interval',
-    '30',
-  ])
-  const checks = sh(exec, cwd, env, quiet, 'gh', [
-    'pr',
-    'checks',
-    '--json',
-    'name,bucket,link',
-  ])
-  if (checks.code !== 0) {
-    return {
-      ok: false,
-      stage: 'ci',
-      pushAttempts: prior,
-      branch,
-      ahead,
-      prUrl,
-      created,
-      checks: [],
-      summary: `gh pr checks query failed:\n${tailOutput(checks.stdout, checks.stderr)}`,
-      logTail: null,
-    }
-  }
-  let checkRows = []
-  try {
-    checkRows = JSON.parse(checks.stdout)
-    if (!Array.isArray(checkRows)) checkRows = []
-  } catch {
-    return {
-      ok: false,
-      stage: 'ci',
-      pushAttempts: prior,
-      branch,
-      ahead,
-      prUrl,
-      created,
-      checks: [],
-      summary: `gh pr checks returned invalid JSON:\n${tailOutput(checks.stdout, checks.stderr)}`,
-      logTail: null,
-    }
-  }
-  const lines = checkRows.map((c) => `${c.name}: ${c.bucket}`)
-  const failed = checkRows.filter((c) => isFailingBucket(c.bucket))
-  let logTail = null
-  const failedWithLink = failed.find(
-    (c) => c.bucket === 'fail' && runIdFromCheckLink(c.link),
-  )
-  if (failedWithLink) {
-    const runId = runIdFromCheckLink(failedWithLink.link)
-    const view = sh(exec, cwd, env, quiet, 'gh', [
-      'run',
-      'view',
-      runId,
-      '--log-failed',
-    ])
-    logTail = tailOutput(view.stdout, view.stderr, 80)
-  } else if (failed.some((c) => c.bucket === 'fail')) {
-    logTail = 'failed check has no actions/runs link; cannot fetch --log-failed'
-  }
-  const ok =
-    checkRows.length > 0 && checkRows.every((c) => isPassingBucket(c.bucket))
   return {
-    ok,
-    stage: 'ci',
+    ok: true,
+    stage: 'pr',
     pushAttempts: prior,
     branch,
     ahead,
     prUrl,
     created,
-    checks: lines,
-    logTail,
+    metrics: metrics
+      ? { wallTimeSec: metrics.wallTimeSec, tokens: metrics.tokens }
+      : null,
+    summary: created
+      ? `PR created: ${prUrl}`
+      : `PR updated (existing): ${prUrl}`,
   }
 }
 
@@ -1160,10 +1160,8 @@ function fmtFinish(r) {
     `branch: ${r.branch}`,
     `ahead: ${r.ahead}`,
     `pr: ${r.prUrl}`,
-    ...(r.checks ?? []),
+    `created: ${r.created}`,
     `summary: ${r.summary}`,
-    '--- log-failed (tail) ---',
-    String(r.logTail),
   ].join('\n')
 }
 

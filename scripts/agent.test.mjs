@@ -12,9 +12,7 @@ import {
   collectSkipSlugs,
   cmdPreflight,
   defaultExec,
-  isFailingBucket,
   isFeatureBranch,
-  isPassingBucket,
   main,
   mustOk,
   mustOkDiffNoIndex,
@@ -26,7 +24,7 @@ import {
   readPushFailures,
   resolvePureAddIndexConflict,
   run,
-  runIdFromCheckLink,
+  readRunStartedMs,
   slugFromBranch,
   slugFromFeatFix,
   stripAnsi,
@@ -36,7 +34,9 @@ import {
   tailOutput,
   tryResolveTrivialConflicts,
   mergeOriginMainIfNeeded,
+  buildPrBodyWithMetrics,
   writePushFailures,
+  writeRunStarted,
   pushFailPath,
 } from './agent.mjs'
 
@@ -316,22 +316,49 @@ describe('branch and check helpers', () => {
     expect(slugFromBranch('fix/demo')).toBe('demo')
     expect(slugFromBranch('main')).toBe('main')
   })
+})
 
-  it('check buckets and run id', () => {
-    expect(isFailingBucket('fail')).toBe(true)
-    expect(isFailingBucket('pending')).toBe(true)
-    expect(isFailingBucket('pass')).toBe(false)
-    expect(isPassingBucket('pass')).toBe(true)
-    expect(isPassingBucket('skipping')).toBe(true)
-    expect(isPassingBucket('skip')).toBe(true)
-    expect(isPassingBucket('neutral')).toBe(true)
-    expect(isPassingBucket('fail')).toBe(false)
-    expect(runIdFromCheckLink('https://x/actions/runs/12345/job/1')).toBe(
-      '12345',
+describe('run metrics helpers', () => {
+  it('writeRunStarted and buildPrBodyWithMetrics fill wall time and tokens', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000)
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(
+      body,
+      '## Summary\n\nok\n\n## Metrics\n\n- wall_time_sec: stale\n\n## OpenSpec\n\nx\n',
     )
-    expect(runIdFromCheckLink(null)).toBe(null)
-    expect(runIdFromCheckLink('')).toBe(null)
-    expect(runIdFromCheckLink('https://example.com/nope')).toBe(null)
+    const { bodyPath, wallTimeSec, tokens } = buildPrBodyWithMetrics(
+      body,
+      root,
+      { AGENT_TOKEN_USAGE: '99' },
+      defaultExec,
+      6_000,
+    )
+    expect(wallTimeSec).toBe(5)
+    expect(tokens).toBe('99')
+    const text = fs.readFileSync(bodyPath, 'utf8')
+    expect(text).toContain('wall_time_sec: 5')
+    expect(text).toContain('tokens: 99')
+    expect(text).toContain('## OpenSpec')
+    expect(text).not.toContain('stale')
+  })
+
+  it('buildPrBodyWithMetrics appends when Metrics section is absent', () => {
+    const root = tmpRoot(true)
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, '## Summary\n')
+    const { bodyPath, wallTimeSec, tokens } = buildPrBodyWithMetrics(
+      body,
+      root,
+      {},
+      defaultExec,
+      Date.now(),
+    )
+    expect(wallTimeSec).toBe(null)
+    expect(tokens).toBe(null)
+    expect(fs.readFileSync(bodyPath, 'utf8')).toMatch(
+      /## Metrics\n\n- wall_time_sec: unknown\n/,
+    )
   })
 })
 
@@ -788,6 +815,9 @@ describe('preflight', () => {
       'extra,from-pr,from-remote',
     ])
     expect(JSON.parse(r.out).branch).toBe('feat/keep')
+    const startedAtMs = readRunStartedMs(root)
+    expect(typeof startedAtMs).toBe('number')
+    expect(startedAtMs).toBeGreaterThan(0)
   })
 
   it('reuses existing local branch when switch -c fails and merge-base ok', () => {
@@ -1139,9 +1169,8 @@ describe('finish', () => {
         'branch: feat/demo',
         'ahead: 2',
         'pr: undefined',
+        'created: undefined',
         'summary: denied',
-        '--- log-failed (tail) ---',
-        'undefined',
       ].join('\n'),
     )
   })
@@ -1219,10 +1248,29 @@ describe('finish', () => {
     expect(pushes).toBe(2)
   })
 
-  it('happy path treats skipping as pass', () => {
+  it('happy path creates PR and does not watch CI', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
     fs.writeFileSync(body, '## Summary\n')
+    writeRunStarted(root, Date.now() - 5000)
+    const calls = []
+    const base = finishBase([
+      ['git push', { code: 0 }],
+      ['gh pr list --head', { stdout: 'null\n' }],
+      [
+        'gh pr create',
+        (file, args) => {
+          calls.push([file, [...args]])
+          return { stdout: '\u001b[32mhttps://example.com/pr/1\u001b[0m\n' }
+        },
+      ],
+      [
+        'gh pr checks --watch',
+        () => {
+          throw new Error('must not watch CI')
+        },
+      ],
+    ])
     const r = run(
       [
         'finish',
@@ -1237,24 +1285,7 @@ describe('finish', () => {
       ],
       {
         cwd: root,
-        exec: finishBase([
-          ['git push', { code: 0 }],
-          ['gh pr list --head', { stdout: 'null\n' }],
-          [
-            'gh pr create',
-            { stdout: '\u001b[32mhttps://example.com/pr/1\u001b[0m\n' },
-          ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([
-                { name: 'a', bucket: 'pass', link: '' },
-                { name: 'b', bucket: 'skipping', link: '' },
-              ]),
-            },
-          ],
-        ]),
+        exec: base,
         env: { CI: '1' },
       },
     )
@@ -1263,57 +1294,18 @@ describe('finish', () => {
     expect(j.ok).toBe(true)
     expect(j.prUrl).toBe('https://example.com/pr/1')
     expect(j.created).toBe(true)
-    expect(j.checks).toEqual(['a: pass', 'b: skipping'])
+    expect(j.stage).toBe('pr')
+    expect(j.checks).toBeUndefined()
+    expect(j.metrics?.wallTimeSec).toBeGreaterThanOrEqual(5)
+    const createArgs = calls.find((c) => c[0] === 'gh' && c[1][1] === 'create')
+    expect(createArgs).toBeTruthy()
+    const bodyFile = createArgs[1][createArgs[1].indexOf('--body-file') + 1]
+    expect(fs.readFileSync(bodyFile, 'utf8')).toMatch(/wall_time_sec:/)
   })
 
-  it('fetches log-failed with run id from check link', () => {
+  it('updates existing PR without CI watch', () => {
     const root = tmpRoot(true)
-    const body = path.join(root, 'body.md')
-    fs.writeFileSync(body, 'x\n')
-    let viewed = null
-    const r = run(
-      ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
-      {
-        cwd: root,
-        exec: finishBase([
-          ['git push', { code: 0 }],
-          [
-            'gh pr list --head',
-            { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-          ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([
-                {
-                  name: 'checks',
-                  bucket: 'fail',
-                  link: 'https://github.com/o/r/actions/runs/999/job/1',
-                },
-              ]),
-            },
-          ],
-          [
-            'gh run view',
-            (file, args) => {
-              viewed = args
-              return { code: 0, stdout: 'job failed detail\n'.repeat(5) }
-            },
-          ],
-        ]),
-        env: {},
-      },
-    )
-    expect(r.code).toBe(1)
-    expect(viewed).toEqual(['run', 'view', '999', '--log-failed'])
-    expect(JSON.parse(r.out).logTail).toContain('job failed detail')
-    expect(JSON.parse(r.out).created).toBe(false)
-  })
-
-  it('reports when failed check has no actions link', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--root', root], {
+    const r = run(['finish', '--json', '--root', root], {
       cwd: root,
       exec: finishBase([
         ['git push', { code: 0 }],
@@ -1321,85 +1313,21 @@ describe('finish', () => {
           'gh pr list --head',
           { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
         ],
-        ['gh pr checks --watch', { code: 0 }],
         [
-          'gh pr checks --json',
-          {
-            stdout: JSON.stringify([
-              { name: 'x', bucket: 'fail', link: 'https://example.com/nope' },
-            ]),
+          'gh pr checks --watch',
+          () => {
+            throw new Error('must not watch CI')
           },
         ],
       ]),
       env: {},
     })
-    expect(r.code).toBe(1)
-    expect(r.out).toContain(
-      'failed check has no actions/runs link; cannot fetch --log-failed',
-    )
-    expect(r.out).toContain('ok: false')
-    expect(r.out).toContain('stage: ci')
-    expect(r.out).toContain('pr: https://pr/1')
-    expect(r.out).toContain('--- log-failed (tail) ---')
-  })
-
-  it('reports checks query failure', () => {
-    const root = tmpRoot(true)
-    writePushFailures(root, { 'feat/demo': 1 })
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 9, url: 'https://pr/9' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { code: 1, stderr: 'rate limit\n' }],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).summary).toBe(
-      'gh pr checks query failed:\nrate limit',
-    )
-    expect(readPushFailures(root)['feat/demo']).toBeUndefined()
-  })
-
-  it('reports invalid checks JSON', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 9, url: 'https://pr/9' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { stdout: '{not-array}' }],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).summary).toMatch(/invalid JSON/)
-  })
-
-  it('treats non-array checks JSON as empty failure', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { stdout: '{"nope":true}' }],
-      ]),
-      env: {},
-    })
-    expect(r.code).toBe(1)
-    expect(r.out).toMatch(/ok: false/)
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.ok).toBe(true)
+    expect(j.created).toBe(false)
+    expect(j.prUrl).toBe('https://pr/1')
+    expect(j.metrics).toBe(null)
   })
 
   it('requires --title when creating PR', () => {
@@ -1466,13 +1394,6 @@ describe('finish', () => {
           ['git push', { code: 0 }],
           ['gh pr list --head', { stdout: 'not-json{' }],
           ['gh pr create', { stdout: 'https://example.com/pr/2\n' }],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
-            },
-          ],
         ]),
         env: {},
       },
@@ -1501,13 +1422,6 @@ describe('finish', () => {
               return { stdout: 'https://example.com/pr/3\n' }
             },
           ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
-            },
-          ],
         ]),
         env: {},
       },
@@ -1528,13 +1442,6 @@ describe('finish', () => {
           ['git push', { code: 0 }],
           ['gh pr list --head', { stdout: '' }],
           ['gh pr create', { stdout: 'https://example.com/pr/4\n' }],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'skip' }]),
-            },
-          ],
         ]),
         env: {},
       },
@@ -1543,64 +1450,15 @@ describe('finish', () => {
     expect(JSON.parse(r.out).created).toBe(true)
   })
 
-  it('ok is false when checks list is empty array', () => {
-    const root = tmpRoot(true)
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        ['gh pr checks --json', { stdout: '[]' }],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).ok).toBe(false)
-    expect(JSON.parse(r.out).checks).toEqual([])
-  })
-
-  it('pending bucket keeps ok false without log-failed fetch', () => {
-    const root = tmpRoot(true)
-    let viewed = false
-    const r = run(['finish', '--json', '--root', root], {
-      cwd: root,
-      exec: finishBase([
-        ['git push', { code: 0 }],
-        [
-          'gh pr list --head',
-          { stdout: JSON.stringify({ number: 1, url: 'https://pr/1' }) },
-        ],
-        ['gh pr checks --watch', { code: 0 }],
-        [
-          'gh pr checks --json',
-          {
-            stdout: JSON.stringify([
-              { name: 'x', bucket: 'pending', link: '' },
-            ]),
-          },
-        ],
-        [
-          'gh run view',
-          () => {
-            viewed = true
-            return { code: 0, stdout: 'nope' }
-          },
-        ],
-      ]),
-      env: {},
-    })
-    expect(JSON.parse(r.out).ok).toBe(false)
-    expect(JSON.parse(r.out).logTail).toBe(null)
-    expect(viewed).toBe(false)
-  })
-
-  it('CI env alone enables quiet stripping', () => {
+  it('includes tokens in metrics when AGENT_TOKEN_USAGE is set', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
-    fs.writeFileSync(body, 'b\n')
+    fs.writeFileSync(
+      body,
+      '## Summary\n\n## Metrics\n\n- wall_time_sec: stale\n',
+    )
+    writeRunStarted(root, Date.now() - 1000)
+    let bodyFile = null
     const r = run(
       ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
       {
@@ -1610,23 +1468,24 @@ describe('finish', () => {
           ['gh pr list --head', { stdout: 'null\n' }],
           [
             'gh pr create',
-            { stdout: '\u001b[32mhttps://example.com/pr/ci\u001b[0m\n' },
-          ],
-          ['gh pr checks --watch', { code: 0 }],
-          [
-            'gh pr checks --json',
-            {
-              stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
+            (file, args) => {
+              bodyFile = args[args.indexOf('--body-file') + 1]
+              return { stdout: 'https://example.com/pr/tok\n' }
             },
           ],
         ]),
-        env: { CI: 'true' },
+        env: { AGENT_TOKEN_USAGE: '12345' },
       },
     )
-    expect(JSON.parse(r.out).prUrl).toBe('https://example.com/pr/ci')
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.metrics.tokens).toBe('12345')
+    const written = fs.readFileSync(bodyFile, 'utf8')
+    expect(written).toContain('tokens: 12345')
+    expect(written).not.toContain('stale')
   })
 
-  it('records exact argv for push create and checks watch', () => {
+  it('records exact argv for push and create without checks watch', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
     fs.writeFileSync(body, 'body-text\n')
@@ -1652,7 +1511,7 @@ describe('finish', () => {
       if (key.includes('git rev-parse --git-path'))
         return {
           code: 0,
-          stdout: `.git/agent-finish-push-failures.json\n`,
+          stdout: `.git/${args[args.length - 1]}\n`,
           stderr: '',
         }
       if (key.includes('git push')) return { code: 0, stdout: '', stderr: '' }
@@ -1660,14 +1519,6 @@ describe('finish', () => {
         return { code: 0, stdout: 'null\n', stderr: '' }
       if (key.includes('gh pr create'))
         return { code: 0, stdout: 'https://example.com/pr/5\n', stderr: '' }
-      if (key.includes('gh pr checks --watch'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('gh pr checks --json'))
-        return {
-          code: 0,
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass', link: '' }]),
-          stderr: '',
-        }
       return { code: 1, stdout: '', stderr: `unhandled ${key}` }
     }
     const r = run(
@@ -1701,22 +1552,21 @@ describe('finish', () => {
         '.[0]',
       ],
     ])
-    expect(calls).toContainEqual([
-      'gh',
-      ['pr', 'create', '--title', 'My Title', '--body-file', body],
-    ])
-    expect(calls).toContainEqual([
-      'gh',
-      ['pr', 'checks', '--watch', '--fail-fast', '--interval', '30'],
-    ])
-    expect(calls).toContainEqual([
-      'gh',
-      ['pr', 'checks', '--json', 'name,bucket,link'],
-    ])
-    expect(calls).toContainEqual([
-      'git',
-      ['rev-list', '--count', 'origin/main..HEAD'],
-    ])
+    expect(
+      calls.some(
+        (c) =>
+          c[0] === 'gh' &&
+          c[1][0] === 'pr' &&
+          c[1][1] === 'create' &&
+          c[1].includes('My Title'),
+      ),
+    ).toBe(true)
+    expect(
+      calls.some(
+        (c) =>
+          c[0] === 'gh' && c[1].includes('checks') && c[1].includes('--watch'),
+      ),
+    ).toBe(false)
   })
 })
 
@@ -2170,13 +2020,6 @@ describe('help / errors / defaultExec / main', () => {
       ['git push', { code: 0 }],
       ['gh pr list --head', { stdout: 'null\n' }],
       ['gh pr create', { stdout: ansiUrl }],
-      ['gh pr checks --watch', { code: 0 }],
-      [
-        'gh pr checks --json',
-        {
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass', link: '' }]),
-        },
-      ],
     ]
     const quiet = run(
       [
@@ -2825,14 +2668,6 @@ describe('claimed set and merge helpers', () => {
           }),
           stderr: '',
         }
-      if (key.includes('gh pr checks --watch'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('gh pr checks --json'))
-        return {
-          code: 0,
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
-          stderr: '',
-        }
       return { code: 1, stdout: '', stderr: `unhandled ${key}` }
     }
     const r = run(
@@ -2848,40 +2683,6 @@ describe('claimed set and merge helpers', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
     fs.writeFileSync(body, 'b\n')
-    let pushes = 0
-    const exec = fakeExec([
-      ...envOk,
-      ['git status --porcelain', { stdout: '' }],
-      ['git branch --show-current', { stdout: 'feat/demo\n' }],
-      ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
-      ['pnpm verify:fast:quiet', { code: 0 }],
-      ['git fetch origin', { code: 0 }],
-      ['git merge-base --is-ancestor', { code: 0 }],
-      [
-        'git push',
-        () => {
-          pushes++
-          if (pushes === 1)
-            return {
-              code: 1,
-              stderr: '! [rejected] non-fast-forward\n',
-            }
-          return { code: 0, stdout: '', stderr: '' }
-        },
-      ],
-      ['git merge-base --is-ancestor', { code: 1 }],
-      ['git merge origin/main', { code: 0 }],
-      [
-        'gh pr list',
-        { stdout: '{"number":1,"url":"https://example.com/pr/1"}' },
-      ],
-      ['gh pr checks --watch', { code: 0 }],
-      [
-        'gh pr checks --json',
-        { stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]) },
-      ],
-    ])
-    // Second merge-base after reject: force not-ancestor then clean merge.
     const base = fakeExec([
       ...envOk,
       ['git status --porcelain', { stdout: '' }],
@@ -2914,14 +2715,6 @@ describe('claimed set and merge helpers', () => {
             number: 1,
             url: 'https://example.com/pr/1',
           }),
-          stderr: '',
-        }
-      if (key.includes('gh pr checks --watch'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('gh pr checks --json'))
-        return {
-          code: 0,
-          stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
           stderr: '',
         }
       return base(file, args, opts)

@@ -26,6 +26,7 @@
     "bench": "vitest bench",
     "test:e2e": "node scripts/with-playwright-env.mjs playwright test",
     "test:e2e:quiet": "node scripts/with-playwright-env.mjs playwright test --reporter=dot",
+    "test:e2e:changed:quiet": "node scripts/e2e-changed-quiet-cli.mjs",
     "perf": "PERF_HARD_FRAME_PACING=1 node scripts/with-playwright-env.mjs playwright test e2e/filmstrip.spec.ts e2e/spread-view.spec.ts e2e/drag-place.spec.ts e2e/drag-swap.spec.ts -g \"frame-budget\"",
     "test:lhci": "node scripts/with-playwright-env.mjs pnpm build && node scripts/with-playwright-env.mjs lhci autorun --config=lighthouserc.cjs",
     "stryker": "stryker run",

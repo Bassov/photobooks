@@ -330,12 +330,12 @@ Application TypeScript configs SHALL enable `noUncheckedIndexedAccess`. The lint
 
 ### Requirement: E2E burn-in on pull requests
 
-On a pull request, the integration workflow SHALL run a burn-in of Playwright tests for added or changed `e2e/**/*.spec.ts` files and for e2e specs that import a changed e2e support file (`e2e/**/*.{ts,mts,js,mjs}` that is not `*.spec.ts`, including `e2e/fixtures/**` and `e2e/helpers/**`) directly or transitively through other e2e files, using `--retries=0`, `--workers=1`, and `--repeat-each` equal to the effective burn-in count.
+On a pull request, CI SHALL run a burn-in of Playwright tests for added or changed `e2e/**/*.spec.ts` files and for e2e specs that import a changed e2e support file (`e2e/**/*.{ts,mts,js,mjs}` that is not `*.spec.ts`, including `e2e/fixtures/**` and `e2e/helpers/**`) directly or transitively through other e2e files, using `--retries=0`, `--workers=1`, and `--repeat-each` equal to the effective burn-in count. That burn-in SHALL run as its own workflow job in parallel with the main integration e2e job (not as a prerequisite step after which integration starts).
 
 #### Scenario: Changed spec is burned in
 
 - **WHEN** a pull request adds or changes an `e2e/**/*.spec.ts` file
-- **THEN** the integration workflow runs that file's tests with `--retries=0`, `--workers=1`, and `--repeat-each` equal to the effective burn-in count
+- **THEN** the burn-in job runs that file's tests with `--retries=0`, `--workers=1`, and `--repeat-each` equal to the effective burn-in count
 
 #### Scenario: Changed e2e support file pulls importers into burn-in
 
@@ -345,7 +345,12 @@ On a pull request, the integration workflow SHALL run a burn-in of Playwright te
 #### Scenario: No burn-in targets
 
 - **WHEN** a pull request changes no e2e specs and no e2e support files that any spec imports (directly or transitively)
-- **THEN** the burn-in step succeeds without running a Playwright burn-in
+- **THEN** the burn-in job exits successfully with a "no targets" outcome without installing Playwright browsers and without building the app
+
+#### Scenario: Burn-in job is parallel with integration
+
+- **WHEN** a pull request triggers the integration workflow
+- **THEN** the burn-in job and the main integration e2e job start without one waiting on the other to finish
 
 #### Scenario: Timing-dependent test fails burn-in
 
@@ -368,7 +373,7 @@ The effective burn-in repeat count SHALL be the integer from environment variabl
 
 ### Requirement: E2E metrics on the CI report comment
 
-On a pull request, the integration workflow SHALL update the shared CI report comment's e2e section with the main-run retried-pass (flaky) count from Playwright JSON results and, when burn-in ran, the burn-in repeat count used and the burn-in outcome (passed/failed, with failed test count when available). The main e2e suite SHALL still run after a burn-in failure so flaky counts can be reported.
+On a pull request, the integration workflow SHALL update the shared CI report comment's e2e section with the main-run retried-pass (flaky) count from Playwright JSON results and, when burn-in ran, the burn-in repeat count used and the burn-in outcome (passed/failed, with failed test count when available). When burn-in had no targets, the e2e section MAY omit burn-in repeat metrics or report that burn-in had no targets. The main e2e suite SHALL still run even when burn-in fails so flaky counts can be reported.
 
 #### Scenario: Flaky retry count from main run
 

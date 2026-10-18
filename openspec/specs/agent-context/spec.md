@@ -534,7 +534,7 @@ The repository SHALL provide a zero-dependency Node CLI (`pnpm agent`, `scripts/
 #### Scenario: Finish push PR CI
 
 - **WHEN** an agent runs `pnpm agent finish` after commits exist on the feature branch
-- **THEN** the command runs `verify:fast:quiet`, verifies the tree is ready to push (no uncommitted work that would block push), pushes with at most two failed attempts, creates or updates the PR, waits for CI with a silent watch then a compact JSON summary, and on failure prints a one-screen report including a tailed `--log-failed` log
+- **THEN** the command runs `verify:fast:quiet`, verifies the tree is ready to push (no uncommitted work that would block push), pushes with at most two failed attempts, creates or updates the PR, prints the PR URL, and exits without watching or polling CI (`gh pr checks --watch` MUST NOT run)
 
 #### Scenario: Finish does not invent commits
 
@@ -544,7 +544,7 @@ The repository SHALL provide a zero-dependency Node CLI (`pnpm agent`, `scripts/
 #### Scenario: Finish never commits
 
 - **WHEN** `pnpm agent finish` runs on a clean tree
-- **THEN** it MUST NOT run `git commit` (push/PR/CI only)
+- **THEN** it MUST NOT run `git commit` (push/PR only)
 
 #### Scenario: Review brief one call
 
@@ -709,3 +709,55 @@ Local Playwright preview SHALL honor `E2E_PORT` (default `4173`) in Playwright c
 
 - **WHEN** `E2E_PORT` is set to a free port and e2e preview starts
 - **THEN** the preview and Playwright `baseURL` use that port
+
+### Requirement: Local agent test-run budget
+
+Agent navigation docs and `/next-roadmap-item` SHALL state that local verification uses targeted quiet unit tests and quiet e2e only for specs in the burn-in target set, each once when green. CI burn-in is the flake authority. Local repeat of a specific e2e spec is allowed only after that spec failed locally and then passed on a rerun, and MUST NOT exceed three repeats.
+
+#### Scenario: Docs state once-green local policy
+
+- **WHEN** an agent reads `AGENTS.md` or `/next-roadmap-item`
+- **THEN** it can find the once-green targeted quiet policy and the local max-three repeat exception for a flake that already surfaced locally
+
+#### Scenario: Quiet changed e2e reuses burn-in targets
+
+- **WHEN** an agent runs the quiet changed-e2e command with a diff that changes e2e specs or e2e support files
+- **THEN** the run exercises the same target set the burn-in resolver would select, uses a quiet reporter, and prints failures plus a one-line summary
+
+#### Scenario: No local targets exits without Playwright suite
+
+- **WHEN** the quiet changed-e2e command finds no burn-in targets
+- **THEN** it exits successfully without running the full Playwright suite and prints a short no-targets summary
+
+### Requirement: Agent finish does not watch CI
+
+Git-finish and `/next-roadmap-item` SHALL instruct agents not to wait on or poll CI after push. Opening or updating the PR ends the unattended finish stage; humans or later review read CI.
+
+#### Scenario: Command forbids CI watch after push
+
+- **WHEN** an agent follows `/next-roadmap-item` finish guidance or `.cursor/rules/git-finish.mdc`
+- **THEN** those texts MUST NOT require `gh pr checks --watch` or equivalent polling loops after push
+
+#### Scenario: Finish success is PR URL
+
+- **WHEN** `pnpm agent finish` successfully pushes and creates or updates a PR
+- **THEN** its success report includes the PR URL and does not include a CI watch summary as a required stage
+
+### Requirement: PR body agent-run metrics
+
+When `pnpm agent finish` creates a pull request, the PR body SHALL include an auto-filled metrics section with the agent-run wall time for that session. When the environment or CLI reports token usage, that value SHALL appear in the same section; when unavailable, wall time alone is sufficient and the token field MAY be omitted.
+
+#### Scenario: Wall time recorded on create
+
+- **WHEN** `pnpm agent finish` creates a PR after a preflight that started the run clock
+- **THEN** the PR body metrics section includes a wall-time value derived automatically (not typed by the agent)
+
+#### Scenario: Token usage when reported
+
+- **WHEN** the finish environment exposes a token-usage value from the agent CLI
+- **THEN** the PR body metrics section includes that token usage
+
+#### Scenario: Missing tokens still succeeds
+
+- **WHEN** token usage is not available
+- **THEN** finish still creates the PR with wall-time metrics and does not fail for missing tokens

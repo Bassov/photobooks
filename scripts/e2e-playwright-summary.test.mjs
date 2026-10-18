@@ -192,7 +192,7 @@ describe('buildBurnInArgs', () => {
 })
 
 describe('integration workflow burn-in policy', () => {
-  it('matches buildBurnInArgs flags', () => {
+  it('matches buildBurnInArgs flags and parallel no-op job shape', () => {
     const yml = readFileSync(
       resolve('.github/workflows/integration.yml'),
       'utf8',
@@ -202,6 +202,19 @@ describe('integration workflow burn-in policy', () => {
     )
     expect(yml).toMatch(/--retries=0/)
     expect(yml).toMatch(/--workers=1/)
+    expect(yml).toMatch(/^\s*e2e-burn-in:\s*$/m)
+    expect(yml).toMatch(/needs:\s*\[integration,\s*e2e-burn-in\]/)
+    expect(yml).toMatch(/No burn-in targets/)
+    // No-target path must not require pnpm install before target resolve.
+    const burnJob = yml.split(/^  integration:/m)[0]
+    expect(burnJob).not.toMatch(/^\s*needs:/m)
+    const resolveIdx = burnJob.indexOf('Resolve burn-in targets')
+    const installIdx = burnJob.indexOf('Install dependencies')
+    expect(resolveIdx).toBeGreaterThan(-1)
+    expect(installIdx).toBeGreaterThan(resolveIdx)
+    expect(burnJob).toMatch(
+      /if:\s*steps\.burn-in-targets\.outputs\.has_targets == 'true'[\s\S]*Install dependencies/,
+    )
     const args = buildBurnInArgs({
       targets: ['e2e/burn-in-smoke.spec.ts'],
       count: 50,
