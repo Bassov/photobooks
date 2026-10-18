@@ -637,6 +637,49 @@ async function fitSpreadUntilFilled(page: Page): Promise<void> {
       { timeout: 15_000 },
     )
     .toBe(true)
+  // Delayed fit may zoom out one more double-rAF after the first contain.
+  let previousKey: string | null = null
+  await expect
+    .poll(
+      async () => {
+        const key = await page.evaluate(() => {
+          const zoom =
+            document.querySelector('[data-testid="zoom-indicator"]')
+              ?.textContent ?? ''
+          const scroll = document.querySelector(
+            '[data-testid="pasteboard-scroll"]',
+          )
+          if (!(scroll instanceof HTMLElement) || zoom === '') {
+            return null
+          }
+          const active = scroll.querySelector('[data-active="true"]')
+          const view =
+            active?.querySelector('[data-testid="spread-view"]') ??
+            scroll.querySelector(
+              '[data-slot-index="0"] [data-testid="spread-view"]',
+            )
+          if (!(view instanceof HTMLElement)) {
+            return null
+          }
+          const box = view.getBoundingClientRect()
+          if (box.width < 1 || box.height < 1) {
+            return null
+          }
+          return [zoom, box.width.toFixed(2), box.height.toFixed(2)].join('|')
+        })
+        if (key === null) {
+          previousKey = null
+          return false
+        }
+        if (previousKey !== null && previousKey === key) {
+          return true
+        }
+        previousKey = key
+        return false
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true)
 }
 
 async function spreadViewContained(
