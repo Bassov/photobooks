@@ -1,6 +1,7 @@
 import {
   memo,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -20,7 +21,16 @@ import {
   getSpreadIdsSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { pasteboardWindow, pickActiveSpread } from './pasteboardWindow'
+import {
+  PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  applyForceMountIndex,
+  clearForceMountIndex,
+  pacePasteboardWindow,
+  pasteboardWindow,
+  pasteboardWindowsEqual,
+  pickActiveSpread,
+  type PasteboardWindow,
+} from './pasteboardWindow'
 import {
   bindGalleryDrop,
   cancelPendingScrollFrame,
@@ -83,6 +93,15 @@ export const Pasteboard = memo(function Pasteboard() {
   const scrollRaf = useRef(0)
   const pendingTop = useRef(0)
   const pendingEpoch = useRef(0)
+  const pacedRef = useRef<PasteboardWindow | null>(null)
+  const paceScheduled = useRef(false)
+  const paceRaf = useRef(0)
+  const paceWatchdog = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  )
+  const paceGeneration = useRef(0)
+  const forceMountIndexRef = useRef<number | null>(null)
+  const [paced, setPaced] = useState<PasteboardWindow | null>(null)
 
   useEffect(() => {
     const node = scrollRef.current
@@ -114,13 +133,149 @@ export const Pasteboard = memo(function Pasteboard() {
     )
   }, [])
 
-  const range = pasteboardWindow({
+  const target = pasteboardWindow({
     count: spreadIds.length,
     stridePx: stride,
     scrollTop,
     viewportPx: viewport.height,
     overscanPx: stride,
   })
+  const viewportCover = pasteboardWindow({
+    count: spreadIds.length,
+    stridePx: stride,
+    scrollTop,
+    viewportPx: viewport.height,
+    overscanPx: 0,
+  })
+
+  useLayoutEffect(() => {
+    let cancelled = false
+    const targetWindow: PasteboardWindow = {
+      start: target.start,
+      end: target.end,
+      leadPx: target.leadPx,
+      tailPx: target.tailPx,
+    }
+    const coverWindow: PasteboardWindow = {
+      start: viewportCover.start,
+      end: viewportCover.end,
+      leadPx: viewportCover.leadPx,
+      tailPx: viewportCover.tailPx,
+    }
+
+    const clearPendingStep = (): void => {
+      if (paceWatchdog.current !== undefined) {
+        clearTimeout(paceWatchdog.current)
+        paceWatchdog.current = undefined
+      }
+      if (paceRaf.current !== 0) {
+        cancelAnimationFrame(paceRaf.current)
+        paceRaf.current = 0
+      }
+    }
+
+    const advance = (): boolean => {
+      // Bootstrap: treat the viewport cover as already painted so cold start and
+      // add-spread reveal see real slots immediately; only overscan (and large
+      // cover jumps from a prior paced window) are rate-limited.
+      const bootCover: PasteboardWindow = {
+        start: coverWindow.start,
+        end: coverWindow.end,
+        leadPx: coverWindow.start * stride,
+        tailPx: (spreadIds.length - coverWindow.end) * stride,
+      }
+      const current = pacedRef.current ?? bootCover
+      let next = pacePasteboardWindow({
+        current,
+        target: targetWindow,
+        viewportCover: coverWindow,
+        maxNewMounts: PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+        count: spreadIds.length,
+        stridePx: stride,
+      })
+      const forceIdx = forceMountIndexRef.current
+      next = applyForceMountIndex({
+        next,
+        forceIdx,
+        target: targetWindow,
+        count: spreadIds.length,
+        stridePx: stride,
+      })
+      forceMountIndexRef.current = clearForceMountIndex(forceIdx, next)
+      pacedRef.current = next
+      setPaced((prev) =>
+        prev !== null && pasteboardWindowsEqual(prev, next) ? prev : next,
+      )
+      return next.start !== targetWindow.start || next.end !== targetWindow.end
+    }
+
+    const runScheduled = (generation: number): void => {
+      if (
+        cancelled ||
+        generation !== paceGeneration.current ||
+        !paceScheduled.current
+      ) {
+        return
+      }
+      paceScheduled.current = false
+      clearPendingStep()
+      if (advance()) {
+        scheduleStep()
+      }
+    }
+
+    const scheduleStep = (): void => {
+      paceScheduled.current = true
+      const generation = paceGeneration.current + 1
+      paceGeneration.current = generation
+      paceRaf.current = requestAnimationFrame(() => {
+        runScheduled(generation)
+      })
+      paceWatchdog.current = setTimeout(() => {
+        runScheduled(generation)
+      }, 32)
+    }
+
+    if (advance()) {
+      scheduleStep()
+    }
+    return () => {
+      cancelled = true
+      paceScheduled.current = false
+      paceGeneration.current += 1
+      clearPendingStep()
+    }
+    // Primitives only: object identity of pasteboardWindow() results must not
+    // retrigger this effect on every setPaced commit (that would cascade mounts).
+  }, [
+    target.start,
+    target.end,
+    target.leadPx,
+    target.tailPx,
+    viewportCover.start,
+    viewportCover.end,
+    viewportCover.leadPx,
+    viewportCover.tailPx,
+    stride,
+    spreadIds.length,
+  ])
+
+  // Recompute spacer px from indices × current stride so zoom changes cannot
+  // leave stale lead/tail from a previous paced step.
+  const range =
+    paced === null
+      ? {
+          start: viewportCover.start,
+          end: viewportCover.end,
+          leadPx: viewportCover.start * stride,
+          tailPx: (spreadIds.length - viewportCover.end) * stride,
+        }
+      : {
+          start: paced.start,
+          end: paced.end,
+          leadPx: paced.start * stride,
+          tailPx: (spreadIds.length - paced.end) * stride,
+        }
   const mounted = spreadIds.slice(range.start, range.end)
   const windowKey = pasteboardWindowKey(mounted)
   const markedId = selectMarkedSpreadId(activeId, mounted)
@@ -156,8 +311,12 @@ export const Pasteboard = memo(function Pasteboard() {
   const onAddSpread = (): void => {
     const before = new Set(getSpreadIdsSnapshot())
     dispatchBookOp({ type: 'addSpread' })
-    const newId = getSpreadIdsSnapshot().find((id) => !before.has(id)) ?? null
-    reveal.beginRevealForNewSpread(newId)
+    const ids = getSpreadIdsSnapshot()
+    const newId = ids.find((id) => !before.has(id))
+    if (newId !== undefined) {
+      forceMountIndexRef.current = ids.indexOf(newId)
+      reveal.beginRevealForNewSpread(newId)
+    }
   }
 
   useEffect(() => {

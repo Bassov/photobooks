@@ -70,12 +70,141 @@ export function pasteboardWindow(input: {
   }
   start = Math.min(start, count)
   end = Math.min(Math.max(end, start), count)
+  return pasteboardWindowExtents(start, end, count, stride)
+}
+
+/** Max newly mounted spreads per paced expand step. */
+export const PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME = 1
+
+/**
+ * One paced step from `current` toward `target`. Prefers filling
+ * `viewportCover` before overscan fringe. Drops indices outside `target`
+ * immediately; if there is no overlap, starts empty at `target.start`.
+ */
+export function pacePasteboardWindow(input: {
+  current: PasteboardWindow
+  target: PasteboardWindow
+  viewportCover: PasteboardWindow
+  maxNewMounts: number
+  count: number
+  stridePx: number
+}): PasteboardWindow {
+  const count = Number.isFinite(input.count)
+    ? Math.max(0, Math.floor(input.count))
+    : 0
+  const stride = input.stridePx
+  if (count === 0 || !Number.isFinite(stride) || stride <= 0) {
+    return { start: 0, end: 0, leadPx: 0, tailPx: 0 }
+  }
+
+  const target = clampWindow(input.target, count)
+  const current = clampWindow(input.current, count)
+  const cover = clampWindow(input.viewportCover, count)
+
+  let start: number
+  let end: number
+  if (current.end <= target.start || current.start >= target.end) {
+    // No overlap with the new target window — start empty at the target edge.
+    start = target.start
+    end = target.start
+  } else {
+    // Drop indices that left the target; keep the overlap (cheap unmounts).
+    start = Math.max(current.start, target.start)
+    end = Math.min(current.end, target.end)
+  }
+
+  const maxNew = Number.isFinite(input.maxNewMounts)
+    ? Math.max(0, Math.floor(input.maxNewMounts))
+    : 0
+  let budget = maxNew
+  while (budget > 0 && (start > target.start || end < target.end)) {
+    const coverBefore = Math.max(0, start - Math.max(cover.start, target.start))
+    const coverAfter = Math.max(0, Math.min(cover.end, target.end) - end)
+    const targetBefore = start - target.start
+    const targetAfter = target.end - end
+    if (coverBefore > 0 || coverAfter > 0) {
+      if (coverBefore >= coverAfter) {
+        start -= 1
+      } else {
+        end += 1
+      }
+    } else if (targetBefore >= targetAfter) {
+      start -= 1
+    } else {
+      end += 1
+    }
+    budget -= 1
+  }
+
+  return pasteboardWindowExtents(start, end, count, stride)
+}
+
+export function pasteboardWindowsEqual(
+  a: PasteboardWindow,
+  b: PasteboardWindow,
+): boolean {
+  return (
+    a.start === b.start &&
+    a.end === b.end &&
+    a.leadPx === b.leadPx &&
+    a.tailPx === b.tailPx
+  )
+}
+
+/**
+ * Expand `next` to include `forceIdx` when that index lies inside `target`.
+ * Used so add-spread reveal mounts the new slot before paced overscan catches up.
+ */
+export function applyForceMountIndex(input: {
+  next: PasteboardWindow
+  forceIdx: number | null
+  target: PasteboardWindow
+  count: number
+  stridePx: number
+}): PasteboardWindow {
+  const { forceIdx, target, count, stridePx } = input
+  if (forceIdx === null || forceIdx < target.start || forceIdx >= target.end) {
+    return input.next
+  }
+  const start = Math.min(input.next.start, forceIdx)
+  const end = Math.max(input.next.end, forceIdx + 1)
+  return pasteboardWindowExtents(start, end, count, stridePx)
+}
+
+/** Clear the force index once it is inside the mounted window. */
+export function clearForceMountIndex(
+  forceIdx: number | null,
+  next: PasteboardWindow,
+): number | null {
+  if (forceIdx !== null && forceIdx >= next.start && forceIdx < next.end) {
+    return null
+  }
+  return forceIdx
+}
+
+function pasteboardWindowExtents(
+  start: number,
+  end: number,
+  count: number,
+  stridePx: number,
+): PasteboardWindow {
   return {
     start,
     end,
-    leadPx: start * stride,
-    tailPx: (count - end) * stride,
+    leadPx: start * stridePx,
+    tailPx: (count - end) * stridePx,
   }
+}
+
+function clampWindow(
+  window: PasteboardWindow,
+  count: number,
+): PasteboardWindow {
+  let start = Number.isFinite(window.start) ? Math.floor(window.start) : 0
+  let end = Number.isFinite(window.end) ? Math.floor(window.end) : 0
+  start = Math.min(Math.max(0, start), count)
+  end = Math.min(Math.max(start, end), count)
+  return { start, end, leadPx: window.leadPx, tailPx: window.tailPx }
 }
 
 function finiteOrZero(value: number): number {
