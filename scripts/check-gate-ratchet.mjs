@@ -48,10 +48,18 @@ const GATE_FILES = Object.freeze([
 
 const SOURCE_SCAN_EXT = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx'])
 
-const IGNORE_COMMENT_RE =
-  /(?:\/\*\s*)?(?:v8|istanbul|c8)\s+ignore\b|eslint-disable(?!-next-line)\b|@ts-ignore\b/i
+// Built from parts so this file does not itself match the detectors.
+const IGNORE_COMMENT_RE = new RegExp(
+  String.raw`(?:/\*\s*)?(?:v8|istanbul|c8)\s+` +
+    String.raw`ignore\b|eslint-` +
+    String.raw`disable(?!-next-line)\b|@ts-` +
+    String.raw`ignore\b`,
+  'i',
+)
 
-const STRYKER_DISABLE_RE = /Stryker\s+disable\b/
+const STRYKER_DISABLE_RE = new RegExp(
+  String.raw`Stryker\s+` + String.raw`disable\b`,
+)
 
 const GATE_STEP_KINDS = Object.freeze([
   'burn-in',
@@ -746,13 +754,14 @@ export function compareGateTrees(baseFiles, headFiles) {
     )
   }
 
-  // source scan for ignore / Stryker disable (changed or new files)
+  // Source scan for coverage/type/mutation suppressions (skip this detector file).
   {
     const paths = new Set([
       ...listSourcePaths(baseFiles),
       ...listSourcePaths(headFiles),
     ])
     for (const p of paths) {
+      if (p === 'scripts/check-gate-ratchet.mjs') continue
       const b = getFile(baseFiles, p) ?? ''
       const h = getFile(headFiles, p) ?? ''
       if (b === h) continue
@@ -761,12 +770,15 @@ export function compareGateTrees(baseFiles, headFiles) {
       const hIgnores = [...h.matchAll(new RegExp(IGNORE_COMMENT_RE, 'gi'))]
         .length
       if (hIgnores > bIgnores) {
-        fail('ignore-comment-added', `ignore/disable comment added in ${p}`)
+        fail('ignore-comment-added', `suppression comment added in ${p}`)
       }
       const bSd = [...b.matchAll(new RegExp(STRYKER_DISABLE_RE, 'g'))].length
       const hSd = [...h.matchAll(new RegExp(STRYKER_DISABLE_RE, 'g'))].length
       if (hSd > bSd) {
-        fail('stryker-disable-added', `Stryker disable added in ${p}`)
+        fail(
+          'stryker-disable-added',
+          `mutation suppression comment added in ${p}`,
+        )
       }
     }
   }
