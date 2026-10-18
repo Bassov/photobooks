@@ -485,6 +485,45 @@ test.describe('frame-budget gates', () => {
     await assertNamedScrollport(page, 'pasteboard-scroll', { axis: 'vertical' })
   })
 
+  // Settle remount LoAF stays gated here under parent retries until
+  // continuous-zoom-settle-mount-pace paces remounts (then retries: 0).
+  test('continuous zoom-out settle remount stays within frame-budget gates', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1')
+    await expect(page.getByTestId('spread-view').first()).toBeVisible()
+    await dispatchCtrlWheel(page, 500, 24)
+    await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+    await clearPerfScenario(page)
+
+    await dispatchCtrlWheel(page, -300, 28)
+    await expect
+      .poll(async () =>
+        percentOf(await page.getByTestId('zoom-indicator').innerText()),
+      )
+      .toBeGreaterThanOrEqual(400)
+    await expect.poll(async () => gestureLabel(page)).toBe('')
+    await page.evaluate(() => {
+      const perf = window.__photobooksPerf
+      if (!perf) {
+        throw new Error('window.__photobooksPerf is not available')
+      }
+      perf.clearLoafEntries()
+    })
+
+    await dispatchCtrlWheel(page, 300, 36)
+    await expect.poll(async () => gestureLabel(page)).toBe('')
+    await page.evaluate(() => {
+      const perf = window.__photobooksPerf
+      if (!perf) {
+        throw new Error('window.__photobooksPerf is not available')
+      }
+      perf.assertNoLoafEntries(0)
+    })
+    await collectFrameStatsArtifact(page, testInfo)
+  })
+
   test.describe('continuous zoom (stabilized)', () => {
     test.describe.configure({ retries: 0 })
 
@@ -556,8 +595,9 @@ test.describe('frame-budget gates', () => {
         perf.clearLoafEntries()
       })
 
-      // Phase 3: continuous zoom-out burst+paint (settle/mount is outside this
-      // LoAF window — remount pacing is a follow-up if CI still flakes settle).
+      // Phase 3: continuous zoom-out burst+paint only. Settle remount LoAF is
+      // asserted under parent retries (see sibling settle remount test) until
+      // continuous-zoom-settle-mount-pace.
       await dispatchCtrlWheel(page, 300, 36, { settleMs: 0 })
       await page.evaluate((handlerBudgetMs) => {
         const perf = window.__photobooksPerf

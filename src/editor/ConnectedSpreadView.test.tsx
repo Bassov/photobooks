@@ -62,6 +62,19 @@ describe('per-spread paint subscription', () => {
     vi.restoreAllMocks()
   })
 
+  it('renders nothing for a missing spread', () => {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const { container } = render(<ConnectedSpreadView spreadId="missing" />)
+    expect(container.firstChild).toBeNull()
+    expect(screen.queryByTestId('spread-view')).toBeNull()
+  })
+
   it('falls back to the filmstrip thumb when tier and preview URLs are missing', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb-fallback')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)

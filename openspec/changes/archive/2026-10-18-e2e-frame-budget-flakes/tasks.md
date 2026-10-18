@@ -21,9 +21,9 @@
   - Nested `continuous zoom (stabilized)` and `stabilized drag` with `retries: 0`; siblings keep retries.
 - [x] 3.2 Tick matching scope boxes in `docs/roadmap/M2.1/e2e-frame-budget-flakes.md`; if any case still flakes or line budget blows, `pnpm roadmap add --after e2e-frame-budget-flakes` and leave that checkbox for the follow-up — verify `pnpm roadmap check` exits 0
 - [x] 3.3 Run `pnpm stryker:diff` and `pnpm test:coverage` on production files this change touched; add public-API tests for survived/NoCoverage mutants that encode specified behavior; list equivalent/logging leftovers under this task
-  - Coverage: statements 90.98% / lines 90.64% (suite-wide).
-  - Stryker diff: score 67.10 (≥ break 60); extracted `spreadPreviewKeys` (86.59%) + ConnectedSpreadView (56.38%).
-  - Survivors left (equivalent / React wiring / empty-rest edge): ConnectedSpreadView frameControl pressed/`filled`/`effectAllowed` chrome; `spreadPreviewKeys` empty-`rest` branches equivalent to missing-url paths already covered; `usePasteboardCamera` remains mutation-excluded (cameraGesture covers coalesce).
+  - Stryker diff (local, post review fix): **88.89%** (311 killed / 1 timeout / 39 survived / **0 NoCoverage**).
+  - Extracted `thumbUrlFromSnapshot`, `subscribeAssetIds`, `desiredTiersForItems`, `wheelCoalesce.mergePendingWheel` into mutate scope with unit tests; `usePasteboardCamera` stays excluded.
+  - Survivors left (equivalent / React chrome): ConnectedSpreadView getServerSnapshot arrows / effect cleanup / drag `effectAllowed`; `spreadPreviewKeys` `sep < 0` vs `<= 0` on malformed `id::url` keys (same undefined); `frameSelection` book-store sync edges.
 
 ## Verification
 
@@ -43,9 +43,7 @@
 
 ## Manual test scenarios
 
-1. `node scripts/with-playwright-env.mjs pnpm exec playwright test e2e/spread-view.spec.ts -g "continuous zoom stays within frame-budget" --repeat-each=20 --retries=0 --workers=1` → 20/20 (phased LoAF; zoom-out burst+paint only — settle remount → `continuous-zoom-settle-mount-pace`)
-2. Same grep for `e2e/drag-place.spec.ts` zoomed-out gallery drag → 20/20
-3. Same grep for `e2e/drag-place.spec.ts` save during drag → 20/20
-4. Confirm nested stabilized describes use `retries: 0`
-5. `pnpm verify:fast:quiet` → exit 0
-6. CI burn-in on this PR for the changed e2e specs (recorded after `agent finish`)
+1. CI burn-in (integration run): three frame-budget scenarios + settle remount under parent retries — see PR body link (10/10, 0 flaky)
+2. Confirm nested stabilized describes use `retries: 0`; settle remount stays under parent `retries: 2` until `continuous-zoom-settle-mount-pace`
+3. `pnpm verify:fast:quiet` → exit 0
+4. `pnpm stryker:diff` → ≥85%, 0 NoCoverage (recorded under 3.3)

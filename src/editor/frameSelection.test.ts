@@ -14,6 +14,7 @@ import {
   getSpreadFrameSourceKey,
   resetFrameSelection,
   setFrameSource,
+  sourceFromKey,
   subscribeFrameSelection,
   subscribeSpreadFrameSource,
   withSelectionSync,
@@ -33,6 +34,15 @@ describe('frameSelection', () => {
     resetFrameSelection()
     resetGallerySelection()
     resetBookStore()
+  })
+
+  it('maps null, empty, and frame-id keys for spread labels', () => {
+    expect(sourceFromKey('s0', null)).toBeNull()
+    expect(sourceFromKey('s0', '')).toEqual({ spreadId: '', frameId: '' })
+    expect(sourceFromKey('s0', 'frame-1')).toEqual({
+      spreadId: 's0',
+      frameId: 'frame-1',
+    })
   })
 
   it('stops notifying after the gallery selection unsubscribes', () => {

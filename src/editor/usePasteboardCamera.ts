@@ -16,6 +16,7 @@ import {
   type CameraPoint,
   type ZoomFrame,
 } from './camera'
+import { mergePendingWheel, type PendingWheel } from './wheelCoalesce'
 import {
   commitZoom,
   getCommittedCamera,
@@ -339,11 +340,7 @@ export function usePasteboardCamera({
       return
     }
 
-    let pendingWheel: {
-      deltaY: number
-      clientX: number
-      clientY: number
-    } | null = null
+    let pendingWheel: PendingWheel | null = null
 
     const flushPendingWheel = (port: HTMLElement): void => {
       const pending = pendingWheel
@@ -527,18 +524,9 @@ export function usePasteboardCamera({
       // Coalesce trackpad/test bursts into one zoom apply per frame (paint).
       // Only the flush is measured as `wheel-zoom` — enqueue must stay cheap and
       // must not dilute handler p95 under burst input.
+      // First-event gesture setup is intentionally unmeasured (cheap after warm).
       beginGesture('wheel', port)
-      if (pendingWheel === null) {
-        pendingWheel = {
-          deltaY: event.deltaY,
-          clientX: event.clientX,
-          clientY: event.clientY,
-        }
-      } else {
-        pendingWheel.deltaY += event.deltaY
-        pendingWheel.clientX = event.clientX
-        pendingWheel.clientY = event.clientY
-      }
+      pendingWheel = mergePendingWheel(pendingWheel, event)
       schedulePaint()
       scheduleSettle()
     }

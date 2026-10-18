@@ -14,8 +14,8 @@ import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
 import {
   frameControlLabel,
   getSpreadFrameSourceKey,
+  sourceFromKey,
   subscribeSpreadFrameSource,
-  type FrameSource,
 } from './frameSelection'
 import {
   getGalleryPhotoSelected,
@@ -32,49 +32,17 @@ import {
 import { getThumbUrl, subscribeThumb } from './thumbCache'
 import {
   assetIdsOnSpread,
+  desiredTiersForItems,
+  isFramePressed,
+  positiveDevicePixelRatio,
+  queueReadyTierIfCached,
+  resolveMaxDesiredTier,
+  resolveSpreadPreviewUrl,
+  subscribeAssetIds,
   thumbSnapshotFor,
   tierDisplayKeyFor,
   tierNumberFromKey,
-  tierUrlFromKey,
 } from './spreadPreviewKeys'
-
-const SOURCE_ON_ANOTHER_SPREAD: FrameSource = {
-  spreadId: '',
-  frameId: '',
-}
-
-function sourceFromKey(
-  spreadId: string,
-  key: string | null,
-): FrameSource | null {
-  if (key === null) {
-    return null
-  }
-  if (key === '') {
-    return SOURCE_ON_ANOTHER_SPREAD
-  }
-  return { spreadId, frameId: key }
-}
-
-function devicePixelRatio(): number {
-  const ratio = globalThis.devicePixelRatio
-  return typeof ratio === 'number' && ratio > 0 ? ratio : 1
-}
-
-function subscribeSpreadThumbs(
-  assetIds: readonly string[],
-  listener: () => void,
-): () => void {
-  if (assetIds.length === 0) {
-    return () => undefined
-  }
-  const unsubs = assetIds.map((assetId) => subscribeThumb(assetId, listener))
-  return () => {
-    for (const unsub of unsubs) {
-      unsub()
-    }
-  }
-}
 
 export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   spreadId,
@@ -113,7 +81,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => tierDisplayKeyFor(spreadAssetIds, getTierDisplaySnapshot().urls),
   )
   const thumbSnapshot = useSyncExternalStore(
-    (listener) => subscribeSpreadThumbs(spreadAssetIds, listener),
+    (listener) => subscribeAssetIds(spreadAssetIds, subscribeThumb, listener),
     () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
     () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
   )
@@ -123,28 +91,17 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       clearSpreadTiers(spreadId)
       return
     }
-    const dpr = devicePixelRatio()
-    const tiers = new Map<string, number>()
-    for (const item of snapshot.resolved.items) {
-      const assetId = item.assetId
-      if (assetId === undefined) {
-        continue
-      }
-      const edge =
-        Math.max(item.rectMm.width, item.rectMm.height) * SPREAD_PX_PER_MM
-      const tier = selectImageTier(edge * zoom, dpr)
-      const prev = tiers.get(assetId)
-      if (prev === undefined || tier > prev) {
-        tiers.set(assetId, tier)
-      }
-    }
+    const tiers = desiredTiersForItems(
+      snapshot.resolved.items,
+      zoom,
+      positiveDevicePixelRatio(),
+      SPREAD_PX_PER_MM,
+      selectImageTier,
+    )
     setSpreadTiers(spreadId, tiers)
     const unsubs: (() => void)[] = []
-    for (const assetId of tiers.keys()) {
-      const tier = maxDesiredTier(assetId)
-      if (tier === undefined) {
-        continue
-      }
+    for (const [assetId, spreadTier] of tiers) {
+      const tier = resolveMaxDesiredTier(assetId, spreadTier, maxDesiredTier)
       unsubs.push(
         subscribeTier(assetId, tier, () => {
           const url = getTierUrl(assetId, tier)
@@ -154,10 +111,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         }),
       )
       requestTier(assetId, tier, getAssetContentHash(assetId))
-      const ready = getTierUrl(assetId, tier)
-      if (ready !== undefined) {
-        queueTierSwap(assetId, tier, ready)
-      }
+      queueReadyTierIfCached(assetId, tier, getTierUrl, queueTierSwap)
     }
     return () => {
       clearSpreadTiers(spreadId)
@@ -175,30 +129,19 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
-      previewUrlFor={(assetId) => {
-        const covering =
-          tierUrlFromKey(tierDisplayKey, assetId) ??
-          snapshot.previewUrlFor(assetId)
-        if (covering !== undefined) {
-          return covering
-        }
-        const prefix = `${assetId}:`
-        for (const part of thumbSnapshot.split('|')) {
-          if (part.startsWith(prefix)) {
-            const url = part.slice(prefix.length)
-            return url.length > 0 ? url : undefined
-          }
-        }
-        return getThumbUrl(assetId)
-      }}
+      previewUrlFor={(assetId) =>
+        resolveSpreadPreviewUrl(
+          assetId,
+          tierDisplayKey,
+          thumbSnapshot,
+          snapshot.previewUrlFor(assetId),
+        )
+      }
       tierFor={(assetId) => tierNumberFromKey(tierDisplayKey, assetId)}
       frameControlFor={(item) => {
         const filled = item.assetId !== undefined
         const frame = { spreadId, frameId: item.frameId }
-        const pressed =
-          frameSourceKey !== null &&
-          frameSourceKey !== '' &&
-          frameSourceKey === item.frameId
+        const pressed = isFramePressed(frameSourceKey, item.frameId)
         const control: FrameControl = {
           label: frameControlLabel(
             filled,
