@@ -1,8 +1,11 @@
-# Wait for three Codecov uploads (test_results + unit lcov + e2e lcov) before statuses/comments.
-# Top-level `notify:` is invalid YAML for Codecov; must nest under `codecov:`.
+# Coverage uploads per commit: unit lcov + e2e lcov (test_results also increments
+# after_n_builds). wait_for_ci keeps patch from posting until the e2e job finishes
+# (upload runs before that job completes), even if after_n_builds is satisfied early
+# by test_results + unit.
 codecov:
   notify:
-    after_n_builds: 3
+    after_n_builds: 2
+    wait_for_ci: true
 
 coverage:
   status:

@@ -16,7 +16,7 @@
 
 ## 4. Codecov + CI + spec sync
 
-- [x] 4.1 Update `codecov.yml` (`flags.e2e` carryforward, `codecov.notify.after_n_builds: 3`). In `integration.yml`: uninstrumented e2e gate, then `E2E_COVERAGE=1` harvest (`--grep-invert` frame-budget), merge, upload `flags: e2e` with `fail_ci_if_error` when token present. Sync `ci-gates` main spec. Tick roadmap Scope boxes when delivered.
+- [x] 4.1 Update `codecov.yml` (`flags.e2e` carryforward, `codecov.notify.after_n_builds: 2` + `wait_for_ci: true`). In `integration.yml`: uninstrumented e2e gate, then `E2E_COVERAGE=1` harvest (`--grep-invert` frame-budget), merge, upload `flags: e2e` with `fail_ci_if_error` + `disable_search` when token present. Sync `ci-gates` main spec. Tick roadmap Scope boxes when delivered.
 
 ## 5. Verification
 
