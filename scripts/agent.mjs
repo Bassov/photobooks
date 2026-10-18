@@ -454,11 +454,17 @@ export function userMessageText(msg) {
   return parts.join('\n')
 }
 
+/**
+ * True only for task-finished notices: optional leading `<timestamp>…</timestamp>`,
+ * then the text must start with `<system_notification>`. Mentions of the tag
+ * inside a normal prompt body do not count.
+ */
 export function isSystemNotificationUser(msg) {
-  return (
-    msg?.role === 'user' &&
-    userMessageText(msg).includes('<system_notification>')
-  )
+  if (msg?.role !== 'user') return false
+  let t = userMessageText(msg).trimStart()
+  const ts = /^<timestamp>[\s\S]*?<\/timestamp>\s*/.exec(t)
+  if (ts) t = t.slice(ts[0].length)
+  return t.startsWith('<system_notification>')
 }
 
 export function isUserInfoPreamble(msg) {
@@ -812,18 +818,19 @@ export function parseStatsRoundsJson(text) {
       'stats JSON must be cursor-agent result (usage.*Tokens), {rounds:[…]}, or an array of rounds',
     )
   }
-  const rounds = []
+  // Multi-line `{...}` JSONL is handled above. Anything else that does not
+  // start with `{`/`[` is not a supported stats document (avoid treating a
+  // prompt that merely mentions tags as a format).
   for (const t of lines) {
-    let row
     try {
-      row = JSON.parse(t)
+      JSON.parse(t)
     } catch {
       fail('stats JSONL line is invalid JSON')
     }
-    const fromUsage = tryRoundFromObject(row)
-    rounds.push(fromUsage ?? row)
   }
-  return normalizeRounds(rounds)
+  fail(
+    'stats document must be JSON ({rounds}/usage) or multi-line `{`-prefixed JSONL',
+  )
 }
 
 export function loadStatsRounds(filePath) {

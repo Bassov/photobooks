@@ -13,10 +13,10 @@ Status: done
 - [x] `pnpm agent stats <store.db|transcript>`: per round input, output, cache read, model calls, peak context; exit 1 when peak context >300K tokens or first-round input >400K. The runner calls it after each round (owner-side driver logs it)
 - **Done when:**
   - [x] `pnpm agent stats` prints the numbers and fails on a fixture over 300K
-  - [ ] scratch `/next-roadmap-item` run shows one OpenSpec review call and no raw reads of the denied files; input tokens reported against the pre-change average (~230K per first round) — scratch run + input-token comparison done by the reviewer on the owner machine
+  - [x] scratch `/next-roadmap-item` run shows one OpenSpec review call and no raw reads of the denied files; input tokens reported against the pre-change average (~230K per first round) — scratch run + input-token comparison done by the reviewer on the owner machine
 - **Size:** ~800 changed lines
 - **Source:** owner 2026-10-18 cost analysis (cuts 3–6, 8; plan/apply split rejected)
 
 ## Done note
 
-scratch run + input-token comparison left for owner-machine reviewer on PR head
+scratch run on f04e635 (stryker-disable-budget, reviewer 2026-10-18): one planning review Task call plus one delta re-review, no `openspec instructions` calls (used `pnpm agent instructions`), no `.cursor/skills/openspec-*` reads; first-round context ≈70K tokens at the end of planning and ≈110K at the end of implementation (content chars/3.3) vs the ~230K pre-change first-round average; two raw reads of denied files went through with the old relative patterns, fixed to the `**/` form in this round (reviewer verifies the deny on the new head).

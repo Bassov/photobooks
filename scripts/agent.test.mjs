@@ -3010,6 +3010,8 @@ describe('stats', () => {
       Buffer.from([0x28, 0x03]),
       Buffer.from([0x12, 0x03, 0x61, 0x62, 0x63]),
       Buffer.from([0x09, 1, 2, 3, 4, 5, 6, 7, 8]),
+      // field 3 wire type 5 (32-bit) — skip 4 bytes
+      Buffer.from([0x1d, 9, 8, 7, 6]),
     ])
     expect(blobIdsFromRootProtobuf(rootBuf)).toEqual([id.toString('hex')])
     expect(() => blobIdsFromRootProtobuf(Buffer.from([0x0b, 0x00]))).toThrow(
@@ -3032,7 +3034,20 @@ describe('stats', () => {
         role: 'user',
         content: 'x <system_notification> y',
       }),
+    ).toBe(false)
+    expect(
+      isSystemNotificationUser({
+        role: 'user',
+        content:
+          '<timestamp>t</timestamp>\n<system_notification>\ndone\n</system_notification>',
+      }),
     ).toBe(true)
+    expect(
+      isSystemNotificationUser({
+        role: 'assistant',
+        content: '<system_notification>\nx\n</system_notification>',
+      }),
+    ).toBe(false)
     expect(isRoundStartingUser({ role: 'user', content: 'go' })).toBe(true)
     const rounds = roundsFromStoreMessages([
       { role: 'system', content: 's' },
@@ -3055,6 +3070,35 @@ describe('stats', () => {
     expect(() =>
       roundsFromStoreMessages([{ role: 'system', content: 'only' }]),
     ).toThrow(/no round-starting/)
+  })
+
+  it('counts three store.db rounds when a later prompt quotes system_notification', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'quoted-notif-store.db')
+    writeCursorShapeStoreDb(dbPath, [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: '<user_info>\nOS: test\n' },
+      { role: 'user', content: '<cursor_commands>\nround-1 prompt\n' },
+      { role: 'assistant', content: 'a1' },
+      {
+        role: 'user',
+        content:
+          '<timestamp>t</timestamp>\n<system_notification>\ntask finished\n</system_notification>',
+      },
+      { role: 'user', content: '<cursor_commands>\nround-2 prompt\n' },
+      { role: 'assistant', content: 'a2' },
+      {
+        role: 'user',
+        content:
+          '<cursor_commands>\nfix: a prompt that quotes `<system_notification>` in its body must still start a round.\n',
+      },
+      { role: 'assistant', content: 'a3' },
+    ])
+    const j = JSON.parse(
+      run(['stats', dbPath, '--json'], { cwd: root, env: {} }).out,
+    )
+    expect(j.rounds).toHaveLength(3)
+    expect(j.rounds.every((r) => r.estimated)).toBe(true)
   })
 
   it('roundFromCursorUsage and parseStatsRoundsJson reject bad inputs', () => {
@@ -3201,6 +3245,137 @@ describe('stats', () => {
       .run(Buffer.from('{not-json', 'utf8'), msg.id)
     db6.close()
     expect(() => loadStatsRounds(badJsonBlob)).toThrow(/not valid JSON/)
+
+    const hexInBuffer = path.join(root, 'hex-in-buffer-meta.db')
+    const db7 = new DatabaseSync(hexInBuffer)
+    db7.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB)')
+    db7.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    const roundsPayload = {
+      rounds: [
+        {
+          input: 4,
+          output: 1,
+          cacheRead: 0,
+          modelCalls: 1,
+          context: 4,
+        },
+      ],
+    }
+    db7
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(
+          Buffer.from(JSON.stringify(roundsPayload), 'utf8').toString('hex'),
+          'utf8',
+        ),
+      )
+    db7.close()
+    expect(loadStatsRounds(hexInBuffer)[0].input).toBe(4)
+
+    const badHexJson = path.join(root, 'bad-hex-json-meta.db')
+    const db8 = new DatabaseSync(badHexJson)
+    db8.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB)')
+    db8.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db8
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(Buffer.from('{nope', 'utf8').toString('hex'), 'utf8'),
+      )
+    db8.close()
+    expect(() => loadStatsRounds(badHexJson)).toThrow(/latestRootBlobId/)
+
+    const nonHexBuf = path.join(root, 'non-hex-buf-meta.db')
+    const db9 = new DatabaseSync(nonHexBuf)
+    db9.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB)')
+    db9.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db9
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run('0', Buffer.from('{not-json-or-hex', 'utf8'))
+    db9.close()
+    expect(() => loadStatsRounds(nonHexBuf)).toThrow(/latestRootBlobId/)
+
+    const badHexString = path.join(root, 'bad-hex-string-meta.db')
+    const db10 = new DatabaseSync(badHexString)
+    db10.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db10.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db10
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run('0', Buffer.from('{nope', 'utf8').toString('hex'))
+    db10.close()
+    expect(() => loadStatsRounds(badHexString)).toThrow(/latestRootBlobId/)
+
+    const junkString = path.join(root, 'junk-string-meta.db')
+    const db11 = new DatabaseSync(junkString)
+    db11.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db11.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db11
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run('0', 'not-json-and-NOT-hex!!')
+    db11.close()
+    expect(() => loadStatsRounds(junkString)).toThrow(/latestRootBlobId/)
+  })
+
+  it('parseStatsRoundsJson covers array normalize and non-JSONL rejection', () => {
+    expect(
+      parseStatsRoundsJson(
+        JSON.stringify([
+          {
+            input: 1,
+            output: 1,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 1,
+          },
+          {
+            input: 2,
+            output: 1,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 2,
+          },
+        ]),
+      ),
+    ).toHaveLength(2)
+    expect(() =>
+      parseStatsRoundsJson(
+        'true\n{"input":1,"output":1,"cacheRead":0,"modelCalls":1,"context":1}',
+      ),
+    ).toThrow(/must be JSON/)
+    const circ = {
+      role: 'assistant',
+      content: [{ type: 'tool-call', args: {} }],
+    }
+    circ.content[0].args.self = circ.content[0].args
+    expect(messageContentChars(circ)).toBe(0)
+  })
+
+  it('fails when openspec status JSON is invalid', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
+      recursive: true,
+    })
+    const item = { slug: 'demo-item', tag: 'prep', title: 't', file: 'f' }
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ...envOk,
+        ['git status --porcelain', { stdout: '' }],
+        ['git fetch origin', { code: 0 }],
+        ['git switch main', { code: 0 }],
+        ['git pull --ff-only', { code: 0 }],
+        ['gh pr list', { stdout: '' }],
+        ['git branch -r', { stdout: '' }],
+        ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+        ['git switch -c feat/demo-item', { code: 0 }],
+        ['openspec status', { stdout: 'not-status-json{' }],
+      ]),
+      env: {},
+    })
+    expect(JSON.parse(r.err).error).toMatch(
+      /^openspec status returned invalid JSON:/,
+    )
   })
 
   it('instructions text mode and stats usage without path error branches', () => {
