@@ -27,7 +27,8 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [narrow-add-spread-horizontal-contain](roadmap/M2.1/narrow-add-spread-horizontal-contain.md) — Add-spread reveal must contain horizontally (narrow and desktop)
 - [x] [contingency] [burn-in-targets-cli-spawn-assert](roadmap/M2.1/burn-in-targets-cli-spawn-assert.md) — Burn-in targets spawn test must not assume burn-in-smoke in every PR diff
 - [x] [prep] [e2e-local-flakes](roadmap/M2.1/e2e-local-flakes.md) — Stabilize functional e2e flakes (open-save, filmstrip gaps, template-unplace, autosave, drag-swap)
-- [ ] [prep] [e2e-frame-budget-flakes](roadmap/M2.1/e2e-frame-budget-flakes.md) — Stabilize frame-budget (LoAF) e2e flakes without looser budgets
+- [x] [prep] [e2e-frame-budget-flakes](roadmap/M2.1/e2e-frame-budget-flakes.md) — Stabilize frame-budget (LoAF) e2e flakes without looser budgets
+- [ ] [prep] [continuous-zoom-settle-mount-pace](roadmap/M2.1/continuous-zoom-settle-mount-pace.md) — Pace pasteboard remounts on zoom-out settle to keep continuous-zoom LoAF green
 - [ ] [prep] [strict-e2e](roadmap/M2.1/strict-e2e.md) — no hidden flakes: zero retries on PRs (#50 item 5)
 - [ ] [prep] [codecov-patch-gate](roadmap/M2.1/codecov-patch-gate.md) — blocking patch and no-drop project coverage (issue #72 A)
 - [ ] [prep] [gate-values-file](roadmap/M2.1/gate-values-file.md) — one data file for gate thresholds

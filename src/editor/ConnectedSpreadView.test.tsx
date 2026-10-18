@@ -13,7 +13,12 @@ import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
 import { getCommittedZoom, resetCameraStore } from './cameraStore'
-import { getDisplayedPreview, resetTierDisplay } from './tierDisplay'
+import {
+  getDisplayedPreview,
+  queueTierSwap,
+  resetTierDisplay,
+  setSpreadTiers,
+} from './tierDisplay'
 import {
   dispatchBookOp,
   getSpreadPaintSnapshot,
@@ -101,6 +106,40 @@ describe('per-spread paint subscription', () => {
     expect(screen.getByTestId('spread-frame-image').getAttribute('src')).toBe(
       `blob:thumb-late-${String(thumbSerial)}`,
     )
+  })
+
+  it('does not re-render a spread when an unrelated asset thumb publishes', () => {
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(
+      () => `blob:thumb-${String(Math.random())}`,
+    )
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const book = twoSpreadBook()
+    const renders = mountSiblingPaint(book)
+
+    act(() => {
+      setThumbUrl('other', new Uint8Array([9]).buffer, 'image/jpeg')
+    })
+
+    expect(renders.count).toBe(renders.before)
+    expect(renders.selfCount).toBe(renders.selfBefore)
+  })
+
+  it('does not re-render a spread when an unrelated asset tier displays', async () => {
+    const decode = vi
+      .spyOn(HTMLImageElement.prototype, 'decode')
+      .mockResolvedValue(undefined)
+    const book = twoSpreadBook()
+    const renders = mountSiblingPaint(book)
+
+    await act(async () => {
+      setSpreadTiers('ghost', new Map([['other', 320]]))
+      queueTierSwap('other', 320, 'blob:other-tier')
+      await Promise.resolve()
+    })
+
+    expect(decode).toHaveBeenCalled()
+    expect(renders.count).toBe(renders.before)
+    expect(renders.selfCount).toBe(renders.selfBefore)
   })
 
   it('notifies only the edited spread and keeps the sibling snapshot', () => {

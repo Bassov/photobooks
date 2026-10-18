@@ -339,6 +339,38 @@ export function usePasteboardCamera({
       return
     }
 
+    let pendingWheel: {
+      deltaY: number
+      clientX: number
+      clientY: number
+    } | null = null
+
+    const flushPendingWheel = (port: HTMLElement): void => {
+      const pending = pendingWheel
+      if (pending === null) {
+        return
+      }
+      pendingWheel = null
+      measureHandlerSync('wheel-zoom', () => {
+        const gesture = beginGesture('wheel', port)
+        const requested = gesture.liveZoom * wheelZoomFactor(pending.deltaY)
+        zoomAtPoint(
+          {
+            zoom: gesture.startZoom,
+            scrollLeft: gesture.startScrollLeft,
+            scrollTop: gesture.startScrollTop,
+            anchorX: pending.clientX - gesture.originX,
+            anchorY: pending.clientY - gesture.originY,
+            factor: requested / gesture.startZoom,
+            minZoom: gesture.minZoom,
+            maxZoom: gesture.maxZoom,
+          },
+          gesture.frame,
+        )
+        gesture.liveZoom = gesture.frame.zoom
+      })
+    }
+
     const paint = (): void => {
       rafRef.current = 0
       const port = scrollRef.current
@@ -346,6 +378,9 @@ export function usePasteboardCamera({
       if (pan !== null && port !== null) {
         port.scrollLeft = pan.left
         port.scrollTop = pan.top
+      }
+      if (port !== null) {
+        flushPendingWheel(port)
       }
       const gesture = gestureRef.current
       const world = worldRef.current
@@ -396,10 +431,13 @@ export function usePasteboardCamera({
 
     const settle = (): void => {
       settleRef.current = 0
+      const port = scrollRef.current
+      if (port !== null) {
+        flushPendingWheel(port)
+      }
       const gesture = gestureRef.current
       gestureRef.current = null
       const world = worldRef.current
-      const port = scrollRef.current
       if (gesture === null) {
         clearGesturePaint(world, port)
         releaseZoomGesture()
@@ -486,24 +524,21 @@ export function usePasteboardCamera({
       if (port === null) {
         return
       }
-      measureHandlerSync('wheel-zoom', () => {
-        const gesture = beginGesture('wheel', port)
-        const requested = gesture.liveZoom * wheelZoomFactor(event.deltaY)
-        zoomAtPoint(
-          {
-            zoom: gesture.startZoom,
-            scrollLeft: gesture.startScrollLeft,
-            scrollTop: gesture.startScrollTop,
-            anchorX: event.clientX - gesture.originX,
-            anchorY: event.clientY - gesture.originY,
-            factor: requested / gesture.startZoom,
-            minZoom: gesture.minZoom,
-            maxZoom: gesture.maxZoom,
-          },
-          gesture.frame,
-        )
-        gesture.liveZoom = gesture.frame.zoom
-      })
+      // Coalesce trackpad/test bursts into one zoom apply per frame (paint).
+      // Only the flush is measured as `wheel-zoom` — enqueue must stay cheap and
+      // must not dilute handler p95 under burst input.
+      beginGesture('wheel', port)
+      if (pendingWheel === null) {
+        pendingWheel = {
+          deltaY: event.deltaY,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        }
+      } else {
+        pendingWheel.deltaY += event.deltaY
+        pendingWheel.clientX = event.clientX
+        pendingWheel.clientY = event.clientY
+      }
       schedulePaint()
       scheduleSettle()
     }
@@ -713,6 +748,7 @@ export function usePasteboardCamera({
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.clearTimeout(settleRef.current)
+      pendingWheel = null
       if (rafRef.current !== 0) {
         cancelAnimationFrame(rafRef.current)
       }

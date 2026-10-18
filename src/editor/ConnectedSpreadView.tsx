@@ -29,11 +29,14 @@ import {
   setSpreadTiers,
   subscribeTierDisplay,
 } from './tierDisplay'
+import { getThumbUrl, subscribeThumb } from './thumbCache'
 import {
-  getThumbPublishGeneration,
-  getThumbUrl,
-  subscribeThumbPublishes,
-} from './thumbCache'
+  assetIdsOnSpread,
+  thumbSnapshotFor,
+  tierDisplayKeyFor,
+  tierNumberFromKey,
+  tierUrlFromKey,
+} from './spreadPreviewKeys'
 
 const SOURCE_ON_ANOTHER_SPREAD: FrameSource = {
   spreadId: '',
@@ -58,6 +61,21 @@ function devicePixelRatio(): number {
   return typeof ratio === 'number' && ratio > 0 ? ratio : 1
 }
 
+function subscribeSpreadThumbs(
+  assetIds: readonly string[],
+  listener: () => void,
+): () => void {
+  if (assetIds.length === 0) {
+    return () => undefined
+  }
+  const unsubs = assetIds.map((assetId) => subscribeThumb(assetId, listener))
+  return () => {
+    for (const unsub of unsubs) {
+      unsub()
+    }
+  }
+}
+
 export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   spreadId,
   pxPerMm = SPREAD_PX_PER_MM,
@@ -75,11 +93,6 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     getCommittedZoom,
     getCommittedZoom,
   )
-  const tierSnapshot = useSyncExternalStore(
-    subscribeTierDisplay,
-    getTierDisplaySnapshot,
-    getTierDisplaySnapshot,
-  )
   const galleryPhotoSelected = useSyncExternalStore(
     subscribeGalleryPhotoSelected,
     getGalleryPhotoSelected,
@@ -91,11 +104,18 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => getSpreadFrameSourceKey(spreadId),
   )
   const frameSource = sourceFromKey(spreadId, frameSourceKey)
-  // Stable subscribe: any thumb publish re-renders so previewUrlFor re-reads URLs.
-  const thumbPublishGeneration = useSyncExternalStore(
-    subscribeThumbPublishes,
-    getThumbPublishGeneration,
-    getThumbPublishGeneration,
+  const spreadAssetIds =
+    snapshot === undefined ? [] : assetIdsOnSpread(snapshot.resolved.items)
+  // Per-spread keys: global tier/thumb emits must not re-render unrelated spreads.
+  const tierDisplayKey = useSyncExternalStore(
+    subscribeTierDisplay,
+    () => tierDisplayKeyFor(spreadAssetIds, getTierDisplaySnapshot().urls),
+    () => tierDisplayKeyFor(spreadAssetIds, getTierDisplaySnapshot().urls),
+  )
+  const thumbSnapshot = useSyncExternalStore(
+    (listener) => subscribeSpreadThumbs(spreadAssetIds, listener),
+    () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
+    () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
   )
 
   useEffect(() => {
@@ -157,16 +177,21 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       pxPerMm={pxPerMm}
       previewUrlFor={(assetId) => {
         const covering =
-          tierSnapshot.urls.get(assetId)?.url ?? snapshot.previewUrlFor(assetId)
+          tierUrlFromKey(tierDisplayKey, assetId) ??
+          snapshot.previewUrlFor(assetId)
         if (covering !== undefined) {
           return covering
         }
-        // Import may publish a filmstrip thumb after first paint; read the
-        // publish generation so React Compiler keeps the subscription live.
-        const thumb = getThumbUrl(assetId)
-        return thumb ?? (thumbPublishGeneration < 0 ? '' : undefined)
+        const prefix = `${assetId}:`
+        for (const part of thumbSnapshot.split('|')) {
+          if (part.startsWith(prefix)) {
+            const url = part.slice(prefix.length)
+            return url.length > 0 ? url : undefined
+          }
+        }
+        return getThumbUrl(assetId)
       }}
-      tierFor={(assetId) => tierSnapshot.urls.get(assetId)?.tier}
+      tierFor={(assetId) => tierNumberFromKey(tierDisplayKey, assetId)}
       frameControlFor={(item) => {
         const filled = item.assetId !== undefined
         const frame = { spreadId, frameId: item.frameId }
