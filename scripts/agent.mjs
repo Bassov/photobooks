@@ -81,12 +81,25 @@ Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
 /** @typedef {{ code: number, stdout: string, stderr: string }} ExecResult */
 /** @typedef {(file: string, args: string[], opts?: object) => ExecResult} ExecFn */
 
+/** Drop ambient GIT_* overrides so `cwd` wins (Lefthook pre-push sets GIT_DIR). */
+export function execEnvForCwd(env = process.env) {
+  const out = { ...env }
+  delete out.GIT_DIR
+  delete out.GIT_WORK_TREE
+  delete out.GIT_INDEX_FILE
+  delete out.GIT_OBJECT_DIRECTORY
+  delete out.GIT_ALTERNATE_OBJECT_DIRECTORIES
+  return out
+}
+
 export function defaultExec(file, args, opts = {}) {
   try {
+    const env = execEnvForCwd(opts.env ?? process.env)
     const stdout = execFileSync(file, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       ...opts,
+      env,
     })
     return { code: 0, stdout: String(stdout), stderr: '' }
   } catch (e) {

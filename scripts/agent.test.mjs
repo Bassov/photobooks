@@ -58,19 +58,35 @@ function tmpRoot(withGit = false) {
   return d
 }
 
+function cleanGitEnv() {
+  const env = { ...process.env }
+  delete env.GIT_DIR
+  delete env.GIT_WORK_TREE
+  delete env.GIT_INDEX_FILE
+  delete env.GIT_OBJECT_DIRECTORY
+  delete env.GIT_ALTERNATE_OBJECT_DIRECTORIES
+  return env
+}
+
+function gitExec(args, cwd, extra = {}) {
+  return execFileSync('git', args, {
+    stdio: 'ignore',
+    ...extra,
+    cwd,
+    env: cleanGitEnv(),
+  })
+}
+
 function gitInitRepo() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-git-'))
   tmpDirs.push(d)
-  execFileSync('git', ['init'], { cwd: d, stdio: 'ignore' })
-  execFileSync('git', ['config', 'user.email', 't@t.com'], {
-    cwd: d,
-    stdio: 'ignore',
-  })
-  execFileSync('git', ['config', 'user.name', 't'], { cwd: d, stdio: 'ignore' })
+  gitExec(['init'], d)
+  gitExec(['config', 'user.email', 't@t.com'], d)
+  gitExec(['config', 'user.name', 't'], d)
   fs.writeFileSync(path.join(d, '.nvmrc'), '22\n')
   fs.writeFileSync(path.join(d, 'tracked.txt'), 'base\n')
-  execFileSync('git', ['add', '.'], { cwd: d, stdio: 'ignore' })
-  execFileSync('git', ['commit', '-m', 'init'], { cwd: d, stdio: 'ignore' })
+  gitExec(['add', '.'], d)
+  gitExec(['commit', '-m', 'init'], d)
   return d
 }
 
@@ -411,35 +427,33 @@ describe('nvmrc and push failures', () => {
     expect(p).toBe(path.join(root, '.git', 'agent-x.json'))
   })
 
-  it('pushFailPath uses git-dir in a linked worktree', () => {
-    const primary = gitInitRepo()
-    expect(primary.startsWith(os.tmpdir())).toBe(true)
-    execFileSync('git', ['branch', '-M', 'main'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    const wt = path.join(os.tmpdir(), `wt-${path.basename(primary)}`)
-    tmpDirs.push(wt)
-    execFileSync('git', ['worktree', 'add', wt, '-b', 'feat/wt-item'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    try {
-      writePushFailures(wt, { 'feat/wt-item': 1 })
-      const p = pushFailPath(wt)
-      expect(fs.existsSync(p)).toBe(true)
-      expect(readPushFailures(wt)).toEqual({ 'feat/wt-item': 1 })
-      expect(p.includes('.git')).toBe(true)
-    } finally {
-      try {
-        execFileSync('git', ['worktree', 'remove', '--force', wt], {
-          cwd: primary,
-          stdio: 'ignore',
-        })
-      } catch {
-        /* ignore */
+  it('pushFailPath uses git-dir from rev-parse (linked worktree shape)', () => {
+    // Mocked: real `git worktree add` against shared checkouts is unsafe under Lefthook GIT_DIR.
+    const root = tmpRoot()
+    const commonDir = path.join(
+      os.tmpdir(),
+      `agent-gitcommon-${path.basename(root)}`,
+    )
+    tmpDirs.push(commonDir)
+    fs.mkdirSync(commonDir, { recursive: true })
+    const gitDirRel = path.join(commonDir, 'worktrees', 'wt-item')
+    fs.mkdirSync(gitDirRel, { recursive: true })
+    const exec = (file, args) => {
+      const key = `${file} ${args.join(' ')}`
+      if (key.includes('git rev-parse --git-path')) {
+        return {
+          code: 0,
+          stdout: `${gitDirRel}/${args[args.length - 1]}\n`,
+          stderr: '',
+        }
       }
+      return { code: 1, stdout: '', stderr: `unhandled: ${key}` }
     }
+    writePushFailures(root, { 'feat/wt-item': 1 }, exec)
+    const p = pushFailPath(root, exec)
+    expect(fs.existsSync(p)).toBe(true)
+    expect(readPushFailures(root, exec)).toEqual({ 'feat/wt-item': 1 })
+    expect(p.startsWith(commonDir)).toBe(true)
   })
 })
 
@@ -1643,14 +1657,8 @@ describe('review-brief', () => {
       `| File | Why |\n| ---- | --- |\n| \`tracked.txt\` | t |\n`,
     )
     fs.writeFileSync(path.join(repo, 'tracked.txt'), 'committed-change\n')
-    execFileSync('git', ['add', 'tracked.txt', 'openspec'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['commit', '-m', 'change'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['add', 'tracked.txt', 'openspec'], repo)
+    gitExec(['commit', '-m', 'change'], repo)
     const headEmpty = run(
       ['review-brief', '--json', '--change', 'demo', '--root', repo],
       { cwd: repo, env: {} },
@@ -1739,39 +1747,18 @@ describe('review-brief', () => {
 
   it('diff vs merge-base ignores commits that landed only on base', () => {
     const repo = gitInitRepo()
-    execFileSync('git', ['branch', '-M', 'main'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['checkout', '-b', 'feat/demo'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['branch', '-M', 'main'], repo)
+    gitExec(['checkout', '-b', 'feat/demo'], repo)
     fs.writeFileSync(path.join(repo, 'branch-only.txt'), 'on-branch\n')
-    execFileSync('git', ['add', 'branch-only.txt'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['commit', '-m', 'branch change'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['add', 'branch-only.txt'], repo)
+    gitExec(['commit', '-m', 'branch change'], repo)
 
-    execFileSync('git', ['checkout', 'main'], { cwd: repo, stdio: 'ignore' })
+    gitExec(['checkout', 'main'], repo)
     fs.writeFileSync(path.join(repo, 'main-only.txt'), 'on-main\n')
-    execFileSync('git', ['add', 'main-only.txt'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['commit', '-m', 'main moved'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['add', 'main-only.txt'], repo)
+    gitExec(['commit', '-m', 'main moved'], repo)
 
-    execFileSync('git', ['checkout', 'feat/demo'], {
-      cwd: repo,
-      stdio: 'ignore',
-    })
+    gitExec(['checkout', 'feat/demo'], repo)
     const change = path.join(repo, 'openspec', 'changes', 'demo')
     fs.mkdirSync(change, { recursive: true })
     fs.writeFileSync(
@@ -2742,131 +2729,60 @@ describe('claimed set and merge helpers', () => {
 })
 
 describe('linked worktree preflight --slug', () => {
-  it('creates feat branch from origin/main while main is checked out elsewhere', () => {
-    const primary = gitInitRepo()
-    expect(primary.startsWith(os.tmpdir())).toBe(true)
-    execFileSync('git', ['branch', '-M', 'main'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['checkout', '-b', 'origin-main-tmp'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    // Simulate origin/main as a local ref the worktree can track.
-    execFileSync('git', ['branch', 'origin/main', 'main'], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    execFileSync('git', ['checkout', 'main'], { cwd: primary, stdio: 'ignore' })
-    const wt = path.join(os.tmpdir(), `agent-wt-${path.basename(primary)}`)
-    tmpDirs.push(wt)
-    execFileSync('git', ['worktree', 'add', '--detach', wt], {
-      cwd: primary,
-      stdio: 'ignore',
-    })
-    try {
-      fs.writeFileSync(path.join(wt, '.nvmrc'), '22\n')
-      fs.mkdirSync(path.join(wt, 'openspec', 'changes'), { recursive: true })
-      fs.mkdirSync(path.join(wt, 'docs/roadmap/M2.1'), { recursive: true })
-      fs.writeFileSync(
-        path.join(wt, 'docs/roadmap.md'),
-        '# R\n\n## M2.1 — t\n\n- [ ] [prep] [wt-slug](roadmap/M2.1/wt-slug.md) — t\n',
-      )
-      fs.writeFileSync(
-        path.join(wt, 'docs/roadmap/M2.1/wt-slug.md'),
-        '# wt-slug\n\nTag: prep\nMilestone: M2.1\nTitle: t\n',
-      )
-      execFileSync('git', ['add', '-A'], { cwd: wt, stdio: 'ignore' })
-      execFileSync(
-        'git',
-        [
-          '-c',
-          'user.email=t@t.com',
-          '-c',
-          'user.name=t',
-          'commit',
-          '-m',
-          'wt fixture',
-        ],
+  it('slug preflight creates feat branch without syncing local main', () => {
+    // Fully mocked: real `git worktree add` against shared checkouts has
+    // corrupted parallel agent worktrees when Lefthook sets GIT_DIR.
+    const root = tmpRoot(true)
+    fs.writeFileSync(path.join(root, '.nvmrc'), '22\n')
+    fs.mkdirSync(path.join(root, 'docs/roadmap/M2.1'), { recursive: true })
+    const calls = []
+    const exec = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git fetch origin', { code: 0 }],
+      ['gh pr list', { stdout: '' }],
+      ['git branch -r', { stdout: '' }],
+      [
+        'pnpm -s roadmap next --json',
         {
-          cwd: wt,
-          stdio: 'ignore',
+          stdout: JSON.stringify({
+            slug: 'wt-slug',
+            tag: 'prep',
+            title: 't',
+            file: 'docs/roadmap/M2.1/wt-slug.md',
+            milestone: 'M2.1',
+            goal: ['g'],
+          }),
         },
-      )
-      // Real git for worktree ops; stub only external tools + roadmap next path via thin wrapper.
-      // Always pin cwd to the temp worktree — never inherit a caller cwd that could be the real repo.
-      const real = defaultExec
-      const exec = (file, args, _opts = {}) => {
-        const key = `${file} ${args.join(' ')}`
-        if (key.includes('node -v'))
-          return { code: 0, stdout: 'v22.0.0\n', stderr: '' }
-        if (key.includes('command -v pnpm'))
-          return { code: 0, stdout: '', stderr: '' }
-        if (key.includes('gh pr list'))
-          return { code: 0, stdout: '', stderr: '' }
-        if (key.includes('pnpm') && key.includes('roadmap next')) {
-          return {
-            code: 0,
-            stdout: JSON.stringify({
-              slug: 'wt-slug',
-              tag: 'prep',
-              title: 't',
-              file: 'docs/roadmap/M2.1/wt-slug.md',
-              milestone: 'M2.1',
-              goal: ['g'],
-            }),
-            stderr: '',
-          }
-        }
-        if (
-          key.includes('openspec new') ||
-          key.includes('openspec instructions')
-        )
-          return {
-            code: 0,
-            stdout: JSON.stringify({ template: 'T', rules: ['r'] }),
-            stderr: '',
-          }
-        // Map origin/main for switch --no-track when remote is absent.
-        if (key.includes('git switch -c feat/wt-slug --no-track origin/main')) {
-          return real(
-            'git',
-            ['switch', '-c', 'feat/wt-slug', '--no-track', 'main'],
-            { cwd: wt },
-          )
-        }
-        if (key.includes('git fetch'))
-          return { code: 0, stdout: '', stderr: '' }
-        return real(file, args, { cwd: wt })
-      }
-      const r = cmdPreflight(
-        { slug: 'wt-slug' },
-        { root: wt, cwd: wt, env: {}, exec, quiet: true },
-      )
-      expect(r.ok).toBe(true)
-      expect(r.item.slug).toBe('wt-slug')
-      expect(r.branch).toBe('feat/wt-slug')
-      const br = execFileSync('git', ['branch', '--show-current'], {
-        cwd: wt,
-        encoding: 'utf8',
-      }).trim()
-      expect(br).toBe('feat/wt-slug')
-      const mainBr = execFileSync('git', ['branch', '--show-current'], {
-        cwd: primary,
-        encoding: 'utf8',
-      }).trim()
-      expect(mainBr).toBe('main')
-    } finally {
-      try {
-        execFileSync('git', ['worktree', 'remove', '--force', wt], {
-          cwd: primary,
-          stdio: 'ignore',
-        })
-      } catch {
-        /* ignore */
-      }
-    }
+      ],
+      [
+        'git switch -c feat/wt-slug --no-track origin/main',
+        (file, args) => {
+          calls.push([file, [...args]])
+          return { code: 0, stdout: '' }
+        },
+      ],
+      ['openspec new change', { code: 0 }],
+      [
+        'openspec instructions proposal',
+        { stdout: JSON.stringify({ template: 'T', rules: ['r'] }) },
+      ],
+    ])
+    const r = cmdPreflight(
+      { slug: 'wt-slug' },
+      { root, cwd: root, env: {}, exec, quiet: true },
+    )
+    expect(r.ok).toBe(true)
+    expect(r.item.slug).toBe('wt-slug')
+    expect(r.branch).toBe('feat/wt-slug')
+    expect(calls).toContainEqual([
+      'git',
+      ['switch', '-c', 'feat/wt-slug', '--no-track', 'origin/main'],
+    ])
+    // Must not switch/pull local main in slug mode.
+    expect(
+      calls.some((c) => c[1]?.[0] === 'switch' && c[1]?.[1] === 'main'),
+    ).toBe(false)
   })
 })
 
