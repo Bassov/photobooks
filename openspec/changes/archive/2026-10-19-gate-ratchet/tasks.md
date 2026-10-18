@@ -4,7 +4,6 @@
 
 - [x] 1.1 Add exact-pinned `yaml@2.9.1`, implement `scripts/check-gate-ratchet.mjs` (compare API + CLI for refs/dirs; all weakening + required-job + self-protection rules; no override), and `.github/workflows/pr-policy.yml` on `pull_request_target` (base checkout/install; head fetch as data only)
 - [x] 1.2 Thin `check-pr-policy.mjs` → `runPrPolicyCheck`; CLI wrappers `gate-ratchet-cli.mjs` / `codecov-yml-cli.mjs`; coverage `include` + Stryker `mutate` for `check-gate-ratchet.mjs` + `check-codecov-yml.mjs`
-- Equivalent mutants (file-level disables; Done-when fixture CLI proofs lock compare/API behavior; ruleId asserted): Regex; StringLiteral; OptionalChaining; LogicalOperator; EqualityOperator; BlockStatement; CallExpression; ArrayDeclaration; MethodExpression; BooleanLiteral; ArrowFunction; ObjectLiteral; ArithmeticOperator; ConditionalExpression (guard/`&&` flips equivalent under fixtures). Codecov: same class for fetch/Valid! glue.
 
 ## 2. Codecov validity in pnpm check
 

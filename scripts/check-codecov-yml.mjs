@@ -2,15 +2,7 @@
 /**
  * Validate codecov.yml via Codecov API (first line must be exactly "Valid!").
  * On network error only: pinned top-level key allowlist.
- *
- * Equivalent mutators: StringLiteral/ObjectLiteral on headers/details are
- * cosmetic; MethodExpression on res.text()/body is I/O glue covered by fetchImpl fakes.
  */
-// Stryker disable StringLiteral
-// Stryker disable ObjectLiteral
-// Stryker disable MethodExpression
-// Stryker disable LogicalOperator
-// Stryker disable ConditionalExpression
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

@@ -2,27 +2,7 @@
 /**
  * Gate ratchet: head tree must not be weaker than base.
  * CI: run from base checkout; head is read as git object data only.
- *
- * Mutator notes (equivalent / message-only): Regex detectors are locked by
- * fixture CLI proofs; StringLiteral fail text is diagnostic (ruleId asserted);
- * OptionalChaining on parsed trees is equivalent to null checks already covered.
  */
-// Behavior locked by fixture CLI proofs on compareGateTrees/runGateRatchetCli.
-// Remaining mutators are equivalent on this static compare surface (see tasks.md).
-// Stryker disable Regex
-// Stryker disable StringLiteral
-// Stryker disable OptionalChaining
-// Stryker disable LogicalOperator
-// Stryker disable EqualityOperator
-// Stryker disable BlockStatement
-// Stryker disable CallExpression
-// Stryker disable ArrayDeclaration
-// Stryker disable MethodExpression
-// Stryker disable BooleanLiteral
-// Stryker disable ArrowFunction
-// Stryker disable ObjectLiteral
-// Stryker disable ArithmeticOperator
-// Stryker disable ConditionalExpression
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -226,127 +206,169 @@ export function parsePercentish(value) {
 }
 
 /**
+ * @param {unknown} obj
+ * @param {string[]} pathKeys
+ */
+function dig(obj, pathKeys) {
+  let cur = obj
+  for (const key of pathKeys) {
+    if (cur === null || typeof cur !== 'object') return undefined
+    cur = /** @type {any} */ (cur)[key]
+  }
+  return cur
+}
+
+/** @type {{ path: string[], dir: 'higher-stricter' | 'lower-stricter', label: string }[]} */
+const GATES_NUMERIC = [
+  {
+    path: ['coverage', 'statements'],
+    dir: 'higher-stricter',
+    label: 'coverage.statements',
+  },
+  {
+    path: ['coverage', 'branches'],
+    dir: 'higher-stricter',
+    label: 'coverage.branches',
+  },
+  {
+    path: ['coverage', 'functions'],
+    dir: 'higher-stricter',
+    label: 'coverage.functions',
+  },
+  {
+    path: ['coverage', 'lines'],
+    dir: 'higher-stricter',
+    label: 'coverage.lines',
+  },
+  {
+    path: ['stryker', 'thresholds', 'high'],
+    dir: 'higher-stricter',
+    label: 'stryker.thresholds.high',
+  },
+  {
+    path: ['stryker', 'thresholds', 'low'],
+    dir: 'higher-stricter',
+    label: 'stryker.thresholds.low',
+  },
+  {
+    path: ['stryker', 'thresholds', 'break'],
+    dir: 'higher-stricter',
+    label: 'stryker.thresholds.break',
+  },
+  {
+    path: ['lighthouse', 'numberOfRuns'],
+    dir: 'higher-stricter',
+    label: 'lighthouse.numberOfRuns',
+  },
+  {
+    path: ['playwright', 'retries'],
+    dir: 'lower-stricter',
+    label: 'playwright.retries',
+  },
+  {
+    path: ['playwright', 'flakyRetries'],
+    dir: 'lower-stricter',
+    label: 'playwright.flakyRetries',
+  },
+  {
+    path: ['e2e', 'burnInDefault'],
+    dir: 'higher-stricter',
+    label: 'e2e.burnInDefault',
+  },
+]
+
+/**
  * @param {Record<string, unknown>} base
  * @param {Record<string, unknown>} head
  * @param {string} pathLabel
  * @param {(msg: string) => void} fail
  */
-function compareGatesJson(base, head, pathLabel, fail) {
-  for (const key of ['statements', 'branches', 'functions', 'lines']) {
-    const b = /** @type {any} */ (base).coverage?.[key]
-    const h = /** @type {any} */ (head).coverage?.[key]
-    if (typeof b === 'number' && numberWeaker(b, h, 'higher-stricter')) {
-      fail(`${pathLabel} coverage.${key}: ${b} → ${h} (weaker)`)
+export function compareGatesJson(base, head, pathLabel, fail) {
+  for (const row of GATES_NUMERIC) {
+    const b = dig(base, row.path)
+    const h = dig(head, row.path)
+    if (typeof b === 'number' && numberWeaker(b, h, row.dir)) {
+      fail(`${pathLabel} ${row.label}: ${b} → ${h} (weaker)`)
     }
   }
-  for (const key of ['high', 'low', 'break']) {
-    const b = /** @type {any} */ (base).stryker?.thresholds?.[key]
-    const h = /** @type {any} */ (head).stryker?.thresholds?.[key]
-    if (typeof b === 'number' && numberWeaker(b, h, 'higher-stricter')) {
-      fail(`${pathLabel} stryker.thresholds.${key}: ${b} → ${h} (weaker)`)
+
+  const bAssert = dig(base, ['lighthouse', 'assertions'])
+  const hAssert = dig(head, ['lighthouse', 'assertions'])
+  if (bAssert && typeof bAssert === 'object' && !Array.isArray(bAssert)) {
+    for (const k of Object.keys(bAssert)) {
+      if (
+        !hAssert ||
+        typeof hAssert !== 'object' ||
+        Array.isArray(hAssert) ||
+        !Object.prototype.hasOwnProperty.call(hAssert, k)
+      ) {
+        fail(`${pathLabel} lighthouse.assertions missing ${k}`)
+      } else if (
+        /** @type {any} */ (bAssert)[k] === 'error' &&
+        /** @type {any} */ (hAssert)[k] !== 'error'
+      ) {
+        fail(`${pathLabel} lighthouse.assertions.${k} no longer error`)
+      }
     }
   }
-  {
-    const b = /** @type {any} */ (base).lighthouse?.numberOfRuns
-    const h = /** @type {any} */ (head).lighthouse?.numberOfRuns
-    if (typeof b === 'number' && numberWeaker(b, h, 'higher-stricter')) {
-      fail(`${pathLabel} lighthouse.numberOfRuns: ${b} → ${h} (weaker)`)
+
+  const bList = dig(base, ['e2e', 'flakySpecs'])
+  const hList = dig(head, ['e2e', 'flakySpecs'])
+  if (Array.isArray(bList) && Array.isArray(hList)) {
+    for (const spec of hList) {
+      if (!bList.includes(spec)) {
+        fail(`${pathLabel} e2e.flakySpecs grew: ${spec}`)
+      }
     }
   }
-  {
-    const bAssert = /** @type {any} */ (base).lighthouse?.assertions
-    const hAssert = /** @type {any} */ (head).lighthouse?.assertions
-    if (bAssert && typeof bAssert === 'object') {
-      for (const k of Object.keys(bAssert)) {
-        if (!hAssert || !Object.prototype.hasOwnProperty.call(hAssert, k)) {
-          fail(`${pathLabel} lighthouse.assertions missing ${k}`)
-        } else if (bAssert[k] === 'error' && hAssert[k] !== 'error') {
-          fail(`${pathLabel} lighthouse.assertions.${k} no longer error`)
+
+  const bJobs = dig(base, ['requiredCheckJobs'])
+  const hJobs = dig(head, ['requiredCheckJobs'])
+  if (Array.isArray(bJobs)) {
+    if (!Array.isArray(hJobs)) {
+      fail(`${pathLabel} requiredCheckJobs removed`)
+    } else {
+      for (const job of bJobs) {
+        if (!hJobs.includes(job)) {
+          fail(`${pathLabel} requiredCheckJobs missing ${job}`)
         }
       }
     }
   }
-  {
-    const b = /** @type {any} */ (base).playwright?.retries
-    const h = /** @type {any} */ (head).playwright?.retries
-    if (typeof b === 'number' && numberWeaker(b, h, 'lower-stricter')) {
-      fail(`${pathLabel} playwright.retries: ${b} → ${h} (weaker)`)
+
+  const bBudgets = dig(base, ['lighthouse', 'budgets'])
+  const hBudgets = dig(head, ['lighthouse', 'budgets'])
+  if (!Array.isArray(bBudgets) || !Array.isArray(hBudgets)) return
+  if (JSON.stringify(bBudgets) === JSON.stringify(hBudgets)) return
+  for (const bb of bBudgets) {
+    if (!bb || typeof bb !== 'object') continue
+    const pathName = /** @type {any} */ (bb).path
+    const hb = hBudgets.find(
+      (x) =>
+        x && typeof x === 'object' && /** @type {any} */ (x).path === pathName,
+    )
+    if (!hb) {
+      fail(`${pathLabel} lighthouse.budgets path missing: ${pathName}`)
+      continue
     }
-  }
-  {
-    const b = /** @type {any} */ (base).playwright?.flakyRetries
-    const h = /** @type {any} */ (head).playwright?.flakyRetries
-    if (typeof b === 'number' && numberWeaker(b, h, 'lower-stricter')) {
-      fail(`${pathLabel} playwright.flakyRetries: ${b} → ${h} (weaker)`)
-    }
-  }
-  {
-    const b = /** @type {any} */ (base).e2e?.burnInDefault
-    const h = /** @type {any} */ (head).e2e?.burnInDefault
-    if (typeof b === 'number' && numberWeaker(b, h, 'higher-stricter')) {
-      fail(`${pathLabel} e2e.burnInDefault: ${b} → ${h} (weaker)`)
-    }
-  }
-  {
-    const bList = /** @type {any} */ (base).e2e?.flakySpecs
-    const hList = /** @type {any} */ (head).e2e?.flakySpecs
-    if (Array.isArray(bList) && Array.isArray(hList)) {
-      for (const spec of hList) {
-        if (!bList.includes(spec)) {
-          fail(`${pathLabel} e2e.flakySpecs grew: ${spec}`)
-        }
-      }
-    }
-  }
-  {
-    const bJobs = /** @type {any} */ (base).requiredCheckJobs
-    const hJobs = /** @type {any} */ (head).requiredCheckJobs
-    if (Array.isArray(bJobs)) {
-      if (!Array.isArray(hJobs)) {
-        fail(`${pathLabel} requiredCheckJobs removed`)
-      } else {
-        for (const job of bJobs) {
-          if (!hJobs.includes(job)) {
-            fail(`${pathLabel} requiredCheckJobs missing ${job}`)
-          }
-        }
-      }
-    }
-  }
-  // Budget numeric ceilings: higher budget is weaker
-  const bBudgets = /** @type {any} */ (base).lighthouse?.budgets
-  const hBudgets = /** @type {any} */ (head).lighthouse?.budgets
-  if (Array.isArray(bBudgets) && Array.isArray(hBudgets)) {
-    const hJson = JSON.stringify(hBudgets)
-    const bJson = JSON.stringify(bBudgets)
-    if (hJson !== bJson) {
-      // Compare resourceSizes budgets by path+type when possible
-      for (const bb of bBudgets) {
-        if (!bb || typeof bb !== 'object') continue
-        const hb = hBudgets.find(
-          (x) => x && typeof x === 'object' && x.path === bb.path,
+    const sizes = /** @type {any} */ (bb).resourceSizes
+    if (!Array.isArray(sizes)) continue
+    const headSizes = /** @type {any} */ (hb).resourceSizes
+    for (const rs of sizes) {
+      const hrs = Array.isArray(headSizes)
+        ? headSizes.find((x) => x && x.resourceType === rs.resourceType)
+        : undefined
+      if (!hrs) {
+        fail(
+          `${pathLabel} lighthouse budget resourceType missing: ${rs.resourceType}`,
         )
-        if (!hb) {
-          fail(`${pathLabel} lighthouse.budgets path missing: ${bb.path}`)
-          continue
-        }
-        for (const rs of bb.resourceSizes ?? []) {
-          const hrs = (hb.resourceSizes ?? []).find(
-            (x) => x.resourceType === rs.resourceType,
-          )
-          if (!hrs) {
-            fail(
-              `${pathLabel} lighthouse budget resourceType missing: ${rs.resourceType}`,
-            )
-          } else if (
-            typeof rs.budget === 'number' &&
-            numberWeaker(rs.budget, hrs.budget, 'lower-stricter')
-          ) {
-            fail(
-              `${pathLabel} lighthouse budget ${rs.resourceType}: ${rs.budget} → ${hrs.budget}`,
-            )
-          }
-        }
+      } else if (
+        typeof rs.budget === 'number' &&
+        numberWeaker(rs.budget, hrs.budget, 'lower-stricter')
+      ) {
+        fail(
+          `${pathLabel} lighthouse budget ${rs.resourceType}: ${rs.budget} → ${hrs.budget}`,
+        )
       }
     }
   }
@@ -357,10 +379,15 @@ function compareGatesJson(base, head, pathLabel, fail) {
  * @param {unknown} headRaw
  * @param {(msg: string) => void} fail
  */
-function compareCodecov(baseRaw, headRaw, fail) {
+export function compareCodecov(baseRaw, headRaw, fail) {
   const base = /** @type {any} */ (baseRaw) ?? {}
   const head = /** @type {any} */ (headRaw) ?? {}
 
+  /**
+   * @param {any} bNode
+   * @param {any} hNode
+   * @param {string} label
+   */
   const walkStatus = (bNode, hNode, label) => {
     if (!bNode || typeof bNode !== 'object') return
     if (!hNode || typeof hNode !== 'object') {
@@ -374,28 +401,27 @@ function compareCodecov(baseRaw, headRaw, fail) {
       }
       const bv = bNode[key]
       const hv = hNode[key]
-      if (bv && typeof bv === 'object' && !Array.isArray(bv)) {
-        if ('target' in bv || 'threshold' in bv || 'informational' in bv) {
-          const bt = parsePercentish(bv.target)
-          const ht = parsePercentish(hv?.target)
-          if (bt !== null && ht !== null && ht < bt) {
-            fail(
-              `codecov.yml ${label}.${key}.target: ${bv.target} → ${hv.target}`,
-            )
-          }
-          const bth = parsePercentish(bv.threshold)
-          const hth = parsePercentish(hv?.threshold)
-          if (bth !== null && hth !== null && hth > bth) {
-            fail(
-              `codecov.yml ${label}.${key}.threshold: ${bv.threshold} → ${hv.threshold}`,
-            )
-          }
-          if (bv.informational !== true && hv?.informational === true) {
-            fail(`codecov.yml ${label}.${key} informational turned on`)
-          }
-        } else {
-          walkStatus(bv, hv, `${label}.${key}`)
-        }
+      if (!bv || typeof bv !== 'object' || Array.isArray(bv)) continue
+      const isLeaf =
+        'target' in bv || 'threshold' in bv || 'informational' in bv
+      if (!isLeaf) {
+        walkStatus(bv, hv, `${label}.${key}`)
+        continue
+      }
+      const bt = parsePercentish(bv.target)
+      const ht = parsePercentish(hv?.target)
+      if (bt !== null && ht !== null && ht < bt) {
+        fail(`codecov.yml ${label}.${key}.target: ${bv.target} → ${hv.target}`)
+      }
+      const bth = parsePercentish(bv.threshold)
+      const hth = parsePercentish(hv?.threshold)
+      if (bth !== null && hth !== null && hth > bth) {
+        fail(
+          `codecov.yml ${label}.${key}.threshold: ${bv.threshold} → ${hv.threshold}`,
+        )
+      }
+      if (bv.informational !== true && hv?.informational === true) {
+        fail(`codecov.yml ${label}.${key} informational turned on`)
       }
     }
   }
@@ -417,38 +443,76 @@ function compareCodecov(baseRaw, headRaw, fail) {
       fail(`codecov.yml flags.${flag} removed`)
       continue
     }
-    const bPaths = bFlags[flag]?.paths ?? []
-    const hPaths = hFlags[flag]?.paths ?? []
-    if (Array.isArray(bPaths)) {
-      for (const p of bPaths) {
-        if (!hPaths.includes(p)) {
-          fail(`codecov.yml flags.${flag}.paths removed ${p}`)
-        }
+    const bPaths = bFlags[flag]?.paths
+    const hPaths = hFlags[flag]?.paths
+    if (!Array.isArray(bPaths)) continue
+    const headPaths = Array.isArray(hPaths) ? hPaths : []
+    for (const p of bPaths) {
+      if (!headPaths.includes(p)) {
+        fail(`codecov.yml flags.${flag}.paths removed ${p}`)
       }
     }
   }
 
-  const bIgnore = new Set(base.ignore ?? [])
-  const hIgnore = new Set(head.ignore ?? [])
+  const bIgnore = new Set(Array.isArray(base.ignore) ? base.ignore : [])
+  const hIgnore = new Set(Array.isArray(head.ignore) ? head.ignore : [])
   for (const p of hIgnore) {
     if (!bIgnore.has(p)) fail(`codecov.yml ignore added ${p}`)
   }
 
   const bComp = base.component_management?.individual_components
   const hComp = head.component_management?.individual_components
-  if (Array.isArray(bComp)) {
-    if (!Array.isArray(hComp)) {
-      fail('codecov.yml component_management.individual_components removed')
-    } else {
-      for (const c of bComp) {
-        const id = c?.component_id
-        if (id && !hComp.some((x) => x?.component_id === id)) {
-          fail(`codecov.yml component ${id} removed`)
-        }
-      }
+  if (!Array.isArray(bComp)) return
+  if (!Array.isArray(hComp)) {
+    fail('codecov.yml component_management.individual_components removed')
+    return
+  }
+  for (const c of bComp) {
+    const id = c?.component_id
+    if (id && !hComp.some((x) => x?.component_id === id)) {
+      fail(`codecov.yml component ${id} removed`)
     }
   }
 }
+
+/** @type {{ kind: string, test: (run: string, blob: string) => boolean }[]} */
+const KIND_DETECTORS = [
+  // Real burn-in invocation only (run evidence). Do not use step names alone —
+  // aggregators are often named "Require … burn-in".
+  {
+    kind: 'burn-in',
+    test: (run) =>
+      /e2e-burn-in|burn-in-targets|burn-in-count|--repeat-each/.test(run),
+  },
+  {
+    kind: 'e2e',
+    test: (run, blob) =>
+      (/\btest:e2e\b|\bplaywright test\b/.test(blob) ||
+        /pnpm test:e2e/.test(blob)) &&
+      !/e2e-burn-in|burn-in-targets|burn-in-count|--repeat-each/.test(run),
+  },
+  {
+    kind: 'coverage',
+    test: (_run, blob) =>
+      /\btest:coverage\b|vitest run --coverage|vitest.*--coverage/.test(blob),
+  },
+  {
+    kind: 'stryker',
+    test: (_run, blob) => /\bstryker\b/.test(blob),
+  },
+  {
+    kind: 'lighthouse',
+    test: (_run, blob) => /\blhci\b|\blighthouse\b/.test(blob),
+  },
+  {
+    kind: 'gitleaks',
+    test: (_run, blob) => /\bgitleaks\b/.test(blob),
+  },
+  {
+    kind: 'audit',
+    test: (_run, blob) => /\baudit:ci\b|pnpm audit\b/.test(blob),
+  },
+]
 
 /**
  * @param {unknown} step
@@ -456,33 +520,13 @@ function compareCodecov(baseRaw, headRaw, fail) {
  */
 export function classifyGateSteps(step) {
   const name = String(/** @type {any} */ (step)?.name ?? '')
-  const run = String(/** @type {any} */ (step)?.run ?? '')
+  const run = String(/** @type {any} */ (step)?.run ?? '').toLowerCase()
   const uses = String(/** @type {any} */ (step)?.uses ?? '')
   const blob = `${name}\n${run}\n${uses}`.toLowerCase()
   const kinds = new Set()
-  // Real burn-in invocation only (run evidence). Do not use step names alone —
-  // aggregators are often named "Require … burn-in".
-  if (
-    /e2e-burn-in|burn-in-targets|burn-in-count|--repeat-each/.test(
-      run.toLowerCase(),
-    )
-  ) {
-    kinds.add('burn-in')
+  for (const det of KIND_DETECTORS) {
+    if (det.test(run, blob)) kinds.add(det.kind)
   }
-  if (
-    (/\btest:e2e\b|\bplaywright test\b/.test(blob) ||
-      /pnpm test:e2e/.test(blob)) &&
-    !kinds.has('burn-in')
-  ) {
-    kinds.add('e2e')
-  }
-  if (/\btest:coverage\b|vitest run --coverage|vitest.*--coverage/.test(blob)) {
-    kinds.add('coverage')
-  }
-  if (/\bstryker\b/.test(blob)) kinds.add('stryker')
-  if (/\blhci\b|\blighthouse\b/.test(blob)) kinds.add('lighthouse')
-  if (/\bgitleaks\b/.test(blob)) kinds.add('gitleaks')
-  if (/\baudit:ci\b|pnpm audit\b/.test(blob)) kinds.add('audit')
   return kinds
 }
 
@@ -624,9 +668,6 @@ function compareRequiredJobGates(baseFiles, headFiles, requiredJobs, fail) {
         const pJob = headJobs.get(p)
         if (!pJob) return false
         if (pJob.continueOnErrorKinds.has(kind)) return false
-        if (pJob.continueOnErrorKinds.size > 0 && pJob.kinds.has(kind)) {
-          // job-level continue-on-error already folded into continueOnErrorKinds
-        }
         return hJob.needs.includes(p) && hJob.failOnNeeds
       })
       if (!neededOk) {
@@ -779,13 +820,8 @@ export function compareGateTrees(baseFiles, headFiles) {
       ...listSourcePaths(headFiles),
     ])
     for (const p of paths) {
-      // Detector / gate tooling may carry equivalent-mutator disable comments.
-      if (
-        p === 'scripts/check-gate-ratchet.mjs' ||
-        p === 'scripts/check-codecov-yml.mjs'
-      ) {
-        continue
-      }
+      // Skip only this file: it builds the detector regex from split literals.
+      if (p === 'scripts/check-gate-ratchet.mjs') continue
       const b = getFile(baseFiles, p) ?? ''
       const h = getFile(headFiles, p) ?? ''
       if (b === h) continue

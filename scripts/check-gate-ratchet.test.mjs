@@ -12,7 +12,9 @@ import {
   RULE_IDS,
   analyzeWorkflowJobs,
   classifyGateSteps,
+  compareCodecov,
   compareGateTrees,
+  compareGatesJson,
   extractCoverageExcludes,
   extractCoverageIncludes,
   extractStrykerGateBits,
@@ -1129,5 +1131,344 @@ describe('readTreeFromDir / readTreeFromGitRef / pr-policy', () => {
       env: { GATE_RATCHET_BASE: base },
     })
     expect(code).toBe(1)
+  })
+})
+
+describe('compareGatesJson / compareCodecov exact messages', () => {
+  it('emits exact weaker messages for every numeric gate path', () => {
+    const msgs = []
+    const fail = (m) => msgs.push(m)
+    const weaker = {
+      coverage: { statements: 1, branches: 1, functions: 1, lines: 1 },
+      stryker: { thresholds: { high: 1, low: 1, break: 1 } },
+      lighthouse: {
+        numberOfRuns: 0,
+        assertions: {},
+        budgets: [],
+      },
+      playwright: { retries: 9, flakyRetries: 9 },
+      e2e: { burnInDefault: 1, flakySpecs: ['x.spec.ts'] },
+      requiredCheckJobs: [],
+    }
+    compareGatesJson(baseGates, weaker, 'quality/gates.json', fail)
+    expect(msgs).toContain(
+      'quality/gates.json coverage.statements: 80 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json coverage.branches: 80 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json coverage.functions: 80 → 1 (weaker)',
+    )
+    expect(msgs).toContain('quality/gates.json coverage.lines: 80 → 1 (weaker)')
+    expect(msgs).toContain(
+      'quality/gates.json stryker.thresholds.high: 80 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json stryker.thresholds.low: 60 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json stryker.thresholds.break: 60 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json lighthouse.numberOfRuns: 1 → 0 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json playwright.retries: 0 → 9 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json playwright.flakyRetries: 2 → 9 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json e2e.burnInDefault: 10 → 1 (weaker)',
+    )
+    expect(msgs).toContain('quality/gates.json e2e.flakySpecs grew: x.spec.ts')
+    expect(msgs).toContain(
+      'quality/gates.json requiredCheckJobs missing checks',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json lighthouse.assertions missing performance-budget',
+    )
+  })
+
+  it('passes when all numeric values are equal or stricter', () => {
+    const msgs = []
+    compareGatesJson(baseGates, baseGates, 'quality/gates.json', (m) =>
+      msgs.push(m),
+    )
+    expect(msgs).toEqual([])
+    const stricter = {
+      ...baseGates,
+      coverage: { statements: 90, branches: 90, functions: 90, lines: 90 },
+      playwright: { retries: 0, flakyRetries: 0 },
+    }
+    compareGatesJson(baseGates, stricter, 'quality/gates.json', (m) =>
+      msgs.push(m),
+    )
+    expect(msgs).toEqual([])
+  })
+
+  it('emits exact codecov messages for target/threshold/flag/ignore/component', () => {
+    const msgs = []
+    const base = {
+      coverage: {
+        status: {
+          patch: { default: { target: '85%', threshold: '0%' } },
+          project: {
+            default: { target: 'auto', threshold: '1%', informational: false },
+          },
+        },
+      },
+      bundle_analysis: { status: 'error' },
+      flags: { unit: { paths: ['src/', 'scripts/'] } },
+      ignore: ['e2e/**'],
+      component_management: {
+        individual_components: [{ component_id: 'core', paths: ['src/core'] }],
+      },
+    }
+    const head = {
+      coverage: {
+        status: {
+          patch: {
+            default: {
+              target: '50%',
+              threshold: '5%',
+              informational: true,
+            },
+          },
+        },
+      },
+      bundle_analysis: { status: 'informational' },
+      flags: { unit: { paths: ['src/'] } },
+      ignore: ['e2e/**', 'tmp/**'],
+      component_management: { individual_components: [] },
+    }
+    compareCodecov(base, head, (m) => msgs.push(m))
+    expect(msgs).toContain(
+      'codecov.yml coverage.status.patch.default.target: 85% → 50%',
+    )
+    expect(msgs).toContain(
+      'codecov.yml coverage.status.patch.default.threshold: 0% → 5%',
+    )
+    expect(msgs).toContain(
+      'codecov.yml coverage.status.patch.default informational turned on',
+    )
+    expect(msgs).toContain('codecov.yml coverage.status.project removed')
+    expect(msgs).toContain(
+      'codecov.yml bundle_analysis informational turned on',
+    )
+    expect(msgs).toContain('codecov.yml flags.unit.paths removed scripts/')
+    expect(msgs).toContain('codecov.yml ignore added tmp/**')
+    expect(msgs).toContain('codecov.yml component core removed')
+  })
+
+  it('fails when codecov flag or component_management is removed', () => {
+    const msgs = []
+    compareCodecov(
+      {
+        flags: { unit: { paths: ['src/'] } },
+        component_management: {
+          individual_components: [{ component_id: 'core' }],
+        },
+      },
+      { flags: {} },
+      (m) => msgs.push(m),
+    )
+    expect(msgs).toContain('codecov.yml flags.unit removed')
+    expect(msgs).toContain(
+      'codecov.yml component_management.individual_components removed',
+    )
+  })
+})
+
+describe('classifyGateSteps / analyzeWorkflowJobs extra branches', () => {
+  it('classifies uses: actions and burn-in-targets run', () => {
+    expect(
+      classifyGateSteps({
+        name: 'Secrets',
+        uses: 'gitleaks/gitleaks-action@v2',
+      }).has('gitleaks'),
+    ).toBe(true)
+    expect(
+      classifyGateSteps({
+        run: 'node scripts/burn-in-targets.mjs',
+      }).has('burn-in'),
+    ).toBe(true)
+    expect(
+      classifyGateSteps({
+        run: 'pnpm exec playwright test',
+      }).has('e2e'),
+    ).toBe(true)
+    expect(
+      classifyGateSteps({
+        run: 'vitest run --coverage',
+      }).has('coverage'),
+    ).toBe(true)
+  })
+
+  it('detects needs.*.result exit 1 and step continue-on-error', () => {
+    const jobs = analyzeWorkflowJobs(
+      parseYaml(`
+jobs:
+  unit:
+    steps:
+      - name: Coverage
+        continue-on-error: true
+        run: pnpm test:coverage
+  gate:
+    needs: unit
+    steps:
+      - run: |
+          if [ "\${{ needs.unit.result }}" != "success" ]; then exit 1; fi
+`),
+    )
+    expect(jobs.get('unit')?.continueOnErrorKinds.has('coverage')).toBe(true)
+    expect(jobs.get('gate')?.failOnNeeds).toBe(true)
+    expect(jobs.get('gate')?.needs).toEqual(['unit'])
+  })
+
+  it('string needs becomes a one-element array', () => {
+    const jobs = analyzeWorkflowJobs(
+      parseYaml(`
+jobs:
+  a:
+    steps:
+      - run: pnpm test:e2e
+  b:
+    needs: a
+    steps:
+      - run: echo ok
+`),
+    )
+    expect(jobs.get('b')?.needs).toEqual(['a'])
+  })
+})
+
+describe('extractCoverage / stryker / parseArgs edge cases', () => {
+  it('reads inline exclude without coverageExcludeGlobs export', () => {
+    const vite = `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.ts'],
+      exclude: ['src/skip.ts'],
+    },
+  },
+}
+`
+    expect(extractCoverageExcludes(vite)).toEqual(['src/skip.ts'])
+    expect(extractCoverageIncludes(vite)).toEqual(['src/**/*.ts'])
+  })
+
+  it('does not flag empty ignorers array as weaker', () => {
+    const bits = extractStrykerGateBits(`
+      mutate: ['src/**/*.ts']
+      ignorers: []
+      coverageAnalysis: 'perTest'
+      ignoreStatic: true
+    `)
+    expect(bits.weakerFlags).not.toContain('ignorers')
+  })
+
+  it('parseArgs leaves empty string when flag value is missing', () => {
+    expect(parseArgs(['--base-dir'])).toEqual({ 'base-dir': '' })
+  })
+
+  it('parseExportedStringArray returns [] for missing export', () => {
+    expect(parseExportedStringArray('export const X = 1', 'RULE_IDS')).toEqual(
+      [],
+    )
+  })
+
+  it('stripShellComments handles nullish and windows newlines', () => {
+    expect(stripShellComments(null)).toBe('')
+    expect(stripShellComments('a\r\n#b\r\nc')).toBe('a\n\nc')
+  })
+})
+
+describe('compareGateTrees remaining weakenings', () => {
+  it('emits exact ruleId+message for lighthouse numberOfRuns drop', () => {
+    const headGates = {
+      ...baseGates,
+      lighthouse: { ...baseGates.lighthouse, numberOfRuns: 0 },
+    }
+    const r = compareGateTrees(
+      baseFiles(),
+      baseFiles({ 'quality/gates.json': JSON.stringify(headGates) }),
+    )
+    expect(r.violations).toContainEqual({
+      ruleId: 'gates-json-weaker',
+      message: 'quality/gates.json lighthouse.numberOfRuns: 1 → 0 (weaker)',
+    })
+  })
+
+  it('detects istanbul ignore and eslint-disable additions', () => {
+    const r = compareGateTrees(
+      baseFiles({ 'src/x.ts': 'export const a = 1\n' }),
+      baseFiles({
+        'src/x.ts':
+          '/* istanbul ignore next */\neslint-disable no-var\nexport const a = 1\n',
+      }),
+    )
+    // eslint-disable without -next-line is matched; istanbul ignore too.
+    expect(r.violations.some((v) => v.ruleId === 'ignore-comment-added')).toBe(
+      true,
+    )
+  })
+
+  it('does not flag Stryker disable inside the detector file itself', () => {
+    const r = compareGateTrees(
+      baseFiles({
+        'scripts/check-gate-ratchet.mjs': scriptWithIds(),
+      }),
+      baseFiles({
+        'scripts/check-gate-ratchet.mjs':
+          '// Stryker disable all\n' + scriptWithIds(),
+      }),
+    )
+    expect(r.violations.some((v) => v.ruleId === 'stryker-disable-added')).toBe(
+      false,
+    )
+  })
+
+  it('does flag Stryker disable in check-codecov-yml.mjs', () => {
+    const r = compareGateTrees(
+      baseFiles({
+        'scripts/check-codecov-yml.mjs': 'export const x = 1\n',
+      }),
+      baseFiles({
+        'scripts/check-codecov-yml.mjs':
+          '// Stryker disable BooleanLiteral\nexport const x = 1\n',
+      }),
+    )
+    expect(r.violations).toContainEqual({
+      ruleId: 'stryker-disable-added',
+      message:
+        'mutation suppression comment added in scripts/check-codecov-yml.mjs',
+    })
+  })
+
+  it('flags continue-on-error on a required job gate step', () => {
+    const headChecks = `
+jobs:
+  checks:
+    steps:
+      - name: Unit and property tests
+        continue-on-error: true
+        run: pnpm test:coverage
+      - name: Dependency audit
+        run: pnpm audit:ci
+`
+    const r = compareGateTrees(
+      baseFiles(),
+      baseFiles({ '.github/workflows/checks.yml': headChecks }),
+    )
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'required-job-step-moved' &&
+          /continue-on-error/.test(v.message),
+      ),
+    ).toBe(true)
   })
 })
