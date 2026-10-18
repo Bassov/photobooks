@@ -25,6 +25,10 @@ import {
 import { setEditorStatus } from './editorStatus'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
+  createAutosaveController,
+  type SavePhase,
+} from './session/autosaveController'
+import {
   browserPickDirectory,
   browserRequestReadwritePermission,
   browserTimers,
@@ -45,8 +49,6 @@ type ProjectSessionStatus =
   | { kind: 'idle' }
   | { kind: 'open'; libraryId: string; bookId: string | null }
   | { kind: 'error'; code: StorageFailureCode; action: string }
-
-type SavePhase = 'idle' | 'pending' | 'saving' | 'error'
 
 type AccessPhase = 'idle' | 'permission-required' | 'locked-elsewhere'
 
@@ -96,7 +98,6 @@ let pickDirectory: () => Promise<FileSystemDirectoryHandle | null> =
   browserPickDirectory
 let requestReadwritePermission: RequestReadwritePermission =
   browserRequestReadwritePermission
-let timers: ProjectSessionTimers = browserTimers
 let storageKey: Storage | null =
   typeof sessionStorage === 'undefined' ? null : sessionStorage
 let nowId: () => string = () => crypto.randomUUID()
@@ -106,12 +107,15 @@ let libraryId: string | null = null
 let bookId: string | null = null
 let status: ProjectSessionStatus = { kind: 'idle' }
 let dirty = false
-let savePhase: SavePhase = 'idle'
 let editGeneration = 0
 let ignoreBookStoreDirty = false
 let lastBookRef: Book | null = getBookStoreSnapshot().book
-let autosaveDebounceMs = DEFAULT_AUTOSAVE_DEBOUNCE_MS
-let autosaveTimer: ReturnType<typeof setTimeout> | null = null
+let autosave = createAutosaveController({
+  timers: browserTimers,
+  debounceMs: DEFAULT_AUTOSAVE_DEBOUNCE_MS,
+  isGestureActive: isEditorGestureActive,
+  awaitPendingHashes,
+})
 let accessPhase: AccessPhase = 'idle'
 let blockedBookId: string | null = null
 let heldBookLock: BookLock | null = null
@@ -136,8 +140,8 @@ let snapshot: ProjectSessionSnapshot = {
   libraryId: null,
   status: { kind: 'idle' },
   dirty: false,
-  savePhase: 'idle',
-  saving: false,
+  savePhase: autosave.getSavePhase(),
+  saving: autosave.getSavePhase() === 'saving',
   accessPhase: 'idle',
   blockedBookId: null,
   surface: 'home',
@@ -173,6 +177,7 @@ function setHomeError(message: string | null): void {
 }
 
 function refreshSnapshot(): boolean {
+  const savePhase = autosave.getSavePhase()
   const next: ProjectSessionSnapshot = {
     libraryOpen: storage !== null,
     bookId,
@@ -230,7 +235,8 @@ async function withActionBusy<T>(
 }
 
 async function flushPendingSaveBeforeRelease(): Promise<StorageResult<void>> {
-  if (savePhase === 'error') {
+  const phase = autosave.getSavePhase()
+  if (phase === 'error') {
     setEditorStatus(
       'Could not save changes. Fix the save error before leaving the editor.',
     )
@@ -241,37 +247,36 @@ async function flushPendingSaveBeforeRelease(): Promise<StorageResult<void>> {
     storage === null ||
     bookId === null ||
     heldBookLock === null ||
-    (!dirty && savePhase !== 'pending' && savePhase !== 'saving')
+    (!dirty && phase !== 'pending' && phase !== 'saving')
   ) {
     return { ok: true, value: undefined }
   }
-  cancelAutosaveTimer()
   const generationAtStart = editGeneration
   const epochAtStart = saveEpoch
-  savePhase = 'saving'
+  autosave.ensureSaving()
   emit()
   await persistBookSnapshot(storage, generationAtStart, epochAtStart)
   if (epochAtStart !== saveEpoch) {
     return { ok: false, code: 'not-found' }
   }
   if (dirty) {
-    savePhase = 'error'
+    autosave.failSaving()
     setEditorStatus(
       'Could not save changes. Fix the save error before leaving the editor.',
     )
     emit()
     return { ok: false, code: 'not-found' }
   }
-  savePhase = 'idle'
+  autosave.reset()
   emit()
   return { ok: true, value: undefined }
 }
 
 async function releaseHeldBookLock(): Promise<void> {
-  cancelAutosaveTimer()
+  autosave.cancel()
   saveEpoch += 1
-  if (savePhase === 'saving') {
-    savePhase = 'idle'
+  if (autosave.getSavePhase() === 'saving') {
+    autosave.reset()
   }
   if (heldBookLock === null) {
     return
@@ -291,8 +296,7 @@ function clearDocumentWhileLocked(): void {
     })
   })
   dirty = false
-  savePhase = 'idle'
-  cancelAutosaveTimer()
+  autosave.reset()
 }
 
 async function takeBookLock(nextBookId: string): Promise<StorageResult<void>> {
@@ -321,30 +325,14 @@ function setPermissionRequiredAccess(): void {
   emit()
 }
 
-function cancelAutosaveTimer(): void {
-  if (autosaveTimer !== null) {
-    timers.clearTimeout(autosaveTimer)
-    autosaveTimer = null
-  }
+function canArmAutosave(): boolean {
+  return storage !== null && bookId !== null && dirty
 }
 
 function armAutosaveDebounce(): void {
-  if (storage === null || bookId === null || !dirty || savePhase === 'error') {
-    return
+  if (autosave.arm(canArmAutosave(), () => dirty, runSave)) {
+    emit()
   }
-  if (savePhase === 'saving') {
-    return
-  }
-  savePhase = 'pending'
-  cancelAutosaveTimer()
-  autosaveTimer = timers.setTimeout(() => {
-    autosaveTimer = null
-    if (savePhase !== 'pending' || !dirty || isEditorGestureActive()) {
-      return
-    }
-    runSave()
-  }, autosaveDebounceMs)
-  emit()
 }
 
 function markDirtyFromUserEdit(): void {
@@ -357,10 +345,8 @@ function markDirtyFromUserEdit(): void {
   }
   dirty = true
   editGeneration += 1
-  if (savePhase === 'error') {
-    savePhase = 'pending'
-  }
-  if (savePhase !== 'saving') {
+  autosave.markPendingFromError()
+  if (autosave.getSavePhase() !== 'saving') {
     armAutosaveDebounce()
   } else {
     emit()
@@ -403,8 +389,8 @@ function onGestureChanged(): void {
   if (isEditorGestureActive()) {
     return
   }
-  if (savePhase === 'pending' && dirty) {
-    armAutosaveDebounce()
+  if (autosave.onGestureIdle(canArmAutosave(), () => dirty, runSave)) {
+    emit()
   }
 }
 
@@ -576,7 +562,7 @@ export function configureProjectSession(deps: ProjectSessionDeps): void {
     requestReadwritePermission = deps.requestReadwritePermission
   }
   if (deps.timers) {
-    timers = deps.timers
+    autosave.setTimers(deps.timers)
   }
   if (deps.storageKey) {
     storageKey = deps.storageKey
@@ -585,13 +571,13 @@ export function configureProjectSession(deps: ProjectSessionDeps): void {
     nowId = deps.nowId
   }
   if (deps.autosaveDebounceMs !== undefined) {
-    autosaveDebounceMs = deps.autosaveDebounceMs
+    autosave.setDebounceMs(deps.autosaveDebounceMs)
   }
 }
 
 /** Reset module singletons (unit tests). */
 export function resetProjectSessionForTests(): void {
-  cancelAutosaveTimer()
+  autosave.reset()
   void releaseHeldBookLock()
   void externalBookLockForTests?.release()
   externalBookLockForTests = null
@@ -599,16 +585,19 @@ export function resetProjectSessionForTests(): void {
   createStorageFromHandle = defaultStorageFromHandle
   pickDirectory = () => Promise.resolve(null)
   requestReadwritePermission = browserRequestReadwritePermission
-  timers = browserTimers
   storageKey = createMemoryStorageKey()
   nowId = () => crypto.randomUUID()
-  autosaveDebounceMs = DEFAULT_AUTOSAVE_DEBOUNCE_MS
+  autosave = createAutosaveController({
+    timers: browserTimers,
+    debounceMs: DEFAULT_AUTOSAVE_DEBOUNCE_MS,
+    isGestureActive: isEditorGestureActive,
+    awaitPendingHashes,
+  })
   storage = null
   libraryId = null
   bookId = null
   status = { kind: 'idle' }
   dirty = false
-  savePhase = 'idle'
   editGeneration = 0
   ignoreBookStoreDirty = false
   accessPhase = 'idle'
@@ -708,8 +697,7 @@ async function activateLoadedBook(book: Book): Promise<StorageResult<Book>> {
     })
   })
   dirty = false
-  savePhase = 'idle'
-  cancelAutosaveTimer()
+  autosave.reset()
   setStatus({ kind: 'open', libraryId, bookId })
   surface = 'editor'
   setEditorStatus('Book restored')
@@ -832,8 +820,7 @@ async function bindLibrary(
     })
     assetSources.clear()
     dirty = false
-    savePhase = 'idle'
-    cancelAutosaveTimer()
+    autosave.reset()
     surface = 'home'
     setHomeError(
       humanMessageForCode(
@@ -846,8 +833,7 @@ async function bindLibrary(
     return remembered
   }
   dirty = false
-  savePhase = 'idle'
-  cancelAutosaveTimer()
+  autosave.reset()
   if (accessPhase === 'permission-required') {
     accessPhase = 'idle'
   }
@@ -877,8 +863,7 @@ async function releaseOpenBookForNewLibrary(): Promise<void> {
     })
   })
   dirty = false
-  savePhase = 'idle'
-  cancelAutosaveTimer()
+  autosave.reset()
   setStatus({ kind: 'idle' })
 }
 
@@ -974,8 +959,7 @@ export async function leaveEditorForHome(): Promise<void> {
     })
     assetSources.clear()
     dirty = false
-    savePhase = 'idle'
-    cancelAutosaveTimer()
+    autosave.reset()
     setStatus({ kind: 'idle' })
     homeError = null
     surface = 'home'
@@ -1081,11 +1065,24 @@ export async function createBookInLibrary(): Promise<StorageResult<Book>> {
     })
   })
   dirty = false
-  savePhase = 'idle'
-  cancelAutosaveTimer()
+  autosave.reset()
   setStatus({ kind: 'open', libraryId, bookId })
   setEditorStatus('Book created')
   return created
+}
+
+function finishSaveAttempt(epochAtStart: number): void {
+  if (epochAtStart === saveEpoch) {
+    autosave.completeSavingIfSaving(dirty)
+  }
+  emit()
+  if (
+    epochAtStart === saveEpoch &&
+    dirty &&
+    autosave.getSavePhase() === 'pending'
+  ) {
+    armAutosaveDebounce()
+  }
 }
 
 function runSave(): void {
@@ -1097,14 +1094,12 @@ function runSave(): void {
     setEditorStatus(LOCK_BANNER_MESSAGE)
     return
   }
-  if (savePhase === 'saving') {
+  if (!autosave.beginSaving()) {
     return
   }
   if (bookId === null) {
     // Manual Save may still adopt; autosave never calls this path without bookId.
-    cancelAutosaveTimer()
     const epochAtStart = saveEpoch
-    savePhase = 'saving'
     emit()
     const activeStorage = storage
     scheduleBackground(async () => {
@@ -1117,41 +1112,27 @@ function runSave(): void {
         )
         if (!adopted.ok) {
           if (epochAtStart === saveEpoch) {
-            savePhase = 'error'
+            autosave.failSaving()
             dirty = true
           }
           return
         }
         await persistBookSnapshot(activeStorage, editGeneration, epochAtStart)
       } finally {
-        if (epochAtStart === saveEpoch && savePhase === 'saving') {
-          savePhase = dirty ? 'pending' : 'idle'
-        }
-        emit()
-        if (epochAtStart === saveEpoch && dirty && savePhase === 'pending') {
-          armAutosaveDebounce()
-        }
+        finishSaveAttempt(epochAtStart)
       }
     })
     return
   }
-  cancelAutosaveTimer()
   const generationAtStart = editGeneration
   const epochAtStart = saveEpoch
-  savePhase = 'saving'
   emit()
   const activeStorage = storage
   scheduleBackground(async () => {
     try {
       await persistBookSnapshot(activeStorage, generationAtStart, epochAtStart)
     } finally {
-      if (epochAtStart === saveEpoch && savePhase === 'saving') {
-        savePhase = dirty ? 'pending' : 'idle'
-      }
-      emit()
-      if (epochAtStart === saveEpoch && dirty && savePhase === 'pending') {
-        armAutosaveDebounce()
-      }
+      finishSaveAttempt(epochAtStart)
     }
   })
 }
@@ -1161,7 +1142,7 @@ async function persistBookSnapshot(
   generationAtStart: number,
   epochAtStart: number,
 ): Promise<void> {
-  await awaitPendingHashes()
+  await autosave.waitForPendingHashes()
   if (
     epochAtStart !== saveEpoch ||
     heldBookLock === null ||
@@ -1179,7 +1160,7 @@ async function persistBookSnapshot(
     return
   }
   if (!result.ok) {
-    savePhase = 'error'
+    autosave.failSaving()
     dirty = true
     if (result.code === 'permission-required') {
       setPermissionRequiredAccess()
@@ -1201,10 +1182,10 @@ async function persistBookSnapshot(
   setEditorStatus('Book saved')
   if (editGeneration === generationAtStart) {
     dirty = false
-    savePhase = 'idle'
+    autosave.settleAfterPersist(false)
   } else {
     dirty = true
-    savePhase = 'pending'
+    autosave.settleAfterPersist(true)
   }
 }
 
@@ -1723,8 +1704,7 @@ export async function openBookFromHome(
       })
       assetSources.clear()
       dirty = false
-      savePhase = 'idle'
-      cancelAutosaveTimer()
+      autosave.reset()
       surface = 'home'
       setHomeError(
         humanMessageForCode(
@@ -1760,8 +1740,7 @@ async function clearStaleRestoreState(): Promise<void> {
   }
   void session.setActiveIds({ libraryId: null, bookId: null })
   dirty = false
-  savePhase = 'idle'
-  cancelAutosaveTimer()
+  autosave.reset()
   accessPhase = 'idle'
   blockedBookId = null
   setStatus({ kind: 'idle' })
@@ -1772,7 +1751,7 @@ export async function tryRestore(): Promise<StorageResult<Book | null>> {
     restorePending = true
     emit()
     try {
-      cancelAutosaveTimer()
+      autosave.cancel()
       const persisted = readPersistedIds()
       if (!persisted.bookId) {
         surface = 'home'
@@ -1799,8 +1778,7 @@ export async function tryRestore(): Promise<StorageResult<Book | null>> {
           bookId = null
           libraryId = null
           dirty = false
-          savePhase = 'idle'
-          cancelAutosaveTimer()
+          autosave.reset()
           surface = 'home'
           setPermissionRequiredAccess()
           setStatus({
