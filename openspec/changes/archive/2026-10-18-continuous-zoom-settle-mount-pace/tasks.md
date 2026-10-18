@@ -13,9 +13,8 @@
 ## 3. Mutation / coverage
 
 - [x] 3.1 Run `pnpm stryker:diff` and `pnpm test:coverage`; add public-API tests for survived/no-coverage mutants in touched behavior; list skipped survivors with one-line reasons under this item
-  - Skipped: most `Pasteboard.tsx` survivors — React effect/schedule wiring and DOM attribute chrome; behavior locked by view + e2e LoAF (equivalent / instrumentation).
+  - Skipped: `Pasteboard.tsx` ResizeObserver/IntersectionObserver chrome and slot `data-active` / intrinsic-size attribute literals — equivalent DOM chrome; behavior locked by view + e2e.
   - Skipped: `pasteboardWindowsEqual` lead/tail mutants that stay equivalent when callers recompute extents from start/end before compare (covered start/end inequality cases).
-  - Skipped: finite/NaN clamp and empty-count guards in pace helper — defensive edges; happy paced paths covered by unit + e2e.
 
 ## Verification checklist
 
@@ -36,6 +35,6 @@
 ## Manual test scenarios
 
 1. Open `/?fixture=painter&perf=1`, zoom to fit-all then to ≥400%, wait for gesture end and covering tier.
-2. Clear LoAF; continuous zoom-out burst (default settle); wait until gesture ends and all 40 pasteboard slots are mounted.
-3. Expected: zero LoAF; document fits viewport; budgets unchanged. Evidenced by Playwright `main parity` case under `retries: 0`.
+2. Clear LoAF; continuous zoom-out burst (default settle); wait until gesture ends, then until paced remount mounts all 40 pasteboard slots.
+3. Expected: zero LoAF across that settle remount window; document fits viewport; budgets unchanged. Evidenced by Playwright `main parity` case under `retries: 0`.
 4. UI-review: empty N/A for pace; happy + zoom-out interact covered by that e2e; no new chrome aesthetics.

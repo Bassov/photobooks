@@ -5,6 +5,101 @@ import { commitZoom, resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
 import { PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME } from './pasteboardWindow'
 
+interface PaceTimeout {
+  id: number
+  ms: number
+  cb: () => void
+}
+
+interface PaceFrameHooks {
+  rafQueue: FrameRequestCallback[]
+  timeouts: PaceTimeout[]
+  cancelAnimationFrame: ReturnType<typeof vi.fn>
+  clearTimeout: ReturnType<typeof vi.fn>
+  cancelledRafIds: Set<number>
+  cancelledTimeoutIds: Set<number>
+}
+
+function stubPaceFrameHooks(): PaceFrameHooks {
+  const rafQueue: FrameRequestCallback[] = []
+  const timeouts: PaceTimeout[] = []
+  const cancelledRafIds = new Set<number>()
+  const cancelledTimeoutIds = new Set<number>()
+  let nextRafId = 1
+  let nextTimeoutId = 1
+  const cancelAnimationFrame = vi.fn((id: number) => {
+    cancelledRafIds.add(id)
+  })
+  const clearTimeoutFn = vi.fn((id: number) => {
+    cancelledTimeoutIds.add(id)
+  })
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    const id = nextRafId
+    nextRafId += 1
+    rafQueue.push(cb)
+    Object.defineProperty(cb, 'rafId', { value: id, configurable: true })
+    return id
+  })
+  vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrame)
+  vi.stubGlobal('setTimeout', (cb: TimerHandler, ms?: number): number => {
+    const id = nextTimeoutId
+    nextTimeoutId += 1
+    if (typeof cb === 'function') {
+      const delay = typeof ms === 'number' ? ms : 0
+      timeouts.push({
+        id,
+        ms: delay,
+        cb: () => {
+          cb()
+        },
+      })
+    }
+    return id
+  })
+  vi.stubGlobal('clearTimeout', clearTimeoutFn)
+  return {
+    rafQueue,
+    timeouts,
+    cancelAnimationFrame,
+    clearTimeout: clearTimeoutFn,
+    cancelledRafIds,
+    cancelledTimeoutIds,
+  }
+}
+
+function stubViewport(width: number, height: number): void {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(private readonly cb: ResizeObserverCallback) {}
+      observe(target: Element): void {
+        Object.defineProperty(target, 'clientWidth', {
+          configurable: true,
+          value: width,
+        })
+        Object.defineProperty(target, 'clientHeight', {
+          configurable: true,
+          value: height,
+        })
+        this.cb([], this)
+      }
+      disconnect(): void {
+        /* no-op */
+      }
+      unobserve(): void {
+        /* no-op */
+      }
+    },
+  )
+}
+
+function dropInitialPaceCallbacks(hooks: PaceFrameHooks): void {
+  hooks.rafQueue.length = 0
+  hooks.timeouts.length = 0
+  hooks.cancelledRafIds.clear()
+  hooks.cancelledTimeoutIds.clear()
+}
+
 describe('Pasteboard view wiring', () => {
   afterEach(() => {
     cleanup()
@@ -15,42 +110,15 @@ describe('Pasteboard view wiring', () => {
   })
 
   it('coalesces scroll updates onto one animation frame', () => {
-    const rafQueue: FrameRequestCallback[] = []
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-      rafQueue.push(cb)
-      return rafQueue.length
-    })
+    const hooks = stubPaceFrameHooks()
     resetBookStore()
     for (let i = 0; i < 6; i += 1) {
       dispatchBookOp({ type: 'addSpread' })
     }
     commitZoom(1, 0, 0)
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        constructor(private readonly cb: ResizeObserverCallback) {}
-        observe(target: Element): void {
-          Object.defineProperty(target, 'clientWidth', {
-            configurable: true,
-            value: 500,
-          })
-          Object.defineProperty(target, 'clientHeight', {
-            configurable: true,
-            value: 200,
-          })
-          this.cb([], this)
-        }
-        disconnect(): void {
-          /* no-op */
-        }
-        unobserve(): void {
-          /* no-op */
-        }
-      },
-    )
+    stubViewport(500, 200)
     render(<Pasteboard />)
-    // Drop mount-pace rAF callbacks scheduled during the initial layout.
-    rafQueue.length = 0
+    dropInitialPaceCallbacks(hooks)
     const scroll = screen.getByTestId('pasteboard-scroll')
     let scrollTopValue = 0
     Object.defineProperty(scroll, 'scrollTop', {
@@ -68,10 +136,10 @@ describe('Pasteboard view wiring', () => {
     scroll.scrollTop = 900
     fireEvent.scroll(scroll)
 
-    expect(rafQueue).toHaveLength(1)
+    expect(hooks.rafQueue).toHaveLength(1)
     expect(screen.queryByTestId('pasteboard-lead')).toBeNull()
     act(() => {
-      rafQueue[0]?.(0)
+      hooks.rafQueue[0]?.(0)
     })
     // rAF body must apply tracked scroll so the virtual window grows a lead.
     expect(
@@ -86,29 +154,7 @@ describe('Pasteboard view wiring', () => {
       dispatchBookOp({ type: 'addSpread' })
     }
     commitZoom(1, 0, 1200)
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        constructor(private readonly cb: ResizeObserverCallback) {}
-        observe(target: Element): void {
-          Object.defineProperty(target, 'clientWidth', {
-            configurable: true,
-            value: 500,
-          })
-          Object.defineProperty(target, 'clientHeight', {
-            configurable: true,
-            value: 240,
-          })
-          this.cb([], this)
-        }
-        disconnect(): void {
-          /* no-op */
-        }
-        unobserve(): void {
-          /* no-op */
-        }
-      },
-    )
+    stubViewport(500, 240)
     render(<Pasteboard />)
     expect(
       Number.parseFloat(screen.getByTestId('pasteboard-lead').style.height),
@@ -182,47 +228,13 @@ describe('Pasteboard view wiring', () => {
   it('omits lead/tail at the stack start and sets slot chrome attrs', () => {
     resetBookStore()
     commitZoom(1, 0, 0)
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        constructor(private readonly cb: ResizeObserverCallback) {}
-        observe(target: Element): void {
-          Object.defineProperty(target, 'clientWidth', {
-            configurable: true,
-            value: 800,
-          })
-          Object.defineProperty(target, 'clientHeight', {
-            configurable: true,
-            value: 600,
-          })
-          this.cb([], this)
-        }
-        disconnect(): void {
-          /* no-op */
-        }
-        unobserve(): void {
-          /* no-op */
-        }
-      },
-    )
-    const rafQueue: FrameRequestCallback[] = []
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-      rafQueue.push(cb)
-      return rafQueue.length
-    })
-    vi.stubGlobal(
-      'setTimeout',
-      vi.fn(() => 1),
-    )
-    vi.stubGlobal(
-      'clearTimeout',
-      vi.fn(() => undefined),
-    )
+    stubViewport(800, 600)
+    const hooks = stubPaceFrameHooks()
     render(<Pasteboard />)
     let guarded = 0
-    while (rafQueue.length > 0 && guarded < 20) {
+    while (hooks.rafQueue.length > 0 && guarded < 20) {
       act(() => {
-        const cb = rafQueue.shift()
+        const cb = hooks.rafQueue.shift()
         cb?.(0)
       })
       guarded += 1
@@ -244,47 +256,13 @@ describe('Pasteboard view wiring', () => {
   })
 
   it('paces newly mounted slots across frames when zoom-out grows the window', () => {
-    const rafQueue: FrameRequestCallback[] = []
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-      rafQueue.push(cb)
-      return rafQueue.length
-    })
-    vi.stubGlobal(
-      'setTimeout',
-      vi.fn(() => 1),
-    )
-    vi.stubGlobal(
-      'clearTimeout',
-      vi.fn(() => undefined),
-    )
+    const hooks = stubPaceFrameHooks()
     resetBookStore()
     for (let i = 0; i < 20; i += 1) {
       dispatchBookOp({ type: 'addSpread' })
     }
     commitZoom(4, 0, 0)
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        constructor(private readonly cb: ResizeObserverCallback) {}
-        observe(target: Element): void {
-          Object.defineProperty(target, 'clientWidth', {
-            configurable: true,
-            value: 500,
-          })
-          Object.defineProperty(target, 'clientHeight', {
-            configurable: true,
-            value: 400,
-          })
-          this.cb([], this)
-        }
-        disconnect(): void {
-          /* no-op */
-        }
-        unobserve(): void {
-          /* no-op */
-        }
-      },
-    )
+    stubViewport(500, 400)
     render(<Pasteboard />)
     const slotsAtZoom = screen.getAllByTestId('pasteboard-slot').length
     expect(slotsAtZoom).toBeGreaterThan(0)
@@ -298,11 +276,11 @@ describe('Pasteboard view wiring', () => {
       slotsAtZoom + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
     )
     expect(slots).toBeLessThan(23)
-    expect(rafQueue.length).toBeGreaterThan(0)
+    expect(hooks.rafQueue.length).toBeGreaterThan(0)
 
     const beforeFrame = slots
     act(() => {
-      const cb = rafQueue.shift()
+      const cb = hooks.rafQueue.shift()
       cb?.(0)
     })
     slots = screen.getAllByTestId('pasteboard-slot').length
@@ -312,19 +290,133 @@ describe('Pasteboard view wiring', () => {
     )
   })
 
-  it('cancels a pending scroll frame on unmount', () => {
-    const rafQueue: FrameRequestCallback[] = []
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-      rafQueue.push(cb)
-      return 42
+  it('runs only one pace step when the watchdog fires before a stale rAF', () => {
+    const hooks = stubPaceFrameHooks()
+    resetBookStore()
+    for (let i = 0; i < 20; i += 1) {
+      dispatchBookOp({ type: 'addSpread' })
+    }
+    commitZoom(4, 0, 0)
+    stubViewport(500, 400)
+    render(<Pasteboard />)
+    dropInitialPaceCallbacks(hooks)
+
+    act(() => {
+      commitZoom(0.25, 0, 0)
     })
-    const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame')
+    const afterCommit = screen.getAllByTestId('pasteboard-slot').length
+    expect(hooks.rafQueue.length).toBe(1)
+    expect(hooks.timeouts.some((entry) => entry.ms === 32)).toBe(true)
+
+    const staleRaf = hooks.rafQueue[0]
+    expect(staleRaf).toBeTruthy()
+    const staleRafId = (staleRaf as FrameRequestCallback & { rafId?: number })
+      .rafId
+    expect(typeof staleRafId).toBe('number')
+    const watchdog = hooks.timeouts.find(
+      (entry) => entry.ms === 32 && !hooks.cancelledTimeoutIds.has(entry.id),
+    )
+    expect(watchdog).toBeTruthy()
+
+    act(() => {
+      watchdog?.cb()
+    })
+    const afterWatchdog = screen.getAllByTestId('pasteboard-slot').length
+    expect(afterWatchdog).toBeGreaterThan(afterCommit)
+    expect(afterWatchdog).toBeLessThanOrEqual(
+      afterCommit + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+    )
+    if (typeof staleRafId !== 'number') {
+      throw new Error('expected stale rAF id')
+    }
+    expect(hooks.cancelledRafIds.has(staleRafId)).toBe(true)
+    expect(hooks.cancelAnimationFrame).toHaveBeenCalledWith(staleRafId)
+
+    const pendingAfterWatchdog = hooks.rafQueue.length
+    act(() => {
+      staleRaf?.(0)
+    })
+    expect(screen.getAllByTestId('pasteboard-slot').length).toBe(afterWatchdog)
+    expect(hooks.rafQueue.length).toBe(pendingAfterWatchdog)
+  })
+
+  it('clears add-spread force-mount so later pace steps stay capped', () => {
+    const hooks = stubPaceFrameHooks()
+    resetBookStore()
+    for (let i = 0; i < 12; i += 1) {
+      dispatchBookOp({ type: 'addSpread' })
+    }
+    commitZoom(4, 0, 0)
+    stubViewport(500, 400)
+    render(<Pasteboard />)
+    dropInitialPaceCallbacks(hooks)
+
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+    })
+    const afterAdd = screen.getAllByTestId('pasteboard-slot').length
+    expect(afterAdd).toBeGreaterThan(0)
+
+    act(() => {
+      commitZoom(0.2, 0, 0)
+    })
+    const afterZoomOut = screen.getAllByTestId('pasteboard-slot').length
+    expect(afterZoomOut).toBeLessThanOrEqual(
+      afterAdd + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+    )
+
+    if (hooks.rafQueue.length > 0) {
+      const beforeStep = afterZoomOut
+      act(() => {
+        const cb = hooks.rafQueue.shift()
+        cb?.(0)
+      })
+      const afterStep = screen.getAllByTestId('pasteboard-slot').length
+      expect(afterStep).toBeLessThanOrEqual(
+        beforeStep + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+      )
+    }
+  })
+
+  it('cancels pending pace rAF and watchdog on unmount', () => {
+    const hooks = stubPaceFrameHooks()
+    resetBookStore()
+    for (let i = 0; i < 20; i += 1) {
+      dispatchBookOp({ type: 'addSpread' })
+    }
+    commitZoom(4, 0, 0)
+    stubViewport(500, 400)
+    const view = render(<Pasteboard />)
+    dropInitialPaceCallbacks(hooks)
+
+    act(() => {
+      commitZoom(0.25, 0, 0)
+    })
+    expect(hooks.rafQueue.length).toBeGreaterThan(0)
+    const pendingRafId = (
+      hooks.rafQueue[0] as FrameRequestCallback & { rafId?: number }
+    ).rafId
+    const pendingWatchdog = hooks.timeouts.find((entry) => entry.ms === 32)
+    expect(pendingRafId).toBeTypeOf('number')
+    expect(pendingWatchdog).toBeTruthy()
+
+    view.unmount()
+    expect(hooks.cancelAnimationFrame).toHaveBeenCalledWith(pendingRafId)
+    expect(hooks.clearTimeout).toHaveBeenCalledWith(pendingWatchdog?.id)
+  })
+
+  it('cancels a pending scroll frame on unmount', () => {
+    const hooks = stubPaceFrameHooks()
     resetBookStore()
     const view = render(<Pasteboard />)
+    dropInitialPaceCallbacks(hooks)
     const scroll = screen.getByTestId('pasteboard-scroll')
     fireEvent.scroll(scroll, { target: { scrollTop: 50 } })
-    expect(rafQueue).toHaveLength(1)
+    expect(hooks.rafQueue).toHaveLength(1)
+    const scrollRafId = (
+      hooks.rafQueue[0] as FrameRequestCallback & { rafId?: number }
+    ).rafId
     view.unmount()
-    expect(cancel).toHaveBeenCalledWith(42)
+    expect(hooks.cancelAnimationFrame).toHaveBeenCalledWith(scrollRafId)
   })
 })

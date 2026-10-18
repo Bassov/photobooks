@@ -26,5 +26,5 @@ A throttled Playwright scenario MUST zoom the painter fixture continuously from 
 
 #### Scenario: Zoom-out settle remount is inside the LoAF window
 
-- **WHEN** a throttled scenario runs a continuous zoom-out burst through the default settle and waits until the zoom gesture has ended so newly visible spreads remount
-- **THEN** the scenario fails if any long animation frame was recorded during that burst-through-gesture-end window
+- **WHEN** a throttled scenario runs a continuous zoom-out burst through the default settle, waits until the zoom gesture has ended, and waits until paced remount of newly visible spreads completes
+- **THEN** the scenario fails if any long animation frame was recorded during that burst-through-paced-remount window

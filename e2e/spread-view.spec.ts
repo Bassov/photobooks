@@ -488,8 +488,9 @@ test.describe('frame-budget gates', () => {
   test.describe('continuous zoom settle remount (stabilized)', () => {
     test.describe.configure({ retries: 0 })
 
-    // Zoom-out burst + default settle through gesture-end remount of newly
-    // visible spreads; paced ConnectedSpreadView mounts keep LoAF at zero.
+    // Zoom-out burst + default settle; gesture ends, then paced remount of
+    // newly visible spreads completes with zero LoAF (mounts may finish after
+    // gesture end).
     test('continuous zoom-out burst + settle remount stays within frame-budget gates (main parity)', async ({
       page,
     }, testInfo) => {

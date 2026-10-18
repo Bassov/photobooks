@@ -112,9 +112,6 @@ export function pacePasteboardWindow(input: {
     start = Math.max(current.start, target.start)
     end = Math.min(current.end, target.end)
   }
-  if (end < start) {
-    end = start
-  }
 
   const maxNew = Number.isFinite(input.maxNewMounts)
     ? Math.max(0, Math.floor(input.maxNewMounts))
@@ -126,23 +123,15 @@ export function pacePasteboardWindow(input: {
     const targetBefore = start - target.start
     const targetAfter = target.end - end
     if (coverBefore > 0 || coverAfter > 0) {
-      if (coverBefore >= coverAfter && coverBefore > 0) {
+      if (coverBefore >= coverAfter) {
         start -= 1
-      } else if (coverAfter > 0) {
-        end += 1
       } else {
-        break
-      }
-    } else if (targetBefore > 0 || targetAfter > 0) {
-      if (targetBefore >= targetAfter && targetBefore > 0) {
-        start -= 1
-      } else if (targetAfter > 0) {
         end += 1
-      } else {
-        break
       }
+    } else if (targetBefore >= targetAfter) {
+      start -= 1
     } else {
-      break
+      end += 1
     }
     budget -= 1
   }

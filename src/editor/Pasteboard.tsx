@@ -93,9 +93,11 @@ export const Pasteboard = memo(function Pasteboard() {
   const pendingEpoch = useRef(0)
   const pacedRef = useRef<PasteboardWindow | null>(null)
   const paceScheduled = useRef(false)
+  const paceRaf = useRef(0)
   const paceWatchdog = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   )
+  const paceGeneration = useRef(0)
   const forceMountIndexRef = useRef<number | null>(null)
   const [paced, setPaced] = useState<PasteboardWindow | null>(null)
 
@@ -159,10 +161,14 @@ export const Pasteboard = memo(function Pasteboard() {
       tailPx: viewportCover.tailPx,
     }
 
-    const clearWatchdog = (): void => {
+    const clearPendingStep = (): void => {
       if (paceWatchdog.current !== undefined) {
         clearTimeout(paceWatchdog.current)
         paceWatchdog.current = undefined
+      }
+      if (paceRaf.current !== 0) {
+        cancelAnimationFrame(paceRaf.current)
+        paceRaf.current = 0
       }
     }
 
@@ -200,6 +206,9 @@ export const Pasteboard = memo(function Pasteboard() {
           tailPx: (spreadIds.length - end) * stride,
         }
       }
+      if (forceIdx !== null && forceIdx >= next.start && forceIdx < next.end) {
+        forceMountIndexRef.current = null
+      }
       pacedRef.current = next
       setPaced((prev) =>
         prev !== null && pasteboardWindowsEqual(prev, next) ? prev : next,
@@ -207,12 +216,16 @@ export const Pasteboard = memo(function Pasteboard() {
       return next.start !== targetWindow.start || next.end !== targetWindow.end
     }
 
-    const runScheduled = (): void => {
-      if (cancelled || !paceScheduled.current) {
+    const runScheduled = (generation: number): void => {
+      if (
+        cancelled ||
+        generation !== paceGeneration.current ||
+        !paceScheduled.current
+      ) {
         return
       }
       paceScheduled.current = false
-      clearWatchdog()
+      clearPendingStep()
       if (advance()) {
         scheduleStep()
       }
@@ -223,8 +236,14 @@ export const Pasteboard = memo(function Pasteboard() {
         return
       }
       paceScheduled.current = true
-      requestAnimationFrame(runScheduled)
-      paceWatchdog.current = setTimeout(runScheduled, 32)
+      const generation = paceGeneration.current + 1
+      paceGeneration.current = generation
+      paceRaf.current = requestAnimationFrame(() => {
+        runScheduled(generation)
+      })
+      paceWatchdog.current = setTimeout(() => {
+        runScheduled(generation)
+      }, 32)
     }
 
     if (advance()) {
@@ -233,7 +252,8 @@ export const Pasteboard = memo(function Pasteboard() {
     return () => {
       cancelled = true
       paceScheduled.current = false
-      clearWatchdog()
+      paceGeneration.current += 1
+      clearPendingStep()
     }
     // Primitives only: object identity of pasteboardWindow() results must not
     // retrigger this effect on every setPaced commit (that would cascade mounts).

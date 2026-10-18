@@ -34,6 +34,46 @@ describe('pasteboardWindow', () => {
     ).toEqual({ start: 0, end: 0, leadPx: 0, tailPx: 0 })
   })
 
+  it('mounts nothing when count or stride is non-finite or non-positive', () => {
+    const empty = { start: 0, end: 0, leadPx: 0, tailPx: 0 }
+    expect(
+      pasteboardWindow({
+        count: Number.NaN,
+        stridePx: 174,
+        scrollTop: 0,
+        viewportPx: 800,
+        overscanPx: 174,
+      }),
+    ).toEqual(empty)
+    expect(
+      pasteboardWindow({
+        count: 10,
+        stridePx: Number.NaN,
+        scrollTop: 0,
+        viewportPx: 800,
+        overscanPx: 174,
+      }),
+    ).toEqual(empty)
+    expect(
+      pasteboardWindow({
+        count: 10,
+        stridePx: 0,
+        scrollTop: 0,
+        viewportPx: 800,
+        overscanPx: 174,
+      }),
+    ).toEqual(empty)
+    expect(
+      pasteboardWindow({
+        count: 10,
+        stridePx: -5,
+        scrollTop: 0,
+        viewportPx: 800,
+        overscanPx: 174,
+      }),
+    ).toEqual(empty)
+  })
+
   it('mounts at least one spread when the viewport height is zero', () => {
     const window = pasteboardWindow({
       count: 40,
@@ -104,6 +144,162 @@ test.prop(
 describe('pacePasteboardWindow', () => {
   const stride = 100
   const count = 40
+
+  it('returns an empty window when count or stride is unusable', () => {
+    const current = { start: 0, end: 2, leadPx: 0, tailPx: 38 * stride }
+    const target = { start: 0, end: 10, leadPx: 0, tailPx: 30 * stride }
+    const cover = { start: 0, end: 4, leadPx: 0, tailPx: 36 * stride }
+    const empty = { start: 0, end: 0, leadPx: 0, tailPx: 0 }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count: Number.NaN,
+        stridePx: stride,
+      }),
+    ).toEqual(empty)
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count: 0,
+        stridePx: stride,
+      }),
+    ).toEqual(empty)
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: Number.NaN,
+      }),
+    ).toEqual(empty)
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: 0,
+      }),
+    ).toEqual(empty)
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: -10,
+      }),
+    ).toEqual(empty)
+  })
+
+  it('treats a non-finite mount budget as zero new mounts', () => {
+    const current = { start: 0, end: 2, leadPx: 0, tailPx: 38 * stride }
+    const target = { start: 0, end: 20, leadPx: 0, tailPx: 20 * stride }
+    const cover = { start: 0, end: 8, leadPx: 0, tailPx: 32 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: Number.NaN,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual(current)
+  })
+
+  it('clamps non-finite window edges before pacing', () => {
+    const current = {
+      start: Number.NaN,
+      end: Number.POSITIVE_INFINITY,
+      leadPx: 0,
+      tailPx: 0,
+    }
+    const target = { start: 0, end: 6, leadPx: 0, tailPx: 34 * stride }
+    const cover = { start: 0, end: 4, leadPx: 0, tailPx: 36 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 0,
+      end: 1,
+      leadPx: 0,
+      tailPx: 39 * stride,
+    })
+  })
+
+  it('prefers filling cover behind the painted start when both cover sides need mounts', () => {
+    const current = {
+      start: 5,
+      end: 7,
+      leadPx: 5 * stride,
+      tailPx: 33 * stride,
+    }
+    const target = { start: 0, end: 12, leadPx: 0, tailPx: 28 * stride }
+    const cover = { start: 2, end: 10, leadPx: 2 * stride, tailPx: 30 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 4,
+      end: 7,
+      leadPx: 4 * stride,
+      tailPx: 33 * stride,
+    })
+  })
+
+  it('fills cover after the painted end when that side needs more than before', () => {
+    const current = {
+      start: 5,
+      end: 7,
+      leadPx: 5 * stride,
+      tailPx: 33 * stride,
+    }
+    const target = { start: 0, end: 12, leadPx: 0, tailPx: 28 * stride }
+    const cover = { start: 4, end: 11, leadPx: 4 * stride, tailPx: 29 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 5,
+      end: 8,
+      leadPx: 5 * stride,
+      tailPx: 32 * stride,
+    })
+  })
 
   it('leaves the painted window unchanged when the mount budget is zero', () => {
     const current = { start: 0, end: 2, leadPx: 0, tailPx: 38 * stride }
