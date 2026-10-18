@@ -12,9 +12,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  E2E_BURN_IN: '10'
-
 jobs:
   e2e-burn-in:
     if: github.event_name == 'pull_request'

@@ -1,6 +1,11 @@
-const path = require('node:path')
-const fs = require('node:fs')
-const os = require('node:os')
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { loadGates } from './scripts/load-gates.mjs'
+
+const root = path.dirname(fileURLToPath(import.meta.url))
+const gates = loadGates({ root })
 
 function resolveChromePath() {
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
@@ -34,11 +39,11 @@ function resolveChromePath() {
 const chromePath = resolveChromePath()
 const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lhci-chrome-'))
 
-module.exports = {
+export default {
   ci: {
     collect: {
       staticDistDir: './dist',
-      numberOfRuns: 1,
+      numberOfRuns: gates.lighthouse.numberOfRuns,
       ...(chromePath ? { chromePath } : {}),
       settings: {
         preset: 'desktop',
@@ -52,9 +57,7 @@ module.exports = {
       },
     },
     assert: {
-      assertions: {
-        'performance-budget': 'error',
-      },
+      assertions: gates.lighthouse.assertions,
     },
     upload: {
       target: 'temporary-public-storage',

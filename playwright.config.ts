@@ -1,37 +1,32 @@
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
+import { loadGates } from './scripts/load-gates.mjs'
 
 const isCi = Boolean(process.env.CI)
 const e2ePort = process.env.E2E_PORT ?? '4173'
 const e2eOrigin = `http://127.0.0.1:${e2ePort}`
 const repoRoot = dirname(fileURLToPath(import.meta.url))
+const gates = loadGates({ root: repoRoot })
 
 /**
- * Mirrors scripts/e2e-flaky-list.mjs for Playwright's TS config project
+ * Mirrors scripts/e2e-flaky-list.mjs path rules for Playwright's TS config
  * (tsconfig.node cannot type-import repo .mjs without widening includes).
  */
 function loadFlakyGlobs(): string[] {
-  const raw: unknown = JSON.parse(
-    readFileSync(join(repoRoot, 'e2e/flaky.json'), 'utf8'),
-  )
-  if (!Array.isArray(raw)) {
-    throw new Error('e2e/flaky.json must be a JSON array of spec paths')
-  }
   const paths = [
     ...new Set(
-      raw
-        .map((entry) =>
-          String(entry).trim().replaceAll('\\', '/').replace(/^\.\//, ''),
+      gates.e2e.flakySpecs
+        .map((entry: string) =>
+          entry.trim().replaceAll('\\', '/').replace(/^\.\//, ''),
         )
-        .filter((path) => path.length > 0),
+        .filter((path: string) => path.length > 0),
     ),
   ].sort()
   for (const path of paths) {
     if (!path.startsWith('e2e/') || !path.endsWith('.spec.ts')) {
       throw new Error(
-        `e2e/flaky.json entry must be an e2e/**/*.spec.ts path, got ${path}`,
+        `e2e.flakySpecs entry must be an e2e/**/*.spec.ts path, got ${path}`,
       )
     }
   }
@@ -51,7 +46,7 @@ const flakyProject =
     ? {
         name: 'flaky',
         testMatch: flakyGlobs,
-        retries: 2,
+        retries: gates.playwright.flakyRetries,
         use: { ...devices['Desktop Chrome'] },
       }
     : null
@@ -61,7 +56,7 @@ export default defineConfig({
   testIgnore: ['**/burn-in-fixtures/**'],
   fullyParallel: true,
   forbidOnly: isCi,
-  retries: 0,
+  retries: gates.playwright.retries,
   ...(isCi ? { workers: 1 } : {}),
   reporter: isCi
     ? [

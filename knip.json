@@ -9,7 +9,7 @@
     "e2e/**/*.ts",
     "e2e/fixtures/*.{mjs,js}",
     "scripts/**/*.{mjs,js,cjs}",
-    "lighthouserc.cjs!"
+    "lighthouserc.mjs!"
   ],
   "project": [
     "src/**/*.{ts,tsx}",

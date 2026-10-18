@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { loadGates } from './load-gates.mjs'
 
 const BURN_IN_RE = /^Burn-in:\s*(\d+)\s*$/m
 const BRANCH_SLUG_RE = /^(?:feat|fix)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/
@@ -46,6 +47,7 @@ export function findRoadmapItemPath(root, slug) {
  *   root?: string,
  *   readItemFile?: (path: string) => string,
  *   findItemPath?: (root: string, slug: string) => string | null,
+ *   loadGatesFn?: typeof loadGates,
  * }} [opts]
  */
 export function resolveBurnInCount(opts = {}) {
@@ -54,9 +56,13 @@ export function resolveBurnInCount(opts = {}) {
   const readItemFile =
     opts.readItemFile ?? ((path) => readFileSync(path, 'utf8'))
   const findItemPath = opts.findItemPath ?? findRoadmapItemPath
+  const load = opts.loadGatesFn ?? loadGates
 
   const raw = env.E2E_BURN_IN
-  const base = raw === undefined || raw === '' ? 10 : Number(raw)
+  const base =
+    raw === undefined || raw === ''
+      ? load({ root }).e2e.burnInDefault
+      : Number(raw)
   if (!Number.isInteger(base) || base < 1) {
     throw new Error(
       `E2E_BURN_IN must be a positive integer, got ${String(raw)}`,
