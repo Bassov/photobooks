@@ -15,7 +15,7 @@ export default tseslint.config(
       'blob-report',
       'reports',
       '.lighthouseci',
-      'lighthouserc.mjs',
+      'lighthouserc.cjs',
       '.stryker-tmp',
     ],
   },

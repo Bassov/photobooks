@@ -1,11 +1,11 @@
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { loadGates } from './scripts/load-gates.mjs'
+const path = require('node:path')
+const fs = require('node:fs')
+const os = require('node:os')
 
-const root = path.dirname(fileURLToPath(import.meta.url))
-const gates = loadGates({ root })
+// LHCI loads CommonJS/JSON configs only (not ESM .mjs).
+const gates = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'quality/gates.json'), 'utf8'),
+)
 
 function resolveChromePath() {
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
@@ -39,7 +39,7 @@ function resolveChromePath() {
 const chromePath = resolveChromePath()
 const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lhci-chrome-'))
 
-export default {
+module.exports = {
   ci: {
     collect: {
       staticDistDir: './dist',

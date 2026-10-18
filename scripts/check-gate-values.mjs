@@ -9,7 +9,7 @@ const ROOT_DEFAULT = join(dirname(fileURLToPath(import.meta.url)), '..')
 export const CONSUMER_RELATIVE_PATHS = [
   'vite.config.ts',
   'stryker.config.mjs',
-  'lighthouserc.mjs',
+  'lighthouserc.cjs',
   'playwright.config.ts',
   'scripts/e2e-burn-in-count.mjs',
   'scripts/e2e-flaky-list.mjs',

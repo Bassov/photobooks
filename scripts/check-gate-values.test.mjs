@@ -33,8 +33,8 @@ function coherentFiles(overrides = {}) {
       "import { loadGates } from './scripts/load-gates.mjs'\nthresholds: gates.coverage",
     '/repo/stryker.config.mjs':
       "import { loadGates } from './scripts/load-gates.mjs'\nthresholds: gates.stryker.thresholds",
-    '/repo/lighthouserc.mjs':
-      "import { loadGates } from './scripts/load-gates.mjs'\nnumberOfRuns: gates.lighthouse.numberOfRuns\nassertions: gates.lighthouse.assertions",
+    '/repo/lighthouserc.cjs':
+      'quality/gates.json\nnumberOfRuns: gates.lighthouse.numberOfRuns\nassertions: gates.lighthouse.assertions',
     '/repo/playwright.config.ts':
       "import { loadGates } from './scripts/load-gates.mjs'\nretries: gates.playwright.retries\nretries: gates.playwright.flakyRetries",
     '/repo/scripts/e2e-burn-in-count.mjs':
