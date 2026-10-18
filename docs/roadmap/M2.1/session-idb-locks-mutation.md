@@ -6,7 +6,7 @@ Title: IndexedDB and Web Locks fakes; mutate the adapters (issue #72 L, B)
 
 ## Scope
 
-- [ ] `fake-indexeddb` (exact-pinned dev dependency through `dependency-policy`). Run the `sessionState.contract` suite against the real `idb.ts` adapter: `present: false`, store creation on upgrade, `close()` in `finally`
+- [ ] `fake-indexeddb` (exact-pinned dev dependency; until `docs/backlog/dependency-policy.md` is re-added, new deps need `audit:ci` + Security Review). Run the `sessionState.contract` suite against the real `idb.ts` adapter: `present: false`, store creation on upgrade, `close()` in `finally`
 - [ ] In-memory `LockManager` fake for `navigator.locks` (`ifAvailable` returns `null` when the lock is held). Test `locks.ts` and the `bookLockName()` cross-tab contract
 - [ ] Remove the `idb.ts` and `locks.ts` `temporary` entries
 - includes: IDB v1→v2 migration test on `fake-indexeddb` (from main's `recents-home-quality`)

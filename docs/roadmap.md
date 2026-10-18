@@ -8,14 +8,14 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 ## Order
 
-1. **M1–M4.5 — the local editor, complete for personal use.** M2.1 makes the quality gates and the agent process mechanical in full before any product work; then M2.2 completes the library under those gates, and M2.5 fixes the visual language before more UI is built.
+1. **M1–M4.5 — the local editor, complete for personal use.** M2.1 finishes the core quality gates and agent-process hardening (zero-retry e2e, mechanical coverage/mutation/exclusion/size/PR checks, cheaper agent runs, lessons dissolved, mutation re-includes for session/editor files); then M2.2 completes the library under those gates, and M2.5 fixes the visual language before more UI is built. Other hardening ideas sit in `docs/backlog/` until the owner re-adds them.
 2. **M5, then M7 — books as a website:** the showcase site built and previewed locally, then deployed as my own site.
 3. **M6 — print** (after M7).
 4. **M8 — let others create their own books, sites and prints.**
 
 ## M2.1 — Quality gates & dev process
 
-**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI and `pnpm agent finish` refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests / looser e2e helpers, tolerances or timeouts), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, PR bodies with stale metrics or missing verdicts, roadmap items without a Done when, and an item whose plan or first push exceeds 1500 changed lines (review fixes stay in the same PR and only warn). `docs/lessons.md` is replaced by checks. The stateful session and editor files are back in mutation scope behind unit-level fakes. Agents run the manual scenarios on the Cloudflare preview themselves and record the results in the PR.
+**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI and `pnpm agent finish` refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, PR bodies with stale metrics or missing verdicts, and an item whose plan or first push exceeds 1500 changed lines (review fixes stay in the same PR and only warn). `docs/lessons.md` is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
 
 Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
@@ -30,18 +30,17 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [e2e-frame-budget-flakes](roadmap/M2.1/e2e-frame-budget-flakes.md) — Stabilize frame-budget (LoAF) e2e flakes without looser budgets
 - [ ] [prep] [continuous-zoom-settle-mount-pace](roadmap/M2.1/continuous-zoom-settle-mount-pace.md) — Pace pasteboard remounts on zoom-out settle to keep continuous-zoom LoAF green
 - [ ] [prep] [strict-e2e](roadmap/M2.1/strict-e2e.md) — no hidden flakes: zero retries on PRs (#50 item 5)
+- [ ] [prep] [agent-test-run-budget](roadmap/M2.1/agent-test-run-budget.md) — agent test runs stay cheap and fast; flake proof comes from CI burn-in (owner 2026-10-18)
 - [ ] [prep] [codecov-patch-gate](roadmap/M2.1/codecov-patch-gate.md) — blocking patch and no-drop project coverage (issue #72 A)
+- [ ] [prep] [e2e-coverage-flag](roadmap/M2.1/e2e-coverage-flag.md) — e2e counts toward coverage and codecov/patch (issue #72 A, #29)
 - [ ] [prep] [gate-values-file](roadmap/M2.1/gate-values-file.md) — one data file for gate thresholds
 - [ ] [prep] [gate-ratchet](roadmap/M2.1/gate-ratchet.md) — gate values can only get stricter (issue #72 K, replaced by a ratchet)
 - [ ] [prep] [gate-weakening-guard](roadmap/M2.1/gate-weakening-guard.md) — test-level weakening fails pr-policy (PR #76 pattern)
 - [ ] [prep] [stryker-disable-budget](roadmap/M2.1/stryker-disable-budget.md) — only next-line Stryker disables, capped and budgeted (PR #81 pattern)
-- [ ] [prep] [e2e-assertion-ratchet](roadmap/M2.1/e2e-assertion-ratchet.md) — strict e2e helpers and tolerances can only get stricter (PR #76, #59)
-- [ ] [prep] [gate-ratchet-ci](roadmap/M2.1/gate-ratchet-ci.md) — checks can't be removed or softened in workflows and tooling
 - [ ] [prep] [stryker-diff-gate](roadmap/M2.1/stryker-diff-gate.md) — honest mutation on the diff: break 85, zero NoCoverage (issue #72 B, J)
 - [ ] [prep] [scripts-in-scope](roadmap/M2.1/scripts-in-scope.md) — gate and agent scripts are in coverage and mutation by default (PR #81 pattern)
+- [ ] [prep] [exclusions-registry](roadmap/M2.1/exclusions-registry.md) — only non-production code can be excluded (issue #72 J, A)
 - [ ] [prep] [diff-size-check](roadmap/M2.1/diff-size-check.md) — size limit on an item's initial scope; review fixes warn only (issue #72 H)
-- [ ] [prep] [roadmap-check-item-body](roadmap/M2.1/roadmap-check-item-body.md) — roadmap check validates item bodies and follow-up placement (PR #82 S6)
-- [ ] [prep] [roadmap-done-when-backfill](roadmap/M2.1/roadmap-done-when-backfill.md) — Done when lines for the open M2.2 and M2.5 prep items
 - [ ] [prep] [pr-body-check](roadmap/M2.1/pr-body-check.md) — machine-checked PR body: verdicts, dispositions, scenarios (issue #72 G)
 - [ ] [prep] [pr-metrics-autogen](roadmap/M2.1/pr-metrics-autogen.md) — PR metrics come from CI, never typed by hand (PR #81, #82 stale numbers)
 - [ ] [prep] [no-untested-branches](roadmap/M2.1/no-untested-branches.md) — unreachable code is deleted, not defended (dead/defensive code finding)
@@ -49,11 +48,6 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [agent-pipeline-leftovers](roadmap/M2.1/agent-pipeline-leftovers.md) — Remaining token and call waste in the agent pipeline (issues #77, #79)
 - [ ] [prep] [lessons-dissolve](roadmap/M2.1/lessons-dissolve.md) — Dissolve docs/lessons.md: repeat findings become checks or specs (issue #78)
 - [ ] [prep] [necessary-minimum-rules](roadmap/M2.1/necessary-minimum-rules.md) — Necessary-minimum rules for artifacts and code, tests exempt (issue #78)
-- [ ] [prep] [agent-pipeline-run-audit](roadmap/M2.1/agent-pipeline-run-audit.md) — Check one /next-roadmap-item run against the #77 and #79 targets
-- [ ] [prep] [dependency-policy](roadmap/M2.1/dependency-policy.md) — dependencies are checked automatically, not asked about
-- [ ] [prep] [test-first-evidence-rules](roadmap/M2.1/test-first-evidence-rules.md) — scenarios first, honest ticks (issue #72 D, E)
-- [ ] [prep] [adversarial-reviewer](roadmap/M2.1/adversarial-reviewer.md) — adversarial reviewer sub-agent (issue #72 F)
-- [ ] [prep] [exclusions-registry](roadmap/M2.1/exclusions-registry.md) — only non-production code can be excluded (issue #72 J, A)
 - [ ] [prep] [fsa-permission-fakes](roadmap/M2.1/fsa-permission-fakes.md) — unit-level File System Access fakes (issue #72 L)
 - [ ] [prep] [mutation-reinclude-small](roadmap/M2.1/mutation-reinclude-small.md) — mutate the small files that already have tests (issue #72 B)
 - [ ] [prep] [mutation-reinclude-camera](roadmap/M2.1/mutation-reinclude-camera.md) — mutate `usePasteboardCamera.ts` again (issue #72 B)
@@ -65,19 +59,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [book-lock-controller](roadmap/M2.1/book-lock-controller.md) — extract locks and re-grant from `projectSession.ts`
 - [ ] [prep] [library-activation](roadmap/M2.1/library-activation.md) — extract library open / new / switch from `projectSession.ts`
 - [ ] [prep] [project-session-mutation](roadmap/M2.1/project-session-mutation.md) — mutate what is left of `projectSession.ts` (issue #72 B)
-- [ ] [prep] [mutation-trend](roadmap/M2.1/mutation-trend.md) — nightly mutation trend per file (#50 item 6)
-- [ ] [prep] [axe-e2e](roadmap/M2.1/axe-e2e.md) — automated ARIA checks in e2e (issue #72 C, #50 item 1)
-- [ ] [prep] [lhci-key-surfaces](roadmap/M2.1/lhci-key-surfaces.md) — Lighthouse on the real surfaces with an a11y assertion (issue #72 C, #50 item 1)
-- [ ] [prep] [keyboard-flows-e2e](roadmap/M2.1/keyboard-flows-e2e.md) — keyboard and live-region flows (#50 item 1)
-- [ ] [prep] [fsa-permission-e2e](roadmap/M2.1/fsa-permission-e2e.md) — e2e through the real permission code (issue #72 I)
-- [ ] [prep] [preview-qa-run](roadmap/M2.1/preview-qa-run.md) — the agent runs the manual scenarios on the Cloudflare preview (issue #72 G)
-- [ ] [prep] [e2e-coverage-flag](roadmap/M2.1/e2e-coverage-flag.md) — e2e counts toward coverage and codecov/patch (issue #72 A, #29)
-- [ ] [prep] [spec-trace](roadmap/M2.1/spec-trace.md) — every spec scenario has a test or a waiver (#50 item 4)
-- [ ] [prep] [test-hooks-out-of-prod](roadmap/M2.1/test-hooks-out-of-prod.md) — test fixtures and hooks only in e2e builds (issue #47)
-- [ ] [prep] [deps-rules](roadmap/M2.1/deps-rules.md) — stricter dependency-cruiser rules (#50 item 7)
-- [ ] [prep] [perf-size-budgets](roadmap/M2.1/perf-size-budgets.md) — enforced bundle and Lighthouse budgets (#50 item 10, issue #48)
-- [ ] [prep] [prod-smoke](roadmap/M2.1/prod-smoke.md) — production check after every deploy (#50 item 9)
-- [ ] [prep] [agent-auto-merge](roadmap/M2.1/agent-auto-merge.md) — agents merge their own PRs (off by default)
+- [ ] [prep] [agent-pipeline-run-audit](roadmap/M2.1/agent-pipeline-run-audit.md) — Check one /next-roadmap-item run against the #77 and #79 targets
 
 ## M2.2 — Library & metadata
 
@@ -230,7 +212,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 ## Deferred (not scheduled)
 
-Not scheduled, not items: [roadmap/DEFERRED.md](roadmap/DEFERRED.md). To schedule one, the owner asks for an `add`.
+Not scheduled, not items: [roadmap/DEFERRED.md](roadmap/DEFERRED.md). Former roadmap items waiting for an explicit re-add live in [docs/backlog/](backlog/README.md). To schedule either, the owner asks for an `add`.
 
 ## Archive
 

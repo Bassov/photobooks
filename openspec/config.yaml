@@ -98,7 +98,7 @@ operations:
       - After verify gates pass, launch Cursor subagent `openspec-implementation-reviewer`.
       - After that review passes, do the Manual check item; its `## Manual test scenarios` section is the source for the PR section of the same name.
       - For items tagged (Security Review: …) or changes that touch the security surface, launch Cursor Security Review before archive.
-      - 'Blocking (critical/high) findings from openspec-proposal-reviewer, openspec-design-reviewer, openspec-implementation-reviewer, Security Review, and adversarial-reviewer (when present) MUST be fixed in the change or scheduled with `pnpm roadmap add --after <current>`; the PR body records each verdict and finding disposition.'
+      - 'Blocking (critical/high) findings from openspec-proposal-reviewer, openspec-design-reviewer, openspec-implementation-reviewer, Security Review, and adversarial-reviewer (when present; item in docs/backlog/ until re-added) MUST be fixed in the change or scheduled with `pnpm roadmap add --after <current>`; the PR body records each verdict and finding disposition.'
       - Do not archive while critical or high review findings remain open.
       - Do not push a UI-scoped PR when empty/happy/scroll smoke is missing or failing — green typecheck/unit alone is not apply-complete.
   archive:
