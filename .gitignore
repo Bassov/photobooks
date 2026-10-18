@@ -50,3 +50,6 @@ playwright/.cache/
 e2e/fixtures/large-24mp.jpg
 e2e/fixtures/sample-3x2.png
 e2e/fixtures/sample-orient6.jpg
+
+# Local check / agent cache
+.cache/

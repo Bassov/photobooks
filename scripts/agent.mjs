@@ -71,7 +71,7 @@ export function parseArgs(argv) {
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
   preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); --slug skips local main sync
-  finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR (no CI watch)
+  finish --title T --body-file F   push (pre-push pnpm check once; ≤2/branch) → PR (no CI watch)
   review-brief [--change S] [--base REF] [--rules-json '[…]']   reviewer brief in one call
   help
 
@@ -623,6 +623,104 @@ export function switchFeatureBranch(
   reuseExistingFeatureBranch(exec, cwd, env, quiet, branch, sw)
 }
 
+/**
+ * Ids from quality/review-checklist.md when present (no full prose).
+ * Recognizes list rows whose first token is a kebab id (optionally backticked).
+ */
+export function readReviewChecklistIds(root, readFile = fs.readFileSync) {
+  const file = path.join(root, 'quality', 'review-checklist.md')
+  if (!fs.existsSync(file)) return []
+  let text = ''
+  try {
+    text = readFile(file, 'utf8')
+  } catch {
+    return []
+  }
+  const ids = []
+  const seen = new Set()
+  for (const line of String(text).split('\n')) {
+    const m =
+      /^\s*[-*]\s+(?:\[[ xX]\]\s+)?`([a-z][a-z0-9-]*)`/.exec(line) ||
+      /^\s*[-*]\s+(?:\[[ xX]\]\s+)?([a-z][a-z0-9-]*)\s*[:—-]/.exec(line)
+    if (!m) continue
+    const id = m[1]
+    if (seen.has(id)) continue
+    seen.add(id)
+    ids.push(id)
+  }
+  return ids
+}
+
+/** Compact pre-push / pnpm check failure lines from push output. */
+export function summarizePushFailure(stdout, stderr) {
+  const combined = stripAnsi(`${stdout ?? ''}\n${stderr ?? ''}`)
+  const lines = combined
+    .split('\n')
+    .map((l) => l.trimEnd())
+    .filter((l) => l.trim().length > 0)
+  const checkish = lines.filter(
+    (l) =>
+      /^OK [a-z0-9-]+ /.test(l) ||
+      /^[a-z][a-z0-9-]*: /.test(l) ||
+      l.startsWith('\u2026') ||
+      l.startsWith('full log:'),
+  )
+  if (checkish.length) return checkish.slice(0, 60).join('\n')
+  return tailOutput(stdout, stderr)
+}
+
+/**
+ * When the current branch is behind origin/main, warn and merge-or-recreate
+ * (never rebase/force). Recreate = ff-only onto origin/main when there are no
+ * unique commits; otherwise merge with the finish allowlist.
+ * @returns {{ stale: boolean, warning: string | null, merged: boolean, action: string | null }}
+ */
+export function refreshStaleFeatureBranch(exec, root, cwd, env, quiet) {
+  const behindR = mustOk(
+    sh(exec, cwd, env, quiet, 'git', [
+      'rev-list',
+      '--count',
+      'HEAD..origin/main',
+    ]),
+    'git rev-list behind',
+  )
+  const behind = Number.parseInt(behindR.stdout.trim(), 10)
+  if (!Number.isFinite(behind) || behind < 1) {
+    return { stale: false, warning: null, merged: false, action: null }
+  }
+  const aheadR = mustOk(
+    sh(exec, cwd, env, quiet, 'git', [
+      'rev-list',
+      '--count',
+      'origin/main..HEAD',
+    ]),
+    'git rev-list ahead',
+  )
+  const ahead = Number.parseInt(aheadR.stdout.trim(), 10)
+  if (!Number.isFinite(ahead)) {
+    fail(
+      `git rev-list ahead produced non-numeric count: ${aheadR.stdout.trim() || '(empty)'}`,
+      1,
+    )
+  }
+  if (ahead === 0) {
+    const warning = `branch tip is behind origin/main by ${behind} commit(s) with no unique commits; recreating via ff-only merge (no rebase/force)`
+    mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['merge', '--ff-only', 'origin/main']),
+      'git merge --ff-only origin/main (stale recreate)',
+    )
+    return { stale: true, warning, merged: true, action: 'recreate-ff' }
+  }
+  const warning = `branch tip is behind origin/main by ${behind} commit(s); merging origin/main (no rebase/force)`
+  const result = mergeOriginMainIfNeeded(exec, root, cwd, env, quiet)
+  return {
+    stale: true,
+    warning,
+    merged: Boolean(result?.merged),
+    action: 'merge',
+  }
+}
+
 export function cmdPreflight(o, deps) {
   const { root, cwd, env, exec, quiet } = deps
   const envInfo = assertEnv(exec, root, cwd, env, quiet)
@@ -653,6 +751,8 @@ export function cmdPreflight(o, deps) {
   const item = parseRoadmapNext(nextR.stdout)
   const branch = `${branchPrefixForItem(item)}/${item.slug}`
   switchFeatureBranch(exec, cwd, env, quiet, branch, slugMode)
+  const stale = refreshStaleFeatureBranch(exec, root, cwd, env, quiet)
+  const checklistIds = readReviewChecklistIds(root)
 
   const changeDir = path.join(root, 'openspec', 'changes', item.slug)
   if (!fs.existsSync(changeDir)) {
@@ -695,6 +795,9 @@ export function cmdPreflight(o, deps) {
     env: envInfo,
     skips,
     branch,
+    stale: stale.stale,
+    staleWarning: stale.warning,
+    checklistIds,
     item: {
       slug: item.slug,
       tag: item.tag,
@@ -884,10 +987,6 @@ export function mergeOriginMainIfNeeded(exec, root, cwd, env, quiet) {
     ]),
     'git commit merge',
   )
-  mustOk(
-    sh(exec, cwd, env, quiet, 'pnpm', ['verify:fast:quiet']),
-    'verify:fast:quiet after merge',
-  )
   return { merged: true, resolved: files }
 }
 
@@ -898,11 +997,6 @@ export function cmdFinish(o, deps) {
   if (dirty) fail(`working tree not clean (commit first):\n${dirty}`, 1)
 
   const { branch, ahead } = assertFinishBranch(exec, cwd, env, quiet)
-
-  mustOk(
-    sh(exec, cwd, env, quiet, 'pnpm', ['verify:fast:quiet']),
-    'verify:fast:quiet',
-  )
 
   const fails = readPushFailures(root, exec)
   const prior = Number(fails[branch] ?? 0)
@@ -979,7 +1073,7 @@ export function cmdFinish(o, deps) {
       pushAttempts: next,
       branch,
       ahead,
-      summary: tailOutput(lastPush.stdout, lastPush.stderr),
+      summary: summarizePushFailure(lastPush.stdout, lastPush.stderr),
     }
   }
   if (fails[branch] !== undefined) {
@@ -1218,14 +1312,10 @@ export function cmdReviewBrief(o, deps) {
 
 function fmtPreflight(r) {
   const ruleList = r.instructions.rules
-  const rules =
-    ruleList.length === 0
-      ? '  (none)'
-      : ruleList.map((x, i) => `  ${i + 1}. ${x}`).join('\n')
   const goalLines = Array.isArray(r.item.goal)
     ? r.item.goal.map((g) => `goal: ${g}`)
     : [`goal: ${r.item.goal}`]
-  return [
+  const lines = [
     `ok: ${r.ok}`,
     `branch: ${r.branch}`,
     `slug: ${r.item.slug}`,
@@ -1236,13 +1326,11 @@ function fmtPreflight(r) {
     ...goalLines,
     `skips: ${r.skips.join(',')}`,
     `touchSet: ${r.touchSet}`,
-    '--- rules ---',
-    rules,
-    '--- template ---',
-    String(r.instructions.template),
-    '--- body ---',
-    String(r.item.body),
-  ].join('\n')
+    `checklistIds: ${(r.checklistIds ?? []).join(',')}`,
+    `instructions: rules=${ruleList.length} (use --json for template/rules)`,
+  ]
+  if (r.staleWarning) lines.push(`staleWarning: ${r.staleWarning}`)
+  return lines.join('\n')
 }
 
 function fmtFinish(r) {
