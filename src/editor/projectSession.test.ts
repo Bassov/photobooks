@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { makeBook } from '../core/testing/fixtures'
-import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
+import {
+  createFakeBrowserDirectory,
+  createFakeDirectoryPicker,
+} from '../project/fsa/browserDirectory.test-helpers'
 import {
   createMemoryLibraryStorage,
   createMemorySessionState,
@@ -543,7 +546,13 @@ describe('projectSession', () => {
   describe('autosave', () => {
     beforeEach(() => {
       vi.useFakeTimers()
-      configureProjectSession({ autosaveDebounceMs: 1000 })
+      configureProjectSession({
+        autosaveDebounceMs: 1000,
+        timers: {
+          setTimeout: globalThis.setTimeout.bind(globalThis),
+          clearTimeout: globalThis.clearTimeout.bind(globalThis),
+        },
+      })
     })
 
     afterEach(() => {
@@ -557,6 +566,10 @@ describe('projectSession', () => {
         session,
         createStorage: () => storage,
         autosaveDebounceMs: 1000,
+        timers: {
+          setTimeout: globalThis.setTimeout.bind(globalThis),
+          clearTimeout: globalThis.clearTimeout.bind(globalThis),
+        },
       })
       await attachLibraryForTests({ storage, session })
       expect(getProjectSessionSnapshot().bookId).not.toBeNull()
@@ -1333,6 +1346,42 @@ describe('projectSession', () => {
       expect(getProjectSessionSnapshot().libraryOpen).toBe(false)
     })
 
+    it('regrant uses the injected requestReadwritePermission dependency', async () => {
+      const storage = createMemoryLibraryStorage()
+      const session = createMemorySessionState()
+      const handle = createFakeBrowserDirectory({
+        name: 'InjectedPerm',
+        initialPermission: 'prompt',
+      })
+      const requestReadwritePermission = vi.fn(() =>
+        Promise.resolve('denied' as const),
+      )
+      configureProjectSession({
+        session,
+        createStorage: () => storage,
+        pickDirectory: () => Promise.resolve(null),
+        requestReadwritePermission,
+      })
+      await attachLibraryForTests({
+        storage,
+        session,
+        libraryId: 'injected-perm-lib',
+        handle,
+      })
+      const created = await createBookInLibrary()
+      expect(created.ok).toBe(true)
+      if (!created.ok) {
+        throw new Error('expected create')
+      }
+      await leaveEditorForHome()
+      session.setPermissionRequired(true)
+      await openBookFromHome('injected-perm-lib', created.value.id)
+      const denied = await regrantLibrary()
+      expect(requestReadwritePermission).toHaveBeenCalledWith(handle)
+      expect(denied).toEqual({ ok: false, code: 'permission-required' })
+      expect(getProjectSessionSnapshot().homeError).toMatch(/denied/i)
+    })
+
     it('regrant picker mismatch does not replace the recent handle', async () => {
       const storage = createMemoryLibraryStorage()
       const session = createMemorySessionState()
@@ -1406,38 +1455,26 @@ describe('projectSession', () => {
       expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
     })
 
-    it('createLibrary cancel: defaultPickDirectory maps AbortError to not-found', async () => {
-      // Fresh module keeps pickDirectory = defaultPickDirectory; reset stubs it to null.
-      vi.resetModules()
-      const ps = await import('./projectSession')
-      const { createFakeDirectoryPicker: makePicker } =
-        await import('../project/fsa/browserDirectory.test-helpers')
-      const {
-        createMemoryLibraryStorage: makeStorage,
-        createMemorySessionState: makeSession,
-      } = await import('../project')
-      const { resetBookStore: resetBooks } = await import('./bookStore')
-
-      resetBooks()
+    it('createLibrary cancel: browserPickDirectory AbortError maps to not-found', async () => {
+      const { browserPickDirectory } =
+        await import('./session/browserProjectSessionPlatform')
       Object.defineProperty(globalThis, 'showDirectoryPicker', {
-        value: makePicker({ outcomes: ['abort'] }),
+        value: createFakeDirectoryPicker({ outcomes: ['abort'] }),
         configurable: true,
         writable: true,
       })
       try {
-        ps.configureProjectSession({
-          session: makeSession(),
-          createStorage: () => makeStorage(),
+        configureProjectSession({
+          session: createMemorySessionState(),
+          createStorage: () => createMemoryLibraryStorage(),
+          pickDirectory: browserPickDirectory,
         })
-        const cancelled = await ps.createLibrary()
+        const cancelled = await createLibrary()
         expect(cancelled).toEqual({ ok: false, code: 'not-found' })
-        expect(ps.getProjectSessionSnapshot().libraryOpen).toBe(false)
-        expect(ps.getProjectSessionSnapshot().homeError).toMatch(
-          /not selected/i,
-        )
+        expect(getProjectSessionSnapshot().libraryOpen).toBe(false)
+        expect(getProjectSessionSnapshot().homeError).toMatch(/not selected/i)
       } finally {
         Reflect.deleteProperty(globalThis, 'showDirectoryPicker')
-        vi.resetModules()
       }
     })
 

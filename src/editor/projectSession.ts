@@ -1,11 +1,9 @@
 import type { AssetSource } from '../assets'
 import { addSpread, CURRENT_SCHEMA_VERSION, type Book } from '../core'
 import {
-  createBrowserSessionState,
   createFsaLibraryStorage,
   createMemoryLibraryStorage,
   createMemorySessionState,
-  fromFileSystemDirectoryHandle,
   type BookLock,
   type LibraryStorage,
   type RecentLibrary,
@@ -26,6 +24,15 @@ import {
 } from './editorGesture'
 import { setEditorStatus } from './editorStatus'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
+import {
+  browserPickDirectory,
+  browserRequestReadwritePermission,
+  browserTimers,
+  createDefaultSession,
+  defaultStorageFromHandle,
+  type ProjectSessionTimers,
+  type RequestReadwritePermission,
+} from './session/browserProjectSessionPlatform'
 import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
 
 const DEFAULT_LIBRARY_ID = 'library'
@@ -75,45 +82,21 @@ export interface ProjectSessionDeps {
   session?: SessionState
   createStorage?: (root: SessionDirectoryHandle) => LibraryStorage
   pickDirectory?: () => Promise<FileSystemDirectoryHandle | null>
+  requestReadwritePermission?: RequestReadwritePermission
+  timers?: ProjectSessionTimers
   storageKey?: Storage
   nowId?: () => string
   autosaveDebounceMs?: number
-}
-
-function defaultStorageFromHandle(
-  root: SessionDirectoryHandle,
-): LibraryStorage {
-  if (isFileSystemDirectoryHandle(root)) {
-    return createFsaLibraryStorage({
-      root: fromFileSystemDirectoryHandle(root),
-    })
-  }
-  return createFsaLibraryStorage({
-    root: root as Parameters<typeof createFsaLibraryStorage>[0]['root'],
-  })
-}
-
-function isFileSystemDirectoryHandle(
-  value: SessionDirectoryHandle,
-): value is FileSystemDirectoryHandle {
-  return (
-    typeof FileSystemDirectoryHandle !== 'undefined' &&
-    value instanceof FileSystemDirectoryHandle
-  )
-}
-
-function createDefaultSession(): SessionState {
-  if (typeof indexedDB === 'undefined') {
-    return createMemorySessionState()
-  }
-  return createBrowserSessionState()
 }
 
 let session: SessionState = createDefaultSession()
 let createStorageFromHandle: (root: SessionDirectoryHandle) => LibraryStorage =
   defaultStorageFromHandle
 let pickDirectory: () => Promise<FileSystemDirectoryHandle | null> =
-  defaultPickDirectory
+  browserPickDirectory
+let requestReadwritePermission: RequestReadwritePermission =
+  browserRequestReadwritePermission
+let timers: ProjectSessionTimers = browserTimers
 let storageKey: Storage | null =
   typeof sessionStorage === 'undefined' ? null : sessionStorage
 let nowId: () => string = () => crypto.randomUUID()
@@ -340,7 +323,7 @@ function setPermissionRequiredAccess(): void {
 
 function cancelAutosaveTimer(): void {
   if (autosaveTimer !== null) {
-    clearTimeout(autosaveTimer)
+    timers.clearTimeout(autosaveTimer)
     autosaveTimer = null
   }
 }
@@ -354,7 +337,7 @@ function armAutosaveDebounce(): void {
   }
   savePhase = 'pending'
   cancelAutosaveTimer()
-  autosaveTimer = setTimeout(() => {
+  autosaveTimer = timers.setTimeout(() => {
     autosaveTimer = null
     if (savePhase !== 'pending' || !dirty || isEditorGestureActive()) {
       return
@@ -529,27 +512,6 @@ function readPersistedIds(): {
   }
 }
 
-async function defaultPickDirectory(): Promise<FileSystemDirectoryHandle | null> {
-  const picker = (
-    globalThis as typeof globalThis & {
-      showDirectoryPicker?: (options?: {
-        mode?: 'read' | 'readwrite'
-      }) => Promise<FileSystemDirectoryHandle>
-    }
-  ).showDirectoryPicker
-  if (typeof picker !== 'function') {
-    return null
-  }
-  try {
-    return await picker({ mode: 'readwrite' })
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return null
-    }
-    throw error
-  }
-}
-
 function scheduleBackground(task: () => Promise<void>): void {
   const scheduler = (
     globalThis as typeof globalThis & {
@@ -610,6 +572,12 @@ export function configureProjectSession(deps: ProjectSessionDeps): void {
   if (deps.pickDirectory) {
     pickDirectory = deps.pickDirectory
   }
+  if (deps.requestReadwritePermission) {
+    requestReadwritePermission = deps.requestReadwritePermission
+  }
+  if (deps.timers) {
+    timers = deps.timers
+  }
   if (deps.storageKey) {
     storageKey = deps.storageKey
   }
@@ -630,6 +598,8 @@ export function resetProjectSessionForTests(): void {
   session = createMemorySessionState()
   createStorageFromHandle = defaultStorageFromHandle
   pickDirectory = () => Promise.resolve(null)
+  requestReadwritePermission = browserRequestReadwritePermission
+  timers = browserTimers
   storageKey = createMemoryStorageKey()
   nowId = () => crypto.randomUUID()
   autosaveDebounceMs = DEFAULT_AUTOSAVE_DEBOUNCE_MS
@@ -1250,26 +1220,6 @@ export function saveBookNow(): void {
   runSave()
 }
 
-async function requestPermissionOnHandle(
-  handle: SessionDirectoryHandle,
-): Promise<'granted' | 'denied' | 'unavailable'> {
-  const candidate = handle as {
-    requestPermission?: (options?: {
-      mode?: 'read' | 'readwrite'
-    }) => Promise<PermissionState>
-  }
-  const requestPermission = candidate.requestPermission
-  if (typeof requestPermission !== 'function') {
-    return 'unavailable'
-  }
-  try {
-    const state = await requestPermission.call(handle, { mode: 'readwrite' })
-    return state === 'granted' ? 'granted' : 'denied'
-  } catch {
-    return 'denied'
-  }
-}
-
 async function regrantWithHandle(
   handle: SessionDirectoryHandle,
   options: { requireSameAsStored?: SessionDirectoryHandle | null } = {},
@@ -1362,7 +1312,7 @@ export async function regrantLibrary(): Promise<StorageResult<void>> {
     if (targetLibraryId) {
       const peeked = await session.peekLibraryHandle(targetLibraryId)
       if (peeked.ok) {
-        const permission = await requestPermissionOnHandle(peeked.value)
+        const permission = await requestReadwritePermission(peeked.value)
         if (permission === 'granted') {
           return regrantWithHandle(peeked.value)
         }
