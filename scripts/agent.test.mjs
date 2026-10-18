@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -110,6 +111,15 @@ function fakeExec(handlers) {
       return { code: 0, stdout: '', stderr: '' }
     if (key.includes('git rev-list --count HEAD..origin/main'))
       return { code: 0, stdout: '0\n', stderr: '' }
+    if (key.includes('openspec status'))
+      return {
+        code: 0,
+        stdout:
+          JSON.stringify({
+            artifacts: [{ id: 'proposal', status: 'ready' }],
+          }) + '\n',
+        stderr: '',
+      }
     return { code: 1, stdout: '', stderr: `unhandled: ${key}` }
   }
 }
@@ -124,6 +134,8 @@ const HELP_SNIPPETS = [
   'preflight [--slug S] [--skip a,b]',
   'finish --title T --body-file F',
   'review-brief [--change S] [--base REF] [--rules-json',
+  'instructions <artifact>',
+  'stats <path>',
   'source scripts/agent-env.sh',
   'Prefer --json for machine branching.',
 ]
@@ -635,6 +647,10 @@ describe('preflight', () => {
       template: '# Proposal\nfull',
       rules: ['Keep proposals under 400 words'],
     })
+    expect(j.runCard.ready).toEqual(['proposal'])
+    expect(j.runCard.artifacts.proposal).toEqual(j.instructions)
+    expect(j.runCard.procedure).toContain('openspec-planning-reviewer')
+    expect(j.runCard.procedure.split('\n').length).toBeLessThanOrEqual(10)
     expect(j.touchSet).toBe('TBD until design.md')
     expect(j.branch).toBe('feat/demo-item')
   })
@@ -673,23 +689,17 @@ describe('preflight', () => {
     ])
     const r = run(['preflight', '--root', root], { cwd: root, exec, env: {} })
     expect(r.code, r.err).toBe(0)
-    expect(r.out).toBe(
-      [
-        'ok: true',
-        'branch: feat/demo-item',
-        'slug: demo-item',
-        'tag: prep',
-        'title: t',
-        'file: f',
-        'milestone: M',
-        'goal: g1',
-        'goal: g2',
-        'skips: ',
-        'touchSet: TBD until design.md',
-        'checklistIds: ',
-        'instructions: rules=2 (use --json for template/rules)',
-      ].join('\n'),
+    expect(r.out).toContain('ok: true')
+    expect(r.out).toContain('slug: demo-item')
+    expect(r.out).toContain(
+      'instructions: rules=2 (use --json for template/rules)',
     )
+    expect(r.out).toContain('runCard.ready: proposal')
+    expect(r.out).toContain('--- runCard artifact: proposal (rules=2) ---')
+    expect(r.out).toContain('# Proposal\nline2')
+    expect(r.out).toContain('- rule-one')
+    expect(r.out).toContain('--- apply/archive procedure ---')
+    expect(r.out).toContain('openspec-planning-reviewer')
   })
 
   it('text mode prints (none) for empty rules and string goal', () => {
@@ -1040,6 +1050,15 @@ describe('preflight', () => {
         return { code: 0, stdout: '', stderr: '' }
       if (key.includes('git rev-list --count HEAD..origin/main'))
         return { code: 0, stdout: '0\n', stderr: '' }
+      if (key.includes('openspec status'))
+        return {
+          code: 0,
+          stdout:
+            JSON.stringify({
+              artifacts: [{ id: 'proposal', status: 'ready' }],
+            }) + '\n',
+          stderr: '',
+        }
       if (key.includes('openspec instructions'))
         return {
           code: 0,
@@ -1130,6 +1149,15 @@ describe('preflight', () => {
         return { code: 0, stdout: '0\n', stderr: '' }
       if (key.includes('openspec new'))
         return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('openspec status'))
+        return {
+          code: 0,
+          stdout:
+            JSON.stringify({
+              artifacts: [{ id: 'proposal', status: 'ready' }],
+            }) + '\n',
+          stderr: '',
+        }
       if (key.includes('openspec instructions'))
         return {
           code: 0,
@@ -1169,7 +1197,11 @@ describe('preflight', () => {
     expect(calls).toContainEqual(['openspec', ['new', 'change', 'argv-item']])
     expect(calls).toContainEqual([
       'openspec',
-      ['instructions', 'proposal', '--change', 'argv-item', '--json'],
+      ['status', '--change', 'argv-item', '--json'],
+    ])
+    expect(calls).toContainEqual([
+      'openspec',
+      ['instructions', 'proposal', '--json', '--change', 'argv-item'],
     ])
     expect(JSON.parse(r.out).skips).toEqual(['skip-me', 'remote-a'])
   })
@@ -2524,6 +2556,198 @@ describe('review-brief', () => {
       mustOkDiffNoIndex({ code: 1, stdout: 'diff\n', stderr: '' }, 'ok'),
     ).toEqual({ code: 1, stdout: 'diff\n', stderr: '' })
   })
+
+  it('writes brief to --out path', () => {
+    const repo = gitInitRepo()
+    const out = path.join(repo, 'brief-out.md')
+    const r = run(
+      [
+        'review-brief',
+        '--json',
+        '--change',
+        'missing',
+        '--out',
+        out,
+        '--rules-json',
+        '["r1"]',
+      ],
+      { cwd: repo, env: {} },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(fs.existsSync(out)).toBe(true)
+    const text = fs.readFileSync(out, 'utf8')
+    expect(text).toContain('slug: missing')
+    expect(text).toContain('r1')
+    expect(JSON.parse(r.out).outPath).toBe(out)
+  })
+})
+
+describe('instructions', () => {
+  it('returns template and rules for an artifact', () => {
+    const root = tmpRoot()
+    const exec = fakeExec([
+      [
+        'openspec instructions design',
+        {
+          stdout: JSON.stringify({
+            template: '# Design',
+            rules: ['Keep design under ~600 words.'],
+          }),
+        },
+      ],
+      ['git branch --show-current', { stdout: 'feat/demo\n' }],
+    ])
+    const r = run(['instructions', 'design', '--json', '--root', root], {
+      cwd: root,
+      exec,
+      env: {},
+    })
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j).toMatchObject({
+      ok: true,
+      change: 'demo',
+      artifact: 'design',
+      template: '# Design',
+      rules: ['Keep design under ~600 words.'],
+    })
+  })
+})
+
+describe('stats', () => {
+  it('prints metrics and exits 0 under thresholds', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'ok.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        rounds: [
+          {
+            input: 1000,
+            output: 200,
+            cacheRead: 50,
+            modelCalls: 1,
+            context: 1200,
+          },
+          {
+            input: 1500,
+            output: 300,
+            cacheRead: 80,
+            modelCalls: 2,
+            context: 1800,
+          },
+        ],
+      }),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.peakContext).toBe(1800)
+    expect(j.firstInput).toBe(1000)
+    expect(j.modelCalls).toBe(3)
+    expect(j.rounds).toHaveLength(2)
+  })
+
+  it('accepts JSONL rounds documents', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'rounds.jsonl')
+    fs.writeFileSync(
+      file,
+      [
+        JSON.stringify({
+          input: 11,
+          output: 2,
+          cacheRead: 1,
+          modelCalls: 1,
+          context: 15,
+        }),
+        JSON.stringify({
+          input: 20,
+          output: 3,
+          cacheRead: 0,
+          modelCalls: 1,
+          context: 25,
+        }),
+      ].join('\n') + '\n',
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.peakContext).toBe(25)
+    expect(j.rounds).toHaveLength(2)
+  })
+
+  it('exits 1 when peak context exceeds 300K', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'over-peak.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        rounds: [
+          {
+            input: 100,
+            output: 10,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 300_001,
+          },
+        ],
+      }),
+    )
+    const r = run(['stats', file], { cwd: root, env: {} })
+    expect(r.code).toBe(1)
+    expect(r.out).toContain('peakContext: 300001')
+  })
+
+  it('exits 1 when first-round input exceeds 400K', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'over-first.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        rounds: [
+          {
+            input: 400_001,
+            output: 10,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 1000,
+          },
+        ],
+      }),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(1)
+    expect(JSON.parse(r.out).firstInput).toBe(400_001)
+  })
+
+  it('reads agentStats.rounds from store.db meta', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'store.db')
+    const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
+    const db = new DatabaseSync(dbPath)
+    db.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(
+      '0',
+      JSON.stringify({
+        agentStats: {
+          rounds: [
+            {
+              input: 10,
+              output: 2,
+              cacheRead: 1,
+              modelCalls: 1,
+              context: 20,
+            },
+          ],
+        },
+      }),
+    )
+    db.close()
+    const r = run(['stats', dbPath, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    expect(JSON.parse(r.out).peakContext).toBe(20)
+  })
 })
 
 describe('help / errors / defaultExec / main', () => {
@@ -3402,7 +3626,18 @@ describe('linked worktree preflight --slug', () => {
           stderr: '',
         }
       }
-      if (key.includes('openspec new') || key.includes('openspec instructions'))
+      if (key.includes('openspec new'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('openspec status'))
+        return {
+          code: 0,
+          stdout:
+            JSON.stringify({
+              artifacts: [{ id: 'proposal', status: 'ready' }],
+            }) + '\n',
+          stderr: '',
+        }
+      if (key.includes('openspec instructions'))
         return {
           code: 0,
           stdout: JSON.stringify({ template: 'T', rules: ['r'] }),

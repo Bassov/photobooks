@@ -2,7 +2,10 @@
 // Entry: scripts/agent-cli.mjs (`pnpm agent`). Zero deps, Node 22, ESM.
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
+
+const nodeRequire = createRequire(import.meta.url)
 
 export class AgentError extends Error {
   constructor(msg, code = 2) {
@@ -35,7 +38,23 @@ const VALUE = new Set([
   'skip',
   'slug',
   'base',
+  'out',
 ])
+
+/** ≤10-line apply/archive procedure embedded in the preflight run card. */
+export const APPLY_ARCHIVE_PROCEDURE = `\
+Apply/archive (≤10):
+1. After proposal+design+tasks(+specs): review-brief --out <file>; openspec-planning-reviewer once (≤1 re-review).
+2. Implement tasks; tick checkboxes; keep touch-set.
+3. pnpm check (OK lines only); e2e/stryker/lhci when in scope.
+4. openspec-implementation-reviewer (brief --out); Manual check; Security if tagged.
+5. Archive: sync delta specs, openspec archive, pnpm roadmap done <slug>.
+6. Commit; pnpm agent finish --title … --body-file … (no CI watch).
+Explore: grep ≤30; offset/limit if >400 lines; no re-read; no TodoWrite in -p.
+Task shape: reviewer skill set + brief file path only.`
+
+export const STATS_PEAK_CONTEXT_MAX = 300_000
+export const STATS_FIRST_ROUND_INPUT_MAX = 400_000
 
 export function parseArgs(argv) {
   const o = { _: [] }
@@ -70,9 +89,11 @@ export function parseArgs(argv) {
 }
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
-  preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); --slug skips local main sync
+  preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); run card
   finish --title T --body-file F   push (pre-push pnpm check once; ≤2/branch) → PR (no CI watch)
-  review-brief [--change S] [--base REF] [--rules-json '[…]']   reviewer brief in one call
+  review-brief [--change S] [--base REF] [--rules-json '[…]'] [--out FILE]   reviewer brief
+  instructions <artifact> [--change S]   template + rules for one artifact
+  stats <path>   per-round tokens; exit 1 if peak>300K or first input>400K
   help
 
 Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
@@ -330,6 +351,208 @@ export function parseRoadmapNext(text) {
 export function parseInstructions(stdout) {
   const j = JSON.parse(stdout)
   return { template: j.template ?? null, rules: j.rules ?? null }
+}
+
+/** Ready OpenSpec artifact ids from `openspec status --json`. */
+export function readyArtifactIds(statusJson) {
+  const arts = statusJson?.artifacts
+  if (!Array.isArray(arts)) return []
+  return arts.filter((a) => a && a.status === 'ready').map((a) => a.id)
+}
+
+/**
+ * Load template/rules for one artifact via openspec (CLI-internal; agents use
+ * `pnpm agent instructions` instead of raw openspec instructions).
+ */
+export function loadArtifactInstructions(
+  exec,
+  cwd,
+  env,
+  quiet,
+  artifactId,
+  change,
+) {
+  const args = ['instructions', artifactId, '--json']
+  if (change) args.push('--change', change)
+  const instr = mustOk(
+    sh(exec, cwd, env, quiet, 'openspec', args),
+    'openspec instructions',
+  )
+  try {
+    return parseInstructions(instr.stdout)
+  } catch {
+    fail(
+      `openspec instructions returned invalid JSON:\n${tailOutput(instr.stdout, instr.stderr)}`,
+    )
+  }
+}
+
+export function buildRunCard(exec, cwd, env, quiet, changeSlug) {
+  const statusR = mustOk(
+    sh(exec, cwd, env, quiet, 'openspec', [
+      'status',
+      '--change',
+      changeSlug,
+      '--json',
+    ]),
+    'openspec status',
+  )
+  let status
+  try {
+    status = JSON.parse(statusR.stdout)
+  } catch {
+    fail(
+      `openspec status returned invalid JSON:\n${tailOutput(statusR.stdout, statusR.stderr)}`,
+    )
+  }
+  const ready = readyArtifactIds(status)
+  /** @type {Record<string, { template: string|null, rules: unknown }>} */
+  const artifacts = {}
+  for (const id of ready) {
+    artifacts[id] = loadArtifactInstructions(
+      exec,
+      cwd,
+      env,
+      quiet,
+      id,
+      changeSlug,
+    )
+  }
+  return {
+    ready,
+    artifacts,
+    procedure: APPLY_ARCHIVE_PROCEDURE,
+  }
+}
+
+function parseStatsRoundsJson(text) {
+  const trimmed = String(text ?? '').trim()
+  if (!trimmed) fail('stats document is empty')
+  const lines = trimmed
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+  // Multi-line JSONL (each line a round object) before whole-file JSON.parse.
+  if (lines.length > 1 && lines.every((l) => l.startsWith('{'))) {
+    const rounds = []
+    for (const t of lines) {
+      try {
+        rounds.push(JSON.parse(t))
+      } catch {
+        fail('stats JSONL line is invalid JSON')
+      }
+    }
+    return normalizeRounds(rounds)
+  }
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    let j
+    try {
+      j = JSON.parse(trimmed)
+    } catch {
+      fail('stats JSON is invalid')
+    }
+    if (Array.isArray(j)) return normalizeRounds(j)
+    if (j && Array.isArray(j.rounds)) return normalizeRounds(j.rounds)
+    if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
+    fail('stats JSON must be {rounds:[…]} or an array of rounds')
+  }
+  const rounds = []
+  for (const t of lines) {
+    let row
+    try {
+      row = JSON.parse(t)
+    } catch {
+      fail('stats JSONL line is invalid JSON')
+    }
+    rounds.push(row)
+  }
+  return normalizeRounds(rounds)
+}
+
+function normalizeRounds(rows) {
+  if (!Array.isArray(rows) || rows.length === 0)
+    fail('stats rounds must be a non-empty array')
+  return rows.map((r, i) => {
+    if (!r || typeof r !== 'object') fail(`stats round ${i} is not an object`)
+    const input = Number(r.input)
+    const output = Number(r.output)
+    const cacheRead = Number(r.cacheRead ?? r.cache_read ?? 0)
+    const modelCalls = Number(r.modelCalls ?? r.model_calls ?? 1)
+    const context = Number(r.context)
+    for (const [name, v] of [
+      ['input', input],
+      ['output', output],
+      ['cacheRead', cacheRead],
+      ['modelCalls', modelCalls],
+      ['context', context],
+    ]) {
+      if (!Number.isFinite(v) || v < 0)
+        fail(`stats round ${i} has invalid ${name}`)
+    }
+    return { input, output, cacheRead, modelCalls, context }
+  })
+}
+
+function parseMetaJson(value) {
+  if (value == null) return null
+  const s = String(value)
+  try {
+    return JSON.parse(s)
+  } catch {
+    /* try hex-encoded JSON (Cursor store.db meta) */
+  }
+  if (/^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0) {
+    try {
+      const raw = Buffer.from(s, 'hex').toString('utf8')
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+export function loadStatsRounds(filePath) {
+  if (!fs.existsSync(filePath)) fail(`stats path not found: ${filePath}`)
+  const lower = filePath.toLowerCase()
+  if (lower.endsWith('.db') || lower.endsWith('.sqlite')) {
+    let DatabaseSync
+    try {
+      ;({ DatabaseSync } = nodeRequire('node:sqlite'))
+    } catch (e) {
+      fail(`node:sqlite unavailable: ${e.message}`)
+    }
+    const db = new DatabaseSync(filePath, { readOnly: true })
+    try {
+      const rows = db.prepare('SELECT key, value FROM meta').all()
+      for (const row of rows) {
+        const j = parseMetaJson(row.value)
+        if (j?.agentStats?.rounds) return normalizeRounds(j.agentStats.rounds)
+        if (j?.rounds) return normalizeRounds(j.rounds)
+      }
+      fail('store.db meta has no agentStats.rounds')
+    } finally {
+      db.close()
+    }
+  }
+  return parseStatsRoundsJson(fs.readFileSync(filePath, 'utf8'))
+}
+
+export function summarizeStats(rounds) {
+  const peakContext = Math.max(...rounds.map((r) => r.context))
+  const firstInput = rounds[0].input
+  const modelCalls = rounds.reduce((n, r) => n + r.modelCalls, 0)
+  return { rounds, peakContext, firstInput, modelCalls }
+}
+
+export function statsExitCode(summary) {
+  if (
+    summary.peakContext > STATS_PEAK_CONTEXT_MAX ||
+    summary.firstInput > STATS_FIRST_ROUND_INPUT_MAX
+  ) {
+    return 1
+  }
+  return 0
 }
 
 export function parseTouchSetPaths(designText) {
@@ -769,24 +992,12 @@ export function cmdPreflight(o, deps) {
     )
   }
 
-  const instr = mustOk(
-    sh(exec, cwd, env, quiet, 'openspec', [
-      'instructions',
-      'proposal',
-      '--change',
-      item.slug,
-      '--json',
-    ]),
-    'openspec instructions',
-  )
-  let instructions
-  try {
-    instructions = parseInstructions(instr.stdout)
-  } catch {
-    fail(
-      `openspec instructions returned invalid JSON:\n${tailOutput(instr.stdout, instr.stderr)}`,
-    )
-  }
+  const runCard = buildRunCard(exec, cwd, env, quiet, item.slug)
+  const primaryId =
+    runCard.ready.find((id) => id === 'proposal') ?? runCard.ready[0] ?? null
+  const instructions = primaryId
+    ? runCard.artifacts[primaryId]
+    : loadArtifactInstructions(exec, cwd, env, quiet, 'proposal', item.slug)
   if (!Array.isArray(instructions.rules))
     fail('openspec instructions missing rules array')
 
@@ -815,6 +1026,7 @@ export function cmdPreflight(o, deps) {
       body: item.body,
     },
     instructions,
+    runCard,
     touchSet,
   }
 }
@@ -1297,7 +1509,7 @@ export function cmdReviewBrief(o, deps) {
     .filter(Boolean)
     .join('\n')
 
-  return {
+  const brief = {
     slug,
     changePath,
     rules,
@@ -1314,6 +1526,49 @@ export function cmdReviewBrief(o, deps) {
     touchDiff: touchDiffParts.join('\n\n') || '(empty)',
     outsideDiff: outsideParts.join('\n\n') || '(empty)',
     untracked,
+  }
+  if (o.out) {
+    const outAbs = path.isAbsolute(o.out) ? o.out : path.join(cwd, o.out)
+    fs.mkdirSync(path.dirname(outAbs), { recursive: true })
+    fs.writeFileSync(outAbs, fmtBrief(brief) + '\n', 'utf8')
+    brief.outPath = outAbs
+  }
+  return brief
+}
+
+export function cmdInstructions(o, deps) {
+  const { cwd, env, exec, quiet } = deps
+  const artifact = o._[1]
+  if (!artifact) fail('usage: pnpm agent instructions <artifact> [--change S]')
+  let change = o.change
+  if (!change) {
+    const br = mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current']),
+      'git branch',
+    )
+    change = slugFromBranch(br.stdout.trim())
+  }
+  const instructions = loadArtifactInstructions(
+    exec,
+    cwd,
+    env,
+    quiet,
+    artifact,
+    change,
+  )
+  return { ok: true, change, artifact, ...instructions }
+}
+
+export function cmdStats(o, deps) {
+  const { cwd } = deps
+  const rel = o._[1]
+  if (!rel) fail('usage: pnpm agent stats <path>')
+  const filePath = path.isAbsolute(rel) ? rel : path.join(cwd, rel)
+  const rounds = loadStatsRounds(filePath)
+  const summary = summarizeStats(rounds)
+  return {
+    ok: statsExitCode(summary) === 0,
+    ...summary,
   }
 }
 
@@ -1335,8 +1590,55 @@ function fmtPreflight(r) {
     `touchSet: ${r.touchSet}`,
     `checklistIds: ${r.checklistIds.join(',')}`,
     `instructions: rules=${ruleList.length} (use --json for template/rules)`,
+    `runCard.ready: ${(r.runCard?.ready ?? []).join(',') || '(none)'}`,
   ]
   if (r.staleWarning) lines.push(`staleWarning: ${r.staleWarning}`)
+  if (r.runCard?.artifacts) {
+    for (const id of r.runCard.ready ?? []) {
+      const art = r.runCard.artifacts[id]
+      const n = Array.isArray(art?.rules) ? art.rules.length : 0
+      lines.push(`--- runCard artifact: ${id} (rules=${n}) ---`)
+      if (art?.template) lines.push(String(art.template).trimEnd())
+      if (Array.isArray(art?.rules)) {
+        for (const rule of art.rules) lines.push(`- ${rule}`)
+      }
+    }
+  }
+  if (r.runCard?.procedure) {
+    lines.push('--- apply/archive procedure ---')
+    lines.push(String(r.runCard.procedure).trimEnd())
+  }
+  return lines.join('\n')
+}
+
+function fmtInstructions(r) {
+  const lines = [
+    `ok: ${r.ok}`,
+    `change: ${r.change}`,
+    `artifact: ${r.artifact}`,
+    '--- template ---',
+    String(r.template ?? '').trimEnd(),
+    '--- rules ---',
+  ]
+  if (Array.isArray(r.rules)) {
+    for (const rule of r.rules) lines.push(`- ${rule}`)
+  }
+  return lines.join('\n')
+}
+
+function fmtStats(r) {
+  const lines = [
+    `ok: ${r.ok}`,
+    `rounds: ${r.rounds.length}`,
+    `peakContext: ${r.peakContext}`,
+    `firstInput: ${r.firstInput}`,
+    `modelCalls: ${r.modelCalls}`,
+  ]
+  r.rounds.forEach((row, i) => {
+    lines.push(
+      `round[${i}]: input=${row.input} output=${row.output} cacheRead=${row.cacheRead} modelCalls=${row.modelCalls} context=${row.context}`,
+    )
+  })
   return lines.join('\n')
 }
 
@@ -1386,7 +1688,9 @@ export function run(argv, deps = {}) {
     const [cmd] = o._
     if (!cmd || cmd === 'help' || o.help)
       return { code: cmd || o.help ? 0 : 2, out: HELP }
-    if (o._.length > 1) fail(`unexpected argument: ${o._[1]}`)
+    const allowsArg = cmd === 'instructions' || cmd === 'stats'
+    if (o._.length > 1 && !allowsArg) fail(`unexpected argument: ${o._[1]}`)
+    if (o._.length > 2) fail(`unexpected argument: ${o._[2]}`)
     const root = path.resolve(cwd, o.root ?? '.')
     const d = { root, cwd, env, exec, quiet }
     let r
@@ -1402,6 +1706,13 @@ export function run(argv, deps = {}) {
       case 'review-brief':
         r = cmdReviewBrief(o, d)
         break
+      case 'instructions':
+        r = cmdInstructions(o, d)
+        break
+      case 'stats':
+        r = cmdStats(o, d)
+        code = statsExitCode(r)
+        break
       default:
         fail(`unknown command: ${cmd}\n${HELP}`)
     }
@@ -1411,7 +1722,11 @@ export function run(argv, deps = {}) {
         ? fmtPreflight(r)
         : cmd === 'finish'
           ? fmtFinish(r)
-          : fmtBrief(r)
+          : cmd === 'instructions'
+            ? fmtInstructions(r)
+            : cmd === 'stats'
+              ? fmtStats(r)
+              : fmtBrief(r)
     return { code, out }
   } catch (e) {
     if (!(e instanceof AgentError)) throw e
