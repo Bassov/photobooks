@@ -18,7 +18,7 @@ See proposal.md. Today `verify:fast` is a sequential `&&` chain; finish runs `ve
 
 3. **Finish single-verify** — drop upfront `verify:fast:quiet` (incl. after trivial merge). Push with hooks; parse check failure from push output. Never `--no-verify`.
 
-4. **CI wire** — Replace overlapping steps in `checks.yml` with `pnpm check --verbose`. Keep format:check, test:coverage, build, assert-dist-headers, audit:ci in the **same** required job (no `continue-on-error`). Double unit (check + coverage) OK this PR.
+4. **CI wire** — Replace overlapping steps in `checks.yml` with `pnpm check --verbose --skip-unit`. Keep format:check, test:coverage, build, assert-dist-headers, audit:ci in the **same** required job (no `continue-on-error`). `test:coverage` already runs the same vitest projects as `unit`, so CI skips unit inside `pnpm check` to avoid a double suite; pre-push keeps full `pnpm check`.
 
 5. **Preflight stale** — Roadmap “rebase-or-recreate” maps to project policy: **never rebase/force**. If reused branch is behind `origin/main`: warn; prefer recreate from `origin/main` when the branch has no unique commits vs the preflight base; otherwise `git merge origin/main` (same allowlist/fail rules as finish). Checklist ids from `quality/review-checklist.md` when present.
 
@@ -41,7 +41,7 @@ See proposal.md. Today `verify:fast` is a sequential `&&` chain; finish runs `ve
 
 ## Risks / Trade-offs
 
-- [CI double unit] → keep coverage step; optional `--skip-unit` later.
+- [CI double unit] → `--skip-unit` in CI `pnpm check`; coverage step owns the unit suite.
 - [Parser fragility] → cap + log path; `--verbose` in CI.
 - [Stale conflicts] → fail with file list; no blind keep-both.
 

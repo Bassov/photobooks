@@ -32,7 +32,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Deterministic checks
-        run: pnpm check --verbose
+        # Unit suite runs once below via test:coverage; skip unit here.
+        run: pnpm check --verbose --skip-unit
 
       - name: Format check
         run: pnpm format:check

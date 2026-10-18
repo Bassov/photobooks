@@ -21,7 +21,7 @@ The repository SHALL provide `pnpm check` as the single entry for deterministic 
 
 ### Requirement: Compact check command output
 
-`pnpm check` and each sub-check it runs SHALL default to minimal stdout: one `OK <check> (<n>, <time>)` line on success, or capped problem lines plus a `.cache/checks/` log pointer on failure. `--verbose` SHALL restore full tool output. Agent finish MUST surface pre-push/`pnpm check` failures in that compact shape.
+`pnpm check` and each sub-check it runs SHALL default to minimal stdout: one `OK <check> (<time>)` line on success, or capped problem lines plus a `.cache/checks/` log pointer on failure. `--verbose` SHALL restore full tool output. Agent finish MUST surface pre-push/`pnpm check` failures in that compact shape.
 
 #### Scenario: No noisy success chrome
 

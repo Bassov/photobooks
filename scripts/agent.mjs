@@ -684,8 +684,15 @@ export function refreshStaleFeatureBranch(exec, root, cwd, env, quiet) {
     ]),
     'git rev-list behind',
   )
-  const behind = Number.parseInt(behindR.stdout.trim(), 10)
-  if (!Number.isFinite(behind) || behind < 1) {
+  const behindRaw = behindR.stdout.trim()
+  const behind = Number.parseInt(behindRaw, 10)
+  if (!Number.isFinite(behind)) {
+    fail(
+      `git rev-list behind produced non-numeric count: ${behindRaw || '(empty)'}`,
+      1,
+    )
+  }
+  if (behind < 1) {
     return { stale: false, warning: null, merged: false, action: null }
   }
   const aheadR = mustOk(
@@ -1326,7 +1333,7 @@ function fmtPreflight(r) {
     ...goalLines,
     `skips: ${r.skips.join(',')}`,
     `touchSet: ${r.touchSet}`,
-    `checklistIds: ${(r.checklistIds ?? []).join(',')}`,
+    `checklistIds: ${r.checklistIds.join(',')}`,
     `instructions: rules=${ruleList.length} (use --json for template/rules)`,
   ]
   if (r.staleWarning) lines.push(`staleWarning: ${r.staleWarning}`)

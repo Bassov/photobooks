@@ -8,7 +8,7 @@
 ## 2. Wire pre-push + CI
 
 - [x] 2.1 Point Lefthook pre-push at `pnpm check` (via hook-clean-env). Verify lefthook.yml invokes check, not the old sequential verify:fast chain alone.
-- [x] 2.2 Update `.github/workflows/checks.yml`: one `pnpm check --verbose` for the shared inventory; keep format:check, test:coverage, build, dist headers, audit:ci in the same required job without `continue-on-error`. Verify workflow YAML still lists those steps in `checks`.
+- [x] 2.2 Update `.github/workflows/checks.yml`: `pnpm check --verbose --skip-unit` for the shared inventory (coverage step owns unit); keep format:check, test:coverage, build, dist headers, audit:ci in the same required job without `continue-on-error`. Verify workflow YAML still lists those steps in `checks`.
 
 ## 3. Agent finish + preflight
 
@@ -21,13 +21,15 @@
 
 ## 5. Verification evidence
 
-- [x] 5.1 Run `pnpm test:coverage` / targeted agent+check tests, `pnpm stryker:diff`; list survivors with reasons. Confirm LOC ≤1500 vs origin/main (~1316 churn).
+- [x] 5.1 Run `pnpm test:coverage` / targeted agent+check tests, `pnpm stryker:diff` (85.75% killed, 0 NoCoverage on check.mjs + agent.mjs mutate set); list survivors with reasons. Confirm LOC ≤1500 vs origin/main.
 
 ### stryker:diff survivors (check.mjs / equivalent)
 
-- `stdio: ['ignore','pipe','pipe']` string literals — Node API surface; behavior covered by spawn contract tests
-- empty `problems: []` on success / `Date.now` default arrow — equivalent under green path
-- remaining regex/ANSI edge mutants in `extractProblemLines` with low kill value after preferred-line tests
+- spawn `stdio: ['ignore','pipe','pipe']` / options object — fake spawn ignores Node stdio wiring; covered by real-spawn main() test
+- `opts.env ?? process.env` / `opts.problemCap ?? PROBLEM_CAP` — equivalent when opts omit those keys (tests always pass defaults or rely on defaults identically under `??` vs `&&` for undefined)
+- `problems.length > cap` vs `>= cap` at exact boundary — equivalent at problemCap=20 with 25 problems (both show ellipsis)
+- `${stderr}\n${err.message}`.trim() — equivalent for empty stderr + Error message (leading newline already dropped by line split)
+- remaining extractProblemLines regex near-miss mutants (word-class tweaks) after preferred-line + fixture tests
 - agent.mjs pre-existing survivors outside this change’s new branches
 
 ## Verification checklist
@@ -47,5 +49,5 @@
 ## Manual test scenarios
 
 1. `pnpm check` on clean tree → eight `OK <check> (...)` lines, exit 0 (observed).
-2. Agent unit suite covers multi-fail check aggregation, finish without pre-verify / without `--no-verify`, preflight stale recreate-ff and merge, checklist ids (124 tests green).
+2. Agent unit suite covers multi-fail check aggregation, real failure fixtures, real-spawn main(), finish without pre-verify / without `--no-verify`, preflight fetch-before-stale + recreate-ff/merge, checklist ids (144 tests green).
 3. Browser / `pnpm dev`: N/A (prep tooling; no UI).
