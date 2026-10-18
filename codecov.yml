@@ -21,7 +21,8 @@ flag_management:
     carryforward: true
 
 comment:
-  layout: 'reach,diff,flags,components,files'
+  # header+components per Codecov docs so the PR comment includes the component table
+  layout: 'header, diff, flags, components, files'
   behavior: default
   require_changes: false
   require_base: false
