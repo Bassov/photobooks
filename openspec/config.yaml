@@ -25,6 +25,8 @@ context: |
   - UI in scope: green verify is not enough — require evidenced browser smoke (Playwright and/or MCP browser) for empty, happy-path, and primary scroll/interact before push/archive; skill `ui-review` is mandatory (includes layout smoke)
   - Observable UX claims in success criteria (empty copy, packing, viewport fill, contain, etc.) MUST have matching Playwright assertions before apply is complete — not only after a human finds the bug
   - NEVER weaken a quality gate for any reason (including stabilizing a test): do not add or widen coverage or mutation exclusions; add inline ignore/disable comments; lower thresholds; remove checks; loosen an assertion or tolerance; add retries, skip, fixme, or test.fail; or delete tests or helpers. No Stryker disable until stryker-diff-gate defines a budget. Fix with code, tests, or a new test seam
+  - Necessary minimum (artifacts + production code): ship only what the item needs — no padded sections, unrequested options, or abstractions. Prefer reuse ladder: exists in item scope → codebase helper → platform/Web API → already-installed dependency → minimum new code. Bug fixes: grep all callers and fix the root once. Moved/copied code keeps validation, data-loss handling, security, a11y, and perf budgets.
+  - Necessary-minimum does NOT apply to tests: do not shrink coverage, mutation, PBT, or e2e geometry bars; those gates stay unchanged or stricter. Thorough tests are never "excessive."
 
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
@@ -39,6 +41,7 @@ rules:
     - Keep proposals under 400 words (~one screen). Prefer bullets over prose.
     - 'Include only: problem, why now, scope in/out, success criteria, risks.'
     - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
+    - 'Necessary minimum: only what the item needs; N/A topics in one line; no padded sections, unrequested options, or abstractions. Tests are exempt — do not cut test plans to look "minimal."'
     - If content does not fit, narrow scope — never inflate the proposal.
     - 'Size budget (one apply context): at most ONE new subsystem and at most 8 implementation tasks; line-count target/max and subsystem definition live in docs/roadmap/RULES.md "Change size" (do not restate numbers here).'
     - 'Over budget: before design/apply, narrow scope to one subsystem and add the remainder as new roadmap items right after the current one with `pnpm roadmap add <slug> --after <current> --tag prep|feature|contingency --title "..."` (needed infra as a preceding [prep], gate fallbacks as [contingency]). Deferred blocking review findings become items the same way — never vague follow-ups.'
@@ -50,6 +53,7 @@ rules:
     - 'Roadmap [feature] item: success criteria MUST cover its **Browser check:** and **Perf:** lines (`pnpm roadmap show <slug>`); if the item lacks them, write them into its item file docs/roadmap/<milestone>/<slug>.md in this change (record as an assumption) instead of asking. Never read the whole roadmap; use `pnpm roadmap next` / `show`.'
   design:
     - Keep design under ~600 words.
+    - 'Necessary minimum: write design.md only for real decisions; N/A sections in one line; no padded alternatives or unrequested layers. Prefer reuse ladder (exists → codebase → platform → installed dependency → minimum new code). Tests are exempt.'
     - Include implementation detail only where apply would otherwise be ambiguous.
     - Prefer references to existing modules over inventing new layers.
     - MUST include a touch-set (concrete files/modules in scope) sized for one apply context.
