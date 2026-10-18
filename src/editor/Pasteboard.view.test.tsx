@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { dispatchBookOp, resetBookStore } from './bookStore'
 import { commitZoom, resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
+import { PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME } from './pasteboardWindow'
 
 describe('Pasteboard view wiring', () => {
   afterEach(() => {
@@ -48,6 +49,8 @@ describe('Pasteboard view wiring', () => {
       },
     )
     render(<Pasteboard />)
+    // Drop mount-pace rAF callbacks scheduled during the initial layout.
+    rafQueue.length = 0
     const scroll = screen.getByTestId('pasteboard-scroll')
     let scrollTopValue = 0
     Object.defineProperty(scroll, 'scrollTop', {
@@ -202,7 +205,28 @@ describe('Pasteboard view wiring', () => {
         }
       },
     )
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal(
+      'setTimeout',
+      vi.fn(() => 1),
+    )
+    vi.stubGlobal(
+      'clearTimeout',
+      vi.fn(() => undefined),
+    )
     render(<Pasteboard />)
+    let guarded = 0
+    while (rafQueue.length > 0 && guarded < 20) {
+      act(() => {
+        const cb = rafQueue.shift()
+        cb?.(0)
+      })
+      guarded += 1
+    }
     expect(screen.queryByTestId('pasteboard-lead')).toBeNull()
     expect(screen.queryByTestId('pasteboard-tail')).toBeNull()
     const world = screen.getByTestId('pasteboard-world')
@@ -217,6 +241,75 @@ describe('Pasteboard view wiring', () => {
     for (const slot of inactive) {
       expect(slot.getAttribute('data-active')).toBe('false')
     }
+  })
+
+  it('paces newly mounted slots across frames when zoom-out grows the window', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal(
+      'setTimeout',
+      vi.fn(() => 1),
+    )
+    vi.stubGlobal(
+      'clearTimeout',
+      vi.fn(() => undefined),
+    )
+    resetBookStore()
+    for (let i = 0; i < 20; i += 1) {
+      dispatchBookOp({ type: 'addSpread' })
+    }
+    commitZoom(4, 0, 0)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly cb: ResizeObserverCallback) {}
+        observe(target: Element): void {
+          Object.defineProperty(target, 'clientWidth', {
+            configurable: true,
+            value: 500,
+          })
+          Object.defineProperty(target, 'clientHeight', {
+            configurable: true,
+            value: 400,
+          })
+          this.cb([], this)
+        }
+        disconnect(): void {
+          /* no-op */
+        }
+        unobserve(): void {
+          /* no-op */
+        }
+      },
+    )
+    render(<Pasteboard />)
+    const slotsAtZoom = screen.getAllByTestId('pasteboard-slot').length
+    expect(slotsAtZoom).toBeGreaterThan(0)
+
+    act(() => {
+      commitZoom(0.25, 0, 0)
+    })
+    let slots = screen.getAllByTestId('pasteboard-slot').length
+    expect(slots).toBeGreaterThanOrEqual(slotsAtZoom)
+    expect(slots).toBeLessThanOrEqual(
+      slotsAtZoom + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+    )
+    expect(slots).toBeLessThan(23)
+    expect(rafQueue.length).toBeGreaterThan(0)
+
+    const beforeFrame = slots
+    act(() => {
+      const cb = rafQueue.shift()
+      cb?.(0)
+    })
+    slots = screen.getAllByTestId('pasteboard-slot').length
+    expect(slots).toBeGreaterThan(beforeFrame)
+    expect(slots).toBeLessThanOrEqual(
+      beforeFrame + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+    )
   })
 
   it('cancels a pending scroll frame on unmount', () => {

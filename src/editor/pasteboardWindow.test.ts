@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { fc, test } from '@fast-check/vitest'
 import {
   PASTEBOARD_GAP_PX,
+  PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  pacePasteboardWindow,
   pasteboardStridePx,
   pasteboardWindow,
+  pasteboardWindowsEqual,
   pickActiveSpread,
 } from './pasteboardWindow'
 
@@ -97,6 +100,185 @@ test.prop(
     expect(window.end * stride).toBeGreaterThanOrEqual(to)
   },
 )
+
+describe('pacePasteboardWindow', () => {
+  const stride = 100
+  const count = 40
+
+  it('leaves the painted window unchanged when the mount budget is zero', () => {
+    const current = { start: 0, end: 2, leadPx: 0, tailPx: 38 * stride }
+    const target = { start: 0, end: 20, leadPx: 0, tailPx: 20 * stride }
+    const cover = { start: 0, end: 8, leadPx: 0, tailPx: 32 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 0,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual(current)
+  })
+
+  it('fills viewport cover before overscan within the mount budget', () => {
+    const current = { start: 0, end: 2, leadPx: 0, tailPx: 38 * stride }
+    const target = { start: 0, end: 20, leadPx: 0, tailPx: 20 * stride }
+    const cover = { start: 0, end: 8, leadPx: 0, tailPx: 32 * stride }
+
+    const next = pacePasteboardWindow({
+      current,
+      target,
+      viewportCover: cover,
+      maxNewMounts: PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+      count,
+      stridePx: stride,
+    })
+
+    expect(next.start).toBe(0)
+    expect(next.end).toBe(2 + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME)
+    expect(next.end).toBeLessThanOrEqual(cover.end)
+    expect(next.leadPx + (next.end - next.start) * stride + next.tailPx).toBe(
+      count * stride,
+    )
+  })
+
+  it('drops painted indices outside the target then grows within the budget', () => {
+    const current = { start: 0, end: 30, leadPx: 0, tailPx: 10 * stride }
+    const target = {
+      start: 5,
+      end: 10,
+      leadPx: 5 * stride,
+      tailPx: 30 * stride,
+    }
+    const cover = { start: 5, end: 10, leadPx: 5 * stride, tailPx: 30 * stride }
+
+    // Overlap [5, 10) already covers the target — no growth needed.
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual(target)
+  })
+
+  it('starts empty when the painted window does not overlap the target', () => {
+    const current = { start: 0, end: 3, leadPx: 0, tailPx: 37 * stride }
+    const target = {
+      start: 10,
+      end: 20,
+      leadPx: 10 * stride,
+      tailPx: 20 * stride,
+    }
+    const cover = {
+      start: 10,
+      end: 14,
+      leadPx: 10 * stride,
+      tailPx: 26 * stride,
+    }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 10,
+      end: 10 + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+      leadPx: 10 * stride,
+      tailPx: (count - (10 + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME)) * stride,
+    })
+  })
+
+  it('reaches the full target across multiple steps', () => {
+    let current = { start: 0, end: 2, leadPx: 0, tailPx: 38 * stride }
+    const target = { start: 0, end: 12, leadPx: 0, tailPx: 28 * stride }
+    const cover = { start: 0, end: 2, leadPx: 0, tailPx: 38 * stride }
+
+    for (let i = 0; i < 10; i += 1) {
+      current = pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+        count,
+        stridePx: stride,
+      })
+      if (current.start === target.start && current.end === target.end) {
+        break
+      }
+    }
+
+    expect(current).toEqual(target)
+  })
+
+  it('expands toward overscan before the start when that side needs more', () => {
+    const current = {
+      start: 4,
+      end: 8,
+      leadPx: 4 * stride,
+      tailPx: 32 * stride,
+    }
+    const target = { start: 0, end: 8, leadPx: 0, tailPx: 32 * stride }
+    const cover = { start: 4, end: 8, leadPx: 4 * stride, tailPx: 32 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 3,
+      end: 8,
+      leadPx: 3 * stride,
+      tailPx: 32 * stride,
+    })
+  })
+
+  it('expands toward overscan after the end when that side needs more', () => {
+    const current = { start: 0, end: 4, leadPx: 0, tailPx: 36 * stride }
+    const target = { start: 0, end: 10, leadPx: 0, tailPx: 30 * stride }
+    const cover = { start: 0, end: 4, leadPx: 0, tailPx: 36 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 0,
+      end: 5,
+      leadPx: 0,
+      tailPx: 35 * stride,
+    })
+  })
+
+  it('treats windows equal only when start, end, and extents match', () => {
+    const base = { start: 1, end: 4, leadPx: 100, tailPx: 200 }
+    expect(pasteboardWindowsEqual(base, { ...base })).toBe(true)
+    expect(pasteboardWindowsEqual(base, { ...base, start: 0 })).toBe(false)
+    expect(pasteboardWindowsEqual(base, { ...base, end: 5 })).toBe(false)
+    expect(pasteboardWindowsEqual(base, { ...base, leadPx: 0 })).toBe(false)
+    expect(pasteboardWindowsEqual(base, { ...base, tailPx: 0 })).toBe(false)
+  })
+})
 
 describe('pickActiveSpread', () => {
   it('keeps the earlier spread when ratios differ only by subpixels', () => {

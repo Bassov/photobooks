@@ -1,6 +1,7 @@
 import {
   memo,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -20,7 +21,14 @@ import {
   getSpreadIdsSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { pasteboardWindow, pickActiveSpread } from './pasteboardWindow'
+import {
+  PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  pacePasteboardWindow,
+  pasteboardWindow,
+  pasteboardWindowsEqual,
+  pickActiveSpread,
+  type PasteboardWindow,
+} from './pasteboardWindow'
 import {
   bindGalleryDrop,
   cancelPendingScrollFrame,
@@ -83,6 +91,12 @@ export const Pasteboard = memo(function Pasteboard() {
   const scrollRaf = useRef(0)
   const pendingTop = useRef(0)
   const pendingEpoch = useRef(0)
+  const pacedRef = useRef<PasteboardWindow | null>(null)
+  const paceScheduled = useRef(false)
+  const paceWatchdog = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  )
+  const [paced, setPaced] = useState<PasteboardWindow | null>(null)
 
   useEffect(() => {
     const node = scrollRef.current
@@ -114,13 +128,123 @@ export const Pasteboard = memo(function Pasteboard() {
     )
   }, [])
 
-  const range = pasteboardWindow({
+  const target = pasteboardWindow({
     count: spreadIds.length,
     stridePx: stride,
     scrollTop,
     viewportPx: viewport.height,
     overscanPx: stride,
   })
+  const viewportCover = pasteboardWindow({
+    count: spreadIds.length,
+    stridePx: stride,
+    scrollTop,
+    viewportPx: viewport.height,
+    overscanPx: 0,
+  })
+
+  useLayoutEffect(() => {
+    let cancelled = false
+    const targetWindow: PasteboardWindow = {
+      start: target.start,
+      end: target.end,
+      leadPx: target.leadPx,
+      tailPx: target.tailPx,
+    }
+    const coverWindow: PasteboardWindow = {
+      start: viewportCover.start,
+      end: viewportCover.end,
+      leadPx: viewportCover.leadPx,
+      tailPx: viewportCover.tailPx,
+    }
+
+    const clearWatchdog = (): void => {
+      if (paceWatchdog.current !== undefined) {
+        clearTimeout(paceWatchdog.current)
+        paceWatchdog.current = undefined
+      }
+    }
+
+    const advance = (): boolean => {
+      const emptyPainted: PasteboardWindow = {
+        start: targetWindow.start,
+        end: targetWindow.start,
+        leadPx: targetWindow.start * stride,
+        tailPx: (spreadIds.length - targetWindow.start) * stride,
+      }
+      const current = pacedRef.current ?? emptyPainted
+      const next = pacePasteboardWindow({
+        current,
+        target: targetWindow,
+        viewportCover: coverWindow,
+        maxNewMounts: PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+        count: spreadIds.length,
+        stridePx: stride,
+      })
+      pacedRef.current = next
+      setPaced((prev) =>
+        prev !== null && pasteboardWindowsEqual(prev, next) ? prev : next,
+      )
+      return next.start !== targetWindow.start || next.end !== targetWindow.end
+    }
+
+    const runScheduled = (): void => {
+      if (cancelled || !paceScheduled.current) {
+        return
+      }
+      paceScheduled.current = false
+      clearWatchdog()
+      if (advance()) {
+        scheduleStep()
+      }
+    }
+
+    const scheduleStep = (): void => {
+      if (cancelled || paceScheduled.current) {
+        return
+      }
+      paceScheduled.current = true
+      requestAnimationFrame(runScheduled)
+      paceWatchdog.current = setTimeout(runScheduled, 32)
+    }
+
+    if (advance()) {
+      scheduleStep()
+    }
+    return () => {
+      cancelled = true
+      paceScheduled.current = false
+      clearWatchdog()
+    }
+    // Primitives only: object identity of pasteboardWindow() results must not
+    // retrigger this effect on every setPaced commit (that would cascade mounts).
+  }, [
+    target.start,
+    target.end,
+    target.leadPx,
+    target.tailPx,
+    viewportCover.start,
+    viewportCover.end,
+    viewportCover.leadPx,
+    viewportCover.tailPx,
+    stride,
+    spreadIds.length,
+  ])
+
+  const range =
+    paced === null
+      ? {
+          start: target.start,
+          end: target.start,
+          leadPx: target.start * stride,
+          tailPx: (spreadIds.length - target.start) * stride,
+        }
+      : {
+          start: paced.start,
+          end: paced.end,
+          leadPx: paced.start * stride,
+          tailPx: (spreadIds.length - paced.end) * stride,
+        }
   const mounted = spreadIds.slice(range.start, range.end)
   const windowKey = pasteboardWindowKey(mounted)
   const markedId = selectMarkedSpreadId(activeId, mounted)
