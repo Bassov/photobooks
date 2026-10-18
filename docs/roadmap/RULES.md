@@ -23,8 +23,8 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 ## Order, milestones, closing
 
 - Items run in index order; `pnpm roadmap next` returns the first open item, skipping `[contingency]` items and slugs with an open PR.
-- Milestones are review cuts. When `done` closes the last item of a milestone, the CLI archives it and reports "milestone review cut": stop and review the product as a whole before continuing. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
-- An item is closed in the change's own PR right after the OpenSpec archive with `pnpm roadmap done <slug>` (`openspec/config.yaml` `operations.archive`), so the merge closes it. `--note` records how it was closed.
+- Milestones are review cuts. `done` writes `Status: done` in the item file and does not tick the index or archive. After merge on `main`, `pnpm roadmap sync` ticks the index; when every item is done, `pnpm roadmap archive <M>` moves the milestone (separate operator step). Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
+- An item is closed in the change's own PR right after the OpenSpec archive with `pnpm roadmap done <slug>` (`openspec/config.yaml` `operations.archive`). `--note` records how it was closed. Parallel item PRs must not edit the same index checkbox line.
 - Reprioritizing is the owner's call: `pnpm roadmap move`. Deferred ideas are scheduled with `pnpm roadmap add`.
 
 ## Change size
@@ -53,7 +53,7 @@ Slicing rules when adding or splitting items:
 
 ## Known limits
 
-- Parallel PRs: two branches that `add` after the same item, or a `done` that archives a milestone (block removed from the index, folder moved), conflict in git. Rebase on `main` and re-run the command on a clean index instead of hand-merging it.
+- Parallel PRs: two branches that `add` after the same item can conflict on the index; re-run `add` on a clean index after merge instead of hand-merging. Item `done` must not touch the index (Status in the item file only).
 - Titles and tags live in both the index line and the item file; `check` requires them to match. There is no retitle command: the owner edits both lines together.
 - LF line endings only (`.gitattributes` sets `eol=lf`); an index with CRLF line endings is not supported.
 - Stale remote branches of merged items inflate `roadmap next --skip`; prune them on the owner side (do not fix by editing the index by hand).

@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Strict fit-zoom add-spread containment: app scroll or deterministic wait
+Status: done
 
 ## Scope
 

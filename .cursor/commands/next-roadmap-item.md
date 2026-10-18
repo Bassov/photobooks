@@ -1,10 +1,12 @@
 # Next roadmap item (unattended)
 
-Run ONE roadmap item end to end in this session. This message is the
-explicit request for planning, apply, manual check, archive, PR and CI — do not
-stop between stages. Mandates live in openspec/config.yaml (rules + operations),
-.cursor/rules/git-finish.mdc, .cursor/agents and skill `roadmap`; follow them,
-do not restate them.
+Run ONE roadmap item end to end in this session. Optional argument: a roadmap
+slug (`/next-roadmap-item <slug>`) — pass it to preflight as `--slug <slug>`.
+Without a slug, behaviour is unchanged (bare `roadmap next` + claimed set).
+This message is the explicit request for planning, apply, manual check,
+archive, PR and CI — do not stop between stages. Mandates live in
+openspec/config.yaml (rules + operations), .cursor/rules/git-finish.mdc,
+.cursor/agents and skill `roadmap`; follow them, do not restate them.
 
 Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`
 (already injected). Do not re-read the item file after `roadmap next` / agent
@@ -22,13 +24,15 @@ steps chained with `&&` in one call; no check-then-recheck loops. OpenSpec
 artifact stages: one Write per artifact, validate once at stage end.
 
 1. Preflight: `source scripts/agent-env.sh` once, then
-   `pnpm -s agent preflight --json` (prefer `--json`; text mode also prints
-   full rules/template/body). Clean tree required; it syncs `main`, skips
-   open-PR/remote `feat|fix/*` slugs, runs `roadmap next`, creates
-   `feat/<slug>` (or `fix/`), and prints one compact report. State item,
-   tag and skips from that report. Contingency items: take only when their
-   gate failed (`pnpm -s roadmap show <slug>`). POSIX/WSL: `pnpm`/`openspec`/
-   `gh`/`git` on PATH (openspec is a global CLI, not a repo dependency).
+   `pnpm -s agent preflight --json` (or `… preflight --slug <slug> --json` when
+   the command was invoked with a slug). Prefer `--json`; text mode also prints
+   full rules/template/body. Clean tree required. Without `--slug`, syncs local
+   `main` and skips claimed slugs (open PR + remote/local/worktree `feat|fix/*`).
+   With `--slug`, branches from `origin/main` without switching local `main`
+   (linked worktrees OK). Creates `feat/<slug>` (or `fix/`) and prints one
+   compact report. Contingency items: take only when their gate failed
+   (`pnpm -s roadmap show <slug>`). POSIX/WSL: `pnpm`/`openspec`/`gh`/`git` on
+   PATH (openspec is a global CLI, not a repo dependency).
 2. Plan with the OpenSpec CLI, not /opsx-propose (its planning boundary would end
    this run): `openspec new change <slug>` if preflight did not; for each ready
    artifact `openspec instructions <id> --change <slug> --json` → write it →
@@ -47,8 +51,8 @@ artifact stages: one Write per artifact, validate once at stage end.
 4. /opsx-archive <slug>: answer "Sync now"; confirm only when every task is
    checked. Then close the item on this branch: `pnpm roadmap done <slug>`
    (`--note "..."` when the shipped scope deviates; required for a
-   [contingency]). If it reports a milestone review cut, commit the archive
-   move and stop after the PR is green.
+   [contingency]). Done writes item-file Status only (no index tick / no
+   milestone archive). On `main` after merge: `roadmap sync` / `roadmap archive <M>`.
 5. `pnpm roadmap check`, then commit (agent owns the message). Finish with
    `pnpm -s agent finish --title "…" --body-file <pr-body.md>` (or omit create
    flags when updating an existing PR). At most 2 local push attempts inside

@@ -3,6 +3,7 @@
 Tag: contingency
 Milestone: M2.1
 Title: Burn-in targets spawn test must not assume burn-in-smoke in every PR diff
+Status: done
 
 ## Scope
 

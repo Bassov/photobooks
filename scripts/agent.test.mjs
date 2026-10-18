@@ -9,6 +9,8 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 import {
   AgentError,
   branchPrefixForItem,
+  collectSkipSlugs,
+  cmdPreflight,
   defaultExec,
   isFailingBucket,
   isFeatureBranch,
@@ -22,11 +24,14 @@ import {
   parseTouchSetPaths,
   readNvmrcMajor,
   readPushFailures,
+  resolveUnionConflictText,
   run,
   runIdFromCheckLink,
   slugFromBranch,
   stripAnsi,
   tailOutput,
+  tryResolveTrivialConflicts,
+  mergeOriginMainIfNeeded,
   writePushFailures,
   pushFailPath,
 } from './agent.mjs'
@@ -81,6 +86,20 @@ function fakeExec(handlers) {
         }
       }
     }
+    // Default empty claimed-set sources so legacy preflight fixtures stay green.
+    if (key.includes('git branch --format'))
+      return { code: 0, stdout: '', stderr: '' }
+    if (key.includes('git worktree list --porcelain'))
+      return { code: 0, stdout: '', stderr: '' }
+    if (key.includes('git rev-parse --git-path')) {
+      const file = args[args.length - 1] ?? 'unknown'
+      return { code: 0, stdout: `.git/${file}\n`, stderr: '' }
+    }
+    // Finish happy-path fixtures: already based on origin/main.
+    if (key.includes('git merge-base --is-ancestor'))
+      return { code: 0, stdout: '', stderr: '' }
+    if (key.includes('git fetch origin'))
+      return { code: 0, stdout: '', stderr: '' }
     return { code: 1, stdout: '', stderr: `unhandled: ${key}` }
   }
 }
@@ -92,7 +111,7 @@ const envOk = [
 
 const HELP_SNIPPETS = [
   'usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]',
-  'preflight [--skip a,b]',
+  'preflight [--slug S] [--skip a,b]',
   'finish --title T --body-file F',
   'review-brief [--change S] [--base REF] [--rules-json',
   'source scripts/agent-env.sh',
@@ -337,12 +356,37 @@ describe('nvmrc and push failures', () => {
     expect(readPushFailures(root)).toEqual({})
   })
 
-  it('writePushFailures requires .git', () => {
+  it('writePushFailures requires a git dir', () => {
     const noGit = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-nogit-'))
     tmpDirs.push(noGit)
     expect(() => writePushFailures(noGit, {})).toThrow(
-      `.git missing under ${noGit}`,
+      /git rev-parse --git-path/,
     )
+  })
+
+  it('gitPath fails when .git is a file and rev-parse fails', () => {
+    const root = tmpRoot()
+    fs.writeFileSync(path.join(root, '.git'), 'gitdir: /nonexistent\n')
+    expect(() => pushFailPath(root)).toThrow(/git rev-parse --git-path/)
+  })
+
+  it('pushFailPath uses git-dir in a linked worktree', () => {
+    const primary = gitInitRepo()
+    execFileSync('git', ['branch', '-M', 'main'], {
+      cwd: primary,
+      stdio: 'ignore',
+    })
+    const wt = path.join(primary, '..', `wt-${path.basename(primary)}`)
+    tmpDirs.push(wt)
+    execFileSync('git', ['worktree', 'add', wt, '-b', 'feat/wt-item'], {
+      cwd: primary,
+      stdio: 'ignore',
+    })
+    writePushFailures(wt, { 'feat/wt-item': 1 })
+    const p = pushFailPath(wt)
+    expect(fs.existsSync(p)).toBe(true)
+    expect(readPushFailures(wt)).toEqual({ 'feat/wt-item': 1 })
+    expect(p.includes('.git')).toBe(true)
   })
 })
 
@@ -745,6 +789,10 @@ describe('preflight', () => {
       if (key.includes('gh pr list')) return { code: 0, stdout: '', stderr: '' }
       if (key.includes('git branch -r'))
         return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git branch --format'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git worktree list'))
+        return { code: 0, stdout: '', stderr: '' }
       if (key.includes('roadmap next'))
         return { code: 0, stdout: JSON.stringify(item), stderr: '' }
       if (key.includes('git switch -c'))
@@ -826,6 +874,10 @@ describe('preflight', () => {
           stdout: '  origin/feat/remote-a\n  origin/main\n',
           stderr: '',
         }
+      if (key.includes('git branch --format'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git worktree list'))
+        return { code: 0, stdout: '', stderr: '' }
       if (key.includes('roadmap next'))
         return { code: 0, stdout: JSON.stringify(item), stderr: '' }
       if (key.includes('git switch -c'))
@@ -874,6 +926,59 @@ describe('preflight', () => {
       ['instructions', 'proposal', '--change', 'argv-item', '--json'],
     ])
     expect(JSON.parse(r.out).skips).toEqual(['skip-me', 'remote-a'])
+  })
+
+  it('preflight --slug branches from origin/main without switching main', () => {
+    const root = tmpRoot()
+    const item = {
+      slug: 'slug-item',
+      tag: 'prep',
+      title: 't',
+      file: 'f',
+      milestone: 'M2.1',
+      goal: ['g'],
+    }
+    const calls = []
+    const exec = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git fetch origin', { code: 0 }],
+      ['gh pr list', { stdout: '' }],
+      ['git branch -r', { stdout: '' }],
+      [
+        'pnpm -s roadmap next --json --slug slug-item',
+        { stdout: JSON.stringify(item) },
+      ],
+      ['git switch -c feat/slug-item --no-track origin/main', { code: 0 }],
+      ['openspec new change', { code: 0 }],
+      [
+        'openspec instructions proposal',
+        { stdout: JSON.stringify({ template: 'T', rules: ['r'] }) },
+      ],
+    ])
+    const wrapped = (file, args, opts) => {
+      calls.push([file, [...args]])
+      return exec(file, args, opts)
+    }
+    const r = run(
+      ['preflight', '--slug', 'slug-item', '--json', '--root', root],
+      {
+        cwd: root,
+        exec: wrapped,
+        env: {},
+      },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(
+      calls.some(
+        (c) => c[0] === 'git' && c[1][0] === 'switch' && c[1][1] === 'main',
+      ),
+    ).toBe(false)
+    expect(calls).toContainEqual([
+      'git',
+      ['switch', '-c', 'feat/slug-item', '--no-track', 'origin/main'],
+    ])
+    expect(JSON.parse(r.out).item.slug).toBe('slug-item')
   })
 })
 
@@ -1504,6 +1609,15 @@ describe('finish', () => {
         return { code: 0, stdout: '3\n', stderr: '' }
       if (key.includes('verify:fast:quiet'))
         return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git merge-base --is-ancestor'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git rev-parse --git-path'))
+        return {
+          code: 0,
+          stdout: `.git/agent-finish-push-failures.json\n`,
+          stderr: '',
+        }
       if (key.includes('git push')) return { code: 0, stdout: '', stderr: '' }
       if (key.includes('gh pr list'))
         return { code: 0, stdout: 'null\n', stderr: '' }
@@ -2061,5 +2175,470 @@ describe('help / errors / defaultExec / main', () => {
         env: {},
       }),
     ).toThrow(TypeError)
+  })
+})
+
+describe('claimed set and merge helpers', () => {
+  it('collectSkipSlugs includes local and worktree feat/fix branches', () => {
+    const exec = fakeExec([
+      ['gh pr list', { stdout: '' }],
+      ['git branch -r', { stdout: '' }],
+      [
+        'git branch --format',
+        { stdout: 'main\nfeat/local-only\nfix/local-fix\n' },
+      ],
+      [
+        'git worktree list --porcelain',
+        {
+          stdout:
+            'worktree /tmp/a\nHEAD abc\nbranch refs/heads/feat/wt-held\n\nworktree /tmp/b\nHEAD def\nbranch refs/heads/main\n',
+        },
+      ],
+    ])
+    const skips = collectSkipSlugs(exec, '/tmp', {}, true, 'extra-slug')
+    expect(skips).toEqual(
+      expect.arrayContaining([
+        'extra-slug',
+        'local-only',
+        'local-fix',
+        'wt-held',
+      ]),
+    )
+  })
+
+  it('collectSkipSlugs fails when local branch or worktree list fails', () => {
+    expect(() =>
+      collectSkipSlugs(
+        fakeExec([
+          ['gh pr list', { stdout: '' }],
+          ['git branch -r', { stdout: '' }],
+          ['git branch --format', { code: 1, stderr: 'nope\n' }],
+        ]),
+        '/tmp',
+        {},
+        true,
+        '',
+      ),
+    ).toThrow(/git branch failed/)
+    expect(() =>
+      collectSkipSlugs(
+        fakeExec([
+          ['gh pr list', { stdout: '' }],
+          ['git branch -r', { stdout: '' }],
+          ['git branch --format', { stdout: '' }],
+          ['git worktree list --porcelain', { code: 1, stderr: 'wt fail\n' }],
+        ]),
+        '/tmp',
+        {},
+        true,
+        '',
+      ),
+    ).toThrow(/git worktree list failed/)
+  })
+
+  it('resolveUnionConflictText keeps both sides and tryResolveTrivialConflicts allows roadmap', () => {
+    const text = [
+      'line a',
+      '<<<<<<< HEAD',
+      '- [ ] [prep] [one](roadmap/M/one.md) — one',
+      '- [ ] [prep] [one](roadmap/M/one.md) — one',
+      '=======',
+      '- [ ] [prep] [two](roadmap/M/two.md) — two',
+      '>>>>>>> main',
+      'line z',
+      '',
+    ].join('\n')
+    const resolved = resolveUnionConflictText(text)
+    expect(resolved).toContain('one.md')
+    expect(resolved).toContain('two.md')
+    expect(resolved).not.toContain('<<<<<<')
+    expect(
+      resolved.split('\n').filter((l) => l.includes('one.md')).length,
+    ).toBe(1)
+    const root = tmpRoot()
+    const f = path.join(root, 'docs/roadmap.md')
+    fs.mkdirSync(path.dirname(f), { recursive: true })
+    fs.writeFileSync(f, text)
+    expect(tryResolveTrivialConflicts(root, ['docs/roadmap.md'])).toBe(true)
+    expect(fs.readFileSync(f, 'utf8')).not.toContain('<<<<<<')
+    expect(tryResolveTrivialConflicts(root, ['src/app.ts'])).toBe(false)
+    expect(
+      tryResolveTrivialConflicts(root, [
+        'docs/lessons/01-x.md',
+        'docs/roadmap/M/a.md',
+      ]),
+    ).toBe(true)
+  })
+
+  it('mergeOriginMainIfNeeded skips when ancestor, merges cleanly, resolves trivial, stops on semantic', () => {
+    const root = tmpRoot(true)
+    expect(
+      mergeOriginMainIfNeeded(
+        fakeExec([
+          ['git fetch origin', { code: 0 }],
+          ['git merge-base --is-ancestor', { code: 0 }],
+        ]),
+        root,
+        root,
+        {},
+        true,
+      ),
+    ).toEqual({ merged: false })
+
+    expect(
+      mergeOriginMainIfNeeded(
+        fakeExec([
+          ['git fetch origin', { code: 0 }],
+          ['git merge-base --is-ancestor', { code: 1 }],
+          ['git merge origin/main', { code: 0 }],
+        ]),
+        root,
+        root,
+        {},
+        true,
+      ),
+    ).toEqual({ merged: true })
+
+    const conflictRoot = tmpRoot(true)
+    const rf = path.join(conflictRoot, 'docs/roadmap.md')
+    fs.mkdirSync(path.dirname(rf), { recursive: true })
+    fs.writeFileSync(
+      rf,
+      '<<<<<<< HEAD\n- [ ] a\n=======\n- [ ] b\n>>>>>>> main\n',
+    )
+    expect(
+      mergeOriginMainIfNeeded(
+        fakeExec([
+          ['git fetch origin', { code: 0 }],
+          ['git merge-base --is-ancestor', { code: 1 }],
+          ['git merge origin/main', { code: 1, stderr: 'conflict\n' }],
+          [
+            'git diff --name-only --diff-filter=U',
+            { stdout: 'docs/roadmap.md\n' },
+          ],
+          ['git add --', { code: 0 }],
+          ['git commit --no-edit', { code: 0 }],
+          ['pnpm verify:fast:quiet', { code: 0 }],
+        ]),
+        conflictRoot,
+        conflictRoot,
+        {},
+        true,
+      ),
+    ).toMatchObject({ merged: true, resolved: ['docs/roadmap.md'] })
+
+    expect(() =>
+      mergeOriginMainIfNeeded(
+        fakeExec([
+          ['git fetch origin', { code: 0 }],
+          ['git merge-base --is-ancestor', { code: 1 }],
+          ['git merge origin/main', { code: 1, stderr: 'conflict\n' }],
+          ['git diff --name-only --diff-filter=U', { stdout: 'src/app.ts\n' }],
+        ]),
+        root,
+        root,
+        {},
+        true,
+      ),
+    ).toThrow(/semantic conflict/)
+
+    const lockRoot = tmpRoot(true)
+    fs.writeFileSync(path.join(lockRoot, 'pnpm-lock.yaml'), 'lock: 1\n')
+    expect(
+      mergeOriginMainIfNeeded(
+        fakeExec([
+          ['git fetch origin', { code: 0 }],
+          ['git merge-base --is-ancestor', { code: 1 }],
+          ['git merge origin/main', { code: 1, stderr: 'conflict\n' }],
+          [
+            'git diff --name-only --diff-filter=U',
+            { stdout: 'pnpm-lock.yaml\n' },
+          ],
+          ['pnpm install', { code: 0 }],
+          ['git add --', { code: 0 }],
+          ['git commit --no-edit', { code: 0 }],
+          ['pnpm verify:fast:quiet', { code: 0 }],
+        ]),
+        lockRoot,
+        lockRoot,
+        {},
+        true,
+      ),
+    ).toMatchObject({ merged: true, resolved: ['pnpm-lock.yaml'] })
+  })
+
+  it('finish merges before push when origin/main is not an ancestor', () => {
+    const root = tmpRoot(true)
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, 'b\n')
+    let merged = false
+    const exec = (file, args, opts) => {
+      const key = `${file} ${args.join(' ')}`
+      if (key.includes('node -v'))
+        return { code: 0, stdout: 'v22.0.0\n', stderr: '' }
+      if (key.includes('command -v pnpm'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git status --porcelain'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git branch --show-current'))
+        return { code: 0, stdout: 'feat/demo\n', stderr: '' }
+      if (key.includes('git rev-list'))
+        return { code: 0, stdout: '1\n', stderr: '' }
+      if (key.includes('verify:fast:quiet'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git merge-base --is-ancestor'))
+        return { code: 1, stdout: '', stderr: '' }
+      if (key.includes('git merge origin/main')) {
+        merged = true
+        return { code: 0, stdout: '', stderr: '' }
+      }
+      if (key.includes('git rev-parse --git-path'))
+        return {
+          code: 0,
+          stdout: '.git/agent-finish-push-failures.json\n',
+          stderr: '',
+        }
+      if (key.includes('git push')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('gh pr list'))
+        return {
+          code: 0,
+          stdout: JSON.stringify({
+            number: 1,
+            url: 'https://example.com/pr/1',
+          }),
+          stderr: '',
+        }
+      if (key.includes('gh pr checks --watch'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('gh pr checks --json'))
+        return {
+          code: 0,
+          stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
+          stderr: '',
+        }
+      return { code: 1, stdout: '', stderr: `unhandled ${key}` }
+    }
+    const r = run(
+      ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
+      { cwd: root, exec, env: {} },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(merged).toBe(true)
+    expect(JSON.parse(r.out).ok).toBe(true)
+  })
+
+  it('finish merges on non-fast-forward reject then pushes', () => {
+    const root = tmpRoot(true)
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, 'b\n')
+    let pushes = 0
+    const exec = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git branch --show-current', { stdout: 'feat/demo\n' }],
+      ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
+      ['pnpm verify:fast:quiet', { code: 0 }],
+      ['git fetch origin', { code: 0 }],
+      ['git merge-base --is-ancestor', { code: 0 }],
+      [
+        'git push',
+        () => {
+          pushes++
+          if (pushes === 1)
+            return {
+              code: 1,
+              stderr: '! [rejected] non-fast-forward\n',
+            }
+          return { code: 0, stdout: '', stderr: '' }
+        },
+      ],
+      ['git merge-base --is-ancestor', { code: 1 }],
+      ['git merge origin/main', { code: 0 }],
+      [
+        'gh pr list',
+        { stdout: '{"number":1,"url":"https://example.com/pr/1"}' },
+      ],
+      ['gh pr checks --watch', { code: 0 }],
+      [
+        'gh pr checks --json',
+        { stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]) },
+      ],
+    ])
+    // Second merge-base after reject: force not-ancestor then clean merge.
+    const base = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git branch --show-current', { stdout: 'feat/demo\n' }],
+      ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
+      ['pnpm verify:fast:quiet', { code: 0 }],
+      ['git fetch origin', { code: 0 }],
+    ])
+    let pushCount = 0
+    let ancestorCalls = 0
+    const wrapped = (file, args, opts) => {
+      const key = `${file} ${args.join(' ')}`
+      if (key.includes('git push')) {
+        pushCount++
+        if (pushCount === 1)
+          return { code: 1, stderr: 'updates were rejected\n', stdout: '' }
+        return { code: 0, stdout: '', stderr: '' }
+      }
+      if (key.includes('git merge-base --is-ancestor')) {
+        ancestorCalls++
+        // First finish merge check: already ancestor; after reject: need merge.
+        return { code: ancestorCalls === 1 ? 0 : 1, stdout: '', stderr: '' }
+      }
+      if (key.includes('git merge origin/main'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('gh pr list'))
+        return {
+          code: 0,
+          stdout: JSON.stringify({
+            number: 1,
+            url: 'https://example.com/pr/1',
+          }),
+          stderr: '',
+        }
+      if (key.includes('gh pr checks --watch'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('gh pr checks --json'))
+        return {
+          code: 0,
+          stdout: JSON.stringify([{ name: 'a', bucket: 'pass' }]),
+          stderr: '',
+        }
+      return base(file, args, opts)
+    }
+    const r = run(
+      ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
+      { cwd: root, exec: wrapped, env: {} },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(pushCount).toBe(2)
+    expect(JSON.parse(r.out).ok).toBe(true)
+  })
+})
+
+describe('linked worktree preflight --slug', () => {
+  it('creates feat branch from origin/main while main is checked out elsewhere', () => {
+    const primary = gitInitRepo()
+    execFileSync('git', ['branch', '-M', 'main'], {
+      cwd: primary,
+      stdio: 'ignore',
+    })
+    execFileSync('git', ['checkout', '-b', 'origin-main-tmp'], {
+      cwd: primary,
+      stdio: 'ignore',
+    })
+    // Simulate origin/main as a local ref the worktree can track.
+    execFileSync('git', ['branch', 'origin/main', 'main'], {
+      cwd: primary,
+      stdio: 'ignore',
+    })
+    execFileSync('git', ['checkout', 'main'], { cwd: primary, stdio: 'ignore' })
+    const wt = path.join(os.tmpdir(), `agent-wt-${path.basename(primary)}`)
+    tmpDirs.push(wt)
+    execFileSync('git', ['worktree', 'add', '--detach', wt], {
+      cwd: primary,
+      stdio: 'ignore',
+    })
+    fs.writeFileSync(path.join(wt, '.nvmrc'), '22\n')
+    fs.mkdirSync(path.join(wt, 'openspec', 'changes'), { recursive: true })
+    fs.mkdirSync(path.join(wt, 'docs/roadmap/M2.1'), { recursive: true })
+    fs.writeFileSync(
+      path.join(wt, 'docs/roadmap.md'),
+      '# R\n\n## M2.1 — t\n\n- [ ] [prep] [wt-slug](roadmap/M2.1/wt-slug.md) — t\n',
+    )
+    fs.writeFileSync(
+      path.join(wt, 'docs/roadmap/M2.1/wt-slug.md'),
+      '# wt-slug\n\nTag: prep\nMilestone: M2.1\nTitle: t\n',
+    )
+    execFileSync('git', ['add', '-A'], { cwd: wt, stdio: 'ignore' })
+    execFileSync(
+      'git',
+      [
+        '-c',
+        'user.email=t@t.com',
+        '-c',
+        'user.name=t',
+        'commit',
+        '-m',
+        'wt fixture',
+      ],
+      {
+        cwd: wt,
+        stdio: 'ignore',
+      },
+    )
+    // Real git for worktree ops; stub only external tools + roadmap next path via thin wrapper.
+    const real = defaultExec
+    const exec = (file, args, opts = {}) => {
+      const key = `${file} ${args.join(' ')}`
+      if (key.includes('node -v'))
+        return { code: 0, stdout: 'v22.0.0\n', stderr: '' }
+      if (key.includes('command -v pnpm'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('gh pr list')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('pnpm') && key.includes('roadmap next')) {
+        return {
+          code: 0,
+          stdout: JSON.stringify({
+            slug: 'wt-slug',
+            tag: 'prep',
+            title: 't',
+            file: 'docs/roadmap/M2.1/wt-slug.md',
+            milestone: 'M2.1',
+            goal: ['g'],
+          }),
+          stderr: '',
+        }
+      }
+      if (key.includes('openspec new') || key.includes('openspec instructions'))
+        return {
+          code: 0,
+          stdout: JSON.stringify({ template: 'T', rules: ['r'] }),
+          stderr: '',
+        }
+      // Map origin/main for switch --no-track when remote is absent.
+      if (key.includes('git switch -c feat/wt-slug --no-track origin/main')) {
+        return real(
+          'git',
+          ['switch', '-c', 'feat/wt-slug', '--no-track', 'main'],
+          { ...opts, cwd: wt },
+        )
+      }
+      if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
+      return real(file, args, { ...opts, cwd: opts.cwd ?? wt })
+    }
+    const r = cmdPreflight(
+      { slug: 'wt-slug' },
+      { root: wt, cwd: wt, env: {}, exec, quiet: true },
+    )
+    expect(r.ok).toBe(true)
+    expect(r.item.slug).toBe('wt-slug')
+    expect(r.branch).toBe('feat/wt-slug')
+    const br = execFileSync('git', ['branch', '--show-current'], {
+      cwd: wt,
+      encoding: 'utf8',
+    }).trim()
+    expect(br).toBe('feat/wt-slug')
+    const mainBr = execFileSync('git', ['branch', '--show-current'], {
+      cwd: primary,
+      encoding: 'utf8',
+    }).trim()
+    expect(mainBr).toBe('main')
+  })
+})
+
+describe('E2E_PORT config', () => {
+  it('playwright config wires E2E_PORT and disables server reuse', () => {
+    const src = fs.readFileSync(
+      path.join(here, '..', 'playwright.config.ts'),
+      'utf8',
+    )
+    expect(src).toMatch(/E2E_PORT \?\? ['"]4173['"]/)
+    expect(src).toMatch(/reuseExistingServer:\s*false/)
+    expect(src).toMatch(/--port \$\{e2ePort\}/)
   })
 })

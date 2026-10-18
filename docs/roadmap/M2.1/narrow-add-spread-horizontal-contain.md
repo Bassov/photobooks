@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Add-spread reveal must contain horizontally (narrow and desktop)
+Status: done
 
 ## Scope
 

@@ -19,7 +19,7 @@ context: |
   - Shared factories, fixtures, and helpers; do not copy-paste Arrange/setup across cases or suites
   - Mock I/O boundaries only (fs, network, time, worker edges); do not assert internal helper call counts
   - Detailed test style: skill `write-tests`
-  - Read docs/lessons.md before apply; append a lesson when a review finding repeats
+  - Read docs/lessons/ (index docs/lessons.md) before apply; add a per-entry file under docs/lessons/ when a review finding repeats
   - Bugs found via exploratory browser or MCP sessions MUST be locked in with a Playwright test under e2e/ that would have failed before the fix
   - Page overflow containment (document fits viewport; scroll only inside named scrollports) is a Playwright invariant via shared e2e helpers — not a `ui-review` gate; do not treat element scrollLeft alone as proof of page containment
   - UI in scope: green verify is not enough — require evidenced browser smoke (Playwright and/or MCP browser) for empty, happy-path, and primary scroll/interact before push/archive; skill `ui-review` is mandatory (includes layout smoke)
@@ -29,7 +29,7 @@ context: |
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
   - AGENTS.md is a navigation map (≤150 lines). Specs are behavior SoT.
-  - Durable docs: docs/future-architecture.md (target architecture); docs/roadmap.md + docs/roadmap/ (execution plan: index + one file per item, changed only via `pnpm roadmap`, skill `roadmap`); docs/lessons.md (lessons journal)
+  - Durable docs: docs/future-architecture.md (target architecture); docs/roadmap.md + docs/roadmap/ (execution plan: index + one file per item, changed only via `pnpm roadmap`, skill `roadmap`); docs/lessons/ (lessons journal, index docs/lessons.md)
 
   Security surface (tag changes that touch these):
   - File System Access, workers/postMessage, blob/object URLs, CSP/headers, dependency bumps, export pipelines
@@ -85,7 +85,7 @@ operations:
   apply:
     guidance:
       - Do not treat apply as complete until Verification checklist items are green.
-      - Read docs/lessons.md before design and apply. Before archive, for each reviewer finding tagged `[repeat]` append one durable line, and for `[lesson]` sharpen the existing line instead of adding a new one.
+      - Read docs/lessons/ before design and apply. Before archive, for each reviewer finding tagged `[repeat]` add one new per-entry file under docs/lessons/, and for `[lesson]` sharpen the matching entry file instead of appending to a shared journal.
       - If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode before treating apply as complete.
       - When a change introduces or changes an in-app scrollport, include Playwright calls to `assertDocumentFitsViewport` (and `assertNamedScrollport` when content overflows the viewport) before treating apply as complete.
       - 'When UI is in scope: before push/archive, run skill `ui-review` and evidenced browser smoke (empty state readable; happy path of the change; primary scroll/interact with no large dead zone while more content exists). Prefer Playwright assertions; MCP browser screenshots/notes are supporting evidence, not a substitute for locking bugs into e2e.'

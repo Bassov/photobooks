@@ -120,7 +120,7 @@ dependency-cruiser: `core-is-pure` (core imports nothing from UI/React/platform 
 - **Per-book gallery (working set):** each book stores an ordered list of asset ids the user added (a folder or individual files, appended over time). Placing a photo does not remove it from the gallery; one asset may be placed several times. Not every gallery photo ends up in the book. Invariant: every placed asset is in the gallery; removing an asset from the gallery also removes its placements (UI warns first).
 - **No denormalized counters** (used/unused, placement counts) in the document — compute them with selectors.
 - **Versioning:** integer `schemaVersion`, chain of pure migrations, Zod parse at every load boundary. Refuse to open a newer `schemaVersion` instead of trying to preserve unknown fields.
-- **No `File` / `Blob` / handles** in the document (see `docs/lessons.md`). Assets are referenced by id.
+- **No `File` / `Blob` / handles** in the document (see `docs/lessons/`). Assets are referenced by id.
 - Required invariants (property-based tests): save → load round-trips losslessly; no op leaves a dangling asset reference; undo after do restores the previous document.
 
 ## Editor layout

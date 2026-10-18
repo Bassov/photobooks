@@ -33,6 +33,7 @@ const VALUE = new Set([
   'body-file',
   'rules-json',
   'skip',
+  'slug',
   'base',
 ])
 
@@ -69,7 +70,7 @@ export function parseArgs(argv) {
 }
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
-  preflight [--skip a,b]     env + sync main + roadmap next + branch + compact report
+  preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); --slug skips local main sync
   finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR → CI summary
   review-brief [--change S] [--base REF] [--rules-json '[…]']   reviewer brief in one call
   help
@@ -179,6 +180,11 @@ export function isFeatureBranch(name) {
   return /^(feat|fix)\//.test(name)
 }
 
+function slugFromFeatFix(name) {
+  const m = /^(?:feat|fix)\/(.+)$/.exec(String(name ?? '').trim())
+  return m ? m[1] : null
+}
+
 export function collectSkipSlugs(exec, cwd, env, quiet, extra) {
   const fromExtra = (extra ?? '')
     .split(',')
@@ -217,7 +223,45 @@ export function collectSkipSlugs(exec, cwd, env, quiet, extra) {
       return m ? m[2] : null
     })
     .filter(Boolean)
-  return [...new Set([...fromExtra, ...prSlugs, ...remoteSlugs])]
+  const local = sh(exec, cwd, env, quiet, 'git', [
+    'branch',
+    '--format=%(refname:short)',
+  ])
+  if (local.code !== 0)
+    fail(
+      `git branch failed:\n${tailOutput(local.stdout, local.stderr)}`,
+      local.code || 1,
+    )
+  const localSlugs = local.stdout
+    .split('\n')
+    .map((l) => slugFromFeatFix(l))
+    .filter(Boolean)
+  const wt = sh(exec, cwd, env, quiet, 'git', [
+    'worktree',
+    'list',
+    '--porcelain',
+  ])
+  if (wt.code !== 0)
+    fail(
+      `git worktree list failed:\n${tailOutput(wt.stdout, wt.stderr)}`,
+      wt.code || 1,
+    )
+  const worktreeSlugs = []
+  for (const line of wt.stdout.split('\n')) {
+    const m = /^branch refs\/heads\/(.+)$/.exec(line.trim())
+    if (!m) continue
+    const s = slugFromFeatFix(m[1])
+    if (s) worktreeSlugs.push(s)
+  }
+  return [
+    ...new Set([
+      ...fromExtra,
+      ...prSlugs,
+      ...remoteSlugs,
+      ...localSlugs,
+      ...worktreeSlugs,
+    ]),
+  ]
 }
 
 export function parseRoadmapNext(text) {
@@ -291,12 +335,30 @@ export function isPassingBucket(bucket) {
 
 const PUSH_FAIL_FILE = 'agent-finish-push-failures.json'
 
-export function pushFailPath(root) {
-  return path.join(root, '.git', PUSH_FAIL_FILE)
+/** Resolve a path inside the git dir (works when `.git` is a file / linked worktree). */
+export function gitPath(root, relPath, exec = defaultExec) {
+  const r = exec('git', ['rev-parse', '--git-path', relPath], {
+    cwd: root,
+    env: process.env,
+  })
+  if (r.code === 0) {
+    const out = r.stdout.trim()
+    return path.isAbsolute(out) ? out : path.resolve(root, out)
+  }
+  const fallbackDir = path.join(root, '.git')
+  if (fs.existsSync(fallbackDir) && fs.statSync(fallbackDir).isDirectory())
+    return path.join(fallbackDir, relPath)
+  fail(
+    `git rev-parse --git-path ${relPath} failed under ${root}:\n${tailOutput(r.stdout, r.stderr)}`,
+  )
 }
 
-export function readPushFailures(root) {
-  const p = pushFailPath(root)
+export function pushFailPath(root, exec = defaultExec) {
+  return gitPath(root, PUSH_FAIL_FILE, exec)
+}
+
+export function readPushFailures(root, exec = defaultExec) {
+  const p = pushFailPath(root, exec)
   if (!fs.existsSync(p)) return {}
   try {
     return JSON.parse(fs.readFileSync(p, 'utf8'))
@@ -305,10 +367,35 @@ export function readPushFailures(root) {
   }
 }
 
-export function writePushFailures(root, map) {
-  const gitDir = path.join(root, '.git')
-  if (!fs.existsSync(gitDir)) fail(`.git missing under ${root}`)
-  fs.writeFileSync(pushFailPath(root), JSON.stringify(map, null, 0) + '\n')
+export function writePushFailures(root, map, exec = defaultExec) {
+  const p = pushFailPath(root, exec)
+  fs.mkdirSync(path.dirname(p), { recursive: true })
+  fs.writeFileSync(p, JSON.stringify(map, null, 0) + '\n')
+}
+
+function switchFeatureBranch(exec, cwd, env, quiet, branch, fromOriginMain) {
+  if (fromOriginMain) {
+    const create = sh(exec, cwd, env, quiet, 'git', [
+      'switch',
+      '-c',
+      branch,
+      '--no-track',
+      'origin/main',
+    ])
+    if (create.code === 0) return
+    mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['switch', branch]),
+      `git switch ${branch}`,
+    )
+    return
+  }
+  const sw = sh(exec, cwd, env, quiet, 'git', ['switch', '-c', branch])
+  if (sw.code !== 0) {
+    mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['switch', branch]),
+      `git switch ${branch}`,
+    )
+  }
 }
 
 export function cmdPreflight(o, deps) {
@@ -318,31 +405,29 @@ export function cmdPreflight(o, deps) {
   if (dirty) fail(`working tree not clean:\n${dirty}`)
 
   mustOk(sh(exec, cwd, env, quiet, 'git', ['fetch', 'origin']), 'git fetch')
-  mustOk(
-    sh(exec, cwd, env, quiet, 'git', ['switch', 'main']),
-    'git switch main',
-  )
-  mustOk(
-    sh(exec, cwd, env, quiet, 'git', ['pull', '--ff-only']),
-    'git pull --ff-only',
-  )
+  const slugMode = Boolean(o.slug)
+  if (!slugMode) {
+    mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['switch', 'main']),
+      'git switch main',
+    )
+    mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['pull', '--ff-only']),
+      'git pull --ff-only',
+    )
+  }
 
   const skips = collectSkipSlugs(exec, cwd, env, quiet, o.skip)
   const nextArgs = ['-s', 'roadmap', 'next', '--json']
-  if (skips.length) nextArgs.push('--skip', skips.join(','))
+  if (slugMode) nextArgs.push('--slug', o.slug)
+  else if (skips.length) nextArgs.push('--skip', skips.join(','))
   const nextR = mustOk(
     sh(exec, cwd, env, quiet, 'pnpm', nextArgs),
     'roadmap next',
   )
   const item = parseRoadmapNext(nextR.stdout)
   const branch = `${branchPrefixForItem(item)}/${item.slug}`
-  const sw = sh(exec, cwd, env, quiet, 'git', ['switch', '-c', branch])
-  if (sw.code !== 0) {
-    mustOk(
-      sh(exec, cwd, env, quiet, 'git', ['switch', branch]),
-      `git switch ${branch}`,
-    )
-  }
+  switchFeatureBranch(exec, cwd, env, quiet, branch, slugMode)
 
   const changeDir = path.join(root, 'openspec', 'changes', item.slug)
   if (!fs.existsSync(changeDir)) {
@@ -425,6 +510,104 @@ export function assertFinishBranch(exec, cwd, env, quiet) {
   return { branch, ahead }
 }
 
+const TRIVIAL_MERGE_FILES = new Set(['docs/roadmap.md', 'pnpm-lock.yaml'])
+
+/** Strip conflict markers keeping both sides' non-marker lines (deduped). */
+export function resolveUnionConflictText(text) {
+  const out = []
+  let skip = false
+  let side = null
+  for (const line of text.split('\n')) {
+    if (line.startsWith('<<<<<<<')) {
+      side = 'ours'
+      continue
+    }
+    if (line.startsWith('=======')) {
+      side = 'theirs'
+      continue
+    }
+    if (line.startsWith('>>>>>>>')) {
+      side = null
+      continue
+    }
+    if (side !== null || !skip) out.push(line)
+  }
+  const seen = new Set()
+  const deduped = []
+  for (const l of out) {
+    if (seen.has(l) && l.startsWith('- [')) continue
+    seen.add(l)
+    deduped.push(l)
+  }
+  return deduped.join('\n').replace(/\n*$/, '\n')
+}
+
+export function tryResolveTrivialConflicts(root, conflicted) {
+  const allowed = conflicted.every(
+    (f) =>
+      TRIVIAL_MERGE_FILES.has(f) ||
+      f.startsWith('docs/lessons') ||
+      f.startsWith('docs/roadmap/'),
+  )
+  if (!allowed) return false
+  for (const f of conflicted) {
+    const abs = path.join(root, f)
+    if (f === 'pnpm-lock.yaml') continue
+    if (!fs.existsSync(abs)) continue
+    const text = fs.readFileSync(abs, 'utf8')
+    if (!text.includes('<<<<<<<')) continue
+    fs.writeFileSync(abs, resolveUnionConflictText(text))
+  }
+  return true
+}
+
+export function mergeOriginMainIfNeeded(exec, root, cwd, env, quiet) {
+  mustOk(sh(exec, cwd, env, quiet, 'git', ['fetch', 'origin']), 'git fetch')
+  const anc = sh(exec, cwd, env, quiet, 'git', [
+    'merge-base',
+    '--is-ancestor',
+    'origin/main',
+    'HEAD',
+  ])
+  if (anc.code === 0) return { merged: false }
+  const merge = sh(exec, cwd, env, quiet, 'git', ['merge', 'origin/main'])
+  if (merge.code === 0) return { merged: true }
+  const unmerged = sh(exec, cwd, env, quiet, 'git', [
+    'diff',
+    '--name-only',
+    '--diff-filter=U',
+  ])
+  const files = unmerged.stdout
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+  if (!tryResolveTrivialConflicts(root, files))
+    fail(
+      `semantic conflict with origin/main (files: ${files.join(', ') || 'unknown'}):\n${tailOutput(merge.stdout, merge.stderr)}`,
+      1,
+    )
+  if (files.includes('pnpm-lock.yaml')) {
+    mustOk(sh(exec, cwd, env, quiet, 'pnpm', ['install']), 'pnpm install')
+  }
+  for (const f of files) {
+    mustOk(sh(exec, cwd, env, quiet, 'git', ['add', '--', f]), `git add ${f}`)
+  }
+  mustOk(
+    sh(exec, cwd, env, quiet, 'git', [
+      'commit',
+      '--no-edit',
+      '-m',
+      'merge origin/main (trivial conflicts)',
+    ]),
+    'git commit merge',
+  )
+  mustOk(
+    sh(exec, cwd, env, quiet, 'pnpm', ['verify:fast:quiet']),
+    'verify:fast:quiet after merge',
+  )
+  return { merged: true, resolved: files }
+}
+
 export function cmdFinish(o, deps) {
   const { root, cwd, env, exec, quiet } = deps
   assertEnv(exec, root, cwd, env, quiet)
@@ -438,7 +621,7 @@ export function cmdFinish(o, deps) {
     'verify:fast:quiet',
   )
 
-  const fails = readPushFailures(root)
+  const fails = readPushFailures(root, exec)
   const prior = Number(fails[branch] ?? 0)
   if (prior >= 2) {
     return {
@@ -451,17 +634,62 @@ export function cmdFinish(o, deps) {
     }
   }
 
-  // One push per finish invocation (S2); persist failures across calls.
-  const lastPush = sh(exec, cwd, env, quiet, 'git', [
+  // Merge origin/main when HEAD is behind before push; on non-FF reject, merge and retry once.
+  try {
+    mergeOriginMainIfNeeded(exec, root, cwd, env, quiet)
+  } catch (e) {
+    if (!(e instanceof AgentError)) throw e
+    const next = prior + 1
+    writePushFailures(root, { ...fails, [branch]: next }, exec)
+    return {
+      ok: false,
+      stage: 'push',
+      pushAttempts: next,
+      branch,
+      ahead,
+      summary: e.message,
+    }
+  }
+  let lastPush = sh(exec, cwd, env, quiet, 'git', [
     'push',
     '-q',
     '-u',
     'origin',
     'HEAD',
   ])
+  const pushMsg = `${lastPush.stdout}\n${lastPush.stderr}`
+  if (
+    lastPush.code !== 0 &&
+    /non-fast-forward|fetch first|\[rejected\]|updates were rejected/i.test(
+      pushMsg,
+    )
+  ) {
+    try {
+      mergeOriginMainIfNeeded(exec, root, cwd, env, quiet)
+      lastPush = sh(exec, cwd, env, quiet, 'git', [
+        'push',
+        '-q',
+        '-u',
+        'origin',
+        'HEAD',
+      ])
+    } catch (e) {
+      if (!(e instanceof AgentError)) throw e
+      const next = prior + 1
+      writePushFailures(root, { ...fails, [branch]: next }, exec)
+      return {
+        ok: false,
+        stage: 'push',
+        pushAttempts: next,
+        branch,
+        ahead,
+        summary: e.message,
+      }
+    }
+  }
   if (lastPush.code !== 0) {
     const next = prior + 1
-    writePushFailures(root, { ...fails, [branch]: next })
+    writePushFailures(root, { ...fails, [branch]: next }, exec)
     return {
       ok: false,
       stage: 'push',
@@ -474,7 +702,7 @@ export function cmdFinish(o, deps) {
   if (fails[branch] !== undefined) {
     const rest = { ...fails }
     delete rest[branch]
-    writePushFailures(root, rest)
+    writePushFailures(root, rest, exec)
   }
 
   const existing = sh(exec, cwd, env, quiet, 'gh', [

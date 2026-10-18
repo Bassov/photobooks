@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Fewer /next-roadmap-item tool calls (issue #79)
+Status: done
 
 ## Scope
 

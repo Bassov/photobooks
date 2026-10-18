@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Cut /next-roadmap-item token waste (issue #77)
+Status: done
 
 ## Scope
 

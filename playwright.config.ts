@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const isCi = Boolean(process.env.CI)
+const e2ePort = process.env.E2E_PORT ?? '4173'
+const e2eOrigin = `http://127.0.0.1:${e2ePort}`
 
 export default defineConfig({
   testDir: './e2e',
@@ -24,7 +26,7 @@ export default defineConfig({
       ]
     : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: e2eOrigin,
     trace: 'on-first-retry',
   },
   projects: [
@@ -35,10 +37,10 @@ export default defineConfig({
   ],
   webServer: {
     // VITE_E2E exposes `__photobooksProject` in the production preview build.
-    command:
-      'VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !isCi,
+    // E2E_PORT isolates parallel worktree agents; never reuse another cwd's server.
+    command: `VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`,
+    url: e2eOrigin,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 })

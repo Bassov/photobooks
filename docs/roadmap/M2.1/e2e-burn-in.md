@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: new and changed e2e specs are burned in on every PR
+Status: done
 
 Burn-in: 50
 

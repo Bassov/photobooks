@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: agents never weaken gates, grow the roadmap instead of the PR, and resolve reviewer findings themselves (issue #72 E)
+Status: done
 
 ## Scope
 
