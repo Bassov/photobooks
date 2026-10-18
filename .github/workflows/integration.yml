@@ -191,6 +191,8 @@ jobs:
         with:
           files: coverage-e2e/lcov.info
           flags: e2e
+          # Prevent picking up Playwright JSON under test-results/ as "coverage".
+          disable_search: true
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
 
