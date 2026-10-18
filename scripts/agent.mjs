@@ -71,7 +71,7 @@ export function parseArgs(argv) {
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
   preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); --slug skips local main sync
-  finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR → CI summary
+  finish --title T --body-file F   verify:fast:quiet → push (≤2/branch) → PR (no CI watch)
   review-brief [--change S] [--base REF] [--rules-json '[…]']   reviewer brief in one call
   help
 
@@ -81,12 +81,45 @@ Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
 /** @typedef {{ code: number, stdout: string, stderr: string }} ExecResult */
 /** @typedef {(file: string, args: string[], opts?: object) => ExecResult} ExecFn */
 
+/**
+ * Repo-local GIT_* keys from `git rev-parse --local-env-vars` (+ INTERNAL_SUPER_PREFIX).
+ * Kept out of child envs so `cwd` wins (Lefthook pre-push sets GIT_DIR / GIT_WORK_TREE).
+ * Does not strip GIT_SSH* / GIT_TERMINAL_PROMPT / other non-local keys.
+ */
+export const GIT_LOCAL_ENV_VARS = [
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR',
+  'GIT_CONFIG',
+  'GIT_CONFIG_COUNT',
+  'GIT_CONFIG_PARAMETERS',
+  'GIT_DIR',
+  'GIT_GRAFT_FILE',
+  'GIT_IMPLICIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_INTERNAL_SUPER_PREFIX',
+  'GIT_NO_REPLACE_OBJECTS',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_PREFIX',
+  'GIT_REPLACE_REF_BASE',
+  'GIT_SHALLOW_FILE',
+  'GIT_WORK_TREE',
+]
+
+/** Drop ambient repo-local GIT_* overrides so `cwd` wins. */
+export function execEnvForCwd(env = process.env) {
+  const out = { ...env }
+  for (const key of GIT_LOCAL_ENV_VARS) delete out[key]
+  return out
+}
+
 export function defaultExec(file, args, opts = {}) {
   try {
+    const env = execEnvForCwd(opts.env ?? process.env)
     const stdout = execFileSync(file, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       ...opts,
+      env,
     })
     return { code: 0, stdout: String(stdout), stderr: '' }
   } catch (e) {
@@ -313,27 +346,9 @@ export function slugFromBranch(name) {
   return m ? m[1] : name
 }
 
-/** Extract GitHub Actions run id from a checks `link` URL when present. */
-export function runIdFromCheckLink(link) {
-  if (!link) return null
-  const m = /\/actions\/runs\/(\d+)/.exec(link)
-  return m ? m[1] : null
-}
-
-export function isFailingBucket(bucket) {
-  return bucket === 'fail' || bucket === 'pending'
-}
-
-export function isPassingBucket(bucket) {
-  return (
-    bucket === 'pass' ||
-    bucket === 'skipping' ||
-    bucket === 'skip' ||
-    bucket === 'neutral'
-  )
-}
-
 const PUSH_FAIL_FILE = 'agent-finish-push-failures.json'
+const RUN_STARTED_FILE = 'agent-run-started.json'
+const PR_BODY_METRICS_FILE = 'agent-pr-body-with-metrics.md'
 
 /** Resolve a path inside the git dir (works when `.git` is a file / linked worktree). */
 export function gitPath(root, relPath, exec = defaultExec) {
@@ -371,6 +386,141 @@ export function writePushFailures(root, map, exec = defaultExec) {
   const p = pushFailPath(root, exec)
   fs.mkdirSync(path.dirname(p), { recursive: true })
   fs.writeFileSync(p, JSON.stringify(map, null, 0) + '\n')
+}
+
+export function resolveGitRelPath(root, relPath, exec = defaultExec) {
+  try {
+    return gitPath(root, relPath, exec)
+  } catch {
+    return path.join(root, '.git', relPath)
+  }
+}
+
+/**
+ * @returns {{ startedAtMs: number, branch: string } | null}
+ */
+export function readRunStarted(root, exec = defaultExec) {
+  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
+  if (!fs.existsSync(p)) return null
+  try {
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'))
+    if (typeof j.startedAtMs !== 'number' || !Number.isFinite(j.startedAtMs))
+      return null
+    const branch = typeof j.branch === 'string' ? j.branch : ''
+    return { startedAtMs: j.startedAtMs, branch }
+  } catch {
+    return null
+  }
+}
+
+export function readRunStartedMs(root, exec = defaultExec) {
+  return readRunStarted(root, exec)?.startedAtMs ?? null
+}
+
+export function writeRunStarted(
+  root,
+  startedAtMs = Date.now(),
+  exec = defaultExec,
+  branch = '',
+) {
+  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
+  fs.mkdirSync(path.dirname(p), { recursive: true })
+  fs.writeFileSync(
+    p,
+    JSON.stringify({ startedAtMs, branch: String(branch ?? '') }) + '\n',
+  )
+  return p
+}
+
+/**
+ * Write the run-start marker only when missing or for a different branch.
+ * @returns {{ startedAtMs: number, branch: string, path: string, wrote: boolean }}
+ */
+export function ensureRunStarted(
+  root,
+  branch,
+  startedAtMs = Date.now(),
+  exec = defaultExec,
+) {
+  const existing = readRunStarted(root, exec)
+  if (existing && existing.branch === branch) {
+    return {
+      startedAtMs: existing.startedAtMs,
+      branch: existing.branch,
+      path: resolveGitRelPath(root, RUN_STARTED_FILE, exec),
+      wrote: false,
+    }
+  }
+  const pathWritten = writeRunStarted(root, startedAtMs, exec, branch)
+  return { startedAtMs, branch, path: pathWritten, wrote: true }
+}
+
+export function clearRunStarted(root, exec = defaultExec) {
+  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
+  if (fs.existsSync(p)) fs.unlinkSync(p)
+  return p
+}
+
+/**
+ * Prefer launcher `AGENT_RUN_STARTED_AT` (epoch seconds); else the on-disk marker.
+ */
+export function resolveRunStartedMs(
+  root,
+  env = process.env,
+  exec = defaultExec,
+) {
+  const raw = env.AGENT_RUN_STARTED_AT
+  if (raw != null && String(raw).trim() !== '') {
+    const sec = Number(String(raw).trim())
+    if (Number.isFinite(sec)) return Math.round(sec * 1000)
+  }
+  return readRunStartedMs(root, exec)
+}
+
+/**
+ * Build a PR body with an auto-filled ## Metrics section.
+ * @returns {{ bodyPath: string, wallTimeSec: number | null, tokens: string | null }}
+ */
+export function buildPrBodyWithMetrics(
+  bodyPath,
+  root,
+  env = process.env,
+  exec = defaultExec,
+  nowMs = Date.now(),
+) {
+  const raw = fs.readFileSync(bodyPath, 'utf8')
+  const startedAtMs = resolveRunStartedMs(root, env, exec)
+  const wallTimeSec =
+    startedAtMs == null
+      ? null
+      : Math.max(0, Math.round((nowMs - startedAtMs) / 1000))
+  const tokensRaw = env.AGENT_TOKEN_USAGE
+  const tokens =
+    tokensRaw != null && String(tokensRaw).trim() !== ''
+      ? String(tokensRaw).trim()
+      : null
+  const metricLines = ['## Metrics', '']
+  metricLines.push(
+    wallTimeSec == null
+      ? '- wall_time_sec: unknown'
+      : `- wall_time_sec: ${wallTimeSec}`,
+  )
+  if (tokens != null) metricLines.push(`- tokens: ${tokens}`)
+  metricLines.push('')
+  const block = `${metricLines.join('\n')}\n`
+  let body
+  if (/^## Metrics\b/m.test(raw)) {
+    body = raw.replace(/^## Metrics\b[\s\S]*?(?=^## )/m, block)
+    if (body === raw) {
+      body = raw.replace(/^## Metrics\b[\s\S]*$/m, `${block.trimEnd()}\n`)
+    }
+  } else {
+    body = `${raw.trimEnd()}\n\n${block}`
+  }
+  const out = resolveGitRelPath(root, PR_BODY_METRICS_FILE, exec)
+  fs.mkdirSync(path.dirname(out), { recursive: true })
+  fs.writeFileSync(out, body)
+  return { bodyPath: out, wallTimeSec, tokens }
 }
 
 /** Path of another worktree that has `branch` checked out, or null. */
@@ -537,6 +687,8 @@ export function cmdPreflight(o, deps) {
   const touchSet = fs.existsSync(path.join(root, designPath))
     ? designPath
     : 'TBD until design.md'
+
+  ensureRunStarted(root, branch, Date.now(), exec)
 
   return {
     ok: true,
@@ -863,11 +1015,13 @@ export function cmdFinish(o, deps) {
     }
   }
 
+  let metrics = null
   if (!prNumber) {
     if (!o.title) fail('finish create needs --title')
     if (!o['body-file']) fail('finish create needs --body-file')
     const bodyPath = path.resolve(cwd, o['body-file'])
     if (!fs.existsSync(bodyPath)) fail(`body file missing: ${bodyPath}`)
+    metrics = buildPrBodyWithMetrics(bodyPath, root, env, exec)
     const createdPr = mustOk(
       sh(exec, cwd, env, quiet, 'gh', [
         'pr',
@@ -875,90 +1029,29 @@ export function cmdFinish(o, deps) {
         '--title',
         o.title,
         '--body-file',
-        bodyPath,
+        metrics.bodyPath,
       ]),
       'gh pr create',
     )
     prUrl = createdPr.stdout.trim()
     created = true
+    clearRunStarted(root, exec)
   }
 
-  sh(exec, cwd, env, quiet, 'gh', [
-    'pr',
-    'checks',
-    '--watch',
-    '--fail-fast',
-    '--interval',
-    '30',
-  ])
-  const checks = sh(exec, cwd, env, quiet, 'gh', [
-    'pr',
-    'checks',
-    '--json',
-    'name,bucket,link',
-  ])
-  if (checks.code !== 0) {
-    return {
-      ok: false,
-      stage: 'ci',
-      pushAttempts: prior,
-      branch,
-      ahead,
-      prUrl,
-      created,
-      checks: [],
-      summary: `gh pr checks query failed:\n${tailOutput(checks.stdout, checks.stderr)}`,
-      logTail: null,
-    }
-  }
-  let checkRows = []
-  try {
-    checkRows = JSON.parse(checks.stdout)
-    if (!Array.isArray(checkRows)) checkRows = []
-  } catch {
-    return {
-      ok: false,
-      stage: 'ci',
-      pushAttempts: prior,
-      branch,
-      ahead,
-      prUrl,
-      created,
-      checks: [],
-      summary: `gh pr checks returned invalid JSON:\n${tailOutput(checks.stdout, checks.stderr)}`,
-      logTail: null,
-    }
-  }
-  const lines = checkRows.map((c) => `${c.name}: ${c.bucket}`)
-  const failed = checkRows.filter((c) => isFailingBucket(c.bucket))
-  let logTail = null
-  const failedWithLink = failed.find(
-    (c) => c.bucket === 'fail' && runIdFromCheckLink(c.link),
-  )
-  if (failedWithLink) {
-    const runId = runIdFromCheckLink(failedWithLink.link)
-    const view = sh(exec, cwd, env, quiet, 'gh', [
-      'run',
-      'view',
-      runId,
-      '--log-failed',
-    ])
-    logTail = tailOutput(view.stdout, view.stderr, 80)
-  } else if (failed.some((c) => c.bucket === 'fail')) {
-    logTail = 'failed check has no actions/runs link; cannot fetch --log-failed'
-  }
-  const ok =
-    checkRows.length > 0 && checkRows.every((c) => isPassingBucket(c.bucket))
   return {
-    ok,
-    stage: 'ci',
+    ok: true,
+    stage: 'pr',
     pushAttempts: prior,
     branch,
     ahead,
     prUrl,
     created,
-    checks: lines,
-    logTail,
+    metrics: metrics
+      ? { wallTimeSec: metrics.wallTimeSec, tokens: metrics.tokens }
+      : null,
+    summary: created
+      ? `PR created: ${prUrl}`
+      : `PR updated (existing): ${prUrl}`,
   }
 }
 
@@ -1160,10 +1253,8 @@ function fmtFinish(r) {
     `branch: ${r.branch}`,
     `ahead: ${r.ahead}`,
     `pr: ${r.prUrl}`,
-    ...(r.checks ?? []),
+    `created: ${r.created}`,
     `summary: ${r.summary}`,
-    '--- log-failed (tail) ---',
-    String(r.logTail),
   ].join('\n')
 }
 

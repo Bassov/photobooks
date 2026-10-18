@@ -14,8 +14,10 @@ preflight. Take `rules`/`template` from preflight output or
 `openspec instructions … --json`. Open `openspec/config.yaml` only for
 `operations`, at most once. Specs: `rg` + targeted ranges — never
 `openspec show | head -c`. Tick item checkboxes with targeted edits, not
-whole-file rewrites. Prefer `pnpm verify:fast:quiet` / `pnpm test:e2e:quiet`.
-Generate the PR body once; cite issues as plain URLs only. Brief reviewers via
+whole-file rewrites. Prefer `pnpm verify:fast:quiet` and
+`pnpm test:e2e:changed:quiet` (once when green; CI burn-in owns flake proof;
+local `--repeat-each=3` only if a flake failed then passed locally). Generate
+the PR body once; cite issues as plain URLs only. Brief reviewers via
 `pnpm agent review-brief --base origin/main` (slug, change path, rules,
 diff vs base, touch-set) — no other-session transcripts.
 
@@ -45,9 +47,8 @@ artifact stages: one Write per artifact, validate once at stage end.
    verify. Out of scope only if the same test fails/flakes on unmodified
    `origin/main`; otherwise fix in this PR (even if the file is outside the
    touch-set). Out-of-scope: `pnpm roadmap add … --after <slug>` or a bug issue,
-   then continue — filing never makes a red PR mergeable; 3 red CI rounds still
-   stop. Code after implementation review → re-run that reviewer on the delta
-   before archive.
+   then continue — filing never makes a red PR mergeable. Code after
+   implementation review → re-run that reviewer on the delta before archive.
 4. /opsx-archive <slug>: answer "Sync now"; confirm only when every task is
    checked. Then close the item on this branch: `pnpm roadmap done <slug>`
    (`--note "..."` when the shipped scope deviates; required for a
@@ -57,15 +58,16 @@ artifact stages: one Write per artifact, validate once at stage end.
 5. `pnpm roadmap check`, then commit (agent owns the message). Finish with
    `pnpm -s agent finish --title "…" --body-file <pr-body.md>` (or omit create
    flags when updating an existing PR). At most 2 local push attempts inside
-   finish; then stop and report in the PR description.
+   finish; open/update the PR and stop — do not watch or poll CI
+   (`gh pr checks --watch` forbidden); the reviewer reads checks.
 
 Stop and ask only for: dirty tree, a milestone review cut, an item whose intent
-contradicts a spec or open issue, the git-finish CI stop conditions. Security-tagged
-items continue; run the Security Review sub-agent before archive. Until
-`gate-ratchet` is merged, a gate-config edit MUST be strictly stricter and listed
-in the touch-set with a reason; otherwise stop. Until `docs/backlog/dependency-policy.md`
-is re-added and merged, a new or changed dependency needs `pnpm audit:ci` evidence
-and a Security Review pass before archive. Otherwise record assumptions in the
+contradicts a spec or open issue. Security-tagged items continue; run the
+Security Review sub-agent before archive. Until `gate-ratchet` is merged, a
+gate-config edit MUST be strictly stricter and listed in the touch-set with a
+reason; otherwise stop. Until `docs/backlog/dependency-policy.md` is re-added
+and merged, a new or changed dependency needs `pnpm audit:ci` evidence and a
+Security Review pass before archive. Otherwise record assumptions in the
 artifacts and continue.
-Final reply in Russian: item, PR URL, check status, reviewer verdicts, skipped
-survivors, assumptions.
+Final reply in Russian: item, PR URL, check status (not watched / reviewer
+reads CI), reviewer verdicts, skipped survivors, assumptions.
