@@ -26,10 +26,11 @@
 ### stryker:diff survivors (check.mjs / equivalent)
 
 - spawn `stdio: ['ignore','pipe','pipe']` / options object — fake spawn ignores Node stdio wiring; covered by real-spawn main() test
-- `opts.env ?? process.env` / `opts.problemCap ?? PROBLEM_CAP` — equivalent when opts omit those keys (tests always pass defaults or rely on defaults identically under `??` vs `&&` for undefined)
-- `problems.length > cap` vs `>= cap` at exact boundary — equivalent at problemCap=20 with 25 problems (both show ellipsis)
-- `${stderr}\n${err.message}`.trim() — equivalent for empty stderr + Error message (leading newline already dropped by line split)
-- remaining extractProblemLines regex near-miss mutants (word-class tweaks) after preferred-line + fixture tests
+- `opts.env ?? process.env` / `opts.problemCap ?? PROBLEM_CAP` — equivalent when opts omit those keys
+- `problems.length > cap` vs `>= cap` at exact boundary — equivalent at problemCap=20 with 25 problems
+- `${stderr}\n${err.message}`.trim() — equivalent for empty stderr + Error message
+- `--run` exit `code === null || code === undefined` — null and undefined both map to 1; `||` vs `&&` / single-side false mutants are equivalent under one-at-a-time close events
+- remaining extractProblemLines regex near-miss mutants after preferred-line + fixture tests
 - agent.mjs pre-existing survivors outside this change’s new branches
 
 ## Verification checklist

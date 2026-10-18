@@ -13,7 +13,9 @@ import {
   main,
   NOISE_STARTS,
   PROBLEM_CAP,
+  parseRunArgs,
   runChecks,
+  runOneCheck,
   stripAnsi,
 } from './check.mjs'
 
@@ -68,7 +70,7 @@ function fakeSpawnByCheckName(byName) {
                 ? 'git-test-isolation'
                 : args.includes('roadmap')
                   ? 'roadmap'
-                  : args.includes('test:quiet')
+                  : args.includes('test:quiet') || args.includes('vitest')
                     ? 'unit'
                     : args.some((a) => String(a).includes('check-diff-size'))
                       ? 'diff-size'
@@ -225,19 +227,19 @@ describe('extractProblemLines / formatCheckResult', () => {
   it('compacts real eslint / vitest / roadmap fixtures to ≤20 problem lines', () => {
     assertCompactFailure(
       'lint',
-      fs.readFileSync(path.join(FIX, 'eslint.log'), 'utf8'),
+      fs.readFileSync(path.join(FIX, 'eslint.txt'), 'utf8'),
       {
         fileSnippet: 'src/example.ts:1',
       },
     )
     assertCompactFailure(
       'unit',
-      fs.readFileSync(path.join(FIX, 'vitest.log'), 'utf8'),
+      fs.readFileSync(path.join(FIX, 'vitest.txt'), 'utf8'),
       { fileSnippet: '_tmp_unit_fail.test.mjs:4' },
     )
     assertCompactFailure(
       'roadmap',
-      fs.readFileSync(path.join(FIX, 'roadmap.log'), 'utf8'),
+      fs.readFileSync(path.join(FIX, 'roadmap.txt'), 'utf8'),
       { fileSnippet: 'docs/roadmap.md:5' },
     )
   })
@@ -251,7 +253,7 @@ describe('extractProblemLines / formatCheckResult', () => {
         typecheck: { code: 0 },
         lint: {
           code: 1,
-          stdout: fs.readFileSync(path.join(FIX, 'eslint.log'), 'utf8'),
+          stdout: fs.readFileSync(path.join(FIX, 'eslint.txt'), 'utf8'),
         },
         deps: { code: 0 },
         knip: { code: 0 },
@@ -259,11 +261,11 @@ describe('extractProblemLines / formatCheckResult', () => {
         'git-test-isolation': { code: 0 },
         roadmap: {
           code: 1,
-          stdout: fs.readFileSync(path.join(FIX, 'roadmap.log'), 'utf8'),
+          stdout: fs.readFileSync(path.join(FIX, 'roadmap.txt'), 'utf8'),
         },
         unit: {
           code: 1,
-          stdout: fs.readFileSync(path.join(FIX, 'vitest.log'), 'utf8'),
+          stdout: fs.readFileSync(path.join(FIX, 'vitest.txt'), 'utf8'),
         },
       }),
       write: (t) => {
@@ -554,6 +556,7 @@ describe('main', () => {
       },
       write: () => {},
     })
+    expect(calls.some((c) => c.includes('vitest'))).toBe(false)
     expect(calls.some((c) => c.includes('test:quiet'))).toBe(false)
     const joined = calls.map((c) => c.join(' '))
     for (const needle of [
@@ -721,5 +724,207 @@ describe('main', () => {
     expect(code).toBe(1)
     expect(out).toMatch(/^OK ok-child \(/m)
     expect(out).toMatch(/bad-child:.*scripts\/real\.ts:3:1 error boom/)
+  })
+})
+
+describe('runOneCheck / --run', () => {
+  it('parseRunArgs requires name and command after --', () => {
+    expect(parseRunArgs(['--run', 'unit', '--', 'echo', 'hi'])).toEqual({
+      name: 'unit',
+      cmd: ['echo', 'hi'],
+    })
+    expect(() => parseRunArgs(['--run'])).toThrow(/usage/)
+    expect(() => parseRunArgs(['--run', 'unit'])).toThrow(/usage/)
+    expect(() => parseRunArgs(['--run', 'unit', '--'])).toThrow(/usage/)
+    expect(() => parseRunArgs(['--run', '-x', '--', 'echo'])).toThrow(/usage/)
+    expect(() => parseRunArgs(['--', '--run', 'unit', '--', 'echo'])).toThrow(
+      /usage/,
+    )
+    expect(parseRunArgs(['--verbose'])).toBe(null)
+  })
+
+  it('runOneCheck rejects missing name or empty argv', async () => {
+    await expect(runOneCheck({ name: '', argv: ['x'] })).rejects.toThrow(
+      /name is required/,
+    )
+    await expect(runOneCheck({ name: 1, argv: ['x'] })).rejects.toThrow(
+      /name is required/,
+    )
+    await expect(runOneCheck({ name: 'x', argv: [] })).rejects.toThrow(
+      /non-empty command/,
+    )
+    await expect(runOneCheck({ name: 'x', argv: null })).rejects.toThrow(
+      /non-empty command/,
+    )
+  })
+
+  it('main --run usage errors exit 2 via stderr by default', async () => {
+    let out = ''
+    expect(
+      await main(['--run'], {
+        write: (t) => {
+          out += t
+        },
+      }),
+    ).toBe(2)
+    expect(out).toMatch(/usage: node scripts\/check\.mjs --run/)
+
+    const chunks = []
+    const orig = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (c) => {
+      chunks.push(String(c))
+      return true
+    }
+    try {
+      expect(await main(['--run', 'unit'])).toBe(2)
+    } finally {
+      process.stderr.write = orig
+    }
+    expect(chunks.join('')).toMatch(/usage/)
+  })
+
+  it('CHECK_VERBOSE=1 enables verbose for --run', async () => {
+    const root = tmpRoot()
+    let out = ''
+    const prev = process.env.CHECK_VERBOSE
+    process.env.CHECK_VERBOSE = '1'
+    try {
+      await main(['--run', 'unit', '--', 'pnpm', 'exec', 'vitest'], {
+        root,
+        spawnImpl: fakeSpawnByCheckName({
+          unit: { code: 0, stdout: 'via-env\n' },
+        }),
+        write: (t) => {
+          out += t
+        },
+      })
+    } finally {
+      if (prev === undefined) delete process.env.CHECK_VERBOSE
+      else process.env.CHECK_VERBOSE = prev
+    }
+    expect(out).toContain('--- unit ---')
+    expect(out).toContain('via-env')
+  })
+
+  it('prints OK line on success and writes the log', async () => {
+    const root = tmpRoot()
+    let out = ''
+    const result = await runOneCheck({
+      root,
+      name: 'unit',
+      argv: ['pnpm', 'exec', 'vitest', 'run'],
+      spawnImpl: fakeSpawnByCheckName({
+        unit: { code: 0, stdout: 'silent\n' },
+      }),
+      write: (t) => {
+        out += t
+      },
+    })
+    expect(result.ok).toBe(true)
+    expect(out).toMatch(/^OK unit \(/m)
+    expect(out).not.toContain('silent')
+    expect(
+      fs.readFileSync(path.join(root, '.cache/checks/unit.log'), 'utf8'),
+    ).toContain('silent')
+  })
+
+  it('caps failure lines, preserves exit code, and logs full output', async () => {
+    const root = tmpRoot()
+    let out = ''
+    const many = Array.from(
+      { length: 25 },
+      (_, i) => `src/f.ts:${i}:1 error e${i}`,
+    ).join('\n')
+    const code = await main(['--run', 'lint', '--', 'pnpm', 'lint'], {
+      root,
+      spawnImpl: fakeSpawnByCheckName({
+        lint: { code: 3, stdout: `${many}\n` },
+      }),
+      write: (t) => {
+        out += t
+      },
+    })
+    expect(code).toBe(3)
+    const lines = out.trim().split('\n')
+    expect(lines.length).toBeLessThanOrEqual(21)
+    expect(lines.some((l) => l.startsWith('lint:'))).toBe(true)
+    expect(out).toMatch(/full log: \.cache\/checks\/lint\.log/)
+  })
+
+  it('verbose passes tool output through', async () => {
+    const root = tmpRoot()
+    let out = ''
+    await main(['--verbose', '--run', 'unit', '--', 'pnpm', 'exec', 'vitest'], {
+      root,
+      spawnImpl: fakeSpawnByCheckName({
+        unit: { code: 0, stdout: 'tool-banner\n' },
+      }),
+      write: (t) => {
+        out += t
+      },
+    })
+    expect(out).toContain('--- unit ---')
+    expect(out).toContain('tool-banner')
+    expect(out).toMatch(/^OK unit \(/m)
+  })
+
+  it('main --run uses real spawn without spawnImpl', async () => {
+    const root = tmpRoot()
+    let out = ''
+    const code = await main(
+      [
+        '--run',
+        'demo',
+        '--',
+        process.execPath,
+        '-e',
+        'console.error("demo.ts:1:1 error nope"); process.exit(7)',
+      ],
+      {
+        root,
+        write: (t) => {
+          out += t
+        },
+      },
+    )
+    expect(code).toBe(7)
+    expect(out).toMatch(/demo:.*demo\.ts:1:1 error nope/)
+    expect(fs.existsSync(path.join(root, '.cache/checks/demo.log'))).toBe(true)
+  })
+
+  it('main --run maps null exit to 1 and uses default write', async () => {
+    const root = tmpRoot()
+    const spawnNull = () => {
+      const ee = new EventEmitter()
+      ee.stdout = new EventEmitter()
+      ee.stderr = new EventEmitter()
+      queueMicrotask(() => ee.emit('close', null))
+      return ee
+    }
+    expect(
+      await main(['--run', 'lint', '--', 'pnpm', 'lint'], {
+        root,
+        spawnImpl: spawnNull,
+        write: () => {},
+      }),
+    ).toBe(1)
+
+    const chunks = []
+    const orig = process.stdout.write.bind(process.stdout)
+    process.stdout.write = (c) => {
+      chunks.push(String(c))
+      return true
+    }
+    try {
+      await runOneCheck({
+        root,
+        name: 'only',
+        argv: ['pnpm', 'exec', 'vitest'],
+        spawnImpl: fakeSpawnByCheckName({ unit: { code: 0 } }),
+      })
+    } finally {
+      process.stdout.write = orig
+    }
+    expect(chunks.join('')).toMatch(/^OK only \(/m)
   })
 })

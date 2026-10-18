@@ -19,8 +19,13 @@ const CORE_CHECKS = [
   { name: 'knip', argv: ['pnpm', 'knip'] },
   { name: 'mutation-scope', argv: ['pnpm', 'mutation-scope'] },
   { name: 'git-test-isolation', argv: ['pnpm', 'git-test-isolation'] },
+  // Direct roadmap.mjs + INNER env avoids double-wrap via `pnpm roadmap check`.
   { name: 'roadmap', argv: ['pnpm', '-s', 'roadmap', 'check'] },
-  { name: 'unit', argv: ['pnpm', 'test:quiet'] },
+  // Direct vitest — `pnpm test:quiet` is itself a --run wrapper.
+  {
+    name: 'unit',
+    argv: ['pnpm', 'exec', 'vitest', 'run', '--reporter=dot', '--silent'],
+  },
 ]
 
 const OPTIONAL_SCRIPTS = [
@@ -189,6 +194,77 @@ function runChild(argv, opts) {
 }
 
 /**
+ * Run one named command with the same compact reporter as `pnpm check`.
+ * Full output always lands in `.cache/checks/<name>.log`.
+ * @param {{
+ *   name: string
+ *   argv: string[]
+ *   root?: string
+ *   verbose?: boolean
+ *   env?: NodeJS.ProcessEnv
+ *   spawnImpl?: typeof spawn
+ *   mkdirSync?: typeof fs.mkdirSync
+ *   writeFileSync?: typeof fs.writeFileSync
+ *   now?: () => number
+ *   write?: (text: string) => void
+ * }} opts
+ */
+export async function runOneCheck(opts) {
+  const name = opts.name
+  const argv = opts.argv
+  if (!name || typeof name !== 'string') {
+    throw new Error('runOneCheck: name is required')
+  }
+  if (!Array.isArray(argv) || argv.length === 0) {
+    throw new Error('runOneCheck: argv must be a non-empty command')
+  }
+  const root = opts.root ?? ROOT_DEFAULT
+  const verbose = Boolean(opts.verbose)
+  const write = opts.write ?? ((t) => process.stdout.write(t))
+  const now = opts.now ?? Date.now
+  const mkdirSync = opts.mkdirSync ?? fs.mkdirSync
+  const writeFileSync = opts.writeFileSync ?? fs.writeFileSync
+  mkdirSync(path.join(root, LOG_DIR), { recursive: true })
+
+  const childEnv = {
+    ...(opts.env ?? process.env),
+    // Prevent nested --run wrappers (e.g. roadmap check → check.mjs → roadmap).
+    PHOTOBOOKS_CHECK_INNER: '1',
+  }
+  const started = now()
+  const child = await runChild(argv, {
+    cwd: root,
+    env: childEnv,
+    spawnImpl: opts.spawnImpl,
+  })
+  const ms = Math.max(0, now() - started)
+  const combined = `${child.stdout}\n${child.stderr}`
+  const logPath = path.join(LOG_DIR, `${name}.log`)
+  writeFileSync(path.join(root, logPath), combined)
+  const ok = child.code === 0
+  const problems = ok ? [] : extractProblemLines(combined, name)
+  const result = {
+    name,
+    ok,
+    ms,
+    problems,
+    logPath,
+    code: child.code,
+    argv,
+  }
+  if (verbose) {
+    write(`--- ${name} ---\n`)
+    for (const chunk of [child.stdout, child.stderr]) {
+      if (!chunk) continue
+      write(chunk)
+      if (!chunk.endsWith('\n')) write('\n')
+    }
+  }
+  write(`${formatCheckResult(result)}\n`)
+  return result
+}
+
+/**
  * @param {{
  *   root?: string
  *   verbose?: boolean
@@ -206,12 +282,6 @@ function runChild(argv, opts) {
 export async function runChecks(opts = {}) {
   const root = opts.root ?? ROOT_DEFAULT
   const verbose = Boolean(opts.verbose)
-  const write = opts.write ?? ((t) => process.stdout.write(t))
-  const now = opts.now ?? Date.now
-  const mkdirSync = opts.mkdirSync ?? fs.mkdirSync
-  const writeFileSync = opts.writeFileSync ?? fs.writeFileSync
-  const logDir = path.join(root, LOG_DIR)
-  mkdirSync(logDir, { recursive: true })
 
   let inventory = opts.inventory ?? buildInventory(root, opts)
   if (opts.skipUnit) {
@@ -219,40 +289,20 @@ export async function runChecks(opts = {}) {
   }
 
   const results = await Promise.all(
-    inventory.map(async (check) => {
-      const started = now()
-      const child = await runChild(check.argv, {
-        cwd: root,
+    inventory.map((check) =>
+      runOneCheck({
+        name: check.name,
+        argv: check.argv,
+        root,
+        verbose,
         env: opts.env,
         spawnImpl: opts.spawnImpl,
-      })
-      const ms = Math.max(0, now() - started)
-      const combined = `${child.stdout}\n${child.stderr}`
-      const logPath = path.join(LOG_DIR, `${check.name}.log`)
-      const absLog = path.join(root, logPath)
-      writeFileSync(absLog, combined)
-      const ok = child.code === 0
-      const problems = ok ? [] : extractProblemLines(combined, check.name)
-      const result = {
-        name: check.name,
-        ok,
-        ms,
-        problems,
-        logPath,
-        code: child.code,
-        argv: check.argv,
-      }
-      if (verbose) {
-        write(`--- ${check.name} ---\n`)
-        for (const chunk of [child.stdout, child.stderr]) {
-          if (!chunk) continue
-          write(chunk)
-          if (!chunk.endsWith('\n')) write('\n')
-        }
-      }
-      write(`${formatCheckResult(result)}\n`)
-      return result
-    }),
+        mkdirSync: opts.mkdirSync,
+        writeFileSync: opts.writeFileSync,
+        now: opts.now,
+        write: opts.write,
+      }),
+    ),
   )
 
   const failed = results.filter((r) => !r.ok)
@@ -263,10 +313,57 @@ export async function runChecks(opts = {}) {
   }
 }
 
+/** Parse `check.mjs --run <name> -- <cmd...>` flags from argv. */
+export function parseRunArgs(args) {
+  const runIdx = args.indexOf('--run')
+  if (runIdx === -1) return null
+  const name = args[runIdx + 1]
+  if (!name || name.startsWith('-')) {
+    throw new Error(
+      'usage: node scripts/check.mjs --run <name> -- <command...>',
+    )
+  }
+  const dd = args.indexOf('--')
+  if (dd === -1 || dd < runIdx + 2) {
+    throw new Error(
+      'usage: node scripts/check.mjs --run <name> -- <command...>',
+    )
+  }
+  const cmd = args.slice(dd + 1)
+  if (cmd.length === 0) {
+    throw new Error(
+      'usage: node scripts/check.mjs --run <name> -- <command...>',
+    )
+  }
+  return { name, cmd }
+}
+
 export async function main(argv, opts = {}) {
   const args = argv === undefined ? process.argv.slice(2) : argv
-  const verbose = args.includes('--verbose') || args.includes('-v')
+  const verbose =
+    args.includes('--verbose') ||
+    args.includes('-v') ||
+    process.env.CHECK_VERBOSE === '1'
   const skipUnit = args.includes('--skip-unit')
+  let runSpec = null
+  try {
+    runSpec = parseRunArgs(args)
+  } catch (err) {
+    const write = opts.write ?? ((t) => process.stderr.write(t))
+    write(`${err instanceof Error ? err.message : String(err)}\n`)
+    return 2
+  }
+  if (runSpec) {
+    const result = await runOneCheck({
+      ...opts,
+      name: runSpec.name,
+      argv: runSpec.cmd,
+      verbose,
+    })
+    if (result.ok) return 0
+    const code = result.code
+    return code === null || code === undefined ? 1 : code
+  }
   const summary = await runChecks({
     ...opts,
     verbose,

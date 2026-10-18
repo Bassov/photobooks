@@ -33,7 +33,8 @@ jobs:
 
       - name: Mutation test changed files
         id: mutate
-        run: pnpm stryker:diff
+        # Verbose so CI logs keep full Stryker output; report files still under reports/mutation/.
+        run: node scripts/check.mjs --verbose --run stryker-diff -- node scripts/stryker-diff.mjs
 
       - name: Mutation summary
         if: always()

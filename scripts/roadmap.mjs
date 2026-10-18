@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Roadmap CLI: docs/roadmap.md (index, order = priority) + docs/roadmap/<M>/<slug>.md (one file per item).
 // Zero dependencies, Node 22, ESM. `pnpm roadmap help`. Process rules: docs/roadmap/RULES.md.
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -1308,5 +1309,35 @@ export function main(argv, io) {
 if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  main(process.argv.slice(2), process)
+) {
+  const argv = process.argv.slice(2)
+  // Standalone `pnpm roadmap check` goes through the shared compact wrapper.
+  if (argv[0] === 'check' && process.env.PHOTOBOOKS_CHECK_INNER !== '1') {
+    const self = fileURLToPath(import.meta.url)
+    const checkJs = path.join(path.dirname(self), 'check.mjs')
+    const verbose =
+      argv.includes('--verbose') ||
+      argv.includes('-v') ||
+      process.env.CHECK_VERBOSE === '1'
+    const inner = argv.filter((a) => a !== '--verbose' && a !== '-v')
+    const r = spawnSync(
+      process.execPath,
+      [
+        checkJs,
+        ...(verbose ? ['--verbose'] : []),
+        '--run',
+        'roadmap',
+        '--',
+        process.execPath,
+        self,
+        ...inner,
+      ],
+      {
+        stdio: 'inherit',
+        env: { ...process.env, PHOTOBOOKS_CHECK_INNER: '1' },
+      },
+    )
+    process.exit(r.status ?? 1)
+  }
+  main(argv, process)
+}
