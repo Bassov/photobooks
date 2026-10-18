@@ -29,9 +29,10 @@ flag_management:
 comment:
   # Two uploads per commit (unit + e2e); must match notify.after_n_builds.
   after_n_builds: 2
-  # flags required for Done-when; components omitted (Codecov does not render them here).
+  # flags requested; Codecov on this repo still omits the Flags table in GitHub comments
+  # (same class as project/components — see docs/backlog/codecov-project-components.md).
   layout: 'header, diff, flags, files'
-  behavior: new
+  behavior: default
   require_changes: false
   require_base: false
 
