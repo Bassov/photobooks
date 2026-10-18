@@ -44,6 +44,7 @@ export default defineConfig({
         'src/**/*.{ts,tsx}',
         'scripts/roadmap.mjs',
         'scripts/agent.mjs',
+        'scripts/check.mjs',
         'scripts/e2e-burn-in-count.mjs',
         'scripts/e2e-burn-in-targets.mjs',
         'scripts/e2e-changed-quiet.mjs',

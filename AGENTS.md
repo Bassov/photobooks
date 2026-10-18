@@ -33,14 +33,10 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `/next-roadmap-item`          | one roadmap item end to end (unattended)                 |
 | `pnpm roadmap`                | roadmap CLI: `next` / `show` / `add` / `done` / `check`  |
 | `pnpm agent`                  | pipeline stages: `preflight` / `finish` / `review-brief` |
-| `pnpm verify:fast`            | typecheck + lint + deps + knip + mutation scope + vitest |
-| `pnpm verify:fast:quiet`      | verify:fast with quiet vitest reporter                   |
-| `pnpm verify`                 | verify:fast + Playwright                                 |
-| `pnpm test:e2e:quiet`         | Playwright with dot reporter                             |
+| `pnpm check`                  | deterministic gates (fail-all, compact OK lines)         |
+| `pnpm verify`                 | `pnpm check` + Playwright                                |
 | `pnpm test:e2e:changed:quiet` | changed e2e specs only (burn-in targets), quiet          |
 | `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)    |
-| `pnpm deps`                   | dependency-cruiser layer rules                           |
-| `pnpm knip`                   | unused exports / deps                                    |
 | `pnpm stryker:diff`           | mutations vs `origin/main`                               |
 | `pnpm test:lhci`              | Lighthouse budgets                                       |
 | `pnpm audit:ci`               | high-severity **production** dependency audit            |
@@ -72,7 +68,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 Headless `cursor-agent -p` uses project `.cursor/cli.json` (allow/deny). Gate-file edits must be strictly stricter and listed in the design touch-set. The launcher (not the agent) must `source scripts/agent-env.sh` and start the agent with `--trust --force` so allowlisted tools are not stalled by Auto-review; `--force` still respects deny.
 
-Agent shells: `source scripts/agent-env.sh` once so asdf shims + Node from `.nvmrc` are on PATH (does not write `.tool-versions`). Lefthook pre-push runs `pnpm verify:fast`; Playwright stays in CI (`pnpm verify` / PR checks). Local agent loops: targeted quiet unit + `test:e2e:changed:quiet` once when green; CI burn-in owns flake proof. Local `--repeat-each=3` only if a flake already failed then passed locally. `pnpm agent finish` opens/updates the PR and stops (no CI watch).
+Agent shells: `source scripts/agent-env.sh` once so asdf shims + Node from `.nvmrc` are on PATH (does not write `.tool-versions`). Run `pnpm check` until it prints only OK lines; Lefthook pre-push and CI `checks` call the same entry. Playwright stays separate (`test:e2e:changed:quiet` locally; full e2e in CI). Local `--repeat-each=3` only if a flake already failed then passed locally. `pnpm agent finish` opens/updates the PR and stops (no CI watch).
 
 Pipeline MCP: the unattended `/next-roadmap-item` happy path needs **no** project MCP (use shell `git` / `gh` / `pnpm` / `openspec`). Disable unused Cursor MCP servers for this repo so their tool schemas are not re-sent on every model call. Optional local shell-output proxies (e.g. rtk) are machine add-ons; CI and other agents do not have them, so the quiet scripts stay the baseline.
 

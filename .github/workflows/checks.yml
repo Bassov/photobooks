@@ -31,20 +31,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Dependency boundaries
-        run: pnpm deps
-
-      - name: Unused code (knip)
-        run: pnpm knip
-
-      - name: Mutation scope
-        run: pnpm mutation-scope
+      - name: Deterministic checks
+        # Unit suite runs once below via test:coverage; skip unit here.
+        run: pnpm check --verbose --skip-unit
 
       - name: Format check
         run: pnpm format:check

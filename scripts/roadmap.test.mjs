@@ -6,9 +6,12 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   assertOpenItem,
+  bootRoadmapCli,
+  checkWrapperArgs,
   cmdArchive,
   cmdCheck,
   cmdSync,
+  execCheckWrapper,
   folderName,
   genSlug,
   load,
@@ -903,17 +906,175 @@ describe('next / show / list / cli', () => {
       execFileSync(process.execPath, [CLI, 'check', '--root', root], {
         encoding: 'utf8',
       }),
+    ).toMatch(/^OK roadmap \(/)
+    expect(
+      execFileSync(process.execPath, [CLI, 'check', '--root', root], {
+        encoding: 'utf8',
+        env: { ...process.env, PHOTOBOOKS_CHECK_INNER: '1' },
+      }),
     ).toMatch(/^check ok/)
     fs.rmSync(path.join(root, 'docs/roadmap/A1/beta.md'))
     let status = 0
+    let failOut = ''
     try {
       execFileSync(process.execPath, [CLI, 'check', '--root', root], {
+        encoding: 'utf8',
         stdio: 'pipe',
       })
     } catch (e) {
       status = e.status
+      failOut = `${e.stdout ?? ''}${e.stderr ?? ''}`
     }
-    expect(status).toBe(1)
+    expect(status).not.toBe(0)
+    expect(failOut).toMatch(/roadmap:.*beta/)
+  })
+
+  it('checkWrapperArgs wraps check unless already inner', () => {
+    expect(checkWrapperArgs(['next'], {})).toBe(null)
+    expect(checkWrapperArgs(['check'], { PHOTOBOOKS_CHECK_INNER: '1' })).toBe(
+      null,
+    )
+    const wrap = checkWrapperArgs(
+      ['check', '--root', '/tmp'],
+      {},
+      {
+        selfPath: CLI,
+        execPath: '/node',
+      },
+    )
+    expect(wrap).not.toBe(null)
+    expect(wrap.file).toBe('/node')
+    expect(wrap.args).toEqual([
+      path.join(here, 'check.mjs'),
+      '--run',
+      'roadmap',
+      '--',
+      '/node',
+      CLI,
+      'check',
+      '--root',
+      '/tmp',
+    ])
+    expect(wrap.env.PHOTOBOOKS_CHECK_INNER).toBe('1')
+
+    const viaFlag = checkWrapperArgs(
+      ['check', '-v', '--root', '/tmp'],
+      {},
+      { selfPath: CLI, execPath: '/node' },
+    )
+    expect(viaFlag.args[1]).toBe('--verbose')
+    expect(viaFlag.args).not.toContain('-v')
+    expect(viaFlag.args).toContain('--root')
+
+    const viaEnv = checkWrapperArgs(
+      ['check', '--root', '/tmp'],
+      { CHECK_VERBOSE: '1' },
+      { selfPath: CLI, execPath: '/node' },
+    )
+    expect(viaEnv.args[1]).toBe('--verbose')
+  })
+
+  it('execCheckWrapper / bootRoadmapCli cover wrap and entry paths', () => {
+    let exitCode = null
+    /** @type {{ file: string, args: string[], opts: object } | null} */
+    let spawned = null
+    execCheckWrapper(
+      { file: '/node', args: ['a'], env: { PHOTOBOOKS_CHECK_INNER: '1' } },
+      {
+        spawnSync: (file, args, opts) => {
+          spawned = { file, args, opts }
+          return { status: 0 }
+        },
+        exit: (c) => {
+          exitCode = c
+        },
+      },
+    )
+    expect(spawned.file).toBe('/node')
+    expect(spawned.opts.env.PHOTOBOOKS_CHECK_INNER).toBe('1')
+    expect(exitCode).toBe(0)
+
+    exitCode = null
+    execCheckWrapper(
+      { file: '/node', args: [], env: {} },
+      {
+        spawnSync: () => ({ status: null }),
+        exit: (c) => {
+          exitCode = c
+        },
+      },
+    )
+    expect(exitCode).toBe(1)
+
+    const prevExit = process.exit
+    exitCode = null
+    process.exit = /** @type {typeof process.exit} */ (
+      (c) => {
+        exitCode = c
+      }
+    )
+    try {
+      execCheckWrapper(
+        { file: '/node', args: [], env: {} },
+        { spawnSync: () => ({ status: 9 }) },
+      )
+    } finally {
+      process.exit = prevExit
+    }
+    expect(exitCode).toBe(9)
+
+    expect(bootRoadmapCli('', ['check'], {})).toBe(false)
+    expect(bootRoadmapCli(null, ['check'], {})).toBe(false)
+    expect(bootRoadmapCli('/other.mjs', ['check'], {})).toBe(false)
+
+    exitCode = null
+    spawned = null
+    expect(
+      bootRoadmapCli(
+        CLI,
+        ['check', '--root', '/tmp'],
+        {},
+        {
+          metaUrl: `file://${CLI}`,
+          spawnSync: (file, args, opts) => {
+            spawned = { file, args, opts }
+            return { status: 4 }
+          },
+          exit: (c) => {
+            exitCode = c
+          },
+        },
+      ),
+    ).toBe(true)
+    expect(spawned.args).toContain('--run')
+    expect(exitCode).toBe(4)
+
+    let mainCalled = false
+    expect(
+      bootRoadmapCli(
+        CLI,
+        ['check', '--root', '/tmp'],
+        { PHOTOBOOKS_CHECK_INNER: '1' },
+        {
+          metaUrl: `file://${CLI}`,
+          mainFn: (argv) => {
+            mainCalled = true
+            expect(argv[0]).toBe('check')
+          },
+          io: { stdout: { write: () => {} }, stderr: { write: () => {} } },
+        },
+      ),
+    ).toBe(true)
+    expect(mainCalled).toBe(true)
+
+    // Default argv/env from process when omitted (undefined → process defaults).
+    expect(
+      bootRoadmapCli(CLI, undefined, undefined, {
+        metaUrl: `file://${CLI}`,
+        mainFn: () => {},
+        io: { stdout: { write: () => {} }, stderr: { write: () => {} } },
+      }),
+    ).toBe(true)
   })
   it('writes are atomic (no temp files left)', () => {
     const root = migrated()

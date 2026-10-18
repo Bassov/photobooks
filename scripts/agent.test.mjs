@@ -28,6 +28,8 @@ import {
   readNvmrcMajor,
   readPushFailures,
   readRunStarted,
+  readReviewChecklistIds,
+  refreshStaleFeatureBranch,
   resolvePureAddIndexConflict,
   resolveGitRelPath,
   resolveRunStartedMs,
@@ -36,6 +38,7 @@ import {
   slugFromBranch,
   slugFromFeatFix,
   stripAnsi,
+  summarizePushFailure,
   switchFeatureBranch,
   branchHeldInOtherWorktree,
   gitPath,
@@ -100,11 +103,13 @@ function fakeExec(handlers) {
       const file = args[args.length - 1] ?? 'unknown'
       return { code: 0, stdout: `.git/${file}\n`, stderr: '' }
     }
-    // Finish happy-path fixtures: already based on origin/main.
+    // Finish/preflight happy-path fixtures: already based on origin/main.
     if (key.includes('git merge-base --is-ancestor'))
       return { code: 0, stdout: '', stderr: '' }
     if (key.includes('git fetch origin'))
       return { code: 0, stdout: '', stderr: '' }
+    if (key.includes('git rev-list --count HEAD..origin/main'))
+      return { code: 0, stdout: '0\n', stderr: '' }
     return { code: 1, stdout: '', stderr: `unhandled: ${key}` }
   }
 }
@@ -681,13 +686,8 @@ describe('preflight', () => {
         'goal: g2',
         'skips: ',
         'touchSet: TBD until design.md',
-        '--- rules ---',
-        '  1. rule-one',
-        '  2. rule-two',
-        '--- template ---',
-        '# Proposal\nline2',
-        '--- body ---',
-        'BODY',
+        'checklistIds: ',
+        'instructions: rules=2 (use --json for template/rules)',
       ].join('\n'),
     )
   })
@@ -741,10 +741,11 @@ describe('preflight', () => {
     })
     expect(r.code, r.err).toBe(0)
     expect(r.out).toContain('goal: single-goal')
-    expect(r.out).toContain('  (none)')
     expect(r.out).toContain('touchSet: openspec/changes/demo-item/design.md')
-    expect(r.out).toContain('--- template ---\nnull')
-    expect(r.out).toContain('--- body ---\nnull')
+    expect(r.out).toContain('checklistIds: ')
+    expect(r.out).toContain(
+      'instructions: rules=0 (use --json for template/rules)',
+    )
   })
 
   it('fails on dirty tree with exact message', () => {
@@ -1037,6 +1038,8 @@ describe('preflight', () => {
         return { code: 0, stdout: 'abc\n', stderr: '' }
       if (key === 'git switch feat/reuse-item')
         return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git rev-list --count HEAD..origin/main'))
+        return { code: 0, stdout: '0\n', stderr: '' }
       if (key.includes('openspec instructions'))
         return {
           code: 0,
@@ -1123,6 +1126,8 @@ describe('preflight', () => {
         return { code: 0, stdout: JSON.stringify(item), stderr: '' }
       if (key.includes('git switch -c'))
         return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('git rev-list --count HEAD..origin/main'))
+        return { code: 0, stdout: '0\n', stderr: '' }
       if (key.includes('openspec new'))
         return { code: 0, stdout: '', stderr: '' }
       if (key.includes('openspec instructions'))
@@ -1220,6 +1225,413 @@ describe('preflight', () => {
       ['switch', '-c', 'feat/slug-item', '--no-track', 'origin/main'],
     ])
     expect(JSON.parse(r.out).item.slug).toBe('slug-item')
+    const fetchIdx = calls.findIndex(
+      (c) => c[0] === 'git' && c[1][0] === 'fetch' && c[1][1] === 'origin',
+    )
+    const behindIdx = calls.findIndex(
+      (c) =>
+        c[0] === 'git' &&
+        c[1].join(' ') === 'rev-list --count HEAD..origin/main',
+    )
+    expect(fetchIdx).toBeGreaterThanOrEqual(0)
+    expect(behindIdx).toBeGreaterThan(fetchIdx)
+  })
+
+  it('flags stale branch behind origin/main and merges when ahead', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'stale-item'), {
+      recursive: true,
+    })
+    const item = {
+      slug: 'stale-item',
+      tag: 'prep',
+      title: 't',
+      file: 'f',
+      milestone: 'M',
+      goal: ['g'],
+      body: 'b',
+    }
+    let merged = false
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ...envOk,
+        ['git status --porcelain', { stdout: '' }],
+        ['git fetch origin', { code: 0 }],
+        ['git switch main', { code: 0 }],
+        ['git pull --ff-only', { code: 0 }],
+        ['gh pr list', { stdout: '' }],
+        ['git branch -r', { stdout: '' }],
+        ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+        ['git switch -c feat/stale-item', { code: 0 }],
+        ['git rev-list --count HEAD..origin/main', { stdout: '2\n' }],
+        ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
+        [
+          'git merge-base --is-ancestor',
+          () => {
+            return { code: 1, stdout: '', stderr: '' }
+          },
+        ],
+        [
+          'git merge origin/main',
+          () => {
+            merged = true
+            return { code: 0, stdout: '', stderr: '' }
+          },
+        ],
+        [
+          'openspec instructions proposal',
+          {
+            stdout: JSON.stringify({ template: '# T', rules: ['r'] }),
+          },
+        ],
+      ]),
+      env: {},
+    })
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.stale).toBe(true)
+    expect(j.staleWarning).toMatch(/behind origin\/main/)
+    expect(merged).toBe(true)
+
+    const text = run(['preflight', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ...envOk,
+        ['git status --porcelain', { stdout: '' }],
+        ['git fetch origin', { code: 0 }],
+        ['git switch main', { code: 0 }],
+        ['git pull --ff-only', { code: 0 }],
+        ['gh pr list', { stdout: '' }],
+        ['git branch -r', { stdout: '' }],
+        ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+        ['git switch -c feat/stale-item', { code: 0 }],
+        ['git rev-list --count HEAD..origin/main', { stdout: '2\n' }],
+        ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
+        ['git merge-base --is-ancestor', { code: 1 }],
+        ['git merge origin/main', { code: 0 }],
+        [
+          'openspec instructions proposal',
+          { stdout: JSON.stringify({ template: '# T', rules: ['r'] }) },
+        ],
+      ]),
+      env: {},
+    })
+    expect(text.code, text.err).toBe(0)
+    expect(text.out).toMatch(/staleWarning:.*behind origin\/main/)
+  })
+
+  it('emits checklist ids when quality/review-checklist.md exists', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'quality'), { recursive: true })
+    fs.writeFileSync(
+      path.join(root, 'quality/review-checklist.md'),
+      '# Review\n\n- `scope`: stay in touch-set\n- size: under budget\n- [ ] `gates`: do not weaken\n',
+    )
+    expect(readReviewChecklistIds(root)).toEqual(['scope', 'size', 'gates'])
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
+      recursive: true,
+    })
+    const item = {
+      slug: 'demo-item',
+      tag: 'prep',
+      title: 't',
+      file: 'f',
+      milestone: 'M',
+      goal: ['g'],
+      body: 'b',
+    }
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ...envOk,
+        ['git status --porcelain', { stdout: '' }],
+        ['git fetch origin', { code: 0 }],
+        ['git switch main', { code: 0 }],
+        ['git pull --ff-only', { code: 0 }],
+        ['gh pr list', { stdout: '' }],
+        ['git branch -r', { stdout: '' }],
+        ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+        ['git switch -c feat/demo-item', { code: 0 }],
+        [
+          'openspec instructions proposal',
+          { stdout: JSON.stringify({ template: '# T', rules: [] }) },
+        ],
+      ]),
+      env: {},
+    })
+    expect(r.code, r.err).toBe(0)
+    expect(JSON.parse(r.out).checklistIds).toEqual(['scope', 'size', 'gates'])
+
+    const text = run(['preflight', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ...envOk,
+        ['git status --porcelain', { stdout: '' }],
+        ['git fetch origin', { code: 0 }],
+        ['git switch main', { code: 0 }],
+        ['git pull --ff-only', { code: 0 }],
+        ['gh pr list', { stdout: '' }],
+        ['git branch -r', { stdout: '' }],
+        ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+        ['git switch -c feat/demo-item', { code: 0 }],
+        [
+          'openspec instructions proposal',
+          { stdout: JSON.stringify({ template: '# T', rules: [] }) },
+        ],
+      ]),
+      env: {},
+    })
+    expect(text.code, text.err).toBe(0)
+    expect(text.out).toContain('checklistIds: scope,size,gates')
+    expect(text.out).not.toContain('staleWarning:')
+  })
+})
+
+describe('readReviewChecklistIds', () => {
+  it('returns [] when the checklist file is missing', () => {
+    expect(readReviewChecklistIds(tmpRoot())).toEqual([])
+  })
+
+  it('returns [] when readFile throws', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'quality'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'quality/review-checklist.md'), 'x')
+    expect(
+      readReviewChecklistIds(root, () => {
+        throw new Error('EACCES')
+      }),
+    ).toEqual([])
+  })
+
+  it('parses both id regex forms and dedupes', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'quality'), { recursive: true })
+    fs.writeFileSync(
+      path.join(root, 'quality/review-checklist.md'),
+      [
+        '- `scope`: touch-set',
+        '- size: under budget',
+        '- [ ] `gates`: do not weaken',
+        '- `scope`: duplicate ignored',
+        '- [x] evidence: must be real',
+      ].join('\n'),
+    )
+    expect(readReviewChecklistIds(root)).toEqual([
+      'scope',
+      'size',
+      'gates',
+      'evidence',
+    ])
+  })
+})
+
+describe('summarizePushFailure / refreshStaleFeatureBranch', () => {
+  it('prefers compact check lines from push output', () => {
+    expect(
+      summarizePushFailure(
+        'OK typecheck (0.1s)\nlint: a.ts:1 err\nbanner junk\nfull log: .cache/checks/lint.log\n… +3 more, full log: x\n',
+        'hook failed\n',
+      ),
+    ).toBe(
+      [
+        'OK typecheck (0.1s)',
+        'lint: a.ts:1 err',
+        'full log: .cache/checks/lint.log',
+        '… +3 more, full log: x',
+      ].join('\n'),
+    )
+    expect(
+      summarizePushFailure('\u001b[32mOK typecheck (0.2s)\u001b[0m\n', ''),
+    ).toBe('OK typecheck (0.2s)')
+    expect(summarizePushFailure(null, undefined)).toBe('(no output)')
+    expect(summarizePushFailure(undefined, null)).toBe('(no output)')
+  })
+
+  it('falls back to tailOutput when no check-ish lines', () => {
+    const summary = summarizePushFailure(
+      'random\nnoise\n',
+      'fatal: remote rejected\n',
+    )
+    expect(summary).toContain('fatal: remote rejected')
+    expect(summary).not.toMatch(/^OK /)
+  })
+
+  it('caps check-ish lines at 60', () => {
+    const many = Array.from(
+      { length: 80 },
+      (_, i) => `lint: f.ts:${i} err`,
+    ).join('\n')
+    const summary = summarizePushFailure(many, '')
+    expect(summary.split('\n')).toHaveLength(60)
+  })
+
+  it('accepts OK/check prefixes and rejects near-misses', () => {
+    expect(summarizePushFailure('OK typecheck (1.0s)\n', '')).toBe(
+      'OK typecheck (1.0s)',
+    )
+    expect(
+      summarizePushFailure('OKAY typecheck (1.0s)\n', 'tail-only\n'),
+    ).toContain('tail-only')
+    expect(summarizePushFailure('Lint: no\n', 'x\n')).toContain('x')
+    expect(summarizePushFailure('… +2 more, full log: z\n', '')).toBe(
+      '… +2 more, full log: z',
+    )
+    expect(summarizePushFailure('full log: .cache/checks/a.log\n', '')).toBe(
+      'full log: .cache/checks/a.log',
+    )
+    expect(summarizePushFailure('  padded\nOK unit (0.1s)\n', '')).toBe(
+      'OK unit (0.1s)',
+    )
+  })
+
+  it('refreshStaleFeatureBranch no-ops when not behind', () => {
+    const r = refreshStaleFeatureBranch(
+      fakeExec([['git rev-list --count HEAD..origin/main', { stdout: '0\n' }]]),
+      '/tmp',
+      '/tmp',
+      {},
+      true,
+    )
+    expect(r).toEqual({
+      stale: false,
+      warning: null,
+      merged: false,
+      action: null,
+    })
+  })
+
+  it('refreshStaleFeatureBranch treats behind=1 as stale (not <=1 no-op)', () => {
+    let ff = false
+    const r = refreshStaleFeatureBranch(
+      fakeExec([
+        ['git rev-list --count HEAD..origin/main', { stdout: '1\n' }],
+        ['git rev-list --count origin/main..HEAD', { stdout: '0\n' }],
+        [
+          'git merge --ff-only origin/main',
+          () => {
+            ff = true
+            return { code: 0 }
+          },
+        ],
+      ]),
+      '/tmp',
+      '/tmp',
+      {},
+      true,
+    )
+    expect(ff).toBe(true)
+    expect(r.stale).toBe(true)
+    expect(r.warning).toMatch(/by 1 commit/)
+  })
+
+  it('refreshStaleFeatureBranch names empty non-numeric counts', () => {
+    expect(() =>
+      refreshStaleFeatureBranch(
+        fakeExec([
+          ['git rev-list --count HEAD..origin/main', { stdout: '   \n' }],
+        ]),
+        '/tmp',
+        '/tmp',
+        {},
+        true,
+      ),
+    ).toThrow(/\(empty\)/)
+  })
+
+  it('refreshStaleFeatureBranch fails on non-numeric behind', () => {
+    expect(() =>
+      refreshStaleFeatureBranch(
+        fakeExec([
+          ['git rev-list --count HEAD..origin/main', { stdout: 'NaN\n' }],
+        ]),
+        '/tmp',
+        '/tmp',
+        {},
+        true,
+      ),
+    ).toThrow(/non-numeric count/)
+  })
+
+  it('refreshStaleFeatureBranch fails on non-numeric ahead', () => {
+    expect(() =>
+      refreshStaleFeatureBranch(
+        fakeExec([
+          ['git rev-list --count HEAD..origin/main', { stdout: '2\n' }],
+          ['git rev-list --count origin/main..HEAD', { stdout: 'oops\n' }],
+        ]),
+        '/tmp',
+        '/tmp',
+        {},
+        true,
+      ),
+    ).toThrow(/non-numeric count/)
+  })
+
+  it('refreshStaleFeatureBranch fails on empty ahead stdout', () => {
+    expect(() =>
+      refreshStaleFeatureBranch(
+        fakeExec([
+          ['git rev-list --count HEAD..origin/main', { stdout: '2\n' }],
+          ['git rev-list --count origin/main..HEAD', { stdout: '\n' }],
+        ]),
+        '/tmp',
+        '/tmp',
+        {},
+        true,
+      ),
+    ).toThrow(/\(empty\)/)
+  })
+
+  it('refreshStaleFeatureBranch recreates via ff-only when ahead is 0', () => {
+    let ff = false
+    const r = refreshStaleFeatureBranch(
+      fakeExec([
+        ['git rev-list --count HEAD..origin/main', { stdout: '3\n' }],
+        ['git rev-list --count origin/main..HEAD', { stdout: '0\n' }],
+        [
+          'git merge --ff-only origin/main',
+          () => {
+            ff = true
+            return { code: 0, stdout: '', stderr: '' }
+          },
+        ],
+      ]),
+      '/tmp',
+      '/tmp',
+      {},
+      true,
+    )
+    expect(ff).toBe(true)
+    expect(r.action).toBe('recreate-ff')
+    expect(r.stale).toBe(true)
+    expect(r.warning).toMatch(/recreating/)
+  })
+
+  it('refreshStaleFeatureBranch merges when ahead > 0', () => {
+    let merged = false
+    const r = refreshStaleFeatureBranch(
+      fakeExec([
+        ['git rev-list --count HEAD..origin/main', { stdout: '2\n' }],
+        ['git rev-list --count origin/main..HEAD', { stdout: '4\n' }],
+        ['git fetch origin', { code: 0 }],
+        ['git merge-base --is-ancestor', { code: 1 }],
+        [
+          'git merge origin/main',
+          () => {
+            merged = true
+            return { code: 0, stdout: '', stderr: '' }
+          },
+        ],
+      ]),
+      '/tmp',
+      '/tmp',
+      {},
+      true,
+    )
+    expect(merged).toBe(true)
+    expect(r.action).toBe('merge')
+    expect(r.stale).toBe(true)
   })
 })
 
@@ -1230,7 +1642,6 @@ describe('finish', () => {
       ['git status --porcelain', { stdout: '' }],
       ['git branch --show-current', { stdout: 'feat/demo\n' }],
       ['git rev-list --count origin/main..HEAD', { stdout: '2\n' }],
-      ['pnpm verify:fast:quiet', { code: 0 }],
       ...extra,
     ])
   }
@@ -1329,7 +1740,6 @@ describe('finish', () => {
         ['git status --porcelain', { stdout: '' }],
         ['git branch --show-current', { stdout: 'feat/demo\n' }],
         ['git rev-list --count origin/main..HEAD', { stdout: '2\n' }],
-        ['pnpm verify:fast:quiet', { code: 0 }],
         ['git push', { code: 1, stderr: 'denied\n' }],
       ]),
       env: {},
@@ -1349,7 +1759,7 @@ describe('finish', () => {
     )
   })
 
-  it('verify failure includes real error tail', () => {
+  it('pre-push check failure surfaces compact problem lines', () => {
     const root = tmpRoot(true)
     const r = run(['finish', '--json', '--root', root], {
       cwd: root,
@@ -1359,18 +1769,60 @@ describe('finish', () => {
         ['git branch --show-current', { stdout: 'feat/demo\n' }],
         ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
         [
-          'pnpm verify:fast:quiet',
+          'git push',
           {
             code: 1,
-            stdout: 'ELIFECYCLE Command failed.\n',
-            stderr: 'Error: expected 1 to be 2\n at foo.test.ts:10\n',
+            stdout: 'lint: src/a.ts:1 error expected 1 to be 2\n',
+            stderr: 'hook failed\n',
           },
         ],
       ]),
       env: {},
     })
     expect(r.code).toBe(1)
-    expect(JSON.parse(r.err).error).toContain('expected 1 to be 2')
+    const j = JSON.parse(r.out)
+    expect(j.ok).toBe(false)
+    expect(j.summary).toContain('lint: src/a.ts:1 error expected 1 to be 2')
+    expect(j.summary).not.toContain('--no-verify')
+  })
+
+  it('finish never passes --no-verify and does not pre-run verify', () => {
+    const root = tmpRoot(true)
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, 'b\n')
+    const calls = []
+    const base = finishBase([
+      ['git push', { code: 0 }],
+      [
+        'gh pr list --head',
+        {
+          stdout: JSON.stringify({
+            number: 1,
+            url: 'https://example.com/pr/1',
+          }),
+        },
+      ],
+    ])
+    const r = run(
+      ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
+      {
+        cwd: root,
+        exec: (file, args, opts) => {
+          calls.push([file, [...args]])
+          return base(file, args, opts)
+        },
+        env: {},
+      },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(
+      calls.some(
+        (c) =>
+          c[0] === 'pnpm' &&
+          (c[1].includes('verify:fast:quiet') || c[1].includes('check')),
+      ),
+    ).toBe(false)
+    expect(calls.some((c) => c[1].includes('--no-verify'))).toBe(false)
   })
 
   it('one push per call and persists budget', () => {
@@ -1699,8 +2151,7 @@ describe('finish', () => {
         return { code: 0, stdout: 'feat/demo\n', stderr: '' }
       if (key.includes('git rev-list'))
         return { code: 0, stdout: '3\n', stderr: '' }
-      if (key.includes('verify:fast:quiet'))
-        return { code: 0, stdout: '', stderr: '' }
+
       if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
       if (key.includes('git merge-base --is-ancestor'))
         return { code: 0, stdout: '', stderr: '' }
@@ -2185,7 +2636,7 @@ describe('help / errors / defaultExec / main', () => {
       ['git status --porcelain', { stdout: '' }],
       ['git branch --show-current', { stdout: 'feat/demo\n' }],
       ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
-      ['pnpm verify:fast:quiet', { code: 0 }],
+
       ['git push', { code: 0 }],
       ['gh pr list --head', { stdout: 'null\n' }],
       ['gh pr create', { stdout: ansiUrl }],
@@ -2407,7 +2858,6 @@ describe('claimed set and merge helpers', () => {
           ['pnpm -s roadmap check', { code: 0 }],
           ['git add --', { code: 0 }],
           ['git commit --no-edit', { code: 0 }],
-          ['pnpm verify:fast:quiet', { code: 0 }],
         ]),
         conflictRoot,
         conflictRoot,
@@ -2494,7 +2944,6 @@ describe('claimed set and merge helpers', () => {
           ['pnpm install', { code: 0 }],
           ['git add --', { code: 0 }],
           ['git commit --no-edit', { code: 0 }],
-          ['pnpm verify:fast:quiet', { code: 0 }],
         ]),
         lockRoot,
         lockRoot,
@@ -2660,7 +3109,7 @@ describe('claimed set and merge helpers', () => {
           ['git status --porcelain', { stdout: '' }],
           ['git branch --show-current', { stdout: 'feat/demo\n' }],
           ['git rev-list', { stdout: '1\n' }],
-          ['pnpm verify:fast:quiet', { code: 0 }],
+
           ['git fetch origin', { code: 0 }],
           ['git merge-base --is-ancestor', { code: 1 }],
           ['git merge origin/main', { code: 1, stderr: 'conflict\n' }],
@@ -2695,8 +3144,7 @@ describe('claimed set and merge helpers', () => {
         return { code: 0, stdout: 'feat/demo\n', stderr: '' }
       if (key.includes('git rev-list'))
         return { code: 0, stdout: '1\n', stderr: '' }
-      if (key.includes('verify:fast:quiet'))
-        return { code: 0, stdout: '', stderr: '' }
+
       if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
       if (key.includes('git merge-base --is-ancestor')) {
         // First mergeOriginMainIfNeeded: already based; second (after reject): not
@@ -2766,8 +3214,7 @@ describe('claimed set and merge helpers', () => {
               return { code: 0, stdout: 'feat/demo\n', stderr: '' }
             if (key.includes('git rev-list'))
               return { code: 0, stdout: '1\n', stderr: '' }
-            if (key.includes('verify:fast:quiet'))
-              return { code: 0, stdout: '', stderr: '' }
+
             if (key.includes('git fetch')) throw new TypeError('boom-fetch')
             return { code: 1, stdout: '', stderr: `unhandled ${key}` }
           },
@@ -2812,8 +3259,7 @@ describe('claimed set and merge helpers', () => {
         return { code: 0, stdout: 'feat/demo\n', stderr: '' }
       if (key.includes('git rev-list'))
         return { code: 0, stdout: '1\n', stderr: '' }
-      if (key.includes('verify:fast:quiet'))
-        return { code: 0, stdout: '', stderr: '' }
+
       if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
       if (key.includes('git merge-base --is-ancestor'))
         return { code: 1, stdout: '', stderr: '' }
@@ -2857,7 +3303,7 @@ describe('claimed set and merge helpers', () => {
       ['git status --porcelain', { stdout: '' }],
       ['git branch --show-current', { stdout: 'feat/demo\n' }],
       ['git rev-list --count origin/main..HEAD', { stdout: '1\n' }],
-      ['pnpm verify:fast:quiet', { code: 0 }],
+
       ['git fetch origin', { code: 0 }],
     ])
     let pushCount = 0

@@ -14,7 +14,7 @@ preflight. Take `rules`/`template` from preflight output or
 `openspec instructions … --json`. Open `openspec/config.yaml` only for
 `operations`, at most once. Specs: `rg` + targeted ranges — never
 `openspec show | head -c`. Tick item checkboxes with targeted edits, not
-whole-file rewrites. Prefer `pnpm verify:fast:quiet` and
+whole-file rewrites. Prefer `pnpm check` (until only OK lines) and
 `pnpm test:e2e:changed:quiet` (once when green; CI burn-in owns flake proof;
 local `--repeat-each=3` only if a flake failed then passed locally). Generate
 the PR body once; cite issues as plain URLs only. Brief reviewers via

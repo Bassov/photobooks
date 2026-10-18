@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Roadmap CLI: docs/roadmap.md (index, order = priority) + docs/roadmap/<M>/<slug>.md (one file per item).
 // Zero dependencies, Node 22, ESM. `pnpm roadmap help`. Process rules: docs/roadmap/RULES.md.
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -1298,6 +1299,41 @@ export function run(argv, { cwd = process.cwd() } = {}) {
   }
 }
 
+/**
+ * When `pnpm roadmap check` should re-exec through `check.mjs --run`.
+ * Returns null for non-check commands or when already inside the wrapper.
+ * @param {string[]} argv
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ selfPath?: string, execPath?: string }} [opts]
+ * @returns {{ file: string, args: string[], env: NodeJS.ProcessEnv } | null}
+ */
+export function checkWrapperArgs(argv, env = process.env, opts = {}) {
+  if (!Array.isArray(argv) || argv[0] !== 'check') return null
+  if (env.PHOTOBOOKS_CHECK_INNER === '1') return null
+  const self = opts.selfPath ?? fileURLToPath(import.meta.url)
+  const execPath = opts.execPath ?? process.execPath
+  const checkJs = path.join(path.dirname(self), 'check.mjs')
+  const verbose =
+    argv.includes('--verbose') ||
+    argv.includes('-v') ||
+    env.CHECK_VERBOSE === '1'
+  const inner = argv.filter((a) => a !== '--verbose' && a !== '-v')
+  return {
+    file: execPath,
+    args: [
+      checkJs,
+      ...(verbose ? ['--verbose'] : []),
+      '--run',
+      'roadmap',
+      '--',
+      execPath,
+      self,
+      ...inner,
+    ],
+    env: { ...env, PHOTOBOOKS_CHECK_INNER: '1' },
+  }
+}
+
 /** Process entry: prints run() output and sets the exit code. */
 export function main(argv, io) {
   const r = run(argv)
@@ -1305,8 +1341,54 @@ export function main(argv, io) {
   if (r.err) io.stderr.write(r.err + '\n')
   io.exitCode = r.code
 }
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-)
-  main(process.argv.slice(2), process)
+
+/**
+ * Run the compact check wrapper (spawnSync + exit). Testable via deps.
+ * @param {{ file: string, args: string[], env: NodeJS.ProcessEnv }} wrap
+ * @param {{ spawnSync?: typeof spawnSync, exit?: (code: number) => void }} [deps]
+ */
+export function execCheckWrapper(wrap, deps = {}) {
+  const spawn = deps.spawnSync ?? spawnSync
+  const exit =
+    deps.exit ??
+    ((code) => {
+      process.exit(code)
+    })
+  const r = spawn(wrap.file, wrap.args, {
+    stdio: 'inherit',
+    env: wrap.env,
+  })
+  exit(r.status === null || r.status === undefined ? 1 : r.status)
+}
+
+/**
+ * CLI bootstrap for this module. Returns whether this process is the entry.
+ * @param {string | undefined} [argv1]
+ * @param {string[]} [argv]
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{
+ *   metaUrl?: string
+ *   spawnSync?: typeof spawnSync
+ *   exit?: (code: number) => void
+ *   mainFn?: typeof main
+ *   io?: { stdout: { write: Function }, stderr: { write: Function }, exitCode?: number }
+ * }} [deps]
+ */
+export function bootRoadmapCli(argv1, argv, env, deps = {}) {
+  const a1 = argv1 === undefined ? process.argv[1] : argv1
+  const av = argv === undefined ? process.argv.slice(2) : argv
+  const ev = env === undefined ? process.env : env
+  const metaUrl = deps.metaUrl ?? import.meta.url
+  if (!a1) return false
+  if (path.resolve(a1) !== fileURLToPath(metaUrl)) return false
+  const wrap = checkWrapperArgs(av, ev)
+  if (wrap) {
+    execCheckWrapper(wrap, deps)
+    return true
+  }
+  const mainFn = deps.mainFn ?? main
+  mainFn(av, deps.io ?? process)
+  return true
+}
+
+bootRoadmapCli()
