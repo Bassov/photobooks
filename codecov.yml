@@ -1,3 +1,9 @@
+# Wait for both coverage uploads (unit lcov + e2e lcov) before statuses/comments.
+# Top-level `notify:` is invalid YAML for Codecov; must nest under `codecov:`.
+codecov:
+  notify:
+    after_n_builds: 2
+
 coverage:
   status:
     project:
@@ -12,10 +18,6 @@ coverage:
         target: 85%
         threshold: 0%
 
-# Wait for unit + e2e uploads before Codecov notifies / finalizes patch.
-notify:
-  after_n_builds: 2
-
 bundle_analysis:
   warning_threshold: '5%'
   status: informational
@@ -26,6 +28,7 @@ flag_management:
 
 comment:
   # header+components per Codecov docs so the PR comment includes the component table
+  after_n_builds: 2
   layout: 'header, diff, flags, components, files'
   behavior: default
   require_changes: false
