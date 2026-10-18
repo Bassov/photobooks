@@ -435,8 +435,81 @@ export function estimateTokensFromChars(chars) {
   return Math.round(n / STATS_CHARS_PER_TOKEN)
 }
 
-function messageJsonSize(msg) {
-  return Buffer.byteLength(JSON.stringify(msg), 'utf8')
+/** Flatten user/system string or text-part content for classification. */
+export function userMessageText(msg) {
+  const c = msg?.content
+  if (typeof c === 'string') return c
+  if (!Array.isArray(c)) return ''
+  const parts = []
+  for (const p of c) {
+    if (
+      p &&
+      typeof p === 'object' &&
+      p.type === 'text' &&
+      typeof p.text === 'string'
+    ) {
+      parts.push(p.text)
+    }
+  }
+  return parts.join('\n')
+}
+
+export function isSystemNotificationUser(msg) {
+  return (
+    msg?.role === 'user' &&
+    userMessageText(msg).includes('<system_notification>')
+  )
+}
+
+export function isUserInfoPreamble(msg) {
+  return (
+    msg?.role === 'user' &&
+    userMessageText(msg).trimStart().startsWith('<user_info>')
+  )
+}
+
+export function isRoundStartingUser(msg) {
+  return (
+    msg?.role === 'user' &&
+    !isSystemNotificationUser(msg) &&
+    !isUserInfoPreamble(msg)
+  )
+}
+
+function jsonValueChars(v) {
+  if (v == null) return 0
+  if (typeof v === 'string') return v.length
+  try {
+    return JSON.stringify(v).length
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Content-only char count for token estimates: text / reasoning text /
+ * tool-call toolName+args / tool-result result. Excludes signatures,
+ * providerOptions, ids, and other metadata.
+ */
+export function messageContentChars(msg) {
+  if (!msg || typeof msg !== 'object') return 0
+  const c = msg.content
+  if (typeof c === 'string') return c.length
+  if (!Array.isArray(c)) return 0
+  let n = 0
+  for (const p of c) {
+    if (!p || typeof p !== 'object') continue
+    const t = p.type
+    if (t === 'text' || t === 'reasoning') {
+      if (typeof p.text === 'string') n += p.text.length
+    } else if (t === 'tool-call') {
+      if (typeof p.toolName === 'string') n += p.toolName.length
+      n += jsonValueChars(p.args ?? p.input)
+    } else if (t === 'tool-result' || t === 'tool_result') {
+      n += jsonValueChars(p.result)
+    }
+  }
+  return n
 }
 
 /** Read protobuf varint; returns [value, nextOffset]. */
@@ -560,33 +633,34 @@ export function normalizeRounds(rows) {
 }
 
 /**
- * Split transcript messages into rounds: skip leading non-user preamble,
- * then each user message starts a round. Token fields are char/3.3 estimates.
+ * Split transcript messages into agent rounds.
+ * Round starts: user messages that are not `<user_info>` preamble and not
+ * `<system_notification>` task-finished notices. Leading system + user_info
+ * are preamble. Token fields are content-chars/3.3 estimates (no signatures).
  */
 export function roundsFromStoreMessages(messages) {
   if (!Array.isArray(messages) || messages.length === 0)
     fail('store.db has no JSON role messages')
-  let i = 0
-  while (i < messages.length && messages[i]?.role !== 'user') i++
-  if (i >= messages.length) fail('store.db has no user messages after preamble')
-  const preamble = messages.slice(0, i)
-  const rest = messages.slice(i)
+  const startIdxs = []
+  for (let i = 0; i < messages.length; i++) {
+    if (isRoundStartingUser(messages[i])) startIdxs.push(i)
+  }
+  if (startIdxs.length === 0)
+    fail('store.db has no round-starting user messages after preamble')
+
   /** @type {object[][]} */
   const segments = []
-  /** @type {object[]|null} */
-  let cur = null
-  for (const m of rest) {
-    if (m?.role === 'user') {
-      if (cur) segments.push(cur)
-      cur = [m]
-    } else if (cur) {
-      cur.push(m)
-    }
+  for (let s = 0; s < startIdxs.length; s++) {
+    const from = startIdxs[s]
+    const to = s + 1 < startIdxs.length ? startIdxs[s + 1] : messages.length
+    segments.push(messages.slice(from, to))
   }
-  if (cur) segments.push(cur)
-  if (segments.length === 0) fail('store.db produced no rounds')
 
-  let priorChars = preamble.reduce((n, m) => n + messageJsonSize(m), 0)
+  let priorChars = 0
+  for (let i = 0; i < startIdxs[0]; i++) {
+    priorChars += messageContentChars(messages[i])
+  }
+
   return segments.map((seg) => {
     let cum = priorChars
     let peakContext = 0
@@ -599,15 +673,16 @@ export function roundsFromStoreMessages(messages) {
         const ctx = estimateTokensFromChars(cum)
         if (!sawAssistant || ctx > peakContext) peakContext = ctx
         sawAssistant = true
-        outputChars += messageJsonSize(m)
+        outputChars += messageContentChars(m)
       }
-      cum += messageJsonSize(m)
+      cum += messageContentChars(m)
     }
     if (!sawAssistant) peakContext = estimateTokensFromChars(cum)
     const input = estimateTokensFromChars(
-      seg
-        .filter((m) => m?.role === 'user')
-        .reduce((n, m) => n + messageJsonSize(m), 0) + priorChars,
+      priorChars +
+        seg
+          .filter((m) => m?.role === 'user' && !isSystemNotificationUser(m))
+          .reduce((n, m) => n + messageContentChars(m), 0),
     )
     priorChars = cum
     return {
@@ -623,13 +698,14 @@ export function roundsFromStoreMessages(messages) {
 
 function parseMetaJson(value) {
   if (value == null) return null
-  if (Buffer.isBuffer(value)) {
+  if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
+    const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
     try {
-      return JSON.parse(value.toString('utf8'))
+      return JSON.parse(buf.toString('utf8'))
     } catch {
       /* hex below */
     }
-    const s = value.toString('utf8')
+    const s = buf.toString('utf8')
     if (/^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0) {
       try {
         return JSON.parse(Buffer.from(s, 'hex').toString('utf8'))
@@ -1869,7 +1945,7 @@ function fmtStats(r) {
   ]
   if (r.estimated) {
     lines.push(
-      'note: token fields marked estimated use chars/3.3 from store.db message JSON sizes',
+      'note: token fields marked estimated use content chars/3.3 (no signatures/metadata)',
     )
   }
   r.rounds.forEach((row, i) => {
