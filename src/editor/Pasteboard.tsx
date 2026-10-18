@@ -221,15 +221,10 @@ export const Pasteboard = memo(function Pasteboard() {
       clearPendingStep()
       if (advance()) {
         scheduleStep()
-        scheduleStep()
       }
     }
 
     const scheduleStep = (): void => {
-      // Idempotent: a second call while a step is already pending is a no-op.
-      if (cancelled || paceScheduled.current) {
-        return
-      }
       paceScheduled.current = true
       const generation = paceGeneration.current + 1
       paceGeneration.current = generation
@@ -242,8 +237,6 @@ export const Pasteboard = memo(function Pasteboard() {
     }
 
     if (advance()) {
-      scheduleStep()
-      // Second call must hit the pending guard (exactly one rAF + watchdog).
       scheduleStep()
     }
     return () => {
@@ -384,8 +377,7 @@ export const Pasteboard = memo(function Pasteboard() {
   return (
     <div className="pasteboard" data-testid="pasteboard">
       <SpreadTemplateBar
-        // Non-null sentinel enables Add when the book has no spreads yet.
-        spreadId={markedId ?? (spreadIds.length === 0 ? '__empty__' : null)}
+        spreadId={markedId ?? null}
         onAddSpread={onAddSpread}
       />
       <CameraBar

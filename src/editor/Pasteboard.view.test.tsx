@@ -1,6 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makeBook } from '../core/testing/fixtures'
 import {
   dispatchBookOp,
   getSpreadIdsSnapshot,
@@ -306,7 +305,6 @@ describe('Pasteboard view wiring', () => {
       slotsAtZoom + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
     )
     expect(slots).toBeLessThan(23)
-    // Idempotent scheduleStep: exactly one pending rAF + 32ms watchdog.
     expect(hooks.rafQueue.length).toBe(1)
     expect(hooks.timeouts.filter((entry) => entry.ms === 32)).toHaveLength(1)
 
@@ -434,34 +432,20 @@ describe('Pasteboard view wiring', () => {
     expect(hooks.rafQueue.length).toBe(pendingAfterWatchdog)
   })
 
-  it('force-mounts a new spread at index 0 and at a later index immediately', () => {
+  it('force-mounts a later-index spread immediately via Add spread', () => {
+    // Index 0 is covered by applyForceMountIndex unit tests; Add is disabled on
+    // an empty book (no sentinel / fake spreadId).
     const hooks = stubPaceFrameHooks()
-    resetBookStore({
-      book: makeBook({ spreads: [] }),
-      sessionMeta: new Map(),
-      importRunning: false,
-      importExpectedCount: 0,
-    })
+    resetBookStore()
+    for (let i = 0; i < 12; i += 1) {
+      dispatchBookOp({ type: 'addSpread' })
+    }
     commitZoom(4, 0, 0)
     stubViewport(500, 400)
     render(<Pasteboard />)
-    dropInitialPaceCallbacks(hooks)
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
-    })
-    expect(slotIndices()).toEqual([0])
-    expect(getSpreadIdsSnapshot()).toHaveLength(1)
-
-    for (let i = 0; i < 14; i += 1) {
-      dispatchBookOp({ type: 'addSpread' })
-    }
-    act(() => {
-      commitZoom(4, 0, 0)
-    })
     flushPaceSteps(hooks)
     dropInitialPaceCallbacks(hooks)
-    expect(Math.max(...slotIndices())).toBeLessThan(14)
+    expect(Math.max(...slotIndices())).toBeLessThan(12)
 
     act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
