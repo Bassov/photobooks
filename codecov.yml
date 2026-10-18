@@ -2,11 +2,15 @@ coverage:
   status:
     project:
       default:
+        target: auto
+        threshold: 0.5%
+      floor:
         target: 80%
-        threshold: 1%
+        threshold: 0%
     patch:
       default:
-        informational: true
+        target: 85%
+        threshold: 0%
 
 bundle_analysis:
   warning_threshold: '5%'
@@ -17,7 +21,8 @@ flag_management:
     carryforward: true
 
 comment:
-  layout: 'reach,diff,flags,components,files'
+  # header+components per Codecov docs so the PR comment includes the component table
+  layout: 'header, diff, flags, components, files'
   behavior: default
   require_changes: false
   require_base: false
@@ -36,6 +41,30 @@ component_management:
       name: lib
       paths:
         - src/lib/**
+    - component_id: editor
+      name: editor
+      paths:
+        - src/editor/**
+    - component_id: project
+      name: project
+      paths:
+        - src/project/**
+    - component_id: assets
+      name: assets
+      paths:
+        - src/assets/**
+    - component_id: render
+      name: render
+      paths:
+        - src/render/**
+    - component_id: core
+      name: core
+      paths:
+        - src/core/**
+    - component_id: scripts
+      name: scripts
+      paths:
+        - scripts/**
 
 ignore:
   - 'e2e/**'
