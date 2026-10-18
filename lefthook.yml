@@ -13,4 +13,5 @@ pre-commit:
 pre-push:
   commands:
     verify:
-      run: pnpm verify:fast
+      # Strip Lefthook GIT_* then run verify; canary fails if tests mutate this repo.
+      run: node scripts/hook-clean-env.mjs pnpm verify:fast

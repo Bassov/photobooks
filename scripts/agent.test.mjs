@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { gitExec as gitExecIsolated, initTmpRepo } from './git-test-helper.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 import {
@@ -47,11 +48,6 @@ import {
   pushFailPath,
 } from './agent.mjs'
 
-// Structural isolation: Lefthook / ambient hooks set GIT_DIR against the real repo.
-for (const key of Object.keys(process.env)) {
-  if (key.startsWith('GIT_')) delete process.env[key]
-}
-
 const tmpDirs = []
 afterEach(() => {
   while (tmpDirs.length) {
@@ -70,31 +66,13 @@ function tmpRoot(withGit = false) {
   return d
 }
 
-function cleanGitEnv(extra = {}) {
-  return execEnvForCwd({ ...process.env, ...extra })
-}
-
-function gitExec(args, cwd, extra = {}) {
-  const { env: extraEnv, ...rest } = extra
-  return execFileSync('git', args, {
-    stdio: 'ignore',
-    ...rest,
-    cwd,
-    env: cleanGitEnv(extraEnv),
-  })
-}
-
 function gitInitRepo() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-git-'))
-  tmpDirs.push(d)
-  gitExec(['init'], d)
-  gitExec(['config', 'user.email', 't@t.com'], d)
-  gitExec(['config', 'user.name', 't'], d)
-  fs.writeFileSync(path.join(d, '.nvmrc'), '22\n')
-  fs.writeFileSync(path.join(d, 'tracked.txt'), 'base\n')
-  gitExec(['add', '.'], d)
-  gitExec(['commit', '-m', 'init'], d)
-  return d
+  return initTmpRepo(tmpDirs, { prefix: 'agent-git-' })
+}
+
+/** Test-local alias: fixtures use ignore stdio via the shared helper. */
+function gitExec(args, cwd, extra = {}) {
+  return gitExecIsolated(args, cwd, { stdio: 'ignore', ...extra })
 }
 
 function fakeExec(handlers) {
@@ -594,101 +572,6 @@ describe('nvmrc and push failures', () => {
     expect(fs.existsSync(p)).toBe(true)
     expect(readPushFailures(wt)).toEqual({ 'feat/wt-item': 1 })
     expect(p.includes('.git')).toBe(true)
-  })
-})
-
-describe('git fixture isolation', () => {
-  it('fixture helpers and defaultExec ignore decoy GIT_DIR / GIT_WORK_TREE', () => {
-    const decoy = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-decoy-'))
-    tmpDirs.push(decoy)
-    execFileSync('git', ['init'], {
-      cwd: decoy,
-      stdio: 'ignore',
-      env: cleanGitEnv(),
-    })
-    execFileSync('git', ['config', 'user.email', 'decoy@example.com'], {
-      cwd: decoy,
-      stdio: 'ignore',
-      env: cleanGitEnv(),
-    })
-    execFileSync('git', ['config', 'user.name', 'decoy'], {
-      cwd: decoy,
-      stdio: 'ignore',
-      env: cleanGitEnv(),
-    })
-    fs.writeFileSync(path.join(decoy, 'keep.txt'), 'decoy\n')
-    execFileSync('git', ['add', 'keep.txt'], {
-      cwd: decoy,
-      stdio: 'ignore',
-      env: cleanGitEnv(),
-    })
-    execFileSync('git', ['commit', '-m', 'decoy base'], {
-      cwd: decoy,
-      stdio: 'ignore',
-      env: cleanGitEnv(),
-    })
-    const decoyGit = path.join(decoy, '.git')
-    const gitOut = (args) => {
-      try {
-        return execFileSync('git', args, {
-          cwd: decoy,
-          encoding: 'utf8',
-          env: cleanGitEnv(),
-        })
-      } catch (e) {
-        return String(e.stdout ?? '')
-      }
-    }
-    const snapshot = () => ({
-      bare: (gitOut(['config', '--get', 'core.bare']) || 'false').trim(),
-      name: gitOut(['config', '--get', 'user.name']).trim(),
-      email: gitOut(['config', '--get', 'user.email']).trim(),
-      refs: gitOut(['show-ref']),
-      worktrees: gitOut(['worktree', 'list', '--porcelain']),
-      head: gitOut(['rev-parse', 'HEAD']).trim(),
-    })
-    const before = snapshot()
-    expect(before.name).toBe('decoy')
-    expect(before.email).toBe('decoy@example.com')
-
-    process.env.GIT_DIR = decoyGit
-    process.env.GIT_WORK_TREE = decoy
-    try {
-      const primary = gitInitRepo()
-      gitExec(['branch', '-M', 'main'], primary, {
-        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
-      })
-      const wt = path.join(
-        os.tmpdir(),
-        `agent-proof-wt-${path.basename(primary)}`,
-      )
-      tmpDirs.push(wt)
-      gitExec(['worktree', 'add', wt, '-b', 'feat/proof'], primary, {
-        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
-      })
-      fs.writeFileSync(path.join(wt, 'extra.txt'), 'x\n')
-      gitExec(['add', 'extra.txt'], wt, {
-        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
-      })
-      gitExec(['commit', '-m', 'proof'], wt, {
-        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
-      })
-      const r = defaultExec('git', ['rev-parse', '--show-toplevel'], {
-        cwd: primary,
-        env: {
-          ...process.env,
-          GIT_DIR: decoyGit,
-          GIT_WORK_TREE: decoy,
-        },
-      })
-      expect(r.code).toBe(0)
-      expect(path.resolve(r.stdout.trim())).toBe(path.resolve(primary))
-    } finally {
-      delete process.env.GIT_DIR
-      delete process.env.GIT_WORK_TREE
-    }
-
-    expect(snapshot()).toEqual(before)
   })
 })
 
@@ -3097,17 +2980,11 @@ describe('linked worktree preflight --slug', () => {
     expect(r.ok).toBe(true)
     expect(r.item.slug).toBe('wt-slug')
     expect(r.branch).toBe('feat/wt-slug')
-    const br = execFileSync('git', ['branch', '--show-current'], {
-      cwd: wt,
-      encoding: 'utf8',
-      env: cleanGitEnv(),
-    }).trim()
+    const br = String(gitExecIsolated(['branch', '--show-current'], wt)).trim()
     expect(br).toBe('feat/wt-slug')
-    const mainBr = execFileSync('git', ['branch', '--show-current'], {
-      cwd: primary,
-      encoding: 'utf8',
-      env: cleanGitEnv(),
-    }).trim()
+    const mainBr = String(
+      gitExecIsolated(['branch', '--show-current'], primary),
+    ).trim()
     expect(mainBr).toBe('main')
     expect(readRunStarted(wt)?.branch).toBe('feat/wt-slug')
   })

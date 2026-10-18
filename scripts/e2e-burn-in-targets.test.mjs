@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,11 +16,7 @@ import {
   selectBurnInTargets,
   transitiveImports,
 } from './e2e-burn-in-targets.mjs'
-
-// Structural isolation: ambient GIT_* (e.g. Lefthook) must not redirect fixture git.
-for (const key of Object.keys(process.env)) {
-  if (key.startsWith('GIT_')) delete process.env[key]
-}
+import { gitRun } from './git-test-helper.mjs'
 
 describe('isE2eSpec / isE2eSupportFile', () => {
   it.each([
@@ -565,9 +561,11 @@ describe('main CLI', () => {
   })
 
   it('spawned CLI prints targets from injected-equivalent git base', () => {
-    const probe = spawnSync('git', ['rev-parse', '--verify', 'origin/main'], {
-      encoding: 'utf8',
-    })
+    const probe = gitRun(
+      ['rev-parse', '--verify', 'origin/main'],
+      process.cwd(),
+      { allowFail: true },
+    )
     if (probe.status !== 0) {
       // Shallow CI checkouts often lack origin/main; exercise CLI via main() instead.
       let out = ''

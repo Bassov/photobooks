@@ -31,6 +31,7 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
+    setupFiles: ['./scripts/vitest.setup.mjs'],
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.mjs'],
     reporters: ['default', 'junit'],
     outputFile: {
