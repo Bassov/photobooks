@@ -547,6 +547,61 @@ describe('revealLaidOutSpread', () => {
     expect(scroll.scrollLeft).toBeGreaterThan(40)
   })
 
+  it('secondary-nudges horizontal when height does not fit yet but width does', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
+    let calls = 0
+    const slot = mockSlot(() => {
+      calls += 1
+      // Size + after 1st nudge: tall (heightFits false) and shifted right.
+      // Old AND gate skipped secondary; contain stayed false after settle.
+      if (calls <= 2) {
+        return rect(PORT.left + 200, PORT.top - 20, 200, PORT.height + 50)
+      }
+      if (calls <= 4) {
+        return rect(PORT.left + 200, PORT.top + 10, 200, 180)
+      }
+      return rect(PORT.left + 10, PORT.top + 10, 200, 180)
+    })
+    expect(revealLaidOutSpread(scroll, slot)).toBe(true)
+  })
+
+  it('secondary-nudges when width does not fit yet but height does', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
+    let calls = 0
+    const slot = mockSlot(() => {
+      calls += 1
+      // Size + after 1st nudge: widthFits false (wide) and shifted right so
+      // horizontal correction is needed; after settle width fits but still
+      // shifted until secondary moves scrollLeft (mirrors the tall twin).
+      if (calls <= 2) {
+        return rect(PORT.left + 200, PORT.top + 10, PORT.width + 40, 180)
+      }
+      if (calls <= 5) {
+        return rect(PORT.left + 200, PORT.top + 10, 200, 180)
+      }
+      return rect(PORT.left + 10, PORT.top + 10, 200, 180)
+    })
+    expect(revealLaidOutSpread(scroll, slot)).toBe(true)
+    expect(scroll.scrollLeft).toBeGreaterThan(40)
+  })
+
+  it('skips secondary nudge when neither axis fits the port', () => {
+    const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
+    let rectReads = 0
+    const slot = mockSlot(() => {
+      rectReads += 1
+      return rect(
+        PORT.left + 20,
+        PORT.top + 20,
+        PORT.width + 80,
+        PORT.height + 80,
+      )
+    })
+    expect(revealLaidOutSpread(scroll, slot)).toBe(false)
+    // size + after first nudge + final contain check (no secondary/third nudge).
+    expect(rectReads).toBe(3)
+  })
+
   it('nudges a third time when the second pass still overflows', () => {
     const scroll = mockScroll({ scrollTop: 50, scrollLeft: 40 })
     let calls = 0
