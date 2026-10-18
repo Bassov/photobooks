@@ -1,5 +1,6 @@
 import type { AssetSource } from '../assets'
 import { addSpread, CURRENT_SCHEMA_VERSION, type Book } from '../core'
+import { markE2eCoverageProbe } from '../lib/e2eCoverageProbe'
 import {
   createFsaLibraryStorage,
   createMemoryLibraryStorage,
@@ -1234,6 +1235,10 @@ export function exposeProjectSessionTestApi(): void {
     configureProjectSession,
     getSnapshot: getProjectSessionSnapshot,
   }
+  // Scratch proof: only the e2e preview build sets VITE_E2E (unit never does).
+  if (import.meta.env.VITE_E2E === '1' || import.meta.env.VITE_E2E === 'true') {
+    window.__photobooksE2eCoverageProbe = markE2eCoverageProbe()
+  }
 }
 
 declare global {
@@ -1264,6 +1269,7 @@ declare global {
       getSnapshot: typeof getProjectSessionSnapshot
     }
     __photobooksE2e?: boolean
+    __photobooksE2eCoverageProbe?: string
   }
 }
 
