@@ -28,18 +28,18 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Commands (reference)
 
-| Command                       | Use                                                      |
-| ----------------------------- | -------------------------------------------------------- |
-| `/next-roadmap-item`          | one roadmap item end to end (unattended)                 |
-| `pnpm roadmap`                | roadmap CLI: `next` / `show` / `add` / `done` / `check`  |
-| `pnpm agent`                  | pipeline stages: `preflight` / `finish` / `review-brief` |
-| `pnpm check`                  | deterministic gates (fail-all, compact OK lines)         |
-| `pnpm verify`                 | `pnpm check` + Playwright                                |
-| `pnpm test:e2e:changed:quiet` | changed e2e specs only (burn-in targets), quiet          |
-| `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)    |
-| `pnpm stryker:diff`           | mutations vs `origin/main`                               |
-| `pnpm test:lhci`              | Lighthouse budgets                                       |
-| `pnpm audit:ci`               | high-severity **production** dependency audit            |
+| Command                       | Use                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------- |
+| `/next-roadmap-item`          | one roadmap item end to end (unattended)                                      |
+| `pnpm roadmap`                | roadmap CLI: `next` / `show` / `add` / `done` / `check`                       |
+| `pnpm agent`                  | `preflight` (run card) / `finish` / `review-brief` / `instructions` / `stats` |
+| `pnpm check`                  | deterministic gates (fail-all, compact OK lines)                              |
+| `pnpm verify`                 | `pnpm check` + Playwright                                                     |
+| `pnpm test:e2e:changed:quiet` | changed e2e specs only (burn-in targets), quiet                               |
+| `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)                         |
+| `pnpm stryker:diff`           | mutations vs `origin/main`                                                    |
+| `pnpm test:lhci`              | Lighthouse budgets                                                            |
+| `pnpm audit:ci`               | high-severity **production** dependency audit                                 |
 
 ## Skills (on demand)
 
@@ -67,6 +67,8 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 ## Toolchain / Cursor Cloud
 
 Headless `cursor-agent -p` uses project `.cursor/cli.json` (allow/deny). Gate-file edits must be strictly stricter and listed in the design touch-set. The launcher (not the agent) must `source scripts/agent-env.sh` and start the agent with `--trust --force` so allowlisted tools are not stalled by Auto-review; `--force` still respects deny.
+
+Exploration defaults (unattended `-p`): scoped grep ≤30 hits; offset/limit reads for files >400 lines; no re-read of an unchanged file; no TodoWrite; Task reviewers get skill set + `pnpm agent review-brief --out <file>` path only. Prefer the preflight run card / `pnpm agent instructions` over denied raw OpenSpec/agent reads. `pnpm agent stats <path>` prints per-round tokens (exit 1 if peak context >300K or first-round input >400K).
 
 Agent shells: `source scripts/agent-env.sh` once so asdf shims + Node from `.nvmrc` are on PATH (does not write `.tool-versions`). Run `pnpm check` until it prints only OK lines; Lefthook pre-push and CI `checks` call the same entry. Playwright stays separate (`test:e2e:changed:quiet` locally; full e2e in CI). Local `--repeat-each=3` only if a flake already failed then passed locally. `pnpm agent finish` opens/updates the PR and stops (no CI watch).
 

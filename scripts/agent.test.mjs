@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -49,6 +50,20 @@ import {
   writePushFailures,
   writeRunStarted,
   pushFailPath,
+  blobIdsFromRootProtobuf,
+  roundsFromStoreMessages,
+  roundFromCursorUsage,
+  parseStatsRoundsJson,
+  loadStatsRounds,
+  estimateTokensFromChars,
+  messageContentChars,
+  isRoundStartingUser,
+  isSystemNotificationUser,
+  isUserInfoPreamble,
+  normalizeRounds,
+  readProtobufVarint,
+  readyArtifactIds,
+  STATS_CHARS_PER_TOKEN,
 } from './agent.mjs'
 
 const tmpDirs = []
@@ -110,6 +125,15 @@ function fakeExec(handlers) {
       return { code: 0, stdout: '', stderr: '' }
     if (key.includes('git rev-list --count HEAD..origin/main'))
       return { code: 0, stdout: '0\n', stderr: '' }
+    if (key.includes('openspec status'))
+      return {
+        code: 0,
+        stdout:
+          JSON.stringify({
+            artifacts: [{ id: 'proposal', status: 'ready' }],
+          }) + '\n',
+        stderr: '',
+      }
     return { code: 1, stdout: '', stderr: `unhandled: ${key}` }
   }
 }
@@ -124,6 +148,8 @@ const HELP_SNIPPETS = [
   'preflight [--slug S] [--skip a,b]',
   'finish --title T --body-file F',
   'review-brief [--change S] [--base REF] [--rules-json',
+  'instructions <artifact>',
+  'stats <path>',
   'source scripts/agent-env.sh',
   'Prefer --json for machine branching.',
 ]
@@ -635,6 +661,10 @@ describe('preflight', () => {
       template: '# Proposal\nfull',
       rules: ['Keep proposals under 400 words'],
     })
+    expect(j.runCard.ready).toEqual(['proposal'])
+    expect(j.runCard.artifacts.proposal).toEqual(j.instructions)
+    expect(j.runCard.procedure).toContain('openspec-planning-reviewer')
+    expect(j.runCard.procedure.split('\n').length).toBeLessThanOrEqual(10)
     expect(j.touchSet).toBe('TBD until design.md')
     expect(j.branch).toBe('feat/demo-item')
   })
@@ -673,23 +703,17 @@ describe('preflight', () => {
     ])
     const r = run(['preflight', '--root', root], { cwd: root, exec, env: {} })
     expect(r.code, r.err).toBe(0)
-    expect(r.out).toBe(
-      [
-        'ok: true',
-        'branch: feat/demo-item',
-        'slug: demo-item',
-        'tag: prep',
-        'title: t',
-        'file: f',
-        'milestone: M',
-        'goal: g1',
-        'goal: g2',
-        'skips: ',
-        'touchSet: TBD until design.md',
-        'checklistIds: ',
-        'instructions: rules=2 (use --json for template/rules)',
-      ].join('\n'),
+    expect(r.out).toContain('ok: true')
+    expect(r.out).toContain('slug: demo-item')
+    expect(r.out).toContain(
+      'instructions: rules=2 (use --json for template/rules)',
     )
+    expect(r.out).toContain('runCard.ready: proposal')
+    expect(r.out).toContain('--- runCard artifact: proposal (rules=2) ---')
+    expect(r.out).toContain('# Proposal\nline2')
+    expect(r.out).toContain('- rule-one')
+    expect(r.out).toContain('--- apply/archive procedure ---')
+    expect(r.out).toContain('openspec-planning-reviewer')
   })
 
   it('text mode prints (none) for empty rules and string goal', () => {
@@ -1040,6 +1064,15 @@ describe('preflight', () => {
         return { code: 0, stdout: '', stderr: '' }
       if (key.includes('git rev-list --count HEAD..origin/main'))
         return { code: 0, stdout: '0\n', stderr: '' }
+      if (key.includes('openspec status'))
+        return {
+          code: 0,
+          stdout:
+            JSON.stringify({
+              artifacts: [{ id: 'proposal', status: 'ready' }],
+            }) + '\n',
+          stderr: '',
+        }
       if (key.includes('openspec instructions'))
         return {
           code: 0,
@@ -1130,6 +1163,15 @@ describe('preflight', () => {
         return { code: 0, stdout: '0\n', stderr: '' }
       if (key.includes('openspec new'))
         return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('openspec status'))
+        return {
+          code: 0,
+          stdout:
+            JSON.stringify({
+              artifacts: [{ id: 'proposal', status: 'ready' }],
+            }) + '\n',
+          stderr: '',
+        }
       if (key.includes('openspec instructions'))
         return {
           code: 0,
@@ -1169,7 +1211,11 @@ describe('preflight', () => {
     expect(calls).toContainEqual(['openspec', ['new', 'change', 'argv-item']])
     expect(calls).toContainEqual([
       'openspec',
-      ['instructions', 'proposal', '--change', 'argv-item', '--json'],
+      ['status', '--change', 'argv-item', '--json'],
+    ])
+    expect(calls).toContainEqual([
+      'openspec',
+      ['instructions', 'proposal', '--json', '--change', 'argv-item'],
     ])
     expect(JSON.parse(r.out).skips).toEqual(['skip-me', 'remote-a'])
   })
@@ -2524,6 +2570,896 @@ describe('review-brief', () => {
       mustOkDiffNoIndex({ code: 1, stdout: 'diff\n', stderr: '' }, 'ok'),
     ).toEqual({ code: 1, stdout: 'diff\n', stderr: '' })
   })
+
+  it('writes brief to --out path', () => {
+    const repo = gitInitRepo()
+    const out = path.join(repo, 'brief-out.md')
+    const r = run(
+      [
+        'review-brief',
+        '--json',
+        '--change',
+        'missing',
+        '--out',
+        out,
+        '--rules-json',
+        '["r1"]',
+      ],
+      { cwd: repo, env: {} },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(fs.existsSync(out)).toBe(true)
+    const text = fs.readFileSync(out, 'utf8')
+    expect(text).toContain('slug: missing')
+    expect(text).toContain('r1')
+    expect(JSON.parse(r.out).outPath).toBe(out)
+  })
+})
+
+describe('instructions', () => {
+  it('returns template and rules for an artifact', () => {
+    const root = tmpRoot()
+    const exec = fakeExec([
+      [
+        'openspec instructions design',
+        {
+          stdout: JSON.stringify({
+            template: '# Design',
+            rules: ['Keep design under ~600 words.'],
+          }),
+        },
+      ],
+      ['git branch --show-current', { stdout: 'feat/demo\n' }],
+    ])
+    const r = run(['instructions', 'design', '--json', '--root', root], {
+      cwd: root,
+      exec,
+      env: {},
+    })
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j).toMatchObject({
+      ok: true,
+      change: 'demo',
+      artifact: 'design',
+      template: '# Design',
+      rules: ['Keep design under ~600 words.'],
+    })
+  })
+})
+
+/** Build a Cursor-shaped store.db: hex meta + blobs root protobuf + JSON messages. */
+function writeCursorShapeStoreDb(dbPath, messages, { inflateChars = 0 } = {}) {
+  const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
+  const digests = messages.map((_, i) => {
+    const d = Buffer.alloc(32, i + 1)
+    d[31] = i
+    return d
+  })
+  const rootId = Buffer.alloc(32, 0xaa).toString('hex')
+  const rootParts = []
+  for (const d of digests) {
+    rootParts.push(Buffer.from([0x0a, 0x20]), d)
+  }
+  // optional other field to exercise non-field-1 skip (field 5 varint)
+  rootParts.push(Buffer.from([0x28, 0x01]))
+  const rootBlob = Buffer.concat(rootParts)
+  const metaObj = {
+    agentId: 'test-agent',
+    latestRootBlobId: rootId,
+    name: 'Test',
+    mode: 'default',
+    isRunEverything: true,
+    createdAt: 1,
+    blobEncryptionKey: '00'.repeat(32),
+  }
+  const db = new DatabaseSync(dbPath)
+  db.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+  db.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+  db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(
+    '0',
+    Buffer.from(JSON.stringify(metaObj), 'utf8').toString('hex'),
+  )
+  db.prepare('INSERT INTO blobs (id, data) VALUES (?, ?)').run(rootId, rootBlob)
+  messages.forEach((msg, i) => {
+    const body = { ...msg }
+    if (inflateChars > 0 && i === 0) {
+      if (typeof body.content === 'string') {
+        body.content = body.content + 'x'.repeat(inflateChars)
+      } else {
+        body.content = 'x'.repeat(inflateChars)
+      }
+    }
+    db.prepare('INSERT INTO blobs (id, data) VALUES (?, ?)').run(
+      digests[i].toString('hex'),
+      Buffer.from(JSON.stringify(body), 'utf8'),
+    )
+  })
+  db.close()
+  return { rootId, digests }
+}
+
+describe('stats', () => {
+  it('prints metrics and exits 0 under thresholds', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'ok.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        rounds: [
+          {
+            input: 1000,
+            output: 200,
+            cacheRead: 50,
+            modelCalls: 1,
+            context: 1200,
+          },
+          {
+            input: 1500,
+            output: 300,
+            cacheRead: 80,
+            modelCalls: 2,
+            context: 1800,
+          },
+        ],
+      }),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.peakContext).toBe(1800)
+    expect(j.firstInput).toBe(1000)
+    expect(j.modelCalls).toBe(3)
+    expect(j.rounds).toHaveLength(2)
+  })
+
+  it('accepts JSONL rounds documents', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'rounds.jsonl')
+    fs.writeFileSync(
+      file,
+      [
+        JSON.stringify({
+          input: 11,
+          output: 2,
+          cacheRead: 1,
+          modelCalls: 1,
+          context: 15,
+        }),
+        JSON.stringify({
+          input: 20,
+          output: 3,
+          cacheRead: 0,
+          modelCalls: 1,
+          context: 25,
+        }),
+      ].join('\n') + '\n',
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.peakContext).toBe(25)
+    expect(j.rounds).toHaveLength(2)
+  })
+
+  it('parses cursor-agent -p --output-format json usage', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'agent-result.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        usage: {
+          inputTokens: 232162,
+          outputTokens: 56110,
+          cacheReadTokens: 7817216,
+          cacheWriteTokens: 0,
+        },
+      }),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.firstInput).toBe(232162)
+    expect(j.rounds[0]).toMatchObject({
+      input: 232162,
+      output: 56110,
+      cacheRead: 7817216,
+      modelCalls: 1,
+      context: 232162,
+      estimated: false,
+    })
+    expect(j.estimated).toBe(false)
+  })
+
+  it('parses JSONL of cursor-agent usage results', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'results.jsonl')
+    fs.writeFileSync(
+      file,
+      [
+        JSON.stringify({
+          type: 'result',
+          usage: {
+            inputTokens: 100,
+            outputTokens: 10,
+            cacheReadTokens: 1,
+          },
+        }),
+        JSON.stringify({
+          type: 'result',
+          usage: {
+            inputTokens: 200,
+            outputTokens: 20,
+            cacheReadTokens: 2,
+          },
+        }),
+      ].join('\n'),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.rounds).toHaveLength(2)
+    expect(j.peakContext).toBe(200)
+    expect(j.firstInput).toBe(100)
+  })
+
+  it('exits 1 when peak context exceeds 300K', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'over-peak.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        rounds: [
+          {
+            input: 100,
+            output: 10,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 300_001,
+          },
+        ],
+      }),
+    )
+    const r = run(['stats', file], { cwd: root, env: {} })
+    expect(r.code).toBe(1)
+    expect(r.out).toContain('peakContext: 300001')
+  })
+
+  it('exits 1 when first-round input exceeds 400K', () => {
+    const root = tmpRoot()
+    const file = path.join(root, 'over-first.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        rounds: [
+          {
+            input: 400_001,
+            output: 10,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 1000,
+          },
+        ],
+      }),
+    )
+    const r = run(['stats', file, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(1)
+    expect(JSON.parse(r.out).firstInput).toBe(400_001)
+  })
+
+  it('reads agentStats.rounds from store.db meta', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'store.db')
+    const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
+    const db = new DatabaseSync(dbPath)
+    db.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(
+      '0',
+      JSON.stringify({
+        agentStats: {
+          rounds: [
+            {
+              input: 10,
+              output: 2,
+              cacheRead: 1,
+              modelCalls: 1,
+              context: 20,
+            },
+          ],
+        },
+      }),
+    )
+    db.close()
+    const r = run(['stats', dbPath, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    expect(JSON.parse(r.out).peakContext).toBe(20)
+  })
+
+  it('estimates rounds from a real-shaped Cursor store.db', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'cursor-store.db')
+    writeCursorShapeStoreDb(dbPath, [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: '<user_info>\nOS: test\n' },
+      { role: 'user', content: 'hello-user' },
+      { role: 'assistant', content: 'hello-asst' },
+      { role: 'user', content: 'second' },
+      { role: 'assistant', content: 'reply2' },
+      { role: 'tool', content: [{ type: 'tool-result', result: 'ok' }] },
+    ])
+    const r = run(['stats', dbPath], { cwd: root, env: {} })
+    expect(r.code).toBe(0)
+    expect(r.out).toContain('estimated=true')
+    expect(r.out).toContain('content chars/3.3')
+    const j = JSON.parse(
+      run(['stats', dbPath, '--json'], { cwd: root, env: {} }).out,
+    )
+    expect(j.estimated).toBe(true)
+    expect(j.rounds).toHaveLength(2)
+    expect(j.rounds[0].modelCalls).toBe(1)
+    expect(j.rounds[0].estimated).toBe(true)
+    expect(j.peakContext).toBeGreaterThan(0)
+  })
+
+  it('ignores system_notification users and reasoning signatures in store.db peak', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'notif-store.db')
+    const hugeSig = 'S'.repeat(50_000)
+    writeCursorShapeStoreDb(dbPath, [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: '<user_info>\nworkspace\n' },
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'first prompt' }],
+      },
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'reasoning',
+            text: 'plan',
+            signature: hugeSig,
+            providerOptions: { cursor: { x: 1 } },
+          },
+          { type: 'text', text: 'answer1' },
+          {
+            type: 'tool-call',
+            toolName: 'Shell',
+            args: { command: 'true' },
+            toolCallId: 'c1',
+          },
+        ],
+        id: 'msg-1',
+        providerOptions: { cursor: { modelProviderMessageId: 'm1' } },
+      },
+      {
+        role: 'tool',
+        content: [
+          {
+            type: 'tool-result',
+            toolName: 'Shell',
+            result: 'ok',
+            toolCallId: 'c1',
+            experimental_content: [{ type: 'text', text: 'ignored-meta' }],
+          },
+        ],
+      },
+      {
+        role: 'user',
+        content:
+          '<timestamp>t</timestamp>\n<system_notification>\nThe following task has finished.\n</system_notification>',
+      },
+      {
+        role: 'user',
+        content:
+          '<timestamp>t2</timestamp>\n<system_notification>\ntask 2 done\n</system_notification>',
+      },
+      { role: 'user', content: 'second prompt' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'reasoning', text: '', signature: hugeSig },
+          { type: 'text', text: 'answer2' },
+        ],
+      },
+    ])
+    const j = JSON.parse(
+      run(['stats', dbPath, '--json'], { cwd: root, env: {} }).out,
+    )
+    expect(j.rounds).toHaveLength(2)
+    expect(j.rounds[0].modelCalls).toBe(1)
+    expect(j.rounds[1].modelCalls).toBe(1)
+    expect(j.peakContext).toBeLessThan(5_000)
+    const asst = {
+      role: 'assistant',
+      content: [
+        { type: 'reasoning', text: 'plan', signature: hugeSig },
+        { type: 'text', text: 'answer1' },
+      ],
+    }
+    expect(messageContentChars(asst)).toBe('plan'.length + 'answer1'.length)
+    expect(messageContentChars(asst)).toBeLessThan(hugeSig.length)
+  })
+
+  it('exits 1 on real-shaped store.db whose estimated peak exceeds 300K', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'huge-store.db')
+    writeCursorShapeStoreDb(
+      dbPath,
+      [
+        { role: 'system', content: 's' },
+        { role: 'user', content: '<user_info>\nx\n' },
+        { role: 'user', content: 'u' },
+        { role: 'assistant', content: 'a' },
+      ],
+      { inflateChars: 1_050_000 },
+    )
+    const r = run(['stats', dbPath, '--json'], { cwd: root, env: {} })
+    expect(r.code).toBe(1)
+    expect(JSON.parse(r.out).peakContext).toBeGreaterThan(300_000)
+  })
+
+  it('blobIdsFromRootProtobuf extracts field-1 digests and skips other fields', () => {
+    const id = Buffer.alloc(32, 0x42)
+    const rootBuf = Buffer.concat([
+      Buffer.from([0x0a, 0x20]),
+      id,
+      Buffer.from([0x28, 0x03]),
+      Buffer.from([0x12, 0x03, 0x61, 0x62, 0x63]),
+      Buffer.from([0x09, 1, 2, 3, 4, 5, 6, 7, 8]),
+      // field 3 wire type 5 (32-bit) — skip 4 bytes
+      Buffer.from([0x1d, 9, 8, 7, 6]),
+    ])
+    expect(blobIdsFromRootProtobuf(rootBuf)).toEqual([id.toString('hex')])
+    expect(() => blobIdsFromRootProtobuf(Buffer.from([0x0b, 0x00]))).toThrow(
+      /unsupported protobuf wire type/,
+    )
+    expect(() => readProtobufVarint(Buffer.from([0x80]), 0)).toThrow(
+      /truncated/,
+    )
+    expect(() => readProtobufVarint(Buffer.alloc(12, 0x80), 0)).toThrow(
+      /too long/,
+    )
+  })
+
+  it('roundsFromStoreMessages skips notifications and user_info preamble', () => {
+    expect(
+      isUserInfoPreamble({ role: 'user', content: '<user_info>\na' }),
+    ).toBe(true)
+    expect(
+      isSystemNotificationUser({
+        role: 'user',
+        content: 'x <system_notification> y',
+      }),
+    ).toBe(false)
+    expect(
+      isSystemNotificationUser({
+        role: 'user',
+        content:
+          '<timestamp>t</timestamp>\n<system_notification>\ndone\n</system_notification>',
+      }),
+    ).toBe(true)
+    expect(
+      isSystemNotificationUser({
+        role: 'assistant',
+        content: '<system_notification>\nx\n</system_notification>',
+      }),
+    ).toBe(false)
+    expect(isRoundStartingUser({ role: 'user', content: 'go' })).toBe(true)
+    const rounds = roundsFromStoreMessages([
+      { role: 'system', content: 's' },
+      { role: 'user', content: '<user_info>\nOS\n' },
+      { role: 'user', content: 'u1' },
+      { role: 'assistant', content: [{ type: 'text', text: 'a1' }] },
+      {
+        role: 'user',
+        content: '<system_notification>\ndone\n</system_notification>',
+      },
+      { role: 'user', content: 'u2' },
+      { role: 'assistant', content: [{ type: 'text', text: 'a2' }] },
+      { role: 'assistant', content: [{ type: 'text', text: 'a3' }] },
+    ])
+    expect(rounds).toHaveLength(2)
+    expect(rounds[0].modelCalls).toBe(1)
+    expect(rounds[1].modelCalls).toBe(2)
+    expect(rounds.every((x) => x.estimated)).toBe(true)
+    expect(() => roundsFromStoreMessages([])).toThrow(/no JSON role/)
+    expect(() =>
+      roundsFromStoreMessages([{ role: 'system', content: 'only' }]),
+    ).toThrow(/no round-starting/)
+  })
+
+  it('counts three store.db rounds when a later prompt quotes system_notification', () => {
+    const root = tmpRoot()
+    const dbPath = path.join(root, 'quoted-notif-store.db')
+    writeCursorShapeStoreDb(dbPath, [
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: '<user_info>\nOS: test\n' },
+      { role: 'user', content: '<cursor_commands>\nround-1 prompt\n' },
+      { role: 'assistant', content: 'a1' },
+      {
+        role: 'user',
+        content:
+          '<timestamp>t</timestamp>\n<system_notification>\ntask finished\n</system_notification>',
+      },
+      { role: 'user', content: '<cursor_commands>\nround-2 prompt\n' },
+      { role: 'assistant', content: 'a2' },
+      {
+        role: 'user',
+        content:
+          '<cursor_commands>\nfix: a prompt that quotes `<system_notification>` in its body must still start a round.\n',
+      },
+      { role: 'assistant', content: 'a3' },
+    ])
+    const j = JSON.parse(
+      run(['stats', dbPath, '--json'], { cwd: root, env: {} }).out,
+    )
+    expect(j.rounds).toHaveLength(3)
+    expect(j.rounds.every((r) => r.estimated)).toBe(true)
+  })
+
+  it('roundFromCursorUsage and parseStatsRoundsJson reject bad inputs', () => {
+    expect(() => roundFromCursorUsage(null)).toThrow(/usage object/)
+    expect(() =>
+      roundFromCursorUsage({ inputTokens: -1, outputTokens: 1 }),
+    ).toThrow(/inputTokens/)
+    expect(() =>
+      roundFromCursorUsage(
+        { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0 },
+        -2,
+      ),
+    ).toThrow(/modelCalls/)
+    expect(() => parseStatsRoundsJson('')).toThrow(/empty/)
+    expect(() => parseStatsRoundsJson('{')).toThrow(/invalid/)
+    expect(() => parseStatsRoundsJson('{"no":"usage"}')).toThrow(/must be/)
+    expect(() => parseStatsRoundsJson('not-json\n{')).toThrow(/JSONL/)
+    expect(() => parseStatsRoundsJson('{"x":1}\n{')).toThrow(/JSONL/)
+    expect(() => estimateTokensFromChars(-1)).toThrow(/non-negative/)
+    expect(estimateTokensFromChars(STATS_CHARS_PER_TOKEN * 10)).toBe(10)
+    expect(
+      normalizeRounds([{ inputTokens: 5, outputTokens: 1 }])[0].input,
+    ).toBe(5)
+    expect(() => normalizeRounds([])).toThrow(/non-empty/)
+    expect(() => normalizeRounds([null])).toThrow(/not an object/)
+    expect(() =>
+      normalizeRounds([{ input: 1, output: 1, context: -1 }]),
+    ).toThrow(/invalid context/)
+    expect(
+      parseStatsRoundsJson(
+        JSON.stringify([
+          {
+            type: 'result',
+            usage: { inputTokens: 9, outputTokens: 2, cacheReadTokens: 1 },
+          },
+          {
+            type: 'result',
+            usage: { inputTokens: 8, outputTokens: 3, cacheReadTokens: 0 },
+          },
+        ]),
+      ),
+    ).toHaveLength(2)
+    expect(readyArtifactIds(null)).toEqual([])
+    expect(
+      readyArtifactIds({ artifacts: [{ id: 'a', status: 'done' }] }),
+    ).toEqual([])
+  })
+
+  it('loadStatsRounds fails loudly on missing path and empty cursor db', () => {
+    expect(() => loadStatsRounds('/no/such/stats.json')).toThrow(/not found/)
+    const root = tmpRoot()
+    const emptyDb = path.join(root, 'empty.db')
+    const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
+    const db = new DatabaseSync(emptyDb)
+    db.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db.close()
+    expect(() => loadStatsRounds(emptyDb)).toThrow(/meta is empty/)
+    const noRoot = path.join(root, 'noroots.db')
+    const db2 = new DatabaseSync(noRoot)
+    db2.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db2.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db2
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(JSON.stringify({ agentId: 'x' }), 'utf8').toString('hex'),
+      )
+    db2.close()
+    expect(() => loadStatsRounds(noRoot)).toThrow(/latestRootBlobId/)
+
+    const missingBlob = path.join(root, 'missing-root-blob.db')
+    const db3 = new DatabaseSync(missingBlob)
+    db3.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db3.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    const fakeRoot = 'ab'.repeat(32)
+    db3
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(
+          JSON.stringify({ latestRootBlobId: fakeRoot }),
+          'utf8',
+        ).toString('hex'),
+      )
+    db3.close()
+    expect(() => loadStatsRounds(missingBlob)).toThrow(/missing root blob/)
+
+    const emptyRoot = path.join(root, 'empty-root.db')
+    const db4 = new DatabaseSync(emptyRoot)
+    db4.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db4.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    const rid = 'cd'.repeat(32)
+    db4
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(JSON.stringify({ latestRootBlobId: rid }), 'utf8').toString(
+          'hex',
+        ),
+      )
+    db4
+      .prepare('INSERT INTO blobs (id, data) VALUES (?, ?)')
+      .run(rid, Buffer.from([0x28, 0x01]))
+    db4.close()
+    expect(() => loadStatsRounds(emptyRoot)).toThrow(/no field-1/)
+
+    const plain = path.join(root, 'plain-meta.db')
+    const db5 = new DatabaseSync(plain)
+    db5.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB)')
+    db5.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db5.prepare('INSERT INTO meta (key, value) VALUES (?, ?)').run(
+      '0',
+      Buffer.from(
+        JSON.stringify({
+          rounds: [
+            {
+              input: 3,
+              output: 1,
+              cacheRead: 0,
+              modelCalls: 1,
+              context: 3,
+            },
+          ],
+        }),
+        'utf8',
+      ),
+    )
+    db5.close()
+    expect(loadStatsRounds(plain)[0].input).toBe(3)
+
+    const badJsonBlob = path.join(root, 'bad-json-blob.db')
+    writeCursorShapeStoreDb(badJsonBlob, [
+      { role: 'system', content: 's' },
+      { role: 'user', content: '<user_info>\n' },
+      { role: 'user', content: 'go' },
+    ])
+    const db6 = new DatabaseSync(badJsonBlob)
+    const rows = db6.prepare('SELECT id, data FROM blobs').all()
+    const msg = rows.find((r) => Buffer.from(r.data)[0] === 0x7b)
+    expect(msg).toBeTruthy()
+    db6
+      .prepare('UPDATE blobs SET data = ? WHERE id = ?')
+      .run(Buffer.from('{not-json', 'utf8'), msg.id)
+    db6.close()
+    expect(() => loadStatsRounds(badJsonBlob)).toThrow(/not valid JSON/)
+
+    const hexInBuffer = path.join(root, 'hex-in-buffer-meta.db')
+    const db7 = new DatabaseSync(hexInBuffer)
+    db7.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB)')
+    db7.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    const roundsPayload = {
+      rounds: [
+        {
+          input: 4,
+          output: 1,
+          cacheRead: 0,
+          modelCalls: 1,
+          context: 4,
+        },
+      ],
+    }
+    db7
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(
+          Buffer.from(JSON.stringify(roundsPayload), 'utf8').toString('hex'),
+          'utf8',
+        ),
+      )
+    db7.close()
+    expect(loadStatsRounds(hexInBuffer)[0].input).toBe(4)
+
+    const badHexJson = path.join(root, 'bad-hex-json-meta.db')
+    const db8 = new DatabaseSync(badHexJson)
+    db8.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB)')
+    db8.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db8
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run(
+        '0',
+        Buffer.from(Buffer.from('{nope', 'utf8').toString('hex'), 'utf8'),
+      )
+    db8.close()
+    expect(() => loadStatsRounds(badHexJson)).toThrow(/latestRootBlobId/)
+
+    const nonHexBuf = path.join(root, 'non-hex-buf-meta.db')
+    const db9 = new DatabaseSync(nonHexBuf)
+    db9.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB)')
+    db9.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db9
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run('0', Buffer.from('{not-json-or-hex', 'utf8'))
+    db9.close()
+    expect(() => loadStatsRounds(nonHexBuf)).toThrow(/latestRootBlobId/)
+
+    const badHexString = path.join(root, 'bad-hex-string-meta.db')
+    const db10 = new DatabaseSync(badHexString)
+    db10.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db10.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db10
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run('0', Buffer.from('{nope', 'utf8').toString('hex'))
+    db10.close()
+    expect(() => loadStatsRounds(badHexString)).toThrow(/latestRootBlobId/)
+
+    const junkString = path.join(root, 'junk-string-meta.db')
+    const db11 = new DatabaseSync(junkString)
+    db11.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    db11.exec('CREATE TABLE blobs (id TEXT PRIMARY KEY, data BLOB)')
+    db11
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?)')
+      .run('0', 'not-json-and-NOT-hex!!')
+    db11.close()
+    expect(() => loadStatsRounds(junkString)).toThrow(/latestRootBlobId/)
+  })
+
+  it('parseStatsRoundsJson covers array normalize and non-JSONL rejection', () => {
+    expect(
+      parseStatsRoundsJson(
+        JSON.stringify([
+          {
+            input: 1,
+            output: 1,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 1,
+          },
+          {
+            input: 2,
+            output: 1,
+            cacheRead: 0,
+            modelCalls: 1,
+            context: 2,
+          },
+        ]),
+      ),
+    ).toHaveLength(2)
+    expect(() =>
+      parseStatsRoundsJson(
+        'true\n{"input":1,"output":1,"cacheRead":0,"modelCalls":1,"context":1}',
+      ),
+    ).toThrow(/must be JSON/)
+    const circ = {
+      role: 'assistant',
+      content: [{ type: 'tool-call', args: {} }],
+    }
+    circ.content[0].args.self = circ.content[0].args
+    expect(messageContentChars(circ)).toBe(0)
+  })
+
+  it('fails when openspec status JSON is invalid', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
+      recursive: true,
+    })
+    const item = { slug: 'demo-item', tag: 'prep', title: 't', file: 'f' }
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ...envOk,
+        ['git status --porcelain', { stdout: '' }],
+        ['git fetch origin', { code: 0 }],
+        ['git switch main', { code: 0 }],
+        ['git pull --ff-only', { code: 0 }],
+        ['gh pr list', { stdout: '' }],
+        ['git branch -r', { stdout: '' }],
+        ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+        ['git switch -c feat/demo-item', { code: 0 }],
+        ['openspec status', { stdout: 'not-status-json{' }],
+      ]),
+      env: {},
+    })
+    expect(JSON.parse(r.err).error).toMatch(
+      /^openspec status returned invalid JSON:/,
+    )
+  })
+
+  it('instructions text mode and stats usage without path error branches', () => {
+    const root = tmpRoot()
+    const exec = fakeExec([
+      [
+        'openspec instructions proposal',
+        {
+          stdout: JSON.stringify({
+            template: '# T',
+            rules: ['r'],
+          }),
+        },
+      ],
+      ['git branch --show-current', { stdout: 'feat/demo\n' }],
+    ])
+    const r = run(['instructions', 'proposal', '--root', root], {
+      cwd: root,
+      exec,
+      env: {},
+    })
+    expect(r.code).toBe(0)
+    expect(r.out).toContain('--- template ---')
+    expect(r.out).toContain('# T')
+    expect(r.out).toContain('- r')
+    const missing = run(['stats'], { cwd: root, env: {} })
+    expect(missing.code).toBe(2)
+    expect(missing.err).toMatch(/usage: pnpm agent stats/)
+    const noArt = run(['instructions'], { cwd: root, env: {} })
+    expect(noArt.code).toBe(2)
+  })
+
+  it('text preflight prints run-card branches without template or rules array', () => {
+    const root = tmpRoot()
+    const item = {
+      slug: 'card-item',
+      tag: 'prep',
+      title: 't',
+      file: 'f',
+      milestone: 'M',
+      goal: ['g'],
+    }
+    const exec = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git fetch origin', { code: 0 }],
+      ['git switch main', { code: 0 }],
+      ['git pull --ff-only', { code: 0 }],
+      ['gh pr list', { stdout: '' }],
+      ['git branch -r', { stdout: '' }],
+      ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+      ['git switch -c feat/card-item', { code: 0 }],
+      ['openspec new change', { code: 0 }],
+      [
+        'openspec status',
+        {
+          stdout: JSON.stringify({
+            artifacts: [
+              { id: 'proposal', status: 'ready' },
+              { id: 'design', status: 'ready' },
+            ],
+          }),
+        },
+      ],
+      [
+        'openspec instructions proposal',
+        {
+          stdout: JSON.stringify({ template: null, rules: [] }),
+        },
+      ],
+      [
+        'openspec instructions design',
+        {
+          stdout: JSON.stringify({ template: '', rules: 'not-array' }),
+        },
+      ],
+    ])
+    const r = run(['preflight', '--root', root], { cwd: root, exec, env: {} })
+    expect(r.code, r.err).toBe(0)
+    expect(r.out).toContain('runCard.ready: proposal,design')
+    expect(r.out).toContain('--- runCard artifact: proposal (rules=0) ---')
+    expect(r.out).toContain('--- runCard artifact: design (rules=0) ---')
+    expect(r.out).toContain('--- apply/archive procedure ---')
+  })
 })
 
 describe('help / errors / defaultExec / main', () => {
@@ -3402,7 +4338,18 @@ describe('linked worktree preflight --slug', () => {
           stderr: '',
         }
       }
-      if (key.includes('openspec new') || key.includes('openspec instructions'))
+      if (key.includes('openspec new'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('openspec status'))
+        return {
+          code: 0,
+          stdout:
+            JSON.stringify({
+              artifacts: [{ id: 'proposal', status: 'ready' }],
+            }) + '\n',
+          stderr: '',
+        }
+      if (key.includes('openspec instructions'))
         return {
           code: 0,
           stdout: JSON.stringify({ template: 'T', rules: ['r'] }),

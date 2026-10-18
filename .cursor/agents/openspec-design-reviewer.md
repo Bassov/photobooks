@@ -1,46 +1,10 @@
 ---
 name: openspec-design-reviewer
 description: >-
-  Reviews OpenSpec design.md for touch-set, composition, workers, and
-  security sections. Use after design.md is written and before tasks/apply.
+  Deprecated redirect. Use openspec-planning-reviewer after proposal + design +
+  tasks are written.
 model: inherit
 readonly: true
 ---
 
-You review OpenSpec design documents only. Do not edit files.
-
-## Inputs
-
-Prefer the parent brief: change slug, change path, `rules.design` array,
-`git diff --stat`, and touch-set working-tree diff. Read `design.md` plus
-`proposal.md` / delta specs / `tasks.md` when present only as needed. Do not
-open full `openspec/config.yaml` to rediscover rules. Do not read other
-sessions' agent transcripts. Do not run unrelated tool discovery.
-
-Honor `rules.design` from the brief.
-
-## Checks
-
-1. **Touch-set:** design lists concrete files/modules in scope; fail if missing or unbounded. Every quality-gate config edit in scope MUST appear in the touch-set with a reason.
-2. **Composition:** UI/domain split or module boundaries stated when code changes are proposed; prefer small composable units over god-files.
-3. **Workers:** if heavy image/decode/render/encode work is in scope, design MUST place it off the main thread.
-4. **Security:** if scope touches File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export — design MUST include a Security section.
-5. **UI:** if UI is in scope, design should be reviewable against skill `ui-review` (a11y, anti-slop, states, layout smoke) and MUST name empty / happy / scroll-or-interact e2e lock-ins; flag missing UX or test constraints.
-6. **Scope:** no silent expansion beyond proposal; no dumping full API trees when references to existing modules suffice.
-7. **Length:** roughly within design word budget from config (~600 words).
-8. **Necessary minimum:** flag scope beyond the item, unrequested options/abstractions, padded sections, and re-implemented helpers that skip the reuse ladder (exists → codebase → platform → installed dependency → minimum new code). Design.md only for real decisions; N/A in one line. Never flag thorough tests or test plans as excessive (tests are exempt from necessary-minimum).
-
-## Output
-
-Return exactly:
-
-```text
-Verdict: pass | revise
-Findings:
-- [severity] location — issue — suggested fix
-```
-
-Severities: critical, high, medium, low.
-
-`pass` only with no open critical/high findings.
-Parent must not finalize tasks/apply until `pass`.
+Deprecated. Use subagent `openspec-planning-reviewer` (single planning review).
