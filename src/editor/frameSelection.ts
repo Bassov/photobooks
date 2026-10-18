@@ -11,6 +11,26 @@ let source: FrameSource | null = null
 let syncing = false
 const listeners = new Set<Listener>()
 
+/** Sentinel when the move source is on another spread (key is `''`). */
+const SOURCE_ON_ANOTHER_SPREAD: FrameSource = {
+  spreadId: '',
+  frameId: '',
+}
+
+/** Decode `getSpreadFrameSourceKey` for ConnectedSpreadView labels. */
+export function sourceFromKey(
+  spreadId: string,
+  key: string | null,
+): FrameSource | null {
+  if (key === null) {
+    return null
+  }
+  if (key === '') {
+    return SOURCE_ON_ANOTHER_SPREAD
+  }
+  return { spreadId, frameId: key }
+}
+
 export function getFrameSource(): FrameSource | null {
   return source
 }

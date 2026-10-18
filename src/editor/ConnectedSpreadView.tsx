@@ -14,8 +14,8 @@ import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
 import {
   frameControlLabel,
   getSpreadFrameSourceKey,
+  sourceFromKey,
   subscribeSpreadFrameSource,
-  type FrameSource,
 } from './frameSelection'
 import {
   getGalleryPhotoSelected,
@@ -29,34 +29,20 @@ import {
   setSpreadTiers,
   subscribeTierDisplay,
 } from './tierDisplay'
+import { getThumbUrl, subscribeThumb } from './thumbCache'
 import {
-  getThumbPublishGeneration,
-  getThumbUrl,
-  subscribeThumbPublishes,
-} from './thumbCache'
-
-const SOURCE_ON_ANOTHER_SPREAD: FrameSource = {
-  spreadId: '',
-  frameId: '',
-}
-
-function sourceFromKey(
-  spreadId: string,
-  key: string | null,
-): FrameSource | null {
-  if (key === null) {
-    return null
-  }
-  if (key === '') {
-    return SOURCE_ON_ANOTHER_SPREAD
-  }
-  return { spreadId, frameId: key }
-}
-
-function devicePixelRatio(): number {
-  const ratio = globalThis.devicePixelRatio
-  return typeof ratio === 'number' && ratio > 0 ? ratio : 1
-}
+  assetIdsOnSpread,
+  desiredTiersForItems,
+  isFramePressed,
+  positiveDevicePixelRatio,
+  queueReadyTierIfCached,
+  resolveMaxDesiredTier,
+  resolveSpreadPreviewUrl,
+  subscribeAssetIds,
+  thumbSnapshotFor,
+  tierDisplayKeyFor,
+  tierNumberFromKey,
+} from './spreadPreviewKeys'
 
 export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   spreadId,
@@ -75,11 +61,6 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     getCommittedZoom,
     getCommittedZoom,
   )
-  const tierSnapshot = useSyncExternalStore(
-    subscribeTierDisplay,
-    getTierDisplaySnapshot,
-    getTierDisplaySnapshot,
-  )
   const galleryPhotoSelected = useSyncExternalStore(
     subscribeGalleryPhotoSelected,
     getGalleryPhotoSelected,
@@ -91,11 +72,18 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => getSpreadFrameSourceKey(spreadId),
   )
   const frameSource = sourceFromKey(spreadId, frameSourceKey)
-  // Stable subscribe: any thumb publish re-renders so previewUrlFor re-reads URLs.
-  const thumbPublishGeneration = useSyncExternalStore(
-    subscribeThumbPublishes,
-    getThumbPublishGeneration,
-    getThumbPublishGeneration,
+  const spreadAssetIds =
+    snapshot === undefined ? [] : assetIdsOnSpread(snapshot.resolved.items)
+  // Per-spread keys: global tier/thumb emits must not re-render unrelated spreads.
+  const tierDisplayKey = useSyncExternalStore(
+    subscribeTierDisplay,
+    () => tierDisplayKeyFor(spreadAssetIds, getTierDisplaySnapshot().urls),
+    () => tierDisplayKeyFor(spreadAssetIds, getTierDisplaySnapshot().urls),
+  )
+  const thumbSnapshot = useSyncExternalStore(
+    (listener) => subscribeAssetIds(spreadAssetIds, subscribeThumb, listener),
+    () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
+    () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
   )
 
   useEffect(() => {
@@ -103,28 +91,17 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       clearSpreadTiers(spreadId)
       return
     }
-    const dpr = devicePixelRatio()
-    const tiers = new Map<string, number>()
-    for (const item of snapshot.resolved.items) {
-      const assetId = item.assetId
-      if (assetId === undefined) {
-        continue
-      }
-      const edge =
-        Math.max(item.rectMm.width, item.rectMm.height) * SPREAD_PX_PER_MM
-      const tier = selectImageTier(edge * zoom, dpr)
-      const prev = tiers.get(assetId)
-      if (prev === undefined || tier > prev) {
-        tiers.set(assetId, tier)
-      }
-    }
+    const tiers = desiredTiersForItems(
+      snapshot.resolved.items,
+      zoom,
+      positiveDevicePixelRatio(),
+      SPREAD_PX_PER_MM,
+      selectImageTier,
+    )
     setSpreadTiers(spreadId, tiers)
     const unsubs: (() => void)[] = []
-    for (const assetId of tiers.keys()) {
-      const tier = maxDesiredTier(assetId)
-      if (tier === undefined) {
-        continue
-      }
+    for (const [assetId, spreadTier] of tiers) {
+      const tier = resolveMaxDesiredTier(assetId, spreadTier, maxDesiredTier)
       unsubs.push(
         subscribeTier(assetId, tier, () => {
           const url = getTierUrl(assetId, tier)
@@ -134,10 +111,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         }),
       )
       requestTier(assetId, tier, getAssetContentHash(assetId))
-      const ready = getTierUrl(assetId, tier)
-      if (ready !== undefined) {
-        queueTierSwap(assetId, tier, ready)
-      }
+      queueReadyTierIfCached(assetId, tier, getTierUrl, queueTierSwap)
     }
     return () => {
       clearSpreadTiers(spreadId)
@@ -155,25 +129,19 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
-      previewUrlFor={(assetId) => {
-        const covering =
-          tierSnapshot.urls.get(assetId)?.url ?? snapshot.previewUrlFor(assetId)
-        if (covering !== undefined) {
-          return covering
-        }
-        // Import may publish a filmstrip thumb after first paint; read the
-        // publish generation so React Compiler keeps the subscription live.
-        const thumb = getThumbUrl(assetId)
-        return thumb ?? (thumbPublishGeneration < 0 ? '' : undefined)
-      }}
-      tierFor={(assetId) => tierSnapshot.urls.get(assetId)?.tier}
+      previewUrlFor={(assetId) =>
+        resolveSpreadPreviewUrl(
+          assetId,
+          tierDisplayKey,
+          thumbSnapshot,
+          snapshot.previewUrlFor(assetId),
+        )
+      }
+      tierFor={(assetId) => tierNumberFromKey(tierDisplayKey, assetId)}
       frameControlFor={(item) => {
         const filled = item.assetId !== undefined
         const frame = { spreadId, frameId: item.frameId }
-        const pressed =
-          frameSourceKey !== null &&
-          frameSourceKey !== '' &&
-          frameSourceKey === item.frameId
+        const pressed = isFramePressed(frameSourceKey, item.frameId)
         const control: FrameControl = {
           label: frameControlLabel(
             filled,

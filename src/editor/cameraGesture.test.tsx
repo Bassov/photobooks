@@ -225,6 +225,24 @@ describe('pasteboard camera gestures', () => {
     }
   })
 
+  it('coalesces a same-task wheel burst into one zoom apply before settle', async () => {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const indicator = screen.getByTestId('zoom-indicator')
+    const before = indicator.textContent
+
+    for (let index = 0; index < 24; index += 1) {
+      wheel(scroll, { deltaY: -300, ctrlKey: true })
+    }
+    // Still in the burst task: live indicator updates only after paint.
+    expect(indicator.textContent).toBe(before)
+    expect(isEditorGestureActive()).toBe(true)
+
+    await flushGesture()
+    expect(isEditorGestureActive()).toBe(false)
+    expect(indicator.textContent).not.toBe(before)
+  })
+
   it('ignores zoom keys on text fields and commits nothing when unmounted mid-gesture', async () => {
     const view = render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
