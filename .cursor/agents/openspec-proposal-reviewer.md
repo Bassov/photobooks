@@ -25,6 +25,7 @@ Honor `rules.proposal` from the brief.
 2. **Structure:** has problem, why now, scope in, scope out, success criteria, risks. Flag missing sections.
 3. **No implementation dump:** fail if API shapes, file trees, pseudocode, or long how-to appear — those belong in design.
 4. **Scope:** in/out are concrete and testable; success criteria are observable.
+   4b. **Necessary minimum:** flag scope beyond the item, unrequested options/abstractions, padded sections, and plans that re-implement helpers instead of following the reuse ladder (exists → codebase → platform → installed dependency → minimum new code). N/A topics belong in one line. Never flag thorough tests or test plans as excessive (tests are exempt from necessary-minimum).
 5. **Narrowness:** enforce the size budget in `rules.proposal` (subsystem limit, task limit, line guideline; subsystem definition in `docs/roadmap/RULES.md` "Change size"). Over budget → `revise` (high) with a concrete split and the `pnpm roadmap add <slug> --after <current>` items it needs.
 6. **UI:** if UI is in scope, success criteria MUST include observable UX (not only "it works").
    6b. **Scrollport:** if the change introduces or changes an in-app scrollport (`overflow: auto|scroll`), success criteria MUST state no page-level H/V scroll and scrolling only inside the named scrollport(s).
