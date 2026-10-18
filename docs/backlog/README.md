@@ -6,6 +6,7 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18. File content
 
 | Slug                                                          | Title                                                                            | Original milestone | Source                          |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------ | ------------------------------- |
+| [`codecov-project-components`](codecov-project-components.md) | Codecov project no-drop status and components table (owner decision 2026-10-18)  | M2.1               | #72 A; from codecov-patch-gate  |
 | [`e2e-assertion-ratchet`](e2e-assertion-ratchet.md)           | strict e2e helpers and tolerances can only get stricter (PR #76, #59)            | M2.1               | PR #76, PR #59                  |
 | [`gate-ratchet-ci`](gate-ratchet-ci.md)                       | checks can't be removed or softened in workflows and tooling                     | M2.1               | #72 K                           |
 | [`roadmap-check-item-body`](roadmap-check-item-body.md)       | roadmap check validates item bodies and follow-up placement (PR #82 S6)          | M2.1               | PR #82 S6, PR #80 S1, PR #81 S1 |
