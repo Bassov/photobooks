@@ -39,6 +39,7 @@ unrelated tool discovery.
 8. **Audit:** if `package.json`/lockfile or security-tagged change, require `pnpm audit:ci` evidence.
 9. **Diff quality:** unnecessary files, dead code, English-only repo violations.
 10. **Gate edits:** **high** when a quality-gate config edit is missing from the touch-set, has no stated reason, or makes any gate less strict (lower thresholds, higher budgets, more retries, new exclusions, removed checks, looser assertions). A listed edit that is strictly stricter is not a finding. Any other config edit outside the touch-set → **high**. Excluding from coverage or mutation a production file that the same diff modifies → **critical**.
+11. **Necessary minimum:** flag scope beyond the item/proposal/design, unrequested options/abstractions, padded docs, and re-implemented helpers that skip the reuse ladder. Bug fixes must address the root (grep callers), not only one site; moved code must keep validation, data-loss handling, security, a11y, and perf budgets. Never flag thorough tests as excessive — necessary-minimum does not apply to tests; coverage/mutation/PBT/e2e geometry bars stay unchanged or stricter.
 
 ## Output
 
