@@ -13,8 +13,11 @@
 ## 3. Mutation / coverage
 
 - [x] 3.1 Run `pnpm stryker:diff` and `pnpm test:coverage`; add public-API tests for survived/no-coverage mutants in touched behavior; list skipped survivors with one-line reasons under this item
-  - Skipped: `Pasteboard.tsx` ResizeObserver/IntersectionObserver chrome and slot `data-active` / intrinsic-size attribute literals — equivalent DOM chrome; behavior locked by view + e2e.
-  - Skipped: `pasteboardWindowsEqual` lead/tail mutants that stay equivalent when callers recompute extents from start/end before compare (covered start/end inequality cases).
+  - Skipped: empty-book Add sentinel `__empty__` ↔ `""` / always-true length check — any non-null string enables Add; empty-book force-mount covered.
+  - Skipped: `pickActiveSpread` bestId-null guard (pre-existing untouched line) — equivalent when ratio≤0 already returns null.
+  - Skipped (pre-existing chrome): ResizeObserver/IntersectionObserver option literals and slot attribute chrome.
+  - Local `pnpm stryker:diff` after this fix round: 98.00% (277 killed / 8 survived / 115 timeout / 0 NoCoverage). CI numbers for the new head: see the CI report comment after push.
+  - CI on `bfc22d2` (previous head): patch 94.17%, stryker-diff 83% (331/67/6/2 NoCoverage), burn-in 10 passed / 0 flaky, Lighthouse 99/100/100/90.
 
 ## Verification checklist
 

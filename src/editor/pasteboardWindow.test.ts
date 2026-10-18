@@ -3,6 +3,8 @@ import { fc, test } from '@fast-check/vitest'
 import {
   PASTEBOARD_GAP_PX,
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  applyForceMountIndex,
+  clearForceMountIndex,
   pacePasteboardWindow,
   pasteboardStridePx,
   pasteboardWindow,
@@ -85,6 +87,24 @@ describe('pasteboardWindow', () => {
 
     expect(window.end - window.start).toBeGreaterThan(0)
     expect(window.end - window.start).toBeLessThan(40)
+  })
+
+  it('mounts exactly one spread for a zero-height viewport mid-stack', () => {
+    const stride = 100
+    const window = pasteboardWindow({
+      count: 40,
+      stridePx: stride,
+      scrollTop: 15 * stride,
+      viewportPx: 0,
+      overscanPx: 0,
+    })
+
+    expect(window).toEqual({
+      start: 15,
+      end: 16,
+      leadPx: 15 * stride,
+      tailPx: 24 * stride,
+    })
   })
 
   it('covers a tall viewport from the top of a 40-spread stack', () => {
@@ -466,6 +486,148 @@ describe('pacePasteboardWindow', () => {
     })
   })
 
+  it('fills cover on the after side only when before cover is already satisfied', () => {
+    const current = {
+      start: 4,
+      end: 6,
+      leadPx: 4 * stride,
+      tailPx: 34 * stride,
+    }
+    const target = { start: 0, end: 12, leadPx: 0, tailPx: 28 * stride }
+    const cover = { start: 4, end: 10, leadPx: 4 * stride, tailPx: 30 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 4,
+      end: 7,
+      leadPx: 4 * stride,
+      tailPx: 33 * stride,
+    })
+  })
+
+  it('fills cover on the before side only when after cover is already satisfied', () => {
+    const current = {
+      start: 6,
+      end: 10,
+      leadPx: 6 * stride,
+      tailPx: 30 * stride,
+    }
+    const target = { start: 0, end: 12, leadPx: 0, tailPx: 28 * stride }
+    const cover = { start: 2, end: 10, leadPx: 2 * stride, tailPx: 30 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 5,
+      end: 10,
+      leadPx: 5 * stride,
+      tailPx: 30 * stride,
+    })
+  })
+
+  it('grows toward target before when cover is already filled and before side is larger', () => {
+    const current = {
+      start: 8,
+      end: 10,
+      leadPx: 8 * stride,
+      tailPx: 30 * stride,
+    }
+    const target = {
+      start: 2,
+      end: 12,
+      leadPx: 2 * stride,
+      tailPx: 28 * stride,
+    }
+    const cover = { start: 8, end: 10, leadPx: 8 * stride, tailPx: 30 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 7,
+      end: 10,
+      leadPx: 7 * stride,
+      tailPx: 30 * stride,
+    })
+  })
+
+  it('on a cover-side tie prefers expanding before the painted start', () => {
+    const current = {
+      start: 5,
+      end: 7,
+      leadPx: 5 * stride,
+      tailPx: 33 * stride,
+    }
+    const target = { start: 0, end: 12, leadPx: 0, tailPx: 28 * stride }
+    // coverBefore = 5-3 = 2, coverAfter = 9-7 = 2
+    const cover = { start: 3, end: 9, leadPx: 3 * stride, tailPx: 31 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 4,
+      end: 7,
+      leadPx: 4 * stride,
+      tailPx: 33 * stride,
+    })
+  })
+
+  it('on a target-side tie prefers expanding before the painted start', () => {
+    const current = {
+      start: 5,
+      end: 7,
+      leadPx: 5 * stride,
+      tailPx: 33 * stride,
+    }
+    // targetBefore = 5, targetAfter = 5; cover already filled
+    const target = { start: 0, end: 12, leadPx: 0, tailPx: 28 * stride }
+    const cover = { start: 5, end: 7, leadPx: 5 * stride, tailPx: 33 * stride }
+
+    expect(
+      pacePasteboardWindow({
+        current,
+        target,
+        viewportCover: cover,
+        maxNewMounts: 1,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 4,
+      end: 7,
+      leadPx: 4 * stride,
+      tailPx: 33 * stride,
+    })
+  })
+
   it('treats windows equal only when start, end, and extents match', () => {
     const base = { start: 1, end: 4, leadPx: 100, tailPx: 200 }
     expect(pasteboardWindowsEqual(base, { ...base })).toBe(true)
@@ -473,6 +635,93 @@ describe('pacePasteboardWindow', () => {
     expect(pasteboardWindowsEqual(base, { ...base, end: 5 })).toBe(false)
     expect(pasteboardWindowsEqual(base, { ...base, leadPx: 0 })).toBe(false)
     expect(pasteboardWindowsEqual(base, { ...base, tailPx: 0 })).toBe(false)
+  })
+})
+
+describe('applyForceMountIndex / clearForceMountIndex', () => {
+  const stride = 100
+  const count = 16
+  const target = { start: 0, end: 16, leadPx: 0, tailPx: 0 }
+
+  it('leaves the window unchanged when force is null or outside the target', () => {
+    const next = { start: 0, end: 2, leadPx: 0, tailPx: 14 * stride }
+    expect(
+      applyForceMountIndex({
+        next,
+        forceIdx: null,
+        target,
+        count,
+        stridePx: stride,
+      }),
+    ).toBe(next)
+    expect(
+      applyForceMountIndex({
+        next,
+        forceIdx: 16,
+        target,
+        count,
+        stridePx: stride,
+      }),
+    ).toBe(next)
+    expect(
+      applyForceMountIndex({
+        next,
+        forceIdx: -1,
+        target: { start: 2, end: 8, leadPx: 2 * stride, tailPx: 8 * stride },
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual(next)
+  })
+
+  it('expands to include force index 0 and a later index with exact extents', () => {
+    const next = { start: 2, end: 4, leadPx: 2 * stride, tailPx: 12 * stride }
+    expect(
+      applyForceMountIndex({
+        next,
+        forceIdx: 0,
+        target,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 0,
+      end: 4,
+      leadPx: 0,
+      tailPx: 12 * stride,
+    })
+    expect(
+      applyForceMountIndex({
+        next,
+        forceIdx: 15,
+        target,
+        count,
+        stridePx: stride,
+      }),
+    ).toEqual({
+      start: 2,
+      end: 16,
+      leadPx: 2 * stride,
+      tailPx: 0,
+    })
+  })
+
+  it('clears force only after the forced index is inside the mounted window', () => {
+    expect(
+      clearForceMountIndex(15, { start: 0, end: 2, leadPx: 0, tailPx: 0 }),
+    ).toBe(15)
+    expect(
+      clearForceMountIndex(15, { start: 0, end: 15, leadPx: 0, tailPx: 0 }),
+    ).toBe(15)
+    expect(
+      clearForceMountIndex(15, { start: 0, end: 16, leadPx: 0, tailPx: 0 }),
+    ).toBeNull()
+    expect(
+      clearForceMountIndex(0, { start: 0, end: 1, leadPx: 0, tailPx: 0 }),
+    ).toBeNull()
+    expect(
+      clearForceMountIndex(null, { start: 0, end: 4, leadPx: 0, tailPx: 0 }),
+    ).toBeNull()
   })
 })
 

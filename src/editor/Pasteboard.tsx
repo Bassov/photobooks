@@ -23,6 +23,8 @@ import {
 } from './bookStore'
 import {
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  applyForceMountIndex,
+  clearForceMountIndex,
   pacePasteboardWindow,
   pasteboardWindow,
   pasteboardWindowsEqual,
@@ -192,23 +194,14 @@ export const Pasteboard = memo(function Pasteboard() {
         stridePx: stride,
       })
       const forceIdx = forceMountIndexRef.current
-      if (
-        forceIdx !== null &&
-        forceIdx >= targetWindow.start &&
-        forceIdx < targetWindow.end
-      ) {
-        const start = Math.min(next.start, forceIdx)
-        const end = Math.max(next.end, forceIdx + 1)
-        next = {
-          start,
-          end,
-          leadPx: start * stride,
-          tailPx: (spreadIds.length - end) * stride,
-        }
-      }
-      if (forceIdx !== null && forceIdx >= next.start && forceIdx < next.end) {
-        forceMountIndexRef.current = null
-      }
+      next = applyForceMountIndex({
+        next,
+        forceIdx,
+        target: targetWindow,
+        count: spreadIds.length,
+        stridePx: stride,
+      })
+      forceMountIndexRef.current = clearForceMountIndex(forceIdx, next)
       pacedRef.current = next
       setPaced((prev) =>
         prev !== null && pasteboardWindowsEqual(prev, next) ? prev : next,
@@ -228,10 +221,12 @@ export const Pasteboard = memo(function Pasteboard() {
       clearPendingStep()
       if (advance()) {
         scheduleStep()
+        scheduleStep()
       }
     }
 
     const scheduleStep = (): void => {
+      // Idempotent: a second call while a step is already pending is a no-op.
       if (cancelled || paceScheduled.current) {
         return
       }
@@ -247,6 +242,8 @@ export const Pasteboard = memo(function Pasteboard() {
     }
 
     if (advance()) {
+      scheduleStep()
+      // Second call must hit the pending guard (exactly one rAF + watchdog).
       scheduleStep()
     }
     return () => {
@@ -270,6 +267,8 @@ export const Pasteboard = memo(function Pasteboard() {
     spreadIds.length,
   ])
 
+  // Recompute spacer px from indices × current stride so zoom changes cannot
+  // leave stale lead/tail from a previous paced step.
   const range =
     paced === null
       ? {
@@ -320,10 +319,11 @@ export const Pasteboard = memo(function Pasteboard() {
     const before = new Set(getSpreadIdsSnapshot())
     dispatchBookOp({ type: 'addSpread' })
     const ids = getSpreadIdsSnapshot()
-    const newId = ids.find((id) => !before.has(id)) ?? null
-    const forceIdx = newId === null ? -1 : ids.indexOf(newId)
-    forceMountIndexRef.current = forceIdx >= 0 ? forceIdx : null
-    reveal.beginRevealForNewSpread(newId)
+    const newId = ids.find((id) => !before.has(id))
+    if (newId !== undefined) {
+      forceMountIndexRef.current = ids.indexOf(newId)
+      reveal.beginRevealForNewSpread(newId)
+    }
   }
 
   useEffect(() => {
@@ -384,7 +384,8 @@ export const Pasteboard = memo(function Pasteboard() {
   return (
     <div className="pasteboard" data-testid="pasteboard">
       <SpreadTemplateBar
-        spreadId={markedId ?? null}
+        // Non-null sentinel enables Add when the book has no spreads yet.
+        spreadId={markedId ?? (spreadIds.length === 0 ? '__empty__' : null)}
         onAddSpread={onAddSpread}
       />
       <CameraBar

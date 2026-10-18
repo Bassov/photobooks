@@ -151,6 +151,37 @@ export function pasteboardWindowsEqual(
   )
 }
 
+/**
+ * Expand `next` to include `forceIdx` when that index lies inside `target`.
+ * Used so add-spread reveal mounts the new slot before paced overscan catches up.
+ */
+export function applyForceMountIndex(input: {
+  next: PasteboardWindow
+  forceIdx: number | null
+  target: PasteboardWindow
+  count: number
+  stridePx: number
+}): PasteboardWindow {
+  const { forceIdx, target, count, stridePx } = input
+  if (forceIdx === null || forceIdx < target.start || forceIdx >= target.end) {
+    return input.next
+  }
+  const start = Math.min(input.next.start, forceIdx)
+  const end = Math.max(input.next.end, forceIdx + 1)
+  return pasteboardWindowExtents(start, end, count, stridePx)
+}
+
+/** Clear the force index once it is inside the mounted window. */
+export function clearForceMountIndex(
+  forceIdx: number | null,
+  next: PasteboardWindow,
+): number | null {
+  if (forceIdx !== null && forceIdx >= next.start && forceIdx < next.end) {
+    return null
+  }
+  return forceIdx
+}
+
 function pasteboardWindowExtents(
   start: number,
   end: number,
