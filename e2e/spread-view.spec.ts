@@ -485,9 +485,10 @@ test.describe('frame-budget gates', () => {
     await assertNamedScrollport(page, 'pasteboard-scroll', { axis: 'vertical' })
   })
 
-  // Settle remount LoAF stays gated here under parent retries until
-  // continuous-zoom-settle-mount-pace paces remounts (then retries: 0).
-  test('continuous zoom-out settle remount stays within frame-budget gates', async ({
+  // Main-parity LoAF window (zoom-out burst + default 200 ms settle) under
+  // parent retries until continuous-zoom-settle-mount-pace extends to full
+  // gesture-end remount and moves this case to retries: 0.
+  test('continuous zoom-out burst + 200 ms settle stays within frame-budget gates (main parity)', async ({
     page,
   }, testInfo) => {
     test.setTimeout(120_000)
@@ -496,6 +497,7 @@ test.describe('frame-budget gates', () => {
     await dispatchCtrlWheel(page, 500, 24)
     await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
     await clearPerfScenario(page)
+    const tierAtFit = await readFilledTier(page)
 
     await dispatchCtrlWheel(page, -300, 28)
     await expect
@@ -504,6 +506,20 @@ test.describe('frame-budget gates', () => {
       )
       .toBeGreaterThanOrEqual(400)
     await expect.poll(async () => gestureLabel(page)).toBe('')
+    await expect
+      .poll(
+        async () => {
+          const sample = await readFilledTier(page)
+          return (
+            sample.tier !== null &&
+            sample.tier !== tierAtFit.tier &&
+            sample.src.length > 0 &&
+            tierCovers(sample)
+          )
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true)
     await page.evaluate(() => {
       const perf = window.__photobooksPerf
       if (!perf) {
@@ -512,8 +528,9 @@ test.describe('frame-budget gates', () => {
       perf.clearLoafEntries()
     })
 
+    // Same window as main: default settleMs (200), assert immediately — no
+    // gesture-end wait (that remount coverage is the follow-up item).
     await dispatchCtrlWheel(page, 300, 36)
-    await expect.poll(async () => gestureLabel(page)).toBe('')
     await page.evaluate(() => {
       const perf = window.__photobooksPerf
       if (!perf) {
@@ -595,9 +612,9 @@ test.describe('frame-budget gates', () => {
         perf.clearLoafEntries()
       })
 
-      // Phase 3: continuous zoom-out burst+paint only. Settle remount LoAF is
-      // asserted under parent retries (see sibling settle remount test) until
-      // continuous-zoom-settle-mount-pace.
+      // Phase 3: continuous zoom-out burst+paint only. Main-parity burst+200ms
+      // settle LoAF is the sibling under parent retries; full gesture-end
+      // remount → continuous-zoom-settle-mount-pace.
       await dispatchCtrlWheel(page, 300, 36, { settleMs: 0 })
       await page.evaluate((handlerBudgetMs) => {
         const perf = window.__photobooksPerf

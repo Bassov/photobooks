@@ -21,9 +21,10 @@
   - Nested `continuous zoom (stabilized)` and `stabilized drag` with `retries: 0`; siblings keep retries.
 - [x] 3.2 Tick matching scope boxes in `docs/roadmap/M2.1/e2e-frame-budget-flakes.md`; if any case still flakes or line budget blows, `pnpm roadmap add --after e2e-frame-budget-flakes` and leave that checkbox for the follow-up — verify `pnpm roadmap check` exits 0
 - [x] 3.3 Run `pnpm stryker:diff` and `pnpm test:coverage` on production files this change touched; add public-API tests for survived/NoCoverage mutants that encode specified behavior; list equivalent/logging leftovers under this task
-  - Stryker diff (local, post review fix): **88.89%** (311 killed / 1 timeout / 39 survived / **0 NoCoverage**).
+  - Stryker diff (CI on e64e5ff): **88.60%** (311 killed / 40 survived / **0 NoCoverage**).
   - Extracted `thumbUrlFromSnapshot`, `subscribeAssetIds`, `desiredTiersForItems`, `wheelCoalesce.mergePendingWheel` into mutate scope with unit tests; `usePasteboardCamera` stays excluded.
   - Survivors left (equivalent / React chrome): ConnectedSpreadView getServerSnapshot arrows / effect cleanup / drag `effectAllowed`; `spreadPreviewKeys` `sep < 0` vs `<= 0` on malformed `id::url` keys (same undefined); `frameSelection` book-store sync edges.
+  - Main-parity sibling gates zoom-out burst + default 200 ms settle under parent `retries: 2` (not full gesture-end remount — that is `continuous-zoom-settle-mount-pace`).
 
 ## Verification
 
@@ -43,7 +44,8 @@
 
 ## Manual test scenarios
 
-1. CI burn-in (integration run): three frame-budget scenarios + settle remount under parent retries — see PR body link (10/10, 0 flaky)
-2. Confirm nested stabilized describes use `retries: 0`; settle remount stays under parent `retries: 2` until `continuous-zoom-settle-mount-pace`
-3. `pnpm verify:fast:quiet` → exit 0
-4. `pnpm stryker:diff` → ≥85%, 0 NoCoverage (recorded under 3.3)
+1. CI burn-in (latest integration run on this PR) — see PR body; includes main-parity zoom-out burst+200ms settle under parent retries
+2. Confirm nested stabilized describes use `retries: 0`; main-parity settle sibling stays under parent `retries: 2` until `continuous-zoom-settle-mount-pace`
+3. Local (≤3): main-parity settle grep `--repeat-each=3 --retries=0` (recorded in PR body when run)
+4. `pnpm verify:fast:quiet` → exit 0
+5. `pnpm stryker:diff` / CI → **88.60%**, 0 NoCoverage (recorded under 3.3)
