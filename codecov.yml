@@ -27,8 +27,8 @@ flag_management:
     carryforward: true
 
 comment:
-  # header+components per Codecov docs so the PR comment includes the component table
-  after_n_builds: 3
+  # Two uploads per commit (unit + e2e); must match notify.after_n_builds.
+  after_n_builds: 2
   layout: 'header, diff, flags, components, files'
   behavior: default
   require_changes: false
