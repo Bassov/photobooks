@@ -83,6 +83,8 @@ export default defineConfig({
         'scripts/e2e-playwright-summary.mjs',
         'scripts/load-gates.mjs',
         'scripts/check-gate-values.mjs',
+        'scripts/check-gate-ratchet.mjs',
+        'scripts/check-codecov-yml.mjs',
         'scripts/e2e-flaky-list.mjs',
       ],
       exclude: [...coverageExcludeGlobs],

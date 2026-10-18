@@ -1,0 +1,47 @@
+# Gate ratchet: workflow + script execute from the PR *base* ref only.
+# Head is fetched as git objects and parsed as data — never installed or executed.
+name: pr-policy
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-policy-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base ref only
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install base dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch head as data (works for forks)
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            pull/${{ github.event.pull_request.number }}/head:refs/gate-ratchet/head
+
+      - name: Gate ratchet (base script vs head tree)
+        run: >
+          node scripts/check-gate-ratchet.mjs
+          --base-ref ${{ github.event.pull_request.base.sha }}
+          --head-ref refs/gate-ratchet/head
