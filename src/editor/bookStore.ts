@@ -128,67 +128,81 @@ function emitGallery(): void {
   emit()
 }
 
+function flushPendingGalleryAndMeta(): void {
+  const ids = pendingGalleryIds.splice(0, GALLERY_FLUSH_CHUNK)
+  const metaBatch = pendingMeta
+  pendingMeta = new Map()
+  if (ids.length === 0 && metaBatch.size === 0) {
+    if (pendingGalleryIds.length > 0) {
+      scheduleFlush()
+    }
+    return
+  }
+  let book = state.book
+  let galleryChanged = false
+  if (ids.length > 0) {
+    book = applyBookOp(book, { type: 'addToGallery', assetIds: ids })
+    if (pendingAssetRecords.size > 0) {
+      let assets = book.assets
+      let assetsChanged = false
+      for (const id of ids) {
+        const record = pendingAssetRecords.get(id)
+        if (record === undefined) {
+          continue
+        }
+        pendingAssetRecords.delete(id)
+        assets = { ...assets, [id]: { ...assets[id], ...record } }
+        assetsChanged = true
+      }
+      if (assetsChanged) {
+        book = { ...book, assets }
+      }
+    }
+    galleryChanged = book.gallery !== state.book.gallery
+  }
+  const sessionMeta = new Map(state.sessionMeta)
+  for (const [id, meta] of metaBatch) {
+    sessionMeta.set(id, meta)
+  }
+  const prev = state
+  state = {
+    book,
+    sessionMeta,
+    previewUrls: state.previewUrls,
+    importRunning: state.importRunning,
+    importExpectedCount: state.importExpectedCount,
+  }
+  invalidateGalleryAspectsCache()
+  notifyAffectedSpreads(prev, state)
+  if (galleryChanged) {
+    emitGallery()
+  } else {
+    emit()
+  }
+  if (pendingGalleryIds.length > 0 || pendingMeta.size > 0) {
+    scheduleFlush()
+  }
+}
+
+/** Watchdog if rAF is frozen (background tab under parallel Playwright). */
+const FLUSH_RAF_WATCHDOG_MS = 32
+
 function scheduleFlush(): void {
   if (flushScheduled) {
     return
   }
   flushScheduled = true
-  requestAnimationFrame(() => {
-    flushScheduled = false
-    const ids = pendingGalleryIds.splice(0, GALLERY_FLUSH_CHUNK)
-    const metaBatch = pendingMeta
-    pendingMeta = new Map()
-    if (ids.length === 0 && metaBatch.size === 0) {
-      if (pendingGalleryIds.length > 0) {
-        scheduleFlush()
-      }
+  const run = (): void => {
+    if (!flushScheduled) {
       return
     }
-    let book = state.book
-    let galleryChanged = false
-    if (ids.length > 0) {
-      book = applyBookOp(book, { type: 'addToGallery', assetIds: ids })
-      if (pendingAssetRecords.size > 0) {
-        let assets = book.assets
-        let assetsChanged = false
-        for (const id of ids) {
-          const record = pendingAssetRecords.get(id)
-          if (record === undefined) {
-            continue
-          }
-          pendingAssetRecords.delete(id)
-          assets = { ...assets, [id]: { ...assets[id], ...record } }
-          assetsChanged = true
-        }
-        if (assetsChanged) {
-          book = { ...book, assets }
-        }
-      }
-      galleryChanged = book.gallery !== state.book.gallery
-    }
-    const sessionMeta = new Map(state.sessionMeta)
-    for (const [id, meta] of metaBatch) {
-      sessionMeta.set(id, meta)
-    }
-    const prev = state
-    state = {
-      book,
-      sessionMeta,
-      previewUrls: state.previewUrls,
-      importRunning: state.importRunning,
-      importExpectedCount: state.importExpectedCount,
-    }
-    invalidateGalleryAspectsCache()
-    notifyAffectedSpreads(prev, state)
-    if (galleryChanged) {
-      emitGallery()
-    } else {
-      emit()
-    }
-    if (pendingGalleryIds.length > 0 || pendingMeta.size > 0) {
-      scheduleFlush()
-    }
-  })
+    flushScheduled = false
+    flushPendingGalleryAndMeta()
+  }
+  // Prefer rAF for LoAF pacing when the tab is visible. A short setTimeout
+  // watchdog still fires if rAF is frozen after the page was backgrounded.
+  requestAnimationFrame(run)
+  setTimeout(run, FLUSH_RAF_WATCHDOG_MS)
 }
 
 export function subscribeBookStore(listener: Listener): () => void {

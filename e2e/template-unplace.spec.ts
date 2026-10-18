@@ -26,13 +26,12 @@ test('empty gallery template change leaves status empty and shows no Placed badg
 })
 
 test.describe('template change with photos', () => {
-  test.describe.configure({ retries: 2 })
-
   test('a smaller template unplaces overflow photos and announces the count', async ({
     page,
   }) => {
     test.setTimeout(120_000)
     await openSessionEditor(page)
+    await page.bringToFront()
     await page
       .getByTestId('photo-file-input')
       .setInputFiles([
@@ -42,7 +41,6 @@ test.describe('template change with photos', () => {
     await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
       timeout: 30_000,
     })
-    await page.bringToFront()
 
     await page.getByRole('radio', { name: '4-grid' }).click()
     const active = page.getByTestId('spread-view').first()
@@ -85,13 +83,13 @@ test.describe('template change with photos', () => {
   }) => {
     test.setTimeout(120_000)
     await openSessionEditor(page)
+    await page.bringToFront()
     await page
       .getByTestId('photo-file-input')
       .setInputFiles(photoFixturePaths.samplePng)
     await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
       timeout: 30_000,
     })
-    await page.bringToFront()
 
     await page.getByTestId('filmstrip-item').first().focus()
     await page.keyboard.press('Space')

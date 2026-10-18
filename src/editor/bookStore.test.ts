@@ -144,6 +144,21 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(10)
   })
 
+  it('flushes gallery via setTimeout watchdog when rAF never runs', () => {
+    vi.stubGlobal('requestAnimationFrame', (): number => 1)
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    enqueueGalleryAssets([{ assetId: 'hidden-a' }, { assetId: 'hidden-b' }])
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
+    vi.advanceTimersByTime(31)
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
+    vi.advanceTimersByTime(1)
+    expect(getBookStoreSnapshot().book.gallery).toEqual([
+      'hidden-a',
+      'hidden-b',
+    ])
+    vi.useRealTimers()
+  })
+
   it('exposes flushed gallery ids while import is running', () => {
     vi.stubGlobal(
       'requestAnimationFrame',

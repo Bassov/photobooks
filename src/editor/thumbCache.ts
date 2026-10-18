@@ -5,19 +5,9 @@ import { trackHashJob } from './pendingHashes'
 import { restoreAspectFromPreview } from './previewAspect'
 
 const DEFAULT_CAPACITY = 256
-const FLUSH_PER_FRAME = 1
 
 const lru = new ObjectUrlLru({ capacity: DEFAULT_CAPACITY })
 const assetListeners = new Map<string, Set<() => void>>()
-
-interface PendingThumb {
-  assetId: string
-  buffer: ArrayBuffer
-  mimeType: string
-}
-
-const pending: PendingThumb[] = []
-let flushScheduled = false
 
 const hydrateInflight = new Map<string, AbortController>()
 
@@ -33,35 +23,15 @@ function notifyAsset(assetId: string): void {
   }
 }
 
-function enqueuePending(
+function publishThumb(
   assetId: string,
   buffer: ArrayBuffer,
   mimeType: string,
-  restoreAspect: boolean,
 ): void {
-  pending.push({ assetId, buffer, mimeType })
-  if (restoreAspect) {
-    restoreAspectFromPreview(assetId, buffer, mimeType)
-  }
-  if (!flushScheduled) {
-    flushScheduled = true
-    requestAnimationFrame(flushPending)
-  }
-}
-
-function flushPending(): void {
-  flushScheduled = false
-  const batch = pending.splice(0, FLUSH_PER_FRAME)
-  for (const item of batch) {
-    const blob = new Blob([item.buffer], { type: item.mimeType })
-    const url = URL.createObjectURL(blob)
-    lru.set(item.assetId, url)
-    notifyAsset(item.assetId)
-  }
-  if (pending.length > 0) {
-    flushScheduled = true
-    requestAnimationFrame(flushPending)
-  }
+  const blob = new Blob([buffer], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  lru.set(assetId, url)
+  notifyAsset(assetId)
 }
 
 export function subscribeThumb(
@@ -91,7 +61,10 @@ export function setThumbUrl(
 ): void {
   const retained = buffer.slice(0)
   lastThumb.set(assetId, { buffer: retained, mimeType })
-  enqueuePending(assetId, retained, mimeType, false)
+  // Publish immediately when decode completes. rAF-paced queues stalled under
+  // background-tab throttle (parallel Playwright) and left permanent placeholders.
+  // One object URL per finished decode stays within frame-budget pacing.
+  publishThumb(assetId, retained, mimeType)
   if (contentHash !== undefined && contentHash.length > 0) {
     // Encode-after-hash path: put must be awaited by Save (awaitPendingHashes),
     // otherwise reload hydrates gray placeholders for late gallery assets.
@@ -152,7 +125,8 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
         buffer: bytes,
         mimeType: got.value.mimeType,
       })
-      enqueuePending(assetId, bytes, got.value.mimeType, true)
+      restoreAspectFromPreview(assetId, bytes, got.value.mimeType)
+      publishThumb(assetId, bytes, got.value.mimeType)
     } finally {
       if (hydrateInflight.get(assetId) === controller) {
         hydrateInflight.delete(assetId)
@@ -162,8 +136,6 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
 }
 
 export function resetThumbCache(): void {
-  pending.length = 0
-  flushScheduled = false
   lastThumb.clear()
   for (const controller of hydrateInflight.values()) {
     controller.abort()

@@ -35,6 +35,7 @@ test('autosave persists edits across reload without manual Save', async ({
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
   await expect(page.getByTestId('save-indicator')).toHaveText('Saved')
+  await page.bringToFront()
 
   await page
     .getByTestId('photo-file-input')
@@ -42,10 +43,17 @@ test('autosave persists edits across reload without manual Save', async ({
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 30_000,
   })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+  await page.bringToFront()
   const first = page.getByTestId('filmstrip-item').nth(0)
   await first.focus()
   await page.keyboard.press('Space')
-  await page.getByRole('button', { name: 'Place photo' }).first().focus()
+  await expect(first).toHaveAttribute('aria-selected', 'true')
+  const place = page.getByRole('button', { name: 'Place photo' }).first()
+  await place.focus()
+  await expect(place).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,

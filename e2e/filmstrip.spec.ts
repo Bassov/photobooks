@@ -181,6 +181,7 @@ test('mixed aspect cards pack with uniform gaps from each card end', async ({
   page,
 }) => {
   await openSessionEditor(page)
+  await page.bringToFront()
   // Two landscapes then three portraits — fixed max-width stride leaves huge gaps
   // between portraits (see aspect filmstrip packing bug).
   await page

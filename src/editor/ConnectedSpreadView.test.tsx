@@ -20,6 +20,7 @@ import {
   resetBookStore,
   subscribeSpread,
 } from './bookStore'
+import { resetThumbCache, setThumbUrl } from './thumbCache'
 
 function twoSpreadBook() {
   let book = makeBook({
@@ -46,6 +47,7 @@ describe('per-spread paint subscription', () => {
     resetBookStore()
     resetTierDisplay()
     resetTierCache()
+    resetThumbCache()
     resetAssetSources()
     resetAssetPool()
     resetCameraStore()
@@ -53,6 +55,23 @@ describe('per-spread paint subscription', () => {
     resetGallerySelection()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('falls back to the filmstrip thumb when tier and preview URLs are missing', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb-fallback')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const book = twoSpreadBook()
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setThumbUrl('a', new Uint8Array([1, 2, 3]).buffer, 'image/jpeg')
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const image = screen.getByTestId('spread-frame-image')
+    expect(image.getAttribute('src')).toBe('blob:thumb-fallback')
   })
 
   it('notifies only the edited spread and keeps the sibling snapshot', () => {

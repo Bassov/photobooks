@@ -195,20 +195,25 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
 }) => {
   test.setTimeout(120_000)
   await openSessionEditor(page)
+  await page.bringToFront()
   await page
     .getByTestId('photo-file-input')
     .setInputFiles([photoFixturePaths.samplePng])
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
     timeout: 30_000,
   })
+  await page.bringToFront()
   await page.getByRole('radio', { name: '4-grid' }).click()
   const active = page.getByTestId('spread-view').first()
-  await page.getByTestId('filmstrip-item').first().focus()
+  const firstItem = page.getByTestId('filmstrip-item').first()
+  await firstItem.focus()
   await page.keyboard.press('Space')
+  await expect(firstItem).toHaveAttribute('aria-selected', 'true')
   const frame = active
     .getByRole('button', { name: 'Place photo', exact: true })
     .first()
   await frame.focus()
+  await expect(frame).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
