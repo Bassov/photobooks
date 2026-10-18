@@ -156,6 +156,7 @@ describe('buildBurnInArgs', () => {
     ).toEqual([
       'playwright',
       'test',
+      '--project=chromium',
       'e2e/smoke.spec.ts',
       'e2e/a.spec.ts',
       '--repeat-each=10',
@@ -177,6 +178,7 @@ describe('buildBurnInArgs', () => {
     expect(buildBurnInArgs({ targets: ['', '  '], count: 3 })).toEqual([
       'playwright',
       'test',
+      '--project=chromium',
       '--repeat-each=3',
       '--retries=0',
       '--workers=1',
@@ -184,6 +186,7 @@ describe('buildBurnInArgs', () => {
     expect(buildBurnInArgs({ targets: null, count: 2 })).toEqual([
       'playwright',
       'test',
+      '--project=chromium',
       '--repeat-each=2',
       '--retries=0',
       '--workers=1',
@@ -202,17 +205,31 @@ describe('integration workflow burn-in policy', () => {
     )
     expect(yml).toMatch(/--retries=0/)
     expect(yml).toMatch(/--workers=1/)
+    expect(yml).toMatch(/--project=chromium/)
     expect(yml).toMatch(/^\s*e2e-burn-in:\s*$/m)
     expect(yml).toMatch(/^\s*e2e:\s*$/m)
-    expect(yml).toMatch(/^\s*integration:\s*$/m)
-    expect(yml).toMatch(/integration:[\s\S]*?needs:\s*\[e2e,\s*e2e-burn-in\]/)
+    expect(yml).toMatch(/^\s*e2e-flaky-resolve:\s*$/m)
+    expect(yml).toMatch(/^\s*e2e-flaky:\s*$/m)
     expect(yml).toMatch(
-      /ci-comment:[\s\S]*?needs:\s*\[e2e,\s*e2e-burn-in,\s*integration\]/,
+      /e2e-flaky:[\s\S]*?if:\s*needs\.e2e-flaky-resolve\.outputs\.has_targets == 'true'/,
+    )
+    expect(yml).toMatch(/^\s*integration:\s*$/m)
+    expect(yml).toMatch(
+      /integration:[\s\S]*?needs:\s*\[e2e,\s*e2e-burn-in,\s*e2e-flaky-resolve,\s*e2e-flaky\]/,
+    )
+    expect(yml).toMatch(
+      /ci-comment:[\s\S]*?needs:\s*\[e2e,\s*e2e-burn-in,\s*e2e-flaky,\s*integration\]/,
     )
     expect(yml).toMatch(/No burn-in targets/)
     // Required gate fails when burn-in fails on PRs.
     expect(yml).toMatch(
       /e2e-burn-in job result=\$BURN_IN_RESULT \(need success on pull_request\)/,
+    )
+    expect(yml).toMatch(
+      /e2e-flaky-resolve job result=\$FLAKY_RESOLVE_RESULT \(need success\)/,
+    )
+    expect(yml).toMatch(
+      /e2e-flaky job result=\$FLAKY_RESULT \(need success or skipped\)/,
     )
     // No-target path must not require pnpm install before target resolve.
     const burnJob = yml.split(/^  e2e:/m)[0]
@@ -225,12 +242,13 @@ describe('integration workflow burn-in policy', () => {
       /if:\s*steps\.burn-in-targets\.outputs\.has_targets == 'true'[\s\S]*Install dependencies/,
     )
     // e2e and burn-in stay parallel (neither needs the other).
-    const e2eJob = yml.split(/^  e2e:/m)[1]?.split(/^  integration:/m)[0] ?? ''
+    const e2eJob = yml.split(/^  e2e:/m)[1]?.split(/^  e2e-flaky:/m)[0] ?? ''
     expect(e2eJob).not.toMatch(/^\s*needs:/m)
     const args = buildBurnInArgs({
       targets: ['e2e/burn-in-smoke.spec.ts'],
       count: 50,
     })
+    expect(args).toContain('--project=chromium')
     expect(args).toContain('--repeat-each=50')
     expect(args).toContain('--retries=0')
     expect(args).toContain('--workers=1')
@@ -239,14 +257,20 @@ describe('integration workflow burn-in policy', () => {
 
 describe('formatE2eSectionMarkdown', () => {
   it('includes flaky and burn-in rows', () => {
-    const body = formatE2eSectionMarkdown({ burnInCount: 50, flakyCount: 2 })
+    const body = formatE2eSectionMarkdown({
+      burnInCount: 50,
+      flakyCount: 2,
+      flakyListCount: 1,
+    })
     expect(body).toContain('| Flaky (retried pass) | 2 |')
+    expect(body).toContain('| @flaky list | 1 |')
     expect(body).toContain('| Burn-in | 50 |')
   })
 
   it('omits burn-in when null', () => {
     const body = formatE2eSectionMarkdown({ burnInCount: null, flakyCount: 0 })
     expect(body).toContain('| Flaky (retried pass) | 0 |')
+    expect(body).toContain('| @flaky list | 0 |')
     expect(body).not.toContain('| Burn-in |')
   })
 

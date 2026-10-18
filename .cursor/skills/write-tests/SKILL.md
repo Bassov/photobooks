@@ -41,6 +41,7 @@ description: >-
 - Reuse fixture files and generators; do not inline binary setup in every test.
 - One user-visible behavior per test when practical.
 - For scrollports: reuse `assertDocumentFitsViewport` / `assertNamedScrollport` from `e2e/fixtures/`; do not treat element `scrollLeft` alone as proof the page fits the viewport.
+- **Placement / swap / move:** assert concrete per-frame outcomes (`data-asset-id`, and `src` or equivalent visible asset identity) — not only counts of placed items or status-string presence.
 - **UI change minimum:** when UI is in scope, lock in empty + happy-path + primary interact/scroll before treating apply as complete. Observable success-criteria claims (geometry, packing, empty copy, viewport fill) need matching assertions — not only LoAF / item counts.
 - **Virtualized / variable-size lists:** assert the mounted window covers the scrollport mid-scroll while more items remain; do not rely on a fixed `WINDOW_SIZE` or progressive-reveal lag tests alone.
 - **Empty beside a virtualizer:** assert empty-state geometry (width/height), not merely that the node exists — empty must not share a 1px sliding window.
