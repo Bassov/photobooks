@@ -52,7 +52,8 @@ artifact stages: one Write per artifact, validate once at stage end.
    checked. Then close the item on this branch: `pnpm roadmap done <slug>`
    (`--note "..."` when the shipped scope deviates; required for a
    [contingency]). Done writes item-file Status only (no index tick / no
-   milestone archive). On `main` after merge: `roadmap sync` / `roadmap archive <M>`.
+   milestone archive). Index sync / milestone archive: operator docs PR after
+   merge (not in item PRs; `check` pending-sync warnings are expected).
 5. `pnpm roadmap check`, then commit (agent owns the message). Finish with
    `pnpm -s agent finish --title "…" --body-file <pr-body.md>` (or omit create
    flags when updating an existing PR). At most 2 local push attempts inside

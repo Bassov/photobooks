@@ -5,7 +5,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
+  assertOpenItem,
+  cmdArchive,
   cmdCheck,
+  cmdSync,
   folderName,
   genSlug,
   load,
@@ -14,9 +17,12 @@ import {
   parseIndex,
   parseItemFile,
   parseSource,
+  renderItemFile,
   run,
   stripMeta,
+  textFormat,
   verifyMigration,
+  withFileStatus,
 } from './roadmap.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -2295,4 +2301,104 @@ Three.
       }
     },
   )
+})
+
+describe('withFileStatus and assertOpenItem edges', () => {
+  it('withFileStatus inserts after Title, replaces Status, or appends', () => {
+    expect(withFileStatus('# s\nTitle: T\n\nbody\n', true)).toMatch(
+      /Title: T\nStatus: done\n/,
+    )
+    expect(withFileStatus('# s\nStatus: open\nTitle: T\n', true)).toMatch(
+      /^Status: done$/m,
+    )
+    expect(withFileStatus('# s\nonly\n', false)).toMatch(/Status: open\n$/)
+  })
+
+  it('assertOpenItem covers unknown, archived, done, contingency', () => {
+    const root = migrated()
+    const ctx = load(root)
+    expect(assertOpenItem(ctx, 'beta').slug).toBe('beta')
+    expect(() => assertOpenItem(ctx, '')).toThrow(/slug required/)
+    expect(() => assertOpenItem(ctx, 'nope')).toThrow(/unknown slug/)
+    expect(() => assertOpenItem(ctx, 'old-slug')).toThrow(
+      /already done \(archived\)/,
+    )
+    ok(root, 'done', 'beta', '--note', 'n')
+    expect(() => assertOpenItem(load(root), 'beta')).toThrow(
+      /already done: beta/,
+    )
+    expect(() => assertOpenItem(load(root), 'gamma')).toThrow(/contingency/)
+    expect(
+      assertOpenItem(load(root), 'gamma', { includeContingency: true }).slug,
+    ).toBe('gamma')
+  })
+
+  it('cmdSync is a no-op when nothing pending; cmdArchive refuses open items', () => {
+    const root = migrated()
+    expect(cmdSync(load(root))).toEqual({ ticked: [], count: 0 })
+    expect(ok(root, 'sync')).toMatch(/sync: nothing to tick/)
+    expect(() => cmdArchive(load(root), 'A1')).toThrow(/has open items/)
+    expect(() => cmdArchive(load(root), '')).toThrow(/usage: archive/)
+    expect(cli(root, 'archive').err).toMatch(/usage: archive/)
+    expect(cli(root, 'claim').err).toMatch(/usage: claim/)
+  })
+
+  it('renderItemFile, claim format, empty milestone archive, archive with sync ticks', () => {
+    expect(
+      renderItemFile({
+        slug: 's',
+        tag: 'prep',
+        milestone: 'M',
+        title: 'T',
+        body: ['- [ ] x'],
+        status: 'done',
+      }),
+    ).toMatch(/^# s\n[\s\S]*Status: done\n/)
+    expect(
+      renderItemFile({
+        slug: 's',
+        tag: '',
+        milestone: 'M',
+        title: 'T',
+        body: [],
+      }),
+    ).not.toMatch(/Status:/)
+
+    const root = migrated()
+    expect(ok(root, 'claim', 'delta')).toMatch(/claimed delta \(A1, prep\)/)
+
+    const idxPath = path.join(root, 'docs/roadmap.md')
+    let text = fs.readFileSync(idxPath, 'utf8')
+    if (!text.includes('## Z9')) {
+      text = text.replace(
+        '## Deferred',
+        '## Z9 — Empty\n\nGoal: empty.\n\n## Deferred',
+      )
+      fs.writeFileSync(idxPath, text)
+    }
+    expect(cli(root, 'archive', 'Z9').err).toMatch(/has no items/)
+
+    ok(root, 'done', 'epsilon', '--note', 'n')
+    ok(root, 'done', 'zeta', '--note', 'n')
+    const arch = ok(root, 'archive', 'A2')
+    expect(arch).toMatch(/archived A2/)
+    expect(arch).toMatch(/synced ticks:/)
+
+    expect(
+      textFormat.claim({ claimed: 'x', milestone: 'M', tag: 'prep' }),
+    ).toBe('claimed x (M, prep)')
+    expect(textFormat.claim({ claimed: 'x', milestone: 'M', tag: '' })).toBe(
+      'claimed x (M)',
+    )
+    expect(
+      textFormat.archive({ archived: 'A', readme: 'r.md', ticked: [] }),
+    ).toBe('archived A -> r.md')
+    expect(
+      textFormat.archive({
+        archived: 'A',
+        readme: 'r.md',
+        ticked: ['a', 'b'],
+      }),
+    ).toBe('archived A -> r.md\nsynced ticks: a, b')
+  })
 })

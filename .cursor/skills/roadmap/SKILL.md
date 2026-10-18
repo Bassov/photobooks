@@ -31,7 +31,7 @@ Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Error
 
 - Right after the OpenSpec archive, on the change branch: `done <slug> [--note "how it shipped"]` (writes `Status: done` in the item file; does **not** tick the index or archive the milestone).
 - Unneeded `[contingency]`: `done <slug> --note "not needed (gate passed in <gate-item>)"` in the gate item's PR (note required).
-- After merge on `main`: `sync` ticks index checkboxes from item-file Status; when a milestone is fully done, `archive <M>` moves it (separate post-merge step).
+- After item PRs merge: the operator/reviewer runs `sync` (and `archive <M>` when a milestone is fully done) in a small dedicated docs PR — never inside item PRs (`main` is protected). Batched sync/archive is fine. `check` warnings for pending sync are expected until then.
 - `check` validates the layout (also runs in `pnpm test`); fully-done-but-active is a warning until `archive`.
 
 ## Never

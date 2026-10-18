@@ -180,8 +180,8 @@ export function isFeatureBranch(name) {
   return /^(feat|fix)\//.test(name)
 }
 
-function slugFromFeatFix(name) {
-  const m = /^(?:feat|fix)\/(.+)$/.exec(String(name ?? '').trim())
+export function slugFromFeatFix(name) {
+  const m = /^(?:feat|fix)\/(.+)$/.exec(String(name).trim())
   return m ? m[1] : null
 }
 
@@ -373,7 +373,89 @@ export function writePushFailures(root, map, exec = defaultExec) {
   fs.writeFileSync(p, JSON.stringify(map, null, 0) + '\n')
 }
 
-function switchFeatureBranch(exec, cwd, env, quiet, branch, fromOriginMain) {
+/** Path of another worktree that has `branch` checked out, or null. */
+export function branchHeldInOtherWorktree(exec, cwd, env, quiet, branch) {
+  const wt = sh(exec, cwd, env, quiet, 'git', [
+    'worktree',
+    'list',
+    '--porcelain',
+  ])
+  if (wt.code !== 0)
+    fail(
+      `git worktree list failed:\n${tailOutput(wt.stdout, wt.stderr)}`,
+      wt.code || 1,
+    )
+  const cwdAbs = path.resolve(cwd)
+  let blockPath = null
+  let held = null
+  for (const line of wt.stdout.split('\n')) {
+    if (line.startsWith('worktree ')) {
+      blockPath = line.slice('worktree '.length).trim()
+      continue
+    }
+    const m = /^branch refs\/heads\/(.+)$/.exec(line.trim())
+    if (m && m[1] === branch && blockPath) {
+      if (path.resolve(blockPath) !== cwdAbs) held = blockPath
+    }
+  }
+  return held
+}
+
+/**
+ * Reuse an existing local branch only when it shares history with origin/main
+ * and is not checked out elsewhere. Never reset or delete.
+ */
+function reuseExistingFeatureBranch(exec, cwd, env, quiet, branch, createFail) {
+  const cur = sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current'])
+  if (cur.code === 0 && cur.stdout.trim() === branch) return
+
+  const exists = sh(exec, cwd, env, quiet, 'git', [
+    'show-ref',
+    '--verify',
+    '--quiet',
+    `refs/heads/${branch}`,
+  ])
+  if (exists.code !== 0) {
+    fail(
+      `cannot create branch ${branch} and it does not exist locally:\n${tailOutput(createFail.stdout, createFail.stderr)}`,
+      createFail.code || 1,
+    )
+  }
+
+  const mb = sh(exec, cwd, env, quiet, 'git', [
+    'merge-base',
+    branch,
+    'origin/main',
+  ])
+  if (mb.code !== 0) {
+    fail(
+      `local branch ${branch} does not share history with origin/main; refusing to switch (never reset/delete):\n${tailOutput(mb.stdout, mb.stderr)}\n${tailOutput(createFail.stdout, createFail.stderr)}`,
+      mb.code || 1,
+    )
+  }
+
+  const held = branchHeldInOtherWorktree(exec, cwd, env, quiet, branch)
+  if (held) {
+    fail(
+      `branch ${branch} is checked out in another worktree (${held}); refusing to switch`,
+      1,
+    )
+  }
+
+  mustOk(
+    sh(exec, cwd, env, quiet, 'git', ['switch', branch]),
+    `git switch ${branch}`,
+  )
+}
+
+export function switchFeatureBranch(
+  exec,
+  cwd,
+  env,
+  quiet,
+  branch,
+  fromOriginMain,
+) {
   if (fromOriginMain) {
     const create = sh(exec, cwd, env, quiet, 'git', [
       'switch',
@@ -383,19 +465,12 @@ function switchFeatureBranch(exec, cwd, env, quiet, branch, fromOriginMain) {
       'origin/main',
     ])
     if (create.code === 0) return
-    mustOk(
-      sh(exec, cwd, env, quiet, 'git', ['switch', branch]),
-      `git switch ${branch}`,
-    )
+    reuseExistingFeatureBranch(exec, cwd, env, quiet, branch, create)
     return
   }
   const sw = sh(exec, cwd, env, quiet, 'git', ['switch', '-c', branch])
-  if (sw.code !== 0) {
-    mustOk(
-      sh(exec, cwd, env, quiet, 'git', ['switch', branch]),
-      `git switch ${branch}`,
-    )
-  }
+  if (sw.code === 0) return
+  reuseExistingFeatureBranch(exec, cwd, env, quiet, branch, sw)
 }
 
 export function cmdPreflight(o, deps) {
@@ -512,53 +587,103 @@ export function assertFinishBranch(exec, cwd, env, quiet) {
 
 const TRIVIAL_MERGE_FILES = new Set(['docs/roadmap.md', 'pnpm-lock.yaml'])
 
-/** Strip conflict markers keeping both sides' non-marker lines (deduped). */
-export function resolveUnionConflictText(text) {
-  const out = []
-  let skip = false
-  let side = null
-  for (const line of text.split('\n')) {
-    if (line.startsWith('<<<<<<<')) {
-      side = 'ours'
-      continue
-    }
-    if (line.startsWith('=======')) {
-      side = 'theirs'
-      continue
-    }
-    if (line.startsWith('>>>>>>>')) {
-      side = null
-      continue
-    }
-    if (side !== null || !skip) out.push(line)
-  }
-  const seen = new Set()
-  const deduped = []
-  for (const l of out) {
-    if (seen.has(l) && l.startsWith('- [')) continue
-    seen.add(l)
-    deduped.push(l)
-  }
-  return deduped.join('\n').replace(/\n*$/, '\n')
+function splitFileLines(text) {
+  const lines = String(text).split('\n')
+  if (lines.length && lines[lines.length - 1] === '') lines.pop()
+  return lines
 }
 
-export function tryResolveTrivialConflicts(root, conflicted) {
-  const allowed = conflicted.every(
-    (f) =>
-      TRIVIAL_MERGE_FILES.has(f) ||
-      f.startsWith('docs/lessons') ||
-      f.startsWith('docs/roadmap/'),
-  )
-  if (!allowed) return false
-  for (const f of conflicted) {
-    const abs = path.join(root, f)
-    if (f === 'pnpm-lock.yaml') continue
-    if (!fs.existsSync(abs)) continue
-    const text = fs.readFileSync(abs, 'utf8')
-    if (!text.includes('<<<<<<<')) continue
-    fs.writeFileSync(abs, resolveUnionConflictText(text))
+function joinFileLines(lines) {
+  return lines.length ? `${lines.join('\n')}\n` : ''
+}
+
+/** Insert segments between successive base lines; null if a base line was dropped. */
+function insertSegments(side, base) {
+  const segs = []
+  let si = 0
+  for (let bi = 0; bi < base.length; bi++) {
+    const insert = []
+    while (si < side.length && side[si] !== base[bi]) insert.push(side[si++])
+    if (si >= side.length || side[si] !== base[bi]) return null
+    segs.push(insert)
+    si++
+  }
+  segs.push(side.slice(si))
+  return segs
+}
+
+function unionInserts(oursIns, theirsIns) {
+  const seen = new Set(oursIns)
+  return [...oursIns, ...theirsIns.filter((l) => !seen.has(l))]
+}
+
+/**
+ * Auto-resolve docs/roadmap.md only when both sides purely ADD distinct whole
+ * lines relative to the merge base (parallel `roadmap add`).
+ * @returns {string|null}
+ */
+export function resolvePureAddIndexConflict(baseText, oursText, theirsText) {
+  const base = splitFileLines(baseText)
+  const ours = splitFileLines(oursText)
+  const theirs = splitFileLines(theirsText)
+  const oSeg = insertSegments(ours, base)
+  const tSeg = insertSegments(theirs, base)
+  if (!oSeg || !tSeg) return null
+  const out = []
+  for (let i = 0; i < base.length; i++) {
+    out.push(...unionInserts(oSeg[i], tSeg[i]))
+    out.push(base[i])
+  }
+  out.push(...unionInserts(oSeg[base.length], tSeg[base.length]))
+  return joinFileLines(out)
+}
+
+function readGitStages(root, rel, exec) {
+  const stages = []
+  for (const stage of [1, 2, 3]) {
+    const r = exec('git', ['show', `:${stage}:${rel}`], {
+      cwd: root,
+      env: process.env,
+    })
+    if (r.code !== 0) return null
+    stages.push(r.stdout)
+  }
+  return { base: stages[0], ours: stages[1], theirs: stages[2] }
+}
+
+/**
+ * Auto-resolve only pure-add `docs/roadmap.md` conflicts and `pnpm-lock.yaml`
+ * (via install later). Refuses item files, lessons, RULES, modified-line hunks,
+ * and any package.json conflict. Leaves the merge in progress on failure.
+ */
+export function tryResolveTrivialConflicts(
+  root,
+  conflicted,
+  exec = defaultExec,
+) {
+  const files = [...new Set(conflicted)]
+  if (files.includes('package.json')) return false
+  if (!files.every((f) => TRIVIAL_MERGE_FILES.has(f))) return false
+
+  if (files.includes('docs/roadmap.md')) {
+    const stages = readGitStages(root, 'docs/roadmap.md', exec)
+    if (!stages) return false
+    const resolved = resolvePureAddIndexConflict(
+      stages.base,
+      stages.ours,
+      stages.theirs,
+    )
+    if (resolved === null) return false
+    fs.writeFileSync(path.join(root, 'docs/roadmap.md'), resolved)
   }
   return true
+}
+
+function refuseMergeConflict(files) {
+  fail(
+    `cannot auto-resolve conflict with origin/main (files: ${files.join(', ') || 'unknown'}). Resolve per git-finish.mdc, then run finish again.`,
+    1,
+  )
 }
 
 export function mergeOriginMainIfNeeded(exec, root, cwd, env, quiet) {
@@ -581,13 +706,19 @@ export function mergeOriginMainIfNeeded(exec, root, cwd, env, quiet) {
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
-  if (!tryResolveTrivialConflicts(root, files))
-    fail(
-      `semantic conflict with origin/main (files: ${files.join(', ') || 'unknown'}):\n${tailOutput(merge.stdout, merge.stderr)}`,
-      1,
-    )
+  if (!files.length || !tryResolveTrivialConflicts(root, files, exec))
+    refuseMergeConflict(files)
   if (files.includes('pnpm-lock.yaml')) {
     mustOk(sh(exec, cwd, env, quiet, 'pnpm', ['install']), 'pnpm install')
+  }
+  if (files.includes('docs/roadmap.md')) {
+    const check = sh(exec, cwd, env, quiet, 'pnpm', ['-s', 'roadmap', 'check'])
+    if (check.code !== 0) {
+      fail(
+        `roadmap check failed after auto-resolving docs/roadmap.md (semantic conflict). Resolve per git-finish.mdc, then run finish again.\n${tailOutput(check.stdout, check.stderr)}`,
+        1,
+      )
+    }
   }
   for (const f of files) {
     mustOk(sh(exec, cwd, env, quiet, 'git', ['add', '--', f]), `git add ${f}`)

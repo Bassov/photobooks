@@ -1148,7 +1148,7 @@ function fmtItem(v) {
   if (v.body !== undefined) o.push('---', v.body ?? '(file missing)')
   return o.join('\n')
 }
-const fmt = {
+export const textFormat = {
   next: (r) => (r ? fmtItem(r) : 'next: none (no open item)'),
   show: fmtItem,
   list: (r) =>
@@ -1168,21 +1168,26 @@ const fmt = {
     `done ${r.done} (${r.milestone} ${r.progress})` +
     (r.note !== null ? `\nnote: ${r.note}` : ''),
   claim: (r) =>
-    `claimed ${r.claimed} (${r.milestone}${r.tag ? `, ${r.tag}` : ''})`,
+    r.tag
+      ? `claimed ${r.claimed} (${r.milestone}, ${r.tag})`
+      : `claimed ${r.claimed} (${r.milestone})`,
   sync: (r) =>
     r.count
       ? `synced ${r.count} index tick(s): ${r.ticked.join(', ')}`
       : 'sync: nothing to tick',
-  archive: (r) =>
-    `archived ${r.archived} -> ${r.readme}` +
-    (r.ticked?.length ? `\nsynced ticks: ${r.ticked.join(', ')}` : ''),
+  archive: (r) => {
+    const head = `archived ${r.archived} -> ${r.readme}`
+    return r.ticked?.length
+      ? `${head}\nsynced ticks: ${r.ticked.join(', ')}`
+      : head
+  },
   move: (r) =>
     `moved ${r.moved} ${r.from === r.to ? `within ${r.to}` : `${r.from} -> ${r.to}`} (${r.position}); file ${r.file}`,
   check: (r) => {
     const head = r.ok
       ? `check ok: ${r.items} items (${r.open} open), ${r.milestones} active milestones, ${r.archived} archived`
       : [...r.errors, `check failed: ${r.errors.length} error(s)`].join('\n')
-    const warn = (r.warnings ?? []).map((w) => `warning: ${w}`)
+    const warn = r.warnings.map((w) => `warning: ${w}`)
     return warn.length ? [head, ...warn].join('\n') : head
   },
   migrate: (r) =>
@@ -1195,6 +1200,7 @@ const fmt = {
       ...r.verify.missing,
     ].join('\n'),
 }
+const fmt = textFormat
 
 export function run(argv, { cwd = process.cwd() } = {}) {
   let o

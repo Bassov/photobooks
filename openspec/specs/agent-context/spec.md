@@ -260,7 +260,7 @@ The project SHALL provide `/next-roadmap-item` (optional `<slug>` argument) to r
 #### Scenario: Defined stop conditions only
 
 - **WHEN** the unattended run encounters a dirty working tree, a milestone review cut, intent that conflicts with a spec or open issue, or three red CI fix rounds
-- **THEN** the run MUST stop and ask; a conflict with `main` MUST be auto-merged when trivial and MUST stop only for semantic conflicts; otherwise the run MUST continue through archive and PR (CI wait policy follows the invoking command)
+- **THEN** the run MUST stop and ask; a conflict with `main` MUST be auto-merged only for pure-add `docs/roadmap.md` and lockfile-only cases and MUST stop for any other conflict; otherwise the run MUST continue through archive and PR (CI wait policy follows the invoking command)
 
 ### Requirement: Manual check before archive
 
@@ -600,12 +600,22 @@ The repository SHALL provide a zero-dependency Node CLI (`pnpm agent`, `scripts/
 
 ### Requirement: Parallel worktree agent preflight
 
-`pnpm agent preflight --slug <s>` SHALL work in the main checkout and in a linked worktree. It MUST fetch and create or reuse `feat|fix/<slug>` from `origin/main` without switching or pulling local `main`. The clean-tree check SHALL remain. Without `--slug`, preflight SHALL keep the existing main-checkout sync behaviour.
+`pnpm agent preflight --slug <s>` SHALL work in the main checkout and in a linked worktree. It MUST fetch and create or reuse `feat|fix/<slug>` from `origin/main` without switching or pulling local `main`. Reuse of an existing local branch is allowed only when that branch is already the current branch of this checkout, or it exists locally, shares history with `origin/main` (`git merge-base` succeeds), and is not checked out in another worktree; otherwise preflight MUST fail with a clear message and MUST NOT reset or delete the branch. The clean-tree check SHALL remain. Without `--slug`, preflight SHALL keep the existing main-checkout sync behaviour.
 
 #### Scenario: Linked worktree with main elsewhere
 
 - **WHEN** `main` is checked out in the primary worktree and an agent runs `pnpm agent preflight --slug <s>` in a linked worktree with a clean tree
 - **THEN** the command creates or reuses `feat/<s>` (or `fix/<s>`) based on `origin/main` and reports item `<s>`
+
+#### Scenario: Current-branch reuse without switch
+
+- **WHEN** `feat/<s>` is already the current branch of this checkout and create from `origin/main` fails because the branch exists
+- **THEN** preflight reuses it without switching or resetting
+
+#### Scenario: Branch held in another worktree refused
+
+- **WHEN** `feat/<s>` exists locally but is checked out in another worktree
+- **THEN** preflight exits non-zero with a message naming the other worktree and does not reset or delete the branch
 
 #### Scenario: No-slug main checkout unchanged
 
@@ -665,7 +675,7 @@ Milestone archiving SHALL be a post-merge operator step (`pnpm roadmap archive <
 
 ### Requirement: Conflict-free lessons entries
 
-Repeated-finding lessons SHALL be stored as separate files under `docs/lessons/` (or an equivalent conflict-free scheme). Mandates that previously required appending to `docs/lessons.md` SHALL require adding a per-entry file instead. Navigation MAY keep an index pointer.
+Repeated-finding lessons SHALL be stored as separate files under `docs/lessons/` (or an equivalent conflict-free scheme). Mandates that previously required appending to `docs/lessons.md` SHALL require adding a per-entry file instead. New entries SHALL use collision-free names `docs/lessons/<YYYY-MM-DD>-<slug>.md`; agents MUST read all entries in one call (not one Read per file); the index `docs/lessons.md` NEED NOT be updated per entry. Navigation MAY keep an index pointer.
 
 #### Scenario: Two agents add lessons without conflict
 
@@ -674,12 +684,17 @@ Repeated-finding lessons SHALL be stored as separate files under `docs/lessons/`
 
 ### Requirement: Auto-merge trivial main conflicts on finish
 
-When a feature PR conflicts with `main`, git-finish / `pnpm agent finish` SHALL fetch and merge `origin/main`, resolve trivial conflicts (roadmap index/doc lines, lockfile via install, independent hunks), run `pnpm verify:fast:quiet`, and push. It MUST NOT rebase or force-push. Only semantic conflicts SHALL stop the run for human help.
+When a feature PR conflicts with `main`, git-finish / `pnpm agent finish` SHALL fetch and merge `origin/main`. It MAY auto-resolve only (1) `docs/roadmap.md` hunks where both sides purely ADD distinct whole lines relative to the merge base (parallel `roadmap add`), keeping both added lines, and (2) `pnpm-lock.yaml` via `pnpm install` when `package.json` itself has no conflict. After an auto-resolution it MUST run `pnpm -s roadmap check` before committing the merge; a failed check is treated as a semantic conflict. Any other conflict (item files, lessons, RULES/INTRO, modified or deleted base lines, `package.json`) MUST leave the merge in progress (or abort it), MUST NOT commit, and MUST fail with a message listing the files and instructing to resolve per `git-finish.mdc` then run finish again. It MUST run `pnpm verify:fast:quiet` after a successful auto-resolve commit, and MUST NOT rebase or force-push.
 
-#### Scenario: Trivial roadmap conflict merges
+#### Scenario: Pure-add index conflict merges
 
-- **WHEN** finish detects a conflict with `main` that is only adjacent roadmap/doc ticks or a lockfile clash
-- **THEN** it merges, resolves, verifies, and pushes without stopping for a human
+- **WHEN** finish detects a conflict with `main` that is only pure-add lines in `docs/roadmap.md` (and/or a lockfile clash without `package.json` conflict)
+- **THEN** it merges, auto-resolves, runs `roadmap check`, verifies, and pushes without stopping for a human
+
+#### Scenario: Modified-line or item-file conflict stops
+
+- **WHEN** finish encounters a modified-line conflict in `docs/roadmap.md`, any conflict under an item file, or other non-allowlisted paths
+- **THEN** it leaves the merge unresolved, does not commit, and reports with guidance to resolve per `git-finish.mdc` then run finish again
 
 #### Scenario: Semantic conflict stops
 

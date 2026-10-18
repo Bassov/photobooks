@@ -1,6 +1,6 @@
 # Lessons
 
-Conflict-free journal: one file per entry under `docs/lessons/`. Read before OpenSpec apply. Add a new file when a finding repeats; do not append to this index body.
+Conflict-free journal: one file per entry under `docs/lessons/`. Read all entries in one call before OpenSpec apply (e.g. `cat docs/lessons/[0-9]*.md`). New entries use `docs/lessons/<YYYY-MM-DD>-<slug>.md`; do not update this index per entry. Existing 01–29 files stay as they are.
 
 - [01](01-do-not-store-file-blob-in.md) — Do not store `File` / `Blob` in persisted book or photo domain models — use ids;…
 - [02](02-heavy-image-decode-render-and-encode.md) — Heavy image decode, render, and encode MUST run in Web Workers — never block the…

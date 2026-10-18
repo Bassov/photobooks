@@ -19,7 +19,7 @@ context: |
   - Shared factories, fixtures, and helpers; do not copy-paste Arrange/setup across cases or suites
   - Mock I/O boundaries only (fs, network, time, worker edges); do not assert internal helper call counts
   - Detailed test style: skill `write-tests`
-  - Read docs/lessons/ (index docs/lessons.md) before apply; add a per-entry file under docs/lessons/ when a review finding repeats
+  - Read all lesson entries in ONE call before apply (e.g. `cat docs/lessons/[0-9]*.md`); do not one-Read per file. New entries: `docs/lessons/<YYYY-MM-DD>-<slug>.md` (collision-free); do not update the index `docs/lessons.md` per entry (keep existing 01–29 names as they are)
   - Bugs found via exploratory browser or MCP sessions MUST be locked in with a Playwright test under e2e/ that would have failed before the fix
   - Page overflow containment (document fits viewport; scroll only inside named scrollports) is a Playwright invariant via shared e2e helpers — not a `ui-review` gate; do not treat element scrollLeft alone as proof of page containment
   - UI in scope: green verify is not enough — require evidenced browser smoke (Playwright and/or MCP browser) for empty, happy-path, and primary scroll/interact before push/archive; skill `ui-review` is mandatory (includes layout smoke)
@@ -85,7 +85,7 @@ operations:
   apply:
     guidance:
       - Do not treat apply as complete until Verification checklist items are green.
-      - Read docs/lessons/ before design and apply. Before archive, for each reviewer finding tagged `[repeat]` add one new per-entry file under docs/lessons/, and for `[lesson]` sharpen the matching entry file instead of appending to a shared journal.
+      - Read all lesson entries in ONE call before design and apply (e.g. `cat docs/lessons/[0-9]*.md`). Before archive, for each reviewer finding tagged `[repeat]` add one new file `docs/lessons/<YYYY-MM-DD>-<slug>.md` (do not update docs/lessons.md), and for `[lesson]` sharpen the matching entry file instead of appending to a shared journal.
       - If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode before treating apply as complete.
       - When a change introduces or changes an in-app scrollport, include Playwright calls to `assertDocumentFitsViewport` (and `assertNamedScrollport` when content overflows the viewport) before treating apply as complete.
       - 'When UI is in scope: before push/archive, run skill `ui-review` and evidenced browser smoke (empty state readable; happy path of the change; primary scroll/interact with no large dead zone while more content exists). Prefer Playwright assertions; MCP browser screenshots/notes are supporting evidence, not a substitute for locking bugs into e2e.'
@@ -111,5 +111,5 @@ operations:
       - NEVER choose "Archive without syncing" / skip-sync when delta specs exist.
       - If sync is blocked or verification fails, STOP — do not archive until fixed.
       - If there are no delta specs, archive may proceed; note "No delta specs".
-      - After moving the change, close its roadmap item on the same branch with `pnpm roadmap done <slug>` (the PR merge closes it; add `--note` when the shipped scope deviates); close a [contingency] that is not needed with it via `pnpm roadmap done <slug> --note "not needed (gate passed in <slug>)"`. If `done` archives the milestone, commit the moved folder; run `pnpm roadmap check`. Never hand-edit docs/roadmap.md.
+      - After moving the change, close its roadmap item on the same branch with `pnpm roadmap done <slug>` (writes item-file Status only; the PR merge closes it; add `--note` when the shipped scope deviates); close a [contingency] that is not needed with it via `pnpm roadmap done <slug> --note "not needed (gate passed in <slug>)"`. Index `sync` and milestone `archive` are operator docs-PR steps after merge, not part of item PRs; run `pnpm roadmap check`. Never hand-edit docs/roadmap.md.
       - Summarize what merged into specs/ in a few bullets.

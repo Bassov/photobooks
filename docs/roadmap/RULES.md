@@ -23,7 +23,7 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 ## Order, milestones, closing
 
 - Items run in index order; `pnpm roadmap next` returns the first open item, skipping `[contingency]` items and slugs with an open PR.
-- Milestones are review cuts. `done` writes `Status: done` in the item file and does not tick the index or archive. After merge on `main`, `pnpm roadmap sync` ticks the index; when every item is done, `pnpm roadmap archive <M>` moves the milestone (separate operator step). Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
+- Milestones are review cuts. `done` writes `Status: done` in the item file and does not tick the index or archive. Index ticks (`pnpm roadmap sync`) and milestone `archive <M>` land through a small dedicated docs PR run by the operator/reviewer after item PRs merge (batched is fine) — never inside item PRs (`main` is protected; no direct pushes). `check` warnings for pending sync/archive are expected until that docs PR. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
 - An item is closed in the change's own PR right after the OpenSpec archive with `pnpm roadmap done <slug>` (`openspec/config.yaml` `operations.archive`). `--note` records how it was closed. Parallel item PRs must not edit the same index checkbox line.
 - Reprioritizing is the owner's call: `pnpm roadmap move`. Deferred ideas are scheduled with `pnpm roadmap add`.
 
