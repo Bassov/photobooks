@@ -391,9 +391,15 @@ test.describe('frame-budget gates', () => {
     await clearPerfScenario(page)
 
     const files = writeBulkImportFixtures(200)
-    // Use the same hidden input seam as other e2e specs — native filechooser
-    // is unreliable under headless Chromium on some hosts.
-    await page.getByTestId('photo-file-input').setInputFiles(files)
+    // Click Add photos so Event Timing / INP measure that gesture (perf=1
+    // deletes showOpenFilePicker → falls back to the hidden file input).
+    const addPhotos = page.getByRole('button', { name: 'Add photos' })
+    await expect(addPhotos).toBeEnabled()
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      addPhotos.click({ delay: 20 }),
+    ])
+    await fileChooser.setFiles(files)
 
     await expect(page.getByTestId('import-progress')).toBeVisible({
       timeout: 30_000,

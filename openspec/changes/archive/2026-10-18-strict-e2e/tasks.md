@@ -42,7 +42,8 @@
 ## Notes
 
 - `e2e/flaky.json` remains `[]`; no follow-up flaky-fix items added.
-- Full `pnpm test:e2e` path: 62/62 with `--project=chromium --workers=1` after bulk-import switched to `photo-file-input` setInputFiles (filechooser hung headless).
+- Full `pnpm test:e2e` path: 62/62 with `--project=chromium --workers=1`.
+- Bulk filmstrip import must click `Add photos` + filechooser (Event Timing / INP); do not replace with bare `setInputFiles` on the hidden input.
 - `e2e-changed-quiet` / `test:e2e` pin `--workers=1` (CI parity under zero retries).
 - LHCI / UI smoke / audit: N/A (no UI product surface, no lockfile deps).
 - stryker:diff: OK (no production `src/` mutants in this gate-only change).
