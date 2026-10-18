@@ -1,11 +1,8 @@
-# Coverage uploads per commit: unit lcov + e2e lcov (test_results also increments
-# after_n_builds). wait_for_ci keeps patch from posting until the e2e job finishes
-# (upload runs before that job completes), even if after_n_builds is satisfied early
-# by test_results + unit.
+# Two coverage uploads per commit: unit lcov + e2e lcov.
+# e2e carryforward is false so a prior commit cannot satisfy after_n_builds early.
 codecov:
   notify:
     after_n_builds: 2
-    wait_for_ci: true
 
 coverage:
   status:
@@ -97,4 +94,5 @@ flags:
   e2e:
     paths:
       - src/
-    carryforward: true
+    # Must upload on every commit; carryforward would satisfy after_n_builds early.
+    carryforward: false
