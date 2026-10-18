@@ -48,10 +48,9 @@ describe('hook-clean-env', () => {
     expect(seen.env.GIT_WORK_TREE).toBeUndefined()
   })
 
-  it('canary fails when the command mutates local git state', async () => {
+  it('canary fails when non-branch local config mutates', async () => {
     const repo = initTmpRepo(tmpDirs)
     const code = await withGitCanary(repo, () => {
-      // Simulate a leaked test writing into the repo under canary watch.
       fs.writeFileSync(
         `${repo}/.git/config`,
         fs.readFileSync(`${repo}/.git/config`, 'utf8') +

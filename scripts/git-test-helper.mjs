@@ -102,6 +102,7 @@ export function initTmpRepo(track, opts = {}) {
   }
   gitExec(['add', '.'], d, { stdio: 'ignore' })
   gitExec(['commit', '-m', 'init'], d, { stdio: 'ignore' })
+  gitExec(['branch', '-M', 'main'], d, { stdio: 'ignore' })
   return d
 }
 
