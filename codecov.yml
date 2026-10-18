@@ -1,3 +1,9 @@
+# Two coverage uploads per commit: unit lcov + e2e lcov.
+# e2e carryforward is false so a prior commit cannot satisfy after_n_builds early.
+codecov:
+  notify:
+    after_n_builds: 2
+
 coverage:
   status:
     project:
@@ -21,8 +27,11 @@ flag_management:
     carryforward: true
 
 comment:
-  # header+components per Codecov docs so the PR comment includes the component table
-  layout: 'header, diff, flags, components, files'
+  # Two uploads per commit (unit + e2e); must match notify.after_n_builds.
+  after_n_builds: 2
+  # flags requested; Codecov on this repo still omits the Flags table in GitHub comments
+  # (same class as project/components — see docs/backlog/codecov-project-components.md).
+  layout: 'header, diff, flags, files'
   behavior: default
   require_changes: false
   require_base: false
@@ -84,3 +93,8 @@ flags:
       - scripts/e2e-burn-in-targets.mjs
       - scripts/e2e-playwright-summary.mjs
     carryforward: true
+  e2e:
+    paths:
+      - src/
+    # Must upload on every commit; carryforward would satisfy after_n_builds early.
+    carryforward: false

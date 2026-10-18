@@ -58,7 +58,7 @@ Workflow: propose → proposal-reviewer → design → design-reviewer → tasks
 
 ## CI
 
-GitHub Actions: `checks` (typecheck, lint, format, coverage floors, audit, Codecov), `integration`, `lighthouse` (PR + `main`), `stryker-diff` (PR + mutation comment), `stryker-full` (nightly), `dependency-review`, `gitleaks`, CodeQL.
+GitHub Actions: `checks` (typecheck, lint, format, coverage floors, audit, Codecov `unit` flag), `integration` (e2e + Codecov `e2e` flag; `codecov/patch` merges both), `lighthouse` (PR + `main`), `stryker-diff` (PR + mutation comment), `stryker-full` (nightly), `dependency-review`, `gitleaks`, CodeQL.
 
 PR reports (comments): one CI report comment (coverage, Lighthouse, mutation sections; `ci-gates` spec). Install the [Codecov GitHub App](https://github.com/apps/codecov) when coverage-relevant files change.
 

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures/coverage'
 
 test('burn-in canary is deterministic', async ({ page }) => {
   await page.setContent('<main><h1>Photobooks burn-in</h1></main>')

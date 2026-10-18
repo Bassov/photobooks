@@ -1,5 +1,6 @@
 import { codecovVitePlugin } from '@codecov/vite-plugin'
 import react from '@vitejs/plugin-react'
+import IstanbulPlugin from 'vite-plugin-istanbul'
 import { defineConfig } from 'vitest/config'
 import { loadGates } from './scripts/load-gates.mjs'
 
@@ -12,6 +13,22 @@ const isolationHeaders = {
 } as const
 
 const codecovToken = process.env.CODECOV_TOKEN
+const withE2eCoverage = process.env.VITE_COVERAGE === '1'
+
+/** Shared Vitest + Istanbul exclude globs (tests, benches, decls, helpers, bootstrap). */
+export const coverageExcludeGlobs = [
+  'src/**/*.{test,spec}.{ts,tsx}',
+  'src/**/*.test-helpers.ts',
+  'src/**/*.{bench,benchmark}.{ts,tsx}',
+  'src/**/*.d.ts',
+  'src/main.tsx',
+] as const
+
+/** E2e Istanbul additionally skips workers (unit coverage still includes them). */
+const e2eIstanbulExcludeGlobs = [
+  ...coverageExcludeGlobs,
+  'src/**/*.worker.ts',
+] as const
 
 export default defineConfig({
   plugins: [
@@ -25,7 +42,19 @@ export default defineConfig({
       gitService: 'github',
       telemetry: false,
     }),
+    ...(withE2eCoverage
+      ? [
+          IstanbulPlugin({
+            include: 'src/**/*',
+            exclude: [...e2eIstanbulExcludeGlobs],
+            extension: ['.js', '.ts', '.tsx'],
+            requireEnv: false,
+            forceBuildInstrument: true,
+          }),
+        ]
+      : []),
   ],
+  ...(withE2eCoverage ? { build: { sourcemap: true as const } } : {}),
   server: {
     headers: { ...isolationHeaders },
   },
@@ -56,13 +85,7 @@ export default defineConfig({
         'scripts/check-gate-values.mjs',
         'scripts/e2e-flaky-list.mjs',
       ],
-      exclude: [
-        'src/**/*.{test,spec}.{ts,tsx}',
-        'src/**/*.test-helpers.ts',
-        'src/**/*.{bench,benchmark}.{ts,tsx}',
-        'src/**/*.d.ts',
-        'src/main.tsx',
-      ],
+      exclude: [...coverageExcludeGlobs],
       thresholds: gates.coverage,
     },
     benchmark: {

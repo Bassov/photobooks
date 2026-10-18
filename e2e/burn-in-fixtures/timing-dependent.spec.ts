@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../fixtures/coverage'
 
 /**
  * Intentionally timing-dependent: ~half of runs lose a race against a 50ms

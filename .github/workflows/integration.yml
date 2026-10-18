@@ -167,6 +167,35 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-results.json
 
+      - name: E2E coverage harvest
+        id: e2e-coverage
+        if: success()
+        run: >
+          pnpm test:e2e
+          --grep-invert "frame-budget gates"
+        env:
+          # webServer sets VITE_COVERAGE=1; skip LoAF describes (Istanbul overhead).
+          E2E_COVERAGE: '1'
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-coverage-results.json
+
+      - name: Merge e2e coverage
+        id: e2e-coverage-merge
+        if: always() && steps.e2e-coverage.outcome == 'success'
+        run: |
+          pnpm coverage:e2e
+          test -s coverage-e2e/lcov.info
+
+      - name: Upload e2e coverage to Codecov
+        if: always() && steps.e2e-coverage-merge.outcome == 'success'
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage-e2e/lcov.info
+          flags: e2e
+          # Prevent picking up Playwright JSON under test-results/ as "coverage".
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
+
       - name: Upload e2e results
         if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v7
