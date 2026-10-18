@@ -9,9 +9,13 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 import {
   AgentError,
   branchPrefixForItem,
+  clearRunStarted,
   collectSkipSlugs,
   cmdPreflight,
   defaultExec,
+  ensureRunStarted,
+  execEnvForCwd,
+  GIT_LOCAL_ENV_VARS,
   isFeatureBranch,
   main,
   mustOk,
@@ -22,7 +26,10 @@ import {
   parseTouchSetPaths,
   readNvmrcMajor,
   readPushFailures,
+  readRunStarted,
   resolvePureAddIndexConflict,
+  resolveGitRelPath,
+  resolveRunStartedMs,
   run,
   readRunStartedMs,
   slugFromBranch,
@@ -39,6 +46,11 @@ import {
   writeRunStarted,
   pushFailPath,
 } from './agent.mjs'
+
+// Structural isolation: Lefthook / ambient hooks set GIT_DIR against the real repo.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith('GIT_')) delete process.env[key]
+}
 
 const tmpDirs = []
 afterEach(() => {
@@ -58,22 +70,17 @@ function tmpRoot(withGit = false) {
   return d
 }
 
-function cleanGitEnv() {
-  const env = { ...process.env }
-  delete env.GIT_DIR
-  delete env.GIT_WORK_TREE
-  delete env.GIT_INDEX_FILE
-  delete env.GIT_OBJECT_DIRECTORY
-  delete env.GIT_ALTERNATE_OBJECT_DIRECTORIES
-  return env
+function cleanGitEnv(extra = {}) {
+  return execEnvForCwd({ ...process.env, ...extra })
 }
 
 function gitExec(args, cwd, extra = {}) {
+  const { env: extraEnv, ...rest } = extra
   return execFileSync('git', args, {
     stdio: 'ignore',
-    ...extra,
+    ...rest,
     cwd,
-    env: cleanGitEnv(),
+    env: cleanGitEnv(extraEnv),
   })
 }
 
@@ -334,10 +341,41 @@ describe('branch and check helpers', () => {
   })
 })
 
+describe('execEnvForCwd', () => {
+  it('strips repo-local GIT_* and keeps SSH / terminal prompt', () => {
+    const env = {
+      PATH: '/bin',
+      GIT_DIR: '/decoy/.git',
+      GIT_WORK_TREE: '/decoy',
+      GIT_COMMON_DIR: '/decoy/.git',
+      GIT_CONFIG: '/decoy/config',
+      GIT_CONFIG_PARAMETERS: "'core.bare=true'",
+      GIT_CONFIG_COUNT: '1',
+      GIT_PREFIX: 'x',
+      GIT_IMPLICIT_WORK_TREE: '1',
+      GIT_GRAFT_FILE: 'g',
+      GIT_SHALLOW_FILE: 's',
+      GIT_NO_REPLACE_OBJECTS: '1',
+      GIT_REPLACE_REF_BASE: 'r',
+      GIT_INTERNAL_SUPER_PREFIX: 'p',
+      GIT_INDEX_FILE: 'i',
+      GIT_OBJECT_DIRECTORY: 'o',
+      GIT_ALTERNATE_OBJECT_DIRECTORIES: 'a',
+      GIT_SSH_COMMAND: 'ssh -i key',
+      GIT_TERMINAL_PROMPT: '0',
+    }
+    const out = execEnvForCwd(env)
+    for (const key of GIT_LOCAL_ENV_VARS) expect(out[key]).toBeUndefined()
+    expect(out.PATH).toBe('/bin')
+    expect(out.GIT_SSH_COMMAND).toBe('ssh -i key')
+    expect(out.GIT_TERMINAL_PROMPT).toBe('0')
+  })
+})
+
 describe('run metrics helpers', () => {
   it('writeRunStarted and buildPrBodyWithMetrics fill wall time and tokens', () => {
     const root = tmpRoot(true)
-    writeRunStarted(root, 1_000)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/demo')
     const body = path.join(root, 'body.md')
     fs.writeFileSync(
       body,
@@ -375,6 +413,124 @@ describe('run metrics helpers', () => {
     expect(fs.readFileSync(bodyPath, 'utf8')).toMatch(
       /## Metrics\n\n- wall_time_sec: unknown\n/,
     )
+  })
+
+  it('buildPrBodyWithMetrics replaces trailing Metrics when no following heading', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 2_000, defaultExec, 'feat/x')
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(
+      body,
+      '## Summary\n\nok\n\n## Metrics\n\n- wall_time_sec: old\n',
+    )
+    const { bodyPath, wallTimeSec } = buildPrBodyWithMetrics(
+      body,
+      root,
+      {},
+      defaultExec,
+      7_000,
+    )
+    expect(wallTimeSec).toBe(5)
+    expect(fs.readFileSync(bodyPath, 'utf8')).toMatch(
+      /## Metrics\n\n- wall_time_sec: 5\n$/,
+    )
+    expect(fs.readFileSync(bodyPath, 'utf8')).not.toContain('old')
+  })
+
+  it('AGENT_RUN_STARTED_AT env wins over the on-disk marker', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/x')
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: '10' })).toBe(
+      10_000,
+    )
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, '## Summary\n')
+    const { wallTimeSec } = buildPrBodyWithMetrics(
+      body,
+      root,
+      { AGENT_RUN_STARTED_AT: '10' },
+      defaultExec,
+      15_000,
+    )
+    expect(wallTimeSec).toBe(5)
+  })
+
+  it('ensureRunStarted keeps the first marker for the same branch', () => {
+    const root = tmpRoot(true)
+    const first = ensureRunStarted(root, 'feat/a', 1_000)
+    expect(first.wrote).toBe(true)
+    const second = ensureRunStarted(root, 'feat/a', 9_999)
+    expect(second.wrote).toBe(false)
+    expect(second.startedAtMs).toBe(1_000)
+    expect(readRunStarted(root)).toEqual({
+      startedAtMs: 1_000,
+      branch: 'feat/a',
+    })
+  })
+
+  it('ensureRunStarted rewrites when the branch changes', () => {
+    const root = tmpRoot(true)
+    ensureRunStarted(root, 'feat/a', 1_000)
+    const next = ensureRunStarted(root, 'feat/b', 5_000)
+    expect(next.wrote).toBe(true)
+    expect(readRunStarted(root)).toEqual({
+      startedAtMs: 5_000,
+      branch: 'feat/b',
+    })
+  })
+
+  it('readRunStarted ignores corrupt or non-numeric markers', () => {
+    const root = tmpRoot(true)
+    const p = resolveGitRelPath(root, 'agent-run-started.json')
+    fs.writeFileSync(p, '{not-json')
+    expect(readRunStarted(root)).toBe(null)
+    expect(readRunStartedMs(root)).toBe(null)
+    fs.writeFileSync(p, JSON.stringify({ startedAtMs: 'nope', branch: 'x' }))
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(p, JSON.stringify({ branch: 'x' }))
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(
+      p,
+      JSON.stringify({ startedAtMs: Number.NaN, branch: 'x' }),
+    )
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(
+      p,
+      JSON.stringify({ startedAtMs: Number.POSITIVE_INFINITY, branch: 'x' }),
+    )
+    expect(readRunStarted(root)).toBe(null)
+    fs.writeFileSync(p, JSON.stringify({ startedAtMs: 42 }))
+    expect(readRunStarted(root)).toEqual({ startedAtMs: 42, branch: '' })
+    writeRunStarted(root, 7, defaultExec, null)
+    expect(readRunStarted(root)).toEqual({ startedAtMs: 7, branch: '' })
+  })
+
+  it('resolveRunStartedMs ignores non-finite AGENT_RUN_STARTED_AT', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/x')
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: 'nope' })).toBe(
+      1_000,
+    )
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: '  ' })).toBe(
+      1_000,
+    )
+    expect(resolveRunStartedMs(root, { AGENT_RUN_STARTED_AT: '' })).toBe(1_000)
+  })
+
+  it('resolveGitRelPath falls back when gitPath throws', () => {
+    const root = tmpRoot(true)
+    const p = resolveGitRelPath(root, 'agent-x.json', () => {
+      throw new Error('rev-parse down')
+    })
+    expect(p).toBe(path.join(root, '.git', 'agent-x.json'))
+  })
+
+  it('clearRunStarted removes the marker file', () => {
+    const root = tmpRoot(true)
+    writeRunStarted(root, 1_000, defaultExec, 'feat/x')
+    expect(readRunStartedMs(root)).toBe(1_000)
+    clearRunStarted(root)
+    expect(readRunStarted(root)).toBe(null)
   })
 })
 
@@ -427,33 +583,112 @@ describe('nvmrc and push failures', () => {
     expect(p).toBe(path.join(root, '.git', 'agent-x.json'))
   })
 
-  it('pushFailPath uses git-dir from rev-parse (linked worktree shape)', () => {
-    // Mocked: real `git worktree add` against shared checkouts is unsafe under Lefthook GIT_DIR.
-    const root = tmpRoot()
-    const commonDir = path.join(
-      os.tmpdir(),
-      `agent-gitcommon-${path.basename(root)}`,
-    )
-    tmpDirs.push(commonDir)
-    fs.mkdirSync(commonDir, { recursive: true })
-    const gitDirRel = path.join(commonDir, 'worktrees', 'wt-item')
-    fs.mkdirSync(gitDirRel, { recursive: true })
-    const exec = (file, args) => {
-      const key = `${file} ${args.join(' ')}`
-      if (key.includes('git rev-parse --git-path')) {
-        return {
-          code: 0,
-          stdout: `${gitDirRel}/${args[args.length - 1]}\n`,
-          stderr: '',
-        }
-      }
-      return { code: 1, stdout: '', stderr: `unhandled: ${key}` }
-    }
-    writePushFailures(root, { 'feat/wt-item': 1 }, exec)
-    const p = pushFailPath(root, exec)
+  it('pushFailPath uses git-dir in a linked worktree', () => {
+    const primary = gitInitRepo()
+    gitExec(['branch', '-M', 'main'], primary)
+    const wt = path.join(primary, '..', `wt-${path.basename(primary)}`)
+    tmpDirs.push(wt)
+    gitExec(['worktree', 'add', wt, '-b', 'feat/wt-item'], primary)
+    writePushFailures(wt, { 'feat/wt-item': 1 })
+    const p = pushFailPath(wt)
     expect(fs.existsSync(p)).toBe(true)
-    expect(readPushFailures(root, exec)).toEqual({ 'feat/wt-item': 1 })
-    expect(p.startsWith(commonDir)).toBe(true)
+    expect(readPushFailures(wt)).toEqual({ 'feat/wt-item': 1 })
+    expect(p.includes('.git')).toBe(true)
+  })
+})
+
+describe('git fixture isolation', () => {
+  it('fixture helpers and defaultExec ignore decoy GIT_DIR / GIT_WORK_TREE', () => {
+    const decoy = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-decoy-'))
+    tmpDirs.push(decoy)
+    execFileSync('git', ['init'], {
+      cwd: decoy,
+      stdio: 'ignore',
+      env: cleanGitEnv(),
+    })
+    execFileSync('git', ['config', 'user.email', 'decoy@example.com'], {
+      cwd: decoy,
+      stdio: 'ignore',
+      env: cleanGitEnv(),
+    })
+    execFileSync('git', ['config', 'user.name', 'decoy'], {
+      cwd: decoy,
+      stdio: 'ignore',
+      env: cleanGitEnv(),
+    })
+    fs.writeFileSync(path.join(decoy, 'keep.txt'), 'decoy\n')
+    execFileSync('git', ['add', 'keep.txt'], {
+      cwd: decoy,
+      stdio: 'ignore',
+      env: cleanGitEnv(),
+    })
+    execFileSync('git', ['commit', '-m', 'decoy base'], {
+      cwd: decoy,
+      stdio: 'ignore',
+      env: cleanGitEnv(),
+    })
+    const decoyGit = path.join(decoy, '.git')
+    const gitOut = (args) => {
+      try {
+        return execFileSync('git', args, {
+          cwd: decoy,
+          encoding: 'utf8',
+          env: cleanGitEnv(),
+        })
+      } catch (e) {
+        return String(e.stdout ?? '')
+      }
+    }
+    const snapshot = () => ({
+      bare: (gitOut(['config', '--get', 'core.bare']) || 'false').trim(),
+      name: gitOut(['config', '--get', 'user.name']).trim(),
+      email: gitOut(['config', '--get', 'user.email']).trim(),
+      refs: gitOut(['show-ref']),
+      worktrees: gitOut(['worktree', 'list', '--porcelain']),
+      head: gitOut(['rev-parse', 'HEAD']).trim(),
+    })
+    const before = snapshot()
+    expect(before.name).toBe('decoy')
+    expect(before.email).toBe('decoy@example.com')
+
+    process.env.GIT_DIR = decoyGit
+    process.env.GIT_WORK_TREE = decoy
+    try {
+      const primary = gitInitRepo()
+      gitExec(['branch', '-M', 'main'], primary, {
+        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
+      })
+      const wt = path.join(
+        os.tmpdir(),
+        `agent-proof-wt-${path.basename(primary)}`,
+      )
+      tmpDirs.push(wt)
+      gitExec(['worktree', 'add', wt, '-b', 'feat/proof'], primary, {
+        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
+      })
+      fs.writeFileSync(path.join(wt, 'extra.txt'), 'x\n')
+      gitExec(['add', 'extra.txt'], wt, {
+        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
+      })
+      gitExec(['commit', '-m', 'proof'], wt, {
+        env: { GIT_DIR: decoyGit, GIT_WORK_TREE: decoy },
+      })
+      const r = defaultExec('git', ['rev-parse', '--show-toplevel'], {
+        cwd: primary,
+        env: {
+          ...process.env,
+          GIT_DIR: decoyGit,
+          GIT_WORK_TREE: decoy,
+        },
+      })
+      expect(r.code).toBe(0)
+      expect(path.resolve(r.stdout.trim())).toBe(path.resolve(primary))
+    } finally {
+      delete process.env.GIT_DIR
+      delete process.env.GIT_WORK_TREE
+    }
+
+    expect(snapshot()).toEqual(before)
   })
 })
 
@@ -844,6 +1079,36 @@ describe('preflight', () => {
     const startedAtMs = readRunStartedMs(root)
     expect(typeof startedAtMs).toBe('number')
     expect(startedAtMs).toBeGreaterThan(0)
+    expect(readRunStarted(root)?.branch).toBe('feat/keep')
+
+    // Second preflight on the same branch must not reset the clock.
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'keep'), {
+      recursive: true,
+    })
+    const again = run(
+      ['preflight', '--json', '--root', root, '--skip', 'extra'],
+      {
+        cwd: root,
+        exec: fakeExec([
+          ...envOk,
+          ['git status --porcelain', { stdout: '' }],
+          ['git fetch origin', { code: 0 }],
+          ['git switch main', { code: 0 }],
+          ['git pull --ff-only', { code: 0 }],
+          ['gh pr list', { stdout: 'fix/from-pr\n' }],
+          ['git branch -r', { stdout: '  origin/fix/from-remote\n' }],
+          ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+          ['git switch -c feat/keep', { code: 0 }],
+          [
+            'openspec instructions proposal',
+            { stdout: JSON.stringify({ template: 'T', rules: ['r'] }) },
+          ],
+        ]),
+        env: {},
+      },
+    )
+    expect(again.code, again.err).toBe(0)
+    expect(readRunStartedMs(root)).toBe(startedAtMs)
   })
 
   it('reuses existing local branch when switch -c fails and merge-base ok', () => {
@@ -1274,6 +1539,27 @@ describe('finish', () => {
     expect(pushes).toBe(2)
   })
 
+  it('clears prior push failures after a successful push', () => {
+    const root = tmpRoot(true)
+    writePushFailures(root, { 'feat/demo': 1, 'feat/other': 2 })
+    const body = path.join(root, 'body.md')
+    fs.writeFileSync(body, '## Summary\n')
+    const r = run(
+      ['finish', '--json', '--root', root, '--title', 't', '--body-file', body],
+      {
+        cwd: root,
+        exec: finishBase([
+          ['git push', { code: 0 }],
+          ['gh pr list --head', { stdout: 'null\n' }],
+          ['gh pr create', { stdout: 'https://example.com/pr/clear\n' }],
+        ]),
+        env: {},
+      },
+    )
+    expect(r.code, r.err).toBe(0)
+    expect(readPushFailures(root)).toEqual({ 'feat/other': 2 })
+  })
+
   it('happy path creates PR and does not watch CI', () => {
     const root = tmpRoot(true)
     const body = path.join(root, 'body.md')
@@ -1327,6 +1613,7 @@ describe('finish', () => {
     expect(createArgs).toBeTruthy()
     const bodyFile = createArgs[1][createArgs[1].indexOf('--body-file') + 1]
     expect(fs.readFileSync(bodyFile, 'utf8')).toMatch(/wall_time_sec:/)
+    expect(readRunStarted(root)).toBe(null)
   })
 
   it('updates existing PR without CI watch', () => {
@@ -2729,22 +3016,52 @@ describe('claimed set and merge helpers', () => {
 })
 
 describe('linked worktree preflight --slug', () => {
-  it('slug preflight creates feat branch without syncing local main', () => {
-    // Fully mocked: real `git worktree add` against shared checkouts has
-    // corrupted parallel agent worktrees when Lefthook sets GIT_DIR.
-    const root = tmpRoot(true)
-    fs.writeFileSync(path.join(root, '.nvmrc'), '22\n')
-    fs.mkdirSync(path.join(root, 'docs/roadmap/M2.1'), { recursive: true })
-    const calls = []
-    const exec = fakeExec([
-      ...envOk,
-      ['git status --porcelain', { stdout: '' }],
-      ['git fetch origin', { code: 0 }],
-      ['gh pr list', { stdout: '' }],
-      ['git branch -r', { stdout: '' }],
+  it('creates feat branch from origin/main while main is checked out elsewhere', () => {
+    const primary = gitInitRepo()
+    gitExec(['branch', '-M', 'main'], primary)
+    gitExec(['checkout', '-b', 'origin-main-tmp'], primary)
+    // Simulate origin/main as a local ref the worktree can track.
+    gitExec(['branch', 'origin/main', 'main'], primary)
+    gitExec(['checkout', 'main'], primary)
+    const wt = path.join(os.tmpdir(), `agent-wt-${path.basename(primary)}`)
+    tmpDirs.push(wt)
+    gitExec(['worktree', 'add', '--detach', wt], primary)
+    fs.writeFileSync(path.join(wt, '.nvmrc'), '22\n')
+    fs.mkdirSync(path.join(wt, 'openspec', 'changes'), { recursive: true })
+    fs.mkdirSync(path.join(wt, 'docs/roadmap/M2.1'), { recursive: true })
+    fs.writeFileSync(
+      path.join(wt, 'docs/roadmap.md'),
+      '# R\n\n## M2.1 — t\n\n- [ ] [prep] [wt-slug](roadmap/M2.1/wt-slug.md) — t\n',
+    )
+    fs.writeFileSync(
+      path.join(wt, 'docs/roadmap/M2.1/wt-slug.md'),
+      '# wt-slug\n\nTag: prep\nMilestone: M2.1\nTitle: t\n',
+    )
+    gitExec(['add', '-A'], wt)
+    gitExec(
       [
-        'pnpm -s roadmap next --json',
-        {
+        '-c',
+        'user.email=t@t.com',
+        '-c',
+        'user.name=t',
+        'commit',
+        '-m',
+        'wt fixture',
+      ],
+      wt,
+    )
+    // Real git for worktree ops; stub only external tools + roadmap next path via thin wrapper.
+    const real = defaultExec
+    const exec = (file, args, opts = {}) => {
+      const key = `${file} ${args.join(' ')}`
+      if (key.includes('node -v'))
+        return { code: 0, stdout: 'v22.0.0\n', stderr: '' }
+      if (key.includes('command -v pnpm'))
+        return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('gh pr list')) return { code: 0, stdout: '', stderr: '' }
+      if (key.includes('pnpm') && key.includes('roadmap next')) {
+        return {
+          code: 0,
           stdout: JSON.stringify({
             slug: 'wt-slug',
             tag: 'prep',
@@ -2753,36 +3070,46 @@ describe('linked worktree preflight --slug', () => {
             milestone: 'M2.1',
             goal: ['g'],
           }),
-        },
-      ],
-      [
-        'git switch -c feat/wt-slug --no-track origin/main',
-        (file, args) => {
-          calls.push([file, [...args]])
-          return { code: 0, stdout: '' }
-        },
-      ],
-      ['openspec new change', { code: 0 }],
-      [
-        'openspec instructions proposal',
-        { stdout: JSON.stringify({ template: 'T', rules: ['r'] }) },
-      ],
-    ])
+          stderr: '',
+        }
+      }
+      if (key.includes('openspec new') || key.includes('openspec instructions'))
+        return {
+          code: 0,
+          stdout: JSON.stringify({ template: 'T', rules: ['r'] }),
+          stderr: '',
+        }
+      // Map origin/main for switch --no-track when remote is absent.
+      if (key.includes('git switch -c feat/wt-slug --no-track origin/main')) {
+        return real(
+          'git',
+          ['switch', '-c', 'feat/wt-slug', '--no-track', 'main'],
+          { ...opts, cwd: wt },
+        )
+      }
+      if (key.includes('git fetch')) return { code: 0, stdout: '', stderr: '' }
+      return real(file, args, { ...opts, cwd: opts.cwd ?? wt })
+    }
     const r = cmdPreflight(
       { slug: 'wt-slug' },
-      { root, cwd: root, env: {}, exec, quiet: true },
+      { root: wt, cwd: wt, env: {}, exec, quiet: true },
     )
     expect(r.ok).toBe(true)
     expect(r.item.slug).toBe('wt-slug')
     expect(r.branch).toBe('feat/wt-slug')
-    expect(calls).toContainEqual([
-      'git',
-      ['switch', '-c', 'feat/wt-slug', '--no-track', 'origin/main'],
-    ])
-    // Must not switch/pull local main in slug mode.
-    expect(
-      calls.some((c) => c[1]?.[0] === 'switch' && c[1]?.[1] === 'main'),
-    ).toBe(false)
+    const br = execFileSync('git', ['branch', '--show-current'], {
+      cwd: wt,
+      encoding: 'utf8',
+      env: cleanGitEnv(),
+    }).trim()
+    expect(br).toBe('feat/wt-slug')
+    const mainBr = execFileSync('git', ['branch', '--show-current'], {
+      cwd: primary,
+      encoding: 'utf8',
+      env: cleanGitEnv(),
+    }).trim()
+    expect(mainBr).toBe('main')
+    expect(readRunStarted(wt)?.branch).toBe('feat/wt-slug')
   })
 })
 

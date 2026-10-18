@@ -330,7 +330,7 @@ Application TypeScript configs SHALL enable `noUncheckedIndexedAccess`. The lint
 
 ### Requirement: E2E burn-in on pull requests
 
-On a pull request, CI SHALL run a burn-in of Playwright tests for added or changed `e2e/**/*.spec.ts` files and for e2e specs that import a changed e2e support file (`e2e/**/*.{ts,mts,js,mjs}` that is not `*.spec.ts`, including `e2e/fixtures/**` and `e2e/helpers/**`) directly or transitively through other e2e files, using `--retries=0`, `--workers=1`, and `--repeat-each` equal to the effective burn-in count. That burn-in SHALL run as its own workflow job in parallel with the main integration e2e job (not as a prerequisite step after which integration starts).
+On a pull request, CI SHALL run a burn-in of Playwright tests for added or changed `e2e/**/*.spec.ts` files and for e2e specs that import a changed e2e support file (`e2e/**/*.{ts,mts,js,mjs}` that is not `*.spec.ts`, including `e2e/fixtures/**` and `e2e/helpers/**`) directly or transitively through other e2e files, using `--retries=0`, `--workers=1`, and `--repeat-each` equal to the effective burn-in count. That burn-in SHALL run as its own workflow job in parallel with the main e2e job (not as a prerequisite step after which the main e2e starts). The required check named `integration` SHALL still fail when either the main e2e job or the burn-in job fails (burn-in may be skipped on non-pull-request events).
 
 #### Scenario: Changed spec is burned in
 
@@ -347,10 +347,15 @@ On a pull request, CI SHALL run a burn-in of Playwright tests for added or chang
 - **WHEN** a pull request changes no e2e specs and no e2e support files that any spec imports (directly or transitively)
 - **THEN** the burn-in job exits successfully with a "no targets" outcome without installing Playwright browsers and without building the app
 
-#### Scenario: Burn-in job is parallel with integration
+#### Scenario: Burn-in job is parallel with main e2e
 
 - **WHEN** a pull request triggers the integration workflow
-- **THEN** the burn-in job and the main integration e2e job start without one waiting on the other to finish
+- **THEN** the burn-in job and the main e2e job start without one waiting on the other to finish, and the required `integration` gate job needs both
+
+#### Scenario: Required integration gate fails when burn-in fails
+
+- **WHEN** the burn-in job fails on a pull request
+- **THEN** the required check named `integration` fails even if the main e2e job succeeded
 
 #### Scenario: Timing-dependent test fails burn-in
 

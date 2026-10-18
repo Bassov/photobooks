@@ -745,12 +745,22 @@ Git-finish and `/next-roadmap-item` SHALL instruct agents not to wait on or poll
 
 ### Requirement: PR body agent-run metrics
 
-When `pnpm agent finish` creates a pull request, the PR body SHALL include an auto-filled metrics section with the agent-run wall time for that session. When the environment or CLI reports token usage, that value SHALL appear in the same section; when unavailable, wall time alone is sufficient and the token field MAY be omitted.
+When `pnpm agent finish` creates a pull request, the PR body SHALL include an auto-filled metrics section with the agent-run wall time for that session. Wall time SHALL prefer launcher `AGENT_RUN_STARTED_AT` (epoch seconds) when set; otherwise it SHALL use a per-branch start marker written by preflight only when no marker exists for the current branch. Finish SHALL remove that marker after PR create. When the environment or CLI reports token usage, that value SHALL appear in the same section; when unavailable, wall time alone is sufficient and the token field MAY be omitted.
 
 #### Scenario: Wall time recorded on create
 
 - **WHEN** `pnpm agent finish` creates a PR after a preflight that started the run clock
 - **THEN** the PR body metrics section includes a wall-time value derived automatically (not typed by the agent)
+
+#### Scenario: Launcher start time wins
+
+- **WHEN** `AGENT_RUN_STARTED_AT` is set to epoch seconds
+- **THEN** wall time is computed from that value even if an on-disk start marker exists
+
+#### Scenario: Second preflight keeps the same branch clock
+
+- **WHEN** preflight runs twice on the same feature branch without finish clearing the marker
+- **THEN** the start marker timestamp is unchanged
 
 #### Scenario: Token usage when reported
 

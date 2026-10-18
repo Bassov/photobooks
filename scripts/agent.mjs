@@ -81,14 +81,34 @@ Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
 /** @typedef {{ code: number, stdout: string, stderr: string }} ExecResult */
 /** @typedef {(file: string, args: string[], opts?: object) => ExecResult} ExecFn */
 
-/** Drop ambient GIT_* overrides so `cwd` wins (Lefthook pre-push sets GIT_DIR). */
+/**
+ * Repo-local GIT_* keys from `git rev-parse --local-env-vars` (+ INTERNAL_SUPER_PREFIX).
+ * Kept out of child envs so `cwd` wins (Lefthook pre-push sets GIT_DIR / GIT_WORK_TREE).
+ * Does not strip GIT_SSH* / GIT_TERMINAL_PROMPT / other non-local keys.
+ */
+export const GIT_LOCAL_ENV_VARS = [
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR',
+  'GIT_CONFIG',
+  'GIT_CONFIG_COUNT',
+  'GIT_CONFIG_PARAMETERS',
+  'GIT_DIR',
+  'GIT_GRAFT_FILE',
+  'GIT_IMPLICIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_INTERNAL_SUPER_PREFIX',
+  'GIT_NO_REPLACE_OBJECTS',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_PREFIX',
+  'GIT_REPLACE_REF_BASE',
+  'GIT_SHALLOW_FILE',
+  'GIT_WORK_TREE',
+]
+
+/** Drop ambient repo-local GIT_* overrides so `cwd` wins. */
 export function execEnvForCwd(env = process.env) {
   const out = { ...env }
-  delete out.GIT_DIR
-  delete out.GIT_WORK_TREE
-  delete out.GIT_INDEX_FILE
-  delete out.GIT_OBJECT_DIRECTORY
-  delete out.GIT_ALTERNATE_OBJECT_DIRECTORIES
+  for (const key of GIT_LOCAL_ENV_VARS) delete out[key]
   return out
 }
 
@@ -368,7 +388,7 @@ export function writePushFailures(root, map, exec = defaultExec) {
   fs.writeFileSync(p, JSON.stringify(map, null, 0) + '\n')
 }
 
-function resolveGitRelPath(root, relPath, exec = defaultExec) {
+export function resolveGitRelPath(root, relPath, exec = defaultExec) {
   try {
     return gitPath(root, relPath, exec)
   } catch {
@@ -376,26 +396,85 @@ function resolveGitRelPath(root, relPath, exec = defaultExec) {
   }
 }
 
-export function writeRunStarted(
-  root,
-  startedAtMs = Date.now(),
-  exec = defaultExec,
-) {
-  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
-  fs.mkdirSync(path.dirname(p), { recursive: true })
-  fs.writeFileSync(p, JSON.stringify({ startedAtMs }) + '\n')
-  return p
-}
-
-export function readRunStartedMs(root, exec = defaultExec) {
+/**
+ * @returns {{ startedAtMs: number, branch: string } | null}
+ */
+export function readRunStarted(root, exec = defaultExec) {
   const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
   if (!fs.existsSync(p)) return null
   try {
     const j = JSON.parse(fs.readFileSync(p, 'utf8'))
-    return typeof j.startedAtMs === 'number' ? j.startedAtMs : null
+    if (typeof j.startedAtMs !== 'number' || !Number.isFinite(j.startedAtMs))
+      return null
+    const branch = typeof j.branch === 'string' ? j.branch : ''
+    return { startedAtMs: j.startedAtMs, branch }
   } catch {
     return null
   }
+}
+
+export function readRunStartedMs(root, exec = defaultExec) {
+  return readRunStarted(root, exec)?.startedAtMs ?? null
+}
+
+export function writeRunStarted(
+  root,
+  startedAtMs = Date.now(),
+  exec = defaultExec,
+  branch = '',
+) {
+  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
+  fs.mkdirSync(path.dirname(p), { recursive: true })
+  fs.writeFileSync(
+    p,
+    JSON.stringify({ startedAtMs, branch: String(branch ?? '') }) + '\n',
+  )
+  return p
+}
+
+/**
+ * Write the run-start marker only when missing or for a different branch.
+ * @returns {{ startedAtMs: number, branch: string, path: string, wrote: boolean }}
+ */
+export function ensureRunStarted(
+  root,
+  branch,
+  startedAtMs = Date.now(),
+  exec = defaultExec,
+) {
+  const existing = readRunStarted(root, exec)
+  if (existing && existing.branch === branch) {
+    return {
+      startedAtMs: existing.startedAtMs,
+      branch: existing.branch,
+      path: resolveGitRelPath(root, RUN_STARTED_FILE, exec),
+      wrote: false,
+    }
+  }
+  const pathWritten = writeRunStarted(root, startedAtMs, exec, branch)
+  return { startedAtMs, branch, path: pathWritten, wrote: true }
+}
+
+export function clearRunStarted(root, exec = defaultExec) {
+  const p = resolveGitRelPath(root, RUN_STARTED_FILE, exec)
+  if (fs.existsSync(p)) fs.unlinkSync(p)
+  return p
+}
+
+/**
+ * Prefer launcher `AGENT_RUN_STARTED_AT` (epoch seconds); else the on-disk marker.
+ */
+export function resolveRunStartedMs(
+  root,
+  env = process.env,
+  exec = defaultExec,
+) {
+  const raw = env.AGENT_RUN_STARTED_AT
+  if (raw != null && String(raw).trim() !== '') {
+    const sec = Number(String(raw).trim())
+    if (Number.isFinite(sec)) return Math.round(sec * 1000)
+  }
+  return readRunStartedMs(root, exec)
 }
 
 /**
@@ -410,7 +489,7 @@ export function buildPrBodyWithMetrics(
   nowMs = Date.now(),
 ) {
   const raw = fs.readFileSync(bodyPath, 'utf8')
-  const startedAtMs = readRunStartedMs(root, exec)
+  const startedAtMs = resolveRunStartedMs(root, env, exec)
   const wallTimeSec =
     startedAtMs == null
       ? null
@@ -609,7 +688,7 @@ export function cmdPreflight(o, deps) {
     ? designPath
     : 'TBD until design.md'
 
-  writeRunStarted(root, Date.now(), exec)
+  ensureRunStarted(root, branch, Date.now(), exec)
 
   return {
     ok: true,
@@ -956,6 +1035,7 @@ export function cmdFinish(o, deps) {
     )
     prUrl = createdPr.stdout.trim()
     created = true
+    clearRunStarted(root, exec)
   }
 
   return {

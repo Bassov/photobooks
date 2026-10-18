@@ -203,10 +203,19 @@ describe('integration workflow burn-in policy', () => {
     expect(yml).toMatch(/--retries=0/)
     expect(yml).toMatch(/--workers=1/)
     expect(yml).toMatch(/^\s*e2e-burn-in:\s*$/m)
-    expect(yml).toMatch(/needs:\s*\[integration,\s*e2e-burn-in\]/)
+    expect(yml).toMatch(/^\s*e2e:\s*$/m)
+    expect(yml).toMatch(/^\s*integration:\s*$/m)
+    expect(yml).toMatch(/integration:[\s\S]*?needs:\s*\[e2e,\s*e2e-burn-in\]/)
+    expect(yml).toMatch(
+      /ci-comment:[\s\S]*?needs:\s*\[e2e,\s*e2e-burn-in,\s*integration\]/,
+    )
     expect(yml).toMatch(/No burn-in targets/)
+    // Required gate fails when burn-in fails on PRs.
+    expect(yml).toMatch(
+      /e2e-burn-in job result=\$BURN_IN_RESULT \(need success on pull_request\)/,
+    )
     // No-target path must not require pnpm install before target resolve.
-    const burnJob = yml.split(/^  integration:/m)[0]
+    const burnJob = yml.split(/^  e2e:/m)[0]
     expect(burnJob).not.toMatch(/^\s*needs:/m)
     const resolveIdx = burnJob.indexOf('Resolve burn-in targets')
     const installIdx = burnJob.indexOf('Install dependencies')
@@ -215,6 +224,9 @@ describe('integration workflow burn-in policy', () => {
     expect(burnJob).toMatch(
       /if:\s*steps\.burn-in-targets\.outputs\.has_targets == 'true'[\s\S]*Install dependencies/,
     )
+    // e2e and burn-in stay parallel (neither needs the other).
+    const e2eJob = yml.split(/^  e2e:/m)[1]?.split(/^  integration:/m)[0] ?? ''
+    expect(e2eJob).not.toMatch(/^\s*needs:/m)
     const args = buildBurnInArgs({
       targets: ['e2e/burn-in-smoke.spec.ts'],
       count: 50,

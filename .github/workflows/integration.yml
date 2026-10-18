@@ -127,7 +127,7 @@ jobs:
           retention-days: 1
           if-no-files-found: ignore
 
-  integration:
+  e2e:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -197,11 +197,43 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Required check name stays `integration`: fails unless full e2e succeeded and
+  # burn-in succeeded (or was skipped on non-PR). Keeps parallelism of e2e + burn-in.
+  integration:
+    needs: [e2e, e2e-burn-in]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require e2e and burn-in
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
+          BURN_IN_RESULT: ${{ needs.e2e-burn-in.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$E2E_RESULT" != "success" ]; then
+            echo "e2e job result=$E2E_RESULT (need success)"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if [ "$BURN_IN_RESULT" != "success" ]; then
+              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success on pull_request)"
+              exit 1
+            fi
+          else
+            if [ "$BURN_IN_RESULT" != "success" ] && [ "$BURN_IN_RESULT" != "skipped" ]; then
+              echo "e2e-burn-in job result=$BURN_IN_RESULT (need success or skipped on non-PR)"
+              exit 1
+            fi
+          fi
+          echo "integration gate ok (e2e=$E2E_RESULT burn-in=$BURN_IN_RESULT)"
+
   ci-comment:
-    needs: [integration, e2e-burn-in]
+    needs: [e2e, e2e-burn-in, integration]
     if: >-
       always() && github.event_name == 'pull_request' &&
-      needs.integration.result != 'cancelled' &&
+      needs.e2e.result != 'cancelled' &&
       needs.e2e-burn-in.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
@@ -233,7 +265,7 @@ jobs:
 
       - name: Summarize and pack e2e section
         env:
-          E2E_STEP_OUTCOME: ${{ needs.integration.result }}
+          E2E_STEP_OUTCOME: ${{ needs.e2e.result }}
         run: |
           mkdir -p ci-section
           EXTRA_ARGS=()

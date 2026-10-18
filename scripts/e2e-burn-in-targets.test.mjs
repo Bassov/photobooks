@@ -17,6 +17,11 @@ import {
   transitiveImports,
 } from './e2e-burn-in-targets.mjs'
 
+// Structural isolation: ambient GIT_* (e.g. Lefthook) must not redirect fixture git.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith('GIT_')) delete process.env[key]
+}
+
 describe('isE2eSpec / isE2eSupportFile', () => {
   it.each([
     ['e2e/smoke.spec.ts', true],

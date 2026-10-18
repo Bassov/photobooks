@@ -83,7 +83,7 @@ export function main(env = process.env, io = {}) {
         ? `changed-e2e: ${targets.length} target(s) passed`
         : `changed-e2e: ${targets.length} target(s) failed (exit ${code})`
     write(`${summary}\n`)
-    return code === 0 ? 0 : code
+    return code
   } catch (err) {
     error(err instanceof Error ? err.message : err)
     return 1

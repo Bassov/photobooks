@@ -21,6 +21,29 @@ describe('resolveChangedE2eTargets', () => {
     })
     expect(targets).toEqual([])
   })
+
+  it('default isFile uses exists+statSync on real paths', () => {
+    const targets = resolveChangedE2eTargets('origin/main', {
+      gitLines: () => ['e2e/burn-in-smoke.spec.ts', 'e2e'],
+      exists: (path) => path === 'e2e/burn-in-smoke.spec.ts' || path === 'e2e',
+      // omit isFile — exercise the default exists+statSync implementation
+      listSources: () => ['e2e/burn-in-smoke.spec.ts'],
+      readFile: () => '',
+    })
+    expect(targets).toEqual(['e2e/burn-in-smoke.spec.ts'])
+  })
+
+  it('default isFile returns false when exists throws', () => {
+    const targets = resolveChangedE2eTargets('origin/main', {
+      gitLines: () => ['e2e/boom.spec.ts'],
+      exists: () => {
+        throw new Error('stat race')
+      },
+      listSources: () => ['e2e/boom.spec.ts'],
+      readFile: () => '',
+    })
+    expect(targets).toEqual([])
+  })
 })
 
 describe('main', () => {
@@ -190,5 +213,93 @@ describe('main', () => {
     expect(code).toBe(0)
     expect(writes).toEqual(['changed-e2e: 1 target(s) passed\n'])
     expect(errors).toEqual([])
+  })
+
+  it('treats nullish Playwright streams as empty', () => {
+    const writes = []
+    const errors = []
+    const code = main(
+      {},
+      {
+        gitLines: () => ['e2e/smoke.spec.ts'],
+        exists: (path) => path === 'e2e/smoke.spec.ts',
+        isFile: (path) => path === 'e2e/smoke.spec.ts',
+        listSources: () => ['e2e/smoke.spec.ts'],
+        readFile: () => '',
+        spawnSync: () => ({
+          status: 2,
+          stdout: null,
+          stderr: undefined,
+        }),
+        write: (text) => {
+          writes.push(text)
+        },
+        error: (text) => {
+          errors.push(String(text))
+        },
+      },
+    )
+    expect(code).toBe(2)
+    expect(writes).toEqual(['changed-e2e: 1 target(s) failed (exit 2)\n'])
+    expect(errors).toEqual([])
+  })
+
+  it('uses default STRYKER_DIFF_BASE when unset', () => {
+    const seen = []
+    const code = main(
+      {},
+      {
+        gitLines: (args) => {
+          seen.push(args.join(' '))
+          return []
+        },
+        listSources: () => [],
+        write: () => {},
+      },
+    )
+    expect(code).toBe(0)
+    expect(seen.some((line) => line.includes('origin/main'))).toBe(true)
+  })
+
+  it('default write/error hit process stdio when io omits them', () => {
+    const writes = []
+    const errors = []
+    const origWrite = process.stdout.write.bind(process.stdout)
+    const origError = console.error
+    process.stdout.write = (chunk) => {
+      writes.push(String(chunk))
+      return true
+    }
+    console.error = (...args) => {
+      errors.push(args.map(String).join(' '))
+    }
+    try {
+      const noTargets = main({}, { gitLines: () => [], listSources: () => [] })
+      expect(noTargets).toBe(0)
+      expect(writes.join('')).toContain('changed-e2e: no targets')
+
+      writes.length = 0
+      const failed = main(
+        {},
+        {
+          gitLines: () => ['e2e/smoke.spec.ts'],
+          exists: (path) => path === 'e2e/smoke.spec.ts',
+          isFile: (path) => path === 'e2e/smoke.spec.ts',
+          listSources: () => ['e2e/smoke.spec.ts'],
+          readFile: () => '',
+          spawnSync: () => ({
+            status: 1,
+            stdout: null,
+            stderr: 'boom\n',
+          }),
+        },
+      )
+      expect(failed).toBe(1)
+      expect(writes.join('')).toContain('failed (exit 1)')
+      expect(errors.join('')).toContain('boom')
+    } finally {
+      process.stdout.write = origWrite
+      console.error = origError
+    }
   })
 })
