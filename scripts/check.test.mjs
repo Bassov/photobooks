@@ -727,6 +727,44 @@ describe('main', () => {
   })
 })
 
+describe('runOneCheck env guard', () => {
+  it('does not leak PHOTOBOOKS_CHECK_INNER into unit children', async () => {
+    const root = tmpRoot()
+    /** @type {NodeJS.ProcessEnv | null} */
+    let seen = null
+    await runChecks({
+      root,
+      inventory: [
+        { name: 'unit', argv: ['pnpm', 'exec', 'vitest', 'run', '--silent'] },
+      ],
+      spawnImpl: (file, args, opts) => {
+        seen = opts.env ?? null
+        return fakeSpawnByCheckName({ unit: { code: 0 } })(file, args)
+      },
+      write: () => {},
+    })
+    expect(seen).not.toBe(null)
+    expect(seen.PHOTOBOOKS_CHECK_INNER).toBeUndefined()
+  })
+
+  it('sets PHOTOBOOKS_CHECK_INNER only for roadmap children', async () => {
+    const root = tmpRoot()
+    /** @type {NodeJS.ProcessEnv | null} */
+    let seen = null
+    await runOneCheck({
+      root,
+      name: 'roadmap',
+      argv: [process.execPath, path.join(here, 'roadmap.mjs'), 'check'],
+      spawnImpl: (file, args, opts) => {
+        seen = opts.env ?? null
+        return fakeSpawnByCheckName({ roadmap: { code: 0 } })(file, args)
+      },
+      write: () => {},
+    })
+    expect(seen.PHOTOBOOKS_CHECK_INNER).toBe('1')
+  })
+})
+
 describe('runOneCheck / --run', () => {
   it('parseRunArgs requires name and command after --', () => {
     expect(parseRunArgs(['--run', 'unit', '--', 'echo', 'hi'])).toEqual({

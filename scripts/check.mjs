@@ -226,10 +226,14 @@ export async function runOneCheck(opts) {
   const writeFileSync = opts.writeFileSync ?? fs.writeFileSync
   mkdirSync(path.join(root, LOG_DIR), { recursive: true })
 
-  const childEnv = {
-    ...(opts.env ?? process.env),
-    // Prevent nested --run wrappers (e.g. roadmap check → check.mjs → roadmap).
-    PHOTOBOOKS_CHECK_INNER: '1',
+  const childEnv = { ...(opts.env ?? process.env) }
+  // Only the roadmap binary re-wraps via --run; never leak the guard into
+  // vitest/stryker/other children (CI `pnpm test:coverage` must match local).
+  const spawnsRoadmap =
+    name === 'roadmap' ||
+    argv.some((a) => /(^|[\\/])roadmap\.mjs$/.test(String(a)))
+  if (spawnsRoadmap) {
+    childEnv.PHOTOBOOKS_CHECK_INNER = '1'
   }
   const started = now()
   const child = await runChild(argv, {

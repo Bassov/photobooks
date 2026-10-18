@@ -31,7 +31,8 @@
 - `${stderr}\n${err.message}`.trim() — equivalent for empty stderr + Error message
 - `--run` exit `code === null || code === undefined` — null and undefined both map to 1; `||` vs `&&` / single-side false mutants are equivalent under one-at-a-time close events
 - remaining extractProblemLines regex near-miss mutants after preferred-line + fixture tests
-- agent.mjs pre-existing survivors outside this change’s new branches
+- agent.mjs / roadmap.mjs pre-existing survivors and NoCoverage outside this change’s new/changed lines
+- `PHOTOBOOKS_CHECK_INNER` is set only for roadmap children (vitest setup also deletes it + `CHECK_VERBOSE`)
 
 ## Verification checklist
 

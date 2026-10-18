@@ -1299,6 +1299,41 @@ export function run(argv, { cwd = process.cwd() } = {}) {
   }
 }
 
+/**
+ * When `pnpm roadmap check` should re-exec through `check.mjs --run`.
+ * Returns null for non-check commands or when already inside the wrapper.
+ * @param {string[]} argv
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ selfPath?: string, execPath?: string }} [opts]
+ * @returns {{ file: string, args: string[], env: NodeJS.ProcessEnv } | null}
+ */
+export function checkWrapperArgs(argv, env = process.env, opts = {}) {
+  if (!Array.isArray(argv) || argv[0] !== 'check') return null
+  if (env.PHOTOBOOKS_CHECK_INNER === '1') return null
+  const self = opts.selfPath ?? fileURLToPath(import.meta.url)
+  const execPath = opts.execPath ?? process.execPath
+  const checkJs = path.join(path.dirname(self), 'check.mjs')
+  const verbose =
+    argv.includes('--verbose') ||
+    argv.includes('-v') ||
+    env.CHECK_VERBOSE === '1'
+  const inner = argv.filter((a) => a !== '--verbose' && a !== '-v')
+  return {
+    file: execPath,
+    args: [
+      checkJs,
+      ...(verbose ? ['--verbose'] : []),
+      '--run',
+      'roadmap',
+      '--',
+      execPath,
+      self,
+      ...inner,
+    ],
+    env: { ...env, PHOTOBOOKS_CHECK_INNER: '1' },
+  }
+}
+
 /** Process entry: prints run() output and sets the exit code. */
 export function main(argv, io) {
   const r = run(argv)
@@ -1306,38 +1341,54 @@ export function main(argv, io) {
   if (r.err) io.stderr.write(r.err + '\n')
   io.exitCode = r.code
 }
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
-  const argv = process.argv.slice(2)
-  // Standalone `pnpm roadmap check` goes through the shared compact wrapper.
-  if (argv[0] === 'check' && process.env.PHOTOBOOKS_CHECK_INNER !== '1') {
-    const self = fileURLToPath(import.meta.url)
-    const checkJs = path.join(path.dirname(self), 'check.mjs')
-    const verbose =
-      argv.includes('--verbose') ||
-      argv.includes('-v') ||
-      process.env.CHECK_VERBOSE === '1'
-    const inner = argv.filter((a) => a !== '--verbose' && a !== '-v')
-    const r = spawnSync(
-      process.execPath,
-      [
-        checkJs,
-        ...(verbose ? ['--verbose'] : []),
-        '--run',
-        'roadmap',
-        '--',
-        process.execPath,
-        self,
-        ...inner,
-      ],
-      {
-        stdio: 'inherit',
-        env: { ...process.env, PHOTOBOOKS_CHECK_INNER: '1' },
-      },
-    )
-    process.exit(r.status ?? 1)
-  }
-  main(argv, process)
+
+/**
+ * Run the compact check wrapper (spawnSync + exit). Testable via deps.
+ * @param {{ file: string, args: string[], env: NodeJS.ProcessEnv }} wrap
+ * @param {{ spawnSync?: typeof spawnSync, exit?: (code: number) => void }} [deps]
+ */
+export function execCheckWrapper(wrap, deps = {}) {
+  const spawn = deps.spawnSync ?? spawnSync
+  const exit =
+    deps.exit ??
+    ((code) => {
+      process.exit(code)
+    })
+  const r = spawn(wrap.file, wrap.args, {
+    stdio: 'inherit',
+    env: wrap.env,
+  })
+  exit(r.status === null || r.status === undefined ? 1 : r.status)
 }
+
+/**
+ * CLI bootstrap for this module. Returns whether this process is the entry.
+ * @param {string | undefined} [argv1]
+ * @param {string[]} [argv]
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{
+ *   metaUrl?: string
+ *   spawnSync?: typeof spawnSync
+ *   exit?: (code: number) => void
+ *   mainFn?: typeof main
+ *   io?: { stdout: { write: Function }, stderr: { write: Function }, exitCode?: number }
+ * }} [deps]
+ */
+export function bootRoadmapCli(argv1, argv, env, deps = {}) {
+  const a1 = argv1 === undefined ? process.argv[1] : argv1
+  const av = argv === undefined ? process.argv.slice(2) : argv
+  const ev = env === undefined ? process.env : env
+  const metaUrl = deps.metaUrl ?? import.meta.url
+  if (!a1) return false
+  if (path.resolve(a1) !== fileURLToPath(metaUrl)) return false
+  const wrap = checkWrapperArgs(av, ev)
+  if (wrap) {
+    execCheckWrapper(wrap, deps)
+    return true
+  }
+  const mainFn = deps.mainFn ?? main
+  mainFn(av, deps.io ?? process)
+  return true
+}
+
+bootRoadmapCli()
