@@ -57,10 +57,10 @@ artifact stages: one Write per artifact, validate once at stage end.
 Stop and ask only for: dirty tree, a milestone review cut, an item whose intent
 contradicts a spec or open issue, the git-finish CI stop conditions. Security-tagged
 items continue; run the Security Review sub-agent before archive. Until
-`gate-ratchet`/`gate-ratchet-ci` are merged, a gate-config edit MUST be strictly
-stricter and listed in the touch-set with a reason; otherwise stop. Until
-`dependency-policy` is merged, a new or changed dependency needs `pnpm audit:ci`
-evidence and a Security Review pass before archive. Otherwise record assumptions
-in the artifacts and continue.
+`gate-ratchet` is merged, a gate-config edit MUST be strictly stricter and listed
+in the touch-set with a reason; otherwise stop. Until `docs/backlog/dependency-policy.md`
+is re-added and merged, a new or changed dependency needs `pnpm audit:ci` evidence
+and a Security Review pass before archive. Otherwise record assumptions in the
+artifacts and continue.
 Final reply in Russian: item, PR URL, check status, reviewer verdicts, skipped
 survivors, assumptions.

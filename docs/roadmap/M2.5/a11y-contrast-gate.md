@@ -6,4 +6,4 @@ Title: contrast checks on the design system
 
 ## Scope
 
-- [ ] Extend the `axe-e2e` fixture (M2.1) to the `?specimen` page and the editor empty / happy states with color contrast AA, names and roles; violations fail CI; no new dependency
+- [ ] Extend the axe e2e fixture from `docs/backlog/axe-e2e.md` (when re-added) to the `?specimen` page and the editor empty / happy states with color contrast AA, names and roles; violations fail CI; no new dependency
