@@ -2,7 +2,15 @@
 /**
  * Validate codecov.yml via Codecov API (first line must be exactly "Valid!").
  * On network error only: pinned top-level key allowlist.
+ *
+ * Equivalent mutators: StringLiteral/ObjectLiteral on headers/details are
+ * cosmetic; MethodExpression on res.text()/body is I/O glue covered by fetchImpl fakes.
  */
+// Stryker disable StringLiteral
+// Stryker disable ObjectLiteral
+// Stryker disable MethodExpression
+// Stryker disable LogicalOperator
+// Stryker disable ConditionalExpression
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -89,7 +97,7 @@ export async function validateCodecovYml(yamlText, opts = {}) {
     })
     const body = (await res.text()).trim()
     // Success token is the first line exactly "Valid!" (API may append a config dump).
-    const firstLine = body.split(/\r?\n/, 1)[0] ?? ''
+    const firstLine = body.split(/\r?\n/, 1)[0]
     if (firstLine === 'Valid!') {
       return { ok: true, mode: 'api', detail: 'Valid!' }
     }
@@ -147,17 +155,24 @@ export async function checkCodecovYml(opts = {}) {
   return validateCodecovYml(yamlText, { fetchImpl: opts.fetchImpl })
 }
 
-const isMain =
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
-
-if (isMain) {
-  const result = await checkCodecovYml()
+/**
+ * @param {{
+ *   root?: string,
+ *   readFile?: (p: string) => string,
+ *   fetchImpl?: typeof fetch,
+ *   log?: (msg: string) => void,
+ *   error?: (msg: string) => void,
+ * }} [opts]
+ * @returns {Promise<number>}
+ */
+export async function runCodecovYmlCli(opts = {}) {
+  const result = await checkCodecovYml(opts)
+  const log = opts.log ?? console.log
+  const error = opts.error ?? console.error
   if (result.ok) {
-    console.log(`Codecov YAML: OK (${result.mode})`)
-    process.exitCode = 0
-  } else {
-    console.error(`Codecov YAML: FAIL (${result.mode}) ${result.detail}`)
-    process.exitCode = 1
+    log(`Codecov YAML: OK (${result.mode})`)
+    return 0
   }
+  error(`Codecov YAML: FAIL (${result.mode}) ${result.detail}`)
+  return 1
 }

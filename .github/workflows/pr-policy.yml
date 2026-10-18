@@ -42,6 +42,6 @@ jobs:
 
       - name: Gate ratchet (base script vs head tree)
         run: >
-          node scripts/check-gate-ratchet.mjs
+          node scripts/gate-ratchet-cli.mjs
           --base-ref ${{ github.event.pull_request.base.sha }}
           --head-ref refs/gate-ratchet/head
