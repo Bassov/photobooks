@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 
 const BURN_IN_RE = /^Burn-in:\s*(\d+)\s*$/m
 const BRANCH_SLUG_RE = /^(?:feat|fix)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/
 
 export function parseBurnInLine(text) {
-  const match = BURN_IN_RE.exec(text)
+  const match = BURN_IN_RE.exec(String(text))
   if (!match) return null
   return Number(match[1])
 }
 
 export function slugFromBranch(branch) {
   if (!branch) return null
-  const match = BRANCH_SLUG_RE.exec(branch.trim())
+  const match = BRANCH_SLUG_RE.exec(String(branch).trim())
   return match ? match[1] : null
 }
 
@@ -29,7 +28,7 @@ export function findRoadmapItemPath(root, slug) {
       if (entry.isDirectory()) {
         if (entry.name === 'archive') continue
         const found = walk(full)
-        if (found) return found
+        if (found !== null) return found
         continue
       }
       if (entry.name === `${slug}.md`) return full
@@ -72,7 +71,7 @@ export function resolveBurnInCount(opts = {}) {
   const itemPath = findItemPath(root, slug)
   if (!itemPath) return base
 
-  let text
+  let text = ''
   try {
     text = readItemFile(itemPath)
   } catch {
@@ -80,19 +79,14 @@ export function resolveBurnInCount(opts = {}) {
   }
 
   const declared = parseBurnInLine(text)
-  if (declared === null) return base
-  if (!Number.isInteger(declared) || declared < 1) return base
-  return declared > base ? declared : base
+  if (declared === null || declared < 1) return base
+  return Math.max(declared, base)
 }
 
-function main() {
-  const count = resolveBurnInCount()
-  process.stdout.write(`${String(count)}\n`)
-}
-
-const invokedDirectly =
-  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
-
-if (invokedDirectly) {
-  main()
+export function main(opts = {}) {
+  const count = resolveBurnInCount(opts)
+  const line = `${String(count)}\n`
+  if (typeof opts.write === 'function') opts.write(line)
+  else process.stdout.write(line)
+  return 0
 }

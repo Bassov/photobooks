@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { spawnSync } from 'node:child_process'
+
+function asSuites(report) {
+  return Array.isArray(report?.suites) ? report.suites : []
+}
+
+function asList(value) {
+  return Array.isArray(value) ? value : []
+}
 
 /**
  * Count tests that passed only after a prior failed attempt (retried pass).
@@ -10,12 +16,11 @@ import { spawnSync } from 'node:child_process'
  */
 export function countFlakyRetriedPasses(report) {
   let flaky = 0
-  const suites = Array.isArray(report?.suites) ? report.suites : []
   const walk = (suite) => {
-    for (const child of suite.suites ?? []) walk(child)
-    for (const spec of suite.specs ?? []) {
-      for (const test of spec.tests ?? []) {
-        const results = Array.isArray(test.results) ? test.results : []
+    for (const child of asList(suite?.suites)) walk(child)
+    for (const spec of asList(suite?.specs)) {
+      for (const test of asList(spec?.tests)) {
+        const results = asList(test?.results)
         if (results.length < 2) continue
         const last = results.at(-1)
         const earlierFailed = results
@@ -28,14 +33,69 @@ export function countFlakyRetriedPasses(report) {
       }
     }
   }
-  for (const suite of suites) walk(suite)
+  for (const suite of asSuites(report)) walk(suite)
   return flaky
 }
 
 /**
- * @param {{ burnInCount: number | null, flakyCount: number }} metrics
+ * Count tests whose final attempt failed or timed out.
+ * @param {unknown} report Playwright JSON report
  */
-export function formatE2eSectionMarkdown({ burnInCount, flakyCount }) {
+export function countFailedTests(report) {
+  let failed = 0
+  const walk = (suite) => {
+    for (const child of asList(suite?.suites)) walk(child)
+    for (const spec of asList(suite?.specs)) {
+      for (const test of asList(spec?.tests)) {
+        const results = asList(test?.results)
+        const last = results.at(-1)
+        if (last?.status === 'failed' || last?.status === 'timedOut') {
+          failed += 1
+        }
+      }
+    }
+  }
+  for (const suite of asSuites(report)) walk(suite)
+  return failed
+}
+
+/**
+ * Playwright CLI args for PR burn-in (no shell wrapping).
+ * @param {{ targets: string[], count: number }} opts
+ */
+export function buildBurnInArgs({ targets, count }) {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error(
+      `burn-in count must be a positive integer, got ${String(count)}`,
+    )
+  }
+  const list = (Array.isArray(targets) ? targets : [])
+    .map((t) => String(t).trim())
+    .filter(Boolean)
+  return [
+    'playwright',
+    'test',
+    ...list,
+    `--repeat-each=${String(count)}`,
+    '--retries=0',
+    '--workers=1',
+  ]
+}
+
+/**
+ * @param {{
+ *   burnInCount: number | null,
+ *   flakyCount: number,
+ *   burnInOutcome?: string | null,
+ *   burnInFailedCount?: number | null,
+ * }} metrics
+ */
+export function formatE2eSectionMarkdown({
+  burnInCount,
+  flakyCount,
+  burnInOutcome = null,
+  burnInFailedCount = null,
+}) {
   const lines = [
     '## E2E',
     '',
@@ -46,6 +106,17 @@ export function formatE2eSectionMarkdown({ burnInCount, flakyCount }) {
   if (burnInCount !== null && burnInCount !== undefined) {
     lines.push(`| Burn-in | ${String(burnInCount)} |`)
   }
+  if (burnInOutcome && burnInOutcome !== 'skipped') {
+    let result = burnInOutcome === 'success' ? 'passed' : 'failed'
+    if (
+      burnInOutcome !== 'success' &&
+      burnInFailedCount !== null &&
+      burnInFailedCount !== undefined
+    ) {
+      result = `failed (${String(burnInFailedCount)} failed)`
+    }
+    lines.push(`| Burn-in result | ${result} |`)
+  }
   return `${lines.join('\n')}\n`
 }
 
@@ -53,34 +124,13 @@ export function loadPlaywrightJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-/**
- * Drive a runner under burn-in policy. Used in tests with a stub command.
- * @param {{ command: string, args: string[], env?: NodeJS.ProcessEnv, spawn?: typeof spawnSync }} opts
- */
-export function runBurnInInvocation(opts) {
-  const spawn = opts.spawn ?? spawnSync
-  const result = spawn(opts.command, opts.args, {
-    encoding: 'utf8',
-    env: opts.env ?? process.env,
-  })
-  return {
-    status: result.status ?? 1,
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
-  }
+/** @param {unknown} value */
+export function optionalArg(value) {
+  if (value === undefined || value === true || value === '') return null
+  return String(value)
 }
 
-/**
- * Stub intermittent runner: fails on odd attempt index, passes on even.
- * Exits non-zero if any attempt fails (burn-in / retries=0 semantics).
- */
-export function intermittentPassRunner({ attempt, total }) {
-  const index = Number(attempt)
-  const failed = index % 2 === 1
-  return { ok: !failed, attempt: index, total: Number(total) }
-}
-
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const args = { _: [] }
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index]
@@ -100,75 +150,56 @@ function parseArgs(argv) {
   return args
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2))
-  if (args._[0] === 'intermittent') {
-    const attempt = Number(args.attempt ?? 1)
-    const total = Number(args.total ?? 10)
-    const result = intermittentPassRunner({ attempt, total })
-    if (!result.ok) {
-      console.error(`intermittent fail attempt ${attempt}/${total}`)
-      process.exit(1)
-    }
-    console.log(`intermittent pass attempt ${attempt}/${total}`)
-    process.exit(0)
-  }
-
-  if (args._[0] === 'burn-in-harness') {
-    const repeats = Number(args['repeat-each'] ?? 10)
-    const retries = Number(args.retries ?? 0)
-    if (retries !== 0) {
-      console.error('burn-in harness requires --retries=0')
-      process.exit(2)
-    }
-    for (let attempt = 1; attempt <= repeats; attempt += 1) {
-      const run = runBurnInInvocation({
-        command: process.execPath,
-        args: [
-          fileURLToPath(import.meta.url),
-          'intermittent',
-          '--attempt',
-          String(attempt),
-          '--total',
-          String(repeats),
-        ],
-      })
-      if (run.status !== 0) {
-        process.exit(run.status)
-      }
-    }
-    process.exit(0)
-  }
-
-  const reportPath = args.report
-  if (!reportPath || !existsSync(reportPath)) {
+export function main(argv, io = {}) {
+  if (!Array.isArray(argv)) {
     throw new Error(
-      'Usage: e2e-playwright-summary.mjs --report <json> [--burn-in N] [--out file]',
+      'Usage: e2e-playwright-summary.mjs --report <json> [--burn-in N] [--burn-in-outcome O] [--burn-in-report json] [--out file]',
     )
   }
-  const burnInRaw = args['burn-in']
-  const burnInCount =
-    burnInRaw === undefined || burnInRaw === '' || burnInRaw === true
-      ? null
-      : Number(burnInRaw)
-  const flakyCount = countFlakyRetriedPasses(loadPlaywrightJson(reportPath))
-  const body = formatE2eSectionMarkdown({ burnInCount, flakyCount })
-  if (args.out) {
-    mkdirSync(dirname(args.out), { recursive: true })
-    writeFileSync(args.out, body)
+  const args = parseArgs(argv)
+  const readJson = io.loadJson ?? loadPlaywrightJson
+  const writeOut =
+    io.writeFile ??
+    ((path, body) => {
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, body)
+    })
+  const writeStdout =
+    typeof io.write === 'function'
+      ? io.write
+      : (text) => process.stdout.write(text)
+  const exists =
+    typeof io.exists === 'function' ? io.exists : (path) => existsSync(path)
+
+  const reportPath = optionalArg(args.report)
+  if (!reportPath || !exists(reportPath)) {
+    throw new Error(
+      'Usage: e2e-playwright-summary.mjs --report <json> [--burn-in N] [--burn-in-outcome O] [--burn-in-report json] [--out file]',
+    )
+  }
+
+  const burnInRaw = optionalArg(args['burn-in'])
+  const burnInCount = burnInRaw === null ? null : Number(burnInRaw)
+  const burnInOutcome = optionalArg(args['burn-in-outcome'])
+  const burnInReport = optionalArg(args['burn-in-report'])
+
+  let burnInFailedCount = null
+  if (burnInReport && exists(burnInReport)) {
+    burnInFailedCount = countFailedTests(readJson(burnInReport))
+  }
+
+  const flakyCount = countFlakyRetriedPasses(readJson(reportPath))
+  const body = formatE2eSectionMarkdown({
+    burnInCount,
+    flakyCount,
+    burnInOutcome,
+    burnInFailedCount,
+  })
+  const outPath = optionalArg(args.out)
+  if (outPath) {
+    writeOut(outPath, body)
   } else {
-    process.stdout.write(body)
+    writeStdout(body)
   }
-}
-
-const invokedDirectly =
-  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
-
-if (invokedDirectly) {
-  try {
-    main()
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : error)
-    process.exit(1)
-  }
+  return 0
 }

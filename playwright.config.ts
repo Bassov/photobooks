@@ -4,6 +4,7 @@ const isCi = Boolean(process.env.CI)
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: ['**/burn-in-fixtures/**'],
   fullyParallel: true,
   forbidOnly: isCi,
   retries: isCi ? 2 : 0,

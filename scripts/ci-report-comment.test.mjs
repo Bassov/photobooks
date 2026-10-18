@@ -3,6 +3,7 @@ import { fc, test } from '@fast-check/vitest'
 import {
   classifySection,
   decodeState,
+  emptyState,
   isLegacyStickyComment,
   isLighthouseReportFile,
   metricRows,
@@ -89,6 +90,35 @@ describe('normalizeState', () => {
     expect(normalized.sections.coverage).toEqual(legacy.sections.coverage)
     expect(() => renderComment(legacy)).not.toThrow()
     expect(renderComment(legacy)).toContain('### ⏳ E2E\n\n**Waiting**')
+  })
+
+  it('returns emptyState for non-object state', () => {
+    expect(normalizeState(null, 'abc')).toEqual(emptyState('abc'))
+    expect(normalizeState(undefined, 'abc')).toEqual(emptyState('abc'))
+    expect(normalizeState('nope', 'abc')).toEqual(emptyState('abc'))
+  })
+
+  it('fills missing headSha from the fallback argument', () => {
+    const normalized = normalizeState({ sections: {} }, 'fallback-sha')
+    expect(normalized.headSha).toBe('fallback-sha')
+  })
+
+  it('keeps version when present and defaults when missing', () => {
+    expect(normalizeState({ headSha: 'a', version: 2 }).version).toBe(2)
+    expect(normalizeState({ headSha: 'a' }).version).toBe(1)
+  })
+
+  it('ignores unknown extra sections', () => {
+    const normalized = normalizeState({
+      headSha: 'a',
+      sections: {
+        coverage: classifySection(passed),
+        weird: { kind: 'waiting' },
+      },
+    })
+    expect(normalized.sections.coverage).toEqual(classifySection(passed))
+    expect(normalized.sections).not.toHaveProperty('weird')
+    expect(normalized.sections.e2e).toEqual({ kind: 'waiting' })
   })
 })
 

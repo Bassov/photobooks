@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 env:
   E2E_BURN_IN: '10'
@@ -19,6 +18,8 @@ env:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -57,7 +58,7 @@ jobs:
         env:
           GITHUB_HEAD_REF: ${{ github.head_ref }}
         run: |
-          COUNT="$(node scripts/e2e-burn-in-count.mjs)"
+          COUNT="$(node scripts/e2e-burn-in-count-cli.mjs)"
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "Burn-in count: $COUNT"
 
@@ -68,7 +69,7 @@ jobs:
           STRYKER_DIFF_BASE: origin/${{ github.base_ref }}
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          TARGETS="$(node scripts/e2e-burn-in-targets.mjs | tr '\n' ' ')"
+          TARGETS="$(node scripts/e2e-burn-in-targets-cli.mjs | tr '\n' ' ')"
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           if [ -z "$(echo "$TARGETS" | tr -d '[:space:]')" ]; then
             echo "has_targets=false" >> "$GITHUB_OUTPUT"
@@ -91,6 +92,7 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/burn-in-results.json
 
       - name: E2E
+        if: always()
         id: e2e
         run: pnpm test:e2e
         env:
@@ -99,14 +101,18 @@ jobs:
       - name: Summarize e2e for CI report
         if: always() && github.event_name == 'pull_request'
         run: |
-          BURN_IN_ARGS=()
+          EXTRA_ARGS=()
           if [ "${{ steps.burn-in-targets.outputs.has_targets }}" = "true" ]; then
-            BURN_IN_ARGS=(--burn-in "${{ steps.burn-in-count.outputs.count }}")
+            EXTRA_ARGS+=(--burn-in "${{ steps.burn-in-count.outputs.count }}")
+            EXTRA_ARGS+=(--burn-in-outcome "${{ steps.burn-in.outcome }}")
+            if [ -f test-results/burn-in-results.json ]; then
+              EXTRA_ARGS+=(--burn-in-report test-results/burn-in-results.json)
+            fi
           fi
           if [ -f test-results/e2e-results.json ]; then
-            node scripts/e2e-playwright-summary.mjs \
+            node scripts/e2e-playwright-summary-cli.mjs \
               --report test-results/e2e-results.json \
-              "${BURN_IN_ARGS[@]}" \
+              "${EXTRA_ARGS[@]}" \
               --out /tmp/e2e-pr-comment.md
           else
             echo "No main e2e JSON report" > /tmp/e2e-pr-comment.md
@@ -163,6 +169,9 @@ jobs:
     needs: integration
     if: always() && github.event_name == 'pull_request' && needs.integration.result != 'cancelled'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     concurrency:
       group: ci-report-${{ github.event.pull_request.number }}
       queue: max
