@@ -779,7 +779,13 @@ export function compareGateTrees(baseFiles, headFiles) {
       ...listSourcePaths(headFiles),
     ])
     for (const p of paths) {
-      if (p === 'scripts/check-gate-ratchet.mjs') continue
+      // Detector / gate tooling may carry equivalent-mutator disable comments.
+      if (
+        p === 'scripts/check-gate-ratchet.mjs' ||
+        p === 'scripts/check-codecov-yml.mjs'
+      ) {
+        continue
+      }
       const b = getFile(baseFiles, p) ?? ''
       const h = getFile(headFiles, p) ?? ''
       if (b === h) continue
