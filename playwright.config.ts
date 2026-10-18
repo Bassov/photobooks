@@ -8,6 +8,10 @@ const e2ePort = process.env.E2E_PORT ?? '4173'
 const e2eOrigin = `http://127.0.0.1:${e2ePort}`
 const repoRoot = dirname(fileURLToPath(import.meta.url))
 const gates = loadGates({ root: repoRoot })
+// Istanbul on the e2e preview build adds main-thread overhead that trips LoAF
+// frame-budget gates. Opt in with E2E_COVERAGE=1; webServer is still the only
+// place that sets VITE_COVERAGE=1 on the build (never production/preview/LHCI).
+const e2eCoverage = process.env.E2E_COVERAGE === '1'
 
 /**
  * Mirrors scripts/e2e-flaky-list.mjs path rules for Playwright's TS config
@@ -80,7 +84,11 @@ export default defineConfig({
   webServer: {
     // VITE_E2E exposes `__photobooksProject` in the production preview build.
     // E2E_PORT isolates parallel worktree agents; never reuse another cwd's server.
-    command: `VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`,
+    // VITE_COVERAGE=1 is set only here (not production/preview/LHCI). Opt out with
+    // E2E_COVERAGE=0 when LoAF frame-budget assertions must run on a clean build.
+    command: e2eCoverage
+      ? `rm -rf .nyc_output coverage-e2e && VITE_COVERAGE=1 VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`
+      : `VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`,
     url: e2eOrigin,
     reuseExistingServer: false,
     timeout: 180_000,

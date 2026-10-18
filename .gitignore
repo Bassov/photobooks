@@ -13,6 +13,8 @@ dist-ssr
 *.local
 .local_dev/
 coverage
+coverage-e2e/
+.nyc_output/
 reports
 .vitest/
 .stryker-tmp
