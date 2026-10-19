@@ -74,6 +74,12 @@ export const FIXTURE_IDS = Object.freeze([
   'diff-below-nightly',
   'temporary-excludes-grew',
   'temporary-excludes-seed',
+  'scripts-glob-pr126-replay',
+  'scripts-include-uncovered-removed',
+  'mutate-include-uncovered-removed',
+  'broad-script-exclude',
+  'non-thin-cli-exclude',
+  'codecov-path-uncovered',
 ])
 /** Shared empty literals — asserted in unit tests to pin StringLiteral/Array mutants. */
 export const EMPTY_STRING = ''
@@ -88,6 +94,7 @@ export const MSGS = Object.freeze({
   parseGatesPrefix: 'failed to parse quality/gates.json: ',
   parseCodecovPrefix: 'failed to parse codecov.yml: ',
   includeRemovedPrefix: 'coverage include removed: ',
+  mutateIncludeRemovedPrefix: 'stryker mutate include removed: ',
   excludeAddedPrefix: 'coverage exclude added: ',
   bangAddedPrefix: 'stryker mutate bang added: ',
   excludedMutationsPrefix: 'excludedMutations added: ',
@@ -539,13 +546,18 @@ export function compactWs(text) {
 
 /**
  * @param {unknown} content
- * @returns {{ bang: string[], excludedMutations: string[], weakerFlags: string[] }}
+ * @returns {{
+ *   mutate: string[],
+ *   bang: string[],
+ *   excludedMutations: string[],
+ *   weakerFlags: string[],
+ * }}
  */
 export function extractStrykerGateBits(content) {
   const text = coerceText(content)
-  const bang = extractFirstKeyedArray(text, NEEDLES.mutate).filter((p) =>
-    p.startsWith(NEEDLES.bangPrefix),
-  )
+  const mutateEntries = extractFirstKeyedArray(text, NEEDLES.mutate)
+  const bang = mutateEntries.filter((p) => p.startsWith(NEEDLES.bangPrefix))
+  const mutate = mutateEntries.filter((p) => !p.startsWith(NEEDLES.bangPrefix))
   const excludedMutations = extractFirstKeyedArray(
     text,
     NEEDLES.excludedMutations,
@@ -571,7 +583,7 @@ export function extractStrykerGateBits(content) {
   ) {
     weakerFlags.push('ignorers')
   }
-  return { bang, excludedMutations, weakerFlags }
+  return { mutate, bang, excludedMutations, weakerFlags }
 }
 
 /**

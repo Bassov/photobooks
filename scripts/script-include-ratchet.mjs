@@ -73,10 +73,15 @@ export function codecovFlagPathCovered(basePath, headPaths) {
  * @param {{
  *   extractCoverageIncludes: (c: unknown) => string[],
  *   extractCoverageExcludes: (c: unknown) => string[],
- *   extractStrykerGateBits: (c: unknown) => { bang: string[] },
+ *   extractStrykerGateBits: (c: unknown) => { mutate?: string[], bang: string[] },
  *   coerceText: (c: unknown) => string,
  *   getFile: (files: Record<string, string | undefined>, path: string) => string | undefined,
- *   msgs: { includeRemovedPrefix: string, excludeAddedPrefix: string, bangAddedPrefix: string },
+ *   msgs: {
+ *     includeRemovedPrefix: string,
+ *     mutateIncludeRemovedPrefix: string,
+ *     excludeAddedPrefix: string,
+ *     bangAddedPrefix: string,
+ *   },
  * }} deps
  */
 export function compareScriptScopeGates(baseFiles, headFiles, fail, deps) {
@@ -106,6 +111,19 @@ export function compareScriptScopeGates(baseFiles, headFiles, fail, deps) {
   const hS = deps.extractStrykerGateBits(
     deps.coerceText(deps.getFile(headFiles, 'stryker.config.mjs')),
   )
+  const bMut = bS.mutate ?? []
+  const hMut = hS.mutate ?? []
+  if (hasScriptsCoverageInclude(bMut) && !hasScriptsCoverageInclude(hMut)) {
+    fail(
+      'include-removed',
+      `${deps.msgs.mutateIncludeRemovedPrefix}scripts/**/*.mjs`,
+    )
+  }
+  for (const p of bMut) {
+    if (!coverageIncludeCovered(p, hMut)) {
+      fail('include-removed', `${deps.msgs.mutateIncludeRemovedPrefix}${p}`)
+    }
+  }
   for (const p of hS.bang) {
     if (bS.bang.includes(p)) continue
     if (isAllowedScriptPairedExclude(p, headFiles, hInc)) continue
