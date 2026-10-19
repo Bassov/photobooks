@@ -70,6 +70,12 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 **Review cut:** under the M2.1 gates — the home screen handles every permission, picker and storage failure with a readable message, books have titles you set and rename, and photo metadata (capture time, orientation, color space) is in the document, read off the main thread.
 
 - [ ] [feature] [reimport-async](roadmap/M2.2/reimport-async.md) — re-import into an existing project starts as fast as a fresh import
+- [ ] [feature] [webp-import](roadmap/M2.2/webp-import.md) — WebP photos import instead of failing with "Unknown file format"
+- [ ] [feature] [failed-import-no-tile](roadmap/M2.2/failed-import-no-tile.md) — a photo that fails to decode leaves no tile, is not counted and cannot be placed
+- [ ] [feature] [add-spread-keeps-template](roadmap/M2.2/add-spread-keeps-template.md) — Add spread uses the active spread's template, and the template control says it is per spread
+- [ ] [feature] [transparent-preview](roadmap/M2.2/transparent-preview.md) — transparent PNG / WebP areas stay transparent in thumbnails and frames
+- [ ] [feature] [folder-skip-non-images](roadmap/M2.2/folder-skip-non-images.md) — folder import skips non-image files with one summary line instead of errors
+- [ ] [feature] [heic-unsupported-message](roadmap/M2.2/heic-unsupported-message.md) — HEIC/HEIF photos get a clear "not supported yet, convert to JPEG" message
 - [ ] [feature] [recents-home-quality](roadmap/M2.2/recents-home-quality.md) — home polish after correctness (what M2.1 does not cover)
 - [ ] [prep] [asset-metadata-schema](roadmap/M2.2/asset-metadata-schema.md) — photo metadata in the document
 - [ ] [feature] [book-titles](roadmap/M2.2/book-titles.md) — create-with-title and rename
@@ -78,7 +84,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 ## M2.5 — Design foundation
 
-**Review cut:** the UI kit is served at `/uikit/` as the UI/UX reference, moved photo folders relink in one step, and the editor looks like one product — every surface uses tokens and shared primitives in light and dark themes, `docs/design.md` is the source of truth agents follow (enforced by `ui-review` and the design reviewer), screenshot baselines catch visual drift, and every existing 60 fps gate still passes.
+**Review cut:** the UI kit is served at `/uikit/` as the UI/UX reference, moved photo folders relink in one step, and the editor looks like one product — every surface uses tokens and shared primitives in light and dark themes, `docs/design.md` is the source of truth agents follow (enforced by `ui-review` and the design reviewer), and every existing 60 fps gate still passes.
 
 - [ ] [prep] [uikit-import](roadmap/M2.5/uikit-import.md) — UI kit v3.1 in the repo as the UI/UX reference (whole kit, one step)
 - [ ] [feature] [missing-assets-relink](roadmap/M2.5/missing-assets-relink.md) — moved photo folders
@@ -87,10 +93,11 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [icon-set](roadmap/M2.5/icon-set.md) — icons (Security Review: dependency, if a package is chosen)
 - [ ] [prep] [ui-primitives-actions](roadmap/M2.5/ui-primitives-actions.md) — action primitives in `src/ui/`
 - [ ] [prep] [ui-primitives-feedback](roadmap/M2.5/ui-primitives-feedback.md) — feedback primitives in `src/ui/`
-- [ ] [prep] [visual-regression-e2e](roadmap/M2.5/visual-regression-e2e.md) — screenshot tests (issue #8)
 - [ ] [prep] [a11y-contrast-gate](roadmap/M2.5/a11y-contrast-gate.md) — contrast checks on the design system
 - [ ] [feature] [editor-chrome-toolbar](roadmap/M2.5/editor-chrome-toolbar.md) — editor bars on primitives
 - [ ] [feature] [editor-chrome-states](roadmap/M2.5/editor-chrome-states.md) — editor states on tokens and primitives
+- [ ] [feature] [import-errors-panel](roadmap/M2.5/import-errors-panel.md) — import errors you can dismiss, clear, group by reason and jump from
+- [ ] [feature] [editor-empty-hints](roadmap/M2.5/editor-empty-hints.md) — empty-editor card with import actions and a placement hint until the first photo is placed
 - [ ] [feature] [project-screens-adoption](roadmap/M2.5/project-screens-adoption.md) — M2 screens on the design system
 - [ ] [feature] [dark-theme](roadmap/M2.5/dark-theme.md) — dark neutral theme
 
