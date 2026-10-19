@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetSources, retainAssetSource } from '../photo/assetSources'
 import {
@@ -79,9 +80,7 @@ describe('upgradeSessionAssetsForLibrary via adopt', () => {
     const rootId =
       getBookStoreSnapshot().book.assets['asset-session']?.sourceRootId
     expect(rootId).toBeDefined()
-    if (rootId === undefined) {
-      return
-    }
+    assert(rootId !== undefined)
     expect(getRegisteredAssetSource(rootId)).toBeDefined()
   })
 

@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 
 import { createFakeBrowserDirectory } from '../fsa/browserDirectory.test-helpers'
@@ -173,9 +174,8 @@ describe('createBrowserSessionState', () => {
 
     const acquired = await session.acquireBookLock('spread-9')
     expect(acquired.ok).toBe(true)
-    if (acquired.ok) {
-      await acquired.value.release()
-    }
+    assert.equal(acquired.ok, true)
+    await acquired.value.release()
 
     expect(names).toEqual(['photobooks:book:spread-9'])
   })

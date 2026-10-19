@@ -6,6 +6,7 @@ import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import * as bookStore from './bookStore'
 import { resetCameraStore } from './cameraStore'
 import { clearDropHover } from './dropHover'
+import assert from 'node:assert/strict'
 import {
   ASSET_DRAG_MIME,
   FRAME_DRAG_MIME,
@@ -43,15 +44,21 @@ function geometryForCurrentBook(): DropGeometry {
   }
 }
 
+function fireDragReleaseAfterStart(release: 'pointerdown' | 'keydown'): void {
+  if (release === 'pointerdown') {
+    fireEvent.pointerDown(document)
+  } else {
+    fireEvent.keyDown(document, { key: 'ArrowLeft' })
+  }
+}
+
 function seedGridBook(): void {
   resetCameraStore()
   resetBookStore()
   let book = getBookStoreSnapshot().book
   book = addToGallery(book, ['a', 'b'])
   const spreadId = book.spreads[0]?.id
-  if (spreadId === undefined) {
-    throw new Error('expected a spread')
-  }
+  assert(spreadId !== undefined, 'expected a spread')
   book = applyTemplate(book, spreadId, '4-grid')
   resetBookStore({
     book,
@@ -73,9 +80,7 @@ function targetPoint(target: DropTarget): { x: number; y: number } {
     (item) =>
       item.spreadId === target.spreadId && item.frameId === target.frameId,
   )
-  if (frame === undefined) {
-    throw new Error(`missing ${target.frameId}`)
-  }
+  assert(frame !== undefined, `missing ${target.frameId}`)
   return { x: frame.left + 1, y: frame.top + 1 }
 }
 
@@ -89,9 +94,7 @@ function firstTargets(): [DropTarget, DropTarget] {
   })
   const first = index.frames[0]
   const second = index.frames[1]
-  if (first === undefined || second === undefined) {
-    throw new Error('expected two frames')
-  }
+  assert(first !== undefined && second !== undefined, 'expected two frames')
   return [first, second]
 }
 
@@ -198,9 +201,7 @@ describe('Pasteboard gallery drop', () => {
     const placeButton = screen.getAllByRole('button', {
       name: 'Place photo',
     })[0]
-    if (placeButton === undefined) {
-      throw new Error('expected a place button')
-    }
+    assert(placeButton !== undefined, 'expected a place button')
     fireEvent.click(placeButton)
 
     expect(getBookStoreSnapshot().book).toBe(before)
@@ -214,9 +215,7 @@ describe('Pasteboard gallery drop', () => {
     const button = screen
       .getAllByRole('button', { name: 'Place photo' })
       .find((node) => node.getAttribute('data-frame-id') === first.frameId)
-    if (button === undefined) {
-      throw new Error('expected a place button')
-    }
+    assert(button !== undefined, 'expected a place button')
     fireEvent.click(button)
 
     expect(
@@ -242,13 +241,10 @@ describe('Pasteboard gallery drop', () => {
     const frames = getBookStoreSnapshot().book.spreads[0]?.frames
     const firstId = frames?.[0]?.id
     const secondId = frames?.[1]?.id
-    if (
-      spreadId === undefined ||
-      firstId === undefined ||
-      secondId === undefined
-    ) {
-      throw new Error('expected two frames')
-    }
+    assert(
+      spreadId !== undefined && firstId !== undefined && secondId !== undefined,
+      'expected two frames',
+    )
     let book = placeAsset(getBookStoreSnapshot().book, spreadId, firstId, 'a')
     book = placeAsset(book, spreadId, secondId, 'b')
     resetBookStore({
@@ -276,9 +272,7 @@ describe('Pasteboard gallery drop', () => {
     expect(assetIn(second.frameId)).toBe('a')
 
     const emptyId = frames?.[2]?.id
-    if (emptyId === undefined) {
-      throw new Error('expected an empty frame')
-    }
+    assert(emptyId !== undefined, 'expected an empty frame')
     const moved = { spreadId, frameId: second.frameId }
     document.dispatchEvent(frameDragEvent('dragstart', moved))
     scroll.dispatchEvent(
@@ -306,9 +300,7 @@ describe('Pasteboard gallery drop', () => {
     seedGridBook()
     const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
     const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
-    if (spreadId === undefined || frameId === undefined) {
-      throw new Error('expected a frame')
-    }
+    assert(spreadId !== undefined && frameId !== undefined, 'expected a frame')
     const book = placeAsset(getBookStoreSnapshot().book, spreadId, frameId, 'a')
     resetBookStore({
       book,
@@ -319,9 +311,7 @@ describe('Pasteboard gallery drop', () => {
     render(<Pasteboard />)
     const button = screen.getByRole('button', { name: 'Select photo to move' })
     const body = button.querySelector('.spread-frame-body')
-    if (!(body instanceof HTMLElement)) {
-      throw new Error('expected a drag body')
-    }
+    assert(body instanceof HTMLElement, 'expected a drag body')
     const before = getBookStoreSnapshot().book
     const dataTransfer = new DataTransfer()
     fireEvent.dragStart(body, { dataTransfer })
@@ -337,13 +327,10 @@ describe('Pasteboard gallery drop', () => {
     const frames = getBookStoreSnapshot().book.spreads[0]?.frames
     const firstId = frames?.[0]?.id
     const secondId = frames?.[1]?.id
-    if (
-      spreadId === undefined ||
-      firstId === undefined ||
-      secondId === undefined
-    ) {
-      throw new Error('expected two frames')
-    }
+    assert(
+      spreadId !== undefined && firstId !== undefined && secondId !== undefined,
+      'expected two frames',
+    )
     let book = placeAsset(getBookStoreSnapshot().book, spreadId, firstId, 'a')
     book = placeAsset(book, spreadId, secondId, 'b')
     resetBookStore({
@@ -357,17 +344,13 @@ describe('Pasteboard gallery drop', () => {
     const source = screen
       .getAllByRole('button', { name: 'Select photo to move' })
       .find((node) => node.getAttribute('data-frame-id') === firstId)
-    if (source === undefined) {
-      throw new Error('expected a move source')
-    }
+    assert(source !== undefined, 'expected a move source')
     fireEvent.click(source)
     expect(source.getAttribute('aria-pressed')).toBe('true')
     const swap = screen
       .getAllByRole('button', { name: 'Swap photos' })
       .find((node) => node.getAttribute('data-frame-id') === secondId)
-    if (swap === undefined) {
-      throw new Error('expected a swap target')
-    }
+    assert(swap !== undefined, 'expected a swap target')
     fireEvent.click(swap)
     expect(assetIn(firstId)).toBe('b')
     expect(assetIn(secondId)).toBe('a')
@@ -376,14 +359,10 @@ describe('Pasteboard gallery drop', () => {
     const again = screen
       .getAllByRole('button', { name: 'Select photo to move' })
       .find((node) => node.getAttribute('data-frame-id') === secondId)
-    if (again === undefined) {
-      throw new Error('expected the swapped source')
-    }
+    assert(again !== undefined, 'expected the swapped source')
     fireEvent.click(again)
     const move = screen.getAllByRole('button', { name: 'Move photo here' })[0]
-    if (move === undefined) {
-      throw new Error('expected an empty frame')
-    }
+    assert(move !== undefined, 'expected an empty frame')
     fireEvent.click(move)
     const movedId = move.getAttribute('data-frame-id') ?? ''
     expect(assetIn(secondId)).toBeUndefined()
@@ -397,14 +376,13 @@ describe('Pasteboard gallery drop', () => {
     const firstId = frames?.[0]?.id
     const secondId = frames?.[1]?.id
     const emptyId = frames?.[2]?.id
-    if (
-      spreadId === undefined ||
-      firstId === undefined ||
-      secondId === undefined ||
-      emptyId === undefined
-    ) {
-      throw new Error('expected three frames')
-    }
+    assert(
+      spreadId !== undefined &&
+        firstId !== undefined &&
+        secondId !== undefined &&
+        emptyId !== undefined,
+      'expected three frames',
+    )
     let book = placeAsset(getBookStoreSnapshot().book, spreadId, firstId, 'a')
     book = placeAsset(book, spreadId, secondId, 'b')
     resetBookStore({
@@ -425,9 +403,7 @@ describe('Pasteboard gallery drop', () => {
       .getAllByRole('button', { name: 'Select photo to move' })
       .find((node) => node.getAttribute('data-frame-id') === firstId)
     const sourceBody = sourceButton?.querySelector('.spread-frame-body')
-    if (!(sourceBody instanceof HTMLElement)) {
-      throw new Error('expected a drag body')
-    }
+    assert(sourceBody instanceof HTMLElement, 'expected a drag body')
     fireEvent.dragStart(sourceBody, { dataTransfer: new DataTransfer() })
     scroll.dispatchEvent(
       frameDragEvent(
@@ -440,9 +416,7 @@ describe('Pasteboard gallery drop', () => {
     const remaining = screen
       .getAllByRole('button', { name: 'Select photo to move' })
       .find((node) => node.getAttribute('data-frame-id') === secondId)
-    if (remaining === undefined) {
-      throw new Error('expected the other filled frame')
-    }
+    assert(remaining !== undefined, 'expected the other filled frame')
     fireEvent.click(remaining)
     expect(remaining.getAttribute('aria-pressed')).toBe('true')
 
@@ -454,9 +428,7 @@ describe('Pasteboard gallery drop', () => {
       .getAllByRole('button', { name: 'Select photo to move' })
       .find((node) => node.getAttribute('data-frame-id') === secondId)
     const againBody = againButton?.querySelector('.spread-frame-body')
-    if (!(againBody instanceof HTMLElement)) {
-      throw new Error('expected the other drag body')
-    }
+    assert(againBody instanceof HTMLElement, 'expected the other drag body')
     fireEvent.dragStart(againBody, { dataTransfer: new DataTransfer() })
     const filmstrip = screen.getByTestId('filmstrip-scroll')
     filmstrip.dispatchEvent(frameDragEvent('drop', again))
@@ -464,9 +436,7 @@ describe('Pasteboard gallery drop', () => {
     const moved = screen
       .getAllByRole('button', { name: 'Select photo to move' })
       .find((node) => node.getAttribute('data-frame-id') === emptyId)
-    if (moved === undefined) {
-      throw new Error('expected the moved photo')
-    }
+    assert(moved !== undefined, 'expected the moved photo')
     fireEvent.click(moved)
     expect(moved.getAttribute('aria-pressed')).toBe('true')
   })
@@ -477,9 +447,10 @@ describe('Pasteboard gallery drop', () => {
       seedGridBook()
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
       const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
-      if (spreadId === undefined || frameId === undefined) {
-        throw new Error('expected a frame')
-      }
+      assert(
+        spreadId !== undefined && frameId !== undefined,
+        'expected a frame',
+      )
       const book = placeAsset(
         getBookStoreSnapshot().book,
         spreadId,
@@ -497,15 +468,9 @@ describe('Pasteboard gallery drop', () => {
         name: 'Select photo to move',
       })
       const body = button.querySelector('.spread-frame-body')
-      if (!(body instanceof HTMLElement)) {
-        throw new Error('expected a drag body')
-      }
+      assert(body instanceof HTMLElement, 'expected a drag body')
       fireEvent.dragStart(body, { dataTransfer: new DataTransfer() })
-      if (release === 'pointerdown') {
-        fireEvent.pointerDown(document)
-      } else {
-        fireEvent.keyDown(document, { key: 'ArrowLeft' })
-      }
+      fireDragReleaseAfterStart(release)
       fireEvent.click(button)
       expect(button.getAttribute('aria-pressed')).toBe('true')
     },
@@ -515,9 +480,7 @@ describe('Pasteboard gallery drop', () => {
     seedGridBook()
     const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
     const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
-    if (spreadId === undefined || frameId === undefined) {
-      throw new Error('expected a frame')
-    }
+    assert(spreadId !== undefined && frameId !== undefined, 'expected a frame')
     const book = placeAsset(getBookStoreSnapshot().book, spreadId, frameId, 'a')
     resetBookStore({
       book,
@@ -549,14 +512,13 @@ describe('Pasteboard gallery drop', () => {
     const firstId = frames?.[0]?.id
     const secondId = frames?.[1]?.id
     const thirdId = frames?.[2]?.id
-    if (
-      spreadId === undefined ||
-      firstId === undefined ||
-      secondId === undefined ||
-      thirdId === undefined
-    ) {
-      throw new Error('expected three frames')
-    }
+    assert(
+      spreadId !== undefined &&
+        firstId !== undefined &&
+        secondId !== undefined &&
+        thirdId !== undefined,
+      'expected three frames',
+    )
     let book = placeAsset(getBookStoreSnapshot().book, spreadId, firstId, 'a')
     book = placeAsset(book, spreadId, secondId, 'b')
     book = placeAsset(book, spreadId, thirdId, 'a')
@@ -605,14 +567,13 @@ describe('Pasteboard gallery drop', () => {
     const spreadB = book0.spreads[1]?.id
     const frameA = book0.spreads[0]?.frames[0]?.id
     const frameB = book0.spreads[1]?.frames[0]?.id
-    if (
-      spreadA === undefined ||
-      spreadB === undefined ||
-      frameA === undefined ||
-      frameB === undefined
-    ) {
-      throw new Error('expected two spreads')
-    }
+    assert(
+      spreadA !== undefined &&
+        spreadB !== undefined &&
+        frameA !== undefined &&
+        frameB !== undefined,
+      'expected two spreads',
+    )
     let book = placeAsset(book0, spreadA, frameA, 'a')
     book = placeAsset(book, spreadB, frameB, 'b')
     resetBookStore({
@@ -646,13 +607,10 @@ describe('Pasteboard gallery drop', () => {
     const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
     const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
     const emptyId = getBookStoreSnapshot().book.spreads[0]?.frames[1]?.id
-    if (
-      spreadId === undefined ||
-      frameId === undefined ||
-      emptyId === undefined
-    ) {
-      throw new Error('expected two frames')
-    }
+    assert(
+      spreadId !== undefined && frameId !== undefined && emptyId !== undefined,
+      'expected two frames',
+    )
     const book = placeAsset(getBookStoreSnapshot().book, spreadId, frameId, 'a')
     resetBookStore({
       book,
@@ -682,9 +640,7 @@ describe('Pasteboard gallery drop', () => {
     seedGridBook()
     const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
     const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
-    if (spreadId === undefined || frameId === undefined) {
-      throw new Error('expected a frame')
-    }
+    assert(spreadId !== undefined && frameId !== undefined, 'expected a frame')
     const book = placeAsset(getBookStoreSnapshot().book, spreadId, frameId, 'a')
     resetBookStore({
       book,

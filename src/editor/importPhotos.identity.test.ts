@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createMemoryLibraryStorage,
@@ -47,9 +48,7 @@ describe('importPhotoFiles library identity', () => {
       expect(book.gallery.length).toBe(1)
       const assetId = book.gallery[0]
       expect(assetId).toBeDefined()
-      if (!assetId) {
-        return
-      }
+      assert.ok(assetId)
       const asset = book.assets[assetId]
       expect(asset?.sourceRootId).toBe('root-test')
       expect(asset?.relativePath).toBe('shot.jpg')
@@ -59,11 +58,10 @@ describe('importPhotoFiles library identity', () => {
     expect(source).toBeDefined()
     const scanned = await source?.scanRoot('root-test')
     expect(scanned?.ok).toBe(true)
-    if (scanned?.ok) {
-      expect(
-        scanned.value.some((entry) => entry.relativePath === 'shot.jpg'),
-      ).toBe(true)
-    }
+    assert.ok(scanned?.ok)
+    expect(
+      scanned.value.some((entry) => entry.relativePath === 'shot.jpg'),
+    ).toBe(true)
   })
 
   it('skips identity fields without a library', async () => {
@@ -74,9 +72,7 @@ describe('importPhotoFiles library identity', () => {
       expect(book.gallery.length).toBe(1)
       const assetId = book.gallery[0]
       expect(assetId).toBeDefined()
-      if (!assetId) {
-        return
-      }
+      assert.ok(assetId)
       expect(book.assets[assetId]?.sourceRootId).toBeUndefined()
     })
   })

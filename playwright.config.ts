@@ -59,7 +59,7 @@ export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/burn-in-fixtures/**'],
   fullyParallel: true,
-  forbidOnly: isCi,
+  forbidOnly: true,
   retries: gates.playwright.retries,
   ...(isCi ? { workers: 1 } : {}),
   reporter: isCi

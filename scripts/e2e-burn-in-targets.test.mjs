@@ -18,6 +18,47 @@ import {
 } from './e2e-burn-in-targets.mjs'
 import { gitRun } from './git-test-helper.mjs'
 
+function restoreStrykerDiffBase(prev) {
+  if (prev === undefined) delete process.env.STRYKER_DIFF_BASE
+  else process.env.STRYKER_DIFF_BASE = prev
+}
+
+function runSpawnedCliBurnInTargets() {
+  const probe = gitRun(
+    ['rev-parse', '--verify', 'origin/main'],
+    process.cwd(),
+    { allowFail: true },
+  )
+  if (probe.status !== 0) {
+    let out = ''
+    const code = main(
+      { STRYKER_DIFF_BASE: 'HEAD' },
+      {
+        gitLines: () => ['e2e/burn-in-smoke.spec.ts'],
+        write: (text) => {
+          out += text
+        },
+      },
+    )
+    expect(code).toBe(0)
+    expect(out).toContain('e2e/burn-in-smoke.spec.ts')
+    return
+  }
+  const out = execFileSync(
+    process.execPath,
+    [join(process.cwd(), 'scripts/e2e-burn-in-targets-cli.mjs')],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        STRYKER_DIFF_BASE: 'origin/main',
+      },
+    },
+  )
+  const lines = out.split('\n').filter(Boolean)
+  expect(lines.every((path) => isE2eSpec(path))).toBe(true)
+}
+
 describe('isE2eSpec / isE2eSupportFile', () => {
   it.each([
     ['e2e/smoke.spec.ts', true],
@@ -424,8 +465,7 @@ describe('gitLines / collectChangedPaths', () => {
       },
     })
     expect(calls[0]).toBe('origin/feature')
-    if (prev === undefined) delete process.env.STRYKER_DIFF_BASE
-    else process.env.STRYKER_DIFF_BASE = prev
+    restoreStrykerDiffBase(prev)
   })
 
   it('collectChangedPaths uses real gitLines when io.gitLines omitted', () => {
@@ -571,41 +611,6 @@ describe('main CLI', () => {
   })
 
   it('spawned CLI prints targets from injected-equivalent git base', () => {
-    const probe = gitRun(
-      ['rev-parse', '--verify', 'origin/main'],
-      process.cwd(),
-      { allowFail: true },
-    )
-    if (probe.status !== 0) {
-      // Shallow CI checkouts often lack origin/main; exercise CLI via main() instead.
-      let out = ''
-      const code = main(
-        { STRYKER_DIFF_BASE: 'HEAD' },
-        {
-          gitLines: () => ['e2e/burn-in-smoke.spec.ts'],
-          write: (text) => {
-            out += text
-          },
-        },
-      )
-      expect(code).toBe(0)
-      expect(out).toContain('e2e/burn-in-smoke.spec.ts')
-      return
-    }
-    // Real origin/main diffs vary by branch (often empty on a clean tree). Assert
-    // the CLI binary runs; content is covered by the injected main() cases above.
-    const out = execFileSync(
-      process.execPath,
-      [join(process.cwd(), 'scripts/e2e-burn-in-targets-cli.mjs')],
-      {
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          STRYKER_DIFF_BASE: 'origin/main',
-        },
-      },
-    )
-    const lines = out.split('\n').filter(Boolean)
-    expect(lines.every((path) => isE2eSpec(path))).toBe(true)
+    runSpawnedCliBurnInTargets()
   })
 })

@@ -4,6 +4,7 @@ import { addToGallery, placeAsset } from '../core'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { resetCameraStore } from './cameraStore'
 import { getEditorStatus } from './editorStatus'
+import assert from 'node:assert/strict'
 import {
   getFrameSource,
   resetFrameSelection,
@@ -47,9 +48,7 @@ describe('editor keys', () => {
     const snap = getBookStoreSnapshot()
     const spread = snap.book.spreads[0]
     const frameId = spread?.frames[0]?.id
-    if (spread === undefined || frameId === undefined) {
-      throw new Error('expected a frame')
-    }
+    assert(spread !== undefined && frameId !== undefined, 'expected a frame')
     const book = placeAsset(
       addToGallery(snap.book, ['a']),
       spread.id,

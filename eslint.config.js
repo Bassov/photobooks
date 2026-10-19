@@ -1,7 +1,9 @@
 import js from '@eslint/js'
 import eslintConfigPrettier from 'eslint-config-prettier'
+import playwright from 'eslint-plugin-playwright'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import vitest from '@vitest/eslint-plugin'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
@@ -52,6 +54,28 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
+    },
+  },
+  {
+    files: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      'scripts/**/*.test.mjs',
+      'scripts/**/*.test.ts',
+    ],
+    plugins: { vitest },
+    rules: {
+      'vitest/no-focused-tests': 'error',
+      'vitest/no-disabled-tests': 'error',
+      'vitest/no-conditional-in-test': 'error',
+    },
+  },
+  {
+    files: ['e2e/**/*.{ts,tsx}'],
+    plugins: { playwright },
+    rules: {
+      'playwright/no-focused-test': 'error',
+      'playwright/no-skipped-test': 'error',
+      'playwright/no-conditional-in-test': 'error',
     },
   },
   eslintConfigPrettier,

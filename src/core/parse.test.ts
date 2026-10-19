@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { test, fc } from '@fast-check/vitest'
 import { CURRENT_SCHEMA_VERSION, parseBook, serializeBook } from './index'
@@ -42,17 +43,15 @@ describe('parseBook', () => {
     const book = makeBookWithAsset('photo-a')
     const result = parseBook(serializeBook(book))
     expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.book).toEqual(book)
-    }
+    assert.equal(result.ok, true)
+    expect(result.book).toEqual(book)
   })
 
   it('parses empty and full asset records', () => {
     const empty = parseBook(makeBookWithAsset('photo-a'))
     expect(empty.ok).toBe(true)
-    if (empty.ok) {
-      expect(empty.book.assets['photo-a']).toEqual({})
-    }
+    assert.equal(empty.ok, true)
+    expect(empty.book.assets['photo-a']).toEqual({})
 
     const record = {
       sourceRootId: 'root-1',
@@ -69,9 +68,8 @@ describe('parseBook', () => {
       }),
     )
     expect(full.ok).toBe(true)
-    if (full.ok) {
-      expect(full.book.assets['photo-a']).toEqual(record)
-    }
+    assert.equal(full.ok, true)
+    expect(full.book.assets['photo-a']).toEqual(record)
   })
 
   it.each([
@@ -107,10 +105,9 @@ describe('parseBook', () => {
     }
     const result = parseBook(v1)
     expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.book.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
-      expect(result.book.assets['photo-a']).toEqual({})
-    }
+    assert.equal(result.ok, true)
+    expect(result.book.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    expect(result.book.assets['photo-a']).toEqual({})
   })
 
   it('rejects duplicate gallery ids at the schema boundary', () => {
@@ -170,8 +167,7 @@ test.prop(
 
     const result = parseBook(serializeBook(book))
     expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.book).toEqual(book)
-    }
+    assert.equal(result.ok, true)
+    expect(result.book).toEqual(book)
   },
 )

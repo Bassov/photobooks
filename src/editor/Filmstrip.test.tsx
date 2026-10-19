@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyTemplate, placeAsset } from '../core'
 import { resetAssetPool } from '../photo/assetPool'
+import assert from 'node:assert/strict'
 import {
   getBookStoreSnapshot,
   getGalleryIdsSnapshot,
@@ -104,9 +105,7 @@ describe('Filmstrip thumbnail file name', () => {
   it('uses the session file name as the thumbnail accessible name', () => {
     const ids = seedGallery(1, 1.5, CYRILLIC_FILE_NAME)
     const assetId = ids[0]
-    if (assetId === undefined) {
-      throw new Error('expected an asset')
-    }
+    assert(assetId !== undefined, 'expected an asset')
 
     render(<Filmstrip />)
 
@@ -117,9 +116,7 @@ describe('Filmstrip thumbnail file name', () => {
   it('uses the asset id when the session file name is blank', () => {
     const ids = seedGallery(1, 1.5, '')
     const assetId = ids[0]
-    if (assetId === undefined) {
-      throw new Error('expected an asset')
-    }
+    assert(assetId !== undefined, 'expected an asset')
 
     render(<Filmstrip />)
 
@@ -136,13 +133,9 @@ describe('Filmstrip thumbnail file name', () => {
     )
     const ids = seedGallery(1, 1.5, '')
     const assetId = ids[0]
-    if (assetId === undefined) {
-      throw new Error('expected an asset')
-    }
+    assert(assetId !== undefined, 'expected an asset')
     const meta = getBookStoreSnapshot().sessionMeta.get(assetId)
-    if (meta === undefined) {
-      throw new Error('expected session meta')
-    }
+    assert(meta !== undefined, 'expected session meta')
     render(<Filmstrip />)
 
     act(() => {
@@ -346,13 +339,10 @@ describe('Filmstrip aspect cards', () => {
     const spread = snap.book.spreads[0]
     const frameId = spread?.frames[0]?.id
     const placedId = ids[0]
-    if (
-      spread === undefined ||
-      frameId === undefined ||
-      placedId === undefined
-    ) {
-      throw new Error('expected a frame and an asset')
-    }
+    assert(
+      spread !== undefined && frameId !== undefined && placedId !== undefined,
+      'expected a frame and an asset',
+    )
     const book = placeAsset(snap.book, spread.id, frameId, placedId)
     resetBookStore({
       book,
@@ -382,9 +372,7 @@ describe('Filmstrip aspect cards', () => {
   it('puts the asset id on dragstart and selects that item', () => {
     const ids = seedGallery(1)
     const assetId = ids[0]
-    if (assetId === undefined) {
-      throw new Error('expected an asset')
-    }
+    assert(assetId !== undefined, 'expected an asset')
     const restore = stubScrollportWidth(400)
 
     try {
@@ -397,9 +385,7 @@ describe('Filmstrip aspect cards', () => {
       Object.defineProperty(event, 'dataTransfer', { value: dataTransfer })
       const item = screen.getByTestId('filmstrip-item')
       const handle = item.querySelector('.filmstrip-drag')
-      if (!(handle instanceof HTMLElement)) {
-        throw new Error('expected a drag handle')
-      }
+      assert(handle instanceof HTMLElement, 'expected a drag handle')
       act(() => {
         handle.dispatchEvent(event)
       })
@@ -421,13 +407,10 @@ describe('Filmstrip aspect cards', () => {
     const spread = snap.book.spreads[0]
     const frameId = spread?.frames[0]?.id
     const placedId = ids[0]
-    if (
-      spread === undefined ||
-      frameId === undefined ||
-      placedId === undefined
-    ) {
-      throw new Error('expected a frame and an asset')
-    }
+    assert(
+      spread !== undefined && frameId !== undefined && placedId !== undefined,
+      'expected a frame and an asset',
+    )
     const book = placeAsset(snap.book, spread.id, frameId, placedId)
     resetBookStore({
       book,
@@ -464,13 +447,10 @@ describe('Filmstrip aspect cards', () => {
     const spread = snap.book.spreads[0]
     const frameId = spread?.frames[0]?.id
     const placedId = ids[0]
-    if (
-      spread === undefined ||
-      frameId === undefined ||
-      placedId === undefined
-    ) {
-      throw new Error('expected a frame and an asset')
-    }
+    assert(
+      spread !== undefined && frameId !== undefined && placedId !== undefined,
+      'expected a frame and an asset',
+    )
     const book = placeAsset(snap.book, spread.id, frameId, placedId)
     resetBookStore({
       book,
@@ -522,13 +502,10 @@ describe('Filmstrip aspect cards', () => {
     const spread = snap.book.spreads[0]
     const frameId = spread?.frames[0]?.id
     const placedId = ids[0]
-    if (
-      spread === undefined ||
-      frameId === undefined ||
-      placedId === undefined
-    ) {
-      throw new Error('expected a frame and an asset')
-    }
+    assert(
+      spread !== undefined && frameId !== undefined && placedId !== undefined,
+      'expected a frame and an asset',
+    )
     const book = placeAsset(snap.book, spread.id, frameId, placedId)
     resetBookStore({
       book,
@@ -564,13 +541,10 @@ describe('Filmstrip aspect cards', () => {
     const spread = snap.book.spreads[0]
     const frameId = spread?.frames[0]?.id
     const placedId = ids[0]
-    if (
-      spread === undefined ||
-      frameId === undefined ||
-      placedId === undefined
-    ) {
-      throw new Error('expected a frame and an asset')
-    }
+    assert(
+      spread !== undefined && frameId !== undefined && placedId !== undefined,
+      'expected a frame and an asset',
+    )
     const book = placeAsset(snap.book, spread.id, frameId, placedId)
     resetBookStore({
       book,
@@ -617,15 +591,17 @@ describe('Filmstrip aspect cards', () => {
     const snap = getBookStoreSnapshot()
     const spreadId = snap.book.spreads[0]?.id
     const placedId = ids[0]
-    if (spreadId === undefined || placedId === undefined) {
-      throw new Error('expected a spread and an asset')
-    }
+    assert(
+      spreadId !== undefined && placedId !== undefined,
+      'expected a spread and an asset',
+    )
     let book = applyTemplate(snap.book, spreadId, '4-grid')
     const firstId = book.spreads[0]?.frames[0]?.id
     const secondId = book.spreads[0]?.frames[1]?.id
-    if (firstId === undefined || secondId === undefined) {
-      throw new Error('expected two frames')
-    }
+    assert(
+      firstId !== undefined && secondId !== undefined,
+      'expected two frames',
+    )
     book = placeAsset(book, spreadId, firstId, placedId)
     book = placeAsset(book, spreadId, secondId, placedId)
     resetBookStore({
@@ -658,9 +634,7 @@ describe('Filmstrip aspect cards', () => {
   it('clears the gallery selection on Escape', () => {
     const ids = seedGallery(1)
     const assetId = ids[0]
-    if (assetId === undefined) {
-      throw new Error('expected an asset')
-    }
+    assert(assetId !== undefined, 'expected an asset')
     setSelectedAssetId(assetId)
     const restore = stubScrollportWidth(400)
 

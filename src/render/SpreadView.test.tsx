@@ -4,6 +4,7 @@ import { resolveSpread } from '../core'
 import { makeBook, makeBookWithAsset } from '../core/testing/fixtures'
 import { frameBox, imageCropBox, SPREAD_PX_PER_MM } from './frameBox'
 import { SpreadView } from './SpreadView'
+import assert from 'node:assert/strict'
 
 const previewUrlFor = (assetId: string): string | undefined =>
   assetId === 'asset-1'
@@ -18,9 +19,7 @@ describe('SpreadView', () => {
   it('shows a placeholder and no image for an empty frame', () => {
     const book = makeBook()
     const resolved = resolveSpread(book, 'spread-1')
-    if (resolved === undefined) {
-      throw new Error('expected resolved spread')
-    }
+    assert(resolved !== undefined, 'expected resolved spread')
 
     render(
       <SpreadView
@@ -38,9 +37,7 @@ describe('SpreadView', () => {
     const book = makeBook()
     const spread = book.spreads[0]
     const frame = spread?.frames[0]
-    if (spread === undefined || frame === undefined) {
-      throw new Error('expected a frame')
-    }
+    assert(spread !== undefined && frame !== undefined, 'expected a frame')
     const placed = {
       ...book,
       assets: { 'asset-1': {} },
@@ -62,9 +59,10 @@ describe('SpreadView', () => {
       getAspectRatio: () => 2,
     })
     const item = resolved?.items[0]
-    if (resolved === undefined || item?.sourceCropRect === undefined) {
-      throw new Error('expected a cropped item')
-    }
+    assert(
+      resolved !== undefined && item?.sourceCropRect !== undefined,
+      'expected a cropped item',
+    )
 
     render(
       <SpreadView
@@ -98,9 +96,7 @@ describe('SpreadView', () => {
     const book = makeBook()
     const spread = book.spreads[0]
     const frame = spread?.frames[0]
-    if (spread === undefined || frame === undefined) {
-      throw new Error('expected a frame')
-    }
+    assert(spread !== undefined && frame !== undefined, 'expected a frame')
     const placed = {
       ...book,
       assets: { 'asset-missing': {} },
@@ -113,9 +109,7 @@ describe('SpreadView', () => {
       ],
     }
     const resolved = resolveSpread(placed, 'spread-1')
-    if (resolved === undefined) {
-      throw new Error('expected resolved spread')
-    }
+    assert(resolved !== undefined, 'expected resolved spread')
 
     render(
       <SpreadView
@@ -138,9 +132,7 @@ describe('SpreadView', () => {
       ],
     })
     const resolved = resolveSpread(book, 's1')
-    if (resolved === undefined) {
-      throw new Error('expected resolved spread')
-    }
+    assert(resolved !== undefined, 'expected resolved spread')
 
     render(
       <SpreadView
@@ -161,13 +153,9 @@ describe('SpreadView', () => {
   it('sizes frames with the camera px per mm', () => {
     const book = makeBook()
     const spread = book.spreads[0]
-    if (spread === undefined) {
-      throw new Error('expected spread')
-    }
+    assert(spread !== undefined, 'expected spread')
     const resolved = resolveSpread(book, spread.id)
-    if (resolved === undefined) {
-      throw new Error('expected resolved spread')
-    }
+    assert(resolved !== undefined, 'expected resolved spread')
     const pxPerMm = SPREAD_PX_PER_MM * 2
 
     render(
@@ -187,9 +175,7 @@ describe('SpreadView', () => {
   it('keeps a plain frame when no control is provided', () => {
     const book = makeBook()
     const resolved = resolveSpread(book, 'spread-1')
-    if (resolved === undefined) {
-      throw new Error('expected resolved spread')
-    }
+    assert(resolved !== undefined, 'expected resolved spread')
 
     render(
       <SpreadView
@@ -205,9 +191,7 @@ describe('SpreadView', () => {
   it('calls onActivate from the frame button', () => {
     const book = makeBook()
     const resolved = resolveSpread(book, 'spread-1')
-    if (resolved === undefined) {
-      throw new Error('expected resolved spread')
-    }
+    assert(resolved !== undefined, 'expected resolved spread')
     const onActivate = vi.fn()
 
     render(
@@ -226,9 +210,10 @@ describe('SpreadView', () => {
   it('makes a filled frame body draggable without pressing an empty frame', () => {
     const empty = resolveSpread(makeBook(), 'spread-1')
     const filled = resolveSpread(makeBookWithAsset(), 'spread-1')
-    if (empty === undefined || filled === undefined) {
-      throw new Error('expected resolved spreads')
-    }
+    assert(
+      empty !== undefined && filled !== undefined,
+      'expected resolved spreads',
+    )
 
     const { unmount } = render(
       <SpreadView

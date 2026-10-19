@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { getAssetAspectSnapshot, resetBookStore } from './bookStore'
@@ -121,9 +122,8 @@ describe('thumbCache', () => {
     await awaitPendingHashes()
     const got = await cache.get(SAMPLE_HASH, 'thumb')
     expect(got.ok).toBe(true)
-    if (got.ok) {
-      expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([1, 2]))
-    }
+    assert.equal(got.ok, true)
+    expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([1, 2]))
   })
 
   it('awaits encode-after-hash put so Save cannot race reload hydrate', async () => {
@@ -236,9 +236,8 @@ describe('thumbCache', () => {
     await putCachedThumbForHash('a1', SAMPLE_HASH)
     const got = await cache.get(SAMPLE_HASH, 'thumb')
     expect(got.ok).toBe(true)
-    if (got.ok) {
-      expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([9, 8]))
-    }
+    assert.equal(got.ok, true)
+    expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([9, 8]))
   })
 
   it('ensureThumb is a no-op without contentHash', async () => {

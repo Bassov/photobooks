@@ -4,7 +4,7 @@ name: pr-policy
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
 
 concurrency:
   group: pr-policy-${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -41,7 +41,12 @@ jobs:
             pull/${{ github.event.pull_request.number }}/head:refs/gate-ratchet/head
 
       - name: Gate ratchet (base script vs head tree)
+        env:
+          PR_POLICY_BODY: ${{ github.event.pull_request.body }}
+          PR_POLICY_BRANCH: ${{ github.head_ref }}
+          PR_POLICY_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: >
           node scripts/gate-ratchet-cli.mjs
-          --base-ref ${{ github.event.pull_request.base.sha }}
+          --base-ref "$PR_POLICY_BASE_SHA"
           --head-ref refs/gate-ratchet/head
+          --pr-body-env PR_POLICY_BODY
