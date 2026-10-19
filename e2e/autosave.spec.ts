@@ -32,6 +32,9 @@ test('autosave persists edits across reload without manual Save', async ({
   await expect(page.getByTestId('create-book')).toBeEnabled({
     timeout: 15_000,
   })
+  page.once('dialog', (dialog) => {
+    void dialog.accept('Autosave book')
+  })
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
   await expect(page.getByTestId('save-indicator')).toHaveText('Saved')

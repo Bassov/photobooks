@@ -14,6 +14,7 @@ import { installEditorKeys } from './galleryDrop'
 import { importPhotoFiles, type ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
 import { getBookStoreSnapshot } from './bookStore'
+import { BookTitleChrome } from './BookTitleChrome'
 import {
   createBookInLibrary,
   createLibrary,
@@ -21,9 +22,11 @@ import {
   leaveEditorForHome,
   openLibrary,
   regrantLibrary,
+  renameBookInLibrary,
   saveBookNow,
   subscribeProjectSession,
 } from './projectSession'
+import { promptBookTitle } from './promptBookTitle'
 import './EditorShell.css'
 
 function editorHasContent(): boolean {
@@ -148,6 +151,7 @@ export function EditorShell() {
 
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
+  const activeBookId = project.bookId
 
   return (
     <div className="editor-shell" data-testid="editor-shell">
@@ -156,6 +160,7 @@ export function EditorShell() {
       </p>
       <header className="editor-chrome">
         <p className="brand">Photobooks</p>
+        <BookTitleChrome />
         <div className="editor-actions">
           <button
             type="button"
@@ -214,6 +219,34 @@ export function EditorShell() {
           <button
             type="button"
             className="editor-action editor-action-secondary"
+            data-testid="rename-book"
+            onClick={() => {
+              if (activeBookId === null) {
+                return
+              }
+              const entered = promptBookTitle(
+                'Rename book',
+                getBookStoreSnapshot().book.title ?? '',
+              )
+              if (entered === null) {
+                return
+              }
+              void renameBookInLibrary(activeBookId, entered)
+            }}
+            disabled={
+              pickerBusy ||
+              project.actionBusy ||
+              project.restorePending ||
+              !libraryReady ||
+              writeBlocked ||
+              activeBookId === null
+            }
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            className="editor-action editor-action-secondary"
             data-testid="create-book"
             onClick={() => {
               if (editorHasContent()) {
@@ -224,7 +257,11 @@ export function EditorShell() {
                   return
                 }
               }
-              void createBookInLibrary()
+              const entered = promptBookTitle('Book title', '')
+              if (entered === null) {
+                return
+              }
+              void createBookInLibrary(entered)
             }}
             disabled={
               pickerBusy ||

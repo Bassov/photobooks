@@ -7,6 +7,11 @@ export type {
   StorageResult,
   StorageSuccess,
 } from './types'
+export {
+  bookTitleFromUnknown,
+  displayBookTitle,
+  normalizeBookTitleInput,
+} from './bookTitle'
 export { createMemoryLibraryStorage, type MemoryLibraryStorage } from './memory'
 export {
   createFsaLibraryStorage,

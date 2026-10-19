@@ -1,5 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import type { RecentLibrary } from '../project'
+import {
+  displayBookTitle,
+  type BookSummary,
+  type RecentLibrary,
+} from '../project'
 import {
   createLibrary,
   getProjectSessionSnapshot,
@@ -8,10 +12,12 @@ import {
   openLibrary,
   regrantLibrary,
   removeRecentFromHome,
+  renameBookInLibrary,
   selectRecentLibrary,
   startSessionEditor,
   subscribeProjectSession,
 } from './projectSession'
+import { promptBookTitle } from './promptBookTitle'
 import './HomeScreen.css'
 
 export function HomeScreen() {
@@ -24,7 +30,7 @@ export function HomeScreen() {
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(
     null,
   )
-  const [books, setBooks] = useState<readonly { id: string }[]>([])
+  const [books, setBooks] = useState<readonly BookSummary[]>([])
   const [listFailed, setListFailed] = useState(false)
 
   const busy = project.actionBusy || project.restorePending
@@ -102,6 +108,37 @@ export function HomeScreen() {
       return
     }
     await openBookFromHome(libraryId, bookId)
+  }
+
+  const refreshBooks = async (libraryId: string): Promise<void> => {
+    const listed = await selectRecentLibrary(libraryId)
+    if (!listed.ok) {
+      setBooks([])
+      return
+    }
+    setBooks(listed.value)
+  }
+
+  const onRenameBook = async (book: BookSummary): Promise<void> => {
+    if (!interactive || selectedLibraryId === null) {
+      return
+    }
+    const entered = promptBookTitle(
+      'Rename book',
+      book.title === '' ? '' : book.title,
+    )
+    if (entered === null) {
+      return
+    }
+    const renamed = await renameBookInLibrary(
+      book.id,
+      entered,
+      selectedLibraryId,
+    )
+    if (!renamed.ok) {
+      return
+    }
+    await refreshBooks(selectedLibraryId)
   }
 
   if (project.restorePending) {
@@ -270,24 +307,39 @@ export function HomeScreen() {
                 <p className="home-hint">No books in this library yet.</p>
               ) : null}
               {!permissionRequired && books.length > 0 ? (
-                <ul className="home-list">
-                  {books.map((book) => (
-                    <li key={book.id}>
-                      <button
-                        type="button"
-                        className="home-list-item"
-                        data-testid={`home-book-${book.id}`}
-                        disabled={!interactive}
-                        onClick={() => {
-                          if (selectedLibraryId) {
-                            void onOpenBook(selectedLibraryId, book.id)
-                          }
-                        }}
-                      >
-                        {book.id}
-                      </button>
-                    </li>
-                  ))}
+                <ul className="home-list" aria-label="Books">
+                  {books.map((book) => {
+                    const label = displayBookTitle(book.title)
+                    return (
+                      <li key={book.id} className="home-book-row">
+                        <button
+                          type="button"
+                          className="home-list-item"
+                          data-testid={`home-book-${book.id}`}
+                          disabled={!interactive}
+                          onClick={() => {
+                            if (selectedLibraryId) {
+                              void onOpenBook(selectedLibraryId, book.id)
+                            }
+                          }}
+                        >
+                          {label}
+                        </button>
+                        <button
+                          type="button"
+                          className="home-remove"
+                          data-testid={`home-rename-${book.id}`}
+                          disabled={!interactive}
+                          aria-label={`Rename ${label}`}
+                          onClick={() => {
+                            void onRenameBook(book)
+                          }}
+                        >
+                          Rename
+                        </button>
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : null}
             </section>
