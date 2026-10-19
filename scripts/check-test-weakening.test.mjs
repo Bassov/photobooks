@@ -754,10 +754,7 @@ describe('compareItemCriteria', () => {
 })
 
 describe('real repo inventory', () => {
-  const FIXTURE_ROOT = path.join(
-    REPO_ROOT,
-    'scripts/fixtures/test-weakening-inventory',
-  )
+  const FIXTURE_ROOT = path.join(REPO_ROOT, 'testdata/test-weakening-inventory')
 
   /**
    * Walk a miniature tree that mirrors tracked path kinds (src/scripts/e2e
@@ -792,7 +789,7 @@ describe('real repo inventory', () => {
     return files
   }
 
-  it('parses non-empty titles from fixture inventory tree', () => {
+  it('parses non-empty titles from real test files', () => {
     // burn-in-fixtures file exists on disk but must be filtered by isTrackedTestPath
     expect(
       fs.existsSync(

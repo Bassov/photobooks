@@ -21,7 +21,7 @@ export default tseslint.config(
       '.stryker-tmp',
       'uikit/**',
       // Path-layout fixtures for check-test-weakening inventory (not real tests).
-      'scripts/fixtures/test-weakening-inventory/**',
+      'testdata/test-weakening-inventory/**',
     ],
   },
   {
