@@ -2264,7 +2264,7 @@ describe('finish', () => {
 })
 
 describe('review-brief', () => {
-  it('includes untracked touch-set file and outsideTouchSet diff', () => {
+  it('includes untracked touch-set file and outsideTouchSet stat', () => {
     const repo = gitInitRepo()
     const change = path.join(repo, 'openspec', 'changes', 'demo')
     fs.mkdirSync(change, { recursive: true })
@@ -2308,8 +2308,8 @@ describe('review-brief', () => {
     )
     expect(j.inTouchSet.every((f) => !j.outsideTouchSet.includes(f))).toBe(true)
     expect(j.outsideDiff).toMatch(/tracked\.txt/)
-    expect(j.outsideDiff).toMatch(/changed/)
-    expect(j.outsideDiff).toMatch(/outside\.txt/)
+    expect(j.outsideDiff).not.toMatch(/\+changed/)
+    expect(j.outsideDiff).toMatch(/\?\? outside\.txt/)
     expect(j.diffStat).toMatch(/\?\?/)
     expect(j.rules).toEqual(['r'])
     expect(j.rulesNote).toBe(null)
@@ -2482,7 +2482,7 @@ describe('review-brief', () => {
     )
     expect(b2.out).toContain('\n--- touch-set diff ---\n(empty)\n')
     expect(b2.out).toContain('\n--- outsideTouchSet ---\n')
-    expect(b2.out).toContain('\n--- outsideTouchSet diff ---\n')
+    expect(b2.out).toContain('\n--- outsideTouchSet stat ---\n')
   })
 
   it('lists only-untracked outside with empty touchDiff', () => {
@@ -2502,7 +2502,7 @@ describe('review-brief', () => {
     const j = JSON.parse(r.out)
     expect(j.outsideTouchSet).toContain('only-out.txt')
     expect(j.touchDiff).toBe('(empty)')
-    expect(j.outsideDiff).toMatch(/only-out\.txt/)
+    expect(j.outsideDiff).toMatch(/\?\? only-out\.txt/)
   })
 
   it('records exact git merge-base and diff argv for --base', () => {

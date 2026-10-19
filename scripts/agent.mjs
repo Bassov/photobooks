@@ -20,6 +20,15 @@ const fail = (m, code = 2) => {
 const ANSI_RE = /\x1B\[[0-9;]*[A-Za-z]/g
 export const stripAnsi = (s) => String(s ?? '').replace(ANSI_RE, '')
 
+/** Max bytes for outside-touch-set preview in review-brief (stat + untracked lines). */
+export const OUTSIDE_TOUCH_PREVIEW_MAX = 2048
+
+export function capOutsideTouchPreview(text) {
+  const s = String(text ?? '')
+  if (s.length <= OUTSIDE_TOUCH_PREVIEW_MAX) return s
+  return `${s.slice(0, OUTSIDE_TOUCH_PREVIEW_MAX)}\n… (truncated, ${s.length} bytes total)`
+}
+
 /** Last N non-empty-trimmed lines of combined streams (for failure reports). */
 export function tailOutput(stdout, stderr, n = 60) {
   const combined = stripAnsi(`${stdout ?? ''}\n${stderr ?? ''}`.trim())
@@ -1786,7 +1795,7 @@ export function cmdReviewBrief(o, deps) {
     if (body) touchDiffParts.push(body)
   }
 
-  const outsideParts = []
+  const outsideStatParts = []
   if (outside.length) {
     const trackedOutside = outside.filter((f) => !untracked.includes(f))
     if (trackedOutside.length) {
@@ -1794,27 +1803,18 @@ export function cmdReviewBrief(o, deps) {
         sh(exec, cwd, env, quiet, 'git', [
           'diff',
           mergeBase,
+          '--stat',
           '--',
           ...trackedOutside,
         ]),
-        'git diff outside touch-set',
+        'git diff --stat outside touch-set',
       )
       const t = stripAnsi(od.stdout).trim()
-      if (t) outsideParts.push(t)
+      if (t) outsideStatParts.push(t)
     }
-    for (const f of outside.filter((f) => untracked.includes(f))) {
-      const d = mustOkDiffNoIndex(
-        sh(exec, cwd, env, quiet, 'git', [
-          'diff',
-          '--no-index',
-          '--',
-          '/dev/null',
-          f,
-        ]),
-        `git diff --no-index ${f}`,
-      )
-      const body = stripAnsi(d.stdout || d.stderr).trim()
-      if (body) outsideParts.push(body)
+    const untrackedOutside = outside.filter((f) => untracked.includes(f))
+    if (untrackedOutside.length) {
+      outsideStatParts.push(untrackedOutside.map((f) => `?? ${f}`).join('\n'))
     }
   }
 
@@ -1840,7 +1840,9 @@ export function cmdReviewBrief(o, deps) {
     inTouchSet: inTouch,
     outsideTouchSet: outside,
     touchDiff: touchDiffParts.join('\n\n') || '(empty)',
-    outsideDiff: outsideParts.join('\n\n') || '(empty)',
+    outsideDiff: capOutsideTouchPreview(
+      outsideStatParts.join('\n') || '(empty)',
+    ),
     untracked,
   }
   if (o.out) {
@@ -1994,7 +1996,7 @@ function fmtBrief(r) {
     String(r.touchDiff),
     '--- outsideTouchSet ---',
     r.outsideTouchSet.join(', '),
-    '--- outsideTouchSet diff ---',
+    '--- outsideTouchSet stat ---',
     String(r.outsideDiff),
   ].join('\n')
 }
