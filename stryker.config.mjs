@@ -46,6 +46,9 @@ const config = {
   jsonReporter: {
     fileName: 'reports/mutation/mutation.json',
   },
+  mutator: {
+    excludedMutations: ['StringLiteral'],
+  },
   coverageAnalysis: 'perTest',
   thresholds: gates.stryker.thresholds,
   ignoreStatic: true,

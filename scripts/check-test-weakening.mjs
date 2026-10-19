@@ -22,10 +22,6 @@ export const TEST_CONFIGURE = 'configure'
 
 export const OWNER_APPROVAL_PREFIX = 'Owner-approved scope change:'
 
-/** Empty string pin — asserted in unit tests. */
-export const EMPTY_STRING = ''
-
-/** Path / extension needles — exact values pinned by unit tests. */
 export const PATHS = Object.freeze({
   winSep: '\\',
   posixSep: '/',
@@ -57,9 +53,6 @@ export const DEFAULT_PARSE_FILENAME = 'file.ts'
 
 export const CHECKBOX_TODO = '- [ ]'
 export const CHECKBOX_DONE = '- [x]'
-
-export const TYPEOF_STRING = 'string'
-export const TS_SET_PARENT_NODES = true
 
 export const CONFIG_KEYS = Object.freeze({
   allowOnly: 'allowOnly',
@@ -110,8 +103,8 @@ export const COMPANION_EXTS = Object.freeze([
  * @returns {string}
  */
 export function coerceText(v) {
-  if (v == null) return EMPTY_STRING
-  return typeof v === TYPEOF_STRING ? v : String(v)
+  if (v == null) return ''
+  return typeof v === 'string' ? v : String(v)
 }
 
 /**
@@ -266,11 +259,11 @@ export function objectHasRetries(node) {
  * @returns {string}
  */
 function bodyTextOf(expr, sf) {
-  if (!expr) return EMPTY_STRING
+  if (!expr) return ''
   if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
     return expr.getText(sf)
   }
-  return EMPTY_STRING
+  return ''
 }
 
 /**
@@ -288,7 +281,7 @@ export function parseTestFile(source, fileName = DEFAULT_PARSE_FILENAME) {
     fileName,
     text,
     ts.ScriptTarget.Latest,
-    TS_SET_PARENT_NODES,
+    true,
     fileName.endsWith(PATHS.extTsx) ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
   /** @type {{ title: string, bodyHash: string }[]} */
@@ -434,7 +427,7 @@ export function isAllowedItemEdit(baseText, headText) {
     const h = head[hi]
     if (!inDoneNote) {
       // Blank lines before the note do not open note mode (probe: blank + Done when).
-      if (h.trim() === EMPTY_STRING) {
+      if (h.trim() === '') {
         hi++
         continue
       }
@@ -602,10 +595,10 @@ function countBySuffix(items) {
  * @param {(ruleId: string, message: string) => void} fail
  */
 export function compareItemCriteria(baseFiles, headFiles, opts, fail) {
-  if (hasOwnerApprovedScopeChange(opts.prBody ?? EMPTY_STRING)) return
+  if (hasOwnerApprovedScopeChange(opts.prBody ?? '')) return
 
   const slug =
-    slugFromBranch(opts.branch ?? EMPTY_STRING) ??
+    slugFromBranch(opts.branch ?? '') ??
     detectSlugFromChangedItems(baseFiles, headFiles)
   if (!slug) return
 

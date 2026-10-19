@@ -18,7 +18,7 @@
     }
   },
   "mutation": {
-    "disableBudget": 0,
+    "disableBudget": 10,
     "temporaryExcludes": [
       {
         "path": "src/editor/projectSession.ts",

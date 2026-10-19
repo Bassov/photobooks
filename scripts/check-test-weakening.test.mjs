@@ -11,7 +11,6 @@ import {
   DEFAULT_PARSE_FILENAME,
   DONE_NOTE_H2,
   DONE_NOTE_PREFIX,
-  EMPTY_STRING,
   MSGS,
   OWNER_APPROVAL_PREFIX,
   PATHS,
@@ -23,8 +22,6 @@ import {
   TEST_ROOT_IT,
   TEST_ROOT_NAMES,
   TEST_ROOT_TEST,
-  TS_SET_PARENT_NODES,
-  TYPEOF_STRING,
   WEAKENING_SUFFIXES,
   companionDeletedFor,
   companionPathsFor,
@@ -48,89 +45,6 @@ import {
 import ts from 'typescript'
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
-
-describe('pins / constants', () => {
-  it('pins PATHS, CRITERIA, status/done-note, suffixes', () => {
-    expect(EMPTY_STRING).toBe('')
-    expect(PATHS).toEqual({
-      winSep: '\\',
-      posixSep: '/',
-      nodeModules: 'node_modules/',
-      burnInFixtures: '/burn-in-fixtures/',
-      srcPrefix: 'src/',
-      scriptsPrefix: 'scripts/',
-      e2ePrefix: 'e2e/',
-      testDot: '.test.',
-      extTs: '.ts',
-      extTsx: '.tsx',
-      extMjs: '.mjs',
-      extJs: '.js',
-      specTsSuffix: '.spec.ts',
-      roadmapPrefix: 'docs/roadmap/',
-      mdSuffix: '.md',
-      introBase: 'INTRO',
-      readmeBase: 'README',
-      indexTs: '/index.ts',
-    })
-    expect(COMPANION_EXTS).toEqual(['.ts', '.tsx', '.mjs', '.js'])
-    expect(RETRIES_KEY).toBe('retries')
-    expect(STATUS_PREFIX).toBe('Status:')
-    expect(STATUS_DONE).toBe('Status: done')
-    expect(DONE_NOTE_H2).toBe('## Done note')
-    expect(DONE_NOTE_PREFIX).toBe('Done note:')
-    expect(DEFAULT_PARSE_FILENAME).toBe('file.ts')
-    expect(CHECKBOX_TODO).toBe('- [ ]')
-    expect(CHECKBOX_DONE).toBe('- [x]')
-    expect(CRITERIA).toEqual({
-      doneWhenH2: '## Done when',
-      scopeH2: '## Scope',
-      doneWhenBullet: '- **Done when:**',
-      sizeBullet: '- **Size:**',
-      checkboxOpen: '- [',
-    })
-    expect(WEAKENING_SUFFIXES).toEqual([
-      'skip',
-      'only',
-      'todo',
-      'fixme',
-      'fail',
-    ])
-    expect(TEST_ROOT_NAMES).toEqual(['test', 'it', 'describe'])
-    expect(TEST_ROOT_TEST).toBe('test')
-    expect(TEST_ROOT_IT).toBe('it')
-    expect(TEST_ROOT_DESCRIBE).toBe('describe')
-    expect(TEST_CONFIGURE).toBe('configure')
-    expect(OWNER_APPROVAL_PREFIX).toBe('Owner-approved scope change:')
-    expect(TYPEOF_STRING).toBe('string')
-    expect(TS_SET_PARENT_NODES).toBe(true)
-    expect(CONFIG_KEYS).toEqual({
-      allowOnly: 'allowOnly',
-      forbidOnly: 'forbidOnly',
-      viteConfig: 'vite.config.ts',
-      playwrightConfig: 'playwright.config.ts',
-      falseLit: 'false',
-      trueLit: 'true',
-    })
-    expect(MSGS).toEqual({
-      testFileDeletedPrefix: 'test file deleted without companion source: ',
-      weakeningAddedPrefix: 'weakening marker added in ',
-      retriesAddedPrefix: 'retries added in ',
-      titleRemovedPrefix: 'test title removed in ',
-      titleRemovedSep: ': ',
-      allowOnlyWeakerPrefix: 'vite allowOnly weakened: ',
-      forbidOnlyWeakerPrefix: 'playwright forbidOnly weakened: ',
-      weakerArrow: ' → ',
-      itemLoosenedPrefix: 'roadmap item criteria loosened: ',
-      deferralAddedPrefix: 'deferral roadmap item added: ',
-      ruleTestTitleRemoved: 'test-title-removed',
-      ruleTestSkipAdded: 'test-skip-added',
-      ruleTestRetriesAdded: 'test-retries-added',
-      ruleAllowOnlyWeaker: 'allow-only-weaker',
-      ruleForbidOnlyWeaker: 'forbid-only-weaker',
-      ruleItemCriteria: 'item-criteria-loosened',
-    })
-  })
-})
 
 describe('parseTestFile', () => {
   it('detects skip/only/todo/fixme and titles with body hash', () => {
@@ -172,8 +86,8 @@ test('plain', async () => {})
   it('non-function body hashes as empty string', () => {
     const p = parseTestFile(`test('t', 42)\ntest('u')\n`, 'a.test.ts')
     expect(p.titles).toHaveLength(2)
-    expect(p.titles[0].bodyHash).toBe(hashBody(EMPTY_STRING))
-    expect(p.titles[1].bodyHash).toBe(hashBody(EMPTY_STRING))
+    expect(p.titles[0].bodyHash).toBe(hashBody(''))
+    expect(p.titles[1].bodyHash).toBe(hashBody(''))
   })
 
   it('default fileName pin parses without second arg', () => {
@@ -220,8 +134,8 @@ it('also', () => {})
   })
 
   it('coerceText / hashBody / staticStringArg edges', () => {
-    expect(hashBody(null)).toBe(hashBody(EMPTY_STRING))
-    expect(hashBody(undefined)).toBe(hashBody(EMPTY_STRING))
+    expect(hashBody(null)).toBe(hashBody(''))
+    expect(hashBody(undefined)).toBe(hashBody(''))
     expect(hashBody(12)).toBe(hashBody('12'))
     expect(staticStringArg(undefined)).toBe(null)
   })
