@@ -35,7 +35,7 @@
 
 - Restored `book-core` GPS requirement + data-model GPS sentence byte-identical to `origin/main`; extractor `includeGps` default off; dropped export-strip SHALL; no “no consent” / “GPS always local” claims.
 - Metadata scheduling: `metadataPool` + `hashContent` awaits `whenMetadataIdle` (assetPool left byte-identical to main so it stays out of stryker:diff).
-- Mutation (local `pnpm stryker:diff` on this head): **87.0%** with **0 NoCoverage** (657 killed + 1 timeout / 756; 98 survived).
+- Mutation (local `pnpm stryker:diff` on this head): **87.3%** with **0 NoCoverage** (670 killed + 1 timeout / 769; 98 survived). `scan.worker.ts` stays in the mutate set (covered by shell unit tests; no new bang exclude).
 
 ## Equivalent mutants (survivors after tests)
 
