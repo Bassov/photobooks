@@ -104,7 +104,7 @@ export const Pasteboard = memo(function Pasteboard() {
   )
   const paceGeneration = useRef(0)
   const forceMountIndexRef = useRef<number | null>(null)
-  /** Keep the just-added spread marked while it stays in view (reveal leave). */
+  /** Pin the just-added spread until the user scrolls (cleared after reveal hold). */
   const preferredActiveRef = useRef<string | null>(null)
   const [paced, setPaced] = useState<PasteboardWindow | null>(null)
 
@@ -385,6 +385,11 @@ export const Pasteboard = memo(function Pasteboard() {
   }, [windowKey])
 
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
+    // Reveal nudges scroll while holdCameraScrollRef is set; only user scroll
+    // releases the add-spread active pin so pickActiveSpread can take over.
+    if (!reveal.holdCameraScrollRef.current) {
+      preferredActiveRef.current = null
+    }
     pendingTop.current = event.currentTarget.scrollTop
     pendingEpoch.current = getCommittedCamera().epoch
     if (scrollRaf.current !== 0) {

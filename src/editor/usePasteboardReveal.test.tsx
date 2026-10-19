@@ -185,6 +185,10 @@ describe('usePasteboardReveal', () => {
     const slot = screen.getAllByTestId('pasteboard-slot').at(-1)
     expect(slot).toBeInstanceOf(HTMLElement)
     expect(restore).toHaveBeenCalledWith(slot)
+    // Hold stays true for one frame so trailing reveal scrolls do not drop the pin.
+    expect(apiRef.current?.holdCameraScrollRef.current).toBe(true)
+    expect(rafQueue).toHaveLength(1)
+    flushRaf(rafQueue)
     expect(apiRef.current?.holdCameraScrollRef.current).toBe(false)
     expect(rafQueue).toHaveLength(0)
   })
@@ -456,6 +460,9 @@ describe('usePasteboardReveal', () => {
       action: 'complete',
     })
     expect(restore).toHaveBeenCalled()
+    expect(apiRef.current?.holdCameraScrollRef.current).toBe(true)
+    expect(rafQueue).toHaveLength(1)
+    flushRaf(rafQueue, 4)
     expect(apiRef.current?.holdCameraScrollRef.current).toBe(false)
     expect(rafQueue).toHaveLength(0)
   })

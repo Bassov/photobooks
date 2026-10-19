@@ -71,6 +71,9 @@ test('choosing 4-grid paints four placeholders on the active spread only', async
 })
 
 test('add spread keeps the active spread template', async ({ page }) => {
+  // Tall viewport keeps the new spread partly visible at scrollTop 0 so the
+  // active-pin release path is exercised (not only full leave-viewport).
+  await page.setViewportSize({ width: 1280, height: 800 })
   await openSessionEditor(page)
   const radio = page.getByRole('radio', { name: '4-grid' })
   await radio.click()
@@ -104,14 +107,37 @@ test('add spread keeps the active spread template', async ({ page }) => {
   await expect
     .poll(async () => {
       const first = await readSpreadSlotAt(page, 0)
+      const added = await readSpreadSlotAt(page, 3)
       const checked = await page
         .getByRole('radio', { name: '4-grid' })
         .isChecked()
       return (
-        first !== null && first.active && first.placeholders === 4 && checked
+        first !== null &&
+        first.active &&
+        first.placeholders === 4 &&
+        checked &&
+        added !== null &&
+        added.inScrollport &&
+        !added.active
       )
     })
     .toBe(true)
+
+  await page.getByRole('radio', { name: '2-up' }).click()
+  await expect
+    .poll(async () => {
+      const first = await readSpreadSlotAt(page, 0)
+      const added = await readSpreadSlotAt(page, 3)
+      return (
+        first !== null &&
+        first.active &&
+        first.placeholders === 2 &&
+        added !== null &&
+        added.placeholders === 4
+      )
+    })
+    .toBe(true)
+  await expect(page.getByRole('radio', { name: '2-up' })).toBeChecked()
   await assertDocumentFitsViewport(page)
 })
 

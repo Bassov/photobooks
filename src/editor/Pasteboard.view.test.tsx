@@ -13,6 +13,7 @@ import {
   stubIntersectionObserverCapture,
 } from './intersectionObserver.test-helpers'
 import { Pasteboard } from './Pasteboard'
+import { REVEAL_TRY_CEILING } from './pasteboardReveal'
 import { PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME } from './pasteboardWindow'
 
 interface PaceTimeout {
@@ -469,7 +470,7 @@ describe('Pasteboard view wiring', () => {
     expect(after[3]?.frames).toHaveLength(4)
   })
 
-  it('keeps the added spread marked while it stays in view', () => {
+  it('keeps the added spread marked until the user scrolls', () => {
     const hooks = stubPaceFrameHooks()
     resetBookStore()
     const { callbacks } = stubIntersectionObserverCapture()
@@ -506,16 +507,37 @@ describe('Pasteboard view wiring', () => {
     })
     expect(newSlot.getAttribute('data-active')).toBe('true')
 
+    // Let add-spread reveal finish so holdCameraScrollRef clears; only then
+    // does user scroll release the active pin.
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    Object.defineProperty(scroll, 'scrollHeight', {
+      configurable: true,
+      value: 4000,
+    })
+    Object.defineProperty(scroll, 'clientHeight', {
+      configurable: true,
+      value: 600,
+    })
+    for (let i = 0; i < REVEAL_TRY_CEILING * 2 + 16; i += 1) {
+      flushPaceSteps(hooks, 4)
+    }
+
+    act(() => {
+      fireEvent.scroll(scroll)
+    })
+    // Drain the scroll rAF so tracked scroll updates; pin already cleared.
+    flushPaceSteps(hooks, 4)
     act(() => {
       callbacks.at(-1)?.(
         [
           fakeIntersectionEntry(otherSlot, 1),
-          fakeIntersectionEntry(newSlot, 0),
+          fakeIntersectionEntry(newSlot, 0.07),
         ],
         {} as IntersectionObserver,
       )
     })
     expect(otherSlot.getAttribute('data-active')).toBe('true')
+    expect(newSlot.getAttribute('data-active')).toBe('false')
   })
 
   it('ignores a stale pace callback after unmount', () => {

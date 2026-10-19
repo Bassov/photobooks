@@ -35,13 +35,20 @@ export function selectMarkedSpreadId(
   return activeId !== null && mounted.includes(activeId) ? activeId : mounted[0]
 }
 
-/** Keep a just-added spread marked while its intersection ratio stays positive. */
+/**
+ * Keep a just-added spread marked while the pin is held.
+ * Missing ratio = not observed yet (keep pin). ratio > 0 = still intersecting.
+ * Pasteboard clears the pin on user scroll after reveal hold ends.
+ */
 export function resolvePreferredActiveId(
   preferredId: string | null,
   ratios: ReadonlyMap<string, number>,
 ): { activeId: string | null; preferredId: string | null } {
   if (preferredId === null) {
     return { activeId: null, preferredId: null }
+  }
+  if (!ratios.has(preferredId)) {
+    return { activeId: preferredId, preferredId }
   }
   const ratio = ratios.get(preferredId) ?? 0
   if (ratio > 0) {
