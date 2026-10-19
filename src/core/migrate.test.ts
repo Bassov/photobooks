@@ -63,7 +63,7 @@ describe('migrateToCurrent', () => {
     })
   })
 
-  it('migrates v1 empty assets through to v3 without inventing identity or metadata', () => {
+  it('migrates v1 empty assets to v2 without inventing identity fields', () => {
     const base = makeBook()
     const v1 = {
       schemaVersion: 1,
@@ -161,7 +161,7 @@ describe('migrateToCurrent', () => {
     expect(result.value).toMatchObject({ schemaVersion: 3, title: 'Summer' })
   })
 
-  it('rejects non-finite schemaVersion as invalid-shape (not newer-schema)', () => {
+  it('rejects non-finite schemaVersion', () => {
     for (const schemaVersion of [Number.POSITIVE_INFINITY, Number.NaN]) {
       const result = migrateToCurrent({ schemaVersion })
       expect(result).toMatchObject({
