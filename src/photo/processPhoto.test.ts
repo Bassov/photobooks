@@ -34,6 +34,12 @@ function sampleOrient6File(): File {
   return new File([bytes], 'sample-orient6.jpg', { type: 'image/jpeg' })
 }
 
+function sampleLossyWebpFile(): File {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  const bytes = readFileSync(photoFixturePaths.sampleLossyWebp)
+  return new File([bytes], 'sample-lossy.webp', { type: 'image/webp' })
+}
+
 describe('processPhotoRequest', () => {
   beforeEach(() => {
     exifrApi.orientation.mockReset()
@@ -151,6 +157,241 @@ describe('processPhotoRequest', () => {
       ok: false,
       error: 'decode failed',
     })
+  })
+
+  it('succeeds for WebP when EXIF size parse throws Unknown file format', async () => {
+    const file = sampleLossyWebpFile()
+    exifrApi.parse.mockRejectedValue(new Error('Unknown file format'))
+    stubImageDecodeApis({ width: 30, height: 20 })
+
+    const result = await processPhotoRequest({ id: 'req-webp', file })
+
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.width).toBe(30)
+    expect(result.height).toBe(20)
+    expect(result.mimeType).toBe('image/webp')
+  })
+
+  it('still fails WebP when createImageBitmap rejects after size-parse throw', async () => {
+    const file = sampleLossyWebpFile()
+    exifrApi.parse.mockRejectedValue(new Error('Unknown file format'))
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockRejectedValue(new Error('decode failed')),
+    )
+
+    const result = await processPhotoRequest({ id: 'req-webp-decode', file })
+
+    expect(result).toEqual({
+      id: 'req-webp-decode',
+      ok: false,
+      error: 'decode failed',
+    })
+  })
+
+  it('prefers EXIF ImageWidth/Height over bitmap when parse succeeds', async () => {
+    const file = samplePngFile()
+    exifrApi.parse.mockResolvedValue({ ImageWidth: 100, ImageHeight: 50 })
+    stubImageDecodeApis({ width: 12, height: 8 })
+
+    const result = await processPhotoRequest({ id: 'req-exif-size', file })
+
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.width).toBe(100)
+    expect(result.height).toBe(50)
+  })
+
+  it('prefers ExifImageWidth/Height when ImageWidth fields are absent', async () => {
+    const file = samplePngFile()
+    exifrApi.parse.mockResolvedValue({
+      ExifImageWidth: 90,
+      ExifImageHeight: 60,
+    })
+    stubImageDecodeApis({ width: 12, height: 8 })
+
+    const result = await processPhotoRequest({ id: 'req-exif-alt', file })
+
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.width).toBe(90)
+    expect(result.height).toBe(60)
+  })
+
+  it('defaults mimeType to application/octet-stream when File.type is empty', async () => {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const bytes = readFileSync(photoFixturePaths.samplePng)
+    const file = new File([bytes], 'no-type.bin', { type: '' })
+    stubImageDecodeApis({ width: 12, height: 8 })
+
+    const result = await processPhotoRequest({ id: 'req-mime', file })
+
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.mimeType).toBe('application/octet-stream')
+  })
+
+  it('passes imageOrientation none to createImageBitmap', async () => {
+    const file = samplePngFile()
+    const { createImageBitmap } = stubImageDecodeApis({
+      width: 12,
+      height: 8,
+    })
+
+    await processPhotoRequest({ id: 'req-orient-none', file })
+
+    expect(createImageBitmap).toHaveBeenCalledWith(expect.any(Blob), {
+      imageOrientation: 'none',
+    })
+  })
+
+  it('applies orientation transform with rotate and flip scales', async () => {
+    const file = samplePngFile()
+    exifrApi.orientation.mockResolvedValue(2)
+    const { ctx } = stubImageDecodeApis({ width: 40, height: 20 })
+
+    const result = await processPhotoRequest({ id: 'req-flip', file })
+
+    expect(result.ok).toBe(true)
+    expect(ctx.rotate).toHaveBeenCalled()
+    expect(ctx.scale).toHaveBeenCalledWith(-1, 1)
+    expect(ctx.translate).toHaveBeenCalledWith(20, 10)
+    expect(ctx.translate).toHaveBeenCalledWith(-20, -10)
+  })
+
+  it('strips JPEG EXIF before createImageBitmap for image/jpeg', async () => {
+    const file = sampleOrient6File()
+    const sourceSize = file.size
+    exifrApi.orientation.mockResolvedValue(1)
+    const { createImageBitmap } = stubImageDecodeApis({
+      width: 40,
+      height: 20,
+    })
+
+    await processPhotoRequest({ id: 'req-strip', file })
+
+    const blob = createImageBitmap.mock.calls[0]?.[0] as Blob
+    expect(blob.type).toBe('image/jpeg')
+    expect(blob.size).toBeLessThan(sourceSize)
+  })
+
+  it('does not treat image/webp as JPEG for EXIF strip', async () => {
+    const file = sampleLossyWebpFile()
+    const sourceSize = file.size
+    exifrApi.parse.mockRejectedValue(new Error('Unknown file format'))
+    const { createImageBitmap } = stubImageDecodeApis({
+      width: 30,
+      height: 20,
+    })
+
+    await processPhotoRequest({ id: 'req-webp-nostrip', file })
+
+    const blob = createImageBitmap.mock.calls[0]?.[0] as Blob
+    expect(blob.type).toBe('image/webp')
+    expect(blob.size).toBe(sourceSize)
+  })
+
+  it.each([1, 8] as const)(
+    'accepts orientation %s from exifr.orientation',
+    async (orientation) => {
+      const file = samplePngFile()
+      exifrApi.orientation.mockResolvedValue(orientation)
+      stubImageDecodeApis({ width: 40, height: 20 })
+
+      const result = await processPhotoRequest({
+        id: `req-o${String(orientation)}`,
+        file,
+      })
+
+      expect(result.ok).toBe(true)
+      assert.equal(result.ok, true)
+      expect(result.orientation).toBe(orientation)
+    },
+  )
+
+  it.each([0, 9])('rejects out-of-range orientation number %s', async (raw) => {
+    const file = samplePngFile()
+    exifrApi.orientation.mockResolvedValue(raw)
+    exifrApi.parse.mockResolvedValue({})
+    stubImageDecodeApis({ width: 12, height: 8 })
+
+    const result = await processPhotoRequest({
+      id: `req-bad-${String(raw)}`,
+      file,
+    })
+
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.orientation).toBe(1)
+  })
+
+  it('rejects out-of-range Orientation from exifr.parse object', async () => {
+    const file = samplePngFile()
+    exifrApi.orientation.mockResolvedValue(undefined)
+    exifrApi.parse.mockResolvedValue({ Orientation: 0 })
+    stubImageDecodeApis({ width: 12, height: 8 })
+
+    const result = await processPhotoRequest({ id: 'req-parse-0', file })
+
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.orientation).toBe(1)
+  })
+
+  it('applies flipY scale for orientation 4 and exact rotate for 6', async () => {
+    const file = samplePngFile()
+    exifrApi.orientation.mockResolvedValue(4)
+    const flip = stubImageDecodeApis({ width: 40, height: 20 })
+    await processPhotoRequest({ id: 'req-flip-y', file })
+    expect(flip.ctx.scale).toHaveBeenCalledWith(1, -1)
+
+    exifrApi.orientation.mockResolvedValue(6)
+    const rot = stubImageDecodeApis({ width: 40, height: 20 })
+    await processPhotoRequest({ id: 'req-rot-6', file })
+    expect(rot.ctx.rotate).toHaveBeenCalledWith((90 * Math.PI) / 180)
+    expect(rot.ctx.rotate).not.toHaveBeenCalledWith(90 * Math.PI * 180)
+    expect(rot.ctx.rotate).not.toHaveBeenCalledWith(90 / Math.PI)
+  })
+
+  it('cover scale uses division by long edge, draws, and encodes jpeg', async () => {
+    const file = samplePngFile()
+    const { ctx, getContext, convertToBlob } = stubImageDecodeApis({
+      width: 40,
+      height: 20,
+    })
+
+    await processPhotoRequest({
+      id: 'req-cover-math',
+      file,
+      maxEdge: 80,
+      cover: true,
+    })
+
+    expect(getContext).toHaveBeenCalledWith('2d')
+    expect(ctx.scale).toHaveBeenCalledWith(2, 2)
+    expect(ctx.drawImage).toHaveBeenCalled()
+    expect(convertToBlob).toHaveBeenCalledWith({
+      type: 'image/jpeg',
+      quality: 0.85,
+    })
+  })
+
+  it('treats image/jpg as JPEG for EXIF strip like image/jpeg', async () => {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const bytes = readFileSync(photoFixturePaths.sampleOrient6)
+    const file = new File([bytes], 'sample.jpg', { type: 'image/jpg' })
+    exifrApi.orientation.mockResolvedValue(1)
+    const { createImageBitmap } = stubImageDecodeApis({
+      width: 40,
+      height: 20,
+    })
+
+    await processPhotoRequest({ id: 'req-jpg-alias', file })
+
+    const blob = createImageBitmap.mock.calls[0]?.[0] as Blob
+    expect(blob.type).toBe('image/jpg')
+    expect(blob.size).toBeGreaterThan(0)
   })
 
   it('returns generic failure message for non-Error throws', async () => {

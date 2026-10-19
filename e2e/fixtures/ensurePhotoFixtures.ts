@@ -9,6 +9,9 @@ export const photoFixturePaths = {
   dir: fixturesDir,
   samplePng: join(fixturesDir, 'sample-3x2.png'),
   sampleOrient6: join(fixturesDir, 'sample-orient6.jpg'),
+  sampleLossyWebp: join(fixturesDir, 'sample-lossy-3x2.webp'),
+  sampleLosslessWebp: join(fixturesDir, 'sample-lossless-3x2.webp'),
+  sampleCorruptWebp: join(fixturesDir, 'sample-corrupt.webp'),
   largeJpeg: join(fixturesDir, 'large-24mp.jpg'),
 } as const
 
@@ -19,6 +22,9 @@ export function ensurePhotoFixtures(options?: {
     stdio: 'pipe',
   })
   execFileSync(process.execPath, [join(fixturesDir, 'write-exif-jpeg.mjs')], {
+    stdio: 'pipe',
+  })
+  execFileSync(process.execPath, [join(fixturesDir, 'write-sample-webp.mjs')], {
     stdio: 'pipe',
   })
 

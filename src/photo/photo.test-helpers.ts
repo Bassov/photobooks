@@ -145,7 +145,17 @@ export function stubImageDecodeApis(options?: {
   height?: number
   previewBytes?: ArrayBuffer
   onCanvas?: (width: number, height: number) => void
-}): void {
+}): {
+  createImageBitmap: ReturnType<typeof vi.fn>
+  ctx: {
+    scale: ReturnType<typeof vi.fn>
+    translate: ReturnType<typeof vi.fn>
+    rotate: ReturnType<typeof vi.fn>
+    drawImage: ReturnType<typeof vi.fn>
+  }
+  getContext: ReturnType<typeof vi.fn>
+  convertToBlob: ReturnType<typeof vi.fn>
+} {
   const width = options?.width ?? 40
   const height = options?.height ?? 20
   const previewBytes =
@@ -157,7 +167,19 @@ export function stubImageDecodeApis(options?: {
     close: vi.fn(),
   }
 
-  vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap))
+  const createImageBitmap = vi.fn().mockResolvedValue(bitmap)
+  vi.stubGlobal('createImageBitmap', createImageBitmap)
+
+  const ctx = {
+    scale: vi.fn(),
+    translate: vi.fn(),
+    rotate: vi.fn(),
+    drawImage: vi.fn(),
+  }
+  const getContext = vi.fn().mockReturnValue(ctx)
+  const convertToBlob = vi
+    .fn()
+    .mockResolvedValue(new Blob([previewBytes], { type: 'image/jpeg' }))
 
   class MockOffscreenCanvas {
     width: number
@@ -169,24 +191,15 @@ export function stubImageDecodeApis(options?: {
       options?.onCanvas?.(w, h)
     }
 
-    getContext(): {
-      scale: ReturnType<typeof vi.fn>
-      translate: ReturnType<typeof vi.fn>
-      rotate: ReturnType<typeof vi.fn>
-      drawImage: ReturnType<typeof vi.fn>
-    } {
-      return {
-        scale: vi.fn(),
-        translate: vi.fn(),
-        rotate: vi.fn(),
-        drawImage: vi.fn(),
-      }
+    getContext(type?: string): typeof ctx | null {
+      return getContext(type) as typeof ctx
     }
 
-    convertToBlob(): Promise<Blob> {
-      return Promise.resolve(new Blob([previewBytes], { type: 'image/jpeg' }))
+    convertToBlob(options?: unknown): Promise<Blob> {
+      return convertToBlob(options) as Promise<Blob>
     }
   }
 
   vi.stubGlobal('OffscreenCanvas', MockOffscreenCanvas)
+  return { createImageBitmap, ctx, getContext, convertToBlob }
 }

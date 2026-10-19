@@ -3,6 +3,7 @@ import { exifOrientationFromLabel } from './exifOrientationLabel'
 import { exifParseSchema } from './exifSchema'
 import { readJpegSofSize, stripJpegExif } from './jpegSof'
 import { normalizeOrientation } from './normalizeOrientation'
+import { readExifImageSize } from './readExifImageSize'
 import type { ExifOrientation } from './types'
 
 export interface PhotoWorkerRequest {
@@ -128,11 +129,7 @@ export async function processPhotoRequest(
 
     const orientation = await readOrientation(buffer)
 
-    const sizeRaw: unknown = await exifr.parse(buffer, {
-      pick: ['ImageWidth', 'ImageHeight', 'ExifImageWidth', 'ExifImageHeight'],
-      translateValues: false,
-      reviveValues: false,
-    })
+    const sizeRaw = await readExifImageSize(buffer)
     const parsed = exifParseSchema
       .pick({
         ImageWidth: true,
