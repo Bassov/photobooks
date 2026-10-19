@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { runAssetSourceContract } from './assetSource.contract.test-helpers'
 import { createFsaAssetSource, createMemoryAssetDirectory } from './index'
@@ -12,6 +12,8 @@ describe('createFsaAssetSource', () => {
 
   afterEach(() => {
     resetScanWorker()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   runAssetSourceContract(() => {
@@ -41,5 +43,64 @@ describe('createFsaAssetSource', () => {
         tree.putCorrupted(path)
       },
     }
+  })
+
+  it('returns corrupted when the scan worker rejects', async () => {
+    resetScanWorker()
+    class FailWorker {
+      private listeners = new Map<string, Set<(event: Event) => void>>()
+      addEventListener(type: string, listener: (event: Event) => void): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(): void {
+        const event = new ErrorEvent('error', { message: 'scan failed' })
+        for (const listener of this.listeners.get('error') ?? []) {
+          listener(event)
+        }
+      }
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', FailWorker)
+
+    const tree = createMemoryAssetDirectory()
+    const source = createFsaAssetSource({
+      rootId: 'root',
+      directory: tree.root,
+    })
+    await expect(source.scanRoot('root')).resolves.toEqual({
+      ok: false,
+      code: 'corrupted',
+    })
+  })
+
+  it('returns not-found for empty relative paths and missing nested dirs', async () => {
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('album/a.jpg', new Uint8Array([1]), 1)
+    const source = createFsaAssetSource({
+      rootId: 'root',
+      directory: tree.root,
+    })
+    await expect(source.readForHash('root', '')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(source.readForHash('root', '/')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(
+      source.readForHash('root', 'missing/dir/a.jpg'),
+    ).resolves.toEqual({ ok: false, code: 'not-found' })
+    await expect(source.readForHash('root', 'nope.jpg')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
   })
 })

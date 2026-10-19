@@ -13,4 +13,4 @@ Status: done
 
 ## Done note
 
-metadata extract @background (exifr); worker scanRoot; matchAssets ok|missing|modified; GPS always local (owner 2026-10-19), export strip SHALL
+metadata extract @background (exifr); worker scanRoot; matchAssets ok|missing|modified; GPS via caller opt-in (default off), site-export omit per book-core

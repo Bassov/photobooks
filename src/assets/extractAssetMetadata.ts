@@ -17,6 +17,12 @@ export type ExtractedAssetMetadata = Pick<
   | 'meta'
 >
 
+export interface ExtractAssetMetadataOptions {
+  mimeHint?: string
+  /** When true, keep `meta.gps` if EXIF has finite coordinates. Default false. */
+  includeGps?: boolean
+}
+
 interface ExifRaw {
   Orientation?: unknown
   ImageWidth?: unknown
@@ -147,11 +153,21 @@ function readCamera(raw: ExifRaw): string | undefined {
   return make ?? model
 }
 
+function normalizeOptions(
+  options?: string | ExtractAssetMetadataOptions,
+): ExtractAssetMetadataOptions {
+  if (typeof options === 'string') {
+    return { mimeHint: options }
+  }
+  return options ?? {}
+}
+
 /** Map a parsed EXIF object into book-core asset metadata fields (omit absent). */
 export function mapExifToAssetMetadata(
   raw: ExifRaw,
-  mimeHint?: string,
+  options?: string | ExtractAssetMetadataOptions,
 ): ExtractedAssetMetadata {
+  const { mimeHint, includeGps = false } = normalizeOptions(options)
   const orientation = readOrientation(raw)
   const rawW =
     asPositiveInt(raw.ImageWidth) ?? asPositiveInt(raw.ExifImageWidth)
@@ -215,9 +231,11 @@ export function mapExifToAssetMetadata(
   if (keywords !== undefined) {
     meta.keywords = keywords
   }
-  const gps = readGps(raw)
-  if (gps !== undefined) {
-    meta.gps = gps
+  if (includeGps) {
+    const gps = readGps(raw)
+    if (gps !== undefined) {
+      meta.gps = gps
+    }
   }
   if (Object.keys(meta).length > 0) {
     result.meta = meta
@@ -226,11 +244,12 @@ export function mapExifToAssetMetadata(
   return result
 }
 
-/** Extract book-core asset metadata from image bytes via `exifr` (no GPS consent). */
+/** Extract book-core asset metadata from image bytes via `exifr`. GPS requires opt-in. */
 export async function extractAssetMetadata(
   buffer: ArrayBuffer,
-  mimeHint?: string,
+  options?: string | ExtractAssetMetadataOptions,
 ): Promise<ExtractedAssetMetadata> {
+  const normalized = normalizeOptions(options)
   let raw: ExifRaw = {}
   try {
     const parsed: unknown = await exifr.parse(buffer, {
@@ -247,5 +266,5 @@ export async function extractAssetMetadata(
   } catch {
     raw = {}
   }
-  return mapExifToAssetMetadata(raw, mimeHint)
+  return mapExifToAssetMetadata(raw, normalized)
 }

@@ -18,6 +18,7 @@ export {
 export {
   extractAssetMetadata,
   mapExifToAssetMetadata,
+  type ExtractAssetMetadataOptions,
   type ExtractedAssetMetadata,
 } from './extractAssetMetadata'
 export { resetScanWorker } from './scanClient'

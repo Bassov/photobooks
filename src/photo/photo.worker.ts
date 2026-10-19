@@ -20,6 +20,7 @@ interface MetadataWorkerRequest {
   kind: 'metadata'
   buffer: ArrayBuffer
   mimeType?: string
+  includeGps?: boolean
 }
 
 type MetadataWorkerResponse =
@@ -46,7 +47,14 @@ const workerScope = globalThis as typeof globalThis & {
 workerScope.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const request = event.data
   if (isMetadataRequest(request)) {
-    void extractAssetMetadata(request.buffer, request.mimeType)
+    const options: {
+      mimeHint?: string
+      includeGps?: boolean
+    } = { includeGps: request.includeGps === true }
+    if (request.mimeType !== undefined) {
+      options.mimeHint = request.mimeType
+    }
+    void extractAssetMetadata(request.buffer, options)
       .then((metadata) => {
         workerScope.postMessage({ id: request.id, ok: true, metadata })
       })

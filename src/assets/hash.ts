@@ -1,5 +1,6 @@
 import type { Asset } from '../core'
 import { enqueueHash } from '../photo/assetPool'
+import { whenMetadataIdle } from '../photo/poolCoordination'
 import type { ScannedEntry } from './types'
 
 export function shouldReuseContentHash(
@@ -20,7 +21,9 @@ export function shouldReuseContentHash(
   )
 }
 
-export function hashContent(buffer: ArrayBuffer): Promise<string> {
+export async function hashContent(buffer: ArrayBuffer): Promise<string> {
+  // Metadata jobs run at background priority above hash.
+  await whenMetadataIdle()
   return enqueueHash(buffer)
 }
 

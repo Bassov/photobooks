@@ -1,4 +1,3 @@
-import type { ExtractedAssetMetadata } from '../assets/extractAssetMetadata'
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { THUMB_MAX_EDGE } from './processPhoto'
 
@@ -10,19 +9,6 @@ interface HashWorkerRequest {
 type HashWorkerResponse =
   | { id: string; ok: true; hash: string }
   | { id: string; ok: false; error: string }
-
-interface MetadataWorkerRequest {
-  id: string
-  kind: 'metadata'
-  buffer: ArrayBuffer
-  mimeType?: string
-}
-
-type MetadataWorkerResponse =
-  | { id: string; ok: true; metadata: ExtractedAssetMetadata }
-  | { id: string; ok: false; error: string }
-
-type DecodeSlotResponse = PhotoWorkerResponse | MetadataWorkerResponse
 
 export type DecodeJobPriority = 'visible' | 'zoom' | 'prefetch' | 'background'
 
@@ -93,17 +79,7 @@ interface HashQueueItem {
   reject: (error: Error) => void
 }
 
-interface MetadataQueueItem {
-  kind: 'metadata'
-  requestId: string
-  buffer: ArrayBuffer
-  mimeType?: string
-  priority: 'background'
-  resolve: (metadata: ExtractedAssetMetadata) => void
-  reject: (error: Error) => void
-}
-
-type QueueItem = DecodeQueueItem | HashQueueItem | MetadataQueueItem
+type QueueItem = DecodeQueueItem | HashQueueItem
 
 interface WorkerSlot {
   worker: Worker
@@ -151,9 +127,6 @@ function jobRank(job: QueueItem): number {
   if (job.kind === 'hash') {
     return PRIORITY_RANK.hash
   }
-  if (job.kind === 'metadata') {
-    return PRIORITY_RANK.background
-  }
   const boost = visibleAssetIds.has(job.assetId) ? 10 : 0
   return PRIORITY_RANK[job.priority] + boost
 }
@@ -162,30 +135,27 @@ function sortQueue(): void {
   queue.sort((a, b) => jobRank(b) - jobRank(a))
 }
 
-function takeNextDecodeSlotJob():
-  DecodeQueueItem | MetadataQueueItem | undefined {
+function takeNextDecodeJob(): DecodeQueueItem | undefined {
   sortQueue()
-  const index = queue.findIndex(
-    (job) => job.kind === 'decode' || job.kind === 'metadata',
-  )
+  const index = queue.findIndex((job) => job.kind === 'decode')
   if (index < 0) {
     return undefined
   }
   const job = queue[index]
-  if (job?.kind !== 'decode' && job?.kind !== 'metadata') {
+  if (job?.kind !== 'decode') {
     return undefined
   }
   queue.splice(index, 1)
-  if (job.kind === 'decode' && job.signal?.aborted) {
+  if (job.signal?.aborted) {
     job.reject(new DOMException('Aborted', 'AbortError'))
-    return takeNextDecodeSlotJob()
+    return takeNextDecodeJob()
   }
   return job
 }
 
 function takeNextHashJob(): HashQueueItem | undefined {
   sortQueue()
-  if (queue.some((job) => job.kind === 'decode' || job.kind === 'metadata')) {
+  if (queue.some((job) => job.kind === 'decode')) {
     return undefined
   }
   const index = queue.findIndex((job) => job.kind === 'hash')
@@ -209,16 +179,12 @@ function pump(): void {
     if (slot.busy) {
       continue
     }
-    const job = takeNextDecodeSlotJob()
+    const job = takeNextDecodeJob()
     if (!job) {
       break
     }
     slot.busy = true
-    if (job.kind === 'metadata') {
-      runMetadataOnSlot(slot, job)
-    } else {
-      runDecodeOnSlot(slot, job)
-    }
+    runDecodeOnSlot(slot, job)
   }
   for (const slot of hashSlots) {
     if (slot.busy) {
@@ -255,7 +221,7 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   }
   job.signal?.addEventListener('abort', onAbort, { once: true })
 
-  const onMessage = (event: MessageEvent<DecodeSlotResponse>) => {
+  const onMessage = (event: MessageEvent<PhotoWorkerResponse>) => {
     if (event.data.id !== job.requestId) {
       return
     }
@@ -266,13 +232,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
       return
     }
     const response = event.data
-    if (!response.ok || !('previewBuffer' in response)) {
+    if (!response.ok) {
       settle(() => {
-        job.reject(
-          new Error(
-            !response.ok ? response.error : 'Unexpected metadata response',
-          ),
-        )
+        job.reject(new Error(response.error))
       })
       return
     }
@@ -317,66 +279,6 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
     request.cover = true
   }
   worker.postMessage(request)
-}
-
-function runMetadataOnSlot(slot: WorkerSlot, job: MetadataQueueItem): void {
-  const { worker } = slot
-  let settled = false
-
-  const settle = (fn: () => void): void => {
-    if (settled) {
-      return
-    }
-    settled = true
-    cleanup()
-    slot.busy = false
-    fn()
-    pump()
-  }
-
-  const onMessage = (event: MessageEvent<DecodeSlotResponse>) => {
-    if (event.data.id !== job.requestId) {
-      return
-    }
-    const response = event.data
-    if (!response.ok || !('metadata' in response)) {
-      settle(() => {
-        job.reject(
-          new Error(
-            !response.ok ? response.error : 'Unexpected decode response',
-          ),
-        )
-      })
-      return
-    }
-    settle(() => {
-      job.resolve(response.metadata)
-    })
-  }
-
-  const onError = (event: ErrorEvent) => {
-    settle(() => {
-      job.reject(new Error(event.message || 'Metadata worker failed'))
-    })
-  }
-
-  const cleanup = (): void => {
-    worker.removeEventListener('message', onMessage)
-    worker.removeEventListener('error', onError)
-  }
-
-  worker.addEventListener('message', onMessage)
-  worker.addEventListener('error', onError)
-
-  const request: MetadataWorkerRequest = {
-    id: job.requestId,
-    kind: 'metadata',
-    buffer: job.buffer,
-  }
-  if (job.mimeType !== undefined) {
-    request.mimeType = job.mimeType
-  }
-  worker.postMessage(request, [job.buffer])
 }
 
 function runHashOnSlot(slot: WorkerSlot, job: HashQueueItem): void {
@@ -511,30 +413,6 @@ export function enqueueHash(buffer: ArrayBuffer): Promise<string> {
       resolve,
       reject,
     })
-    pump()
-  })
-}
-
-/** Enqueue EXIF metadata extraction at background priority (above hash). */
-export function enqueueMetadata(options: {
-  buffer: ArrayBuffer
-  mimeType?: string
-}): Promise<ExtractedAssetMetadata> {
-  ensureSlots()
-  const requestId = `meta-${String((requestCounter += 1))}`
-  return new Promise((resolve, reject) => {
-    const item: MetadataQueueItem = {
-      kind: 'metadata',
-      requestId,
-      buffer: options.buffer,
-      priority: 'background',
-      resolve,
-      reject,
-    }
-    if (options.mimeType !== undefined) {
-      item.mimeType = options.mimeType
-    }
-    queue.push(item)
     pump()
   })
 }

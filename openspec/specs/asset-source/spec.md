@@ -77,17 +77,22 @@ Hash jobs MUST be scheduled at the lowest priority in the shared asset worker po
 
 ### Requirement: Background metadata extraction
 
-The system SHALL extract asset metadata fields defined by book-core (`widthPx`, `heightPx`, `orientation`, `capturedAt`, `colorSpace`, `iccProfileName`, `mime`, and optional `meta` including `gps` when EXIF provides finite coordinates) from file bytes using `exifr` inside the shared asset worker pool. Metadata extraction jobs MUST run at background priority (above hash). Extraction MUST NOT require a user GPS consent flag. Missing EXIF fields MUST be omitted rather than invented.
+The system SHALL extract asset metadata fields defined by book-core (`widthPx`, `heightPx`, `orientation`, `capturedAt`, `colorSpace`, `iccProfileName`, `mime`, and optional `meta`) from file bytes using `exifr` inside the shared asset worker pool. Metadata extraction jobs MUST run at background priority (above hash). The extractor MUST include `meta.gps` only when the caller passes an explicit GPS opt-in flag (default off) and EXIF provides finite coordinates. Missing EXIF fields MUST be omitted rather than invented.
 
 #### Scenario: Metadata job fills schema fields off the main thread
 
 - **WHEN** metadata extraction is requested for image bytes that contain EXIF capture time, orientation, and color-space information
 - **THEN** the job runs in the shared asset worker pool at background priority and returns those fields in book-core asset-record shape without blocking the main thread on `exifr` parse
 
-#### Scenario: GPS stored when present in EXIF
+#### Scenario: GPS included only when caller opts in
 
-- **WHEN** image bytes include finite GPS latitude and longitude in EXIF
-- **THEN** the extracted metadata includes `meta.gps` with those coordinates and no consent gate is consulted
+- **WHEN** image bytes include finite GPS latitude and longitude in EXIF and the caller passes GPS opt-in
+- **THEN** the extracted metadata includes `meta.gps` with those coordinates
+
+#### Scenario: GPS omitted without opt-in
+
+- **WHEN** image bytes include finite GPS latitude and longitude in EXIF and the caller does not pass GPS opt-in
+- **THEN** the extracted metadata omits `meta.gps`
 
 #### Scenario: Absent EXIF fields stay absent
 

@@ -28,18 +28,10 @@ function classifyStatus(
   matchedEntry: ScannedEntry | undefined,
   pathEntry: ScannedEntry | undefined,
 ): AssetMatchStatus {
+  // Matched entries are always ok: pairing only happens via equal hash or
+  // equal path+size+mtime, so a further size/hash re-check is redundant.
   if (matchedEntry !== undefined) {
-    const sizeMtimeMatch =
-      record.byteSize === matchedEntry.byteSize &&
-      record.mtimeMs === matchedEntry.mtimeMs &&
-      record.relativePath === matchedEntry.relativePath
-    const hashMatch =
-      record.contentHash !== undefined &&
-      matchedEntry.contentHash !== undefined &&
-      record.contentHash === matchedEntry.contentHash
-    if (sizeMtimeMatch || hashMatch) {
-      return 'ok'
-    }
+    return 'ok'
   }
 
   if (pathEntry === undefined) {
