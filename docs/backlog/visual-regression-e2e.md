@@ -4,6 +4,8 @@ Tag: prep
 Milestone: M2.5
 Title: screenshot tests (issue #8)
 
+Deferred by owner until the M2.5 redesign settles; screenshot baselines would churn on every redesign/feature PR.
+
 ## Scope
 
 - [ ] Playwright Docker parity, fixtures incl. EXIF-rotated and low-DPI photos, baseline spreads
