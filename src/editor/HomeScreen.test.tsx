@@ -1,6 +1,12 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import assert from 'node:assert/strict'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createMemoryLibraryStorage,
   createMemorySessionState,
@@ -25,6 +31,8 @@ describe('HomeScreen merge-blocker a11y', () => {
   afterEach(() => {
     cleanup()
     resetProjectSessionForTests()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('library list has no listbox role or aria-selected on buttons', async () => {
@@ -62,6 +70,80 @@ describe('HomeScreen merge-blocker a11y', () => {
         screen.getByTestId(`home-book-${created.value.id}`).textContent,
       ).toBe('Aria Album')
     })
+  })
+
+  it('rename prompt updates the listed display title', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-ui',
+      handle: { name: 'RenameUi' },
+    })
+    const created = await createBookInLibrary('Before')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => 'After'),
+    )
+    render(<HomeScreen />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('Before')
+    })
+    fireEvent.click(screen.getByTestId(`home-rename-${created.value.id}`))
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('After')
+    })
+
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok)
+    expect(loaded.value.title).toBe('After')
+  })
+
+  it('rename cancel leaves the listed title unchanged', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-cancel',
+      handle: { name: 'RenameCancel' },
+    })
+    const created = await createBookInLibrary('Keep')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => null),
+    )
+    render(<HomeScreen />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('Keep')
+    })
+    fireEvent.click(screen.getByTestId(`home-rename-${created.value.id}`))
+    expect(
+      screen.getByTestId(`home-book-${created.value.id}`).textContent,
+    ).toBe('Keep')
   })
 
   it('loading state renders no interactive buttons while restore is pending', async () => {

@@ -1346,24 +1346,39 @@ export async function renameBookInLibrary(
     targetStorage = createStorageFromHandle(recalled.value)
   }
 
-  const loaded = await targetStorage.loadBook(targetBookId)
-  if (!loaded.ok) {
-    setStatus({ kind: 'error', code: loaded.code, action: 'rename book' })
-    setHomeError(humanMessageForCode(loaded.code, 'Could not rename book.'))
-    return { ok: false, code: loaded.code }
+  // Same book lock as open: load+save without it races another tab's autosave.
+  const lockResult = await session.acquireBookLock(targetBookId)
+  if (!lockResult.ok) {
+    setStatus({
+      kind: 'error',
+      code: lockResult.code,
+      action: 'rename book',
+    })
+    setHomeError(humanMessageForCode(lockResult.code, 'Could not rename book.'))
+    return { ok: false, code: lockResult.code }
   }
-  if ((loaded.value.title ?? '') === normalized) {
+  try {
+    const loaded = await targetStorage.loadBook(targetBookId)
+    if (!loaded.ok) {
+      setStatus({ kind: 'error', code: loaded.code, action: 'rename book' })
+      setHomeError(humanMessageForCode(loaded.code, 'Could not rename book.'))
+      return { ok: false, code: loaded.code }
+    }
+    if ((loaded.value.title ?? '') === normalized) {
+      return { ok: true, value: undefined }
+    }
+    const next = { ...loaded.value, title: normalized }
+    const saved = await targetStorage.saveBook(next)
+    if (!saved.ok) {
+      setStatus({ kind: 'error', code: saved.code, action: 'rename book' })
+      setHomeError(humanMessageForCode(saved.code, 'Could not rename book.'))
+      return { ok: false, code: saved.code }
+    }
+    setEditorStatus('Book renamed')
     return { ok: true, value: undefined }
+  } finally {
+    await lockResult.value.release()
   }
-  const next = { ...loaded.value, title: normalized }
-  const saved = await targetStorage.saveBook(next)
-  if (!saved.ok) {
-    setStatus({ kind: 'error', code: saved.code, action: 'rename book' })
-    setHomeError(humanMessageForCode(saved.code, 'Could not rename book.'))
-    return { ok: false, code: saved.code }
-  }
-  setEditorStatus('Book renamed')
-  return { ok: true, value: undefined }
 }
 
 export async function openBookFromHome(

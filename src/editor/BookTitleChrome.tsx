@@ -11,11 +11,10 @@ function subscribeBookTitle(onStoreChange: () => void): () => void {
   let last = getBookTitle()
   return subscribeBookStore(() => {
     const next = getBookTitle()
-    if (next === last) {
-      return
+    if (next !== last) {
+      last = next
+      onStoreChange()
     }
-    last = next
-    onStoreChange()
   })
 }
 

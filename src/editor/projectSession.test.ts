@@ -544,6 +544,76 @@ describe('projectSession', () => {
     expect(other.value.title).toBe('Other')
   })
 
+  it('home rename refuses when the book lock is held elsewhere', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-lock',
+      handle: { name: 'RenameLock' },
+    })
+    const created = await createBookInLibrary('Locked')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    const held = await holdExternalBookLockForTests(created.value.id)
+    expect(held).toEqual({ ok: true, value: undefined })
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'ShouldFail',
+      'lib-rename-lock',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'locked-elsewhere' })
+    expect(getProjectSessionSnapshot().homeError).toBe(
+      'This book is open in another tab. Close it there and try again.',
+    )
+
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok, 'expected load after refused rename')
+    expect(loaded.value.title).toBe('Locked')
+  })
+
+  it('home rename no-ops when the stored title already matches', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-same',
+      handle: { name: 'SameTitle' },
+    })
+    const created = await createBookInLibrary('Same')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      '  Same  ',
+      'lib-rename-same',
+    )
+    expect(renamed).toEqual({ ok: true, value: undefined })
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok, 'expected load')
+    expect(loaded.value.title).toBe('Same')
+  })
+
+  it('home rename fails without a recent library when unbound', async () => {
+    resetProjectSessionForTests()
+    const renamed = await renameBookInLibrary('missing-book', 'X')
+    expect(renamed).toEqual({ ok: false, code: 'not-found' })
+    expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
+  })
+
   it('exposes the project test API on window', () => {
     exposeProjectSessionTestApi()
     expect(window.__photobooksProject?.saveBookNow).toBeTypeOf('function')

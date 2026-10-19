@@ -2,7 +2,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { gitExec } from './git-test-helper.mjs'
 import {
   CHECKBOX_DONE,
   CHECKBOX_TODO,
@@ -756,20 +755,27 @@ describe('compareItemCriteria', () => {
 
 describe('real repo inventory', () => {
   it('parses non-empty titles from real test files', () => {
-    // Tracked paths only (GIT_* stripped via gitExec) — avoids a full tree walk
-    // that flakes the 5s default under parallel `pnpm check` load.
-    const listed = gitExec(
-      ['ls-files', '-z', '--', 'src', 'scripts', 'e2e'],
-      REPO_ROOT,
-      { encoding: 'buffer' },
-    )
     const files = {}
-    for (const rel of String(listed).split('\0')) {
-      if (!rel || !isTrackedTestPath(rel)) {
-        continue
+    const walk = (dir, relBase = '') => {
+      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (
+          ent.name === 'node_modules' ||
+          ent.name === '.git' ||
+          ent.name === 'dist'
+        ) {
+          continue
+        }
+        const rel = relBase ? `${relBase}/${ent.name}` : ent.name
+        const abs = path.join(dir, ent.name)
+        if (ent.isDirectory()) walk(abs, rel)
+        else if (ent.isFile() && isTrackedTestPath(rel)) {
+          files[rel] = fs.readFileSync(abs, 'utf8')
+        }
       }
-      files[rel] = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8')
     }
+    walk(path.join(REPO_ROOT, 'src'), 'src')
+    walk(path.join(REPO_ROOT, 'scripts'), 'scripts')
+    walk(path.join(REPO_ROOT, 'e2e'), 'e2e')
     const titles = inventoryAllTitles(files)
     expect(titles.length).toBeGreaterThan(50)
     expect(titles.some((t) => t.path.startsWith('src/'))).toBe(true)

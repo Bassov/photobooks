@@ -2,18 +2,30 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
-import { loadPainterFixture, resetBookStore } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  loadPainterFixture,
+  resetBookStore,
+} from './bookStore'
 import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
 import {
   attachMemoryLibraryForTests,
+  getProjectSessionSnapshot,
   resetProjectSessionForTests,
   setAccessPhaseForTests,
 } from './projectSession'
@@ -149,5 +161,60 @@ describe('EditorShell viewport containment', () => {
     assert(saveAfter instanceof HTMLButtonElement, 'expected save button')
     expect(saveAfter.disabled).toBe(true)
     expect(screen.queryByTestId('save-indicator')).toBeNull()
+  })
+
+  it('rename prompt updates chrome title via setTitle', async () => {
+    render(<EditorShell />)
+    await act(async () => {
+      await attachMemoryLibraryForTests()
+    })
+    expect(getProjectSessionSnapshot().bookId).not.toBeNull()
+    expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
+
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => 'EditorRename'),
+    )
+    fireEvent.click(screen.getByTestId('rename-book'))
+    await waitFor(() => {
+      expect(screen.getByTestId('book-title').textContent).toBe('EditorRename')
+    })
+    expect(getBookStoreSnapshot().book.title).toBe('EditorRename')
+  })
+
+  it('create book prompt stores the entered title', async () => {
+    render(<EditorShell />)
+    await act(async () => {
+      await attachMemoryLibraryForTests()
+    })
+    const beforeId = getProjectSessionSnapshot().bookId
+
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => 'BrandNew'),
+    )
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    )
+    fireEvent.click(screen.getByTestId('create-book'))
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().bookId).not.toBe(beforeId)
+    })
+    expect(getBookStoreSnapshot().book.title).toBe('BrandNew')
+    expect(screen.getByTestId('book-title').textContent).toBe('BrandNew')
+  })
+
+  it('cancel rename leaves the chrome title unchanged', async () => {
+    render(<EditorShell />)
+    await act(async () => {
+      await attachMemoryLibraryForTests()
+    })
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => null),
+    )
+    fireEvent.click(screen.getByTestId('rename-book'))
+    expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
   })
 })
