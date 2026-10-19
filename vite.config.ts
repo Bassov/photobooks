@@ -64,7 +64,8 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     setupFiles: ['./scripts/vitest.setup.mjs'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.mjs'],
+    // Top-level scripts tests only — fixtures under scripts/fixtures/ are not suites.
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/*.test.mjs'],
     allowOnly: false,
     reporters: ['default', 'junit'],
     outputFile: {
