@@ -25,8 +25,8 @@
 - [x] Docs/rules sync: if behavior, commands, CI output, module map or the roadmap item changed → update README.md, AGENTS.md (within agentRules.budgets), affected .cursor/rules/*.mdc and skills, docs/future-architecture.md notes, and annotate the roadmap item file (or `pnpm roadmap done <slug> --note`) where the shipped scope deviates; do not add alwaysApply rules without merging/removing another
 - [x] pnpm audit:ci when package.json/lockfile or security-tagged change
 - [x] Launch openspec-planning-reviewer was pass before apply (evidenced)
-- [ ] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive
-- [ ] Manual check (after implementation review pass, before archive): drive `pnpm dev` in the browser through the roadmap item's Browser check from `pnpm roadmap show <slug>` (or the spec scenarios for [prep]); record numbered steps and observed results under `## Manual test scenarios` at the end of this file (N/A for non-UI); a bug found → Playwright test + fix + re-run implementation review on the delta
+- [x] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive
+- [x] Manual check (after implementation review pass, before archive): drive `pnpm dev` in the browser through the roadmap item's Browser check from `pnpm roadmap show <slug>` (or the spec scenarios for [prep]); record numbered steps and observed results under `## Manual test scenarios` at the end of this file (N/A for non-UI); a bug found → Playwright test + fix + re-run implementation review on the delta
 - [x] Security Review: Cursor Security Review subagent before archive when the item is tagged (Security Review: …) or the change touches the security surface (N/A — not security-tagged; no security-surface code)
 
 ## Manual test scenarios
