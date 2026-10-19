@@ -31,13 +31,12 @@
 - `importPhotoFiles` `if (prepared.length > 0)` → `true` / `>= 0`: followed by `if (identityEntries.length > 0)` before enqueue — empty `prepared` still yields an empty identity list and skips enqueue.
 - `importPhotoFiles` `libraryBacked && batchRootId !== undefined` → `libraryBacked && true`: when `libraryBacked` is true, `batchRootId` is always set via `sourceRootId ?? root-${uuid}`.
 - `importPhotoFiles` optional chain on `book.assets[entry.assetId]?.sourceRootId`: after identity enqueue / reuse the asset record is always present for prepared entries.
-- contentHash-based reuse when path+size+mtime miss: not implemented — re-import of the same files always has path+size+mtime; hash is unavailable before the body read (design risk accepted for this change).
 
 ## Verification
 
 - [x] pnpm check (only OK lines; then e2e/stryker/lhci/reviewer/manual items that still apply below)
 - [x] pnpm test:e2e (or pnpm verify) when UI/browser scope requires it — `playwright test e2e/filmstrip.spec.ts --grep "library re-import"` green
-- [x] pnpm stryker:diff — 96.10%, 0 NoCoverage
+- [x] pnpm stryker:diff — ≥85%, 0 NoCoverage (fix-round head)
 - [ ] pnpm test:lhci when UI or bundle size is affected — N/A (no UI chrome / bundle surface change)
 - [x] UI in scope: browser smoke evidenced (empty + happy + primary scroll/interact via Playwright and/or MCP browser); skill `ui-review` pass
 - [x] Docs/rules sync: if behavior, commands, CI output, module map or the roadmap item changed → update README.md, AGENTS.md (≤150 lines), affected .cursor/rules/*.mdc and skills, docs/future-architecture.md notes, and annotate the roadmap item file (or `pnpm roadmap done <slug> --note`) where the shipped scope deviates; do not add alwaysApply rules without merging/removing another — roadmap item + OpenSpec delta only

@@ -24,7 +24,7 @@ export function reuseIdentityKey(
 export function buildReuseIndex(
   gallery: readonly string[],
   assets: Readonly<Record<string, Asset | undefined>>,
-): ReadonlyMap<string, string> {
+): Map<string, string> {
   const index = new Map<string, string>()
   for (const assetId of gallery) {
     const asset = assets[assetId]
@@ -50,6 +50,28 @@ export function buildReuseIndex(
   return index
 }
 
+/**
+ * Index gallery assets that already have a contentHash (first id wins).
+ * Used when path+size+mtime miss (e.g. Add photos vs Add folder paths).
+ */
+export function buildContentHashIndex(
+  gallery: readonly string[],
+  assets: Readonly<Record<string, Asset | undefined>>,
+): Map<string, string> {
+  const index = new Map<string, string>()
+  for (const assetId of gallery) {
+    const asset = assets[assetId]
+    const hash = asset?.contentHash
+    if (hash === undefined || hash.length === 0) {
+      continue
+    }
+    if (!index.has(hash)) {
+      index.set(hash, assetId)
+    }
+  }
+  return index
+}
+
 /** Reuse gallery asset when path + size + mtime match (re-import / restore thumbs). */
 export function findReusableAssetId(
   gallery: readonly string[],
@@ -63,6 +85,14 @@ export function findReusableAssetId(
   )
 }
 
+/** Reuse gallery asset when contentHash matches an existing gallery entry. */
+export function findReusableAssetIdByContentHash(
+  gallery: readonly string[],
+  assets: Readonly<Record<string, Asset | undefined>>,
+  contentHash: string,
+): string | undefined {
+  return buildContentHashIndex(gallery, assets).get(contentHash)
+}
 /** Run async work over items with at most `concurrency` in flight. */
 export async function mapWithConcurrency<T>(
   items: readonly T[],
@@ -84,4 +114,41 @@ export async function mapWithConcurrency<T>(
       }
     }),
   )
+}
+
+/** Shared body-read gate so seed + hash-fallback never exceed the cap together. */
+export function createBodyReadGate(limit: number = IMPORT_BODY_READ_CAP): {
+  withBodyRead: <T>(fn: () => Promise<T>) => Promise<T>
+  inFlight: () => number
+} {
+  const max = Math.max(1, limit)
+  let inFlight = 0
+  const waiters: (() => void)[] = []
+
+  async function acquire(): Promise<void> {
+    while (inFlight >= max) {
+      await new Promise<void>((resolve) => {
+        waiters.push(resolve)
+      })
+    }
+    inFlight += 1
+  }
+
+  function release(): void {
+    inFlight -= 1
+    const next = waiters.shift()
+    next?.()
+  }
+
+  return {
+    inFlight: () => inFlight,
+    withBodyRead: async <T>(fn: () => Promise<T>): Promise<T> => {
+      await acquire()
+      try {
+        return await fn()
+      } finally {
+        release()
+      }
+    },
+  }
 }

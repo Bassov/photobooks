@@ -21,6 +21,12 @@ import {
 import { getThumbUrl, resetThumbCache } from './thumbCache'
 
 const runImportBatch = vi.hoisted(() => vi.fn())
+const hashContentMock = vi.hoisted(() =>
+  vi.fn((buf: ArrayBuffer) => {
+    const bytes = new Uint8Array(buf)
+    return Promise.resolve(`hash-${[...bytes].join('.')}`)
+  }),
+)
 
 vi.mock('../photo/assetPool', async () => {
   const actual =
@@ -31,6 +37,14 @@ vi.mock('../photo/assetPool', async () => {
     ...actual,
     runImportBatch: (...args: unknown[]): unknown =>
       runImportBatch(...args) as unknown,
+  }
+})
+
+vi.mock('../assets', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../assets')>()
+  return {
+    ...actual,
+    hashContent: (buf: ArrayBuffer): Promise<string> => hashContentMock(buf),
   }
 })
 
@@ -179,6 +193,151 @@ describe('importPhotoFiles library identity', () => {
       expect(assetId).toBeDefined()
       assert.ok(assetId)
       expect(book.assets[assetId]?.sourceRootId).toBeUndefined()
+    })
+  })
+
+  it('re-import via different relativePath reuses by content hash', async () => {
+    vi.stubGlobal(
+      'Worker',
+      class {
+        terminate(): void {
+          /* no-op */
+        }
+      },
+    )
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x01])
+    const file = new File([bytes], 'shot.jpg', {
+      type: 'image/jpeg',
+      lastModified: 42,
+    })
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-photos',
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(1)
+    })
+    const assetId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(assetId)
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.assets[assetId]?.contentHash).toBe(
+        'hash-255.216.255.217.1',
+      )
+    })
+
+    const folderFile = new File([bytes], 'shot.jpg', {
+      type: 'image/jpeg',
+      lastModified: 99,
+    })
+    Object.defineProperty(folderFile, 'webkitRelativePath', {
+      value: 'Trip/shot.jpg',
+    })
+    await importPhotoFiles([folderFile], {
+      libraryBacked: true,
+      sourceRootId: 'root-folder',
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(book.gallery.length).toBe(1)
+      expect(book.gallery[0]).toBe(assetId)
+    })
+  })
+
+  it('keeps same-name files in different folders separate when bytes differ', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const a = new File(
+      [new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0xaa])],
+      'x.jpg',
+      {
+        type: 'image/jpeg',
+        lastModified: 1,
+      },
+    )
+    Object.defineProperty(a, 'webkitRelativePath', { value: 'Trip/x.jpg' })
+    const b = new File(
+      [new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0xbb])],
+      'x.jpg',
+      {
+        type: 'image/jpeg',
+        lastModified: 1,
+      },
+    )
+    Object.defineProperty(b, 'webkitRelativePath', { value: 'Other/x.jpg' })
+
+    await importPhotoFiles([a, b], {
+      libraryBacked: true,
+      sourceRootId: 'root-two',
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(2)
+    })
+  })
+
+  it('hash fallback mints a new asset when content does not match', async () => {
+    vi.stubGlobal(
+      'Worker',
+      class {
+        terminate(): void {
+          /* no-op */
+        }
+      },
+    )
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const first = new File(
+      [new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x11])],
+      'a.jpg',
+      { type: 'image/jpeg', lastModified: 1 },
+    )
+    await importPhotoFiles([first], {
+      libraryBacked: true,
+      sourceRootId: 'root-a',
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(1)
+    })
+    const firstId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(firstId)
+    await vi.waitFor(() => {
+      expect(
+        getBookStoreSnapshot().book.assets[firstId]?.contentHash,
+      ).toBeTypeOf('string')
+    })
+
+    const second = new File(
+      [new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x22])],
+      'a.jpg',
+      { type: 'image/jpeg', lastModified: 2 },
+    )
+    Object.defineProperty(second, 'webkitRelativePath', {
+      value: 'Trip/a.jpg',
+    })
+    await importPhotoFiles([second], {
+      libraryBacked: true,
+      sourceRootId: 'root-b',
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(book.gallery.length).toBe(2)
+      expect(book.gallery).toContain(firstId)
     })
   })
 

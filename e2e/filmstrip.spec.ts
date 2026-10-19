@@ -287,23 +287,34 @@ test('SPA is cross-origin isolated under preview headers', async ({ page }) => {
   await assertCrossOriginIsolated(page)
 })
 
-function writeBulkImportFixtures(count: number): string[] {
-  const dir = join(tmpdir(), `photobooks-bulk-${String(process.pid)}`)
+function writeBulkImportFixtureSet(count: number): {
+  dir: string
+  files: string[]
+} {
+  const dir = join(
+    tmpdir(),
+    `photobooks-bulk-${String(process.pid)}-${String(count)}-${String(Date.now())}`,
+  )
   mkdirSync(dir, { recursive: true })
-  // Minimal valid 1×1 PNG
+  // Minimal valid 1×1 PNG. Identical bytes across the set: first import still
+  // creates `count` entries (identity-first); cross-picker re-import reuses via
+  // content hash without growing the gallery.
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64',
   )
-  const paths: string[] = []
+  const files: string[] = []
   for (let i = 0; i < count; i += 1) {
     const path = join(dir, `bulk-${String(i).padStart(3, '0')}.png`)
     writeFileSync(path, png)
-    paths.push(path)
+    files.push(path)
   }
-  return paths
+  return { dir, files }
 }
 
+function writeBulkImportFixtures(count: number): string[] {
+  return writeBulkImportFixtureSet(count).files
+}
 test('bulk import fills every revealed placeholder even while scrolling', async ({
   page,
 }) => {
@@ -377,6 +388,107 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
 })
 
 test.describe('library re-import async', () => {
+  test('photos then folder (and reverse) reuse by content hash', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000)
+    const count = 24
+    const { dir, files } = writeBulkImportFixtureSet(count)
+
+    await page.goto('/?testLibrary=1')
+    await expect(page.getByTestId('create-book')).toBeEnabled({
+      timeout: 15_000,
+    })
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Book created in library',
+    )
+
+    await page.getByTestId('photo-file-input').setInputFiles(files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    const idsAfterPhotos = await page
+      .getByTestId('filmstrip-item')
+      .evaluateAll((nodes) =>
+        nodes
+          .map((node) => node.getAttribute('data-asset-id'))
+          .filter((id): id is string => id !== null),
+      )
+    expect(idsAfterPhotos.length).toBeGreaterThan(0)
+    const firstId = idsAfterPhotos[0]
+    expect(firstId).toBeTruthy()
+
+    // Folder picker sets webkitRelativePath (e.g. dir/bulk-000.png) so
+    // path+size+mtime miss and content-hash fallback must reuse ids.
+    await page.getByTestId('folder-file-input').setInputFiles(dir)
+    await expect
+      .poll(
+        async () => {
+          const gallery = page
+            .getByTestId('filmstrip')
+            .getAttribute('data-gallery-count')
+          const importing = await page
+            .getByTestId('import-progress')
+            .isVisible()
+            .catch(() => false)
+          return { gallery: await gallery, importing }
+        },
+        { timeout: 120_000 },
+      )
+      .toMatchObject({ gallery: String(count) })
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft = 0
+    })
+    await expect
+      .poll(
+        async () =>
+          page
+            .getByTestId('filmstrip-item')
+            .first()
+            .getAttribute('data-asset-id'),
+        { timeout: 15_000 },
+      )
+      .toBe(firstId)
+
+    // Reverse: folder first into a fresh library book, then photos.
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Book created in library',
+      { timeout: 15_000 },
+    )
+    const second = writeBulkImportFixtureSet(count)
+    await page.getByTestId('folder-file-input').setInputFiles(second.dir)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    await page.getByTestId('photo-file-input').setInputFiles(second.files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+  })
+
   test('re-import restores thumbs without duplicates; first card ≤1.5× session', async ({
     page,
   }, testInfo) => {

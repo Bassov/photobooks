@@ -28,15 +28,31 @@ export function seedAndHashEntry(options: {
   relativePath: string
   sourceRootId: string
   memorySource: MemoryAssetSource
+  /** When set, skip a second body read. */
+  bytes?: ArrayBuffer
+  /** When set, skip hashContent and patch/put caches for this hash. */
+  contentHash?: string
 }): Promise<void> {
-  const { assetId, file, relativePath, sourceRootId, memorySource } = options
-  return file.arrayBuffer().then((bytes) => {
+  const {
+    assetId,
+    file,
+    relativePath,
+    sourceRootId,
+    memorySource,
+    bytes: preloaded,
+    contentHash: knownHash,
+  } = options
+  const load =
+    preloaded !== undefined ? Promise.resolve(preloaded) : file.arrayBuffer()
+  return load.then((bytes) => {
     memorySource.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
     if (typeof Worker === 'undefined') {
       return
     }
+    const hashJob =
+      knownHash !== undefined ? Promise.resolve(knownHash) : hashContent(bytes)
     void trackHashJob(
-      hashContent(bytes).then(async (contentHash) => {
+      hashJob.then(async (contentHash) => {
         patchAssetRecord(assetId, { contentHash })
         await Promise.all([
           putCachedThumbForHash(assetId, contentHash),

@@ -25,4 +25,4 @@ Status: done
 
 ## Done note
 
-Identity-first library re-import with ≤16 in-flight body reads; path+size+mtime reuse; contentHash reuse deferred.
+Identity-first library re-import with ≤16 in-flight body reads; path+size+mtime reuse, then contentHash fallback when picker paths differ (Add photos vs Add folder).

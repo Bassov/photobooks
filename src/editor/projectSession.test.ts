@@ -754,6 +754,38 @@ describe('projectSession', () => {
     expect(window.__photobooksProject?.attachMemoryLibraryForTests).toBeTypeOf(
       'function',
     )
+    expect(
+      window.__photobooksThumbs?.clearThumbsAndDerivedCacheForTests,
+    ).toBeTypeOf('function')
+  })
+
+  it('shouldExposeProjectSessionTestApi is true in DEV and false in production without e2e', async () => {
+    const { shouldExposeProjectSessionTestApi } =
+      await import('./projectSession')
+    expect(shouldExposeProjectSessionTestApi({ DEV: true })).toBe(true)
+    expect(
+      shouldExposeProjectSessionTestApi({ DEV: false, VITE_E2E: '1' }),
+    ).toBe(true)
+    expect(
+      shouldExposeProjectSessionTestApi({ DEV: false, VITE_E2E: 'true' }),
+    ).toBe(true)
+    const productionWindow = {
+      __photobooksE2e: undefined,
+    } as unknown as Window
+    expect(
+      shouldExposeProjectSessionTestApi({ DEV: false }, productionWindow),
+    ).toBe(false)
+    productionWindow.__photobooksE2e = true
+    expect(
+      shouldExposeProjectSessionTestApi({ DEV: false }, productionWindow),
+    ).toBe(true)
+  })
+
+  it('does not attach thumbs or project test APIs when the gate is off', () => {
+    const bare = {} as Window
+    exposeProjectSessionTestApi({ DEV: false }, bare)
+    expect(bare.__photobooksProject).toBeUndefined()
+    expect(bare.__photobooksThumbs).toBeUndefined()
   })
 
   it('restored hashed assets hydrate thumbs from DerivedCache', async () => {

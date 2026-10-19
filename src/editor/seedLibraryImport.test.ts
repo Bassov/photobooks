@@ -141,6 +141,71 @@ describe('seedLibraryImport', () => {
     expect(putCachedTierForHash).toHaveBeenCalledWith('asset-seed', SAMPLE_HASH)
   })
 
+  it('seedAndHashEntry uses preloaded bytes and known contentHash', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    vi.stubGlobal(
+      'Worker',
+      class {
+        terminate(): void {
+          /* no-op */
+        }
+      },
+    )
+    enqueueGalleryAssets([
+      {
+        assetId: 'asset-known',
+        meta: {
+          name: 'k.jpg',
+          correctedWidth: 1,
+          correctedHeight: 1,
+          orientation: 1,
+          aspect: 1,
+        },
+      },
+    ])
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery).toContain('asset-known')
+    })
+    const { hashContent } = await import('../assets')
+    const hashSpy = vi.mocked(hashContent)
+    hashSpy.mockClear()
+    const source = createMemoryAssetSource()
+    const seedSpy = vi.spyOn(source, 'seedFile')
+    const bytes = new Uint8Array([7, 8, 9]).buffer
+    const file = new File([bytes], 'k.jpg', { type: 'image/jpeg' })
+    const known =
+      'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+    await seedAndHashEntry({
+      assetId: 'asset-known',
+      file,
+      relativePath: 'k.jpg',
+      sourceRootId: 'root-known',
+      memorySource: source,
+      bytes,
+      contentHash: known,
+    })
+    expect(seedSpy).toHaveBeenCalledWith(
+      'root-known',
+      'k.jpg',
+      bytes,
+      file.lastModified,
+    )
+    expect(hashSpy).not.toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(
+        getBookStoreSnapshot().book.assets['asset-known']?.contentHash,
+      ).toBe(known)
+    })
+    expect(putCachedThumbForHash).toHaveBeenCalledWith('asset-known', known)
+    expect(putCachedTierForHash).toHaveBeenCalledWith('asset-known', known)
+  })
+
   it('seedAndHashEntry seeds without hashing when Worker is undefined', async () => {
     vi.stubGlobal('Worker', undefined)
     vi.stubGlobal(
