@@ -107,6 +107,12 @@ describe('item criteria helpers', () => {
     expect(isAllowedItemEdit(base, head)).toBe(true)
   })
 
+  it('allows inserting Status: done when base had none', () => {
+    const base = `# item\nTitle: t\n\n## Scope\n- [ ] A\n`
+    const head = `# item\nTitle: t\nStatus: done\n\n## Scope\n- [x] A\n\n## Done note\nShipped.\n`
+    expect(isAllowedItemEdit(base, head)).toBe(true)
+  })
+
   it('rejects Done-when rewrite', () => {
     const base = `## Scope\n- **Done when:** keep bar\n`
     const head = `## Scope\n- **Done when:** weaker bar\n`

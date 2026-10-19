@@ -318,6 +318,11 @@ export function isAllowedItemEdit(baseText, headText) {
       hi++
       continue
     }
+    // Insert Status: done when base had no Status line (roadmap done).
+    if (/^Status:\s*done\s*$/i.test(h) && !/^Status:/i.test(b)) {
+      hi++
+      continue
+    }
     return false
   }
   if (bi < base.length) return false
