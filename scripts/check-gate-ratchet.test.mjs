@@ -1346,6 +1346,7 @@ describe('extractCoverageExcludes / extractStrykerGateBits', () => {
   it('reads exclude globs and bang mutate patterns', () => {
     expect(extractCoverageExcludes(baseVite)).toContain('src/**/*.d.ts')
     const bits = extractStrykerGateBits(baseStryker)
+    expect(bits.mutate).toContain('src/**/*.ts')
     expect(bits.bang).toContain('!src/**/*.test.ts')
     expect(bits.weakerFlags).toEqual([])
   })
@@ -2632,6 +2633,9 @@ describe('pure helpers exact behaviour', () => {
     expect(MSGS.parseGatesPrefix).toBe('failed to parse quality/gates.json: ')
     expect(MSGS.parseCodecovPrefix).toBe('failed to parse codecov.yml: ')
     expect(MSGS.includeRemovedPrefix).toBe('coverage include removed: ')
+    expect(MSGS.mutateIncludeRemovedPrefix).toBe(
+      'stryker mutate include removed: ',
+    )
     expect(MSGS.excludeAddedPrefix).toBe('coverage exclude added: ')
     expect(MSGS.bangAddedPrefix).toBe('stryker mutate bang added: ')
     expect(MSGS.excludedMutationsPrefix).toBe('excludedMutations added: ')
@@ -2714,6 +2718,7 @@ describe('pure helpers exact behaviour', () => {
     expect(extractCoverageIncludes(null)).toEqual([])
     expect(extractCoverageExcludes(undefined)).toEqual([])
     expect(extractStrykerGateBits(null)).toEqual({
+      mutate: [],
       bang: [],
       excludedMutations: [],
       weakerFlags: [],
@@ -3590,5 +3595,329 @@ export default {
       (m) => msgs.push(m),
     )
     expect(msgs.some((m) => m.includes('paths removed'))).toBe(false)
+  })
+
+  it('subsumes hand-listed mutate entries under scripts/**/*.mjs', () => {
+    const base = baseFiles({
+      'stryker.config.mjs': `
+const config = {
+  mutate: ['src/**/*.ts', 'scripts/agent.mjs', '!src/**/*.test.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`,
+    })
+    const head = baseFiles({
+      'vite.config.ts': `
+export const coverageExcludeGlobs = ['src/**/*.d.ts'] as const
+export default {
+  test: {
+    allowOnly: false,
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: [...coverageExcludeGlobs],
+    },
+  },
+}
+`,
+      'stryker.config.mjs': `
+const config = {
+  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`,
+    })
+    const r = compareGateTrees(base, head)
+    expect(r.ok).toBe(true)
+  })
+
+  it('FIXTURE mutate-include-uncovered-removed fails', () => {
+    expect(FIXTURE_IDS).toContain('mutate-include-uncovered-removed')
+    const base = baseFiles({
+      'stryker.config.mjs': `
+const config = {
+  mutate: ['src/**/*.ts', 'scripts/agent.mjs', '!src/**/*.test.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`,
+    })
+    const head = baseFiles({
+      'stryker.config.mjs': `
+const config = {
+  mutate: ['src/**/*.ts', '!src/**/*.test.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`,
+    })
+    const r = compareGateTrees(base, head)
+    expect(r.ok).toBe(false)
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'include-removed' &&
+          v.message === `${MSGS.mutateIncludeRemovedPrefix}scripts/agent.mjs`,
+      ),
+    ).toBe(true)
+  })
+
+  it('fails when scripts/**/*.mjs is dropped from mutate', () => {
+    const withScriptsMutate = `
+const config = {
+  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`
+    const withoutScriptsMutate = `
+const config = {
+  mutate: ['src/**/*.ts', '!src/**/*.test.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`
+    const r = compareGateTrees(
+      baseFiles({ 'stryker.config.mjs': withScriptsMutate }),
+      baseFiles({ 'stryker.config.mjs': withoutScriptsMutate }),
+    )
+    expect(r.ok).toBe(false)
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'include-removed' &&
+          v.message === `${MSGS.mutateIncludeRemovedPrefix}scripts/**/*.mjs`,
+      ),
+    ).toBe(true)
+  })
+
+  function loadPr126FixtureTree(side) {
+    const raw = fs.readFileSync(
+      path.join(REPO_ROOT, 'scripts/fixtures/pr-126-scripts-glob.json'),
+      'utf8',
+    )
+    const payload = JSON.parse(raw)
+    const tree = payload[side]
+    if (!tree || typeof tree !== 'object') {
+      throw new Error(`pr-126 fixture missing side: ${side}`)
+    }
+    return /** @type {Record<string, string>} */ (tree)
+  }
+
+  it('FIXTURE scripts-glob-pr126-replay: real #126 configs yield 0 violations', () => {
+    expect(FIXTURE_IDS).toContain('scripts-glob-pr126-replay')
+    const r = compareGateTrees(
+      loadPr126FixtureTree('base'),
+      loadPr126FixtureTree('head'),
+    )
+    expect(r.violations).toEqual([])
+    expect(r.ok).toBe(true)
+  })
+
+  it('FIXTURE scripts-include-uncovered-removed fails', () => {
+    expect(FIXTURE_IDS).toContain('scripts-include-uncovered-removed')
+    const headVite = `
+export const coverageExcludeGlobs = ['src/**/*.d.ts'] as const
+export default {
+  test: {
+    allowOnly: false,
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.ts'],
+      exclude: [...coverageExcludeGlobs],
+    },
+  },
+}
+`
+    const { code, result } = cliRatchet({ 'vite.config.ts': headVite })
+    expect(code).toBe(1)
+    expect(
+      result.violations.some(
+        (v) =>
+          v.ruleId === 'include-removed' &&
+          v.message.includes('scripts/agent.mjs'),
+      ),
+    ).toBe(true)
+  })
+
+  it('FIXTURE broad-script-exclude fails for !scripts/** and !src/**/*.ts', () => {
+    expect(FIXTURE_IDS).toContain('broad-script-exclude')
+    const withGlob = `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: [],
+    },
+  },
+}
+`
+    const mutateBase = `
+const config = {
+  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`
+    const base = baseFiles({
+      'vite.config.ts': withGlob,
+      'stryker.config.mjs': mutateBase,
+    })
+    const rCov = compareGateTrees(
+      base,
+      baseFiles({
+        'vite.config.ts': `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: ['scripts/**'],
+    },
+  },
+}
+`,
+        'stryker.config.mjs': mutateBase,
+      }),
+    )
+    expect(rCov.ok).toBe(false)
+    expect(
+      rCov.violations.some(
+        (v) => v.ruleId === 'exclude-added' && v.message.includes('scripts/**'),
+      ),
+    ).toBe(true)
+
+    const rBang = compareGateTrees(
+      base,
+      baseFiles({
+        'vite.config.ts': withGlob,
+        'stryker.config.mjs': `
+const config = {
+  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts', '!scripts/**'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`,
+      }),
+    )
+    expect(rBang.ok).toBe(false)
+    expect(
+      rBang.violations.some(
+        (v) =>
+          v.ruleId === 'exclude-added' && v.message.includes('!scripts/**'),
+      ),
+    ).toBe(true)
+
+    const rSrc = compareGateTrees(
+      base,
+      baseFiles({
+        'vite.config.ts': withGlob,
+        'stryker.config.mjs': `
+const config = {
+  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts', '!src/**/*.ts'],
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`,
+      }),
+    )
+    expect(rSrc.ok).toBe(false)
+    expect(
+      rSrc.violations.some(
+        (v) =>
+          v.ruleId === 'exclude-added' && v.message.includes('!src/**/*.ts'),
+      ),
+    ).toBe(true)
+  })
+
+  it('FIXTURE non-thin-cli-exclude fails', () => {
+    expect(FIXTURE_IDS).toContain('non-thin-cli-exclude')
+    const fat = `${'x\n'.repeat(20)}import { a } from './b.mjs'\na()\n`
+    const withGlob = `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: [],
+    },
+  },
+}
+`
+    const r = compareGateTrees(
+      baseFiles({ 'vite.config.ts': withGlob }),
+      baseFiles({
+        'vite.config.ts': `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: ['scripts/fat.mjs'],
+    },
+  },
+}
+`,
+        'scripts/fat.mjs': fat,
+      }),
+    )
+    expect(r.ok).toBe(false)
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'exclude-added' && v.message.includes('scripts/fat.mjs'),
+      ),
+    ).toBe(true)
+  })
+
+  it('FIXTURE codecov-path-uncovered fails', () => {
+    expect(FIXTURE_IDS).toContain('codecov-path-uncovered')
+    const baseCov = `
+coverage:
+  status:
+    patch:
+      default:
+        target: 85%
+        threshold: 0%
+flags:
+  unit:
+    paths:
+      - src/
+      - scripts/agent.mjs
+ignore:
+  - e2e/**
+`
+    const headCov = `
+coverage:
+  status:
+    patch:
+      default:
+        target: 85%
+        threshold: 0%
+flags:
+  unit:
+    paths:
+      - src/
+ignore:
+  - e2e/**
+`
+    const { code, result } = cliRatchet(
+      { 'codecov.yml': headCov },
+      { 'codecov.yml': baseCov },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some(
+        (v) =>
+          v.ruleId === 'codecov-weaker' &&
+          v.message.includes('scripts/agent.mjs'),
+      ),
+    ).toBe(true)
   })
 })
