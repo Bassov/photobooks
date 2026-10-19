@@ -42,6 +42,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [stryker-disable-budget](roadmap/M2.1/stryker-disable-budget.md) — only next-line Stryker disables, capped and budgeted (PR #81 pattern)
 - [ ] [prep] [stryker-diff-gate](roadmap/M2.1/stryker-diff-gate.md) — honest mutation on the diff: break 85, zero NoCoverage (issue #72 B, J)
 - [ ] [prep] [scripts-in-scope](roadmap/M2.1/scripts-in-scope.md) — gate and agent scripts are in coverage and mutation by default (PR #81 pattern)
+- [ ] [prep] [ratchet-glob-subsumption](roadmap/M2.1/ratchet-glob-subsumption.md) — pr-policy ratchet understands glob subsumption
 - [ ] [prep] [exclusions-registry](roadmap/M2.1/exclusions-registry.md) — only non-production code can be excluded (issue #72 J, A)
 - [ ] [prep] [diff-size-check](roadmap/M2.1/diff-size-check.md) — size limit on an item's initial scope; review fixes warn only (issue #72 H)
 - [ ] [prep] [pr-body-check](roadmap/M2.1/pr-body-check.md) — machine-checked PR body: verdicts, dispositions, scenarios (issue #72 G)

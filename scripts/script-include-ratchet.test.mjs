@@ -12,6 +12,65 @@ import { main } from './agent.mjs'
 main(process.argv.slice(2), process)
 `
 
+const DEFAULT_MSGS = Object.freeze({
+  includeRemovedPrefix: 'coverage include removed: ',
+  mutateIncludeRemovedPrefix: 'stryker mutate include removed: ',
+  excludeAddedPrefix: 'coverage exclude added: ',
+  bangAddedPrefix: 'stryker mutate bang added: ',
+})
+
+/**
+ * @param {Partial<{
+ *   extractCoverageIncludes: (c: unknown) => string[],
+ *   extractCoverageExcludes: (c: unknown) => string[],
+ *   extractStrykerGateBits: (c: unknown) => { mutate?: string[], bang: string[] },
+ *   coerceText: (c: unknown) => string,
+ *   getFile: (files: Record<string, string | undefined>, path: string) => string | undefined,
+ *   msgs: typeof DEFAULT_MSGS,
+ * }>} [overrides]
+ */
+function makeScriptScopeDeps(overrides = {}) {
+  return {
+    extractCoverageIncludes: (c) => {
+      const m = String(c).match(/include:\s*\[([^\]]*)\]/)
+      if (!m) return []
+      return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
+    },
+    extractCoverageExcludes: (c) => {
+      const m = String(c).match(/exclude:\s*\[([^\]]*)\]/)
+      if (!m) return []
+      return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
+    },
+    extractStrykerGateBits: (c) => ({
+      mutate: [...String(c).matchAll(/'([^'!][^']*)'/g)].map((x) => x[1]),
+      bang: [...String(c).matchAll(/'!([^']+)'/g)].map((x) => `!${x[1]}`),
+    }),
+    coerceText: (c) => String(c ?? ''),
+    getFile: (files, p) => files[p],
+    msgs: DEFAULT_MSGS,
+    ...overrides,
+  }
+}
+
+/**
+ * @param {Record<string, string>} baseFiles
+ * @param {Record<string, string>} headFiles
+ * @param {ReturnType<typeof makeScriptScopeDeps>} [deps]
+ */
+function runScriptScope(baseFiles, headFiles, deps = makeScriptScopeDeps()) {
+  /** @type {{ ruleId: string, message: string }[]} */
+  const violations = []
+  compareScriptScopeGates(
+    baseFiles,
+    headFiles,
+    (ruleId, message) => {
+      violations.push({ ruleId, message })
+    },
+    deps,
+  )
+  return violations
+}
+
 describe('script-include-ratchet helpers', () => {
   it('detects scripts coverage include globs', () => {
     expect(hasScriptsCoverageInclude(['src/**/*.{ts,tsx}'])).toBe(false)
@@ -80,8 +139,7 @@ describe('script-include-ratchet helpers', () => {
   })
 
   it('compareScriptScopeGates fails when scripts glob removed', () => {
-    const violations = []
-    compareScriptScopeGates(
+    const violations = runScriptScope(
       {
         'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
         'stryker.config.mjs': `mutate: []`,
@@ -90,23 +148,10 @@ describe('script-include-ratchet helpers', () => {
         'vite.config.ts': `coverage: { include: ['src/**'], exclude: [] }`,
         'stryker.config.mjs': `mutate: []`,
       },
-      (ruleId, message) => violations.push({ ruleId, message }),
-      {
-        extractCoverageIncludes: (c) => {
-          const m = String(c).match(/include:\s*\[([^\]]*)\]/)
-          if (!m) return []
-          return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
-        },
+      makeScriptScopeDeps({
         extractCoverageExcludes: () => [],
-        extractStrykerGateBits: () => ({ bang: [] }),
-        coerceText: (c) => String(c ?? ''),
-        getFile: (files, p) => files[p],
-        msgs: {
-          includeRemovedPrefix: 'coverage include removed: ',
-          excludeAddedPrefix: 'coverage exclude added: ',
-          bangAddedPrefix: 'stryker mutate bang added: ',
-        },
-      },
+        extractStrykerGateBits: () => ({ mutate: [], bang: [] }),
+      }),
     )
     expect(
       violations.some(
@@ -118,8 +163,7 @@ describe('script-include-ratchet helpers', () => {
   })
 
   it('fails exclude-added for non-paired new excludes', () => {
-    const violations = []
-    compareScriptScopeGates(
+    const violations = runScriptScope(
       {
         'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
         'stryker.config.mjs': `mutate: []`,
@@ -127,29 +171,6 @@ describe('script-include-ratchet helpers', () => {
       {
         'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: ['src/secret.ts'] }`,
         'stryker.config.mjs': `mutate: ['!src/secret.ts']`,
-      },
-      (ruleId, message) => violations.push({ ruleId, message }),
-      {
-        extractCoverageIncludes: (c) => {
-          const m = String(c).match(/include:\s*\[([^\]]*)\]/)
-          if (!m) return []
-          return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
-        },
-        extractCoverageExcludes: (c) => {
-          const m = String(c).match(/exclude:\s*\[([^\]]*)\]/)
-          if (!m) return []
-          return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
-        },
-        extractStrykerGateBits: (c) => ({
-          bang: [...String(c).matchAll(/'!([^']+)'/g)].map((x) => `!${x[1]}`),
-        }),
-        coerceText: (c) => String(c ?? ''),
-        getFile: (files, p) => files[p],
-        msgs: {
-          includeRemovedPrefix: 'coverage include removed: ',
-          excludeAddedPrefix: 'coverage exclude added: ',
-          bangAddedPrefix: 'stryker mutate bang added: ',
-        },
       },
     )
     expect(
@@ -169,8 +190,7 @@ describe('script-include-ratchet helpers', () => {
   })
 
   it('compareScriptScopeGates allows thin CLI bang with scripts glob', () => {
-    const violations = []
-    compareScriptScopeGates(
+    const violations = runScriptScope(
       {
         'vite.config.ts': `coverage: { include: ['scripts/agent.mjs'], exclude: [] }`,
         'stryker.config.mjs': `mutate: ['scripts/agent.mjs']`,
@@ -180,29 +200,83 @@ describe('script-include-ratchet helpers', () => {
         'stryker.config.mjs': `mutate: ['scripts/**/*.mjs', '!scripts/**/*.test.mjs', '!scripts/agent-cli.mjs']`,
         'scripts/agent-cli.mjs': thinCli,
       },
-      (ruleId, message) => violations.push({ ruleId, message }),
+    )
+    expect(violations).toEqual([])
+  })
+
+  it('subsumes hand-listed mutate entries under scripts/**/*.mjs', () => {
+    const violations = runScriptScope(
       {
-        extractCoverageIncludes: (c) => {
-          const m = String(c).match(/include:\s*\[([^\]]*)\]/)
-          if (!m) return []
-          return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
-        },
-        extractCoverageExcludes: (c) => {
-          const m = String(c).match(/exclude:\s*\[([^\]]*)\]/)
-          if (!m) return []
-          return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
-        },
-        extractStrykerGateBits: (c) => ({
-          bang: [...String(c).matchAll(/'!([^']+)'/g)].map((x) => `!${x[1]}`),
-        }),
-        coerceText: (c) => String(c ?? ''),
-        getFile: (files, p) => files[p],
-        msgs: {
-          includeRemovedPrefix: 'coverage include removed: ',
-          excludeAddedPrefix: 'coverage exclude added: ',
-          bangAddedPrefix: 'stryker mutate bang added: ',
-        },
+        'vite.config.ts': `coverage: { include: ['scripts/agent.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: ['scripts/agent.mjs']`,
       },
+      {
+        'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: ['scripts/**/*.mjs']`,
+      },
+      makeScriptScopeDeps({ extractCoverageExcludes: () => [] }),
+    )
+    expect(violations).toEqual([])
+  })
+
+  it('fails when mutate entry is removed without covering glob', () => {
+    const violations = runScriptScope(
+      {
+        'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: ['scripts/agent.mjs', 'src/**/*.ts']`,
+      },
+      {
+        'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: ['src/**/*.ts']`,
+      },
+      makeScriptScopeDeps({ extractCoverageExcludes: () => [] }),
+    )
+    expect(
+      violations.some(
+        (v) =>
+          v.ruleId === 'include-removed' &&
+          v.message === 'stryker mutate include removed: scripts/agent.mjs',
+      ),
+    ).toBe(true)
+  })
+
+  it('fails when scripts mutate glob is dropped', () => {
+    const violations = runScriptScope(
+      {
+        'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: ['scripts/**/*.mjs']`,
+      },
+      {
+        'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: ['src/**/*.ts']`,
+      },
+      makeScriptScopeDeps({ extractCoverageExcludes: () => [] }),
+    )
+    expect(
+      violations.some(
+        (v) =>
+          v.ruleId === 'include-removed' &&
+          v.message === 'stryker mutate include removed: scripts/**/*.mjs',
+      ),
+    ).toBe(true)
+  })
+
+  it('treats missing mutate field as empty (no false mutate removals)', () => {
+    const violations = runScriptScope(
+      {
+        'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: []`,
+      },
+      {
+        'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
+        'stryker.config.mjs': `mutate: []`,
+      },
+      makeScriptScopeDeps({
+        extractCoverageIncludes: () => ['scripts/**/*.mjs'],
+        extractCoverageExcludes: () => [],
+        // Intentionally omit `mutate` so `?? []` is exercised.
+        extractStrykerGateBits: () => ({ bang: [] }),
+      }),
     )
     expect(violations).toEqual([])
   })
