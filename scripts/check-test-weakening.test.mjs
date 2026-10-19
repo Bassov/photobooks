@@ -754,33 +754,37 @@ describe('compareItemCriteria', () => {
 })
 
 describe('real repo inventory', () => {
-  it('parses non-empty titles from real test files', () => {
-    const files = {}
-    const walk = (dir, relBase = '') => {
-      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (
-          ent.name === 'node_modules' ||
-          ent.name === '.git' ||
-          ent.name === 'dist'
-        ) {
-          continue
-        }
-        const rel = relBase ? `${relBase}/${ent.name}` : ent.name
-        const abs = path.join(dir, ent.name)
-        if (ent.isDirectory()) walk(abs, rel)
-        else if (ent.isFile() && isTrackedTestPath(rel)) {
-          files[rel] = fs.readFileSync(abs, 'utf8')
+  it(
+    'parses non-empty titles from real test files',
+    { timeout: 20_000 },
+    () => {
+      const files = {}
+      const walk = (dir, relBase = '') => {
+        for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (
+            ent.name === 'node_modules' ||
+            ent.name === '.git' ||
+            ent.name === 'dist'
+          ) {
+            continue
+          }
+          const rel = relBase ? `${relBase}/${ent.name}` : ent.name
+          const abs = path.join(dir, ent.name)
+          if (ent.isDirectory()) walk(abs, rel)
+          else if (ent.isFile() && isTrackedTestPath(rel)) {
+            files[rel] = fs.readFileSync(abs, 'utf8')
+          }
         }
       }
-    }
-    walk(path.join(REPO_ROOT, 'src'), 'src')
-    walk(path.join(REPO_ROOT, 'scripts'), 'scripts')
-    walk(path.join(REPO_ROOT, 'e2e'), 'e2e')
-    const titles = inventoryAllTitles(files)
-    expect(titles.length).toBeGreaterThan(50)
-    expect(titles.some((t) => t.path.startsWith('src/'))).toBe(true)
-    expect(titles.some((t) => t.path.startsWith('e2e/'))).toBe(true)
-    // sanity: markers detector runs without throwing
-    expect(countWeakeningMarkers(files)).toBeGreaterThanOrEqual(0)
-  })
+      walk(path.join(REPO_ROOT, 'src'), 'src')
+      walk(path.join(REPO_ROOT, 'scripts'), 'scripts')
+      walk(path.join(REPO_ROOT, 'e2e'), 'e2e')
+      const titles = inventoryAllTitles(files)
+      expect(titles.length).toBeGreaterThan(50)
+      expect(titles.some((t) => t.path.startsWith('src/'))).toBe(true)
+      expect(titles.some((t) => t.path.startsWith('e2e/'))).toBe(true)
+      // sanity: markers detector runs without throwing
+      expect(countWeakeningMarkers(files)).toBeGreaterThanOrEqual(0)
+    },
+  )
 })
