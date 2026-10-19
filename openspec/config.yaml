@@ -31,7 +31,7 @@ context: |
 
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
-  - AGENTS.md is a navigation map (≤150 lines). Specs are behavior SoT.
+  - AGENTS.md is a navigation map (size via quality/gates.json agentRules.budgets). Specs are behavior SoT.
   - Durable docs: docs/future-architecture.md (target architecture); docs/roadmap.md + docs/roadmap/ (execution plan: index + one file per item, changed only via `pnpm roadmap`, skill `roadmap`)
 
   Security surface (tag changes that touch these):
@@ -77,7 +77,7 @@ rules:
       - [ ] pnpm stryker:diff
       - [ ] pnpm test:lhci when UI or bundle size is affected
       - [ ] UI in scope: browser smoke evidenced (empty + happy + primary scroll/interact via Playwright and/or MCP browser); skill `ui-review` pass
-      - [ ] Docs/rules sync: if behavior, commands, CI output, module map or the roadmap item changed → update README.md, AGENTS.md (≤150 lines), affected .cursor/rules/*.mdc and skills, docs/future-architecture.md notes, and annotate the roadmap item file (or `pnpm roadmap done <slug> --note`) where the shipped scope deviates; do not add alwaysApply rules without merging/removing another
+      - [ ] Docs/rules sync: if behavior, commands, CI output, module map or the roadmap item changed → update README.md, AGENTS.md (within agentRules.budgets), affected .cursor/rules/*.mdc and skills, docs/future-architecture.md notes, and annotate the roadmap item file (or `pnpm roadmap done <slug> --note`) where the shipped scope deviates; do not add alwaysApply rules without merging/removing another
       - [ ] pnpm audit:ci when package.json/lockfile or security-tagged change
       - [ ] Launch openspec-planning-reviewer was pass before apply (evidenced)
       - [ ] Launch Cursor subagent `openspec-implementation-reviewer`; resolve findings before archive

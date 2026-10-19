@@ -75,12 +75,29 @@
       {
         "path": "/*",
         "resourceSizes": [
-          { "resourceType": "document", "budget": 20 },
-          { "resourceType": "script", "budget": 350 },
-          { "resourceType": "stylesheet", "budget": 50 },
-          { "resourceType": "total", "budget": 500 }
+          {
+            "resourceType": "document",
+            "budget": 20
+          },
+          {
+            "resourceType": "script",
+            "budget": 350
+          },
+          {
+            "resourceType": "stylesheet",
+            "budget": 50
+          },
+          {
+            "resourceType": "total",
+            "budget": 500
+          }
         ],
-        "resourceCounts": [{ "resourceType": "third-party", "budget": 0 }]
+        "resourceCounts": [
+          {
+            "resourceType": "third-party",
+            "budget": 0
+          }
+        ]
       }
     ]
   },
@@ -100,5 +117,69 @@
     "gitleaks",
     "dependency-review",
     "analyze"
-  ]
+  ],
+  "agentRules": {
+    "budgets": [
+      {
+        "path": ".cursor/agents/openspec-design-reviewer.md",
+        "maxLines": 11,
+        "maxChars": 267
+      },
+      {
+        "path": ".cursor/agents/openspec-implementation-reviewer.md",
+        "maxLines": 60,
+        "maxChars": 5046
+      },
+      {
+        "path": ".cursor/agents/openspec-planning-reviewer.md",
+        "maxLines": 70,
+        "maxChars": 4509
+      },
+      {
+        "path": ".cursor/agents/openspec-proposal-reviewer.md",
+        "maxLines": 11,
+        "maxChars": 269
+      },
+      {
+        "path": ".cursor/commands/next-roadmap-item.md",
+        "maxLines": 77,
+        "maxChars": 5186
+      },
+      {
+        "path": ".cursor/rules/architecture.mdc",
+        "maxLines": 13,
+        "maxChars": 673
+      },
+      {
+        "path": ".cursor/rules/data-model.mdc",
+        "maxLines": 17,
+        "maxChars": 1366
+      },
+      {
+        "path": ".cursor/rules/git-finish.mdc",
+        "maxLines": 19,
+        "maxChars": 2532
+      },
+      {
+        "path": ".cursor/rules/overview.mdc",
+        "maxLines": 15,
+        "maxChars": 557
+      },
+      {
+        "path": ".cursor/rules/testing.mdc",
+        "maxLines": 22,
+        "maxChars": 1061
+      },
+      {
+        "path": "AGENTS.md",
+        "maxLines": 81,
+        "maxChars": 6094
+      },
+      {
+        "path": "openspec/config.yaml",
+        "maxLines": 120,
+        "maxChars": 15809
+      }
+    ]
+  }
 }

@@ -4,7 +4,7 @@ Navigation only. Per-change mandates: `openspec/config.yaml`. Behavior: `openspe
 
 ## Stack
 
-Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in chat / `.local_dev/` (gitignored).
+Vite + React 19 + TypeScript. Product/toolchain conventions: `.cursor/rules/overview.mdc`.
 
 ## Module map
 
@@ -63,23 +63,18 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 ## Docs
 
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
-- Execution plan (one OpenSpec change per item): index `docs/roadmap.md` + one file per item in `docs/roadmap/`; use `pnpm roadmap` (skill `roadmap`), never read it whole or hand-edit it. Process: `docs/roadmap/RULES.md`.
+- Execution plan: `docs/roadmap.md` + `docs/roadmap/` via `pnpm roadmap` (skill `roadmap`); process: `docs/roadmap/RULES.md`.
 
 ## Toolchain / Cursor Cloud
 
-Headless `cursor-agent -p` uses project `.cursor/cli.json` (allow/deny). Gate-file edits must be strictly stricter and listed in the design touch-set. The launcher (not the agent) must `source scripts/agent-env.sh` and start the agent with `--trust --force` so allowlisted tools are not stalled by Auto-review; `--force` still respects deny.
+Headless `cursor-agent -p`: project `.cursor/cli.json`; launcher must `source scripts/agent-env.sh` and start with `--trust --force` (deny still honored). Prefer preflight run card / `pnpm agent instructions` over denied raw OpenSpec reads. `pnpm agent stats <path>` exits 1 if peak context >300K or first-round input >400K.
 
-Exploration defaults (unattended `-p`): scoped grep ≤30 hits; offset/limit reads for files >400 lines; no re-read of an unchanged file; no TodoWrite; Task reviewers get skill set + `pnpm agent review-brief --out <file>` path only. Prefer the preflight run card / `pnpm agent instructions` over denied raw OpenSpec/agent reads. `pnpm agent stats <path>` prints per-round tokens (exit 1 if peak context >300K or first-round input >400K).
+Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`; no `.tool-versions` write). Verify/flake policy: `.cursor/rules/testing.mdc`. Finish/PR / no CI watch: `.cursor/rules/git-finish.mdc`. Unattended pipeline: `/next-roadmap-item`.
 
-Agent shells: `source scripts/agent-env.sh` once so asdf shims + Node from `.nvmrc` are on PATH (does not write `.tool-versions`). Run `pnpm check` until it prints only OK lines; Lefthook pre-push and CI `checks` call the same entry. Playwright stays separate (`test:e2e:changed:quiet` locally; full e2e in CI). Local `--repeat-each=3` only if a flake already failed then passed locally. `pnpm agent finish` opens/updates the PR and stops (no CI watch).
+Happy path needs no project MCP (`git` / `gh` / `pnpm` / `openspec`). Disable unused Cursor MCP servers. Quiet scripts are the baseline (optional local proxies are machine add-ons).
 
-Pipeline MCP: the unattended `/next-roadmap-item` happy path needs **no** project MCP (use shell `git` / `gh` / `pnpm` / `openspec`). Disable unused Cursor MCP servers for this repo so their tool schemas are not re-sent on every model call. Optional local shell-output proxies (e.g. rtk) are machine add-ons; CI and other agents do not have them, so the quiet scripts stay the baseline.
-
-`pnpm install` exits non-zero while `core.hooksPath` points at Cursor agent hooks, because `prepare` runs `lefthook install`. Install with `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev server: `pnpm exec vite --host 0.0.0.0 --port 5173` (an extra `--` makes Vite ignore `--host`).
+`pnpm install` fails while `core.hooksPath` points at Cursor agent hooks (`prepare` → lefthook). Use `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev: `pnpm exec vite --host 0.0.0.0 --port 5173` (extra `--` makes Vite ignore `--host`).
 
 ## Doc budget
 
-- One `AGENTS.md` (≤150 lines), no workflow checklists here.
-- ≤5 alwaysApply Cursor rules; short product invariants only.
-- Skills for repeatable workflows; specs for behavior.
-- Never weaken quality gates for any reason — see `openspec/config.yaml` quality bar.
+Sizes: `quality/gates.json` `agentRules.budgets` (pr-policy). Skills for workflows; specs for behavior. Quality bar: `openspec/config.yaml`.
