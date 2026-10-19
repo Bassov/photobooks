@@ -121,11 +121,6 @@
   "agentRules": {
     "budgets": [
       {
-        "path": ".cursor/agents/openspec-design-reviewer.md",
-        "maxLines": 11,
-        "maxChars": 267
-      },
-      {
         "path": ".cursor/agents/openspec-implementation-reviewer.md",
         "maxLines": 60,
         "maxChars": 5046
@@ -134,11 +129,6 @@
         "path": ".cursor/agents/openspec-planning-reviewer.md",
         "maxLines": 70,
         "maxChars": 4509
-      },
-      {
-        "path": ".cursor/agents/openspec-proposal-reviewer.md",
-        "maxLines": 11,
-        "maxChars": 269
       },
       {
         "path": ".cursor/commands/next-roadmap-item.md",
