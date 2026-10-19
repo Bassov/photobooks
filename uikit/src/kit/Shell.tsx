@@ -93,7 +93,8 @@ export function IndexPage() {
   React.useLayoutEffect(() => {
     window.scrollTo(0, init.y)
     if (init.last) document.querySelector<HTMLElement>(`[data-feature-link="${CSS.escape(init.last)}"]`)?.focus({ preventScroll: true })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   React.useEffect(() => {
     let raf = 0
     const on = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { if (onIndexRoute()) saveIndex({ y: Math.round(window.scrollY) }) }) }

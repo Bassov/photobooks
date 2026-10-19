@@ -32,7 +32,8 @@ export function Std({ init, features, view, cur = 2, sel, missing, top, left, ri
 }
 function AutoPick({ pick }: { pick: number | number[] }) {
   const st = useStudio()
-  React.useEffect(() => { const fs = st.doc.spreads[st.cur]?.frames ?? []; st.setSel((Array.isArray(pick) ? pick : [pick]).map((i) => fs[i]?.id).filter(Boolean) as string[]) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => { const fs = st.doc.spreads[st.cur]?.frames ?? []; st.setSel((Array.isArray(pick) ? pick : [pick]).map((i) => fs[i]?.id).filter(Boolean) as string[]) }, [])
   return null
 }
 export function DefaultFrameTab() {

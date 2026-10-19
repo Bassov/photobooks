@@ -36,7 +36,8 @@ function SiteViewer({ title = "Aleksandr’s photobooks", books = BOOKS.filter((
     if (s.page !== "book") return
     const k = (e: KeyboardEvent) => { if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1); if (e.key === "Escape") setS((x) => (x.lb ? { ...x, lb: false } : x)) }
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k)
-  }) // eslint-disable-line react-hooks/exhaustive-deps
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  })
   const book = BOOKS.find((b) => b.id === s.book)!
   return (
     <div className="relative flex h-full flex-col overflow-auto" style={{ background: c.bg, color: c.fg }} data-testid="site">

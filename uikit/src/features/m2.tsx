@@ -36,7 +36,8 @@ function Autosave({ fail = false, delay = 900 }: { fail?: boolean; delay?: numbe
       }, 450)
     }, delay)
     return () => clearTimeout(t)
-  }, [st.doc, st.dragging]) // eslint-disable-line react-hooks/exhaustive-deps
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [st.doc, st.dragging])
   return (
     <div className="absolute right-3 top-3 z-30 w-[250px] rounded-lg border bg-popover/95 p-3 text-xs shadow-md" data-testid="autosave-panel">
       <div className="mb-2 flex items-center gap-2 font-semibold"><Save className="size-3.5" />Autosave</div>

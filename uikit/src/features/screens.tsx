@@ -168,7 +168,8 @@ export function RelinkDialog({ isOpen, onClose, onResolve, rows: rows0 }: { isOp
   const [scan, setScan] = React.useState(-1)
   const [tab, setTab] = React.useState("problems")
   const [picker, setPicker] = React.useState<string | null>(null)
-  React.useEffect(() => { if (isOpen) { setRows(rows0); setScan(-1) } }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => { if (isOpen) { setRows(rows0); setScan(-1) } }, [isOpen])
   const rescan = () => {
     setScan(0); let i = 0
     const t = setInterval(() => { i += 5; setScan(i); if (i >= 100) { clearInterval(t); setScan(-1); setRows((r) => r.map((x) => (x.status === "missing" ? { ...x, found: true, note: "Found by hash in ~/Pictures/Summer 2025/beach" } : x))) } }, 70)
