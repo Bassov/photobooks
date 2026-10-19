@@ -1,10 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { TEMPLATE_IDS, type TemplateId } from '../core'
-import {
-  dispatchBookOp,
-  getSpreadTemplateId,
-  subscribeSpread,
-} from './bookStore'
+import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
+import { getSpreadTemplateId, subscribeSpread } from './bookStore'
 
 const TEMPLATE_LABELS: Record<TemplateId, string> = {
   'full-bleed': 'Full bleed',
@@ -20,16 +17,18 @@ export function SpreadTemplateBar({
   spreadId: string | null
   onAddSpread: () => void
 }) {
+  const readTemplateId = (): string | null =>
+    spreadId === null ? null : getSpreadTemplateId(spreadId)
   const templateId = useSyncExternalStore(
     (listener) =>
       spreadId === null ? () => undefined : subscribeSpread(spreadId, listener),
-    () => (spreadId === null ? null : getSpreadTemplateId(spreadId)),
-    () => (spreadId === null ? null : getSpreadTemplateId(spreadId)),
+    readTemplateId,
+    readTemplateId,
   )
 
   return (
     <div className="spread-template-bar">
-      <div role="radiogroup" aria-label="Spread template">
+      <div role="radiogroup" aria-label="Template for this spread">
         {TEMPLATE_IDS.map((id) => (
           <label key={id} className="spread-template-choice">
             <input
@@ -39,14 +38,7 @@ export function SpreadTemplateBar({
               checked={templateId === id}
               disabled={spreadId === null}
               onChange={() => {
-                if (spreadId === null) {
-                  return
-                }
-                dispatchBookOp({
-                  type: 'applyTemplate',
-                  spreadId,
-                  templateId: id,
-                })
+                applyMarkedSpreadTemplate(spreadId, id)
               }}
             />
             {TEMPLATE_LABELS[id]}

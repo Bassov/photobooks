@@ -33,7 +33,7 @@ export type BookOp =
       spreadId: string
       templateId: TemplateId
     }
-  | { type: 'addSpread'; index?: number; id?: string }
+  | { type: 'addSpread'; index?: number; id?: string; templateId?: string }
   | { type: 'removeSpread'; spreadId: string }
   | { type: 'moveSpread'; spreadId: string; toIndex: number }
   | { type: 'setTitle'; title: string }
@@ -61,12 +61,15 @@ export function applyBookOp(book: Book, op: BookOp): Book {
     case 'applyTemplate':
       return applyTemplate(book, op.spreadId, op.templateId)
     case 'addSpread': {
-      const options: { index?: number; id?: string } = {}
+      const options: { index?: number; id?: string; templateId?: string } = {}
       if (op.index !== undefined) {
         options.index = op.index
       }
       if (op.id !== undefined) {
         options.id = op.id
+      }
+      if (op.templateId !== undefined) {
+        options.templateId = op.templateId
       }
       return addSpread(book, options)
     }

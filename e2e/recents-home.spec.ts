@@ -390,7 +390,7 @@ test('edit then immediate Home persists the edit on reopen', async ({
   assert.equal(prepared.ok, true)
 
   await page
-    .getByRole('radiogroup', { name: 'Spread template' })
+    .getByRole('radiogroup', { name: 'Template for this spread' })
     .getByRole('radio', { name: '2-up' })
     .click()
   await page.getByTestId('go-home').click()
@@ -406,7 +406,7 @@ test('edit then immediate Home persists the edit on reopen', async ({
   })
   await expect(
     page
-      .getByRole('radiogroup', { name: 'Spread template' })
+      .getByRole('radiogroup', { name: 'Template for this spread' })
       .getByRole('radio', { name: '2-up' }),
   ).toBeChecked()
 })

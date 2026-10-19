@@ -35,6 +35,21 @@ export function selectMarkedSpreadId(
   return activeId !== null && mounted.includes(activeId) ? activeId : mounted[0]
 }
 
+/** Keep a just-added spread marked while its intersection ratio stays positive. */
+export function resolvePreferredActiveId(
+  preferredId: string | null,
+  ratios: ReadonlyMap<string, number>,
+): { activeId: string | null; preferredId: string | null } {
+  if (preferredId === null) {
+    return { activeId: null, preferredId: null }
+  }
+  const ratio = ratios.get(preferredId) ?? 0
+  if (ratio > 0) {
+    return { activeId: preferredId, preferredId }
+  }
+  return { activeId: null, preferredId: null }
+}
+
 export function spreadActiveIndex(
   markedId: string | undefined,
   spreadIds: readonly string[],

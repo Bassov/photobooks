@@ -28,7 +28,7 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
     '3',
   )
   await expect(
-    page.getByRole('radiogroup', { name: 'Spread template' }),
+    page.getByRole('radiogroup', { name: 'Template for this spread' }),
   ).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add spread' })).toBeVisible()
   const slots = await readSpreadSlots(page)
@@ -67,6 +67,51 @@ test('choosing 4-grid paints four placeholders on the active spread only', async
       .filter((_, index) => index !== activeIndex)
       .map((slot) => slot.placeholders),
   )
+  await assertDocumentFitsViewport(page)
+})
+
+test('add spread keeps the active spread template', async ({ page }) => {
+  await openSessionEditor(page)
+  const radio = page.getByRole('radio', { name: '4-grid' })
+  await radio.click()
+  await expect(radio).toBeChecked()
+  await page.getByRole('button', { name: 'Add spread' }).click()
+  await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+    'data-spread-count',
+    '4',
+  )
+  await expect
+    .poll(async () => {
+      const added = await readSpreadSlotAt(page, 3)
+      const checked = await page
+        .getByRole('radio', { name: '4-grid' })
+        .isChecked()
+      return (
+        added !== null &&
+        added.inScrollport &&
+        added.active &&
+        added.placeholders === 4 &&
+        checked
+      )
+    })
+    .toBe(true)
+  await assertDocumentFitsViewport(page)
+
+  const scroll = page.getByTestId('pasteboard-scroll')
+  await scroll.evaluate((el) => {
+    el.scrollTop = 0
+  })
+  await expect
+    .poll(async () => {
+      const first = await readSpreadSlotAt(page, 0)
+      const checked = await page
+        .getByRole('radio', { name: '4-grid' })
+        .isChecked()
+      return (
+        first !== null && first.active && first.placeholders === 4 && checked
+      )
+    })
+    .toBe(true)
   await assertDocumentFitsViewport(page)
 })
 
@@ -623,6 +668,31 @@ async function readSpreadSlots(page: Page): Promise<SpreadSlotSnapshot[]> {
       },
     )
   })
+}
+
+async function readSpreadSlotAt(
+  page: Page,
+  slotIndex: number,
+): Promise<SpreadSlotSnapshot | null> {
+  return page.getByTestId('pasteboard-scroll').evaluate((el, index) => {
+    const port = el.getBoundingClientRect()
+    const slot = el.querySelector(`[data-slot-index="${String(index)}"]`)
+    if (!(slot instanceof HTMLElement)) {
+      return null
+    }
+    const view = slot.querySelector('[data-testid="spread-view"]')
+    const widthPx =
+      view instanceof HTMLElement ? Number.parseFloat(view.style.width) : 0
+    const box = slot.getBoundingClientRect()
+    return {
+      placeholders: slot.querySelectorAll(
+        '[data-testid="spread-frame-placeholder"]',
+      ).length,
+      widthPx,
+      inScrollport: box.bottom > port.top && box.top < port.bottom,
+      active: slot.getAttribute('data-active') === 'true',
+    }
+  }, slotIndex)
 }
 
 interface SpreadViewMetrics {

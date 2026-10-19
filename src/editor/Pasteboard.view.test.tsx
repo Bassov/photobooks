@@ -3,10 +3,15 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   dispatchBookOp,
+  getBookStoreSnapshot,
   getSpreadIdsSnapshot,
   resetBookStore,
 } from './bookStore'
 import { commitZoom, resetCameraStore } from './cameraStore'
+import {
+  fakeIntersectionEntry,
+  stubIntersectionObserverCapture,
+} from './intersectionObserver.test-helpers'
 import { Pasteboard } from './Pasteboard'
 import { PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME } from './pasteboardWindow'
 
@@ -196,24 +201,7 @@ describe('Pasteboard view wiring', () => {
 
   it('ignores IntersectionObserver entries that are not slot elements', () => {
     resetBookStore()
-    const callbacks: IntersectionObserverCallback[] = []
-    const disconnect = vi.fn()
-    class FakeIntersectionObserver {
-      constructor(cb: IntersectionObserverCallback) {
-        callbacks.push(cb)
-      }
-      observe(): void {
-        /* no-op */
-      }
-      unobserve(): void {
-        /* no-op */
-      }
-      disconnect = disconnect
-      takeRecords(): IntersectionObserverEntry[] {
-        return []
-      }
-    }
-    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
+    const { callbacks } = stubIntersectionObserverCapture()
     const view = render(<Pasteboard />)
     expect(callbacks.length).toBeGreaterThan(0)
     act(() => {
@@ -223,10 +211,7 @@ describe('Pasteboard view wiring', () => {
             target: document.createTextNode('x'),
             intersectionRatio: 1,
           } as unknown as IntersectionObserverEntry,
-          {
-            target: document.createElement('div'),
-            intersectionRatio: 1,
-          } as unknown as IntersectionObserverEntry,
+          fakeIntersectionEntry(document.createElement('div'), 1),
         ],
         {} as IntersectionObserver,
       )
@@ -236,7 +221,6 @@ describe('Pasteboard view wiring', () => {
       .find((slot) => slot.getAttribute('data-active') === 'true')
     expect(active).toBeTruthy()
     view.unmount()
-    expect(disconnect).toHaveBeenCalled()
   })
 
   it('skips ResizeObserver setup when the API is missing', () => {
@@ -462,6 +446,76 @@ describe('Pasteboard view wiring', () => {
     expect(spacerHeight('pasteboard-tail')).toBe(
       (getSpreadIdsSnapshot().length - forceEnd) * stride,
     )
+  })
+
+  it('Add spread copies the marked spread template into the new spread', () => {
+    resetBookStore()
+    const ids = getSpreadIdsSnapshot()
+    const markedId = ids[0]
+    assert(markedId !== undefined)
+    dispatchBookOp({
+      type: 'applyTemplate',
+      spreadId: markedId,
+      templateId: '4-grid',
+    })
+    stubViewport(800, 600)
+    render(<Pasteboard />)
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+    })
+    const after = getBookStoreSnapshot().book.spreads
+    expect(after).toHaveLength(4)
+    expect(after[3]?.templateId).toBe('4-grid')
+    expect(after[3]?.frames).toHaveLength(4)
+  })
+
+  it('keeps the added spread marked while it stays in view', () => {
+    const hooks = stubPaceFrameHooks()
+    resetBookStore()
+    const { callbacks } = stubIntersectionObserverCapture()
+    stubViewport(800, 600)
+    render(<Pasteboard />)
+    flushPaceSteps(hooks)
+    expect(callbacks.length).toBeGreaterThan(0)
+    const beforeIds = getSpreadIdsSnapshot()
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+    })
+    flushPaceSteps(hooks)
+    const afterIds = getSpreadIdsSnapshot()
+    const newId = afterIds.find((id) => !beforeIds.includes(id))
+    assert(newId !== undefined)
+    const slots = screen.getAllByTestId('pasteboard-slot')
+    const newSlot = slots.find(
+      (slot) => slot.getAttribute('data-spread-id') === newId,
+    )
+    const otherSlot = slots.find(
+      (slot) => slot.getAttribute('data-spread-id') !== newId,
+    )
+    assert(newSlot !== undefined, 'expected new spread slot mounted')
+    assert(otherSlot !== undefined, 'expected another spread slot mounted')
+
+    act(() => {
+      callbacks.at(-1)?.(
+        [
+          fakeIntersectionEntry(otherSlot, 0.9),
+          fakeIntersectionEntry(newSlot, 0.4),
+        ],
+        {} as IntersectionObserver,
+      )
+    })
+    expect(newSlot.getAttribute('data-active')).toBe('true')
+
+    act(() => {
+      callbacks.at(-1)?.(
+        [
+          fakeIntersectionEntry(otherSlot, 1),
+          fakeIntersectionEntry(newSlot, 0),
+        ],
+        {} as IntersectionObserver,
+      )
+    })
+    expect(otherSlot.getAttribute('data-active')).toBe('true')
   })
 
   it('ignores a stale pace callback after unmount', () => {

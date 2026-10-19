@@ -10,6 +10,7 @@ import {
   pasteboardWindowKey,
   pasteboardWorldWidthPx,
   readPasteboardSlotEntry,
+  resolvePreferredActiveId,
   resolveTrackedScrollTop,
   selectMarkedSpreadId,
   shouldRenderSpacer,
@@ -180,5 +181,36 @@ describe('readPasteboardSlotEntry', () => {
     expect(
       readPasteboardSlotEntry({ target: slot, intersectionRatio: 0.75 }),
     ).toEqual({ id: 'spread-2', ratio: 0.75, index: 2 })
+  })
+})
+
+describe('resolvePreferredActiveId', () => {
+  it('keeps the preferred id while its ratio is positive', () => {
+    const ratios = new Map([
+      ['a', 0.9],
+      ['b', 0.4],
+    ])
+    expect(resolvePreferredActiveId('b', ratios)).toEqual({
+      activeId: 'b',
+      preferredId: 'b',
+    })
+  })
+
+  it('clears the preferred id when its ratio is zero or missing', () => {
+    expect(resolvePreferredActiveId('b', new Map([['a', 1]]))).toEqual({
+      activeId: null,
+      preferredId: null,
+    })
+    expect(resolvePreferredActiveId('b', new Map([['b', 0]]))).toEqual({
+      activeId: null,
+      preferredId: null,
+    })
+  })
+
+  it('is a no-op when nothing is preferred', () => {
+    expect(resolvePreferredActiveId(null, new Map([['a', 1]]))).toEqual({
+      activeId: null,
+      preferredId: null,
+    })
   })
 })
