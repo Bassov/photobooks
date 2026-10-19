@@ -1,3 +1,4 @@
+import { scanMemoryFilesInWorker } from './scanClient'
 import type {
   AssetSource,
   AssetSourceFailure,
@@ -72,24 +73,27 @@ export function createMemoryAssetSource(): MemoryAssetSource {
     setPermissionRequired(required: boolean) {
       permissionRequired = required
     },
-    scanRoot(rootId) {
-      return Promise.resolve(
-        gate(() => {
-          const root = getRoot(rootId)
-          if (!root) {
-            return failure('not-found')
-          }
-          const entries: ScannedEntry[] = [...root.entries()]
-            .filter(([, file]) => file.corrupted !== true)
-            .map(([relativePath, file]) => ({
-              relativePath,
-              byteSize: file.bytes.byteLength,
-              mtimeMs: file.mtimeMs,
-            }))
-          entries.sort((a, b) => a.relativePath.localeCompare(b.relativePath))
-          return success(entries)
-        }),
-      )
+    async scanRoot(rootId) {
+      if (permissionRequired) {
+        return failure('permission-required')
+      }
+      const root = getRoot(rootId)
+      if (!root) {
+        return failure('not-found')
+      }
+      const files = [...root.entries()]
+        .filter(([, file]) => file.corrupted !== true)
+        .map(([relativePath, file]) => ({
+          relativePath,
+          byteSize: file.bytes.byteLength,
+          mtimeMs: file.mtimeMs,
+        }))
+      try {
+        const entries: ScannedEntry[] = await scanMemoryFilesInWorker(files)
+        return success(entries)
+      } catch {
+        return failure('corrupted')
+      }
     },
     readForHash(rootId, relativePath) {
       return Promise.resolve(

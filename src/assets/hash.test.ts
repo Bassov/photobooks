@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { resetAssetPool } from '../photo/assetPool'
+import {
+  beginMetadataJob,
+  endMetadataJob,
+  resetPoolCoordination,
+} from '../photo/poolCoordination'
 import { computeSha256Hex } from './hashDigest'
 import {
   hashContent,
@@ -68,6 +73,7 @@ function mockHashWorker(): void {
 describe('hash helpers', () => {
   afterEach(() => {
     resetAssetPool()
+    resetPoolCoordination()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -176,6 +182,21 @@ describe('hash helpers', () => {
     mockHashWorker()
     const hash = await hashContent(new ArrayBuffer(0))
     expect(hash).toBe(EMPTY_HASH)
+  })
+
+  it('waits for pending metadata before hashing', async () => {
+    mockHashWorker()
+    beginMetadataJob()
+    let hashed = false
+    const pending = hashContent(new ArrayBuffer(0)).then((hash) => {
+      hashed = true
+      return hash
+    })
+    await Promise.resolve()
+    expect(hashed).toBe(false)
+    endMetadataJob()
+    await expect(pending).resolves.toBe(EMPTY_HASH)
+    expect(hashed).toBe(true)
   })
 
   it('resolveContentHash skips read on fast path', async () => {

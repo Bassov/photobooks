@@ -10,7 +10,18 @@ export { createFsaAssetSource, type FsaAssetSource } from './fsa/fsaAssetSource'
 export type { AssetDirectoryHandle, AssetFileHandle } from './fsa/handles'
 export { createMemoryAssetDirectory } from './fsa/memoryDirectory'
 export { hashContent, resolveContentHash, shouldReuseContentHash } from './hash'
-export { matchAssets, type MatchAssetsResult } from './match'
+export {
+  matchAssets,
+  type AssetMatchStatus,
+  type MatchAssetsResult,
+} from './match'
+export {
+  extractAssetMetadata,
+  mapExifToAssetMetadata,
+  type ExtractAssetMetadataOptions,
+  type ExtractedAssetMetadata,
+} from './extractAssetMetadata'
+export { resetScanWorker } from './scanClient'
 export type {
   DerivedCache,
   DerivedCacheEntry,
