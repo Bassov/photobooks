@@ -83,6 +83,9 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: Assert app bundle has no uikit modules
+        run: pnpm assert:no-uikit-in-app
+
       - name: Assert dist isolation headers
         run: node scripts/assert-dist-headers.mjs
 

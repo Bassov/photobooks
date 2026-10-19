@@ -19,6 +19,7 @@ export default tseslint.config(
       '.lighthouseci',
       'lighthouserc.cjs',
       '.stryker-tmp',
+      'uikit/**',
     ],
   },
   {

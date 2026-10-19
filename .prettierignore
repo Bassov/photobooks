@@ -8,3 +8,4 @@ test-results
 playwright-report
 .lighthouseci
 .stryker-tmp
+uikit/**
