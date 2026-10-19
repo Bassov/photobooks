@@ -46,6 +46,13 @@ describe('selectMutableChanges', () => {
   ])('does not mutate %s', (file) => {
     expect(selectMutableChanges([file], patterns)).toEqual([])
   })
+
+  it.each(['src/core/index.ts', 'src/project/index.ts', 'src/assets/index.ts'])(
+    'mutates barrel %s (re-export excludes removed)',
+    (file) => {
+      expect(selectMutableChanges([file], patterns)).toEqual([file])
+    },
+  )
 })
 
 describe('findUnclassifiedProductionFiles', () => {

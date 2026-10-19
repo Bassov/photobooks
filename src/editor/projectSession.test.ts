@@ -39,6 +39,7 @@ import {
   openLibrary,
   regrantLibrary,
   regrantLibraryWithHandleForTests,
+  renameBookInLibrary,
   resetProjectSessionForTests,
   saveBookNow,
   selectRecentLibrary,
@@ -457,6 +458,294 @@ describe('projectSession', () => {
     expect(restored).toEqual({ ok: true, value: null })
     expect(getEditorStatus()).toContain('permission-required')
     expect(getProjectSessionSnapshot().accessPhase).toBe('permission-required')
+  })
+
+  it('createBookInLibrary stores title and rename updates it', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    const attached = await attachLibraryForTests({ storage, session })
+    expect(attached.ok).toBe(true)
+
+    const created = await createBookInLibrary('  Summer  ')
+    assert(created.ok, 'expected create with title')
+    expect(created.value.title).toBe('Summer')
+    expect(getBookStoreSnapshot().book.title).toBe('Summer')
+
+    const renamed = await renameBookInLibrary(created.value.id, 'Trip')
+    expect(renamed).toEqual({ ok: true, value: undefined })
+    expect(getBookStoreSnapshot().book.title).toBe('Trip')
+    expect(getProjectSessionSnapshot().dirty).toBe(true)
+
+    saveBookNow()
+    await new Promise<void>((resolve) => {
+      const started = Date.now()
+      const tick = (): void => {
+        const snap = getProjectSessionSnapshot()
+        if (snap.savePhase === 'idle' && !snap.dirty) {
+          resolve()
+          return
+        }
+        if (Date.now() - started > 5_000) {
+          resolve()
+          return
+        }
+        setTimeout(tick, 10)
+      }
+      tick()
+    })
+
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok, 'expected load after rename')
+    expect(loaded.value.title).toBe('Trip')
+  })
+
+  it('home rename persists without swapping the active editor book', async () => {
+    const handle = { name: 'TitleLib' }
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-titles',
+      handle,
+    })
+    const first = await createBookInLibrary('Active')
+    assert(first.ok, 'expected first book')
+    const second = await createBookInLibrary('Other')
+    assert(second.ok, 'expected second book')
+    expect(getProjectSessionSnapshot().bookId).toBe(second.value.id)
+
+    await leaveEditorForHome()
+    expect(getProjectSessionSnapshot().libraryOpen).toBe(false)
+
+    const renamed = await renameBookInLibrary(
+      first.value.id,
+      'FromHome',
+      'lib-titles',
+    )
+    expect(renamed).toEqual({ ok: true, value: undefined })
+
+    const listed = await selectRecentLibrary('lib-titles')
+    assert(listed.ok, 'expected list after home rename')
+    expect(listed.value).toEqual(
+      expect.arrayContaining([
+        { id: first.value.id, title: 'FromHome' },
+        { id: second.value.id, title: 'Other' },
+      ]),
+    )
+
+    const loaded = await storage.loadBook(first.value.id)
+    assert(loaded.ok, 'expected load of renamed book')
+    expect(loaded.value.title).toBe('FromHome')
+    const other = await storage.loadBook(second.value.id)
+    assert(other.ok, 'expected other book unchanged')
+    expect(other.value.title).toBe('Other')
+  })
+
+  it('home rename refuses when the book lock is held elsewhere', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-lock',
+      handle: { name: 'RenameLock' },
+    })
+    const created = await createBookInLibrary('Locked')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    const held = await holdExternalBookLockForTests(created.value.id)
+    expect(held).toEqual({ ok: true, value: undefined })
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'ShouldFail',
+      'lib-rename-lock',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'locked-elsewhere' })
+    expect(getProjectSessionSnapshot().homeError).toBe(
+      'This book is open in another tab. Close it there and try again.',
+    )
+
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok, 'expected load after refused rename')
+    expect(loaded.value.title).toBe('Locked')
+  })
+
+  it('home rename no-ops when the stored title already matches', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-same',
+      handle: { name: 'SameTitle' },
+    })
+    const created = await createBookInLibrary('Same')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      '  Same  ',
+      'lib-rename-same',
+    )
+    expect(renamed).toEqual({ ok: true, value: undefined })
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok, 'expected load')
+    expect(loaded.value.title).toBe('Same')
+  })
+
+  it('home rename fails without a recent library when unbound', async () => {
+    resetProjectSessionForTests()
+    const renamed = await renameBookInLibrary('missing-book', 'X')
+    expect(renamed).toEqual({ ok: false, code: 'not-found' })
+    expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
+  })
+
+  it('home rename fails when recall throws', async () => {
+    const storage = createMemoryLibraryStorage()
+    const base = createMemorySessionState()
+    const session = {
+      ...base,
+      recallLibraryHandle: () => {
+        throw new Error('recall boom')
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-throw',
+      handle: { name: 'Throw' },
+    })
+    const created = await createBookInLibrary('X')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Nope',
+      'lib-rename-throw',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'not-found' })
+    expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
+  })
+
+  it('home rename fails when recall returns not-found', async () => {
+    const storage = createMemoryLibraryStorage()
+    const base = createMemorySessionState()
+    let blockRecall = false
+    const session = {
+      ...base,
+      recallLibraryHandle: (id: string) => {
+        if (blockRecall) {
+          return Promise.resolve({
+            ok: false as const,
+            code: 'not-found' as const,
+          })
+        }
+        return base.recallLibraryHandle(id)
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-miss',
+      handle: { name: 'Miss' },
+    })
+    const created = await createBookInLibrary('X')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+    blockRecall = true
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Nope',
+      'lib-rename-miss',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'not-found' })
+    expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
+  })
+
+  it('home rename fails when loadBook fails after lock', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-load',
+      handle: { name: 'LoadFail' },
+    })
+    const created = await createBookInLibrary('Load')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    storage.setPermissionRequired(true)
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Next',
+      'lib-rename-load',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'permission-required' })
+    expect(getProjectSessionSnapshot().homeError).toMatch(/Folder access/i)
+  })
+
+  it('home rename fails when saveBook fails after lock', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-save',
+      handle: { name: 'SaveFail' },
+    })
+    const created = await createBookInLibrary('Save')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    storage.setLockedElsewhere(true)
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Next',
+      'lib-rename-save',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'locked-elsewhere' })
+    expect(getProjectSessionSnapshot().homeError).toBe(
+      'This book is open in another tab. Close it there and try again.',
+    )
   })
 
   it('exposes the project test API on window', () => {

@@ -48,6 +48,9 @@ test('save, reload, and restore keep gallery ids', async ({ page }) => {
     timeout: 15_000,
   })
   await expect(page.getByTestId('save-book')).toBeEnabled()
+  page.once('dialog', (dialog) => {
+    void dialog.accept('Save restore')
+  })
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
   await expect(page.getByTestId('save-book')).toBeEnabled()
@@ -189,6 +192,9 @@ test('bulk library import reload hydrates thumbs across the filmstrip', async ({
   await page.goto('/?testLibrary=1')
   await expect(page.getByTestId('create-book')).toBeEnabled({
     timeout: 15_000,
+  })
+  page.once('dialog', (dialog) => {
+    void dialog.accept('Bulk import')
   })
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
@@ -382,8 +388,12 @@ test('New book confirm accept replaces content with an empty book', async ({
     timeout: 30_000,
   })
 
-  page.once('dialog', (dialog) => {
-    void dialog.accept()
+  page.on('dialog', (dialog) => {
+    if (dialog.type() === 'confirm') {
+      void dialog.accept()
+      return
+    }
+    void dialog.accept('Replacement')
   })
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')

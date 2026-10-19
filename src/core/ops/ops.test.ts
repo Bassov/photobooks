@@ -404,6 +404,18 @@ describe('applyBookOp', () => {
 
     book = applyBookOp(book, { type: 'removeFromGallery', assetId: 'a' })
     expect(book.gallery).toEqual(['b'])
+
+    book = applyBookOp(book, { type: 'setTitle', title: 'Summer' })
+    expect(book.title).toBe('Summer')
+    const sameTitle = applyBookOp(book, { type: 'setTitle', title: 'Summer' })
+    expect(sameTitle).toBe(book)
+
+    book = applyBookOp(book, {
+      type: 'addSpread',
+      index: 0,
+      id: 'front',
+    })
+    expect(book.spreads[0]?.id).toBe('front')
   })
 })
 

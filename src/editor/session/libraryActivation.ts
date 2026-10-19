@@ -1,5 +1,6 @@
 import type { Book } from '../../core'
 import type {
+  BookSummary,
   LibraryStorage,
   SessionDirectoryHandle,
   StorageFailureCode,
@@ -90,7 +91,7 @@ export interface LibraryActivation {
   activateLoadedBook: (book: Book) => Promise<StorageResult<Book>>
   selectRecentLibrary: (
     recentLibraryId: string,
-  ) => Promise<StorageResult<readonly { id: string }[]>>
+  ) => Promise<StorageResult<readonly BookSummary[]>>
   openBookFromHome: (
     recentLibraryId: string,
     nextBookId: string,
@@ -418,7 +419,7 @@ export function createLibraryActivation(
 
   async function selectRecentLibrary(
     recentLibraryId: string,
-  ): Promise<StorageResult<readonly { id: string }[]>> {
+  ): Promise<StorageResult<readonly BookSummary[]>> {
     const result = await host.withActionBusy(async () => {
       host.setHomeError(null)
       let recalled: StorageResult<SessionDirectoryHandle>

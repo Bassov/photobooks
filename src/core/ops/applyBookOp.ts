@@ -36,6 +36,7 @@ export type BookOp =
   | { type: 'addSpread'; index?: number; id?: string }
   | { type: 'removeSpread'; spreadId: string }
   | { type: 'moveSpread'; spreadId: string; toIndex: number }
+  | { type: 'setTitle'; title: string }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -73,5 +74,11 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return removeSpread(book, op.spreadId)
     case 'moveSpread':
       return moveSpread(book, op.spreadId, op.toIndex)
+    case 'setTitle': {
+      if (book.title === op.title) {
+        return book
+      }
+      return { ...book, title: op.title }
+    }
   }
 }
