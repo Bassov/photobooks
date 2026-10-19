@@ -8,7 +8,10 @@ import {
   buildMutationSummaryMarkdown,
   collectDisablesFromText,
   formatSurvivedSample,
+  listNoCoverageSamples,
+  listUnmutatedChangedFiles,
   mutationScore,
+  resolveChangedFilesForSummary,
   runStrykerPrSummaryCli,
   summarizeMutationFiles,
 } from './stryker-pr-summary.mjs'
@@ -191,12 +194,86 @@ describe('stryker-pr-summary', () => {
         '',
         '- `src/a.ts`: justified reason ok',
         '',
+        '### NoCoverage mutants',
+        '',
+        '- `src/a.ts:?` ',
+        '',
         '### Sample survived mutants',
         '',
         '- `src/a.ts:9` m1',
         '',
       ].join('\n'),
     )
+  })
+
+  it('lists NoCoverage with line/mutator and unmutated changed files', () => {
+    const md = buildMutationSummaryMarkdown({
+      files: {
+        'src/a.ts': {
+          mutants: [
+            {
+              status: 'NoCoverage',
+              location: { start: { line: 4 } },
+              mutatorName: 'BooleanLiteral',
+            },
+          ],
+        },
+        'src/b.ts': { mutants: [] },
+      },
+      changedFiles: ['src/a.ts', 'src/b.ts', 'src/c.ts'],
+    })
+    expect(md).toContain('### NoCoverage mutants')
+    expect(md).toContain('- `src/a.ts:4` BooleanLiteral')
+    expect(md).toContain('### Changed files not mutated')
+    expect(md).toContain('- `src/b.ts`')
+    expect(md).toContain('- `src/c.ts`')
+  })
+
+  it('resolveChangedFilesForSummary prefers env then mutate-files list', () => {
+    expect(
+      resolveChangedFilesForSummary(
+        { STRYKER_CHANGED_FILES: ' a.ts \n\nb.ts\n' },
+        { exists: () => false },
+      ),
+    ).toEqual(['a.ts', 'b.ts'])
+    expect(
+      resolveChangedFilesForSummary(
+        {},
+        {
+          exists: (p) => p === 'reports/mutation/mutate-files.txt',
+          read: () => 'x.ts\n\ny.ts\n',
+        },
+      ),
+    ).toEqual(['x.ts', 'y.ts'])
+    expect(
+      resolveChangedFilesForSummary({}, { exists: () => false }),
+    ).toBeUndefined()
+    expect(
+      resolveChangedFilesForSummary(
+        { STRYKER_CHANGED_FILES: '' },
+        {
+          exists: () => false,
+        },
+      ),
+    ).toBeUndefined()
+  })
+
+  it('resolveChangedFilesForSummary default read uses utf8 mutate list', () => {
+    const dir = tmpDir()
+    const listPath = path.join(dir, 'mutate-files.txt')
+    fs.writeFileSync(listPath, 'z.ts\n', 'utf8')
+    expect(
+      resolveChangedFilesForSummary({}, { mutateListPath: listPath }),
+    ).toEqual(['z.ts'])
+  })
+
+  it('list helpers treat non-array mutants as empty', () => {
+    expect(listNoCoverageSamples({ 'src/a.ts': { mutants: null } })).toEqual([])
+    expect(
+      listUnmutatedChangedFiles(['src/a.ts'], {
+        'src/a.ts': { mutants: null },
+      }),
+    ).toEqual(['src/a.ts'])
   })
 
   it('runStrykerPrSummaryCli on real tmp report lists disables and writes summary', () => {

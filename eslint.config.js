@@ -19,6 +19,9 @@ export default tseslint.config(
       '.lighthouseci',
       'lighthouserc.cjs',
       '.stryker-tmp',
+      'uikit/**',
+      // Path-layout fixtures for check-test-weakening inventory (not real tests).
+      'testdata/test-weakening-inventory/**',
     ],
   },
   {

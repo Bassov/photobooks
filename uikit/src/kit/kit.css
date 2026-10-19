@@ -1,0 +1,4 @@
+/* Kit-only chrome: demo frames get editor-density panel widths */
+.kit-demo { --panel-left: 188px; --panel-right: 264px; --topbar: 48px; --thumb: 76px; }
+html { scroll-behavior: auto; }
+body { min-width: 1280px; }
