@@ -623,6 +623,211 @@ jobs:
     }
   })
 
+  it('CLI --pr-body-env reads named env and skips when unset', () => {
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- **Done when:** hard\n`
+    const soft = `# demo\nStatus: open\n- **Done when:** soft\n`
+    const root = tmpDir()
+    const baseTree = baseFiles({ [item]: base })
+    const headTree = baseFiles({ [item]: soft })
+    writeTree(path.join(root, 'base'), baseTree)
+    writeTree(path.join(root, 'head'), headTree)
+    const envName = 'GATE_RATCHET_TEST_PR_BODY'
+    const prev = process.env[envName]
+    const prevPolicy = process.env.PR_POLICY_BODY
+    delete process.env.PR_POLICY_BODY
+    try {
+      process.env[envName] =
+        'Owner-approved scope change: https://example.com/from-env'
+      const ok = runGateRatchetCli([
+        '--cwd',
+        root,
+        '--base-dir',
+        'base',
+        '--head-dir',
+        'head',
+        '--branch',
+        'feat/demo-slug',
+        '--pr-body-env',
+        envName,
+      ])
+      expect(ok).toBe(0)
+
+      delete process.env[envName]
+      const missing = runGateRatchetCli([
+        '--cwd',
+        root,
+        '--base-dir',
+        'base',
+        '--head-dir',
+        'head',
+        '--branch',
+        'feat/demo-slug',
+        '--pr-body-env',
+        envName,
+      ])
+      expect(missing).toBe(1)
+
+      process.env[envName] = ''
+      const emptyEnv = runGateRatchetCli([
+        '--cwd',
+        root,
+        '--base-dir',
+        'base',
+        '--head-dir',
+        'head',
+        '--branch',
+        'feat/demo-slug',
+        '--pr-body-env',
+        envName,
+      ])
+      expect(emptyEnv).toBe(1)
+    } finally {
+      if (prev === undefined) delete process.env[envName]
+      else process.env[envName] = prev
+      if (prevPolicy === undefined) delete process.env.PR_POLICY_BODY
+      else process.env.PR_POLICY_BODY = prevPolicy
+    }
+  })
+
+  it('CLI PR_POLICY_BODY env applies when no --pr-body flags', () => {
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- **Done when:** hard\n`
+    const root = tmpDir()
+    writeTree(path.join(root, 'base'), baseFiles({ [item]: base }))
+    writeTree(
+      path.join(root, 'head'),
+      baseFiles({
+        [item]: `# demo\nStatus: open\n- **Done when:** soft\n`,
+      }),
+    )
+    const prev = process.env.PR_POLICY_BODY
+    const prevBranch = process.env.PR_POLICY_BRANCH
+    const prevGh = process.env.GITHUB_HEAD_REF
+    try {
+      process.env.PR_POLICY_BODY =
+        'Owner-approved scope change: https://example.com/policy'
+      delete process.env.PR_POLICY_BRANCH
+      delete process.env.GITHUB_HEAD_REF
+      const code = runGateRatchetCli([
+        '--cwd',
+        root,
+        '--base-dir',
+        'base',
+        '--head-dir',
+        'head',
+        '--branch',
+        'feat/demo-slug',
+      ])
+      expect(code).toBe(0)
+
+      delete process.env.PR_POLICY_BODY
+      // unset: should fail without approval
+      const unset = runGateRatchetCli([
+        '--cwd',
+        root,
+        '--base-dir',
+        'base',
+        '--head-dir',
+        'head',
+        '--branch',
+        'feat/demo-slug',
+      ])
+      expect(unset).toBe(1)
+    } finally {
+      if (prev === undefined) delete process.env.PR_POLICY_BODY
+      else process.env.PR_POLICY_BODY = prev
+      if (prevBranch === undefined) delete process.env.PR_POLICY_BRANCH
+      else process.env.PR_POLICY_BRANCH = prevBranch
+      if (prevGh === undefined) delete process.env.GITHUB_HEAD_REF
+      else process.env.GITHUB_HEAD_REF = prevGh
+    }
+  })
+
+  it('CLI branch falls back to PR_POLICY_BRANCH then GITHUB_HEAD_REF', () => {
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- **Done when:** hard\n`
+    const soft = `# demo\nStatus: open\n- **Done when:** soft\n`
+    const root = tmpDir()
+    writeTree(path.join(root, 'base'), baseFiles({ [item]: base }))
+    writeTree(path.join(root, 'head'), baseFiles({ [item]: soft }))
+    const prevBranch = process.env.PR_POLICY_BRANCH
+    const prevGh = process.env.GITHUB_HEAD_REF
+    const prevBody = process.env.PR_POLICY_BODY
+    try {
+      delete process.env.PR_POLICY_BODY
+      delete process.env.GITHUB_HEAD_REF
+      process.env.PR_POLICY_BRANCH = 'feat/demo-slug'
+      expect(
+        runGateRatchetCli([
+          '--cwd',
+          root,
+          '--base-dir',
+          'base',
+          '--head-dir',
+          'head',
+        ]),
+      ).toBe(1)
+
+      delete process.env.PR_POLICY_BRANCH
+      process.env.GITHUB_HEAD_REF = 'feat/demo-slug'
+      expect(
+        runGateRatchetCli([
+          '--cwd',
+          root,
+          '--base-dir',
+          'base',
+          '--head-dir',
+          'head',
+        ]),
+      ).toBe(1)
+    } finally {
+      if (prevBranch === undefined) delete process.env.PR_POLICY_BRANCH
+      else process.env.PR_POLICY_BRANCH = prevBranch
+      if (prevGh === undefined) delete process.env.GITHUB_HEAD_REF
+      else process.env.GITHUB_HEAD_REF = prevGh
+      if (prevBody === undefined) delete process.env.PR_POLICY_BODY
+      else process.env.PR_POLICY_BODY = prevBody
+    }
+  })
+
+  it('CLI --pr-body-env is ignored when --pr-body is present', () => {
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- **Done when:** hard\n`
+    const root = tmpDir()
+    writeTree(path.join(root, 'base'), baseFiles({ [item]: base }))
+    writeTree(
+      path.join(root, 'head'),
+      baseFiles({
+        [item]: `# demo\nStatus: open\n- **Done when:** soft\n`,
+      }),
+    )
+    const envName = 'GATE_RATCHET_TEST_PR_BODY2'
+    const prev = process.env[envName]
+    try {
+      process.env[envName] =
+        'Owner-approved scope change: https://example.com/should-not-win'
+      const code = runGateRatchetCli([
+        '--cwd',
+        root,
+        '--base-dir',
+        'base',
+        '--head-dir',
+        'head',
+        '--branch',
+        'feat/demo-slug',
+        '--pr-body',
+        '',
+        '--pr-body-env',
+        envName,
+      ])
+      expect(code).toBe(1)
+    } finally {
+      if (prev === undefined) delete process.env[envName]
+      else process.env[envName] = prev
+    }
+  })
+
   it('FIXTURE renamed-title-same-body passes', () => {
     expect(FIXTURE_IDS).toContain('renamed-title-same-body')
     const body = '() => { expect(1).toBe(1) }'
@@ -674,7 +879,7 @@ jobs:
     expect(FIXTURE_IDS).toContain('checkbox-done-note')
     const item = 'docs/roadmap/M2.1/demo-slug.md'
     const base = `# demo\nStatus: open\n- [ ] A\n`
-    const head = `# demo\nStatus: done\n- [x] A\n\n## Done\nShipped.\n`
+    const head = `# demo\nStatus: done\n- [x] A\n\n## Done note\nShipped.\n`
     const { code, result } = cliRatchet(
       { [item]: head },
       { [item]: base },
@@ -684,6 +889,59 @@ jobs:
       result.violations.filter((v) => v.ruleId === 'item-criteria-loosened'),
     ).toEqual([])
     expect(code).toBe(0)
+  })
+
+  it('FIXTURE done-when-heading-bypass fails pr-policy', () => {
+    expect(FIXTURE_IDS).toContain('done-when-heading-bypass')
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- [ ] A\n`
+    const head = `${base}\n## Done when (revised)\n\nOnly lint passes; mutation bar deferred.\n`
+    const { code, result } = cliRatchet(
+      { [item]: head },
+      { [item]: base },
+      { branch: 'feat/demo-slug', prBody: '' },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'item-criteria-loosened'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE blank-done-when-bypass fails pr-policy', () => {
+    expect(FIXTURE_IDS).toContain('blank-done-when-bypass')
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- [ ] A\n`
+    const head = `${base}\n\n- **Done when:** lint passes only\n`
+    const { code, result } = cliRatchet(
+      { [item]: head },
+      { [item]: base },
+      { branch: 'feat/demo-slug', prBody: '' },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'item-criteria-loosened'),
+    ).toBe(true)
+  })
+
+  it('Gate ratchet workflow run: has no PR-controlled ${{ }} expressions', () => {
+    const yml = fs.readFileSync(
+      path.join(REPO_ROOT, '.github/workflows/pr-policy.yml'),
+      'utf8',
+    )
+    const stepAt = yml.indexOf('name: Gate ratchet (base script vs head tree)')
+    expect(stepAt).toBeGreaterThanOrEqual(0)
+    const after = yml.slice(stepAt)
+    const runAt = after.indexOf('\n        run:')
+    expect(runAt).toBeGreaterThanOrEqual(0)
+    const nextStep = after.slice(runAt + 1).search(/\n      - name:/)
+    const runBlock =
+      nextStep === -1
+        ? after.slice(runAt)
+        : after.slice(runAt, runAt + 1 + nextStep)
+    expect(runBlock).not.toMatch(/\$\{\{\s*github\.head_ref/)
+    expect(runBlock).not.toMatch(/\$\{\{\s*github\.event\.pull_request\./)
+    expect(runBlock).toContain('--base-ref "$PR_POLICY_BASE_SHA"')
+    expect(runBlock).not.toContain('--branch')
   })
 
   it('comment-only exit 1 does not satisfy failOnNeeds', () => {

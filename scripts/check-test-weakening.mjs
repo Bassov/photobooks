@@ -15,16 +15,103 @@ export const WEAKENING_SUFFIXES = Object.freeze([
 ])
 
 export const TEST_ROOT_NAMES = Object.freeze(['test', 'it', 'describe'])
+export const TEST_ROOT_TEST = 'test'
+export const TEST_ROOT_IT = 'it'
+export const TEST_ROOT_DESCRIBE = 'describe'
+export const TEST_CONFIGURE = 'configure'
 
 export const OWNER_APPROVAL_PREFIX = 'Owner-approved scope change:'
+
+/** Empty string pin — asserted in unit tests. */
+export const EMPTY_STRING = ''
+
+/** Path / extension needles — exact values pinned by unit tests. */
+export const PATHS = Object.freeze({
+  winSep: '\\',
+  posixSep: '/',
+  nodeModules: 'node_modules/',
+  burnInFixtures: '/burn-in-fixtures/',
+  srcPrefix: 'src/',
+  scriptsPrefix: 'scripts/',
+  e2ePrefix: 'e2e/',
+  testDot: '.test.',
+  extTs: '.ts',
+  extTsx: '.tsx',
+  extMjs: '.mjs',
+  extJs: '.js',
+  specTsSuffix: '.spec.ts',
+  roadmapPrefix: 'docs/roadmap/',
+  mdSuffix: '.md',
+  introBase: 'INTRO',
+  readmeBase: 'README',
+  indexTs: '/index.ts',
+})
+
+export const RETRIES_KEY = 'retries'
+
+export const STATUS_PREFIX = 'Status:'
+export const STATUS_DONE = 'Status: done'
+export const DONE_NOTE_H2 = '## Done note'
+export const DONE_NOTE_PREFIX = 'Done note:'
+export const DEFAULT_PARSE_FILENAME = 'file.ts'
+
+export const CHECKBOX_TODO = '- [ ]'
+export const CHECKBOX_DONE = '- [x]'
+
+export const TYPEOF_STRING = 'string'
+export const TS_SET_PARENT_NODES = true
+
+export const CONFIG_KEYS = Object.freeze({
+  allowOnly: 'allowOnly',
+  forbidOnly: 'forbidOnly',
+  viteConfig: 'vite.config.ts',
+  playwrightConfig: 'playwright.config.ts',
+  falseLit: 'false',
+  trueLit: 'true',
+})
+
+/** Fail-message fragments — exact values pinned by unit tests. */
+export const MSGS = Object.freeze({
+  testFileDeletedPrefix: 'test file deleted without companion source: ',
+  weakeningAddedPrefix: 'weakening marker added in ',
+  retriesAddedPrefix: 'retries added in ',
+  titleRemovedPrefix: 'test title removed in ',
+  titleRemovedSep: ': ',
+  allowOnlyWeakerPrefix: 'vite allowOnly weakened: ',
+  forbidOnlyWeakerPrefix: 'playwright forbidOnly weakened: ',
+  weakerArrow: ' → ',
+  itemLoosenedPrefix: 'roadmap item criteria loosened: ',
+  deferralAddedPrefix: 'deferral roadmap item added: ',
+  ruleTestTitleRemoved: 'test-title-removed',
+  ruleTestSkipAdded: 'test-skip-added',
+  ruleTestRetriesAdded: 'test-retries-added',
+  ruleAllowOnlyWeaker: 'allow-only-weaker',
+  ruleForbidOnlyWeaker: 'forbid-only-weaker',
+  ruleItemCriteria: 'item-criteria-loosened',
+})
+
+export const CRITERIA = Object.freeze({
+  doneWhenH2: '## Done when',
+  scopeH2: '## Scope',
+  doneWhenBullet: '- **Done when:**',
+  sizeBullet: '- **Size:**',
+  checkboxOpen: '- [',
+})
+
+export const COMPANION_EXTS = Object.freeze([
+  PATHS.extTs,
+  PATHS.extTsx,
+  PATHS.extMjs,
+  PATHS.extJs,
+])
 
 /**
  * @param {unknown} v
  * @returns {string}
  */
 export function coerceText(v) {
-  if (v == null) return ''
-  return typeof v === 'string' ? v : String(v)
+  if (v == null) return EMPTY_STRING
+  return typeof v === TYPEOF_STRING ? v : String(v)
 }
 
 /**
@@ -32,19 +119,23 @@ export function coerceText(v) {
  * @returns {boolean}
  */
 export function isTrackedTestPath(rel) {
-  const p = rel.replaceAll('\\', '/')
-  if (p.includes('node_modules/') || p.includes('/burn-in-fixtures/')) {
+  const p = rel.replaceAll(PATHS.winSep, PATHS.posixSep)
+  if (p.includes(PATHS.nodeModules) || p.includes(PATHS.burnInFixtures)) {
     return false
   }
   const isVitestSrc =
-    p.startsWith('src/') &&
-    p.includes('.test.') &&
-    (p.endsWith('.ts') || p.endsWith('.tsx') || p.endsWith('.mjs'))
+    p.startsWith(PATHS.srcPrefix) &&
+    p.includes(PATHS.testDot) &&
+    (p.endsWith(PATHS.extTs) ||
+      p.endsWith(PATHS.extTsx) ||
+      p.endsWith(PATHS.extMjs))
   const isScriptTest =
-    p.startsWith('scripts/') &&
-    p.includes('.test.') &&
-    (p.endsWith('.mjs') || p.endsWith('.js') || p.endsWith('.ts'))
-  const isE2e = p.startsWith('e2e/') && p.endsWith('.spec.ts')
+    p.startsWith(PATHS.scriptsPrefix) &&
+    p.includes(PATHS.testDot) &&
+    (p.endsWith(PATHS.extMjs) ||
+      p.endsWith(PATHS.extJs) ||
+      p.endsWith(PATHS.extTs))
+  const isE2e = p.startsWith(PATHS.e2ePrefix) && p.endsWith(PATHS.specTsSuffix)
   return isVitestSrc || isScriptTest || isE2e
 }
 
@@ -54,7 +145,7 @@ export function isTrackedTestPath(rel) {
  * @returns {string[]}
  */
 export function companionPathsFor(testPath) {
-  const p = testPath.replaceAll('\\', '/')
+  const p = testPath.replaceAll(PATHS.winSep, PATHS.posixSep)
   const dir = path.posix.dirname(p)
   const base = path.posix.basename(p)
   /** @type {string[]} */
@@ -65,12 +156,16 @@ export function companionPathsFor(testPath) {
   if (testMatch) stem = testMatch[1]
   else if (specMatch) stem = specMatch[1]
   if (stem != null) {
-    for (const ext of ['.ts', '.tsx', '.mjs', '.js']) {
+    for (const ext of COMPANION_EXTS) {
       out.push(path.posix.join(dir, `${stem}${ext}`))
     }
   }
-  if (p.startsWith('e2e/') && stem != null) {
-    out.push(`src/${stem}.ts`, `src/${stem}.tsx`, `src/${stem}/index.ts`)
+  if (p.startsWith(PATHS.e2ePrefix) && stem != null) {
+    out.push(
+      `${PATHS.srcPrefix}${stem}${PATHS.extTs}`,
+      `${PATHS.srcPrefix}${stem}${PATHS.extTsx}`,
+      `${PATHS.srcPrefix}${stem}${PATHS.indexTs}`,
+    )
   }
   return [...new Set(out)]
 }
@@ -92,12 +187,14 @@ export function companionDeletedFor(testPath, baseFiles, headFiles) {
   ) {
     return true
   }
-  const p = testPath.replaceAll('\\', '/')
-  if (!p.startsWith('e2e/') || !p.endsWith('.spec.ts')) return false
-  const stem = path.posix.basename(p, '.spec.ts').toLowerCase()
+  const p = testPath.replaceAll(PATHS.winSep, PATHS.posixSep)
+  if (!p.startsWith(PATHS.e2ePrefix) || !p.endsWith(PATHS.specTsSuffix)) {
+    return false
+  }
+  const stem = path.posix.basename(p, PATHS.specTsSuffix).toLowerCase()
   for (const key of Object.keys(baseFiles)) {
-    const rel = key.replaceAll('\\', '/')
-    if (!rel.startsWith('src/')) continue
+    const rel = key.replaceAll(PATHS.winSep, PATHS.posixSep)
+    if (!rel.startsWith(PATHS.srcPrefix)) continue
     if (headFiles[rel] !== undefined) continue
     const base = path.posix.basename(rel).toLowerCase()
     if (base === stem || base.startsWith(`${stem}.`)) return true
@@ -157,8 +254,8 @@ export function objectHasRetries(node) {
   for (const prop of node.properties) {
     if (!ts.isPropertyAssignment(prop)) continue
     const name = prop.name
-    if (ts.isIdentifier(name) && name.text === 'retries') return true
-    if (ts.isStringLiteral(name) && name.text === 'retries') return true
+    if (ts.isIdentifier(name) && name.text === RETRIES_KEY) return true
+    if (ts.isStringLiteral(name) && name.text === RETRIES_KEY) return true
   }
   return false
 }
@@ -169,11 +266,11 @@ export function objectHasRetries(node) {
  * @returns {string}
  */
 function bodyTextOf(expr, sf) {
-  if (!expr) return ''
+  if (!expr) return EMPTY_STRING
   if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
     return expr.getText(sf)
   }
-  return ''
+  return EMPTY_STRING
 }
 
 /**
@@ -185,14 +282,14 @@ function bodyTextOf(expr, sf) {
  *   retries: number,
  * }}
  */
-export function parseTestFile(source, fileName = 'file.ts') {
+export function parseTestFile(source, fileName = DEFAULT_PARSE_FILENAME) {
   const text = coerceText(source)
   const sf = ts.createSourceFile(
     fileName,
     text,
     ts.ScriptTarget.Latest,
-    true,
-    fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    TS_SET_PARENT_NODES,
+    fileName.endsWith(PATHS.extTsx) ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
   /** @type {{ title: string, bodyHash: string }[]} */
   const titles = []
@@ -219,14 +316,17 @@ export function parseTestFile(source, fileName = 'file.ts') {
         weakening.push({ suffix: weak, title })
       }
 
-      if (parts.includes('configure') && objectHasRetries(node.arguments[0])) {
+      if (
+        parts.includes(TEST_CONFIGURE) &&
+        objectHasRetries(node.arguments[0])
+      ) {
         retries += 1
       }
 
       const isTestOrIt =
-        (root === 'test' || root === 'it') &&
-        !parts.includes('describe') &&
-        !parts.includes('configure')
+        (root === TEST_ROOT_TEST || root === TEST_ROOT_IT) &&
+        !parts.includes(TEST_ROOT_DESCRIBE) &&
+        !parts.includes(TEST_CONFIGURE)
       if (isTestOrIt && title != null) {
         let bodyArg = node.arguments[1]
         if (bodyArg && objectHasRetries(bodyArg)) {
@@ -305,21 +405,25 @@ export function isAllowedItemEdit(baseText, headText) {
       continue
     }
     if (
-      b.startsWith('- [ ]') &&
-      h.startsWith('- [x]') &&
-      b.slice(5) === h.slice(5)
+      b.startsWith(CHECKBOX_TODO) &&
+      h.startsWith(CHECKBOX_DONE) &&
+      b.slice(CHECKBOX_TODO.length) === h.slice(CHECKBOX_DONE.length)
     ) {
       bi++
       hi++
       continue
     }
-    if (/^Status:\s*\S+/i.test(b) && /^Status:\s*done\s*$/i.test(h)) {
+    if (
+      b.startsWith(STATUS_PREFIX) &&
+      b.slice(STATUS_PREFIX.length).trim().length > 0 &&
+      h === STATUS_DONE
+    ) {
       bi++
       hi++
       continue
     }
     // Insert Status: done when base had no Status line (roadmap done).
-    if (/^Status:\s*done\s*$/i.test(h) && !/^Status:/i.test(b)) {
+    if (h === STATUS_DONE && !b.startsWith(STATUS_PREFIX)) {
       hi++
       continue
     }
@@ -328,23 +432,39 @@ export function isAllowedItemEdit(baseText, headText) {
   if (bi < base.length) return false
   while (hi < head.length) {
     const h = head[hi]
-    if (
-      h.trim() === '' ||
-      /^##\s*Done\b/i.test(h) ||
-      /^Done note:/i.test(h) ||
-      /^Done:\s*/i.test(h)
-    ) {
-      inDoneNote = true
-      hi++
-      continue
+    if (!inDoneNote) {
+      // Blank lines before the note do not open note mode (probe: blank + Done when).
+      if (h.trim() === EMPTY_STRING) {
+        hi++
+        continue
+      }
+      if (h === DONE_NOTE_H2 || h.startsWith(DONE_NOTE_PREFIX)) {
+        inDoneNote = true
+        hi++
+        continue
+      }
+      return false
     }
-    if (inDoneNote) {
-      hi++
-      continue
-    }
-    return false
+    // Inside Done note: reject Scope / Done-when / Size reopenings.
+    if (isItemCriteriaLine(h)) return false
+    hi++
   }
   return true
+}
+
+/**
+ * Lines that must not appear after a Done note starts (self-loosening probes).
+ * @param {string} line
+ * @returns {boolean}
+ */
+export function isItemCriteriaLine(line) {
+  const h = coerceText(line)
+  if (h.startsWith(CRITERIA.doneWhenH2)) return true
+  if (h.startsWith(CRITERIA.scopeH2)) return true
+  if (h.startsWith(CRITERIA.doneWhenBullet)) return true
+  if (h.startsWith(CRITERIA.sizeBullet)) return true
+  if (h.startsWith(CRITERIA.checkboxOpen)) return true
+  return false
 }
 
 /**
@@ -366,7 +486,7 @@ export function isDeferralRoadmapText(text, slug) {
  */
 export function listTrackedTestPaths(files) {
   return Object.keys(files)
-    .map((p) => p.replaceAll('\\', '/'))
+    .map((p) => p.replaceAll(PATHS.winSep, PATHS.posixSep))
     .filter(isTrackedTestPath)
     .sort()
 }
@@ -387,10 +507,7 @@ export function compareTestWeakening(baseFiles, headFiles, fail) {
     const hRaw = headFiles[p]
     if (bRaw !== undefined && hRaw === undefined) {
       if (!companionDeletedFor(p, baseFiles, headFiles)) {
-        fail(
-          'test-title-removed',
-          `test file deleted without companion source: ${p}`,
-        )
+        fail(MSGS.ruleTestTitleRemoved, `${MSGS.testFileDeletedPrefix}${p}`)
       }
       continue
     }
@@ -404,13 +521,13 @@ export function compareTestWeakening(baseFiles, headFiles, fail) {
     const hSuffixCounts = countBySuffix(h.weakening)
     for (const suffix of WEAKENING_SUFFIXES) {
       if ((hSuffixCounts.get(suffix) ?? 0) > (bSuffixCounts.get(suffix) ?? 0)) {
-        fail('test-skip-added', `weakening marker added in ${p}`)
+        fail(MSGS.ruleTestSkipAdded, `${MSGS.weakeningAddedPrefix}${p}`)
         break
       }
     }
 
     if (h.retries > b.retries) {
-      fail('test-retries-added', `retries added in ${p}`)
+      fail(MSGS.ruleTestRetriesAdded, `${MSGS.retriesAddedPrefix}${p}`)
     }
 
     /** @type {{ title: string, bodyHash: string }[]} */
@@ -428,34 +545,40 @@ export function compareTestWeakening(baseFiles, headFiles, fail) {
         headRemaining.splice(renameIdx, 1)
         continue
       }
-      fail('test-title-removed', `test title removed in ${p}: ${t.title}`)
+      fail(
+        MSGS.ruleTestTitleRemoved,
+        `${MSGS.titleRemovedPrefix}${p}${MSGS.titleRemovedSep}${t.title}`,
+      )
     }
   }
 
   const bAllow = extractConfigBool(
-    coerceText(baseFiles['vite.config.ts']),
-    'allowOnly',
+    coerceText(baseFiles[CONFIG_KEYS.viteConfig]),
+    CONFIG_KEYS.allowOnly,
   )
   const hAllow = extractConfigBool(
-    coerceText(headFiles['vite.config.ts']),
-    'allowOnly',
+    coerceText(headFiles[CONFIG_KEYS.viteConfig]),
+    CONFIG_KEYS.allowOnly,
   )
-  if (bAllow === 'false' && hAllow !== 'false') {
-    fail('allow-only-weaker', `vite allowOnly weakened: ${bAllow} → ${hAllow}`)
+  if (bAllow === CONFIG_KEYS.falseLit && hAllow !== CONFIG_KEYS.falseLit) {
+    fail(
+      MSGS.ruleAllowOnlyWeaker,
+      `${MSGS.allowOnlyWeakerPrefix}${bAllow}${MSGS.weakerArrow}${hAllow}`,
+    )
   }
 
   const bForbid = extractConfigBool(
-    coerceText(baseFiles['playwright.config.ts']),
-    'forbidOnly',
+    coerceText(baseFiles[CONFIG_KEYS.playwrightConfig]),
+    CONFIG_KEYS.forbidOnly,
   )
   const hForbid = extractConfigBool(
-    coerceText(headFiles['playwright.config.ts']),
-    'forbidOnly',
+    coerceText(headFiles[CONFIG_KEYS.playwrightConfig]),
+    CONFIG_KEYS.forbidOnly,
   )
-  if (bForbid === 'true' && hForbid !== 'true') {
+  if (bForbid === CONFIG_KEYS.trueLit && hForbid !== CONFIG_KEYS.trueLit) {
     fail(
-      'forbid-only-weaker',
-      `playwright forbidOnly weakened: ${bForbid} → ${hForbid}`,
+      MSGS.ruleForbidOnlyWeaker,
+      `${MSGS.forbidOnlyWeakerPrefix}${bForbid}${MSGS.weakerArrow}${hForbid}`,
     )
   }
 }
@@ -479,10 +602,10 @@ function countBySuffix(items) {
  * @param {(ruleId: string, message: string) => void} fail
  */
 export function compareItemCriteria(baseFiles, headFiles, opts, fail) {
-  if (hasOwnerApprovedScopeChange(opts.prBody ?? '')) return
+  if (hasOwnerApprovedScopeChange(opts.prBody ?? EMPTY_STRING)) return
 
   const slug =
-    slugFromBranch(opts.branch ?? '') ??
+    slugFromBranch(opts.branch ?? EMPTY_STRING) ??
     detectSlugFromChangedItems(baseFiles, headFiles)
   if (!slug) return
 
@@ -492,23 +615,27 @@ export function compareItemCriteria(baseFiles, headFiles, opts, fail) {
     const h = headFiles[itemPath]
     if (b !== undefined && h !== undefined && b !== h) {
       if (!isAllowedItemEdit(b, h)) {
-        fail(
-          'item-criteria-loosened',
-          `roadmap item criteria loosened: ${itemPath}`,
-        )
+        fail(MSGS.ruleItemCriteria, `${MSGS.itemLoosenedPrefix}${itemPath}`)
       }
     }
   }
 
   for (const p of Object.keys(headFiles)) {
-    const rel = p.replaceAll('\\', '/')
-    if (!rel.startsWith('docs/roadmap/') || !rel.endsWith('.md')) continue
+    const rel = p.replaceAll(PATHS.winSep, PATHS.posixSep)
+    if (!rel.startsWith(PATHS.roadmapPrefix) || !rel.endsWith(PATHS.mdSuffix)) {
+      continue
+    }
     if (baseFiles[rel] !== undefined) continue
-    if (rel.endsWith('/INTRO.md') || rel.endsWith('/README.md')) continue
-    const baseName = path.posix.basename(rel, '.md')
+    if (
+      rel.endsWith(`/${PATHS.introBase}${PATHS.mdSuffix}`) ||
+      rel.endsWith(`/${PATHS.readmeBase}${PATHS.mdSuffix}`)
+    ) {
+      continue
+    }
+    const baseName = path.posix.basename(rel, PATHS.mdSuffix)
     if (baseName === slug) continue
     if (isDeferralRoadmapText(coerceText(headFiles[rel]), slug)) {
-      fail('item-criteria-loosened', `deferral roadmap item added: ${rel}`)
+      fail(MSGS.ruleItemCriteria, `${MSGS.deferralAddedPrefix}${rel}`)
     }
   }
 }
@@ -520,10 +647,10 @@ export function compareItemCriteria(baseFiles, headFiles, opts, fail) {
  */
 function detectSlugFromChangedItems(baseFiles, headFiles) {
   for (const p of Object.keys(headFiles)) {
-    const rel = p.replaceAll('\\', '/')
+    const rel = p.replaceAll(PATHS.winSep, PATHS.posixSep)
     const m = /^docs\/roadmap\/[^/]+\/([^/]+)\.md$/.exec(rel)
     if (!m) continue
-    if (m[1] === 'INTRO' || m[1] === 'README') continue
+    if (m[1] === PATHS.introBase || m[1] === PATHS.readmeBase) continue
     if (baseFiles[rel] !== headFiles[rel]) return m[1]
   }
   return null
@@ -538,8 +665,11 @@ function detectSlugFromChangedItems(baseFiles, headFiles) {
 function findItemPath(baseFiles, headFiles, slug) {
   for (const files of [headFiles, baseFiles]) {
     for (const p of Object.keys(files)) {
-      const rel = p.replaceAll('\\', '/')
-      if (rel.endsWith(`/${slug}.md`) && rel.startsWith('docs/roadmap/')) {
+      const rel = p.replaceAll(PATHS.winSep, PATHS.posixSep)
+      if (
+        rel.endsWith(`/${slug}${PATHS.mdSuffix}`) &&
+        rel.startsWith(PATHS.roadmapPrefix)
+      ) {
         return rel
       }
     }

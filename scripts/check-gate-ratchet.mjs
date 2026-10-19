@@ -57,6 +57,8 @@ export const FIXTURE_IDS = Object.freeze([
   'done-when-rewrite',
   'deferral-item',
   'checkbox-done-note',
+  'done-when-heading-bypass',
+  'blank-done-when-bypass',
 ])
 /** Shared empty literals — asserted in unit tests to pin StringLiteral/Array mutants. */
 export const EMPTY_STRING = ''
@@ -1535,18 +1537,20 @@ export function runGateRatchetCli(argv = process.argv.slice(2), opts = {}) {
   }
   /** Explicit `--pr-body` (including empty) wins over env. */
   const hasPrBodyFlag = Object.prototype.hasOwnProperty.call(args, 'pr-body')
-  let prBody = ''
+  let prBody = EMPTY_STRING
   if (hasPrBodyFlag) {
     prBody = args['pr-body']
   } else if (args['pr-body-env']) {
-    prBody = process.env[args['pr-body-env']] ?? ''
+    prBody = process.env[args['pr-body-env']] ?? EMPTY_STRING
   } else if (process.env.PR_POLICY_BODY != null) {
     prBody = process.env.PR_POLICY_BODY
   }
   const hasBranchFlag = Object.prototype.hasOwnProperty.call(args, 'branch')
   const branch = hasBranchFlag
     ? args.branch
-    : process.env.PR_POLICY_BRANCH || process.env.GITHUB_HEAD_REF || ''
+    : process.env.PR_POLICY_BRANCH ||
+      process.env.GITHUB_HEAD_REF ||
+      EMPTY_STRING
   const result = compareGateTrees(baseFiles, headFiles, { prBody, branch })
   if (result.ok) {
     console.log('Gate ratchet: OK (head not weaker than base)')
