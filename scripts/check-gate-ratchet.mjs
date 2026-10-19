@@ -17,6 +17,11 @@ import {
   compareScriptScopeGates,
 } from './script-include-ratchet.mjs'
 import { stripGitKeys } from './strip-git-env.mjs'
+import {
+  AGENT_RULES_OVER_BUDGET,
+  checkAgentRuleBudgetsAbsolute,
+  compareAgentRuleBudgets,
+} from './agent-rules-budget.mjs'
 
 export const RULE_IDS = Object.freeze([
   'gates-json-weaker',
@@ -41,6 +46,7 @@ export const RULE_IDS = Object.freeze([
   'item-criteria-loosened',
   'diff-below-nightly',
   'temporary-excludes-grew',
+  AGENT_RULES_OVER_BUDGET,
 ])
 
 export const FIXTURE_IDS = Object.freeze([
@@ -80,6 +86,9 @@ export const FIXTURE_IDS = Object.freeze([
   'broad-script-exclude',
   'non-thin-cli-exclude',
   'codecov-path-uncovered',
+  'agent-rules-over-budget',
+  'agent-rules-within-budget',
+  'agent-rules-budget-raised',
 ])
 /** Shared empty literals — asserted in unit tests to pin StringLiteral/Array mutants. */
 export const EMPTY_STRING = ''
@@ -1305,6 +1314,15 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
       compareTemporaryExcludes(bGates, hGates, 'quality/gates.json', (m) =>
         fail('temporary-excludes-grew', m),
       )
+      compareAgentRuleBudgets(
+        bGates,
+        hGates,
+        headFiles,
+        'quality/gates.json',
+        (m) => fail('gates-json-weaker', m),
+        { getFile },
+      )
+      checkAgentRuleBudgetsAbsolute(headFiles, hGates, fail, { getFile })
     } else if (bRaw !== undefined && hRaw === undefined) {
       fail('gate-file-gone', MSGS.gatesJsonDeleted)
     }

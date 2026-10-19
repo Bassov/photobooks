@@ -416,6 +416,85 @@ describe('CLI fixture proofs (real check-gate-ratchet path)', () => {
     ).toBe(true)
   })
 
+  it('FIXTURE agent-rules-over-budget: scratch over-size fails', () => {
+    expect(FIXTURE_IDS).toContain('agent-rules-over-budget')
+    expect(RULE_IDS).toContain('agent-rules-over-budget')
+    const gates = {
+      ...baseGates,
+      agentRules: {
+        budgets: [{ path: 'AGENTS.md', maxLines: 1, maxChars: 2 }],
+      },
+    }
+    const { code, result } = cliRatchet({
+      'quality/gates.json': JSON.stringify(gates),
+      'AGENTS.md': 'too-long-content',
+    })
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'agent-rules-over-budget'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE agent-rules-within-budget: matching sizes pass size rules', () => {
+    expect(FIXTURE_IDS).toContain('agent-rules-within-budget')
+    const text = 'ok\n'
+    const gates = {
+      ...baseGates,
+      agentRules: {
+        budgets: [
+          {
+            path: 'AGENTS.md',
+            maxLines: 2,
+            maxChars: Buffer.byteLength(text, 'utf8'),
+          },
+        ],
+      },
+    }
+    const { result } = cliRatchet({
+      'quality/gates.json': JSON.stringify(gates),
+      'AGENTS.md': text,
+    })
+    expect(
+      result.violations.filter((v) => v.ruleId === 'agent-rules-over-budget'),
+    ).toEqual([])
+    expect(
+      result.violations.filter((v) => /agentRules\.budgets/.test(v.message)),
+    ).toEqual([])
+  })
+
+  it('FIXTURE agent-rules-budget-raised: higher maxLines fails ratchet', () => {
+    expect(FIXTURE_IDS).toContain('agent-rules-budget-raised')
+    const baseWith = {
+      ...baseGates,
+      agentRules: {
+        budgets: [{ path: 'AGENTS.md', maxLines: 5, maxChars: 50 }],
+      },
+    }
+    const headRaised = {
+      ...baseGates,
+      agentRules: {
+        budgets: [{ path: 'AGENTS.md', maxLines: 9, maxChars: 50 }],
+      },
+    }
+    const { code, result } = cliRatchet(
+      {
+        'quality/gates.json': JSON.stringify(headRaised),
+        'AGENTS.md': 'a',
+      },
+      {
+        'quality/gates.json': JSON.stringify(baseWith),
+        'AGENTS.md': 'a',
+      },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some(
+        (v) =>
+          v.ruleId === 'gates-json-weaker' && /maxLines raised/.test(v.message),
+      ),
+    ).toBe(true)
+  })
+
   it('FIXTURE temporary-excludes-seed: base missing array allows seed', () => {
     expect(FIXTURE_IDS).toContain('temporary-excludes-seed')
     const baseNoTemp = {

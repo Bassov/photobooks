@@ -1,8 +1,0 @@
----
-description: Pointer to OpenSpec per-change mandates
-alwaysApply: true
----
-
-# Agent workflow
-
-Per-change OpenSpec sequence, verification checklists, and archive rules live only in `openspec/config.yaml` (`rules` + `operations`). Do not duplicate them here.
