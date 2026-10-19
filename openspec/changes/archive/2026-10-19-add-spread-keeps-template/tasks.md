@@ -29,10 +29,18 @@
 - [x] Manual check (after implementation review pass, before archive): drive `pnpm dev` in the browser through the roadmap item's Browser check from `pnpm roadmap show <slug>` (or the spec scenarios for [prep]); record numbered steps and observed results under `## Manual test scenarios` at the end of this file (N/A for non-UI); a bug found → Playwright test + fix + re-run implementation review on the delta
 - [x] Security Review: Cursor Security Review subagent before archive when the item is tagged (Security Review: …) or the change touches the security surface — N/A (not security-tagged; no security surface)
 
+## Equivalent mutants (documented)
+
+- `resolvePreferredActiveId` early `preferredId === null` (`if (false)` / empty body): falls through to `!ratios.has(null)` and returns `{ activeId: null, preferredId: null }` — same result.
+- `selectMarkedSpreadId` `activeId !== null` → `true`: `mounted.includes(null)` is false, so still returns `mounted[0]`.
+- `spreadActiveIndex` `markedId === undefined` early return / `index < 0` → `index <= 0`: `indexOf(undefined)` is `-1` and index `0` both clamp to `0` under either comparison.
+- `usePasteboardReveal` clear-branch skip (`kind === 'clear'` → `false` / `""` / empty body): fall-through reaches the final `clearRevealState` + `scheduleHoldRelease` path used for post-paint complete — same cleanup.
+- `holdReleaseGenRef` `++`/`+=` ↔ `--`/`-=` alone: cancel still relies on inequality after a later bump; observable hold stays correct when only one operator is flipped.
+
 ## Manual test scenarios
 
 1. Fresh session editor → choose 4-grid → Add spread → new slot has 4 placeholders, radiogroup stays on 4-grid, new slot is active; document fits viewport (Playwright `add spread keeps the active spread template` + local preview evaluate).
-2. Scroll pasteboard to top → first spread active, still 4-grid on radio and 4 placeholders.
+2. Scroll pasteboard to top → first spread active, still 4-grid on radio and 4 placeholders; with new spread still partly visible, choose 2-up → first spread changes, new stays 4-grid.
 3. Repeat path with default One per page Add spread → containment/reveal e2e still green (`add spread keeps the new spread inside the pasteboard`).
 4. empty: normal visit — 3 spreads, radiogroup labeled "Template for this spread", no page scroll.
-5. Assumptions: frame-budget LoAF flakes under parallel local load deferred to CI burn-in (same class as prior M2.1 flakes); not treated as product regressions from this change.
+5. Assumptions: known main flake `e2e/filmstrip.spec.ts` re-import LoAF is out of scope (fixed separately); frame-budget LoAF under parallel local load deferred to CI burn-in.

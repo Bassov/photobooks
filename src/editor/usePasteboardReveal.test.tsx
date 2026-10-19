@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import {
   useCallback,
@@ -170,7 +171,7 @@ describe('usePasteboardReveal', () => {
     const rafQueue = stubRaf()
     const restore = vi.spyOn(reveal, 'restoreRevealSlotVisibility')
     const apiRef: { current: RevealApi | null } = { current: null }
-    const turnFn: typeof reveal.turnPendingReveal = () => ({
+    const turnFn = vi.fn<typeof reveal.turnPendingReveal>().mockReturnValue({
       turn: { kind: 'clear' },
       state: { tries: 8, paintConfirmed: false },
     })
@@ -185,12 +186,54 @@ describe('usePasteboardReveal', () => {
     const slot = screen.getAllByTestId('pasteboard-slot').at(-1)
     expect(slot).toBeInstanceOf(HTMLElement)
     expect(restore).toHaveBeenCalledWith(slot)
+    expect(turnFn.mock.calls[0]?.[0].state).toEqual({
+      tries: 0,
+      paintConfirmed: false,
+    })
     // Hold stays true for one frame so trailing reveal scrolls do not drop the pin.
     expect(apiRef.current?.holdCameraScrollRef.current).toBe(true)
     expect(rafQueue).toHaveLength(1)
     flushRaf(rafQueue)
     expect(apiRef.current?.holdCameraScrollRef.current).toBe(false)
     expect(rafQueue).toHaveLength(0)
+  })
+
+  it('ignores a stale hold-release after a new reveal begins', () => {
+    const rafQueue = stubRaf()
+    const apiRef: { current: RevealApi | null } = { current: null }
+    let phase = 0
+    const turnFn: typeof reveal.turnPendingReveal = () => {
+      phase += 1
+      if (phase === 1) {
+        return {
+          turn: { kind: 'clear' },
+          state: { tries: 1, paintConfirmed: false },
+        }
+      }
+      return {
+        turn: { kind: 'post-paint', action: 'retry' },
+        state: { tries: 1, paintConfirmed: true },
+      }
+    }
+
+    render(<Harness spreadIds={['a', 'b']} turnFn={turnFn} apiRef={apiRef} />)
+    act(() => {
+      screen.getByRole('button', { name: 'Begin' }).click()
+    })
+    expect(apiRef.current?.holdCameraScrollRef.current).toBe(true)
+    expect(rafQueue).toHaveLength(1)
+    const staleHoldRelease = rafQueue.shift()
+    assert(staleHoldRelease !== undefined)
+
+    act(() => {
+      screen.getByRole('button', { name: 'Begin' }).click()
+    })
+    expect(apiRef.current?.holdCameraScrollRef.current).toBe(true)
+    // Stale release from the first clear must not drop hold for the new reveal.
+    act(() => {
+      staleHoldRelease(0)
+    })
+    expect(apiRef.current?.holdCameraScrollRef.current).toBe(true)
   })
 
   it('bumps revealTick forward on begin', () => {
@@ -257,7 +300,7 @@ describe('usePasteboardReveal', () => {
   it('on post-paint retry queues exactly one rAF and keeps hold true', () => {
     const rafQueue = stubRaf()
     const apiRef: { current: RevealApi | null } = { current: null }
-    const turnFn: typeof reveal.turnPendingReveal = () => ({
+    const turnFn = vi.fn<typeof reveal.turnPendingReveal>().mockReturnValue({
       turn: { kind: 'post-paint', action: 'retry' },
       state: { tries: 1, paintConfirmed: false },
     })
@@ -269,6 +312,10 @@ describe('usePasteboardReveal', () => {
 
     expect(rafQueue).toHaveLength(1)
     expect(apiRef.current?.holdCameraScrollRef.current).toBe(true)
+    const tickAfterBegin = apiRef.current?.revealTick ?? 0
+    flushRaf(rafQueue)
+    expect(apiRef.current?.revealTick).toBe(tickAfterBegin + 1)
+    expect(turnFn.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 
   it('beginRevealForNewSpread(null) clears hold and runs no turn', () => {

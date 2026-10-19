@@ -507,8 +507,7 @@ describe('Pasteboard view wiring', () => {
     })
     expect(newSlot.getAttribute('data-active')).toBe('true')
 
-    // Let add-spread reveal finish so holdCameraScrollRef clears; only then
-    // does user scroll release the active pin.
+    // Scroll during reveal hold must not drop the pin (holdCameraScrollRef).
     const scroll = screen.getByTestId('pasteboard-scroll')
     Object.defineProperty(scroll, 'scrollHeight', {
       configurable: true,
@@ -518,6 +517,23 @@ describe('Pasteboard view wiring', () => {
       configurable: true,
       value: 600,
     })
+    act(() => {
+      fireEvent.scroll(scroll)
+    })
+    flushPaceSteps(hooks, 4)
+    act(() => {
+      callbacks.at(-1)?.(
+        [
+          fakeIntersectionEntry(otherSlot, 0.95),
+          fakeIntersectionEntry(newSlot, 0.3),
+        ],
+        {} as IntersectionObserver,
+      )
+    })
+    expect(newSlot.getAttribute('data-active')).toBe('true')
+
+    // Let add-spread reveal finish so holdCameraScrollRef clears; only then
+    // does user scroll release the active pin.
     for (let i = 0; i < REVEAL_TRY_CEILING * 2 + 16; i += 1) {
       flushPaceSteps(hooks, 4)
     }

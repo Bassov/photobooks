@@ -168,7 +168,13 @@ describe('readPasteboardSlotEntry', () => {
     expect(
       readPasteboardSlotEntry({ target: bare, intersectionRatio: 0.5 }),
     ).toBeNull()
+    // Index alone is not enough — missing spreadId must still reject.
+    bare.dataset.slotIndex = '0'
+    expect(
+      readPasteboardSlotEntry({ target: bare, intersectionRatio: 0.5 }),
+    ).toBeNull()
     bare.dataset.spreadId = 's1'
+    delete bare.dataset.slotIndex
     expect(
       readPasteboardSlotEntry({ target: bare, intersectionRatio: 0.5 }),
     ).toBeNull()
