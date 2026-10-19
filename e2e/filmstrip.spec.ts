@@ -2,6 +2,7 @@ import { expect, test } from './fixtures/coverage'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { deflateSync } from 'node:zlib'
 import assert from 'node:assert/strict'
 import {
   assertDocumentFitsViewport,
@@ -12,6 +13,7 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import {
+  applyCpuThrottling,
   assertCiPerfGates,
   assertCrossOriginIsolated,
   browserAssertNoLoaf,
@@ -286,21 +288,98 @@ test('SPA is cross-origin isolated under preview headers', async ({ page }) => {
   await assertCrossOriginIsolated(page)
 })
 
-function writeBulkImportFixtures(count: number): string[] {
-  const dir = join(tmpdir(), `photobooks-bulk-${String(process.pid)}`)
+function writeBulkImportFixtureSet(count: number): {
+  dir: string
+  files: string[]
+} {
+  const dir = join(
+    tmpdir(),
+    `photobooks-bulk-${String(process.pid)}-${String(count)}-${String(Date.now())}`,
+  )
   mkdirSync(dir, { recursive: true })
-  // Minimal valid 1×1 PNG
+  // Minimal valid 1×1 PNG. Identical bytes across the set: first import still
+  // creates `count` entries (identity-first); cross-picker re-import reuses via
+  // content hash without growing the gallery.
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64',
   )
-  const paths: string[] = []
+  const files: string[] = []
   for (let i = 0; i < count; i += 1) {
     const path = join(dir, `bulk-${String(i).padStart(3, '0')}.png`)
     writeFileSync(path, png)
-    paths.push(path)
+    files.push(path)
   }
-  return paths
+  return { dir, files }
+}
+
+function writeBulkImportFixtures(count: number): string[] {
+  return writeBulkImportFixtureSet(count).files
+}
+
+/** CRC-32 for PNG chunk trailers. */
+function pngCrc32(data: Buffer): number {
+  let crc = 0xffffffff
+  for (const byte of data) {
+    crc ^= byte
+    for (let bit = 0; bit < 8; bit += 1) {
+      const mask = -(crc & 1)
+      crc = (crc >>> 1) ^ (0xedb88320 & mask)
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const typeBuf = Buffer.from(type, 'ascii')
+  const len = Buffer.alloc(4)
+  len.writeUInt32BE(data.length, 0)
+  const crcBuf = Buffer.alloc(4)
+  crcBuf.writeUInt32BE(pngCrc32(Buffer.concat([typeBuf, data])), 0)
+  return Buffer.concat([len, typeBuf, data, crcBuf])
+}
+
+/**
+ * Distinct valid 1×1 RGB PNGs so content-hash cannot reuse within the set.
+ * `salt` shifts the palette so a second call with a different salt cannot
+ * content-hash-match the first (same filenames still collide on path alone).
+ */
+function writeUniqueBulkImportFixtures(count: number, salt = 0): string[] {
+  const dir = join(
+    tmpdir(),
+    `photobooks-unique-bulk-${String(process.pid)}-${String(count)}-${String(salt)}-${String(Date.now())}`,
+  )
+  mkdirSync(dir, { recursive: true })
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(1, 0)
+  ihdr.writeUInt32BE(1, 4)
+  ihdr[8] = 8
+  ihdr[9] = 2
+  ihdr[10] = 0
+  ihdr[11] = 0
+  ihdr[12] = 0
+  const files: string[] = []
+  for (let i = 0; i < count; i += 1) {
+    const r = (i * 37 + salt) % 256
+    const g = (i * 91 + salt * 3) % 256
+    const b = (i * 17 + 3 + salt * 5) % 256
+    const raw = Buffer.from([0, r, g, b])
+    const idat = deflateSync(raw)
+    const png = Buffer.concat([
+      signature,
+      pngChunk('IHDR', ihdr),
+      pngChunk('IDAT', idat),
+      pngChunk('IEND', Buffer.alloc(0)),
+    ])
+    const path = join(
+      dir,
+      `uniq-${String(salt)}-${String(i).padStart(3, '0')}.png`,
+    )
+    writeFileSync(path, png)
+    files.push(path)
+  }
+  return files
 }
 
 test('bulk import fills every revealed placeholder even while scrolling', async ({
@@ -373,6 +452,424 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
 
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'filmstrip-scroll')
+})
+
+test.describe('library re-import async', () => {
+  test('adding N new photos to a hashed library project yields 2N', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000)
+    const count = 40
+    const first = writeUniqueBulkImportFixtures(count, 0)
+    const second = writeUniqueBulkImportFixtures(count, 1)
+
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message)
+    })
+
+    await page.goto('/?testLibrary=1')
+    await expect(page.getByTestId('create-book')).toBeEnabled({
+      timeout: 15_000,
+    })
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Book created in library',
+    )
+
+    await page.getByTestId('photo-file-input').setInputFiles(first)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+      timeout: 60_000,
+    })
+
+    await page.getByTestId('photo-file-input').setInputFiles(second)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count * 2))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    expect(pageErrors, `pageerrors: ${pageErrors.join(' | ')}`).toEqual([])
+  })
+
+  test('photos then folder (and reverse) reuse by content hash', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000)
+    const count = 24
+    const { dir, files } = writeBulkImportFixtureSet(count)
+
+    await page.goto('/?testLibrary=1')
+    await expect(page.getByTestId('create-book')).toBeEnabled({
+      timeout: 15_000,
+    })
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Book created in library',
+    )
+
+    await page.getByTestId('photo-file-input').setInputFiles(files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    const idsAfterPhotos = await page
+      .getByTestId('filmstrip-item')
+      .evaluateAll((nodes) =>
+        nodes
+          .map((node) => node.getAttribute('data-asset-id'))
+          .filter((id): id is string => id !== null),
+      )
+    expect(idsAfterPhotos.length).toBeGreaterThan(0)
+    const firstId = idsAfterPhotos[0]
+    expect(firstId).toBeTruthy()
+
+    // Folder picker sets webkitRelativePath (e.g. dir/bulk-000.png) so
+    // path+size+mtime miss and content-hash fallback must reuse ids.
+    await page.getByTestId('folder-file-input').setInputFiles(dir)
+    await expect
+      .poll(
+        async () => {
+          const gallery = page
+            .getByTestId('filmstrip')
+            .getAttribute('data-gallery-count')
+          const importing = await page
+            .getByTestId('import-progress')
+            .isVisible()
+            .catch(() => false)
+          return { gallery: await gallery, importing }
+        },
+        { timeout: 120_000 },
+      )
+      .toMatchObject({ gallery: String(count) })
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft = 0
+    })
+    await expect
+      .poll(
+        async () =>
+          page
+            .getByTestId('filmstrip-item')
+            .first()
+            .getAttribute('data-asset-id'),
+        { timeout: 15_000 },
+      )
+      .toBe(firstId)
+
+    // Reverse: folder first into a fresh library book, then photos.
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Book created in library',
+      { timeout: 15_000 },
+    )
+    const second = writeBulkImportFixtureSet(count)
+    await page.getByTestId('folder-file-input').setInputFiles(second.dir)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    await page.getByTestId('photo-file-input').setInputFiles(second.files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+  })
+
+  test('re-import restores thumbs without duplicates; first card ≤1.5× session', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(240_000)
+    const files = writeBulkImportFixtures(200)
+
+    // --- Session path baseline under the same CPU throttle as re-import ---
+    await enablePerfScenario(page)
+    await clearPerfScenario(page)
+    const sessionStart = Date.now()
+    await page.getByTestId('photo-file-input').setInputFiles(files)
+    await expect
+      .poll(
+        async () =>
+          Number(
+            (await page
+              .getByTestId('filmstrip')
+              .getAttribute('data-gallery-count')) ?? '0',
+          ),
+        { timeout: 60_000 },
+      )
+      .toBeGreaterThan(0)
+    const sessionFirstCardMs = Date.now() - sessionStart
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe('200')
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+
+    // --- Library-backed: import, clear DerivedCache, re-import ---
+    await page.goto('/?testLibrary=1&perf=1')
+    await page.waitForFunction(() => window.__photobooksPerf !== undefined)
+    await applyCpuThrottling(page)
+    await expect(page.getByTestId('create-book')).toBeEnabled({
+      timeout: 15_000,
+    })
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Book created in library',
+    )
+
+    // Library-backed fresh bulk import: frame-budget scroll window (Perf line).
+    await clearPerfScenario(page)
+    const addPhotos = page.getByRole('button', { name: 'Add photos' })
+    await expect(addPhotos).toBeEnabled()
+    // Prefer the hidden input; filechooser can hang under load when the FSA
+    // picker stubs race with create-book navigation.
+    await page.getByTestId('photo-file-input').setInputFiles(files)
+
+    await expect(page.getByTestId('import-progress')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId('import-progress')).toContainText(
+      'Importing',
+      { timeout: 30_000 },
+    )
+    await expect
+      .poll(
+        async () => {
+          const count = Number(
+            (await page
+              .getByTestId('filmstrip')
+              .getAttribute('data-gallery-count')) ?? '0',
+          )
+          const importing = await page
+            .getByTestId('import-progress')
+            .isVisible()
+          return count > 0 && importing
+        },
+        { timeout: 60_000 },
+      )
+      .toBe(true)
+
+    await page.evaluate(() => {
+      window.__photobooksPerf?.clearLoafEntries()
+    })
+    for (let i = 0; i < 30; i += 1) {
+      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+        node.scrollLeft += 160
+      })
+      await page.waitForTimeout(32)
+    }
+    await page.evaluate(browserAssertNoLoaf, 0)
+
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe('200')
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft = 0
+    })
+    // Wait for the virtualizer to remount the start of the gallery.
+    await expect
+      .poll(
+        async () =>
+          page
+            .getByTestId('filmstrip-item')
+            .first()
+            .getAttribute('data-asset-id'),
+        { timeout: 15_000 },
+      )
+      .toMatch(/bulk-000/)
+    const firstIdBefore = await page
+      .getByTestId('filmstrip-item')
+      .first()
+      .getAttribute('data-asset-id')
+    expect(firstIdBefore).toBeTruthy()
+
+    await page.evaluate(async () => {
+      const api = window.__photobooksThumbs
+      if (!api) {
+        throw new Error('window.__photobooksThumbs is not available')
+      }
+      await api.clearThumbsAndDerivedCacheForTests()
+    })
+    await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(0, {
+      timeout: 15_000,
+    })
+
+    // Re-import: gallery is already full; progressive start = progress bar
+    // (comparable to session empty→first card). Thumbs restore separately.
+    await clearPerfScenario(page)
+    // Click for INP/handler Event Timing, then feed files via the hidden input.
+    await addPhotos.click({ delay: 20 })
+    const reimportStart = Date.now()
+    await page.getByTestId('photo-file-input').setInputFiles(files)
+
+    await expect(page.getByTestId('import-progress')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId('import-progress')).toContainText(
+      'Importing',
+      { timeout: 30_000 },
+    )
+    const reimportFirstCardMs = Date.now() - reimportStart
+
+    // Scroll-during-re-import while progress is still up (Done-when / Perf).
+    await page.evaluate(() => {
+      window.__photobooksPerf?.clearLoafEntries()
+    })
+    for (let i = 0; i < 30; i += 1) {
+      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+        node.scrollLeft += 160
+      })
+      await page.waitForTimeout(32)
+    }
+    await page.evaluate(browserAssertNoLoaf, 0)
+
+    // First restored thumb (gallery count stays 200 after clearThumbs).
+    await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
+      timeout: 60_000,
+    })
+    const reimportFirstThumbMs = Date.now() - reimportStart
+
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe('200')
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft = 0
+    })
+    await expect
+      .poll(
+        async () =>
+          page
+            .getByTestId('filmstrip-item')
+            .first()
+            .getAttribute('data-asset-id'),
+        { timeout: 15_000 },
+      )
+      .toBe(firstIdBefore)
+    // Sample the far end of the strip (virtualizer) still mounts items.
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft = node.scrollWidth
+    })
+    await expect
+      .poll(async () => page.getByTestId('filmstrip-item').count(), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0)
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft = 0
+    })
+    await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
+      timeout: 60_000,
+    })
+
+    expect(
+      reimportFirstCardMs,
+      `re-import progress ${String(reimportFirstCardMs)}ms > 1.5× session first card ${String(sessionFirstCardMs)}ms`,
+    ).toBeLessThanOrEqual(sessionFirstCardMs * 1.5 + 1)
+    await page.waitForFunction(() => {
+      const perf = window.__photobooksPerf
+      if (!perf) {
+        return false
+      }
+      perf.flushEventTimingEntries()
+      return perf.getEventTimingEntries().length > 0
+    })
+    // Capture INP/handler from the Add-photos gesture, then clear LoAF for the
+    // post-settle window (scroll-during-re-import LoAF was asserted above).
+    const gateSnapshot = await page.evaluate((handlerLabel) => {
+      const perf = window.__photobooksPerf
+      if (!perf) {
+        throw new Error('window.__photobooksPerf is not available')
+      }
+      perf.flushEventTimingEntries()
+      const durations = perf.getHandlerMeasureDurations(handlerLabel)
+      const sorted = [...durations].sort((a, b) => a - b)
+      const p95 =
+        sorted.length === 0
+          ? null
+          : sorted[
+              Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)
+            ]
+      return {
+        loafEntries: perf.getLoafEntries().length,
+        inpMs: perf.getInpMs(),
+        handlerP95Ms: p95,
+        handlerSampleCount: durations.length,
+      }
+    }, 'import-photos')
+    await page.evaluate(() => {
+      window.__photobooksPerf?.clearLoafEntries()
+    })
+    await assertCiPerfGates(page)
+    await collectFrameStatsArtifact(page, testInfo)
+
+    const proof = {
+      sessionFirstCardMs,
+      reimportProgressMs: reimportFirstCardMs,
+      reimportFirstThumbMs,
+      ratio: reimportFirstCardMs / Math.max(1, sessionFirstCardMs),
+      readsInFlightCap: 16,
+      loafEntriesDuringScrollReimport: 0,
+      ...gateSnapshot,
+    }
+    const proofPath = testInfo.outputPath('reimport-async-proof.json')
+    writeFileSync(proofPath, JSON.stringify(proof, null, 2), 'utf8')
+    await testInfo.attach('reimport-async-proof.json', {
+      path: proofPath,
+      contentType: 'application/json',
+    })
+  })
 })
 
 test.describe('frame-budget gates', () => {

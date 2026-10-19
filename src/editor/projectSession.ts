@@ -25,6 +25,7 @@ import {
   subscribeEditorGesture,
 } from './editorGesture'
 import { setEditorStatus } from './editorStatus'
+import { clearThumbsAndDerivedCacheForTests } from './clearThumbsForTests'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
   createAutosaveController,
@@ -1200,24 +1201,37 @@ async function seedHomeRecentsForTests(count: number): Promise<void> {
   emit()
 }
 
-function shouldExposeProjectSessionTestApi(): boolean {
-  if (import.meta.env.DEV) {
-    return true
-  }
-  if (import.meta.env.VITE_E2E === '1' || import.meta.env.VITE_E2E === 'true') {
-    return true
-  }
-  return typeof window !== 'undefined' && window.__photobooksE2e === true
+export interface ProjectSessionTestEnv {
+  DEV?: boolean
+  VITE_E2E?: string
 }
 
-export function exposeProjectSessionTestApi(): void {
-  if (typeof window === 'undefined') {
+/** Pure gate shared by `__photobooksProject` and `__photobooksThumbs`. */
+export function shouldExposeProjectSessionTestApi(
+  env: ProjectSessionTestEnv = import.meta.env,
+  win: Window | undefined = typeof window !== 'undefined' ? window : undefined,
+): boolean {
+  if (env.DEV) {
+    return true
+  }
+  if (env.VITE_E2E === '1' || env.VITE_E2E === 'true') {
+    return true
+  }
+  return win?.__photobooksE2e === true
+}
+
+export function exposeProjectSessionTestApi(
+  env: ProjectSessionTestEnv = import.meta.env,
+  win: Window | undefined = typeof window !== 'undefined' ? window : undefined,
+): void {
+  if (win === undefined) {
     return
   }
-  if (!shouldExposeProjectSessionTestApi()) {
+  if (!shouldExposeProjectSessionTestApi(env, win)) {
     return
   }
-  window.__photobooksProject = {
+  win.__photobooksThumbs = { clearThumbsAndDerivedCacheForTests }
+  win.__photobooksProject = {
     attachLibraryForTests,
     attachMemoryLibraryForTests,
     attachOpfsTestLibrary,
@@ -1272,6 +1286,9 @@ declare global {
       tryActivateLibraryBookForTests: typeof tryActivateLibraryBookForTests
       configureProjectSession: typeof configureProjectSession
       getSnapshot: typeof getProjectSessionSnapshot
+    }
+    __photobooksThumbs?: {
+      clearThumbsAndDerivedCacheForTests: () => Promise<void>
     }
     __photobooksE2e?: boolean
   }

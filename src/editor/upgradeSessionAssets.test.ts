@@ -122,6 +122,55 @@ describe('upgradeSessionAssetsForLibrary via adopt', () => {
     expect(getRegisteredAssetSource('root-existing')).toBeUndefined()
   })
 
+  it('caps concurrent body reads while upgrading many session assets', async () => {
+    let pending = 0
+    let peak = 0
+    const files = Array.from({ length: 24 }, (_, i) => {
+      const file = new File([new Uint8Array([i])], `u-${String(i)}.jpg`, {
+        type: 'image/jpeg',
+      })
+      Object.defineProperty(file, 'arrayBuffer', {
+        value: async () => {
+          pending += 1
+          peak = Math.max(peak, pending)
+          await Promise.resolve()
+          pending -= 1
+          return new Uint8Array([i]).buffer
+        },
+      })
+      return file
+    })
+    for (let i = 0; i < files.length; i += 1) {
+      const id = `asset-up-${String(i)}`
+      const file = files[i]
+      assert(file !== undefined)
+      retainAssetSource(id, file)
+      enqueueGalleryAssets([
+        {
+          assetId: id,
+          meta: {
+            name: file.name,
+            correctedWidth: 1,
+            correctedHeight: 1,
+            orientation: 1,
+            aspect: 1,
+          },
+        },
+      ])
+    }
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(24)
+    })
+
+    await attachMemoryLibraryForTests()
+    await vi.waitFor(() => {
+      expect(isLibraryBacked()).toBe(true)
+      const asset = getBookStoreSnapshot().book.assets['asset-up-0']
+      expect(asset?.contentHash).toBe(SAMPLE_HASH)
+    })
+    expect(peak).toBeLessThanOrEqual(16)
+  })
+
   it('skips gallery ids without a retained File', async () => {
     enqueueGalleryAssets([
       {
