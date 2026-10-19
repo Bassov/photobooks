@@ -44,6 +44,17 @@ function migrateV1ToV2(
   }
 }
 
+function migrateV2ToV3(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const title = typeof input.title === 'string' ? input.title : ''
+  return {
+    ...input,
+    schemaVersion: 3,
+    title,
+  }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -74,8 +85,13 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
 
   let value: unknown = input
-  if (schemaVersion === 1) {
-    value = migrateV1ToV2(input as Record<string, unknown>)
+  let version = schemaVersion
+  if (version === 1) {
+    value = migrateV1ToV2(value as Record<string, unknown>)
+    version = 2
+  }
+  if (version === 2) {
+    value = migrateV2ToV3(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }
