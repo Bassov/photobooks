@@ -71,6 +71,52 @@ export function validateGates(raw, pathLabel = GATES_RELATIVE_PATH) {
     assertNonNegInt(thr[key], `${pathLabel} stryker.thresholds.${key}`)
   }
 
+  const diffThresholds = /** @type {Record<string, unknown>} */ (stryker)
+    .diffThresholds
+  if (
+    diffThresholds === null ||
+    typeof diffThresholds !== 'object' ||
+    Array.isArray(diffThresholds)
+  ) {
+    throw new Error(`${pathLabel} stryker.diffThresholds must be an object`)
+  }
+  const diffThr = /** @type {Record<string, unknown>} */ (diffThresholds)
+  for (const key of ['high', 'low', 'break']) {
+    assertNonNegInt(diffThr[key], `${pathLabel} stryker.diffThresholds.${key}`)
+  }
+
+  const mutation = gates.mutation
+  if (
+    mutation === null ||
+    typeof mutation !== 'object' ||
+    Array.isArray(mutation)
+  ) {
+    throw new Error(`${pathLabel} mutation must be an object`)
+  }
+  const mut = /** @type {Record<string, unknown>} */ (mutation)
+  assertNonNegInt(mut.disableBudget, `${pathLabel} mutation.disableBudget`)
+  if (!Array.isArray(mut.temporaryExcludes)) {
+    throw new Error(`${pathLabel} mutation.temporaryExcludes must be an array`)
+  }
+  for (const entry of mut.temporaryExcludes) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error(
+        `${pathLabel} mutation.temporaryExcludes entries must be objects`,
+      )
+    }
+    const row = /** @type {Record<string, unknown>} */ (entry)
+    if (typeof row.path !== 'string' || row.path.length === 0) {
+      throw new Error(
+        `${pathLabel} mutation.temporaryExcludes.path must be a non-empty string`,
+      )
+    }
+    if (typeof row.until !== 'string' || row.until.length === 0) {
+      throw new Error(
+        `${pathLabel} mutation.temporaryExcludes.until must be a non-empty string`,
+      )
+    }
+  }
+
   const lighthouse = gates.lighthouse
   if (
     lighthouse === null ||

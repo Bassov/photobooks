@@ -23,9 +23,11 @@ import {
   classifyGateSteps,
   compactWs,
   compareCodecov,
+  compareDiffVsNightly,
   compareGateTrees,
   compareGatesJson,
   compareRequiredJobGates,
+  compareTemporaryExcludes,
   classifyStrykerDisableLine,
   collectStrykerDisableComments,
   countIgnoreComments,
@@ -109,8 +111,19 @@ export const FIXTURE_IDS = Object.freeze([\n${q(fixtureIds)}\n])
 
 const baseGates = {
   coverage: { statements: 80, branches: 80, functions: 80, lines: 80 },
-  stryker: { thresholds: { high: 80, low: 60, break: 60 } },
-  mutation: { disableBudget: 0 },
+  stryker: {
+    thresholds: { high: 80, low: 60, break: 60 },
+    diffThresholds: { high: 90, low: 85, break: 85 },
+  },
+  mutation: {
+    disableBudget: 0,
+    temporaryExcludes: [
+      {
+        path: 'src/editor/projectSession.ts',
+        until: 'project-session-mutation',
+      },
+    ],
+  },
   lighthouse: {
     numberOfRuns: 1,
     assertions: { 'performance-budget': 'error' },
@@ -131,7 +144,10 @@ const baseGates = {
 function gatesWithBudget(budget) {
   return JSON.stringify({
     ...baseGates,
-    mutation: { disableBudget: budget },
+    mutation: {
+      ...baseGates.mutation,
+      disableBudget: budget,
+    },
   })
 }
 
@@ -331,6 +347,83 @@ describe('CLI fixture proofs (real check-gate-ratchet path)', () => {
     expect(
       result.violations.some((v) => v.ruleId === 'gates-json-weaker'),
     ).toBe(true)
+  })
+
+  it('FIXTURE weaker-diff-threshold: lowering diffThresholds fails', () => {
+    expect(FIXTURE_IDS).toContain('weaker-diff-threshold')
+    const headGates = {
+      ...baseGates,
+      stryker: {
+        ...baseGates.stryker,
+        diffThresholds: { high: 90, low: 85, break: 80 },
+      },
+    }
+    const { code, result } = cliRatchet({
+      'quality/gates.json': JSON.stringify(headGates),
+    })
+    expect(code).toBe(1)
+    expect(
+      result.violations.some(
+        (v) =>
+          v.ruleId === 'gates-json-weaker' &&
+          /diffThresholds\.break/.test(v.message),
+      ),
+    ).toBe(true)
+  })
+
+  it('FIXTURE diff-below-nightly: diff break under nightly fails', () => {
+    expect(FIXTURE_IDS).toContain('diff-below-nightly')
+    const headGates = {
+      ...baseGates,
+      stryker: {
+        thresholds: { high: 80, low: 60, break: 60 },
+        diffThresholds: { high: 90, low: 85, break: 50 },
+      },
+    }
+    const { code, result } = cliRatchet({
+      'quality/gates.json': JSON.stringify(headGates),
+    })
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'diff-below-nightly'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE temporary-excludes-grew: new temp path fails', () => {
+    expect(FIXTURE_IDS).toContain('temporary-excludes-grew')
+    const headGates = {
+      ...baseGates,
+      mutation: {
+        disableBudget: 0,
+        temporaryExcludes: [
+          ...baseGates.mutation.temporaryExcludes,
+          { path: 'src/new/Excluded.ts', until: 'never' },
+        ],
+      },
+    }
+    const { code, result } = cliRatchet({
+      'quality/gates.json': JSON.stringify(headGates),
+    })
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'temporary-excludes-grew'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE temporary-excludes-seed: base missing array allows seed', () => {
+    expect(FIXTURE_IDS).toContain('temporary-excludes-seed')
+    const baseNoTemp = {
+      ...baseGates,
+      mutation: { disableBudget: 0 },
+    }
+    const { code, result } = cliRatchet(
+      { 'quality/gates.json': JSON.stringify(baseGates) },
+      { 'quality/gates.json': JSON.stringify(baseNoTemp) },
+    )
+    expect(code).toBe(0)
+    expect(
+      result.violations.some((v) => v.ruleId === 'temporary-excludes-grew'),
+    ).toBe(false)
   })
 
   it('FIXTURE new-exclude: new stryker bang fails', () => {
@@ -1886,7 +1979,10 @@ describe('compareGatesJson / compareCodecov exact messages', () => {
     const fail = (m) => msgs.push(m)
     const weaker = {
       coverage: { statements: 1, branches: 1, functions: 1, lines: 1 },
-      stryker: { thresholds: { high: 1, low: 1, break: 1 } },
+      stryker: {
+        thresholds: { high: 1, low: 1, break: 1 },
+        diffThresholds: { high: 1, low: 1, break: 1 },
+      },
       lighthouse: {
         numberOfRuns: 0,
         assertions: {},
@@ -1915,6 +2011,15 @@ describe('compareGatesJson / compareCodecov exact messages', () => {
     )
     expect(msgs).toContain(
       'quality/gates.json stryker.thresholds.break: 60 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json stryker.diffThresholds.high: 90 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json stryker.diffThresholds.low: 85 → 1 (weaker)',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json stryker.diffThresholds.break: 85 → 1 (weaker)',
     )
     expect(msgs).toContain(
       'quality/gates.json lighthouse.numberOfRuns: 1 → 0 (weaker)',
@@ -2270,6 +2375,179 @@ describe('compareGateTrees remaining weakenings', () => {
           /mutation\.disableBudget/.test(v.message),
       ),
     ).toBe(true)
+  })
+
+  it('weaker diffThresholds fails gates-json-weaker', () => {
+    const head = {
+      ...baseGates,
+      stryker: {
+        ...baseGates.stryker,
+        diffThresholds: { high: 90, low: 85, break: 80 },
+      },
+    }
+    const r = compareGateTrees(
+      baseFiles({ 'quality/gates.json': JSON.stringify(baseGates) }),
+      baseFiles({ 'quality/gates.json': JSON.stringify(head) }),
+    )
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'gates-json-weaker' &&
+          /stryker\.diffThresholds\.break/.test(v.message),
+      ),
+    ).toBe(true)
+  })
+
+  it('diffThresholds below nightly fails diff-below-nightly', () => {
+    const head = {
+      ...baseGates,
+      stryker: {
+        thresholds: { high: 80, low: 60, break: 60 },
+        diffThresholds: { high: 90, low: 85, break: 50 },
+      },
+    }
+    const r = compareGateTrees(
+      baseFiles({ 'quality/gates.json': JSON.stringify(baseGates) }),
+      baseFiles({ 'quality/gates.json': JSON.stringify(head) }),
+    )
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'diff-below-nightly' &&
+          /diffThresholds\.break/.test(v.message),
+      ),
+    ).toBe(true)
+    const msgs = []
+    compareDiffVsNightly(head, 'quality/gates.json', (m) => msgs.push(m))
+    expect(msgs.some((m) => m.includes('50 < 60'))).toBe(true)
+  })
+
+  it('diffThresholds equal to nightly does not fail', () => {
+    const head = {
+      stryker: {
+        thresholds: { high: 80, low: 60, break: 60 },
+        diffThresholds: { high: 80, low: 60, break: 60 },
+      },
+    }
+    const msgs = []
+    compareDiffVsNightly(head, 'quality/gates.json', (m) => msgs.push(m))
+    expect(msgs).toEqual([])
+  })
+
+  it('diffThresholds skips when a side is non-numeric', () => {
+    const msgs = []
+    compareDiffVsNightly(
+      {
+        stryker: {
+          thresholds: { high: 80, low: 60, break: 60 },
+          diffThresholds: { high: 'x', low: 85, break: 85 },
+        },
+      },
+      'quality/gates.json',
+      (m) => msgs.push(m),
+    )
+    expect(msgs.some((m) => m.includes('diffThresholds.high'))).toBe(false)
+  })
+
+  it('temporaryExcludes seed when base has no array passes', () => {
+    const base = { ...baseGates, mutation: { disableBudget: 0 } }
+    const head = {
+      ...baseGates,
+      mutation: {
+        disableBudget: 0,
+        temporaryExcludes: [
+          {
+            path: 'src/editor/projectSession.ts',
+            until: 'project-session-mutation',
+          },
+        ],
+      },
+    }
+    const r = compareGateTrees(
+      baseFiles({ 'quality/gates.json': JSON.stringify(base) }),
+      baseFiles({ 'quality/gates.json': JSON.stringify(head) }),
+    )
+    expect(
+      r.violations.some((v) => v.ruleId === 'temporary-excludes-grew'),
+    ).toBe(false)
+  })
+
+  it('grown temporaryExcludes fails temporary-excludes-grew', () => {
+    const head = {
+      ...baseGates,
+      mutation: {
+        disableBudget: 0,
+        temporaryExcludes: [
+          ...baseGates.mutation.temporaryExcludes,
+          { path: 'src/new/Excluded.ts', until: 'never' },
+        ],
+      },
+    }
+    const r = compareGateTrees(
+      baseFiles({ 'quality/gates.json': JSON.stringify(baseGates) }),
+      baseFiles({ 'quality/gates.json': JSON.stringify(head) }),
+    )
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'temporary-excludes-grew' &&
+          /src\/new\/Excluded\.ts/.test(v.message),
+      ),
+    ).toBe(true)
+    const msgs = []
+    compareTemporaryExcludes(baseGates, head, 'quality/gates.json', (m) =>
+      msgs.push(m),
+    )
+    expect(msgs[0]).toContain(MSGS.tempExcludesGrewPrefix)
+  })
+
+  it('removed temporaryExcludes array fails temporary-excludes-grew', () => {
+    const head = {
+      ...baseGates,
+      mutation: { disableBudget: 0 },
+    }
+    const msgs = []
+    compareTemporaryExcludes(baseGates, head, 'quality/gates.json', (m) =>
+      msgs.push(m),
+    )
+    expect(msgs).toContain(
+      'quality/gates.json mutation.temporaryExcludes removed',
+    )
+    const r = compareGateTrees(
+      baseFiles({ 'quality/gates.json': JSON.stringify(baseGates) }),
+      baseFiles({ 'quality/gates.json': JSON.stringify(head) }),
+    )
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'temporary-excludes-grew' &&
+          /temporaryExcludes removed/.test(v.message),
+      ),
+    ).toBe(true)
+  })
+
+  it('temporaryExcludes ignores non-object rows and keeps equal path set', () => {
+    const msgs = []
+    compareTemporaryExcludes(
+      baseGates,
+      {
+        ...baseGates,
+        mutation: {
+          disableBudget: 0,
+          temporaryExcludes: [
+            null,
+            { path: 1 },
+            {
+              path: 'src/editor/projectSession.ts',
+              until: 'project-session-mutation',
+            },
+          ],
+        },
+      },
+      'quality/gates.json',
+      (m) => msgs.push(m),
+    )
+    expect(msgs).toEqual([])
   })
 
   it('real src/ and scripts/ have zero Stryker disables', () => {
