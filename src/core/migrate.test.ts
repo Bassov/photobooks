@@ -7,7 +7,9 @@ describe('migrateToCurrent', () => {
   it('accepts current schemaVersion as identity', () => {
     const input = makeBook()
     const result = migrateToCurrent(input)
-    expect(result).toEqual({ ok: true, value: input })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.value).toBe(input)
   })
 
   it('rejects newer schemaVersion', () => {
@@ -62,17 +64,23 @@ describe('migrateToCurrent', () => {
   })
 
   it('migrates v1 empty assets to v2 without inventing identity fields', () => {
+    const base = makeBook()
     const v1 = {
-      ...makeBook(),
       schemaVersion: 1,
+      id: base.id,
+      settings: base.settings,
+      layoutGrid: base.layoutGrid,
+      guides: base.guides,
       assets: { a: {}, b: { stray: true } },
       gallery: ['a', 'b'],
+      spreads: base.spreads,
     }
     const result = migrateToCurrent(v1)
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      title: '',
       assets: { a: {}, b: {} },
       gallery: ['a', 'b'],
       id: v1.id,
@@ -82,13 +90,86 @@ describe('migrateToCurrent', () => {
     expect(assets.b).toEqual({})
   })
 
-  it('rejects non-finite schemaVersion', () => {
-    expect(
-      migrateToCurrent({ schemaVersion: Number.POSITIVE_INFINITY }),
-    ).toMatchObject({
-      ok: false,
-      code: 'invalid-shape',
+  it('migrates v2 to v3 with empty title and preserved identity', () => {
+    const identity = {
+      sourceRootId: 'root-1',
+      relativePath: 'a.jpg',
+      byteSize: 10,
+      mtimeMs: 100,
+      contentHash:
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    }
+    const base = makeBook({ assets: { a: identity }, gallery: ['a'] })
+    const v2 = {
+      schemaVersion: 2,
+      id: base.id,
+      settings: base.settings,
+      layoutGrid: base.layoutGrid,
+      guides: base.guides,
+      assets: base.assets,
+      gallery: base.gallery,
+      spreads: base.spreads,
+    }
+    const result = migrateToCurrent(v2)
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.value).toMatchObject({
+      schemaVersion: 3,
+      title: '',
+      assets: { a: identity },
     })
+    const asset = (result.value as { assets: Record<string, unknown> }).assets.a
+    expect(asset).toEqual(identity)
+    expect(asset).not.toHaveProperty('widthPx')
+    expect(asset).not.toHaveProperty('meta')
+  })
+
+  it.each([
+    ['missing', undefined],
+    ['number', 1],
+    ['null', null],
+    ['object', {}],
+  ] as const)(
+    'v2→v3 defaults non-string title (%s) to empty string',
+    (_label, title) => {
+      const base = makeBook()
+      const v2 = {
+        schemaVersion: 2,
+        id: base.id,
+        settings: base.settings,
+        layoutGrid: base.layoutGrid,
+        guides: base.guides,
+        assets: base.assets,
+        gallery: base.gallery,
+        spreads: base.spreads,
+        ...(title === undefined ? {} : { title }),
+      }
+      const result = migrateToCurrent(v2)
+      expect(result.ok).toBe(true)
+      assert.equal(result.ok, true)
+      expect(result.value).toMatchObject({ schemaVersion: 3, title: '' })
+    },
+  )
+
+  it('preserves string title when migrating v2 to v3', () => {
+    const result = migrateToCurrent({
+      ...makeBook({ title: 'Summer' }),
+      schemaVersion: 2,
+    })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.value).toMatchObject({ schemaVersion: 3, title: 'Summer' })
+  })
+
+  it('rejects non-finite schemaVersion', () => {
+    for (const schemaVersion of [Number.POSITIVE_INFINITY, Number.NaN]) {
+      const result = migrateToCurrent({ schemaVersion })
+      expect(result).toMatchObject({
+        ok: false,
+        code: 'invalid-shape',
+      })
+      expect(result).not.toMatchObject({ code: 'newer-schema' })
+    }
   })
 
   it.each([
@@ -110,7 +191,7 @@ describe('migrateToCurrent', () => {
       expect(
         (result.value as { assets: Record<string, unknown> }).assets,
       ).toEqual({})
-      expect(result.value).toMatchObject({ schemaVersion: 2 })
+      expect(result.value).toMatchObject({ schemaVersion: 3, title: '' })
     },
   )
 

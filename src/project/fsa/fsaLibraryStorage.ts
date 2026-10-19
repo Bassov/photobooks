@@ -121,7 +121,19 @@ export function createFsaLibraryStorage(
     listBooks() {
       return gateRead(async () => {
         const ids = await listBookIds(root)
-        const summaries: BookSummary[] = ids.map((id) => ({ id }))
+        const summaries: BookSummary[] = []
+        for (const id of ids) {
+          const text = await readBookJsonText(root, id)
+          if (text === undefined) {
+            summaries.push({ id, title: '' })
+            continue
+          }
+          const loaded = await loadBookText(text)
+          summaries.push({
+            id,
+            title: loaded.ok ? (loaded.book.title ?? '') : '',
+          })
+        }
         return success(summaries)
       })
     },

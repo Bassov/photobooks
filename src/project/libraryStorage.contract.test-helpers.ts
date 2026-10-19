@@ -33,7 +33,23 @@ export function runLibraryStorageContract(
       const listed = await storage.listBooks()
 
       expect(created).toEqual({ ok: true, value: book })
-      expect(listed).toEqual({ ok: true, value: [{ id: book.id }] })
+      expect(listed).toEqual({
+        ok: true,
+        value: [{ id: book.id, title: book.title ?? '' }],
+      })
+    })
+
+    it('lists the document title on the book summary', async () => {
+      const { storage } = createHarness()
+      const book = makeBook({ id: 'titled-book', title: 'Summer' })
+
+      await storage.createBook(book)
+      const listed = await storage.listBooks()
+
+      expect(listed).toEqual({
+        ok: true,
+        value: [{ id: 'titled-book', title: 'Summer' }],
+      })
     })
 
     it('round-trips save then load for an existing book', async () => {
@@ -172,7 +188,7 @@ export function runLibraryStorageContract(
 
       expect(await harness.storage.listBooks()).toEqual({
         ok: true,
-        value: [{ id: book.id }],
+        value: [{ id: book.id, title: book.title ?? '' }],
       })
       expect(await harness.storage.loadBook(book.id)).toEqual({
         ok: true,

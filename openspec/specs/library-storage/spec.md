@@ -8,7 +8,7 @@ Defines the domain library persistence contract: listing and mutating books and 
 
 ### Requirement: Domain library storage API
 
-The system SHALL expose a domain library storage API that lists books, creates/loads/saves/deletes books, and reads/updates library metadata using domain types only. The API MUST NOT accept or return file paths, raw bytes, or platform handles.
+The system SHALL expose a domain library storage API that lists books, creates/loads/saves/deletes books, and reads/updates library metadata using domain types only. The API MUST NOT accept or return file paths, raw bytes, or platform handles. Book summaries SHALL include `id` and the book document `title`.
 
 #### Scenario: Empty library lists no books
 
@@ -18,7 +18,12 @@ The system SHALL expose a domain library storage API that lists books, creates/l
 #### Scenario: Create then list
 
 - **WHEN** a valid book is created in library storage
-- **THEN** listing books includes a summary for that book id
+- **THEN** listing books includes a summary for that book id with the document `title`
+
+#### Scenario: Listed summary carries document title
+
+- **WHEN** a book with `title` `"Summer"` is created and books are listed
+- **THEN** the summary for that book includes `title` `"Summer"`
 
 #### Scenario: Save then load round-trip
 

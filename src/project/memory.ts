@@ -1,4 +1,5 @@
 import { parseBook, type Book } from '../core'
+import { bookTitleFromUnknown } from './bookTitle'
 import type {
   BookSummary,
   LibraryMeta,
@@ -78,9 +79,12 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
     listBooks() {
       return Promise.resolve(
         gateRead(() => {
-          const summaries: BookSummary[] = [...books.keys()].map((id) => ({
-            id,
-          }))
+          const summaries: BookSummary[] = [...books.entries()].map(
+            ([id, raw]) => ({
+              id,
+              title: bookTitleFromUnknown(raw),
+            }),
+          )
           return success(summaries)
         }),
       )

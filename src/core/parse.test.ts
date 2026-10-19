@@ -98,16 +98,82 @@ describe('parseBook', () => {
   })
 
   it('parses a migrated v1 book with empty assets', () => {
+    const current = makeBookWithAsset('photo-a')
     const v1 = {
-      ...makeBookWithAsset('photo-a'),
       schemaVersion: 1,
+      id: current.id,
+      settings: current.settings,
+      layoutGrid: current.layoutGrid,
+      guides: current.guides,
       assets: { 'photo-a': {} },
+      gallery: current.gallery,
+      spreads: current.spreads,
     }
     const result = parseBook(v1)
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.book.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    expect(result.book.title).toBe('')
     expect(result.book.assets['photo-a']).toEqual({})
+  })
+
+  it('parses a migrated v2 book preserving identity and defaulting title', () => {
+    const identity = {
+      sourceRootId: 'root-1',
+      relativePath: 'a.jpg',
+      byteSize: 10,
+      mtimeMs: 100,
+      contentHash:
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    }
+    const current = makeBook({
+      assets: { 'photo-a': identity },
+      gallery: ['photo-a'],
+    })
+    const v2 = {
+      schemaVersion: 2,
+      id: current.id,
+      settings: current.settings,
+      layoutGrid: current.layoutGrid,
+      guides: current.guides,
+      assets: current.assets,
+      gallery: current.gallery,
+      spreads: current.spreads,
+    }
+    const result = parseBook(v2)
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.book.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    expect(result.book.title).toBe('')
+    expect(result.book.assets['photo-a']).toEqual(identity)
+  })
+
+  it('parses full asset metadata on the current schema', () => {
+    const metaAsset = {
+      widthPx: 100,
+      heightPx: 200,
+      orientation: 6,
+      capturedAt: '2024-01-01T00:00:00Z',
+      colorSpace: 'Display P3',
+      iccProfileName: 'Display P3',
+      mime: 'image/heic',
+      meta: {
+        title: 't',
+        keywords: ['k'],
+        gps: { lat: 1, lon: 2 },
+      },
+    }
+    const result = parseBook(
+      makeBook({
+        title: 'Album',
+        assets: { a: metaAsset },
+        gallery: ['a'],
+      }),
+    )
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.book.title).toBe('Album')
+    expect(result.book.assets.a).toEqual(metaAsset)
   })
 
   it('rejects duplicate gallery ids at the schema boundary', () => {

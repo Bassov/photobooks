@@ -79,7 +79,10 @@ describe('FSA library storage layout', () => {
     expect(libraryText).toBe('{}')
 
     const listed = await storage.listBooks()
-    expect(listed).toEqual({ ok: true, value: [{ id: book.id }] })
+    expect(listed).toEqual({
+      ok: true,
+      value: [{ id: book.id, title: book.title ?? '' }],
+    })
 
     await storage.deleteBook(book.id)
     expect(await memoryDirectoryExists(root, [BOOKS_DIR, book.id])).toBe(false)
@@ -95,6 +98,35 @@ describe('FSA library storage layout', () => {
     ).toBeUndefined()
   })
 
+  it('lists corrupt books with empty title while keeping the id', async () => {
+    const { storage, seedRawBook } = createFsaHarness()
+    await seedRawBook('corrupt-book', { not: 'a-book' })
+    expect(await storage.listBooks()).toEqual({
+      ok: true,
+      value: [{ id: 'corrupt-book', title: '' }],
+    })
+  })
+
+  it('lists book dirs without book.json with empty title', async () => {
+    const { root, storage } = createFsaHarness()
+    const books = await root.getDirectory(BOOKS_DIR, { create: true })
+    await books.getDirectory('no-json', { create: true })
+    expect(await storage.listBooks()).toEqual({
+      ok: true,
+      value: [{ id: 'no-json', title: '' }],
+    })
+  })
+
+  it('lists titled books from stored documents', async () => {
+    const { storage } = createFsaHarness()
+    const book = makeBook({ id: 'named', title: 'Summer' })
+    await storage.createBook(book)
+    expect(await storage.listBooks()).toEqual({
+      ok: true,
+      value: [{ id: 'named', title: 'Summer' }],
+    })
+  })
+
   it('accepts a browser FileSystemDirectoryHandle via the adapter wrapper', async () => {
     const browserRoot = createFakeBrowserDirectory()
     expect(typeof (browserRoot as { list?: unknown }).list).toBe('undefined')
@@ -108,7 +140,7 @@ describe('FSA library storage layout', () => {
     expect(await storage.loadBook(book.id)).toEqual({ ok: true, value: book })
     expect(await storage.listBooks()).toEqual({
       ok: true,
-      value: [{ id: book.id }],
+      value: [{ id: book.id, title: book.title ?? '' }],
     })
   })
 })

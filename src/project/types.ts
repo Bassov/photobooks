@@ -5,6 +5,7 @@ export type LibraryMeta = Record<string, never>
 
 export interface BookSummary {
   id: string
+  title: string
 }
 
 export type StorageFailureCode =

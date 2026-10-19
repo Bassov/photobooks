@@ -37,6 +37,7 @@ export function makeBook(overrides: BookOverrides = {}): Book {
     layoutGrid: layoutGridOverride,
     schemaVersion = CURRENT_SCHEMA_VERSION,
     id = 'book-1',
+    title,
     guides = [],
     assets = {},
     gallery = [],
@@ -68,6 +69,7 @@ export function makeBook(overrides: BookOverrides = {}): Book {
   return {
     schemaVersion,
     id,
+    ...(title === undefined ? {} : { title }),
     settings,
     layoutGrid,
     guides,
