@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -136,9 +137,7 @@ describe('EditorShell viewport containment', () => {
       await attachMemoryLibraryForTests()
     })
     const saveBefore = screen.getByTestId('save-book')
-    if (!(saveBefore instanceof HTMLButtonElement)) {
-      throw new Error('expected save button')
-    }
+    assert(saveBefore instanceof HTMLButtonElement, 'expected save button')
     expect(saveBefore.disabled).toBe(false)
     act(() => {
       setAccessPhaseForTests('locked-elsewhere')
@@ -147,9 +146,7 @@ describe('EditorShell viewport containment', () => {
       'This book is open in another tab',
     )
     const saveAfter = screen.getByTestId('save-book')
-    if (!(saveAfter instanceof HTMLButtonElement)) {
-      throw new Error('expected save button')
-    }
+    assert(saveAfter instanceof HTMLButtonElement, 'expected save button')
     expect(saveAfter.disabled).toBe(true)
     expect(screen.queryByTestId('save-indicator')).toBeNull()
   })

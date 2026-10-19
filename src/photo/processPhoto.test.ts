@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
@@ -54,9 +55,7 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-1', file })
 
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+    assert.equal(result.ok, true)
     expect(result.id).toBe('req-1')
     expect(result.name).toBe('sample-orient6.jpg')
     expect(result.width).toBe(40)
@@ -76,9 +75,7 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-label', file })
 
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+    assert.equal(result.ok, true)
     expect(result.orientation).toBe(6)
     expect(result.correctedWidth).toBe(8)
     expect(result.correctedHeight).toBe(12)
@@ -101,9 +98,7 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-parse', file })
 
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+    assert.equal(result.ok, true)
     expect(result.orientation).toBe(8)
     expect(result.correctedWidth).toBe(8)
     expect(result.correctedHeight).toBe(12)
@@ -117,9 +112,7 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-catch', file })
 
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+    assert.equal(result.ok, true)
     expect(result.orientation).toBe(1)
   })
 
@@ -140,9 +133,7 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-bad-orient', file })
 
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+    assert.equal(result.ok, true)
     expect(result.orientation).toBe(1)
   })
 
@@ -182,9 +173,7 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-4', file })
 
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+    assert.equal(result.ok, true)
     expect(result.width).toBe(12)
     expect(result.height).toBe(8)
     expect(result.correctedWidth).toBe(12)

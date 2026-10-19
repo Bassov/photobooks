@@ -8,6 +8,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
+import {
+  compareItemCriteria,
+  compareTestWeakening,
+} from './check-test-weakening.mjs'
 import { stripGitKeys } from './strip-git-env.mjs'
 
 export const RULE_IDS = Object.freeze([
@@ -23,6 +27,12 @@ export const RULE_IDS = Object.freeze([
   'required-job-step-moved',
   'rules-superset',
   'fixtures-superset',
+  'test-skip-added',
+  'test-retries-added',
+  'test-title-removed',
+  'allow-only-weaker',
+  'forbid-only-weaker',
+  'item-criteria-loosened',
 ])
 
 export const FIXTURE_IDS = Object.freeze([
@@ -35,8 +45,19 @@ export const FIXTURE_IDS = Object.freeze([
   'deleted-rule',
   'burn-in-moved-without-needs',
   'burn-in-moved-with-needs',
+  'added-skip',
+  'added-fixme',
+  'added-retries',
+  'deleted-title',
+  'forbid-only-false',
+  'allow-only-true',
+  'deleted-test-file-alone',
+  'deleted-test-file-with-companion',
+  'renamed-title-same-body',
+  'done-when-rewrite',
+  'deferral-item',
+  'checkbox-done-note',
 ])
-
 /** Shared empty literals — asserted in unit tests to pin StringLiteral/Array mutants. */
 export const EMPTY_STRING = ''
 export const EMPTY_OBJECT_JSON = '{}'
@@ -1098,15 +1119,15 @@ export function listSourcePaths(files) {
  * Compare two file maps (path → utf8 content).
  * @param {Record<string, string>} baseFiles
  * @param {Record<string, string>} headFiles
+ * @param {{ prBody?: string, branch?: string }} [opts]
  * @returns {{ ok: boolean, violations: { ruleId: string, message: string }[] }}
  */
-export function compareGateTrees(baseFiles, headFiles) {
+export function compareGateTrees(baseFiles, headFiles, opts = {}) {
   /** @type {{ ruleId: string, message: string }[] } */
   const violations = []
   const fail = (ruleId, message) => {
     violations.push({ ruleId, message })
   }
-
   for (const gf of GATE_FILES) {
     if (
       getFile(baseFiles, gf) !== undefined &&
@@ -1295,9 +1316,16 @@ export function compareGateTrees(baseFiles, headFiles) {
     }
   }
 
+  compareTestWeakening(baseFiles, headFiles, fail)
+  compareItemCriteria(
+    baseFiles,
+    headFiles,
+    { prBody: opts.prBody, branch: opts.branch },
+    fail,
+  )
+
   return { ok: violations.length === 0, violations }
 }
-
 /**
  * @param {string} root
  * @returns {Record<string, string>}
@@ -1471,7 +1499,10 @@ export function parseArgs(argv) {
       a === '--head-ref' ||
       a === '--base-dir' ||
       a === '--head-dir' ||
-      a === '--cwd'
+      a === '--cwd' ||
+      a === '--pr-body' ||
+      a === '--pr-body-env' ||
+      a === '--branch'
     ) {
       const next = argv[i + 1]
       out[a.slice(2)] = coerceText(next)
@@ -1502,7 +1533,21 @@ export function runGateRatchetCli(argv = process.argv.slice(2), opts = {}) {
     )
     return 2
   }
-  const result = compareGateTrees(baseFiles, headFiles)
+  /** Explicit `--pr-body` (including empty) wins over env. */
+  const hasPrBodyFlag = Object.prototype.hasOwnProperty.call(args, 'pr-body')
+  let prBody = ''
+  if (hasPrBodyFlag) {
+    prBody = args['pr-body']
+  } else if (args['pr-body-env']) {
+    prBody = process.env[args['pr-body-env']] ?? ''
+  } else if (process.env.PR_POLICY_BODY != null) {
+    prBody = process.env.PR_POLICY_BODY
+  }
+  const hasBranchFlag = Object.prototype.hasOwnProperty.call(args, 'branch')
+  const branch = hasBranchFlag
+    ? args.branch
+    : process.env.PR_POLICY_BRANCH || process.env.GITHUB_HEAD_REF || ''
+  const result = compareGateTrees(baseFiles, headFiles, { prBody, branch })
   if (result.ok) {
     console.log('Gate ratchet: OK (head not weaker than base)')
     return 0

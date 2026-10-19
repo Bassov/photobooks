@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { makeBook } from '../core/testing/fixtures'
+import assert from 'node:assert/strict'
 import {
   createFakeBrowserDirectory,
   createFakeDirectoryPicker,
@@ -82,9 +83,7 @@ describe('projectSession', () => {
     const created = await createBookInLibrary()
     expect(created.ok).toBe(true)
     expect(created).toMatchObject({ ok: true })
-    if (!created.ok) {
-      throw new Error('expected createBookInLibrary success')
-    }
+    assert(created.ok, 'expected createBookInLibrary success')
     expect(getEditorStatus()).toBe('Book created')
     expect(isLibraryBacked()).toBe(true)
     expect(getProjectSessionSnapshot()).toMatchObject({
@@ -135,9 +134,7 @@ describe('projectSession', () => {
     const restored = await tryRestore()
     expect(restored.ok).toBe(true)
     expect(restored).toMatchObject({ ok: true })
-    if (!restored.ok) {
-      throw new Error('expected tryRestore success')
-    }
+    assert(restored.ok, 'expected tryRestore success')
     expect(restored.value).not.toBeNull()
     expect(restored.value?.id).toBe(created.value.id)
     expect(restored.value?.gallery).toEqual(['asset-1'])
@@ -164,9 +161,7 @@ describe('projectSession', () => {
 
     const restored = await tryRestore()
     expect(restored.ok).toBe(true)
-    if (!restored.ok) {
-      throw new Error('expected tryRestore success')
-    }
+    assert(restored.ok, 'expected tryRestore success')
     expect(restored.value?.id).toBe(adoptedId)
     expect(getProjectSessionSnapshot().libraryOpen).toBe(true)
     expect(getProjectSessionSnapshot().bookId).toBe(adoptedId)
@@ -316,9 +311,7 @@ describe('projectSession', () => {
     await createLibrary()
     const created = await createBookInLibrary()
     expect(created.ok).toBe(true)
-    if (!created.ok) {
-      throw new Error('expected createBookInLibrary success')
-    }
+    assert(created.ok, 'expected createBookInLibrary success')
 
     resetBookStore({
       book: {
@@ -401,17 +394,13 @@ describe('projectSession', () => {
     const before = getBookStoreSnapshot().book
     const adopted = await adoptCurrentBookInLibrary()
     expect(adopted.ok).toBe(true)
-    if (!adopted.ok) {
-      throw new Error('expected adopt success')
-    }
+    assert(adopted.ok, 'expected adopt success')
     expect(adopted.value.id).toBe(before.id)
     expect(isLibraryBacked()).toBe(true)
 
     const again = await adoptCurrentBookInLibrary()
     expect(again.ok).toBe(true)
-    if (!again.ok) {
-      throw new Error('expected second adopt success')
-    }
+    assert(again.ok, 'expected second adopt success')
     expect(again.value.id).toBe(before.id)
   })
 
@@ -484,9 +473,7 @@ describe('projectSession', () => {
     await attachLibraryForTests({ storage, session })
     const created = await createBookInLibrary()
     expect(created.ok).toBe(true)
-    if (!created.ok) {
-      throw new Error('expected create')
-    }
+    assert(created.ok, 'expected create')
     resetBookStore({
       book: {
         ...created.value,
@@ -589,9 +576,7 @@ describe('projectSession', () => {
       await attachLibraryBackedBook()
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
       expect(spreadId).toBeTypeOf('string')
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
 
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       expect(getProjectSessionSnapshot()).toMatchObject({
@@ -641,9 +626,10 @@ describe('projectSession', () => {
       const spreads = getBookStoreSnapshot().book.spreads
       const firstSpread = spreads[0]?.id
       const secondSpread = spreads[1]?.id
-      if (firstSpread === undefined || secondSpread === undefined) {
-        throw new Error('expected two spreads')
-      }
+      assert(
+        firstSpread !== undefined && secondSpread !== undefined,
+        'expected two spreads',
+      )
 
       dispatchBookOp({
         type: 'applyTemplate',
@@ -669,9 +655,7 @@ describe('projectSession', () => {
       expect(getEditorStatus()).not.toBe('Book saved')
 
       const pending = armed[1]
-      if (pending === undefined) {
-        throw new Error('expected a second armed timer')
-      }
+      assert(pending !== undefined, 'expected a second armed timer')
       pending.callback()
       await vi.waitFor(() => {
         expect(getProjectSessionSnapshot()).toMatchObject({
@@ -685,9 +669,7 @@ describe('projectSession', () => {
     it('blocks autosave while a gesture is active then re-arms after end', async () => {
       await attachLibraryBackedBook()
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
 
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '4-grid' })
       setEditorGestureActive(true)
@@ -731,13 +713,9 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
 
       setEditorGestureActive(true)
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
@@ -791,9 +769,10 @@ describe('projectSession', () => {
       const spreads = getBookStoreSnapshot().book.spreads
       const first = spreads[0]?.id
       const second = spreads[1]?.id
-      if (first === undefined || second === undefined) {
-        throw new Error('expected two spreads')
-      }
+      assert(
+        first !== undefined && second !== undefined,
+        'expected two spreads',
+      )
 
       dispatchBookOp({
         type: 'applyTemplate',
@@ -836,9 +815,7 @@ describe('projectSession', () => {
       })
       await attachLibraryForTests({ storage, session })
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
 
       storage.setPermissionRequired(true)
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
@@ -868,9 +845,7 @@ describe('projectSession', () => {
     it('manual save clears dirty', async () => {
       await attachLibraryBackedBook()
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       expect(getProjectSessionSnapshot().dirty).toBe(true)
       saveBookNow()
@@ -884,9 +859,7 @@ describe('projectSession', () => {
 
     it('does not mark dirty without an open library', () => {
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       expect(getProjectSessionSnapshot()).toMatchObject({
         dirty: false,
@@ -898,9 +871,7 @@ describe('projectSession', () => {
     it('resets the debounce when edits keep arriving', async () => {
       await attachLibraryBackedBook()
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       await vi.advanceTimersByTimeAsync(800)
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '4-grid' })
@@ -936,9 +907,7 @@ describe('projectSession', () => {
       })
       await attachLibraryForTests({ storage, session })
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       saveBookNow()
       await vi.waitFor(() => {
@@ -965,9 +934,7 @@ describe('projectSession', () => {
       })
       await attachLibraryForTests({ storage, session })
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       await vi.advanceTimersByTimeAsync(249)
       expect(getProjectSessionSnapshot().savePhase).toBe('pending')
@@ -1001,9 +968,7 @@ describe('projectSession', () => {
       await attachLibraryForTests({ storage, session, handle })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       const bookId = created.value.id
       saveBookNow()
       await vi.waitFor(() => {
@@ -1051,9 +1016,7 @@ describe('projectSession', () => {
       })
       await attachLibraryForTests({ storage, session, handle })
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected a spread')
-      }
+      assert(spreadId !== undefined, 'expected a spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       expect(getProjectSessionSnapshot().dirty).toBe(true)
 
@@ -1090,9 +1053,7 @@ describe('projectSession', () => {
       await attachLibraryForTests({ storage, session })
       const first = await createBookInLibrary()
       expect(first.ok).toBe(true)
-      if (!first.ok) {
-        throw new Error('expected create')
-      }
+      assert(first.ok, 'expected create')
       const held = await holdExternalBookLockForTests(first.value.id)
       expect(held.ok).toBe(true)
 
@@ -1129,9 +1090,7 @@ describe('projectSession', () => {
       await attachLibraryForTests({ storage, session })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await holdExternalBookLockForTests(created.value.id)
       await tryActivateLibraryBookForTests(created.value.id)
       expect(getProjectSessionSnapshot().accessPhase).toBe('locked-elsewhere')
@@ -1153,17 +1112,14 @@ describe('projectSession', () => {
       await attachLibraryForTests({ storage, session })
       const first = await createBookInLibrary()
       expect(first.ok).toBe(true)
-      if (!first.ok) {
-        throw new Error('expected create')
-      }
+      assert(first.ok, 'expected create')
       configureProjectSession({ nowId: () => 'book-release-2' })
       const second = await createBookInLibrary()
       expect(second.ok).toBe(true)
       const again = await session.acquireBookLock('book-release-1')
       expect(again.ok).toBe(true)
-      if (again.ok) {
-        await again.value.release()
-      }
+      assert.equal(again.ok, true)
+      await again.value.release()
     })
 
     it('regrantLibraryWithHandleForTests restores after permission-required', async () => {
@@ -1180,9 +1136,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       saveBookNow()
       await vi.waitFor(() => {
         expect(getEditorStatus()).toBe('Book saved')
@@ -1239,9 +1193,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
 
       const recents = await listRecents()
       expect(recents).toEqual({
@@ -1251,9 +1203,7 @@ describe('projectSession', () => {
 
       const listed = await selectRecentLibrary('library')
       expect(listed.ok).toBe(true)
-      if (!listed.ok) {
-        throw new Error('expected list')
-      }
+      assert(listed.ok, 'expected list')
       expect(listed.value.some((book) => book.id === created.value.id)).toBe(
         true,
       )
@@ -1299,9 +1249,7 @@ describe('projectSession', () => {
       await attachLibraryForTests({ storage, session })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       resetProjectSessionForTests()
       configureProjectSession({
         session: {
@@ -1356,9 +1304,7 @@ describe('projectSession', () => {
       await attachLibraryForTests({ storage, session })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       expect(storageKey.getItem('photobooks.activeBookId')).toBe(
         created.value.id,
       )
@@ -1392,9 +1338,7 @@ describe('projectSession', () => {
       session.setPermissionRequired(true)
       const before = await session.listRecentLibraries()
       expect(before.ok).toBe(true)
-      if (!before.ok) {
-        throw new Error('expected recents')
-      }
+      assert(before.ok, 'expected recents')
       expect(before.value).toHaveLength(1)
 
       session.setPermissionRequired(false)
@@ -1402,9 +1346,7 @@ describe('projectSession', () => {
       expect(opened.ok).toBe(true)
       const after = await session.listRecentLibraries()
       expect(after.ok).toBe(true)
-      if (!after.ok) {
-        throw new Error('expected recents')
-      }
+      assert(after.ok, 'expected recents')
       expect(after.value).toHaveLength(1)
       expect(after.value[0]?.id).toBe('existing-lib')
     })
@@ -1464,9 +1406,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await leaveEditorForHome()
       session.setPermissionRequired(true)
       await openBookFromHome('denied-lib', created.value.id)
@@ -1501,9 +1441,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await leaveEditorForHome()
       session.setPermissionRequired(true)
       await openBookFromHome('injected-perm-lib', created.value.id)
@@ -1532,9 +1470,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await leaveEditorForHome()
       session.setPermissionRequired(true)
       await openBookFromHome('mismatch-lib', created.value.id)
@@ -1546,9 +1482,8 @@ describe('projectSession', () => {
       expect(getProjectSessionSnapshot().homeError).toMatch(/does not match/i)
       const still = await session.peekLibraryHandle('mismatch-lib')
       expect(still.ok).toBe(true)
-      if (still.ok) {
-        expect(still.value).toBe(stored)
-      }
+      assert.equal(still.ok, true)
+      expect(still.value).toBe(stored)
     })
 
     it('regrant from home opens the pending book after requestPermission', async () => {
@@ -1572,9 +1507,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await leaveEditorForHome()
       session.setPermissionRequired(true)
       const opened = await openBookFromHome('grant-lib', created.value.id)
@@ -1624,9 +1557,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       const firstBookId = created.value.id
       expect(getProjectSessionSnapshot().bookId).toBe(firstBookId)
 
@@ -1645,9 +1576,8 @@ describe('projectSession', () => {
       expect(getBookStoreSnapshot().book.gallery).toEqual([])
       const listed = await secondStorage.listBooks()
       expect(listed.ok).toBe(true)
-      if (listed.ok) {
-        expect(listed.value.some((book) => book.id === firstBookId)).toBe(false)
-      }
+      assert.equal(listed.ok, true)
+      expect(listed.value.some((book) => book.id === firstBookId)).toBe(false)
     })
   })
 
@@ -1687,9 +1617,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       resetBookStore({
         book: withPlacedPhotos(created.value),
         sessionMeta: new Map(),
@@ -1739,9 +1667,7 @@ describe('projectSession', () => {
       expect(opened.ok).toBe(true)
       const listedA = await libA.listBooks()
       expect(listedA.ok).toBe(true)
-      if (!listedA.ok) {
-        throw new Error('expected list A')
-      }
+      assert(listedA.ok, 'expected list A')
       expect(listedA.value.some((book) => book.id === bookB)).toBe(false)
       expect(getProjectSessionSnapshot().bookId).toBe('book-a')
       expect(getBookStoreSnapshot().book.id).toBe('book-a')
@@ -1772,9 +1698,7 @@ describe('projectSession', () => {
       expect(created.ok).toBe(true)
       const listed = await libNew.listBooks()
       expect(listed.ok).toBe(true)
-      if (!listed.ok) {
-        throw new Error('expected list')
-      }
+      assert(listed.ok, 'expected list')
       expect(listed.value.some((book) => book.id === bookB)).toBe(false)
       expect(getBookStoreSnapshot().book.gallery).toEqual([])
     })
@@ -1812,23 +1736,17 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
       expect(spreadId).toBeTypeOf('string')
-      if (spreadId === undefined) {
-        throw new Error('expected spread')
-      }
+      assert(spreadId !== undefined, 'expected spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       expect(getProjectSessionSnapshot().dirty).toBe(true)
 
       await leaveEditorForHome()
       const loaded = await storage.loadBook(created.value.id)
       expect(loaded.ok).toBe(true)
-      if (!loaded.ok) {
-        throw new Error('expected load')
-      }
+      assert(loaded.ok, 'expected load')
       expect(loaded.value.spreads[0]?.templateId).toBe('2-up')
     })
 
@@ -1849,13 +1767,9 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected spread')
-      }
+      assert(spreadId !== undefined, 'expected spread')
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
 
       configureProjectSession({
@@ -1871,9 +1785,7 @@ describe('projectSession', () => {
       expect(createdLib.ok).toBe(true)
       const loaded = await storage.loadBook(created.value.id)
       expect(loaded.ok).toBe(true)
-      if (!loaded.ok) {
-        throw new Error('expected load')
-      }
+      assert(loaded.ok, 'expected load')
       expect(loaded.value.spreads[0]?.templateId).toBe('2-up')
     })
 
@@ -1893,22 +1805,16 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
-      if (spreadId === undefined) {
-        throw new Error('expected spread')
-      }
+      assert(spreadId !== undefined, 'expected spread')
       setEditorGestureActive(true)
       dispatchBookOp({ type: 'applyTemplate', spreadId, templateId: '2-up' })
       await leaveEditorForHome()
       setEditorGestureActive(false)
       const loaded = await storage.loadBook(created.value.id)
       expect(loaded.ok).toBe(true)
-      if (!loaded.ok) {
-        throw new Error('expected load')
-      }
+      assert(loaded.ok, 'expected load')
       expect(loaded.value.spreads[0]?.templateId).toBe('2-up')
     })
 
@@ -1927,9 +1833,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       storage.setPermissionRequired(true)
       saveBookNow()
       await vi.waitFor(() => {
@@ -1957,9 +1861,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       const bookIdBefore = created.value.id
       const result = await createLibrary()
       expect(result.ok).toBe(false)
@@ -2005,9 +1907,8 @@ describe('projectSession', () => {
       expect(getProjectSessionSnapshot().homeError).toBeTruthy()
       const lock = await session.acquireBookLock('any-after-rollback')
       expect(lock.ok).toBe(true)
-      if (lock.ok) {
-        await lock.value.release()
-      }
+      assert.equal(lock.ok, true)
+      await lock.value.release()
     })
 
     it('openBookFromHome remember failure rolls back without leaking a lock', async () => {
@@ -2050,9 +1951,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await leaveEditorForHome()
       failRemember = true
       const opened = await openBookFromHome(
@@ -2065,9 +1964,8 @@ describe('projectSession', () => {
       expect(getProjectSessionSnapshot().homeError).toBeTruthy()
       const lock = await session.acquireBookLock(created.value.id)
       expect(lock.ok).toBe(true)
-      if (lock.ok) {
-        await lock.value.release()
-      }
+      assert.equal(lock.ok, true)
+      await lock.value.release()
     })
 
     it('restorePending blocks createLibrary', async () => {
@@ -2149,9 +2047,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await leaveEditorForHome()
       await holdExternalBookLockForTests(created.value.id)
       const opened = await openBookFromHome('lib-lock', created.value.id)
@@ -2192,9 +2088,7 @@ describe('projectSession', () => {
       expect(opened.ok).toBe(true)
       const after = await session.listRecentLibraries()
       expect(after.ok).toBe(true)
-      if (!after.ok) {
-        throw new Error('expected recents')
-      }
+      assert(after.ok, 'expected recents')
       expect(after.value).toHaveLength(1)
       expect(after.value[0]?.id).toBe('existing-lib')
     })
@@ -2214,9 +2108,7 @@ describe('projectSession', () => {
       })
       const created = await createBookInLibrary()
       expect(created.ok).toBe(true)
-      if (!created.ok) {
-        throw new Error('expected create')
-      }
+      assert(created.ok, 'expected create')
       await session.rememberLibraryHandle(
         'lib-other',
         { name: 'Other' },
@@ -2224,9 +2116,7 @@ describe('projectSession', () => {
       )
       const before = await session.listRecentLibraries()
       expect(before.ok).toBe(true)
-      if (!before.ok) {
-        throw new Error('expected before')
-      }
+      assert(before.ok, 'expected before')
       const beforeIds = before.value.map((entry) => entry.id)
       await leaveEditorForHome()
       await holdExternalBookLockForTests(created.value.id)
@@ -2234,9 +2124,7 @@ describe('projectSession', () => {
       expect(opened).toEqual({ ok: false, code: 'locked-elsewhere' })
       const after = await session.listRecentLibraries()
       expect(after.ok).toBe(true)
-      if (!after.ok) {
-        throw new Error('expected after')
-      }
+      assert(after.ok, 'expected after')
       expect(after.value.map((entry) => entry.id)).toEqual(beforeIds)
     })
   })

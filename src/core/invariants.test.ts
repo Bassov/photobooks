@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkBookInvariants } from './index'
+import assert from 'node:assert/strict'
 import {
   makeBook,
   makeBookWithAsset,
@@ -24,9 +25,8 @@ describe('checkBookInvariants', () => {
     })
     const result = checkBookInvariants(book)
     expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.violation.code).toBe('dangling-frame-asset')
-    }
+    assert.equal(result.ok, false)
+    expect(result.violation.code).toBe('dangling-frame-asset')
   })
 
   it('rejects placed asset missing from gallery', () => {
@@ -37,9 +37,8 @@ describe('checkBookInvariants', () => {
     })
     const result = checkBookInvariants(book)
     expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.violation.code).toBe('placed-not-in-gallery')
-    }
+    assert.equal(result.ok, false)
+    expect(result.violation.code).toBe('placed-not-in-gallery')
   })
 
   it('rejects gallery id missing from assets', () => {
@@ -49,9 +48,8 @@ describe('checkBookInvariants', () => {
     })
     const result = checkBookInvariants(book)
     expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.violation.code).toBe('gallery-missing-asset')
-    }
+    assert.equal(result.ok, false)
+    expect(result.violation.code).toBe('gallery-missing-asset')
   })
 
   it('rejects duplicate gallery ids', () => {
@@ -61,8 +59,7 @@ describe('checkBookInvariants', () => {
     })
     const result = checkBookInvariants(book)
     expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.violation.code).toBe('duplicate-gallery-id')
-    }
+    assert.equal(result.ok, false)
+    expect(result.violation.code).toBe('duplicate-gallery-id')
   })
 })

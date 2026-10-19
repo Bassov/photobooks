@@ -1,9 +1,19 @@
 import { expect, test } from './fixtures/coverage'
+import assert from 'node:assert/strict'
 import {
   assertDocumentFitsViewport,
   assertNamedScrollport,
 } from './fixtures/assertDocumentFitsViewport'
 import { clearProjectSession } from './fixtures/clearProjectSession'
+
+/** Browser-side: safe for page.evaluate (no Node closures). */
+async function seedHomeRecentsInBrowser(count: number): Promise<void> {
+  const api = window.__photobooksProject
+  if (!api?.seedHomeRecentsForTests) {
+    throw new Error('seedHomeRecentsForTests missing')
+  }
+  await api.seedHomeRecentsForTests(count)
+}
 
 test.afterEach(async ({ page }) => {
   await clearProjectSession(page)
@@ -87,9 +97,7 @@ test('fresh visit lists recent library books and one click opens', async ({
     }
   }, libraryFolder)
   expect(prepared.ok).toBe(true)
-  if (!prepared.ok) {
-    throw new Error(prepared.reason)
-  }
+  assert.equal(prepared.ok, true)
 
   await page.evaluate(() => {
     sessionStorage.clear()
@@ -238,9 +246,8 @@ test('same-folder reopen does not duplicate recents', async ({ page }) => {
   }, libraryFolder)
 
   expect(result.ok).toBe(true)
-  if (result.ok) {
-    expect(result.count).toBe(1)
-  }
+  assert.equal(result.ok, true)
+  expect(result.count).toBe(1)
 })
 
 test('Home then Open other library does not copy the previous book', async ({
@@ -341,9 +348,7 @@ test('Home then Open other library does not copy the previous book', async ({
   )
 
   expect(result.ok).toBe(true)
-  if (!result.ok) {
-    throw new Error(result.reason)
-  }
+  assert.equal(result.ok, true)
   expect(result.bookIds).toContain(result.bookA)
   expect(result.bookIds).not.toContain(result.bookB)
   expect(result.bookIds).toContain(result.activeBookId)
@@ -382,9 +387,7 @@ test('edit then immediate Home persists the edit on reopen', async ({
     return { ok: true as const, bookId: created.value.id }
   }, libraryFolder)
   expect(prepared.ok).toBe(true)
-  if (!prepared.ok) {
-    throw new Error(prepared.reason)
-  }
+  assert.equal(prepared.ok, true)
 
   await page
     .getByRole('radiogroup', { name: 'Spread template' })
@@ -415,13 +418,7 @@ test('home overflow scrolls only inside the named home scrollport', async ({
   await expect(page.getByTestId('home-screen')).toBeVisible({
     timeout: 15_000,
   })
-  await page.evaluate(async () => {
-    const api = window.__photobooksProject
-    if (!api?.seedHomeRecentsForTests) {
-      throw new Error('seedHomeRecentsForTests missing')
-    }
-    await api.seedHomeRecentsForTests(40)
-  })
+  await page.evaluate(seedHomeRecentsInBrowser, 40)
   await expect(page.getByTestId('home-recents')).toBeVisible()
   await page.evaluate(() => {
     const scroll = document.querySelector('[data-testid="home-scroll"]')

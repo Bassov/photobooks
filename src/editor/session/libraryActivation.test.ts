@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../../core/testing/fixtures'
+import assert from 'node:assert/strict'
 import {
   createMemoryLibraryStorage,
   createMemorySessionState,
@@ -157,9 +158,7 @@ describe('createLibraryActivation', () => {
       createStorageFromHandle: (handle) => {
         const name = handleName(handle)
         const next = storagesByHandle.get(name)
-        if (!next) {
-          throw new Error(`missing storage for handle ${name}`)
-        }
+        assert(next, `missing storage for handle ${name}`)
         return next
       },
       resolveLibraryIdForHandle: (handle) =>
@@ -492,15 +491,11 @@ describe('createLibraryActivation', () => {
 
     const listedA = await libA.listBooks()
     expect(listedA.ok).toBe(true)
-    if (!listedA.ok) {
-      throw new Error('expected list A')
-    }
+    assert(listedA.ok, 'expected list A')
     expect(listedA.value.some((entry) => entry.id === 'book-b')).toBe(false)
     const listedB = await libB.listBooks()
     expect(listedB.ok).toBe(true)
-    if (!listedB.ok) {
-      throw new Error('expected list B')
-    }
+    assert(listedB.ok, 'expected list B')
     expect(listedB.value.some((entry) => entry.id === 'book-b')).toBe(true)
   })
 
@@ -546,9 +541,7 @@ describe('createLibraryActivation', () => {
 
     const listed = await libNew.listBooks()
     expect(listed.ok).toBe(true)
-    if (!listed.ok) {
-      throw new Error('expected list')
-    }
+    assert(listed.ok, 'expected list')
     expect(listed.value.some((entry) => entry.id === 'prev-book')).toBe(false)
   })
 
@@ -579,9 +572,7 @@ describe('createLibraryActivation', () => {
     expect(clearAssetSources).toHaveBeenCalled()
     const listed = await emptyLib.listBooks()
     expect(listed.ok).toBe(true)
-    if (!listed.ok) {
-      throw new Error('expected list')
-    }
+    assert(listed.ok, 'expected list')
     expect(listed.value.some((entry) => entry.id === 'foreign')).toBe(false)
   })
 
@@ -803,9 +794,7 @@ describe('createLibraryActivation', () => {
 
     const adopted = await controller.adoptCurrentBookInLibrary()
     expect(adopted.ok).toBe(true)
-    if (!adopted.ok) {
-      throw new Error('expected adopt')
-    }
+    assert(adopted.ok, 'expected adopt')
     expect(adopted.value.id).toBe('existing-empty')
     expect(bookId).toBe('existing-empty')
     expect(editorStatus).toBe('Book restored')
@@ -904,9 +893,7 @@ describe('createLibraryActivation', () => {
 
     const adopted = await controller.adoptCurrentBookInLibrary()
     expect(adopted.ok).toBe(true)
-    if (!adopted.ok) {
-      throw new Error('expected adopt')
-    }
+    assert(adopted.ok, 'expected adopt')
     expect(adopted.value.id).toBe('new-adopt')
     expect(bookId).toBe('new-adopt')
     expect(editorStatus).toBe('Book created in library')
@@ -1383,9 +1370,7 @@ describe('createLibraryActivation', () => {
 
     const opened = await controller.openBookFromHome('lib-home', 'home-book')
     expect(opened.ok).toBe(true)
-    if (!opened.ok) {
-      throw new Error('expected open')
-    }
+    assert(opened.ok, 'expected open')
     expect(opened.value.id).toBe('home-book')
     expect(libraryId).toBe('lib-home')
     expect(bookId).toBe('home-book')
@@ -1593,9 +1578,7 @@ describe('createLibraryActivation', () => {
 
     const result = await controller.tryRestore()
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      throw new Error('expected restore')
-    }
+    assert(result.ok, 'expected restore')
     expect(result.value?.id).toBe('restored-book')
     expect(bookId).toBe('restored-book')
     expect(surface).toBe('editor')
@@ -1712,9 +1695,7 @@ describe('createLibraryActivation', () => {
 
     const result = await controller.tryRestore()
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      throw new Error('expected restore')
-    }
+    assert(result.ok, 'expected restore')
     expect(result.value?.id).toBe('default-book')
     expect(libraryId).toBe('library')
   })

@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 
 import { runDerivedCacheContract } from '../derivedCache.contract.test-helpers'
@@ -24,14 +25,11 @@ describe('memory DerivedCache isolation', () => {
     })
     const first = await cache.get(hash, 'thumb')
     expect(first.ok).toBe(true)
-    if (!first.ok) {
-      return
-    }
+    assert.equal(first.ok, true)
     new Uint8Array(first.value.bytes)[0] = 99
     const second = await cache.get(hash, 'thumb')
     expect(second.ok).toBe(true)
-    if (second.ok) {
-      expect(new Uint8Array(second.value.bytes)[0]).toBe(1)
-    }
+    assert.equal(second.ok, true)
+    expect(new Uint8Array(second.value.bytes)[0]).toBe(1)
   })
 })

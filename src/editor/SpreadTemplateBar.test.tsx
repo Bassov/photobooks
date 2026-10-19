@@ -8,6 +8,7 @@ import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
 import { REVEAL_TRY_CEILING } from './pasteboardReveal'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
+import assert from 'node:assert/strict'
 
 const PORT_TOP = 100
 const PORT_LEFT = 40
@@ -88,9 +89,10 @@ describe('SpreadTemplateBar', () => {
     )
     const middle = before[1]
     const last = before[2]
-    if (middle === undefined || last === undefined) {
-      throw new Error('expected session spreads')
-    }
+    assert(
+      middle !== undefined && last !== undefined,
+      'expected session spreads',
+    )
     fireEvent.click(screen.getByRole('radio', { name: '4-grid' }))
 
     const after = getBookStoreSnapshot().book.spreads

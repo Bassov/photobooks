@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { test, fc } from '@fast-check/vitest'
 import {
@@ -57,9 +58,7 @@ describe('placement ops', () => {
     const book = addToGallery(makeBook(), ['a'])
     const frameId = book.spreads[0]?.frames[0]?.id
     expect(frameId).toBeDefined()
-    if (frameId === undefined) {
-      return
-    }
+    assert(frameId !== undefined)
     const next = placeAsset(book, 'spread-1', frameId, 'a')
     expect(next.spreads[0]?.frames[0]?.assetId).toBe('a')
     expect(next.spreads[0]?.frames[0]?.crop).toEqual({
@@ -73,9 +72,7 @@ describe('placement ops', () => {
     const withB = addToGallery(book, ['b'])
     const frameId = withB.spreads[0]?.frames[0]?.id
     expect(frameId).toBeDefined()
-    if (frameId === undefined) {
-      return
-    }
+    assert(frameId !== undefined)
     const next = placeAsset(withB, 'spread-1', frameId, 'b')
     expect(next.spreads[0]?.frames[0]?.assetId).toBe('a')
     expect(next).toBe(withB)
@@ -84,9 +81,7 @@ describe('placement ops', () => {
   it('place rejects assets not in gallery', () => {
     const book = makeBook()
     const frameId = book.spreads[0]?.frames[0]?.id
-    if (frameId === undefined) {
-      return
-    }
+    assert(frameId !== undefined)
     expect(placeAsset(book, 'spread-1', frameId, 'ghost')).toBe(book)
   })
 
@@ -94,9 +89,7 @@ describe('placement ops', () => {
     const book = addToGallery(makeBookWithAsset('a'), ['b'])
     const frameId = book.spreads[0]?.frames[0]?.id
     expect(frameId).toBeDefined()
-    if (frameId === undefined) {
-      return
-    }
+    assert(frameId !== undefined)
     const next = replaceAsset(book, 'spread-1', frameId, 'b')
     expect(next.spreads[0]?.frames[0]?.assetId).toBe('b')
     expect(next.spreads[0]?.frames[0]?.crop).toEqual({
@@ -108,9 +101,7 @@ describe('placement ops', () => {
   it('replace same asset is a no-op', () => {
     const book = makeBookWithAsset('a')
     const frameId = book.spreads[0]?.frames[0]?.id
-    if (frameId === undefined) {
-      return
-    }
+    assert(frameId !== undefined)
     expect(replaceAsset(book, 'spread-1', frameId, 'a')).toBe(book)
   })
 
@@ -118,9 +109,7 @@ describe('placement ops', () => {
     const book = makeBookWithAsset('a')
     const frameId = book.spreads[0]?.frames[0]?.id
     expect(frameId).toBeDefined()
-    if (frameId === undefined) {
-      return
-    }
+    assert(frameId !== undefined)
     const next = unplaceAsset(book, 'spread-1', frameId)
     expect(next.spreads[0]?.frames[0]?.assetId).toBeUndefined()
     expect(next.spreads[0]?.frames[0]?.crop).toBeUndefined()
@@ -129,9 +118,7 @@ describe('placement ops', () => {
   it('unplace on empty frame is a no-op', () => {
     const book = makeBook()
     const frameId = book.spreads[0]?.frames[0]?.id
-    if (frameId === undefined) {
-      return
-    }
+    assert(frameId !== undefined)
     expect(unplaceAsset(book, 'spread-1', frameId)).toBe(book)
   })
 
@@ -260,14 +247,13 @@ describe('spread ops', () => {
     const middle = book.spreads[1]
     const last = book.spreads[2]
     const frame = middle?.frames[0]
-    if (
-      first === undefined ||
-      middle === undefined ||
-      last === undefined ||
-      frame === undefined
-    ) {
-      throw new Error('expected session spreads')
-    }
+    assert(
+      first !== undefined &&
+        middle !== undefined &&
+        last !== undefined &&
+        frame !== undefined,
+      'expected session spreads',
+    )
     const editedMiddle = {
       ...middle,
       frames: [
@@ -365,9 +351,8 @@ describe('applyBookOp', () => {
     const frame1 = book.spreads[0]?.frames[1]?.id
     expect(frame0).toBeDefined()
     expect(frame1).toBeDefined()
-    if (frame0 === undefined || frame1 === undefined) {
-      return
-    }
+    assert(frame0 !== undefined)
+    assert(frame1 !== undefined)
 
     book = applyBookOp(book, {
       type: 'place',

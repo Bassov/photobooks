@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { resetAssetPool, runImportBatch } from './assetPool'
@@ -392,9 +393,8 @@ describe('tierCache', () => {
     await putCachedTierForHash('a', SAMPLE_HASH)
     const stored = await cache.get(SAMPLE_HASH, 'tier-320')
     expect(stored.ok).toBe(true)
-    if (stored.ok) {
-      expect(new Uint8Array(stored.value.bytes)).toEqual(new Uint8Array([6]))
-    }
+    assert.equal(stored.ok, true)
+    expect(new Uint8Array(stored.value.bytes)).toEqual(new Uint8Array([6]))
   })
 
   it('falls back to thumb preset when File is gone and tier miss', async () => {
@@ -499,9 +499,8 @@ describe('tierCache', () => {
     expect(getTierUrl('a', 320)).toBe('blob:encoded')
     const stored = await cache.get(SAMPLE_HASH, 'tier-320')
     expect(stored.ok).toBe(true)
-    if (stored.ok) {
-      expect(new Uint8Array(stored.value.bytes)).toEqual(new Uint8Array([7]))
-    }
+    assert.equal(stored.ok, true)
+    expect(new Uint8Array(stored.value.bytes)).toEqual(new Uint8Array([7]))
   })
 
   it('does not put into DerivedCache when unhashed', async () => {

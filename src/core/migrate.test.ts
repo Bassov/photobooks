@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { CURRENT_SCHEMA_VERSION, migrateToCurrent } from './index'
 import { makeBook } from './testing/fixtures'
@@ -25,9 +26,9 @@ describe('migrateToCurrent', () => {
   it('rejects missing schemaVersion', () => {
     const result = migrateToCurrent({ id: 'x' })
     expect(result.ok).toBe(false)
-    if (!result.ok && result.code === 'invalid-shape') {
-      expect(result.message).toContain('schemaVersion')
-    }
+    assert.equal(result.ok, false)
+    assert.equal(result.code, 'invalid-shape')
+    expect(result.message).toContain('schemaVersion')
   })
 
   it('rejects null, arrays, and non-objects', () => {
@@ -69,9 +70,7 @@ describe('migrateToCurrent', () => {
     }
     const result = migrateToCurrent(v1)
     expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+    assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
       schemaVersion: 2,
       assets: { a: {}, b: {} },
@@ -107,12 +106,11 @@ describe('migrateToCurrent', () => {
         gallery: [],
       })
       expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(
-          (result.value as { assets: Record<string, unknown> }).assets,
-        ).toEqual({})
-        expect(result.value).toMatchObject({ schemaVersion: 2 })
-      }
+      assert.equal(result.ok, true)
+      expect(
+        (result.value as { assets: Record<string, unknown> }).assets,
+      ).toEqual({})
+      expect(result.value).toMatchObject({ schemaVersion: 2 })
     },
   )
 

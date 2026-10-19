@@ -1,5 +1,6 @@
 import { fc, test } from '@fast-check/vitest'
 import { describe, expect, it } from 'vitest'
+import assert from 'node:assert/strict'
 import {
   ASSET_DRAG_MIME,
   FRAME_DRAG_MIME,
@@ -156,9 +157,7 @@ describe('dropTargets', () => {
       ],
     })
     const frame = index.frames[0]
-    if (frame === undefined) {
-      throw new Error('expected a frame')
-    }
+    assert(frame !== undefined, 'expected a frame')
 
     expect(
       hitTestDrop(index, frame.right - 0.1, frame.bottom - 0.1)?.frameId,
@@ -392,9 +391,7 @@ describe('dropTargets', () => {
         ],
       })
       const frame = index.frames[0]
-      if (frame === undefined) {
-        throw new Error('expected a frame')
-      }
+      assert(frame !== undefined, 'expected a frame')
 
       expect(hitTestDrop(index, frame.left, frame.top)?.frameId).toBe('f')
       expect(

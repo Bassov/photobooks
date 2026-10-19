@@ -116,11 +116,19 @@ const baseVite = `
 export const coverageExcludeGlobs = ['src/**/*.d.ts'] as const
 export default {
   test: {
+    allowOnly: false,
     coverage: {
       include: ['src/**/*.{ts,tsx}', 'scripts/agent.mjs'],
       exclude: [...coverageExcludeGlobs],
     },
   },
+}
+`
+
+const basePlaywright = `
+export default {
+  forbidOnly: true,
+  retries: 0,
 }
 `
 
@@ -156,10 +164,12 @@ const basePkg = JSON.stringify(
 
 function baseFiles(overrides = {}) {
   const ratchetScript = scriptWithIds()
-  return {
+  /** @type {Record<string, string>} */
+  const files = {
     'quality/gates.json': JSON.stringify(baseGates),
     'codecov.yml': baseCodecov,
     'vite.config.ts': baseVite,
+    'playwright.config.ts': basePlaywright,
     'stryker.config.mjs': baseStryker,
     'package.json': basePkg,
     'scripts/check-gate-ratchet.mjs': ratchetScript,
@@ -191,8 +201,12 @@ jobs:
       - name: Dependency audit
         run: pnpm audit:ci
 `,
-    ...overrides,
   }
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v == null) delete files[k]
+    else files[k] = v
+  }
+  return files
 }
 
 describe('FIXTURE_IDS / RULE_IDS exports', () => {
@@ -256,22 +270,24 @@ describe('classifyGateSteps', () => {
  * Drive the real CLI (`--base-dir` / `--head-dir`) used by pr-policy proofs.
  * @param {Record<string, string>} headOverrides
  * @param {Record<string, string>} [baseOverrides]
+ * @param {{ prBody?: string, branch?: string }} [cliOpts]
  */
-function cliRatchet(headOverrides, baseOverrides = {}) {
+function cliRatchet(headOverrides, baseOverrides = {}, cliOpts = {}) {
   const root = tmpDir()
   const baseTree = baseFiles(baseOverrides)
   const headTree = baseFiles({ ...baseOverrides, ...headOverrides })
   writeTree(path.join(root, 'base'), baseTree)
   writeTree(path.join(root, 'head'), headTree)
-  const code = runGateRatchetCli([
-    '--cwd',
-    root,
-    '--base-dir',
-    'base',
-    '--head-dir',
-    'head',
-  ])
-  const result = compareGateTrees(baseTree, headTree)
+  /** @type {string[]} */
+  const argv = ['--cwd', root, '--base-dir', 'base', '--head-dir', 'head']
+  if (cliOpts.prBody != null) {
+    argv.push('--pr-body', cliOpts.prBody)
+  }
+  if (cliOpts.branch != null) {
+    argv.push('--branch', cliOpts.branch)
+  }
+  const code = runGateRatchetCli(argv)
+  const result = compareGateTrees(baseTree, headTree, cliOpts)
   return { code, result }
 }
 
@@ -447,6 +463,229 @@ jobs:
     ).toEqual([])
   })
 
+  it('FIXTURE added-skip fails', () => {
+    expect(FIXTURE_IDS).toContain('added-skip')
+    const { code, result } = cliRatchet(
+      { 'src/a.test.ts': `test.skip('a', () => {})\n` },
+      { 'src/a.test.ts': `test('a', () => {})\n` },
+    )
+    expect(code).toBe(1)
+    expect(result.violations.some((v) => v.ruleId === 'test-skip-added')).toBe(
+      true,
+    )
+  })
+
+  it('FIXTURE added-fixme fails', () => {
+    expect(FIXTURE_IDS).toContain('added-fixme')
+    const { code, result } = cliRatchet(
+      { 'src/a.test.ts': `test.fixme('a', () => {})\n` },
+      { 'src/a.test.ts': `test('a', () => {})\n` },
+    )
+    expect(code).toBe(1)
+    expect(result.violations.some((v) => v.ruleId === 'test-skip-added')).toBe(
+      true,
+    )
+  })
+
+  it('FIXTURE added-retries fails', () => {
+    expect(FIXTURE_IDS).toContain('added-retries')
+    const { code, result } = cliRatchet(
+      {
+        'e2e/a.spec.ts': `test.describe.configure({ retries: 3 })\ntest('a', async () => {})\n`,
+      },
+      { 'e2e/a.spec.ts': `test('a', async () => {})\n` },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'test-retries-added'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE deleted-title fails', () => {
+    expect(FIXTURE_IDS).toContain('deleted-title')
+    const { code, result } = cliRatchet(
+      { 'e2e/a.spec.ts': `test('kept', async () => {})\n` },
+      {
+        'e2e/a.spec.ts': `test('gone title', async () => {})\ntest('kept', async () => {})\n`,
+      },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'test-title-removed'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE forbid-only-false fails', () => {
+    expect(FIXTURE_IDS).toContain('forbid-only-false')
+    const { code, result } = cliRatchet({
+      'playwright.config.ts': `export default { forbidOnly: false }\n`,
+    })
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'forbid-only-weaker'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE allow-only-true fails', () => {
+    expect(FIXTURE_IDS).toContain('allow-only-true')
+    const { code, result } = cliRatchet({
+      'vite.config.ts': baseVite.replace('allowOnly: false', 'allowOnly: true'),
+    })
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'allow-only-weaker'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE deleted-test-file-alone fails', () => {
+    expect(FIXTURE_IDS).toContain('deleted-test-file-alone')
+    const { code, result } = cliRatchet(
+      {
+        'src/foo.test.ts': null,
+        'src/foo.ts': `export const x = 1\n`,
+      },
+      {
+        'src/foo.test.ts': `test('a', () => {})\n`,
+        'src/foo.ts': `export const x = 1\n`,
+      },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'test-title-removed'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE deleted-test-file-with-companion passes for that alone', () => {
+    expect(FIXTURE_IDS).toContain('deleted-test-file-with-companion')
+    const { code, result } = cliRatchet(
+      {
+        'src/foo.test.ts': null,
+        'src/foo.ts': null,
+      },
+      {
+        'src/foo.test.ts': `test('a', () => {})\n`,
+        'src/foo.ts': `export const x = 1\n`,
+      },
+    )
+    expect(
+      result.violations.filter((v) => v.ruleId === 'test-title-removed'),
+    ).toEqual([])
+    expect(code).toBe(0)
+  })
+
+  it('FIXTURE e2e deleted with nested src basename companion passes', () => {
+    const { code, result } = cliRatchet(
+      {
+        'e2e/filmstrip.spec.ts': null,
+        'src/editor/Filmstrip.tsx': null,
+      },
+      {
+        'e2e/filmstrip.spec.ts': `test('a', async () => {})\n`,
+        'src/editor/Filmstrip.tsx': `export const Filmstrip = () => null\n`,
+      },
+    )
+    expect(
+      result.violations.filter((v) => v.ruleId === 'test-title-removed'),
+    ).toEqual([])
+    expect(code).toBe(0)
+  })
+
+  it('CLI --pr-body empty overrides PR_POLICY_BODY env', () => {
+    const prev = process.env.PR_POLICY_BODY
+    process.env.PR_POLICY_BODY =
+      'Owner-approved scope change: https://example.com'
+    try {
+      const item = 'docs/roadmap/M2.1/demo-slug.md'
+      const base = `# demo\nStatus: open\n- **Done when:** hard\n`
+      const root = tmpDir()
+      const baseTree = baseFiles({ [item]: base })
+      const headTree = baseFiles({
+        [item]: `# demo\nStatus: open\n- **Done when:** soft\n`,
+      })
+      writeTree(path.join(root, 'base'), baseTree)
+      writeTree(path.join(root, 'head'), headTree)
+      const code = runGateRatchetCli([
+        '--cwd',
+        root,
+        '--base-dir',
+        'base',
+        '--head-dir',
+        'head',
+        '--branch',
+        'feat/demo-slug',
+        '--pr-body',
+        '',
+      ])
+      expect(code).toBe(1)
+    } finally {
+      if (prev === undefined) delete process.env.PR_POLICY_BODY
+      else process.env.PR_POLICY_BODY = prev
+    }
+  })
+
+  it('FIXTURE renamed-title-same-body passes', () => {
+    expect(FIXTURE_IDS).toContain('renamed-title-same-body')
+    const body = '() => { expect(1).toBe(1) }'
+    const { code, result } = cliRatchet(
+      { 'src/a.test.ts': `test('new name', ${body})\n` },
+      { 'src/a.test.ts': `test('old name', ${body})\n` },
+    )
+    expect(
+      result.violations.filter((v) => v.ruleId === 'test-title-removed'),
+    ).toEqual([])
+    expect(code).toBe(0)
+  })
+
+  it('FIXTURE done-when-rewrite fails', () => {
+    expect(FIXTURE_IDS).toContain('done-when-rewrite')
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- **Done when:** hard\n`
+    const { code, result } = cliRatchet(
+      { [item]: `# demo\nStatus: open\n- **Done when:** soft\n` },
+      { [item]: base },
+      { branch: 'feat/demo-slug', prBody: '' },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'item-criteria-loosened'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE deferral-item fails', () => {
+    expect(FIXTURE_IDS).toContain('deferral-item')
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- [ ] A\n`
+    const { code, result } = cliRatchet(
+      {
+        [item]: base,
+        'docs/roadmap/M2.1/demo-slug-later.md':
+          'follow-up to defer mutation for demo-slug\n',
+      },
+      { [item]: base },
+      { branch: 'feat/demo-slug', prBody: '' },
+    )
+    expect(code).toBe(1)
+    expect(
+      result.violations.some((v) => v.ruleId === 'item-criteria-loosened'),
+    ).toBe(true)
+  })
+
+  it('FIXTURE checkbox-done-note passes', () => {
+    expect(FIXTURE_IDS).toContain('checkbox-done-note')
+    const item = 'docs/roadmap/M2.1/demo-slug.md'
+    const base = `# demo\nStatus: open\n- [ ] A\n`
+    const head = `# demo\nStatus: done\n- [x] A\n\n## Done\nShipped.\n`
+    const { code, result } = cliRatchet(
+      { [item]: head },
+      { [item]: base },
+      { branch: 'feat/demo-slug', prBody: '' },
+    )
+    expect(
+      result.violations.filter((v) => v.ruleId === 'item-criteria-loosened'),
+    ).toEqual([])
+    expect(code).toBe(0)
+  })
+
   it('comment-only exit 1 does not satisfy failOnNeeds', () => {
     const headIntegration = `
 jobs:
@@ -559,6 +798,7 @@ describe('extractCoverageIncludes', () => {
       'scripts/load-gates.mjs',
       'scripts/check-gate-values.mjs',
       'scripts/check-gate-ratchet.mjs',
+      'scripts/check-test-weakening.mjs',
       'scripts/check-codecov-yml.mjs',
       'scripts/e2e-flaky-list.mjs',
     ])

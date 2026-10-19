@@ -6,6 +6,10 @@ import {
 } from './fixtures/assertDocumentFitsViewport'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
 import {
+  browserAssertNoLoaf,
+  browserAssertNoLoafAndHandlerP95,
+  browserAssertNoLoafThenClear,
+  browserClearLoafEntries,
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
@@ -231,12 +235,7 @@ test('painter fixture scrolls inside the pasteboard', async ({ page }) => {
       }
     })
   expect(containment.contentVisibility).toBe('auto')
-  const hasSlotContainment =
-    containment.contain === 'content' ||
-    (containment.contain.includes('layout') &&
-      containment.contain.includes('paint') &&
-      containment.contain.includes('style'))
-  expect(hasSlotContainment).toBe(true)
+  expect(pasteboardSlotHasContainment(containment.contain)).toBe(true)
   expect(containment.blockSize).not.toBe('none')
   expect(containment.blockSize).not.toBe('auto')
 
@@ -423,13 +422,7 @@ test.describe('frame-budget gates', () => {
       }
     })
 
-    await page.evaluate((loafMax) => {
-      const perf = window.__photobooksPerf
-      if (!perf) {
-        throw new Error('window.__photobooksPerf is not available')
-      }
-      perf.assertNoLoafEntries(loafMax)
-    }, 0)
+    await page.evaluate(browserAssertNoLoaf, 0)
     await collectFrameStatsArtifact(page, testInfo)
   })
 
@@ -448,13 +441,7 @@ test.describe('frame-budget gates', () => {
       '4',
     )
 
-    await page.evaluate((loafMax) => {
-      const perf = window.__photobooksPerf
-      if (!perf) {
-        throw new Error('window.__photobooksPerf is not available')
-      }
-      perf.assertNoLoafEntries(loafMax)
-    }, 0)
+    await page.evaluate(browserAssertNoLoaf, 0)
     await collectFrameStatsArtifact(page, testInfo)
   })
 
@@ -519,24 +506,12 @@ test.describe('frame-budget gates', () => {
           { timeout: 30_000 },
         )
         .toBe(true)
-      await page.evaluate(() => {
-        const perf = window.__photobooksPerf
-        if (!perf) {
-          throw new Error('window.__photobooksPerf is not available')
-        }
-        perf.clearLoafEntries()
-      })
+      await page.evaluate(browserClearLoafEntries)
 
       await dispatchCtrlWheel(page, 300, 36)
       await expect.poll(async () => gestureLabel(page)).toBe('')
       await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
-      await page.evaluate(() => {
-        const perf = window.__photobooksPerf
-        if (!perf) {
-          throw new Error('window.__photobooksPerf is not available')
-        }
-        perf.assertNoLoafEntries(0)
-      })
+      await page.evaluate(browserAssertNoLoaf, 0)
       // Fit-all after zoom-out may not overflow the pasteboard port vertically.
       await assertDocumentFitsViewport(page)
       await collectFrameStatsArtifact(page, testInfo)
@@ -579,14 +554,7 @@ test.describe('frame-budget gates', () => {
           el instanceof HTMLElement ? Number.parseFloat(el.style.width) : 0,
         )
       expect(laidOutWidth).toBeGreaterThanOrEqual(300 * (96 / 25.4) * 4 - 1)
-      await page.evaluate(() => {
-        const perf = window.__photobooksPerf
-        if (!perf) {
-          throw new Error('window.__photobooksPerf is not available')
-        }
-        perf.assertNoLoafEntries(0)
-        perf.clearLoafEntries()
-      })
+      await page.evaluate(browserAssertNoLoafThenClear)
 
       // Phase 2: zoom-tier switches after settle.
       await expect
@@ -603,26 +571,15 @@ test.describe('frame-budget gates', () => {
           { timeout: 30_000 },
         )
         .toBe(true)
-      await page.evaluate(() => {
-        const perf = window.__photobooksPerf
-        if (!perf) {
-          throw new Error('window.__photobooksPerf is not available')
-        }
-        perf.assertNoLoafEntries(0)
-        perf.clearLoafEntries()
-      })
+      await page.evaluate(browserAssertNoLoafThenClear)
 
       // Phase 3: continuous zoom-out burst+paint only. Full gesture-end remount
       // LoAF is the sibling under continuous zoom settle remount (stabilized).
       await dispatchCtrlWheel(page, 300, 36, { settleMs: 0 })
-      await page.evaluate((handlerBudgetMs) => {
-        const perf = window.__photobooksPerf
-        if (!perf) {
-          throw new Error('window.__photobooksPerf is not available')
-        }
-        perf.assertNoLoafEntries(0)
-        perf.assertHandlerP95WithinBudget('wheel-zoom', handlerBudgetMs)
-      }, PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate)
+      await page.evaluate(browserAssertNoLoafAndHandlerP95, {
+        label: 'wheel-zoom',
+        budgetMs: PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate,
+      })
       await page.waitForTimeout(200)
       await expect
         .poll(async () =>
@@ -797,6 +754,15 @@ async function spreadViewContained(
       box.right <= port.right + 1
     )
   }, slotIndex)
+}
+
+function pasteboardSlotHasContainment(contain: string): boolean {
+  return (
+    contain === 'content' ||
+    (contain.includes('layout') &&
+      contain.includes('paint') &&
+      contain.includes('style'))
+  )
 }
 
 function percentOf(label: string): number {

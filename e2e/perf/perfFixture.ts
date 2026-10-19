@@ -32,6 +32,47 @@ export interface PhotobooksPerfApi {
   budgets: typeof PERF_BUDGETS
 }
 
+/**
+ * Browser-side helpers safe to pass to `page.evaluate`.
+ * Each function must be self-contained (Playwright serializes only that body).
+ */
+export function browserAssertNoLoaf(loafMax: number): void {
+  const perf = window.__photobooksPerf
+  if (!perf) {
+    throw new Error('window.__photobooksPerf is not available')
+  }
+  perf.assertNoLoafEntries(loafMax)
+}
+
+export function browserClearLoafEntries(): void {
+  const perf = window.__photobooksPerf
+  if (!perf) {
+    throw new Error('window.__photobooksPerf is not available')
+  }
+  perf.clearLoafEntries()
+}
+
+export function browserAssertNoLoafThenClear(): void {
+  const perf = window.__photobooksPerf
+  if (!perf) {
+    throw new Error('window.__photobooksPerf is not available')
+  }
+  perf.assertNoLoafEntries(0)
+  perf.clearLoafEntries()
+}
+
+export function browserAssertNoLoafAndHandlerP95(args: {
+  budgetMs: number
+  label: string
+}): void {
+  const perf = window.__photobooksPerf
+  if (!perf) {
+    throw new Error('window.__photobooksPerf is not available')
+  }
+  perf.assertNoLoafEntries(0)
+  perf.assertHandlerP95WithinBudget(args.label, args.budgetMs)
+}
+
 declare global {
   interface Window {
     __photobooksPerf?: PhotobooksPerfApi

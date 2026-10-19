@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { addToGallery, applyTemplate, placeAsset } from '../core'
+import assert from 'node:assert/strict'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -140,14 +141,10 @@ describe('frameSelection', () => {
     resetBookStore()
     let book = addToGallery(getBookStoreSnapshot().book, ['a'])
     const spreadId = book.spreads[0]?.id
-    if (spreadId === undefined) {
-      throw new Error('expected a spread')
-    }
+    assert(spreadId !== undefined, 'expected a spread')
     book = applyTemplate(book, spreadId, '4-grid')
     const frameId = book.spreads[0]?.frames[3]?.id
-    if (frameId === undefined) {
-      throw new Error('expected a fourth frame')
-    }
+    assert(frameId !== undefined, 'expected a fourth frame')
     book = placeAsset(book, spreadId, frameId, 'a')
     resetBookStore({
       book,

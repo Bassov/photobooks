@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -418,9 +419,7 @@ describe('Pasteboard view wiring', () => {
     expect(afterWatchdog).toBeLessThanOrEqual(
       afterCommit + PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
     )
-    if (typeof staleRafId !== 'number') {
-      throw new Error('expected stale rAF id')
-    }
+    assert(typeof staleRafId === 'number')
     expect(hooks.cancelledRafIds.has(staleRafId)).toBe(true)
     expect(hooks.cancelAnimationFrame).toHaveBeenCalledWith(staleRafId)
 

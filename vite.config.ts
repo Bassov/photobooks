@@ -65,6 +65,7 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./scripts/vitest.setup.mjs'],
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.test.mjs'],
+    allowOnly: false,
     reporters: ['default', 'junit'],
     outputFile: {
       junit: 'reports/vitest-junit.xml',
@@ -84,6 +85,7 @@ export default defineConfig({
         'scripts/load-gates.mjs',
         'scripts/check-gate-values.mjs',
         'scripts/check-gate-ratchet.mjs',
+        'scripts/check-test-weakening.mjs',
         'scripts/check-codecov-yml.mjs',
         'scripts/e2e-flaky-list.mjs',
       ],

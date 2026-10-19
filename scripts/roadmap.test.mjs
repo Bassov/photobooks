@@ -32,6 +32,18 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const CLI = path.join(here, 'roadmap.mjs')
 const REPO = path.resolve(here, '..')
 
+function ensureZ9SectionInRoadmapIndex(idxPath) {
+  let text = fs.readFileSync(idxPath, 'utf8')
+  if (!text.includes('## Z9')) {
+    text = text.replace(
+      '## Deferred',
+      '## Z9 — Empty\n\nGoal: empty.\n\n## Deferred',
+    )
+    fs.writeFileSync(idxPath, text)
+  }
+  return text
+}
+
 // Monolithic-roadmap fixture with the parsing edge cases (kept inline so Prettier never reformats it).
 const SOURCE_TEXT = `# Roadmap
 
@@ -2529,14 +2541,7 @@ describe('withFileStatus and assertOpenItem edges', () => {
     expect(ok(root, 'claim', 'delta')).toMatch(/claimed delta \(A1, prep\)/)
 
     const idxPath = path.join(root, 'docs/roadmap.md')
-    let text = fs.readFileSync(idxPath, 'utf8')
-    if (!text.includes('## Z9')) {
-      text = text.replace(
-        '## Deferred',
-        '## Z9 — Empty\n\nGoal: empty.\n\n## Deferred',
-      )
-      fs.writeFileSync(idxPath, text)
-    }
+    ensureZ9SectionInRoadmapIndex(idxPath)
     expect(cli(root, 'archive', 'Z9').err).toMatch(/has no items/)
 
     ok(root, 'done', 'epsilon', '--note', 'n')

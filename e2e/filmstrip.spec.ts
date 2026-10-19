@@ -2,6 +2,7 @@ import { expect, test } from './fixtures/coverage'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import assert from 'node:assert/strict'
 import {
   assertDocumentFitsViewport,
   assertNamedScrollport,
@@ -13,6 +14,7 @@ import {
 import {
   assertCiPerfGates,
   assertCrossOriginIsolated,
+  browserAssertNoLoaf,
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
@@ -30,10 +32,7 @@ test('empty filmstrip message spans the scrollport', async ({ page }) => {
   await expect(empty).toHaveText('Add a folder or photos to build the gallery.')
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   const box = await empty.boundingBox()
-  expect(box).toBeTruthy()
-  if (!box) {
-    return
-  }
+  assert.ok(box)
   // Bug: 1px virtualizer window stacked one word per line.
   expect(box.width).toBeGreaterThan(240)
   expect(box.height).toBeLessThan(72)
@@ -442,16 +441,7 @@ test.describe('frame-budget gates', () => {
     }
 
     // Assert LoAF for the scroll-during-import window before post-import reveal work.
-    await page.evaluate(
-      ({ loafMax }) => {
-        const perf = window.__photobooksPerf
-        if (!perf) {
-          throw new Error('window.__photobooksPerf is not available')
-        }
-        perf.assertNoLoafEntries(loafMax)
-      },
-      { loafMax: 0 },
-    )
+    await page.evaluate(browserAssertNoLoaf, 0)
 
     // Virtualizer only mounts visible rows — assert gallery size, not DOM item count.
     await expect

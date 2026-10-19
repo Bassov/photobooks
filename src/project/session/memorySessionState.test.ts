@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 
 import { createMemorySessionState } from './memorySessionState'
@@ -21,9 +22,8 @@ describe('createMemorySessionState', () => {
     const recalled = await session.recallLibraryHandle('lib-a')
 
     expect(recalled).toEqual({ ok: true, value: handle })
-    if (recalled.ok) {
-      expect(recalled.value).toBe(handle)
-    }
+    assert.equal(recalled.ok, true)
+    expect(recalled.value).toBe(handle)
   })
 
   it('returns permission-required for remember, clear, and acquire when gated', async () => {

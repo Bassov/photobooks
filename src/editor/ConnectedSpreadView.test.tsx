@@ -13,6 +13,7 @@ import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
 import { getCommittedZoom, resetCameraStore } from './cameraStore'
+import assert from 'node:assert/strict'
 import {
   getDisplayedPreview,
   queueTierSwap,
@@ -38,9 +39,7 @@ function twoSpreadBook() {
   book = addSpread(book, { id: 's1' })
   const left = book.spreads[0]?.frames[0]
   const right = book.spreads[1]?.frames[0]
-  if (left === undefined || right === undefined) {
-    throw new Error('expected frames')
-  }
+  assert(left !== undefined && right !== undefined, 'expected frames')
   book = placeAsset(book, 's0', left.id, 'a')
   book = placeAsset(book, 's1', right.id, 'a')
   return book
@@ -171,9 +170,7 @@ describe('per-spread paint subscription', () => {
     })
 
     const frameId = book.spreads[0]?.frames[0]?.id
-    if (frameId === undefined) {
-      throw new Error('expected frame')
-    }
+    assert(frameId !== undefined, 'expected frame')
     dispatchBookOp({
       type: 'unplace',
       spreadId: 's0',
@@ -212,9 +209,7 @@ describe('per-spread paint subscription', () => {
     const book = twoSpreadBook()
     const renders = mountSiblingPaint(book)
     const frameId = book.spreads[0]?.frames[0]?.id
-    if (frameId === undefined) {
-      throw new Error('expected frame')
-    }
+    assert(frameId !== undefined, 'expected frame')
     act(() => {
       dispatchBookOp({
         type: 'unplace',
@@ -313,9 +308,7 @@ describe('per-spread paint subscription', () => {
     const item = getSpreadPaintSnapshot('s0')?.resolved.items.find(
       (candidate) => candidate.assetId === 'a',
     )
-    if (item === undefined) {
-      throw new Error('expected placed item')
-    }
+    assert(item !== undefined, 'expected placed item')
     const edge =
       Math.max(item.rectMm.width, item.rectMm.height) * SPREAD_PX_PER_MM
     const swapped = screen.getByTestId('spread-frame-image')
@@ -332,13 +325,12 @@ describe('per-spread paint subscription', () => {
     const ownFrame = book.spreads[1]?.frames[0]?.id
     const sourceFrame = otherFrames?.[0]?.id
     const nextFrame = otherFrames?.[1]?.id
-    if (
-      sourceFrame === undefined ||
-      nextFrame === undefined ||
-      ownFrame === undefined
-    ) {
-      throw new Error('expected frames')
-    }
+    assert(
+      sourceFrame !== undefined &&
+        nextFrame !== undefined &&
+        ownFrame !== undefined,
+      'expected frames',
+    )
     const renders = mountSiblingPaint(book)
 
     act(() => {
