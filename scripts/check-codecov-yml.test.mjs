@@ -9,9 +9,12 @@ import {
   checkCodecovYml,
   defaultCodecovRoot,
   findUnknownTopLevelKeys,
+  isCodecovYmlModifiedVsBase,
   isNetworkError,
   runCodecovYmlCli,
+  shouldValidateCodecovYmlRemote,
   validateCodecovYml,
+  validateCodecovYmlLocal,
 } from './check-codecov-yml.mjs'
 import { stripGitKeys } from './strip-git-env.mjs'
 
@@ -54,6 +57,86 @@ describe('findUnknownTopLevelKeys edge cases', () => {
   it('rejects non-object roots', () => {
     expect(findUnknownTopLevelKeys('[]')).toEqual(['<root-not-object>'])
     expect(findUnknownTopLevelKeys('null')).toEqual(['<root-not-object>'])
+  })
+})
+
+describe('validateCodecovYmlLocal', () => {
+  it('accepts main codecov.yml keys', () => {
+    expect(validateCodecovYmlLocal(mainYml)).toEqual({
+      ok: true,
+      mode: 'local',
+      detail: 'pinned top-level keys OK',
+    })
+  })
+
+  it('rejects unknown top-level keys', () => {
+    const bad = 'notify:\n  after_n_builds: 2\ncoverage:\n  status: {}\n'
+    expect(validateCodecovYmlLocal(bad)).toEqual({
+      ok: false,
+      mode: 'local',
+      detail: 'unknown top-level keys: notify',
+    })
+  })
+})
+
+describe('shouldValidateCodecovYmlRemote', () => {
+  it('is true when CI, --remote, or codecov.yml modified', () => {
+    expect(
+      shouldValidateCodecovYmlRemote({
+        env: { CI: 'true' },
+        codecovYmlModified: false,
+      }),
+    ).toBe(true)
+    expect(
+      shouldValidateCodecovYmlRemote({
+        forceRemote: true,
+        env: {},
+        codecovYmlModified: false,
+      }),
+    ).toBe(true)
+    expect(
+      shouldValidateCodecovYmlRemote({
+        env: {},
+        codecovYmlModified: true,
+      }),
+    ).toBe(true)
+  })
+
+  it('is false when unchanged and not CI', () => {
+    expect(
+      shouldValidateCodecovYmlRemote({
+        env: {},
+        codecovYmlModified: false,
+      }),
+    ).toBe(false)
+  })
+})
+
+describe('isCodecovYmlModifiedVsBase', () => {
+  it('treats missing base ref as modified', () => {
+    expect(
+      isCodecovYmlModifiedVsBase({
+        runGit: () => ({ status: 1 }),
+      }),
+    ).toBe(true)
+  })
+
+  it('detects diff vs base ref', () => {
+    const calls = []
+    const runGit = (args) => {
+      calls.push(args)
+      if (args[0] === 'rev-parse') return { status: 0 }
+      if (args[0] === 'diff') return { status: 1 }
+      return { status: 1 }
+    }
+    expect(isCodecovYmlModifiedVsBase({ runGit })).toBe(true)
+    expect(calls).toContainEqual([
+      'diff',
+      '--quiet',
+      'origin/main',
+      '--',
+      CODECOV_YML_REL,
+    ])
   })
 })
 
@@ -133,9 +216,34 @@ describe('validateCodecovYml', () => {
 })
 
 describe('checkCodecovYml against repo file', () => {
-  it('main codecov.yml passes (live API or fallback)', async () => {
-    const r = await checkCodecovYml({ root: ROOT })
-    expect(r.ok).toBe(true)
+  it('main codecov.yml passes locally without remote when unchanged', async () => {
+    const fetchImpl = async () => {
+      throw new Error('fetch should not run')
+    }
+    const r = await checkCodecovYml({
+      root: ROOT,
+      env: {},
+      codecovYmlModified: false,
+      fetchImpl,
+    })
+    expect(r).toEqual({
+      ok: true,
+      mode: 'local',
+      detail: 'pinned top-level keys OK',
+    })
+  })
+
+  it('main codecov.yml uses remote when forced', async () => {
+    const r = await checkCodecovYml({
+      root: ROOT,
+      forceRemote: true,
+      fetchImpl: async () =>
+        /** @type {Response} */ ({
+          status: 200,
+          text: async () => 'Valid!',
+        }),
+    })
+    expect(r).toEqual({ ok: true, mode: 'api', detail: 'Valid!' })
   })
 
   it('missing file fails', async () => {
@@ -149,9 +257,10 @@ describe('checkCodecovYml against repo file', () => {
     expect(r.detail).toMatch(/missing|ENOENT/)
   })
 
-  it('uses injected fetchImpl for the file path', async () => {
+  it('uses injected fetchImpl when remote validation runs', async () => {
     const r = await checkCodecovYml({
       root: ROOT,
+      forceRemote: true,
       fetchImpl: async () =>
         /** @type {Response} */ ({
           status: 200,
@@ -160,13 +269,44 @@ describe('checkCodecovYml against repo file', () => {
     })
     expect(r).toEqual({ ok: true, mode: 'api', detail: 'Valid!' })
   })
+
+  it('fails locally on unknown keys without remote', async () => {
+    const bad = 'notify:\n  after_n_builds: 2\ncoverage:\n  status: {}\n'
+    const r = await checkCodecovYml({
+      root: ROOT,
+      readFile: () => bad,
+      env: {},
+      codecovYmlModified: false,
+      fetchImpl: async () => {
+        throw new Error('fetch should not run')
+      },
+    })
+    expect(r.ok).toBe(false)
+    expect(r.mode).toBe('local')
+  })
 })
 
 describe('runCodecovYmlCli', () => {
-  it('logs OK and returns 0', async () => {
+  it('logs OK (local) and returns 0 when remote skipped', async () => {
     const lines = []
     const code = await runCodecovYmlCli({
       root: ROOT,
+      env: {},
+      codecovYmlModified: false,
+      fetchImpl: async () => {
+        throw new Error('fetch should not run')
+      },
+      log: (m) => lines.push(m),
+    })
+    expect(code).toBe(0)
+    expect(lines.join('\n')).toMatch(/OK \(local\)/)
+  })
+
+  it('logs OK (api) and returns 0 with --remote', async () => {
+    const lines = []
+    const code = await runCodecovYmlCli({
+      root: ROOT,
+      argv: ['node', 'cli', '--remote'],
       fetchImpl: async () =>
         /** @type {Response} */ ({
           status: 200,
@@ -193,14 +333,14 @@ describe('runCodecovYmlCli', () => {
 })
 
 describe('codecov-yml-cli entry', () => {
-  it('exits 0 for the repo codecov.yml', () => {
+  it('exits 0 for the repo codecov.yml without CI remote', () => {
     const r = spawnSync(process.execPath, ['scripts/codecov-yml-cli.mjs'], {
       cwd: ROOT,
       encoding: 'utf8',
-      env: stripGitKeys({ ...process.env }),
+      env: stripGitKeys({ ...process.env, CI: '' }),
     })
     expect(r.status).toBe(0)
-    expect(r.stdout).toMatch(/Codecov YAML: OK/)
+    expect(r.stdout).toMatch(/Codecov YAML: OK \(local\)/)
   })
 })
 
@@ -241,6 +381,7 @@ describe('checkCodecovYml defaults and exact details', () => {
 
   it('uses default root when root is omitted', async () => {
     const r = await checkCodecovYml({
+      forceRemote: true,
       fetchImpl: async (_url, init) => {
         expect(String(init && init.body)).toContain('coverage:')
         return /** @type {Response} */ ({

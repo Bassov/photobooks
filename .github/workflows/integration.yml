@@ -161,26 +161,73 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - name: E2E
-        id: e2e
-        run: pnpm test:e2e
-        env:
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-results.json
+      - name: Build app for E2E
+        run: pnpm build
 
-      - name: E2E coverage harvest
-        id: e2e-coverage
-        if: success()
-        run: >
-          pnpm test:e2e
-          --grep-invert "frame-budget gates"
+      - name: E2E functional (coverage)
+        id: e2e-functional
+        run: pnpm test:e2e --grep-invert "frame-budget gates"
         env:
           # webServer sets VITE_COVERAGE=1; skip LoAF describes (Istanbul overhead).
           E2E_COVERAGE: '1'
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-coverage-results.json
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-functional.json
+
+      - name: Stash functional E2E JSON
+        if: always()
+        run: |
+          if [ -f test-results/e2e-functional.json ]; then
+            cp test-results/e2e-functional.json /tmp/e2e-functional.json
+          fi
+
+      - name: E2E frame-budget (no coverage)
+        id: e2e-perf
+        if: success()
+        run: pnpm test:e2e -g "frame-budget gates"
+        env:
+          E2E_COVERAGE: '0'
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-perf.json
+
+      - name: Merge E2E JSON reports
+        if: always()
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+
+          const paths = ['/tmp/e2e-functional.json', 'test-results/e2e-perf.json'].filter(
+            (p) => existsSync(p),
+          )
+          if (paths.length === 0) {
+            console.error('No E2E JSON reports to merge')
+            process.exit(0)
+          }
+          const reports = paths.map((p) => JSON.parse(readFileSync(p, 'utf8')))
+          const merged = structuredClone(reports[0])
+          for (let i = 1; i < reports.length; i++) {
+            const r = reports[i]
+            merged.suites = [...(merged.suites ?? []), ...(r.suites ?? [])]
+            if (merged.stats && r.stats) {
+              for (const key of [
+                'duration',
+                'expected',
+                'unexpected',
+                'flaky',
+                'skipped',
+              ]) {
+                merged.stats[key] = (merged.stats[key] ?? 0) + (r.stats[key] ?? 0)
+              }
+            }
+            merged.errors = [...(merged.errors ?? []), ...(r.errors ?? [])]
+          }
+          mkdirSync('test-results', { recursive: true })
+          writeFileSync(
+            'test-results/e2e-results.json',
+            JSON.stringify(merged),
+          )
+          EOF
 
       - name: Merge e2e coverage
         id: e2e-coverage-merge
-        if: always() && steps.e2e-coverage.outcome == 'success'
+        if: always() && steps.e2e-functional.outcome == 'success'
         run: |
           pnpm coverage:e2e
           test -s coverage-e2e/lcov.info

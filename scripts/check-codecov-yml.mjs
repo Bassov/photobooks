@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 /**
- * Validate codecov.yml via Codecov API (first line must be exactly "Valid!").
- * On network error only: pinned top-level key allowlist.
+ * Validate codecov.yml: fast local pinned-key checks always; Codecov API only when
+ * codecov.yml changed vs origin/main, CI=true, or --remote.
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
 
 export const CODECOV_YML_REL = 'codecov.yml'
+export const CODECOV_YML_VALIDATE_BASE = 'origin/main'
 
 /** Known Codecov top-level keys (pinned fallback). */
 export const PINNED_TOP_LEVEL_KEYS = Object.freeze([
@@ -68,6 +70,75 @@ export function findUnknownTopLevelKeys(yamlText) {
     if (!allowed.has(key)) unknown.push(key)
   }
   return unknown
+}
+
+/**
+ * @param {string} yamlText
+ * @returns {{ ok: boolean, mode: 'local', detail: string }}
+ */
+export function validateCodecovYmlLocal(yamlText) {
+  const unknown = findUnknownTopLevelKeys(yamlText)
+  if (unknown.length > 0) {
+    return {
+      ok: false,
+      mode: 'local',
+      detail: `unknown top-level keys: ${unknown.join(', ')}`,
+    }
+  }
+  return {
+    ok: true,
+    mode: 'local',
+    detail: 'pinned top-level keys OK',
+  }
+}
+
+/**
+ * @param {{
+ *   root?: string,
+ *   baseRef?: string,
+ *   runGit?: (args: string[]) => { status: number | null },
+ * }} [opts]
+ * @returns {boolean}
+ */
+export function isCodecovYmlModifiedVsBase(opts = {}) {
+  const root = opts.root == null ? defaultCodecovRoot() : opts.root
+  const baseRef =
+    opts.baseRef == null ? CODECOV_YML_VALIDATE_BASE : opts.baseRef
+  const runGit =
+    opts.runGit == null
+      ? (args) =>
+          spawnSync('git', args, {
+            cwd: root,
+            encoding: 'utf8',
+          })
+      : opts.runGit
+  const verify = runGit(['rev-parse', '--verify', baseRef])
+  if (verify.status !== 0) return true
+  const diff = runGit(['diff', '--quiet', baseRef, '--', CODECOV_YML_REL])
+  return diff.status !== 0
+}
+
+/**
+ * @param {{
+ *   forceRemote?: boolean,
+ *   env?: NodeJS.ProcessEnv,
+ *   codecovYmlModified?: boolean,
+ *   root?: string,
+ *   baseRef?: string,
+ *   runGit?: (args: string[]) => { status: number | null },
+ * }} [opts]
+ * @returns {boolean}
+ */
+export function shouldValidateCodecovYmlRemote(opts = {}) {
+  if (opts.forceRemote) return true
+  const env = opts.env == null ? process.env : opts.env
+  if (env.CI === 'true') return true
+  if (opts.codecovYmlModified != null) return opts.codecovYmlModified
+  return isCodecovYmlModifiedVsBase({
+    root: opts.root,
+    baseRef: opts.baseRef,
+    runGit: opts.runGit,
+  })
 }
 
 /**
@@ -136,6 +207,11 @@ export function defaultCodecovRoot() {
  *   readFile?: (p: string) => string,
  *   fetchImpl?: typeof fetch,
  *   validateUrl?: string,
+ *   forceRemote?: boolean,
+ *   env?: NodeJS.ProcessEnv,
+ *   codecovYmlModified?: boolean,
+ *   baseRef?: string,
+ *   runGit?: (args: string[]) => { status: number | null },
  * }} [opts]
  */
 export async function checkCodecovYml(opts = {}) {
@@ -154,6 +230,20 @@ export async function checkCodecovYml(opts = {}) {
       detail: `missing ${CODECOV_YML_REL}: ${msg}`,
     }
   }
+  const local = validateCodecovYmlLocal(yamlText)
+  if (!local.ok) return local
+  if (
+    !shouldValidateCodecovYmlRemote({
+      forceRemote: opts.forceRemote,
+      env: opts.env,
+      codecovYmlModified: opts.codecovYmlModified,
+      root,
+      baseRef: opts.baseRef,
+      runGit: opts.runGit,
+    })
+  ) {
+    return local
+  }
   return validateCodecovYml(yamlText, {
     fetchImpl: opts.fetchImpl,
     validateUrl: opts.validateUrl,
@@ -167,11 +257,21 @@ export async function checkCodecovYml(opts = {}) {
  *   fetchImpl?: typeof fetch,
  *   log?: (msg: string) => void,
  *   error?: (msg: string) => void,
+ *   argv?: string[],
+ *   env?: NodeJS.ProcessEnv,
+ *   codecovYmlModified?: boolean,
+ *   baseRef?: string,
+ *   runGit?: (args: string[]) => { status: number | null },
  * }} [opts]
  * @returns {Promise<number>}
  */
 export async function runCodecovYmlCli(opts = {}) {
-  const result = await checkCodecovYml(opts)
+  const argv = opts.argv == null ? process.argv : opts.argv
+  const forceRemote = argv.includes('--remote')
+  const result = await checkCodecovYml({
+    ...opts,
+    forceRemote: forceRemote || opts.forceRemote,
+  })
   const log = opts.log == null ? console.log : opts.log
   const error = opts.error == null ? console.error : opts.error
   if (result.ok) {
