@@ -293,3 +293,12 @@ A mounted spread MUST re-render for a filmstrip thumbnail publish only when that
 
 - **WHEN** a mounted spread has a placed photo with no covering tier or book preview URL, and a filmstrip thumb publishes for that photo
 - **THEN** that spread's painted frame shows the new thumb URL
+
+### Requirement: Drag source stays mounted through drop
+
+While a filled-frame drag is in progress, the drag source element MUST remain mounted until `dragend` so the document-level gesture listener can clear click-suppression state. The painter MUST NOT unmount that source solely because the frame emptied mid-drop.
+
+#### Scenario: Emptying a frame mid-drop keeps the source mounted
+
+- **WHEN** a filled frame is dragged and its asset is removed before `dragend`
+- **THEN** the drag source node stays mounted long enough for `dragend` to reach `document`

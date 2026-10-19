@@ -39,6 +39,15 @@ describe('thumbCache', () => {
     vi.restoreAllMocks()
   })
 
+  it('getThumbUrl is referentially stable when unchanged', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:stable')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    setThumbUrl('a1', new Uint8Array([1]).buffer, 'image/jpeg')
+    const first = getThumbUrl('a1')
+    const second = getThumbUrl('a1')
+    expect(Object.is(first, second)).toBe(true)
+  })
+
   it('notifies publish subscribers and bumps generation', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pub')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
