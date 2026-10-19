@@ -29,6 +29,9 @@ describe('selectMutableChanges', () => {
     'src/editor/dropHover.ts',
     'src/editor/thumbSlotSize.ts',
     'src/render/SpreadView.tsx',
+    'src/core/index.ts',
+    'src/project/index.ts',
+    'src/assets/index.ts',
   ])('mutates %s', (file) => {
     expect(selectMutableChanges([file], patterns)).toEqual([file])
   })
@@ -37,7 +40,6 @@ describe('selectMutableChanges', () => {
     'src/photo/photo.test-helpers.ts',
     'src/photo/fileSystemAccess.d.ts',
     'src/core/testing/fixtures.ts',
-    'src/core/index.ts',
     'src/main.tsx',
     'src/core/ops/ops.bench.ts',
     'src/render/SpreadView.test.tsx',

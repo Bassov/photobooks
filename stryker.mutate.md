@@ -7,9 +7,6 @@ Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in t
 - `!src/**/*.d.ts` — declarations have no runtime behavior
 - `!src/**/*.test-helpers.ts` — test helpers are not production code
 - `!src/core/testing/**` — fixtures for tests
-- `!src/core/index.ts` — re-exports only
-- `!src/project/index.ts` — re-exports only
-- `!src/assets/index.ts` — re-exports only
 - `!src/main.tsx` — Vite entry
 - `!src/photo/photo.worker.ts` — onmessage wrapper; logic lives in processPhoto.ts
 - `!src/assets/hash.worker.ts` — onmessage wrapper; logic lives in hashDigest.ts
