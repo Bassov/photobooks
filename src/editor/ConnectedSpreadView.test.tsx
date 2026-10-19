@@ -45,6 +45,24 @@ function twoSpreadBook() {
   return book
 }
 
+/** Distinct photos on s0/s1 — Done-when isolation for per-spread thumbs. */
+function twoSpreadDistinctBook() {
+  let book = makeBook({
+    id: 'two-distinct',
+    spreads: [],
+    gallery: ['a', 'b'],
+    assets: { a: {}, b: {} },
+  })
+  book = addSpread(book, { id: 's0' })
+  book = addSpread(book, { id: 's1' })
+  const left = book.spreads[0]?.frames[0]
+  const right = book.spreads[1]?.frames[0]
+  assert(left !== undefined && right !== undefined, 'expected frames')
+  book = placeAsset(book, 's0', left.id, 'a')
+  book = placeAsset(book, 's1', right.id, 'b')
+  return book
+}
+
 describe('per-spread paint subscription', () => {
   afterEach(() => {
     cleanup()
@@ -134,6 +152,40 @@ describe('per-spread paint subscription', () => {
 
     expect(renders.count).toBe(renders.before)
     expect(renders.selfCount).toBe(renders.selfBefore)
+  })
+
+  it('does not re-render spread B when a thumb publishes for a photo on spread A only', () => {
+    let thumbSerial = 0
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      thumbSerial += 1
+      return `blob:thumb-a-${String(thumbSerial)}`
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const book = twoSpreadDistinctBook()
+    const renders = mountSiblingPaint(book, { previewUrls: new Map() })
+    const [spreadA, spreadB] = screen.getAllByTestId('spread-view')
+    assert(spreadA !== undefined && spreadB !== undefined, 'expected spreads')
+    expect(
+      spreadA.querySelector('[data-testid="spread-frame-image"]'),
+    ).toBeNull()
+    expect(
+      spreadB.querySelector('[data-testid="spread-frame-placeholder"]'),
+    ).toBeTruthy()
+
+    act(() => {
+      setThumbUrl('a', new Uint8Array([1, 2, 3]).buffer, 'image/jpeg')
+    })
+
+    expect(renders.count).toBe(renders.before)
+    expect(renders.selfCount).toBeGreaterThan(renders.selfBefore)
+    expect(
+      spreadA
+        .querySelector('[data-testid="spread-frame-image"]')
+        ?.getAttribute('src'),
+    ).toBe(`blob:thumb-a-${String(thumbSerial)}`)
+    expect(
+      spreadB.querySelector('[data-testid="spread-frame-image"]'),
+    ).toBeNull()
   })
 
   it('does not re-render a spread when an unrelated asset tier displays', async () => {
@@ -391,7 +443,10 @@ describe('per-spread paint subscription', () => {
   })
 })
 
-function mountSiblingPaint(book: ReturnType<typeof twoSpreadBook>): {
+function mountSiblingPaint(
+  book: ReturnType<typeof twoSpreadBook>,
+  options?: { previewUrls?: Map<string, string> },
+): {
   count: number
   before: number
   selfCount: number
@@ -400,7 +455,8 @@ function mountSiblingPaint(book: ReturnType<typeof twoSpreadBook>): {
   resetBookStore({
     book,
     sessionMeta: new Map(),
-    previewUrls: new Map([['a', 'data:image/svg+xml,sibling']]),
+    previewUrls:
+      options?.previewUrls ?? new Map([['a', 'data:image/svg+xml,sibling']]),
     importRunning: false,
     importExpectedCount: 0,
   })
