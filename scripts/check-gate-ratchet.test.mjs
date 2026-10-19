@@ -450,14 +450,16 @@ describe('CLI fixture proofs (real check-gate-ratchet path)', () => {
         ],
       },
     }
-    const { code, result } = cliRatchet({
+    const { result } = cliRatchet({
       'quality/gates.json': JSON.stringify(gates),
       'AGENTS.md': text,
     })
     expect(
       result.violations.filter((v) => v.ruleId === 'agent-rules-over-budget'),
     ).toEqual([])
-    expect(code === 0 || code === 1).toBe(true)
+    expect(
+      result.violations.filter((v) => /agentRules\.budgets/.test(v.message)),
+    ).toEqual([])
   })
 
   it('FIXTURE agent-rules-budget-raised: higher maxLines fails ratchet', () => {
