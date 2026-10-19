@@ -2,7 +2,7 @@
 
 Owner picks items back into a milestone explicitly (`pnpm roadmap add` + move the file back).
 
-These items left **M2.1** in the owner-directed trim of 2026-10-18. File contents are unchanged except where links would otherwise be dead.
+These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipeline/gates optimization prune of 2026-10-20. File contents are unchanged except defer notes and where links would otherwise be dead.
 
 | Slug                                                          | Title                                                                             | Original milestone | Source                          |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------ | ------------------------------- |
@@ -27,3 +27,8 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18. File content
 | [`perf-size-budgets`](perf-size-budgets.md)                   | enforced bundle and Lighthouse budgets (#50 item 10, issue #48)                   | M2.1               | #50 item 10, #48                |
 | [`prod-smoke`](prod-smoke.md)                                 | production check after every deploy (#50 item 9)                                  | M2.1               | #50                             |
 | [`agent-auto-merge`](agent-auto-merge.md)                     | agents merge their own PRs (off by default)                                       | M2.1               | #72 N                           |
+| [`editor-shell-mutation`](editor-shell-mutation.md)           | mutate `EditorShell.tsx` (issue #72 B)                                            | M2.1               | pipeline-gates opt §3.1         |
+| [`home-app-mutation`](home-app-mutation.md)                   | mutate HomeScreen.tsx and App.tsx (issue #72 B)                                   | M2.1               | pipeline-gates opt §3.1         |
+| [`exclusions-registry`](exclusions-registry.md)               | only non-production code can be excluded (issue #72 J, A)                         | M2.1               | pipeline-gates opt §3.1         |
+| [`pr-metrics-autogen`](pr-metrics-autogen.md)                 | PR metrics come from CI, never typed by hand (PR #81, #82 stale numbers)          | M2.1               | pipeline-gates opt §3.1         |
+| [`no-untested-branches`](no-untested-branches.md)             | unreachable code is deleted, not defended (dead/defensive code finding)           | M2.1               | pipeline-gates opt §3.1         |

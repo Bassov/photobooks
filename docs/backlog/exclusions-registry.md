@@ -14,3 +14,4 @@ Title: only non-production code can be excluded (issue #72 J, A)
 - **Done when:** fixture PRs that exclude a production module, add a `temporary` entry, or keep one after its `until` item is ticked each fail, and a new `*.test-helpers.ts` exclusion passes.
 - **Size:** ~900 changed lines (target ~1000, max 1500 incl. tests)
 - **Source:** #72 J, A
+- **Reason:** `check-mutation-scope` and gate ratchets already enforce excludes; a YAML registry duplicates working gates (pipeline-gates opt §3.1, owner 2026-10-20).

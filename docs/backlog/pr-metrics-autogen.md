@@ -13,3 +13,4 @@ Title: PR metrics come from CI, never typed by hand (PR #81, #82 stale numbers)
 - **Done when:** a PR body that says 88.57% while CI on the head says 88.1% fails `pr-policy`, `pnpm agent finish` on a new head refreshes the block and the check passes, and the CI report and the body show identical numbers; finish makes one CI-summary call from that report.
 - **Size:** ~500 changed lines (target ~1000, max 1500 incl. tests)
 - **Source:** PR #82 N7/N11, #81 squash message
+- **Reason:** Waiting on green CI in `finish` conflicts with no-CI-poll policy; `ci-report-comment` already posts authoritative metrics (pipeline-gates opt §3.1, owner 2026-10-20).
