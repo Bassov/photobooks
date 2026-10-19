@@ -35,6 +35,8 @@ export const RULE_IDS = Object.freeze([
   'allow-only-weaker',
   'forbid-only-weaker',
   'item-criteria-loosened',
+  'diff-below-nightly',
+  'temporary-excludes-grew',
 ])
 
 export const FIXTURE_IDS = Object.freeze([
@@ -64,6 +66,10 @@ export const FIXTURE_IDS = Object.freeze([
   'checkbox-done-note',
   'done-when-heading-bypass',
   'blank-done-when-bypass',
+  'weaker-diff-threshold',
+  'diff-below-nightly',
+  'temporary-excludes-grew',
+  'temporary-excludes-seed',
 ])
 /** Shared empty literals — asserted in unit tests to pin StringLiteral/Array mutants. */
 export const EMPTY_STRING = ''
@@ -98,6 +104,9 @@ export const MSGS = Object.freeze({
   lostGateSuffix: ' without needs:+fail aggregation',
   codecovLabelRemovedSuffix: ' removed',
   codecovYmlPrefix: 'codecov.yml ',
+  diffBelowNightlyPrefix: 'stryker.diffThresholds.',
+  diffBelowNightlyMid: ' < stryker.thresholds.',
+  tempExcludesGrewPrefix: 'mutation.temporaryExcludes grew: ',
 })
 
 /** Detector / probe needles — exact values pinned by unit tests. */
@@ -203,6 +212,21 @@ const GATES_NUMERIC = [
     path: ['stryker', 'thresholds', 'break'],
     dir: NEEDLES.higherStricter,
     label: 'stryker.thresholds.break',
+  },
+  {
+    path: ['stryker', 'diffThresholds', 'high'],
+    dir: NEEDLES.higherStricter,
+    label: 'stryker.diffThresholds.high',
+  },
+  {
+    path: ['stryker', 'diffThresholds', 'low'],
+    dir: NEEDLES.higherStricter,
+    label: 'stryker.diffThresholds.low',
+  },
+  {
+    path: ['stryker', 'diffThresholds', 'break'],
+    dir: NEEDLES.higherStricter,
+    label: 'stryker.diffThresholds.break',
   },
   {
     path: ['lighthouse', 'numberOfRuns'],
@@ -760,6 +784,69 @@ export function runFailsOnNeeds(run) {
  * @param {string} pathLabel
  * @param {(msg: string) => void} fail
  */
+/**
+ * @param {unknown} gates
+ * @returns {Set<string>}
+ */
+export function temporaryExcludePathSet(gates) {
+  const list = dig(isRecord(gates) ? gates : {}, [
+    'mutation',
+    'temporaryExcludes',
+  ])
+  const out = new Set()
+  if (!Array.isArray(list)) return out
+  for (const row of list) {
+    if (isRecord(row) && typeof row.path === 'string') out.add(row.path)
+  }
+  return out
+}
+
+/**
+ * Head diff thresholds must be ≥ matching nightly thresholds.
+ * @param {Record<string, unknown>} head
+ * @param {string} pathLabel
+ * @param {(msg: string) => void} fail
+ */
+export function compareDiffVsNightly(head, pathLabel, fail) {
+  for (const key of ['high', 'low', 'break']) {
+    const nightly = dig(head, ['stryker', 'thresholds', key])
+    const diff = dig(head, ['stryker', 'diffThresholds', key])
+    if (
+      typeof nightly === 'number' &&
+      typeof diff === 'number' &&
+      diff < nightly
+    ) {
+      fail(
+        `${pathLabel} ${MSGS.diffBelowNightlyPrefix}${key}${MSGS.diffBelowNightlyMid}${key}: ${diff} < ${nightly}`,
+      )
+    }
+  }
+}
+
+/**
+ * temporaryExcludes paths: seed when base has no array; else head ⊆ base.
+ * @param {Record<string, unknown>} base
+ * @param {Record<string, unknown>} head
+ * @param {string} pathLabel
+ * @param {(msg: string) => void} fail
+ */
+export function compareTemporaryExcludes(base, head, pathLabel, fail) {
+  const bList = dig(base, ['mutation', 'temporaryExcludes'])
+  const hList = dig(head, ['mutation', 'temporaryExcludes'])
+  if (!Array.isArray(bList)) return
+  if (!Array.isArray(hList)) {
+    fail(`${pathLabel} mutation.temporaryExcludes removed`)
+    return
+  }
+  const bPaths = temporaryExcludePathSet(base)
+  for (const row of hList) {
+    if (!isRecord(row) || typeof row.path !== 'string') continue
+    if (!bPaths.has(row.path)) {
+      fail(`${pathLabel} ${MSGS.tempExcludesGrewPrefix}${row.path}`)
+    }
+  }
+}
+
 export function compareGatesJson(base, head, pathLabel, fail) {
   for (const row of GATES_NUMERIC) {
     const b = dig(base, row.path)
@@ -1191,11 +1278,16 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
     const bRaw = getFile(baseFiles, 'quality/gates.json')
     const hRaw = getFile(headFiles, 'quality/gates.json')
     if (bRaw !== undefined && hRaw !== undefined) {
-      compareGatesJson(
-        JSON.parse(bRaw),
-        JSON.parse(hRaw),
-        'quality/gates.json',
-        (m) => fail('gates-json-weaker', m),
+      const bGates = JSON.parse(bRaw)
+      const hGates = JSON.parse(hRaw)
+      compareGatesJson(bGates, hGates, 'quality/gates.json', (m) =>
+        fail('gates-json-weaker', m),
+      )
+      compareDiffVsNightly(hGates, 'quality/gates.json', (m) =>
+        fail('diff-below-nightly', m),
+      )
+      compareTemporaryExcludes(bGates, hGates, 'quality/gates.json', (m) =>
+        fail('temporary-excludes-grew', m),
       )
     } else if (bRaw !== undefined && hRaw === undefined) {
       fail('gate-file-gone', MSGS.gatesJsonDeleted)

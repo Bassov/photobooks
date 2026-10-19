@@ -24,6 +24,7 @@ const config = {
     'scripts/check-gate-ratchet.mjs',
     'scripts/stryker-disable-detect.mjs',
     'scripts/stryker-pr-summary.mjs',
+    'scripts/stryker-diff-gate.mjs',
     'scripts/check-test-weakening.mjs',
     'scripts/check-codecov-yml.mjs',
     'scripts/e2e-flaky-list.mjs',
