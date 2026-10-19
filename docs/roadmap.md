@@ -76,19 +76,9 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 ## M2.5 — Design foundation
 
-**Review cut:** the UI kit is in the repo as the UI/UX reference, moved photo folders relink in one step, and the editor looks like one product — every surface uses tokens and shared primitives in light and dark themes, `docs/design.md` is the source of truth agents follow (enforced by `ui-review` and the design reviewer), screenshot baselines catch visual drift, and every existing 60 fps gate still passes.
+**Review cut:** the UI kit is served at `/uikit/` as the UI/UX reference, moved photo folders relink in one step, and the editor looks like one product — every surface uses tokens and shared primitives in light and dark themes, `docs/design.md` is the source of truth agents follow (enforced by `ui-review` and the design reviewer), screenshot baselines catch visual drift, and every existing 60 fps gate still passes.
 
-- [ ] [prep] [uikit-import](roadmap/M2.5/uikit-import.md) — UI kit in the repo as the UI/UX reference (~950 lines + lockfile; step 1 of 10, rest via the growth rule below)
-- [ ] [prep] [uikit-import-primitives-a](roadmap/M2.5/uikit-import-primitives-a.md) — button, checkbox, dialog, disclosure, field, grid-list, list-box, menu (~960 lines)
-- [ ] [prep] [uikit-import-primitives-b](roadmap/M2.5/uikit-import-primitives-b.md) — numberfield, popover, progress, searchfield, select, separator, slider, switch, tabs (~850 lines)
-- [ ] [prep] [uikit-import-primitives-c](roadmap/M2.5/uikit-import-primitives-c.md) — textfield, toast, toggle, toolbar, tooltip, Untitled UI badge / featured icon, app-density wrappers (~670 lines)
-- [ ] [prep] [uikit-import-components-page](roadmap/M2.5/uikit-import-components-page.md) — `#/components` gallery + sandbox document model, store, templates, demo data (~920 lines)
-- [ ] [prep] [uikit-import-sandbox](roadmap/M2.5/uikit-import-sandbox.md) — mock editor canvas, viewport, panel sections, spread renderer (~970 lines)
-- [ ] [prep] [uikit-import-editor-chrome](roadmap/M2.5/uikit-import-editor-chrome.md) — mock editor chrome + inspector, demo parts, feature registry and types (~850 lines)
-- [ ] [prep] [uikit-import-pages-m0-m2-5](roadmap/M2.5/uikit-import-pages-m0-m2-5.md) — M0–M2.5 feature pages (~860 lines)
-- [ ] [prep] [uikit-import-pages-m3-m4-5](roadmap/M2.5/uikit-import-pages-m3-m4-5.md) — M3–M4.5 feature pages + app screens (~910 lines)
-- [ ] [prep] [uikit-import-pages-m5-m8](roadmap/M2.5/uikit-import-pages-m5-m8.md) — M5–M8 feature pages, demo photos + `PHOTO-CREDITS.md` / `credits.json` (~980 lines; photos excluded)
-- [ ] [prep] [uikit-import-qa](roadmap/M2.5/uikit-import-qa.md) — headless `qa` / `shots` scripts (local Chrome via `CHROME_PATH`), `qa:quick` step in the `uikit` CI job (~300 lines); **Done when:** `qa` in `uikit/` passes with no missing demo, no clipped demo and no console errors in both themes at 1440×900 and 1280×800
+- [ ] [prep] [uikit-import](roadmap/M2.5/uikit-import.md) — UI kit v3.1 in the repo as the UI/UX reference (whole kit, one step)
 - [ ] [feature] [missing-assets-relink](roadmap/M2.5/missing-assets-relink.md) — moved photo folders
 - [ ] [prep] [design-reference](roadmap/M2.5/design-reference.md) — visual language and agent rule
 - [ ] [feature] [design-tokens](roadmap/M2.5/design-tokens.md) — tokens and self-hosted fonts
