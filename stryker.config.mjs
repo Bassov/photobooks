@@ -38,7 +38,6 @@ const config = {
     '!src/main.tsx',
     '!src/photo/photo.worker.ts',
     '!src/assets/hash.worker.ts',
-    '!src/assets/scan.worker.ts',
     '!src/project/fsa/bookLoad.worker.ts',
     '!src/project/session/idb.ts',
     '!src/project/session/locks.ts',
