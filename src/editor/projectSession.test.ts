@@ -63,6 +63,12 @@ describe('projectSession', () => {
     Reflect.deleteProperty(globalThis, 'showDirectoryPicker')
   })
 
+  it('getProjectSessionSnapshot is referentially stable when unchanged', () => {
+    const first = getProjectSessionSnapshot()
+    const second = getProjectSessionSnapshot()
+    expect(Object.is(first, second)).toBe(true)
+  })
+
   it('creates a book, saves, and restores the document', async () => {
     const storage = createMemoryLibraryStorage()
     const session = createMemorySessionState()

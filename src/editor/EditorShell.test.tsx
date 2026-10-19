@@ -23,6 +23,7 @@ import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
+import * as importPhotos from './importPhotos'
 import {
   attachMemoryLibraryForTests,
   getProjectSessionSnapshot,
@@ -248,5 +249,62 @@ describe('EditorShell viewport containment', () => {
     fireEvent.click(rename)
     expect(prompt).not.toHaveBeenCalled()
     expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
+  })
+
+  it('copies photo input FileList before clearing value', () => {
+    const seen: File[][] = []
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockImplementation((files) => {
+      seen.push([...files])
+      return Promise.resolve({ imported: files.length, errors: [] })
+    })
+    render(<EditorShell />)
+    const input = screen.getByTestId('photo-file-input')
+    assert(input instanceof HTMLInputElement, 'expected file input')
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    let cleared = false
+    const liveList: FileList = {
+      length: 1,
+      item: (index) => (index === 0 && !cleared ? file : null),
+      *[Symbol.iterator]() {
+        if (!cleared) {
+          yield file
+        }
+      },
+    } as FileList
+    Object.defineProperty(liveList, '0', {
+      get: () => (cleared ? undefined : file),
+    })
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      get: () => liveList,
+    })
+    const proto = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )
+    Object.defineProperty(input, 'value', {
+      configurable: true,
+      get(): string {
+        const current = proto?.get?.call(this)
+        return typeof current === 'string' ? current : ''
+      },
+      set(next: string) {
+        proto?.set?.call(this, next)
+        if (next === '') {
+          cleared = true
+          Object.defineProperty(liveList, 'length', { value: 0 })
+        }
+      },
+    })
+
+    act(() => {
+      fireEvent.change(input)
+    })
+
+    expect(cleared).toBe(true)
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toEqual([file])
   })
 })

@@ -53,7 +53,7 @@ Findings:
 
 Severities: critical, high, medium, low.
 
-Prefix a finding with `[lesson]` when `docs/lessons/` already states that rule, or `[repeat]` when it was raised in an earlier round for this change.
+Prefix a finding with `[repeat]` when it was raised in an earlier round for this change; the finding MUST name the automated check (or area SHALL / code comment) the change should add.
 
 `pass` only with no open critical/high findings and verify gates evidenced.
 Parent must not archive until `pass`.

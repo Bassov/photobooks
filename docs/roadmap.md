@@ -8,14 +8,14 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 ## Order
 
-1. **M1–M4.5 — the local editor, complete for personal use.** M2.1 finishes the core quality gates and agent-process hardening (zero-retry e2e, mechanical coverage/mutation/exclusion/size/PR checks, cheaper agent runs, lessons dissolved, mutation re-includes for session/editor files); then M2.2 completes the library under those gates, and M2.5 fixes the visual language before more UI is built. Other hardening ideas sit in `docs/backlog/` until the owner re-adds them.
+1. **M1–M4.5 — the local editor, complete for personal use.** M2.1 finishes the core quality gates and agent-process hardening (zero-retry e2e, mechanical coverage/mutation/exclusion/size/PR checks, cheaper agent runs, findings journal dissolved, mutation re-includes for session/editor files); then M2.2 completes the library under those gates, and M2.5 fixes the visual language before more UI is built. Other hardening ideas sit in `docs/backlog/` until the owner re-adds them.
 2. **M5, then M7 — books as a website:** the showcase site built and previewed locally, then deployed as my own site.
 3. **M6 — print** (after M7).
 4. **M8 — let others create their own books, sites and prints.**
 
 ## M2.1 — Quality gates & dev process
 
-**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI and `pnpm agent finish` refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, PR bodies with stale metrics or missing verdicts, and an item whose plan or first push exceeds 1500 changed lines (review fixes stay in the same PR and only warn). `docs/lessons.md` is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
+**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI and `pnpm agent finish` refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, PR bodies with stale metrics or missing verdicts, and an item whose plan or first push exceeds 1500 changed lines (review fixes stay in the same PR and only warn). The agent findings journal is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
 
 Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
@@ -49,6 +49,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [no-untested-branches](roadmap/M2.1/no-untested-branches.md) — unreachable code is deleted, not defended (dead/defensive code finding)
 - [ ] [prep] [agent-self-check](roadmap/M2.1/agent-self-check.md) — agents self-review against the repo checklist before push
 - [ ] [prep] [lessons-dissolve](roadmap/M2.1/lessons-dissolve.md) — Dissolve docs/lessons.md: repeat findings become checks or specs (issue #78)
+- [ ] [prep] [rules-dedup](roadmap/M2.1/rules-dedup.md) — Deduplicate agent rules and cap their size
 - [ ] [prep] [necessary-minimum-rules](roadmap/M2.1/necessary-minimum-rules.md) — Necessary-minimum rules for artifacts and code, tests exempt (issue #78)
 - [ ] [prep] [fsa-permission-fakes](roadmap/M2.1/fsa-permission-fakes.md) — unit-level File System Access fakes (issue #72 L)
 - [ ] [prep] [mutation-reinclude-small](roadmap/M2.1/mutation-reinclude-small.md) — mutate the small files that already have tests (issue #72 B)

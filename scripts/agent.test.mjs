@@ -3715,7 +3715,7 @@ describe('claimed set and merge helpers', () => {
       tryResolveTrivialConflicts(root, ['docs/roadmap/M2.1/item.md'], execOk),
     ).toBe(false)
     expect(
-      tryResolveTrivialConflicts(root, ['docs/lessons/01-x.md'], execOk),
+      tryResolveTrivialConflicts(root, ['docs/roadmap/RULES.md'], execOk),
     ).toBe(false)
     expect(
       tryResolveTrivialConflicts(
