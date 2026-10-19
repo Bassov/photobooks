@@ -64,6 +64,27 @@ describe('findUnclassifiedProductionFiles', () => {
       ),
     ).toEqual(['src/perf/percentile.ts'])
   })
+
+  it('reports an unclassified script', () => {
+    expect(
+      findUnclassifiedProductionFiles(
+        ['scripts/orphan.mjs'],
+        ['src/**/*.ts', '!scripts/**/*.test.mjs'],
+      ),
+    ).toEqual(['scripts/orphan.mjs'])
+  })
+})
+
+describe('scripts mutate globs', () => {
+  it('includes foo.mjs and excludes thin CLI + tests', () => {
+    expect(selectMutableChanges(['scripts/foo.mjs'], patterns)).toEqual([
+      'scripts/foo.mjs',
+    ])
+    expect(selectMutableChanges(['scripts/agent-cli.mjs'], patterns)).toEqual(
+      [],
+    )
+    expect(selectMutableChanges(['scripts/foo.test.mjs'], patterns)).toEqual([])
+  })
 })
 
 describe('findExcludeReasonGaps', () => {

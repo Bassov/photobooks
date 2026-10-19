@@ -76,6 +76,12 @@ import {
   stripShellComments,
 } from './check-gate-ratchet.mjs'
 import { gitExec, initTmpRepo } from './git-test-helper.mjs'
+import {
+  codecovFlagPathCovered,
+  coverageIncludeCovered,
+  hasScriptsCoverageInclude,
+  isAllowedScriptPairedExclude,
+} from './script-include-ratchet.mjs'
 import { parse as parseYaml } from 'yaml'
 
 const tmpDirs = []
@@ -1250,28 +1256,13 @@ describe('extractCoverageIncludes', () => {
       'utf8',
     )
     const includes = extractCoverageIncludes(realVite)
-    expect(includes).toEqual([
-      'src/**/*.{ts,tsx}',
-      'scripts/roadmap.mjs',
-      'scripts/agent.mjs',
-      'scripts/check.mjs',
-      'scripts/e2e-burn-in-count.mjs',
-      'scripts/e2e-burn-in-targets.mjs',
-      'scripts/e2e-changed-quiet.mjs',
-      'scripts/e2e-playwright-summary.mjs',
-      'scripts/load-gates.mjs',
-      'scripts/check-gate-values.mjs',
-      'scripts/check-gate-ratchet.mjs',
-      'scripts/check-test-weakening.mjs',
-      'scripts/check-codecov-yml.mjs',
-      'scripts/e2e-flaky-list.mjs',
-    ])
+    expect(includes).toEqual(['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'])
     expect(includes).not.toContain('scripts/**/*.test.mjs')
     expect(includes).not.toContain('src/**/*.{test,spec}.{ts,tsx}')
-    expect(sliceCoverageConfigBlock(realVite)).toContain("'scripts/agent.mjs'")
+    expect(sliceCoverageConfigBlock(realVite)).toContain("'scripts/**/*.mjs'")
 
-    const headVite = realVite.replace(/\n\s*'scripts\/agent\.mjs',\n/, '\n')
-    expect(headVite.includes("'scripts/agent.mjs'")).toBe(false)
+    const headVite = realVite.replace(", 'scripts/**/*.mjs'", '')
+    expect(headVite.includes("'scripts/**/*.mjs'")).toBe(false)
     const r = compareGateTrees(
       baseFiles({ 'vite.config.ts': realVite }),
       baseFiles({ 'vite.config.ts': headVite }),
@@ -1281,7 +1272,7 @@ describe('extractCoverageIncludes', () => {
       r.violations.some(
         (v) =>
           v.ruleId === 'include-removed' &&
-          v.message.includes('scripts/agent.mjs'),
+          v.message.includes('scripts/**/*.mjs'),
       ),
     ).toBe(true)
   })
@@ -3479,5 +3470,125 @@ export default config
       ruleId: 'gate-file-gone',
       message: MSGS.codecovDeleted,
     })
+  })
+})
+
+describe('scripts glob include / paired excludes', () => {
+  const thinCli = `#!/usr/bin/env node
+import { main } from './agent.mjs'
+main(process.argv.slice(2), process)
+`
+
+  it('subsumes hand-listed script includes under scripts/**/*.mjs', () => {
+    expect(
+      coverageIncludeCovered('scripts/agent.mjs', ['scripts/**/*.mjs']),
+    ).toBe(true)
+    expect(hasScriptsCoverageInclude(['scripts/**/*.mjs'])).toBe(true)
+    const base = baseFiles({
+      'vite.config.ts': `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/agent.mjs'],
+      exclude: [],
+    },
+  },
+}
+`,
+    })
+    const head = baseFiles({
+      'vite.config.ts': `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: ['scripts/**/*.test.mjs', 'scripts/agent-cli.mjs'],
+    },
+  },
+}
+`,
+      'scripts/agent-cli.mjs': thinCli,
+    })
+    const r = compareGateTrees(base, head)
+    expect(r.ok).toBe(true)
+  })
+
+  it('removing scripts/**/*.mjs include fails pr-policy', () => {
+    const withGlob = `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: [],
+    },
+  },
+}
+`
+    const without = `
+export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [],
+    },
+  },
+}
+`
+    const r = compareGateTrees(
+      baseFiles({ 'vite.config.ts': withGlob }),
+      baseFiles({ 'vite.config.ts': without }),
+    )
+    expect(r.ok).toBe(false)
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'include-removed' &&
+          v.message.includes('scripts/**/*.mjs'),
+      ),
+    ).toBe(true)
+  })
+
+  it('allows paired thin-CLI bang when scripts glob present', () => {
+    expect(
+      isAllowedScriptPairedExclude(
+        '!scripts/agent-cli.mjs',
+        { 'scripts/agent-cli.mjs': thinCli },
+        ['scripts/**/*.mjs'],
+      ),
+    ).toBe(true)
+    expect(
+      isAllowedScriptPairedExclude(
+        '!scripts/fat.mjs',
+        {
+          'scripts/fat.mjs': `${'x\n'.repeat(20)}import { a } from './b.mjs'\n`,
+        },
+        ['scripts/**/*.mjs'],
+      ),
+    ).toBe(false)
+  })
+
+  it('codecov scripts/ prefix covers former per-file paths', () => {
+    expect(
+      codecovFlagPathCovered('scripts/agent.mjs', ['src/', 'scripts/']),
+    ).toBe(true)
+    const msgs = []
+    compareCodecov(
+      {
+        flags: {
+          unit: {
+            paths: ['src/', 'scripts/agent.mjs'],
+          },
+        },
+      },
+      {
+        flags: {
+          unit: {
+            paths: ['src/', 'scripts/'],
+          },
+        },
+      },
+      (m) => msgs.push(m),
+    )
+    expect(msgs.some((m) => m.includes('paths removed'))).toBe(false)
   })
 })

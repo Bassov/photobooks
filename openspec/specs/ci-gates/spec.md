@@ -46,7 +46,7 @@ Unit test coverage SHALL enforce an **80%** floor in CI (statements, branches, f
 
 ### Requirement: Coverage instrumentation scope
 
-Vitest coverage SHALL include product sources under `src/**/*.{ts,tsx}` and SHALL exclude tests, benchmark files, TypeScript declaration files, test helpers (`*.test-helpers.ts`), and the app bootstrap entry `src/main.tsx`. Photo worker processing logic under `src/photo/` SHALL remain inside the coverage denominator (not excluded).
+Vitest coverage SHALL include product sources under `src/**/*.{ts,tsx}` and production gate/agent scripts under `scripts/**/*.mjs`, and SHALL exclude tests (including `scripts/**/*.test.mjs`), benchmark files, TypeScript declaration files, test helpers (`*.test-helpers.ts`), the app bootstrap entry `src/main.tsx`, and ≤10-line delegating CLI entry scripts under `scripts/` (for example `scripts/agent-cli.mjs`). Photo worker processing logic under `src/photo/` SHALL remain inside the coverage denominator (not excluded). Codecov `flags.unit.paths` SHALL include a `scripts/` prefix covering those production scripts (not a per-file hand-list).
 
 #### Scenario: Benches and declarations excluded
 
@@ -57,6 +57,11 @@ Vitest coverage SHALL include product sources under `src/**/*.{ts,tsx}` and SHAL
 
 - **WHEN** coverage is collected
 - **THEN** photo worker processing code under `src/photo/` that implements file→preview/metadata processing is included in the coverage report
+
+#### Scenario: New script is in the coverage denominator without config edit
+
+- **WHEN** a new production file `scripts/foo.mjs` is added and unit tests import it
+- **THEN** coverage includes that file without editing Vitest coverage `include` globs
 
 ### Requirement: E2E coverage instrumentation and upload
 
@@ -249,7 +254,7 @@ The pull-request mutation job SHALL publish a PR-visible mutation summary in the
 
 ### Requirement: Mutation scope is the config globs
 
-Full and diff mutation runs SHALL share one mutate scope: the `mutate` globs in the mutation config. That scope SHALL include `src/**/*.ts` and `src/**/*.tsx` and SHALL exclude only files that are pointless to mutate. The diff run SHALL keep a changed file only when it matches an include glob and is not negated by an exclude, and MUST NOT keep a separate file allow-list.
+Full and diff mutation runs SHALL share one mutate scope: the `mutate` globs in the mutation config. That scope SHALL include `src/**/*.ts`, `src/**/*.tsx`, and `scripts/**/*.mjs`, and SHALL exclude only files that are pointless to mutate (including `scripts/**/*.test.mjs` and ≤10-line delegating CLI entries under `scripts/`). The diff run SHALL keep a changed file only when it matches an include glob and is not negated by an exclude, and MUST NOT keep a separate file allow-list.
 
 #### Scenario: In-scope module is mutated
 
@@ -258,7 +263,7 @@ Full and diff mutation runs SHALL share one mutate scope: the `mutate` globs in 
 
 #### Scenario: Pointless files are excluded
 
-- **WHEN** a changed file is a test, a bench, a declaration, a `*.test-helpers.ts` file, a fixture under `src/core/testing/`, the barrel `src/core/index.ts`, the Vite entry `src/main.tsx`, or `src/photo/photo.worker.ts`
+- **WHEN** a changed file is a test, a bench, a declaration, a `*.test-helpers.ts` file, a fixture under `src/core/testing/`, the barrel `src/core/index.ts`, the Vite entry `src/main.tsx`, `src/photo/photo.worker.ts`, a `scripts/**/*.test.mjs` file, or a ≤10-line delegating CLI under `scripts/`
 - **THEN** the diff mutation run does not include that file
 
 #### Scenario: Previously omitted module is mutated
@@ -266,13 +271,23 @@ Full and diff mutation runs SHALL share one mutate scope: the `mutate` globs in 
 - **WHEN** a changed file is production source that the previous allow-lists omitted, such as `src/perf/percentile.ts`
 - **THEN** the diff mutation run includes that file
 
+#### Scenario: New script is mutated without config edit
+
+- **WHEN** a changed production file is `scripts/foo.mjs` and mutate already includes `scripts/**/*.mjs`
+- **THEN** the diff mutation run includes that file without editing the mutation config
+
 ### Requirement: Unclassified production file fails checks
 
-Fast verify and the checks workflow SHALL fail when a production TypeScript or TSX file under `src/` is neither covered by a mutate include glob nor negated by an exclude.
+Fast verify and the checks workflow SHALL fail when a production TypeScript or TSX file under `src/`, or a production `.mjs` file under `scripts/` (excluding `scripts/**/*.test.mjs` and ≤10-line delegating CLI entries that are bang-excluded), is neither covered by a mutate include glob nor negated by an exclude.
 
 #### Scenario: New file with no decision
 
 - **WHEN** a production `.ts` or `.tsx` file under `src/` matches neither an include glob nor an exclude
+- **THEN** fast verify fails and the checks workflow fails
+
+#### Scenario: Unclassified script fails verify
+
+- **WHEN** a production `scripts/*.mjs` file matches neither a mutate include glob nor an exclude
 - **THEN** fast verify fails and the checks workflow fails
 
 ### Requirement: Codecov Test Analytics upload
@@ -600,7 +615,7 @@ Local `pnpm check` (and the checks workflow) SHALL run a static check that does 
 
 ### Requirement: Gate ratchet on pull requests
 
-On every pull request, CI SHALL run a `pr-policy` job from a `pull_request_target` workflow that executes only the **base** ref’s workflow and `scripts/check-gate-ratchet.mjs`. The head commit SHALL be read only as git object data; head code MUST NOT be installed or executed. The check SHALL fail when the head tree is weaker than base per the ratchet rules. No label, input, or environment override SHALL disable the ratchet. Diff mutation thresholds SHALL be at least as high as nightly thresholds on the same head. When base has no `mutation.temporaryExcludes` array, the head MAY introduce the initial path set; thereafter the set of paths SHALL only shrink relative to base.
+On every pull request, CI SHALL run a `pr-policy` job from a `pull_request_target` workflow that executes only the **base** ref’s workflow and `scripts/check-gate-ratchet.mjs`. The head commit SHALL be read only as git object data; head code MUST NOT be installed or executed. The check SHALL fail when the head tree is weaker than base per the ratchet rules. No label, input, or environment override SHALL disable the ratchet. Diff mutation thresholds SHALL be at least as high as nightly thresholds on the same head. When base has no `mutation.temporaryExcludes` array, the head MAY introduce the initial path set; thereafter the set of paths SHALL only shrink relative to base. A Vitest coverage `include` entry removed relative to base SHALL fail unless a remaining head include glob subsumes it. Removing `scripts/**` or `scripts/**/*.mjs` from coverage `include` SHALL fail. New Stryker `!` bangs or Vitest coverage excludes for `scripts/**/*.test.mjs` or for a `scripts/` file that is both ≤10 lines and sole import+invoke of a sibling SHALL NOT fail when head coverage `include` already contains `scripts/**/*.mjs` (or `scripts/**`). Codecov `flags.unit.paths` SHALL treat a directory prefix (for example `scripts/`) as covering former per-file script paths under that prefix.
 
 #### Scenario: Weaker coverage floor fails pr-policy
 
@@ -629,13 +644,23 @@ On every pull request, CI SHALL run a `pr-policy` job from a `pull_request_targe
 
 #### Scenario: New exclude pattern fails pr-policy
 
-- **WHEN** a pull request adds a Stryker `mutate` `!` pattern, a Vitest coverage exclude, or a Codecov `ignore` pattern relative to base
+- **WHEN** a pull request adds a Stryker `mutate` `!` pattern, a Vitest coverage exclude, or a Codecov `ignore` pattern relative to base, and that pattern is not a paired scripts test/CLI exclude allowed with `scripts/**/*.mjs` include
 - **THEN** the `pr-policy` check fails
 
 #### Scenario: Removed coverage include fails pr-policy
 
-- **WHEN** a pull request removes `scripts/agent.mjs` (or any other entry) from Vitest coverage `include` relative to base
+- **WHEN** a pull request removes a Vitest coverage `include` entry relative to base and no remaining head include glob subsumes it
 - **THEN** the `pr-policy` check fails
+
+#### Scenario: Removed scripts glob include fails pr-policy
+
+- **WHEN** a pull request removes `scripts/**` or `scripts/**/*.mjs` from Vitest coverage `include` relative to base
+- **THEN** the `pr-policy` check fails
+
+#### Scenario: Hand-list replaced by scripts glob passes pr-policy
+
+- **WHEN** a pull request removes hand-listed `scripts/*.mjs` include entries but keeps `scripts/**/*.mjs`
+- **THEN** the `pr-policy` check does not fail for those removals alone
 
 #### Scenario: New mutator exclusion fails pr-policy
 

@@ -16,13 +16,21 @@ const isolationHeaders = {
 const codecovToken = process.env.CODECOV_TOKEN
 const withE2eCoverage = process.env.VITE_COVERAGE === '1'
 
-/** Shared Vitest + Istanbul exclude globs (tests, benches, decls, helpers, bootstrap). */
+/** Shared Vitest + Istanbul exclude globs (tests, benches, decls, helpers, bootstrap, thin CLIs). */
 export const coverageExcludeGlobs = [
   'src/**/*.{test,spec}.{ts,tsx}',
   'src/**/*.test-helpers.ts',
   'src/**/*.{bench,benchmark}.{ts,tsx}',
   'src/**/*.d.ts',
   'src/main.tsx',
+  'scripts/**/*.test.mjs',
+  'scripts/agent-cli.mjs',
+  'scripts/codecov-yml-cli.mjs',
+  'scripts/e2e-burn-in-count-cli.mjs',
+  'scripts/e2e-burn-in-targets-cli.mjs',
+  'scripts/e2e-changed-quiet-cli.mjs',
+  'scripts/e2e-playwright-summary-cli.mjs',
+  'scripts/gate-ratchet-cli.mjs',
 ] as const
 
 /** E2e Istanbul additionally skips workers (unit coverage still includes them). */
@@ -75,22 +83,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary'],
-      include: [
-        'src/**/*.{ts,tsx}',
-        'scripts/roadmap.mjs',
-        'scripts/agent.mjs',
-        'scripts/check.mjs',
-        'scripts/e2e-burn-in-count.mjs',
-        'scripts/e2e-burn-in-targets.mjs',
-        'scripts/e2e-changed-quiet.mjs',
-        'scripts/e2e-playwright-summary.mjs',
-        'scripts/load-gates.mjs',
-        'scripts/check-gate-values.mjs',
-        'scripts/check-gate-ratchet.mjs',
-        'scripts/check-test-weakening.mjs',
-        'scripts/check-codecov-yml.mjs',
-        'scripts/e2e-flaky-list.mjs',
-      ],
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
       exclude: [...coverageExcludeGlobs],
       thresholds: gates.coverage,
     },
