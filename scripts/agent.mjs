@@ -1443,7 +1443,7 @@ function readGitStages(root, rel, exec) {
 
 /**
  * Auto-resolve only pure-add `docs/roadmap.md` conflicts and `pnpm-lock.yaml`
- * (via install later). Refuses item files, RULES/INTRO, modified-line hunks,
+ * (via install later). Refuses item files, lessons, RULES, modified-line hunks,
  * and any package.json conflict. Leaves the merge in progress on failure.
  */
 export function tryResolveTrivialConflicts(
