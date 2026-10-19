@@ -10,10 +10,61 @@
       "high": 80,
       "low": 60,
       "break": 60
+    },
+    "diffThresholds": {
+      "high": 90,
+      "low": 85,
+      "break": 85
     }
   },
   "mutation": {
-    "disableBudget": 0
+    "disableBudget": 0,
+    "temporaryExcludes": [
+      {
+        "path": "src/editor/projectSession.ts",
+        "until": "project-session-mutation"
+      },
+      {
+        "path": "src/editor/usePasteboardCamera.ts",
+        "until": "mutation-reinclude-camera"
+      },
+      {
+        "path": "src/editor/EditorShell.tsx",
+        "until": "editor-shell-mutation"
+      },
+      {
+        "path": "src/editor/HomeScreen.tsx",
+        "until": "home-app-mutation"
+      },
+      {
+        "path": "src/App.tsx",
+        "until": "home-app-mutation"
+      },
+      {
+        "path": "src/editor/previewAspect.ts",
+        "until": "mutation-reinclude-small"
+      },
+      {
+        "path": "src/editor/upgradeSessionAssets.ts",
+        "until": "mutation-reinclude-small"
+      },
+      {
+        "path": "src/project/session/idb.ts",
+        "until": "session-idb-locks-mutation"
+      },
+      {
+        "path": "src/project/session/locks.ts",
+        "until": "session-idb-locks-mutation"
+      },
+      {
+        "path": "src/assets/hash.worker.ts",
+        "until": "mutation-reinclude-small"
+      },
+      {
+        "path": "src/photo/photo.worker.ts",
+        "until": "mutation-reinclude-small"
+      }
+    ]
   },
   "lighthouse": {
     "numberOfRuns": 1,

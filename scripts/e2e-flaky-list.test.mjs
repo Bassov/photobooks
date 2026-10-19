@@ -14,7 +14,11 @@ function gatesWithFlaky(flakySpecs) {
       functions: 80,
       lines: 80,
     },
-    stryker: { thresholds: { high: 80, low: 60, break: 60 } },
+    stryker: {
+      thresholds: { high: 80, low: 60, break: 60 },
+      diffThresholds: { high: 90, low: 85, break: 85 },
+    },
+    mutation: { disableBudget: 0, temporaryExcludes: [] },
     lighthouse: {
       numberOfRuns: 1,
       assertions: { 'performance-budget': 'error' },

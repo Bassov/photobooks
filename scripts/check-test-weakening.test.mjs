@@ -754,7 +754,17 @@ describe('compareItemCriteria', () => {
 })
 
 describe('real repo inventory', () => {
-  it('parses non-empty titles from real test files', () => {
+  const FIXTURE_ROOT = path.join(REPO_ROOT, 'testdata/test-weakening-inventory')
+
+  /**
+   * Walk a miniature tree that mirrors tracked path kinds (src/scripts/e2e
+   * extensions + burn-in-fixtures exclusion). Same skip rules as the former
+   * full-repo inventory walk.
+   * @param {string} root
+   * @returns {Record<string, string>}
+   */
+  const walkTrackedTests = (root) => {
+    /** @type {Record<string, string>} */
     const files = {}
     const walk = (dir, relBase = '') => {
       for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -773,14 +783,48 @@ describe('real repo inventory', () => {
         }
       }
     }
-    walk(path.join(REPO_ROOT, 'src'), 'src')
-    walk(path.join(REPO_ROOT, 'scripts'), 'scripts')
-    walk(path.join(REPO_ROOT, 'e2e'), 'e2e')
+    walk(path.join(root, 'src'), 'src')
+    walk(path.join(root, 'scripts'), 'scripts')
+    walk(path.join(root, 'e2e'), 'e2e')
+    return files
+  }
+
+  it('parses non-empty titles from real test files', () => {
+    // burn-in-fixtures file exists on disk but must be filtered by isTrackedTestPath
+    expect(
+      fs.existsSync(
+        path.join(FIXTURE_ROOT, 'e2e/burn-in-fixtures/ignored.spec.ts'),
+      ),
+    ).toBe(true)
+    const files = walkTrackedTests(FIXTURE_ROOT)
+    expect(Object.keys(files).some((p) => p.includes('burn-in-fixtures'))).toBe(
+      false,
+    )
+    expect(Object.keys(files).sort()).toEqual([
+      'e2e/sample.spec.ts',
+      'scripts/sample.test.js',
+      'scripts/sample.test.mjs',
+      'scripts/sample.test.ts',
+      'src/feature/sample.test.mjs',
+      'src/feature/sample.test.ts',
+      'src/feature/sample.test.tsx',
+    ])
     const titles = inventoryAllTitles(files)
     expect(titles.length).toBeGreaterThan(50)
+    expect(titles.length).toBe(70)
+    expect(titles.every((t) => t.title.length > 0)).toBe(true)
     expect(titles.some((t) => t.path.startsWith('src/'))).toBe(true)
+    expect(titles.some((t) => t.path.startsWith('scripts/'))).toBe(true)
     expect(titles.some((t) => t.path.startsWith('e2e/'))).toBe(true)
     // sanity: markers detector runs without throwing
     expect(countWeakeningMarkers(files)).toBeGreaterThanOrEqual(0)
+  })
+
+  it('cheap real-repo smoke: one tracked file still inventories', () => {
+    const rel = 'src/editor/importPhotos.test.ts'
+    const raw = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8')
+    const titles = inventoryAllTitles({ [rel]: raw })
+    expect(titles.length).toBeGreaterThan(0)
+    expect(titles.every((t) => t.path === rel && t.title.length > 0)).toBe(true)
   })
 })
