@@ -37,5 +37,14 @@
   "e2e": {
     "burnInDefault": 10,
     "flakySpecs": []
-  }
+  },
+  "requiredCheckJobs": [
+    "checks",
+    "integration",
+    "lighthouse",
+    "stryker-diff",
+    "gitleaks",
+    "dependency-review",
+    "analyze"
+  ]
 }

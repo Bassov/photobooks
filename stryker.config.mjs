@@ -21,6 +21,8 @@ const config = {
     'scripts/e2e-playwright-summary.mjs',
     'scripts/load-gates.mjs',
     'scripts/check-gate-values.mjs',
+    'scripts/check-gate-ratchet.mjs',
+    'scripts/check-codecov-yml.mjs',
     'scripts/e2e-flaky-list.mjs',
     '!src/**/*.{test,spec}.{ts,tsx}',
     '!src/**/*.{bench,benchmark}.{ts,tsx}',

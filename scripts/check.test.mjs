@@ -68,17 +68,23 @@ function fakeSpawnByCheckName(byName) {
               ? 'mutation-scope'
               : args.includes('gate-values')
                 ? 'gate-values'
-                : args.includes('git-test-isolation')
-                  ? 'git-test-isolation'
-                  : args.includes('roadmap')
-                    ? 'roadmap'
-                    : args.includes('test:quiet') || args.includes('vitest')
-                      ? 'unit'
-                      : args.some((a) => String(a).includes('check-diff-size'))
-                        ? 'diff-size'
-                        : args.some((a) => String(a).includes('check-pr-body'))
-                          ? 'pr-body'
-                          : 'unknown'
+                : args.includes('codecov-yml')
+                  ? 'codecov-yml'
+                  : args.includes('git-test-isolation')
+                    ? 'git-test-isolation'
+                    : args.includes('roadmap')
+                      ? 'roadmap'
+                      : args.includes('test:quiet') || args.includes('vitest')
+                        ? 'unit'
+                        : args.some((a) =>
+                              String(a).includes('check-diff-size'),
+                            )
+                          ? 'diff-size'
+                          : args.some((a) =>
+                                String(a).includes('check-pr-body'),
+                              )
+                            ? 'pr-body'
+                            : 'unknown'
     const res = byName[key] ?? { code: 0, stdout: '', stderr: '' }
     queueMicrotask(() => {
       if (res.stdout) ee.stdout.emit('data', res.stdout)
@@ -172,6 +178,7 @@ describe('buildInventory', () => {
       'knip',
       'mutation-scope',
       'gate-values',
+      'codecov-yml',
       'git-test-isolation',
       'roadmap',
       'unit',
@@ -413,6 +420,7 @@ describe('runChecks', () => {
         knip: { code: 0 },
         'mutation-scope': { code: 0 },
         'gate-values': { code: 0 },
+        'codecov-yml': { code: 0 },
         'git-test-isolation': { code: 0 },
         roadmap: { code: 0 },
         unit: { code: 0 },
@@ -423,7 +431,7 @@ describe('runChecks', () => {
     })
     expect(summary.ok).toBe(true)
     const okLines = out.split('\n').filter((l) => l.startsWith('OK '))
-    expect(okLines.length).toBe(9)
+    expect(okLines.length).toBe(10)
     expect(out).not.toMatch(/PASS|✓|passed/i)
     for (const r of summary.results) {
       expect(r.problems).toEqual([])
@@ -543,6 +551,7 @@ describe('main', () => {
       write: () => {},
     })
     expect(summary.results.map((r) => r.name).sort()).toEqual([
+      'codecov-yml',
       'deps',
       'gate-values',
       'git-test-isolation',
@@ -573,6 +582,7 @@ describe('main', () => {
       'knip',
       'mutation-scope',
       'gate-values',
+      'codecov-yml',
       'git-test-isolation',
       'roadmap',
     ]) {
