@@ -265,7 +265,7 @@ async function importPhotoFilesInner(
       )
     }
 
-    const deferred: PreparedEntry[] =
+    const hashOutcome =
       libraryBacked && batchRootId !== undefined && hashIndex !== null
         ? await resolveByContentHash({
             jobs: needsHash,
@@ -276,7 +276,9 @@ async function importPhotoFilesInner(
               enqueueNewLibraryIdentity(entry, batchRootId)
             },
           })
-        : []
+        : { prepared: [] as PreparedEntry[], errors: [] as ImportFileError[] }
+    const deferred = hashOutcome.prepared
+    const hashErrors = hashOutcome.errors
 
     const deferredBatch =
       deferred.length === 0
@@ -300,6 +302,7 @@ async function importPhotoFilesInner(
         immediateOutcome.results.length + deferredOutcome.results.length,
       errors: [
         ...earlyErrors,
+        ...hashErrors,
         ...immediateOutcome.errors,
         ...deferredOutcome.errors,
       ],

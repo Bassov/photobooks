@@ -2,6 +2,7 @@ import { expect, test } from './fixtures/coverage'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { deflateSync } from 'node:zlib'
 import assert from 'node:assert/strict'
 import {
   assertDocumentFitsViewport,
@@ -315,6 +316,72 @@ function writeBulkImportFixtureSet(count: number): {
 function writeBulkImportFixtures(count: number): string[] {
   return writeBulkImportFixtureSet(count).files
 }
+
+/** CRC-32 for PNG chunk trailers. */
+function pngCrc32(data: Buffer): number {
+  let crc = 0xffffffff
+  for (const byte of data) {
+    crc ^= byte
+    for (let bit = 0; bit < 8; bit += 1) {
+      const mask = -(crc & 1)
+      crc = (crc >>> 1) ^ (0xedb88320 & mask)
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const typeBuf = Buffer.from(type, 'ascii')
+  const len = Buffer.alloc(4)
+  len.writeUInt32BE(data.length, 0)
+  const crcBuf = Buffer.alloc(4)
+  crcBuf.writeUInt32BE(pngCrc32(Buffer.concat([typeBuf, data])), 0)
+  return Buffer.concat([len, typeBuf, data, crcBuf])
+}
+
+/**
+ * Distinct valid 1×1 RGB PNGs so content-hash cannot reuse within the set.
+ * `salt` shifts the palette so a second call with a different salt cannot
+ * content-hash-match the first (same filenames still collide on path alone).
+ */
+function writeUniqueBulkImportFixtures(count: number, salt = 0): string[] {
+  const dir = join(
+    tmpdir(),
+    `photobooks-unique-bulk-${String(process.pid)}-${String(count)}-${String(salt)}-${String(Date.now())}`,
+  )
+  mkdirSync(dir, { recursive: true })
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(1, 0)
+  ihdr.writeUInt32BE(1, 4)
+  ihdr[8] = 8
+  ihdr[9] = 2
+  ihdr[10] = 0
+  ihdr[11] = 0
+  ihdr[12] = 0
+  const files: string[] = []
+  for (let i = 0; i < count; i += 1) {
+    const r = (i * 37 + salt) % 256
+    const g = (i * 91 + salt * 3) % 256
+    const b = (i * 17 + 3 + salt * 5) % 256
+    const raw = Buffer.from([0, r, g, b])
+    const idat = deflateSync(raw)
+    const png = Buffer.concat([
+      signature,
+      pngChunk('IHDR', ihdr),
+      pngChunk('IDAT', idat),
+      pngChunk('IEND', Buffer.alloc(0)),
+    ])
+    const path = join(
+      dir,
+      `uniq-${String(salt)}-${String(i).padStart(3, '0')}.png`,
+    )
+    writeFileSync(path, png)
+    files.push(path)
+  }
+  return files
+}
+
 test('bulk import fills every revealed placeholder even while scrolling', async ({
   page,
 }) => {
@@ -388,6 +455,57 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
 })
 
 test.describe('library re-import async', () => {
+  test('adding N new photos to a hashed library project yields 2N', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000)
+    const count = 40
+    const first = writeUniqueBulkImportFixtures(count, 0)
+    const second = writeUniqueBulkImportFixtures(count, 1)
+
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => {
+      pageErrors.push(error.message)
+    })
+
+    await page.goto('/?testLibrary=1')
+    await expect(page.getByTestId('create-book')).toBeEnabled({
+      timeout: 15_000,
+    })
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Book created in library',
+    )
+
+    await page.getByTestId('photo-file-input').setInputFiles(first)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+      timeout: 60_000,
+    })
+
+    await page.getByTestId('photo-file-input').setInputFiles(second)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 120_000 },
+      )
+      .toBe(String(count * 2))
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 60_000,
+    })
+    expect(pageErrors, `pageerrors: ${pageErrors.join(' | ')}`).toEqual([])
+  })
+
   test('photos then folder (and reverse) reuse by content hash', async ({
     page,
   }) => {

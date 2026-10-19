@@ -31,6 +31,7 @@
 - `importPhotoFiles` `if (prepared.length > 0)` → `true` / `>= 0`: followed by `if (identityEntries.length > 0)` before enqueue — empty `prepared` still yields an empty identity list and skips enqueue.
 - `importPhotoFiles` `libraryBacked && batchRootId !== undefined` → `libraryBacked && true`: when `libraryBacked` is true, `batchRootId` is always set via `sourceRootId ?? root-${uuid}`.
 - `importPhotoFiles` optional chain on `book.assets[entry.assetId]?.sourceRootId`: after identity enqueue / reuse the asset record is always present for prepared entries.
+- `resolveByContentHash` empty-jobs early return (`if (jobs.length === 0)` → `if (false)` / empty body): empty list still builds zero slots, `mapWithConcurrency` is a no-op, and the filtered result is `{ prepared: [], errors: [] }` — same observable outcome as the early return.
 
 ## Verification
 
