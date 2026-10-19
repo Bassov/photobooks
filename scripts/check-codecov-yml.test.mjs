@@ -4,7 +4,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  CODECOV_YML_REL,
+  PINNED_TOP_LEVEL_KEYS,
   checkCodecovYml,
+  defaultCodecovRoot,
   findUnknownTopLevelKeys,
   isNetworkError,
   runCodecovYmlCli,
@@ -226,5 +229,94 @@ describe('isNetworkError conditionals', () => {
         cause: { name: 'TypeError', message: 'network down' },
       }),
     ).toBe(true)
+  })
+})
+
+describe('checkCodecovYml defaults and exact details', () => {
+  it('defaultCodecovRoot points at the repo root containing codecov.yml', () => {
+    expect(defaultCodecovRoot()).toBe(ROOT)
+    expect(PINNED_TOP_LEVEL_KEYS).toContain('coverage')
+    expect(CODECOV_YML_REL).toBe('codecov.yml')
+  })
+
+  it('uses default root when root is omitted', async () => {
+    const r = await checkCodecovYml({
+      fetchImpl: async (_url, init) => {
+        expect(String(init && init.body)).toContain('coverage:')
+        return /** @type {Response} */ ({
+          status: 200,
+          text: async () => 'Valid!',
+        })
+      },
+    })
+    expect(r).toEqual({ ok: true, mode: 'api', detail: 'Valid!' })
+  })
+
+  it('forwards validateUrl and asserts rejection detail format', async () => {
+    const seen = []
+    const longBody = 'x'.repeat(600)
+    const r = await validateCodecovYml(mainYml, {
+      validateUrl: 'https://example.test/validate',
+      fetchImpl: async (url, init) => {
+        seen.push({
+          url,
+          method: init && init.method,
+          headers: init && init.headers,
+        })
+        return /** @type {Response} */ ({
+          status: 418,
+          text: async () => longBody,
+        })
+      },
+    })
+    expect(seen).toEqual([
+      {
+        url: 'https://example.test/validate',
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+      },
+    ])
+    expect(r.ok).toBe(false)
+    expect(r.mode).toBe('api')
+    expect(r.detail).toBe(
+      `Codecov validator rejected (HTTP 418): ${'x'.repeat(500)}`,
+    )
+  })
+
+  it('fallback detail strings are exact', async () => {
+    const bad = await validateCodecovYml('notify:\n  after_n_builds: 1\n', {
+      fetchImpl: async () => {
+        throw new TypeError('fetch failed')
+      },
+    })
+    expect(bad).toEqual({
+      ok: false,
+      mode: 'fallback',
+      detail: 'network error; unknown top-level keys: notify',
+    })
+    const ok = await validateCodecovYml(mainYml, {
+      fetchImpl: async () => {
+        throw { code: 'ECONNRESET' }
+      },
+    })
+    expect(ok).toEqual({
+      ok: true,
+      mode: 'fallback',
+      detail: 'network error; pinned top-level keys OK',
+    })
+  })
+
+  it('missing file detail names codecov.yml exactly', async () => {
+    const r = await checkCodecovYml({
+      root: ROOT,
+      readFile: () => {
+        throw new Error('ENOENT')
+      },
+    })
+    expect(r).toEqual({
+      ok: false,
+      mode: 'api',
+      detail: 'missing codecov.yml: ENOENT',
+    })
   })
 })

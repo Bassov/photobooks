@@ -8,16 +8,42 @@ import { stripGitKeys } from './strip-git-env.mjs'
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 import {
+  EMPTY_ARRAY,
+  EMPTY_OBJECT_JSON,
+  EMPTY_STRING,
   FIXTURE_IDS,
+  MSGS,
+  NEEDLES,
+  QUOTE_DOUBLE,
+  QUOTE_SINGLE,
   RULE_IDS,
+  coerceText,
+  isQuoteChar,
   analyzeWorkflowJobs,
   classifyGateSteps,
+  compactWs,
   compareCodecov,
   compareGateTrees,
   compareGatesJson,
+  compareRequiredJobGates,
+  countIgnoreComments,
+  countStrykerDisable,
+  coveredKindsForJob,
+  detectGateKindsFromBlob,
+  dig,
+  isRecord,
+  isWsChar,
   extractCoverageExcludes,
   extractCoverageIncludes,
+  extractFirstKeyedArray,
+  extractQuotedStrings,
   extractStrykerGateBits,
+  getFile,
+  isBurnInRun,
+  isE2eStep,
+  isWorkflowYmlPath,
+  jobsProvidingKind,
+  listSourcePaths,
   numberWeaker,
   parseArgs,
   parseExportedStringArray,
@@ -25,6 +51,7 @@ import {
   readTreeFromDir,
   readTreeFromGitRef,
   resolvePrPolicyBaseRef,
+  runFailsOnNeeds,
   runGateRatchetCli,
   runPrPolicyCheck,
   stripShellComments,
@@ -1470,5 +1497,681 @@ jobs:
           /continue-on-error/.test(v.message),
       ),
     ).toBe(true)
+  })
+})
+
+describe('pure helpers exact behaviour', () => {
+  it('isRecord accepts only plain objects', () => {
+    expect(isRecord({})).toBe(true)
+    expect(isRecord({ a: 1 })).toBe(true)
+    expect(isRecord(null)).toBe(false)
+    expect(isRecord(undefined)).toBe(false)
+    expect(isRecord([])).toBe(false)
+    expect(isRecord('x')).toBe(false)
+    expect(isRecord(1)).toBe(false)
+  })
+
+  it('pins EMPTY_* and NEEDLES exact string values', () => {
+    expect(EMPTY_STRING).toBe('')
+    expect(EMPTY_OBJECT_JSON).toBe('{}')
+    expect(EMPTY_ARRAY).toEqual([])
+    expect(QUOTE_SINGLE).toBe("'")
+    expect(QUOTE_DOUBLE).toBe('"')
+    expect(isQuoteChar("'")).toBe(true)
+    expect(isQuoteChar('"')).toBe(true)
+    expect(isQuoteChar('x')).toBe(false)
+    expect(coerceText(null)).toBe('')
+    expect(coerceText(undefined)).toBe('')
+    expect(coerceText('hi')).toBe('hi')
+    expect(MSGS.gatesJsonDeleted).toBe('quality/gates.json deleted')
+    expect(MSGS.codecovDeleted).toBe('codecov.yml deleted')
+    expect(MSGS.gateFileMissingPrefix).toBe('gate file missing on head: ')
+    expect(MSGS.parseGatesPrefix).toBe('failed to parse quality/gates.json: ')
+    expect(MSGS.parseCodecovPrefix).toBe('failed to parse codecov.yml: ')
+    expect(MSGS.includeRemovedPrefix).toBe('coverage include removed: ')
+    expect(MSGS.excludeAddedPrefix).toBe('coverage exclude added: ')
+    expect(MSGS.bangAddedPrefix).toBe('stryker mutate bang added: ')
+    expect(MSGS.excludedMutationsPrefix).toBe('excludedMutations added: ')
+    expect(MSGS.strykerWeakerPrefix).toBe('stryker weaker: ')
+    expect(MSGS.patchedGrewPrefix).toBe('pnpm.patchedDependencies grew: ')
+    expect(MSGS.packageParsePrefix).toBe('package.json parse failed: ')
+    expect(MSGS.ignoreCommentPrefix).toBe('suppression comment added in ')
+    expect(MSGS.strykerDisablePrefix).toBe(
+      'mutation suppression comment added in ',
+    )
+    expect(MSGS.requiredJobFailedPrefix).toBe('required-job check failed: ')
+    expect(MSGS.ruleMissingPrefix).toBe('RULE_IDS missing on head: ')
+    expect(MSGS.fixtureMissingPrefix).toBe('FIXTURE_IDS missing on head: ')
+    expect(MSGS.requiredJobRemovedPrefix).toBe('required job ')
+    expect(MSGS.requiredJobRemovedSuffix).toBe(' removed')
+    expect(MSGS.lostGateMid).toBe(' lost gate ')
+    expect(MSGS.lostGateSuffix).toBe(' without needs:+fail aggregation')
+    expect(NEEDLES).toEqual({
+      coverage: 'coverage',
+      include: 'include',
+      exclude: 'exclude',
+      coverageExcludeGlobs: 'coverageExcludeGlobs',
+      mutate: 'mutate',
+      excludedMutations: 'excludedMutations',
+      bangPrefix: '!',
+      disableTypeChecksTrue: 'disableTypeChecks:true',
+      ignoreStaticFalse: 'ignoreStatic:false',
+      coverageAnalysisOffSingle: "coverageAnalysis:'off'",
+      coverageAnalysisOffDouble: 'coverageAnalysis:"off"',
+      ignorersOpen: 'ignorers:[',
+      ignorersEmpty: 'ignorers:[]',
+      exit1: 'exit 1',
+      needsDot: 'needs.',
+      resultDot: '.result',
+      resultVar: '_RESULT"',
+      burnIn: 'e2e-burn-in',
+      burnInTargets: 'burn-in-targets',
+      burnInCount: 'burn-in-count',
+      repeatEach: '--repeat-each',
+      testE2e: 'test:e2e',
+      playwrightTest: 'playwright test',
+      pnpmTestE2e: 'pnpm test:e2e',
+      testCoverage: 'test:coverage',
+      vitestRunCoverage: 'vitest run --coverage',
+      vitest: 'vitest',
+      coverageFlag: '--coverage',
+      stryker: 'stryker',
+      lhci: 'lhci',
+      lighthouse: 'lighthouse',
+      gitleaks: 'gitleaks',
+      auditCi: 'audit:ci',
+      pnpmAudit: 'pnpm audit',
+      objectFreeze: 'Object.freeze',
+      auto: 'auto',
+      target: 'target',
+      threshold: 'threshold',
+      informational: 'informational',
+      higherStricter: 'higher-stricter',
+      lowerStricter: 'lower-stricter',
+    })
+  })
+
+  it('extractQuotedStrings and extractFirstKeyedArray handle = and :', () => {
+    expect(extractQuotedStrings(`'a', "b"`)).toEqual(['a', 'b'])
+    expect(extractFirstKeyedArray(`mutate = ['!x']`, 'mutate')).toEqual(['!x'])
+    expect(extractFirstKeyedArray(`include:['y']`, 'include')).toEqual(['y'])
+    expect(
+      extractFirstKeyedArray(`mutate\t:\n  [ 'a', "b" ]`, 'mutate'),
+    ).toEqual(['a', 'b'])
+    expect(extractFirstKeyedArray('mutate: notarray', 'mutate')).toEqual([])
+    expect(extractFirstKeyedArray('mutate skip [', 'mutate')).toEqual([])
+    expect(extractFirstKeyedArray('nope', 'include')).toEqual([])
+    expect(extractCoverageIncludes(null)).toEqual([])
+    expect(extractCoverageExcludes(undefined)).toEqual([])
+    expect(extractStrykerGateBits(null)).toEqual({
+      bang: [],
+      excludedMutations: [],
+      weakerFlags: [],
+    })
+    expect(
+      parseExportedStringArray('export const RULE_IDS = ["a"]', 'RULE_IDS'),
+    ).toEqual([])
+    expect(
+      parseExportedStringArray(
+        'export const RULE_IDS = Object.freeze(1)',
+        'RULE_IDS',
+      ),
+    ).toEqual([])
+    expect(isWsChar(' ')).toBe(true)
+    expect(isWsChar('\t')).toBe(true)
+    expect(isWsChar('\n')).toBe(true)
+    expect(isWsChar('\r')).toBe(true)
+    expect(isWsChar('x')).toBe(false)
+  })
+
+  it('compactWs and weaker flag probes are exact', () => {
+    expect(compactWs('a \n\tb')).toBe('ab')
+    const bits = extractStrykerGateBits(`
+      mutate: ["src/**/*.ts"]
+      disableTypeChecks: true
+      ignoreStatic: false
+      coverageAnalysis: "off"
+      ignorers: [x]
+    `)
+    expect(bits.weakerFlags).toEqual([
+      'disableTypeChecks',
+      'ignoreStatic:false',
+      'coverageAnalysis:off',
+      'ignorers',
+    ])
+  })
+
+  it('parsePercentish and dig edge cases', () => {
+    expect(parsePercentish('85%')).toBe(85)
+    expect(parsePercentish('%')).toBeNull()
+    expect(parsePercentish('')).toBeNull()
+    expect(parsePercentish('  auto  ')).toBeNull()
+    expect(dig({ a: { b: 1 } }, ['a', 'b'])).toBe(1)
+    expect(dig({ a: null }, ['a', 'b'])).toBeUndefined()
+    expect(dig(null, ['a'])).toBeUndefined()
+    expect(dig('x', ['a'])).toBeUndefined()
+  })
+
+  it('getFile normalizes slashes and misses unknown keys', () => {
+    expect(getFile({ 'a/b': '1' }, 'a\\b')).toBe('1')
+    expect(getFile({ 'a/b': '1' }, 'missing')).toBeUndefined()
+  })
+
+  it('countIgnoreComments and countStrykerDisable', () => {
+    expect(countIgnoreComments('/* v8 ignore next */')).toBe(1)
+    expect(countIgnoreComments('/* istanbul ignore next */')).toBe(1)
+    expect(countIgnoreComments('/* c8 ignore next */')).toBe(1)
+    expect(countIgnoreComments('eslint-disable no-var')).toBe(1)
+    expect(countIgnoreComments('eslint-disable-next-line no-var')).toBe(0)
+    expect(countIgnoreComments('@ts-ignore')).toBe(1)
+    expect(countStrykerDisable('// Stryker disable all')).toBe(1)
+    expect(countStrykerDisable('// Stryker  disable x')).toBe(1)
+    expect(countStrykerDisable('Stryker enable')).toBe(0)
+  })
+
+  it('burn-in / e2e / kind detectors', () => {
+    expect(isBurnInRun('pnpm --repeat-each=3')).toBe(true)
+    expect(isBurnInRun('pnpm test:e2e')).toBe(false)
+    expect(isE2eStep('pnpm test:e2e', 'pnpm test:e2e')).toBe(true)
+    expect(
+      isE2eStep('--repeat-each=2', 'playwright test --repeat-each=2'),
+    ).toBe(false)
+    expect(detectGateKindsFromBlob('x', 'pnpm test:coverage')).toContain(
+      'coverage',
+    )
+    expect(detectGateKindsFromBlob('x', 'vitest run --coverage')).toContain(
+      'coverage',
+    )
+    expect(detectGateKindsFromBlob('x', 'vitest --coverage')).toContain(
+      'coverage',
+    )
+    expect(runFailsOnNeeds('# exit 1\necho ok')).toBe(false)
+    expect(runFailsOnNeeds('exit 1')).toBe(false)
+    expect(
+      runFailsOnNeeds(
+        'if [ "${{ needs.unit.result }}" != "success" ]; then exit 1; fi',
+      ),
+    ).toBe(true)
+    expect(
+      runFailsOnNeeds('if [ "$BURN_IN_RESULT" != "success" ]; then exit 1; fi'),
+    ).toBe(true)
+  })
+
+  it('listSourcePaths filters and isWorkflowYmlPath', () => {
+    expect(
+      listSourcePaths({
+        'src/a.ts': '1',
+        'src/a.test.ts': '1',
+        'openspec/x.ts': '1',
+        'node_modules/x/a.js': '1',
+        'readme.md': '1',
+      }),
+    ).toEqual(['src/a.ts'])
+    expect(isWorkflowYmlPath('.github/workflows/ci.yml')).toBe(true)
+    expect(isWorkflowYmlPath('.github/workflows/ci.yaml')).toBe(false)
+    expect(isWorkflowYmlPath('docs/workflows/ci.yml')).toBe(false)
+  })
+
+  it('coveredKindsForJob and jobsProvidingKind', () => {
+    const jobs = analyzeWorkflowJobs(
+      parseYaml(`
+jobs:
+  unit:
+    steps:
+      - run: pnpm test:coverage
+  gate:
+    needs: [unit]
+    steps:
+      - run: echo ok
+`),
+    )
+    expect([...coveredKindsForJob(jobs, 'gate')]).toContain('coverage')
+    expect(coveredKindsForJob(jobs, 'missing').size).toBe(0)
+    expect(jobsProvidingKind(jobs, 'coverage')).toEqual(['unit'])
+  })
+
+  it('compareRequiredJobGates fails when required job removed', () => {
+    const msgs = []
+    compareRequiredJobGates(
+      baseFiles(),
+      baseFiles({
+        '.github/workflows/checks.yml': `
+jobs:
+  other:
+    steps:
+      - run: echo ok
+`,
+      }),
+      ['checks'],
+      (m) => msgs.push(m),
+    )
+    expect(msgs).toContain('required job checks removed')
+  })
+
+  it('compareGateTrees flags stryker weakerFlags and package.json parse fail', () => {
+    const headStryker = `
+const config = {
+  mutate: ['src/**/*.ts', '!src/**/*.test.ts'],
+  disableTypeChecks: true,
+  coverageAnalysis: 'perTest',
+  ignoreStatic: true,
+}
+export default config
+`
+    const r = compareGateTrees(
+      baseFiles(),
+      baseFiles({ 'stryker.config.mjs': headStryker }),
+    )
+    expect(r.violations).toContainEqual({
+      ruleId: 'stryker-weaker',
+      message: 'stryker weaker: disableTypeChecks',
+    })
+
+    const badPkg = compareGateTrees(
+      baseFiles(),
+      baseFiles({ 'package.json': '{not-json' }),
+    )
+    expect(
+      badPkg.violations.some(
+        (v) =>
+          v.ruleId === 'patched-deps-grown' &&
+          /package\.json parse failed/.test(v.message),
+      ),
+    ).toBe(true)
+  })
+
+  it('FIXTURE_IDS falls back to test file when script omits them', () => {
+    const baseScript = `export const RULE_IDS = Object.freeze([${RULE_IDS.map((id) => `'${id}'`).join(',')}])\n`
+    const headScript = baseScript
+    const baseTest = `export const FIXTURE_IDS = Object.freeze([${FIXTURE_IDS.map((id) => `'${id}'`).join(',')}])\n`
+    const headTest = `export const FIXTURE_IDS = Object.freeze([${FIXTURE_IDS.filter(
+      (id) => id !== 'weaker-threshold',
+    )
+      .map((id) => `'${id}'`)
+      .join(',')}])\n`
+    const r = compareGateTrees(
+      baseFiles({
+        'scripts/check-gate-ratchet.mjs': baseScript,
+        'scripts/check-gate-ratchet.test.mjs': baseTest,
+      }),
+      baseFiles({
+        'scripts/check-gate-ratchet.mjs': headScript,
+        'scripts/check-gate-ratchet.test.mjs': headTest,
+      }),
+    )
+    expect(r.violations).toContainEqual({
+      ruleId: 'fixtures-superset',
+      message: 'FIXTURE_IDS missing on head: weaker-threshold',
+    })
+  })
+
+  it('readTreeFromDir returns empty for missing root', () => {
+    expect(
+      readTreeFromDir(path.join(os.tmpdir(), 'no-such-gate-ratchet-dir')),
+    ).toEqual({})
+  })
+
+  it('runGateRatchetCli via base-ref path on twin commits', () => {
+    const repo = initTmpRepo(tmpDirs, {
+      prefix: 'ratchet-refs-',
+      seedFiles: baseFiles(),
+    })
+    const base = String(gitExec(['rev-parse', 'HEAD'], repo)).trim()
+    fs.writeFileSync(
+      path.join(repo, 'quality/gates.json'),
+      JSON.stringify({
+        ...baseGates,
+        coverage: { ...baseGates.coverage, lines: 1 },
+      }),
+    )
+    gitExec(['add', '.'], repo, { stdio: 'ignore' })
+    gitExec(['commit', '-m', 'weaker'], repo, { stdio: 'ignore' })
+    const head = String(gitExec(['rev-parse', 'HEAD'], repo)).trim()
+    expect(
+      runGateRatchetCli([
+        '--cwd',
+        repo,
+        '--base-ref',
+        base,
+        '--head-ref',
+        head,
+      ]),
+    ).toBe(1)
+  })
+
+  it('resolvePrPolicyBaseRef default git path hits spawnSync', () => {
+    expect(
+      resolvePrPolicyBaseRef({
+        root: path.join(os.tmpdir(), 'no-such-gate-ratchet-git-root'),
+        env: {},
+      }),
+    ).toBeNull()
+  })
+
+  it('runPrPolicyCheck uses default root when omitted (skip path)', () => {
+    const logs = []
+    expect(
+      runPrPolicyCheck({
+        env: {},
+        git: () => ({ status: 1, stdout: '', stderr: '' }),
+        log: (m) => logs.push(m),
+      }),
+    ).toBe(0)
+    expect(logs.join('\n')).toMatch(/skip/)
+  })
+
+  it('compareCodecov handles null roots and non-object components', () => {
+    const msgs = []
+    compareCodecov(null, null, (m) => msgs.push(m))
+    expect(msgs).toEqual([])
+    compareCodecov(
+      {
+        component_management: {
+          individual_components: [null, { component_id: 'core' }, 'x'],
+        },
+      },
+      {
+        component_management: {
+          individual_components: [null, { component_id: 'other' }],
+        },
+      },
+      (m) => msgs.push(m),
+    )
+    expect(msgs).toContain('codecov.yml component core removed')
+  })
+
+  it('classifyGateSteps tolerates null step', () => {
+    expect(classifyGateSteps(null).size).toBe(0)
+    expect(analyzeWorkflowJobs(null).size).toBe(0)
+    expect(analyzeWorkflowJobs({}).size).toBe(0)
+  })
+
+  it('compareGatesJson budget resource missing and assertion demotion', () => {
+    const msgs = []
+    compareGatesJson(
+      baseGates,
+      {
+        ...baseGates,
+        lighthouse: {
+          numberOfRuns: 1,
+          assertions: { 'performance-budget': 'warn' },
+          budgets: [
+            {
+              path: '/*',
+              resourceSizes: [{ resourceType: 'script', budget: 400 }],
+              resourceCounts: [],
+            },
+          ],
+        },
+      },
+      'quality/gates.json',
+      (m) => msgs.push(m),
+    )
+    expect(msgs).toContain(
+      'quality/gates.json lighthouse.assertions.performance-budget no longer error',
+    )
+    expect(msgs).toContain(
+      'quality/gates.json lighthouse budget script: 350 → 400',
+    )
+
+    const missing = []
+    compareGatesJson(
+      baseGates,
+      {
+        ...baseGates,
+        lighthouse: {
+          numberOfRuns: 1,
+          assertions: { 'performance-budget': 'error' },
+          budgets: [{ path: '/other', resourceSizes: [], resourceCounts: [] }],
+        },
+      },
+      'quality/gates.json',
+      (m) => missing.push(m),
+    )
+    expect(missing).toContain(
+      'quality/gates.json lighthouse.budgets path missing: /*',
+    )
+  })
+
+  it('requiredCheckJobs removed when head is not an array', () => {
+    const msgs = []
+    compareGatesJson(
+      baseGates,
+      { ...baseGates, requiredCheckJobs: null },
+      'quality/gates.json',
+      (m) => msgs.push(m),
+    )
+    expect(msgs).toContain('quality/gates.json requiredCheckJobs removed')
+  })
+
+  it('covers null fallbacks when gate files are missing on one side', () => {
+    const base = baseFiles()
+    const head = baseFiles()
+    delete head['vite.config.ts']
+    delete head['stryker.config.mjs']
+    delete head['package.json']
+    delete head['scripts/check-gate-ratchet.mjs']
+    delete head['scripts/check-gate-ratchet.test.mjs']
+    const r = compareGateTrees(base, head)
+    expect(r.violations.some((v) => v.ruleId === 'gate-file-gone')).toBe(true)
+    expect(r.violations.some((v) => v.ruleId === 'include-removed')).toBe(true)
+
+    // Both sides missing vite/stryker → empty-string fallbacks (no include delta).
+    const bareBase = baseFiles()
+    const bareHead = baseFiles()
+    for (const tree of [bareBase, bareHead]) {
+      delete tree['vite.config.ts']
+      delete tree['stryker.config.mjs']
+    }
+    const bare = compareGateTrees(bareBase, bareHead)
+    expect(
+      bare.violations.filter((v) =>
+        ['include-removed', 'exclude-added', 'stryker-weaker'].includes(
+          v.ruleId,
+        ),
+      ),
+    ).toEqual([])
+  })
+
+  it('covers codecov and required-job catch messages exactly', () => {
+    const badYaml = compareGateTrees(
+      baseFiles(),
+      baseFiles({ 'codecov.yml': ':\nbad' }),
+    )
+    expect(
+      badYaml.violations.some(
+        (v) =>
+          v.ruleId === 'codecov-weaker' &&
+          v.message.startsWith('failed to parse codecov.yml:'),
+      ),
+    ).toBe(true)
+
+    // Invalid workflow YAML throws inside compareRequiredJobGates(parseYaml);
+    // compareGateTrees catches it onto required-job-step-moved.
+    const broken = baseFiles({
+      '.github/workflows/checks.yml': 'jobs:\n  checks:\n    steps: [',
+    })
+    const r = compareGateTrees(baseFiles(), broken)
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'required-job-step-moved' &&
+          v.message.startsWith('required-job check failed:'),
+      ),
+    ).toBe(true)
+  })
+
+  it('runGateRatchetCli default argv uses process.argv', () => {
+    const prev = process.argv
+    process.argv = [prev[0], prev[1]]
+    try {
+      expect(runGateRatchetCli()).toBe(2)
+    } finally {
+      process.argv = prev
+    }
+  })
+
+  it('covers non-array paths/steps and auto percent skips', () => {
+    const msgs = []
+    compareCodecov(
+      {
+        coverage: {
+          status: {
+            patch: { default: { target: '85%', threshold: '0%' } },
+          },
+        },
+        flags: { unit: { paths: ['src/'] } },
+      },
+      {
+        coverage: {
+          status: {
+            patch: { default: { target: 'auto', threshold: 'auto' } },
+          },
+        },
+        flags: { unit: { paths: 'not-an-array' } },
+      },
+      (m) => msgs.push(m),
+    )
+    expect(msgs.filter((m) => m.includes('.target:'))).toEqual([])
+    expect(msgs.filter((m) => m.includes('.threshold:'))).toEqual([])
+    // Non-array head paths → treated as empty → path removal reported.
+    expect(msgs).toContain('codecov.yml flags.unit.paths removed src/')
+
+    const jobs = analyzeWorkflowJobs({
+      jobs: {
+        bare: { steps: null },
+        named: { needs: 'unit', steps: { not: 'array' } },
+      },
+    })
+    expect(jobs.get('bare')?.kinds.size).toBe(0)
+    expect(jobs.get('named')?.needs).toEqual(['unit'])
+    expect(jobs.get('named')?.kinds.size).toBe(0)
+
+    const r = compareGateTrees(
+      baseFiles({
+        'quality/gates.json': JSON.stringify({
+          ...baseGates,
+          requiredCheckJobs: 'checks',
+        }),
+      }),
+      baseFiles(),
+    )
+    // Non-array requiredCheckJobs → empty list → no required-job checks run.
+    expect(
+      r.violations.filter((v) => v.ruleId === 'required-job-step-moved'),
+    ).toEqual([])
+  })
+
+  it('gate file present only on head does not trip gate-file-gone', () => {
+    const base = baseFiles()
+    delete base['codecov.yml']
+    const head = baseFiles()
+    const r = compareGateTrees(base, head)
+    expect(
+      r.violations.filter(
+        (v) =>
+          v.ruleId === 'gate-file-gone' && v.message.includes('codecov.yml'),
+      ),
+    ).toEqual([])
+  })
+
+  it('flat arrays with brackets inside quotes stay intact', () => {
+    expect(extractFirstKeyedArray(`mutate: ['a[b]', "c]d"]`, 'mutate')).toEqual(
+      ['a[b]', 'c]d'],
+    )
+    expect(extractFirstKeyedArray(`mutate: ["only-double"]`, 'mutate')).toEqual(
+      ['only-double'],
+    )
+    expect(extractFirstKeyedArray(`mutate: ['only-single']`, 'mutate')).toEqual(
+      ['only-single'],
+    )
+  })
+
+  it('parsePercentish digit scan rejects mixed junk', () => {
+    expect(parsePercentish('12.5%')).toBe(12.5)
+    expect(parsePercentish('12.5.6')).toBeNull()
+    expect(parsePercentish('1a')).toBeNull()
+    expect(parsePercentish(Infinity)).toBeNull()
+    expect(numberWeaker(1, 2, NEEDLES.lowerStricter)).toBe(true)
+    expect(numberWeaker(2, 1, NEEDLES.higherStricter)).toBe(true)
+    expect(numberWeaker(1, 1, NEEDLES.higherStricter)).toBe(false)
+    // Non-number args must stay false (kills type-guard mutants).
+    expect(numberWeaker('80', 70, NEEDLES.higherStricter)).toBe(false)
+    expect(numberWeaker(80, '70', NEEDLES.higherStricter)).toBe(false)
+    expect(numberWeaker(null, 1, NEEDLES.lowerStricter)).toBe(false)
+  })
+
+  it('informational flip requires exact !== true / === true', () => {
+    const msgs = []
+    compareCodecov(
+      {
+        coverage: {
+          status: {
+            patch: {
+              default: { target: '85%', threshold: '0%', informational: false },
+            },
+          },
+        },
+      },
+      {
+        coverage: {
+          status: {
+            patch: {
+              default: { target: '85%', threshold: '0%', informational: true },
+            },
+          },
+        },
+      },
+      (m) => msgs.push(m),
+    )
+    expect(msgs).toEqual([
+      'codecov.yml coverage.status.patch.default informational turned on',
+    ])
+
+    const noFlip = []
+    compareCodecov(
+      {
+        coverage: {
+          status: {
+            patch: {
+              default: { target: '85%', threshold: '0%', informational: true },
+            },
+          },
+        },
+      },
+      {
+        coverage: {
+          status: {
+            patch: {
+              default: { target: '85%', threshold: '0%', informational: true },
+            },
+          },
+        },
+      },
+      (m) => noFlip.push(m),
+    )
+    expect(noFlip).toEqual([])
+  })
+
+  it('exact MSGS-backed gate-file-gone messages', () => {
+    const head = baseFiles()
+    delete head['quality/gates.json']
+    const r = compareGateTrees(baseFiles(), head)
+    expect(r.violations).toContainEqual({
+      ruleId: 'gate-file-gone',
+      message: MSGS.gatesJsonDeleted,
+    })
+    expect(r.violations).toContainEqual({
+      ruleId: 'gate-file-gone',
+      message: `${MSGS.gateFileMissingPrefix}quality/gates.json`,
+    })
+
+    const head2 = baseFiles()
+    delete head2['codecov.yml']
+    const r2 = compareGateTrees(baseFiles(), head2)
+    expect(r2.violations).toContainEqual({
+      ruleId: 'gate-file-gone',
+      message: MSGS.codecovDeleted,
+    })
   })
 })

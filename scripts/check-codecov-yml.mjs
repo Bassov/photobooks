@@ -79,31 +79,35 @@ export function findUnknownTopLevelKeys(yamlText) {
  * @returns {Promise<{ ok: boolean, mode: 'api' | 'fallback', detail: string }>}
  */
 export async function validateCodecovYml(yamlText, opts = {}) {
-  const fetchImpl = opts.fetchImpl ?? globalThis.fetch
-  const url = opts.validateUrl ?? VALIDATE_URL
+  const fetchImpl = opts.fetchImpl == null ? globalThis.fetch : opts.fetchImpl
+  const url = opts.validateUrl == null ? VALIDATE_URL : opts.validateUrl
   try {
     const res = await fetchImpl(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: yamlText,
     })
-    const body = (await res.text()).trim()
+    const raw = await res.text()
+    const body = String(raw).trim()
     // Success token is the first line exactly "Valid!" (API may append a config dump).
-    const firstLine = body.split(/\r?\n/, 1)[0]
+    const nl = body.indexOf('\n')
+    const firstLine = nl === -1 ? body : body.slice(0, nl).replace(/\r$/, '')
     if (firstLine === 'Valid!') {
       return { ok: true, mode: 'api', detail: 'Valid!' }
     }
+    const snippet = body.length > 500 ? body.slice(0, 500) : body
     return {
       ok: false,
       mode: 'api',
-      detail: `Codecov validator rejected (HTTP ${res.status}): ${body.slice(0, 500)}`,
+      detail: `Codecov validator rejected (HTTP ${res.status}): ${snippet}`,
     }
   } catch (err) {
     if (!isNetworkError(err)) {
+      const msg = err instanceof Error ? err.message : String(err)
       return {
         ok: false,
         mode: 'api',
-        detail: `Codecov validator error: ${err instanceof Error ? err.message : String(err)}`,
+        detail: `Codecov validator error: ${msg}`,
       }
     }
     const unknown = findUnknownTopLevelKeys(yamlText)
@@ -122,29 +126,38 @@ export async function validateCodecovYml(yamlText, opts = {}) {
   }
 }
 
+export function defaultCodecovRoot() {
+  return path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
+}
+
 /**
  * @param {{
  *   root?: string,
  *   readFile?: (p: string) => string,
  *   fetchImpl?: typeof fetch,
+ *   validateUrl?: string,
  * }} [opts]
  */
 export async function checkCodecovYml(opts = {}) {
-  const root =
-    opts.root ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
-  const readFile = opts.readFile ?? ((p) => fs.readFileSync(p, 'utf8'))
+  const root = opts.root == null ? defaultCodecovRoot() : opts.root
+  const readFile =
+    opts.readFile == null ? (p) => fs.readFileSync(p, 'utf8') : opts.readFile
   const filePath = path.join(root, CODECOV_YML_REL)
   let yamlText
   try {
     yamlText = readFile(filePath)
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
     return {
       ok: false,
       mode: 'api',
-      detail: `missing ${CODECOV_YML_REL}: ${e instanceof Error ? e.message : e}`,
+      detail: `missing ${CODECOV_YML_REL}: ${msg}`,
     }
   }
-  return validateCodecovYml(yamlText, { fetchImpl: opts.fetchImpl })
+  return validateCodecovYml(yamlText, {
+    fetchImpl: opts.fetchImpl,
+    validateUrl: opts.validateUrl,
+  })
 }
 
 /**
@@ -159,8 +172,8 @@ export async function checkCodecovYml(opts = {}) {
  */
 export async function runCodecovYmlCli(opts = {}) {
   const result = await checkCodecovYml(opts)
-  const log = opts.log ?? console.log
-  const error = opts.error ?? console.error
+  const log = opts.log == null ? console.log : opts.log
+  const error = opts.error == null ? console.error : opts.error
   if (result.ok) {
     log(`Codecov YAML: OK (${result.mode})`)
     return 0
