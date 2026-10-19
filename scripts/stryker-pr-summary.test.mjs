@@ -11,8 +11,10 @@ import {
   listNoCoverageSamples,
   listUnmutatedChangedFiles,
   mutationScore,
+  pathsFromMutateList,
   resolveChangedFilesForSummary,
   runStrykerPrSummaryCli,
+  scoredRangeSpecsFromMutateList,
   summarizeMutationFiles,
 } from './stryker-pr-summary.mjs'
 
@@ -246,6 +248,15 @@ describe('stryker-pr-summary', () => {
       ),
     ).toEqual(['x.ts', 'y.ts'])
     expect(
+      resolveChangedFilesForSummary(
+        {},
+        {
+          exists: (p) => p === 'reports/mutation/mutate-files.txt',
+          read: () => 'src/a.ts:3-5\nsrc/a.ts:10-10\nsrc/b.ts:1-2\n',
+        },
+      ),
+    ).toEqual(['src/a.ts', 'src/b.ts'])
+    expect(
       resolveChangedFilesForSummary({}, { exists: () => false }),
     ).toBeUndefined()
     expect(
@@ -256,6 +267,30 @@ describe('stryker-pr-summary', () => {
         },
       ),
     ).toBeUndefined()
+  })
+
+  it('lists scored line ranges in the mutation summary', () => {
+    const md = buildMutationSummaryMarkdown({
+      files: { 'src/a.ts': { mutants: [] } },
+      scoredRanges: ['src/b.ts:1-1', 'src/a.ts:10-12'],
+    })
+    const lines = md.split('\n')
+    const idx = lines.indexOf('### Scored line ranges')
+    expect(idx).toBeGreaterThanOrEqual(0)
+    expect(lines[idx + 1]).toBe('')
+    expect(lines[idx + 2]).toBe('- `src/a.ts:10-12`')
+    expect(lines[idx + 3]).toBe('- `src/b.ts:1-1`')
+    expect(lines[idx + 4]).toBe('')
+  })
+
+  it('pathsFromMutateList and scoredRangeSpecsFromMutateList', () => {
+    const entries = ['src/b.ts:2-2', 'src/a.ts', 'src/a.ts:1-1', 'src/b.ts:2-2']
+    expect(pathsFromMutateList(entries)).toEqual(['src/a.ts', 'src/b.ts'])
+    expect(scoredRangeSpecsFromMutateList(entries)).toEqual([
+      'src/a.ts:1-1',
+      'src/b.ts:2-2',
+    ])
+    expect(scoredRangeSpecsFromMutateList(['src/a.ts'])).toEqual([])
   })
 
   it('resolveChangedFilesForSummary default read uses utf8 mutate list', () => {

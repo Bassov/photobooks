@@ -2,6 +2,7 @@
 import { readFileSync, existsSync, appendFileSync } from 'node:fs'
 import { EMPTY_STRING } from './check-gate-ratchet.mjs'
 import { collectStrykerDisableComments } from './stryker-disable-detect.mjs'
+import { isMutationRangeSpec, mutateSpecPath } from './stryker-diff-gate.mjs'
 
 export const DEFAULT_MUTATION_REPORT = 'reports/mutation/mutation.json'
 export const SURVIVED_SAMPLE_LIMIT = 8
@@ -140,10 +141,26 @@ export function mutationScore(killed, timeout, survived, noCoverage) {
 }
 
 /**
+ * Paths from mutate-list entries (strips `path:start-end` to `path`).
+ * @param {string[]} entries
+ */
+export function pathsFromMutateList(entries) {
+  return [...new Set(entries.map((e) => mutateSpecPath(e)))].sort()
+}
+
+/**
+ * @param {string[]} entries
+ */
+export function scoredRangeSpecsFromMutateList(entries) {
+  return [...new Set(entries.filter((e) => isMutationRangeSpec(e)))].sort()
+}
+
+/**
  * @param {{
  *   files: Record<string, { mutants?: unknown[] }>,
  *   readFile?: (p: string) => string | null,
  *   changedFiles?: string[],
+ *   scoredRanges?: string[],
  * }} opts
  */
 export function buildMutationSummaryMarkdown(opts) {
@@ -161,6 +178,9 @@ export function buildMutationSummaryMarkdown(opts) {
   )
   const unmutated = Array.isArray(opts.changedFiles)
     ? listUnmutatedChangedFiles(opts.changedFiles, opts.files)
+    : []
+  const scoredRanges = Array.isArray(opts.scoredRanges)
+    ? [...opts.scoredRanges].sort()
     : []
 
   /** @type {{ path: string, reason: string }[]} */
@@ -187,6 +207,14 @@ export function buildMutationSummaryMarkdown(opts) {
     `| Ignored | ${summary.ignored} |`,
     '',
   ]
+
+  if (scoredRanges.length > 0) {
+    lines.push('### Scored line ranges', '')
+    for (const range of scoredRanges) {
+      lines.push(`- \`${range}\``)
+    }
+    lines.push('')
+  }
 
   if (summary.ignoredPerFile.length > 0) {
     lines.push('### Ignored per file', '')
@@ -245,7 +273,17 @@ export function buildMutationSummaryMarkdown(opts) {
  * }} [io]
  * @returns {string[] | undefined}
  */
-export function resolveChangedFilesForSummary(env, io = {}) {
+/**
+ * Raw mutate-list / env entries (may include `path:start-end`).
+ * @param {NodeJS.ProcessEnv} env
+ * @param {{
+ *   exists?: (p: string) => boolean,
+ *   read?: (p: string) => string,
+ *   mutateListPath?: string,
+ * }} [io]
+ * @returns {string[] | undefined}
+ */
+export function resolveMutateListEntries(env, io = {}) {
   const exists = io.exists ?? existsSync
   const read = io.read ?? ((p) => readFileSync(p, 'utf8'))
   const mutateListPath =
@@ -266,6 +304,12 @@ export function resolveChangedFilesForSummary(env, io = {}) {
   return undefined
 }
 
+export function resolveChangedFilesForSummary(env, io = {}) {
+  const entries = resolveMutateListEntries(env, io)
+  if (!entries) return undefined
+  return pathsFromMutateList(entries)
+}
+
 export function runStrykerPrSummaryCli(argv, env = process.env) {
   const reportPath = argv[0]
   if (reportPath == null || reportPath.length === 0) {
@@ -278,10 +322,15 @@ export function runStrykerPrSummaryCli(argv, env = process.env) {
   }
   const report = JSON.parse(readFileSync(reportPath, 'utf8'))
   const files = report.files ?? {}
-  const changedFiles = resolveChangedFilesForSummary(env)
+  const entries = resolveMutateListEntries(env)
+  const changedFiles = entries ? pathsFromMutateList(entries) : undefined
+  const scoredRanges = entries
+    ? scoredRangeSpecsFromMutateList(entries)
+    : undefined
   const markdown = buildMutationSummaryMarkdown({
     files,
     changedFiles,
+    scoredRanges,
     readFile: (p) => {
       if (!existsSync(p)) return null
       return readFileSync(p, 'utf8')

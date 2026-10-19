@@ -220,7 +220,7 @@ The Lighthouse CI job on a pull request SHALL publish category scores and a link
 
 ### Requirement: Mutation reporting on pull requests
 
-The pull-request mutation job SHALL publish a PR-visible mutation summary in the mutation section of the CI report comment and a downloadable HTML mutation report, and SHALL write a job Step Summary with the mutation score. A successful run with no mutation report SHALL show Skipped only when no changed production file remains to mutate after accounting for `mutation.temporaryExcludes`. The summary SHALL list every Stryker disable comment in the mutated/changed files with its reason, SHALL report Ignored mutant counts per file (Ignored counts against that file), SHALL list each NoCoverage mutant with file:line and mutator, and SHALL list changed files that were not mutated.
+The pull-request mutation job SHALL publish a PR-visible mutation summary (CI report mutation section), HTML artifact, and Step Summary score. Skipped (no report) only when no scored changed-line ranges remain after `mutation.temporaryExcludes`. The summary SHALL list disables with reasons, Ignored counts per file, NoCoverage with file:line and mutator, unmutated changed files, and scored `path:start-end` ranges.
 
 #### Scenario: Mutation sticky comment and artifact
 
@@ -234,12 +234,12 @@ The pull-request mutation job SHALL publish a PR-visible mutation summary in the
 
 #### Scenario: Empty mutate set
 
-- **WHEN** the pull-request mutation workflow succeeds without a mutation report file because no changed production file remains to mutate after `mutation.temporaryExcludes`
+- **WHEN** the pull-request mutation workflow succeeds without a mutation report file because no scored changed-line ranges remain to mutate after `mutation.temporaryExcludes`
 - **THEN** the mutation section shows Skipped and has no details disclosure
 
 #### Scenario: In-scope change is not skipped
 
-- **WHEN** a changed file is covered by mutation scope
+- **WHEN** a changed file is covered by mutation scope and has at least one mutable changed-line range
 - **THEN** the mutation workflow produces a mutation report and the mutation section does not show Skipped
 
 #### Scenario: Disables and Ignored appear in the mutation summary
@@ -252,14 +252,19 @@ The pull-request mutation job SHALL publish a PR-visible mutation summary in the
 - **WHEN** the pull-request mutation workflow produces a mutation report that includes NoCoverage mutants or changed files with no mutants
 - **THEN** the mutation summary lists each NoCoverage mutant with file:line and mutator and lists those unmutated changed files
 
+#### Scenario: Scored ranges appear in the mutation summary
+
+- **WHEN** the pull-request mutation workflow produces a mutation report for scored line ranges
+- **THEN** the mutation summary lists each scored `path:start-end` range
+
 ### Requirement: Mutation scope is the config globs
 
-Full and diff mutation runs SHALL share one mutate scope: the `mutate` globs in the mutation config. That scope SHALL include `src/**/*.ts`, `src/**/*.tsx`, and `scripts/**/*.mjs`, and SHALL exclude only files that are pointless to mutate (including `scripts/**/*.test.mjs` and ≤10-line delegating CLI entries under `scripts/`). The diff run SHALL keep a changed file only when it matches an include glob and is not negated by an exclude, and MUST NOT keep a separate file allow-list.
+Full and diff mutation share the config `mutate` globs (`src/**/*.ts(x)`, `scripts/**/*.mjs`; exclude pointless files including `scripts/**/*.test.mjs` and ≤10-line delegating CLIs). Diff keeps a changed file only when include-matched and not bang-excluded (no separate allow-list), then restricts mutation to new-side changed-line ranges; it MUST NOT whole-file mutate solely because the path changed.
 
 #### Scenario: In-scope module is mutated
 
-- **WHEN** a changed file is `src/photo/processPhoto.ts`
-- **THEN** the diff mutation run includes that file
+- **WHEN** a changed file is `src/photo/processPhoto.ts` and the diff adds or modifies lines in that file
+- **THEN** the diff mutation run includes mutation ranges for those changed lines of that file
 
 #### Scenario: Pointless files are excluded
 
@@ -268,13 +273,18 @@ Full and diff mutation runs SHALL share one mutate scope: the `mutate` globs in 
 
 #### Scenario: Previously omitted module is mutated
 
-- **WHEN** a changed file is production source that the previous allow-lists omitted, such as `src/perf/percentile.ts`
-- **THEN** the diff mutation run includes that file
+- **WHEN** a changed file is production source that the previous allow-lists omitted, such as `src/perf/percentile.ts`, and the diff changes lines in that file
+- **THEN** the diff mutation run includes mutation ranges for those changed lines of that file
 
 #### Scenario: New script is mutated without config edit
 
 - **WHEN** a changed production file is `scripts/foo.mjs` and mutate already includes `scripts/**/*.mjs`
-- **THEN** the diff mutation run includes that file without editing the mutation config
+- **THEN** the diff mutation run includes that file's changed-line ranges without editing the mutation config
+
+#### Scenario: Unchanged lines in a touched file are not scored
+
+- **WHEN** an in-scope production file is modified only on a subset of its lines
+- **THEN** the diff mutation run does not place mutants on lines outside the new-side changed ranges of that file into the scored set
 
 ### Requirement: Unclassified production file fails checks
 
@@ -852,17 +862,22 @@ In a pull request for roadmap item slug S, edits to `docs/roadmap/<milestone>/S.
 
 ### Requirement: Honest diff mutation gate
 
-The pull-request diff mutation run SHALL use `stryker.diffThresholds` (break 85 on main after this change), SHALL fail when any mutant in the report has status NoCoverage, SHALL fail when a changed bang-excluded production file is not listed in `mutation.temporaryExcludes`, and SHALL NOT pass `--allowEmpty` when any production file changed. A skipped run while a production file outside the temporary-exclude allowlist changed SHALL fail with no override.
+Diff mutation SHALL use `stryker.diffThresholds` (unchanged in `quality/gates.json`), fail NoCoverage only for mutants on scored changed-line ranges, fail unauthorized bang-excludes not in `mutation.temporaryExcludes`, and invoke Stryker whenever any scored range exists. Skip is OK when production paths changed but no scored ranges remain. `--allowEmpty` only for `path:start-end` entries; outside-range mutants MUST NOT fail the gate.
 
 #### Scenario: Diff thresholds enforce break 85
 
-- **WHEN** the diff mutation score is below `stryker.diffThresholds.break`
+- **WHEN** the mutation score over scored changed-line mutants is below `stryker.diffThresholds.break`
 - **THEN** the diff mutation job fails
 
 #### Scenario: NoCoverage fails the diff run
 
-- **WHEN** the mutation report contains at least one NoCoverage mutant
-- **THEN** the diff mutation job fails even if the score is at or above break
+- **WHEN** the mutation report contains at least one NoCoverage mutant whose start line is inside a scored changed-line range
+- **THEN** the diff mutation job fails even if the scored score is at or above break
+
+#### Scenario: NoCoverage outside scored ranges is ignored
+
+- **WHEN** the mutation report contains NoCoverage mutants only outside scored changed-line ranges
+- **THEN** those mutants do not fail the NoCoverage gate
 
 #### Scenario: Changed excluded file not on temporary list fails
 
@@ -874,10 +889,20 @@ The pull-request diff mutation run SHALL use `stryker.diffThresholds` (break 85 
 - **WHEN** a pull request changes no production file that is in mutation scope or subject to the temporary-exclude / unauthorized-exclude rules
 - **THEN** the diff mutation job succeeds as skipped without a mutation report
 
+#### Scenario: Empty scored ranges skip while production path changed
+
+- **WHEN** an in-scope production file changed but no scored changed-line ranges remain (deleted-only new-side empty, or equivalent empty range set)
+- **THEN** the diff mutation job succeeds as skipped without failing for “production changed”
+
 #### Scenario: AllowEmpty dropped when production changed
 
-- **WHEN** the diff runner invokes Stryker and at least one production file changed
+- **WHEN** the mutate set is whole files without mutation ranges and at least one production file changed
 - **THEN** the Stryker invocation does not include `--allowEmpty`
+
+#### Scenario: Ranged allowEmpty when mutate entries are ranges
+
+- **WHEN** the diff runner invokes Stryker with only `path:start-end` mutate entries
+- **THEN** the invocation MAY include `--allowEmpty` so zero mutants on those ranges succeed
 
 ### Requirement: Agent rule-file size budgets
 
@@ -902,3 +927,32 @@ The pull-request diff mutation run SHALL use `stryker.diffThresholds` (break 85 
 
 - **WHEN** head `agentRules.budgets` is evaluated
 - **THEN** it MUST include entries for `AGENTS.md`, every `.cursor/rules/*.mdc`, `.cursor/commands/next-roadmap-item.md`, every `.cursor/agents/*.md`, and `openspec/config.yaml`
+
+### Requirement: Diff mutation scores only changed lines
+
+The pull-request diff mutation run SHALL mutate and score only new-side changed line ranges (Stryker `path:start-end`) from the base diff for in-scope files. Break threshold and NoCoverage apply only to mutants on those ranges; outside-range mutants MUST NOT fail the gate. The log and mutation summary SHALL list scored ranges. Empty scored ranges skip without Stryker; non-empty ranges always invoke Stryker (zero mutants on that set may pass via ranged `--allowEmpty` only).
+
+#### Scenario: Comment-only or non-mutable changed lines pass without whole-file score
+
+- **WHEN** an in-scope production file below the break threshold is changed only by comments or by lines that yield no mutants (non-empty scored `path:start-end` ranges)
+- **THEN** the diff mutation run invokes Stryker on those ranges only (ranged `--allowEmpty` allowed), records zero scored mutants, and succeeds without applying the whole-file historical score
+
+#### Scenario: NoCoverage on a changed line fails
+
+- **WHEN** a scored changed line produces a NoCoverage mutant
+- **THEN** the diff mutation gate fails and the summary lists that mutant with file:line and mutator
+
+#### Scenario: Changed-line score below break fails
+
+- **WHEN** mutants on scored changed lines yield a mutation score below `stryker.diffThresholds.break`
+- **THEN** the diff mutation gate fails
+
+#### Scenario: Deleted-only or empty new-side ranges do not fail
+
+- **WHEN** a changed in-scope file has only deleted lines (no new-side hunk lines) or otherwise no mutable changed-line ranges
+- **THEN** that file contributes no mutate ranges, and if no other scored ranges exist the run succeeds without failure
+
+#### Scenario: Scored ranges appear in the report
+
+- **WHEN** the diff mutation run mutates one or more line ranges
+- **THEN** the mutate list / mutation summary states each scored `path:start-end` range
