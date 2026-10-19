@@ -45,15 +45,16 @@ artifact stages: one Write per artifact, validate once at stage end.
    (`pnpm -s agent review-brief --out <file>`; ≤1 delta re-review). Docs-only
    skips the design checklist. Over budget: grow the roadmap with
    `pnpm roadmap add <new-slug> --after <slug> ...`, not the PR.
-3. /opsx-apply <slug> through the Verification checklist, including
+3. Implement per `runCard.procedure` from step 1 preflight (`pnpm -s agent
+preflight --json`) through the Verification checklist, including
    openspec-implementation-reviewer pass and the Manual check. Prefer quiet
    verify. Out of scope only if the same test fails/flakes on unmodified
    `origin/main`; otherwise fix in this PR (even if the file is outside the
    touch-set). Out-of-scope: `pnpm roadmap add … --after <slug>` or a bug issue,
    then continue — filing never makes a red PR mergeable. Code after
    implementation review → re-run that reviewer on the delta before archive.
-4. /opsx-archive <slug>: answer "Sync now"; confirm only when every task is
-   checked. Then close the item on this branch: `pnpm roadmap done <slug>`
+4. `npx openspec archive <slug> -y`: answer "Sync now"; confirm only when every
+   task is checked. Then close the item on this branch: `pnpm roadmap done <slug>`
    (`--note "..."` when the shipped scope deviates; required for a
    [contingency]). Done writes item-file Status only (no index tick / no
    milestone archive). Index sync / milestone archive: operator docs PR after

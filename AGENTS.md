@@ -45,14 +45,13 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Skills (on demand)
 
-| Skill                 | When                               |
-| --------------------- | ---------------------------------- |
-| OpenSpec `openspec-*` | propose / apply / archive / sync   |
-| `react-composition`   | component APIs, composition        |
-| `react-perf-spa`      | SPA bundle / re-render / workers   |
-| `ui-review`           | UI a11y / layout smoke / anti-slop |
-| `write-tests`         | unit / e2e / PBT authorship        |
-| `roadmap`             | pick / grow / close roadmap items  |
+| Skill               | When                               |
+| ------------------- | ---------------------------------- |
+| `react-composition` | component APIs, composition        |
+| `react-perf-spa`    | SPA bundle / re-render / workers   |
+| `ui-review`         | UI a11y / layout smoke / anti-slop |
+| `write-tests`       | unit / e2e / PBT authorship        |
+| `roadmap`           | pick / grow / close roadmap items  |
 
 ## Security surface
 
