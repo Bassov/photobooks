@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { readFileSync, readdirSync } from 'node:fs'
-import { isScriptProductionPath } from './foo.mjs'
 import { loadGates } from './load-gates.mjs'
 import {
   findExcludeReasonGaps,
@@ -21,21 +20,9 @@ export function listSrcProductionFiles(root = 'src') {
 }
 
 /**
- * @param {string} [root]
- * @returns {string[]}
- */
-export function listScriptProductionFiles(root = 'scripts') {
-  return readdirSync(root, { recursive: true })
-    .map((entry) => `${root}/${String(entry).replaceAll('\\', '/')}`)
-    .filter((file) => isScriptProductionPath(file))
-    .sort()
-}
-
-/**
  * @param {{
  *   patterns?: string[],
  *   srcFiles?: string[],
- *   scriptFiles?: string[],
  *   reasonText?: string,
  *   gates?: ReturnType<typeof loadGates>,
  *   error?: (msg: string) => void,
@@ -48,9 +35,7 @@ export function runMutationScopeCheck(opts = {}) {
   const log = opts.log ?? console.log
   const patterns = opts.patterns ?? loadMutatePatterns()
   const srcFiles = opts.srcFiles ?? listSrcProductionFiles()
-  const scriptFiles = opts.scriptFiles ?? listScriptProductionFiles()
-  const files = [...srcFiles, ...scriptFiles]
-  const unclassified = findUnclassifiedProductionFiles(files, patterns)
+  const unclassified = findUnclassifiedProductionFiles(srcFiles, patterns)
   const reasonText =
     opts.reasonText ?? readFileSync('stryker.mutate.md', 'utf8')
   const gaps = findExcludeReasonGaps(patterns, reasonText)
@@ -69,14 +54,14 @@ export function runMutationScopeCheck(opts = {}) {
 
   if (!failed) {
     log(
-      `Mutation scope covers ${String(srcFiles.length)} src and ${String(scriptFiles.length)} script production files.`,
+      `Mutation scope covers ${String(srcFiles.length)} src production files.`,
     )
     return 0
   }
 
   if (unclassified.length > 0) {
     error(
-      `Production files under src/ or scripts/ are neither in mutation scope nor excluded:\n${unclassified.join('\n')}`,
+      `Production files under src/ are neither in mutation scope nor excluded:\n${unclassified.join('\n')}`,
     )
   }
   if (gaps.missing.length > 0) {

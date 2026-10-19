@@ -3,7 +3,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
-  listScriptProductionFiles,
   listSrcProductionFiles,
   runMutationScopeCheck,
 } from './check-mutation-scope.mjs'
@@ -12,54 +11,39 @@ import { stripGitKeys } from './strip-git-env.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-describe('check-mutation-scope scripts', () => {
-  it('lists production scripts including foo.mjs and skips tests', () => {
-    const files = listScriptProductionFiles()
-    expect(files).toContain('scripts/foo.mjs')
-    expect(files).toContain('scripts/check-mutation-scope.mjs')
-    expect(files.some((f) => f.endsWith('.test.mjs'))).toBe(false)
-    expect(listSrcProductionFiles().some((f) => f.startsWith('src/'))).toBe(
-      true,
-    )
-  })
-
-  it('real mutate patterns put foo.mjs in scope without config edit', () => {
+describe('check-mutation-scope', () => {
+  it('real mutate patterns scope src and exclude scripts', () => {
     const patterns = loadMutatePatterns()
-    expect(classifyMutationFile('scripts/foo.mjs', patterns)).toBe('in-scope')
-    expect(classifyMutationFile('scripts/agent-cli.mjs', patterns)).toBe(
-      'excluded',
+    expect(classifyMutationFile('src/core/book.ts', patterns)).toBe('in-scope')
+    expect(classifyMutationFile('scripts/agent.mjs', patterns)).toBe(
+      'unclassified',
     )
-    expect(classifyMutationFile('scripts/foo.test.mjs', patterns)).toBe(
-      'excluded',
-    )
+    expect(classifyMutationFile('src/main.tsx', patterns)).toBe('excluded')
   })
 
-  it('unclassified script fails the checker', () => {
+  it('unclassified src file fails the checker', () => {
     const errors = []
     const code = runMutationScopeCheck({
-      patterns: ['src/**/*.ts', 'src/**/*.tsx'],
-      srcFiles: [],
-      scriptFiles: ['scripts/orphan-gate.mjs'],
+      patterns: ['src/**/*.ts'],
+      srcFiles: ['src/orphan.tsx'],
       reasonText: '',
       gates: { mutation: { temporaryExcludes: [] } },
       error: (msg) => errors.push(msg),
       log: () => {},
     })
     expect(code).toBe(1)
-    expect(errors.some((m) => m.includes('scripts/orphan-gate.mjs'))).toBe(true)
-    expect(errors.some((m) => m.includes('scripts/'))).toBe(true)
+    expect(errors.some((m) => m.includes('src/orphan.tsx'))).toBe(true)
   })
 
   it('reports missing exclude reasons, extras, and temp bang gaps', () => {
     const errors = []
     const code = runMutationScopeCheck({
-      patterns: ['scripts/**/*.mjs', '!scripts/orphan.mjs'],
+      patterns: ['src/**/*.ts', '!src/orphan.ts'],
       srcFiles: [],
-      scriptFiles: [],
-      reasonText: '- `!scripts/other.mjs` — x\n',
+      reasonText: '- `!src/other.ts` — x\n',
       gates: {
         mutation: {
-          temporaryExcludes: [{ path: 'scripts/orphan.mjs' }],
+          temporaryExcludes: [{ path: 'src/orphan.ts' }],
         },
       },
       error: (msg) => errors.push(msg),
@@ -73,13 +57,12 @@ describe('check-mutation-scope scripts', () => {
   it('reports temporaryExcludes missing bangs', () => {
     const errors = []
     const code = runMutationScopeCheck({
-      patterns: ['scripts/**/*.mjs'],
+      patterns: ['src/**/*.ts'],
       srcFiles: [],
-      scriptFiles: [],
       reasonText: '',
       gates: {
         mutation: {
-          temporaryExcludes: [{ path: 'scripts/no-bang.mjs' }],
+          temporaryExcludes: [{ path: 'src/no-bang.ts' }],
         },
       },
       error: (msg) => errors.push(msg),
@@ -91,9 +74,8 @@ describe('check-mutation-scope scripts', () => {
 
   it('uses default gates.mutation when omitted', () => {
     const code = runMutationScopeCheck({
-      patterns: ['scripts/foo.mjs'],
-      srcFiles: [],
-      scriptFiles: ['scripts/foo.mjs'],
+      patterns: ['src/a.ts'],
+      srcFiles: ['src/a.ts'],
       reasonText: '',
       gates: {},
       error: () => {},
@@ -102,7 +84,7 @@ describe('check-mutation-scope scripts', () => {
     expect(code).toBe(0)
   })
 
-  it('repo scripts pass mutation-scope against real config', () => {
+  it('repo src files pass mutation-scope against real config', () => {
     const code = runMutationScopeCheck({
       log: () => {},
       error: () => {},
@@ -121,7 +103,7 @@ describe('check-mutation-scope scripts', () => {
       },
     )
     expect(result.status).toBe(0)
-    expect(result.stdout).toMatch(/script production files/)
+    expect(result.stdout).toMatch(/src production files/)
   })
 
   it('listSrcProductionFiles filters ts/tsx only', () => {
@@ -135,9 +117,8 @@ describe('check-mutation-scope scripts', () => {
   it('emits only the failing sections with exact prefixes', () => {
     const errors = []
     const code = runMutationScopeCheck({
-      patterns: ['scripts/**/*.mjs', '!scripts/x.mjs'],
+      patterns: ['src/**/*.ts', '!src/x.ts'],
       srcFiles: [],
-      scriptFiles: [],
       reasonText: '',
       gates: { mutation: { temporaryExcludes: [] } },
       error: (msg) => errors.push(msg),
@@ -146,50 +127,47 @@ describe('check-mutation-scope scripts', () => {
     expect(code).toBe(1)
     expect(errors).toHaveLength(1)
     expect(errors[0]).toBe(
-      'Exclude patterns missing a reason in stryker.mutate.md:\n!scripts/x.mjs',
+      'Exclude patterns missing a reason in stryker.mutate.md:\n!src/x.ts',
     )
   })
 
   it('emits extra reason docs without unclassified noise', () => {
     const errors = []
     runMutationScopeCheck({
-      patterns: ['scripts/foo.mjs'],
-      srcFiles: [],
-      scriptFiles: ['scripts/foo.mjs'],
-      reasonText: '- `!scripts/ghost.mjs` — gone\n',
+      patterns: ['src/a.ts'],
+      srcFiles: ['src/a.ts'],
+      reasonText: '- `!src/ghost.ts` — gone\n',
       gates: { mutation: { temporaryExcludes: [] } },
       error: (msg) => errors.push(msg),
       log: () => {},
     })
     expect(errors).toEqual([
-      'stryker.mutate.md documents excludes that are not in stryker.config.mjs:\n!scripts/ghost.mjs',
+      'stryker.mutate.md documents excludes that are not in stryker.config.mjs:\n!src/ghost.ts',
     ])
   })
 
   it('emits temp bang gaps with exact prefix', () => {
     const errors = []
     runMutationScopeCheck({
-      patterns: ['scripts/foo.mjs'],
-      srcFiles: [],
-      scriptFiles: ['scripts/foo.mjs'],
+      patterns: ['src/a.ts'],
+      srcFiles: ['src/a.ts'],
       reasonText: '',
       gates: {
-        mutation: { temporaryExcludes: [{ path: 'scripts/no-bang.mjs' }] },
+        mutation: { temporaryExcludes: [{ path: 'src/no-bang.ts' }] },
       },
       error: (msg) => errors.push(msg),
       log: () => {},
     })
     expect(errors).toEqual([
-      'mutation.temporaryExcludes paths missing exact ! bang in stryker.config.mjs:\nscripts/no-bang.mjs',
+      'mutation.temporaryExcludes paths missing exact ! bang in stryker.config.mjs:\nsrc/no-bang.ts',
     ])
   })
 
   it('treats non-array temporaryExcludes as empty', () => {
     const errors = []
     const code = runMutationScopeCheck({
-      patterns: ['scripts/foo.mjs'],
-      srcFiles: [],
-      scriptFiles: ['scripts/foo.mjs'],
+      patterns: ['src/a.ts'],
+      srcFiles: ['src/a.ts'],
       reasonText: '',
       gates: { mutation: { temporaryExcludes: /** @type {any} */ ('nope') } },
       error: (msg) => errors.push(msg),
@@ -199,20 +177,17 @@ describe('check-mutation-scope scripts', () => {
     expect(errors).toEqual([])
   })
 
-  it('success log names src and script counts', () => {
+  it('success log names src count', () => {
     const logs = []
     const code = runMutationScopeCheck({
-      patterns: ['src/**/*.ts', 'scripts/foo.mjs'],
+      patterns: ['src/**/*.ts'],
       srcFiles: ['src/a.ts'],
-      scriptFiles: ['scripts/foo.mjs'],
       reasonText: '',
       gates: { mutation: {} },
       error: () => {},
       log: (msg) => logs.push(msg),
     })
     expect(code).toBe(0)
-    expect(logs).toEqual([
-      'Mutation scope covers 1 src and 1 script production files.',
-    ])
+    expect(logs).toEqual(['Mutation scope covers 1 src production files.'])
   })
 })

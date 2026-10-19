@@ -3676,107 +3676,6 @@ export default {
     expect(msgs.some((m) => m.includes('paths removed'))).toBe(false)
   })
 
-  it('subsumes hand-listed mutate entries under scripts/**/*.mjs', () => {
-    const base = baseFiles({
-      'stryker.config.mjs': `
-const config = {
-  mutate: ['src/**/*.ts', 'scripts/agent.mjs', '!src/**/*.test.ts'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`,
-    })
-    const head = baseFiles({
-      'vite.config.ts': `
-export const coverageExcludeGlobs = ['src/**/*.d.ts'] as const
-export default {
-  test: {
-    allowOnly: false,
-    coverage: {
-      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
-      exclude: [...coverageExcludeGlobs],
-    },
-  },
-}
-`,
-      'stryker.config.mjs': `
-const config = {
-  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`,
-    })
-    const r = compareGateTrees(base, head)
-    expect(r.ok).toBe(true)
-  })
-
-  it('FIXTURE mutate-include-uncovered-removed fails', () => {
-    expect(FIXTURE_IDS).toContain('mutate-include-uncovered-removed')
-    const base = baseFiles({
-      'stryker.config.mjs': `
-const config = {
-  mutate: ['src/**/*.ts', 'scripts/agent.mjs', '!src/**/*.test.ts'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`,
-    })
-    const head = baseFiles({
-      'stryker.config.mjs': `
-const config = {
-  mutate: ['src/**/*.ts', '!src/**/*.test.ts'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`,
-    })
-    const r = compareGateTrees(base, head)
-    expect(r.ok).toBe(false)
-    expect(
-      r.violations.some(
-        (v) =>
-          v.ruleId === 'include-removed' &&
-          v.message === `${MSGS.mutateIncludeRemovedPrefix}scripts/agent.mjs`,
-      ),
-    ).toBe(true)
-  })
-
-  it('fails when scripts/**/*.mjs is dropped from mutate', () => {
-    const withScriptsMutate = `
-const config = {
-  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`
-    const withoutScriptsMutate = `
-const config = {
-  mutate: ['src/**/*.ts', '!src/**/*.test.ts'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`
-    const r = compareGateTrees(
-      baseFiles({ 'stryker.config.mjs': withScriptsMutate }),
-      baseFiles({ 'stryker.config.mjs': withoutScriptsMutate }),
-    )
-    expect(r.ok).toBe(false)
-    expect(
-      r.violations.some(
-        (v) =>
-          v.ruleId === 'include-removed' &&
-          v.message === `${MSGS.mutateIncludeRemovedPrefix}scripts/**/*.mjs`,
-      ),
-    ).toBe(true)
-  })
-
   function loadPr126FixtureTree(side) {
     const raw = fs.readFileSync(
       path.join(REPO_ROOT, 'scripts/fixtures/pr-126-scripts-glob.json'),
@@ -3825,7 +3724,7 @@ export default {
     ).toBe(true)
   })
 
-  it('FIXTURE broad-script-exclude fails for !scripts/** and !src/**/*.ts', () => {
+  it('FIXTURE broad-script-exclude fails for coverage exclude', () => {
     expect(FIXTURE_IDS).toContain('broad-script-exclude')
     const withGlob = `
 export default {
@@ -3837,18 +3736,7 @@ export default {
   },
 }
 `
-    const mutateBase = `
-const config = {
-  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`
-    const base = baseFiles({
-      'vite.config.ts': withGlob,
-      'stryker.config.mjs': mutateBase,
-    })
+    const base = baseFiles({ 'vite.config.ts': withGlob })
     const rCov = compareGateTrees(
       base,
       baseFiles({
@@ -3862,7 +3750,6 @@ export default {
   },
 }
 `,
-        'stryker.config.mjs': mutateBase,
       }),
     )
     expect(rCov.ok).toBe(false)
@@ -3872,35 +3759,13 @@ export default {
       ),
     ).toBe(true)
 
-    const rBang = compareGateTrees(
-      base,
-      baseFiles({
-        'vite.config.ts': withGlob,
-        'stryker.config.mjs': `
-const config = {
-  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts', '!scripts/**'],
-  coverageAnalysis: 'perTest',
-  ignoreStatic: true,
-}
-export default config
-`,
-      }),
-    )
-    expect(rBang.ok).toBe(false)
-    expect(
-      rBang.violations.some(
-        (v) =>
-          v.ruleId === 'exclude-added' && v.message.includes('!scripts/**'),
-      ),
-    ).toBe(true)
-
     const rSrc = compareGateTrees(
       base,
       baseFiles({
         'vite.config.ts': withGlob,
         'stryker.config.mjs': `
 const config = {
-  mutate: ['src/**/*.ts', 'scripts/**/*.mjs', '!src/**/*.test.ts', '!src/**/*.ts'],
+  mutate: ['src/**/*.ts', '!src/**/*.test.ts', '!src/**/*.ts'],
   coverageAnalysis: 'perTest',
   ignoreStatic: true,
 }

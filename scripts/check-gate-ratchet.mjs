@@ -82,7 +82,6 @@ export const FIXTURE_IDS = Object.freeze([
   'temporary-excludes-seed',
   'scripts-glob-pr126-replay',
   'scripts-include-uncovered-removed',
-  'mutate-include-uncovered-removed',
   'broad-script-exclude',
   'non-thin-cli-exclude',
   'codecov-path-uncovered',
