@@ -23,6 +23,8 @@ export const RULE_IDS = Object.freeze([
   'patched-deps-grown',
   'ignore-comment-added',
   'stryker-disable-added',
+  'stryker-disable-per-file',
+  'stryker-disable-budget',
   'gate-file-gone',
   'required-job-step-moved',
   'rules-superset',
@@ -42,6 +44,9 @@ export const FIXTURE_IDS = Object.freeze([
   'new-excluded-mutations',
   'new-v8-ignore',
   'new-stryker-disable',
+  'legal-stryker-disable-within-budget',
+  'stryker-disable-over-per-file',
+  'stryker-disable-over-budget',
   'deleted-rule',
   'burn-in-moved-without-needs',
   'burn-in-moved-with-needs',
@@ -81,6 +86,9 @@ export const MSGS = Object.freeze({
   packageParsePrefix: 'package.json parse failed: ',
   ignoreCommentPrefix: 'suppression comment added in ',
   strykerDisablePrefix: 'mutation suppression comment added in ',
+  strykerDisablePerFilePrefix: 'stryker disable per-file cap exceeded in ',
+  strykerDisableBudgetPrefix: 'stryker disable repo budget exceeded: ',
+  strykerDisableBudgetMid: ' > ',
   requiredJobFailedPrefix: 'required-job check failed: ',
   ruleMissingPrefix: 'RULE_IDS missing on head: ',
   fixtureMissingPrefix: 'FIXTURE_IDS missing on head: ',
@@ -216,7 +224,21 @@ const GATES_NUMERIC = [
     dir: NEEDLES.higherStricter,
     label: 'e2e.burnInDefault',
   },
+  {
+    path: ['mutation', 'disableBudget'],
+    dir: NEEDLES.lowerStricter,
+    label: 'mutation.disableBudget',
+  },
 ]
+
+/** Max legal next-line Stryker disables per source file. */
+export const STRYKER_DISABLE_PER_FILE_CAP = 3
+/** Minimum reason length for a legal next-line disable. */
+export const STRYKER_DISABLE_REASON_MIN = 10
+export const STRYKER_KEYWORD = 'stryker'
+export const DISABLE_KEYWORD = 'disable'
+export const RESTORE_KEYWORD = 'restore'
+export const NEXT_LINE_KEYWORD = 'next-line'
 
 /**
  * Strip `# ...` shell comments so `exit 1` in comments cannot spoof failOnNeeds.
@@ -622,21 +644,121 @@ export function countIgnoreComments(text) {
 }
 
 /**
+ * Case-insensitive index of `needle` in `hay` at/after `from`.
+ * @param {string} hay
+ * @param {string} needle
+ * @param {number} from
+ */
+export function indexOfIgnoreCase(hay, needle, from) {
+  const start = from < 0 ? 0 : from
+  return hay.toLowerCase().indexOf(needle.toLowerCase(), start)
+}
+
+/**
+ * @param {string} s
+ * @param {number} i
+ */
+export function skipWs(s, i) {
+  let p = i
+  while (p < s.length && isWsChar(s[p])) p++
+  return p
+}
+
+/**
+ * @param {string} s
+ * @param {number} i
+ * @param {string} word
+ */
+export function matchKeywordAt(s, i, word) {
+  if (indexOfIgnoreCase(s, word, i) !== i) return -1
+  const end = i + word.length
+  if (end < s.length && isIdentContinue(s[end])) return -1
+  return end
+}
+
+/**
+ * Classify one source line for Stryker disable/restore directives.
+ * @param {string} line
+ * @returns {null | { kind: 'legal', reason: string, mutators: string } | { kind: 'illegal' }}
+ */
+export function classifyStrykerDisableLine(line) {
+  const raw = String(line)
+  let i = 0
+  while (i < raw.length && isWsChar(raw[i])) i++
+  if (raw.startsWith('//', i)) i = skipWs(raw, i + 2)
+  const sk = matchKeywordAt(raw, i, STRYKER_KEYWORD)
+  if (sk < 0) return null
+  i = skipWs(raw, sk)
+  const restoreAt = matchKeywordAt(raw, i, RESTORE_KEYWORD)
+  if (restoreAt >= 0) return { kind: 'illegal' }
+  const disAt = matchKeywordAt(raw, i, DISABLE_KEYWORD)
+  if (disAt < 0) return null
+  i = skipWs(raw, disAt)
+  const nlAt = matchKeywordAt(raw, i, NEXT_LINE_KEYWORD)
+  if (nlAt < 0) return { kind: 'illegal' }
+  i = skipWs(raw, nlAt)
+  const colon = raw.indexOf(':', i)
+  if (colon < 0) return { kind: 'illegal' }
+  const mutators = raw.slice(i, colon).trim()
+  if (mutators.length === 0) return { kind: 'illegal' }
+  const reason = raw.slice(colon + 1).trim()
+  if (reason.length < STRYKER_DISABLE_REASON_MIN) return { kind: 'illegal' }
+  return { kind: 'legal', reason, mutators }
+}
+
+/**
+ * @param {string} text
+ * @returns {{ legal: { reason: string, mutators: string, line: string }[], illegal: { line: string }[] }}
+ */
+export function collectStrykerDisableComments(text) {
+  /** @type {{ reason: string, mutators: string, line: string }[]} */
+  const legal = []
+  /** @type {{ line: string }[]} */
+  const illegal = []
+  const lines = String(text).split('\n')
+  for (const line of lines) {
+    const c = classifyStrykerDisableLine(line)
+    if (c == null) continue
+    if (c.kind === 'legal') {
+      legal.push({ reason: c.reason, mutators: c.mutators, line })
+    } else {
+      illegal.push({ line })
+    }
+  }
+  return { legal, illegal }
+}
+
+/**
+ * Count every Stryker disable/restore directive (legal or illegal).
  * @param {string} text
  */
 export function countStrykerDisable(text) {
-  const s = String(text)
-  let count = 0
-  let from = 0
-  while (from < s.length) {
-    const at = s.indexOf('Stryker', from)
-    if (at === -1) break
-    let i = at + 'Stryker'.length
-    while (i < s.length && isWsChar(s[i])) i++
-    if (s.startsWith('disable', i)) count++
-    from = at + 1
+  const { legal, illegal } = collectStrykerDisableComments(text)
+  return legal.length + illegal.length
+}
+
+/**
+ * @param {Record<string, string>} files
+ * @returns {number}
+ */
+export function countLegalStrykerDisablesInTree(files) {
+  let total = 0
+  for (const p of listSourcePaths(files)) {
+    if (p === 'scripts/check-gate-ratchet.mjs') continue
+    const raw = getFile(files, p)
+    if (raw == null) continue
+    total += collectStrykerDisableComments(coerceText(raw)).legal.length
   }
-  return count
+  return total
+}
+
+/**
+ * @param {unknown} gates
+ * @returns {number}
+ */
+export function readDisableBudget(gates) {
+  const v = dig(gates, ['mutation', 'disableBudget'])
+  return typeof v === 'number' ? v : 0
 }
 
 /**
@@ -1249,23 +1371,49 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
       ...listSourcePaths(baseFiles),
       ...listSourcePaths(headFiles),
     ])
+    let headLegalTotal = 0
     for (const p of paths) {
       if (p === 'scripts/check-gate-ratchet.mjs') continue
       const bRaw = getFile(baseFiles, p)
       const hRaw = getFile(headFiles, p)
       const b = coerceText(bRaw)
       const h = coerceText(hRaw)
+      const bDis = collectStrykerDisableComments(b)
+      const hDis = collectStrykerDisableComments(h)
+      headLegalTotal += hDis.legal.length
+      if (hDis.legal.length > STRYKER_DISABLE_PER_FILE_CAP) {
+        fail(
+          'stryker-disable-per-file',
+          `${MSGS.strykerDisablePerFilePrefix}${p}`,
+        )
+      }
       if (b === h) continue
       const bIgnores = countIgnoreComments(b)
       const hIgnores = countIgnoreComments(h)
       if (hIgnores > bIgnores) {
         fail('ignore-comment-added', `${MSGS.ignoreCommentPrefix}${p}`)
       }
-      const bSd = countStrykerDisable(b)
-      const hSd = countStrykerDisable(h)
-      if (hSd > bSd) {
+      if (hDis.illegal.length > bDis.illegal.length) {
         fail('stryker-disable-added', `${MSGS.strykerDisablePrefix}${p}`)
       }
+    }
+    try {
+      const hGatesRaw = getFile(headFiles, 'quality/gates.json')
+      const hGates = JSON.parse(
+        hGatesRaw == null ? EMPTY_OBJECT_JSON : hGatesRaw,
+      )
+      const ceiling = readDisableBudget(hGates)
+      if (headLegalTotal > ceiling) {
+        fail(
+          'stryker-disable-budget',
+          `${MSGS.strykerDisableBudgetPrefix}${headLegalTotal}${MSGS.strykerDisableBudgetMid}${ceiling}`,
+        )
+      }
+    } catch (e) {
+      fail(
+        'stryker-disable-budget',
+        `${MSGS.parseGatesPrefix}${e instanceof Error ? e.message : e}`,
+      )
     }
   }
 

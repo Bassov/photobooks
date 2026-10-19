@@ -46,7 +46,7 @@ jobs:
             exit 0
           fi
           echo "has_report=true" >> "$GITHUB_OUTPUT"
-          node scripts/stryker-pr-summary.mjs > /tmp/stryker-pr-comment.md
+          node scripts/stryker-pr-summary-cli.mjs > /tmp/stryker-pr-comment.md
 
       - name: Upload Stryker report
         if: always() && steps.summary.outputs.has_report == 'true'

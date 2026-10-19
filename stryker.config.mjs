@@ -22,6 +22,7 @@ const config = {
     'scripts/load-gates.mjs',
     'scripts/check-gate-values.mjs',
     'scripts/check-gate-ratchet.mjs',
+    'scripts/stryker-pr-summary.mjs',
     'scripts/check-test-weakening.mjs',
     'scripts/check-codecov-yml.mjs',
     'scripts/e2e-flaky-list.mjs',
