@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { readFileSync, readdirSync } from 'node:fs'
+import { loadGates } from './load-gates.mjs'
 import {
   findExcludeReasonGaps,
   findUnclassifiedProductionFiles,
   loadMutatePatterns,
 } from './mutation-scope.mjs'
+import { temporaryExcludesMissingBangs } from './stryker-diff-gate.mjs'
 
 function productionFiles(root = 'src') {
   return readdirSync(root, { recursive: true })
@@ -20,11 +22,19 @@ const gaps = findExcludeReasonGaps(
   patterns,
   readFileSync('stryker.mutate.md', 'utf8'),
 )
+const gates = loadGates()
+const tempPaths = /** @type {{ path?: string }[]} */ (
+  gates.mutation?.temporaryExcludes ?? []
+)
+  .map((row) => row.path)
+  .filter((p) => typeof p === 'string')
+const tempMissingBangs = temporaryExcludesMissingBangs(tempPaths, patterns)
 
 if (
   unclassified.length > 0 ||
   gaps.missing.length > 0 ||
-  gaps.extra.length > 0
+  gaps.extra.length > 0 ||
+  tempMissingBangs.length > 0
 ) {
   if (unclassified.length > 0) {
     console.error(
@@ -39,6 +49,11 @@ if (
   if (gaps.extra.length > 0) {
     console.error(
       `stryker.mutate.md documents excludes that are not in stryker.config.mjs:\n${gaps.extra.join('\n')}`,
+    )
+  }
+  if (tempMissingBangs.length > 0) {
+    console.error(
+      `mutation.temporaryExcludes paths missing exact ! bang in stryker.config.mjs:\n${tempMissingBangs.join('\n')}`,
     )
   }
   process.exit(1)

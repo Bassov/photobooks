@@ -35,6 +35,50 @@ export function formatSurvivedSample(mutant, filePath) {
 }
 
 /**
+ * @param {{ status?: string, location?: { start?: { line?: number } }, mutatorName?: string, id?: string }} mutant
+ * @param {string} filePath
+ */
+export function formatNoCoverageSample(mutant, filePath) {
+  const line = mutant.location?.start?.line
+  const lineText = typeof line === 'number' ? String(line) : '?'
+  const name = mutant.mutatorName || mutant.id || EMPTY_STRING
+  return `- \`${filePath}:${lineText}\` ${name}`
+}
+
+/**
+ * @param {Record<string, { mutants?: { status?: string, location?: { start?: { line?: number } }, mutatorName?: string, id?: string }[] }>} fileMap
+ */
+export function listNoCoverageSamples(fileMap) {
+  /** @type {string[]} */
+  const out = []
+  for (const [filePath, file] of Object.entries(fileMap)) {
+    const mutants = Array.isArray(file.mutants) ? file.mutants : []
+    for (const mutant of mutants) {
+      if (mutant.status === 'NoCoverage') {
+        out.push(formatNoCoverageSample(mutant, filePath))
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * Changed files with no entry (or empty mutants) in the mutation report.
+ * @param {string[]} changedFiles
+ * @param {Record<string, { mutants?: unknown[] }>} fileMap
+ */
+export function listUnmutatedChangedFiles(changedFiles, fileMap) {
+  return changedFiles
+    .filter((file) => {
+      const entry = fileMap[file]
+      if (entry == null) return true
+      const mutants = Array.isArray(entry.mutants) ? entry.mutants : []
+      return mutants.length === 0
+    })
+    .sort()
+}
+
+/**
  * @param {Record<string, { mutants?: { status?: string, location?: { start?: { line?: number } }, mutatorName?: string, id?: string }[] }>} fileMap
  */
 export function summarizeMutationFiles(fileMap) {
@@ -99,6 +143,7 @@ export function mutationScore(killed, timeout, survived, noCoverage) {
  * @param {{
  *   files: Record<string, { mutants?: unknown[] }>,
  *   readFile?: (p: string) => string | null,
+ *   changedFiles?: string[],
  * }} opts
  */
 export function buildMutationSummaryMarkdown(opts) {
@@ -109,6 +154,14 @@ export function buildMutationSummaryMarkdown(opts) {
     summary.survived,
     summary.noCoverage,
   )
+  const noCoverageSamples = listNoCoverageSamples(
+    /** @type {Record<string, { mutants?: { status?: string, location?: { start?: { line?: number } }, mutatorName?: string, id?: string }[] }>} */ (
+      opts.files
+    ),
+  )
+  const unmutated = Array.isArray(opts.changedFiles)
+    ? listUnmutatedChangedFiles(opts.changedFiles, opts.files)
+    : []
 
   /** @type {{ path: string, reason: string }[]} */
   const disableList = []
@@ -151,6 +204,22 @@ export function buildMutationSummaryMarkdown(opts) {
     lines.push('')
   }
 
+  if (noCoverageSamples.length > 0) {
+    lines.push('### NoCoverage mutants', '')
+    for (const sample of noCoverageSamples) {
+      lines.push(sample)
+    }
+    lines.push('')
+  }
+
+  if (unmutated.length > 0) {
+    lines.push('### Changed files not mutated', '')
+    for (const file of unmutated) {
+      lines.push(`- \`${file}\``)
+    }
+    lines.push('')
+  }
+
   if (summary.survivedSamples.length > 0) {
     lines.push('### Sample survived mutants', '')
     for (const sample of summary.survivedSamples) {
@@ -166,6 +235,37 @@ export function buildMutationSummaryMarkdown(opts) {
  * @param {string[]} argv report path in argv[0]
  * @param {NodeJS.ProcessEnv} [env]
  */
+/**
+ * Resolve the changed/mutate file list for unmutated reporting.
+ * @param {NodeJS.ProcessEnv} env
+ * @param {{
+ *   exists?: (p: string) => boolean,
+ *   read?: (p: string) => string,
+ *   mutateListPath?: string,
+ * }} [io]
+ * @returns {string[] | undefined}
+ */
+export function resolveChangedFilesForSummary(env, io = {}) {
+  const exists = io.exists ?? existsSync
+  const read = io.read ?? ((p) => readFileSync(p, 'utf8'))
+  const mutateListPath =
+    io.mutateListPath ?? 'reports/mutation/mutate-files.txt'
+  const fromEnv = env.STRYKER_CHANGED_FILES
+  if (typeof fromEnv === 'string' && fromEnv.length > 0) {
+    return fromEnv
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+  }
+  if (exists(mutateListPath)) {
+    return read(mutateListPath)
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+  }
+  return undefined
+}
+
 export function runStrykerPrSummaryCli(argv, env = process.env) {
   const reportPath = argv[0]
   if (reportPath == null || reportPath.length === 0) {
@@ -178,8 +278,10 @@ export function runStrykerPrSummaryCli(argv, env = process.env) {
   }
   const report = JSON.parse(readFileSync(reportPath, 'utf8'))
   const files = report.files ?? {}
+  const changedFiles = resolveChangedFilesForSummary(env)
   const markdown = buildMutationSummaryMarkdown({
     files,
+    changedFiles,
     readFile: (p) => {
       if (!existsSync(p)) return null
       return readFileSync(p, 'utf8')

@@ -10,6 +10,16 @@ const validGates = {
   },
   stryker: {
     thresholds: { high: 80, low: 60, break: 60 },
+    diffThresholds: { high: 90, low: 85, break: 85 },
+  },
+  mutation: {
+    disableBudget: 0,
+    temporaryExcludes: [
+      {
+        path: 'src/editor/projectSession.ts',
+        until: 'project-session-mutation',
+      },
+    ],
   },
   lighthouse: {
     numberOfRuns: 1,
@@ -54,9 +64,114 @@ describe('validateGates', () => {
     expect(() =>
       validateGates({
         ...validGates,
-        stryker: { thresholds: { high: 80, low: 60, break: 1.5 } },
+        stryker: {
+          thresholds: { high: 80, low: 60, break: 1.5 },
+          diffThresholds: validGates.stryker.diffThresholds,
+        },
       }),
     ).toThrow(/stryker.thresholds.break/)
+  })
+
+  it('rejects missing diffThresholds or temporaryExcludes', () => {
+    expect(() =>
+      validateGates({
+        ...validGates,
+        stryker: { thresholds: validGates.stryker.thresholds },
+      }),
+    ).toThrow(/stryker.diffThresholds must be an object/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        mutation: { disableBudget: 0 },
+      }),
+    ).toThrow(/temporaryExcludes must be an array/)
+  })
+
+  it('rejects bad stryker / mutation / section shapes', () => {
+    expect(() => validateGates({ ...validGates, stryker: null })).toThrow(
+      /stryker must be an object/,
+    )
+    expect(() => validateGates({ ...validGates, stryker: [] })).toThrow(
+      /stryker must be an object/,
+    )
+    expect(() =>
+      validateGates({
+        ...validGates,
+        stryker: {
+          ...validGates.stryker,
+          diffThresholds: null,
+        },
+      }),
+    ).toThrow(/diffThresholds must be an object/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        stryker: {
+          ...validGates.stryker,
+          diffThresholds: { high: 90, low: 85, break: -1 },
+        },
+      }),
+    ).toThrow(/diffThresholds\.break/)
+    expect(() => validateGates({ ...validGates, mutation: null })).toThrow(
+      /mutation must be an object/,
+    )
+    expect(() => validateGates({ ...validGates, mutation: [] })).toThrow(
+      /mutation must be an object/,
+    )
+    expect(() =>
+      validateGates({
+        ...validGates,
+        mutation: { disableBudget: -1, temporaryExcludes: [] },
+      }),
+    ).toThrow(/disableBudget/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        mutation: { disableBudget: 0, temporaryExcludes: [null] },
+      }),
+    ).toThrow(/entries must be objects/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        mutation: { disableBudget: 0, temporaryExcludes: [[]] },
+      }),
+    ).toThrow(/entries must be objects/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        mutation: {
+          disableBudget: 0,
+          temporaryExcludes: [{ path: '', until: 'x' }],
+        },
+      }),
+    ).toThrow(/temporaryExcludes\.path/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        mutation: {
+          disableBudget: 0,
+          temporaryExcludes: [{ path: 'a.ts', until: '' }],
+        },
+      }),
+    ).toThrow(/temporaryExcludes\.until/)
+    expect(() => validateGates({ ...validGates, lighthouse: null })).toThrow(
+      /lighthouse must be an object/,
+    )
+    expect(() => validateGates({ ...validGates, lighthouse: [] })).toThrow(
+      /lighthouse must be an object/,
+    )
+    expect(() => validateGates({ ...validGates, playwright: null })).toThrow(
+      /playwright must be an object/,
+    )
+    expect(() => validateGates({ ...validGates, playwright: [] })).toThrow(
+      /playwright must be an object/,
+    )
+    expect(() => validateGates({ ...validGates, e2e: null })).toThrow(
+      /e2e must be an object/,
+    )
+    expect(() => validateGates({ ...validGates, e2e: [] })).toThrow(
+      /e2e must be an object/,
+    )
   })
 
   it('rejects bad lighthouse fields', () => {
