@@ -4,6 +4,8 @@ import {
   createFsaLibraryStorage,
   createMemoryLibraryStorage,
   createMemorySessionState,
+  normalizeBookTitleInput,
+  type BookSummary,
   type LibraryStorage,
   type RecentLibrary,
   type SessionDirectoryHandle,
@@ -12,6 +14,7 @@ import {
   type StorageResult,
 } from '../project'
 import {
+  dispatchBookOp,
   getBookStoreSnapshot,
   resetBookStore,
   subscribeBookStore,
@@ -674,10 +677,11 @@ function scheduleBackground(task: () => Promise<void>): void {
   void Promise.resolve().then(task)
 }
 
-function createEmptyLibraryBook(id: string): Book {
+function createEmptyLibraryBook(id: string, title?: string): Book {
   const empty: Book = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     id,
+    ...(title !== undefined ? { title } : {}),
     settings: {
       bleedMm: 3,
       safeMarginMm: 5,
@@ -910,14 +914,18 @@ export async function adoptCurrentBookInLibrary(): Promise<
   return libraryActivation.adoptCurrentBookInLibrary()
 }
 
-export async function createBookInLibrary(): Promise<StorageResult<Book>> {
+export async function createBookInLibrary(
+  title?: string,
+): Promise<StorageResult<Book>> {
   if (!storage || !libraryId) {
     const failure = { ok: false as const, code: 'not-found' as const }
     setStatus({ kind: 'error', code: 'not-found', action: 'create book' })
     return failure
   }
   const id = nowId()
-  const book = createEmptyLibraryBook(id)
+  const normalized =
+    title === undefined ? undefined : normalizeBookTitleInput(title)
+  const book = createEmptyLibraryBook(id, normalized)
   const created = await storage.createBook(book)
   if (!created.ok) {
     setStatus({ kind: 'error', code: created.code, action: 'create book' })
@@ -1217,6 +1225,7 @@ export function exposeProjectSessionTestApi(): void {
     adoptCurrentBookInLibrary,
     saveBookNow,
     createBookInLibrary,
+    renameBookInLibrary,
     createLibrary,
     openLibrary,
     tryRestore,
@@ -1246,6 +1255,7 @@ declare global {
       adoptCurrentBookInLibrary: typeof adoptCurrentBookInLibrary
       saveBookNow: typeof saveBookNow
       createBookInLibrary: typeof createBookInLibrary
+      renameBookInLibrary: typeof renameBookInLibrary
       createLibrary: typeof createLibrary
       openLibrary: typeof openLibrary
       tryRestore: typeof tryRestore
@@ -1294,8 +1304,66 @@ export async function removeRecentFromHome(
 
 export async function selectRecentLibrary(
   recentLibraryId: string,
-): Promise<StorageResult<readonly { id: string }[]>> {
+): Promise<StorageResult<readonly BookSummary[]>> {
   return libraryActivation.selectRecentLibrary(recentLibraryId)
+}
+
+export async function renameBookInLibrary(
+  targetBookId: string,
+  title: string,
+  recentLibraryId?: string,
+): Promise<StorageResult<void>> {
+  const normalized = normalizeBookTitleInput(title)
+  if (storage !== null && bookId === targetBookId) {
+    // Local string update; autosave persists (same dirty path as other edits).
+    dispatchBookOp({ type: 'setTitle', title: normalized })
+    return { ok: true, value: undefined }
+  }
+
+  let targetStorage = storage
+  if (targetStorage === null) {
+    if (recentLibraryId === undefined) {
+      const failure = { ok: false as const, code: 'not-found' as const }
+      setStatus({ kind: 'error', code: 'not-found', action: 'rename book' })
+      setHomeError('Could not rename book.')
+      return failure
+    }
+    let recalled: StorageResult<SessionDirectoryHandle>
+    try {
+      recalled = await session.recallLibraryHandle(recentLibraryId)
+    } catch {
+      recalled = { ok: false, code: 'not-found' }
+    }
+    if (!recalled.ok) {
+      setStatus({
+        kind: 'error',
+        code: recalled.code,
+        action: 'rename book',
+      })
+      setHomeError(humanMessageForCode(recalled.code, 'Could not rename book.'))
+      return { ok: false, code: recalled.code }
+    }
+    targetStorage = createStorageFromHandle(recalled.value)
+  }
+
+  const loaded = await targetStorage.loadBook(targetBookId)
+  if (!loaded.ok) {
+    setStatus({ kind: 'error', code: loaded.code, action: 'rename book' })
+    setHomeError(humanMessageForCode(loaded.code, 'Could not rename book.'))
+    return { ok: false, code: loaded.code }
+  }
+  if ((loaded.value.title ?? '') === normalized) {
+    return { ok: true, value: undefined }
+  }
+  const next = { ...loaded.value, title: normalized }
+  const saved = await targetStorage.saveBook(next)
+  if (!saved.ok) {
+    setStatus({ kind: 'error', code: saved.code, action: 'rename book' })
+    setHomeError(humanMessageForCode(saved.code, 'Could not rename book.'))
+    return { ok: false, code: saved.code }
+  }
+  setEditorStatus('Book renamed')
+  return { ok: true, value: undefined }
 }
 
 export async function openBookFromHome(

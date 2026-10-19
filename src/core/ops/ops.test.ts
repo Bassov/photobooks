@@ -404,6 +404,11 @@ describe('applyBookOp', () => {
 
     book = applyBookOp(book, { type: 'removeFromGallery', assetId: 'a' })
     expect(book.gallery).toEqual(['b'])
+
+    book = applyBookOp(book, { type: 'setTitle', title: 'Summer' })
+    expect(book.title).toBe('Summer')
+    const sameTitle = applyBookOp(book, { type: 'setTitle', title: 'Summer' })
+    expect(sameTitle).toBe(book)
   })
 })
 

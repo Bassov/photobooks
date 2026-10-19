@@ -1,4 +1,5 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createMemoryLibraryStorage,
@@ -39,8 +40,9 @@ describe('HomeScreen merge-blocker a11y', () => {
       libraryId: 'lib-aria',
       handle: { name: 'AriaLib' },
     })
-    const created = await createBookInLibrary()
+    const created = await createBookInLibrary('Aria Album')
     expect(created.ok).toBe(true)
+    assert(created.ok)
     await leaveEditorForHome()
 
     render(<HomeScreen />)
@@ -54,6 +56,11 @@ describe('HomeScreen merge-blocker a11y', () => {
     expect(recent.getAttribute('aria-selected')).toBeNull()
     await waitFor(() => {
       expect(recent.getAttribute('aria-current')).toBe('true')
+    })
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('Aria Album')
     })
   })
 

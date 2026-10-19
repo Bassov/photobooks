@@ -39,6 +39,7 @@ import {
   openLibrary,
   regrantLibrary,
   regrantLibraryWithHandleForTests,
+  renameBookInLibrary,
   resetProjectSessionForTests,
   saveBookNow,
   selectRecentLibrary,
@@ -451,6 +452,96 @@ describe('projectSession', () => {
     expect(restored).toEqual({ ok: true, value: null })
     expect(getEditorStatus()).toContain('permission-required')
     expect(getProjectSessionSnapshot().accessPhase).toBe('permission-required')
+  })
+
+  it('createBookInLibrary stores title and rename updates it', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    const attached = await attachLibraryForTests({ storage, session })
+    expect(attached.ok).toBe(true)
+
+    const created = await createBookInLibrary('  Summer  ')
+    assert(created.ok, 'expected create with title')
+    expect(created.value.title).toBe('Summer')
+    expect(getBookStoreSnapshot().book.title).toBe('Summer')
+
+    const renamed = await renameBookInLibrary(created.value.id, 'Trip')
+    expect(renamed).toEqual({ ok: true, value: undefined })
+    expect(getBookStoreSnapshot().book.title).toBe('Trip')
+    expect(getProjectSessionSnapshot().dirty).toBe(true)
+
+    saveBookNow()
+    await new Promise<void>((resolve) => {
+      const started = Date.now()
+      const tick = (): void => {
+        const snap = getProjectSessionSnapshot()
+        if (snap.savePhase === 'idle' && !snap.dirty) {
+          resolve()
+          return
+        }
+        if (Date.now() - started > 5_000) {
+          resolve()
+          return
+        }
+        setTimeout(tick, 10)
+      }
+      tick()
+    })
+
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok, 'expected load after rename')
+    expect(loaded.value.title).toBe('Trip')
+  })
+
+  it('home rename persists without swapping the active editor book', async () => {
+    const handle = { name: 'TitleLib' }
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-titles',
+      handle,
+    })
+    const first = await createBookInLibrary('Active')
+    assert(first.ok, 'expected first book')
+    const second = await createBookInLibrary('Other')
+    assert(second.ok, 'expected second book')
+    expect(getProjectSessionSnapshot().bookId).toBe(second.value.id)
+
+    await leaveEditorForHome()
+    expect(getProjectSessionSnapshot().libraryOpen).toBe(false)
+
+    const renamed = await renameBookInLibrary(
+      first.value.id,
+      'FromHome',
+      'lib-titles',
+    )
+    expect(renamed).toEqual({ ok: true, value: undefined })
+
+    const listed = await selectRecentLibrary('lib-titles')
+    assert(listed.ok, 'expected list after home rename')
+    expect(listed.value).toEqual(
+      expect.arrayContaining([
+        { id: first.value.id, title: 'FromHome' },
+        { id: second.value.id, title: 'Other' },
+      ]),
+    )
+
+    const loaded = await storage.loadBook(first.value.id)
+    assert(loaded.ok, 'expected load of renamed book')
+    expect(loaded.value.title).toBe('FromHome')
+    const other = await storage.loadBook(second.value.id)
+    assert(other.ok, 'expected other book unchanged')
+    expect(other.value.title).toBe('Other')
   })
 
   it('exposes the project test API on window', () => {

@@ -44,6 +44,19 @@
   color: var(--ink);
 }
 
+.book-title {
+  margin: 0;
+  min-width: 0;
+  max-width: min(16rem, 40vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+}
+
 .editor-actions {
   display: flex;
   flex-wrap: wrap;

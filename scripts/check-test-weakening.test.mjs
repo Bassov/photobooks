@@ -755,20 +755,30 @@ describe('compareItemCriteria', () => {
 
 describe('real repo inventory', () => {
   it('parses non-empty titles from real test files', () => {
+    const skipDirs = new Set([
+      'node_modules',
+      '.git',
+      'dist',
+      'coverage',
+      'test-results',
+      '.cache',
+      '.local_dev',
+      'openspec',
+      'docs',
+    ])
     const files = {}
     const walk = (dir, relBase = '') => {
       for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (
-          ent.name === 'node_modules' ||
-          ent.name === '.git' ||
-          ent.name === 'dist'
-        ) {
+        if (skipDirs.has(ent.name)) {
           continue
         }
         const rel = relBase ? `${relBase}/${ent.name}` : ent.name
         const abs = path.join(dir, ent.name)
-        if (ent.isDirectory()) walk(abs, rel)
-        else if (ent.isFile() && isTrackedTestPath(rel)) {
+        if (ent.isDirectory()) {
+          walk(abs, rel)
+          continue
+        }
+        if (ent.isFile() && isTrackedTestPath(rel)) {
           files[rel] = fs.readFileSync(abs, 'utf8')
         }
       }
