@@ -16,6 +16,7 @@
     "e2e/**/*.{ts,mjs,js}",
     "scripts/**/*.{mjs,js,cjs}"
   ],
+  "ignoreWorkspaces": ["uikit"],
   "ignoreBinaries": ["apt-get", "dpkg-deb"],
   "ignoreDependencies": ["@lhci/cli", "fast-check"],
   "ignoreIssues": {

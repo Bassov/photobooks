@@ -23,6 +23,7 @@ Vite + React 19 + TypeScript. Node 22, pnpm 10. English in repo; Russian only in
 | Preview hosting      | `wrangler.jsonc`, deploy scripts       | `openspec/specs/preview-hosting/`                |
 | CI quality gates     | `.github/`, `codecov.yml`              | `openspec/specs/ci-gates/`                       |
 | Agent pipeline       | `.cursor/`, `scripts/agent.mjs`        | `openspec/specs/agent-context/`                  |
+| UI kit reference     | `uikit/` (served at `/uikit/`)         | — (prep; `UI ref: uikit#/feature/<slug>`)        |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
 
@@ -40,6 +41,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `pnpm stryker:diff`           | mutations vs `origin/main`                                                    |
 | `pnpm test:lhci`              | Lighthouse budgets                                                            |
 | `pnpm audit:ci`               | high-severity **production** dependency audit                                 |
+| `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo dev (`uikit/` at `/uikit/`)           |
 
 ## Skills (on demand)
 

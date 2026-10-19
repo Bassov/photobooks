@@ -1,0 +1,48 @@
+name: uikit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: uikit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  uikit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium for uikit qa
+        run: pnpm --filter photobooks-ui-kit exec playwright-core install --with-deps chromium
+
+      - name: Uikit typecheck
+        run: pnpm uikit:typecheck
+
+      - name: Uikit build
+        run: pnpm uikit:build
+
+      - name: Uikit qa:quick
+        run: |
+          CHROME_PATH="$(pnpm --filter photobooks-ui-kit exec node -e "import('playwright-core').then(m=>console.log(m.chromium.executablePath()))")"
+          export CHROME_PATH
+          echo "Using CHROME_PATH=$CHROME_PATH"
+          test -x "$CHROME_PATH"
+          pnpm uikit:qa:quick

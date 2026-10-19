@@ -25,6 +25,7 @@
     "vite.config.ts",
     "playwright.config.ts",
     "playwright.burn-in-proof.config.ts",
-    "scripts/load-gates.d.mts"
+    "scripts/load-gates.d.mts",
+    "scripts/vite-uikit-middleware.d.mts"
   ]
 }
