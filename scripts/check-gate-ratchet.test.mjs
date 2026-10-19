@@ -39,8 +39,10 @@ import {
   extractQuotedStrings,
   extractStrykerGateBits,
   getFile,
+  indexOfToolIgnore,
   isBurnInRun,
   isE2eStep,
+  isIdentContinue,
   isWorkflowYmlPath,
   jobsProvidingKind,
   listSourcePaths,
@@ -54,6 +56,7 @@ import {
   runFailsOnNeeds,
   runGateRatchetCli,
   runPrPolicyCheck,
+  sliceCoverageConfigBlock,
   stripShellComments,
 } from './check-gate-ratchet.mjs'
 import { gitExec, initTmpRepo } from './git-test-helper.mjs'
@@ -536,6 +539,111 @@ describe('extractCoverageIncludes', () => {
 
   it('returns empty when include missing', () => {
     expect(extractCoverageIncludes('export default {}')).toEqual([])
+  })
+
+  it('parses real vite.config.ts coverage.include (not test.include)', () => {
+    const realVite = fs.readFileSync(
+      path.join(REPO_ROOT, 'vite.config.ts'),
+      'utf8',
+    )
+    const includes = extractCoverageIncludes(realVite)
+    expect(includes).toEqual([
+      'src/**/*.{ts,tsx}',
+      'scripts/roadmap.mjs',
+      'scripts/agent.mjs',
+      'scripts/check.mjs',
+      'scripts/e2e-burn-in-count.mjs',
+      'scripts/e2e-burn-in-targets.mjs',
+      'scripts/e2e-changed-quiet.mjs',
+      'scripts/e2e-playwright-summary.mjs',
+      'scripts/load-gates.mjs',
+      'scripts/check-gate-values.mjs',
+      'scripts/check-gate-ratchet.mjs',
+      'scripts/check-codecov-yml.mjs',
+      'scripts/e2e-flaky-list.mjs',
+    ])
+    expect(includes).not.toContain('scripts/**/*.test.mjs')
+    expect(includes).not.toContain('src/**/*.{test,spec}.{ts,tsx}')
+    expect(sliceCoverageConfigBlock(realVite)).toContain("'scripts/agent.mjs'")
+
+    const headVite = realVite.replace(/\n\s*'scripts\/agent\.mjs',\n/, '\n')
+    expect(headVite.includes("'scripts/agent.mjs'")).toBe(false)
+    const r = compareGateTrees(
+      baseFiles({ 'vite.config.ts': realVite }),
+      baseFiles({ 'vite.config.ts': headVite }),
+    )
+    expect(r.ok).toBe(false)
+    expect(
+      r.violations.some(
+        (v) =>
+          v.ruleId === 'include-removed' &&
+          v.message.includes('scripts/agent.mjs'),
+      ),
+    ).toBe(true)
+  })
+
+  it('skips coverageExcludeGlobs / prefixed idents / non-object coverage', () => {
+    for (const ch of ['a', 'z', 'A', 'Z', '0', '9', '_', '$', 'm', '5']) {
+      expect(isIdentContinue(ch)).toBe(true)
+    }
+    for (const ch of ['`', '{', '@', '[', '/', ':', ' ', '\t', '-', '.']) {
+      expect(isIdentContinue(ch)).toBe(false)
+    }
+
+    expect(
+      extractCoverageIncludes(`
+export const coverageExcludeGlobs = ['skip-me'] as const
+test: { include: ['tests/**'] }
+coverage: { include: ['src/**'] }
+`),
+    ).toEqual(['src/**'])
+
+    expect(
+      extractCoverageIncludes(
+        'foocoverage: { include: ["no"] }\ncoverage: { include: ["yes"] }',
+      ),
+    ).toEqual(['yes'])
+    expect(
+      extractCoverageIncludes(
+        '$coverage: { include: ["no"] }\ncoverage: { include: ["yes"] }',
+      ),
+    ).toEqual(['yes'])
+    expect(
+      extractCoverageIncludes(
+        '_coverage: { include: ["no"] }\ncoverage: { include: ["yes"] }',
+      ),
+    ).toEqual(['yes'])
+    expect(
+      extractCoverageIncludes(
+        "coverage: true\ncoverage: { include: ['from-object'] }",
+      ),
+    ).toEqual(['from-object'])
+    expect(
+      extractCoverageIncludes(
+        "coverage: gates.coverage\ncoverage: { include: ['obj'] }",
+      ),
+    ).toEqual(['obj'])
+    expect(
+      extractCoverageIncludes("coverage\t:\n  { include: [ 'spaced' ] }"),
+    ).toEqual(['spaced'])
+    expect(sliceCoverageConfigBlock('coverage: {')).toBe('')
+    expect(sliceCoverageConfigBlock('nope')).toBe('')
+    expect(
+      extractCoverageIncludes(
+        `coverage: { include: ['a'], nested: { x: 1 }, exclude: ['e'] }`,
+      ),
+    ).toEqual(['a'])
+    expect(
+      extractCoverageIncludes(`coverage: { include: ["keep-}"] }`),
+    ).toEqual(['keep-}'])
+    expect(
+      extractCoverageExcludes(`
+coverage: {
+  include: ['src'],
+  exclude: ['only-cov-exclude'],
+}
+`),
+    ).toContain('only-cov-exclude')
   })
 })
 
@@ -1661,12 +1769,50 @@ describe('pure helpers exact behaviour', () => {
     expect(countIgnoreComments('/* v8 ignore next */')).toBe(1)
     expect(countIgnoreComments('/* istanbul ignore next */')).toBe(1)
     expect(countIgnoreComments('/* c8 ignore next */')).toBe(1)
+    expect(countIgnoreComments('/* v8  ignore next */')).toBe(1)
+    expect(countIgnoreComments('/*\tistanbul\tignore next */')).toBe(1)
+    expect(countIgnoreComments('istanbul   ignore else')).toBe(1)
+    expect(countIgnoreComments('c8\nignore next')).toBe(1)
+    expect(countIgnoreComments('v8ignore next')).toBe(0)
+    expect(countIgnoreComments('v8')).toBe(0)
+    expect(countIgnoreComments('v8\t\tnot-ignore')).toBe(0)
     expect(countIgnoreComments('eslint-disable no-var')).toBe(1)
     expect(countIgnoreComments('eslint-disable-next-line no-var')).toBe(0)
     expect(countIgnoreComments('@ts-ignore')).toBe(1)
+    expect(indexOfToolIgnore('/* v8  ignore */', 'v8', 0)).toBeGreaterThan(-1)
+    expect(indexOfToolIgnore('v8ignore', 'v8', 0)).toBe(-1)
+    expect(indexOfToolIgnore('v8 notignore', 'v8', 0)).toBe(-1)
+    expect(indexOfToolIgnore('v8', 'v8', 0)).toBe(-1)
+    expect(indexOfToolIgnore('', 'v8', 0)).toBe(-1)
+    expect(indexOfToolIgnore('xx v8  ignore', 'v8', 0)).toBeGreaterThan(-1)
+    expect(indexOfToolIgnore('v8  ignore', 'v8', -5)).toBe(0)
+    expect(indexOfToolIgnore('v8  ignore v8  ignore', 'v8', 1)).toBeGreaterThan(
+      0,
+    )
     expect(countStrykerDisable('// Stryker disable all')).toBe(1)
     expect(countStrykerDisable('// Stryker  disable x')).toBe(1)
     expect(countStrykerDisable('Stryker enable')).toBe(0)
+  })
+
+  it('flags ignore-comment-added for spaced v8 ignore on real-shaped trees', () => {
+    const r = compareGateTrees(
+      baseFiles({ 'src/x.ts': 'export const a = 1\n' }),
+      baseFiles({
+        'src/x.ts': '/* v8  ignore next */\nexport const a = 1\n',
+      }),
+    )
+    expect(r.violations.some((v) => v.ruleId === 'ignore-comment-added')).toBe(
+      true,
+    )
+    const rTab = compareGateTrees(
+      baseFiles({ 'src/y.ts': 'export const b = 1\n' }),
+      baseFiles({
+        'src/y.ts': '/*\tistanbul\tignore next */\nexport const b = 1\n',
+      }),
+    )
+    expect(
+      rTab.violations.some((v) => v.ruleId === 'ignore-comment-added'),
+    ).toBe(true)
   })
 
   it('burn-in / e2e / kind detectors', () => {

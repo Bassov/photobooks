@@ -339,14 +339,77 @@ export function getFile(files, rel) {
 }
 
 /**
+ * True when `ch` can continue an identifier after a keyword match.
+ * @param {string} ch
+ */
+export function isIdentContinue(ch) {
+  if (ch >= 'a' && ch <= 'z') return true
+  if (ch >= 'A' && ch <= 'Z') return true
+  if (ch >= '0' && ch <= '9') return true
+  return ch === '_' || ch === '$'
+}
+
+/**
+ * Slice the first `coverage: { ... }` object literal (skips names like coverageExcludeGlobs).
+ * @param {unknown} content
+ * @returns {string}
+ */
+export function sliceCoverageConfigBlock(content) {
+  const src = coerceText(content)
+  let from = 0
+  while (from < src.length) {
+    const cov = src.indexOf(NEEDLES.coverage, from)
+    if (cov === -1) return EMPTY_STRING
+    if (cov > 0 && isIdentContinue(src[cov - 1])) {
+      from = cov + 1
+      continue
+    }
+    let i = cov + NEEDLES.coverage.length
+    if (i < src.length && isIdentContinue(src[i])) {
+      from = cov + 1
+      continue
+    }
+    while (i < src.length && isWsChar(src[i])) i++
+    if (src[i] !== ':') {
+      from = cov + 1
+      continue
+    }
+    i++
+    while (i < src.length && isWsChar(src[i])) i++
+    if (src[i] !== '{') {
+      from = cov + 1
+      continue
+    }
+    let depth = 0
+    const start = i
+    for (; i < src.length; i++) {
+      const ch = src[i]
+      if (isQuoteChar(ch)) {
+        const q = ch
+        i++
+        while (i < src.length && src[i] !== q) i++
+        continue
+      }
+      if (ch === '{') depth++
+      else if (ch === '}') {
+        depth--
+        if (depth === 0) return src.slice(start, i + 1)
+      }
+    }
+    return EMPTY_STRING
+  }
+  return EMPTY_STRING
+}
+
+/**
+ * Coverage include from `coverage: { ... include: [...] }` (not test.include).
  * @param {unknown} content
  * @returns {string[]}
  */
 export function extractCoverageIncludes(content) {
-  const text = coerceText(content)
-  const cov = text.indexOf(NEEDLES.coverage)
-  if (cov === -1) return EMPTY_ARRAY
-  return extractFirstKeyedArray(text.slice(cov), NEEDLES.include)
+  const block = sliceCoverageConfigBlock(content)
+  if (block === EMPTY_STRING) return EMPTY_ARRAY
+  return extractFirstKeyedArray(block, NEEDLES.include)
 }
 
 /**
@@ -359,9 +422,9 @@ export function extractCoverageExcludes(content) {
   for (const p of extractFirstKeyedArray(text, NEEDLES.coverageExcludeGlobs)) {
     out.add(p)
   }
-  const cov = text.indexOf(NEEDLES.coverage)
-  if (cov !== -1) {
-    for (const p of extractFirstKeyedArray(text.slice(cov), NEEDLES.exclude)) {
+  const block = sliceCoverageConfigBlock(text)
+  if (block !== EMPTY_STRING) {
+    for (const p of extractFirstKeyedArray(block, NEEDLES.exclude)) {
       out.add(p)
     }
   }
@@ -482,7 +545,30 @@ export function dig(obj, pathKeys) {
 }
 
 /**
+ * Index of `tool` + whitespace run + `ignore` (spaces/tabs/newlines), or -1.
+ * @param {string} lower
+ * @param {string} tool
+ * @param {number} from
+ */
+export function indexOfToolIgnore(lower, tool, from) {
+  const src = String(lower)
+  let pos = from < 0 ? 0 : from
+  while (pos < src.length) {
+    const at = src.indexOf(tool, pos)
+    if (at === -1) break
+    let i = at + tool.length
+    if (i < src.length && isWsChar(src[i])) {
+      while (i < src.length && isWsChar(src[i])) i++
+      if (src.startsWith('ignore', i)) return at
+    }
+    pos = at + 1
+  }
+  return -1
+}
+
+/**
  * Count coverage/type suppression comments (v8|istanbul|c8 ignore, blanket eslint-disable, @ts-ignore).
+ * Whitespace between the tool name and `ignore` is required (spaces/tabs/newlines).
  * @param {string} text
  */
 export function countIgnoreComments(text) {
@@ -491,9 +577,9 @@ export function countIgnoreComments(text) {
   let count = 0
   let from = 0
   while (from < lower.length) {
-    const v8 = lower.indexOf('v8 ignore', from)
-    const istan = lower.indexOf('istanbul ignore', from)
-    const c8 = lower.indexOf('c8 ignore', from)
+    const v8 = indexOfToolIgnore(lower, 'v8', from)
+    const istan = indexOfToolIgnore(lower, 'istanbul', from)
+    const c8 = indexOfToolIgnore(lower, 'c8', from)
     const eslint = lower.indexOf('eslint-disable', from)
     const tsIgnore = lower.indexOf('@ts-ignore', from)
     const candidates = [v8, istan, c8, eslint, tsIgnore].filter((n) => n >= 0)
