@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import IstanbulPlugin from 'vite-plugin-istanbul'
 import { defineConfig } from 'vitest/config'
 import { loadGates } from './scripts/load-gates.mjs'
+import { uikitDevMiddleware } from './scripts/vite-uikit-middleware.mjs'
 
 const gates = loadGates()
 
@@ -35,6 +36,7 @@ export default defineConfig({
     react({
       compiler: true,
     }),
+    uikitDevMiddleware(),
     codecovVitePlugin({
       enableBundleAnalysis: Boolean(codecovToken),
       bundleName: 'photobooks',

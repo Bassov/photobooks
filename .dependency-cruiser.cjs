@@ -56,6 +56,16 @@ module.exports = {
         path: 'node_modules/(react|react-dom)(/|$)',
       },
     },
+    {
+      name: 'src-no-uikit',
+      comment:
+        'App src must not import the uikit workspace package (reference-only).',
+      severity: 'error',
+      from: { path: '^src/' },
+      to: {
+        path: '(^uikit/|photobooks-ui-kit)',
+      },
+    },
   ],
   options: {
     doNotFollow: {
