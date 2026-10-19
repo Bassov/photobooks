@@ -18,6 +18,8 @@ import {
   attachLibraryForTests,
   configureProjectSession,
   createBookInLibrary,
+  getProjectSessionSnapshot,
+  holdExternalBookLockForTests,
   leaveEditorForHome,
   resetProjectSessionForTests,
   tryRestore,
@@ -144,6 +146,171 @@ describe('HomeScreen merge-blocker a11y', () => {
     expect(
       screen.getByTestId(`home-book-${created.value.id}`).textContent,
     ).toBe('Keep')
+  })
+
+  it('rename while busy is a no-op', async () => {
+    const storage = createMemoryLibraryStorage()
+    const base = createMemorySessionState()
+    let releaseRemove!: () => void
+    const removeGate = new Promise<void>((resolve) => {
+      releaseRemove = resolve
+    })
+    const session = {
+      ...base,
+      removeRecentLibrary: async (id: string) => {
+        await removeGate
+        return base.removeRecentLibrary(id)
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-busy',
+      handle: { name: 'Busy' },
+    })
+    const created = await createBookInLibrary('BusyTitle')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    const prompt = vi.fn(() => 'Ignored')
+    vi.stubGlobal('prompt', prompt)
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('BusyTitle')
+    })
+
+    fireEvent.click(screen.getByTestId('home-remove-lib-rename-busy'))
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().actionBusy).toBe(true)
+      const rename = screen.getByTestId(`home-rename-${created.value.id}`)
+      assert(rename instanceof HTMLButtonElement)
+      expect(rename.disabled).toBe(true)
+    })
+    fireEvent.click(screen.getByTestId(`home-rename-${created.value.id}`))
+    expect(prompt).not.toHaveBeenCalled()
+    releaseRemove()
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().actionBusy).toBe(false)
+    })
+  })
+
+  it('rename that fails does not refresh the list', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-fail-ui',
+      handle: { name: 'FailUi' },
+    })
+    const created = await createBookInLibrary('Stay')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    await holdExternalBookLockForTests(created.value.id)
+
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => 'Blocked'),
+    )
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('Stay')
+    })
+    fireEvent.click(screen.getByTestId(`home-rename-${created.value.id}`))
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().homeError).toMatch(/another tab/i)
+    })
+    expect(
+      screen.getByTestId(`home-book-${created.value.id}`).textContent,
+    ).toBe('Stay')
+  })
+
+  it('clears books when refresh after rename fails', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    let blockList = false
+    const listBooks = storage.listBooks.bind(storage)
+    storage.listBooks = () => {
+      if (blockList) {
+        return Promise.resolve({ ok: false, code: 'not-found' })
+      }
+      return listBooks()
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-refresh',
+      handle: { name: 'Refresh' },
+    })
+    const created = await createBookInLibrary('Listed')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => 'Renamed'),
+    )
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('Listed')
+    })
+    blockList = true
+    fireEvent.click(screen.getByTestId(`home-rename-${created.value.id}`))
+    await waitFor(() => {
+      expect(screen.queryByTestId(`home-book-${created.value.id}`)).toBeNull()
+    })
+    const loaded = await storage.loadBook(created.value.id)
+    assert(loaded.ok)
+    expect(loaded.value.title).toBe('Renamed')
+  })
+
+  it('opens a book from the titled list', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-open-title',
+      handle: { name: 'OpenTitle' },
+    })
+    const created = await createBookInLibrary('OpenMe')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('OpenMe')
+    })
+    fireEvent.click(screen.getByTestId(`home-book-${created.value.id}`))
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().surface).toBe('editor')
+      expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
+    })
   })
 
   it('loading state renders no interactive buttons while restore is pending', async () => {

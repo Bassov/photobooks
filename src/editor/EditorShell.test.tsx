@@ -217,4 +217,36 @@ describe('EditorShell viewport containment', () => {
     fireEvent.click(screen.getByTestId('rename-book'))
     expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
   })
+
+  it('cancel create leaves the active book unchanged', async () => {
+    render(<EditorShell />)
+    await act(async () => {
+      await attachMemoryLibraryForTests()
+    })
+    const beforeId = getProjectSessionSnapshot().bookId
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    )
+    vi.stubGlobal(
+      'prompt',
+      vi.fn(() => null),
+    )
+    fireEvent.click(screen.getByTestId('create-book'))
+    expect(getProjectSessionSnapshot().bookId).toBe(beforeId)
+    expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
+  })
+
+  it('rename click is a no-op when no active book id', () => {
+    render(<EditorShell />)
+    expect(getProjectSessionSnapshot().bookId).toBeNull()
+    const rename = screen.getByTestId('rename-book')
+    assert(rename instanceof HTMLButtonElement)
+    expect(rename.disabled).toBe(true)
+    const prompt = vi.fn(() => 'ShouldNotApply')
+    vi.stubGlobal('prompt', prompt)
+    fireEvent.click(rename)
+    expect(prompt).not.toHaveBeenCalled()
+    expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
+  })
 })

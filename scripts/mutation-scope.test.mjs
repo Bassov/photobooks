@@ -37,13 +37,19 @@ describe('selectMutableChanges', () => {
     'src/photo/photo.test-helpers.ts',
     'src/photo/fileSystemAccess.d.ts',
     'src/core/testing/fixtures.ts',
-    'src/core/index.ts',
     'src/main.tsx',
     'src/core/ops/ops.bench.ts',
     'src/render/SpreadView.test.tsx',
   ])('does not mutate %s', (file) => {
     expect(selectMutableChanges([file], patterns)).toEqual([])
   })
+
+  it.each(['src/core/index.ts', 'src/project/index.ts', 'src/assets/index.ts'])(
+    'mutates barrel %s (re-export excludes removed)',
+    (file) => {
+      expect(selectMutableChanges([file], patterns)).toEqual([file])
+    },
+  )
 })
 
 describe('findUnclassifiedProductionFiles', () => {

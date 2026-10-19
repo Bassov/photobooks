@@ -614,6 +614,134 @@ describe('projectSession', () => {
     expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
   })
 
+  it('home rename fails when recall throws', async () => {
+    const storage = createMemoryLibraryStorage()
+    const base = createMemorySessionState()
+    const session = {
+      ...base,
+      recallLibraryHandle: () => {
+        throw new Error('recall boom')
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-throw',
+      handle: { name: 'Throw' },
+    })
+    const created = await createBookInLibrary('X')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Nope',
+      'lib-rename-throw',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'not-found' })
+    expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
+  })
+
+  it('home rename fails when recall returns not-found', async () => {
+    const storage = createMemoryLibraryStorage()
+    const base = createMemorySessionState()
+    let blockRecall = false
+    const session = {
+      ...base,
+      recallLibraryHandle: (id: string) => {
+        if (blockRecall) {
+          return Promise.resolve({
+            ok: false as const,
+            code: 'not-found' as const,
+          })
+        }
+        return base.recallLibraryHandle(id)
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-miss',
+      handle: { name: 'Miss' },
+    })
+    const created = await createBookInLibrary('X')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+    blockRecall = true
+
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Nope',
+      'lib-rename-miss',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'not-found' })
+    expect(getProjectSessionSnapshot().homeError).toBe('Could not rename book.')
+  })
+
+  it('home rename fails when loadBook fails after lock', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-load',
+      handle: { name: 'LoadFail' },
+    })
+    const created = await createBookInLibrary('Load')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    storage.setPermissionRequired(true)
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Next',
+      'lib-rename-load',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'permission-required' })
+    expect(getProjectSessionSnapshot().homeError).toMatch(/Folder access/i)
+  })
+
+  it('home rename fails when saveBook fails after lock', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-rename-save',
+      handle: { name: 'SaveFail' },
+    })
+    const created = await createBookInLibrary('Save')
+    assert(created.ok, 'expected create')
+    await leaveEditorForHome()
+
+    storage.setLockedElsewhere(true)
+    const renamed = await renameBookInLibrary(
+      created.value.id,
+      'Next',
+      'lib-rename-save',
+    )
+    expect(renamed).toEqual({ ok: false, code: 'locked-elsewhere' })
+    expect(getProjectSessionSnapshot().homeError).toBe(
+      'This book is open in another tab. Close it there and try again.',
+    )
+  })
+
   it('exposes the project test API on window', () => {
     exposeProjectSessionTestApi()
     expect(window.__photobooksProject?.saveBookNow).toBeTypeOf('function')
