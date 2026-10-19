@@ -215,7 +215,7 @@ The Lighthouse CI job on a pull request SHALL publish category scores and a link
 
 ### Requirement: Mutation reporting on pull requests
 
-The pull-request mutation job SHALL publish a PR-visible mutation summary in the mutation section of the CI report comment and a downloadable HTML mutation report, and SHALL write a job Step Summary with the mutation score. A successful run with no mutation report SHALL show Skipped only when no changed file is inside mutation scope.
+The pull-request mutation job SHALL publish a PR-visible mutation summary in the mutation section of the CI report comment and a downloadable HTML mutation report, and SHALL write a job Step Summary with the mutation score. A successful run with no mutation report SHALL show Skipped only when no changed file is inside mutation scope. The summary SHALL list every Stryker disable comment in the mutated/changed files with its reason, and SHALL report Ignored mutant counts per file (Ignored counts against that file).
 
 #### Scenario: Mutation sticky comment and artifact
 
@@ -236,6 +236,11 @@ The pull-request mutation job SHALL publish a PR-visible mutation summary in the
 
 - **WHEN** a changed file is covered by mutation scope
 - **THEN** the mutation workflow produces a mutation report and the mutation section does not show Skipped
+
+#### Scenario: Disables and Ignored appear in the mutation summary
+
+- **WHEN** the pull-request mutation workflow produces a mutation report for files that contain Stryker disable comments and/or Ignored mutants
+- **THEN** the mutation summary lists each disable with its reason and shows Ignored counts per file
 
 ### Requirement: Mutation scope is the config globs
 
@@ -527,7 +532,7 @@ The repository SHALL maintain the `@flaky` spec list in `quality/gates.json` (mi
 
 ### Requirement: Central gate values file
 
-Non-Codecov CI gate thresholds and gate lists SHALL live in `quality/gates.json`. Tool configs and loaders that apply those values MUST read them from that file (or a shared loader) and MUST NOT hardcode them. Committed `budget.json` and `e2e/flaky.json` mirrors, when present, MUST deep-equal the matching fields in that file.
+Non-Codecov CI gate thresholds and gate lists SHALL live in `quality/gates.json`. Tool configs and loaders that apply those values MUST read them from that file (or a shared loader) and MUST NOT hardcode them. Committed `budget.json` and `e2e/flaky.json` mirrors, when present, MUST deep-equal the matching fields in that file. `quality/gates.json` SHALL include `mutation.disableBudget` (a non-negative integer ceiling on legal next-line Stryker disables).
 
 #### Scenario: Coverage floors come from gates file
 
@@ -538,6 +543,11 @@ Non-Codecov CI gate thresholds and gate lists SHALL live in `quality/gates.json`
 
 - **WHEN** Stryker thresholds are configured
 - **THEN** high, low, and break values are taken from `quality/gates.json` and match the previously committed thresholds
+
+#### Scenario: Disable budget comes from gates file
+
+- **WHEN** `pr-policy` evaluates the repo-wide Stryker disable ceiling
+- **THEN** the ceiling is taken from `quality/gates.json` `mutation.disableBudget`
 
 #### Scenario: Lighthouse gates come from gates file
 
@@ -599,7 +609,22 @@ On every pull request, CI SHALL run a `pr-policy` job from a `pull_request_targe
 
 #### Scenario: New ignore comment or Stryker disable fails pr-policy
 
-- **WHEN** a pull request adds a `v8|istanbul|c8 ignore`, blanket `eslint-disable`, `@ts-ignore`, or any `Stryker disable` line relative to base
+- **WHEN** a pull request adds a `v8|istanbul|c8 ignore`, blanket `eslint-disable`, `@ts-ignore`, or an illegal `Stryker disable` (file-wide, `disable all`, or block `disable`/`restore`, including whitespace or case variants) relative to base
+- **THEN** the `pr-policy` check fails
+
+#### Scenario: Over per-file or repo disable budget fails pr-policy
+
+- **WHEN** a pull request’s head has more than three legal next-line Stryker disables in one file, or more legal next-line disables repo-wide than `quality/gates.json` `mutation.disableBudget`
+- **THEN** the `pr-policy` check fails
+
+#### Scenario: Budgeted next-line disable within budget passes pr-policy
+
+- **WHEN** a pull request adds only a legal `// Stryker disable next-line <Mutator>[,…]: <reason>` (reason ≥ 10 characters) and head totals stay within the per-file cap and `mutation.disableBudget`
+- **THEN** the `pr-policy` check does not fail for that disable alone
+
+#### Scenario: Raised disableBudget fails pr-policy
+
+- **WHEN** a pull request raises `mutation.disableBudget` in `quality/gates.json` relative to base
 - **THEN** the `pr-policy` check fails
 
 #### Scenario: Deleted ratchet rule fails pr-policy

@@ -12,6 +12,9 @@
       "break": 60
     }
   },
+  "mutation": {
+    "disableBudget": 0
+  },
   "lighthouse": {
     "numberOfRuns": 1,
     "assertions": {
