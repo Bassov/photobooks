@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { resetScanWorker } from '../assets'
+import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
 import {
   createMemoryLibraryStorage,
   createMemorySessionState,
@@ -21,13 +23,16 @@ function tinyJpeg(): File {
 
 describe('importPhotoFiles library identity', () => {
   beforeEach(() => {
+    stubScanWorker()
     resetBookStore()
     resetProjectSessionForTests()
   })
 
   afterEach(() => {
+    resetScanWorker()
     resetBookStore()
     resetProjectSessionForTests()
+    vi.unstubAllGlobals()
   })
 
   it('writes source root identity when library-backed', async () => {

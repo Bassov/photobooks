@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   enqueueHash,
+  enqueueMetadata,
   processAsset,
   resetAssetPool,
   runImportBatch,
@@ -526,5 +527,111 @@ describe('assetPool', () => {
     release?.()
     await Promise.all([hold, decode, hash])
     expect(order).toEqual(['decode:hold.jpg', 'decode:bg.jpg', 'hash'])
+  })
+
+  it('runs metadata jobs at background priority before hash', async () => {
+    const order: string[] = []
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    class GatedWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(
+        data:
+          | { id: string; file: File }
+          | { id: string; kind: 'metadata'; buffer: ArrayBuffer }
+          | { id: string; buffer: ArrayBuffer },
+      ): void {
+        const label =
+          'kind' in data
+            ? 'metadata'
+            : 'file' in data
+              ? `decode:${data.file.name}`
+              : 'hash'
+        order.push(label)
+        void gate.then(() => {
+          const event = {
+            data:
+              'kind' in data
+                ? {
+                    id: data.id,
+                    ok: true,
+                    metadata: {
+                      orientation: 1,
+                      mime: 'image/jpeg',
+                      meta: { gps: { lat: 1, lon: 2 } },
+                    },
+                  }
+                : 'file' in data
+                  ? {
+                      id: data.id,
+                      ok: true,
+                      name: data.file.name,
+                      mimeType: 'image/jpeg',
+                      byteLength: 1,
+                      width: 1,
+                      height: 1,
+                      correctedWidth: 1,
+                      correctedHeight: 1,
+                      orientation: 1,
+                      previewBuffer: new Uint8Array([1]).buffer,
+                      previewMimeType: 'image/jpeg',
+                    }
+                  : {
+                      id: data.id,
+                      ok: true,
+                      hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                    },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    vi.stubGlobal('Worker', GatedWorker)
+    warmAssetPool()
+
+    const hold = processAsset({
+      assetId: 'hold',
+      file: new File([new Uint8Array([1])], 'hold.jpg', { type: 'image/jpeg' }),
+      priority: 'visible',
+    })
+    const metadata = enqueueMetadata({
+      buffer: new ArrayBuffer(4),
+      mimeType: 'image/jpeg',
+    })
+    const hash = enqueueHash(new ArrayBuffer(0))
+    expect(order).toEqual(['decode:hold.jpg'])
+    release?.()
+    const [metaResult] = await Promise.all([metadata, hold, hash])
+    expect(order).toEqual(['decode:hold.jpg', 'metadata', 'hash'])
+    expect(metaResult.meta?.gps).toEqual({ lat: 1, lon: 2 })
   })
 })

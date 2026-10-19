@@ -1,9 +1,19 @@
-import { describe } from 'vitest'
+import { afterEach, beforeEach, describe } from 'vitest'
 
 import { runAssetSourceContract } from './assetSource.contract.test-helpers'
 import { createMemoryAssetSource } from './index'
+import { resetScanWorker } from './scanClient'
+import { stubScanWorker } from './scanWorkerMock.test-helpers'
 
 describe('createMemoryAssetSource', () => {
+  beforeEach(() => {
+    stubScanWorker()
+  })
+
+  afterEach(() => {
+    resetScanWorker()
+  })
+
   runAssetSourceContract(() => {
     const source = createMemoryAssetSource()
     const rootId = 'root-memory'

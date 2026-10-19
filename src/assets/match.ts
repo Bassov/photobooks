@@ -1,10 +1,13 @@
 import type { Asset } from '../core'
 import type { ScannedEntry } from './types'
 
+export type AssetMatchStatus = 'ok' | 'missing' | 'modified'
+
 export interface MatchAssetsResult {
   matched: ReadonlyMap<string, ScannedEntry>
   unmatchedAssetIds: readonly string[]
   unmatchedEntries: readonly ScannedEntry[]
+  statuses: ReadonlyMap<string, AssetMatchStatus>
 }
 
 function metadataKey(
@@ -16,8 +19,51 @@ function metadataKey(
   return `${sourceRootId}\0${relativePath}\0${String(byteSize)}\0${String(mtimeMs)}`
 }
 
+function pathKey(sourceRootId: string, relativePath: string): string {
+  return `${sourceRootId}\0${relativePath}`
+}
+
+function classifyStatus(
+  record: Asset,
+  matchedEntry: ScannedEntry | undefined,
+  pathEntry: ScannedEntry | undefined,
+): AssetMatchStatus {
+  if (matchedEntry !== undefined) {
+    const sizeMtimeMatch =
+      record.byteSize === matchedEntry.byteSize &&
+      record.mtimeMs === matchedEntry.mtimeMs &&
+      record.relativePath === matchedEntry.relativePath
+    const hashMatch =
+      record.contentHash !== undefined &&
+      matchedEntry.contentHash !== undefined &&
+      record.contentHash === matchedEntry.contentHash
+    if (sizeMtimeMatch || hashMatch) {
+      return 'ok'
+    }
+  }
+
+  if (pathEntry === undefined) {
+    return 'missing'
+  }
+
+  const sizeMtimeSame =
+    record.byteSize === pathEntry.byteSize &&
+    record.mtimeMs === pathEntry.mtimeMs
+  if (sizeMtimeSame) {
+    return 'ok'
+  }
+
+  const bothHashes =
+    record.contentHash !== undefined && pathEntry.contentHash !== undefined
+  if (bothHashes && record.contentHash === pathEntry.contentHash) {
+    return 'ok'
+  }
+  return 'modified'
+}
+
 /**
  * Pure match/relink: prefer contentHash, else source root + path + size + mtime.
+ * Also reports per-asset `ok | missing | modified` for the scanned root.
  */
 export function matchAssets(
   records: Readonly<Record<string, Asset>>,
@@ -94,10 +140,43 @@ export function matchAssets(
     usedEntries.add(entry)
   }
 
+  const byPath = new Map<string, ScannedEntry>()
+  for (const entry of entries) {
+    const key = pathKey(sourceRootId, entry.relativePath)
+    if (!byPath.has(key)) {
+      byPath.set(key, entry)
+    }
+  }
+
+  const statuses = new Map<string, AssetMatchStatus>()
+  for (const [assetId, record] of Object.entries(records)) {
+    if (
+      record.sourceRootId !== undefined &&
+      record.sourceRootId !== sourceRootId
+    ) {
+      continue
+    }
+    if (
+      record.sourceRootId === undefined &&
+      record.relativePath === undefined &&
+      record.contentHash === undefined
+    ) {
+      continue
+    }
+    const pathEntry =
+      record.relativePath !== undefined
+        ? byPath.get(pathKey(sourceRootId, record.relativePath))
+        : undefined
+    statuses.set(
+      assetId,
+      classifyStatus(record, matched.get(assetId), pathEntry),
+    )
+  }
+
   const unmatchedAssetIds = Object.keys(records).filter(
     (assetId) => !matched.has(assetId),
   )
   const unmatchedEntries = entries.filter((entry) => !usedEntries.has(entry))
 
-  return { matched, unmatchedAssetIds, unmatchedEntries }
+  return { matched, unmatchedAssetIds, unmatchedEntries, statuses }
 }

@@ -1,9 +1,19 @@
-import { describe } from 'vitest'
+import { afterEach, beforeEach, describe } from 'vitest'
 
 import { runAssetSourceContract } from './assetSource.contract.test-helpers'
 import { createFsaAssetSource, createMemoryAssetDirectory } from './index'
+import { resetScanWorker } from './scanClient'
+import { stubScanWorker } from './scanWorkerMock.test-helpers'
 
 describe('createFsaAssetSource', () => {
+  beforeEach(() => {
+    stubScanWorker()
+  })
+
+  afterEach(() => {
+    resetScanWorker()
+  })
+
   runAssetSourceContract(() => {
     const tree = createMemoryAssetDirectory()
     const rootId = 'root-fsa'

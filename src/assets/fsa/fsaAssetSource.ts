@@ -1,3 +1,4 @@
+import { scanDirectoryInWorker } from '../scanClient'
 import type {
   AssetSource,
   AssetSourceFailure,
@@ -6,7 +7,6 @@ import type {
   ScannedEntry,
 } from '../types'
 import type { AssetDirectoryHandle, AssetFileHandle } from './handles'
-import { isAssetDirectoryHandle } from './memoryDirectory'
 
 export type FsaAssetSource = AssetSource & {
   setPermissionRequired: (required: boolean) => void
@@ -18,30 +18,6 @@ function failure(code: AssetSourceFailureCode): AssetSourceFailure {
 
 function success<T>(value: T): AssetSourceResult<T> {
   return { ok: true, value }
-}
-
-async function walkDirectory(
-  directory: AssetDirectoryHandle,
-  prefix: string,
-  out: ScannedEntry[],
-): Promise<void> {
-  for (const [name, handle] of directory.entries()) {
-    const relativePath = prefix.length > 0 ? `${prefix}/${name}` : name
-    if (isAssetDirectoryHandle(handle)) {
-      await walkDirectory(handle, relativePath, out)
-      continue
-    }
-    try {
-      const file = await handle.getFile()
-      out.push({
-        relativePath,
-        byteSize: file.size,
-        mtimeMs: file.lastModified,
-      })
-    } catch {
-      // Skip unreadable entries; readForHash surfaces corrupted.
-    }
-  }
 }
 
 async function resolveFile(
@@ -87,9 +63,7 @@ export function createFsaAssetSource(options: {
         return failure('not-found')
       }
       try {
-        const entries: ScannedEntry[] = []
-        await walkDirectory(directory, '', entries)
-        entries.sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+        const entries: ScannedEntry[] = await scanDirectoryInWorker(directory)
         return success(entries)
       } catch {
         return failure('corrupted')
