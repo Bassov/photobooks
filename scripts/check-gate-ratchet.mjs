@@ -12,6 +12,10 @@ import {
   compareItemCriteria,
   compareTestWeakening,
 } from './check-test-weakening.mjs'
+import {
+  codecovFlagPathCovered,
+  compareScriptScopeGates,
+} from './script-include-ratchet.mjs'
 import { stripGitKeys } from './strip-git-env.mjs'
 
 export const RULE_IDS = Object.freeze([
@@ -1026,7 +1030,7 @@ export function compareCodecov(baseRaw, headRaw, fail) {
     if (!Array.isArray(bPaths)) continue
     const headPaths = Array.isArray(hPaths) ? hPaths : EMPTY_ARRAY
     for (const p of bPaths) {
-      if (!headPaths.includes(p)) {
+      if (!codecovFlagPathCovered(String(p), headPaths.map(String))) {
         fail(`codecov.yml flags.${flag}.paths removed ${p}`)
       }
     }
@@ -1316,24 +1320,14 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
     )
   }
 
-  {
-    const bVite = getFile(baseFiles, 'vite.config.ts')
-    const hVite = getFile(headFiles, 'vite.config.ts')
-    const bInc = new Set(extractCoverageIncludes(coerceText(bVite)))
-    const hInc = new Set(extractCoverageIncludes(coerceText(hVite)))
-    for (const p of bInc) {
-      if (!hInc.has(p)) {
-        fail('include-removed', `${MSGS.includeRemovedPrefix}${p}`)
-      }
-    }
-    const bExc = new Set(extractCoverageExcludes(coerceText(bVite)))
-    const hExc = new Set(extractCoverageExcludes(coerceText(hVite)))
-    for (const p of hExc) {
-      if (!bExc.has(p)) {
-        fail('exclude-added', `${MSGS.excludeAddedPrefix}${p}`)
-      }
-    }
-  }
+  compareScriptScopeGates(baseFiles, headFiles, fail, {
+    extractCoverageIncludes,
+    extractCoverageExcludes,
+    extractStrykerGateBits,
+    coerceText,
+    getFile,
+    msgs: MSGS,
+  })
 
   {
     const bS = extractStrykerGateBits(
@@ -1342,11 +1336,6 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
     const hS = extractStrykerGateBits(
       coerceText(getFile(headFiles, 'stryker.config.mjs')),
     )
-    for (const p of hS.bang) {
-      if (!bS.bang.includes(p)) {
-        fail('exclude-added', `${MSGS.bangAddedPrefix}${p}`)
-      }
-    }
     for (const p of hS.excludedMutations) {
       if (!bS.excludedMutations.includes(p)) {
         fail('stryker-weaker', `${MSGS.excludedMutationsPrefix}${p}`)
