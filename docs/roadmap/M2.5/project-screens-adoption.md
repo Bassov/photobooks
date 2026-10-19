@@ -10,3 +10,4 @@ Title: M2 screens on the design system
 - **Perf:** home screen book list stays virtualized-or-small; save indicator is a narrow subscription. Gate: drag while autosave fires — zero LoAF.
 - **Browser check:** reopen the app, open a book, trigger a permission re-grant and a second-tab lock, rename a photo folder — every screen matches `docs/design.md`; no page-level H/V scroll.
 - **UI ref:** `uikit#/feature/project-screens-adoption`
+- **UI kit:** `uikit/src/features/m25.tsx:231-239` (`project-screens-adoption` demo + notes), `UI ref: uikit#/feature/project-screens-adoption` — Home / empty / permission / lock / missing / save scenarios; demo `uikit/src/features/m25.tsx:147-158`, `uikit/src/features/screens.tsx`, `uikit/src/components/ui/dialog.tsx`, `uikit/src/components/uui/Badge.tsx`

@@ -12,3 +12,4 @@ Title: grids on parent spreads
 - **Perf:** a parent grid edit re-resolves only spreads using that parent. Gate: edit the grid of a parent used by 40 spreads — zero LoAF.
 - **Browser check:** give a parent a 3-column grid and apply it to five spreads — their overlays and template frames follow; override one spread's gutter; switch the parent to 4 columns — the inheriting spreads update and the override keeps its gutter.
 - **UI ref:** `uikit#/feature/layout-grids-parent-inherit`
+- **UI kit:** `uikit/src/features/m45.tsx:240-243` (`layout-grids-parent-inherit` demo + notes), `UI ref: uikit#/feature/layout-grids-parent-inherit` — parent grid inherit + reset

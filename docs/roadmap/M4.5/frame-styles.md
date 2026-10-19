@@ -11,3 +11,4 @@ Title: consistent frames across the book
 - **Perf:** a style edit re-renders only spreads that use it; strokes and mats are borders / insets, no blurred shadows. Gate: edit a style used on 40 spreads — zero LoAF.
 - **Browser check:** give all photos a white 5 mm mat via one style, change it to 3 mm — every spread updates; set a dark spread background.
 - **UI ref:** `uikit#/feature/frame-styles`
+- **UI kit:** `uikit/src/features/m45.tsx:228-231` (`frame-styles` demo + notes), `UI ref: uikit#/feature/frame-styles` — frame styles + spread background

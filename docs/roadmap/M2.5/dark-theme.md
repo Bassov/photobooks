@@ -11,3 +11,4 @@ Title: dark neutral theme
 - **Perf:** a theme switch is one attribute write on the root; no React re-render of spreads. Gate: toggle the theme while the fixture book is scrolled mid-pasteboard — zero LoAF.
 - **Browser check:** switch themes with the fixture book open; chrome flips, photos and pages do not change color; contrast stays readable; reload keeps the choice.
 - **UI ref:** `uikit#/feature/dark-theme`
+- **UI kit:** `uikit/src/features/m25.tsx:240-249` (`dark-theme` demo + notes), `UI ref: uikit#/feature/dark-theme` — theme toggle; paper stays light, `uikit/src/kit/theme.ts`

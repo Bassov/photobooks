@@ -9,3 +9,4 @@ Title: bring your own hosting (Security Review)
 - [ ] Guided connection of the user's own Cloudflare account with minimal scopes; automatic provisioning of site and storage
 - **Browser check:** with a new Cloudflare account, connect and publish a site in one guided flow.
 - **UI ref:** `uikit#/feature/connect-own-hosting`
+- **UI kit:** `uikit/src/features/m6m8.tsx:332` (`connect-own-hosting` demo + notes), `UI ref: uikit#/feature/connect-own-hosting` — guided Cloudflare connect

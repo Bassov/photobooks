@@ -10,3 +10,4 @@ Title: rotate photos in frames
 - **Perf:** straighten preview is a `transform` in rAF, committed at gesture end. Gate: straighten drag for 5 s — zero LoAF, `pointermove` p95 ≤ 2 ms.
 - **Browser check:** rotate a sideways photo 90° and straighten a tilted horizon; the frame stays covered; reload keeps both.
 - **UI ref:** `uikit#/feature/photo-rotate`
+- **UI kit:** `uikit/src/features/m4.tsx:63-66` (`photo-rotate` demo + notes), `UI ref: uikit#/feature/photo-rotate` — 90° rotate + straighten in frame

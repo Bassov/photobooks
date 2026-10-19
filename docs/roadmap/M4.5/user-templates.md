@@ -9,3 +9,4 @@ Title: your own layouts
 - [ ] Save a spread as a template (frames normalized to trim, slot aspects); templates stored in `library.json`, which gets its own `schemaVersion` and migration chain here (the first item to change `library.json`); apply from the template bar; `multi-drop-fill` best fit can pick them
 - **Browser check:** save a custom spread as a template, apply it to another spread; it survives a reload.
 - **UI ref:** `uikit#/feature/user-templates`
+- **UI kit:** `uikit/src/features/m45.tsx:232-235` (`user-templates` demo + notes), `UI ref: uikit#/feature/user-templates` — save/apply custom templates

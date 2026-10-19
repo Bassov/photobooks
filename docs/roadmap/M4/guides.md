@@ -12,3 +12,4 @@ Title: guides
 - **Perf:** guide drag is a `transform` in rAF, committed at gesture end.
 - **Browser check:** pull guides from both rulers, move and delete one, zoom — guides stay aligned with rulers; guides never appear in presentation mode.
 - **UI ref:** `uikit#/feature/guides`
+- **UI kit:** `uikit/src/features/m4.tsx:39-42` (`guides` demo + notes), `UI ref: uikit#/feature/guides` — drag-from-ruler guides overlay

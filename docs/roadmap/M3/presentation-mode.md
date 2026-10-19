@@ -11,3 +11,4 @@ Title: preview the book
 - **Perf:** neighbouring spreads preloaded and decoded; transitions `transform` / `opacity` only. Gate: flip through 40 spreads quickly — zero LoAF, no blank frames.
 - **Browser check:** present the book fullscreen and flip through it like a finished album.
 - **UI ref:** `uikit#/feature/presentation-mode`
+- **UI kit:** `uikit/src/features/m3.tsx:334-343` (`presentation-mode` demo + notes), `UI ref: uikit#/feature/presentation-mode` — fullscreen present, no chrome
