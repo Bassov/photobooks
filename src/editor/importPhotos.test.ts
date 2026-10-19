@@ -60,6 +60,23 @@ describe('importPhotoFiles', () => {
     expect(getBookStoreSnapshot().importRunning).toBe(false)
   })
 
+  it('rejects-only import succeeds without an onProgress callback', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const tiff = new File([new Uint8Array([1])], 'solo.tiff', {
+      type: 'image/tiff',
+    })
+    const result = await importPhotoFiles([tiff])
+    expect(result.imported).toBe(0)
+    expect(result.errors).toHaveLength(1)
+    expect(runImportBatch).not.toHaveBeenCalled()
+  })
+
   it('enqueues accepted files, applies results, and sets thumbs', async () => {
     const callbacks: FrameRequestCallback[] = []
     vi.stubGlobal(
@@ -175,13 +192,76 @@ describe('importPhotoFiles', () => {
     const tiff = new File([new Uint8Array([1])], 'b.tiff', {
       type: 'image/tiff',
     })
-    runImportBatch.mockResolvedValue({
-      results: [],
-      errors: [{ name: 'a.jpg', message: 'decode failed' }],
-    })
+    const progress = vi.fn()
+    runImportBatch.mockImplementation(
+      (
+        _items: unknown,
+        options?: {
+          onProgress?: (state: {
+            total: number
+            completed: number
+            errors: { name: string; message: string }[]
+            running: boolean
+          }) => void
+        },
+      ) => {
+        options?.onProgress?.({
+          total: 1,
+          completed: 1,
+          errors: [{ name: 'a.jpg', message: 'decode failed' }],
+          running: false,
+        })
+        return Promise.resolve({
+          results: [],
+          errors: [{ name: 'a.jpg', message: 'decode failed' }],
+        })
+      },
+    )
 
-    const result = await importPhotoFiles([jpeg, tiff])
+    const result = await importPhotoFiles([jpeg, tiff], {
+      onProgress: progress,
+    })
     expect(result.imported).toBe(0)
     expect(result.errors.map((e) => e.name).sort()).toEqual(['a.jpg', 'b.tiff'])
+    expect(progress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        total: 2,
+        completed: 2,
+        errors: expect.arrayContaining([
+          expect.objectContaining({ name: 'a.jpg' }),
+          expect.objectContaining({ name: 'b.tiff' }),
+        ]),
+      }),
+    )
+  })
+
+  it('enqueues session placeholder meta before decode', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    let metaAtBatch: { name?: string; correctedWidth?: number } | undefined
+    runImportBatch.mockImplementation((items: { assetId: string }[]) => {
+      const id = items[0]?.assetId
+      if (id) {
+        metaAtBatch = getBookStoreSnapshot().sessionMeta.get(id)
+      }
+      return Promise.resolve({ results: [], errors: [] })
+    })
+    await importPhotoFiles([
+      new File([new Uint8Array([1])], 'sess.jpg', { type: 'image/jpeg' }),
+    ])
+    expect(metaAtBatch).toEqual(
+      expect.objectContaining({
+        name: 'sess.jpg',
+        correctedWidth: 1,
+        correctedHeight: 1,
+        orientation: 1,
+        aspect: 1,
+      }),
+    )
   })
 })

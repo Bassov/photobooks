@@ -6,17 +6,13 @@ import {
 import { getAssetSource } from '../photo/assetSources'
 import { putCachedTierForHash } from '../photo/tierCache'
 import { getBookStoreSnapshot, patchAssetRecord } from './bookStore'
+import {
+  IMPORT_BODY_READ_CAP,
+  mapWithConcurrency,
+  relativePathFor,
+} from './importBodyReads'
 import { trackHashJob } from './pendingHashes'
 import { putCachedThumbForHash } from './thumbCache'
-
-function relativePathFor(file: File): string {
-  const relative = (file as File & { webkitRelativePath?: string })
-    .webkitRelativePath
-  if (typeof relative === 'string' && relative.length > 0) {
-    return relative
-  }
-  return file.name
-}
 
 function needsIdentity(assetId: string): boolean {
   const asset = getBookStoreSnapshot().book.assets[assetId]
@@ -50,40 +46,33 @@ export async function upgradeSessionAssetsForLibrary(
   const memorySource = createMemoryAssetSource()
   register(sourceRootId, memorySource)
 
-  await Promise.all(
-    toUpgrade.map(async (assetId) => {
-      const file = getAssetSource(assetId)
-      if (file === undefined) {
-        return
-      }
-      const relativePath = relativePathFor(file)
-      const bytes = await file.arrayBuffer()
-      memorySource.seedFile(
-        sourceRootId,
-        relativePath,
-        bytes,
-        file.lastModified,
-      )
-      patchAssetRecord(assetId, {
-        sourceRootId,
-        relativePath,
-        byteSize: file.size,
-        mtimeMs: file.lastModified,
-      })
+  await mapWithConcurrency(toUpgrade, IMPORT_BODY_READ_CAP, async (assetId) => {
+    const file = getAssetSource(assetId)
+    if (file === undefined) {
+      return
+    }
+    const relativePath = relativePathFor(file)
+    const bytes = await file.arrayBuffer()
+    memorySource.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
+    patchAssetRecord(assetId, {
+      sourceRootId,
+      relativePath,
+      byteSize: file.size,
+      mtimeMs: file.lastModified,
+    })
 
-      const hashJob = trackHashJob(
-        hashContent(bytes.slice(0)).then(async (contentHash) => {
-          patchAssetRecord(assetId, { contentHash })
-          await Promise.all([
-            putCachedThumbForHash(assetId, contentHash),
-            putCachedTierForHash(assetId, contentHash),
-          ])
-          return contentHash
-        }),
-      )
-      await hashJob.catch(() => {
-        // Hash is best-effort; path/size/mtime still persist.
-      })
-    }),
-  )
+    const hashJob = trackHashJob(
+      hashContent(bytes).then(async (contentHash) => {
+        patchAssetRecord(assetId, { contentHash })
+        await Promise.all([
+          putCachedThumbForHash(assetId, contentHash),
+          putCachedTierForHash(assetId, contentHash),
+        ])
+        return contentHash
+      }),
+    )
+    await hashJob.catch(() => {
+      // Hash is best-effort; path/size/mtime still persist.
+    })
+  })
 }

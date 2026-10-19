@@ -76,6 +76,9 @@ export function browserAssertNoLoafAndHandlerP95(args: {
 declare global {
   interface Window {
     __photobooksPerf?: PhotobooksPerfApi
+    __photobooksThumbs?: {
+      clearThumbsAndDerivedCacheForTests: () => Promise<void>
+    }
     __photobooksProject?: {
       attachMemoryLibraryForTests: () => Promise<unknown>
       attachOpfsTestLibrary: (

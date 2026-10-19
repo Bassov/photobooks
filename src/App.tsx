@@ -11,6 +11,15 @@ import {
   subscribeProjectSession,
   tryRestore,
 } from './editor/projectSession'
+import { clearThumbsAndDerivedCacheForTests } from './editor/clearThumbsForTests'
+
+declare global {
+  interface Window {
+    __photobooksThumbs?: {
+      clearThumbsAndDerivedCacheForTests: () => Promise<void>
+    }
+  }
+}
 
 function isTestLibraryQuery(): boolean {
   if (typeof window === 'undefined') {
@@ -36,6 +45,9 @@ function App() {
 
   useEffect(() => {
     exposeProjectSessionTestApi()
+    if (typeof window !== 'undefined') {
+      window.__photobooksThumbs = { clearThumbsAndDerivedCacheForTests }
+    }
     if (isPainterFixtureQuery()) {
       startSessionEditor()
       loadPainterFixture()
