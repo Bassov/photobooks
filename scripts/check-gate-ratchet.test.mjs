@@ -31,11 +31,16 @@ import {
   countIgnoreComments,
   countLegalStrykerDisablesInTree,
   countStrykerDisable,
+  countStrykerDisableMainStyle,
   coveredKindsForJob,
+  findNextStrykerDirective,
   indexOfIgnoreCase,
+  lineContaining,
   matchKeywordAt,
+  matchPrefixIgnoreCase,
   readDisableBudget,
   skipWs,
+  tryParseLegalNextLineDisable,
   STRYKER_DISABLE_PER_FILE_CAP,
   STRYKER_DISABLE_REASON_MIN,
   detectGateKindsFromBlob,
@@ -451,9 +456,10 @@ export default config
       },
     )
     expect(code).toBe(1)
-    expect(
-      result.violations.some((v) => v.ruleId === 'stryker-disable-per-file'),
-    ).toBe(true)
+    expect(result.violations).toContainEqual({
+      ruleId: 'stryker-disable-per-file',
+      message: 'mutation suppression per-file cap exceeded in src/app.ts',
+    })
   })
 
   it('exactly STRYKER_DISABLE_PER_FILE_CAP legal disables passes per-file rule', () => {
@@ -490,9 +496,10 @@ export default config
       },
     )
     expect(code).toBe(1)
-    expect(
-      result.violations.some((v) => v.ruleId === 'stryker-disable-budget'),
-    ).toBe(true)
+    expect(result.violations).toContainEqual({
+      ruleId: 'stryker-disable-budget',
+      message: 'mutation suppression repo budget exceeded: 1 > 0',
+    })
   })
 
   it('FIXTURE deleted-rule fails when RULE_IDS shrinks', () => {
@@ -2205,6 +2212,52 @@ describe('compareGateTrees remaining weakenings', () => {
     }
   })
 
+  it('block, trailing, and mid-line Stryker disables fail pr-policy', () => {
+    const probes = [
+      '/* Stryker disable all */\nexport const x = 1\n',
+      'const x = 1 // Stryker disable all\n',
+      '  /* Stryker disable next-line all */ foo()\n',
+    ]
+    for (const head of probes) {
+      expect(countStrykerDisable(head)).toBeGreaterThanOrEqual(
+        countStrykerDisableMainStyle(head),
+      )
+      expect(countStrykerDisable(head)).toBeGreaterThan(0)
+      expect(
+        collectStrykerDisableComments(head).illegal.length,
+      ).toBeGreaterThan(0)
+      const r = compareGateTrees(
+        baseFiles({ 'src/app.ts': 'export const x = 1\n' }),
+        baseFiles({ 'src/app.ts': head }),
+      )
+      expect(
+        r.violations.some((v) => v.ruleId === 'stryker-disable-added'),
+      ).toBe(true)
+    }
+  })
+
+  it('head countStrykerDisable never under-counts main-style', () => {
+    const samples = [
+      '',
+      'export const x = 1\n',
+      '// Stryker disable all\n',
+      '/* Stryker disable all */\n',
+      'const x = 1 // Stryker disable all\n',
+      'Strykerdisable\n',
+      'stryker disable all\n',
+      'STRYKER  DISABLE all\n',
+      '// Stryker restore all\n',
+      LEGAL_DISABLE,
+      '### Mutation suppressions\n',
+      'collectStrykerDisableComments(text)\n',
+    ]
+    for (const sample of samples) {
+      expect(countStrykerDisable(sample)).toBeGreaterThanOrEqual(
+        countStrykerDisableMainStyle(sample),
+      )
+    }
+  })
+
   it('raised mutation.disableBudget fails gates-json-weaker', () => {
     const r = compareGateTrees(
       baseFiles({ 'quality/gates.json': gatesWithBudget(0) }),
@@ -2245,7 +2298,12 @@ describe('compareGateTrees remaining weakenings', () => {
     expect(countLegalStrykerDisablesInTree(tree)).toBe(0)
     let illegal = 0
     for (const [p, text] of Object.entries(tree)) {
-      if (p === 'scripts/check-gate-ratchet.mjs') continue
+      if (
+        p === 'scripts/check-gate-ratchet.mjs' ||
+        p === 'scripts/stryker-disable-detect.mjs'
+      ) {
+        continue
+      }
       illegal += collectStrykerDisableComments(text).illegal.length
     }
     expect(illegal).toBe(0)
@@ -2315,6 +2373,13 @@ describe('pure helpers exact behaviour', () => {
     expect(MSGS.strykerDisablePrefix).toBe(
       'mutation suppression comment added in ',
     )
+    expect(MSGS.strykerDisablePerFilePrefix).toBe(
+      'mutation suppression per-file cap exceeded in ',
+    )
+    expect(MSGS.strykerDisableBudgetPrefix).toBe(
+      'mutation suppression repo budget exceeded: ',
+    )
+    expect(MSGS.strykerDisableBudgetMid).toBe(' > ')
     expect(MSGS.requiredJobFailedPrefix).toBe('required-job check failed: ')
     expect(MSGS.ruleMissingPrefix).toBe('RULE_IDS missing on head: ')
     expect(MSGS.fixtureMissingPrefix).toBe('FIXTURE_IDS missing on head: ')
@@ -2495,9 +2560,66 @@ describe('pure helpers exact behaviour', () => {
     )
     expect(classifyStrykerDisableLine('export const x = 1')).toBeNull()
     expect(
-      classifyStrykerDisableLine(
+      classifyStrykerDisableLine('strykerDisablePerFilePrefix: true'),
+    ).toBeNull()
+    expect(
+      countStrykerDisable(
         "  strykerDisablePerFilePrefix: 'stryker disable per-file cap exceeded in ',",
       ),
+    ).toBeGreaterThanOrEqual(1)
+    expect(
+      countStrykerDisable('/* Stryker disable all */'),
+    ).toBeGreaterThanOrEqual(
+      countStrykerDisableMainStyle('/* Stryker disable all */'),
+    )
+    expect(
+      countStrykerDisable('const x = 1 // Stryker disable all'),
+    ).toBeGreaterThanOrEqual(
+      countStrykerDisableMainStyle('const x = 1 // Stryker disable all'),
+    )
+    expect(countStrykerDisableMainStyle('Strykerdisable x')).toBe(1)
+    expect(countStrykerDisableMainStyle('stryker disable x')).toBe(0)
+    expect(countStrykerDisable('Strykerdisable x')).toBe(1)
+    expect(findNextStrykerDirective('Strykerdisable', 0)).toEqual({
+      at: 0,
+      verb: 'disable',
+      verbEnd: 'Strykerdisable'.length,
+    })
+    expect(findNextStrykerDirective('strykerdisable', 0)).toBeNull()
+    expect(findNextStrykerDirective('Strykerfoo', 0)).toBeNull()
+    expect(findNextStrykerDirective('nope', 0)).toBeNull()
+    expect(findNextStrykerDirective('stryker restore all', 0)).toEqual({
+      at: 0,
+      verb: 'restore',
+      verbEnd: 'stryker restore'.length,
+    })
+    expect(findNextStrykerDirective('  stryker   disable all', 0)).toEqual({
+      at: 2,
+      verb: 'disable',
+      verbEnd: '  stryker   disable'.length,
+    })
+    expect(countStrykerDisableMainStyle('Stryker  disable x')).toBe(1)
+    expect(countStrykerDisableMainStyle('Stryker\tdisable x')).toBe(1)
+    expect(countStrykerDisableMainStyle('Strykerenable')).toBe(0)
+    expect(lineContaining('a\nbStryker\nc', 3)).toBe('bStryker')
+    expect(matchPrefixIgnoreCase('DISABLE', 0, 'disable')).toBe(7)
+    expect(matchPrefixIgnoreCase('xdisable', 0, 'disable')).toBe(-1)
+    const legalLine =
+      '// Stryker disable next-line BooleanLiteral: justified reason ok'
+    expect(
+      tryParseLegalNextLineDisable(legalLine, {
+        at: legalLine.indexOf('Stryker'),
+        verbEnd: legalLine.indexOf('disable') + 'disable'.length,
+      }),
+    ).toEqual({
+      reason: 'justified reason ok',
+      mutators: 'BooleanLiteral',
+    })
+    expect(
+      tryParseLegalNextLineDisable('const x = 1 // Stryker disable all', {
+        at: 'const x = 1 // '.length,
+        verbEnd: 'const x = 1 // Stryker disable'.length,
+      }),
     ).toBeNull()
     expect(indexOfIgnoreCase('xx STRYKER yy', 'stryker', 0)).toBe(3)
     expect(indexOfIgnoreCase('abc', 'stryker', 0)).toBe(-1)
@@ -2550,12 +2672,8 @@ describe('pure helpers exact behaviour', () => {
     expect(
       classifyStrykerDisableLine(
         'Stryker disable next-line BooleanLiteral: justified reason ok',
-      ),
-    ).toEqual({
-      kind: 'legal',
-      reason: 'justified reason ok',
-      mutators: 'BooleanLiteral',
-    })
+      ).kind,
+    ).toBe('illegal')
   })
 
   it('flags ignore-comment-added for spaced v8 ignore on real-shaped trees', () => {

@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, existsSync, appendFileSync } from 'node:fs'
-import {
-  collectStrykerDisableComments,
-  EMPTY_STRING,
-} from './check-gate-ratchet.mjs'
+import { EMPTY_STRING } from './check-gate-ratchet.mjs'
+import { collectStrykerDisableComments } from './stryker-disable-detect.mjs'
 
 export const DEFAULT_MUTATION_REPORT = 'reports/mutation/mutation.json'
 export const SURVIVED_SAMPLE_LIMIT = 8
@@ -146,7 +144,7 @@ export function buildMutationSummaryMarkdown(opts) {
   }
 
   if (disableList.length > 0) {
-    lines.push('### Stryker disables', '')
+    lines.push('### Mutation suppressions', '')
     for (const d of disableList) {
       lines.push(`- \`${d.path}\`: ${d.reason}`)
     }

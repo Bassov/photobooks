@@ -187,7 +187,7 @@ describe('stryker-pr-summary', () => {
         '',
         '- `src/a.ts`: 1',
         '',
-        '### Stryker disables',
+        '### Mutation suppressions',
         '',
         '- `src/a.ts`: justified reason ok',
         '',
