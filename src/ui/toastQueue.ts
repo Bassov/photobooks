@@ -6,6 +6,8 @@ export interface ToastContent {
   title: string
   description?: string
   tone?: ToastTone
+  /** Optional test hook (editor import-errors, specimen). */
+  testId?: string
   action?: { label: string; onAction?: () => void }
 }
 

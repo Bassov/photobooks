@@ -38,6 +38,7 @@ test('empty filmstrip message spans the scrollport', async ({ page }) => {
   // Bug: 1px virtualizer window stacked one word per line.
   expect(box.width).toBeGreaterThan(240)
   expect(box.height).toBeLessThan(72)
+  await assertDocumentFitsViewport(page)
 })
 
 test('non-ASCII file name is the filmstrip thumbnail name', async ({

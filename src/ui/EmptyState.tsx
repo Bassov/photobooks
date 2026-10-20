@@ -10,6 +10,7 @@ export interface EmptyStateProps {
   /** Primary / secondary action buttons. */
   actions?: ReactNode
   className?: string
+  'data-testid'?: string
 }
 
 /** Empty / onboarding card: icon, title, one sentence, action slot. */
@@ -19,9 +20,10 @@ export function EmptyState({
   description,
   actions,
   className,
+  'data-testid': dataTestId = 'empty-state',
 }: EmptyStateProps) {
   return (
-    <div className={cx('pb-empty', className)} data-testid="empty-state">
+    <div className={cx('pb-empty', className)} data-testid={dataTestId}>
       {icon ? <div className="pb-empty-icon">{icon}</div> : null}
       <div className="pb-empty-title">{title}</div>
       {description ? (

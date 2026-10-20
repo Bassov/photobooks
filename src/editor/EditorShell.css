@@ -121,15 +121,6 @@
   color: var(--muted-foreground);
 }
 
-.import-errors {
-  margin: 0;
-  padding-left: calc(var(--spacing) * 4.8);
-  width: 100%;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  color: var(--destructive);
-}
-
 .editor-workspace {
   position: relative;
   display: block;

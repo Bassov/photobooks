@@ -192,6 +192,12 @@ describe('EditorTopBar', () => {
         'bad.jpg',
       )
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Show files' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('editor-status').textContent).toContain(
+        'bad.jpg: decode failed',
+      )
+    })
   })
 
   it('ignores empty file lists from the photo and folder inputs', () => {

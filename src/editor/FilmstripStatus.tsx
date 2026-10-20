@@ -1,3 +1,5 @@
+import { ProgressBar } from '../ui/ProgressBar'
+import { Status } from '../ui/Status'
 import type { ImportProgress } from './importPhotos'
 
 export function FilmstripStatus({
@@ -7,7 +9,8 @@ export function FilmstripStatus({
   photoCount: number
   progress: ImportProgress | null
 }) {
-  const showCount = photoCount > 0 || (progress?.running ?? false)
+  const running = progress?.running === true
+  const showCount = photoCount > 0 || running
 
   let progressText: string | null = null
   if (progress !== null) {
@@ -23,21 +26,26 @@ export function FilmstripStatus({
   }
 
   return (
-    <div className="filmstrip-status" data-testid="filmstrip-status">
+    <Status className="filmstrip-status" data-testid="filmstrip-status">
       {showCount ? (
-        <p className="filmstrip-count" data-testid="filmstrip-count">
+        <span className="filmstrip-count" data-testid="filmstrip-count">
           {photoCount === 1 ? '1 photo' : `${String(photoCount)} photos`}
-        </p>
+        </span>
+      ) : null}
+      {progress?.running ? (
+        <ProgressBar
+          className="filmstrip-import-progress"
+          aria-label="Importing"
+          value={progress.completed}
+          maxValue={progress.total > 0 ? progress.total : 1}
+          minValue={0}
+        />
       ) : null}
       {progressText !== null ? (
-        <p
-          className="import-progress"
-          data-testid="import-progress"
-          aria-live="polite"
-        >
+        <span className="import-progress" data-testid="import-progress">
           {progressText}
-        </p>
+        </span>
       ) : null}
-    </div>
+    </Status>
   )
 }
