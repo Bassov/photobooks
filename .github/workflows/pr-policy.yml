@@ -15,38 +15,5 @@ permissions:
 
 jobs:
   pr-policy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout base ref only
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.28.0
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install base dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Fetch head as data (works for forks)
-        run: |
-          git fetch --no-tags --depth=1 origin \
-            pull/${{ github.event.pull_request.number }}/head:refs/gate-ratchet/head
-
-      - name: Gate ratchet (base script vs head tree)
-        env:
-          PR_POLICY_BODY: ${{ github.event.pull_request.body }}
-          PR_POLICY_BRANCH: ${{ github.head_ref }}
-          PR_POLICY_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: >
-          pnpm exec ts-rig-gate pr-policy
-          --base-ref "$PR_POLICY_BASE_SHA"
-          --head-ref refs/gate-ratchet/head
-          --pr-body-env PR_POLICY_BODY
+    uses: Bassov/ts-agent-rig/.github/workflows/pr-policy.yml@v0.2.0
+    secrets: inherit

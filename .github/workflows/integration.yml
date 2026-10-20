@@ -27,9 +27,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.0
 
       - name: Resolve burn-in count
         id: burn-in-count
@@ -55,15 +54,6 @@ jobs:
             echo "has_targets=true" >> "$GITHUB_OUTPUT"
             echo "Burn-in targets: $TARGETS"
           fi
-
-      - uses: pnpm/action-setup@v6
-        if: steps.burn-in-targets.outputs.has_targets == 'true'
-        with:
-          version: 10.28.0
-
-      - name: Install dependencies
-        if: steps.burn-in-targets.outputs.has_targets == 'true'
-        run: pnpm install --frozen-lockfile
 
       - name: Cache Playwright browsers
         if: steps.burn-in-targets.outputs.has_targets == 'true'
@@ -134,17 +124,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.28.0
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.0
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -281,12 +262,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.0
+
       - name: Resolve @flaky list
         id: flaky
         run: |
           node --input-type=module <<'EOF'
           import { appendFileSync } from 'node:fs'
-          import { loadFlakySpecPaths } from '/ts-agent-rig/e2e-flaky-list'
+          import { loadFlakySpecPaths } from '@albasov/ts-agent-rig/e2e-flaky-list'
           const paths = loadFlakySpecPaths()
           const has = paths.length > 0
           appendFileSync(process.env.GITHUB_OUTPUT, `has_targets=${has}\n`)
@@ -303,17 +287,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.28.0
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.0
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
