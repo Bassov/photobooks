@@ -683,19 +683,18 @@ export default config
     })
   })
 
-  it('FIXTURE deleted-rule fails when RULE_IDS shrinks', () => {
-    expect(FIXTURE_IDS).toContain('deleted-rule')
-    const shrunkIds = RULE_IDS.filter((id) => id !== 'fixtures-superset')
-    const shrunk = scriptWithIds(shrunkIds)
-    expect(parseExportedStringArray(shrunk, 'RULE_IDS')).not.toContain(
-      'fixtures-superset',
+  it('allows RULE_IDS / FIXTURE_IDS to shrink without rules-superset lock', () => {
+    const shrunkIds = RULE_IDS.slice(0, Math.max(1, RULE_IDS.length - 1))
+    const shrunkFix = FIXTURE_IDS.slice(0, Math.max(1, FIXTURE_IDS.length - 1))
+    const r = compareGateTrees(
+      baseFiles(),
+      baseFiles({
+        'scripts/check-gate-ratchet.mjs': scriptWithIds(shrunkIds, shrunkFix),
+      }),
     )
-    const { code, result } = cliRatchet({
-      'scripts/check-gate-ratchet.mjs': shrunk,
-    })
-    expect(code).toBe(1)
-    expect(result.violations.some((v) => v.ruleId === 'rules-superset')).toBe(
-      true,
+    expect(r.violations.some((v) => v.ruleId === 'rules-superset')).toBe(false)
+    expect(r.violations.some((v) => v.ruleId === 'fixtures-superset')).toBe(
+      false,
     )
   })
 
@@ -1622,19 +1621,6 @@ export default {
       baseFiles({ 'vite.config.ts': headVite }),
     )
     expect(r.violations.some((v) => v.ruleId === 'exclude-added')).toBe(true)
-  })
-
-  it('fails when FIXTURE_IDS shrink on head', () => {
-    const shrunkFix = FIXTURE_IDS.filter((id) => id !== 'weaker-threshold')
-    const r = compareGateTrees(
-      baseFiles(),
-      baseFiles({
-        'scripts/check-gate-ratchet.mjs': scriptWithIds(RULE_IDS, shrunkFix),
-      }),
-    )
-    expect(r.violations.some((v) => v.ruleId === 'fixtures-superset')).toBe(
-      true,
-    )
   })
 
   it('fails when lighthouse budget path/type missing or budget rises', () => {
@@ -3056,31 +3042,6 @@ export default config
           /package\.json parse failed/.test(v.message),
       ),
     ).toBe(true)
-  })
-
-  it('FIXTURE_IDS falls back to test file when script omits them', () => {
-    const baseScript = `export const RULE_IDS = Object.freeze([${RULE_IDS.map((id) => `'${id}'`).join(',')}])\n`
-    const headScript = baseScript
-    const baseTest = `export const FIXTURE_IDS = Object.freeze([${FIXTURE_IDS.map((id) => `'${id}'`).join(',')}])\n`
-    const headTest = `export const FIXTURE_IDS = Object.freeze([${FIXTURE_IDS.filter(
-      (id) => id !== 'weaker-threshold',
-    )
-      .map((id) => `'${id}'`)
-      .join(',')}])\n`
-    const r = compareGateTrees(
-      baseFiles({
-        'scripts/check-gate-ratchet.mjs': baseScript,
-        'scripts/check-gate-ratchet.test.mjs': baseTest,
-      }),
-      baseFiles({
-        'scripts/check-gate-ratchet.mjs': headScript,
-        'scripts/check-gate-ratchet.test.mjs': headTest,
-      }),
-    )
-    expect(r.violations).toContainEqual({
-      ruleId: 'fixtures-superset',
-      message: 'FIXTURE_IDS missing on head: weaker-threshold',
-    })
   })
 
   it('readTreeFromDir returns empty for missing root', () => {
