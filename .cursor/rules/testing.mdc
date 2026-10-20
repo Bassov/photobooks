@@ -12,7 +12,7 @@ After substantive code changes, run and **read** the output of:
 
 Also available:
 
-- `pnpm stryker:diff` — mutations on files changed vs `origin/main`
+- `pnpm stryker:diff` — mutations on changed line ranges vs `origin/main`
 - `pnpm test:lhci` — Lighthouse CI against `budget.json`
 - `pnpm bench` — vitest bench
 

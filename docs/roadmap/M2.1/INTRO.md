@@ -14,7 +14,7 @@ After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas l
 
 **The roadmap grows in place** (see "Change size"): a plan over the size limit is split into the next checkbox before coding, and deferred review findings become the next checkbox. Review fixes stay in the same branch and PR.
 
-**Gate rules:** gate configs only get stricter. The ratchet runs from the base branch, and there is no label, waiver or agent override. Coverage and diff mutation stay at 85 (final). e2e coverage counts toward `codecov/patch`, but e2e never replaces unit tests for mutation. The size limit binds the initial scope of an item (plan + first push), not review fixes (`diff-size-check`). Until `docs/backlog/dependency-policy.md` is re-added and merged, a new dependency needs `pnpm audit:ci` evidence and a Security Review pass. `(Security Review: …)` annotations mean the Security Review sub-agent runs before archive, not that the owner is asked.
+**Gate rules:** gate configs only get stricter. The ratchet runs from the base branch, and there is no label, waiver or agent override. Coverage and diff mutation stay at 85 (final); `pnpm stryker:diff` scores changed **line ranges** (not whole touched files). e2e coverage counts toward `codecov/patch`, but e2e never replaces unit tests for mutation. The size limit binds the initial scope of an item (plan + first push), not review fixes (`diff-size-check`). Until `docs/backlog/dependency-policy.md` is re-added and merged, a new dependency needs `pnpm audit:ci` evidence and a Security Review pass. `(Security Review: …)` annotations mean the Security Review sub-agent runs before archive, not that the owner is asked.
 
 **Owner one-time setup (not agent items):**
 

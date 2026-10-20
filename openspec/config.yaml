@@ -12,7 +12,7 @@ context: |
   - TypeScript strict + exactOptionalPropertyTypes + noUncheckedIndexedAccess; ESLint strict-type-checked + stylistic-type-checked with --max-warnings=0
   - After code changes: run `pnpm check` until it prints only OK lines (full logs under `.cache/checks/` or `--verbose`); e2e stays separate
   - Property-based tests via @fast-check/vitest (numRuns ~100 local; higher in CI)
-  - Mutation testing: pnpm stryker:diff on changed modules; nightly full Stryker on main
+  - Mutation testing: pnpm stryker:diff on changed line ranges vs origin/main; nightly full Stryker on main
   - Perf: Lighthouse CI budgets (budget.json); 60 fps proxies — zero LoAF, handler p95 ≤ 2 ms, INP ≤ 100 ms (`src/perf/budgets.ts`); `pnpm perf`
   - Heavy work (decode/render/imposition) MUST run in Web Workers, never on the main thread
   - Tests MUST exercise public module/component APIs; no private/`as any`/deep-internal hacks
