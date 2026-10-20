@@ -12,8 +12,14 @@ describe('main entry', () => {
     vi.resetModules()
   })
 
-  it('mounts the product on import', async () => {
+  it('mounts the product on import with session wiring', async () => {
     await import('./main')
     expect(mountPhotobooks).toHaveBeenCalledOnce()
+    const arg = mountPhotobooks.mock.calls[0]?.[0] as {
+      configureSession?: unknown
+      createSessionDeps?: unknown
+    }
+    expect(typeof arg.configureSession).toBe('function')
+    expect(typeof arg.createSessionDeps).toBe('function')
   })
 })

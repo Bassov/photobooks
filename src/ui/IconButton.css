@@ -1,0 +1,22 @@
+.pb-icon-button.pb-button {
+  padding: 0;
+  color: var(--muted-foreground);
+}
+
+.pb-icon-button--md {
+  width: calc(var(--spacing) * 8);
+  height: calc(var(--spacing) * 8);
+}
+
+.pb-icon-button--sm {
+  width: calc(var(--spacing) * 7);
+  height: calc(var(--spacing) * 7);
+}
+
+.pb-icon-button[data-hovered] {
+  color: var(--foreground);
+}
+
+.pb-icon-button .pb-icon {
+  pointer-events: none;
+}

@@ -1,0 +1,91 @@
+.pb-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--spacing) * 1.5);
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast),
+    color var(--motion-duration-fast),
+    border-color var(--motion-duration-fast),
+    box-shadow var(--motion-duration-fast),
+    transform var(--motion-duration-fast);
+  outline: none;
+}
+
+.pb-button--md {
+  height: calc(var(--spacing) * 9);
+  padding: 0 calc(var(--spacing) * 3.5);
+  font-size: var(--text-sm);
+}
+
+.pb-button--sm {
+  height: calc(var(--spacing) * 8);
+  padding: 0 calc(var(--spacing) * 2.5);
+  font-size: var(--text-sm);
+}
+
+.pb-button--default {
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.pb-button--default[data-hovered] {
+  background: color-mix(in srgb, var(--primary) 90%, var(--foreground));
+}
+
+.pb-button--secondary {
+  color: var(--foreground);
+  background: var(--secondary);
+  border-color: var(--border);
+  box-shadow: var(--shadow-xs);
+}
+
+.pb-button--secondary[data-hovered] {
+  background: color-mix(in srgb, var(--secondary) 80%, var(--muted));
+}
+
+.pb-button--ghost {
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.pb-button--ghost[data-hovered] {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.pb-button[data-pressed] {
+  transform: scale(var(--motion-press-scale));
+}
+
+.pb-button[data-focus-visible] {
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
+}
+
+.pb-button[data-disabled],
+.pb-button[data-pending] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-button {
+    transition: none;
+  }
+
+  .pb-button[data-pressed] {
+    transform: none;
+  }
+}
