@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Re-import LoAF: no-op bookStore meta/patch + thumb put dedupe
+Status: done
 
 ## Scope
 
@@ -13,5 +14,6 @@ Title: Re-import LoAF: no-op bookStore meta/patch + thumb put dedupe
 - **Size:** ~400 lines
 - **Source:** library re-import scroll frame-budget hardening (store/cache path)
 
-Status: done
-Done note: bookStore identical meta/patch no-ops; thumb put dedupe by contentHash.
+## Done note
+
+bookStore identical meta/patch no-ops; thumb put dedupe by contentHash.
