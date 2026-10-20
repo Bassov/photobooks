@@ -253,13 +253,25 @@ async function importPhotoFilesInner(
             const existingRoot =
               getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId
             const sourceRootId = existingRoot ?? batchRootId
-            await seedAndHashEntry({
-              assetId: entry.assetId,
-              file: entry.file,
-              relativePath: entry.relativePath,
-              sourceRootId,
-              memorySource: memorySourceForRoot(sourceRootId),
-            })
+            const hash = getAssetContentHash(entry.assetId)
+            if (hash !== undefined) {
+              await seedAndHashEntry({
+                assetId: entry.assetId,
+                file: entry.file,
+                relativePath: entry.relativePath,
+                sourceRootId,
+                memorySource: memorySourceForRoot(sourceRootId),
+                contentHash: hash,
+              })
+            } else {
+              await seedAndHashEntry({
+                assetId: entry.assetId,
+                file: entry.file,
+                relativePath: entry.relativePath,
+                sourceRootId,
+                memorySource: memorySourceForRoot(sourceRootId),
+              })
+            }
           })
         },
       )

@@ -8,6 +8,12 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
+import {
+  CODECOV_VALIDATE_TIMEOUT_MS,
+  fetchWithTimeout,
+} from './codecov-fetch-timeout.mjs'
+
+export { CODECOV_VALIDATE_TIMEOUT_MS } from './codecov-fetch-timeout.mjs'
 
 export const CODECOV_YML_REL = 'codecov.yml'
 export const CODECOV_YML_VALIDATE_BASE = 'origin/main'
@@ -30,7 +36,6 @@ export const PINNED_TOP_LEVEL_KEYS = Object.freeze([
 ])
 
 const VALIDATE_URL = 'https://api.codecov.io/validate'
-export const CODECOV_VALIDATE_TIMEOUT_MS = 2500
 
 /**
  * @param {unknown} err
@@ -152,22 +157,21 @@ export function shouldValidateCodecovYmlRemote(opts = {}) {
  * @returns {Promise<{ ok: boolean, mode: 'api' | 'fallback', detail: string }>}
  */
 export async function validateCodecovYml(yamlText, opts = {}) {
-  const fetchImplRaw =
-    opts.fetchImpl == null ? globalThis.fetch : opts.fetchImpl
+  const fetchImpl = opts.fetchImpl == null ? globalThis.fetch : opts.fetchImpl
   const url = opts.validateUrl == null ? VALIDATE_URL : opts.validateUrl
   const timeoutMs =
     opts.timeoutMs == null ? CODECOV_VALIDATE_TIMEOUT_MS : opts.timeoutMs
-  const fetchImpl = (requestUrl, init) => {
-    const next = { ...init }
-    next.signal = AbortSignal.timeout(timeoutMs)
-    return fetchImplRaw(requestUrl, next)
-  }
   try {
-    const res = await fetchImpl(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: yamlText,
-    })
+    const res = await fetchWithTimeout(
+      fetchImpl,
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: yamlText,
+      },
+      timeoutMs,
+    )
     const raw = await res.text()
     const body = String(raw).trim()
     // Success token is the first line exactly "Valid!" (API may append a config dump).

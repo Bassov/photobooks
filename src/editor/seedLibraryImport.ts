@@ -3,7 +3,7 @@ import {
   hashContent,
   type MemoryAssetSource,
 } from '../assets'
-import { getBookStoreSnapshot, patchAssetRecord } from './bookStore'
+import { patchAssetRecord } from './bookStore'
 import { trackHashJob } from './pendingHashes'
 import { getRegisteredAssetSource, registerAssetSource } from './projectSession'
 import { putCachedThumbForHash } from './thumbCache'
@@ -42,13 +42,11 @@ export function seedAndHashEntry(options: {
     bytes: preloaded,
     contentHash: knownHash,
   } = options
-  const resolvedHash =
-    knownHash ?? getBookStoreSnapshot().book.assets[assetId]?.contentHash
   const load =
     preloaded !== undefined ? Promise.resolve(preloaded) : file.arrayBuffer()
   return load.then((bytes) => {
     memorySource.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
-    if (resolvedHash !== undefined) return
+    if (knownHash !== undefined) return
     if (typeof Worker === 'undefined') {
       return
     }
