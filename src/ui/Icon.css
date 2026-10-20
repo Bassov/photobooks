@@ -1,0 +1,21 @@
+.pb-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  color: currentColor;
+}
+
+.pb-icon[data-size='14'] {
+  width: var(--icon-size-14);
+  height: var(--icon-size-14);
+}
+
+.pb-icon[data-size='16'] {
+  width: var(--icon-size-16);
+  height: var(--icon-size-16);
+}
+
+.pb-icon[data-size='20'] {
+  width: var(--icon-size-20);
+  height: var(--icon-size-20);
+}

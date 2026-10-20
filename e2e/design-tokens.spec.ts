@@ -20,6 +20,13 @@ test('specimen page shows token swatches without third-party fonts', async ({
   await expect(page.getByRole('heading', { name: '?specimen' })).toBeVisible()
   await expect(page.getByText('Semantic colour roles')).toBeVisible()
   await expect(page.getByText('Type scale', { exact: false })).toBeVisible()
+  await expect(page.getByTestId('specimen-icons')).toBeVisible()
+  await expect(page.getByText('undo')).toBeVisible()
+  await expect(page.getByText('folder')).toBeVisible()
+  await page.getByRole('button', { name: 'Icon size 20' }).click()
+  await expect(
+    page.locator('[data-testid="specimen-icons"] svg[data-icon="undo"]'),
+  ).toHaveAttribute('data-size', '20')
 
   const theme = await page.evaluate(
     () => document.documentElement.dataset.theme,
@@ -32,6 +39,13 @@ test('specimen page shows token swatches without third-party fonts', async ({
       .trim(),
   )
   expect(chrome.length).toBeGreaterThan(0)
+
+  const iconSize = await page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue('--icon-size-16')
+      .trim(),
+  )
+  expect(iconSize).toBe('16px')
 
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'specimen', {

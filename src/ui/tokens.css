@@ -30,6 +30,10 @@ html[data-theme='b'] {
   --text-3xl: 32px;
   --text-eyebrow: 11px;
 
+  --icon-size-14: 14px;
+  --icon-size-16: 16px;
+  --icon-size-20: 20px;
+
   --radius: 10px;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
