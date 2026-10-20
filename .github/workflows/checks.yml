@@ -63,12 +63,12 @@ jobs:
 
       - name: Coverage summary
         if: always()
-        run: node scripts/coverage-step-summary.mjs | tee /tmp/coverage-pr-comment.md
+        run: pnpm exec ts-rig-ci coverage-summary | tee /tmp/coverage-pr-comment.md
 
       - name: Pack coverage section
         if: always()
         run: |
-          node scripts/ci-report-comment.mjs pack \
+          pnpm exec ts-rig-ci report-comment pack \
             --section coverage \
             --step-outcome "${{ steps.unit.outcome }}" \
             --missing-report job-failed \
@@ -136,4 +136,4 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci-report-comment.mjs apply --section coverage --artifact ci-section/section.json
+        run: pnpm exec ts-rig-ci report-comment apply --section coverage --artifact ci-section/section.json

@@ -22,7 +22,7 @@ Vite + React 19 + TypeScript. Product/toolchain conventions: `.cursor/rules/over
 | Shared helpers       | `src/lib/`                             | —                                                |
 | Preview hosting      | `wrangler.jsonc`, deploy scripts       | `openspec/specs/preview-hosting/`                |
 | CI quality gates     | `.github/`, `scripts/check-*.mjs`      | `quality/gates.json` (see `ci-gates/` pointer)   |
-| Agent pipeline       | `.cursor/`, `scripts/agent.mjs`        | `openspec/config.yaml` (see `agent-context/`)    |
+| Agent pipeline       | `.cursor/`, `@albasov/ts-agent-rig`    | `openspec/config.yaml` (see `agent-context/`)    |
 | UI kit reference     | `uikit/` (served at `/uikit/`)         | — (prep; `UI ref: uikit#/feature/<slug>`)        |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.

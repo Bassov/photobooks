@@ -34,7 +34,7 @@ jobs:
       - name: Mutation test changed files
         id: mutate
         # Verbose so CI logs keep full Stryker output; report files still under reports/mutation/.
-        run: node scripts/check.mjs --verbose --run stryker-diff -- node scripts/stryker-diff.mjs
+        run: pnpm exec ts-rig-check --verbose --run stryker-diff -- pnpm exec ts-rig-gate stryker-diff
 
       - name: Mutation summary
         if: always()
@@ -46,7 +46,7 @@ jobs:
             exit 0
           fi
           echo "has_report=true" >> "$GITHUB_OUTPUT"
-          node scripts/stryker-pr-summary-cli.mjs > /tmp/stryker-pr-comment.md
+          pnpm exec ts-rig-ci stryker-summary > /tmp/stryker-pr-comment.md
 
       - name: Upload Stryker report
         if: always() && steps.summary.outputs.has_report == 'true'
@@ -59,7 +59,7 @@ jobs:
       - name: Pack mutation section
         if: always()
         run: |
-          node scripts/ci-report-comment.mjs pack \
+          pnpm exec ts-rig-ci report-comment pack \
             --section mutation \
             --step-outcome "${{ steps.mutate.outcome }}" \
             --missing-report skipped \
@@ -103,4 +103,4 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci-report-comment.mjs apply --section mutation --artifact ci-section/section.json
+        run: pnpm exec ts-rig-ci report-comment apply --section mutation --artifact ci-section/section.json

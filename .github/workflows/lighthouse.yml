@@ -39,12 +39,12 @@ jobs:
         if: always()
         env:
           LHCI_OUTCOME: ${{ steps.lhci.outcome }}
-        run: node scripts/lighthouse-pr-summary.mjs > /tmp/lighthouse-pr-comment.md
+        run: pnpm exec ts-rig-ci lhci-summary > /tmp/lighthouse-pr-comment.md
 
       - name: Pack Lighthouse section
         if: always()
         run: |
-          node scripts/ci-report-comment.mjs pack \
+          pnpm exec ts-rig-ci report-comment pack \
             --section lighthouse \
             --step-outcome "${{ steps.lhci.outcome }}" \
             --missing-report job-failed \
@@ -88,4 +88,4 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci-report-comment.mjs apply --section lighthouse --artifact ci-section/section.json
+        run: pnpm exec ts-rig-ci report-comment apply --section lighthouse --artifact ci-section/section.json

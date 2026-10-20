@@ -1,5 +1,5 @@
 import nightly from './stryker.config.mjs'
-import { loadGates } from './scripts/load-gates.mjs'
+import { loadGates } from '@albasov/ts-agent-rig/load-gates'
 
 const gates = loadGates()
 

@@ -1,7 +1,7 @@
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
-import { loadGates } from './scripts/load-gates.mjs'
+import { loadGates } from '@albasov/ts-agent-rig/load-gates'
 
 const isCi = Boolean(process.env.CI)
 const e2ePort = process.env.E2E_PORT ?? '4173'
