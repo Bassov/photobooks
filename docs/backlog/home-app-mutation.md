@@ -12,3 +12,4 @@ Title: mutate HomeScreen.tsx and App.tsx (issue #72 B)
 - **Done when:** both files are mutated on both runs at 85+ with no NoCoverage.
 - **Size:** ~700 changed lines (target ~1000, max 1500 incl. tests)
 - **Source:** #72 B; gap audit
+- **Reason:** Home/App markup is slated for M2.2/M2.5 uikit adoption; mutation RTL before that rewrite is throwaway (pipeline-gates opt §3.1, owner 2026-10-20).

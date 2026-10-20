@@ -68,23 +68,29 @@ function fakeSpawnByCheckName(byName) {
               ? 'mutation-scope'
               : args.includes('gate-values')
                 ? 'gate-values'
-                : args.includes('codecov-yml')
-                  ? 'codecov-yml'
-                  : args.includes('git-test-isolation')
-                    ? 'git-test-isolation'
-                    : args.includes('roadmap')
-                      ? 'roadmap'
-                      : args.includes('test:quiet') || args.includes('vitest')
-                        ? 'unit'
-                        : args.some((a) =>
-                              String(a).includes('check-diff-size'),
-                            )
-                          ? 'diff-size'
+                : args.includes('openspec-budget')
+                  ? 'openspec-budget'
+                  : args.includes('codecov-yml')
+                    ? 'codecov-yml'
+                    : args.includes('git-test-isolation')
+                      ? 'git-test-isolation'
+                      : args.includes('roadmap')
+                        ? 'roadmap'
+                        : args.includes('test:quiet') || args.includes('vitest')
+                          ? 'unit'
                           : args.some((a) =>
-                                String(a).includes('check-pr-body'),
+                                String(a).includes('check-patch-coverage'),
                               )
-                            ? 'pr-body'
-                            : 'unknown'
+                            ? 'patch-coverage'
+                            : args.some((a) =>
+                                  String(a).includes('check-diff-size'),
+                                )
+                              ? 'diff-size'
+                              : args.some((a) =>
+                                    String(a).includes('check-pr-body'),
+                                  )
+                                ? 'pr-body'
+                                : 'unknown'
     const res = byName[key] ?? { code: 0, stdout: '', stderr: '' }
     queueMicrotask(() => {
       if (res.stdout) ee.stdout.emit('data', res.stdout)
@@ -178,6 +184,7 @@ describe('buildInventory', () => {
       'knip',
       'mutation-scope',
       'gate-values',
+      'openspec-budget',
       'codecov-yml',
       'git-test-isolation',
       'roadmap',
@@ -420,6 +427,7 @@ describe('runChecks', () => {
         knip: { code: 0 },
         'mutation-scope': { code: 0 },
         'gate-values': { code: 0 },
+        'openspec-budget': { code: 0 },
         'codecov-yml': { code: 0 },
         'git-test-isolation': { code: 0 },
         roadmap: { code: 0 },
@@ -431,7 +439,7 @@ describe('runChecks', () => {
     })
     expect(summary.ok).toBe(true)
     const okLines = out.split('\n').filter((l) => l.startsWith('OK '))
-    expect(okLines.length).toBe(10)
+    expect(okLines.length).toBe(11)
     expect(out).not.toMatch(/PASS|✓|passed/i)
     for (const r of summary.results) {
       expect(r.problems).toEqual([])
@@ -558,6 +566,7 @@ describe('main', () => {
       'knip',
       'lint',
       'mutation-scope',
+      'openspec-budget',
       'roadmap',
       'typecheck',
     ])
@@ -582,6 +591,7 @@ describe('main', () => {
       'knip',
       'mutation-scope',
       'gate-values',
+      'openspec-budget',
       'codecov-yml',
       'git-test-isolation',
       'roadmap',

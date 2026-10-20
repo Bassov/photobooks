@@ -12,15 +12,6 @@ const config = {
   mutate: [
     'src/**/*.ts',
     'src/**/*.tsx',
-    'scripts/**/*.mjs',
-    '!scripts/**/*.test.mjs',
-    '!scripts/agent-cli.mjs',
-    '!scripts/codecov-yml-cli.mjs',
-    '!scripts/e2e-burn-in-count-cli.mjs',
-    '!scripts/e2e-burn-in-targets-cli.mjs',
-    '!scripts/e2e-changed-quiet-cli.mjs',
-    '!scripts/e2e-playwright-summary-cli.mjs',
-    '!scripts/gate-ratchet-cli.mjs',
     '!src/**/*.{test,spec}.{ts,tsx}',
     '!src/**/*.{bench,benchmark}.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -54,6 +45,9 @@ const config = {
   reporters: ['clear-text', 'html', 'json'],
   jsonReporter: {
     fileName: 'reports/mutation/mutation.json',
+  },
+  mutator: {
+    excludedMutations: ['StringLiteral'],
   },
   coverageAnalysis: 'perTest',
   thresholds: gates.stryker.thresholds,

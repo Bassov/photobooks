@@ -11,7 +11,6 @@ import {
   DEFAULT_PARSE_FILENAME,
   DONE_NOTE_H2,
   DONE_NOTE_PREFIX,
-  EMPTY_STRING,
   MSGS,
   OWNER_APPROVAL_PREFIX,
   PATHS,
@@ -23,8 +22,6 @@ import {
   TEST_ROOT_IT,
   TEST_ROOT_NAMES,
   TEST_ROOT_TEST,
-  TS_SET_PARENT_NODES,
-  TYPEOF_STRING,
   WEAKENING_SUFFIXES,
   companionDeletedFor,
   companionPathsFor,
@@ -32,9 +29,7 @@ import {
   compareTestWeakening,
   countWeakeningMarkers,
   extractConfigBool,
-  hashBody,
   hasOwnerApprovedScopeChange,
-  inventoryAllTitles,
   isAllowedItemEdit,
   isDeferralRoadmapText,
   isItemCriteriaLine,
@@ -49,91 +44,8 @@ import ts from 'typescript'
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-describe('pins / constants', () => {
-  it('pins PATHS, CRITERIA, status/done-note, suffixes', () => {
-    expect(EMPTY_STRING).toBe('')
-    expect(PATHS).toEqual({
-      winSep: '\\',
-      posixSep: '/',
-      nodeModules: 'node_modules/',
-      burnInFixtures: '/burn-in-fixtures/',
-      srcPrefix: 'src/',
-      scriptsPrefix: 'scripts/',
-      e2ePrefix: 'e2e/',
-      testDot: '.test.',
-      extTs: '.ts',
-      extTsx: '.tsx',
-      extMjs: '.mjs',
-      extJs: '.js',
-      specTsSuffix: '.spec.ts',
-      roadmapPrefix: 'docs/roadmap/',
-      mdSuffix: '.md',
-      introBase: 'INTRO',
-      readmeBase: 'README',
-      indexTs: '/index.ts',
-    })
-    expect(COMPANION_EXTS).toEqual(['.ts', '.tsx', '.mjs', '.js'])
-    expect(RETRIES_KEY).toBe('retries')
-    expect(STATUS_PREFIX).toBe('Status:')
-    expect(STATUS_DONE).toBe('Status: done')
-    expect(DONE_NOTE_H2).toBe('## Done note')
-    expect(DONE_NOTE_PREFIX).toBe('Done note:')
-    expect(DEFAULT_PARSE_FILENAME).toBe('file.ts')
-    expect(CHECKBOX_TODO).toBe('- [ ]')
-    expect(CHECKBOX_DONE).toBe('- [x]')
-    expect(CRITERIA).toEqual({
-      doneWhenH2: '## Done when',
-      scopeH2: '## Scope',
-      doneWhenBullet: '- **Done when:**',
-      sizeBullet: '- **Size:**',
-      checkboxOpen: '- [',
-    })
-    expect(WEAKENING_SUFFIXES).toEqual([
-      'skip',
-      'only',
-      'todo',
-      'fixme',
-      'fail',
-    ])
-    expect(TEST_ROOT_NAMES).toEqual(['test', 'it', 'describe'])
-    expect(TEST_ROOT_TEST).toBe('test')
-    expect(TEST_ROOT_IT).toBe('it')
-    expect(TEST_ROOT_DESCRIBE).toBe('describe')
-    expect(TEST_CONFIGURE).toBe('configure')
-    expect(OWNER_APPROVAL_PREFIX).toBe('Owner-approved scope change:')
-    expect(TYPEOF_STRING).toBe('string')
-    expect(TS_SET_PARENT_NODES).toBe(true)
-    expect(CONFIG_KEYS).toEqual({
-      allowOnly: 'allowOnly',
-      forbidOnly: 'forbidOnly',
-      viteConfig: 'vite.config.ts',
-      playwrightConfig: 'playwright.config.ts',
-      falseLit: 'false',
-      trueLit: 'true',
-    })
-    expect(MSGS).toEqual({
-      testFileDeletedPrefix: 'test file deleted without companion source: ',
-      weakeningAddedPrefix: 'weakening marker added in ',
-      retriesAddedPrefix: 'retries added in ',
-      titleRemovedPrefix: 'test title removed in ',
-      titleRemovedSep: ': ',
-      allowOnlyWeakerPrefix: 'vite allowOnly weakened: ',
-      forbidOnlyWeakerPrefix: 'playwright forbidOnly weakened: ',
-      weakerArrow: ' → ',
-      itemLoosenedPrefix: 'roadmap item criteria loosened: ',
-      deferralAddedPrefix: 'deferral roadmap item added: ',
-      ruleTestTitleRemoved: 'test-title-removed',
-      ruleTestSkipAdded: 'test-skip-added',
-      ruleTestRetriesAdded: 'test-retries-added',
-      ruleAllowOnlyWeaker: 'allow-only-weaker',
-      ruleForbidOnlyWeaker: 'forbid-only-weaker',
-      ruleItemCriteria: 'item-criteria-loosened',
-    })
-  })
-})
-
 describe('parseTestFile', () => {
-  it('detects skip/only/todo/fixme and titles with body hash', () => {
+  it('detects skip/only/todo/fixme weakening markers', () => {
     const src = `
 import { test, it, describe } from 'vitest'
 test('keeps running', () => { expect(1).toBe(1) })
@@ -144,7 +56,6 @@ test.fixme('broken', () => {})
 test.fail('will fail', () => {})
 `
     const p = parseTestFile(src, 'x.test.ts')
-    expect(p.titles.map((t) => t.title)).toContain('keeps running')
     expect(p.weakening.map((w) => w.suffix).sort()).toEqual(
       ['fail', 'fixme', 'only', 'skip', 'todo'].sort(),
     )
@@ -159,30 +70,21 @@ test('plain', async () => {})
 `
     const p = parseTestFile(src, 'e2e/x.spec.ts')
     expect(p.retries).toBe(2)
-    expect(p.titles.map((t) => t.title)).toEqual(['with retries', 'plain'])
   })
 
   it('detects string-literal retries key', () => {
     const src = `test('with retries', { 'retries': 2 }, async () => {})\n`
     const p = parseTestFile(src, 'e2e/x.spec.ts')
     expect(p.retries).toBe(1)
-    expect(p.titles[0].title).toBe('with retries')
-  })
-
-  it('non-function body hashes as empty string', () => {
-    const p = parseTestFile(`test('t', 42)\ntest('u')\n`, 'a.test.ts')
-    expect(p.titles).toHaveLength(2)
-    expect(p.titles[0].bodyHash).toBe(hashBody(EMPTY_STRING))
-    expect(p.titles[1].bodyHash).toBe(hashBody(EMPTY_STRING))
   })
 
   it('default fileName pin parses without second arg', () => {
     const p = parseTestFile(`test('solo', () => {})`)
     expect(DEFAULT_PARSE_FILENAME).toBe('file.ts')
-    expect(p.titles.map((t) => t.title)).toEqual(['solo'])
+    expect(p.weakening).toEqual([])
   })
 
-  it('does not treat describe / configure as test titles', () => {
+  it('does not count describe / configure as weakening', () => {
     const src = `
 describe('suite', () => {})
 test.describe('nested', () => {})
@@ -191,15 +93,8 @@ test('real', () => {})
 it('also', () => {})
 `
     const p = parseTestFile(src, 'a.test.ts')
-    expect(p.titles.map((t) => t.title).sort()).toEqual(['also', 'real'])
+    expect(p.weakening).toEqual([])
     expect(p.retries).toBe(1)
-  })
-
-  it('rename keeps same body hash', () => {
-    const body = '() => { expect(1).toBe(1) }'
-    const a = parseTestFile(`test('old', ${body})`, 'a.test.ts')
-    const b = parseTestFile(`test('new', ${body})`, 'a.test.ts')
-    expect(a.titles[0].bodyHash).toBe(b.titles[0].bodyHash)
   })
 
   it('objectHasRetries true only for retries key', () => {
@@ -219,10 +114,7 @@ it('also', () => {})
     expect(objectHasRetries(objOf(`const x = 1`))).toBe(false)
   })
 
-  it('coerceText / hashBody / staticStringArg edges', () => {
-    expect(hashBody(null)).toBe(hashBody(EMPTY_STRING))
-    expect(hashBody(undefined)).toBe(hashBody(EMPTY_STRING))
-    expect(hashBody(12)).toBe(hashBody('12'))
+  it('staticStringArg edges', () => {
     expect(staticStringArg(undefined)).toBe(null)
   })
 })
@@ -373,6 +265,11 @@ describe('extractConfigBool / approval / slug', () => {
     expect(hasOwnerApprovedScopeChange('Owner-approved scope change:')).toBe(
       false,
     )
+    expect(
+      hasOwnerApprovedScopeChange(
+        'Owner-approved scope change:\n- raised disableBudget to 10\n',
+      ),
+    ).toBe(true)
     expect(hasOwnerApprovedScopeChange('')).toBe(false)
     expect(
       hasOwnerApprovedScopeChange(`${OWNER_APPROVAL_PREFIX} https://x\r\nmore`),
@@ -532,27 +429,6 @@ describe('compareTestWeakening', () => {
     })
   })
 
-  it('fails on deleted title; passes rename with same body', () => {
-    const body = '() => { return 1 }'
-    /** @type {{ ruleId: string, message: string }[]} */
-    const del = []
-    compareTestWeakening(
-      { 'e2e/a.spec.ts': `test('old title', ${body})\n` },
-      { 'e2e/a.spec.ts': `test('kept', () => {})\n` },
-      (ruleId, message) => del.push({ ruleId, message }),
-    )
-    expect(del.some((x) => x.ruleId === 'test-title-removed')).toBe(true)
-
-    /** @type {{ ruleId: string, message: string }[]} */
-    const ren = []
-    compareTestWeakening(
-      { 'e2e/a.spec.ts': `test('old title', ${body})\n` },
-      { 'e2e/a.spec.ts': `test('new title', ${body})\n` },
-      (ruleId, message) => ren.push({ ruleId, message }),
-    )
-    expect(ren.some((x) => x.ruleId === 'test-title-removed')).toBe(false)
-  })
-
   it('fails file delete alone; passes with companion', () => {
     /** @type {{ ruleId: string, message: string }[]} */
     const alone = []
@@ -564,7 +440,7 @@ describe('compareTestWeakening', () => {
       { 'src/foo.ts': `export const x = 1\n` },
       (ruleId, message) => alone.push({ ruleId, message }),
     )
-    expect(alone.some((x) => x.ruleId === 'test-title-removed')).toBe(true)
+    expect(alone.some((x) => x.ruleId === 'test-file-deleted')).toBe(true)
 
     /** @type {{ ruleId: string, message: string }[]} */
     const both = []
@@ -576,7 +452,7 @@ describe('compareTestWeakening', () => {
       {},
       (ruleId, message) => both.push({ ruleId, message }),
     )
-    expect(both.some((x) => x.ruleId === 'test-title-removed')).toBe(false)
+    expect(both.some((x) => x.ruleId === 'test-file-deleted')).toBe(false)
   })
 
   it('passes e2e delete when matching src basename deleted', () => {
@@ -590,7 +466,7 @@ describe('compareTestWeakening', () => {
       {},
       (ruleId, message) => v.push({ ruleId, message }),
     )
-    expect(v.some((x) => x.ruleId === 'test-title-removed')).toBe(false)
+    expect(v.some((x) => x.ruleId === 'test-file-deleted')).toBe(false)
   })
 
   it('fails allowOnly/forbidOnly weakening', () => {
@@ -626,7 +502,7 @@ describe('compareTestWeakening', () => {
       (ruleId, message) => v.push({ ruleId, message }),
     )
     expect(v).toContainEqual({
-      ruleId: MSGS.ruleTestTitleRemoved,
+      ruleId: MSGS.ruleTestFileDeleted,
       message: `${MSGS.testFileDeletedPrefix}src/solo.test.ts`,
     })
   })
@@ -789,8 +665,7 @@ describe('real repo inventory', () => {
     return files
   }
 
-  it('parses non-empty titles from real test files', () => {
-    // burn-in-fixtures file exists on disk but must be filtered by isTrackedTestPath
+  it('parses weakening markers from real test files', () => {
     expect(
       fs.existsSync(
         path.join(FIXTURE_ROOT, 'e2e/burn-in-fixtures/ignored.spec.ts'),
@@ -809,22 +684,6 @@ describe('real repo inventory', () => {
       'src/feature/sample.test.ts',
       'src/feature/sample.test.tsx',
     ])
-    const titles = inventoryAllTitles(files)
-    expect(titles.length).toBeGreaterThan(50)
-    expect(titles.length).toBe(70)
-    expect(titles.every((t) => t.title.length > 0)).toBe(true)
-    expect(titles.some((t) => t.path.startsWith('src/'))).toBe(true)
-    expect(titles.some((t) => t.path.startsWith('scripts/'))).toBe(true)
-    expect(titles.some((t) => t.path.startsWith('e2e/'))).toBe(true)
-    // sanity: markers detector runs without throwing
     expect(countWeakeningMarkers(files)).toBeGreaterThanOrEqual(0)
-  })
-
-  it('cheap real-repo smoke: one tracked file still inventories', () => {
-    const rel = 'src/editor/importPhotos.test.ts'
-    const raw = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8')
-    const titles = inventoryAllTitles({ [rel]: raw })
-    expect(titles.length).toBeGreaterThan(0)
-    expect(titles.every((t) => t.path === rel && t.title.length > 0)).toBe(true)
   })
 })

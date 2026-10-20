@@ -12,3 +12,4 @@ Title: unreachable code is deleted, not defended (dead/defensive code finding)
 - **Done when:** a fixture that adds an unreachable `if (x == null) return` to a pure module fails `pr-policy`, the same branch with a test that reaches it passes, and the CI report names the line.
 - **Size:** ~400 changed lines (target ~1000, max 1500 incl. tests)
 - **Source:** PR #82 N1/N2/N8/N9, PR #81
+- **Reason:** Patch coverage, `agent-self-check`, and `stryker-diff` already fail untested changed branches; V8 branch counters are redundant (pipeline-gates opt §3.1, owner 2026-10-20).

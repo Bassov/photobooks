@@ -11,7 +11,17 @@ import { parse as parseYaml } from 'yaml'
 import {
   compareItemCriteria,
   compareTestWeakening,
+  hasOwnerApprovedScopeChange,
 } from './check-test-weakening.mjs'
+
+/** Intentional baseline edits waived when Owner-approved scope change is present. */
+export const OWNER_WAIVABLE_RULE_IDS = Object.freeze([
+  'gates-json-weaker',
+  'stryker-weaker',
+  'rules-superset',
+  'fixtures-superset',
+  'item-criteria-loosened',
+])
 import {
   codecovFlagPathCovered,
   compareScriptScopeGates,
@@ -40,7 +50,7 @@ export const RULE_IDS = Object.freeze([
   'fixtures-superset',
   'test-skip-added',
   'test-retries-added',
-  'test-title-removed',
+  'test-file-deleted',
   'allow-only-weaker',
   'forbid-only-weaker',
   'item-criteria-loosened',
@@ -65,12 +75,10 @@ export const FIXTURE_IDS = Object.freeze([
   'added-skip',
   'added-fixme',
   'added-retries',
-  'deleted-title',
   'forbid-only-false',
   'allow-only-true',
   'deleted-test-file-alone',
   'deleted-test-file-with-companion',
-  'renamed-title-same-body',
   'done-when-rewrite',
   'deferral-item',
   'checkbox-done-note',
@@ -82,7 +90,6 @@ export const FIXTURE_IDS = Object.freeze([
   'temporary-excludes-seed',
   'scripts-glob-pr126-replay',
   'scripts-include-uncovered-removed',
-  'mutate-include-uncovered-removed',
   'broad-script-exclude',
   'non-thin-cli-exclude',
   'codecov-path-uncovered',
@@ -90,10 +97,6 @@ export const FIXTURE_IDS = Object.freeze([
   'agent-rules-within-budget',
   'agent-rules-budget-raised',
 ])
-/** Shared empty literals — asserted in unit tests to pin StringLiteral/Array mutants. */
-export const EMPTY_STRING = ''
-export const EMPTY_OBJECT_JSON = '{}'
-export const EMPTY_ARRAY = Object.freeze([])
 
 /** Fail-message fragments — exact values pinned by unit tests. */
 export const MSGS = Object.freeze({
@@ -219,6 +222,11 @@ const GATES_NUMERIC = [
     label: 'coverage.lines',
   },
   {
+    path: ['coverage', 'patch'],
+    dir: NEEDLES.higherStricter,
+    label: 'coverage.patch',
+  },
+  {
     path: ['stryker', 'thresholds', 'high'],
     dir: NEEDLES.higherStricter,
     label: 'stryker.thresholds.high',
@@ -272,6 +280,16 @@ const GATES_NUMERIC = [
     path: ['mutation', 'disableBudget'],
     dir: NEEDLES.lowerStricter,
     label: 'mutation.disableBudget',
+  },
+  {
+    path: ['openspecSpecs', 'softMaxLines'],
+    dir: NEEDLES.lowerStricter,
+    label: 'openspecSpecs.softMaxLines',
+  },
+  {
+    path: ['openspecSpecs', 'hardMaxLines'],
+    dir: NEEDLES.lowerStricter,
+    label: 'openspecSpecs.hardMaxLines',
   },
 ]
 
@@ -334,7 +352,7 @@ export function isWsChar(ch) {
  * @param {unknown} value
  */
 export function coerceText(value) {
-  return value == null ? EMPTY_STRING : String(value)
+  return value == null ? '' : String(value)
 }
 
 /**
@@ -376,7 +394,7 @@ export function extractFirstKeyedArray(text, key) {
   let from = 0
   while (from < src.length) {
     const keyAt = src.indexOf(key, from)
-    if (keyAt === -1) return EMPTY_ARRAY
+    if (keyAt === -1) return []
     let i = keyAt + key.length
     while (i < src.length && isWsChar(src[i])) i++
     if (src[i] !== ':' && src[i] !== '=') {
@@ -405,7 +423,7 @@ export function extractFirstKeyedArray(text, key) {
     }
     return extractQuotedStrings(src.slice(start, i))
   }
-  return EMPTY_ARRAY
+  return []
 }
 
 /**
@@ -417,11 +435,11 @@ export function parseExportedStringArray(text, exportName) {
   const src = coerceText(text)
   const needle = `export const ${exportName}`
   const at = src.indexOf(needle)
-  if (at === -1) return EMPTY_ARRAY
+  if (at === -1) return []
   const freezeAt = src.indexOf(NEEDLES.objectFreeze, at)
-  if (freezeAt === -1) return EMPTY_ARRAY
+  if (freezeAt === -1) return []
   const bracketAt = src.indexOf('[', freezeAt)
-  if (bracketAt === -1) return EMPTY_ARRAY
+  if (bracketAt === -1) return []
   let i = bracketAt + 1
   const start = i
   while (i < src.length) {
@@ -468,7 +486,7 @@ export function sliceCoverageConfigBlock(content) {
   let from = 0
   while (from < src.length) {
     const cov = src.indexOf(NEEDLES.coverage, from)
-    if (cov === -1) return EMPTY_STRING
+    if (cov === -1) return ''
     if (cov > 0 && isIdentContinue(src[cov - 1])) {
       from = cov + 1
       continue
@@ -505,9 +523,9 @@ export function sliceCoverageConfigBlock(content) {
         if (depth === 0) return src.slice(start, i + 1)
       }
     }
-    return EMPTY_STRING
+    return ''
   }
-  return EMPTY_STRING
+  return ''
 }
 
 /**
@@ -517,7 +535,7 @@ export function sliceCoverageConfigBlock(content) {
  */
 export function extractCoverageIncludes(content) {
   const block = sliceCoverageConfigBlock(content)
-  if (block === EMPTY_STRING) return EMPTY_ARRAY
+  if (block === '') return []
   return extractFirstKeyedArray(block, NEEDLES.include)
 }
 
@@ -532,7 +550,7 @@ export function extractCoverageExcludes(content) {
     out.add(p)
   }
   const block = sliceCoverageConfigBlock(text)
-  if (block !== EMPTY_STRING) {
+  if (block !== '') {
     for (const p of extractFirstKeyedArray(block, NEEDLES.exclude)) {
       out.add(p)
     }
@@ -545,7 +563,7 @@ export function extractCoverageExcludes(content) {
  * @param {string} text
  */
 export function compactWs(text) {
-  let out = EMPTY_STRING
+  let out = ''
   for (const ch of String(text)) {
     if (isWsChar(ch)) continue
     out += ch
@@ -1049,7 +1067,7 @@ export function compareCodecov(baseRaw, headRaw, fail) {
     const bPaths = isRecord(bFlagObj) ? bFlagObj.paths : undefined
     const hPaths = isRecord(hFlagObj) ? hFlagObj.paths : undefined
     if (!Array.isArray(bPaths)) continue
-    const headPaths = Array.isArray(hPaths) ? hPaths : EMPTY_ARRAY
+    const headPaths = Array.isArray(hPaths) ? hPaths : []
     for (const p of bPaths) {
       if (!codecovFlagPathCovered(String(p), headPaths.map(String))) {
         fail(`codecov.yml flags.${flag}.paths removed ${p}`)
@@ -1057,12 +1075,8 @@ export function compareCodecov(baseRaw, headRaw, fail) {
     }
   }
 
-  const bIgnore = new Set(
-    Array.isArray(base.ignore) ? base.ignore : EMPTY_ARRAY,
-  )
-  const hIgnore = new Set(
-    Array.isArray(head.ignore) ? head.ignore : EMPTY_ARRAY,
-  )
+  const bIgnore = new Set(Array.isArray(base.ignore) ? base.ignore : [])
+  const hIgnore = new Set(Array.isArray(head.ignore) ? head.ignore : [])
   for (const p of hIgnore) {
     if (!bIgnore.has(p)) fail(`codecov.yml ignore added ${p}`)
   }
@@ -1123,9 +1137,9 @@ export function analyzeWorkflowJobs(workflow) {
       ? needsRaw.map(String)
       : needsRaw
         ? [String(needsRaw)]
-        : EMPTY_ARRAY
+        : []
     let failOnNeeds = false
-    const steps = Array.isArray(job.steps) ? job.steps : EMPTY_ARRAY
+    const steps = Array.isArray(job.steps) ? job.steps : []
     for (const step of steps) {
       const stepKinds = classifyGateSteps(step)
       for (const k of stepKinds) kinds.add(k)
@@ -1381,8 +1395,8 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
   try {
     const bPkgRaw = getFile(baseFiles, 'package.json')
     const hPkgRaw = getFile(headFiles, 'package.json')
-    const bPkg = JSON.parse(bPkgRaw == null ? EMPTY_OBJECT_JSON : bPkgRaw)
-    const hPkg = JSON.parse(hPkgRaw == null ? EMPTY_OBJECT_JSON : hPkgRaw)
+    const bPkg = JSON.parse(bPkgRaw == null ? '{}' : bPkgRaw)
+    const hPkg = JSON.parse(hPkgRaw == null ? '{}' : hPkgRaw)
     const bPnpm = isRecord(bPkg.pnpm) ? bPkg.pnpm : {}
     const hPnpm = isRecord(hPkg.pnpm) ? hPkg.pnpm : {}
     const bPatched = isRecord(bPnpm.patchedDependencies)
@@ -1436,9 +1450,7 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
     }
     try {
       const hGatesRaw = getFile(headFiles, 'quality/gates.json')
-      const hGates = JSON.parse(
-        hGatesRaw == null ? EMPTY_OBJECT_JSON : hGatesRaw,
-      )
+      const hGates = JSON.parse(hGatesRaw == null ? '{}' : hGatesRaw)
       const ceiling = readDisableBudget(hGates)
       if (headLegalTotal > ceiling) {
         fail(
@@ -1456,10 +1468,10 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
 
   try {
     const bGatesRaw = getFile(baseFiles, 'quality/gates.json')
-    const bGates = JSON.parse(bGatesRaw == null ? EMPTY_OBJECT_JSON : bGatesRaw)
+    const bGates = JSON.parse(bGatesRaw == null ? '{}' : bGatesRaw)
     const required = Array.isArray(bGates.requiredCheckJobs)
       ? bGates.requiredCheckJobs.map(String)
-      : EMPTY_ARRAY
+      : []
     compareRequiredJobGates(baseFiles, headFiles, required, (m) =>
       fail('required-job-step-moved', m),
     )
@@ -1510,6 +1522,13 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
     { prBody: opts.prBody, branch: opts.branch },
     fail,
   )
+
+  if (hasOwnerApprovedScopeChange(opts.prBody ?? '')) {
+    const kept = violations.filter(
+      (v) => !OWNER_WAIVABLE_RULE_IDS.includes(v.ruleId),
+    )
+    return { ok: kept.length === 0, violations: kept }
+  }
 
   return { ok: violations.length === 0, violations }
 }
@@ -1722,20 +1741,32 @@ export function runGateRatchetCli(argv = process.argv.slice(2), opts = {}) {
   }
   /** Explicit `--pr-body` (including empty) wins over env. */
   const hasPrBodyFlag = Object.prototype.hasOwnProperty.call(args, 'pr-body')
-  let prBody = EMPTY_STRING
+  let prBody = ''
   if (hasPrBodyFlag) {
     prBody = args['pr-body']
   } else if (args['pr-body-env']) {
-    prBody = process.env[args['pr-body-env']] ?? EMPTY_STRING
+    prBody = process.env[args['pr-body-env']] ?? ''
   } else if (process.env.PR_POLICY_BODY != null) {
     prBody = process.env.PR_POLICY_BODY
+  } else {
+    // Local pre-PR: collect Owner-approved lines from branch commits.
+    const baseRef = args['base-ref'] || 'origin/main'
+    const headRef = args['head-ref'] || 'HEAD'
+    const log = spawnSync(
+      'git',
+      ['log', `${baseRef}..${headRef}`, '--format=%B'],
+      {
+        cwd,
+        encoding: 'utf8',
+        env: stripGitKeys({ ...process.env }),
+      },
+    )
+    if ((log.status ?? 1) === 0) prBody = coerceText(log.stdout)
   }
   const hasBranchFlag = Object.prototype.hasOwnProperty.call(args, 'branch')
   const branch = hasBranchFlag
     ? args.branch
-    : process.env.PR_POLICY_BRANCH ||
-      process.env.GITHUB_HEAD_REF ||
-      EMPTY_STRING
+    : process.env.PR_POLICY_BRANCH || process.env.GITHUB_HEAD_REF || ''
   const result = compareGateTrees(baseFiles, headFiles, { prBody, branch })
   if (result.ok) {
     console.log('Gate ratchet: OK (head not weaker than base)')

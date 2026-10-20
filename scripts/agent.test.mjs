@@ -64,6 +64,10 @@ import {
   readProtobufVarint,
   readyArtifactIds,
   STATS_CHARS_PER_TOKEN,
+  hasPrepConcreteScope,
+  isPrepFastTrack,
+  PREP_APPLY_ARCHIVE_PROCEDURE,
+  APPLY_ARCHIVE_PROCEDURE,
 } from './agent.mjs'
 
 const tmpDirs = []
@@ -148,6 +152,8 @@ const HELP_SNIPPETS = [
   'preflight [--slug S] [--skip a,b]',
   'finish --title T --body-file F',
   'review-brief [--change S] [--base REF] [--rules-json',
+  'size [--plan]',
+  'manual-qa',
   'instructions <artifact>',
   'stats <path>',
   'source scripts/agent-env.sh',
@@ -299,6 +305,27 @@ describe('parsers', () => {
     const noBody = parseRoadmapNext('slug: only\ntag: prep\n')
     expect(noBody.body).toBeUndefined()
     expect(noBody.tag).toBe('prep')
+  })
+
+  it('isPrepFastTrack needs Tag prep plus Scope checkbox and Done when', () => {
+    const body =
+      '## Scope\n\n- [ ] do the work\n- **Done when:** green checks\n'
+    expect(hasPrepConcreteScope(body)).toBe(true)
+    expect(hasPrepConcreteScope('## Scope\n- [ ] a')).toBe(false)
+    expect(hasPrepConcreteScope('- [ ] a\n- **Done when:** x')).toBe(false)
+    expect(isPrepFastTrack({ tag: 'prep', body })).toBe(true)
+    expect(isPrepFastTrack({ tag: 'feature', body })).toBe(false)
+    expect(isPrepFastTrack({ tag: 'prep', body: '## Scope\n- [ ] a' })).toBe(
+      false,
+    )
+    expect(PREP_APPLY_ARCHIVE_PROCEDURE.split('\n').length).toBeLessThanOrEqual(
+      10,
+    )
+    expect(APPLY_ARCHIVE_PROCEDURE.split('\n').length).toBeLessThanOrEqual(10)
+    expect(PREP_APPLY_ARCHIVE_PROCEDURE).toContain(
+      'Skip openspec-planning-reviewer',
+    )
+    expect(PREP_APPLY_ARCHIVE_PROCEDURE).toContain('skip_specs:true')
   })
 
   it('parseRoadmapNext failure messages', () => {
@@ -663,10 +690,58 @@ describe('preflight', () => {
     })
     expect(j.runCard.ready).toEqual(['proposal'])
     expect(j.runCard.artifacts.proposal).toEqual(j.instructions)
+    expect(j.prepFastTrack).toBe(false)
+    expect(j.runCard.prepFastTrack).toBe(false)
     expect(j.runCard.procedure).toContain('openspec-planning-reviewer')
     expect(j.runCard.procedure.split('\n').length).toBeLessThanOrEqual(10)
     expect(j.touchSet).toBe('TBD until design.md')
     expect(j.branch).toBe('feat/demo-item')
+  })
+
+  it('prep fast-track procedure when Scope+Done when present', () => {
+    const root = tmpRoot()
+    const item = {
+      slug: 'demo-item',
+      tag: 'prep',
+      title: 'Gate tweak',
+      file: 'docs/roadmap/M2.1/demo-item.md',
+      milestone: 'M2.1',
+      goal: ['g'],
+      body: '## Scope\n- [ ] tweak gates\n- **Done when:** check is green\n',
+    }
+    const exec = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git fetch origin', { code: 0 }],
+      ['git switch main', { code: 0 }],
+      ['git pull --ff-only', { code: 0 }],
+      ['gh pr list', { stdout: '' }],
+      ['git branch -r', { stdout: '' }],
+      ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+      ['git switch -c feat/demo-item', { code: 0 }],
+      ['openspec new change', { code: 0 }],
+      [
+        'openspec instructions proposal',
+        {
+          stdout: JSON.stringify({
+            template: '# Proposal\nbrief',
+            rules: ['Keep proposals under 400 words'],
+          }),
+        },
+      ],
+    ])
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec,
+      env: {},
+    })
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.prepFastTrack).toBe(true)
+    expect(j.runCard.prepFastTrack).toBe(true)
+    expect(j.runCard.procedure).toBe(PREP_APPLY_ARCHIVE_PROCEDURE)
+    expect(j.runCard.procedure).toContain('Skip openspec-planning-reviewer')
+    expect(j.touchSet).toBe('prep fast-track (design.md optional)')
   })
 
   it('text mode prints exact sections for rules template body', () => {
@@ -712,6 +787,7 @@ describe('preflight', () => {
     expect(r.out).toContain('--- runCard artifact: proposal (rules=2) ---')
     expect(r.out).toContain('# Proposal\nline2')
     expect(r.out).toContain('- rule-one')
+    expect(r.out).toContain('prepFastTrack: false')
     expect(r.out).toContain('--- apply/archive procedure ---')
     expect(r.out).toContain('openspec-planning-reviewer')
   })
@@ -2264,7 +2340,7 @@ describe('finish', () => {
 })
 
 describe('review-brief', () => {
-  it('includes untracked touch-set file and outsideTouchSet diff', () => {
+  it('includes untracked touch-set file and outsideTouchSet stat', () => {
     const repo = gitInitRepo()
     const change = path.join(repo, 'openspec', 'changes', 'demo')
     fs.mkdirSync(change, { recursive: true })
@@ -2308,8 +2384,8 @@ describe('review-brief', () => {
     )
     expect(j.inTouchSet.every((f) => !j.outsideTouchSet.includes(f))).toBe(true)
     expect(j.outsideDiff).toMatch(/tracked\.txt/)
-    expect(j.outsideDiff).toMatch(/changed/)
-    expect(j.outsideDiff).toMatch(/outside\.txt/)
+    expect(j.outsideDiff).not.toMatch(/\+changed/)
+    expect(j.outsideDiff).toMatch(/\?\? outside\.txt/)
     expect(j.diffStat).toMatch(/\?\?/)
     expect(j.rules).toEqual(['r'])
     expect(j.rulesNote).toBe(null)
@@ -2475,14 +2551,14 @@ describe('review-brief', () => {
     })
     expect(b2.code).toBe(0)
     expect(b2.out).toMatch(
-      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\n--- diff --stat ---\n/,
+      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\nchecklistIds: \n--- diff --stat ---\n/,
     )
     expect(b2.out).toContain(
       'design.md missing; treating all paths as outside touch-set',
     )
     expect(b2.out).toContain('\n--- touch-set diff ---\n(empty)\n')
     expect(b2.out).toContain('\n--- outsideTouchSet ---\n')
-    expect(b2.out).toContain('\n--- outsideTouchSet diff ---\n')
+    expect(b2.out).toContain('\n--- outsideTouchSet stat ---\n')
   })
 
   it('lists only-untracked outside with empty touchDiff', () => {
@@ -2502,7 +2578,7 @@ describe('review-brief', () => {
     const j = JSON.parse(r.out)
     expect(j.outsideTouchSet).toContain('only-out.txt')
     expect(j.touchDiff).toBe('(empty)')
-    expect(j.outsideDiff).toMatch(/only-out\.txt/)
+    expect(j.outsideDiff).toMatch(/\?\? only-out\.txt/)
   })
 
   it('records exact git merge-base and diff argv for --base', () => {

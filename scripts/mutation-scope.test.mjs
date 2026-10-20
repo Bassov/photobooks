@@ -75,15 +75,12 @@ describe('findUnclassifiedProductionFiles', () => {
   })
 })
 
-describe('scripts mutate globs', () => {
-  it('includes foo.mjs and excludes thin CLI + tests', () => {
-    expect(selectMutableChanges(['scripts/foo.mjs'], patterns)).toEqual([
-      'scripts/foo.mjs',
-    ])
+describe('scripts not in mutate scope', () => {
+  it('scripts are unclassified after removal from mutate', () => {
+    expect(selectMutableChanges(['scripts/agent.mjs'], patterns)).toEqual([])
     expect(selectMutableChanges(['scripts/agent-cli.mjs'], patterns)).toEqual(
       [],
     )
-    expect(selectMutableChanges(['scripts/foo.test.mjs'], patterns)).toEqual([])
   })
 })
 

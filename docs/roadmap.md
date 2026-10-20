@@ -15,7 +15,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 ## M2.1 — Quality gates & dev process
 
-**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI and `pnpm agent finish` refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, PR bodies with stale metrics or missing verdicts, and an item whose plan or first push exceeds 1500 changed lines (review fixes stay in the same PR and only warn). The agent findings journal is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
+**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI and `pnpm agent finish` refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, and PR bodies with stale metrics or missing verdicts. Diff size is advisory only (target ~1000 / prefer ≤1500; check/CI warn, never block merge — prefer `pnpm roadmap add --after` when planning oversized work). The agent findings journal is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
 
 Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
@@ -43,11 +43,6 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [stryker-diff-gate](roadmap/M2.1/stryker-diff-gate.md) — honest mutation on the diff: break 85, zero NoCoverage (issue #72 B, J)
 - [ ] [prep] [scripts-in-scope](roadmap/M2.1/scripts-in-scope.md) — gate and agent scripts are in coverage and mutation by default (PR #81 pattern)
 - [ ] [prep] [ratchet-glob-subsumption](roadmap/M2.1/ratchet-glob-subsumption.md) — pr-policy ratchet understands glob subsumption
-- [ ] [prep] [exclusions-registry](roadmap/M2.1/exclusions-registry.md) — only non-production code can be excluded (issue #72 J, A)
-- [ ] [prep] [diff-size-check](roadmap/M2.1/diff-size-check.md) — size limit on an item's initial scope; review fixes warn only (issue #72 H)
-- [ ] [prep] [pr-body-check](roadmap/M2.1/pr-body-check.md) — machine-checked PR body: verdicts, dispositions, scenarios (issue #72 G)
-- [ ] [prep] [pr-metrics-autogen](roadmap/M2.1/pr-metrics-autogen.md) — PR metrics come from CI, never typed by hand (PR #81, #82 stale numbers)
-- [ ] [prep] [no-untested-branches](roadmap/M2.1/no-untested-branches.md) — unreachable code is deleted, not defended (dead/defensive code finding)
 - [ ] [prep] [agent-self-check](roadmap/M2.1/agent-self-check.md) — agents self-review against the repo checklist before push
 - [ ] [prep] [lessons-dissolve](roadmap/M2.1/lessons-dissolve.md) — Dissolve docs/lessons.md: repeat findings become checks or specs (issue #78)
 - [ ] [prep] [rules-dedup](roadmap/M2.1/rules-dedup.md) — Deduplicate agent rules and cap their size
@@ -56,8 +51,6 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [mutation-reinclude-small](roadmap/M2.1/mutation-reinclude-small.md) — mutate the small files that already have tests (issue #72 B)
 - [ ] [prep] [mutation-reinclude-camera](roadmap/M2.1/mutation-reinclude-camera.md) — mutate `usePasteboardCamera.ts` again (issue #72 B)
 - [ ] [prep] [session-idb-locks-mutation](roadmap/M2.1/session-idb-locks-mutation.md) — IndexedDB and Web Locks fakes; mutate the adapters (issue #72 L, B)
-- [ ] [prep] [editor-shell-mutation](roadmap/M2.1/editor-shell-mutation.md) — mutate `EditorShell.tsx` (issue #72 B)
-- [ ] [prep] [home-app-mutation](roadmap/M2.1/home-app-mutation.md) — mutate HomeScreen.tsx and App.tsx (issue #72 B)
 - [ ] [prep] [project-session-deps](roadmap/M2.1/project-session-deps.md) — inject the session's platform dependencies (issue #72 L)
 - [ ] [prep] [autosave-controller](roadmap/M2.1/autosave-controller.md) — extract autosave from `projectSession.ts`
 - [ ] [prep] [book-lock-controller](roadmap/M2.1/book-lock-controller.md) — extract locks and re-grant from `projectSession.ts`

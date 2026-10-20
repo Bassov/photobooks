@@ -13,6 +13,7 @@ const validGates = {
     branches: 80,
     functions: 80,
     lines: 80,
+    patch: 85,
   },
   stryker: { thresholds: { high: 80, low: 60, break: 60 } },
   lighthouse: {
@@ -43,6 +44,8 @@ function coherentFiles(overrides = {}) {
       "import { loadGates } from './load-gates.mjs'",
     '/repo/scripts/load-gates.mjs':
       "export const GATES_RELATIVE_PATH = 'quality/gates.json'",
+    '/repo/scripts/check-patch-coverage.mjs':
+      "import { loadGates } from './load-gates.mjs'\nloadGates().coverage.patch",
     '/repo/.github/workflows/integration.yml': 'jobs: {}',
     ...overrides,
   }

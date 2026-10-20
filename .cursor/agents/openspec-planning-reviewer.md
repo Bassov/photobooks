@@ -1,9 +1,6 @@
 ---
 name: openspec-planning-reviewer
-description: >-
-  Reviews OpenSpec proposal + design + tasks together after all planning
-  artifacts are written. Use once before apply. Docs-only (no design.md):
-  skip the design checklist section.
+description: 'Reviews OpenSpec proposal + design + tasks together after all planning artifacts are written. Use once before apply. Docs-only (no design.md): skip the design checklist section.'
 model: inherit
 readonly: true
 ---

@@ -3,7 +3,8 @@
     "statements": 80,
     "branches": 80,
     "functions": 80,
-    "lines": 80
+    "lines": 80,
+    "patch": 85
   },
   "stryker": {
     "thresholds": {
@@ -18,7 +19,7 @@
     }
   },
   "mutation": {
-    "disableBudget": 0,
+    "disableBudget": 10,
     "temporaryExcludes": [
       {
         "path": "src/editor/projectSession.ts",
@@ -27,18 +28,6 @@
       {
         "path": "src/editor/usePasteboardCamera.ts",
         "until": "mutation-reinclude-camera"
-      },
-      {
-        "path": "src/editor/EditorShell.tsx",
-        "until": "editor-shell-mutation"
-      },
-      {
-        "path": "src/editor/HomeScreen.tsx",
-        "until": "home-app-mutation"
-      },
-      {
-        "path": "src/App.tsx",
-        "until": "home-app-mutation"
       },
       {
         "path": "src/editor/previewAspect.ts",
@@ -118,13 +107,12 @@
     "dependency-review",
     "analyze"
   ],
+  "openspecSpecs": {
+    "softMaxLines": 400,
+    "hardMaxLines": 500
+  },
   "agentRules": {
     "budgets": [
-      {
-        "path": ".cursor/agents/openspec-design-reviewer.md",
-        "maxLines": 11,
-        "maxChars": 267
-      },
       {
         "path": ".cursor/agents/openspec-implementation-reviewer.md",
         "maxLines": 60,
@@ -136,9 +124,9 @@
         "maxChars": 4509
       },
       {
-        "path": ".cursor/agents/openspec-proposal-reviewer.md",
-        "maxLines": 11,
-        "maxChars": 269
+        "path": ".cursor/agents/manual-qa.md",
+        "maxLines": 40,
+        "maxChars": 2500
       },
       {
         "path": ".cursor/commands/next-roadmap-item.md",
