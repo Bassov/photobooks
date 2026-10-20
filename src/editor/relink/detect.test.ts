@@ -112,4 +112,24 @@ describe('detectMissingAssets', () => {
     seedBook(['ghost'], {})
     expect(detectMissingAssets({ openDialog: false }).missing).toBe(0)
   })
+
+  it('does not mark missing while import is running', () => {
+    resetBookStore({
+      book: {
+        ...getBookStoreSnapshot().book,
+        gallery: ['asset-1'],
+        assets: {
+          'asset-1': {
+            contentHash:
+              'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+          },
+        },
+      },
+      sessionMeta: new Map(),
+      importRunning: true,
+      importExpectedCount: 1,
+    })
+    expect(detectMissingAssets({ openDialog: false }).missing).toBe(0)
+    expect(getRelinkStatus('asset-1')).toBeUndefined()
+  })
 })

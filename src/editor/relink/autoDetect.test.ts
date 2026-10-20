@@ -25,9 +25,9 @@ describe('autoDetect', () => {
     vi.restoreAllMocks()
   })
 
-  it('relinkDetectKey joins book id and gallery', () => {
-    expect(relinkDetectKey(null, 'a\0b')).toBe(':a\0b')
-    expect(relinkDetectKey('book-1', 'x')).toBe('book-1:x')
+  it('relinkDetectKey joins book id, gallery, import, and sourced count', () => {
+    expect(relinkDetectKey(null, 'a\0b', false, 0)).toBe(':a\0b:0:0')
+    expect(relinkDetectKey('book-1', 'x', true, 2)).toBe('book-1:x:1:2')
   })
 
   it('syncRelinkAutoDetect is a no-op on home', () => {

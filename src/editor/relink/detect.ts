@@ -15,7 +15,13 @@ export function detectMissingAssets(options?: { openDialog?: boolean }): {
   missing: number
 } {
   const openDialog = options?.openDialog !== false
-  const book = getBookStoreSnapshot().book
+  const store = getBookStoreSnapshot()
+  // Mid-import gallery/hash updates race AssetSource registration; do not
+  // wipe statuses or paint false hatches until import settles.
+  if (store.importRunning) {
+    return { missing: 0 }
+  }
+  const book = store.book
   const next = new Map<string, RelinkStatus>()
 
   for (const assetId of book.gallery) {
