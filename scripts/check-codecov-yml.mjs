@@ -12,7 +12,6 @@ import {
   CODECOV_VALIDATE_TIMEOUT_MS,
   fetchWithTimeout,
 } from './codecov-fetch-timeout.mjs'
-
 export { CODECOV_VALIDATE_TIMEOUT_MS } from './codecov-fetch-timeout.mjs'
 
 export const CODECOV_YML_REL = 'codecov.yml'
