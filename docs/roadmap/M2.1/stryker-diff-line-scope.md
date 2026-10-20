@@ -6,8 +6,6 @@ Title: stryker-diff scores only changed line ranges (ts-agent-rig)
 
 ## Scope
 
-## Scope
-
 - [ ] In `@albasov/ts-agent-rig`, derive changed line ranges per file from merge-base hunks and mutate/score only those ranges (`path:start-end` or equivalent filter)
 - [ ] NoCoverage and the 85% break apply only to mutants on scored ranges; empty scored ranges skip without failure; PR summary lists ranges
 - [ ] Photobooks pin bump after rig release; tests cover comment-only / no-mutable-line edits on legacy below-85% files
