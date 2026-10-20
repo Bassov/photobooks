@@ -132,6 +132,7 @@
 }
 
 .editor-workspace {
+  position: relative;
   display: block;
   min-width: 0;
   min-height: 0;
@@ -140,6 +141,7 @@
 }
 
 .pasteboard {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;

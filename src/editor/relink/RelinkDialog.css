@@ -1,0 +1,191 @@
+.relink-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--spacing) * 4);
+  background: color-mix(in srgb, var(--foreground) 35%, transparent);
+}
+
+.relink-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: min(520px, 100%);
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-ui);
+  color: var(--foreground);
+}
+
+.relink-dialog-head {
+  padding: calc(var(--spacing) * 4.4) calc(var(--spacing) * 5.4)
+    calc(var(--spacing) * 2.4);
+}
+
+.relink-dialog-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.relink-dialog-sub {
+  margin: calc(var(--spacing) * 1.4) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+.relink-scan-progress {
+  margin: calc(var(--spacing) * 2) calc(var(--spacing) * 5.4) 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.relink-list {
+  margin: calc(var(--spacing) * 3) calc(var(--spacing) * 5.4) 0;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--subtle) 40%, var(--card));
+}
+
+.relink-list-empty {
+  margin: 0;
+  padding: calc(var(--spacing) * 6);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+
+.relink-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: calc(var(--spacing) * 3.4);
+  padding: calc(var(--spacing) * 2.2) calc(var(--spacing) * 3.4);
+  border-bottom: 1px solid var(--border);
+}
+
+.relink-row:last-child {
+  border-bottom: 0;
+}
+
+.relink-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.relink-badge {
+  justify-self: start;
+  padding: calc(var(--spacing) * 0.6) calc(var(--spacing) * 1.8);
+  border-radius: var(--radius-2xl);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+}
+
+.relink-badge-missing {
+  background: var(--badge-error-bg);
+  color: var(--badge-error-fg);
+}
+
+.relink-badge-modified {
+  background: var(--badge-warning-bg);
+  color: var(--badge-warning-fg);
+}
+
+.relink-badge-found,
+.relink-badge-ok {
+  background: var(--badge-success-bg);
+  color: var(--badge-success-fg);
+}
+
+.relink-dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--spacing) * 2);
+  margin-top: calc(var(--spacing) * 3.4);
+  padding: calc(var(--spacing) * 3.4) calc(var(--spacing) * 5.4);
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+
+.relink-btn {
+  height: calc(var(--spacing) * 8.6);
+  padding: 0 calc(var(--spacing) * 3.6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.relink-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.relink-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.relink-btn-ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.relink-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.missing-assets-pill {
+  position: absolute;
+  top: calc(var(--spacing) * 2.8);
+  left: 50%;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 2.2);
+  transform: translateX(-50%);
+  padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 2.8);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--badge-warning-ring);
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--foreground);
+}
+
+.missing-assets-pill button {
+  height: calc(var(--spacing) * 6.8);
+  padding: 0 calc(var(--spacing) * 2.2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}

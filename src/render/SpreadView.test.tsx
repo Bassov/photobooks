@@ -123,6 +123,88 @@ describe('SpreadView', () => {
     expect(screen.queryByTestId('spread-frame-image')).toBeNull()
   })
 
+  it('shows a hatched missing placeholder instead of a stale preview', () => {
+    const book = makeBook()
+    const spread = book.spreads[0]
+    const frame = spread?.frames[0]
+    assert(spread !== undefined && frame !== undefined, 'expected a frame')
+    const placed = {
+      ...book,
+      assets: { 'asset-gone': {} },
+      gallery: ['asset-gone'],
+      spreads: [
+        {
+          ...spread,
+          frames: [{ ...frame, assetId: 'asset-gone' }],
+        },
+      ],
+    }
+    const resolved = resolveSpread(placed, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => 'blob:stale'}
+        isMissingAsset={(id) => id === 'asset-gone'}
+      />,
+    )
+
+    expect(screen.getByTestId('spread-frame-missing')).toBeTruthy()
+    expect(screen.queryByTestId('spread-frame-image')).toBeNull()
+  })
+
+  it('keeps empty-frame placeholder when isMissingAsset is provided', () => {
+    const book = makeBook()
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => 'blob:x'}
+        isMissingAsset={() => true}
+      />,
+    )
+
+    expect(screen.getByTestId('spread-frame-placeholder')).toBeTruthy()
+    expect(screen.queryByTestId('spread-frame-missing')).toBeNull()
+  })
+
+  it('shows the image when the asset is present and not missing', () => {
+    const book = makeBook()
+    const spread = book.spreads[0]
+    const frame = spread?.frames[0]
+    assert(spread !== undefined && frame !== undefined, 'expected a frame')
+    const placed = {
+      ...book,
+      assets: { 'asset-ok': {} },
+      gallery: ['asset-ok'],
+      spreads: [
+        {
+          ...spread,
+          frames: [{ ...frame, assetId: 'asset-ok' }],
+        },
+      ],
+    }
+    const resolved = resolveSpread(placed, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => 'blob:ok'}
+        isMissingAsset={() => false}
+      />,
+    )
+
+    expect(screen.getByTestId('spread-frame-image')).toBeTruthy()
+    expect(screen.queryByTestId('spread-frame-missing')).toBeNull()
+  })
+
   it('paints a vertical page cut on an interior spread', () => {
     const book = makeBook({
       spreads: [
