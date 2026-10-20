@@ -41,7 +41,7 @@ Skip this section when `design.md` is absent.
 3. **Composition:** UI/domain split or module boundaries when code changes; prefer small units over god-files.
 4. **Workers:** heavy image/decode/render/encode MUST be off the main thread.
 5. **Security:** if security surface is in scope, Decisions MUST cover it.
-6. **UI:** empty / happy / scroll-or-interact e2e lock-ins + skill `ui-review` when UI is in scope.
+6. **UI:** OpenSpec design.md MUST name tokens/primitives from `docs/design.md` (or add them there same change); empty / happy / scroll-or-interact e2e + skill `ui-review` when UI is in scope.
 7. **Scope:** no silent expansion beyond proposal; prefer references over inventing layers.
 8. **Necessary minimum:** design.md only for real decisions; N/A in one line. Tests exempt.
 
