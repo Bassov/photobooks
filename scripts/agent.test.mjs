@@ -65,6 +65,7 @@ import {
   readyArtifactIds,
   STATS_CHARS_PER_TOKEN,
   hasPrepConcreteScope,
+  introducesNewSrcCapability,
   isPrepFastTrack,
   PREP_APPLY_ARCHIVE_PROCEDURE,
   APPLY_ARCHIVE_PROCEDURE,
@@ -344,6 +345,25 @@ describe('parsers', () => {
       'Skip openspec-planning-reviewer',
     )
     expect(PREP_APPLY_ARCHIVE_PROCEDURE).toContain('skip_specs:true')
+  })
+
+  it('isPrepFastTrack false when roadmap introduces missing src/<capability>/', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'prep-new-cap-'))
+    try {
+      fs.mkdirSync(path.join(root, 'src', 'editor'), { recursive: true })
+      const scope = '## Scope\n\n- [ ] ship it\n- **Done when:** done\n'
+      const existing = `${scope}\nTouch \`src/editor/\` helpers.\n`
+      const missing = `${scope}\nAdd \`src/brand-new-cap/\` domain module.\n`
+      expect(introducesNewSrcCapability(root, existing)).toBe(false)
+      expect(introducesNewSrcCapability(root, missing)).toBe(true)
+      expect(isPrepFastTrack({ tag: 'prep', body: existing }, root)).toBe(true)
+      expect(isPrepFastTrack({ tag: 'prep', body: missing }, root)).toBe(false)
+      expect(isPrepFastTrack({ tag: 'contingency', body: missing }, root)).toBe(
+        false,
+      )
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('parseRoadmapNext failure messages', () => {
@@ -910,7 +930,9 @@ describe('preflight', () => {
       ]),
       env: {},
     })
-    expect(JSON.parse(r.err).error).toMatch(/^openspec instructions failed/)
+    expect(JSON.parse(r.err).error).toMatch(
+      /^native OpenSpec instructions failed/,
+    )
     expect(JSON.parse(r.err).error).toContain('openspec/config.yaml missing')
   })
 
@@ -933,7 +955,9 @@ describe('preflight', () => {
       ]),
       env: {},
     })
-    expect(JSON.parse(r.err).error).toMatch(/^openspec instructions failed/)
+    expect(JSON.parse(r.err).error).toMatch(
+      /^native OpenSpec instructions failed/,
+    )
     expect(JSON.parse(r.err).error).toContain('did not parse to an object')
   })
 
@@ -960,7 +984,7 @@ describe('preflight', () => {
       env: {},
     })
     expect(JSON.parse(r.err).error).toBe(
-      'openspec instructions missing rules array',
+      'native OpenSpec instructions missing rules array',
     )
   })
 
@@ -2509,7 +2533,7 @@ describe('review-brief', () => {
     })
     expect(b2.code).toBe(0)
     expect(b2.out).toMatch(
-      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\nchecklistIds: \n--- diff --stat ---\n/,
+      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from native OpenSpec instructions\nchecklistIds: \n--- diff --stat ---\n/,
     )
     expect(b2.out).toContain(
       'design.md missing; treating all paths as outside touch-set',
@@ -2674,7 +2698,9 @@ describe('archive', () => {
     expect(r.code, r.err).toBe(0)
     const j = JSON.parse(r.out)
     expect(j.ok).toBe(true)
-    expect(j.archivedTo).toMatch(/^openspec\/changes\/archive\//)
+    expect(j.archivedTo).toBeNull()
+    expect(j.removed).toBe(true)
+    expect(j.summary).toContain('removed openspec/changes/arch-item')
     expect(
       fs.existsSync(path.join(root, 'openspec', 'changes', 'arch-item')),
     ).toBe(false)

@@ -100,13 +100,38 @@ export function hasPrepConcreteScope(body) {
   )
 }
 
-/** Prep/contingency fast-track: Tag prep|contingency + concrete Scope/Done when. */
-export function isPrepFastTrack(item) {
+/**
+ * True when roadmap body mentions `src/<capability>/` that does not exist yet.
+ * New domain modules take the full design path (not prep fast-track).
+ * @param {string} root
+ * @param {string|undefined} body
+ */
+export function introducesNewSrcCapability(root, body) {
+  const t = String(body ?? '')
+  const re = /(?:^|[\s`('"])src\/([a-z0-9-]+)\/?/g
+  const seen = new Set()
+  let m
+  while ((m = re.exec(t))) {
+    const cap = m[1]
+    if (!cap || seen.has(cap)) continue
+    seen.add(cap)
+    if (!fs.existsSync(path.join(root, 'src', cap))) return true
+  }
+  return false
+}
+
+/**
+ * Prep/contingency fast-track: Tag prep|contingency + concrete Scope/Done when,
+ * unless the item introduces a missing `src/<capability>/` module.
+ * @param {{ tag?: string, body?: string }} item
+ * @param {string} [root] repo root for new-capability detection
+ */
+export function isPrepFastTrack(item, root) {
   const tag = String(item?.tag ?? '').toLowerCase()
-  return (
-    (tag === 'prep' || tag === 'contingency') &&
-    hasPrepConcreteScope(item?.body)
-  )
+  if (!(tag === 'prep' || tag === 'contingency')) return false
+  if (!hasPrepConcreteScope(item?.body)) return false
+  if (root && introducesNewSrcCapability(root, item?.body)) return false
+  return true
 }
 
 export const STATS_PEAK_CONTEXT_MAX = 300_000
@@ -412,7 +437,7 @@ export function parseInstructions(stdout) {
   return { template: j.template ?? null, rules: j.rules ?? null }
 }
 
-/** Ready OpenSpec artifact ids from `openspec status --json`. */
+/** Ready OpenSpec artifact ids from native `openSpecChangeStatus`. */
 export function readyArtifactIds(statusJson) {
   const arts = statusJson?.artifacts
   if (!Array.isArray(arts)) return []
@@ -429,7 +454,9 @@ export function loadArtifactInstructions(root, artifactId, _change) {
   try {
     return loadNativeArtifactInstructions(root, artifactId)
   } catch (e) {
-    fail(`openspec instructions failed: ${e instanceof Error ? e.message : e}`)
+    fail(
+      `native OpenSpec instructions failed: ${e instanceof Error ? e.message : e}`,
+    )
   }
 }
 
@@ -1306,7 +1333,7 @@ export function cmdPreflight(o, deps) {
 
   ensureOpenSpecChange(root, item.slug)
 
-  const prepFastTrack = isPrepFastTrack(item)
+  const prepFastTrack = isPrepFastTrack(item, root)
   const runCard = buildRunCard(root, item.slug, {
     prepFastTrack,
   })
@@ -1316,7 +1343,7 @@ export function cmdPreflight(o, deps) {
     ? runCard.artifacts[primaryId]
     : loadArtifactInstructions(root, 'proposal', item.slug)
   if (!Array.isArray(instructions.rules))
-    fail('openspec instructions missing rules array')
+    fail('native OpenSpec instructions missing rules array')
 
   const designPath = path.join('openspec', 'changes', item.slug, 'design.md')
   const touchSet = fs.existsSync(path.join(root, designPath))
@@ -1857,7 +1884,7 @@ export function cmdReviewBrief(o, deps) {
     rules,
     rulesNote: rules.length
       ? null
-      : 'pass --rules-json from openspec instructions',
+      : 'pass --rules-json from native OpenSpec instructions',
     checklistIds,
     base,
     mergeBase,

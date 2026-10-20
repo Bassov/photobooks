@@ -58,8 +58,8 @@ describe('openspec-native', () => {
     expect(loadNativeArtifactInstructions(root, 'unknown-id').template).toBe(
       null,
     )
-    const archived = archiveOpenSpecChange(root, 'demo', { date: '2026-10-20' })
-    expect(archived.archivedTo).toBe('openspec/changes/archive/2026-10-20-demo')
+    const archived = archiveOpenSpecChange(root, 'demo')
+    expect(archived).toEqual({ archivedTo: null, removed: true })
     expect(fs.existsSync(dir)).toBe(false)
   })
 
@@ -93,14 +93,14 @@ describe('openspec-native', () => {
     ).toBe('done')
   })
 
-  it('archive rmOnly and missing / collision paths', () => {
+  it('archive default remove and keepArchive collision path', () => {
     const root = tmp()
     expect(archiveOpenSpecChange(root, 'gone')).toEqual({
       archivedTo: null,
       removed: false,
     })
     const dir = ensureOpenSpecChange(root, 'rm')
-    expect(archiveOpenSpecChange(root, 'rm', { rmOnly: true })).toEqual({
+    expect(archiveOpenSpecChange(root, 'rm')).toEqual({
       archivedTo: null,
       removed: true,
     })
@@ -112,7 +112,10 @@ describe('openspec-native', () => {
     fs.mkdirSync(
       path.join(root, 'openspec', 'changes', 'archive', '2026-10-20-col'),
     )
-    const hit = archiveOpenSpecChange(root, 'col', { date: '2026-10-20' })
+    const hit = archiveOpenSpecChange(root, 'col', {
+      keepArchive: true,
+      date: '2026-10-20',
+    })
     expect(hit.archivedTo).toMatch(
       /^openspec\/changes\/archive\/2026-10-20-col-\d+$/,
     )

@@ -7,10 +7,10 @@ Mandates: openspec/config.yaml, git-finish.mdc, .cursor/agents, skill `roadmap`.
 
 Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`.
 Do not re-read the item after `roadmap next` / preflight. Take rules/template
-from the run card or `pnpm agent instructions <artifact>` (raw openspec CLI /
-config.yaml / openspec skills / agents reads denied). Specs: `rg` + ranges —
-never dump whole specs. Grep ≤30 hits; offset/limit if >400 lines; no re-read;
-no TodoWrite in `-p`. Tick checkboxes with targeted edits. Prefer `pnpm check`
+from the run card or `pnpm agent instructions <artifact>` (native; do not
+re-read openspec/config.yaml or .cursor/agents). Specs: `rg` + ranges — never
+dump whole specs. Grep ≤30 hits; offset/limit if >400 lines; no re-read; no
+TodoWrite in `-p`. Tick checkboxes with targeted edits. Prefer `pnpm check`
 (OK lines only) and `pnpm test:e2e:changed:quiet` (once when green; CI burn-in
 owns flake proof). PR body once; issue URLs only. Brief via
 `pnpm agent review-brief --out <file> --base origin/main` (Task: skill set +
@@ -29,9 +29,10 @@ OpenSpec artifact; validate once per stage.
    Prep/contingency fast-track (`runCard.prepFastTrack`): brief proposal+tasks;
    skip design.md unless arch/security (`.skip-design`); `skip_specs: true` /
    `.skip-specs` when no `src/` capability behavior change; skip
-   planning-reviewer (roadmap item is the plan). Else after
-   proposal+design+tasks(+specs): planning-reviewer once (brief --out; ≤1
-   re-review; docs-only skips design). Over guidance: `pnpm roadmap add … --after`.
+   planning-reviewer — except when the item adds a missing `src/<capability>/`
+   (full design + planning-reviewer). Else after proposal+design+tasks(+specs):
+   planning-reviewer once (brief --out; ≤1 re-review; docs-only skips design).
+   Over guidance: `pnpm roadmap add … --after`.
 3. Implement per `runCard.procedure` through verify +
    openspec-implementation-reviewer + Manual check. Quiet verify. Out-of-scope
    fails: fix in this PR unless same failure on unmodified `origin/main`; else

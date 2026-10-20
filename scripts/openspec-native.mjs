@@ -213,11 +213,12 @@ export function loadNativeArtifactInstructions(root, artifactId) {
 }
 
 /**
- * Archive a change folder under openspec/changes/archive/YYYY-MM-DD-<slug>/.
- * Prefer ignoring archive/** in agent search (.cursorignore / .rgignore).
+ * Remove the working change dir (default). Permanent record lives in git/PR/
+ * roadmap/product specs — do not commit openspec/changes/archive/**.
+ * Pass `keepArchive: true` only for tests that exercise the legacy rename path.
  * @param {string} root
  * @param {string} slug
- * @param {{ date?: string, rmOnly?: boolean }} [opts]
+ * @param {{ date?: string, keepArchive?: boolean, rmOnly?: boolean }} [opts]
  * @returns {{ archivedTo: string|null, removed: boolean }}
  */
 export function archiveOpenSpecChange(root, slug, opts = {}) {
@@ -225,7 +226,9 @@ export function archiveOpenSpecChange(root, slug, opts = {}) {
   if (!fs.existsSync(src)) {
     return { archivedTo: null, removed: false }
   }
-  if (opts.rmOnly) {
+  // Default: delete. Legacy rename only when keepArchive is set.
+  // rmOnly:true remains an explicit alias for delete.
+  if (!opts.keepArchive) {
     fs.rmSync(src, { recursive: true, force: true })
     return { archivedTo: null, removed: true }
   }

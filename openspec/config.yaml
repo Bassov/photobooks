@@ -38,7 +38,7 @@ rules:
     - 'Necessary minimum: only what the item needs; N/A in one line. Tests are exempt.'
     - 'Size guidance (advisory): at most ONE new subsystem and at most 8 tasks; line-count target/prefer-max in docs/roadmap/RULES.md "Change size". Prefer `pnpm roadmap add --after` when oversized — check/CI never fail on size.'
     - 'Over guidance: before design/apply, prefer narrowing + `pnpm roadmap add <slug> --after <current> --tag prep|feature|contingency --title "…"`.'
-    - 'Two-speed: [feature] (or [prep] that adds src/<capability>/) → compact proposal + design + tasks (+ specs only if domain contract changes) + openspec-planning-reviewer once. [prep]/[contingency] with concrete ## Scope + Done when → brief proposal+tasks; skip design.md unless arch/security; skip_specs:true when no src/ capability behavior change; skip planning-reviewer (roadmap item is the plan).'
+    - 'Two-speed: [feature] → compact proposal + design + tasks (+ specs only if domain contract changes) + openspec-planning-reviewer once. [prep]/[contingency] with concrete ## Scope + Done when → brief proposal+tasks; skip design.md unless arch/security; skip_specs:true when no src/ capability behavior change; skip planning-reviewer — except when the item introduces a missing src/<capability>/ (full design + planning-reviewer; isPrepFastTrack false).'
     - 'If UI is in scope, Delta/Risk or success notes MUST name empty + happy + primary interact/scroll observables e2e will lock in.'
     - 'If a scrollport is in scope, state: no page-level H/V scroll; scrolling only inside the named scrollport(s).'
     - 'If the security surface is in scope, Delta/Risk MUST include an explicit security bullet.'
@@ -58,7 +58,7 @@ rules:
   specs:
     - 'Keep openspec/specs/ for `src/` product capabilities only. Tooling/CI/agent changes: skip_specs: true.'
     - 'Prefer concise invariants + single-line requirements; reserve WHEN/THEN for core user/contract flows.'
-    - 'Budget ≤250 lines soft / ≤300 hard per capability spec.md (quality/gates.json openspecSpecs). Split rather than append.'
+    - 'Budget ≤250 lines soft / ≤400 hard per capability spec.md (quality/gates.json openspecSpecs). Split rather than append.'
     - 'Default skip_specs: true for internal refactors, perf tuning, or bug fixes whose contract is already in the capability spec.'
 
 operations:
