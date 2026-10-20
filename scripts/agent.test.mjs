@@ -934,9 +934,7 @@ describe('preflight', () => {
       ]),
       env: {},
     })
-    expect(JSON.parse(r.err).error).toMatch(
-      /^native OpenSpec instructions failed/,
-    )
+    expect(JSON.parse(r.err).error).toMatch(/^openspec instructions failed/)
     expect(JSON.parse(r.err).error).toContain('openspec/config.yaml missing')
   })
 
@@ -959,9 +957,7 @@ describe('preflight', () => {
       ]),
       env: {},
     })
-    expect(JSON.parse(r.err).error).toMatch(
-      /^native OpenSpec instructions failed/,
-    )
+    expect(JSON.parse(r.err).error).toMatch(/^openspec instructions failed/)
     expect(JSON.parse(r.err).error).toContain('did not parse to an object')
   })
 
@@ -988,7 +984,7 @@ describe('preflight', () => {
       env: {},
     })
     expect(JSON.parse(r.err).error).toBe(
-      'native OpenSpec instructions missing rules array',
+      'openspec instructions missing rules array',
     )
   })
 
@@ -2537,7 +2533,7 @@ describe('review-brief', () => {
     })
     expect(b2.code).toBe(0)
     expect(b2.out).toMatch(
-      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from native OpenSpec instructions\nchecklistIds: \n--- diff --stat ---\n/,
+      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\nchecklistIds: \n--- diff --stat ---\n/,
     )
     expect(b2.out).toContain(
       'design.md missing; treating all paths as outside touch-set',

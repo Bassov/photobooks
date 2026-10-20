@@ -212,7 +212,15 @@ export function loadNativeArtifactInstructions(root, artifactId) {
   }
 }
 
-/** Remove working change dir (default). Pass keepArchive:true for legacy rename tests. */
+/**
+ * Archive a change folder under openspec/changes/archive/YYYY-MM-DD-<slug>/.
+ * Prefer ignoring archive/** in agent search (.cursorignore / .rgignore).
+ * Default: remove the working dir. Pass keepArchive:true to rename into archive/.
+ * @param {string} root
+ * @param {string} slug
+ * @param {{ date?: string, keepArchive?: boolean, rmOnly?: boolean }} [opts]
+ * @returns {{ archivedTo: string|null, removed: boolean }}
+ */
 export function archiveOpenSpecChange(root, slug, opts = {}) {
   const src = path.join(root, 'openspec', 'changes', slug)
   if (!fs.existsSync(src)) {

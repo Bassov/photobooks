@@ -100,13 +100,11 @@ export function hasPrepConcreteScope(body) {
   )
 }
 
-/** True when body mentions src/<cap>/ that does not exist yet (full design path). */
 export function introducesNewSrcCapability(root, body) {
   const t = String(body ?? '')
   const re = /(?:^|[\s`('"])src\/([a-z0-9-]+)\/?/g
   const seen = new Set()
-  let m
-  while ((m = re.exec(t))) {
+  for (let m; (m = re.exec(t));) {
     const cap = m[1]
     if (!cap || seen.has(cap)) continue
     seen.add(cap)
@@ -115,7 +113,6 @@ export function introducesNewSrcCapability(root, body) {
   return false
 }
 
-/** Prep fast-track unless item introduces a missing src/<capability>/. */
 export function isPrepFastTrack(item, root) {
   const tag = String(item?.tag ?? '').toLowerCase()
   if (!(tag === 'prep' || tag === 'contingency')) return false
@@ -427,21 +424,24 @@ export function parseInstructions(stdout) {
   return { template: j.template ?? null, rules: j.rules ?? null }
 }
 
-/** Ready OpenSpec artifact ids from native openSpecChangeStatus. */
+/** Ready OpenSpec artifact ids from `openspec status --json`. */
 export function readyArtifactIds(statusJson) {
   const arts = statusJson?.artifacts
   if (!Array.isArray(arts)) return []
   return arts.filter((a) => a && a.status === 'ready').map((a) => a.id)
 }
 
-/** Load template/rules from openspec/config.yaml (native). */
+/**
+ * Load template/rules for one artifact from openspec/config.yaml (native).
+ * @param {string} root
+ * @param {string} artifactId
+ * @param {string} [_change] unused (kept for call-site compat)
+ */
 export function loadArtifactInstructions(root, artifactId, _change) {
   try {
     return loadNativeArtifactInstructions(root, artifactId)
   } catch (e) {
-    fail(
-      `native OpenSpec instructions failed: ${e instanceof Error ? e.message : e}`,
-    )
+    fail(`openspec instructions failed: ${e instanceof Error ? e.message : e}`)
   }
 }
 
@@ -1328,7 +1328,7 @@ export function cmdPreflight(o, deps) {
     ? runCard.artifacts[primaryId]
     : loadArtifactInstructions(root, 'proposal', item.slug)
   if (!Array.isArray(instructions.rules))
-    fail('native OpenSpec instructions missing rules array')
+    fail('openspec instructions missing rules array')
 
   const designPath = path.join('openspec', 'changes', item.slug, 'design.md')
   const touchSet = fs.existsSync(path.join(root, designPath))
@@ -1869,7 +1869,7 @@ export function cmdReviewBrief(o, deps) {
     rules,
     rulesNote: rules.length
       ? null
-      : 'pass --rules-json from native OpenSpec instructions',
+      : 'pass --rules-json from openspec instructions',
     checklistIds,
     base,
     mergeBase,
