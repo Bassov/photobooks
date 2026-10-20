@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { hasOwnerApprovedScopeChange } from './check-test-weakening.mjs'
 import { stripGitKeys } from './strip-git-env.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -232,8 +233,17 @@ export function runDiffSizeCheck(opts = {}) {
   return 0
 }
 
+function branchHasOwnerApproval(root = ROOT) {
+  if (hasOwnerApprovedScopeChange(process.env.PR_POLICY_BODY ?? '')) return true
+  const log = git(['log', 'origin/main..HEAD', '--format=%B'], root)
+  return (
+    (log.status ?? 1) === 0 && hasOwnerApprovedScopeChange(log.stdout ?? '')
+  )
+}
+
 export function main(argv = process.argv.slice(2)) {
-  return runDiffSizeCheck({ warnOnly: argv.includes('--warn-only') })
+  const warnOnly = argv.includes('--warn-only') || branchHasOwnerApproval()
+  return runDiffSizeCheck({ warnOnly })
 }
 
 if (

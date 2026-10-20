@@ -265,6 +265,11 @@ describe('extractConfigBool / approval / slug', () => {
     expect(hasOwnerApprovedScopeChange('Owner-approved scope change:')).toBe(
       false,
     )
+    expect(
+      hasOwnerApprovedScopeChange(
+        'Owner-approved scope change:\n- raised disableBudget to 10\n',
+      ),
+    ).toBe(true)
     expect(hasOwnerApprovedScopeChange('')).toBe(false)
     expect(
       hasOwnerApprovedScopeChange(`${OWNER_APPROVAL_PREFIX} https://x\r\nmore`),

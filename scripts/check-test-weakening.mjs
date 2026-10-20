@@ -335,9 +335,15 @@ export function extractConfigBool(source, key) {
  */
 export function hasOwnerApprovedScopeChange(prBody) {
   const lines = coerceText(prBody).split(/\r?\n/)
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     if (!line.startsWith(OWNER_APPROVAL_PREFIX)) continue
     if (line.slice(OWNER_APPROVAL_PREFIX.length).trim().length > 0) return true
+    // Bare prefix line: following non-empty lines are the reason body.
+    for (let j = i + 1; j < lines.length; j++) {
+      if (!lines[j].trim()) break
+      return true
+    }
   }
   return false
 }

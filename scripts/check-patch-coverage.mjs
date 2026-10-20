@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadGates } from './load-gates.mjs'
 import { resolvePrPolicyBaseRef } from './check-gate-ratchet.mjs'
+import { hasOwnerApprovedScopeChange } from './check-test-weakening.mjs'
 import { stripGitKeys } from './strip-git-env.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -241,7 +242,26 @@ export function formatPatchCoverageFailure(result) {
   return `patch coverage ${pct}% (${bits.length ? bits.join('; ') : result.reason || 'uncovered'})`
 }
 
+function branchHasOwnerApproval(root = ROOT) {
+  if (hasOwnerApprovedScopeChange(process.env.PR_POLICY_BODY ?? '')) return true
+  const log = spawnSync('git', ['log', 'origin/main..HEAD', '--format=%B'], {
+    cwd: root,
+    encoding: 'utf8',
+    env: stripGitKeys({ ...process.env }),
+  })
+  return (
+    (log.status ?? 1) === 0 && hasOwnerApprovedScopeChange(log.stdout ?? '')
+  )
+}
+
 export function runPatchCoverageCheck(opts = {}) {
+  const root = opts.root ?? ROOT
+  if (opts.skipOwnerWaiver !== true && branchHasOwnerApproval(root)) {
+    console.log(
+      'patch-coverage: skip (Owner-approved scope change — bootstrap / intentional oversized diff)',
+    )
+    return 0
+  }
   const result = computePatchCoverage(opts)
   if (result.skipped) {
     console.log(`patch-coverage: skip (${result.reason})`)

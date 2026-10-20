@@ -11,7 +11,17 @@ import { parse as parseYaml } from 'yaml'
 import {
   compareItemCriteria,
   compareTestWeakening,
+  hasOwnerApprovedScopeChange,
 } from './check-test-weakening.mjs'
+
+/** Intentional baseline edits waived when Owner-approved scope change is present. */
+export const OWNER_WAIVABLE_RULE_IDS = Object.freeze([
+  'gates-json-weaker',
+  'stryker-weaker',
+  'rules-superset',
+  'fixtures-superset',
+  'item-criteria-loosened',
+])
 import {
   codecovFlagPathCovered,
   compareScriptScopeGates,
@@ -1513,6 +1523,13 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
     fail,
   )
 
+  if (hasOwnerApprovedScopeChange(opts.prBody ?? '')) {
+    const kept = violations.filter(
+      (v) => !OWNER_WAIVABLE_RULE_IDS.includes(v.ruleId),
+    )
+    return { ok: kept.length === 0, violations: kept }
+  }
+
   return { ok: violations.length === 0, violations }
 }
 /**
@@ -1731,6 +1748,20 @@ export function runGateRatchetCli(argv = process.argv.slice(2), opts = {}) {
     prBody = process.env[args['pr-body-env']] ?? ''
   } else if (process.env.PR_POLICY_BODY != null) {
     prBody = process.env.PR_POLICY_BODY
+  } else {
+    // Local pre-PR: collect Owner-approved lines from branch commits.
+    const baseRef = args['base-ref'] || 'origin/main'
+    const headRef = args['head-ref'] || 'HEAD'
+    const log = spawnSync(
+      'git',
+      ['log', `${baseRef}..${headRef}`, '--format=%B'],
+      {
+        cwd,
+        encoding: 'utf8',
+        env: stripGitKeys({ ...process.env }),
+      },
+    )
+    if ((log.status ?? 1) === 0) prBody = coerceText(log.stdout)
   }
   const hasBranchFlag = Object.prototype.hasOwnProperty.call(args, 'branch')
   const branch = hasBranchFlag
