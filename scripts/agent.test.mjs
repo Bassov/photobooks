@@ -64,6 +64,10 @@ import {
   readProtobufVarint,
   readyArtifactIds,
   STATS_CHARS_PER_TOKEN,
+  hasPrepConcreteScope,
+  isPrepFastTrack,
+  PREP_APPLY_ARCHIVE_PROCEDURE,
+  APPLY_ARCHIVE_PROCEDURE,
 } from './agent.mjs'
 
 const tmpDirs = []
@@ -299,6 +303,27 @@ describe('parsers', () => {
     const noBody = parseRoadmapNext('slug: only\ntag: prep\n')
     expect(noBody.body).toBeUndefined()
     expect(noBody.tag).toBe('prep')
+  })
+
+  it('isPrepFastTrack needs Tag prep plus Scope checkbox and Done when', () => {
+    const body =
+      '## Scope\n\n- [ ] do the work\n- **Done when:** green checks\n'
+    expect(hasPrepConcreteScope(body)).toBe(true)
+    expect(hasPrepConcreteScope('## Scope\n- [ ] a')).toBe(false)
+    expect(hasPrepConcreteScope('- [ ] a\n- **Done when:** x')).toBe(false)
+    expect(isPrepFastTrack({ tag: 'prep', body })).toBe(true)
+    expect(isPrepFastTrack({ tag: 'feature', body })).toBe(false)
+    expect(isPrepFastTrack({ tag: 'prep', body: '## Scope\n- [ ] a' })).toBe(
+      false,
+    )
+    expect(PREP_APPLY_ARCHIVE_PROCEDURE.split('\n').length).toBeLessThanOrEqual(
+      10,
+    )
+    expect(APPLY_ARCHIVE_PROCEDURE.split('\n').length).toBeLessThanOrEqual(10)
+    expect(PREP_APPLY_ARCHIVE_PROCEDURE).toContain(
+      'Skip openspec-planning-reviewer',
+    )
+    expect(PREP_APPLY_ARCHIVE_PROCEDURE).toContain('skip_specs:true')
   })
 
   it('parseRoadmapNext failure messages', () => {
@@ -663,10 +688,58 @@ describe('preflight', () => {
     })
     expect(j.runCard.ready).toEqual(['proposal'])
     expect(j.runCard.artifacts.proposal).toEqual(j.instructions)
+    expect(j.prepFastTrack).toBe(false)
+    expect(j.runCard.prepFastTrack).toBe(false)
     expect(j.runCard.procedure).toContain('openspec-planning-reviewer')
     expect(j.runCard.procedure.split('\n').length).toBeLessThanOrEqual(10)
     expect(j.touchSet).toBe('TBD until design.md')
     expect(j.branch).toBe('feat/demo-item')
+  })
+
+  it('prep fast-track procedure when Scope+Done when present', () => {
+    const root = tmpRoot()
+    const item = {
+      slug: 'demo-item',
+      tag: 'prep',
+      title: 'Gate tweak',
+      file: 'docs/roadmap/M2.1/demo-item.md',
+      milestone: 'M2.1',
+      goal: ['g'],
+      body: '## Scope\n- [ ] tweak gates\n- **Done when:** check is green\n',
+    }
+    const exec = fakeExec([
+      ...envOk,
+      ['git status --porcelain', { stdout: '' }],
+      ['git fetch origin', { code: 0 }],
+      ['git switch main', { code: 0 }],
+      ['git pull --ff-only', { code: 0 }],
+      ['gh pr list', { stdout: '' }],
+      ['git branch -r', { stdout: '' }],
+      ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
+      ['git switch -c feat/demo-item', { code: 0 }],
+      ['openspec new change', { code: 0 }],
+      [
+        'openspec instructions proposal',
+        {
+          stdout: JSON.stringify({
+            template: '# Proposal\nbrief',
+            rules: ['Keep proposals under 400 words'],
+          }),
+        },
+      ],
+    ])
+    const r = run(['preflight', '--json', '--root', root], {
+      cwd: root,
+      exec,
+      env: {},
+    })
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.prepFastTrack).toBe(true)
+    expect(j.runCard.prepFastTrack).toBe(true)
+    expect(j.runCard.procedure).toBe(PREP_APPLY_ARCHIVE_PROCEDURE)
+    expect(j.runCard.procedure).toContain('Skip openspec-planning-reviewer')
+    expect(j.touchSet).toBe('prep fast-track (design.md optional)')
   })
 
   it('text mode prints exact sections for rules template body', () => {
@@ -712,6 +785,7 @@ describe('preflight', () => {
     expect(r.out).toContain('--- runCard artifact: proposal (rules=2) ---')
     expect(r.out).toContain('# Proposal\nline2')
     expect(r.out).toContain('- rule-one')
+    expect(r.out).toContain('prepFastTrack: false')
     expect(r.out).toContain('--- apply/archive procedure ---')
     expect(r.out).toContain('openspec-planning-reviewer')
   })
