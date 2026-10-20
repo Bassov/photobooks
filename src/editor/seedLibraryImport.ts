@@ -50,8 +50,9 @@ export function seedAndHashEntry(options: {
     if (typeof Worker === 'undefined') {
       return
     }
+    const hashJob = hashContent(bytes)
     void trackHashJob(
-      hashContent(bytes).then(async (contentHash) => {
+      hashJob.then(async (contentHash) => {
         patchAssetRecord(assetId, { contentHash })
         await Promise.all([
           putCachedThumbForHash(assetId, contentHash),

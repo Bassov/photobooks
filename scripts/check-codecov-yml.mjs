@@ -42,7 +42,7 @@ export function isNetworkError(err) {
   if (e.name === 'TimeoutError' || e.name === 'AbortError') return true
   if (
     e.name === 'TypeError' &&
-    /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT|abort/i.test(String(e.message))
+    /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message))
   ) {
     return true
   }
@@ -148,7 +148,6 @@ export function shouldValidateCodecovYmlRemote(opts = {}) {
  * @param {{
  *   fetchImpl?: typeof fetch,
  *   validateUrl?: string,
- *   timeoutMs?: number,
  * }} [opts]
  * @returns {Promise<{ ok: boolean, mode: 'api' | 'fallback', detail: string }>}
  */
@@ -157,14 +156,14 @@ export async function validateCodecovYml(yamlText, opts = {}) {
   const url = opts.validateUrl == null ? VALIDATE_URL : opts.validateUrl
   const timeoutMs =
     opts.timeoutMs == null ? CODECOV_VALIDATE_TIMEOUT_MS : opts.timeoutMs
-  const signal = AbortSignal.timeout(timeoutMs)
   try {
-    const res = await fetchImpl(url, {
+    const init = {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: yamlText,
-      signal,
-    })
+    }
+    init.signal = AbortSignal.timeout(timeoutMs)
+    const res = await fetchImpl(url, init)
     const raw = await res.text()
     const body = String(raw).trim()
     // Success token is the first line exactly "Valid!" (API may append a config dump).
