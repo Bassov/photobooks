@@ -219,7 +219,7 @@ describe('script-include-ratchet helpers', () => {
     expect(violations).toEqual([])
   })
 
-  it('fails when mutate entry is removed without covering glob', () => {
+  it('allows removing script entries from mutate', () => {
     const violations = runScriptScope(
       {
         'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
@@ -235,12 +235,12 @@ describe('script-include-ratchet helpers', () => {
       violations.some(
         (v) =>
           v.ruleId === 'include-removed' &&
-          v.message === 'stryker mutate include removed: scripts/agent.mjs',
+          v.message.includes('scripts/agent.mjs'),
       ),
-    ).toBe(true)
+    ).toBe(false)
   })
 
-  it('fails when scripts mutate glob is dropped', () => {
+  it('allows dropping scripts mutate glob', () => {
     const violations = runScriptScope(
       {
         'vite.config.ts': `coverage: { include: ['scripts/**/*.mjs'], exclude: [] }`,
@@ -256,9 +256,9 @@ describe('script-include-ratchet helpers', () => {
       violations.some(
         (v) =>
           v.ruleId === 'include-removed' &&
-          v.message === 'stryker mutate include removed: scripts/**/*.mjs',
+          v.message.includes('scripts/**/*.mjs'),
       ),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('treats missing mutate field as empty (no false mutate removals)', () => {

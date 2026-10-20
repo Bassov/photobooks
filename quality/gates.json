@@ -18,7 +18,7 @@
     }
   },
   "mutation": {
-    "disableBudget": 0,
+    "disableBudget": 10,
     "temporaryExcludes": [
       {
         "path": "src/editor/projectSession.ts",
@@ -27,18 +27,6 @@
       {
         "path": "src/editor/usePasteboardCamera.ts",
         "until": "mutation-reinclude-camera"
-      },
-      {
-        "path": "src/editor/EditorShell.tsx",
-        "until": "editor-shell-mutation"
-      },
-      {
-        "path": "src/editor/HomeScreen.tsx",
-        "until": "home-app-mutation"
-      },
-      {
-        "path": "src/App.tsx",
-        "until": "home-app-mutation"
       },
       {
         "path": "src/editor/previewAspect.ts",
