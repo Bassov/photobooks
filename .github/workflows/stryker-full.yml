@@ -16,17 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.28.0
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Full mutation testing
         run: pnpm stryker
@@ -35,7 +26,7 @@ jobs:
         if: always()
         run: |
           if [ -f reports/mutation/mutation.json ]; then
-            node scripts/stryker-pr-summary-cli.mjs
+            pnpm exec ts-rig-ci stryker-summary
           else
             echo "No mutation report produced." >> "$GITHUB_STEP_SUMMARY"
           fi

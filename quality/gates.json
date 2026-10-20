@@ -49,16 +49,42 @@
   },
   "checks": {
     "core": [
-      { "name": "typecheck", "argv": ["pnpm", "typecheck"] },
-      { "name": "lint", "argv": ["pnpm", "lint"] },
-      { "name": "deps", "argv": ["pnpm", "deps"] },
-      { "name": "knip", "argv": ["pnpm", "knip"] },
-      { "name": "mutation-scope", "argv": ["pnpm", "mutation-scope"] },
-      { "name": "gate-values", "argv": ["pnpm", "gate-values"] },
-      { "name": "openspec-budget", "argv": ["pnpm", "openspec-budget"] },
-      { "name": "codecov-yml", "argv": ["pnpm", "codecov-yml"] },
-      { "name": "git-test-isolation", "argv": ["pnpm", "git-test-isolation"] },
-      { "name": "roadmap", "argv": ["pnpm", "-s", "roadmap", "check"] },
+      {
+        "name": "typecheck",
+        "argv": ["pnpm", "typecheck"]
+      },
+      {
+        "name": "lint",
+        "argv": ["pnpm", "lint"]
+      },
+      {
+        "name": "deps",
+        "argv": ["pnpm", "deps"]
+      },
+      {
+        "name": "knip",
+        "argv": ["pnpm", "knip"]
+      },
+      {
+        "name": "mutation-scope",
+        "argv": ["pnpm", "mutation-scope"]
+      },
+      {
+        "name": "gate-values",
+        "argv": ["pnpm", "gate-values"]
+      },
+      {
+        "name": "openspec-budget",
+        "argv": ["pnpm", "openspec-budget"]
+      },
+      {
+        "name": "codecov-yml",
+        "argv": ["pnpm", "codecov-yml"]
+      },
+      {
+        "name": "roadmap",
+        "argv": ["pnpm", "-s", "roadmap", "check"]
+      },
       {
         "name": "unit",
         "argv": [
@@ -75,13 +101,22 @@
     "afterUnit": [
       {
         "name": "patch-coverage",
-        "script": "scripts/check-patch-coverage.mjs"
+        "argv": ["pnpm", "exec", "ts-rig-gate", "patch-coverage"]
       }
     ],
     "optional": [
-      { "name": "diff-size", "script": "scripts/check-diff-size.mjs" },
-      { "name": "pr-body", "script": "scripts/check-pr-body.mjs" },
-      { "name": "pr-policy", "script": "scripts/check-pr-policy.mjs" }
+      {
+        "name": "diff-size",
+        "argv": ["pnpm", "exec", "ts-rig-gate", "diff-size"]
+      },
+      {
+        "name": "pr-body",
+        "argv": ["pnpm", "exec", "ts-rig-gate", "pr-body"]
+      },
+      {
+        "name": "pr-policy",
+        "argv": ["pnpm", "exec", "ts-rig-gate", "pr-policy"]
+      }
     ]
   },
   "lighthouse": {
