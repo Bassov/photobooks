@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.1
 Title: Reusable CI Actions from @albasov/ts-agent-rig
+Status: done
 
 ## Scope
 
@@ -14,3 +15,7 @@ Title: Reusable CI Actions from @albasov/ts-agent-rig
 - **Done when:** host CI YAML uses the rig Actions; `pnpm check` green; PR comment sections still update
 - **Size:** ~300 lines net (mostly deletions)
 - **Source:** reusable CI actions plan (Bassov/ts-agent-rig v0.2.0)
+
+## Done note
+
+Shipped: pin v0.2.0 + rewired checks/lighthouse/stryker/pr-policy/uikit/integration setup
