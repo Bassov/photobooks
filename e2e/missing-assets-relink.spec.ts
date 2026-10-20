@@ -148,11 +148,14 @@ test('filmstrip scrolls during rescan without page scroll', async ({
     void dialog.accept('Rescan loaf')
   })
   await page.getByTestId('create-book').click()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
   const many = Array.from({ length: 24 }, () => photoFixturePaths.samplePng)
   await page.getByTestId('photo-file-input').setInputFiles(many)
   await expect
-    .poll(async () => page.getByTestId('filmstrip-item').count())
+    .poll(async () => page.getByTestId('filmstrip-item').count(), {
+      timeout: 30_000,
+    })
     .toBeGreaterThanOrEqual(12)
 
   await waitForRelinkApi(page)

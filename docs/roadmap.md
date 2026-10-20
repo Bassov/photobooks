@@ -33,9 +33,9 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [continuous-zoom-settle-mount-pace](roadmap/M2.1/continuous-zoom-settle-mount-pace.md) — Pace pasteboard remounts on zoom-out settle to keep continuous-zoom LoAF green
 - [x] [prep] [ci-flake-hardening](roadmap/M2.1/ci-flake-hardening.md) — Harden CI flakes (re-import LoAF, burn-in spawn, codecov timeout)
 - [ ] [contingency] [codecov-validate-timeout](roadmap/M2.1/codecov-validate-timeout.md) — AbortSignal.timeout for Codecov YAML validate fetch
-- [x] [prep] [stryker-diff-line-scope](roadmap/M2.1/stryker-diff-line-scope.md) — stryker-diff scores only changed line ranges (ts-agent-rig)
-- [x] [prep] [local-stryker-diff-check](roadmap/M2.1/local-stryker-diff-check.md) — Local stryker:diff in pnpm check / pre-push (agent loop)
-- [x] [prep] [reimport-loaf-store-thumb](roadmap/M2.1/reimport-loaf-store-thumb.md) — Re-import LoAF: no-op bookStore meta/patch + thumb put dedupe
+- [ ] [prep] [stryker-diff-line-scope](roadmap/M2.1/stryker-diff-line-scope.md) — stryker-diff scores only changed line ranges (ts-agent-rig)
+- [ ] [prep] [local-stryker-diff-check](roadmap/M2.1/local-stryker-diff-check.md) — Local stryker:diff in pnpm check / pre-push (agent loop)
+- [ ] [prep] [reimport-loaf-store-thumb](roadmap/M2.1/reimport-loaf-store-thumb.md) — Re-import LoAF: no-op bookStore meta/patch + thumb put dedupe
 - [x] [prep] [strict-e2e](roadmap/M2.1/strict-e2e.md) — no hidden flakes: zero retries on PRs (#50 item 5)
 - [x] [prep] [agent-test-run-budget](roadmap/M2.1/agent-test-run-budget.md) — agent test runs stay cheap and fast; flake proof comes from CI burn-in (owner 2026-10-18)
 - [x] [prep] [agent-pipeline-leftovers](roadmap/M2.1/agent-pipeline-leftovers.md) — Remaining token and call waste in the agent pipeline (issues #77, #79)
@@ -55,7 +55,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [fsa-permission-fakes](roadmap/M2.1/fsa-permission-fakes.md) — unit-level File System Access fakes (issue #72 L)
 - [ ] [prep] [mutation-reinclude-small](roadmap/M2.1/mutation-reinclude-small.md) — mutate the small files that already have tests (issue #72 B)
 - [ ] [prep] [mutation-reinclude-camera](roadmap/M2.1/mutation-reinclude-camera.md) — mutate `usePasteboardCamera.ts` again (issue #72 B)
-- [x] [prep] [session-idb-locks-mutation](roadmap/M2.1/session-idb-locks-mutation.md) — IndexedDB and Web Locks fakes; mutate the adapters (issue #72 L, B)
+- [ ] [prep] [session-idb-locks-mutation](roadmap/M2.1/session-idb-locks-mutation.md) — IndexedDB and Web Locks fakes; mutate the adapters (issue #72 L, B)
 - [x] [prep] [project-session-deps](roadmap/M2.1/project-session-deps.md) — inject the session's platform dependencies (issue #72 L)
 - [x] [prep] [autosave-controller](roadmap/M2.1/autosave-controller.md) — extract autosave from `projectSession.ts`
 - [x] [prep] [book-lock-controller](roadmap/M2.1/book-lock-controller.md) — extract locks and re-grant from `projectSession.ts`
@@ -70,9 +70,9 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 **Review cut:** under the M2.1 gates — the home screen handles every permission, picker and storage failure with a readable message, books have titles you set and rename, and photo metadata (capture time, orientation, color space) is in the document, read off the main thread.
 
 - [x] [feature] [reimport-async](roadmap/M2.2/reimport-async.md) — re-import into an existing project starts as fast as a fresh import
-- [x] [feature] [webp-import](roadmap/M2.2/webp-import.md) — WebP photos import instead of failing with "Unknown file format"
+- [ ] [feature] [webp-import](roadmap/M2.2/webp-import.md) — WebP photos import instead of failing with "Unknown file format"
 - [ ] [feature] [failed-import-no-tile](roadmap/M2.2/failed-import-no-tile.md) — a photo that fails to decode leaves no tile, is not counted and cannot be placed
-- [x] [feature] [add-spread-keeps-template](roadmap/M2.2/add-spread-keeps-template.md) — Add spread uses the active spread's template, and the template control says it is per spread
+- [ ] [feature] [add-spread-keeps-template](roadmap/M2.2/add-spread-keeps-template.md) — Add spread uses the active spread's template, and the template control says it is per spread
 - [ ] [feature] [transparent-preview](roadmap/M2.2/transparent-preview.md) — transparent PNG / WebP areas stay transparent in thumbnails and frames
 - [ ] [feature] [folder-skip-non-images](roadmap/M2.2/folder-skip-non-images.md) — folder import skips non-image files with one summary line instead of errors
 - [ ] [feature] [heic-unsupported-message](roadmap/M2.2/heic-unsupported-message.md) — HEIC/HEIF photos get a clear "not supported yet, convert to JPEG" message
@@ -87,12 +87,10 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 **Review cut:** the UI kit is served at `/uikit/` as the UI/UX reference, moved photo folders relink in one step, and the editor looks like one product — every surface uses tokens and shared primitives in light and dark themes, `docs/design.md` is the source of truth agents follow (enforced by `ui-review` and the design reviewer), and every existing 60 fps gate still passes.
 
 - [x] [prep] [uikit-import](roadmap/M2.5/uikit-import.md) — UI kit v3.1 in the repo as the UI/UX reference (whole kit, one step)
-- [x] [feature] [missing-assets-relink](roadmap/M2.5/missing-assets-relink.md) — moved photo folders
-- [ ] [feature] [missing-assets-relink-dialog-polish](roadmap/M2.5/missing-assets-relink-dialog-polish.md) — relink dialog UI polish
-- [ ] [feature] [missing-assets-relink-actions](roadmap/M2.5/missing-assets-relink-actions.md) — relink locate and tabs
-- [x] [prep] [design-reference](roadmap/M2.5/design-reference.md) — visual language and agent rule
-- [x] [feature] [design-tokens](roadmap/M2.5/design-tokens.md) — tokens and self-hosted fonts
-- [x] [prep] [icon-set](roadmap/M2.5/icon-set.md) — icons (Security Review: dependency, if a package is chosen)
+- [ ] [feature] [missing-assets-relink](roadmap/M2.5/missing-assets-relink.md) — moved photo folders
+- [ ] [prep] [design-reference](roadmap/M2.5/design-reference.md) — visual language and agent rule
+- [ ] [feature] [design-tokens](roadmap/M2.5/design-tokens.md) — tokens and self-hosted fonts
+- [ ] [prep] [icon-set](roadmap/M2.5/icon-set.md) — icons (Security Review: dependency, if a package is chosen)
 - [ ] [prep] [ui-primitives-actions](roadmap/M2.5/ui-primitives-actions.md) — action primitives in `src/ui/`
 - [ ] [prep] [ui-primitives-feedback](roadmap/M2.5/ui-primitives-feedback.md) — feedback primitives in `src/ui/`
 - [ ] [prep] [a11y-contrast-gate](roadmap/M2.5/a11y-contrast-gate.md) — contrast checks on the design system
