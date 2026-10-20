@@ -21,8 +21,6 @@ const config = {
     '!src/photo/photo.worker.ts',
     '!src/assets/hash.worker.ts',
     '!src/project/fsa/bookLoad.worker.ts',
-    '!src/project/session/idb.ts',
-    '!src/project/session/locks.ts',
     '!src/editor/EditorShell.tsx',
     '!src/editor/HomeScreen.tsx',
     '!src/App.tsx',

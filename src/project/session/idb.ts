@@ -32,7 +32,7 @@ function openDb(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_NAME)
       }
       if (!tx) {
-        return
+        throw new Error('indexedDB upgrade missing transaction')
       }
       const store = tx.objectStore(STORE_NAME)
       const legacy = store.get(LEGACY_LIBRARY_ID)

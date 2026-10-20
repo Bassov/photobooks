@@ -36,14 +36,6 @@
       {
         "path": "src/editor/upgradeSessionAssets.ts",
         "until": "mutation-reinclude-small"
-      },
-      {
-        "path": "src/project/session/idb.ts",
-        "until": "session-idb-locks-mutation"
-      },
-      {
-        "path": "src/project/session/locks.ts",
-        "until": "session-idb-locks-mutation"
       }
     ]
   },

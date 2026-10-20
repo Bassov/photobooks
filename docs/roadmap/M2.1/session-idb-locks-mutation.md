@@ -3,11 +3,16 @@
 Tag: prep
 Milestone: M2.1
 Title: IndexedDB and Web Locks fakes; mutate the adapters (issue #72 L, B)
+Status: done
 
 ## Scope
 
-- [ ] `fake-indexeddb` (exact-pinned dev dependency; until `docs/backlog/dependency-policy.md` is re-added, new deps need `audit:ci` + Security Review). Run the `sessionState.contract` suite against the real `idb.ts` adapter: `present: false`, store creation on upgrade, `close()` in `finally`
-- [ ] In-memory `LockManager` fake for `navigator.locks` (`ifAvailable` returns `null` when the lock is held). Test `locks.ts` and the `bookLockName()` cross-tab contract
-- [ ] Remove the `idb.ts` and `locks.ts` `temporary` entries
+- [x] `fake-indexeddb` (exact-pinned dev dependency; until `docs/backlog/dependency-policy.md` is re-added, new deps need `audit:ci` + Security Review). Run the `sessionState.contract` suite against the real `idb.ts` adapter: `present: false`, store creation on upgrade, `close()` in `finally`
+- [x] In-memory `LockManager` fake for `navigator.locks` (`ifAvailable` returns `null` when the lock is held). Test `locks.ts` and the `bookLockName()` cross-tab contract
+- [x] Remove the `idb.ts` and `locks.ts` `temporary` entries
 - includes: IDB v1→v2 migration test on `fake-indexeddb` (from main's `recents-home-quality`)
 - **Done when:** `idb.ts` and `locks.ts` run in Vitest with no browser, and both are mutated on both runs at 85+ with no NoCoverage.
+
+## Done note
+
+fake-indexeddb + LockManager fakes; idb/locks reincluded; targeted stryker 100%/0 NoCoverage; Security Review PASS
