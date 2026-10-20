@@ -185,24 +185,6 @@
   min-width: 0;
 }
 
-.spread-template-add {
-  appearance: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  padding: calc(var(--spacing) * 1.6) calc(var(--spacing) * 3);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--foreground);
-  background: var(--secondary);
-  cursor: pointer;
-}
-
-.spread-template-add:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-
 .pasteboard-spacer {
   min-width: 0;
 }
@@ -227,37 +209,6 @@
   padding: 0 calc(var(--spacing) * 3) calc(var(--spacing) * 1.8);
   min-width: 0;
   background: var(--chrome);
-}
-
-/* Native pb-button chrome (LoAF-safe) — mirror RAC data-* states with CSS. */
-.editor-top-bar .pb-button:hover:not(:disabled),
-.camera-bar .pb-button:hover:not(:disabled) {
-  color: var(--foreground);
-}
-
-.editor-top-bar .pb-button--secondary:hover:not(:disabled),
-.camera-bar .pb-button--secondary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--secondary) 80%, var(--muted));
-}
-
-.editor-top-bar .pb-button--default:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--primary) 90%, var(--foreground));
-}
-
-.editor-top-bar .pb-button:disabled,
-.camera-bar .pb-button:disabled,
-.spread-template-add:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.editor-top-bar .pb-button:focus-visible,
-.camera-bar .pb-button:focus-visible,
-.spread-template-add:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--background),
-    0 0 0 4px var(--ring);
 }
 
 .zoom-indicator {

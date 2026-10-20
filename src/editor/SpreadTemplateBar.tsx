@@ -1,5 +1,6 @@
 import { memo, useSyncExternalStore } from 'react'
 import { TEMPLATE_IDS, type TemplateId } from '../core'
+import '../ui/Button.css'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
 import { getSpreadTemplateId, subscribeSpread } from './bookStore'
@@ -46,7 +47,7 @@ export const SpreadTemplateBar = memo(function SpreadTemplateBar({
       />
       <button
         type="button"
-        className="spread-template-add"
+        className="pb-button pb-button--secondary pb-button--sm spread-template-add"
         onClick={onAddSpread}
         disabled={spreadId === null}
       >

@@ -1,0 +1,25 @@
+diff --git a/src/agent.mjs b/src/agent.mjs
+index d0408cd348184db003c9d33eeda4a28a11b56665..541c0c8d37d4db0067d0224fc7049a72d6c0a0ff 100644
+--- a/src/agent.mjs
++++ b/src/agent.mjs
+@@ -1920,7 +1920,7 @@ export function cmdArchive(o, deps) {
+     slug = slugFromBranch(br.stdout.trim())
+   }
+   if (!slug) fail('usage: pnpm agent archive [--change S]')
+-  const result = archiveOpenSpecChange(root, slug)
++  const result = archiveOpenSpecChange(root, slug, { keepArchive: true })
+   return {
+     ok: true,
+     slug,
+diff --git a/src/check-patch-coverage.mjs b/src/check-patch-coverage.mjs
+index 850f725ef736a1c9b690cb1c95634f5c294615ac..42ee459b9e6b8351631c34cfdbb3fdf6cfbbf6ed 100644
+--- a/src/check-patch-coverage.mjs
++++ b/src/check-patch-coverage.mjs
+@@ -96,6 +96,7 @@ function defaultGit(args, cwd) {
+ function skipFile(file) {
+   return (
+     /\.(test|spec)\.[a-z]+$/i.test(file) ||
++    file.endsWith('.css') ||
+     file.endsWith('.test-helpers.ts') ||
+     file.endsWith('.d.ts') ||
+     file === 'src/main.tsx' ||
