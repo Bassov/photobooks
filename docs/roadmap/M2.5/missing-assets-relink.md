@@ -3,10 +3,11 @@
 Tag: feature
 Milestone: M2.5
 Title: moved photo folders
+Status: done
 
 ## Scope
 
-- [ ] Missing-assets view (missing and modified); relink by rescanning a folder and matching hashes (scan and hashing in the worker)
+- [x] Missing-assets view (missing and modified); relink by rescanning a folder and matching hashes (scan and hashing in the worker)
 - **Perf:** rescan progress batched per frame. Gate: scroll the filmstrip while a rescan runs — zero LoAF.
 - **Browser check:** rename/move the photo folder, reopen, relink in one step, all photos restored; the UI stays responsive during the rescan.
 - **UI ref:** `uikit#/feature/missing-assets-relink`

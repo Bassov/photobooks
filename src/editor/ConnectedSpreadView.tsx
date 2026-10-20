@@ -31,6 +31,11 @@ import {
 } from './tierDisplay'
 import { getThumbUrl, subscribeThumb } from './thumbCache'
 import {
+  getProblemRevisionSnapshot,
+  missingAssetChecker,
+  subscribeRelink,
+} from './relink'
+import {
   assetIdsOnSpread,
   desiredTiersForItems,
   isFramePressed,
@@ -85,6 +90,11 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
     () => thumbSnapshotFor(spreadAssetIds, getThumbUrl),
   )
+  const relinkRevision = useSyncExternalStore(
+    subscribeRelink,
+    getProblemRevisionSnapshot,
+    getProblemRevisionSnapshot,
+  )
 
   useEffect(() => {
     if (snapshot === undefined) {
@@ -129,6 +139,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
+      isMissingAsset={missingAssetChecker(relinkRevision)}
       previewUrlFor={(assetId) =>
         resolveSpreadPreviewUrl(
           assetId,

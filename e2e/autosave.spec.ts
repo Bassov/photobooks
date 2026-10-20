@@ -7,6 +7,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
 
 test('clean library-backed book shows Saved without page scroll', async ({
   page,
@@ -82,9 +83,7 @@ test('autosave persists edits across reload without manual Save', async ({
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 20_000,
   })
-  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
-    timeout: 30_000,
-  })
+  await expectMissingHatchAfterRestore(page, 1)
   await expect(
     page
       .getByRole('radiogroup', { name: 'Template for this spread' })

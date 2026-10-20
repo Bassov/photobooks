@@ -13,6 +13,13 @@ import {
   pageCutLine,
   SPREAD_PX_PER_MM,
 } from './frameBox'
+import {
+  frameShowsMissing,
+  missingPlaceholderClass,
+  missingPlaceholderTestId,
+  previewUrlUnlessMissing,
+  tierUnlessMissing,
+} from './spreadMissing'
 import './SpreadView.css'
 
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
@@ -23,6 +30,7 @@ export function SpreadView({
   previewUrlFor,
   tierFor,
   frameControlFor,
+  isMissingAsset,
   pxPerMm = SPREAD_PX_PER_MM,
 }: {
   spreadId: string
@@ -30,6 +38,8 @@ export function SpreadView({
   previewUrlFor: (assetId: string) => string | undefined
   tierFor?: (assetId: string) => number | undefined
   frameControlFor?: (item: ResolvedItem) => FrameControl
+  /** When true, show hatched missing placeholder instead of a stale preview. */
+  isMissingAsset?: (assetId: string) => boolean
   pxPerMm?: number
 }) {
   return (
@@ -42,20 +52,24 @@ export function SpreadView({
         height: resolved.spreadHeightMm * pxPerMm,
       }}
     >
-      {resolved.items.map((item) => (
-        <SpreadFrame
-          key={item.frameId}
-          item={item}
-          pxPerMm={pxPerMm}
-          previewUrl={
-            item.assetId === undefined ? undefined : previewUrlFor(item.assetId)
-          }
-          tier={
-            item.assetId === undefined ? undefined : tierFor?.(item.assetId)
-          }
-          control={frameControlFor?.(item)}
-        />
-      ))}
+      {resolved.items.map((item) => {
+        const missing = frameShowsMissing(item.assetId, isMissingAsset)
+        return (
+          <SpreadFrame
+            key={item.frameId}
+            item={item}
+            pxPerMm={pxPerMm}
+            missing={missing}
+            previewUrl={previewUrlUnlessMissing(
+              missing,
+              item.assetId,
+              previewUrlFor,
+            )}
+            tier={tierUnlessMissing(missing, item.assetId, tierFor)}
+            control={frameControlFor?.(item)}
+          />
+        )
+      })}
       {resolved.pageCuts.map((cut) => {
         const line = pageCutLine(cut, pxPerMm)
         const vertical = line.orientation === 'vertical'
@@ -94,12 +108,14 @@ function SpreadFrame({
   tier,
   pxPerMm,
   control,
+  missing,
 }: {
   item: ResolvedItem
   previewUrl: string | undefined
   tier: number | undefined
   pxPerMm: number
   control: FrameControl | undefined
+  missing: boolean
 }) {
   const box = frameBox(item.rectMm, pxPerMm)
   const crop = imageCropBox(item.sourceCropRect ?? FULL_CROP)
@@ -113,8 +129,8 @@ function SpreadFrame({
   const image =
     previewUrl === undefined ? (
       <div
-        className="spread-frame-placeholder"
-        data-testid="spread-frame-placeholder"
+        className={missingPlaceholderClass(missing)}
+        data-testid={missingPlaceholderTestId(missing)}
       />
     ) : (
       <img
