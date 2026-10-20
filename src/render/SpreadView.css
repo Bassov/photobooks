@@ -1,14 +1,14 @@
 .spread-view {
   position: relative;
   margin: 0;
-  background: #fbfcfb;
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 16%, transparent);
+  background: var(--paper);
+  box-shadow: var(--page-shadow);
 }
 
 .spread-frame {
   position: absolute;
   overflow: hidden;
-  background: color-mix(in srgb, var(--paper) 55%, #fff);
+  background: var(--paper);
 }
 
 button.spread-frame {
@@ -24,12 +24,12 @@ button.spread-frame {
 
 button.spread-frame:focus-visible,
 button.spread-frame[aria-pressed='true'] {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--ring);
   outline-offset: -3px;
 }
 
 .spread-frame[data-drop-hover='true'] {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--select);
   outline-offset: -2px;
 }
 
@@ -41,8 +41,8 @@ button.spread-frame[aria-pressed='true'] {
 .spread-frame-placeholder {
   width: 100%;
   height: 100%;
-  background: color-mix(in srgb, var(--ink) 6%, var(--paper));
-  outline: 1px dashed color-mix(in srgb, var(--ink) 35%, transparent);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--paper));
+  outline: 1px dashed color-mix(in srgb, var(--foreground) 35%, transparent);
   outline-offset: -1px;
 }
 
@@ -54,5 +54,5 @@ button.spread-frame[aria-pressed='true'] {
 .spread-page-cut {
   position: absolute;
   pointer-events: none;
-  background: color-mix(in srgb, var(--ink) 28%, transparent);
+  background: color-mix(in srgb, var(--foreground) 28%, transparent);
 }

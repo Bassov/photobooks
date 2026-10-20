@@ -9,7 +9,7 @@ const gates = loadGates()
 
 const isolationHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
-  // credentialless: keep Google Fonts loading while enabling crossOriginIsolated.
+  // credentialless: crossOriginIsolated for workers/OPFS without requiring CORP on all assets.
   'Cross-Origin-Embedder-Policy': 'credentialless',
 } as const
 
@@ -22,7 +22,6 @@ export const coverageExcludeGlobs = [
   'src/**/*.test-helpers.ts',
   'src/**/*.{bench,benchmark}.{ts,tsx}',
   'src/**/*.d.ts',
-  'src/main.tsx',
   'scripts/**/*.test.mjs',
 ] as const
 

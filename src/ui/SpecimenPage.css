@@ -1,0 +1,219 @@
+.specimen-page {
+  box-sizing: border-box;
+  height: 100%;
+  max-height: 100svh;
+  overflow: auto;
+  padding: calc(var(--spacing) * 5);
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+.specimen-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--spacing) * 3);
+  margin-bottom: calc(var(--spacing) * 5);
+}
+
+.specimen-header h1 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: var(--heading-weight);
+}
+
+.specimen-note {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+
+.specimen-section {
+  margin-bottom: calc(var(--spacing) * 6);
+}
+
+.specimen-section h2 {
+  margin: 0 0 calc(var(--spacing) * 3);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.specimen-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: calc(var(--spacing) * 3);
+}
+
+.specimen-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 1);
+}
+
+.specimen-swatch-chip {
+  height: calc(var(--spacing) * 10);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+}
+
+.specimen-token-background {
+  background: var(--background);
+}
+.specimen-token-chrome {
+  background: var(--chrome);
+}
+.specimen-token-canvas {
+  background: var(--canvas);
+}
+.specimen-token-paper {
+  background: var(--paper);
+}
+.specimen-token-foreground {
+  background: var(--foreground);
+}
+.specimen-token-primary {
+  background: var(--primary);
+}
+.specimen-token-ring {
+  background: var(--ring);
+}
+.specimen-token-select {
+  background: var(--select);
+}
+.specimen-token-destructive {
+  background: var(--destructive);
+}
+.specimen-token-success {
+  background: var(--success);
+}
+.specimen-token-warning {
+  background: var(--warning);
+}
+.specimen-token-border {
+  background: var(--border);
+}
+
+.specimen-radius-sm {
+  border-radius: var(--radius-sm);
+}
+.specimen-radius-md {
+  border-radius: var(--radius-md);
+}
+.specimen-radius-lg {
+  border-radius: var(--radius-lg);
+}
+.specimen-radius-xl {
+  border-radius: var(--radius-xl);
+}
+.specimen-radius-2xl {
+  border-radius: var(--radius-2xl);
+}
+
+.specimen-space-1 {
+  height: calc(var(--spacing) * 1);
+}
+.specimen-space-2 {
+  height: calc(var(--spacing) * 2);
+}
+.specimen-space-3 {
+  height: calc(var(--spacing) * 3);
+}
+.specimen-space-4 {
+  height: calc(var(--spacing) * 4);
+}
+.specimen-space-6 {
+  height: calc(var(--spacing) * 6);
+}
+.specimen-space-8 {
+  height: calc(var(--spacing) * 8);
+}
+
+.specimen-swatch-name {
+  font-family: ui-monospace, monospace;
+  font-size: var(--text-xs);
+}
+
+.specimen-type {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 1.5);
+  padding: calc(var(--spacing) * 4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.specimen-type .heading {
+  font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+}
+
+.specimen-type-3xl {
+  font-size: var(--text-3xl);
+}
+
+.specimen-type-2xl {
+  font-size: var(--text-2xl);
+}
+
+.specimen-type-lg {
+  font-size: var(--text-lg);
+}
+
+.specimen-type-base {
+  font-size: var(--text-base);
+}
+
+.specimen-type-sm {
+  font-size: var(--text-sm);
+}
+
+.specimen-type-xs {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.specimen-spacing {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--spacing) * 2);
+}
+
+.specimen-spacing-bar {
+  width: calc(var(--spacing) * 3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--select) 60%, transparent);
+}
+
+.specimen-spacing-label {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.specimen-radii {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--spacing) * 3);
+}
+
+.specimen-radius {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--spacing) * 1);
+}
+
+.specimen-radius-chip {
+  width: calc(var(--spacing) * 12);
+  height: calc(var(--spacing) * 12);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow-xs);
+}

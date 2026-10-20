@@ -1,7 +1,8 @@
 .filmstrip {
-  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
-  background: color-mix(in srgb, var(--paper) 70%, #fff);
-  padding: 0.5rem 0.75rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--chrome);
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3)
+    calc(var(--spacing) * 3);
   min-height: 8rem;
   min-width: 0;
   max-width: 100%;
@@ -12,28 +13,28 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.5rem 1rem;
-  margin: 0 0 0.35rem;
+  gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+  margin: 0 0 calc(var(--spacing) * 1.4);
   min-height: 1.25rem;
 }
 
 .filmstrip-count,
 .filmstrip-status .import-progress {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 0.8125rem;
-  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
 }
 
 .filmstrip-unplace {
-  margin: 0 0 0.35rem;
-  padding: 0.15rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--ink) 24%, transparent);
-  border-radius: 4px;
+  margin: 0 0 calc(var(--spacing) * 1.4);
+  padding: calc(var(--spacing) * 0.6) calc(var(--spacing) * 2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--ink);
+  color: var(--foreground);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -42,7 +43,7 @@
 }
 
 .filmstrip-unplace:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -55,7 +56,7 @@
 }
 
 .filmstrip-scroll[data-drop-hover='true'] {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--select);
   outline-offset: -2px;
 }
 
@@ -87,13 +88,13 @@
   align-items: stretch;
   justify-content: center;
   outline: none;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  background: var(--muted);
 }
 
 .filmstrip-item[data-focused] {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--ring);
 }
 
 .filmstrip-drag {
@@ -111,32 +112,27 @@
 
 .filmstrip-placed {
   position: absolute;
-  left: 0.3rem;
-  bottom: 0.3rem;
-  padding: 0.05rem 0.35rem;
-  font-family: var(--font-body);
-  font-size: 0.6875rem;
+  left: calc(var(--spacing) * 1.2);
+  bottom: calc(var(--spacing) * 1.2);
+  padding: calc(var(--spacing) * 0.2) calc(var(--spacing) * 1.4);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
   line-height: 1.3;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--paper) 90%, #fff);
-  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+  color: var(--foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
 }
 
 .filmstrip-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--ink) 6%, transparent) 0%,
-    color-mix(in srgb, var(--ink) 12%, transparent) 50%,
-    color-mix(in srgb, var(--ink) 6%, transparent) 100%
-  );
+  background: var(--muted);
 }
 
 .filmstrip-empty {
-  margin: 1.5rem 0.5rem;
-  font-family: var(--font-body);
-  color: var(--muted);
+  margin: calc(var(--spacing) * 6) calc(var(--spacing) * 2);
+  font-family: var(--font-ui);
+  color: var(--muted-foreground);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;

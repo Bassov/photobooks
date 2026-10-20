@@ -29,7 +29,7 @@ describe('pasteboard camera', () => {
     expect(screen.getByRole('button', { name: '100%' })).toBeTruthy()
     expect(screen.getByTestId('zoom-indicator').textContent).toBe('13%')
     expect(editorShellCss).toMatch(
-      /\.camera-bar button:focus-visible[\s\S]*outline:\s*2px solid var\(--accent\)/,
+      /\.camera-bar button:focus-visible[\s\S]*outline:\s*2px solid var\(--ring\)/,
     )
 
     const before = screen.getAllByTestId('pasteboard-slot').length
