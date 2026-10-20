@@ -10,3 +10,4 @@ Title: preview the site from the editor
 - **Perf:** preview mounts lazily; the editor store is not re-subscribed per spread.
 - **Browser check:** preview the site from the editor, edit a caption, preview again — it updates.
 - **UI ref:** `uikit#/feature/site-preview-mode`
+- **UI kit:** `uikit/src/features/m5m7.tsx:292-295` (`site-preview-mode` demo + notes), `UI ref: uikit#/feature/site-preview-mode` — in-app Preview site overlay

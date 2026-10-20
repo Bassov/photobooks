@@ -15,6 +15,7 @@ Status: done
 - **Done when:** (1) the e2e regression test above fails on main with `Unknown file format` and passes on the branch; (2) the unit tests above pass; (3) `image/webp` / `.webp` stays accepted by the picker filter and the input `accept` (`src/photo/pickPhotos.ts:9`, `src/photo/mime.ts:1,8`), covered by the existing tests; (4) patch coverage ≥ 85% (`codecov.yml` patch target), Stryker diff score ≥ 85 with zero NoCoverage (`quality/gates.json` `diffThresholds.break`), and no gate weakened or newly excluded
 - **Perf:** no new work on the main thread; the decode stays in the photo worker. The existing bulk-import frame-budget scenario stays green.
 - **Browser check:** on the preview URL, Add photos with a lossy and a lossless `.webp`. Both appear in the filmstrip with correct aspect thumbnails, the counter includes them, there is no error, and placing one in a frame shows the photo on the page.
+- **UI kit:** `uikit/src/features/m0m1.tsx:31` and `:238-246` (`m0-photo-card`, `UI ref: uikit#/feature/m0-photo-card` — WebP listed as accepted; worker preview), `uikit/src/features/m0m1.tsx:248-256` (`editor-shell-filmstrip`, `UI ref: uikit#/feature/editor-shell-filmstrip` — progressive import thumbs). partial: dedicated WebP import / corrupt-WebP error scenario
 - **Size:** ~100–180 changed lines (one guard + fixture writer + unit + e2e)
 - **Source:** #41
 

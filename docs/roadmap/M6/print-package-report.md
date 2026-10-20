@@ -9,3 +9,4 @@ Title: what the print shop needs
 - [ ] Text report next to the export: profile, trim, page count, spine width, preflight summary
 - **Browser check:** export writes the report next to the PDF; its numbers match the profile and the book.
 - **UI ref:** `uikit#/feature/print-package-report`
+- **UI kit:** `uikit/src/features/m6m8.tsx:324` (`print-package-report` demo + notes), `UI ref: uikit#/feature/print-package-report` — print package report specimen

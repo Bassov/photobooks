@@ -5,7 +5,7 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 ## Layout
 
 - `docs/roadmap.md`: header, `## Order`, one block per active milestone (`## <ID> — <title>`, goal / review-cut lines, one line per item), and `## Deferred (not scheduled)`. One line per item: `- [ ] [tag] [slug](roadmap/<M>/<slug>.md) — title`. Index order is priority. There is no `## Archive` section.
-- `docs/roadmap/<M>/<slug>.md`: the item: slug heading, Tag, Milestone, Title, then its scope (nested checkboxes, **Done when:**, **Perf:**, **Browser check:**, **UI ref:** lines). `INTRO.md` holds longer milestone notes.
+- `docs/roadmap/<M>/<slug>.md`: the item: slug heading, Tag, Milestone, Title, then its scope (nested checkboxes, **Done when:**, **Perf:**, **Browser check:**, **UI kit:** / **UI ref:** lines). `INTRO.md` holds longer milestone notes.
 - Finished milestones are **retired** with `pnpm roadmap archive <M>` (drops the milestone block and deletes `docs/roadmap/<M>/`; git history is SoT). `docs/roadmap/DEFERRED.md`: ideas that are not scheduled.
 
 ## Items
@@ -18,7 +18,7 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 - **(Security Review: …)** after the title: the change needs a Security Review before archive.
 - **60 fps is part of done.** Every `[feature]` ships a perf scenario for the interaction it adds (gates in `docs/future-architecture.md`, "Performance model"); a regression blocks the PR. **Perf:** lines name the techniques the change must use. The Browser check includes watching the interaction for stutter (DevTools Performance panel, frame rendering stats). For features with an in-app scrollport, it also verifies no page-level H/V scroll; the named region is the scrollport (Playwright: `assertDocumentFitsViewport`).
 - **One visual language.** From M2.5 on, UI work uses the tokens and primitives in `docs/design.md` (`src/ui/`); a change that needs a new token, primitive or state adds it to the design reference and the `?specimen` page in the same change. Book content (paper, frame styles, captions) takes its colors and fonts from the document, never from the UI theme.
-- **UI ref.** An item with UI may carry a `UI ref: uikit#/feature/<slug>` line naming the UI kit screen it follows; the kit is the reference for layout, states and copy, the item's Browser check stays the acceptance test.
+- **UI kit (required for `[feature]`).** Every new `[feature]` item must carry a `**UI kit:**` line in Scope naming the concrete kit pages / components / scenarios the UI must follow: real `uikit/` paths that exist in the repo (for example `uikit/src/features/<x>.tsx`, `uikit/src/components/<y>.tsx`) plus the kit route in the README form (`UI ref: uikit#/feature/<slug>`), and a few words on which part applies. Partial match: list what matches and say what is missing (`partial: <missing part>`). No fitting kit part: `- **UI kit:** none (no matching component)`. Never invent a path, route or component. Place the bullet before `**Size:**` when present, else before `**Source:**`, else as the last Scope line. An optional `**UI ref:**` shorthand may still name the primary kit screen; the kit remains the reference for layout, states and copy, and the item's Browser check stays the acceptance test.
 
 ## Order, milestones, closing
 

@@ -44,6 +44,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [gate-weakening-guard](roadmap/M2.1/gate-weakening-guard.md) — test-level weakening fails pr-policy (PR #76 pattern)
 - [x] [prep] [stryker-disable-budget](roadmap/M2.1/stryker-disable-budget.md) — only next-line Stryker disables, capped and budgeted (PR #81 pattern)
 - [x] [prep] [stryker-diff-gate](roadmap/M2.1/stryker-diff-gate.md) — honest mutation on the diff: break 85, zero NoCoverage (issue #72 B, J)
+- [ ] [prep] [stryker-diff-line-scope](roadmap/M2.1/stryker-diff-line-scope.md) — stryker-diff scores only changed line ranges (ts-agent-rig)
 - [x] [prep] [scripts-in-scope](roadmap/M2.1/scripts-in-scope.md) — gate and agent scripts are in coverage and mutation by default (PR #81 pattern)
 - [x] [prep] [ratchet-glob-subsumption](roadmap/M2.1/ratchet-glob-subsumption.md) — pr-policy ratchet understands glob subsumption
 - [x] [prep] [agent-self-check](roadmap/M2.1/agent-self-check.md) — agents self-review against the repo checklist before push
@@ -61,7 +62,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [prep] [project-session-mutation](roadmap/M2.1/project-session-mutation.md) — mutate what is left of `projectSession.ts` (issue #72 B)
 - [ ] [prep] [agent-pipeline-run-audit](roadmap/M2.1/agent-pipeline-run-audit.md) — Check one /next-roadmap-item run against the #77 and #79 targets
 - [x] [prep] [reusable-ci-actions](roadmap/M2.1/reusable-ci-actions.md) — Reusable CI Actions from @albasov/ts-agent-rig
-- [ ] [prep] [post-extract-docs-cleanup](roadmap/M2.1/post-extract-docs-cleanup.md) — Post-extract agent docs cleanup + retire roadmap archive
+- [x] [prep] [post-extract-docs-cleanup](roadmap/M2.1/post-extract-docs-cleanup.md) — Post-extract agent docs cleanup + retire roadmap archive
 
 ## M2.2 — Library & metadata
 

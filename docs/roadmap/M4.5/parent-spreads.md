@@ -10,3 +10,4 @@ Title: parent spreads
 - **Perf:** a parent edit re-renders only spreads using it. Gate: edit a parent used by 40 spreads — zero LoAF.
 - **Browser check:** add a logo to a parent, apply it to every spread, move the logo once — all spreads update.
 - **UI ref:** `uikit#/feature/parent-spreads`
+- **UI kit:** `uikit/src/features/m45.tsx:236-239` (`parent-spreads` demo + notes), `UI ref: uikit#/feature/parent-spreads` — edit/apply parent spreads

@@ -11,3 +11,4 @@ Title: change one spread without touching the parent
 - **Perf:** an override or reset re-renders only its spread; parent edits skip overridden copies. Gate: edit a parent used by 40 spreads where 10 override its logo — zero LoAF.
 - **Browser check:** override the parent logo on one spread and move it, hide a parent guide on another, then move the logo on the parent — every other spread follows, the overridden one keeps its position, the hidden guide stays hidden; Reset to parent restores both.
 - **UI ref:** `uikit#/feature/parent-overrides`
+- **UI kit:** `uikit/src/features/m45.tsx:248-251` (`parent-overrides` demo + notes), `UI ref: uikit#/feature/parent-overrides` — override/hide parent items

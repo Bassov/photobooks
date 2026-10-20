@@ -14,3 +14,4 @@ Title: tokens and self-hosted fonts
 - **Perf:** tokens are static CSS custom properties, no runtime theming JS; fonts preloaded before first paint. Gate: existing pasteboard scroll, zoom and drag scenarios re-run — zero LoAF.
 - **Browser check:** every existing surface (empty editor, import, filmstrip, pasteboard, template bar, camera bar) renders with the new tokens and fonts with DevTools offline after first load; no request to third-party hosts; no page-level H/V scroll.
 - **UI ref:** `uikit#/feature/design-tokens`
+- **UI kit:** `uikit/src/features/m25.tsx:193-202` (`design-tokens` demo + notes), `UI ref: uikit#/feature/design-tokens` — semantic tokens + local fonts specimen, `uikit/src/kit/theme.ts`

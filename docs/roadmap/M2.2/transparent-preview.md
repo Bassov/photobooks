@@ -16,5 +16,6 @@ Title: transparent PNG / WebP areas stay transparent in thumbnails and frames
 - **Done when:** (1) the e2e regression test above fails on main (black corner) and passes on the branch; (2) JPEG previews are byte-identical in format (`image/jpeg`) to main; (3) the unit tests above pass; (4) patch coverage ≥ 85%, Stryker diff ≥ 85 with zero NoCoverage, and no gate weakened or newly excluded
 - **Perf:** encoding stays in the photo worker; WebP encode only for PNG/WebP sources. The bulk-import frame-budget scenario (JPEG fixtures) and `pnpm bench` photo cases stay within budget.
 - **Browser check:** on the preview URL, Add photos with a PNG that has transparent corners. The filmstrip thumbnail shows the filmstrip background in the corners, and placed in a frame the corners show the page color, not black. Zoom in so a sharper tier loads, and the corners stay transparent.
+- **UI kit:** none (no matching component)
 - **Size:** ~150–250 changed lines (buildPreview + RGBA fixture + unit + e2e)
 - **Source:** #36
