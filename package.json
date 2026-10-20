@@ -116,8 +116,7 @@
       }
     },
     "patchedDependencies": {
-      "@stryker-mutator/vitest-runner@10.0.0": "patches/@stryker-mutator__vitest-runner@10.0.0.patch",
-      "@albasov/ts-agent-rig@0.2.4": "patches/@albasov__ts-agent-rig@0.2.4.patch"
+      "@stryker-mutator/vitest-runner@10.0.0": "patches/@stryker-mutator__vitest-runner@10.0.0.patch"
     }
   }
 }

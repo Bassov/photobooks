@@ -5,9 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@albasov/ts-agent-rig@0.2.4':
-    hash: b7799dacb7aae1f315151983f7e351a7153fd404730ba1477ee2e98875aff1fa
-    path: patches/@albasov__ts-agent-rig@0.2.4.patch
   '@stryker-mutator/vitest-runner@10.0.0':
     hash: 890316bd6edb446e7b450b23c08fe314a14cbba08ae7adedb1ce5614d07913e0
     path: patches/@stryker-mutator__vitest-runner@10.0.0.patch
@@ -34,7 +31,7 @@ importers:
     devDependencies:
       '@albasov/ts-agent-rig':
         specifier: github:Bassov/ts-agent-rig#v0.2.4
-        version: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ef0a9488eec9be3968741bad1d127fc8917bf9e2(patch_hash=b7799dacb7aae1f315151983f7e351a7153fd404730ba1477ee2e98875aff1fa)
+        version: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ef0a9488eec9be3968741bad1d127fc8917bf9e2
       '@codecov/vite-plugin':
         specifier: 2.0.1
         version: 2.0.1(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -4738,7 +4735,7 @@ snapshots:
 
   '@actions/io@3.0.2': {}
 
-  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ef0a9488eec9be3968741bad1d127fc8917bf9e2(patch_hash=b7799dacb7aae1f315151983f7e351a7153fd404730ba1477ee2e98875aff1fa)':
+  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ef0a9488eec9be3968741bad1d127fc8917bf9e2':
     dependencies:
       typescript: 5.9.3
       yaml: 2.9.1
