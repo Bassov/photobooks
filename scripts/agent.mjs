@@ -100,12 +100,7 @@ export function hasPrepConcreteScope(body) {
   )
 }
 
-/**
- * True when roadmap body mentions `src/<capability>/` that does not exist yet.
- * New domain modules take the full design path (not prep fast-track).
- * @param {string} root
- * @param {string|undefined} body
- */
+/** True when body mentions src/<cap>/ that does not exist yet (full design path). */
 export function introducesNewSrcCapability(root, body) {
   const t = String(body ?? '')
   const re = /(?:^|[\s`('"])src\/([a-z0-9-]+)\/?/g
@@ -120,12 +115,7 @@ export function introducesNewSrcCapability(root, body) {
   return false
 }
 
-/**
- * Prep/contingency fast-track: Tag prep|contingency + concrete Scope/Done when,
- * unless the item introduces a missing `src/<capability>/` module.
- * @param {{ tag?: string, body?: string }} item
- * @param {string} [root] repo root for new-capability detection
- */
+/** Prep fast-track unless item introduces a missing src/<capability>/. */
 export function isPrepFastTrack(item, root) {
   const tag = String(item?.tag ?? '').toLowerCase()
   if (!(tag === 'prep' || tag === 'contingency')) return false
@@ -437,19 +427,14 @@ export function parseInstructions(stdout) {
   return { template: j.template ?? null, rules: j.rules ?? null }
 }
 
-/** Ready OpenSpec artifact ids from native `openSpecChangeStatus`. */
+/** Ready OpenSpec artifact ids from native openSpecChangeStatus. */
 export function readyArtifactIds(statusJson) {
   const arts = statusJson?.artifacts
   if (!Array.isArray(arts)) return []
   return arts.filter((a) => a && a.status === 'ready').map((a) => a.id)
 }
 
-/**
- * Load template/rules for one artifact from openspec/config.yaml (native).
- * @param {string} root
- * @param {string} artifactId
- * @param {string} [_change] unused (kept for call-site compat)
- */
+/** Load template/rules from openspec/config.yaml (native). */
 export function loadArtifactInstructions(root, artifactId, _change) {
   try {
     return loadNativeArtifactInstructions(root, artifactId)

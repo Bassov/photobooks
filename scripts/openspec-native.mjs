@@ -212,22 +212,12 @@ export function loadNativeArtifactInstructions(root, artifactId) {
   }
 }
 
-/**
- * Remove the working change dir (default). Permanent record lives in git/PR/
- * roadmap/product specs — do not commit openspec/changes/archive/**.
- * Pass `keepArchive: true` only for tests that exercise the legacy rename path.
- * @param {string} root
- * @param {string} slug
- * @param {{ date?: string, keepArchive?: boolean, rmOnly?: boolean }} [opts]
- * @returns {{ archivedTo: string|null, removed: boolean }}
- */
+/** Remove working change dir (default). Pass keepArchive:true for legacy rename tests. */
 export function archiveOpenSpecChange(root, slug, opts = {}) {
   const src = path.join(root, 'openspec', 'changes', slug)
   if (!fs.existsSync(src)) {
     return { archivedTo: null, removed: false }
   }
-  // Default: delete. Legacy rename only when keepArchive is set.
-  // rmOnly:true remains an explicit alias for delete.
   if (!opts.keepArchive) {
     fs.rmSync(src, { recursive: true, force: true })
     return { archivedTo: null, removed: true }
