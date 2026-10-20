@@ -7,6 +7,9 @@ type Listener = () => void
 
 const statuses = new Map<string, RelinkStatus>()
 const foundIds = new Set<string>()
+/** Immutable snapshots for useSyncExternalStore (same Map/Set identity never updates). */
+let statusesSnapshot: ReadonlyMap<string, RelinkStatus> = new Map()
+let foundSnapshot: ReadonlySet<string> = new Set()
 const listeners = new Set<Listener>()
 let dialogOpen = false
 let progress: RelinkProgress | null = null
@@ -23,6 +26,16 @@ function emit(): void {
   }
 }
 
+function publishStatuses(): void {
+  statusesSnapshot = new Map(statuses)
+  emit()
+}
+
+function publishFound(): void {
+  foundSnapshot = new Set(foundIds)
+  emit()
+}
+
 const progressBatcher = createProgressBatcher((next) => {
   progress = next
   emit()
@@ -36,7 +49,7 @@ export function subscribeRelink(listener: Listener): () => void {
 }
 
 export function getRelinkStatuses(): ReadonlyMap<string, RelinkStatus> {
-  return statuses
+  return statusesSnapshot
 }
 
 export function getRelinkStatus(assetId: string): RelinkStatus | undefined {
@@ -52,14 +65,21 @@ export function getRelinkProgress(): RelinkProgress | null {
 }
 
 export function getFoundRelinkIds(): ReadonlySet<string> {
-  return foundIds
+  return foundSnapshot
 }
 
 export function markRelinkFound(ids: readonly string[]): void {
+  let changed = false
   for (const id of ids) {
-    foundIds.add(id)
+    if (!foundIds.has(id)) {
+      foundIds.add(id)
+      changed = true
+    }
   }
-  emit()
+  if (!changed) {
+    return
+  }
+  publishFound()
 }
 
 export function clearRelinkFound(): void {
@@ -67,7 +87,7 @@ export function clearRelinkFound(): void {
     return
   }
   foundIds.clear()
-  emit()
+  publishFound()
 }
 
 export function setRelinkDialogOpen(open: boolean): void {
@@ -90,7 +110,7 @@ export function replaceRelinkStatuses(
   for (const [id, status] of next) {
     statuses.set(id, status)
   }
-  emit()
+  publishStatuses()
 }
 
 export function patchRelinkStatus(assetId: string, status: RelinkStatus): void {
@@ -98,7 +118,7 @@ export function patchRelinkStatus(assetId: string, status: RelinkStatus): void {
     return
   }
   statuses.set(assetId, status)
-  emit()
+  publishStatuses()
 }
 
 export function problemAssetIds(): string[] {
@@ -125,6 +145,8 @@ export function resetRelinkStore(): void {
   progressBatcher.reset()
   statuses.clear()
   foundIds.clear()
+  statusesSnapshot = new Map()
+  foundSnapshot = new Set()
   dialogOpen = false
   progress = null
   emit()

@@ -77,6 +77,14 @@ describe('relink statusStore', () => {
     expect(getRelinkStatus('a')).toBe('modified')
   })
 
+  it('markRelinkFound publishes a new found snapshot identity', () => {
+    const before = getFoundRelinkIds()
+    markRelinkFound(['a'])
+    const after = getFoundRelinkIds()
+    expect(after).not.toBe(before)
+    expect(after.has('a')).toBe(true)
+  })
+
   it('setRelinkProgress stores progress', () => {
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       cb(0)
