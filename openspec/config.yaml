@@ -26,7 +26,7 @@ context: |
 
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
-  - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI/agent behavior live in scripts/, quality/gates.json, and .cursor/rules — not in openspec/specs prose mirrors.
+  - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI/agent behavior live in @albasov/ts-agent-rig, quality/gates.json, and .cursor/ — not in openspec/specs prose mirrors.
   - Durable docs: docs/future-architecture.md; docs/roadmap.md + docs/roadmap/ via `pnpm roadmap` (skill `roadmap`)
 
   Security surface (tag changes that touch these):

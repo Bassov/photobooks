@@ -8,14 +8,14 @@ description: >-
 
 # Roadmap CLI
 
-`docs/roadmap.md` is an index (one line per item, order = priority); each item has its own file `docs/roadmap/<milestone>/<slug>.md`; finished milestones move to `docs/roadmap/archive/`. One item = one OpenSpec change = one PR; the slug is the change name. Process doc for humans: `docs/roadmap/RULES.md`.
+`docs/roadmap.md` is an index (one line per item, order = priority); each item has its own file `docs/roadmap/<milestone>/<slug>.md`. One item = one OpenSpec change = one PR; the slug is the change name. Process doc for humans: `docs/roadmap/RULES.md`.
 
 Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Errors exit non-zero and change nothing.
 
 ## Pick
 
 - `next [--slug S] --skip <claimed slugs>` prints the current item: slug, tag, milestone goal, title, file and full scope. Do not open the index or item file to find work. Claimed set includes open PRs, remote/local `feat|fix/*`, and worktree checkouts.
-- `claim <slug>` validates an open slug for an explicit hold. `show <slug>` prints any item, archived too. `list --open [--milestone M]` only for a real overview need.
+- `claim <slug>` validates an open slug for an explicit hold. `show <slug>` prints any active item. `list --open [--milestone M]` only for a real overview need.
 - `next` skips `[contingency]`; work one only when its gate failed. Read a `Notes:` goal line's file once per milestone.
 
 ## Scope and size
@@ -29,10 +29,10 @@ Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Error
 
 ## Close
 
-- Right after the OpenSpec archive, on the change branch: `done <slug> [--note "how it shipped"]` (writes `Status: done` in the item file; does **not** tick the index or archive the milestone).
+- Right after the OpenSpec archive, on the change branch: `done <slug> [--note "how it shipped"]` (writes `Status: done` in the item file; does **not** tick the index or retire the milestone).
 - Unneeded `[contingency]`: `done <slug> --note "not needed (gate passed in <gate-item>)"` in the gate item's PR (note required).
-- After item PRs merge: the operator/reviewer runs `sync` (and `archive <M>` when a milestone is fully done) in a small dedicated docs PR — never inside item PRs (`main` is protected). Batched sync/archive is fine. `check` warnings for pending sync are expected until then.
-- `check` validates the layout (also runs in `pnpm test`); fully-done-but-active is a warning until `archive`.
+- After item PRs merge: the operator/reviewer runs `sync` (and `archive <M>` when a milestone is fully done — **retire**: drop index block + delete `docs/roadmap/<M>/`; git history is SoT) in a small dedicated docs PR — never inside item PRs (`main` is protected). Batched sync/archive is fine. `check` warnings for pending sync are expected until then.
+- `check` validates the layout (also runs in `pnpm check`); fully-done-but-active is a warning until `archive`. Legacy `## Archive` / `docs/roadmap/archive/` are errors.
 
 ## Never
 
