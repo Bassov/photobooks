@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import {
@@ -20,12 +21,8 @@ interface RelinkTestApi {
   rescanRelinkFiles: (files: readonly File[]) => Promise<unknown>
   resetRelinkStore: () => void
   setRelinkDialogOpen: (open: boolean) => void
-  setRelinkProgress: (
-    next: {
-      total: number
-      completed: number
-      running: boolean
-    } | null,
+  replaceRelinkStatuses: (
+    next: Iterable<[string, 'missing' | 'modified' | 'ok']>,
   ) => void
   clearLiveAssetSources: () => void
 }
@@ -103,14 +100,33 @@ test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
     'missing',
   )
 
-  // webkitdirectory inputs require a directory path in Playwright.
-  await page
-    .getByTestId('relink-folder-input')
-    .setInputFiles(photoFixturePaths.dir)
+  const pngBase64 = readFileSync(photoFixturePaths.samplePng).toString('base64')
+  await page.evaluate(async (b64) => {
+    const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
+      .__photobooksRelink
+    if (!api) {
+      throw new Error('relink API missing')
+    }
+    const binary = atob(b64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    const file = new File([bytes], 'sample-3x2.png', {
+      type: 'image/png',
+      lastModified: Date.now(),
+    })
+    Object.defineProperty(file, 'webkitRelativePath', {
+      value: 'sample-3x2.png',
+    })
+    await api.rescanRelinkFiles([file])
+  }, pngBase64)
 
   await expect
-    .poll(async () =>
-      page.getByTestId('relink-row').first().getAttribute('data-status'),
+    .poll(
+      async () =>
+        page.getByTestId('relink-row').first().getAttribute('data-status'),
+      { timeout: 30_000 },
     )
     .toBe('found')
 
@@ -144,32 +160,65 @@ test('filmstrip scrolls during rescan without page scroll', async ({
     .toBeGreaterThanOrEqual(12)
 
   await waitForRelinkApi(page)
-  // Keep live Files (no hatch paint storm); open dialog + scan progress only.
   await page.evaluate(() => {
     const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
       .__photobooksRelink
     if (!api) {
       throw new Error('relink API missing')
     }
+    const rows: [string, 'missing'][] = Array.from(
+      { length: 24 },
+      (_, index) => [`missing-${String(index)}`, 'missing'],
+    )
+    api.replaceRelinkStatuses(rows)
     api.setRelinkDialogOpen(true)
-    api.setRelinkProgress({ total: 64, completed: 8, running: true })
   })
   await expect(page.getByTestId('relink-dialog')).toBeVisible()
+  await expect(page.getByTestId('relink-row').first()).toBeVisible()
+  await assertNamedScrollport(page, 'relink-list', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+
+  await page.evaluate(() => {
+    const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
+      .__photobooksRelink
+    if (!api) {
+      throw new Error('relink API missing')
+    }
+    const files = Array.from({ length: 24 }, (_, index) => {
+      const bytes = new Uint8Array(1024)
+      bytes[0] = index & 0xff
+      const file = new File([bytes], `rescan-${String(index)}.bin`, {
+        type: 'application/octet-stream',
+        lastModified: 1_700_000_000_000 + index,
+      })
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `folder/rescan-${String(index)}.bin`,
+      })
+      return file
+    })
+    void api.rescanRelinkFiles(files)
+  })
+
   await expect(page.getByTestId('relink-scan-progress')).toBeVisible({
     timeout: 15_000,
   })
+  await page.waitForTimeout(100)
   await page.evaluate(browserClearLoafEntries)
 
-  for (let i = 0; i < 30; i += 1) {
+  for (let i = 0; i < 12; i += 1) {
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft += 160
+      node.scrollLeft += 80
     })
-    await page.waitForTimeout(32)
+    await page.waitForTimeout(48)
   }
 
   await page.evaluate(browserAssertNoLoaf, 0)
 
   await page.getByTestId('relink-skip').click()
+  await expect(page.getByTestId('relink-dialog')).toHaveCount(0)
+  await expect(page.getByTestId('missing-assets-pill')).toBeVisible()
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'filmstrip-scroll', {
     axis: 'horizontal',

@@ -1,4 +1,10 @@
-import { useId, useRef, useSyncExternalStore } from 'react'
+import {
+  useId,
+  useRef,
+  useSyncExternalStore,
+  type ReactElement,
+  type RefObject,
+} from 'react'
 import { photoInputAccept } from '../../photo/pickPhotos'
 import { getAssetDisplayName } from '../bookStore'
 import {
@@ -21,11 +27,137 @@ import {
   isRelinkDialogOpen,
   subscribeRelink,
 } from './statusStore'
-import './RelinkDialog.css'
+function RelinkScanProgress(): ReactElement | null {
+  const progress = useSyncExternalStore(
+    subscribeRelink,
+    getRelinkProgress,
+    getRelinkProgress,
+  )
+  if (!progress?.running) {
+    return null
+  }
+  const pct =
+    progress.total <= 0
+      ? 0
+      : Math.min(100, Math.round((100 * progress.completed) / progress.total))
+  return (
+    <div className="relink-scan-progress" data-testid="relink-scan-progress">
+      Hashing in worker · {pct}%
+    </div>
+  )
+}
+
+function RelinkProblemList(): ReactElement {
+  const statuses = useSyncExternalStore(
+    subscribeRelink,
+    getRelinkStatuses,
+    getRelinkStatuses,
+  )
+  const found = useSyncExternalStore(
+    subscribeRelink,
+    getFoundRelinkIds,
+    getFoundRelinkIds,
+  )
+  const view = buildRelinkDialogView(statuses, found, null, 'problems')
+  return (
+    <div className="relink-list" data-testid="relink-list" tabIndex={0}>
+      {view.rows.length === 0 ? (
+        <p className="relink-list-empty" data-testid="relink-empty">
+          Everything is linked.
+        </p>
+      ) : (
+        view.rows.map((row) => (
+          <div
+            key={row.assetId}
+            className="relink-row"
+            data-testid="relink-row"
+            data-asset-id={row.assetId}
+            data-status={rowStatusAttr(row.found, row.status)}
+          >
+            <div className="relink-row-name">
+              {getAssetDisplayName(row.assetId)}
+            </div>
+            <span className={badgeClassName(row.found, row.status)}>
+              {rowBadgeLabel(row.found, row.status)}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function RelinkRescanButton(props: {
+  folderRef: RefObject<HTMLInputElement | null>
+}): ReactElement {
+  const progress = useSyncExternalStore(
+    subscribeRelink,
+    getRelinkProgress,
+    getRelinkProgress,
+  )
+  const scanning = progress?.running === true
+  return (
+    <button
+      type="button"
+      className="relink-btn relink-btn-outline"
+      data-testid="relink-rescan"
+      disabled={scanning}
+      onClick={() => {
+        clickFolderInput(props.folderRef.current)
+      }}
+    >
+      Rescan folder…
+    </button>
+  )
+}
+
+function RelinkDialogFooter(props: {
+  onResolve: () => Promise<number>
+  folderRef: RefObject<HTMLInputElement | null>
+}): ReactElement {
+  // Statuses/found only — progress ticks must not rebuild Resolve chrome.
+  const statuses = useSyncExternalStore(
+    subscribeRelink,
+    getRelinkStatuses,
+    getRelinkStatuses,
+  )
+  const found = useSyncExternalStore(
+    subscribeRelink,
+    getFoundRelinkIds,
+    getFoundRelinkIds,
+  )
+  const view = buildRelinkDialogView(statuses, found, null, 'problems')
+  return (
+    <footer className="relink-dialog-foot">
+      <button
+        type="button"
+        className="relink-btn relink-btn-ghost"
+        data-testid="relink-skip"
+        onClick={skipRelinkDialog}
+      >
+        Skip for now
+      </button>
+      <RelinkRescanButton folderRef={props.folderRef} />
+      <button
+        type="button"
+        className="relink-btn"
+        data-testid="relink-resolve"
+        disabled={view.resolveDisabled}
+        onClick={() => {
+          void resolveAndMaybeClose(props.onResolve)
+        }}
+      >
+        {view.resolveText}
+      </button>
+    </footer>
+  )
+}
 
 /**
  * Minimal missing-assets dialog shell. Matching / progress / apply live in
  * pure modules; chrome polish deferred to `missing-assets-relink-dialog-polish`.
+ * Progress ticks subscribe separately so the problem list does not re-render
+ * every hash (keeps filmstrip scroll LoAF-free during rescan).
  */
 export function RelinkDialog(props: {
   onRescanFiles: (files: readonly File[]) => Promise<unknown>
@@ -46,11 +178,6 @@ export function RelinkDialog(props: {
     getFoundRelinkIds,
     getFoundRelinkIds,
   )
-  const progress = useSyncExternalStore(
-    subscribeRelink,
-    getRelinkProgress,
-    getRelinkProgress,
-  )
   const folderRef = useRef<HTMLInputElement>(null)
   const folderId = useId()
 
@@ -58,7 +185,7 @@ export function RelinkDialog(props: {
     return null
   }
 
-  const view = buildRelinkDialogView(statuses, found, progress, 'problems')
+  const view = buildRelinkDialogView(statuses, found, null, 'problems')
 
   return (
     <div
@@ -79,72 +206,9 @@ export function RelinkDialog(props: {
           </p>
         </header>
 
-        {view.scanning ? (
-          <div
-            className="relink-scan-progress"
-            data-testid="relink-scan-progress"
-          >
-            Hashing in worker · {view.pct}%
-          </div>
-        ) : null}
-
-        <div className="relink-list" data-testid="relink-list" tabIndex={0}>
-          {view.rows.length === 0 ? (
-            <p className="relink-list-empty" data-testid="relink-empty">
-              Everything is linked.
-            </p>
-          ) : (
-            view.rows.map((row) => (
-              <div
-                key={row.assetId}
-                className="relink-row"
-                data-testid="relink-row"
-                data-asset-id={row.assetId}
-                data-status={rowStatusAttr(row.found, row.status)}
-              >
-                <div className="relink-row-name">
-                  {getAssetDisplayName(row.assetId)}
-                </div>
-                <span className={badgeClassName(row.found, row.status)}>
-                  {rowBadgeLabel(row.found, row.status)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-
-        <footer className="relink-dialog-foot">
-          <button
-            type="button"
-            className="relink-btn relink-btn-ghost"
-            data-testid="relink-skip"
-            onClick={skipRelinkDialog}
-          >
-            Skip for now
-          </button>
-          <button
-            type="button"
-            className="relink-btn relink-btn-outline"
-            data-testid="relink-rescan"
-            disabled={view.scanning}
-            onClick={() => {
-              clickFolderInput(folderRef.current)
-            }}
-          >
-            Rescan folder…
-          </button>
-          <button
-            type="button"
-            className="relink-btn"
-            data-testid="relink-resolve"
-            disabled={view.resolveDisabled}
-            onClick={() => {
-              void resolveAndMaybeClose(props.onResolve)
-            }}
-          >
-            {view.resolveText}
-          </button>
-        </footer>
+        <RelinkScanProgress />
+        <RelinkProblemList />
+        <RelinkDialogFooter onResolve={props.onResolve} folderRef={folderRef} />
 
         <input
           id={folderId}

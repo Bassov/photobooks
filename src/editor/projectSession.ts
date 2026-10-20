@@ -1311,6 +1311,11 @@ declare global {
           running: boolean
         } | null,
       ) => void
+      replaceRelinkStatuses: (
+        next:
+          | ReadonlyMap<string, 'missing' | 'modified' | 'ok'>
+          | Iterable<[string, 'missing' | 'modified' | 'ok']>,
+      ) => void
       problemAssetIds: () => string[]
       clearLiveAssetSources: () => void
     }

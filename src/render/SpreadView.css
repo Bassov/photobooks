@@ -46,6 +46,17 @@ button.spread-frame[aria-pressed='true'] {
   outline-offset: -1px;
 }
 
+.spread-frame-image {
+  position: absolute;
+  max-width: none;
+}
+
+.spread-page-cut {
+  position: absolute;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--foreground) 28%, transparent);
+}
+
 .spread-frame-missing {
   background:
     repeating-linear-gradient(
@@ -57,15 +68,4 @@ button.spread-frame[aria-pressed='true'] {
     ),
     color-mix(in srgb, var(--foreground) 4%, var(--paper));
   outline-color: var(--badge-warning-ring);
-}
-
-.spread-frame-image {
-  position: absolute;
-  max-width: none;
-}
-
-.spread-page-cut {
-  position: absolute;
-  pointer-events: none;
-  background: color-mix(in srgb, var(--foreground) 28%, transparent);
 }
