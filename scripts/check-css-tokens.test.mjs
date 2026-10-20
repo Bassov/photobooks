@@ -66,4 +66,24 @@ describe('muted-foreground AA lock', () => {
     expect(hits).toHaveLength(1)
     expect(hits[0]?.rule).toBe('muted-foreground-aa')
   })
+
+  it('flags a missing tokens.css tree', () => {
+    const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-missing')
+    fs.rmSync(tmp, { recursive: true, force: true })
+    fs.mkdirSync(tmp, { recursive: true })
+    const hits = checkMutedForegroundAa(tmp)
+    expect(hits[0]?.match).toBe('missing tokens.css')
+  })
+
+  it('flags tokens.css without --muted-foreground', () => {
+    const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-empty')
+    fs.mkdirSync(path.join(tmp, 'src', 'ui'), { recursive: true })
+    fs.writeFileSync(
+      path.join(tmp, 'src', 'ui', 'tokens.css'),
+      ':root { --foreground: #1f1e1c; }\n',
+      'utf8',
+    )
+    const hits = checkMutedForegroundAa(tmp)
+    expect(hits[0]?.match).toBe('missing --muted-foreground')
+  })
 })
