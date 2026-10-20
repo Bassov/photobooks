@@ -28,10 +28,28 @@ export function sectionBody(text, title) {
   return next ? rest.slice(0, next.index) : rest
 }
 
+/**
+ * Strip HTML comments for emptiness checks.
+ * Loop until stable: a single `/<!--[\s\S]*?-->/` pass can leave a reformed `<!--`
+ * (e.g. `<!<!---->-->` → `<!-->`). Then strip residual `<!--` / `--!?>` delimiters.
+ */
+export function stripHtmlComments(input) {
+  let text = String(input ?? '')
+  let previous
+  do {
+    previous = text
+    text = text.replace(/<!--[\s\S]*?-->/g, '')
+  } while (text !== previous)
+  do {
+    previous = text
+    text = text.replace(/<!--|--!?>/g, '')
+  } while (text !== previous)
+  return text
+}
+
 export function isSectionNonEmpty(body) {
   if (body == null) return false
-  return body
-    .replace(/<!--[\s\S]*?-->/g, '')
+  return stripHtmlComments(body)
     .split('\n')
     .map((l) => l.trim())
     .some((l) => l.length > 0 && l !== '-' && l !== '*' && !/^N\/A$/i.test(l))

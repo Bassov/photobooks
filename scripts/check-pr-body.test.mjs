@@ -5,6 +5,7 @@ import {
   findFixReviseVerdicts,
   isSectionNonEmpty,
   sectionBody,
+  stripHtmlComments,
 } from './check-pr-body.mjs'
 
 const template = `## Summary
@@ -38,6 +39,14 @@ describe('check-pr-body', () => {
         sectionBody('## Summary\n\n- shipped patch coverage\n', 'Summary'),
       ),
     ).toBe(true)
+  })
+
+  it('strips nested HTML comment wrappers until no <!-- remains', () => {
+    expect(stripHtmlComments('<!-- only -->')).toBe('')
+    expect(stripHtmlComments('<!<!---->-->')).not.toContain('<!--')
+    expect(stripHtmlComments('<!<!--- comment -->>')).not.toContain('<!--')
+    expect(isSectionNonEmpty('<!-- placeholder -->\n-\n')).toBe(false)
+    expect(isSectionNonEmpty('<!-- only -->\n')).toBe(false)
   })
 
   it('requires non-empty template sections and rejects fix/revise', () => {
