@@ -19,22 +19,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.28.0
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Mutation test changed files
         id: mutate
         # Verbose so CI logs keep full Stryker output; report files still under reports/mutation/.
-        run: node scripts/check.mjs --verbose --run stryker-diff -- node scripts/stryker-diff.mjs
+        run: pnpm exec ts-rig-check --verbose --run stryker-diff -- pnpm exec ts-rig-gate stryker-diff
 
       - name: Mutation summary
         if: always()
@@ -46,7 +37,7 @@ jobs:
             exit 0
           fi
           echo "has_report=true" >> "$GITHUB_OUTPUT"
-          node scripts/stryker-pr-summary-cli.mjs > /tmp/stryker-pr-comment.md
+          pnpm exec ts-rig-ci stryker-summary > /tmp/stryker-pr-comment.md
 
       - name: Upload Stryker report
         if: always() && steps.summary.outputs.has_report == 'true'
@@ -58,49 +49,20 @@ jobs:
 
       - name: Pack mutation section
         if: always()
-        run: |
-          node scripts/ci-report-comment.mjs pack \
-            --section mutation \
-            --step-outcome "${{ steps.mutate.outcome }}" \
-            --missing-report skipped \
-            --report reports/mutation/mutation.json \
-            --body-file /tmp/stryker-pr-comment.md \
-            --out ci-section/section.json
-
-      - name: Upload mutation section
-        if: always()
-        uses: actions/upload-artifact@v7
+        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.1
         with:
-          name: ci-section-mutation
-          path: ci-section/section.json
-          retention-days: 1
-          if-no-files-found: ignore
+          section: mutation
+          step-outcome: ${{ steps.mutate.outcome }}
+          missing-report: skipped
+          report: reports/mutation/mutation.json
+          body-file: /tmp/stryker-pr-comment.md
+          artifact-name: ci-section-mutation
 
   ci-comment:
     needs: stryker-diff
     if: always() && github.event_name == 'pull_request' && needs['stryker-diff'].result != 'cancelled'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ci-report-${{ github.event.pull_request.number }}
-      queue: max
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-
-      - name: Download mutation section
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: ci-section-mutation
-          path: ci-section
-
-      - name: Update CI report comment
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci-report-comment.mjs apply --section mutation --artifact ci-section/section.json
+    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.1
+    with:
+      section: mutation
+      artifact-name: ci-section-mutation
+    secrets: inherit

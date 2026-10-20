@@ -788,6 +788,12 @@ test.describe('library re-import async', () => {
       .getAttribute('data-asset-id')
     expect(firstIdBefore).toBeTruthy()
 
+    // Settle first-import autosave before clearing thumbs so its OPFS write
+    // cannot land inside the re-import LoAF scroll window.
+    await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+      timeout: 60_000,
+    })
+
     await page.evaluate(async () => {
       const api = window.__photobooksThumbs
       if (!api) {

@@ -58,3 +58,6 @@ e2e/fixtures/sample-corrupt.webp
 
 # Local check / agent cache
 .cache/
+
+# Retired milestones are not kept in-tree (git history is SoT)
+docs/roadmap/archive/

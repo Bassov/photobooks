@@ -1,7 +1,7 @@
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
-import { loadGates } from './scripts/load-gates.mjs'
+import { loadGates } from '@albasov/ts-agent-rig/load-gates'
 
 const isCi = Boolean(process.env.CI)
 const e2ePort = process.env.E2E_PORT ?? '4173'
@@ -14,8 +14,8 @@ const gates = loadGates({ root: repoRoot })
 const e2eCoverage = process.env.E2E_COVERAGE === '1'
 
 /**
- * Mirrors scripts/e2e-flaky-list.mjs path rules for Playwright's TS config
- * (tsconfig.node cannot type-import repo .mjs without widening includes).
+ * Flaky globs from quality/gates.json via loadGates (Playwright TS config
+ * cannot type-import the rig .mjs helper without widening includes).
  */
 function loadFlakyGlobs(): string[] {
   const paths = [

@@ -10,7 +10,11 @@ import {
   registerAssetSource,
   resetProjectSessionForTests,
 } from './projectSession'
-import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
+import {
+  memorySourceForRoot,
+  resolveSeedContentHash,
+  seedAndHashEntry,
+} from './seedLibraryImport'
 import { resetPendingHashesForTests } from './pendingHashes'
 
 const SAMPLE_HASH =
@@ -78,6 +82,30 @@ describe('seedLibraryImport', () => {
     const created = memorySourceForRoot('root-plain')
     expect(typeof created.seedFile).toBe('function')
     expect(getRegisteredAssetSource('root-plain')).toBe(created)
+  })
+
+  it('resolveSeedContentHash prefers known hash then book asset record', () => {
+    expect(resolveSeedContentHash('missing')).toBeUndefined()
+    expect(resolveSeedContentHash('missing', SAMPLE_HASH)).toBe(SAMPLE_HASH)
+    resetBookStore({
+      book: {
+        ...getBookStoreSnapshot().book,
+        assets: {
+          hashed: {
+            sourceRootId: 'r',
+            relativePath: 'a.jpg',
+            byteSize: 1,
+            mtimeMs: 1,
+            contentHash: SAMPLE_HASH,
+          },
+        },
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    expect(resolveSeedContentHash('hashed')).toBe(SAMPLE_HASH)
+    expect(resolveSeedContentHash('hashed', 'other')).toBe('other')
   })
 
   it('seedAndHashEntry seeds bytes and patches contentHash when Worker exists', async () => {
@@ -179,6 +207,7 @@ describe('seedLibraryImport', () => {
     const seedSpy = vi.spyOn(source, 'seedFile')
     const bytes = new Uint8Array([7, 8, 9]).buffer
     const file = new File([bytes], 'k.jpg', { type: 'image/jpeg' })
+    const arrayBufferSpy = vi.spyOn(file, 'arrayBuffer')
     const known =
       'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
     await seedAndHashEntry({
@@ -190,6 +219,7 @@ describe('seedLibraryImport', () => {
       bytes,
       contentHash: known,
     })
+    expect(arrayBufferSpy).not.toHaveBeenCalled()
     expect(seedSpy).toHaveBeenCalledWith(
       'root-known',
       'k.jpg',
@@ -197,13 +227,11 @@ describe('seedLibraryImport', () => {
       file.lastModified,
     )
     expect(hashSpy).not.toHaveBeenCalled()
-    await vi.waitFor(() => {
-      expect(
-        getBookStoreSnapshot().book.assets['asset-known']?.contentHash,
-      ).toBe(known)
-    })
-    expect(putCachedThumbForHash).toHaveBeenCalledWith('asset-known', known)
-    expect(putCachedTierForHash).toHaveBeenCalledWith('asset-known', known)
+    expect(putCachedThumbForHash).not.toHaveBeenCalled()
+    expect(putCachedTierForHash).not.toHaveBeenCalled()
+    expect(
+      getBookStoreSnapshot().book.assets['asset-known']?.contentHash,
+    ).toBeUndefined()
   })
 
   it('seedAndHashEntry seeds without hashing when Worker is undefined', async () => {

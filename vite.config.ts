@@ -2,7 +2,7 @@ import { codecovVitePlugin } from '@codecov/vite-plugin'
 import react from '@vitejs/plugin-react'
 import IstanbulPlugin from 'vite-plugin-istanbul'
 import { defineConfig } from 'vitest/config'
-import { loadGates } from './scripts/load-gates.mjs'
+import { loadGates } from '@albasov/ts-agent-rig/load-gates'
 import { uikitDevMiddleware } from './scripts/vite-uikit-middleware.mjs'
 
 const gates = loadGates()
@@ -24,13 +24,6 @@ export const coverageExcludeGlobs = [
   'src/**/*.d.ts',
   'src/main.tsx',
   'scripts/**/*.test.mjs',
-  'scripts/agent-cli.mjs',
-  'scripts/codecov-yml-cli.mjs',
-  'scripts/e2e-burn-in-count-cli.mjs',
-  'scripts/e2e-burn-in-targets-cli.mjs',
-  'scripts/e2e-changed-quiet-cli.mjs',
-  'scripts/e2e-playwright-summary-cli.mjs',
-  'scripts/gate-ratchet-cli.mjs',
 ] as const
 
 /** E2e Istanbul additionally skips workers (unit coverage still includes them). */
@@ -85,7 +78,12 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'json-summary'],
       include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
       exclude: [...coverageExcludeGlobs],
-      thresholds: gates.coverage,
+      thresholds: {
+        statements: gates.coverage.statements,
+        branches: gates.coverage.branches,
+        functions: gates.coverage.functions,
+        lines: gates.coverage.lines,
+      },
     },
     benchmark: {
       include: ['src/**/*.{bench,benchmark}.{ts,tsx}'],

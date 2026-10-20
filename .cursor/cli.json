@@ -122,9 +122,7 @@
       "Write(**/.env*)",
       "Write(**/.dev.vars*)",
       "Write(.git/**)",
-      "Shell(openspec:instructions*)",
       "Read(**/openspec/config.yaml)",
-      "Read(**/.cursor/skills/openspec-*/**)",
       "Read(**/.cursor/agents/**)"
     ]
   }

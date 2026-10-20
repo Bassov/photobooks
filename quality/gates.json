@@ -3,7 +3,8 @@
     "statements": 80,
     "branches": 80,
     "functions": 80,
-    "lines": 80
+    "lines": 80,
+    "patch": 85
   },
   "stryker": {
     "thresholds": {
@@ -18,7 +19,7 @@
     }
   },
   "mutation": {
-    "disableBudget": 0,
+    "disableBudget": 10,
     "temporaryExcludes": [
       {
         "path": "src/editor/projectSession.ts",
@@ -27,18 +28,6 @@
       {
         "path": "src/editor/usePasteboardCamera.ts",
         "until": "mutation-reinclude-camera"
-      },
-      {
-        "path": "src/editor/EditorShell.tsx",
-        "until": "editor-shell-mutation"
-      },
-      {
-        "path": "src/editor/HomeScreen.tsx",
-        "until": "home-app-mutation"
-      },
-      {
-        "path": "src/App.tsx",
-        "until": "home-app-mutation"
       },
       {
         "path": "src/editor/previewAspect.ts",
@@ -55,14 +44,78 @@
       {
         "path": "src/project/session/locks.ts",
         "until": "session-idb-locks-mutation"
+      }
+    ]
+  },
+  "checks": {
+    "core": [
+      {
+        "name": "typecheck",
+        "argv": ["pnpm", "typecheck"]
       },
       {
-        "path": "src/assets/hash.worker.ts",
-        "until": "mutation-reinclude-small"
+        "name": "lint",
+        "argv": ["pnpm", "lint"]
       },
       {
-        "path": "src/photo/photo.worker.ts",
-        "until": "mutation-reinclude-small"
+        "name": "deps",
+        "argv": ["pnpm", "deps"]
+      },
+      {
+        "name": "knip",
+        "argv": ["pnpm", "knip"]
+      },
+      {
+        "name": "mutation-scope",
+        "argv": ["pnpm", "mutation-scope"]
+      },
+      {
+        "name": "gate-values",
+        "argv": ["pnpm", "gate-values"]
+      },
+      {
+        "name": "openspec-budget",
+        "argv": ["pnpm", "openspec-budget"]
+      },
+      {
+        "name": "codecov-yml",
+        "argv": ["pnpm", "codecov-yml"]
+      },
+      {
+        "name": "roadmap",
+        "argv": ["pnpm", "-s", "roadmap", "check"]
+      },
+      {
+        "name": "unit",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--coverage",
+          "--reporter=dot",
+          "--silent"
+        ]
+      }
+    ],
+    "afterUnit": [
+      {
+        "name": "patch-coverage",
+        "argv": ["pnpm", "exec", "ts-rig-gate", "patch-coverage"]
+      }
+    ],
+    "optional": [
+      {
+        "name": "diff-size",
+        "argv": ["pnpm", "exec", "ts-rig-gate", "diff-size"]
+      },
+      {
+        "name": "pr-body",
+        "argv": ["pnpm", "exec", "ts-rig-gate", "pr-body"]
+      },
+      {
+        "name": "pr-policy",
+        "argv": ["pnpm", "exec", "ts-rig-gate", "pr-policy"]
       }
     ]
   },
@@ -118,13 +171,12 @@
     "dependency-review",
     "analyze"
   ],
+  "openspecSpecs": {
+    "softMaxLines": 250,
+    "hardMaxLines": 400
+  },
   "agentRules": {
     "budgets": [
-      {
-        "path": ".cursor/agents/openspec-design-reviewer.md",
-        "maxLines": 11,
-        "maxChars": 267
-      },
       {
         "path": ".cursor/agents/openspec-implementation-reviewer.md",
         "maxLines": 60,
@@ -136,9 +188,9 @@
         "maxChars": 4509
       },
       {
-        "path": ".cursor/agents/openspec-proposal-reviewer.md",
-        "maxLines": 11,
-        "maxChars": 269
+        "path": ".cursor/agents/manual-qa.md",
+        "maxLines": 40,
+        "maxChars": 2500
       },
       {
         "path": ".cursor/commands/next-roadmap-item.md",

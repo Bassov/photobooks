@@ -2,14 +2,6 @@
 
 Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in this file so excludes stay reviewable in one place).
 
-- `!scripts/**/*.test.mjs` — script unit tests are not production code
-- `!scripts/agent-cli.mjs` — ≤10-line delegating CLI; logic in `agent.mjs`
-- `!scripts/codecov-yml-cli.mjs` — ≤10-line delegating CLI; logic in `check-codecov-yml.mjs`
-- `!scripts/e2e-burn-in-count-cli.mjs` — ≤10-line delegating CLI; logic in `e2e-burn-in-count.mjs`
-- `!scripts/e2e-burn-in-targets-cli.mjs` — ≤10-line delegating CLI; logic in `e2e-burn-in-targets.mjs`
-- `!scripts/e2e-changed-quiet-cli.mjs` — ≤10-line delegating CLI; logic in `e2e-changed-quiet.mjs`
-- `!scripts/e2e-playwright-summary-cli.mjs` — ≤10-line delegating CLI; logic in `e2e-playwright-summary.mjs`
-- `!scripts/gate-ratchet-cli.mjs` — ≤10-line delegating CLI; logic in `check-gate-ratchet.mjs`
 - `!src/**/*.{test,spec}.{ts,tsx}` — tests are not production code
 - `!src/**/*.{bench,benchmark}.{ts,tsx}` — benches are not production code
 - `!src/**/*.d.ts` — declarations have no runtime behavior

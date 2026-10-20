@@ -18,21 +18,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
         with:
-          version: 10.28.0
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
+      - name: Fetch base for merge-base gates
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.ref || 'main' }}"
+          git fetch --no-tags origin "${BASE_REF}:refs/remotes/origin/main"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Deterministic checks
         # Unit suite runs once below via test:coverage; skip unit here.
+        # PR body carries Owner-approved waivers for pin / ratchet (git log alone is not enough in CI).
+        env:
+          PR_POLICY_BODY: ${{ github.event.pull_request.body }}
+          PR_POLICY_BRANCH: ${{ github.head_ref }}
         run: pnpm check --verbose --skip-unit
 
       - name: Format check
@@ -56,27 +58,18 @@ jobs:
 
       - name: Coverage summary
         if: always()
-        run: node scripts/coverage-step-summary.mjs | tee /tmp/coverage-pr-comment.md
+        run: pnpm exec ts-rig-ci coverage-summary | tee /tmp/coverage-pr-comment.md
 
       - name: Pack coverage section
         if: always()
-        run: |
-          node scripts/ci-report-comment.mjs pack \
-            --section coverage \
-            --step-outcome "${{ steps.unit.outcome }}" \
-            --missing-report job-failed \
-            --report coverage/coverage-summary.json \
-            --body-file /tmp/coverage-pr-comment.md \
-            --out ci-section/section.json
-
-      - name: Upload coverage section
-        if: always()
-        uses: actions/upload-artifact@v7
+        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.1
         with:
-          name: ci-section-coverage
-          path: ci-section/section.json
-          retention-days: 1
-          if-no-files-found: ignore
+          section: coverage
+          step-outcome: ${{ steps.unit.outcome }}
+          missing-report: job-failed
+          report: coverage/coverage-summary.json
+          body-file: /tmp/coverage-pr-comment.md
+          artifact-name: ci-section-coverage
 
       - name: Build
         run: pnpm build
@@ -105,28 +98,8 @@ jobs:
   ci-comment:
     needs: checks
     if: always() && github.event_name == 'pull_request' && needs.checks.result != 'cancelled'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ci-report-${{ github.event.pull_request.number }}
-      queue: max
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-
-      - name: Download coverage section
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: ci-section-coverage
-          path: ci-section
-
-      - name: Update CI report comment
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci-report-comment.mjs apply --section coverage --artifact ci-section/section.json
+    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.1
+    with:
+      section: coverage
+      artifact-name: ci-section-coverage
+    secrets: inherit
