@@ -65,6 +65,7 @@ import {
   readyArtifactIds,
   STATS_CHARS_PER_TOKEN,
   hasPrepConcreteScope,
+  introducesNewSrcCapability,
   isPrepFastTrack,
   PREP_APPLY_ARCHIVE_PROCEDURE,
   APPLY_ARCHIVE_PROCEDURE,
@@ -344,6 +345,29 @@ describe('parsers', () => {
       'Skip openspec-planning-reviewer',
     )
     expect(PREP_APPLY_ARCHIVE_PROCEDURE).toContain('skip_specs:true')
+  })
+
+  it('isPrepFastTrack false when roadmap introduces missing src/<capability>/', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'prep-new-cap-'))
+    tmpDirs.push(root)
+    fs.mkdirSync(path.join(root, 'src', 'editor'), { recursive: true })
+    const scope = '## Scope\n\n- [ ] ship it\n- **Done when:** done\n'
+    const existing = `${scope}\nTouch \`src/editor/\` helpers.\n`
+    const missing = `${scope}\nAdd \`src/brand-new-cap/\` domain module.\n`
+    const dup = `${scope}\nSee src/brand-new-cap/ and again src/brand-new-cap/.\n`
+    expect(introducesNewSrcCapability(root, undefined)).toBe(false)
+    expect(introducesNewSrcCapability(root, existing)).toBe(false)
+    expect(introducesNewSrcCapability(root, missing)).toBe(true)
+    expect(introducesNewSrcCapability(root, dup)).toBe(true)
+    expect(introducesNewSrcCapability(root, `${scope}\nsrc/editor\n`)).toBe(
+      false,
+    )
+    expect(isPrepFastTrack({ tag: 'prep', body: existing }, root)).toBe(true)
+    expect(isPrepFastTrack({ tag: 'prep', body: missing }, root)).toBe(false)
+    expect(isPrepFastTrack({ tag: 'contingency', body: missing }, root)).toBe(
+      false,
+    )
+    expect(isPrepFastTrack({ tag: 'prep', body: existing })).toBe(true)
   })
 
   it('parseRoadmapNext failure messages', () => {
@@ -2674,7 +2698,9 @@ describe('archive', () => {
     expect(r.code, r.err).toBe(0)
     const j = JSON.parse(r.out)
     expect(j.ok).toBe(true)
-    expect(j.archivedTo).toMatch(/^openspec\/changes\/archive\//)
+    expect(j.archivedTo).toBeNull()
+    expect(j.removed).toBe(true)
+    expect(j.summary).toContain('removed openspec/changes/arch-item')
     expect(
       fs.existsSync(path.join(root, 'openspec', 'changes', 'arch-item')),
     ).toBe(false)

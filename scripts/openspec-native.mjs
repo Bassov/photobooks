@@ -215,9 +215,10 @@ export function loadNativeArtifactInstructions(root, artifactId) {
 /**
  * Archive a change folder under openspec/changes/archive/YYYY-MM-DD-<slug>/.
  * Prefer ignoring archive/** in agent search (.cursorignore / .rgignore).
+ * Default: remove the working dir. Pass keepArchive:true to rename into archive/.
  * @param {string} root
  * @param {string} slug
- * @param {{ date?: string, rmOnly?: boolean }} [opts]
+ * @param {{ date?: string, keepArchive?: boolean, rmOnly?: boolean }} [opts]
  * @returns {{ archivedTo: string|null, removed: boolean }}
  */
 export function archiveOpenSpecChange(root, slug, opts = {}) {
@@ -225,7 +226,7 @@ export function archiveOpenSpecChange(root, slug, opts = {}) {
   if (!fs.existsSync(src)) {
     return { archivedTo: null, removed: false }
   }
-  if (opts.rmOnly) {
+  if (!opts.keepArchive) {
     fs.rmSync(src, { recursive: true, force: true })
     return { archivedTo: null, removed: true }
   }

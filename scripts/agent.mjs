@@ -100,13 +100,25 @@ export function hasPrepConcreteScope(body) {
   )
 }
 
-/** Prep/contingency fast-track: Tag prep|contingency + concrete Scope/Done when. */
-export function isPrepFastTrack(item) {
+export function introducesNewSrcCapability(root, body) {
+  const t = String(body ?? '')
+  const re = /(?:^|[\s`('"])src\/([a-z0-9-]+)\/?/g
+  const seen = new Set()
+  for (let m; (m = re.exec(t));) {
+    const cap = m[1]
+    if (!cap || seen.has(cap)) continue
+    seen.add(cap)
+    if (!fs.existsSync(path.join(root, 'src', cap))) return true
+  }
+  return false
+}
+
+export function isPrepFastTrack(item, root) {
   const tag = String(item?.tag ?? '').toLowerCase()
-  return (
-    (tag === 'prep' || tag === 'contingency') &&
-    hasPrepConcreteScope(item?.body)
-  )
+  if (!(tag === 'prep' || tag === 'contingency')) return false
+  if (!hasPrepConcreteScope(item?.body)) return false
+  if (root && introducesNewSrcCapability(root, item?.body)) return false
+  return true
 }
 
 export const STATS_PEAK_CONTEXT_MAX = 300_000
@@ -1306,7 +1318,7 @@ export function cmdPreflight(o, deps) {
 
   ensureOpenSpecChange(root, item.slug)
 
-  const prepFastTrack = isPrepFastTrack(item)
+  const prepFastTrack = isPrepFastTrack(item, root)
   const runCard = buildRunCard(root, item.slug, {
     prepFastTrack,
   })
