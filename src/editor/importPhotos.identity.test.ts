@@ -250,6 +250,67 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
+  it('sums immediate and deferred import results for imported count', async () => {
+    vi.stubGlobal(
+      'Worker',
+      class {
+        terminate(): void {
+          /* no-op */
+        }
+      },
+    )
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const pathBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x10])
+    const hashBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x20])
+    const pathFile = new File([pathBytes], 'path.jpg', {
+      type: 'image/jpeg',
+      lastModified: 1,
+    })
+    const hashFile = new File([hashBytes], 'hash.jpg', {
+      type: 'image/jpeg',
+      lastModified: 2,
+    })
+    await importPhotoFiles([pathFile, hashFile], {
+      libraryBacked: true,
+      sourceRootId: 'root-sum',
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(2)
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(
+        Object.values(book.assets).every(
+          (a) => typeof a.contentHash === 'string',
+        ),
+      ).toBe(true)
+    })
+
+    const pathReuse = new File([pathBytes], 'path.jpg', {
+      type: 'image/jpeg',
+      lastModified: 1,
+    })
+    const hashReuse = new File([hashBytes], 'hash.jpg', {
+      type: 'image/jpeg',
+      lastModified: 99,
+    })
+    Object.defineProperty(hashReuse, 'webkitRelativePath', {
+      value: 'Trip/hash.jpg',
+    })
+    const result = await importPhotoFiles([pathReuse, hashReuse], {
+      libraryBacked: true,
+      sourceRootId: 'root-sum-2',
+    })
+    expect(result.imported).toBe(2)
+    expect(getBookStoreSnapshot().book.gallery.length).toBe(2)
+  })
+
   it('keeps same-name files in different folders separate when bytes differ', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
@@ -368,6 +429,13 @@ describe('importPhotoFiles library identity', () => {
     resetThumbCache()
     expect(getThumbUrl(assetId)).toBeUndefined()
 
+    await vi.waitFor(() => {
+      expect(
+        getBookStoreSnapshot().book.assets[assetId]?.contentHash,
+      ).toBeTypeOf('string')
+    })
+    hashContentMock.mockClear()
+
     const sameFile = tinyJpeg('dup.jpg', 42)
     await importPhotoFiles([sameFile], {
       libraryBacked: true,
@@ -384,6 +452,8 @@ describe('importPhotoFiles library identity', () => {
     expect(getBookStoreSnapshot().book.assets[assetId]?.sourceRootId).toBe(
       'root-first',
     )
+    // Known contentHash on reuse: seed only — no second hash worker pass.
+    expect(hashContentMock).not.toHaveBeenCalled()
     await vi.waitFor(() => {
       expect(getRegisteredAssetSource('root-first')).toBeDefined()
     })

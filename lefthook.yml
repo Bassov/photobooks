@@ -14,4 +14,4 @@ pre-push:
   commands:
     verify:
       # Strip Lefthook GIT_* then run verify; canary fails if tests mutate this repo.
-      run: node scripts/hook-clean-env.mjs pnpm check
+      run: pnpm exec ts-rig-ci hook-clean-env pnpm check

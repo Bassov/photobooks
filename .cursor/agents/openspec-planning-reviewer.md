@@ -1,9 +1,6 @@
 ---
 name: openspec-planning-reviewer
-description: >-
-  Reviews OpenSpec proposal + design + tasks together after all planning
-  artifacts are written. Use once before apply. Docs-only (no design.md):
-  skip the design checklist section.
+description: 'Reviews OpenSpec proposal + design + tasks together after all planning artifacts are written. Use once before apply. Docs-only (no design.md): skip the design checklist section.'
 model: inherit
 readonly: true
 ---
@@ -25,33 +22,33 @@ absent, skip the entire Design checklist below.
 
 ## Proposal checklist
 
-1. **Length:** under 400 words. Fail if longer; suggest cuts.
-2. **Structure:** has problem, why now, scope in, scope out, success criteria, risks. Flag missing sections.
+1. **Length:** ≤80 words / ≤15 lines. Fail if longer; suggest cuts.
+2. **Structure:** links the roadmap item as SoT; has Scope out; Delta/Risk only when clarifying. Flag restated Why / Scope in / Browser / Perf from the roadmap.
 3. **No implementation dump:** fail if API shapes, file trees, pseudocode, or long how-to appear — those belong in design.
-4. **Scope:** in/out are concrete and testable; success criteria are observable.
-   4b. **Necessary minimum:** flag scope beyond the item, unrequested options/abstractions, padded sections, and plans that re-implement helpers instead of following the reuse ladder (exists → codebase → platform → installed dependency → minimum new code). N/A topics belong in one line. Never flag thorough tests or test plans as excessive (tests are exempt from necessary-minimum).
-5. **Narrowness:** enforce the size budget in `rules.proposal` (subsystem limit, task limit, line guideline; subsystem definition in `docs/roadmap/RULES.md` "Change size"). Over budget → `revise` (high) with a concrete split and the `pnpm roadmap add <slug> --after <current>` items it needs.
-6. **UI:** if UI is in scope, success criteria MUST include observable UX (not only "it works").
-   6b. **Scrollport:** if the change introduces or changes an in-app scrollport (`overflow: auto|scroll`), success criteria MUST state no page-level H/V scroll and scrolling only inside the named scrollport(s).
-7. **Security:** if File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export are in scope, risks MUST include an explicit security bullet.
+4. **Scope:** Scope out is concrete; any success notes are observable.
+   4b. **Necessary minimum:** flag scope beyond the item, unrequested options/abstractions, padded sections, and plans that re-implement helpers instead of the reuse ladder. Never flag thorough tests as excessive.
+5. **Narrowness:** enforce size guidance in `rules.proposal` (subsystem + task limits; line counts in `docs/roadmap/RULES.md` "Change size" — advisory). Over guidance → `revise` (high) with `pnpm roadmap add <slug> --after <current>` items.
+6. **UI:** if UI is in scope, success notes MUST include empty + happy + primary interact/scroll observables.
+   6b. **Scrollport:** if an in-app scrollport is in scope, MUST state no page-level H/V scroll and scrolling only inside the named scrollport(s).
+7. **Security:** if File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export are in scope, Delta/Risk MUST include an explicit security bullet.
 
 ## Design checklist
 
 Skip this section when `design.md` is absent.
 
-1. **Touch-set:** design lists concrete files/modules in scope; fail if missing or unbounded. Every quality-gate config edit in scope MUST appear in the touch-set with a reason.
-2. **Composition:** UI/domain split or module boundaries stated when code changes are proposed; prefer small composable units over god-files.
-3. **Workers:** if heavy image/decode/render/encode work is in scope, design MUST place it off the main thread.
-4. **Security:** if scope touches File System Access, workers/postMessage, blob URLs, CSP/headers, dependency bumps, or export — design MUST include a Security section.
-5. **UI:** if UI is in scope, design should be reviewable against skill `ui-review` (a11y, anti-slop, states, layout smoke) and MUST name empty / happy / scroll-or-interact e2e lock-ins; flag missing UX or test constraints.
-6. **Scope:** no silent expansion beyond proposal; no dumping full API trees when references to existing modules suffice.
-7. **Length:** roughly within design word budget from config (~600 words).
-8. **Necessary minimum:** flag scope beyond the item, unrequested options/abstractions, padded sections, and re-implemented helpers that skip the reuse ladder (exists → codebase → platform → installed dependency → minimum new code). Design.md only for real decisions; N/A in one line. Never flag thorough tests or test plans as excessive (tests are exempt from necessary-minimum).
+1. **Sections:** only `## Decisions` and `## Touch-set & Test Plan` (≤250 words). Flag Context/Goals padding.
+2. **Touch-set:** concrete files/modules; every quality-gate config edit MUST appear with a reason.
+3. **Composition:** UI/domain split or module boundaries when code changes; prefer small units over god-files.
+4. **Workers:** heavy image/decode/render/encode MUST be off the main thread.
+5. **Security:** if security surface is in scope, Decisions MUST cover it.
+6. **UI:** empty / happy / scroll-or-interact e2e lock-ins + skill `ui-review` when UI is in scope.
+7. **Scope:** no silent expansion beyond proposal; prefer references over inventing layers.
+8. **Necessary minimum:** design.md only for real decisions; N/A in one line. Tests exempt.
 
 ## Tasks checklist
 
-1. **Budget:** at most 8 implementation tasks (Verification excluded).
-2. **Verification:** tasks.md ends with the required Verification checklist from `rules.tasks`.
+1. **Budget:** at most 8 implementation tasks.
+2. **Shape:** `## Implementation` + `## Manual test scenarios` only. Fail if a pasted Verification checklist is present — gates are enforced by `pnpm agent finish` / `quality:self-check` / CI.
 
 ## Output
 

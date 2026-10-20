@@ -18,7 +18,12 @@
   ],
   "ignoreWorkspaces": ["uikit"],
   "ignoreBinaries": ["apt-get", "dpkg-deb"],
-  "ignoreDependencies": ["@lhci/cli", "fast-check"],
+  "ignoreDependencies": [
+    "@lhci/cli",
+    "fast-check",
+    "nyc",
+    "@albasov/ts-agent-rig"
+  ],
   "ignoreIssues": {
     "src/core/index.ts": ["types", "exports"],
     "src/project/index.ts": ["types", "exports"],

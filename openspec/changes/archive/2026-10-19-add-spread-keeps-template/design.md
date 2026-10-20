@@ -37,7 +37,7 @@ See proposal.md — Why. `addSpread` always applies `'one-per-page'` (`spreads.t
 - `src/editor/Pasteboard.tsx`, `src/editor/SpreadTemplateBar.tsx`
 - `src/editor/Pasteboard.view.test.tsx`, `src/editor/SpreadTemplateBar.test.tsx` (aria-label if asserted)
 - `e2e/template-unplace.spec.ts` or `e2e/spread-view.spec.ts` — regression
-- `openspec/specs/editor-shell/spec.md` — via archive sync
+- `openspec/specs/pasteboard/spec.md` — via archive sync
 - `docs/roadmap/M2.2/add-spread-keeps-template.md` — scope/Status ticks only (not UI-kit / Size region)
 
 No quality-gate or package.json edits. Do not edit `projectSession.ts` / `bookStore.ts` session-book callers.

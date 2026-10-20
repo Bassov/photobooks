@@ -25,11 +25,11 @@
 
 ### Modified Capabilities
 
-- `editor-shell`: Requirement "Active spread template and add spread" — add-spread inherits active template; template control naming clarifies per-spread scope.
+- `pasteboard`: Requirement "Active spread template and add spread" — add-spread inherits active template; template control naming clarifies per-spread scope.
 
 ## Impact
 
-- editor-shell pasteboard / template controls and spread-add behavior; tests for the regression. Session book construction unchanged.
+- pasteboard template controls and spread-add behavior; tests for the regression. Session book construction unchanged.
 
 ## Success criteria
 

@@ -1,4 +1,4 @@
 {
-  "description": "Paths excluded from PR diff-size limits when scripts/check-diff-size.mjs is present. Owner decision 2026-10-19: uikit is a separate reference package, not app code.",
+  "description": "Paths excluded from PR diff-size limits (ts-rig-gate diff-size). Owner decision 2026-10-19: uikit is a separate reference package, not app code.",
   "globs": ["uikit/**"]
 }

@@ -1,4 +1,4 @@
-import { stripProcessGitEnv } from './strip-git-env.mjs'
+import { stripProcessGitEnv } from '@albasov/ts-agent-rig/strip-git-env'
 
 stripProcessGitEnv()
 // check.mjs may set these on roadmap children only; never let a leaked parent
