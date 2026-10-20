@@ -27,10 +27,14 @@ jobs:
           git fetch --no-tags origin "${BASE_REF}:refs/remotes/origin/main"
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.0
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Deterministic checks
         # Unit suite runs once below via test:coverage; skip unit here.
+        # PR body carries Owner-approved waivers for pin / ratchet (git log alone is not enough in CI).
+        env:
+          PR_POLICY_BODY: ${{ github.event.pull_request.body }}
+          PR_POLICY_BRANCH: ${{ github.head_ref }}
         run: pnpm check --verbose --skip-unit
 
       - name: Format check
@@ -58,7 +62,7 @@ jobs:
 
       - name: Pack coverage section
         if: always()
-        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.0
+        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.1
         with:
           section: coverage
           step-outcome: ${{ steps.unit.outcome }}
@@ -94,7 +98,7 @@ jobs:
   ci-comment:
     needs: checks
     if: always() && github.event_name == 'pull_request' && needs.checks.result != 'cancelled'
-    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.0
+    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.1
     with:
       section: coverage
       artifact-name: ci-section-coverage

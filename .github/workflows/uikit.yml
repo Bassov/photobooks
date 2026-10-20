@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.0
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Install Chromium for uikit qa
         run: pnpm --filter photobooks-ui-kit exec playwright-core install --with-deps chromium
