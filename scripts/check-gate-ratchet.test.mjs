@@ -11,6 +11,7 @@ import {
   FIXTURE_IDS,
   MSGS,
   NEEDLES,
+  OWNER_WAIVABLE_RULE_IDS,
   QUOTE_DOUBLE,
   QUOTE_SINGLE,
   RULE_IDS,
@@ -552,6 +553,77 @@ export default {
     expect(
       result.violations.some((v) => v.message.includes('scripts/agent.mjs')),
     ).toBe(true)
+  })
+
+  it('Owner-approved waives include-removed / exclude-added / gate-file-gone', () => {
+    expect(OWNER_WAIVABLE_RULE_IDS).toEqual(
+      expect.arrayContaining([
+        'include-removed',
+        'exclude-added',
+        'gate-file-gone',
+        'temporary-excludes-grew',
+      ]),
+    )
+    const headVite = `
+export const coverageExcludeGlobs = ['src/**/*.d.ts'] as const
+export default {
+  test: {
+    allowOnly: false,
+    coverage: {
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [...coverageExcludeGlobs],
+    },
+  },
+}
+`
+    const approval = 'Owner-approved scope change: extract harness prep'
+    const waived = cliRatchet(
+      { 'vite.config.ts': headVite },
+      {},
+      { prBody: approval },
+    )
+    expect(waived.result.violations).toEqual([])
+    expect(waived.code).toBe(0)
+
+    const gone = cliRatchet({ 'codecov.yml': null }, {}, { prBody: approval })
+    expect(
+      gone.result.violations.some((v) => v.ruleId === 'gate-file-gone'),
+    ).toBe(false)
+    expect(gone.code).toBe(0)
+
+    const stillFails = cliRatchet(
+      {
+        'src/x.test.ts': `test.skip('a', () => {})\n`,
+      },
+      {
+        'src/x.test.ts': `test('a', () => {})\n`,
+      },
+      { prBody: approval },
+    )
+    expect(
+      stillFails.result.violations.some((v) => v.ruleId === 'test-skip-added'),
+    ).toBe(true)
+    expect(stillFails.code).toBe(1)
+  })
+
+  it('include-removed still fails without Owner-approved', () => {
+    const headVite = `
+export const coverageExcludeGlobs = ['src/**/*.d.ts'] as const
+export default {
+  test: {
+    allowOnly: false,
+    coverage: {
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [...coverageExcludeGlobs],
+    },
+  },
+}
+`
+    const { code, result } = cliRatchet({ 'vite.config.ts': headVite })
+    expect(result.violations.some((v) => v.ruleId === 'include-removed')).toBe(
+      true,
+    )
+    expect(code).toBe(1)
   })
 
   it('FIXTURE new-excluded-mutations fails', () => {

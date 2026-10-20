@@ -225,6 +225,48 @@ describe('validateGates', () => {
       }),
     ).toThrow(/flakySpecs entries must be strings/)
   })
+
+  it('accepts optional checks table with argv or script', () => {
+    const withChecks = {
+      ...validGates,
+      checks: {
+        core: [{ name: 'lint', argv: ['pnpm', 'lint'] }],
+        afterUnit: [
+          {
+            name: 'patch-coverage',
+            script: 'scripts/check-patch-coverage.mjs',
+          },
+        ],
+        optional: [
+          { name: 'diff-size', script: 'scripts/check-diff-size.mjs' },
+        ],
+      },
+    }
+    expect(validateGates(withChecks)).toEqual(withChecks)
+  })
+
+  it('rejects checks rows missing exactly one of argv/script', () => {
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: { core: [{ name: 'lint' }] },
+      }),
+    ).toThrow(/exactly one of argv or script/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: {
+          core: [
+            {
+              name: 'lint',
+              argv: ['pnpm', 'lint'],
+              script: 'scripts/x.mjs',
+            },
+          ],
+        },
+      }),
+    ).toThrow(/exactly one of argv or script/)
+  })
 })
 
 describe('loadGates', () => {

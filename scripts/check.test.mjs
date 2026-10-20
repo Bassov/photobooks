@@ -7,6 +7,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   bootCli,
   buildInventory,
+  resolveCheckTables,
+  DEFAULT_CORE_CHECKS,
   extractProblemLines,
   formatCheckResult,
   isNoiseLine,
@@ -176,27 +178,26 @@ describe('isNoiseLine / bootCli', () => {
 
 describe('buildInventory', () => {
   it('always schedules the core deterministic inventory', () => {
-    const inv = buildInventory('/tmp/none', { existsSync: () => false })
-    expect(inv.map((c) => c.name)).toEqual([
-      'typecheck',
-      'lint',
-      'deps',
-      'knip',
-      'mutation-scope',
-      'gate-values',
-      'openspec-budget',
-      'codecov-yml',
-      'git-test-isolation',
-      'roadmap',
-      'unit',
-    ])
+    const inv = buildInventory('/tmp/none', {
+      existsSync: () => false,
+      loadGatesFn: () => {
+        throw new Error('no gates')
+      },
+    })
+    expect(inv.map((c) => c.name)).toEqual(
+      DEFAULT_CORE_CHECKS.map((c) => c.name),
+    )
   })
 
   it('includes optional policy scripts only when present', () => {
     const root = tmpRoot()
     fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
     fs.writeFileSync(path.join(root, 'scripts/check-diff-size.mjs'), '')
-    const inv = buildInventory(root)
+    const inv = buildInventory(root, {
+      loadGatesFn: () => {
+        throw new Error('no gates')
+      },
+    })
     expect(inv.map((c) => c.name)).toContain('diff-size')
     expect(inv.map((c) => c.name)).not.toContain('pr-body')
     const diff = inv.find((c) => c.name === 'diff-size')
@@ -204,6 +205,19 @@ describe('buildInventory', () => {
       process.execPath,
       path.join(root, 'scripts/check-diff-size.mjs'),
     ])
+  })
+
+  it('resolveCheckTables prefers gates.json checks.core', () => {
+    const tables = resolveCheckTables('/repo', {
+      loadGatesFn: () => ({
+        checks: {
+          core: [{ name: 'lint', argv: ['pnpm', 'lint'] }],
+          afterUnit: [],
+          optional: [],
+        },
+      }),
+    })
+    expect(tables.core).toEqual([{ name: 'lint', argv: ['pnpm', 'lint'] }])
   })
 })
 

@@ -165,7 +165,57 @@ export function validateGates(raw, pathLabel = GATES_RELATIVE_PATH) {
     }
   }
 
+  if (gates.checks !== undefined) {
+    validateChecksBlock(gates.checks, pathLabel)
+  }
+
   return gates
+}
+
+/**
+ * Optional `checks` table for `pnpm check` / future `@albasov/ts-agent-rig`.
+ * @param {unknown} raw
+ * @param {string} pathLabel
+ */
+function validateChecksBlock(raw, pathLabel) {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`${pathLabel} checks must be an object`)
+  }
+  const block = /** @type {Record<string, unknown>} */ (raw)
+  for (const key of ['core', 'afterUnit', 'optional']) {
+    const list = block[key]
+    if (list === undefined) continue
+    if (!Array.isArray(list)) {
+      throw new Error(`${pathLabel} checks.${key} must be an array`)
+    }
+    for (const row of list) {
+      if (row === null || typeof row !== 'object' || Array.isArray(row)) {
+        throw new Error(`${pathLabel} checks.${key} entries must be objects`)
+      }
+      const entry = /** @type {Record<string, unknown>} */ (row)
+      if (typeof entry.name !== 'string' || entry.name.length === 0) {
+        throw new Error(
+          `${pathLabel} checks.${key}[].name must be a non-empty string`,
+        )
+      }
+      const hasArgv = Array.isArray(entry.argv)
+      const hasScript =
+        typeof entry.script === 'string' && entry.script.length > 0
+      if (hasArgv === hasScript) {
+        throw new Error(
+          `${pathLabel} checks.${key}[].${entry.name} needs exactly one of argv or script`,
+        )
+      }
+      if (hasArgv) {
+        const argv = /** @type {unknown[]} */ (entry.argv)
+        if (argv.length === 0 || argv.some((a) => typeof a !== 'string')) {
+          throw new Error(
+            `${pathLabel} checks.${key}[].${entry.name}.argv must be non-empty strings`,
+          )
+        }
+      }
+    }
+  }
 }
 
 /**
