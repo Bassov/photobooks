@@ -10,6 +10,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
 
 function writeBulkImportFixtures(count: number): string[] {
   const dir = join(tmpdir(), `photobooks-open-save-bulk-${String(process.pid)}`)
@@ -164,9 +165,7 @@ test('session import then attach library saves without New book; reload hydrates
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
     timeout: 30_000,
   })
-  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
-    timeout: 30_000,
-  })
+  await expectMissingHatchAfterRestore(page, 1)
   await expect(
     page.locator(
       '[data-testid="filmstrip-item"][data-orientation="landscape"]',
@@ -352,9 +351,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
     timeout: 30_000,
   })
-  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
-    timeout: 30_000,
-  })
+  await expectMissingHatchAfterRestore(page, 1)
 
   await page.reload()
   await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
@@ -363,9 +360,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
     timeout: 30_000,
   })
-  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
-    timeout: 30_000,
-  })
+  await expectMissingHatchAfterRestore(page, 1)
 
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {

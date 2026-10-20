@@ -169,7 +169,7 @@ function RelinkDialogFooter(props: {
 
 /**
  * Minimal missing-assets dialog shell. Matching / progress / apply live in
- * pure modules; chrome polish deferred to `missing-assets-relink-dialog-polish`.
+ * pure modules; dialog chrome stays minimal in this slice.
  */
 export function RelinkDialog(props: {
   onRescanFiles: (files: readonly File[]) => Promise<unknown>

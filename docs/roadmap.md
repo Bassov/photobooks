@@ -88,13 +88,11 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 - [x] [prep] [uikit-import](roadmap/M2.5/uikit-import.md) — UI kit v3.1 in the repo as the UI/UX reference (whole kit, one step)
 - [x] [feature] [missing-assets-relink](roadmap/M2.5/missing-assets-relink.md) — moved photo folders
-- [ ] [feature] [missing-assets-relink-dialog-polish](roadmap/M2.5/missing-assets-relink-dialog-polish.md) — relink dialog UI polish
-- [ ] [feature] [missing-assets-relink-actions](roadmap/M2.5/missing-assets-relink-actions.md) — relink locate and tabs
 - [x] [prep] [design-reference](roadmap/M2.5/design-reference.md) — visual language and agent rule
 - [x] [feature] [design-tokens](roadmap/M2.5/design-tokens.md) — tokens and self-hosted fonts
 - [x] [prep] [icon-set](roadmap/M2.5/icon-set.md) — icons (Security Review: dependency, if a package is chosen)
-- [ ] [prep] [ui-primitives-actions](roadmap/M2.5/ui-primitives-actions.md) — action primitives in `src/ui/`
-- [ ] [prep] [ui-primitives-feedback](roadmap/M2.5/ui-primitives-feedback.md) — feedback primitives in `src/ui/`
+- [x] [prep] [ui-primitives-actions](roadmap/M2.5/ui-primitives-actions.md) — action primitives in `src/ui/`
+- [x] [prep] [ui-primitives-feedback](roadmap/M2.5/ui-primitives-feedback.md) — feedback primitives in `src/ui/`
 - [ ] [prep] [a11y-contrast-gate](roadmap/M2.5/a11y-contrast-gate.md) — contrast checks on the design system
 - [ ] [feature] [editor-chrome-toolbar](roadmap/M2.5/editor-chrome-toolbar.md) — editor bars on primitives
 - [ ] [feature] [editor-chrome-states](roadmap/M2.5/editor-chrome-states.md) — editor states on tokens and primitives

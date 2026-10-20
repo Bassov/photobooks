@@ -52,7 +52,7 @@ Ctrl/Cmd+S (and chrome save) SHALL persist gallery/layout for a library-backed b
 
 ### Requirement: Missing-assets relink
 
-The editor SHALL list gallery assets that are `missing` or `modified` relative to a scanned source root and offer Rescan folder (worker scan + worker hash + pure `matchAssets`). Progress MUST be batched per animation frame. Resolve SHALL apply matched identity patches and reattach Files; Skip for now SHALL dismiss the dialog without clearing the pill while problems remain. Hash mismatch MUST NOT silently substitute a different file. Scrolling during rescan MUST stay inside named scrollports (relink list, filmstrip, pasteboard); no page-level H/V scroll. Per-row Locate… and Use new version are deferred follow-ups (`missing-assets-relink-actions`).
+The editor SHALL list gallery assets that are `missing` or `modified` relative to a scanned source root and offer Rescan folder (worker scan + worker hash + pure `matchAssets`). Progress MUST be batched per animation frame. Resolve SHALL apply matched identity patches and reattach Files; Skip for now SHALL dismiss the dialog without clearing the pill while problems remain. Hash mismatch MUST NOT silently substitute a different file. Scrolling during rescan MUST stay inside named scrollports (relink list, filmstrip, pasteboard); no page-level H/V scroll. Per-row Locate… and Use new version are out of scope for this slice.
 
 #### Scenario: Rescan restores by content hash
 
