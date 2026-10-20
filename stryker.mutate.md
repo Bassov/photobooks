@@ -11,8 +11,6 @@ Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in t
 - `!src/photo/photo.worker.ts` — onmessage wrapper; logic lives in processPhoto.ts
 - `!src/assets/hash.worker.ts` — onmessage wrapper; logic lives in hashDigest.ts
 - `!src/project/fsa/bookLoad.worker.ts` — onmessage wrapper; logic lives in bookLoad.ts
-- `!src/project/session/idb.ts` — IndexedDB open/get/set/del shell; SessionIdb port covered via injected fakes in browserSessionState tests
-- `!src/project/session/locks.ts` — navigator.locks thin adapter; lock name + ifAvailable covered via injected SessionLocks in browserSessionState tests
 - `!src/editor/EditorShell.tsx` — thin React chrome wiring for library open/save, save indicator, re-grant and lock banner; behavior locked by `projectSession` unit tests, `EditorShell` RTL, and e2e `open-save` / `autosave` / `permissions-locks`
 - `!src/editor/HomeScreen.tsx` — thin home UI for recents/books; behavior locked by `projectSession` unit tests and e2e `recents-home`
 - `!src/App.tsx` — surface switch + bootstrap wiring; locked by App RTL and e2e home/editor entry
