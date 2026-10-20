@@ -13,4 +13,4 @@ Status: done
 
 ## Done note
 
-Status/Toast/Badge/ProgressBar/EmptyState + Dialog/AlertDialog/Popover/Menu in src/ui; temporary overlays roadmap row folded in
+Status/Toast/Badge/ProgressBar/EmptyState + Dialog/AlertDialog/Popover/Menu in `src/ui` with specimen + public-prop tests.
