@@ -292,6 +292,255 @@ describe('bookStore', () => {
     expect(galleryListener).not.toHaveBeenCalled()
   })
 
+  it('patchAssetRecord no-ops when the merge leaves the asset unchanged', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const hash =
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    enqueueGalleryAssets([
+      {
+        assetId: 'stable',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'stable.jpg',
+          byteSize: 10,
+          mtimeMs: 1,
+          contentHash: hash,
+          mime: 'image/jpeg',
+          meta: {
+            title: 't',
+            keywords: ['k'],
+            gps: { lat: 1, lon: 2 },
+          },
+        },
+      },
+    ])
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    const before = getBookStoreSnapshot().book.assets.stable
+
+    patchAssetRecord('stable', {
+      contentHash: hash,
+      mime: 'image/jpeg',
+      meta: before?.meta,
+    })
+
+    expect(listener).not.toHaveBeenCalled()
+    expect(getBookStoreSnapshot().book.assets.stable).toBe(before)
+
+    patchAssetRecord('stable', {
+      meta: {
+        title: 'changed',
+        keywords: ['k'],
+        gps: { lat: 1, lon: 2 },
+      },
+    })
+    expect(listener).toHaveBeenCalled()
+    expect(getBookStoreSnapshot().book.assets.stable?.meta?.title).toBe(
+      'changed',
+    )
+  })
+
+  it('identical sessionMeta flush keeps map identity and skips emit', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const meta = sessionFile('same.jpg', 1.5)
+    enqueueGalleryAssets([{ assetId: 'm1', meta }])
+    callbacks[0]?.(0)
+    const aspectsBefore = getGalleryAspectsSnapshot()
+    const metaMapBefore = getBookStoreSnapshot().sessionMeta
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+
+    setAssetSessionMeta('m1', { ...meta })
+    expect(callbacks).toHaveLength(2)
+    callbacks[1]?.(0)
+
+    expect(listener).not.toHaveBeenCalled()
+    expect(getBookStoreSnapshot().sessionMeta).toBe(metaMapBefore)
+    expect(getGalleryAspectsSnapshot()).toBe(aspectsBefore)
+    // No-op must not re-arm rAF when nothing remains in the gallery queue.
+    expect(callbacks).toHaveLength(2)
+  })
+
+  it('asset-only flush still emits when gallery and meta are unchanged', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const meta = sessionFile('asset-only.jpg', 1)
+    enqueueGalleryAssets([
+      {
+        assetId: 'ao',
+        meta,
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'ao.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    callbacks[0]?.(0)
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+
+    enqueueGalleryAssets([
+      {
+        assetId: 'ao',
+        meta,
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'ao.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+          contentHash:
+            'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        },
+      },
+    ])
+    callbacks[1]?.(0)
+
+    expect(listener).toHaveBeenCalled()
+    expect(getBookStoreSnapshot().book.assets.ao?.contentHash).toBe(
+      'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    )
+  })
+
+  it('sessionMeta flush emits when any meta field differs', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const base = sessionFile('diff.jpg', 1)
+    enqueueGalleryAssets([{ assetId: 'd1', meta: base }])
+    const cases: AssetSessionMeta[] = [
+      { ...base, name: 'other.jpg' },
+      { ...base, correctedWidth: base.correctedWidth + 1 },
+      { ...base, correctedHeight: base.correctedHeight + 1 },
+      { ...base, orientation: 6 },
+      { ...base, aspect: 2 },
+    ]
+    for (const next of cases) {
+      const listener = vi.fn()
+      const unsub = subscribeBookStore(listener)
+      setAssetSessionMeta('d1', next)
+      expect(listener).toHaveBeenCalled()
+      unsub()
+      // Reset to base for the next field probe.
+      setAssetSessionMeta('d1', base)
+    }
+  })
+
+  it('patchAssetRecord treats empty patch and scalar mismatch correctly', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([
+      {
+        assetId: 'p1',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'p1.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+          contentHash:
+            'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+          mime: 'image/jpeg',
+        },
+      },
+    ])
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    const before = getBookStoreSnapshot().book.assets.p1
+    patchAssetRecord('p1', {})
+    expect(listener).not.toHaveBeenCalled()
+    expect(getBookStoreSnapshot().book.assets.p1).toBe(before)
+    patchAssetRecord('p1', { mime: 'image/png' })
+    expect(listener).toHaveBeenCalled()
+    expect(getBookStoreSnapshot().book.assets.p1?.mime).toBe('image/png')
+  })
+
+  it.each([
+    { field: 'name' as const, value: 'other.jpg' },
+    { field: 'correctedWidth' as const, value: 99 },
+    { field: 'correctedHeight' as const, value: 77 },
+    { field: 'orientation' as const, value: 6 as const },
+    { field: 'aspect' as const, value: 3 },
+  ])('sessionMeta flush emits when $field changes', ({ field, value }) => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const meta = sessionFile('base.jpg', 1.5)
+    enqueueGalleryAssets([{ assetId: 'm2', meta }])
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+
+    setAssetSessionMeta('m2', { ...meta, [field]: value })
+
+    expect(listener).toHaveBeenCalled()
+    expect(getBookStoreSnapshot().sessionMeta.get('m2')?.[field]).toBe(value)
+  })
+
+  it('idempotent gallery re-enqueue with identical meta still drains remaining chunks', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const meta = sessionFile('chunk.jpg', 1)
+    const ids = Array.from({ length: 6 }, (_, i) => `chunk-${String(i)}`)
+    enqueueGalleryAssets(ids.map((assetId) => ({ assetId, meta })))
+    callbacks[0]?.(0)
+    callbacks[1]?.(0)
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(6)
+
+    const before = callbacks.length
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    // Re-enqueue existing ids: addToGallery is idempotent; meta matches → flush no-op,
+    // but remaining chunk ids after the first splice must still be scheduled.
+    enqueueGalleryAssets(ids.map((assetId) => ({ assetId, meta })))
+    expect(listener).not.toHaveBeenCalled()
+    expect(callbacks.length).toBeGreaterThan(before)
+    callbacks[before]?.(0)
+    expect(listener).not.toHaveBeenCalled()
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(6)
+    // Second no-op chunk still schedules the leftover ids.
+    expect(callbacks.length).toBeGreaterThan(before + 1)
+    callbacks[before + 1]?.(0)
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(6)
+  })
+
   it('notifies gallery subscribers only when gallery identity changes', () => {
     vi.stubGlobal(
       'requestAnimationFrame',

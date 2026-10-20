@@ -119,6 +119,29 @@ function invalidateGalleryAspectsCache(): void {
   galleryNamesMeta = null
 }
 
+function sessionMetaEqual(a: AssetSessionMeta, b: AssetSessionMeta): boolean {
+  return (
+    a.name === b.name &&
+    a.correctedWidth === b.correctedWidth &&
+    a.correctedHeight === b.correctedHeight &&
+    a.orientation === b.orientation &&
+    a.aspect === b.aspect
+  )
+}
+
+/** True when every key in `patch` already matches `existing` by `Object.is`. */
+function assetPatchNoOp(
+  existing: Partial<Asset>,
+  patch: Partial<Asset>,
+): boolean {
+  for (const key of Object.keys(patch) as (keyof Asset)[]) {
+    if (!Object.is(existing[key], patch[key])) {
+      return false
+    }
+  }
+  return true
+}
+
 function emit(): void {
   for (const listener of listeners) {
     listener()
@@ -164,9 +187,28 @@ function flushPendingGalleryAndMeta(): void {
     }
     galleryChanged = book.gallery !== state.book.gallery
   }
-  const sessionMeta = new Map(state.sessionMeta)
+  let sessionMeta = state.sessionMeta
+  const metaUpdates: [string, AssetSessionMeta][] = []
   for (const [id, meta] of metaBatch) {
-    sessionMeta.set(id, meta)
+    const prevMeta = sessionMeta.get(id)
+    if (prevMeta !== undefined && sessionMetaEqual(prevMeta, meta)) {
+      continue
+    }
+    metaUpdates.push([id, meta])
+  }
+  const metaChanged = metaUpdates.length > 0
+  if (metaChanged) {
+    const nextMeta = new Map(sessionMeta)
+    for (const [id, meta] of metaUpdates) {
+      nextMeta.set(id, meta)
+    }
+    sessionMeta = nextMeta
+  }
+  if (!galleryChanged && !metaChanged && book === state.book) {
+    if (pendingGalleryIds.length > 0) {
+      scheduleFlush()
+    }
+    return
   }
   const prev = state
   state = {
@@ -176,7 +218,7 @@ function flushPendingGalleryAndMeta(): void {
     importRunning: state.importRunning,
     importExpectedCount: state.importExpectedCount,
   }
-  invalidateGalleryAspectsCache()
+  // Gallery / sessionMeta identity changes already bust aspect/name snapshots.
   notifyAffectedSpreads(prev, state)
   if (galleryChanged) {
     emitGallery()
@@ -258,12 +300,16 @@ export function patchAssetRecord(assetId: string, patch: Partial<Asset>): void {
   if (existing === undefined) {
     const pending = pendingAssetRecords.get(assetId)
     if (pending !== undefined) {
+      // Pending path never emits; always merge (LoAF no-op is the live-asset path).
       pendingAssetRecords.set(assetId, { ...pending, ...patch })
       return
     }
     // Hash can finish before enqueueGalleryAssets; keep the patch for flush.
     const early = pendingAssetPatches.get(assetId) ?? {}
     pendingAssetPatches.set(assetId, { ...early, ...patch })
+    return
+  }
+  if (assetPatchNoOp(existing, patch)) {
     return
   }
   const nextAsset: Asset = { ...existing, ...patch }
