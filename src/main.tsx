@@ -1,4 +1,9 @@
 import './index.css'
+import { configureProjectSession } from './editor/projectSession'
+import { createBrowserProjectSessionDeps } from './editor/session/browserProjectSessionPlatform'
 import { mountPhotobooks } from './ui/mountPhotobooks'
 
-mountPhotobooks()
+mountPhotobooks({
+  configureSession: configureProjectSession,
+  createSessionDeps: createBrowserProjectSessionDeps,
+})

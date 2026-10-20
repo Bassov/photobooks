@@ -21,6 +21,34 @@ describe('SpecimenPage', () => {
     expect(screen.getByText('Spacing · 4 px base')).toBeTruthy()
   })
 
+  it('renders actions specimen with Button and Toolbar', () => {
+    render(<SpecimenPage />)
+    const actions = screen.getByTestId('specimen-actions')
+    expect(actions).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { name: /Actions · Button/i }),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(
+      screen.getAllByRole('button', { name: 'Undo (Ctrl+Z)' }).length,
+    ).toBeGreaterThanOrEqual(1)
+    expect(screen.getByRole('toolbar', { name: 'Editor tools' })).toBeTruthy()
+    expect(screen.getByRole('radiogroup', { name: 'Fit' })).toBeTruthy()
+    expect(screen.getByRole('radiogroup', { name: 'Units' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'mm' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'cm' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'in' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'Original' })).toBeTruthy()
+
+    const grid = screen.getByRole('button', { name: 'Grid' })
+    expect(grid.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(grid)
+    expect(grid.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Fit' }))
+    expect(screen.getByTestId('specimen-fit-value').textContent).toBe('fit=fit')
+  })
+
   it('renders icon specimen with size tokens', () => {
     const { container } = render(<SpecimenPage />)
 

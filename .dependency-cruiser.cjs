@@ -66,6 +66,16 @@ module.exports = {
         path: '(^uikit/|photobooks-ui-kit)',
       },
     },
+    {
+      name: 'ui-is-presentational',
+      comment:
+        'src/ui is presentational chrome: must not import domain/editor modules.',
+      severity: 'error',
+      from: { path: '^src/ui' },
+      to: {
+        path: '^src/(core|editor|project)(/|$)',
+      },
+    },
   ],
   options: {
     doNotFollow: {

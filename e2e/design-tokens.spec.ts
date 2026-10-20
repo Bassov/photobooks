@@ -28,6 +28,22 @@ test('specimen page shows token swatches without third-party fonts', async ({
     page.locator('[data-testid="specimen-icons"] svg[data-icon="undo"]'),
   ).toHaveAttribute('data-size', '20')
 
+  const actions = page.getByTestId('specimen-actions')
+  await expect(actions).toBeVisible()
+  await actions.getByRole('button', { name: 'Save', exact: true }).click()
+  await actions.getByRole('radio', { name: 'Fit' }).click()
+  await expect(page.getByTestId('specimen-fit-value')).toHaveText('fit=fit')
+  await expect(
+    actions.getByRole('toolbar', { name: 'Editor tools' }),
+  ).toBeVisible()
+  await page
+    .getByTestId('specimen-icon-buttons')
+    .getByRole('button', { name: 'Undo (Ctrl+Z)' })
+    .hover()
+  await expect(
+    page.getByRole('tooltip', { name: 'Undo (Ctrl+Z)' }),
+  ).toBeVisible()
+
   const theme = await page.evaluate(
     () => document.documentElement.dataset.theme,
   )
