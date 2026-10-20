@@ -39,14 +39,12 @@ export function selectMarkedSpreadId(
  * Keep a just-added spread marked while the pin is held.
  * IntersectionObserver ratios must not clear the pin (slots often report 0
  * before enter). Pasteboard clears the pin on user scroll after reveal hold.
+ * `null` clears both fields (same object shape as a held pin).
  */
 export function resolvePreferredActiveId(preferredId: string | null): {
   activeId: string | null
   preferredId: string | null
 } {
-  if (preferredId === null) {
-    return { activeId: null, preferredId: null }
-  }
   return { activeId: preferredId, preferredId }
 }
 

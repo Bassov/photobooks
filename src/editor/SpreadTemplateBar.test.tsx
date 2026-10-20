@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as bookStore from './bookStore'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
@@ -121,12 +122,17 @@ describe('SpreadTemplateBar', () => {
     resetBookStore()
     const marked = getBookStoreSnapshot().book.spreads[0]?.id
     assert(marked !== undefined)
+    applyMarkedSpreadTemplate(marked, '4-grid')
     render(
       <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
     )
-    expect(screen.getByRole('radio', { name: 'One per page' })).toHaveProperty(
+    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
       'checked',
       true,
+    )
+    expect(screen.getByRole('radio', { name: 'One per page' })).toHaveProperty(
+      'checked',
+      false,
     )
     expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
       'disabled',
@@ -134,15 +140,30 @@ describe('SpreadTemplateBar', () => {
     )
   })
 
+  it('does not read a template id when no spread is marked', () => {
+    resetBookStore()
+    const getTemplate = vi.spyOn(bookStore, 'getSpreadTemplateId')
+    render(<SpreadTemplateBar spreadId={null} onAddSpread={() => undefined} />)
+    // Snapshot read runs; null spread must not call getSpreadTemplateId.
+    expect(getTemplate).not.toHaveBeenCalled()
+    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+  })
+
   it('applyMarkedSpreadTemplate no-ops without a marked spread', () => {
     resetBookStore()
     const before = getBookStoreSnapshot().book
+    const dispatch = vi.spyOn(bookStore, 'dispatchBookOp')
     applyMarkedSpreadTemplate(null, '4-grid')
+    expect(dispatch).not.toHaveBeenCalled()
     expect(getBookStoreSnapshot().book).toBe(before)
     const marked = getBookStoreSnapshot().book.spreads[0]?.id
     assert(marked !== undefined)
     applyMarkedSpreadTemplate(marked, '2-up')
     expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBe('2-up')
+    expect(dispatch).toHaveBeenCalledTimes(1)
   })
   it('keeps the committed zoom when a spread is added', () => {
     resetBookStore()
