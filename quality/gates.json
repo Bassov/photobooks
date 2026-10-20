@@ -78,6 +78,10 @@
         "argv": ["pnpm", "-s", "roadmap", "check"]
       },
       {
+        "name": "css-tokens",
+        "argv": ["pnpm", "check:css-tokens"]
+      },
+      {
         "name": "unit",
         "argv": [
           "pnpm",

@@ -80,10 +80,10 @@ describe('SpreadTemplateBar', () => {
       true,
     )
     expect(editorShellCss).toMatch(
-      /\.spread-template-bar input:focus-visible[\s\S]*outline:\s*2px solid var\(--accent\)/,
+      /\.spread-template-bar input:focus-visible[\s\S]*outline:\s*2px solid var\(--ring\)/,
     )
     expect(editorShellCss).toMatch(
-      /\.spread-template-bar button:focus-visible[\s\S]*outline:\s*2px solid var\(--accent\)/,
+      /\.spread-template-bar button:focus-visible[\s\S]*outline:\s*2px solid var\(--ring\)/,
     )
 
     const before = getBookStoreSnapshot().book.spreads.map(

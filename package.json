@@ -16,6 +16,7 @@
     "uikit:typecheck": "pnpm --filter photobooks-ui-kit typecheck",
     "uikit:qa:quick": "ts-rig-ci with-playwright-env pnpm --filter photobooks-ui-kit qa:quick",
     "assert:no-uikit-in-app": "node scripts/assert-no-uikit-in-app-bundle.mjs",
+    "check:css-tokens": "node scripts/check-css-tokens.mjs",
     "deploy": "pnpm build && wrangler deploy",
     "deploy:preview": "pnpm build && wrangler preview",
     "typecheck": "tsc -b --pretty false",

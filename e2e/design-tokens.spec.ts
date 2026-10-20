@@ -1,0 +1,99 @@
+import { expect, test } from './fixtures/coverage'
+import {
+  assertDocumentFitsViewport,
+  assertNamedScrollport,
+} from './fixtures/assertDocumentFitsViewport'
+import { openSessionEditor } from './fixtures/openSessionEditor'
+
+test('specimen page shows token swatches without third-party fonts', async ({
+  page,
+}) => {
+  const thirdPartyFonts: string[] = []
+  page.on('request', (req) => {
+    if (/fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(req.url())) {
+      thirdPartyFonts.push(req.url())
+    }
+  })
+
+  await page.goto('/?specimen')
+  await expect(page.getByTestId('specimen')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '?specimen' })).toBeVisible()
+  await expect(page.getByText('Semantic colour roles')).toBeVisible()
+  await expect(page.getByText('Type scale', { exact: false })).toBeVisible()
+
+  const theme = await page.evaluate(
+    () => document.documentElement.dataset.theme,
+  )
+  expect(theme === 'b' || theme === 'b-dark').toBe(true)
+
+  const chrome = await page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue('--chrome')
+      .trim(),
+  )
+  expect(chrome.length).toBeGreaterThan(0)
+
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'specimen', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+  expect(thirdPartyFonts).toEqual([])
+})
+
+test('empty home and painter editor use themed chrome tokens', async ({
+  page,
+}) => {
+  const thirdPartyFonts: string[] = []
+  page.on('request', (req) => {
+    if (/fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(req.url())) {
+      thirdPartyFonts.push(req.url())
+    }
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Photobooks').first()).toBeVisible()
+  await assertDocumentFitsViewport(page)
+
+  await openSessionEditor(page)
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await expect(page.getByTestId('filmstrip')).toBeVisible()
+  await assertDocumentFitsViewport(page)
+  expect(thirdPartyFonts).toEqual([])
+})
+
+test('painter pasteboard scrolls inside the named scrollport', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter')
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await expect(page.getByTestId('pasteboard-scroll')).toBeVisible()
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+})
+
+test('book paper stays light under b-dark', async ({ page }) => {
+  await page.goto('/?fixture=painter')
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = 'b-dark'
+  })
+
+  const colors = await page.evaluate(() => {
+    const root = document.documentElement
+    const paper = getComputedStyle(root).getPropertyValue('--paper').trim()
+    const canvas = getComputedStyle(root).getPropertyValue('--canvas').trim()
+    const spread = document.querySelector('.spread-view')
+    const spreadBg = spread ? getComputedStyle(spread).backgroundColor : ''
+    return { paper, canvas, spreadBg }
+  })
+
+  expect(colors.paper.toLowerCase()).toBe('#f4f3f1')
+  expect(colors.canvas.toLowerCase()).toBe('#121212')
+  // rgb(244, 243, 241) == #f4f3f1
+  expect(colors.spreadBg).toMatch(/244,\s*243,\s*241/)
+  await assertDocumentFitsViewport(page)
+})
