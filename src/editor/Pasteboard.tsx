@@ -33,6 +33,7 @@ import {
   pickActiveSpread,
   type PasteboardWindow,
 } from './pasteboardWindow'
+import { RelinkHost } from './relink'
 import {
   bindGalleryDrop,
   cancelPendingScrollFrame,
@@ -458,6 +459,7 @@ export const Pasteboard = memo(function Pasteboard() {
           ) : null}
         </div>
       </div>
+      <RelinkHost />
     </div>
   )
 })

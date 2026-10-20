@@ -56,3 +56,16 @@ button.spread-frame[aria-pressed='true'] {
   pointer-events: none;
   background: color-mix(in srgb, var(--foreground) 28%, transparent);
 }
+
+.spread-frame-missing {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 4px,
+      color-mix(in srgb, var(--foreground) 14%, transparent) 4px,
+      color-mix(in srgb, var(--foreground) 14%, transparent) 8px
+    ),
+    color-mix(in srgb, var(--foreground) 4%, var(--paper));
+  outline-color: var(--badge-warning-ring);
+}

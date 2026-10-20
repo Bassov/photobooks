@@ -1257,6 +1257,9 @@ export function exposeProjectSessionTestApi(
     configureProjectSession,
     getSnapshot: getProjectSessionSnapshot,
   }
+  void import('./relink').then((relink) => {
+    relink.exposeRelinkTestApi(win)
+  })
 }
 
 declare global {
@@ -1289,6 +1292,32 @@ declare global {
     }
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
+    }
+    __photobooksRelink?: {
+      detectMissingAssets: (options?: { openDialog?: boolean }) => {
+        missing: number
+      }
+      rescanRelinkFiles: (
+        files: readonly File[],
+        options?: { sourceRootId?: string },
+      ) => Promise<unknown>
+      resolvePendingRelink: () => Promise<number>
+      resetRelinkStore: () => void
+      setRelinkDialogOpen: (open: boolean) => void
+      setRelinkProgress: (
+        next: {
+          total: number
+          completed: number
+          running: boolean
+        } | null,
+      ) => void
+      replaceRelinkStatuses: (
+        next:
+          | ReadonlyMap<string, 'missing' | 'modified' | 'ok'>
+          | Iterable<[string, 'missing' | 'modified' | 'ok']>,
+      ) => void
+      problemAssetIds: () => string[]
+      clearLiveAssetSources: () => void
     }
     __photobooksE2e?: boolean
   }
