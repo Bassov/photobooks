@@ -16,6 +16,9 @@ const hydrateInflight = new Map<string, AbortController>()
 /** Last encoded thumb bytes per asset for put-after-hash. */
 const lastThumb = new Map<string, { buffer: ArrayBuffer; mimeType: string }>()
 
+/** contentHashes already written to DerivedCache this session (skip re-puts). */
+const putContentHashes = new Set<string>()
+
 function notifyAsset(assetId: string): void {
   publishGeneration += 1
   const set = assetListeners.get(assetId)
@@ -86,15 +89,25 @@ export function setThumbUrl(
   if (contentHash !== undefined && contentHash.length > 0) {
     // Encode-after-hash path: put must be awaited by Save (awaitPendingHashes),
     // otherwise reload hydrates gray placeholders for late gallery assets.
-    void trackHashJob(
-      getDerivedCache().then((cache) =>
-        cache.put(contentHash, THUMB_PRESET_ID, {
-          bytes: retained.slice(0),
-          mimeType,
-        }),
-      ),
-    )
+    void trackHashJob(putThumbForHash(contentHash, retained, mimeType))
   }
+}
+
+async function putThumbForHash(
+  contentHash: string,
+  buffer: ArrayBuffer,
+  mimeType: string,
+): Promise<void> {
+  if (putContentHashes.has(contentHash)) {
+    return
+  }
+  putContentHashes.add(contentHash)
+  const cache = await getDerivedCache()
+  // `buffer` is already a retained copy from setThumbUrl / lastThumb.
+  await cache.put(contentHash, THUMB_PRESET_ID, {
+    bytes: buffer,
+    mimeType,
+  })
 }
 
 /** Put the last hot thumb into DerivedCache once contentHash is known. */
@@ -109,11 +122,7 @@ export async function putCachedThumbForHash(
   if (last === undefined) {
     return
   }
-  const cache = await getDerivedCache()
-  await cache.put(contentHash, THUMB_PRESET_ID, {
-    bytes: last.buffer.slice(0),
-    mimeType: last.mimeType,
-  })
+  await putThumbForHash(contentHash, last.buffer, last.mimeType)
 }
 
 export function ensureThumb(assetId: string, contentHash?: string): void {
@@ -155,6 +164,7 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
 
 export function resetThumbCache(): void {
   lastThumb.clear()
+  putContentHashes.clear()
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }

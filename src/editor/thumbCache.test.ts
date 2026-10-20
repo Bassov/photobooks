@@ -125,6 +125,7 @@ describe('thumbCache', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
+    const put = vi.spyOn(cache, 'put')
     setDerivedCacheForTests(cache)
 
     setThumbUrl('a1', new Uint8Array([1, 2]).buffer, 'image/jpeg', SAMPLE_HASH)
@@ -133,6 +134,23 @@ describe('thumbCache', () => {
     expect(got.ok).toBe(true)
     assert.equal(got.ok, true)
     expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([1, 2]))
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  it('dedupes DerivedCache thumb puts by contentHash', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:dedupe')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    const put = vi.spyOn(cache, 'put')
+    setDerivedCacheForTests(cache)
+
+    setThumbUrl('a1', new Uint8Array([1]).buffer, 'image/jpeg', SAMPLE_HASH)
+    await awaitPendingHashes()
+    await putCachedThumbForHash('a1', SAMPLE_HASH)
+    setThumbUrl('a2', new Uint8Array([2]).buffer, 'image/jpeg', SAMPLE_HASH)
+    await awaitPendingHashes()
+
+    expect(put).toHaveBeenCalledTimes(1)
   })
 
   it('awaits encode-after-hash put so Save cannot race reload hydrate', async () => {
