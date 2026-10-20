@@ -266,6 +266,16 @@ const GATES_NUMERIC = [
     dir: NEEDLES.lowerStricter,
     label: 'mutation.disableBudget',
   },
+  {
+    path: ['openspecSpecs', 'softMaxLines'],
+    dir: NEEDLES.lowerStricter,
+    label: 'openspecSpecs.softMaxLines',
+  },
+  {
+    path: ['openspecSpecs', 'hardMaxLines'],
+    dir: NEEDLES.lowerStricter,
+    label: 'openspecSpecs.hardMaxLines',
+  },
 ]
 
 export {
