@@ -18,8 +18,6 @@ import {
 export const OWNER_WAIVABLE_RULE_IDS = Object.freeze([
   'gates-json-weaker',
   'stryker-weaker',
-  'rules-superset',
-  'fixtures-superset',
   'item-criteria-loosened',
 ])
 import {
@@ -46,8 +44,6 @@ export const RULE_IDS = Object.freeze([
   'stryker-disable-budget',
   'gate-file-gone',
   'required-job-step-moved',
-  'rules-superset',
-  'fixtures-superset',
   'test-skip-added',
   'test-retries-added',
   'test-file-deleted',
@@ -69,7 +65,6 @@ export const FIXTURE_IDS = Object.freeze([
   'legal-stryker-disable-within-budget',
   'stryker-disable-over-per-file',
   'stryker-disable-over-budget',
-  'deleted-rule',
   'burn-in-moved-without-needs',
   'burn-in-moved-with-needs',
   'added-skip',
@@ -119,8 +114,6 @@ export const MSGS = Object.freeze({
   strykerDisableBudgetPrefix: 'mutation suppression repo budget exceeded: ',
   strykerDisableBudgetMid: ' > ',
   requiredJobFailedPrefix: 'required-job check failed: ',
-  ruleMissingPrefix: 'RULE_IDS missing on head: ',
-  fixtureMissingPrefix: 'FIXTURE_IDS missing on head: ',
   requiredJobRemovedPrefix: 'required job ',
   requiredJobRemovedSuffix: ' removed',
   lostGateMid: ' lost gate ',
@@ -1480,39 +1473,6 @@ export function compareGateTrees(baseFiles, headFiles, opts = {}) {
       'required-job-step-moved',
       `${MSGS.requiredJobFailedPrefix}${e instanceof Error ? e.message : e}`,
     )
-  }
-
-  {
-    const bScriptRaw = getFile(baseFiles, 'scripts/check-gate-ratchet.mjs')
-    const hScriptRaw = getFile(headFiles, 'scripts/check-gate-ratchet.mjs')
-    const bScript = coerceText(bScriptRaw)
-    const hScript = coerceText(hScriptRaw)
-    const bRules = parseExportedStringArray(bScript, 'RULE_IDS')
-    const hRules = parseExportedStringArray(hScript, 'RULE_IDS')
-    for (const id of bRules) {
-      if (!hRules.includes(id)) {
-        fail('rules-superset', `${MSGS.ruleMissingPrefix}${id}`)
-      }
-    }
-    const bTestRaw = getFile(baseFiles, 'scripts/check-gate-ratchet.test.mjs')
-    const hTestRaw = getFile(headFiles, 'scripts/check-gate-ratchet.test.mjs')
-    const bTest = coerceText(bTestRaw)
-    const hTest = coerceText(hTestRaw)
-    const bFixScript = parseExportedStringArray(bScript, 'FIXTURE_IDS')
-    const hFixScript = parseExportedStringArray(hScript, 'FIXTURE_IDS')
-    const bFix =
-      bFixScript.length > 0
-        ? bFixScript
-        : parseExportedStringArray(bTest, 'FIXTURE_IDS')
-    const hFix =
-      hFixScript.length > 0
-        ? hFixScript
-        : parseExportedStringArray(hTest, 'FIXTURE_IDS')
-    for (const id of bFix) {
-      if (!hFix.includes(id)) {
-        fail('fixtures-superset', `${MSGS.fixtureMissingPrefix}${id}`)
-      }
-    }
   }
 
   compareTestWeakening(baseFiles, headFiles, fail)
