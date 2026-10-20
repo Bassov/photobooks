@@ -7,9 +7,9 @@ Status: done
 
 ## Scope
 
-- [x] `src/ui/tokens.css`: primitive palette and scales → semantic tokens (names from `docs/design.md`: chrome/canvas/paper/foreground/…); `prefers-reduced-motion` zeroes motion tokens
+- [x] `src/ui/tokens.css`: primitive palette and scales → semantic tokens (surface, surface-raised, pasteboard, paper, ink, ink-muted, accent, on-accent, focus-ring, selection, drop-target, danger, warning, success, border); `prefers-reduced-motion` zeroes motion tokens
 - [x] Self-hosted woff2 fonts (Latin + Cyrillic subsets, preload, `font-display`) replace the Google Fonts CDN link (`budget.json` third-party: 0)
-- [x] Migrate `index.css`, `EditorShell.css`, `Filmstrip.css`, `SpreadView.css` (+ `HomeScreen.css` for the CSS gate) to tokens; editor chrome only — book content colors stay document-driven
+- [x] Migrate `index.css`, `EditorShell.css`, `Filmstrip.css`, `SpreadView.css` to tokens; editor chrome only — book content colors stay document-driven
 - [x] `scripts/check-css-tokens.mjs` in `verify:fast`: no raw colors / font sizes / radii outside `src/ui/tokens.css`
 - [x] Dev/test-only `?specimen` page (same pattern as the painter fixture query parameter): token swatches, type scale, spacing. If over budget, the specimen moves to `ui-primitives-actions`
 - **Perf:** tokens are static CSS custom properties, no runtime theming JS; fonts preloaded before first paint. Gate: existing pasteboard scroll, zoom and drag scenarios re-run — zero LoAF.
@@ -19,4 +19,4 @@ Status: done
 
 ## Done note
 
-Theme B tokens + self-hosted fonts; chrome CSS migrated; check-css-tokens gate; ?specimen
+Theme B tokens (`docs/design.md` names) + self-hosted fonts; chrome CSS migrated (incl. HomeScreen for CSS gate); check-css-tokens; ?specimen
