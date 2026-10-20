@@ -1,12 +1,12 @@
 # Roadmap process
 
-The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadmap/`. Together they are the single source of truth for what gets built and in which order; issues, proposals and review notes are inputs until they land there. Agents read and change them only through the CLI (`pnpm roadmap`, `scripts/roadmap.mjs`; agent usage: skill `roadmap`). `pnpm roadmap check` validates the layout and runs inside `pnpm test`.
+The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadmap/`. Together they are the single source of truth for what gets built and in which order; issues, proposals and review notes are inputs until they land there. Agents read and change them only through the CLI (`pnpm roadmap` from `@albasov/ts-agent-rig`; agent usage: skill `roadmap`). `pnpm roadmap check` validates the layout and runs inside `pnpm check`.
 
 ## Layout
 
-- `docs/roadmap.md`: header, `## Order`, one block per active milestone (`## <ID> — <title>`, goal / review-cut lines, one line per item), `## Deferred (not scheduled)` and `## Archive`. One line per item: `- [ ] [tag] [slug](roadmap/<M>/<slug>.md) — title`. Index order is priority.
+- `docs/roadmap.md`: header, `## Order`, one block per active milestone (`## <ID> — <title>`, goal / review-cut lines, one line per item), and `## Deferred (not scheduled)`. One line per item: `- [ ] [tag] [slug](roadmap/<M>/<slug>.md) — title`. Index order is priority. There is no `## Archive` section.
 - `docs/roadmap/<M>/<slug>.md`: the item: slug heading, Tag, Milestone, Title, then its scope (nested checkboxes, **Done when:**, **Perf:**, **Browser check:**, **UI ref:** lines). `INTRO.md` holds longer milestone notes.
-- `docs/roadmap/archive/<M>/`: a finished milestone (`README.md` with its block, plus its item files). `docs/roadmap/DEFERRED.md`: ideas that are not scheduled.
+- Finished milestones are **retired** with `pnpm roadmap archive <M>` (drops the milestone block and deletes `docs/roadmap/<M>/`; git history is SoT). `docs/roadmap/DEFERRED.md`: ideas that are not scheduled.
 
 ## Items
 
@@ -23,7 +23,7 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 ## Order, milestones, closing
 
 - Items run in index order; `pnpm roadmap next` returns the first open item, skipping `[contingency]` items and slugs with an open PR.
-- Milestones are review cuts. `done` writes `Status: done` in the item file and does not tick the index or archive. Index ticks (`pnpm roadmap sync`) and milestone `archive <M>` land through a small dedicated docs PR run by the operator/reviewer after item PRs merge (batched is fine) — never inside item PRs (`main` is protected; no direct pushes). `check` warnings for pending sync/archive are expected until that docs PR. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
+- Milestones are review cuts. `done` writes `Status: done` in the item file and does not tick the index or retire the milestone. Index ticks (`pnpm roadmap sync`) and milestone `archive <M>` (retire) land through a small dedicated docs PR run by the operator/reviewer after item PRs merge (batched is fine) — never inside item PRs (`main` is protected; no direct pushes). `check` warnings for pending sync/archive are expected until that docs PR. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
 - An item is closed in the change's own PR right after the OpenSpec archive with `pnpm roadmap done <slug>` (`openspec/config.yaml` `operations.archive`). `--note` records how it was closed. Parallel item PRs must not edit the same index checkbox line.
 - Reprioritizing is the owner's call: `pnpm roadmap move`. Deferred ideas are scheduled with `pnpm roadmap add`.
 

@@ -4,7 +4,7 @@ Execution plan for the photobook editor. Architecture and decisions: `docs/futur
 
 This index and the item files under `docs/roadmap/` are the single source of truth for what gets built and in which order: issues, proposals and review notes are inputs until they land here. The UI kit (`uikit/`, from `uikit-import`) is the UI/UX reference for roadmap items, not a second plan.
 
-Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<milestone>/<slug>.md`; finished milestones: `roadmap/archive/`. Change the index only with `pnpm roadmap` (`add` / `done` / `move`), never by hand.
+Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<milestone>/<slug>.md`. Retire a finished milestone with `pnpm roadmap archive <M>` (drops the index block and folder; git history is SoT). Change the index only with `pnpm roadmap` (`add` / `done` / `move` / `sync` / `archive`), never by hand.
 
 ## Order
 
@@ -60,7 +60,8 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [library-activation](roadmap/M2.1/library-activation.md) — extract library open / new / switch from `projectSession.ts`
 - [ ] [prep] [project-session-mutation](roadmap/M2.1/project-session-mutation.md) — mutate what is left of `projectSession.ts` (issue #72 B)
 - [ ] [prep] [agent-pipeline-run-audit](roadmap/M2.1/agent-pipeline-run-audit.md) — Check one /next-roadmap-item run against the #77 and #79 targets
-- [ ] [prep] [reusable-ci-actions](roadmap/M2.1/reusable-ci-actions.md) — Reusable CI Actions from @albasov/ts-agent-rig
+- [x] [prep] [reusable-ci-actions](roadmap/M2.1/reusable-ci-actions.md) — Reusable CI Actions from @albasov/ts-agent-rig
+- [ ] [prep] [post-extract-docs-cleanup](roadmap/M2.1/post-extract-docs-cleanup.md) — Post-extract agent docs cleanup + retire roadmap archive
 
 ## M2.2 — Library & metadata
 
@@ -213,9 +214,3 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 ## Deferred (not scheduled)
 
 Not scheduled, not items: [roadmap/DEFERRED.md](roadmap/DEFERRED.md). Former roadmap items waiting for an explicit re-add live in [docs/backlog/](backlog/README.md). To schedule either, the owner asks for an `add`.
-
-## Archive
-
-- [M0 — Foundation (done)](roadmap/archive/M0/README.md)
-- [M1 — Editor skeleton](roadmap/archive/M1/README.md)
-- [M2 — Project on disk](roadmap/archive/M2/README.md)
