@@ -104,7 +104,7 @@ html[data-theme="b"], html[data-theme="b-dark"], [data-theme="b"], [data-theme="
 
   --background: #fbfaf8; --foreground: #1f1e1c; --card: #ffffff; --popover: #ffffff;
   --primary: #2a2927; --primary-foreground: #fbfaf8;
-  --secondary: #efede9; --muted: #f4f2ef; --muted-foreground: #74716b; --subtle: #efede9;
+  --secondary: #efede9; --muted: #f4f2ef; --muted-foreground: #6a6761; --subtle: #efede9;
   --accent: #ebe8e3; --accent-foreground: #1f1e1c;
   /* v3: destructive = a warm brick red tuned to the neutral palette (not a signal red).
      --destructive is the text/icon colour on surfaces (AA on background/card);
