@@ -37,8 +37,7 @@
   background: var(--primary);
 }
 
-.pb-button--default[data-hovered],
-.pb-button--default:hover:not(:disabled) {
+.pb-button--default[data-hovered] {
   background: color-mix(in srgb, var(--primary) 90%, var(--foreground));
 }
 
@@ -49,8 +48,7 @@
   box-shadow: var(--shadow-xs);
 }
 
-.pb-button--secondary[data-hovered],
-.pb-button--secondary:hover:not(:disabled) {
+.pb-button--secondary[data-hovered] {
   background: color-mix(in srgb, var(--secondary) 80%, var(--muted));
 }
 
@@ -59,8 +57,7 @@
   background: transparent;
 }
 
-.pb-button--ghost[data-hovered],
-.pb-button--ghost:hover:not(:disabled) {
+.pb-button--ghost[data-hovered] {
   color: var(--foreground);
   background: var(--accent);
 }
@@ -71,8 +68,7 @@
   background: var(--destructive-solid);
 }
 
-.pb-button--destructive[data-hovered],
-.pb-button--destructive:hover:not(:disabled) {
+.pb-button--destructive[data-hovered] {
   background: var(--destructive-solid-hover);
 }
 
@@ -80,16 +76,14 @@
   transform: scale(var(--motion-press-scale));
 }
 
-.pb-button[data-focus-visible],
-.pb-button:focus-visible {
+.pb-button[data-focus-visible] {
   box-shadow:
     0 0 0 2px var(--background),
     0 0 0 4px var(--ring);
 }
 
 .pb-button[data-disabled],
-.pb-button[data-pending],
-.pb-button:disabled {
+.pb-button[data-pending] {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;

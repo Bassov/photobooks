@@ -1,34 +1,11 @@
-.pb-segmented {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--spacing) * 1.4) calc(var(--spacing) * 3.4);
-}
-
-.pb-segmented__segment {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 1.4);
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  color: var(--foreground);
-  cursor: pointer;
-}
-
-.pb-segmented--sm .pb-segmented__segment {
-  font-size: var(--text-sm);
-}
-
-.pb-segmented--md .pb-segmented__segment {
-  font-size: var(--text-sm);
-}
-
+/* prettier-ignore */
+.pb-segmented { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 1.4) calc(var(--spacing) * 3.4); }
+/* prettier-ignore */
+.pb-segmented__segment { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1.4); margin: 0; font-family: var(--font-ui); font-size: var(--text-sm); color: var(--foreground); cursor: pointer; }
 .pb-segmented__segment input:disabled {
   cursor: wait;
   opacity: 0.65;
 }
-
 .pb-segmented__segment:focus-within {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
