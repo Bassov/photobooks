@@ -60,4 +60,30 @@ describe('check-patch-coverage', () => {
     expect(result.ok).toBe(true)
     expect(result.percent).toBe(100)
   })
+
+  it('skips changed lines absent from lcov when the file was instrumented', () => {
+    const result = computePatchCoverage({
+      baseRef: 'BASE',
+      diffText:
+        '+++ b/src/lib/x.ts\n@@ -0,0 +1,5 @@\n+import\n+/** c */\n+body\n+}\n+\n',
+      lcovText: 'SF:src/lib/x.ts\nDA:3,1\nend_of_record\n',
+      loadGatesFn: () => ({ coverage: { patch: 85 } }),
+    })
+    expect(result.ok).toBe(true)
+    expect(result.percent).toBe(100)
+    expect(result.covered).toBe(1)
+    expect(result.total).toBe(1)
+  })
+
+  it('still fails when the whole file is missing from lcov', () => {
+    const result = computePatchCoverage({
+      baseRef: 'BASE',
+      diffText: '+++ b/src/lib/x.ts\n@@ -0,0 +1,2 @@\n+a\n+b\n',
+      lcovText: '',
+      loadGatesFn: () => ({ coverage: { patch: 85 } }),
+    })
+    expect(result.ok).toBe(false)
+    expect(result.percent).toBe(0)
+    expect(result.uncovered[0]?.lines).toEqual([1, 2])
+  })
 })
