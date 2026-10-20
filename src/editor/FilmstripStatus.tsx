@@ -1,5 +1,6 @@
 import { ProgressBar } from '../ui/ProgressBar'
 import { Status } from '../ui/Status'
+import { filmstripImportProgressStyle } from './filmstripChromeStyles'
 import type { ImportProgress } from './importPhotos'
 
 export function FilmstripStatus({
@@ -34,7 +35,7 @@ export function FilmstripStatus({
       ) : null}
       {progress?.running ? (
         <ProgressBar
-          className="filmstrip-import-progress"
+          style={filmstripImportProgressStyle}
           aria-label="Importing"
           value={progress.completed}
           maxValue={progress.total > 0 ? progress.total : 1}

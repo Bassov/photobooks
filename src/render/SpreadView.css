@@ -22,13 +22,9 @@ button.spread-frame {
   cursor: pointer;
 }
 
-button.spread-frame:focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: -3px;
-}
-
+button.spread-frame:focus-visible,
 button.spread-frame[aria-pressed='true'] {
-  outline: 3px solid var(--select);
+  outline: 3px solid var(--ring);
   outline-offset: -3px;
 }
 
@@ -45,9 +41,8 @@ button.spread-frame[aria-pressed='true'] {
 .spread-frame-placeholder {
   width: 100%;
   height: 100%;
-  background: var(--muted);
-  outline: 1px dashed
-    color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--paper));
+  outline: 1px dashed color-mix(in srgb, var(--foreground) 35%, transparent);
   outline-offset: -1px;
 }
 

@@ -264,9 +264,7 @@ describe('Filmstrip aspect cards', () => {
     expect(empty.parentElement?.getAttribute('data-testid')).toBe(
       'filmstrip-scroll',
     )
-    expect(filmstripCss).toMatch(
-      /\.filmstrip-empty(?:\.pb-empty)?\s*\{[^}]*width:\s*100%/s,
-    )
+    expect(filmstripCss).toMatch(/\.filmstrip-empty\s*\{[^}]*width:\s*100%/s)
   })
 
   it('mounts enough portrait items to cover a wide scrollport', () => {

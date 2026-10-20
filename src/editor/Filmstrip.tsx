@@ -11,6 +11,10 @@ import { GridList } from 'react-aria-components'
 import { setVisibleAssetIds } from '../photo/assetPool'
 import { EmptyState } from '../ui/EmptyState'
 import {
+  filmstripEmptyStyle,
+  filmstripEmptyTitleStyle,
+} from './filmstripChromeStyles'
+import {
   getGalleryAspectsSnapshot,
   getGalleryDisplayNamesSnapshot,
   getGalleryIdsSnapshot,
@@ -196,7 +200,12 @@ export const Filmstrip = memo(function Filmstrip({
           <EmptyState
             className="filmstrip-empty"
             data-testid="filmstrip-empty"
-            title="Add a folder or photos to build the gallery."
+            style={filmstripEmptyStyle}
+            title={
+              <span style={filmstripEmptyTitleStyle}>
+                Add a folder or photos to build the gallery.
+              </span>
+            }
           />
         ) : (
           <div className="filmstrip-spacer" style={{ width: spacerWidth }}>

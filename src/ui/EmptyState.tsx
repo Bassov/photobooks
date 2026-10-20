@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { cx } from './className'
 import './EmptyState.css'
 
@@ -10,6 +10,7 @@ export interface EmptyStateProps {
   /** Primary / secondary action buttons. */
   actions?: ReactNode
   className?: string
+  style?: CSSProperties
   'data-testid'?: string
 }
 
@@ -20,10 +21,15 @@ export function EmptyState({
   description,
   actions,
   className,
+  style,
   'data-testid': dataTestId = 'empty-state',
 }: EmptyStateProps) {
   return (
-    <div className={cx('pb-empty', className)} data-testid={dataTestId}>
+    <div
+      className={cx('pb-empty', className)}
+      style={style}
+      data-testid={dataTestId}
+    >
       {icon ? <div className="pb-empty-icon">{icon}</div> : null}
       <div className="pb-empty-title">{title}</div>
       {description ? (
