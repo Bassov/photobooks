@@ -10,6 +10,7 @@ import {
   pasteboardWindowKey,
   pasteboardWorldWidthPx,
   readPasteboardSlotEntry,
+  resolvePreferredActiveId,
   resolveTrackedScrollTop,
   selectMarkedSpreadId,
   shouldRenderSpacer,
@@ -167,7 +168,13 @@ describe('readPasteboardSlotEntry', () => {
     expect(
       readPasteboardSlotEntry({ target: bare, intersectionRatio: 0.5 }),
     ).toBeNull()
+    // Index alone is not enough — missing spreadId must still reject.
+    bare.dataset.slotIndex = '0'
+    expect(
+      readPasteboardSlotEntry({ target: bare, intersectionRatio: 0.5 }),
+    ).toBeNull()
     bare.dataset.spreadId = 's1'
+    delete bare.dataset.slotIndex
     expect(
       readPasteboardSlotEntry({ target: bare, intersectionRatio: 0.5 }),
     ).toBeNull()
@@ -180,5 +187,21 @@ describe('readPasteboardSlotEntry', () => {
     expect(
       readPasteboardSlotEntry({ target: slot, intersectionRatio: 0.75 }),
     ).toEqual({ id: 'spread-2', ratio: 0.75, index: 2 })
+  })
+})
+
+describe('resolvePreferredActiveId', () => {
+  it('keeps the preferred id while the pin is held', () => {
+    expect(resolvePreferredActiveId('b')).toEqual({
+      activeId: 'b',
+      preferredId: 'b',
+    })
+  })
+
+  it('is a no-op when nothing is preferred', () => {
+    expect(resolvePreferredActiveId(null)).toEqual({
+      activeId: null,
+      preferredId: null,
+    })
   })
 })

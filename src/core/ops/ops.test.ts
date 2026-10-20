@@ -13,7 +13,9 @@ import {
   removeFromGallery,
   removeSpread,
   replaceAsset,
+  resolveAddSpreadTemplateId,
   swapFrames,
+  TEMPLATE_IDS,
   unplaceAsset,
   unplacedAssetIds,
 } from '../index'
@@ -189,6 +191,47 @@ describe('spread ops', () => {
     expect(next.spreads[0]).toBe(book.spreads[0])
   })
 
+  it('addSpread copies a provided 4-grid template', () => {
+    const book = makeBook()
+    const next = addSpread(book, { id: 'grid-spread', templateId: '4-grid' })
+    const added = next.spreads[1]
+    expect(added?.templateId).toBe('4-grid')
+    expect(added?.frames).toHaveLength(4)
+    expect(added?.frames.every((frame) => frame.assetId === undefined)).toBe(
+      true,
+    )
+  })
+
+  it('addSpread falls back to one-per-page for an invalid templateId', () => {
+    const book = makeBook()
+    const next = addSpread(book, {
+      id: 'fallback-spread',
+      templateId: 'not-a-template',
+    })
+    expect(next.spreads[1]?.templateId).toBe('one-per-page')
+    expect(next.spreads[1]?.frames).toHaveLength(1)
+  })
+
+  it('resolveAddSpreadTemplateId validates catalog ids', () => {
+    expect(resolveAddSpreadTemplateId(undefined)).toBe('one-per-page')
+    expect(resolveAddSpreadTemplateId('')).toBe('one-per-page')
+    expect(resolveAddSpreadTemplateId('not-a-template')).toBe('one-per-page')
+    expect(resolveAddSpreadTemplateId('4-grid')).toBe('4-grid')
+    expect(resolveAddSpreadTemplateId('2-up')).toBe('2-up')
+    expect(resolveAddSpreadTemplateId('full-bleed')).toBe('full-bleed')
+    expect(resolveAddSpreadTemplateId('one-per-page')).toBe('one-per-page')
+  })
+
+  it('applyBookOp forwards templateId on addSpread', () => {
+    const book = makeBook()
+    const next = applyBookOp(book, {
+      type: 'addSpread',
+      id: 'via-op',
+      templateId: '2-up',
+    })
+    expect(next.spreads[1]?.templateId).toBe('2-up')
+  })
+
   it('re-applies a catalog template when addSpread changes page role', () => {
     let book = makeBook({ id: 'session', spreads: [] })
     book = addSpread(book, { id: 'spread-1' })
@@ -279,6 +322,23 @@ describe('spread ops', () => {
   it('refuses removing the last spread', () => {
     const book = makeBook()
     expect(removeSpread(book, 'spread-1')).toBe(book)
+  })
+
+  it('removeSpread no-ops for a missing id when more than one spread exists', () => {
+    const book = makeBook({
+      spreads: [makeSpread({ id: 'a' }), makeSpread({ id: 'b' })],
+    })
+    expect(removeSpread(book, 'missing')).toBe(book)
+  })
+
+  it('addSpread allocates a non-colliding id when spread-N is taken', () => {
+    const book = makeBook({
+      spreads: [makeSpread({ id: 'spread-2' })],
+    })
+    const next = addSpread(book)
+    expect(next.spreads).toHaveLength(2)
+    expect(next.spreads[1]?.id).not.toBe('spread-2')
+    expect(next.spreads[1]?.id.startsWith('spread-')).toBe(true)
   })
 
   it('removes a non-last spread and keeps other identities', () => {
@@ -438,3 +498,13 @@ test.prop([fc.constantFrom('a', 'b', 'c'), fc.constantFrom(0, 1)], {
     ),
   ).toBe(true)
 })
+
+test.prop([fc.constantFrom(...TEMPLATE_IDS)], { numRuns: 40 })(
+  'addSpread with any valid template keeps invariants',
+  (templateId) => {
+    const book = makeBook()
+    const next = addSpread(book, { id: 'prop-spread', templateId })
+    expect(checkBookInvariants(next).ok).toBe(true)
+    expect(next.spreads[1]?.templateId).toBe(templateId)
+  },
+)

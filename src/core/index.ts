@@ -40,7 +40,12 @@ export { applyTemplate } from './templates/apply'
 
 export { addToGallery, removeFromGallery } from './ops/gallery'
 export { placeAsset, replaceAsset, unplaceAsset, swapFrames } from './ops/place'
-export { addSpread, removeSpread, moveSpread } from './ops/spreads'
+export {
+  addSpread,
+  removeSpread,
+  moveSpread,
+  resolveAddSpreadTemplateId,
+} from './ops/spreads'
 export { applyBookOp, type BookOp } from './ops/applyBookOp'
 
 export { placementCountByAsset, unplacedAssetIds } from './selectors/placements'

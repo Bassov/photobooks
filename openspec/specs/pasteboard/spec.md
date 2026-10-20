@@ -17,12 +17,27 @@ When the editor surface is active, the workspace SHALL show the book's pasteboar
 
 ### Requirement: Active spread template and add spread
 
-The editor SHALL offer keyboard-reachable controls to set the active spread’s template (full-bleed, one-per-page, 2-up, 4-grid) and to append a spread. Template control shows the current template. Appended spread uses one-per-page, enters the pasteboard scrollport after layout (including after fit when one axis still overflows), and keeps committed zoom and previous spread scale. Controls MUST NOT create page-level H/V scroll.
+The editor SHALL offer keyboard-reachable controls to set the active spread’s template (full-bleed, one-per-page, 2-up, 4-grid) and to append a spread. The template control MUST show the active spread’s current template. The template control’s accessible name MUST state that it applies to the active spread. The appended spread MUST use the template of the spread that was active when Add spread was pressed, or one-per-page when none is active, and MUST enter the pasteboard scrollport after layout (including after fit when one axis still overflows). Appending a spread MUST keep the committed zoom and the previous spread’s scale. Controls MUST NOT create page-level H/V scroll.
 
-#### Scenario: Switch template and add spread
+#### Scenario: Switch the active spread to 4-grid
 
-- **WHEN** the user chooses 4-grid or adds a spread (including after fit on narrow or mid-scroll desktop)
-- **THEN** frame counts update only on the active/new spread, the new spread is in the pasteboard port, zoom/scale hold, and the document has no page scroll
+- **WHEN** the user chooses 4-grid for the active spread
+- **THEN** that spread shows four empty frame placeholders and every other spread keeps its previous frame count
+
+#### Scenario: Add spread enters the pasteboard
+
+- **WHEN** the user adds a spread while the active spread uses a catalog template
+- **THEN** the pasteboard spread count increases by one, the new spread uses that same template, and that spread lies within the pasteboard scrollport
+
+#### Scenario: Add spread with no active spread uses one-per-page
+
+- **WHEN** the user adds a spread and no spread is active
+- **THEN** the new spread uses one-per-page
+
+#### Scenario: Add spread keeps fitted zoom and contains after fit
+
+- **WHEN** the user adds a spread after fit (including narrow viewport or mid-scroll desktop)
+- **THEN** zoom and previous-spread scale hold, the new spread is in the pasteboard port, and the document has no page scroll
 
 ### Requirement: Camera zoom controls
 

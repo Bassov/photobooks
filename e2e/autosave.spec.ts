@@ -63,7 +63,7 @@ test('autosave persists edits across reload without manual Save', async ({
   })
 
   const templateGroup = page.getByRole('radiogroup', {
-    name: 'Spread template',
+    name: 'Template for this spread',
   })
   await templateGroup.getByRole('radio', { name: '2-up' }).click()
   await expect(page.getByTestId('save-indicator')).toHaveText(/Unsaved|Saving/)
@@ -87,7 +87,7 @@ test('autosave persists edits across reload without manual Save', async ({
   })
   await expect(
     page
-      .getByRole('radiogroup', { name: 'Spread template' })
+      .getByRole('radiogroup', { name: 'Template for this spread' })
       .getByRole('radio', {
         name: '2-up',
       }),

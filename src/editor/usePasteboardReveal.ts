@@ -64,18 +64,35 @@ export function usePasteboardReveal({
   })
   const revealSlotRef = useRef<HTMLElement | null>(null)
   const holdCameraScrollRef = useRef(false)
+  /** Bumped to cancel a deferred hold release when a new reveal starts. */
+  const holdReleaseGenRef = useRef(0)
   const [revealTick, setRevealTick] = useState(0)
 
-  const clearReveal = (): void => {
+  const clearRevealState = (): void => {
     restoreRevealSlotVisibility(revealSlotRef.current)
     revealSlotRef.current = null
     revealState.current = { tries: 0, paintConfirmed: false }
     revealSpreadId.current = null
-    holdCameraScrollRef.current = false
+  }
+
+  /**
+   * Drop hold after one frame so trailing scroll events from the last reveal
+   * nudge still see hold=true (Pasteboard clears the add-spread pin on scroll
+   * only when hold is false).
+   */
+  const scheduleHoldRelease = (): void => {
+    const gen = ++holdReleaseGenRef.current
+    requestAnimationFrame(() => {
+      if (gen === holdReleaseGenRef.current) {
+        holdCameraScrollRef.current = false
+      }
+    })
   }
 
   const beginRevealForNewSpread = (newSpreadId: string | null): void => {
-    clearReveal()
+    clearRevealState()
+    // Cancel any deferred hold release from a prior reveal.
+    holdReleaseGenRef.current += 1
     revealSpreadId.current = newSpreadId
     holdCameraScrollRef.current = newSpreadId !== null
     // Refs alone do not invalidate layout deps; bump tick so the turn runs.
@@ -143,7 +160,8 @@ export function usePasteboardReveal({
       return
     }
     if (turn.kind === 'clear') {
-      clearReveal()
+      clearRevealState()
+      scheduleHoldRelease()
       return
     }
     if (turn.kind === 'paint-confirm') {
@@ -163,7 +181,8 @@ export function usePasteboardReveal({
       scheduleRetry()
       return
     }
-    clearReveal()
+    clearRevealState()
+    scheduleHoldRelease()
   }, [
     scrollRef,
     setTrackedScroll,

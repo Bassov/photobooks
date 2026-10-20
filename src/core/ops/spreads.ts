@@ -1,11 +1,20 @@
 import { getSpreadPageCount } from '../geometry/spreadSize'
 import type { Book, Spread } from '../schema'
 import { applyTemplate } from '../templates/apply'
-import { isTemplateId } from '../templates/types'
+import { isTemplateId, type TemplateId } from '../templates/types'
+
+export function resolveAddSpreadTemplateId(
+  templateId: string | undefined,
+): TemplateId {
+  if (templateId !== undefined && isTemplateId(templateId)) {
+    return templateId
+  }
+  return 'one-per-page'
+}
 
 export function addSpread(
   book: Book,
-  options: { index?: number; id?: string } = {},
+  options: { index?: number; id?: string; templateId?: string } = {},
 ): Book {
   const id = options.id ?? nextSpreadId(book)
   const insertAt =
@@ -17,7 +26,11 @@ export function addSpread(
   const spreads = book.spreads.slice()
   spreads.splice(insertAt, 0, empty)
   const withSpread: Book = { ...book, spreads }
-  const inserted = applyTemplate(withSpread, id, 'one-per-page')
+  const inserted = applyTemplate(
+    withSpread,
+    id,
+    resolveAddSpreadTemplateId(options.templateId),
+  )
   return reapplyChangedPageRoles(book, inserted)
 }
 
@@ -26,9 +39,6 @@ function reapplyChangedPageRoles(before: Book, after: Book): Book {
   for (const spread of before.spreads) {
     const oldIndex = before.spreads.indexOf(spread)
     const newIndex = next.spreads.findIndex((item) => item.id === spread.id)
-    if (newIndex < 0) {
-      continue
-    }
     const oldCount = getSpreadPageCount(oldIndex, before.spreads.length)
     const newCount = getSpreadPageCount(newIndex, next.spreads.length)
     if (oldCount === newCount) {
@@ -68,11 +78,8 @@ export function moveSpread(
     return book
   }
   const spreads = book.spreads.slice()
-  const [removed] = spreads.splice(fromIndex, 1)
-  if (removed === undefined) {
-    return book
-  }
-  spreads.splice(clamped, 0, removed)
+  const moved = spreads.splice(fromIndex, 1)
+  spreads.splice(clamped, 0, ...moved)
   return { ...book, spreads }
 }
 

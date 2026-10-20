@@ -15,10 +15,12 @@ import { installGalleryDrop, type DropGeometry } from './galleryDrop'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
 import { usePasteboardCamera } from './usePasteboardCamera'
 import { usePasteboardReveal } from './usePasteboardReveal'
+import { resolveAddSpreadTemplateId } from '../core'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
   getSpreadIdsSnapshot,
+  getSpreadTemplateId,
   subscribeBookStore,
 } from './bookStore'
 import {
@@ -42,6 +44,7 @@ import {
   pasteboardWorldWidthPx,
   readPasteboardSlotEntry,
   resolveTrackedScrollTop,
+  resolvePreferredActiveId,
   selectMarkedSpreadId,
   shouldRenderSpacer,
   spreadActiveIndex,
@@ -101,6 +104,8 @@ export const Pasteboard = memo(function Pasteboard() {
   )
   const paceGeneration = useRef(0)
   const forceMountIndexRef = useRef<number | null>(null)
+  /** Pin the just-added spread until the user scrolls (cleared after reveal hold). */
+  const preferredActiveRef = useRef<string | null>(null)
   const [paced, setPaced] = useState<PasteboardWindow | null>(null)
 
   useEffect(() => {
@@ -310,11 +315,18 @@ export const Pasteboard = memo(function Pasteboard() {
 
   const onAddSpread = (): void => {
     const before = new Set(getSpreadIdsSnapshot())
-    dispatchBookOp({ type: 'addSpread' })
+    const activeTemplate =
+      markedId === undefined ? null : getSpreadTemplateId(markedId)
+    dispatchBookOp({
+      type: 'addSpread',
+      templateId: resolveAddSpreadTemplateId(activeTemplate ?? undefined),
+    })
     const ids = getSpreadIdsSnapshot()
     const newId = ids.find((id) => !before.has(id))
     if (newId !== undefined) {
       forceMountIndexRef.current = ids.indexOf(newId)
+      preferredActiveRef.current = newId
+      setActiveId(newId)
       reveal.beginRevealForNewSpread(newId)
     }
   }
@@ -336,6 +348,12 @@ export const Pasteboard = memo(function Pasteboard() {
             ratio: parsed.ratio,
             index: parsed.index,
           })
+        }
+        const preferred = resolvePreferredActiveId(preferredActiveRef.current)
+        preferredActiveRef.current = preferred.preferredId
+        if (preferred.activeId !== null) {
+          setActiveId(preferred.activeId)
+          return
         }
         const bestId = pickActiveSpread(
           [...ratios.entries()].map(([id, entry]) => ({
@@ -361,6 +379,11 @@ export const Pasteboard = memo(function Pasteboard() {
   }, [windowKey])
 
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
+    // Reveal nudges scroll while holdCameraScrollRef is set; only user scroll
+    // releases the add-spread active pin so pickActiveSpread can take over.
+    if (!reveal.holdCameraScrollRef.current) {
+      preferredActiveRef.current = null
+    }
     pendingTop.current = event.currentTarget.scrollTop
     pendingEpoch.current = getCommittedCamera().epoch
     if (scrollRaf.current !== 0) {

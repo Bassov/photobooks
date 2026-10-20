@@ -3,10 +3,12 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as bookStore from './bookStore'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import { Pasteboard } from './Pasteboard'
 import { REVEAL_TRY_CEILING } from './pasteboardReveal'
+import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
 import assert from 'node:assert/strict'
 
@@ -66,7 +68,7 @@ describe('SpreadTemplateBar', () => {
     render(<Pasteboard />)
 
     expect(
-      screen.getByRole('radiogroup', { name: 'Spread template' }),
+      screen.getByRole('radiogroup', { name: 'Template for this spread' }),
     ).toBeTruthy()
     expect(screen.getByRole('radio', { name: 'Full bleed' })).toBeTruthy()
     expect(screen.getByRole('radio', { name: 'One per page' })).toBeTruthy()
@@ -112,10 +114,57 @@ describe('SpreadTemplateBar', () => {
       'disabled',
       true,
     )
-    fireEvent.change(radio)
+    fireEvent.change(radio, { target: { checked: true } })
     expect(getBookStoreSnapshot().book).toBe(before)
   })
 
+  it('shows the marked spread template when a spread id is set', () => {
+    resetBookStore()
+    const marked = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(marked !== undefined)
+    applyMarkedSpreadTemplate(marked, '4-grid')
+    render(
+      <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
+    )
+    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
+      'checked',
+      true,
+    )
+    expect(screen.getByRole('radio', { name: 'One per page' })).toHaveProperty(
+      'checked',
+      false,
+    )
+    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
+      'disabled',
+      false,
+    )
+  })
+
+  it('does not read a template id when no spread is marked', () => {
+    resetBookStore()
+    const getTemplate = vi.spyOn(bookStore, 'getSpreadTemplateId')
+    render(<SpreadTemplateBar spreadId={null} onAddSpread={() => undefined} />)
+    // Snapshot read runs; null spread must not call getSpreadTemplateId.
+    expect(getTemplate).not.toHaveBeenCalled()
+    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+  })
+
+  it('applyMarkedSpreadTemplate no-ops without a marked spread', () => {
+    resetBookStore()
+    const before = getBookStoreSnapshot().book
+    const dispatch = vi.spyOn(bookStore, 'dispatchBookOp')
+    applyMarkedSpreadTemplate(null, '4-grid')
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(getBookStoreSnapshot().book).toBe(before)
+    const marked = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(marked !== undefined)
+    applyMarkedSpreadTemplate(marked, '2-up')
+    expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBe('2-up')
+    expect(dispatch).toHaveBeenCalledTimes(1)
+  })
   it('keeps the committed zoom when a spread is added', () => {
     resetBookStore()
     commitZoom(2, 0, 0)
@@ -135,6 +184,19 @@ describe('SpreadTemplateBar', () => {
         ?.getAttribute('data-slot-index'),
     ).toBe('2')
     expect(scroll.querySelector('[data-slot-index="3"]')).toBeTruthy()
+  })
+
+  it('Add spread copies the active spread 4-grid template', () => {
+    resetBookStore()
+    render(<Pasteboard />)
+    fireEvent.click(screen.getByRole('radio', { name: '4-grid' }))
+    expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBe('4-grid')
+    fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+    const spreads = getBookStoreSnapshot().book.spreads
+    expect(spreads).toHaveLength(4)
+    const added = spreads[3]
+    expect(added?.templateId).toBe('4-grid')
+    expect(added?.frames).toHaveLength(4)
   })
 
   it('does not reveal the last spread before add', () => {
