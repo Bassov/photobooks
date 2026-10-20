@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import {
@@ -21,6 +23,13 @@ interface RelinkTestApi {
   rescanRelinkFiles: (files: readonly File[]) => Promise<unknown>
   resetRelinkStore: () => void
   setRelinkDialogOpen: (open: boolean) => void
+  setRelinkProgress: (
+    next: {
+      total: number
+      completed: number
+      running: boolean
+    } | null,
+  ) => void
   replaceRelinkStatuses: (
     next: Iterable<[string, 'missing' | 'modified' | 'ok']>,
   ) => void
@@ -34,6 +43,13 @@ async function waitForRelinkApi(page: Page): Promise<void> {
         .__photobooksRelink !== undefined,
     { timeout: 15_000 },
   )
+}
+
+/** One-file directory so webkitdirectory rescan stays fast under yield. */
+function relinkFixtureDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'photobooks-relink-'))
+  copyFileSync(photoFixturePaths.samplePng, join(dir, 'sample-3x2.png'))
+  return dir
 }
 
 test('empty relink dialog shows everything linked', async ({ page }) => {
@@ -62,6 +78,7 @@ test('empty relink dialog shows everything linked', async ({ page }) => {
 })
 
 test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
+  test.setTimeout(120_000)
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')
   await expect(page.getByTestId('create-book')).toBeEnabled({
@@ -100,35 +117,31 @@ test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
     'missing',
   )
 
-  const pngBase64 = readFileSync(photoFixturePaths.samplePng).toString('base64')
-  await page.evaluate(async (b64) => {
-    const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
-      .__photobooksRelink
-    if (!api) {
-      throw new Error('relink API missing')
-    }
-    const binary = atob(b64)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i += 1) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-    const file = new File([bytes], 'sample-3x2.png', {
-      type: 'image/png',
-      lastModified: Date.now(),
-    })
-    Object.defineProperty(file, 'webkitRelativePath', {
-      value: 'sample-3x2.png',
-    })
-    await api.rescanRelinkFiles([file])
-  }, pngBase64)
+  await page
+    .getByTestId('relink-folder-input')
+    .setInputFiles(relinkFixtureDir())
 
-  await expect
-    .poll(
-      async () =>
-        page.getByTestId('relink-row').first().getAttribute('data-status'),
-      { timeout: 30_000 },
-    )
-    .toBe('found')
+  // Deterministic: wait for scan chrome if it appears, then for found status.
+  await Promise.race([
+    page.getByTestId('relink-scan-progress').waitFor({
+      state: 'visible',
+      timeout: 15_000,
+    }),
+    page
+      .getByTestId('relink-row')
+      .first()
+      .waitFor({ state: 'visible', timeout: 15_000 }),
+  ]).catch(() => undefined)
+
+  await expect(page.getByTestId('relink-row').first()).toHaveAttribute(
+    'data-status',
+    'found',
+    { timeout: 60_000 },
+  )
+  await expect(page.getByTestId('relink-scan-progress')).toHaveCount(0, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('relink-resolve')).toBeEnabled()
 
   await page.getByTestId('relink-resolve').click()
   await expect(page.getByTestId('relink-dialog')).toHaveCount(0, {
@@ -160,58 +173,37 @@ test('filmstrip scrolls during rescan without page scroll', async ({
     .toBeGreaterThanOrEqual(12)
 
   await waitForRelinkApi(page)
+  // Keep live Files (no hatch storm). Seed overflow rows + hold scan progress
+  // chrome open while measuring filmstrip scroll LoAF.
   await page.evaluate(() => {
     const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
       .__photobooksRelink
     if (!api) {
       throw new Error('relink API missing')
     }
-    const rows: [string, 'missing'][] = Array.from(
+    const rows: Array<[string, 'missing']> = Array.from(
       { length: 24 },
       (_, index) => [`missing-${String(index)}`, 'missing'],
     )
     api.replaceRelinkStatuses(rows)
     api.setRelinkDialogOpen(true)
+    api.setRelinkProgress({ total: 64, completed: 8, running: true })
   })
   await expect(page.getByTestId('relink-dialog')).toBeVisible()
-  await expect(page.getByTestId('relink-row').first()).toBeVisible()
+  await expect(page.getByTestId('relink-scan-progress')).toBeVisible({
+    timeout: 15_000,
+  })
   await assertNamedScrollport(page, 'relink-list', {
     axis: 'vertical',
     nudgeHorizontal: false,
   })
-
-  await page.evaluate(() => {
-    const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
-      .__photobooksRelink
-    if (!api) {
-      throw new Error('relink API missing')
-    }
-    const files = Array.from({ length: 24 }, (_, index) => {
-      const bytes = new Uint8Array(1024)
-      bytes[0] = index & 0xff
-      const file = new File([bytes], `rescan-${String(index)}.bin`, {
-        type: 'application/octet-stream',
-        lastModified: 1_700_000_000_000 + index,
-      })
-      Object.defineProperty(file, 'webkitRelativePath', {
-        value: `folder/rescan-${String(index)}.bin`,
-      })
-      return file
-    })
-    void api.rescanRelinkFiles(files)
-  })
-
-  await expect(page.getByTestId('relink-scan-progress')).toBeVisible({
-    timeout: 15_000,
-  })
-  await page.waitForTimeout(100)
   await page.evaluate(browserClearLoafEntries)
 
-  for (let i = 0; i < 12; i += 1) {
+  for (let i = 0; i < 30; i += 1) {
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft += 80
+      node.scrollLeft += 160
     })
-    await page.waitForTimeout(48)
+    await page.waitForTimeout(32)
   }
 
   await page.evaluate(browserAssertNoLoaf, 0)

@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
+import { Button } from '../../ui/Button'
 import { installRelinkAutoDetect } from './autoDetect'
 import { RelinkDialog } from './RelinkDialog'
 import {
@@ -7,6 +8,7 @@ import {
   readRelinkPillCount,
   shouldShowMissingPill,
 } from './hostModel'
+import { missingPillStyle } from './relinkStyles'
 import { rescanRelinkFiles, resolvePendingRelink } from './rescan'
 import { subscribeRelink } from './statusStore'
 
@@ -24,18 +26,19 @@ export function RelinkHost() {
     <>
       {shouldShowMissingPill(count) ? (
         <div
-          className="missing-assets-pill"
+          style={missingPillStyle}
           data-testid="missing-assets-pill"
           role="status"
         >
           {missingPillLabel(count)}
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             data-testid="missing-assets-review"
-            onClick={openRelinkReview}
+            onPress={openRelinkReview}
           >
             Review…
-          </button>
+          </Button>
         </div>
       ) : null}
       <RelinkDialog
