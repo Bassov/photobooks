@@ -71,6 +71,60 @@ export function findCssTokenViolations(file, css) {
 }
 
 /**
+ * Light-theme `--muted-foreground` must stay ≥ WCAG AA on `--muted` (`#f4f2ef`).
+ * Locked to the hex used by `src/ui/tokens.css` / axe contrast gate.
+ */
+export const MUTED_FOREGROUND_LIGHT_AA = '#6a6761'
+
+/**
+ * Read the first `--muted-foreground:` hex from a CSS string (Theme B light block).
+ * @param {string} css
+ * @returns {string | null}
+ */
+export function readMutedForegroundLight(css) {
+  const body = stripComments(css)
+  const m = /--muted-foreground\s*:\s*(#[0-9a-fA-F]{3,8})\b/.exec(body)
+  return m ? m[1].toLowerCase() : null
+}
+
+/**
+ * @param {string} [root]
+ * @returns {{ file: string, rule: string, match: string }[]}
+ */
+export function checkMutedForegroundAa(root = ROOT) {
+  const tokensPath = path.join(root, 'src', 'ui', 'tokens.css')
+  if (!fs.existsSync(tokensPath)) {
+    return [
+      {
+        file: 'src/ui/tokens.css',
+        rule: 'muted-foreground-aa',
+        match: 'missing tokens.css',
+      },
+    ]
+  }
+  const hex = readMutedForegroundLight(fs.readFileSync(tokensPath, 'utf8'))
+  if (hex == null) {
+    return [
+      {
+        file: 'src/ui/tokens.css',
+        rule: 'muted-foreground-aa',
+        match: 'missing --muted-foreground',
+      },
+    ]
+  }
+  if (hex !== MUTED_FOREGROUND_LIGHT_AA) {
+    return [
+      {
+        file: 'src/ui/tokens.css',
+        rule: 'muted-foreground-aa',
+        match: `expected ${MUTED_FOREGROUND_LIGHT_AA}, got ${hex}`,
+      },
+    ]
+  }
+  return []
+}
+
+/**
  * @param {string} [root]
  */
 export function checkCssTokens(root = ROOT) {
@@ -87,6 +141,7 @@ export function checkCssTokens(root = ROOT) {
       })
     }
   }
+  violations.push(...checkMutedForegroundAa(root))
   return violations
 }
 
