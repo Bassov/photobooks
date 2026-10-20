@@ -30,7 +30,7 @@ export function seedAndHashEntry(options: {
   memorySource: MemoryAssetSource
   /** When set, skip a second body read. */
   bytes?: ArrayBuffer
-  /** When set, seed only (skip hashContent, patchAssetRecord, and cache puts). */
+  /** When set, skip hashContent and patch/put caches for this hash. */
   contentHash?: string
 }): Promise<void> {
   const {
@@ -46,11 +46,7 @@ export function seedAndHashEntry(options: {
     preloaded !== undefined ? Promise.resolve(preloaded) : file.arrayBuffer()
   return load.then((bytes) => {
     memorySource.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
-    // Known hash (reused library asset): seed only — decode/`setThumbUrl`
-    // already writes DerivedCache; re-hash + patch would no-op churn + OPFS.
-    if (knownHash !== undefined) {
-      return
-    }
+    if (knownHash !== undefined) return
     if (typeof Worker === 'undefined') {
       return
     }

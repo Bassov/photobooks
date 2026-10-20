@@ -13,6 +13,7 @@ import {
   isNetworkError,
   runCodecovYmlCli,
   shouldValidateCodecovYmlRemote,
+  CODECOV_VALIDATE_TIMEOUT_MS,
   validateCodecovYml,
   validateCodecovYmlLocal,
 } from './check-codecov-yml.mjs'
@@ -33,6 +34,10 @@ describe('findUnknownTopLevelKeys', () => {
 })
 
 describe('isNetworkError', () => {
+  it('exports a positive validate timeout', () => {
+    expect(CODECOV_VALIDATE_TIMEOUT_MS).toBeGreaterThan(0)
+  })
+
   it('detects fetch TypeError', () => {
     const err = new TypeError('fetch failed')
     expect(isNetworkError(err)).toBe(true)

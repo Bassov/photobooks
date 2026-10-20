@@ -30,20 +30,16 @@ export const PINNED_TOP_LEVEL_KEYS = Object.freeze([
 ])
 
 const VALIDATE_URL = 'https://api.codecov.io/validate'
+export const CODECOV_VALIDATE_TIMEOUT_MS = 2500
 
 /**
  * @param {unknown} err
  * @returns {boolean}
  */
-/** Default Codecov validate fetch timeout (ms). */
-export const CODECOV_VALIDATE_TIMEOUT_MS = 2500
-
 export function isNetworkError(err) {
   if (!err || typeof err !== 'object') return false
   const e = /** @type {any} */ (err)
-  if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-    return true
-  }
+  if (e.name === 'TimeoutError' || e.name === 'AbortError') return true
   if (
     e.name === 'TypeError' &&
     /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT|abort/i.test(String(e.message))
@@ -161,12 +157,13 @@ export async function validateCodecovYml(yamlText, opts = {}) {
   const url = opts.validateUrl == null ? VALIDATE_URL : opts.validateUrl
   const timeoutMs =
     opts.timeoutMs == null ? CODECOV_VALIDATE_TIMEOUT_MS : opts.timeoutMs
+  const signal = AbortSignal.timeout(timeoutMs)
   try {
     const res = await fetchImpl(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: yamlText,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal,
     })
     const raw = await res.text()
     const body = String(raw).trim()
