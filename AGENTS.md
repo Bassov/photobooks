@@ -34,7 +34,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `/next-roadmap-item`          | one roadmap item end to end (unattended)                                       |
 | `pnpm roadmap`                | roadmap CLI: `next` / `show` / `add` / `done` / `check`                        |
 | `pnpm agent`                  | `preflight` / `finish` / `review-brief` / `instructions` / `archive` / `stats` |
-| `pnpm check`                  | deterministic gates (fail-all, compact OK lines)                               |
+| `pnpm check`                  | deterministic gates incl. patch-coverage + line-scoped stryker:diff (pre-push) |
 | `pnpm verify`                 | `pnpm check` + Playwright                                                      |
 | `pnpm test:e2e:changed:quiet` | changed e2e specs only (burn-in targets), quiet                                |
 | `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)                          |

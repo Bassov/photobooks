@@ -102,6 +102,10 @@
       {
         "name": "patch-coverage",
         "argv": ["pnpm", "exec", "ts-rig-gate", "patch-coverage"]
+      },
+      {
+        "name": "stryker-diff",
+        "argv": ["pnpm", "stryker:diff"]
       }
     ],
     "optional": [

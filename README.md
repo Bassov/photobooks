@@ -46,7 +46,7 @@ pnpm dev
 | `pnpm test:e2e:quiet`    | Playwright with dot reporter                             |
 | `pnpm bench`             | Vitest benchmarks                                        |
 
-Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm verify:fast` (Playwright e2e stays in CI).
+Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm verify:fast` / `pnpm check` (unit + patch-coverage + line-scoped `stryker:diff`; Playwright e2e stays in CI).
 
 ## OpenSpec
 
