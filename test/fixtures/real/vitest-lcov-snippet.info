@@ -1,0 +1,7 @@
+# captured: pnpm exec vitest run --coverage --reporter=dot scripts/load-gates.test.mjs 2026-10-20
+TN:
+SF:scripts/load-gates.mjs
+DA:1,1
+DA:2,1
+DA:3,0
+end_of_record

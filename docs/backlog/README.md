@@ -32,3 +32,5 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipel
 | [`exclusions-registry`](exclusions-registry.md)               | only non-production code can be excluded (issue #72 J, A)                         | M2.1               | pipeline-gates opt §3.1         |
 | [`pr-metrics-autogen`](pr-metrics-autogen.md)                 | PR metrics come from CI, never typed by hand (PR #81, #82 stale numbers)          | M2.1               | pipeline-gates opt §3.1         |
 | [`no-untested-branches`](no-untested-branches.md)             | unreachable code is deleted, not defended (dead/defensive code finding)           | M2.1               | pipeline-gates opt §3.1         |
+| [`diff-size-check`](diff-size-check.md)                       | size limit on an item's initial scope; review fixes warn only (issue #72 H)       | M2.1               | pipeline-gates opt §3.2         |
+| [`pr-body-check`](pr-body-check.md)                           | machine-checked PR body: verdicts, dispositions, scenarios (issue #72 G)          | M2.1               | pipeline-gates opt §3.2         |

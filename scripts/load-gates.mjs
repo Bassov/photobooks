@@ -46,7 +46,7 @@ export function validateGates(raw, pathLabel = GATES_RELATIVE_PATH) {
     throw new Error(`${pathLabel} coverage must be an object`)
   }
   const cov = /** @type {Record<string, unknown>} */ (coverage)
-  for (const key of ['statements', 'branches', 'functions', 'lines']) {
+  for (const key of ['statements', 'branches', 'functions', 'lines', 'patch']) {
     assertNonNegInt(cov[key], `${pathLabel} coverage.${key}`)
   }
 

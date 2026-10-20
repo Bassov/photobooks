@@ -212,6 +212,11 @@ const GATES_NUMERIC = [
     label: 'coverage.lines',
   },
   {
+    path: ['coverage', 'patch'],
+    dir: NEEDLES.higherStricter,
+    label: 'coverage.patch',
+  },
+  {
     path: ['stryker', 'thresholds', 'high'],
     dir: NEEDLES.higherStricter,
     label: 'stryker.thresholds.high',

@@ -24,10 +24,26 @@ const CORE_CHECKS = [
   { name: 'git-test-isolation', argv: ['pnpm', 'git-test-isolation'] },
   // Direct roadmap.mjs + INNER env avoids double-wrap via `pnpm roadmap check`.
   { name: 'roadmap', argv: ['pnpm', '-s', 'roadmap', 'check'] },
-  // Direct vitest — `pnpm test:quiet` is itself a --run wrapper.
+  // Direct vitest with coverage so patch-coverage can read lcov.
   {
     name: 'unit',
-    argv: ['pnpm', 'exec', 'vitest', 'run', '--reporter=dot', '--silent'],
+    argv: [
+      'pnpm',
+      'exec',
+      'vitest',
+      'run',
+      '--coverage',
+      '--reporter=dot',
+      '--silent',
+    ],
+  },
+]
+
+/** Sequenced after unit (needs coverage/lcov.info). */
+export const SEQUENTIAL_AFTER_UNIT = [
+  {
+    name: 'patch-coverage',
+    argv: ['node', 'scripts/check-patch-coverage.mjs'],
   },
 ]
 
@@ -311,6 +327,34 @@ export async function runChecks(opts = {}) {
       }),
     ),
   )
+
+  const exists = opts.existsSync ?? fs.existsSync
+  if (!opts.skipUnit) {
+    for (const check of SEQUENTIAL_AFTER_UNIT) {
+      const scriptRel =
+        check.name === 'patch-coverage'
+          ? 'scripts/check-patch-coverage.mjs'
+          : null
+      if (scriptRel && !exists(path.join(root, scriptRel))) continue
+      const argv = scriptRel
+        ? [process.execPath, path.join(root, scriptRel)]
+        : check.argv
+      results.push(
+        await runOneCheck({
+          name: check.name,
+          argv,
+          root,
+          verbose,
+          env: opts.env,
+          spawnImpl: opts.spawnImpl,
+          mkdirSync: opts.mkdirSync,
+          writeFileSync: opts.writeFileSync,
+          now: opts.now,
+          write: opts.write,
+        }),
+      )
+    }
+  }
 
   const failed = results.filter((r) => !r.ok)
   return {

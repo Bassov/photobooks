@@ -113,7 +113,13 @@ export const FIXTURE_IDS = Object.freeze([\n${q(fixtureIds)}\n])
 }
 
 const baseGates = {
-  coverage: { statements: 80, branches: 80, functions: 80, lines: 80 },
+  coverage: {
+    statements: 80,
+    branches: 80,
+    functions: 80,
+    lines: 80,
+    patch: 85,
+  },
   stryker: {
     thresholds: { high: 80, low: 60, break: 60 },
     diffThresholds: { high: 90, low: 85, break: 85 },

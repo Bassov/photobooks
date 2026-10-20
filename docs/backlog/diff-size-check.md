@@ -17,3 +17,5 @@ Title: size limit on an item's initial scope; review fixes warn only (issue #72 
 - **Done when:** a proposal estimating 1600 lines fails `pnpm agent size --plan`; a PR opened at the size of PR #71 fails `pr-policy` and stays red after more commits; a 1400-line initial push followed by 600 lines of review fixes in the same PR passes with a total-size warning; a force-push that drops the initial head fails; a PR opened with unticked implementation tasks fails.
 - **Size:** ~700 changed lines (target ~1000, max 1500 incl. tests)
 - **Source:** #72 H; owner decision 18.10.2026
+
+- **Reason:** Folded local diff-size into agent-self-check (pipeline-gates opt §3.2, owner 2026-10-20).

@@ -79,14 +79,18 @@ function fakeSpawnByCheckName(byName) {
                         : args.includes('test:quiet') || args.includes('vitest')
                           ? 'unit'
                           : args.some((a) =>
-                                String(a).includes('check-diff-size'),
+                                String(a).includes('check-patch-coverage'),
                               )
-                            ? 'diff-size'
+                            ? 'patch-coverage'
                             : args.some((a) =>
-                                  String(a).includes('check-pr-body'),
+                                  String(a).includes('check-diff-size'),
                                 )
-                              ? 'pr-body'
-                              : 'unknown'
+                              ? 'diff-size'
+                              : args.some((a) =>
+                                    String(a).includes('check-pr-body'),
+                                  )
+                                ? 'pr-body'
+                                : 'unknown'
     const res = byName[key] ?? { code: 0, stdout: '', stderr: '' }
     queueMicrotask(() => {
       if (res.stdout) ee.stdout.emit('data', res.stdout)

@@ -13,3 +13,5 @@ Title: machine-checked PR body: verdicts, dispositions, scenarios (issue #72 G)
 - **Done when:** a PR body with a missing verdict, a `fix` verdict, a verdict on an older SHA than the last code commit, or a scenario without an expected result fails `pr-policy`; a complete body passes; a body that ticks a roadmap box without a proof line (repro of #110 r1: `Status: done`, all boxes ticked, proofs left to reviewer) fails `pr-policy`, and the same body with proof lines passes.
 - **Size:** ~600 changed lines (target ~1000, max 1500 incl. tests)
 - **Source:** #72 G; PR #76 F7; review findings #96 r1, #97 r1+r2, #110 r1 (done-criteria honesty; owner decision 2026-10-19)
+
+- **Reason:** Folded lightweight checks into agent-self-check (pipeline-gates opt §3.2, owner 2026-10-20).

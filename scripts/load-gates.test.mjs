@@ -7,6 +7,7 @@ const validGates = {
     branches: 80,
     functions: 80,
     lines: 80,
+    patch: 85,
   },
   stryker: {
     thresholds: { high: 80, low: 60, break: 60 },
