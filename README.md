@@ -39,7 +39,7 @@ pnpm dev
 | `pnpm test:e2e`          | Playwright                                               |
 | `pnpm test:lhci`         | Build + Lighthouse CI (`budget.json`)                    |
 | `pnpm stryker`           | Full mutation testing                                    |
-| `pnpm stryker:diff`      | Mutations since `origin/main`                            |
+| `pnpm stryker:diff`      | Mutations on changed line ranges vs `origin/main`        |
 | `pnpm verify:fast`       | typecheck + lint + deps + knip + mutation-scope + vitest |
 | `pnpm verify:fast:quiet` | verify:fast with quiet vitest reporter                   |
 | `pnpm verify`            | verify:fast + Playwright                                 |

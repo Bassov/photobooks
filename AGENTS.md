@@ -38,7 +38,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `pnpm verify`                 | `pnpm check` + Playwright                                                      |
 | `pnpm test:e2e:changed:quiet` | changed e2e specs only (burn-in targets), quiet                                |
 | `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)                          |
-| `pnpm stryker:diff`           | mutations vs `origin/main`                                                     |
+| `pnpm stryker:diff`           | mutations on changed line ranges vs `origin/main`                              |
 | `pnpm test:lhci`              | Lighthouse budgets                                                             |
 | `pnpm audit:ci`               | high-severity **production** dependency audit                                  |
 | `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo dev (`uikit/` at `/uikit/`)            |
