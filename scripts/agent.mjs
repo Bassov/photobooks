@@ -4,8 +4,17 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { readReviewChecklistIds } from './review-checklist.mjs'
+import { runQualitySelfCheck } from './quality-self-check.mjs'
+import {
+  checkPlanSize,
+  computeDiffSize,
+  DIFF_SIZE_MAX,
+} from './check-diff-size.mjs'
 
 const nodeRequire = createRequire(import.meta.url)
+
+export { readReviewChecklistIds }
 
 export class AgentError extends Error {
   constructor(msg, code = 2) {
@@ -37,7 +46,7 @@ export function tailOutput(stdout, stderr, n = 60) {
   return lines.slice(-n).join('\n')
 }
 
-const BOOL = new Set(['json', 'quiet', 'help'])
+const BOOL = new Set(['json', 'quiet', 'help', 'plan'])
 const VALUE = new Set([
   'root',
   'change',
@@ -48,6 +57,7 @@ const VALUE = new Set([
   'slug',
   'base',
   'out',
+  'base-url',
 ])
 
 /** ≤10-line apply/archive procedure embedded in the preflight run card. */
@@ -129,8 +139,10 @@ export function parseArgs(argv) {
 
 const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
   preflight [--slug S] [--skip a,b]   env + roadmap next (+ branch from origin/main); run card
-  finish --title T --body-file F   push (pre-push pnpm check once; ≤2/branch) → PR (no CI watch)
+  finish --title T --body-file F   self-check → push (pre-push pnpm check; ≤2/branch) → PR
   review-brief [--change S] [--base REF] [--rules-json '[…]'] [--out FILE]   reviewer brief
+  size [--plan] [--change S]   plan estimate / merge-base..HEAD changed lines
+  manual-qa [--change S] [--base-url U]   headless Playwright smoke (composer-2.5 subagent)
   instructions <artifact> [--change S]   template + rules for one artifact
   stats <path>   per-round tokens; exit 1 if peak>300K or first input>400K
   help
@@ -1205,34 +1217,6 @@ export function switchFeatureBranch(
   reuseExistingFeatureBranch(exec, cwd, env, quiet, branch, sw)
 }
 
-/**
- * Ids from quality/review-checklist.md when present (no full prose).
- * Recognizes list rows whose first token is a kebab id (optionally backticked).
- */
-export function readReviewChecklistIds(root, readFile = fs.readFileSync) {
-  const file = path.join(root, 'quality', 'review-checklist.md')
-  if (!fs.existsSync(file)) return []
-  let text = ''
-  try {
-    text = readFile(file, 'utf8')
-  } catch {
-    return []
-  }
-  const ids = []
-  const seen = new Set()
-  for (const line of String(text).split('\n')) {
-    const m =
-      /^\s*[-*]\s+(?:\[[ xX]\]\s+)?`([a-z][a-z0-9-]*)`/.exec(line) ||
-      /^\s*[-*]\s+(?:\[[ xX]\]\s+)?([a-z][a-z0-9-]*)\s*[:—-]/.exec(line)
-    if (!m) continue
-    const id = m[1]
-    if (seen.has(id)) continue
-    seen.add(id)
-    ids.push(id)
-  }
-  return ids
-}
-
 /** Compact pre-push / pnpm check failure lines from push output. */
 export function summarizePushFailure(stdout, stderr) {
   const combined = stripAnsi(`${stdout ?? ''}\n${stderr ?? ''}`)
@@ -1595,6 +1579,36 @@ export function cmdFinish(o, deps) {
     }
   }
 
+  // Deterministic checklist before first/fix push (patch coverage stays in pnpm check / pre-push).
+  // Under Vitest, skip unless the test injects runQualitySelfCheck (keeps finish unit tests focused).
+  const inVitest =
+    env.VITEST === 'true' ||
+    env.VITEST === '1' ||
+    process.env.VITEST === 'true' ||
+    process.env.VITEST === '1'
+  const selfCheck =
+    deps.runQualitySelfCheck ?? (inVitest ? () => 0 : runQualitySelfCheck)
+  const selfLines = []
+  const bodyPath = o['body-file']
+    ? path.resolve(cwd, o['body-file'])
+    : undefined
+  const selfCode = selfCheck({
+    root,
+    bodyPath: bodyPath && fs.existsSync(bodyPath) ? bodyPath : undefined,
+    changeSlug: slugFromBranch(branch),
+    write: (s) => selfLines.push(String(s).replace(/\n$/, '')),
+  })
+  if (selfCode !== 0) {
+    return {
+      ok: false,
+      stage: 'self-check',
+      pushAttempts: prior,
+      branch,
+      ahead,
+      summary: selfLines.join('\n') || 'quality:self-check failed',
+    }
+  }
+
   // Merge origin/main when HEAD is behind before push; on non-FF reject, merge and retry once.
   try {
     mergeOriginMainIfNeeded(exec, root, cwd, env, quiet)
@@ -1865,6 +1879,7 @@ export function cmdReviewBrief(o, deps) {
     .filter(Boolean)
     .join('\n')
 
+  const checklistIds = readReviewChecklistIds(root)
   const brief = {
     slug,
     changePath,
@@ -1872,6 +1887,7 @@ export function cmdReviewBrief(o, deps) {
     rulesNote: rules.length
       ? null
       : 'pass --rules-json from openspec instructions',
+    checklistIds,
     base,
     mergeBase,
     diffStat: statBits || '(empty)',
@@ -1927,6 +1943,71 @@ export function cmdStats(o, deps) {
   return {
     ok: statsExitCode(summary) === 0,
     ...summary,
+  }
+}
+
+export function cmdSize(o, deps) {
+  const { root, cwd, env, exec, quiet } = deps
+  let slug = o.change
+  if (!slug) {
+    const br = mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current']),
+      'git branch',
+    )
+    slug = slugFromBranch(br.stdout.trim())
+  }
+  if (o.plan) {
+    const plan = checkPlanSize({ root, changeSlug: slug })
+    return {
+      ok: plan.ok || Boolean(plan.skipped),
+      mode: 'plan',
+      slug,
+      total: plan.total,
+      max: DIFF_SIZE_MAX,
+      skipped: Boolean(plan.skipped),
+      summary: plan.reason || `plan size ${plan.total} ≤ ${DIFF_SIZE_MAX}`,
+    }
+  }
+  const size = computeDiffSize({ root })
+  return {
+    ok: size.ok,
+    mode: 'diff',
+    slug,
+    lines: size.lines,
+    max: size.max,
+    warnAt: size.warnAt,
+    summary: size.reason || `${size.lines} changed lines (max ${size.max})`,
+  }
+}
+
+export function cmdManualQa(o, deps) {
+  const { root, cwd, env, exec, quiet } = deps
+  let slug = o.change
+  if (!slug) {
+    try {
+      const br = mustOk(
+        sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current']),
+        'git branch',
+      )
+      slug = slugFromBranch(br.stdout.trim())
+    } catch {
+      slug = undefined
+    }
+  }
+  const args = [path.join(root, 'scripts', 'manual-qa.mjs')]
+  if (slug) args.push('--change', slug)
+  if (o['base-url']) args.push('--base-url', o['base-url'])
+  const r = sh(exec, cwd, env, quiet, process.execPath, args)
+  const text = `${r.stdout}\n${r.stderr}`.trim()
+  const lines = text
+    .split('\n')
+    .map((l) => l.trimEnd())
+    .filter((l) => l.trim().length > 0)
+  return {
+    ok: r.code === 0,
+    slug,
+    lines,
+    summary: lines.join('\n'),
   }
 }
 
@@ -2028,6 +2109,7 @@ function fmtBrief(r) {
     `mergeBase: ${r.mergeBase}`,
     `rules: ${JSON.stringify(r.rules)}`,
     `rulesNote: ${r.rulesNote}`,
+    `checklistIds: ${(r.checklistIds ?? []).join(',')}`,
     '--- diff --stat ---',
     String(r.diffStat),
     `touchNote: ${r.touchNote}`,
@@ -2040,6 +2122,21 @@ function fmtBrief(r) {
     '--- outsideTouchSet stat ---',
     String(r.outsideDiff),
   ].join('\n')
+}
+
+function fmtSize(r) {
+  return [
+    `ok: ${r.ok}`,
+    `mode: ${r.mode}`,
+    `slug: ${r.slug}`,
+    r.mode === 'plan' ? `total: ${r.total}` : `lines: ${r.lines}`,
+    `max: ${r.max}`,
+    `summary: ${r.summary}`,
+  ].join('\n')
+}
+
+function fmtManualQa(r) {
+  return [`ok: ${r.ok}`, `slug: ${r.slug}`, ...r.lines].join('\n')
 }
 
 export function run(argv, deps = {}) {
@@ -2057,7 +2154,7 @@ export function run(argv, deps = {}) {
     if (o._.length > 1 && !allowsArg) fail(`unexpected argument: ${o._[1]}`)
     if (o._.length > 2) fail(`unexpected argument: ${o._[2]}`)
     const root = path.resolve(cwd, o.root ?? '.')
-    const d = { root, cwd, env, exec, quiet }
+    const d = { ...deps, root, cwd, env, exec, quiet }
     let r
     let code = 0
     switch (cmd) {
@@ -2070,6 +2167,14 @@ export function run(argv, deps = {}) {
         break
       case 'review-brief':
         r = cmdReviewBrief(o, d)
+        break
+      case 'size':
+        r = cmdSize(o, d)
+        code = r.ok ? 0 : 1
+        break
+      case 'manual-qa':
+        r = cmdManualQa(o, d)
+        code = r.ok ? 0 : 1
         break
       case 'instructions':
         r = cmdInstructions(o, d)
@@ -2091,7 +2196,11 @@ export function run(argv, deps = {}) {
             ? fmtInstructions(r)
             : cmd === 'stats'
               ? fmtStats(r)
-              : fmtBrief(r)
+              : cmd === 'size'
+                ? fmtSize(r)
+                : cmd === 'manual-qa'
+                  ? fmtManualQa(r)
+                  : fmtBrief(r)
     return { code, out }
   } catch (e) {
     if (!(e instanceof AgentError)) throw e

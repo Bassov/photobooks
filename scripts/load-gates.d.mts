@@ -6,6 +6,7 @@ export interface Gates {
     branches: number
     functions: number
     lines: number
+    patch: number
   }
   stryker: {
     thresholds: {

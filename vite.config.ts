@@ -85,7 +85,12 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'json-summary'],
       include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
       exclude: [...coverageExcludeGlobs],
-      thresholds: gates.coverage,
+      thresholds: {
+        statements: gates.coverage.statements,
+        branches: gates.coverage.branches,
+        functions: gates.coverage.functions,
+        lines: gates.coverage.lines,
+      },
     },
     benchmark: {
       include: ['src/**/*.{bench,benchmark}.{ts,tsx}'],

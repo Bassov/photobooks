@@ -14,6 +14,7 @@ export const CONSUMER_RELATIVE_PATHS = [
   'scripts/e2e-burn-in-count.mjs',
   'scripts/e2e-flaky-list.mjs',
   'scripts/load-gates.mjs',
+  'scripts/check-patch-coverage.mjs',
 ]
 
 export const WORKFLOW_RELATIVE_PATH = '.github/workflows/integration.yml'

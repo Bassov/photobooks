@@ -3,7 +3,8 @@
     "statements": 80,
     "branches": 80,
     "functions": 80,
-    "lines": 80
+    "lines": 80,
+    "patch": 85
   },
   "stryker": {
     "thresholds": {
@@ -121,6 +122,11 @@
         "path": ".cursor/agents/openspec-planning-reviewer.md",
         "maxLines": 70,
         "maxChars": 4509
+      },
+      {
+        "path": ".cursor/agents/manual-qa.md",
+        "maxLines": 40,
+        "maxChars": 2500
       },
       {
         "path": ".cursor/commands/next-roadmap-item.md",

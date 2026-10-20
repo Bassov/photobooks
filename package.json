@@ -47,6 +47,8 @@
     "agent": "node scripts/agent-cli.mjs",
     "audit:ci": "pnpm audit --audit-level=high --prod",
     "check": "node scripts/check.mjs",
+    "quality:self-check": "node scripts/quality-self-check.mjs",
+    "patch-coverage": "node scripts/check-patch-coverage.mjs",
     "verify:fast": "pnpm check",
     "verify:fast:quiet": "pnpm check",
     "verify": "pnpm check && pnpm test:e2e",

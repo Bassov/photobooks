@@ -152,6 +152,8 @@ const HELP_SNIPPETS = [
   'preflight [--slug S] [--skip a,b]',
   'finish --title T --body-file F',
   'review-brief [--change S] [--base REF] [--rules-json',
+  'size [--plan]',
+  'manual-qa',
   'instructions <artifact>',
   'stats <path>',
   'source scripts/agent-env.sh',
@@ -2549,7 +2551,7 @@ describe('review-brief', () => {
     })
     expect(b2.code).toBe(0)
     expect(b2.out).toMatch(
-      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\n--- diff --stat ---\n/,
+      /^slug: missing\nchangePath: openspec\/changes\/missing\nbase: HEAD\nmergeBase: [0-9a-f]{40}\nrules: \[\]\nrulesNote: pass --rules-json from openspec instructions\nchecklistIds: \n--- diff --stat ---\n/,
     )
     expect(b2.out).toContain(
       'design.md missing; treating all paths as outside touch-set',
