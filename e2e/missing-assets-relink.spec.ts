@@ -144,28 +144,17 @@ test('filmstrip scrolls during rescan without page scroll', async ({
     .toBeGreaterThanOrEqual(12)
 
   await waitForRelinkApi(page)
+  // Keep live Files (no hatch paint storm); open dialog + scan progress only.
   await page.evaluate(() => {
     const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
       .__photobooksRelink
     if (!api) {
       throw new Error('relink API missing')
     }
-    api.clearLiveAssetSources()
-    api.detectMissingAssets({ openDialog: true })
-  })
-  await expect(page.getByTestId('relink-dialog')).toBeVisible()
-  await expect(page.getByTestId('relink-row').first()).toBeVisible()
-
-  // Hold the scan-progress chrome open (rAF-batched store) while scrolling —
-  // mirrors the filmstrip import LoAF window without main-thread seed/hash.
-  await page.evaluate(() => {
-    const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
-      .__photobooksRelink
-    if (!api) {
-      throw new Error('relink API missing')
-    }
+    api.setRelinkDialogOpen(true)
     api.setRelinkProgress({ total: 64, completed: 8, running: true })
   })
+  await expect(page.getByTestId('relink-dialog')).toBeVisible()
   await expect(page.getByTestId('relink-scan-progress')).toBeVisible({
     timeout: 15_000,
   })
