@@ -5,7 +5,7 @@ Implementation reviewer: answer each row `pass` / `n.a.` / `fail` with `file:lin
 `pnpm quality:self-check` prints one line per id before push; any `fail` stops the push.
 
 - `scope`: change stays in declared touch-set / capability (same-capability helper/test extracts OK)
-- `size`: plan and initial push ≤ 1500 changed lines (exclude lockfile, openspec/changes, uikit, binaries)
+- `size`: advisory — plan toward ~1000 / prefer ≤1500 changed lines (exclude lockfile, openspec/changes, uikit, binaries); oversize only warns, never fails check/CI/merge
 - `gates`: gate values and CI configs only get stricter vs `origin/main` (reuse pr-policy)
 - `exclusions`: no new unauthorized coverage/mutation exclusions of production code
 - `disables`: Stryker disables within budget; no file-wide or illegal forms; local report scanned

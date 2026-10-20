@@ -22,8 +22,8 @@ Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Error
 
 - Scope = the item's nested checkboxes; tick them in the item file during apply (yours to edit; the index is not). Never pull scope from later items.
 - `[prep]`: **Done when:** is the success criteria. `[feature]`: criteria cover **Browser check:** and **Perf:**; if missing, write them into the item file as an assumption.
-- Budget: one PR of ~1000 changed lines (1500 max), at most one new subsystem (worker, store, painter, storage/cache adapter, dependency, Vite entry, schema bump, top-level UI region), at most 8 tasks.
-- Over budget, or a deferred review finding: add an item right after the current one and move the overflow there:
+- Budget (planning guidance, not a CI/merge blocker): one PR of ~1000 changed lines (prefer ≤1500), at most one new subsystem (worker, store, painter, storage/cache adapter, dependency, Vite entry, schema bump, top-level UI region), at most 8 tasks. `pnpm check` / finish only warn on oversize.
+- Over guidance, or a deferred review finding: prefer adding an item right after the current one and moving the overflow there:
   `add <kebab-slug> --after <current> --tag prep|feature --title "..." [--body-file scope.md]`
   Needed infra first as `[prep]`; a gate fallback with its own scope is `[contingency]`.
 

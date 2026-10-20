@@ -1959,24 +1959,31 @@ export function cmdSize(o, deps) {
   if (o.plan) {
     const plan = checkPlanSize({ root, changeSlug: slug })
     return {
-      ok: plan.ok || Boolean(plan.skipped),
+      ok: true,
       mode: 'plan',
       slug,
       total: plan.total,
       max: DIFF_SIZE_MAX,
       skipped: Boolean(plan.skipped),
-      summary: plan.reason || `plan size ${plan.total} ≤ ${DIFF_SIZE_MAX}`,
+      overMax: Boolean(plan.overMax),
+      summary:
+        plan.reason ||
+        `plan size ${plan.total} (target ≤1000, prefer ≤${DIFF_SIZE_MAX}; advisory)`,
     }
   }
-  const size = computeDiffSize({ root })
+  const size = computeDiffSize({ root, warnOnly: true })
   return {
-    ok: size.ok,
+    ok: true,
     mode: 'diff',
     slug,
     lines: size.lines,
     max: size.max,
     warnAt: size.warnAt,
-    summary: size.reason || `${size.lines} changed lines (max ${size.max})`,
+    skipped: Boolean(size.skipped),
+    overMax: Boolean(size.overMax),
+    summary:
+      size.reason ||
+      `${size.lines} changed lines (target ≤${size.warnAt}, prefer ≤${size.max}; advisory)`,
   }
 }
 

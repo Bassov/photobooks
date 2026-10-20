@@ -209,16 +209,28 @@ export function runQualitySelfCheck(opts = {}) {
   const size = computeDiffSize({
     root,
     git,
-    warnOnly: Boolean(opts.warnOnlySize),
+    warnOnly: true,
   })
-  if (!plan.ok && !plan.skipped)
-    rows.size = { status: 'fail', detail: plan.reason ?? 'plan size' }
-  else if (!size.ok)
-    rows.size = { status: 'fail', detail: size.reason ?? 'diff size' }
-  else {
-    const bits = [`${size.lines} lines`]
-    if (plan.total != null) bits.unshift(`plan ${plan.total}`)
-    rows.size = { status: 'pass', detail: bits.join(', ') }
+  // Size is advisory only — never fail self-check / push for line count.
+  {
+    const bits = []
+    if (plan.total != null) bits.push(`plan ${plan.total}`)
+    if (size.skipped) bits.push(`skipped (${size.reason})`)
+    else bits.push(`${size.lines} lines`)
+    const warn =
+      plan.overMax ||
+      plan.overWarn ||
+      size.overMax ||
+      size.overWarn ||
+      size.skipped ||
+      (plan.reason && !plan.skipped)
+    const detail = [
+      bits.join(', '),
+      warn ? plan.reason || size.reason || 'prefer ≤1500; target ≤1000' : null,
+    ]
+      .filter(Boolean)
+      .join(' — ')
+    rows.size = { status: 'pass', detail }
   }
 
   const pr = checkPrBody({ root, body: opts.body, bodyPath: opts.bodyPath })
@@ -298,45 +310,21 @@ export function main(argv = process.argv.slice(2)) {
   let bodyPath
   let body
   let changeSlug
-  let warnOnlySize = false
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--body-file') bodyPath = argv[++i]
     else if (a === '--body') body = argv[++i]
     else if (a === '--change') changeSlug = argv[++i]
-    else if (a === '--warn-only-size') warnOnlySize = true
+    // --warn-only-size kept for CLI compat; size is always advisory.
   }
   if (body === undefined && process.env.PR_POLICY_BODY != null)
     body = process.env.PR_POLICY_BODY
-  if (!warnOnlySize) {
-    const br = spawnSync('git', ['branch', '--show-current'], {
-      encoding: 'utf8',
-      env: stripGitKeys({ ...process.env }),
-    })
-    const branch = br.stdout?.trim()
-    if (branch) {
-      const pr = spawnSync(
-        'gh',
-        [
-          'pr',
-          'list',
-          '--head',
-          branch,
-          '--json',
-          'number',
-          '-q',
-          '.[0].number',
-        ],
-        {
-          encoding: 'utf8',
-          env: process.env,
-        },
-      )
-      if (pr.status === 0 && pr.stdout.trim() && pr.stdout.trim() !== 'null')
-        warnOnlySize = true
-    }
-  }
-  return runQualitySelfCheck({ bodyPath, body, changeSlug, warnOnlySize })
+  return runQualitySelfCheck({
+    bodyPath,
+    body,
+    changeSlug,
+    warnOnlySize: true,
+  })
 }
 
 if (

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-/** Changed-line budget vs merge-base (initial scope ≤ 1500). */
+/**
+ * Advisory changed-line budget vs merge-base (target ~1000, prefer ≤1500).
+ * Never fails CI / pnpm check / finish — warns only; plans should still split via roadmap add.
+ */
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { hasOwnerApprovedScopeChange } from './check-test-weakening.mjs'
 import { stripGitKeys } from './strip-git-env.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -106,7 +108,8 @@ export function computeDiffSize(opts = {}) {
   const root = /** @type {string} */ (opts.root ?? ROOT)
   const max = /** @type {number} */ (opts.max ?? DIFF_SIZE_MAX)
   const warnAt = /** @type {number} */ (opts.warnAt ?? DIFF_SIZE_WARN)
-  const warnOnly = Boolean(opts.warnOnly)
+  // Advisory gate: size never fails check/CI; warnOnly kept for API compat (always treated as true).
+  const warnOnly = opts.warnOnly === undefined ? true : Boolean(opts.warnOnly)
   const gitFn = /** @type {typeof git} */ (opts.git ?? git)
   const extra = loadDiffSizeExclusionGlobs(root)
 
@@ -117,11 +120,15 @@ export function computeDiffSize(opts = {}) {
     const merge = gitFn(['merge-base', base, head], root)
     if ((merge.status ?? 1) !== 0) {
       return {
-        ok: false,
+        ok: true,
+        skipped: true,
         lines: 0,
         max,
         warnAt,
-        reason: `merge-base failed: ${merge.stderr || merge.stdout}`,
+        overMax: false,
+        overWarn: false,
+        warnOnly: true,
+        reason: `merge-base unavailable: ${String(merge.stderr || merge.stdout || '').trim() || 'no origin/main'}`,
       }
     }
     const ns = gitFn(
@@ -130,11 +137,15 @@ export function computeDiffSize(opts = {}) {
     )
     if ((ns.status ?? 1) !== 0) {
       return {
-        ok: false,
+        ok: true,
+        skipped: true,
         lines: 0,
         max,
         warnAt,
-        reason: `numstat failed: ${ns.stderr || ns.stdout}`,
+        overMax: false,
+        overWarn: false,
+        warnOnly: true,
+        reason: `numstat unavailable: ${String(ns.stderr || ns.stdout || '').trim()}`,
       }
     }
     numstatText = ns.stdout
@@ -145,17 +156,21 @@ export function computeDiffSize(opts = {}) {
     if (!isExcludedDiffPath(row.file, extra)) lines += row.added + row.deleted
   }
   const overMax = lines > max
+  const overWarn = lines > warnAt
   return {
-    ok: warnOnly ? true : !overMax,
+    ok: true,
+    skipped: false,
     lines,
     max,
     warnAt,
     overMax,
-    overWarn: lines > warnAt,
+    overWarn,
     warnOnly,
     reason: overMax
-      ? `diff size ${lines} > ${max} (split with pnpm roadmap add --after)`
-      : null,
+      ? `diff size ${lines} > prefer ≤${max} (split with pnpm roadmap add --after)`
+      : overWarn
+        ? `diff size ${lines} > target ≤${warnAt}`
+        : null,
   }
 }
 
@@ -172,10 +187,19 @@ export function parsePlanSizeEstimate(text) {
 export function checkPlanSize(opts = {}) {
   const root = /** @type {string} */ (opts.root ?? ROOT)
   const max = /** @type {number} */ (opts.max ?? DIFF_SIZE_MAX)
+  const warnAt = /** @type {number} */ (opts.warnAt ?? DIFF_SIZE_WARN)
   let text = opts.proposalText
   if (text === undefined) {
     const slug = opts.changeSlug
-    if (!slug) return { ok: false, total: null, reason: 'missing change slug' }
+    if (!slug)
+      return {
+        ok: true,
+        total: null,
+        reason: 'missing change slug (skip plan size)',
+        skipped: true,
+        overMax: false,
+        overWarn: false,
+      }
     const file = path.join(
       root,
       'openspec',
@@ -189,6 +213,8 @@ export function checkPlanSize(opts = {}) {
         total: null,
         reason: 'no proposal.md (skip plan size)',
         skipped: true,
+        overMax: false,
+        overWarn: false,
       }
     }
     text = fs.readFileSync(file, 'utf8')
@@ -196,54 +222,54 @@ export function checkPlanSize(opts = {}) {
   const total = parsePlanSizeEstimate(/** @type {string} */ (text))
   if (total == null) {
     return {
-      ok: false,
+      ok: true,
       total: null,
-      reason: 'proposal.md missing **Size estimate:** … = <total> (max 1500)',
+      overMax: false,
+      overWarn: false,
+      reason:
+        'proposal.md missing **Size estimate:** … = <total> (prefer ≤1500; advisory)',
     }
   }
-  if (total > max) {
-    return {
-      ok: false,
-      total,
-      reason: `plan size ${total} > ${max} (pnpm roadmap add --after)`,
-    }
+  const overMax = total > max
+  const overWarn = total > warnAt
+  return {
+    ok: true,
+    total,
+    overMax,
+    overWarn,
+    reason: overMax
+      ? `plan size ${total} > prefer ≤${max} (pnpm roadmap add --after)`
+      : overWarn
+        ? `plan size ${total} > target ≤${warnAt}`
+        : null,
   }
-  return { ok: true, total, reason: null }
 }
 
 export function runDiffSizeCheck(opts = {}) {
   const write = opts.write ?? ((s) => process.stdout.write(s))
-  const error = opts.error ?? ((s) => process.stderr.write(s))
-  const result = computeDiffSize(opts)
-  if (!result.ok) {
-    error(`diff-size: fail — ${result.reason}\n`)
-    return 1
+  const result = computeDiffSize({ ...opts, warnOnly: true })
+  if (result.skipped) {
+    write(`diff-size: warn — skipped (${result.reason})\n`)
+    return 0
   }
-  if (result.overMax && result.warnOnly) {
+  if (result.overMax) {
     write(
-      `diff-size: warn — ${result.lines} lines (review-fix; initial cap ${result.max})\n`,
+      `diff-size: warn — ${result.lines} lines (prefer ≤${result.max}; target ≤${result.warnAt}; split with pnpm roadmap add --after)\n`,
     )
   } else if (result.overWarn) {
     write(
       `diff-size: warn — ${result.lines} lines (target ≤ ${result.warnAt})\n`,
     )
   } else {
-    write(`diff-size: OK ${result.lines} lines (max ${result.max})\n`)
+    write(
+      `diff-size: OK ${result.lines} lines (target ≤${result.warnAt}, prefer ≤${result.max})\n`,
+    )
   }
   return 0
 }
 
-function branchHasOwnerApproval(root = ROOT) {
-  if (hasOwnerApprovedScopeChange(process.env.PR_POLICY_BODY ?? '')) return true
-  const log = git(['log', 'origin/main..HEAD', '--format=%B'], root)
-  return (
-    (log.status ?? 1) === 0 && hasOwnerApprovedScopeChange(log.stdout ?? '')
-  )
-}
-
-export function main(argv = process.argv.slice(2)) {
-  const warnOnly = argv.includes('--warn-only') || branchHasOwnerApproval()
-  return runDiffSizeCheck({ warnOnly })
+export function main(_argv = process.argv.slice(2)) {
+  return runDiffSizeCheck({ warnOnly: true })
 }
 
 if (

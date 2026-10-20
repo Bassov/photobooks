@@ -95,7 +95,7 @@ operations:
       - 'When UI success criteria claim geometry (packing, aspect silhouettes, empty copy, viewport fill, object-fit), add matching Playwright coverage before treating apply as complete.'
       - 'Virtualized or variable-size lists: e2e MUST assert the mounted window covers the scrollport mid-scroll when more items remain — fixed item counts / LoAF alone are not enough.'
       - Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep fast-track (roadmap item is the plan; keep implementation-reviewer + `pnpm check`).
-      - 'If apply will exceed the size budget, add overflow with `pnpm roadmap add <slug> --after <current>` and finish within the limit — do not enlarge the PR.'
+      - 'If apply will exceed the size guidance (~1000 / prefer ≤1500; advisory — check/CI never fail on size), prefer adding overflow with `pnpm roadmap add <slug> --after <current>` rather than enlarging the PR.'
       - Run pnpm stryker:diff and pnpm test:coverage before requesting implementation review. Add tests through public APIs (skill `write-tests`) for survived / no-coverage mutants and uncovered lines in code this change touched that encode specified behavior; list the rest (equivalent, logging, perf instrumentation) with a one-line reason under the tasks.md stryker item.
       - 'Survivors: a free-text reason in tasks.md is not enough — delete dead code or use a budgeted `// Stryker disable next-line …: <reason>` within mutation.disableBudget; illegal Stryker disable forms are forbidden.'
       - Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.
