@@ -4,7 +4,7 @@ Tag: prep
 Milestone: M2.1
 Title: agents self-review against the repo checklist before push
 Status: done
-Done note: local patch coverage, quality:self-check, review-checklist, manual-qa; folded pr-body-check + diff-size-check (§3.2).
+Done note: local patch coverage, quality:self-check, review-checklist, manual-qa; folded pr-body-check + diff-size-check (§3.2). Follow-up: local line-scoped `stryker:diff` in `pnpm check` / pre-push is `local-stryker-diff-check` (closes the mutation half of the CI-only gap).
 
 ## Scope
 

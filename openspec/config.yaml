@@ -64,14 +64,14 @@ rules:
 operations:
   apply:
     guidance:
-      - 'Do not treat apply as complete until `pnpm check` is green and required e2e/stryker/lhci/reviewer/manual/security items in scope are done (`pnpm agent finish` / quality:self-check).'
+      - 'Do not treat apply as complete until `pnpm check` is green (enforces patch-coverage + line-scoped stryker:diff before push) and required e2e/lhci/reviewer/manual/security items in scope are done (`pnpm agent finish` / quality:self-check).'
       - 'Before archive, for each reviewer finding tagged `[repeat]` add the named automated check (or area SHALL / code comment when infeasible) in the same change.'
       - 'If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode.'
       - 'When a change introduces or changes an in-app scrollport, include Playwright `assertDocumentFitsViewport` / `assertNamedScrollport` before apply-complete.'
       - 'When UI is in scope: before push/archive, skill `ui-review` + evidenced browser smoke (empty + happy + primary scroll/interact). Prefer Playwright; MCP screenshots are supporting evidence.'
       - 'Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep/contingency fast-track (roadmap item is the plan; keep implementation-reviewer + `pnpm check`).'
       - 'If apply will exceed size guidance (~1000 / prefer ≤1500; advisory), prefer `pnpm roadmap add <slug> --after <current>` rather than enlarging the PR.'
-      - 'Run pnpm stryker:diff and pnpm test:coverage before implementation review. Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
+      - 'pnpm check already runs unit coverage + line-scoped stryker:diff; keep them green before implementation review. Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
       - 'Survivors: delete dead code or use budgeted `// Stryker disable next-line …: <reason>`; illegal disable forms are forbidden.'
       - 'Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.'
       - 'After verify gates pass, launch `openspec-implementation-reviewer`.'
