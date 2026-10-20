@@ -13,13 +13,6 @@ import {
   compareTestWeakening,
   hasOwnerApprovedScopeChange,
 } from './check-test-weakening.mjs'
-
-/** Intentional baseline edits waived when Owner-approved scope change is present. */
-export const OWNER_WAIVABLE_RULE_IDS = Object.freeze([
-  'gates-json-weaker',
-  'stryker-weaker',
-  'item-criteria-loosened',
-])
 import {
   codecovFlagPathCovered,
   compareScriptScopeGates,
@@ -30,6 +23,17 @@ import {
   checkAgentRuleBudgetsAbsolute,
   compareAgentRuleBudgets,
 } from './agent-rules-budget.mjs'
+
+/** Intentional baseline edits waived when Owner-approved scope change is present. */
+export const OWNER_WAIVABLE_RULE_IDS = Object.freeze([
+  'gates-json-weaker',
+  'stryker-weaker',
+  'item-criteria-loosened',
+  'include-removed',
+  'exclude-added',
+  'gate-file-gone',
+  'temporary-excludes-grew',
+])
 
 export const RULE_IDS = Object.freeze([
   'gates-json-weaker',

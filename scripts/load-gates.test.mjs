@@ -225,6 +225,75 @@ describe('validateGates', () => {
       }),
     ).toThrow(/flakySpecs entries must be strings/)
   })
+
+  it('accepts optional checks table with argv or script', () => {
+    const withChecks = {
+      ...validGates,
+      checks: {
+        core: [{ name: 'lint', argv: ['pnpm', 'lint'] }],
+        afterUnit: [
+          {
+            name: 'patch-coverage',
+            script: 'scripts/check-patch-coverage.mjs',
+          },
+        ],
+        optional: [
+          { name: 'diff-size', script: 'scripts/check-diff-size.mjs' },
+        ],
+      },
+    }
+    expect(validateGates(withChecks)).toEqual(withChecks)
+  })
+
+  it('rejects checks rows missing exactly one of argv/script', () => {
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: { core: [{ name: 'lint' }] },
+      }),
+    ).toThrow(/exactly one of argv or script/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: {
+          core: [
+            {
+              name: 'lint',
+              argv: ['pnpm', 'lint'],
+              script: 'scripts/x.mjs',
+            },
+          ],
+        },
+      }),
+    ).toThrow(/exactly one of argv or script/)
+  })
+
+  it('rejects malformed checks block shapes', () => {
+    expect(() => validateGates({ ...validGates, checks: [] })).toThrow(
+      /checks must be an object/,
+    )
+    expect(() =>
+      validateGates({ ...validGates, checks: { core: 'nope' } }),
+    ).toThrow(/checks.core must be an array/)
+    expect(() =>
+      validateGates({ ...validGates, checks: { core: [null] } }),
+    ).toThrow(/entries must be objects/)
+    expect(() =>
+      validateGates({ ...validGates, checks: { core: [{ name: '' }] } }),
+    ).toThrow(/name must be a non-empty string/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: { core: [{ name: 'lint', argv: [] }] },
+      }),
+    ).toThrow(/argv must be non-empty strings/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: { core: [{ name: 'lint', argv: ['pnpm', 1] }] },
+      }),
+    ).toThrow(/argv must be non-empty strings/)
+  })
 })
 
 describe('loadGates', () => {

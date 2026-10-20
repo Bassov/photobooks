@@ -1,9 +1,11 @@
 // Unified deterministic check entry: fail-all + compact default output.
 // Entry: `pnpm check` (`node scripts/check.mjs`). Zero deps, Node 22, ESM.
+// Check inventory prefers `quality/gates.json` `checks` with built-in fallback.
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { loadGates } from './load-gates.mjs'
 
 const ROOT_DEFAULT = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -12,7 +14,8 @@ const ROOT_DEFAULT = path.join(
 const LOG_DIR = '.cache/checks'
 export const PROBLEM_CAP = 20
 
-const CORE_CHECKS = [
+/** Built-in fallback when `quality/gates.json` has no `checks` block. */
+export const DEFAULT_CORE_CHECKS = Object.freeze([
   { name: 'typecheck', argv: ['pnpm', 'typecheck'] },
   { name: 'lint', argv: ['pnpm', 'lint'] },
   { name: 'deps', argv: ['pnpm', 'deps'] },
@@ -22,9 +25,7 @@ const CORE_CHECKS = [
   { name: 'openspec-budget', argv: ['pnpm', 'openspec-budget'] },
   { name: 'codecov-yml', argv: ['pnpm', 'codecov-yml'] },
   { name: 'git-test-isolation', argv: ['pnpm', 'git-test-isolation'] },
-  // Direct roadmap.mjs + INNER env avoids double-wrap via `pnpm roadmap check`.
   { name: 'roadmap', argv: ['pnpm', '-s', 'roadmap', 'check'] },
-  // Direct vitest with coverage so patch-coverage can read lcov.
   {
     name: 'unit',
     argv: [
@@ -37,21 +38,91 @@ const CORE_CHECKS = [
       '--silent',
     ],
   },
-]
+])
 
-/** Sequenced after unit (needs coverage/lcov.info). */
-export const SEQUENTIAL_AFTER_UNIT = [
+export const DEFAULT_AFTER_UNIT = Object.freeze([
   {
     name: 'patch-coverage',
-    argv: ['node', 'scripts/check-patch-coverage.mjs'],
+    script: 'scripts/check-patch-coverage.mjs',
   },
-]
+])
 
-const OPTIONAL_SCRIPTS = [
-  { name: 'diff-size', rel: 'scripts/check-diff-size.mjs' },
-  { name: 'pr-body', rel: 'scripts/check-pr-body.mjs' },
-  { name: 'pr-policy', rel: 'scripts/check-pr-policy.mjs' },
-]
+export const DEFAULT_OPTIONAL = Object.freeze([
+  { name: 'diff-size', script: 'scripts/check-diff-size.mjs' },
+  { name: 'pr-body', script: 'scripts/check-pr-body.mjs' },
+  { name: 'pr-policy', script: 'scripts/check-pr-policy.mjs' },
+])
+
+/**
+ * @param {unknown} row
+ * @returns {{ name: string, argv?: string[], script?: string } | null}
+ */
+function normalizeCheckRow(row) {
+  if (row === null || typeof row !== 'object' || Array.isArray(row)) return null
+  const r = /** @type {Record<string, unknown>} */ (row)
+  if (typeof r.name !== 'string' || r.name.length === 0) return null
+  if (Array.isArray(r.argv)) {
+    const argv = r.argv.filter((a) => typeof a === 'string')
+    if (argv.length === 0) return null
+    return { name: r.name, argv }
+  }
+  if (typeof r.script === 'string' && r.script.length > 0) {
+    return { name: r.name, script: r.script }
+  }
+  return null
+}
+
+/**
+ * @param {string} root
+ * @param {{ loadGatesFn?: typeof loadGates }} [io]
+ */
+export function resolveCheckTables(root, io = {}) {
+  const load = io.loadGatesFn ?? loadGates
+  try {
+    const gates = load({ root })
+    const block =
+      gates && typeof gates === 'object' && !Array.isArray(gates)
+        ? /** @type {Record<string, unknown>} */ (gates).checks
+        : undefined
+    if (block && typeof block === 'object' && !Array.isArray(block)) {
+      const b = /** @type {Record<string, unknown>} */ (block)
+      const coreRaw = Array.isArray(b.core) ? b.core : null
+      const afterRaw = Array.isArray(b.afterUnit) ? b.afterUnit : null
+      const optRaw = Array.isArray(b.optional) ? b.optional : null
+      const core = coreRaw
+        ? coreRaw.map(normalizeCheckRow).filter(Boolean)
+        : null
+      const afterUnit = afterRaw
+        ? afterRaw.map(normalizeCheckRow).filter(Boolean)
+        : null
+      const optional = optRaw
+        ? optRaw.map(normalizeCheckRow).filter(Boolean)
+        : null
+      return {
+        core: core && core.length > 0 ? core : [...DEFAULT_CORE_CHECKS],
+        afterUnit:
+          afterUnit && afterUnit.length > 0
+            ? afterUnit
+            : [...DEFAULT_AFTER_UNIT],
+        optional:
+          optional && optional.length > 0 ? optional : [...DEFAULT_OPTIONAL],
+      }
+    }
+  } catch {
+    // Missing/invalid gates → built-in fallback (gate-values check still fails).
+  }
+  return {
+    core: [...DEFAULT_CORE_CHECKS],
+    afterUnit: [...DEFAULT_AFTER_UNIT],
+    optional: [...DEFAULT_OPTIONAL],
+  }
+}
+
+/** @deprecated Prefer resolveCheckTables; kept for test imports. */
+export const SEQUENTIAL_AFTER_UNIT = DEFAULT_AFTER_UNIT.map((c) => ({
+  name: c.name,
+  argv: ['node', c.script],
+}))
 
 export const NOISE_STARTS = [
   'RUN',
@@ -84,15 +155,59 @@ export function isNoiseLine(line) {
 
 /**
  * @param {string} root
- * @param {{ existsSync?: (p: string) => boolean }} [io]
+ * @param {{
+ *   existsSync?: (p: string) => boolean
+ *   loadGatesFn?: typeof loadGates
+ * }} [io]
+ * @returns {{ name: string, argv: string[] }[]}
  */
 export function buildInventory(root, io = {}) {
   const exists = io.existsSync ?? fs.existsSync
-  const list = CORE_CHECKS.map((c) => ({ ...c }))
-  for (const opt of OPTIONAL_SCRIPTS) {
-    const abs = path.join(root, opt.rel)
+  const tables = resolveCheckTables(root, io)
+  /** @type {{ name: string, argv: string[] }[]} */
+  const list = []
+  for (const c of tables.core) {
+    if (c.argv) list.push({ name: c.name, argv: [...c.argv] })
+    else if (c.script) {
+      list.push({
+        name: c.name,
+        argv: [process.execPath, path.join(root, c.script)],
+      })
+    }
+  }
+  for (const opt of tables.optional) {
+    const rel = opt.script
+    if (!rel) continue
+    const abs = path.join(root, rel)
     if (exists(abs)) {
       list.push({ name: opt.name, argv: [process.execPath, abs] })
+    }
+  }
+  return list
+}
+
+/**
+ * @param {string} root
+ * @param {{
+ *   existsSync?: (p: string) => boolean
+ *   loadGatesFn?: typeof loadGates
+ * }} [io]
+ */
+export function buildAfterUnitInventory(root, io = {}) {
+  const exists = io.existsSync ?? fs.existsSync
+  const tables = resolveCheckTables(root, io)
+  /** @type {{ name: string, argv: string[], scriptRel?: string }[]} */
+  const list = []
+  for (const c of tables.afterUnit) {
+    if (c.script) {
+      if (!exists(path.join(root, c.script))) continue
+      list.push({
+        name: c.name,
+        scriptRel: c.script,
+        argv: [process.execPath, path.join(root, c.script)],
+      })
+    } else if (c.argv) {
+      list.push({ name: c.name, argv: [...c.argv] })
     }
   }
   return list
@@ -328,21 +443,12 @@ export async function runChecks(opts = {}) {
     ),
   )
 
-  const exists = opts.existsSync ?? fs.existsSync
   if (!opts.skipUnit) {
-    for (const check of SEQUENTIAL_AFTER_UNIT) {
-      const scriptRel =
-        check.name === 'patch-coverage'
-          ? 'scripts/check-patch-coverage.mjs'
-          : null
-      if (scriptRel && !exists(path.join(root, scriptRel))) continue
-      const argv = scriptRel
-        ? [process.execPath, path.join(root, scriptRel)]
-        : check.argv
+    for (const check of buildAfterUnitInventory(root, opts)) {
       results.push(
         await runOneCheck({
           name: check.name,
-          argv,
+          argv: check.argv,
           root,
           verbose,
           env: opts.env,

@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   bootCli,
+  buildAfterUnitInventory,
   buildInventory,
+  resolveCheckTables,
+  DEFAULT_CORE_CHECKS,
   extractProblemLines,
   formatCheckResult,
   isNoiseLine,
@@ -176,27 +179,26 @@ describe('isNoiseLine / bootCli', () => {
 
 describe('buildInventory', () => {
   it('always schedules the core deterministic inventory', () => {
-    const inv = buildInventory('/tmp/none', { existsSync: () => false })
-    expect(inv.map((c) => c.name)).toEqual([
-      'typecheck',
-      'lint',
-      'deps',
-      'knip',
-      'mutation-scope',
-      'gate-values',
-      'openspec-budget',
-      'codecov-yml',
-      'git-test-isolation',
-      'roadmap',
-      'unit',
-    ])
+    const inv = buildInventory('/tmp/none', {
+      existsSync: () => false,
+      loadGatesFn: () => {
+        throw new Error('no gates')
+      },
+    })
+    expect(inv.map((c) => c.name)).toEqual(
+      DEFAULT_CORE_CHECKS.map((c) => c.name),
+    )
   })
 
   it('includes optional policy scripts only when present', () => {
     const root = tmpRoot()
     fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
     fs.writeFileSync(path.join(root, 'scripts/check-diff-size.mjs'), '')
-    const inv = buildInventory(root)
+    const inv = buildInventory(root, {
+      loadGatesFn: () => {
+        throw new Error('no gates')
+      },
+    })
     expect(inv.map((c) => c.name)).toContain('diff-size')
     expect(inv.map((c) => c.name)).not.toContain('pr-body')
     const diff = inv.find((c) => c.name === 'diff-size')
@@ -204,6 +206,92 @@ describe('buildInventory', () => {
       process.execPath,
       path.join(root, 'scripts/check-diff-size.mjs'),
     ])
+  })
+
+  it('resolveCheckTables prefers gates.json checks.core', () => {
+    const tables = resolveCheckTables('/repo', {
+      loadGatesFn: () => ({
+        checks: {
+          core: [{ name: 'lint', argv: ['pnpm', 'lint'] }],
+          afterUnit: [],
+          optional: [],
+        },
+      }),
+    })
+    expect(tables.core).toEqual([{ name: 'lint', argv: ['pnpm', 'lint'] }])
+  })
+
+  it('normalizeCheckRow paths via resolveCheckTables drop invalid rows', () => {
+    const tables = resolveCheckTables('/repo', {
+      loadGatesFn: () => ({
+        checks: {
+          core: [
+            { name: 'ok', argv: ['pnpm', 'lint'] },
+            { name: 'empty-argv', argv: [] },
+            { name: 'non-string-argv', argv: [1, 2] },
+            null,
+            { name: '' },
+            { name: 'neither' },
+            { name: 'script-only', script: 'scripts/x.mjs' },
+          ],
+          afterUnit: [{ name: 'via-argv', argv: ['node', 'scripts/y.mjs'] }],
+          optional: [{ name: 'skip-no-script', argv: ['echo'] }],
+        },
+      }),
+    })
+    expect(tables.core).toEqual([
+      { name: 'ok', argv: ['pnpm', 'lint'] },
+      { name: 'script-only', script: 'scripts/x.mjs' },
+    ])
+    expect(tables.afterUnit).toEqual([
+      { name: 'via-argv', argv: ['node', 'scripts/y.mjs'] },
+    ])
+  })
+
+  it('buildInventory resolves core script entries and skips missing optional', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'scripts/core-script.mjs'), '')
+    const inv = buildInventory(root, {
+      loadGatesFn: () => ({
+        checks: {
+          core: [{ name: 'core-script', script: 'scripts/core-script.mjs' }],
+          afterUnit: [],
+          optional: [
+            { name: 'missing', script: 'scripts/nope.mjs' },
+            { name: 'no-script-field', argv: ['true'] },
+          ],
+        },
+      }),
+    })
+    expect(inv).toEqual([
+      {
+        name: 'core-script',
+        argv: [process.execPath, path.join(root, 'scripts/core-script.mjs')],
+      },
+    ])
+  })
+
+  it('buildAfterUnitInventory skips missing scripts and accepts argv rows', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'scripts/present.mjs'), '')
+    const list = buildAfterUnitInventory(root, {
+      loadGatesFn: () => ({
+        checks: {
+          core: [{ name: 'lint', argv: ['pnpm', 'lint'] }],
+          afterUnit: [
+            { name: 'missing', script: 'scripts/absent.mjs' },
+            { name: 'present', script: 'scripts/present.mjs' },
+            { name: 'argv-row', argv: ['node', 'scripts/present.mjs'] },
+          ],
+          optional: [],
+        },
+      }),
+    })
+    expect(list.map((c) => c.name)).toEqual(['present', 'argv-row'])
+    expect(list[0].argv[1]).toBe(path.join(root, 'scripts/present.mjs'))
+    expect(list[1].argv).toEqual(['node', 'scripts/present.mjs'])
   })
 })
 
