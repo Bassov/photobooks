@@ -62,6 +62,16 @@
   background: var(--accent);
 }
 
+/* Filled destructive — AlertDialog confirm only (docs/design.md). */
+.pb-button--destructive {
+  color: var(--destructive-foreground);
+  background: var(--destructive-solid);
+}
+
+.pb-button--destructive[data-hovered] {
+  background: var(--destructive-solid-hover);
+}
+
 .pb-button[data-pressed] {
   transform: scale(var(--motion-press-scale));
 }

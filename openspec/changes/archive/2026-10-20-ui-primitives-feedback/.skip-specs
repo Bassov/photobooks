@@ -1,0 +1,2 @@
+skip_specs: true
+reason: presentational src/ui feedback/overlay chrome; no domain contract

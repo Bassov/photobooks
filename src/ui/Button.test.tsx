@@ -25,6 +25,11 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Quiet' }).className).toBe(
       'pb-button pb-button--ghost pb-button--md',
     )
+
+    rerender(<Button variant="destructive">Remove</Button>)
+    expect(screen.getByRole('button', { name: 'Remove' }).className).toBe(
+      'pb-button pb-button--destructive pb-button--md',
+    )
   })
 
   it('invokes onPress and respects isDisabled', () => {

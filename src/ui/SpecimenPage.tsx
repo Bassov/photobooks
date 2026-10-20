@@ -1,9 +1,23 @@
 import { useState } from 'react'
+import { AlertDialog } from './AlertDialog'
+import { Badge } from './Badge'
 import { Button } from './Button'
+import { Dialog, DialogTitle, DialogTrigger } from './Dialog'
+import { EmptyState } from './EmptyState'
 import { Icon, ICON_NAMES, ICON_SIZES, type IconSize } from './Icon'
 import { IconButton } from './IconButton'
+import { Menu, MenuItem, MenuPopover, MenuTrigger } from './Menu'
+import { Popover, PopoverDialog, PopoverTrigger } from './Popover'
+import { ProgressBar } from './ProgressBar'
 import { SegmentedControl } from './SegmentedControl'
+import { Status } from './Status'
 import { ToggleButton } from './ToggleButton'
+import {
+  enqueueSpecimenErrorToast,
+  enqueueSpecimenSuccessToast,
+} from './specimenFeedback'
+import { ToastRegion } from './Toast'
+import { createToastQueue } from './toastQueue'
 import { Toolbar } from './Toolbar'
 import './SpecimenPage.css'
 
@@ -11,6 +25,11 @@ export function SpecimenPage() {
   const [iconSize, setIconSize] = useState<IconSize>(16)
   const [fit, setFit] = useState('fill')
   const [gridOn, setGridOn] = useState(false)
+  const [statusMsg, setStatusMsg] = useState('Ready')
+  const [assertiveMsg, setAssertiveMsg] = useState('')
+  const [toastQueue] = useState(() => createToastQueue())
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [menuChoice, setMenuChoice] = useState('')
 
   return (
     <main className="specimen-page" data-testid="specimen">
@@ -325,6 +344,234 @@ export function SpecimenPage() {
           </Toolbar>
         </div>
       </section>
+
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-feedback-heading"
+        data-testid="specimen-feedback"
+      >
+        <h2 id="specimen-feedback-heading">
+          Feedback · Status / Toast / Badge / Progress / EmptyState
+        </h2>
+        <p className="specimen-note">
+          Live regions · transient errors · inventory badge tones · determinate
+          / indeterminate progress
+        </p>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">Status</span>
+          <div className="specimen-actions-row">
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={() => {
+                setStatusMsg('Saved')
+              }}
+            >
+              Announce polite
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={() => {
+                setAssertiveMsg('Import failed for 2 files')
+              }}
+            >
+              Announce assertive
+            </Button>
+            <Status data-testid="specimen-status-polite">{statusMsg}</Status>
+            <Status
+              politeness="assertive"
+              data-testid="specimen-status-assertive"
+            >
+              {assertiveMsg}
+            </Status>
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">Toast</span>
+          <div className="specimen-actions-row">
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={() => {
+                enqueueSpecimenErrorToast(toastQueue, () => {
+                  setStatusMsg('Opened error list')
+                })
+              }}
+            >
+              Show error toast
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={() => {
+                enqueueSpecimenSuccessToast(toastQueue)
+              }}
+            >
+              Show success toast
+            </Button>
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">Badge</span>
+          <div className="specimen-actions-row" data-testid="specimen-badges">
+            <Badge color="gray" dot>
+              Saved
+            </Badge>
+            <Badge color="brand">Placed</Badge>
+            <Badge color="success" type="pill-color">
+              Ready
+            </Badge>
+            <Badge color="warning" size="md">
+              Pending
+            </Badge>
+            <Badge color="error" size="lg" dot>
+              Error
+            </Badge>
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">ProgressBar</span>
+          <div className="specimen-progress" data-testid="specimen-progress">
+            <ProgressBar
+              label="Import progress"
+              value={42}
+              data-testid="specimen-progress-determinate"
+            />
+            <ProgressBar
+              label="Working"
+              isIndeterminate
+              data-testid="specimen-progress-indeterminate"
+            />
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">EmptyState</span>
+          <EmptyState
+            icon={<Icon name="folder" size={20} />}
+            title="Start with your photos"
+            description="Add a folder or photos to build the gallery."
+            actions={
+              <>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onPress={() => {
+                    setStatusMsg('Add folder…')
+                  }}
+                >
+                  Add folder…
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => {
+                    setStatusMsg('Add photos…')
+                  }}
+                >
+                  Add photos…
+                </Button>
+              </>
+            }
+          />
+        </div>
+      </section>
+
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-overlays-heading"
+        data-testid="specimen-overlays"
+      >
+        <h2 id="specimen-overlays-heading">
+          Overlays · Dialog / AlertDialog / Popover / Menu
+        </h2>
+        <p className="specimen-note">
+          React Aria overlays · Esc closes dismissable surfaces · AlertDialog
+          confirm uses filled destructive
+        </p>
+
+        <div className="specimen-actions-block">
+          <div className="specimen-actions-row">
+            <DialogTrigger>
+              <Button variant="secondary" size="sm">
+                Open dialog
+              </Button>
+              <Dialog>
+                <DialogTitle>Library details</DialogTitle>
+                <p className="specimen-note">
+                  A short modal for project metadata.
+                </p>
+              </Dialog>
+            </DialogTrigger>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={() => {
+                setAlertOpen(true)
+              }}
+            >
+              Open alert
+            </Button>
+
+            <PopoverTrigger>
+              <Button variant="secondary" size="sm">
+                Open popover
+              </Button>
+              <Popover>
+                <PopoverDialog>
+                  <p className="specimen-note">Popover body</p>
+                </PopoverDialog>
+              </Popover>
+            </PopoverTrigger>
+
+            <MenuTrigger>
+              <Button variant="secondary" size="sm">
+                Open menu
+              </Button>
+              <MenuPopover>
+                <Menu
+                  onAction={(key) => {
+                    setMenuChoice(String(key))
+                    setStatusMsg(`Menu: ${String(key)}`)
+                  }}
+                >
+                  <MenuItem id="duplicate">Duplicate</MenuItem>
+                  <MenuItem id="delete" variant="destructive">
+                    Delete
+                  </MenuItem>
+                </Menu>
+              </MenuPopover>
+            </MenuTrigger>
+
+            <span className="specimen-note" data-testid="specimen-menu-choice">
+              menu={menuChoice || '—'}
+            </span>
+          </div>
+        </div>
+
+        <AlertDialog
+          isOpen={alertOpen}
+          title="Remove “Road trip”?"
+          onCancel={() => {
+            setAlertOpen(false)
+            setStatusMsg('Alert cancelled')
+          }}
+          onConfirm={() => {
+            setAlertOpen(false)
+            setStatusMsg('Alert confirmed')
+          }}
+        >
+          The book disappears from this library. Photos stay on disk.
+        </AlertDialog>
+      </section>
+
+      <ToastRegion queue={toastQueue} data-testid="specimen-toast-region" />
     </main>
   )
 }
