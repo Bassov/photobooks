@@ -1,12 +1,12 @@
 # Roadmap process
 
-The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadmap/`. Together they are the single source of truth for what gets built and in which order; issues, proposals and review notes are inputs until they land there. Agents read and change them only through the CLI (`pnpm roadmap`, `scripts/roadmap.mjs`; agent usage: skill `roadmap`). `pnpm roadmap check` validates the layout and runs inside `pnpm test`.
+The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadmap/`. Together they are the single source of truth for what gets built and in which order; issues, proposals and review notes are inputs until they land there. Agents read and change them only through the CLI (`pnpm roadmap` from `@albasov/ts-agent-rig`; agent usage: skill `roadmap`). `pnpm roadmap check` validates the layout and runs inside `pnpm check`.
 
 ## Layout
 
-- `docs/roadmap.md`: header, `## Order`, one block per active milestone (`## <ID> — <title>`, goal / review-cut lines, one line per item), `## Deferred (not scheduled)` and `## Archive`. One line per item: `- [ ] [tag] [slug](roadmap/<M>/<slug>.md) — title`. Index order is priority.
+- `docs/roadmap.md`: header, `## Order`, one block per active milestone (`## <ID> — <title>`, goal / review-cut lines, one line per item), and `## Deferred (not scheduled)`. One line per item: `- [ ] [tag] [slug](roadmap/<M>/<slug>.md) — title`. Index order is priority. There is no `## Archive` section.
 - `docs/roadmap/<M>/<slug>.md`: the item: slug heading, Tag, Milestone, Title, then its scope (nested checkboxes, **Done when:**, **Perf:**, **Browser check:**, **UI kit:** / **UI ref:** lines). `INTRO.md` holds longer milestone notes.
-- `docs/roadmap/archive/<M>/`: a finished milestone (`README.md` with its block, plus its item files). `docs/roadmap/DEFERRED.md`: ideas that are not scheduled.
+- Finished milestones are **retired** with `pnpm roadmap archive <M>` (drops the milestone block and deletes `docs/roadmap/<M>/`; git history is SoT). `docs/roadmap/DEFERRED.md`: ideas that are not scheduled.
 
 ## Items
 
@@ -23,15 +23,15 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 ## Order, milestones, closing
 
 - Items run in index order; `pnpm roadmap next` returns the first open item, skipping `[contingency]` items and slugs with an open PR.
-- Milestones are review cuts. `done` writes `Status: done` in the item file and does not tick the index or archive. Index ticks (`pnpm roadmap sync`) and milestone `archive <M>` land through a small dedicated docs PR run by the operator/reviewer after item PRs merge (batched is fine) — never inside item PRs (`main` is protected; no direct pushes). `check` warnings for pending sync/archive are expected until that docs PR. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
+- Milestones are review cuts. `done` writes `Status: done` in the item file and does not tick the index or retire the milestone. Index ticks (`pnpm roadmap sync`) and milestone `archive <M>` (retire) land through a small dedicated docs PR run by the operator/reviewer after item PRs merge (batched is fine) — never inside item PRs (`main` is protected; no direct pushes). `check` warnings for pending sync/archive are expected until that docs PR. Milestone IDs are stable labels referenced from docs and specs, so inserted milestones take fractional numbers (M2.1, M2.2, M2.5, M4.5) and a moved milestone keeps its number (M7 runs before M6).
 - An item is closed in the change's own PR right after the OpenSpec archive with `pnpm roadmap done <slug>` (`openspec/config.yaml` `operations.archive`). `--note` records how it was closed. Parallel item PRs must not edit the same index checkbox line.
 - Reprioritizing is the owner's call: `pnpm roadmap move`. Deferred ideas are scheduled with `pnpm roadmap add`.
 
 ## Change size
 
-Every item fits one agent apply context (one agent chat) and one PR of about 1000 changed lines (1500 at most). This section is the SoT for the line-count target/max and the subsystem definition; `openspec/config.yaml` `rules.proposal` carries the one-subsystem and 8-task limits and points here for line counts. A proposal over budget is split in the roadmap before apply. Until `diff-size-check` lands, the hard limit binds the plan and the first push of an item; blocking review fixes stay in the same PR and are not moved out for size; the full mechanism lands in `diff-size-check`.
+Every item fits one agent apply context (one agent chat) and one PR of about 1000 changed lines (prefer ≤1500). This section is the SoT for the line-count target/prefer-max and the subsystem definition; `openspec/config.yaml` `rules.proposal` carries the one-subsystem and 8-task limits and points here for line counts. Size is **advisory**: `pnpm agent size`, `pnpm quality:self-check`, `pnpm check` / CI, and `pnpm agent finish` only warn — they never fail or block merge on line count. Prefer splitting oversized plans before apply.
 
-**The roadmap grows in place.** If planning or apply shows that a PR will go over the size budget, add the overflow as a new item right after the current one: `pnpm roadmap add <kebab-slug> --after <current> --tag prep|feature --title "…"` (same milestone, short scope, a **Done when:** line for a `[prep]`); the current PR stays within the limit — never enlarge the PR past the budget. Review findings that are deferred (blocking critical/high left for later) become items right after the current one the same way, never vague follow-ups. Items are still done in index order; the list just gets longer.
+**The roadmap grows in place.** If planning or apply shows that a PR will go well over the size guidance, add the overflow as a new item right after the current one: `pnpm roadmap add <kebab-slug> --after <current> --tag prep|feature --title "…"` (same milestone, short scope, a **Done when:** line for a `[prep]`). Prefer keeping the current PR within the guidance. Review findings that are deferred (blocking critical/high left for later) become items right after the current one the same way, never vague follow-ups. Items are still done in index order; the list just gets longer.
 
 - A **subsystem** is a unit with its own lifecycle or contract: a worker or worker pool, a store, a painter or render layer, a storage or cache adapter, a new dependency, a new Vite entry, a schema version bump, a new top-level UI region (screen, panel, overlay layer). A UI region with its own view state is one subsystem; a dependency or worker that exists only to implement the item's one subsystem counts with it.
 - Not a subsystem: new job types on the existing worker pool, ops / selectors / slices on an existing store, wiring existing subsystems into UI, the change's own perf scenario.

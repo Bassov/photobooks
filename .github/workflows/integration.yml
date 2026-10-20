@@ -27,16 +27,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Resolve burn-in count
         id: burn-in-count
         env:
           GITHUB_HEAD_REF: ${{ github.head_ref }}
         run: |
-          COUNT="$(node scripts/e2e-burn-in-count-cli.mjs)"
+          COUNT="$(pnpm exec ts-rig-gate e2e-burn-in-count)"
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "Burn-in count: $COUNT"
 
@@ -46,7 +45,7 @@ jobs:
           STRYKER_DIFF_BASE: origin/${{ github.base_ref }}
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          TARGETS="$(node scripts/e2e-burn-in-targets-cli.mjs | tr '\n' ' ')"
+          TARGETS="$(pnpm exec ts-rig-gate e2e-burn-in-targets | tr '\n' ' ')"
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           if [ -z "$(echo "$TARGETS" | tr -d '[:space:]')" ]; then
             echo "has_targets=false" >> "$GITHUB_OUTPUT"
@@ -55,15 +54,6 @@ jobs:
             echo "has_targets=true" >> "$GITHUB_OUTPUT"
             echo "Burn-in targets: $TARGETS"
           fi
-
-      - uses: pnpm/action-setup@v6
-        if: steps.burn-in-targets.outputs.has_targets == 'true'
-        with:
-          version: 10.28.0
-
-      - name: Install dependencies
-        if: steps.burn-in-targets.outputs.has_targets == 'true'
-        run: pnpm install --frozen-lockfile
 
       - name: Cache Playwright browsers
         if: steps.burn-in-targets.outputs.has_targets == 'true'
@@ -85,7 +75,7 @@ jobs:
         if: steps.burn-in-targets.outputs.has_targets == 'true'
         id: burn-in
         run: >
-          node scripts/with-playwright-env.mjs pnpm exec playwright test
+          pnpm exec ts-rig-ci with-playwright-env pnpm exec playwright test
           --project=chromium
           ${{ steps.burn-in-targets.outputs.targets }}
           --repeat-each=${{ steps.burn-in-count.outputs.count }}
@@ -134,17 +124,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.28.0
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -161,26 +142,73 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - name: E2E
-        id: e2e
-        run: pnpm test:e2e
-        env:
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-results.json
+      - name: Build app for E2E
+        run: pnpm build
 
-      - name: E2E coverage harvest
-        id: e2e-coverage
-        if: success()
-        run: >
-          pnpm test:e2e
-          --grep-invert "frame-budget gates"
+      - name: E2E functional (coverage)
+        id: e2e-functional
+        run: pnpm test:e2e --grep-invert "frame-budget gates"
         env:
           # webServer sets VITE_COVERAGE=1; skip LoAF describes (Istanbul overhead).
           E2E_COVERAGE: '1'
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-coverage-results.json
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-functional.json
+
+      - name: Stash functional E2E JSON
+        if: always()
+        run: |
+          if [ -f test-results/e2e-functional.json ]; then
+            cp test-results/e2e-functional.json /tmp/e2e-functional.json
+          fi
+
+      - name: E2E frame-budget (no coverage)
+        id: e2e-perf
+        if: success()
+        run: pnpm test:e2e -g "frame-budget gates"
+        env:
+          E2E_COVERAGE: '0'
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/e2e-perf.json
+
+      - name: Merge E2E JSON reports
+        if: always()
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+
+          const paths = ['/tmp/e2e-functional.json', 'test-results/e2e-perf.json'].filter(
+            (p) => existsSync(p),
+          )
+          if (paths.length === 0) {
+            console.error('No E2E JSON reports to merge')
+            process.exit(0)
+          }
+          const reports = paths.map((p) => JSON.parse(readFileSync(p, 'utf8')))
+          const merged = structuredClone(reports[0])
+          for (let i = 1; i < reports.length; i++) {
+            const r = reports[i]
+            merged.suites = [...(merged.suites ?? []), ...(r.suites ?? [])]
+            if (merged.stats && r.stats) {
+              for (const key of [
+                'duration',
+                'expected',
+                'unexpected',
+                'flaky',
+                'skipped',
+              ]) {
+                merged.stats[key] = (merged.stats[key] ?? 0) + (r.stats[key] ?? 0)
+              }
+            }
+            merged.errors = [...(merged.errors ?? []), ...(r.errors ?? [])]
+          }
+          mkdirSync('test-results', { recursive: true })
+          writeFileSync(
+            'test-results/e2e-results.json',
+            JSON.stringify(merged),
+          )
+          EOF
 
       - name: Merge e2e coverage
         id: e2e-coverage-merge
-        if: always() && steps.e2e-coverage.outcome == 'success'
+        if: always() && steps.e2e-functional.outcome == 'success'
         run: |
           pnpm coverage:e2e
           test -s coverage-e2e/lcov.info
@@ -234,12 +262,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+
       - name: Resolve @flaky list
         id: flaky
         run: |
           node --input-type=module <<'EOF'
           import { appendFileSync } from 'node:fs'
-          import { loadFlakySpecPaths } from './scripts/e2e-flaky-list.mjs'
+          import { loadFlakySpecPaths } from '@albasov/ts-agent-rig/e2e-flaky-list'
           const paths = loadFlakySpecPaths()
           const has = paths.length > 0
           appendFileSync(process.env.GITHUB_OUTPUT, `has_targets=${has}\n`)
@@ -256,17 +287,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.28.0
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -347,9 +369,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
       - name: Download e2e results
         continue-on-error: true
@@ -383,11 +404,11 @@ jobs:
             STEP_OUTCOME=success
           fi
           if [ -f e2e-download/e2e-results.json ]; then
-            node scripts/e2e-playwright-summary-cli.mjs \
+            pnpm exec ts-rig-ci e2e-summary \
               --report e2e-download/e2e-results.json \
               "${EXTRA_ARGS[@]}" \
               --out /tmp/e2e-pr-comment.md
-            node scripts/ci-report-comment.mjs pack \
+            pnpm exec ts-rig-ci report-comment pack \
               --section e2e \
               --step-outcome "$STEP_OUTCOME" \
               --missing-report job-failed \
@@ -396,7 +417,7 @@ jobs:
               --out ci-section/section.json
           else
             echo "No main e2e JSON report" > /tmp/e2e-pr-comment.md
-            node scripts/ci-report-comment.mjs pack \
+            pnpm exec ts-rig-ci report-comment pack \
               --section e2e \
               --step-outcome "$STEP_OUTCOME" \
               --missing-report job-failed \
@@ -409,4 +430,4 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci-report-comment.mjs apply --section e2e --artifact ci-section/section.json
+        run: pnpm exec ts-rig-ci report-comment apply --section e2e --artifact ci-section/section.json

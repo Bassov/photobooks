@@ -6,9 +6,9 @@ Title: mutate the small files that already have tests (issue #72 B)
 
 ## Scope
 
-- [ ] Remove the `temporary` entries for `src/editor/previewAspect.ts`, `src/editor/upgradeSessionAssets.ts`, `src/photo/photo.worker.ts` and `src/assets/hash.worker.ts` (named in the registry with `until: mutation-reinclude-small`)
-- [ ] Shared `workerHarness.test-helpers.ts` (stub `postMessage`, dispatch `MessageEvent`). Worker tests for all three worker shells, including the `hash.worker.ts` error mapping
-- [ ] Kill survivors through public APIs until each file reaches 85 (only the `processAsset` boundary is mocked)
-- **Done when:** these files are mutated on both runs with no NoCoverage, and each scores at least 85.
-- **Size:** ~600 changed lines (target ~1000, max 1500 incl. tests)
+- [ ] Remove the `temporary` entries for `src/editor/previewAspect.ts` and `src/editor/upgradeSessionAssets.ts` (named in the registry with `until: mutation-reinclude-small`)
+- [ ] Kill survivors through public APIs until each file reaches 85
+- **Done when:** these two files are mutated on both runs with no NoCoverage, and each scores at least 85.
+- **Size:** ~300 changed lines (target ~1000, max 1500 incl. tests)
+- **Out of scope:** thin worker shims (`photo.worker.ts`, `hash.worker.ts`, `bookLoad.worker.ts`) stay permanent Stryker bangs (not re-included here).
 - **Source:** #72 B

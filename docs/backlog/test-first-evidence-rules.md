@@ -6,7 +6,7 @@ Title: scenarios first, honest ticks (issue #72 D, E)
 
 ## Scope
 
-- [ ] `openspec/config.yaml` `rules.design`: a required **State transitions and adversarial scenarios** section (cancel, permission denied, second tab, navigation during autosave, IDB failure, switching libraries with a contentful book open). Each scenario maps to a named test. `openspec-design-reviewer` fails a design without it
+- [ ] `openspec/config.yaml` `rules.design`: a required **State transitions and adversarial scenarios** section (cancel, permission denied, second tab, navigation during autosave, IDB failure, switching libraries with a contentful book open). Each scenario maps to a named test. `openspec-planning-reviewer` fails a design without it
 - [ ] Every bug found in review or QA gets a failing-first regression test. The PR body names the test and the run or commit where it failed before the fix
 - [ ] `rules.tasks`: spec deltas MUST NOT claim behaviour that is not implemented. The mechanical tick-evidence scan lives in `agent-self-check`
 - [ ] `openspec-implementation-reviewer.md`: compare each spec-delta `SHALL` / scenario with code and tests; an unbacked claim or a design scenario without its mapped test is `high`
