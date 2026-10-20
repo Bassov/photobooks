@@ -11,6 +11,12 @@ import {
   computeDiffSize,
   DIFF_SIZE_MAX,
 } from './check-diff-size.mjs'
+import {
+  archiveOpenSpecChange,
+  ensureOpenSpecChange,
+  loadNativeArtifactInstructions,
+  openSpecChangeStatus,
+} from './openspec-native.mjs'
 
 const nodeRequire = createRequire(import.meta.url)
 
@@ -67,19 +73,19 @@ Apply/archive (≤10):
 2. Implement tasks; tick checkboxes; keep touch-set.
 3. pnpm check (OK lines only); e2e/stryker/lhci when in scope.
 4. openspec-implementation-reviewer (brief --out); Manual check; Security if tagged.
-5. Archive: sync delta specs, openspec archive, pnpm roadmap done <slug>.
+5. Archive: sync delta specs, pnpm agent archive <slug>, pnpm roadmap done <slug>.
 6. Commit; pnpm agent finish --title … --body-file … (no CI watch).
 Explore: grep ≤30; offset/limit if >400 lines; no re-read; no TodoWrite in -p.
 Task shape: reviewer skill set + brief file path only.`
 
-/** Prep fast-track when Tag: prep + concrete Scope/Done when (roadmap item is the plan). */
+/** Prep/contingency fast-track when Tag: prep|contingency + concrete Scope/Done when. */
 export const PREP_APPLY_ARCHIVE_PROCEDURE = `\
 Apply/archive prep fast-track (≤10):
-1. Brief proposal.md + tasks.md; skip design.md unless arch/security; skip_specs:true if no src/ capability behavior change. Skip openspec-planning-reviewer.
+1. Brief proposal.md + tasks.md; skip design.md unless arch/security; skip_specs:true if no src/ capability behavior change (touch .skip-specs / .skip-design). Skip openspec-planning-reviewer.
 2. Implement; keep touch-set (intra-capability helper/test OK).
 3. pnpm check (OK lines); e2e/stryker/lhci when in scope.
 4. openspec-implementation-reviewer; Manual check; Security if tagged. ([x] ticks → quality:self-check)
-5. Archive: sync deltas if any, openspec archive, pnpm roadmap done <slug>.
+5. Archive: sync deltas if any, pnpm agent archive <slug>, pnpm roadmap done <slug>.
 6. Commit; pnpm agent finish --title … --body-file … (no CI watch).
 Explore: grep ≤30; offset/limit if >400; no re-read; no TodoWrite in -p.
 Task shape: skill set + brief path only.`
@@ -94,10 +100,11 @@ export function hasPrepConcreteScope(body) {
   )
 }
 
-/** Prep fast-track: Tag prep + concrete Scope/Done when in the roadmap item body. */
+/** Prep/contingency fast-track: Tag prep|contingency + concrete Scope/Done when. */
 export function isPrepFastTrack(item) {
+  const tag = String(item?.tag ?? '').toLowerCase()
   return (
-    String(item?.tag ?? '').toLowerCase() === 'prep' &&
+    (tag === 'prep' || tag === 'contingency') &&
     hasPrepConcreteScope(item?.body)
   )
 }
@@ -145,9 +152,10 @@ const HELP = `usage: pnpm agent <cmd> [--root <repo>] [--json] [--quiet]
   manual-qa [--change S] [--base-url U]   headless Playwright smoke (composer-2.5 subagent)
   instructions <artifact> [--change S]   template + rules for one artifact
   stats <path>   per-round tokens; exit 1 if peak>300K or first input>400K
+  archive [--change S]   move openspec/changes/<slug> → archive/YYYY-MM-DD-<slug>
   help
 
-Requires POSIX shell, Node matching .nvmrc, and pnpm/openspec/gh/git on PATH
+Requires POSIX shell, Node matching .nvmrc, and pnpm/gh/git on PATH
 (source scripts/agent-env.sh). Prefer --json for machine branching.`
 
 /** @typedef {{ code: number, stdout: string, stderr: string }} ExecResult */
@@ -412,64 +420,33 @@ export function readyArtifactIds(statusJson) {
 }
 
 /**
- * Load template/rules for one artifact via openspec (CLI-internal; agents use
- * `pnpm agent instructions` instead of raw openspec instructions).
+ * Load template/rules for one artifact from openspec/config.yaml (native).
+ * @param {string} root
+ * @param {string} artifactId
+ * @param {string} [_change] unused (kept for call-site compat)
  */
-export function loadArtifactInstructions(
-  exec,
-  cwd,
-  env,
-  quiet,
-  artifactId,
-  change,
-) {
-  const args = ['instructions', artifactId, '--json']
-  if (change) args.push('--change', change)
-  const instr = mustOk(
-    sh(exec, cwd, env, quiet, 'openspec', args),
-    'openspec instructions',
-  )
+export function loadArtifactInstructions(root, artifactId, _change) {
   try {
-    return parseInstructions(instr.stdout)
-  } catch {
-    fail(
-      `openspec instructions returned invalid JSON:\n${tailOutput(instr.stdout, instr.stderr)}`,
-    )
+    return loadNativeArtifactInstructions(root, artifactId)
+  } catch (e) {
+    fail(`openspec instructions failed: ${e instanceof Error ? e.message : e}`)
   }
 }
 
-export function buildRunCard(exec, cwd, env, quiet, changeSlug, opts = {}) {
-  const statusR = mustOk(
-    sh(exec, cwd, env, quiet, 'openspec', [
-      'status',
-      '--change',
-      changeSlug,
-      '--json',
-    ]),
-    'openspec status',
-  )
-  let status
-  try {
-    status = JSON.parse(statusR.stdout)
-  } catch {
-    fail(
-      `openspec status returned invalid JSON:\n${tailOutput(statusR.stdout, statusR.stderr)}`,
-    )
-  }
+/**
+ * @param {string} root
+ * @param {string} changeSlug
+ * @param {{ prepFastTrack?: boolean }} [opts]
+ */
+export function buildRunCard(root, changeSlug, opts = {}) {
+  const prepFastTrack = Boolean(opts.prepFastTrack)
+  const status = openSpecChangeStatus(root, changeSlug, { prepFastTrack })
   const ready = readyArtifactIds(status)
   /** @type {Record<string, { template: string|null, rules: unknown }>} */
   const artifacts = {}
   for (const id of ready) {
-    artifacts[id] = loadArtifactInstructions(
-      exec,
-      cwd,
-      env,
-      quiet,
-      id,
-      changeSlug,
-    )
+    artifacts[id] = loadArtifactInstructions(root, id, changeSlug)
   }
-  const prepFastTrack = Boolean(opts.prepFastTrack)
   return {
     ready,
     artifacts,
@@ -1327,23 +1304,17 @@ export function cmdPreflight(o, deps) {
   const stale = refreshStaleFeatureBranch(exec, root, cwd, env, quiet)
   const checklistIds = readReviewChecklistIds(root)
 
-  const changeDir = path.join(root, 'openspec', 'changes', item.slug)
-  if (!fs.existsSync(changeDir)) {
-    mustOk(
-      sh(exec, cwd, env, quiet, 'openspec', ['new', 'change', item.slug]),
-      'openspec new change',
-    )
-  }
+  ensureOpenSpecChange(root, item.slug)
 
   const prepFastTrack = isPrepFastTrack(item)
-  const runCard = buildRunCard(exec, cwd, env, quiet, item.slug, {
+  const runCard = buildRunCard(root, item.slug, {
     prepFastTrack,
   })
   const primaryId =
     runCard.ready.find((id) => id === 'proposal') ?? runCard.ready[0] ?? null
   const instructions = primaryId
     ? runCard.artifacts[primaryId]
-    : loadArtifactInstructions(exec, cwd, env, quiet, 'proposal', item.slug)
+    : loadArtifactInstructions(root, 'proposal', item.slug)
   if (!Array.isArray(instructions.rules))
     fail('openspec instructions missing rules array')
 
@@ -1911,7 +1882,7 @@ export function cmdReviewBrief(o, deps) {
 }
 
 export function cmdInstructions(o, deps) {
-  const { cwd, env, exec, quiet } = deps
+  const { root, cwd, env, exec, quiet } = deps
   const artifact = o._[1]
   if (!artifact) fail('usage: pnpm agent instructions <artifact> [--change S]')
   let change = o.change
@@ -1922,15 +1893,32 @@ export function cmdInstructions(o, deps) {
     )
     change = slugFromBranch(br.stdout.trim())
   }
-  const instructions = loadArtifactInstructions(
-    exec,
-    cwd,
-    env,
-    quiet,
-    artifact,
-    change,
-  )
+  const instructions = loadArtifactInstructions(root, artifact, change)
   return { ok: true, change, artifact, ...instructions }
+}
+
+export function cmdArchive(o, deps) {
+  const { root, cwd, env, exec, quiet } = deps
+  let slug = o.change
+  if (!slug) {
+    const br = mustOk(
+      sh(exec, cwd, env, quiet, 'git', ['branch', '--show-current']),
+      'git branch',
+    )
+    slug = slugFromBranch(br.stdout.trim())
+  }
+  if (!slug) fail('usage: pnpm agent archive [--change S]')
+  const result = archiveOpenSpecChange(root, slug)
+  return {
+    ok: true,
+    slug,
+    ...result,
+    summary: result.archivedTo
+      ? `archived to ${result.archivedTo}`
+      : result.removed
+        ? `removed openspec/changes/${slug}`
+        : `no change dir for ${slug}`,
+  }
 }
 
 export function cmdStats(o, deps) {
@@ -2186,6 +2174,9 @@ export function run(argv, deps = {}) {
       case 'instructions':
         r = cmdInstructions(o, d)
         break
+      case 'archive':
+        r = cmdArchive(o, d)
+        break
       case 'stats':
         r = cmdStats(o, d)
         code = statsExitCode(r)
@@ -2207,7 +2198,13 @@ export function run(argv, deps = {}) {
                 ? fmtSize(r)
                 : cmd === 'manual-qa'
                   ? fmtManualQa(r)
-                  : fmtBrief(r)
+                  : cmd === 'archive'
+                    ? [
+                        `ok: ${r.ok}`,
+                        `slug: ${r.slug}`,
+                        `summary: ${r.summary}`,
+                      ].join('\n')
+                    : fmtBrief(r)
     return { code, out }
   } catch (e) {
     if (!(e instanceof AgentError)) throw e

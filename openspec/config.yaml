@@ -13,107 +13,82 @@ context: |
   - After code changes: run `pnpm check` until it prints only OK lines (full logs under `.cache/checks/` or `--verbose`); e2e stays separate
   - Property-based tests via @fast-check/vitest (numRuns ~100 local; higher in CI)
   - Mutation testing: pnpm stryker:diff on changed modules; nightly full Stryker on main
-  - Perf: Lighthouse CI budgets (budget.json); 60 fps proxies — zero LoAF, handler p95 ≤ 2 ms, INP ≤ 100 ms in scenario tests (`src/perf/budgets.ts`); frame pacing via `pnpm perf`
+  - Perf: Lighthouse CI budgets (budget.json); 60 fps proxies — zero LoAF, handler p95 ≤ 2 ms, INP ≤ 100 ms (`src/perf/budgets.ts`); `pnpm perf`
   - Heavy work (decode/render/imposition) MUST run in Web Workers, never on the main thread
-  - Tests MUST exercise public module/component APIs; no private/`as any`/deep-internal hacks — if blocked, reuse an existing seam or extend the public API in the same change
-  - Shared factories, fixtures, and helpers; do not copy-paste Arrange/setup across cases or suites
-  - Mock I/O boundaries only (fs, network, time, worker edges); do not assert internal helper call counts
+  - Tests MUST exercise public module/component APIs; no private/`as any`/deep-internal hacks
+  - Shared factories, fixtures, and helpers; mock I/O boundaries only
   - Detailed test style: skill `write-tests`
-  - Repeated review finding → automated check in the same change (or area SHALL / code comment if infeasible). No findings journal
-  - Gate owners: non-weaken / ratchet / disable-budget → `gate-ratchet`, `gate-weakening-guard`, `stryker-disable-budget`; same-change product-logic Stryker exclude widening → `stryker-diff-gate` / `exclusions-registry`
-  - Exploratory/MCP bugs MUST land a Playwright e2e that would have failed before the fix
-  - Page overflow containment: Playwright via shared e2e helpers (not `ui-review`); element scrollLeft alone is not proof
-  - UI in scope: evidenced browser smoke (empty + happy + primary scroll/interact) + skill `ui-review` before push/archive; green typecheck/unit alone is not enough
-  - Observable UX claims in success criteria MUST have matching Playwright assertions before apply completes
-  - NEVER weaken a quality gate (exclusions, disables, lower thresholds, remove checks, loosen assertions, retries/skip/fixme/test.fail, delete tests). Only budgeted `// Stryker disable next-line <Mutator>[,…]: <reason>` (≥10 chars) within mutation.disableBudget; tasks.md notes do not justify survivors
-  - Necessary minimum (artifacts + prod code): only what the item needs; reuse ladder exists → codebase → platform → installed dep → new code. Bug fixes: grep callers, fix root once. Moved code keeps validation, data-loss, security, a11y, perf
-  - Necessary-minimum does NOT apply to tests — coverage/mutation/PBT/e2e bars stay unchanged or stricter
+  - Repeated review finding → automated check in the same change. No findings journal
+  - NEVER weaken a quality gate. Only budgeted `// Stryker disable next-line …: <reason>` within mutation.disableBudget
+  - Necessary minimum (artifacts + prod code): reuse ladder exists → codebase → platform → installed dep → new code. Tests are exempt
+  - UI in scope: evidenced browser smoke + skill `ui-review` before push/archive
+  - Scripts/CI/.cursor-only changes: always `skip_specs: true` (no product-spec deltas)
 
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
-  - AGENTS.md is a navigation map (size via quality/gates.json agentRules.budgets). Specs are behavior SoT.
-  - Durable docs: docs/future-architecture.md (target architecture); docs/roadmap.md + docs/roadmap/ (execution plan: index + one file per item, changed only via `pnpm roadmap`, skill `roadmap`)
+  - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI/agent behavior live in scripts/, quality/gates.json, and .cursor/rules — not in openspec/specs prose mirrors.
+  - Durable docs: docs/future-architecture.md; docs/roadmap.md + docs/roadmap/ via `pnpm roadmap` (skill `roadmap`)
 
   Security surface (tag changes that touch these):
   - File System Access, workers/postMessage, blob/object URLs, CSP/headers, dependency bumps, export pipelines
 
 rules:
   proposal:
-    - Keep proposals under 400 words (~one screen). Prefer bullets over prose.
-    - 'Include only: problem, why now, scope in/out, success criteria, risks.'
-    - Do NOT include API shapes, file trees, pseudocode, or implementation dumps.
-    - 'Necessary minimum: only what the item needs; N/A topics in one line; no padded sections, unrequested options, or abstractions. Tests are exempt — do not cut test plans to look "minimal."'
-    - If content does not fit, narrow scope — never inflate the proposal.
-    - 'Size budget (one apply context): at most ONE new subsystem and at most 8 implementation tasks; line-count target/max and subsystem definition live in docs/roadmap/RULES.md "Change size" (do not restate numbers here).'
-    - 'Over budget: before design/apply, narrow scope to one subsystem and add the remainder as new roadmap items right after the current one with `pnpm roadmap add <slug> --after <current> --tag prep|feature|contingency --title "..."` (needed infra as a preceding [prep], gate fallbacks as [contingency]). Deferred blocking review findings become items the same way — never vague follow-ups.'
-    - 'Planning review: `openspec-planning-reviewer` after proposal+design+tasks(+specs). Prep fast-track (`Tag: prep` + concrete `## Scope` checkboxes + `- **Done when:**`): brief proposal+tasks; skip design.md unless arch/security; `skip_specs: true` when no `src/` capability behavior change; skip planning-reviewer (roadmap item is the plan).'
-    - If UI is in scope, success criteria MUST include observable UX (not only "it works").
-    - 'If UI is in scope, success criteria MUST name empty + happy-path + primary interact/scroll observables that e2e will lock in.'
-    - 'If the change introduces or changes an in-app scrollport (overflow auto/scroll), success criteria MUST state: no page-level H/V scroll; scrolling only inside the named scrollport(s).'
-    - If the security surface is in scope, risks MUST include an explicit security bullet.
-    - 'Roadmap [feature] item: success criteria MUST cover its **Browser check:** and **Perf:** lines (`pnpm roadmap show <slug>`); if the item lacks them, write them into its item file docs/roadmap/<milestone>/<slug>.md in this change (record as an assumption) instead of asking. Never read the whole roadmap; use `pnpm roadmap next` / `show`.'
+    - '≤80 words / ≤15 lines. Link docs/roadmap/<M>/<slug>.md (and UI ref if any) as scope/acceptance SoT. List only Scope out (2–3 bullets) and Delta/Risk (1–2 if clarifying the item). Do not restate Why / Scope in / Browser check / Perf from the roadmap file.'
+    - 'Necessary minimum: only what the item needs; N/A in one line. Tests are exempt.'
+    - 'Size guidance (advisory): at most ONE new subsystem and at most 8 tasks; line-count target/prefer-max in docs/roadmap/RULES.md "Change size". Prefer `pnpm roadmap add --after` when oversized — check/CI never fail on size.'
+    - 'Over guidance: before design/apply, prefer narrowing + `pnpm roadmap add <slug> --after <current> --tag prep|feature|contingency --title "…"`.'
+    - 'Two-speed: [feature] (or [prep] that adds src/<capability>/) → compact proposal + design + tasks (+ specs only if domain contract changes) + openspec-planning-reviewer once. [prep]/[contingency] with concrete ## Scope + Done when → brief proposal+tasks; skip design.md unless arch/security; skip_specs:true when no src/ capability behavior change; skip planning-reviewer (roadmap item is the plan).'
+    - 'If UI is in scope, Delta/Risk or success notes MUST name empty + happy + primary interact/scroll observables e2e will lock in.'
+    - 'If a scrollport is in scope, state: no page-level H/V scroll; scrolling only inside the named scrollport(s).'
+    - 'If the security surface is in scope, Delta/Risk MUST include an explicit security bullet.'
   design:
-    - Keep design under ~600 words.
-    - 'Necessary minimum: write design.md only for real decisions; N/A sections in one line; no padded alternatives or unrequested layers. Prefer reuse ladder (exists → codebase → platform → installed dependency → minimum new code). Tests are exempt.'
-    - Include implementation detail only where apply would otherwise be ambiguous.
-    - Prefer references to existing modules over inventing new layers.
-    - MUST include a touch-set (concrete files/modules in scope) sized for one apply context.
-    - 'Every quality-gate config edit (coverage thresholds, mutation config/exclusions, ESLint/tsconfig strictness, CI gate workflows, Codecov/LHCI budgets used as gates) MUST appear in the touch-set with a reason.'
-    - MUST state composition/module boundaries when code changes; prefer small composable units over god-files.
-    - When tests are in scope, note which public API is under test and which shared fixtures/helpers to reuse or add.
-    - When a scrollport is in scope, note reuse of e2e `assertDocumentFitsViewport` / `assertNamedScrollport` (or equivalent shared helpers).
-    - 'When UI is in scope, note empty / happy / scroll-or-interact e2e cases and that skill `ui-review` (incl. layout smoke) runs before push.'
-    - If heavy image/decode/render/encode work is in scope, MUST place it in Web Workers.
-    - If the security surface is in scope, MUST include a Security section.
-    - After proposal+design+tasks(+specs), launch `openspec-planning-reviewer` once (brief `--out`; ≤1 re-review). Docs-only skips design checklist. Prep fast-track: skip.
+    - 'Only two sections (≤250 words): ## Decisions (numbered, after reading the codebase) and ## Touch-set & Test Plan (files, reuse, unit/PBT/e2e lock-ins). Drop Context / Goals / Non-Goals padding.'
+    - 'Necessary minimum: write design.md only for real decisions; N/A in one line. Prefer reuse ladder. Tests are exempt.'
+    - 'Every quality-gate config edit MUST appear in the touch-set with a reason.'
+    - 'When UI is in scope, name empty / happy / scroll-or-interact e2e cases and that skill `ui-review` runs before push.'
+    - 'If heavy image/decode/render/encode work is in scope, MUST place it in Web Workers.'
+    - 'If the security surface is in scope, Decisions MUST cover permission/security handling.'
+    - 'After proposal+design+tasks(+specs), launch `openspec-planning-reviewer` once (brief `--out`; ≤1 re-review). Docs-only skips design checklist. Prep/contingency fast-track: skip.'
   tasks:
     - Break work into small, checkable tasks.
-    - At most 8 implementation tasks (the Verification checklist does not count). More means the change exceeds the size budget in rules.proposal — split it with `pnpm roadmap add --after` instead of inflating tasks.
-    - After writing tasks.md, run `openspec validate <change> --strict` and fix every error before apply.
-    - |
-      Every tasks.md MUST end with this Verification checklist (unchecked at creation):
-      - [ ] pnpm check (only OK lines; then e2e/stryker/lhci/reviewer/manual items that still apply below)
-      - [ ] pnpm test:e2e (or pnpm verify) when UI/browser scope requires it
-      - [ ] pnpm stryker:diff
-      - [ ] pnpm test:lhci when UI or bundle size is affected
-      - [ ] UI in scope: browser smoke evidenced (empty + happy + primary scroll/interact via Playwright and/or MCP browser); skill `ui-review` pass
-      - [ ] Docs/rules sync when behavior/commands/CI/module map/item changed (README, AGENTS.md within budgets, affected rules/skills, future-architecture, item note); no alwaysApply without merge/remove
-      - [ ] pnpm audit:ci when package.json/lockfile or security-tagged change
-      - [ ] openspec-planning-reviewer pass before apply (evidenced; N/A prep fast-track)
-      - [ ] Launch `openspec-implementation-reviewer`; resolve findings before archive
-      - [ ] Manual check: run `pnpm agent manual-qa` (or N/A non-UI); paste OK/problem lines into `## Manual test scenarios`; bug → e2e + fix + delta re-review
-      - [ ] Security Review before archive when tagged (Security Review: …) or security surface touched
+    - 'At most 8 implementation tasks. More means split with `pnpm roadmap add --after` instead of inflating tasks.'
+    - 'tasks.md has ## Implementation and ## Manual test scenarios only. Do NOT copy a Verification checklist — `pnpm agent finish` / `pnpm quality:self-check` / CI enforce gates.'
+    - 'Tick boxes with test/link/commit evidence when completing tasks.'
+  specs:
+    - 'Keep openspec/specs/ for `src/` product capabilities only. Tooling/CI/agent changes: skip_specs: true.'
+    - 'Prefer concise invariants + single-line requirements; reserve WHEN/THEN for core user/contract flows.'
+    - 'Budget ≤250 lines soft / ≤300 hard per capability spec.md (quality/gates.json openspecSpecs). Split rather than append.'
+    - 'Default skip_specs: true for internal refactors, perf tuning, or bug fixes whose contract is already in the capability spec.'
 
 operations:
   apply:
     guidance:
-      - Do not treat apply as complete until Verification checklist items are green.
-      - Before archive, for each reviewer finding tagged `[repeat]` add the named automated check (or area SHALL / code comment when a check is infeasible) in the same change — do not append to a findings journal.
-      - If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode before treating apply as complete.
-      - When a change introduces or changes an in-app scrollport, include Playwright calls to `assertDocumentFitsViewport` (and `assertNamedScrollport` when content overflows the viewport) before treating apply as complete.
-      - 'When UI is in scope: before push/archive, run skill `ui-review` and evidenced browser smoke (empty state readable; happy path of the change; primary scroll/interact with no large dead zone while more content exists). Prefer Playwright assertions; MCP browser screenshots/notes are supporting evidence, not a substitute for locking bugs into e2e.'
-      - 'When UI success criteria claim geometry (packing, aspect silhouettes, empty copy, viewport fill, object-fit), add matching Playwright coverage before treating apply as complete.'
-      - 'Virtualized or variable-size lists: e2e MUST assert the mounted window covers the scrollport mid-scroll when more items remain — fixed item counts / LoAF alone are not enough.'
-      - Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep fast-track (roadmap item is the plan; keep implementation-reviewer + `pnpm check`).
-      - 'If apply will exceed the size guidance (~1000 / prefer ≤1500; advisory — check/CI never fail on size), prefer adding overflow with `pnpm roadmap add <slug> --after <current>` rather than enlarging the PR.'
-      - Run pnpm stryker:diff and pnpm test:coverage before requesting implementation review. Add tests through public APIs (skill `write-tests`) for survived / no-coverage mutants and uncovered lines in code this change touched that encode specified behavior; list the rest (equivalent, logging, perf instrumentation) with a one-line reason under the tasks.md stryker item.
-      - 'Survivors: a free-text reason in tasks.md is not enough — delete dead code or use a budgeted `// Stryker disable next-line …: <reason>` within mutation.disableBudget; illegal Stryker disable forms are forbidden.'
-      - Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.
-      - After verify gates pass, launch Cursor subagent `openspec-implementation-reviewer`.
-      - After that review passes, run `pnpm agent manual-qa` for the Manual check (N/A non-UI); paste OK/problem lines into `## Manual test scenarios`.
-      - For items tagged (Security Review: …) or changes that touch the security surface, launch Cursor Security Review before archive.
-      - 'Blocking (critical/high) findings from openspec-planning-reviewer, openspec-implementation-reviewer, Security Review, and adversarial-reviewer (when present; item in docs/backlog/ until re-added) MUST be fixed in the change or scheduled with `pnpm roadmap add --after <current>`; the PR body records each verdict and finding disposition.'
+      - 'Do not treat apply as complete until `pnpm check` is green and required e2e/stryker/lhci/reviewer/manual/security items in scope are done (`pnpm agent finish` / quality:self-check).'
+      - 'Before archive, for each reviewer finding tagged `[repeat]` add the named automated check (or area SHALL / code comment when infeasible) in the same change.'
+      - 'If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode.'
+      - 'When a change introduces or changes an in-app scrollport, include Playwright `assertDocumentFitsViewport` / `assertNamedScrollport` before apply-complete.'
+      - 'When UI is in scope: before push/archive, skill `ui-review` + evidenced browser smoke (empty + happy + primary scroll/interact). Prefer Playwright; MCP screenshots are supporting evidence.'
+      - 'Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep/contingency fast-track (roadmap item is the plan; keep implementation-reviewer + `pnpm check`).'
+      - 'If apply will exceed size guidance (~1000 / prefer ≤1500; advisory), prefer `pnpm roadmap add <slug> --after <current>` rather than enlarging the PR.'
+      - 'Run pnpm stryker:diff and pnpm test:coverage before implementation review. Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
+      - 'Survivors: delete dead code or use budgeted `// Stryker disable next-line …: <reason>`; illegal disable forms are forbidden.'
+      - 'Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.'
+      - 'After verify gates pass, launch `openspec-implementation-reviewer`.'
+      - 'After that review passes, run `pnpm agent manual-qa` for the Manual check (N/A non-UI); paste OK/problem lines into `## Manual test scenarios`.'
+      - 'For items tagged (Security Review: …) or changes that touch the security surface, launch Security Review before archive.'
+      - 'Blocking (critical/high) findings MUST be fixed or scheduled with `pnpm roadmap add --after <current>`; the PR body records verdicts and dispositions.'
       - Do not archive while critical or high review findings remain open.
-      - Do not push a UI-scoped PR when empty/happy/scroll smoke is missing or failing — green typecheck/unit alone is not apply-complete.
+      - Do not push a UI-scoped PR when empty/happy/scroll smoke is missing or failing.
   archive:
     guidance:
       - Archive only after openspec-implementation-reviewer returned pass.
-      - 'Archive only after blocking critical/high findings from the listed reviewers are fixed or scheduled as next roadmap items; the PR body must record verdicts and dispositions.'
-      - Archive only after the Manual check and Docs/rules sync items in tasks.md are checked.
-      - Before moving the change, grep README.md, AGENTS.md, .cursor/rules, docs/ for terms the change touched; fix drift or note "No doc changes" next to the spec-sync bullets.
-      - ALWAYS sync delta specs into main openspec/specs/ before moving the change (inline sync, then verify merge).
-      - NEVER choose "Archive without syncing" / skip-sync when delta specs exist.
+      - 'Archive only after blocking critical/high findings are fixed or scheduled; PR body records verdicts.'
+      - 'Archive only after Manual check and docs/rules sync are done (`pnpm agent finish` / self-check).'
+      - 'Before moving the change, grep README.md, AGENTS.md, .cursor/rules, docs/ for terms the change touched; fix drift or note "No doc changes".'
+      - ALWAYS sync delta specs into main openspec/specs/ before archiving (inline sync, then verify merge).
+      - NEVER skip-sync when delta specs exist.
       - If sync is blocked or verification fails, STOP — do not archive until fixed.
-      - If there are no delta specs, archive may proceed; note "No delta specs".
-      - 'Close the item with `pnpm roadmap done <slug>` (`--note` when scope differs; contingency not-needed: `--note "not needed (gate passed in <slug>)"`). Index sync / milestone archive are operator docs-PR steps; `pnpm roadmap check`; never hand-edit docs/roadmap.md.'
+      - 'If there are no delta specs, archive may proceed; note "No delta specs".'
+      - 'Use `pnpm agent archive <slug>` (native; no openspec CLI), then `pnpm roadmap done <slug>` (`--note` when scope differs; contingency not-needed note required).'
       - Summarize what merged into specs/ in a few bullets.

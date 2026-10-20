@@ -108,8 +108,8 @@
     "analyze"
   ],
   "openspecSpecs": {
-    "softMaxLines": 400,
-    "hardMaxLines": 500
+    "softMaxLines": 250,
+    "hardMaxLines": 400
   },
   "agentRules": {
     "budgets": [
