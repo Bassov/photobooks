@@ -62,6 +62,36 @@ Apply/archive (≤10):
 Explore: grep ≤30; offset/limit if >400 lines; no re-read; no TodoWrite in -p.
 Task shape: reviewer skill set + brief file path only.`
 
+/** Prep fast-track when Tag: prep + concrete Scope/Done when (roadmap item is the plan). */
+export const PREP_APPLY_ARCHIVE_PROCEDURE = `\
+Apply/archive prep fast-track (≤10):
+1. Brief proposal.md + tasks.md; skip design.md unless arch/security; skip_specs:true if no src/ capability behavior change. Skip openspec-planning-reviewer.
+2. Implement; keep touch-set (intra-capability helper/test OK).
+3. pnpm check (OK lines); e2e/stryker/lhci when in scope.
+4. openspec-implementation-reviewer; Manual check; Security if tagged. ([x] ticks → quality:self-check)
+5. Archive: sync deltas if any, openspec archive, pnpm roadmap done <slug>.
+6. Commit; pnpm agent finish --title … --body-file … (no CI watch).
+Explore: grep ≤30; offset/limit if >400; no re-read; no TodoWrite in -p.
+Task shape: skill set + brief path only.`
+
+/** True when body has ## Scope, a checkbox, and - **Done when:**. */
+export function hasPrepConcreteScope(body) {
+  const t = String(body ?? '')
+  return (
+    /^## Scope\b/m.test(t) &&
+    /^- \[[ xX]\] /m.test(t) &&
+    /^- \*\*Done when:\*\*/m.test(t)
+  )
+}
+
+/** Prep fast-track: Tag prep + concrete Scope/Done when in the roadmap item body. */
+export function isPrepFastTrack(item) {
+  return (
+    String(item?.tag ?? '').toLowerCase() === 'prep' &&
+    hasPrepConcreteScope(item?.body)
+  )
+}
+
 export const STATS_PEAK_CONTEXT_MAX = 300_000
 export const STATS_FIRST_ROUND_INPUT_MAX = 400_000
 
@@ -396,7 +426,7 @@ export function loadArtifactInstructions(
   }
 }
 
-export function buildRunCard(exec, cwd, env, quiet, changeSlug) {
+export function buildRunCard(exec, cwd, env, quiet, changeSlug, opts = {}) {
   const statusR = mustOk(
     sh(exec, cwd, env, quiet, 'openspec', [
       'status',
@@ -427,10 +457,14 @@ export function buildRunCard(exec, cwd, env, quiet, changeSlug) {
       changeSlug,
     )
   }
+  const prepFastTrack = Boolean(opts.prepFastTrack)
   return {
     ready,
     artifacts,
-    procedure: APPLY_ARCHIVE_PROCEDURE,
+    procedure: prepFastTrack
+      ? PREP_APPLY_ARCHIVE_PROCEDURE
+      : APPLY_ARCHIVE_PROCEDURE,
+    prepFastTrack,
   }
 }
 
@@ -1317,7 +1351,10 @@ export function cmdPreflight(o, deps) {
     )
   }
 
-  const runCard = buildRunCard(exec, cwd, env, quiet, item.slug)
+  const prepFastTrack = isPrepFastTrack(item)
+  const runCard = buildRunCard(exec, cwd, env, quiet, item.slug, {
+    prepFastTrack,
+  })
   const primaryId =
     runCard.ready.find((id) => id === 'proposal') ?? runCard.ready[0] ?? null
   const instructions = primaryId
@@ -1329,7 +1366,9 @@ export function cmdPreflight(o, deps) {
   const designPath = path.join('openspec', 'changes', item.slug, 'design.md')
   const touchSet = fs.existsSync(path.join(root, designPath))
     ? designPath
-    : 'TBD until design.md'
+    : prepFastTrack
+      ? 'prep fast-track (design.md optional)'
+      : 'TBD until design.md'
 
   ensureRunStarted(root, branch, Date.now(), exec)
 
@@ -1341,6 +1380,7 @@ export function cmdPreflight(o, deps) {
     stale: stale.stale,
     staleWarning: stale.warning,
     checklistIds,
+    prepFastTrack,
     item: {
       slug: item.slug,
       tag: item.tag,
@@ -1907,6 +1947,7 @@ function fmtPreflight(r) {
     `skips: ${r.skips.join(',')}`,
     `touchSet: ${r.touchSet}`,
     `checklistIds: ${r.checklistIds.join(',')}`,
+    `prepFastTrack: ${Boolean(r.prepFastTrack)}`,
     `instructions: rules=${ruleList.length} (use --json for template/rules)`,
     `runCard.ready: ${(r.runCard?.ready ?? []).join(',') || '(none)'}`,
   ]
