@@ -46,7 +46,7 @@ export function ToastRegion({ className, ...props }: ToastRegionPropsPublic) {
                     className="pb-toast-action-btn"
                     onPress={() => {
                       const run = action.onAction
-                      if (run) run()
+                      if (run !== undefined) run()
                     }}
                   >
                     {action.label}

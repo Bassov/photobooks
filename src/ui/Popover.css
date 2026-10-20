@@ -1,0 +1,14 @@
+.pb-popover {
+  z-index: 50;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  color: var(--foreground);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.pb-popover-dialog {
+  padding: calc(var(--spacing) * 3);
+  outline: none;
+}

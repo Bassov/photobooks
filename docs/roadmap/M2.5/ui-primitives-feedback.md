@@ -8,10 +8,9 @@ Status: done
 ## Scope
 
 - [x] Status (polite / assertive live region), Toast for transient errors, Badge, ProgressBar (determinate / indeterminate), EmptyState
-- [x] Specimen feedback section; component tests through public props
-
-Overlays (Dialog / AlertDialog / Popover / Menu) moved to `ui-primitives-overlays` (size split).
+- [x] Dialog / AlertDialog, Popover, Menu on React Aria Components
+- [x] Specimen section; component tests through public props
 
 ## Done note
 
-Status/Toast/Badge/ProgressBar/EmptyState in src/ui; overlays deferred to ui-primitives-overlays
+Status/Toast/Badge/ProgressBar/EmptyState + Dialog/AlertDialog/Popover/Menu in src/ui; temporary overlays roadmap row folded in

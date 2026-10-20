@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ICON_NAMES } from './Icon'
@@ -103,6 +104,38 @@ describe('SpecimenPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Show success toast' }))
     expect(screen.getByText('Library saved')).toBeTruthy()
+  })
+
+  it('renders overlays specimen with dialog and menu', async () => {
+    render(<SpecimenPage />)
+    expect(screen.getByTestId('specimen-overlays')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open dialog' }))
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open alert' }))
+    const alert = await screen.findByRole('alertdialog')
+    fireEvent.click(within(alert).getByRole('button', { name: 'Remove' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
+        'Alert confirmed',
+      )
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Open alert' }))
+    const alert2 = await screen.findByRole('alertdialog')
+    fireEvent.click(within(alert2).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
+        'Alert cancelled',
+      )
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+    expect(await screen.findByRole('menu')).toBeTruthy()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    expect(screen.getByTestId('specimen-menu-choice').textContent).toBe(
+      'menu=delete',
+    )
   })
 
   it('dismisses specimen toasts via Close', async () => {

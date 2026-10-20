@@ -1,12 +1,11 @@
 ## Decisions
 
-1. **Thin presentational wrappers** in existing `src/ui/` (plain CSS + Theme B tokens; no Tailwind/uikit imports): Status, Toast (+ queue/region), Badge, ProgressBar, EmptyState. Reuse Icon / Button from actions.
-2. **Status** = live region (`polite` → `role="status"` / `aria-live="polite"`; `assertive` → `role="alert"` / `aria-live="assertive"`). **Toast** = RAC `UNSTABLE_ToastQueue` / Region / Toast (kit recipe); tones `default` | `success` | `error`; optional action. Specimen mounts a region; product wiring later.
-3. **Badge** colors `gray|brand|success|warning|error`, sizes `sm|md|lg`, type `badge-color|pill-color`, optional `dot` (token `--badge-*`). **ProgressBar** = RAC ProgressBar; determinate via `value`, indeterminate when value omitted. **EmptyState** = icon slot + title + description + actions slot.
-4. `skip_specs: true` (`.skip-specs`). No new deps / cruiser rules. Button `destructive` deferred to overlays item (AlertDialog confirm).
+1. **Thin RAC wrappers** in `src/ui/`: Status, Toast, Badge, ProgressBar, EmptyState, Dialog, AlertDialog, Popover, Menu. Plain CSS + Theme B tokens; reuse Button/Icon.
+2. **Status** polite/assertive live regions. **Toast** = RAC UNSTABLE_ToastQueue/Region. **Badge** inventory colors/sizes/types + dot. **ProgressBar** determinate/`isIndeterminate`. **EmptyState** icon/title/description/actions.
+3. **Overlays:** Dialog = ModalOverlay+Modal+Dialog. AlertDialog non-dismissable `alertdialog`; Cancel ghost autofocus; confirm Button `destructive` (`--destructive-solid` only here). Popover + Menu thin RAC wrappers; MenuItem `destructive` variant.
+4. `skip_specs: true`. Temporary `ui-primitives-overlays` roadmap row folded back into this change (assignment required full scope).
 
 ## Touch-set & Test Plan
 
-- Files: `src/ui/{Status,Toast,Badge,ProgressBar,EmptyState}.{tsx,css}`, SpecimenPage.*, unit tests; `.skip-specs`; roadmap items (feedback + overlays follow-on); optional `docs/design.md` note.
-- Reuse: tokens, Icon/Button, kit as visual/a11y reference only (`src-no-uikit`).
-- Tests: unit via public props (live-region politeness, toast queue+action+tone, badge attrs, progress value/indeterminate, EmptyState actions); e2e specimen feedback interact + empty/painter scrollports; `ui-review` before archive.
+- Files: `src/ui/{Status,Toast,toastQueue,Badge,ProgressBar,progressFill,EmptyState,Dialog,AlertDialog,Popover,Menu,Button,specimenFeedback}.*`, SpecimenPage.*, e2e design-tokens, docs/design.md, roadmap items, archive.
+- Tests: unit public props; e2e specimen feedback+overlays; ui-review.

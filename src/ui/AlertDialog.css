@@ -1,0 +1,13 @@
+.pb-alert-dialog-body {
+  margin: 0 0 calc(var(--spacing) * 5);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
+.pb-alert-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: calc(var(--spacing) * 2);
+}

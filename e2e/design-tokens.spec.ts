@@ -70,6 +70,18 @@ test('specimen page shows token swatches without third-party fonts', async ({
     'Add folder…',
   )
 
+  const overlays = page.getByTestId('specimen-overlays')
+  await expect(overlays).toBeVisible()
+  await overlays.getByRole('button', { name: 'Open dialog' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await overlays.getByRole('button', { name: 'Open menu' }).click()
+  await page.getByRole('menuitem', { name: 'Delete' }).click()
+  await expect(page.getByTestId('specimen-menu-choice')).toHaveText(
+    'menu=delete',
+  )
+
   const theme = await page.evaluate(
     () => document.documentElement.dataset.theme,
   )

@@ -1,9 +1,13 @@
 import { useState } from 'react'
+import { AlertDialog } from './AlertDialog'
 import { Badge } from './Badge'
 import { Button } from './Button'
+import { Dialog, DialogTitle, DialogTrigger } from './Dialog'
 import { EmptyState } from './EmptyState'
 import { Icon, ICON_NAMES, ICON_SIZES, type IconSize } from './Icon'
 import { IconButton } from './IconButton'
+import { Menu, MenuItem, MenuPopover, MenuTrigger } from './Menu'
+import { Popover, PopoverDialog, PopoverTrigger } from './Popover'
 import { ProgressBar } from './ProgressBar'
 import { SegmentedControl } from './SegmentedControl'
 import { Status } from './Status'
@@ -24,6 +28,8 @@ export function SpecimenPage() {
   const [statusMsg, setStatusMsg] = useState('Ready')
   const [assertiveMsg, setAssertiveMsg] = useState('')
   const [toastQueue] = useState(() => createToastQueue())
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [menuChoice, setMenuChoice] = useState('')
 
   return (
     <main className="specimen-page" data-testid="specimen">
@@ -474,6 +480,95 @@ export function SpecimenPage() {
             }
           />
         </div>
+      </section>
+
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-overlays-heading"
+        data-testid="specimen-overlays"
+      >
+        <h2 id="specimen-overlays-heading">
+          Overlays · Dialog / AlertDialog / Popover / Menu
+        </h2>
+        <p className="specimen-note">
+          React Aria overlays · Esc closes dismissable surfaces · AlertDialog
+          confirm uses filled destructive
+        </p>
+
+        <div className="specimen-actions-block">
+          <div className="specimen-actions-row">
+            <DialogTrigger>
+              <Button variant="secondary" size="sm">
+                Open dialog
+              </Button>
+              <Dialog>
+                <DialogTitle>Library details</DialogTitle>
+                <p className="specimen-note">
+                  A short modal for project metadata.
+                </p>
+              </Dialog>
+            </DialogTrigger>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={() => {
+                setAlertOpen(true)
+              }}
+            >
+              Open alert
+            </Button>
+
+            <PopoverTrigger>
+              <Button variant="secondary" size="sm">
+                Open popover
+              </Button>
+              <Popover>
+                <PopoverDialog>
+                  <p className="specimen-note">Popover body</p>
+                </PopoverDialog>
+              </Popover>
+            </PopoverTrigger>
+
+            <MenuTrigger>
+              <Button variant="secondary" size="sm">
+                Open menu
+              </Button>
+              <MenuPopover>
+                <Menu
+                  onAction={(key) => {
+                    setMenuChoice(String(key))
+                    setStatusMsg(`Menu: ${String(key)}`)
+                  }}
+                >
+                  <MenuItem id="duplicate">Duplicate</MenuItem>
+                  <MenuItem id="delete" variant="destructive">
+                    Delete
+                  </MenuItem>
+                </Menu>
+              </MenuPopover>
+            </MenuTrigger>
+
+            <span className="specimen-note" data-testid="specimen-menu-choice">
+              menu={menuChoice || '—'}
+            </span>
+          </div>
+        </div>
+
+        <AlertDialog
+          isOpen={alertOpen}
+          title="Remove “Road trip”?"
+          onCancel={() => {
+            setAlertOpen(false)
+            setStatusMsg('Alert cancelled')
+          }}
+          onConfirm={() => {
+            setAlertOpen(false)
+            setStatusMsg('Alert confirmed')
+          }}
+        >
+          The book disappears from this library. Photos stay on disk.
+        </AlertDialog>
       </section>
 
       <ToastRegion queue={toastQueue} data-testid="specimen-toast-region" />
