@@ -1,7 +1,14 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { checkCssTokens, findCssTokenViolations } from './check-css-tokens.mjs'
+import {
+  MUTED_FOREGROUND_LIGHT_AA,
+  checkCssTokens,
+  checkMutedForegroundAa,
+  findCssTokenViolations,
+  readMutedForegroundLight,
+} from './check-css-tokens.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const chrome = path.join(ROOT, 'src', 'editor', 'EditorShell.css')
@@ -29,5 +36,54 @@ describe('findCssTokenViolations', () => {
 describe('checkCssTokens', () => {
   it('reports no violations on the product tree', () => {
     expect(checkCssTokens(ROOT)).toEqual([])
+  })
+})
+
+describe('muted-foreground AA lock', () => {
+  it('reads the first --muted-foreground hex', () => {
+    expect(
+      readMutedForegroundLight(
+        ':root { --muted-foreground: #6A6761; } html[data-theme="b-dark"] { --muted-foreground: #9a968f; }',
+      ),
+    ).toBe('#6a6761')
+    expect(readMutedForegroundLight('.x { color: red; }')).toBeNull()
+  })
+
+  it('accepts the product tokens.css light muted-foreground', () => {
+    expect(checkMutedForegroundAa(ROOT)).toEqual([])
+    expect(MUTED_FOREGROUND_LIGHT_AA).toBe('#6a6761')
+  })
+
+  it('flags a lighter muted-foreground that would break AA', () => {
+    const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-fixture')
+    fs.mkdirSync(path.join(tmp, 'src', 'ui'), { recursive: true })
+    fs.writeFileSync(
+      path.join(tmp, 'src', 'ui', 'tokens.css'),
+      ':root { --muted-foreground: #74716b; }\n',
+      'utf8',
+    )
+    const hits = checkMutedForegroundAa(tmp)
+    expect(hits).toHaveLength(1)
+    expect(hits[0]?.rule).toBe('muted-foreground-aa')
+  })
+
+  it('flags a missing tokens.css tree', () => {
+    const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-missing')
+    fs.rmSync(tmp, { recursive: true, force: true })
+    fs.mkdirSync(tmp, { recursive: true })
+    const hits = checkMutedForegroundAa(tmp)
+    expect(hits[0]?.match).toBe('missing tokens.css')
+  })
+
+  it('flags tokens.css without --muted-foreground', () => {
+    const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-empty')
+    fs.mkdirSync(path.join(tmp, 'src', 'ui'), { recursive: true })
+    fs.writeFileSync(
+      path.join(tmp, 'src', 'ui', 'tokens.css'),
+      ':root { --foreground: #1f1e1c; }\n',
+      'utf8',
+    )
+    const hits = checkMutedForegroundAa(tmp)
+    expect(hits[0]?.match).toBe('missing --muted-foreground')
   })
 })
