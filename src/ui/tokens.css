@@ -40,6 +40,7 @@ html[data-theme='b'] {
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
+  --radius-full: 999px;
 
   --shadow-xs: 0 1px 2px 0 rgb(20 20 19 / 0.06);
   --shadow-sm:

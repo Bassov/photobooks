@@ -1,0 +1,126 @@
+.pb-badge {
+  display: inline-flex;
+  width: max-content;
+  flex-shrink: 0;
+  align-items: center;
+  gap: calc(var(--spacing) * 1);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--badge-ring);
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+}
+
+.pb-badge > svg {
+  flex-shrink: 0;
+}
+
+.pb-badge--sm {
+  height: calc(var(--spacing) * 5);
+  padding: 0 calc(var(--spacing) * 1.5);
+  font-size: var(--text-eyebrow);
+}
+
+.pb-badge--sm > svg {
+  width: var(--icon-size-14);
+  height: var(--icon-size-14);
+}
+
+.pb-badge--md {
+  height: calc(var(--spacing) * 6);
+  padding: 0 calc(var(--spacing) * 2);
+  font-size: var(--text-xs);
+}
+
+.pb-badge--md > svg {
+  width: var(--icon-size-14);
+  height: var(--icon-size-14);
+}
+
+.pb-badge--lg {
+  height: calc(var(--spacing) * 7);
+  padding: 0 calc(var(--spacing) * 2.5);
+  font-size: var(--text-sm);
+}
+
+.pb-badge--lg > svg {
+  width: var(--icon-size-16);
+  height: var(--icon-size-16);
+}
+
+.pb-badge--rect.pb-badge--sm,
+.pb-badge--rect.pb-badge--md {
+  border-radius: var(--radius-sm);
+}
+
+.pb-badge--rect.pb-badge--lg {
+  border-radius: var(--radius-md);
+}
+
+.pb-badge--pill {
+  border-radius: var(--radius-full);
+}
+
+.pb-badge[data-dot='true'].pb-badge--sm {
+  padding-left: 5px;
+}
+
+.pb-badge[data-dot='true'].pb-badge--md {
+  padding-left: calc(var(--spacing) * 1.5);
+}
+
+.pb-badge[data-dot='true'].pb-badge--lg {
+  padding-left: calc(var(--spacing) * 2);
+}
+
+.pb-badge-dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--badge-dot);
+}
+
+.pb-badge--lg .pb-badge-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.pb-badge--gray {
+  --badge-fg: var(--badge-gray-fg);
+  --badge-bg: var(--badge-gray-bg);
+  --badge-ring: var(--badge-gray-ring);
+  --badge-dot: var(--badge-gray-dot);
+}
+
+.pb-badge--brand {
+  --badge-fg: var(--badge-brand-fg);
+  --badge-bg: var(--badge-brand-bg);
+  --badge-ring: var(--badge-brand-ring);
+  --badge-dot: var(--badge-brand-dot);
+}
+
+.pb-badge--success {
+  --badge-fg: var(--badge-success-fg);
+  --badge-bg: var(--badge-success-bg);
+  --badge-ring: var(--badge-success-ring);
+  --badge-dot: var(--badge-success-dot);
+}
+
+.pb-badge--warning {
+  --badge-fg: var(--badge-warning-fg);
+  --badge-bg: var(--badge-warning-bg);
+  --badge-ring: var(--badge-warning-ring);
+  --badge-dot: var(--badge-warning-dot);
+}
+
+.pb-badge--error {
+  --badge-fg: var(--badge-error-fg);
+  --badge-bg: var(--badge-error-bg);
+  --badge-ring: var(--badge-error-ring);
+  --badge-dot: var(--badge-error-dot);
+}

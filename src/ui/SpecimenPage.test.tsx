@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ICON_NAMES } from './Icon'
 import { SpecimenPage } from './SpecimenPage'
@@ -47,6 +53,66 @@ describe('SpecimenPage', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'Fit' }))
     expect(screen.getByTestId('specimen-fit-value').textContent).toBe('fit=fit')
+  })
+
+  it('renders feedback specimen with Status, Badge, Progress, EmptyState', () => {
+    render(<SpecimenPage />)
+    const feedback = screen.getByTestId('specimen-feedback')
+    expect(feedback).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { name: /Feedback · Status/i }),
+    ).toBeTruthy()
+
+    expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
+      'Ready',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Announce polite' }))
+    expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
+      'Saved',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Announce assertive' }))
+    expect(screen.getByTestId('specimen-status-assertive').textContent).toBe(
+      'Import failed for 2 files',
+    )
+
+    expect(screen.getByTestId('specimen-badges').textContent).toContain(
+      'Placed',
+    )
+    expect(
+      screen.getByRole('progressbar', { name: 'Import progress' }),
+    ).toBeTruthy()
+    expect(screen.getByRole('progressbar', { name: 'Working' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder…' }))
+    expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
+      'Add folder…',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add photos…' }))
+    expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
+      'Add photos…',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show error toast' }))
+    expect(screen.getByText('3 files skipped')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Show files' }))
+    expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
+      'Opened error list',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show success toast' }))
+    expect(screen.getByText('Library saved')).toBeTruthy()
+  })
+
+  it('dismisses specimen toasts via Close', async () => {
+    render(<SpecimenPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show success toast' }))
+    expect(await screen.findByText('Library saved')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      expect(screen.queryByText('Library saved')).toBeNull()
+    })
   })
 
   it('renders icon specimen with size tokens', () => {
