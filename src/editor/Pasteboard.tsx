@@ -1,5 +1,6 @@
 import {
   memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -314,7 +315,7 @@ export const Pasteboard = memo(function Pasteboard() {
     holdScrollRef: reveal.holdCameraScrollRef,
   })
 
-  const onAddSpread = (): void => {
+  const onAddSpread = useCallback((): void => {
     const before = new Set(getSpreadIdsSnapshot())
     const activeTemplate =
       markedId === undefined ? null : getSpreadTemplateId(markedId)
@@ -330,7 +331,7 @@ export const Pasteboard = memo(function Pasteboard() {
       setActiveId(newId)
       reveal.beginRevealForNewSpread(newId)
     }
-  }
+  }, [markedId, reveal])
 
   useEffect(() => {
     const root = scrollRef.current

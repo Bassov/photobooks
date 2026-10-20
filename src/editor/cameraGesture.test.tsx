@@ -109,7 +109,7 @@ describe('pasteboard camera gestures', () => {
     fireEvent.keyUp(window, { key: ' ', code: 'Space' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Fit width' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Fit spread' }))
+    fireEvent.click(screen.getByRole('button', { name: /Fit spread/ }))
     fireEvent.keyDown(screen.getByRole('button', { name: '100%' }), {
       key: ' ',
       code: 'Space',
@@ -144,7 +144,7 @@ describe('pasteboard camera gestures', () => {
         configurable: true,
         get: () => height,
       })
-      fireEvent.click(screen.getByRole('button', { name: 'Fit spread' }))
+      fireEvent.click(screen.getByRole('button', { name: /Fit spread/ }))
       const afterImmediate = screen.getByTestId('zoom-indicator').textContent
       height = 400
       const batch1 = rafQueue.splice(0, rafQueue.length)
@@ -162,7 +162,7 @@ describe('pasteboard camera gestures', () => {
       const afterDelayed = screen.getByTestId('zoom-indicator').textContent
       expect(afterDelayed).not.toBe(afterImmediate)
 
-      fireEvent.click(screen.getByRole('button', { name: 'Fit spread' }))
+      fireEvent.click(screen.getByRole('button', { name: /Fit spread/ }))
       fireEvent.click(screen.getByRole('button', { name: 'Fit width' }))
       const pending = rafQueue.splice(0, rafQueue.length)
       act(() => {

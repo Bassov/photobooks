@@ -59,11 +59,7 @@
   color: var(--muted-foreground);
 }
 
-.editor-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--spacing) * 2);
-}
+/* HomeScreen still uses these class names until project-screens-adoption. */
 
 .editor-action {
   appearance: none;
@@ -87,6 +83,9 @@
   opacity: 0.65;
   cursor: wait;
 }
+
+/* prettier-ignore */
+.editor-top-bar.pb-toolbar { flex: 1 1 auto; flex-wrap: wrap; min-width: 0; gap: calc(var(--spacing) * 2); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 
 .book-lock-banner {
   margin: 0;
@@ -158,12 +157,19 @@
 }
 
 .pasteboard-scroll:focus-visible,
-.spread-template-bar input:focus-visible,
-.spread-template-bar button:focus-visible,
-.camera-bar button:focus-visible {
+.spread-template-bar input:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* prettier-ignore */
+.editor-top-bar .pb-button:focus-visible, .camera-bar .pb-button:focus-visible, .spread-template-add:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+/* prettier-ignore */
+.editor-top-bar .pb-button--default:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 90%, var(--foreground)); }
+/* prettier-ignore */
+.editor-top-bar .pb-button--secondary:hover:not(:disabled), .camera-bar .pb-button--secondary:hover:not(:disabled), .camera-bar .pb-button--ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--secondary) 80%, var(--muted)); }
+/* prettier-ignore */
+.editor-top-bar .pb-button:disabled, .camera-bar .pb-button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .spread-template-bar {
   display: flex;
@@ -205,7 +211,7 @@
 }
 
 .spread-template-add:disabled,
-.spread-template-choice input:disabled {
+.spread-template-bar input:disabled {
   opacity: 0.65;
   cursor: wait;
 }
@@ -234,19 +240,6 @@
   padding: 0 calc(var(--spacing) * 3) calc(var(--spacing) * 1.8);
   min-width: 0;
   background: var(--chrome);
-}
-
-.camera-control {
-  appearance: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  padding: calc(var(--spacing) * 1.4) calc(var(--spacing) * 2.8);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--foreground);
-  background: var(--secondary);
-  cursor: pointer;
 }
 
 .zoom-indicator {
