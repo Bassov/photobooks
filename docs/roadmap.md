@@ -31,6 +31,8 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [roadmap-parallel-agents](roadmap/M2.1/roadmap-parallel-agents.md) — roadmap CLI and agent pipeline support several agents in parallel git worktrees
 - [ ] [prep] [agent-cost-cuts](roadmap/M2.1/agent-cost-cuts.md) — Cut agent input/output tokens and keep a session under 300K context
 - [ ] [prep] [continuous-zoom-settle-mount-pace](roadmap/M2.1/continuous-zoom-settle-mount-pace.md) — Pace pasteboard remounts on zoom-out settle to keep continuous-zoom LoAF green
+- [ ] [prep] [ci-flake-hardening](roadmap/M2.1/ci-flake-hardening.md) — Harden CI flakes (re-import LoAF, burn-in spawn, codecov timeout)
+- [ ] [prep] [reimport-loaf-store-thumb](roadmap/M2.1/reimport-loaf-store-thumb.md) — Re-import LoAF: no-op bookStore meta/patch + thumb put dedupe
 - [ ] [prep] [strict-e2e](roadmap/M2.1/strict-e2e.md) — no hidden flakes: zero retries on PRs (#50 item 5)
 - [x] [prep] [agent-test-run-budget](roadmap/M2.1/agent-test-run-budget.md) — agent test runs stay cheap and fast; flake proof comes from CI burn-in (owner 2026-10-18)
 - [ ] [prep] [agent-pipeline-leftovers](roadmap/M2.1/agent-pipeline-leftovers.md) — Remaining token and call waste in the agent pipeline (issues #77, #79)

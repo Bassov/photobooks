@@ -38,6 +38,17 @@ describe('isNetworkError', () => {
     expect(isNetworkError(err)).toBe(true)
   })
 
+  it('detects AbortError and TimeoutError', () => {
+    expect(
+      isNetworkError(
+        new DOMException('The operation was aborted', 'AbortError'),
+      ),
+    ).toBe(true)
+    expect(
+      isNetworkError(new DOMException('TimeoutError', 'TimeoutError')),
+    ).toBe(true)
+  })
+
   it('detects errno codes and nested cause', () => {
     expect(isNetworkError({ code: 'ENOTFOUND' })).toBe(true)
     expect(isNetworkError({ code: 'ECONNRESET' })).toBe(true)
@@ -180,6 +191,42 @@ describe('validateCodecovYml', () => {
     }
     const r = await validateCodecovYml(mainYml, { fetchImpl })
     expect(r.ok).toBe(true)
+    expect(r.mode).toBe('fallback')
+  })
+
+  it('AbortError / TimeoutError uses pinned key fallback', async () => {
+    const abort = new DOMException('The operation was aborted', 'AbortError')
+    const r = await validateCodecovYml(mainYml, {
+      fetchImpl: async () => {
+        throw abort
+      },
+    })
+    expect(r).toEqual({
+      ok: true,
+      mode: 'fallback',
+      detail: 'network error; pinned top-level keys OK',
+    })
+    const timeout = new DOMException('TimeoutError', 'TimeoutError')
+    const r2 = await validateCodecovYml(mainYml, {
+      fetchImpl: async () => {
+        throw timeout
+      },
+    })
+    expect(r2.ok).toBe(true)
+    expect(r2.mode).toBe('fallback')
+  })
+
+  it('passes AbortSignal.timeout to fetchImpl', async () => {
+    /** @type {AbortSignal | undefined} */
+    let seen
+    const r = await validateCodecovYml(mainYml, {
+      timeoutMs: 100,
+      fetchImpl: async (_url, init) => {
+        seen = init && init.signal
+        throw new DOMException('The operation was aborted', 'AbortError')
+      },
+    })
+    expect(seen).toBeInstanceOf(AbortSignal)
     expect(r.mode).toBe('fallback')
   })
 

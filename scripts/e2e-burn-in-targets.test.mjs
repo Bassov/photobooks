@@ -1,8 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   buildImportGraph,
   collectChangedPaths,
@@ -16,47 +22,44 @@ import {
   selectBurnInTargets,
   transitiveImports,
 } from './e2e-burn-in-targets.mjs'
-import { gitRun } from './git-test-helper.mjs'
+import { gitTestEnv, initTmpRepo } from './git-test-helper.mjs'
 
 function restoreStrykerDiffBase(prev) {
   if (prev === undefined) delete process.env.STRYKER_DIFF_BASE
   else process.env.STRYKER_DIFF_BASE = prev
 }
 
-function runSpawnedCliBurnInTargets() {
-  const probe = gitRun(
-    ['rev-parse', '--verify', 'origin/main'],
-    process.cwd(),
-    { allowFail: true },
-  )
-  if (probe.status !== 0) {
-    let out = ''
-    const code = main(
-      { STRYKER_DIFF_BASE: 'HEAD' },
-      {
-        gitLines: () => ['e2e/burn-in-smoke.spec.ts'],
-        write: (text) => {
-          out += text
-        },
-      },
-    )
-    expect(code).toBe(0)
-    expect(out).toContain('e2e/burn-in-smoke.spec.ts')
-    return
+const tmpDirs = []
+
+afterEach(() => {
+  for (const dir of tmpDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true })
   }
-  const out = execFileSync(
-    process.execPath,
-    [join(process.cwd(), 'scripts/e2e-burn-in-targets-cli.mjs')],
-    {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        STRYKER_DIFF_BASE: 'origin/main',
-      },
-    },
+})
+
+function runSpawnedCliBurnInTargets() {
+  const repoRoot = process.cwd()
+  const tmpDir = initTmpRepo(tmpDirs, { prefix: 'burn-in-cli-' })
+  mkdirSync(join(tmpDir, 'e2e'), { recursive: true })
+  mkdirSync(join(tmpDir, 'quality'), { recursive: true })
+  // CLI loads e2e.flakySpecs via loadGates({ root: process.cwd() }).
+  copyFileSync(
+    join(repoRoot, 'quality/gates.json'),
+    join(tmpDir, 'quality/gates.json'),
   )
-  const lines = out.split('\n').filter(Boolean)
-  expect(lines.every((path) => isE2eSpec(path))).toBe(true)
+  writeFileSync(
+    join(tmpDir, 'e2e/burn-in-smoke.spec.ts'),
+    "import { test } from '@playwright/test'\ntest('smoke', async () => {})\n",
+  )
+  const cli = join(repoRoot, 'scripts/e2e-burn-in-targets-cli.mjs')
+  const out = execFileSync(process.execPath, [cli], {
+    encoding: 'utf8',
+    cwd: tmpDir,
+    env: {
+      ...gitTestEnv({ STRYKER_DIFF_BASE: 'HEAD' }),
+    },
+  })
+  expect(out.trim()).toBe('e2e/burn-in-smoke.spec.ts')
 }
 
 describe('isE2eSpec / isE2eSupportFile', () => {

@@ -35,12 +35,18 @@ const VALIDATE_URL = 'https://api.codecov.io/validate'
  * @param {unknown} err
  * @returns {boolean}
  */
+/** Default Codecov validate fetch timeout (ms). */
+export const CODECOV_VALIDATE_TIMEOUT_MS = 2500
+
 export function isNetworkError(err) {
   if (!err || typeof err !== 'object') return false
   const e = /** @type {any} */ (err)
+  if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+    return true
+  }
   if (
     e.name === 'TypeError' &&
-    /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message))
+    /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT|abort/i.test(String(e.message))
   ) {
     return true
   }
@@ -146,17 +152,21 @@ export function shouldValidateCodecovYmlRemote(opts = {}) {
  * @param {{
  *   fetchImpl?: typeof fetch,
  *   validateUrl?: string,
+ *   timeoutMs?: number,
  * }} [opts]
  * @returns {Promise<{ ok: boolean, mode: 'api' | 'fallback', detail: string }>}
  */
 export async function validateCodecovYml(yamlText, opts = {}) {
   const fetchImpl = opts.fetchImpl == null ? globalThis.fetch : opts.fetchImpl
   const url = opts.validateUrl == null ? VALIDATE_URL : opts.validateUrl
+  const timeoutMs =
+    opts.timeoutMs == null ? CODECOV_VALIDATE_TIMEOUT_MS : opts.timeoutMs
   try {
     const res = await fetchImpl(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: yamlText,
+      signal: AbortSignal.timeout(timeoutMs),
     })
     const raw = await res.text()
     const body = String(raw).trim()
