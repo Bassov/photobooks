@@ -19,6 +19,7 @@ const CORE_CHECKS = [
   { name: 'knip', argv: ['pnpm', 'knip'] },
   { name: 'mutation-scope', argv: ['pnpm', 'mutation-scope'] },
   { name: 'gate-values', argv: ['pnpm', 'gate-values'] },
+  { name: 'openspec-budget', argv: ['pnpm', 'openspec-budget'] },
   { name: 'codecov-yml', argv: ['pnpm', 'codecov-yml'] },
   { name: 'git-test-isolation', argv: ['pnpm', 'git-test-isolation'] },
   // Direct roadmap.mjs + INNER env avoids double-wrap via `pnpm roadmap check`.

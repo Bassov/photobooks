@@ -15,7 +15,7 @@ Vite + React 19 + TypeScript. Product/toolchain conventions: `.cursor/rules/over
 | Library storage      | `src/project/`                         | `openspec/specs/library-storage/`                |
 | Session state        | `src/project/session/`                 | `openspec/specs/session-state/`                  |
 | Asset source / cache | `src/assets/`                          | `openspec/specs/asset-source/`, `derived-cache/` |
-| Editor shell         | `src/editor/` (incl. `projectSession`) | `openspec/specs/editor-shell/`                   |
+| Editor shell         | `src/editor/` (incl. `projectSession`) | `editor-shell/`, `filmstrip/`, `pasteboard/`     |
 | Spread painter       | `src/render/`                          | `openspec/specs/spread-view/`                    |
 | Photo / asset pool   | `src/photo/`                           | `openspec/specs/photo-card/`                     |
 | Perf / 60 fps        | `src/perf/`                            | `openspec/specs/frame-budget/`                   |

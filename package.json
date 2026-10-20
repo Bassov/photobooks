@@ -40,6 +40,7 @@
     "stryker:diff": "node scripts/check.mjs --run stryker-diff -- node scripts/stryker-diff.mjs",
     "mutation-scope": "node scripts/check-mutation-scope.mjs",
     "gate-values": "node scripts/check-gate-values.mjs",
+    "openspec-budget": "node scripts/check-openspec-budget.mjs",
     "codecov-yml": "node scripts/codecov-yml-cli.mjs",
     "git-test-isolation": "node scripts/check-no-direct-git-in-tests.mjs",
     "roadmap": "node scripts/roadmap.mjs",
