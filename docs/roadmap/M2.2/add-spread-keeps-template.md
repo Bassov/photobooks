@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [x] OpenSpec delta `pasteboard`, Requirement "Active spread template and add spread" (`openspec/specs/pasteboard/spec.md`): the appended spread MUST use the template of the spread that was active when Add spread was pressed (one-per-page when none is active). Scenario "Add spread enters the pasteboard" changes to match. The template control's accessible name says it applies to the active spread (for example "Template for this spread")
+- [x] OpenSpec delta `editor-shell`, Requirement "Active spread template and add spread" (`openspec/specs/editor-shell/spec.md:108-120`): the appended spread MUST use the template of the spread that was active when Add spread was pressed (one-per-page when none is active). Scenario "Add spread enters the pasteboard" (`:117-120`) changes to match. The template control's accessible name says it applies to the active spread (for example "Template for this spread")
 - [x] Op: `addSpread` (`src/core/ops/spreads.ts:6-22`) takes an optional `templateId` (validated with `isTemplateId`, default `'one-per-page'` at `:20`). `BookOp` `addSpread` (`src/core/ops/applyBookOp.ts:36,63-71`) carries it. Other callers stay on the default: `bookStore.ts:72` (session book) and `projectSession.ts:703`
 - [x] UI: `Pasteboard.tsx` `onAddSpread` (`:311-320`) dispatches `{ type: 'addSpread', templateId: getSpreadTemplateId(markedId) }` (`markedId` `:281`, passed to the bar at `:379-380`). `SpreadTemplateBar.tsx:32` radiogroup `aria-label` updated; after the reveal the radio shows the new spread's template, which is now the copied one
 - [x] Tests: `src/core/ops/ops.test.ts:178-211` gains cases for `templateId` (4-grid copied, invalid id falls back, first/last single-page roles still reapplied by `reapplyChangedPageRoles` `spreads.ts:24-44`); fast-check property: `addSpread` with any valid template keeps `invariants.ts`; `Pasteboard.view.test.tsx` add-spread cases
@@ -17,3 +17,7 @@ Status: done
 - **Browser check:** on the preview URL, choose 4-grid and press Add spread. The new spread comes into view as a 4-grid, the radio still shows 4-grid, and the control's label makes clear it sets this spread's template. Repeat with 2-up and Full bleed. The committed zoom is kept and there is no page scroll.
 - **Size:** ~200–300 changed lines (spec delta + op option + Pasteboard/TemplateBar + tests)
 - **Source:** #40
+
+## Done note
+
+After editor-shell/pasteboard split on main, the archived delta and live requirement live under `openspec/specs/pasteboard/spec.md` (same criteria).
