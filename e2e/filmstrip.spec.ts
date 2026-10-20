@@ -266,6 +266,67 @@ test('unsupported TIFF shows import error without gallery entry', async ({
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
 })
 
+test('imports lossy and lossless WebP; place shows rendered frame image', async ({
+  page,
+}) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  await openSessionEditor(page)
+
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+  await expect(page.getByTestId('import-errors')).toHaveCount(0)
+
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles([
+      photoFixturePaths.sampleLossyWebp,
+      photoFixturePaths.sampleLosslessWebp,
+    ])
+
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe('2')
+  await expect(page.getByTestId('import-errors')).toHaveCount(0)
+
+  const first = page.getByTestId('filmstrip-item').nth(0)
+  await page.bringToFront()
+  await first.focus()
+  await page.keyboard.press('Space')
+  await expect(first).toHaveAttribute('aria-selected', 'true')
+  const place = page.getByRole('button', { name: 'Place photo' }).first()
+  await place.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+  const naturalWidth = await page
+    .getByTestId('spread-frame-image')
+    .first()
+    .evaluate((img) => (img instanceof HTMLImageElement ? img.naturalWidth : 0))
+  expect(naturalWidth).toBeGreaterThan(0)
+})
+
+test('corrupt WebP shows a decode import error', async ({ page }) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  await openSessionEditor(page)
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles(photoFixturePaths.sampleCorruptWebp)
+
+  // Blank-tile cleanup after a failed decode is owned by failed-import-no-tile;
+  // this item only asserts the decode error is visible.
+  await expect(page.getByTestId('import-errors')).toBeVisible({
+    timeout: 30_000,
+  })
+})
+
 test('second import appends to the gallery', async ({ page }) => {
   await openSessionEditor(page)
   await page
