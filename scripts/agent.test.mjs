@@ -82,6 +82,22 @@ function tmpRoot(withGit = false) {
   tmpDirs.push(d)
   fs.writeFileSync(path.join(d, '.nvmrc'), '22\n')
   fs.mkdirSync(path.join(d, 'openspec', 'changes'), { recursive: true })
+  fs.writeFileSync(
+    path.join(d, 'openspec', 'config.yaml'),
+    [
+      'schema: spec-driven',
+      'rules:',
+      '  proposal:',
+      "    - 'Keep proposals under 80 words.'",
+      '  design:',
+      "    - '## Decisions + ## Touch-set & Test Plan only.'",
+      '  tasks:',
+      "    - 'At most 8 implementation tasks.'",
+      '  specs:',
+      "    - 'Prefer invariants; WHEN/THEN only for core flows.'",
+      '',
+    ].join('\n'),
+  )
   if (withGit) {
     fs.mkdirSync(path.join(d, '.git'), { recursive: true })
   }
@@ -155,6 +171,7 @@ const HELP_SNIPPETS = [
   'size [--plan]',
   'manual-qa',
   'instructions <artifact>',
+  'archive [--change S]',
   'stats <path>',
   'source scripts/agent-env.sh',
   'Prefer --json for machine branching.',
@@ -314,6 +331,7 @@ describe('parsers', () => {
     expect(hasPrepConcreteScope('## Scope\n- [ ] a')).toBe(false)
     expect(hasPrepConcreteScope('- [ ] a\n- **Done when:** x')).toBe(false)
     expect(isPrepFastTrack({ tag: 'prep', body })).toBe(true)
+    expect(isPrepFastTrack({ tag: 'contingency', body })).toBe(true)
     expect(isPrepFastTrack({ tag: 'feature', body })).toBe(false)
     expect(isPrepFastTrack({ tag: 'prep', body: '## Scope\n- [ ] a' })).toBe(
       false,
@@ -655,16 +673,6 @@ describe('preflight', () => {
       ['git branch -r', { stdout: '  origin/feat/remote-one\n' }],
       ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
       ['git switch -c feat/demo-item', { code: 0 }],
-      ['openspec new change', { code: 0 }],
-      [
-        'openspec instructions proposal',
-        {
-          stdout: JSON.stringify({
-            template: '# Proposal\nfull',
-            rules: ['Keep proposals under 400 words'],
-          }),
-        },
-      ],
     ])
     const r = run(['preflight', '--json', '--root', root], {
       cwd: root,
@@ -684,12 +692,15 @@ describe('preflight', () => {
       body: '## Scope\n- [ ] a',
     })
     expect(j.skips).toEqual(expect.arrayContaining(['other', 'remote-one']))
-    expect(j.instructions).toEqual({
-      template: '# Proposal\nfull',
-      rules: ['Keep proposals under 400 words'],
-    })
+    expect(j.instructions.rules).toEqual(['Keep proposals under 80 words.'])
+    expect(j.instructions.template).toContain('## Proposal')
     expect(j.runCard.ready).toEqual(['proposal'])
     expect(j.runCard.artifacts.proposal).toEqual(j.instructions)
+    expect(
+      fs.existsSync(
+        path.join(root, 'openspec', 'changes', 'demo-item', '.openspec.yaml'),
+      ),
+    ).toBe(true)
     expect(j.prepFastTrack).toBe(false)
     expect(j.runCard.prepFastTrack).toBe(false)
     expect(j.runCard.procedure).toContain('openspec-planning-reviewer')
@@ -719,16 +730,6 @@ describe('preflight', () => {
       ['git branch -r', { stdout: '' }],
       ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
       ['git switch -c feat/demo-item', { code: 0 }],
-      ['openspec new change', { code: 0 }],
-      [
-        'openspec instructions proposal',
-        {
-          stdout: JSON.stringify({
-            template: '# Proposal\nbrief',
-            rules: ['Keep proposals under 400 words'],
-          }),
-        },
-      ],
     ])
     const r = run(['preflight', '--json', '--root', root], {
       cwd: root,
@@ -765,28 +766,18 @@ describe('preflight', () => {
       ['git branch -r', { stdout: '' }],
       ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
       ['git switch -c feat/demo-item', { code: 0 }],
-      ['openspec new change', { code: 0 }],
-      [
-        'openspec instructions proposal',
-        {
-          stdout: JSON.stringify({
-            template: '# Proposal\nline2',
-            rules: ['rule-one', 'rule-two'],
-          }),
-        },
-      ],
     ])
     const r = run(['preflight', '--root', root], { cwd: root, exec, env: {} })
     expect(r.code, r.err).toBe(0)
     expect(r.out).toContain('ok: true')
     expect(r.out).toContain('slug: demo-item')
     expect(r.out).toContain(
-      'instructions: rules=2 (use --json for template/rules)',
+      'instructions: rules=1 (use --json for template/rules)',
     )
     expect(r.out).toContain('runCard.ready: proposal')
-    expect(r.out).toContain('--- runCard artifact: proposal (rules=2) ---')
-    expect(r.out).toContain('# Proposal\nline2')
-    expect(r.out).toContain('- rule-one')
+    expect(r.out).toContain('--- runCard artifact: proposal (rules=1) ---')
+    expect(r.out).toContain('## Proposal')
+    expect(r.out).toContain('- Keep proposals under 80 words.')
     expect(r.out).toContain('prepFastTrack: false')
     expect(r.out).toContain('--- apply/archive procedure ---')
     expect(r.out).toContain('openspec-planning-reviewer')
@@ -794,6 +785,10 @@ describe('preflight', () => {
 
   it('text mode prints (none) for empty rules and string goal', () => {
     const root = tmpRoot()
+    fs.writeFileSync(
+      path.join(root, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nrules:\n  proposal: []\n',
+    )
     fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
       recursive: true,
     })
@@ -832,10 +827,6 @@ describe('preflight', () => {
           { stdout: `worktree ${root}\nHEAD a\nbranch refs/heads/main\n` },
         ],
         ['git switch feat/demo-item', { code: 0 }],
-        [
-          'openspec instructions proposal',
-          { stdout: JSON.stringify({ template: null, rules: [] }) },
-        ],
       ]),
       env: {},
     })
@@ -900,11 +891,9 @@ describe('preflight', () => {
     expect(JSON.parse(r.err).error).toBe('git branch -r failed:\nfatal')
   })
 
-  it('fails when openspec instructions fails', () => {
+  it('fails when openspec config is missing', () => {
     const root = tmpRoot()
-    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
-      recursive: true,
-    })
+    fs.rmSync(path.join(root, 'openspec', 'config.yaml'), { force: true })
     const item = { slug: 'demo-item', tag: 'prep', title: 't', file: 'f' }
     const r = run(['preflight', '--json', '--root', root], {
       cwd: root,
@@ -918,22 +907,16 @@ describe('preflight', () => {
         ['git branch -r', { stdout: '' }],
         ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
         ['git switch -c feat/demo-item', { code: 0 }],
-        [
-          'openspec instructions proposal',
-          { code: 1, stderr: 'no such artifact\n' },
-        ],
       ]),
       env: {},
     })
     expect(JSON.parse(r.err).error).toMatch(/^openspec instructions failed/)
-    expect(JSON.parse(r.err).error).toContain('no such artifact')
+    expect(JSON.parse(r.err).error).toContain('openspec/config.yaml missing')
   })
 
-  it('fails when openspec instructions JSON is invalid', () => {
+  it('fails when openspec config.yaml is invalid YAML object', () => {
     const root = tmpRoot()
-    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
-      recursive: true,
-    })
+    fs.writeFileSync(path.join(root, 'openspec', 'config.yaml'), '[]\n')
     const item = { slug: 'demo-item', tag: 'prep', title: 't', file: 'f' }
     const r = run(['preflight', '--json', '--root', root], {
       cwd: root,
@@ -947,20 +930,19 @@ describe('preflight', () => {
         ['git branch -r', { stdout: '' }],
         ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
         ['git switch -c feat/demo-item', { code: 0 }],
-        ['openspec instructions proposal', { stdout: 'not-json{' }],
       ]),
       env: {},
     })
-    expect(JSON.parse(r.err).error).toMatch(
-      /^openspec instructions returned invalid JSON:/,
-    )
+    expect(JSON.parse(r.err).error).toMatch(/^openspec instructions failed/)
+    expect(JSON.parse(r.err).error).toContain('did not parse to an object')
   })
 
   it('fails when rules is not an array', () => {
     const root = tmpRoot()
-    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
-      recursive: true,
-    })
+    fs.writeFileSync(
+      path.join(root, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nrules:\n  proposal: not-an-array\n',
+    )
     const item = { slug: 'demo-item', tag: 'prep', title: 't', file: 'f' }
     const r = run(['preflight', '--json', '--root', root], {
       cwd: root,
@@ -974,10 +956,6 @@ describe('preflight', () => {
         ['git branch -r', { stdout: '' }],
         ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
         ['git switch -c feat/demo-item', { code: 0 }],
-        [
-          'openspec instructions proposal',
-          { stdout: JSON.stringify({ template: 'T', rules: null }) },
-        ],
       ]),
       env: {},
     })
@@ -1196,7 +1174,7 @@ describe('preflight', () => {
     expect(JSON.parse(r.err).error).toContain('exists')
   })
 
-  it('records exact argv for sync skip openspec and branch create', () => {
+  it('records exact argv for sync skip and branch create (native openspec)', () => {
     const root = tmpRoot()
     const item = {
       slug: 'argv-item',
@@ -1237,23 +1215,6 @@ describe('preflight', () => {
         return { code: 0, stdout: '', stderr: '' }
       if (key.includes('git rev-list --count HEAD..origin/main'))
         return { code: 0, stdout: '0\n', stderr: '' }
-      if (key.includes('openspec new'))
-        return { code: 0, stdout: '', stderr: '' }
-      if (key.includes('openspec status'))
-        return {
-          code: 0,
-          stdout:
-            JSON.stringify({
-              artifacts: [{ id: 'proposal', status: 'ready' }],
-            }) + '\n',
-          stderr: '',
-        }
-      if (key.includes('openspec instructions'))
-        return {
-          code: 0,
-          stdout: JSON.stringify({ template: 'T', rules: ['r'] }),
-          stderr: '',
-        }
       return { code: 1, stdout: '', stderr: `unhandled ${key}` }
     }
     const r = run(['preflight', '--json', '--root', root], {
@@ -1284,15 +1245,12 @@ describe('preflight', () => {
       ['-s', 'roadmap', 'next', '--json', '--skip', 'skip-me,remote-a'],
     ])
     expect(calls).toContainEqual(['git', ['switch', '-c', 'feat/argv-item']])
-    expect(calls).toContainEqual(['openspec', ['new', 'change', 'argv-item']])
-    expect(calls).toContainEqual([
-      'openspec',
-      ['status', '--change', 'argv-item', '--json'],
-    ])
-    expect(calls).toContainEqual([
-      'openspec',
-      ['instructions', 'proposal', '--json', '--change', 'argv-item'],
-    ])
+    expect(calls.some(([file]) => file === 'openspec')).toBe(false)
+    expect(
+      fs.existsSync(
+        path.join(root, 'openspec', 'changes', 'argv-item', '.openspec.yaml'),
+      ),
+    ).toBe(true)
     expect(JSON.parse(r.out).skips).toEqual(['skip-me', 'remote-a'])
   })
 
@@ -2676,15 +2634,6 @@ describe('instructions', () => {
   it('returns template and rules for an artifact', () => {
     const root = tmpRoot()
     const exec = fakeExec([
-      [
-        'openspec instructions design',
-        {
-          stdout: JSON.stringify({
-            template: '# Design',
-            rules: ['Keep design under ~600 words.'],
-          }),
-        },
-      ],
       ['git branch --show-current', { stdout: 'feat/demo\n' }],
     ])
     const r = run(['instructions', 'design', '--json', '--root', root], {
@@ -2698,9 +2647,58 @@ describe('instructions', () => {
       ok: true,
       change: 'demo',
       artifact: 'design',
-      template: '# Design',
-      rules: ['Keep design under ~600 words.'],
+      template: expect.stringContaining('## Decisions'),
+      rules: ['## Decisions + ## Touch-set & Test Plan only.'],
     })
+  })
+})
+
+describe('archive', () => {
+  it('archives change dir from --change and from branch slug', () => {
+    const root = tmpRoot()
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'arch-item'), {
+      recursive: true,
+    })
+    fs.writeFileSync(
+      path.join(root, 'openspec', 'changes', 'arch-item', 'proposal.md'),
+      'p\n',
+    )
+    const r = run(
+      ['archive', '--json', '--root', root, '--change', 'arch-item'],
+      {
+        cwd: root,
+        exec: fakeExec([]),
+        env: {},
+      },
+    )
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.ok).toBe(true)
+    expect(j.archivedTo).toMatch(/^openspec\/changes\/archive\//)
+    expect(
+      fs.existsSync(path.join(root, 'openspec', 'changes', 'arch-item')),
+    ).toBe(false)
+
+    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'from-branch'), {
+      recursive: true,
+    })
+    const r2 = run(['archive', '--json', '--root', root], {
+      cwd: root,
+      exec: fakeExec([
+        ['git branch --show-current', { stdout: 'feat/from-branch\n' }],
+      ]),
+      env: {},
+    })
+    expect(r2.code, r2.err).toBe(0)
+    expect(JSON.parse(r2.out).slug).toBe('from-branch')
+
+    const text = run(['archive', '--root', root, '--change', 'missing'], {
+      cwd: root,
+      exec: fakeExec([]),
+      env: {},
+    })
+    expect(text.code).toBe(0)
+    expect(text.out).toContain('no change dir')
   })
 })
 
@@ -3427,11 +3425,11 @@ describe('stats', () => {
     expect(messageContentChars(circ)).toBe(0)
   })
 
-  it('fails when openspec status JSON is invalid', () => {
+  it('native status unlocks design after proposal.md exists', () => {
     const root = tmpRoot()
-    fs.mkdirSync(path.join(root, 'openspec', 'changes', 'demo-item'), {
-      recursive: true,
-    })
+    const changeDir = path.join(root, 'openspec', 'changes', 'demo-item')
+    fs.mkdirSync(changeDir, { recursive: true })
+    fs.writeFileSync(path.join(changeDir, 'proposal.md'), '## Proposal\n')
     const item = { slug: 'demo-item', tag: 'prep', title: 't', file: 'f' }
     const r = run(['preflight', '--json', '--root', root], {
       cwd: root,
@@ -3445,27 +3443,18 @@ describe('stats', () => {
         ['git branch -r', { stdout: '' }],
         ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
         ['git switch -c feat/demo-item', { code: 0 }],
-        ['openspec status', { stdout: 'not-status-json{' }],
       ]),
       env: {},
     })
-    expect(JSON.parse(r.err).error).toMatch(
-      /^openspec status returned invalid JSON:/,
-    )
+    expect(r.code, r.err).toBe(0)
+    const j = JSON.parse(r.out)
+    expect(j.runCard.ready).toEqual(expect.arrayContaining(['design', 'specs']))
+    expect(j.runCard.ready).not.toContain('proposal')
   })
 
   it('instructions text mode and stats usage without path error branches', () => {
     const root = tmpRoot()
     const exec = fakeExec([
-      [
-        'openspec instructions proposal',
-        {
-          stdout: JSON.stringify({
-            template: '# T',
-            rules: ['r'],
-          }),
-        },
-      ],
       ['git branch --show-current', { stdout: 'feat/demo\n' }],
     ])
     const r = run(['instructions', 'proposal', '--root', root], {
@@ -3475,8 +3464,8 @@ describe('stats', () => {
     })
     expect(r.code).toBe(0)
     expect(r.out).toContain('--- template ---')
-    expect(r.out).toContain('# T')
-    expect(r.out).toContain('- r')
+    expect(r.out).toContain('## Proposal')
+    expect(r.out).toContain('- Keep proposals under 80 words.')
     const missing = run(['stats'], { cwd: root, env: {} })
     expect(missing.code).toBe(2)
     expect(missing.err).toMatch(/usage: pnpm agent stats/)
@@ -3484,7 +3473,7 @@ describe('stats', () => {
     expect(noArt.code).toBe(2)
   })
 
-  it('text preflight prints run-card branches without template or rules array', () => {
+  it('text preflight prints run-card branches from native status', () => {
     const root = tmpRoot()
     const item = {
       slug: 'card-item',
@@ -3504,36 +3493,11 @@ describe('stats', () => {
       ['git branch -r', { stdout: '' }],
       ['pnpm -s roadmap next --json', { stdout: JSON.stringify(item) }],
       ['git switch -c feat/card-item', { code: 0 }],
-      ['openspec new change', { code: 0 }],
-      [
-        'openspec status',
-        {
-          stdout: JSON.stringify({
-            artifacts: [
-              { id: 'proposal', status: 'ready' },
-              { id: 'design', status: 'ready' },
-            ],
-          }),
-        },
-      ],
-      [
-        'openspec instructions proposal',
-        {
-          stdout: JSON.stringify({ template: null, rules: [] }),
-        },
-      ],
-      [
-        'openspec instructions design',
-        {
-          stdout: JSON.stringify({ template: '', rules: 'not-array' }),
-        },
-      ],
     ])
     const r = run(['preflight', '--root', root], { cwd: root, exec, env: {} })
     expect(r.code, r.err).toBe(0)
-    expect(r.out).toContain('runCard.ready: proposal,design')
-    expect(r.out).toContain('--- runCard artifact: proposal (rules=0) ---')
-    expect(r.out).toContain('--- runCard artifact: design (rules=0) ---')
+    expect(r.out).toContain('runCard.ready: proposal')
+    expect(r.out).toContain('--- runCard artifact: proposal (rules=1) ---')
     expect(r.out).toContain('--- apply/archive procedure ---')
   })
 })
@@ -4360,25 +4324,27 @@ describe('linked worktree preflight --slug', () => {
   it('creates feat branch from origin/main while main is checked out elsewhere', () => {
     const primary = gitInitRepo()
     gitExec(['branch', '-M', 'main'], primary)
-    gitExec(['checkout', '-b', 'origin-main-tmp'], primary)
-    // Simulate origin/main as a local ref the worktree can track.
-    gitExec(['branch', 'origin/main', 'main'], primary)
-    gitExec(['checkout', 'main'], primary)
-    const wt = path.join(os.tmpdir(), `agent-wt-${path.basename(primary)}`)
-    tmpDirs.push(wt)
-    gitExec(['worktree', 'add', '--detach', wt], primary)
-    fs.writeFileSync(path.join(wt, '.nvmrc'), '22\n')
-    fs.mkdirSync(path.join(wt, 'openspec', 'changes'), { recursive: true })
-    fs.mkdirSync(path.join(wt, 'docs/roadmap/M2.1'), { recursive: true })
+    fs.mkdirSync(path.join(primary, 'openspec', 'changes'), { recursive: true })
     fs.writeFileSync(
-      path.join(wt, 'docs/roadmap.md'),
+      path.join(primary, 'openspec', 'config.yaml'),
+      [
+        'schema: spec-driven',
+        'rules:',
+        '  proposal:',
+        "    - 'Keep proposals under 80 words.'",
+        '',
+      ].join('\n'),
+    )
+    fs.mkdirSync(path.join(primary, 'docs/roadmap/M2.1'), { recursive: true })
+    fs.writeFileSync(
+      path.join(primary, 'docs/roadmap.md'),
       '# R\n\n## M2.1 — t\n\n- [ ] [prep] [wt-slug](roadmap/M2.1/wt-slug.md) — t\n',
     )
     fs.writeFileSync(
-      path.join(wt, 'docs/roadmap/M2.1/wt-slug.md'),
+      path.join(primary, 'docs/roadmap/M2.1/wt-slug.md'),
       '# wt-slug\n\nTag: prep\nMilestone: M2.1\nTitle: t\n',
     )
-    gitExec(['add', '-A'], wt)
+    gitExec(['add', '-A'], primary)
     gitExec(
       [
         '-c',
@@ -4389,8 +4355,15 @@ describe('linked worktree preflight --slug', () => {
         '-m',
         'wt fixture',
       ],
-      wt,
+      primary,
     )
+    gitExec(['checkout', '-b', 'origin-main-tmp'], primary)
+    // Simulate origin/main as a local ref the worktree can track.
+    gitExec(['branch', 'origin/main', 'main'], primary)
+    gitExec(['checkout', 'main'], primary)
+    const wt = path.join(os.tmpdir(), `agent-wt-${path.basename(primary)}`)
+    tmpDirs.push(wt)
+    gitExec(['worktree', 'add', '--detach', wt], primary)
     // Real git for worktree ops; stub only external tools + roadmap next path via thin wrapper.
     const real = defaultExec
     const exec = (file, args, opts = {}) => {

@@ -7,14 +7,14 @@ Mandates: openspec/config.yaml, git-finish.mdc, .cursor/agents, skill `roadmap`.
 
 Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`.
 Do not re-read the item after `roadmap next` / preflight. Take rules/template
-from the run card or `pnpm agent instructions <artifact>` (raw openspec
-instructions / config.yaml / openspec skills / agents reads denied). Specs:
-`rg` + ranges — never `openspec show | head -c`. Grep ≤30 hits; offset/limit
-if >400 lines; no re-read; no TodoWrite in `-p`. Tick checkboxes with targeted
-edits. Prefer `pnpm check` (OK lines only) and `pnpm test:e2e:changed:quiet`
-(once when green; CI burn-in owns flake proof). PR body once; issue URLs only.
-Brief via `pnpm agent review-brief --out <file> --base origin/main` (Task:
-skill set + brief path only).
+from the run card or `pnpm agent instructions <artifact>` (raw openspec CLI /
+config.yaml / openspec skills / agents reads denied). Specs: `rg` + ranges —
+never dump whole specs. Grep ≤30 hits; offset/limit if >400 lines; no re-read;
+no TodoWrite in `-p`. Tick checkboxes with targeted edits. Prefer `pnpm check`
+(OK lines only) and `pnpm test:e2e:changed:quiet` (once when green; CI burn-in
+owns flake proof). PR body once; issue URLs only. Brief via
+`pnpm agent review-brief --out <file> --base origin/main` (Task: skill set +
+brief path only). Ignore `openspec/changes/archive/**` in search.
 
 Batch: parallel independent reads; dependent shell with `&&`. One Write per
 OpenSpec artifact; validate once per stage.
@@ -24,19 +24,20 @@ OpenSpec artifact; validate once per stage.
    Without `--slug`, syncs `main` and skips claimed slugs. With `--slug`,
    branches from `origin/main` (worktrees OK). Creates `feat|fix/<slug>`.
    Contingency: only when its gate failed (`pnpm -s roadmap show <slug>`).
-2. Plan via OpenSpec CLI (not /opsx-propose): `openspec new change <slug>` if
-   needed; write ready artifacts from run card / `pnpm agent instructions`.
-   Prep fast-track (`runCard.prepFastTrack`): brief proposal+tasks; skip
-   design.md unless arch/security; `skip_specs: true` when no `src/` capability
-   behavior change; skip planning-reviewer (roadmap item is the plan). Else
-   after proposal+design+tasks(+specs): planning-reviewer once (brief --out;
-   ≤1 re-review; docs-only skips design). Over budget: `pnpm roadmap add … --after`.
-3. Implement per `runCard.procedure` through Verification, including
+2. Plan via native agent OpenSpec (no openspec CLI): change dir from preflight;
+   write ready artifacts from run card / `pnpm agent instructions`.
+   Prep/contingency fast-track (`runCard.prepFastTrack`): brief proposal+tasks;
+   skip design.md unless arch/security (`.skip-design`); `skip_specs: true` /
+   `.skip-specs` when no `src/` capability behavior change; skip
+   planning-reviewer (roadmap item is the plan). Else after
+   proposal+design+tasks(+specs): planning-reviewer once (brief --out; ≤1
+   re-review; docs-only skips design). Over guidance: `pnpm roadmap add … --after`.
+3. Implement per `runCard.procedure` through verify +
    openspec-implementation-reviewer + Manual check. Quiet verify. Out-of-scope
    fails: fix in this PR unless same failure on unmodified `origin/main`; else
    `pnpm roadmap add … --after` or a bug issue — filing never greens a red PR.
    Code after review → re-run implementation reviewer on the delta.
-4. `npx openspec archive <slug> -y` (sync when deltas exist). Then
+4. `pnpm agent archive <slug>` (sync deltas first). Then
    `pnpm roadmap done <slug>` (`--note` when scope differs; required for
    contingency). Done writes item Status only.
 5. `pnpm roadmap check`, commit, then
@@ -45,8 +46,7 @@ OpenSpec artifact; validate once per stage.
 
 Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict.
 Security-tagged: Security Review before archive. Gate-config edits must be
-stricter and touch-set listed until `gate-ratchet` merges. New/changed deps need
-`pnpm audit:ci` + Security Review until dependency-policy is re-added. Else
-record assumptions and continue.
+stricter and touch-set listed. New/changed deps need `pnpm audit:ci` + Security
+Review until dependency-policy is re-added. Else record assumptions and continue.
 Final reply in Russian: item, PR URL, check status (not watched), reviewer
 verdicts, skipped survivors, assumptions.
