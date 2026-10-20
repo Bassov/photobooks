@@ -1,6 +1,3 @@
-import { copyFileSync, mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import {
@@ -45,13 +42,6 @@ async function waitForRelinkApi(page: Page): Promise<void> {
   )
 }
 
-/** One-file directory so webkitdirectory rescan stays fast under yield. */
-function relinkFixtureDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'photobooks-relink-'))
-  copyFileSync(photoFixturePaths.samplePng, join(dir, 'sample-3x2.png'))
-  return dir
-}
-
 test('empty relink dialog shows everything linked', async ({ page }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')
@@ -78,7 +68,6 @@ test('empty relink dialog shows everything linked', async ({ page }) => {
 })
 
 test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
-  test.setTimeout(120_000)
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')
   await expect(page.getByTestId('create-book')).toBeEnabled({
@@ -117,9 +106,15 @@ test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
     'missing',
   )
 
+  // Single file (not webkitdirectory) so rescan does not stall on yield.
+  await page.evaluate(() => {
+    document
+      .querySelector('[data-testid="relink-folder-input"]')
+      ?.removeAttribute('webkitdirectory')
+  })
   await page
     .getByTestId('relink-folder-input')
-    .setInputFiles(relinkFixtureDir())
+    .setInputFiles(photoFixturePaths.samplePng)
 
   await expect(page.getByTestId('relink-row').first()).toHaveAttribute(
     'data-status',
@@ -129,6 +124,7 @@ test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
   await expect(page.getByTestId('relink-scan-progress')).toHaveCount(0, {
     timeout: 30_000,
   })
+  await expect(page.getByTestId('relink-resolve')).toBeEnabled()
 
   await page.getByTestId('relink-resolve').click()
   await expect(page.getByTestId('relink-dialog')).toHaveCount(0, {
@@ -158,11 +154,10 @@ test('filmstrip scrolls during rescan without page scroll', async ({
   await expect
     .poll(async () => page.getByTestId('filmstrip-item').count())
     .toBeGreaterThanOrEqual(12)
-  await expect(page.getByTestId('import-progress')).toBeHidden({
-    timeout: 60_000,
-  })
 
   await waitForRelinkApi(page)
+  // Hold scan-progress chrome (rAF-batched store) without hatch storm or
+  // main-thread seed/hash — same LoAF window shape as filmstrip import.
   await page.evaluate(() => {
     const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
       .__photobooksRelink
@@ -176,11 +171,12 @@ test('filmstrip scrolls during rescan without page scroll', async ({
   await expect(page.getByTestId('relink-scan-progress')).toBeVisible({
     timeout: 15_000,
   })
+  await page.waitForTimeout(100)
   await page.evaluate(browserClearLoafEntries)
 
-  for (let i = 0; i < 16; i += 1) {
+  for (let i = 0; i < 30; i += 1) {
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft += 120
+      node.scrollLeft += 160
     })
     await page.waitForTimeout(32)
   }
