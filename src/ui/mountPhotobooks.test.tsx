@@ -77,17 +77,20 @@ describe('mountPhotobooks', () => {
     const root = document.createElement('div')
     root.id = 'root'
     document.body.appendChild(root)
+    const createTree = vi.fn(() => <div />)
 
     mountPhotobooks({
       configureSession: vi.fn(),
       createSessionDeps: vi.fn(() => ({}) as never),
       shouldEnablePerf: () => false,
       createRoot: vi.fn(() => ({ render: vi.fn() })) as never,
-      createTree: vi.fn(() => <div />),
+      createTree,
     })
 
     expect(document.documentElement.dataset.theme).toBe('b')
     expect(document.getElementById('root')).toBe(root)
+    expect(createTree).toHaveBeenCalledWith(window.location.search)
+    expect(createTree).toHaveBeenCalledWith(expect.any(String))
     root.remove()
     vi.unstubAllGlobals()
   })

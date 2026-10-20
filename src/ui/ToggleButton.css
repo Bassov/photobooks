@@ -1,0 +1,71 @@
+.pb-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--spacing) * 1.5);
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast),
+    color var(--motion-duration-fast),
+    box-shadow var(--motion-duration-fast);
+  outline: none;
+}
+
+.pb-toggle--md {
+  height: calc(var(--spacing) * 9);
+  min-width: calc(var(--spacing) * 9);
+  padding: 0 calc(var(--spacing) * 2.5);
+  font-size: var(--text-sm);
+}
+
+.pb-toggle--sm {
+  height: calc(var(--spacing) * 8);
+  min-width: calc(var(--spacing) * 8);
+  padding: 0 calc(var(--spacing) * 2);
+  font-size: var(--text-sm);
+}
+
+.pb-toggle--outline {
+  border-color: var(--input);
+  box-shadow: var(--shadow-xs);
+}
+
+.pb-toggle[data-hovered] {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.pb-toggle[data-selected] {
+  color: var(--accent-foreground);
+  background: var(--accent);
+}
+
+.pb-toggle--outline[data-selected] {
+  background: var(--accent);
+}
+
+.pb-toggle[data-focus-visible] {
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
+}
+
+.pb-toggle[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-toggle {
+    transition: none;
+  }
+}

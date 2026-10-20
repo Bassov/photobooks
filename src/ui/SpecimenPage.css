@@ -277,3 +277,23 @@
   border-radius: var(--radius-lg);
   background: var(--background);
 }
+
+.specimen-actions-block {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 2);
+  margin-top: calc(var(--spacing) * 4);
+}
+
+.specimen-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+}
+
+.specimen-actions-row--narrow {
+  max-width: 22rem;
+  flex-direction: column;
+  align-items: stretch;
+}

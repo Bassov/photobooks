@@ -1,0 +1,15 @@
+.pb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--popover);
+  box-shadow: var(--shadow-md);
+}
+
+.pb-toolbar[data-orientation='vertical'] {
+  flex-direction: column;
+  align-items: stretch;
+}

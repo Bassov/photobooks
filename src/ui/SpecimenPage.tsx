@@ -1,9 +1,16 @@
 import { useState } from 'react'
+import { Button } from './Button'
 import { Icon, ICON_NAMES, ICON_SIZES, type IconSize } from './Icon'
+import { IconButton } from './IconButton'
+import { SegmentedControl } from './SegmentedControl'
+import { ToggleButton } from './ToggleButton'
+import { Toolbar } from './Toolbar'
 import './SpecimenPage.css'
 
 export function SpecimenPage() {
   const [iconSize, setIconSize] = useState<IconSize>(16)
+  const [fit, setFit] = useState('fill')
+  const [gridOn, setGridOn] = useState(false)
 
   return (
     <main className="specimen-page" data-testid="specimen">
@@ -188,6 +195,134 @@ export function SpecimenPage() {
               <span className="specimen-swatch-name">{name}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-actions-heading"
+        data-testid="specimen-actions"
+      >
+        <h2 id="specimen-actions-heading">
+          Actions · Button / IconButton / Toggle / Segmented / Toolbar
+        </h2>
+        <p className="specimen-note">
+          Inventory states · tokens only · React Aria (default / secondary /
+          ghost = roadmap primary / secondary / quiet)
+        </p>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">Button variants × sizes</span>
+          <div className="specimen-actions-row">
+            <Button variant="default" size="md">
+              Save
+            </Button>
+            <Button variant="secondary" size="md">
+              Cancel
+            </Button>
+            <Button variant="ghost" size="md">
+              Quiet
+            </Button>
+            <Button variant="default" size="sm">
+              Save sm
+            </Button>
+            <Button variant="secondary" size="sm">
+              Cancel sm
+            </Button>
+            <Button variant="ghost" size="sm">
+              Quiet sm
+            </Button>
+            <Button variant="default" size="md" isDisabled>
+              Disabled
+            </Button>
+            <Button variant="default" size="md" isPending>
+              Saving…
+            </Button>
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">IconButton + Tooltip</span>
+          <div
+            className="specimen-actions-row"
+            data-testid="specimen-icon-buttons"
+          >
+            <IconButton label="Undo (Ctrl+Z)" size="md">
+              <Icon name="undo" />
+            </IconButton>
+            <IconButton label="Redo (Shift+Ctrl+Z)" size="sm">
+              <Icon name="redo" />
+            </IconButton>
+            <IconButton label="Nothing to redo" isDisabled>
+              <Icon name="redo" />
+            </IconButton>
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">ToggleButton</span>
+          <div className="specimen-actions-row">
+            <ToggleButton
+              aria-label="Grid"
+              isSelected={gridOn}
+              onChange={setGridOn}
+            >
+              <Icon name="grid" />
+            </ToggleButton>
+            <ToggleButton aria-label="Guides" defaultSelected variant="outline">
+              <Icon name="guides" />
+            </ToggleButton>
+            <ToggleButton aria-label="Rulers" isDisabled>
+              <Icon name="rulers" />
+            </ToggleButton>
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">SegmentedControl</span>
+          <div className="specimen-actions-row specimen-actions-row--narrow">
+            <SegmentedControl
+              label="Fit"
+              value={fit}
+              onChange={setFit}
+              items={[
+                { id: 'fill', label: 'Fill' },
+                { id: 'fit', label: 'Fit' },
+                { id: 'original', label: 'Original' },
+              ]}
+            />
+            <SegmentedControl
+              label="Units"
+              size="sm"
+              defaultValue="mm"
+              items={[
+                { id: 'mm', label: 'mm' },
+                { id: 'cm', label: 'cm' },
+                { id: 'in', label: 'in' },
+              ]}
+            />
+            <span className="specimen-note" data-testid="specimen-fit-value">
+              fit={fit}
+            </span>
+          </div>
+        </div>
+
+        <div className="specimen-actions-block">
+          <span className="specimen-swatch-name">Toolbar (roving focus)</span>
+          <Toolbar aria-label="Editor tools">
+            <IconButton label="Undo (Ctrl+Z)" tooltip={false}>
+              <Icon name="undo" />
+            </IconButton>
+            <IconButton label="Redo" tooltip={false} isDisabled>
+              <Icon name="redo" />
+            </IconButton>
+            <ToggleButton aria-label="Snap" defaultSelected size="sm">
+              <Icon name="grid" />
+            </ToggleButton>
+            <Button variant="secondary" size="sm">
+              Preview
+            </Button>
+          </Toolbar>
         </div>
       </section>
     </main>
