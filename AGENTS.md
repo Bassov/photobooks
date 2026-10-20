@@ -8,22 +8,22 @@ Vite + React 19 + TypeScript. Product/toolchain conventions: `.cursor/rules/over
 
 ## Module map
 
-| Area                 | Code                                    | Spec                                             |
-| -------------------- | --------------------------------------- | ------------------------------------------------ |
-| Book document        | `src/core/`                             | `openspec/specs/book-core/`                      |
-| Layout geometry      | `src/core/` (templates/ops/resolve)     | `openspec/specs/layout-geometry/`                |
-| Library storage      | `src/project/`                          | `openspec/specs/library-storage/`                |
-| Session state        | `src/project/session/`                  | `openspec/specs/session-state/`                  |
-| Asset source / cache | `src/assets/`                           | `openspec/specs/asset-source/`, `derived-cache/` |
-| Editor shell         | `src/editor/` (incl. `projectSession`)  | `editor-shell/`, `filmstrip/`, `pasteboard/`     |
-| Spread painter       | `src/render/`                           | `openspec/specs/spread-view/`                    |
-| Photo / asset pool   | `src/photo/`                            | `openspec/specs/photo-card/`                     |
-| Perf / 60 fps        | `src/perf/`                             | `openspec/specs/frame-budget/`                   |
-| Shared helpers       | `src/lib/`                              | —                                                |
-| Preview hosting      | `wrangler.jsonc`, deploy scripts        | `openspec/specs/preview-hosting/`                |
-| CI quality gates     | `.github/`, `ts-rig-*` (rig package)    | `quality/gates.json` (see `ci-gates/` pointer)   |
-| Agent pipeline       | `.cursor/`, `@albasov/ts-agent-rig`     | `openspec/config.yaml` (see `agent-context/`)    |
-| Design language      | `docs/design.md` (+ `uikit/` `/uikit/`) | — (`UI ref: uikit#/feature/<slug>`)              |
+| Area                 | Code                                   | Spec                                             |
+| -------------------- | -------------------------------------- | ------------------------------------------------ |
+| Book document        | `src/core/`                            | `openspec/specs/book-core/`                      |
+| Layout geometry      | `src/core/` (templates/ops/resolve)    | `openspec/specs/layout-geometry/`                |
+| Library storage      | `src/project/`                         | `openspec/specs/library-storage/`                |
+| Session state        | `src/project/session/`                 | `openspec/specs/session-state/`                  |
+| Asset source / cache | `src/assets/`                          | `openspec/specs/asset-source/`, `derived-cache/` |
+| Editor shell         | `src/editor/` (incl. `projectSession`) | `editor-shell/`, `filmstrip/`, `pasteboard/`     |
+| Spread painter       | `src/render/`                          | `openspec/specs/spread-view/`                    |
+| Photo / asset pool   | `src/photo/`                           | `openspec/specs/photo-card/`                     |
+| Perf / 60 fps        | `src/perf/`                            | `openspec/specs/frame-budget/`                   |
+| Shared helpers       | `src/lib/`                             | —                                                |
+| Preview hosting      | `wrangler.jsonc`, deploy scripts       | `openspec/specs/preview-hosting/`                |
+| CI quality gates     | `.github/`, `ts-rig-*` (rig package)   | `quality/gates.json` (see `ci-gates/` pointer)   |
+| Agent pipeline       | `.cursor/`, `@albasov/ts-agent-rig`    | `openspec/config.yaml` (see `agent-context/`)    |
+| Design language      | `docs/design.md` + kit `/uikit/`       | — (`UI ref: uikit#/feature/<slug>`)              |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
 
@@ -61,9 +61,8 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 ## Docs
 
-- UI language: `docs/design.md` (kit at `/uikit/`).
-- Target architecture (60 fps): `docs/future-architecture.md`.
-- Roadmap: `docs/roadmap.md` + `docs/roadmap/` via `pnpm roadmap`; process: `docs/roadmap/RULES.md`.
+- Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
+- Execution plan: `docs/roadmap.md` + `docs/roadmap/` via `pnpm roadmap` (skill `roadmap`); process: `docs/roadmap/RULES.md`.
 
 ## Toolchain / Cursor Cloud
 
