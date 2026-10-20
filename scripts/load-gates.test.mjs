@@ -267,6 +267,33 @@ describe('validateGates', () => {
       }),
     ).toThrow(/exactly one of argv or script/)
   })
+
+  it('rejects malformed checks block shapes', () => {
+    expect(() => validateGates({ ...validGates, checks: [] })).toThrow(
+      /checks must be an object/,
+    )
+    expect(() =>
+      validateGates({ ...validGates, checks: { core: 'nope' } }),
+    ).toThrow(/checks.core must be an array/)
+    expect(() =>
+      validateGates({ ...validGates, checks: { core: [null] } }),
+    ).toThrow(/entries must be objects/)
+    expect(() =>
+      validateGates({ ...validGates, checks: { core: [{ name: '' }] } }),
+    ).toThrow(/name must be a non-empty string/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: { core: [{ name: 'lint', argv: [] }] },
+      }),
+    ).toThrow(/argv must be non-empty strings/)
+    expect(() =>
+      validateGates({
+        ...validGates,
+        checks: { core: [{ name: 'lint', argv: ['pnpm', 1] }] },
+      }),
+    ).toThrow(/argv must be non-empty strings/)
+  })
 })
 
 describe('loadGates', () => {
