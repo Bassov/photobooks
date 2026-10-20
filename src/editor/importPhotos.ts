@@ -259,7 +259,6 @@ async function importPhotoFilesInner(
               relativePath: entry.relativePath,
               sourceRootId,
               memorySource: memorySourceForRoot(sourceRootId),
-              contentHash: getAssetContentHash(entry.assetId),
             })
           })
         },

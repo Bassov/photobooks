@@ -152,18 +152,22 @@ export function shouldValidateCodecovYmlRemote(opts = {}) {
  * @returns {Promise<{ ok: boolean, mode: 'api' | 'fallback', detail: string }>}
  */
 export async function validateCodecovYml(yamlText, opts = {}) {
-  const fetchImpl = opts.fetchImpl == null ? globalThis.fetch : opts.fetchImpl
+  const fetchImplRaw =
+    opts.fetchImpl == null ? globalThis.fetch : opts.fetchImpl
   const url = opts.validateUrl == null ? VALIDATE_URL : opts.validateUrl
   const timeoutMs =
     opts.timeoutMs == null ? CODECOV_VALIDATE_TIMEOUT_MS : opts.timeoutMs
+  const fetchImpl = (requestUrl, init) => {
+    const next = { ...init }
+    next.signal = AbortSignal.timeout(timeoutMs)
+    return fetchImplRaw(requestUrl, next)
+  }
   try {
-    const init = {
+    const res = await fetchImpl(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: yamlText,
-    }
-    init.signal = AbortSignal.timeout(timeoutMs)
-    const res = await fetchImpl(url, init)
+    })
     const raw = await res.text()
     const body = String(raw).trim()
     // Success token is the first line exactly "Valid!" (API may append a config dump).
