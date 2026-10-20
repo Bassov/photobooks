@@ -191,45 +191,15 @@ describe('readPasteboardSlotEntry', () => {
 })
 
 describe('resolvePreferredActiveId', () => {
-  it('keeps the preferred id while its ratio is positive', () => {
-    const ratios = new Map([
-      ['a', 0.9],
-      ['b', 0.4],
-    ])
-    expect(resolvePreferredActiveId('b', ratios)).toEqual({
+  it('keeps the preferred id while the pin is held', () => {
+    expect(resolvePreferredActiveId('b')).toEqual({
       activeId: 'b',
       preferredId: 'b',
-    })
-  })
-
-  it('keeps a preferred id with only a small remaining ratio', () => {
-    // Pasteboard clears the pin on user scroll; this helper alone still pins
-    // while ratio > 0 so a partial leave-viewport does not drop the new spread
-    // until that scroll release happens.
-    expect(
-      resolvePreferredActiveId(
-        'new',
-        new Map([
-          ['first', 1],
-          ['new', 0.07],
-        ]),
-      ),
-    ).toEqual({ activeId: 'new', preferredId: 'new' })
-  })
-
-  it('keeps the preferred id until it has been observed at ratio 0', () => {
-    expect(resolvePreferredActiveId('b', new Map([['a', 1]]))).toEqual({
-      activeId: 'b',
-      preferredId: 'b',
-    })
-    expect(resolvePreferredActiveId('b', new Map([['b', 0]]))).toEqual({
-      activeId: null,
-      preferredId: null,
     })
   })
 
   it('is a no-op when nothing is preferred', () => {
-    expect(resolvePreferredActiveId(null, new Map([['a', 1]]))).toEqual({
+    expect(resolvePreferredActiveId(null)).toEqual({
       activeId: null,
       preferredId: null,
     })

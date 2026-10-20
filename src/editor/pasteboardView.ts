@@ -37,24 +37,17 @@ export function selectMarkedSpreadId(
 
 /**
  * Keep a just-added spread marked while the pin is held.
- * Missing ratio = not observed yet (keep pin). ratio > 0 = still intersecting.
- * Pasteboard clears the pin on user scroll after reveal hold ends.
+ * IntersectionObserver ratios must not clear the pin (slots often report 0
+ * before enter). Pasteboard clears the pin on user scroll after reveal hold.
  */
-export function resolvePreferredActiveId(
-  preferredId: string | null,
-  ratios: ReadonlyMap<string, number>,
-): { activeId: string | null; preferredId: string | null } {
+export function resolvePreferredActiveId(preferredId: string | null): {
+  activeId: string | null
+  preferredId: string | null
+} {
   if (preferredId === null) {
     return { activeId: null, preferredId: null }
   }
-  if (!ratios.has(preferredId)) {
-    return { activeId: preferredId, preferredId }
-  }
-  const ratio = ratios.get(preferredId) ?? 0
-  if (ratio > 0) {
-    return { activeId: preferredId, preferredId }
-  }
-  return { activeId: null, preferredId: null }
+  return { activeId: preferredId, preferredId }
 }
 
 export function spreadActiveIndex(

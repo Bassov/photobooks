@@ -349,13 +349,7 @@ export const Pasteboard = memo(function Pasteboard() {
             index: parsed.index,
           })
         }
-        const ratioById = new Map(
-          [...ratios.entries()].map(([id, entry]) => [id, entry.ratio]),
-        )
-        const preferred = resolvePreferredActiveId(
-          preferredActiveRef.current,
-          ratioById,
-        )
+        const preferred = resolvePreferredActiveId(preferredActiveRef.current)
         preferredActiveRef.current = preferred.preferredId
         if (preferred.activeId !== null) {
           setActiveId(preferred.activeId)

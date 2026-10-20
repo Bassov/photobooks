@@ -56,7 +56,7 @@ The system SHALL resolve a spread into a flat list of items (frame id, rect in m
 
 ### Requirement: Gallery and placement ops
 
-The system SHALL expose pure document ops that return a new book: add asset ids to the gallery (and assets map), remove from gallery cascading all placements of that asset, place an asset into an empty frame, replace a filled frame's asset, unplace a frame, swap two frames' placements (or move when the target is empty), apply a catalog template, and add / remove / move spreads. Place on an already-filled frame MUST not overwrite (no-op or typed failure); replace is the overwrite path. Add-spread SHALL insert at a given index or append and apply the one-per-page template so the new spread has empty margin-inset frame(s) for its page count and `templateId` `one-per-page`. When add-spread changes the page count of an existing spread that stores a catalog template id, the system MUST re-apply that template so the spread's frames match the new page count. Ops MUST preserve referential invariants (no dangling asset refs; every placed asset remains in the gallery). Removing the last remaining spread MUST be refused (book unchanged or typed failure). Unchanged spreads MUST keep object identity (structural sharing).
+The system SHALL expose pure document ops that return a new book: add asset ids to the gallery (and assets map), remove from gallery cascading all placements of that asset, place an asset into an empty frame, replace a filled frame's asset, unplace a frame, swap two frames' placements (or move when the target is empty), apply a catalog template, and add / remove / move spreads. Place on an already-filled frame MUST not overwrite (no-op or typed failure); replace is the overwrite path. Add-spread SHALL insert at a given index or append and apply a catalog template: an optional validated `templateId` selects the template, defaulting to one-per-page, so the new spread has empty margin-inset frame(s) for its page count and that `templateId`. When add-spread changes the page count of an existing spread that stores a catalog template id, the system MUST re-apply that template so the spread's frames match the new page count. Ops MUST preserve referential invariants (no dangling asset refs; every placed asset remains in the gallery). Removing the last remaining spread MUST be refused (book unchanged or typed failure). Unchanged spreads MUST keep object identity (structural sharing).
 
 #### Scenario: Remove from gallery clears placements
 
@@ -78,10 +78,15 @@ The system SHALL expose pure document ops that return a new book: add asset ids 
 - **WHEN** swap is applied between two frames that each have an asset
 - **THEN** their asset ids (and crops) are exchanged
 
-#### Scenario: Add spread applies one-per-page
+#### Scenario: Add spread applies one-per-page by default
 
-- **WHEN** add-spread appends to a one-spread book
+- **WHEN** add-spread appends to a one-spread book without a `templateId`
 - **THEN** the new last spread has `templateId` one-per-page and empty frame(s) matching one-per-page for a one-page spread
+
+#### Scenario: Add spread applies an optional templateId
+
+- **WHEN** add-spread appends with a validated catalog `templateId` such as 4-grid
+- **THEN** the new last spread has that `templateId` and empty frame(s) matching that template for its page count
 
 #### Scenario: Add spread re-applies template when page role changes
 

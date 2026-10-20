@@ -99,6 +99,10 @@ test('add spread keeps the active spread template', async ({ page }) => {
     })
     .toBe(true)
   await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
 
   const scroll = page.getByTestId('pasteboard-scroll')
   await scroll.evaluate((el) => {
@@ -122,6 +126,10 @@ test('add spread keeps the active spread template', async ({ page }) => {
       )
     })
     .toBe(true)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
 
   await page.getByRole('radio', { name: '2-up' }).click()
   await expect
