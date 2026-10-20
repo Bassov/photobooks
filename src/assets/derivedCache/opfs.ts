@@ -53,6 +53,8 @@ export async function createOpfsDerivedCache(
   options: OpfsDerivedCacheOptions = {},
 ): Promise<OpfsDerivedCache> {
   const root = await resolveCacheRoot(options)
+  const inflightPuts = new Map<string, Promise<DerivedCacheResult<void>>>()
+  const writtenKeys = new Set<string>()
 
   async function openFile(
     assetHash: string,
@@ -82,20 +84,38 @@ export async function createOpfsDerivedCache(
     },
 
     async put(assetHash, presetId, entry) {
-      try {
-        const handle = await openFile(assetHash, presetId, true)
-        const writable = await handle.createWritable()
-        await writable.write(encodeDerivedCacheEntry(entry))
-        await writable.close()
+      const key = fileNameFor(assetHash, presetId)
+      if (writtenKeys.has(key)) {
         return success(undefined)
-      } catch {
-        return failure('corrupted')
       }
+      const existing = inflightPuts.get(key)
+      if (existing !== undefined) {
+        return existing
+      }
+      const job = (async (): Promise<DerivedCacheResult<void>> => {
+        try {
+          const handle = await openFile(assetHash, presetId, true)
+          const writable = await handle.createWritable()
+          await writable.write(encodeDerivedCacheEntry(entry))
+          await writable.close()
+          writtenKeys.add(key)
+          return success(undefined)
+        } catch {
+          return failure('corrupted')
+        } finally {
+          inflightPuts.delete(key)
+        }
+      })()
+      inflightPuts.set(key, job)
+      return job
     },
 
     async delete(assetHash, presetId) {
+      const key = fileNameFor(assetHash, presetId)
+      writtenKeys.delete(key)
+      inflightPuts.delete(key)
       try {
-        await root.removeEntry(fileNameFor(assetHash, presetId))
+        await root.removeEntry(key)
       } catch (error) {
         if (!isNotFoundError(error)) {
           return failure('corrupted')
@@ -105,6 +125,8 @@ export async function createOpfsDerivedCache(
     },
 
     async clear() {
+      writtenKeys.clear()
+      inflightPuts.clear()
       try {
         for await (const entry of root.values()) {
           await root.removeEntry(entry.name)
@@ -116,6 +138,9 @@ export async function createOpfsDerivedCache(
     },
 
     async seedCorrupted(assetHash, presetId) {
+      const key = fileNameFor(assetHash, presetId)
+      writtenKeys.delete(key)
+      inflightPuts.delete(key)
       const handle = await openFile(assetHash, presetId, true)
       const writable = await handle.createWritable()
       // uint32 BE mime length 0 — invalid envelope (mime must be non-empty).
