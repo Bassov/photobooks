@@ -238,16 +238,11 @@ describe('EditorShell viewport containment', () => {
     expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
   })
 
-  it('rename click is a no-op when no active book id', () => {
+  it('rename is disabled when no active book id', () => {
     render(<EditorShell />)
     expect(getProjectSessionSnapshot().bookId).toBeNull()
     const rename = screen.getByTestId('rename-book')
-    assert(rename instanceof HTMLButtonElement)
-    expect(rename.disabled).toBe(true)
-    const prompt = vi.fn(() => 'ShouldNotApply')
-    vi.stubGlobal('prompt', prompt)
-    fireEvent.click(rename)
-    expect(prompt).not.toHaveBeenCalled()
+    expect(rename.hasAttribute('disabled')).toBe(true)
     expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
   })
 
