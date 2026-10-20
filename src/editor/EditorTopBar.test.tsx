@@ -399,6 +399,8 @@ describe('EditorTopBar', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('import-errors')).toBeNull()
     })
+    // Successful import clears at start (empty errors) and must not leave a toast.
+    expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull()
   })
 
   it('ignores a cancelled folder picker result', async () => {

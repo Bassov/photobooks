@@ -326,10 +326,10 @@ describe('SpreadView', () => {
     expect(
       document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
     ).toBe('true')
-    expect(
-      screen
-        .getByRole('button', { name: 'Select photo to move' })
-        .getAttribute('aria-pressed'),
-    ).toBe('true')
+    const selected = screen.getByRole('button', {
+      name: 'Select photo to move',
+    })
+    expect(selected.getAttribute('aria-pressed')).toBe('true')
+    expect(selected.style.outline).toContain('var(--select)')
   })
 })

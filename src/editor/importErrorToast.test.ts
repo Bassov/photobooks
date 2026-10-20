@@ -31,6 +31,12 @@ describe('importErrorToast', () => {
     expect(content.description).toBe('bad.jpg')
   })
 
+  it('tolerates an empty error list without reading message fields', () => {
+    const content = importErrorsToastContent([], () => undefined)
+    expect(content.title).toBe("0 files couldn't be read")
+    expect(content.description).toBe('')
+  })
+
   it('builds a plural title and status text for multiple errors', () => {
     const errors = [
       { name: 'a.tif', message: 'Unsupported' },

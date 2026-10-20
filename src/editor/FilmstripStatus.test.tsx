@@ -33,6 +33,7 @@ describe('FilmstripStatus', () => {
         }}
       />,
     )
+    expect(screen.getByTestId('filmstrip-count').textContent).toBe('0 photos')
     expect(screen.getByTestId('import-progress').textContent).toMatch(
       /Importing 3 \/ 10/,
     )
