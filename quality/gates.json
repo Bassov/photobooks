@@ -29,18 +29,6 @@
         "until": "mutation-reinclude-camera"
       },
       {
-        "path": "src/editor/EditorShell.tsx",
-        "until": "editor-shell-mutation"
-      },
-      {
-        "path": "src/editor/HomeScreen.tsx",
-        "until": "home-app-mutation"
-      },
-      {
-        "path": "src/App.tsx",
-        "until": "home-app-mutation"
-      },
-      {
         "path": "src/editor/previewAspect.ts",
         "until": "mutation-reinclude-small"
       },

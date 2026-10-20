@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { readFileSync, existsSync, appendFileSync } from 'node:fs'
-import { EMPTY_STRING } from './check-gate-ratchet.mjs'
 import { collectStrykerDisableComments } from './stryker-disable-detect.mjs'
 
 export const DEFAULT_MUTATION_REPORT = 'reports/mutation/mutation.json'
@@ -30,7 +29,7 @@ export function collectDisablesFromText(filePath, text) {
 export function formatSurvivedSample(mutant, filePath) {
   const line = mutant.location?.start?.line
   const lineText = typeof line === 'number' ? String(line) : '?'
-  const name = mutant.mutatorName || mutant.id || EMPTY_STRING
+  const name = mutant.mutatorName || mutant.id || ''
   return `- \`${filePath}:${lineText}\` ${name}`
 }
 
@@ -41,7 +40,7 @@ export function formatSurvivedSample(mutant, filePath) {
 export function formatNoCoverageSample(mutant, filePath) {
   const line = mutant.location?.start?.line
   const lineText = typeof line === 'number' ? String(line) : '?'
-  const name = mutant.mutatorName || mutant.id || EMPTY_STRING
+  const name = mutant.mutatorName || mutant.id || ''
   return `- \`${filePath}:${lineText}\` ${name}`
 }
 

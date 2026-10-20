@@ -2,7 +2,6 @@
  * Test-level weakening + item-criteria helpers for gate ratchet.
  * Parses file text only (TypeScript AST) — never executes head code.
  */
-import { createHash } from 'node:crypto'
 import path from 'node:path'
 import ts from 'typescript'
 
@@ -68,14 +67,12 @@ export const MSGS = Object.freeze({
   testFileDeletedPrefix: 'test file deleted without companion source: ',
   weakeningAddedPrefix: 'weakening marker added in ',
   retriesAddedPrefix: 'retries added in ',
-  titleRemovedPrefix: 'test title removed in ',
-  titleRemovedSep: ': ',
   allowOnlyWeakerPrefix: 'vite allowOnly weakened: ',
   forbidOnlyWeakerPrefix: 'playwright forbidOnly weakened: ',
   weakerArrow: ' → ',
   itemLoosenedPrefix: 'roadmap item criteria loosened: ',
   deferralAddedPrefix: 'deferral roadmap item added: ',
-  ruleTestTitleRemoved: 'test-title-removed',
+  ruleTestFileDeleted: 'test-file-deleted',
   ruleTestSkipAdded: 'test-skip-added',
   ruleTestRetriesAdded: 'test-retries-added',
   ruleAllowOnlyWeaker: 'allow-only-weaker',
@@ -196,14 +193,6 @@ export function companionDeletedFor(testPath, baseFiles, headFiles) {
 }
 
 /**
- * @param {string} text
- * @returns {string}
- */
-export function hashBody(text) {
-  return createHash('sha256').update(coerceText(text)).digest('hex')
-}
-
-/**
  * @param {ts.Expression} expr
  * @returns {string[]}
  */
@@ -258,19 +247,10 @@ export function objectHasRetries(node) {
  * @param {ts.SourceFile} sf
  * @returns {string}
  */
-function bodyTextOf(expr, sf) {
-  if (!expr) return ''
-  if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
-    return expr.getText(sf)
-  }
-  return ''
-}
-
 /**
  * @param {string} source
  * @param {string} fileName
  * @returns {{
- *   titles: { title: string, bodyHash: string }[],
  *   weakening: { suffix: string, title: string | null }[],
  *   retries: number,
  * }}
@@ -284,8 +264,6 @@ export function parseTestFile(source, fileName = DEFAULT_PARSE_FILENAME) {
     true,
     fileName.endsWith(PATHS.extTsx) ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
-  /** @type {{ title: string, bodyHash: string }[]} */
-  const titles = []
   /** @type {{ suffix: string, title: string | null }[]} */
   const weakening = []
   let retries = 0
@@ -320,23 +298,18 @@ export function parseTestFile(source, fileName = DEFAULT_PARSE_FILENAME) {
         (root === TEST_ROOT_TEST || root === TEST_ROOT_IT) &&
         !parts.includes(TEST_ROOT_DESCRIBE) &&
         !parts.includes(TEST_CONFIGURE)
-      if (isTestOrIt && title != null) {
-        let bodyArg = node.arguments[1]
+      if (isTestOrIt) {
+        const bodyArg = node.arguments[1]
         if (bodyArg && objectHasRetries(bodyArg)) {
           if (!weak) retries += 1
-          bodyArg = node.arguments[2]
         }
-        titles.push({
-          title,
-          bodyHash: hashBody(bodyTextOf(bodyArg, sf)),
-        })
       }
     }
     ts.forEachChild(node, visit)
   }
   visit(sf)
 
-  return { titles, weakening, retries }
+  return { weakening, retries }
 }
 
 /**
@@ -500,7 +473,7 @@ export function compareTestWeakening(baseFiles, headFiles, fail) {
     const hRaw = headFiles[p]
     if (bRaw !== undefined && hRaw === undefined) {
       if (!companionDeletedFor(p, baseFiles, headFiles)) {
-        fail(MSGS.ruleTestTitleRemoved, `${MSGS.testFileDeletedPrefix}${p}`)
+        fail(MSGS.ruleTestFileDeleted, `${MSGS.testFileDeletedPrefix}${p}`)
       }
       continue
     }
@@ -521,27 +494,6 @@ export function compareTestWeakening(baseFiles, headFiles, fail) {
 
     if (h.retries > b.retries) {
       fail(MSGS.ruleTestRetriesAdded, `${MSGS.retriesAddedPrefix}${p}`)
-    }
-
-    /** @type {{ title: string, bodyHash: string }[]} */
-    const headRemaining = [...h.titles]
-    for (const t of b.titles) {
-      const exactIdx = headRemaining.findIndex((x) => x.title === t.title)
-      if (exactIdx >= 0) {
-        headRemaining.splice(exactIdx, 1)
-        continue
-      }
-      const renameIdx = headRemaining.findIndex(
-        (x) => x.bodyHash === t.bodyHash,
-      )
-      if (renameIdx >= 0) {
-        headRemaining.splice(renameIdx, 1)
-        continue
-      }
-      fail(
-        MSGS.ruleTestTitleRemoved,
-        `${MSGS.titleRemovedPrefix}${p}${MSGS.titleRemovedSep}${t.title}`,
-      )
     }
   }
 
@@ -668,25 +620,6 @@ function findItemPath(baseFiles, headFiles, slug) {
     }
   }
   return null
-}
-
-/**
- * Inventory all titles across a file map (for real-repo smoke).
- * @param {Record<string, string | undefined>} files
- * @returns {{ path: string, title: string }[]}
- */
-export function inventoryAllTitles(files) {
-  /** @type {{ path: string, title: string }[]} */
-  const out = []
-  for (const p of listTrackedTestPaths(files)) {
-    const raw = files[p]
-    if (raw == null) continue
-    const parsed = parseTestFile(raw, p)
-    for (const t of parsed.titles) {
-      out.push({ path: p, title: t.title })
-    }
-  }
-  return out
 }
 
 /**

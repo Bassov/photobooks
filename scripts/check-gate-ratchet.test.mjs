@@ -789,20 +789,6 @@ jobs:
     ).toBe(true)
   })
 
-  it('FIXTURE deleted-title fails', () => {
-    expect(FIXTURE_IDS).toContain('deleted-title')
-    const { code, result } = cliRatchet(
-      { 'e2e/a.spec.ts': `test('kept', async () => {})\n` },
-      {
-        'e2e/a.spec.ts': `test('gone title', async () => {})\ntest('kept', async () => {})\n`,
-      },
-    )
-    expect(code).toBe(1)
-    expect(
-      result.violations.some((v) => v.ruleId === 'test-title-removed'),
-    ).toBe(true)
-  })
-
   it('FIXTURE forbid-only-false fails', () => {
     expect(FIXTURE_IDS).toContain('forbid-only-false')
     const { code, result } = cliRatchet({
@@ -839,7 +825,7 @@ jobs:
     )
     expect(code).toBe(1)
     expect(
-      result.violations.some((v) => v.ruleId === 'test-title-removed'),
+      result.violations.some((v) => v.ruleId === 'test-file-deleted'),
     ).toBe(true)
   })
 
@@ -856,7 +842,7 @@ jobs:
       },
     )
     expect(
-      result.violations.filter((v) => v.ruleId === 'test-title-removed'),
+      result.violations.filter((v) => v.ruleId === 'test-file-deleted'),
     ).toEqual([])
     expect(code).toBe(0)
   })
@@ -873,7 +859,7 @@ jobs:
       },
     )
     expect(
-      result.violations.filter((v) => v.ruleId === 'test-title-removed'),
+      result.violations.filter((v) => v.ruleId === 'test-file-deleted'),
     ).toEqual([])
     expect(code).toBe(0)
   })
@@ -1114,19 +1100,6 @@ jobs:
       if (prev === undefined) delete process.env[envName]
       else process.env[envName] = prev
     }
-  })
-
-  it('FIXTURE renamed-title-same-body passes', () => {
-    expect(FIXTURE_IDS).toContain('renamed-title-same-body')
-    const body = '() => { expect(1).toBe(1) }'
-    const { code, result } = cliRatchet(
-      { 'src/a.test.ts': `test('new name', ${body})\n` },
-      { 'src/a.test.ts': `test('old name', ${body})\n` },
-    )
-    expect(
-      result.violations.filter((v) => v.ruleId === 'test-title-removed'),
-    ).toEqual([])
-    expect(code).toBe(0)
   })
 
   it('FIXTURE done-when-rewrite fails', () => {

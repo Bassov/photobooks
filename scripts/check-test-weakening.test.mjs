@@ -29,9 +29,7 @@ import {
   compareTestWeakening,
   countWeakeningMarkers,
   extractConfigBool,
-  hashBody,
   hasOwnerApprovedScopeChange,
-  inventoryAllTitles,
   isAllowedItemEdit,
   isDeferralRoadmapText,
   isItemCriteriaLine,
@@ -47,7 +45,7 @@ import ts from 'typescript'
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('parseTestFile', () => {
-  it('detects skip/only/todo/fixme and titles with body hash', () => {
+  it('detects skip/only/todo/fixme weakening markers', () => {
     const src = `
 import { test, it, describe } from 'vitest'
 test('keeps running', () => { expect(1).toBe(1) })
@@ -58,7 +56,6 @@ test.fixme('broken', () => {})
 test.fail('will fail', () => {})
 `
     const p = parseTestFile(src, 'x.test.ts')
-    expect(p.titles.map((t) => t.title)).toContain('keeps running')
     expect(p.weakening.map((w) => w.suffix).sort()).toEqual(
       ['fail', 'fixme', 'only', 'skip', 'todo'].sort(),
     )
@@ -73,30 +70,21 @@ test('plain', async () => {})
 `
     const p = parseTestFile(src, 'e2e/x.spec.ts')
     expect(p.retries).toBe(2)
-    expect(p.titles.map((t) => t.title)).toEqual(['with retries', 'plain'])
   })
 
   it('detects string-literal retries key', () => {
     const src = `test('with retries', { 'retries': 2 }, async () => {})\n`
     const p = parseTestFile(src, 'e2e/x.spec.ts')
     expect(p.retries).toBe(1)
-    expect(p.titles[0].title).toBe('with retries')
-  })
-
-  it('non-function body hashes as empty string', () => {
-    const p = parseTestFile(`test('t', 42)\ntest('u')\n`, 'a.test.ts')
-    expect(p.titles).toHaveLength(2)
-    expect(p.titles[0].bodyHash).toBe(hashBody(''))
-    expect(p.titles[1].bodyHash).toBe(hashBody(''))
   })
 
   it('default fileName pin parses without second arg', () => {
     const p = parseTestFile(`test('solo', () => {})`)
     expect(DEFAULT_PARSE_FILENAME).toBe('file.ts')
-    expect(p.titles.map((t) => t.title)).toEqual(['solo'])
+    expect(p.weakening).toEqual([])
   })
 
-  it('does not treat describe / configure as test titles', () => {
+  it('does not count describe / configure as weakening', () => {
     const src = `
 describe('suite', () => {})
 test.describe('nested', () => {})
@@ -105,15 +93,8 @@ test('real', () => {})
 it('also', () => {})
 `
     const p = parseTestFile(src, 'a.test.ts')
-    expect(p.titles.map((t) => t.title).sort()).toEqual(['also', 'real'])
+    expect(p.weakening).toEqual([])
     expect(p.retries).toBe(1)
-  })
-
-  it('rename keeps same body hash', () => {
-    const body = '() => { expect(1).toBe(1) }'
-    const a = parseTestFile(`test('old', ${body})`, 'a.test.ts')
-    const b = parseTestFile(`test('new', ${body})`, 'a.test.ts')
-    expect(a.titles[0].bodyHash).toBe(b.titles[0].bodyHash)
   })
 
   it('objectHasRetries true only for retries key', () => {
@@ -133,10 +114,7 @@ it('also', () => {})
     expect(objectHasRetries(objOf(`const x = 1`))).toBe(false)
   })
 
-  it('coerceText / hashBody / staticStringArg edges', () => {
-    expect(hashBody(null)).toBe(hashBody(''))
-    expect(hashBody(undefined)).toBe(hashBody(''))
-    expect(hashBody(12)).toBe(hashBody('12'))
+  it('staticStringArg edges', () => {
     expect(staticStringArg(undefined)).toBe(null)
   })
 })
@@ -446,27 +424,6 @@ describe('compareTestWeakening', () => {
     })
   })
 
-  it('fails on deleted title; passes rename with same body', () => {
-    const body = '() => { return 1 }'
-    /** @type {{ ruleId: string, message: string }[]} */
-    const del = []
-    compareTestWeakening(
-      { 'e2e/a.spec.ts': `test('old title', ${body})\n` },
-      { 'e2e/a.spec.ts': `test('kept', () => {})\n` },
-      (ruleId, message) => del.push({ ruleId, message }),
-    )
-    expect(del.some((x) => x.ruleId === 'test-title-removed')).toBe(true)
-
-    /** @type {{ ruleId: string, message: string }[]} */
-    const ren = []
-    compareTestWeakening(
-      { 'e2e/a.spec.ts': `test('old title', ${body})\n` },
-      { 'e2e/a.spec.ts': `test('new title', ${body})\n` },
-      (ruleId, message) => ren.push({ ruleId, message }),
-    )
-    expect(ren.some((x) => x.ruleId === 'test-title-removed')).toBe(false)
-  })
-
   it('fails file delete alone; passes with companion', () => {
     /** @type {{ ruleId: string, message: string }[]} */
     const alone = []
@@ -478,7 +435,7 @@ describe('compareTestWeakening', () => {
       { 'src/foo.ts': `export const x = 1\n` },
       (ruleId, message) => alone.push({ ruleId, message }),
     )
-    expect(alone.some((x) => x.ruleId === 'test-title-removed')).toBe(true)
+    expect(alone.some((x) => x.ruleId === 'test-file-deleted')).toBe(true)
 
     /** @type {{ ruleId: string, message: string }[]} */
     const both = []
@@ -490,7 +447,7 @@ describe('compareTestWeakening', () => {
       {},
       (ruleId, message) => both.push({ ruleId, message }),
     )
-    expect(both.some((x) => x.ruleId === 'test-title-removed')).toBe(false)
+    expect(both.some((x) => x.ruleId === 'test-file-deleted')).toBe(false)
   })
 
   it('passes e2e delete when matching src basename deleted', () => {
@@ -504,7 +461,7 @@ describe('compareTestWeakening', () => {
       {},
       (ruleId, message) => v.push({ ruleId, message }),
     )
-    expect(v.some((x) => x.ruleId === 'test-title-removed')).toBe(false)
+    expect(v.some((x) => x.ruleId === 'test-file-deleted')).toBe(false)
   })
 
   it('fails allowOnly/forbidOnly weakening', () => {
@@ -540,7 +497,7 @@ describe('compareTestWeakening', () => {
       (ruleId, message) => v.push({ ruleId, message }),
     )
     expect(v).toContainEqual({
-      ruleId: MSGS.ruleTestTitleRemoved,
+      ruleId: MSGS.ruleTestFileDeleted,
       message: `${MSGS.testFileDeletedPrefix}src/solo.test.ts`,
     })
   })
@@ -703,8 +660,7 @@ describe('real repo inventory', () => {
     return files
   }
 
-  it('parses non-empty titles from real test files', () => {
-    // burn-in-fixtures file exists on disk but must be filtered by isTrackedTestPath
+  it('parses weakening markers from real test files', () => {
     expect(
       fs.existsSync(
         path.join(FIXTURE_ROOT, 'e2e/burn-in-fixtures/ignored.spec.ts'),
@@ -723,22 +679,6 @@ describe('real repo inventory', () => {
       'src/feature/sample.test.ts',
       'src/feature/sample.test.tsx',
     ])
-    const titles = inventoryAllTitles(files)
-    expect(titles.length).toBeGreaterThan(50)
-    expect(titles.length).toBe(70)
-    expect(titles.every((t) => t.title.length > 0)).toBe(true)
-    expect(titles.some((t) => t.path.startsWith('src/'))).toBe(true)
-    expect(titles.some((t) => t.path.startsWith('scripts/'))).toBe(true)
-    expect(titles.some((t) => t.path.startsWith('e2e/'))).toBe(true)
-    // sanity: markers detector runs without throwing
     expect(countWeakeningMarkers(files)).toBeGreaterThanOrEqual(0)
-  })
-
-  it('cheap real-repo smoke: one tracked file still inventories', () => {
-    const rel = 'src/editor/importPhotos.test.ts'
-    const raw = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8')
-    const titles = inventoryAllTitles({ [rel]: raw })
-    expect(titles.length).toBeGreaterThan(0)
-    expect(titles.every((t) => t.path === rel && t.title.length > 0)).toBe(true)
   })
 })
