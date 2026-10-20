@@ -216,6 +216,9 @@ export function computePatchCoverage(opts = {}) {
     const hits = byRel.get(file)
     const miss = []
     for (const ln of lines) {
+      // When Istanbul instrumented the file, only count statement lines
+      // (imports/comments/braces often lack DA: entries and inflate the fail).
+      if (hits && !hits.has(ln)) continue
       total++
       const h = hits?.get(ln)
       if (h !== undefined && h > 0) covered++
