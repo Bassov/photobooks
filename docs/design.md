@@ -52,7 +52,7 @@ UI ref: `uikit#/feature/design-tokens`, `uikit#/feature/dark-theme`.
 
 ## Iconography
 
-One family: **lucide-react**, stroke 2, `currentColor`. Size tokens: **14 / 16 / 20**. Icon-only controls always have an accessible name + tooltip. Decorative icons are `aria-hidden`.
+One family: **in-repo SVG set** (`src/ui/Icon.tsx` + `src/ui/icons/`), Lucide-compatible stroke 2, `currentColor`, 24×24 viewBox. Size tokens: **14 / 16 / 20** (`--icon-size-14/16/20`). No `lucide-react` in the app package (kit may keep lucide as visual reference). Icon-only controls always have an accessible name + tooltip. Decorative icons omit `label` and are `aria-hidden`.
 
 UI ref: `uikit#/feature/icon-set`.
 
@@ -133,6 +133,6 @@ Checklist for M2.5 token adoption. **Kit wins** on every gap.
 | Filmstrip           | Token chrome; geometry still custom                                                                                          | ThumbGrid / PhotoThumb rules                                            | Align thumb geometry + primitives            |
 | Spread / pasteboard | `--canvas` / `--select` / `--ring`; paper from document                                                                      | `--canvas` / `--select` / `--ring`; paper from document                 | Done for chrome colours                      |
 | Dark theme          | `data-theme` from `prefers-color-scheme` (no product toggle UX yet)                                                          | `data-theme` B / B-dark + persisted toggle                              | Toggle UX remain                             |
-| Icons               | Sparse / emoji-free but not lucide map                                                                                       | lucide 14/16/20 map                                                     | Adopt icon-set                               |
+| Icons               | `Icon` + 24 in-repo glyphs; size tokens 14/16/20; `?specimen` grid                                                           | in-repo SVG map (kit lucide demo OK)                                    | Done (icon-set)                              |
 
 UI ref for target screens: `uikit#/feature/design-tokens`, `icon-set`, `editor-chrome-toolbar`, `editor-chrome-states`, `project-screens-adoption`, `dark-theme`.

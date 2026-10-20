@@ -217,3 +217,63 @@
   background: var(--card);
   box-shadow: var(--shadow-xs);
 }
+
+.specimen-icon-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--spacing) * 3);
+  margin-bottom: calc(var(--spacing) * 3);
+}
+
+.specimen-icon-sizes {
+  display: inline-flex;
+  gap: calc(var(--spacing) * 0.5);
+  padding: calc(var(--spacing) * 0.5);
+  border-radius: var(--radius-md);
+  background: var(--muted);
+}
+
+.specimen-icon-size {
+  min-width: calc(var(--spacing) * 7);
+  height: calc(var(--spacing) * 6);
+  padding: 0 calc(var(--spacing) * 2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.specimen-icon-size:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.specimen-icon-size-active {
+  background: var(--background);
+  box-shadow: var(--shadow-xs);
+}
+
+.specimen-icon-hint {
+  margin-left: auto;
+}
+
+.specimen-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: calc(var(--spacing) * 2);
+}
+
+.specimen-icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--spacing) * 1.5);
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+}

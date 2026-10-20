@@ -1,6 +1,10 @@
+import { useState } from 'react'
+import { Icon, ICON_NAMES, ICON_SIZES, type IconSize } from './Icon'
 import './SpecimenPage.css'
 
 export function SpecimenPage() {
+  const [iconSize, setIconSize] = useState<IconSize>(16)
+
   return (
     <main className="specimen-page" data-testid="specimen">
       <header className="specimen-header">
@@ -138,6 +142,52 @@ export function SpecimenPage() {
             <div className="specimen-spacing-bar specimen-space-8" />
             <span className="specimen-spacing-label">32</span>
           </div>
+        </div>
+      </section>
+
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-icons-heading"
+        data-testid="specimen-icons"
+      >
+        <h2 id="specimen-icons-heading">Icon set · in-repo SVG (stroke 2)</h2>
+        <div className="specimen-icon-toolbar">
+          <span className="specimen-note">Size token</span>
+          <div
+            className="specimen-icon-sizes"
+            role="group"
+            aria-label="Icon size"
+          >
+            {ICON_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={
+                  s === iconSize
+                    ? 'specimen-icon-size specimen-icon-size-active'
+                    : 'specimen-icon-size'
+                }
+                aria-label={`Icon size ${String(s)}`}
+                aria-pressed={s === iconSize}
+                onClick={() => {
+                  setIconSize(s)
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <span className="specimen-note specimen-icon-hint">
+            decorative = aria-hidden · icon-only controls need a label
+          </span>
+        </div>
+        <div className="specimen-icon-grid">
+          {ICON_NAMES.map((name) => (
+            <div key={name} className="specimen-icon-cell">
+              <Icon name={name} size={iconSize} />
+              <span className="specimen-swatch-name">{name}</span>
+            </div>
+          ))}
         </div>
       </section>
     </main>
