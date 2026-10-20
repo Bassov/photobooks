@@ -8,11 +8,6 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
-import {
-  CODECOV_VALIDATE_TIMEOUT_MS,
-  fetchWithTimeout,
-} from './codecov-fetch-timeout.mjs'
-export { CODECOV_VALIDATE_TIMEOUT_MS } from './codecov-fetch-timeout.mjs'
 
 export const CODECOV_YML_REL = 'codecov.yml'
 export const CODECOV_YML_VALIDATE_BASE = 'origin/main'
@@ -43,7 +38,6 @@ const VALIDATE_URL = 'https://api.codecov.io/validate'
 export function isNetworkError(err) {
   if (!err || typeof err !== 'object') return false
   const e = /** @type {any} */ (err)
-  if (e.name === 'TimeoutError' || e.name === 'AbortError') return true
   if (
     e.name === 'TypeError' &&
     /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message))
@@ -158,19 +152,12 @@ export function shouldValidateCodecovYmlRemote(opts = {}) {
 export async function validateCodecovYml(yamlText, opts = {}) {
   const fetchImpl = opts.fetchImpl == null ? globalThis.fetch : opts.fetchImpl
   const url = opts.validateUrl == null ? VALIDATE_URL : opts.validateUrl
-  const timeoutMs =
-    opts.timeoutMs == null ? CODECOV_VALIDATE_TIMEOUT_MS : opts.timeoutMs
   try {
-    const res = await fetchWithTimeout(
-      fetchImpl,
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: yamlText,
-      },
-      timeoutMs,
-    )
+    const res = await fetchImpl(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: yamlText,
+    })
     const raw = await res.text()
     const body = String(raw).trim()
     // Success token is the first line exactly "Valid!" (API may append a config dump).
