@@ -199,6 +199,11 @@
         "maxChars": 673
       },
       {
+        "path": ".cursor/rules/design.mdc",
+        "maxLines": 14,
+        "maxChars": 520
+      },
+      {
         "path": ".cursor/rules/data-model.mdc",
         "maxLines": 17,
         "maxChars": 1366

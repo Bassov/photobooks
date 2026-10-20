@@ -12,6 +12,7 @@ description: >-
 
 ## Pass/fail gates
 
+- **Design system:** chrome uses tokens/primitives from `docs/design.md` (kit wins on gaps); no parallel button/colour systems; new tokens/primitives added to that doc in the same change.
 - **A11y:** visible focus, keyboard path for primary actions, labeled controls, contrast, `prefers-reduced-motion` respected for non-essential motion.
 - **States:** interactive controls cover default / hover / focus / disabled / loading / error where applicable.
 - **Meaning:** do not rely on color alone for errors or status.
@@ -36,6 +37,7 @@ Page-level overflow containment stays a Playwright invariant (`assertDocumentFit
 
 ## Photobooks product UI
 
+- Follow `docs/design.md` (Theme B, neutral chrome, chrome vs book-content).
 - Local-first editor chrome: clarity over marketing density.
 - Photo preview is the visual anchor; metadata secondary.
 - Prefer one primary CTA per view ("Open photo", etc.).

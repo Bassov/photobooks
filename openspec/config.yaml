@@ -21,13 +21,13 @@ context: |
   - Repeated review finding → automated check in the same change. No findings journal
   - NEVER weaken a quality gate. Only budgeted `// Stryker disable next-line …: <reason>` within mutation.disableBudget
   - Necessary minimum (artifacts + prod code): reuse ladder exists → codebase → platform → installed dep → new code. Tests are exempt
-  - UI in scope: evidenced browser smoke + skill `ui-review` before push/archive
+  - UI in scope: tokens/primitives from docs/design.md (add new ones in the same change); evidenced browser smoke + skill `ui-review` before push/archive
   - Scripts/CI/.cursor-only changes: always `skip_specs: true` (no product-spec deltas)
 
   Doc budget:
   - Per-change mandates live ONLY in this file (rules + operations). Do not duplicate checklists in AGENTS.md or alwaysApply Cursor rules.
   - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI/agent behavior live in @albasov/ts-agent-rig, quality/gates.json, and .cursor/ — not in openspec/specs prose mirrors.
-  - Durable docs: docs/future-architecture.md; docs/roadmap.md + docs/roadmap/ via `pnpm roadmap` (skill `roadmap`)
+  - Durable docs: docs/design.md (UI language); docs/future-architecture.md; docs/roadmap.md + docs/roadmap/ via `pnpm roadmap` (skill `roadmap`)
 
   Security surface (tag changes that touch these):
   - File System Access, workers/postMessage, blob/object URLs, CSP/headers, dependency bumps, export pipelines
@@ -46,7 +46,7 @@ rules:
     - 'Only two sections (≤250 words): ## Decisions (numbered, after reading the codebase) and ## Touch-set & Test Plan (files, reuse, unit/PBT/e2e lock-ins). Drop Context / Goals / Non-Goals padding.'
     - 'Necessary minimum: write design.md only for real decisions; N/A in one line. Prefer reuse ladder. Tests are exempt.'
     - 'Every quality-gate config edit MUST appear in the touch-set with a reason.'
-    - 'When UI is in scope, name empty / happy / scroll-or-interact e2e cases and that skill `ui-review` runs before push.'
+    - 'When UI is in scope, name tokens/primitives from docs/design.md (add new ones there same change); empty / happy / scroll-or-interact e2e cases; skill `ui-review` before push.'
     - 'If heavy image/decode/render/encode work is in scope, MUST place it in Web Workers.'
     - 'If the security surface is in scope, Decisions MUST cover permission/security handling.'
     - 'After proposal+design+tasks(+specs), launch `openspec-planning-reviewer` once (brief `--out`; ≤1 re-review). Docs-only skips design checklist. Prep/contingency fast-track: skip.'
