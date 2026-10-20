@@ -75,18 +75,20 @@ describe('mountPhotobooks', () => {
     delete document.documentElement.dataset.theme
     vi.stubGlobal('matchMedia', () => ({ matches: false }))
     const root = document.createElement('div')
+    root.id = 'root'
+    document.body.appendChild(root)
 
     mountPhotobooks({
       configureSession: vi.fn(),
       createSessionDeps: vi.fn(() => ({}) as never),
       shouldEnablePerf: () => false,
-      getRootElement: () => root,
       createRoot: vi.fn(() => ({ render: vi.fn() })) as never,
       createTree: vi.fn(() => <div />),
-      getSearch: () => '',
     })
 
     expect(document.documentElement.dataset.theme).toBe('b')
+    expect(document.getElementById('root')).toBe(root)
+    root.remove()
     vi.unstubAllGlobals()
   })
 })

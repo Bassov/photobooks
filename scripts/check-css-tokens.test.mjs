@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { findCssTokenViolations } from './check-css-tokens.mjs'
+import { checkCssTokens, findCssTokenViolations } from './check-css-tokens.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const chrome = path.join(ROOT, 'src', 'editor', 'EditorShell.css')
@@ -23,5 +23,11 @@ describe('findCssTokenViolations', () => {
     const tokens = path.join(ROOT, 'src', 'ui', 'tokens.css')
     const css = `:root { --x: #fff; font-size: 12px; }`
     expect(findCssTokenViolations(tokens, css)).toEqual([])
+  })
+})
+
+describe('checkCssTokens', () => {
+  it('reports no violations on the product tree', () => {
+    expect(checkCssTokens(ROOT)).toEqual([])
   })
 })

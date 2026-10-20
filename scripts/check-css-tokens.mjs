@@ -12,7 +12,7 @@ const SRC = path.join(ROOT, 'src')
 
 const ALLOWED_FILES = new Set([
   path.join(SRC, 'ui', 'tokens.css'),
-  path.join(SRC, 'ui', 'fonts', 'fonts.css'),
+  path.join(ROOT, 'public', 'fonts', 'fonts.css'),
 ])
 
 const COLOR_RE =

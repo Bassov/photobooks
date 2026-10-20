@@ -1,5 +1,4 @@
 /* Theme B / B-dark semantic tokens — names match docs/design.md (kit wins). */
-@import './fonts/fonts.css';
 
 :root,
 html[data-theme='b'] {
