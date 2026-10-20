@@ -1,0 +1,10 @@
+.pb-status {
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}
+
+.pb-status:empty {
+  display: none;
+}

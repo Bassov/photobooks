@@ -21,8 +21,16 @@ test('specimen page shows token swatches without third-party fonts', async ({
   await expect(page.getByText('Semantic colour roles')).toBeVisible()
   await expect(page.getByText('Type scale', { exact: false })).toBeVisible()
   await expect(page.getByTestId('specimen-icons')).toBeVisible()
-  await expect(page.getByText('undo')).toBeVisible()
-  await expect(page.getByText('folder')).toBeVisible()
+  await expect(
+    page.locator('[data-testid="specimen-icons"] .specimen-swatch-name', {
+      hasText: 'undo',
+    }),
+  ).toBeVisible()
+  await expect(
+    page.locator('[data-testid="specimen-icons"] .specimen-swatch-name', {
+      hasText: 'folder',
+    }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Icon size 20' }).click()
   await expect(
     page.locator('[data-testid="specimen-icons"] svg[data-icon="undo"]'),
@@ -43,6 +51,36 @@ test('specimen page shows token swatches without third-party fonts', async ({
   await expect(
     page.getByRole('tooltip', { name: 'Undo (Ctrl+Z)' }),
   ).toBeVisible()
+
+  const feedback = page.getByTestId('specimen-feedback')
+  await expect(feedback).toBeVisible()
+  await feedback.getByRole('button', { name: 'Announce polite' }).click()
+  await expect(page.getByTestId('specimen-status-polite')).toHaveText('Saved')
+  await feedback.getByRole('button', { name: 'Show error toast' }).click()
+  await expect(page.getByText('3 files skipped')).toBeVisible()
+  await page.getByRole('button', { name: 'Show files' }).click()
+  await expect(page.getByTestId('specimen-status-polite')).toHaveText(
+    'Opened error list',
+  )
+  await expect(
+    page.getByRole('progressbar', { name: 'Import progress' }),
+  ).toBeVisible()
+  await feedback.getByRole('button', { name: 'Add folder…' }).click()
+  await expect(page.getByTestId('specimen-status-polite')).toHaveText(
+    'Add folder…',
+  )
+
+  const overlays = page.getByTestId('specimen-overlays')
+  await expect(overlays).toBeVisible()
+  await overlays.getByRole('button', { name: 'Open dialog' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await overlays.getByRole('button', { name: 'Open menu' }).click()
+  await page.getByRole('menuitem', { name: 'Delete' }).click()
+  await expect(page.getByTestId('specimen-menu-choice')).toHaveText(
+    'menu=delete',
+  )
 
   const theme = await page.evaluate(
     () => document.documentElement.dataset.theme,

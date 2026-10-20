@@ -5,7 +5,7 @@ import {
 import { cx } from './className'
 import './Button.css'
 
-type ButtonVariant = 'default' | 'secondary' | 'ghost'
+type ButtonVariant = 'default' | 'secondary' | 'ghost' | 'destructive'
 type ButtonSize = 'sm' | 'md'
 
 export interface ButtonProps extends Omit<AriaButtonProps, 'className'> {

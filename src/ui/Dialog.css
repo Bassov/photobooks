@@ -1,0 +1,35 @@
+.pb-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-scrim);
+  outline: none;
+}
+
+.pb-dialog-modal {
+  outline: none;
+}
+
+.pb-dialog {
+  width: min(28rem, calc(100vw - var(--spacing) * 8));
+  max-height: calc(100vh - var(--spacing) * 8);
+  overflow: auto;
+  padding: calc(var(--spacing) * 6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--popover);
+  color: var(--foreground);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+
+.pb-dialog-title {
+  margin: 0 0 calc(var(--spacing) * 2);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--heading-weight);
+  line-height: 1.3;
+}
