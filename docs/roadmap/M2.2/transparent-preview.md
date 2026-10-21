@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.2
 Title: transparent PNG / WebP areas stay transparent in thumbnails and frames
+Status: done
 
 ## Scope
 
