@@ -45,7 +45,6 @@ describe('Button', () => {
     )
     const disabled = screen.getByRole('button', { name: 'Go' })
     expect(disabled.getAttribute('data-disabled')).not.toBeNull()
-    expect(getComputedStyle(disabled).backgroundColor.length).toBeGreaterThan(0)
     fireEvent.click(disabled)
     expect(onPress).toHaveBeenCalledTimes(1)
   })

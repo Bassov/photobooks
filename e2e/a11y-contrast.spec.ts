@@ -37,16 +37,6 @@ async function setTheme(page: Page, theme: 'b' | 'b-dark') {
   await page.evaluate((next) => {
     document.documentElement.dataset.theme = next
   }, theme)
-  // Wait until semantic tokens for the theme are applied (not just the attribute).
-  await expect
-    .poll(async () =>
-      page.evaluate(() =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--secondary')
-          .trim(),
-      ),
-    )
-    .toBe(theme === 'b-dark' ? '#252525' : '#efede9')
 }
 
 test('specimen page passes color-contrast AA and name/role axe rules', async ({

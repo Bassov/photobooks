@@ -1,5 +1,4 @@
 .pb-button {
-  appearance: none; /* keep author colors under color-scheme: dark */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -85,10 +84,7 @@
 
 .pb-button[data-disabled],
 .pb-button[data-pending] {
-  color: var(--muted-foreground);
-  background: var(--muted);
-  border-color: var(--border);
-  box-shadow: none;
+  opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
   transform: none;
