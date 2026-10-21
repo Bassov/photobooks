@@ -6,6 +6,7 @@ import {
   type ImportFileError,
 } from '../photo/assetPool'
 import { releaseAssetSource, retainAssetSource } from '../photo/assetSources'
+import { upgradeRejectedWithHeicSniff } from '../photo/heic'
 import { partitionImportFiles } from '../photo/pickPhotos'
 import type { ExifOrientation } from '../photo/types'
 import {
@@ -152,9 +153,18 @@ async function importPhotoFilesInner(
   files: readonly File[],
   options: ImportPhotoOptions,
 ): Promise<ImportPhotoResult> {
-  const { accepted, rejected, skipped } = partitionImportFiles(files, {
+  const {
+    accepted,
+    rejected: partitioned,
+    skipped,
+  } = partitionImportFiles(files, {
     source: options.source ?? 'files',
   })
+  const rejected = await upgradeRejectedWithHeicSniff(
+    partitioned,
+    mapWithConcurrency,
+    IMPORT_BODY_READ_CAP,
+  )
   const earlyErrors: ImportFileError[] = rejected.map(
     ({ file, message, reason }) =>
       createImportFileError({

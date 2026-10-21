@@ -78,6 +78,33 @@ describe('importPhotoFiles', () => {
     expect(getBookStoreSnapshot().importRunning).toBe(false)
   })
 
+  it('sniffs extension-less octet-stream HEIC into the conversion message', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const size = 20
+    const bytes = new Uint8Array(size)
+    bytes[0] = 0
+    bytes[1] = 0
+    bytes[2] = 0
+    bytes[3] = size
+    bytes.set([0x66, 0x74, 0x79, 0x70], 4)
+    bytes.set([0x68, 0x65, 0x69, 0x63], 8)
+    const nameless = new File([bytes], 'IMG_0042', {
+      type: 'application/octet-stream',
+    })
+    const result = await importPhotoFiles([nameless])
+    expect(result.imported).toBe(0)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]?.reason).toBe('heic')
+    expect(result.errors[0]?.message).toContain("HEIC isn't supported yet")
+    expect(runImportBatch).not.toHaveBeenCalled()
+  })
+
   it('folder source skips non-image files and excludes them from total', async () => {
     vi.stubGlobal(
       'requestAnimationFrame',

@@ -267,6 +267,68 @@ test('unsupported TIFF shows import error without gallery entry', async ({
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
 })
 
+function minimalHeicFtypBuffer(): Buffer {
+  const size = 20
+  const bytes = Buffer.alloc(size)
+  bytes.writeUInt32BE(size, 0)
+  bytes.write('ftyp', 4)
+  bytes.write('heic', 8)
+  return bytes
+}
+
+test('unsupported HEIC shows conversion message without gallery entry', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  const before =
+    (await page.getByTestId('filmstrip').getAttribute('data-gallery-count')) ??
+    '0'
+  await page.getByTestId('photo-file-input').setInputFiles({
+    name: 'sample.heic',
+    mimeType: 'image/heic',
+    buffer: minimalHeicFtypBuffer(),
+  })
+
+  await expect(page.getByTestId('import-errors')).toBeVisible()
+  await expect(page.getByTestId('import-errors')).toContainText(
+    "HEIC isn't supported yet",
+  )
+  await expect(page.getByTestId('import-errors')).toContainText(
+    'Most Compatible',
+  )
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe(before)
+})
+
+test('extension-less HEIC octet-stream shows conversion message', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  const before =
+    (await page.getByTestId('filmstrip').getAttribute('data-gallery-count')) ??
+    '0'
+  await page.getByTestId('photo-file-input').setInputFiles({
+    name: 'IMG_0042',
+    mimeType: 'application/octet-stream',
+    buffer: minimalHeicFtypBuffer(),
+  })
+
+  await expect(page.getByTestId('import-errors')).toBeVisible()
+  await expect(page.getByTestId('import-errors')).toContainText(
+    "HEIC isn't supported yet",
+  )
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe(before)
+})
+
 test('folder import skips README without import-errors', async ({ page }) => {
   const dir = join(tmpdir(), `pb-folder-skip-${String(Date.now())}`)
   mkdirSync(dir)

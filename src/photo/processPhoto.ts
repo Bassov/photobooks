@@ -1,6 +1,7 @@
 import exifr from 'exifr'
 import { exifOrientationFromLabel } from './exifOrientationLabel'
 import { exifParseSchema } from './exifSchema'
+import { HEIC_UNSUPPORTED_MESSAGE, isHeicSignature } from './heic'
 import { readJpegSofSize, stripJpegExif } from './jpegSof'
 import { normalizeOrientation } from './normalizeOrientation'
 import { readExifImageSize } from './readExifImageSize'
@@ -133,8 +134,9 @@ async function buildPreview(
 export async function processPhotoRequest(
   request: PhotoWorkerRequest,
 ): Promise<PhotoWorkerResponse> {
+  let buffer: ArrayBuffer | undefined
   try {
-    const buffer = await request.file.arrayBuffer()
+    buffer = await request.file.arrayBuffer()
     const mimeType = request.file.type || 'application/octet-stream'
     const name = request.file.name
     const byteLength = request.file.size
@@ -201,6 +203,9 @@ export async function processPhotoRequest(
       bitmap.close()
     }
   } catch (error) {
+    if (buffer !== undefined && isHeicSignature(buffer)) {
+      return { id: request.id, ok: false, error: HEIC_UNSUPPORTED_MESSAGE }
+    }
     const message =
       error instanceof Error ? error.message : 'Failed to load photo'
     return { id: request.id, ok: false, error: message }
