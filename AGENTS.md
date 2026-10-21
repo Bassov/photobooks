@@ -69,11 +69,11 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 Headless `cursor-agent -p`: project `.cursor/cli.json`; launcher must `source scripts/agent-env.sh` and start with `--trust --force` (deny still honored). Prefer preflight run card / `pnpm agent instructions` over denied raw OpenSpec reads. `pnpm agent stats <path>` exits 1 if peak context >300K or first-round input >400K.
 
-Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`; no `.tool-versions` write). Verify/flake: `.cursor/rules/testing.mdc`. Finish/PR / no CI watch: `.cursor/rules/git-finish.mdc`. Unattended: `/next-roadmap-item`.
+Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Verify: `.cursor/rules/testing.mdc`. Finish/PR: `.cursor/rules/git-finish.mdc` (stamp+`hook-pre-push` skip). Unattended: `/next-roadmap-item`.
 
-Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Disable unused Cursor MCP servers. Quiet scripts are the baseline.
+Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
 
-`pnpm install` fails while `core.hooksPath` points at Cursor agent hooks (`prepare` → lefthook). Use `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev: `pnpm exec vite --host 0.0.0.0 --port 5173` (extra `--` makes Vite ignore `--host`).
+`pnpm install` fails while `core.hooksPath` points at Cursor hooks (`prepare` → lefthook): `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev: `pnpm exec vite --host 0.0.0.0 --port 5173`.
 
 ## Doc budget
 
