@@ -50,10 +50,10 @@ test('placement hint appears after import and clears after first place', async (
     timeout: 30_000,
   })
   await expect(page.getByTestId('pasteboard-empty-card')).toHaveCount(0)
-  await expect(page.getByTestId('pasteboard-placement-hint')).toBeVisible()
-  await expect(page.getByTestId('editor-status')).toContainText(
-    'Drag a photo onto a frame',
-  )
+  const hint = page.getByTestId('pasteboard-placement-hint')
+  await expect(hint).toBeVisible()
+  await expect(hint).toContainText('Drag a photo onto a frame')
+  await expect(hint).toHaveAttribute('role', 'status')
 
   const item = page.getByTestId('filmstrip-item').first()
   await page.bringToFront()

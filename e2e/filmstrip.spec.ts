@@ -717,7 +717,10 @@ test.describe('library re-import async', () => {
 
     // Library-backed fresh bulk import: frame-budget scroll window (Perf line).
     await clearPerfScenario(page)
-    const addPhotos = page.getByRole('button', { name: 'Add photos' })
+    const addPhotos = page.getByRole('button', {
+      name: 'Add photos',
+      exact: true,
+    })
     await expect(addPhotos).toBeEnabled()
     // Prefer the hidden input; filechooser can hang under load when the FSA
     // picker stubs race with create-book navigation.
@@ -957,7 +960,10 @@ test.describe('frame-budget gates', () => {
     const files = writeBulkImportFixtures(200)
     // Click Add photos so Event Timing / INP measure that gesture (perf=1
     // deletes showOpenFilePicker → falls back to the hidden file input).
-    const addPhotos = page.getByRole('button', { name: 'Add photos' })
+    const addPhotos = page.getByRole('button', {
+      name: 'Add photos',
+      exact: true,
+    })
     await expect(addPhotos).toBeEnabled()
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),

@@ -1,13 +1,14 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { Button } from '../ui/Button'
 import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
+import { Status } from '../ui/Status'
 import {
   getGalleryIdsSnapshot,
   getHasAnyPlacementSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { STATUS_PLACEMENT_HINT, setEditorStatus } from './editorStatus'
+import { STATUS_PLACEMENT_HINT } from './editorStatus'
 import {
   getNoPhotosFoundHint,
   setNoPhotosFoundHint,
@@ -50,24 +51,12 @@ export function PasteboardEmptyGuidance({
     getNoPhotosFoundHint,
   )
   const showHint = !galleryEmpty && !hasPlacement
-  const announcedRef = useRef(false)
 
   useEffect(() => {
     if (!galleryEmpty && noPhotosFound) {
       setNoPhotosFoundHint(false)
     }
   }, [galleryEmpty, noPhotosFound])
-
-  useEffect(() => {
-    if (showHint) {
-      if (!announcedRef.current) {
-        setEditorStatus(STATUS_PLACEMENT_HINT)
-        announcedRef.current = true
-      }
-      return
-    }
-    announcedRef.current = false
-  }, [showHint])
 
   if (galleryEmpty) {
     return (
@@ -112,13 +101,15 @@ export function PasteboardEmptyGuidance({
     return null
   }
 
+  // Visual-only guidance on the pasteboard: announce via this polite Status,
+  // never write into the shared editor-status line (restore / unplace / save).
   return (
-    <div
+    <Status
+      politeness="polite"
       style={pasteboardPlacementHintStyle}
       data-testid="pasteboard-placement-hint"
-      aria-hidden="true"
     >
       {STATUS_PLACEMENT_HINT}
-    </div>
+    </Status>
   )
 }

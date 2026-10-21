@@ -71,9 +71,11 @@ describe('PasteboardEmptyGuidance', () => {
         importDisabled={false}
       />,
     )
-    expect(screen.getByTestId('pasteboard-placement-hint')).toBeTruthy()
+    const hint = screen.getByTestId('pasteboard-placement-hint')
+    expect(hint).toBeTruthy()
+    expect(hint.getAttribute('role')).toBe('status')
+    expect(hint.textContent).toBe(STATUS_PLACEMENT_HINT)
     expect(screen.queryByTestId('pasteboard-empty-card')).toBeNull()
-    expect(getEditorStatus()).toBe(STATUS_PLACEMENT_HINT)
   })
 
   it('hides the hint after the first placement and when placements already exist', () => {
@@ -137,7 +139,8 @@ describe('PasteboardEmptyGuidance', () => {
     expect(screen.queryByTestId('pasteboard-placement-hint')).toBeNull()
   })
 
-  it('announces the placement hint once per visibility, not per re-render', () => {
+  it('does not overwrite the shared editor-status line with the placement hint', () => {
+    setEditorStatus('Book restored')
     seedGallery(1)
     const { rerender } = render(
       <PasteboardEmptyGuidance
@@ -146,8 +149,12 @@ describe('PasteboardEmptyGuidance', () => {
         importDisabled={false}
       />,
     )
-    expect(getEditorStatus()).toBe(STATUS_PLACEMENT_HINT)
-    setEditorStatus('other')
+    expect(screen.getByTestId('pasteboard-placement-hint').textContent).toBe(
+      STATUS_PLACEMENT_HINT,
+    )
+    expect(
+      screen.getByTestId('pasteboard-placement-hint').getAttribute('aria-live'),
+    ).toBe('polite')
     rerender(
       <PasteboardEmptyGuidance
         onAddFolder={noopImport}
@@ -155,7 +162,7 @@ describe('PasteboardEmptyGuidance', () => {
         importDisabled={false}
       />,
     )
-    expect(getEditorStatus()).toBe('other')
+    expect(getEditorStatus()).toBe('Book restored')
   })
 
   it('clears the no-photos line when the gallery gains photos', () => {

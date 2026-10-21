@@ -158,7 +158,11 @@ test('locked-elsewhere shows banner and blocks Save', async ({ page }) => {
   )
   await expect(page.getByTestId('save-book')).toBeDisabled()
   await expect(page.getByTestId('create-book')).toBeEnabled()
-  await expect(page.getByRole('button', { name: 'Add photos' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Add folder' })).toBeDisabled()
+  await expect(
+    page.getByRole('button', { name: 'Add photos', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    page.getByRole('button', { name: 'Add folder', exact: true }),
+  ).toBeDisabled()
   await assertDocumentFitsViewport(page)
 })
