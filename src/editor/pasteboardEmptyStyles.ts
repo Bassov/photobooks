@@ -11,9 +11,13 @@ export const pasteboardEmptyOverlayStyle: CSSProperties = {
   pointerEvents: 'none',
 }
 
-/** EmptyState card on the pasteboard (kit Empty scenario). */
+/**
+ * EmptyState card on the pasteboard (kit Empty scenario).
+ * Card shell stays pointer-events:none so space-drag/pan hits the pasteboard;
+ * only the action row re-enables hits for Add folder / Add photos.
+ */
 export const pasteboardEmptyCardStyle: CSSProperties = {
-  pointerEvents: 'auto',
+  pointerEvents: 'none',
   alignItems: 'center',
   textAlign: 'center',
   maxWidth: '22.5rem',
@@ -27,6 +31,7 @@ export const pasteboardEmptyActionsStyle: CSSProperties = {
   gap: 'calc(var(--spacing) * 2)',
   justifyContent: 'center',
   width: '100%',
+  pointerEvents: 'auto',
 }
 
 /** Non-blocking first-placement hint; never captures pointer events. */

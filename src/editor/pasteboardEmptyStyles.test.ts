@@ -7,9 +7,10 @@ import {
 } from './pasteboardEmptyStyles'
 
 describe('pasteboardEmptyStyles', () => {
-  it('keeps the empty overlay non-interactive and the card interactive', () => {
+  it('keeps pasteboard pan free; only empty-card actions capture hits', () => {
     expect(pasteboardEmptyOverlayStyle.pointerEvents).toBe('none')
-    expect(pasteboardEmptyCardStyle.pointerEvents).toBe('auto')
+    expect(pasteboardEmptyCardStyle.pointerEvents).toBe('none')
+    expect(pasteboardEmptyActionsStyle.pointerEvents).toBe('auto')
     expect(pasteboardEmptyActionsStyle.justifyContent).toBe('center')
     expect(pasteboardPlacementHintStyle.pointerEvents).toBe('none')
   })
