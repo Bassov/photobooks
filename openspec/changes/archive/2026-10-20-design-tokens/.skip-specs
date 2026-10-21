@@ -1,2 +1,0 @@
-skip_specs: true
-# Chrome CSS custom properties + self-hosted fonts; no src/ capability domain contract change.

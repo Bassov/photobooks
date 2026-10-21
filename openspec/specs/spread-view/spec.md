@@ -43,11 +43,6 @@ When a placed frame's asset is marked `missing` by the relink status store, the 
 - **WHEN** a frame references an asset id whose relink status is `missing`
 - **THEN** the frame shows a hatched missing placeholder and no photo image
 
-#### Scenario: Empty frame unchanged
-
-- **WHEN** a frame has no asset id
-- **THEN** the frame shows the empty placeholder, not the missing hatch
-
 ### Requirement: Page cut line
 
 The painter SHALL draw each derived page cut as a line at its mm offset on the same scale.
@@ -230,24 +225,12 @@ frame; “Swap photos” / “Move photo here” on other frames while a move so
 
 ### Requirement: Thumb publish re-renders only for own photos
 
-A mounted spread MUST re-render for a filmstrip thumbnail publish only when that
-publish changes the thumb URL of a photo placed on that spread.
-
-#### Scenario: Sibling idle; own spread refreshes
-
-- **WHEN** two spreads are mounted with different placed photos and a filmstrip thumb
-  publishes for the photo on the first spread only
-- **THEN** the second spread's render count does not increase; the first spread's
-  painted frame shows the new thumb URL when it had no covering tier or book preview
+A mounted spread MUST re-render for a filmstrip thumb publish only when that
+publish changes the thumb URL of a photo placed on that spread. Sibling spreads
+MUST NOT re-render when the publish is for a photo they do not place.
 
 ### Requirement: Drag source stays mounted through drop
 
-While a filled-frame drag is in progress, the drag source element MUST remain
-mounted until `dragend` so the document-level gesture listener can clear
-click-suppression state. The painter MUST NOT unmount that source solely because
-the frame emptied mid-drop.
-
-#### Scenario: Emptying a frame mid-drop keeps the source mounted
-
-- **WHEN** a filled frame is dragged and its asset is removed before `dragend`
-- **THEN** the drag source node stays mounted long enough for `dragend` to reach `document`
+While a filled-frame drag is in progress, the drag source MUST stay mounted until
+`dragend` (including if the frame empties mid-drop) so document-level
+click-suppression can clear.
