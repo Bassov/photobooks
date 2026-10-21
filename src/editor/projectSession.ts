@@ -566,7 +566,7 @@ function emit(): void {
 function setStatus(next: ProjectSessionStatus): void {
   status = next
   if (next.kind === 'error') {
-    setEditorStatus(`Could not ${next.action}: ${next.code}`)
+    setEditorStatus(humanMessageForCode(next.code, `Could not ${next.action}.`))
   }
   emit()
 }
@@ -1202,15 +1202,11 @@ export interface ProjectSessionTestEnv {
 /** Pure gate shared by `__photobooksProject` and `__photobooksThumbs`. */
 export function shouldExposeProjectSessionTestApi(
   env: ProjectSessionTestEnv = import.meta.env,
-  win: Window | undefined = typeof window !== 'undefined' ? window : undefined,
 ): boolean {
   if (env.DEV) {
     return true
   }
-  if (env.VITE_E2E === '1' || env.VITE_E2E === 'true') {
-    return true
-  }
-  return win?.__photobooksE2e === true
+  return env.VITE_E2E === '1' || env.VITE_E2E === 'true'
 }
 
 export function exposeProjectSessionTestApi(
@@ -1220,7 +1216,7 @@ export function exposeProjectSessionTestApi(
   if (win === undefined) {
     return
   }
-  if (!shouldExposeProjectSessionTestApi(env, win)) {
+  if (!shouldExposeProjectSessionTestApi(env)) {
     return
   }
   win.__photobooksThumbs = { clearThumbsAndDerivedCacheForTests }
@@ -1312,7 +1308,6 @@ declare global {
       problemAssetIds: () => string[]
       clearLiveAssetSources: () => void
     }
-    __photobooksE2e?: boolean
   }
 }
 

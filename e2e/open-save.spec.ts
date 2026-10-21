@@ -42,6 +42,25 @@ test('empty home offers create and open library without page scroll', async ({
   await assertDocumentFitsViewport(page)
 })
 
+test('Start editing from empty home restores empty-editor pasteboard scroll', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
+  await page.getByTestId('start-session').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await expect(page.getByTestId('create-book')).toBeDisabled()
+  await expect(page.getByTestId('save-book')).toBeDisabled()
+  await expect(page.getByTestId('pasteboard-empty-card')).toBeVisible()
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+})
+
 test('save, reload, and restore keep gallery ids', async ({ page }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')

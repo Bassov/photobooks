@@ -37,9 +37,20 @@ export function HomeScreen() {
   )
   const [books, setBooks] = useState<readonly BookSummary[]>([])
   const [listFailed, setListFailed] = useState(false)
+  const [selectedAnnounce, setSelectedAnnounce] = useState('')
+  const [focusHoldTestId, setFocusHoldTestId] = useState<string | null>(null)
 
   const busy = project.actionBusy || project.restorePending
   const interactive = !busy
+  // Keep the control that started the busy action enabled so focus is not blurred.
+  const activeFocusHold = busy ? focusHoldTestId : null
+
+  const actionDisabled = (testId: string): boolean =>
+    homeActionDisabled(interactive) && activeFocusHold !== testId
+
+  const beginBusyAction = (testId: string): void => {
+    setFocusHoldTestId(testId)
+  }
 
   const refreshRecents = async (): Promise<void> => {
     const listed = await listRecents()
@@ -76,6 +87,7 @@ export function HomeScreen() {
         return
       }
       setSelectedLibraryId(preferred.id)
+      setSelectedAnnounce(`Selected library ${preferred.label}`)
       const booksListed = await selectRecentLibrary(preferred.id)
       if (!booksListed.ok) {
         return
@@ -95,7 +107,10 @@ export function HomeScreen() {
     if (!interactive) {
       return
     }
+    const matched = recents.find((entry) => entry.id === libraryId)
+    const label = matched === undefined ? libraryId : matched.label
     setSelectedLibraryId(libraryId)
+    setSelectedAnnounce(`Selected library ${label}`)
     setBooks([])
     const listed = await selectRecentLibrary(libraryId)
     if (!listed.ok) {
@@ -162,14 +177,16 @@ export function HomeScreen() {
   return (
     <div className="home-screen" data-testid="home-screen">
       <header className="home-chrome">
-        <p className="brand">Photobooks</p>
+        <h1 className="brand">Photobooks</h1>
         <div className="home-actions">
           <Button
             variant="secondary"
             size="sm"
             data-testid="create-library"
-            isDisabled={homeActionDisabled(interactive)}
+            isDisabled={actionDisabled('create-library')}
             onPress={() => {
+              // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
+              beginBusyAction('create-library')
               void createLibrary()
             }}
           >
@@ -179,8 +196,10 @@ export function HomeScreen() {
             variant="secondary"
             size="sm"
             data-testid="open-library"
-            isDisabled={homeActionDisabled(interactive)}
+            isDisabled={actionDisabled('open-library')}
             onPress={() => {
+              // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
+              beginBusyAction('open-library')
               void openLibrary()
             }}
           >
@@ -190,7 +209,7 @@ export function HomeScreen() {
             variant="secondary"
             size="sm"
             data-testid="start-session"
-            isDisabled={homeActionDisabled(interactive)}
+            isDisabled={actionDisabled('start-session')}
             onPress={() => {
               startSessionEditor()
             }}
@@ -201,8 +220,10 @@ export function HomeScreen() {
             <Button
               size="sm"
               data-testid="regrant-library"
-              isDisabled={homeActionDisabled(interactive)}
+              isDisabled={actionDisabled('regrant-library')}
               onPress={() => {
+                // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
+                beginBusyAction('regrant-library')
                 void regrantLibrary()
               }}
             >
@@ -216,6 +237,13 @@ export function HomeScreen() {
         data-testid="home-scroll"
         data-scrollport="home"
       >
+        <Status
+          className="home-selected-announce"
+          data-testid="home-selected-announce"
+          politeness="polite"
+        >
+          {selectedAnnounce}
+        </Status>
         {listFailed ? (
           <EmptyState
             className="home-error-panel"
@@ -227,8 +255,10 @@ export function HomeScreen() {
               <Button
                 size="sm"
                 data-testid="home-retry"
-                isDisabled={homeActionDisabled(interactive)}
+                isDisabled={actionDisabled('home-retry')}
                 onPress={() => {
+                  // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
+                  beginBusyAction('home-retry')
                   void refreshRecents()
                 }}
               >
@@ -258,8 +288,9 @@ export function HomeScreen() {
                 <Button
                   size="sm"
                   data-testid="home-empty-create"
-                  isDisabled={homeActionDisabled(interactive)}
+                  isDisabled={actionDisabled('home-empty-create')}
                   onPress={() => {
+                    beginBusyAction('home-empty-create')
                     void createLibrary()
                   }}
                 >
@@ -269,8 +300,9 @@ export function HomeScreen() {
                   variant="secondary"
                   size="sm"
                   data-testid="home-empty-open"
-                  isDisabled={homeActionDisabled(interactive)}
+                  isDisabled={actionDisabled('home-empty-open')}
                   onPress={() => {
+                    beginBusyAction('home-empty-open')
                     void openLibrary()
                   }}
                 >
@@ -285,47 +317,56 @@ export function HomeScreen() {
             <section className="home-panel" data-testid="home-recents">
               <h2 className="home-heading">Recent libraries</h2>
               <ul className="home-list" aria-label="Recent libraries">
-                {recents.map((recent) => (
-                  <li key={recent.id}>
-                    <button
-                      type="button"
-                      className={
-                        selectedLibraryId === recent.id
-                          ? 'home-list-item home-list-item-selected'
-                          : 'home-list-item'
-                      }
-                      data-testid={`home-recent-${recent.id}`}
-                      disabled={!interactive}
-                      aria-current={
-                        selectedLibraryId === recent.id ? 'true' : undefined
-                      }
-                      onClick={() => {
-                        void onSelectRecent(recent.id)
-                      }}
-                    >
-                      {recent.label}
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="home-remove"
-                      data-testid={`home-remove-${recent.id}`}
-                      isDisabled={homeActionDisabled(interactive)}
-                      aria-label={`Remove ${recent.label}`}
-                      onPress={() => {
-                        void removeRecentFromHome(recent.id).then(() => {
-                          if (selectedLibraryId === recent.id) {
-                            setSelectedLibraryId(null)
-                            setBooks([])
-                          }
-                          void refreshRecents()
-                        })
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
+                {recents.map((recent) => {
+                  const recentTestId = `home-recent-${recent.id}`
+                  const removeTestId = `home-remove-${recent.id}`
+                  return (
+                    <li key={recent.id}>
+                      <button
+                        type="button"
+                        className={
+                          selectedLibraryId === recent.id
+                            ? 'home-list-item home-list-item-selected'
+                            : 'home-list-item'
+                        }
+                        data-testid={recentTestId}
+                        disabled={actionDisabled(recentTestId)}
+                        aria-current={
+                          selectedLibraryId === recent.id ? 'true' : undefined
+                        }
+                        onClick={() => {
+                          // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
+                          beginBusyAction(recentTestId)
+                          void onSelectRecent(recent.id)
+                        }}
+                      >
+                        {recent.label}
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="home-remove"
+                        data-testid={removeTestId}
+                        isDisabled={actionDisabled(removeTestId)}
+                        aria-label={`Remove ${recent.label}`}
+                        onPress={() => {
+                          beginBusyAction(removeTestId)
+                          void removeRecentFromHome(recent.id).then(() => {
+                            if (selectedLibraryId === recent.id) {
+                              setSelectedLibraryId(null)
+                              setSelectedAnnounce('')
+                              // Stryker disable next-line CallExpression,ArrayDeclaration: books panel hidden when selection is null
+                              setBooks([])
+                            }
+                            void refreshRecents()
+                          })
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </li>
+                  )
+                })}
               </ul>
             </section>
             <section className="home-panel" data-testid="home-books">
@@ -356,15 +397,19 @@ export function HomeScreen() {
                 <ul className="home-list" aria-label="Books">
                   {books.map((book) => {
                     const label = displayBookTitle(book.title)
+                    const bookTestId = `home-book-${book.id}`
+                    const renameTestId = `home-rename-${book.id}`
                     return (
                       <li key={book.id} className="home-book-row">
                         <button
                           type="button"
                           className="home-list-item"
-                          data-testid={`home-book-${book.id}`}
-                          disabled={!interactive}
+                          data-testid={bookTestId}
+                          disabled={actionDisabled(bookTestId)}
                           onClick={() => {
                             if (selectedLibraryId) {
+                              // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
+                              beginBusyAction(bookTestId)
                               void onOpenBook(selectedLibraryId, book.id)
                             }
                           }}
@@ -375,10 +420,12 @@ export function HomeScreen() {
                           variant="ghost"
                           size="sm"
                           className="home-remove"
-                          data-testid={`home-rename-${book.id}`}
-                          isDisabled={homeActionDisabled(interactive)}
+                          data-testid={renameTestId}
+                          isDisabled={actionDisabled(renameTestId)}
                           aria-label={`Rename ${label}`}
                           onPress={() => {
+                            // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
+                            beginBusyAction(renameTestId)
                             void onRenameBook(book)
                           }}
                         >

@@ -251,6 +251,11 @@ export function createBookLockController(
             requireSameAsStored: peeked.value,
           })
         }
+        host.setHomeError(
+          'Could not find the stored library folder. Use Open to pick it again.',
+        )
+        host.setStatusError('not-found', 're-grant')
+        return { ok: false as const, code: 'not-found' as const }
       }
       const handle = await host.pickDirectory()
       if (!handle) {
