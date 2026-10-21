@@ -62,7 +62,6 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 ## Docs
 
-- Agent loop: `docs/agent-loop.md`.
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
 - Execution plan: `docs/roadmap.md` + `docs/roadmap/` via `pnpm roadmap` (skill `roadmap`); process: `docs/roadmap/RULES.md`.
 
@@ -70,7 +69,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 Headless `cursor-agent -p`: project `.cursor/cli.json`; launcher must `source scripts/agent-env.sh` and start with `--trust --force` (deny still honored). Prefer preflight run card / `pnpm agent instructions` over denied raw OpenSpec reads. `pnpm agent stats <path>` exits 1 if peak context >300K or first-round input >400K.
 
-Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Loop: `docs/agent-loop.md`. Always-on: `.cursor/rules/testing.mdc`, `git-finish.mdc`. Unattended: `/next-roadmap-item`.
+Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Always-on: `.cursor/rules/testing.mdc`, `git-finish.mdc`. Unattended: `/next-roadmap-item`.
 
 Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
 
