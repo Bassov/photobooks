@@ -1,7 +1,13 @@
+import { useSyncExternalStore, type ReactNode } from 'react'
 import { ProgressBar } from '../ui/ProgressBar'
 import { Status } from '../ui/Status'
 import { filmstripImportProgressStyle } from './filmstripChromeStyles'
 import type { ImportProgress } from './importPhotos'
+import {
+  getImportErrors,
+  openImportErrorsPanel,
+  subscribeImportErrors,
+} from './importErrorsStore'
 
 export function FilmstripStatus({
   photoCount,
@@ -10,19 +16,38 @@ export function FilmstripStatus({
   photoCount: number
   progress: ImportProgress | null
 }) {
+  const storeErrors = useSyncExternalStore(
+    subscribeImportErrors,
+    getImportErrors,
+    getImportErrors,
+  )
   const running = progress?.running === true
   const showCount = photoCount > 0 || running
+  const errorCount = storeErrors.length
 
-  let progressText: string | null = null
-  if (progress !== null) {
-    if (progress.running) {
-      progressText = `Importing ${String(progress.completed)} / ${String(progress.total)}…`
-    } else if (progress.errors.length > 0) {
-      progressText = `Imported with ${String(progress.errors.length)} error(s)`
-    }
+  let progressNode: ReactNode = null
+  if (progress?.running) {
+    progressNode = (
+      <span className="import-progress" data-testid="import-progress">
+        {`Importing ${String(progress.completed)} / ${String(progress.total)}…`}
+      </span>
+    )
+  } else if (errorCount > 0) {
+    progressNode = (
+      <button
+        type="button"
+        className="import-progress import-progress--action"
+        data-testid="import-progress"
+        onClick={() => {
+          openImportErrorsPanel()
+        }}
+      >
+        {`Imported with ${String(errorCount)} error(s)`}
+      </button>
+    )
   }
 
-  if (!showCount && progressText === null) {
+  if (!showCount && progressNode === null) {
     return null
   }
 
@@ -42,11 +67,7 @@ export function FilmstripStatus({
           minValue={0}
         />
       ) : null}
-      {progressText !== null ? (
-        <span className="import-progress" data-testid="import-progress">
-          {progressText}
-        </span>
-      ) : null}
+      {progressNode}
     </Status>
   )
 }

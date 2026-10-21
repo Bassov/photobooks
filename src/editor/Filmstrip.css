@@ -26,6 +26,26 @@
   color: var(--muted-foreground);
 }
 
+.filmstrip-status .import-progress--action {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--destructive);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.filmstrip-status .import-progress--action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.filmstrip-item[data-import-jump] {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 .filmstrip-unplace {
   margin: 0 0 calc(var(--spacing) * 1.4);
   padding: calc(var(--spacing) * 0.6) calc(var(--spacing) * 2);

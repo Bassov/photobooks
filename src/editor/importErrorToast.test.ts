@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createToastQueue } from '../ui/toastQueue'
+import { makeImportFileError } from './importFileError.test-helpers'
 import {
   IMPORT_ERROR_TOAST_TIMEOUT_MS,
   clearImportErrorsToast,
@@ -12,7 +13,13 @@ describe('importErrorToast', () => {
   it('builds a singular error toast with Show files action', () => {
     const onShow = vi.fn()
     const content = importErrorsToastContent(
-      [{ name: 'bad.jpg', message: 'Unsupported' }],
+      [
+        makeImportFileError({
+          name: 'bad.jpg',
+          message: 'Unsupported',
+          reason: 'unsupported-type',
+        }),
+      ],
       onShow,
     )
     expect(content.title).toBe("1 file couldn't be read")
@@ -25,7 +32,13 @@ describe('importErrorToast', () => {
 
   it('omits the detail suffix when the first message is empty', () => {
     const content = importErrorsToastContent(
-      [{ name: 'bad.jpg', message: '' }],
+      [
+        makeImportFileError({
+          name: 'bad.jpg',
+          message: '',
+          reason: 'unsupported-type',
+        }),
+      ],
       () => undefined,
     )
     expect(content.description).toBe('bad.jpg')
@@ -39,8 +52,16 @@ describe('importErrorToast', () => {
 
   it('builds a plural title and status text for multiple errors', () => {
     const errors = [
-      { name: 'a.tif', message: 'Unsupported' },
-      { name: 'b.jpg', message: 'decode failed' },
+      makeImportFileError({
+        name: 'a.tif',
+        message: 'Unsupported',
+        reason: 'unsupported-type',
+      }),
+      makeImportFileError({
+        name: 'b.jpg',
+        message: 'decode failed',
+        reason: 'decode-failed',
+      }),
     ]
     const content = importErrorsToastContent(errors, () => undefined)
     expect(content.title).toBe("2 files couldn't be read")
@@ -55,7 +76,13 @@ describe('importErrorToast', () => {
     const clear = vi.spyOn(queue, 'clear')
     enqueueImportErrorsToast(
       queue,
-      [{ name: 'bad.jpg', message: 'Unsupported' }],
+      [
+        makeImportFileError({
+          name: 'bad.jpg',
+          message: 'Unsupported',
+          reason: 'unsupported-type',
+        }),
+      ],
       () => undefined,
     )
     expect(clear).toHaveBeenCalled()

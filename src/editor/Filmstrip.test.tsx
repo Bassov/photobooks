@@ -648,4 +648,47 @@ describe('Filmstrip aspect cards', () => {
       restore()
     }
   })
+
+  it('scrolls to a jumped asset and highlights the tile', async () => {
+    const { requestFilmstripJump, resetFilmstripJumpForTests } =
+      await import('./filmstripJump')
+    resetFilmstripJumpForTests()
+    const ids = seedGallery(8, 1.5)
+    const target = ids[6]
+    assert(target !== undefined, 'expected a far asset')
+    const restore = stubScrollportWidth(240)
+    try {
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      act(() => {
+        requestFilmstripJump(target)
+      })
+      expect(getSelectedAssetId()).toBe(target)
+      expect(scroll.scrollLeft).toBeGreaterThan(0)
+      expect(document.querySelector('[data-import-jump]')).toBeTruthy()
+    } finally {
+      restore()
+      resetFilmstripJumpForTests()
+    }
+  })
+
+  it('ignores a jump to an asset that is not in the gallery', async () => {
+    const { requestFilmstripJump, resetFilmstripJumpForTests } =
+      await import('./filmstripJump')
+    resetFilmstripJumpForTests()
+    seedGallery(3, 1.5)
+    const restore = stubScrollportWidth(240)
+    try {
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const before = scroll.scrollLeft
+      act(() => {
+        requestFilmstripJump('missing-asset')
+      })
+      expect(scroll.scrollLeft).toBe(before)
+    } finally {
+      restore()
+      resetFilmstripJumpForTests()
+    }
+  })
 })

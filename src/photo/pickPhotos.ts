@@ -1,4 +1,9 @@
-import { acceptedPhotoAcceptAttr, isAcceptedPhotoMime } from './mime'
+import {
+  acceptedPhotoAcceptAttr,
+  isAcceptedPhotoMime,
+  isHeicLikeFile,
+} from './mime'
+import type { ImportErrorReason } from './assetPool'
 
 const PICKER_TYPES = [
   {
@@ -91,18 +96,33 @@ export function photoInputAccept(): string {
 
 export function partitionImportFiles(files: readonly File[]): {
   accepted: File[]
-  rejected: { file: File; reason: string }[]
+  rejected: {
+    file: File
+    message: string
+    reason: ImportErrorReason
+  }[]
 } {
   const accepted: File[] = []
-  const rejected: { file: File; reason: string }[] = []
+  const rejected: {
+    file: File
+    message: string
+    reason: ImportErrorReason
+  }[] = []
   for (const file of files) {
     const mimeType = file.type || 'application/octet-stream'
     if (isAcceptedPhotoMime(mimeType)) {
       accepted.push(file)
+    } else if (isHeicLikeFile(file)) {
+      rejected.push({
+        file,
+        message: `Unsupported image format: ${mimeType}`,
+        reason: 'heic',
+      })
     } else {
       rejected.push({
         file,
-        reason: `Unsupported image format: ${mimeType || 'unknown'}`,
+        message: `Unsupported image format: ${mimeType}`,
+        reason: 'unsupported-type',
       })
     }
   }

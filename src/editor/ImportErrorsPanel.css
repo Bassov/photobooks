@@ -1,0 +1,75 @@
+.import-errors-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 2);
+  margin-bottom: calc(var(--spacing) * 3);
+}
+
+.import-errors-panel__head .pb-dialog-title {
+  margin: 0;
+}
+
+.import-errors-panel__empty {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+
+.import-errors-panel__groups,
+.import-errors-panel__entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-errors-panel__group + .import-errors-panel__group {
+  margin-top: calc(var(--spacing) * 2);
+  border-top: 1px solid var(--border);
+  padding-top: calc(var(--spacing) * 2);
+}
+
+.import-errors-panel__summary {
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.import-errors-panel__entries {
+  margin-top: calc(var(--spacing) * 1.5);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 1);
+}
+
+.import-errors-panel__entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 2);
+  min-width: 0;
+}
+
+.import-errors-panel__name,
+.import-errors-panel__jump {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+.import-errors-panel__not-imported {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+
+.import-errors-panel__dismiss {
+  flex-shrink: 0;
+  color: var(--destructive);
+}

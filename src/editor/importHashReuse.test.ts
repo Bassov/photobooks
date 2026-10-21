@@ -230,7 +230,13 @@ describe('resolveByContentHash', () => {
         enqueued.push(entry.file.name)
       },
     })
-    expect(result.errors).toEqual([{ name: 'bad.jpg', message: 'read failed' }])
+    expect(result.errors).toEqual([
+      expect.objectContaining({
+        name: 'bad.jpg',
+        message: 'read failed',
+        reason: 'decode-failed',
+      }),
+    ])
     expect(result.prepared).toHaveLength(2)
     expect(enqueued.sort()).toEqual(['good-a.jpg', 'good-b.jpg'])
   })
@@ -259,7 +265,11 @@ describe('resolveByContentHash', () => {
     })
     expect(result.prepared).toEqual([])
     expect(result.errors).toEqual([
-      { name: 'odd.jpg', message: 'Content-hash resolve failed' },
+      expect.objectContaining({
+        name: 'odd.jpg',
+        message: 'Content-hash resolve failed',
+        reason: 'decode-failed',
+      }),
     ])
   })
 })
