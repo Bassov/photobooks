@@ -1,16 +1,18 @@
-import { useSyncExternalStore } from 'react'
+import { memo, useSyncExternalStore } from 'react'
 import { TEMPLATE_IDS, type TemplateId } from '../core'
+import '../ui/Button.css'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
 import { getSpreadTemplateId, subscribeSpread } from './bookStore'
 
-const TEMPLATE_LABELS: Record<TemplateId, string> = {
-  'full-bleed': 'Full bleed',
-  'one-per-page': 'One per page',
-  '2-up': '2-up',
-  '4-grid': '4-grid',
-}
+const TEMPLATE_ITEMS: { id: TemplateId; label: string }[] = [
+  { id: 'full-bleed', label: 'Full bleed' },
+  { id: 'one-per-page', label: 'One per page' },
+  { id: '2-up', label: '2-up' },
+  { id: '4-grid', label: '4-grid' },
+]
 
-export function SpreadTemplateBar({
+export const SpreadTemplateBar = memo(function SpreadTemplateBar({
   spreadId,
   onAddSpread,
 }: {
@@ -26,28 +28,26 @@ export function SpreadTemplateBar({
     readTemplateId,
   )
 
+  const selected =
+    templateId !== null && TEMPLATE_IDS.includes(templateId as TemplateId)
+      ? templateId
+      : 'one-per-page'
+
   return (
     <div className="spread-template-bar">
-      <div role="radiogroup" aria-label="Template for this spread">
-        {TEMPLATE_IDS.map((id) => (
-          <label key={id} className="spread-template-choice">
-            <input
-              type="radio"
-              name="spread-template"
-              value={id}
-              checked={templateId === id}
-              disabled={spreadId === null}
-              onChange={() => {
-                applyMarkedSpreadTemplate(spreadId, id)
-              }}
-            />
-            {TEMPLATE_LABELS[id]}
-          </label>
-        ))}
-      </div>
+      <SegmentedControl
+        label="Template for this spread"
+        size="sm"
+        value={selected}
+        isDisabled={spreadId === null}
+        onChange={(id) => {
+          applyMarkedSpreadTemplate(spreadId, id as TemplateId)
+        }}
+        items={TEMPLATE_ITEMS}
+      />
       <button
         type="button"
-        className="spread-template-add"
+        className="pb-button pb-button--secondary pb-button--sm spread-template-add"
         onClick={onAddSpread}
         disabled={spreadId === null}
       >
@@ -55,4 +55,4 @@ export function SpreadTemplateBar({
       </button>
     </div>
   )
-}
+})

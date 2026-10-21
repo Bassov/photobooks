@@ -1,10 +1,5 @@
-import type { ReactNode } from 'react'
-import {
-  ToggleButtonGroup,
-  type ToggleButtonGroupProps,
-} from 'react-aria-components'
+import { useId, useState, type ReactNode } from 'react'
 import { cx } from './className'
-import { ToggleButton } from './ToggleButton'
 import './SegmentedControl.css'
 
 type SegmentedControlSize = 'sm' | 'md'
@@ -16,15 +11,7 @@ interface SegmentedControlItem {
   ariaLabel?: string
 }
 
-export interface SegmentedControlProps extends Omit<
-  ToggleButtonGroupProps,
-  | 'children'
-  | 'className'
-  | 'selectionMode'
-  | 'selectedKeys'
-  | 'defaultSelectedKeys'
-  | 'onSelectionChange'
-> {
+export interface SegmentedControlProps {
   items: SegmentedControlItem[]
   /** Accessible name for the group. */
   label: string
@@ -33,14 +20,7 @@ export interface SegmentedControlProps extends Omit<
   onChange?: (value: string) => void
   size?: SegmentedControlSize
   className?: string
-}
-
-function keysProp(
-  key: 'selectedKeys' | 'defaultSelectedKeys',
-  value: string | undefined,
-): Partial<Record<'selectedKeys' | 'defaultSelectedKeys', string[]>> {
-  if (value === undefined) return {}
-  return { [key]: [value] }
+  isDisabled?: boolean
 }
 
 /** Single-select segmented control (muted track, raised selected pill). */
@@ -52,45 +32,53 @@ export function SegmentedControl({
   onChange,
   size = 'md',
   className,
-  ...props
+  isDisabled = false,
 }: SegmentedControlProps) {
   if (items.length === 0) {
     throw new Error('SegmentedControl requires at least one item')
   }
 
+  const name = useId()
+  const firstId = items[0]?.id ?? ''
+  const [uncontrolled, setUncontrolled] = useState(defaultValue ?? firstId)
+  const selected = value ?? uncontrolled
+
   return (
-    <ToggleButtonGroup
-      {...props}
-      selectionMode="single"
-      disallowEmptySelection
+    <div
+      role="radiogroup"
       aria-label={label}
-      {...keysProp('defaultSelectedKeys', defaultValue)}
-      {...keysProp('selectedKeys', value)}
-      onSelectionChange={(keys) => {
-        const next = [...keys][0]
-        if (next === undefined) return
-        onChange?.(String(next))
-      }}
       className={cx('pb-segmented', `pb-segmented--${size}`, className)}
-      style={{
-        gridTemplateColumns: `repeat(${String(items.length)}, minmax(0, 1fr))`,
-      }}
     >
       {items.map((item) => {
-        const aria =
-          item.ariaLabel === undefined ? {} : { 'aria-label': item.ariaLabel }
+        const isSelected = selected === item.id
         return (
-          <ToggleButton
+          <label
             key={item.id}
-            id={item.id}
-            size="sm"
-            {...aria}
-            className="pb-segmented__segment"
+            className={cx(
+              'pb-segmented__segment',
+              isSelected && 'pb-segmented__segment--selected',
+            )}
           >
+            <input
+              type="radio"
+              name={name}
+              value={item.id}
+              checked={isSelected}
+              disabled={isDisabled}
+              aria-label={item.ariaLabel}
+              data-selected={isSelected ? 'true' : undefined}
+              data-disabled={isDisabled ? 'true' : undefined}
+              onChange={() => {
+                if (value === undefined) {
+                  setUncontrolled(item.id)
+                }
+                onChange?.(item.id)
+              }}
+            />
             {item.label}
-          </ToggleButton>
+          </label>
         )
       })}
-    </ToggleButtonGroup>
+    </div>
   )
 }

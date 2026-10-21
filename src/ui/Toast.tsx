@@ -30,6 +30,7 @@ export function ToastRegion({ className, ...props }: ToastRegionPropsPublic) {
             toast={toast}
             className={cx('pb-toast', `pb-toast--${tone}`)}
             data-tone={tone}
+            data-testid={c.testId}
           >
             <AriaToastContent className="pb-toast-content">
               <Text slot="title" className="pb-toast-title">

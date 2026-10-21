@@ -20,6 +20,7 @@ import {
   previewUrlUnlessMissing,
   tierUnlessMissing,
 } from './spreadMissing'
+import { spreadFrameControlStyle } from './spreadChromeStyles'
 import './SpreadView.css'
 
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
@@ -183,7 +184,7 @@ function SpreadFrame({
       data-asset-id={item.assetId}
       aria-label={control.label}
       aria-pressed={control.pressed === true ? true : undefined}
-      style={style}
+      style={spreadFrameControlStyle(style, control.pressed === true)}
       onClick={control.onActivate}
     >
       {body}

@@ -17,6 +17,24 @@ import {
 import { PERF_BUDGETS } from './perf/budgets'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
+test('editor chrome bars wrap without page scroll at 320px and 4K', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  for (const size of [
+    { width: 320, height: 640 },
+    { width: 3840, height: 2160 },
+  ] as const) {
+    await page.setViewportSize(size)
+    await expect(page.getByRole('toolbar', { name: 'Editor' })).toBeVisible()
+    await expect(page.getByRole('toolbar', { name: 'Camera' })).toBeVisible()
+    await expect(
+      page.getByRole('radiogroup', { name: 'Template for this spread' }),
+    ).toBeVisible()
+    await assertDocumentFitsViewport(page)
+  }
+})
+
 test('normal visit paints three empty spreads on the pasteboard', async ({
   page,
 }) => {

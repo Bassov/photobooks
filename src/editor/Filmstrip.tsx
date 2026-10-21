@@ -9,6 +9,11 @@ import {
 } from 'react'
 import { GridList } from 'react-aria-components'
 import { setVisibleAssetIds } from '../photo/assetPool'
+import { EmptyState } from '../ui/EmptyState'
+import {
+  filmstripEmptyStyle,
+  filmstripEmptyTitleStyle,
+} from './filmstripChromeStyles'
 import {
   getGalleryAspectsSnapshot,
   getGalleryDisplayNamesSnapshot,
@@ -25,6 +30,12 @@ import {
   setSelectedAssetId,
   subscribeGallerySelection,
 } from './gallerySelection'
+import {
+  applyFilmstripJumpScroll,
+  filmstripJumpScrollPlan,
+  getFilmstripJumpRequest,
+  subscribeFilmstripJump,
+} from './filmstripJump'
 import { FilmstripStatus } from './FilmstripStatus'
 import type { ImportProgress } from './importPhotos'
 import {
@@ -128,6 +139,27 @@ export const Filmstrip = memo(function Filmstrip({
     setVisibleAssetIds(items.map((item) => item.id))
   }, [items])
 
+  const jumpRequest = useSyncExternalStore(
+    subscribeFilmstripJump,
+    getFilmstripJumpRequest,
+    getFilmstripJumpRequest,
+  )
+
+  useEffect(() => {
+    if (jumpRequest === null) {
+      return
+    }
+    const windowStart = applyFilmstripJumpScroll(
+      scrollRef.current,
+      filmstripJumpScrollPlan(gallery, prefix, jumpRequest.assetId),
+    )
+    if (windowStart === null) {
+      return
+    }
+    pendingStart.current = windowStart
+    setWindowStart(windowStart)
+  }, [jumpRequest, gallery, prefix])
+
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
     const scrollLeft = event.currentTarget.scrollLeft
     pendingStart.current = indexFromScrollOffset(scrollLeft, prefix)
@@ -192,9 +224,16 @@ export const Filmstrip = memo(function Filmstrip({
         onScroll={onScroll}
       >
         {isEmpty ? (
-          <p className="filmstrip-empty" data-testid="filmstrip-empty">
-            Add a folder or photos to build the gallery.
-          </p>
+          <EmptyState
+            className="filmstrip-empty"
+            data-testid="filmstrip-empty"
+            style={filmstripEmptyStyle}
+            title={
+              <span style={filmstripEmptyTitleStyle}>
+                Add a folder or photos to build the gallery.
+              </span>
+            }
+          />
         ) : (
           <div className="filmstrip-spacer" style={{ width: spacerWidth }}>
             <div

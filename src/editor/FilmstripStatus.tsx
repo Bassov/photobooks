@@ -1,4 +1,16 @@
+import { useSyncExternalStore, type ReactNode } from 'react'
+import { ProgressBar } from '../ui/ProgressBar'
+import { Status } from '../ui/Status'
+import {
+  filmstripImportErrorsActionStyle,
+  filmstripImportProgressStyle,
+} from './filmstripChromeStyles'
 import type { ImportProgress } from './importPhotos'
+import {
+  getImportErrors,
+  openImportErrorsPanel,
+  subscribeImportErrors,
+} from './importErrorsStore'
 
 export function FilmstripStatus({
   photoCount,
@@ -7,37 +19,59 @@ export function FilmstripStatus({
   photoCount: number
   progress: ImportProgress | null
 }) {
-  const showCount = photoCount > 0 || (progress?.running ?? false)
+  const storeErrors = useSyncExternalStore(
+    subscribeImportErrors,
+    getImportErrors,
+    getImportErrors,
+  )
+  const running = progress?.running === true
+  const showCount = photoCount > 0 || running
+  const errorCount = storeErrors.length
 
-  let progressText: string | null = null
-  if (progress !== null) {
-    if (progress.running) {
-      progressText = `Importing ${String(progress.completed)} / ${String(progress.total)}…`
-    } else if (progress.errors.length > 0) {
-      progressText = `Imported with ${String(progress.errors.length)} error(s)`
-    }
+  let progressNode: ReactNode = null
+  if (progress?.running) {
+    progressNode = (
+      <span className="import-progress" data-testid="import-progress">
+        {`Importing ${String(progress.completed)} / ${String(progress.total)}…`}
+      </span>
+    )
+  } else if (errorCount > 0) {
+    progressNode = (
+      <button
+        type="button"
+        className="import-progress"
+        style={filmstripImportErrorsActionStyle}
+        data-testid="import-progress"
+        onClick={() => {
+          openImportErrorsPanel()
+        }}
+      >
+        {`Imported with ${String(errorCount)} error(s)`}
+      </button>
+    )
   }
 
-  if (!showCount && progressText === null) {
+  if (!showCount && progressNode === null) {
     return null
   }
 
   return (
-    <div className="filmstrip-status" data-testid="filmstrip-status">
+    <Status className="filmstrip-status" data-testid="filmstrip-status">
       {showCount ? (
-        <p className="filmstrip-count" data-testid="filmstrip-count">
+        <span className="filmstrip-count" data-testid="filmstrip-count">
           {photoCount === 1 ? '1 photo' : `${String(photoCount)} photos`}
-        </p>
+        </span>
       ) : null}
-      {progressText !== null ? (
-        <p
-          className="import-progress"
-          data-testid="import-progress"
-          aria-live="polite"
-        >
-          {progressText}
-        </p>
+      {progress?.running ? (
+        <ProgressBar
+          style={filmstripImportProgressStyle}
+          aria-label="Importing"
+          value={progress.completed}
+          maxValue={progress.total > 0 ? progress.total : 1}
+          minValue={0}
+        />
       ) : null}
-    </div>
+      {progressNode}
+    </Status>
   )
 }

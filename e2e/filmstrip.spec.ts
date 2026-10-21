@@ -38,6 +38,7 @@ test('empty filmstrip message spans the scrollport', async ({ page }) => {
   // Bug: 1px virtualizer window stacked one word per line.
   expect(box.width).toBeGreaterThan(240)
   expect(box.height).toBeLessThan(72)
+  await assertDocumentFitsViewport(page)
 })
 
 test('non-ASCII file name is the filmstrip thumbnail name', async ({
@@ -325,6 +326,80 @@ test('corrupt WebP shows a decode import error', async ({ page }) => {
   await expect(page.getByTestId('import-errors')).toBeVisible({
     timeout: 30_000,
   })
+})
+
+test('import errors panel groups, dismisses, clears, and jumps to a tile', async ({
+  page,
+}) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  await openSessionEditor(page)
+  const { files: bulkFiles } = writeBulkImportFixtureSet(16)
+  const tiffDir = join(tmpdir(), `pb-import-errors-${String(Date.now())}`)
+  mkdirSync(tiffDir, { recursive: true })
+  const tiffA = join(tiffDir, 'scan-a.tiff')
+  const tiffB = join(tiffDir, 'scan-b.tiff')
+  writeFileSync(tiffA, Buffer.from('II*\u0000fake-a'))
+  writeFileSync(tiffB, Buffer.from('II*\u0000fake-b'))
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles([
+      ...bulkFiles,
+      tiffA,
+      tiffB,
+      photoFixturePaths.sampleCorruptWebp,
+    ])
+
+  await expect(page.getByTestId('import-errors')).toBeVisible({
+    timeout: 60_000,
+  })
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe('17')
+
+  await page.getByRole('button', { name: 'Show files' }).click()
+  const panel = page.getByTestId('import-errors-panel')
+  await expect(panel).toBeVisible()
+  await expect(panel.getByText(/Unsupported format \(2\)/)).toBeVisible()
+  await expect(panel.getByText(/Couldn't decode \(1\)/)).toBeVisible()
+  await assertDocumentFitsViewport(page)
+
+  const corruptName = photoFixturePaths.sampleCorruptWebp.split('/').pop()
+  assert.ok(corruptName)
+  const scroll = page.getByTestId('filmstrip-scroll')
+  await scroll.evaluate((node) => {
+    node.scrollLeft = 0
+  })
+  await assertNamedScrollport(page, 'filmstrip-scroll')
+  await panel
+    .locator('button.import-errors-panel__jump', { hasText: corruptName })
+    .click()
+  await expect(panel).toBeHidden()
+  const selected = page.locator(
+    '[data-testid="filmstrip-item"][aria-selected="true"]',
+  )
+  await expect(selected).toBeVisible()
+  await expect(selected).toHaveAttribute('data-import-jump', '')
+  await expect
+    .poll(async () => scroll.evaluate((node) => node.scrollLeft))
+    .toBeGreaterThan(0)
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'filmstrip-scroll', {
+    nudgeHorizontal: false,
+  })
+
+  await page.getByRole('button', { name: /Imported with 3 error/ }).click()
+  await expect(panel).toBeVisible()
+  await panel
+    .getByRole('button', { name: 'Dismiss error for scan-a.tiff' })
+    .click()
+  await expect(panel.getByText(/Unsupported format \(1\)/)).toBeVisible()
+  await panel.getByRole('button', { name: 'Clear all' }).click()
+  await expect(panel).toBeHidden()
+  await expect(
+    page.getByRole('button', { name: /Imported with .* error/ }),
+  ).toHaveCount(0)
 })
 
 test('second import appends to the gallery', async ({ page }) => {
@@ -716,7 +791,10 @@ test.describe('library re-import async', () => {
 
     // Library-backed fresh bulk import: frame-budget scroll window (Perf line).
     await clearPerfScenario(page)
-    const addPhotos = page.getByRole('button', { name: 'Add photos' })
+    const addPhotos = page.getByRole('button', {
+      name: 'Add photos',
+      exact: true,
+    })
     await expect(addPhotos).toBeEnabled()
     // Prefer the hidden input; filechooser can hang under load when the FSA
     // picker stubs race with create-book navigation.
@@ -956,7 +1034,10 @@ test.describe('frame-budget gates', () => {
     const files = writeBulkImportFixtures(200)
     // Click Add photos so Event Timing / INP measure that gesture (perf=1
     // deletes showOpenFilePicker → falls back to the hidden file input).
-    const addPhotos = page.getByRole('button', { name: 'Add photos' })
+    const addPhotos = page.getByRole('button', {
+      name: 'Add photos',
+      exact: true,
+    })
     await expect(addPhotos).toBeEnabled()
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),

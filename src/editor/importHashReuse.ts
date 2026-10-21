@@ -1,5 +1,5 @@
 import { hashContent } from '../assets'
-import type { ImportFileError } from '../photo/assetPool'
+import { createImportFileError, type ImportFileError } from '../photo/assetPool'
 import { retainAssetSource } from '../photo/assetSources'
 import { getBookStoreSnapshot, mintAssetId } from './bookStore'
 import { IMPORT_BODY_READ_CAP, mapWithConcurrency } from './importBodyReads'
@@ -108,7 +108,13 @@ export async function resolveByContentHash(options: {
     } catch (cause) {
       const message =
         cause instanceof Error ? cause.message : 'Content-hash resolve failed'
-      errors.push({ name: job.file.name, message })
+      errors.push(
+        createImportFileError({
+          name: job.file.name,
+          message,
+          reason: 'decode-failed',
+        }),
+      )
     }
   })
   return {

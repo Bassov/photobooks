@@ -48,4 +48,8 @@ export {
 } from './ops/spreads'
 export { applyBookOp, type BookOp } from './ops/applyBookOp'
 
-export { placementCountByAsset, unplacedAssetIds } from './selectors/placements'
+export {
+  bookHasAnyPlacement,
+  placementCountByAsset,
+  unplacedAssetIds,
+} from './selectors/placements'

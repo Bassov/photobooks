@@ -14,6 +14,7 @@ import {
   type StorageResult,
 } from '../project'
 import { HomeScreen } from './HomeScreen'
+import * as projectSession from './projectSession'
 import {
   attachLibraryForTests,
   configureProjectSession,
@@ -22,6 +23,7 @@ import {
   holdExternalBookLockForTests,
   leaveEditorForHome,
   resetProjectSessionForTests,
+  setAccessPhaseForTests,
   tryRestore,
 } from './projectSession'
 
@@ -311,6 +313,168 @@ describe('HomeScreen merge-blocker a11y', () => {
       expect(getProjectSessionSnapshot().surface).toBe('editor')
       expect(getProjectSessionSnapshot().bookId).toBe(created.value.id)
     })
+  })
+
+  it('shows EmptyState when there are no recent libraries', async () => {
+    configureProjectSession({
+      session: createMemorySessionState(),
+      createStorage: () => createMemoryLibraryStorage(),
+    })
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-empty')).toBeTruthy()
+    })
+    expect(screen.getByText('No recent libraries yet')).toBeTruthy()
+    expect(screen.getByTestId('home-empty-create')).toBeTruthy()
+    expect(screen.getByTestId('home-empty-open')).toBeTruthy()
+  })
+
+  it('empty-state actions call create and open library', async () => {
+    configureProjectSession({
+      session: createMemorySessionState(),
+      createStorage: () => createMemoryLibraryStorage(),
+    })
+    const create = vi
+      .spyOn(projectSession, 'createLibrary')
+      .mockResolvedValue({ ok: true, value: undefined })
+    const open = vi
+      .spyOn(projectSession, 'openLibrary')
+      .mockResolvedValue({ ok: true, value: undefined })
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-empty-create')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByTestId('home-empty-create'))
+    fireEvent.click(screen.getByTestId('home-empty-open'))
+    expect(create).toHaveBeenCalled()
+    expect(open).toHaveBeenCalled()
+  })
+
+  it('retry refreshes recents after a list failure', async () => {
+    const base = createMemorySessionState()
+    let fail = true
+    configureProjectSession({
+      session: {
+        ...base,
+        listRecentLibraries: () => {
+          if (fail) {
+            return Promise.resolve({ ok: false, code: 'not-found' })
+          }
+          return base.listRecentLibraries()
+        },
+      },
+      createStorage: () => createMemoryLibraryStorage(),
+    })
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-retry')).toBeTruthy()
+    })
+    fail = false
+    fireEvent.click(screen.getByTestId('home-retry'))
+    await waitFor(() => {
+      expect(screen.getByTestId('home-empty')).toBeTruthy()
+    })
+  })
+
+  it('disables chrome actions while busy and enables when idle', async () => {
+    const storage = createMemoryLibraryStorage()
+    const base = createMemorySessionState()
+    let releaseRemove!: () => void
+    const removeGate = new Promise<void>((resolve) => {
+      releaseRemove = resolve
+    })
+    const session = {
+      ...base,
+      removeRecentLibrary: async (id: string) => {
+        await removeGate
+        return base.removeRecentLibrary(id)
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-busy-chrome',
+      handle: { name: 'BusyChrome' },
+    })
+    const created = await createBookInLibrary('BusyChromeBook')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId(`home-book-${created.value.id}`)).toBeTruthy()
+    })
+    const createBtn = screen.getByTestId('create-library')
+    assert(createBtn instanceof HTMLButtonElement)
+    expect(createBtn.disabled).toBe(false)
+
+    fireEvent.click(screen.getByTestId('home-remove-lib-busy-chrome'))
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().actionBusy).toBe(true)
+      expect(
+        screen.getByTestId<HTMLButtonElement>('create-library').disabled,
+      ).toBe(true)
+      expect(
+        screen.getByTestId<HTMLButtonElement>('open-library').disabled,
+      ).toBe(true)
+      expect(
+        screen.getByTestId<HTMLButtonElement>('start-session').disabled,
+      ).toBe(true)
+    })
+    releaseRemove()
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().actionBusy).toBe(false)
+    })
+  })
+
+  it('shows EmptyState retry when listing recents fails', async () => {
+    const base = createMemorySessionState()
+    configureProjectSession({
+      session: {
+        ...base,
+        listRecentLibraries: () =>
+          Promise.resolve({ ok: false, code: 'not-found' }),
+      },
+      createStorage: () => createMemoryLibraryStorage(),
+    })
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-idb-error')).toBeTruthy()
+    })
+    expect(screen.getByTestId('home-retry')).toBeTruthy()
+  })
+
+  it('shows permission hint and Grant access when access is required', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-perm-ui',
+      handle: { name: 'PermUi' },
+    })
+    const created = await createBookInLibrary('PermBook')
+    assert(created.ok)
+    await leaveEditorForHome()
+
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId(`home-book-${created.value.id}`)).toBeTruthy()
+    })
+    setAccessPhaseForTests('permission-required')
+    await waitFor(() => {
+      expect(screen.getByTestId('home-permission-hint')).toBeTruthy()
+      expect(screen.getByTestId('regrant-library')).toBeTruthy()
+    })
+    expect(screen.queryByTestId(`home-book-${created.value.id}`)).toBeNull()
   })
 
   it('loading state renders no interactive buttons while restore is pending', async () => {
