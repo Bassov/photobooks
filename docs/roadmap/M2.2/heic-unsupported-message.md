@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.2
 Title: HEIC/HEIF photos get a clear "not supported yet, convert to JPEG" message
+Status: done
 
 ## Scope
 
