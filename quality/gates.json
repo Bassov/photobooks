@@ -94,14 +94,66 @@
         ]
       }
     ],
+    "fast": [
+      {
+        "name": "typecheck",
+        "argv": ["pnpm", "typecheck"]
+      },
+      {
+        "name": "lint",
+        "argv": ["pnpm", "lint"]
+      },
+      {
+        "name": "deps",
+        "argv": ["pnpm", "deps"]
+      },
+      {
+        "name": "knip",
+        "argv": ["pnpm", "knip"]
+      },
+      {
+        "name": "mutation-scope",
+        "argv": ["pnpm", "mutation-scope"]
+      },
+      {
+        "name": "gate-values",
+        "argv": ["pnpm", "gate-values"]
+      },
+      {
+        "name": "css-tokens",
+        "argv": ["pnpm", "check:css-tokens"]
+      },
+      {
+        "name": "unit",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--coverage",
+          "--reporter=dot",
+          "--silent"
+        ]
+      }
+    ],
+    "integrity": [
+      {
+        "name": "openspec-budget",
+        "argv": ["pnpm", "openspec-budget"]
+      },
+      {
+        "name": "codecov-yml",
+        "argv": ["pnpm", "codecov-yml"]
+      },
+      {
+        "name": "roadmap",
+        "argv": ["pnpm", "-s", "roadmap", "check"]
+      }
+    ],
     "afterUnit": [
       {
         "name": "patch-coverage",
         "argv": ["pnpm", "exec", "ts-rig-gate", "patch-coverage"]
-      },
-      {
-        "name": "stryker-diff",
-        "argv": ["pnpm", "stryker:diff"]
       }
     ],
     "optional": [

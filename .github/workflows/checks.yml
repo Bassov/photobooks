@@ -29,13 +29,16 @@ jobs:
       - name: Setup Node and pnpm
         uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
-      - name: Deterministic checks
+      - name: Fast checks
         # Unit suite runs once below via test:coverage; skip unit here.
         # PR body carries Owner-approved waivers for pin / ratchet (git log alone is not enough in CI).
         env:
           PR_POLICY_BODY: ${{ github.event.pull_request.body }}
           PR_POLICY_BRANCH: ${{ github.head_ref }}
-        run: pnpm check --verbose --skip-unit
+        run: pnpm check:fast --verbose --skip-unit
+
+      - name: Integrity checks
+        run: pnpm check:integrity --verbose
 
       - name: Format check
         run: pnpm format:check
