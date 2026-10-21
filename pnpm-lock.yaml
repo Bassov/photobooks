@@ -30,8 +30,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@albasov/ts-agent-rig':
-        specifier: github:Bassov/ts-agent-rig#v0.2.8
-        version: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/90a62c403db1cefd0318eebdb52e5bba51f9f377
+        specifier: github:Bassov/ts-agent-rig#v0.2.9
+        version: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/697a5ccd5b8578301cd82265805969af342870a6
       '@codecov/vite-plugin':
         specifier: 2.0.1
         version: 2.0.1(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -225,9 +225,9 @@ packages:
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
 
-  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/90a62c403db1cefd0318eebdb52e5bba51f9f377':
-    resolution: {tarball: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/90a62c403db1cefd0318eebdb52e5bba51f9f377}
-    version: 0.2.8
+  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/697a5ccd5b8578301cd82265805969af342870a6':
+    resolution: {tarball: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/697a5ccd5b8578301cd82265805969af342870a6}
+    version: 0.2.9
     engines: {node: ^22.0.0}
     hasBin: true
 
@@ -4823,7 +4823,7 @@ snapshots:
 
   '@actions/io@3.0.2': {}
 
-  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/90a62c403db1cefd0318eebdb52e5bba51f9f377':
+  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/697a5ccd5b8578301cd82265805969af342870a6':
     dependencies:
       typescript: 5.9.3
       yaml: 2.9.1

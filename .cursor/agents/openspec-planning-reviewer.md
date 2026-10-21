@@ -48,7 +48,7 @@ Skip this section when `design.md` is absent.
 ## Tasks checklist
 
 1. **Budget:** at most 8 implementation tasks.
-2. **Shape:** `## Implementation` + `## Manual test scenarios` only. Fail if a pasted Verification checklist is present — gates are enforced by stage 11 (`check:integrity` + `quality:self-check` + stamp) / CI — not `pnpm agent finish`.
+2. **Shape:** `## Implementation` + `## Manual test scenarios` only. Fail if a pasted Verification checklist is present — gates are `docs/agent-loop.md` stage 11 / CI — not `pnpm agent finish`.
 
 ## Output
 
