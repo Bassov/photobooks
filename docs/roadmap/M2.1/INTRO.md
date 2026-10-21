@@ -4,7 +4,7 @@
 
 Prior M2.1 phases (flake hardening, mechanical gates, findings-journal dissolve, FSA/session split, reusable CI) are retired from the index; their item files live in git history.
 
-**Agent loop (current SoT):** apply uses `pnpm check:fast` (A: unit + patch-coverage; no stryker). Local mutation + changed e2e are quality **B** at stages 4/7/9. Stage 11 runs `check:integrity` + `quality:self-check` + `agent stamp-green`. Stage 12 `agent finish` is thin push+PR (no happy-path merge of `origin/main`). CI `stryker-diff.yml` remains the mutation merge bar.
+**Agent loop SoT:** [`docs/agent-loop.md`](../../agent-loop.md). CI `stryker-diff.yml` remains the mutation merge bar. Early M2.1 Done notes that conflicted with the current loop are superseded (git history).
 
 **Remaining open work** (index order):
 

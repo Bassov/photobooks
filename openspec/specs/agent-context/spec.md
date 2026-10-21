@@ -4,12 +4,13 @@ Agent / OpenSpec pipeline **behavior is owned by the harness package and Cursor 
 
 | Concern                                                 | Source of truth                           |
 | ------------------------------------------------------- | ----------------------------------------- |
-| Per-change mandates                                     | `openspec/config.yaml`                    |
+| Agent loop procedure (stages, A/B/C, stamp, finish)     | `docs/agent-loop.md`                      |
+| Per-change artifact mandates (proposal/design/tasks)    | `openspec/config.yaml`                    |
 | Agent CLI (preflight / finish / archive / instructions) | `@albasov/ts-agent-rig` (`pnpm agent`)    |
 | Navigation map                                          | `AGENTS.md`                               |
-| Finish / PR / no CI watch                               | `.cursor/rules/git-finish.mdc`            |
-| Verify / flake                                          | `.cursor/rules/testing.mdc`               |
-| Unattended pipeline                                     | `.cursor/commands/next-roadmap-item.md`   |
+| Finish / PR precedence                                  | `.cursor/rules/git-finish.mdc`            |
+| Verify / flake pointer                                  | `.cursor/rules/testing.mdc`               |
+| Unattended runner                                       | `.cursor/commands/next-roadmap-item.md`   |
 | Reviewers                                               | `.cursor/agents/openspec-*-reviewer.md`   |
 | Rule-file budgets                                       | `quality/gates.json` `agentRules.budgets` |
 
