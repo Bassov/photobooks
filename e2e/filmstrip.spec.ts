@@ -329,6 +329,35 @@ test('extension-less HEIC octet-stream shows conversion message', async ({
     .toBe(before)
 })
 
+test('folder import keeps JPEGs and lists only HEIC conversion message', async ({
+  page,
+}) => {
+  const dir = join(tmpdir(), `pb-folder-heic-${String(Date.now())}`)
+  mkdirSync(dir)
+  writeFileSync(
+    join(dir, 'shot.jpg'),
+    readFileSync(photoFixturePaths.sampleOrient6),
+  )
+  writeFileSync(join(dir, 'phone.heic'), minimalHeicFtypBuffer())
+
+  await openSessionEditor(page)
+  await page.getByTestId('folder-file-input').setInputFiles(dir)
+
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe('1')
+  await expect(page.getByTestId('import-errors')).toBeVisible()
+  await expect(page.getByTestId('import-errors')).toContainText(
+    "HEIC isn't supported yet",
+  )
+  await expect(page.getByTestId('import-errors')).not.toContainText('README')
+})
+
 test('folder import skips README without import-errors', async ({ page }) => {
   const dir = join(tmpdir(), `pb-folder-skip-${String(Date.now())}`)
   mkdirSync(dir)

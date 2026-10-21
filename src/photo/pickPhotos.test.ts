@@ -55,6 +55,9 @@ describe('partitionImportFiles', () => {
     const heic = new File([new Uint8Array([1])], 'scan.heic', {
       type: 'image/heic',
     })
+    const heifMime = new File([new Uint8Array([1])], 'scan.heif', {
+      type: 'image/heif',
+    })
     const heifExt = new File([new Uint8Array([1])], 'scan.heif', {
       type: '',
     })
@@ -66,11 +69,13 @@ describe('partitionImportFiles', () => {
     })
     const { rejected, skipped } = partitionImportFiles([
       heic,
+      heifMime,
       heifExt,
       octet,
       emptyMime,
     ])
     expect(rejected.map((entry) => entry.reason)).toEqual([
+      'heic',
       'heic',
       'heic',
       'heic',

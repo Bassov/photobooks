@@ -82,7 +82,7 @@ export function isHeicSignature(bytes: ArrayBuffer | ArrayBufferView): boolean {
     bytes instanceof ArrayBuffer
       ? new Uint8Array(bytes)
       : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: length&lt;12 vs ≤12 / empty guard — short buffers still fail the ftyp+brand checks below
+  // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: length<12 vs ≤12 / empty guard — short buffers still fail the ftyp+brand checks below
   if (view.byteLength < 12) {
     return false
   }
