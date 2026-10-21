@@ -8,62 +8,22 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 ## Order
 
-1. **M1–M4.5 — the local editor, complete for personal use.** M2.1 finishes the core quality gates and agent-process hardening (zero-retry e2e, mechanical coverage/mutation/exclusion/size/PR checks, cheaper agent runs, findings journal dissolved, mutation re-includes for session/editor files); then M2.2 completes the library under those gates, and M2.5 fixes the visual language before more UI is built. Other hardening ideas sit in `docs/backlog/` until the owner re-adds them.
+1. **M1–M4.5 — the local editor, complete for personal use.** M2.5 (design foundation) has shipped. Finish the remaining M2.1 quality-gate items, then M2.2 completes the library under those gates, then M3–M4.5. Other hardening ideas sit in `docs/backlog/` until the owner re-adds them.
 2. **M5, then M7 — books as a website:** the showcase site built and previewed locally, then deployed as my own site.
 3. **M6 — print** (after M7).
 4. **M8 — let others create their own books, sites and prints.**
 
 ## M2.1 — Quality gates & dev process
 
-**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI (and local `check:fast` / stage-11 self-check) refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, and PR bodies with stale metrics or missing verdicts. Apply loop is `pnpm check:fast`; local stryker/e2e:changed are agent B (not pre-push); `agent finish` is thin push+PR. Diff size is advisory only (target ~1000 / prefer ≤1500; check/CI warn, never block merge — prefer `pnpm roadmap add --after` when planning oversized work). The agent findings journal is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
+**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI (and local `check:fast` / stage-11 self-check) refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, and PR bodies with stale metrics or missing verdicts. Apply loop is `pnpm check:fast`; local stryker/e2e:changed are agent B (not pre-push); `agent finish` is thin push+PR. Diff size is advisory only (target ~1000 / prefer ≤1500; check/CI warn, never block merge — prefer `pnpm roadmap add --after` when planning oversized work). The agent findings journal is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes with M2.2 (M2.5 design foundation already shipped); the rest of the hardening ideas live in `docs/backlog/`.
 
 Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
-- [x] [prep] [agent-rules](roadmap/M2.1/agent-rules.md) — agents never weaken gates, grow the roadmap instead of the PR, and resolve reviewer findings themselves (issue #72 E)
-- [x] [prep] [agent-pipeline-token-budget](roadmap/M2.1/agent-pipeline-token-budget.md) — Cut /next-roadmap-item token waste (issue #77)
-- [x] [prep] [agent-pipeline-fewer-calls](roadmap/M2.1/agent-pipeline-fewer-calls.md) — Fewer /next-roadmap-item tool calls (issue #79)
-- [x] [prep] [add-spread-reveal-flake](roadmap/M2.1/add-spread-reveal-flake.md) — Strict fit-zoom add-spread containment: app scroll or deterministic wait
-- [x] [prep] [e2e-burn-in](roadmap/M2.1/e2e-burn-in.md) — new and changed e2e specs are burned in on every PR
-- [x] [prep] [narrow-add-spread-horizontal-contain](roadmap/M2.1/narrow-add-spread-horizontal-contain.md) — Add-spread reveal must contain horizontally (narrow and desktop)
-- [x] [contingency] [burn-in-targets-cli-spawn-assert](roadmap/M2.1/burn-in-targets-cli-spawn-assert.md) — Burn-in targets spawn test must not assume burn-in-smoke in every PR diff
-- [x] [prep] [e2e-local-flakes](roadmap/M2.1/e2e-local-flakes.md) — Stabilize functional e2e flakes (open-save, filmstrip gaps, template-unplace, autosave, drag-swap)
-- [x] [prep] [e2e-frame-budget-flakes](roadmap/M2.1/e2e-frame-budget-flakes.md) — Stabilize frame-budget (LoAF) e2e flakes without looser budgets
-- [x] [prep] [roadmap-parallel-agents](roadmap/M2.1/roadmap-parallel-agents.md) — roadmap CLI and agent pipeline support several agents in parallel git worktrees
-- [x] [prep] [agent-cost-cuts](roadmap/M2.1/agent-cost-cuts.md) — Cut agent input/output tokens and keep a session under 300K context
-- [x] [prep] [continuous-zoom-settle-mount-pace](roadmap/M2.1/continuous-zoom-settle-mount-pace.md) — Pace pasteboard remounts on zoom-out settle to keep continuous-zoom LoAF green
-- [x] [prep] [ci-flake-hardening](roadmap/M2.1/ci-flake-hardening.md) — Harden CI flakes (re-import LoAF, burn-in spawn, codecov timeout)
 - [ ] [contingency] [codecov-validate-timeout](roadmap/M2.1/codecov-validate-timeout.md) — AbortSignal.timeout for Codecov YAML validate fetch
-- [x] [prep] [stryker-diff-line-scope](roadmap/M2.1/stryker-diff-line-scope.md) — stryker-diff scores only changed line ranges (ts-agent-rig)
-- [x] [prep] [local-stryker-diff-check](roadmap/M2.1/local-stryker-diff-check.md) — Local stryker:diff in pnpm check / pre-push (agent loop)
-- [x] [prep] [reimport-loaf-store-thumb](roadmap/M2.1/reimport-loaf-store-thumb.md) — Re-import LoAF: no-op bookStore meta/patch + thumb put dedupe
-- [x] [prep] [strict-e2e](roadmap/M2.1/strict-e2e.md) — no hidden flakes: zero retries on PRs (#50 item 5)
-- [x] [prep] [agent-test-run-budget](roadmap/M2.1/agent-test-run-budget.md) — agent test runs stay cheap and fast; flake proof comes from CI burn-in (owner 2026-10-18)
-- [x] [prep] [agent-pipeline-leftovers](roadmap/M2.1/agent-pipeline-leftovers.md) — Remaining token and call waste in the agent pipeline (issues #77, #79)
-- [x] [prep] [codecov-patch-gate](roadmap/M2.1/codecov-patch-gate.md) — blocking patch and no-drop project coverage (issue #72 A)
-- [x] [prep] [e2e-coverage-flag](roadmap/M2.1/e2e-coverage-flag.md) — e2e counts toward coverage and codecov/patch (issue #72 A, #29)
-- [x] [prep] [gate-values-file](roadmap/M2.1/gate-values-file.md) — one data file for gate thresholds
-- [x] [prep] [gate-ratchet](roadmap/M2.1/gate-ratchet.md) — gate values can only get stricter (issue #72 K, replaced by a ratchet)
-- [x] [prep] [gate-weakening-guard](roadmap/M2.1/gate-weakening-guard.md) — test-level weakening fails pr-policy (PR #76 pattern)
-- [x] [prep] [stryker-disable-budget](roadmap/M2.1/stryker-disable-budget.md) — only next-line Stryker disables, capped and budgeted (PR #81 pattern)
-- [x] [prep] [stryker-diff-gate](roadmap/M2.1/stryker-diff-gate.md) — honest mutation on the diff: break 85, zero NoCoverage (issue #72 B, J)
-- [x] [prep] [scripts-in-scope](roadmap/M2.1/scripts-in-scope.md) — gate and agent scripts are in coverage and mutation by default (PR #81 pattern)
-- [x] [prep] [ratchet-glob-subsumption](roadmap/M2.1/ratchet-glob-subsumption.md) — pr-policy ratchet understands glob subsumption
-- [x] [prep] [agent-self-check](roadmap/M2.1/agent-self-check.md) — agents self-review against the repo checklist before push
-- [x] [prep] [lessons-dissolve](roadmap/M2.1/lessons-dissolve.md) — Dissolve docs/lessons.md: repeat findings become checks or specs (issue #78)
-- [x] [prep] [rules-dedup](roadmap/M2.1/rules-dedup.md) — Deduplicate agent rules and cap their size
-- [x] [prep] [necessary-minimum-rules](roadmap/M2.1/necessary-minimum-rules.md) — Necessary-minimum rules for artifacts and code, tests exempt (issue #78)
-- [x] [prep] [fsa-permission-fakes](roadmap/M2.1/fsa-permission-fakes.md) — unit-level File System Access fakes (issue #72 L)
 - [ ] [prep] [mutation-reinclude-small](roadmap/M2.1/mutation-reinclude-small.md) — mutate the small files that already have tests (issue #72 B)
 - [ ] [prep] [mutation-reinclude-camera](roadmap/M2.1/mutation-reinclude-camera.md) — mutate `usePasteboardCamera.ts` again (issue #72 B)
-- [x] [prep] [session-idb-locks-mutation](roadmap/M2.1/session-idb-locks-mutation.md) — IndexedDB and Web Locks fakes; mutate the adapters (issue #72 L, B)
-- [x] [prep] [project-session-deps](roadmap/M2.1/project-session-deps.md) — inject the session's platform dependencies (issue #72 L)
-- [x] [prep] [autosave-controller](roadmap/M2.1/autosave-controller.md) — extract autosave from `projectSession.ts`
-- [x] [prep] [book-lock-controller](roadmap/M2.1/book-lock-controller.md) — extract locks and re-grant from `projectSession.ts`
-- [x] [prep] [library-activation](roadmap/M2.1/library-activation.md) — extract library open / new / switch from `projectSession.ts`
 - [ ] [prep] [project-session-mutation](roadmap/M2.1/project-session-mutation.md) — mutate what is left of `projectSession.ts` (issue #72 B)
 - [ ] [prep] [agent-pipeline-run-audit](roadmap/M2.1/agent-pipeline-run-audit.md) — Check one /next-roadmap-item run against the #77 and #79 targets
-- [x] [prep] [reusable-ci-actions](roadmap/M2.1/reusable-ci-actions.md) — Reusable CI Actions from @albasov/ts-agent-rig
-- [x] [prep] [post-extract-docs-cleanup](roadmap/M2.1/post-extract-docs-cleanup.md) — Post-extract agent docs cleanup + retire roadmap archive
 
 ## M2.2 — Library & metadata
 
@@ -81,25 +41,6 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [feature] [book-titles](roadmap/M2.2/book-titles.md) — create-with-title and rename
 - [x] [prep] [asset-metadata-extract](roadmap/M2.2/asset-metadata-extract.md) — fill metadata off the main thread
 - [x] [feature] [spread-thumb-render-scope](roadmap/M2.2/spread-thumb-render-scope.md) — ConnectedSpreadView re-renders only when its own spread's thumbnails change
-
-## M2.5 — Design foundation
-
-**Review cut:** the UI kit is served at `/uikit/` as the UI/UX reference, moved photo folders relink in one step, and the editor looks like one product — every surface uses tokens and shared primitives in light and dark themes, `docs/design.md` is the source of truth agents follow (enforced by `ui-review` and the design reviewer), and every existing 60 fps gate still passes.
-
-- [x] [prep] [uikit-import](roadmap/M2.5/uikit-import.md) — UI kit v3.1 in the repo as the UI/UX reference (whole kit, one step)
-- [x] [feature] [missing-assets-relink](roadmap/M2.5/missing-assets-relink.md) — moved photo folders
-- [x] [prep] [design-reference](roadmap/M2.5/design-reference.md) — visual language and agent rule
-- [x] [feature] [design-tokens](roadmap/M2.5/design-tokens.md) — tokens and self-hosted fonts
-- [x] [prep] [icon-set](roadmap/M2.5/icon-set.md) — icons (Security Review: dependency, if a package is chosen)
-- [x] [prep] [ui-primitives-actions](roadmap/M2.5/ui-primitives-actions.md) — action primitives in `src/ui/`
-- [x] [prep] [ui-primitives-feedback](roadmap/M2.5/ui-primitives-feedback.md) — feedback primitives in `src/ui/`
-- [x] [prep] [a11y-contrast-gate](roadmap/M2.5/a11y-contrast-gate.md) — contrast checks on the design system
-- [x] [feature] [editor-chrome-toolbar](roadmap/M2.5/editor-chrome-toolbar.md) — editor bars on primitives
-- [x] [feature] [editor-chrome-states](roadmap/M2.5/editor-chrome-states.md) — editor states on tokens and primitives
-- [x] [feature] [import-errors-panel](roadmap/M2.5/import-errors-panel.md) — import errors you can dismiss, clear, group by reason and jump from
-- [x] [feature] [editor-empty-hints](roadmap/M2.5/editor-empty-hints.md) — empty-editor card with import actions and a placement hint until the first photo is placed
-- [x] [feature] [project-screens-adoption](roadmap/M2.5/project-screens-adoption.md) — M2 screens on the design system
-- [x] [feature] [dark-theme](roadmap/M2.5/dark-theme.md) — dark neutral theme
 
 ## M3 — Building a real book
 

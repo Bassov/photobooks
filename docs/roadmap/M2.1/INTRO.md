@@ -1,18 +1,18 @@
 # M2.1 — notes
 
-**Order:** M2.1 (core hardening and the agent loop) runs before every other open item. When this core is done, product work resumes: M2.2 (library and metadata), then M2.5 (design foundation). Items run in index order, and each assumes the items above it are merged. Source issues: #72 (process and gates, subset A–N), #50 (quality roadmap, flake/retry items), #77 / #78 / #79 (agent pipeline). The **Done when:** line of each `[prep]` here is its success criteria.
+**Order:** M2.1 (core hardening and the agent loop) still runs before every other open item. M2.5 (design foundation) has already shipped. When the remaining M2.1 items are done, product work continues with M2.2 (library and metadata). Items run in index order. Source issues: #72 (process and gates, subset A–N), #50 (quality roadmap, flake/retry items), #77 / #78 / #79 (agent pipeline). The **Done when:** line of each `[prep]` here is its success criteria.
 
-After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
+Prior M2.1 phases (flake hardening, mechanical gates, findings-journal dissolve, FSA/session split, reusable CI) are retired from the index; their item files live in git history.
 
-**Agent loop SoT:** [`docs/agent-loop.md`](../../agent-loop.md). CI `stryker-diff.yml` remains the mutation merge bar. Some early M2.1 Done notes (stryker-in-check, fat finish, finish merge-main) are superseded — see those item Done notes.
+**Agent loop SoT:** [`docs/agent-loop.md`](../../agent-loop.md). CI `stryker-diff.yml` remains the mutation merge bar. Early M2.1 Done notes that conflicted with the current loop are superseded (git history).
 
-**Phases** (index order; the notes live here, not in the index, so `pnpm roadmap next` stays short):
+**Remaining open work** (index order):
 
-- **Phase 1 — Flaky e2e and cheap agent runs** (`e2e-burn-in` … `agent-pipeline-leftovers`, 10 items): `roadmap-parallel-agents` first (up to 5 parallel worktree agents); then every known flake is fixed in app code or with deterministic waits, proven by a CI burn-in; PR e2e drops to zero retries with an empty `@flaky` list; local agent runs stay targeted and quiet (one green run; flake proof from CI burn-in); then remaining #77 / #79 pipeline leftovers (compact check output; today split as `check:fast` / `check:integrity`). Flakes go next because they confuse the agent and would randomly redden the new gates of phase 2.
-- **Phase 2 — Mechanical gates** (`codecov-patch-gate` … `agent-self-check`, 14 items): `codecov-patch-gate` then `e2e-coverage-flag` (merged unit+e2e patch coverage), the ratchet/weakening/Stryker/exclusion/size/PR-body gates, and the agent self-check (now stage 11, not inside finish).
-- **Phase 3 — Findings journal dissolve** (`lessons-dissolve` … `necessary-minimum-rules`, 2 items): #78 (journal dissolved into checks and specs, necessary-minimum rules).
-- **Phase 4 — Mutation re-includes** (`fsa-permission-fakes` … `project-session-mutation`, 11 items): unit-level FSA fakes, then bring currently excluded product files back under mutation (including the `projectSession.ts` split), because upcoming product work will touch those files.
-- **Phase 5 — Pipeline audit** (`agent-pipeline-run-audit`, 1 item): one audited `/next-roadmap-item` run that closes the #77 / #79 measurement.
+- **`codecov-validate-timeout`** `[contingency]`: only if Codecov YAML validate hangs trip the Vitest timeout — abort hung `api.codecov.io/validate` within ~2.5s.
+- **`mutation-reinclude-small`**: mutate `previewAspect.ts` and `upgradeSessionAssets.ts` again (issue #72 B).
+- **`mutation-reinclude-camera`**: mutate `usePasteboardCamera.ts` again (issue #72 B).
+- **`project-session-mutation`**: mutate what is left of `projectSession.ts`; clear remaining `temporary` exclusions (issue #72 B).
+- **`agent-pipeline-run-audit`**: one audited `/next-roadmap-item` run against the #77 / #79 targets.
 
 **The roadmap grows in place** (see "Change size"): a plan over the size limit is split into the next checkbox before coding, and deferred review findings become the next checkbox. Review fixes stay in the same branch and PR.
 
