@@ -13,6 +13,12 @@ import {
   setNoPhotosFoundHint,
   subscribeNoPhotosFoundHint,
 } from './emptyGalleryHint'
+import {
+  pasteboardEmptyActionsStyle,
+  pasteboardEmptyCardStyle,
+  pasteboardEmptyOverlayStyle,
+  pasteboardPlacementHintStyle,
+} from './pasteboardEmptyStyles'
 import type { ChromeImportApi } from './useChromeImport'
 
 const EMPTY_DESCRIPTION =
@@ -65,9 +71,9 @@ export function PasteboardEmptyGuidance({
 
   if (galleryEmpty) {
     return (
-      <div className="pasteboard-empty-overlay" data-testid="pasteboard-empty">
+      <div style={pasteboardEmptyOverlayStyle} data-testid="pasteboard-empty">
         <EmptyState
-          className="pasteboard-empty-card"
+          style={pasteboardEmptyCardStyle}
           data-testid="pasteboard-empty-card"
           icon={<Icon name="image" size={20} />}
           title="Start with your photos"
@@ -75,7 +81,7 @@ export function PasteboardEmptyGuidance({
             noPhotosFound ? NO_PHOTOS_DESCRIPTION : EMPTY_DESCRIPTION
           }
           actions={
-            <>
+            <div style={pasteboardEmptyActionsStyle}>
               <Button
                 size="sm"
                 isDisabled={importDisabled}
@@ -95,7 +101,7 @@ export function PasteboardEmptyGuidance({
               >
                 Add photos…
               </Button>
-            </>
+            </div>
           }
         />
       </div>
@@ -108,7 +114,7 @@ export function PasteboardEmptyGuidance({
 
   return (
     <div
-      className="pasteboard-placement-hint"
+      style={pasteboardPlacementHintStyle}
       data-testid="pasteboard-placement-hint"
       aria-hidden="true"
     >
