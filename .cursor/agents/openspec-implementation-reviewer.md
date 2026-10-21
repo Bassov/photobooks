@@ -29,7 +29,7 @@ transcripts; no unrelated tool discovery.
    3d. **UI smoke:** if UI in scope, require evidenced empty + happy + primary scroll/interact and skill `ui-review`. Missing → high. Green typecheck/unit alone is not enough.
    3e. **Virtualized lists:** mid-scroll scrollport coverage required (not only item count / LoAF). Missing → high.
 4. **Quality bar:** type safety, ESLint, workers for heavy work, no obvious regressions.
-5. **Verify gates:** typecheck/lint/test/e2e/stryker:diff evidenced or `fix`. UI also needs browser smoke. Free-text in `tasks.md` does not justify a survivor — delete dead code or budgeted `// Stryker disable next-line …: <reason>` within `mutation.disableBudget`.
+5. **Verify gates:** typecheck/lint/test/e2e/stryker:diff evidenced or `fix`. UI also needs browser smoke. Free-text or a stryker item in `tasks.md` does not justify a survivor — delete dead code or budgeted `// Stryker disable next-line …: <reason>` within `mutation.disableBudget`; optional notes only in PR Skipped/risk.
 6. **Planning reviewer:** evidenced pass before apply (docs-only skips design checklist; prep fast-track may skip).
 7. **Docs/rules sync:** if behavior/commands/CI/module map/roadmap item changed → README.md, AGENTS.md (budgets), affected `.cursor/rules/*.mdc`, `docs/future-architecture.md`, and the item (`pnpm roadmap show <slug>`) must match. Stale contradicted text → `medium`; overstated item → `high`. Hand-edited `docs/roadmap.md` or failing `pnpm roadmap check` → `high`.
 8. **Audit:** `package.json`/lockfile or security-tagged → `pnpm audit:ci` evidence.

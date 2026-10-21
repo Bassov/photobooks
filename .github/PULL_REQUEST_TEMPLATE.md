@@ -12,7 +12,7 @@
 
 ## Manual test scenarios
 
-<!-- Numbered steps + expected result, copied from the change's tasks.md "Manual test scenarios"; N/A for non-UI changes. -->
+<!-- From tasks.md ## Manual test scenarios: scenario list + OK/problem lines from stage-9 manual-qa (or N/A). Not a Verification checklist. -->
 
 1.
 

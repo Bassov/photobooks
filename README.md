@@ -49,17 +49,14 @@ pnpm dev
 | `pnpm test:e2e:quiet`    | Playwright with dot reporter                                                  |
 | `pnpm bench`             | Vitest benchmarks                                                             |
 
-Lefthook: pre-commit lint/format on staged files; pre-push is `ts-rig-ci hook-pre-push` (A+C1; no stryker). Hand-push always pays both; `agent finish` skips them only when stage-11 stamp is current. E2e / `stryker:diff` stay in CI / agent B.
+Lefthook: pre-commit lint/format on staged files; pre-push is `ts-rig-ci hook-pre-push` (A+C1; no stryker). Hand-push always pays both; thin finish skip rules: `docs/agent-loop.md`. E2e / `stryker:diff` stay in CI / agent B.
 
-## OpenSpec
+## OpenSpec / agent loop
 
-- Config: `openspec/config.yaml` (quality bar, short proposal limits, mandatory verify + review gates)
-- Cursor skills/commands under `.cursor/`
-- Review subagents: `.cursor/agents/openspec-planning-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`, plus `manual-qa`
-
-Workflow: plan → planning-reviewer → apply (`check:fast`) → B at stage 4 → phase commit → impl-reviewer → … → stage 11 → thin finish. Unattended one-item run: `/next-roadmap-item`.
-
-Stage 11: `stamp-green` after `check:integrity` + `quality:self-check`. `pnpm agent finish` is thin push+PR (hook skips A/C1 when stamp matches); CI red → `ci-brief`.
+- Loop SoT: [`docs/agent-loop.md`](docs/agent-loop.md) (stages, A/B/C, stamp, thin finish)
+- Artifact config: `openspec/config.yaml` (proposal/design/tasks shape + change-quality rules)
+- Cursor skills/commands under `.cursor/`; reviewers under `.cursor/agents/`
+- Unattended: `/next-roadmap-item` (executes the loop SoT)
 
 ## CI
 

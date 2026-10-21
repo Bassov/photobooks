@@ -4,7 +4,7 @@
 
 After M2.1, product work resumes (M2.2, M2.5); the rest of the hardening ideas live in `docs/backlog/`.
 
-**Agent loop (current SoT):** apply uses `pnpm check:fast` (A: unit + patch-coverage; no stryker). Local mutation + changed e2e are quality **B** at stages 4/7/9. Stage 11 runs `check:integrity` + `quality:self-check` + `agent stamp-green`. Stage 12 `agent finish` is thin push+PR (no happy-path merge of `origin/main`). CI `stryker-diff.yml` remains the mutation merge bar. Some early M2.1 Done notes (stryker-in-check, fat finish, finish merge-main) are superseded — see those item Done notes.
+**Agent loop SoT:** [`docs/agent-loop.md`](../../agent-loop.md). CI `stryker-diff.yml` remains the mutation merge bar. Some early M2.1 Done notes (stryker-in-check, fat finish, finish merge-main) are superseded — see those item Done notes.
 
 **Phases** (index order; the notes live here, not in the index, so `pnpm roadmap next` stays short):
 

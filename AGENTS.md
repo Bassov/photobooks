@@ -1,6 +1,6 @@
 # Photobooks — agent map
 
-Navigation only. Per-change mandates: `openspec/config.yaml`. Behavior: `openspec/specs/`.
+Navigation only. Agent loop: `docs/agent-loop.md`. Artifact mandates: `openspec/config.yaml`. Behavior: `openspec/specs/`.
 
 ## Stack
 
@@ -22,7 +22,7 @@ Vite + React 19 + TypeScript. Product/toolchain conventions: `.cursor/rules/over
 | Shared helpers       | `src/lib/`                             | —                                                |
 | Preview hosting      | `wrangler.jsonc`, deploy scripts       | `openspec/specs/preview-hosting/`                |
 | CI quality gates     | `.github/`, `ts-rig-*` (rig package)   | `quality/gates.json` (see `ci-gates/` pointer)   |
-| Agent pipeline       | `.cursor/`, `@albasov/ts-agent-rig`    | `openspec/config.yaml` (see `agent-context/`)    |
+| Agent pipeline       | `.cursor/`, `@albasov/ts-agent-rig`    | `docs/agent-loop.md` (see `agent-context/`)      |
 | Design language      | `docs/design.md` + kit `/uikit/`       | — (`UI ref: uikit#/feature/<slug>`)              |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
@@ -35,7 +35,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `pnpm roadmap`                | `next` / `show` / `add` / `done` / `check`                                |
 | `pnpm agent`                  | `preflight` / `finish` / `stamp-green` / `ci-brief` / `archive` / `stats` |
 | `pnpm check:fast` / `check`   | A: unit gates + patch-coverage (no stryker); apply loops                  |
-| `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (stage 11 · hand-push · CI)            |
+| `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (hand-push · CI; see agent-loop)       |
 | `pnpm verify`                 | `check:fast` + Playwright                                                 |
 | `pnpm test:e2e:changed:quiet` | B (with `stryker:diff`): changed e2e, quiet                               |
 | `pnpm perf`                   | Playwright frame-budget scenarios                                         |
@@ -69,7 +69,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 Headless `cursor-agent -p`: project `.cursor/cli.json`; launcher must `source scripts/agent-env.sh` and start with `--trust --force` (deny still honored). Prefer preflight run card / `pnpm agent instructions` over denied raw OpenSpec reads. `pnpm agent stats <path>` exits 1 if peak context >300K or first-round input >400K.
 
-Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Verify: `.cursor/rules/testing.mdc`. Finish/PR: `.cursor/rules/git-finish.mdc` (stamp+`hook-pre-push` skip). Unattended: `/next-roadmap-item`.
+Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Always-on: `.cursor/rules/testing.mdc`, `git-finish.mdc`. Unattended: `/next-roadmap-item`.
 
 Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
 
@@ -77,4 +77,4 @@ Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `
 
 ## Doc budget
 
-Sizes: `quality/gates.json` `agentRules.budgets`. Skills for workflows; specs for behavior. Quality bar: `openspec/config.yaml`.
+Sizes: `quality/gates.json` `agentRules.budgets`. Skills for workflows; specs for behavior. Loop: `docs/agent-loop.md`; artifacts: `openspec/config.yaml`.
