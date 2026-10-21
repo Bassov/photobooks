@@ -1,42 +1,21 @@
 import {
   useEffect,
-  useId,
-  useRef,
-  useState,
   useSyncExternalStore,
   type ButtonHTMLAttributes,
 } from 'react'
-import {
-  canUseDirectoryPicker,
-  canUseOpenFilePicker,
-  photoInputAccept,
-  pickFolderWithDirectoryPicker,
-  pickPhotosWithFilePicker,
-} from '../photo/pickPhotos'
 import '../ui/Button.css'
 import '../ui/Toolbar.css'
-import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import { BookTitleChrome } from './BookTitleChrome'
-import { clickIfPresent } from './clickIfPresent'
 import {
   createBookWithPrompt,
   renameActiveBook,
 } from './editorChromeBookActions'
 import {
   isChromeBusy,
-  isImportDisabled,
   isNewBookDisabled,
   isRenameDisabled,
   isSaveDisabled,
 } from './editorChromeDisabled'
-import { setEditorStatus } from './editorStatus'
-import { filesFromInputChange } from './filesFromInputChange'
-import {
-  clearImportErrorsToast,
-  enqueueImportErrorsToast,
-  importErrorsStatusText,
-} from './importErrorToast'
-import type { ImportProgress } from './importPhotos'
 import { installEditorSaveShortcut } from './installEditorSaveShortcut'
 import {
   createBookInLibrary,
@@ -49,8 +28,8 @@ import {
   saveBookNow,
   subscribeProjectSession,
 } from './projectSession'
-import { runChromeImport } from './runChromeImport'
 import { saveIndicatorLabel } from './saveIndicatorLabel'
+import type { ChromeImportApi } from './useChromeImport'
 
 function ChromeButton({
   variant = 'secondary',
@@ -78,11 +57,9 @@ function ChromeButton({
 }
 
 export function EditorTopBar({
-  onImportProgress,
-  toastQueue,
+  chromeImport,
 }: {
-  onImportProgress: (progress: ImportProgress | null) => void
-  toastQueue: PhotobooksToastQueue
+  chromeImport: ChromeImportApi
 }) {
   const project = useSyncExternalStore(
     subscribeProjectSession,
@@ -95,63 +72,10 @@ export function EditorTopBar({
     [project.libraryOpen],
   )
 
-  const filesInputId = useId()
-  const folderInputId = useId()
-  const filesInputRef = useRef<HTMLInputElement>(null)
-  const folderInputRef = useRef<HTMLInputElement>(null)
-  const [pickerBusy, setPickerBusy] = useState(false)
-
-  const runImport = async (files: readonly File[]): Promise<void> => {
-    await runChromeImport(files, {
-      onProgress: onImportProgress,
-      onErrors: (next) => {
-        if (next.length === 0) {
-          clearImportErrorsToast(toastQueue)
-          return
-        }
-        const snapshot = [...next]
-        enqueueImportErrorsToast(toastQueue, snapshot, () => {
-          setEditorStatus(importErrorsStatusText(snapshot))
-        })
-      },
-    })
-  }
-
-  const onAddPhotos = async (): Promise<void> => {
-    setPickerBusy(true)
-    try {
-      if (canUseOpenFilePicker()) {
-        const files = await pickPhotosWithFilePicker()
-        if (files !== null) {
-          await runImport(files)
-        }
-        return
-      }
-      clickIfPresent(filesInputRef.current)
-    } finally {
-      setPickerBusy(false)
-    }
-  }
-
-  const onAddFolder = async (): Promise<void> => {
-    setPickerBusy(true)
-    try {
-      if (canUseDirectoryPicker()) {
-        const files = await pickFolderWithDirectoryPicker()
-        if (files !== null) {
-          await runImport(files)
-        }
-        return
-      }
-      clickIfPresent(folderInputRef.current)
-    } finally {
-      setPickerBusy(false)
-    }
-  }
-
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
   const activeBookId = project.bookId
+  const pickerBusy = chromeImport.pickerBusy
   const chromeBusy = isChromeBusy(
     pickerBusy,
     project.actionBusy,
@@ -276,55 +200,21 @@ export function EditorTopBar({
               : 'default'
           }
           onClick={() => {
-            void onAddPhotos()
+            void chromeImport.onAddPhotos()
           }}
-          disabled={isImportDisabled(pickerBusy, writeBlocked)}
+          disabled={chromeImport.importDisabled}
         >
           Add photos
         </ChromeButton>
         <ChromeButton
           onClick={() => {
-            void onAddFolder()
+            void chromeImport.onAddFolder()
           }}
-          disabled={isImportDisabled(pickerBusy, writeBlocked)}
+          disabled={chromeImport.importDisabled}
         >
           Add folder
         </ChromeButton>
-        <input
-          id={filesInputId}
-          ref={filesInputRef}
-          className="photo-file-input"
-          data-testid="photo-file-input"
-          type="file"
-          accept={photoInputAccept()}
-          multiple
-          onChange={(event) => {
-            const files = filesFromInputChange(event.currentTarget)
-            if (files === null) {
-              return
-            }
-            void runImport(files)
-          }}
-        />
-        <input
-          id={folderInputId}
-          ref={(element) => {
-            folderInputRef.current = element
-            element?.setAttribute('webkitdirectory', '')
-          }}
-          className="photo-file-input"
-          data-testid="folder-file-input"
-          type="file"
-          accept={photoInputAccept()}
-          multiple
-          onChange={(event) => {
-            const files = filesFromInputChange(event.currentTarget)
-            if (files === null) {
-              return
-            }
-            void runImport(files)
-          }}
-        />
+        {chromeImport.inputs}
       </div>
     </header>
   )

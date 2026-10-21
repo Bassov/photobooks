@@ -13,6 +13,13 @@ export function placementCountByAsset(book: Book): ReadonlyMap<string, number> {
   return counts
 }
 
+/** True when any frame in the book has a placed asset. */
+export function bookHasAnyPlacement(book: Book): boolean {
+  return book.spreads.some((spread) =>
+    spread.frames.some((frame) => frame.assetId !== undefined),
+  )
+}
+
 export function unplacedAssetIds(book: Book): string[] {
   const counts = placementCountByAsset(book)
   return book.gallery.filter((assetId) => (counts.get(assetId) ?? 0) === 0)

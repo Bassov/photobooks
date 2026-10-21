@@ -26,6 +26,10 @@ import {
 import * as projectSession from './projectSession'
 import { resetThumbCache } from './thumbCache'
 import { resetTierDisplay } from './tierDisplay'
+import {
+  getNoPhotosFoundHint,
+  resetNoPhotosFoundHint,
+} from './emptyGalleryHint'
 
 describe('EditorTopBar', () => {
   afterEach(() => {
@@ -39,6 +43,7 @@ describe('EditorTopBar', () => {
     resetTierDisplay()
     resetAssetSources()
     resetProjectSessionForTests()
+    resetNoPhotosFoundHint()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -401,6 +406,28 @@ describe('EditorTopBar', () => {
     })
     // Successful import clears at start (empty errors) and must not leave a toast.
     expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull()
+  })
+
+  it('marks no-photos found when a folder import adds zero photos', async () => {
+    const file = new File([new Uint8Array([1])], 'README.md', {
+      type: 'text/plain',
+    })
+    vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
+    vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue([
+      file,
+    ])
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
+      imported: 0,
+      errors: [
+        { name: 'README.md', message: 'Unsupported image format: text/plain' },
+      ],
+    })
+    render(<EditorShell />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await waitFor(() => {
+      expect(getNoPhotosFoundHint()).toBe(true)
+    })
+    expect(screen.getByText('No photos found in that folder')).toBeTruthy()
   })
 
   it('ignores a cancelled folder picker result', async () => {

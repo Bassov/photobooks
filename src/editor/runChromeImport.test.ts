@@ -12,10 +12,11 @@ describe('runChromeImport', () => {
     const importSpy = vi.spyOn(importPhotos, 'importPhotoFiles')
     const onProgress = vi.fn()
     const onErrors = vi.fn()
-    await runChromeImport([], { onProgress, onErrors })
+    const result = await runChromeImport([], { onProgress, onErrors })
     expect(importSpy).not.toHaveBeenCalled()
     expect(onProgress).not.toHaveBeenCalled()
     expect(onErrors).not.toHaveBeenCalled()
+    expect(result).toEqual({ imported: 0, errors: [] })
   })
 
   it('coalesces progress frames and clears progress on success', async () => {
@@ -52,7 +53,7 @@ describe('runChromeImport', () => {
     const file = new File([new Uint8Array([1])], 'a.jpg', {
       type: 'image/jpeg',
     })
-    await runChromeImport([file], { onProgress, onErrors })
+    const result = await runChromeImport([file], { onProgress, onErrors })
     expect(onProgress).toHaveBeenCalledWith({
       total: 2,
       completed: 2,
@@ -63,6 +64,7 @@ describe('runChromeImport', () => {
     expect(onErrors.mock.calls.length).toBeGreaterThanOrEqual(1)
     expect(onErrors.mock.calls[0]?.[0]).toEqual([])
     expect(cancel).not.toHaveBeenCalled()
+    expect(result).toEqual({ imported: 2, errors: [] })
   })
 
   it('cancels a pending frame and reports import errors', async () => {

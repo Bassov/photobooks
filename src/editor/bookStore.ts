@@ -2,6 +2,7 @@ import {
   addSpread,
   applyBookOp,
   CURRENT_SCHEMA_VERSION,
+  bookHasAnyPlacement,
   placementCountByAsset,
   resolveSpread,
   type Asset,
@@ -346,6 +347,19 @@ export function getPlacementCountSnapshot(assetId: string): number {
   return placementCounts.get(assetId) ?? 0
 }
 
+let hasAnyPlacementFor: Book | null = null
+let hasAnyPlacement = false
+
+/** Narrow boolean: any frame in the book has an assetId. */
+export function getHasAnyPlacementSnapshot(): boolean {
+  const book = state.book
+  if (hasAnyPlacementFor !== book) {
+    hasAnyPlacement = bookHasAnyPlacement(book)
+    hasAnyPlacementFor = book
+  }
+  return hasAnyPlacement
+}
+
 /**
  * Gallery-ordered aspects; referentially stable while gallery identity and
  * sessionMeta map identity are unchanged.
@@ -685,6 +699,7 @@ export function resetBookStore(next?: BookStoreInit): void {
     flushWatchdogTimer = undefined
   }
   placementCountsFor = null
+  hasAnyPlacementFor = null
   assetSeq = 0
   paintCache.clear()
   spreadIdsFor = null
