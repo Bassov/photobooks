@@ -46,11 +46,13 @@
     "roadmap": "roadmap",
     "agent": "agent",
     "audit:ci": "pnpm audit --audit-level=high --prod",
-    "check": "ts-rig-check",
+    "check:fast": "ts-rig-check",
+    "check": "pnpm check:fast",
+    "check:integrity": "ts-rig-check --inventory integrity",
     "quality:self-check": "ts-rig-gate quality-self-check",
     "patch-coverage": "ts-rig-gate patch-coverage",
-    "verify:fast": "pnpm check",
-    "verify:fast:quiet": "pnpm check",
+    "verify:fast": "pnpm check:fast",
+    "verify:fast:quiet": "pnpm check:fast",
     "verify": "pnpm check && pnpm test:e2e",
     "playwright:libs": "ts-rig-ci playwright-libs",
     "prepare": "lefthook install"
@@ -63,7 +65,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@albasov/ts-agent-rig": "github:Bassov/ts-agent-rig#v0.2.6",
+    "@albasov/ts-agent-rig": "github:Bassov/ts-agent-rig#v0.2.7",
     "@codecov/vite-plugin": "2.0.1",
     "@eslint/js": "^9.39.2",
     "@fast-check/vitest": "^0.5.0",

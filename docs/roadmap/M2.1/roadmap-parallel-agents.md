@@ -27,4 +27,6 @@ Why: the owner wants up to 5 cursor-agent sessions working M2.1 items at the sam
 
 ## Done note
 
-Shipped parallel worktree agents (item-file done, worktree preflight, narrow finish auto-merge, script mutation bar met)
+Shipped parallel worktree agents (item-file done, worktree preflight, narrow finish auto-merge, script mutation bar met).
+
+**Superseded (agent-loop stages):** happy-path `agent finish` does not merge `origin/main`; non-overlapping touch-sets. Conflicts after sibling merges = orchestrator turn (not auto-merge inside finish). Worktree/preflight/claim mechanics stay.

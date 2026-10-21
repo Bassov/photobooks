@@ -29,19 +29,20 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Commands (reference)
 
-| Command                       | Use                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------ |
-| `/next-roadmap-item`          | one roadmap item end to end (unattended)                                       |
-| `pnpm roadmap`                | roadmap CLI: `next` / `show` / `add` / `done` / `check`                        |
-| `pnpm agent`                  | `preflight` / `finish` / `review-brief` / `instructions` / `archive` / `stats` |
-| `pnpm check`                  | deterministic gates incl. patch-coverage + line-scoped stryker:diff (pre-push) |
-| `pnpm verify`                 | `pnpm check` + Playwright                                                      |
-| `pnpm test:e2e:changed:quiet` | changed e2e specs only (burn-in targets), quiet                                |
-| `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)                          |
-| `pnpm stryker:diff`           | mutations on changed line ranges vs `origin/main`                              |
-| `pnpm test:lhci`              | Lighthouse budgets                                                             |
-| `pnpm audit:ci`               | high-severity **production** dependency audit                                  |
-| `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo dev (`uikit/` at `/uikit/`)            |
+| Command                       | Use                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `/next-roadmap-item`          | one roadmap item end to end (unattended)                                  |
+| `pnpm roadmap`                | `next` / `show` / `add` / `done` / `check`                                |
+| `pnpm agent`                  | `preflight` / `finish` / `stamp-green` / `ci-brief` / `archive` / `stats` |
+| `pnpm check:fast` / `check`   | A: unit gates + patch-coverage (no stryker); apply loops                  |
+| `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (stage 11 · hand-push · CI)            |
+| `pnpm verify`                 | `check:fast` + Playwright                                                 |
+| `pnpm test:e2e:changed:quiet` | B (with `stryker:diff`): changed e2e, quiet                               |
+| `pnpm perf`                   | Playwright frame-budget scenarios                                         |
+| `pnpm stryker:diff`           | B + CI mutation (not in check:fast / pre-push)                            |
+| `pnpm test:lhci`              | Lighthouse budgets                                                        |
+| `pnpm audit:ci`               | high-severity **production** dependency audit                             |
+| `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo `/uikit/`                         |
 
 ## Skills (on demand)
 
@@ -68,12 +69,12 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 Headless `cursor-agent -p`: project `.cursor/cli.json`; launcher must `source scripts/agent-env.sh` and start with `--trust --force` (deny still honored). Prefer preflight run card / `pnpm agent instructions` over denied raw OpenSpec reads. `pnpm agent stats <path>` exits 1 if peak context >300K or first-round input >400K.
 
-Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`; no `.tool-versions` write). Verify/flake policy: `.cursor/rules/testing.mdc`. Finish/PR / no CI watch: `.cursor/rules/git-finish.mdc`. Unattended pipeline: `/next-roadmap-item`.
+Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`; no `.tool-versions` write). Verify/flake: `.cursor/rules/testing.mdc`. Finish/PR / no CI watch: `.cursor/rules/git-finish.mdc`. Unattended: `/next-roadmap-item`.
 
-Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec lifecycle is native in `pnpm agent` (no `openspec` CLI). Disable unused Cursor MCP servers. Quiet scripts are the baseline (optional local proxies are machine add-ons).
+Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Disable unused Cursor MCP servers. Quiet scripts are the baseline.
 
 `pnpm install` fails while `core.hooksPath` points at Cursor agent hooks (`prepare` → lefthook). Use `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev: `pnpm exec vite --host 0.0.0.0 --port 5173` (extra `--` makes Vite ignore `--host`).
 
 ## Doc budget
 
-Sizes: `quality/gates.json` `agentRules.budgets` (pr-policy). Skills for workflows; specs for behavior. Quality bar: `openspec/config.yaml`.
+Sizes: `quality/gates.json` `agentRules.budgets`. Skills for workflows; specs for behavior. Quality bar: `openspec/config.yaml`.

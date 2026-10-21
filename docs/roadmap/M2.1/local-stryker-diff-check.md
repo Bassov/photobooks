@@ -4,7 +4,7 @@ Tag: prep
 Milestone: M2.1
 Title: Local stryker:diff in pnpm check / pre-push (agent loop)
 Status: done
-Done note: stryker-diff in checks.afterUnit; docs/rules + APPLY procedure (ts-agent-rig v0.2.4).
+Done note: stryker-diff in checks.afterUnit; docs/rules + APPLY procedure (ts-agent-rig v0.2.4). **Superseded (agent-loop stages):** stryker is not in `check:fast` / pre-push; local mutation is agent B (stages 4/7/9) + CI `stryker-diff.yml`. Scope/Done when below are historical.
 
 ## Scope
 

@@ -10,9 +10,10 @@ Do not re-read the item after `roadmap next` / preflight. Take rules/template
 from the run card or `pnpm agent instructions <artifact>` (native; do not
 re-read openspec/config.yaml or .cursor/agents). Specs: `rg` + ranges — never
 dump whole specs. Grep ≤30 hits; offset/limit if >400 lines; no re-read; no
-TodoWrite in `-p`. Tick checkboxes with targeted edits. Prefer `pnpm check`
-(OK lines only) and `pnpm test:e2e:changed:quiet` (once when green; CI burn-in
-owns flake proof). PR body once; issue URLs only. Brief via
+TodoWrite in `-p`. Tick checkboxes with targeted edits. Prefer `pnpm check:fast`
+(A; OK lines only). B = `pnpm test:e2e:changed:quiet` + `pnpm stryker:diff` at
+stages 4/7/9 (once when green; CI burn-in owns flake proof). No commit until
+first green B (stage 5). PR body stage 10; issue URLs only. Brief via
 `pnpm agent review-brief --out <file> --base origin/main` (Task: skill set +
 brief path only). Ignore `openspec/changes/archive/**` in search.
 
@@ -33,17 +34,20 @@ OpenSpec artifact; validate once per stage.
    (full design + planning-reviewer). Else after proposal+design+tasks(+specs):
    planning-reviewer once (brief --out; ≤1 re-review; docs-only skips design).
    Over guidance: `pnpm roadmap add … --after`.
-3. Implement per `runCard.procedure` through verify +
-   openspec-implementation-reviewer + Manual check. Quiet verify. Out-of-scope
-   fails: fix in this PR unless same failure on unmodified `origin/main`; else
-   `pnpm roadmap add … --after` or a bug issue — filing never greens a red PR.
-   Code after review → re-run implementation reviewer on the delta.
+3. Implement per `runCard.procedure` through A loops + B phases +
+   openspec-implementation-reviewer + Manual check. Quiet `check:fast`.
+   Out-of-scope fails: fix in this PR unless same failure on unmodified
+   `origin/main`; else `pnpm roadmap add … --after` or a bug issue — filing
+   never greens a red PR. Code after review → re-run implementation reviewer
+   on the delta.
 4. `pnpm agent archive <slug>` (sync deltas first). Then
    `pnpm roadmap done <slug>` (`--note` when scope differs; required for
    contingency). Done writes item Status only.
-5. `pnpm roadmap check`, commit, then
-   `pnpm -s agent finish --title "…" --body-file <pr-body.md>` (≤2 local push
-   attempts). Stop after PR URL — no `gh pr checks --watch`.
+5. Stage 10: PR body. Stage 11: `pnpm check:integrity` +
+   `pnpm quality:self-check` + `pnpm agent stamp-green`. Stage 12: thin
+   `pnpm -s agent finish --title "…" --body-file <pr-body.md>` (push+PR only;
+   ≤2 local push attempts; no merge main; no C2 in finish). Stop after PR URL —
+   no `gh pr checks --watch`. CI red: `pnpm agent ci-brief`.
 
 Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict.
 Security-tagged: Security Review before archive. Gate-config edits must be

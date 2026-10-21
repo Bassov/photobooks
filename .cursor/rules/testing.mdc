@@ -7,15 +7,11 @@ alwaysApply: true
 
 After substantive code changes, run and **read** the output of:
 
-- `pnpm verify:fast`/`verify:fast:quiet` for loops + pre-push (patch + stryker:diff)
-- Targeted e2e: `pnpm test:e2e:changed:quiet` once when green (same target set as CI burn-in). Full `pnpm test:e2e:quiet` / `pnpm test:e2e` / `pnpm verify` only when finish/CI scope needs them; out-of-scope failures per `docs/roadmap/RULES.md` Agent apply hygiene. Flake proof is CI burn-in, not local repeats — local `--repeat-each=3` only if a specific spec failed locally then passed on rerun. Playwright also gates every PR in CI
+- `pnpm check:fast` (`pnpm check` / `verify:fast`) — apply loop: unit + patch-coverage; **no** stryker
+- Quality **B** (`test:e2e:changed:quiet` + `stryker:diff`) at stages 4/7/9 only. Full e2e/`pnpm verify` only when CI needs them (or an explicit full-suite request); finish never runs full verify. Out-of-scope per `docs/roadmap/RULES.md`. Flake proof = CI burn-in; local `--repeat-each=3` only after a local fail-then-pass. Playwright gates every PR in CI
 
-Also available:
+Also available: `pnpm check:integrity` (C1 stage 11), `stryker:diff` (B+CI), `test:lhci`, `bench`.
 
-- `pnpm stryker:diff` — changed-line mutations vs `origin/main`
-- `pnpm test:lhci` — Lighthouse CI against `budget.json`
-- `pnpm bench` — vitest bench
+PBT: `@fast-check/vitest`; `numRuns` ~100 locally; CI may raise via `FC_NUM_RUNS`.
 
-PBT: use `@fast-check/vitest`; default `numRuns` ~100 locally; CI may raise via `FC_NUM_RUNS`.
-
-Test authorship conventions: skill `write-tests` (mandates in `openspec/config.yaml` quality bar).
+Test authorship: skill `write-tests` (mandates in `openspec/config.yaml`).

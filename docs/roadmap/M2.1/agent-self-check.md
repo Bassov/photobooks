@@ -4,7 +4,7 @@ Tag: prep
 Milestone: M2.1
 Title: agents self-review against the repo checklist before push
 Status: done
-Done note: local patch coverage, quality:self-check, review-checklist, manual-qa; folded pr-body-check + diff-size-check (§3.2). Follow-up: local line-scoped `stryker:diff` in `pnpm check` / pre-push is `local-stryker-diff-check` (closes the mutation half of the CI-only gap).
+Done note: local patch coverage, quality:self-check, review-checklist, manual-qa; folded pr-body-check + diff-size-check (§3.2). **Superseded placement (agent-loop stages):** `quality:self-check` + green-tree stamp run at stage 11 (not inside `agent finish`); patch stays in `check:fast`. The `local-stryker-diff-check` follow-up (stryker in check/pre-push) is itself superseded — mutation is B + CI.
 
 ## Scope
 

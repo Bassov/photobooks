@@ -13,5 +13,5 @@ pre-commit:
 pre-push:
   commands:
     verify:
-      # Strip Lefthook GIT_* then run verify; canary fails if tests mutate this repo.
-      run: pnpm exec ts-rig-ci hook-clean-env pnpm check
+      # Strip Lefthook GIT_* then run integrity + fast; canary fails if tests mutate this repo.
+      run: pnpm exec ts-rig-ci hook-clean-env sh -c 'pnpm check:integrity && pnpm check:fast'

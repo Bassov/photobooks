@@ -23,38 +23,43 @@ pnpm dev
 
 ## Scripts
 
-| Command                  | Description                                              |
-| ------------------------ | -------------------------------------------------------- |
-| `pnpm dev`               | Vite dev server                                          |
-| `pnpm typecheck`         | TypeScript project build check                           |
-| `pnpm build`             | Typecheck and production build                           |
-| `pnpm preview`           | Preview production build                                 |
-| `pnpm deploy`            | Build + deploy to Cloudflare Workers                     |
-| `pnpm deploy:preview`    | Build + upload a Workers preview version                 |
-| `pnpm lint`              | ESLint (strict-type-checked, max-warnings=0)             |
-| `pnpm format`            | Prettier write                                           |
-| `pnpm deps`              | dependency-cruiser layer rules                           |
-| `pnpm knip`              | Unused exports / dependencies                            |
-| `pnpm test`              | Vitest unit + PBT                                        |
-| `pnpm test:e2e`          | Playwright                                               |
-| `pnpm test:lhci`         | Build + Lighthouse CI (`budget.json`)                    |
-| `pnpm stryker`           | Full mutation testing                                    |
-| `pnpm stryker:diff`      | Mutations on changed line ranges vs `origin/main`        |
-| `pnpm verify:fast`       | typecheck + lint + deps + knip + mutation-scope + vitest |
-| `pnpm verify:fast:quiet` | verify:fast with quiet vitest reporter                   |
-| `pnpm verify`            | verify:fast + Playwright                                 |
-| `pnpm test:e2e:quiet`    | Playwright with dot reporter                             |
-| `pnpm bench`             | Vitest benchmarks                                        |
+| Command                  | Description                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `pnpm dev`               | Vite dev server                                                               |
+| `pnpm typecheck`         | TypeScript project build check                                                |
+| `pnpm build`             | Typecheck and production build                                                |
+| `pnpm preview`           | Preview production build                                                      |
+| `pnpm deploy`            | Build + deploy to Cloudflare Workers                                          |
+| `pnpm deploy:preview`    | Build + upload a Workers preview version                                      |
+| `pnpm lint`              | ESLint (strict-type-checked, max-warnings=0)                                  |
+| `pnpm format`            | Prettier write                                                                |
+| `pnpm deps`              | dependency-cruiser layer rules                                                |
+| `pnpm knip`              | Unused exports / dependencies                                                 |
+| `pnpm test`              | Vitest unit + PBT                                                             |
+| `pnpm test:e2e`          | Playwright                                                                    |
+| `pnpm test:lhci`         | Build + Lighthouse CI (`budget.json`)                                         |
+| `pnpm stryker`           | Full mutation testing                                                         |
+| `pnpm stryker:diff`      | Mutations on changed line ranges vs `origin/main` (B + CI; not in check:fast) |
+| `pnpm check:fast`        | A: typecheck + lint + deps + knip + vitest + patch-coverage (no stryker)      |
+| `pnpm check`             | alias of `check:fast`                                                         |
+| `pnpm check:integrity`   | C1: openspec-budget / codecov-yml / roadmap                                   |
+| `pnpm verify:fast`       | alias of `check:fast`                                                         |
+| `pnpm verify:fast:quiet` | alias of `check:fast`                                                         |
+| `pnpm verify`            | check:fast + Playwright                                                       |
+| `pnpm test:e2e:quiet`    | Playwright with dot reporter                                                  |
+| `pnpm bench`             | Vitest benchmarks                                                             |
 
-Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm verify:fast` / `pnpm check` (unit + patch-coverage + line-scoped `stryker:diff`; Playwright e2e stays in CI).
+Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm check:integrity && pnpm check:fast` (no stryker; Playwright e2e and `stryker:diff` stay in CI / agent B).
 
 ## OpenSpec
 
 - Config: `openspec/config.yaml` (quality bar, short proposal limits, mandatory verify + review gates)
 - Cursor skills/commands under `.cursor/`
-- Review subagents: `.cursor/agents/openspec-proposal-reviewer.md`, `.cursor/agents/openspec-design-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`
+- Review subagents: `.cursor/agents/openspec-planning-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`, plus `manual-qa`
 
-Workflow: propose → proposal-reviewer → design → design-reviewer → tasks → apply → verify gates → implementation-reviewer → manual check → archive → PR. Unattended one-item run: `/next-roadmap-item`.
+Workflow: plan → planning-reviewer → apply (`check:fast`) → B at stage 4 → phase commit → impl-reviewer → … → stage 11 → thin finish. Unattended one-item run: `/next-roadmap-item`.
+
+Stage 11: `stamp-green` after `check:integrity` + `quality:self-check`. `pnpm agent finish` is thin push+PR; CI red → `ci-brief`.
 
 ## CI
 
