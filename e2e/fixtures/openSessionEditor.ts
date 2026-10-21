@@ -16,4 +16,7 @@ export async function openSessionEditor(page: Page): Promise<void> {
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
   })
+  // Cold start leaves restorePending briefly; wait until chrome is interactive
+  // so axe does not sample opacity-disabled buttons (~4.24:1).
+  await expect(page.getByTestId('go-home')).toBeEnabled({ timeout: 15_000 })
 }
