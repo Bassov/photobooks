@@ -94,11 +94,11 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [prep] [ui-primitives-actions](roadmap/M2.5/ui-primitives-actions.md) — action primitives in `src/ui/`
 - [x] [prep] [ui-primitives-feedback](roadmap/M2.5/ui-primitives-feedback.md) — feedback primitives in `src/ui/`
 - [x] [prep] [a11y-contrast-gate](roadmap/M2.5/a11y-contrast-gate.md) — contrast checks on the design system
-- [ ] [feature] [editor-chrome-toolbar](roadmap/M2.5/editor-chrome-toolbar.md) — editor bars on primitives
-- [ ] [feature] [editor-chrome-states](roadmap/M2.5/editor-chrome-states.md) — editor states on tokens and primitives
-- [ ] [feature] [import-errors-panel](roadmap/M2.5/import-errors-panel.md) — import errors you can dismiss, clear, group by reason and jump from
-- [ ] [feature] [editor-empty-hints](roadmap/M2.5/editor-empty-hints.md) — empty-editor card with import actions and a placement hint until the first photo is placed
-- [ ] [feature] [project-screens-adoption](roadmap/M2.5/project-screens-adoption.md) — M2 screens on the design system
+- [x] [feature] [editor-chrome-toolbar](roadmap/M2.5/editor-chrome-toolbar.md) — editor bars on primitives
+- [x] [feature] [editor-chrome-states](roadmap/M2.5/editor-chrome-states.md) — editor states on tokens and primitives
+- [x] [feature] [import-errors-panel](roadmap/M2.5/import-errors-panel.md) — import errors you can dismiss, clear, group by reason and jump from
+- [x] [feature] [editor-empty-hints](roadmap/M2.5/editor-empty-hints.md) — empty-editor card with import actions and a placement hint until the first photo is placed
+- [x] [feature] [project-screens-adoption](roadmap/M2.5/project-screens-adoption.md) — M2 screens on the design system
 - [ ] [feature] [dark-theme](roadmap/M2.5/dark-theme.md) — dark neutral theme
 
 ## M3 — Building a real book

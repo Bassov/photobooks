@@ -43,7 +43,9 @@ describe('Button', () => {
         Go
       </Button>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+    const disabled = screen.getByRole('button', { name: 'Go' })
+    expect(disabled.getAttribute('data-disabled')).not.toBeNull()
+    fireEvent.click(disabled)
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
