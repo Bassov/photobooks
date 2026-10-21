@@ -2,6 +2,7 @@ import { measureHandlerSync } from '../perf/measureHandler'
 import {
   runImportBatch,
   type ImportBatchState,
+  createImportFileError,
   type ImportFileError,
 } from '../photo/assetPool'
 import { retainAssetSource } from '../photo/assetSources'
@@ -123,10 +124,14 @@ async function importPhotoFilesInner(
   options: ImportPhotoOptions,
 ): Promise<{ imported: number; errors: ImportFileError[] }> {
   const { accepted, rejected } = partitionImportFiles(files)
-  const earlyErrors: ImportFileError[] = rejected.map(({ file, reason }) => ({
-    name: file.name,
-    message: reason,
-  }))
+  const earlyErrors: ImportFileError[] = rejected.map(
+    ({ file, message, reason }) =>
+      createImportFileError({
+        name: file.name,
+        message,
+        reason,
+      }),
+  )
 
   const libraryBacked = options.libraryBacked ?? isLibraryBacked()
   const batchRootId =

@@ -23,6 +23,7 @@ import {
   enqueueImportErrorsToast,
   importErrorsStatusText,
 } from './importErrorToast'
+import { appendImportErrors, openImportErrorsPanel } from './importErrorsStore'
 import type { ImportProgress } from './importPhotos'
 import {
   getProjectSessionSnapshot,
@@ -68,8 +69,10 @@ export function useChromeImport(options: {
           return
         }
         const snapshot = [...next]
+        appendImportErrors(snapshot)
+        setEditorStatus(importErrorsStatusText(snapshot))
         enqueueImportErrorsToast(options.toastQueue, snapshot, () => {
-          setEditorStatus(importErrorsStatusText(snapshot))
+          openImportErrorsPanel()
         })
       },
     })

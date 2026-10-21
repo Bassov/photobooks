@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { makeImportFileError } from './importFileError.test-helpers'
 import * as importPhotos from './importPhotos'
 import { runChromeImport } from './runChromeImport'
 
@@ -61,8 +62,7 @@ describe('runChromeImport', () => {
       running: true,
     })
     expect(onProgress).toHaveBeenCalledWith(null)
-    expect(onErrors.mock.calls.length).toBeGreaterThanOrEqual(1)
-    expect(onErrors.mock.calls[0]?.[0]).toEqual([])
+    expect(onErrors).toHaveBeenCalledWith([])
     expect(cancel).not.toHaveBeenCalled()
     expect(result).toEqual({ imported: 2, errors: [] })
   })
@@ -76,7 +76,13 @@ describe('runChromeImport', () => {
     const cancel = vi.fn()
     vi.stubGlobal('cancelAnimationFrame', cancel)
 
-    const errors = [{ name: 'bad.jpg', message: 'nope' }]
+    const errors = [
+      makeImportFileError({
+        name: 'bad.jpg',
+        message: 'nope',
+        reason: 'decode-failed',
+      }),
+    ]
     vi.spyOn(importPhotos, 'importPhotoFiles').mockImplementation(
       (_files, options) => {
         options?.onProgress?.({

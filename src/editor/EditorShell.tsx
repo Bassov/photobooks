@@ -4,6 +4,7 @@ import { ToastRegion } from '../ui/Toast'
 import { createToastQueue } from '../ui/toastQueue'
 import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
 import { Filmstrip } from './Filmstrip'
+import { ImportErrorsPanel } from './ImportErrorsPanel'
 import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import type { ImportProgress } from './importPhotos'
@@ -44,6 +45,7 @@ export function EditorShell() {
       </main>
 
       <Filmstrip progress={progress} />
+      <ImportErrorsPanel />
       <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
     </div>
   )

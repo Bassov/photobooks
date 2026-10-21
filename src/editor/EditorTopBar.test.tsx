@@ -24,6 +24,8 @@ import {
   setAccessPhaseForTests,
 } from './projectSession'
 import * as projectSession from './projectSession'
+import { makeImportFileError } from './importFileError.test-helpers'
+import { resetImportErrorsStoreForTests } from './importErrorsStore'
 import { resetThumbCache } from './thumbCache'
 import { resetTierDisplay } from './tierDisplay'
 import {
@@ -44,6 +46,7 @@ describe('EditorTopBar', () => {
     resetAssetSources()
     resetProjectSessionForTests()
     resetNoPhotosFoundHint()
+    resetImportErrorsStoreForTests()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -178,10 +181,16 @@ describe('EditorTopBar', () => {
     })
   })
 
-  it('shows import errors and keeps a finished progress payload', async () => {
+  it('shows import errors and opens the panel from Show files', async () => {
     vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
       imported: 0,
-      errors: [{ name: 'bad.jpg', message: 'decode failed' }],
+      errors: [
+        makeImportFileError({
+          name: 'bad.jpg',
+          message: 'decode failed',
+          reason: 'decode-failed',
+        }),
+      ],
     })
     render(<EditorShell />)
     const input = screen.getByTestId('photo-file-input')
@@ -197,11 +206,14 @@ describe('EditorTopBar', () => {
         'bad.jpg',
       )
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Show files' }))
     await waitFor(() => {
       expect(screen.getByTestId('editor-status').textContent).toContain(
         'bad.jpg: decode failed',
       )
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Show files' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('import-errors-panel')).toBeTruthy()
     })
   })
 
@@ -376,11 +388,17 @@ describe('EditorTopBar', () => {
     expect(save).toHaveBeenCalled()
   })
 
-  it('hides import errors after a successful import', async () => {
+  it('clears the import-error toast after a successful import', async () => {
     vi.spyOn(importPhotos, 'importPhotoFiles')
       .mockResolvedValueOnce({
         imported: 0,
-        errors: [{ name: 'bad.jpg', message: 'decode failed' }],
+        errors: [
+          makeImportFileError({
+            name: 'bad.jpg',
+            message: 'decode failed',
+            reason: 'decode-failed',
+          }),
+        ],
       })
       .mockResolvedValueOnce({ imported: 1, errors: [] })
     render(<EditorShell />)
@@ -404,8 +422,11 @@ describe('EditorTopBar', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('import-errors')).toBeNull()
     })
-    // Successful import clears at start (empty errors) and must not leave a toast.
+    // Toast clears on success; store keeps prior errors (append model).
     expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: /Imported with 1 error/ }),
+    ).toBeTruthy()
   })
 
   it('marks no-photos found when a folder import adds zero photos', async () => {
@@ -419,7 +440,11 @@ describe('EditorTopBar', () => {
     vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
       imported: 0,
       errors: [
-        { name: 'README.md', message: 'Unsupported image format: text/plain' },
+        makeImportFileError({
+          name: 'README.md',
+          message: 'Unsupported image format: text/plain',
+          reason: 'unsupported-type',
+        }),
       ],
     })
     render(<EditorShell />)
