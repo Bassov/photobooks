@@ -370,7 +370,7 @@ test('valid JPEG plus corrupt JPEG keeps one tile', async ({ page }) => {
   await assertDocumentFitsViewport(page)
 })
 
-test('import errors panel groups, dismisses, clears, and jumps to a tile', async ({
+test('import errors panel groups, dismisses, clears; decode shows Not imported', async ({
   page,
 }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })

@@ -12,3 +12,11 @@
 1. Session editor: Add photos with one truncated JPEG alone → import error listed, `data-gallery-count` 0, no filmstrip tile.
 2. Same: one valid JPEG + truncated JPEG → one error, count 1, single real thumbnail (no grey tile to select/place).
 3. Filmstrip scrollport only (no page-level H/V scroll) after the mixed import.
+
+OK Session editor: Add photos with one truncated JPEG alone → import error listed, `data-gallery-count` 0, no filmstrip tile.
+OK Same: one valid JPEG + truncated JPEG → one error, count 1, single real thumbnail (no grey tile to select/place).
+OK Filmstrip scrollport only (no page-level H/V scroll) after the mixed import.
+
+OK Session editor: Add photos with one truncated JPEG alone → import error listed, `data-gallery-count` 0, no filmstrip tile.
+OK Same: one valid JPEG + truncated JPEG → one error, count 1, single real thumbnail (no grey tile to select/place).
+OK Filmstrip scrollport only (no page-level H/V scroll) after the mixed import.
