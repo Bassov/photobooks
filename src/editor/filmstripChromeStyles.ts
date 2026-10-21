@@ -25,3 +25,22 @@ export const filmstripImportProgressStyle: CSSProperties = {
   flex: '0 1 auto',
   alignSelf: 'center',
 }
+
+/** Filmstrip status control that opens the import-errors panel. */
+export const filmstripImportErrorsActionStyle: CSSProperties = {
+  margin: 0,
+  padding: 0,
+  border: 'none',
+  background: 'transparent',
+  fontFamily: 'var(--font-ui)',
+  fontSize: 'var(--text-xs)',
+  color: 'var(--destructive)',
+  cursor: 'pointer',
+  textDecoration: 'underline',
+  textUnderlineOffset: 2,
+}
+
+export const filmstripImportJumpHighlightStyle: CSSProperties = {
+  outline: '2px solid var(--ring)',
+  outlineOffset: 2,
+}

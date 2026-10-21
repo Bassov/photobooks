@@ -36,9 +36,38 @@ export interface AssetProcessResult {
   previewMimeType: string
 }
 
+export type ImportErrorReason = 'unsupported-type' | 'heic' | 'decode-failed'
+
 export interface ImportFileError {
+  id: string
   name: string
   message: string
+  reason: ImportErrorReason
+  assetId?: string
+}
+
+export function createImportFileError(input: {
+  name: string
+  message: string
+  reason: ImportErrorReason
+  assetId?: string
+}): ImportFileError {
+  const id = crypto.randomUUID()
+  if (input.assetId === undefined) {
+    return {
+      id,
+      name: input.name,
+      message: input.message,
+      reason: input.reason,
+    }
+  }
+  return {
+    id,
+    name: input.name,
+    message: input.message,
+    reason: input.reason,
+    assetId: input.assetId,
+  }
 }
 
 export interface ImportBatchState {
@@ -481,7 +510,14 @@ export async function runImportBatch(
           }
           const message =
             error instanceof Error ? error.message : 'Failed to import photo'
-          errors.push({ name: item.file.name, message })
+          errors.push(
+            createImportFileError({
+              name: item.file.name,
+              message,
+              reason: 'decode-failed',
+              assetId: item.assetId,
+            }),
+          )
         } finally {
           completed += 1
           emit(true)

@@ -39,6 +39,7 @@ import {
   enqueueImportErrorsToast,
   importErrorsStatusText,
 } from './importErrorToast'
+import { appendImportErrors, openImportErrorsPanel } from './importErrorsStore'
 import type { ImportProgress } from './importPhotos'
 import { installEditorSaveShortcut } from './installEditorSaveShortcut'
 import {
@@ -116,8 +117,10 @@ export function EditorTopBar({
           return
         }
         const snapshot = [...next]
+        appendImportErrors(snapshot)
+        setEditorStatus(importErrorsStatusText(snapshot))
         enqueueImportErrorsToast(toastQueue, snapshot, () => {
-          setEditorStatus(importErrorsStatusText(snapshot))
+          openImportErrorsPanel()
         })
       },
     })

@@ -11,7 +11,6 @@ export async function runChromeImport(
   if (files.length === 0) {
     return
   }
-  options.onErrors([])
   let raf = 0
   let latest!: ImportProgress
   const onProgress = (state: ImportProgress): void => {

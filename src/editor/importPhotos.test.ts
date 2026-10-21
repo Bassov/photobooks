@@ -200,20 +200,31 @@ describe('importPhotoFiles', () => {
           onProgress?: (state: {
             total: number
             completed: number
-            errors: { name: string; message: string }[]
+            errors: {
+              id: string
+              name: string
+              message: string
+              reason: string
+            }[]
             running: boolean
           }) => void
         },
       ) => {
+        const decodeError = {
+          id: 'err-decode',
+          name: 'a.jpg',
+          message: 'decode failed',
+          reason: 'decode-failed' as const,
+        }
         options?.onProgress?.({
           total: 1,
           completed: 1,
-          errors: [{ name: 'a.jpg', message: 'decode failed' }],
+          errors: [decodeError],
           running: false,
         })
         return Promise.resolve({
           results: [],
-          errors: [{ name: 'a.jpg', message: 'decode failed' }],
+          errors: [decodeError],
         })
       },
     )

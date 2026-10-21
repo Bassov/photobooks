@@ -60,7 +60,7 @@ test('specimen page shows token swatches without third-party fonts', async ({
   await expect(page.getByText('3 files skipped')).toBeVisible()
   await page.getByRole('button', { name: 'Show files' }).click()
   await expect(page.getByTestId('specimen-status-polite')).toHaveText(
-    'Opened error list',
+    'Opened import-errors panel (grouped by reason; dismiss / Clear all)',
   )
   await expect(
     page.getByRole('progressbar', { name: 'Import progress' }),

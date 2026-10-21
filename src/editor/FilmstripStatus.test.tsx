@@ -1,9 +1,16 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { makeImportFileError } from './importFileError.test-helpers'
+import {
+  appendImportErrors,
+  isImportErrorsPanelOpen,
+  resetImportErrorsStoreForTests,
+} from './importErrorsStore'
 import { FilmstripStatus } from './FilmstripStatus'
 
 afterEach(() => {
   cleanup()
+  resetImportErrorsStoreForTests()
 })
 
 describe('FilmstripStatus', () => {
@@ -61,22 +68,32 @@ describe('FilmstripStatus', () => {
     ).toBe('1')
   })
 
-  it('shows finished-with-errors copy without a progress bar', () => {
+  it('shows a store-backed errors button that opens the panel', () => {
+    appendImportErrors([
+      makeImportFileError({
+        name: 'a.tif',
+        message: 'Unsupported',
+        reason: 'unsupported-type',
+      }),
+    ])
     render(
       <FilmstripStatus
         photoCount={1}
         progress={{
           total: 2,
           completed: 2,
-          errors: [{ name: 'a.tif', message: 'Unsupported' }],
+          errors: [],
           running: false,
         }}
       />,
     )
-    expect(screen.getByTestId('import-progress').textContent).toMatch(
-      /Imported with 1 error/,
-    )
+    const button = screen.getByRole('button', {
+      name: /Imported with 1 error/,
+    })
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.getByTestId('filmstrip-count').textContent).toBe('1 photo')
+    expect(isImportErrorsPanelOpen()).toBe(false)
+    fireEvent.click(button)
+    expect(isImportErrorsPanelOpen()).toBe(true)
   })
 })

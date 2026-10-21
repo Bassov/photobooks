@@ -30,6 +30,12 @@ import {
   setSelectedAssetId,
   subscribeGallerySelection,
 } from './gallerySelection'
+import {
+  applyFilmstripJumpScroll,
+  filmstripJumpScrollPlan,
+  getFilmstripJumpRequest,
+  subscribeFilmstripJump,
+} from './filmstripJump'
 import { FilmstripStatus } from './FilmstripStatus'
 import type { ImportProgress } from './importPhotos'
 import {
@@ -132,6 +138,27 @@ export const Filmstrip = memo(function Filmstrip({
   useEffect(() => {
     setVisibleAssetIds(items.map((item) => item.id))
   }, [items])
+
+  const jumpRequest = useSyncExternalStore(
+    subscribeFilmstripJump,
+    getFilmstripJumpRequest,
+    getFilmstripJumpRequest,
+  )
+
+  useEffect(() => {
+    if (jumpRequest === null) {
+      return
+    }
+    const windowStart = applyFilmstripJumpScroll(
+      scrollRef.current,
+      filmstripJumpScrollPlan(gallery, prefix, jumpRequest.assetId),
+    )
+    if (windowStart === null) {
+      return
+    }
+    pendingStart.current = windowStart
+    setWindowStart(windowStart)
+  }, [jumpRequest, gallery, prefix])
 
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
     const scrollLeft = event.currentTarget.scrollLeft
