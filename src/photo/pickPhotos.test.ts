@@ -2,11 +2,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   canUseDirectoryPicker,
   canUseOpenFilePicker,
+  isImageLikeFile,
   partitionImportFiles,
   photoInputAccept,
   pickFolderWithDirectoryPicker,
   pickPhotosWithFilePicker,
 } from './pickPhotos'
+
+describe('isImageLikeFile', () => {
+  it('matches image MIME and known extensions including heic/tiff', () => {
+    expect(isImageLikeFile({ name: 'x.bin', type: 'image/jpeg' })).toBe(true)
+    expect(isImageLikeFile({ name: 'scan.HEIC', type: '' })).toBe(true)
+    expect(isImageLikeFile({ name: 'scan.tiff', type: '' })).toBe(true)
+    expect(isImageLikeFile({ name: 'README.md', type: 'text/markdown' })).toBe(
+      false,
+    )
+  })
+})
 
 describe('partitionImportFiles', () => {
   it('keeps jpeg/png/webp and rejects tiff without dropping accepted', () => {
@@ -17,20 +29,26 @@ describe('partitionImportFiles', () => {
       type: 'image/tiff',
     })
     const png = new File([new Uint8Array([1])], 'b.png', { type: 'image/png' })
-    const { accepted, rejected } = partitionImportFiles([jpeg, tiff, png])
+    const { accepted, rejected, skipped } = partitionImportFiles([
+      jpeg,
+      tiff,
+      png,
+    ])
     expect(accepted).toEqual([jpeg, png])
     expect(rejected).toHaveLength(1)
     expect(rejected[0]?.file).toBe(tiff)
     expect(rejected[0]?.message).toMatch(/Unsupported/i)
     expect(rejected[0]?.reason).toBe('unsupported-type')
+    expect(skipped).toEqual([])
   })
 
   it('treats empty mime as unsupported octet-stream', () => {
     const bare = new File([new Uint8Array([1])], 'no-ext')
-    const { accepted, rejected } = partitionImportFiles([bare])
+    const { accepted, rejected, skipped } = partitionImportFiles([bare])
     expect(accepted).toHaveLength(0)
     expect(rejected[0]?.message).toMatch(/octet-stream|Unsupported/i)
     expect(rejected[0]?.reason).toBe('unsupported-type')
+    expect(skipped).toEqual([])
   })
 
   it('tags HEIC-like rejects with heic reason', () => {
@@ -40,13 +58,58 @@ describe('partitionImportFiles', () => {
     const heifExt = new File([new Uint8Array([1])], 'scan.heif', {
       type: '',
     })
-    const { rejected } = partitionImportFiles([heic, heifExt])
+    const { rejected, skipped } = partitionImportFiles([heic, heifExt])
     expect(rejected.map((entry) => entry.reason)).toEqual(['heic', 'heic'])
     expect(rejected[0]?.message).toMatch(/Unsupported/i)
+    expect(skipped).toEqual([])
+  })
+
+  it('folder source skips non-image-like files but still rejects tiff/heic', () => {
+    const jpeg = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    const readme = new File(['# hi'], 'README.md', { type: 'text/markdown' })
+    const txt = new File(['x'], 'notes.txt', { type: 'text/plain' })
+    const ds = new File([], '.DS_Store', { type: '' })
+    const tiff = new File([new Uint8Array([1])], 'scan.tiff', {
+      type: 'image/tiff',
+    })
+    const heic = new File([new Uint8Array([1])], 'phone.heic', { type: '' })
+    const { accepted, rejected, skipped } = partitionImportFiles(
+      [jpeg, readme, txt, ds, tiff, heic],
+      { source: 'folder' },
+    )
+    expect(accepted).toEqual([jpeg])
+    expect(skipped.map((file) => file.name)).toEqual([
+      'README.md',
+      'notes.txt',
+      '.DS_Store',
+    ])
+    expect(rejected.map((entry) => entry.file.name)).toEqual([
+      'scan.tiff',
+      'phone.heic',
+    ])
+    expect(rejected.map((entry) => entry.reason)).toEqual([
+      'unsupported-type',
+      'heic',
+    ])
+  })
+
+  it('files source still rejects README as unsupported', () => {
+    const readme = new File(['# hi'], 'README.md', { type: 'text/markdown' })
+    const { rejected, skipped } = partitionImportFiles([readme], {
+      source: 'files',
+    })
+    expect(skipped).toEqual([])
+    expect(rejected[0]?.reason).toBe('unsupported-type')
   })
 
   it('returns empty partitions for an empty list', () => {
-    expect(partitionImportFiles([])).toEqual({ accepted: [], rejected: [] })
+    expect(partitionImportFiles([])).toEqual({
+      accepted: [],
+      rejected: [],
+      skipped: [],
+    })
   })
 })
 

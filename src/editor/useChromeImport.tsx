@@ -31,6 +31,12 @@ import {
 } from './projectSession'
 import { runChromeImport } from './runChromeImport'
 
+function folderSkippedStatusText(skipped: number): string {
+  return skipped === 1
+    ? '1 non-image file skipped'
+    : `${String(skipped)} non-image files skipped`
+}
+
 export interface ChromeImportApi {
   onAddPhotos: () => Promise<void>
   onAddFolder: () => Promise<void>
@@ -61,7 +67,9 @@ export function useChromeImport(options: {
     files: readonly File[],
     source: 'photos' | 'folder',
   ): Promise<void> => {
+    const importSource = source === 'folder' ? 'folder' : 'files'
     const result = await runChromeImport(files, {
+      source: importSource,
       onProgress: options.onImportProgress,
       onErrors: (next) => {
         if (next.length === 0) {
@@ -76,6 +84,9 @@ export function useChromeImport(options: {
         })
       },
     })
+    if (result.skipped > 0 && result.errors.length === 0) {
+      setEditorStatus(folderSkippedStatusText(result.skipped))
+    }
     applyChromeImportHint(source, result.imported, files.length)
   }
 

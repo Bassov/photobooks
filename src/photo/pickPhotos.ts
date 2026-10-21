@@ -94,37 +94,72 @@ export function photoInputAccept(): string {
   return acceptedPhotoAcceptAttr()
 }
 
-export function partitionImportFiles(files: readonly File[]): {
+const IMAGE_LIKE_EXTENSIONS = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.heic',
+  '.heif',
+  '.tif',
+  '.tiff',
+] as const
+
+/** True when MIME is `image/*` or the name has a known image extension. */
+export function isImageLikeFile(file: { name: string; type: string }): boolean {
+  const mime = file.type.toLowerCase()
+  if (mime.startsWith('image/')) {
+    return true
+  }
+  const lower = file.name.toLowerCase()
+  return IMAGE_LIKE_EXTENSIONS.some((ext) => lower.endsWith(ext))
+}
+
+export type PartitionImportSource = 'files' | 'folder'
+
+export function partitionImportFiles(
+  files: readonly File[],
+  options: { source?: PartitionImportSource } = {},
+): {
   accepted: File[]
   rejected: {
     file: File
     message: string
     reason: ImportErrorReason
   }[]
+  skipped: File[]
 } {
+  const source = options.source ?? 'files'
   const accepted: File[] = []
   const rejected: {
     file: File
     message: string
     reason: ImportErrorReason
   }[] = []
+  const skipped: File[] = []
   for (const file of files) {
     const mimeType = file.type || 'application/octet-stream'
     if (isAcceptedPhotoMime(mimeType)) {
       accepted.push(file)
-    } else if (isHeicLikeFile(file)) {
+      continue
+    }
+    if (source === 'folder' && !isImageLikeFile(file)) {
+      skipped.push(file)
+      continue
+    }
+    if (isHeicLikeFile(file)) {
       rejected.push({
         file,
         message: `Unsupported image format: ${mimeType}`,
         reason: 'heic',
       })
-    } else {
-      rejected.push({
-        file,
-        message: `Unsupported image format: ${mimeType}`,
-        reason: 'unsupported-type',
-      })
+      continue
     }
+    rejected.push({
+      file,
+      message: `Unsupported image format: ${mimeType}`,
+      reason: 'unsupported-type',
+    })
   }
-  return { accepted, rejected }
+  return { accepted, rejected, skipped }
 }

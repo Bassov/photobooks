@@ -267,6 +267,34 @@ test('unsupported TIFF shows import error without gallery entry', async ({
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
 })
 
+test('folder import skips README without import-errors', async ({ page }) => {
+  const dir = join(tmpdir(), `pb-folder-skip-${String(Date.now())}`)
+  mkdirSync(dir)
+  writeFileSync(
+    join(dir, 'shot.jpg'),
+    readFileSync(photoFixturePaths.sampleOrient6),
+  )
+  writeFileSync(join(dir, 'README.md'), '# notes\n')
+
+  await openSessionEditor(page)
+  await page.getByTestId('folder-file-input').setInputFiles(dir)
+
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('import-errors')).toHaveCount(0)
+  await expect(page.getByTestId('editor-status')).toHaveText(
+    '1 non-image file skipped',
+  )
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 15_000 },
+    )
+    .toBe('1')
+})
+
 test('imports lossy and lossless WebP; place shows rendered frame image', async ({
   page,
 }) => {

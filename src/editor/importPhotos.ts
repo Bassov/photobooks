@@ -33,14 +33,6 @@ import { isLibraryBacked } from './projectSession'
 import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
 import { setThumbUrl } from './thumbCache'
 
-export {
-  buildContentHashIndex,
-  buildReuseIndex,
-  findReusableAssetId,
-  findReusableAssetIdByContentHash,
-  IMPORT_BODY_READ_CAP,
-} from './importBodyReads'
-
 /** `performance.measure` label for the sync import kickoff (handler p95 gate). */
 const IMPORT_PHOTOS_HANDLER_LABEL = 'import-photos'
 
@@ -51,6 +43,14 @@ export interface ImportPhotoOptions {
   /** When set, overrides `isLibraryBacked()` for identity registration. */
   libraryBacked?: boolean
   sourceRootId?: string
+  /** Folder imports skip non-image-like files; default is explicit file pick. */
+  source?: 'files' | 'folder'
+}
+
+export interface ImportPhotoResult {
+  imported: number
+  errors: ImportFileError[]
+  skipped: number
 }
 
 interface PreparedEntry {
@@ -65,7 +65,7 @@ interface PreparedEntry {
 export async function importPhotoFiles(
   files: readonly File[],
   options: ImportPhotoOptions = {},
-): Promise<{ imported: number; errors: ImportFileError[] }> {
+): Promise<ImportPhotoResult> {
   return measureHandlerSync(IMPORT_PHOTOS_HANDLER_LABEL, () =>
     Promise.resolve().then(() => importPhotoFilesInner(files, options)),
   )
@@ -151,8 +151,10 @@ function importDecodeBatchOptions(report: (state: ImportBatchState) => void): {
 async function importPhotoFilesInner(
   files: readonly File[],
   options: ImportPhotoOptions,
-): Promise<{ imported: number; errors: ImportFileError[] }> {
-  const { accepted, rejected } = partitionImportFiles(files)
+): Promise<ImportPhotoResult> {
+  const { accepted, rejected, skipped } = partitionImportFiles(files, {
+    source: options.source ?? 'files',
+  })
   const earlyErrors: ImportFileError[] = rejected.map(
     ({ file, message, reason }) =>
       createImportFileError({
@@ -161,13 +163,15 @@ async function importPhotoFilesInner(
         reason,
       }),
   )
+  const skippedCount = skipped.length
+  const progressTotal = accepted.length + rejected.length
 
   const libraryBacked = options.libraryBacked ?? isLibraryBacked()
   const batchRootId =
     options.sourceRootId ??
     (libraryBacked ? `root-${crypto.randomUUID()}` : undefined)
 
-  setImportRunning(true, accepted.length + rejected.length)
+  setImportRunning(true, progressTotal)
   try {
     if (libraryBacked) {
       // Content-hash fallback needs settled hashes from prior imports.
@@ -247,7 +251,7 @@ async function importPhotoFilesInner(
     const report = (state: ImportBatchState): void => {
       options.onProgress?.({
         ...state,
-        total: accepted.length + rejected.length,
+        total: progressTotal,
         completed: state.completed + rejected.length,
         errors: [...earlyErrors, ...state.errors],
       })
@@ -255,12 +259,12 @@ async function importPhotoFilesInner(
 
     if (immediate.length === 0 && needsHash.length === 0) {
       options.onProgress?.({
-        total: rejected.length,
-        completed: rejected.length,
+        total: progressTotal,
+        completed: progressTotal,
         errors: earlyErrors,
         running: false,
       })
-      return { imported: 0, errors: earlyErrors }
+      return { imported: 0, errors: earlyErrors, skipped: skippedCount }
     }
 
     const bodyGate = createBodyReadGate(IMPORT_BODY_READ_CAP)
@@ -332,6 +336,7 @@ async function importPhotoFilesInner(
         ...immediateOutcome.errors,
         ...deferredOutcome.errors,
       ],
+      skipped: skippedCount,
     }
   } finally {
     setImportRunning(false)
