@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   badgeClassName,
+  rowBadgeColor,
   buildRelinkDialogView,
   filesFromFileList,
   rowBadgeLabel,
@@ -88,5 +89,9 @@ describe('dialogView', () => {
     )
     expect(rowBadgeLabel(true, 'missing')).toBe('Found')
     expect(rowStatusAttr(false, 'modified')).toBe('modified')
+    expect(rowBadgeColor(true, 'missing')).toBe('success')
+    expect(rowBadgeColor(false, 'modified')).toBe('warning')
+    expect(rowBadgeColor(false, 'missing')).toBe('error')
+    expect(rowBadgeColor(false, 'ok')).toBe('success')
   })
 })

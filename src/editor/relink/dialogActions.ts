@@ -5,6 +5,13 @@ export function skipRelinkDialog(): void {
   setRelinkDialogOpen(false)
 }
 
+/** Controlled Dialog dismiss → same as Skip (isDismissable stays false). */
+export function onRelinkDialogOpenChange(next: boolean): void {
+  if (!next) {
+    skipRelinkDialog()
+  }
+}
+
 export function clickFolderInput(input: HTMLInputElement | null): void {
   input?.click()
 }
@@ -24,6 +31,10 @@ export async function resolveAndMaybeClose(
   if (shouldCloseAfterResolve(n)) {
     setRelinkDialogOpen(false)
   }
+}
+
+export function clearFolderInputValue(input: HTMLInputElement): void {
+  input.value = ''
 }
 
 export function folderInputChanged(

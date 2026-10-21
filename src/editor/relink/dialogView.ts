@@ -1,3 +1,4 @@
+import type { BadgeProps } from '../../ui/Badge'
 import type { RelinkProgress, RelinkStatus } from './statusStore'
 import {
   badgeLabel,
@@ -64,4 +65,18 @@ export function rowBadgeLabel(found: boolean, status: RelinkStatus): string {
 
 export function rowStatusAttr(found: boolean, status: RelinkStatus): string {
   return rowDataStatus(found, status)
+}
+
+/** Inventory Badge color for a relink row status. */
+export function rowBadgeColor(
+  found: boolean,
+  status: RelinkStatus,
+): NonNullable<BadgeProps['color']> {
+  if (found || status === 'ok') {
+    return 'success'
+  }
+  if (status === 'modified') {
+    return 'warning'
+  }
+  return 'error'
 }

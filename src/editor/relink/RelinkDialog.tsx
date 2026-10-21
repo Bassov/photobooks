@@ -6,34 +6,34 @@ import {
   type RefObject,
 } from 'react'
 import { photoInputAccept } from '../../photo/pickPhotos'
+import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
+import { Dialog, DialogTitle } from '../../ui/Dialog'
 import { getAssetDisplayName } from '../bookStore'
 import {
   bindFolderInput,
+  clearFolderInputValue,
   clickFolderInput,
   folderInputChanged,
+  onRelinkDialogOpenChange,
   resolveAndMaybeClose,
   skipRelinkDialog,
 } from './dialogActions'
 import {
   buildRelinkDialogView,
+  rowBadgeColor,
   rowBadgeLabel,
   rowStatusAttr,
 } from './dialogView'
 import {
-  badgeStyle,
-  relinkBackdropStyle,
-  relinkDialogStyle,
   relinkEmptyStyle,
   relinkFileInputStyle,
   relinkFootStyle,
-  relinkHeadStyle,
   relinkListStyle,
   relinkProgressStyle,
   relinkRowNameStyle,
   relinkRowStyle,
   relinkSubStyle,
-  relinkTitleStyle,
 } from './relinkStyles'
 import {
   getFoundRelinkIds,
@@ -76,7 +76,12 @@ function RelinkProblemList(): ReactElement {
   )
   const view = buildRelinkDialogView(statuses, found, null, 'problems')
   return (
-    <div style={relinkListStyle} data-testid="relink-list" tabIndex={0}>
+    <div
+      style={relinkListStyle}
+      data-testid="relink-list"
+      data-scrollport="relink-list"
+      tabIndex={0}
+    >
       {view.rows.length === 0 ? (
         <p style={relinkEmptyStyle} data-testid="relink-empty">
           Everything is linked.
@@ -93,9 +98,13 @@ function RelinkProblemList(): ReactElement {
             <div style={relinkRowNameStyle}>
               {getAssetDisplayName(row.assetId)}
             </div>
-            <span style={badgeStyle(row.found, row.status)}>
+            <Badge
+              color={rowBadgeColor(row.found, row.status)}
+              size="sm"
+              type="pill-color"
+            >
               {rowBadgeLabel(row.found, row.status)}
-            </span>
+            </Badge>
           </div>
         ))
       )}
@@ -168,8 +177,8 @@ function RelinkDialogFooter(props: {
 }
 
 /**
- * Minimal missing-assets dialog shell. Matching / progress / apply live in
- * pure modules; dialog chrome stays minimal in this slice.
+ * Missing-assets dialog on shared Dialog / Badge primitives. Matching /
+ * progress / apply live in pure modules.
  */
 export function RelinkDialog(props: {
   onRescanFiles: (files: readonly File[]) => Promise<unknown>
@@ -192,54 +201,53 @@ export function RelinkDialog(props: {
   )
   const folderRef = useRef<HTMLInputElement>(null)
   const folderId = useId()
-
-  if (!open) {
-    return null
-  }
-
   const view = buildRelinkDialogView(statuses, found, null, 'problems')
 
   return (
-    <div
-      style={relinkBackdropStyle}
+    <Dialog
+      isOpen={open}
+      onOpenChange={onRelinkDialogOpenChange}
+      isDismissable={false}
+      className="relink-dialog-panel"
       data-testid="relink-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="relink-dialog-title"
+      style={{
+        width: 'min(760px, calc(100vw - 2rem))',
+        maxHeight: 'min(520px, calc(100vh - 2rem))',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: 0,
+      }}
     >
-      <div style={relinkDialogStyle}>
-        <header style={relinkHeadStyle}>
-          <h2 id="relink-dialog-title" style={relinkTitleStyle}>
-            {view.title}
-          </h2>
-          <p style={relinkSubStyle}>
-            Rescan a folder to match photos by content hash. Skip keeps the book
-            editable with hatched frames.
-          </p>
-        </header>
+      <header style={{ padding: '1.1rem 1.35rem 0.6rem' }}>
+        <DialogTitle>{view.title}</DialogTitle>
+        <p style={relinkSubStyle}>
+          Rescan a folder to match photos by content hash. Skip keeps the book
+          editable with hatched frames.
+        </p>
+      </header>
 
-        <RelinkScanProgress />
-        <RelinkProblemList />
-        <RelinkDialogFooter onResolve={props.onResolve} folderRef={folderRef} />
+      <RelinkScanProgress />
+      <RelinkProblemList />
+      <RelinkDialogFooter onResolve={props.onResolve} folderRef={folderRef} />
 
-        <input
-          id={folderId}
-          ref={(el) => {
-            bindFolderInput(el, folderRef)
-          }}
-          style={relinkFileInputStyle}
-          data-testid="relink-folder-input"
-          type="file"
-          accept={photoInputAccept()}
-          multiple
-          onChange={(event) => {
-            const target = event.currentTarget
-            folderInputChanged(target.files, props.onRescanFiles, () => {
-              target.value = ''
-            })
-          }}
-        />
-      </div>
-    </div>
+      <input
+        id={folderId}
+        ref={(el) => {
+          bindFolderInput(el, folderRef)
+        }}
+        style={relinkFileInputStyle}
+        data-testid="relink-folder-input"
+        type="file"
+        accept={photoInputAccept()}
+        multiple
+        onChange={(event) => {
+          const target = event.currentTarget
+          folderInputChanged(target.files, props.onRescanFiles, () => {
+            clearFolderInputValue(target)
+          })
+        }}
+      />
+    </Dialog>
   )
 }
