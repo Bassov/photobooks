@@ -374,14 +374,14 @@ jobs:
 
       - name: Download e2e results
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: e2e-results
           path: e2e-download
 
       - name: Download burn-in meta
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: burn-in-meta
           path: burn-in-meta
