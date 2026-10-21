@@ -102,6 +102,8 @@ let pendingMeta = new Map<string, AssetSessionMeta>()
 let pendingAssetRecords = new Map<string, Asset>()
 /** Patches that arrived before enqueueGalleryAssets (hash-before-flush race). */
 let pendingAssetPatches = new Map<string, Partial<Asset>>()
+/** Ids removed after a failed decode — late hash patches must not resurrect them. */
+const droppedImportIds = new Set<string>()
 
 const galleryListeners = new Set<Listener>()
 
@@ -297,6 +299,9 @@ export function getAssetContentHash(assetId: string): string | undefined {
 
 /** Merge identity fields onto an existing gallery asset record. */
 export function patchAssetRecord(assetId: string, patch: Partial<Asset>): void {
+  if (droppedImportIds.has(assetId)) {
+    return
+  }
   const existing = state.book.assets[assetId]
   if (existing === undefined) {
     const pending = pendingAssetRecords.get(assetId)
@@ -404,6 +409,38 @@ export function mintAssetId(fileName: string): string {
   return `asset-${String(assetSeq)}-${safe}`
 }
 
+/**
+ * Drop a failed import everywhere: still-pending queues, or flushed gallery
+ * (cascading placements), plus session meta. Marks the id so a late hash
+ * `patchAssetRecord` cannot recreate a record.
+ */
+export function removeFailedImportAsset(assetId: string): void {
+  droppedImportIds.add(assetId)
+  const pendingIndex = pendingGalleryIds.indexOf(assetId)
+  if (pendingIndex !== -1) {
+    pendingGalleryIds.splice(pendingIndex, 1)
+  }
+  pendingMeta.delete(assetId)
+  pendingAssetRecords.delete(assetId)
+  pendingAssetPatches.delete(assetId)
+
+  const inBook =
+    state.book.gallery.includes(assetId) || assetId in state.book.assets
+  if (inBook) {
+    dispatchBookOp({ type: 'removeFromGallery', assetId })
+  }
+
+  if (state.sessionMeta.has(assetId)) {
+    const nextMeta = new Map(state.sessionMeta)
+    nextMeta.delete(assetId)
+    const prev = state
+    state = { ...state, sessionMeta: nextMeta }
+    invalidateGalleryAspectsCache()
+    notifyAffectedSpreads(prev, state)
+    emit()
+  }
+}
+
 /** Queue gallery append + optional placeholder meta; flushed in chunks per animation frame. */
 export function enqueueGalleryAssets(
   entries: readonly {
@@ -413,6 +450,7 @@ export function enqueueGalleryAssets(
   }[],
 ): void {
   for (const entry of entries) {
+    droppedImportIds.delete(entry.assetId)
     pendingGalleryIds.push(entry.assetId)
     const earlyPatch = pendingAssetPatches.get(entry.assetId)
     if (earlyPatch !== undefined) {
@@ -693,6 +731,7 @@ export function resetBookStore(next?: BookStoreInit): void {
   pendingMeta = new Map()
   pendingAssetRecords = new Map()
   pendingAssetPatches = new Map()
+  droppedImportIds.clear()
   flushScheduled = false
   if (flushWatchdogTimer !== undefined) {
     clearTimeout(flushWatchdogTimer)

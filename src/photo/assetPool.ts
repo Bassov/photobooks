@@ -457,6 +457,7 @@ export async function runImportBatch(
   options: {
     onProgress?: ImportBatchListener
     onResult?: (result: AssetProcessResult) => void
+    onError?: (assetId: string, error: ImportFileError) => void
     priority?: DecodeJobPriority
     maxEdge?: number
   } = {},
@@ -510,14 +511,15 @@ export async function runImportBatch(
           }
           const message =
             error instanceof Error ? error.message : 'Failed to import photo'
-          errors.push(
-            createImportFileError({
-              name: item.file.name,
-              message,
-              reason: 'decode-failed',
-              assetId: item.assetId,
-            }),
-          )
+          const importError = createImportFileError({
+            name: item.file.name,
+            message,
+            reason: 'decode-failed',
+            assetId: item.assetId,
+          })
+          errors.push(importError)
+          // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
+          options.onError?.(item.assetId, importError)
         } finally {
           completed += 1
           emit(true)

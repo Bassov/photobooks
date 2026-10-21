@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getAssetSource, resetAssetSources } from '../photo/assetSources'
 import { makePlacedTemplateBook } from '../core/testing/fixtures'
@@ -17,6 +18,7 @@ import {
   getSpacerCountSnapshot,
   mintAssetId,
   patchAssetRecord,
+  removeFailedImportAsset,
   resetBookStore,
   setAssetSessionMeta,
   setImportRunning,
@@ -225,6 +227,146 @@ describe('bookStore', () => {
       hash,
     )
     expect(getAssetContentHash('early-hash')).toBe(hash)
+  })
+
+  it('removeFailedImportAsset drops a still-pending id before flush', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const hash =
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    patchAssetRecord('pending-fail', { contentHash: hash })
+    enqueueGalleryAssets([
+      {
+        assetId: 'pending-fail',
+        meta: sessionFile('pending-fail.jpg'),
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'pending-fail.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    expect(getAssetContentHash('pending-fail')).toBe(hash)
+    removeFailedImportAsset('pending-fail')
+    callbacks[0]?.(0)
+    expect(getGalleryIdsSnapshot()).toEqual([])
+    expect(getBookStoreSnapshot().sessionMeta.has('pending-fail')).toBe(false)
+    expect(getBookStoreSnapshot().book.assets['pending-fail']).toBeUndefined()
+    patchAssetRecord('pending-fail', { contentHash: 'abc' })
+    expect(getAssetContentHash('pending-fail')).toBeUndefined()
+  })
+
+  it('removeFailedImportAsset clears a flushed id and cascaded placements', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'flushed-fail', meta: sessionFile('flushed-fail.jpg') },
+    ])
+    expect(getGalleryIdsSnapshot()).toEqual(['flushed-fail'])
+    const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+    const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
+    assert.ok(spreadId)
+    assert.ok(frameId)
+    dispatchBookOp({
+      type: 'place',
+      spreadId,
+      frameId,
+      assetId: 'flushed-fail',
+    })
+    expect(getPlacementCountSnapshot('flushed-fail')).toBe(1)
+
+    removeFailedImportAsset('flushed-fail')
+    expect(getGalleryIdsSnapshot()).toEqual([])
+    expect(getPlacementCountSnapshot('flushed-fail')).toBe(0)
+    expect(getBookStoreSnapshot().sessionMeta.has('flushed-fail')).toBe(false)
+    patchAssetRecord('flushed-fail', {
+      contentHash:
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    })
+    expect(getBookStoreSnapshot().book.assets['flushed-fail']).toBeUndefined()
+  })
+
+  it('removeFailedImportAsset is a no-op for an unknown id and reset clears the drop guard', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'keep-me', meta: sessionFile('keep.jpg') },
+      { assetId: 'also-keep', meta: sessionFile('also.jpg') },
+    ])
+    removeFailedImportAsset('never-seen')
+    callbacks[0]?.(0)
+    expect(getGalleryIdsSnapshot()).toEqual(['keep-me', 'also-keep'])
+    patchAssetRecord('never-seen', {
+      contentHash:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    })
+    expect(getAssetContentHash('never-seen')).toBeUndefined()
+
+    resetBookStore()
+    const hash =
+      'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+    // Same id must work again only if reset cleared the drop guard.
+    patchAssetRecord('never-seen', { contentHash: hash })
+    expect(getAssetContentHash('never-seen')).toBe(hash)
+  })
+
+  it('re-enqueue after a failed import allows a later hash patch again', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    const staleHash =
+      'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+    patchAssetRecord('retry-id', { contentHash: staleHash })
+    removeFailedImportAsset('retry-id')
+    const hash =
+      'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+    patchAssetRecord('retry-id', { contentHash: hash })
+    expect(getAssetContentHash('retry-id')).toBeUndefined()
+
+    enqueueGalleryAssets([
+      {
+        assetId: 'retry-id',
+        meta: sessionFile('a.jpg'),
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'a.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    // Stale early patch must have been cleared on remove; only a post-enqueue
+    // patch should land.
+    expect(getAssetContentHash('retry-id')).toBeUndefined()
+    patchAssetRecord('retry-id', { contentHash: hash })
+    expect(getAssetContentHash('retry-id')).toBe(hash)
+    callbacks[0]?.(0)
+    expect(getBookStoreSnapshot().book.assets['retry-id']?.contentHash).toBe(
+      hash,
+    )
   })
 
   it('merges contentHash onto a pending asset record before flush', () => {

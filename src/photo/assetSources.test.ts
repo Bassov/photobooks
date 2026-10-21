@@ -5,6 +5,7 @@ import {
   assetSourceCovers,
   getAssetSource,
   painterSourceFile,
+  releaseAssetSource,
   resetAssetSources,
   retainAssetSource,
 } from './assetSources'
@@ -32,6 +33,12 @@ describe('assetSources', () => {
 
     expect(assetSourceCovers('asset-1')).toBe(false)
     expect(assetSourceCovers('missing')).toBe(false)
+  })
+
+  it('releases a retained source so getAssetSource returns undefined', () => {
+    retainAssetSource('asset-1', new File([new Uint8Array([1])], 'a.jpg'))
+    releaseAssetSource('asset-1')
+    expect(getAssetSource('asset-1')).toBeUndefined()
   })
 
   it('builds a png session file for a painter asset', async () => {

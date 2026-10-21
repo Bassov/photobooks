@@ -1,11 +1,27 @@
+import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getBookStoreSnapshot,
   getGalleryIdsSnapshot,
+  getPlacementCountSnapshot,
   resetBookStore,
+  dispatchBookOp,
 } from './bookStore'
+import {
+  getFrameSource,
+  resetFrameSelection,
+  setFrameSource,
+} from './frameSelection'
+import {
+  getSelectedAssetId,
+  resetGallerySelection,
+  setSelectedAssetId,
+} from './gallerySelection'
+// frameSelection subscribes to bookStore and clears move-source when the
+// sourced frame loses its asset (removeFromGallery cascade).
 import { getAssetSource, resetAssetSources } from '../photo/assetSources'
 import { getThumbUrl, resetThumbCache } from './thumbCache'
+import type { ImportFileError } from '../photo/assetPool'
 
 const runImportBatch = vi.hoisted(() => vi.fn())
 
@@ -28,6 +44,8 @@ describe('importPhotoFiles', () => {
     resetBookStore()
     resetThumbCache()
     resetAssetSources()
+    resetGallerySelection()
+    resetFrameSelection()
     runImportBatch.mockReset()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -195,26 +213,27 @@ describe('importPhotoFiles', () => {
     const progress = vi.fn()
     runImportBatch.mockImplementation(
       (
-        _items: unknown,
+        items: { assetId: string; file: File }[],
         options?: {
           onProgress?: (state: {
             total: number
             completed: number
-            errors: {
-              id: string
-              name: string
-              message: string
-              reason: string
-            }[]
+            errors: ImportFileError[]
             running: boolean
           }) => void
+          onError?: (assetId: string, error: ImportFileError) => void
         },
       ) => {
-        const decodeError = {
+        const item = items[0]
+        const decodeError: ImportFileError = {
           id: 'err-decode',
           name: 'a.jpg',
           message: 'decode failed',
-          reason: 'decode-failed' as const,
+          reason: 'decode-failed',
+          ...(item === undefined ? {} : { assetId: item.assetId }),
+        }
+        if (item) {
+          options?.onError?.(item.assetId, decodeError)
         }
         options?.onProgress?.({
           total: 1,
@@ -234,6 +253,7 @@ describe('importPhotoFiles', () => {
     })
     expect(result.imported).toBe(0)
     expect(result.errors.map((e) => e.name).sort()).toEqual(['a.jpg', 'b.tiff'])
+    expect(getGalleryIdsSnapshot()).toEqual([])
     expect(progress).toHaveBeenCalledWith(
       expect.objectContaining({
         total: 2,
@@ -244,6 +264,152 @@ describe('importPhotoFiles', () => {
         ]),
       }),
     )
+  })
+
+  it('onError leaves an unrelated gallery selection intact', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    setSelectedAssetId('other-asset')
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onError?: (assetId: string, error: ImportFileError) => void
+        },
+      ) => {
+        const item = items[0]
+        if (!item) {
+          return Promise.resolve({ results: [], errors: [] })
+        }
+        const error: ImportFileError = {
+          id: 'err',
+          name: item.file.name,
+          message: 'decode failed',
+          reason: 'decode-failed',
+          assetId: item.assetId,
+        }
+        options?.onError?.(item.assetId, error)
+        return Promise.resolve({ results: [], errors: [error] })
+      },
+    )
+    await importPhotoFiles([
+      new File([new Uint8Array([1])], 'bad.jpg', { type: 'image/jpeg' }),
+    ])
+    expect(getSelectedAssetId()).toBe('other-asset')
+  })
+
+  it('onError removes a pending decode failure from the gallery', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onError?: (assetId: string, error: ImportFileError) => void
+        },
+      ) => {
+        const item = items[0]
+        if (!item) {
+          return Promise.resolve({ results: [], errors: [] })
+        }
+        setSelectedAssetId(item.assetId)
+        const error: ImportFileError = {
+          id: 'err',
+          name: item.file.name,
+          message: 'decode failed',
+          reason: 'decode-failed',
+          assetId: item.assetId,
+        }
+        options?.onError?.(item.assetId, error)
+        return Promise.resolve({ results: [], errors: [error] })
+      },
+    )
+
+    const file = new File([new Uint8Array([1])], 'bad.jpg', {
+      type: 'image/jpeg',
+    })
+    const result = await importPhotoFiles([file])
+    for (const cb of callbacks) {
+      cb(0)
+    }
+    expect(result.imported).toBe(0)
+    expect(getGalleryIdsSnapshot()).toEqual([])
+    expect(getSelectedAssetId()).toBeNull()
+    expect(getAssetSource(result.errors[0]?.assetId ?? '')).toBeUndefined()
+  })
+
+  it('onError removes a flushed id, placement, selection; move source clears via store', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onError?: (assetId: string, error: ImportFileError) => void
+        },
+      ) => {
+        const item = items[0]
+        if (!item) {
+          return Promise.resolve({ results: [], errors: [] })
+        }
+        for (const cb of callbacks.splice(0)) {
+          cb(0)
+        }
+        setSelectedAssetId(item.assetId)
+        const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+        const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
+        assert.ok(spreadId)
+        assert.ok(frameId)
+        dispatchBookOp({
+          type: 'place',
+          spreadId,
+          frameId,
+          assetId: item.assetId,
+        })
+        setFrameSource({ spreadId, frameId })
+        expect(getGalleryIdsSnapshot()).toContain(item.assetId)
+        expect(getPlacementCountSnapshot(item.assetId)).toBe(1)
+
+        const error: ImportFileError = {
+          id: 'err',
+          name: item.file.name,
+          message: 'decode failed',
+          reason: 'decode-failed',
+          assetId: item.assetId,
+        }
+        options?.onError?.(item.assetId, error)
+        return Promise.resolve({ results: [], errors: [error] })
+      },
+    )
+
+    const result = await importPhotoFiles([
+      new File([new Uint8Array([1])], 'late.jpg', { type: 'image/jpeg' }),
+    ])
+    for (const cb of callbacks) {
+      cb(0)
+    }
+    expect(result.imported).toBe(0)
+    expect(getGalleryIdsSnapshot()).toEqual([])
+    expect(getSelectedAssetId()).toBeNull()
+    expect(getFrameSource()).toBeNull()
+    expect(getAssetSource(result.errors[0]?.assetId ?? '')).toBeUndefined()
   })
 
   it('enqueues session placeholder meta before decode', async () => {
