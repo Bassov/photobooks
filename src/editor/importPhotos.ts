@@ -5,7 +5,7 @@ import {
   createImportFileError,
   type ImportFileError,
 } from '../photo/assetPool'
-import { retainAssetSource } from '../photo/assetSources'
+import { releaseAssetSource, retainAssetSource } from '../photo/assetSources'
 import { partitionImportFiles } from '../photo/pickPhotos'
 import type { ExifOrientation } from '../photo/types'
 import {
@@ -13,9 +13,11 @@ import {
   getAssetContentHash,
   getBookStoreSnapshot,
   mintAssetId,
+  removeFailedImportAsset,
   setAssetSessionMeta,
   setImportRunning,
 } from './bookStore'
+import { getSelectedAssetId, setSelectedAssetId } from './gallerySelection'
 import {
   buildContentHashIndex,
   buildReuseIndex,
@@ -117,6 +119,33 @@ function applyImportResult(result: {
     result.previewMimeType,
     getAssetContentHash(result.assetId),
   )
+}
+
+function discardFailedImport(assetId: string): void {
+  const clearSelection = getSelectedAssetId() === assetId
+  removeFailedImportAsset(assetId)
+  releaseAssetSource(assetId)
+  // Frame move-source clears via frameSelection's bookStore subscription when
+  // removeFromGallery empties the sourced frame.
+  if (clearSelection) {
+    setSelectedAssetId(null)
+  }
+}
+
+function importDecodeBatchOptions(report: (state: ImportBatchState) => void): {
+  onProgress: (state: ImportBatchState) => void
+  priority: 'prefetch'
+  onResult: typeof applyImportResult
+  onError: (assetId: string) => void
+} {
+  return {
+    onProgress: report,
+    priority: 'prefetch',
+    onResult: applyImportResult,
+    onError: (assetId) => {
+      discardFailedImport(assetId)
+    },
+  }
 }
 
 async function importPhotoFilesInner(
@@ -242,11 +271,7 @@ async function importPhotoFilesInner(
             results: [] as { assetId: string }[],
             errors: [] as ImportFileError[],
           })
-        : runImportBatch(immediate, {
-            onProgress: report,
-            priority: 'prefetch',
-            onResult: applyImportResult,
-          })
+        : runImportBatch(immediate, importDecodeBatchOptions(report))
 
     if (libraryBacked && batchRootId !== undefined && immediate.length > 0) {
       // Fire-and-forget seeds; share the body-read cap with hash fallback.
@@ -291,11 +316,7 @@ async function importPhotoFilesInner(
             results: [] as { assetId: string }[],
             errors: [] as ImportFileError[],
           })
-        : runImportBatch(deferred, {
-            onProgress: report,
-            priority: 'prefetch',
-            onResult: applyImportResult,
-          })
+        : runImportBatch(deferred, importDecodeBatchOptions(report))
 
     const [immediateOutcome, deferredOutcome] = await Promise.all([
       immediateBatch,

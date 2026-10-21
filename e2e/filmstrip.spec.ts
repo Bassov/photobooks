@@ -321,11 +321,53 @@ test('corrupt WebP shows a decode import error', async ({ page }) => {
     .getByTestId('photo-file-input')
     .setInputFiles(photoFixturePaths.sampleCorruptWebp)
 
-  // Blank-tile cleanup after a failed decode is owned by failed-import-no-tile;
-  // this item only asserts the decode error is visible.
   await expect(page.getByTestId('import-errors')).toBeVisible({
     timeout: 30_000,
   })
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe('0')
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+})
+
+test('corrupt JPEG alone leaves no filmstrip tile', async ({ page }) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  const corruptPath = writeCorruptTruncatedJpeg()
+  await openSessionEditor(page)
+  await page.getByTestId('photo-file-input').setInputFiles(corruptPath)
+
+  await expect(page.getByTestId('import-errors')).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe('0')
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+})
+
+test('valid JPEG plus corrupt JPEG keeps one tile', async ({ page }) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  const corruptPath = writeCorruptTruncatedJpeg()
+  await openSessionEditor(page)
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles([photoFixturePaths.sampleOrient6, corruptPath])
+
+  await expect(page.getByTestId('import-errors')).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect
+    .poll(async () =>
+      page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+    )
+    .toBe('1')
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1)
+  await assertDocumentFitsViewport(page)
 })
 
 test('import errors panel groups, dismisses, clears, and jumps to a tile', async ({
@@ -356,7 +398,7 @@ test('import errors panel groups, dismisses, clears, and jumps to a tile', async
     .poll(async () =>
       page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
     )
-    .toBe('17')
+    .toBe('16')
 
   await page.getByRole('button', { name: 'Show files' }).click()
   const panel = page.getByTestId('import-errors-panel')
@@ -367,30 +409,15 @@ test('import errors panel groups, dismisses, clears, and jumps to a tile', async
 
   const corruptName = photoFixturePaths.sampleCorruptWebp.split('/').pop()
   assert.ok(corruptName)
-  const scroll = page.getByTestId('filmstrip-scroll')
-  await scroll.evaluate((node) => {
-    node.scrollLeft = 0
-  })
-  await assertNamedScrollport(page, 'filmstrip-scroll')
-  await panel
-    .locator('button.import-errors-panel__jump', { hasText: corruptName })
-    .click()
-  await expect(panel).toBeHidden()
-  const selected = page.locator(
-    '[data-testid="filmstrip-item"][aria-selected="true"]',
-  )
-  await expect(selected).toBeVisible()
-  await expect(selected).toHaveAttribute('data-import-jump', '')
-  await expect
-    .poll(async () => scroll.evaluate((node) => node.scrollLeft))
-    .toBeGreaterThan(0)
+  await expect(
+    panel.getByText(new RegExp(`${corruptName}.*Not imported`)),
+  ).toBeVisible()
+  await expect(
+    panel.locator('button.import-errors-panel__jump', { hasText: corruptName }),
+  ).toHaveCount(0)
   await assertDocumentFitsViewport(page)
-  await assertNamedScrollport(page, 'filmstrip-scroll', {
-    nudgeHorizontal: false,
-  })
+  await assertNamedScrollport(page, 'filmstrip-scroll')
 
-  await page.getByRole('button', { name: /Imported with 3 error/ }).click()
-  await expect(panel).toBeVisible()
   await panel
     .getByRole('button', { name: 'Dismiss error for scan-a.tiff' })
     .click()
@@ -423,6 +450,24 @@ test('SPA is cross-origin isolated under preview headers', async ({ page }) => {
   await openSessionEditor(page)
   await assertCrossOriginIsolated(page)
 })
+
+/** Truncated JPEG that passes type accept but fails decode. */
+function writeCorruptTruncatedJpeg(): string {
+  const dir = join(
+    tmpdir(),
+    `photobooks-corrupt-jpeg-${String(process.pid)}-${String(Date.now())}`,
+  )
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, 'corrupt_truncated.jpg')
+  // SOI + APP0 fragment only — enough to be typed as JPEG, not to decode.
+  writeFileSync(
+    path,
+    Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+    ]),
+  )
+  return path
+}
 
 function writeBulkImportFixtureSet(count: number): {
   dir: string

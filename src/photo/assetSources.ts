@@ -21,6 +21,10 @@ export function assetSourceCovers(assetId: string): boolean {
   return sources.get(assetId)?.cover === true
 }
 
+export function releaseAssetSource(assetId: string): void {
+  sources.delete(assetId)
+}
+
 export function resetAssetSources(): void {
   sources.clear()
 }

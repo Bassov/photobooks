@@ -112,6 +112,7 @@ describe('assetPool', () => {
       },
     ]
     const progress: { completed: number; errors: number }[] = []
+    const onError = vi.fn()
     const { results, errors } = await runImportBatch(files, {
       onProgress: (state) => {
         progress.push({
@@ -119,10 +120,21 @@ describe('assetPool', () => {
           errors: state.errors.length,
         })
       },
+      onError,
     })
     expect(results).toHaveLength(0)
     expect(errors).toHaveLength(1)
     expect(errors[0]?.message).toBe('boom')
+    expect(errors[0]?.assetId).toBe('bad')
+    expect(onError).toHaveBeenCalledWith(
+      'bad',
+      expect.objectContaining({
+        name: 'bad.jpg',
+        message: 'boom',
+        reason: 'decode-failed',
+        assetId: 'bad',
+      }),
+    )
     expect(progress.at(-1)?.completed).toBe(1)
   })
 
