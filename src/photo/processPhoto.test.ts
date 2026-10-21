@@ -159,6 +159,29 @@ describe('processPhotoRequest', () => {
     })
   })
 
+  it('maps decode failure + HEIC signature to HEIC message', async () => {
+    const size = 20
+    const bytes = new Uint8Array(size)
+    bytes[0] = 0
+    bytes[1] = 0
+    bytes[2] = 0
+    bytes[3] = size
+    bytes.set([0x66, 0x74, 0x79, 0x70], 4)
+    bytes.set([0x68, 0x65, 0x69, 0x63], 8) // heic
+    const file = new File([bytes], 'phone.jpg', { type: 'image/jpeg' })
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn().mockRejectedValue(new Error('decode failed')),
+    )
+
+    const result = await processPhotoRequest({ id: 'req-heic-sig', file })
+
+    expect(result.ok).toBe(false)
+    assert.equal(result.ok, false)
+    expect(result.error).toMatch(/HEIC isn't supported yet/)
+    expect(result.error).toMatch(/Most Compatible/)
+  })
+
   it('succeeds for WebP when EXIF size parse throws Unknown file format', async () => {
     const file = sampleLossyWebpFile()
     exifrApi.parse.mockRejectedValue(new Error('Unknown file format'))

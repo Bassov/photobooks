@@ -55,12 +55,37 @@ describe('partitionImportFiles', () => {
     const heic = new File([new Uint8Array([1])], 'scan.heic', {
       type: 'image/heic',
     })
+    const heifMime = new File([new Uint8Array([1])], 'scan.heif', {
+      type: 'image/heif',
+    })
     const heifExt = new File([new Uint8Array([1])], 'scan.heif', {
       type: '',
     })
-    const { rejected, skipped } = partitionImportFiles([heic, heifExt])
-    expect(rejected.map((entry) => entry.reason)).toEqual(['heic', 'heic'])
-    expect(rejected[0]?.message).toMatch(/Unsupported/i)
+    const octet = new File([new Uint8Array([1])], 'phone.heic', {
+      type: 'application/octet-stream',
+    })
+    const emptyMime = new File([new Uint8Array([1])], 'cam.HEIC', {
+      type: '',
+    })
+    const { rejected, skipped } = partitionImportFiles([
+      heic,
+      heifMime,
+      heifExt,
+      octet,
+      emptyMime,
+    ])
+    expect(rejected.map((entry) => entry.reason)).toEqual([
+      'heic',
+      'heic',
+      'heic',
+      'heic',
+      'heic',
+    ])
+    expect(
+      rejected.every((entry) =>
+        entry.message.includes("HEIC isn't supported yet"),
+      ),
+    ).toBe(true)
     expect(skipped).toEqual([])
   })
 
@@ -128,18 +153,29 @@ describe('pickPhotosWithFilePicker', () => {
   it('returns files from multiple handles', async () => {
     const a = new File([new Uint8Array([1])], 'a.jpg', { type: 'image/jpeg' })
     const b = new File([new Uint8Array([2])], 'b.png', { type: 'image/png' })
+    const open = vi
+      .fn()
+      .mockResolvedValue([
+        { getFile: vi.fn().mockResolvedValue(a) },
+        { getFile: vi.fn().mockResolvedValue(b) },
+      ])
     Object.defineProperty(window, 'showOpenFilePicker', {
       configurable: true,
       writable: true,
-      value: vi
-        .fn()
-        .mockResolvedValue([
-          { getFile: vi.fn().mockResolvedValue(a) },
-          { getFile: vi.fn().mockResolvedValue(b) },
-        ]),
+      value: open,
     })
     await expect(pickPhotosWithFilePicker()).resolves.toEqual([a, b])
     expect(canUseOpenFilePicker()).toBe(true)
+    const options = open.mock.calls[0]?.[0] as {
+      types: { accept: Record<string, string[]> }[]
+    }
+    expect(options.types[0]?.accept['image/heic']).toEqual(['.heic'])
+    expect(options.types[0]?.accept['image/heif']).toEqual(['.heif'])
+  })
+
+  it('exposes HEIC in the photo input accept attribute', () => {
+    expect(photoInputAccept()).toContain('.heic')
+    expect(photoInputAccept()).toContain('image/heic')
   })
 
   it('returns null on AbortError and rethrows other errors', async () => {

@@ -1,8 +1,5 @@
-import {
-  acceptedPhotoAcceptAttr,
-  isAcceptedPhotoMime,
-  isHeicLikeFile,
-} from './mime'
+import { acceptedPhotoAcceptAttr, isAcceptedPhotoMime } from './mime'
+import { HEIC_UNSUPPORTED_MESSAGE, isHeicLikeFile } from './heic'
 import type { ImportErrorReason } from './assetPool'
 
 const PICKER_TYPES = [
@@ -12,6 +9,10 @@ const PICKER_TYPES = [
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
       'image/webp': ['.webp'],
+      // Stryker disable next-line ArrayDeclaration: FSA accept extensions asserted in pickPhotos.test; empty-array mutants are picker-filter only
+      'image/heic': ['.heic'],
+      // Stryker disable next-line ArrayDeclaration: FSA accept extensions asserted in pickPhotos.test; empty-array mutants are picker-filter only
+      'image/heif': ['.heif'],
     },
   },
 ]
@@ -150,7 +151,7 @@ export function partitionImportFiles(
     if (isHeicLikeFile(file)) {
       rejected.push({
         file,
-        message: `Unsupported image format: ${mimeType}`,
+        message: HEIC_UNSUPPORTED_MESSAGE,
         reason: 'heic',
       })
       continue
