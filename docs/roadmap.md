@@ -99,7 +99,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [x] [feature] [import-errors-panel](roadmap/M2.5/import-errors-panel.md) — import errors you can dismiss, clear, group by reason and jump from
 - [x] [feature] [editor-empty-hints](roadmap/M2.5/editor-empty-hints.md) — empty-editor card with import actions and a placement hint until the first photo is placed
 - [x] [feature] [project-screens-adoption](roadmap/M2.5/project-screens-adoption.md) — M2 screens on the design system
-- [ ] [feature] [dark-theme](roadmap/M2.5/dark-theme.md) — dark neutral theme
+- [x] [feature] [dark-theme](roadmap/M2.5/dark-theme.md) — dark neutral theme
 
 ## M3 — Building a real book
 
