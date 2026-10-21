@@ -656,18 +656,11 @@ function readPersistedIds(): {
 }
 
 function scheduleBackground(task: () => Promise<void>): void {
-  const scheduler = (
-    globalThis as typeof globalThis & {
-      scheduler?: {
-        postTask?: (
-          callback: () => void,
-          options?: { priority?: string },
-        ) => Promise<unknown>
-      }
-    }
-  ).scheduler
-  if (typeof scheduler?.postTask === 'function') {
-    void scheduler.postTask(
+  // TS 6+ types scheduler as always present; still probe at runtime for older engines.
+  const candidate = Reflect.get(globalThis, 'scheduler') as
+    { postTask?: Scheduler['postTask'] } | undefined
+  if (typeof candidate?.postTask === 'function') {
+    void candidate.postTask(
       () => {
         void task()
       },
