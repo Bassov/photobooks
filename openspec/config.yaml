@@ -11,7 +11,7 @@ context: |
   Quality bar:
   - TypeScript strict + exactOptionalPropertyTypes + noUncheckedIndexedAccess; ESLint strict-type-checked + stylistic-type-checked with --max-warnings=0
   - Apply loops: run `pnpm check:fast` (A; afterUnit = patch-coverage only; no stryker) until OK lines (logs under `.cache/checks/` or `--verbose`). `pnpm check` aliases check:fast
-  - Quality phases (B): `pnpm test:e2e:changed` + `pnpm stryker:diff` at agent stages 4/7/9 — not inside every check. Nightly full Stryker on main; CI also runs stryker-diff
+  - Quality phases (B): `pnpm test:e2e:changed:quiet` + `pnpm stryker:diff` at agent stages 4/7/9 — not inside every check. Nightly full Stryker on main; CI also runs stryker-diff
   - C1 = `pnpm check:integrity`; C2 = `pnpm quality:self-check` at stage 11 only (with `pnpm agent stamp-green`)
   - Property-based tests via @fast-check/vitest (numRuns ~100 local; higher in CI)
   - Perf: Lighthouse CI budgets (budget.json); 60 fps proxies — zero LoAF, handler p95 ≤ 2 ms, INP ≤ 100 ms (`src/perf/budgets.ts`); `pnpm perf`
@@ -73,7 +73,7 @@ operations:
       - 'When UI is in scope: before push/archive, skill `ui-review` + evidenced browser smoke (empty + happy + primary scroll/interact). Prefer Playwright; MCP screenshots are supporting evidence.'
       - 'Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep/contingency fast-track (roadmap item is the plan; keep implementation-reviewer + `pnpm check:fast`).'
       - 'If apply will exceed size guidance (~1000 / prefer ≤1500; advisory), prefer `pnpm roadmap add <slug> --after <current>` rather than enlarging the PR.'
-      - 'Keep `pnpm check:fast` green in apply loops (unit + patch-coverage). Run B (`pnpm test:e2e:changed` + `pnpm stryker:diff`) at quality phases — mutation is not part of check:fast. Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
+      - 'Keep `pnpm check:fast` green in apply loops (unit + patch-coverage). Run B (`pnpm test:e2e:changed:quiet` + `pnpm stryker:diff`) at quality phases — mutation is not part of check:fast. Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
       - 'Survivors: delete dead code or use budgeted `// Stryker disable next-line …: <reason>`; illegal disable forms are forbidden.'
       - 'Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.'
       - 'After verify gates pass, launch `openspec-implementation-reviewer`.'

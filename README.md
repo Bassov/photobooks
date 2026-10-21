@@ -55,9 +55,11 @@ Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm check:inte
 
 - Config: `openspec/config.yaml` (quality bar, short proposal limits, mandatory verify + review gates)
 - Cursor skills/commands under `.cursor/`
-- Review subagents: `.cursor/agents/openspec-proposal-reviewer.md`, `.cursor/agents/openspec-design-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`
+- Review subagents: `.cursor/agents/openspec-planning-reviewer.md`, `.cursor/agents/openspec-implementation-reviewer.md`, plus `manual-qa`
 
-Workflow: propose → proposal-reviewer → design → design-reviewer → tasks → apply → verify gates → implementation-reviewer → manual check → archive → PR. Unattended one-item run: `/next-roadmap-item`.
+Workflow: plan → planning-reviewer → apply (`check:fast`) → B at stage 4 → phase commit → impl-reviewer → … → stage 11 → thin finish. Unattended one-item run: `/next-roadmap-item`.
+
+Stage 11: `stamp-green` after `check:integrity` + `quality:self-check`. `pnpm agent finish` is thin push+PR; CI red → `ci-brief`.
 
 ## CI
 

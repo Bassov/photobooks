@@ -35,7 +35,7 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `pnpm roadmap`                | `next` / `show` / `add` / `done` / `check`                                |
 | `pnpm agent`                  | `preflight` / `finish` / `stamp-green` / `ci-brief` / `archive` / `stats` |
 | `pnpm check:fast` / `check`   | A: unit gates + patch-coverage (no stryker); apply loops                  |
-| `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (stage 11 + self-check + stamp)        |
+| `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (stage 11 · hand-push · CI)            |
 | `pnpm verify`                 | `check:fast` + Playwright                                                 |
 | `pnpm test:e2e:changed:quiet` | B (with `stryker:diff`): changed e2e, quiet                               |
 | `pnpm perf`                   | Playwright frame-budget scenarios                                         |

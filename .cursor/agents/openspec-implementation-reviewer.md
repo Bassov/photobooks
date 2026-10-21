@@ -1,6 +1,6 @@
 ---
 name: openspec-implementation-reviewer
-description: 'Reviews OpenSpec apply results against proposal/design/tasks after verify gates. Use proactively when implementation finishes and before archive.'
+description: 'Reviews OpenSpec apply results against proposal/design/tasks after A+B (stages 3–4 / rework). Use proactively when implementation finishes and before archive.'
 model: inherit
 readonly: true
 ---
