@@ -186,7 +186,8 @@ describe('projectSession', () => {
 
     saveBookNow()
     await vi.waitFor(() => {
-      expect(getEditorStatus()).toContain('permission-required')
+      expect(getEditorStatus()).toMatch(/folder access|grant access/i)
+      expect(getEditorStatus()).not.toContain('permission-required')
     })
     expect(getProjectSessionSnapshot().status).toEqual({
       kind: 'error',
@@ -199,7 +200,8 @@ describe('projectSession', () => {
   it('reports not-found when creating a book without a library', async () => {
     const result = await createBookInLibrary()
     expect(result).toEqual({ ok: false, code: 'not-found' })
-    expect(getEditorStatus()).toContain('not-found')
+    expect(getEditorStatus()).toMatch(/Could not create book/i)
+    expect(getEditorStatus()).not.toContain('not-found')
     expect(getProjectSessionSnapshot().status).toEqual({
       kind: 'error',
       code: 'not-found',
@@ -456,7 +458,8 @@ describe('projectSession', () => {
     })
     const restored = await tryRestore()
     expect(restored).toEqual({ ok: true, value: null })
-    expect(getEditorStatus()).toContain('permission-required')
+    expect(getEditorStatus()).toMatch(/folder access|grant access/i)
+    expect(getEditorStatus()).not.toContain('permission-required')
     expect(getProjectSessionSnapshot().accessPhase).toBe('permission-required')
   })
 
@@ -759,7 +762,7 @@ describe('projectSession', () => {
     ).toBeTypeOf('function')
   })
 
-  it('shouldExposeProjectSessionTestApi is true in DEV and false in production without e2e', async () => {
+  it('shouldExposeProjectSessionTestApi is true in DEV and VITE_E2E only', async () => {
     const { shouldExposeProjectSessionTestApi } =
       await import('./projectSession')
     expect(shouldExposeProjectSessionTestApi({ DEV: true })).toBe(true)
@@ -769,16 +772,7 @@ describe('projectSession', () => {
     expect(
       shouldExposeProjectSessionTestApi({ DEV: false, VITE_E2E: 'true' }),
     ).toBe(true)
-    const productionWindow = {
-      __photobooksE2e: undefined,
-    } as unknown as Window
-    expect(
-      shouldExposeProjectSessionTestApi({ DEV: false }, productionWindow),
-    ).toBe(false)
-    productionWindow.__photobooksE2e = true
-    expect(
-      shouldExposeProjectSessionTestApi({ DEV: false }, productionWindow),
-    ).toBe(true)
+    expect(shouldExposeProjectSessionTestApi({ DEV: false })).toBe(false)
   })
 
   it('does not attach thumbs or project test APIs when the gate is off', () => {

@@ -37,6 +37,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 - [ ] [feature] [folder-skip-non-images](roadmap/M2.2/folder-skip-non-images.md) — folder import skips non-image files with one summary line instead of errors
 - [ ] [feature] [heic-unsupported-message](roadmap/M2.2/heic-unsupported-message.md) — HEIC/HEIF photos get a clear "not supported yet, convert to JPEG" message
 - [ ] [feature] [recents-home-quality](roadmap/M2.2/recents-home-quality.md) — home polish after correctness (what M2.1 does not cover)
+- [ ] [feature] [recents-idb-dedup](roadmap/M2.2/recents-idb-dedup.md) — session IDB typed faults, recents isSameEntry dedup, eviction cleanup
 - [x] [prep] [asset-metadata-schema](roadmap/M2.2/asset-metadata-schema.md) — photo metadata in the document
 - [x] [feature] [book-titles](roadmap/M2.2/book-titles.md) — create-with-title and rename
 - [x] [prep] [asset-metadata-extract](roadmap/M2.2/asset-metadata-extract.md) — fill metadata off the main thread

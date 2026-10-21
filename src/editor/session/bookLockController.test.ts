@@ -402,17 +402,23 @@ describe('createBookLockController', () => {
     expect(homeError).toMatch(/not selected/i)
   })
 
-  it('regrantLibrary falls back to bare picker when peek fails', async () => {
+  it('regrantLibrary refuses when peek fails for a known library id', async () => {
     controller.setPendingRegrant('missing-lib', null)
-    const picked = createFakeBrowserDirectory({ name: 'fresh' })
-    pickDirectory = () => Promise.resolve(picked)
+    let pickerCalls = 0
+    pickDirectory = () => {
+      pickerCalls += 1
+      return Promise.resolve(createFakeBrowserDirectory({ name: 'fresh' }))
+    }
     libraryId = null
     bookId = null
     storage = null
 
     const result = await controller.regrantLibrary()
 
-    expect(result.ok).toBe(true)
+    expect(result).toEqual(failure('not-found'))
+    expect(homeError).toMatch(/stored library folder/i)
+    expect(statusErrors).toEqual([{ code: 'not-found', action: 're-grant' }])
+    expect(pickerCalls).toBe(0)
   })
 
   it('regrantLibrary bare picker cancel returns not-found', async () => {

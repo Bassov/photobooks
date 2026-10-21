@@ -39,6 +39,208 @@ describe('HomeScreen merge-blocker a11y', () => {
     vi.restoreAllMocks()
   })
 
+  it('exposes a single home h1 without redundant aria on headings', async () => {
+    configureProjectSession({
+      session: createMemorySessionState(),
+      createStorage: () => createMemoryLibraryStorage(),
+    })
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-empty')).toBeTruthy()
+    })
+    const headings = screen.getAllByRole('heading', { level: 1 })
+    expect(headings).toHaveLength(1)
+    expect(headings[0]?.textContent).toBe('Photobooks')
+    expect(headings[0]?.getAttribute('aria-label')).toBeNull()
+    expect(headings[0]?.getAttribute('role')).toBeNull()
+  })
+
+  it('announces the selected library and keeps focus on the busy control', async () => {
+    const storageA = createMemoryLibraryStorage()
+    const storageB = createMemoryLibraryStorage()
+    const base = createMemorySessionState()
+    let releaseRemove!: () => void
+    const removeGate = new Promise<void>((resolve) => {
+      releaseRemove = resolve
+    })
+    const session = {
+      ...base,
+      removeRecentLibrary: async (id: string) => {
+        await removeGate
+        return base.removeRecentLibrary(id)
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storageA,
+    })
+    await attachLibraryForTests({
+      storage: storageA,
+      session,
+      libraryId: 'lib-a',
+      handle: { name: 'LibA' },
+    })
+    const createdA = await createBookInLibrary('BookA')
+    assert(createdA.ok)
+    await leaveEditorForHome()
+    await attachLibraryForTests({
+      storage: storageB,
+      session,
+      libraryId: 'lib-b',
+      handle: { name: 'LibB' },
+    })
+    await leaveEditorForHome()
+
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-recent-lib-a')).toBeTruthy()
+      expect(screen.getByTestId('home-recent-lib-b')).toBeTruthy()
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('home-selected-announce').textContent).toMatch(
+        /Selected library/,
+      )
+    })
+    fireEvent.click(screen.getByTestId('home-recent-lib-a'))
+    await waitFor(() => {
+      expect(screen.getByTestId('home-selected-announce').textContent).toMatch(
+        /LibA/,
+      )
+      expect(
+        screen.getByTestId('home-recent-lib-a').getAttribute('aria-current'),
+      ).toBe('true')
+      expect(
+        screen.getByTestId('home-recent-lib-b').getAttribute('aria-current'),
+      ).toBeNull()
+      expect(screen.getByTestId('home-recent-lib-a').className).toContain(
+        'home-list-item-selected',
+      )
+      expect(screen.getByTestId('home-recent-lib-b').className).not.toContain(
+        'home-list-item-selected',
+      )
+      expect(screen.getByTestId(`home-book-${createdA.value.id}`)).toBeTruthy()
+    })
+
+    const remove = screen.getByTestId('home-remove-lib-a')
+    const createBtn = screen.getByTestId('create-library')
+    remove.focus()
+    fireEvent.click(remove)
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().actionBusy).toBe(true)
+      expect(document.activeElement).toBe(remove)
+      assert(remove instanceof HTMLButtonElement)
+      assert(createBtn instanceof HTMLButtonElement)
+      expect(remove.disabled).toBe(false)
+      expect(createBtn.disabled).toBe(true)
+    })
+    releaseRemove()
+    await waitFor(() => {
+      expect(getProjectSessionSnapshot().actionBusy).toBe(false)
+      expect(screen.queryByTestId('home-recent-lib-a')).toBeNull()
+      expect(
+        screen.getByText('Select a library to see its books.'),
+      ).toBeTruthy()
+      expect(screen.queryByTestId(`home-book-${createdA.value.id}`)).toBeNull()
+      expect(
+        screen.getByTestId('home-selected-announce').textContent,
+      ).not.toMatch(/LibA/)
+    })
+  })
+
+  it('removing a non-selected recent keeps the current selection', async () => {
+    const storageA = createMemoryLibraryStorage()
+    const storageB = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storageA,
+    })
+    await attachLibraryForTests({
+      storage: storageA,
+      session,
+      libraryId: 'lib-keep',
+      handle: { name: 'KeepLib' },
+    })
+    const created = await createBookInLibrary('KeepBook')
+    assert(created.ok)
+    await leaveEditorForHome()
+    await attachLibraryForTests({
+      storage: storageB,
+      session,
+      libraryId: 'lib-drop',
+      handle: { name: 'DropLib' },
+    })
+    await leaveEditorForHome()
+
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-recent-lib-keep')).toBeTruthy()
+      expect(screen.getByTestId('home-recent-lib-drop')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByTestId('home-recent-lib-keep'))
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('home-recent-lib-keep').getAttribute('aria-current'),
+      ).toBe('true')
+      expect(screen.getByTestId('home-selected-announce').textContent).toMatch(
+        /KeepLib/,
+      )
+      expect(screen.getByTestId(`home-book-${created.value.id}`)).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByTestId('home-remove-lib-drop'))
+    await waitFor(() => {
+      expect(screen.queryByTestId('home-recent-lib-drop')).toBeNull()
+      expect(
+        screen.getByTestId('home-recent-lib-keep').getAttribute('aria-current'),
+      ).toBe('true')
+      expect(screen.getByTestId('home-selected-announce').textContent).toMatch(
+        /KeepLib/,
+      )
+      expect(screen.getByTestId(`home-book-${created.value.id}`)).toBeTruthy()
+    })
+  })
+
+  it('keyboard activation selects a recent library', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      libraryId: 'lib-keys',
+      handle: { name: 'KeysLib' },
+    })
+    const created = await createBookInLibrary('KeysBook')
+    assert(created.ok)
+    await leaveEditorForHome()
+    await attachLibraryForTests({
+      storage: createMemoryLibraryStorage(),
+      session,
+      libraryId: 'lib-keys-b',
+      handle: { name: 'KeysB' },
+    })
+    await leaveEditorForHome()
+
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-recent-lib-keys-b')).toBeTruthy()
+    })
+    const recent = screen.getByTestId('home-recent-lib-keys')
+    recent.focus()
+    fireEvent.keyDown(recent, { key: 'Enter', code: 'Enter' })
+    fireEvent.click(recent)
+    await waitFor(() => {
+      expect(recent.getAttribute('aria-current')).toBe('true')
+      expect(
+        screen.getByTestId(`home-book-${created.value.id}`).textContent,
+      ).toBe('KeysBook')
+    })
+  })
+
   it('library list has no listbox role or aria-selected on buttons', async () => {
     const storage = createMemoryLibraryStorage()
     const session = createMemorySessionState()
