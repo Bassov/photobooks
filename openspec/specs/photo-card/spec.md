@@ -22,7 +22,7 @@ The system SHALL let the user choose local image files (one or many) or a folder
 
 ### Requirement: Accepted and rejected image types
 
-The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other types, including TIFF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. A rejected file in a batch MUST NOT abort import of other accepted files. An accepted file whose decode fails MUST show a visible per-file import error and MUST NOT remain as a gallery filmstrip tile or count toward the gallery photo count.
+The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other image-like types, including TIFF and HEIC/HEIF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. A rejected file in a batch MUST NOT abort import of other accepted files. An accepted file whose decode fails MUST show a visible per-file import error and MUST NOT remain as a gallery filmstrip tile or count toward the gallery photo count. When the import source is a folder, files that are not image-like (MIME not `image/*` and no image extension) MUST be skipped without a per-file import error; the editor MUST announce a single polite status summary of how many non-image files were skipped. Explicit file picks MUST keep per-file errors for non-image files. Skipped files MUST NOT count toward import progress total or gallery photo count.
 
 #### Scenario: Accept JPEG
 
@@ -38,6 +38,11 @@ The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other
 
 - **WHEN** the user imports an accepted image whose bytes fail to decode
 - **THEN** the system shows a visible per-file import error for that file, the gallery does not keep a tile for it, and the gallery photo count excludes it
+
+#### Scenario: Folder import skips non-image files
+
+- **WHEN** the user imports a folder that contains accepted images plus non-image files such as README.md
+- **THEN** accepted images enter the gallery, non-image files produce no import-errors entry, and polite editor status summarizes how many non-image files were skipped
 
 ### Requirement: Filmstrip asset representation
 
