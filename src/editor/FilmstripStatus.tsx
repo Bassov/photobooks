@@ -1,7 +1,10 @@
 import { useSyncExternalStore, type ReactNode } from 'react'
 import { ProgressBar } from '../ui/ProgressBar'
 import { Status } from '../ui/Status'
-import { filmstripImportProgressStyle } from './filmstripChromeStyles'
+import {
+  filmstripImportErrorsActionStyle,
+  filmstripImportProgressStyle,
+} from './filmstripChromeStyles'
 import type { ImportProgress } from './importPhotos'
 import {
   getImportErrors,
@@ -36,7 +39,8 @@ export function FilmstripStatus({
     progressNode = (
       <button
         type="button"
-        className="import-progress import-progress--action"
+        className="import-progress"
+        style={filmstripImportErrorsActionStyle}
         data-testid="import-progress"
         onClick={() => {
           openImportErrorsPanel()

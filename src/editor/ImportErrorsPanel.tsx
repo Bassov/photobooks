@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import { Button } from '../ui/Button'
+import { Dialog, DialogTitle } from '../ui/Dialog'
 import { getGalleryIdsSnapshot, subscribeGallery } from './bookStore'
 import { requestFilmstripJump } from './filmstripJump'
 import {
@@ -10,9 +12,18 @@ import {
   setImportErrorsPanelOpen,
   subscribeImportErrors,
 } from './importErrorsStore'
-import { Button } from '../ui/Button'
-import { Dialog, DialogTitle } from '../ui/Dialog'
-import './ImportErrorsPanel.css'
+import {
+  importErrorsPanelDismissStyle,
+  importErrorsPanelEmptyStyle,
+  importErrorsPanelEntriesStyle,
+  importErrorsPanelEntryStyle,
+  importErrorsPanelGroupStyle,
+  importErrorsPanelHeadStyle,
+  importErrorsPanelListStyle,
+  importErrorsPanelNameStyle,
+  importErrorsPanelNotImportedStyle,
+  importErrorsPanelSummaryStyle,
+} from './importErrorsPanelStyles'
 
 export function ImportErrorsPanel() {
   const open = useSyncExternalStore(
@@ -40,11 +51,10 @@ export function ImportErrorsPanel() {
       isOpen
       onOpenChange={setImportErrorsPanelOpen}
       isDismissable
-      className="import-errors-panel"
       data-testid="import-errors-panel"
       aria-label="Import errors"
     >
-      <div className="import-errors-panel__head">
+      <div style={importErrorsPanelHeadStyle}>
         <DialogTitle>Import errors</DialogTitle>
         <Button
           variant="secondary"
@@ -59,16 +69,19 @@ export function ImportErrorsPanel() {
         </Button>
       </div>
       {groups.length === 0 ? (
-        <p className="import-errors-panel__empty">No import errors.</p>
+        <p style={importErrorsPanelEmptyStyle}>No import errors.</p>
       ) : (
-        <ul className="import-errors-panel__groups">
-          {groups.map((group) => (
-            <li key={group.reason} className="import-errors-panel__group">
+        <ul style={importErrorsPanelListStyle}>
+          {groups.map((group, groupIndex) => (
+            <li
+              key={group.reason}
+              style={groupIndex === 0 ? undefined : importErrorsPanelGroupStyle}
+            >
               <details open>
-                <summary className="import-errors-panel__summary">
+                <summary style={importErrorsPanelSummaryStyle}>
                   {group.label}
                 </summary>
-                <ul className="import-errors-panel__entries">
+                <ul style={importErrorsPanelEntriesStyle}>
                   {group.errors.map((error) => {
                     const assetId = error.assetId
                     const linked =
@@ -76,7 +89,7 @@ export function ImportErrorsPanel() {
                     return (
                       <li
                         key={error.id}
-                        className="import-errors-panel__entry"
+                        style={importErrorsPanelEntryStyle}
                         data-testid="import-error-entry"
                         data-error-id={error.id}
                         data-reason={error.reason}
@@ -86,6 +99,7 @@ export function ImportErrorsPanel() {
                             variant="ghost"
                             size="sm"
                             className="import-errors-panel__jump"
+                            style={importErrorsPanelNameStyle}
                             onPress={() => {
                               requestFilmstripJump(assetId)
                               closeImportErrorsPanel()
@@ -94,9 +108,9 @@ export function ImportErrorsPanel() {
                             {error.name}
                           </Button>
                         ) : (
-                          <span className="import-errors-panel__name">
+                          <span style={importErrorsPanelNameStyle}>
                             {error.name}
-                            <span className="import-errors-panel__not-imported">
+                            <span style={importErrorsPanelNotImportedStyle}>
                               {' '}
                               — Not imported
                             </span>
@@ -105,7 +119,7 @@ export function ImportErrorsPanel() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="import-errors-panel__dismiss"
+                          style={importErrorsPanelDismissStyle}
                           aria-label={`Dismiss error for ${error.name}`}
                           onPress={() => {
                             dismissImportError(error.id)

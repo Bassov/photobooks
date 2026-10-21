@@ -8,6 +8,7 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { ASSET_DRAG_MIME } from './dropTargets'
+import { filmstripImportJumpHighlightStyle } from './filmstripChromeStyles'
 import {
   getFilmstripJumpHighlightId,
   subscribeFilmstripJump,
@@ -86,6 +87,7 @@ export function FilmstripItemView({
         left: offsetLeft,
         width,
         height,
+        ...(jumpHighlightId === id ? filmstripImportJumpHighlightStyle : {}),
       }}
     >
       <div
