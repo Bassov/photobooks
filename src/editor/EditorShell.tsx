@@ -1,4 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { Status } from '../ui/Status'
+import { ToastRegion } from '../ui/Toast'
+import { createToastQueue } from '../ui/toastQueue'
 import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
 import { Filmstrip } from './Filmstrip'
 import { installDocumentDragGesture } from './editorGesture'
@@ -18,19 +21,25 @@ export function EditorShell() {
   useEffect(() => installDocumentDragGesture(), [])
 
   const [progress, setProgress] = useState<ImportProgress | null>(null)
+  const [toastQueue] = useState(() => createToastQueue())
 
   return (
     <div className="editor-shell" data-testid="editor-shell">
-      <p className="editor-live" data-testid="editor-status" aria-live="polite">
+      <Status
+        className="editor-live"
+        data-testid="editor-status"
+        politeness="polite"
+      >
         {editorStatus}
-      </p>
-      <EditorTopBar onImportProgress={setProgress} />
+      </Status>
+      <EditorTopBar onImportProgress={setProgress} toastQueue={toastQueue} />
 
       <main className="editor-workspace" data-testid="editor-workspace">
         <Pasteboard />
       </main>
 
       <Filmstrip progress={progress} />
+      <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
     </div>
   )
 }

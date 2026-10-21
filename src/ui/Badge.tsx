@@ -11,6 +11,7 @@ export interface BadgeProps {
   icon?: ReactNode
   className?: string
   children: ReactNode
+  'data-testid'?: string
 }
 
 /** Compact status / count chip — inventory colors × size × type. */
@@ -22,6 +23,7 @@ export function Badge({
   icon,
   className,
   children,
+  'data-testid': dataTestId,
 }: BadgeProps) {
   return (
     <span
@@ -29,6 +31,7 @@ export function Badge({
       data-size={size}
       data-type={type}
       data-dot={dot ? 'true' : undefined}
+      data-testid={dataTestId}
       className={cx(
         'pb-badge',
         `pb-badge--${color}`,

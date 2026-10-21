@@ -6,7 +6,6 @@ import {
   useSyncExternalStore,
   type ButtonHTMLAttributes,
 } from 'react'
-import type { ImportFileError } from '../photo/assetPool'
 import {
   canUseDirectoryPicker,
   canUseOpenFilePicker,
@@ -16,6 +15,7 @@ import {
 } from '../photo/pickPhotos'
 import '../ui/Button.css'
 import '../ui/Toolbar.css'
+import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import { BookTitleChrome } from './BookTitleChrome'
 import { clickIfPresent } from './clickIfPresent'
 import {
@@ -29,7 +29,13 @@ import {
   isRenameDisabled,
   isSaveDisabled,
 } from './editorChromeDisabled'
+import { setEditorStatus } from './editorStatus'
 import { filesFromInputChange } from './filesFromInputChange'
+import {
+  clearImportErrorsToast,
+  enqueueImportErrorsToast,
+  importErrorsStatusText,
+} from './importErrorToast'
 import type { ImportProgress } from './importPhotos'
 import { installEditorSaveShortcut } from './installEditorSaveShortcut'
 import {
@@ -73,8 +79,10 @@ function ChromeButton({
 
 export function EditorTopBar({
   onImportProgress,
+  toastQueue,
 }: {
   onImportProgress: (progress: ImportProgress | null) => void
+  toastQueue: PhotobooksToastQueue
 }) {
   const project = useSyncExternalStore(
     subscribeProjectSession,
@@ -92,13 +100,19 @@ export function EditorTopBar({
   const filesInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const [pickerBusy, setPickerBusy] = useState(false)
-  const [errors, setErrors] = useState<ImportFileError[]>([])
 
   const runImport = async (files: readonly File[]): Promise<void> => {
     await runChromeImport(files, {
       onProgress: onImportProgress,
       onErrors: (next) => {
-        setErrors([...next])
+        if (next.length === 0) {
+          clearImportErrorsToast(toastQueue)
+          return
+        }
+        const snapshot = [...next]
+        enqueueImportErrorsToast(toastQueue, snapshot, () => {
+          setEditorStatus(importErrorsStatusText(snapshot))
+        })
       },
     })
   }
@@ -312,15 +326,6 @@ export function EditorTopBar({
           }}
         />
       </div>
-      {errors.length > 0 ? (
-        <ul className="import-errors" data-testid="import-errors" role="alert">
-          {errors.map((error) => (
-            <li key={`${error.name}:${error.message}`}>
-              {error.name}: {error.message}
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </header>
   )
 }

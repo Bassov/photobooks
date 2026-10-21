@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { GridListItem } from 'react-aria-components'
+import { Badge } from '../ui/Badge'
 import {
   getAssetAspectSnapshot,
   getAssetContentHash,
@@ -103,9 +104,14 @@ export function FilmstripItemView({
           />
         )}
         {placementCount > 0 ? (
-          <span className="filmstrip-placed" data-testid="filmstrip-placed">
+          <Badge
+            color="brand"
+            size="sm"
+            className="filmstrip-placed"
+            data-testid="filmstrip-placed"
+          >
             Placed
-          </span>
+          </Badge>
         ) : null}
       </div>
     </GridListItem>

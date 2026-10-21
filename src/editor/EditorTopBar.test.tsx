@@ -192,6 +192,12 @@ describe('EditorTopBar', () => {
         'bad.jpg',
       )
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Show files' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('editor-status').textContent).toContain(
+        'bad.jpg: decode failed',
+      )
+    })
   })
 
   it('ignores empty file lists from the photo and folder inputs', () => {
@@ -393,6 +399,8 @@ describe('EditorTopBar', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('import-errors')).toBeNull()
     })
+    // Successful import clears at start (empty errors) and must not leave a toast.
+    expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull()
   })
 
   it('ignores a cancelled folder picker result', async () => {
