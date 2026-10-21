@@ -49,7 +49,7 @@ pnpm dev
 | `pnpm test:e2e:quiet`    | Playwright with dot reporter                                                  |
 | `pnpm bench`             | Vitest benchmarks                                                             |
 
-Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm check:integrity && pnpm check:fast` (no stryker; Playwright e2e and `stryker:diff` stay in CI / agent B).
+Lefthook: pre-commit lint/format on staged files; pre-push is `ts-rig-ci hook-pre-push` (A+C1; no stryker). Hand-push always pays both; `agent finish` skips them only when stage-11 stamp is current. E2e / `stryker:diff` stay in CI / agent B.
 
 ## OpenSpec
 
@@ -59,7 +59,7 @@ Lefthook: pre-commit lint/format on staged files; pre-push runs `pnpm check:inte
 
 Workflow: plan → planning-reviewer → apply (`check:fast`) → B at stage 4 → phase commit → impl-reviewer → … → stage 11 → thin finish. Unattended one-item run: `/next-roadmap-item`.
 
-Stage 11: `stamp-green` after `check:integrity` + `quality:self-check`. `pnpm agent finish` is thin push+PR; CI red → `ci-brief`.
+Stage 11: `stamp-green` after `check:integrity` + `quality:self-check`. `pnpm agent finish` is thin push+PR (hook skips A/C1 when stamp matches); CI red → `ci-brief`.
 
 ## CI
 
