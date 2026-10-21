@@ -9,7 +9,7 @@ import type { ExifOrientation } from './types'
 export interface PhotoWorkerRequest {
   id: string
   file: File
-  /** Long-edge cap for the preview JPEG (default PREVIEW_MAX_EDGE). */
+  /** Long-edge cap for the preview (default PREVIEW_MAX_EDGE). */
   maxEdge?: number
   /** When true, the preview long edge equals maxEdge even if the source is smaller. */
   cover?: boolean
@@ -85,11 +85,19 @@ function applyOrientationTransform(
   ctx.translate(-width / 2, -height / 2)
 }
 
+function previewEncodeType(sourceMime: string): string {
+  if (sourceMime === 'image/png' || sourceMime === 'image/webp') {
+    return 'image/webp'
+  }
+  return 'image/jpeg'
+}
+
 async function buildPreview(
   bitmap: ImageBitmap,
   orientation: ExifOrientation,
   maxEdge: number,
   cover: boolean,
+  sourceMime: string,
 ): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
   const rawW = bitmap.width
   const rawH = bitmap.height
@@ -114,8 +122,12 @@ async function buildPreview(
   applyOrientationTransform(ctx, orientation, rawW, rawH)
   ctx.drawImage(bitmap, 0, 0)
 
-  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 })
-  return { buffer: await blob.arrayBuffer(), mimeType: 'image/jpeg' }
+  const encodeType = previewEncodeType(sourceMime)
+  const blob = await canvas.convertToBlob({
+    type: encodeType,
+    quality: 0.85,
+  })
+  return { buffer: await blob.arrayBuffer(), mimeType: blob.type }
 }
 
 export async function processPhotoRequest(
@@ -168,6 +180,7 @@ export async function processPhotoRequest(
         orientation,
         maxEdge,
         request.cover === true,
+        mimeType,
       )
 
       return {

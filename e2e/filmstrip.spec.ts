@@ -314,6 +314,88 @@ test('imports lossy and lossless WebP; place shows rendered frame image', async 
   expect(naturalWidth).toBeGreaterThan(0)
 })
 
+async function sampleCornerAlpha(
+  page: import('@playwright/test').Page,
+  testId: string,
+): Promise<{ a: number; r: number; g: number; b: number }> {
+  return page
+    .getByTestId(testId)
+    .first()
+    .evaluate(async (el) => {
+      if (!(el instanceof HTMLImageElement)) {
+        throw new Error('expected HTMLImageElement')
+      }
+      if (!el.complete || el.naturalWidth === 0) {
+        await new Promise<void>((resolve, reject) => {
+          el.addEventListener(
+            'load',
+            () => {
+              resolve()
+            },
+            { once: true },
+          )
+          el.addEventListener(
+            'error',
+            () => {
+              reject(new Error('image failed to load'))
+            },
+            { once: true },
+          )
+        })
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = el.naturalWidth
+      canvas.height = el.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('2d context unavailable')
+      ctx.drawImage(el, 0, 0)
+      const px = ctx.getImageData(0, 0, 1, 1).data
+      return { r: px[0] ?? 0, g: px[1] ?? 0, b: px[2] ?? 0, a: px[3] ?? 0 }
+    })
+}
+
+test('transparent PNG corners stay transparent in thumb and frame', async ({
+  page,
+}) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  await openSessionEditor(page)
+
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles(photoFixturePaths.transparentCornersPng)
+
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+
+  await expect
+    .poll(async () => (await sampleCornerAlpha(page, 'filmstrip-thumb')).a, {
+      timeout: 30_000,
+    })
+    .toBe(0)
+
+  const first = page.getByTestId('filmstrip-item').nth(0)
+  await page.bringToFront()
+  await first.focus()
+  await page.keyboard.press('Space')
+  await expect(first).toHaveAttribute('aria-selected', 'true')
+  const place = page.getByRole('button', { name: 'Place photo' }).first()
+  await place.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+
+  await expect
+    .poll(async () => (await sampleCornerAlpha(page, 'spread-frame-image')).a, {
+      timeout: 30_000,
+    })
+    .toBe(0)
+})
+
 test('corrupt WebP shows a decode import error', async ({ page }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await openSessionEditor(page)

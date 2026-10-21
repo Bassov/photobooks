@@ -51,6 +51,7 @@ playwright/.cache/
 # Generated e2e photo fixtures (scripts recreate them)
 e2e/fixtures/large-24mp.jpg
 e2e/fixtures/sample-3x2.png
+e2e/fixtures/transparent_corners.png
 e2e/fixtures/sample-orient6.jpg
 e2e/fixtures/sample-lossy-3x2.webp
 e2e/fixtures/sample-lossless-3x2.webp

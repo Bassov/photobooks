@@ -354,14 +354,14 @@ describe('processPhotoRequest', () => {
     expect(rot.ctx.rotate).not.toHaveBeenCalledWith(90 / Math.PI)
   })
 
-  it('cover scale uses division by long edge, draws, and encodes jpeg', async () => {
+  it('cover scale uses division by long edge, draws, and encodes webp for PNG', async () => {
     const file = samplePngFile()
     const { ctx, getContext, convertToBlob } = stubImageDecodeApis({
       width: 40,
       height: 20,
     })
 
-    await processPhotoRequest({
+    const result = await processPhotoRequest({
       id: 'req-cover-math',
       file,
       maxEdge: 80,
@@ -372,9 +372,95 @@ describe('processPhotoRequest', () => {
     expect(ctx.scale).toHaveBeenCalledWith(2, 2)
     expect(ctx.drawImage).toHaveBeenCalled()
     expect(convertToBlob).toHaveBeenCalledWith({
+      type: 'image/webp',
+      quality: 0.85,
+    })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.previewMimeType).toBe('image/webp')
+  })
+
+  it('encodes JPEG sources as image/jpeg and reports blob type', async () => {
+    const file = sampleOrient6File()
+    const { convertToBlob } = stubImageDecodeApis({ width: 40, height: 20 })
+
+    const result = await processPhotoRequest({ id: 'req-jpeg-enc', file })
+
+    expect(convertToBlob).toHaveBeenCalledWith({
       type: 'image/jpeg',
       quality: 0.85,
     })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.previewMimeType).toBe('image/jpeg')
+  })
+
+  it('encodes image/jpg alias as image/jpeg preview', async () => {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const bytes = readFileSync(photoFixturePaths.sampleOrient6)
+    const file = new File([bytes], 'sample.jpg', { type: 'image/jpg' })
+    const { convertToBlob } = stubImageDecodeApis({ width: 40, height: 20 })
+
+    const result = await processPhotoRequest({ id: 'req-jpg-enc', file })
+
+    expect(convertToBlob).toHaveBeenCalledWith({
+      type: 'image/jpeg',
+      quality: 0.85,
+    })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.previewMimeType).toBe('image/jpeg')
+  })
+
+  it('encodes empty File.type as image/jpeg preview (not webp)', async () => {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const bytes = readFileSync(photoFixturePaths.sampleOrient6)
+    const file = new File([bytes], 'sample.bin', { type: '' })
+    const { convertToBlob } = stubImageDecodeApis({ width: 40, height: 20 })
+
+    const result = await processPhotoRequest({ id: 'req-empty-mime-enc', file })
+
+    expect(convertToBlob).toHaveBeenCalledWith({
+      type: 'image/jpeg',
+      quality: 0.85,
+    })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.previewMimeType).toBe('image/jpeg')
+  })
+
+  it('encodes WebP sources as image/webp and reports blob type', async () => {
+    const file = sampleLossyWebpFile()
+    exifrApi.parse.mockRejectedValue(new Error('Unknown file format'))
+    const { convertToBlob } = stubImageDecodeApis({ width: 30, height: 20 })
+
+    const result = await processPhotoRequest({ id: 'req-webp-enc', file })
+
+    expect(convertToBlob).toHaveBeenCalledWith({
+      type: 'image/webp',
+      quality: 0.85,
+    })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.previewMimeType).toBe('image/webp')
+  })
+
+  it('labels previewMimeType from blob.type when browser falls back', async () => {
+    const file = samplePngFile()
+    const { convertToBlob } = stubImageDecodeApis({ width: 12, height: 8 })
+    convertToBlob.mockResolvedValue(
+      new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+    )
+
+    const result = await processPhotoRequest({ id: 'req-fallback', file })
+
+    expect(convertToBlob).toHaveBeenCalledWith({
+      type: 'image/webp',
+      quality: 0.85,
+    })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.previewMimeType).toBe('image/png')
   })
 
   it('treats image/jpg as JPEG for EXIF strip like image/jpeg', async () => {

@@ -8,6 +8,7 @@ const fixturesDir = dirname(fileURLToPath(import.meta.url))
 export const photoFixturePaths = {
   dir: fixturesDir,
   samplePng: join(fixturesDir, 'sample-3x2.png'),
+  transparentCornersPng: join(fixturesDir, 'transparent_corners.png'),
   sampleOrient6: join(fixturesDir, 'sample-orient6.jpg'),
   sampleLossyWebp: join(fixturesDir, 'sample-lossy-3x2.webp'),
   sampleLosslessWebp: join(fixturesDir, 'sample-lossless-3x2.webp'),
