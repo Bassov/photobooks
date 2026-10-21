@@ -10,9 +10,10 @@ context: |
 
   Quality bar:
   - TypeScript strict + exactOptionalPropertyTypes + noUncheckedIndexedAccess; ESLint strict-type-checked + stylistic-type-checked with --max-warnings=0
-  - After code changes: run `pnpm check` until it prints only OK lines (full logs under `.cache/checks/` or `--verbose`); e2e stays separate
+  - Apply loops: run `pnpm check:fast` (A; afterUnit = patch-coverage only; no stryker) until OK lines (logs under `.cache/checks/` or `--verbose`). `pnpm check` aliases check:fast
+  - Quality phases (B): `pnpm test:e2e:changed` + `pnpm stryker:diff` at agent stages 4/7/9 — not inside every check. Nightly full Stryker on main; CI also runs stryker-diff
+  - C1 = `pnpm check:integrity`; C2 = `pnpm quality:self-check` at stage 11 only (with `pnpm agent stamp-green`)
   - Property-based tests via @fast-check/vitest (numRuns ~100 local; higher in CI)
-  - Mutation testing: pnpm stryker:diff on changed line ranges vs origin/main; nightly full Stryker on main
   - Perf: Lighthouse CI budgets (budget.json); 60 fps proxies — zero LoAF, handler p95 ≤ 2 ms, INP ≤ 100 ms (`src/perf/budgets.ts`); `pnpm perf`
   - Heavy work (decode/render/imposition) MUST run in Web Workers, never on the main thread
   - Tests MUST exercise public module/component APIs; no private/`as any`/deep-internal hacks
@@ -53,7 +54,7 @@ rules:
   tasks:
     - Break work into small, checkable tasks.
     - 'At most 8 implementation tasks. More means split with `pnpm roadmap add --after` instead of inflating tasks.'
-    - 'tasks.md has ## Implementation and ## Manual test scenarios only. Do NOT copy a Verification checklist — `pnpm agent finish` / `pnpm quality:self-check` / CI enforce gates.'
+    - 'tasks.md has ## Implementation and ## Manual test scenarios only. Do NOT copy a Verification checklist — stage 11 (`pnpm check:integrity` + `pnpm quality:self-check` + stamp) / CI enforce gates; finish is thin push+PR.'
     - 'Tick boxes with test/link/commit evidence when completing tasks.'
   specs:
     - 'Keep openspec/specs/ for `src/` product capabilities only. Tooling/CI/agent changes: skip_specs: true.'
@@ -64,14 +65,15 @@ rules:
 operations:
   apply:
     guidance:
-      - 'Do not treat apply as complete until `pnpm check` is green (enforces patch-coverage + line-scoped stryker:diff before push) and required e2e/lhci/reviewer/manual/security items in scope are done (`pnpm agent finish` / quality:self-check).'
+      - 'Do not treat apply as complete until `pnpm check:fast` (A) is green, required B phases (e2e:changed + stryker:diff at stages 4/7/9) and lhci/reviewer/manual/security items in scope are done, then stage 11 C1+C2+stamp. Finish is thin push+PR only.'
+      - 'No git commit on stages 3–4. First phase commit only after the first green B (stage 5). Later phases commit after their B.'
       - 'Before archive, for each reviewer finding tagged `[repeat]` add the named automated check (or area SHALL / code comment when infeasible) in the same change.'
       - 'If this change fixes a bug found via exploratory or MCP browser interaction, include a Playwright test under e2e/ covering that failure mode.'
       - 'When a change introduces or changes an in-app scrollport, include Playwright `assertDocumentFitsViewport` / `assertNamedScrollport` before apply-complete.'
       - 'When UI is in scope: before push/archive, skill `ui-review` + evidenced browser smoke (empty + happy + primary scroll/interact). Prefer Playwright; MCP screenshots are supporting evidence.'
-      - 'Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep/contingency fast-track (roadmap item is the plan; keep implementation-reviewer + `pnpm check`).'
+      - 'Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep/contingency fast-track (roadmap item is the plan; keep implementation-reviewer + `pnpm check:fast`).'
       - 'If apply will exceed size guidance (~1000 / prefer ≤1500; advisory), prefer `pnpm roadmap add <slug> --after <current>` rather than enlarging the PR.'
-      - 'pnpm check already runs unit coverage + line-scoped stryker:diff; keep them green before implementation review. Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
+      - 'Keep `pnpm check:fast` green in apply loops (unit + patch-coverage). Run B (`pnpm test:e2e:changed` + `pnpm stryker:diff`) at quality phases — mutation is not part of check:fast. Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
       - 'Survivors: delete dead code or use budgeted `// Stryker disable next-line …: <reason>`; illegal disable forms are forbidden.'
       - 'Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.'
       - 'After verify gates pass, launch `openspec-implementation-reviewer`.'
@@ -84,11 +86,12 @@ operations:
     guidance:
       - Archive only after openspec-implementation-reviewer returned pass.
       - 'Archive only after blocking critical/high findings are fixed or scheduled; PR body records verdicts.'
-      - 'Archive only after Manual check and docs/rules sync are done (`pnpm agent finish` / self-check).'
+      - 'Archive only after Manual check and docs/rules sync are done. Stage 11 runs `pnpm check:integrity` + `pnpm quality:self-check` + `pnpm agent stamp-green` before thin finish.'
       - 'Before moving the change, grep README.md, AGENTS.md, .cursor/rules, docs/ for terms the change touched; fix drift or note "No doc changes".'
       - ALWAYS sync delta specs into main openspec/specs/ before archiving (inline sync, then verify merge).
       - NEVER skip-sync when delta specs exist.
       - If sync is blocked or verification fails, STOP — do not archive until fixed.
       - 'If there are no delta specs, archive may proceed; note "No delta specs".'
       - 'Use `pnpm agent archive <slug>` (native; no openspec CLI), then `pnpm roadmap done <slug>` (`--note` when scope differs; contingency not-needed note required).'
+      - 'Stage 10: write PR body. Stage 11: C1+C2+stamp. Stage 12: `pnpm agent finish` = push+PR only (skip re-running A when stamp matches; no merge origin/main; no C2 in finish). CI red loop: `pnpm agent ci-brief`.'
       - Summarize what merged into specs/ in a few bullets.

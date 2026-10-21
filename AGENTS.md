@@ -29,19 +29,21 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 
 ## Commands (reference)
 
-| Command                       | Use                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------ |
-| `/next-roadmap-item`          | one roadmap item end to end (unattended)                                       |
-| `pnpm roadmap`                | roadmap CLI: `next` / `show` / `add` / `done` / `check`                        |
-| `pnpm agent`                  | `preflight` / `finish` / `review-brief` / `instructions` / `archive` / `stats` |
-| `pnpm check`                  | deterministic gates incl. patch-coverage + line-scoped stryker:diff (pre-push) |
-| `pnpm verify`                 | `pnpm check` + Playwright                                                      |
-| `pnpm test:e2e:changed:quiet` | changed e2e specs only (burn-in targets), quiet                                |
-| `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)                          |
-| `pnpm stryker:diff`           | mutations on changed line ranges vs `origin/main`                              |
-| `pnpm test:lhci`              | Lighthouse budgets                                                             |
-| `pnpm audit:ci`               | high-severity **production** dependency audit                                  |
-| `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo dev (`uikit/` at `/uikit/`)            |
+| Command                       | Use                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
+| `/next-roadmap-item`          | one roadmap item end to end (unattended)                                                   |
+| `pnpm roadmap`                | roadmap CLI: `next` / `show` / `add` / `done` / `check`                                    |
+| `pnpm agent`                  | `preflight` / `finish` / `stamp-green` / `ci-brief` / `review-brief` / `archive` / `stats` |
+| `pnpm check:fast`             | A: core unit gates + patch-coverage (no stryker); apply loops                              |
+| `pnpm check`                  | alias of `check:fast`                                                                      |
+| `pnpm check:integrity`        | C1: openspec-budget / codecov-yml / roadmap (stage 11 with self-check + stamp)             |
+| `pnpm verify`                 | `pnpm check:fast` + Playwright                                                             |
+| `pnpm test:e2e:changed:quiet` | B (with `stryker:diff`): changed e2e specs (burn-in targets), quiet                        |
+| `pnpm perf`                   | Playwright frame-budget scenarios (hard frame pacing)                                      |
+| `pnpm stryker:diff`           | B + CI: mutations on changed line ranges vs `origin/main` (not in check:fast / pre-push)   |
+| `pnpm test:lhci`              | Lighthouse budgets                                                                         |
+| `pnpm audit:ci`               | high-severity **production** dependency audit                                              |
+| `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo dev (`uikit/` at `/uikit/`)                        |
 
 ## Skills (on demand)
 

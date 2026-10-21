@@ -1,6 +1,6 @@
 # Roadmap process
 
-The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadmap/`. Together they are the single source of truth for what gets built and in which order; issues, proposals and review notes are inputs until they land there. Agents read and change them only through the CLI (`pnpm roadmap` from `@albasov/ts-agent-rig`; agent usage: skill `roadmap`). `pnpm roadmap check` validates the layout and runs inside `pnpm check`.
+The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadmap/`. Together they are the single source of truth for what gets built and in which order; issues, proposals and review notes are inputs until they land there. Agents read and change them only through the CLI (`pnpm roadmap` from `@albasov/ts-agent-rig`; agent usage: skill `roadmap`). `pnpm roadmap check` validates the layout and runs inside `pnpm check:integrity` (C1; not in check:fast).
 
 ## Layout
 
@@ -29,7 +29,7 @@ The plan is the index `docs/roadmap.md` plus one file per item under `docs/roadm
 
 ## Change size
 
-Every item fits one agent apply context (one agent chat) and one PR of about 1000 changed lines (prefer ≤1500). This section is the SoT for the line-count target/prefer-max and the subsystem definition; `openspec/config.yaml` `rules.proposal` carries the one-subsystem and 8-task limits and points here for line counts. Size is **advisory**: `pnpm agent size`, `pnpm quality:self-check`, `pnpm check` / CI, and `pnpm agent finish` only warn — they never fail or block merge on line count. Prefer splitting oversized plans before apply.
+Every item fits one agent apply context (one agent chat) and one PR of about 1000 changed lines (prefer ≤1500). This section is the SoT for the line-count target/prefer-max and the subsystem definition; `openspec/config.yaml` `rules.proposal` carries the one-subsystem and 8-task limits and points here for line counts. Size is **advisory**: `pnpm agent size`, `pnpm quality:self-check` (stage 11 C2), `pnpm check:fast` / CI, and thin `pnpm agent finish` only warn — they never fail or block merge on line count. Prefer splitting oversized plans before apply.
 
 **The roadmap grows in place.** If planning or apply shows that a PR will go well over the size guidance, add the overflow as a new item right after the current one: `pnpm roadmap add <kebab-slug> --after <current> --tag prep|feature --title "…"` (same milestone, short scope, a **Done when:** line for a `[prep]`). Prefer keeping the current PR within the guidance. Review findings that are deferred (blocking critical/high left for later) become items right after the current one the same way, never vague follow-ups. Items are still done in index order; the list just gets longer.
 
@@ -48,8 +48,8 @@ Slicing rules when adding or splitting items:
 ## Agent apply hygiene
 
 - Tick item-file checkboxes with targeted edits; do not rewrite the whole item file.
-- A failure is **out of scope** only when the same test also fails or flakes on unmodified `origin/main`. A test outside the touch-set that fails only with this change applied is **in scope** and must be fixed in code or tests in this PR. Out-of-scope failures are scheduled with `pnpm roadmap add <slug> --after <current>` (or a bug issue for a flake) and are not patched by enlarging this PR — but filing an item or issue never makes a red PR mergeable; the git-finish stop after 3 red CI rounds still applies.
-- At most two **failed** local push attempts under pre-push; then stop and report in the PR description instead of looping. Code changed after implementation review must be re-reviewed before archive.
+- A failure is **out of scope** only when the same test also fails or flakes on unmodified `origin/main`. A test outside the touch-set that fails only with this change applied is **in scope** and must be fixed in code or tests in this PR. Out-of-scope failures are scheduled with `pnpm roadmap add <slug> --after <current>` (or a bug issue for a flake) and are not patched by enlarging this PR — but filing an item or issue never makes a red PR mergeable; use `pnpm agent ci-brief` for the CI fix loop (finish does not auto-merge main).
+- At most two **failed** local push attempts under pre-push (`check:integrity && check:fast`; no stryker); then stop and report in the PR description instead of looping. Code changed after implementation review must be re-reviewed before archive.
 
 ## Known limits
 

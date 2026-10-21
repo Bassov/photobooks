@@ -7,12 +7,13 @@ alwaysApply: true
 
 After substantive code changes, run and **read** the output of:
 
-- `pnpm verify:fast`/`verify:fast:quiet` for loops + pre-push (patch + stryker:diff)
-- Targeted e2e: `pnpm test:e2e:changed:quiet` once when green (same target set as CI burn-in). Full `pnpm test:e2e:quiet` / `pnpm test:e2e` / `pnpm verify` only when finish/CI scope needs them; out-of-scope failures per `docs/roadmap/RULES.md` Agent apply hygiene. Flake proof is CI burn-in, not local repeats — local `--repeat-each=3` only if a specific spec failed locally then passed on rerun. Playwright also gates every PR in CI
+- `pnpm check:fast` (alias: `pnpm check` / `pnpm verify:fast`) for apply loops — unit + patch-coverage; **no** stryker
+- Quality phase **B** (`pnpm test:e2e:changed:quiet` + `pnpm stryker:diff`) at agent stages 4/7/9 — not on every loop. Targeted e2e once when green (same target set as CI burn-in). Full `pnpm test:e2e:quiet` / `pnpm test:e2e` / `pnpm verify` only when finish/CI scope needs them; out-of-scope failures per `docs/roadmap/RULES.md` Agent apply hygiene. Flake proof is CI burn-in, not local repeats — local `--repeat-each=3` only if a specific spec failed locally then passed on rerun. Playwright also gates every PR in CI
 
 Also available:
 
-- `pnpm stryker:diff` — changed-line mutations vs `origin/main`
+- `pnpm check:integrity` — C1 (openspec-budget, codecov-yml, roadmap) at stage 11 with self-check + stamp
+- `pnpm stryker:diff` — changed-line mutations vs `origin/main` (B + CI workflow; not in check:fast)
 - `pnpm test:lhci` — Lighthouse CI against `budget.json`
 - `pnpm bench` — vitest bench
 
