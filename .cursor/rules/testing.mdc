@@ -10,12 +10,7 @@ After substantive code changes, run and **read** the output of:
 - `pnpm check:fast` (`pnpm check` / `verify:fast`) — apply loop: unit + patch-coverage; **no** stryker
 - Quality **B** (`test:e2e:changed:quiet` + `stryker:diff`) at stages 4/7/9 only. Full e2e/`pnpm verify` only when finish/CI needs them; out-of-scope per `docs/roadmap/RULES.md`. Flake proof = CI burn-in; local `--repeat-each=3` only after a local fail-then-pass. Playwright gates every PR in CI
 
-Also available:
-
-- `pnpm check:integrity` — C1 at stage 11 (with self-check + stamp)
-- `pnpm stryker:diff` — B + CI workflow (not in check:fast)
-- `pnpm test:lhci` — Lighthouse vs `budget.json`
-- `pnpm bench` — vitest bench
+Also available: `pnpm check:integrity` (C1 stage 11), `stryker:diff` (B+CI), `test:lhci`, `bench`.
 
 PBT: `@fast-check/vitest`; `numRuns` ~100 locally; CI may raise via `FC_NUM_RUNS`.
 

@@ -71,10 +71,10 @@ Headless `cursor-agent -p`: project `.cursor/cli.json`; launcher must `source sc
 
 Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`; no `.tool-versions` write). Verify/flake: `.cursor/rules/testing.mdc`. Finish/PR / no CI watch: `.cursor/rules/git-finish.mdc`. Unattended: `/next-roadmap-item`.
 
-Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec lifecycle is native in `pnpm agent` (no `openspec` CLI). Disable unused Cursor MCP servers. Quiet scripts are the baseline (optional local proxies are machine add-ons).
+Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Disable unused Cursor MCP servers. Quiet scripts are the baseline.
 
 `pnpm install` fails while `core.hooksPath` points at Cursor agent hooks (`prepare` → lefthook). Use `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev: `pnpm exec vite --host 0.0.0.0 --port 5173` (extra `--` makes Vite ignore `--host`).
 
 ## Doc budget
 
-Sizes: `quality/gates.json` `agentRules.budgets` (pr-policy). Skills for workflows; specs for behavior. Quality bar: `openspec/config.yaml`.
+Sizes: `quality/gates.json` `agentRules.budgets`. Skills for workflows; specs for behavior. Quality bar: `openspec/config.yaml`.
