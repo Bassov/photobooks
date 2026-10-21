@@ -179,7 +179,10 @@ export function stubImageDecodeApis(options?: {
   const getContext = vi.fn().mockReturnValue(ctx)
   const convertToBlob = vi
     .fn()
-    .mockResolvedValue(new Blob([previewBytes], { type: 'image/jpeg' }))
+    .mockImplementation((options?: { type?: string }) => {
+      const type = options?.type ?? 'image/jpeg'
+      return Promise.resolve(new Blob([previewBytes], { type }))
+    })
 
   class MockOffscreenCanvas {
     width: number

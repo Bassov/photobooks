@@ -27,7 +27,7 @@ function chunk(type, data) {
   return Buffer.concat([len, typeBuf, data, crcBuf])
 }
 
-/** 30x20 solid teal PNG — aspect 3:2 */
+/** 30x20 solid teal PNG — aspect 3:2 (RGB, colorType 2) */
 function createPng(width, height) {
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
   const ihdr = Buffer.alloc(13)
@@ -57,8 +57,58 @@ function createPng(width, height) {
   ])
 }
 
+/**
+ * 32x32 RGBA PNG (colorType 6): opaque teal center, fully transparent
+ * 8×8 corners — for preview-alpha regression sampling.
+ */
+function createTransparentCornersPng(size = 32, corner = 8) {
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(size, 0)
+  ihdr.writeUInt32BE(size, 4)
+  ihdr[8] = 8
+  ihdr[9] = 6
+  ihdr[10] = 0
+  ihdr[11] = 0
+  ihdr[12] = 0
+
+  const rows = []
+  for (let y = 0; y < size; y += 1) {
+    const row = Buffer.alloc(1 + size * 4)
+    for (let x = 0; x < size; x += 1) {
+      const nearLeft = x < corner
+      const nearRight = x >= size - corner
+      const nearTop = y < corner
+      const nearBottom = y >= size - corner
+      const transparent = (nearLeft || nearRight) && (nearTop || nearBottom)
+      const o = 1 + x * 4
+      row[o] = 15
+      row[o + 1] = 107
+      row[o + 2] = 92
+      row[o + 3] = transparent ? 0 : 255
+    }
+    rows.push(row)
+  }
+  const idat = deflateSync(Buffer.concat(rows))
+
+  return Buffer.concat([
+    signature,
+    chunk('IHDR', ihdr),
+    chunk('IDAT', idat),
+    chunk('IEND', Buffer.alloc(0)),
+  ])
+}
+
 const out = join(__dirname, 'sample-3x2.png')
-writeFileSync(out, createPng(30, 20))
+const rgb = createPng(30, 20)
+writeFileSync(out, rgb)
 console.log(
-  `wrote ${out} sha=${createHash('sha256').update(createPng(30, 20)).digest('hex').slice(0, 12)}`,
+  `wrote ${out} sha=${createHash('sha256').update(rgb).digest('hex').slice(0, 12)}`,
+)
+
+const transparentOut = join(__dirname, 'transparent_corners.png')
+const rgba = createTransparentCornersPng()
+writeFileSync(transparentOut, rgba)
+console.log(
+  `wrote ${transparentOut} sha=${createHash('sha256').update(rgba).digest('hex').slice(0, 12)}`,
 )
