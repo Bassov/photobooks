@@ -4,16 +4,16 @@ Procedural SoT for unattended and interactive agents. **Enforcement** (inventori
 
 How for each stage lives elsewhere (do not duplicate here):
 
-| Concern                                                  | How SoT                                     |
-| -------------------------------------------------------- | ------------------------------------------- |
-| Proposal / design / tasks / specs shape                  | `openspec/config.yaml` `rules.*`            |
-| Change-quality during implement (survivors, UI smoke, …) | `openspec/config.yaml` `operations.apply`   |
-| Spec sync / archive / roadmap done                       | `openspec/config.yaml` `operations.archive` |
-| Plan / impl review                                       | `.cursor/agents/openspec-*-reviewer.md`     |
-| Tests                                                    | skill `write-tests`                         |
-| UI review                                                | skill `ui-review`                           |
-| Commit/PR harness precedence                             | `.cursor/rules/git-finish.mdc`              |
-| Unattended runner                                        | `.cursor/commands/next-roadmap-item.md`     |
+| Concern                                                  | How SoT                                                                 |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Proposal / design / tasks / specs shape                  | `openspec/config.yaml` `rules.*`                                        |
+| Change-quality during implement (UI smoke, survivors, …) | `openspec/config.yaml` `operations.apply` (no stryker item in tasks.md) |
+| Spec sync / archive / roadmap done                       | `openspec/config.yaml` `operations.archive`                             |
+| Plan / impl review                                       | `.cursor/agents/openspec-*-reviewer.md`                                 |
+| Tests                                                    | skill `write-tests`                                                     |
+| UI review                                                | skill `ui-review`                                                       |
+| Commit/PR harness precedence                             | `.cursor/rules/git-finish.mdc`                                          |
+| Unattended runner                                        | `.cursor/commands/next-roadmap-item.md`                                 |
 
 Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict. Else record assumptions and continue.
 
@@ -86,7 +86,8 @@ No commit in stages 3–4. CI never scores vs phase commits.
 
 ### 9 · Browser / security QA (if needed)
 
-- `pnpm agent manual-qa` (N/A non-UI); skill `ui-review` when UI in scope; Security Review when tagged / security surface.
+- `pnpm agent manual-qa` (N/A non-UI): scenarios from roadmap Browser/Perf + `tasks.md` `## Manual test scenarios`; paste OK/problem lines back into that section (not an Implementation checkbox).
+- Skill `ui-review` when UI in scope; Security Review when tagged / security surface.
 - Rework via A (base = stage 8); re-B only if UI/e2e/tests changed (B base = stage 8).
 
 ### 10 · Archive + PR body

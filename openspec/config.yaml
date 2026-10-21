@@ -53,8 +53,10 @@ rules:
   tasks:
     - Break work into small, checkable tasks.
     - 'At most 8 implementation tasks. More means split with `pnpm roadmap add --after` instead of inflating tasks.'
-    - 'tasks.md has ## Implementation and ## Manual test scenarios only. Do NOT copy a Verification checklist — gates are `docs/agent-loop.md` stage 11 / CI; finish is thin push+PR.'
-    - 'Tick boxes with test/link/commit evidence when completing tasks.'
+    - 'tasks.md has ## Implementation (feature work only) and ## Manual test scenarios only. Do NOT put loop rituals (check:fast, B, manual-qa, stamp, finish) or a Verification checklist in Implementation — those are `docs/agent-loop.md` / CI.'
+    - '## Manual test scenarios: scenario list (or N/A) + paste OK/problem lines from stage-9 `pnpm agent manual-qa`. Not an Implementation checkbox. Copy into the PR body when drafting.'
+    - 'Do not add a tasks.md stryker/survivors item — kill mutants with public-API tests or budgeted `// Stryker disable next-line …: <reason>`; optional leftover notes go in the PR Skipped/risk section only.'
+    - 'Tick Implementation boxes with test/link/commit evidence when completing tasks.'
   specs:
     - 'Keep openspec/specs/ for `src/` product capabilities only. Tooling/CI/agent changes: skip_specs: true.'
     - 'Prefer concise invariants + single-line requirements; reserve WHEN/THEN for core user/contract flows.'
@@ -71,8 +73,7 @@ operations:
       - 'When UI is in scope: before push/archive, skill `ui-review` + evidenced browser smoke (empty + happy + primary scroll/interact). Prefer Playwright; MCP screenshots are supporting evidence.'
       - 'Require evidenced openspec-planning-reviewer pass before apply (docs-only skips design checklist), except prep/contingency fast-track (roadmap item is the plan; keep implementation-reviewer).'
       - 'If apply will exceed size guidance (~1000 / prefer ≤1500; advisory), prefer `pnpm roadmap add <slug> --after <current>` rather than enlarging the PR.'
-      - 'Add public-API tests for survived/no-coverage mutants that encode specified behavior; list the rest under the tasks.md stryker item.'
-      - 'Survivors: delete dead code or use budgeted `// Stryker disable next-line …: <reason>`; illegal disable forms are forbidden.'
+      - 'Survived/no-coverage mutants that encode specified behavior: add public-API tests, or delete dead code, or use budgeted `// Stryker disable next-line …: <reason>`. Free-text in tasks.md does not justify a survivor; do not add a stryker item there. Optional notes → PR Skipped/risk only.'
       - 'Run pnpm audit:ci when package.json, the lockfile, or a security-tagged change is in scope.'
       - 'Blocking (critical/high) findings MUST be fixed or scheduled with `pnpm roadmap add --after <current>`; the PR body records verdicts and dispositions.'
       - Do not archive while critical or high review findings remain open.
