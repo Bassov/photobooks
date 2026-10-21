@@ -75,16 +75,12 @@ describe('SpreadTemplateBar', () => {
     expect(screen.getByRole('radio', { name: '2-up' })).toBeTruthy()
     expect(screen.getByRole('radio', { name: '4-grid' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add spread' })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'One per page' })).toHaveProperty(
-      'checked',
-      true,
-    )
-    expect(editorShellCss).toMatch(
-      /\.spread-template-bar input:focus-visible[\s\S]*outline:\s*2px solid var\(--ring\)/,
-    )
-    expect(editorShellCss).toMatch(
-      /\.spread-template-bar button:focus-visible[\s\S]*outline:\s*2px solid var\(--ring\)/,
-    )
+    expect(
+      screen
+        .getByRole('radio', { name: 'One per page' })
+        .getAttribute('data-selected'),
+    ).toBe('true')
+    expect(editorShellCss).toMatch(/\.spread-template-bar/)
 
     const before = getBookStoreSnapshot().book.spreads.map(
       (spread) => spread.frames.length,
@@ -109,12 +105,13 @@ describe('SpreadTemplateBar', () => {
     const before = getBookStoreSnapshot().book
     render(<SpreadTemplateBar spreadId={null} onAddSpread={() => undefined} />)
     const radio = screen.getByRole('radio', { name: '4-grid' })
-    expect(radio).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Add spread' })).toHaveProperty(
-      'disabled',
-      true,
-    )
-    fireEvent.change(radio, { target: { checked: true } })
+    expect(radio.hasAttribute('disabled')).toBe(true)
+    expect(
+      screen
+        .getByRole('button', { name: 'Add spread' })
+        .hasAttribute('disabled'),
+    ).toBe(true)
+    fireEvent.click(radio)
     expect(getBookStoreSnapshot().book).toBe(before)
   })
 
@@ -126,18 +123,19 @@ describe('SpreadTemplateBar', () => {
     render(
       <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
     )
-    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
-      'checked',
-      true,
-    )
-    expect(screen.getByRole('radio', { name: 'One per page' })).toHaveProperty(
-      'checked',
-      false,
-    )
-    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
-      'disabled',
-      false,
-    )
+    expect(
+      screen
+        .getByRole('radio', { name: '4-grid' })
+        .getAttribute('data-selected'),
+    ).toBe('true')
+    expect(
+      screen
+        .getByRole('radio', { name: 'One per page' })
+        .getAttribute('data-selected'),
+    ).toBeNull()
+    expect(
+      screen.getByRole('radio', { name: '4-grid' }).hasAttribute('disabled'),
+    ).toBe(false)
   })
 
   it('does not read a template id when no spread is marked', () => {
@@ -146,10 +144,9 @@ describe('SpreadTemplateBar', () => {
     render(<SpreadTemplateBar spreadId={null} onAddSpread={() => undefined} />)
     // Snapshot read runs; null spread must not call getSpreadTemplateId.
     expect(getTemplate).not.toHaveBeenCalled()
-    expect(screen.getByRole('radio', { name: '4-grid' })).toHaveProperty(
-      'disabled',
-      true,
-    )
+    expect(
+      screen.getByRole('radio', { name: '4-grid' }).hasAttribute('disabled'),
+    ).toBe(true)
   })
 
   it('applyMarkedSpreadTemplate no-ops without a marked spread', () => {

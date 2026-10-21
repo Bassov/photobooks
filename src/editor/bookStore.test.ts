@@ -8,6 +8,7 @@ import {
   getAssetAspectSnapshot,
   getAssetContentHash,
   getAssetDisplayName,
+  getHasAnyPlacementSnapshot,
   getPlacementCountSnapshot,
   getBookStoreSnapshot,
   getGalleryAspectsSnapshot,
@@ -47,11 +48,13 @@ describe('bookStore', () => {
 
   it('updates placement counts when the book changes', () => {
     expect(getPlacementCountSnapshot('painter-b')).toBe(0)
+    expect(getHasAnyPlacementSnapshot()).toBe(false)
 
     loadPainterFixture()
 
     expect(getPlacementCountSnapshot('painter-b')).toBeGreaterThan(0)
     expect(getPlacementCountSnapshot('missing')).toBe(0)
+    expect(getHasAnyPlacementSnapshot()).toBe(true)
   })
 
   it('retains a session file for each painter fixture asset', () => {

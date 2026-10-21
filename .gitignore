@@ -61,3 +61,6 @@ e2e/fixtures/sample-corrupt.webp
 
 # Retired milestones are not kept in-tree (git history is SoT)
 docs/roadmap/archive/
+
+# OpenSpec change working dirs are removed on archive; do not keep archive/ in-tree
+openspec/changes/archive/

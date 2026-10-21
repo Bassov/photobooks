@@ -99,7 +99,7 @@ describe('SpecimenPage', () => {
     expect(screen.getByText('3 files skipped')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Show files' }))
     expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
-      'Opened error list',
+      'Opened import-errors panel (grouped by reason; dismiss / Clear all)',
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Show success toast' }))
