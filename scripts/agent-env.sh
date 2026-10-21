@@ -56,22 +56,4 @@ if [ -f "$_agent_env_repo_root/.nvmrc" ]; then
   unset _agent_env_want _agent_env_want_major _agent_env_got _agent_env_got_major
 fi
 
-# Playwright Chromium needs libnspr4/libnss3/libasound. When apt install is
-# unavailable, scripts/setup-playwright-libs.sh extracts them under
-# ~/.local/playwright-libs (override with PLAYWRIGHT_LIBS_DIR).
-_agent_env_pw_libs="${PLAYWRIGHT_LIBS_DIR:-$HOME/.local/playwright-libs}/root/usr/lib/x86_64-linux-gnu"
-if [ -d "$_agent_env_pw_libs" ]; then
-  case ":${LD_LIBRARY_PATH:-}:" in
-    *":$_agent_env_pw_libs:"*) ;;
-    *)
-      if [ -n "${LD_LIBRARY_PATH:-}" ]; then
-        export LD_LIBRARY_PATH="$_agent_env_pw_libs:$LD_LIBRARY_PATH"
-      else
-        export LD_LIBRARY_PATH="$_agent_env_pw_libs"
-      fi
-      ;;
-  esac
-fi
-unset _agent_env_pw_libs
-
 unset _agent_env_repo_root _agent_env_asdf_root
