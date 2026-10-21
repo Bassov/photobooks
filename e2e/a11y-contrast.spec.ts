@@ -65,6 +65,9 @@ test('happy editor passes color-contrast AA and name/role axe rules in both them
   await page.goto('/?fixture=painter')
   await expect(page.getByTestId('editor-shell')).toBeVisible()
   await expect(page.getByTestId('pasteboard-scroll')).toBeVisible()
+  // Cold start leaves restorePending briefly; wait until chrome is interactive
+  // so axe does not sample opacity-disabled buttons (~4.24:1).
+  await expect(page.getByTestId('go-home')).toBeEnabled({ timeout: 15_000 })
   await setTheme(page, 'b')
   await expectNoAxeViolations(page, 'editor happy b')
   await setTheme(page, 'b-dark')

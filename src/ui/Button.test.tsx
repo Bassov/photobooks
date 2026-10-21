@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Button } from './Button'
+
+const buttonCss = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), 'Button.css'),
+  'utf8',
+)
 
 describe('Button', () => {
   afterEach(() => {
@@ -56,5 +64,15 @@ describe('Button', () => {
         .getByRole('button', { name: 'Saving…' })
         .getAttribute('data-pending'),
     ).toBe('true')
+  })
+
+  it('keeps author colors under dark color-scheme and solid disabled fills', () => {
+    expect(buttonCss).toMatch(/\.pb-button\s*\{[^}]*appearance:\s*none/s)
+    expect(buttonCss).toMatch(
+      /\.pb-button\[data-disabled\],\s*\.pb-button\[data-pending\]\s*\{[^}]*background:\s*var\(--muted\)/s,
+    )
+    expect(buttonCss).not.toMatch(
+      /\.pb-button\[data-disabled\],\s*\.pb-button\[data-pending\]\s*\{[^}]*opacity:\s*0\.5/s,
+    )
   })
 })
