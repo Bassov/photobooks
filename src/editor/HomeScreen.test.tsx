@@ -147,6 +147,60 @@ describe('HomeScreen merge-blocker a11y', () => {
     })
   })
 
+  it('removing a non-selected recent keeps the current selection', async () => {
+    const storageA = createMemoryLibraryStorage()
+    const storageB = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    configureProjectSession({
+      session,
+      createStorage: () => storageA,
+    })
+    await attachLibraryForTests({
+      storage: storageA,
+      session,
+      libraryId: 'lib-keep',
+      handle: { name: 'KeepLib' },
+    })
+    const created = await createBookInLibrary('KeepBook')
+    assert(created.ok)
+    await leaveEditorForHome()
+    await attachLibraryForTests({
+      storage: storageB,
+      session,
+      libraryId: 'lib-drop',
+      handle: { name: 'DropLib' },
+    })
+    await leaveEditorForHome()
+
+    render(<HomeScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('home-recent-lib-keep')).toBeTruthy()
+      expect(screen.getByTestId('home-recent-lib-drop')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByTestId('home-recent-lib-keep'))
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('home-recent-lib-keep').getAttribute('aria-current'),
+      ).toBe('true')
+      expect(screen.getByTestId('home-selected-announce').textContent).toMatch(
+        /KeepLib/,
+      )
+      expect(screen.getByTestId(`home-book-${created.value.id}`)).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByTestId('home-remove-lib-drop'))
+    await waitFor(() => {
+      expect(screen.queryByTestId('home-recent-lib-drop')).toBeNull()
+      expect(
+        screen.getByTestId('home-recent-lib-keep').getAttribute('aria-current'),
+      ).toBe('true')
+      expect(screen.getByTestId('home-selected-announce').textContent).toMatch(
+        /KeepLib/,
+      )
+      expect(screen.getByTestId(`home-book-${created.value.id}`)).toBeTruthy()
+    })
+  })
+
   it('keyboard activation selects a recent library', async () => {
     const storage = createMemoryLibraryStorage()
     const session = createMemorySessionState()

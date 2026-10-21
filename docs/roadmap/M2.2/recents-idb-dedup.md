@@ -6,8 +6,6 @@ Title: session IDB typed faults, recents isSameEntry dedup, eviction cleanup
 
 ## Scope
 
-## Scope
-
 - [ ] IndexedDB blocked and failure paths return typed results without throw (unit tests on the `session-idb-locks-mutation` fakes)
 - [ ] IDB-blocked e2e (home shows storage error + retry; no uncaught throw)
 - [ ] Recents dedup across separate handle objects (`isSameEntry`); when max-10 eviction drops a recent, delete its handle key from IDB

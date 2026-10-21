@@ -1,4 +1,9 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react'
 import {
   displayBookTitle,
   type BookSummary,
@@ -24,6 +29,18 @@ import {
 } from './projectSession'
 import { promptBookTitle } from './promptBookTitle'
 import './HomeScreen.css'
+
+const SELECTED_ANNOUNCE_STYLE: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+}
 
 export function HomeScreen() {
   const project = useSyncExternalStore(
@@ -185,8 +202,6 @@ export function HomeScreen() {
             data-testid="create-library"
             isDisabled={actionDisabled('create-library')}
             onPress={() => {
-              // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
-              beginBusyAction('create-library')
               void createLibrary()
             }}
           >
@@ -198,8 +213,6 @@ export function HomeScreen() {
             data-testid="open-library"
             isDisabled={actionDisabled('open-library')}
             onPress={() => {
-              // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
-              beginBusyAction('open-library')
               void openLibrary()
             }}
           >
@@ -222,8 +235,6 @@ export function HomeScreen() {
               data-testid="regrant-library"
               isDisabled={actionDisabled('regrant-library')}
               onPress={() => {
-                // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
-                beginBusyAction('regrant-library')
                 void regrantLibrary()
               }}
             >
@@ -238,9 +249,9 @@ export function HomeScreen() {
         data-scrollport="home"
       >
         <Status
-          className="home-selected-announce"
           data-testid="home-selected-announce"
           politeness="polite"
+          style={SELECTED_ANNOUNCE_STYLE}
         >
           {selectedAnnounce}
         </Status>
@@ -257,8 +268,6 @@ export function HomeScreen() {
                 data-testid="home-retry"
                 isDisabled={actionDisabled('home-retry')}
                 onPress={() => {
-                  // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
-                  beginBusyAction('home-retry')
                   void refreshRecents()
                 }}
               >
@@ -290,7 +299,6 @@ export function HomeScreen() {
                   data-testid="home-empty-create"
                   isDisabled={actionDisabled('home-empty-create')}
                   onPress={() => {
-                    beginBusyAction('home-empty-create')
                     void createLibrary()
                   }}
                 >
@@ -302,7 +310,6 @@ export function HomeScreen() {
                   data-testid="home-empty-open"
                   isDisabled={actionDisabled('home-empty-open')}
                   onPress={() => {
-                    beginBusyAction('home-empty-open')
                     void openLibrary()
                   }}
                 >
@@ -335,8 +342,6 @@ export function HomeScreen() {
                           selectedLibraryId === recent.id ? 'true' : undefined
                         }
                         onClick={() => {
-                          // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
-                          beginBusyAction(recentTestId)
                           void onSelectRecent(recent.id)
                         }}
                       >
@@ -355,7 +360,6 @@ export function HomeScreen() {
                             if (selectedLibraryId === recent.id) {
                               setSelectedLibraryId(null)
                               setSelectedAnnounce('')
-                              // Stryker disable next-line CallExpression,ArrayDeclaration: books panel hidden when selection is null
                               setBooks([])
                             }
                             void refreshRecents()
@@ -408,8 +412,6 @@ export function HomeScreen() {
                           disabled={actionDisabled(bookTestId)}
                           onClick={() => {
                             if (selectedLibraryId) {
-                              // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
-                              beginBusyAction(bookTestId)
                               void onOpenBook(selectedLibraryId, book.id)
                             }
                           }}
@@ -424,8 +426,6 @@ export function HomeScreen() {
                           isDisabled={actionDisabled(renameTestId)}
                           aria-label={`Rename ${label}`}
                           onPress={() => {
-                            // Stryker disable next-line CallExpression: focus-hold covered by remove busy test
-                            beginBusyAction(renameTestId)
                             void onRenameBook(book)
                           }}
                         >
