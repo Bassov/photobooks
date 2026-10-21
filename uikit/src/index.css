@@ -134,7 +134,7 @@ html[data-density="compact"], .density-compact {
 html[data-theme="b-dark"], [data-theme="b-dark"] {
   --background: #1c1c1c; --foreground: #e9e7e3; --card: #242424; --popover: #262626;
   --primary: #e9e7e3; --primary-foreground: #1c1c1c;
-  --secondary: #2c2c2c; --muted: #232323; --muted-foreground: #9a968f; --subtle: #2a2a2a;
+  --secondary: #252525; --muted: #232323; --muted-foreground: #9a968f; --subtle: #2a2a2a;
   --accent: #313131; --accent-foreground: #f2f0ec;
   --destructive: #e8857a;
   --destructive-solid: #b9483d; --destructive-solid-hover: #bf4d41; --destructive-foreground: #fff8f6;
