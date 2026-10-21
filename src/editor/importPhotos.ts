@@ -33,14 +33,6 @@ import { isLibraryBacked } from './projectSession'
 import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
 import { setThumbUrl } from './thumbCache'
 
-export {
-  buildContentHashIndex,
-  buildReuseIndex,
-  findReusableAssetId,
-  findReusableAssetIdByContentHash,
-  IMPORT_BODY_READ_CAP,
-} from './importBodyReads'
-
 /** `performance.measure` label for the sync import kickoff (handler p95 gate). */
 const IMPORT_PHOTOS_HANDLER_LABEL = 'import-photos'
 
