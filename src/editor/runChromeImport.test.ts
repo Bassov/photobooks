@@ -17,7 +17,7 @@ describe('runChromeImport', () => {
     expect(importSpy).not.toHaveBeenCalled()
     expect(onProgress).not.toHaveBeenCalled()
     expect(onErrors).not.toHaveBeenCalled()
-    expect(result).toEqual({ imported: 0, errors: [] })
+    expect(result).toEqual({ imported: 0, errors: [], skipped: 0 })
   })
 
   it('coalesces progress frames and clears progress on success', async () => {
@@ -45,7 +45,7 @@ describe('runChromeImport', () => {
         })
         expect(frames).toHaveLength(1)
         frames[0]?.(0)
-        return Promise.resolve({ imported: 2, errors: [] })
+        return Promise.resolve({ imported: 2, errors: [], skipped: 0 })
       },
     )
 
@@ -64,7 +64,7 @@ describe('runChromeImport', () => {
     expect(onProgress).toHaveBeenCalledWith(null)
     expect(onErrors).toHaveBeenCalledWith([])
     expect(cancel).not.toHaveBeenCalled()
-    expect(result).toEqual({ imported: 2, errors: [] })
+    expect(result).toEqual({ imported: 2, errors: [], skipped: 0 })
   })
 
   it('cancels a pending frame and reports import errors', async () => {
@@ -91,7 +91,7 @@ describe('runChromeImport', () => {
           errors: [],
           running: true,
         })
-        return Promise.resolve({ imported: 0, errors })
+        return Promise.resolve({ imported: 0, errors, skipped: 0 })
       },
     )
 

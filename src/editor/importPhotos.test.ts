@@ -78,6 +78,33 @@ describe('importPhotoFiles', () => {
     expect(getBookStoreSnapshot().importRunning).toBe(false)
   })
 
+  it('folder source skips non-image files and excludes them from total', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const readme = new File(['# hi'], 'README.md', { type: 'text/markdown' })
+    const txt = new File(['x'], 'notes.txt', { type: 'text/plain' })
+    const progress = vi.fn()
+    const result = await importPhotoFiles([readme, txt], {
+      source: 'folder',
+      onProgress: progress,
+    })
+    expect(result).toEqual({ imported: 0, errors: [], skipped: 2 })
+    expect(runImportBatch).not.toHaveBeenCalled()
+    expect(progress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        completed: 0,
+        total: 0,
+        running: false,
+        errors: [],
+      }),
+    )
+  })
+
   it('rejects-only import succeeds without an onProgress callback', async () => {
     vi.stubGlobal(
       'requestAnimationFrame',

@@ -251,7 +251,11 @@ describe('EditorShell viewport containment', () => {
     const seen: File[][] = []
     vi.spyOn(importPhotos, 'importPhotoFiles').mockImplementation((files) => {
       seen.push([...files])
-      return Promise.resolve({ imported: files.length, errors: [] })
+      return Promise.resolve({
+        imported: files.length,
+        errors: [],
+        skipped: 0,
+      })
     })
     render(<EditorShell />)
     const input = screen.getByTestId('photo-file-input')

@@ -4,6 +4,7 @@ import { importPhotoFiles, type ImportProgress } from './importPhotos'
 export interface ChromeImportResult {
   imported: number
   errors: readonly ImportFileError[]
+  skipped: number
 }
 
 export async function runChromeImport(
@@ -11,10 +12,11 @@ export async function runChromeImport(
   options: {
     onProgress: (progress: ImportProgress | null) => void
     onErrors: (errors: readonly ImportFileError[]) => void
+    source?: 'files' | 'folder'
   },
 ): Promise<ChromeImportResult> {
   if (files.length === 0) {
-    return { imported: 0, errors: [] }
+    return { imported: 0, errors: [], skipped: 0 }
   }
   let raf = 0
   let latest!: ImportProgress
@@ -28,7 +30,10 @@ export async function runChromeImport(
       options.onProgress(latest)
     })
   }
-  const result = await importPhotoFiles(files, { onProgress })
+  const result = await importPhotoFiles(files, {
+    onProgress,
+    source: options.source ?? 'files',
+  })
   if (raf !== 0) {
     cancelAnimationFrame(raf)
   }
@@ -38,8 +43,8 @@ export async function runChromeImport(
     return result
   }
   options.onProgress({
-    total: files.length,
-    completed: files.length,
+    total: result.imported + result.errors.length,
+    completed: result.imported + result.errors.length,
     errors: result.errors,
     running: false,
   })
