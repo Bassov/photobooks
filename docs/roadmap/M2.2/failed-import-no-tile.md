@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.2
 Title: a photo that fails to decode leaves no tile, is not counted and cannot be placed
+Status: done
 
 ## Scope
 

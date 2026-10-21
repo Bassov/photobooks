@@ -22,7 +22,7 @@ The system SHALL let the user choose local image files (one or many) or a folder
 
 ### Requirement: Accepted and rejected image types
 
-The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other types, including TIFF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. A rejected file in a batch MUST NOT abort import of other accepted files.
+The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other types, including TIFF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. A rejected file in a batch MUST NOT abort import of other accepted files. An accepted file whose decode fails MUST show a visible per-file import error and MUST NOT remain as a gallery filmstrip tile or count toward the gallery photo count.
 
 #### Scenario: Accept JPEG
 
@@ -33,6 +33,11 @@ The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other
 
 - **WHEN** the user imports an `image/tiff` file
 - **THEN** the system shows a visible unsupported-format error for that file and does not add it as a successful gallery asset
+
+#### Scenario: Decode failure leaves no gallery tile
+
+- **WHEN** the user imports an accepted image whose bytes fail to decode
+- **THEN** the system shows a visible per-file import error for that file, the gallery does not keep a tile for it, and the gallery photo count excludes it
 
 ### Requirement: Filmstrip asset representation
 
@@ -125,7 +130,7 @@ A library-backed re-import of ~200 already-imported photos with an empty thumbna
 
 ### Requirement: WebP import survives missing EXIF size metadata
 
-The system SHALL successfully import accepted WebP images (`image/webp`) even when EXIF/size metadata cannot be parsed from the file. Width and height MUST still be recorded from JPEG SOF when applicable or from the decoded bitmap. A failure to decode the image bytes (for example a truncated or corrupt WebP) MUST still surface as a visible per-file import error (removal of any blank gallery tile after that failure is owned elsewhere).
+The system SHALL successfully import accepted WebP images (`image/webp`) even when EXIF/size metadata cannot be parsed from the file. Width and height MUST still be recorded from JPEG SOF when applicable or from the decoded bitmap. A failure to decode the image bytes (for example a truncated or corrupt WebP) MUST still surface as a visible per-file import error and MUST NOT leave a blank gallery tile (see Accepted and rejected image types).
 
 #### Scenario: Lossy and lossless WebP import into the filmstrip
 
