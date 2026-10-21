@@ -34,7 +34,9 @@ import {
   pickActiveSpread,
   type PasteboardWindow,
 } from './pasteboardWindow'
+import { PasteboardEmptyGuidance } from './PasteboardEmptyGuidance'
 import { RelinkHost } from './relink'
+import type { ChromeImportApi } from './useChromeImport'
 import {
   bindGalleryDrop,
   cancelPendingScrollFrame,
@@ -60,7 +62,14 @@ function getTrimWidthMm(): number {
   return getBookStoreSnapshot().book.settings.trim.widthMm
 }
 
-export const Pasteboard = memo(function Pasteboard() {
+export const Pasteboard = memo(function Pasteboard({
+  chromeImport,
+}: {
+  chromeImport?: Pick<
+    ChromeImportApi,
+    'onAddPhotos' | 'onAddFolder' | 'importDisabled'
+  >
+}) {
   const spreadIds = useSyncExternalStore(
     subscribeBookStore,
     getSpreadIdsSnapshot,
@@ -410,6 +419,13 @@ export const Pasteboard = memo(function Pasteboard() {
         onFitWidth={camera.fitWidth}
         onActualSize={camera.actualSize}
       />
+      {chromeImport !== undefined ? (
+        <PasteboardEmptyGuidance
+          onAddPhotos={chromeImport.onAddPhotos}
+          onAddFolder={chromeImport.onAddFolder}
+          importDisabled={chromeImport.importDisabled}
+        />
+      ) : null}
       <div
         ref={scrollRef}
         className="pasteboard-scroll"

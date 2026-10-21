@@ -58,6 +58,7 @@ describe('EditorShell viewport containment', () => {
     render(<EditorShell />)
 
     expect(screen.queryByText(/Pasteboard workspace arrives/)).toBeNull()
+    expect(screen.getByTestId('pasteboard-empty-card')).toBeTruthy()
     expect(screen.getByTestId('pasteboard-scroll').dataset.spreadCount).toBe(
       '3',
     )

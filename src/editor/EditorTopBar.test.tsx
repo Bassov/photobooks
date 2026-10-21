@@ -28,6 +28,10 @@ import { makeImportFileError } from './importFileError.test-helpers'
 import { resetImportErrorsStoreForTests } from './importErrorsStore'
 import { resetThumbCache } from './thumbCache'
 import { resetTierDisplay } from './tierDisplay'
+import {
+  getNoPhotosFoundHint,
+  resetNoPhotosFoundHint,
+} from './emptyGalleryHint'
 
 describe('EditorTopBar', () => {
   afterEach(() => {
@@ -41,6 +45,7 @@ describe('EditorTopBar', () => {
     resetTierDisplay()
     resetAssetSources()
     resetProjectSessionForTests()
+    resetNoPhotosFoundHint()
     resetImportErrorsStoreForTests()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -422,6 +427,32 @@ describe('EditorTopBar', () => {
     expect(
       screen.getByRole('button', { name: /Imported with 1 error/ }),
     ).toBeTruthy()
+  })
+
+  it('marks no-photos found when a folder import adds zero photos', async () => {
+    const file = new File([new Uint8Array([1])], 'README.md', {
+      type: 'text/plain',
+    })
+    vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
+    vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue([
+      file,
+    ])
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
+      imported: 0,
+      errors: [
+        makeImportFileError({
+          name: 'README.md',
+          message: 'Unsupported image format: text/plain',
+          reason: 'unsupported-type',
+        }),
+      ],
+    })
+    render(<EditorShell />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await waitFor(() => {
+      expect(getNoPhotosFoundHint()).toBe(true)
+    })
+    expect(screen.getByText('No photos found in that folder')).toBeTruthy()
   })
 
   it('ignores a cancelled folder picker result', async () => {

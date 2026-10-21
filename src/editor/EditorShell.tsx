@@ -10,6 +10,7 @@ import { installEditorKeys } from './galleryDrop'
 import type { ImportProgress } from './importPhotos'
 import { Pasteboard } from './Pasteboard'
 import { EditorTopBar } from './EditorTopBar'
+import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
 
 export function EditorShell() {
@@ -23,6 +24,10 @@ export function EditorShell() {
 
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [toastQueue] = useState(() => createToastQueue())
+  const chromeImport = useChromeImport({
+    onImportProgress: setProgress,
+    toastQueue,
+  })
 
   return (
     <div className="editor-shell" data-testid="editor-shell">
@@ -33,10 +38,10 @@ export function EditorShell() {
       >
         {editorStatus}
       </Status>
-      <EditorTopBar onImportProgress={setProgress} toastQueue={toastQueue} />
+      <EditorTopBar chromeImport={chromeImport} />
 
       <main className="editor-workspace" data-testid="editor-workspace">
-        <Pasteboard />
+        <Pasteboard chromeImport={chromeImport} />
       </main>
 
       <Filmstrip progress={progress} />
