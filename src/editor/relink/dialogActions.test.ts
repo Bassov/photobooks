@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   bindFolderInput,
+  clearFolderInputValue,
   clickFolderInput,
   folderInputChanged,
+  onRelinkDialogOpenChange,
   resolveAndMaybeClose,
   skipRelinkDialog,
 } from './dialogActions'
@@ -21,6 +23,14 @@ describe('dialogActions', () => {
   it('skipRelinkDialog closes', () => {
     setRelinkDialogOpen(true)
     skipRelinkDialog()
+    expect(isRelinkDialogOpen()).toBe(false)
+  })
+
+  it('onRelinkDialogOpenChange closes only when next is false', () => {
+    setRelinkDialogOpen(true)
+    onRelinkDialogOpenChange(true)
+    expect(isRelinkDialogOpen()).toBe(true)
+    onRelinkDialogOpenChange(false)
     expect(isRelinkDialogOpen()).toBe(false)
   })
 
@@ -48,6 +58,14 @@ describe('dialogActions', () => {
     expect(isRelinkDialogOpen()).toBe(true)
     await resolveAndMaybeClose(() => Promise.resolve(2))
     expect(isRelinkDialogOpen()).toBe(false)
+  })
+
+  it('clearFolderInputValue resets the input', () => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.value = 'x'
+    clearFolderInputValue(input)
+    expect(input.value).toBe('')
   })
 
   it('folderInputChanged ignores empty and rescans otherwise', async () => {

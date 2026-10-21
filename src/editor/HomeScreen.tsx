@@ -4,6 +4,11 @@ import {
   type BookSummary,
   type RecentLibrary,
 } from '../project'
+import { Button } from '../ui/Button'
+import { EmptyState } from '../ui/EmptyState'
+import { Icon } from '../ui/Icon'
+import { Status } from '../ui/Status'
+import { homeActionDisabled } from './homeActionDisabled'
 import {
   createLibrary,
   getProjectSessionSnapshot,
@@ -144,9 +149,9 @@ export function HomeScreen() {
   if (project.restorePending) {
     return (
       <div className="home-screen" data-testid="home-screen">
-        <p className="home-loading" data-testid="home-loading" role="status">
+        <Status className="home-loading" data-testid="home-loading">
           Loading…
-        </p>
+        </Status>
       </div>
     )
   }
@@ -159,51 +164,50 @@ export function HomeScreen() {
       <header className="home-chrome">
         <p className="brand">Photobooks</p>
         <div className="home-actions">
-          <button
-            type="button"
-            className="editor-action editor-action-secondary"
+          <Button
+            variant="secondary"
+            size="sm"
             data-testid="create-library"
-            disabled={!interactive}
-            onClick={() => {
+            isDisabled={homeActionDisabled(interactive)}
+            onPress={() => {
               void createLibrary()
             }}
           >
             New library
-          </button>
-          <button
-            type="button"
-            className="editor-action editor-action-secondary"
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             data-testid="open-library"
-            disabled={!interactive}
-            onClick={() => {
+            isDisabled={homeActionDisabled(interactive)}
+            onPress={() => {
               void openLibrary()
             }}
           >
             Open
-          </button>
-          <button
-            type="button"
-            className="editor-action editor-action-secondary"
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             data-testid="start-session"
-            disabled={!interactive}
-            onClick={() => {
+            isDisabled={homeActionDisabled(interactive)}
+            onPress={() => {
               startSessionEditor()
             }}
           >
             Start editing
-          </button>
+          </Button>
           {permissionRequired ? (
-            <button
-              type="button"
-              className="editor-action"
+            <Button
+              size="sm"
               data-testid="regrant-library"
-              disabled={!interactive}
-              onClick={() => {
+              isDisabled={homeActionDisabled(interactive)}
+              onPress={() => {
                 void regrantLibrary()
               }}
             >
               Grant access
-            </button>
+            </Button>
           ) : null}
         </div>
       </header>
@@ -213,34 +217,68 @@ export function HomeScreen() {
         data-scrollport="home"
       >
         {listFailed ? (
-          <div className="home-error-panel" data-testid="home-idb-error">
-            <p className="home-error" role="alert">
-              Could not load recent libraries. Check that site storage is
-              available, then retry.
-            </p>
-            <button
-              type="button"
-              className="editor-action"
-              data-testid="home-retry"
-              disabled={!interactive}
-              onClick={() => {
-                void refreshRecents()
-              }}
-            >
-              Retry
-            </button>
-          </div>
+          <EmptyState
+            className="home-error-panel"
+            data-testid="home-idb-error"
+            icon={<Icon name="warning" size={20} />}
+            title="Could not load recent libraries"
+            description="Check that site storage is available, then retry."
+            actions={
+              <Button
+                size="sm"
+                data-testid="home-retry"
+                isDisabled={homeActionDisabled(interactive)}
+                onPress={() => {
+                  void refreshRecents()
+                }}
+              >
+                Retry
+              </Button>
+            }
+          />
         ) : null}
         {project.homeError ? (
-          <p className="home-error" role="status" data-testid="home-error">
+          <Status
+            className="home-error"
+            data-testid="home-error"
+            politeness="assertive"
+          >
             {project.homeError}
-          </p>
+          </Status>
         ) : null}
         {empty ? (
-          <p className="home-empty" data-testid="home-empty">
-            No recent libraries yet. Create a new library or open an existing
-            folder to get started.
-          </p>
+          <EmptyState
+            className="home-empty"
+            data-testid="home-empty"
+            icon={<Icon name="folder" size={20} />}
+            title="No recent libraries yet"
+            description="Create a new library or open an existing folder to get started."
+            actions={
+              <>
+                <Button
+                  size="sm"
+                  data-testid="home-empty-create"
+                  isDisabled={homeActionDisabled(interactive)}
+                  onPress={() => {
+                    void createLibrary()
+                  }}
+                >
+                  New library
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  data-testid="home-empty-open"
+                  isDisabled={homeActionDisabled(interactive)}
+                  onPress={() => {
+                    void openLibrary()
+                  }}
+                >
+                  Open
+                </Button>
+              </>
+            }
+          />
         ) : null}
         {!listFailed && !empty ? (
           <div className="home-columns">
@@ -267,13 +305,14 @@ export function HomeScreen() {
                     >
                       {recent.label}
                     </button>
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="home-remove"
                       data-testid={`home-remove-${recent.id}`}
-                      disabled={!interactive}
+                      isDisabled={homeActionDisabled(interactive)}
                       aria-label={`Remove ${recent.label}`}
-                      onClick={() => {
+                      onPress={() => {
                         void removeRecentFromHome(recent.id).then(() => {
                           if (selectedLibraryId === recent.id) {
                             setSelectedLibraryId(null)
@@ -284,7 +323,7 @@ export function HomeScreen() {
                       }}
                     >
                       Remove
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -292,19 +331,26 @@ export function HomeScreen() {
             <section className="home-panel" data-testid="home-books">
               <h2 className="home-heading">Books</h2>
               {selectedLibraryId === null ? (
-                <p className="home-hint">Select a library to see its books.</p>
+                <Status className="home-hint">
+                  Select a library to see its books.
+                </Status>
               ) : null}
               {permissionRequired && selectedLibraryId !== null ? (
-                <p className="home-hint" data-testid="home-permission-hint">
+                <Status
+                  className="home-hint"
+                  data-testid="home-permission-hint"
+                >
                   This library needs folder access. Use Grant access to
                   continue.
-                </p>
+                </Status>
               ) : null}
               {!permissionRequired &&
               selectedLibraryId !== null &&
               books.length === 0 &&
               !project.homeError ? (
-                <p className="home-hint">No books in this library yet.</p>
+                <Status className="home-hint">
+                  No books in this library yet.
+                </Status>
               ) : null}
               {!permissionRequired && books.length > 0 ? (
                 <ul className="home-list" aria-label="Books">
@@ -325,18 +371,19 @@ export function HomeScreen() {
                         >
                           {label}
                         </button>
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="home-remove"
                           data-testid={`home-rename-${book.id}`}
-                          disabled={!interactive}
+                          isDisabled={homeActionDisabled(interactive)}
                           aria-label={`Rename ${label}`}
-                          onClick={() => {
+                          onPress={() => {
                             void onRenameBook(book)
                           }}
                         >
                           Rename
-                        </button>
+                        </Button>
                       </li>
                     )
                   })}

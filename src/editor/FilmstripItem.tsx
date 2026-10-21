@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { GridListItem } from 'react-aria-components'
+import { Badge } from '../ui/Badge'
 import {
   getAssetAspectSnapshot,
   getAssetContentHash,
@@ -7,6 +8,11 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { ASSET_DRAG_MIME } from './dropTargets'
+import { filmstripImportJumpHighlightStyle } from './filmstripChromeStyles'
+import {
+  getFilmstripJumpHighlightId,
+  subscribeFilmstripJump,
+} from './filmstripJump'
 import { setSelectedAssetId } from './gallerySelection'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotSize } from './thumbSlotSize'
@@ -51,6 +57,11 @@ export function FilmstripItemView({
     () => getPlacementCountSnapshot(id),
     () => getPlacementCountSnapshot(id),
   )
+  const jumpHighlightId = useSyncExternalStore(
+    subscribeFilmstripJump,
+    getFilmstripJumpHighlightId,
+    getFilmstripJumpHighlightId,
+  )
   useEffect(() => {
     if (contentHash === undefined || contentHash.length === 0) {
       return
@@ -69,12 +80,14 @@ export function FilmstripItemView({
       data-aspect={String(aspect)}
       data-orientation={orientationLabel(aspect)}
       data-offset-left={String(offsetLeft)}
+      {...(jumpHighlightId === id ? { 'data-import-jump': '' } : {})}
       style={{
         position: 'absolute',
         top: 0,
         left: offsetLeft,
         width,
         height,
+        ...(jumpHighlightId === id ? filmstripImportJumpHighlightStyle : {}),
       }}
     >
       <div
@@ -103,9 +116,14 @@ export function FilmstripItemView({
           />
         )}
         {placementCount > 0 ? (
-          <span className="filmstrip-placed" data-testid="filmstrip-placed">
+          <Badge
+            color="brand"
+            size="sm"
+            className="filmstrip-placed"
+            data-testid="filmstrip-placed"
+          >
             Placed
-          </span>
+          </Badge>
         ) : null}
       </div>
     </GridListItem>

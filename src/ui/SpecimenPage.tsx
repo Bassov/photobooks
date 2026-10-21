@@ -397,7 +397,9 @@ export function SpecimenPage() {
               size="sm"
               onPress={() => {
                 enqueueSpecimenErrorToast(toastQueue, () => {
-                  setStatusMsg('Opened error list')
+                  setStatusMsg(
+                    'Opened import-errors panel (grouped by reason; dismiss / Clear all)',
+                  )
                 })
               }}
             >

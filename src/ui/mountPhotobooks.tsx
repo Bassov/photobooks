@@ -2,7 +2,7 @@ import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { enablePerfHooks, shouldEnablePerfHooks } from '../perf/exposePerf'
 import { warmPhotoWorker } from '../photo/loadPhoto'
-import { applyPreferredTheme, readPrefersDark } from './preferredTheme'
+import { applyBootTheme, readPrefersDark } from './preferredTheme'
 import { createRootTree } from './rootTree'
 
 interface MountPhotobooksOptions {
@@ -20,7 +20,11 @@ interface MountPhotobooksOptions {
 }
 
 function defaultApplyTheme(): void {
-  applyPreferredTheme(document.documentElement, readPrefersDark())
+  applyBootTheme(
+    document.documentElement,
+    readPrefersDark(),
+    globalThis.localStorage,
+  )
 }
 
 /** Product bootstrap used by the Vite entry (theme, session, optional specimen). */

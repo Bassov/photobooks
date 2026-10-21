@@ -4,6 +4,7 @@ import {
   assertNamedScrollport,
 } from './fixtures/assertDocumentFitsViewport'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import './perf/perfFixture'
 
 test('specimen page shows token swatches without third-party fonts', async ({
   page,
@@ -60,7 +61,7 @@ test('specimen page shows token swatches without third-party fonts', async ({
   await expect(page.getByText('3 files skipped')).toBeVisible()
   await page.getByRole('button', { name: 'Show files' }).click()
   await expect(page.getByTestId('specimen-status-polite')).toHaveText(
-    'Opened error list',
+    'Opened import-errors panel (grouped by reason; dismiss / Clear all)',
   )
   await expect(
     page.getByRole('progressbar', { name: 'Import progress' }),
@@ -164,4 +165,80 @@ test('book paper stays light under b-dark', async ({ page }) => {
   // rgb(244, 243, 241) == #f4f3f1
   expect(colors.spreadBg).toMatch(/244,\s*243,\s*241/)
   await assertDocumentFitsViewport(page)
+})
+
+test('theme toggle flips chrome, keeps paper, and persists across reload', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter')
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'pasteboard-scroll', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
+
+  await expect(page.getByTestId('app-theme-toggle')).toBeVisible()
+
+  // Force light first so the toggle path is deterministic (b → b-dark).
+  await page.evaluate(() => {
+    localStorage.setItem('photobooks-theme', 'b')
+  })
+  await page.reload()
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await expect
+    .poll(async () =>
+      page.evaluate(() => document.documentElement.dataset.theme),
+    )
+    .toBe('b')
+
+  await page.getByTestId('app-theme-toggle').click()
+  const afterToggle = await page.evaluate(() => ({
+    theme: document.documentElement.dataset.theme,
+    paper: getComputedStyle(document.documentElement)
+      .getPropertyValue('--paper')
+      .trim()
+      .toLowerCase(),
+    canvas: getComputedStyle(document.documentElement)
+      .getPropertyValue('--canvas')
+      .trim()
+      .toLowerCase(),
+    stored: localStorage.getItem('photobooks-theme'),
+  }))
+  expect(afterToggle.theme).toBe('b-dark')
+  expect(afterToggle.stored).toBe('b-dark')
+  expect(afterToggle.paper).toBe('#f4f3f1')
+  expect(afterToggle.canvas).toBe('#121212')
+
+  await page.reload()
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await expect
+    .poll(async () =>
+      page.evaluate(() => document.documentElement.dataset.theme),
+    )
+    .toBe('b-dark')
+})
+
+test('theme toggle mid-pasteboard scroll records zero LoAF', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter&perf=1')
+  await expect(page.getByTestId('editor-shell')).toBeVisible()
+  await page.waitForFunction(() => window.__photobooksPerf !== undefined)
+
+  const scroll = page.getByTestId('pasteboard-scroll')
+  await expect(scroll).toBeVisible()
+  await scroll.evaluate((el) => {
+    el.scrollTop = Math.max(40, Math.floor(el.scrollHeight / 3))
+  })
+
+  await page.evaluate(() => {
+    window.__photobooksPerf?.clearLoafEntries()
+  })
+  await page.getByTestId('app-theme-toggle').click()
+  await page.waitForTimeout(50)
+  const loafCount = await page.evaluate(
+    () => window.__photobooksPerf?.getLoafEntries().length ?? -1,
+  )
+  expect(loafCount).toBe(0)
 })

@@ -21,14 +21,28 @@ describe('partitionImportFiles', () => {
     expect(accepted).toEqual([jpeg, png])
     expect(rejected).toHaveLength(1)
     expect(rejected[0]?.file).toBe(tiff)
-    expect(rejected[0]?.reason).toMatch(/Unsupported/i)
+    expect(rejected[0]?.message).toMatch(/Unsupported/i)
+    expect(rejected[0]?.reason).toBe('unsupported-type')
   })
 
   it('treats empty mime as unsupported octet-stream', () => {
     const bare = new File([new Uint8Array([1])], 'no-ext')
     const { accepted, rejected } = partitionImportFiles([bare])
     expect(accepted).toHaveLength(0)
-    expect(rejected[0]?.reason).toMatch(/octet-stream|Unsupported/i)
+    expect(rejected[0]?.message).toMatch(/octet-stream|Unsupported/i)
+    expect(rejected[0]?.reason).toBe('unsupported-type')
+  })
+
+  it('tags HEIC-like rejects with heic reason', () => {
+    const heic = new File([new Uint8Array([1])], 'scan.heic', {
+      type: 'image/heic',
+    })
+    const heifExt = new File([new Uint8Array([1])], 'scan.heif', {
+      type: '',
+    })
+    const { rejected } = partitionImportFiles([heic, heifExt])
+    expect(rejected.map((entry) => entry.reason)).toEqual(['heic', 'heic'])
+    expect(rejected[0]?.message).toMatch(/Unsupported/i)
   })
 
   it('returns empty partitions for an empty list', () => {

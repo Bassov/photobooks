@@ -26,7 +26,7 @@ describe('SegmentedControl', () => {
     )
     const group = screen.getByRole('radiogroup', { name: 'Fit' })
     expect(group.className).toBe('pb-segmented pb-segmented--md seg')
-    expect(group.getAttribute('style')).toContain('repeat(3')
+    expect(group.className).toContain('pb-segmented')
     expect(
       screen.getByRole('radio', { name: 'Fill' }).getAttribute('data-selected'),
     ).toBe('true')
