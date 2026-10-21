@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.2
 Title: home polish after correctness (what M2.1 does not cover)
+Status: done
 
 ## Scope
 
@@ -18,3 +19,7 @@ Title: home polish after correctness (what M2.1 does not cover)
 - **Perf:** no new interaction; existing gates stay green.
 - **Browser check:** keyboard-only home; narrow ~900px; deny access, cancel the picker and reopen a recent library — each shows a readable message and focus stays on the control. Lighthouse still budgets the editor path.
 - **UI kit:** `uikit/src/features/m2.tsx:243-251` (`recents-home`, `UI ref: uikit#/feature/recents-home` — recent libraries + book grid), `uikit/src/features/m25.tsx:147-158` and `:231-237` (`project-screens-adoption`, `UI ref: uikit#/feature/project-screens-adoption` — Home / empty / permission / lock scenarios), `uikit/src/features/screens.tsx` (HomeScreen). a11y/focus polish follows these home screens
+
+## Done note
+
+Home a11y + readable status + re-grant polish; IDB/dedup split to recents-idb-dedup
