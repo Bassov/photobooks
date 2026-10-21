@@ -22,3 +22,5 @@ Status: done
 ## Done note
 
 Shipped unified pnpm check + compact `--run` wrapper for standalone test:quiet / e2e-changed / stryker:diff / roadmap check; finish single pre-push verify; preflight stale merge-or-recreate + checklist ids; docs collapse. Finish CI-summary (moved to pr-metrics-autogen). Size re-estimate ~1300 LOC vs original ~400.
+
+**Superseded (agent-loop stages):** SoT inventories are `pnpm check:fast` (A) and `pnpm check:integrity` (C1); hand-push runs both; `agent finish` is thin push+PR (no fat verify / no C2). Compact OK/problem output remains.
