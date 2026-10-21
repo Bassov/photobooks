@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import * as dialogActions from './dialogActions'
 import { RelinkDialog } from './RelinkDialog'
 import {
   markRelinkFound,
@@ -131,15 +133,18 @@ describe('RelinkDialog', () => {
     expect(click).toHaveBeenCalledTimes(1)
   })
 
-  it('invokes onRescanFiles from folder input', () => {
+  it('invokes onRescanFiles from folder input and clears the value', () => {
     setRelinkDialogOpen(true)
     const onRescanFiles = vi.fn((): Promise<undefined> =>
       Promise.resolve(undefined),
     )
+    const clear = vi.spyOn(dialogActions, 'clearFolderInputValue')
     render(
       <RelinkDialog onRescanFiles={onRescanFiles} onResolve={noopResolve} />,
     )
-    fireEvent.change(screen.getByTestId('relink-folder-input'), {
+    const input = screen.getByTestId('relink-folder-input')
+    assert(input instanceof HTMLInputElement)
+    fireEvent.change(input, {
       target: {
         files: [
           new File([new Uint8Array([1])], 'a.jpg', { type: 'image/jpeg' }),
@@ -147,6 +152,7 @@ describe('RelinkDialog', () => {
       },
     })
     expect(onRescanFiles).toHaveBeenCalledTimes(1)
+    expect(clear).toHaveBeenCalledWith(input)
   })
 
   it('ignores empty folder input changes', () => {

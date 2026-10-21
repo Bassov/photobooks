@@ -97,20 +97,9 @@
 
 .save-indicator {
   margin: 0;
-  font-family: var(--font-ui);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
-}
-
-.save-indicator[data-save-phase='error'] {
-  color: var(--destructive);
-}
-
-.save-indicator[data-save-phase='pending'],
-.save-indicator[data-save-phase='saving'] {
-  color: var(--foreground);
 }
 
 .import-progress {

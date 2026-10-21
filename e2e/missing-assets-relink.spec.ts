@@ -67,6 +67,37 @@ test('empty relink dialog shows everything linked', async ({ page }) => {
   await assertDocumentFitsViewport(page)
 })
 
+test('relink problem list scrolls inside the named scrollport', async ({
+  page,
+}) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  await page.goto('/?testLibrary=1')
+  await expect(page.getByTestId('editor-shell')).toBeVisible({
+    timeout: 15_000,
+  })
+  await waitForRelinkApi(page)
+
+  await page.evaluate(() => {
+    const api = (window as unknown as { __photobooksRelink?: RelinkTestApi })
+      .__photobooksRelink
+    if (!api) {
+      throw new Error('relink API missing')
+    }
+    api.resetRelinkStore()
+    const rows: [string, 'missing'][] = Array.from({ length: 24 }, (_, i) => [
+      `asset-${String(i)}`,
+      'missing',
+    ])
+    api.replaceRelinkStatuses(rows)
+    api.setRelinkDialogOpen(true)
+  })
+
+  await expect(page.getByTestId('relink-dialog')).toBeVisible()
+  await expect(page.getByTestId('relink-list')).toBeVisible()
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'relink-list', { axis: 'vertical' })
+})
+
 test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')

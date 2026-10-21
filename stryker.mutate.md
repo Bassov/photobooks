@@ -10,7 +10,6 @@ Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in t
 - `!src/photo/photo.worker.ts` — onmessage wrapper; logic lives in processPhoto.ts
 - `!src/assets/hash.worker.ts` — onmessage wrapper; logic lives in hashDigest.ts
 - `!src/project/fsa/bookLoad.worker.ts` — onmessage wrapper; logic lives in bookLoad.ts
-- `!src/editor/HomeScreen.tsx` — thin home UI for recents/books; behavior locked by `projectSession` unit tests and e2e `recents-home`
 - `!src/App.tsx` — surface switch + bootstrap wiring; locked by App RTL and e2e home/editor entry
 - `!src/editor/previewAspect.ts` — JPEG SOF aspect restore covered by unit tests; non-JPEG path only delegates to `processAsset` (mutated via `assetPool`)
 - `!src/editor/upgradeSessionAssets.ts` — identity upgrade on adopt locked by `upgradeSessionAssets.test.ts` via `attachMemoryLibraryForTests` / public adopt path; hashing delegates to `hashContent`

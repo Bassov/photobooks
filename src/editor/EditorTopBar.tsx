@@ -13,7 +13,10 @@ import {
   pickFolderWithDirectoryPicker,
   pickPhotosWithFilePicker,
 } from '../photo/pickPhotos'
+import { Badge } from '../ui/Badge'
+import { Button } from '../ui/Button'
 import '../ui/Button.css'
+import { Status } from '../ui/Status'
 import '../ui/Toolbar.css'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import { BookTitleChrome } from './BookTitleChrome'
@@ -51,7 +54,10 @@ import {
   subscribeProjectSession,
 } from './projectSession'
 import { runChromeImport } from './runChromeImport'
-import { saveIndicatorLabel } from './saveIndicatorLabel'
+import {
+  saveIndicatorBadgeColor,
+  saveIndicatorLabel,
+} from './saveIndicatorLabel'
 
 function ChromeButton({
   variant = 'secondary',
@@ -198,16 +204,16 @@ export function EditorTopBar({
           Open
         </ChromeButton>
         {project.accessPhase === 'permission-required' ? (
-          <ChromeButton
-            variant="default"
+          <Button
+            size="sm"
             data-testid="regrant-library"
-            onClick={() => {
+            isDisabled={chromeBusy}
+            onPress={() => {
               void regrantLibrary()
             }}
-            disabled={chromeBusy}
           >
             Grant access
-          </ChromeButton>
+          </Button>
         ) : null}
         <ChromeButton
           data-testid="rename-book"
@@ -252,25 +258,26 @@ export function EditorTopBar({
           Save
         </ChromeButton>
         {writeBlocked ? (
-          <span
-            className="book-lock-banner"
-            data-testid="book-lock-banner"
-            role="status"
-            aria-live="polite"
-          >
+          <Status className="book-lock-banner" data-testid="book-lock-banner">
             This book is open in another tab
-          </span>
+          </Status>
         ) : null}
         {libraryReady && !writeBlocked ? (
-          <span
+          <Status
             className="save-indicator"
             data-testid="save-indicator"
             data-save-phase={project.savePhase}
             data-dirty={project.dirty ? 'true' : 'false'}
-            aria-live="polite"
           >
-            {saveIndicatorLabel(project.savePhase, project.dirty)}
-          </span>
+            <Badge
+              color={saveIndicatorBadgeColor(project.savePhase, project.dirty)}
+              size="sm"
+              type="pill-color"
+              dot
+            >
+              {saveIndicatorLabel(project.savePhase, project.dirty)}
+            </Badge>
+          </Status>
         ) : null}
         <ChromeButton
           variant={
