@@ -492,6 +492,85 @@ describe('EditorTopBar', () => {
     expect(screen.queryByTestId('import-errors')).toBeNull()
   })
 
+  it('pluralizes folder skip status for multiple non-image files', async () => {
+    const readme = new File(['# hi'], 'README.md', { type: 'text/markdown' })
+    const txt = new File(['x'], 'notes.txt', { type: 'text/plain' })
+    vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
+    vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue([
+      readme,
+      txt,
+    ])
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
+      imported: 0,
+      errors: [],
+      skipped: 2,
+    })
+    render(<EditorShell />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('editor-status').textContent).toBe(
+        '2 non-image files skipped',
+      )
+    })
+  })
+
+  it('keeps import-error status when folder skips coexist with errors', async () => {
+    const readme = new File(['# hi'], 'README.md', { type: 'text/markdown' })
+    const tiff = new File([new Uint8Array([1])], 'scan.tiff', {
+      type: 'image/tiff',
+    })
+    vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
+    vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue([
+      readme,
+      tiff,
+    ])
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
+      imported: 0,
+      errors: [
+        makeImportFileError({
+          name: 'scan.tiff',
+          message: 'Unsupported image format: image/tiff',
+          reason: 'unsupported-type',
+        }),
+      ],
+      skipped: 1,
+    })
+    render(<EditorShell />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('editor-status').textContent).toContain(
+        'scan.tiff',
+      )
+    })
+    expect(screen.getByTestId('editor-status').textContent).not.toMatch(
+      /non-image/,
+    )
+    expect(screen.getByTestId('import-errors')).toBeTruthy()
+  })
+
+  it('does not announce skip status when a folder import skips nothing', async () => {
+    const jpeg = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
+    vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue([
+      jpeg,
+    ])
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
+      imported: 1,
+      errors: [],
+      skipped: 0,
+    })
+    render(<EditorShell />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await waitFor(() => {
+      expect(importPhotos.importPhotoFiles).toHaveBeenCalled()
+    })
+    expect(screen.getByTestId('editor-status').textContent).not.toMatch(
+      /non-image/,
+    )
+  })
+
   it('ignores a cancelled folder picker result', async () => {
     vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
     vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue(

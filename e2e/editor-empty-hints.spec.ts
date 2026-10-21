@@ -83,5 +83,10 @@ test('folder with only non-images keeps empty card and No photos found line', as
     timeout: 15_000,
   })
   await expect(page.getByText('No photos found in that folder')).toBeVisible()
+  await expect(page.getByTestId('import-errors')).toHaveCount(0)
+  await expect(page.getByTestId('editor-status')).toHaveText(
+    '1 non-image file skipped',
+  )
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
