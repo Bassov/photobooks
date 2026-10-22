@@ -76,11 +76,13 @@ export const Filmstrip = memo(function Filmstrip({
     getGalleryDisplayNamesSnapshot,
     getGalleryDisplayNamesSnapshot,
   )
-  const [windowStart, setWindowStart] = useState(0)
+  // Tracked scrollLeft + current prefix → windowStart. Prefix updates during
+  // import remount the window without a wheel nudge (IMP-11/FS-03).
+  const [scrollLeft, setScrollLeft] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const pendingScrollLeft = useRef(0)
   const scrollRaf = useRef(0)
-  const pendingStart = useRef(0)
   const total = gallery.length
 
   const prefix = useMemo(() => buildStridePrefix(aspects), [aspects])
@@ -107,6 +109,11 @@ export const Filmstrip = memo(function Filmstrip({
       observer.disconnect()
     }
   }, [])
+
+  const windowStart = useMemo(
+    () => indexFromScrollOffset(scrollLeft, prefix),
+    [prefix, scrollLeft],
+  )
 
   const coverPx = Math.max(viewportWidth, 1) + WINDOW_OVERSCAN_PX
   const windowSize = Math.max(
@@ -149,28 +156,23 @@ export const Filmstrip = memo(function Filmstrip({
     if (jumpRequest === null) {
       return
     }
-    const windowStart = applyFilmstripJumpScroll(
-      scrollRef.current,
-      filmstripJumpScrollPlan(gallery, prefix, jumpRequest.assetId),
-    )
-    if (windowStart === null) {
+    const plan = filmstripJumpScrollPlan(gallery, prefix, jumpRequest.assetId)
+    if (plan === null) {
       return
     }
-    pendingStart.current = windowStart
-    setWindowStart(windowStart)
+    applyFilmstripJumpScroll(scrollRef.current, plan)
+    pendingScrollLeft.current = plan.scrollLeft
+    setScrollLeft(plan.scrollLeft)
   }, [jumpRequest, gallery, prefix])
 
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
-    const scrollLeft = event.currentTarget.scrollLeft
-    pendingStart.current = indexFromScrollOffset(scrollLeft, prefix)
+    pendingScrollLeft.current = event.currentTarget.scrollLeft
     if (scrollRaf.current !== 0) {
       return
     }
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
-      setWindowStart((current) =>
-        current === pendingStart.current ? current : pendingStart.current,
-      )
+      setScrollLeft(pendingScrollLeft.current)
     })
   }
 
