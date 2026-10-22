@@ -69,6 +69,11 @@ describe('tierDisplay', () => {
     await Promise.resolve()
     expect(getDisplayedPreview('a')).toBe('blob:mid')
 
+    queueTierSwap('a', 640, 'blob:mid-again')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBe('blob:mid')
+
     queueTierSwap('a', 1280, 'blob:cover')
     await Promise.resolve()
     await Promise.resolve()

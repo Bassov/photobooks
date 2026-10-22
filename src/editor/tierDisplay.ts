@@ -60,6 +60,7 @@ export function queueTierSwap(
   tier: number,
   url: string,
 ): void {
+  // Stryker disable next-line ConditionalExpression: pump pre/post-decode acceptsSwap is the publish gate; queue-only skip is redundant for mutants
   if (!acceptsSwap(assetId, tier)) {
     return
   }

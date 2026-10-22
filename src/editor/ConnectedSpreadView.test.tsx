@@ -149,6 +149,53 @@ describe('per-spread paint subscription', () => {
     expect(getDisplayedPreview('a')).toBe('blob:lower-cached')
   })
 
+  it('keeps a cached lower tier across remount while covering is still loading', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal('devicePixelRatio', 1)
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    vi.spyOn(tierCache, 'getTierUrl').mockImplementation((_id, tier) =>
+      tier === 320 ? 'blob:lower-remount' : undefined,
+    )
+    vi.spyOn(tierCache, 'requestTier').mockImplementation(() => undefined)
+    vi.spyOn(tierCache, 'subscribeTier').mockImplementation(
+      () => () => undefined,
+    )
+
+    const book = twoSpreadBook()
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    const first = render(<ConnectedSpreadView spreadId="s0" />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(screen.getByTestId('spread-frame-image').getAttribute('src')).toBe(
+      'blob:lower-remount',
+    )
+    first.unmount()
+
+    render(<ConnectedSpreadView spreadId="s0" />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    const image = screen.getByTestId('spread-frame-image')
+    expect(image.getAttribute('src')).toBe('blob:lower-remount')
+    expect(image.getAttribute('data-tier')).toBe('320')
+  })
+
   it('drops a stale displayed tier on remount and falls back to the thumb', async () => {
     vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
     vi.stubGlobal('devicePixelRatio', 1)
