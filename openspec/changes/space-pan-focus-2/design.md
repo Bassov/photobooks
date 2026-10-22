@@ -1,7 +1,7 @@
 ## Decisions
 
 1. Root cause after #182: filmstrip tiles are react-aria `GridListItem` rows. Their Space keydown stops before the window bubble listener, so `spaceRef` never arms after a tile click even though toolbar buttons still work.
-2. Fix: track pointer-over-pasteboard on the scrollport; listen for Space in **capture** on `window`. When pointer is over the pasteboard and focus is not a text field, `preventDefault` + arm pan (including over focused filmstrip rows / radios). When pointer is not over the pasteboard, do not arm or steal Space so keyboard tile/radio activation still works.
+2. Fix: track pointer-over-pasteboard on the scrollport (enter/leave + last-point `elementFromPoint` recovery); listen for Space in **capture** on `window`. When pointer is over the pasteboard and focus is not a text field, `preventDefault` + `stopPropagation` + arm pan so filmstrip rows do not toggle. When pointer is not over the pasteboard, do not arm or steal Space so keyboard tile/radio activation still works.
 3. Drop the radio-only early-return; hover gates it. Spec: Space-pan after filmstrip focus requires pointer over pasteboard.
 
 ## Touch-set & Test Plan

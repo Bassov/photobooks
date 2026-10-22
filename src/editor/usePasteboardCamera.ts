@@ -242,6 +242,8 @@ export function usePasteboardCamera({
   /** True when Space-pan is armed (held + pointer over pasteboard). */
   const spaceRef = useRef(false)
   const pointerOverPasteboardRef = useRef(false)
+  /** Last pointer client point for hover recovery when enter was missed. */
+  const lastPointerClientRef = useRef<{ x: number; y: number } | null>(null)
   const panRef = useRef<{
     id: number
     x: number
@@ -651,17 +653,40 @@ export function usePasteboardCamera({
         spaceHeldRef.current && pointerOverPasteboardRef.current
     }
 
-    const onPointerEnterPasteboard = (): void => {
-      pointerOverPasteboardRef.current = true
-      syncSpacePanArm()
-    }
-    const onPointerLeavePasteboard = (): void => {
-      pointerOverPasteboardRef.current = false
+    const setPointerOverPasteboard = (over: boolean): void => {
+      pointerOverPasteboardRef.current = over
+      if (over) {
+        syncSpacePanArm()
+        return
+      }
       // Keep arming through an in-flight pan; otherwise drop so Space can
       // activate chrome again once the pointer leaves the pasteboard.
       if (panRef.current === null) {
         spaceRef.current = false
       }
+    }
+
+    const refreshPointerOverFromLastPoint = (): void => {
+      const port = scrollRef.current
+      const point = lastPointerClientRef.current
+      if (port === null || point === null) {
+        return
+      }
+      const under = document.elementFromPoint(point.x, point.y)
+      setPointerOverPasteboard(
+        under !== null && (under === port || port.contains(under)),
+      )
+    }
+
+    const onPointerEnterPasteboard = (): void => {
+      setPointerOverPasteboard(true)
+    }
+    const onPointerLeavePasteboard = (): void => {
+      setPointerOverPasteboard(false)
+    }
+
+    const onWindowPointerMove = (event: PointerEvent): void => {
+      lastPointerClientRef.current = { x: event.clientX, y: event.clientY }
     }
 
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -675,10 +700,15 @@ export function usePasteboardCamera({
         if (!event.repeat) {
           spaceHeldRef.current = true
         }
+        // Recover if pointerenter was missed (listeners attached under cursor).
+        if (!pointerOverPasteboardRef.current) {
+          refreshPointerOverFromLastPoint()
+        }
         if (!pointerOverPasteboardRef.current) {
           return
         }
         event.preventDefault()
+        event.stopPropagation()
         syncSpacePanArm()
         return
       }
@@ -746,9 +776,12 @@ export function usePasteboardCamera({
     scroll.addEventListener('pointercancel', endPointer)
     scroll.addEventListener('pointerenter', onPointerEnterPasteboard)
     scroll.addEventListener('pointerleave', onPointerLeavePasteboard)
-    // Capture so Space still arms after react-aria filmstrip rows handle it.
+    // Capture so Space still arms before react-aria filmstrip rows handle it.
     window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('pointermove', onWindowPointerMove, {
+      passive: true,
+    })
 
     return () => {
       scroll.removeEventListener('wheel', onWheel)
@@ -760,6 +793,7 @@ export function usePasteboardCamera({
       scroll.removeEventListener('pointerleave', onPointerLeavePasteboard)
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('pointermove', onWindowPointerMove)
       window.clearTimeout(settleRef.current)
       pendingWheel = null
       if (rafRef.current !== 0) {

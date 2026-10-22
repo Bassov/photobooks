@@ -105,13 +105,15 @@ describe('pasteboard camera gestures', () => {
     scroll.scrollLeft = 120
     scroll.scrollTop = 160
 
-    // Mimic react-aria GridListItem: Space on the focused row stops at the target
-    // before a bubble-phase window listener would see it (PB-04 after #182).
+    // Mimic react-aria GridListItem: Space on the focused row would toggle
+    // selection unless capture-phase pan arming stops propagation (PB-04).
     const tile = document.createElement('div')
     tile.setAttribute('role', 'row')
     tile.tabIndex = 0
+    let tileSpaceHandled = false
     tile.addEventListener('keydown', (event) => {
       if (event.code === 'Space' || event.key === ' ') {
+        tileSpaceHandled = true
         event.preventDefault()
         event.stopPropagation()
       }
@@ -129,6 +131,7 @@ describe('pasteboard camera gestures', () => {
     fireEvent.keyUp(window, { key: ' ', code: 'Space' })
     tile.remove()
 
+    expect(tileSpaceHandled).toBe(false)
     expect(scroll.scrollLeft).toBe(160)
     expect(scroll.scrollTop).toBe(210)
   })

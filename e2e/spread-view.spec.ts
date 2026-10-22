@@ -517,6 +517,8 @@ test('space-drag pans after filmstrip tile focus (PB-04)', async ({ page }) => {
   await page.mouse.up()
   await page.keyboard.up('Space')
   expect(await scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(topBefore)
+  // Space must not toggle filmstrip selection while pan is armed over pasteboard.
+  await expect(tile).toHaveAttribute('aria-selected', 'true')
   await assertDocumentFitsViewport(page)
 })
 
