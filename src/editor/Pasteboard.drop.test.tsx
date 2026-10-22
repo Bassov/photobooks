@@ -734,6 +734,29 @@ describe('Pasteboard gallery drop', () => {
     expect(getSelectedAssetId()).toBeNull()
   })
 
+  it('clears gallery selection on opaque frame MIME dragstart', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    act(() => {
+      setSelectedAssetId('b')
+    })
+    const opaque = new DragEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+    })
+    Object.defineProperty(opaque, 'dataTransfer', {
+      value: {
+        types: [FRAME_DRAG_MIME],
+        getData: () => '',
+        setData: () => undefined,
+        effectAllowed: 'move',
+        dropEffect: 'none',
+      },
+    })
+    document.dispatchEvent(opaque)
+    expect(getSelectedAssetId()).toBeNull()
+  })
+
   it('live filled lookup uses the drop target frame id', () => {
     seedGridBook()
     render(<Pasteboard />)

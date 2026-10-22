@@ -28,7 +28,6 @@ import { getSelectedAssetId, setSelectedAssetId } from './gallerySelection'
 function clearDropSession(): void {
   session = null
   localFrameDrag = null
-  // Stryker disable next-line BooleanLiteral: arming reset covered by filmstrip hover/drop tests after clear
   frameDragSeen = false
 }
 
@@ -37,13 +36,13 @@ function frameFilledInBook(
   spreadId: string,
   frameId: string,
 ): boolean {
-  // Hit-test targets always exist in the current book; id mismatch → empty.
-  /* Stryker disable all: wrong-id / missing-spread branches are equivalent to empty for place vs replace */
-  const frame = book.spreads
-    .find((candidate) => candidate.id === spreadId)
-    ?.frames.find((candidate) => candidate.id === frameId)
-  return frame?.assetId !== undefined
-  /* Stryker restore all */
+  return book.spreads.some(
+    (spread) =>
+      spread.id === spreadId &&
+      spread.frames.some(
+        (frame) => frame.id === frameId && frame.assetId !== undefined,
+      ),
+  )
 }
 
 export interface DropGeometry {
@@ -306,13 +305,15 @@ export function installGalleryDrop(
       clearDropSession()
       return
     }
+    // Always drop leftover filmstrip selection on a frame MIME dragstart,
+    // including when getData is empty (opaque PLC-04 path).
+    setSelectedAssetId(null)
     const source = frameSourceFrom(event)
     if (source === null) {
       session = null
       localFrameDrag = null
       return
     }
-    setSelectedAssetId(null)
     localFrameDrag = source
     session = beginSession(scroll, readGeometry, { kind: 'frame', source })
   }
