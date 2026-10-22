@@ -45,6 +45,66 @@ describe('pasteboard camera gestures', () => {
     resetEditorGestureForTests()
   })
 
+  it('pans with Space+drag while a toolbar button holds focus', async () => {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    Object.defineProperty(scroll, 'scrollWidth', {
+      configurable: true,
+      get: () => 800,
+    })
+    Object.defineProperty(scroll, 'scrollHeight', {
+      configurable: true,
+      get: () => 800,
+    })
+    Object.defineProperty(scroll, 'clientWidth', {
+      configurable: true,
+      get: () => 400,
+    })
+    Object.defineProperty(scroll, 'clientHeight', {
+      configurable: true,
+      get: () => 400,
+    })
+    scroll.scrollLeft = 120
+    scroll.scrollTop = 160
+
+    const chrome = screen.getByRole('button', { name: 'Fit width' })
+    chrome.focus()
+    expect(document.activeElement).toBe(chrome)
+
+    fireEvent.keyDown(chrome, { key: ' ', code: 'Space' })
+    fireEvent.pointerDown(scroll, { pointerId: 7, clientX: 80, clientY: 90 })
+    fireEvent.pointerMove(scroll, { pointerId: 7, clientX: 40, clientY: 40 })
+    await flushGesture()
+    fireEvent.pointerUp(scroll, { pointerId: 7, clientX: 40, clientY: 40 })
+    fireEvent.keyUp(window, { key: ' ', code: 'Space' })
+
+    expect(scroll.scrollLeft).toBe(160)
+    expect(scroll.scrollTop).toBe(210)
+  })
+
+  it('does not arm Space pan while a text input holds focus', async () => {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    scroll.scrollLeft = 40
+    scroll.scrollTop = 50
+
+    const input = document.createElement('input')
+    input.type = 'text'
+    document.body.append(input)
+    input.focus()
+
+    fireEvent.keyDown(input, { key: ' ', code: 'Space' })
+    fireEvent.pointerDown(scroll, { pointerId: 8, clientX: 80, clientY: 90 })
+    fireEvent.pointerMove(scroll, { pointerId: 8, clientX: 40, clientY: 40 })
+    fireEvent.pointerUp(scroll, { pointerId: 8, clientX: 40, clientY: 40 })
+    await flushGesture()
+    fireEvent.keyUp(window, { key: ' ', code: 'Space' })
+    input.remove()
+
+    expect(scroll.scrollLeft).toBe(40)
+    expect(scroll.scrollTop).toBe(50)
+  })
+
   it('zooms from wheel, keys, and pinch, then pans with space', async () => {
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')

@@ -647,16 +647,6 @@ export function usePasteboardCamera({
         return
       }
       if (event.code === 'Space' || event.key === ' ') {
-        const target = event.target
-        if (
-          target instanceof HTMLButtonElement ||
-          target instanceof HTMLInputElement ||
-          target instanceof HTMLTextAreaElement ||
-          target instanceof HTMLSelectElement ||
-          target instanceof HTMLAnchorElement
-        ) {
-          return
-        }
         event.preventDefault()
         if (!event.repeat) {
           spaceRef.current = true
