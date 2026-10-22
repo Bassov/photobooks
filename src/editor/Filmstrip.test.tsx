@@ -26,7 +26,9 @@ import {
   setSelectedAssetId,
 } from './gallerySelection'
 import { Filmstrip } from './Filmstrip'
+import { Pasteboard } from './Pasteboard'
 import { seedGallery } from './gallery.test-helpers'
+import { resetCameraStore } from './cameraStore'
 import { resetThumbCache } from './thumbCache'
 import {
   buildStridePrefix,
@@ -193,6 +195,8 @@ describe('Filmstrip viewport containment', () => {
 describe('Filmstrip aspect cards', () => {
   afterEach(() => {
     cleanup()
+    clearDropHover()
+    resetCameraStore()
     resetBookStore()
     resetThumbCache()
     resetAssetPool()
@@ -327,6 +331,104 @@ describe('Filmstrip aspect cards', () => {
             .getAttribute('data-window-count'),
         ),
       ).toBe(expected)
+    } finally {
+      globalThis.requestAnimationFrame = previousRaf
+      restore()
+    }
+  })
+
+  it('re-covers the scrollport when aspects refine after scroll without a nudge', () => {
+    // IMP-11/FS-03: mid-import aspect refine shifts the stride prefix; stale
+    // windowStart left a blank hole until the next wheel event.
+    const restore = stubScrollportWidth(900)
+    const callbacks: FrameRequestCallback[] = []
+    const previousRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+      callbacks.push(cb)
+      return callbacks.length
+    }
+
+    try {
+      const initial = seedGallery(24, 1.5)
+      render(<Filmstrip />)
+
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const landPrefix = buildStridePrefix(
+        Array.from({ length: 24 }, () => 1.5),
+      )
+      const scrollLeft = landPrefix[8] ?? 0
+
+      act(() => {
+        Object.defineProperty(scroll, 'scrollLeft', {
+          configurable: true,
+          get: () => scrollLeft,
+          set: () => undefined,
+        })
+        scroll.dispatchEvent(new Event('scroll'))
+        for (const cb of callbacks.splice(0, callbacks.length)) {
+          cb(0)
+        }
+      })
+
+      // Import continues: many more ids + existing cards refine to portrait.
+      const grown = Array.from(
+        { length: 160 },
+        (_, index) => `seed-extra-${String(index)}`,
+      )
+      const allIds = [...initial, ...grown]
+      const snap = getBookStoreSnapshot()
+      const assets = { ...snap.book.assets }
+      const sessionMeta = new Map<string, AssetSessionMeta>()
+      for (const id of allIds) {
+        assets[id] = assets[id] ?? {}
+        sessionMeta.set(id, {
+          name: id,
+          correctedWidth: 50,
+          correctedHeight: 100,
+          orientation: 1,
+          aspect: 0.5,
+        })
+      }
+      act(() => {
+        resetBookStore({
+          book: { ...snap.book, assets, gallery: allIds },
+          sessionMeta,
+          importRunning: true,
+          importExpectedCount: allIds.length,
+        })
+      })
+
+      const portPrefix = buildStridePrefix(
+        Array.from({ length: allIds.length }, () => 0.5),
+      )
+      const windowStart = indexFromScrollOffset(scrollLeft, portPrefix)
+      const coverPx = 900 + THUMB_WIDTH_MAX * 2
+      const expected = windowCountForCover(portPrefix, windowStart, coverPx)
+      expect(expected).toBeGreaterThan(14)
+
+      const windowEl = screen.getByTestId('filmstrip-window')
+      expect(Number(windowEl.getAttribute('data-window-count'))).toBe(expected)
+      expect(screen.getAllByTestId('filmstrip-item')).toHaveLength(expected)
+
+      const windowOffset = portPrefix[windowStart] ?? 0
+      // Bound to tracked scrollLeft — kills stale-start and missed setScrollLeft.
+      expect(windowEl.style.transform).toBe(
+        `translateX(${String(windowOffset)}px)`,
+      )
+      expect(windowOffset).toBeGreaterThan(0)
+
+      const windowWidth =
+        (portPrefix[windowStart + expected] ?? windowOffset) - windowOffset
+      const visibleRight = scrollLeft + 900
+      const overlap =
+        Math.min(windowOffset + windowWidth, visibleRight) -
+        Math.max(windowOffset, scrollLeft)
+      expect(overlap).toBeGreaterThan(900 * 0.9)
+
+      // Without prefix sync, windowStart would stay at the pre-refine index.
+      expect(indexFromScrollOffset(scrollLeft, landPrefix)).not.toBe(
+        windowStart,
+      )
     } finally {
       globalThis.requestAnimationFrame = previousRaf
       restore()
@@ -491,6 +593,191 @@ describe('Filmstrip aspect cards', () => {
       ).toBeUndefined()
       expect(getBookStoreSnapshot().book.gallery).toEqual([placedId])
       expect(scroll.getAttribute('data-drop-hover')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('does not hover the filmstrip for a frame MIME without a local dragstart', () => {
+    seedGallery(1)
+    const restore = stubScrollportWidth(400)
+    try {
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData(
+        FRAME_DRAG_MIME,
+        encodeFrameDrag({ spreadId: 's', frameId: 'f' }),
+      )
+      const over = new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(over, 'dataTransfer', { value: dataTransfer })
+      scroll.dispatchEvent(over)
+      expect(scroll.getAttribute('data-drop-hover')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('clears frame-drag arming when an asset drag starts', () => {
+    seedGallery(1)
+    const restore = stubScrollportWidth(400)
+    try {
+      render(
+        <>
+          <Pasteboard />
+          <Filmstrip />
+        </>,
+      )
+      const filmstrip = screen.getByTestId('filmstrip-scroll')
+      const frameTransfer = new DataTransfer()
+      frameTransfer.setData(
+        FRAME_DRAG_MIME,
+        encodeFrameDrag({ spreadId: 's', frameId: 'f' }),
+      )
+      const frameStart = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(frameStart, 'dataTransfer', {
+        value: frameTransfer,
+      })
+      document.dispatchEvent(frameStart)
+      const assetTransfer = new DataTransfer()
+      assetTransfer.setData(ASSET_DRAG_MIME, 'seed-0')
+      const assetStart = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(assetStart, 'dataTransfer', {
+        value: assetTransfer,
+      })
+      document.dispatchEvent(assetStart)
+      const over = new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(over, 'dataTransfer', { value: frameTransfer })
+      filmstrip.dispatchEvent(over)
+      expect(filmstrip.getAttribute('data-drop-hover')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('ignores a local frame dragstart whose drop payload cannot be read', () => {
+    const ids = seedGallery(1)
+    const snap = getBookStoreSnapshot()
+    const spread = snap.book.spreads[0]
+    const frameId = spread?.frames[0]?.id
+    const placedId = ids[0]
+    assert(
+      spread !== undefined && frameId !== undefined && placedId !== undefined,
+      'expected a frame and an asset',
+    )
+    const book = placeAsset(snap.book, spread.id, frameId, placedId)
+    resetBookStore({
+      book,
+      sessionMeta: snap.sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const restore = stubScrollportWidth(400)
+    try {
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const start = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(start, 'dataTransfer', {
+        value: {
+          types: [FRAME_DRAG_MIME],
+          getData: () => '',
+          setData: () => undefined,
+          effectAllowed: 'move',
+          dropEffect: 'none',
+        },
+      })
+      document.dispatchEvent(start)
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true })
+      Object.defineProperty(drop, 'dataTransfer', {
+        value: {
+          types: [FRAME_DRAG_MIME],
+          getData: () => '',
+          setData: () => undefined,
+          effectAllowed: 'move',
+          dropEffect: 'none',
+        },
+      })
+      scroll.dispatchEvent(drop)
+      expect(getBookStoreSnapshot().book.spreads[0]?.frames[0]?.assetId).toBe(
+        placedId,
+      )
+    } finally {
+      restore()
+    }
+  })
+
+  it('does not reuse frame-drag arming after a successful filmstrip unplace', () => {
+    const ids = seedGallery(1)
+    const snap = getBookStoreSnapshot()
+    const spread = snap.book.spreads[0]
+    const frameId = spread?.frames[0]?.id
+    const placedId = ids[0]
+    assert(
+      spread !== undefined && frameId !== undefined && placedId !== undefined,
+      'expected a frame and an asset',
+    )
+    let book = placeAsset(snap.book, spread.id, frameId, placedId)
+    resetBookStore({
+      book,
+      sessionMeta: snap.sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const restore = stubScrollportWidth(400)
+    try {
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData(
+        FRAME_DRAG_MIME,
+        encodeFrameDrag({ spreadId: spread.id, frameId }),
+      )
+      const start = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(start, 'dataTransfer', { value: dataTransfer })
+      document.dispatchEvent(start)
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true })
+      Object.defineProperty(drop, 'dataTransfer', { value: dataTransfer })
+      scroll.dispatchEvent(drop)
+      expect(
+        getBookStoreSnapshot().book.spreads[0]?.frames[0]?.assetId,
+      ).toBeUndefined()
+
+      book = placeAsset(
+        getBookStoreSnapshot().book,
+        spread.id,
+        frameId,
+        placedId,
+      )
+      resetBookStore({
+        book,
+        sessionMeta: snap.sessionMeta,
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+      const again = new DragEvent('drop', { bubbles: true, cancelable: true })
+      Object.defineProperty(again, 'dataTransfer', { value: dataTransfer })
+      scroll.dispatchEvent(again)
+      expect(getBookStoreSnapshot().book.spreads[0]?.frames[0]?.assetId).toBe(
+        placedId,
+      )
     } finally {
       restore()
     }

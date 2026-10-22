@@ -1,7 +1,7 @@
 import { memo, useEffect, useSyncExternalStore } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { SpreadView, type FrameControl } from '../render/SpreadView'
-import { selectImageTier } from '../photo/imageTiers'
+import { IMAGE_TIERS, selectImageTier } from '../photo/imageTiers'
 import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import {
@@ -23,6 +23,7 @@ import {
 } from './gallerySelection'
 import {
   clearSpreadTiers,
+  clearStaleDisplayedPreview,
   getTierDisplaySnapshot,
   maxDesiredTier,
   queueTierSwap,
@@ -40,7 +41,7 @@ import {
   desiredTiersForItems,
   isFramePressed,
   positiveDevicePixelRatio,
-  queueReadyTierIfCached,
+  queueCachedLadderTiers,
   resolveMaxDesiredTier,
   resolveSpreadPreviewUrl,
   subscribeAssetIds,
@@ -112,6 +113,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     const unsubs: (() => void)[] = []
     for (const [assetId, spreadTier] of tiers) {
       const tier = resolveMaxDesiredTier(assetId, spreadTier, maxDesiredTier)
+      clearStaleDisplayedPreview(assetId, getTierUrl)
       unsubs.push(
         subscribeTier(assetId, tier, () => {
           const url = getTierUrl(assetId, tier)
@@ -121,7 +123,13 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         }),
       )
       requestTier(assetId, tier, getAssetContentHash(assetId))
-      queueReadyTierIfCached(assetId, tier, getTierUrl, queueTierSwap)
+      queueCachedLadderTiers(
+        assetId,
+        tier,
+        IMAGE_TIERS,
+        getTierUrl,
+        queueTierSwap,
+      )
     }
     return () => {
       clearSpreadTiers(spreadId)

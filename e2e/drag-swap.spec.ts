@@ -129,10 +129,27 @@ test.describe('keyboard rearrange', () => {
       .boundingBox()
     expect(pasteboardAfter).toEqual(pasteboardBefore)
     await assertDocumentFitsViewport(page)
-    const outlineWidth = await page
-      .getByRole('button', { pressed: true })
-      .evaluate((node) => getComputedStyle(node).outlineWidth)
-    expect(Number.parseFloat(outlineWidth)).toBeGreaterThan(0)
+    // Session opens at stack-fit (~13%): outlineWidth alone was green while
+    // overflow:hidden on the frame clipped the ring. Assert paint can escape.
+    const zoomText = await page.getByTestId('zoom-indicator').innerText()
+    const zoomPercent = Number.parseInt(zoomText.replace('%', ''), 10)
+    expect(zoomPercent).toBeGreaterThan(0)
+    expect(zoomPercent).toBeLessThan(40)
+    const pressed = page.getByRole('button', { pressed: true })
+    await expect(pressed).toHaveAttribute('aria-label', 'Cancel move')
+    const ring = await pressed.evaluate((node) => {
+      const style = getComputedStyle(node)
+      const body = node.querySelector('.spread-frame-body')
+      return {
+        outlineWidth: Number.parseFloat(style.outlineWidth),
+        overflow: style.overflow,
+        bodyOverflow: body ? getComputedStyle(body).overflow : '',
+      }
+    })
+    expect(ring.outlineWidth).toBeGreaterThan(0)
+    expect(ring.overflow).not.toBe('hidden')
+    expect(ring.bodyOverflow).toBe('hidden')
+
     await expect
       .poll(async () => page.getByTestId('editor-status').textContent())
       .toBe(

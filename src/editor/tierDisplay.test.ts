@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clearSpreadTiers,
+  clearStaleDisplayedPreview,
   getDisplayedPreview,
   getTierDisplaySnapshot,
   maxDesiredTier,
@@ -30,12 +31,135 @@ describe('tierDisplay', () => {
     expect(maxDesiredTier('a')).toBeUndefined()
   })
 
-  it('ignores a swap for a tier that is no longer desired', async () => {
-    setSpreadTiers('s0', new Map([['a', 640]]))
-    queueTierSwap('a', 320, 'blob:small')
+  it('ignores a swap above the desired covering tier', async () => {
+    const decode = vi.spyOn(HTMLImageElement.prototype, 'decode')
+    setSpreadTiers('s0', new Map([['a', 320]]))
+    queueTierSwap('a', 640, 'blob:large')
     await Promise.resolve()
 
+    expect(decode).not.toHaveBeenCalled()
     expect(getDisplayedPreview('a')).toBeUndefined()
+  })
+
+  it('shows a cached lower tier while a higher covering tier is desired', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    setSpreadTiers('s0', new Map([['a', 1280]]))
+    queueTierSwap('a', 320, 'blob:low')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(getDisplayedPreview('a')).toBe('blob:low')
+    expect(getTierDisplaySnapshot().urls.get('a')?.tier).toBe(320)
+
+    queueTierSwap('a', 640, 'blob:mid')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBe('blob:mid')
+    expect(getTierDisplaySnapshot().urls.get('a')?.tier).toBe(640)
+
+    queueTierSwap('a', 320, 'blob:worse')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBe('blob:mid')
+
+    queueTierSwap('a', 640, 'blob:mid-again')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBe('blob:mid')
+
+    queueTierSwap('a', 1280, 'blob:cover')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(getDisplayedPreview('a')).toBe('blob:cover')
+    expect(getTierDisplaySnapshot().urls.get('a')?.tier).toBe(1280)
+  })
+
+  it('ignores a swap when no covering tier is desired', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    queueTierSwap('a', 320, 'blob:orphan')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBeUndefined()
+  })
+
+  it('replaces the covering display URL at the same tier', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    setSpreadTiers('s0', new Map([['a', 320]]))
+    queueTierSwap('a', 320, 'blob:first')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBe('blob:first')
+
+    queueTierSwap('a', 320, 'blob:second')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBe('blob:second')
+  })
+
+  it('clears a displayed preview when its hot URL is no longer live', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    setSpreadTiers('s0', new Map([['a', 320]]))
+    queueTierSwap('a', 320, 'blob:gone')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getDisplayedPreview('a')).toBe('blob:gone')
+
+    const versions: number[] = []
+    const unsubscribe = subscribeTierDisplay(() => {
+      versions.push(getTierDisplaySnapshot().version)
+    })
+    clearStaleDisplayedPreview('a', () => undefined)
+    expect(getDisplayedPreview('a')).toBeUndefined()
+    expect(versions.length).toBeGreaterThan(0)
+    expect(getTierDisplaySnapshot().urls.has('a')).toBe(false)
+    unsubscribe()
+  })
+
+  it('keeps a displayed preview when its hot URL is still live', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    setSpreadTiers('s0', new Map([['a', 320]]))
+    queueTierSwap('a', 320, 'blob:live')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    clearStaleDisplayedPreview('a', () => 'blob:live')
+    expect(getDisplayedPreview('a')).toBe('blob:live')
   })
 
   it('keeps the previous image when decode fails', async () => {
@@ -80,7 +204,7 @@ describe('tierDisplay', () => {
     expect(getDisplayedPreview('a')).toBe('blob:retry')
   })
 
-  it('drops a swap when the desired tier changes during decode', async () => {
+  it('keeps a lower decode as provisional when desired rises during decode', async () => {
     let release: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
       release = resolve
@@ -91,6 +215,25 @@ describe('tierDisplay', () => {
     setSpreadTiers('s0', new Map([['a', 320]]))
     queueTierSwap('a', 320, 'blob:old')
     setSpreadTiers('s0', new Map([['a', 1280]]))
+    release?.()
+    await gate
+    await Promise.resolve()
+
+    expect(getDisplayedPreview('a')).toBe('blob:old')
+    expect(getTierDisplaySnapshot().urls.get('a')?.tier).toBe(320)
+  })
+
+  it('drops a swap when desired falls below the queued tier during decode', async () => {
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockImplementation(
+      () => gate,
+    )
+    setSpreadTiers('s0', new Map([['a', 1280]]))
+    queueTierSwap('a', 1280, 'blob:cover')
+    setSpreadTiers('s0', new Map([['a', 320]]))
     release?.()
     await gate
     await Promise.resolve()
