@@ -156,6 +156,25 @@ export function queueReadyTierIfCached(
   }
 }
 
+/**
+ * Queue every already-cached ladder step up to the desired covering tier so a
+ * lower hot URL can show while the covering encode/decode is still pending.
+ */
+export function queueCachedLadderTiers(
+  assetId: string,
+  desiredTier: number,
+  ladder: readonly number[],
+  getUrl: (assetId: string, tier: number) => string | undefined,
+  queue: (assetId: string, tier: number, url: string) => void,
+): void {
+  for (const step of ladder) {
+    if (step > desiredTier) {
+      break
+    }
+    queueReadyTierIfCached(assetId, step, getUrl, queue)
+  }
+}
+
 /** Stable key so unrelated tier swaps do not re-render this spread. */
 export function tierDisplayKeyFor(
   assetIds: readonly string[],
