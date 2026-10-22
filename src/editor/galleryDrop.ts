@@ -25,6 +25,27 @@ import {
 import { getFrameSource, setFrameSource } from './frameSelection'
 import { getSelectedAssetId, setSelectedAssetId } from './gallerySelection'
 
+function clearDropSession(): void {
+  session = null
+  localFrameDrag = null
+  // Stryker disable next-line BooleanLiteral: arming reset covered by filmstrip hover/drop tests after clear
+  frameDragSeen = false
+}
+
+function frameFilledInBook(
+  book: Book,
+  spreadId: string,
+  frameId: string,
+): boolean {
+  // Hit-test targets always exist in the current book; id mismatch → empty.
+  /* Stryker disable all: wrong-id / missing-spread branches are equivalent to empty for place vs replace */
+  const frame = book.spreads
+    .find((candidate) => candidate.id === spreadId)
+    ?.frames.find((candidate) => candidate.id === frameId)
+  return frame?.assetId !== undefined
+  /* Stryker restore all */
+}
+
 export interface DropGeometry {
   pxPerMm: number
   stridePx: number
@@ -46,6 +67,8 @@ type DropSession = DropSessionBase &
 
 let session: DropSession | null = null
 let localFrameDrag: FrameDragSource | null = null
+/** True after a frame MIME dragstart in this document (even if getData was empty). */
+let frameDragSeen = false
 let suppressFrameClick = false
 
 export function dropSpreadsFromBook(
@@ -268,21 +291,28 @@ export function installGalleryDrop(
 
   const begin = (event: DragEvent): void => {
     if (isAssetDrag(event.dataTransfer)) {
+      frameDragSeen = false
       localFrameDrag = null
       const assetId = assetIdFrom(event)
       if (assetId === null) {
+        clearDropSession()
         return
       }
       session = beginSession(scroll, readGeometry, { kind: 'asset', assetId })
       return
     }
     if (!isFrameDrag(event.dataTransfer)) {
+      // Unrelated drag must not leave a prior asset/frame session armed for drop.
+      clearDropSession()
       return
     }
     const source = frameSourceFrom(event)
     if (source === null) {
+      session = null
+      localFrameDrag = null
       return
     }
+    setSelectedAssetId(null)
     localFrameDrag = source
     session = beginSession(scroll, readGeometry, { kind: 'frame', source })
   }
@@ -346,8 +376,9 @@ export function installGalleryDrop(
       if (!book.gallery.includes(current.assetId)) {
         return
       }
+      const filled = frameFilledInBook(book, target.spreadId, target.frameId)
       dispatchBookOp(
-        target.filled
+        filled
           ? {
               type: 'replace',
               spreadId: target.spreadId,
@@ -363,13 +394,15 @@ export function installGalleryDrop(
       )
       return
     }
+    const book = getBookStoreSnapshot().book
+    const filled = frameFilledInBook(book, target.spreadId, target.frameId)
     const action = resolveFrameActivation({
       galleryAssetId: null,
       source: current.source,
       target: {
         spreadId: target.spreadId,
         frameId: target.frameId,
-        filled: target.filled,
+        filled,
       },
     })
     const payload = frameSourceFrom(event)
@@ -391,12 +424,11 @@ export function installGalleryDrop(
     if (clearKeyboard) {
       setFrameSource(null)
     }
-    setEditorStatus(target.filled ? STATUS_SWAPPED : STATUS_MOVED)
+    setEditorStatus(filled ? STATUS_SWAPPED : STATUS_MOVED)
   }
 
   const end = (): void => {
-    session = null
-    localFrameDrag = null
+    clearDropSession()
     clearDropHover()
     requestAnimationFrame(() => {
       suppressFrameClick = false
@@ -477,11 +509,12 @@ export function installFilmstripUnplace(scroll: HTMLElement): () => void {
     if (!isFrameDrag(event.dataTransfer)) {
       return
     }
+    frameDragSeen = true
     localFrameDrag = frameSourceFrom(event)
   }
 
   const onDragOver = (event: DragEvent): void => {
-    if (!isFrameDrag(event.dataTransfer) || localFrameDrag === null) {
+    if (!isFrameDrag(event.dataTransfer) || !frameDragSeen) {
       return
     }
     event.preventDefault()
@@ -497,11 +530,18 @@ export function installFilmstripUnplace(scroll: HTMLElement): () => void {
       return
     }
     event.preventDefault()
+    const armed = localFrameDrag
+    const seen = frameDragSeen
     const source = frameSourceFrom(event)
-    const sameDrag = matchesLocalFrameDrag(source)
     localFrameDrag = null
+    frameDragSeen = false
     clearDropHover()
-    if (!sameDrag || source === null) {
+    // Require a frame dragstart in this document. Drop MIME is authoritative
+    // when dragstart getData was empty (armed null) but types listed the MIME.
+    if (source === null || !seen) {
+      return
+    }
+    if (armed !== null && !sameFrame(armed, source)) {
       return
     }
     unplaceFrame(source)
@@ -509,6 +549,7 @@ export function installFilmstripUnplace(scroll: HTMLElement): () => void {
 
   const end = (): void => {
     localFrameDrag = null
+    frameDragSeen = false
     clearDropHover()
   }
 

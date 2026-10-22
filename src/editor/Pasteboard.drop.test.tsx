@@ -27,7 +27,11 @@ import {
   unplaceSelectedFrame,
   type DropGeometry,
 } from './galleryDrop'
-import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
+import {
+  getSelectedAssetId,
+  resetGallerySelection,
+  setSelectedAssetId,
+} from './gallerySelection'
 import { Pasteboard } from './Pasteboard'
 import { pasteboardStridePx } from './pasteboardWindow'
 
@@ -657,6 +661,342 @@ describe('Pasteboard gallery drop', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace photo' }))
     expect(assetIn(frameId)).toBe('b')
     expect(getFrameSource()).toBeNull()
+  })
+
+  it('uses live filled state on drop when the dragstart snapshot is stale', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const [first] = firstTargets()
+    const point = targetPoint(first)
+    const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(spreadId !== undefined, 'expected a spread')
+    const spy = vi.spyOn(bookStore, 'dispatchBookOp')
+
+    startDrag('a')
+    scroll.dispatchEvent(dragEvent('drop', 'a', point))
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'place',
+        frameId: first.frameId,
+        assetId: 'a',
+      }),
+    )
+
+    act(() => {
+      bookStore.dispatchBookOp({
+        type: 'unplace',
+        spreadId,
+        frameId: first.frameId,
+      })
+    })
+    startDrag('b')
+    // Mid-drag: frame fills after the empty dragstart snapshot.
+    act(() => {
+      bookStore.dispatchBookOp({
+        type: 'place',
+        spreadId,
+        frameId: first.frameId,
+        assetId: 'a',
+      })
+    })
+    spy.mockClear()
+    scroll.dispatchEvent(dragEvent('drop', 'b', point))
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'replace',
+        frameId: first.frameId,
+        assetId: 'b',
+      }),
+    )
+    expect(assetIn(first.frameId)).toBe('b')
+    spy.mockRestore()
+  })
+
+  it('clears gallery selection when a frame drag starts', () => {
+    seedGridBook()
+    const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+    const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
+    assert(spreadId !== undefined && frameId !== undefined, 'expected a frame')
+    const book = placeAsset(getBookStoreSnapshot().book, spreadId, frameId, 'a')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<Pasteboard />)
+    act(() => {
+      setSelectedAssetId('b')
+    })
+    expect(getSelectedAssetId()).toBe('b')
+    document.dispatchEvent(frameDragEvent('dragstart', { spreadId, frameId }))
+    expect(getSelectedAssetId()).toBeNull()
+  })
+
+  it('live filled lookup uses the drop target frame id', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
+    const frames = getBookStoreSnapshot().book.spreads[0]?.frames
+    const f1 = frames?.[0]?.id
+    const f4 = frames?.[3]?.id
+    assert(
+      spreadId !== undefined && f1 !== undefined && f4 !== undefined,
+      'expected four frames',
+    )
+    startDrag('b')
+    act(() => {
+      bookStore.dispatchBookOp({
+        type: 'place',
+        spreadId,
+        frameId: f4,
+        assetId: 'a',
+      })
+    })
+    scroll.dispatchEvent(
+      dragEvent(
+        'drop',
+        'b',
+        targetPoint({ spreadId, frameId: f4, filled: true }),
+      ),
+    )
+    expect(assetIn(f4)).toBe('b')
+    expect(assetIn(f1)).toBeUndefined()
+  })
+
+  it('clears the session when an asset dragstart has no asset id', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const [first] = firstTargets()
+    document.dispatchEvent(dragEvent('dragstart', 'a'))
+    const emptyAsset = new DragEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+    })
+    Object.defineProperty(emptyAsset, 'dataTransfer', {
+      value: {
+        types: [ASSET_DRAG_MIME],
+        getData: () => '',
+        setData: () => undefined,
+        effectAllowed: 'copy',
+        dropEffect: 'none',
+      },
+    })
+    document.dispatchEvent(emptyAsset)
+    scroll.dispatchEvent(dragEvent('drop', 'a', targetPoint(first)))
+    expect(assetIn(first.frameId)).toBeUndefined()
+  })
+
+  it('does not place after dragend cleared the drop session', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const [first] = firstTargets()
+    startDrag('a')
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+    scroll.dispatchEvent(dragEvent('drop', 'a', targetPoint(first)))
+    expect(assetIn(first.frameId)).toBeUndefined()
+  })
+
+  it('clears a stale asset session on an unrelated dragstart', () => {
+    seedGridBook()
+    let book = addToGallery(getBookStoreSnapshot().book, ['c'])
+    const spreadId = book.spreads[0]?.id
+    const frameId = book.spreads[0]?.frames[0]?.id
+    assert(spreadId !== undefined && frameId !== undefined, 'expected a frame')
+    book = placeAsset(book, spreadId, frameId, 'c')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    document.dispatchEvent(dragEvent('dragstart', 'a'))
+    const plain = new DragEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+    })
+    Object.defineProperty(plain, 'dataTransfer', {
+      value: {
+        types: ['text/plain'],
+        getData: () => 'x',
+        setData: () => undefined,
+        effectAllowed: 'copy',
+        dropEffect: 'none',
+      },
+    })
+    document.dispatchEvent(plain)
+    scroll.dispatchEvent(
+      dragEvent('drop', 'a', targetPoint({ spreadId, frameId, filled: true })),
+    )
+    expect(assetIn(frameId)).toBe('c')
+  })
+
+  it('PLC-04: stale asset session cannot replace when frame MIME is unreadable', () => {
+    seedGridBook()
+    let book = addToGallery(getBookStoreSnapshot().book, ['c', 'd'])
+    const spreadId = book.spreads[0]?.id
+    const frames = book.spreads[0]?.frames
+    const ids = frames?.map((frame) => frame.id) ?? []
+    const [f1, f2, f3, f4] = ids
+    assert(
+      spreadId !== undefined &&
+        f1 !== undefined &&
+        f2 !== undefined &&
+        f3 !== undefined &&
+        f4 !== undefined,
+      'expected four frames',
+    )
+    book = placeAsset(book, spreadId, f1, 'a')
+    book = placeAsset(book, spreadId, f2, 'b')
+    book = placeAsset(book, spreadId, f3, 'c')
+    book = placeAsset(book, spreadId, f4, 'd')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(
+      <>
+        <Pasteboard />
+        <Filmstrip />
+      </>,
+    )
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const filmstrip = screen.getByTestId('filmstrip-scroll')
+
+    // Swap → move → drop-on-self (QA sequence before the failing unplace).
+    document.dispatchEvent(
+      frameDragEvent('dragstart', { spreadId, frameId: f1 }),
+    )
+    scroll.dispatchEvent(
+      frameDragEvent(
+        'drop',
+        { spreadId, frameId: f1 },
+        targetPoint({ spreadId, frameId: f2, filled: true }),
+      ),
+    )
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+    act(() => {
+      bookStore.dispatchBookOp({ type: 'unplace', spreadId, frameId: f4 })
+    })
+    document.dispatchEvent(
+      frameDragEvent('dragstart', { spreadId, frameId: f3 }),
+    )
+    scroll.dispatchEvent(
+      frameDragEvent(
+        'drop',
+        { spreadId, frameId: f3 },
+        targetPoint({ spreadId, frameId: f4, filled: false }),
+      ),
+    )
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+    document.dispatchEvent(
+      frameDragEvent('dragstart', { spreadId, frameId: f4 }),
+    )
+    scroll.dispatchEvent(
+      frameDragEvent(
+        'drop',
+        { spreadId, frameId: f4 },
+        targetPoint({ spreadId, frameId: f4, filled: true }),
+      ),
+    )
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+    expect(assetIn(f1)).toBe('b')
+    expect(assetIn(f2)).toBe('a')
+    expect(assetIn(f3)).toBeUndefined()
+    expect(assetIn(f4)).toBe('c')
+
+    // Mid-import style filmstrip drag left armed; no dragend (source unmounted).
+    act(() => {
+      setSelectedAssetId('d')
+    })
+    document.dispatchEvent(dragEvent('dragstart', 'd'))
+
+    // Next frame dragstart cannot read custom MIME (dragstart getData quirk).
+    const opaqueFrameStart = new DragEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+    })
+    Object.defineProperty(opaqueFrameStart, 'dataTransfer', {
+      value: {
+        types: [FRAME_DRAG_MIME],
+        getData: () => '',
+        setData: () => undefined,
+        effectAllowed: 'move',
+        dropEffect: 'none',
+      },
+    })
+    document.dispatchEvent(opaqueFrameStart)
+
+    // Drop aimed at filmstrip must unplace f2 only — never replace another
+    // frame with the stale asset session's d (PLC-04: d×2 / c lost).
+    filmstrip.dispatchEvent(frameDragEvent('drop', { spreadId, frameId: f2 }))
+    document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+
+    const placed = [assetIn(f1), assetIn(f2), assetIn(f3), assetIn(f4)]
+    expect(assetIn(f2)).toBeUndefined()
+    expect(placed.filter((id) => id === 'd')).toHaveLength(0)
+    expect(placed.filter((id) => id === 'c')).toHaveLength(1)
+    expect(new Set(placed.filter(Boolean)).size).toBe(
+      placed.filter(Boolean).length,
+    )
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('PLC-04: pasteboard drop after opaque frame start does not apply stale asset', () => {
+    seedGridBook()
+    let book = addToGallery(getBookStoreSnapshot().book, ['c', 'd'])
+    const spreadId = book.spreads[0]?.id
+    const frames = book.spreads[0]?.frames
+    const f3 = frames?.[2]?.id
+    const f4 = frames?.[3]?.id
+    assert(
+      spreadId !== undefined && f3 !== undefined && f4 !== undefined,
+      'expected frames',
+    )
+    book = placeAsset(book, spreadId, f3, 'c')
+    book = placeAsset(book, spreadId, f4, 'd')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+
+    document.dispatchEvent(dragEvent('dragstart', 'd'))
+    const opaqueFrameStart = new DragEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+    })
+    Object.defineProperty(opaqueFrameStart, 'dataTransfer', {
+      value: {
+        types: [FRAME_DRAG_MIME],
+        getData: () => '',
+        setData: () => undefined,
+        effectAllowed: 'move',
+        dropEffect: 'none',
+      },
+    })
+    document.dispatchEvent(opaqueFrameStart)
+
+    scroll.dispatchEvent(
+      dragEvent(
+        'drop',
+        'd',
+        targetPoint({ spreadId, frameId: f3, filled: true }),
+      ),
+    )
+    expect(assetIn(f3)).toBe('c')
+    expect(assetIn(f4)).toBe('d')
   })
 })
 
