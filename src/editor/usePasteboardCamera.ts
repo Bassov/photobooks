@@ -109,14 +109,6 @@ function isTextField(target: EventTarget | null): boolean {
   )
 }
 
-/** Radios/checkboxes use Space to activate; do not steal that for pan. */
-function isSpaceToggleControl(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement &&
-    (target.type === 'radio' || target.type === 'checkbox')
-  )
-}
-
 function zoomDirection(event: KeyboardEvent): 1 | -1 | null {
   if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') {
     return 1
@@ -245,7 +237,13 @@ export function usePasteboardCamera({
   })
   const gestureRef = useRef<ActiveGesture | null>(null)
   const pointersRef = useRef(new Map<number, CameraPoint>())
+  /** True while Space is physically held (even off the pasteboard). */
+  const spaceHeldRef = useRef(false)
+  /** True when Space-pan is armed (held + pointer over pasteboard). */
   const spaceRef = useRef(false)
+  const pointerOverPasteboardRef = useRef(false)
+  /** Last pointer client point for hover recovery when enter was missed. */
+  const lastPointerClientRef = useRef<{ x: number; y: number } | null>(null)
   const panRef = useRef<{
     id: number
     x: number
@@ -650,18 +648,68 @@ export function usePasteboardCamera({
       }
     }
 
+    const syncSpacePanArm = (): void => {
+      spaceRef.current =
+        spaceHeldRef.current && pointerOverPasteboardRef.current
+    }
+
+    const setPointerOverPasteboard = (over: boolean): void => {
+      pointerOverPasteboardRef.current = over
+      if (over) {
+        syncSpacePanArm()
+        return
+      }
+      // Keep arming through an in-flight pan; otherwise drop so Space can
+      // activate chrome again once the pointer leaves the pasteboard.
+      if (panRef.current === null) {
+        spaceRef.current = false
+      }
+    }
+
+    const refreshPointerOverFromLastPoint = (): void => {
+      const port = scrollRef.current
+      const point = lastPointerClientRef.current
+      if (port === null || point === null) {
+        return
+      }
+      const under = document.elementFromPoint(point.x, point.y)
+      setPointerOverPasteboard(
+        under !== null && (under === port || port.contains(under)),
+      )
+    }
+
+    const onPointerEnterPasteboard = (): void => {
+      setPointerOverPasteboard(true)
+    }
+    const onPointerLeavePasteboard = (): void => {
+      setPointerOverPasteboard(false)
+    }
+
+    const onWindowPointerMove = (event: PointerEvent): void => {
+      lastPointerClientRef.current = { x: event.clientX, y: event.clientY }
+    }
+
     const onKeyDown = (event: KeyboardEvent): void => {
       if (isTextField(event.target)) {
         return
       }
       if (event.code === 'Space' || event.key === ' ') {
-        if (isSpaceToggleControl(event.target)) {
+        // Capture-phase: filmstrip GridListItem rows consume Space before bubble.
+        // Steal Space only while the pointer is over the pasteboard so keyboard
+        // activation still works when the pointer is elsewhere.
+        if (!event.repeat) {
+          spaceHeldRef.current = true
+        }
+        // Recover if pointerenter was missed (listeners attached under cursor).
+        if (!pointerOverPasteboardRef.current) {
+          refreshPointerOverFromLastPoint()
+        }
+        if (!pointerOverPasteboardRef.current) {
           return
         }
         event.preventDefault()
-        if (!event.repeat) {
-          spaceRef.current = true
-        }
+        event.stopPropagation()
+        syncSpacePanArm()
         return
       }
       const direction = zoomDirection(event)
@@ -711,6 +759,7 @@ export function usePasteboardCamera({
 
     const onKeyUp = (event: KeyboardEvent): void => {
       if (event.code === 'Space' || event.key === ' ') {
+        spaceHeldRef.current = false
         spaceRef.current = false
         if (panRef.current !== null) {
           panRef.current = null
@@ -725,8 +774,14 @@ export function usePasteboardCamera({
     scroll.addEventListener('pointermove', onPointerMove)
     scroll.addEventListener('pointerup', endPointer)
     scroll.addEventListener('pointercancel', endPointer)
-    window.addEventListener('keydown', onKeyDown)
+    scroll.addEventListener('pointerenter', onPointerEnterPasteboard)
+    scroll.addEventListener('pointerleave', onPointerLeavePasteboard)
+    // Capture so Space still arms before react-aria filmstrip rows handle it.
+    window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('pointermove', onWindowPointerMove, {
+      passive: true,
+    })
 
     return () => {
       scroll.removeEventListener('wheel', onWheel)
@@ -734,8 +789,11 @@ export function usePasteboardCamera({
       scroll.removeEventListener('pointermove', onPointerMove)
       scroll.removeEventListener('pointerup', endPointer)
       scroll.removeEventListener('pointercancel', endPointer)
-      window.removeEventListener('keydown', onKeyDown)
+      scroll.removeEventListener('pointerenter', onPointerEnterPasteboard)
+      scroll.removeEventListener('pointerleave', onPointerLeavePasteboard)
+      window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('pointermove', onWindowPointerMove)
       window.clearTimeout(settleRef.current)
       pendingWheel = null
       if (rafRef.current !== 0) {
