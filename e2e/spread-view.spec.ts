@@ -522,6 +522,36 @@ test('space-drag pans after filmstrip tile focus (PB-04)', async ({ page }) => {
   await assertDocumentFitsViewport(page)
 })
 
+test('Space activates focused filmstrip tile with pointer over pasteboard (PB-04b)', async ({
+  page,
+}) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  await openSessionEditor(page)
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles(photoFixturePaths.samplePng)
+  const tile = page.getByTestId('filmstrip-item').first()
+  await expect(tile).toBeVisible({ timeout: 30_000 })
+  await expect(tile).toHaveAttribute('aria-selected', 'false')
+
+  const scroll = page.getByTestId('pasteboard-scroll')
+  const topBefore = await scroll.evaluate((el) => el.scrollTop)
+  const box = await scroll.boundingBox()
+  expect(box).not.toBeNull()
+  // Pointer over pasteboard while keyboard focus is on the filmstrip row.
+  await page.mouse.move(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + 120,
+  )
+  await page.bringToFront()
+  await tile.focus()
+  await expect(tile).toBeFocused()
+  await page.keyboard.press('Space')
+  await expect(tile).toHaveAttribute('aria-selected', 'true')
+  expect(await scroll.evaluate((el) => el.scrollTop)).toBe(topBefore)
+  await assertDocumentFitsViewport(page)
+})
+
 test('whole-book zoom mounts every fixture spread', async ({ page }) => {
   await page.goto('/?fixture=painter')
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
