@@ -109,14 +109,6 @@ function isTextField(target: EventTarget | null): boolean {
   )
 }
 
-/** Radios/checkboxes use Space to activate; do not steal that for pan. */
-function isSpaceToggleControl(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement &&
-    (target.type === 'radio' || target.type === 'checkbox')
-  )
-}
-
 function zoomDirection(event: KeyboardEvent): 1 | -1 | null {
   if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') {
     return 1
@@ -245,7 +237,11 @@ export function usePasteboardCamera({
   })
   const gestureRef = useRef<ActiveGesture | null>(null)
   const pointersRef = useRef(new Map<number, CameraPoint>())
+  /** True while Space is physically held (even off the pasteboard). */
+  const spaceHeldRef = useRef(false)
+  /** True when Space-pan is armed (held + pointer over pasteboard). */
   const spaceRef = useRef(false)
+  const pointerOverPasteboardRef = useRef(false)
   const panRef = useRef<{
     id: number
     x: number
@@ -650,18 +646,40 @@ export function usePasteboardCamera({
       }
     }
 
+    const syncSpacePanArm = (): void => {
+      spaceRef.current =
+        spaceHeldRef.current && pointerOverPasteboardRef.current
+    }
+
+    const onPointerEnterPasteboard = (): void => {
+      pointerOverPasteboardRef.current = true
+      syncSpacePanArm()
+    }
+    const onPointerLeavePasteboard = (): void => {
+      pointerOverPasteboardRef.current = false
+      // Keep arming through an in-flight pan; otherwise drop so Space can
+      // activate chrome again once the pointer leaves the pasteboard.
+      if (panRef.current === null) {
+        spaceRef.current = false
+      }
+    }
+
     const onKeyDown = (event: KeyboardEvent): void => {
       if (isTextField(event.target)) {
         return
       }
       if (event.code === 'Space' || event.key === ' ') {
-        if (isSpaceToggleControl(event.target)) {
+        // Capture-phase: filmstrip GridListItem rows consume Space before bubble.
+        // Steal Space only while the pointer is over the pasteboard so keyboard
+        // activation still works when the pointer is elsewhere.
+        if (!event.repeat) {
+          spaceHeldRef.current = true
+        }
+        if (!pointerOverPasteboardRef.current) {
           return
         }
         event.preventDefault()
-        if (!event.repeat) {
-          spaceRef.current = true
-        }
+        syncSpacePanArm()
         return
       }
       const direction = zoomDirection(event)
@@ -711,6 +729,7 @@ export function usePasteboardCamera({
 
     const onKeyUp = (event: KeyboardEvent): void => {
       if (event.code === 'Space' || event.key === ' ') {
+        spaceHeldRef.current = false
         spaceRef.current = false
         if (panRef.current !== null) {
           panRef.current = null
@@ -725,7 +744,10 @@ export function usePasteboardCamera({
     scroll.addEventListener('pointermove', onPointerMove)
     scroll.addEventListener('pointerup', endPointer)
     scroll.addEventListener('pointercancel', endPointer)
-    window.addEventListener('keydown', onKeyDown)
+    scroll.addEventListener('pointerenter', onPointerEnterPasteboard)
+    scroll.addEventListener('pointerleave', onPointerLeavePasteboard)
+    // Capture so Space still arms after react-aria filmstrip rows handle it.
+    window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('keyup', onKeyUp)
 
     return () => {
@@ -734,7 +756,9 @@ export function usePasteboardCamera({
       scroll.removeEventListener('pointermove', onPointerMove)
       scroll.removeEventListener('pointerup', endPointer)
       scroll.removeEventListener('pointercancel', endPointer)
-      window.removeEventListener('keydown', onKeyDown)
+      scroll.removeEventListener('pointerenter', onPointerEnterPasteboard)
+      scroll.removeEventListener('pointerleave', onPointerLeavePasteboard)
+      window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('keyup', onKeyUp)
       window.clearTimeout(settleRef.current)
       pendingWheel = null

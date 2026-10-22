@@ -71,12 +71,63 @@ describe('pasteboard camera gestures', () => {
     chrome.focus()
     expect(document.activeElement).toBe(chrome)
 
+    fireEvent.pointerEnter(scroll)
     fireEvent.keyDown(chrome, { key: ' ', code: 'Space' })
     fireEvent.pointerDown(scroll, { pointerId: 7, clientX: 80, clientY: 90 })
     fireEvent.pointerMove(scroll, { pointerId: 7, clientX: 40, clientY: 40 })
     await flushGesture()
     fireEvent.pointerUp(scroll, { pointerId: 7, clientX: 40, clientY: 40 })
     fireEvent.keyUp(window, { key: ' ', code: 'Space' })
+
+    expect(scroll.scrollLeft).toBe(160)
+    expect(scroll.scrollTop).toBe(210)
+  })
+
+  it('pans with Space+drag after a Space-consuming filmstrip-like focus', async () => {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    Object.defineProperty(scroll, 'scrollWidth', {
+      configurable: true,
+      get: () => 800,
+    })
+    Object.defineProperty(scroll, 'scrollHeight', {
+      configurable: true,
+      get: () => 800,
+    })
+    Object.defineProperty(scroll, 'clientWidth', {
+      configurable: true,
+      get: () => 400,
+    })
+    Object.defineProperty(scroll, 'clientHeight', {
+      configurable: true,
+      get: () => 400,
+    })
+    scroll.scrollLeft = 120
+    scroll.scrollTop = 160
+
+    // Mimic react-aria GridListItem: Space on the focused row stops at the target
+    // before a bubble-phase window listener would see it (PB-04 after #182).
+    const tile = document.createElement('div')
+    tile.setAttribute('role', 'row')
+    tile.tabIndex = 0
+    tile.addEventListener('keydown', (event) => {
+      if (event.code === 'Space' || event.key === ' ') {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    })
+    document.body.append(tile)
+    tile.focus()
+    expect(document.activeElement).toBe(tile)
+
+    fireEvent.pointerEnter(scroll)
+    fireEvent.keyDown(tile, { key: ' ', code: 'Space' })
+    fireEvent.pointerDown(scroll, { pointerId: 11, clientX: 80, clientY: 90 })
+    fireEvent.pointerMove(scroll, { pointerId: 11, clientX: 40, clientY: 40 })
+    await flushGesture()
+    fireEvent.pointerUp(scroll, { pointerId: 11, clientX: 40, clientY: 40 })
+    fireEvent.keyUp(window, { key: ' ', code: 'Space' })
+    tile.remove()
 
     expect(scroll.scrollLeft).toBe(160)
     expect(scroll.scrollTop).toBe(210)
@@ -93,6 +144,7 @@ describe('pasteboard camera gestures', () => {
     document.body.append(input)
     input.focus()
 
+    fireEvent.pointerEnter(scroll)
     fireEvent.keyDown(input, { key: ' ', code: 'Space' })
     fireEvent.pointerDown(scroll, { pointerId: 8, clientX: 80, clientY: 90 })
     fireEvent.pointerMove(scroll, { pointerId: 8, clientX: 40, clientY: 40 })
@@ -105,7 +157,7 @@ describe('pasteboard camera gestures', () => {
     expect(scroll.scrollTop).toBe(50)
   })
 
-  it('does not arm Space pan while a radio holds focus', async () => {
+  it('does not arm Space pan while a radio holds focus off the pasteboard', async () => {
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
     scroll.scrollLeft = 40
@@ -115,6 +167,7 @@ describe('pasteboard camera gestures', () => {
     radio.focus()
     expect(document.activeElement).toBe(radio)
 
+    fireEvent.pointerLeave(scroll)
     fireEvent.keyDown(radio, { key: ' ', code: 'Space' })
     fireEvent.pointerDown(scroll, { pointerId: 9, clientX: 80, clientY: 90 })
     fireEvent.pointerMove(scroll, { pointerId: 9, clientX: 40, clientY: 40 })
@@ -182,6 +235,7 @@ describe('pasteboard camera gestures', () => {
     expect(indicator.textContent).not.toBe(beforePinch)
 
     scroll.focus()
+    fireEvent.pointerEnter(scroll)
     fireEvent.keyDown(scroll, { key: ' ', code: 'Space' })
     fireEvent.keyDown(scroll, { key: ' ', code: 'Space', repeat: true })
     fireEvent.pointerDown(scroll, { pointerId: 4, clientX: 50, clientY: 90 })
@@ -191,6 +245,7 @@ describe('pasteboard camera gestures', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Fit width' }))
     fireEvent.click(screen.getByRole('button', { name: /Fit spread/ }))
+    fireEvent.pointerEnter(scroll)
     fireEvent.keyDown(screen.getByRole('button', { name: '100%' }), {
       key: ' ',
       code: 'Space',

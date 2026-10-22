@@ -15,6 +15,10 @@ import {
   enablePerfScenario,
 } from './perf/perfFixture'
 import { PERF_BUDGETS } from './perf/budgets'
+import {
+  ensurePhotoFixtures,
+  photoFixturePaths,
+} from './fixtures/ensurePhotoFixtures'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test('editor chrome bars wrap without page scroll at 320px and 4K', async ({
@@ -466,11 +470,45 @@ test('wheel, keys, pinch, and space-drag stay inside the pasteboard', async ({
   const topBefore = await scroll.evaluate((el) => el.scrollTop)
   const box = await scroll.boundingBox()
   expect(box).not.toBeNull()
-  await page.keyboard.down('Space')
   await page.mouse.move(
     (box?.x ?? 0) + (box?.width ?? 0) / 2,
     (box?.y ?? 0) + 120,
   )
+  await page.keyboard.down('Space')
+  await page.mouse.down()
+  await page.mouse.move(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + 30,
+  )
+  await page.mouse.up()
+  await page.keyboard.up('Space')
+  expect(await scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(topBefore)
+  await assertDocumentFitsViewport(page)
+})
+
+test('space-drag pans after filmstrip tile focus (PB-04)', async ({ page }) => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+  await openSessionEditor(page)
+  await page
+    .getByTestId('photo-file-input')
+    .setInputFiles(photoFixturePaths.samplePng)
+  const tile = page.getByTestId('filmstrip-item').first()
+  await expect(tile).toBeVisible({ timeout: 30_000 })
+
+  await page.getByRole('button', { name: '100%' }).click()
+  await tile.click()
+  await expect(tile).toHaveAttribute('aria-selected', 'true')
+
+  const scroll = page.getByTestId('pasteboard-scroll')
+  const topBefore = await scroll.evaluate((el) => el.scrollTop)
+  const box = await scroll.boundingBox()
+  expect(box).not.toBeNull()
+  // Pointer over pasteboard while focus remains on the filmstrip row.
+  await page.mouse.move(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + 120,
+  )
+  await page.keyboard.down('Space')
   await page.mouse.down()
   await page.mouse.move(
     (box?.x ?? 0) + (box?.width ?? 0) / 2,
