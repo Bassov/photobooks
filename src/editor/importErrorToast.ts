@@ -12,9 +12,12 @@ export function importErrorsToastContent(
     count === 1
       ? "1 file couldn't be read"
       : `${String(count)} files couldn't be read`
-  const names = errors.map((error) => error.name).join(', ')
-  const detail = errors[0]?.message ?? ''
-  const description = detail.length === 0 ? names : `${names} — ${detail}`
+  const description = errors
+    .map((error) => {
+      const detail = error.message
+      return detail.length === 0 ? error.name : `${error.name} — ${detail}`
+    })
+    .join('; ')
   return {
     title,
     description,

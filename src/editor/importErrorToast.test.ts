@@ -65,9 +65,36 @@ describe('importErrorToast', () => {
     ]
     const content = importErrorsToastContent(errors, () => undefined)
     expect(content.title).toBe("2 files couldn't be read")
+    expect(content.description).toBe(
+      'a.tif — Unsupported; b.jpg — decode failed',
+    )
     expect(importErrorsStatusText(errors)).toBe(
       'a.tif: Unsupported; b.jpg: decode failed',
     )
+  })
+
+  it('does not reuse the first failure message for every file in the toast', () => {
+    const heicMessage =
+      'HEIC isn’t supported yet. Export it as JPEG from Photos, or open another file.'
+    const content = importErrorsToastContent(
+      [
+        makeImportFileError({
+          name: 'scan_0042.heic',
+          message: heicMessage,
+          reason: 'heic',
+        }),
+        makeImportFileError({
+          name: 'broken.jpg',
+          message: "Couldn't decode this file",
+          reason: 'decode-failed',
+        }),
+      ],
+      () => undefined,
+    )
+    expect(content.description).toBe(
+      `scan_0042.heic — ${heicMessage}; broken.jpg — Couldn't decode this file`,
+    )
+    expect(content.description).not.toContain(`broken.jpg — ${heicMessage}`)
   })
 
   it('clears prior toasts before enqueue and uses the long timeout', () => {
