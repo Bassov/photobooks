@@ -7,8 +7,8 @@
 
 .spread-frame {
   position: absolute;
-  /* Overflow clips on `.spread-frame-body` so pressed/focus outlines on the
-     control are not clipped (Chromium clips outlines under overflow:hidden). */
+  /* Overflow clips on `.spread-frame-body` so rings on the control are not
+     clipped (Chromium clips outlines under overflow:hidden). */
   background: var(--paper);
 }
 
@@ -23,10 +23,21 @@ button.spread-frame {
   cursor: pointer;
 }
 
-button.spread-frame:focus-visible,
-button.spread-frame[aria-pressed='true'] {
-  outline: 3px solid var(--ring);
-  outline-offset: -3px;
+/* Inset outline sits under `.spread-frame-body` / the photo. Paint a CSS-px
+   ring on ::after above content so it stays visible at every layout zoom
+   (including stack-fit ~13%) and is not scaled by a pasteboard transform. */
+button.spread-frame:focus-visible::after,
+button.spread-frame[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 3px var(--ring);
+}
+
+button.spread-frame[aria-pressed='true']::after {
+  box-shadow: inset 0 0 0 3px var(--select);
 }
 
 .spread-frame[data-drop-hover='true'] {
