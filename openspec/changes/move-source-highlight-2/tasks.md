@@ -8,3 +8,7 @@
 1. Place two photos; Enter on a filled frame → “Cancel move” ring clearly visible at ~13%, ~50%, ~67%, and ~100% zoom.
 2. Escape clears the ring; focus-visible ring still shows on keyboard focus.
 3. Swap via another frame still works; no page-level scroll.
+
+OK Place two photos; Enter on a filled frame → “Cancel move” ring clearly visible at ~13%, ~50%, ~67%, and ~100% zoom.
+OK Escape clears the ring; focus-visible ring still shows on keyboard focus.
+OK Swap via another frame still works; no page-level scroll.
