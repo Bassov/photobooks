@@ -8,6 +8,7 @@ import { selectImageTier } from '../photo/imageTiers'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources, retainAssetSource } from '../photo/assetSources'
 import { mockWorkerSuccess } from '../photo/photo.test-helpers'
+import * as tierCache from '../photo/tierCache'
 import { resetTierCache } from '../photo/tierCache'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
@@ -107,6 +108,113 @@ describe('per-spread paint subscription', () => {
     render(<ConnectedSpreadView spreadId="s0" />)
     const image = screen.getByTestId('spread-frame-image')
     expect(image.getAttribute('src')).toBe('blob:thumb-fallback')
+  })
+
+  it('shows a cached lower tier immediately while the covering tier is still loading', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal('devicePixelRatio', 1)
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    vi.spyOn(tierCache, 'getTierUrl').mockImplementation((_id, tier) =>
+      tier === 320 ? 'blob:lower-cached' : undefined,
+    )
+    vi.spyOn(tierCache, 'requestTier').mockImplementation(() => undefined)
+    vi.spyOn(tierCache, 'subscribeTier').mockImplementation(
+      () => () => undefined,
+    )
+
+    const book = twoSpreadBook()
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    render(<ConnectedSpreadView spreadId="s0" />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const image = screen.getByTestId('spread-frame-image')
+    expect(image.getAttribute('src')).toBe('blob:lower-cached')
+    expect(image.getAttribute('data-tier')).toBe('320')
+    expect(getDisplayedPreview('a')).toBe('blob:lower-cached')
+  })
+
+  it('drops a stale displayed tier on remount and falls back to the thumb', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal('devicePixelRatio', 1)
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb-after-stale')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    vi.spyOn(tierCache, 'getTierUrl').mockReturnValue(undefined)
+    vi.spyOn(tierCache, 'requestTier').mockImplementation(() => undefined)
+    vi.spyOn(tierCache, 'subscribeTier').mockImplementation(
+      () => () => undefined,
+    )
+
+    setSpreadTiers('s0', new Map([['a', 320]]))
+    queueTierSwap('a', 320, 'blob:revoked')
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(getDisplayedPreview('a')).toBe('blob:revoked')
+
+    const book = twoSpreadBook()
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setThumbUrl('a', new Uint8Array([9]).buffer, 'image/jpeg')
+
+    render(<ConnectedSpreadView spreadId="s0" />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(getDisplayedPreview('a')).toBeUndefined()
+    expect(screen.getByTestId('spread-frame-image').getAttribute('src')).toBe(
+      'blob:thumb-after-stale',
+    )
+  })
+
+  it('keeps an empty frame as a placeholder with no preview image', () => {
+    let book = makeBook({
+      id: 'empty-frame',
+      spreads: [],
+      gallery: [],
+      assets: {},
+    })
+    book = addSpread(book, { id: 's0' })
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    expect(screen.getByTestId('spread-frame-placeholder')).toBeTruthy()
+    expect(screen.queryByTestId('spread-frame-image')).toBeNull()
   })
 
   it('updates the frame when a filmstrip thumb publishes after first paint', () => {

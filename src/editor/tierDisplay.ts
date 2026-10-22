@@ -60,7 +60,7 @@ export function queueTierSwap(
   tier: number,
   url: string,
 ): void {
-  if (desired.get(assetId) !== tier) {
+  if (!acceptsSwap(assetId, tier)) {
     return
   }
   if (shown.get(assetId)?.url === url) {
@@ -76,6 +76,22 @@ export function queueTierSwap(
     pumping = true
     void pumpSwaps()
   }
+}
+
+/** Drop a displayed URL that is no longer live in the hot tier cache. */
+export function clearStaleDisplayedPreview(
+  assetId: string,
+  getLiveUrl: (assetId: string, tier: number) => string | undefined,
+): void {
+  const current = shown.get(assetId)
+  if (current === undefined) {
+    return
+  }
+  if (getLiveUrl(assetId, current.tier) === current.url) {
+    return
+  }
+  shown.delete(assetId)
+  emit()
 }
 
 export function resetTierDisplay(): void {
@@ -107,7 +123,10 @@ async function pumpSwaps(): Promise<void> {
       break
     }
     const key = swapKey(job.assetId, job.tier, job.url)
-    if (desired.get(job.assetId) !== job.tier) {
+    // Pre-decode gate: skip work when desired already moved; post-decode
+    // re-check below is the authoritative publish guard.
+    // Stryker disable next-line ConditionalExpression: redundant with post-decode acceptsSwap
+    if (!acceptsSwap(job.assetId, job.tier)) {
       queued.delete(key)
       continue
     }
@@ -120,7 +139,7 @@ async function pumpSwaps(): Promise<void> {
       queued.delete(key)
       continue
     }
-    if (desired.get(job.assetId) !== job.tier) {
+    if (!acceptsSwap(job.assetId, job.tier)) {
       queued.delete(key)
       continue
     }
@@ -134,6 +153,22 @@ async function pumpSwaps(): Promise<void> {
     })
   }
   pumping = false
+}
+
+/**
+ * Covering tier always; a lower tier only when it improves on what is shown
+ * while the covering tier is still pending.
+ */
+function acceptsSwap(assetId: string, tier: number): boolean {
+  const want = desired.get(assetId)
+  if (want === undefined || tier > want) {
+    return false
+  }
+  if (tier === want) {
+    return true
+  }
+  const current = shown.get(assetId)
+  return current === undefined || current.tier < tier
 }
 
 function swapKey(assetId: string, tier: number, url: string): string {

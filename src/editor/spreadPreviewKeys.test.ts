@@ -6,6 +6,7 @@ import {
   frameEdgePx,
   isFramePressed,
   positiveDevicePixelRatio,
+  queueCachedLadderTiers,
   queueReadyTierIfCached,
   resolveMaxDesiredTier,
   resolveSpreadPreviewUrl,
@@ -156,6 +157,23 @@ describe('spreadPreviewKeys', () => {
     expect(queue).not.toHaveBeenCalled()
     queueReadyTierIfCached('a', 320, () => 'blob:ready', queue)
     expect(queue).toHaveBeenCalledWith('a', 320, 'blob:ready')
+  })
+
+  it('queues every cached ladder step at or below the desired tier', () => {
+    const queue = vi.fn()
+    const urls = new Map<number, string>([
+      [320, 'blob:320'],
+      [1280, 'blob:1280'],
+    ])
+    queueCachedLadderTiers(
+      'a',
+      640,
+      [320, 640, 1280, 2560],
+      (_id, tier) => urls.get(tier),
+      queue,
+    )
+    expect(queue).toHaveBeenCalledTimes(1)
+    expect(queue).toHaveBeenCalledWith('a', 320, 'blob:320')
   })
 
   it('subscribes each asset and tears every listener down on unsubscribe', () => {
