@@ -9,3 +9,7 @@
 1. Open editor → click a filmstrip or toolbar control → move pointer over pasteboard → Space+drag: pasteboard pans.
 2. Focus a text input (if any) → Space+drag over pasteboard: does not pan / Space types or stays in field.
 3. Click pasteboard → Space+drag: still pans (happy path unchanged).
+
+OK Open editor → click a filmstrip or toolbar control → move pointer over pasteboard → Space+drag: pasteboard pans.
+OK Focus a text input (if any) → Space+drag over pasteboard: does not pan / Space types or stays in field.
+OK Click pasteboard → Space+drag: still pans (happy path unchanged).
