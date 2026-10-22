@@ -333,6 +333,98 @@ describe('Filmstrip aspect cards', () => {
     }
   })
 
+  it('re-covers the scrollport when aspects refine after scroll without a nudge', () => {
+    // IMP-11/FS-03: mid-import aspect refine shifts the stride prefix; stale
+    // windowStart left a blank hole until the next wheel event.
+    const restore = stubScrollportWidth(900)
+    const callbacks: FrameRequestCallback[] = []
+    const previousRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+      callbacks.push(cb)
+      return callbacks.length
+    }
+
+    try {
+      const initial = seedGallery(24, 1.5)
+      render(<Filmstrip />)
+
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const landPrefix = buildStridePrefix(
+        Array.from({ length: 24 }, () => 1.5),
+      )
+      const scrollLeft = landPrefix[8] ?? 0
+
+      act(() => {
+        Object.defineProperty(scroll, 'scrollLeft', {
+          configurable: true,
+          get: () => scrollLeft,
+          set: () => undefined,
+        })
+        scroll.dispatchEvent(new Event('scroll'))
+        for (const cb of callbacks.splice(0, callbacks.length)) {
+          cb(0)
+        }
+      })
+
+      // Import continues: many more ids + existing cards refine to portrait.
+      const grown = Array.from(
+        { length: 160 },
+        (_, index) => `seed-extra-${String(index)}`,
+      )
+      const allIds = [...initial, ...grown]
+      const snap = getBookStoreSnapshot()
+      const assets = { ...snap.book.assets }
+      const sessionMeta = new Map<string, AssetSessionMeta>()
+      for (const id of allIds) {
+        assets[id] = assets[id] ?? {}
+        sessionMeta.set(id, {
+          name: id,
+          correctedWidth: 50,
+          correctedHeight: 100,
+          orientation: 1,
+          aspect: 0.5,
+        })
+      }
+      act(() => {
+        resetBookStore({
+          book: { ...snap.book, assets, gallery: allIds },
+          sessionMeta,
+          importRunning: true,
+          importExpectedCount: allIds.length,
+        })
+      })
+
+      const portPrefix = buildStridePrefix(
+        Array.from({ length: allIds.length }, () => 0.5),
+      )
+      const windowStart = indexFromScrollOffset(scrollLeft, portPrefix)
+      const coverPx = 900 + THUMB_WIDTH_MAX * 2
+      const expected = windowCountForCover(portPrefix, windowStart, coverPx)
+      expect(expected).toBeGreaterThan(14)
+
+      const windowEl = screen.getByTestId('filmstrip-window')
+      expect(Number(windowEl.getAttribute('data-window-count'))).toBe(expected)
+      expect(screen.getAllByTestId('filmstrip-item')).toHaveLength(expected)
+
+      const windowOffset = portPrefix[windowStart] ?? 0
+      const windowWidth =
+        (portPrefix[windowStart + expected] ?? windowOffset) - windowOffset
+      const visibleRight = scrollLeft + 900
+      const overlap =
+        Math.min(windowOffset + windowWidth, visibleRight) -
+        Math.max(windowOffset, scrollLeft)
+      expect(overlap).toBeGreaterThan(900 * 0.9)
+
+      // Without prefix sync, windowStart would stay at the pre-refine index.
+      expect(indexFromScrollOffset(scrollLeft, landPrefix)).not.toBe(
+        windowStart,
+      )
+    } finally {
+      globalThis.requestAnimationFrame = previousRaf
+      restore()
+    }
+  })
+
   it('shows a Placed badge on a placed asset and keeps it in the gallery', () => {
     const ids = seedGallery(2)
     const snap = getBookStoreSnapshot()

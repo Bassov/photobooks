@@ -836,6 +836,72 @@ test('long gallery scrolls inside the filmstrip without widening the page', asyn
   await assertNamedScrollport(page, 'filmstrip-scroll')
 })
 
+test('virtual window re-covers scrollport after import scroll without a nudge', async ({
+  page,
+}) => {
+  // IMP-11/FS-03: aspect/prefix updates during import left a blank strip until
+  // the next wheel event remounted rows.
+  test.setTimeout(120_000)
+  const count = 48
+  const files = writeBulkImportFixtures(count)
+
+  await openSessionEditor(page)
+  await page.getByTestId('photo-file-input').setInputFiles(files)
+
+  await expect(page.getByTestId('import-progress')).toBeVisible({
+    timeout: 30_000,
+  })
+
+  for (let i = 0; i < 16; i += 1) {
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft += 100
+    })
+    await page.waitForTimeout(24)
+  }
+
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 120_000 },
+    )
+    .toBe(String(count))
+  await expect(page.getByTestId('import-progress')).toBeHidden({
+    timeout: 60_000,
+  })
+
+  // Settle without scrolling — the window must already cover the port.
+  await page.waitForTimeout(200)
+
+  const coverage = await page
+    .getByTestId('filmstrip-scroll')
+    .evaluate((node) => {
+      const windowEl = node.querySelector('[data-testid="filmstrip-window"]')
+      if (!(windowEl instanceof HTMLElement)) {
+        return { overlapRatio: 0, itemCount: 0 }
+      }
+      const scrollLeft = node.scrollLeft
+      const port = node.clientWidth
+      const style = getComputedStyle(windowEl)
+      const matrix = new DOMMatrixReadOnly(style.transform)
+      const windowLeft = matrix.m41
+      const windowWidth = windowEl.getBoundingClientRect().width
+      const windowRight = windowLeft + windowWidth
+      const visibleRight = scrollLeft + port
+      const overlap =
+        Math.min(windowRight, visibleRight) - Math.max(windowLeft, scrollLeft)
+      return {
+        overlapRatio: port > 0 ? Math.max(0, overlap) / port : 0,
+        itemCount: node.querySelectorAll('[data-testid="filmstrip-item"]')
+          .length,
+      }
+    })
+
+  expect(coverage.itemCount).toBeGreaterThan(14)
+  expect(coverage.overlapRatio).toBeGreaterThan(0.9)
+  await assertNamedScrollport(page, 'filmstrip-scroll')
+})
+
 test.describe('library re-import async', () => {
   test('adding N new photos to a hashed library project yields 2N', async ({
     page,
