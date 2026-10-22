@@ -105,6 +105,27 @@ describe('pasteboard camera gestures', () => {
     expect(scroll.scrollTop).toBe(50)
   })
 
+  it('does not arm Space pan while a radio holds focus', async () => {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    scroll.scrollLeft = 40
+    scroll.scrollTop = 50
+
+    const radio = screen.getByRole('radio', { name: '4-grid' })
+    radio.focus()
+    expect(document.activeElement).toBe(radio)
+
+    fireEvent.keyDown(radio, { key: ' ', code: 'Space' })
+    fireEvent.pointerDown(scroll, { pointerId: 9, clientX: 80, clientY: 90 })
+    fireEvent.pointerMove(scroll, { pointerId: 9, clientX: 40, clientY: 40 })
+    fireEvent.pointerUp(scroll, { pointerId: 9, clientX: 40, clientY: 40 })
+    await flushGesture()
+    fireEvent.keyUp(window, { key: ' ', code: 'Space' })
+
+    expect(scroll.scrollLeft).toBe(40)
+    expect(scroll.scrollTop).toBe(50)
+  })
+
   it('zooms from wheel, keys, and pinch, then pans with space', async () => {
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')

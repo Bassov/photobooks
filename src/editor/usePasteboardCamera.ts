@@ -109,6 +109,14 @@ function isTextField(target: EventTarget | null): boolean {
   )
 }
 
+/** Radios/checkboxes use Space to activate; do not steal that for pan. */
+function isSpaceToggleControl(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement &&
+    (target.type === 'radio' || target.type === 'checkbox')
+  )
+}
+
 function zoomDirection(event: KeyboardEvent): 1 | -1 | null {
   if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') {
     return 1
@@ -647,6 +655,9 @@ export function usePasteboardCamera({
         return
       }
       if (event.code === 'Space' || event.key === ' ') {
+        if (isSpaceToggleControl(event.target)) {
+          return
+        }
         event.preventDefault()
         if (!event.repeat) {
           spaceRef.current = true
