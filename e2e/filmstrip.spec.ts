@@ -899,6 +899,7 @@ test('virtual window re-covers scrollport after import scroll without a nudge', 
 
   expect(coverage.itemCount).toBeGreaterThan(14)
   expect(coverage.overlapRatio).toBeGreaterThan(0.9)
+  await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'filmstrip-scroll')
 })
 

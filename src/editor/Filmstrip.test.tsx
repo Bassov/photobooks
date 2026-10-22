@@ -407,6 +407,12 @@ describe('Filmstrip aspect cards', () => {
       expect(screen.getAllByTestId('filmstrip-item')).toHaveLength(expected)
 
       const windowOffset = portPrefix[windowStart] ?? 0
+      // Bound to tracked scrollLeft — kills stale-start and missed setScrollLeft.
+      expect(windowEl.style.transform).toBe(
+        `translateX(${String(windowOffset)}px)`,
+      )
+      expect(windowOffset).toBeGreaterThan(0)
+
       const windowWidth =
         (portPrefix[windowStart + expected] ?? windowOffset) - windowOffset
       const visibleRight = scrollLeft + 900
