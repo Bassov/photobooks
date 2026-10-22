@@ -5,13 +5,11 @@ import {
 } from './spreadChromeStyles'
 
 describe('spreadChromeStyles', () => {
-  it('uses select token for pressed frames and leaves layout alone otherwise', () => {
-    expect(spreadFrameSelectedStyle.outline).toContain('var(--select)')
+  it('leaves layout alone; pressed ring is CSS ::after not inline outline', () => {
+    expect(spreadFrameSelectedStyle.outline).toBeUndefined()
     const layout = { left: 1, top: 2, width: 3, height: 4, zIndex: 5 }
     expect(spreadFrameControlStyle(layout, false)).toEqual(layout)
-    expect(spreadFrameControlStyle(layout, true).outline).toContain(
-      'var(--select)',
-    )
-    expect(spreadFrameControlStyle(layout, true).left).toBe(1)
+    expect(spreadFrameControlStyle(layout, true)).toEqual(layout)
+    expect(spreadFrameControlStyle(layout, true).outline).toBeUndefined()
   })
 })

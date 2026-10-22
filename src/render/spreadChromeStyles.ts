@@ -1,10 +1,10 @@
 import type { CSSProperties } from 'react'
 
-/** Selected frame outline — `--select`, distinct from `:focus-visible` `--ring`. */
-export const spreadFrameSelectedStyle: CSSProperties = {
-  outline: '3px solid var(--select)',
-  outlineOffset: -3,
-}
+/**
+ * Pressed move-source ring is painted by CSS `::after` (inset box-shadow) so it
+ * stays above the photo at every layout zoom. Layout style is unchanged.
+ */
+export const spreadFrameSelectedStyle: CSSProperties = {}
 
 export function spreadFrameControlStyle(
   layout: CSSProperties,

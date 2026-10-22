@@ -129,26 +129,32 @@ test.describe('keyboard rearrange', () => {
       .boundingBox()
     expect(pasteboardAfter).toEqual(pasteboardBefore)
     await assertDocumentFitsViewport(page)
-    // Session opens at stack-fit (~13%): outlineWidth alone was green while
-    // overflow:hidden on the frame clipped the ring. Assert paint can escape.
+    // Session opens at stack-fit (~13%). Classes/outlineWidth were green while
+    // the inset ring stayed under the photo — assert pixels change vs cancel.
     const zoomText = await page.getByTestId('zoom-indicator').innerText()
     const zoomPercent = Number.parseInt(zoomText.replace('%', ''), 10)
     expect(zoomPercent).toBeGreaterThan(0)
     expect(zoomPercent).toBeLessThan(40)
     const pressed = page.getByRole('button', { pressed: true })
     await expect(pressed).toHaveAttribute('aria-label', 'Cancel move')
-    const ring = await pressed.evaluate((node) => {
-      const style = getComputedStyle(node)
-      const body = node.querySelector('.spread-frame-body')
-      return {
-        outlineWidth: Number.parseFloat(style.outlineWidth),
-        overflow: style.overflow,
-        bodyOverflow: body ? getComputedStyle(body).overflow : '',
-      }
-    })
-    expect(ring.outlineWidth).toBeGreaterThan(0)
-    expect(ring.overflow).not.toBe('hidden')
-    expect(ring.bodyOverflow).toBe('hidden')
+    const activeShot = await pressed.screenshot()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('button', { pressed: true })).toHaveCount(0)
+    // Blur so cancelled shot has no focus-visible ring either.
+    await page.getByRole('grid', { name: 'Book gallery' }).focus()
+    const cancelledShot = await page
+      .locator(`button[data-frame-id="${firstPlacedId ?? ''}"]`)
+      .screenshot()
+    expect(
+      Buffer.compare(activeShot, cancelledShot),
+      `move-source ring must paint at ${String(zoomPercent)}% (active vs cancelled pixels)`,
+    ).not.toBe(0)
+    await page.locator(`button[data-frame-id="${firstPlacedId ?? ''}"]`).focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('button', { pressed: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
 
     await expect
       .poll(async () => page.getByTestId('editor-status').textContent())
@@ -225,6 +231,83 @@ test.describe('keyboard rearrange', () => {
     })
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(1)
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
+    await assertDocumentFitsViewport(page)
+  })
+
+  test('move-source ring paints at stack-fit and physical zoom', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await openSessionEditor(page)
+    await page
+      .getByTestId('photo-file-input')
+      .setInputFiles([
+        photoFixturePaths.samplePng,
+        photoFixturePaths.sampleOrient6,
+      ])
+    await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+      timeout: 30_000,
+    })
+    await page.bringToFront()
+    await page.getByRole('radio', { name: '4-grid' }).click()
+    const active = page.getByTestId('spread-view').first()
+    for (const index of [0, 1] as const) {
+      const item = page.getByTestId('filmstrip-item').nth(index)
+      await item.focus()
+      await page.keyboard.press('Space')
+      await expect(item).toHaveAttribute('aria-selected', 'true')
+      const frame = active
+        .getByRole('button', { name: 'Place photo', exact: true })
+        .nth(0)
+      await frame.focus()
+      await page.keyboard.press('Enter')
+      await expect(page.getByTestId('spread-frame-image')).toHaveCount(
+        index + 1,
+        { timeout: 30_000 },
+      )
+    }
+    await page.getByRole('grid', { name: 'Book gallery' }).focus()
+    await page.keyboard.press('Escape')
+
+    const source = active
+      .getByRole('button', { name: 'Select photo to move' })
+      .first()
+    const frameId = await source.getAttribute('data-frame-id')
+    expect(frameId).toBeTruthy()
+    const frame = active.locator(`button[data-frame-id="${frameId ?? ''}"]`)
+
+    async function assertRingPaintsAtZoom(expectedZoom: RegExp): Promise<void> {
+      await expect(page.getByTestId('zoom-indicator')).toHaveText(expectedZoom)
+      await frame.focus()
+      await page.keyboard.press('Enter')
+      await expect(frame).toHaveAttribute('aria-pressed', 'true')
+      await expect(frame).toHaveAttribute('aria-label', 'Cancel move')
+      const activeShot = await frame.screenshot()
+      await page.keyboard.press('Escape')
+      await expect(frame).not.toHaveAttribute('aria-pressed', 'true')
+      await page.getByRole('grid', { name: 'Book gallery' }).focus()
+      const cancelledShot = await frame.screenshot()
+      const zoomLabel = await page.getByTestId('zoom-indicator').innerText()
+      expect(
+        Buffer.compare(activeShot, cancelledShot),
+        `move-source ring must paint at ${zoomLabel} (active vs cancelled pixels)`,
+      ).not.toBe(0)
+    }
+
+    await expect(page.getByTestId('zoom-indicator')).toHaveText(/^\d+%$/)
+    const fitPercent = Number.parseInt(
+      (await page.getByTestId('zoom-indicator').innerText()).replace('%', ''),
+      10,
+    )
+    expect(fitPercent).toBeGreaterThan(0)
+    expect(fitPercent).toBeLessThan(40)
+    await assertRingPaintsAtZoom(new RegExp(`^${String(fitPercent)}%$`))
+
+    await page.getByRole('button', { name: '100%' }).click()
+    await assertRingPaintsAtZoom(/^100%$/)
     await assertDocumentFitsViewport(page)
   })
 })

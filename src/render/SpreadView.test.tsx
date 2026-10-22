@@ -330,6 +330,7 @@ describe('SpreadView', () => {
       name: 'Select photo to move',
     })
     expect(selected.getAttribute('aria-pressed')).toBe('true')
-    expect(selected.style.outline).toContain('var(--select)')
+    // Ring is CSS ::after inset box-shadow (not inline outline under the photo).
+    expect(selected.style.outline).toBe('')
   })
 })
