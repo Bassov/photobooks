@@ -52,6 +52,27 @@ export function browserClearLoafEntries(): void {
   perf.clearLoafEntries()
 }
 
+/**
+ * Start a LoAF scenario window after paint settles.
+ * Double-rAF + re-clear drops frames that straddled the first clear so they
+ * are not attributed to the upcoming interaction (budget stays zero entries).
+ */
+export async function browserBeginLoafScenarioWindow(): Promise<void> {
+  const perf = window.__photobooksPerf
+  if (!perf) {
+    throw new Error('window.__photobooksPerf is not available')
+  }
+  perf.clearLoafEntries()
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resolve()
+      })
+    })
+  })
+  perf.clearLoafEntries()
+}
+
 export function browserAssertNoLoafThenClear(): void {
   const perf = window.__photobooksPerf
   if (!perf) {

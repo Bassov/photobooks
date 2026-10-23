@@ -17,6 +17,7 @@ import {
   assertCiPerfGates,
   assertCrossOriginIsolated,
   browserAssertNoLoaf,
+  browserBeginLoafScenarioWindow,
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
@@ -1137,9 +1138,7 @@ test.describe('library re-import async', () => {
       )
       .toBe(true)
 
-    await page.evaluate(() => {
-      window.__photobooksPerf?.clearLoafEntries()
-    })
+    await page.evaluate(browserBeginLoafScenarioWindow)
     for (let i = 0; i < 30; i += 1) {
       await page.getByTestId('filmstrip-scroll').evaluate((node) => {
         node.scrollLeft += 160
@@ -1214,9 +1213,7 @@ test.describe('library re-import async', () => {
     const reimportFirstCardMs = Date.now() - reimportStart
 
     // Scroll-during-re-import while progress is still up (Done-when / Perf).
-    await page.evaluate(() => {
-      window.__photobooksPerf?.clearLoafEntries()
-    })
+    await page.evaluate(browserBeginLoafScenarioWindow)
     for (let i = 0; i < 30; i += 1) {
       await page.getByTestId('filmstrip-scroll').evaluate((node) => {
         node.scrollLeft += 160
@@ -1387,9 +1384,7 @@ test.describe('frame-budget gates', () => {
       .toBe(true)
 
     // Interaction window: scroll while import continues (exclude picker/setFiles LoAF).
-    await page.evaluate(() => {
-      window.__photobooksPerf?.clearLoafEntries()
-    })
+    await page.evaluate(browserBeginLoafScenarioWindow)
 
     for (let i = 0; i < 30; i += 1) {
       await page.getByTestId('filmstrip-scroll').evaluate((node) => {
