@@ -68,10 +68,8 @@ const probe = () => page.evaluate(() => {
     title: document.querySelector('[data-testid="feature-title"]')?.textContent,
   }
 })
-const themes = quick ? ["Light"] : ["Light", "Dark"]
-for (const [w, h, th] of (quick ? [[1440, 900]] : [[1440, 900], [1280, 800]]).flatMap(([w, h]) => themes.map((t) => [w, h, t]))) {
+for (const [w, h] of (quick ? [[1440, 900]] : [[1440, 900], [1280, 800]])) {
   await page.setViewportSize({ width: w, height: h })
-  await page.locator(`[data-testid="theme-toggle"] [aria-label="${th}"]`).click()
   const failsHere = []
   for (const s of slugs) {
     const e0 = errs.length
@@ -87,9 +85,8 @@ for (const [w, h, th] of (quick ? [[1440, 900]] : [[1440, 900], [1280, 800]]).fl
     if (errs.length > e0) problems.push(`${errs.length - e0} console errors`)
     if (problems.length) failsHere.push(`${s}: ${problems.join("; ")}`)
   }
-  ok(`all ${slugs.length} pages render cleanly at ${w}×${h}, ${th.toLowerCase()}`, failsHere.length === 0, failsHere.slice(0, 12).join(" | "))
+  ok(`all ${slugs.length} pages render cleanly at ${w}×${h}`, failsHere.length === 0, failsHere.slice(0, 12).join(" | "))
 }
-await page.locator(`[data-testid="theme-toggle"] [aria-label="Light"]`).click()
 await page.setViewportSize({ width: 1440, height: 900 })
 for (const [h, n] of [["#/", "index"], ["#/components", "components"]]) {
   await go(h); ok(`${n} page: no horizontal overflow`, !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)))
@@ -171,12 +168,6 @@ ok("UX notes collapse and the choice persists across pages", closed && stillClos
 const nb = await page.locator('[data-testid="ux-notes"]').boundingBox(), db = await page.locator(demo).boundingBox()
 ok("notes sit above a full-width demo", nb.y + nb.height <= db.y && Math.abs(nb.width - db.width) < 2)
 
-// theme toggle
-await page.click('[data-testid="theme-toggle"] [aria-label="Dark"]'); await page.waitForTimeout(150)
-ok("theme → dark", (await page.evaluate(() => document.documentElement.dataset.theme)) === "b-dark")
-await page.click('[data-testid="theme-toggle"] [aria-label="Light"]'); await page.waitForTimeout(150)
-ok("theme → light", (await page.evaluate(() => document.documentElement.dataset.theme)) === "b")
-
 // ---------------------------------------------------------------- 4. interaction smoke
 const smoke = async (name, slug, fn) => {
   await go(feat(slug))
@@ -250,11 +241,6 @@ await smoke("scenario switcher works while a modal is open", "permissions-locks-
   const sel = await D('[data-testid="scenarios"] [role="tab"][aria-selected="true"]').textContent()
   return [m0 > 0 && /another tab/i.test(sel ?? ""), `modal=${m0} selected="${sel}"`]
 })
-await smoke("dark-theme demo switches its own theme", "dark-theme", async () => {
-  const t0 = await D("[data-theme]").first().getAttribute("data-theme"); await D('[data-testid="app-theme-toggle"]').click(); await page.waitForTimeout(150)
-  return [t0 !== (await D("[data-theme]").first().getAttribute("data-theme")), t0]
-})
-
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")
 console.log(res.join("\n")); console.log(`\n${res.length - fails} passed, ${fails} failed; console errors/warnings: ${errs.length}`); if (errs.length) console.log(errs.slice(0, 20).join("\n"))
 await browser.close()

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Done-when proof: preview-serve dist/, open all kit pages at /uikit/ in Light + Dark,
+ * Done-when proof: preview-serve dist/, open all kit pages at /uikit/,
  * assert zero console errors/pageerrors. Manual evidence helper (not in pnpm check).
  *
- * Run: pnpm build && node scripts/with-playwright-env.mjs node scripts/uikit-preview-proof.mjs
+ * Run: pnpm build && node scripts/with-playwright-env.mjs node uikit/scripts/preview-proof.mjs
  */
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -76,23 +76,13 @@ try {
   await page.goto(`${base}#/`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(500)
 
-  const themes = ['Light', 'Dark']
-  /** @type {Record<string, number>} */
-  const byTheme = {}
-  for (const th of themes) {
-    const before = errs.length
-    await page
-      .locator(`[data-testid="theme-toggle"] [aria-label="${th}"]`)
-      .click()
-    for (const slug of slugs) {
-      await page.evaluate((h) => {
-        location.hash = h
-      }, `#/feature/${slug}`)
-      await page.waitForTimeout(350)
-      const visible = await page.locator('[data-testid="demo"]').isVisible()
-      if (!visible) errs.push(`missing demo: ${th} ${slug}`)
-    }
-    byTheme[th] = errs.length - before
+  for (const slug of slugs) {
+    await page.evaluate((h) => {
+      location.hash = h
+    }, `#/feature/${slug}`)
+    await page.waitForTimeout(350)
+    const visible = await page.locator('[data-testid="demo"]').isVisible()
+    if (!visible) errs.push(`missing demo: ${slug}`)
   }
 
   await page.evaluate(() => {
@@ -105,14 +95,12 @@ try {
   const summary = {
     base,
     pages: slugs.length,
-    themes,
     consoleErrors: errs.length,
-    errorsByTheme: byTheme,
     indexSearchVisible: indexOk,
     sampleErrs: errs.slice(0, 20),
   }
   console.log(JSON.stringify(summary, null, 2))
-  if (errs.length > 0 || !indexOk || slugs.length !== 77) process.exitCode = 1
+  if (errs.length > 0 || !indexOk || slugs.length !== 76) process.exitCode = 1
 } finally {
   preview.kill('SIGTERM')
   setTimeout(() => {

@@ -43,7 +43,7 @@ describe('muted-foreground AA lock', () => {
   it('reads the first --muted-foreground hex', () => {
     expect(
       readMutedForegroundLight(
-        ':root { --muted-foreground: #6A6761; } html[data-theme="b-dark"] { --muted-foreground: #9a968f; }',
+        ':root { --muted-foreground: #6A6761; } .other { --muted-foreground: #9a968f; }',
       ),
     ).toBe('#6a6761')
     expect(readMutedForegroundLight('.x { color: red; }')).toBeNull()

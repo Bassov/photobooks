@@ -56,7 +56,7 @@ describe('EditorTopBar', () => {
     expect(screen.getByRole('toolbar', { name: 'Editor' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add photos' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
-    expect(screen.getByTestId('app-theme-toggle')).toBeTruthy()
+    expect(screen.queryByTestId('app-theme-toggle')).toBeNull()
   })
 
   it('saves on Ctrl+S when a library is open and ignores other keys', async () => {
