@@ -3,7 +3,7 @@
  * Done-when proof: preview-serve dist/, open all kit pages at /uikit/,
  * assert zero console errors/pageerrors. Manual evidence helper (not in pnpm check).
  *
- * Run: pnpm build && node scripts/with-playwright-env.mjs node scripts/uikit-preview-proof.mjs
+ * Run: pnpm build && node scripts/with-playwright-env.mjs node uikit/scripts/preview-proof.mjs
  */
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'

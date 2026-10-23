@@ -1,6 +1,7 @@
-/* Theme B (light) semantic tokens — names match docs/design.md (kit wins). */
+/* Theme B / B-dark semantic tokens — names match docs/design.md (kit wins). */
 
-:root {
+:root,
+html[data-theme='b'] {
   /* primitives (warm-neutral) */
   --color-neutral-50: #fafaf9;
   --color-neutral-100: #f4f3f1;
@@ -123,7 +124,9 @@ html[data-density='compact'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root,
+  html[data-theme='b'],
+  html[data-theme='b-dark'] {
     --motion-duration-fast: 0ms;
     --motion-duration: 0ms;
     --motion-press-scale: 1;
