@@ -21,7 +21,6 @@
   {"slug": "editor-chrome-toolbar", "title": "Editor toolbars on primitives", "group": "M2.5 — Design foundation", "kind": "interactive"},
   {"slug": "editor-chrome-states", "title": "Editor states on tokens and primitives", "group": "M2.5 — Design foundation", "kind": "interactive"},
   {"slug": "project-screens-adoption", "title": "Project screens on the design system", "group": "M2.5 — Design foundation", "kind": "interactive"},
-  {"slug": "dark-theme", "title": "Dark neutral theme", "group": "M2.5 — Design foundation", "kind": "interactive"},
   {"slug": "document-history", "title": "Undo and redo (document history)", "group": "M3 — Building a real book", "kind": "interactive"},
   {"slug": "filmstrip-sort-filter", "title": "Gallery: sort, filter, remove", "group": "M3 — Building a real book", "kind": "interactive"},
   {"slug": "filmstrip-resize-drop", "title": "Filmstrip size and desktop file drop", "group": "M3 — Building a real book", "kind": "interactive"},

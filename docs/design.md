@@ -15,9 +15,9 @@ UI ref: `uikit#/feature/design-tokens`, `uikit#/feature/editor-chrome-toolbar`.
 
 ## Visual direction
 
-Theme **B** (light) and **B-dark** from `uikit/src/index.css`. Fonts: Inter Variable (UI), Lora Variable (headings), self-hosted woff2 (Latin + Cyrillic). Theme A (Untitled purple) is kit-only legacy — do not ship in the product.
+Single product theme: **B** (light) from `uikit/src/index.css` / `src/ui/tokens.css`. Fonts: Inter Variable (UI), Lora Variable (headings), self-hosted woff2 (Latin + Cyrillic). No dark theme and no theme switching in the product or kit.
 
-UI ref: `uikit#/feature/design-tokens`, `uikit#/feature/dark-theme`.
+UI ref: `uikit#/feature/design-tokens`.
 
 ## Scales
 
@@ -46,9 +46,9 @@ Editor: `--select` (selection / drop), `--guide`, `--grid` / `--grid-line`.
 Status: `--success`, `--warning`, `--destructive` (text/icon); `--destructive-solid` (+ hover) only for AlertDialog confirm.  
 Badges: `--badge-{gray,brand,success,warning,error}-{fg,bg,ring,dot}`.
 
-Do not put raw brand colour on large surfaces. Book page fills come from the document, not chrome tokens (`--paper` stays light in dark theme).
+Do not put raw brand colour on large surfaces. Book page fills come from the document, not chrome tokens.
 
-UI ref: `uikit#/feature/design-tokens`, `uikit#/feature/dark-theme`.
+UI ref: `uikit#/feature/design-tokens`.
 
 ## Iconography
 
@@ -60,18 +60,16 @@ UI ref: `uikit#/feature/icon-set`.
 
 Short, plain, local-first. Prefer verbs users do (“Grant access”, “Open library”). Errors name the next step. No marketing fluff in editor chrome. Status strings stay scannable (save: Saved / Saving… / Error).
 
-## Dark-mode policy
+## Theme policy
 
-`html[data-theme="b" | "b-dark"]`. Default from `prefers-color-scheme`; user choice persisted (kit: `localStorage`). Pasteboard/canvas darkens; **book paper stays light**. Screenshot / axe coverage runs in both themes when UI ships.
-
-UI ref: `uikit#/feature/dark-theme`.
+One theme only (Theme B light on `:root`). No `data-theme` switching, no `prefers-color-scheme` flip, no persisted theme preference. Screenshot / axe coverage runs on this single theme.
 
 ## Editor chrome vs book content
 
-| Layer        | Owns                                                                                     |
-| ------------ | ---------------------------------------------------------------------------------------- |
-| Chrome       | Top bar, dock, filmstrip, inspector, dialogs, toasts — Theme B tokens + primitives       |
-| Book content | Page paper, photo pixels, captions as document data — not restyled by chrome theme fills |
+| Layer        | Owns                                                                               |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Chrome       | Top bar, dock, filmstrip, inspector, dialogs, toasts — Theme B tokens + primitives |
+| Book content | Page paper, photo pixels, captions as document data — not restyled by chrome fills |
 
 Selection / focus rings use `--ring` / `--select`; never confuse focus ring with selection fill.
 
@@ -121,7 +119,7 @@ Checklist for M2.5 token adoption. **Kit wins** on every gap.
 
 | Area                | Current (`src/`)                                                                                                                                                                                               | Kit target                                                              | Gap                                                |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
-| Global tokens       | `src/ui/tokens.css` Theme B / B-dark; Inter + Lora self-hosted; `?specimen`                                                                                                                                    | Theme B neutrals, Inter + Lora, `--chrome`/`--canvas`/`--paper`         | Done (this change)                                 |
+| Global tokens       | `src/ui/tokens.css` Theme B light; Inter + Lora self-hosted; `?specimen`                                                                                                                                       | Theme B neutrals, Inter + Lora, `--chrome`/`--canvas`/`--paper`         | Done (this change)                                 |
 | Buttons             | Action primitives in `src/ui` (`default`/`secondary`/`ghost`); chrome still has duplicated `.editor-action*` until adoption                                                                                    | Button / IconButton / Toolbar primitives                                | Adopt in editor chrome; drop per-surface copies    |
 | Hardcoded colour    | Chrome CSS uses semantic vars; enforced by `scripts/check-css-tokens.mjs`                                                                                                                                      | Semantic roles (`--destructive`, `--background`, `--paper`, …)          | Done for listed chrome CSS                         |
 | Radius              | Chrome uses `--radius-*`                                                                                                                                                                                       | `--radius-*`                                                            | Done for listed chrome CSS                         |
@@ -133,7 +131,7 @@ Checklist for M2.5 token adoption. **Kit wins** on every gap.
 | Missing assets      | Relink on `Dialog` + row `Badge`                                                                                                                                                                               | Relink Dialog pattern                                                   | Done (project-screens-adoption)                    |
 | Filmstrip           | Token chrome; geometry still custom                                                                                                                                                                            | ThumbGrid / PhotoThumb rules                                            | Align thumb geometry + primitives                  |
 | Spread / pasteboard | `--canvas` / `--select` / `--ring`; paper from document                                                                                                                                                        | `--canvas` / `--select` / `--ring`; paper from document                 | Done for chrome colours                            |
-| Dark theme          | `data-theme` B / B-dark; prefers default; top-bar toggle persisted (`photobooks-theme`)                                                                                                                        | `data-theme` B / B-dark + persisted toggle                              | Done (dark-theme)                                  |
-| Icons               | `Icon` + 26 in-repo glyphs (incl. moon/sun); size tokens 14/16/20; `?specimen` grid                                                                                                                            | in-repo SVG map (kit lucide demo OK)                                    | Done (icon-set)                                    |
+| Theme               | Single Theme B light on `:root`; no toggle / persistence                                                                                                                                                       | Single Theme B light                                                    | Done (single-theme)                                |
+| Icons               | `Icon` + in-repo glyphs; size tokens 14/16/20; `?specimen` grid                                                                                                                                                | in-repo SVG map (kit lucide demo OK)                                    | Done (icon-set)                                    |
 
-UI ref for target screens: `uikit#/feature/design-tokens`, `icon-set`, `editor-chrome-toolbar`, `editor-chrome-states`, `project-screens-adoption`, `dark-theme`.
+UI ref for target screens: `uikit#/feature/design-tokens`, `icon-set`, `editor-chrome-toolbar`, `editor-chrome-states`, `project-screens-adoption`.

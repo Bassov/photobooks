@@ -1,35 +1,19 @@
 import * as React from "react"
-import { BookOpen, ChevronLeft, ChevronRight, ChevronDown, LayoutGrid, Moon, Sun, Shapes, MousePointerClick, Image as ImageIcon, Search, X, NotebookText } from "lucide-react"
+import { BookOpen, ChevronLeft, ChevronRight, ChevronDown, LayoutGrid, Shapes, MousePointerClick, Image as ImageIcon, Search, X, NotebookText } from "lucide-react"
 import { Link } from "react-aria-components"
 import { UNSAFE_PortalProvider } from "react-aria"
 import { cn } from "@/lib/utils"
-import { Toggle, ToggleButtonGroup } from "@/components/ui/toggle"
 import { Badge } from "@/components/uui/Badge"
 import { Kbd } from "@/components/app/ui"
 import { SearchField, SearchFieldGroup, SearchFieldInput, SearchFieldClear } from "@/components/ui/searchfield"
 import { Tabs, TabList, Tab } from "@/components/ui/tabs"
 import { PAGES, GROUPS, pageIndex, type Page } from "./pages"
 import { href } from "./router"
-import { setTheme, useTheme } from "./theme"
 import { FEATURES } from "@/features/registry"
 import type { FeatureDef } from "@/features/types"
 
 const navLink = "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-muted-foreground outline-hidden data-[hovered]:bg-accent data-[hovered]:text-foreground data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring [&_svg]:size-4"
 const card = "rounded-xl border bg-card shadow-xs outline-hidden data-[hovered]:border-ring/50 data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring"
-
-export function ThemeToggle() {
-  const theme = useTheme()
-  return (
-    <ToggleButtonGroup selectionMode="single" disallowEmptySelection selectedKeys={[theme]} onSelectionChange={(k) => { const v = [...k][0]; if (v) setTheme(v as "b" | "b-dark") }}
-      aria-label="Theme" className="gap-0.5 rounded-md bg-muted p-0.5 dark:bg-black/25" data-testid="theme-toggle">
-      {([["b", Sun, "Light"], ["b-dark", Moon, "Dark"]] as const).map(([id, I, l]) => (
-        <Toggle key={id} id={id} size="sm" aria-label={l} className="h-7 gap-1.5 px-2 text-xs text-muted-foreground data-[hovered]:bg-transparent data-[hovered]:text-foreground data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-sm dark:data-[selected]:bg-accent [&_svg]:size-3.5">
-          <I />{l}
-        </Toggle>
-      ))}
-    </ToggleButtonGroup>
-  )
-}
 
 export function KitBar({ current }: { current?: string }) {
   const i = current ? pageIndex(current) : -1
@@ -50,10 +34,8 @@ export function KitBar({ current }: { current?: string }) {
             {prev ? <Link href={href.feature(prev.slug)} className={navLink} data-nav="prev" aria-label={`Previous: ${prev.slug}`}><ChevronLeft /><span className="max-w-[200px] truncate font-mono text-xs">{prev.slug}</span></Link> : <span className={cn(navLink, "opacity-40")}><ChevronLeft />start</span>}
             <span className="tabular-nums text-xs text-muted-foreground" data-testid="page-counter">{i + 1} / {PAGES.length}</span>
             {next ? <Link href={href.feature(next.slug)} className={navLink} data-nav="next" aria-label={`Next: ${next.slug}`}><span className="max-w-[200px] truncate font-mono text-xs">{next.slug}</span><ChevronRight /></Link> : <span className={cn(navLink, "opacity-40")}>end<ChevronRight /></span>}
-            <span className="mx-1.5 h-5 w-px bg-border" />
           </>
         )}
-        <ThemeToggle />
       </div>
     </header>
   )
@@ -138,7 +120,7 @@ export function IndexPage() {
         </div>
         <Link href={href.components} className={cn(card, "group mt-7 flex items-center gap-4 p-4")}>
           <span className="grid size-10 place-items-center rounded-lg border bg-background shadow-xs"><Shapes className="size-[18px]" /></span>
-          <span className="min-w-0"><span className="block text-[14px] font-semibold">Components</span><span className="block text-[13px] text-muted-foreground">Every ported component: variants and states, light and dark theme</span></span>
+          <span className="min-w-0"><span className="block text-[14px] font-semibold">Components</span><span className="block text-[13px] text-muted-foreground">Every ported component: variants and states (Theme B light)</span></span>
           <ChevronRight className="ml-auto size-4 text-muted-foreground transition-transform group-data-[hovered]:translate-x-0.5" />
         </Link>
 

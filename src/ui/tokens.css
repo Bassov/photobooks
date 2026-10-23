@@ -1,7 +1,6 @@
-/* Theme B / B-dark semantic tokens — names match docs/design.md (kit wins). */
+/* Theme B (light) semantic tokens — names match docs/design.md (kit wins). */
 
-:root,
-html[data-theme='b'] {
+:root {
   /* primitives (warm-neutral) */
   --color-neutral-50: #fafaf9;
   --color-neutral-100: #f4f3f1;
@@ -116,62 +115,6 @@ html[data-theme='b'] {
   color-scheme: light;
 }
 
-html[data-theme='b-dark'] {
-  --overlay-scrim: rgb(0 0 0 / 0.55);
-  --background: #1c1c1c;
-  --foreground: #e9e7e3;
-  --card: #242424;
-  --popover: #262626;
-  --primary: #e9e7e3;
-  --primary-foreground: #1c1c1c;
-  --secondary: #252525;
-  --muted: #232323;
-  --muted-foreground: #9a968f;
-  --subtle: #2a2a2a;
-  --accent: #313131;
-  --accent-foreground: #f2f0ec;
-  --destructive: #e8857a;
-  --destructive-solid: #b9483d;
-  --destructive-solid-hover: #bf4d41;
-  --destructive-foreground: #fff8f6;
-  --border: #303030;
-  --input: #3a3a3a;
-  --ring: #77746e;
-  --chrome: #1c1c1c;
-  --canvas: #121212;
-  --paper: #f4f3f1;
-  --select: #8fa6bf;
-  --guide: #3fb8b2;
-  --grid: rgb(63 184 178 / 0.12);
-  --grid-line: rgb(63 184 178 / 0.85);
-  --success: #5fb57d;
-  --warning: #d9a441;
-  --page-shadow: 0 8px 30px rgb(0 0 0 / 0.5);
-
-  --badge-gray-fg: #d2cec7;
-  --badge-gray-bg: rgb(255 255 255 / 0.065);
-  --badge-gray-ring: rgb(255 255 255 / 0.07);
-  --badge-gray-dot: #8d8983;
-  --badge-brand-fg: #acc0d4;
-  --badge-brand-bg: rgb(143 166 191 / 0.14);
-  --badge-brand-ring: rgb(143 166 191 / 0.18);
-  --badge-brand-dot: #8fa6bf;
-  --badge-success-fg: #93cba5;
-  --badge-success-bg: rgb(95 181 125 / 0.13);
-  --badge-success-ring: rgb(95 181 125 / 0.18);
-  --badge-success-dot: #6cb886;
-  --badge-warning-fg: #e2bd76;
-  --badge-warning-bg: rgb(217 164 65 / 0.13);
-  --badge-warning-ring: rgb(217 164 65 / 0.19);
-  --badge-warning-dot: #d4a24b;
-  --badge-error-fg: #f0a093;
-  --badge-error-bg: rgb(232 133 122 / 0.14);
-  --badge-error-ring: rgb(232 133 122 / 0.2);
-  --badge-error-dot: #e2796c;
-
-  color-scheme: dark;
-}
-
 html[data-density='compact'] {
   --spacing: 0.2rem;
   --text-sm: 12.5px;
@@ -180,9 +123,7 @@ html[data-density='compact'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root,
-  html[data-theme='b'],
-  html[data-theme='b-dark'] {
+  :root {
     --motion-duration-fast: 0ms;
     --motion-duration: 0ms;
     --motion-press-scale: 1;

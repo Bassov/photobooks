@@ -2,7 +2,7 @@
  * Adapted from Untitled UI React — components/base/badges/badges.tsx (MIT, untitleduico/react).
  * Kept: the color × size × type API ("pill-color" / "badge-color") and the icon slot.
  * v3 (kit v3): calm, premium palette — low-chroma tint over the surface, a hairline *inset* ring
- * instead of a hard border, AA text (≥ 5:1 in both themes), optional status dot, medium weight,
+ * instead of a hard border, AA text (≥ 5:1), optional status dot, medium weight,
  * tabular numbers. Colours live in index.css (--badge-<tone>-fg/bg/ring/dot, per theme; .pb-badge).
  *
  * Usage rule: status → `dot`; an icon only when it adds meaning beyond colour (lock, link, check).

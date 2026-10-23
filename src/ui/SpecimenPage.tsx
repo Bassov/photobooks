@@ -36,7 +36,7 @@ export function SpecimenPage() {
       <header className="specimen-header">
         <h1 className="heading">?specimen</h1>
         <span className="specimen-note">
-          Dev/test-only · Theme B tokens from docs/design.md
+          Dev/test-only · Theme B (light) tokens from docs/design.md
         </span>
       </header>
 

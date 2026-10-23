@@ -35,7 +35,6 @@ import {
   saveIndicatorBadgeColor,
   saveIndicatorLabel,
 } from './saveIndicatorLabel'
-import { ThemeToggle } from './ThemeToggle'
 import type { ChromeImportApi } from './useChromeImport'
 
 function ChromeButton({
@@ -223,7 +222,6 @@ export function EditorTopBar({
           Add folder
         </ChromeButton>
         {chromeImport.inputs}
-        <ThemeToggle />
       </div>
     </header>
   )
