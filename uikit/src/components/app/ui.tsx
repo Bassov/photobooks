@@ -153,7 +153,7 @@ export function ThumbItem({ className, ...props }: GridListItemProps & { classNa
  * The ratio is clamped to 5:8 … 8:5; beyond that (panoramas, very tall scans) the image is
  * centre-cropped (object-cover) to the limit so one photo can't take over the strip.
  * Neutral backdrop (bg-muted) shows while loading; a hairline inset ring keeps light photos
- * from bleeding into the chrome in both themes. */
+ * from bleeding into the chrome. */
 export const THUMB_RATIO = { min: 5 / 8, max: 8 / 5 } as const
 export const thumbRatio = (w: number, h: number) => Math.min(Math.max(w / h, THUMB_RATIO.min), THUMB_RATIO.max)
 export const thumbWidth = (w: number, h: number, height: number) => Math.round(thumbRatio(w, h) * height)
