@@ -485,17 +485,26 @@ describe('persistScannedEntryIndex', () => {
             height: 100,
             orientation: 1,
           },
+          'b.jpg': {
+            byteSize: 20,
+            mtimeMs: 2,
+            width: 50,
+            height: 50,
+            orientation: 1,
+          },
         },
       },
       { entryIndexIdb: idb },
     )
     let yields = 0
-    const big = Array.from({ length: 300 }, (_, i) => ({
+    const big = Array.from({ length: 513 }, (_, i) => ({
       relativePath: `f-${String(i)}.jpg`,
       byteSize: i + 1,
       mtimeMs: i + 1,
     }))
+    // Unchanged identity keeps dims; mtime-only drift drops dims.
     big[0] = { relativePath: 'a.jpg', byteSize: 10, mtimeMs: 1 }
+    big[1] = { relativePath: 'b.jpg', byteSize: 20, mtimeMs: 99 }
     await persistScannedEntryIndex('root-merge', big, {
       entryIndexIdb: idb,
       yieldFn: () => {
@@ -503,7 +512,8 @@ describe('persistScannedEntryIndex', () => {
         return Promise.resolve()
       },
     })
-    expect(yields).toBeGreaterThan(1)
+    // Chunk=256: yields at i=256 and i=512, plus one final yield → 3.
+    expect(yields).toBe(3)
     const got = await getSourceRootEntryIndex('root-merge', {
       entryIndexIdb: idb,
     })
@@ -514,7 +524,67 @@ describe('persistScannedEntryIndex', () => {
       height: 100,
       orientation: 1,
     })
-    expect(got.ok && Object.keys(got.value.entries)).toHaveLength(300)
+    expect(got.ok && got.value.entries['b.jpg']).toEqual({
+      byteSize: 20,
+      mtimeMs: 99,
+    })
+    expect(got.ok && Object.keys(got.value.entries)).toHaveLength(513)
+  })
+
+  it('yields once for a small scan (final yield only)', async () => {
+    const idb = memoryIdb()
+    let yields = 0
+    await persistScannedEntryIndex('root-small', scanned, {
+      entryIndexIdb: idb,
+      yieldFn: () => {
+        yields += 1
+        return Promise.resolve()
+      },
+    })
+    expect(yields).toBe(1)
+  })
+
+  it('does not copy incomplete prior dims when merging from memory', () => {
+    const previous: SourceRootEntryIndex = {
+      version: FOLDER_MANIFEST_VERSION,
+      entries: {
+        'w-only.jpg': { byteSize: 1, mtimeMs: 1, width: 100 },
+        'h-only.jpg': { byteSize: 2, mtimeMs: 2, height: 50 },
+        'no-orient.jpg': {
+          byteSize: 3,
+          mtimeMs: 3,
+          width: 40,
+          height: 20,
+        },
+      },
+    }
+    const merged = entryIndexFromScanned(
+      [
+        { relativePath: 'w-only.jpg', byteSize: 1, mtimeMs: 1 },
+        { relativePath: 'h-only.jpg', byteSize: 2, mtimeMs: 2 },
+        { relativePath: 'no-orient.jpg', byteSize: 3, mtimeMs: 3 },
+      ],
+      previous,
+    )
+    expect(merged.entries['w-only.jpg']).toEqual({
+      byteSize: 1,
+      mtimeMs: 1,
+    })
+    expect(merged.entries['h-only.jpg']).toEqual({
+      byteSize: 2,
+      mtimeMs: 2,
+    })
+    expect(merged.entries['no-orient.jpg']).toEqual({
+      byteSize: 3,
+      mtimeMs: 3,
+      width: 40,
+      height: 20,
+    })
+    expect(merged.entries['no-orient.jpg']).not.toHaveProperty('orientation')
+    expect(Object.keys(merged.entries['w-only.jpg'] ?? {})).toEqual([
+      'byteSize',
+      'mtimeMs',
+    ])
   })
 
   it('parses width height and orientation from stored rows', async () => {

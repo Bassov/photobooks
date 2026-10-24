@@ -151,6 +151,67 @@ describe('startFolderRescan', () => {
     expect(paths).not.toContain('gone.jpg')
   })
 
+  it('resets aspect for size/mtime-changed paths after scan', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const tree = createMemoryAssetDirectory()
+    // Disk identity differs from manifest (changed).
+    tree.putFile('shot.jpg', new Uint8Array([1, 2, 3]), 99)
+    const sourceRootId = 'root-changed-aspect'
+    registerAssetSource(
+      sourceRootId,
+      createFsaAssetSource({ rootId: sourceRootId, directory: tree.root }),
+    )
+    await putSourceRootEntryIndex(sourceRootId, {
+      version: 1,
+      entries: {
+        'shot.jpg': {
+          byteSize: 2,
+          mtimeMs: 10,
+          width: 400,
+          height: 100,
+          orientation: 1,
+        },
+      },
+    })
+    resetBookStore({
+      book: makeBook({
+        gallery: ['a1'],
+        assets: {
+          a1: {
+            sourceRootId,
+            relativePath: 'shot.jpg',
+            byteSize: 2,
+            mtimeMs: 10,
+          },
+        },
+      }),
+      sessionMeta: new Map([
+        [
+          'a1',
+          {
+            name: 'shot.jpg',
+            correctedWidth: 400,
+            correctedHeight: 100,
+            orientation: 1 as const,
+            aspect: 4,
+          },
+        ],
+      ]),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    await startFolderRescan({ sourceRootId, runLazy: false })
+    await awaitFolderRescanForTests()
+    expect(getBookStoreSnapshot().sessionMeta.get('a1')?.aspect).toBe(1)
+  })
+
   it('always walks scanRoot even when a matching entry index already exists', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('shot.jpg', new Uint8Array([1, 2]), 10)

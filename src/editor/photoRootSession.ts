@@ -46,6 +46,7 @@ import {
   getBookStoreSnapshot,
   patchAssetRecord,
   removeFailedImportAssets,
+  setAssetSessionMeta,
 } from './bookStore'
 
 export type PhotoAccessPhase = 'idle' | 'permission-required'
@@ -736,14 +737,40 @@ export async function startFolderRescan(options: {
       scanned.map((entry) => [entry.relativePath, entry] as const),
     )
     // List-first: placeholders for accepted images not yet in gallery.
+    // Omit size/mtime-changed paths so stale manifest dims do not stick.
+    const changedPathSet = new Set(indexDiff.changedPaths)
     const dimsByPath =
       priorManifest === null
         ? null
-        : new Map(Object.entries(priorManifest.entries))
+        : new Map(
+            Object.entries(priorManifest.entries).filter(
+              ([path]) => !changedPathSet.has(path),
+            ),
+          )
     enqueueScannedGalleryList(options.sourceRootId, scanned, {
       markImportRunning: false,
       dimsByPath,
     })
+    if (changedPathSet.size > 0) {
+      const { book, sessionMeta } = getBookStoreSnapshot()
+      for (const assetId of book.gallery) {
+        const path = book.assets[assetId]?.relativePath
+        if (typeof path !== 'string' || !changedPathSet.has(path)) {
+          continue
+        }
+        const meta = sessionMeta.get(assetId)
+        if (meta === undefined) {
+          continue
+        }
+        setAssetSessionMeta(assetId, {
+          ...meta,
+          correctedWidth: 1,
+          correctedHeight: 1,
+          orientation: 1,
+          aspect: 1,
+        })
+      }
+    }
     // Drop gallery tiles whose paths disappeared from disk (keep placed).
     if (indexDiff.removedPaths.length > 0) {
       const { book } = getBookStoreSnapshot()
@@ -769,7 +796,6 @@ export async function startFolderRescan(options: {
       otherBookAssets: options.otherBookAssets ?? [],
     })
     // Prefer re-verify for metadata-changed paths even when already in gallery.
-    const changedPathSet = new Set(indexDiff.changedPaths)
     const priorityWithChanges = [...prioritized]
     for (const path of indexDiff.changedPaths) {
       if (priorityWithChanges.some((ref) => ref.relativePath === path)) {

@@ -148,13 +148,7 @@ export function entryIndexFromScanned(
       mtimeMs: entry.mtimeMs,
     }
     if (prior?.byteSize === entry.byteSize && prior.mtimeMs === entry.mtimeMs) {
-      if (prior.width !== undefined && prior.height !== undefined) {
-        next.width = prior.width
-        next.height = prior.height
-      }
-      if (prior.orientation !== undefined) {
-        next.orientation = prior.orientation
-      }
+      copyDimsIfComplete(prior, next)
     }
     entries[entry.relativePath] = next
   }
@@ -257,7 +251,55 @@ export async function clearSourceRootEntryIndex(
 
 export type YieldFn = () => Promise<void>
 
-/** Persist the latest cheap-scan metadata after a full walk (batched yields). */
+/**
+ * Merge scan + prior dims into a manifest, yielding every
+ * MANIFEST_PERSIST_CHUNK entries so large folders stay interruptible.
+ */
+async function buildManifestFromScannedChunked(
+  scanned: readonly ScannedEntry[],
+  previous: SourceRootEntryIndex | null,
+  yieldFn: YieldFn,
+): Promise<SourceRootEntryIndex> {
+  const prev = previous?.entries ?? {}
+  const entries: SourceRootEntryIndex['entries'] = {}
+  let index = 0
+  for (const entry of scanned) {
+    if (index > 0 && index % MANIFEST_PERSIST_CHUNK === 0) {
+      await yieldFn()
+    }
+    index += 1
+    const prior = prev[entry.relativePath]
+    const next: FolderManifestEntry = {
+      byteSize: entry.byteSize,
+      mtimeMs: entry.mtimeMs,
+    }
+    if (prior?.byteSize === entry.byteSize && prior.mtimeMs === entry.mtimeMs) {
+      copyDimsIfComplete(prior, next)
+    }
+    entries[entry.relativePath] = next
+  }
+  return { version: FOLDER_MANIFEST_VERSION, entries }
+}
+
+function copyDimsIfComplete(
+  prior: FolderManifestEntry,
+  next: FolderManifestEntry,
+): void {
+  const width = prior.width
+  const height = prior.height
+  if (width === undefined || height === undefined) {
+    return
+  }
+  next.width = width
+  next.height = height
+  const orientation = prior.orientation
+  if (orientation === undefined) {
+    return
+  }
+  next.orientation = orientation
+}
+
+/** Persist the latest cheap-scan metadata after a full walk (batched merge). */
 export async function persistScannedEntryIndex(
   sourceRootId: string,
   scanned: readonly ScannedEntry[],
@@ -268,11 +310,11 @@ export async function persistScannedEntryIndex(
   const got = await getSourceRootEntryIndex(sourceRootId, options)
   const prior = got.ok ? got.value : null
   const yieldFn = options?.yieldFn ?? (() => Promise.resolve())
-  // Yield in chunks before the sync merge so large folders stay interruptible.
-  for (let i = 0; i < scanned.length; i += MANIFEST_PERSIST_CHUNK) {
-    await yieldFn()
-  }
-  const manifest = entryIndexFromScanned(scanned, prior)
+  const manifest = await buildManifestFromScannedChunked(
+    scanned,
+    prior,
+    yieldFn,
+  )
   await yieldFn()
   return putSourceRootEntryIndex(sourceRootId, manifest, options)
 }
