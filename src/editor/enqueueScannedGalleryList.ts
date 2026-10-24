@@ -86,14 +86,12 @@ export function enqueueScannedGalleryList(
     })
   }
 
-  // Stryker disable next-line ConditionalExpression,EqualityOperator: empty flush must not mark import running
   if (options?.markImportRunning !== false && toFlush.length > 0) {
     setImportRunning(
       true,
       book.gallery.length + toFlush.length + alreadyPresent.length,
     )
   }
-  // Stryker disable next-line ConditionalExpression,EqualityOperator: empty flush is a no-op
   if (toFlush.length > 0) {
     enqueueGalleryAssets(toFlush)
   }

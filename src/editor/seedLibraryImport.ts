@@ -44,7 +44,6 @@ export function seedLibraryEntry(options: {
     bytes: preloaded,
   } = options
   patchAssetRecord(assetId, {
-    // Stryker disable next-line OptionalChaining,LogicalOperator: keep existing root when present
     sourceRootId:
       getBookStoreSnapshot().book.assets[assetId]?.sourceRootId ?? sourceRootId,
     relativePath,

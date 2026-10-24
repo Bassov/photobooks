@@ -50,6 +50,10 @@ import {
   isImageLikePath,
   isUnsupportedImagePath,
 } from '../photo/pickPhotos'
+import { getVisibleAssetIds } from '../photo/assetPool'
+import { getBookStoreSnapshot } from './bookStore'
+import { yieldForPaint } from './relink/yieldForPaint'
+import type { ScannedEntry } from '../assets'
 
 function isE2eBuild(): boolean {
   const env = import.meta.env as { VITE_E2E?: string }
@@ -193,11 +197,32 @@ export function useChromeImport(options: {
             errors: [],
             running: true,
           })
-          // Import accepted (list already enqueued) plus unsupported image-like
-          // paths so TIFF/HEIC still surface per-file errors.
-          result = await importScannedEntriesInBatches(
+          // Let filmstrip mount so visible ids can prefer first-window 320 decode.
+          await yieldForPaint()
+          await yieldForPaint()
+          const visibleIds = new Set(getVisibleAssetIds())
+          const book = getBookStoreSnapshot().book
+          const visiblePaths = new Set(
+            book.gallery
+              .filter((id) => visibleIds.has(id))
+              .map((id) => book.assets[id]?.relativePath)
+              .filter((path): path is string => typeof path === 'string'),
+          )
+          const priorityAccepted: ScannedEntry[] = []
+          const idleAccepted: ScannedEntry[] = []
+          for (const entry of accepted) {
+            if (visiblePaths.has(entry.relativePath)) {
+              priorityAccepted.push(entry)
+            } else {
+              idleAccepted.push(entry)
+            }
+          }
+          // Visible (and unsupported for errors) first; idle remainder stays
+          // placeholders until scrolled into view (import continues in background).
+          const firstWave = [...priorityAccepted, ...unsupported]
+          const firstResult = await importScannedEntriesInBatches(
             directory,
-            [...accepted, ...unsupported],
+            firstWave.length > 0 ? firstWave : accepted.slice(0, 16),
             {
               sourceRootId,
               libraryBacked: isLibraryBacked(),
@@ -207,9 +232,30 @@ export function useChromeImport(options: {
               onFirstBatchYielded: persistRootAfterFirstBatch,
             },
           )
-          result = {
-            ...result,
-            skipped: result.skipped + folderSkipped,
+          const idleWave =
+            firstWave.length > 0 ? idleAccepted : accepted.slice(16)
+          if (idleWave.length > 0) {
+            const idleResult = await importScannedEntriesInBatches(
+              directory,
+              idleWave,
+              {
+                sourceRootId,
+                libraryBacked: isLibraryBacked(),
+                listAlreadyEnqueued: true,
+                onProgress: options.onImportProgress,
+                onErrors: reportErrors,
+              },
+            )
+            result = {
+              imported: firstResult.imported + idleResult.imported,
+              errors: [...firstResult.errors, ...idleResult.errors],
+              skipped: firstResult.skipped + idleResult.skipped + folderSkipped,
+            }
+          } else {
+            result = {
+              ...firstResult,
+              skipped: firstResult.skipped + folderSkipped,
+            }
           }
         }
         if (result.skipped > 0 && result.errors.length === 0) {

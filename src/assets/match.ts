@@ -113,7 +113,6 @@ export function matchAssets(
     ) {
       continue
     }
-    // Stryker disable next-line ConditionalExpression: both-undefined skip is equivalent for empty identity records
     if (
       record.sourceRootId === undefined &&
       record.relativePath === undefined

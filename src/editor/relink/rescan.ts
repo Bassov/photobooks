@@ -161,11 +161,8 @@ export async function locateMissingAsset(
   file: File,
 ): Promise<'ok' | 'hash-mismatch' | 'no-hash'> {
   const asset = getBookStoreSnapshot().book.assets[assetId]
-  // Stryker disable next-line OptionalChaining: missing asset → undefined size/mtime → no-hash
   const expectedSize = asset?.byteSize
-  // Stryker disable next-line OptionalChaining: missing asset → undefined size/mtime → no-hash
   const expectedMtime = asset?.mtimeMs
-  // Stryker disable next-line ConditionalExpression,LogicalOperator: both size and mtime required for locate
   if (expectedSize === undefined || expectedMtime === undefined) {
     return 'no-hash'
   }

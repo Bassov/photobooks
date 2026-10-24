@@ -184,7 +184,6 @@ async function importPhotoFilesInner(
   const batchRootId =
     options.sourceRootId ??
     (libraryBacked ? `root-${crypto.randomUUID()}` : undefined)
-  // Stryker disable next-line ConditionalExpression,BooleanLiteral: strict true for list-first reuse
   const listAlreadyEnqueued = options.listAlreadyEnqueued === true
 
   setImportRunning(true, progressTotal)
@@ -193,7 +192,6 @@ async function importPhotoFilesInner(
     const pathIndex = libraryBacked
       ? buildReuseIndex(book.gallery, book.assets)
       : null
-    // Stryker disable next-line ConditionalExpression,LogicalOperator: path map only when list-first
     const byRelativePath =
       libraryBacked && listAlreadyEnqueued
         ? getGalleryRelativePathIndex()
@@ -227,7 +225,6 @@ async function importPhotoFilesInner(
       })
     }
 
-    // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: session enqueue vs list-first
     if (!libraryBacked && immediate.length > 0 && !listAlreadyEnqueued) {
       enqueueGalleryAssets(
         immediate.map(({ assetId, file }) => ({
@@ -243,7 +240,6 @@ async function importPhotoFilesInner(
       )
     }
 
-    // Stryker disable next-line ConditionalExpression,LogicalOperator: library enqueue vs list-first
     if (libraryBacked && batchRootId !== undefined && !listAlreadyEnqueued) {
       const newImmediate = immediate.filter((entry) => !entry.reused)
       for (const entry of newImmediate) {

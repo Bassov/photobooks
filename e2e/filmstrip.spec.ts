@@ -154,24 +154,23 @@ test('imports PNG into the filmstrip via directory picker', async ({
 test('list-first folder pick shows gallery placeholders before all thumbs', async ({
   page,
 }) => {
-  const { files } = writeBulkImportFixtureSet(12)
+  const { files } = writeBulkImportFixtureSet(24)
   await openSessionEditor(page)
   await pickPhotoFolder(page, files, { via: 'picker' })
 
-  // Cheap scan → list enqueue: items appear before every thumb finishes decode.
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(12, {
+  // Cheap scan → list enqueue: full gallery count before every thumb finishes.
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(24, {
     timeout: 30_000,
   })
-  await expect(page.getByTestId('filmstrip-count')).toContainText('12 photos', {
+  await expect(page.getByTestId('filmstrip-count')).toContainText('24 photos', {
     timeout: 30_000,
   })
-  // At least one placeholder or thumb is fine; full thumb set may still catch up.
-  await expect(
-    page
-      .getByTestId('filmstrip-placeholder')
-      .or(page.getByTestId('filmstrip-thumb'))
-      .first(),
-  ).toBeVisible({ timeout: 30_000 })
+  // Prove list-first: placeholders exist while some thumbs are still missing.
+  await expect(page.getByTestId('filmstrip-placeholder').first()).toBeVisible({
+    timeout: 30_000,
+  })
+  const thumbCount = await page.getByTestId('filmstrip-thumb').count()
+  expect(thumbCount).toBeLessThan(24)
   await assertNamedScrollport(page, 'filmstrip')
   await assertDocumentFitsViewport(page)
 })

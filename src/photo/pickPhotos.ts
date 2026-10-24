@@ -69,7 +69,6 @@ export function isImageLikePath(relativePath: string): boolean {
 /** Accepted filmstrip import extensions (jpeg/png/webp) from a relative path. */
 export function isAcceptedPhotoPath(relativePath: string): boolean {
   const lower = relativePath.toLowerCase()
-  // Stryker disable next-line MethodExpression,LogicalOperator: jpeg/jpg/png/webp extension set
   return (
     lower.endsWith('.jpg') ||
     lower.endsWith('.jpeg') ||

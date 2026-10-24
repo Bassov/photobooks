@@ -46,7 +46,6 @@ export async function runChromeImport(
     ...(options.awaitPriorHashes !== undefined
       ? { awaitPriorHashes: options.awaitPriorHashes }
       : {}),
-    // Stryker disable next-line ConditionalExpression: omit undefined option key
     ...(options.listAlreadyEnqueued !== undefined
       ? { listAlreadyEnqueued: options.listAlreadyEnqueued }
       : {}),

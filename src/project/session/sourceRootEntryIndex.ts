@@ -31,12 +31,10 @@ function resolveIdb(options?: SourceRootEntryIndexOptions): SessionIdb {
 }
 
 function parseIndex(value: unknown): SourceRootEntryIndex | null {
-  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: non-object input is corrupt
   if (typeof value !== 'object' || value === null) {
     return null
   }
   const record = value as { entries?: unknown }
-  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: entries must be an object map
   if (typeof record.entries !== 'object' || record.entries === null) {
     return null
   }
@@ -44,12 +42,10 @@ function parseIndex(value: unknown): SourceRootEntryIndex | null {
   for (const [path, meta] of Object.entries(
     record.entries as Record<string, unknown>,
   )) {
-    // Stryker disable next-line ConditionalExpression,LogicalOperator: skip non-object rows
     if (typeof meta !== 'object' || meta === null) {
       continue
     }
     const row = meta as { byteSize?: unknown; mtimeMs?: unknown }
-    // Stryker disable next-line ConditionalExpression,LogicalOperator: require finite size+mtime
     if (
       typeof row.byteSize !== 'number' ||
       !Number.isFinite(row.byteSize) ||
@@ -127,7 +123,6 @@ export async function getSourceRootEntryIndex(
     }
     return success(parsed)
   } catch {
-    // Stryker disable next-line BlockStatement: IDB throw → typed not-found
     return failure('not-found')
   }
 }
@@ -144,7 +139,6 @@ export async function putSourceRootEntryIndex(
     await resolveIdb(options).set(sourceRootId, index)
     return success(undefined)
   } catch {
-    // Stryker disable next-line BlockStatement: IDB throw → typed not-found
     return failure('not-found')
   }
 }
@@ -165,7 +159,6 @@ export async function clearSourceRootEntryIndex(
     await idb.del(sourceRootId)
     return success(undefined)
   } catch {
-    // Stryker disable next-line BlockStatement: IDB throw → typed not-found
     return failure('not-found')
   }
 }

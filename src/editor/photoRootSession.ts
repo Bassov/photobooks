@@ -24,6 +24,7 @@ import {
 } from '../project/session/browserSourceRootHandles'
 import {
   clearSourceRootEntryIndex,
+  diffEntryIndex,
   getSourceRootEntryIndex,
   persistScannedEntryIndex,
 } from '../project/session/sourceRootEntryIndex'
@@ -662,15 +663,18 @@ async function verifyRef(
     }),
   )
   // Patch identity from the cheap scan when present (no content-hash).
+  // Clear stale contentHash when size/mtime change so DerivedCache cannot hydrate old bytes.
   if (scanned !== undefined) {
+    const prev = assetRecordFor(ref)
+    const metaChanged =
+      prev.byteSize !== scanned.byteSize || prev.mtimeMs !== scanned.mtimeMs
     patchAssetRecord(ref.assetId, {
       sourceRootId,
       relativePath: scanned.relativePath,
       byteSize: scanned.byteSize,
       mtimeMs: scanned.mtimeMs,
+      ...(metaChanged ? { contentHash: undefined } : {}),
     })
-  } else {
-    void assetRecordFor(ref)
   }
 }
 
@@ -705,8 +709,8 @@ export async function startFolderRescan(options: {
       return
     }
     const scanned = scannedResult.value
-    // Load prior index for matching/diff (never used to skip this walk).
-    await getSourceRootEntryIndex(options.sourceRootId)
+    const prior = await getSourceRootEntryIndex(options.sourceRootId)
+    const indexDiff = diffEntryIndex(prior.ok ? prior.value : null, scanned)
     await persistScannedEntryIndex(options.sourceRootId, scanned)
 
     const scannedByPath = new Map(
@@ -724,21 +728,50 @@ export async function startFolderRescan(options: {
       visibleSpreadId: options.visibleSpreadId ?? book.spreads[0]?.id ?? null,
       otherBookAssets: options.otherBookAssets ?? [],
     })
+    // Prefer re-verify for metadata-changed paths even when already in gallery.
+    const changedPathSet = new Set(indexDiff.changedPaths)
+    const priorityWithChanges = [...prioritized]
+    for (const path of indexDiff.changedPaths) {
+      if (priorityWithChanges.some((ref) => ref.relativePath === path)) {
+        continue
+      }
+      const assetId = book.gallery.find(
+        (id) => book.assets[id]?.relativePath === path,
+      )
+      if (assetId === undefined) {
+        continue
+      }
+      priorityWithChanges.push({ assetId, relativePath: path })
+    }
     const lazyPaths = remainingScannedPaths(
       scanned
         .filter((entry) => isAcceptedPhotoPath(entry.relativePath))
         .map((entry) => entry.relativePath),
-      prioritized,
+      priorityWithChanges,
     )
-    // Prioritized includes open-book gallery paths. Lazy accepted paths that
-    // are still missing decode get continue-import when a directory is present;
-    // otherwise placeholders stay idle (no content-hash warm).
-    const missingEntries = lazyPaths.flatMap((path) => {
-      const entry = scannedByPath.get(path)
-      return entry === undefined ? [] : [entry]
-    })
+    // New paths (not in gallery before list-enqueue) + non-priority remainder.
+    const missingEntries = [
+      ...indexDiff.newPaths.flatMap((path) => {
+        if (!isAcceptedPhotoPath(path) || changedPathSet.has(path)) {
+          return []
+        }
+        if (priorityWithChanges.some((ref) => ref.relativePath === path)) {
+          return []
+        }
+        const entry = scannedByPath.get(path)
+        return entry === undefined ? [] : [entry]
+      }),
+      ...lazyPaths.flatMap((path) => {
+        if (indexDiff.newPaths.includes(path)) {
+          return []
+        }
+        const entry = scannedByPath.get(path)
+        return entry === undefined ? [] : [entry]
+      }),
+    ]
+    const prioritizedRefs = priorityWithChanges
     const runLazy = options.runLazy !== false
-    const total = prioritized.length + (runLazy ? missingEntries.length : 0)
+    const total = prioritizedRefs.length + (runLazy ? missingEntries.length : 0)
     let completed = 0
     emitProgress({
       total: Math.max(total, 1),
@@ -747,7 +780,7 @@ export async function startFolderRescan(options: {
       phase: 'priority',
     })
 
-    for (const ref of prioritized) {
+    for (const ref of prioritizedRefs) {
       if (isCancelled()) {
         emitProgress(null)
         return
@@ -791,7 +824,7 @@ export async function startFolderRescan(options: {
               total: Math.max(total, 1),
               completed: Math.min(
                 total,
-                prioritized.length + progress.completed,
+                prioritizedRefs.length + progress.completed,
               ),
               running: progress.running,
               phase: 'lazy',
