@@ -6,6 +6,10 @@ import {
   isImportErrorsPanelOpen,
   resetImportErrorsStoreForTests,
 } from './importErrorsStore'
+import {
+  resetImportProgressForTests,
+  setImportProgress,
+} from './importProgressStore'
 import { FilmstripStatus } from './FilmstripStatus'
 import {
   resetFolderRescanForTests,
@@ -16,35 +20,30 @@ afterEach(() => {
   cleanup()
   resetImportErrorsStoreForTests()
   resetFolderRescanForTests()
+  resetImportProgressForTests()
 })
 
 describe('FilmstripStatus', () => {
   it('returns null when idle with an empty gallery', () => {
-    const { container } = render(
-      <FilmstripStatus photoCount={0} progress={null} />,
-    )
+    const { container } = render(<FilmstripStatus photoCount={0} />)
     expect(container.firstChild).toBeNull()
   })
 
   it('shows photo count without a progress bar when not importing', () => {
-    render(<FilmstripStatus photoCount={2} progress={null} />)
+    render(<FilmstripStatus photoCount={2} />)
     expect(screen.getByTestId('filmstrip-count').textContent).toBe('2 photos')
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.queryByTestId('import-progress')).toBeNull()
   })
 
   it('shows Importing text and a determinate progress bar while running', () => {
-    render(
-      <FilmstripStatus
-        photoCount={0}
-        progress={{
-          total: 10,
-          completed: 3,
-          errors: [],
-          running: true,
-        }}
-      />,
-    )
+    setImportProgress({
+      total: 10,
+      completed: 3,
+      errors: [],
+      running: true,
+    })
+    render(<FilmstripStatus photoCount={0} />)
     expect(screen.getByTestId('filmstrip-count').textContent).toBe('0 photos')
     expect(screen.getByTestId('import-progress').textContent).toMatch(
       /Importing 3 \/ 10/,
@@ -55,17 +54,13 @@ describe('FilmstripStatus', () => {
   })
 
   it('clamps progress max to 1 when total is zero while running', () => {
-    render(
-      <FilmstripStatus
-        photoCount={0}
-        progress={{
-          total: 0,
-          completed: 0,
-          errors: [],
-          running: true,
-        }}
-      />,
-    )
+    setImportProgress({
+      total: 0,
+      completed: 0,
+      errors: [],
+      running: true,
+    })
+    render(<FilmstripStatus photoCount={0} />)
     expect(
       screen
         .getByRole('progressbar', { name: 'Importing' })
@@ -80,7 +75,7 @@ describe('FilmstripStatus', () => {
       running: true,
       phase: 'priority',
     })
-    render(<FilmstripStatus photoCount={3} progress={null} />)
+    render(<FilmstripStatus photoCount={3} />)
     expect(screen.getByTestId('folder-rescan-progress').textContent).toMatch(
       /Checking photos 2 \/ 8/,
     )
@@ -96,7 +91,7 @@ describe('FilmstripStatus', () => {
       running: true,
       phase: 'lazy',
     })
-    render(<FilmstripStatus photoCount={0} progress={null} />)
+    render(<FilmstripStatus photoCount={0} />)
     expect(screen.getByTestId('folder-rescan-progress').textContent).toMatch(
       /Scanning folder 0 \/ 0/,
     )
@@ -115,17 +110,13 @@ describe('FilmstripStatus', () => {
         reason: 'unsupported-type',
       }),
     ])
-    render(
-      <FilmstripStatus
-        photoCount={1}
-        progress={{
-          total: 2,
-          completed: 2,
-          errors: [],
-          running: false,
-        }}
-      />,
-    )
+    setImportProgress({
+      total: 2,
+      completed: 2,
+      errors: [],
+      running: false,
+    })
+    render(<FilmstripStatus photoCount={1} />)
     const button = screen.getByRole('button', {
       name: /Imported with 1 error/,
     })

@@ -28,6 +28,10 @@ import {
   dispatchBookOp,
   type AssetSessionMeta,
 } from './bookStore'
+import {
+  noteFilmstripScrollActivity,
+  resetFilmstripScrollQuietForTests,
+} from './filmstripScrollQuiet'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
 
 function sessionFile(name: string, aspect = 1.5): AssetSessionMeta {
@@ -44,6 +48,7 @@ describe('bookStore', () => {
   afterEach(() => {
     resetBookStore()
     resetAssetSources()
+    resetFilmstripScrollQuietForTests()
     setEditorStatus('')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -149,6 +154,67 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(8)
     callbacks[2]?.(0)
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(10)
+  })
+
+  it('defers meta-only flushes while the filmstrip scroll-quiet window is open', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    enqueueGalleryAssets([{ assetId: 'q1', meta: sessionFile('q.jpg', 1) }])
+    callbacks[0]?.(0)
+    expect(getBookStoreSnapshot().sessionMeta.get('q1')?.aspect).toBe(1)
+
+    noteFilmstripScrollActivity()
+    setAssetSessionMeta('q1', sessionFile('q.jpg', 2))
+    callbacks[1]?.(0)
+    expect(getBookStoreSnapshot().sessionMeta.get('q1')?.aspect).toBe(1)
+
+    resetFilmstripScrollQuietForTests()
+    vi.advanceTimersByTime(200)
+    expect(getBookStoreSnapshot().sessionMeta.get('q1')?.aspect).toBe(2)
+    vi.useRealTimers()
+  })
+
+  it('paces decode session-meta flushes to one asset per frame', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'm-a', meta: sessionFile('a.jpg', 1) },
+      { assetId: 'm-b', meta: sessionFile('b.jpg', 1) },
+      { assetId: 'm-c', meta: sessionFile('c.jpg', 1) },
+    ])
+    // Drain gallery enqueue (chunk 4 covers all three).
+    callbacks[0]?.(0)
+    expect(getBookStoreSnapshot().book.gallery).toEqual(['m-a', 'm-b', 'm-c'])
+
+    setAssetSessionMeta('m-a', sessionFile('a.jpg', 1.5))
+    setAssetSessionMeta('m-b', sessionFile('b.jpg', 1.5))
+    setAssetSessionMeta('m-c', sessionFile('c.jpg', 1.5))
+    expect(callbacks).toHaveLength(2)
+
+    callbacks[1]?.(0)
+    expect(getBookStoreSnapshot().sessionMeta.get('m-a')?.aspect).toBe(1.5)
+    expect(getBookStoreSnapshot().sessionMeta.get('m-b')?.aspect).toBe(1)
+    expect(getBookStoreSnapshot().sessionMeta.get('m-c')?.aspect).toBe(1)
+
+    callbacks[2]?.(0)
+    expect(getBookStoreSnapshot().sessionMeta.get('m-b')?.aspect).toBe(1.5)
+    expect(getBookStoreSnapshot().sessionMeta.get('m-c')?.aspect).toBe(1)
+
+    callbacks[3]?.(0)
+    expect(getBookStoreSnapshot().sessionMeta.get('m-c')?.aspect).toBe(1.5)
   })
 
   it('flushes gallery via setTimeout watchdog when rAF never runs', () => {

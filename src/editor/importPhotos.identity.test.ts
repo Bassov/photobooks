@@ -39,6 +39,7 @@ vi.mock('../photo/assetPool', async () => {
 import { IMPORT_BODY_READ_CAP } from './importBodyReads'
 import { importPhotoFiles } from './importPhotos'
 import * as pendingHashes from './pendingHashes'
+import * as seedLibraryImport from './seedLibraryImport'
 
 function tinyJpeg(name = 'shot.jpg', lastModified = 1_700_000_000_000): File {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
@@ -219,6 +220,67 @@ describe('importPhotoFiles library identity', () => {
       const book = getBookStoreSnapshot().book
       expect(book.gallery).toHaveLength(1)
       expect(book.gallery[0]).toBe(existingId)
+    })
+  })
+
+  it('listAlreadyEnqueued skips gallery enqueue when every entry reuses a placeholder', async () => {
+    const { enqueueScannedGalleryList } =
+      await import('./enqueueScannedGalleryList')
+    enqueueScannedGalleryList('root-reuse', [
+      { relativePath: 'shot.jpg', byteSize: 4, mtimeMs: 1 },
+    ])
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(1)
+    const existingId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(existingId)
+
+    await importPhotoFiles([tinyJpeg('shot.jpg', 1_700_000_000_000)], {
+      libraryBacked: true,
+      sourceRootId: 'root-reuse',
+      listAlreadyEnqueued: true,
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery).toEqual([existingId])
+    })
+  })
+
+  it('listAlreadyEnqueued enqueues only newly minted session placeholders', async () => {
+    const { enqueueScannedGalleryList } =
+      await import('./enqueueScannedGalleryList')
+    enqueueScannedGalleryList('root-session', [
+      { relativePath: 'existing.jpg', byteSize: 4, mtimeMs: 1 },
+    ])
+    const existingId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(existingId)
+
+    await importPhotoFiles(
+      [tinyJpeg('existing.jpg', 1_700_000_000_000), tinyJpeg('brand-new.jpg')],
+      { libraryBacked: false, listAlreadyEnqueued: true },
+    )
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery).toHaveLength(2)
+    })
+    expect(getBookStoreSnapshot().book.gallery[0]).toBe(existingId)
+  })
+
+  it('listAlreadyEnqueued enqueues library identity for newly minted files', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    await importPhotoFiles([tinyJpeg('brand-new.jpg')], {
+      libraryBacked: true,
+      sourceRootId: 'root-new',
+      listAlreadyEnqueued: true,
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(book.gallery).toHaveLength(1)
+      const assetId = book.gallery[0]
+      assert.ok(assetId)
+      expect(book.assets[assetId]?.sourceRootId).toBe('root-new')
+      expect(book.assets[assetId]?.relativePath).toBe('brand-new.jpg')
     })
   })
 
@@ -689,6 +751,550 @@ describe('importPhotoFiles library identity', () => {
       libraryBacked: false,
     })
     expect(awaitSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not load jpeg head pass for PNG-only imports', async () => {
+    const jpegHead = await import('./jpegHeadPass')
+    const spy = vi
+      .spyOn(jpegHead, 'runJpegHeadPass')
+      .mockResolvedValue(undefined)
+    const png = new File([new Uint8Array([137, 80, 78, 71])], 'only.png', {
+      type: 'image/png',
+    })
+    await importPhotoFiles([png], { libraryBacked: false })
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 30)
+    })
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('loads jpeg head pass when the batch includes a JPEG', async () => {
+    const jpegHead = await import('./jpegHeadPass')
+    const spy = vi
+      .spyOn(jpegHead, 'runJpegHeadPass')
+      .mockResolvedValue(undefined)
+    await importPhotoFiles([tinyJpeg('head.jpg')], { libraryBacked: false })
+    await vi.waitFor(() => {
+      expect(spy).toHaveBeenCalled()
+    })
+    spy.mockRestore()
+  })
+
+  it('loads jpeg head pass for a mixed JPEG and PNG batch', async () => {
+    const jpegHead = await import('./jpegHeadPass')
+    const spy = vi
+      .spyOn(jpegHead, 'runJpegHeadPass')
+      .mockResolvedValue(undefined)
+    const png = new File([new Uint8Array([137, 80, 78, 71])], 'mix.png', {
+      type: 'image/png',
+    })
+    await importPhotoFiles([png, tinyJpeg('mix.jpg')], {
+      libraryBacked: false,
+    })
+    await vi.waitFor(() => {
+      expect(spy).toHaveBeenCalled()
+    })
+    spy.mockRestore()
+  })
+
+  it('does not seed deferred HEIC body reads during prefetch import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    const seedSpy = vi.spyOn(seedLibraryImport, 'seedAndHashEntry')
+    runImportBatch.mockResolvedValue({ results: [], errors: [] })
+    const heic = new File([new Uint8Array([1, 2, 3])], 'defer.heic', {
+      type: 'image/heic',
+    })
+    await importPhotoFiles([heic], {
+      libraryBacked: true,
+      sourceRootId: 'root-defer-seed',
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(1)
+    })
+    expect(seedSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not seed library bytes when session HEIC decode completes', async () => {
+    const seedSpy = vi.spyOn(seedLibraryImport, 'seedAndHashEntry')
+    const heic = new File([new Uint8Array([1, 2, 3, 4])], 'sess.heic', {
+      type: 'image/heic',
+    })
+    await importPhotoFiles([heic], { libraryBacked: false })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(1)
+    })
+    expect(seedSpy).not.toHaveBeenCalled()
+  })
+
+  it('seeds library bytes after lazy HEIC decode completes', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    const seedSpy = vi
+      .spyOn(seedLibraryImport, 'seedAndHashEntry')
+      .mockResolvedValue(undefined)
+    const heic = new File([new Uint8Array([1, 2, 3, 4])], 'lazy.heic', {
+      type: 'image/heic',
+    })
+    await importPhotoFiles([heic], {
+      libraryBacked: true,
+      sourceRootId: 'root-lazy-seed',
+    })
+    await vi.waitFor(() => {
+      expect(seedSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          relativePath: 'lazy.heic',
+          sourceRootId: 'root-lazy-seed',
+        }),
+      )
+    })
+  })
+
+  it('skips session meta when decode matches the 1×1 enqueue placeholder', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 1,
+            correctedHeight: 1,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/png',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'tiny.png', {
+      type: 'image/png',
+      lastModified: 1_700_000_000_333,
+    })
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-1x1',
+    })
+    // Placeholder was already 1×1 / orientation 1 / same name — no refine write.
+    expect(patchSpy).not.toHaveBeenCalled()
+    patchSpy.mockRestore()
+  })
+
+  it('skips session meta and manifest writes when dims already match', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 100,
+            correctedHeight: 50,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('same-dims.jpg', 1_700_000_000_222)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-same-dims',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    patchSpy.mockClear()
+
+    // Re-import same identity: decode reports identical dims — skip meta/IDB.
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-same-dims',
+    })
+    expect(patchSpy).not.toHaveBeenCalled()
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when orientation changes on re-import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    let importPass = 0
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        importPass += 1
+        const orientation = importPass === 1 ? 1 : 6
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 100,
+            correctedHeight: 50,
+            orientation,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('orient.jpg', 1_700_000_000_333)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-orient',
+    })
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-orient',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    const assetId = getBookStoreSnapshot().book.gallery[0]
+    expect(assetId).toBeTruthy()
+    expect(
+      getBookStoreSnapshot().sessionMeta.get(assetId ?? '')?.orientation,
+    ).toBe(6)
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when decoded width changes on re-import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    let importPass = 0
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        importPass += 1
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: importPass === 1 ? 100 : 120,
+            correctedHeight: 50,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('width-change.jpg', 1_700_000_000_555)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-w',
+    })
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-w',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    const assetId = getBookStoreSnapshot().book.gallery[0]
+    expect(
+      getBookStoreSnapshot().sessionMeta.get(assetId ?? '')?.correctedWidth,
+    ).toBe(120)
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when decoded height changes on re-import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    let importPass = 0
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        importPass += 1
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 100,
+            correctedHeight: importPass === 1 ? 50 : 80,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('height-change.jpg', 1_700_000_000_666)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-h',
+    })
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-h',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    const assetId = getBookStoreSnapshot().book.gallery[0]
+    expect(
+      getBookStoreSnapshot().sessionMeta.get(assetId ?? '')?.correctedHeight,
+    ).toBe(80)
+    patchSpy.mockRestore()
+  })
+
+  it('writes then skips when decode settles on a 1×N size', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            // 1×50 refine from enqueue 1×1; re-import with the same dims skips.
+            correctedWidth: 1,
+            correctedHeight: 50,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('placeholder-w.jpg', 1_700_000_000_444)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-w',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-w',
+    })
+    expect(patchSpy).not.toHaveBeenCalled()
+    patchSpy.mockRestore()
+  })
+
+  it('writes then skips when decode settles on an N×1 size', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 50,
+            correctedHeight: 1,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('placeholder-h.jpg', 1_700_000_000_445)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-h',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-h',
+    })
+    expect(patchSpy).not.toHaveBeenCalled()
+    patchSpy.mockRestore()
   })
 
   it('writes corrected dimensions into the folder manifest after decode', async () => {

@@ -41,6 +41,19 @@ export function isHeicLikeFile(file: { name: string; type: string }): boolean {
   return isHeicMime(file.type) || isHeicByName(file.name)
 }
 
+/** Session files promoted via ftyp sniff (extension-less octet-stream). */
+const sniffedHeicFiles = new WeakSet<File>()
+
+/** Remember a File that signature-sniffed as HEIC (for lazy decode / keep-tile). */
+export function markHeicFile(file: File): void {
+  sniffedHeicFiles.add(file)
+}
+
+/** Name/MIME HEIC or previously sniff-marked File. */
+export function isKnownHeicFile(file: File): boolean {
+  return isHeicLikeFile(file) || sniffedHeicFiles.has(file)
+}
+
 /** True when the basename has a non-empty extension (dot not first/last). */
 export function hasFileExtension(name: string): boolean {
   const dot = name.lastIndexOf('.')

@@ -352,9 +352,12 @@ test('EXIF orientation 6 shows a filmstrip thumb', async ({ page }) => {
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 30_000,
   })
+  // Happy: header/decode path yields a real thumb (not grey placeholder).
   await expect(page.getByTestId('filmstrip-thumb')).toBeVisible({
     timeout: 30_000,
   })
+  await expect(page.getByTestId('filmstrip-placeholder')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
 })
 
 test('unsupported TIFF shows import error without gallery entry', async ({
@@ -383,13 +386,8 @@ function minimalHeicFtypBuffer(): Buffer {
   return bytes
 }
 
-test('unsupported HEIC shows conversion message without gallery entry', async ({
-  page,
-}) => {
+test('HEIC enters gallery as a placeholder tile', async ({ page }) => {
   await openSessionEditor(page)
-  const before =
-    (await page.getByTestId('filmstrip').getAttribute('data-gallery-count')) ??
-    '0'
   await pickPhotoFolderStub(page, [
     {
       name: 'sample.heic',
@@ -398,28 +396,23 @@ test('unsupported HEIC shows conversion message without gallery entry', async ({
     },
   ])
 
-  await expect(page.getByTestId('import-errors')).toBeVisible()
-  await expect(page.getByTestId('import-errors')).toContainText(
-    "HEIC isn't supported yet",
-  )
-  await expect(page.getByTestId('import-errors')).toContainText(
-    'Most Compatible',
-  )
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
+    timeout: 30_000,
+  })
   await expect
     .poll(async () =>
       page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
     )
-    .toBe(before)
+    .toBe('1')
+  // Empty/no-decoder: grey placeholder stays (no libheif).
+  await expect(page.getByTestId('filmstrip-placeholder')).toBeVisible()
+  await assertDocumentFitsViewport(page)
 })
 
-test('extension-less HEIC octet-stream shows conversion message', async ({
+test('extension-less HEIC octet-stream enters gallery after sniff', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  const before =
-    (await page.getByTestId('filmstrip').getAttribute('data-gallery-count')) ??
-    '0'
   await pickPhotoFolderStub(page, [
     {
       name: 'IMG_0042',
@@ -428,19 +421,17 @@ test('extension-less HEIC octet-stream shows conversion message', async ({
     },
   ])
 
-  await expect(page.getByTestId('import-errors')).toBeVisible()
-  await expect(page.getByTestId('import-errors')).toContainText(
-    "HEIC isn't supported yet",
-  )
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
+    timeout: 30_000,
+  })
   await expect
     .poll(async () =>
       page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
     )
-    .toBe(before)
+    .toBe('1')
 })
 
-test('folder import keeps JPEGs and lists only HEIC conversion message', async ({
+test('folder import keeps JPEG and HEIC gallery placeholders', async ({
   page,
 }) => {
   const dir = join(tmpdir(), `pb-folder-heic-${String(Date.now())}`)
@@ -454,19 +445,21 @@ test('folder import keeps JPEGs and lists only HEIC conversion message', async (
   await openSessionEditor(page)
   await pickPhotoFolder(page, [join(dir, 'shot.jpg'), join(dir, 'phone.heic')])
 
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
-    timeout: 30_000,
-  })
   await expect
     .poll(async () =>
       page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
     )
-    .toBe('1')
-  await expect(page.getByTestId('import-errors')).toBeVisible()
-  await expect(page.getByTestId('import-errors')).toContainText(
-    "HEIC isn't supported yet",
-  )
-  await expect(page.getByTestId('import-errors')).not.toContainText('README')
+    .toBe('2')
+  await expect(page.getByTestId('filmstrip-item').first()).toBeVisible({
+    timeout: 30_000,
+  })
+  // Scroll case: document stays within viewport while filmstrip scrolls.
+  await assertDocumentFitsViewport(page)
+  const scroll = page.getByTestId('filmstrip-scroll')
+  await scroll.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth
+  })
+  await assertDocumentFitsViewport(page)
 })
 
 test('folder import skips README without import-errors', async ({ page }) => {

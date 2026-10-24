@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
 import {
   canUseDirectoryPicker,
+  isAcceptedPhotoPath,
   isClearFolderSkipPath,
   isImageLikeFile,
   isImageLikePath,
@@ -25,7 +26,10 @@ describe('isImageLikeFile', () => {
 describe('scan path classifiers', () => {
   it('classifies image-like, unsupported, and clear folder skips', () => {
     expect(isImageLikePath('Trip/scan.HEIC')).toBe(true)
-    expect(isUnsupportedImagePath('Trip/scan.HEIC')).toBe(true)
+    expect(isAcceptedPhotoPath('Trip/scan.HEIC')).toBe(true)
+    expect(isAcceptedPhotoPath('Trip/scan.heif')).toBe(true)
+    expect(isUnsupportedImagePath('Trip/scan.HEIC')).toBe(false)
+    expect(isUnsupportedImagePath('a.tiff')).toBe(true)
     expect(isUnsupportedImagePath('a.jpg')).toBe(false)
     expect(isClearFolderSkipPath('README.md')).toBe(true)
     expect(isClearFolderSkipPath('notes.txt')).toBe(true)
@@ -68,7 +72,7 @@ describe('partitionImportFiles', () => {
     expect(skipped).toEqual([])
   })
 
-  it('tags HEIC-like rejects with heic reason', () => {
+  it('accepts HEIC/HEIF as gallery placeholders', () => {
     const heic = new File([new Uint8Array([1])], 'scan.heic', {
       type: 'image/heic',
     })
@@ -84,29 +88,19 @@ describe('partitionImportFiles', () => {
     const emptyMime = new File([new Uint8Array([1])], 'cam.HEIC', {
       type: '',
     })
-    const { rejected, skipped } = partitionImportFiles([
+    const { accepted, rejected, skipped } = partitionImportFiles([
       heic,
       heifMime,
       heifExt,
       octet,
       emptyMime,
     ])
-    expect(rejected.map((entry) => entry.reason)).toEqual([
-      'heic',
-      'heic',
-      'heic',
-      'heic',
-      'heic',
-    ])
-    expect(
-      rejected.every((entry) =>
-        entry.message.includes("HEIC isn't supported yet"),
-      ),
-    ).toBe(true)
+    expect(accepted).toEqual([heic, heifMime, heifExt, octet, emptyMime])
+    expect(rejected).toEqual([])
     expect(skipped).toEqual([])
   })
 
-  it('folder source skips non-image-like files but still rejects tiff/heic', () => {
+  it('folder source skips non-images, accepts HEIC, rejects TIFF', () => {
     const jpeg = new File([new Uint8Array([1])], 'a.jpg', {
       type: 'image/jpeg',
     })
@@ -121,18 +115,16 @@ describe('partitionImportFiles', () => {
       [jpeg, readme, txt, ds, tiff, heic],
       { source: 'folder' },
     )
-    expect(accepted).toEqual([jpeg])
+    expect(accepted).toEqual([jpeg, heic])
     expect(skipped.map((file) => file.name)).toEqual(['README.md', 'notes.txt'])
     // Bare octet-stream (.DS_Store) stays in reject path for HEIC sniff.
     expect(rejected.map((entry) => entry.file.name)).toEqual([
       '.DS_Store',
       'scan.tiff',
-      'phone.heic',
     ])
     expect(rejected.map((entry) => entry.reason)).toEqual([
       'unsupported-type',
       'unsupported-type',
-      'heic',
     ])
   })
 
