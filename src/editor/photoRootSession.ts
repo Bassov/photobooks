@@ -66,6 +66,19 @@ export function resetPhotoRootSessionForTests(): void {
   emit()
 }
 
+/** Test-only: drive the Allow access photo-folder control. */
+export function setPhotoAccessPhaseForTests(
+  phase: PhotoAccessPhase,
+  label: string | null = 'Photos',
+): void {
+  photoAccessPhase = phase
+  photoFolderLabel = label
+  if (phase === 'permission-required') {
+    boundSourceRootId = boundSourceRootId ?? 'root-test'
+  }
+  emit()
+}
+
 function bookKey(): string {
   return getBookStoreSnapshot().book.id
 }
@@ -169,7 +182,7 @@ export function registerBoundPhotoFolderSource(
   registerGrantedRoot(sourceRootId, directory)
 }
 
-export async function clearBoundPhotoFolder(options?: {
+async function clearBoundPhotoFolder(options?: {
   clearGalleryAssets?: boolean
 }): Promise<void> {
   const bookId = bookKey()

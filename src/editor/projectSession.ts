@@ -53,6 +53,7 @@ import {
   type RequestReadwritePermission,
 } from './session/browserProjectSessionPlatform'
 import {
+  getPhotoRootSessionSnapshot,
   regrantPhotoFolder as regrantPhotoFolderSession,
   resetPhotoRootSessionForTests,
   restorePhotoFolderForActiveBook,
@@ -1257,6 +1258,9 @@ export function exposeProjectSessionTestApi(
     tryActivateLibraryBookForTests,
     configureProjectSession,
     getSnapshot: getProjectSessionSnapshot,
+    restorePhotoFolderForActiveBook,
+    regrantPhotoFolder,
+    getPhotoRootSessionSnapshot,
   }
   void import('./relink').then((relink) => {
     relink.exposeRelinkTestApi(win)
@@ -1290,6 +1294,9 @@ declare global {
       tryActivateLibraryBookForTests: typeof tryActivateLibraryBookForTests
       configureProjectSession: typeof configureProjectSession
       getSnapshot: typeof getProjectSessionSnapshot
+      restorePhotoFolderForActiveBook: typeof restorePhotoFolderForActiveBook
+      regrantPhotoFolder: typeof regrantPhotoFolder
+      getPhotoRootSessionSnapshot: typeof getPhotoRootSessionSnapshot
     }
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>

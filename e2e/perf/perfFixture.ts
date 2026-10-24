@@ -130,6 +130,15 @@ declare global {
       ) => Promise<{ ok: boolean; code?: string; value?: { id: string } }>
       configureProjectSession: (deps: Record<string, unknown>) => void
       getSnapshot: () => unknown
+      restorePhotoFolderForActiveBook: () => Promise<void>
+      regrantPhotoFolder: () => Promise<
+        'granted' | 'denied' | 'unavailable' | 'missing'
+      >
+      getPhotoRootSessionSnapshot: () => {
+        photoAccessPhase: 'idle' | 'permission-required'
+        photoFolderLabel: string | null
+        hasPhotoFolder: boolean
+      }
     }
   }
 }

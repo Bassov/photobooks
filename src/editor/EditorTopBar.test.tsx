@@ -286,6 +286,27 @@ describe('EditorTopBar', () => {
     expect(regrant).toHaveBeenCalled()
   })
 
+  it('shows photo-folder Allow access and wires regrantPhotoFolder', () => {
+    const regrant = vi
+      .spyOn(projectSession, 'regrantPhotoFolder')
+      .mockResolvedValue('granted')
+    render(<EditorShell />)
+    act(() => {
+      photoRootSession.setPhotoAccessPhaseForTests(
+        'permission-required',
+        'Vacation',
+      )
+    })
+    const allow = screen.getByRole('button', {
+      name: 'Allow access to Vacation',
+    })
+    expect(allow.getAttribute('data-testid')).toBe('regrant-photo-folder')
+    fireEvent.pointerDown(allow, { button: 0, pointerType: 'mouse' })
+    fireEvent.pointerUp(allow, { button: 0, pointerType: 'mouse' })
+    fireEvent.click(allow)
+    expect(regrant).toHaveBeenCalledTimes(1)
+  })
+
   it('disables choose photo folder when the book is locked elsewhere', async () => {
     render(<EditorShell />)
     await act(async () => {

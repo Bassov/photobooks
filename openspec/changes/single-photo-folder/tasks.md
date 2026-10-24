@@ -14,4 +14,4 @@
 2. Reload with granted photo handle: originals resolve without picker; Change photo folder… visible.
    - OK — unit `photoRootSession` restore granted + e2e open-save / filmstrip library re-import hydrate thumbs without re-pick.
 3. Reload with prompt permission: Allow access to \<folder\> re-grants in one click; denied/missing shows missing-assets path.
-   - OK — unit `photoRootSession` prompt→regrant; missing/denied → existing missing-assets-relink e2e path.
+   - OK — `e2e/photo-folder-regrant.spec.ts` (stub handle → prompt → Allow access); unit TopBar + `photoRootSession`; missing/denied → missing-assets-relink e2e.

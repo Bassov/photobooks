@@ -156,7 +156,19 @@ export async function installPhotoDirectoryPickerStub(
             new DOMException('User cancelled', 'AbortError'),
           )
         }
-        return Promise.resolve(createFakeDirectory(next.files))
+        const directory = createFakeDirectory(
+          next.files,
+        ) as FileSystemDirectoryHandle & {
+          setPermission?: (state: PermissionState) => void
+        }
+        ;(
+          window as Window & {
+            __pbLastPhotoDir?: FileSystemDirectoryHandle & {
+              setPermission?: (state: PermissionState) => void
+            }
+          }
+        ).__pbLastPhotoDir = directory
+        return Promise.resolve(directory)
       },
     })
   })

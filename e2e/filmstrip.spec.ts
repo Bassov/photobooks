@@ -41,7 +41,11 @@ test.beforeEach(async ({ page }) => {
 async function pickPhotoFolder(
   page: Page,
   paths: string | readonly string[],
-  options?: { button?: 'top' | 'pasteboard'; replaceFolder?: boolean },
+  options?: {
+    button?: 'top' | 'pasteboard'
+    replaceFolder?: boolean
+    via?: 'input' | 'picker'
+  },
 ): Promise<void> {
   if (options?.replaceFolder) {
     page.once('dialog', (dialog) => {
@@ -49,11 +53,10 @@ async function pickPhotoFolder(
     })
   }
   const list = typeof paths === 'string' ? [paths] : paths
-  await choosePhotoFolder(
-    page,
-    list,
-    options?.button ? { button: options.button } : undefined,
-  )
+  await choosePhotoFolder(page, list, {
+    ...(options?.button ? { button: options.button } : {}),
+    ...(options?.via ? { via: options.via } : {}),
+  })
 }
 
 async function pickPhotoFolderStub(
@@ -108,7 +111,7 @@ test('imports PNG into the filmstrip via directory picker', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  await pickPhotoFolder(page, [photoFixturePaths.samplePng])
+  await pickPhotoFolder(page, [photoFixturePaths.samplePng], { via: 'picker' })
 
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 30_000,
