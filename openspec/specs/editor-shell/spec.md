@@ -2,29 +2,29 @@
 
 ## Purpose
 
-Editor chrome and home surface: library create/open, book lifecycle (create, save, restore, autosave, locks), titles, and viewport-contained shell layout. Filmstrip gallery behavior lives in `filmstrip`; pasteboard place/camera/template behavior lives in `pasteboard`.
+Editor chrome and library surfaces: unsupported/welcome/library/editor, single-library choose/change, book lifecycle (create, save, restore, autosave, locks), titles, and viewport-contained shell layout. Filmstrip gallery behavior lives in `filmstrip`; pasteboard place/camera/template behavior lives in `pasteboard`.
 
 ## Requirements
 
 ### Requirement: Editor shell layout
 
-The system SHALL present an editor shell with a workspace region above a horizontal filmstrip when the editor surface is active. When the app opens with no in-tab active book to restore, home MUST be primary. The legacy single photo-card success screen MUST NOT be the primary layout. The shell SHALL fill the viewport without page-level H/V scroll (home, filmstrip, and pasteboard are the named scrollports for their surfaces).
+The system SHALL present an editor shell with a workspace region above a horizontal filmstrip when the editor surface is active. App surfaces SHALL be one of: unsupported-browser, welcome, library (empty or with books), or editor. When File System Access directory picking is unavailable (or the context is insecure / mobile-only), unsupported-browser MUST be the only surface. When a library handle is granted and no in-tab book is active, library MUST be primary. When no library handle is available (or permission is denied/missing), welcome MUST be primary. The legacy single photo-card success screen and the multi-recent home screen MUST NOT be primary. The shell SHALL fill the viewport without page-level H/V scroll (library, filmstrip, and pasteboard are the named scrollports for their surfaces).
 
-#### Scenario: Shell vs home
+#### Scenario: Shell vs library
 
 - **WHEN** the editor surface is active
 - **THEN** workspace and filmstrip regions are visible and the legacy photo-card success screen is not primary
 
-- **WHEN** the app opens with no in-tab active book
-- **THEN** home is the primary surface
+- **WHEN** the app opens with a granted library handle and no in-tab active book
+- **THEN** library is the primary surface
 
 ### Requirement: Create or open a library folder
 
-The system SHALL let the user create or open a library via directory picker when File System Access is available, with a test seam in development/e2e builds. Create/open MUST remember the handle and update recents only after success. Create while a library-backed book is open: pick first; cancel keeps the book and lock; success flushes, releases previous book, starts a clean empty book (no copy). Create with no active book id MUST adopt the in-memory book. Open of a library with books into an empty editor MUST load a stored book (prefer contentful). Open with unsaved session-only content MUST adopt without clearing. Create/open/Home MUST be disabled while restore is pending.
+The system SHALL let the user choose the single library folder via `showDirectoryPicker({ id: 'photobooks-library', mode: 'readwrite', startIn: 'documents' })` when File System Access is available, with a Chromium FSA test seam in development/e2e builds (not a shipped file-input fallback). Success MUST remember the single handle (replace on change; `isSameEntry` reuses the same library id). Cancel MUST leave the previous library (if any) unchanged. Choose/change library MUST be disabled while restore is pending. Creating a book while the library is open stays on the library/editor flows below — not a second concurrent library.
 
-#### Scenario: Create, open, and cancel invariants
+#### Scenario: Choose library and cancel invariants
 
-- **WHEN** the user creates or opens a library (or cancels create while a book is open)
+- **WHEN** the user chooses or changes the library folder (or cancels the picker)
 - **THEN** the outcomes in the requirement hold and the document stays viewport-contained
 
 ### Requirement: Adopt, upgrade assets, and create book
@@ -38,7 +38,7 @@ With a library open and no library-backed book id, the system SHALL adopt the in
 
 ### Requirement: Save, restore, and hashed previews
 
-Ctrl/Cmd+S (and chrome save) SHALL persist gallery/layout for a library-backed book; typed failures surface as non-blocking status without clearing memory. Reload with granted handle and in-tab active book id SHALL restore that book; without in-tab id, show home; failed restore clears stale state and shows home. After restore/save+reload, thumbnails and placed frames SHALL rehydrate from derived cache when `contentHash` exists (thumb derivative MAY fill a missing zoom tier); landscape crop MUST NOT be square-forced. When gallery assets have durable identity but no live original `File` in session, the editor SHALL surface them via the missing-assets relink flow (pill + dialog) rather than silently treating them as permanently gone.
+Ctrl/Cmd+S (and chrome save) SHALL persist gallery/layout for a library-backed book; typed failures surface as non-blocking status without clearing memory. Reload with granted handle and in-tab active book id SHALL restore that book; without in-tab id but with granted handle, show library; with no usable handle, show welcome or unsupported; failed restore clears stale book state appropriately. After restore/save+reload, thumbnails and placed frames SHALL rehydrate from derived cache when `contentHash` exists (thumb derivative MAY fill a missing zoom tier); landscape crop MUST NOT be square-forced. When gallery assets have durable identity but no live original `File` in session, the editor SHALL surface them via the missing-assets relink flow (pill + dialog) rather than silently treating them as permanently gone.
 
 #### Scenario: Reload restores saved hashed book
 
@@ -71,12 +71,12 @@ The editor SHALL list gallery assets that are `missing` or `modified` relative t
 
 ### Requirement: Permission-required re-grant
 
-On `permission-required` (restore or mid-session save/autosave), durable access stays incomplete until re-grant. Chrome MUST expose a one-activation control that opens the directory picker for the same folder. Restore-time re-grant resumes the last saved book; mid-session re-grant keeps in-memory edits. Control MUST NOT appear when granted and MUST NOT create page scroll.
+On `permission-required` after restore (or mid-session save/autosave), durable access stays incomplete until re-grant. Chrome MUST prefer a one-activation control that calls `requestPermission({mode:'readwrite'})` on the peeked handle (copy: Allow access to \<folder name\>) before offering a new directory picker. Picker re-grant MUST verify `isSameEntry` when a target handle was peeked. Restore-time re-grant resumes the library surface (and last book when an in-tab id exists); mid-session re-grant keeps in-memory edits. Control MUST NOT appear when granted and MUST NOT create page scroll. Permission deny and picker cancel MUST use distinct readable messages.
 
-#### Scenario: One-step re-grant resumes editing
+#### Scenario: One-step re-grant resumes library or book
 
-- **WHEN** restore failed with `permission-required` and the user re-grants the same folder
-- **THEN** the previously active book is restored
+- **WHEN** restore failed with `permission-required` and the user grants via `requestPermission` (or same-folder picker)
+- **THEN** the library surface (or previously active book when restoring an in-tab id) is available again
 
 ### Requirement: Library-backed import, autosave, and save indicator
 
@@ -89,49 +89,77 @@ Library-backed import MUST register a source root and write identity fields; ses
 
 ### Requirement: Single-writer lock and locked-elsewhere
 
-Activating a library-backed book MUST acquire its exclusive session lock until leave/detach. On `locked-elsewhere`, the tab MUST NOT become writable for that book; show a clear message; Save/mutations unavailable; Open library / New book remain reachable. Message MUST NOT create page scroll.
+Activating a library-backed book MUST acquire its exclusive session lock until leave/detach. On `locked-elsewhere`, the tab MUST NOT become writable for that book; show a clear message; Save/mutations unavailable; library / New book remain reachable. Message MUST NOT create page scroll.
 
 #### Scenario: Second tab blocked
 
 - **WHEN** one tab holds the lock and another activates the same book
 - **THEN** the second tab shows open-in-another-tab and cannot save that book
 
-### Requirement: Home screen, books list, and open
+### Requirement: Leave editor and re-grant from library
 
-With no in-tab book to restore, home SHALL list recent libraries (preselect last active when still recent), offer create/open, show loading until restore settles, and show explicit error+retry on listing failure. Selecting a recent library lists books by display title; `permission-required` shows hint + re-grant (not silent empty). Home overflow scrolls only in a named home scrollport. One activation opens a listed book when granted; remember book + re-grant on permission-required; failed open leaves recent order unchanged and clears locked access phase on home. Home actions MUST serialize while busy. Home MUST expose one page `h1`, visible `:focus-visible` rings on list controls, and a polite live announcement when the selected recent library changes; while busy, focus MUST remain on the control that started the action. Headings MUST NOT carry redundant ARIA roles/labels.
+A back-to-library control SHALL flush pending saves, release lock, clear in-tab id and session assets, and show the library surface; flush/save-error keeps the editor with a message. After leaving, opening another book MUST NOT leak the previous book file into a different library folder after Change library. Re-grant prefers `requestPermission`, then picker with `isSameEntry`; success continues to library or the pending book; mismatch/deny shows error without silent no-op. When a stored handle cannot be peeked, re-grant MUST refuse binding an arbitrary picked folder as that library. Editor status for typed failures MUST use human-readable text (never raw codes such as `permission-required`).
+
+#### Scenario: Back to library then change library does not leak
+
+- **WHEN** the user leaves via back-to-library then changes to a different folder and opens a book
+- **THEN** the editor shows that library’s book and storage has no copy of the previous book
+
+#### Scenario: Peek-failed re-grant refuses bare bind
+
+- **WHEN** re-grant has a stored handle that cannot be peeked and the user picks a folder
+- **THEN** the app refuses the bind with a readable error and does not attach that folder as the remembered library
+
+### Requirement: Library identity, titles, and rename
+
+Same-folder choose/change via `isSameEntry` MUST reuse the single library id (no duplicate library records). Display title: non-empty trimmed `title`, else `"Untitled book"` (fallback not written to storage). Rename from library or editor MUST persist `title`; renaming a non-active book MUST NOT replace the active document; cancel leaves title unchanged. Rename MUST stay within frame budget (zero LoAF while filmstrip scrolls). Opening an existing library MUST load stored content, not leave an empty same-id placeholder.
+
+#### Scenario: Untitled fallback and rename persist
+
+- **WHEN** a book has empty title, or the user renames to `"Trip"`
+- **THEN** chrome/list show `"Untitled book"` or `"Trip"` respectively, and storage matches the rename without writing the fallback string as title
+
+### Requirement: Unsupported-browser screen
+
+When `showDirectoryPicker` is not a function, the browsing context is not secure, or the UA is mobile/touch-only (`navigator.userAgentData?.mobile` when available), the system SHALL show a blocking unsupported-browser screen with copy that Photobooks works in desktop Chrome, Edge, or other Chromium browsers (File System Access required). No welcome, library, or editor UI MUST render behind it. Automated tests MUST continue to use File System Access stubs as Chromium doubles and MUST NOT force a non-FSA product fallback.
+
+#### Scenario: Missing directory picker blocks the app
+
+- **WHEN** `showDirectoryPicker` is absent (and tests have not installed an FSA stub)
+- **THEN** only the unsupported-browser screen is shown
+
+### Requirement: Welcome screen
+
+With no remembered library handle, or after permission denied/missing with no usable grant path, the system SHALL show a welcome screen that briefly explains the product and offers “Choose library folder”. Activating that control MUST open the library directory picker described above and, on success, remember the handle and enter the library surface.
+
+#### Scenario: Choose folder from welcome
+
+- **WHEN** the user activates Choose library folder and picks a directory
+- **THEN** the handle is remembered and the library surface is shown
+
+### Requirement: Library screen (empty and with books)
+
+With a granted library handle and no in-tab active book, the system SHALL show the library surface. When `listBooks()` is empty, it MUST offer a primary Create book action. When books exist, it MUST list them (open on activation), and offer New book, Change library (showing the current folder name as the path), and Settings. Settings MUST open a simple stub dialog (“Settings coming soon”). Library overflow scrolls only in a named library scrollport. Actions MUST serialize while busy. The surface MUST expose one page `h1` and visible `:focus-visible` rings on list controls.
+
+#### Scenario: Empty library offers create
+
+- **WHEN** the granted library has no books
+- **THEN** the empty library surface shows Create book and no book list rows
 
 #### Scenario: One click opens a book
 
 - **WHEN** the user activates a listed book with a granted handle
 - **THEN** the editor shows that book’s gallery and placements
 
-#### Scenario: Selected library is announced
+#### Scenario: Change library updates the folder name
 
-- **WHEN** the user selects a recent library on home
-- **THEN** a polite live region announces that library’s label and focus stays on the selected control unless the user moves it
+- **WHEN** the user changes the library to another folder successfully
+- **THEN** the library surface shows that folder’s name as the current path and lists that folder’s books
 
-### Requirement: Leave editor and re-grant from home
+#### Scenario: Settings stub
 
-Home control SHALL flush pending saves, release lock, clear in-tab id and session assets, and show home; flush/save-error keeps the editor with a message. After Home, another library MUST NOT receive the previous book file. Re-grant from home prefers `requestPermission`, then picker with `isSameEntry` check; success opens the pending book; mismatch/deny shows error without silent no-op. Permission deny and picker cancel MUST use distinct readable messages. When a target library id is known but peek fails, re-grant MUST refuse binding an arbitrary picked folder. Editor status for typed failures MUST use human-readable text (never raw codes such as `permission-required`).
-
-#### Scenario: Home then other library does not leak
-
-- **WHEN** the user leaves via Home then opens a different library
-- **THEN** the editor shows that library’s book and storage has no copy of the previous book
-
-#### Scenario: Peek-failed re-grant refuses bare bind
-
-- **WHEN** re-grant has a target library id whose stored handle cannot be peeked and the user picks a folder
-- **THEN** the app refuses the bind with a readable error and does not attach that folder as the target library
-
-### Requirement: Library identity, titles, and rename
-
-Same-folder create/open via `isSameEntry` MUST reuse the library id (no duplicate recent). Display title: non-empty trimmed `title`, else `"Untitled book"` (fallback not written to storage). Rename from home or editor MUST persist `title`; renaming a non-active book MUST NOT replace the active document; cancel leaves title unchanged. Rename MUST stay within frame budget (zero LoAF while filmstrip scrolls). Opening an existing library MUST load stored content, not leave an empty same-id placeholder.
-
-#### Scenario: Untitled fallback and rename persist
-
-- **WHEN** a book has empty title, or the user renames to `"Trip"`
-- **THEN** chrome/list show `"Untitled book"` or `"Trip"` respectively, and storage matches the rename without writing the fallback string as title
+- **WHEN** the user opens Settings from the library surface
+- **THEN** a dialog communicates that settings are coming soon and can be dismissed
 
 ### Requirement: Empty editor and first placement guidance
 
