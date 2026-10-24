@@ -126,15 +126,17 @@ function applyImportResult(result: {
   previewMimeType: string
 }): void {
   const prior = getBookStoreSnapshot().sessionMeta.get(result.assetId)
+  // Skip when session meta already matches decode output — including the
+  // enqueue placeholder (1×1) when the file is truly 1×1. The old `> 1`
+  // gate forced a meta Map + filmstrip prefix rebuild for every bulk PNG
+  // fixture even though aspect stayed 1 (LoAF during scroll-during-import).
   const metaUnchanged =
     prior?.name === result.name &&
     prior.correctedWidth === result.correctedWidth &&
     prior.correctedHeight === result.correctedHeight &&
-    prior.orientation === result.orientation &&
-    prior.correctedWidth > 1 &&
-    prior.correctedHeight > 1
-  // Re-import with known dims: skip bookStore meta flush + IDB manifest RMW
-  // so scroll-during-import only pays for thumb publishes.
+    prior.orientation === result.orientation
+  // Known dims: skip bookStore meta flush + IDB manifest RMW so
+  // scroll-during-import only pays for thumb publishes.
   if (!metaUnchanged) {
     setAssetSessionMeta(result.assetId, {
       name: result.name,

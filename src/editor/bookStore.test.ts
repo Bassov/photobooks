@@ -28,6 +28,10 @@ import {
   dispatchBookOp,
   type AssetSessionMeta,
 } from './bookStore'
+import {
+  noteFilmstripScrollActivity,
+  resetFilmstripScrollQuietForTests,
+} from './filmstripScrollQuiet'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
 
 function sessionFile(name: string, aspect = 1.5): AssetSessionMeta {
@@ -44,6 +48,7 @@ describe('bookStore', () => {
   afterEach(() => {
     resetBookStore()
     resetAssetSources()
+    resetFilmstripScrollQuietForTests()
     setEditorStatus('')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -149,6 +154,31 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(8)
     callbacks[2]?.(0)
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(10)
+  })
+
+  it('defers meta-only flushes while the filmstrip scroll-quiet window is open', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    enqueueGalleryAssets([{ assetId: 'q1', meta: sessionFile('q.jpg', 1) }])
+    callbacks[0]?.(0)
+    expect(getBookStoreSnapshot().sessionMeta.get('q1')?.aspect).toBe(1)
+
+    noteFilmstripScrollActivity()
+    setAssetSessionMeta('q1', sessionFile('q.jpg', 2))
+    callbacks[1]?.(0)
+    expect(getBookStoreSnapshot().sessionMeta.get('q1')?.aspect).toBe(1)
+
+    resetFilmstripScrollQuietForTests()
+    vi.advanceTimersByTime(200)
+    expect(getBookStoreSnapshot().sessionMeta.get('q1')?.aspect).toBe(2)
+    vi.useRealTimers()
   })
 
   it('paces decode session-meta flushes to one asset per frame', () => {

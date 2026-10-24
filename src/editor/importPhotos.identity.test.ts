@@ -859,6 +859,64 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
+  it('skips session meta when decode matches the 1×1 enqueue placeholder', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 1,
+            correctedHeight: 1,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/png',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'tiny.png', {
+      type: 'image/png',
+      lastModified: 1_700_000_000_333,
+    })
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-1x1',
+    })
+    // Placeholder was already 1×1 / orientation 1 / same name — no refine write.
+    expect(patchSpy).not.toHaveBeenCalled()
+    patchSpy.mockRestore()
+  })
+
   it('skips session meta and manifest writes when dims already match', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
@@ -1118,7 +1176,7 @@ describe('importPhotoFiles library identity', () => {
     patchSpy.mockRestore()
   })
 
-  it('rewrites session meta when prior width is still a placeholder', async () => {
+  it('writes then skips when decode settles on a 1×N size', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
       storage,
@@ -1150,7 +1208,7 @@ describe('importPhotoFiles library identity', () => {
           const result = {
             assetId: item.assetId,
             name: item.file.name,
-            // Width still placeholder; height already real — width>1 must gate skip.
+            // 1×50 refine from enqueue 1×1; re-import with the same dims skips.
             correctedWidth: 1,
             correctedHeight: 50,
             orientation: 1,
@@ -1175,11 +1233,11 @@ describe('importPhotoFiles library identity', () => {
       libraryBacked: true,
       sourceRootId: 'root-ph-w',
     })
-    expect(patchSpy).toHaveBeenCalled()
+    expect(patchSpy).not.toHaveBeenCalled()
     patchSpy.mockRestore()
   })
 
-  it('rewrites session meta when prior height is still a placeholder', async () => {
+  it('writes then skips when decode settles on an N×1 size', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
       storage,
@@ -1229,12 +1287,13 @@ describe('importPhotoFiles library identity', () => {
       libraryBacked: true,
       sourceRootId: 'root-ph-h',
     })
+    expect(patchSpy).toHaveBeenCalled()
     patchSpy.mockClear()
     await importPhotoFiles([file], {
       libraryBacked: true,
       sourceRootId: 'root-ph-h',
     })
-    expect(patchSpy).toHaveBeenCalled()
+    expect(patchSpy).not.toHaveBeenCalled()
     patchSpy.mockRestore()
   })
 

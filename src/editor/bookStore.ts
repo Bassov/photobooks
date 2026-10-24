@@ -19,6 +19,10 @@ import {
 import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
 import { setEditorStatus, unplacedFromSpreadStatus } from './editorStatus'
+import {
+  filmstripScrollQuietRemainingMs,
+  isFilmstripScrollQuiet,
+} from './filmstripScrollQuiet'
 
 export interface AssetSessionMeta {
   name: string
@@ -104,6 +108,8 @@ const paintCache = new Map<string, CachedSpreadPaint>()
 let assetSeq = 0
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
+/** Separate from rAF flush scheduling so scroll-quiet waits do not race it. */
+let quietFlushTimer: ReturnType<typeof setTimeout> | undefined
 let pendingGalleryIds: string[] = []
 let pendingMeta = new Map<string, AssetSessionMeta>()
 let pendingAssetRecords = new Map<string, Asset>()
@@ -218,7 +224,29 @@ function takePendingMetaBatch(
   return batch
 }
 
+function scheduleFlushAfterQuiet(delayMs: number): void {
+  clearTimeout(quietFlushTimer)
+  quietFlushTimer = setTimeout(
+    () => {
+      quietFlushTimer = undefined
+      flushPendingGalleryAndMeta()
+    },
+    Math.max(0, delayMs),
+  )
+}
+
 function flushPendingGalleryAndMeta(): void {
+  // Meta-only publishes rebuild filmstrip aspects/prefix; defer them while the
+  // strip is scrolling so decode ticks do not LoAF scroll-during-import.
+  // Gallery row flushes still proceed (list-first placeholders).
+  if (
+    pendingGalleryIds.length === 0 &&
+    pendingMeta.size > 0 &&
+    isFilmstripScrollQuiet()
+  ) {
+    scheduleFlushAfterQuiet(filmstripScrollQuietRemainingMs())
+    return
+  }
   const ids = pendingGalleryIds.splice(0, GALLERY_FLUSH_CHUNK)
   const metaBatch = takePendingMetaBatch(ids)
   if (ids.length === 0 && metaBatch.size === 0) {
@@ -864,6 +892,8 @@ export function resetBookStore(next?: BookStoreInit): void {
   }
   clearTimeout(flushWatchdogTimer)
   flushWatchdogTimer = undefined
+  clearTimeout(quietFlushTimer)
+  quietFlushTimer = undefined
   placementCountsFor = null
   hasAnyPlacementFor = null
   assetSeq = 0
