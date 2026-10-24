@@ -10,9 +10,9 @@ import {
   createMemoryLibraryStorage,
   createMemorySessionState,
   normalizeBookTitleInput,
+  DEFAULT_LIBRARY_ID,
   type BookSummary,
   type LibraryStorage,
-  type RecentLibrary,
   type SessionDirectoryHandle,
   type SessionState,
   type StorageFailureCode,
@@ -65,7 +65,6 @@ import {
 } from './session/libraryActivation'
 import { upgradeSessionAssetsForLibrary } from './upgradeSessionAssets'
 
-const DEFAULT_LIBRARY_ID = 'library'
 const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 1000
 
 const ACTIVE_BOOK_KEY = 'photobooks.activeBookId'
@@ -78,7 +77,7 @@ type ProjectSessionStatus =
 
 type AccessPhase = 'idle' | 'permission-required' | 'locked-elsewhere'
 
-type ProjectSessionSurface = 'home' | 'editor'
+type ProjectSessionSurface = 'unsupported' | 'welcome' | 'library' | 'editor'
 
 type Listener = () => void
 
@@ -98,12 +97,14 @@ export interface ProjectSessionSnapshot {
   restorePending: boolean
   /** True while a home/editor library action is in flight. */
   actionBusy: boolean
-  /** Bumped when test seams reseed recents so home can refresh. */
+  /** Bumped when library binding changes so library UI can refresh. */
   recentsRevision: number
-  /** Last home/session error message for the UI (human-readable). */
+  /** Last session error message for the UI (human-readable). */
   homeError: string | null
-  /** Last active library id from session state (for home preselect). */
+  /** Last active library id from session state. */
   preferredLibraryId: string | null
+  /** Folder-name label for the remembered library. */
+  libraryLabel: string | null
 }
 
 export interface ProjectSessionDeps {
@@ -145,11 +146,12 @@ let autosave = createAutosaveController({
 let accessPhase: AccessPhase = 'idle'
 /** Bumped to invalidate in-flight saves before releasing a book lock. */
 let saveEpoch = 0
-let surface: ProjectSessionSurface = 'home'
+let surface: ProjectSessionSurface = 'welcome'
 let restorePending = true
 let actionBusy = false
 let homeError: string | null = null
 let preferredLibraryId: string | null = null
+let libraryLabel: string | null = null
 let recentsRevision = 0
 const listeners = new Set<Listener>()
 let snapshot: ProjectSessionSnapshot = {
@@ -162,12 +164,13 @@ let snapshot: ProjectSessionSnapshot = {
   saving: autosave.getSavePhase() === 'saving',
   accessPhase: 'idle',
   blockedBookId: null,
-  surface: 'home',
+  surface: 'welcome',
   restorePending: true,
   actionBusy: false,
   recentsRevision: 0,
   homeError: null,
   preferredLibraryId: null,
+  libraryLabel: null,
 }
 
 function buildBookLockHost(): BookLockControllerHost {
@@ -216,6 +219,16 @@ function buildBookLockHost(): BookLockControllerHost {
     getLibraryId: () => libraryId,
     setLibraryId: (id) => {
       libraryId = id
+      if (id === null) {
+        libraryLabel = null
+        return
+      }
+      void session.getLibraryLabel(id).then((label) => {
+        if (libraryId === id) {
+          libraryLabel = label
+          emit()
+        }
+      })
     },
     setHomeError: (message) => {
       setHomeError(message)
@@ -227,8 +240,17 @@ function buildBookLockHost(): BookLockControllerHost {
       runSave()
     },
     createStorageFromHandle: (handle) => createStorageFromHandle(handle),
-    rememberLibraryHandle: (id, handle, label) =>
-      session.rememberLibraryHandle(id, handle, label),
+    rememberLibraryHandle: async (id, handle, label) => {
+      const remembered = await session.rememberLibraryHandle(id, handle, label)
+      if (remembered.ok && libraryId === id) {
+        libraryLabel =
+          label ??
+          (await session.getLibraryLabel(id)) ??
+          handleDisplayLabel(handle) ??
+          null
+      }
+      return remembered
+    },
     peekLibraryHandle: (id) => session.peekLibraryHandle(id),
     handlesReferToSameDirectory: (left, right) =>
       handlesReferToSameDirectory(left, right),
@@ -284,8 +306,17 @@ function buildLibraryActivationHost(): LibraryActivationHost {
       void session.setActiveIds(ids)
     },
     getActiveIds: () => session.getActiveIds(),
-    rememberLibraryHandle: (id, handle, label) =>
-      session.rememberLibraryHandle(id, handle, label),
+    rememberLibraryHandle: async (id, handle, label) => {
+      const remembered = await session.rememberLibraryHandle(id, handle, label)
+      if (remembered.ok && libraryId === id) {
+        libraryLabel =
+          label ??
+          (await session.getLibraryLabel(id)) ??
+          handleDisplayLabel(handle) ??
+          null
+      }
+      return remembered
+    },
     recallLibraryHandle: (id) => session.recallLibraryHandle(id),
     handleDisplayLabel: (handle) => handleDisplayLabel(handle),
     humanMessageForCode: (code, fallback) =>
@@ -319,6 +350,16 @@ function buildLibraryActivationHost(): LibraryActivationHost {
     getLibraryId: () => libraryId,
     setLibraryId: (id) => {
       libraryId = id
+      if (id === null) {
+        libraryLabel = null
+        return
+      }
+      void session.getLibraryLabel(id).then((label) => {
+        if (libraryId === id) {
+          libraryLabel = label
+          emit()
+        }
+      })
     },
     getBookId: () => bookId,
     setBookId: (id) => {
@@ -403,6 +444,7 @@ function refreshSnapshot(): boolean {
     recentsRevision,
     homeError,
     preferredLibraryId,
+    libraryLabel,
   }
   if (
     next.libraryOpen === snapshot.libraryOpen &&
@@ -419,7 +461,8 @@ function refreshSnapshot(): boolean {
     next.actionBusy === snapshot.actionBusy &&
     next.recentsRevision === snapshot.recentsRevision &&
     next.homeError === snapshot.homeError &&
-    next.preferredLibraryId === snapshot.preferredLibraryId
+    next.preferredLibraryId === snapshot.preferredLibraryId &&
+    next.libraryLabel === snapshot.libraryLabel
   ) {
     return false
   }
@@ -625,18 +668,11 @@ async function handlesReferToSameDirectory(
 async function resolveLibraryIdForHandle(
   handle: SessionDirectoryHandle,
 ): Promise<string> {
-  const listed = await session.listRecentLibraries()
-  const recents = listed.ok ? listed.value : []
-  for (const recent of recents) {
-    const peeked = await session.peekLibraryHandle(recent.id)
-    if (!peeked.ok) {
-      continue
-    }
-    if (await handlesReferToSameDirectory(peeked.value, handle)) {
-      return recent.id
-    }
+  const peeked = await session.peekLibraryHandle(DEFAULT_LIBRARY_ID)
+  if (peeked.ok && (await handlesReferToSameDirectory(peeked.value, handle))) {
+    return DEFAULT_LIBRARY_ID
   }
-  return nowId()
+  return DEFAULT_LIBRARY_ID
 }
 
 function handleDisplayLabel(
@@ -766,11 +802,12 @@ export function resetProjectSessionForTests(): void {
   ignoreBookStoreDirty = false
   accessPhase = 'idle'
   saveEpoch = 0
-  surface = 'home'
+  surface = 'welcome'
   restorePending = false
   actionBusy = false
   homeError = null
   preferredLibraryId = null
+  libraryLabel = null
   recentsRevision = 0
   bookLocks = createBookLockController(buildBookLockHost())
   libraryActivation = createLibraryActivation(buildLibraryActivationHost())
@@ -837,7 +874,7 @@ function bindLibrary(
   nextLibraryId: string,
   handle: SessionDirectoryHandle,
   nextStorage: LibraryStorage,
-  mode: 'adopt' | 'open' = 'adopt',
+  mode: 'adopt' | 'open' | 'browse' = 'adopt',
 ): Promise<StorageResult<void>> {
   return libraryActivation.bindLibrary(nextLibraryId, handle, nextStorage, mode)
 }
@@ -850,25 +887,36 @@ export async function openLibrary(): Promise<StorageResult<void>> {
   return libraryActivation.openLibrary()
 }
 
-/** Leave the editor: release lock, clear in-tab book id, show home. */
-export async function leaveEditorForHome(): Promise<void> {
+/** Leave the editor: release lock, clear in-tab book id, show library. */
+export async function leaveEditorForLibrary(): Promise<void> {
   await withActionBusy(async () => {
     const flushed = await flushPendingSaveBeforeRelease()
     if (!flushed.ok) {
       return
     }
     await releaseHeldBookLock()
-    storage = null
-    libraryId = null
     bookId = null
     if (storageKey) {
       storageKey.removeItem(ACTIVE_BOOK_KEY)
     }
     const active = await session.getActiveIds()
+    const keepLibraryId = libraryId ?? active.libraryId
     void session.setActiveIds({
-      libraryId: active.libraryId,
+      libraryId: keepLibraryId,
       bookId: null,
     })
+    // Keep storage + libraryId bound so library screen can list/rename books.
+    if (storage === null && keepLibraryId !== null) {
+      const recalled = await session.recallLibraryHandle(keepLibraryId)
+      if (recalled.ok) {
+        storage = createStorageFromHandle(recalled.value)
+        libraryId = keepLibraryId
+        libraryLabel = await session.getLibraryLabel(keepLibraryId)
+      }
+    } else if (keepLibraryId !== null) {
+      libraryId = keepLibraryId
+      libraryLabel = await session.getLibraryLabel(keepLibraryId)
+    }
     accessPhase = 'idle'
     bookLocks.clearBlockedAndPending()
     withoutDirtyTracking(() => {
@@ -884,7 +932,7 @@ export async function leaveEditorForHome(): Promise<void> {
     autosave.reset()
     setStatus({ kind: 'idle' })
     homeError = null
-    surface = 'home'
+    surface = libraryId !== null ? 'library' : 'welcome'
     recentsRevision += 1
     emit()
   })
@@ -896,7 +944,7 @@ export async function attachLibraryForTests(options: {
   session?: SessionState
   libraryId?: string
   handle?: SessionDirectoryHandle
-  mode?: 'adopt' | 'open'
+  mode?: 'adopt' | 'open' | 'browse'
 }): Promise<StorageResult<void>> {
   if (options.session) {
     session = options.session
@@ -911,8 +959,16 @@ export async function attachMemoryLibraryForTests(): Promise<
   StorageResult<void>
 > {
   const next = createMemoryLibraryStorage()
-  configureProjectSession({ createStorage: () => next })
-  return attachLibraryForTests({ storage: next })
+  const memSession = createMemorySessionState()
+  configureProjectSession({
+    session: memSession,
+    createStorage: () => next,
+  })
+  return attachLibraryForTests({
+    storage: next,
+    session: memSession,
+    handle: { id: 'test-library-handle', name: 'Memory Library' },
+  })
 }
 
 export async function adoptCurrentBookInLibrary(): Promise<
@@ -956,6 +1012,8 @@ export async function createBookInLibrary(
   autosave.reset()
   setStatus({ kind: 'open', libraryId, bookId })
   setEditorStatus('Book created')
+  surface = 'editor'
+  emit()
   return created
 }
 
@@ -1145,6 +1203,38 @@ async function openOpfsTestLibrary(
 }
 
 /** Test seam: force access chrome phase without a real FSA denial. */
+export function setSurfaceForTests(next: ProjectSessionSurface): void {
+  surface = next
+  if (next !== 'editor') {
+    restorePending = false
+  }
+  emit()
+}
+
+/** Test seam: patch snapshot fields for screen RTL without full session setup. */
+export function patchProjectSessionSnapshotForTests(
+  patch: Partial<
+    Pick<
+      ProjectSessionSnapshot,
+      'restorePending' | 'libraryLabel' | 'homeError' | 'actionBusy'
+    >
+  >,
+): void {
+  if (patch.restorePending !== undefined) {
+    restorePending = patch.restorePending
+  }
+  if (patch.libraryLabel !== undefined) {
+    libraryLabel = patch.libraryLabel
+  }
+  if (patch.homeError !== undefined) {
+    homeError = patch.homeError
+  }
+  if (patch.actionBusy !== undefined) {
+    actionBusy = patch.actionBusy
+  }
+  emit()
+}
+
 export function setAccessPhaseForTests(phase: AccessPhase): void {
   accessPhase = phase
   if (phase === 'permission-required') {
@@ -1184,19 +1274,29 @@ export async function tryActivateLibraryBookForTests(
   return libraryActivation.activateLoadedBook(loaded.value)
 }
 
-/** Test seam: replace session with many recent libraries and stay on home. */
+/** Test seam: memory library with many books (library scrollport smoke). */
 async function seedHomeRecentsForTests(count: number): Promise<void> {
   const next = createMemorySessionState()
-  for (let i = 0; i < count; i += 1) {
-    await next.rememberLibraryHandle(`lib-${String(i)}`, {
-      name: `Library ${String(i).padStart(2, '0')} overflow label for scroll`,
-    })
+  const label = `Library overflow label for scrollport smoke testing path (${String(count)})`
+  await next.rememberLibraryHandle(DEFAULT_LIBRARY_ID, {
+    name: label,
+  })
+  const memStorage = createMemoryLibraryStorage()
+  const n = Math.max(0, Math.floor(count))
+  for (let i = 0; i < n; i += 1) {
+    const created = await memStorage.createBook(
+      createEmptyLibraryBook(nowId(), `Book ${String(i + 1)}`),
+    )
+    if (!created.ok) {
+      throw new Error(created.code)
+    }
   }
   session = next
-  storage = null
-  libraryId = null
+  storage = memStorage
+  libraryId = DEFAULT_LIBRARY_ID
+  libraryLabel = label
   bookId = null
-  surface = 'home'
+  surface = 'library'
   accessPhase = 'idle'
   bookLocks.setPendingRegrant(null, null)
   if (storageKey) {
@@ -1245,11 +1345,14 @@ export function exposeProjectSessionTestApi(
     createLibrary,
     openLibrary,
     tryRestore,
-    listRecents,
     selectRecentLibrary,
     openBookFromHome,
     startSessionEditor,
-    leaveEditorForHome,
+    leaveEditorForLibrary,
+    chooseLibraryFolder,
+    changeLibraryFolder,
+    listLibraryBooks,
+    openBookFromLibrary,
     seedHomeRecentsForTests,
     regrantLibrary,
     regrantLibraryWithHandleForTests,
@@ -1281,11 +1384,14 @@ declare global {
       createLibrary: typeof createLibrary
       openLibrary: typeof openLibrary
       tryRestore: typeof tryRestore
-      listRecents: typeof listRecents
       selectRecentLibrary: typeof selectRecentLibrary
       openBookFromHome: typeof openBookFromHome
       startSessionEditor: typeof startSessionEditor
-      leaveEditorForHome: typeof leaveEditorForHome
+      leaveEditorForLibrary: typeof leaveEditorForLibrary
+      chooseLibraryFolder: typeof chooseLibraryFolder
+      changeLibraryFolder: typeof changeLibraryFolder
+      listLibraryBooks: typeof listLibraryBooks
+      openBookFromLibrary: typeof openBookFromLibrary
       seedHomeRecentsForTests: typeof seedHomeRecentsForTests
       regrantLibrary: typeof regrantLibrary
       regrantLibraryWithHandleForTests: typeof regrantLibraryWithHandleForTests
@@ -1330,35 +1436,42 @@ declare global {
   }
 }
 
-export async function listRecents(): Promise<
-  StorageResult<readonly RecentLibrary[]>
+export async function listLibraryBooks(): Promise<
+  StorageResult<readonly BookSummary[]>
 > {
-  try {
-    return await session.listRecentLibraries()
-  } catch {
-    return { ok: false, code: 'not-found' }
+  if (storage !== null) {
+    try {
+      return await storage.listBooks()
+    } catch {
+      return { ok: false, code: 'not-found' }
+    }
   }
+  return libraryActivation.selectRecentLibrary(
+    libraryId ?? preferredLibraryId ?? DEFAULT_LIBRARY_ID,
+  )
 }
 
-export async function removeRecentFromHome(
-  recentLibraryId: string,
-): Promise<StorageResult<void>> {
-  const result = await withActionBusy(async () => {
-    const cleared = await session.removeRecentLibrary(recentLibraryId)
-    if (cleared.ok) {
-      recentsRevision += 1
-      homeError = null
-      emit()
-    }
-    return cleared
-  })
-  return result ?? { ok: false, code: 'not-found' }
+export async function chooseLibraryFolder(): Promise<StorageResult<void>> {
+  return libraryActivation.createLibrary()
+}
+
+export async function changeLibraryFolder(): Promise<StorageResult<void>> {
+  return libraryActivation.openLibrary()
 }
 
 export async function selectRecentLibrary(
   recentLibraryId: string,
 ): Promise<StorageResult<readonly BookSummary[]>> {
   return libraryActivation.selectRecentLibrary(recentLibraryId)
+}
+
+export async function openBookFromLibrary(
+  nextBookId: string,
+): Promise<StorageResult<Book>> {
+  return libraryActivation.openBookFromHome(
+    libraryId ?? DEFAULT_LIBRARY_ID,
+    nextBookId,
+  )
 }
 
 export async function renameBookInLibrary(

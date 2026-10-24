@@ -62,10 +62,12 @@ test('create with title, rename, reload and home show titles not ids', async ({
   const libraryFolder = `photobooks-e2e-titles-${String(process.pid)}-${String(Date.now())}`
 
   await page.goto('/')
-  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+  await expect(page.getByTestId('welcome-loading')).toHaveCount(0, {
     timeout: 15_000,
   })
-  await page.getByTestId('start-session').click()
+  await page.evaluate(() => {
+    window.__photobooksProject?.startSessionEditor()
+  })
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
   })
@@ -102,19 +104,19 @@ test('create with title, rename, reload and home show titles not ids', async ({
   await expect(page.getByTestId('book-title')).toHaveText('Trip')
   await waitForSaveIdle(page)
 
-  await page.getByTestId('go-home').click()
-  await expect(page.getByTestId('home-screen')).toBeVisible({
+  await page.getByTestId('go-library').click()
+  await expect(page.getByTestId('library-screen')).toBeVisible({
     timeout: 15_000,
   })
 
-  const bookButton = page.getByTestId(`home-book-${prepared.bookId}`)
+  const bookButton = page.getByTestId(`library-book-${prepared.bookId}`)
   await expect(bookButton).toHaveText('Trip')
   await expect(bookButton).not.toHaveText(prepared.bookId)
 
   page.once('dialog', (dialog) => {
     void dialog.accept('HomeRename')
   })
-  await page.getByTestId(`home-rename-${prepared.bookId}`).click()
+  await page.getByTestId(`library-rename-${prepared.bookId}`).click()
   await expect(bookButton).toHaveText('HomeRename')
   await assertDocumentFitsViewport(page)
 
@@ -122,14 +124,10 @@ test('create with title, rename, reload and home show titles not ids', async ({
     sessionStorage.clear()
   })
   await page.reload()
-  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+  await expect(page.getByTestId('welcome-loading')).toHaveCount(0, {
     timeout: 15_000,
   })
-  await expect(page.getByTestId('home-screen')).toBeVisible()
-
-  const recent = page.locator('[data-testid^="home-recent-"]').first()
-  await expect(recent).toBeVisible({ timeout: 15_000 })
-  await recent.click()
+  await expect(page.getByTestId('library-screen')).toBeVisible()
   await expect(bookButton).toHaveText('HomeRename', { timeout: 15_000 })
   await bookButton.click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
@@ -143,10 +141,12 @@ test('empty title shows Untitled book on home and chrome', async ({ page }) => {
   const libraryFolder = `photobooks-e2e-untitled-${String(process.pid)}-${String(Date.now())}`
 
   await page.goto('/')
-  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+  await expect(page.getByTestId('welcome-loading')).toHaveCount(0, {
     timeout: 15_000,
   })
-  await page.getByTestId('start-session').click()
+  await page.evaluate(() => {
+    window.__photobooksProject?.startSessionEditor()
+  })
   await expect(page.getByTestId('editor-shell')).toBeVisible()
 
   const prepared = await page.evaluate(async (folderName) => {
@@ -175,9 +175,9 @@ test('empty title shows Untitled book on home and chrome', async ({ page }) => {
   expect(prepared.storedTitle).toBe('')
 
   await expect(page.getByTestId('book-title')).toHaveText('Untitled book')
-  await page.getByTestId('go-home').click()
-  await expect(page.getByTestId('home-screen')).toBeVisible()
-  await expect(page.getByTestId(`home-book-${prepared.bookId}`)).toHaveText(
+  await page.getByTestId('go-library').click()
+  await expect(page.getByTestId('library-screen')).toBeVisible()
+  await expect(page.getByTestId(`library-book-${prepared.bookId}`)).toHaveText(
     'Untitled book',
   )
   await assertDocumentFitsViewport(page)
@@ -188,10 +188,12 @@ test('cancelled create and rename leave titles unchanged', async ({ page }) => {
   const libraryFolder = `photobooks-e2e-title-cancel-${String(process.pid)}-${String(Date.now())}`
 
   await page.goto('/')
-  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+  await expect(page.getByTestId('welcome-loading')).toHaveCount(0, {
     timeout: 15_000,
   })
-  await page.getByTestId('start-session').click()
+  await page.evaluate(() => {
+    window.__photobooksProject?.startSessionEditor()
+  })
   await expect(page.getByTestId('editor-shell')).toBeVisible()
 
   const prepared = await page.evaluate(async (folderName) => {

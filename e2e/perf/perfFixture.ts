@@ -152,7 +152,10 @@ declare global {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
     }
     __photobooksProject?: {
-      attachMemoryLibraryForTests: () => Promise<unknown>
+      attachMemoryLibraryForTests: () => Promise<{
+        ok: boolean
+        code?: string
+      }>
       attachOpfsTestLibrary: (
         folderName?: string,
       ) => Promise<{ ok: boolean; code?: string }>
@@ -169,10 +172,10 @@ declare global {
       createLibrary: () => Promise<{ ok: boolean; code?: string }>
       openLibrary: () => Promise<{ ok: boolean; code?: string }>
       tryRestore: () => Promise<unknown>
-      listRecents: () => Promise<{
+      listLibraryBooks: () => Promise<{
         ok: boolean
         code?: string
-        value?: readonly { id: string; label: string }[]
+        value?: readonly { id: string }[]
       }>
       selectRecentLibrary: (libraryId: string) => Promise<{
         ok: boolean
@@ -183,8 +186,13 @@ declare global {
         libraryId: string,
         bookId: string,
       ) => Promise<{ ok: boolean; code?: string }>
+      openBookFromLibrary: (
+        bookId: string,
+      ) => Promise<{ ok: boolean; code?: string }>
       startSessionEditor: () => void
-      leaveEditorForHome: () => Promise<void>
+      leaveEditorForLibrary: () => Promise<void>
+      chooseLibraryFolder: () => Promise<{ ok: boolean; code?: string }>
+      changeLibraryFolder: () => Promise<{ ok: boolean; code?: string }>
       seedHomeRecentsForTests: (count: number) => Promise<void>
       regrantLibrary: () => Promise<{ ok: boolean; code?: string }>
       regrantLibraryWithHandleForTests: (handle?: {
@@ -228,13 +236,15 @@ export async function enablePerfScenario(
   await installPhotoDirectoryPickerStub(page)
   await page.goto(url)
   await page.waitForFunction(() => window.__photobooksPerf !== undefined)
-  const home = page.getByTestId('home-screen')
+  const home = page.getByTestId('welcome-screen')
   if (await home.isVisible()) {
     await page
-      .getByTestId('home-loading')
+      .getByTestId('welcome-loading')
       .waitFor({ state: 'hidden' })
       .catch(() => undefined)
-    await page.getByTestId('start-session').click()
+    await page.evaluate(() => {
+      window.__photobooksProject?.startSessionEditor()
+    })
     await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
   }
   await applyCpuThrottling(page)

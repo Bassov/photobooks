@@ -43,7 +43,11 @@ describe('browserProjectSessionPlatform', () => {
       writable: true,
     })
     await expect(browserPickDirectory()).resolves.toBe(handle)
-    expect(picker).toHaveBeenCalledWith({ mode: 'readwrite' })
+    expect(picker).toHaveBeenCalledWith({
+      id: 'photobooks-library',
+      mode: 'readwrite',
+      startIn: 'documents',
+    })
   })
 
   it('browserPickDirectory rethrows non-abort errors', async () => {

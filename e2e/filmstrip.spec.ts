@@ -32,6 +32,32 @@ import {
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import type { Page } from '@playwright/test'
 
+/** New book from editor chrome: confirm (if dirty) + title prompt → Book created. */
+async function createBookFromEditorChrome(
+  page: Page,
+  title = 'Filmstrip book',
+): Promise<void> {
+  const onDialog = (dialog: {
+    type: () => string
+    accept: (v?: string) => Promise<void>
+  }) => {
+    if (dialog.type() === 'confirm') {
+      void dialog.accept()
+      return
+    }
+    void dialog.accept(title)
+  }
+  page.on('dialog', onDialog)
+  try {
+    await page.getByTestId('create-book').click()
+    await expect(page.getByTestId('editor-status')).toHaveText('Book created', {
+      timeout: 15_000,
+    })
+  } finally {
+    page.off('dialog', onDialog)
+  }
+}
+
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
 })
@@ -956,10 +982,7 @@ test.describe('library re-import async', () => {
     await expect(page.getByTestId('create-book')).toBeEnabled({
       timeout: 15_000,
     })
-    await page.getByTestId('create-book').click()
-    await expect(page.getByTestId('editor-status')).toHaveText(
-      'Book created in library',
-    )
+    await createBookFromEditorChrome(page)
 
     await pickPhotoFolder(page, first)
     await expect
@@ -1001,10 +1024,7 @@ test.describe('library re-import async', () => {
     await expect(page.getByTestId('create-book')).toBeEnabled({
       timeout: 15_000,
     })
-    await page.getByTestId('create-book').click()
-    await expect(page.getByTestId('editor-status')).toHaveText(
-      'Book created in library',
-    )
+    await createBookFromEditorChrome(page)
 
     await pickPhotoFolder(page, files)
     await expect
@@ -1076,10 +1096,7 @@ test.describe('library re-import async', () => {
       await expect(page.getByTestId('create-book')).toBeEnabled({
         timeout: 15_000,
       })
-      await page.getByTestId('create-book').click()
-      await expect(page.getByTestId('editor-status')).toHaveText(
-        'Book created in library',
-      )
+      await createBookFromEditorChrome(page)
 
       // Library-backed fresh bulk import: frame-budget scroll window (Perf line).
       await clearPerfScenario(page)

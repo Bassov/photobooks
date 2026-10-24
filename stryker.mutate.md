@@ -10,11 +10,11 @@ Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in t
 - `!src/photo/photo.worker.ts` — onmessage wrapper; logic lives in processPhoto.ts
 - `!src/assets/hash.worker.ts` — onmessage wrapper; logic lives in hashDigest.ts
 - `!src/project/fsa/bookLoad.worker.ts` — onmessage wrapper; logic lives in bookLoad.ts
-- `!src/App.tsx` — surface switch + bootstrap wiring; locked by App RTL and e2e home/editor entry
+- `!src/App.tsx` — surface switch + bootstrap wiring; locked by App RTL and e2e welcome/library/editor entry
 - `!src/editor/previewAspect.ts` — JPEG SOF aspect restore covered by unit tests; non-JPEG path only delegates to `processAsset` (mutated via `assetPool`)
 - `!src/editor/upgradeSessionAssets.ts` — identity upgrade on adopt locked by `upgradeSessionAssets.test.ts` via `attachMemoryLibraryForTests` / public adopt path; hashing delegates to `hashContent`
 - `!src/editor/usePasteboardCamera.ts` — React gesture/lifecycle wiring; fit inset + hold-scroll + delayed zoom-out schedule/apply/cancel mutated via `pasteboardCameraFit.ts`; autosave gate locked by `editorGesture` + `projectSession` unit tests and autosave-during-drag e2e
-- `!src/editor/projectSession.ts` — library orchestration + FSA picker/restore, open-vs-adopt, book lock acquire/release, re-grant, home/recents; autosave + permissions/locks + recents-home locked by unit suite + e2e; gesture seam mutated via `editorGesture.ts`; default FSA branches no-cov in unit env
+- `!src/editor/projectSession.ts` — library orchestration + FSA picker/restore, open-vs-adopt, book lock acquire/release, re-grant, library surface; autosave + permissions/locks + library-screens locked by unit suite + e2e; gesture seam mutated via `editorGesture.ts`; default FSA branches no-cov in unit env
 - `!src/editor/photoRootSession.ts` — photo-folder bind/restore/re-grant orchestration; locked by `photoRootSession.test.ts` + directory-picker e2e; mirrors `projectSession` exclude
 - `!src/editor/useChromeImport.tsx` — React chrome import wiring; pick/bind/import mutated via `pickPhotos` / `photoRootSession` / `runChromeImport`
 - `!src/editor/EditorTopBar.tsx` — chrome button wiring; choose-folder + re-grant locked by EditorTopBar unit + e2e

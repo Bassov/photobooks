@@ -8,7 +8,7 @@ test.afterEach(async ({ page }) => {
 
 test('empty home has no re-grant control or lock banner', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByTestId('home-screen')).toBeVisible({
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
     timeout: 15_000,
   })
   await expect(page.getByTestId('regrant-library')).toHaveCount(0)
@@ -19,10 +19,12 @@ test('empty home has no re-grant control or lock banner', async ({ page }) => {
 test('Grant access regrant restores the persisted book', async ({ page }) => {
   test.setTimeout(60_000)
   await page.goto('/')
-  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+  await expect(page.getByTestId('welcome-loading')).toHaveCount(0, {
     timeout: 15_000,
   })
-  await page.getByTestId('start-session').click()
+  await page.evaluate(() => {
+    window.__photobooksProject?.startSessionEditor()
+  })
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
   })
@@ -66,13 +68,12 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
           Promise.resolve({ ok: true, value: undefined }),
         clearLibraryHandle: () =>
           Promise.resolve({ ok: true, value: undefined }),
-        listRecentLibraries: () => Promise.resolve({ ok: true, value: [] }),
         peekLibraryHandle: () =>
           Promise.resolve({ ok: false, code: 'not-found' }),
-        removeRecentLibrary: () =>
-          Promise.resolve({ ok: true, value: undefined }),
+        getLibraryLabel: () => Promise.resolve('E2E Library'),
         setActiveIds: () => Promise.resolve({ ok: true, value: undefined }),
-        getActiveIds: () => Promise.resolve({ libraryId: null, bookId: null }),
+        getActiveIds: () =>
+          Promise.resolve({ libraryId: 'library', bookId: null }),
         acquireBookLock: () =>
           Promise.resolve({
             ok: true,
@@ -86,9 +87,12 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
     return created.value.id
   })
 
-  await expect(page.getByTestId('regrant-library')).toBeVisible()
-  await page.getByTestId('regrant-library').focus()
-  await expect(page.getByTestId('regrant-library')).toBeFocused()
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('allow-library-access')).toBeVisible()
+  await page.getByTestId('allow-library-access').focus()
+  await expect(page.getByTestId('allow-library-access')).toBeFocused()
   await assertDocumentFitsViewport(page)
 
   await page.evaluate(async () => {
@@ -104,7 +108,7 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
     }
   })
 
-  await expect(page.getByTestId('regrant-library')).toHaveCount(0, {
+  await expect(page.getByTestId('allow-library-access')).toHaveCount(0, {
     timeout: 15_000,
   })
   await expect
@@ -113,21 +117,24 @@ test('Grant access regrant restores the persisted book', async ({ page }) => {
         const snap = window.__photobooksProject?.getSnapshot() as {
           bookId: string | null
           accessPhase: string
+          surface: string
         }
         return snap
       }),
     )
-    .toMatchObject({ bookId, accessPhase: 'idle' })
+    .toMatchObject({ bookId, accessPhase: 'idle', surface: 'editor' })
   await assertDocumentFitsViewport(page)
 })
 
 test('locked-elsewhere shows banner and blocks Save', async ({ page }) => {
   test.setTimeout(60_000)
   await page.goto('/')
-  await expect(page.getByTestId('home-loading')).toHaveCount(0, {
+  await expect(page.getByTestId('welcome-loading')).toHaveCount(0, {
     timeout: 15_000,
   })
-  await page.getByTestId('start-session').click()
+  await page.evaluate(() => {
+    window.__photobooksProject?.startSessionEditor()
+  })
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 15_000,
   })
