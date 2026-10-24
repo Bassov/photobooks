@@ -2,9 +2,12 @@ import { exifParseSchema } from './exifSchema'
 import { HEIC_UNSUPPORTED_MESSAGE, isHeicSignature } from './heic'
 import { readJpegSofSize, stripJpegExif } from './jpegSof'
 import { normalizeOrientation } from './normalizeOrientation'
+import { PREVIEW_MAX_EDGE, THUMB_MAX_EDGE } from './photoEdges'
 import { readExifImageSize } from './readExifImageSize'
 import { readExifOrientation } from './readExifOrientation'
 import type { ExifOrientation } from './types'
+
+export { THUMB_MAX_EDGE } from './photoEdges'
 
 export interface PhotoWorkerRequest {
   id: string
@@ -37,9 +40,6 @@ export interface PhotoWorkerFailure {
 }
 
 export type PhotoWorkerResponse = PhotoWorkerSuccess | PhotoWorkerFailure
-
-const PREVIEW_MAX_EDGE = 1280
-export const THUMB_MAX_EDGE = 320
 
 /**
  * Optional createImageBitmap resize so decode never materializes a full-res

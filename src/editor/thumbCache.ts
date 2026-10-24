@@ -6,7 +6,7 @@ import { restoreAspectFromPreview } from './previewAspect'
 
 const DEFAULT_CAPACITY = 256
 /** Cap React notifies per frame so bulk import+scroll stays within LoAF. */
-const FLUSH_PER_FRAME = 4
+const FLUSH_PER_FRAME = 2
 /** Matches bookStore gallery flush: progress if rAF freezes (background tab). */
 const FLUSH_RAF_WATCHDOG_MS = 32
 

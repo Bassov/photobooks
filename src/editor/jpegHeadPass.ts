@@ -1,8 +1,4 @@
-import {
-  isJpegLikeFile,
-  JPEG_HEAD_BYTES,
-  parseJpegHead,
-} from '../photo/jpegHead'
+import { isJpegLikeFile } from '../photo/mime'
 import {
   getBookStoreSnapshot,
   setAssetSessionMeta,
@@ -10,6 +6,7 @@ import {
 } from './bookStore'
 import { tryPatchManifestFromAsset } from './folderManifestWrite'
 import { IMPORT_BODY_READ_CAP, mapWithConcurrency } from './importBodyReads'
+import { yieldForPaint } from './relink/yieldForPaint'
 import { hasThumbData, setThumbUrl } from './thumbCache'
 
 export interface JpegHeadPassEntry {
@@ -20,6 +17,9 @@ export interface JpegHeadPassEntry {
 /**
  * Bounded parallel JPEG head reads: publish temporary EXIF thumbs and
  * header dims/orientation into session + folder manifest.
+ *
+ * `jpegHead` / exifr load only via nested dynamic import so the editor
+ * main chunk (folderManifestWrite / bookStore / thumbCache) never embeds exifr.
  */
 export async function runJpegHeadPass(
   entries: readonly JpegHeadPassEntry[],
@@ -29,6 +29,7 @@ export async function runJpegHeadPass(
   if (jpegEntries.length === 0) {
     return
   }
+  const { JPEG_HEAD_BYTES, parseJpegHead } = await import('../photo/jpegHead')
   const concurrency = options.concurrency ?? IMPORT_BODY_READ_CAP
   await mapWithConcurrency(jpegEntries, concurrency, async (entry) => {
     try {
@@ -73,6 +74,9 @@ export async function runJpegHeadPass(
       }
     } catch {
       // Head pass must never fail the import batch.
+    } finally {
+      // Spec: capped parallelism with yields so head work does not LoAF scroll.
+      await yieldForPaint()
     }
   })
 }

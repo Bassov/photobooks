@@ -16,9 +16,9 @@ import {
   markHeicFile,
   upgradeRejectedWithHeicSniff,
 } from '../photo/heic'
+import { isJpegLikeFile } from '../photo/mime'
 import { partitionImportFiles } from '../photo/pickPhotos'
 import type { ExifOrientation } from '../photo/types'
-import { runJpegHeadPass } from './jpegHeadPass'
 import {
   enqueueGalleryAssets,
   getAssetCacheKey,
@@ -40,6 +40,7 @@ import {
 } from './importBodyReads'
 import { tryPatchManifestFromAsset } from './folderManifestWrite'
 import { isLibraryBacked } from './projectSession'
+import { yieldForPaint } from './relink/yieldForPaint'
 import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
 import { setThumbUrl } from './thumbCache'
 
@@ -353,41 +354,46 @@ async function importPhotoFilesInner(
         .map((entry) => entry.assetId),
     )
 
-    // Head pass in parallel with decode: EXIF thumbs + dims before thumb320.
-    void runJpegHeadPass(immediate)
+    // Load jpegHeadPass (exifr) only when the batch has JPEGs — PNG/WebP
+    // re-import must not pull EXIF parsing into the editor main chunk.
+    if (immediate.some((entry) => isJpegLikeFile(entry.file))) {
+      void import('./jpegHeadPass').then(({ runJpegHeadPass }) => {
+        void runJpegHeadPass(immediate)
+      })
+    }
 
     const immediateBatch = runImportBatch(
       immediate,
       importDecodeBatchOptions(report, heicAssetIds),
     )
 
-    if (libraryBacked && batchRootId !== undefined && immediate.length > 0) {
-      void mapWithConcurrency(
-        immediate,
-        IMPORT_BODY_READ_CAP,
-        async (entry) => {
-          // Idle HEIC: no full-body seed until visible ∪ book-used decode.
-          if (shouldDeferHeicDecode(entry.assetId, entry.file, 'prefetch')) {
-            return
-          }
-          await bodyGate.withBodyRead(async () => {
-            const existingRoot =
-              getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId
-            const sourceRootId = existingRoot ?? batchRootId
-            // Seed memory source + identity-keyed DerivedCache puts (no contentHash).
-            await seedAndHashEntry({
-              assetId: entry.assetId,
-              file: entry.file,
-              relativePath: entry.relativePath,
-              sourceRootId,
-              memorySource: memorySourceForRoot(sourceRootId),
-            })
-          })
-        },
-      )
-    }
-
     const immediateOutcome = await immediateBatch
+
+    // Body seed after decode batch so scroll-during-import LoAF windows are not
+    // competing with parallel arrayBuffer + seedFile main-thread bursts.
+    if (libraryBacked && batchRootId !== undefined && immediate.length > 0) {
+      const seedConcurrency = Math.min(4, IMPORT_BODY_READ_CAP)
+      void mapWithConcurrency(immediate, seedConcurrency, async (entry) => {
+        // Idle HEIC: no full-body seed until visible ∪ book-used decode.
+        if (shouldDeferHeicDecode(entry.assetId, entry.file, 'prefetch')) {
+          return
+        }
+        await bodyGate.withBodyRead(async () => {
+          const existingRoot =
+            getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId
+          const sourceRootId = existingRoot ?? batchRootId
+          // Seed memory source + identity-keyed DerivedCache puts (no contentHash).
+          await seedAndHashEntry({
+            assetId: entry.assetId,
+            file: entry.file,
+            relativePath: entry.relativePath,
+            sourceRootId,
+            memorySource: memorySourceForRoot(sourceRootId),
+          })
+        })
+        await yieldForPaint()
+      })
+    }
 
     return {
       imported: immediateOutcome.results.length,

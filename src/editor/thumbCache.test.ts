@@ -107,7 +107,7 @@ describe('thumbCache', () => {
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1')
   })
 
-  it('coalesces setThumbUrl publishes onto rAF (max 4 per frame)', () => {
+  it('coalesces setThumbUrl publishes onto rAF (max 2 per frame)', () => {
     const rafQueue: FrameRequestCallback[] = []
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       rafQueue.push(cb)
@@ -130,6 +130,11 @@ describe('thumbCache', () => {
     expect(rafQueue).toHaveLength(1)
     rafQueue.shift()?.(0)
     expect(getThumbUrl('a')).toBe('blob:t-1')
+    expect(getThumbUrl('b')).toBe('blob:t-2')
+    expect(getThumbUrl('c')).toBeUndefined()
+    expect(rafQueue).toHaveLength(1)
+    rafQueue.shift()?.(0)
+    expect(getThumbUrl('c')).toBe('blob:t-3')
     expect(getThumbUrl('d')).toBe('blob:t-4')
     expect(getThumbUrl('e')).toBeUndefined()
     expect(rafQueue).toHaveLength(1)
@@ -200,8 +205,16 @@ describe('thumbCache', () => {
     setThumbUrl('a', new Uint8Array([9]).buffer, 'image/png')
     expect(rafQueue).toHaveLength(1)
     rafQueue.shift()?.(0)
-    expect(n).toBe(4)
+    // Two publishes per frame; pending `a` was replaced before flush.
+    expect(n).toBe(2)
     expect(getThumbUrl('a')).toBe('blob:upd-1')
+    expect(getThumbUrl('b')).toBe('blob:upd-2')
+    expect(getThumbUrl('c')).toBeUndefined()
+    expect(rafQueue).toHaveLength(1)
+    rafQueue.shift()?.(0)
+    expect(n).toBe(4)
+    expect(getThumbUrl('c')).toBe('blob:upd-3')
+    expect(getThumbUrl('d')).toBe('blob:upd-4')
     expect(rafQueue).toHaveLength(0)
   })
 

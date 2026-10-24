@@ -106,6 +106,29 @@ describe('runJpegHeadPass', () => {
     expect(parseJpegHead).not.toHaveBeenCalled()
   })
 
+  it('yields for paint after each JPEG head entry', async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 10,
+      height: 10,
+      orientation: 1,
+      correctedWidth: 10,
+      correctedHeight: 10,
+    })
+
+    await runJpegHeadPass([
+      { assetId: 'y1', file: jpegFile('y1.jpg') },
+      { assetId: 'y2', file: jpegFile('y2.jpg') },
+    ])
+
+    // yieldForPaint uses setTimeout(0) once per JPEG entry.
+    expect(
+      setTimeoutSpy.mock.calls.filter((call) => call[1] === 0).length,
+    ).toBeGreaterThanOrEqual(2)
+    setTimeoutSpy.mockRestore()
+  })
+
   it('updates dims when only width is above the placeholder threshold', async () => {
     setAssetSessionMeta('wide', {
       name: 'wide.jpg',

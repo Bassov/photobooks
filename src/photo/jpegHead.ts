@@ -1,9 +1,12 @@
 import exifr from 'exifr'
 import { readJpegSofSize } from './jpegSof'
+import { isJpegLikeFile } from './mime'
 import { normalizeOrientation } from './normalizeOrientation'
 import { readExifImageSize } from './readExifImageSize'
 import { readExifOrientation } from './readExifOrientation'
 import type { ExifOrientation } from './types'
+
+export { isJpegLikeFile }
 
 /** Bytes to read from a JPEG for SOF + EXIF IFD0/IFD1 (embedded thumb). */
 export const JPEG_HEAD_BYTES = 65_536
@@ -99,14 +102,4 @@ export async function parseJpegHead(
     correctedWidth,
     correctedHeight,
   }
-}
-
-/** True when the name/MIME looks like JPEG (head pass target). */
-export function isJpegLikeFile(file: { name: string; type: string }): boolean {
-  const mime = file.type.toLowerCase()
-  if (mime === 'image/jpeg' || mime === 'image/jpg' || mime.endsWith('+jpeg')) {
-    return true
-  }
-  const lower = file.name.toLowerCase()
-  return lower.endsWith('.jpg') || lower.endsWith('.jpeg')
 }

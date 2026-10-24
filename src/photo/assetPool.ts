@@ -1,7 +1,7 @@
 import { isKnownHeicFile } from './heic'
-import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
-import { THUMB_MAX_EDGE } from './processPhoto'
 import { metadataWorkerCount } from './metadataPool'
+import { THUMB_MAX_EDGE } from './photoEdges'
+import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 
 export type DecodeJobPriority = 'visible' | 'zoom' | 'prefetch' | 'background'
 
