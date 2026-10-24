@@ -628,6 +628,241 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().book.assets.p1?.mime).toBe('image/png')
   })
 
+  it('coalesces patchAssetRecord emits onto rAF while import is running', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      rafQueue[id - 1] = () => undefined
+    })
+    enqueueGalleryAssets([
+      {
+        assetId: 'h1',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'h1.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+      {
+        assetId: 'h2',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'h2.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    rafQueue.shift()?.(0)
+    setImportRunning(true, 2)
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    listener.mockClear()
+    rafQueue.length = 0
+
+    patchAssetRecord('h1', {
+      contentHash:
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    })
+    patchAssetRecord('h2', {
+      contentHash:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    })
+    expect(listener).not.toHaveBeenCalled()
+    expect(rafQueue).toHaveLength(1)
+    expect(getBookStoreSnapshot().book.assets.h1?.contentHash).toMatch(/^a+$/)
+    expect(getBookStoreSnapshot().book.assets.h2?.contentHash).toMatch(/^b+$/)
+
+    rafQueue.shift()?.(0)
+    expect(listener).toHaveBeenCalledOnce()
+
+    setImportRunning(false)
+  })
+
+  it('emits patchAssetRecord immediately when import is not running', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    enqueueGalleryAssets([
+      {
+        assetId: 'live',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'live.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    rafQueue.shift()?.(0)
+    rafQueue.length = 0
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+
+    patchAssetRecord('live', {
+      contentHash:
+        'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    })
+    expect(listener).toHaveBeenCalledOnce()
+    expect(rafQueue).toHaveLength(0)
+  })
+
+  it('flushes a coalesced hash-patch emit when import ends before rAF', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    const cancel = vi.fn((id: number) => {
+      rafQueue[id - 1] = () => undefined
+    })
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', cancel)
+    enqueueGalleryAssets([
+      {
+        assetId: 'end',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'end.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    rafQueue.shift()?.(0)
+    setImportRunning(true, 1)
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    listener.mockClear()
+    rafQueue.length = 0
+
+    patchAssetRecord('end', {
+      contentHash:
+        'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    })
+    expect(listener).not.toHaveBeenCalled()
+    expect(rafQueue).toHaveLength(1)
+
+    setImportRunning(false)
+    expect(cancel).toHaveBeenCalled()
+    // flushScheduledEmit emits once, then emitGallery emits again.
+    expect(listener).toHaveBeenCalledTimes(2)
+    listener.mockClear()
+    rafQueue[0]?.(0)
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('ending import without a pending coalesce emit does not cancel or double-emit', () => {
+    const cancel = vi.fn()
+    vi.stubGlobal('cancelAnimationFrame', cancel)
+    setImportRunning(true, 1)
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    listener.mockClear()
+
+    setImportRunning(false)
+    expect(cancel).not.toHaveBeenCalled()
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a coalesced hash-patch emit pending when only import expectedCount changes', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    const cancel = vi.fn((id: number) => {
+      rafQueue[id - 1] = () => undefined
+    })
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', cancel)
+    enqueueGalleryAssets([
+      {
+        assetId: 'keep',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'keep.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    rafQueue.shift()?.(0)
+    setImportRunning(true, 1)
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    listener.mockClear()
+    rafQueue.length = 0
+
+    patchAssetRecord('keep', {
+      contentHash:
+        'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    })
+    expect(listener).not.toHaveBeenCalled()
+    expect(rafQueue).toHaveLength(1)
+
+    setImportRunning(true, 9)
+    expect(cancel).not.toHaveBeenCalled()
+    // emitGallery for the expectedCount change only — coalesce emit still pending.
+    expect(listener).toHaveBeenCalledTimes(1)
+    listener.mockClear()
+    rafQueue.shift()?.(0)
+    expect(listener).toHaveBeenCalledOnce()
+  })
+
+  it('resetBookStore cancels a pending coalesce emit so a late rAF cannot notify', () => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    enqueueGalleryAssets([
+      {
+        assetId: 'rst',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'rst.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+
+    const rafQueue: FrameRequestCallback[] = []
+    const cancel = vi.fn((id: number) => {
+      rafQueue[id - 1] = () => undefined
+    })
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', cancel)
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+
+    setImportRunning(true, 1)
+    patchAssetRecord('rst', {
+      contentHash:
+        'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+    })
+    expect(rafQueue).toHaveLength(1)
+    cancel.mockClear()
+    clearTimeoutSpy.mockClear()
+
+    resetBookStore()
+    expect(cancel).toHaveBeenCalled()
+    expect(clearTimeoutSpy).toHaveBeenCalled()
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    // cancelAnimationFrame replaces the queued callback; invoking it must no-op.
+    for (const cb of rafQueue) {
+      cb(0)
+    }
+    expect(listener).not.toHaveBeenCalled()
+  })
+
   it.each([
     { field: 'name' as const, value: 'other.jpg' },
     { field: 'correctedWidth' as const, value: 99 },

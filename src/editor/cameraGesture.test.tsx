@@ -111,12 +111,16 @@ describe('pasteboard camera gestures', () => {
     tile.setAttribute('role', 'row')
     tile.tabIndex = 0
     let tileSpaceHandled = false
+    let tileClicked = false
     tile.addEventListener('keydown', (event) => {
       if (event.code === 'Space' || event.key === ' ') {
         tileSpaceHandled = true
         event.preventDefault()
         event.stopPropagation()
       }
+    })
+    tile.addEventListener('click', () => {
+      tileClicked = true
     })
     document.body.append(tile)
     tile.focus()
@@ -132,8 +136,36 @@ describe('pasteboard camera gestures', () => {
     tile.remove()
 
     expect(tileSpaceHandled).toBe(false)
+    expect(tileClicked).toBe(false)
     expect(scroll.scrollLeft).toBe(160)
     expect(scroll.scrollTop).toBe(210)
+  })
+
+  it('activates filmstrip-like focus with Space alone while pointer is over pasteboard', () => {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    scroll.scrollLeft = 40
+    scroll.scrollTop = 50
+
+    const tile = document.createElement('div')
+    tile.setAttribute('role', 'row')
+    tile.tabIndex = 0
+    let tileClicked = false
+    tile.addEventListener('click', () => {
+      tileClicked = true
+    })
+    document.body.append(tile)
+    tile.focus()
+    expect(document.activeElement).toBe(tile)
+
+    fireEvent.pointerEnter(scroll)
+    fireEvent.keyDown(tile, { key: ' ', code: 'Space' })
+    fireEvent.keyUp(window, { key: ' ', code: 'Space' })
+    tile.remove()
+
+    expect(tileClicked).toBe(true)
+    expect(scroll.scrollLeft).toBe(40)
+    expect(scroll.scrollTop).toBe(50)
   })
 
   it('does not arm Space pan while a text input holds focus', async () => {

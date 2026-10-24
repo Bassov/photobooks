@@ -1,7 +1,7 @@
 /* M2.5 Design foundation */
 import * as React from "react"
 import * as Icons from "lucide-react"
-import { Moon, Sun, Images, AlertTriangle, Download } from "lucide-react"
+import { Images, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FeaturedIcon } from "@/components/uui/FeaturedIcon"
@@ -14,7 +14,6 @@ import { TopBar, Dock, SaveStatus, floatBar } from "@/sandbox/chrome"
 import { Toolbar } from "@/components/ui/toolbar"
 import { Separator } from "@/components/ui/separator"
 import { InspectorPanel, EmptyInspector, PhotoSection, GeometrySection, useSelected } from "@/sandbox/inspector"
-import { setTheme, useTheme } from "@/kit/theme"
 import { photos } from "@/data"
 import { Std, Dev, SpecCard, WithScenarios } from "./parts"
 import { HomeScreen, RelinkDialog, DialogHead } from "./screens"
@@ -29,8 +28,8 @@ function useVar(name: string, dep: unknown) {
   React.useEffect(() => { setV(getComputedStyle(document.documentElement).getPropertyValue(name).trim()) }, [name, dep])
   return v
 }
-function Swatch({ v, theme }: { v: string; theme: string }) {
-  const val = useVar(`--${v}`, theme)
+function Swatch({ v }: { v: string }) {
+  const val = useVar(`--${v}`, "b")
   return (
     <div className="flex flex-col gap-1">
       <div className="h-10 rounded-md border shadow-xs" style={{ background: `var(--${v})` }} />
@@ -39,18 +38,13 @@ function Swatch({ v, theme }: { v: string; theme: string }) {
   )
 }
 function TokensSpecimen() {
-  const theme = useTheme()
   const roles = ["background", "chrome", "canvas", "paper", "card", "popover", "foreground", "muted-foreground", "primary", "primary-foreground", "secondary", "muted", "accent", "border", "input", "ring", "select", "guide", "success", "warning", "destructive"]
   return (
     <div className="flex flex-col gap-5 p-5" data-testid="specimen">
       <div className="flex items-center gap-3">
-        <div className="heading text-xl">?specimen</div><span className="text-xs text-muted-foreground">dev/test-only page · tokens resolve live from CSS variables</span>
-        <ToggleButtonGroup selectionMode="single" disallowEmptySelection selectedKeys={[theme]} onSelectionChange={(k) => { const v = [...k][0]; if (v) setTheme(v as "b") }} aria-label="Theme" className="ml-auto gap-0.5 rounded-md bg-muted p-0.5 dark:bg-black/25">
-          <Toggle id="b" size="sm" className="h-7 gap-1.5 px-2 text-xs data-[selected]:bg-background data-[selected]:shadow-sm dark:data-[selected]:bg-accent [&_svg]:size-3.5"><Sun />B</Toggle>
-          <Toggle id="b-dark" size="sm" className="h-7 gap-1.5 px-2 text-xs data-[selected]:bg-background data-[selected]:shadow-sm dark:data-[selected]:bg-accent [&_svg]:size-3.5"><Moon />B-dark</Toggle>
-        </ToggleButtonGroup>
+        <div className="heading text-xl">?specimen</div><span className="text-xs text-muted-foreground">dev/test-only page · Theme B light tokens resolve live from CSS variables</span>
       </div>
-      <div><div className="eyebrow mb-2">Semantic colour roles</div><div className="grid grid-cols-7 gap-3">{roles.map((r) => <Swatch key={r} v={r} theme={theme} />)}</div></div>
+      <div><div className="eyebrow mb-2">Semantic colour roles</div><div className="grid grid-cols-7 gap-3">{roles.map((r) => <Swatch key={r} v={r} />)}</div></div>
       <div className="grid grid-cols-[1.3fr_1fr] gap-5">
         <div><div className="eyebrow mb-2">Type scale · Inter (UI) + Lora (headings), self-hosted woff2 latin + cyrillic</div>
           <div className="flex flex-col gap-1.5 rounded-lg border bg-card p-4">
@@ -166,29 +160,6 @@ function SaveCycle() {
   return <div className="absolute right-3 top-3 z-30 rounded-lg border bg-popover p-3 text-xs shadow-md">Save indicator cycles: <SaveStatus /></div>
 }
 
-/* ---------------------------------------------------------------- dark theme */
-const LocalTheme = React.createContext<[string, (t: string) => void]>(["b-dark", () => { }])
-function DarkTheme() {
-  const pageTheme = useTheme()
-  const [t, setT] = React.useState(pageTheme === "b" ? "b-dark" : "b")
-  return (
-    <LocalTheme.Provider value={[t, setT]}>
-      <div data-theme={t} className="h-full bg-chrome text-foreground">
-        <Std features={{ drop: true }} top={<TopBar views={["grid"]} right={<ThemeSwitch />} />} right={<InspectorPanel frame={<GeoTab />} />} />
-      </div>
-    </LocalTheme.Provider>
-  )
-}
-function ThemeSwitch() {
-  const [t, setT] = React.useContext(LocalTheme)
-  return (
-    <>
-      <IconButton label={t === "b" ? "Dark theme" : "Light theme"} onPress={() => setT(t === "b" ? "b-dark" : "b")} data-testid="app-theme-toggle">{t === "b" ? <Moon /> : <Sun />}</IconButton>
-      <Button size="sm" className="h-8 gap-1.5 px-2.5 text-[13px] shadow-sm [&_svg]:size-4"><Download />Export</Button>
-    </>
-  )
-}
-
 export const M25: Record<string, FeatureDef> = {
   "design-tokens": {
     Demo: TokensSpecimen, auto: true,
@@ -196,8 +167,7 @@ export const M25: Record<string, FeatureDef> = {
       what: "Semantic tokens (surfaces, text, accent, selection, drop target, statuses) on top of a primitive palette; Inter / Lora fonts are local woff2 files (Latin + Cyrillic).",
       where: "Dev page ?specimen; in the product — all chrome styling.",
       why: "One token edit changes the whole UI; zero third-party font requests.",
-      keys: [["—", "B / B-dark switch right on the page"]],
-      edge: ["prefers-reduced-motion turns animations off", "Book content colours are not tokens — the document defines them", "Raw colours outside the token file are not allowed"],
+      edge: ["prefers-reduced-motion turns animations off", "Book content colours are not tokens — the document defines them", "Raw colours outside the token file are not allowed", "Single Theme B light — no theme switch"],
     },
   },
   "icon-set": {
@@ -235,16 +205,6 @@ export const M25: Record<string, FeatureDef> = {
       where: "Scenario switcher above the demo.",
       why: "The project screens look and behave like the new editor.",
       edge: ["Empty Home — an EmptyState with two actions", "The save indicator cycles through all 4 states"],
-    },
-  },
-  "dark-theme": {
-    Demo: DarkTheme,
-    notes: {
-      what: "Dark values of the semantic tokens on [data-theme]; defaults to prefers-color-scheme, a switch in the top bar, the choice is stored in the browser.",
-      where: "Moon / sun icon in the editor top bar. The demo starts in the theme opposite to the page theme.",
-      why: "Working with photos in the evening and in dark surroundings; the pasteboard darkens, book pages do not.",
-      keys: [["—", "the icon in the top bar switches the theme"]],
-      edge: ["Paper stays light in both themes", "Screenshot tests and axe run in both themes"],
     },
   },
 }

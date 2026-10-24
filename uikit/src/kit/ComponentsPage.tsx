@@ -1,4 +1,4 @@
-/* Components page: every ported component in its variants and states, light and dark side by side, interactive. */
+/* Components page: every ported component in its variants and states (Theme B light). */
 import * as React from "react"
 import {
   Download, Trash2, Bold, Italic, Underline, Check, CloudOff, Copy, FolderOpen, Pencil, AlertTriangle, CircleCheck, Search,
@@ -461,17 +461,7 @@ const SPECS: Spec[] = [
   },
 ]
 
-function Column({ theme, spec }: { theme: "b" | "b-dark"; spec: Spec }) {
-  return (
-    <div data-theme={theme} className="min-w-0 bg-background p-5 text-foreground" data-testid={`cmp-${spec.id}-${theme}`}>
-      <div className="mb-3 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground">{theme === "b" ? "B · light" : "B-dark"}</div>
-      {spec.render()}
-    </div>
-  )
-}
-
 export function ComponentsPage() {
-  const [mode, setMode] = React.useState<"both" | "page">("both")
   return (
     <div className="min-h-screen bg-background">
       <KitBar />
@@ -482,15 +472,9 @@ export function ComponentsPage() {
             <h1 className="heading text-[32px] leading-tight">Components</h1>
             <p className="mt-2 max-w-[860px] text-[14px] leading-relaxed text-muted-foreground">
               JollyUI components (MIT) ported to React Aria Components 1.22 / React 19 / Tailwind 4, plus Badge and FeaturedIcon from Untitled UI (MIT, restyled) and app-level wrappers.
-              Every block is interactive; hover / focus / pressed states are also shown forced (labelled under the element). Left: light theme B, right: B-dark.
+              Every block is interactive; hover / focus / pressed states are also shown forced (labelled under the element). Single Theme B (light).
             </p>
           </div>
-          <Tabs selectedKey={mode} onSelectionChange={(k) => setMode(k as "both")}>
-            <TabList aria-label="Display mode">
-              <Tab id="both">Light | Dark</Tab>
-              <Tab id="page">Page theme only</Tab>
-            </TabList>
-          </Tabs>
         </div>
         <nav className="mt-6 flex flex-wrap gap-1.5" aria-label="Components">
           {SPECS.map((s) => <a key={s.id} href={`#/components`} onClick={(e) => { e.preventDefault(); document.getElementById(`c-${s.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }) }} className="rounded-md border bg-card px-2.5 py-1 text-xs shadow-xs hover:bg-accent">{s.name}</a>)}
@@ -504,8 +488,8 @@ export function ComponentsPage() {
                 <Badge color={s.source === "JollyUI" ? "brand" : s.source === "Untitled UI" ? "gray" : "success"}>{s.source}</Badge>
                 {s.note && <span className="ml-auto text-xs text-muted-foreground">{s.note}</span>}
               </div>
-              <div className={cn("grid overflow-hidden rounded-xl border shadow-xs", mode === "both" ? "grid-cols-2 divide-x" : "grid-cols-1")}>
-                {mode === "both" ? <><Column theme="b" spec={s} /><Column theme="b-dark" spec={s} /></> : <div className="bg-background p-5">{s.render()}</div>}
+              <div className="overflow-hidden rounded-xl border bg-background p-5 shadow-xs" data-testid={`cmp-${s.id}`}>
+                {s.render()}
               </div>
             </section>
           ))}
