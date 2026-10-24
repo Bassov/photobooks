@@ -18,10 +18,18 @@ describe('clearThumbsAndDerivedCacheForTests', () => {
     resetThumbCache()
     resetPendingHashesForTests()
     setDerivedCacheForTests(undefined)
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
   it('clears hot thumbs and DerivedCache entries', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:clear-test')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
