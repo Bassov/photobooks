@@ -192,7 +192,6 @@ function pumpNowThenBackground(): void {
 function enqueueDecodeJob(item: DecodeQueueItem): void {
   queue.push(item)
   if (item.lane === 'now') {
-    // Stryker disable next-line BooleanLiteral: now-lane must not enable background in the sync pump
     pump({ allowBackground: false })
     return
   }
@@ -267,7 +266,6 @@ function promoteDeferredHeic(): void {
     }
     const requestId = `asset-${String((requestCounter += 1))}`
     const priority: DecodeJobPriority = 'visible'
-    // Stryker disable next-line ConditionalExpression,EqualityOperator,BooleanLiteral: dualTiers is a strict opt-in flag
     const dualTiers = deferred.options.dualTiers === true
     const item: DecodeQueueItem = {
       requestId,
@@ -473,6 +471,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
 /** Eagerly construct the worker pool (one-time setup outside hot-handler measures). */
 export function warmAssetPool(): void {
   ensureSlots()
+  void import('./decodePressure').then((mod) => {
+    mod.startDecodePressureObserver()
+  })
 }
 
 /** Terminates workers and clears the queue (tests / teardown). */

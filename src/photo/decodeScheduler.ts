@@ -100,7 +100,6 @@ export function takeNextDecodeJob<T extends RankedDecodeJob>(
     return undefined
   }
   const [job] = queue.splice(index, 1)
-  // Stryker disable next-line ConditionalExpression,BlockStatement: splice after findIndex always yields an element
   if (job === undefined) {
     return undefined
   }
@@ -150,10 +149,34 @@ export function queueHasBackgroundLane(
 
 /**
  * Schedule a background drain once the now lane is empty.
- * Uses a microtask so a synchronous now-enqueue in the same turn wins.
+ * Prefer `scheduler.postTask({priority:'background'})`, then
+ * `requestIdleCallback`, then a 0ms timeout (tests / sparse hosts).
  */
 export function scheduleWhenNowEmpty(run: () => void): void {
-  queueMicrotask(run)
+  const schedulerUnknown: unknown = Reflect.get(globalThis, 'scheduler')
+  if (
+    typeof schedulerUnknown === 'object' &&
+    schedulerUnknown !== null &&
+    'postTask' in schedulerUnknown &&
+    typeof (schedulerUnknown).postTask === 'function'
+  ) {
+    void (
+      schedulerUnknown as {
+        postTask: (
+          cb: () => void,
+          opts: { priority: string },
+        ) => Promise<unknown>
+      }
+    ).postTask(run, { priority: 'background' })
+    return
+  }
+  if (typeof globalThis.requestIdleCallback === 'function') {
+    globalThis.requestIdleCallback(() => {
+      run()
+    })
+    return
+  }
+  setTimeout(run, 0)
 }
 
 /** Fresh AbortController when missing or already aborted. */

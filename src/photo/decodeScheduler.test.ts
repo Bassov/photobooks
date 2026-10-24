@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { decodeLaneFor } from './decodeQueuePolicy'
 import {
   applyDecodePressureSignals,
@@ -21,6 +21,11 @@ import {
 } from './decodeScheduler'
 
 describe('decodeScheduler', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
   it('buildNowAssetIds unions visible and book-used', () => {
     expect(
       [...buildNowAssetIds(new Set(['a']), new Set(['b', 'a']))].sort(),
@@ -258,14 +263,38 @@ describe('decodeScheduler', () => {
     expect(queueHasBackgroundLane([])).toBe(false)
   })
 
-  it('scheduleWhenNowEmpty runs on a microtask after the current turn', async () => {
+  it('scheduleWhenNowEmpty prefers background postTask when available', async () => {
+    const order: string[] = []
+    const postTask = vi.fn((cb: () => void) => {
+      queueMicrotask(cb)
+      return Promise.resolve()
+    })
+    vi.stubGlobal('scheduler', { postTask })
+    scheduleWhenNowEmpty(() => {
+      order.push('idle')
+    })
+    order.push('sync')
+    expect(postTask).toHaveBeenCalledWith(expect.any(Function), {
+      priority: 'background',
+    })
+    await Promise.resolve()
+    expect(order).toEqual(['sync', 'idle'])
+    vi.unstubAllGlobals()
+  })
+
+  it('scheduleWhenNowEmpty falls back to setTimeout(0) without idle APIs', async () => {
+    vi.stubGlobal('scheduler', undefined)
+    vi.stubGlobal('requestIdleCallback', undefined)
     const order: string[] = []
     scheduleWhenNowEmpty(() => {
       order.push('idle')
     })
     order.push('sync')
-    await Promise.resolve()
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0)
+    })
     expect(order).toEqual(['sync', 'idle'])
+    vi.unstubAllGlobals()
   })
 
   it('ensureActiveAbortController replaces aborted controllers', () => {

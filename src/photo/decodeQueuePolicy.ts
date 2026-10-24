@@ -30,7 +30,6 @@ export const DECODE_POOL_CAP = 4
 export function resolveDecodeCores(
   hardwareConcurrency: number | undefined,
 ): number {
-  // Stryker disable next-line ConditionalExpression: `!== undefined` is redundant with `> 0` for number|undefined
   if (hardwareConcurrency !== undefined && hardwareConcurrency > 0) {
     return hardwareConcurrency
   }

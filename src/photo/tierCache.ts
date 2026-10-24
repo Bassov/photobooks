@@ -128,7 +128,6 @@ export function requestTier(
           return
         }
         const selected = selectTierEncodeBuffers(dualTiers, result)
-        // Stryker disable next-line MethodExpression: must copy encode buffer before LRU/cache handoff
         const retained = selected.buffer.slice(0)
         lastTier.set(key, {
           buffer: retained,
@@ -138,7 +137,6 @@ export function requestTier(
         if (thumbKey !== undefined) {
           const cache = await getDerivedCache()
           await cache.put(thumbKey, THUMB_PRESET_ID, {
-            // Stryker disable next-line MethodExpression: DerivedCache must own a copy of thumb bytes
             bytes: result.previewBuffer.slice(0),
             mimeType: result.previewMimeType,
           })
@@ -245,8 +243,7 @@ export function seedWorkingPreview(
   }
   return getDerivedCache().then(async (cache) => {
     await cache.put(cacheKey, tierPresetId(WORKING_PREVIEW_EDGE), {
-      // Stryker disable next-line MethodExpression: retained is already a defensive copy of the caller buffer
-      bytes: retained.slice(0),
+      bytes: retained,
       mimeType,
     })
   })

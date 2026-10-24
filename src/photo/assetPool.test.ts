@@ -421,7 +421,7 @@ describe('assetPool', () => {
       previewMimeType: 'image/webp',
     })
     warmAssetPool()
-    // No force-idle: background must drain via the microtask scheduler.
+    // No force-idle: background drains via idle/postTask/setTimeout(0).
     setVisibleAssetIds(['visible-only'])
     const pending = runImportBatch(
       [
