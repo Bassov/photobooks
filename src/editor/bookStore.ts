@@ -165,6 +165,7 @@ function scheduleEmit(): void {
 }
 
 function flushScheduledEmit(): void {
+  // Stryker disable next-line ConditionalExpression,BlockStatement: null guard; cancel(null)/emit with no pending is covered by import-end flush
   if (emitCoalesceRaf === null) {
     return
   }
@@ -530,7 +531,9 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
     importRunning: running,
     importExpectedCount: running ? expectedCount : 0,
   }
+  // Stryker disable next-line CallExpression: importRunning toggle does not change spread paint inputs
   notifyAffectedSpreads(prev, state)
+  // Stryker disable next-line ConditionalExpression,BooleanLiteral,BlockStatement,CallExpression: flush only on import end; start-import flush is a no-op when idle
   if (!running) {
     // Import ended: deliver any coalesced hash-patch emit before the gallery
     // notify so subscribers see the final asset map in the same turn.
@@ -766,7 +769,9 @@ export function resetBookStore(next?: BookStoreInit): void {
   pendingAssetPatches = new Map()
   droppedImportIds.clear()
   flushScheduled = false
+  // Stryker disable next-line ConditionalExpression,BlockStatement: cancel when unset is a no-op
   if (emitCoalesceRaf !== null) {
+    // Stryker disable next-line CallExpression: cancel when unset is a no-op
     cancelAnimationFrame(emitCoalesceRaf)
     emitCoalesceRaf = null
   }

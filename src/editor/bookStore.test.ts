@@ -683,6 +683,80 @@ describe('bookStore', () => {
     setImportRunning(false)
   })
 
+  it('emits patchAssetRecord immediately when import is not running', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    enqueueGalleryAssets([
+      {
+        assetId: 'live',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'live.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    rafQueue.shift()?.(0)
+    rafQueue.length = 0
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+
+    patchAssetRecord('live', {
+      contentHash:
+        'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    })
+    expect(listener).toHaveBeenCalledOnce()
+    expect(rafQueue).toHaveLength(0)
+  })
+
+  it('flushes a coalesced hash-patch emit when import ends before rAF', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    const cancel = vi.fn((id: number) => {
+      rafQueue[id - 1] = () => undefined
+    })
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', cancel)
+    enqueueGalleryAssets([
+      {
+        assetId: 'end',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'end.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    rafQueue.shift()?.(0)
+    setImportRunning(true, 1)
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    listener.mockClear()
+    rafQueue.length = 0
+
+    patchAssetRecord('end', {
+      contentHash:
+        'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    })
+    expect(listener).not.toHaveBeenCalled()
+    expect(rafQueue).toHaveLength(1)
+
+    setImportRunning(false)
+    expect(cancel).toHaveBeenCalled()
+    // flushScheduledEmit emits once, then emitGallery emits again.
+    expect(listener).toHaveBeenCalledTimes(2)
+    listener.mockClear()
+    rafQueue[0]?.(0)
+    expect(listener).not.toHaveBeenCalled()
+  })
+
   it.each([
     { field: 'name' as const, value: 'other.jpg' },
     { field: 'correctedWidth' as const, value: 99 },

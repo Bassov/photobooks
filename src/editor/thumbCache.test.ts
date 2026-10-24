@@ -125,6 +125,68 @@ describe('thumbCache', () => {
     expect(getThumbUrl('e')).toBe('blob:t-5')
   })
 
+  it('flushes pending thumbs via the setTimeout watchdog when rAF never runs', () => {
+    vi.stubGlobal('requestAnimationFrame', (): number => 1)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let n = 0
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      n += 1
+      return `blob:w-${String(n)}`
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+
+    setThumbUrl('w1', new Uint8Array([1]).buffer, 'image/jpeg')
+    expect(getThumbUrl('w1')).toBeUndefined()
+    vi.advanceTimersByTime(32)
+    expect(getThumbUrl('w1')).toBe('blob:w-1')
+    vi.useRealTimers()
+  })
+
+  it('resetThumbCache drops a pending publish so a late rAF cannot resurrect it', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pending')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+
+    setThumbUrl('gone', new Uint8Array([1]).buffer, 'image/jpeg')
+    expect(rafQueue).toHaveLength(1)
+    resetThumbCache()
+    expect(clearTimeoutSpy).toHaveBeenCalled()
+    expect(getThumbUrl('gone')).toBeUndefined()
+    rafQueue.shift()?.(0)
+    expect(getThumbUrl('gone')).toBeUndefined()
+  })
+
+  it('copies thumb bytes so mutating the source buffer after setThumbUrl is safe', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:retained')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    const source = new Uint8Array([1, 2, 3])
+    setThumbUrl('keep', source.buffer, 'image/jpeg', SAMPLE_HASH)
+    source.fill(0)
+    await awaitPendingHashes()
+    const got = await cache.get(SAMPLE_HASH, 'thumb')
+    expect(got.ok).toBe(true)
+    assert.equal(got.ok, true)
+    expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([1, 2, 3]))
+  })
+
+  it('resetThumbCache clears lastThumb so putCachedThumbForHash cannot resurrect', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:last')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    setThumbUrl('x', new Uint8Array([7]).buffer, 'image/jpeg')
+    resetThumbCache()
+    await putCachedThumbForHash('x', SAMPLE_HASH)
+    expect((await cache.get(SAMPLE_HASH, 'thumb')).ok).toBe(false)
+  })
+
   it('resetThumbCache clears urls and notifies listeners', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x')
     const revoke = vi

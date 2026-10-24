@@ -130,9 +130,58 @@ describe('loafObserver', () => {
     ]
 
     clearLoafEntries()
-    expect(getLoafEntries()).toEqual([])
+    // Assert buffer drain before getLoafEntries (which also flushes).
     expect(captured.buffered).toEqual([])
+    expect(getLoafEntries()).toEqual([])
     assertNoLoafEntries()
+  })
+
+  it('getLoafEntries flushes takeRecords before returning', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: {
+      callback: ((list: List) => void) | null
+      buffered: PerformanceEntry[]
+    } = {
+      callback: null,
+      buffered: [],
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+
+      takeRecords(): PerformanceEntry[] {
+        const drained = captured.buffered
+        captured.buffered = []
+        return drained
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    startLoafObserver()
+    clearLoafEntries()
+    captured.buffered = [
+      {
+        startTime: performance.now() + 1,
+        duration: 55,
+        blockingDuration: 0,
+      } as PerformanceEntry & { blockingDuration: number },
+    ]
+
+    expect(getLoafEntries()).toEqual([
+      { startTime: expect.any(Number), duration: 55, blockingDuration: 0 },
+    ])
   })
 
   it('assertNoLoafEntries flushes takeRecords before counting', () => {
