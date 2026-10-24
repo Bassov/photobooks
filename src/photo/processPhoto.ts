@@ -56,7 +56,6 @@ export function bitmapResizeOptions(
 ):
   | Pick<ImageBitmapOptions, 'resizeWidth' | 'resizeHeight' | 'resizeQuality'>
   | undefined {
-  // Stryker disable next-line ConditionalExpression,EqualityOperator,LogicalOperator: non-positive guards are equivalent for scale-to-undefined paths under cover=false
   if (!(width > 0 && height > 0 && maxEdge > 0)) {
     return undefined
   }
@@ -197,22 +196,16 @@ export async function processPhotoRequest(
     const knownWidth = sof?.width ?? parsed.ImageWidth ?? parsed.ExifImageWidth
     const knownHeight =
       sof?.height ?? parsed.ImageHeight ?? parsed.ExifImageHeight
-    // Stryker disable next-line ConditionalExpression,LogicalOperator: SOF/EXIF sizes are finite when present; isFinite chain is equivalent for fixture paths
-    const knownOk =
-      knownWidth !== undefined &&
-      knownHeight !== undefined &&
-      Number.isFinite(knownWidth) &&
-      Number.isFinite(knownHeight)
-    const resize = knownOk
-      ? bitmapResizeOptions(
-          knownWidth,
-          knownHeight,
-          maxEdge,
-          cover,
-          // Stryker disable next-line EqualityOperator: ≤320 vs <320 both map thumb encode to low for our caps
-          maxEdge <= THUMB_MAX_EDGE ? 'low' : 'medium',
-        )
-      : undefined
+    const resize =
+      typeof knownWidth === 'number' && typeof knownHeight === 'number'
+        ? bitmapResizeOptions(
+            knownWidth,
+            knownHeight,
+            maxEdge,
+            cover,
+            maxEdge <= THUMB_MAX_EDGE ? 'low' : 'medium',
+          )
+        : undefined
     const bitmap = await createImageBitmap(blob, {
       imageOrientation: 'none',
       ...resize,

@@ -529,6 +529,99 @@ describe('assetPool', () => {
     expect(order).toEqual(['hold.jpg', 'film-only.jpg', 'cleared.jpg'])
   })
 
+  it('resetAssetPool forgets prior spread preference', async () => {
+    const order: string[] = []
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    class GatedWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: { id: string; file: File }): void {
+        order.push(data.file.name)
+        void gate.then(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: data.file.name,
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    vi.stubGlobal('Worker', GatedWorker)
+    warmAssetPool()
+    setSpreadVisibleAssetIds('s0', ['spread'])
+    resetAssetPool()
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    vi.stubGlobal('Worker', GatedWorker)
+    warmAssetPool()
+    setFilmstripVisibleAssetIds(['film'])
+
+    const file = (name: string): File =>
+      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+    const hold = processAsset({
+      assetId: 'hold',
+      file: file('hold.jpg'),
+      priority: 'prefetch',
+    })
+    const stale = processAsset({
+      assetId: 'spread',
+      file: file('stale.jpg'),
+      priority: 'prefetch',
+    })
+    const film = processAsset({
+      assetId: 'film',
+      file: file('film.jpg'),
+      priority: 'prefetch',
+    })
+    await Promise.resolve()
+    release?.()
+    await Promise.all([hold, stale, film])
+    expect(order).toEqual(['hold.jpg', 'film.jpg', 'stale.jpg'])
+  })
+
   it('setVisibleAssetIds clears prior spread preference', async () => {
     const order: string[] = []
     let release: (() => void) | undefined

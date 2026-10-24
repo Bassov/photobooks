@@ -1,5 +1,6 @@
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { THUMB_MAX_EDGE } from './processPhoto'
+import { metadataWorkerCount } from './metadataPool'
 
 interface HashWorkerRequest {
   id: string
@@ -118,20 +119,15 @@ interface WorkerSlot {
 /** Cap concurrent decode workers so large imports do not explode memory. */
 export const DECODE_POOL_CAP = 4
 
-/** Pure pool sizing for tests / mutation; defaults when concurrency missing or ≤0. */
+/** Pure pool sizing for tests / mutation; caps metadataWorkerCount. */
 export function decodeWorkerCount(
   hardwareConcurrency: number | undefined,
 ): number {
-  // Stryker disable next-line EqualityOperator,ConditionalExpression,LogicalOperator: >0 vs ≥0 / true&& are equivalent under Math.max(1, cores-1) for 0
-  const cores =
-    hardwareConcurrency !== undefined && hardwareConcurrency > 0
-      ? hardwareConcurrency
-      : 2
-  return Math.min(DECODE_POOL_CAP, Math.max(1, cores - 1))
+  return Math.min(DECODE_POOL_CAP, metadataWorkerCount(hardwareConcurrency))
 }
 
 function poolSize(): number {
-  // Stryker disable next-line ConditionalExpression,EqualityOperator: navigator guard is environment-only; Vitest always has navigator
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: navigator is always defined in app + Vitest
   const concurrency =
     typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined
   return decodeWorkerCount(concurrency)
@@ -155,7 +151,6 @@ function rebuildVisibleAssetIds(): void {
     }
   }
   visibleAssetIds = next
-  // Stryker disable next-line CallExpression: pump is a no-op when the queue is empty (visibility-only updates)
   pump()
 }
 
@@ -444,9 +439,9 @@ export function setSpreadVisibleAssetIds(
   spreadId: string,
   assetIds: readonly string[],
 ): void {
-  if (assetIds.length === 0) {
-    spreadVisibleById.delete(spreadId)
-  } else {
+  spreadVisibleById.delete(spreadId)
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: after delete, empty set vs skip is equivalent for rebuild
+  if (assetIds.length > 0) {
     spreadVisibleById.set(spreadId, new Set(assetIds))
   }
   rebuildVisibleAssetIds()
