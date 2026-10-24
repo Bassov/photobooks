@@ -6,9 +6,11 @@ import { restoreAspectFromPreview } from './previewAspect'
 
 const DEFAULT_CAPACITY = 256
 /** Cap React notifies per frame so bulk import+scroll stays within LoAF. */
-const FLUSH_PER_FRAME = 2
+const FLUSH_PER_FRAME = 1
 /** Matches bookStore gallery flush: progress if rAF freezes (background tab). */
 const FLUSH_RAF_WATCHDOG_MS = 32
+/** Hold thumb React publishes briefly while the filmstrip is scrolling. */
+const SCROLL_QUIET_MS = 100
 
 const lru = new ObjectUrlLru({ capacity: DEFAULT_CAPACITY })
 const assetListeners = new Map<string, Set<() => void>>()
@@ -32,6 +34,8 @@ interface PendingThumb {
 const pendingById = new Map<string, PendingThumb>()
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
+/** `performance.now()` until which thumb flushes should wait for scroll quiet. */
+let scrollQuietUntilMs = 0
 
 function notifyAsset(assetId: string): void {
   publishGeneration += 1
@@ -58,6 +62,11 @@ function publishThumbNow(
 }
 
 function flushPending(): void {
+  const now = performance.now()
+  if (now < scrollQuietUntilMs) {
+    scheduleFlushAfter(scrollQuietUntilMs - now)
+    return
+  }
   let published = 0
   for (const [id, item] of pendingById) {
     if (published >= FLUSH_PER_FRAME) {
@@ -70,6 +79,21 @@ function flushPending(): void {
   if (pendingById.size > 0) {
     scheduleFlush()
   }
+}
+
+function scheduleFlushAfter(delayMs: number): void {
+  if (flushScheduled) {
+    return
+  }
+  flushScheduled = true
+  flushWatchdogTimer = setTimeout(
+    () => {
+      flushScheduled = false
+      flushWatchdogTimer = undefined
+      flushPending()
+    },
+    Math.max(0, delayMs),
+  )
 }
 
 function scheduleFlush(): void {
@@ -91,6 +115,17 @@ function scheduleFlush(): void {
   // used previously because rAF-only queues stalled without a watchdog.
   requestAnimationFrame(run)
   flushWatchdogTimer = setTimeout(run, FLUSH_RAF_WATCHDOG_MS)
+}
+
+/**
+ * Call from filmstrip scroll so thumb publishes wait for a quiet frame —
+ * avoids stacking React notifies on scroll-during-import LoAF windows.
+ */
+export function noteFilmstripScroll(): void {
+  scrollQuietUntilMs = performance.now() + SCROLL_QUIET_MS
+  if (pendingById.size > 0) {
+    scheduleFlush()
+  }
 }
 
 function enqueuePublish(
@@ -246,6 +281,7 @@ export function resetThumbCache(): void {
   flushScheduled = false
   clearTimeout(flushWatchdogTimer)
   flushWatchdogTimer = undefined
+  scrollQuietUntilMs = 0
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }

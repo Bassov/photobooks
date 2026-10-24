@@ -814,6 +814,68 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
+  it('skips session meta and manifest writes when dims already match', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 100,
+            correctedHeight: 50,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('same-dims.jpg', 1_700_000_000_222)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-same-dims',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    patchSpy.mockClear()
+
+    // Re-import same identity: decode reports identical dims — skip meta/IDB.
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-same-dims',
+    })
+    expect(patchSpy).not.toHaveBeenCalled()
+    patchSpy.mockRestore()
+  })
+
   it('writes corrected dimensions into the folder manifest after decode', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({

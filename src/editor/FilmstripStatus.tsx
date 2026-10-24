@@ -9,20 +9,22 @@ import {
   getFolderRescanProgress,
   subscribeFolderRescanProgress,
 } from './photoRootSession'
-import type { ImportProgress } from './importPhotos'
+import {
+  getImportProgress,
+  subscribeImportProgress,
+} from './importProgressStore'
 import {
   getImportErrors,
   openImportErrorsPanel,
   subscribeImportErrors,
 } from './importErrorsStore'
 
-export function FilmstripStatus({
-  photoCount,
-  progress,
-}: {
-  photoCount: number
-  progress: ImportProgress | null
-}) {
+export function FilmstripStatus({ photoCount }: { photoCount: number }) {
+  const progress = useSyncExternalStore(
+    subscribeImportProgress,
+    getImportProgress,
+    getImportProgress,
+  )
   const storeErrors = useSyncExternalStore(
     subscribeImportErrors,
     getImportErrors,

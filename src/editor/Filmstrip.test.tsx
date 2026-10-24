@@ -27,6 +27,10 @@ import {
   setSelectedAssetId,
 } from './gallerySelection'
 import { Filmstrip } from './Filmstrip'
+import {
+  resetImportProgressForTests,
+  setImportProgress,
+} from './importProgressStore'
 import { Pasteboard } from './Pasteboard'
 import { seedGallery } from './gallery.test-helpers'
 import { resetCameraStore } from './cameraStore'
@@ -254,19 +258,17 @@ describe('Filmstrip aspect cards', () => {
 
   it('shows import progress on the status strip', () => {
     seedGallery(1)
-    render(
-      <Filmstrip
-        progress={{
-          total: 10,
-          completed: 3,
-          errors: [],
-          running: true,
-        }}
-      />,
-    )
+    setImportProgress({
+      total: 10,
+      completed: 3,
+      errors: [],
+      running: true,
+    })
+    render(<Filmstrip />)
     expect(screen.getByTestId('import-progress').textContent).toMatch(
       /Importing 3 \/ 10/,
     )
+    resetImportProgressForTests()
   })
 
   it('keeps empty-state copy full-width (not a 1px virtualizer window)', () => {

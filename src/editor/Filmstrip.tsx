@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { GridList } from 'react-aria-components'
 import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
+import { noteFilmstripScroll } from './thumbCache'
 import { EmptyState } from '../ui/EmptyState'
 import {
   filmstripEmptyStyle,
@@ -37,7 +38,6 @@ import {
   subscribeFilmstripJump,
 } from './filmstripJump'
 import { FilmstripStatus } from './FilmstripStatus'
-import type { ImportProgress } from './importPhotos'
 import {
   buildStridePrefix,
   indexFromScrollOffset,
@@ -51,11 +51,7 @@ import './Filmstrip.css'
 /** Extra cover beyond the scrollport so fast scroll does not flash holes. */
 const WINDOW_OVERSCAN_PX = THUMB_WIDTH_MAX * 2
 
-export const Filmstrip = memo(function Filmstrip({
-  progress = null,
-}: {
-  progress?: ImportProgress | null
-}) {
+export const Filmstrip = memo(function Filmstrip() {
   const gallery = useSyncExternalStore(
     subscribeGallery,
     getGalleryIdsSnapshot,
@@ -167,6 +163,7 @@ export const Filmstrip = memo(function Filmstrip({
 
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
     pendingScrollLeft.current = event.currentTarget.scrollLeft
+    noteFilmstripScroll()
     if (scrollRaf.current !== 0) {
       return
     }
@@ -208,7 +205,7 @@ export const Filmstrip = memo(function Filmstrip({
         }
       }}
     >
-      <FilmstripStatus photoCount={total} progress={progress} />
+      <FilmstripStatus photoCount={total} />
       <button
         type="button"
         className="filmstrip-unplace"

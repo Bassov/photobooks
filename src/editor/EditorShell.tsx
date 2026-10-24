@@ -7,7 +7,7 @@ import { Filmstrip } from './Filmstrip'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
 import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
-import type { ImportProgress } from './importPhotos'
+import { setImportProgress } from './importProgressStore'
 import { Pasteboard } from './Pasteboard'
 import { EditorTopBar } from './EditorTopBar'
 import { useChromeImport } from './useChromeImport'
@@ -22,10 +22,10 @@ export function EditorShell() {
   useEffect(() => installEditorKeys(), [])
   useEffect(() => installDocumentDragGesture(), [])
 
-  const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [toastQueue] = useState(() => createToastQueue())
   const chromeImport = useChromeImport({
-    onImportProgress: setProgress,
+    // External store: progress ticks must not re-render Pasteboard / top bar.
+    onImportProgress: setImportProgress,
     toastQueue,
   })
 
@@ -44,7 +44,7 @@ export function EditorShell() {
         <Pasteboard chromeImport={chromeImport} />
       </main>
 
-      <Filmstrip progress={progress} />
+      <Filmstrip />
       <ImportErrorsPanel />
       <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
     </div>

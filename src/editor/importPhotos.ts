@@ -125,26 +125,41 @@ function applyImportResult(result: {
   previewBuffer: ArrayBuffer
   previewMimeType: string
 }): void {
-  setAssetSessionMeta(result.assetId, {
-    name: result.name,
-    correctedWidth: result.correctedWidth,
-    correctedHeight: result.correctedHeight,
-    orientation: result.orientation as ExifOrientation,
-    aspect: result.correctedWidth / Math.max(1, result.correctedHeight),
-  })
+  const prior = getBookStoreSnapshot().sessionMeta.get(result.assetId)
+  const metaUnchanged =
+    prior?.name === result.name &&
+    prior.correctedWidth === result.correctedWidth &&
+    prior.correctedHeight === result.correctedHeight &&
+    prior.orientation === result.orientation &&
+    prior.correctedWidth > 1 &&
+    prior.correctedHeight > 1
+  // Re-import with known dims: skip bookStore meta flush + IDB manifest RMW
+  // so scroll-during-import only pays for thumb publishes.
+  if (!metaUnchanged) {
+    setAssetSessionMeta(result.assetId, {
+      name: result.name,
+      correctedWidth: result.correctedWidth,
+      correctedHeight: result.correctedHeight,
+      orientation: result.orientation as ExifOrientation,
+      aspect: result.correctedWidth / Math.max(1, result.correctedHeight),
+    })
+    tryPatchManifestFromAsset(
+      getBookStoreSnapshot().book.assets[result.assetId],
+      {
+        width: result.correctedWidth,
+        height: result.correctedHeight,
+        orientation: result.orientation,
+      },
+    )
+  }
   setThumbUrl(
     result.assetId,
     result.previewBuffer,
     result.previewMimeType,
     getAssetCacheKey(result.assetId),
   )
-  const asset = getBookStoreSnapshot().book.assets[result.assetId]
-  tryPatchManifestFromAsset(asset, {
-    width: result.correctedWidth,
-    height: result.correctedHeight,
-    orientation: result.orientation,
-  })
   // Lazy HEIC: body seed was skipped while deferred; seed once decode lands.
+  const asset = getBookStoreSnapshot().book.assets[result.assetId]
   const file = getAssetSource(result.assetId)
   const sourceRootId = asset?.sourceRootId
   const relativePath = asset?.relativePath
