@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the domain contract for reading photo-folder originals, scanning source roots, computing content hashes off the main thread, and purely matching scanned files to book asset records for later open/save and relink flows.
+Defines the domain contract for reading photo-folder originals, scanning source roots, optional off-hot-path content hashes, and purely matching scanned files to book asset records by path/size/mtime for open/save and relink flows.
 
 ## Requirements
 
@@ -64,30 +64,17 @@ The system SHALL provide an in-memory asset-source adapter and a File System Acc
 
 ### Requirement: Worker SHA-256 hashing
 
-The system SHALL compute SHA-256 content hashes for asset bytes in a Web Worker. Hashing MUST NOT run as blocking work on the main thread. Digests MUST be returned as 64-character lowercase hexadecimal strings.
+The system MAY compute SHA-256 content hashes for asset bytes in a Web Worker when explicitly requested off the import/rescan/match hot path. Hashing MUST NOT run as blocking work on the main thread. Digests MUST be returned as 64-character lowercase hexadecimal strings. Import, reload rescan, list matching, and change detection MUST NOT require or await content hashes.
 
-#### Scenario: Hash produced off main thread
+#### Scenario: Hash produced off main thread when requested
 
-- **WHEN** hashing is requested for file bytes that need a content hash
+- **WHEN** hashing is explicitly requested for file bytes off the import/rescan hot path
 - **THEN** the digest is computed in a Web Worker and returned as a 64-character lowercase hexadecimal SHA-256 string
 
-### Requirement: Size and mtime hash fast path
+#### Scenario: Hot path does not await content hash
 
-When an existing asset record already has a `contentHash` and matching `byteSize` and `mtimeMs` for the same source root and relative path, the system MUST reuse that hash and MUST NOT require a new full-file hash.
-
-#### Scenario: Size and mtime skip full hash
-
-- **WHEN** a scanned entry matches an asset record on source root id, relative path, byte size, and mtime, and that record already has a `contentHash`
-- **THEN** the system reuses that hash without hashing the full file again
-
-### Requirement: Lowest-priority hash scheduling
-
-Hash jobs MUST be scheduled at the lowest priority in the shared asset worker pool so visible decode and preview jobs run first.
-
-#### Scenario: Hash waits behind higher-priority work
-
-- **WHEN** a visible or background decode/preview job and a hash job are queued together in the shared asset worker pool
-- **THEN** the higher-priority job starts first and the hash job waits
+- **WHEN** the editor imports or rescans a photo folder for gallery list and identity
+- **THEN** placeholders, match/reuse, and thumb320 priority work proceed without computing or awaiting content hashes
 
 ### Requirement: Background metadata extraction
 
@@ -134,32 +121,32 @@ The system SHALL extract asset metadata fields defined by book-core (`widthPx`, 
 
 ### Requirement: Pure match and relink
 
-The system SHALL expose a pure function that, given book asset records and a list of scanned domain entries (with optional content hashes), returns a match mapping from asset id to scanned entry (or unmatched) and a per-asset status of `ok`, `missing`, or `modified` for assets belonging to the scanned source root. Matching MUST prefer equal `contentHash` when both sides have one. When hashes are absent, matching MAY use source root id, relative path, byte size, and mtime as a secondary key. Status MUST be `ok` when the asset's file is present at the same root and relative path with matching size and mtime, or when content hashes match; `missing` when no scanned entry accounts for the asset; `modified` when the same root and relative path exist but size/mtime differ and either both content hashes are present and differ or at least one side lacks a content hash. The function MUST NOT perform I/O or touch platform handles.
+The system SHALL expose a pure function that, given book asset records and a list of scanned domain entries, returns a match mapping from asset id to scanned entry (or unmatched) and a per-asset status of `ok`, `missing`, or `modified`. Matching and change detection MUST use only `relativePath`, `byteSize`, and `mtimeMs` (source root id MAY differ on relink). The function MUST NOT prefer or require `contentHash` for identity or status. Status MUST be `ok` when a scanned entry shares relative path with matching size and mtime; `missing` when no scanned entry accounts for the asset by path; `modified` when the same relative path exists but size or mtime differ. The function MUST NOT perform I/O or touch platform handles.
 
-#### Scenario: Hash match wins
+#### Scenario: Path metadata match is ok
 
-- **WHEN** a scanned entry and an asset record share the same content hash
-- **THEN** the match result pairs that asset id to that entry even if the relative path differs and the asset status is `ok`
-
-#### Scenario: Path metadata fallback
-
-- **WHEN** neither side has a usable content hash but source root id, relative path, byte size, and mtime all match
+- **WHEN** a scanned entry and an asset record share relative path, byte size, and mtime
 - **THEN** the match result pairs that asset id to that scanned entry and the asset status is `ok`
 
-#### Scenario: Modified when path matches but size mtime and hash differ
+#### Scenario: Relink matches across a new source root id
 
-- **WHEN** a scanned entry shares source root id and relative path with an asset record but byte size and mtime differ and both sides have content hashes that differ
-- **THEN** the match result reports that asset's status as `modified`
+- **WHEN** a scanned entry matches an asset on relative path, size, and mtime but the asset's `sourceRootId` differs from the scan's root id
+- **THEN** the match result still pairs that asset and reports status `ok`
 
-#### Scenario: Modified when path matches size mtime differ without both hashes
+#### Scenario: Modified when path matches but size or mtime differ
 
-- **WHEN** a scanned entry shares source root id and relative path with an asset record, byte size and mtime differ, and at least one side lacks a content hash
+- **WHEN** a scanned entry shares relative path with an asset record but byte size or mtime differ
 - **THEN** the match result reports that asset's status as `modified`
 
 #### Scenario: Missing when no entry accounts for the asset
 
-- **WHEN** no scanned entry matches an asset record by content hash or by source root id, relative path, byte size, and mtime
+- **WHEN** no scanned entry matches an asset record by relative path, byte size, and mtime
 - **THEN** the match result reports that asset's status as `missing`
+
+#### Scenario: Content hash is ignored for matching
+
+- **WHEN** a scanned entry and an asset record share a content hash but differ in relative path, size, or mtime
+- **THEN** the match result does not treat that hash equality as identity and MUST NOT mark the asset `ok` solely because hashes match
 
 #### Scenario: No I/O in matcher
 
@@ -186,33 +173,47 @@ Filmstrip or viewport visibility MAY raise decode priority for on-screen assets.
 
 ### Requirement: Batched folder import without main-thread full walk
 
-First photo-folder import MUST NOT collect or hash the entire directory tree in one synchronous main-thread pass. After the directory handle is obtained, the system SHALL discover entries via worker `scanRoot` (or equivalent off-main-thread walk) and process files in bounded batches with yields so the UI can paint incremental progress. Resolving `File` / hashing / decode for an entry MAY happen per batch; the picker path MUST NOT await a complete in-memory `File[]` for the whole tree before starting progressive import.
+First photo-folder import MUST NOT collect or hash the entire directory tree in one synchronous main-thread pass. After the directory handle is obtained, the system SHALL discover entries via worker `scanRoot` (or equivalent off-main-thread walk), enqueue gallery placeholders from that entry list before body reads, then resolve `File` / decode for prioritized entries in bounded batches with yields. The picker path MUST NOT await a complete in-memory `File[]` for the whole tree before starting list-first UI. Content-hash computation MUST NOT run on this import hot path.
 
 #### Scenario: Large folder import stays interruptible
 
 - **WHEN** the user picks a photo folder containing thousands of image files
-- **THEN** import progress updates incrementally and the main thread is not blocked by a single full-tree collect or hash before the first progress paint
+- **THEN** gallery placeholders appear from the cheap scan before body reads finish and the main thread is not blocked by a single full-tree collect or hash before the first progress paint
 
 ### Requirement: Prioritized re-scan after reload
 
-When a remembered photo root is restored with `read` permission, the system SHALL verify / re-hash used-in-book files before remaining folder entries. Priority order MUST be: (1) placed assets on the open book’s visible spread, (2) other assets of the open book for that `sourceRootId`, (3) asset refs from other library books matching the same `sourceRootId` and `relativePath`. After known gallery tiles are restored, scanned folder entries whose `relativePath` is not yet in the open book’s gallery MUST continue importing in background batches (yielded, cancellable). Remaining already-imported unused files MAY still be hashed lazily. Size/mtime hash fast path remains in force for unchanged entries.
+When a remembered photo root is restored with `read` permission, the system SHALL always run a cheap full worker `scanRoot` (relative path, byte size, mtime only; no body reads during the walk). It MUST compare that full entry list to the persisted entry index and book assets to detect new and metadata-changed files. It MUST NOT skip the walk based solely on entry count or max-mtime. After the walk, gallery list-first UI MUST show immediately; thumb320 / preview work MUST prioritize (1) placed assets on the open book’s visible spread, (2) other open-book assets for that `sourceRootId`, (3) mounted filmstrip tiles; remaining entries stay placeholders until needed. Content-hash MUST NOT run on this rescan hot path.
 
-#### Scenario: Used-in-book files finish before lazy remainder
+#### Scenario: Every visit walks the full tree cheaply
+
+- **WHEN** a granted photo root is restored or rescanned
+- **THEN** worker `scanRoot` walks the full folder tree for name/size/mtime and does not skip the walk because a stored count or max-mtime matches
+
+#### Scenario: New and changed entries are detected vs the index
+
+- **WHEN** the cheap walk finds a new relative path or a path whose size/mtime differs from the persisted entry index
+- **THEN** that entry is treated as new or changed for gallery/identity updates
+
+#### Scenario: Visible and book-used previews before idle remainder
 
 - **WHEN** a restored root has both placed open-book assets and many unused files
-- **THEN** verify/re-hash of the prioritized used-in-book set completes before idle processing of the unused remainder begins
-
-#### Scenario: Visible spread is highest priority
-
-- **WHEN** the open book has placed assets on the visible spread and other placed assets on non-visible spreads
-- **THEN** visible-spread placed assets are verified before other open-book assets for that root
-
-#### Scenario: Lazy remainder is cancellable
-
-- **WHEN** idle re-scan of unused files is running and the user changes folder or tears down the session
-- **THEN** pending lazy work is cancelled and MUST NOT continue hashing after cancel
+- **THEN** thumb320 / preview for visible-spread and other book-used assets is queued before idle decode of unused placeholders
 
 #### Scenario: Mid-import reload continues missing gallery entries
 
 - **WHEN** a book was partially imported, persisted with some gallery ids, and reloads with a granted photo root whose scan lists additional image paths not in the gallery
 - **THEN** saved gallery tiles (especially book-used) are visible immediately and the missing scanned paths continue importing in the background
+
+### Requirement: Persisted entry index for matching
+
+The system SHALL persist a per-`sourceRootId` entry index of relative path → byte size and mtime after each cheap full walk. The index MUST be used to match and detect new/changed entries against the latest scan. The index MUST NOT substitute for the walk: every visit still performs the cheap full scan. The index stores metadata only (no file bodies).
+
+#### Scenario: Index updates after a cheap walk
+
+- **WHEN** a cheap full `scanRoot` completes for a registered root
+- **THEN** the persisted entry index for that `sourceRootId` is updated to the scanned path/size/mtime set
+
+#### Scenario: Index alone does not skip the walk
+
+- **WHEN** a persisted entry index already exists for the root
+- **THEN** the next visit still runs the cheap full walk before using the index for matching

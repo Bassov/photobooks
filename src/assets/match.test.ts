@@ -8,6 +8,14 @@ const HASH_B =
   'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
 describe('matchAssets', () => {
+  it('rejects a non-string sourceRootId', () => {
+    expect(() =>
+      matchAssets({}, [], {
+        sourceRootId: null as unknown as string,
+      }),
+    ).toThrow(TypeError)
+  })
+
   it('ignores content hash when path size or mtime differ', () => {
     const entries: ScannedEntry[] = [
       {

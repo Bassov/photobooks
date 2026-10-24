@@ -86,7 +86,7 @@ Files kept so previews can be encoded MUST NOT be stored in the book document.
 
 ### Requirement: Preview bytes use derived cache when hashed
 
-When an asset has a known `contentHash`, the system SHALL persist generated working-preview bytes in the derived cache under that hash and the working-preview preset id, and SHALL attempt to hydrate a missing hot object URL from the derived cache before encoding from the session file. When `contentHash` is absent, preview caching MUST remain memory-only (hot object-URL LRU) without writing fake hash keys.
+When an asset has a known `contentHash` (produced off the import/rescan hot path), the system SHALL persist generated working-preview bytes in the derived cache under that hash and the working-preview preset id, and SHALL attempt to hydrate a missing hot object URL from the derived cache before encoding from the session file. When `contentHash` is absent — the default after list-first import/rescan — preview caching MUST remain memory-only (hot object-URL LRU) without writing fake hash keys. Thumb320 generation for filmstrip MUST prioritize visible and book-used assets; remaining gallery entries MAY stay without a 320 preview until needed.
 
 #### Scenario: Hashed asset hydrates working preview from derived cache
 
@@ -100,5 +100,10 @@ When an asset has a known `contentHash`, the system SHALL persist generated work
 
 #### Scenario: Unhashed asset skips derived cache
 
-- **WHEN** the working preview is encoded for an asset without a `contentHash`
+- **WHEN** the working preview or thumb320 is encoded for an asset without a `contentHash`
 - **THEN** the system does not put a derived-cache entry under a fabricated hash
+
+#### Scenario: Idle gallery entries defer thumb320
+
+- **WHEN** many gallery assets are placeholders and only a subset are visible or book-used
+- **THEN** thumb320 encode runs for the visible/book-used subset first and idle entries may remain without a 320 preview
