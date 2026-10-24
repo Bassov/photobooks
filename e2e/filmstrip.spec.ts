@@ -50,6 +50,30 @@ async function createBookFromEditorChrome(
   }
 }
 
+/** Reliable new library book without chrome dialogs (avoids CI races after dirty gallery). */
+async function createLibraryBookViaTestApi(
+  page: Page,
+  title: string,
+): Promise<void> {
+  const created = await page.evaluate(async (bookTitle: string) => {
+    const api = window.__photobooksProject
+    if (!api?.createBookInLibrary) {
+      throw new Error('createBookInLibrary missing')
+    }
+    const create = api.createBookInLibrary
+    return create(bookTitle)
+  }, title)
+  expect(created.ok).toBe(true)
+  await expect(page.getByTestId('editor-status')).toHaveText('Book created', {
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('filmstrip')).toHaveAttribute(
+    'data-gallery-count',
+    '0',
+    { timeout: 15_000 },
+  )
+}
+
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
 })
@@ -1050,9 +1074,13 @@ test.describe('library re-import async', () => {
       .toBe(firstId)
 
     // Reverse: folder first into a fresh library book, then photos.
-    await createBookFromEditorChrome(page, 'Filmstrip reverse')
+    await createLibraryBookViaTestApi(page, 'Filmstrip reverse')
     const second = writeBulkImportFixtureSet(count)
+    await expect(page.getByTestId('folder-file-input')).toBeAttached()
     await page.getByTestId('folder-file-input').setInputFiles(second.dir)
+    await expect(page.getByTestId('import-progress')).toBeVisible({
+      timeout: 30_000,
+    })
     await expect
       .poll(
         async () =>
