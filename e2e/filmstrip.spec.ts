@@ -50,18 +50,26 @@ async function createBookFromEditorChrome(
   }
 }
 
+/** Local widen: shared Window fixture types lag optional title arg. */
+interface CreateBookProjectApi {
+  createBookInLibrary: (title?: string) => Promise<{
+    ok: boolean
+    code?: string
+    value?: { id: string }
+  }>
+}
+
 /** Reliable new library book without chrome dialogs (avoids CI races after dirty gallery). */
 async function createLibraryBookViaTestApi(
   page: Page,
   title: string,
 ): Promise<void> {
   const created = await page.evaluate(async (bookTitle: string) => {
-    const api = window.__photobooksProject
+    const api = window.__photobooksProject as CreateBookProjectApi | undefined
     if (!api?.createBookInLibrary) {
       throw new Error('createBookInLibrary missing')
     }
-    const create = api.createBookInLibrary
-    return create(bookTitle)
+    return api.createBookInLibrary(bookTitle)
   }, title)
   expect(created.ok).toBe(true)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created', {
