@@ -2,16 +2,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PhotoWorkerRequest } from './processPhoto'
 import {
   abortDecodeForTests,
+  assignWorkingFields,
   DECODE_POOL_CAP,
   decodeWorkerCount,
   getDeferredHeicAssetIds,
+  getPendingRetryAssetIdsForTests,
   getQueuedDecodeAssetIds,
   getVisibleAssetIds,
+  noteDecodePressure,
   processAsset,
   resetAssetPool,
   runImportBatch,
+  type AssetProcessResult,
   type ImportFileError,
   setBookUsedAssetIds,
+  setDecodeBackgroundIdleForTests,
   setFilmstripVisibleAssetIds,
   setSpreadVisibleAssetIds,
   setVisibleAssetIds,
@@ -92,6 +97,179 @@ describe('assetPool', () => {
     expect(result.assetId).toBe('a1')
     expect(result.correctedWidth).toBe(10)
     expect(result.previewMimeType).toBe('image/jpeg')
+    expect(Object.hasOwn(result, 'workingBuffer')).toBe(false)
+    expect(Object.hasOwn(result, 'workingMimeType')).toBe(false)
+  })
+
+  it('assignWorkingFields copies only defined dual-tier response fields', () => {
+    const base: AssetProcessResult = {
+      assetId: 'x',
+      name: 'x.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      previewBuffer: new ArrayBuffer(1),
+      previewMimeType: 'image/webp',
+    }
+    const none: AssetProcessResult = { ...base }
+    assignWorkingFields(none, {})
+    expect(Object.hasOwn(none, 'workingBuffer')).toBe(false)
+    expect(Object.hasOwn(none, 'workingMimeType')).toBe(false)
+
+    const both: AssetProcessResult = { ...base }
+    const workingBuffer = new Uint8Array([9]).buffer
+    assignWorkingFields(both, {
+      workingBuffer,
+      workingMimeType: 'image/webp',
+    })
+    expect(both.workingBuffer).toBe(workingBuffer)
+    expect(both.workingMimeType).toBe('image/webp')
+
+    const bufOnly: AssetProcessResult = { ...base }
+    assignWorkingFields(bufOnly, { workingBuffer })
+    expect(bufOnly.workingBuffer).toBe(workingBuffer)
+    expect(Object.hasOwn(bufOnly, 'workingMimeType')).toBe(false)
+
+    const mimeOnly: AssetProcessResult = { ...base }
+    assignWorkingFields(mimeOnly, { workingMimeType: 'image/webp' })
+    expect(Object.hasOwn(mimeOnly, 'workingBuffer')).toBe(false)
+    expect(mimeOnly.workingMimeType).toBe('image/webp')
+  })
+
+  it('forwards dualTiers and working buffers from the worker response', async () => {
+    const posts: PhotoWorkerRequest[] = []
+    class CapturingWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: PhotoWorkerRequest): void {
+        posts.push(data)
+        queueMicrotask(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: 'dual.jpg',
+              mimeType: 'image/jpeg',
+              byteLength: 2,
+              width: 8,
+              height: 8,
+              correctedWidth: 8,
+              correctedHeight: 8,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/webp',
+              workingBuffer: new Uint8Array([2, 3]).buffer,
+              workingMimeType: 'image/webp',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', CapturingWorker)
+    warmAssetPool()
+    const file = new File([new Uint8Array([1])], 'dual.jpg', {
+      type: 'image/jpeg',
+    })
+    const result = await processAsset({
+      assetId: 'dual',
+      file,
+      dualTiers: true,
+    })
+    expect(posts[0]?.dualTiers).toBe(true)
+    expect(Object.hasOwn(result, 'workingBuffer')).toBe(true)
+    expect(Object.hasOwn(result, 'workingMimeType')).toBe(true)
+    expect(new Uint8Array(result.workingBuffer ?? new ArrayBuffer(0))).toEqual(
+      new Uint8Array([2, 3]),
+    )
+    expect(result.workingMimeType).toBe('image/webp')
+  })
+
+  it('omits dualTiers on the worker request unless requested', async () => {
+    const posts: PhotoWorkerRequest[] = []
+    class CapturingWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: PhotoWorkerRequest): void {
+        posts.push(data)
+        queueMicrotask(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: 'plain.jpg',
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 2,
+              height: 2,
+              correctedWidth: 2,
+              correctedHeight: 2,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', CapturingWorker)
+    warmAssetPool()
+    await processAsset({
+      assetId: 'plain',
+      file: new File([new Uint8Array([1])], 'plain.jpg', {
+        type: 'image/jpeg',
+      }),
+    })
+    expect(posts[0]?.dualTiers).toBeUndefined()
   })
 
   it('rejects immediately when the provided signal is already aborted', async () => {
@@ -227,7 +405,7 @@ describe('assetPool', () => {
     expect(errors).toHaveLength(0)
   })
 
-  it('does not abort in-flight import work when visibility changes', async () => {
+  it('completes never-visible background import jobs while another id is preferred', async () => {
     const previewBuffer = new Uint8Array([9]).buffer
     mockWorkerSuccess({
       ok: true,
@@ -240,9 +418,10 @@ describe('assetPool', () => {
       correctedHeight: 4,
       orientation: 1,
       previewBuffer,
-      previewMimeType: 'image/jpeg',
+      previewMimeType: 'image/webp',
     })
     warmAssetPool()
+    // No force-idle: background must drain via the microtask scheduler.
     setVisibleAssetIds(['visible-only'])
     const pending = runImportBatch(
       [
@@ -268,6 +447,154 @@ describe('assetPool', () => {
       'offscreen-a',
       'offscreen-b',
     ])
+  })
+
+  it('runImportBatch enables dualTiers only when maxEdge is omitted', async () => {
+    const posts: PhotoWorkerRequest[] = []
+    class CapturingWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: PhotoWorkerRequest): void {
+        posts.push(data)
+        queueMicrotask(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: 'batch.jpg',
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 2,
+              height: 2,
+              correctedWidth: 2,
+              correctedHeight: 2,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/webp',
+              workingBuffer: new Uint8Array([2]).buffer,
+              workingMimeType: 'image/webp',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', CapturingWorker)
+    warmAssetPool()
+    await runImportBatch(
+      [
+        {
+          assetId: 'dual-default',
+          file: new File([new Uint8Array([1])], 'a.jpg', {
+            type: 'image/jpeg',
+          }),
+        },
+      ],
+      { priority: 'visible' },
+    )
+    expect(posts[0]?.dualTiers).toBe(true)
+    posts.length = 0
+    await runImportBatch(
+      [
+        {
+          assetId: 'pinned-edge',
+          file: new File([new Uint8Array([1])], 'b.jpg', {
+            type: 'image/jpeg',
+          }),
+        },
+      ],
+      { priority: 'visible', maxEdge: 64 },
+    )
+    expect(posts[0]?.dualTiers).toBeUndefined()
+  })
+
+  it('aborts queued decode when an asset leaves the now set and retries on return', async () => {
+    hangWorker()
+    warmAssetPool()
+    setDecodeBackgroundIdleForTests(true)
+    const file = new File([new Uint8Array([1])], 'scroll.jpg', {
+      type: 'image/jpeg',
+    })
+    const holders = Array.from(
+      { length: DECODE_POOL_CAP },
+      (_, i) => `hold-${String(i)}`,
+    )
+    setVisibleAssetIds([...holders, 'scroll-me'])
+    for (const id of holders) {
+      void processAsset({
+        assetId: id,
+        file,
+        priority: 'visible',
+      })
+    }
+    const pending = processAsset({
+      assetId: 'scroll-me',
+      file,
+      priority: 'visible',
+    })
+    expect(getQueuedDecodeAssetIds()).toContain('scroll-me')
+    setVisibleAssetIds(holders)
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(getPendingRetryAssetIdsForTests()).toContain('scroll-me')
+    expect(getQueuedDecodeAssetIds()).not.toContain('scroll-me')
+
+    setVisibleAssetIds([...holders, 'scroll-me'])
+    expect(getPendingRetryAssetIdsForTests()).not.toContain('scroll-me')
+    expect(getQueuedDecodeAssetIds()).toContain('scroll-me')
+  })
+
+  it('noteDecodePressure lowers effective concurrency via backoff', () => {
+    expect(decodeWorkerCount(8)).toBe(DECODE_POOL_CAP)
+    noteDecodePressure({ memoryPressure: true })
+    noteDecodePressure({ memoryPressure: false, longTaskPressure: false })
+  })
+
+  it('setDecodeBackgroundIdleForTests(false) is a no-op on an idle pool', () => {
+    hangWorker()
+    warmAssetPool()
+    setDecodeBackgroundIdleForTests(false)
+    expect(getQueuedDecodeAssetIds()).toEqual([])
+    setDecodeBackgroundIdleForTests(true)
+    expect(getQueuedDecodeAssetIds()).toEqual([])
+  })
+
+  it('resetAssetPool clears pending retries and in-flight bookkeeping', () => {
+    hangWorker()
+    warmAssetPool()
+    setDecodeBackgroundIdleForTests(true)
+    const file = new File([new Uint8Array([1])], 'r.jpg', {
+      type: 'image/jpeg',
+    })
+    setVisibleAssetIds(['a', 'b'])
+    void processAsset({ assetId: 'a', file, priority: 'visible' })
+    void processAsset({ assetId: 'b', file, priority: 'visible' })
+    setVisibleAssetIds(['a'])
+    expect(getPendingRetryAssetIdsForTests()).toContain('b')
+    resetAssetPool()
+    expect(getPendingRetryAssetIdsForTests()).toEqual([])
+    expect(getQueuedDecodeAssetIds()).toEqual([])
   })
 
   it('rejects when the caller aborts via an explicit signal', async () => {
@@ -369,7 +696,8 @@ describe('assetPool', () => {
     await Promise.resolve()
     release?.()
     await Promise.all([hold, other, film])
-    expect(order).toEqual(['hold.jpg', 'film.jpg', 'other.jpg'])
+    // Now-lane (film) starts before earlier background jobs still waiting on the microtask.
+    expect(order).toEqual(['film.jpg', 'hold.jpg', 'other.jpg'])
   })
 
   it('boosts spread-visible ids without a filmstrip window', async () => {
@@ -454,7 +782,7 @@ describe('assetPool', () => {
     await Promise.resolve()
     release?.()
     await Promise.all([hold, other, spread])
-    expect(order).toEqual(['hold.jpg', 'spread.jpg', 'other.jpg'])
+    expect(order).toEqual(['spread.jpg', 'hold.jpg', 'other.jpg'])
   })
 
   it('drops spread preference when cleared and resets via setVisibleAssetIds', async () => {
@@ -541,7 +869,7 @@ describe('assetPool', () => {
     await Promise.resolve()
     release?.()
     await Promise.all([hold, cleared, filmOnly])
-    expect(order).toEqual(['hold.jpg', 'film-only.jpg', 'cleared.jpg'])
+    expect(order).toEqual(['film-only.jpg', 'hold.jpg', 'cleared.jpg'])
   })
 
   it('resetAssetPool forgets prior spread preference', async () => {
@@ -634,7 +962,7 @@ describe('assetPool', () => {
     await Promise.resolve()
     release?.()
     await Promise.all([hold, stale, film])
-    expect(order).toEqual(['hold.jpg', 'film.jpg', 'stale.jpg'])
+    expect(order).toEqual(['film.jpg', 'hold.jpg', 'stale.jpg'])
   })
 
   it('setVisibleAssetIds clears prior spread preference', async () => {
@@ -720,7 +1048,7 @@ describe('assetPool', () => {
     await Promise.resolve()
     release?.()
     await Promise.all([hold, cleared, filmOnly])
-    expect(order).toEqual(['hold.jpg', 'film-only.jpg', 'cleared.jpg'])
+    expect(order).toEqual(['film-only.jpg', 'hold.jpg', 'cleared.jpg'])
   })
 
   it('prefers visible assets when draining a single-worker queue', async () => {

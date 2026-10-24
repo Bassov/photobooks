@@ -2,6 +2,7 @@ import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID, tierPresetId } from '../assets/derivedCache/presets'
 import { processAsset } from './assetPool'
 import { assetSourceCovers, getAssetSource } from './assetSources'
+import { WORKING_PREVIEW_EDGE } from './imageTiers'
 import { ObjectUrlLru } from './objectUrlLru'
 
 export const TIER_CACHE_CAPACITY = 48
@@ -113,6 +114,7 @@ export function requestTier(
       }
       const cover = assetSourceCovers(assetId)
       try {
+        const dualTiers = tier === WORKING_PREVIEW_EDGE
         const result = await processAsset({
           assetId,
           file,
@@ -120,20 +122,32 @@ export function requestTier(
           maxEdge: tier,
           signal: controller.signal,
           cover,
+          dualTiers,
         })
         if (inflight.get(key)?.controller !== controller) {
           return
         }
-        const retained = result.previewBuffer.slice(0)
+        const selected = selectTierEncodeBuffers(dualTiers, result)
+        // Stryker disable next-line MethodExpression: must copy encode buffer before LRU/cache handoff
+        const retained = selected.buffer.slice(0)
         lastTier.set(key, {
           buffer: retained,
-          mimeType: result.previewMimeType,
+          mimeType: selected.mimeType,
         })
+        const thumbKey = dualThumbCacheKey(dualTiers, result, cacheKey)
+        if (thumbKey !== undefined) {
+          const cache = await getDerivedCache()
+          await cache.put(thumbKey, THUMB_PRESET_ID, {
+            // Stryker disable next-line MethodExpression: DerivedCache must own a copy of thumb bytes
+            bytes: result.previewBuffer.slice(0),
+            mimeType: result.previewMimeType,
+          })
+        }
         if (cacheKey !== undefined && cacheKey.length > 0) {
           const cache = await getDerivedCache()
           await cache.put(cacheKey, tierPresetId(tier), {
             bytes: retained.slice(0),
-            mimeType: result.previewMimeType,
+            mimeType: selected.mimeType,
           })
         }
         if (inflight.get(key)?.controller !== controller) {
@@ -142,7 +156,7 @@ export function requestTier(
         pending.push({
           key,
           buffer: retained,
-          mimeType: result.previewMimeType,
+          mimeType: selected.mimeType,
         })
         scheduleFlush()
       } catch {
@@ -164,6 +178,78 @@ export function cancelTier(assetId: string, tier: number): void {
   }
   inflight.delete(key)
   job.controller.abort()
+}
+
+/**
+ * Seed working-preview bytes from a dual-tier encode (one original decode).
+ * Returns a DerivedCache put promise when `cacheKey` is set (caller may track).
+ */
+export function selectTierEncodeBuffers(
+  dualTiers: boolean,
+  result: {
+    previewBuffer: ArrayBuffer
+    previewMimeType: string
+    workingBuffer?: ArrayBuffer
+    workingMimeType?: string
+  },
+): { buffer: ArrayBuffer; mimeType: string } {
+  if (!dualTiers) {
+    return {
+      buffer: result.previewBuffer,
+      mimeType: result.previewMimeType,
+    }
+  }
+  return {
+    buffer: result.workingBuffer ?? result.previewBuffer,
+    mimeType: result.workingMimeType ?? result.previewMimeType,
+  }
+}
+
+export function shouldSeedThumbFromDual(
+  dualTiers: boolean,
+  result: { previewBuffer: ArrayBuffer },
+  cacheKey: string | undefined,
+): boolean {
+  return dualThumbCacheKey(dualTiers, result, cacheKey) !== undefined
+}
+
+/** Cache key for the dual-tier thumb put, or undefined when seeding is skipped. */
+export function dualThumbCacheKey(
+  dualTiers: boolean,
+  result: { previewBuffer: ArrayBuffer },
+  cacheKey: string | undefined,
+): string | undefined {
+  if (!dualTiers) {
+    return undefined
+  }
+  if (result.previewBuffer.byteLength <= 0) {
+    return undefined
+  }
+  if (cacheKey === undefined || cacheKey.length === 0) {
+    return undefined
+  }
+  return cacheKey
+}
+
+export function seedWorkingPreview(
+  assetId: string,
+  buffer: ArrayBuffer,
+  mimeType: string,
+  cacheKey?: string,
+): Promise<void> {
+  const key = tierCacheKey(assetId, WORKING_PREVIEW_EDGE)
+  const retained = buffer.slice(0)
+  lastTier.set(key, { buffer: retained, mimeType })
+  if (cacheKey === undefined || cacheKey.length === 0) {
+    return Promise.resolve()
+  }
+  return getDerivedCache().then(async (cache) => {
+    await cache.put(cacheKey, tierPresetId(WORKING_PREVIEW_EDGE), {
+      // Stryker disable next-line MethodExpression: retained is already a defensive copy of the caller buffer
+      bytes: retained.slice(0),
+      mimeType,
+    })
+  })
 }
 
 /** Put last hot tier buffers for an asset into DerivedCache once identity key is known. */

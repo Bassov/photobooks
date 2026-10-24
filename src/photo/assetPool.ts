@@ -1,16 +1,33 @@
+import {
+  backoffConcurrency,
+  decodeLaneFor,
+  decodeWorkerCount,
+  type BackoffSignals,
+  type DecodeJobPriority,
+  type DecodeLane,
+} from './decodeQueuePolicy'
+import {
+  applyDecodePressureSignals,
+  assetsLeavingNow,
+  buildNowAssetIds,
+  canStartAnotherSlot,
+  combineDecodeAbortSignals,
+  countBusySlots,
+  dualTiersDefaultForImport,
+  ensureActiveAbortController,
+  pendingRetryFromJob,
+  queueHasBackgroundLane,
+  relabelQueueLanes,
+  scheduleWhenNowEmpty,
+  shouldScheduleBackgroundDrain,
+  takeNextDecodeJob,
+} from './decodeScheduler'
 import { isKnownHeicFile } from './heic'
-import { metadataWorkerCount } from './metadataPool'
 import { THUMB_MAX_EDGE } from './photoEdges'
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 
-export type DecodeJobPriority = 'visible' | 'zoom' | 'prefetch' | 'background'
-
-const PRIORITY_RANK: Record<DecodeJobPriority, number> = {
-  visible: 4,
-  zoom: 3,
-  prefetch: 2,
-  background: 1,
-}
+export type { DecodeJobPriority } from './decodeQueuePolicy'
+export { DECODE_POOL_CAP, decodeWorkerCount } from './decodeQueuePolicy'
 
 export interface AssetProcessResult {
   assetId: string
@@ -24,6 +41,8 @@ export interface AssetProcessResult {
   orientation: number
   previewBuffer: ArrayBuffer
   previewMimeType: string
+  workingBuffer?: ArrayBuffer
+  workingMimeType?: string
 }
 
 export type ImportErrorReason = 'unsupported-type' | 'heic' | 'decode-failed'
@@ -74,6 +93,8 @@ export interface ProcessAssetOptions {
   signal?: AbortSignal
   maxEdge?: number
   cover?: boolean
+  /** Decode once → thumb320 + working 1280 WebP. */
+  dualTiers?: boolean
 }
 
 interface DecodeQueueItem {
@@ -81,8 +102,10 @@ interface DecodeQueueItem {
   assetId: string
   file: File
   priority: DecodeJobPriority
+  lane: DecodeLane
   maxEdge: number
   cover: boolean
+  dualTiers: boolean
   signal?: AbortSignal
   resolve: (result: AssetProcessResult) => void
   reject: (error: Error) => void
@@ -91,16 +114,6 @@ interface DecodeQueueItem {
 interface WorkerSlot {
   worker: Worker
   busy: boolean
-}
-
-/** Cap concurrent decode workers so large imports do not explode memory. */
-export const DECODE_POOL_CAP = 4
-
-/** Pure pool sizing for tests / mutation; caps metadataWorkerCount. */
-export function decodeWorkerCount(
-  hardwareConcurrency: number | undefined,
-): number {
-  return Math.min(DECODE_POOL_CAP, metadataWorkerCount(hardwareConcurrency))
 }
 
 function poolSize(): number {
@@ -112,6 +125,7 @@ function poolSize(): number {
 
 let decodeSlots: WorkerSlot[] = []
 let queue: DecodeQueueItem[] = []
+const inFlightJobs = new Set<DecodeQueueItem>()
 let requestCounter = 0
 let filmstripVisibleIds = new Set<string>()
 /** Per painted spread → asset ids (unioned into visible preference). */
@@ -119,7 +133,14 @@ const spreadVisibleById = new Map<string, ReadonlySet<string>>()
 let visibleAssetIds = new Set<string>()
 /** Placed / book-used ids (HEIC may decode even when off-filmstrip). */
 let bookUsedAssetIds = new Set<string>()
+/** now = visible ∪ book-used (lane membership). */
+let nowAssetIds = new Set<string>()
 const abortByAsset = new Map<string, AbortController>()
+/** Options to re-enqueue after leave-now cancel when the asset re-enters now. */
+const pendingRetryByAsset = new Map<string, ProcessAssetOptions>()
+let longTaskPressure = false
+let memoryPressure = false
+let backgroundPumpScheduled = false
 
 interface DeferredHeicItem {
   options: ProcessAssetOptions
@@ -149,9 +170,79 @@ export function shouldDeferHeicDecode(
   return isKnownHeicFile(file) && !heicMayDecodeNow(assetId, priority)
 }
 
+function scheduleBackgroundPump(): void {
+  if (backgroundPumpScheduled) {
+    return
+  }
+  backgroundPumpScheduled = true
+  scheduleWhenNowEmpty(() => {
+    backgroundPumpScheduled = false
+    pump({ allowBackground: true })
+  })
+}
+
+/** Drain now-lane immediately; schedule background if any remain. */
+function pumpNowThenBackground(): void {
+  pump({ allowBackground: false })
+  if (queueHasBackgroundLane(queue)) {
+    scheduleBackgroundPump()
+  }
+}
+
 function enqueueDecodeJob(item: DecodeQueueItem): void {
   queue.push(item)
-  pump()
+  if (item.lane === 'now') {
+    // Stryker disable next-line BooleanLiteral: now-lane must not enable background in the sync pump
+    pump({ allowBackground: false })
+    return
+  }
+  // Background drains on a microtask so a sync now-enqueue in this turn wins.
+  scheduleBackgroundPump()
+}
+
+function abortAssetJobs(assetId: string, registerRetry: boolean): void {
+  const queued = queue.filter((job) => job.assetId === assetId)
+  queue = queue.filter((job) => job.assetId !== assetId)
+  for (const job of queued) {
+    if (registerRetry) {
+      pendingRetryByAsset.set(assetId, pendingRetryFromJob(job))
+    }
+    job.reject(new DOMException('Aborted', 'AbortError'))
+  }
+  let controller = abortByAsset.get(assetId)
+  if (controller === undefined) {
+    controller = new AbortController()
+    abortByAsset.set(assetId, controller)
+  }
+  if (!controller.signal.aborted) {
+    controller.abort()
+  }
+}
+
+function applyNowSetTransition(previous: ReadonlySet<string>): void {
+  const next = buildNowAssetIds(visibleAssetIds, bookUsedAssetIds)
+  nowAssetIds = next
+  for (const assetId of assetsLeavingNow(previous, next, bookUsedAssetIds)) {
+    abortAssetJobs(assetId, true)
+  }
+  for (const assetId of next) {
+    const retry = pendingRetryByAsset.get(assetId)
+    if (retry === undefined) {
+      continue
+    }
+    pendingRetryByAsset.delete(assetId)
+    abortByAsset.set(
+      assetId,
+      ensureActiveAbortController(abortByAsset.get(assetId)),
+    )
+    void processAsset({
+      ...retry,
+      priority: 'visible',
+    }).catch(() => {
+      // Retry failures surface via import/onError paths when applicable.
+    })
+  }
+  relabelQueueLanes(queue, nowAssetIds)
 }
 
 function promoteDeferredHeic(): void {
@@ -175,13 +266,18 @@ function promoteDeferredHeic(): void {
       continue
     }
     const requestId = `asset-${String((requestCounter += 1))}`
+    const priority: DecodeJobPriority = 'visible'
+    // Stryker disable next-line ConditionalExpression,EqualityOperator,BooleanLiteral: dualTiers is a strict opt-in flag
+    const dualTiers = deferred.options.dualTiers === true
     const item: DecodeQueueItem = {
       requestId,
       assetId: deferred.options.assetId,
       file: deferred.options.file,
-      priority: 'visible',
+      priority,
+      lane: decodeLaneFor(priority, deferred.options.assetId, nowAssetIds),
       maxEdge: deferred.options.maxEdge ?? THUMB_MAX_EDGE,
       cover: deferred.options.cover === true,
+      dualTiers,
       resolve: deferred.resolve,
       reject: deferred.reject,
     }
@@ -193,6 +289,7 @@ function promoteDeferredHeic(): void {
 }
 
 function rebuildVisibleAssetIds(): void {
+  const previousNow = nowAssetIds
   const next = new Set(filmstripVisibleIds)
   for (const ids of spreadVisibleById.values()) {
     for (const id of ids) {
@@ -200,8 +297,9 @@ function rebuildVisibleAssetIds(): void {
     }
   }
   visibleAssetIds = next
+  applyNowSetTransition(previousNow)
   promoteDeferredHeic()
-  pump()
+  pumpNowThenBackground()
 }
 
 /** Snapshot of deferred HEIC asset ids (tests / metrics). */
@@ -233,42 +331,50 @@ function ensureSlots(): void {
   }
 }
 
-function jobRank(job: DecodeQueueItem): number {
-  const boost = visibleAssetIds.has(job.assetId) ? 10 : 0
-  return PRIORITY_RANK[job.priority] + boost
+function effectiveSlotLimit(): number {
+  return backoffConcurrency(poolSize(), {
+    longTaskPressure,
+    memoryPressure,
+  })
 }
 
-function sortQueue(): void {
-  queue.sort((a, b) => jobRank(b) - jobRank(a))
-}
-
-function takeNextDecodeJob(): DecodeQueueItem | undefined {
-  sortQueue()
-  const job = queue.shift()
-  if (job === undefined) {
-    return undefined
-  }
-  if (job.signal?.aborted) {
-    job.reject(new DOMException('Aborted', 'AbortError'))
-    return takeNextDecodeJob()
-  }
-  return job
-}
-
-function pump(): void {
+function pump(options: { allowBackground?: boolean } = {}): void {
+  const allowBackground = options.allowBackground === true
   if (queue.length === 0) {
     return
   }
   ensureSlots()
+  const limit = effectiveSlotLimit()
+  let active = countBusySlots(decodeSlots)
   for (const slot of decodeSlots) {
+    if (!canStartAnotherSlot(active, limit)) {
+      break
+    }
     if (slot.busy) {
       continue
     }
-    const job = takeNextDecodeJob()
+    const job = takeNextDecodeJob(
+      queue,
+      allowBackground,
+      nowAssetIds,
+      (aborted) => {
+        pendingRetryByAsset.set(aborted.assetId, pendingRetryFromJob(aborted))
+        aborted.reject(new DOMException('Aborted', 'AbortError'))
+      },
+    )
     if (!job) {
+      if (
+        shouldScheduleBackgroundDrain(
+          allowBackground,
+          queueHasBackgroundLane(queue),
+        )
+      ) {
+        scheduleBackgroundPump()
+      }
       break
     }
     slot.busy = true
+    active += 1
     runDecodeOnSlot(slot, job)
   }
 }
@@ -276,19 +382,22 @@ function pump(): void {
 function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   const { worker } = slot
   let settled = false
+  inFlightJobs.add(job)
 
   const settle = (fn: () => void): void => {
     if (settled) {
       return
     }
     settled = true
+    inFlightJobs.delete(job)
     cleanup()
     slot.busy = false
     fn()
-    pump()
+    pumpNowThenBackground()
   }
 
   const onAbort = (): void => {
+    pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
     settle(() => {
       job.reject(new DOMException('Aborted', 'AbortError'))
     })
@@ -312,8 +421,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
       })
       return
     }
+    pendingRetryByAsset.delete(job.assetId)
     settle(() => {
-      job.resolve({
+      const result: AssetProcessResult = {
         assetId: job.assetId,
         name: response.name,
         mimeType: response.mimeType,
@@ -325,7 +435,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
         orientation: response.orientation,
         previewBuffer: response.previewBuffer,
         previewMimeType: response.previewMimeType,
-      })
+      }
+      assignWorkingFields(result, response)
+      job.resolve(result)
     })
   }
 
@@ -352,6 +464,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   if (job.cover) {
     request.cover = true
   }
+  if (job.dualTiers) {
+    request.dualTiers = true
+  }
   worker.postMessage(request)
 }
 
@@ -362,33 +477,67 @@ export function warmAssetPool(): void {
 
 /** Terminates workers and clears the queue (tests / teardown). */
 export function resetAssetPool(): void {
+  backgroundPumpScheduled = false
   for (const slot of decodeSlots) {
     slot.worker.terminate()
   }
   decodeSlots = []
+  const resetError = new DOMException('Asset pool reset', 'AbortError')
   for (const job of queue) {
-    job.reject(new Error('Asset pool reset'))
+    job.reject(resetError)
   }
   queue = []
+  for (const job of inFlightJobs) {
+    job.reject(resetError)
+  }
+  inFlightJobs.clear()
   for (const deferred of deferredHeicByAsset.values()) {
-    deferred.reject(new Error('Asset pool reset'))
+    deferred.reject(resetError)
   }
   deferredHeicByAsset.clear()
+  pendingRetryByAsset.clear()
   filmstripVisibleIds = new Set()
   spreadVisibleById.clear()
   visibleAssetIds = new Set()
   bookUsedAssetIds = new Set()
-  for (const controller of abortByAsset.values()) {
-    controller.abort()
-  }
+  nowAssetIds = new Set()
+  longTaskPressure = false
+  memoryPressure = false
+  // Drop controllers without aborting — in-flight were rejected above; aborting
+  // would double-reject via AbortSignal listeners as unhandled rejections.
   abortByAsset.clear()
   requestCounter = 0
 }
 
 /**
+ * Test seam: historically forced idle callback; background now drains via
+ * microtask when the now lane is empty, so this only kicks a background pump.
+ */
+export function setDecodeBackgroundIdleForTests(immediate: boolean): void {
+  if (immediate) {
+    pump({ allowBackground: true })
+  }
+}
+
+/** Adaptive backoff signals (longtask / memory). */
+export function noteDecodePressure(signals: BackoffSignals): void {
+  const next = applyDecodePressureSignals(
+    { longTaskPressure, memoryPressure },
+    signals,
+  )
+  longTaskPressure = next.longTaskPressure
+  memoryPressure = next.memoryPressure
+  pumpNowThenBackground()
+}
+
+export function getPendingRetryAssetIdsForTests(): readonly string[] {
+  return [...pendingRetryByAsset.keys()]
+}
+
+/**
  * Prefer these asset ids when scheduling queued thumb jobs.
- * Does not abort off-screen work — import batches must finish for every gallery
- * id (Filmstrip reveal / windowing would otherwise leave permanent gray placeholders).
+ * Assets that leave the now set (and are not book-used) have their decode
+ * aborted and re-enqueued when they re-enter without a completed thumb.
  *
  * Test helper: replaces the filmstrip window and clears spread-visible ids.
  */
@@ -424,9 +573,36 @@ export function setSpreadVisibleAssetIds(
 
 /** Book-used (placed) asset ids — HEIC may decode even when off-filmstrip. */
 export function setBookUsedAssetIds(assetIds: readonly string[]): void {
+  const previousNow = nowAssetIds
   bookUsedAssetIds = new Set(assetIds)
+  applyNowSetTransition(previousNow)
   promoteDeferredHeic()
-  pump()
+  pumpNowThenBackground()
+}
+
+/** Copy dual-tier fields only when the worker actually sent them. */
+export function assignWorkingFields(
+  result: AssetProcessResult,
+  response: {
+    workingBuffer?: ArrayBuffer
+    workingMimeType?: string
+  },
+): void {
+  if (response.workingBuffer !== undefined) {
+    result.workingBuffer = response.workingBuffer
+  }
+  if (response.workingMimeType !== undefined) {
+    result.workingMimeType = response.workingMimeType
+  }
+}
+
+function combinedAbortSignal(
+  assetId: string,
+  outer?: AbortSignal,
+): AbortSignal {
+  const pool = ensureActiveAbortController(abortByAsset.get(assetId))
+  abortByAsset.set(assetId, pool)
+  return combineDecodeAbortSignals(pool.signal, outer)
 }
 
 export function processAsset(
@@ -434,9 +610,14 @@ export function processAsset(
 ): Promise<AssetProcessResult> {
   ensureSlots()
   const priority = options.priority ?? 'prefetch'
-  return new Promise((resolve, reject) => {
-    const signal = options.signal ?? abortByAsset.get(options.assetId)?.signal
-    if (signal?.aborted) {
+  const dualTiers = options.dualTiers === true
+  const promise = new Promise<AssetProcessResult>((resolve, reject) => {
+    const signal = combinedAbortSignal(options.assetId, options.signal)
+    if (signal.aborted) {
+      pendingRetryByAsset.set(options.assetId, {
+        ...options,
+        priority: 'visible',
+      })
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
@@ -451,22 +632,26 @@ export function processAsset(
       })
       return
     }
+    pendingRetryByAsset.delete(options.assetId)
     const requestId = `asset-${String((requestCounter += 1))}`
     const item: DecodeQueueItem = {
       requestId,
       assetId: options.assetId,
       file: options.file,
       priority,
+      lane: decodeLaneFor(priority, options.assetId, nowAssetIds),
       maxEdge: options.maxEdge ?? THUMB_MAX_EDGE,
       cover: options.cover === true,
+      dualTiers,
+      signal,
       resolve,
       reject,
     }
-    if (signal) {
-      item.signal = signal
-    }
     enqueueDecodeJob(item)
   })
+  // Orphaned fire-and-forget jobs still reject on reset/abort; keep await/catch working.
+  void promise.catch(() => undefined)
+  return promise
 }
 
 export type ImportBatchListener = (state: ImportBatchState) => void
@@ -518,6 +703,8 @@ export async function runImportBatch(
             assetId: item.assetId,
             file: item.file,
             priority,
+            // One decode → 320+1280 unless the caller pins a single maxEdge.
+            dualTiers: dualTiersDefaultForImport(options.maxEdge),
           }
           const signal = abortByAsset.get(item.assetId)?.signal
           if (signal) {
