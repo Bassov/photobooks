@@ -455,6 +455,16 @@ test('reload mid-import restores partial gallery and continues import', async ({
   )
   expect(countBefore).toBeGreaterThanOrEqual(4)
 
+  // Place one book-used tile before reload so restore prioritizes it.
+  await page.getByTestId('filmstrip-item').first().focus()
+  await page.keyboard.press('Space')
+  const place = page.getByRole('button', { name: 'Place photo' }).first()
+  await place.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
+    timeout: 30_000,
+  })
+
   // Progressive autosave during import (no hash wait) — wait for Saved.
   await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
     timeout: 60_000,
@@ -479,6 +489,17 @@ test('reload mid-import restores partial gallery and continues import', async ({
   await expect(page.getByTestId('filmstrip-item').first()).toBeVisible({
     timeout: 30_000,
   })
+  // Book-used placement survives immediately (Files may still be reattaching).
+  await expect(page.getByTestId('filmstrip-placed')).toHaveCount(1, {
+    timeout: 15_000,
+  })
+  await expect(
+    page
+      .getByRole('button', { name: 'Select photo to move' })
+      .or(page.getByTestId('spread-frame-image'))
+      .or(page.getByTestId('spread-frame-missing'))
+      .first(),
+  ).toBeVisible({ timeout: 30_000 })
 
   // Background continue-import / re-scan should finish the folder.
   await expect

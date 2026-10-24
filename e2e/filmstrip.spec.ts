@@ -1482,4 +1482,6 @@ test('scroll mid-import keeps earlier revealed tile ids', async ({ page }) => {
       `[data-testid="filmstrip-item"][data-asset-id="${anchorId}"] [data-testid="filmstrip-thumb"], [data-testid="filmstrip-item"][data-asset-id="${anchorId}"] [data-testid="filmstrip-placeholder"]`,
     ),
   ).toHaveCount(1, { timeout: 15_000 })
+  await assertDocumentFitsViewport(page)
+  await assertNamedScrollport(page, 'filmstrip-scroll')
 })

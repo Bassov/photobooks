@@ -722,6 +722,10 @@ export async function startFolderRescan(options: {
       scanned.map((entry) => entry.relativePath),
       prioritized,
     )
+    // Prioritized already includes every open-book gallery path for this root
+    // (plus other-book refs). Lazy paths are therefore not yet in the open
+    // gallery — continue-import them when a directory handle is available;
+    // otherwise fall back to warmLazyPath hashing only.
     const missingEntries = lazyPaths.flatMap((path) => {
       const entry = scannedByPath.get(path)
       return entry === undefined ? [] : [entry]
