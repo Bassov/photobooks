@@ -34,6 +34,11 @@ The system SHALL expose a domain derived-cache API that stores and retrieves der
 - **WHEN** `byteSize` or `mtimeMs` for the same path/root differs from the key used to put
 - **THEN** get with the new identity digest misses (`not-found`) and does not return the prior bytes
 
+#### Scenario: Manifest identity hydrates before scan
+
+- **WHEN** a restored root’s folder manifest supplies path/size/mtime for an asset and DerivedCache holds the thumb preset for that identity digest
+- **THEN** the filmstrip MAY show the cached thumb before `scanRoot` resolves
+
 ### Requirement: Typed derived cache results
 
 Derived-cache operations SHALL return typed success or failure results. Getting a missing key MUST fail with a typed miss (for example `not-found`). Failure codes MUST also cover at least `corrupted` when stored data cannot be read as a valid entry (bytes plus MIME type). Callers MUST distinguish these codes without inspecting thrown platform errors.
