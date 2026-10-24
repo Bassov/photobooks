@@ -39,6 +39,7 @@ vi.mock('../photo/assetPool', async () => {
 import { IMPORT_BODY_READ_CAP } from './importBodyReads'
 import { importPhotoFiles } from './importPhotos'
 import * as pendingHashes from './pendingHashes'
+import * as seedLibraryImport from './seedLibraryImport'
 
 function tinyJpeg(name = 'shot.jpg', lastModified = 1_700_000_000_000): File {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
@@ -750,6 +751,67 @@ describe('importPhotoFiles library identity', () => {
       libraryBacked: false,
     })
     expect(awaitSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not seed deferred HEIC body reads during prefetch import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    const seedSpy = vi.spyOn(seedLibraryImport, 'seedAndHashEntry')
+    runImportBatch.mockResolvedValue({ results: [], errors: [] })
+    const heic = new File([new Uint8Array([1, 2, 3])], 'defer.heic', {
+      type: 'image/heic',
+    })
+    await importPhotoFiles([heic], {
+      libraryBacked: true,
+      sourceRootId: 'root-defer-seed',
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(1)
+    })
+    expect(seedSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not seed library bytes when session HEIC decode completes', async () => {
+    const seedSpy = vi.spyOn(seedLibraryImport, 'seedAndHashEntry')
+    const heic = new File([new Uint8Array([1, 2, 3, 4])], 'sess.heic', {
+      type: 'image/heic',
+    })
+    await importPhotoFiles([heic], { libraryBacked: false })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery.length).toBe(1)
+    })
+    expect(seedSpy).not.toHaveBeenCalled()
+  })
+
+  it('seeds library bytes after lazy HEIC decode completes', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    const seedSpy = vi
+      .spyOn(seedLibraryImport, 'seedAndHashEntry')
+      .mockResolvedValue(undefined)
+    const heic = new File([new Uint8Array([1, 2, 3, 4])], 'lazy.heic', {
+      type: 'image/heic',
+    })
+    await importPhotoFiles([heic], {
+      libraryBacked: true,
+      sourceRootId: 'root-lazy-seed',
+    })
+    await vi.waitFor(() => {
+      expect(seedSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          relativePath: 'lazy.heic',
+          sourceRootId: 'root-lazy-seed',
+        }),
+      )
+    })
   })
 
   it('writes corrected dimensions into the folder manifest after decode', async () => {

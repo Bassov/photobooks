@@ -54,6 +54,7 @@ function asBuffer(nodeBuf: Buffer): ArrayBuffer {
 
 describe('isJpegSoi', () => {
   it.each([
+    [new Uint8Array([]), false],
     [new Uint8Array([0xff, 0xd8]), true],
     [new Uint8Array([0xff]), false],
     [new Uint8Array([0xff, 0x00]), false],
@@ -70,7 +71,9 @@ describe('positiveInt', () => {
     [0, null],
     [-1, null],
     [Number.NaN, null],
+    [Number.POSITIVE_INFINITY, null],
     ['4', null],
+    [Object(4), null],
   ])('normalizes %s to %s', (value, expected) => {
     expect(positiveInt(value)).toBe(expected)
   })
@@ -99,6 +102,16 @@ describe('parseJpegHead', () => {
     expect(result.orientation).toBe(6)
     expect(result.correctedWidth).toBe(20)
     expect(result.correctedHeight).toBe(40)
+  })
+
+  it('accepts a two-byte SOI-only EXIF thumb payload', async () => {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const original = readFileSync(photoFixturePaths.sampleOrient6)
+    exifrApi.thumbnail.mockResolvedValue(new Uint8Array([0xff, 0xd8]))
+
+    const result = await parseJpegHead(asBuffer(original))
+
+    expect(result.thumbJpeg).toEqual(new Uint8Array([0xff, 0xd8]))
   })
 
   it('returns embedded JPEG thumb when exifr.thumbnail yields SOI bytes', async () => {

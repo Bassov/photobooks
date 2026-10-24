@@ -106,6 +106,31 @@ describe('runJpegHeadPass', () => {
     expect(parseJpegHead).not.toHaveBeenCalled()
   })
 
+  it('updates dims when only width is above the placeholder threshold', async () => {
+    setAssetSessionMeta('wide', {
+      name: 'wide.jpg',
+      correctedWidth: 80,
+      correctedHeight: 1,
+      orientation: 1,
+      aspect: 1,
+    })
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 80,
+      height: 40,
+      orientation: 1,
+      correctedWidth: 80,
+      correctedHeight: 40,
+    })
+
+    await runJpegHeadPass([{ assetId: 'wide', file: jpegFile('wide.jpg') }])
+
+    expect(parseJpegHead).toHaveBeenCalled()
+    expect(
+      getBookStoreSnapshot().sessionMeta.get('wide')?.correctedHeight,
+    ).toBe(40)
+  })
+
   it('updates dims when only height is above the placeholder threshold', async () => {
     setAssetSessionMeta('tall', {
       name: 'tall.jpg',
@@ -347,6 +372,30 @@ describe('runJpegHeadPass', () => {
     await runJpegHeadPass([{ assetId: 'nodims', file: jpegFile('nodims.jpg') }])
 
     expect(getBookStoreSnapshot().sessionMeta.get('nodims')).toBeUndefined()
+  })
+
+  it('does not publish an EXIF thumb when a hot thumb already exists', async () => {
+    setAssetSessionMeta('hot', {
+      name: 'hot.jpg',
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      aspect: 1,
+    })
+    setThumbUrl('hot', new Uint8Array([0xaa]).buffer, 'image/jpeg')
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0xee]),
+      width: 10,
+      height: 10,
+      orientation: 1,
+      correctedWidth: 10,
+      correctedHeight: 10,
+    })
+
+    await runJpegHeadPass([{ assetId: 'hot', file: jpegFile('hot.jpg') }])
+
+    expect(getThumbUrl('hot')).toMatch(/^blob:/)
+    expect(parseJpegHead).toHaveBeenCalled()
   })
 
   it('does not overwrite an existing hot thumb from the head pass', async () => {

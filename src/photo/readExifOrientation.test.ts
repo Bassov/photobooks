@@ -27,6 +27,18 @@ describe('readExifOrientation', () => {
     await expect(readExifOrientation(new ArrayBuffer(8))).resolves.toBe(6)
   })
 
+  it('prefers exifr.orientation over parse when both differ', async () => {
+    exifrApi.orientation.mockResolvedValue(1)
+    exifrApi.parse.mockResolvedValue({ Orientation: 8 })
+    await expect(readExifOrientation(new ArrayBuffer(8))).resolves.toBe(1)
+  })
+
+  it('ignores truthy non-object parse payloads', async () => {
+    exifrApi.orientation.mockResolvedValue(undefined)
+    exifrApi.parse.mockResolvedValue(5)
+    await expect(readExifOrientation(new ArrayBuffer(8))).resolves.toBe(1)
+  })
+
   it('accepts orientation 1 and 8 from exifr.orientation', async () => {
     exifrApi.orientation.mockResolvedValue(1)
     await expect(readExifOrientation(new ArrayBuffer(8))).resolves.toBe(1)

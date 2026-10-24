@@ -917,6 +917,31 @@ describe('assetPool', () => {
     first.catch(() => undefined)
   })
 
+  it('keeps deferred HEIC off the queue when visibility changes elsewhere', () => {
+    hangWorker()
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'stay.heic', {
+      type: 'image/heic',
+    })
+    const pending = processAsset({
+      assetId: 'heic-stay',
+      file: heic,
+      priority: 'prefetch',
+    })
+    pending.catch(() => undefined)
+    expect(getDeferredHeicAssetIds()).toContain('heic-stay')
+    setFilmstripVisibleAssetIds(['other-asset'])
+    expect(getDeferredHeicAssetIds()).toContain('heic-stay')
+    expect(getQueuedDecodeAssetIds()).not.toContain('heic-stay')
+    resetAssetPool()
+  })
+
+  it('abortDecodeForTests is a no-op when no controller exists', () => {
+    expect(() => {
+      abortDecodeForTests('missing-controller')
+    }).not.toThrow()
+  })
+
   it('does not queue off-screen HEIC at prefetch; queues when visible', async () => {
     mockWorkerSuccess({
       ok: true,
@@ -1188,6 +1213,39 @@ describe('assetPool', () => {
     controller.abort()
     setVisibleAssetIds(['heic-abort'])
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('promoted deferred HEIC forwards cover:false to the worker', () => {
+    const posted: PhotoWorkerRequest[] = []
+    class CaptureWorker {
+      addEventListener(): void {
+        // hang
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(data: PhotoWorkerRequest): void {
+        posted.push(data)
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', CaptureWorker)
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'plain.heic', {
+      type: 'image/heic',
+    })
+    void processAsset({
+      assetId: 'heic-no-cover',
+      file: heic,
+      priority: 'prefetch',
+      cover: false,
+    }).catch(() => undefined)
+    setBookUsedAssetIds(['heic-no-cover'])
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).not.toHaveProperty('cover')
+    resetAssetPool()
   })
 
   it('promoted deferred HEIC forwards maxEdge cover and signal to the worker', () => {

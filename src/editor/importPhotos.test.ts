@@ -472,6 +472,28 @@ describe('importPhotoFiles', () => {
     expect(getAssetSource(result.errors[0]?.assetId ?? '')).toBeUndefined()
   })
 
+  it('does not double-enqueue session gallery without listAlreadyEnqueued', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    runImportBatch.mockResolvedValue({ results: [], errors: [] })
+    const enqueueSpy = vi.spyOn(
+      await import('./bookStore'),
+      'enqueueGalleryAssets',
+    )
+    const jpeg = new File([new Uint8Array([1])], 'solo.jpg', {
+      type: 'image/jpeg',
+    })
+    await importPhotoFiles([jpeg], { libraryBacked: false })
+    expect(getGalleryIdsSnapshot()).toHaveLength(1)
+    expect(enqueueSpy).toHaveBeenCalledTimes(1)
+    enqueueSpy.mockRestore()
+  })
+
   it('listAlreadyEnqueued mints session placeholders for new files', async () => {
     vi.stubGlobal(
       'requestAnimationFrame',
