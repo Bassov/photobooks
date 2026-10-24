@@ -59,6 +59,30 @@ describe('folderImportBatches', () => {
     expect(result.imported).toBe(2)
   })
 
+  it('importScannedEntriesInBatches calls onFirstBatchYielded after the first yield', async () => {
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('a.jpg', new Uint8Array([1]), 1)
+    const source = createFsaAssetSource({
+      rootId: 'root',
+      directory: tree.root,
+    })
+    const scanned = await source.scanRoot('root')
+    const entries = scanned.ok ? scanned.value : []
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
+      imported: 1,
+      errors: [],
+      skipped: 0,
+    })
+    const onFirstBatchYielded = vi.fn()
+    await importScannedEntriesInBatches(tree.root, entries, {
+      sourceRootId: 'root',
+      onProgress: vi.fn(),
+      onErrors: vi.fn(),
+      onFirstBatchYielded,
+    })
+    expect(onFirstBatchYielded).toHaveBeenCalledOnce()
+  })
+
   it('importScannedEntriesInBatches resolves then imports per batch', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('a.jpg', new Uint8Array([1]), 1)

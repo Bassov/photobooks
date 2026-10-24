@@ -80,12 +80,17 @@ On `permission-required` after restore (or mid-session save/autosave), durable a
 
 ### Requirement: Library-backed import, autosave, and save indicator
 
-Library-backed import MUST register a source root and write identity fields; session-only import without a library MAY stay session-only. Dirty library-backed books SHALL autosave after idle debounce (reuse durable save path; MUST NOT start during drag/zoom). Chrome SHALL show clean / pending / saving / error indicator without page scroll.
+Library-backed import MUST register a source root and write identity fields; session-only import without a library MAY stay session-only. Dirty library-backed books SHALL autosave after idle debounce (reuse durable save path; MUST NOT start during drag/zoom). During an active photo-folder import, progressive gallery/asset flushes MUST be durable enough that a mid-import reload can restore already-imported gallery ids (and book placements) from library book JSON without waiting for every in-flight content hash. The photo-folder handle MUST be remembered in IndexedDB after the first yielded import batch. Chrome SHALL show clean / pending / saving / error indicator without page scroll.
 
 #### Scenario: Idle edit autosaves; gesture waits
 
 - **WHEN** the user edits then idles (no gesture)
 - **THEN** storage holds the update; if a gesture spans the debounce, autosave waits until it ends
+
+#### Scenario: Mid-import reload restores partial gallery
+
+- **WHEN** a library-backed folder import has flushed some assets (and optionally placements) and the tab reloads before import finishes
+- **THEN** the restored book shows those gallery ids immediately and photo-root restore can continue background import/re-scan
 
 ### Requirement: Single-writer lock and locked-elsewhere
 
@@ -182,12 +187,12 @@ When the book gallery is empty, the pasteboard SHALL show an EmptyState card tit
 
 ### Requirement: One durable photo folder per book
 
-A book SHALL have at most one photo source root. Choosing a folder MUST keep the `FileSystemDirectoryHandle`, persist it in IndexedDB keyed by `sourceRootId` (separate store from library handles), register that root with the FSA asset-source adapter, and write `sourceRootId` + `relativePath` (and size/mtime/hash as available) on imported assets. Change photo folder… MUST confirm, then replace the book's photo root (prior root association and gallery assets from that root are cleared) rather than adding a second root. Product UI MUST NOT use `showOpenFilePicker` or hidden file inputs for import.
+A book SHALL have at most one photo source root. Choosing a folder MUST keep the `FileSystemDirectoryHandle`, persist it in IndexedDB keyed by `sourceRootId` (separate store from library handles) after the first yielded import batch (not only after the full folder finishes), register that root with the FSA asset-source adapter, and write `sourceRootId` + `relativePath` (and size/mtime/hash as available) on imported assets. Change photo folder… MUST confirm, then replace the book's photo root (prior root association and gallery assets from that root are cleared) rather than adding a second root. Product UI MUST NOT use `showOpenFilePicker` or hidden file inputs for import.
 
 #### Scenario: Pick persists handle and identity
 
-- **WHEN** the user chooses a photo folder for a book
-- **THEN** the directory handle is stored under a `sourceRootId`, assets from the scan carry that id and relative paths, and originals resolve via the handle without retaining File as the durability story
+- **WHEN** the user chooses a photo folder for a book and the first import batch has yielded
+- **THEN** the directory handle is stored under the book's `sourceRootId` and imported assets carry that root id plus relative paths
 
 #### Scenario: Change replaces the root
 

@@ -63,9 +63,6 @@ export function FilmstripItemView({
     getFilmstripJumpHighlightId,
   )
   useEffect(() => {
-    if (contentHash === undefined || contentHash.length === 0) {
-      return
-    }
     ensureThumb(id, contentHash)
   }, [id, contentHash])
   const { width, height } = thumbSlotSize(aspect)

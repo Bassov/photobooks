@@ -14,6 +14,7 @@ import {
   getAssetContentHash,
   patchAssetRecord,
   resetBookStore,
+  setImportRunning,
 } from './bookStore'
 import { isEditorGestureActive, setEditorGestureActive } from './editorGesture'
 import { getEditorStatus } from './editorStatus'
@@ -331,6 +332,28 @@ describe('projectSession', () => {
       expect(getEditorStatus()).toBe('Book saved')
     })
     expect(getProjectSessionSnapshot().saving).toBe(false)
+  })
+
+  it('saveBookNow during import does not wait for pending hashes', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    await attachLibraryForTests({ storage, session })
+
+    let resolveHash!: (value: string) => void
+    const hashPromise = new Promise<string>((resolve) => {
+      resolveHash = resolve
+    })
+    const { trackHashJob } = await import('./pendingHashes')
+    void trackHashJob(hashPromise)
+
+    setImportRunning(true, 10)
+    saveBookNow()
+    await vi.waitFor(() => {
+      expect(getEditorStatus()).toBe('Book saved')
+    })
+    expect(getProjectSessionSnapshot().saving).toBe(false)
+    resolveHash('x'.repeat(64))
+    setImportRunning(false)
   })
 
   it('adoptCurrentBookInLibrary persists the in-memory book', async () => {

@@ -135,6 +135,11 @@ export function useChromeImport(options: {
         sourceRootId,
         createFsaAssetSource({ rootId: sourceRootId, directory }),
       )
+      const persistRootAfterFirstBatch = async (): Promise<void> => {
+        await priorRootCleared
+        await persistBoundPhotoFolder(sourceRootId, directory)
+        registerBoundPhotoFolderSource(sourceRootId, directory)
+      }
       try {
         let result
         if (knownFiles !== null) {
@@ -143,6 +148,7 @@ export function useChromeImport(options: {
             libraryBacked: isLibraryBacked(),
             onProgress: options.onImportProgress,
             onErrors: reportErrors,
+            onFirstBatchYielded: persistRootAfterFirstBatch,
           })
         } else {
           options.onImportProgress({
@@ -170,6 +176,7 @@ export function useChromeImport(options: {
               libraryBacked: isLibraryBacked(),
               onProgress: options.onImportProgress,
               onErrors: reportErrors,
+              onFirstBatchYielded: persistRootAfterFirstBatch,
             },
           )
         }
@@ -181,6 +188,7 @@ export function useChromeImport(options: {
           knownFiles?.length ?? result.imported + result.skipped,
         )
       } finally {
+        // Idempotent if onFirstBatchYielded already persisted for mid-import reload.
         await priorRootCleared
         await persistBoundPhotoFolder(sourceRootId, directory)
         registerBoundPhotoFolderSource(sourceRootId, directory)

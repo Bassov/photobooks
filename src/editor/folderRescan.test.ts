@@ -21,6 +21,7 @@ import {
   startFolderRescan,
   subscribeFolderRescanProgress,
 } from './photoRootSession'
+import * as importPhotos from './importPhotos'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import * as pendingHashes from './pendingHashes'
 
@@ -204,6 +205,58 @@ describe('startFolderRescan', () => {
     await saveWait
     releaseLazy()
     await awaitFolderRescanForTests()
+  })
+
+  it('continues importing scanned paths missing from the open gallery', async () => {
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('used.jpg', new Uint8Array([9, 9]), 42)
+    tree.putFile('missing.jpg', new Uint8Array([3, 3]), 3)
+    const sourceRootId = 'root-continue'
+    registerAssetSource(
+      sourceRootId,
+      createFsaAssetSource({ rootId: sourceRootId, directory: tree.root }),
+    )
+    resetBookStore({
+      book: makeBook({
+        gallery: ['u'],
+        assets: {
+          u: {
+            sourceRootId,
+            relativePath: 'used.jpg',
+            byteSize: 2,
+            mtimeMs: 42,
+            contentHash: 'a'.repeat(64),
+          },
+        },
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const importSpy = vi
+      .spyOn(importPhotos, 'importPhotoFiles')
+      .mockResolvedValue({
+        imported: 1,
+        errors: [],
+        skipped: 0,
+      })
+
+    await startFolderRescan({
+      sourceRootId,
+      directory: tree.root,
+      runLazy: true,
+    })
+    await awaitFolderRescanForTests()
+    expect(importSpy).toHaveBeenCalled()
+    const importedFiles = importSpy.mock.calls.flatMap((call) => call[0])
+    // Memory directory Files use a generic name; assert we imported the one
+    // missing path (not the already-gallery used.jpg) as a single-file batch.
+    expect(importedFiles).toHaveLength(1)
+    expect(importSpy.mock.calls[0]?.[1]).toMatchObject({
+      source: 'folder',
+      sourceRootId,
+      libraryBacked: true,
+    })
   })
 
   it('cancel during priority prevents lazy phase', async () => {
