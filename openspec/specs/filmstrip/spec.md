@@ -8,7 +8,7 @@ Book-gallery filmstrip: import, progressive reveal, virtualized variable-width p
 
 ### Requirement: Import folder or files into gallery
 
-The system SHALL add images from the book's single chosen photo folder to the gallery. Product import is directory-picker only; tests stub that picker. Accepted types: JPEG, PNG, WebP. Choosing a folder for a book that already has a photo folder MUST replace that root after confirm (not accumulate multiple roots). Unsupported image-like types in a batch MUST show a per-file error without aborting accepted files. Folder imports MUST skip non-image files without per-file import errors and announce one polite skip summary on editor status.
+The system SHALL add images from the book's single chosen photo folder to the gallery. Product import is directory-picker only; tests stub that picker. Accepted types: JPEG, PNG, WebP, and HEIC/HEIF (placeholders until visible or book-used). Choosing a folder for a book that already has a photo folder MUST replace that root after confirm (not accumulate multiple roots). Unsupported image-like types in a batch MUST show a per-file error without aborting accepted files. Folder imports MUST skip non-image files without per-file import errors and announce one polite skip summary on editor status.
 
 #### Scenario: Import from chosen folder
 
@@ -22,7 +22,7 @@ The system SHALL add images from the book's single chosen photo folder to the ga
 
 ### Requirement: Placeholders, thumbnails, and aspect slots
 
-The filmstrip SHALL list gallery assets horizontally with virtualization. Each item sizes its slot from clamped aspect (fixed height) when aspect is known; list-first entries MAY use a simple default aspect placeholder until dimensions are known. New assets show a name/size (or aspect) placeholder before an orientation-corrected full-photo thumbnail (async decode, no default cover crop). Object URLs stay in a bounded cache and are revoked on eviction. After a cheap folder scan, the system MUST enqueue gallery placeholders for scanned image entries before body reads / thumb320 decode; newly enqueued ids MUST appear progressively (paced for frame-budget gates); the system MAY reserve scroll extent via a progress spacer. When a persisted folder manifest is available on restore, the system MUST enqueue gallery entries from that manifest (using stored width/height/orientation for aspects when present) before the folder walk completes so slots can paint immediately. Styling stays deliberately simple (existing primitives; no new visual system).
+The filmstrip SHALL list gallery assets horizontally with virtualization. Each item sizes its slot from clamped aspect (fixed height) when aspect is known; list-first entries MAY use a simple default aspect placeholder until dimensions are known. New assets show a name/size (or aspect) placeholder before an orientation-corrected thumbnail. When a JPEG head pass finds an IFD1 embedded thumbnail, the filmstrip MAY show that embedded image as a temporary tile until the orientation-corrected thumb320 replaces it; missing/corrupt embedded thumbs keep the ordinary placeholder. Object URLs stay in a bounded cache and are revoked on eviction. After a cheap folder scan, the system MUST enqueue gallery placeholders for scanned image entries before body reads / thumb320 decode; newly enqueued ids MUST appear progressively (paced for frame-budget gates); the system MAY reserve scroll extent via a progress spacer. When a persisted folder manifest is available on restore, the system MUST enqueue gallery entries from that manifest (using stored width/height/orientation for aspects when present) before the folder walk completes so slots can paint immediately. Styling stays deliberately simple (existing primitives; no new visual system).
 
 #### Scenario: Placeholder then distinct aspect thumbs
 
@@ -38,6 +38,11 @@ The filmstrip SHALL list gallery assets horizontally with virtualization. Each i
 
 - **WHEN** a book reloads with a granted photo root and a valid folder manifest that includes dimensions for gallery entries
 - **THEN** filmstrip aspect slots reflect those dimensions before `scanRoot` completes
+
+#### Scenario: EXIF embedded thumb before thumb320
+
+- **WHEN** a first-import JPEG exposes an IFD1 embedded thumbnail and thumb320 is not ready
+- **THEN** the tile may show that embedded thumbnail until thumb320 publishes
 
 ### Requirement: Import progress and status strip
 
@@ -98,16 +103,21 @@ Progressive reveal MUST NOT lag `scrollLeft` into a mid-scroll dead zone of unre
 - **WHEN** assets have been flushed into the gallery and shown in the filmstrip window, then the user scrolls away and back while import is still running
 - **THEN** those asset ids remain in the gallery and their tiles remount with a thumb or placeholder that recovers (not a permanent hole)
 
-### Requirement: Visible filmstrip tiles prioritize decode
+### Requirement: Visible-window decode priority
 
-Decode and thumbnail work for assets in the mounted filmstrip window and for book-used assets MUST outrank idle off-window gallery work. Changing the visible window MUST update the visible-asset set used by the worker queue so newly visible tiles are preferred without aborting an in-flight import batch. Entries outside visible ∪ book-used MAY remain placeholders until scrolled into view or used in the book.
+Decode and thumbnail work for assets in the mounted filmstrip window and for book-used assets MUST outrank idle off-window gallery work. Changing the visible window MUST update the visible-asset set used by the worker queue so newly visible tiles are preferred without aborting an in-flight import batch. Entries outside visible ∪ book-used MAY remain placeholders until scrolled into view or used in the book. HEIC/HEIF assets MUST NOT be queued for prefetch or background thumb320 work while outside visible ∪ book-used; when such an asset enters that set, decode MUST be queued at visible priority.
 
 #### Scenario: Scrolling promotes newly visible tiles
 
 - **WHEN** the filmstrip window scrolls so new asset ids enter the mounted window while background thumbs are still queued
 - **THEN** those newly visible asset ids are preferred by the decode queue over off-window idle ids
 
-#### Scenario: Book-used outranks idle unused
+#### Scenario: Book-used outranks idle placeholders
 
 - **WHEN** book-used assets and many unused gallery placeholders compete for thumb320 work
-- **THEN** book-used decode is preferred before idle unused placeholders
+- **THEN** book-used ids are preferred over idle unused placeholders
+
+#### Scenario: Off-screen HEIC stays unqueued
+
+- **WHEN** a HEIC/HEIF gallery asset is neither in the mounted filmstrip window nor book-used
+- **THEN** the decode pool does not queue prefetch/background work for that asset

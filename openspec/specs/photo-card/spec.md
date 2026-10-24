@@ -22,32 +22,32 @@ The system SHALL let the user choose exactly one local photo folder for the open
 
 ### Requirement: Accepted and rejected image types
 
-The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other image-like types, including TIFF and HEIC/HEIF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. HEIC/HEIF MUST be rejected with an actionable conversion message (export as JPEG, including an iPhone Camera Formats hint), detected by file extension, MIME type (`image/heic`, `image/heif`, and `-sequence` variants), or ISO-BMFF `ftyp` signature brands. A rejected file in a batch MUST NOT abort import of other accepted files. An accepted file whose decode fails MUST show a visible per-file import error and MUST NOT remain as a gallery filmstrip tile or count toward the gallery photo count. When importing from the book's photo folder, files that are not image-like (MIME not `image/*` and no image extension) MUST be skipped without a per-file import error; the editor MUST announce a single polite status summary of how many non-image files were skipped. Skipped files MUST NOT count toward import progress total or gallery photo count. The directory scan MAY encounter HEIC/HEIF so users receive the conversion message; acceptance for decode MUST still exclude HEIC/HEIF.
+The system SHALL accept JPEG, PNG, WebP, and HEIC/HEIF images into the book gallery. TIFF and other non-accepted image-like types MUST show a visible per-file error without treating the rejected file as a successful gallery entry. HEIC/HEIF MUST enter the gallery as placeholders and MUST NOT be queued for prefetch/background decode; decode/encode for HEIC/HEIF MUST run only when the asset is filmstrip-visible or book-used (placed), at visible priority. Until a HEIC decoder succeeds, a failed HEIC decode MUST keep the placeholder tile (MUST NOT remove it from the gallery count the way a failed JPEG decode does) and MAY surface the conversion hint. HEIC/HEIF detection remains by extension, MIME (`image/heic`, `image/heif`, and `-sequence` variants), or ISO-BMFF `ftyp` signature brands. A rejected non-HEIC file in a batch MUST NOT abort import of other accepted files. An accepted non-HEIC file whose decode fails MUST show a visible per-file import error and MUST NOT remain as a gallery filmstrip tile or count toward the gallery photo count. When importing from the book's photo folder, files that are not image-like (MIME not `image/*` and no image extension) MUST be skipped without a per-file import error; the editor MUST announce a single polite status summary of how many non-image files were skipped. Skipped files MUST NOT count toward import progress total or gallery photo count.
 
-#### Scenario: Accept JPEG
+#### Scenario: Accept JPEG PNG WebP and HEIC placeholders
 
-- **WHEN** the user imports an `image/jpeg` file from the photo folder
-- **THEN** the system adds that asset to the gallery filmstrip
+- **WHEN** the user imports a mix of JPEG, PNG, WebP, and HEIC/HEIF files
+- **THEN** JPEG/PNG/WebP decode as today and HEIC/HEIF appear as gallery placeholders without aborting the batch
 
-#### Scenario: Reject TIFF
+#### Scenario: Reject TIFF with per-file error
 
-- **WHEN** the user imports an `image/tiff` file from the photo folder
-- **THEN** the system shows a visible unsupported-format error for that file and does not add it as a successful gallery asset
+- **WHEN** the user imports a TIFF among accepted images
+- **THEN** the system shows a per-file error for the TIFF, does not add a TIFF gallery tile, and still imports the accepted files
 
-#### Scenario: Reject HEIC with conversion message
+#### Scenario: Off-screen HEIC is not background-decoded
 
-- **WHEN** the user imports a HEIC/HEIF file identified by extension, MIME, or `ftyp` signature
-- **THEN** the system shows the HEIC conversion message for that file, does not add a gallery tile, and does not change the gallery photo count
+- **WHEN** a HEIC/HEIF asset is in the gallery but neither filmstrip-visible nor book-used
+- **THEN** the decode pool does not queue prefetch/background work for that asset
 
-#### Scenario: Decode failure leaves no gallery tile
+#### Scenario: Visible or placed HEIC is queued
 
-- **WHEN** the user imports an accepted image whose bytes fail to decode
-- **THEN** the system shows a visible per-file import error for that file, the gallery does not keep a tile for it, and the gallery photo count excludes it
+- **WHEN** a HEIC/HEIF gallery asset becomes filmstrip-visible or is placed on a spread
+- **THEN** decode is queued at visible priority
 
-#### Scenario: Folder import skips non-image files
+#### Scenario: Folder skips non-images with status summary
 
-- **WHEN** the user imports a folder that contains accepted images plus non-image files such as README.md
-- **THEN** accepted images enter the gallery, non-image files produce no import-errors entry, and polite editor status summarizes how many non-image files were skipped
+- **WHEN** a folder import includes JPEG files and a README.md
+- **THEN** JPEG assets appear in the gallery, import-errors stays empty for the README, and editor-status reports that one non-image file was skipped
 
 ### Requirement: Filmstrip asset representation
 
