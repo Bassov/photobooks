@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createFakeBrowserDirectory } from '../fsa/browserDirectory.test-helpers'
 import { createBrowserSessionState } from './browserSessionState'
@@ -23,6 +23,9 @@ function createMemoryIdb(): SessionIdb {
     del(key) {
       map.delete(key)
       return Promise.resolve()
+    },
+    keys() {
+      return Promise.resolve([...map.keys()])
     },
     runReadwrite(mutations) {
       for (const mutation of mutations) {
@@ -178,6 +181,123 @@ describe('createBrowserSessionState', () => {
     await acquired.value.release()
 
     expect(names).toEqual(['photobooks:book:spread-9'])
+  })
+
+  it('remember replaces prior library handles and keeps reserved keys', async () => {
+    const idb = createMemoryIdb()
+    const session = createBrowserSessionState({
+      idb,
+      locks: createMemoryLocks(),
+      skipLegacyMigration: true,
+    })
+    const first = createFakeBrowserDirectory({ name: 'First' })
+    const second = createFakeBrowserDirectory({ name: 'Second' })
+    await idb.set('__keep', 'reserved')
+    await session.rememberLibraryHandle('lib-a', first, 'First')
+    await session.rememberLibraryHandle('lib-b', second, 'Second')
+
+    await expect(session.peekLibraryHandle('lib-a')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(session.peekLibraryHandle('lib-b')).resolves.toEqual({
+      ok: true,
+      value: second,
+    })
+    await expect(idb.get('__keep')).resolves.toEqual({
+      present: true,
+      value: 'reserved',
+    })
+    await expect(session.getLibraryLabel('lib-b')).resolves.toBe('Second')
+  })
+
+  it('getLibraryLabel covers reserved, missing, default-label, and handle fallback', async () => {
+    const idb = createMemoryIdb()
+    const session = createBrowserSessionState({
+      idb,
+      locks: createMemoryLocks(),
+      skipLegacyMigration: true,
+    })
+
+    await expect(session.getLibraryLabel('__recents')).resolves.toBeNull()
+    await expect(session.getLibraryLabel('missing')).resolves.toBeNull()
+
+    await idb.set('__libraryLabel', '  Orphan Label  ')
+    await expect(session.getLibraryLabel('library')).resolves.toBe(
+      'Orphan Label',
+    )
+
+    const handle = createFakeBrowserDirectory({ name: 'Named' })
+    await session.rememberLibraryHandle('library', handle, '  ')
+    await idb.set('__libraryLabel', '   ')
+    await expect(session.getLibraryLabel('library')).resolves.toBe('Named')
+  })
+
+  it('soft-fails legacy migration errors and still serves handles', async () => {
+    const idb = createMemoryIdb()
+    const realGet = idb.get.bind(idb)
+    let getCount = 0
+    idb.get = async (key) => {
+      getCount += 1
+      if (key === '__recents' && getCount === 1) {
+        throw new Error('migrate boom')
+      }
+      return realGet(key)
+    }
+    const session = createBrowserSessionState({
+      idb,
+      locks: createMemoryLocks(),
+    })
+    const handle = createFakeBrowserDirectory({ name: 'AfterMigrate' })
+    await expect(
+      session.rememberLibraryHandle('library', handle, 'AfterMigrate'),
+    ).resolves.toEqual({ ok: true, value: undefined })
+    await expect(session.recallLibraryHandle('library')).resolves.toEqual({
+      ok: true,
+      value: handle,
+    })
+  })
+
+  it('skipLegacyMigration avoids migrate and still remembers', async () => {
+    const idb = createMemoryIdb()
+    const get = vi.spyOn(idb, 'get')
+    const session = createBrowserSessionState({
+      idb,
+      locks: createMemoryLocks(),
+      skipLegacyMigration: true,
+    })
+    const handle = createFakeBrowserDirectory({ name: 'Skip' })
+    await session.rememberLibraryHandle('library', handle, 'Skip')
+    expect(get).not.toHaveBeenCalledWith('__recents')
+    await expect(session.getLibraryLabel('library')).resolves.toBe('Skip')
+  })
+
+  it('getLibraryLabel returns null for a non-default missing library', async () => {
+    const idb = createMemoryIdb()
+    await idb.set('__libraryLabel', 'Orphan')
+    const session = createBrowserSessionState({
+      idb,
+      locks: createMemoryLocks(),
+      skipLegacyMigration: true,
+    })
+    await expect(session.getLibraryLabel('other')).resolves.toBeNull()
+  })
+
+  it('remember with no other keys skips deletion batch', async () => {
+    const idb = createMemoryIdb()
+    const run = vi.spyOn(idb, 'runReadwrite')
+    const session = createBrowserSessionState({
+      idb,
+      locks: createMemoryLocks(),
+      skipLegacyMigration: true,
+    })
+    const handle = createFakeBrowserDirectory({ name: 'Only' })
+    await session.rememberLibraryHandle('library', handle, 'Only')
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(run.mock.calls[0]?.[0]).toEqual([
+      { op: 'set', key: 'library', value: handle },
+      { op: 'set', key: '__libraryLabel', value: 'Only' },
+    ])
   })
 })
 

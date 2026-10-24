@@ -20,7 +20,6 @@ const config = {
     '!src/photo/photo.worker.ts',
     '!src/assets/hash.worker.ts',
     '!src/project/fsa/bookLoad.worker.ts',
-    '!src/App.tsx',
     '!src/editor/previewAspect.ts',
     '!src/editor/upgradeSessionAssets.ts',
     '!src/editor/usePasteboardCamera.ts',

@@ -10,7 +10,8 @@ import type {
 export type LibraryActivationAccessPhase =
   'idle' | 'permission-required' | 'locked-elsewhere'
 
-export type LibraryActivationSurface = 'home' | 'editor'
+export type LibraryActivationSurface =
+  'welcome' | 'library' | 'editor' | 'unsupported'
 
 export type LibraryActivationStatus =
   | { kind: 'idle' }
@@ -85,7 +86,7 @@ export interface LibraryActivation {
     nextLibraryId: string,
     handle: SessionDirectoryHandle,
     nextStorage: LibraryStorage,
-    mode?: 'adopt' | 'open',
+    mode?: 'adopt' | 'open' | 'browse',
   ) => Promise<StorageResult<void>>
   adoptCurrentBookInLibrary: () => Promise<StorageResult<Book>>
   activateLoadedBook: (book: Book) => Promise<StorageResult<Book>>
@@ -216,8 +217,18 @@ export function createLibraryActivation(
   }
 
   async function activateLibraryAfterBind(
-    mode: 'adopt' | 'open',
+    mode: 'adopt' | 'open' | 'browse',
   ): Promise<StorageResult<void>> {
+    if (mode === 'browse') {
+      // Bind only — library screen lists books / empty create.
+      if (bookHasContent(host.getBook())) {
+        host.withoutDirtyTracking(() => {
+          host.resetBookStore(host.createEmptyLibraryBook(host.nowId()))
+        })
+        host.clearAssetSources()
+      }
+      return { ok: true, value: undefined }
+    }
     if (mode === 'open') {
       const storage = host.getStorage()
       if (!storage) {
@@ -258,7 +269,7 @@ export function createLibraryActivation(
     nextLibraryId: string,
     handle: SessionDirectoryHandle,
     nextStorage: LibraryStorage,
-    mode: 'adopt' | 'open' = 'adopt',
+    mode: 'adopt' | 'open' | 'browse' = 'adopt',
   ): Promise<StorageResult<void>> {
     await host.releaseHeldBookLock()
     host.setStorage(nextStorage)
@@ -305,7 +316,7 @@ export function createLibraryActivation(
       host.clearAssetSources()
       host.setDirty(false)
       host.resetAutosave()
-      host.setSurface('home')
+      host.setSurface('library')
       host.setHomeError(
         host.humanMessageForCode(
           remembered.code,
@@ -325,7 +336,7 @@ export function createLibraryActivation(
     if (host.getAccessPhase() === 'permission-required') {
       host.setAccessPhase('idle')
     }
-    host.setSurface('editor')
+    host.setSurface(mode === 'browse' ? 'library' : 'editor')
     host.emit()
     return { ok: true, value: undefined }
   }
@@ -379,7 +390,7 @@ export function createLibraryActivation(
         return written
       }
       const nextId = await host.resolveLibraryIdForHandle(handle)
-      return bindLibrary(nextId, handle, nextStorage, 'adopt')
+      return bindLibrary(nextId, handle, nextStorage, 'browse')
     })
     return result ?? { ok: false, code: 'not-found' }
   }
@@ -412,7 +423,7 @@ export function createLibraryActivation(
         return meta
       }
       const nextId = await host.resolveLibraryIdForHandle(handle)
-      return bindLibrary(nextId, handle, nextStorage, 'open')
+      return bindLibrary(nextId, handle, nextStorage, 'browse')
     })
     return result ?? { ok: false, code: 'not-found' }
   }
@@ -469,12 +480,69 @@ export function createLibraryActivation(
     return result ?? { ok: false, code: 'not-found' }
   }
 
+  async function openBoundLibraryBook(
+    libraryKey: string,
+    nextBookId: string,
+    nextStorage: LibraryStorage,
+  ): Promise<StorageResult<Book>> {
+    await host.releaseHeldBookLock()
+    host.setBookId(null)
+    if (host.getAccessPhase() === 'permission-required') {
+      host.setAccessPhase('idle')
+    }
+    host.setStatus({
+      kind: 'open',
+      libraryId: libraryKey,
+      bookId: null,
+    })
+    const loaded = await nextStorage.loadBook(nextBookId)
+    if (!loaded.ok) {
+      host.setAccessPhase('idle')
+      host.clearBlockedAndPending()
+      host.setHomeError(
+        host.humanMessageForCode(loaded.code, 'Could not open that book.'),
+      )
+      host.setStatus({
+        kind: 'error',
+        code: loaded.code,
+        action: 'open book',
+      })
+      host.setSurface('library')
+      host.emit()
+      return loaded
+    }
+    const activated = await activateLoadedBook(loaded.value)
+    if (!activated.ok) {
+      host.setAccessPhase('idle')
+      host.clearBlockedAndPending()
+      host.withoutDirtyTracking(() => {
+        host.resetBookStore(host.createEmptyLibraryBook(host.nowId()))
+      })
+      host.clearAssetSources()
+      host.setSurface('library')
+      host.setEditorStatus('')
+      host.setHomeError(
+        host.humanMessageForCode(activated.code, 'Could not open that book.'),
+      )
+      host.emit()
+      return activated
+    }
+    host.setSurface('editor')
+    host.setHomeError(null)
+    host.emit()
+    return activated
+  }
+
   async function openBookFromHome(
     recentLibraryId: string,
     nextBookId: string,
   ): Promise<StorageResult<Book>> {
     const result = await host.withActionBusy(async () => {
       host.setHomeError(null)
+      const boundStorage = host.getStorage()
+      if (boundStorage !== null && host.getLibraryId() === recentLibraryId) {
+        return openBoundLibraryBook(recentLibraryId, nextBookId, boundStorage)
+      }
       let recalled: StorageResult<SessionDirectoryHandle>
       try {
         recalled = await host.recallLibraryHandle(recentLibraryId)
@@ -500,58 +568,24 @@ export function createLibraryActivation(
         }
         return { ok: false as const, code: recalled.code }
       }
-      await host.releaseHeldBookLock()
       const nextStorage = host.createStorageFromHandle(recalled.value)
       host.setStorage(nextStorage)
       host.setLibraryId(recentLibraryId)
-      host.setBookId(null)
-      if (host.getAccessPhase() === 'permission-required') {
-        host.setAccessPhase('idle')
-      }
-      host.setStatus({
-        kind: 'open',
-        libraryId: recentLibraryId,
-        bookId: null,
-      })
-      const loaded = await nextStorage.loadBook(nextBookId)
-      if (!loaded.ok) {
+      const opened = await openBoundLibraryBook(
+        recentLibraryId,
+        nextBookId,
+        nextStorage,
+      )
+      if (!opened.ok) {
         host.setStorage(null)
         host.setLibraryId(null)
         host.setBookId(null)
         host.persistIds()
         host.setAccessPhase('idle')
         host.clearBlockedAndPending()
-        host.setSurface('home')
-        host.setHomeError(
-          host.humanMessageForCode(loaded.code, 'Could not open that book.'),
-        )
-        host.setStatus({
-          kind: 'error',
-          code: loaded.code,
-          action: 'open book',
-        })
+        host.setSurface('library')
         host.emit()
-        return loaded
-      }
-      const activated = await activateLoadedBook(loaded.value)
-      if (!activated.ok) {
-        host.setStorage(null)
-        host.setLibraryId(null)
-        host.setBookId(null)
-        host.persistIds()
-        host.setAccessPhase('idle')
-        host.clearBlockedAndPending()
-        host.withoutDirtyTracking(() => {
-          host.resetBookStore(host.createEmptyLibraryBook(host.nowId()))
-        })
-        host.clearAssetSources()
-        host.setSurface('home')
-        host.setEditorStatus('')
-        host.setHomeError(
-          host.humanMessageForCode(activated.code, 'Could not open that book.'),
-        )
-        host.emit()
-        return activated
+        return opened
       }
       const remembered = await host.rememberLibraryHandle(
         recentLibraryId,
@@ -572,7 +606,7 @@ export function createLibraryActivation(
         host.clearAssetSources()
         host.setDirty(false)
         host.resetAutosave()
-        host.setSurface('home')
+        host.setSurface('library')
         host.setHomeError(
           host.humanMessageForCode(
             remembered.code,
@@ -587,10 +621,7 @@ export function createLibraryActivation(
         host.emit()
         return remembered
       }
-      host.setSurface('editor')
-      host.setHomeError(null)
-      host.emit()
-      return activated
+      return opened
     })
     return result ?? { ok: false, code: 'not-found' }
   }
@@ -615,22 +646,13 @@ export function createLibraryActivation(
       host.emit()
       try {
         host.cancelAutosave()
-        const persisted = host.readPersistedIds()
-        if (!persisted.bookId) {
-          host.setSurface('home')
-          host.setAccessPhase('idle')
-          host.emit()
-          return { ok: true as const, value: null }
-        }
-        host.setSurface('editor')
-        host.emit()
-        const id = persisted.libraryId ?? host.defaultLibraryId()
+        const id = host.readPersistedIds().libraryId ?? host.defaultLibraryId()
         let recalled: StorageResult<SessionDirectoryHandle>
         try {
           recalled = await host.recallLibraryHandle(id)
         } catch {
           await clearStaleRestoreState()
-          host.setSurface('home')
+          host.setSurface('welcome')
           host.emit()
           return { ok: true as const, value: null }
         }
@@ -639,10 +661,11 @@ export function createLibraryActivation(
             await host.releaseHeldBookLock()
             host.setStorage(null)
             host.setBookId(null)
-            host.setLibraryId(null)
+            host.setLibraryId(id)
+            host.setPendingRegrant(id, host.readPersistedIds().bookId)
             host.setDirty(false)
             host.resetAutosave()
-            host.setSurface('home')
+            host.setSurface('welcome')
             host.setPermissionRequiredAccess()
             host.setStatus({
               kind: 'error',
@@ -652,17 +675,28 @@ export function createLibraryActivation(
             return { ok: true as const, value: null }
           }
           await clearStaleRestoreState()
-          host.setSurface('home')
+          host.setSurface('welcome')
           host.emit()
           return { ok: true as const, value: null }
         }
         const nextStorage = host.createStorageFromHandle(recalled.value)
         host.setStorage(nextStorage)
         host.setLibraryId(id)
-        const loaded = await nextStorage.loadBook(persisted.bookId)
+        const persistedBookId = host.readPersistedIds().bookId
+        if (!persistedBookId) {
+          host.setSurface('library')
+          host.setAccessPhase('idle')
+          host.emit()
+          return { ok: true as const, value: null }
+        }
+        host.setSurface('editor')
+        host.emit()
+        const loaded = await nextStorage.loadBook(persistedBookId)
         if (!loaded.ok) {
           await clearStaleRestoreState()
-          host.setSurface('home')
+          host.setStorage(nextStorage)
+          host.setLibraryId(id)
+          host.setSurface('library')
           host.setHomeError(
             host.humanMessageForCode(
               loaded.code,

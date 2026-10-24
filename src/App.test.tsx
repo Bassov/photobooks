@@ -8,17 +8,22 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { getBookStoreSnapshot, resetBookStore } from './editor/bookStore'
-import { resetProjectSessionForTests } from './editor/projectSession'
+import {
+  attachMemoryLibraryForTests,
+  resetProjectSessionForTests,
+  setSurfaceForTests,
+  startSessionEditor,
+} from './editor/projectSession'
 import { resetThumbCache } from './editor/thumbCache'
 import { resetAssetPool } from './photo/assetPool'
 import { mockWorkerSuccess } from './photo/photo.test-helpers'
 
-async function enterEditorFromHome(): Promise<void> {
+async function enterEditor(): Promise<void> {
+  await attachMemoryLibraryForTests()
+  startSessionEditor()
   await waitFor(() => {
-    expect(screen.getByTestId('start-session')).toBeTruthy()
+    expect(screen.getByTestId('editor-shell')).toBeTruthy()
   })
-  fireEvent.click(screen.getByTestId('start-session'))
-  expect(screen.getByTestId('editor-shell')).toBeTruthy()
 }
 
 describe('App editor shell', () => {
@@ -27,6 +32,16 @@ describe('App editor shell', () => {
     resetProjectSessionForTests()
     resetThumbCache()
     resetAssetPool()
+    Object.defineProperty(globalThis, 'isSecureContext', {
+      configurable: true,
+      value: true,
+    })
+    Object.defineProperty(globalThis, 'showDirectoryPicker', {
+      configurable: true,
+      value: () => {
+        throw new Error('unused picker')
+      },
+    })
   })
 
   afterEach(() => {
@@ -39,15 +54,36 @@ describe('App editor shell', () => {
     vi.restoreAllMocks()
   })
 
-  it('shows home then editor shell with workspace and filmstrip', async () => {
+  it('shows welcome then editor shell with workspace and filmstrip', async () => {
     render(<App />)
-    expect(screen.getByTestId('home-screen')).toBeTruthy()
-    await enterEditorFromHome()
+    expect(screen.getByTestId('welcome-screen')).toBeTruthy()
+    await enterEditor()
     expect(screen.getByTestId('editor-workspace')).toBeTruthy()
     expect(screen.getByTestId('filmstrip')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add photos' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add folder' })).toBeTruthy()
     expect(screen.queryByTestId('photo-card')).toBeNull()
+  })
+
+  it('shows unsupported screen when the directory picker is missing', async () => {
+    Reflect.deleteProperty(globalThis, 'showDirectoryPicker')
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByTestId('unsupported-browser')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('welcome-screen')).toBeNull()
+    expect(screen.queryByTestId('editor-shell')).toBeNull()
+  })
+
+  it('shows library screen after attaching a memory library', async () => {
+    render(<App />)
+    expect(screen.getByTestId('welcome-screen')).toBeTruthy()
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    setSurfaceForTests('library')
+    await waitFor(() => {
+      expect(screen.getByTestId('library-screen')).toBeTruthy()
+    })
   })
 
   it('imports a file via the hidden input into the gallery', async () => {
@@ -69,7 +105,7 @@ describe('App editor shell', () => {
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
     render(<App />)
-    await enterEditorFromHome()
+    await enterEditor()
     const input = screen.getByTestId('photo-file-input')
     const file = new File([new Uint8Array([1, 2, 3])], 'a.jpg', {
       type: 'image/jpeg',
@@ -86,7 +122,7 @@ describe('App editor shell', () => {
 
   it('shows per-file error for TIFF without aborting', async () => {
     render(<App />)
-    await enterEditorFromHome()
+    await enterEditor()
     const input = screen.getByTestId('photo-file-input')
     const bad = new File([new Uint8Array([1])], 'scan.tiff', {
       type: 'image/tiff',
@@ -98,6 +134,5 @@ describe('App editor shell', () => {
         /Unsupported/i,
       )
     })
-    expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
   })
 })

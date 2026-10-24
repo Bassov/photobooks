@@ -3,12 +3,9 @@ import {
   isReservedSessionKey,
   labelForHandle,
   parseActiveIds,
-  removeRecent,
-  upsertRecentFront,
-} from './recents'
+} from './libraryLabel'
 import type {
   BookLock,
-  RecentLibrary,
   SessionActiveIds,
   SessionDirectoryHandle,
   SessionState,
@@ -27,8 +24,9 @@ function success<T>(value: T): StorageResult<T> {
 }
 
 export function createMemorySessionState(): MemorySessionState {
-  const handles = new Map<string, SessionDirectoryHandle>()
-  let recents: RecentLibrary[] = []
+  let libraryId: string | null = null
+  let handle: SessionDirectoryHandle | null = null
+  let label: string | null = null
   let activeIds: SessionActiveIds = { libraryId: null, bookId: null }
   const heldLocks = new Set<string>()
   let permissionRequired = false
@@ -38,67 +36,63 @@ export function createMemorySessionState(): MemorySessionState {
       permissionRequired = required
     },
 
-    rememberLibraryHandle(libraryId, handle, label) {
-      if (isReservedSessionKey(libraryId)) {
+    rememberLibraryHandle(id, nextHandle, nextLabel) {
+      if (isReservedSessionKey(id)) {
         return Promise.resolve(failure('not-found'))
       }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
-      handles.set(libraryId, handle)
-      recents = upsertRecentFront(recents, {
-        id: libraryId,
-        label: labelForHandle(libraryId, handle, label),
-      })
+      libraryId = id
+      handle = nextHandle
+      label = labelForHandle(id, nextHandle, nextLabel)
       return Promise.resolve(success(undefined))
     },
 
-    recallLibraryHandle(libraryId) {
-      if (isReservedSessionKey(libraryId)) {
+    recallLibraryHandle(id) {
+      if (isReservedSessionKey(id)) {
         return Promise.resolve(failure('not-found'))
       }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
-      const handle = handles.get(libraryId)
-      if (handle === undefined) {
+      if (handle === null || libraryId !== id) {
         return Promise.resolve(failure('not-found'))
       }
       return Promise.resolve(success(handle))
     },
 
-    peekLibraryHandle(libraryId) {
-      if (isReservedSessionKey(libraryId)) {
+    peekLibraryHandle(id) {
+      if (isReservedSessionKey(id)) {
         return Promise.resolve(failure('not-found'))
       }
-      const handle = handles.get(libraryId)
-      if (handle === undefined) {
+      if (handle === null || libraryId !== id) {
         return Promise.resolve(failure('not-found'))
       }
       return Promise.resolve(success(handle))
     },
 
-    clearLibraryHandle(libraryId) {
-      if (isReservedSessionKey(libraryId)) {
+    clearLibraryHandle(id) {
+      if (isReservedSessionKey(id)) {
         return Promise.resolve(failure('not-found'))
       }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
-      if (!handles.has(libraryId)) {
+      if (handle === null || libraryId !== id) {
         return Promise.resolve(failure('not-found'))
       }
-      handles.delete(libraryId)
-      recents = removeRecent(recents, libraryId)
+      libraryId = null
+      handle = null
+      label = null
       return Promise.resolve(success(undefined))
     },
 
-    removeRecentLibrary(libraryId) {
-      return this.clearLibraryHandle(libraryId)
-    },
-
-    listRecentLibraries() {
-      return Promise.resolve(success(recents.map((entry) => ({ ...entry }))))
+    getLibraryLabel(id) {
+      if (handle === null || libraryId !== id) {
+        return Promise.resolve(null)
+      }
+      return Promise.resolve(label)
     },
 
     setActiveIds(ids) {
