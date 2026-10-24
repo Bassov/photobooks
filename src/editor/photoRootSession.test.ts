@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { resetScanWorker } from '../assets'
+import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
 import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
 import type { SessionIdb, SessionIdbGetResult } from '../project/session/idb'
 import * as sourceRootHandles from '../project/session/browserSourceRootHandles'
@@ -70,6 +72,7 @@ describe('photoRootSession bind/restore', () => {
   const options = { sourceRootIdb, bookPhotoRootIdb }
 
   beforeEach(() => {
+    stubScanWorker()
     const remember = sourceRootHandles.rememberSourceRootHandle
     const recall = sourceRootHandles.recallSourceRootHandle
     const peek = sourceRootHandles.peekSourceRootHandle
@@ -101,6 +104,7 @@ describe('photoRootSession bind/restore', () => {
   })
 
   afterEach(() => {
+    resetScanWorker()
     vi.restoreAllMocks()
     resetPhotoRootSessionForTests()
     clearRegisteredAssetSources()

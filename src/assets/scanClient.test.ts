@@ -86,6 +86,74 @@ describe('scanClient', () => {
     ])
   })
 
+  it('falls back to in-process walk when postMessage throws DataCloneError', async () => {
+    class CloneFailWorker {
+      addEventListener(): void {
+        // no-op
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(): void {
+        throw new DOMException('clone', 'DataCloneError')
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', CloneFailWorker)
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('a.jpg', new Uint8Array([1]), 1)
+    await expect(scanDirectoryInWorker(tree.root)).resolves.toEqual([
+      { relativePath: 'a.jpg', byteSize: 1, mtimeMs: 1 },
+    ])
+  })
+
+  it('does not fall back for non-DataClone DOMExceptions', async () => {
+    class OtherDomFailWorker {
+      addEventListener(): void {
+        // no-op
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(): void {
+        throw new DOMException('denied', 'NotAllowedError')
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', OtherDomFailWorker)
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('a.jpg', new Uint8Array([1]), 1)
+    await expect(scanDirectoryInWorker(tree.root)).rejects.toMatchObject({
+      name: 'NotAllowedError',
+    })
+  })
+
+  it('does not fall back for DataCloneError-shaped plain errors', async () => {
+    class PlainCloneFailWorker {
+      addEventListener(): void {
+        // no-op
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(): void {
+        const error = new Error('clone')
+        Object.defineProperty(error, 'name', { value: 'DataCloneError' })
+        throw error
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', PlainCloneFailWorker)
+    const tree = createMemoryAssetDirectory()
+    await expect(scanDirectoryInWorker(tree.root)).rejects.toThrow('clone')
+  })
+
   it('rejects when the worker returns ok:false', async () => {
     class FailWorker {
       private listeners = new Map<string, Set<(event: MessageEvent) => void>>()

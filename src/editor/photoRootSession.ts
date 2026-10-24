@@ -1,5 +1,20 @@
-import { createFsaAssetSource } from '../assets'
+import {
+  createFsaAssetSource,
+  hashContent,
+  shouldReuseContentHash,
+  type AssetSource,
+  type ScannedEntry,
+} from '../assets'
+import type { Asset, Book, Spread } from '../core'
 import { retainAssetSource } from '../photo/assetSources'
+import { trackHashJob } from './pendingHashes'
+import { yieldForPaint } from './relink/yieldForPaint'
+import { resolveRelativeFile } from '../assets/resolveRelativeFile'
+import type { AssetDirectoryHandle } from '../assets/fsa/handles'
+import type { ImportFileError } from '../photo/assetPool'
+import { IMPORT_BODY_READ_CAP } from './importBodyReads'
+import type { ImportPhotoResult, ImportProgress } from './importPhotos'
+import { runChromeImport } from './runChromeImport'
 import {
   clearBookPhotoRoot,
   clearSourceRootHandle,
@@ -14,7 +29,11 @@ import {
   getRegisteredAssetSource,
   registerAssetSource,
 } from './assetSourceRegistry'
-import { getBookStoreSnapshot, removeFailedImportAssets } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  patchAssetRecord,
+  removeFailedImportAssets,
+} from './bookStore'
 
 export type PhotoAccessPhase = 'idle' | 'permission-required'
 
@@ -201,6 +220,7 @@ export function clearBoundPhotoFolderForReplace(): Promise<void> {
 async function clearBoundPhotoFolder(options?: {
   clearGalleryAssets?: boolean
 }): Promise<void> {
+  cancelFolderRescan()
   const bookId = bookKey()
   const memoryRootId = boundSourceRootId
 
@@ -291,12 +311,13 @@ async function restoreBySourceRootId(
   photoFolderLabel = label
   const recalled = await recallSourceRootHandle(sourceRootId)
   if (recalled.ok) {
-    registerGrantedRoot(
+    const directory = recalled.value as FileSystemDirectoryHandle
+    registerGrantedRoot(sourceRootId, directory, label ?? undefined)
+    await startFolderRescan({
       sourceRootId,
-      recalled.value as FileSystemDirectoryHandle,
-      label ?? undefined,
-    )
-    await rehydrateSessionFilesFromRoot(sourceRootId)
+      directory,
+      runLazy: true,
+    })
     return
   }
   if (recalled.code === 'permission-required') {
@@ -335,7 +356,11 @@ export async function regrantPhotoFolder(
   const state = await requestReadPermission(handle)
   if (state === 'granted') {
     registerGrantedRoot(resolvedId, handle, photoFolderLabel ?? undefined)
-    await rehydrateSessionFilesFromRoot(resolvedId)
+    await startFolderRescan({
+      sourceRootId: resolvedId,
+      directory: handle,
+      runLazy: true,
+    })
     return 'granted'
   }
   if (state === 'denied') {
@@ -346,30 +371,454 @@ export async function regrantPhotoFolder(
   return state
 }
 
-async function rehydrateSessionFilesFromRoot(
+export interface RescanAssetRef {
+  assetId: string
+  relativePath: string
+  byteSize?: number
+  mtimeMs?: number
+  contentHash?: string
+}
+
+export interface PlanRescanPriorityInput {
+  openBook: Book
+  sourceRootId: string
+  /** Active/visible spread; defaults to the first spread when null/missing. */
+  visibleSpreadId: string | null
+  /** Assets from other library books (already filtered or not). */
+  otherBookAssets: readonly RescanAssetRef[]
+}
+
+function placedIdsOnSpread(spread: Spread | undefined): string[] {
+  if (spread === undefined) {
+    return []
+  }
+  const ids: string[] = []
+  for (const frame of spread.frames) {
+    if (frame.assetId !== undefined) {
+      ids.push(frame.assetId)
+    }
+  }
+  return ids
+}
+
+function refFromAsset(
+  assetId: string,
+  asset: Asset | undefined,
   sourceRootId: string,
+): RescanAssetRef | null {
+  const relativePath = asset?.relativePath
+  if (
+    asset?.sourceRootId !== sourceRootId ||
+    typeof relativePath !== 'string' ||
+    relativePath === ''
+  ) {
+    return null
+  }
+  const ref: RescanAssetRef = {
+    assetId,
+    relativePath,
+  }
+  if (asset.byteSize !== undefined) {
+    ref.byteSize = asset.byteSize
+  }
+  if (asset.mtimeMs !== undefined) {
+    ref.mtimeMs = asset.mtimeMs
+  }
+  if (asset.contentHash !== undefined) {
+    ref.contentHash = asset.contentHash
+  }
+  return ref
+}
+
+/**
+ * Pure priority order for post-reload verify/re-hash:
+ * visible-spread placed → other open-book assets for root → other books.
+ * Dedupes by relativePath (first wins).
+ */
+export function planRescanPriority(
+  input: PlanRescanPriorityInput,
+): RescanAssetRef[] {
+  const { openBook, sourceRootId, otherBookAssets } = input
+  const visibleId =
+    input.visibleSpreadId !== null &&
+    openBook.spreads.some((spread) => spread.id === input.visibleSpreadId)
+      ? input.visibleSpreadId
+      : (openBook.spreads[0]?.id ?? null)
+
+  const seenPaths = new Set<string>()
+  const ordered: RescanAssetRef[] = []
+
+  const push = (ref: RescanAssetRef | null): void => {
+    if (ref === null || seenPaths.has(ref.relativePath)) {
+      return
+    }
+    seenPaths.add(ref.relativePath)
+    ordered.push(ref)
+  }
+
+  const visibleSpread = openBook.spreads.find(
+    (spread) => spread.id === visibleId,
+  )
+  for (const assetId of placedIdsOnSpread(visibleSpread)) {
+    push(refFromAsset(assetId, openBook.assets[assetId], sourceRootId))
+  }
+
+  for (const assetId of openBook.gallery) {
+    push(refFromAsset(assetId, openBook.assets[assetId], sourceRootId))
+  }
+
+  for (const spread of openBook.spreads) {
+    for (const assetId of placedIdsOnSpread(spread)) {
+      push(refFromAsset(assetId, openBook.assets[assetId], sourceRootId))
+    }
+  }
+
+  for (const ref of otherBookAssets) {
+    if (ref.relativePath === '') {
+      continue
+    }
+    push(ref)
+  }
+
+  return ordered
+}
+
+/**
+ * Paths in `scanned` that are not in the prioritized used-in-book set.
+ * Reversed so lazy work does not follow directory enumeration order.
+ */
+export function remainingScannedPaths(
+  scannedRelativePaths: readonly string[],
+  prioritized: readonly RescanAssetRef[],
+): string[] {
+  const used = new Set(prioritized.map((ref) => ref.relativePath))
+  const rest: string[] = []
+  for (const path of scannedRelativePaths) {
+    if (!used.has(path)) {
+      rest.push(path)
+    }
+  }
+  return rest.reverse()
+}
+
+export interface FolderRescanProgress {
+  total: number
+  completed: number
+  running: boolean
+  phase: 'priority' | 'lazy'
+}
+
+type ProgressListener = (state: FolderRescanProgress | null) => void
+
+let progress: FolderRescanProgress | null = null
+const progressListeners = new Set<ProgressListener>()
+let cancelEpoch = 0
+let activeRun: Promise<void> | null = null
+
+function emitProgress(next: FolderRescanProgress | null): void {
+  progress = next
+  for (const listener of progressListeners) {
+    listener(progress)
+  }
+}
+
+export function subscribeFolderRescanProgress(
+  listener: ProgressListener,
+): () => void {
+  progressListeners.add(listener)
+  return () => {
+    progressListeners.delete(listener)
+  }
+}
+
+export function getFolderRescanProgress(): FolderRescanProgress | null {
+  return progress
+}
+
+export function cancelFolderRescan(): void {
+  cancelEpoch += 1
+}
+
+export function resetFolderRescanForTests(): void {
+  cancelFolderRescan()
+  activeRun = null
+  emitProgress(null)
+}
+
+export function setFolderRescanProgressForTests(
+  state: FolderRescanProgress | null,
+): void {
+  emitProgress(state)
+}
+
+function assetRecordFor(ref: RescanAssetRef): Asset {
+  const existing = getBookStoreSnapshot().book.assets[ref.assetId]
+  if (existing !== undefined) {
+    return existing
+  }
+  return {
+    relativePath: ref.relativePath,
+    ...(ref.byteSize !== undefined ? { byteSize: ref.byteSize } : {}),
+    ...(ref.mtimeMs !== undefined ? { mtimeMs: ref.mtimeMs } : {}),
+    ...(ref.contentHash !== undefined ? { contentHash: ref.contentHash } : {}),
+  }
+}
+
+async function verifyRef(
+  sourceRootId: string,
+  source: AssetSource,
+  ref: RescanAssetRef,
+  scannedByPath: ReadonlyMap<string, ScannedEntry>,
 ): Promise<void> {
-  const source = getRegisteredAssetSource(sourceRootId)
-  if (source === undefined) {
+  const scanned = scannedByPath.get(ref.relativePath)
+  const record = assetRecordFor(ref)
+  const canReuse =
+    scanned !== undefined &&
+    shouldReuseContentHash({ ...record, sourceRootId }, scanned, sourceRootId)
+
+  const read = await source.readForHash(sourceRootId, ref.relativePath)
+  if (!read.ok) {
     return
   }
-  const { book } = getBookStoreSnapshot()
-  for (const assetId of book.gallery) {
-    const asset = book.assets[assetId]
-    if (
-      asset?.sourceRootId !== sourceRootId ||
-      typeof asset.relativePath !== 'string'
-    ) {
-      continue
-    }
-    const read = await source.readForHash(sourceRootId, asset.relativePath)
-    if (!read.ok) {
-      continue
-    }
-    const name = asset.relativePath.split('/').pop() ?? asset.relativePath
-    const file = new File([read.value], name, {
-      lastModified: asset.mtimeMs ?? Date.now(),
-    })
-    retainAssetSource(assetId, file)
+  const name = ref.relativePath.split('/').pop() ?? ref.relativePath
+  retainAssetSource(
+    ref.assetId,
+    new File([read.value], name, {
+      lastModified: scanned?.mtimeMs ?? ref.mtimeMs ?? Date.now(),
+    }),
+  )
+  if (canReuse) {
+    return
   }
+  void trackHashJob(
+    hashContent(read.value).then((contentHash) => {
+      patchAssetRecord(ref.assetId, { contentHash })
+      return contentHash
+    }),
+  ).catch(() => undefined)
+}
+
+function warmLazyPath(
+  sourceRootId: string,
+  source: AssetSource,
+  path: string,
+  isCancelled: () => boolean,
+): void {
+  void source.readForHash(sourceRootId, path).then((read) => {
+    if (read.ok && !isCancelled()) {
+      void hashContent(read.value)
+    }
+  })
+}
+
+/**
+ * After granted restore: verify used-in-book assets first, then lazy-hash
+ * unused scanned files in yielded chunks (cancellable). Resolves after the
+ * priority phase; lazy work continues in the background.
+ */
+export async function startFolderRescan(options: {
+  sourceRootId: string
+  /** Accepted for API compatibility; verification uses the registered AssetSource. */
+  directory?: FileSystemDirectoryHandle
+  visibleSpreadId?: string | null
+  otherBookAssets?: readonly RescanAssetRef[]
+  runLazy?: boolean
+}): Promise<void> {
+  cancelFolderRescan()
+  const runEpoch = cancelEpoch
+  const isCancelled = (): boolean => cancelEpoch !== runEpoch
+
+  const run = (async () => {
+    const source = getRegisteredAssetSource(options.sourceRootId)
+    if (source === undefined) {
+      emitProgress(null)
+      return
+    }
+    const scannedResult = await source.scanRoot(options.sourceRootId)
+    if (!scannedResult.ok) {
+      emitProgress(null)
+      return
+    }
+    const scanned = scannedResult.value
+    const scannedByPath = new Map(
+      scanned.map((entry) => [entry.relativePath, entry] as const),
+    )
+    const book = getBookStoreSnapshot().book
+    const prioritized = planRescanPriority({
+      openBook: book,
+      sourceRootId: options.sourceRootId,
+      visibleSpreadId: options.visibleSpreadId ?? book.spreads[0]?.id ?? null,
+      otherBookAssets: options.otherBookAssets ?? [],
+    })
+    const lazyPaths = remainingScannedPaths(
+      scanned.map((entry) => entry.relativePath),
+      prioritized,
+    )
+    const runLazy = options.runLazy !== false
+    const total = prioritized.length + (runLazy ? lazyPaths.length : 0)
+    let completed = 0
+    emitProgress({
+      total: Math.max(total, 1),
+      completed: 0,
+      running: true,
+      phase: 'priority',
+    })
+
+    for (const ref of prioritized) {
+      if (isCancelled()) {
+        emitProgress(null)
+        return
+      }
+      await verifyRef(options.sourceRootId, source, ref, scannedByPath)
+      completed += 1
+      emitProgress({
+        total: Math.max(total, 1),
+        completed,
+        running: true,
+        phase: 'priority',
+      })
+      await yieldForPaint()
+    }
+
+    if (!runLazy || lazyPaths.length === 0 || isCancelled()) {
+      emitProgress(null)
+      return
+    }
+
+    emitProgress({
+      total: Math.max(total, 1),
+      completed,
+      running: true,
+      phase: 'lazy',
+    })
+
+    const lazy = (async () => {
+      for (const path of lazyPaths) {
+        if (isCancelled()) {
+          break
+        }
+        warmLazyPath(options.sourceRootId, source, path, isCancelled)
+        completed += 1
+        emitProgress({
+          total: Math.max(total, 1),
+          completed,
+          running: true,
+          phase: 'lazy',
+        })
+        await yieldForPaint()
+      }
+      emitProgress(null)
+    })()
+    activeRun = lazy.finally(() => {
+      if (activeRun === lazy) {
+        activeRun = null
+      }
+    })
+  })()
+
+  activeRun = run
+  try {
+    await run
+  } finally {
+    if (activeRun === run) {
+      activeRun = null
+    }
+  }
+}
+
+export async function awaitFolderRescanForTests(): Promise<void> {
+  if (activeRun !== null) {
+    await activeRun
+  }
+}
+
+const FOLDER_IMPORT_BATCH_SIZE = IMPORT_BODY_READ_CAP
+
+export interface FolderImportBatchOptions {
+  sourceRootId: string
+  libraryBacked?: boolean
+  onProgress: (progress: ImportProgress | null) => void
+  onErrors: (errors: readonly ImportFileError[]) => void
+}
+
+function toImportResult(result: {
+  imported: number
+  skipped: number
+  errors: readonly ImportFileError[]
+}): ImportPhotoResult {
+  return {
+    imported: result.imported,
+    skipped: result.skipped,
+    errors: [...result.errors],
+  }
+}
+
+/**
+ * Import already-resolved Files. Decode/hash are already progressive inside
+ * `importPhotoFiles` — do not split into multiple `importPhotoFiles` calls
+ * (each call awaits pending hashes and can stall mid-folder).
+ */
+export async function importFilesInBatches(
+  files: readonly File[],
+  options: FolderImportBatchOptions,
+): Promise<ImportPhotoResult> {
+  if (files.length === 0) {
+    return { imported: 0, errors: [], skipped: 0 }
+  }
+  const result = await runChromeImport(files, {
+    source: 'folder',
+    sourceRootId: options.sourceRootId,
+    ...(options.libraryBacked !== undefined
+      ? { libraryBacked: options.libraryBacked }
+      : {}),
+    onProgress: options.onProgress,
+    onErrors: options.onErrors,
+  })
+  return toImportResult(result)
+}
+
+/**
+ * Resolve Files for scanned entries in batches (yield between resolves), then
+ * one progressive import for the resolved list.
+ */
+export async function importScannedEntriesInBatches(
+  directory: AssetDirectoryHandle | FileSystemDirectoryHandle,
+  entries: readonly ScannedEntry[],
+  options: FolderImportBatchOptions,
+): Promise<ImportPhotoResult> {
+  if (entries.length === 0) {
+    return { imported: 0, errors: [], skipped: 0 }
+  }
+  options.onProgress({
+    total: entries.length,
+    completed: 0,
+    errors: [],
+    running: true,
+  })
+  const files: File[] = []
+  for (
+    let offset = 0;
+    offset < entries.length;
+    offset += FOLDER_IMPORT_BATCH_SIZE
+  ) {
+    const slice = entries.slice(offset, offset + FOLDER_IMPORT_BATCH_SIZE)
+    for (const entry of slice) {
+      const file = await resolveRelativeFile(directory, entry.relativePath)
+      if (file !== null) {
+        files.push(file)
+      }
+    }
+    options.onProgress({
+      total: entries.length,
+      completed: Math.min(entries.length, offset + slice.length),
+      errors: [],
+      running: true,
+    })
+    await yieldForPaint()
+  }
+  if (files.length === 0) {
+    options.onProgress(null)
+    return { imported: 0, errors: [], skipped: 0 }
+  }
+  return importFilesInBatches(files, options)
 }

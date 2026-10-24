@@ -6,7 +6,9 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { resetScanWorker } from '../assets'
+import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
 import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
 import { resetAssetPool } from '../photo/assetPool'
 import * as pickPhotos from '../photo/pickPhotos'
@@ -40,10 +42,12 @@ const CHOOSE_LABEL = 'Choose photo folder…'
 
 function stubFolderPick(files: File[]): FileSystemDirectoryHandle {
   const directory = createFakeBrowserDirectory({ name: 'picked' })
+  for (const file of files) {
+    directory.writeFile(file.name, new Uint8Array(Math.max(file.size, 1)))
+  }
   vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
   vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue({
     directory,
-    files,
   })
   vi.spyOn(photoRootSession, 'bindPhotoFolder').mockResolvedValue({
     sourceRootId: 'root-test',
@@ -61,6 +65,10 @@ function clickChoosePhotoFolder(): void {
 }
 
 describe('EditorTopBar', () => {
+  beforeEach(() => {
+    stubScanWorker()
+  })
+
   afterEach(() => {
     cleanup()
     window.history.pushState({}, '', '/')
@@ -75,6 +83,7 @@ describe('EditorTopBar', () => {
     resetPhotoRootSessionForTests()
     resetNoPhotosFoundHint()
     resetImportErrorsStoreForTests()
+    resetScanWorker()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -131,7 +140,7 @@ describe('EditorTopBar', () => {
     clickChoosePhotoFolder()
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith(
-        [file],
+        [expect.objectContaining({ name: 'd.jpg' })],
         expect.objectContaining({
           source: 'folder',
           sourceRootId: 'root-test',
@@ -329,12 +338,6 @@ describe('EditorTopBar', () => {
   })
 
   it('clears the import-error toast after a successful import', async () => {
-    const bad = new File([new Uint8Array([1])], 'bad.jpg', {
-      type: 'image/jpeg',
-    })
-    const good = new File([new Uint8Array([1])], 'ok.jpg', {
-      type: 'image/jpeg',
-    })
     Object.defineProperty(window, 'confirm', {
       configurable: true,
       writable: true,
@@ -349,15 +352,13 @@ describe('EditorTopBar', () => {
       photoRootSession,
       'registerBoundPhotoFolderSource',
     ).mockImplementation(vi.fn())
+    const dirA = createFakeBrowserDirectory({ name: 'a' })
+    dirA.writeFile('bad.jpg', new Uint8Array([1]))
+    const dirB = createFakeBrowserDirectory({ name: 'b' })
+    dirB.writeFile('ok.jpg', new Uint8Array([1]))
     vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker')
-      .mockResolvedValueOnce({
-        directory: createFakeBrowserDirectory({ name: 'a' }),
-        files: [bad],
-      })
-      .mockResolvedValueOnce({
-        directory: createFakeBrowserDirectory({ name: 'b' }),
-        files: [good],
-      })
+      .mockResolvedValueOnce({ directory: dirA })
+      .mockResolvedValueOnce({ directory: dirB })
     vi.spyOn(importPhotos, 'importPhotoFiles')
       .mockResolvedValueOnce({
         imported: 0,
@@ -426,7 +427,10 @@ describe('EditorTopBar', () => {
     clickChoosePhotoFolder()
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith(
-        [jpeg, readme],
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'a.jpg' }),
+          expect.objectContaining({ name: 'README.md' }),
+        ]),
         expect.objectContaining({ source: 'folder' }),
       )
     })

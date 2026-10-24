@@ -8,12 +8,12 @@ export function canUseDirectoryPicker(): boolean {
 
 export interface PickedPhotoFolder {
   directory: FileSystemDirectoryHandle
-  files: File[]
 }
 
 /**
- * Prefer FSA directory picker. Keeps the handle for durable source-root binding
- * and returns File refs from the walk (MIME filtering stays in the importer).
+ * Prefer FSA directory picker. Returns the handle only — folder discovery and
+ * File resolution happen later via worker scan + batched import (no full-tree
+ * main-thread collect before first paint).
  */
 export async function pickFolderWithDirectoryPicker(): Promise<PickedPhotoFolder | null> {
   const showDirectoryPicker = window.showDirectoryPicker
@@ -27,62 +27,13 @@ export async function pickFolderWithDirectoryPicker(): Promise<PickedPhotoFolder
       mode: 'read',
       startIn: 'pictures',
     })
-    const files = await collectFilesFromDirectory(directory)
-    return { directory, files }
+    return { directory }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return null
     }
     throw error
   }
-}
-
-/** Attach a webkitRelativePath-style path so `relativePathFor` works. */
-function fileWithRelativePath(file: File, relativePath: string): File {
-  if (
-    (file as File & { webkitRelativePath?: string }).webkitRelativePath ===
-    relativePath
-  ) {
-    return file
-  }
-  try {
-    Object.defineProperty(file, 'webkitRelativePath', {
-      value: relativePath,
-      configurable: true,
-    })
-    return file
-  } catch {
-    const copy = new File([file], file.name, {
-      type: file.type,
-      lastModified: file.lastModified,
-    })
-    Object.defineProperty(copy, 'webkitRelativePath', {
-      value: relativePath,
-      configurable: true,
-    })
-    return copy
-  }
-}
-
-async function collectFilesFromDirectory(
-  directory: FileSystemDirectoryHandle,
-  prefix = '',
-): Promise<File[]> {
-  const files: File[] = []
-  for await (const [name, handle] of directory.entries()) {
-    const relativePath = prefix.length > 0 ? `${prefix}/${name}` : name
-    if (handle.kind === 'file') {
-      const file = await (handle as FileSystemFileHandle).getFile()
-      files.push(fileWithRelativePath(file, relativePath))
-      continue
-    }
-    const nested = await collectFilesFromDirectory(
-      handle as FileSystemDirectoryHandle,
-      relativePath,
-    )
-    files.push(...nested)
-  }
-  return files
 }
 
 export function photoInputAccept(): string {

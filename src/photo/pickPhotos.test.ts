@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
 import {
@@ -157,46 +156,9 @@ describe('pickFolderWithDirectoryPicker', () => {
     await expect(pickFolderWithDirectoryPicker()).resolves.toBeNull()
   })
 
-  it('collects nested files from directory handles', async () => {
-    const nested = new File([new Uint8Array([1])], 'nested.jpg', {
-      type: 'image/jpeg',
-    })
-    const top = new File([new Uint8Array([2])], 'top.png', {
-      type: 'image/png',
-    })
-    const nestedDir = {
-      kind: 'directory' as const,
-      entries: (): AsyncGenerator<
-        readonly [string, { kind: 'file'; getFile: () => Promise<File> }],
-        void
-      > =>
-        (async function* () {
-          await Promise.resolve()
-          yield [
-            'nested.jpg',
-            {
-              kind: 'file' as const,
-              getFile: vi.fn().mockResolvedValue(nested),
-            },
-          ] as const
-        })(),
-    }
-    const root = {
-      kind: 'directory' as const,
-      entries: (): AsyncGenerator<
-        | readonly [string, { kind: 'file'; getFile: () => Promise<File> }]
-        | readonly [string, typeof nestedDir],
-        void
-      > =>
-        (async function* () {
-          await Promise.resolve()
-          yield [
-            'top.png',
-            { kind: 'file' as const, getFile: vi.fn().mockResolvedValue(top) },
-          ] as const
-          yield ['sub', nestedDir] as const
-        })(),
-    }
+  it('returns the directory handle without collecting files', async () => {
+    const root = createFakeBrowserDirectory({ name: 'album' })
+    root.writeFile('a.jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))
     const picker = vi.fn().mockResolvedValue(root)
     Object.defineProperty(window, 'showDirectoryPicker', {
       configurable: true,
@@ -209,173 +171,8 @@ describe('pickFolderWithDirectoryPicker', () => {
       mode: 'read',
       startIn: 'pictures',
     })
-    expect(picked?.directory).toBe(root)
-    expect(picked?.files).toHaveLength(2)
-    expect(picked?.files[0]).toMatchObject({
-      name: 'top.png',
-      webkitRelativePath: 'top.png',
-    })
-    expect(picked?.files[1]).toMatchObject({
-      name: 'nested.jpg',
-      webkitRelativePath: 'sub/nested.jpg',
-    })
+    expect(picked).toEqual({ directory: root })
     expect(canUseDirectoryPicker()).toBe(true)
-  })
-
-  it('keeps an existing matching webkitRelativePath without redefining', async () => {
-    const prelabeled = new File([new Uint8Array([9])], 'pre.jpg', {
-      type: 'image/jpeg',
-    })
-    // Non-configurable match: skipping the early return would throw on redefine
-    // and fall through to a File copy — identity must stay the original.
-    Object.defineProperty(prelabeled, 'webkitRelativePath', {
-      value: 'pre.jpg',
-      configurable: false,
-    })
-    const root = {
-      kind: 'directory' as const,
-      entries: (): AsyncGenerator<
-        readonly [string, { kind: 'file'; getFile: () => Promise<File> }],
-        void
-      > =>
-        (async function* () {
-          await Promise.resolve()
-          yield [
-            'pre.jpg',
-            {
-              kind: 'file' as const,
-              getFile: vi.fn().mockResolvedValue(prelabeled),
-            },
-          ] as const
-        })(),
-    }
-    Object.defineProperty(window, 'showDirectoryPicker', {
-      configurable: true,
-      writable: true,
-      value: vi.fn().mockResolvedValue(root),
-    })
-    const picked = await pickFolderWithDirectoryPicker()
-    expect(picked?.files).toHaveLength(1)
-    expect(picked?.files[0]).toBe(prelabeled)
-    expect(
-      (picked?.files[0] as File & { webkitRelativePath?: string })
-        .webkitRelativePath,
-    ).toBe('pre.jpg')
-  })
-
-  it('copies the File when webkitRelativePath cannot be redefined', async () => {
-    const bytes = new Uint8Array([3, 7, 11])
-    const lastModified = 1_700_000_000_000
-    const sealed = new File([bytes], 'sealed.jpg', {
-      type: 'image/jpeg',
-      lastModified,
-    })
-    Object.defineProperty(sealed, 'webkitRelativePath', {
-      value: 'wrong/path.jpg',
-      configurable: false,
-    })
-    const root = {
-      kind: 'directory' as const,
-      entries: (): AsyncGenerator<
-        readonly [string, { kind: 'file'; getFile: () => Promise<File> }],
-        void
-      > =>
-        (async function* () {
-          await Promise.resolve()
-          yield [
-            'sealed.jpg',
-            {
-              kind: 'file' as const,
-              getFile: vi.fn().mockResolvedValue(sealed),
-            },
-          ] as const
-        })(),
-    }
-    Object.defineProperty(window, 'showDirectoryPicker', {
-      configurable: true,
-      writable: true,
-      value: vi.fn().mockResolvedValue(root),
-    })
-    const picked = await pickFolderWithDirectoryPicker()
-    expect(picked?.files).toHaveLength(1)
-    const copy = picked?.files[0]
-    expect(copy).not.toBe(sealed)
-    expect(copy?.name).toBe('sealed.jpg')
-    expect(copy?.type).toBe('image/jpeg')
-    expect(copy?.lastModified).toBe(lastModified)
-    expect(copy).toBeDefined()
-    assert.ok(copy)
-    expect(copy.size).toBe(bytes.byteLength)
-    expect(new Uint8Array(await copy.arrayBuffer())).toEqual(bytes)
-    expect(
-      (copy as File & { webkitRelativePath?: string }).webkitRelativePath,
-    ).toBe('sealed.jpg')
-    expect(
-      Object.getOwnPropertyDescriptor(copy, 'webkitRelativePath')?.configurable,
-    ).toBe(true)
-  })
-
-  it('defines a configurable webkitRelativePath on a plain File', async () => {
-    const plain = new File([new Uint8Array([1, 2])], 'plain.png', {
-      type: 'image/png',
-    })
-    const root = {
-      kind: 'directory' as const,
-      entries: (): AsyncGenerator<
-        readonly [string, { kind: 'file'; getFile: () => Promise<File> }],
-        void
-      > =>
-        (async function* () {
-          await Promise.resolve()
-          yield [
-            'plain.png',
-            {
-              kind: 'file' as const,
-              getFile: vi.fn().mockResolvedValue(plain),
-            },
-          ] as const
-        })(),
-    }
-    Object.defineProperty(window, 'showDirectoryPicker', {
-      configurable: true,
-      writable: true,
-      value: vi.fn().mockResolvedValue(root),
-    })
-    const picked = await pickFolderWithDirectoryPicker()
-    const file = picked?.files[0]
-    expect(file).toBe(plain)
-    expect(
-      (file as File & { webkitRelativePath?: string }).webkitRelativePath,
-    ).toBe('plain.png')
-    expect(
-      Object.getOwnPropertyDescriptor(file, 'webkitRelativePath')?.configurable,
-    ).toBe(true)
-  })
-
-  it('walks fake browser directories via entries()', async () => {
-    const root = createFakeBrowserDirectory({ name: 'album' })
-    root.writeFile('a.jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))
-    const nested = await root.getDirectoryHandle('nested', { create: true })
-    assertFakeDir(nested).writeFile('b.png', new Uint8Array([1, 2, 3]))
-    Object.defineProperty(window, 'showDirectoryPicker', {
-      configurable: true,
-      writable: true,
-      value: vi.fn().mockResolvedValue(root),
-    })
-    const picked = await pickFolderWithDirectoryPicker()
-    expect(picked?.directory).toBe(root)
-    expect(
-      picked?.files
-        .map((file) => ({
-          name: file.name,
-          path: (file as File & { webkitRelativePath?: string })
-            .webkitRelativePath,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    ).toEqual([
-      { name: 'a.jpg', path: 'a.jpg' },
-      { name: 'b.png', path: 'nested/b.png' },
-    ])
   })
 
   it('returns null on AbortError and rethrows other errors', async () => {
@@ -400,9 +197,3 @@ describe('pickFolderWithDirectoryPicker', () => {
     })
   })
 })
-
-function assertFakeDir(
-  handle: FileSystemDirectoryHandle,
-): import('../project/fsa/browserDirectory.test-helpers').FakeBrowserDirectoryHandle {
-  return handle as import('../project/fsa/browserDirectory.test-helpers').FakeBrowserDirectoryHandle
-}

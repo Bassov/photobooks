@@ -10,6 +10,7 @@ describe('PERF_BUDGETS', () => {
       inpMs: 100,
       frameP95Ms: 16.7,
       droppedFrameRatio: 0.02,
+      scanSchedulerLongTaskMs: 100,
     })
   })
 })
