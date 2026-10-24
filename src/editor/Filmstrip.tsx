@@ -9,7 +9,13 @@ import {
 } from 'react'
 import { GridList } from 'react-aria-components'
 import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
+import {
+  getImportProgress,
+  subscribeImportProgress,
+} from './importProgressStore'
 import { noteFilmstripScroll } from './thumbCache'
+import { installFilmstripUnplaceWhenMounted } from './filmstripUnplaceMount'
+import { scheduleFilmstripVisibleSync } from './filmstripVisibleSync'
 import { EmptyState } from '../ui/EmptyState'
 import {
   filmstripEmptyStyle,
@@ -24,7 +30,7 @@ import {
   subscribeGallery,
 } from './bookStore'
 import { FilmstripItemView } from './FilmstripItem'
-import { installFilmstripUnplace, unplaceSelectedFrame } from './galleryDrop'
+import { unplaceSelectedFrame } from './galleryDrop'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import {
   getSelectedAssetId,
@@ -38,7 +44,7 @@ import {
   subscribeFilmstripJump,
 } from './filmstripJump'
 import { FilmstripStatus } from './FilmstripStatus'
-import { filmstripSelectionAssetId } from './filmstripSelection'
+import { onFilmstripGridSelectionChange } from './filmstripSelection'
 import {
   buildStridePrefix,
   indexFromScrollOffset,
@@ -73,6 +79,12 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const pendingScrollLeft = useRef(0)
   const scrollRaf = useRef(0)
   const total = gallery.length
+  const importProgress = useSyncExternalStore(
+    subscribeImportProgress,
+    getImportProgress,
+    getImportProgress,
+  )
+  const importRunning = importProgress?.running === true
 
   const prefix = useMemo(() => buildStridePrefix(aspects), [aspects])
   const spacerWidth = useMemo(
@@ -104,7 +116,9 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     [prefix, scrollLeft],
   )
 
-  const coverPx = Math.max(viewportWidth, 1) + WINDOW_OVERSCAN_PX
+  // During import+scroll, skip overscan so each scroll tick remounts fewer tiles.
+  const coverPx =
+    Math.max(viewportWidth, 1) + (importRunning ? 0 : WINDOW_OVERSCAN_PX)
   const windowSize = Math.max(
     windowCountForCover(prefix, windowStart, coverPx),
     1,
@@ -132,7 +146,10 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   }, [windowKey, prefix, windowStart, windowOffset, displayNames])
 
   useEffect(() => {
-    setFilmstripVisibleAssetIds(items.map((item) => item.id))
+    return scheduleFilmstripVisibleSync(
+      items.map((item) => item.id),
+      setFilmstripVisibleAssetIds,
+    )
   }, [items])
 
   const jumpRequest = useSyncExternalStore(
@@ -174,11 +191,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const isEmpty = total === 0
 
   useEffect(() => {
-    const node = scrollRef.current
-    if (!node) {
-      return
-    }
-    return installFilmstripUnplace(node)
+    return installFilmstripUnplaceWhenMounted(scrollRef.current)
   }, [])
 
   return (
@@ -216,13 +229,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
               orientation="horizontal"
               selectionMode="single"
               selectedKeys={selectedId === null ? [] : [selectedId]}
-              onSelectionChange={(keys) => {
-                const next = filmstripSelectionAssetId(keys)
-                if (next === undefined) {
-                  return
-                }
-                setSelectedAssetId(next)
-              }}
+              onSelectionChange={onFilmstripGridSelectionChange}
               items={items}
               className="filmstrip-list"
               style={{

@@ -90,8 +90,6 @@ describe('importProgressStore', () => {
       errors: [],
       running: true,
     })
-    // Extend quiet without a new progress write so the original timer must
-    // re-check isFilmstripScrollQuiet and reschedule.
     now = 4_100
     noteFilmstripScrollActivity()
     now = 4_200

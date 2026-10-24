@@ -1,13 +1,23 @@
+import { setSelectedAssetId } from './gallerySelection'
+
+type SelectionKeys = 'all' | { values: () => Iterator<unknown> }
+
 /**
- * Map a GridList selection change to a gallery asset id.
- * `undefined` means leave the current selection unchanged (`keys === 'all'`).
+ * Apply a GridList selection change to the gallery selection store.
+ * The `'all'` sentinel is ignored (leave the current selection unchanged).
  */
-export function filmstripSelectionAssetId(
-  keys: 'all' | { values: () => Iterator<unknown> },
-): string | null | undefined {
+export function applyFilmstripSelectionChange(
+  keys: SelectionKeys,
+  setSelected: (assetId: string | null) => void,
+): void {
   if (keys === 'all') {
-    return undefined
+    return
   }
   const next: unknown = keys.values().next().value
-  return typeof next === 'string' ? next : null
+  setSelected(typeof next === 'string' ? next : null)
+}
+
+/** Stable GridList `onSelectionChange` handler for the filmstrip track. */
+export function onFilmstripGridSelectionChange(keys: SelectionKeys): void {
+  applyFilmstripSelectionChange(keys, setSelectedAssetId)
 }

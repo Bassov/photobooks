@@ -37,6 +37,8 @@ interface PendingThumb {
 const pendingById = new Map<string, PendingThumb>()
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
+/** Separate from rAF flush scheduling so scroll-quiet waits do not race it. */
+let quietFlushTimer: ReturnType<typeof setTimeout> | undefined
 
 function notifyAsset(assetId: string): void {
   publishGeneration += 1
@@ -62,9 +64,20 @@ function publishThumbNow(
   notifyAsset(assetId)
 }
 
+function scheduleFlushAfterQuiet(delayMs: number): void {
+  clearTimeout(quietFlushTimer)
+  quietFlushTimer = setTimeout(
+    () => {
+      quietFlushTimer = undefined
+      flushPending()
+    },
+    Math.max(0, delayMs),
+  )
+}
+
 function flushPending(): void {
   if (isFilmstripScrollQuiet()) {
-    scheduleFlushAfter(filmstripScrollQuietRemainingMs())
+    scheduleFlushAfterQuiet(filmstripScrollQuietRemainingMs())
     return
   }
   let published = 0
@@ -79,21 +92,6 @@ function flushPending(): void {
   if (pendingById.size > 0) {
     scheduleFlush()
   }
-}
-
-function scheduleFlushAfter(delayMs: number): void {
-  if (flushScheduled) {
-    return
-  }
-  flushScheduled = true
-  flushWatchdogTimer = setTimeout(
-    () => {
-      flushScheduled = false
-      flushWatchdogTimer = undefined
-      flushPending()
-    },
-    Math.max(0, delayMs),
-  )
 }
 
 function scheduleFlush(): void {
@@ -279,6 +277,8 @@ export function resetThumbCache(): void {
   flushScheduled = false
   clearTimeout(flushWatchdogTimer)
   flushWatchdogTimer = undefined
+  clearTimeout(quietFlushTimer)
+  quietFlushTimer = undefined
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }

@@ -274,16 +274,31 @@ describe('Filmstrip aspect cards', () => {
 
   it('notes filmstrip scroll so thumb publishes can quiet during scroll', () => {
     seedGallery(8)
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
     const noteScroll = vi.spyOn(thumbCache, 'noteFilmstripScroll')
     render(<Filmstrip />)
     const scroll = screen.getByTestId('filmstrip-scroll')
     Object.defineProperty(scroll, 'scrollLeft', {
       configurable: true,
+      writable: true,
       value: 160,
     })
     fireEvent.scroll(scroll)
-    expect(noteScroll).toHaveBeenCalled()
+    Object.defineProperty(scroll, 'scrollLeft', {
+      configurable: true,
+      writable: true,
+      value: 320,
+    })
+    // Second scroll in the same frame hits the rAF coalescing early-return.
+    fireEvent.scroll(scroll)
+    expect(noteScroll).toHaveBeenCalledTimes(2)
+    expect(rafQueue).toHaveLength(1)
     noteScroll.mockRestore()
+    vi.unstubAllGlobals()
   })
 
   it('keeps empty-state copy full-width (not a 1px virtualizer window)', () => {
