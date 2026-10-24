@@ -29,7 +29,7 @@ import {
   reuseIdentityKey,
 } from './importBodyReads'
 import { isLibraryBacked } from './projectSession'
-import { memorySourceForRoot, seedLibraryEntry } from './seedLibraryImport'
+import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
 import { setThumbUrl } from './thumbCache'
 
 /** `performance.measure` label for the sync import kickoff (handler p95 gate). */
@@ -284,7 +284,9 @@ async function importPhotoFilesInner(
             const existingRoot =
               getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId
             const sourceRootId = existingRoot ?? batchRootId
-            await seedLibraryEntry({
+            // Async contentHash for DerivedCache thumb hydrate after reload —
+            // not used for import identity (path/size/mtime only).
+            await seedAndHashEntry({
               assetId: entry.assetId,
               file: entry.file,
               relativePath: entry.relativePath,

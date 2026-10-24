@@ -450,6 +450,12 @@ describe('importPhotoFiles library identity', () => {
 
     resetThumbCache()
     expect(getThumbUrl(assetId)).toBeUndefined()
+
+    await vi.waitFor(() => {
+      expect(
+        getBookStoreSnapshot().book.assets[assetId]?.contentHash,
+      ).toBeTypeOf('string')
+    })
     hashContentMock.mockClear()
 
     const sameFile = tinyJpeg('dup.jpg', 42)
