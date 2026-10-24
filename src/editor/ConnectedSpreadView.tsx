@@ -1,6 +1,7 @@
 import { memo, useEffect, useSyncExternalStore } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { SpreadView, type FrameControl } from '../render/SpreadView'
+import { setSpreadVisibleAssetIds } from '../photo/assetPool'
 import { IMAGE_TIERS, selectImageTier } from '../photo/imageTiers'
 import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
@@ -100,8 +101,13 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   useEffect(() => {
     if (snapshot === undefined) {
       clearSpreadTiers(spreadId)
+      setSpreadVisibleAssetIds(spreadId, [])
       return
     }
+    setSpreadVisibleAssetIds(
+      spreadId,
+      assetIdsOnSpread(snapshot.resolved.items),
+    )
     const tiers = desiredTiersForItems(
       snapshot.resolved.items,
       zoom,
@@ -133,6 +139,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     }
     return () => {
       clearSpreadTiers(spreadId)
+      setSpreadVisibleAssetIds(spreadId, [])
       for (const unsub of unsubs) {
         unsub()
       }

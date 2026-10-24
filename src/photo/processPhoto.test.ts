@@ -20,7 +20,7 @@ vi.mock('exifr', () => ({
   },
 }))
 
-import { processPhotoRequest } from './processPhoto'
+import { bitmapResizeOptions, processPhotoRequest } from './processPhoto'
 
 function samplePngFile(): File {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -266,6 +266,120 @@ describe('processPhotoRequest', () => {
 
     expect(createImageBitmap).toHaveBeenCalledWith(expect.any(Blob), {
       imageOrientation: 'none',
+    })
+  })
+
+  it('passes resize options when maxEdge caps a known JPEG size', async () => {
+    const file = sampleOrient6File()
+    exifrApi.orientation.mockResolvedValue(1)
+    exifrApi.parse.mockResolvedValue({})
+    const { createImageBitmap } = stubImageDecodeApis({
+      width: 40,
+      height: 20,
+    })
+
+    await processPhotoRequest({
+      id: 'req-resize',
+      file,
+      maxEdge: 10,
+    })
+
+    expect(createImageBitmap).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.objectContaining({
+        imageOrientation: 'none',
+        resizeWidth: expect.any(Number),
+        resizeHeight: expect.any(Number),
+        resizeQuality: 'low',
+      }),
+    )
+
+    createImageBitmap.mockClear()
+    await processPhotoRequest({
+      id: 'req-resize-thumb-edge',
+      file,
+      maxEdge: 320,
+      cover: true,
+    })
+    expect(createImageBitmap).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.objectContaining({
+        resizeQuality: 'low',
+      }),
+    )
+  })
+
+  it('uses medium resize quality above the thumb max edge', async () => {
+    const file = sampleOrient6File()
+    exifrApi.orientation.mockResolvedValue(1)
+    exifrApi.parse.mockResolvedValue({})
+    const { createImageBitmap } = stubImageDecodeApis({
+      width: 40,
+      height: 20,
+    })
+
+    await processPhotoRequest({
+      id: 'req-resize-medium',
+      file,
+      maxEdge: 321,
+      cover: true,
+    })
+
+    expect(createImageBitmap).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.objectContaining({
+        resizeQuality: 'medium',
+      }),
+    )
+  })
+
+  it('skips resize options when source dimensions are unknown', async () => {
+    const file = samplePngFile()
+    exifrApi.orientation.mockResolvedValue(1)
+    exifrApi.parse.mockResolvedValue({})
+    const { createImageBitmap } = stubImageDecodeApis({
+      width: 12,
+      height: 8,
+    })
+
+    await processPhotoRequest({
+      id: 'req-no-resize',
+      file,
+      maxEdge: 4,
+    })
+
+    expect(createImageBitmap).toHaveBeenCalledWith(expect.any(Blob), {
+      imageOrientation: 'none',
+    })
+  })
+
+  describe('bitmapResizeOptions', () => {
+    it('returns undefined when no shrink is needed', () => {
+      expect(bitmapResizeOptions(100, 80, 200, false)).toBeUndefined()
+    })
+
+    it('returns undefined for non-positive dimensions or maxEdge', () => {
+      // Long edge would otherwise shrink — guard must reject before scaling.
+      expect(bitmapResizeOptions(0, 200, 100, false)).toBeUndefined()
+      expect(bitmapResizeOptions(200, 0, 100, false)).toBeUndefined()
+      expect(bitmapResizeOptions(80, 60, 0, false)).toBeUndefined()
+      expect(bitmapResizeOptions(-1, 60, 100, false)).toBeUndefined()
+    })
+
+    it('scales down to the max long edge', () => {
+      expect(bitmapResizeOptions(400, 200, 100, false)).toEqual({
+        resizeWidth: 100,
+        resizeHeight: 50,
+        resizeQuality: 'medium',
+      })
+    })
+
+    it('upscales when cover is true', () => {
+      expect(bitmapResizeOptions(50, 40, 100, true, 'high')).toEqual({
+        resizeWidth: 100,
+        resizeHeight: 80,
+        resizeQuality: 'high',
+      })
     })
   })
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyTemplate, placeAsset } from '../core'
+import * as assetPool from '../photo/assetPool'
 import { resetAssetPool } from '../photo/assetPool'
 import assert from 'node:assert/strict'
 import {
@@ -113,6 +114,17 @@ describe('Filmstrip thumbnail file name', () => {
 
     expect(screen.getByRole('row', { name: CYRILLIC_FILE_NAME })).toBeTruthy()
     expect(screen.queryByRole('row', { name: assetId })).toBeNull()
+  })
+
+  it('publishes concrete filmstrip window asset ids for decode priority', () => {
+    const ids = seedGallery(3, 1.5, 'n.jpg')
+    const visible = vi.spyOn(assetPool, 'setFilmstripVisibleAssetIds')
+    render(<Filmstrip />)
+    expect(visible).toHaveBeenCalled()
+    const published = visible.mock.calls.at(-1)?.[0]
+    expect(published).toEqual(expect.arrayContaining(ids.slice(0, 1)))
+    expect(published?.every((id) => typeof id === 'string')).toBe(true)
+    expect(published?.every((id) => id.length > 0)).toBe(true)
   })
 
   it('uses the asset id when the session file name is blank', () => {

@@ -159,21 +159,18 @@ describe('spreadPreviewKeys', () => {
     expect(queue).toHaveBeenCalledWith('a', 320, 'blob:ready')
   })
 
-  it('queues every cached ladder step at or below the desired tier', () => {
+  it('queues the cached working preview when present on the single-tier ladder', () => {
     const queue = vi.fn()
-    const urls = new Map<number, string>([
-      [320, 'blob:320'],
-      [1280, 'blob:1280'],
-    ])
+    const urls = new Map<number, string>([[1280, 'blob:1280']])
     queueCachedLadderTiers(
       'a',
-      640,
-      [320, 640, 1280, 2560],
+      1280,
+      [1280],
       (_id, tier) => urls.get(tier),
       queue,
     )
     expect(queue).toHaveBeenCalledTimes(1)
-    expect(queue).toHaveBeenCalledWith('a', 320, 'blob:320')
+    expect(queue).toHaveBeenCalledWith('a', 1280, 'blob:1280')
   })
 
   it('subscribes each asset and tears every listener down on unsubscribe', () => {

@@ -8,7 +8,7 @@ import {
   type UIEvent,
 } from 'react'
 import { GridList } from 'react-aria-components'
-import { setVisibleAssetIds } from '../photo/assetPool'
+import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
 import { EmptyState } from '../ui/EmptyState'
 import {
   filmstripEmptyStyle,
@@ -143,7 +143,7 @@ export const Filmstrip = memo(function Filmstrip({
   }, [windowKey, prefix, windowStart, windowOffset, displayNames])
 
   useEffect(() => {
-    setVisibleAssetIds(items.map((item) => item.id))
+    setFilmstripVisibleAssetIds(items.map((item) => item.id))
   }, [items])
 
   const jumpRequest = useSyncExternalStore(

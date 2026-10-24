@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  DECODE_POOL_CAP,
+  decodeWorkerCount,
   enqueueHash,
   processAsset,
   resetAssetPool,
   runImportBatch,
+  setFilmstripVisibleAssetIds,
+  setSpreadVisibleAssetIds,
   setVisibleAssetIds,
   warmAssetPool,
 } from './assetPool'
@@ -35,6 +39,15 @@ function hangWorker(): void {
 }
 
 describe('assetPool', () => {
+  it('caps decode workers at DECODE_POOL_CAP', () => {
+    expect(decodeWorkerCount(undefined)).toBe(1)
+    expect(decodeWorkerCount(0)).toBe(1)
+    expect(decodeWorkerCount(-1)).toBe(1)
+    expect(decodeWorkerCount(1)).toBe(1)
+    expect(decodeWorkerCount(5)).toBe(DECODE_POOL_CAP)
+    expect(decodeWorkerCount(32)).toBe(DECODE_POOL_CAP)
+  })
+
   afterEach(() => {
     resetAssetPool()
     vi.unstubAllGlobals()
@@ -256,6 +269,350 @@ describe('assetPool', () => {
     })
     controller.abort()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('unions filmstrip and spread visible ids when draining the queue', async () => {
+    const order: string[] = []
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    class GatedWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: { id: string; file: File }): void {
+        order.push(data.file.name)
+        void gate.then(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: data.file.name,
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    vi.stubGlobal('Worker', GatedWorker)
+    warmAssetPool()
+    setFilmstripVisibleAssetIds(['film'])
+
+    const file = (name: string): File =>
+      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+    // Same priority for all queued work — only visibility boost distinguishes.
+    const hold = processAsset({
+      assetId: 'hold',
+      file: file('hold.jpg'),
+      priority: 'prefetch',
+    })
+    const other = processAsset({
+      assetId: 'other',
+      file: file('other.jpg'),
+      priority: 'prefetch',
+    })
+    const film = processAsset({
+      assetId: 'film',
+      file: file('film.jpg'),
+      priority: 'prefetch',
+    })
+    await Promise.resolve()
+    release?.()
+    await Promise.all([hold, other, film])
+    expect(order).toEqual(['hold.jpg', 'film.jpg', 'other.jpg'])
+  })
+
+  it('boosts spread-visible ids without a filmstrip window', async () => {
+    const order: string[] = []
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    class GatedWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: { id: string; file: File }): void {
+        order.push(data.file.name)
+        void gate.then(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: data.file.name,
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    vi.stubGlobal('Worker', GatedWorker)
+    warmAssetPool()
+    setSpreadVisibleAssetIds('s0', ['spread'])
+
+    const file = (name: string): File =>
+      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+    const hold = processAsset({
+      assetId: 'hold',
+      file: file('hold.jpg'),
+      priority: 'prefetch',
+    })
+    const other = processAsset({
+      assetId: 'other',
+      file: file('other.jpg'),
+      priority: 'prefetch',
+    })
+    const spread = processAsset({
+      assetId: 'spread',
+      file: file('spread.jpg'),
+      priority: 'prefetch',
+    })
+    await Promise.resolve()
+    release?.()
+    await Promise.all([hold, other, spread])
+    expect(order).toEqual(['hold.jpg', 'spread.jpg', 'other.jpg'])
+  })
+
+  it('drops spread preference when cleared and resets via setVisibleAssetIds', async () => {
+    const order: string[] = []
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    class GatedWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: { id: string; file: File }): void {
+        order.push(data.file.name)
+        void gate.then(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: data.file.name,
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    vi.stubGlobal('Worker', GatedWorker)
+    warmAssetPool()
+    setSpreadVisibleAssetIds('s0', ['spread'])
+    setSpreadVisibleAssetIds('s0', [])
+    setFilmstripVisibleAssetIds(['film-only'])
+
+    const file = (name: string): File =>
+      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+    const hold = processAsset({
+      assetId: 'hold',
+      file: file('hold.jpg'),
+      priority: 'prefetch',
+    })
+    const cleared = processAsset({
+      assetId: 'spread',
+      file: file('cleared.jpg'),
+      priority: 'prefetch',
+    })
+    const filmOnly = processAsset({
+      assetId: 'film-only',
+      file: file('film-only.jpg'),
+      priority: 'prefetch',
+    })
+    await Promise.resolve()
+    release?.()
+    await Promise.all([hold, cleared, filmOnly])
+    expect(order).toEqual(['hold.jpg', 'film-only.jpg', 'cleared.jpg'])
+  })
+
+  it('setVisibleAssetIds clears prior spread preference', async () => {
+    const order: string[] = []
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    class GatedWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: { id: string; file: File }): void {
+        order.push(data.file.name)
+        void gate.then(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: data.file.name,
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    vi.stubGlobal('Worker', GatedWorker)
+    warmAssetPool()
+    setSpreadVisibleAssetIds('s0', ['spread'])
+    setVisibleAssetIds(['film-only'])
+
+    const file = (name: string): File =>
+      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+    const hold = processAsset({
+      assetId: 'hold',
+      file: file('hold.jpg'),
+      priority: 'prefetch',
+    })
+    const cleared = processAsset({
+      assetId: 'spread',
+      file: file('cleared.jpg'),
+      priority: 'prefetch',
+    })
+    const filmOnly = processAsset({
+      assetId: 'film-only',
+      file: file('film-only.jpg'),
+      priority: 'prefetch',
+    })
+    await Promise.resolve()
+    release?.()
+    await Promise.all([hold, cleared, filmOnly])
+    expect(order).toEqual(['hold.jpg', 'film-only.jpg', 'cleared.jpg'])
   })
 
   it('prefers visible assets when draining a single-worker queue', async () => {
