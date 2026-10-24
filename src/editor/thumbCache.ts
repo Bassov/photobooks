@@ -5,6 +5,10 @@ import { trackHashJob } from './pendingHashes'
 import { restoreAspectFromPreview } from './previewAspect'
 
 const DEFAULT_CAPACITY = 256
+/** Cap React notifies per frame so bulk import+scroll stays within LoAF. */
+const FLUSH_PER_FRAME = 4
+/** Matches bookStore gallery flush: progress if rAF freezes (background tab). */
+const FLUSH_RAF_WATCHDOG_MS = 32
 
 const lru = new ObjectUrlLru({ capacity: DEFAULT_CAPACITY })
 const assetListeners = new Map<string, Set<() => void>>()
@@ -19,6 +23,16 @@ const lastThumb = new Map<string, { buffer: ArrayBuffer; mimeType: string }>()
 /** contentHashes already written to DerivedCache this session (skip re-puts). */
 const putContentHashes = new Set<string>()
 
+interface PendingThumb {
+  assetId: string
+  buffer: ArrayBuffer
+  mimeType: string
+}
+
+const pendingById = new Map<string, PendingThumb>()
+let flushScheduled = false
+let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
+
 function notifyAsset(assetId: string): void {
   publishGeneration += 1
   const set = assetListeners.get(assetId)
@@ -32,7 +46,7 @@ function notifyAsset(assetId: string): void {
   }
 }
 
-function publishThumb(
+function publishThumbNow(
   assetId: string,
   buffer: ArrayBuffer,
   mimeType: string,
@@ -41,6 +55,51 @@ function publishThumb(
   const url = URL.createObjectURL(blob)
   lru.set(assetId, url)
   notifyAsset(assetId)
+}
+
+function flushPending(): void {
+  let published = 0
+  for (const [id, item] of pendingById) {
+    if (published >= FLUSH_PER_FRAME) {
+      break
+    }
+    pendingById.delete(id)
+    publishThumbNow(item.assetId, item.buffer, item.mimeType)
+    published += 1
+  }
+  if (pendingById.size > 0) {
+    scheduleFlush()
+  }
+}
+
+function scheduleFlush(): void {
+  if (flushScheduled) {
+    return
+  }
+  flushScheduled = true
+  const run = (): void => {
+    if (!flushScheduled) {
+      return
+    }
+    flushScheduled = false
+    clearTimeout(flushWatchdogTimer)
+    flushWatchdogTimer = undefined
+    flushPending()
+  }
+  // Prefer rAF for LoAF pacing; watchdog still fires if rAF is frozen after
+  // the page was backgrounded (parallel Playwright). Immediate publish was
+  // used previously because rAF-only queues stalled without a watchdog.
+  requestAnimationFrame(run)
+  flushWatchdogTimer = setTimeout(run, FLUSH_RAF_WATCHDOG_MS)
+}
+
+function enqueuePublish(
+  assetId: string,
+  buffer: ArrayBuffer,
+  mimeType: string,
+): void {
+  pendingById.set(assetId, { assetId, buffer, mimeType })
+  scheduleFlush()
 }
 
 export function subscribeThumb(
@@ -80,12 +139,10 @@ export function setThumbUrl(
   mimeType: string,
   contentHash?: string,
 ): void {
+  // Retain a copy so callers can reuse/detach the source buffer safely.
   const retained = buffer.slice(0)
   lastThumb.set(assetId, { buffer: retained, mimeType })
-  // Publish immediately when decode completes. rAF-paced queues stalled under
-  // background-tab throttle (parallel Playwright) and left permanent placeholders.
-  // One object URL per finished decode stays within frame-budget pacing.
-  publishThumb(assetId, retained, mimeType)
+  enqueuePublish(assetId, retained, mimeType)
   if (contentHash !== undefined && contentHash.length > 0) {
     // Encode-after-hash path: put must be awaited by Save (awaitPendingHashes),
     // otherwise reload hydrates gray placeholders for late gallery assets.
@@ -153,7 +210,7 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
         mimeType: got.value.mimeType,
       })
       restoreAspectFromPreview(assetId, bytes, got.value.mimeType)
-      publishThumb(assetId, bytes, got.value.mimeType)
+      enqueuePublish(assetId, bytes, got.value.mimeType)
     } finally {
       if (hydrateInflight.get(assetId) === controller) {
         hydrateInflight.delete(assetId)
@@ -165,6 +222,10 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
 export function resetThumbCache(): void {
   lastThumb.clear()
   putContentHashes.clear()
+  pendingById.clear()
+  flushScheduled = false
+  clearTimeout(flushWatchdogTimer)
+  flushWatchdogTimer = undefined
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }

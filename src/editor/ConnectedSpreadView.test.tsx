@@ -1,6 +1,6 @@
 import { Profiler } from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addSpread, applyTemplate, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
@@ -65,6 +65,17 @@ function twoSpreadDistinctBook() {
 }
 
 describe('per-spread paint subscription', () => {
+  beforeEach(() => {
+    // Thumb publishes are rAF-paced; flush sync unless a test queues rAF itself.
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+  })
+
   afterEach(() => {
     cleanup()
     resetBookStore()

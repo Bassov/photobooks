@@ -23,6 +23,29 @@ function toLoafEntry(entry: LoafLikeEntry): LoafEntry {
   }
 }
 
+function ingestRecords(recordList: PerformanceEntryList): void {
+  for (const entry of recordList) {
+    const loaf = toLoafEntry(entry)
+    if (loaf.startTime < watermarkMs) {
+      continue
+    }
+    // Chromium sometimes reports LoAF with blockingDuration 0 under CPU
+    // throttle; those do not block input and are not a 60 fps failure.
+    if (loaf.blockingDuration <= 0) {
+      continue
+    }
+    entries.push(loaf)
+  }
+}
+
+/** Drain buffered observer records into `entries` (respecting the watermark). */
+function flushObserverRecords(): void {
+  if (observer === null || typeof observer.takeRecords !== 'function') {
+    return
+  }
+  ingestRecords(observer.takeRecords())
+}
+
 export function isLoafObserving(): boolean {
   return observer !== null
 }
@@ -38,18 +61,7 @@ export function startLoafObserver(): boolean {
 
   try {
     observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const loaf = toLoafEntry(entry)
-        if (loaf.startTime < watermarkMs) {
-          continue
-        }
-        // Chromium sometimes reports LoAF with blockingDuration 0 under CPU
-        // throttle; those do not block input and are not a 60 fps failure.
-        if (loaf.blockingDuration <= 0) {
-          continue
-        }
-        entries.push(loaf)
-      }
+      ingestRecords(list.getEntries())
     })
 
     observer.observe({ type: 'long-animation-frame', buffered: true })
@@ -67,10 +79,14 @@ export function stopLoafObserver(): void {
 }
 
 export function getLoafEntries(): readonly LoafEntry[] {
+  flushObserverRecords()
   return entries
 }
 
 export function clearLoafEntries(): void {
+  // Drop anything already buffered under the previous watermark so it cannot
+  // land in the next scenario window after the callback fires late.
+  flushObserverRecords()
   entries.length = 0
   watermarkMs = observer === null ? 0 : performance.now()
 }
@@ -82,6 +98,7 @@ export function assertNoLoafEntries(
   if (!isLoafObserving()) {
     throw new Error('LoAF observer is not active; cannot assert LoAF budget')
   }
+  flushObserverRecords()
   if (entries.length > maxEntries) {
     const worst = entries.reduce((a, b) =>
       a.blockingDuration > b.blockingDuration ? a : b,

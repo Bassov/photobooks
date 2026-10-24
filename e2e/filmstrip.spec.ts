@@ -16,10 +16,12 @@ import {
   applyCpuThrottling,
   assertCiPerfGates,
   assertCrossOriginIsolated,
+  beginFilmstripLoafScrollWindow,
   browserAssertNoLoaf,
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
+  scrollFilmstripLoafWindow,
 } from './perf/perfFixture'
 import {
   choosePhotoFolder,
@@ -1031,278 +1033,267 @@ test.describe('library re-import async', () => {
     })
   })
 
-  test('re-import restores thumbs without duplicates; first card ≤1.5× session', async ({
-    page,
-  }, testInfo) => {
-    test.setTimeout(240_000)
-    const files = writeBulkImportFixtures(200)
+  // LoAF scroll windows must run without Istanbul (CI: -g "frame-budget gates").
+  test.describe('frame-budget gates', () => {
+    test('re-import restores thumbs without duplicates; first card ≤1.5× session', async ({
+      page,
+    }, testInfo) => {
+      test.setTimeout(240_000)
+      const files = writeBulkImportFixtures(200)
 
-    // --- Session path baseline under the same CPU throttle as re-import ---
-    await enablePerfScenario(page)
-    await clearPerfScenario(page)
-    const sessionStart = Date.now()
-    await pickPhotoFolder(page, files)
-    await expect
-      .poll(
-        async () =>
-          Number(
-            (await page
-              .getByTestId('filmstrip')
-              .getAttribute('data-gallery-count')) ?? '0',
-          ),
-        { timeout: 60_000 },
-      )
-      .toBeGreaterThan(0)
-    const sessionFirstCardMs = Date.now() - sessionStart
-    await expect
-      .poll(
-        async () =>
-          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
-        { timeout: 120_000 },
-      )
-      .toBe('200')
-    await expect(page.getByTestId('import-progress')).toBeHidden({
-      timeout: 60_000,
-    })
-
-    // --- Library-backed: import, clear DerivedCache, re-import ---
-    await page.goto('/?testLibrary=1&perf=1')
-    await page.waitForFunction(() => window.__photobooksPerf !== undefined)
-    await applyCpuThrottling(page)
-    await expect(page.getByTestId('create-book')).toBeEnabled({
-      timeout: 15_000,
-    })
-    await page.getByTestId('create-book').click()
-    await expect(page.getByTestId('editor-status')).toHaveText(
-      'Book created in library',
-    )
-
-    // Library-backed fresh bulk import: frame-budget scroll window (Perf line).
-    await clearPerfScenario(page)
-    const chooseFolder = page.getByTestId('choose-photo-folder')
-    await expect(chooseFolder).toBeEnabled()
-    await pickPhotoFolder(page, files)
-
-    await expect(page.getByTestId('import-progress')).toBeVisible({
-      timeout: 30_000,
-    })
-    await expect(page.getByTestId('import-progress')).toContainText(
-      'Importing',
-      { timeout: 30_000 },
-    )
-    await expect
-      .poll(
-        async () => {
-          const count = Number(
-            (await page
-              .getByTestId('filmstrip')
-              .getAttribute('data-gallery-count')) ?? '0',
-          )
-          const importing = await page
-            .getByTestId('import-progress')
-            .isVisible()
-          return count > 0 && importing
-        },
-        { timeout: 60_000 },
-      )
-      .toBe(true)
-
-    await page.evaluate(() => {
-      window.__photobooksPerf?.clearLoafEntries()
-    })
-    for (let i = 0; i < 30; i += 1) {
-      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-        node.scrollLeft += 160
+      // --- Session path baseline under the same CPU throttle as re-import ---
+      await enablePerfScenario(page)
+      await clearPerfScenario(page)
+      const sessionStart = Date.now()
+      await pickPhotoFolder(page, files)
+      await expect
+        .poll(
+          async () =>
+            Number(
+              (await page
+                .getByTestId('filmstrip')
+                .getAttribute('data-gallery-count')) ?? '0',
+            ),
+          { timeout: 60_000 },
+        )
+        .toBeGreaterThan(0)
+      const sessionFirstCardMs = Date.now() - sessionStart
+      await expect
+        .poll(
+          async () =>
+            page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+          { timeout: 120_000 },
+        )
+        .toBe('200')
+      await expect(page.getByTestId('import-progress')).toBeHidden({
+        timeout: 60_000,
       })
-      await page.waitForTimeout(32)
-    }
-    await page.evaluate(browserAssertNoLoaf, 0)
 
-    await expect
-      .poll(
-        async () =>
-          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
-        { timeout: 120_000 },
-      )
-      .toBe('200')
-    await expect(page.getByTestId('import-progress')).toBeHidden({
-      timeout: 60_000,
-    })
-
-    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft = 0
-    })
-    // Wait for the virtualizer to remount the start of the gallery.
-    await expect
-      .poll(
-        async () =>
-          page
-            .getByTestId('filmstrip-item')
-            .first()
-            .getAttribute('data-asset-id'),
-        { timeout: 15_000 },
-      )
-      .toMatch(/bulk-000/)
-    const firstIdBefore = await page
-      .getByTestId('filmstrip-item')
-      .first()
-      .getAttribute('data-asset-id')
-    expect(firstIdBefore).toBeTruthy()
-
-    // Settle first-import autosave before clearing thumbs so its OPFS write
-    // cannot land inside the re-import LoAF scroll window.
-    await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
-      timeout: 60_000,
-    })
-
-    await page.evaluate(async () => {
-      const api = window.__photobooksThumbs
-      if (!api) {
-        throw new Error('window.__photobooksThumbs is not available')
-      }
-      await api.clearThumbsAndDerivedCacheForTests()
-    })
-    await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(0, {
-      timeout: 15_000,
-    })
-
-    // Re-import: gallery is already full; progressive start = progress bar
-    // (comparable to session empty→first card). Thumbs restore separately.
-    await clearPerfScenario(page)
-    const reimportStart = Date.now()
-    await pickPhotoFolder(page, files, { replaceFolder: true })
-
-    await expect(page.getByTestId('import-progress')).toBeVisible({
-      timeout: 30_000,
-    })
-    await expect(page.getByTestId('import-progress')).toContainText(
-      'Importing',
-      { timeout: 30_000 },
-    )
-    const reimportFirstCardMs = Date.now() - reimportStart
-
-    // Scroll-during-re-import while progress is still up (Done-when / Perf).
-    await page.evaluate(() => {
-      window.__photobooksPerf?.clearLoafEntries()
-    })
-    for (let i = 0; i < 30; i += 1) {
-      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-        node.scrollLeft += 160
-      })
-      await page.waitForTimeout(32)
-    }
-    await page.evaluate(browserAssertNoLoaf, 0)
-
-    // First restored thumb (gallery count stays 200 after clearThumbs).
-    await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
-      timeout: 60_000,
-    })
-    const reimportFirstThumbMs = Date.now() - reimportStart
-
-    await expect
-      .poll(
-        async () =>
-          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
-        { timeout: 120_000 },
-      )
-      .toBe('200')
-    await expect(page.getByTestId('import-progress')).toBeHidden({
-      timeout: 60_000,
-    })
-
-    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft = 0
-    })
-    // Change folder clears the prior gallery; ids are new but count stays 200.
-    await expect
-      .poll(
-        async () =>
-          page
-            .getByTestId('filmstrip-item')
-            .first()
-            .getAttribute('data-asset-id'),
-        { timeout: 15_000 },
-      )
-      .toMatch(/bulk-000/)
-    expect(
-      await page
-        .getByTestId('filmstrip-item')
-        .first()
-        .getAttribute('data-asset-id'),
-    ).not.toBe(firstIdBefore)
-    // Sample the far end of the strip (virtualizer) still mounts items.
-    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft = node.scrollWidth
-    })
-    await expect
-      .poll(async () => page.getByTestId('filmstrip-item').count(), {
+      // --- Library-backed: import, clear DerivedCache, re-import ---
+      await page.goto('/?testLibrary=1&perf=1')
+      await page.waitForFunction(() => window.__photobooksPerf !== undefined)
+      await applyCpuThrottling(page)
+      await expect(page.getByTestId('create-book')).toBeEnabled({
         timeout: 15_000,
       })
-      .toBeGreaterThan(0)
-    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-      node.scrollLeft = 0
-    })
-    await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
-      timeout: 60_000,
-    })
+      await page.getByTestId('create-book').click()
+      await expect(page.getByTestId('editor-status')).toHaveText(
+        'Book created in library',
+      )
 
-    expect(
-      reimportFirstCardMs,
-      `re-import progress ${String(reimportFirstCardMs)}ms > 1.5× session first card ${String(sessionFirstCardMs)}ms`,
-    ).toBeLessThanOrEqual(sessionFirstCardMs * 1.5 + 1)
-    // setInputFiles has no Event Timing; click supplies INP for the gate snapshot.
-    await page.getByTestId('filmstrip-item').first().click({ delay: 20 })
-    await page.waitForFunction(() => {
-      const perf = window.__photobooksPerf
-      if (!perf) {
-        return false
-      }
-      perf.flushEventTimingEntries()
-      return perf.getEventTimingEntries().length > 0
-    })
-    // Capture INP/handler from import kickoff + click, then clear LoAF
-    // for the post-settle window (scroll-during-re-import LoAF was asserted above).
-    const gateSnapshot = await page.evaluate((handlerLabel) => {
-      const perf = window.__photobooksPerf
-      if (!perf) {
-        throw new Error('window.__photobooksPerf is not available')
-      }
-      perf.flushEventTimingEntries()
-      const durations = perf.getHandlerMeasureDurations(handlerLabel)
-      const sorted = [...durations].sort((a, b) => a - b)
-      const p95 =
-        sorted.length === 0
-          ? null
-          : sorted[
-              Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)
-            ]
-      return {
-        loafEntries: perf.getLoafEntries().length,
-        inpMs: perf.getInpMs(),
-        handlerP95Ms: p95,
-        handlerSampleCount: durations.length,
-      }
-    }, 'import-photos')
-    await page.evaluate(() => {
-      window.__photobooksPerf?.clearLoafEntries()
-    })
-    await assertCiPerfGates(page)
-    await collectFrameStatsArtifact(page, testInfo)
+      // Library-backed fresh bulk import: frame-budget scroll window (Perf line).
+      await clearPerfScenario(page)
+      const chooseFolder = page.getByTestId('choose-photo-folder')
+      await expect(chooseFolder).toBeEnabled()
+      await pickPhotoFolder(page, files)
 
-    const proof = {
-      sessionFirstCardMs,
-      reimportProgressMs: reimportFirstCardMs,
-      reimportFirstThumbMs,
-      ratio: reimportFirstCardMs / Math.max(1, sessionFirstCardMs),
-      readsInFlightCap: 16,
-      loafEntriesDuringScrollReimport: 0,
-      ...gateSnapshot,
-    }
-    const proofPath = testInfo.outputPath('reimport-async-proof.json')
-    writeFileSync(proofPath, JSON.stringify(proof, null, 2), 'utf8')
-    await testInfo.attach('reimport-async-proof.json', {
-      path: proofPath,
-      contentType: 'application/json',
+      await expect(page.getByTestId('import-progress')).toBeVisible({
+        timeout: 30_000,
+      })
+      await expect(page.getByTestId('import-progress')).toContainText(
+        'Importing',
+        { timeout: 30_000 },
+      )
+      await expect
+        .poll(
+          async () => {
+            const count = Number(
+              (await page
+                .getByTestId('filmstrip')
+                .getAttribute('data-gallery-count')) ?? '0',
+            )
+            const importing = await page
+              .getByTestId('import-progress')
+              .isVisible()
+            return count > 0 && importing
+          },
+          { timeout: 60_000 },
+        )
+        .toBe(true)
+
+      await beginFilmstripLoafScrollWindow(page)
+      await scrollFilmstripLoafWindow(page)
+      await page.evaluate(browserAssertNoLoaf, 0)
+
+      await expect
+        .poll(
+          async () =>
+            page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+          { timeout: 120_000 },
+        )
+        .toBe('200')
+      await expect(page.getByTestId('import-progress')).toBeHidden({
+        timeout: 60_000,
+      })
+
+      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+        node.scrollLeft = 0
+      })
+      // Wait for the virtualizer to remount the start of the gallery.
+      await expect
+        .poll(
+          async () =>
+            page
+              .getByTestId('filmstrip-item')
+              .first()
+              .getAttribute('data-asset-id'),
+          { timeout: 15_000 },
+        )
+        .toMatch(/bulk-000/)
+      const firstIdBefore = await page
+        .getByTestId('filmstrip-item')
+        .first()
+        .getAttribute('data-asset-id')
+      expect(firstIdBefore).toBeTruthy()
+
+      // Settle first-import autosave before clearing thumbs so its OPFS write
+      // cannot land inside the re-import LoAF scroll window.
+      await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+        timeout: 60_000,
+      })
+
+      await page.evaluate(async () => {
+        const api = window.__photobooksThumbs
+        if (!api) {
+          throw new Error('window.__photobooksThumbs is not available')
+        }
+        await api.clearThumbsAndDerivedCacheForTests()
+      })
+      await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(0, {
+        timeout: 15_000,
+      })
+
+      // Re-import: gallery is already full; progressive start = progress bar
+      // (comparable to session empty→first card). Thumbs restore separately.
+      await clearPerfScenario(page)
+      const reimportStart = Date.now()
+      await pickPhotoFolder(page, files, { replaceFolder: true })
+
+      await expect(page.getByTestId('import-progress')).toBeVisible({
+        timeout: 30_000,
+      })
+      await expect(page.getByTestId('import-progress')).toContainText(
+        'Importing',
+        { timeout: 30_000 },
+      )
+      const reimportFirstCardMs = Date.now() - reimportStart
+
+      // Scroll-during-re-import while progress is still up (Done-when / Perf).
+      await beginFilmstripLoafScrollWindow(page)
+      await scrollFilmstripLoafWindow(page)
+      await page.evaluate(browserAssertNoLoaf, 0)
+
+      // First restored thumb (gallery count stays 200 after clearThumbs).
+      await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
+        timeout: 60_000,
+      })
+      const reimportFirstThumbMs = Date.now() - reimportStart
+
+      await expect
+        .poll(
+          async () =>
+            page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+          { timeout: 120_000 },
+        )
+        .toBe('200')
+      await expect(page.getByTestId('import-progress')).toBeHidden({
+        timeout: 60_000,
+      })
+
+      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+        node.scrollLeft = 0
+      })
+      // Change folder clears the prior gallery; ids are new but count stays 200.
+      await expect
+        .poll(
+          async () =>
+            page
+              .getByTestId('filmstrip-item')
+              .first()
+              .getAttribute('data-asset-id'),
+          { timeout: 15_000 },
+        )
+        .toMatch(/bulk-000/)
+      expect(
+        await page
+          .getByTestId('filmstrip-item')
+          .first()
+          .getAttribute('data-asset-id'),
+      ).not.toBe(firstIdBefore)
+      // Sample the far end of the strip (virtualizer) still mounts items.
+      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+        node.scrollLeft = node.scrollWidth
+      })
+      await expect
+        .poll(async () => page.getByTestId('filmstrip-item').count(), {
+          timeout: 15_000,
+        })
+        .toBeGreaterThan(0)
+      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+        node.scrollLeft = 0
+      })
+      await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
+        timeout: 60_000,
+      })
+
+      expect(
+        reimportFirstCardMs,
+        `re-import progress ${String(reimportFirstCardMs)}ms > 1.5× session first card ${String(sessionFirstCardMs)}ms`,
+      ).toBeLessThanOrEqual(sessionFirstCardMs * 1.5 + 1)
+      // setInputFiles has no Event Timing; click supplies INP for the gate snapshot.
+      await page.getByTestId('filmstrip-item').first().click({ delay: 20 })
+      await page.waitForFunction(() => {
+        const perf = window.__photobooksPerf
+        if (!perf) {
+          return false
+        }
+        perf.flushEventTimingEntries()
+        return perf.getEventTimingEntries().length > 0
+      })
+      // Capture INP/handler from import kickoff + click, then clear LoAF
+      // for the post-settle window (scroll-during-re-import LoAF was asserted above).
+      const gateSnapshot = await page.evaluate((handlerLabel) => {
+        const perf = window.__photobooksPerf
+        if (!perf) {
+          throw new Error('window.__photobooksPerf is not available')
+        }
+        perf.flushEventTimingEntries()
+        const durations = perf.getHandlerMeasureDurations(handlerLabel)
+        const sorted = [...durations].sort((a, b) => a - b)
+        const p95 =
+          sorted.length === 0
+            ? null
+            : sorted[
+                Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)
+              ]
+        return {
+          loafEntries: perf.getLoafEntries().length,
+          inpMs: perf.getInpMs(),
+          handlerP95Ms: p95,
+          handlerSampleCount: durations.length,
+        }
+      }, 'import-photos')
+      await page.evaluate(() => {
+        window.__photobooksPerf?.clearLoafEntries()
+      })
+      await assertCiPerfGates(page)
+      await collectFrameStatsArtifact(page, testInfo)
+
+      const proof = {
+        sessionFirstCardMs,
+        reimportProgressMs: reimportFirstCardMs,
+        reimportFirstThumbMs,
+        ratio: reimportFirstCardMs / Math.max(1, sessionFirstCardMs),
+        readsInFlightCap: 16,
+        loafEntriesDuringScrollReimport: 0,
+        ...gateSnapshot,
+      }
+      const proofPath = testInfo.outputPath('reimport-async-proof.json')
+      writeFileSync(proofPath, JSON.stringify(proof, null, 2), 'utf8')
+      await testInfo.attach('reimport-async-proof.json', {
+        path: proofPath,
+        contentType: 'application/json',
+      })
     })
   })
 })
@@ -1356,16 +1347,8 @@ test.describe('frame-budget gates', () => {
       .toBe(true)
 
     // Interaction window: scroll while import continues (exclude picker/setFiles LoAF).
-    await page.evaluate(() => {
-      window.__photobooksPerf?.clearLoafEntries()
-    })
-
-    for (let i = 0; i < 30; i += 1) {
-      await page.getByTestId('filmstrip-scroll').evaluate((node) => {
-        node.scrollLeft += 160
-      })
-      await page.waitForTimeout(32)
-    }
+    await beginFilmstripLoafScrollWindow(page)
+    await scrollFilmstripLoafWindow(page)
 
     // Assert LoAF for the scroll-during-import window before post-import reveal work.
     await page.evaluate(browserAssertNoLoaf, 0)

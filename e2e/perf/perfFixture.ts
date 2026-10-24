@@ -53,6 +53,77 @@ export function browserClearLoafEntries(): void {
   perf.clearLoafEntries()
 }
 
+/**
+ * Start a LoAF scenario window after paint settles.
+ * Double-rAF + re-clear drops frames that straddled the first clear so they
+ * are not attributed to the upcoming interaction (budget stays zero entries).
+ * Retries a few quiet settles so import/thumb bursts that land on the clear
+ * boundary are not counted before the interaction starts.
+ * Must stay self-contained for `page.evaluate` (no outer closures).
+ */
+export async function browserBeginLoafScenarioWindow(): Promise<void> {
+  const perf = window.__photobooksPerf
+  if (!perf) {
+    throw new Error('window.__photobooksPerf is not available')
+  }
+  const waitDoubleRaf = (): Promise<void> =>
+    new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    })
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    perf.clearLoafEntries()
+    await waitDoubleRaf()
+    if (perf.getLoafEntries().length === 0) {
+      perf.clearLoafEntries()
+      return
+    }
+  }
+  perf.clearLoafEntries()
+}
+
+/**
+ * Warm the filmstrip virtualizer, then open a LoAF window.
+ * Cold first-scroll mounts must not count toward scroll-during-import LoAF
+ * (same pattern as book-titles rename-while-scroll). Reset to scrollLeft 0 so
+ * the measured window starts from a known position after the warm-up.
+ */
+export async function beginFilmstripLoafScrollWindow(
+  page: Page,
+): Promise<void> {
+  await page.getByTestId('filmstrip-item').first().waitFor({
+    state: 'visible',
+    timeout: 60_000,
+  })
+  for (let i = 0; i < 5; i += 1) {
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft += 160
+    })
+    await page.waitForTimeout(32)
+  }
+  await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+    node.scrollLeft = 0
+  })
+  await page.waitForTimeout(32)
+  await page.evaluate(browserBeginLoafScenarioWindow)
+}
+
+/** Measured filmstrip scroll steps inside an open LoAF scenario window. */
+export async function scrollFilmstripLoafWindow(
+  page: Page,
+  steps = 30,
+): Promise<void> {
+  for (let i = 0; i < steps; i += 1) {
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft += 160
+    })
+    await page.waitForTimeout(32)
+  }
+}
+
 export function browserAssertNoLoafThenClear(): void {
   const perf = window.__photobooksPerf
   if (!perf) {
