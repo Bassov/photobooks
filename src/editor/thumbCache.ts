@@ -30,9 +30,6 @@ interface PendingThumb {
 }
 
 const pendingById = new Map<string, PendingThumb>()
-// Stryker disable next-line ArrayDeclaration: empty seed; non-empty init is cleared on first reset/flush
-const pendingOrder: string[] = []
-// Stryker disable next-line BooleanLiteral: false is the idle seed; true would skip the first schedule
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -61,17 +58,16 @@ function publishThumbNow(
 }
 
 function flushPending(): void {
-  const batchIds = pendingOrder.splice(0, FLUSH_PER_FRAME)
-  for (const id of batchIds) {
-    const item = pendingById.get(id)
-    pendingById.delete(id)
-    // Stryker disable next-line ConditionalExpression,BlockStatement: skip stale queue ids after map delete/replace
-    if (item === undefined) {
-      continue
+  let published = 0
+  for (const [id, item] of pendingById) {
+    if (published >= FLUSH_PER_FRAME) {
+      break
     }
+    pendingById.delete(id)
     publishThumbNow(item.assetId, item.buffer, item.mimeType)
+    published += 1
   }
-  if (pendingOrder.length > 0) {
+  if (pendingById.size > 0) {
     scheduleFlush()
   }
 }
@@ -82,17 +78,12 @@ function scheduleFlush(): void {
   }
   flushScheduled = true
   const run = (): void => {
-    // Stryker disable next-line ConditionalExpression,BlockStatement: re-entry guard; double-run is idempotent once the queue is empty
     if (!flushScheduled) {
       return
     }
     flushScheduled = false
-    // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: clearTimeout when unset is a no-op
-    if (flushWatchdogTimer !== undefined) {
-      // Stryker disable next-line CallExpression: clearTimeout when unset is a no-op
-      clearTimeout(flushWatchdogTimer)
-      flushWatchdogTimer = undefined
-    }
+    clearTimeout(flushWatchdogTimer)
+    flushWatchdogTimer = undefined
     flushPending()
   }
   // Prefer rAF for LoAF pacing; watchdog still fires if rAF is frozen after
@@ -107,10 +98,6 @@ function enqueuePublish(
   buffer: ArrayBuffer,
   mimeType: string,
 ): void {
-  // Stryker disable next-line ConditionalExpression: always-push duplicates are skipped as undefined on flush
-  if (!pendingById.has(assetId)) {
-    pendingOrder.push(assetId)
-  }
   pendingById.set(assetId, { assetId, buffer, mimeType })
   scheduleFlush()
 }
@@ -235,16 +222,10 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
 export function resetThumbCache(): void {
   lastThumb.clear()
   putContentHashes.clear()
-  // Stryker disable next-line CallExpression: pendingOrder.length=0 already empties the flush queue
   pendingById.clear()
-  pendingOrder.length = 0
   flushScheduled = false
-  // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: clearTimeout when unset is a no-op
-  if (flushWatchdogTimer !== undefined) {
-    // Stryker disable next-line CallExpression: clearTimeout when unset is a no-op
-    clearTimeout(flushWatchdogTimer)
-    flushWatchdogTimer = undefined
-  }
+  clearTimeout(flushWatchdogTimer)
+  flushWatchdogTimer = undefined
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }
