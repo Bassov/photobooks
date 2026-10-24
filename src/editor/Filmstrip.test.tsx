@@ -34,6 +34,7 @@ import {
 import { Pasteboard } from './Pasteboard'
 import { seedGallery } from './gallery.test-helpers'
 import { resetCameraStore } from './cameraStore'
+import * as thumbCache from './thumbCache'
 import { resetThumbCache } from './thumbCache'
 import {
   buildStridePrefix,
@@ -269,6 +270,20 @@ describe('Filmstrip aspect cards', () => {
       /Importing 3 \/ 10/,
     )
     resetImportProgressForTests()
+  })
+
+  it('notes filmstrip scroll so thumb publishes can quiet during scroll', () => {
+    seedGallery(8)
+    const noteScroll = vi.spyOn(thumbCache, 'noteFilmstripScroll')
+    render(<Filmstrip />)
+    const scroll = screen.getByTestId('filmstrip-scroll')
+    Object.defineProperty(scroll, 'scrollLeft', {
+      configurable: true,
+      value: 160,
+    })
+    fireEvent.scroll(scroll)
+    expect(noteScroll).toHaveBeenCalled()
+    noteScroll.mockRestore()
   })
 
   it('keeps empty-state copy full-width (not a 1px virtualizer window)', () => {

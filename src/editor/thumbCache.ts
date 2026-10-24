@@ -1,6 +1,11 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
 import { ObjectUrlLru } from '../photo/objectUrlLru'
+import {
+  filmstripScrollQuietRemainingMs,
+  isFilmstripScrollQuiet,
+  noteFilmstripScrollActivity,
+} from './filmstripScrollQuiet'
 import { trackHashJob } from './pendingHashes'
 import { restoreAspectFromPreview } from './previewAspect'
 
@@ -9,8 +14,6 @@ const DEFAULT_CAPACITY = 256
 const FLUSH_PER_FRAME = 1
 /** Matches bookStore gallery flush: progress if rAF freezes (background tab). */
 const FLUSH_RAF_WATCHDOG_MS = 32
-/** Hold thumb React publishes briefly while the filmstrip is scrolling. */
-const SCROLL_QUIET_MS = 100
 
 const lru = new ObjectUrlLru({ capacity: DEFAULT_CAPACITY })
 const assetListeners = new Map<string, Set<() => void>>()
@@ -34,8 +37,6 @@ interface PendingThumb {
 const pendingById = new Map<string, PendingThumb>()
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
-/** `performance.now()` until which thumb flushes should wait for scroll quiet. */
-let scrollQuietUntilMs = 0
 
 function notifyAsset(assetId: string): void {
   publishGeneration += 1
@@ -62,9 +63,8 @@ function publishThumbNow(
 }
 
 function flushPending(): void {
-  const now = performance.now()
-  if (now < scrollQuietUntilMs) {
-    scheduleFlushAfter(scrollQuietUntilMs - now)
+  if (isFilmstripScrollQuiet()) {
+    scheduleFlushAfter(filmstripScrollQuietRemainingMs())
     return
   }
   let published = 0
@@ -120,12 +120,10 @@ function scheduleFlush(): void {
 /**
  * Call from filmstrip scroll so thumb publishes wait for a quiet frame —
  * avoids stacking React notifies on scroll-during-import LoAF windows.
+ * In-flight flushes re-check quiet in `flushPending`; no reschedule needed.
  */
 export function noteFilmstripScroll(): void {
-  scrollQuietUntilMs = performance.now() + SCROLL_QUIET_MS
-  if (pendingById.size > 0) {
-    scheduleFlush()
-  }
+  noteFilmstripScrollActivity()
 }
 
 function enqueuePublish(
@@ -281,7 +279,6 @@ export function resetThumbCache(): void {
   flushScheduled = false
   clearTimeout(flushWatchdogTimer)
   flushWatchdogTimer = undefined
-  scrollQuietUntilMs = 0
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }

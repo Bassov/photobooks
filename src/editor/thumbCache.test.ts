@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { getAssetAspectSnapshot, resetBookStore } from './bookStore'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
+import { resetFilmstripScrollQuietForTests } from './filmstripScrollQuiet'
 import {
   dropHotThumbUrlForTests,
   ensureThumb,
   getThumbPublishGeneration,
   getThumbUrl,
   hasThumbData,
+  noteFilmstripScroll,
   putCachedThumbForHash,
   resetThumbCache,
   setThumbUrl,
@@ -42,6 +44,7 @@ describe('thumbCache', () => {
 
   afterEach(() => {
     resetThumbCache()
+    resetFilmstripScrollQuietForTests()
     resetPendingHashesForTests()
     resetBookStore()
     setDerivedCacheForTests(undefined)
@@ -105,6 +108,40 @@ describe('thumbCache', () => {
     expect(listener).toHaveBeenCalledTimes(1)
     expect(getThumbUrl('a1')).toBe('blob:thumb-2')
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1')
+  })
+
+  it('defers React publishes while noteFilmstripScroll quiet is active', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let now = 10_000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    let n = 0
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
+      n += 1
+      return `blob:quiet-${String(n)}`
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+
+    setThumbUrl('q1', new Uint8Array([1]).buffer, 'image/jpeg')
+    noteFilmstripScroll()
+    expect(rafQueue).toHaveLength(1)
+    rafQueue.shift()?.(0)
+    expect(getThumbUrl('q1')).toBeUndefined()
+    expect(hasThumbData('q1')).toBe(true)
+    const quietDelay = setTimeoutSpy.mock.calls
+      .map((call) => call[1])
+      .find((delay) => typeof delay === 'number' && delay > 32)
+    expect(quietDelay).toBe(200)
+
+    now = 10_200
+    vi.advanceTimersByTime(200)
+    expect(getThumbUrl('q1')).toBe('blob:quiet-1')
+    vi.useRealTimers()
   })
 
   it('coalesces setThumbUrl publishes onto rAF (max 1 per frame)', () => {

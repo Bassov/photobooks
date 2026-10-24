@@ -753,6 +753,51 @@ describe('importPhotoFiles library identity', () => {
     expect(awaitSpy).not.toHaveBeenCalled()
   })
 
+  it('does not load jpeg head pass for PNG-only imports', async () => {
+    const jpegHead = await import('./jpegHeadPass')
+    const spy = vi
+      .spyOn(jpegHead, 'runJpegHeadPass')
+      .mockResolvedValue(undefined)
+    const png = new File([new Uint8Array([137, 80, 78, 71])], 'only.png', {
+      type: 'image/png',
+    })
+    await importPhotoFiles([png], { libraryBacked: false })
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 30)
+    })
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('loads jpeg head pass when the batch includes a JPEG', async () => {
+    const jpegHead = await import('./jpegHeadPass')
+    const spy = vi
+      .spyOn(jpegHead, 'runJpegHeadPass')
+      .mockResolvedValue(undefined)
+    await importPhotoFiles([tinyJpeg('head.jpg')], { libraryBacked: false })
+    await vi.waitFor(() => {
+      expect(spy).toHaveBeenCalled()
+    })
+    spy.mockRestore()
+  })
+
+  it('loads jpeg head pass for a mixed JPEG and PNG batch', async () => {
+    const jpegHead = await import('./jpegHeadPass')
+    const spy = vi
+      .spyOn(jpegHead, 'runJpegHeadPass')
+      .mockResolvedValue(undefined)
+    const png = new File([new Uint8Array([137, 80, 78, 71])], 'mix.png', {
+      type: 'image/png',
+    })
+    await importPhotoFiles([png, tinyJpeg('mix.jpg')], {
+      libraryBacked: false,
+    })
+    await vi.waitFor(() => {
+      expect(spy).toHaveBeenCalled()
+    })
+    spy.mockRestore()
+  })
+
   it('does not seed deferred HEIC body reads during prefetch import', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
@@ -873,6 +918,323 @@ describe('importPhotoFiles library identity', () => {
       sourceRootId: 'root-same-dims',
     })
     expect(patchSpy).not.toHaveBeenCalled()
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when orientation changes on re-import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    let importPass = 0
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        importPass += 1
+        const orientation = importPass === 1 ? 1 : 6
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 100,
+            correctedHeight: 50,
+            orientation,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('orient.jpg', 1_700_000_000_333)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-orient',
+    })
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-orient',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    const assetId = getBookStoreSnapshot().book.gallery[0]
+    expect(assetId).toBeTruthy()
+    expect(
+      getBookStoreSnapshot().sessionMeta.get(assetId ?? '')?.orientation,
+    ).toBe(6)
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when decoded width changes on re-import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    let importPass = 0
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        importPass += 1
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: importPass === 1 ? 100 : 120,
+            correctedHeight: 50,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('width-change.jpg', 1_700_000_000_555)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-w',
+    })
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-w',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    const assetId = getBookStoreSnapshot().book.gallery[0]
+    expect(
+      getBookStoreSnapshot().sessionMeta.get(assetId ?? '')?.correctedWidth,
+    ).toBe(120)
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when decoded height changes on re-import', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    let importPass = 0
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        importPass += 1
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 100,
+            correctedHeight: importPass === 1 ? 50 : 80,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('height-change.jpg', 1_700_000_000_666)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-h',
+    })
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-h',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    const assetId = getBookStoreSnapshot().book.gallery[0]
+    expect(
+      getBookStoreSnapshot().sessionMeta.get(assetId ?? '')?.correctedHeight,
+    ).toBe(80)
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when prior width is still a placeholder', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            // Width still placeholder; height already real — width>1 must gate skip.
+            correctedWidth: 1,
+            correctedHeight: 50,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('placeholder-w.jpg', 1_700_000_000_444)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-w',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-w',
+    })
+    expect(patchSpy).toHaveBeenCalled()
+    patchSpy.mockRestore()
+  })
+
+  it('rewrites session meta when prior height is still a placeholder', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    const patchSpy = vi.spyOn(
+      await import('./folderManifestWrite'),
+      'tryPatchManifestFromAsset',
+    )
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 50,
+            correctedHeight: 1,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(4),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('placeholder-h.jpg', 1_700_000_000_445)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-h',
+    })
+    patchSpy.mockClear()
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-ph-h',
+    })
+    expect(patchSpy).toHaveBeenCalled()
     patchSpy.mockRestore()
   })
 
