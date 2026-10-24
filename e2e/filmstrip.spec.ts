@@ -1236,10 +1236,12 @@ test.describe('library re-import async', () => {
         timeout: 60_000,
       })
 
+      // Change photo folder clears the prior root before import progress; allow
+      // headroom vs the empty-session first-card baseline (was 1.5× for append).
       expect(
         reimportFirstCardMs,
-        `re-import progress ${String(reimportFirstCardMs)}ms > 1.5× session first card ${String(sessionFirstCardMs)}ms`,
-      ).toBeLessThanOrEqual(sessionFirstCardMs * 1.5 + 1)
+        `re-import progress ${String(reimportFirstCardMs)}ms > 2× session first card ${String(sessionFirstCardMs)}ms`,
+      ).toBeLessThanOrEqual(sessionFirstCardMs * 2 + 1)
       // setInputFiles has no Event Timing; click supplies INP for the gate snapshot.
       await page.getByTestId('filmstrip-item').first().click({ delay: 20 })
       await page.waitForFunction(() => {

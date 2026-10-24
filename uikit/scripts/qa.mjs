@@ -188,7 +188,7 @@ await smoke("relink dialog fits the demo, Rescan → Resolve relinks", "missing-
   return [fits && !(await D('[data-testid="missing-pill"]').count()), `fits=${fits}`]
 })
 await smoke("photo card opens EXIF-rotated photo", "m0-photo-card", async () => { await D('[data-testid="open-rotated"]').click(); await page.waitForTimeout(1100); return D('[data-testid="photo-card"]').isVisible() })
-await smoke("progressive import fills the filmstrip", "editor-shell-filmstrip", async () => { await D('[data-testid="add-folder"]').click(); await page.waitForTimeout(3600); return [(await D('[data-testid="filmstrip"] [role="row"]').count()) >= 20, `${await D('[data-testid="filmstrip"] [role="row"]').count()} rows`] })
+await smoke("progressive import fills the filmstrip", "editor-shell-filmstrip", async () => { await D('[data-testid="choose-photo-folder"]').click(); await page.waitForTimeout(3600); return [(await D('[data-testid="filmstrip"] [role="row"]').count()) >= 20, `${await D('[data-testid="filmstrip"] [role="row"]').count()} rows`] })
 await smoke("start a book creates spreads", "spread-templates-ui", async () => { await D('[data-testid="start-create"]').click(); await page.waitForTimeout(300); return !(await D('[data-testid="start-card"]').count()) })
 await smoke("drag photo onto frame + undo", "drag-place-replace", async () => {
   await D('[data-testid="filmstrip"] [role="row"]').nth(0).dragTo(D('[data-testid="frame"]').first()); await page.waitForTimeout(400)
