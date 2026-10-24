@@ -26,7 +26,6 @@ export async function runJpegHeadPass(
   options: { concurrency?: number } = {},
 ): Promise<void> {
   const jpegEntries = entries.filter((entry) => isJpegLikeFile(entry.file))
-  // Stryker disable next-line ConditionalExpression,BlockStatement: mapWithConcurrency on [] is a no-op
   if (jpegEntries.length === 0) {
     return
   }

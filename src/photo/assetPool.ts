@@ -155,7 +155,6 @@ function enqueueDecodeJob(item: DecodeQueueItem): void {
 }
 
 function promoteDeferredHeic(): void {
-  // Stryker disable next-line ConditionalExpression,BlockStatement: empty deferred map is a no-op
   if (deferredHeicByAsset.size === 0) {
     return
   }
@@ -171,7 +170,6 @@ function promoteDeferredHeic(): void {
     const signal =
       deferred.options.signal ??
       abortByAsset.get(deferred.options.assetId)?.signal
-    // Stryker disable next-line ConditionalExpression,BlockStatement: abort before promote rejects the deferred waiter (see assetPool.test.ts)
     if (signal?.aborted) {
       deferred.reject(new DOMException('Aborted', 'AbortError'))
       continue
@@ -428,7 +426,6 @@ export function setSpreadVisibleAssetIds(
 export function setBookUsedAssetIds(assetIds: readonly string[]): void {
   bookUsedAssetIds = new Set(assetIds)
   promoteDeferredHeic()
-  // Stryker disable next-line CallExpression: pump with an idle queue is harmless
   pump()
 }
 

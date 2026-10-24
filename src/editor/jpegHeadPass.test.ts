@@ -383,4 +383,22 @@ describe('runJpegHeadPass', () => {
     expect(parseJpegHead).not.toHaveBeenCalled()
     expect(hasThumbData('a3')).toBe(true)
   })
+
+  it('reads only the 64KiB head via File.slice', async () => {
+    const { JPEG_HEAD_BYTES } = await import('../photo/jpegHead')
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 4,
+      height: 4,
+      orientation: 1,
+      correctedWidth: 4,
+      correctedHeight: 4,
+    })
+    const file = jpegFile('head.jpg')
+    const slice = vi.spyOn(file, 'slice')
+
+    await runJpegHeadPass([{ assetId: 'head', file }])
+
+    expect(slice).toHaveBeenCalledWith(0, JPEG_HEAD_BYTES)
+  })
 })

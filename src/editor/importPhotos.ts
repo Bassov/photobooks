@@ -1,11 +1,16 @@
 import { measureHandlerSync } from '../perf/measureHandler'
 import {
   runImportBatch,
+  shouldDeferHeicDecode,
   type ImportBatchState,
   createImportFileError,
   type ImportFileError,
 } from '../photo/assetPool'
-import { releaseAssetSource, retainAssetSource } from '../photo/assetSources'
+import {
+  getAssetSource,
+  releaseAssetSource,
+  retainAssetSource,
+} from '../photo/assetSources'
 import {
   isKnownHeicFile,
   markHeicFile,
@@ -132,14 +137,30 @@ function applyImportResult(result: {
     result.previewMimeType,
     getAssetCacheKey(result.assetId),
   )
-  tryPatchManifestFromAsset(
-    getBookStoreSnapshot().book.assets[result.assetId],
-    {
-      width: result.correctedWidth,
-      height: result.correctedHeight,
-      orientation: result.orientation,
-    },
-  )
+  const asset = getBookStoreSnapshot().book.assets[result.assetId]
+  tryPatchManifestFromAsset(asset, {
+    width: result.correctedWidth,
+    height: result.correctedHeight,
+    orientation: result.orientation,
+  })
+  // Lazy HEIC: body seed was skipped while deferred; seed once decode lands.
+  const file = getAssetSource(result.assetId)
+  const sourceRootId = asset?.sourceRootId
+  const relativePath = asset?.relativePath
+  if (
+    file !== undefined &&
+    sourceRootId !== undefined &&
+    relativePath !== undefined &&
+    isKnownHeicFile(file)
+  ) {
+    void seedAndHashEntry({
+      assetId: result.assetId,
+      file,
+      relativePath,
+      sourceRootId,
+      memorySource: memorySourceForRoot(sourceRootId),
+    })
+  }
 }
 
 function discardFailedImport(assetId: string): void {
@@ -282,10 +303,8 @@ async function importPhotoFilesInner(
 
     // List-first skipped extension-less HEIC (path not accepted); after sniff
     // promote, mint gallery rows for those new ids even when listAlreadyEnqueued.
-    // Stryker disable next-line ConditionalExpression: listAlreadyEnqueued false keeps legacy enqueue paths above
     if (listAlreadyEnqueued) {
       const missingPlaceholders = immediate.filter((entry) => !entry.reused)
-      // Stryker disable next-line ConditionalExpression,EqualityOperator: zero missing placeholders is a no-op enqueue
       if (missingPlaceholders.length > 0) {
         if (libraryBacked && batchRootId !== undefined) {
           for (const entry of missingPlaceholders) {
@@ -347,6 +366,10 @@ async function importPhotoFilesInner(
         immediate,
         IMPORT_BODY_READ_CAP,
         async (entry) => {
+          // Idle HEIC: no full-body seed until visible ∪ book-used decode.
+          if (shouldDeferHeicDecode(entry.assetId, entry.file, 'prefetch')) {
+            return
+          }
           await bodyGate.withBodyRead(async () => {
             const existingRoot =
               getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId

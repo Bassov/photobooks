@@ -352,9 +352,12 @@ test('EXIF orientation 6 shows a filmstrip thumb', async ({ page }) => {
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 30_000,
   })
+  // Happy: header/decode path yields a real thumb (not grey placeholder).
   await expect(page.getByTestId('filmstrip-thumb')).toBeVisible({
     timeout: 30_000,
   })
+  await expect(page.getByTestId('filmstrip-placeholder')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
 })
 
 test('unsupported TIFF shows import error without gallery entry', async ({
@@ -401,7 +404,9 @@ test('HEIC enters gallery as a placeholder tile', async ({ page }) => {
       page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
     )
     .toBe('1')
+  // Empty/no-decoder: grey placeholder stays (no libheif).
   await expect(page.getByTestId('filmstrip-placeholder')).toBeVisible()
+  await assertDocumentFitsViewport(page)
 })
 
 test('extension-less HEIC octet-stream enters gallery after sniff', async ({
@@ -448,6 +453,13 @@ test('folder import keeps JPEG and HEIC gallery placeholders', async ({
   await expect(page.getByTestId('filmstrip-item').first()).toBeVisible({
     timeout: 30_000,
   })
+  // Scroll case: document stays within viewport while filmstrip scrolls.
+  await assertDocumentFitsViewport(page)
+  const scroll = page.getByTestId('filmstrip-scroll')
+  await scroll.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth
+  })
+  await assertDocumentFitsViewport(page)
 })
 
 test('folder import skips README without import-errors', async ({ page }) => {
