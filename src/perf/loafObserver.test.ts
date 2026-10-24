@@ -268,7 +268,7 @@ describe('loafObserver', () => {
     }).toThrow(/LoAF observer is not active/)
   })
 
-  it('throws when any LoAF entry is recorded', () => {
+  it('throws when any input-blocking LoAF entry is recorded', () => {
     interface List {
       getEntries: () => PerformanceEntry[]
     }
@@ -304,6 +304,45 @@ describe('loafObserver', () => {
 
     expect(() => {
       assertNoLoafEntries()
-    }).toThrow(/exceed max/)
+    }).toThrow(/Input-blocking LoAF entries .* exceed max/)
+  })
+
+  it('ignores LoAF entries with blockingDuration 0 under the entry budget', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: { callback: ((list: List) => void) | null } = {
+      callback: null,
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    startLoafObserver()
+    clearLoafEntries()
+    captured.callback?.({
+      getEntries: () => [
+        {
+          startTime: performance.now() + 1,
+          duration: 80,
+          blockingDuration: 0,
+        } as PerformanceEntry & { blockingDuration: number },
+      ],
+    })
+
+    expect(getLoafEntries()).toEqual([])
+    assertNoLoafEntries()
   })
 })
