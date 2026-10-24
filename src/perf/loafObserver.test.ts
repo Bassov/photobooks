@@ -268,7 +268,7 @@ describe('loafObserver', () => {
     }).toThrow(/LoAF observer is not active/)
   })
 
-  it('throws when any input-blocking LoAF entry is recorded', () => {
+  it('throws when any LoAF entry is recorded', () => {
     interface List {
       getEntries: () => PerformanceEntry[]
     }
@@ -304,10 +304,10 @@ describe('loafObserver', () => {
 
     expect(() => {
       assertNoLoafEntries()
-    }).toThrow(/Input-blocking LoAF entries .* exceed max/)
+    }).toThrow(/LoAF entries .* exceed max/)
   })
 
-  it('ignores LoAF entries with blockingDuration 0 under the entry budget', () => {
+  it('counts LoAF entries with blockingDuration 0 toward the entry budget', () => {
     interface List {
       getEntries: () => PerformanceEntry[]
     }
@@ -342,7 +342,11 @@ describe('loafObserver', () => {
       ],
     })
 
-    expect(getLoafEntries()).toEqual([])
-    assertNoLoafEntries()
+    expect(getLoafEntries()).toEqual([
+      { startTime: expect.any(Number), duration: 80, blockingDuration: 0 },
+    ])
+    expect(() => {
+      assertNoLoafEntries()
+    }).toThrow(/LoAF entries .* exceed max/)
   })
 })

@@ -28,6 +28,14 @@ function jpegLandscape200x100(): ArrayBuffer {
 describe('thumbCache', () => {
   beforeEach(() => {
     resetBookStore()
+    // Default: flush paced publishes immediately so unit tests stay sync.
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
   })
 
   afterEach(() => {
@@ -87,7 +95,12 @@ describe('thumbCache', () => {
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1')
   })
 
-  it('publishes each setThumbUrl without waiting for rAF', () => {
+  it('coalesces setThumbUrl publishes onto rAF (max 4 per frame)', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
     let n = 0
     vi.spyOn(URL, 'createObjectURL').mockImplementation(() => {
       n += 1
@@ -98,10 +111,18 @@ describe('thumbCache', () => {
     setThumbUrl('a', new Uint8Array([1]).buffer, 'image/jpeg')
     setThumbUrl('b', new Uint8Array([2]).buffer, 'image/jpeg')
     setThumbUrl('c', new Uint8Array([3]).buffer, 'image/jpeg')
+    setThumbUrl('d', new Uint8Array([4]).buffer, 'image/jpeg')
+    setThumbUrl('e', new Uint8Array([5]).buffer, 'image/jpeg')
 
+    expect(getThumbUrl('a')).toBeUndefined()
+    expect(rafQueue).toHaveLength(1)
+    rafQueue.shift()?.(0)
     expect(getThumbUrl('a')).toBe('blob:t-1')
-    expect(getThumbUrl('b')).toBe('blob:t-2')
-    expect(getThumbUrl('c')).toBe('blob:t-3')
+    expect(getThumbUrl('d')).toBe('blob:t-4')
+    expect(getThumbUrl('e')).toBeUndefined()
+    expect(rafQueue).toHaveLength(1)
+    rafQueue.shift()?.(0)
+    expect(getThumbUrl('e')).toBe('blob:t-5')
   })
 
   it('resetThumbCache clears urls and notifies listeners', () => {

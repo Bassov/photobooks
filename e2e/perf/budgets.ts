@@ -4,7 +4,6 @@
  */
 export const PERF_BUDGETS = {
   cpuThrottleRate: 2,
-  /** Input-blocking LoAF entries (`blockingDuration > 0`); see src/perf/budgets.ts. */
   loafEntriesMax: 0,
   handlerP95Ms: 2,
   inpMs: 100,

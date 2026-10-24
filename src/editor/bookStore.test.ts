@@ -628,6 +628,61 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().book.assets.p1?.mime).toBe('image/png')
   })
 
+  it('coalesces patchAssetRecord emits onto rAF while import is running', () => {
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+      rafQueue[id - 1] = () => undefined
+    })
+    enqueueGalleryAssets([
+      {
+        assetId: 'h1',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'h1.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+      {
+        assetId: 'h2',
+        asset: {
+          sourceRootId: 'root',
+          relativePath: 'h2.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+        },
+      },
+    ])
+    rafQueue.shift()?.(0)
+    setImportRunning(true, 2)
+    const listener = vi.fn()
+    subscribeBookStore(listener)
+    listener.mockClear()
+    rafQueue.length = 0
+
+    patchAssetRecord('h1', {
+      contentHash:
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    })
+    patchAssetRecord('h2', {
+      contentHash:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    })
+    expect(listener).not.toHaveBeenCalled()
+    expect(rafQueue).toHaveLength(1)
+    expect(getBookStoreSnapshot().book.assets.h1?.contentHash).toMatch(/^a+$/)
+    expect(getBookStoreSnapshot().book.assets.h2?.contentHash).toMatch(/^b+$/)
+
+    rafQueue.shift()?.(0)
+    expect(listener).toHaveBeenCalledOnce()
+
+    setImportRunning(false)
+  })
+
   it.each([
     { field: 'name' as const, value: 'other.jpg' },
     { field: 'correctedWidth' as const, value: 99 },

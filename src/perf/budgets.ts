@@ -2,17 +2,11 @@
 export const PERF_BUDGETS = {
   /**
    * CDP `Emulation.setCPUThrottlingRate` for CI Playwright scenarios.
-   * Calibrated so the photo-card 24MP import records zero input-blocking LoAF
-   * on shared runners; 4× produced LoAF duration ~50–80 ms with
-   * blockingDuration 0 on local Chromium. The observer drops blockingDuration
-   * 0 entries (see `loafObserver`) so throttle-stretched frames without long
-   * tasks do not fail the zero-entry gate.
+   * Calibrated so the photo-card 24MP import records zero LoAF on shared runners;
+   * 4× produced LoAF duration ~50–80 ms with blockingDuration 0 on local Chromium.
    */
   cpuThrottleRate: 2,
-  /**
-   * Maximum input-blocking LoAF entries (`blockingDuration > 0`) allowed
-   * during a scenario window.
-   */
+  /** Maximum LoAF entries allowed during a scenario window. */
   loafEntriesMax: 0,
   /** Hot-handler `performance.measure` p95 ceiling (ms), unthrottled. */
   handlerP95Ms: 2,

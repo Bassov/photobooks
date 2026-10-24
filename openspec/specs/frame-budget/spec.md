@@ -8,12 +8,12 @@ Defines how Photobooks measures and gates main-thread responsiveness for interac
 
 ### Requirement: Shared performance budgets
 
-The system SHALL expose one shared budget configuration used by scenario tests, local perf runs, and benches. Budgets MUST include: zero input-blocking LoAF entries (`blockingDuration > 0`) during a scenario window; hot-handler p95 ≤ 2 ms; INP ≤ 100 ms; frame pacing p95 ≤ 16.7 ms with dropped frames ≤ 2%. LoAF records with `blockingDuration` 0 MUST NOT count toward the entry budget (CDP CPU throttle can stretch frame duration without long tasks). The repository MUST NOT reintroduce a 200 ms LoAF blockingDuration allowance.
+The system SHALL expose one shared budget configuration used by scenario tests, local perf runs, and benches. Budgets MUST include: zero LoAF entries during a scenario window; hot-handler p95 ≤ 2 ms; INP ≤ 100 ms; frame pacing p95 ≤ 16.7 ms with dropped frames ≤ 2%. The repository MUST NOT reintroduce a 200 ms LoAF allowance.
 
 #### Scenario: Budgets are the single source of truth
 
 - **WHEN** a scenario test or local perf run asserts LoAF, INP, handler timing, or frame pacing
-- **THEN** it reads thresholds from the shared budgets module rather than hard-coding local numbers, and LoAF is asserted as zero input-blocking entries (no 200 ms blockingDuration allowance)
+- **THEN** it reads thresholds from the shared budgets module rather than hard-coding local numbers, and LoAF is asserted as zero entries (no 200 ms allowance)
 
 ### Requirement: In-page performance hooks
 
@@ -26,22 +26,17 @@ When performance hooks are enabled (development builds or an explicit `perf` / l
 
 ### Requirement: CI proxy gates under CPU throttling
 
-Automated Playwright interaction scenarios in CI MUST run with CDP CPU throttling calibrated for shared runners. Those scenarios MUST hard-fail when any input-blocking LoAF entry (`blockingDuration > 0`) is recorded during the scenario window, when INP exceeds the shared budget, or when measured hot-handler p95 exceeds the shared budget. Frame-pacing statistics MUST be published as a non-blocking CI artifact for the same scenarios.
+Automated Playwright interaction scenarios in CI MUST run with CDP CPU throttling calibrated for shared runners. Those scenarios MUST hard-fail when any LoAF entry is recorded during the scenario window, when INP exceeds the shared budget, or when measured hot-handler p95 exceeds the shared budget. Frame-pacing statistics MUST be published as a non-blocking CI artifact for the same scenarios.
 
 #### Scenario: Photo import scenario fails on LoAF
 
-- **WHEN** a throttled CI scenario imports photos through the gallery filmstrip flow (bulk import while scrolling) and at least one input-blocking LoAF entry is recorded during the scenario window
+- **WHEN** a throttled CI scenario imports photos through the gallery filmstrip flow (bulk import while scrolling) and at least one LoAF entry is recorded during the scenario window
 - **THEN** the scenario fails
 
 #### Scenario: Filmstrip bulk import scenario fails on LoAF
 
-- **WHEN** a throttled CI scenario imports ~200 photos into the filmstrip while scrolling and at least one input-blocking LoAF entry is recorded during the scenario window
+- **WHEN** a throttled CI scenario imports ~200 photos into the filmstrip while scrolling and at least one LoAF entry is recorded during the scenario window
 - **THEN** the scenario fails
-
-#### Scenario: Zero-blocking LoAF under throttle does not fail the gate
-
-- **WHEN** a throttled CI scenario records a LoAF whose `blockingDuration` is 0 during the scenario window
-- **THEN** that entry does not count toward the LoAF entry budget and the scenario does not fail for LoAF alone
 
 #### Scenario: Frame pacing is report-only in CI
 
