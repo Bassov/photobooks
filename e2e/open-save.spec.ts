@@ -415,3 +415,77 @@ test('New book confirm accept replaces content with an empty book', async ({
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(0)
 })
+
+test('reload mid-import restores partial gallery and continues import', async ({
+  page,
+}) => {
+  test.setTimeout(180_000)
+  const count = 36
+  const files = writeBulkImportFixtures(count)
+
+  await page.goto('/?testLibrary=1')
+  await expect(page.getByTestId('create-book')).toBeEnabled({
+    timeout: 15_000,
+  })
+  page.once('dialog', (dialog) => {
+    void dialog.accept('Mid import reload')
+  })
+  await page.getByTestId('create-book').click()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book created')
+
+  await choosePhotoFolder(page, files)
+  await expect(page.getByTestId('import-progress')).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect
+    .poll(
+      async () =>
+        Number(
+          (await page
+            .getByTestId('filmstrip')
+            .getAttribute('data-gallery-count')) ?? '0',
+        ),
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThanOrEqual(4)
+
+  const countBefore = Number(
+    (await page.getByTestId('filmstrip').getAttribute('data-gallery-count')) ??
+      '0',
+  )
+  expect(countBefore).toBeGreaterThanOrEqual(4)
+
+  // Progressive autosave during import (no hash wait) — wait for Saved.
+  await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+    timeout: 60_000,
+  })
+
+  await page.reload()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
+    timeout: 30_000,
+  })
+  await expect
+    .poll(
+      async () =>
+        Number(
+          (await page
+            .getByTestId('filmstrip')
+            .getAttribute('data-gallery-count')) ?? '0',
+        ),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThanOrEqual(Math.min(countBefore, 4))
+
+  await expect(page.getByTestId('filmstrip-item').first()).toBeVisible({
+    timeout: 30_000,
+  })
+
+  // Background continue-import / re-scan should finish the folder.
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 120_000 },
+    )
+    .toBe(String(count))
+})

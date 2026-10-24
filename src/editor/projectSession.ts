@@ -1088,7 +1088,12 @@ async function persistBookSnapshot(
   generationAtStart: number,
   epochAtStart: number,
 ): Promise<void> {
-  await autosave.waitForPendingHashes()
+  // During progressive folder import, hashes keep enqueueing; waiting for the
+  // full pending set blocks mid-import durability. Persist gallery/assets now;
+  // a later idle save awaits hashes for DerivedCache thumb hydrate.
+  if (!getBookStoreSnapshot().importRunning) {
+    await autosave.waitForPendingHashes()
+  }
   if (
     epochAtStart !== saveEpoch ||
     !bookLocks.hasHeldBookLock() ||

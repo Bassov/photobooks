@@ -1409,3 +1409,77 @@ test.describe('frame-budget gates', () => {
     await collectFrameStatsArtifact(page, testInfo)
   })
 })
+
+test('scroll mid-import keeps earlier revealed tile ids', async ({ page }) => {
+  test.setTimeout(120_000)
+  const count = 48
+  const files = writeBulkImportFixtures(count)
+
+  await openSessionEditor(page)
+  await pickPhotoFolder(page, files)
+
+  await expect(page.getByTestId('import-progress')).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 60_000 },
+    )
+    .toMatch(/^[1-9]/)
+
+  const revealedIds = await page
+    .getByTestId('filmstrip-item')
+    .evaluateAll((nodes) =>
+      nodes
+        .map((node) => node.getAttribute('data-asset-id'))
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    )
+  expect(revealedIds.length).toBeGreaterThan(0)
+  const anchorId = revealedIds[0]
+  assert(anchorId !== undefined)
+
+  for (let i = 0; i < 24; i += 1) {
+    await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+      node.scrollLeft += 140
+    })
+    await page.waitForTimeout(24)
+  }
+
+  await expect
+    .poll(
+      async () =>
+        page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+      { timeout: 120_000 },
+    )
+    .toBe(String(count))
+  await expect(page.getByTestId('import-progress')).toBeHidden({
+    timeout: 60_000,
+  })
+
+  await page.getByTestId('filmstrip-scroll').evaluate((node) => {
+    node.scrollLeft = 0
+  })
+  await expect
+    .poll(
+      async () => {
+        const ids = await page
+          .getByTestId('filmstrip-item')
+          .evaluateAll((nodes) =>
+            nodes.map((node) => node.getAttribute('data-asset-id')),
+          )
+        return ids.includes(anchorId)
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(true)
+  await expect(
+    page.locator(`[data-testid="filmstrip-item"][data-asset-id="${anchorId}"]`),
+  ).toBeVisible({ timeout: 15_000 })
+  await expect(
+    page.locator(
+      `[data-testid="filmstrip-item"][data-asset-id="${anchorId}"] [data-testid="filmstrip-thumb"], [data-testid="filmstrip-item"][data-asset-id="${anchorId}"] [data-testid="filmstrip-placeholder"]`,
+    ),
+  ).toHaveCount(1, { timeout: 15_000 })
+})

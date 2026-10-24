@@ -4,6 +4,7 @@ import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
 import { getAssetAspectSnapshot, resetBookStore } from './bookStore'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
+  dropHotThumbUrlForTests,
   ensureThumb,
   getThumbPublishGeneration,
   getThumbUrl,
@@ -431,12 +432,32 @@ describe('thumbCache', () => {
     expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([9, 8]))
   })
 
-  it('ensureThumb is a no-op without contentHash', async () => {
+  it('ensureThumb is a no-op without contentHash or lastThumb', async () => {
     const cache = createMemoryDerivedCache()
     const get = vi.spyOn(cache, 'get')
     setDerivedCacheForTests(cache)
     ensureThumb('a1')
     await Promise.resolve()
     expect(get).not.toHaveBeenCalled()
+  })
+
+  it('ensureThumb republishes lastThumb after LRU eviction without contentHash', () => {
+    vi.spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:first')
+      .mockReturnValueOnce('blob:republish')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    const get = vi.spyOn(cache, 'get')
+    setDerivedCacheForTests(cache)
+
+    setThumbUrl('a1', new Uint8Array([1, 2, 3]).buffer, 'image/jpeg')
+    expect(getThumbUrl('a1')).toBe('blob:first')
+
+    dropHotThumbUrlForTests('a1')
+    expect(getThumbUrl('a1')).toBeUndefined()
+
+    ensureThumb('a1')
+    expect(get).not.toHaveBeenCalled()
+    expect(getThumbUrl('a1')).toBe('blob:republish')
   })
 })

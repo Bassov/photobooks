@@ -186,6 +186,13 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
   if (lru.has(assetId) || hydrateInflight.has(assetId)) {
     return
   }
+  // Remount after LRU eviction during import: republish in-session bytes
+  // before contentHash / DerivedCache are available.
+  const hot = lastThumb.get(assetId)
+  if (hot !== undefined) {
+    enqueuePublish(assetId, hot.buffer, hot.mimeType)
+    return
+  }
   if (contentHash === undefined || contentHash.length === 0) {
     return
   }
@@ -217,6 +224,14 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
       }
     }
   })()
+}
+
+/**
+ * Test seam: revoke the hot object URL while keeping lastThumb bytes so
+ * remount-after-eviction (ensureThumb without contentHash) can be asserted.
+ */
+export function dropHotThumbUrlForTests(assetId: string): void {
+  lru.delete(assetId)
 }
 
 export function resetThumbCache(): void {

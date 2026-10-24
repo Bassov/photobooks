@@ -679,14 +679,15 @@ function warmLazyPath(
 }
 
 /**
- * After granted restore: verify used-in-book assets first, then lazy-hash
- * unused scanned files in yielded chunks (cancellable). Resolves after the
- * priority phase; lazy work continues in the background.
+ * After granted restore: verify used-in-book assets first, then continue
+ * importing scanned paths not yet in the open-book gallery (or lazy-hash when
+ * no directory handle). Resolves after the priority phase; lazy work continues
+ * in the background.
  */
 export async function startFolderRescan(options: {
   sourceRootId: string
-  /** Accepted for API compatibility; verification uses the registered AssetSource. */
-  directory?: FileSystemDirectoryHandle
+  /** Required to continue importing missing gallery entries after reload. */
+  directory?: AssetDirectoryHandle | FileSystemDirectoryHandle
   visibleSpreadId?: string | null
   otherBookAssets?: readonly RescanAssetRef[]
   runLazy?: boolean
@@ -721,6 +722,10 @@ export async function startFolderRescan(options: {
       scanned.map((entry) => entry.relativePath),
       prioritized,
     )
+    const missingEntries = lazyPaths.flatMap((path) => {
+      const entry = scannedByPath.get(path)
+      return entry === undefined ? [] : [entry]
+    })
     const runLazy = options.runLazy !== false
     const total = prioritized.length + (runLazy ? lazyPaths.length : 0)
     let completed = 0
@@ -759,7 +764,34 @@ export async function startFolderRescan(options: {
       phase: 'lazy',
     })
 
+    const directory = options.directory
     const lazy = (async () => {
+      if (directory !== undefined && missingEntries.length > 0) {
+        await importScannedEntriesInBatches(directory, missingEntries, {
+          sourceRootId: options.sourceRootId,
+          libraryBacked: true,
+          onProgress: (progress) => {
+            if (progress === null) {
+              emitProgress(null)
+              return
+            }
+            emitProgress({
+              total: Math.max(total, 1),
+              completed: Math.min(
+                total,
+                prioritized.length + progress.completed,
+              ),
+              running: progress.running,
+              phase: 'lazy',
+            })
+          },
+          onErrors: () => undefined,
+        })
+        if (!isCancelled()) {
+          emitProgress(null)
+        }
+        return
+      }
       for (const path of lazyPaths) {
         if (isCancelled()) {
           break
@@ -806,6 +838,8 @@ export interface FolderImportBatchOptions {
   libraryBacked?: boolean
   onProgress: (progress: ImportProgress | null) => void
   onErrors: (errors: readonly ImportFileError[]) => void
+  /** After the first batch yields — e.g. persist photo-root IDB early. */
+  onFirstBatchYielded?: () => void | Promise<void>
 }
 
 function toImportResult(result: {
@@ -840,6 +874,8 @@ export async function importFilesInBatches(
     onProgress: options.onProgress,
     onErrors: options.onErrors,
   })
+  await yieldForPaint()
+  await options.onFirstBatchYielded?.()
   return toImportResult(result)
 }
 
@@ -866,6 +902,7 @@ export async function importScannedEntriesInBatches(
   const errors: ImportFileError[] = []
   let awaitPriorHashes = true
   let resolvedAny = false
+  let firstBatchYielded = false
   for (
     let offset = 0;
     offset < entries.length;
@@ -923,6 +960,10 @@ export async function importScannedEntriesInBatches(
       awaitPriorHashes = false
     }
     await yieldForPaint()
+    if (!firstBatchYielded) {
+      firstBatchYielded = true
+      await options.onFirstBatchYielded?.()
+    }
   }
   if (!resolvedAny) {
     options.onProgress(null)
