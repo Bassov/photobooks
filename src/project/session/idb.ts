@@ -85,17 +85,13 @@ export async function migrateLegacyRecents(idb: SessionIdb): Promise<void> {
   }
   const recents = parseRecents(recentsStored.value)
   const mutations: SessionIdbMutation[] = [{ op: 'del', key: RECENTS_KEY }]
+  const mostRecent = recents[0] ?? null
 
-  if (recents.length === 0) {
+  if (mostRecent === null) {
     await idb.runReadwrite(mutations)
     return
   }
 
-  const mostRecent = recents[0]
-  if (mostRecent === undefined) {
-    await idb.runReadwrite(mutations)
-    return
-  }
   const preferredId = mostRecent.id
   const handleStored = await idb.get(preferredId)
   const allKeys = await idb.keys()
