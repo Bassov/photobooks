@@ -39,3 +39,14 @@ export {
   createBrowserSessionState,
   type CreateBrowserSessionStateOptions,
 } from './session/browserSessionState'
+export {
+  clearBookPhotoRoot,
+  clearSourceRootHandle,
+  getBookPhotoRoot,
+  peekSourceRootHandle,
+  recallSourceRootHandle,
+  rememberSourceRootHandle,
+  setBookPhotoRoot,
+  type BookPhotoRoot,
+  type BrowserSourceRootHandlesOptions,
+} from './session/browserSourceRootHandles'

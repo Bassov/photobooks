@@ -12,6 +12,14 @@ import {
   browserAssertNoLoaf,
   browserClearLoafEntries,
 } from './perf/perfFixture'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
+
+test.beforeEach(async ({ page }) => {
+  await installPhotoDirectoryPickerStub(page)
+})
 
 interface RelinkTestApi {
   detectMissingAssets: (options?: { openDialog?: boolean }) => {
@@ -110,9 +118,7 @@ test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([photoFixturePaths.samplePng])
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
   await expect
     .poll(async () => page.getByTestId('filmstrip-item').count())
     .toBeGreaterThanOrEqual(1)
@@ -182,7 +188,7 @@ test('filmstrip scrolls during rescan without page scroll', async ({
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
   const many = Array.from({ length: 24 }, () => photoFixturePaths.samplePng)
-  await page.getByTestId('photo-file-input').setInputFiles(many)
+  await choosePhotoFolder(page, many)
   await expect
     .poll(async () => page.getByTestId('filmstrip-item').count(), {
       timeout: 30_000,

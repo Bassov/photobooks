@@ -7,6 +7,10 @@ import type {
   ScannedEntry,
 } from '../types'
 import type { AssetDirectoryHandle, AssetFileHandle } from './handles'
+import {
+  fromFileSystemDirectoryHandle,
+  isBrowserDirectoryHandle,
+} from './handles'
 
 export type FsaAssetSource = AssetSource & {
   setPermissionRequired: (required: boolean) => void
@@ -20,7 +24,7 @@ function success<T>(value: T): AssetSourceResult<T> {
   return { ok: true, value }
 }
 
-async function resolveFile(
+async function resolveAssetFile(
   root: AssetDirectoryHandle,
   relativePath: string,
 ): Promise<AssetFileHandle | undefined> {
@@ -46,9 +50,16 @@ async function resolveFile(
 
 export function createFsaAssetSource(options: {
   rootId: string
-  directory: AssetDirectoryHandle
+  directory: AssetDirectoryHandle | FileSystemDirectoryHandle
 }): FsaAssetSource {
-  const { rootId, directory } = options
+  const { rootId } = options
+  const rawDirectory = options.directory
+  const directory: AssetDirectoryHandle = isBrowserDirectoryHandle(rawDirectory)
+    ? fromFileSystemDirectoryHandle(rawDirectory)
+    : rawDirectory
+  /** Prefer posting the raw browser handle so the worker can walk via FSA. */
+  const scanDirectory: AssetDirectoryHandle | FileSystemDirectoryHandle =
+    isBrowserDirectoryHandle(rawDirectory) ? rawDirectory : directory
   let permissionRequired = false
 
   return {
@@ -63,7 +74,8 @@ export function createFsaAssetSource(options: {
         return failure('not-found')
       }
       try {
-        const entries: ScannedEntry[] = await scanDirectoryInWorker(directory)
+        const entries: ScannedEntry[] =
+          await scanDirectoryInWorker(scanDirectory)
         return success(entries)
       } catch {
         return failure('corrupted')
@@ -76,7 +88,7 @@ export function createFsaAssetSource(options: {
       if (id !== rootId) {
         return failure('not-found')
       }
-      const handle = await resolveFile(directory, relativePath)
+      const handle = await resolveAssetFile(directory, relativePath)
       if (!handle) {
         return failure('not-found')
       }

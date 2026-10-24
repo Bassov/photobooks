@@ -7,31 +7,38 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
 })
 
-test('fresh session shows pasteboard empty card and Add photos opens the file input', async ({
+test.beforeEach(async ({ page }) => {
+  await installPhotoDirectoryPickerStub(page)
+})
+
+test('fresh session shows pasteboard empty card and Choose photo folder imports from the picker', async ({
   page,
 }) => {
-  // Prefer the hidden input path so e2e can assert the shared import seam.
-  await page.addInitScript(() => {
-    Reflect.deleteProperty(window, 'showOpenFilePicker')
-  })
   await openSessionEditor(page)
 
   const card = page.getByTestId('pasteboard-empty-card')
   await expect(card).toBeVisible()
   await expect(card.getByText('Start with your photos')).toBeVisible()
-  await expect(card.getByRole('button', { name: 'Add folder…' })).toBeVisible()
-  await expect(card.getByRole('button', { name: 'Add photos…' })).toBeVisible()
+  await expect(
+    card.getByRole('button', { name: 'Choose photo folder…' }),
+  ).toBeVisible()
 
-  const fileChooserPromise = page.waitForEvent('filechooser')
-  await card.getByRole('button', { name: 'Add photos…' }).click()
-  const chooser = await fileChooserPromise
-  expect(chooser.isMultiple()).toBe(true)
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng], {
+    button: 'pasteboard',
+  })
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
+    timeout: 30_000,
+  })
 
   await assertDocumentFitsViewport(page)
 })
@@ -43,9 +50,7 @@ test('placement hint appears after import and clears after first place', async (
   await openSessionEditor(page)
 
   await expect(page.getByTestId('pasteboard-empty-card')).toBeVisible()
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([photoFixturePaths.samplePng])
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 30_000,
   })
@@ -78,7 +83,7 @@ test('folder with only non-images keeps empty card and No photos found line', as
   writeFileSync(join(dir, 'README.md'), '# no photos\n')
 
   await openSessionEditor(page)
-  await page.getByTestId('folder-file-input').setInputFiles(dir)
+  await choosePhotoFolder(page, [join(dir, 'README.md')])
   await expect(page.getByTestId('pasteboard-empty-card')).toBeVisible({
     timeout: 15_000,
   })

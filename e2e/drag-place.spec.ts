@@ -11,12 +11,20 @@ import {
   enablePerfScenario,
 } from './perf/perfFixture'
 import { PERF_BUDGETS } from './perf/budgets'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
+})
+
+test.beforeEach(async ({ page }) => {
+  await installPhotoDirectoryPickerStub(page)
 })
 
 test('empty gallery has no Placed badge and activation leaves placeholders', async ({
@@ -42,12 +50,10 @@ test.describe('keyboard place', () => {
   }) => {
     test.setTimeout(120_000)
     await openSessionEditor(page)
-    await page
-      .getByTestId('photo-file-input')
-      .setInputFiles([
-        photoFixturePaths.samplePng,
-        photoFixturePaths.sampleOrient6,
-      ])
+    await choosePhotoFolder(page, [
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+    ])
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
       timeout: 30_000,
     })

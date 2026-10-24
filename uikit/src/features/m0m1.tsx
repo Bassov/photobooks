@@ -114,13 +114,13 @@ function ImportEmpty() {
       <FeaturedIcon size="lg" theme="outline" className="mx-auto mb-4"><Images /></FeaturedIcon>
       <div className="heading text-lg">Add your photos</div>
       <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">Pick a folder or drop files. Thumbnails appear while the rest is still being read.</p>
-      <Button size="sm" className="mt-4 h-9 gap-1.5 px-3.5 shadow-sm [&_svg]:size-4" onPress={imp.start} data-testid="add-folder"><FolderOpen />Add folder…</Button>
+      <Button size="sm" className="mt-4 h-9 gap-1.5 px-3.5 shadow-sm [&_svg]:size-4" onPress={imp.start} data-testid="choose-photo-folder"><FolderOpen />Choose photo folder…</Button>
     </div>
   )
 }
 function ImportDemoWrap() {
   return <Std init={() => ({ ...emptyDoc(4), gallery: [] })} features={{ drop: true }} cur={0} pager={false} wrap={ImportProvider}
-    right={<InspectorPanel frame={<EmptyInspector hint="Add photos to start. They appear in the filmstrip as they are read." />} />}
+    right={<InspectorPanel frame={<EmptyInspector hint="Choose a photo folder to start. They appear in the filmstrip as they are read." />} />}
     dock={<ImportDock />} canvasExtra={<ImportEmpty />} />
 }
 
@@ -252,7 +252,7 @@ export const M0M1: Record<string, FeatureDef> = {
       where: "The main book screen. Empty state: an “Add your photos” card in the middle of the canvas.",
       why: "The user sees results immediately instead of waiting for the whole folder; the filmstrip is the single source of photos.",
       keys: [["Ctrl O", "add folder"]],
-      edge: ["Press “Add folder…” to see the progress and the toast", "A folder without images → empty state with a hint", "A file that fails to read does not stop the import — a toast reports how many were skipped"],
+      edge: ["Press “Choose photo folder…” to see the progress and the toast", "A folder without images → empty state with a hint", "A file that fails to read does not stop the import — a toast reports how many were skipped"],
     },
   },
   "pasteboard-workspace": {

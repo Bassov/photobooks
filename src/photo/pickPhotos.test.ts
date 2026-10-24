@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
 import {
   canUseDirectoryPicker,
-  canUseOpenFilePicker,
   isImageLikeFile,
   partitionImportFiles,
   photoInputAccept,
   pickFolderWithDirectoryPicker,
-  pickPhotosWithFilePicker,
 } from './pickPhotos'
 
 describe('isImageLikeFile', () => {
@@ -105,16 +104,15 @@ describe('partitionImportFiles', () => {
       { source: 'folder' },
     )
     expect(accepted).toEqual([jpeg])
-    expect(skipped.map((file) => file.name)).toEqual([
-      'README.md',
-      'notes.txt',
-      '.DS_Store',
-    ])
+    expect(skipped.map((file) => file.name)).toEqual(['README.md', 'notes.txt'])
+    // Bare octet-stream (.DS_Store) stays in reject path for HEIC sniff.
     expect(rejected.map((entry) => entry.file.name)).toEqual([
+      '.DS_Store',
       'scan.tiff',
       'phone.heic',
     ])
     expect(rejected.map((entry) => entry.reason)).toEqual([
+      'unsupported-type',
       'unsupported-type',
       'heic',
     ])
@@ -138,69 +136,10 @@ describe('partitionImportFiles', () => {
   })
 })
 
-describe('pickPhotosWithFilePicker', () => {
-  afterEach(() => {
-    Reflect.deleteProperty(window, 'showOpenFilePicker')
-    vi.restoreAllMocks()
-  })
-
-  it('returns null when showOpenFilePicker is missing', async () => {
-    Reflect.deleteProperty(window, 'showOpenFilePicker')
-    expect(canUseOpenFilePicker()).toBe(false)
-    await expect(pickPhotosWithFilePicker()).resolves.toBeNull()
-  })
-
-  it('returns files from multiple handles', async () => {
-    const a = new File([new Uint8Array([1])], 'a.jpg', { type: 'image/jpeg' })
-    const b = new File([new Uint8Array([2])], 'b.png', { type: 'image/png' })
-    const open = vi
-      .fn()
-      .mockResolvedValue([
-        { getFile: vi.fn().mockResolvedValue(a) },
-        { getFile: vi.fn().mockResolvedValue(b) },
-      ])
-    Object.defineProperty(window, 'showOpenFilePicker', {
-      configurable: true,
-      writable: true,
-      value: open,
-    })
-    await expect(pickPhotosWithFilePicker()).resolves.toEqual([a, b])
-    expect(canUseOpenFilePicker()).toBe(true)
-    const options = open.mock.calls[0]?.[0] as {
-      types: { accept: Record<string, string[]> }[]
-    }
-    expect(options.types[0]?.accept['image/heic']).toEqual(['.heic'])
-    expect(options.types[0]?.accept['image/heif']).toEqual(['.heif'])
-  })
-
-  it('exposes HEIC in the photo input accept attribute', () => {
+describe('photoInputAccept', () => {
+  it('exposes HEIC and common image types in the accept attribute', () => {
     expect(photoInputAccept()).toContain('.heic')
     expect(photoInputAccept()).toContain('image/heic')
-  })
-
-  it('returns null on AbortError and rethrows other errors', async () => {
-    Object.defineProperty(window, 'showOpenFilePicker', {
-      configurable: true,
-      writable: true,
-      value: vi
-        .fn()
-        .mockRejectedValueOnce(new DOMException('cancel', 'AbortError')),
-    })
-    await expect(pickPhotosWithFilePicker()).resolves.toBeNull()
-
-    Object.defineProperty(window, 'showOpenFilePicker', {
-      configurable: true,
-      writable: true,
-      value: vi
-        .fn()
-        .mockRejectedValueOnce(new DOMException('Denied', 'NotAllowedError')),
-    })
-    await expect(pickPhotosWithFilePicker()).rejects.toMatchObject({
-      name: 'NotAllowedError',
-    })
-  })
-
-  it('exposes photo input accept attribute', () => {
     expect(photoInputAccept()).toContain('image/jpeg')
   })
 })
@@ -262,11 +201,29 @@ describe('pickFolderWithDirectoryPicker', () => {
       writable: true,
       value: vi.fn().mockResolvedValue(root),
     })
-    await expect(pickFolderWithDirectoryPicker()).resolves.toEqual([
-      top,
-      nested,
-    ])
+    await expect(pickFolderWithDirectoryPicker()).resolves.toEqual({
+      directory: root,
+      files: [top, nested],
+    })
     expect(canUseDirectoryPicker()).toBe(true)
+  })
+
+  it('walks fake browser directories via entries()', async () => {
+    const root = createFakeBrowserDirectory({ name: 'album' })
+    root.writeFile('a.jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))
+    const nested = await root.getDirectoryHandle('nested', { create: true })
+    assertFakeDir(nested).writeFile('b.png', new Uint8Array([1, 2, 3]))
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockResolvedValue(root),
+    })
+    const picked = await pickFolderWithDirectoryPicker()
+    expect(picked?.directory).toBe(root)
+    expect(picked?.files.map((file) => file.name).sort()).toEqual([
+      'a.jpg',
+      'b.png',
+    ])
   })
 
   it('returns null on AbortError and rethrows other errors', async () => {
@@ -291,3 +248,9 @@ describe('pickFolderWithDirectoryPicker', () => {
     })
   })
 })
+
+function assertFakeDir(
+  handle: FileSystemDirectoryHandle,
+): import('../project/fsa/browserDirectory.test-helpers').FakeBrowserDirectoryHandle {
+  return handle as import('../project/fsa/browserDirectory.test-helpers').FakeBrowserDirectoryHandle
+}

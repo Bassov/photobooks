@@ -9,13 +9,22 @@ interface OpenFilePickerOptions {
   excludeAcceptAllOption?: boolean
 }
 
+type WellKnownDirectory =
+  'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos'
+
+interface DirectoryPickerOptions {
+  id?: string
+  mode?: 'read' | 'readwrite'
+  startIn?: WellKnownDirectory | FileSystemHandle
+}
+
 interface Window {
   showOpenFilePicker?: (
     options?: OpenFilePickerOptions,
   ) => Promise<FileSystemFileHandle[]>
-  showDirectoryPicker?: (options?: {
-    mode?: 'read' | 'readwrite'
-  }) => Promise<FileSystemDirectoryHandle>
+  showDirectoryPicker?: (
+    options?: DirectoryPickerOptions,
+  ) => Promise<FileSystemDirectoryHandle>
 }
 
 interface FileSystemHandlePermissionDescriptor {

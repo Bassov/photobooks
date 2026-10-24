@@ -67,7 +67,7 @@ export const Pasteboard = memo(function Pasteboard({
 }: {
   chromeImport?: Pick<
     ChromeImportApi,
-    'onAddPhotos' | 'onAddFolder' | 'importDisabled'
+    'onChoosePhotoFolder' | 'photoFolderLabel' | 'importDisabled'
   >
 }) {
   const spreadIds = useSyncExternalStore(
@@ -421,8 +421,8 @@ export const Pasteboard = memo(function Pasteboard({
       />
       {chromeImport !== undefined ? (
         <PasteboardEmptyGuidance
-          onAddPhotos={chromeImport.onAddPhotos}
-          onAddFolder={chromeImport.onAddFolder}
+          onChoosePhotoFolder={chromeImport.onChoosePhotoFolder}
+          photoFolderLabel={chromeImport.photoFolderLabel}
           importDisabled={chromeImport.importDisabled}
         />
       ) : null}

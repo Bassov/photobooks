@@ -457,28 +457,17 @@ export function SpecimenPage() {
           <EmptyState
             icon={<Icon name="folder" size={20} />}
             title="Start with your photos"
-            description="Add a folder or photos to build the gallery."
+            description="Choose a photo folder to build the gallery."
             actions={
-              <>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onPress={() => {
-                    setStatusMsg('Add folder…')
-                  }}
-                >
-                  Add folder…
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => {
-                    setStatusMsg('Add photos…')
-                  }}
-                >
-                  Add photos…
-                </Button>
-              </>
+              <Button
+                variant="default"
+                size="sm"
+                onPress={() => {
+                  setStatusMsg('Choose photo folder…')
+                }}
+              >
+                Choose photo folder…
+              </Button>
             }
           />
         </div>

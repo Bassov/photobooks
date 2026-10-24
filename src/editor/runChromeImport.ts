@@ -13,6 +13,8 @@ export async function runChromeImport(
     onProgress: (progress: ImportProgress | null) => void
     onErrors: (errors: readonly ImportFileError[]) => void
     source?: 'files' | 'folder'
+    sourceRootId?: string
+    libraryBacked?: boolean
   },
 ): Promise<ChromeImportResult> {
   if (files.length === 0) {
@@ -32,7 +34,13 @@ export async function runChromeImport(
   }
   const result = await importPhotoFiles(files, {
     onProgress,
-    source: options.source ?? 'files',
+    source: options.source ?? 'folder',
+    ...(options.sourceRootId !== undefined
+      ? { sourceRootId: options.sourceRootId }
+      : {}),
+    ...(options.libraryBacked !== undefined
+      ? { libraryBacked: options.libraryBacked }
+      : {}),
   })
   if (raf !== 0) {
     cancelAnimationFrame(raf)

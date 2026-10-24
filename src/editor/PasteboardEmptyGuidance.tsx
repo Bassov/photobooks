@@ -23,7 +23,7 @@ import {
 import type { ChromeImportApi } from './useChromeImport'
 
 const EMPTY_DESCRIPTION =
-  'Add a folder or photos, then drag them onto frames to build your book.'
+  'Choose a photo folder, then drag photos onto frames to build your book.'
 const NO_PHOTOS_DESCRIPTION = 'No photos found in that folder'
 
 function getGalleryEmpty(): boolean {
@@ -31,10 +31,13 @@ function getGalleryEmpty(): boolean {
 }
 
 export function PasteboardEmptyGuidance({
-  onAddPhotos,
-  onAddFolder,
+  onChoosePhotoFolder,
+  photoFolderLabel,
   importDisabled,
-}: Pick<ChromeImportApi, 'onAddPhotos' | 'onAddFolder' | 'importDisabled'>) {
+}: Pick<
+  ChromeImportApi,
+  'onChoosePhotoFolder' | 'photoFolderLabel' | 'importDisabled'
+>) {
   const galleryEmpty = useSyncExternalStore(
     subscribeBookStore,
     getGalleryEmpty,
@@ -75,20 +78,10 @@ export function PasteboardEmptyGuidance({
                 size="sm"
                 isDisabled={importDisabled}
                 onPress={() => {
-                  void onAddFolder()
+                  void onChoosePhotoFolder()
                 }}
               >
-                Add folder…
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                isDisabled={importDisabled}
-                onPress={() => {
-                  void onAddPhotos()
-                }}
-              >
-                Add photos…
+                {photoFolderLabel}
               </Button>
             </div>
           }

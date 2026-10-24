@@ -19,7 +19,15 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+
+test.beforeEach(async ({ page }) => {
+  await installPhotoDirectoryPickerStub(page)
+})
 
 test('editor chrome bars wrap without page scroll at 320px and 4K', async ({
   page,
@@ -489,9 +497,7 @@ test('wheel, keys, pinch, and space-drag stay inside the pasteboard', async ({
 test('space-drag pans after filmstrip tile focus (PB-04)', async ({ page }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await openSessionEditor(page)
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles(photoFixturePaths.samplePng)
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
   const tile = page.getByTestId('filmstrip-item').first()
   await expect(tile).toBeVisible({ timeout: 30_000 })
 

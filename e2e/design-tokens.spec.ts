@@ -66,9 +66,9 @@ test('specimen page shows token swatches without third-party fonts', async ({
   await expect(
     page.getByRole('progressbar', { name: 'Import progress' }),
   ).toBeVisible()
-  await feedback.getByRole('button', { name: 'Add folder…' }).click()
+  await feedback.getByRole('button', { name: 'Choose photo folder…' }).click()
   await expect(page.getByTestId('specimen-status-polite')).toHaveText(
-    'Add folder…',
+    'Choose photo folder…',
   )
 
   const overlays = page.getByTestId('specimen-overlays')

@@ -69,6 +69,18 @@ describe('loafObserver', () => {
       { startTime: 2, duration: 40, blockingDuration: 40 },
     ])
 
+    captured.callback?.({
+      getEntries: () => [
+        {
+          startTime: 3,
+          duration: 50,
+          blockingDuration: 0,
+        } as PerformanceEntry & { blockingDuration: number },
+      ],
+    })
+    // Non-blocking LoAF (blockingDuration 0) is ignored.
+    expect(getLoafEntries()).toHaveLength(2)
+
     clearLoafEntries()
     expect(getLoafEntries()).toEqual([])
     assertNoLoafEntries()
@@ -136,5 +148,64 @@ describe('loafObserver', () => {
     expect(() => {
       assertNoLoafEntries()
     }).toThrow(/exceed max/)
+  })
+
+  it('ignores pre-watermark and non-blocking LoAF entries after clear', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: { callback: ((list: List) => void) | null } = {
+      callback: null,
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    const now = vi.spyOn(performance, 'now').mockReturnValue(100)
+    startLoafObserver()
+    clearLoafEntries()
+    expect(now).toHaveBeenCalled()
+
+    captured.callback?.({
+      getEntries: () => [
+        {
+          startTime: 99,
+          duration: 50,
+          blockingDuration: 30,
+        } as PerformanceEntry & { blockingDuration: number },
+        {
+          startTime: 100,
+          duration: 50,
+          blockingDuration: 0,
+        } as PerformanceEntry & { blockingDuration: number },
+        {
+          startTime: 100,
+          duration: 50,
+          blockingDuration: 30,
+        } as PerformanceEntry & { blockingDuration: number },
+        {
+          startTime: 101,
+          duration: 50,
+          blockingDuration: 30,
+        } as PerformanceEntry & { blockingDuration: number },
+      ],
+    })
+
+    expect(getLoafEntries()).toEqual([
+      { startTime: 100, duration: 50, blockingDuration: 30 },
+      { startTime: 101, duration: 50, blockingDuration: 30 },
+    ])
   })
 })

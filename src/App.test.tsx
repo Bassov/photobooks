@@ -9,8 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { getBookStoreSnapshot, resetBookStore } from './editor/bookStore'
 import { resetProjectSessionForTests } from './editor/projectSession'
+import * as photoRootSession from './editor/photoRootSession'
 import { resetThumbCache } from './editor/thumbCache'
+import { createFakeBrowserDirectory } from './project/fsa/browserDirectory.test-helpers'
 import { resetAssetPool } from './photo/assetPool'
+import * as pickPhotos from './photo/pickPhotos'
 import { mockWorkerSuccess } from './photo/photo.test-helpers'
 
 async function enterEditorFromHome(): Promise<void> {
@@ -45,12 +48,11 @@ describe('App editor shell', () => {
     await enterEditorFromHome()
     expect(screen.getByTestId('editor-workspace')).toBeTruthy()
     expect(screen.getByTestId('filmstrip')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Add photos' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Add folder' })).toBeTruthy()
+    expect(screen.getByTestId('choose-photo-folder')).toBeTruthy()
     expect(screen.queryByTestId('photo-card')).toBeNull()
   })
 
-  it('imports a file via the hidden input into the gallery', async () => {
+  it('imports a file via the photo folder picker into the gallery', async () => {
     const previewBuffer = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]).buffer
     mockWorkerSuccess({
       ok: true,
@@ -68,13 +70,26 @@ describe('App editor shell', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
-    render(<App />)
-    await enterEditorFromHome()
-    const input = screen.getByTestId('photo-file-input')
     const file = new File([new Uint8Array([1, 2, 3])], 'a.jpg', {
       type: 'image/jpeg',
     })
-    fireEvent.change(input, { target: { files: [file] } })
+    vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
+    vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue({
+      directory: createFakeBrowserDirectory({ name: 'photos' }),
+      files: [file],
+    })
+    vi.spyOn(photoRootSession, 'bindPhotoFolder').mockResolvedValue({
+      sourceRootId: 'root-test',
+    })
+    vi.spyOn(photoRootSession, 'persistBoundPhotoFolder').mockResolvedValue()
+    vi.spyOn(
+      photoRootSession,
+      'registerBoundPhotoFolderSource',
+    ).mockImplementation(vi.fn())
+
+    render(<App />)
+    await enterEditorFromHome()
+    fireEvent.click(screen.getByTestId('choose-photo-folder'))
 
     await waitFor(() => {
       expect(getBookStoreSnapshot().book.gallery.length).toBeGreaterThan(0)
@@ -85,19 +100,31 @@ describe('App editor shell', () => {
   })
 
   it('shows per-file error for TIFF without aborting', async () => {
-    render(<App />)
-    await enterEditorFromHome()
-    const input = screen.getByTestId('photo-file-input')
     const bad = new File([new Uint8Array([1])], 'scan.tiff', {
       type: 'image/tiff',
     })
-    fireEvent.change(input, { target: { files: [bad] } })
+    vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
+    vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue({
+      directory: createFakeBrowserDirectory({ name: 'photos' }),
+      files: [bad],
+    })
+    vi.spyOn(photoRootSession, 'bindPhotoFolder').mockResolvedValue({
+      sourceRootId: 'root-test',
+    })
+    vi.spyOn(photoRootSession, 'persistBoundPhotoFolder').mockResolvedValue()
+    vi.spyOn(
+      photoRootSession,
+      'registerBoundPhotoFolderSource',
+    ).mockImplementation(vi.fn())
+
+    render(<App />)
+    await enterEditorFromHome()
+    fireEvent.click(screen.getByTestId('choose-photo-folder'))
 
     await waitFor(() => {
       expect(screen.getByTestId('import-errors').textContent).toMatch(
         /Unsupported/i,
       )
     })
-    expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
   })
 })

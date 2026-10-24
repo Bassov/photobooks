@@ -11,12 +11,20 @@ import {
   enablePerfScenario,
 } from './perf/perfFixture'
 import { PERF_BUDGETS } from './perf/budgets'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
+})
+
+test.beforeEach(async ({ page }) => {
+  await installPhotoDirectoryPickerStub(page)
 })
 
 test('empty gallery has no Unplace control and activation leaves placeholders', async ({
@@ -45,12 +53,10 @@ test.describe('keyboard rearrange', () => {
   }) => {
     test.setTimeout(120_000)
     await openSessionEditor(page)
-    await page
-      .getByTestId('photo-file-input')
-      .setInputFiles([
-        photoFixturePaths.samplePng,
-        photoFixturePaths.sampleOrient6,
-      ])
+    await choosePhotoFolder(page, [
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+    ])
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
       timeout: 30_000,
     })
@@ -239,12 +245,10 @@ test.describe('keyboard rearrange', () => {
   }) => {
     test.setTimeout(120_000)
     await openSessionEditor(page)
-    await page
-      .getByTestId('photo-file-input')
-      .setInputFiles([
-        photoFixturePaths.samplePng,
-        photoFixturePaths.sampleOrient6,
-      ])
+    await choosePhotoFolder(page, [
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+    ])
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
       timeout: 30_000,
     })
@@ -318,9 +322,7 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
   test.setTimeout(120_000)
   await openSessionEditor(page)
   await page.bringToFront()
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([photoFixturePaths.samplePng])
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
     timeout: 30_000,
   })

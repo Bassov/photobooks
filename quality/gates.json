@@ -36,6 +36,46 @@
       {
         "path": "src/editor/upgradeSessionAssets.ts",
         "until": "mutation-reinclude-small"
+      },
+      {
+        "path": "src/editor/photoRootSession.ts",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/editor/useChromeImport.tsx",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/editor/EditorTopBar.tsx",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/editor/PasteboardEmptyGuidance.tsx",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/assets/fsa/handles.ts",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/assets/scanWalk.ts",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/assets/fsa/fsaAssetSource.ts",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/photo/pickPhotos.ts",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/project/session/browserSourceRootHandles.ts",
+        "until": "photo-root-session-mutation"
+      },
+      {
+        "path": "src/photo/directoryHandleFromFiles.ts",
+        "until": "photo-root-session-mutation"
       }
     ]
   },

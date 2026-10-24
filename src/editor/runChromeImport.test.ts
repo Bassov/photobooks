@@ -20,6 +20,67 @@ describe('runChromeImport', () => {
     expect(result).toEqual({ imported: 0, errors: [], skipped: 0 })
   })
 
+  it('forwards folder sourceRootId and libraryBacked to importPhotoFiles', async () => {
+    const importSpy = vi
+      .spyOn(importPhotos, 'importPhotoFiles')
+      .mockResolvedValue({ imported: 1, errors: [], skipped: 0 })
+    const file = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    await runChromeImport([file], {
+      onProgress: vi.fn(),
+      onErrors: vi.fn(),
+      source: 'folder',
+      sourceRootId: 'root-fwd',
+      libraryBacked: true,
+    })
+    expect(importSpy).toHaveBeenCalledWith([file], {
+      onProgress: expect.any(Function),
+      source: 'folder',
+      sourceRootId: 'root-fwd',
+      libraryBacked: true,
+    })
+  })
+
+  it('defaults source to folder and omits unset identity flags', async () => {
+    const importSpy = vi
+      .spyOn(importPhotos, 'importPhotoFiles')
+      .mockResolvedValue({ imported: 1, errors: [], skipped: 0 })
+    const file = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    await runChromeImport([file], {
+      onProgress: vi.fn(),
+      onErrors: vi.fn(),
+    })
+    expect(importSpy).toHaveBeenCalledWith([file], {
+      onProgress: expect.any(Function),
+      source: 'folder',
+    })
+    const forwarded = importSpy.mock.calls[0]?.[1]
+    expect(forwarded).toBeDefined()
+    expect(forwarded).not.toHaveProperty('sourceRootId')
+    expect(forwarded).not.toHaveProperty('libraryBacked')
+  })
+
+  it('preserves an explicit files source', async () => {
+    const importSpy = vi
+      .spyOn(importPhotos, 'importPhotoFiles')
+      .mockResolvedValue({ imported: 1, errors: [], skipped: 0 })
+    const file = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    await runChromeImport([file], {
+      onProgress: vi.fn(),
+      onErrors: vi.fn(),
+      source: 'files',
+    })
+    expect(importSpy).toHaveBeenCalledWith(
+      [file],
+      expect.objectContaining({ source: 'files' }),
+    )
+  })
+
   it('coalesces progress frames and clears progress on success', async () => {
     const frames: FrameRequestCallback[] = []
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {

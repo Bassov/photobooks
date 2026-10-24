@@ -15,3 +15,13 @@ Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in t
 - `!src/editor/upgradeSessionAssets.ts` — identity upgrade on adopt locked by `upgradeSessionAssets.test.ts` via `attachMemoryLibraryForTests` / public adopt path; hashing delegates to `hashContent`
 - `!src/editor/usePasteboardCamera.ts` — React gesture/lifecycle wiring; fit inset + hold-scroll + delayed zoom-out schedule/apply/cancel mutated via `pasteboardCameraFit.ts`; autosave gate locked by `editorGesture` + `projectSession` unit tests and autosave-during-drag e2e
 - `!src/editor/projectSession.ts` — library orchestration + FSA picker/restore, open-vs-adopt, book lock acquire/release, re-grant, home/recents; autosave + permissions/locks + recents-home locked by unit suite + e2e; gesture seam mutated via `editorGesture.ts`; default FSA branches no-cov in unit env
+- `!src/editor/photoRootSession.ts` — photo-folder bind/restore/re-grant orchestration; locked by `photoRootSession.test.ts` + directory-picker e2e; mirrors `projectSession` exclude
+- `!src/editor/useChromeImport.tsx` — React chrome import wiring; pick/bind/import mutated via `pickPhotos` / `photoRootSession` / `runChromeImport`
+- `!src/editor/EditorTopBar.tsx` — chrome button wiring; choose-folder + re-grant locked by EditorTopBar unit + e2e
+- `!src/editor/PasteboardEmptyGuidance.tsx` — empty-state CTA wiring; copy/actions locked by PasteboardEmptyGuidance unit + empty-hints e2e
+- `!src/assets/fsa/handles.ts` — browser `FileSystemDirectoryHandle` adapter glue; walk/resolve locked by `fsaAssetSource` + `scanWalk` / pickFolder unit
+- `!src/assets/scanWalk.ts` — worker-safe directory walk dual-path; locked by `scanRoot.worker` / `fsaAssetSource` unit tests
+- `!src/assets/fsa/fsaAssetSource.ts` — FSA AssetSource adapter; locked by `fsaAssetSource.test.ts` + scan worker tests
+- `!src/photo/pickPhotos.ts` — directory picker + relativePath glue; locked by `pickPhotos.test.ts` + directory-picker e2e
+- `!src/photo/directoryHandleFromFiles.ts` — VITE_E2E setInputFiles folder-handle double; locked by `directoryHandleFromFiles.test.ts` + bulk filmstrip e2e
+- `!src/project/session/browserSourceRootHandles.ts` — photo-root IDB + e2e memory handle store; locked by `browserSourceRootHandles.test.ts` + folder import/re-grant e2e

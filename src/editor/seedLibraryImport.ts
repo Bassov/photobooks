@@ -5,7 +5,10 @@ import {
 } from '../assets'
 import { getBookStoreSnapshot, patchAssetRecord } from './bookStore'
 import { trackHashJob } from './pendingHashes'
-import { getRegisteredAssetSource, registerAssetSource } from './projectSession'
+import {
+  getRegisteredAssetSource,
+  registerAssetSource,
+} from './assetSourceRegistry'
 import { putCachedThumbForHash } from './thumbCache'
 import { putCachedTierForHash } from '../photo/tierCache'
 
@@ -18,7 +21,11 @@ export function memorySourceForRoot(rootId: string): MemoryAssetSource {
     return existing as MemoryAssetSource
   }
   const created = createMemoryAssetSource()
-  registerAssetSource(rootId, created)
+  // Do not overwrite an FSA (or other non-memory) root already registered for
+  // durable handle + path resolution after reload.
+  if (existing === undefined) {
+    registerAssetSource(rootId, created)
+  }
   return created
 }
 

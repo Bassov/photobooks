@@ -14,7 +14,7 @@ export const pasteboardEmptyOverlayStyle: CSSProperties = {
 /**
  * EmptyState card on the pasteboard (kit Empty scenario).
  * Card shell stays pointer-events:none so space-drag/pan hits the pasteboard;
- * only the action row re-enables hits for Add folder / Add photos.
+ * only the action row re-enables hits for Choose photo folder.
  */
 export const pasteboardEmptyCardStyle: CSSProperties = {
   pointerEvents: 'none',

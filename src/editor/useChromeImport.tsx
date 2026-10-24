@@ -5,15 +5,12 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
+import { directoryHandleFromFiles } from '../photo/directoryHandleFromFiles'
 import {
   canUseDirectoryPicker,
-  canUseOpenFilePicker,
-  photoInputAccept,
   pickFolderWithDirectoryPicker,
-  pickPhotosWithFilePicker,
 } from '../photo/pickPhotos'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
-import { clickIfPresent } from './clickIfPresent'
 import { isImportDisabled } from './editorChromeDisabled'
 import { setEditorStatus } from './editorStatus'
 import { applyChromeImportHint } from './chromeImportHint'
@@ -27,9 +24,23 @@ import { appendImportErrors, openImportErrorsPanel } from './importErrorsStore'
 import type { ImportProgress } from './importPhotos'
 import {
   getProjectSessionSnapshot,
+  isLibraryBacked,
   subscribeProjectSession,
 } from './projectSession'
 import { runChromeImport } from './runChromeImport'
+import {
+  bindPhotoFolder,
+  getPhotoRootSessionSnapshot,
+  persistBoundPhotoFolder,
+  photoFolderActionLabel,
+  registerBoundPhotoFolderSource,
+  subscribePhotoRootSession,
+} from './photoRootSession'
+
+function isE2eBuild(): boolean {
+  const env = import.meta.env as { VITE_E2E?: string }
+  return env.VITE_E2E === '1' || env.VITE_E2E === 'true'
+}
 
 function folderSkippedStatusText(skipped: number): string {
   return skipped === 1
@@ -38,8 +49,8 @@ function folderSkippedStatusText(skipped: number): string {
 }
 
 export interface ChromeImportApi {
-  onAddPhotos: () => Promise<void>
-  onAddFolder: () => Promise<void>
+  onChoosePhotoFolder: () => Promise<void>
+  photoFolderLabel: string
   importDisabled: boolean
   pickerBusy: boolean
   inputs: ReactNode
@@ -54,22 +65,27 @@ export function useChromeImport(options: {
     getProjectSessionSnapshot,
     getProjectSessionSnapshot,
   )
-  const filesInputId = useId()
-  const folderInputId = useId()
-  const filesInputRef = useRef<HTMLInputElement>(null)
-  const folderInputRef = useRef<HTMLInputElement>(null)
+  const photoRoot = useSyncExternalStore(
+    subscribePhotoRootSession,
+    getPhotoRootSessionSnapshot,
+    getPhotoRootSessionSnapshot,
+  )
   const [pickerBusy, setPickerBusy] = useState(false)
+  const e2eFolderInputId = useId()
+  const e2eFolderInputRef = useRef<HTMLInputElement>(null)
 
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
   const importDisabled = isImportDisabled(pickerBusy, writeBlocked)
+  const photoFolderLabel = photoFolderActionLabel(photoRoot.hasPhotoFolder)
 
-  const runImport = async (
+  const runFolderImport = async (
     files: readonly File[],
-    source: 'photos' | 'folder',
+    sourceRootId: string,
   ): Promise<void> => {
-    const importSource = source === 'folder' ? 'folder' : 'files'
     const result = await runChromeImport(files, {
-      source: importSource,
+      source: 'folder',
+      sourceRootId,
+      libraryBacked: isLibraryBacked(),
       onProgress: options.onImportProgress,
       onErrors: (next) => {
         if (next.length === 0) {
@@ -87,80 +103,107 @@ export function useChromeImport(options: {
     if (result.skipped > 0 && result.errors.length === 0) {
       setEditorStatus(folderSkippedStatusText(result.skipped))
     }
-    applyChromeImportHint(source, result.imported, files.length)
+    applyChromeImportHint(result.imported, files.length)
   }
 
-  const onAddPhotos = async (): Promise<void> => {
-    setPickerBusy(true)
+  const importPickedFolder = async (
+    directory: FileSystemDirectoryHandle,
+    files: readonly File[],
+    replace: boolean,
+  ): Promise<void> => {
+    const { sourceRootId } = await bindPhotoFolder({
+      directory,
+      replace,
+      // Import first; persist IDB + register FSA after so library seed/scroll
+      // matches the prior setInputFiles frame-budget path.
+      persist: false,
+      registerSource: false,
+    })
     try {
-      if (canUseOpenFilePicker()) {
-        const files = await pickPhotosWithFilePicker()
-        if (files !== null) {
-          await runImport(files, 'photos')
-        }
+      await runFolderImport(files, sourceRootId)
+    } finally {
+      await persistBoundPhotoFolder(sourceRootId, directory)
+      registerBoundPhotoFolderSource(sourceRootId, directory)
+    }
+  }
+
+  const onChoosePhotoFolder = async (): Promise<void> => {
+    if (!canUseDirectoryPicker()) {
+      setEditorStatus('Photo folders require Chromium with File System Access')
+      return
+    }
+    if (photoRoot.hasPhotoFolder) {
+      const ok = window.confirm(
+        'Change photo folder? This replaces the current folder and removes photos imported from it.',
+      )
+      if (!ok) {
         return
       }
-      clickIfPresent(filesInputRef.current)
+    }
+    setPickerBusy(true)
+    try {
+      const picked = await pickFolderWithDirectoryPicker()
+      if (picked === null) {
+        return
+      }
+      await importPickedFolder(
+        picked.directory,
+        picked.files,
+        photoRoot.hasPhotoFolder,
+      )
     } finally {
       setPickerBusy(false)
     }
   }
 
-  const onAddFolder = async (): Promise<void> => {
-    setPickerBusy(true)
-    try {
-      if (canUseDirectoryPicker()) {
-        const files = await pickFolderWithDirectoryPicker()
-        if (files !== null) {
-          await runImport(files, 'folder')
-        }
+  const onE2eFolderInputChange = async (
+    input: HTMLInputElement,
+  ): Promise<void> => {
+    const files = filesFromInputChange(input)
+    if (files === null) {
+      return
+    }
+    if (photoRoot.hasPhotoFolder) {
+      const ok = window.confirm(
+        'Change photo folder? This replaces the current folder and removes photos imported from it.',
+      )
+      if (!ok) {
         return
       }
-      clickIfPresent(folderInputRef.current)
+    }
+    setPickerBusy(true)
+    try {
+      const directory = directoryHandleFromFiles(files)
+      await importPickedFolder(directory, files, photoRoot.hasPhotoFolder)
     } finally {
       setPickerBusy(false)
     }
   }
 
-  const inputs = (
-    <>
-      <input
-        id={filesInputId}
-        ref={filesInputRef}
-        className="photo-file-input"
-        data-testid="photo-file-input"
-        type="file"
-        accept={photoInputAccept()}
-        multiple
-        onChange={(event) => {
-          const files = filesFromInputChange(event.currentTarget)
-          if (files === null) {
-            return
-          }
-          void runImport(files, 'photos')
-        }}
-      />
-      <input
-        id={folderInputId}
-        ref={(element) => {
-          folderInputRef.current = element
-          element?.setAttribute('webkitdirectory', '')
-        }}
-        className="photo-file-input"
-        data-testid="folder-file-input"
-        type="file"
-        accept={photoInputAccept()}
-        multiple
-        onChange={(event) => {
-          const files = filesFromInputChange(event.currentTarget)
-          if (files === null) {
-            return
-          }
-          void runImport(files, 'folder')
-        }}
-      />
-    </>
-  )
+  // E2E-only: plain multi-file input (not webkitdirectory) so Playwright can
+  // setInputFiles(paths). Still runs the same bind+import folder path.
+  const e2eInputs = isE2eBuild() ? (
+    <input
+      id={e2eFolderInputId}
+      ref={e2eFolderInputRef}
+      data-testid="e2e-photo-folder-input"
+      type="file"
+      accept="image/*"
+      multiple
+      className="photo-file-input"
+      style={{ display: 'none' }}
+      disabled={importDisabled}
+      onChange={(event) => {
+        void onE2eFolderInputChange(event.currentTarget)
+      }}
+    />
+  ) : null
 
-  return { onAddPhotos, onAddFolder, importDisabled, pickerBusy, inputs }
+  return {
+    onChoosePhotoFolder,
+    photoFolderLabel,
+    importDisabled,
+    pickerBusy,
+    inputs: e2eInputs,
+  }
 }

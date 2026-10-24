@@ -5,8 +5,13 @@ import { createFakeBrowserDirectory } from '../fsa/browserDirectory.test-helpers
 import { createBrowserSessionState } from './browserSessionState'
 import {
   ACTIVE_KEY,
+  BOOK_PHOTO_ROOTS_STORE,
+  createBookPhotoRootIdb,
   createSessionIdb,
+  createSourceRootIdb,
+  LIBRARY_HANDLES_STORE,
   RECENTS_KEY,
+  SOURCE_ROOT_HANDLES_STORE,
   type SessionIdb,
 } from './idb'
 import {
@@ -16,7 +21,8 @@ import {
 import { runSessionStateContract } from './sessionState.contract.test-helpers'
 
 const DB_NAME = 'photobooks-session'
-const STORE_NAME = 'library-handles'
+const STORE_NAME = LIBRARY_HANDLES_STORE
+const DB_VERSION = 3
 const LEGACY_LIBRARY_ID = 'library'
 
 function resetIndexedDb(): void {
@@ -156,8 +162,63 @@ describe('createSessionIdb (fake-indexeddb)', () => {
       value: { hello: 'world' },
     })
 
-    const db = await openRaw(2)
+    const db = await openRaw(DB_VERSION)
     expect([...db.objectStoreNames]).toContain(STORE_NAME)
+    db.close()
+  })
+
+  it('creates source-root and book-photo-root stores on v3 upgrade', async () => {
+    const v2 = await openRaw(2, (db) => {
+      db.createObjectStore(STORE_NAME)
+    })
+    v2.close()
+
+    const library = createSessionIdb()
+    await library.set('lib', { kind: 'directory', name: 'Lib' })
+
+    const sourceRoots = createSourceRootIdb()
+    await sourceRoots.set('root-1', { kind: 'directory', name: 'Photos' })
+    await expect(sourceRoots.get('root-1')).resolves.toEqual({
+      present: true,
+      value: { kind: 'directory', name: 'Photos' },
+    })
+
+    const bookRoots = createBookPhotoRootIdb()
+    await bookRoots.set('book-1', { sourceRootId: 'root-1', label: 'Trip' })
+    await expect(bookRoots.get('book-1')).resolves.toEqual({
+      present: true,
+      value: { sourceRootId: 'root-1', label: 'Trip' },
+    })
+
+    const db = await openRaw(DB_VERSION)
+    expect([...db.objectStoreNames]).toEqual(
+      expect.arrayContaining([
+        LIBRARY_HANDLES_STORE,
+        SOURCE_ROOT_HANDLES_STORE,
+        BOOK_PHOTO_ROOTS_STORE,
+      ]),
+    )
+    expect(db.objectStoreNames.length).toBe(3)
+    db.close()
+
+    await expect(library.get('lib')).resolves.toEqual({
+      present: true,
+      value: { kind: 'directory', name: 'Lib' },
+    })
+  })
+
+  it('fresh open at v3 creates all three stores', async () => {
+    const idb = createSessionIdb()
+    await idb.get('probe')
+
+    const db = await openRaw(DB_VERSION)
+    expect([...db.objectStoreNames].sort()).toEqual(
+      [
+        BOOK_PHOTO_ROOTS_STORE,
+        LIBRARY_HANDLES_STORE,
+        SOURCE_ROOT_HANDLES_STORE,
+      ].sort(),
+    )
     db.close()
   })
 
@@ -271,7 +332,7 @@ describe('createSessionIdb (fake-indexeddb)', () => {
 
     await expect(idb.get('gone')).resolves.toEqual({ present: false })
 
-    const db = await openRaw(2)
+    const db = await openRaw(DB_VERSION)
     const key = await new Promise<IDBValidKey | undefined>(
       (resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly')

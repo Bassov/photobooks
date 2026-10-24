@@ -52,7 +52,7 @@ export function buildReuseIndex(
 
 /**
  * Index gallery assets that already have a contentHash (first id wins).
- * Used when path+size+mtime miss (e.g. Add photos vs Add folder paths).
+ * Used when path+size+mtime miss (e.g. renamed files under the photo folder).
  */
 export function buildContentHashIndex(
   gallery: readonly string[],

@@ -8,6 +8,10 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
 
 test('clean library-backed book shows Saved without page scroll', async ({
   page,
@@ -29,6 +33,7 @@ test('autosave persists edits across reload without manual Save', async ({
 }) => {
   test.setTimeout(90_000)
   ensurePhotoFixtures({ includeLargeJpeg: false })
+  await installPhotoDirectoryPickerStub(page)
   await page.goto('/?testLibrary=1')
   await expect(page.getByTestId('create-book')).toBeEnabled({
     timeout: 15_000,
@@ -41,9 +46,7 @@ test('autosave persists edits across reload without manual Save', async ({
   await expect(page.getByTestId('save-indicator')).toHaveText('Saved')
   await page.bringToFront()
 
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([photoFixturePaths.samplePng])
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 30_000,
   })

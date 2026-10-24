@@ -4,10 +4,18 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
+})
+
+test.beforeEach(async ({ page }) => {
+  await installPhotoDirectoryPickerStub(page)
 })
 
 test('empty gallery template change leaves status empty and shows no Placed badge', async ({
@@ -32,12 +40,10 @@ test.describe('template change with photos', () => {
     test.setTimeout(120_000)
     await openSessionEditor(page)
     await page.bringToFront()
-    await page
-      .getByTestId('photo-file-input')
-      .setInputFiles([
-        photoFixturePaths.samplePng,
-        photoFixturePaths.sampleOrient6,
-      ])
+    await choosePhotoFolder(page, [
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+    ])
     await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
       timeout: 30_000,
     })
@@ -84,9 +90,7 @@ test.describe('template change with photos', () => {
     test.setTimeout(120_000)
     await openSessionEditor(page)
     await page.bringToFront()
-    await page
-      .getByTestId('photo-file-input')
-      .setInputFiles(photoFixturePaths.samplePng)
+    await choosePhotoFolder(page, [photoFixturePaths.samplePng])
     await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
       timeout: 30_000,
     })
