@@ -6,9 +6,14 @@ import {
   type ImportFileError,
 } from '../photo/assetPool'
 import { releaseAssetSource, retainAssetSource } from '../photo/assetSources'
-import { upgradeRejectedWithHeicSniff } from '../photo/heic'
+import {
+  isKnownHeicFile,
+  markHeicFile,
+  upgradeRejectedWithHeicSniff,
+} from '../photo/heic'
 import { partitionImportFiles } from '../photo/pickPhotos'
 import type { ExifOrientation } from '../photo/types'
+import { runJpegHeadPass } from './jpegHeadPass'
 import {
   enqueueGalleryAssets,
   getAssetCacheKey,
@@ -146,7 +151,10 @@ function discardFailedImport(assetId: string): void {
   }
 }
 
-function importDecodeBatchOptions(report: (state: ImportBatchState) => void): {
+function importDecodeBatchOptions(
+  report: (state: ImportBatchState) => void,
+  heicAssetIds: ReadonlySet<string>,
+): {
   onProgress: (state: ImportBatchState) => void
   priority: 'prefetch'
   onResult: typeof applyImportResult
@@ -157,6 +165,10 @@ function importDecodeBatchOptions(report: (state: ImportBatchState) => void): {
     priority: 'prefetch',
     onResult: applyImportResult,
     onError: (assetId) => {
+      // HEIC placeholders stay in the gallery when decode is unsupported.
+      if (heicAssetIds.has(assetId)) {
+        return
+      }
       discardFailedImport(assetId)
     },
   }
@@ -167,17 +179,27 @@ async function importPhotoFilesInner(
   options: ImportPhotoOptions,
 ): Promise<ImportPhotoResult> {
   const {
-    accepted,
+    accepted: partitionedAccepted,
     rejected: partitioned,
     skipped,
   } = partitionImportFiles(files, {
     source: options.source ?? 'files',
   })
-  const rejected = await upgradeRejectedWithHeicSniff(
+  const afterSniff = await upgradeRejectedWithHeicSniff(
     partitioned,
     mapWithConcurrency,
     IMPORT_BODY_READ_CAP,
   )
+  // Signature-detected HEIC joins the gallery as placeholders (lazy decode).
+  const heicFromSniff = afterSniff.filter((entry) => entry.reason === 'heic')
+  for (const entry of heicFromSniff) {
+    markHeicFile(entry.file)
+  }
+  const rejected = afterSniff.filter((entry) => entry.reason !== 'heic')
+  const accepted = [
+    ...partitionedAccepted,
+    ...heicFromSniff.map((entry) => entry.file),
+  ]
   const earlyErrors: ImportFileError[] = rejected.map(
     ({ file, message, reason }) =>
       createImportFileError({
@@ -258,6 +280,34 @@ async function importPhotoFilesInner(
       }
     }
 
+    // List-first skipped extension-less HEIC (path not accepted); after sniff
+    // promote, mint gallery rows for those new ids even when listAlreadyEnqueued.
+    // Stryker disable next-line ConditionalExpression: listAlreadyEnqueued false keeps legacy enqueue paths above
+    if (listAlreadyEnqueued) {
+      const missingPlaceholders = immediate.filter((entry) => !entry.reused)
+      // Stryker disable next-line ConditionalExpression,EqualityOperator: zero missing placeholders is a no-op enqueue
+      if (missingPlaceholders.length > 0) {
+        if (libraryBacked && batchRootId !== undefined) {
+          for (const entry of missingPlaceholders) {
+            enqueueNewLibraryIdentity(entry, batchRootId)
+          }
+        } else {
+          enqueueGalleryAssets(
+            missingPlaceholders.map(({ assetId, file }) => ({
+              assetId,
+              meta: {
+                name: file.name,
+                correctedWidth: 1,
+                correctedHeight: 1,
+                orientation: 1 as const,
+                aspect: 1,
+              },
+            })),
+          )
+        }
+      }
+    }
+
     const report = (state: ImportBatchState): void => {
       options.onProgress?.({
         ...state,
@@ -278,10 +328,18 @@ async function importPhotoFilesInner(
     }
 
     const bodyGate = createBodyReadGate(IMPORT_BODY_READ_CAP)
+    const heicAssetIds = new Set(
+      immediate
+        .filter((entry) => isKnownHeicFile(entry.file))
+        .map((entry) => entry.assetId),
+    )
+
+    // Head pass in parallel with decode: EXIF thumbs + dims before thumb320.
+    void runJpegHeadPass(immediate)
 
     const immediateBatch = runImportBatch(
       immediate,
-      importDecodeBatchOptions(report),
+      importDecodeBatchOptions(report, heicAssetIds),
     )
 
     if (libraryBacked && batchRootId !== undefined && immediate.length > 0) {

@@ -1,14 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { PhotoWorkerRequest } from './processPhoto'
 import {
+  abortDecodeForTests,
   DECODE_POOL_CAP,
   decodeWorkerCount,
+  getDeferredHeicAssetIds,
+  getQueuedDecodeAssetIds,
   getVisibleAssetIds,
   processAsset,
   resetAssetPool,
   runImportBatch,
+  type ImportFileError,
+  setBookUsedAssetIds,
   setFilmstripVisibleAssetIds,
   setSpreadVisibleAssetIds,
   setVisibleAssetIds,
+  shouldDeferHeicDecode,
   warmAssetPool,
 } from './assetPool'
 import {
@@ -908,5 +915,476 @@ describe('assetPool', () => {
     resetAssetPool()
     await expect(secondResult).resolves.toMatch(/reset/)
     first.catch(() => undefined)
+  })
+
+  it('does not queue off-screen HEIC at prefetch; queues when visible', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'phone.heic',
+      mimeType: 'image/heic',
+      byteLength: 1,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'phone.heic', {
+      type: 'image/heic',
+    })
+    expect(shouldDeferHeicDecode('heic-off', heic, 'prefetch')).toBe(true)
+
+    const pending = processAsset({
+      assetId: 'heic-off',
+      file: heic,
+      priority: 'prefetch',
+    })
+    expect(getDeferredHeicAssetIds()).toContain('heic-off')
+    expect(getQueuedDecodeAssetIds()).not.toContain('heic-off')
+
+    setVisibleAssetIds(['heic-off'])
+    expect(getDeferredHeicAssetIds()).not.toContain('heic-off')
+    await expect(pending).resolves.toMatchObject({ assetId: 'heic-off' })
+  })
+
+  it('queues deferred HEIC when marked book-used', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'placed.heic',
+      mimeType: 'image/heic',
+      byteLength: 1,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'placed.heic', {
+      type: 'image/heic',
+    })
+    const pending = processAsset({
+      assetId: 'heic-placed',
+      file: heic,
+      priority: 'prefetch',
+    })
+    expect(getDeferredHeicAssetIds()).toContain('heic-placed')
+
+    setBookUsedAssetIds(['heic-placed'])
+    await expect(pending).resolves.toMatchObject({ assetId: 'heic-placed' })
+    expect(getDeferredHeicAssetIds()).not.toContain('heic-placed')
+  })
+
+  it('decodes HEIC immediately at zoom priority when off-screen', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'zoom.heic',
+      mimeType: 'image/heic',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'zoom.heic', {
+      type: 'image/heic',
+    })
+    expect(shouldDeferHeicDecode('heic-zoom', heic, 'zoom')).toBe(false)
+
+    const pending = processAsset({
+      assetId: 'heic-zoom',
+      file: heic,
+      priority: 'zoom',
+    })
+    expect(getDeferredHeicAssetIds()).toEqual([])
+    await expect(pending).resolves.toMatchObject({ assetId: 'heic-zoom' })
+  })
+
+  it('resetAssetPool rejects deferred HEIC waiters and clears the map', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'defer.heic',
+      mimeType: 'image/heic',
+      byteLength: 1,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'defer.heic', {
+      type: 'image/heic',
+    })
+    const pending = processAsset({
+      assetId: 'heic-defer-reset',
+      file: heic,
+      priority: 'prefetch',
+    })
+    expect(getDeferredHeicAssetIds()).toContain('heic-defer-reset')
+    resetAssetPool()
+    await expect(pending).rejects.toThrow(/reset/)
+    expect(getDeferredHeicAssetIds()).toEqual([])
+  })
+
+  it('setBookUsedAssetIds promotes deferred HEIC off the wait map', () => {
+    hangWorker()
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'placed.heic', {
+      type: 'image/heic',
+    })
+    void processAsset({
+      assetId: 'heic-pump',
+      file: heic,
+      priority: 'prefetch',
+    })
+    expect(getDeferredHeicAssetIds()).toContain('heic-pump')
+    setBookUsedAssetIds(['heic-pump'])
+    expect(getDeferredHeicAssetIds()).not.toContain('heic-pump')
+  })
+
+  it('ignores AbortError from deferred HEIC imports in batch progress', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'abort.heic',
+      mimeType: 'image/heic',
+      byteLength: 1,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'abort.heic', {
+      type: 'image/heic',
+    })
+    const progressErrors: ImportFileError[][] = []
+    const batch = runImportBatch([{ assetId: 'heic-ab-batch', file: heic }], {
+      priority: 'prefetch',
+      onProgress: (state) => {
+        progressErrors.push([...state.errors])
+      },
+    })
+    await Promise.resolve()
+    abortDecodeForTests('heic-ab-batch')
+    setVisibleAssetIds(['heic-ab-batch'])
+    await batch
+    expect(progressErrors.at(-1)).toEqual([])
+  })
+
+  it('records async HEIC decode failures from deferred imports', async () => {
+    mockWorkerFailure('heic decode failed')
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'fail.heic', {
+      type: 'image/heic',
+    })
+    const progress: ImportFileError[][] = []
+    const batch = runImportBatch([{ assetId: 'heic-fail', file: heic }], {
+      priority: 'prefetch',
+      onProgress: (state) => {
+        progress.push([...state.errors])
+      },
+    })
+    expect(getDeferredHeicAssetIds()).toContain('heic-fail')
+    setVisibleAssetIds(['heic-fail'])
+    await batch
+    await vi.waitFor(() => {
+      expect(progress.at(-1)?.some((e) => e.assetId === 'heic-fail')).toBe(true)
+    })
+  })
+
+  it('runImportBatch queues visible-priority HEIC instead of deferring', async () => {
+    hangWorker()
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'vis.heic', {
+      type: 'image/heic',
+    })
+    const batch = runImportBatch([{ assetId: 'heic-vis', file: heic }], {
+      priority: 'visible',
+    })
+    await Promise.resolve()
+    expect(getDeferredHeicAssetIds()).not.toContain('heic-vis')
+    resetAssetPool()
+    await batch
+  })
+
+  it('getQueuedDecodeAssetIds lists waiting jobs', () => {
+    hangWorker()
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 1,
+    })
+    warmAssetPool()
+    const file = new File([new Uint8Array([1])], 'wait.jpg', {
+      type: 'image/jpeg',
+    })
+    void processAsset({
+      assetId: 'queued',
+      file,
+      priority: 'background',
+    }).catch(() => undefined)
+    void processAsset({
+      assetId: 'queued-2',
+      file,
+      priority: 'background',
+    }).catch(() => undefined)
+    expect(getQueuedDecodeAssetIds()).toContain('queued-2')
+    resetAssetPool()
+  })
+
+  it('rejects deferred HEIC when its abort signal fires before promotion', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'abort.heic',
+      mimeType: 'image/heic',
+      byteLength: 1,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    warmAssetPool()
+    const controller = new AbortController()
+    const heic = new File([new Uint8Array([1])], 'abort.heic', {
+      type: 'image/heic',
+    })
+    const pending = processAsset({
+      assetId: 'heic-abort',
+      file: heic,
+      priority: 'prefetch',
+      signal: controller.signal,
+    })
+    controller.abort()
+    setVisibleAssetIds(['heic-abort'])
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('promoted deferred HEIC forwards maxEdge cover and signal to the worker', () => {
+    const posted: PhotoWorkerRequest[] = []
+    class CaptureWorker {
+      addEventListener(): void {
+        // hang
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(data: PhotoWorkerRequest): void {
+        posted.push(data)
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', CaptureWorker)
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'opts.heic', {
+      type: 'image/heic',
+    })
+    void processAsset({
+      assetId: 'heic-opts',
+      file: heic,
+      priority: 'prefetch',
+      maxEdge: 96,
+      cover: true,
+    }).catch(() => undefined)
+    setBookUsedAssetIds(['heic-opts'])
+    expect(posted).toEqual([
+      expect.objectContaining({ maxEdge: 96, cover: true }),
+    ])
+    resetAssetPool()
+  })
+
+  it('does not invoke onError for visible HEIC decode failures', async () => {
+    mockWorkerFailure('no heic decoder')
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'fail.heic', {
+      type: 'image/heic',
+    })
+    const onError = vi.fn()
+    await runImportBatch([{ assetId: 'heic-sync-fail', file: heic }], {
+      priority: 'visible',
+      onError,
+    })
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('resolves deferred HEIC through runImportBatch onResult', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'late.heic',
+      mimeType: 'image/heic',
+      byteLength: 1,
+      width: 3,
+      height: 3,
+      correctedWidth: 3,
+      correctedHeight: 3,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'late.heic', {
+      type: 'image/heic',
+    })
+    const onResult = vi.fn()
+    const batchPromise = runImportBatch(
+      [{ assetId: 'heic-late', file: heic }],
+      {
+        priority: 'prefetch',
+        onResult,
+      },
+    )
+    setVisibleAssetIds(['heic-late'])
+    const batch = await batchPromise
+    await vi.waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({ assetId: 'heic-late' }),
+      )
+    })
+    expect(batch.results.some((result) => result.assetId === 'heic-late')).toBe(
+      true,
+    )
+  })
+
+  it('assigns distinct worker request ids per queued job', async () => {
+    const ids: string[] = []
+    class IdWorker {
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        if (type !== 'message') {
+          return
+        }
+        queueMicrotask(() => {
+          listener({
+            data: {
+              id: ids.at(-1),
+              ok: true,
+              name: 'a.jpg',
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent)
+        })
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(data: { id: string }): void {
+        ids.push(data.id)
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', IdWorker)
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 2,
+    })
+    warmAssetPool()
+    const file = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    await Promise.all([
+      processAsset({ assetId: 'id-a', file, priority: 'visible' }),
+      processAsset({ assetId: 'id-b', file, priority: 'visible' }),
+    ])
+    expect(new Set(ids).size).toBe(2)
+    expect(ids[0]).toMatch(/asset-\d+/)
+    expect(ids[1]).toMatch(/asset-\d+/)
+    expect(ids[0]).not.toBe(ids[1])
+  })
+
+  it('runImportBatch finishes without waiting on deferred HEIC', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'ok.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'idle.heic', {
+      type: 'image/heic',
+    })
+    const jpeg = new File([new Uint8Array([1])], 'ok.jpg', {
+      type: 'image/jpeg',
+    })
+
+    const outcome = await runImportBatch(
+      [
+        { assetId: 'heic-idle', file: heic },
+        { assetId: 'jpeg-ok', file: jpeg },
+      ],
+      { priority: 'prefetch' },
+    )
+
+    expect(getDeferredHeicAssetIds()).toContain('heic-idle')
+    expect(outcome.results.some((r) => r.assetId === 'jpeg-ok')).toBe(true)
+
+    setVisibleAssetIds(['heic-idle'])
+    await vi.waitFor(() => {
+      expect(getDeferredHeicAssetIds()).not.toContain('heic-idle')
+    })
   })
 })

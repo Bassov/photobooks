@@ -78,7 +78,7 @@ describe('importPhotoFiles', () => {
     expect(getBookStoreSnapshot().importRunning).toBe(false)
   })
 
-  it('sniffs extension-less octet-stream HEIC into the conversion message', async () => {
+  it('sniffs extension-less octet-stream HEIC into the gallery batch', async () => {
     vi.stubGlobal(
       'requestAnimationFrame',
       (cb: FrameRequestCallback): number => {
@@ -86,6 +86,7 @@ describe('importPhotoFiles', () => {
         return 1
       },
     )
+    runImportBatch.mockResolvedValue({ results: [], errors: [] })
     const size = 20
     const bytes = new Uint8Array(size)
     bytes[0] = 0
@@ -97,12 +98,17 @@ describe('importPhotoFiles', () => {
     const nameless = new File([bytes], 'IMG_0042', {
       type: 'application/octet-stream',
     })
+    const { isKnownHeicFile } = await import('../photo/heic')
     const result = await importPhotoFiles([nameless])
-    expect(result.imported).toBe(0)
-    expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]?.reason).toBe('heic')
-    expect(result.errors[0]?.message).toContain("HEIC isn't supported yet")
-    expect(runImportBatch).not.toHaveBeenCalled()
+    expect(result.errors).toEqual([])
+    expect(runImportBatch).toHaveBeenCalled()
+    const batchFiles = (
+      runImportBatch.mock.calls[0] as [{ file: File }[], unknown] | undefined
+    )?.[0]
+    expect(batchFiles?.some((entry) => entry.file.name === 'IMG_0042')).toBe(
+      true,
+    )
+    expect(isKnownHeicFile(nameless)).toBe(true)
   })
 
   it('folder source skips non-image files and excludes them from total', async () => {
@@ -464,6 +470,87 @@ describe('importPhotoFiles', () => {
     expect(getSelectedAssetId()).toBeNull()
     expect(getFrameSource()).toBeNull()
     expect(getAssetSource(result.errors[0]?.assetId ?? '')).toBeUndefined()
+  })
+
+  it('listAlreadyEnqueued mints session placeholders for new files', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    runImportBatch.mockResolvedValue({ results: [], errors: [] })
+    const jpeg = new File([new Uint8Array([1])], 'new.jpg', {
+      type: 'image/jpeg',
+    })
+    await importPhotoFiles([jpeg], { listAlreadyEnqueued: true })
+    expect(getGalleryIdsSnapshot()).toHaveLength(1)
+    const id = getGalleryIdsSnapshot()[0] ?? ''
+    expect(getBookStoreSnapshot().sessionMeta.get(id)).toEqual(
+      expect.objectContaining({ name: 'new.jpg', correctedWidth: 1 }),
+    )
+  })
+
+  it('onError keeps HEIC gallery placeholders after decode failure', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onError?: (assetId: string, error: ImportFileError) => void
+        },
+      ) => {
+        const item = items.find((entry) => entry.file.name === 'phone.heic')
+        if (item) {
+          options?.onError?.(item.assetId, {
+            id: 'heic-err',
+            name: 'phone.heic',
+            message: 'unsupported',
+            reason: 'heic',
+            assetId: item.assetId,
+          })
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
+    const heic = new File([new Uint8Array([1])], 'phone.heic', {
+      type: 'image/heic',
+    })
+    const result = await importPhotoFiles([heic])
+    expect(result.errors).toEqual([])
+    expect(getGalleryIdsSnapshot()).toHaveLength(1)
+  })
+
+  it('marks signature-sniffed HEIC files for lazy decode', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    runImportBatch.mockResolvedValue({ results: [], errors: [] })
+    const size = 20
+    const bytes = new Uint8Array(size)
+    bytes[0] = 0
+    bytes[1] = 0
+    bytes[2] = 0
+    bytes[3] = size
+    bytes.set([0x66, 0x74, 0x79, 0x70], 4)
+    bytes.set([0x68, 0x65, 0x69, 0x63], 8)
+    const nameless = new File([bytes], 'IMG_0042', {
+      type: 'application/octet-stream',
+    })
+    const { isKnownHeicFile } = await import('../photo/heic')
+    await importPhotoFiles([nameless])
+    expect(isKnownHeicFile(nameless)).toBe(true)
   })
 
   it('enqueues session placeholder meta before decode', async () => {

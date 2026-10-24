@@ -1,7 +1,14 @@
-const ACCEPTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
-
 export function isAcceptedPhotoMime(mimeType: string): boolean {
-  return ACCEPTED.has(mimeType.toLowerCase())
+  const mime = mimeType.toLowerCase()
+  return (
+    mime === 'image/jpeg' ||
+    mime === 'image/png' ||
+    mime === 'image/webp' ||
+    mime === 'image/heic' ||
+    mime === 'image/heif' ||
+    mime === 'image/heic-sequence' ||
+    mime === 'image/heif-sequence'
+  )
 }
 
 export function acceptedPhotoAcceptAttr(): string {

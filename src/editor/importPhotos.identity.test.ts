@@ -222,6 +222,67 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
+  it('listAlreadyEnqueued skips gallery enqueue when every entry reuses a placeholder', async () => {
+    const { enqueueScannedGalleryList } =
+      await import('./enqueueScannedGalleryList')
+    enqueueScannedGalleryList('root-reuse', [
+      { relativePath: 'shot.jpg', byteSize: 4, mtimeMs: 1 },
+    ])
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(1)
+    const existingId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(existingId)
+
+    await importPhotoFiles([tinyJpeg('shot.jpg', 1_700_000_000_000)], {
+      libraryBacked: true,
+      sourceRootId: 'root-reuse',
+      listAlreadyEnqueued: true,
+    })
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery).toEqual([existingId])
+    })
+  })
+
+  it('listAlreadyEnqueued enqueues only newly minted session placeholders', async () => {
+    const { enqueueScannedGalleryList } =
+      await import('./enqueueScannedGalleryList')
+    enqueueScannedGalleryList('root-session', [
+      { relativePath: 'existing.jpg', byteSize: 4, mtimeMs: 1 },
+    ])
+    const existingId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(existingId)
+
+    await importPhotoFiles(
+      [tinyJpeg('existing.jpg', 1_700_000_000_000), tinyJpeg('brand-new.jpg')],
+      { libraryBacked: false, listAlreadyEnqueued: true },
+    )
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.gallery).toHaveLength(2)
+    })
+    expect(getBookStoreSnapshot().book.gallery[0]).toBe(existingId)
+  })
+
+  it('listAlreadyEnqueued enqueues library identity for newly minted files', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    await importPhotoFiles([tinyJpeg('brand-new.jpg')], {
+      libraryBacked: true,
+      sourceRootId: 'root-new',
+      listAlreadyEnqueued: true,
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(book.gallery).toHaveLength(1)
+      const assetId = book.gallery[0]
+      assert.ok(assetId)
+      expect(book.assets[assetId]?.sourceRootId).toBe('root-new')
+      expect(book.assets[assetId]?.relativePath).toBe('brand-new.jpg')
+    })
+  })
+
   it('listAlreadyEnqueued reuses path placeholders in session (non-library)', async () => {
     // Session editor: isLibraryBacked() is false; path map must still bind thumbs.
     vi.stubGlobal(

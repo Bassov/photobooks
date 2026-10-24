@@ -59,18 +59,19 @@ describe('enqueueScannedGalleryList', () => {
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(1)
   })
 
-  it('treats nested heic/tiff as skipped list entries', () => {
+  it('enqueues nested heic with webp; skips tiff', () => {
     const result = enqueueScannedGalleryList('root-1', [
       { relativePath: 'nest/a.heic', byteSize: 1, mtimeMs: 1 },
       { relativePath: 'nest/b.tiff', byteSize: 2, mtimeMs: 2 },
       { relativePath: 'nest/c.webp', byteSize: 3, mtimeMs: 3 },
     ])
-    expect(result.enqueued.map((e) => e.relativePath)).toEqual(['nest/c.webp'])
-    expect(result.skipped).toHaveLength(2)
-    const { book, sessionMeta } = getBookStoreSnapshot()
-    const id = book.gallery[0]
-    expect(id).toBeDefined()
-    expect(sessionMeta.get(id ?? '')?.name).toBe('c.webp')
+    expect(result.enqueued.map((e) => e.relativePath)).toEqual([
+      'nest/a.heic',
+      'nest/c.webp',
+    ])
+    expect(result.skipped).toHaveLength(1)
+    expect(result.skipped[0]?.relativePath).toBe('nest/b.tiff')
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(2)
   })
 
   it('does nothing for an empty scan', () => {

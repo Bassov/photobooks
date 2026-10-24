@@ -1,3 +1,4 @@
+import { isKnownHeicFile } from './heic'
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { THUMB_MAX_EDGE } from './processPhoto'
 import { metadataWorkerCount } from './metadataPool'
@@ -116,7 +117,82 @@ let filmstripVisibleIds = new Set<string>()
 /** Per painted spread → asset ids (unioned into visible preference). */
 const spreadVisibleById = new Map<string, ReadonlySet<string>>()
 let visibleAssetIds = new Set<string>()
+/** Placed / book-used ids (HEIC may decode even when off-filmstrip). */
+let bookUsedAssetIds = new Set<string>()
 const abortByAsset = new Map<string, AbortController>()
+
+interface DeferredHeicItem {
+  options: ProcessAssetOptions
+  resolve: (result: AssetProcessResult) => void
+  reject: (error: Error) => void
+}
+
+/** HEIC/HEIF waiting for visible ∪ book-used before entering the decode queue. */
+const deferredHeicByAsset = new Map<string, DeferredHeicItem>()
+
+function heicMayDecodeNow(
+  assetId: string,
+  priority: DecodeJobPriority,
+): boolean {
+  if (visibleAssetIds.has(assetId) || bookUsedAssetIds.has(assetId)) {
+    return true
+  }
+  return priority === 'visible' || priority === 'zoom'
+}
+
+/** True when a HEIC/HEIF file would be deferred (not queued yet). */
+export function shouldDeferHeicDecode(
+  assetId: string,
+  file: File,
+  priority: DecodeJobPriority = 'prefetch',
+): boolean {
+  return isKnownHeicFile(file) && !heicMayDecodeNow(assetId, priority)
+}
+
+function enqueueDecodeJob(item: DecodeQueueItem): void {
+  queue.push(item)
+  pump()
+}
+
+function promoteDeferredHeic(): void {
+  // Stryker disable next-line ConditionalExpression,BlockStatement: empty deferred map is a no-op
+  if (deferredHeicByAsset.size === 0) {
+    return
+  }
+  const ready: DeferredHeicItem[] = []
+  for (const [assetId, deferred] of deferredHeicByAsset) {
+    const priority = deferred.options.priority ?? 'prefetch'
+    if (heicMayDecodeNow(assetId, priority)) {
+      deferredHeicByAsset.delete(assetId)
+      ready.push(deferred)
+    }
+  }
+  for (const deferred of ready) {
+    const signal =
+      deferred.options.signal ??
+      abortByAsset.get(deferred.options.assetId)?.signal
+    // Stryker disable next-line ConditionalExpression,BlockStatement: abort before promote rejects the deferred waiter (see assetPool.test.ts)
+    if (signal?.aborted) {
+      deferred.reject(new DOMException('Aborted', 'AbortError'))
+      continue
+    }
+    const requestId = `asset-${String((requestCounter += 1))}`
+    const item: DecodeQueueItem = {
+      requestId,
+      assetId: deferred.options.assetId,
+      file: deferred.options.file,
+      priority: 'visible',
+      maxEdge: deferred.options.maxEdge ?? THUMB_MAX_EDGE,
+      cover: deferred.options.cover === true,
+      resolve: deferred.resolve,
+      reject: deferred.reject,
+    }
+    if (signal) {
+      item.signal = signal
+    }
+    enqueueDecodeJob(item)
+  }
+}
 
 function rebuildVisibleAssetIds(): void {
   const next = new Set(filmstripVisibleIds)
@@ -126,7 +202,23 @@ function rebuildVisibleAssetIds(): void {
     }
   }
   visibleAssetIds = next
+  promoteDeferredHeic()
   pump()
+}
+
+/** Snapshot of deferred HEIC asset ids (tests / metrics). */
+export function getDeferredHeicAssetIds(): readonly string[] {
+  return [...deferredHeicByAsset.keys()]
+}
+
+/** Test seam: abort the import decode controller for one gallery asset. */
+export function abortDecodeForTests(assetId: string): void {
+  abortByAsset.get(assetId)?.abort()
+}
+
+/** Snapshot of decode-queue asset ids (tests / metrics). */
+export function getQueuedDecodeAssetIds(): readonly string[] {
+  return queue.map((job) => job.assetId)
 }
 
 function ensureSlots(): void {
@@ -280,9 +372,14 @@ export function resetAssetPool(): void {
     job.reject(new Error('Asset pool reset'))
   }
   queue = []
+  for (const deferred of deferredHeicByAsset.values()) {
+    deferred.reject(new Error('Asset pool reset'))
+  }
+  deferredHeicByAsset.clear()
   filmstripVisibleIds = new Set()
   spreadVisibleById.clear()
   visibleAssetIds = new Set()
+  bookUsedAssetIds = new Set()
   for (const controller of abortByAsset.values()) {
     controller.abort()
   }
@@ -327,22 +424,42 @@ export function setSpreadVisibleAssetIds(
   rebuildVisibleAssetIds()
 }
 
+/** Book-used (placed) asset ids — HEIC may decode even when off-filmstrip. */
+export function setBookUsedAssetIds(assetIds: readonly string[]): void {
+  bookUsedAssetIds = new Set(assetIds)
+  promoteDeferredHeic()
+  // Stryker disable next-line CallExpression: pump with an idle queue is harmless
+  pump()
+}
+
 export function processAsset(
   options: ProcessAssetOptions,
 ): Promise<AssetProcessResult> {
   ensureSlots()
-  const requestId = `asset-${String((requestCounter += 1))}`
+  const priority = options.priority ?? 'prefetch'
   return new Promise((resolve, reject) => {
     const signal = options.signal ?? abortByAsset.get(options.assetId)?.signal
     if (signal?.aborted) {
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
+    if (
+      isKnownHeicFile(options.file) &&
+      !heicMayDecodeNow(options.assetId, priority)
+    ) {
+      deferredHeicByAsset.set(options.assetId, {
+        options: { ...options, priority },
+        resolve,
+        reject,
+      })
+      return
+    }
+    const requestId = `asset-${String((requestCounter += 1))}`
     const item: DecodeQueueItem = {
       requestId,
       assetId: options.assetId,
       file: options.file,
-      priority: options.priority ?? 'prefetch',
+      priority,
       maxEdge: options.maxEdge ?? THUMB_MAX_EDGE,
       cover: options.cover === true,
       resolve,
@@ -351,8 +468,7 @@ export function processAsset(
     if (signal) {
       item.signal = signal
     }
-    queue.push(item)
-    pump()
+    enqueueDecodeJob(item)
   })
 }
 
@@ -392,6 +508,7 @@ export async function runImportBatch(
   emit(true)
 
   const START_CHUNK = 16
+  const priority = options.priority ?? 'prefetch'
   for (let offset = 0; offset < items.length; offset += START_CHUNK) {
     const slice = items.slice(offset, offset + START_CHUNK)
     await Promise.all(
@@ -403,7 +520,7 @@ export async function runImportBatch(
           const processOptions: ProcessAssetOptions = {
             assetId: item.assetId,
             file: item.file,
-            priority: options.priority ?? 'prefetch',
+            priority,
           }
           const signal = abortByAsset.get(item.assetId)?.signal
           if (signal) {
@@ -411,6 +528,35 @@ export async function runImportBatch(
           }
           if (options.maxEdge !== undefined) {
             processOptions.maxEdge = options.maxEdge
+          }
+          // Off-screen HEIC: register deferred decode without blocking the batch.
+          if (shouldDeferHeicDecode(item.assetId, item.file, priority)) {
+            void processAsset(processOptions)
+              .then((result) => {
+                results.push(result)
+                options.onResult?.(result)
+              })
+              .catch((error: unknown) => {
+                if (
+                  error instanceof DOMException &&
+                  error.name === 'AbortError'
+                ) {
+                  return
+                }
+                const message =
+                  error instanceof Error
+                    ? error.message
+                    : 'Failed to import photo'
+                const importError = createImportFileError({
+                  name: item.file.name,
+                  message,
+                  reason: 'heic',
+                  assetId: item.assetId,
+                })
+                errors.push(importError)
+                // Keep HEIC placeholder tiles (do not call onError discard).
+              })
+            return
           }
           const result = await processAsset(processOptions)
           results.push(result)
@@ -421,15 +567,18 @@ export async function runImportBatch(
           }
           const message =
             error instanceof Error ? error.message : 'Failed to import photo'
+          const heic = isKnownHeicFile(item.file)
           const importError = createImportFileError({
             name: item.file.name,
             message,
-            reason: 'decode-failed',
+            reason: heic ? 'heic' : 'decode-failed',
             assetId: item.assetId,
           })
           errors.push(importError)
-          // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
-          options.onError?.(item.assetId, importError)
+          if (!heic) {
+            // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
+            options.onError?.(item.assetId, importError)
+          }
         } finally {
           completed += 1
           emit(true)

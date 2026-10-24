@@ -133,6 +133,11 @@ export function getThumbUrl(assetId: string): string | undefined {
   return lru.get(assetId)
 }
 
+/** True when a hot or pending-in-session thumb exists (incl. before rAF publish). */
+export function hasThumbData(assetId: string): boolean {
+  return lru.has(assetId) || lastThumb.has(assetId)
+}
+
 export function setThumbUrl(
   assetId: string,
   buffer: ArrayBuffer,

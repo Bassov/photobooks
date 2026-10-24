@@ -8,6 +8,7 @@ import {
   ensureThumb,
   getThumbPublishGeneration,
   getThumbUrl,
+  hasThumbData,
   putCachedThumbForHash,
   resetThumbCache,
   setThumbUrl,
@@ -46,6 +47,16 @@ describe('thumbCache', () => {
     setDerivedCacheForTests(undefined)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('hasThumbData is true for LRU urls and pending lastThumb copies', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pending')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    expect(hasThumbData('missing')).toBe(false)
+    setThumbUrl('pending', new Uint8Array([1]).buffer, 'image/jpeg')
+    expect(hasThumbData('pending')).toBe(true)
+    dropHotThumbUrlForTests('pending')
+    expect(hasThumbData('pending')).toBe(true)
   })
 
   it('getThumbUrl is referentially stable when unchanged', () => {
