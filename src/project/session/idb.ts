@@ -14,7 +14,7 @@ export const LIBRARY_HANDLES_STORE = 'library-handles'
 export const SOURCE_ROOT_HANDLES_STORE = 'source-root-handles'
 export const BOOK_PHOTO_ROOTS_STORE = 'book-photo-roots'
 export const SOURCE_ROOT_ENTRY_INDEX_STORE = 'source-root-entry-index'
-/** v4: entry-index store for cheap scan match (path→size/mtime). */
+/** v4: folder-manifest store (path→size/mtime + optional dims). */
 const DB_VERSION = 4
 
 export { ACTIVE_KEY, LABEL_KEY, RECENTS_KEY }

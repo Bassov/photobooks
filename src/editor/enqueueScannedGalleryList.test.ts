@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
-import { enqueueScannedGalleryList } from './enqueueScannedGalleryList'
+import {
+  enqueueManifestGalleryList,
+  enqueueScannedGalleryList,
+} from './enqueueScannedGalleryList'
 
 beforeEach(() => {
   resetBookStore()
@@ -79,5 +82,101 @@ describe('enqueueScannedGalleryList', () => {
     })
     expect(getBookStoreSnapshot().book.gallery).toHaveLength(0)
     expect(getBookStoreSnapshot().importRunning).toBe(false)
+  })
+
+  it('seeds aspect slots from manifest dimensions', () => {
+    enqueueManifestGalleryList('root-1', {
+      'wide.jpg': {
+        byteSize: 10,
+        mtimeMs: 1,
+        width: 300,
+        height: 100,
+        orientation: 1,
+      },
+      'tall.jpg': {
+        byteSize: 11,
+        mtimeMs: 2,
+        width: 100,
+        height: 200,
+        orientation: 1,
+      },
+    })
+    const { book, sessionMeta } = getBookStoreSnapshot()
+    expect(book.gallery).toHaveLength(2)
+    const aspects = book.gallery.map((id) => sessionMeta.get(id)?.aspect)
+    expect(aspects).toEqual([3, 0.5])
+  })
+
+  it('restores aspect on already-present gallery ids from dimsByPath', () => {
+    enqueueScannedGalleryList('root-1', [
+      { relativePath: 'a.jpg', byteSize: 10, mtimeMs: 1 },
+    ])
+    const id = getBookStoreSnapshot().book.gallery[0]
+    expect(id).toBeDefined()
+    expect(getBookStoreSnapshot().sessionMeta.get(id ?? '')?.aspect).toBe(1)
+
+    enqueueScannedGalleryList(
+      'root-1',
+      [{ relativePath: 'a.jpg', byteSize: 10, mtimeMs: 1 }],
+      {
+        markImportRunning: false,
+        dimsByPath: new Map([
+          [
+            'a.jpg',
+            {
+              byteSize: 10,
+              mtimeMs: 1,
+              width: 400,
+              height: 100,
+              orientation: 1,
+            },
+          ],
+        ]),
+      },
+    )
+    expect(getBookStoreSnapshot().sessionMeta.get(id ?? '')?.aspect).toBe(4)
+  })
+
+  it('does not overwrite a known non-default aspect from dimsByPath', () => {
+    enqueueManifestGalleryList('root-1', {
+      'a.jpg': {
+        byteSize: 10,
+        mtimeMs: 1,
+        width: 300,
+        height: 100,
+        orientation: 1,
+      },
+    })
+    const id = getBookStoreSnapshot().book.gallery[0]
+    expect(getBookStoreSnapshot().sessionMeta.get(id ?? '')?.aspect).toBe(3)
+
+    enqueueScannedGalleryList(
+      'root-1',
+      [{ relativePath: 'a.jpg', byteSize: 10, mtimeMs: 1 }],
+      {
+        markImportRunning: false,
+        dimsByPath: new Map([
+          [
+            'a.jpg',
+            {
+              byteSize: 10,
+              mtimeMs: 1,
+              width: 100,
+              height: 100,
+              orientation: 1,
+            },
+          ],
+        ]),
+      },
+    )
+    expect(getBookStoreSnapshot().sessionMeta.get(id ?? '')?.aspect).toBe(3)
+  })
+
+  it('uses default aspect when manifest dims omit width or height', () => {
+    enqueueManifestGalleryList('root-1', {
+      'a.jpg': { byteSize: 10, mtimeMs: 1, width: 200 },
+    })
+    const id = getBookStoreSnapshot().book.gallery[0]
+    expect(getBookStoreSnapshot().sessionMeta.get(id ?? '')?.aspect).toBe(1)
   })
 })

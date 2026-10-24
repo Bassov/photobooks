@@ -28,6 +28,7 @@ import {
   relativePathFor,
   reuseIdentityKey,
 } from './importBodyReads'
+import { tryPatchManifestFromAsset } from './folderManifestWrite'
 import { isLibraryBacked } from './projectSession'
 import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
 import { setThumbUrl } from './thumbCache'
@@ -125,6 +126,14 @@ function applyImportResult(result: {
     result.previewBuffer,
     result.previewMimeType,
     getAssetCacheKey(result.assetId),
+  )
+  tryPatchManifestFromAsset(
+    getBookStoreSnapshot().book.assets[result.assetId],
+    {
+      width: result.correctedWidth,
+      height: result.correctedHeight,
+      orientation: result.orientation,
+    },
   )
 }
 

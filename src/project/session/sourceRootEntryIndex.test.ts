@@ -7,7 +7,10 @@ import {
   clearSourceRootEntryIndex,
   diffEntryIndex,
   entryIndexFromScanned,
+  FOLDER_MANIFEST_VERSION,
   getSourceRootEntryIndex,
+  parseFolderManifest,
+  patchManifestDimensions,
   persistScannedEntryIndex,
   putSourceRootEntryIndex,
   type SourceRootEntryIndex,
@@ -62,13 +65,61 @@ function memoryIdb(
 }
 
 describe('entryIndexFromScanned / diffEntryIndex', () => {
-  it('builds an index from scan metadata', () => {
+  it('builds a versioned manifest from scan metadata', () => {
     expect(entryIndexFromScanned(scanned)).toEqual({
+      version: FOLDER_MANIFEST_VERSION,
       entries: {
         'a.jpg': { byteSize: 10, mtimeMs: 1 },
         'b.jpg': { byteSize: 20, mtimeMs: 2 },
       },
     })
+  })
+
+  it('preserves dims when size and mtime are unchanged', () => {
+    const previous: SourceRootEntryIndex = {
+      version: FOLDER_MANIFEST_VERSION,
+      entries: {
+        'a.jpg': {
+          byteSize: 10,
+          mtimeMs: 1,
+          width: 200,
+          height: 100,
+          orientation: 1,
+        },
+        'b.jpg': {
+          byteSize: 20,
+          mtimeMs: 2,
+          width: 50,
+          height: 50,
+          orientation: 6,
+        },
+      },
+    }
+    expect(entryIndexFromScanned(scanned, previous)).toEqual({
+      version: FOLDER_MANIFEST_VERSION,
+      entries: {
+        'a.jpg': {
+          byteSize: 10,
+          mtimeMs: 1,
+          width: 200,
+          height: 100,
+          orientation: 1,
+        },
+        'b.jpg': {
+          byteSize: 20,
+          mtimeMs: 2,
+          width: 50,
+          height: 50,
+          orientation: 6,
+        },
+      },
+    })
+    expect(
+      entryIndexFromScanned(
+        [{ relativePath: 'a.jpg', byteSize: 11, mtimeMs: 1 }],
+        previous,
+      ).entries['a.jpg'],
+    ).toEqual({ byteSize: 11, mtimeMs: 1 })
   })
 
   it('detects new changed unchanged and removed vs a prior index', () => {
@@ -97,6 +148,7 @@ describe('entryIndexFromScanned / diffEntryIndex', () => {
 
   it('treats size-only or mtime-only drift as changed', () => {
     const previous: SourceRootEntryIndex = {
+      version: FOLDER_MANIFEST_VERSION,
       entries: { 'a.jpg': { byteSize: 10, mtimeMs: 1 } },
     }
     expect(
@@ -224,8 +276,397 @@ describe('persistScannedEntryIndex', () => {
       getSourceRootEntryIndex('root-partial', { entryIndexIdb: idb }),
     ).resolves.toEqual({
       ok: true,
-      value: { entries: { ok: { byteSize: 1, mtimeMs: 2 } } },
+      value: {
+        version: FOLDER_MANIFEST_VERSION,
+        entries: { ok: { byteSize: 1, mtimeMs: 2 } },
+      },
     })
+  })
+
+  it('rejects unsupported manifest versions', () => {
+    expect(
+      parseFolderManifest({
+        version: 99,
+        entries: { 'a.jpg': { byteSize: 1, mtimeMs: 1 } },
+      }),
+    ).toBeNull()
+  })
+
+  it('accepts legacy manifests without a version field', () => {
+    expect(
+      parseFolderManifest({
+        entries: { 'a.jpg': { byteSize: 1, mtimeMs: 1 } },
+      }),
+    ).toEqual({
+      version: FOLDER_MANIFEST_VERSION,
+      entries: { 'a.jpg': { byteSize: 1, mtimeMs: 1 } },
+    })
+  })
+
+  it('patches dimensions onto an existing or new manifest entry', async () => {
+    const idb = memoryIdb()
+    await persistScannedEntryIndex('root-dims', scanned, { entryIndexIdb: idb })
+    const patched = await patchManifestDimensions(
+      'root-dims',
+      {
+        relativePath: 'a.jpg',
+        byteSize: 10,
+        mtimeMs: 1,
+        width: 400,
+        height: 200,
+        orientation: 1,
+      },
+      { entryIndexIdb: idb },
+    )
+    expect(patched.ok).toBe(true)
+    const got = await getSourceRootEntryIndex('root-dims', {
+      entryIndexIdb: idb,
+    })
+    expect(got.ok && got.value.entries['a.jpg']).toEqual({
+      byteSize: 10,
+      mtimeMs: 1,
+      width: 400,
+      height: 200,
+      orientation: 1,
+    })
+  })
+
+  it('seeds a manifest when patching dims before any scan persist', async () => {
+    const idb = memoryIdb()
+    const seeded = await patchManifestDimensions(
+      'root-seed',
+      {
+        relativePath: 'solo.jpg',
+        byteSize: 5,
+        mtimeMs: 9,
+        width: 80,
+        height: 40,
+        orientation: 6,
+      },
+      { entryIndexIdb: idb },
+    )
+    expect(seeded.ok).toBe(true)
+    const got = await getSourceRootEntryIndex('root-seed', {
+      entryIndexIdb: idb,
+    })
+    expect(got.ok && got.value.entries['solo.jpg']).toEqual({
+      byteSize: 5,
+      mtimeMs: 9,
+      width: 80,
+      height: 40,
+      orientation: 6,
+    })
+  })
+
+  it('ignores stale size or mtime when patching dimensions', async () => {
+    const idb = memoryIdb()
+    await persistScannedEntryIndex('root-stale', scanned, {
+      entryIndexIdb: idb,
+    })
+    await patchManifestDimensions(
+      'root-stale',
+      {
+        relativePath: 'a.jpg',
+        byteSize: 10,
+        mtimeMs: 1,
+        width: 400,
+        height: 200,
+        orientation: 1,
+      },
+      { entryIndexIdb: idb },
+    )
+    await patchManifestDimensions(
+      'root-stale',
+      {
+        relativePath: 'a.jpg',
+        byteSize: 999,
+        mtimeMs: 1,
+        width: 1,
+        height: 1,
+        orientation: 1,
+      },
+      { entryIndexIdb: idb },
+    )
+    await patchManifestDimensions(
+      'root-stale',
+      {
+        relativePath: 'a.jpg',
+        byteSize: 10,
+        mtimeMs: 999,
+        width: 2,
+        height: 2,
+        orientation: 1,
+      },
+      { entryIndexIdb: idb },
+    )
+    const still = await getSourceRootEntryIndex('root-stale', {
+      entryIndexIdb: idb,
+    })
+    expect(still.ok && still.value.entries['a.jpg']).toEqual({
+      byteSize: 10,
+      mtimeMs: 1,
+      width: 400,
+      height: 200,
+      orientation: 1,
+    })
+  })
+
+  it('rejects invalid patch inputs', async () => {
+    const idb = memoryIdb()
+    await expect(
+      patchManifestDimensions(
+        '',
+        {
+          relativePath: 'a.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+          width: 1,
+          height: 1,
+          orientation: 1,
+        },
+        { entryIndexIdb: idb },
+      ),
+    ).resolves.toEqual({ ok: false, code: 'not-found' })
+    await expect(
+      patchManifestDimensions(
+        'root',
+        {
+          relativePath: '',
+          byteSize: 1,
+          mtimeMs: 1,
+          width: 1,
+          height: 1,
+          orientation: 1,
+        },
+        { entryIndexIdb: idb },
+      ),
+    ).resolves.toEqual({ ok: false, code: 'not-found' })
+    await expect(
+      patchManifestDimensions(
+        'root',
+        {
+          relativePath: 'a.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+          width: 0,
+          height: 1,
+          orientation: 1,
+        },
+        { entryIndexIdb: idb },
+      ),
+    ).resolves.toEqual({ ok: false, code: 'not-found' })
+    await expect(
+      patchManifestDimensions(
+        'root',
+        {
+          relativePath: 'a.jpg',
+          byteSize: 1,
+          mtimeMs: 1,
+          width: 1,
+          height: 1,
+          orientation: 9,
+        },
+        { entryIndexIdb: idb },
+      ),
+    ).resolves.toEqual({ ok: false, code: 'not-found' })
+  })
+
+  it('merges prior dims on re-persist and yields for large scans', async () => {
+    const idb = memoryIdb()
+    await putSourceRootEntryIndex(
+      'root-merge',
+      {
+        version: FOLDER_MANIFEST_VERSION,
+        entries: {
+          'a.jpg': {
+            byteSize: 10,
+            mtimeMs: 1,
+            width: 200,
+            height: 100,
+            orientation: 1,
+          },
+          'b.jpg': {
+            byteSize: 20,
+            mtimeMs: 2,
+            width: 50,
+            height: 50,
+            orientation: 1,
+          },
+        },
+      },
+      { entryIndexIdb: idb },
+    )
+    let yields = 0
+    const big = Array.from({ length: 513 }, (_, i) => ({
+      relativePath: `f-${String(i)}.jpg`,
+      byteSize: i + 1,
+      mtimeMs: i + 1,
+    }))
+    // Unchanged identity keeps dims; mtime-only drift drops dims.
+    big[0] = { relativePath: 'a.jpg', byteSize: 10, mtimeMs: 1 }
+    big[1] = { relativePath: 'b.jpg', byteSize: 20, mtimeMs: 99 }
+    await persistScannedEntryIndex('root-merge', big, {
+      entryIndexIdb: idb,
+      yieldFn: () => {
+        yields += 1
+        return Promise.resolve()
+      },
+    })
+    // Chunk=256: yields at i=256 and i=512, plus one final yield → 3.
+    expect(yields).toBe(3)
+    const got = await getSourceRootEntryIndex('root-merge', {
+      entryIndexIdb: idb,
+    })
+    expect(got.ok && got.value.entries['a.jpg']).toEqual({
+      byteSize: 10,
+      mtimeMs: 1,
+      width: 200,
+      height: 100,
+      orientation: 1,
+    })
+    expect(got.ok && got.value.entries['b.jpg']).toEqual({
+      byteSize: 20,
+      mtimeMs: 99,
+    })
+    expect(got.ok && Object.keys(got.value.entries)).toHaveLength(513)
+  })
+
+  it('yields once for a small scan (final yield only)', async () => {
+    const idb = memoryIdb()
+    let yields = 0
+    await persistScannedEntryIndex('root-small', scanned, {
+      entryIndexIdb: idb,
+      yieldFn: () => {
+        yields += 1
+        return Promise.resolve()
+      },
+    })
+    expect(yields).toBe(1)
+  })
+
+  it('does not copy incomplete prior dims when merging from memory', () => {
+    const previous: SourceRootEntryIndex = {
+      version: FOLDER_MANIFEST_VERSION,
+      entries: {
+        'w-only.jpg': { byteSize: 1, mtimeMs: 1, width: 100 },
+        'h-only.jpg': { byteSize: 2, mtimeMs: 2, height: 50 },
+        'no-orient.jpg': {
+          byteSize: 3,
+          mtimeMs: 3,
+          width: 40,
+          height: 20,
+        },
+      },
+    }
+    const merged = entryIndexFromScanned(
+      [
+        { relativePath: 'w-only.jpg', byteSize: 1, mtimeMs: 1 },
+        { relativePath: 'h-only.jpg', byteSize: 2, mtimeMs: 2 },
+        { relativePath: 'no-orient.jpg', byteSize: 3, mtimeMs: 3 },
+      ],
+      previous,
+    )
+    expect(merged.entries['w-only.jpg']).toEqual({
+      byteSize: 1,
+      mtimeMs: 1,
+    })
+    expect(merged.entries['h-only.jpg']).toEqual({
+      byteSize: 2,
+      mtimeMs: 2,
+    })
+    expect(merged.entries['no-orient.jpg']).toEqual({
+      byteSize: 3,
+      mtimeMs: 3,
+      width: 40,
+      height: 20,
+    })
+    expect(merged.entries['no-orient.jpg']).not.toHaveProperty('orientation')
+    expect(Object.keys(merged.entries['w-only.jpg'] ?? {})).toEqual([
+      'byteSize',
+      'mtimeMs',
+    ])
+  })
+
+  it('parses width height and orientation from stored rows', async () => {
+    const idb = memoryIdb({
+      'root-full': {
+        version: FOLDER_MANIFEST_VERSION,
+        entries: {
+          'a.jpg': {
+            byteSize: 1,
+            mtimeMs: 2,
+            width: 10,
+            height: 20,
+            orientation: 3,
+          },
+          'orient8.jpg': {
+            byteSize: 1,
+            mtimeMs: 2,
+            width: 3,
+            height: 4,
+            orientation: 8,
+          },
+          'bad-orient.jpg': {
+            byteSize: 1,
+            mtimeMs: 2,
+            width: 10,
+            height: 20,
+            orientation: 0,
+          },
+          'float-orient.jpg': {
+            byteSize: 1,
+            mtimeMs: 2,
+            width: 10,
+            height: 20,
+            orientation: 1.5,
+          },
+          'width-only.jpg': {
+            byteSize: 1,
+            mtimeMs: 2,
+            width: 10,
+          },
+          'zero-width.jpg': {
+            byteSize: 1,
+            mtimeMs: 2,
+            width: 0,
+            height: 20,
+          },
+          'string-size.jpg': {
+            byteSize: '1',
+            mtimeMs: 2,
+          },
+        },
+      },
+    })
+    const got = await getSourceRootEntryIndex('root-full', {
+      entryIndexIdb: idb,
+    })
+    expect(got.ok && got.value.entries['a.jpg']).toEqual({
+      byteSize: 1,
+      mtimeMs: 2,
+      width: 10,
+      height: 20,
+      orientation: 3,
+    })
+    expect(got.ok && got.value.entries['orient8.jpg']?.orientation).toBe(8)
+    expect(got.ok && got.value.entries['bad-orient.jpg']).toEqual({
+      byteSize: 1,
+      mtimeMs: 2,
+      width: 10,
+      height: 20,
+    })
+    expect(got.ok && got.value.entries['float-orient.jpg']?.orientation).toBe(
+      undefined,
+    )
+    expect(got.ok && got.value.entries['width-only.jpg']).toEqual({
+      byteSize: 1,
+      mtimeMs: 2,
+    })
+    expect(got.ok && got.value.entries['zero-width.jpg']).toEqual({
+      byteSize: 1,
+      mtimeMs: 2,
+    })
+    expect(got.ok && got.value.entries['string-size.jpg']).toBeUndefined()
   })
 
   it('maps idb failures to not-found', async () => {
