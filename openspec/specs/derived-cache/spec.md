@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the disposable preview and derivative cache keyed by asset content hash and preset id, with memory and Origin Private File System adapters proven by a shared contract suite so zoom tiers, thumbnails, and later export can rebuild without inventing storage paths.
+Defines the disposable preview and derivative cache keyed by durable asset identity digest and preset id, with memory and Origin Private File System adapters proven by a shared contract suite so zoom tiers, thumbnails, and later export can rebuild without inventing storage paths.
 
 ## Requirements
 
@@ -20,14 +20,19 @@ The system SHALL expose a domain derived-cache API that stores and retrieves der
 - **WHEN** a caller uses only the domain derived-cache API
 - **THEN** no method parameter or return value is a filesystem path, OPFS handle, or directory handle
 
-### Requirement: Derived cache key shape
+### Requirement: Derived cache key is identity digest
 
-`assetHash` MUST be a 64-character lowercase hexadecimal SHA-256 digest. `presetId` MUST be a non-empty domain string identifying the derivative kind and size.
+`assetHash` MUST be a 64-character lowercase hexadecimal digest of durable asset identity (`sourceRootId` + `relativePath` + `byteSize` + `mtimeMs`), not a hash of file bytes. `presetId` MUST remain a non-empty domain string identifying the derivative kind and size. When size or mtime changes, the identity digest MUST change so prior entries miss and previews regenerate; stale OPFS rows MAY remain until normal eviction.
 
-#### Scenario: Valid key accepted
+#### Scenario: Valid identity key accepted
 
-- **WHEN** an entry is put with a 64-char lowercase hex `assetHash` and a non-empty `presetId`
+- **WHEN** an entry is put with a 64-char lowercase hex identity digest and a non-empty `presetId`
 - **THEN** a subsequent get with the same key succeeds
+
+#### Scenario: Metadata change misses old key
+
+- **WHEN** `byteSize` or `mtimeMs` for the same path/root differs from the key used to put
+- **THEN** get with the new identity digest misses (`not-found`) and does not return the prior bytes
 
 ### Requirement: Typed derived cache results
 
@@ -85,19 +90,19 @@ Derived-cache code SHALL live under `src/assets` and MUST NOT import React or Ap
 - **WHEN** dependency cruiser runs
 - **THEN** no `src/core` module depends on `src/assets`
 
-### Requirement: Encode-after-hash thumb puts are awaited
+### Requirement: Encode-after-identity thumb puts are awaited
 
-When the editor publishes a thumb URL and then puts encoded bytes into DerivedCache keyed by `contentHash` (encode-after-hash), that put MUST be registered with the pending-hash tracker (`trackHashJob` / `awaitPendingHashes`) so Save cannot finish before the OPFS write settles. Prioritized reload re-hash MUST continue to use the same tracker for hashes that feed encode-after-hash puts; lazy unused-file hashing MUST NOT block Save via unbounded `awaitPendingHashes` waits for the idle remainder.
+When the editor publishes a thumb URL and then puts encoded bytes into DerivedCache keyed by the identity digest, that put MUST be registered with the pending-put tracker (`trackHashJob` / `awaitPendingHashes`) so Save cannot finish before the OPFS write settles. Import, reload, and rescan MUST NOT run whole-file `hashContent` to obtain a DerivedCache key.
 
-#### Scenario: Save waits for encode-after-hash put
+#### Scenario: Save waits for identity-keyed put
 
-- **WHEN** a thumb is published and a DerivedCache put is started for that asset’s `contentHash`
+- **WHEN** a thumb is published and a DerivedCache put is started for that asset’s identity digest
 - **THEN** `awaitPendingHashes` does not resolve until that put settles
 
-#### Scenario: Lazy unused hashing does not stall Save
+#### Scenario: No content-hash for cache keys
 
-- **WHEN** only idle unused-file hash jobs remain after prioritized used-in-book work
-- **THEN** Save is not required to wait for those idle remainder hashes to finish
+- **WHEN** import, reload, or prioritized rescan runs for assets with complete path/size/mtime identity
+- **THEN** DerivedCache put/get uses the identity digest and does not require `hashContent` of file bodies
 
 ### Requirement: Preview presets are thumb and working only
 
