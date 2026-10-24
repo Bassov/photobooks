@@ -57,8 +57,46 @@ export function isImageLikeFile(file: { name: string; type: string }): boolean {
   if (mime.startsWith('image/')) {
     return true
   }
-  const lower = file.name.toLowerCase()
+  return isImageLikePath(file.name)
+}
+
+/** Extension-based image-like check for cheap scan paths (no File/MIME yet). */
+export function isImageLikePath(relativePath: string): boolean {
+  const lower = relativePath.toLowerCase()
   return IMAGE_LIKE_EXTENSIONS.some((ext) => lower.endsWith(ext))
+}
+
+/** Accepted filmstrip import extensions (jpeg/png/webp) from a relative path. */
+export function isAcceptedPhotoPath(relativePath: string): boolean {
+  const lower = relativePath.toLowerCase()
+  return (
+    lower.endsWith('.jpg') ||
+    lower.endsWith('.jpeg') ||
+    lower.endsWith('.png') ||
+    lower.endsWith('.webp')
+  )
+}
+
+/**
+ * Image-like but not accepted (e.g. TIFF/HEIC): still resolve for per-file errors.
+ * Non-image paths are folder skips.
+ */
+export function isUnsupportedImagePath(relativePath: string): boolean {
+  return isImageLikePath(relativePath) && !isAcceptedPhotoPath(relativePath)
+}
+
+/**
+ * Cheap scan path with a definite non-image extension (e.g. `.md`, `.txt`).
+ * Extension-less names are not skips — they still need HEIC ftyp sniff.
+ */
+export function isClearFolderSkipPath(relativePath: string): boolean {
+  if (isImageLikePath(relativePath)) {
+    return false
+  }
+  const base = relativePath.slice(relativePath.lastIndexOf('/') + 1)
+  const dot = base.lastIndexOf('.')
+  // Require a real extension (not `.hidden` or trailing dot).
+  return dot > 0 && dot < base.length - 1
 }
 
 export type PartitionImportSource = 'files' | 'folder'

@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
 import {
   canUseDirectoryPicker,
+  isClearFolderSkipPath,
   isImageLikeFile,
+  isImageLikePath,
+  isUnsupportedImagePath,
   partitionImportFiles,
   photoInputAccept,
   pickFolderWithDirectoryPicker,
@@ -16,6 +19,21 @@ describe('isImageLikeFile', () => {
     expect(isImageLikeFile({ name: 'README.md', type: 'text/markdown' })).toBe(
       false,
     )
+  })
+})
+
+describe('scan path classifiers', () => {
+  it('classifies image-like, unsupported, and clear folder skips', () => {
+    expect(isImageLikePath('Trip/scan.HEIC')).toBe(true)
+    expect(isUnsupportedImagePath('Trip/scan.HEIC')).toBe(true)
+    expect(isUnsupportedImagePath('a.jpg')).toBe(false)
+    expect(isClearFolderSkipPath('README.md')).toBe(true)
+    expect(isClearFolderSkipPath('notes.txt')).toBe(true)
+    expect(isClearFolderSkipPath('Trip/README.md')).toBe(true)
+    expect(isClearFolderSkipPath('IMG_0042')).toBe(false)
+    expect(isClearFolderSkipPath('.hidden')).toBe(false)
+    expect(isClearFolderSkipPath('trailing.')).toBe(false)
+    expect(isClearFolderSkipPath('photo.jpg')).toBe(false)
   })
 })
 

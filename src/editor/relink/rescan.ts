@@ -1,6 +1,5 @@
 import {
   createMemoryAssetSource,
-  hashContent,
   matchAssets,
   type ScannedEntry,
 } from '../../assets'
@@ -50,8 +49,8 @@ function reportProgress(
 }
 
 /**
- * Rescan files: memory AssetSource + worker scan + worker hash + matchAssets.
- * Stages matches for Resolve.
+ * Rescan files: memory AssetSource + worker scan + matchAssets on path/size/mtime.
+ * Stages matches for Resolve. No content-hash on the match hot path.
  */
 export async function rescanRelinkFiles(
   files: readonly File[],
@@ -70,6 +69,7 @@ export async function rescanRelinkFiles(
   for (const file of files) {
     const relativePath = relativePathFor(file)
     pathToFile.set(relativePath, file)
+    // Seed size/mtime into the memory source without requiring hash for match.
     const bytes = await file.arrayBuffer()
     memory.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
     await yieldForPaint()
@@ -87,9 +87,7 @@ export async function rescanRelinkFiles(
   let completed = 0
   const total = scanTotal(scanned.value.length)
   for (const entry of scanned.value) {
-    const read = await memory.readForHash(sourceRootId, entry.relativePath)
-    const contentHash = read.ok ? await hashContent(read.value) : undefined
-    appendScannedEntry(entries, entry, contentHash)
+    appendScannedEntry(entries, entry, undefined)
     completed += 1
     reportProgress(onProgress, progressTick(total, completed))
     await yieldForPaint()
@@ -154,14 +152,24 @@ export async function acceptModifiedAsset(assetId: string): Promise<boolean> {
   return true
 }
 
+/**
+ * Per-row Locate: match the picked file to the asset by size+mtime (no content-hash).
+ * Return codes keep historical names (`hash-mismatch` / `no-hash`) for callers.
+ */
 export async function locateMissingAsset(
   assetId: string,
   file: File,
 ): Promise<'ok' | 'hash-mismatch' | 'no-hash'> {
-  const expected = getBookStoreSnapshot().book.assets[assetId]?.contentHash
-  const bytes = await file.arrayBuffer()
-  const contentHash = await hashContent(bytes)
-  const decision = locateDecision(expected, contentHash)
+  const asset = getBookStoreSnapshot().book.assets[assetId]
+  const expectedSize = asset?.byteSize
+  const expectedMtime = asset?.mtimeMs
+  if (expectedSize === undefined || expectedMtime === undefined) {
+    return 'no-hash'
+  }
+  const decision = locateDecision(
+    `${String(expectedSize)}\0${String(expectedMtime)}`,
+    `${String(file.size)}\0${String(file.lastModified)}`,
+  )
   if (decision !== 'ok') {
     return decision
   }
@@ -172,7 +180,6 @@ export async function locateMissingAsset(
     relativePath,
     byteSize: file.size,
     mtimeMs: file.lastModified,
-    contentHash,
   }
   await applyRelinkEntries([{ assetId, entry, file }], { sourceRootId })
   markRelinkFound([assetId])

@@ -6,11 +6,7 @@ import { finalizeMemoryScanEntries } from '../../assets/scanWalk'
 import { resetAssetPool } from '../../photo/assetPool'
 import { getAssetSource, resetAssetSources } from '../../photo/assetSources'
 import { resetPoolCoordination } from '../../photo/poolCoordination'
-import {
-  getAssetContentHash,
-  getBookStoreSnapshot,
-  resetBookStore,
-} from '../bookStore'
+import { getBookStoreSnapshot, resetBookStore } from '../bookStore'
 import { detectMissingAssets } from './detect'
 import * as projectSession from '../projectSession'
 import {
@@ -128,14 +124,14 @@ describe('rescanRelinkFiles', () => {
     vi.restoreAllMocks()
   })
 
-  it('matches moved files by content hash and resolve reattaches Files', async () => {
+  it('matches same path size and mtime and resolve reattaches Files', async () => {
     seedBook(['photo-a'], {
       'photo-a': {
         contentHash: EMPTY_HASH,
-        relativePath: 'old/a.jpg',
-        sourceRootId: 'root-old',
+        relativePath: 'album/a.jpg',
+        sourceRootId: 'relink-test-root',
         byteSize: 0,
-        mtimeMs: 1,
+        mtimeMs: 99,
       },
     })
     detectMissingAssets({ openDialog: false })
@@ -146,7 +142,7 @@ describe('rescanRelinkFiles', () => {
       lastModified: 99,
     })
     Object.defineProperty(file, 'webkitRelativePath', {
-      value: 'new/a.jpg',
+      value: 'album/a.jpg',
     })
 
     const result = await rescanRelinkFiles([file], {
@@ -159,23 +155,24 @@ describe('rescanRelinkFiles', () => {
     const applied = await resolvePendingRelink()
     expect(applied).toBe(1)
     expect(getAssetSource('photo-a')).toBe(file)
-    expect(getAssetContentHash('photo-a')).toBe(EMPTY_HASH)
     expect(getBookStoreSnapshot().book.assets['photo-a']?.relativePath).toBe(
-      'new/a.jpg',
+      'album/a.jpg',
     )
     expect(getRelinkStatus('photo-a')).toBeUndefined()
   })
 
-  it('locate applies only when the file hash matches', async () => {
+  it('locate applies only when size and mtime match', async () => {
     seedBook(['photo-a'], {
       'photo-a': {
-        contentHash: EMPTY_HASH,
         relativePath: 'a.jpg',
+        byteSize: 0,
+        mtimeMs: 1,
       },
     })
 
     const mismatch = new File([new Uint8Array([1, 2, 3])], 'b.jpg', {
       type: 'image/jpeg',
+      lastModified: 99,
     })
     await expect(locateMissingAsset('photo-a', mismatch)).resolves.toBe(
       'hash-mismatch',
@@ -184,12 +181,13 @@ describe('rescanRelinkFiles', () => {
 
     const match = new File([new Uint8Array()], 'a.jpg', {
       type: 'image/jpeg',
+      lastModified: 1,
     })
     await expect(locateMissingAsset('photo-a', match)).resolves.toBe('ok')
     expect(getAssetSource('photo-a')).toBe(match)
   })
 
-  it('locate returns no-hash when the asset has no contentHash', async () => {
+  it('locate returns no-hash when the asset has no size/mtime', async () => {
     seedBook(['photo-a'], {
       'photo-a': { relativePath: 'a.jpg' },
     })
@@ -200,21 +198,26 @@ describe('rescanRelinkFiles', () => {
   it('locate reuses pending sourceRootId when present', async () => {
     seedBook(['photo-a'], {
       'photo-a': {
-        contentHash: EMPTY_HASH,
         relativePath: 'old.jpg',
+        byteSize: 0,
+        mtimeMs: 1,
       },
     })
-    // Non-matching bytes keep pendingMatches with the chosen root id.
+    // Non-matching path keeps pendingMatches with the chosen root id.
     await rescanRelinkFiles(
       [
         new File([new Uint8Array([9])], 'other.jpg', {
           type: 'image/jpeg',
+          lastModified: 9,
         }),
       ],
       { sourceRootId: 'pending-root' },
     )
     expect(getPendingRelinkMatches()?.sourceRootId).toBe('pending-root')
-    const match = new File([new Uint8Array()], 'a.jpg', { type: 'image/jpeg' })
+    const match = new File([new Uint8Array()], 'a.jpg', {
+      type: 'image/jpeg',
+      lastModified: 1,
+    })
     await expect(locateMissingAsset('photo-a', match)).resolves.toBe('ok')
     expect(getAssetSource('photo-a')).toBe(match)
     expect(getBookStoreSnapshot().book.assets['photo-a']?.sourceRootId).toBe(
@@ -225,8 +228,10 @@ describe('rescanRelinkFiles', () => {
   it('reports progress during rescan and resolve with no pending is zero', async () => {
     seedBook(['photo-a'], {
       'photo-a': {
-        contentHash: EMPTY_HASH,
-        relativePath: 'old.jpg',
+        relativePath: 'a.jpg',
+        sourceRootId: 'relink-progress',
+        byteSize: 0,
+        mtimeMs: 1,
       },
     })
     const register = vi.spyOn(projectSession, 'registerAssetSource')
@@ -240,12 +245,12 @@ describe('rescanRelinkFiles', () => {
       lastModified: 1,
     })
     await rescanRelinkFiles([file], {
-      sourceRootId: 'relink-test-root',
+      sourceRootId: 'relink-progress',
       onProgress: (state) => {
         progress.push({ ...state })
       },
     })
-    expect(register).toHaveBeenCalledWith('relink-test-root', expect.anything())
+    expect(register).toHaveBeenCalledWith('relink-progress', expect.anything())
     expect(progress[0]).toEqual({ total: 1, completed: 0, running: true })
     // Mid-scan ticks coalesce on rAF; terminal done always publishes.
     expect(progress.at(-1)).toEqual({
@@ -270,9 +275,16 @@ describe('rescanRelinkFiles', () => {
 
   it('defaults sourceRootId from crypto.randomUUID when omitted', async () => {
     seedBook(['photo-a'], {
-      'photo-a': { contentHash: EMPTY_HASH, relativePath: 'a.jpg' },
+      'photo-a': {
+        relativePath: 'a.jpg',
+        byteSize: 0,
+        mtimeMs: 1,
+      },
     })
-    const file = new File([new Uint8Array()], 'a.jpg', { type: 'image/jpeg' })
+    const file = new File([new Uint8Array()], 'a.jpg', {
+      type: 'image/jpeg',
+      lastModified: 1,
+    })
     const result = await rescanRelinkFiles([file])
     expect(result.sourceRootId).toBe('relink-relink-test-root')
   })
@@ -280,8 +292,10 @@ describe('rescanRelinkFiles', () => {
   it('resolvePendingRelink applies matches and clears progress', async () => {
     seedBook(['photo-a'], {
       'photo-a': {
-        contentHash: EMPTY_HASH,
-        relativePath: 'old.jpg',
+        relativePath: 'a.jpg',
+        sourceRootId: 'relink-test-root',
+        byteSize: 0,
+        mtimeMs: 1,
       },
     })
     const file = new File([new Uint8Array()], 'a.jpg', {

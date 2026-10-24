@@ -197,15 +197,73 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
-  it('re-import via different relativePath reuses by content hash', async () => {
+  it('listAlreadyEnqueued reuses path placeholders without doubling gallery', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
     vi.stubGlobal(
-      'Worker',
-      class {
-        terminate(): void {
-          /* no-op */
-        }
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
       },
     )
+    const { enqueueScannedGalleryList } =
+      await import('./enqueueScannedGalleryList')
+    // Stale mtime on the placeholder so path+size+mtime reuse misses; path map must hit.
+    enqueueScannedGalleryList('root-list', [
+      { relativePath: 'shot.jpg', byteSize: 4, mtimeMs: 1 },
+    ])
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(1)
+    const existingId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(existingId)
+
+    await importPhotoFiles([tinyJpeg('shot.jpg', 1_700_000_000_000)], {
+      libraryBacked: true,
+      sourceRootId: 'root-list',
+      listAlreadyEnqueued: true,
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(book.gallery).toHaveLength(1)
+      expect(book.gallery[0]).toBe(existingId)
+    })
+  })
+
+  it('listAlreadyEnqueued reuses path placeholders in session (non-library)', async () => {
+    // Session editor: isLibraryBacked() is false; path map must still bind thumbs.
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const { enqueueScannedGalleryList } =
+      await import('./enqueueScannedGalleryList')
+    enqueueScannedGalleryList('root-session', [
+      { relativePath: 'shot.jpg', byteSize: 4, mtimeMs: 1 },
+    ])
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(1)
+    const existingId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(existingId)
+
+    await importPhotoFiles([tinyJpeg('shot.jpg', 1_700_000_000_000)], {
+      libraryBacked: false,
+      listAlreadyEnqueued: true,
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(book.gallery).toHaveLength(1)
+      expect(book.gallery[0]).toBe(existingId)
+    })
+    expect(runImportBatch.mock.calls[0]?.[0]?.[0]?.assetId).toBe(existingId)
+  })
+
+  it('does not reuse by content when relativePath size or mtime differ', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
       storage,
@@ -227,11 +285,6 @@ describe('importPhotoFiles library identity', () => {
     })
     const assetId = getBookStoreSnapshot().book.gallery[0]
     assert.ok(assetId)
-    await vi.waitFor(() => {
-      expect(getBookStoreSnapshot().book.assets[assetId]?.contentHash).toBe(
-        'hash-255.216.255.217.1',
-      )
-    })
 
     const folderFile = new File([bytes], 'shot.jpg', {
       type: 'image/jpeg',
@@ -246,20 +299,12 @@ describe('importPhotoFiles library identity', () => {
     })
     await vi.waitFor(() => {
       const book = getBookStoreSnapshot().book
-      expect(book.gallery.length).toBe(1)
-      expect(book.gallery[0]).toBe(assetId)
+      expect(book.gallery.length).toBe(2)
+      expect(book.gallery).toContain(assetId)
     })
   })
 
-  it('sums immediate and deferred import results for imported count', async () => {
-    vi.stubGlobal(
-      'Worker',
-      class {
-        terminate(): void {
-          /* no-op */
-        }
-      },
-    )
+  it('sums imported count for multiple path+size+mtime files', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
       storage,
@@ -268,43 +313,32 @@ describe('importPhotoFiles library identity', () => {
     await createBookInLibrary()
 
     const pathBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x10])
-    const hashBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x20])
+    const otherBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x20])
     const pathFile = new File([pathBytes], 'path.jpg', {
       type: 'image/jpeg',
       lastModified: 1,
     })
-    const hashFile = new File([hashBytes], 'hash.jpg', {
+    const otherFile = new File([otherBytes], 'other.jpg', {
       type: 'image/jpeg',
       lastModified: 2,
     })
-    await importPhotoFiles([pathFile, hashFile], {
+    await importPhotoFiles([pathFile, otherFile], {
       libraryBacked: true,
       sourceRootId: 'root-sum',
     })
     await vi.waitFor(() => {
       expect(getBookStoreSnapshot().book.gallery.length).toBe(2)
     })
-    await vi.waitFor(() => {
-      const book = getBookStoreSnapshot().book
-      expect(
-        Object.values(book.assets).every(
-          (a) => typeof a.contentHash === 'string',
-        ),
-      ).toBe(true)
-    })
 
     const pathReuse = new File([pathBytes], 'path.jpg', {
       type: 'image/jpeg',
       lastModified: 1,
     })
-    const hashReuse = new File([hashBytes], 'hash.jpg', {
+    const otherReuse = new File([otherBytes], 'other.jpg', {
       type: 'image/jpeg',
-      lastModified: 99,
+      lastModified: 2,
     })
-    Object.defineProperty(hashReuse, 'webkitRelativePath', {
-      value: 'Trip/hash.jpg',
-    })
-    const result = await importPhotoFiles([pathReuse, hashReuse], {
+    const result = await importPhotoFiles([pathReuse, otherReuse], {
       libraryBacked: true,
       sourceRootId: 'root-sum-2',
     })
@@ -348,15 +382,7 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
-  it('hash fallback mints a new asset when content does not match', async () => {
-    vi.stubGlobal(
-      'Worker',
-      class {
-        terminate(): void {
-          /* no-op */
-        }
-      },
-    )
+  it('mints a new asset when path size or mtime differ', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
       storage,
@@ -378,11 +404,6 @@ describe('importPhotoFiles library identity', () => {
     })
     const firstId = getBookStoreSnapshot().book.gallery[0]
     assert.ok(firstId)
-    await vi.waitFor(() => {
-      expect(
-        getBookStoreSnapshot().book.assets[firstId]?.contentHash,
-      ).toBeTypeOf('string')
-    })
 
     const second = new File(
       [new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x22])],
@@ -453,7 +474,6 @@ describe('importPhotoFiles library identity', () => {
     expect(getBookStoreSnapshot().book.assets[assetId]?.sourceRootId).toBe(
       'root-first',
     )
-    // Known contentHash on reuse: seed only — no second hash worker pass.
     expect(hashContentMock).not.toHaveBeenCalled()
     await vi.waitFor(() => {
       expect(getRegisteredAssetSource('root-first')).toBeDefined()
@@ -669,7 +689,7 @@ describe('importPhotoFiles library identity', () => {
     )
   })
 
-  it('awaits prior hashes for library-backed imports by default', async () => {
+  it('does not await prior hashes on the import hot path', async () => {
     const awaitSpy = vi
       .spyOn(pendingHashes, 'awaitPendingHashes')
       .mockResolvedValue()
@@ -677,25 +697,7 @@ describe('importPhotoFiles library identity', () => {
       libraryBacked: true,
       sourceRootId: 'root-wait',
     })
-    expect(awaitSpy).toHaveBeenCalled()
-  })
-
-  it('skips awaitPendingHashes when awaitPriorHashes is false', async () => {
-    const awaitSpy = vi
-      .spyOn(pendingHashes, 'awaitPendingHashes')
-      .mockImplementation(() => new Promise(() => undefined))
-    await importPhotoFiles([tinyJpeg('skip-wait.jpg')], {
-      libraryBacked: true,
-      sourceRootId: 'root-skip-wait',
-      awaitPriorHashes: false,
-    })
     expect(awaitSpy).not.toHaveBeenCalled()
-  })
-
-  it('does not await prior hashes for session-only imports', async () => {
-    const awaitSpy = vi
-      .spyOn(pendingHashes, 'awaitPendingHashes')
-      .mockResolvedValue()
     await importPhotoFiles([tinyJpeg('session.jpg')], {
       libraryBacked: false,
     })

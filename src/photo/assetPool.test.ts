@@ -3,6 +3,7 @@ import {
   DECODE_POOL_CAP,
   decodeWorkerCount,
   enqueueHash,
+  getVisibleAssetIds,
   processAsset,
   resetAssetPool,
   runImportBatch,
@@ -52,6 +53,14 @@ describe('assetPool', () => {
     resetAssetPool()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('getVisibleAssetIds snapshots filmstrip ∪ spread preference', () => {
+    setFilmstripVisibleAssetIds(['film-a'])
+    setSpreadVisibleAssetIds('spread-1', ['spread-b'])
+    expect(getVisibleAssetIds().slice().sort()).toEqual(['film-a', 'spread-b'])
+    resetAssetPool()
+    expect(getVisibleAssetIds()).toEqual([])
   })
 
   it('processes an asset through the worker pool', async () => {

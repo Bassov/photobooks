@@ -8,11 +8,13 @@ import {
   BOOK_PHOTO_ROOTS_STORE,
   createBookPhotoRootIdb,
   createSessionIdb,
+  createSourceRootEntryIndexIdb,
   createSourceRootIdb,
   LABEL_KEY,
   LIBRARY_HANDLES_STORE,
   migrateLegacyRecents,
   RECENTS_KEY,
+  SOURCE_ROOT_ENTRY_INDEX_STORE,
   SOURCE_ROOT_HANDLES_STORE,
   type SessionIdb,
 } from './idb'
@@ -25,7 +27,7 @@ import { runSessionStateContract } from './sessionState.contract.test-helpers'
 
 const DB_NAME = 'photobooks-session'
 const STORE_NAME = LIBRARY_HANDLES_STORE
-const DB_VERSION = 3
+const DB_VERSION = 4
 const LEGACY_LIBRARY_ID = 'library'
 
 function resetIndexedDb(): void {
@@ -174,7 +176,7 @@ describe('createSessionIdb (fake-indexeddb)', () => {
     db.close()
   })
 
-  it('creates source-root and book-photo-root stores on v3 upgrade', async () => {
+  it('creates source-root book-photo-root and entry-index stores on upgrade', async () => {
     const v2 = await openRaw(2, (db) => {
       db.createObjectStore(STORE_NAME)
     })
@@ -197,15 +199,25 @@ describe('createSessionIdb (fake-indexeddb)', () => {
       value: { sourceRootId: 'root-1', label: 'Trip' },
     })
 
+    const entryIndex = createSourceRootEntryIndexIdb()
+    await entryIndex.set('root-1', {
+      entries: { 'a.jpg': { byteSize: 1, mtimeMs: 2 } },
+    })
+    await expect(entryIndex.get('root-1')).resolves.toEqual({
+      present: true,
+      value: { entries: { 'a.jpg': { byteSize: 1, mtimeMs: 2 } } },
+    })
+
     const db = await openRaw(DB_VERSION)
     expect([...db.objectStoreNames]).toEqual(
       expect.arrayContaining([
         LIBRARY_HANDLES_STORE,
         SOURCE_ROOT_HANDLES_STORE,
         BOOK_PHOTO_ROOTS_STORE,
+        SOURCE_ROOT_ENTRY_INDEX_STORE,
       ]),
     )
-    expect(db.objectStoreNames.length).toBe(3)
+    expect(db.objectStoreNames.length).toBe(4)
     db.close()
 
     await expect(library.get('lib')).resolves.toEqual({
@@ -214,7 +226,7 @@ describe('createSessionIdb (fake-indexeddb)', () => {
     })
   })
 
-  it('fresh open at v3 creates all three stores', async () => {
+  it('fresh open at current version creates all session stores', async () => {
     const idb = createSessionIdb()
     await idb.get('probe')
 
@@ -223,6 +235,7 @@ describe('createSessionIdb (fake-indexeddb)', () => {
       [
         BOOK_PHOTO_ROOTS_STORE,
         LIBRARY_HANDLES_STORE,
+        SOURCE_ROOT_ENTRY_INDEX_STORE,
         SOURCE_ROOT_HANDLES_STORE,
       ].sort(),
     )

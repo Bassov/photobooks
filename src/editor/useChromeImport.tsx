@@ -25,7 +25,6 @@ import {
 } from './importErrorToast'
 import { appendImportErrors, openImportErrorsPanel } from './importErrorsStore'
 import type { ImportProgress } from './importPhotos'
-import { setImportRunning } from './bookStore'
 import {
   getProjectSessionSnapshot,
   isLibraryBacked,
@@ -43,6 +42,13 @@ import {
   registerBoundPhotoFolderSource,
   subscribePhotoRootSession,
 } from './photoRootSession'
+import { enqueueScannedGalleryList } from './enqueueScannedGalleryList'
+import { orderScannedForVisibleFirst } from './orderScannedForVisibleFirst'
+import { persistScannedEntryIndex } from '../project/session/sourceRootEntryIndex'
+import { isClearFolderSkipPath } from '../photo/pickPhotos'
+import { getVisibleAssetIds } from '../photo/assetPool'
+import { getGalleryRelativePathIndex, setImportRunning } from './bookStore'
+import { yieldForPaint } from './relink/yieldForPaint'
 
 function isE2eBuild(): boolean {
   const env = import.meta.env as { VITE_E2E?: string }
@@ -168,17 +174,49 @@ export function useChromeImport(options: {
             setEditorStatus('Could not read photo folder')
             return
           }
-          result = await importScannedEntriesInBatches(
+          // Always-walk result: persist entry index, then list-first placeholders.
+          await persistScannedEntryIndex(sourceRootId, scanned.value)
+          enqueueScannedGalleryList(sourceRootId, scanned.value)
+          const folderSkipped = scanned.value.filter((entry) =>
+            isClearFolderSkipPath(entry.relativePath),
+          ).length
+          // Resolve image-like + extension-less (HEIC sniff); skip clear non-images.
+          const forImport = scanned.value.filter(
+            (entry) => !isClearFolderSkipPath(entry.relativePath),
+          )
+          options.onImportProgress({
+            total: Math.max(forImport.length, 1),
+            completed: 0,
+            errors: [],
+            running: true,
+          })
+          // Let filmstrip mount so visible ids prefer first-window 320 decode.
+          await yieldForPaint()
+          await yieldForPaint()
+          const visibleIds = new Set(getVisibleAssetIds())
+          const visiblePaths = new Set<string>()
+          for (const [path, id] of getGalleryRelativePathIndex()) {
+            if (visibleIds.has(id)) {
+              visiblePaths.add(path)
+            }
+          }
+          const ordered = orderScannedForVisibleFirst(forImport, visiblePaths)
+          const imported = await importScannedEntriesInBatches(
             directory,
-            scanned.value,
+            ordered,
             {
               sourceRootId,
               libraryBacked: isLibraryBacked(),
+              listAlreadyEnqueued: true,
               onProgress: options.onImportProgress,
               onErrors: reportErrors,
               onFirstBatchYielded: persistRootAfterFirstBatch,
             },
           )
+          result = {
+            ...imported,
+            skipped: imported.skipped + folderSkipped,
+          }
         }
         if (result.skipped > 0 && result.errors.length === 0) {
           setEditorStatus(folderSkippedStatusText(result.skipped))

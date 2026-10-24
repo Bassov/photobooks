@@ -7,12 +7,7 @@ import {
   resetPoolCoordination,
 } from '../photo/poolCoordination'
 import { computeSha256Hex } from './hashDigest'
-import {
-  hashContent,
-  resolveContentHash,
-  shouldReuseContentHash,
-  type ScannedEntry,
-} from './index'
+import { hashContent } from './index'
 
 const EMPTY_HASH =
   'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
@@ -70,113 +65,13 @@ function mockHashWorker(): void {
   vi.stubGlobal('Worker', MockWorker)
 }
 
-describe('hash helpers', () => {
+describe('hashContent', () => {
   afterEach(() => {
     resetAssetPool()
     resetPoolCoordination()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
-
-  it('reuses content hash when metadata matches', () => {
-    const entry: ScannedEntry = {
-      relativePath: 'a.jpg',
-      byteSize: 3,
-      mtimeMs: 10,
-    }
-    expect(
-      shouldReuseContentHash(
-        {
-          sourceRootId: 'root',
-          relativePath: 'a.jpg',
-          byteSize: 3,
-          mtimeMs: 10,
-          contentHash: EMPTY_HASH,
-        },
-        entry,
-        'root',
-      ),
-    ).toBe(true)
-  })
-
-  it.each([
-    [
-      'mtime',
-      {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 3,
-        mtimeMs: 10,
-        contentHash: EMPTY_HASH,
-      },
-      { relativePath: 'a.jpg', byteSize: 3, mtimeMs: 11 },
-      'root',
-    ],
-    [
-      'byteSize',
-      {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 3,
-        mtimeMs: 10,
-        contentHash: EMPTY_HASH,
-      },
-      { relativePath: 'a.jpg', byteSize: 4, mtimeMs: 10 },
-      'root',
-    ],
-    [
-      'relativePath',
-      {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 3,
-        mtimeMs: 10,
-        contentHash: EMPTY_HASH,
-      },
-      { relativePath: 'b.jpg', byteSize: 3, mtimeMs: 10 },
-      'root',
-    ],
-    [
-      'sourceRootId',
-      {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 3,
-        mtimeMs: 10,
-        contentHash: EMPTY_HASH,
-      },
-      { relativePath: 'a.jpg', byteSize: 3, mtimeMs: 10 },
-      'other-root',
-    ],
-    [
-      'missing hash',
-      {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 3,
-        mtimeMs: 10,
-      },
-      { relativePath: 'a.jpg', byteSize: 3, mtimeMs: 10 },
-      'root',
-    ],
-    [
-      'short hash',
-      {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 3,
-        mtimeMs: 10,
-        contentHash: 'abcd',
-      },
-      { relativePath: 'a.jpg', byteSize: 3, mtimeMs: 10 },
-      'root',
-    ],
-  ] as const)(
-    'does not reuse when %s mismatches',
-    (_label, record, entry, sourceRootId) => {
-      expect(shouldReuseContentHash(record, entry, sourceRootId)).toBe(false)
-    },
-  )
 
   it('hashes through the worker pool', async () => {
     mockHashWorker()
@@ -197,71 +92,5 @@ describe('hash helpers', () => {
     endMetadataJob()
     await expect(pending).resolves.toBe(EMPTY_HASH)
     expect(hashed).toBe(true)
-  })
-
-  it('resolveContentHash skips read on fast path', async () => {
-    mockHashWorker()
-    let readCalls = 0
-    const hash = await resolveContentHash({
-      sourceRootId: 'root',
-      record: {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 0,
-        mtimeMs: 1,
-        contentHash: EMPTY_HASH,
-      },
-      entry: { relativePath: 'a.jpg', byteSize: 0, mtimeMs: 1 },
-      read: () => {
-        readCalls += 1
-        return Promise.resolve(new ArrayBuffer(0))
-      },
-    })
-    expect(hash).toBe(EMPTY_HASH)
-    expect(readCalls).toBe(0)
-  })
-
-  it('resolveContentHash reads when source root differs', async () => {
-    mockHashWorker()
-    let readCalls = 0
-    const hash = await resolveContentHash({
-      sourceRootId: 'other-root',
-      record: {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 0,
-        mtimeMs: 1,
-        contentHash: EMPTY_HASH,
-      },
-      entry: { relativePath: 'a.jpg', byteSize: 0, mtimeMs: 1 },
-      read: () => {
-        readCalls += 1
-        return Promise.resolve(new ArrayBuffer(0))
-      },
-    })
-    expect(hash).toBe(EMPTY_HASH)
-    expect(readCalls).toBe(1)
-  })
-
-  it('resolveContentHash reads and hashes when metadata differs', async () => {
-    mockHashWorker()
-    let readCalls = 0
-    const hash = await resolveContentHash({
-      sourceRootId: 'root',
-      record: {
-        sourceRootId: 'root',
-        relativePath: 'a.jpg',
-        byteSize: 0,
-        mtimeMs: 1,
-        contentHash: EMPTY_HASH,
-      },
-      entry: { relativePath: 'a.jpg', byteSize: 0, mtimeMs: 2 },
-      read: () => {
-        readCalls += 1
-        return Promise.resolve(new ArrayBuffer(0))
-      },
-    })
-    expect(hash).toBe(EMPTY_HASH)
-    expect(readCalls).toBe(1)
   })
 })

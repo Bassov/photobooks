@@ -400,7 +400,7 @@ describe('EditorTopBar', () => {
     vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
       imported: 0,
       errors: [],
-      skipped: 1,
+      skipped: 0,
     })
     render(<EditorShell />)
     clickChoosePhotoFolder()
@@ -422,16 +422,17 @@ describe('EditorTopBar', () => {
     stubFolderPick([jpeg, readme])
     const importSpy = vi
       .spyOn(importPhotos, 'importPhotoFiles')
-      .mockResolvedValue({ imported: 1, errors: [], skipped: 1 })
+      .mockResolvedValue({ imported: 1, errors: [], skipped: 0 })
     render(<EditorShell />)
     clickChoosePhotoFolder()
     await waitFor(() => {
+      // List-first: non-images are counted as skips and never body-imported.
       expect(importSpy).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ name: 'a.jpg' }),
-          expect.objectContaining({ name: 'README.md' }),
-        ]),
-        expect.objectContaining({ source: 'folder' }),
+        [expect.objectContaining({ name: 'a.jpg' })],
+        expect.objectContaining({
+          source: 'folder',
+          listAlreadyEnqueued: true,
+        }),
       )
     })
     await waitFor(() => {
@@ -449,7 +450,7 @@ describe('EditorTopBar', () => {
     vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
       imported: 0,
       errors: [],
-      skipped: 2,
+      skipped: 0,
     })
     render(<EditorShell />)
     clickChoosePhotoFolder()
@@ -475,7 +476,7 @@ describe('EditorTopBar', () => {
           reason: 'unsupported-type',
         }),
       ],
-      skipped: 1,
+      skipped: 0,
     })
     render(<EditorShell />)
     clickChoosePhotoFolder()

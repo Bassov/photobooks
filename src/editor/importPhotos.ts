@@ -13,6 +13,7 @@ import {
   enqueueGalleryAssets,
   getAssetContentHash,
   getBookStoreSnapshot,
+  getGalleryRelativePathIndex,
   mintAssetId,
   removeFailedImportAsset,
   setAssetSessionMeta,
@@ -20,7 +21,6 @@ import {
 } from './bookStore'
 import { getSelectedAssetId, setSelectedAssetId } from './gallerySelection'
 import {
-  buildContentHashIndex,
   buildReuseIndex,
   createBodyReadGate,
   IMPORT_BODY_READ_CAP,
@@ -28,8 +28,6 @@ import {
   relativePathFor,
   reuseIdentityKey,
 } from './importBodyReads'
-import { resolveByContentHash, type HashResolveJob } from './importHashReuse'
-import { awaitPendingHashes } from './pendingHashes'
 import { isLibraryBacked } from './projectSession'
 import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
 import { setThumbUrl } from './thumbCache'
@@ -47,10 +45,15 @@ export interface ImportPhotoOptions {
   /** Folder imports skip non-image-like files; default is explicit file pick. */
   source?: 'files' | 'folder'
   /**
-   * When false, skip the opening `awaitPendingHashes` gate so multi-batch
-   * folder imports can start progressive decode after the first resolve slice.
+   * Retained for call-site compatibility; content-hash await is no longer used
+   * on the import hot path.
    */
   awaitPriorHashes?: boolean
+  /**
+   * When true, skip gallery enqueue (caller already list-enqueued placeholders).
+   * Still resolves Files, reuses by path+size+mtime, and runs thumb decode.
+   */
+  listAlreadyEnqueued?: boolean
 }
 
 export interface ImportPhotoResult {
@@ -64,8 +67,6 @@ interface PreparedEntry {
   file: File
   relativePath: string
   reused: boolean
-  bytes?: ArrayBuffer
-  contentHash?: string
 }
 
 export async function importPhotoFiles(
@@ -131,8 +132,6 @@ function discardFailedImport(assetId: string): void {
   const clearSelection = getSelectedAssetId() === assetId
   removeFailedImportAsset(assetId)
   releaseAssetSource(assetId)
-  // Frame move-source clears via frameSelection's bookStore subscription when
-  // removeFromGallery empties the sourced frame.
   if (clearSelection) {
     setSelectedAssetId(null)
   }
@@ -185,34 +184,29 @@ async function importPhotoFilesInner(
   const batchRootId =
     options.sourceRootId ??
     (libraryBacked ? `root-${crypto.randomUUID()}` : undefined)
+  const listAlreadyEnqueued = options.listAlreadyEnqueued === true
 
   setImportRunning(true, progressTotal)
   try {
-    if (libraryBacked && options.awaitPriorHashes !== false) {
-      // Content-hash fallback needs settled hashes from prior imports.
-      // Run after importRunning so progress is visible while we wait.
-      await awaitPendingHashes()
-    }
-
     const book = getBookStoreSnapshot().book
-    const pathIndex = libraryBacked
-      ? buildReuseIndex(book.gallery, book.assets)
+    // List-first placeholders must resolve by path even in session (non-library)
+    // editors — otherwise import mints a second id and thumbs never bind.
+    const pathIndex =
+      libraryBacked || listAlreadyEnqueued
+        ? buildReuseIndex(book.gallery, book.assets)
+        : null
+    const byRelativePath = listAlreadyEnqueued
+      ? getGalleryRelativePathIndex()
       : null
-    const hashIndex = libraryBacked
-      ? buildContentHashIndex(book.gallery, book.assets)
-      : null
-    // Only hash-before-enqueue when prior assets already have hashes to match.
-    // Fresh imports (empty hash index) stay identity-first.
-    const hashFallbackActive = hashIndex !== null && hashIndex.size > 0
 
     const immediate: PreparedEntry[] = []
-    const needsHash: HashResolveJob[] = []
 
     for (const file of accepted) {
       const relativePath = relativePathFor(file)
-      const pathId = pathIndex?.get(
-        reuseIdentityKey(relativePath, file.size, file.lastModified),
-      )
+      const pathId =
+        pathIndex?.get(
+          reuseIdentityKey(relativePath, file.size, file.lastModified),
+        ) ?? byRelativePath?.get(relativePath)
       if (pathId !== undefined) {
         retainAssetSource(pathId, file)
         immediate.push({
@@ -220,14 +214,6 @@ async function importPhotoFilesInner(
           file,
           relativePath,
           reused: true,
-        })
-        continue
-      }
-      if (hashFallbackActive) {
-        needsHash.push({
-          file,
-          relativePath,
-          index: needsHash.length,
         })
         continue
       }
@@ -241,7 +227,7 @@ async function importPhotoFilesInner(
       })
     }
 
-    if (!libraryBacked && immediate.length > 0) {
+    if (!libraryBacked && immediate.length > 0 && !listAlreadyEnqueued) {
       enqueueGalleryAssets(
         immediate.map(({ assetId, file }) => ({
           assetId,
@@ -256,7 +242,7 @@ async function importPhotoFilesInner(
       )
     }
 
-    if (libraryBacked && batchRootId !== undefined) {
+    if (libraryBacked && batchRootId !== undefined && !listAlreadyEnqueued) {
       const newImmediate = immediate.filter((entry) => !entry.reused)
       for (const entry of newImmediate) {
         enqueueNewLibraryIdentity(entry, batchRootId)
@@ -272,7 +258,7 @@ async function importPhotoFilesInner(
       })
     }
 
-    if (immediate.length === 0 && needsHash.length === 0) {
+    if (immediate.length === 0) {
       options.onProgress?.({
         total: progressTotal,
         completed: progressTotal,
@@ -284,16 +270,12 @@ async function importPhotoFilesInner(
 
     const bodyGate = createBodyReadGate(IMPORT_BODY_READ_CAP)
 
-    const immediateBatch =
-      immediate.length === 0
-        ? Promise.resolve({
-            results: [] as { assetId: string }[],
-            errors: [] as ImportFileError[],
-          })
-        : runImportBatch(immediate, importDecodeBatchOptions(report))
+    const immediateBatch = runImportBatch(
+      immediate,
+      importDecodeBatchOptions(report),
+    )
 
     if (libraryBacked && batchRootId !== undefined && immediate.length > 0) {
-      // Fire-and-forget seeds; share the body-read cap with hash fallback.
       void mapWithConcurrency(
         immediate,
         IMPORT_BODY_READ_CAP,
@@ -302,6 +284,8 @@ async function importPhotoFilesInner(
             const existingRoot =
               getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId
             const sourceRootId = existingRoot ?? batchRootId
+            // Async contentHash for DerivedCache thumb hydrate after reload —
+            // not used for import identity (path/size/mtime only).
             await seedAndHashEntry({
               assetId: entry.assetId,
               file: entry.file,
@@ -314,43 +298,11 @@ async function importPhotoFilesInner(
       )
     }
 
-    const hashOutcome =
-      libraryBacked && batchRootId !== undefined && hashIndex !== null
-        ? await resolveByContentHash({
-            jobs: needsHash,
-            hashIndex,
-            batchRootId,
-            withBodyRead: bodyGate.withBodyRead,
-            enqueueNew: (entry) => {
-              enqueueNewLibraryIdentity(entry, batchRootId)
-            },
-          })
-        : { prepared: [] as PreparedEntry[], errors: [] as ImportFileError[] }
-    const deferred = hashOutcome.prepared
-    const hashErrors = hashOutcome.errors
-
-    const deferredBatch =
-      deferred.length === 0
-        ? Promise.resolve({
-            results: [] as { assetId: string }[],
-            errors: [] as ImportFileError[],
-          })
-        : runImportBatch(deferred, importDecodeBatchOptions(report))
-
-    const [immediateOutcome, deferredOutcome] = await Promise.all([
-      immediateBatch,
-      deferredBatch,
-    ])
+    const immediateOutcome = await immediateBatch
 
     return {
-      imported:
-        immediateOutcome.results.length + deferredOutcome.results.length,
-      errors: [
-        ...earlyErrors,
-        ...hashErrors,
-        ...immediateOutcome.errors,
-        ...deferredOutcome.errors,
-      ],
+      imported: immediateOutcome.results.length,
+      errors: [...earlyErrors, ...immediateOutcome.errors],
       skipped: skippedCount,
     }
   } finally {

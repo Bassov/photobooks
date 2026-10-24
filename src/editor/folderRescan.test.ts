@@ -1,3 +1,4 @@
+import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as assets from '../assets'
 import {
@@ -24,9 +25,14 @@ import {
 import * as importPhotos from './importPhotos'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import * as pendingHashes from './pendingHashes'
+import {
+  persistScannedEntryIndex,
+  getSourceRootEntryIndex,
+} from '../project/session/sourceRootEntryIndex'
 
 describe('startFolderRescan', () => {
   beforeEach(() => {
+    vi.stubGlobal('indexedDB', new IDBFactory())
     stubScanWorker()
     vi.spyOn(assets, 'hashContent').mockResolvedValue('c'.repeat(64))
     resetBookStore()
@@ -64,7 +70,45 @@ describe('startFolderRescan', () => {
     expect(getFolderRescanProgress()).toBeNull()
   })
 
-  it('rehydrates prioritized assets and reuses matching hashes', async () => {
+  it('always walks scanRoot even when a matching entry index already exists', async () => {
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('shot.jpg', new Uint8Array([1, 2]), 10)
+    const sourceRootId = 'root-always-walk'
+    const source = createFsaAssetSource({
+      rootId: sourceRootId,
+      directory: tree.root,
+    })
+    registerAssetSource(sourceRootId, source)
+    const scanSpy = vi.spyOn(source, 'scanRoot')
+    await persistScannedEntryIndex(sourceRootId, [
+      { relativePath: 'shot.jpg', byteSize: 2, mtimeMs: 10 },
+    ])
+    const prior = await getSourceRootEntryIndex(sourceRootId)
+    expect(prior.ok).toBe(true)
+
+    resetBookStore({
+      book: makeBook({
+        gallery: ['a1'],
+        assets: {
+          a1: {
+            sourceRootId,
+            relativePath: 'shot.jpg',
+            byteSize: 2,
+            mtimeMs: 10,
+          },
+        },
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    await startFolderRescan({ sourceRootId, runLazy: false })
+    expect(scanSpy).toHaveBeenCalledWith(sourceRootId)
+    await awaitFolderRescanForTests()
+  })
+
+  it('rehydrates prioritized assets and reuses matching metadata', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('used.jpg', new Uint8Array([9, 9]), 42)
     tree.putFile('lazy.jpg', new Uint8Array([1]), 1)
@@ -114,7 +158,7 @@ describe('startFolderRescan', () => {
     expect(getFolderRescanProgress()).toBeNull()
   })
 
-  it('rehashes when size/mtime differ', async () => {
+  it('updates identity when size/mtime differ without hashing', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('shot.jpg', new Uint8Array([1, 2, 3]), 99)
     const sourceRootId = 'root-src'
@@ -142,15 +186,15 @@ describe('startFolderRescan', () => {
 
     await startFolderRescan({ sourceRootId, runLazy: false })
     expect(getAssetSource('a1')?.name).toBe('shot.jpg')
-    expect(assets.hashContent).toHaveBeenCalled()
+    expect(assets.hashContent).not.toHaveBeenCalled()
     await vi.waitFor(() => {
-      expect(getBookStoreSnapshot().book.assets.a1?.contentHash).toBe(
-        'c'.repeat(64),
-      )
+      const asset = getBookStoreSnapshot().book.assets.a1
+      expect(asset?.byteSize).toBe(3)
+      expect(asset?.mtimeMs).toBe(99)
     })
   })
 
-  it('lazy unused hashing does not stall awaitPendingHashes / Save', async () => {
+  it('lazy unused remainder does not stall awaitPendingHashes / Save', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('used.jpg', new Uint8Array([9, 9]), 42)
     tree.putFile('lazy.jpg', new Uint8Array([1]), 1)

@@ -434,6 +434,11 @@ export function setFilmstripVisibleAssetIds(assetIds: readonly string[]): void {
   rebuildVisibleAssetIds()
 }
 
+/** Snapshot of the preferred visible asset set (filmstrip ∪ painted spreads). */
+export function getVisibleAssetIds(): readonly string[] {
+  return [...visibleAssetIds]
+}
+
 /** Painted-spread asset ids for one spread (unioned across spreads + filmstrip). */
 export function setSpreadVisibleAssetIds(
   spreadId: string,

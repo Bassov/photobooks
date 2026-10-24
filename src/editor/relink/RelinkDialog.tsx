@@ -222,8 +222,8 @@ export function RelinkDialog(props: {
       <header style={{ padding: '1.1rem 1.35rem 0.6rem' }}>
         <DialogTitle>{view.title}</DialogTitle>
         <p style={relinkSubStyle}>
-          Rescan a folder to match photos by content hash. Skip keeps the book
-          editable with hatched frames.
+          Rescan a folder to match photos by path, size, and date. Skip keeps
+          the book editable with hatched frames.
         </p>
       </header>
 

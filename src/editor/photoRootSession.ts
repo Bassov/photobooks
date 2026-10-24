@@ -1,13 +1,10 @@
 import {
   createFsaAssetSource,
-  hashContent,
-  shouldReuseContentHash,
   type AssetSource,
   type ScannedEntry,
 } from '../assets'
 import type { Asset, Book, Spread } from '../core'
 import { retainAssetSource } from '../photo/assetSources'
-import { trackHashJob } from './pendingHashes'
 import { yieldForPaint } from './relink/yieldForPaint'
 import { resolveRelativeFile } from '../assets/resolveRelativeFile'
 import type { AssetDirectoryHandle } from '../assets/fsa/handles'
@@ -25,6 +22,14 @@ import {
   setBookPhotoRoot,
   type BookPhotoRoot,
 } from '../project/session/browserSourceRootHandles'
+import {
+  clearSourceRootEntryIndex,
+  diffEntryIndex,
+  getSourceRootEntryIndex,
+  persistScannedEntryIndex,
+} from '../project/session/sourceRootEntryIndex'
+import { enqueueScannedGalleryList } from './enqueueScannedGalleryList'
+import { isAcceptedPhotoPath } from '../photo/pickPhotos'
 import {
   getRegisteredAssetSource,
   registerAssetSource,
@@ -268,10 +273,14 @@ async function clearBoundPhotoFolder(options?: {
   if (existing.ok) {
     await Promise.all([
       clearSourceRootHandle(existing.value.sourceRootId),
+      clearSourceRootEntryIndex(existing.value.sourceRootId),
       clearBookPhotoRoot(bookId),
     ])
   } else if (memoryRootId !== null) {
-    await clearSourceRootHandle(memoryRootId)
+    await Promise.all([
+      clearSourceRootHandle(memoryRootId),
+      clearSourceRootEntryIndex(memoryRootId),
+    ])
   }
 
   if (boundSourceRootId === null) {
@@ -498,7 +507,7 @@ function refFromAsset(
 }
 
 /**
- * Pure priority order for post-reload verify/re-hash:
+ * Pure priority order for post-reload verify / thumb320:
  * visible-spread placed → other open-book assets for root → other books.
  * Dedupes by relativePath (first wins).
  */
@@ -638,11 +647,10 @@ async function verifyRef(
   scannedByPath: ReadonlyMap<string, ScannedEntry>,
 ): Promise<void> {
   const scanned = scannedByPath.get(ref.relativePath)
-  const record = assetRecordFor(ref)
-  const canReuse =
-    scanned !== undefined &&
-    shouldReuseContentHash({ ...record, sourceRootId }, scanned, sourceRootId)
-
+  // Metadata match: unchanged size/mtime → still reattach File for session use,
+  // but skip body read when we only need identity confirmation and already have
+  // a live source. Always prefer getFile-style resolve via readForHash only when
+  // we need bytes for decode; here we reattach a File for the session retain map.
   const read = await source.readForHash(sourceRootId, ref.relativePath)
   if (!read.ok) {
     return
@@ -654,35 +662,27 @@ async function verifyRef(
       lastModified: scanned?.mtimeMs ?? ref.mtimeMs ?? Date.now(),
     }),
   )
-  if (canReuse) {
-    return
+  // Patch identity from the cheap scan when present (no content-hash).
+  // Clear stale contentHash when size/mtime change so DerivedCache cannot hydrate old bytes.
+  if (scanned !== undefined) {
+    const prev = assetRecordFor(ref)
+    const metaChanged =
+      prev.byteSize !== scanned.byteSize || prev.mtimeMs !== scanned.mtimeMs
+    patchAssetRecord(ref.assetId, {
+      sourceRootId,
+      relativePath: scanned.relativePath,
+      byteSize: scanned.byteSize,
+      mtimeMs: scanned.mtimeMs,
+      ...(metaChanged ? { contentHash: undefined } : {}),
+    })
   }
-  void trackHashJob(
-    hashContent(read.value).then((contentHash) => {
-      patchAssetRecord(ref.assetId, { contentHash })
-      return contentHash
-    }),
-  ).catch(() => undefined)
-}
-
-function warmLazyPath(
-  sourceRootId: string,
-  source: AssetSource,
-  path: string,
-  isCancelled: () => boolean,
-): void {
-  void source.readForHash(sourceRootId, path).then((read) => {
-    if (read.ok && !isCancelled()) {
-      void hashContent(read.value)
-    }
-  })
 }
 
 /**
- * After granted restore: verify used-in-book assets first, then continue
- * importing scanned paths not yet in the open-book gallery (or lazy-hash when
- * no directory handle). Resolves after the priority phase; lazy work continues
- * in the background.
+ * After granted restore: always cheap-walk, list-first placeholders, verify
+ * used-in-book by path/size/mtime, then continue importing missing gallery
+ * paths. Resolves after the priority phase; remainder import continues in
+ * background. No content-hash on this hot path.
  */
 export async function startFolderRescan(options: {
   sourceRootId: string
@@ -702,15 +702,25 @@ export async function startFolderRescan(options: {
       emitProgress(null)
       return
     }
+    // Always cheap full walk — never skip via count/max-mtime.
     const scannedResult = await source.scanRoot(options.sourceRootId)
     if (!scannedResult.ok) {
       emitProgress(null)
       return
     }
     const scanned = scannedResult.value
+    const prior = await getSourceRootEntryIndex(options.sourceRootId)
+    const indexDiff = diffEntryIndex(prior.ok ? prior.value : null, scanned)
+    await persistScannedEntryIndex(options.sourceRootId, scanned)
+
     const scannedByPath = new Map(
       scanned.map((entry) => [entry.relativePath, entry] as const),
     )
+    // List-first: placeholders for accepted images not yet in gallery.
+    enqueueScannedGalleryList(options.sourceRootId, scanned, {
+      markImportRunning: false,
+    })
+
     const book = getBookStoreSnapshot().book
     const prioritized = planRescanPriority({
       openBook: book,
@@ -718,20 +728,50 @@ export async function startFolderRescan(options: {
       visibleSpreadId: options.visibleSpreadId ?? book.spreads[0]?.id ?? null,
       otherBookAssets: options.otherBookAssets ?? [],
     })
+    // Prefer re-verify for metadata-changed paths even when already in gallery.
+    const changedPathSet = new Set(indexDiff.changedPaths)
+    const priorityWithChanges = [...prioritized]
+    for (const path of indexDiff.changedPaths) {
+      if (priorityWithChanges.some((ref) => ref.relativePath === path)) {
+        continue
+      }
+      const assetId = book.gallery.find(
+        (id) => book.assets[id]?.relativePath === path,
+      )
+      if (assetId === undefined) {
+        continue
+      }
+      priorityWithChanges.push({ assetId, relativePath: path })
+    }
     const lazyPaths = remainingScannedPaths(
-      scanned.map((entry) => entry.relativePath),
-      prioritized,
+      scanned
+        .filter((entry) => isAcceptedPhotoPath(entry.relativePath))
+        .map((entry) => entry.relativePath),
+      priorityWithChanges,
     )
-    // Prioritized already includes every open-book gallery path for this root
-    // (plus other-book refs). Lazy paths are therefore not yet in the open
-    // gallery — continue-import them when a directory handle is available;
-    // otherwise fall back to warmLazyPath hashing only.
-    const missingEntries = lazyPaths.flatMap((path) => {
-      const entry = scannedByPath.get(path)
-      return entry === undefined ? [] : [entry]
-    })
+    // New paths (not in gallery before list-enqueue) + non-priority remainder.
+    const missingEntries = [
+      ...indexDiff.newPaths.flatMap((path) => {
+        if (!isAcceptedPhotoPath(path) || changedPathSet.has(path)) {
+          return []
+        }
+        if (priorityWithChanges.some((ref) => ref.relativePath === path)) {
+          return []
+        }
+        const entry = scannedByPath.get(path)
+        return entry === undefined ? [] : [entry]
+      }),
+      ...lazyPaths.flatMap((path) => {
+        if (indexDiff.newPaths.includes(path)) {
+          return []
+        }
+        const entry = scannedByPath.get(path)
+        return entry === undefined ? [] : [entry]
+      }),
+    ]
+    const prioritizedRefs = priorityWithChanges
     const runLazy = options.runLazy !== false
-    const total = prioritized.length + (runLazy ? lazyPaths.length : 0)
+    const total = prioritizedRefs.length + (runLazy ? missingEntries.length : 0)
     let completed = 0
     emitProgress({
       total: Math.max(total, 1),
@@ -740,7 +780,7 @@ export async function startFolderRescan(options: {
       phase: 'priority',
     })
 
-    for (const ref of prioritized) {
+    for (const ref of prioritizedRefs) {
       if (isCancelled()) {
         emitProgress(null)
         return
@@ -756,7 +796,7 @@ export async function startFolderRescan(options: {
       await yieldForPaint()
     }
 
-    if (!runLazy || lazyPaths.length === 0 || isCancelled()) {
+    if (!runLazy || missingEntries.length === 0 || isCancelled()) {
       emitProgress(null)
       return
     }
@@ -774,6 +814,7 @@ export async function startFolderRescan(options: {
         await importScannedEntriesInBatches(directory, missingEntries, {
           sourceRootId: options.sourceRootId,
           libraryBacked: true,
+          listAlreadyEnqueued: true,
           onProgress: (progress) => {
             if (progress === null) {
               emitProgress(null)
@@ -783,7 +824,7 @@ export async function startFolderRescan(options: {
               total: Math.max(total, 1),
               completed: Math.min(
                 total,
-                prioritized.length + progress.completed,
+                prioritizedRefs.length + progress.completed,
               ),
               running: progress.running,
               phase: 'lazy',
@@ -796,20 +837,7 @@ export async function startFolderRescan(options: {
         }
         return
       }
-      for (const path of lazyPaths) {
-        if (isCancelled()) {
-          break
-        }
-        warmLazyPath(options.sourceRootId, source, path, isCancelled)
-        completed += 1
-        emitProgress({
-          total: Math.max(total, 1),
-          completed,
-          running: true,
-          phase: 'lazy',
-        })
-        await yieldForPaint()
-      }
+      // No directory: leave idle placeholders (no body/hash warm).
       emitProgress(null)
     })()
     activeRun = lazy.finally(() => {
@@ -840,6 +868,8 @@ const FOLDER_IMPORT_BATCH_SIZE = IMPORT_BODY_READ_CAP
 export interface FolderImportBatchOptions {
   sourceRootId: string
   libraryBacked?: boolean
+  /** Placeholders already enqueued from the cheap scan. */
+  listAlreadyEnqueued?: boolean
   onProgress: (progress: ImportProgress | null) => void
   onErrors: (errors: readonly ImportFileError[]) => void
   /** After the first batch yields — e.g. persist photo-root IDB early. */
@@ -874,6 +904,9 @@ export async function importFilesInBatches(
     sourceRootId: options.sourceRootId,
     ...(options.libraryBacked !== undefined
       ? { libraryBacked: options.libraryBacked }
+      : {}),
+    ...(options.listAlreadyEnqueued === true
+      ? { listAlreadyEnqueued: true }
       : {}),
     onProgress: options.onProgress,
     onErrors: options.onErrors,
@@ -933,6 +966,9 @@ export async function importScannedEntriesInBatches(
         sourceRootId: options.sourceRootId,
         ...(options.libraryBacked !== undefined
           ? { libraryBacked: options.libraryBacked }
+          : {}),
+        ...(options.listAlreadyEnqueued === true
+          ? { listAlreadyEnqueued: true }
           : {}),
         awaitPriorHashes,
         onProgress: (progress) => {

@@ -13,8 +13,9 @@ const DB_NAME = 'photobooks-session'
 export const LIBRARY_HANDLES_STORE = 'library-handles'
 export const SOURCE_ROOT_HANDLES_STORE = 'source-root-handles'
 export const BOOK_PHOTO_ROOTS_STORE = 'book-photo-roots'
-/** v3: single library + label + photo source-root stores; migrate legacy `__recents` on open. */
-const DB_VERSION = 3
+export const SOURCE_ROOT_ENTRY_INDEX_STORE = 'source-root-entry-index'
+/** v4: entry-index store for cheap scan match (path→size/mtime). */
+const DB_VERSION = 4
 
 export { ACTIVE_KEY, LABEL_KEY, RECENTS_KEY }
 
@@ -22,6 +23,7 @@ const ALL_STORES = [
   LIBRARY_HANDLES_STORE,
   SOURCE_ROOT_HANDLES_STORE,
   BOOK_PHOTO_ROOTS_STORE,
+  SOURCE_ROOT_ENTRY_INDEX_STORE,
 ] as const
 
 export type SessionIdbGetResult =
@@ -230,4 +232,9 @@ export function createSourceRootIdb(): SessionIdb {
 /** Book → photo source-root binding (`book-photo-roots`). */
 export function createBookPhotoRootIdb(): SessionIdb {
   return createStoreIdb(BOOK_PHOTO_ROOTS_STORE)
+}
+
+/** Photo source-root entry index (`source-root-entry-index`). */
+export function createSourceRootEntryIndexIdb(): SessionIdb {
+  return createStoreIdb(SOURCE_ROOT_ENTRY_INDEX_STORE)
 }

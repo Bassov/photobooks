@@ -8,7 +8,15 @@ const HASH_B =
   'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
 describe('matchAssets', () => {
-  it('prefers content hash even when path differs', () => {
+  it('rejects a non-string sourceRootId', () => {
+    expect(() =>
+      matchAssets({}, [], {
+        sourceRootId: null as unknown as string,
+      }),
+    ).toThrow(TypeError)
+  })
+
+  it('ignores content hash when path size or mtime differ', () => {
     const entries: ScannedEntry[] = [
       {
         relativePath: 'moved/photo.jpg',
@@ -32,13 +40,11 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
-    expect(result.matched.get('a')).toEqual(entries[0])
-    expect(result.unmatchedAssetIds).toEqual([])
-    expect(result.unmatchedEntries).toEqual([])
-    expect(result.statuses.get('a')).toBe('ok')
+    expect(result.matched.has('a')).toBe(false)
+    expect(result.statuses.get('a')).toBe('missing')
   })
 
-  it('falls back to source root, path, size, and mtime', () => {
+  it('matches on path, size, and mtime', () => {
     const entries: ScannedEntry[] = [
       { relativePath: 'album/a.jpg', byteSize: 10, mtimeMs: 5 },
     ]
@@ -56,6 +62,26 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
+    expect(result.matched.get('a')).toEqual(entries[0])
+    expect(result.statuses.get('a')).toBe('ok')
+  })
+
+  it('matches path size mtime across a different source root (relink)', () => {
+    const entries: ScannedEntry[] = [
+      { relativePath: 'shot.jpg', byteSize: 4, mtimeMs: 42 },
+    ]
+    const result = matchAssets(
+      {
+        a: {
+          sourceRootId: 'old-root',
+          relativePath: 'shot.jpg',
+          byteSize: 4,
+          mtimeMs: 42,
+        },
+      },
+      entries,
+      { sourceRootId: 'relink-new' },
+    )
     expect(result.matched.get('a')).toEqual(entries[0])
     expect(result.statuses.get('a')).toBe('ok')
   })
@@ -90,7 +116,7 @@ describe('matchAssets', () => {
     expect(result.statuses.get('a')).toBe('missing')
   })
 
-  it('reports modified when same path differs in size mtime and hash', () => {
+  it('reports modified when same path differs in size or mtime', () => {
     const entries: ScannedEntry[] = [
       {
         relativePath: 'album/a.jpg',
@@ -98,28 +124,6 @@ describe('matchAssets', () => {
         mtimeMs: 9,
         contentHash: HASH_B,
       },
-    ]
-
-    const result = matchAssets(
-      {
-        a: {
-          sourceRootId: 'root',
-          relativePath: 'album/a.jpg',
-          byteSize: 10,
-          mtimeMs: 5,
-          contentHash: HASH_A,
-        },
-      },
-      entries,
-      { sourceRootId: 'root' },
-    )
-
-    expect(result.statuses.get('a')).toBe('modified')
-  })
-
-  it('reports modified when path matches size mtime differ without both hashes', () => {
-    const entries: ScannedEntry[] = [
-      { relativePath: 'album/a.jpg', byteSize: 99, mtimeMs: 9 },
     ]
 
     const result = matchAssets(
@@ -169,7 +173,7 @@ describe('matchAssets', () => {
     expect(sameMtime.statuses.get('a')).toBe('modified')
   })
 
-  it('matches each hashed entry at most once', () => {
+  it('does not match hash-only records without path metadata', () => {
     const entries: ScannedEntry[] = [
       {
         relativePath: 'one.jpg',
@@ -188,11 +192,11 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
-    expect(result.matched.size).toBe(1)
-    expect(result.unmatchedAssetIds).toHaveLength(1)
+    expect(result.matched.size).toBe(0)
+    expect(result.unmatchedAssetIds).toEqual(['a', 'b'])
   })
 
-  it('does not metadata-match across different source roots', () => {
+  it('metadata-matches across different source roots for relink', () => {
     const entries: ScannedEntry[] = [
       { relativePath: 'album/a.jpg', byteSize: 10, mtimeMs: 5 },
     ]
@@ -210,9 +214,8 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
-    expect(result.matched.size).toBe(0)
-    expect(result.unmatchedAssetIds).toEqual(['a'])
-    expect(result.statuses.has('a')).toBe(false)
+    expect(result.matched.get('a')).toEqual(entries[0])
+    expect(result.statuses.get('a')).toBe('ok')
   })
 
   it('reports ok for path+size+mtime when record has no sourceRootId', () => {
@@ -232,11 +235,11 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
-    expect(result.matched.size).toBe(0)
+    expect(result.matched.get('a')).toEqual(entries[0])
     expect(result.statuses.get('a')).toBe('ok')
   })
 
-  it('reports ok when path size mtime differ but hashes match after another asset took the hash pair', () => {
+  it('does not treat matching hashes as ok when size and mtime differ', () => {
     const entries: ScannedEntry[] = [
       {
         relativePath: 'album/a.jpg',
@@ -248,7 +251,6 @@ describe('matchAssets', () => {
 
     const result = matchAssets(
       {
-        taken: { contentHash: HASH_A },
         a: {
           sourceRootId: 'root',
           relativePath: 'album/a.jpg',
@@ -261,9 +263,8 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
-    expect(result.matched.get('taken')).toEqual(entries[0])
     expect(result.matched.has('a')).toBe(false)
-    expect(result.statuses.get('a')).toBe('ok')
+    expect(result.statuses.get('a')).toBe('modified')
   })
 
   it('skips status for empty records with no identity fields', () => {
@@ -271,7 +272,7 @@ describe('matchAssets', () => {
     expect(result.statuses.has('empty')).toBe(false)
   })
 
-  it('reports modified when neither side has a hash and size/mtime differ', () => {
+  it('reports modified when size and mtime differ', () => {
     const result = matchAssets(
       {
         a: {
@@ -287,27 +288,7 @@ describe('matchAssets', () => {
     expect(result.statuses.get('a')).toBe('modified')
   })
 
-  it('reports ok when size and mtime match even without hashes', () => {
-    const entries: ScannedEntry[] = [
-      { relativePath: 'album/a.jpg', byteSize: 10, mtimeMs: 5 },
-    ]
-    const result = matchAssets(
-      {
-        a: {
-          sourceRootId: 'root',
-          relativePath: 'album/a.jpg',
-          byteSize: 10,
-          mtimeMs: 5,
-        },
-      },
-      entries,
-      { sourceRootId: 'root' },
-    )
-    expect(result.matched.get('a')).toEqual(entries[0])
-    expect(result.statuses.get('a')).toBe('ok')
-  })
-
-  it('skips status for records that only have an empty contentHash skip path', () => {
+  it('skips status when relativePath is absent', () => {
     const result = matchAssets(
       {
         a: { contentHash: undefined, relativePath: undefined },
@@ -316,34 +297,6 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
     expect(result.statuses.has('a')).toBe(false)
-  })
-
-  it('does not reuse a used hashed entry for a second record', () => {
-    const entries: ScannedEntry[] = [
-      {
-        relativePath: 'one.jpg',
-        byteSize: 1,
-        mtimeMs: 1,
-        contentHash: HASH_A,
-      },
-      {
-        relativePath: 'two.jpg',
-        byteSize: 2,
-        mtimeMs: 2,
-        contentHash: HASH_A,
-      },
-    ]
-    const result = matchAssets(
-      {
-        a: { contentHash: HASH_A },
-        b: { contentHash: HASH_A },
-      },
-      entries,
-      { sourceRootId: 'root' },
-    )
-    expect(result.matched.size).toBe(2)
-    expect(result.matched.get('a')).toEqual(entries[0])
-    expect(result.matched.get('b')).toEqual(entries[1])
   })
 
   it('skips metadata match when relativePath byteSize or mtimeMs is missing', () => {

@@ -106,7 +106,9 @@ test('relink problem list scrolls inside the named scrollport', async ({
   await assertNamedScrollport(page, 'relink-list', { axis: 'vertical' })
 })
 
-test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
+test('rescan by metadata then Resolve clears missing pill', async ({
+  page,
+}) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')
   await expect(page.getByTestId('create-book')).toBeEnabled({
@@ -153,15 +155,14 @@ test('rescan by hash then Resolve clears missing pill', async ({ page }) => {
     .getByTestId('relink-folder-input')
     .setInputFiles(photoFixturePaths.samplePng)
 
-  await expect(page.getByTestId('relink-row').first()).toHaveAttribute(
-    'data-status',
-    'found',
-    { timeout: 60_000 },
-  )
+  // Successful path+size+mtime match drops the row from the problems list and
+  // enables Resolve via the found set (same as pre-list-first hash match).
+  await expect(page.getByTestId('relink-resolve')).toBeEnabled({
+    timeout: 60_000,
+  })
   await expect(page.getByTestId('relink-scan-progress')).toHaveCount(0, {
     timeout: 30_000,
   })
-  await expect(page.getByTestId('relink-resolve')).toBeEnabled()
 
   await page.getByTestId('relink-resolve').click()
   await expect(page.getByTestId('relink-dialog')).toHaveCount(0, {

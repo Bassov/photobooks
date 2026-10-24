@@ -151,6 +151,41 @@ test('imports PNG into the filmstrip via directory picker', async ({
   await expect(page.getByTestId('filmstrip-count')).toContainText('1 photo')
 })
 
+test('list-first folder pick shows gallery placeholders before all thumbs', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  const { files } = writeBulkImportFixtureSet(48)
+  await openSessionEditor(page)
+  // Slow decode so list-enqueue placeholders stay visible after count hits 48.
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 })
+  try {
+    const sawListFirst = page.waitForFunction(() => {
+      const count = document
+        .querySelector('[data-testid="filmstrip"]')
+        ?.getAttribute('data-gallery-count')
+      if (count !== '48') {
+        return false
+      }
+      return (
+        document.querySelector('[data-testid="filmstrip-placeholder"]') !== null
+      )
+    })
+    await pickPhotoFolder(page, files, { via: 'picker' })
+    await sawListFirst
+    await expect(page.getByTestId('filmstrip-count')).toContainText(
+      '48 photos',
+      {
+        timeout: 60_000,
+      },
+    )
+  } finally {
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+  }
+  await assertDocumentFitsViewport(page)
+})
+
 test('portrait and landscape cards differ; thumbs use contain', async ({
   page,
 }) => {

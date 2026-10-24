@@ -301,6 +301,24 @@ export function getGalleryIdsSnapshot(): readonly string[] {
   return state.book.gallery
 }
 
+/** Relative path → asset id for flushed gallery plus still-pending enqueue records. */
+export function getGalleryRelativePathIndex(): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const assetId of state.book.gallery) {
+    const path = state.book.assets[assetId]?.relativePath
+    if (typeof path === 'string' && path !== '') {
+      map.set(path, assetId)
+    }
+  }
+  for (const [assetId, asset] of pendingAssetRecords) {
+    const path = asset.relativePath
+    if (typeof path === 'string' && path !== '') {
+      map.set(path, assetId)
+    }
+  }
+  return map
+}
+
 export function getSpacerCountSnapshot(): number {
   return Math.max(state.book.gallery.length, state.importExpectedCount)
 }
