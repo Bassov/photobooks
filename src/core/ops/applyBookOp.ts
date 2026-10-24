@@ -1,13 +1,18 @@
 import type { Book } from '../schema'
 import { applyTemplate } from '../templates/apply'
 import type { TemplateId } from '../templates/types'
-import { addToGallery, removeFromGallery } from './gallery'
+import {
+  addToGallery,
+  removeFromGallery,
+  removeManyFromGallery,
+} from './gallery'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { addSpread, moveSpread, removeSpread } from './spreads'
 
 export type BookOp =
   | { type: 'addToGallery'; assetIds: readonly string[] }
   | { type: 'removeFromGallery'; assetId: string }
+  | { type: 'removeManyFromGallery'; assetIds: readonly string[] }
   | {
       type: 'place'
       spreadId: string
@@ -44,6 +49,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return addToGallery(book, op.assetIds)
     case 'removeFromGallery':
       return removeFromGallery(book, op.assetId)
+    case 'removeManyFromGallery':
+      return removeManyFromGallery(book, op.assetIds)
     case 'place':
       return placeAsset(book, op.spreadId, op.frameId, op.assetId)
     case 'replace':

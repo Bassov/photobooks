@@ -19,6 +19,7 @@ import {
   mintAssetId,
   patchAssetRecord,
   removeFailedImportAsset,
+  removeFailedImportAssets,
   resetBookStore,
   setAssetSessionMeta,
   setImportRunning,
@@ -296,6 +297,39 @@ describe('bookStore', () => {
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     })
     expect(getBookStoreSnapshot().book.assets['flushed-fail']).toBeUndefined()
+  })
+
+  it('removeFailedImportAssets clears many flushed ids with one gallery notify', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'batch-a', meta: sessionFile('a.jpg') },
+      { assetId: 'batch-b', meta: sessionFile('b.jpg') },
+      { assetId: 'batch-keep', meta: sessionFile('keep.jpg') },
+    ])
+    expect(getGalleryIdsSnapshot()).toEqual([
+      'batch-a',
+      'batch-b',
+      'batch-keep',
+    ])
+
+    let galleryNotifies = 0
+    const unsubscribe = subscribeGallery(() => {
+      galleryNotifies += 1
+    })
+    removeFailedImportAssets(['batch-a', 'batch-b', 'batch-a'])
+    unsubscribe()
+
+    expect(galleryNotifies).toBe(1)
+    expect(getGalleryIdsSnapshot()).toEqual(['batch-keep'])
+    expect(getBookStoreSnapshot().sessionMeta.has('batch-a')).toBe(false)
+    expect(getBookStoreSnapshot().sessionMeta.has('batch-b')).toBe(false)
+    expect(getBookStoreSnapshot().sessionMeta.has('batch-keep')).toBe(true)
   })
 
   it('removeFailedImportAsset is a no-op for an unknown id and reset clears the drop guard', () => {

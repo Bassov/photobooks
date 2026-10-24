@@ -11,6 +11,7 @@ import {
   placeAsset,
   placementCountByAsset,
   removeFromGallery,
+  removeManyFromGallery,
   removeSpread,
   replaceAsset,
   resolveAddSpreadTemplateId,
@@ -52,6 +53,31 @@ describe('gallery ops', () => {
   it('removeFromGallery no-ops for unknown asset', () => {
     const book = makeBook()
     expect(removeFromGallery(book, 'missing')).toBe(book)
+  })
+
+  it('removeManyFromGallery drops several assets and cascaded placements once', () => {
+    let book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [makeFrame({ id: 'f1' }), makeFrame({ id: 'f2', z: 1 })],
+        }),
+      ],
+    })
+    book = addToGallery(book, ['a', 'b', 'c'])
+    book = placeAsset(book, 'spread-1', 'f1', 'a')
+    book = placeAsset(book, 'spread-1', 'f2', 'b')
+    const next = removeManyFromGallery(book, ['a', 'b', 'missing'])
+    expect(next.gallery).toEqual(['c'])
+    expect(next.assets).toEqual({ c: {} })
+    expect(next.spreads[0]?.frames[0]?.assetId).toBeUndefined()
+    expect(next.spreads[0]?.frames[1]?.assetId).toBeUndefined()
+    expect(checkBookInvariants(next).ok).toBe(true)
+  })
+
+  it('removeManyFromGallery no-ops for empty or unknown ids', () => {
+    const book = addToGallery(makeBook(), ['keep'])
+    expect(removeManyFromGallery(book, [])).toBe(book)
+    expect(removeManyFromGallery(book, ['missing'])).toBe(book)
   })
 })
 

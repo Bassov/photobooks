@@ -76,8 +76,9 @@ async function pickPhotoFolder(
   },
 ): Promise<void> {
   if (options?.replaceFolder) {
-    page.once('dialog', (dialog) => {
-      void dialog.accept()
+    // Native confirm is sync; Playwright dialog IPC is not product latency.
+    await page.evaluate(() => {
+      window.confirm = () => true
     })
   }
   const list = typeof paths === 'string' ? [paths] : paths
@@ -93,8 +94,8 @@ async function pickPhotoFolderStub(
   options?: { replaceFolder?: boolean },
 ): Promise<void> {
   if (options?.replaceFolder) {
-    page.once('dialog', (dialog) => {
-      void dialog.accept()
+    await page.evaluate(() => {
+      window.confirm = () => true
     })
   }
   await queuePhotoDirectoryPicker(page, files)
@@ -1062,22 +1063,24 @@ test.describe('library re-import async', () => {
       const files = writeBulkImportFixtures(200)
 
       // --- Session path baseline under the same CPU throttle as re-import ---
+      // Warm fixture bytes in the OS page cache so the timed baseline is not a
+      // cold-disk first hit while later re-import pays a warm setInputFiles cost.
+      for (const filePath of files) {
+        readFileSync(filePath)
+      }
       await enablePerfScenario(page)
       await clearPerfScenario(page)
-      const sessionStart = Date.now()
+      // Same progressive signal as re-import (Importing), not first-card decode.
+      const sessionStart = performance.now()
       await pickPhotoFolder(page, files)
-      await expect
-        .poll(
-          async () =>
-            Number(
-              (await page
-                .getByTestId('filmstrip')
-                .getAttribute('data-gallery-count')) ?? '0',
-            ),
-          { timeout: 60_000 },
-        )
-        .toBeGreaterThan(0)
-      const sessionFirstCardMs = Date.now() - sessionStart
+      await expect(page.getByTestId('import-progress')).toBeVisible({
+        timeout: 30_000,
+      })
+      await expect(page.getByTestId('import-progress')).toContainText(
+        'Importing',
+        { timeout: 30_000 },
+      )
+      const sessionFirstCardMs = performance.now() - sessionStart
       await expect
         .poll(
           async () =>
@@ -1183,7 +1186,7 @@ test.describe('library re-import async', () => {
       // Re-import: gallery is already full; progressive start = progress bar
       // (comparable to session empty→first card). Thumbs restore separately.
       await clearPerfScenario(page)
-      const reimportStart = Date.now()
+      const reimportStart = performance.now()
       await pickPhotoFolder(page, files, { replaceFolder: true })
 
       await expect(page.getByTestId('import-progress')).toBeVisible({
@@ -1193,7 +1196,7 @@ test.describe('library re-import async', () => {
         'Importing',
         { timeout: 30_000 },
       )
-      const reimportFirstCardMs = Date.now() - reimportStart
+      const reimportFirstCardMs = performance.now() - reimportStart
 
       // Scroll-during-re-import while progress is still up (Done-when / Perf).
       await beginFilmstripLoafScrollWindow(page)
@@ -1204,7 +1207,7 @@ test.describe('library re-import async', () => {
       await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible({
         timeout: 60_000,
       })
-      const reimportFirstThumbMs = Date.now() - reimportStart
+      const reimportFirstThumbMs = performance.now() - reimportStart
 
       await expect
         .poll(
@@ -1253,11 +1256,10 @@ test.describe('library re-import async', () => {
         timeout: 60_000,
       })
 
-      // Change photo folder clears the prior root before import progress; allow
-      // headroom vs the empty-session first-card baseline (was 1.5× for append).
+      // Change-folder clear + bind vs empty-session Importing (same signal).
       expect(
         reimportFirstCardMs,
-        `re-import progress ${String(reimportFirstCardMs)}ms > 2× session first card ${String(sessionFirstCardMs)}ms`,
+        `re-import progress ${String(reimportFirstCardMs)}ms > 2× session progressive ${String(sessionFirstCardMs)}ms`,
       ).toBeLessThanOrEqual(sessionFirstCardMs * 2 + 1)
       // setInputFiles has no Event Timing; click supplies INP for the gate snapshot.
       await page.getByTestId('filmstrip-item').first().click({ delay: 20 })

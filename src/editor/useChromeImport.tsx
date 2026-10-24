@@ -5,6 +5,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
+import { flushSync } from 'react-dom'
 import { directoryHandleFromFiles } from '../photo/directoryHandleFromFiles'
 import {
   canUseDirectoryPicker,
@@ -22,6 +23,7 @@ import {
 } from './importErrorToast'
 import { appendImportErrors, openImportErrorsPanel } from './importErrorsStore'
 import type { ImportProgress } from './importPhotos'
+import { setImportRunning } from './bookStore'
 import {
   getProjectSessionSnapshot,
   isLibraryBacked,
@@ -30,6 +32,7 @@ import {
 import { runChromeImport } from './runChromeImport'
 import {
   bindPhotoFolder,
+  clearBoundPhotoFolderForReplace,
   getPhotoRootSessionSnapshot,
   persistBoundPhotoFolder,
   photoFolderActionLabel,
@@ -111,19 +114,48 @@ export function useChromeImport(options: {
     files: readonly File[],
     replace: boolean,
   ): Promise<void> => {
-    const { sourceRootId } = await bindPhotoFolder({
-      directory,
-      replace,
-      // Import first; persist IDB + register FSA after so library seed/scroll
-      // matches the prior setInputFiles frame-budget path.
-      persist: false,
-      registerSource: false,
-    })
+    // Change-folder: clear the prior gallery first, then paint Importing on the
+    // empty strip so progressive start is not blocked by a full-filmstrip commit.
+    const earlyProgress = replace && files.length > 0
+    const priorRootCleared = replace
+      ? clearBoundPhotoFolderForReplace()
+      : Promise.resolve()
+    if (earlyProgress) {
+      flushSync(() => {
+        setImportRunning(true, files.length)
+        options.onImportProgress({
+          total: files.length,
+          completed: 0,
+          errors: [],
+          running: true,
+        })
+      })
+    }
+    setPickerBusy(true)
     try {
-      await runFolderImport(files, sourceRootId)
+      const { sourceRootId } = await bindPhotoFolder({
+        directory,
+        replace: false,
+        // Import first; persist IDB + register FSA after so library seed/scroll
+        // matches the prior setInputFiles frame-budget path.
+        persist: false,
+        registerSource: false,
+      })
+      try {
+        await runFolderImport(files, sourceRootId)
+      } finally {
+        await priorRootCleared
+        await persistBoundPhotoFolder(sourceRootId, directory)
+        registerBoundPhotoFolderSource(sourceRootId, directory)
+      }
+    } catch (error) {
+      if (earlyProgress) {
+        setImportRunning(false)
+        options.onImportProgress(null)
+      }
+      throw error
     } finally {
-      await persistBoundPhotoFolder(sourceRootId, directory)
-      registerBoundPhotoFolderSource(sourceRootId, directory)
+      setPickerBusy(false)
     }
   }
 
@@ -141,19 +173,20 @@ export function useChromeImport(options: {
       }
     }
     setPickerBusy(true)
+    let picked: Awaited<ReturnType<typeof pickFolderWithDirectoryPicker>> = null
     try {
-      const picked = await pickFolderWithDirectoryPicker()
-      if (picked === null) {
-        return
-      }
-      await importPickedFolder(
-        picked.directory,
-        picked.files,
-        photoRoot.hasPhotoFolder,
-      )
+      picked = await pickFolderWithDirectoryPicker()
     } finally {
       setPickerBusy(false)
     }
+    if (picked === null) {
+      return
+    }
+    await importPickedFolder(
+      picked.directory,
+      picked.files,
+      photoRoot.hasPhotoFolder,
+    )
   }
 
   const onE2eFolderInputChange = async (
@@ -171,13 +204,8 @@ export function useChromeImport(options: {
         return
       }
     }
-    setPickerBusy(true)
-    try {
-      const directory = directoryHandleFromFiles(files)
-      await importPickedFolder(directory, files, photoRoot.hasPhotoFolder)
-    } finally {
-      setPickerBusy(false)
-    }
+    const directory = directoryHandleFromFiles(files)
+    await importPickedFolder(directory, files, photoRoot.hasPhotoFolder)
   }
 
   // E2E-only: plain multi-file input (not webkitdirectory) so Playwright can

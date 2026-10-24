@@ -14,7 +14,7 @@ import {
   getRegisteredAssetSource,
   registerAssetSource,
 } from './assetSourceRegistry'
-import { getBookStoreSnapshot, removeFailedImportAsset } from './bookStore'
+import { getBookStoreSnapshot, removeFailedImportAssets } from './bookStore'
 
 export type PhotoAccessPhase = 'idle' | 'permission-required'
 
@@ -182,29 +182,66 @@ export function registerBoundPhotoFolderSource(
   registerGrantedRoot(sourceRootId, directory)
 }
 
+function clearGalleryAssetsForRoot(rootId: string): void {
+  const { book } = getBookStoreSnapshot()
+  const toRemove = book.gallery.filter(
+    (assetId) => book.assets[assetId]?.sourceRootId === rootId,
+  )
+  removeFailedImportAssets(toRemove)
+}
+
+/**
+ * Clear the prior photo folder binding (gallery + IDB). Call after Importing is
+ * already painted so virtualizer teardown does not block progressive start.
+ */
+export function clearBoundPhotoFolderForReplace(): Promise<void> {
+  return clearBoundPhotoFolder({ clearGalleryAssets: true })
+}
+
 async function clearBoundPhotoFolder(options?: {
   clearGalleryAssets?: boolean
 }): Promise<void> {
   const bookId = bookKey()
-  const existing = await getBookPhotoRoot(bookId)
-  if (existing.ok) {
-    const rootId = existing.value.sourceRootId
-    if (options?.clearGalleryAssets === true) {
-      const { book } = getBookStoreSnapshot()
-      const toRemove = book.gallery.filter(
-        (assetId) => book.assets[assetId]?.sourceRootId === rootId,
-      )
-      for (const assetId of toRemove) {
-        removeFailedImportAsset(assetId)
-      }
-    }
-    await clearSourceRootHandle(rootId)
-    await clearBookPhotoRoot(bookId)
+  const memoryRootId = boundSourceRootId
+
+  // Sync batch-clear from the in-memory root before any IDB await so
+  // Change-folder progressive import is not blocked by handle recall.
+  if (options?.clearGalleryAssets === true && memoryRootId !== null) {
+    clearGalleryAssetsForRoot(memoryRootId)
   }
-  boundSourceRootId = null
-  photoFolderLabel = null
-  photoAccessPhase = 'idle'
-  emit()
+
+  // Drop memory binding before yielding so callers can assign a new root while
+  // IDB deletes run. Do not null again after await — that would clobber rebind.
+  if (memoryRootId !== null) {
+    boundSourceRootId = null
+    photoFolderLabel = null
+    photoAccessPhase = 'idle'
+    emit()
+  }
+
+  const existing = await getBookPhotoRoot(bookId)
+  if (
+    options?.clearGalleryAssets === true &&
+    memoryRootId === null &&
+    existing.ok
+  ) {
+    clearGalleryAssetsForRoot(existing.value.sourceRootId)
+  }
+
+  if (existing.ok) {
+    await Promise.all([
+      clearSourceRootHandle(existing.value.sourceRootId),
+      clearBookPhotoRoot(bookId),
+    ])
+  } else if (memoryRootId !== null) {
+    await clearSourceRootHandle(memoryRootId)
+  }
+
+  if (boundSourceRootId === null) {
+    photoFolderLabel = null
+    photoAccessPhase = 'idle'
+    emit()
+  }
 }
 
 /**
