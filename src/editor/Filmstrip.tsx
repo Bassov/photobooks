@@ -9,10 +9,7 @@ import {
 } from 'react'
 import { GridList } from 'react-aria-components'
 import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
-import {
-  getImportProgress,
-  subscribeImportProgress,
-} from './importProgressStore'
+import { shouldCommitFilmstripScroll } from './filmstripScrollCommit'
 import { noteFilmstripScroll } from './thumbCache'
 import { installFilmstripUnplaceWhenMounted } from './filmstripUnplaceMount'
 import { scheduleFilmstripVisibleSync } from './filmstripVisibleSync'
@@ -78,15 +75,12 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const scrollRef = useRef<HTMLDivElement>(null)
   const pendingScrollLeft = useRef(0)
   const scrollRaf = useRef(0)
+  const committedWindowStart = useRef(0)
+  const prefixRef = useRef<readonly number[]>([0])
   const total = gallery.length
-  const importProgress = useSyncExternalStore(
-    subscribeImportProgress,
-    getImportProgress,
-    getImportProgress,
-  )
-  const importRunning = importProgress?.running === true
 
   const prefix = useMemo(() => buildStridePrefix(aspects), [aspects])
+  prefixRef.current = prefix
   const spacerWidth = useMemo(
     () => spacerWidthPx(aspects, spacerCount),
     [aspects, spacerCount],
@@ -115,10 +109,9 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     () => indexFromScrollOffset(scrollLeft, prefix),
     [prefix, scrollLeft],
   )
+  committedWindowStart.current = windowStart
 
-  // During import+scroll, skip overscan so each scroll tick remounts fewer tiles.
-  const coverPx =
-    Math.max(viewportWidth, 1) + (importRunning ? 0 : WINDOW_OVERSCAN_PX)
+  const coverPx = Math.max(viewportWidth, 1) + WINDOW_OVERSCAN_PX
   const windowSize = Math.max(
     windowCountForCover(prefix, windowStart, coverPx),
     1,
@@ -179,7 +172,16 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     }
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
-      setScrollLeft(pendingScrollLeft.current)
+      const nextLeft = pendingScrollLeft.current
+      if (
+        shouldCommitFilmstripScroll(
+          nextLeft,
+          prefixRef.current,
+          committedWindowStart.current,
+        )
+      ) {
+        setScrollLeft(nextLeft)
+      }
     })
   }
 
