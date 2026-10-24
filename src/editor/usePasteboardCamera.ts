@@ -244,6 +244,11 @@ export function usePasteboardCamera({
   const pointerOverPasteboardRef = useRef(false)
   /** Last pointer client point for hover recovery when enter was missed. */
   const lastPointerClientRef = useRef<{ x: number; y: number } | null>(null)
+  /**
+   * Focus target whose Space activation was deferred while pan was armed.
+   * Cleared when a pasteboard Space-drag starts; clicked on Space keyup otherwise.
+   */
+  const pendingSpaceActivationRef = useRef<HTMLElement | null>(null)
   const panRef = useRef<{
     id: number
     x: number
@@ -548,6 +553,8 @@ export function usePasteboardCamera({
       }
       if (spaceRef.current) {
         event.preventDefault()
+        // A real pasteboard drag wins over deferred chrome Space activation.
+        pendingSpaceActivationRef.current = null
         panRef.current = {
           id: event.pointerId,
           x: event.clientX,
@@ -696,7 +703,9 @@ export function usePasteboardCamera({
       if (event.code === 'Space' || event.key === ' ') {
         // Capture-phase: filmstrip GridListItem rows consume Space before bubble.
         // Steal Space only while the pointer is over the pasteboard so keyboard
-        // activation still works when the pointer is elsewhere.
+        // activation still works when the pointer is elsewhere. When stolen,
+        // defer activation of the focused control until keyup unless a
+        // pasteboard Space-drag starts (PB-04b).
         if (!event.repeat) {
           spaceHeldRef.current = true
         }
@@ -710,6 +719,17 @@ export function usePasteboardCamera({
         event.preventDefault()
         event.stopPropagation()
         syncSpacePanArm()
+        if (!event.repeat) {
+          const active = document.activeElement
+          const port = scrollRef.current
+          // Only chrome outside the scrollport (filmstrip tiles, camera bar, …).
+          pendingSpaceActivationRef.current =
+            active instanceof HTMLElement &&
+            !isTextField(active) &&
+            (port === null || (active !== port && !port.contains(active)))
+              ? active
+              : null
+        }
         return
       }
       const direction = zoomDirection(event)
@@ -764,6 +784,11 @@ export function usePasteboardCamera({
         if (panRef.current !== null) {
           panRef.current = null
           releasePanGesture()
+        }
+        const pending = pendingSpaceActivationRef.current
+        pendingSpaceActivationRef.current = null
+        if (pending !== null && document.contains(pending)) {
+          pending.click()
         }
       }
     }

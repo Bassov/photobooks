@@ -26,8 +26,12 @@ describe('loafObserver', () => {
     interface List {
       getEntries: () => PerformanceEntry[]
     }
-    const captured: { callback: ((list: List) => void) | null } = {
+    const captured: {
+      callback: ((list: List) => void) | null
+      buffered: PerformanceEntry[]
+    } = {
       callback: null,
+      buffered: [],
     }
 
     class MockPerformanceObserver {
@@ -41,6 +45,12 @@ describe('loafObserver', () => {
 
       disconnect(): void {
         // no-op
+      }
+
+      takeRecords(): PerformanceEntry[] {
+        const drained = captured.buffered
+        captured.buffered = []
+        return drained
       }
     }
 
@@ -75,6 +85,214 @@ describe('loafObserver', () => {
 
     stopLoafObserver()
     expect(isLoafObserving()).toBe(false)
+  })
+
+  it('clearLoafEntries drains takeRecords then drops them from the window', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: {
+      callback: ((list: List) => void) | null
+      buffered: PerformanceEntry[]
+    } = {
+      callback: null,
+      buffered: [],
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+
+      takeRecords(): PerformanceEntry[] {
+        const drained = captured.buffered
+        captured.buffered = []
+        return drained
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    startLoafObserver()
+    captured.buffered = [
+      {
+        startTime: performance.now() - 10,
+        duration: 60,
+        blockingDuration: 0,
+      } as PerformanceEntry & { blockingDuration: number },
+    ]
+
+    clearLoafEntries()
+    // Assert buffer drain before getLoafEntries (which also flushes).
+    expect(captured.buffered).toEqual([])
+    expect(getLoafEntries()).toEqual([])
+    assertNoLoafEntries()
+  })
+
+  it('getLoafEntries flushes takeRecords before returning', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: {
+      callback: ((list: List) => void) | null
+      buffered: PerformanceEntry[]
+    } = {
+      callback: null,
+      buffered: [],
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+
+      takeRecords(): PerformanceEntry[] {
+        const drained = captured.buffered
+        captured.buffered = []
+        return drained
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    startLoafObserver()
+    clearLoafEntries()
+    captured.buffered = [
+      {
+        startTime: performance.now() + 1,
+        duration: 55,
+        blockingDuration: 0,
+      } as PerformanceEntry & { blockingDuration: number },
+    ]
+
+    expect(getLoafEntries()).toEqual([
+      { startTime: expect.any(Number), duration: 55, blockingDuration: 0 },
+    ])
+  })
+
+  it('assertNoLoafEntries flushes takeRecords before counting', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: {
+      callback: ((list: List) => void) | null
+      buffered: PerformanceEntry[]
+    } = {
+      callback: null,
+      buffered: [],
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+
+      takeRecords(): PerformanceEntry[] {
+        const drained = captured.buffered
+        captured.buffered = []
+        return drained
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    startLoafObserver()
+    clearLoafEntries()
+    captured.buffered = [
+      {
+        startTime: performance.now() + 1,
+        duration: 60,
+        blockingDuration: 12,
+      } as PerformanceEntry & { blockingDuration: number },
+    ]
+
+    expect(() => {
+      assertNoLoafEntries()
+    }).toThrow(/exceed max/)
+  })
+
+  it('ignores entries that started before the clear watermark', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: {
+      callback: ((list: List) => void) | null
+      buffered: PerformanceEntry[]
+    } = {
+      callback: null,
+      buffered: [],
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+
+      takeRecords(): PerformanceEntry[] {
+        const drained = captured.buffered
+        captured.buffered = []
+        return drained
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    vi.spyOn(performance, 'now').mockReturnValue(1_000)
+    startLoafObserver()
+    clearLoafEntries()
+
+    captured.callback?.({
+      getEntries: () => [
+        {
+          startTime: 999,
+          duration: 80,
+          blockingDuration: 0,
+        } as PerformanceEntry & { blockingDuration: number },
+        {
+          startTime: 1_000,
+          duration: 70,
+          blockingDuration: 5,
+        } as PerformanceEntry & { blockingDuration: number },
+        {
+          startTime: 1_001,
+          duration: 60,
+          blockingDuration: 8,
+        } as PerformanceEntry & { blockingDuration: number },
+      ],
+    })
+
+    expect(getLoafEntries()).toEqual([
+      { startTime: 1_000, duration: 70, blockingDuration: 5 },
+      { startTime: 1_001, duration: 60, blockingDuration: 8 },
+    ])
   })
 
   it('returns false when observe throws', () => {
@@ -135,6 +353,49 @@ describe('loafObserver', () => {
 
     expect(() => {
       assertNoLoafEntries()
-    }).toThrow(/exceed max/)
+    }).toThrow(/LoAF entries .* exceed max/)
+  })
+
+  it('counts LoAF entries with blockingDuration 0 toward the entry budget', () => {
+    interface List {
+      getEntries: () => PerformanceEntry[]
+    }
+    const captured: { callback: ((list: List) => void) | null } = {
+      callback: null,
+    }
+
+    class MockPerformanceObserver {
+      constructor(cb: (list: List) => void) {
+        captured.callback = cb
+      }
+
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    startLoafObserver()
+    clearLoafEntries()
+    captured.callback?.({
+      getEntries: () => [
+        {
+          startTime: performance.now() + 1,
+          duration: 80,
+          blockingDuration: 0,
+        } as PerformanceEntry & { blockingDuration: number },
+      ],
+    })
+
+    expect(getLoafEntries()).toEqual([
+      { startTime: expect.any(Number), duration: 80, blockingDuration: 0 },
+    ])
+    expect(() => {
+      assertNoLoafEntries()
+    }).toThrow(/LoAF entries .* exceed max/)
   })
 })

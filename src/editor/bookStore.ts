@@ -151,6 +151,28 @@ function emit(): void {
   }
 }
 
+/** Coalesce bookStore emits onto rAF while import is running (hash patches). */
+let emitCoalesceRaf: number | null = null
+
+function scheduleEmit(): void {
+  if (emitCoalesceRaf !== null) {
+    return
+  }
+  emitCoalesceRaf = requestAnimationFrame(() => {
+    emitCoalesceRaf = null
+    emit()
+  })
+}
+
+function flushScheduledEmit(): void {
+  if (emitCoalesceRaf === null) {
+    return
+  }
+  cancelAnimationFrame(emitCoalesceRaf)
+  emitCoalesceRaf = null
+  emit()
+}
+
 function emitGallery(): void {
   for (const listener of galleryListeners) {
     listener()
@@ -328,7 +350,13 @@ export function patchAssetRecord(assetId: string, patch: Partial<Asset>): void {
     },
   }
   notifyAffectedSpreads(prev, state)
-  emit()
+  // Library seed/hash can finish dozens of assets per turn; notify once per
+  // frame while import runs so scroll-during-import stays within the LoAF gate.
+  if (state.importRunning) {
+    scheduleEmit()
+  } else {
+    emit()
+  }
 }
 
 /** Filmstrip label: session file name when present, otherwise the asset id. */
@@ -503,6 +531,11 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
     importExpectedCount: running ? expectedCount : 0,
   }
   notifyAffectedSpreads(prev, state)
+  if (!running) {
+    // Import ended: deliver any coalesced hash-patch emit before the gallery
+    // notify so subscribers see the final asset map in the same turn.
+    flushScheduledEmit()
+  }
   emitGallery()
 }
 
@@ -733,10 +766,12 @@ export function resetBookStore(next?: BookStoreInit): void {
   pendingAssetPatches = new Map()
   droppedImportIds.clear()
   flushScheduled = false
-  if (flushWatchdogTimer !== undefined) {
-    clearTimeout(flushWatchdogTimer)
-    flushWatchdogTimer = undefined
+  if (emitCoalesceRaf !== null) {
+    cancelAnimationFrame(emitCoalesceRaf)
+    emitCoalesceRaf = null
   }
+  clearTimeout(flushWatchdogTimer)
+  flushWatchdogTimer = undefined
   placementCountsFor = null
   hasAnyPlacementFor = null
   assetSeq = 0
