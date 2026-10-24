@@ -1,10 +1,13 @@
 import type { ScannedEntry } from '../assets'
+import type { FolderManifestEntry } from '../project/session/sourceRootEntryIndex'
+import type { ExifOrientation } from '../photo/types'
 import { isAcceptedPhotoPath } from '../photo/pickPhotos'
 import {
   enqueueGalleryAssets,
   getBookStoreSnapshot,
   getGalleryRelativePathIndex,
   mintAssetId,
+  setAssetSessionMeta,
   setImportRunning,
 } from './bookStore'
 
@@ -22,17 +25,64 @@ export interface EnqueueScannedGalleryResult {
   skipped: readonly ScannedEntry[]
 }
 
+function dimsMeta(
+  name: string,
+  dims: FolderManifestEntry | undefined,
+): {
+  name: string
+  correctedWidth: number
+  correctedHeight: number
+  orientation: ExifOrientation
+  aspect: number
+} {
+  const width = dims?.width
+  const height = dims?.height
+  if (width === undefined || height === undefined) {
+    return {
+      name,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      aspect: 1,
+    }
+  }
+  const orientation = (dims?.orientation ?? 1) as ExifOrientation
+  return {
+    name,
+    correctedWidth: width,
+    correctedHeight: height,
+    orientation,
+    aspect: width / Math.max(1, height),
+  }
+}
+
+function shouldRestoreAspect(
+  existingAspect: number | undefined,
+  dims: FolderManifestEntry | undefined,
+): boolean {
+  if (dims?.width === undefined || dims.height === undefined) {
+    return false
+  }
+  return existingAspect === undefined || existingAspect === 1
+}
+
 /**
  * List-first: enqueue gallery placeholders from cheap scan metadata before any
  * body/`getFile` work. Reuses existing gallery ids that share relativePath.
+ * Optional `dimsByPath` (from folder manifest) seeds aspect slots immediately.
  */
 export function enqueueScannedGalleryList(
   sourceRootId: string,
   scanned: readonly ScannedEntry[],
-  options?: { markImportRunning?: boolean },
+  options?: {
+    markImportRunning?: boolean
+    dimsByPath?: ReadonlyMap<string, FolderManifestEntry> | null
+  },
 ): EnqueueScannedGalleryResult {
   const book = getBookStoreSnapshot().book
   const byPath = getGalleryRelativePathIndex()
+  const dimsByPath = options?.dimsByPath ?? null
+  const sessionMeta = getBookStoreSnapshot().sessionMeta
 
   const enqueued: ScannedEntry[] = []
   const alreadyPresent: ScannedEntry[] = []
@@ -43,7 +93,7 @@ export function enqueueScannedGalleryList(
       name: string
       correctedWidth: number
       correctedHeight: number
-      orientation: 1
+      orientation: ExifOrientation
       aspect: number
     }
     asset: {
@@ -59,9 +109,18 @@ export function enqueueScannedGalleryList(
       skipped.push(entry)
       continue
     }
+    const dims = dimsByPath?.get(entry.relativePath)
     const existingId = byPath.get(entry.relativePath)
     if (existingId !== undefined) {
       alreadyPresent.push(entry)
+      // Restore aspect from manifest when sessionMeta was wiped on reload.
+      const existingMeta = sessionMeta.get(existingId)
+      if (shouldRestoreAspect(existingMeta?.aspect, dims)) {
+        setAssetSessionMeta(
+          existingId,
+          dimsMeta(existingMeta?.name ?? basename(entry.relativePath), dims),
+        )
+      }
       continue
     }
     const name = basename(entry.relativePath)
@@ -70,13 +129,7 @@ export function enqueueScannedGalleryList(
     enqueued.push(entry)
     toFlush.push({
       assetId,
-      meta: {
-        name,
-        correctedWidth: 1,
-        correctedHeight: 1,
-        orientation: 1,
-        aspect: 1,
-      },
+      meta: dimsMeta(name, dims),
       asset: {
         sourceRootId,
         relativePath: entry.relativePath,
@@ -97,4 +150,24 @@ export function enqueueScannedGalleryList(
   }
 
   return { enqueued, alreadyPresent, skipped }
+}
+
+/** Hydrate gallery from a persisted folder manifest before scanRoot resolves. */
+export function enqueueManifestGalleryList(
+  sourceRootId: string,
+  entries: Readonly<Record<string, FolderManifestEntry>>,
+  options?: { markImportRunning?: boolean },
+): EnqueueScannedGalleryResult {
+  const scanned: ScannedEntry[] = Object.entries(entries).map(
+    ([relativePath, meta]) => ({
+      relativePath,
+      byteSize: meta.byteSize,
+      mtimeMs: meta.mtimeMs,
+    }),
+  )
+  const dimsByPath = new Map(Object.entries(entries))
+  return enqueueScannedGalleryList(sourceRootId, scanned, {
+    markImportRunning: options?.markImportRunning ?? false,
+    dimsByPath,
+  })
 }

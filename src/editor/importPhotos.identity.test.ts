@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetScanWorker } from '../assets'
 import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
@@ -6,6 +7,7 @@ import {
   createMemoryLibraryStorage,
   createMemorySessionState,
 } from '../project'
+import { getSourceRootEntryIndex } from '../project/session/sourceRootEntryIndex'
 import {
   getBookStoreSnapshot,
   getGalleryIdsSnapshot,
@@ -107,6 +109,7 @@ function mockBatchPassthrough(): void {
 
 describe('importPhotoFiles library identity', () => {
   beforeEach(() => {
+    vi.stubGlobal('indexedDB', new IDBFactory())
     stubScanWorker()
     resetBookStore()
     resetProjectSessionForTests()
@@ -686,5 +689,65 @@ describe('importPhotoFiles library identity', () => {
       libraryBacked: false,
     })
     expect(awaitSpy).not.toHaveBeenCalled()
+  })
+
+  it('writes corrected dimensions into the folder manifest after decode', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        const results = items.map((item) => {
+          const result = {
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 640,
+            correctedHeight: 480,
+            orientation: 1,
+            previewBuffer: new ArrayBuffer(8),
+            previewMimeType: 'image/jpeg',
+          }
+          options?.onResult?.(result)
+          return result
+        })
+        return Promise.resolve({ results, errors: [] })
+      },
+    )
+
+    const file = tinyJpeg('dims.jpg', 1_700_000_000_111)
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-dims',
+    })
+
+    await vi.waitFor(async () => {
+      const manifest = await getSourceRootEntryIndex('root-dims')
+      expect(manifest.ok).toBe(true)
+      assert.ok(manifest.ok)
+      expect(manifest.value.entries['dims.jpg']).toEqual({
+        byteSize: file.size,
+        mtimeMs: file.lastModified,
+        width: 640,
+        height: 480,
+        orientation: 1,
+      })
+    })
   })
 })

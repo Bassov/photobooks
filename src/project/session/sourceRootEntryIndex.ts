@@ -2,9 +2,25 @@ import type { ScannedEntry } from '../../assets'
 import type { StorageFailure, StorageResult } from '../types'
 import { createSourceRootEntryIndexIdb, type SessionIdb } from './idb'
 
-/** Persisted cheap-scan index: relativePath → size/mtime. */
+/** Current folder-manifest schema version stored in IDB. */
+export const FOLDER_MANIFEST_VERSION = 1
+
+/** One folder entry: identity for cache keys + optional display dims. */
+export interface FolderManifestEntry {
+  byteSize: number
+  mtimeMs: number
+  width?: number
+  height?: number
+  orientation?: number
+}
+
+/**
+ * Persisted per-source-root folder manifest (path → size/mtime + optional dims).
+ * Formerly “entry index”; name kept for call-site stability.
+ */
 export interface SourceRootEntryIndex {
-  entries: Record<string, { byteSize: number; mtimeMs: number }>
+  version: number
+  entries: Record<string, FolderManifestEntry>
 }
 
 export interface EntryIndexDiff {
@@ -18,6 +34,9 @@ export interface SourceRootEntryIndexOptions {
   entryIndexIdb?: SessionIdb
 }
 
+/** Yield cadence when merging/writing large manifests (entries per turn). */
+const MANIFEST_PERSIST_CHUNK = 256
+
 function failure(code: StorageFailure['code']): StorageFailure {
   return { ok: false, code }
 }
@@ -30,11 +49,72 @@ function resolveIdb(options?: SourceRootEntryIndexOptions): SessionIdb {
   return options?.entryIndexIdb ?? createSourceRootEntryIndexIdb()
 }
 
-function parseIndex(value: unknown): SourceRootEntryIndex | null {
+function isPositiveInt(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function parseOrientation(value: unknown): number | undefined {
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > 8
+  ) {
+    return undefined
+  }
+  return value
+}
+
+function parseEntry(meta: unknown): FolderManifestEntry | null {
+  if (typeof meta !== 'object' || meta === null) {
+    return null
+  }
+  const row = meta as {
+    byteSize?: unknown
+    mtimeMs?: unknown
+    width?: unknown
+    height?: unknown
+    orientation?: unknown
+  }
+  if (!isFiniteNumber(row.byteSize) || !isFiniteNumber(row.mtimeMs)) {
+    return null
+  }
+  const entry: FolderManifestEntry = {
+    byteSize: row.byteSize,
+    mtimeMs: row.mtimeMs,
+  }
+  if (isPositiveInt(row.width) && isPositiveInt(row.height)) {
+    entry.width = row.width
+    entry.height = row.height
+  }
+  const orientation = parseOrientation(row.orientation)
+  if (orientation !== undefined) {
+    entry.orientation = orientation
+  }
+  return entry
+}
+
+/**
+ * Parse stored IDB value. Corrupt or unsupported version → null (rebuild).
+ * Legacy `{ entries }` without `version` is accepted as v1.
+ */
+export function parseFolderManifest(
+  value: unknown,
+): SourceRootEntryIndex | null {
   if (typeof value !== 'object' || value === null) {
     return null
   }
-  const record = value as { entries?: unknown }
+  const record = value as { version?: unknown; entries?: unknown }
+  if (
+    record.version !== undefined &&
+    record.version !== FOLDER_MANIFEST_VERSION
+  ) {
+    return null
+  }
   if (typeof record.entries !== 'object' || record.entries === null) {
     return null
   }
@@ -42,39 +122,47 @@ function parseIndex(value: unknown): SourceRootEntryIndex | null {
   for (const [path, meta] of Object.entries(
     record.entries as Record<string, unknown>,
   )) {
-    if (typeof meta !== 'object' || meta === null) {
+    if (path === '') {
       continue
     }
-    const row = meta as { byteSize?: unknown; mtimeMs?: unknown }
-    if (
-      typeof row.byteSize !== 'number' ||
-      !Number.isFinite(row.byteSize) ||
-      typeof row.mtimeMs !== 'number' ||
-      !Number.isFinite(row.mtimeMs)
-    ) {
+    const entry = parseEntry(meta)
+    if (entry === null) {
       continue
     }
-    entries[path] = { byteSize: row.byteSize, mtimeMs: row.mtimeMs }
+    entries[path] = entry
   }
-  return { entries }
+  return { version: FOLDER_MANIFEST_VERSION, entries }
 }
 
-/** Build a persistable index from a cheap scan (metadata only). */
+/** Build a persistable manifest from a cheap scan (metadata only). */
 export function entryIndexFromScanned(
   scanned: readonly ScannedEntry[],
+  previous?: SourceRootEntryIndex | null,
 ): SourceRootEntryIndex {
+  const prev = previous?.entries ?? {}
   const entries: SourceRootEntryIndex['entries'] = {}
   for (const entry of scanned) {
-    entries[entry.relativePath] = {
+    const prior = prev[entry.relativePath]
+    const next: FolderManifestEntry = {
       byteSize: entry.byteSize,
       mtimeMs: entry.mtimeMs,
     }
+    if (prior?.byteSize === entry.byteSize && prior.mtimeMs === entry.mtimeMs) {
+      if (prior.width !== undefined && prior.height !== undefined) {
+        next.width = prior.width
+        next.height = prior.height
+      }
+      if (prior.orientation !== undefined) {
+        next.orientation = prior.orientation
+      }
+    }
+    entries[entry.relativePath] = next
   }
-  return { entries }
+  return { version: FOLDER_MANIFEST_VERSION, entries }
 }
 
 /**
- * Diff a prior index against a fresh cheap scan.
+ * Diff a prior manifest against a fresh cheap scan.
  * Callers MUST still always walk; this never substitutes for scanRoot.
  */
 export function diffEntryIndex(
@@ -117,7 +205,7 @@ export async function getSourceRootEntryIndex(
     if (!stored.present) {
       return failure('not-found')
     }
-    const parsed = parseIndex(stored.value)
+    const parsed = parseFolderManifest(stored.value)
     if (parsed === null) {
       return failure('not-found')
     }
@@ -136,7 +224,11 @@ export async function putSourceRootEntryIndex(
     return failure('not-found')
   }
   try {
-    await resolveIdb(options).set(sourceRootId, index)
+    const payload: SourceRootEntryIndex = {
+      version: FOLDER_MANIFEST_VERSION,
+      entries: index.entries,
+    }
+    await resolveIdb(options).set(sourceRootId, payload)
     return success(undefined)
   } catch {
     return failure('not-found')
@@ -163,15 +255,95 @@ export async function clearSourceRootEntryIndex(
   }
 }
 
-/** Persist the latest cheap-scan metadata after a full walk. */
+export type YieldFn = () => Promise<void>
+
+/** Persist the latest cheap-scan metadata after a full walk (batched yields). */
 export async function persistScannedEntryIndex(
   sourceRootId: string,
   scanned: readonly ScannedEntry[],
+  options?: SourceRootEntryIndexOptions & {
+    yieldFn?: YieldFn
+  },
+): Promise<StorageResult<void>> {
+  const got = await getSourceRootEntryIndex(sourceRootId, options)
+  const prior = got.ok ? got.value : null
+  const yieldFn = options?.yieldFn ?? (() => Promise.resolve())
+  // Yield in chunks before the sync merge so large folders stay interruptible.
+  for (let i = 0; i < scanned.length; i += MANIFEST_PERSIST_CHUNK) {
+    await yieldFn()
+  }
+  const manifest = entryIndexFromScanned(scanned, prior)
+  await yieldFn()
+  return putSourceRootEntryIndex(sourceRootId, manifest, options)
+}
+
+/**
+ * Patch display dimensions for one path when decode completes.
+ * No-op when the path is missing or size/mtime no longer match.
+ */
+export async function patchManifestDimensions(
+  sourceRootId: string,
+  entry: {
+    relativePath: string
+    byteSize: number
+    mtimeMs: number
+    width: number
+    height: number
+    orientation: number
+  },
   options?: SourceRootEntryIndexOptions,
 ): Promise<StorageResult<void>> {
-  return putSourceRootEntryIndex(
-    sourceRootId,
-    entryIndexFromScanned(scanned),
-    options,
-  )
+  if (sourceRootId === '' || entry.relativePath === '') {
+    return failure('not-found')
+  }
+  if (
+    !isPositiveInt(entry.width) ||
+    !isPositiveInt(entry.height) ||
+    parseOrientation(entry.orientation) === undefined
+  ) {
+    return failure('not-found')
+  }
+  const got = await getSourceRootEntryIndex(sourceRootId, options)
+  if (!got.ok) {
+    // Seed a single-entry manifest so later scans can merge.
+    return putSourceRootEntryIndex(
+      sourceRootId,
+      {
+        version: FOLDER_MANIFEST_VERSION,
+        entries: {
+          [entry.relativePath]: {
+            byteSize: entry.byteSize,
+            mtimeMs: entry.mtimeMs,
+            width: entry.width,
+            height: entry.height,
+            orientation: entry.orientation,
+          },
+        },
+      },
+      options,
+    )
+  }
+  const prior = got.value.entries[entry.relativePath]
+  if (prior !== undefined) {
+    if (prior.byteSize !== entry.byteSize) {
+      return success(undefined)
+    }
+    if (prior.mtimeMs !== entry.mtimeMs) {
+      return success(undefined)
+    }
+  }
+  const next: SourceRootEntryIndex = {
+    version: FOLDER_MANIFEST_VERSION,
+    entries: {
+      ...got.value.entries,
+      [entry.relativePath]: {
+        byteSize: entry.byteSize,
+        mtimeMs: entry.mtimeMs,
+        width: entry.width,
+        height: entry.height,
+        orientation: entry.orientation,
+      },
+    },
+  }
+  return putSourceRootEntryIndex(sourceRootId, next, options)
 }

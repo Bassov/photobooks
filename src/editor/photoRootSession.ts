@@ -3,7 +3,12 @@ import {
   type AssetSource,
   type ScannedEntry,
 } from '../assets'
-import type { Asset, Book, Spread } from '../core'
+import {
+  placementCountByAsset,
+  type Asset,
+  type Book,
+  type Spread,
+} from '../core'
 import { retainAssetSource } from '../photo/assetSources'
 import { yieldForPaint } from './relink/yieldForPaint'
 import { resolveRelativeFile } from '../assets/resolveRelativeFile'
@@ -28,7 +33,10 @@ import {
   getSourceRootEntryIndex,
   persistScannedEntryIndex,
 } from '../project/session/sourceRootEntryIndex'
-import { enqueueScannedGalleryList } from './enqueueScannedGalleryList'
+import {
+  enqueueManifestGalleryList,
+  enqueueScannedGalleryList,
+} from './enqueueScannedGalleryList'
 import { isAcceptedPhotoPath } from '../photo/pickPhotos'
 import {
   getRegisteredAssetSource,
@@ -702,24 +710,56 @@ export async function startFolderRescan(options: {
       emitProgress(null)
       return
     }
-    // Always cheap full walk — never skip via count/max-mtime.
+    // Manifest-first: paint slots + identity thumbs before the walk finishes.
+    const prior = await getSourceRootEntryIndex(options.sourceRootId)
+    const priorManifest = prior.ok ? prior.value : null
+    if (priorManifest !== null) {
+      enqueueManifestGalleryList(options.sourceRootId, priorManifest.entries, {
+        markImportRunning: false,
+      })
+      await yieldForPaint()
+    }
+    // Always cheap full walk — never skip via count/max-mtime/manifest.
     const scannedResult = await source.scanRoot(options.sourceRootId)
     if (!scannedResult.ok) {
       emitProgress(null)
       return
     }
     const scanned = scannedResult.value
-    const prior = await getSourceRootEntryIndex(options.sourceRootId)
-    const indexDiff = diffEntryIndex(prior.ok ? prior.value : null, scanned)
-    await persistScannedEntryIndex(options.sourceRootId, scanned)
+    const indexDiff = diffEntryIndex(priorManifest, scanned)
+    // Re-read IDB inside persist so mid-session dim patches are not dropped.
+    await persistScannedEntryIndex(options.sourceRootId, scanned, {
+      yieldFn: yieldForPaint,
+    })
 
     const scannedByPath = new Map(
       scanned.map((entry) => [entry.relativePath, entry] as const),
     )
     // List-first: placeholders for accepted images not yet in gallery.
+    const dimsByPath =
+      priorManifest === null
+        ? null
+        : new Map(Object.entries(priorManifest.entries))
     enqueueScannedGalleryList(options.sourceRootId, scanned, {
       markImportRunning: false,
+      dimsByPath,
     })
+    // Drop gallery tiles whose paths disappeared from disk (keep placed).
+    if (indexDiff.removedPaths.length > 0) {
+      const { book } = getBookStoreSnapshot()
+      const placedCounts = placementCountByAsset(book)
+      const removedSet = new Set(indexDiff.removedPaths)
+      const toRemove = book.gallery.filter((assetId) => {
+        if ((placedCounts.get(assetId) ?? 0) > 0) {
+          return false
+        }
+        const path = book.assets[assetId]?.relativePath
+        return typeof path === 'string' && removedSet.has(path)
+      })
+      if (toRemove.length > 0) {
+        removeFailedImportAssets(toRemove)
+      }
+    }
 
     const book = getBookStoreSnapshot().book
     const prioritized = planRescanPriority({
