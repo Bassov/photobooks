@@ -17,16 +17,6 @@ import { resetPendingHashesForTests, awaitPendingHashes } from './pendingHashes'
 const putCachedThumbForHash = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const putCachedTierForHash = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 
-vi.mock('../assets', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../assets')>()
-  return {
-    ...actual,
-    hashContent: vi.fn(() =>
-      Promise.reject(new Error('hashContent must not run on seed path')),
-    ),
-  }
-})
-
 vi.mock('./thumbCache', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./thumbCache')>()
   return {
@@ -143,8 +133,6 @@ describe('seedLibraryImport', () => {
     expect(
       getBookStoreSnapshot().book.assets['asset-seed']?.contentHash,
     ).toBeUndefined()
-    const { hashContent } = await import('../assets')
-    expect(hashContent).not.toHaveBeenCalled()
   })
 
   it('seedAndHashEntry uses preloaded bytes without a second body read', async () => {
@@ -198,7 +186,5 @@ describe('seedLibraryImport', () => {
     )
     await awaitPendingHashes()
     expect(putCachedThumbForHash).toHaveBeenCalledOnce()
-    const { hashContent } = await import('../assets')
-    expect(hashContent).not.toHaveBeenCalled()
   })
 })

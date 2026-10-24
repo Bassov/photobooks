@@ -5,7 +5,6 @@
     "src/project/index.ts",
     "src/assets/index.ts",
     "src/photo/photo.worker.ts!",
-    "src/assets/hash.worker.ts!",
     "e2e/**/*.ts",
     "e2e/fixtures/*.{mjs,js}",
     "scripts/**/*.{mjs,js,cjs}",

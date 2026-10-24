@@ -14,16 +14,6 @@ import {
 } from './projectSession'
 import { resetPendingHashesForTests } from './pendingHashes'
 
-vi.mock('../assets', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../assets')>()
-  return {
-    ...actual,
-    hashContent: vi.fn(() =>
-      Promise.reject(new Error('hashContent must not run on adopt path')),
-    ),
-  }
-})
-
 describe('upgradeSessionAssetsForLibrary via adopt', () => {
   beforeEach(() => {
     resetBookStore()
@@ -82,8 +72,6 @@ describe('upgradeSessionAssetsForLibrary via adopt', () => {
     expect(rootId).toBeDefined()
     assert(rootId !== undefined)
     expect(getRegisteredAssetSource(rootId)).toBeDefined()
-    const { hashContent } = await import('../assets')
-    expect(hashContent).not.toHaveBeenCalled()
   })
 
   it('skips assets that already have complete identity', async () => {
