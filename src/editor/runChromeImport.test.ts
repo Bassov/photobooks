@@ -33,12 +33,37 @@ describe('runChromeImport', () => {
       source: 'folder',
       sourceRootId: 'root-fwd',
       libraryBacked: true,
+      awaitPriorHashes: false,
     })
     expect(importSpy).toHaveBeenCalledWith([file], {
       onProgress: expect.any(Function),
       source: 'folder',
       sourceRootId: 'root-fwd',
       libraryBacked: true,
+      awaitPriorHashes: false,
+    })
+  })
+
+  it('omits awaitPriorHashes when unset and forwards true when set', async () => {
+    const importSpy = vi
+      .spyOn(importPhotos, 'importPhotoFiles')
+      .mockResolvedValue({ imported: 1, errors: [], skipped: 0 })
+    const file = new File([new Uint8Array([1])], 'a.jpg', {
+      type: 'image/jpeg',
+    })
+    await runChromeImport([file], {
+      onProgress: vi.fn(),
+      onErrors: vi.fn(),
+    })
+    expect(importSpy.mock.calls[0]?.[1]).not.toHaveProperty('awaitPriorHashes')
+
+    await runChromeImport([file], {
+      onProgress: vi.fn(),
+      onErrors: vi.fn(),
+      awaitPriorHashes: true,
+    })
+    expect(importSpy.mock.calls[1]?.[1]).toMatchObject({
+      awaitPriorHashes: true,
     })
   })
 

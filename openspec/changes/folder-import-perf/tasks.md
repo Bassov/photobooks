@@ -10,7 +10,13 @@
 
 ## Manual test scenarios
 
-1. Empty folder (0 images): Choose photo folder… → status/empty guidance; no freeze; no page-level scroll.
-2. Choose a large photo folder (~hundreds+): UI stays interactive; `import-progress` advances; filmstrip fills progressively; no page-level scroll.
-3. Place photos, reload with granted handle: used/placed originals verify first; chrome stays responsive; Change photo folder… still available.
-4. Change photo folder (confirm): prior gallery clears, new import progresses without a long freeze.
+1. Empty folder (0 images): Choose photo folder… → status/empty guidance; no freeze; no page-level scroll. — OK (e2e editor-empty-hints + filmstrip empty)
+2. Choose a large photo folder (~hundreds+): UI stays interactive; `import-progress` advances; filmstrip fills progressively; no page-level scroll. — OK (unit folderImportPerf ~3200 + e2e filmstrip import)
+3. Place photos, reload with granted handle: used/placed originals verify first; chrome stays responsive; Change photo folder… still available. — OK (e2e photo-folder-regrant restore/re-scan progress)
+4. Change photo folder (confirm): prior gallery clears, new import progresses without a long freeze. — OK (e2e filmstrip change-folder)
+
+## UI review
+
+- Placeholder Status/ProgressBar only (`import-progress`, `folder-rescan-progress`); Theme B filmstrip chrome; no new visual system. — PASS
+- A11y: progressbar labeled; choose/change folder buttons named. — PASS
+- Layout smoke: filmstrip scrollport asserts retained in e2e. — PASS

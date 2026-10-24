@@ -37,6 +37,23 @@ import {
 
 export type PhotoAccessPhase = 'idle' | 'permission-required'
 
+let activeSpreadId: string | null = null
+
+export function getActiveSpreadId(): string | null {
+  return activeSpreadId
+}
+
+export function setActiveSpreadId(next: string | null): void {
+  if (next === activeSpreadId) {
+    return
+  }
+  activeSpreadId = next
+}
+
+export function resetActiveSpreadIdForTests(): void {
+  activeSpreadId = null
+}
+
 export interface PhotoRootSessionSnapshot {
   photoAccessPhase: PhotoAccessPhase
   photoFolderLabel: string | null
@@ -303,6 +320,50 @@ function inferSourceRootFromAssets(): {
   return null
 }
 
+async function collectOtherBookAssets(
+  sourceRootId: string,
+): Promise<RescanAssetRef[]> {
+  // Dynamic import avoids a static cycle with projectSession → photoRootSession.
+  const { listLibraryBooks, loadLibraryBook } = await import('./projectSession')
+  const openBookId = bookKey()
+  const listed = await listLibraryBooks()
+  if (!listed.ok) {
+    return []
+  }
+  const refs: RescanAssetRef[] = []
+  for (const summary of listed.value) {
+    if (summary.id === openBookId) {
+      continue
+    }
+    const loaded = await loadLibraryBook(summary.id)
+    if (!loaded.ok) {
+      continue
+    }
+    for (const [assetId, asset] of Object.entries(loaded.value.assets)) {
+      const relativePath = asset.relativePath
+      if (
+        asset.sourceRootId !== sourceRootId ||
+        typeof relativePath !== 'string' ||
+        relativePath === ''
+      ) {
+        continue
+      }
+      const ref: RescanAssetRef = { assetId, relativePath }
+      if (asset.byteSize !== undefined) {
+        ref.byteSize = asset.byteSize
+      }
+      if (asset.mtimeMs !== undefined) {
+        ref.mtimeMs = asset.mtimeMs
+      }
+      if (asset.contentHash !== undefined) {
+        ref.contentHash = asset.contentHash
+      }
+      refs.push(ref)
+    }
+  }
+  return refs
+}
+
 async function restoreBySourceRootId(
   sourceRootId: string,
   label: string | null,
@@ -313,9 +374,12 @@ async function restoreBySourceRootId(
   if (recalled.ok) {
     const directory = recalled.value as FileSystemDirectoryHandle
     registerGrantedRoot(sourceRootId, directory, label ?? undefined)
+    const otherBookAssets = await collectOtherBookAssets(sourceRootId)
     await startFolderRescan({
       sourceRootId,
       directory,
+      visibleSpreadId: getActiveSpreadId(),
+      otherBookAssets,
       runLazy: true,
     })
     return
@@ -356,9 +420,12 @@ export async function regrantPhotoFolder(
   const state = await requestReadPermission(handle)
   if (state === 'granted') {
     registerGrantedRoot(resolvedId, handle, photoFolderLabel ?? undefined)
+    const otherBookAssets = await collectOtherBookAssets(resolvedId)
     await startFolderRescan({
       sourceRootId: resolvedId,
       directory: handle,
+      visibleSpreadId: getActiveSpreadId(),
+      otherBookAssets,
       runLazy: true,
     })
     return 'granted'
@@ -754,9 +821,8 @@ function toImportResult(result: {
 }
 
 /**
- * Import already-resolved Files. Decode/hash are already progressive inside
- * `importPhotoFiles` — do not split into multiple `importPhotoFiles` calls
- * (each call awaits pending hashes and can stall mid-folder).
+ * Import already-resolved Files in one progressive `importPhotoFiles` call
+ * (used when the caller already has a File list, e.g. e2e input seam).
  */
 export async function importFilesInBatches(
   files: readonly File[],
@@ -778,8 +844,8 @@ export async function importFilesInBatches(
 }
 
 /**
- * Resolve Files for scanned entries in batches (yield between resolves), then
- * one progressive import for the resolved list.
+ * Resolve + import per capped batch so progressive decode starts before the
+ * whole tree is materialized as File handles.
  */
 export async function importScannedEntriesInBatches(
   directory: AssetDirectoryHandle | FileSystemDirectoryHandle,
@@ -795,13 +861,18 @@ export async function importScannedEntriesInBatches(
     errors: [],
     running: true,
   })
-  const files: File[] = []
+  let imported = 0
+  let skipped = 0
+  const errors: ImportFileError[] = []
+  let awaitPriorHashes = true
+  let resolvedAny = false
   for (
     let offset = 0;
     offset < entries.length;
     offset += FOLDER_IMPORT_BATCH_SIZE
   ) {
     const slice = entries.slice(offset, offset + FOLDER_IMPORT_BATCH_SIZE)
+    const files: File[] = []
     for (const entry of slice) {
       const file = await resolveRelativeFile(directory, entry.relativePath)
       if (file !== null) {
@@ -811,14 +882,61 @@ export async function importScannedEntriesInBatches(
     options.onProgress({
       total: entries.length,
       completed: Math.min(entries.length, offset + slice.length),
-      errors: [],
+      errors: [...errors],
       running: true,
     })
+    if (files.length > 0) {
+      resolvedAny = true
+      const result = await runChromeImport(files, {
+        source: 'folder',
+        sourceRootId: options.sourceRootId,
+        ...(options.libraryBacked !== undefined
+          ? { libraryBacked: options.libraryBacked }
+          : {}),
+        awaitPriorHashes,
+        onProgress: (progress) => {
+          if (progress === null) {
+            const moreBatches =
+              offset + FOLDER_IMPORT_BATCH_SIZE < entries.length
+            if (!moreBatches) {
+              options.onProgress(null)
+            }
+            return
+          }
+          options.onProgress({
+            total: entries.length,
+            completed: Math.min(
+              entries.length,
+              offset + Math.max(progress.completed, 1),
+            ),
+            errors: [...errors, ...progress.errors],
+            running: true,
+          })
+        },
+        onErrors: (batchErrors) => {
+          errors.push(...batchErrors)
+          options.onErrors(batchErrors)
+        },
+      })
+      imported += result.imported
+      skipped += result.skipped
+      awaitPriorHashes = false
+    }
     await yieldForPaint()
   }
-  if (files.length === 0) {
+  if (!resolvedAny) {
     options.onProgress(null)
     return { imported: 0, errors: [], skipped: 0 }
   }
-  return importFilesInBatches(files, options)
+  if (errors.length === 0) {
+    options.onProgress(null)
+  } else {
+    options.onProgress({
+      total: entries.length,
+      completed: entries.length,
+      errors: [...errors],
+      running: false,
+    })
+  }
+  return { imported, skipped, errors: [...errors] }
 }

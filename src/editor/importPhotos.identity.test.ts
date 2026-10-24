@@ -50,6 +50,7 @@ vi.mock('../assets', async (importOriginal) => {
 
 import { IMPORT_BODY_READ_CAP } from './importBodyReads'
 import { importPhotoFiles } from './importPhotos'
+import * as pendingHashes from './pendingHashes'
 
 function tinyJpeg(name = 'shot.jpg', lastModified = 1_700_000_000_000): File {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
@@ -666,5 +667,38 @@ describe('importPhotoFiles library identity', () => {
         aspect: 1,
       }),
     )
+  })
+
+  it('awaits prior hashes for library-backed imports by default', async () => {
+    const awaitSpy = vi
+      .spyOn(pendingHashes, 'awaitPendingHashes')
+      .mockResolvedValue()
+    await importPhotoFiles([tinyJpeg('wait.jpg')], {
+      libraryBacked: true,
+      sourceRootId: 'root-wait',
+    })
+    expect(awaitSpy).toHaveBeenCalled()
+  })
+
+  it('skips awaitPendingHashes when awaitPriorHashes is false', async () => {
+    const awaitSpy = vi
+      .spyOn(pendingHashes, 'awaitPendingHashes')
+      .mockImplementation(() => new Promise(() => undefined))
+    await importPhotoFiles([tinyJpeg('skip-wait.jpg')], {
+      libraryBacked: true,
+      sourceRootId: 'root-skip-wait',
+      awaitPriorHashes: false,
+    })
+    expect(awaitSpy).not.toHaveBeenCalled()
+  })
+
+  it('does not await prior hashes for session-only imports', async () => {
+    const awaitSpy = vi
+      .spyOn(pendingHashes, 'awaitPendingHashes')
+      .mockResolvedValue()
+    await importPhotoFiles([tinyJpeg('session.jpg')], {
+      libraryBacked: false,
+    })
+    expect(awaitSpy).not.toHaveBeenCalled()
   })
 })

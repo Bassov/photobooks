@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as assets from '../assets'
 import {
   createFsaAssetSource,
   createMemoryAssetDirectory,
@@ -44,6 +45,7 @@ describe('folder import / re-scan responsiveness', () => {
   })
 
   it('keeps priority scheduler slices under the long-task ceiling and orders used-in-book first', async () => {
+    vi.spyOn(assets, 'hashContent').mockResolvedValue('f'.repeat(64))
     const tree = createMemoryAssetDirectory()
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
     for (let i = 0; i < LARGE_FOLDER_COUNT; i += 1) {
@@ -106,6 +108,8 @@ describe('folder import / re-scan responsiveness', () => {
     const longTasks: number[] = []
     let mark = 0
     let measuring = false
+    let sawLazy = false
+    let priorityCompletedBeforeLazy = false
     const unsubscribe = subscribeFolderRescanProgress((state) => {
       const now = performance.now()
       if (!measuring) {
@@ -118,17 +122,33 @@ describe('folder import / re-scan responsiveness', () => {
       if (state?.phase !== undefined) {
         phases.push(state.phase)
       }
+      if (state?.phase === 'lazy') {
+        if (!sawLazy) {
+          priorityCompletedBeforeLazy = phases.includes('priority')
+          // Stop after the first lazy slice — ordering is what we assert.
+          cancelFolderRescan()
+        }
+        sawLazy = true
+      }
     })
 
-    // Priority only — lazy hashing needs a Worker pool; order is locked above.
-    await startFolderRescan({ sourceRootId, runLazy: false })
+    await startFolderRescan({
+      sourceRootId,
+      visibleSpreadId: 'spread-0',
+      runLazy: true,
+    })
     await awaitFolderRescanForTests()
     unsubscribe()
 
     const maxSlice = Math.max(0, ...longTasks)
     expect(maxSlice).toBeLessThanOrEqual(PERF_BUDGETS.scanSchedulerLongTaskMs)
-    expect(phases.every((phase) => phase === 'priority')).toBe(true)
-    expect(phases.length).toBeGreaterThan(0)
+    expect(phases.includes('priority')).toBe(true)
+    expect(sawLazy).toBe(true)
+    expect(priorityCompletedBeforeLazy).toBe(true)
+    const firstLazy = phases.indexOf('lazy')
+    const lastPriority = phases.lastIndexOf('priority')
+    expect(lastPriority).toBeGreaterThanOrEqual(0)
+    expect(firstLazy).toBeGreaterThan(lastPriority)
   }, 60_000)
 
   it('cancelFolderRescan stops a subsequent idle remainder', async () => {

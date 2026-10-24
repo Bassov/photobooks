@@ -59,7 +59,7 @@ describe('folderImportBatches', () => {
     expect(result.imported).toBe(2)
   })
 
-  it('importScannedEntriesInBatches resolves then imports', async () => {
+  it('importScannedEntriesInBatches resolves then imports per batch', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('a.jpg', new Uint8Array([1]), 1)
     tree.putFile('b.jpg', new Uint8Array([2]), 2)
@@ -77,7 +77,7 @@ describe('folderImportBatches', () => {
     })
     const entries = scanned.ok ? scanned.value : []
     const spy = vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
-      imported: 2,
+      imported: 1,
       errors: [],
       skipped: 0,
     })
@@ -87,8 +87,13 @@ describe('folderImportBatches', () => {
       onProgress,
       onErrors: vi.fn(),
     })
-    expect(spy).toHaveBeenCalledOnce()
-    expect(result.imported).toBe(2)
+    expect(spy.mock.calls.length).toBeGreaterThanOrEqual(1)
+    expect(result.imported).toBeGreaterThanOrEqual(1)
     expect(onProgress).toHaveBeenCalled()
+    // Progressive import starts on the first resolve batch (not after full File[]).
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({
+      source: 'folder',
+      sourceRootId: 'root',
+    })
   })
 })

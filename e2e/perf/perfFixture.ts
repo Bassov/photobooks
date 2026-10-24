@@ -218,6 +218,14 @@ declare global {
         photoFolderLabel: string | null
         hasPhotoFolder: boolean
       }
+      setFolderRescanProgressForTests: (
+        state: {
+          total: number
+          completed: number
+          running: boolean
+          phase: 'priority' | 'lazy'
+        } | null,
+      ) => void
     }
   }
 }

@@ -21,7 +21,8 @@ import {
   startFolderRescan,
   subscribeFolderRescanProgress,
 } from './photoRootSession'
-import { resetPendingHashesForTests } from './pendingHashes'
+import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
+import * as pendingHashes from './pendingHashes'
 
 describe('startFolderRescan', () => {
   beforeEach(() => {
@@ -146,6 +147,63 @@ describe('startFolderRescan', () => {
         'c'.repeat(64),
       )
     })
+  })
+
+  it('lazy unused hashing does not stall awaitPendingHashes / Save', async () => {
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('used.jpg', new Uint8Array([9, 9]), 42)
+    tree.putFile('lazy.jpg', new Uint8Array([1]), 1)
+    const sourceRootId = 'root-save'
+    registerAssetSource(
+      sourceRootId,
+      createFsaAssetSource({ rootId: sourceRootId, directory: tree.root }),
+    )
+    resetBookStore({
+      book: makeBook({
+        gallery: ['u'],
+        assets: {
+          u: {
+            sourceRootId,
+            relativePath: 'used.jpg',
+            byteSize: 2,
+            mtimeMs: 42,
+            contentHash: 'a'.repeat(64),
+          },
+        },
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    let releaseLazy!: () => void
+    const lazyHang = new Promise<string>((resolve) => {
+      releaseLazy = () => {
+        resolve('d'.repeat(64))
+      }
+    })
+    const trackSpy = vi.spyOn(pendingHashes, 'trackHashJob')
+    vi.spyOn(assets, 'hashContent').mockImplementation(async (bytes) => {
+      // Priority path reuses hash when size/mtime match; lazy still hashes.
+      if (bytes.byteLength === 1) {
+        return lazyHang
+      }
+      return 'c'.repeat(64)
+    })
+
+    const pending = startFolderRescan({ sourceRootId, runLazy: true })
+    await pending
+    // Priority finished; lazy hash may still be in flight but must not be tracked.
+    expect(trackSpy).not.toHaveBeenCalled()
+    let saveDone = false
+    const saveWait = awaitPendingHashes().then(() => {
+      saveDone = true
+    })
+    await Promise.resolve()
+    expect(saveDone).toBe(true)
+    await saveWait
+    releaseLazy()
+    await awaitFolderRescanForTests()
   })
 
   it('cancel during priority prevents lazy phase', async () => {
