@@ -451,10 +451,10 @@ export function removeFailedImportAsset(assetId: string): void {
  * store emit. Used when Change photo folder clears a full prior root.
  */
 export function removeFailedImportAssets(assetIds: readonly string[]): void {
-  if (assetIds.length === 0) {
+  const unique = [...new Set(assetIds)]
+  if (unique.length === 0) {
     return
   }
-  const unique = [...new Set(assetIds)]
   const remove = new Set(unique)
   for (const assetId of unique) {
     droppedImportIds.add(assetId)
@@ -462,9 +462,7 @@ export function removeFailedImportAssets(assetIds: readonly string[]): void {
     pendingAssetRecords.delete(assetId)
     pendingAssetPatches.delete(assetId)
   }
-  if (pendingGalleryIds.some((id) => remove.has(id))) {
-    pendingGalleryIds = pendingGalleryIds.filter((id) => !remove.has(id))
-  }
+  pendingGalleryIds = pendingGalleryIds.filter((id) => !remove.has(id))
 
   const inBook = unique.some(
     (assetId) =>

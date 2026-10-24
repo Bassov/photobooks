@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFakeBrowserDirectory } from '../project/fsa/browserDirectory.test-helpers'
 import {
@@ -225,9 +226,11 @@ describe('pickFolderWithDirectoryPicker', () => {
     const prelabeled = new File([new Uint8Array([9])], 'pre.jpg', {
       type: 'image/jpeg',
     })
+    // Non-configurable match: skipping the early return would throw on redefine
+    // and fall through to a File copy — identity must stay the original.
     Object.defineProperty(prelabeled, 'webkitRelativePath', {
       value: 'pre.jpg',
-      configurable: true,
+      configurable: false,
     })
     const root = {
       kind: 'directory' as const,
@@ -261,8 +264,11 @@ describe('pickFolderWithDirectoryPicker', () => {
   })
 
   it('copies the File when webkitRelativePath cannot be redefined', async () => {
-    const sealed = new File([new Uint8Array([3])], 'sealed.jpg', {
+    const bytes = new Uint8Array([3, 7, 11])
+    const lastModified = 1_700_000_000_000
+    const sealed = new File([bytes], 'sealed.jpg', {
       type: 'image/jpeg',
+      lastModified,
     })
     Object.defineProperty(sealed, 'webkitRelativePath', {
       value: 'wrong/path.jpg',
@@ -292,12 +298,58 @@ describe('pickFolderWithDirectoryPicker', () => {
     })
     const picked = await pickFolderWithDirectoryPicker()
     expect(picked?.files).toHaveLength(1)
-    expect(picked?.files[0]).not.toBe(sealed)
-    expect(picked?.files[0]?.name).toBe('sealed.jpg')
+    const copy = picked?.files[0]
+    expect(copy).not.toBe(sealed)
+    expect(copy?.name).toBe('sealed.jpg')
+    expect(copy?.type).toBe('image/jpeg')
+    expect(copy?.lastModified).toBe(lastModified)
+    expect(copy).toBeDefined()
+    assert.ok(copy)
+    expect(copy.size).toBe(bytes.byteLength)
+    expect(new Uint8Array(await copy.arrayBuffer())).toEqual(bytes)
     expect(
-      (picked?.files[0] as File & { webkitRelativePath?: string })
-        .webkitRelativePath,
+      (copy as File & { webkitRelativePath?: string }).webkitRelativePath,
     ).toBe('sealed.jpg')
+    expect(
+      Object.getOwnPropertyDescriptor(copy, 'webkitRelativePath')?.configurable,
+    ).toBe(true)
+  })
+
+  it('defines a configurable webkitRelativePath on a plain File', async () => {
+    const plain = new File([new Uint8Array([1, 2])], 'plain.png', {
+      type: 'image/png',
+    })
+    const root = {
+      kind: 'directory' as const,
+      entries: (): AsyncGenerator<
+        readonly [string, { kind: 'file'; getFile: () => Promise<File> }],
+        void
+      > =>
+        (async function* () {
+          await Promise.resolve()
+          yield [
+            'plain.png',
+            {
+              kind: 'file' as const,
+              getFile: vi.fn().mockResolvedValue(plain),
+            },
+          ] as const
+        })(),
+    }
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockResolvedValue(root),
+    })
+    const picked = await pickFolderWithDirectoryPicker()
+    const file = picked?.files[0]
+    expect(file).toBe(plain)
+    expect(
+      (file as File & { webkitRelativePath?: string }).webkitRelativePath,
+    ).toBe('plain.png')
+    expect(
+      Object.getOwnPropertyDescriptor(file, 'webkitRelativePath')?.configurable,
+    ).toBe(true)
   })
 
   it('walks fake browser directories via entries()', async () => {

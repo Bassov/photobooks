@@ -79,6 +79,69 @@ describe('gallery ops', () => {
     expect(removeManyFromGallery(book, [])).toBe(book)
     expect(removeManyFromGallery(book, ['missing'])).toBe(book)
   })
+
+  it('removeManyFromGallery clears an assets-only orphan without a gallery entry', () => {
+    const book = makeBook({
+      assets: { orphan: {}, keep: {} },
+      gallery: ['keep'],
+    })
+    const next = removeManyFromGallery(book, ['orphan'])
+    expect(next).not.toBe(book)
+    expect(next.assets).toEqual({ keep: {} })
+    expect(next.gallery).toEqual(['keep'])
+  })
+
+  it('removeManyFromGallery clears a gallery-only orphan without an assets entry', () => {
+    const book = makeBook({
+      assets: { keep: {} },
+      gallery: ['keep', 'ghost'],
+    })
+    const next = removeManyFromGallery(book, ['ghost'])
+    expect(next.gallery).toEqual(['keep'])
+    expect(next.assets).toEqual({ keep: {} })
+  })
+
+  it('removeManyFromGallery clears only matching placements and keeps other frames', () => {
+    const cropKeep = { zoom: 2, center: { x: 0.25, y: 0.75 } }
+    const cropDrop = { zoom: 1.5, center: { x: 0.1, y: 0.9 } }
+    const empty = makeFrame({ id: 'empty', z: 2 })
+    const book = makeBook({
+      assets: { keep: {}, drop: {} },
+      gallery: ['keep', 'drop'],
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              id: 'f-keep',
+              assetId: 'keep',
+              crop: cropKeep,
+            }),
+            makeFrame({
+              id: 'f-drop',
+              assetId: 'drop',
+              crop: cropDrop,
+              z: 1,
+            }),
+            empty,
+          ],
+        }),
+        makeSpread({
+          id: 'untouched',
+          frames: [makeFrame({ id: 'f-other' })],
+        }),
+      ],
+    })
+    const untouched = book.spreads[1]
+    const next = removeManyFromGallery(book, ['drop'])
+    expect(next.gallery).toEqual(['keep'])
+    expect(next.assets).toEqual({ keep: {} })
+    expect(next.spreads[0]?.frames[0]?.assetId).toBe('keep')
+    expect(next.spreads[0]?.frames[0]?.crop).toEqual(cropKeep)
+    expect(next.spreads[0]?.frames[1]?.assetId).toBeUndefined()
+    expect(next.spreads[0]?.frames[1]?.crop).toBeUndefined()
+    expect(next.spreads[0]?.frames[2]).toBe(empty)
+    expect(next.spreads[1]).toBe(untouched)
+  })
 })
 
 describe('placement ops', () => {

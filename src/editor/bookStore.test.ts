@@ -332,6 +332,104 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().sessionMeta.has('batch-keep')).toBe(true)
   })
 
+  it('removeFailedImportAssets is a no-op for an empty id list', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([{ assetId: 'stay', meta: sessionFile('stay.jpg') }])
+    const metaBefore = getBookStoreSnapshot().sessionMeta
+    const listener = vi.fn()
+    const unsubscribe = subscribeBookStore(listener)
+    removeFailedImportAssets([])
+    unsubscribe()
+    expect(listener).not.toHaveBeenCalled()
+    expect(getBookStoreSnapshot().sessionMeta).toBe(metaBefore)
+    expect(getGalleryIdsSnapshot()).toEqual(['stay'])
+  })
+
+  it('removeFailedImportAssets drops one pending id without clearing siblings', () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'pending-keep', meta: sessionFile('keep.jpg') },
+      { assetId: 'pending-drop', meta: sessionFile('drop.jpg') },
+    ])
+    removeFailedImportAssets(['pending-drop'])
+    callbacks[0]?.(0)
+    expect(getGalleryIdsSnapshot()).toEqual(['pending-keep'])
+    expect(getBookStoreSnapshot().sessionMeta.has('pending-keep')).toBe(true)
+    expect(getBookStoreSnapshot().sessionMeta.has('pending-drop')).toBe(false)
+  })
+
+  it('removeFailedImportAssets removes a flushed id even when mixed with unknowns', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'mixed-a', meta: sessionFile('a.jpg') },
+      { assetId: 'mixed-keep', meta: sessionFile('keep.jpg') },
+    ])
+    removeFailedImportAssets(['ghost-id', 'mixed-a'])
+    expect(getGalleryIdsSnapshot()).toEqual(['mixed-keep'])
+    expect(getBookStoreSnapshot().book.assets['mixed-a']).toBeUndefined()
+  })
+
+  it('removeFailedImportAssets without session meta skips a meta-only emit', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([{ assetId: 'stay', meta: sessionFile('stay.jpg') }])
+    const metaBefore = getBookStoreSnapshot().sessionMeta
+    const listener = vi.fn()
+    const unsubscribe = subscribeBookStore(listener)
+    // Id absent from sessionMeta: must not rewrite the map or emit.
+    removeFailedImportAssets(['never-flushed-meta'])
+    unsubscribe()
+    expect(listener).not.toHaveBeenCalled()
+    expect(getBookStoreSnapshot().sessionMeta).toBe(metaBefore)
+    expect(getGalleryIdsSnapshot()).toEqual(['stay'])
+  })
+
+  it('removeFailedImportAssets clears an assets-map orphan missing from the gallery', () => {
+    const hash =
+      'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+    const book = getBookStoreSnapshot().book
+    resetBookStore({
+      book: {
+        ...book,
+        assets: { ...book.assets, orphan: { contentHash: hash } },
+        gallery: book.gallery.filter((id) => id !== 'orphan'),
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    expect(getBookStoreSnapshot().book.assets.orphan?.contentHash).toBe(hash)
+    expect(getGalleryIdsSnapshot()).not.toContain('orphan')
+
+    removeFailedImportAssets(['orphan'])
+    expect(getBookStoreSnapshot().book.assets.orphan).toBeUndefined()
+    expect(getAssetContentHash('orphan')).toBeUndefined()
+  })
+
   it('removeFailedImportAsset is a no-op for an unknown id and reset clears the drop guard', () => {
     const callbacks: FrameRequestCallback[] = []
     vi.stubGlobal(

@@ -33,9 +33,6 @@ export function removeManyFromGallery(
   book: Book,
   assetIds: readonly string[],
 ): Book {
-  if (assetIds.length === 0) {
-    return book
-  }
   const remove = new Set(assetIds)
   let anyPresent = false
   for (const assetId of remove) {
@@ -55,18 +52,12 @@ export function removeManyFromGallery(
 
   let next: Book = { ...book, assets, gallery }
   for (const spread of book.spreads) {
-    const hasPlacement = spread.frames.some(
-      (frame) => frame.assetId !== undefined && remove.has(frame.assetId),
-    )
-    if (!hasPlacement) {
-      continue
-    }
     next = updateSpread(next, spread.id, (current) => {
       const frames = current.frames.map((frame) => {
-        if (frame.assetId === undefined || !remove.has(frame.assetId)) {
-          return frame
+        if (frame.assetId !== undefined && remove.has(frame.assetId)) {
+          return clearAsset(frame)
         }
-        return clearAsset(frame)
+        return frame
       })
       if (frames.every((frame, index) => frame === current.frames[index])) {
         return current
