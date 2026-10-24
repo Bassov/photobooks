@@ -233,6 +233,36 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
+  it('listAlreadyEnqueued reuses path placeholders in session (non-library)', async () => {
+    // Session editor: isLibraryBacked() is false; path map must still bind thumbs.
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const { enqueueScannedGalleryList } =
+      await import('./enqueueScannedGalleryList')
+    enqueueScannedGalleryList('root-session', [
+      { relativePath: 'shot.jpg', byteSize: 4, mtimeMs: 1 },
+    ])
+    expect(getBookStoreSnapshot().book.gallery).toHaveLength(1)
+    const existingId = getBookStoreSnapshot().book.gallery[0]
+    assert.ok(existingId)
+
+    await importPhotoFiles([tinyJpeg('shot.jpg', 1_700_000_000_000)], {
+      libraryBacked: false,
+      listAlreadyEnqueued: true,
+    })
+    await vi.waitFor(() => {
+      const book = getBookStoreSnapshot().book
+      expect(book.gallery).toHaveLength(1)
+      expect(book.gallery[0]).toBe(existingId)
+    })
+    expect(runImportBatch.mock.calls[0]?.[0]?.[0]?.assetId).toBe(existingId)
+  })
+
   it('does not reuse by content when relativePath size or mtime differ', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({

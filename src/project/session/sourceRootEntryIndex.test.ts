@@ -125,20 +125,39 @@ describe('persistScannedEntryIndex', () => {
   })
 
   it('rejects empty sourceRootId for put get and clear', async () => {
+    const get = vi.fn()
+    const set = vi.fn()
+    const del = vi.fn()
+    const idb = {
+      get,
+      set,
+      del,
+      keys: () => Promise.resolve([]),
+      runReadwrite: () => Promise.resolve(),
+    } satisfies SessionIdb
     await expect(
-      putSourceRootEntryIndex('', entryIndexFromScanned([])),
+      putSourceRootEntryIndex('', entryIndexFromScanned([]), {
+        entryIndexIdb: idb,
+      }),
     ).resolves.toEqual({
       ok: false,
       code: 'not-found',
     })
-    await expect(getSourceRootEntryIndex('')).resolves.toEqual({
+    await expect(
+      getSourceRootEntryIndex('', { entryIndexIdb: idb }),
+    ).resolves.toEqual({
       ok: false,
       code: 'not-found',
     })
-    await expect(clearSourceRootEntryIndex('')).resolves.toEqual({
+    await expect(
+      clearSourceRootEntryIndex('', { entryIndexIdb: idb }),
+    ).resolves.toEqual({
       ok: false,
       code: 'not-found',
     })
+    expect(get).not.toHaveBeenCalled()
+    expect(set).not.toHaveBeenCalled()
+    expect(del).not.toHaveBeenCalled()
   })
 
   it('returns not-found for missing clear and corrupt stored values', async () => {
@@ -146,9 +165,47 @@ describe('persistScannedEntryIndex', () => {
     await expect(
       getSourceRootEntryIndex('root-bad', { entryIndexIdb: idb }),
     ).resolves.toEqual({ ok: false, code: 'not-found' })
+    const del = vi.fn(() => Promise.resolve())
+    const missingIdb: SessionIdb = {
+      get: () => Promise.resolve({ present: false as const }),
+      set: () => Promise.resolve(),
+      del,
+      keys: () => Promise.resolve([]),
+      runReadwrite: () => Promise.resolve(),
+    }
     await expect(
-      clearSourceRootEntryIndex('missing', { entryIndexIdb: idb }),
+      clearSourceRootEntryIndex('missing', { entryIndexIdb: missingIdb }),
     ).resolves.toEqual({ ok: false, code: 'not-found' })
+    expect(del).not.toHaveBeenCalled()
+  })
+
+  it('ignores value payload when the idb row is marked absent', async () => {
+    const idb: SessionIdb = {
+      get: () =>
+        Promise.resolve({
+          present: false as const,
+          // Tempting payload — must not parse when present is false.
+          value: {
+            entries: { 'a.jpg': { byteSize: 1, mtimeMs: 1 } },
+          },
+        } as Awaited<ReturnType<SessionIdb['get']>>),
+      set: () => Promise.resolve(),
+      del: () => Promise.resolve(),
+      keys: () => Promise.resolve([]),
+      runReadwrite: () => Promise.resolve(),
+    }
+    await expect(
+      getSourceRootEntryIndex('root-ghost', { entryIndexIdb: idb }),
+    ).resolves.toEqual({ ok: false, code: 'not-found' })
+  })
+
+  it('rejects non-object roots and non-object entries maps', async () => {
+    for (const bad of [null, 1, 'x', { entries: null }, { entries: 3 }]) {
+      const idb = memoryIdb({ 'root-shape': bad })
+      await expect(
+        getSourceRootEntryIndex('root-shape', { entryIndexIdb: idb }),
+      ).resolves.toEqual({ ok: false, code: 'not-found' })
+    }
   })
 
   it('skips invalid entry rows when parsing a stored index', async () => {
@@ -159,6 +216,7 @@ describe('persistScannedEntryIndex', () => {
           bad: null,
           nan: { byteSize: Number.NaN, mtimeMs: 1 },
           incomplete: { byteSize: 1 },
+          inf: { byteSize: 1, mtimeMs: Number.POSITIVE_INFINITY },
         },
       },
     })

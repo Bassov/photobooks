@@ -25,7 +25,6 @@ import {
 } from './importErrorToast'
 import { appendImportErrors, openImportErrorsPanel } from './importErrorsStore'
 import type { ImportProgress } from './importPhotos'
-import { setImportRunning } from './bookStore'
 import {
   getProjectSessionSnapshot,
   isLibraryBacked,
@@ -44,16 +43,12 @@ import {
   subscribePhotoRootSession,
 } from './photoRootSession'
 import { enqueueScannedGalleryList } from './enqueueScannedGalleryList'
+import { orderScannedForVisibleFirst } from './orderScannedForVisibleFirst'
 import { persistScannedEntryIndex } from '../project/session/sourceRootEntryIndex'
-import {
-  isAcceptedPhotoPath,
-  isImageLikePath,
-  isUnsupportedImagePath,
-} from '../photo/pickPhotos'
+import { isClearFolderSkipPath } from '../photo/pickPhotos'
 import { getVisibleAssetIds } from '../photo/assetPool'
-import { getBookStoreSnapshot } from './bookStore'
+import { getGalleryRelativePathIndex, setImportRunning } from './bookStore'
 import { yieldForPaint } from './relink/yieldForPaint'
-import type { ScannedEntry } from '../assets'
 
 function isE2eBuild(): boolean {
   const env = import.meta.env as { VITE_E2E?: string }
@@ -182,47 +177,33 @@ export function useChromeImport(options: {
           // Always-walk result: persist entry index, then list-first placeholders.
           await persistScannedEntryIndex(sourceRootId, scanned.value)
           enqueueScannedGalleryList(sourceRootId, scanned.value)
-          const accepted = scanned.value.filter((entry) =>
-            isAcceptedPhotoPath(entry.relativePath),
-          )
-          const unsupported = scanned.value.filter((entry) =>
-            isUnsupportedImagePath(entry.relativePath),
-          )
-          const folderSkipped = scanned.value.filter(
-            (entry) => !isImageLikePath(entry.relativePath),
+          const folderSkipped = scanned.value.filter((entry) =>
+            isClearFolderSkipPath(entry.relativePath),
           ).length
+          // Resolve image-like + extension-less (HEIC sniff); skip clear non-images.
+          const forImport = scanned.value.filter(
+            (entry) => !isClearFolderSkipPath(entry.relativePath),
+          )
           options.onImportProgress({
-            total: Math.max(accepted.length + unsupported.length, 1),
+            total: Math.max(forImport.length, 1),
             completed: 0,
             errors: [],
             running: true,
           })
-          // Let filmstrip mount so visible ids can prefer first-window 320 decode.
+          // Let filmstrip mount so visible ids prefer first-window 320 decode.
           await yieldForPaint()
           await yieldForPaint()
           const visibleIds = new Set(getVisibleAssetIds())
-          const book = getBookStoreSnapshot().book
-          const visiblePaths = new Set(
-            book.gallery
-              .filter((id) => visibleIds.has(id))
-              .map((id) => book.assets[id]?.relativePath)
-              .filter((path): path is string => typeof path === 'string'),
-          )
-          const priorityAccepted: ScannedEntry[] = []
-          const idleAccepted: ScannedEntry[] = []
-          for (const entry of accepted) {
-            if (visiblePaths.has(entry.relativePath)) {
-              priorityAccepted.push(entry)
-            } else {
-              idleAccepted.push(entry)
+          const visiblePaths = new Set<string>()
+          for (const [path, id] of getGalleryRelativePathIndex()) {
+            if (visibleIds.has(id)) {
+              visiblePaths.add(path)
             }
           }
-          // Visible (and unsupported for errors) first; idle remainder stays
-          // placeholders until scrolled into view (import continues in background).
-          const firstWave = [...priorityAccepted, ...unsupported]
-          const firstResult = await importScannedEntriesInBatches(
+          const ordered = orderScannedForVisibleFirst(forImport, visiblePaths)
+          const imported = await importScannedEntriesInBatches(
             directory,
-            firstWave.length > 0 ? firstWave : accepted.slice(0, 16),
+            ordered,
             {
               sourceRootId,
               libraryBacked: isLibraryBacked(),
@@ -232,30 +213,9 @@ export function useChromeImport(options: {
               onFirstBatchYielded: persistRootAfterFirstBatch,
             },
           )
-          const idleWave =
-            firstWave.length > 0 ? idleAccepted : accepted.slice(16)
-          if (idleWave.length > 0) {
-            const idleResult = await importScannedEntriesInBatches(
-              directory,
-              idleWave,
-              {
-                sourceRootId,
-                libraryBacked: isLibraryBacked(),
-                listAlreadyEnqueued: true,
-                onProgress: options.onImportProgress,
-                onErrors: reportErrors,
-              },
-            )
-            result = {
-              imported: firstResult.imported + idleResult.imported,
-              errors: [...firstResult.errors, ...idleResult.errors],
-              skipped: firstResult.skipped + idleResult.skipped + folderSkipped,
-            }
-          } else {
-            result = {
-              ...firstResult,
-              skipped: firstResult.skipped + folderSkipped,
-            }
+          result = {
+            ...imported,
+            skipped: imported.skipped + folderSkipped,
           }
         }
         if (result.skipped > 0 && result.errors.length === 0) {

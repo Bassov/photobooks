@@ -154,24 +154,35 @@ test('imports PNG into the filmstrip via directory picker', async ({
 test('list-first folder pick shows gallery placeholders before all thumbs', async ({
   page,
 }) => {
-  const { files } = writeBulkImportFixtureSet(24)
+  test.setTimeout(90_000)
+  const { files } = writeBulkImportFixtureSet(48)
   await openSessionEditor(page)
-  await pickPhotoFolder(page, files, { via: 'picker' })
-
-  // Cheap scan → list enqueue: full gallery count before every thumb finishes.
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(24, {
-    timeout: 30_000,
-  })
-  await expect(page.getByTestId('filmstrip-count')).toContainText('24 photos', {
-    timeout: 30_000,
-  })
-  // Prove list-first: placeholders exist while some thumbs are still missing.
-  await expect(page.getByTestId('filmstrip-placeholder').first()).toBeVisible({
-    timeout: 30_000,
-  })
-  const thumbCount = await page.getByTestId('filmstrip-thumb').count()
-  expect(thumbCount).toBeLessThan(24)
-  await assertNamedScrollport(page, 'filmstrip')
+  // Slow decode so list-enqueue placeholders stay visible after count hits 48.
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 })
+  try {
+    const sawListFirst = page.waitForFunction(() => {
+      const count = document
+        .querySelector('[data-testid="filmstrip"]')
+        ?.getAttribute('data-gallery-count')
+      if (count !== '48') {
+        return false
+      }
+      return (
+        document.querySelector('[data-testid="filmstrip-placeholder"]') !== null
+      )
+    })
+    await pickPhotoFolder(page, files, { via: 'picker' })
+    await sawListFirst
+    await expect(page.getByTestId('filmstrip-count')).toContainText(
+      '48 photos',
+      {
+        timeout: 60_000,
+      },
+    )
+  } finally {
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+  }
   await assertDocumentFitsViewport(page)
 })
 

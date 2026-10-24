@@ -85,6 +85,20 @@ export function isUnsupportedImagePath(relativePath: string): boolean {
   return isImageLikePath(relativePath) && !isAcceptedPhotoPath(relativePath)
 }
 
+/**
+ * Cheap scan path with a definite non-image extension (e.g. `.md`, `.txt`).
+ * Extension-less names are not skips — they still need HEIC ftyp sniff.
+ */
+export function isClearFolderSkipPath(relativePath: string): boolean {
+  if (isImageLikePath(relativePath)) {
+    return false
+  }
+  const base = relativePath.slice(relativePath.lastIndexOf('/') + 1)
+  const dot = base.lastIndexOf('.')
+  // Require a real extension (not `.hidden` or trailing dot).
+  return dot > 0 && dot < base.length - 1
+}
+
 export type PartitionImportSource = 'files' | 'folder'
 
 export function partitionImportFiles(

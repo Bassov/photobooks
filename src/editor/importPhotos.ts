@@ -189,13 +189,15 @@ async function importPhotoFilesInner(
   setImportRunning(true, progressTotal)
   try {
     const book = getBookStoreSnapshot().book
-    const pathIndex = libraryBacked
-      ? buildReuseIndex(book.gallery, book.assets)
-      : null
-    const byRelativePath =
-      libraryBacked && listAlreadyEnqueued
-        ? getGalleryRelativePathIndex()
+    // List-first placeholders must resolve by path even in session (non-library)
+    // editors — otherwise import mints a second id and thumbs never bind.
+    const pathIndex =
+      libraryBacked || listAlreadyEnqueued
+        ? buildReuseIndex(book.gallery, book.assets)
         : null
+    const byRelativePath = listAlreadyEnqueued
+      ? getGalleryRelativePathIndex()
+      : null
 
     const immediate: PreparedEntry[] = []
 
