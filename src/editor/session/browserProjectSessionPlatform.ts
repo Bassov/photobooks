@@ -41,12 +41,20 @@ export function createDefaultSession(): SessionState {
   return createBrowserSessionState()
 }
 
-/** Browser `showDirectoryPicker`; AbortError → null. */
+/** Browser `showDirectoryPicker` for the single library folder; AbortError → null. */
 export async function browserPickDirectory(): Promise<FileSystemDirectoryHandle | null> {
   const picker = (
     globalThis as typeof globalThis & {
       showDirectoryPicker?: (options?: {
+        id?: string
         mode?: 'read' | 'readwrite'
+        startIn?:
+          | 'desktop'
+          | 'documents'
+          | 'downloads'
+          | 'music'
+          | 'pictures'
+          | 'videos'
       }) => Promise<FileSystemDirectoryHandle>
     }
   ).showDirectoryPicker
@@ -54,7 +62,11 @@ export async function browserPickDirectory(): Promise<FileSystemDirectoryHandle 
     return null
   }
   try {
-    return await picker({ mode: 'readwrite' })
+    return await picker({
+      id: 'photobooks-library',
+      mode: 'readwrite',
+      startIn: 'documents',
+    })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return null

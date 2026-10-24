@@ -22,10 +22,8 @@ import {
 import { installEditorSaveShortcut } from './installEditorSaveShortcut'
 import {
   createBookInLibrary,
-  createLibrary,
   getProjectSessionSnapshot,
-  leaveEditorForHome,
-  openLibrary,
+  leaveEditorForLibrary,
   regrantLibrary,
   renameBookInLibrary,
   saveBookNow,
@@ -35,7 +33,6 @@ import {
   saveIndicatorBadgeColor,
   saveIndicatorLabel,
 } from './saveIndicatorLabel'
-import { ThemeToggle } from './ThemeToggle'
 import type { ChromeImportApi } from './useChromeImport'
 
 function ChromeButton({
@@ -99,31 +96,13 @@ export function EditorTopBar({
         className="editor-top-bar pb-toolbar"
       >
         <ChromeButton
-          data-testid="go-home"
+          data-testid="go-library"
           onClick={() => {
-            void leaveEditorForHome()
+            void leaveEditorForLibrary()
           }}
           disabled={chromeBusy}
         >
-          Home
-        </ChromeButton>
-        <ChromeButton
-          data-testid="create-library"
-          onClick={() => {
-            void createLibrary()
-          }}
-          disabled={chromeBusy}
-        >
-          New library
-        </ChromeButton>
-        <ChromeButton
-          data-testid="open-library"
-          onClick={() => {
-            void openLibrary()
-          }}
-          disabled={chromeBusy}
-        >
-          Open
+          Library
         </ChromeButton>
         {project.accessPhase === 'permission-required' ? (
           <Button
@@ -223,7 +202,6 @@ export function EditorTopBar({
           Add folder
         </ChromeButton>
         {chromeImport.inputs}
-        <ThemeToggle />
       </div>
     </header>
   )

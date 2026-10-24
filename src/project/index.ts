@@ -26,11 +26,11 @@ export {
 } from './fsa/handles'
 export type {
   BookLock,
-  RecentLibrary,
   SessionActiveIds,
   SessionDirectoryHandle,
   SessionState,
 } from './session/types'
+export { DEFAULT_LIBRARY_ID } from './session/types'
 export {
   createMemorySessionState,
   type MemorySessionState,

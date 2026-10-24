@@ -6,9 +6,12 @@ import { createBrowserSessionState } from './browserSessionState'
 import {
   ACTIVE_KEY,
   createSessionIdb,
+  LABEL_KEY,
+  migrateLegacyRecents,
   RECENTS_KEY,
   type SessionIdb,
 } from './idb'
+import { DEFAULT_LIBRARY_ID } from './types'
 import {
   createMemoryLockManager,
   installMemoryLockManager,
@@ -80,6 +83,10 @@ function createSessionIdbWithLiveHandles(): SessionIdb {
     async del(key) {
       live.delete(key)
       await real.del(key)
+    },
+    async keys() {
+      const fromReal = await real.keys()
+      return [...new Set([...fromReal, ...live.keys()])]
     },
     async runReadwrite(mutations) {
       const rewritten = mutations.map((mutation) => {
@@ -156,7 +163,7 @@ describe('createSessionIdb (fake-indexeddb)', () => {
       value: { hello: 'world' },
     })
 
-    const db = await openRaw(2)
+    const db = await openRaw(3)
     expect([...db.objectStoreNames]).toContain(STORE_NAME)
     db.close()
   })
@@ -190,69 +197,56 @@ describe('createSessionIdb (fake-indexeddb)', () => {
     await expect(idb.get('b')).resolves.toEqual({ present: true, value: 2 })
   })
 
-  it('migrates v1 legacy library key into __recents when missing', async () => {
-    const v1 = await openRaw(1, (db) => {
-      db.createObjectStore(STORE_NAME)
-    })
-    await new Promise<void>((resolve, reject) => {
-      const tx = v1.transaction(STORE_NAME, 'readwrite')
-      tx.objectStore(STORE_NAME).put(
-        { kind: 'directory', name: 'LegacyDir' },
-        LEGACY_LIBRARY_ID,
-      )
-      tx.oncomplete = () => {
-        resolve()
-      }
-      tx.onerror = () => {
-        reject(tx.error ?? new Error('transaction failed'))
-      }
-    })
-    v1.close()
-
+  it('migrateLegacyRecents adopts the most recent handle and drops recents', async () => {
     const idb = createSessionIdb()
-    await expect(idb.get(RECENTS_KEY)).resolves.toEqual({
+    await idb.runReadwrite([
+      {
+        op: 'set',
+        key: 'old',
+        value: { kind: 'directory', name: 'Old' },
+      },
+      {
+        op: 'set',
+        key: 'newer',
+        value: { kind: 'directory', name: 'Newer' },
+      },
+      {
+        op: 'set',
+        key: RECENTS_KEY,
+        value: [
+          { id: 'newer', label: 'Newer' },
+          { id: 'old', label: 'Old' },
+        ],
+      },
+    ])
+
+    await migrateLegacyRecents(idb)
+
+    await expect(idb.get(RECENTS_KEY)).resolves.toEqual({ present: false })
+    await expect(idb.get('old')).resolves.toEqual({ present: false })
+    await expect(idb.get('newer')).resolves.toEqual({ present: false })
+    await expect(idb.get(DEFAULT_LIBRARY_ID)).resolves.toEqual({
       present: true,
-      value: [{ id: LEGACY_LIBRARY_ID, label: 'Library' }],
+      value: { kind: 'directory', name: 'Newer' },
     })
+    await expect(idb.get(LABEL_KEY)).resolves.toEqual({
+      present: true,
+      value: 'Newer',
+    })
+  })
+
+  it('migrateLegacyRecents is a no-op when __recents is absent', async () => {
+    const idb = createSessionIdb()
+    await idb.set(LEGACY_LIBRARY_ID, {
+      kind: 'directory',
+      name: 'Only',
+    })
+    await migrateLegacyRecents(idb)
+    await expect(idb.get(RECENTS_KEY)).resolves.toEqual({ present: false })
     await expect(idb.get(LEGACY_LIBRARY_ID)).resolves.toEqual({
       present: true,
-      value: { kind: 'directory', name: 'LegacyDir' },
+      value: { kind: 'directory', name: 'Only' },
     })
-  })
-
-  it('does not overwrite existing __recents during v1→v2 upgrade', async () => {
-    const v1 = await openRaw(1, (db) => {
-      db.createObjectStore(STORE_NAME)
-    })
-    await new Promise<void>((resolve, reject) => {
-      const tx = v1.transaction(STORE_NAME, 'readwrite')
-      const store = tx.objectStore(STORE_NAME)
-      store.put({ kind: 'directory', name: 'LegacyDir' }, LEGACY_LIBRARY_ID)
-      store.put([{ id: 'kept', label: 'Kept' }], RECENTS_KEY)
-      tx.oncomplete = () => {
-        resolve()
-      }
-      tx.onerror = () => {
-        reject(tx.error ?? new Error('transaction failed'))
-      }
-    })
-    v1.close()
-
-    const idb = createSessionIdb()
-    await expect(idb.get(RECENTS_KEY)).resolves.toEqual({
-      present: true,
-      value: [{ id: 'kept', label: 'Kept' }],
-    })
-  })
-
-  it('skips migration when the legacy library key is absent', async () => {
-    const v1 = await openRaw(1, (db) => {
-      db.createObjectStore(STORE_NAME)
-    })
-    v1.close()
-
-    const idb = createSessionIdb()
-    await expect(idb.get(RECENTS_KEY)).resolves.toEqual({ present: false })
   })
 
   it('stores active ids through the adapter', async () => {
@@ -271,7 +265,7 @@ describe('createSessionIdb (fake-indexeddb)', () => {
 
     await expect(idb.get('gone')).resolves.toEqual({ present: false })
 
-    const db = await openRaw(2)
+    const db = await openRaw(3)
     const key = await new Promise<IDBValidKey | undefined>(
       (resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly')
@@ -497,54 +491,6 @@ describe('createSessionIdb (fake-indexeddb)', () => {
 
     await expect(idb.set('k', 2)).rejects.toEqual(
       new Error('indexedDB transaction aborted'),
-    )
-  })
-
-  it('throws when upgrade runs without a transaction', async () => {
-    vi.stubGlobal('indexedDB', {
-      open() {
-        const request: {
-          result?: IDBDatabase
-          transaction: IDBTransaction | null
-          error: DOMException | null
-          onerror: ((ev: Event) => void) | null
-          onsuccess: ((ev: Event) => void) | null
-          onupgradeneeded: ((ev: Event) => void) | null
-        } = {
-          transaction: null,
-          error: null,
-          onerror: null,
-          onsuccess: null,
-          onupgradeneeded: null,
-        }
-        queueMicrotask(() => {
-          const factory = new IDBFactory()
-          const probe = factory.open('tx-null-probe', 1)
-          probe.onupgradeneeded = () => {
-            request.result = probe.result
-            request.transaction = null
-            try {
-              request.onupgradeneeded?.(new Event('upgradeneeded'))
-            } catch (err) {
-              request.error = new DOMException(
-                err instanceof Error ? err.message : String(err),
-                'UnknownError',
-              )
-              request.onerror?.(new Event('error'))
-            }
-          }
-          probe.onerror = () => {
-            request.error = probe.error
-            request.onerror?.(new Event('error'))
-          }
-        })
-        return request as unknown as IDBOpenDBRequest
-      },
-    })
-
-    const idb = createSessionIdb()
-    await expect(idb.get('x')).rejects.toThrow(
-      'indexedDB upgrade missing transaction',
     )
   })
 })

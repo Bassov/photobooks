@@ -1,26 +1,27 @@
 import type { StorageFailure, StorageResult } from '../types'
 import type { SessionIdb } from './idb'
-import { ACTIVE_KEY, createSessionIdb, RECENTS_KEY } from './idb'
-import type { SessionLocks } from './locks'
-import { bookLockName, createNavigatorSessionLocks } from './locks'
+import {
+  ACTIVE_KEY,
+  createSessionIdb,
+  LABEL_KEY,
+  migrateLegacyRecents,
+} from './idb'
 import {
   isReservedSessionKey,
   labelForHandle,
   parseActiveIds,
-  parseRecents,
-  removeRecent,
-  upsertRecentFront,
-} from './recents'
-import type {
-  BookLock,
-  RecentLibrary,
-  SessionDirectoryHandle,
-  SessionState,
-} from './types'
+  parseLibraryLabel,
+} from './libraryLabel'
+import type { SessionLocks } from './locks'
+import { bookLockName, createNavigatorSessionLocks } from './locks'
+import type { BookLock, SessionDirectoryHandle, SessionState } from './types'
+import { DEFAULT_LIBRARY_ID } from './types'
 
 export interface CreateBrowserSessionStateOptions {
   idb?: SessionIdb
   locks?: SessionLocks
+  /** Skip automatic legacy-recents migration (tests). */
+  skipLegacyMigration?: boolean
 }
 
 function failure(code: StorageFailure['code']): StorageFailure {
@@ -52,14 +53,6 @@ async function hasReadwritePermission(
   return state === 'granted'
 }
 
-async function readRecents(idb: SessionIdb): Promise<RecentLibrary[]> {
-  const stored = await idb.get(RECENTS_KEY)
-  if (!stored.present) {
-    return []
-  }
-  return parseRecents(stored.value)
-}
-
 async function readStoredHandle(
   idb: SessionIdb,
   libraryId: string,
@@ -77,26 +70,48 @@ async function readStoredHandle(
   return success(stored.value)
 }
 
+async function clearOtherHandleKeys(
+  idb: SessionIdb,
+  keepId: string,
+): Promise<void> {
+  const keys = await idb.keys()
+  const deletions = keys
+    .filter((key) => !isReservedSessionKey(key) && key !== keepId)
+    .map((key) => ({ op: 'del' as const, key }))
+  if (deletions.length > 0) {
+    await idb.runReadwrite(deletions)
+  }
+}
+
 export function createBrowserSessionState(
   options: CreateBrowserSessionStateOptions = {},
 ): SessionState {
   const idb = options.idb ?? createSessionIdb()
   const locks = options.locks ?? createNavigatorSessionLocks()
 
+  let migration: Promise<void> | null = null
+  function ensureMigrated(): Promise<void> {
+    if (options.skipLegacyMigration) {
+      return Promise.resolve()
+    }
+    migration ??= migrateLegacyRecents(idb).catch(() => {
+      // Soft-fail migration; subsequent ops still use typed failures.
+    })
+    return migration
+  }
+
   return {
     async rememberLibraryHandle(libraryId, handle, label) {
+      await ensureMigrated()
       if (isReservedSessionKey(libraryId)) {
         return failure('not-found')
       }
       try {
-        const recents = await readRecents(idb)
-        const nextRecents = upsertRecentFront(recents, {
-          id: libraryId,
-          label: labelForHandle(libraryId, handle, label),
-        })
+        const nextLabel = labelForHandle(libraryId, handle, label)
+        await clearOtherHandleKeys(idb, libraryId)
         await idb.runReadwrite([
           { op: 'set', key: libraryId, value: handle },
-          { op: 'set', key: RECENTS_KEY, value: nextRecents },
+          { op: 'set', key: LABEL_KEY, value: nextLabel },
         ])
         return success(undefined)
       } catch {
@@ -105,6 +120,7 @@ export function createBrowserSessionState(
     },
 
     async recallLibraryHandle(libraryId) {
+      await ensureMigrated()
       const peeked = await readStoredHandle(idb, libraryId)
       if (!peeked.ok) {
         return peeked
@@ -120,10 +136,12 @@ export function createBrowserSessionState(
     },
 
     async peekLibraryHandle(libraryId) {
+      await ensureMigrated()
       return readStoredHandle(idb, libraryId)
     },
 
     async clearLibraryHandle(libraryId) {
+      await ensureMigrated()
       if (isReservedSessionKey(libraryId)) {
         return failure('not-found')
       }
@@ -132,14 +150,9 @@ export function createBrowserSessionState(
         if (!stored.present) {
           return failure('not-found')
         }
-        const recents = await readRecents(idb)
         await idb.runReadwrite([
           { op: 'del', key: libraryId },
-          {
-            op: 'set',
-            key: RECENTS_KEY,
-            value: removeRecent(recents, libraryId),
-          },
+          { op: 'del', key: LABEL_KEY },
         ])
         return success(undefined)
       } catch {
@@ -147,19 +160,32 @@ export function createBrowserSessionState(
       }
     },
 
-    async removeRecentLibrary(libraryId) {
-      return this.clearLibraryHandle(libraryId)
-    },
-
-    async listRecentLibraries() {
-      try {
-        return success(await readRecents(idb))
-      } catch {
-        return failure('not-found')
+    async getLibraryLabel(libraryId) {
+      await ensureMigrated()
+      if (isReservedSessionKey(libraryId)) {
+        return null
       }
+      const handle = await readStoredHandle(idb, libraryId)
+      if (!handle.ok) {
+        // Prefer DEFAULT_LIBRARY_ID label when callers ask with that id after migrate.
+        if (libraryId === DEFAULT_LIBRARY_ID) {
+          const stored = await idb.get(LABEL_KEY)
+          return stored.present ? parseLibraryLabel(stored.value) : null
+        }
+        return null
+      }
+      const stored = await idb.get(LABEL_KEY)
+      if (stored.present) {
+        const parsed = parseLibraryLabel(stored.value)
+        if (parsed !== null) {
+          return parsed
+        }
+      }
+      return labelForHandle(libraryId, handle.value)
     },
 
     async setActiveIds(ids) {
+      await ensureMigrated()
       try {
         await idb.set(ACTIVE_KEY, {
           libraryId: ids.libraryId,
@@ -172,6 +198,7 @@ export function createBrowserSessionState(
     },
 
     async getActiveIds() {
+      await ensureMigrated()
       try {
         const stored = await idb.get(ACTIVE_KEY)
         if (!stored.present) {

@@ -34,7 +34,7 @@ describe('autoDetect', () => {
     const spy = vi.spyOn(detect, 'detectMissingAssets')
     vi.spyOn(projectSession, 'getProjectSessionSnapshot').mockReturnValue({
       ...projectSession.getProjectSessionSnapshot(),
-      surface: 'home',
+      surface: 'library',
       bookId: null,
       restorePending: false,
       accessPhase: 'idle',

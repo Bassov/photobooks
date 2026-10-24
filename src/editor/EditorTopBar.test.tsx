@@ -56,7 +56,7 @@ describe('EditorTopBar', () => {
     expect(screen.getByRole('toolbar', { name: 'Editor' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add photos' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
-    expect(screen.getByTestId('app-theme-toggle')).toBeTruthy()
+    expect(screen.queryByTestId('app-theme-toggle')).toBeNull()
   })
 
   it('saves on Ctrl+S when a library is open and ignores other keys', async () => {
@@ -331,30 +331,20 @@ describe('EditorTopBar', () => {
   })
 
   it('invokes library chrome actions', () => {
-    const home = vi
-      .spyOn(projectSession, 'leaveEditorForHome')
+    const leave = vi
+      .spyOn(projectSession, 'leaveEditorForLibrary')
       .mockResolvedValue(undefined)
     const ok = { ok: true as const, value: undefined }
-    const createLib = vi
-      .spyOn(projectSession, 'createLibrary')
-      .mockResolvedValue(ok)
-    const openLib = vi
-      .spyOn(projectSession, 'openLibrary')
-      .mockResolvedValue(ok)
     const regrant = vi
       .spyOn(projectSession, 'regrantLibrary')
       .mockResolvedValue(ok)
     render(<EditorShell />)
-    fireEvent.click(screen.getByTestId('go-home'))
-    fireEvent.click(screen.getByTestId('create-library'))
-    fireEvent.click(screen.getByTestId('open-library'))
+    fireEvent.click(screen.getByTestId('go-library'))
     act(() => {
       setAccessPhaseForTests('permission-required')
     })
     fireEvent.click(screen.getByTestId('regrant-library'))
-    expect(home).toHaveBeenCalled()
-    expect(createLib).toHaveBeenCalled()
-    expect(openLib).toHaveBeenCalled()
+    expect(leave).toHaveBeenCalled()
     expect(regrant).toHaveBeenCalled()
   })
 

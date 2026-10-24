@@ -288,7 +288,7 @@ describe('createLibraryActivation', () => {
     book = makeBook({ id: 'session-book', gallery: [] })
     dirty = false
     accessPhase = 'idle'
-    surface = 'home'
+    surface = 'library'
     status = { kind: 'idle' }
     homeError = null
     editorStatus = null
@@ -417,7 +417,7 @@ describe('createLibraryActivation', () => {
     expect(bookId).toBeNull()
   })
 
-  it('permission denied on tryRestore leaves state unbound', async () => {
+  it('permission denied on tryRestore keeps library id for re-grant', async () => {
     persisted = { libraryId: 'lib-r', bookId: 'book-r' }
     recallResults.set('lib-r', failure('permission-required'))
     const result = await controller.tryRestore()
@@ -429,9 +429,9 @@ describe('createLibraryActivation', () => {
       action: 'restore library',
     })
     expect(storage).toBeNull()
-    expect(libraryId).toBeNull()
+    expect(libraryId).toBe('lib-r')
     expect(bookId).toBeNull()
-    expect(surface).toBe('home')
+    expect(surface).toBe('welcome')
     expect(restorePending).toBe(false)
     expect(resetAutosave).toHaveBeenCalled()
     expect(emit).toHaveBeenCalled()
@@ -486,8 +486,9 @@ describe('createLibraryActivation', () => {
     const opened = await controller.openLibrary()
     expect(opened.ok).toBe(true)
     expect(libraryId).toBe('lib-a')
-    expect(bookId).toBe('book-a')
-    expect(book.id).toBe('book-a')
+    // browse mode binds the folder without auto-opening a book
+    expect(bookId).toBeNull()
+    expect(surface).toBe('library')
 
     const listedA = await libA.listBooks()
     expect(listedA.ok).toBe(true)
@@ -629,8 +630,10 @@ describe('createLibraryActivation', () => {
     expect(created.ok).toBe(true)
     expect(setActiveIds).not.toHaveBeenCalled()
     expect(setHomeError).toHaveBeenCalledWith(null)
-    expect(bookId).toBe('session-book')
+    // browse mode binds without adopting a book id
+    expect(bookId).toBeNull()
     expect(libraryId).toBe('lib-clean')
+    expect(surface).toBe('library')
   })
 
   it('createLibrary still releases when storage is bound but bookId is null', async () => {
@@ -923,7 +926,7 @@ describe('createLibraryActivation', () => {
     expect(storage).toBeNull()
     expect(libraryId).toBeNull()
     expect(bookId).toBeNull()
-    expect(surface).toBe('home')
+    expect(surface).toBe('library')
     expect(homeError).toBe('Could not remember this library. Try again.')
     expect(setHomeError).toHaveBeenCalledWith(
       'Could not remember this library. Try again.',
@@ -945,7 +948,7 @@ describe('createLibraryActivation', () => {
     expect(setDirty).toHaveBeenCalledWith(false)
     expect(setAccessPhase).toHaveBeenCalledWith('idle')
     expect(clearBlockedAndPending).toHaveBeenCalled()
-    expect(setSurface).toHaveBeenCalledWith('home')
+    expect(setSurface).toHaveBeenCalledWith('library')
     expect(book.id).toBe('empty-book-id')
   })
 
@@ -1419,7 +1422,7 @@ describe('createLibraryActivation', () => {
     expect(storage).toBeNull()
     expect(libraryId).toBeNull()
     expect(bookId).toBeNull()
-    expect(surface).toBe('home')
+    expect(surface).toBe('library')
     expect(homeError).toBe('Could not open that book.')
     expect(status).toEqual({
       kind: 'error',
@@ -1434,7 +1437,7 @@ describe('createLibraryActivation', () => {
     expect(accessPhase).toBe('idle')
     expect(setAccessPhase).toHaveBeenCalledWith('idle')
     expect(clearBlockedAndPending).toHaveBeenCalled()
-    expect(setSurface).toHaveBeenCalledWith('home')
+    expect(setSurface).toHaveBeenCalledWith('library')
     expect(emit).toHaveBeenCalled()
     expect(persistIds).toHaveBeenCalled()
     expect(setLibraryId).toHaveBeenCalledWith(null)
@@ -1461,7 +1464,7 @@ describe('createLibraryActivation', () => {
     expect(storage).toBeNull()
     expect(libraryId).toBeNull()
     expect(bookId).toBeNull()
-    expect(surface).toBe('home')
+    expect(surface).toBe('library')
     expect(homeError).toBe('Could not open that book.')
     expect(editorStatus).toBe('')
     expect(clearAssetSources).toHaveBeenCalled()
@@ -1495,7 +1498,7 @@ describe('createLibraryActivation', () => {
     expect(storage).toBeNull()
     expect(libraryId).toBeNull()
     expect(bookId).toBeNull()
-    expect(surface).toBe('home')
+    expect(surface).toBe('library')
     expect(homeError).toBe('Could not remember this library. Try again.')
     expect(status).toEqual({
       kind: 'error',
@@ -1513,7 +1516,7 @@ describe('createLibraryActivation', () => {
     expect(setDirty).toHaveBeenCalledWith(false)
     expect(setAccessPhase).toHaveBeenCalledWith('idle')
     expect(clearBlockedAndPending).toHaveBeenCalled()
-    expect(setSurface).toHaveBeenCalledWith('home')
+    expect(setSurface).toHaveBeenCalledWith('library')
     expect(book.id).toBe('empty-book-id')
     expect(heldLocks.size).toBe(0)
   })
@@ -1589,14 +1592,19 @@ describe('createLibraryActivation', () => {
     expect(emit).toHaveBeenCalled()
   })
 
-  it('tryRestore with no bookId stays on home', async () => {
+  it('tryRestore with granted handle and no bookId goes to library', async () => {
+    const lib = createMemoryLibraryStorage()
+    await lib.updateLibrary({})
+    const handle = createFakeBrowserDirectory({ name: 'LibX' })
+    storagesByHandle.set('LibX', lib)
+    remembered.set('lib-x', handle)
     persisted = { libraryId: 'lib-x', bookId: null }
     const result = await controller.tryRestore()
     expect(result).toEqual({ ok: true, value: null })
-    expect(surface).toBe('home')
+    expect(surface).toBe('library')
     expect(accessPhase).toBe('idle')
     expect(cancelAutosave).toHaveBeenCalled()
-    expect(setSurface).toHaveBeenCalledWith('home')
+    expect(setSurface).toHaveBeenCalledWith('library')
     expect(setAccessPhase).toHaveBeenCalledWith('idle')
     expect(setRestorePending).toHaveBeenCalledWith(true)
     expect(setRestorePending).toHaveBeenCalledWith(false)
@@ -1604,12 +1612,12 @@ describe('createLibraryActivation', () => {
     expect(restorePending).toBe(false)
   })
 
-  it('tryRestore recall throw clears stale state', async () => {
+  it('tryRestore recall throw goes to welcome', async () => {
     persisted = { libraryId: 'lib-throw', bookId: 'book-throw' }
     recallThrows.add('lib-throw')
     const result = await controller.tryRestore()
     expect(result).toEqual({ ok: true, value: null })
-    expect(surface).toBe('home')
+    expect(surface).toBe('welcome')
     expect(storage).toBeNull()
     expect(libraryId).toBeNull()
     expect(bookId).toBeNull()
@@ -1620,17 +1628,17 @@ describe('createLibraryActivation', () => {
     expect(setAccessPhase).toHaveBeenCalledWith('idle')
     expect(clearBlockedAndPending).toHaveBeenCalled()
     expect(setStatus).toHaveBeenCalledWith({ kind: 'idle' })
-    expect(setSurface).toHaveBeenCalledWith('home')
+    expect(setSurface).toHaveBeenCalledWith('welcome')
     expect(emit).toHaveBeenCalled()
     expect(resetAutosave).toHaveBeenCalled()
   })
 
-  it('tryRestore non-permission recall failure clears stale state', async () => {
+  it('tryRestore non-permission recall goes to welcome', async () => {
     persisted = { libraryId: 'lib-gone', bookId: 'book-gone' }
     recallResults.set('lib-gone', failure('not-found'))
     const result = await controller.tryRestore()
     expect(result).toEqual({ ok: true, value: null })
-    expect(surface).toBe('home')
+    expect(surface).toBe('welcome')
     expect(storage).toBeNull()
     expect(clearPersistedIdKeys).toHaveBeenCalled()
     expect(setActiveIds).toHaveBeenCalledWith({ libraryId: null, bookId: null })
@@ -1660,21 +1668,22 @@ describe('createLibraryActivation', () => {
       action: 'restore book',
     })
     expect(setSurface).toHaveBeenCalledWith('editor')
-    expect(setSurface).toHaveBeenCalledWith('home')
-    expect(surface).toBe('home')
-    expect(storage).toBeNull()
+    expect(setSurface).toHaveBeenCalledWith('library')
+    expect(surface).toBe('library')
+    expect(storage).toBe(lib)
+    expect(libraryId).toBe('lib-restore-load')
   })
 
-  it('tryRestore permission path clears book ids without preferred catch body', async () => {
+  it('tryRestore permission path keeps library id for re-grant', async () => {
     persisted = { libraryId: 'lib-r2', bookId: 'book-r2' }
     recallResults.set('lib-r2', failure('permission-required'))
     const result = await controller.tryRestore()
     expect(result).toEqual({ ok: true, value: null })
-    expect(setLibraryId).toHaveBeenCalledWith(null)
+    expect(setLibraryId).toHaveBeenCalledWith('lib-r2')
     expect(setBookId).toHaveBeenCalledWith(null)
     expect(setDirty).toHaveBeenCalledWith(false)
     expect(resetAutosave).toHaveBeenCalled()
-    expect(setSurface).toHaveBeenCalledWith('home')
+    expect(setSurface).toHaveBeenCalledWith('welcome')
     expect(setStatus).toHaveBeenCalledWith({
       kind: 'error',
       code: 'permission-required',

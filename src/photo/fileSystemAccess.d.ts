@@ -14,7 +14,10 @@ interface Window {
     options?: OpenFilePickerOptions,
   ) => Promise<FileSystemFileHandle[]>
   showDirectoryPicker?: (options?: {
+    id?: string
     mode?: 'read' | 'readwrite'
+    startIn?:
+      'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos'
   }) => Promise<FileSystemDirectoryHandle>
 }
 

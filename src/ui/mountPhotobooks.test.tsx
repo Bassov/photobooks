@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mountPhotobooks } from './mountPhotobooks'
 
 describe('mountPhotobooks', () => {
-  it('applies theme, configures session, and renders the tree', () => {
-    const applyTheme = vi.fn()
+  it('configures session and renders the tree', () => {
     const configureSession = vi.fn()
     const createSessionDeps = vi.fn(() => ({}) as never)
     const render = vi.fn()
@@ -13,7 +12,6 @@ describe('mountPhotobooks', () => {
     const root = document.createElement('div')
 
     mountPhotobooks({
-      applyTheme,
       configureSession,
       createSessionDeps,
       shouldEnablePerf: () => false,
@@ -25,7 +23,6 @@ describe('mountPhotobooks', () => {
       getSearch,
     })
 
-    expect(applyTheme).toHaveBeenCalledOnce()
     expect(createSessionDeps).toHaveBeenCalledOnce()
     expect(configureSession).toHaveBeenCalledOnce()
     expect(getSearch).toHaveBeenCalledOnce()
@@ -40,7 +37,6 @@ describe('mountPhotobooks', () => {
     const root = document.createElement('div')
 
     mountPhotobooks({
-      applyTheme: vi.fn(),
       configureSession: vi.fn(),
       createSessionDeps: vi.fn(() => ({}) as never),
       shouldEnablePerf: () => true,
@@ -59,7 +55,6 @@ describe('mountPhotobooks', () => {
   it('throws when #root is missing', () => {
     expect(() => {
       mountPhotobooks({
-        applyTheme: vi.fn(),
         configureSession: vi.fn(),
         createSessionDeps: vi.fn(() => ({}) as never),
         shouldEnablePerf: () => false,
@@ -71,9 +66,7 @@ describe('mountPhotobooks', () => {
     }).toThrow(/Root element #root not found/)
   })
 
-  it('uses the default theme applicator when none is injected', () => {
-    delete document.documentElement.dataset.theme
-    vi.stubGlobal('matchMedia', () => ({ matches: false }))
+  it('uses window location search when getSearch is omitted', () => {
     const root = document.createElement('div')
     root.id = 'root'
     document.body.appendChild(root)
@@ -87,11 +80,9 @@ describe('mountPhotobooks', () => {
       createTree,
     })
 
-    expect(document.documentElement.dataset.theme).toBe('b')
     expect(document.getElementById('root')).toBe(root)
     expect(createTree).toHaveBeenCalledWith(window.location.search)
     expect(createTree).toHaveBeenCalledWith(expect.any(String))
     root.remove()
-    vi.unstubAllGlobals()
   })
 })

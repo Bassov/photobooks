@@ -42,4 +42,31 @@ describe('createMemorySessionState', () => {
       code: 'permission-required',
     })
   })
+
+  it('rejects recall/peek/clear/label for the wrong or empty library id', async () => {
+    const session = createMemorySessionState()
+    await session.rememberLibraryHandle('lib-a', { name: 'A' }, 'A')
+
+    await expect(session.recallLibraryHandle('lib-b')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(session.peekLibraryHandle('lib-b')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(session.clearLibraryHandle('lib-b')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(session.getLibraryLabel('lib-b')).resolves.toBeNull()
+    await expect(session.getLibraryLabel('lib-a')).resolves.toBe('A')
+
+    await session.clearLibraryHandle('lib-a')
+    await expect(session.getLibraryLabel('lib-a')).resolves.toBeNull()
+    await expect(session.recallLibraryHandle('lib-a')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+  })
 })

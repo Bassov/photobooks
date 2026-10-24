@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { SessionDirectoryHandle, SessionState } from './types'
+import { DEFAULT_LIBRARY_ID } from './types'
 
 export interface SessionStateContractHarness {
   session: SessionState
@@ -15,7 +16,7 @@ export function runSessionStateContract(
     it('recalls not-found when no handle was remembered', async () => {
       const { session } = createHarness()
 
-      const recalled = await session.recallLibraryHandle('lib-1')
+      const recalled = await session.recallLibraryHandle(DEFAULT_LIBRARY_ID)
 
       expect(recalled).toEqual({ ok: false, code: 'not-found' })
     })
@@ -24,8 +25,11 @@ export function runSessionStateContract(
       const { session, createHandle } = createHarness()
       const handle = createHandle()
 
-      const remembered = await session.rememberLibraryHandle('lib-1', handle)
-      const recalled = await session.recallLibraryHandle('lib-1')
+      const remembered = await session.rememberLibraryHandle(
+        DEFAULT_LIBRARY_ID,
+        handle,
+      )
+      const recalled = await session.recallLibraryHandle(DEFAULT_LIBRARY_ID)
 
       expect(remembered).toEqual({ ok: true, value: undefined })
       expect(recalled).toEqual({ ok: true, value: handle })
@@ -33,10 +37,10 @@ export function runSessionStateContract(
 
     it('clears a remembered handle so recall is not-found', async () => {
       const { session, createHandle } = createHarness()
-      await session.rememberLibraryHandle('lib-1', createHandle())
+      await session.rememberLibraryHandle(DEFAULT_LIBRARY_ID, createHandle())
 
-      const cleared = await session.clearLibraryHandle('lib-1')
-      const recalled = await session.recallLibraryHandle('lib-1')
+      const cleared = await session.clearLibraryHandle(DEFAULT_LIBRARY_ID)
+      const recalled = await session.recallLibraryHandle(DEFAULT_LIBRARY_ID)
 
       expect(cleared).toEqual({ ok: true, value: undefined })
       expect(recalled).toEqual({ ok: false, code: 'not-found' })
@@ -48,6 +52,21 @@ export function runSessionStateContract(
       const cleared = await session.clearLibraryHandle('missing')
 
       expect(cleared).toEqual({ ok: false, code: 'not-found' })
+    })
+
+    it('replaces the single library handle on change', async () => {
+      const { session, createHandle } = createHarness()
+      const first = createHandle()
+      const second = createHandle()
+      await session.rememberLibraryHandle(DEFAULT_LIBRARY_ID, first, 'One')
+      await session.rememberLibraryHandle(DEFAULT_LIBRARY_ID, second, 'Two')
+
+      await expect(
+        session.recallLibraryHandle(DEFAULT_LIBRARY_ID),
+      ).resolves.toEqual({ ok: true, value: second })
+      await expect(session.getLibraryLabel(DEFAULT_LIBRARY_ID)).resolves.toBe(
+        'Two',
+      )
     })
 
     it('allows a second acquire after release', async () => {
@@ -84,61 +103,12 @@ export function runSessionStateContract(
 
     it('returns permission-required on recall when permission is denied', async () => {
       const { session, setPermissionRequired, createHandle } = createHarness()
-      await session.rememberLibraryHandle('lib-1', createHandle())
+      await session.rememberLibraryHandle(DEFAULT_LIBRARY_ID, createHandle())
       setPermissionRequired(true)
 
-      const recalled = await session.recallLibraryHandle('lib-1')
+      const recalled = await session.recallLibraryHandle(DEFAULT_LIBRARY_ID)
 
       expect(recalled).toEqual({ ok: false, code: 'permission-required' })
-    })
-
-    it('lists empty recents for a fresh session', async () => {
-      const { session } = createHarness()
-
-      await expect(session.listRecentLibraries()).resolves.toEqual({
-        ok: true,
-        value: [],
-      })
-    })
-
-    it('orders recents with the latest remember first', async () => {
-      const { session, createHandle } = createHarness()
-      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
-      await session.rememberLibraryHandle('b', createHandle(), 'Beta')
-
-      await expect(session.listRecentLibraries()).resolves.toEqual({
-        ok: true,
-        value: [
-          { id: 'b', label: 'Beta' },
-          { id: 'a', label: 'Alpha' },
-        ],
-      })
-    })
-
-    it('moves a re-remembered library to the front of recents', async () => {
-      const { session, createHandle } = createHarness()
-      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
-      await session.rememberLibraryHandle('b', createHandle(), 'Beta')
-      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
-
-      await expect(session.listRecentLibraries()).resolves.toEqual({
-        ok: true,
-        value: [
-          { id: 'a', label: 'Alpha' },
-          { id: 'b', label: 'Beta' },
-        ],
-      })
-    })
-
-    it('removes a cleared library from recents', async () => {
-      const { session, createHandle } = createHarness()
-      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
-      await session.clearLibraryHandle('a')
-
-      await expect(session.listRecentLibraries()).resolves.toEqual({
-        ok: true,
-        value: [],
-      })
     })
 
     it('rejects reserved keys on remember and clear', async () => {
@@ -157,14 +127,18 @@ export function runSessionStateContract(
     it('peeks a handle without requiring permission', async () => {
       const { session, setPermissionRequired, createHandle } = createHarness()
       const handle = createHandle()
-      await session.rememberLibraryHandle('lib-1', handle)
+      await session.rememberLibraryHandle(DEFAULT_LIBRARY_ID, handle)
       setPermissionRequired(true)
 
-      await expect(session.peekLibraryHandle('lib-1')).resolves.toEqual({
+      await expect(
+        session.peekLibraryHandle(DEFAULT_LIBRARY_ID),
+      ).resolves.toEqual({
         ok: true,
         value: handle,
       })
-      await expect(session.recallLibraryHandle('lib-1')).resolves.toEqual({
+      await expect(
+        session.recallLibraryHandle(DEFAULT_LIBRARY_ID),
+      ).resolves.toEqual({
         ok: false,
         code: 'permission-required',
       })
@@ -179,36 +153,41 @@ export function runSessionStateContract(
       })
     })
 
-    it('removeRecentLibrary clears handle and list entry', async () => {
+    it('exposes a library folder label', async () => {
       const { session, createHandle } = createHarness()
-      await session.rememberLibraryHandle('a', createHandle(), 'Alpha')
+      await session.rememberLibraryHandle(
+        DEFAULT_LIBRARY_ID,
+        createHandle(),
+        'Trip',
+      )
 
-      await expect(session.removeRecentLibrary('a')).resolves.toEqual({
-        ok: true,
-        value: undefined,
-      })
-      await expect(session.listRecentLibraries()).resolves.toEqual({
-        ok: true,
-        value: [],
-      })
-      await expect(session.recallLibraryHandle('a')).resolves.toEqual({
-        ok: false,
-        code: 'not-found',
-      })
+      await expect(session.getLibraryLabel(DEFAULT_LIBRARY_ID)).resolves.toBe(
+        'Trip',
+      )
     })
 
     it('persists and recalls active library and book ids', async () => {
       const { session } = createHarness()
 
-      await session.setActiveIds({ libraryId: 'lib-1', bookId: 'book-1' })
+      await expect(
+        session.setActiveIds({
+          libraryId: DEFAULT_LIBRARY_ID,
+          bookId: 'book-1',
+        }),
+      ).resolves.toEqual({ ok: true, value: undefined })
       await expect(session.getActiveIds()).resolves.toEqual({
-        libraryId: 'lib-1',
+        libraryId: DEFAULT_LIBRARY_ID,
         bookId: 'book-1',
       })
 
-      await session.setActiveIds({ libraryId: 'lib-1', bookId: null })
+      await expect(
+        session.setActiveIds({
+          libraryId: DEFAULT_LIBRARY_ID,
+          bookId: null,
+        }),
+      ).resolves.toEqual({ ok: true, value: undefined })
       await expect(session.getActiveIds()).resolves.toEqual({
-        libraryId: 'lib-1',
+        libraryId: DEFAULT_LIBRARY_ID,
         bookId: null,
       })
     })

@@ -78,7 +78,7 @@ describe('relinkModel', () => {
     ).toBe(true)
     expect(
       shouldDetectOnActivation({
-        surface: 'home',
+        surface: 'library',
         bookId: 'b',
         restorePending: false,
         accessPhase: 'idle',

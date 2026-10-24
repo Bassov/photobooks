@@ -1,10 +1,20 @@
+import {
+  ACTIVE_KEY,
+  isReservedSessionKey,
+  LABEL_KEY,
+  parseActiveIds,
+  parseLibraryLabel,
+  parseRecents,
+  RECENTS_KEY,
+} from './libraryLabel'
+import { DEFAULT_LIBRARY_ID } from './types'
+
 const DB_NAME = 'photobooks-session'
 const STORE_NAME = 'library-handles'
-const DB_VERSION = 2
+/** v3: single library + label; migrate legacy `__recents` on open. */
+const DB_VERSION = 3
 
-export const RECENTS_KEY = '__recents'
-export const ACTIVE_KEY = '__active'
-const LEGACY_LIBRARY_ID = 'library'
+export { ACTIVE_KEY, LABEL_KEY, RECENTS_KEY }
 
 export type SessionIdbGetResult =
   { present: true; value: unknown } | { present: false }
@@ -16,43 +26,8 @@ export interface SessionIdb {
   get: (key: string) => Promise<SessionIdbGetResult>
   set: (key: string, value: unknown) => Promise<void>
   del: (key: string) => Promise<void>
+  keys: () => Promise<string[]>
   runReadwrite: (mutations: readonly SessionIdbMutation[]) => Promise<void>
-}
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-    request.onerror = () => {
-      reject(request.error ?? new Error('indexedDB open failed'))
-    }
-    request.onupgradeneeded = () => {
-      const db = request.result
-      const tx = request.transaction
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME)
-      }
-      if (!tx) {
-        throw new Error('indexedDB upgrade missing transaction')
-      }
-      const store = tx.objectStore(STORE_NAME)
-      const legacy = store.get(LEGACY_LIBRARY_ID)
-      legacy.onsuccess = () => {
-        if (legacy.result === undefined) {
-          return
-        }
-        const recentsGet = store.get(RECENTS_KEY)
-        recentsGet.onsuccess = () => {
-          if (recentsGet.result !== undefined) {
-            return
-          }
-          store.put([{ id: LEGACY_LIBRARY_ID, label: 'Library' }], RECENTS_KEY)
-        }
-      }
-    }
-    request.onsuccess = () => {
-      resolve(request.result)
-    }
-  })
 }
 
 function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
@@ -80,8 +55,106 @@ function waitForTransaction(tx: IDBTransaction): Promise<void> {
   })
 }
 
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+    request.onerror = () => {
+      reject(request.error ?? new Error('indexedDB open failed'))
+    }
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME)
+      }
+      // Recents → single-library migration runs after open (needs async gets).
+    }
+    request.onsuccess = () => {
+      resolve(request.result)
+    }
+  })
+}
+
+/**
+ * Adopt the most recent legacy `__recents` entry as the single library handle,
+ * drop other handle keys and `__recents`, and store the label.
+ */
+export async function migrateLegacyRecents(idb: SessionIdb): Promise<void> {
+  const recentsStored = await idb.get(RECENTS_KEY)
+  if (!recentsStored.present) {
+    return
+  }
+  const recents = parseRecents(recentsStored.value)
+  const mutations: SessionIdbMutation[] = [{ op: 'del', key: RECENTS_KEY }]
+
+  if (recents.length === 0) {
+    await idb.runReadwrite(mutations)
+    return
+  }
+
+  const mostRecent = recents[0]
+  if (!mostRecent) {
+    await idb.runReadwrite(mutations)
+    return
+  }
+
+  const preferredId = mostRecent.id
+  const handleStored = await idb.get(preferredId)
+  const allKeys = await idb.keys()
+
+  for (const key of allKeys) {
+    if (isReservedSessionKey(key)) {
+      continue
+    }
+    if (key === preferredId && handleStored.present) {
+      continue
+    }
+    mutations.push({ op: 'del', key })
+  }
+
+  if (handleStored.present) {
+    if (preferredId !== DEFAULT_LIBRARY_ID) {
+      mutations.push({ op: 'del', key: preferredId })
+      mutations.push({
+        op: 'set',
+        key: DEFAULT_LIBRARY_ID,
+        value: handleStored.value,
+      })
+    }
+    const existingLabel = await idb.get(LABEL_KEY)
+    if (
+      !existingLabel.present ||
+      parseLibraryLabel(existingLabel.value) === null
+    ) {
+      mutations.push({
+        op: 'set',
+        key: LABEL_KEY,
+        value: mostRecent.label,
+      })
+    }
+    const activeStored = await idb.get(ACTIVE_KEY)
+    if (activeStored.present) {
+      const active = parseActiveIds(activeStored.value)
+      if (
+        active.libraryId !== null &&
+        active.libraryId !== DEFAULT_LIBRARY_ID
+      ) {
+        mutations.push({
+          op: 'set',
+          key: ACTIVE_KEY,
+          value: {
+            libraryId: DEFAULT_LIBRARY_ID,
+            bookId: active.bookId,
+          },
+        })
+      }
+    }
+  }
+
+  await idb.runReadwrite(mutations)
+}
+
 export function createSessionIdb(): SessionIdb {
-  return {
+  const idb: SessionIdb = {
     async get(key) {
       const db = await openDb()
       try {
@@ -104,6 +177,17 @@ export function createSessionIdb(): SessionIdb {
     async del(key) {
       await this.runReadwrite([{ op: 'del', key }])
     },
+    async keys() {
+      const db = await openDb()
+      try {
+        const tx = db.transaction(STORE_NAME, 'readonly')
+        const store = tx.objectStore(STORE_NAME)
+        const raw = await requestToPromise(store.getAllKeys())
+        return raw.map(String)
+      } finally {
+        db.close()
+      }
+    },
     async runReadwrite(mutations) {
       const db = await openDb()
       try {
@@ -122,4 +206,5 @@ export function createSessionIdb(): SessionIdb {
       }
     },
   }
+  return idb
 }

@@ -7,10 +7,8 @@ export interface BookLock {
   release: () => Promise<void>
 }
 
-export interface RecentLibrary {
-  id: string
-  label: string
-}
+/** Stable product library id (exactly one remembered handle). */
+export const DEFAULT_LIBRARY_ID = 'library'
 
 export interface SessionActiveIds {
   libraryId: string | null
@@ -31,8 +29,8 @@ export interface SessionState {
     libraryId: string,
   ) => Promise<StorageResult<SessionDirectoryHandle>>
   clearLibraryHandle: (libraryId: string) => Promise<StorageResult<void>>
-  removeRecentLibrary: (libraryId: string) => Promise<StorageResult<void>>
-  listRecentLibraries: () => Promise<StorageResult<readonly RecentLibrary[]>>
+  /** Folder-name label for the remembered library, or null when none. */
+  getLibraryLabel: (libraryId: string) => Promise<string | null>
   setActiveIds: (ids: SessionActiveIds) => Promise<StorageResult<void>>
   getActiveIds: () => Promise<SessionActiveIds>
   acquireBookLock: (bookId: string) => Promise<StorageResult<BookLock>>
