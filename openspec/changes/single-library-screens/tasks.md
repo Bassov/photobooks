@@ -11,9 +11,16 @@
 
 ## Manual test scenarios
 
-1. Unsupported: disable directory picker (or mobile UA) → only Chromium message, no other UI.
-2. Welcome: no handle → Choose library folder → granted → library (empty or list).
-3. Reload with prompt permission → Allow access to \<name\> restores library without new pick when granted.
-4. Empty library → Create book → editor; back → empty or list.
-5. Library with books → open book; New book; Change library shows folder name; Settings stub opens/closes.
-6. Editor back → library (not welcome) while handle still remembered.
+1. Unsupported: disable directory picker (or mobile UA) → only Chromium message, no other UI. — OK (e2e `unsupported browser blocks…`)
+2. Welcome: no handle → Choose library folder → granted → library (empty or list). — OK (e2e welcome + memory library)
+3. Reload with prompt permission → Allow access to \<name\> restores library without new pick when granted. — OK (unit WelcomeScreen re-grant + permissions-locks)
+4. Empty library → Create book → editor; back → empty or list. — OK (LibraryScreen unit + e2e)
+5. Library with books → open book; New book; Change library shows folder name; Settings stub opens/closes. — OK (e2e change library + settings)
+6. Editor back → library (not welcome) while handle still remembered. — OK (e2e memory library back)
+
+## UI review (skill ui-review)
+
+- Design system: placeholder screens use `Button` / `EmptyState` / `Dialog` / `Status` + tokens; no new palette. — OK
+- A11y: library `h1`, settings dialog title, focusable list/rename controls; primary actions keyboard-reachable. — OK
+- States: busy disables choose/create/change; loading + permission re-grant empty states; settings open/close. — OK
+- Layout smoke (Playwright): welcome/library/unsupported fit viewport; library-scroll named scrollport with many books. — OK (`e2e/library-screens.spec.ts`)
