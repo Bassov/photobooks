@@ -42,6 +42,35 @@ export type PhotoWorkerResponse = PhotoWorkerSuccess | PhotoWorkerFailure
 const PREVIEW_MAX_EDGE = 1280
 export const THUMB_MAX_EDGE = 320
 
+/**
+ * Optional createImageBitmap resize so decode never materializes a full-res
+ * bitmap when the long edge will be capped. Dimensions are source (pre-orient)
+ * pixels; long-edge math matches corrected size because orientation only swaps.
+ */
+export function bitmapResizeOptions(
+  width: number,
+  height: number,
+  maxEdge: number,
+  cover: boolean,
+  resizeQuality: 'pixelated' | 'low' | 'medium' | 'high' = 'medium',
+):
+  | Pick<ImageBitmapOptions, 'resizeWidth' | 'resizeHeight' | 'resizeQuality'>
+  | undefined {
+  if (!(width > 0 && height > 0 && maxEdge > 0)) {
+    return undefined
+  }
+  const longEdge = Math.max(width, height)
+  const scale = cover ? maxEdge / longEdge : Math.min(1, maxEdge / longEdge)
+  if (!cover && scale >= 1) {
+    return undefined
+  }
+  return {
+    resizeWidth: Math.max(1, Math.round(width * scale)),
+    resizeHeight: Math.max(1, Math.round(height * scale)),
+    resizeQuality,
+  }
+}
+
 async function readOrientation(buffer: ArrayBuffer): Promise<ExifOrientation> {
   try {
     const raw: unknown = await exifr.orientation(buffer)
@@ -162,26 +191,36 @@ export async function processPhotoRequest(
     const blob = new Blob([new Uint8Array(decodeBuffer)], {
       type: mimeType,
     })
+    const maxEdge = request.maxEdge ?? PREVIEW_MAX_EDGE
+    const cover = request.cover === true
+    const knownWidth = sof?.width ?? parsed.ImageWidth ?? parsed.ExifImageWidth
+    const knownHeight =
+      sof?.height ?? parsed.ImageHeight ?? parsed.ExifImageHeight
+    const resize =
+      typeof knownWidth === 'number' && typeof knownHeight === 'number'
+        ? bitmapResizeOptions(
+            knownWidth,
+            knownHeight,
+            maxEdge,
+            cover,
+            maxEdge <= THUMB_MAX_EDGE ? 'low' : 'medium',
+          )
+        : undefined
     const bitmap = await createImageBitmap(blob, {
       imageOrientation: 'none',
+      ...resize,
     })
 
     try {
-      const width =
-        sof?.width ?? parsed.ImageWidth ?? parsed.ExifImageWidth ?? bitmap.width
-      const height =
-        sof?.height ??
-        parsed.ImageHeight ??
-        parsed.ExifImageHeight ??
-        bitmap.height
+      const width = knownWidth ?? bitmap.width
+      const height = knownHeight ?? bitmap.height
 
       const transform = normalizeOrientation(orientation, width, height)
-      const maxEdge = request.maxEdge ?? PREVIEW_MAX_EDGE
       const preview = await buildPreview(
         bitmap,
         orientation,
         maxEdge,
-        request.cover === true,
+        cover,
         mimeType,
       )
 

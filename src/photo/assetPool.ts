@@ -1,5 +1,6 @@
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 import { THUMB_MAX_EDGE } from './processPhoto'
+import { metadataWorkerCount } from './metadataPool'
 
 interface HashWorkerRequest {
   id: string
@@ -115,20 +116,43 @@ interface WorkerSlot {
   busy: boolean
 }
 
+/** Cap concurrent decode workers so large imports do not explode memory. */
+export const DECODE_POOL_CAP = 4
+
+/** Pure pool sizing for tests / mutation; caps metadataWorkerCount. */
+export function decodeWorkerCount(
+  hardwareConcurrency: number | undefined,
+): number {
+  return Math.min(DECODE_POOL_CAP, metadataWorkerCount(hardwareConcurrency))
+}
+
 function poolSize(): number {
-  const cores =
-    typeof navigator !== 'undefined' && navigator.hardwareConcurrency > 0
-      ? navigator.hardwareConcurrency
-      : 2
-  return Math.max(1, cores - 1)
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: navigator is always defined in app + Vitest
+  const concurrency =
+    typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined
+  return decodeWorkerCount(concurrency)
 }
 
 let decodeSlots: WorkerSlot[] = []
 let hashSlots: WorkerSlot[] = []
 let queue: QueueItem[] = []
 let requestCounter = 0
+let filmstripVisibleIds = new Set<string>()
+/** Per painted spread → asset ids (unioned into visible preference). */
+const spreadVisibleById = new Map<string, ReadonlySet<string>>()
 let visibleAssetIds = new Set<string>()
 const abortByAsset = new Map<string, AbortController>()
+
+function rebuildVisibleAssetIds(): void {
+  const next = new Set(filmstripVisibleIds)
+  for (const ids of spreadVisibleById.values()) {
+    for (const id of ids) {
+      next.add(id)
+    }
+  }
+  visibleAssetIds = next
+  pump()
+}
 
 function ensureSlots(): void {
   if (decodeSlots.length === 0) {
@@ -381,6 +405,8 @@ export function resetAssetPool(): void {
     job.reject(new Error('Asset pool reset'))
   }
   queue = []
+  filmstripVisibleIds = new Set()
+  spreadVisibleById.clear()
   visibleAssetIds = new Set()
   for (const controller of abortByAsset.values()) {
     controller.abort()
@@ -393,10 +419,32 @@ export function resetAssetPool(): void {
  * Prefer these asset ids when scheduling queued thumb jobs.
  * Does not abort off-screen work — import batches must finish for every gallery
  * id (Filmstrip reveal / windowing would otherwise leave permanent gray placeholders).
+ *
+ * Test helper: replaces the filmstrip window and clears spread-visible ids.
  */
 export function setVisibleAssetIds(assetIds: readonly string[]): void {
-  visibleAssetIds = new Set(assetIds)
-  pump()
+  filmstripVisibleIds = new Set(assetIds)
+  spreadVisibleById.clear()
+  rebuildVisibleAssetIds()
+}
+
+/** Mounted filmstrip window ids (unioned with painted-spread assets). */
+export function setFilmstripVisibleAssetIds(assetIds: readonly string[]): void {
+  filmstripVisibleIds = new Set(assetIds)
+  rebuildVisibleAssetIds()
+}
+
+/** Painted-spread asset ids for one spread (unioned across spreads + filmstrip). */
+export function setSpreadVisibleAssetIds(
+  spreadId: string,
+  assetIds: readonly string[],
+): void {
+  spreadVisibleById.delete(spreadId)
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: after delete, empty set vs skip is equivalent for rebuild
+  if (assetIds.length > 0) {
+    spreadVisibleById.set(spreadId, new Set(assetIds))
+  }
+  rebuildVisibleAssetIds()
 }
 
 export function processAsset(

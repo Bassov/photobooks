@@ -3,8 +3,8 @@ import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addSpread, applyTemplate, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
-import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { selectImageTier } from '../photo/imageTiers'
+import * as assetPool from '../photo/assetPool'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources, retainAssetSource } from '../photo/assetSources'
 import { mockWorkerSuccess } from '../photo/photo.test-helpers'
@@ -13,7 +13,7 @@ import { resetTierCache } from '../photo/tierCache'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
-import { getCommittedZoom, resetCameraStore } from './cameraStore'
+import { resetCameraStore } from './cameraStore'
 import assert from 'node:assert/strict'
 import {
   getDisplayedPreview,
@@ -99,9 +99,27 @@ describe('per-spread paint subscription', () => {
       importRunning: false,
       importExpectedCount: 0,
     })
+    const visible = vi.spyOn(assetPool, 'setSpreadVisibleAssetIds')
     const { container } = render(<ConnectedSpreadView spreadId="missing" />)
     expect(container.firstChild).toBeNull()
     expect(screen.queryByTestId('spread-view')).toBeNull()
+    expect(visible).toHaveBeenCalledWith('missing', [])
+  })
+
+  it('registers spread asset ids for decode priority and clears on unmount', () => {
+    const visible = vi.spyOn(assetPool, 'setSpreadVisibleAssetIds')
+    const book = twoSpreadBook()
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const view = render(<ConnectedSpreadView spreadId="s0" />)
+    expect(visible).toHaveBeenCalledWith('s0', ['a'])
+    view.unmount()
+    expect(visible).toHaveBeenCalledWith('s0', [])
   })
 
   it('falls back to the filmstrip thumb when tier and preview URLs are missing', () => {
@@ -121,7 +139,9 @@ describe('per-spread paint subscription', () => {
     expect(image.getAttribute('src')).toBe('blob:thumb-fallback')
   })
 
-  it('shows a cached lower tier immediately while the covering tier is still loading', async () => {
+  it('shows the filmstrip thumb while the working preview is still loading', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb-while-load')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
     vi.stubGlobal('devicePixelRatio', 1)
     vi.stubGlobal(
@@ -131,10 +151,10 @@ describe('per-spread paint subscription', () => {
         return 1
       },
     )
-    vi.spyOn(tierCache, 'getTierUrl').mockImplementation((_id, tier) =>
-      tier === 320 ? 'blob:lower-cached' : undefined,
-    )
-    vi.spyOn(tierCache, 'requestTier').mockImplementation(() => undefined)
+    vi.spyOn(tierCache, 'getTierUrl').mockReturnValue(undefined)
+    const requestTier = vi
+      .spyOn(tierCache, 'requestTier')
+      .mockImplementation(() => undefined)
     vi.spyOn(tierCache, 'subscribeTier').mockImplementation(
       () => () => undefined,
     )
@@ -147,6 +167,7 @@ describe('per-spread paint subscription', () => {
       importRunning: false,
       importExpectedCount: 0,
     })
+    setThumbUrl('a', new Uint8Array([1, 2, 3]).buffer, 'image/jpeg')
 
     render(<ConnectedSpreadView spreadId="s0" />)
     await act(async () => {
@@ -155,12 +176,13 @@ describe('per-spread paint subscription', () => {
     })
 
     const image = screen.getByTestId('spread-frame-image')
-    expect(image.getAttribute('src')).toBe('blob:lower-cached')
-    expect(image.getAttribute('data-tier')).toBe('320')
-    expect(getDisplayedPreview('a')).toBe('blob:lower-cached')
+    expect(image.getAttribute('src')).toBe('blob:thumb-while-load')
+    expect(requestTier).toHaveBeenCalledWith('a', 1280, undefined)
   })
 
-  it('keeps a cached lower tier across remount while covering is still loading', async () => {
+  it('keeps the filmstrip thumb across remount while working preview is still loading', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb-remount')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
     vi.stubGlobal('devicePixelRatio', 1)
     vi.stubGlobal(
@@ -170,9 +192,7 @@ describe('per-spread paint subscription', () => {
         return 1
       },
     )
-    vi.spyOn(tierCache, 'getTierUrl').mockImplementation((_id, tier) =>
-      tier === 320 ? 'blob:lower-remount' : undefined,
-    )
+    vi.spyOn(tierCache, 'getTierUrl').mockReturnValue(undefined)
     vi.spyOn(tierCache, 'requestTier').mockImplementation(() => undefined)
     vi.spyOn(tierCache, 'subscribeTier').mockImplementation(
       () => () => undefined,
@@ -186,6 +206,7 @@ describe('per-spread paint subscription', () => {
       importRunning: false,
       importExpectedCount: 0,
     })
+    setThumbUrl('a', new Uint8Array([1, 2, 3]).buffer, 'image/jpeg')
 
     const first = render(<ConnectedSpreadView spreadId="s0" />)
     await act(async () => {
@@ -193,7 +214,7 @@ describe('per-spread paint subscription', () => {
       await Promise.resolve()
     })
     expect(screen.getByTestId('spread-frame-image').getAttribute('src')).toBe(
-      'blob:lower-remount',
+      'blob:thumb-remount',
     )
     first.unmount()
 
@@ -203,8 +224,7 @@ describe('per-spread paint subscription', () => {
       await Promise.resolve()
     })
     const image = screen.getByTestId('spread-frame-image')
-    expect(image.getAttribute('src')).toBe('blob:lower-remount')
-    expect(image.getAttribute('data-tier')).toBe('320')
+    expect(image.getAttribute('src')).toBe('blob:thumb-remount')
   })
 
   it('drops a stale displayed tier on remount and falls back to the thumb', async () => {
@@ -523,17 +543,9 @@ describe('per-spread paint subscription', () => {
     })
     expect(getDisplayedPreview('a')).toBe('blob:tier')
 
-    const item = getSpreadPaintSnapshot('s0')?.resolved.items.find(
-      (candidate) => candidate.assetId === 'a',
-    )
-    assert(item !== undefined, 'expected placed item')
-    const edge =
-      Math.max(item.rectMm.width, item.rectMm.height) * SPREAD_PX_PER_MM
     const swapped = screen.getByTestId('spread-frame-image')
     expect(swapped.getAttribute('src')).toBe('blob:tier')
-    expect(swapped.getAttribute('data-tier')).toBe(
-      String(selectImageTier(edge * getCommittedZoom(), 1)),
-    )
+    expect(swapped.getAttribute('data-tier')).toBe(String(selectImageTier()))
   })
 
   it('re-renders a spread for selection only when its labels change', () => {

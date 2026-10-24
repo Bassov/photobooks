@@ -654,7 +654,6 @@ test.describe('frame-budget gates', () => {
       await dispatchCtrlWheel(page, 500, 24)
       await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
       await clearPerfScenario(page)
-      const tierAtFit = await readFilledTier(page)
 
       await dispatchCtrlWheel(page, -300, 28)
       await expect
@@ -668,8 +667,7 @@ test.describe('frame-budget gates', () => {
           async () => {
             const sample = await readFilledTier(page)
             return (
-              sample.tier !== null &&
-              sample.tier !== tierAtFit.tier &&
+              sample.tier === 1280 &&
               sample.src.length > 0 &&
               tierCovers(sample)
             )
@@ -699,9 +697,8 @@ test.describe('frame-budget gates', () => {
       await dispatchCtrlWheel(page, 500, 24)
       await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
       await clearPerfScenario(page)
-      const tierAtFit = await readFilledTier(page)
 
-      // Phase 1: continuous zoom-in gesture (exclude async tier decode waits).
+      // Phase 1: continuous zoom-in gesture (exclude async preview decode waits).
       await dispatchCtrlWheel(page, -300, 28)
       await expect
         .poll(async () =>
@@ -727,14 +724,13 @@ test.describe('frame-budget gates', () => {
       expect(laidOutWidth).toBeGreaterThanOrEqual(300 * (96 / 25.4) * 4 - 1)
       await page.evaluate(browserAssertNoLoafThenClear)
 
-      // Phase 2: zoom-tier switches after settle.
+      // Phase 2: working preview (1280) after settle — no multi-step ladder.
       await expect
         .poll(
           async () => {
             const sample = await readFilledTier(page)
             return (
-              sample.tier !== null &&
-              sample.tier !== tierAtFit.tier &&
+              sample.tier === 1280 &&
               sample.src.length > 0 &&
               tierCovers(sample)
             )
@@ -1001,7 +997,7 @@ function tierCovers(sample: TierSample): boolean {
   if (sample.tier === null || !(sample.src.length > 0)) {
     return false
   }
-  return sample.tier >= sample.longEdge || sample.tier === 2560
+  return sample.tier >= sample.longEdge || sample.tier === 1280
 }
 
 interface AnchorSample {
