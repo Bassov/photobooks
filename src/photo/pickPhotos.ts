@@ -1,5 +1,5 @@
 import { acceptedPhotoAcceptAttr, isAcceptedPhotoMime } from './mime'
-import { HEIC_UNSUPPORTED_MESSAGE, isHeicLikeFile } from './heic'
+import { isHeicLikeFile } from './heic'
 import type { ImportErrorReason } from './assetPool'
 
 export function canUseDirectoryPicker(): boolean {
@@ -66,20 +66,22 @@ export function isImageLikePath(relativePath: string): boolean {
   return IMAGE_LIKE_EXTENSIONS.some((ext) => lower.endsWith(ext))
 }
 
-/** Accepted filmstrip import extensions (jpeg/png/webp) from a relative path. */
+/** Accepted gallery import extensions (jpeg/png/webp/heic/heif) from a path. */
 export function isAcceptedPhotoPath(relativePath: string): boolean {
   const lower = relativePath.toLowerCase()
   return (
     lower.endsWith('.jpg') ||
     lower.endsWith('.jpeg') ||
     lower.endsWith('.png') ||
-    lower.endsWith('.webp')
+    lower.endsWith('.webp') ||
+    lower.endsWith('.heic') ||
+    lower.endsWith('.heif')
   )
 }
 
 /**
- * Image-like but not accepted (e.g. TIFF/HEIC): still resolve for per-file errors.
- * Non-image paths are folder skips.
+ * Image-like but not accepted (e.g. TIFF): still resolve for per-file errors.
+ * Non-image paths are folder skips. HEIC/HEIF are accepted as placeholders.
  */
 export function isUnsupportedImagePath(relativePath: string): boolean {
   return isImageLikePath(relativePath) && !isAcceptedPhotoPath(relativePath)
@@ -123,17 +125,8 @@ export function partitionImportFiles(
   const skipped: File[] = []
   for (const file of files) {
     const mimeType = file.type || 'application/octet-stream'
-    if (isAcceptedPhotoMime(mimeType)) {
+    if (isAcceptedPhotoMime(mimeType) || isHeicLikeFile(file)) {
       accepted.push(file)
-      continue
-    }
-    // HEIC before folder skip so extension-less `octet-stream` HEIC still errors.
-    if (isHeicLikeFile(file)) {
-      rejected.push({
-        file,
-        message: HEIC_UNSUPPORTED_MESSAGE,
-        reason: 'heic',
-      })
       continue
     }
     // Keep bare `octet-stream` for HEIC ftyp sniff; skip only clear non-images.

@@ -27,9 +27,14 @@ import {
   setSelectedAssetId,
 } from './gallerySelection'
 import { Filmstrip } from './Filmstrip'
+import {
+  resetImportProgressForTests,
+  setImportProgress,
+} from './importProgressStore'
 import { Pasteboard } from './Pasteboard'
 import { seedGallery } from './gallery.test-helpers'
 import { resetCameraStore } from './cameraStore'
+import * as thumbCache from './thumbCache'
 import { resetThumbCache } from './thumbCache'
 import {
   buildStridePrefix,
@@ -254,19 +259,46 @@ describe('Filmstrip aspect cards', () => {
 
   it('shows import progress on the status strip', () => {
     seedGallery(1)
-    render(
-      <Filmstrip
-        progress={{
-          total: 10,
-          completed: 3,
-          errors: [],
-          running: true,
-        }}
-      />,
-    )
+    setImportProgress({
+      total: 10,
+      completed: 3,
+      errors: [],
+      running: true,
+    })
+    render(<Filmstrip />)
     expect(screen.getByTestId('import-progress').textContent).toMatch(
       /Importing 3 \/ 10/,
     )
+    resetImportProgressForTests()
+  })
+
+  it('notes filmstrip scroll so thumb publishes can quiet during scroll', () => {
+    seedGallery(8)
+    const rafQueue: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      rafQueue.push(cb)
+      return rafQueue.length
+    })
+    const noteScroll = vi.spyOn(thumbCache, 'noteFilmstripScroll')
+    render(<Filmstrip />)
+    const scroll = screen.getByTestId('filmstrip-scroll')
+    Object.defineProperty(scroll, 'scrollLeft', {
+      configurable: true,
+      writable: true,
+      value: 160,
+    })
+    fireEvent.scroll(scroll)
+    Object.defineProperty(scroll, 'scrollLeft', {
+      configurable: true,
+      writable: true,
+      value: 320,
+    })
+    // Second scroll in the same frame hits the rAF coalescing early-return.
+    fireEvent.scroll(scroll)
+    expect(noteScroll).toHaveBeenCalledTimes(2)
+    expect(rafQueue).toHaveLength(1)
+    noteScroll.mockRestore()
+    vi.unstubAllGlobals()
   })
 
   it('keeps empty-state copy full-width (not a 1px virtualizer window)', () => {

@@ -9,6 +9,8 @@ import {
   isHeicMime,
   isHeicSignature,
   isHeicSniffCandidate,
+  isKnownHeicFile,
+  markHeicFile,
   upgradeRejectedWithHeicSniff,
 } from './heic'
 
@@ -56,6 +58,18 @@ describe('isHeicMime', () => {
     expect(isHeicMime('image/jpeg')).toBe(false)
     expect(isHeicMime('image/png')).toBe(false)
     expect(isHeicMime('')).toBe(false)
+  })
+})
+
+describe('markHeicFile / isKnownHeicFile', () => {
+  it('treats sniff-marked octet-stream files as HEIC', () => {
+    const file = new File([new Uint8Array([1])], 'IMG_0042', {
+      type: 'application/octet-stream',
+    })
+    expect(isKnownHeicFile(file)).toBe(false)
+    markHeicFile(file)
+    expect(isKnownHeicFile(file)).toBe(true)
+    expect(isHeicLikeFile(file)).toBe(false)
   })
 })
 

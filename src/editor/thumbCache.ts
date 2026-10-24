@@ -1,12 +1,17 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
 import { ObjectUrlLru } from '../photo/objectUrlLru'
+import {
+  filmstripScrollQuietRemainingMs,
+  isFilmstripScrollQuiet,
+  noteFilmstripScrollActivity,
+} from './filmstripScrollQuiet'
 import { trackHashJob } from './pendingHashes'
 import { restoreAspectFromPreview } from './previewAspect'
 
 const DEFAULT_CAPACITY = 256
 /** Cap React notifies per frame so bulk import+scroll stays within LoAF. */
-const FLUSH_PER_FRAME = 4
+const FLUSH_PER_FRAME = 1
 /** Matches bookStore gallery flush: progress if rAF freezes (background tab). */
 const FLUSH_RAF_WATCHDOG_MS = 32
 
@@ -32,6 +37,8 @@ interface PendingThumb {
 const pendingById = new Map<string, PendingThumb>()
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
+/** Separate from rAF flush scheduling so scroll-quiet waits do not race it. */
+let quietFlushTimer: ReturnType<typeof setTimeout> | undefined
 
 function notifyAsset(assetId: string): void {
   publishGeneration += 1
@@ -57,7 +64,22 @@ function publishThumbNow(
   notifyAsset(assetId)
 }
 
+function scheduleFlushAfterQuiet(delayMs: number): void {
+  clearTimeout(quietFlushTimer)
+  quietFlushTimer = setTimeout(
+    () => {
+      quietFlushTimer = undefined
+      flushPending()
+    },
+    Math.max(0, delayMs),
+  )
+}
+
 function flushPending(): void {
+  if (isFilmstripScrollQuiet()) {
+    scheduleFlushAfterQuiet(filmstripScrollQuietRemainingMs())
+    return
+  }
   let published = 0
   for (const [id, item] of pendingById) {
     if (published >= FLUSH_PER_FRAME) {
@@ -91,6 +113,15 @@ function scheduleFlush(): void {
   // used previously because rAF-only queues stalled without a watchdog.
   requestAnimationFrame(run)
   flushWatchdogTimer = setTimeout(run, FLUSH_RAF_WATCHDOG_MS)
+}
+
+/**
+ * Call from filmstrip scroll so thumb publishes wait for a quiet frame —
+ * avoids stacking React notifies on scroll-during-import LoAF windows.
+ * In-flight flushes re-check quiet in `flushPending`; no reschedule needed.
+ */
+export function noteFilmstripScroll(): void {
+  noteFilmstripScrollActivity()
 }
 
 function enqueuePublish(
@@ -131,6 +162,11 @@ export function getThumbPublishGeneration(): number {
 
 export function getThumbUrl(assetId: string): string | undefined {
   return lru.get(assetId)
+}
+
+/** True when a hot or pending-in-session thumb exists (incl. before rAF publish). */
+export function hasThumbData(assetId: string): boolean {
+  return lru.has(assetId) || lastThumb.has(assetId)
 }
 
 export function setThumbUrl(
@@ -241,6 +277,8 @@ export function resetThumbCache(): void {
   flushScheduled = false
   clearTimeout(flushWatchdogTimer)
   flushWatchdogTimer = undefined
+  clearTimeout(quietFlushTimer)
+  quietFlushTimer = undefined
   for (const controller of hydrateInflight.values()) {
     controller.abort()
   }
