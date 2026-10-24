@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as assets from '../assets'
 import {
   createFsaAssetSource,
   createMemoryAssetDirectory,
@@ -45,7 +44,6 @@ describe('folder import / re-scan responsiveness', () => {
   })
 
   it('keeps priority scheduler slices under the long-task ceiling and orders used-in-book first', async () => {
-    vi.spyOn(assets, 'hashContent').mockResolvedValue('f'.repeat(64))
     const tree = createMemoryAssetDirectory()
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
     for (let i = 0; i < LARGE_FOLDER_COUNT; i += 1) {

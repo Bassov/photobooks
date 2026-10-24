@@ -1,8 +1,5 @@
-import {
-  createMemoryAssetSource,
-  hashContent,
-  type AssetSource,
-} from '../assets'
+import { createMemoryAssetSource, type AssetSource } from '../assets'
+import { cacheKeyFromIdentity } from '../assets/cacheKey'
 import { getAssetSource } from '../photo/assetSources'
 import { putCachedTierForHash } from '../photo/tierCache'
 import { getBookStoreSnapshot, patchAssetRecord } from './bookStore'
@@ -22,13 +19,14 @@ function needsIdentity(assetId: string): boolean {
   return (
     asset.sourceRootId === undefined ||
     asset.relativePath === undefined ||
-    asset.contentHash === undefined
+    asset.byteSize === undefined ||
+    asset.mtimeMs === undefined
   )
 }
 
 /**
  * Upgrade session-only gallery assets that still have live Files into
- * library-backed identity + contentHash (for DerivedCache hydrate after reload).
+ * library-backed identity so DerivedCache can key by path/size/mtime/root.
  */
 export async function upgradeSessionAssetsForLibrary(
   register: (rootId: string, source: AssetSource) => void,
@@ -54,25 +52,23 @@ export async function upgradeSessionAssetsForLibrary(
     const relativePath = relativePathFor(file)
     const bytes = await file.arrayBuffer()
     memorySource.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
-    patchAssetRecord(assetId, {
+    const identity = {
       sourceRootId,
       relativePath,
       byteSize: file.size,
       mtimeMs: file.lastModified,
-    })
+    }
+    patchAssetRecord(assetId, identity)
 
-    const hashJob = trackHashJob(
-      hashContent(bytes).then(async (contentHash) => {
-        patchAssetRecord(assetId, { contentHash })
-        await Promise.all([
-          putCachedThumbForHash(assetId, contentHash),
-          putCachedTierForHash(assetId, contentHash),
-        ])
-        return contentHash
-      }),
+    const cacheKey = cacheKeyFromIdentity(identity)
+    const putJob = trackHashJob(
+      Promise.all([
+        putCachedThumbForHash(assetId, cacheKey),
+        putCachedTierForHash(assetId, cacheKey),
+      ]).then(() => cacheKey),
     )
-    await hashJob.catch(() => {
-      // Hash is best-effort; path/size/mtime still persist.
+    await putJob.catch(() => {
+      // Identity-keyed puts are best-effort; path/size/mtime still persist.
     })
   })
 }

@@ -1,4 +1,4 @@
-/** Cross-pool coordination so hash stays behind metadata (background > hash). */
+/** Cross-pool coordination for metadata job idle waiters. */
 
 let pendingMetadataJobs = 0
 let onIdle: (() => void) | undefined
@@ -27,7 +27,7 @@ export function hasPendingMetadataJobs(): boolean {
   return pendingMetadataJobs > 0
 }
 
-/** Resolve when no metadata jobs are in flight (hashContent waits here). */
+/** Resolve when no metadata jobs are in flight. */
 export function whenMetadataIdle(): Promise<void> {
   if (pendingMetadataJobs === 0) {
     return Promise.resolve()

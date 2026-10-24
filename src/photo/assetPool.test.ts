@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DECODE_POOL_CAP,
   decodeWorkerCount,
-  enqueueHash,
   getVisibleAssetIds,
   processAsset,
   resetAssetPool,
@@ -909,93 +908,5 @@ describe('assetPool', () => {
     resetAssetPool()
     await expect(secondResult).resolves.toMatch(/reset/)
     first.catch(() => undefined)
-  })
-
-  it('runs background decode before hash when both are queued', async () => {
-    const order: string[] = []
-    let release: (() => void) | undefined
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    class GatedWorker {
-      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
-
-      addEventListener(
-        type: string,
-        listener: (event: MessageEvent) => void,
-      ): void {
-        const set = this.listeners.get(type) ?? new Set()
-        set.add(listener)
-        this.listeners.set(type, set)
-      }
-
-      removeEventListener(
-        type: string,
-        listener: (event: MessageEvent) => void,
-      ): void {
-        this.listeners.get(type)?.delete(listener)
-      }
-
-      postMessage(data: {
-        id: string
-        file?: File
-        buffer?: ArrayBuffer
-      }): void {
-        order.push(data.file ? `decode:${data.file.name}` : 'hash')
-        void gate.then(() => {
-          const event = {
-            data: data.file
-              ? {
-                  id: data.id,
-                  ok: true,
-                  name: data.file.name,
-                  mimeType: 'image/jpeg',
-                  byteLength: 1,
-                  width: 1,
-                  height: 1,
-                  correctedWidth: 1,
-                  correctedHeight: 1,
-                  orientation: 1,
-                  previewBuffer: new Uint8Array([1]).buffer,
-                  previewMimeType: 'image/jpeg',
-                }
-              : {
-                  id: data.id,
-                  ok: true,
-                  hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-                },
-          } as MessageEvent
-          for (const listener of this.listeners.get('message') ?? []) {
-            listener(event)
-          }
-        })
-      }
-
-      terminate(): void {
-        this.listeners.clear()
-      }
-    }
-    Object.defineProperty(navigator, 'hardwareConcurrency', {
-      configurable: true,
-      value: 1,
-    })
-    vi.stubGlobal('Worker', GatedWorker)
-    warmAssetPool()
-
-    const hold = processAsset({
-      assetId: 'hold',
-      file: new File([new Uint8Array([1])], 'hold.jpg', { type: 'image/jpeg' }),
-      priority: 'visible',
-    })
-    const decode = processAsset({
-      assetId: 'bg',
-      file: new File([new Uint8Array([1])], 'bg.jpg', { type: 'image/jpeg' }),
-      priority: 'background',
-    })
-    const hash = enqueueHash(new ArrayBuffer(0))
-    expect(order).toEqual(['decode:hold.jpg'])
-    release?.()
-    await Promise.all([hold, decode, hash])
-    expect(order).toEqual(['decode:hold.jpg', 'decode:bg.jpg', 'hash'])
   })
 })

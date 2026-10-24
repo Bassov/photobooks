@@ -9,7 +9,12 @@ export { createMemoryAssetSource, type MemoryAssetSource } from './memory'
 export { createFsaAssetSource, type FsaAssetSource } from './fsa/fsaAssetSource'
 export type { AssetDirectoryHandle, AssetFileHandle } from './fsa/handles'
 export { createMemoryAssetDirectory } from './fsa/memoryDirectory'
-export { hashContent } from './hash'
+export {
+  cacheKeyFromIdentity,
+  identityKeyString,
+  tryCacheKeyFromAsset,
+  type AssetIdentityKey,
+} from './cacheKey'
 export {
   matchAssets,
   type AssetMatchStatus,

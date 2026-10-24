@@ -1,9 +1,6 @@
-import {
-  createMemoryAssetSource,
-  hashContent,
-  type MemoryAssetSource,
-} from '../assets'
-import { getBookStoreSnapshot, patchAssetRecord } from './bookStore'
+import { createMemoryAssetSource, type MemoryAssetSource } from '../assets'
+import { tryCacheKeyFromAsset } from '../assets/cacheKey'
+import { getBookStoreSnapshot } from './bookStore'
 import { trackHashJob } from './pendingHashes'
 import {
   getRegisteredAssetSource,
@@ -29,15 +26,10 @@ export function memorySourceForRoot(rootId: string): MemoryAssetSource {
   return created
 }
 
-/** Prefer explicit hash, else the book asset record (re-import reuse). */
-export function resolveSeedContentHash(
-  assetId: string,
-  knownHash?: string,
-): string | undefined {
-  if (knownHash !== undefined) return knownHash
-  return getBookStoreSnapshot().book.assets[assetId]?.contentHash
-}
-
+/**
+ * Seed the memory asset source and put any already-encoded thumbs/tiers under
+ * the identity cache key. Does not run whole-file content hashing.
+ */
 export function seedAndHashEntry(options: {
   assetId: string
   file: File
@@ -46,8 +38,6 @@ export function seedAndHashEntry(options: {
   memorySource: MemoryAssetSource
   /** When set, skip a second body read. */
   bytes?: ArrayBuffer
-  /** When set, skip hashContent and patch/put caches for this hash. */
-  contentHash?: string
 }): Promise<void> {
   const {
     assetId,
@@ -56,29 +46,28 @@ export function seedAndHashEntry(options: {
     sourceRootId,
     memorySource,
     bytes: preloaded,
-    contentHash: knownHash,
   } = options
-  const resolvedHash = resolveSeedContentHash(assetId, knownHash)
   const load =
     preloaded !== undefined ? Promise.resolve(preloaded) : file.arrayBuffer()
   return load.then((bytes) => {
     memorySource.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
-    if (resolvedHash !== undefined) return
-    if (typeof Worker === 'undefined') {
+    const asset = getBookStoreSnapshot().book.assets[assetId]
+    const cacheKey = tryCacheKeyFromAsset({
+      sourceRootId: asset?.sourceRootId ?? sourceRootId,
+      relativePath: asset?.relativePath ?? relativePath,
+      byteSize: asset?.byteSize ?? file.size,
+      mtimeMs: asset?.mtimeMs ?? file.lastModified,
+    })
+    if (cacheKey === undefined) {
       return
     }
-    const hashJob = hashContent(bytes)
     void trackHashJob(
-      hashJob.then(async (contentHash) => {
-        patchAssetRecord(assetId, { contentHash })
-        await Promise.all([
-          putCachedThumbForHash(assetId, contentHash),
-          putCachedTierForHash(assetId, contentHash),
-        ])
-        return contentHash
-      }),
+      Promise.all([
+        putCachedThumbForHash(assetId, cacheKey),
+        putCachedTierForHash(assetId, cacheKey),
+      ]).then(() => cacheKey),
     ).catch(() => {
-      // Hash is best-effort; identity path/size/mtime still persist.
+      // Identity-keyed puts are best-effort; hot LRU still holds the session.
     })
   })
 }

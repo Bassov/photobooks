@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { resetScanWorker } from '../../assets'
-import { computeSha256Hex } from '../../assets/hashDigest'
 import { finalizeMemoryScanEntries } from '../../assets/scanWalk'
 import { resetAssetPool } from '../../photo/assetPool'
 import { getAssetSource, resetAssetSources } from '../../photo/assetSources'
@@ -70,31 +69,24 @@ function stubScanAndHashWorker(): void {
       }[]
       buffer?: ArrayBuffer
     }): void {
-      void (async () => {
-        let event: MessageEvent
-        if (data.kind === 'memory-files' && data.files) {
-          const entries = finalizeMemoryScanEntries(data.files)
-          event = {
-            data: { id: data.id, ok: true as const, entries },
-          } as MessageEvent
-        } else if (data.buffer) {
-          const hash = await computeSha256Hex(data.buffer)
-          event = {
-            data: { id: data.id, ok: true as const, hash },
-          } as MessageEvent
-        } else {
-          event = {
-            data: {
-              id: data.id,
-              ok: false as const,
-              error: 'unexpected worker message',
-            },
-          } as MessageEvent
-        }
-        for (const listener of this.listeners.get('message') ?? []) {
-          listener(event)
-        }
-      })()
+      let event: MessageEvent
+      if (data.kind === 'memory-files' && data.files) {
+        const entries = finalizeMemoryScanEntries(data.files)
+        event = {
+          data: { id: data.id, ok: true as const, entries },
+        } as MessageEvent
+      } else {
+        event = {
+          data: {
+            id: data.id,
+            ok: false as const,
+            error: 'unexpected worker message',
+          },
+        } as MessageEvent
+      }
+      for (const listener of this.listeners.get('message') ?? []) {
+        listener(event)
+      }
     }
 
     terminate(): void {

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { hashContent } from '../assets/hash'
 import { resetAssetPool, warmAssetPool } from './assetPool'
 import {
   enqueueMetadata,
@@ -138,25 +137,15 @@ describe('metadataPool', () => {
     ).toBe(false)
   })
 
-  it('runs metadata before hashContent when both are queued', async () => {
-    const order: string[] = []
+  it('tracks pending metadata jobs until the worker settles', async () => {
     let release: (() => void) | undefined
     const gate = new Promise<void>((resolve) => {
       release = resolve
     })
     installWorker((data, emit) => {
-      const label = data.kind === 'metadata' ? 'metadata' : 'hash'
-      order.push(label)
       void gate.then(() => {
         emit({
-          data:
-            data.kind === 'metadata'
-              ? { id: data.id, ok: true, metadata: { orientation: 1 } }
-              : {
-                  id: data.id,
-                  ok: true,
-                  hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-                },
+          data: { id: data.id, ok: true, metadata: { orientation: 1 } },
         } as MessageEvent)
       })
     })
@@ -167,12 +156,9 @@ describe('metadataPool', () => {
     warmAssetPool()
 
     const metadata = enqueueMetadata({ buffer: new ArrayBuffer(1) })
-    const hash = hashContent(new ArrayBuffer(0))
-    expect(order).toEqual(['metadata'])
     expect(hasPendingMetadataJobs()).toBe(true)
     release?.()
-    await Promise.all([metadata, hash])
-    expect(order).toEqual(['metadata', 'hash'])
+    await metadata
     expect(hasPendingMetadataJobs()).toBe(false)
   })
 

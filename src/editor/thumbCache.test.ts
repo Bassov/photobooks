@@ -286,7 +286,7 @@ describe('thumbCache', () => {
     expect(revoke).toHaveBeenCalledWith('blob:x')
   })
 
-  it('puts into DerivedCache when setThumbUrl receives a contentHash', async () => {
+  it('puts into DerivedCache when setThumbUrl receives a cache key', async () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
@@ -302,7 +302,7 @@ describe('thumbCache', () => {
     expect(put).toHaveBeenCalledTimes(1)
   })
 
-  it('dedupes DerivedCache thumb puts by contentHash', async () => {
+  it('dedupes DerivedCache thumb puts by cache key', async () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:dedupe')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
@@ -362,7 +362,7 @@ describe('thumbCache', () => {
     expect(got.ok).toBe(true)
   })
 
-  it('does not put into DerivedCache without a contentHash', async () => {
+  it('does not put into DerivedCache without a cache key', async () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
     const cache = createMemoryDerivedCache()
@@ -432,7 +432,7 @@ describe('thumbCache', () => {
     expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([9, 8]))
   })
 
-  it('ensureThumb is a no-op without contentHash or lastThumb', async () => {
+  it('ensureThumb is a no-op without cache key or lastThumb', async () => {
     const cache = createMemoryDerivedCache()
     const get = vi.spyOn(cache, 'get')
     setDerivedCacheForTests(cache)
@@ -441,7 +441,7 @@ describe('thumbCache', () => {
     expect(get).not.toHaveBeenCalled()
   })
 
-  it('ensureThumb republishes lastThumb after LRU eviction without contentHash', () => {
+  it('ensureThumb republishes lastThumb after LRU eviction without cache key', () => {
     vi.spyOn(URL, 'createObjectURL')
       .mockReturnValueOnce('blob:first')
       .mockReturnValueOnce('blob:republish')

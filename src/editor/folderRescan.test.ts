@@ -1,6 +1,5 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as assets from '../assets'
 import {
   createFsaAssetSource,
   createMemoryAssetDirectory,
@@ -34,7 +33,6 @@ describe('startFolderRescan', () => {
   beforeEach(() => {
     vi.stubGlobal('indexedDB', new IDBFactory())
     stubScanWorker()
-    vi.spyOn(assets, 'hashContent').mockResolvedValue('c'.repeat(64))
     resetBookStore()
     clearRegisteredAssetSources()
     resetAssetSources()
@@ -151,7 +149,6 @@ describe('startFolderRescan', () => {
 
     await startFolderRescan({ sourceRootId, runLazy: true })
     expect(getAssetSource('u')?.name).toBe('used.jpg')
-    expect(assets.hashContent).not.toHaveBeenCalled()
     await awaitFolderRescanForTests()
     expect(phases[0]).toBe('priority')
     expect(phases.includes('lazy')).toBe(true)
@@ -186,11 +183,11 @@ describe('startFolderRescan', () => {
 
     await startFolderRescan({ sourceRootId, runLazy: false })
     expect(getAssetSource('a1')?.name).toBe('shot.jpg')
-    expect(assets.hashContent).not.toHaveBeenCalled()
     await vi.waitFor(() => {
       const asset = getBookStoreSnapshot().book.assets.a1
       expect(asset?.byteSize).toBe(3)
       expect(asset?.mtimeMs).toBe(99)
+      expect(asset?.contentHash).toBeUndefined()
     })
   })
 
@@ -212,7 +209,6 @@ describe('startFolderRescan', () => {
             relativePath: 'used.jpg',
             byteSize: 2,
             mtimeMs: 42,
-            contentHash: 'a'.repeat(64),
           },
         },
       }),
@@ -221,24 +217,10 @@ describe('startFolderRescan', () => {
       importExpectedCount: 0,
     })
 
-    let releaseLazy!: () => void
-    const lazyHang = new Promise<string>((resolve) => {
-      releaseLazy = () => {
-        resolve('d'.repeat(64))
-      }
-    })
     const trackSpy = vi.spyOn(pendingHashes, 'trackHashJob')
-    vi.spyOn(assets, 'hashContent').mockImplementation(async (bytes) => {
-      // Priority path reuses hash when size/mtime match; lazy still hashes.
-      if (bytes.byteLength === 1) {
-        return lazyHang
-      }
-      return 'c'.repeat(64)
-    })
-
     const pending = startFolderRescan({ sourceRootId, runLazy: true })
     await pending
-    // Priority finished; lazy hash may still be in flight but must not be tracked.
+    // Priority finished; rescan must not enqueue content-hash jobs.
     expect(trackSpy).not.toHaveBeenCalled()
     let saveDone = false
     const saveWait = awaitPendingHashes().then(() => {
@@ -247,7 +229,6 @@ describe('startFolderRescan', () => {
     await Promise.resolve()
     expect(saveDone).toBe(true)
     await saveWait
-    releaseLazy()
     await awaitFolderRescanForTests()
   })
 

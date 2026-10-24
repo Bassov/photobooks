@@ -32,12 +32,12 @@ Hard product requirement: every interaction runs at 60 fps with no main-thread s
 
 ### Thread ownership
 
-| Thread                   | Owns                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| Main                     | React UI, DOM painter, input handling, light store updates                                                                      |
-| Compositor (browser)     | Camera transform, scrolling, `transform` / `opacity` animations                                                                 |
-| Raster threads (browser) | Decoding pre-sized previews for `<img decoding="async">`                                                                        |
-| Worker pool              | Folder scan, file reads, EXIF, decode, resize, hashing, encode (JPEG / WebP / AVIF), book parse and migrations, PDF, imposition |
+| Thread                   | Owns                                                                                                                   |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Main                     | React UI, DOM painter, input handling, light store updates                                                             |
+| Compositor (browser)     | Camera transform, scrolling, `transform` / `opacity` animations                                                        |
+| Raster threads (browser) | Decoding pre-sized previews for `<img decoding="async">`                                                               |
+| Worker pool              | Folder scan, file reads, EXIF, decode, resize, encode (JPEG / WebP / AVIF), book parse and migrations, PDF, imposition |
 
 ### Input and gestures
 
@@ -65,7 +65,7 @@ Hard product requirement: every interaction runs at 60 fps with no main-thread s
 
 ### Workers
 
-- One pool sized from `navigator.hardwareConcurrency` (leave one core for main), with a priority queue: visible thumbnails > visible zoom tiers > prefetch > hashing > derivatives / export. Jobs are cancellable (`AbortSignal`) when their target scrolls away.
+- One pool sized from `navigator.hardwareConcurrency` (leave one core for main), with a priority queue: visible thumbnails > visible zoom tiers > prefetch > derivatives / export. Jobs are cancellable (`AbortSignal`) when their target scrolls away.
 - Transfer, don't clone: `ArrayBuffer`, `ImageBitmap`, `OffscreenCanvas`; directory / file handles are passed to workers so scanning and reading never touch main. Workers return encoded blobs for the cache, not raw pixels.
 - Book load (JSON parse, Zod, migrations) runs in a worker. Autosave serialization runs at background priority (`scheduler.postTask`) and moves to the worker if it measures over budget.
 - Cross-origin isolation (COOP / COEP headers) unlocks `SharedArrayBuffer`, multithreaded WASM (AVIF encode) and high-resolution timers for perf tests. Headers are security surface — Security Review.
@@ -103,7 +103,7 @@ Shared CI runners have no GPU and noisy CPUs, so they cannot prove 60 fps direct
 | `src/render/`  | `SpreadView` DOM painter shared by editor and site                                                                         | React, no platform I/O      |
 | `src/editor/`  | Pasteboard + camera, rulers, grid/guide overlays, spread list, filmstrip, drag-and-drop, presentation mode, history wiring | UI                          |
 | `src/project/` | `LibraryStorage` and `SessionState` adapters (memory, File System Access, IndexedDB, Web Locks)                            | Platform                    |
-| `src/assets/`  | `AssetSource`, `DerivedCache`, import, hashing, previews, derivatives (workers). Grows out of today's `src/photo/`         | Platform + workers          |
+| `src/assets/`  | `AssetSource`, `DerivedCache`, import, previews, derivatives (workers). Grows out of today's `src/photo/`                  | Platform + workers          |
 | `src/print/`   | PDF worker, imposed PDF                                                                                                    | Worker                      |
 | `src/site/`    | Viewer entry (separate Vite entry), static export writer                                                                   | UI + platform               |
 | `src/publish/` | Deploy adapters                                                                                                            | Platform                    |
@@ -129,7 +129,7 @@ References: InDesign / Affinity Publisher (pasteboard, guides), Google Slides (s
 
 - **Pasteboard workspace:** all spreads stacked vertically on a zoomable, pannable surface (`SpreadView` per spread + overlay layer). Off-screen spreads are virtualized.
 - **Camera** (session state, never in the document or history): zoom via Ctrl/Cmd+wheel, pinch, `+` / `-`; fit spread, fit width, 100% (physical size); pan via scroll and Space+drag; zoom level indicator.
-- **Zoom-aware image tiers:** each placed image uses the smallest cached preview that covers its on-screen size × devicePixelRatio, so zooming in stays sharp and zooming out stays light. Tiers switch after the gesture settles (see "Performance model"). Hot object URLs stay in a bounded in-memory LRU; when `contentHash` is known, tier (and thumbnail) bytes also persist in `DerivedCache` (OPFS).
+- **Zoom-aware image tiers:** each placed image uses the smallest cached preview that covers its on-screen size × devicePixelRatio, so zooming in stays sharp and zooming out stays light. Tiers switch after the gesture settles (see "Performance model"). Hot object URLs stay in a bounded in-memory LRU; when durable identity (path/size/mtime/root) is complete, tier (and thumbnail) bytes also persist in `DerivedCache` (OPFS) under an identity digest.
 - **Left panel:** spread thumbnails (same `SpreadView`), reorder by drag, click to scroll the pasteboard.
 - **Bottom filmstrip:** the book's gallery (horizontal, virtualized, adjustable height / thumbnail size).
 - **Presentation mode:** fullscreen, one spread at a time, arrow keys, no editor chrome. Same `SpreadView`; the site viewer later reuses it.
@@ -180,22 +180,22 @@ References: InDesign / Affinity Publisher (pasteboard, guides), Google Slides (s
   ```
 
 - **Originals are referenced, not copied** by default (copying doubles a photo archive). A later "consolidate" command may copy them.
-- **Asset identity:** SHA-256 of content (computed in a worker) plus a source-root id, relative path, size and mtime for fast matching. The hash enables automatic relink after folders move.
+- **Asset identity:** source-root id, relative path, size and mtime for matching, reuse, and DerivedCache keys (stable digest of those fields). Optional legacy `contentHash` may still appear in old book JSON but is not used for caching or import/reload/rescan.
 - **Writes:** `FileSystemWritableFileStream` already writes to a swap file and commits on `close()`; add `.bak` rotation, not a temp-file dance.
 - **Single writer:** Web Locks API per book so two tabs cannot overwrite each other.
-- **Browser state is disposable:** IndexedDB (`idb-keyval`-level, no Dexie) for directory handles, recents and UI prefs; OPFS for thumbnail/derivative cache keyed by asset hash. Everything there must be rebuildable from the library folder.
+- **Browser state is disposable:** IndexedDB (`idb-keyval`-level, no Dexie) for directory handles, recents and UI prefs; OPFS for thumbnail/derivative cache keyed by identity digest. Everything there must be rebuildable from the library folder.
 - **Open/save (editor):** `src/editor/projectSession.ts` wires create/open library, create book, Ctrl/Cmd+S, and restore when the remembered library handle is still granted. Open of an existing library with an empty editor loads a stored book (preferring contentful books over an empty `session-book` placeholder); create still adopts the in-memory book. Photo-folder `AssetSource` handles stay in-session; after reload, document + DerivedCache hydrate, full original reattach is `missing-assets-relink`.
 
 ### Storage boundaries
 
 The app depends on domain-level interfaces only; file layout, format, `.bak` rotation, atomic writes, schema migration on load, permissions and locks are adapter internals. Swapping JSON for another format must not touch code above `src/project/` / `src/assets/`.
 
-| Interface        | Owns                                                       | Lifecycle                   |
-| ---------------- | ---------------------------------------------------------- | --------------------------- |
-| `LibraryStorage` | `library.json`, `book.json`, published revisions           | Source of truth, read/write |
-| `AssetSource`    | Reading originals from photo folders, hashing, relink scan | Read-only, own permissions  |
-| `DerivedCache`   | Previews and derivatives keyed by `(assetHash, presetId)`  | Disposable, rebuildable     |
-| `SessionState`   | Directory handles, recents, UI prefs, Web Locks            | Disposable, per browser     |
+| Interface        | Owns                                                           | Lifecycle                   |
+| ---------------- | -------------------------------------------------------------- | --------------------------- |
+| `LibraryStorage` | `library.json`, `book.json`, published revisions               | Source of truth, read/write |
+| `AssetSource`    | Reading originals from photo folders, relink scan              | Read-only, own permissions  |
+| `DerivedCache`   | Previews and derivatives keyed by `(identityDigest, presetId)` | Disposable, rebuildable     |
+| `SessionState`   | Directory handles, recents, UI prefs, Web Locks                | Disposable, per browser     |
 
 - Interfaces speak domain types (`listBooks`, `loadBook(id)`, `saveBook(book)`), never paths or bytes.
 - Platform conditions surface as typed results, not exceptions leaking API details: `permission-required`, `locked-elsewhere`, `not-found`, `corrupted`, `newer-schema`. Domain insert conflicts use `already-exists`.
@@ -204,12 +204,12 @@ The app depends on domain-level interfaces only; file layout, format, `.bak` rot
 ## Image pipeline
 
 - All decode/resize/encode in Web Workers (existing `photo.worker` grows into the prioritized, cancellable asset worker pool — see "Performance model").
-- Asset identity hashing runs at the lowest import priority: size + mtime match first, SHA-256 later in the background, so hashing never delays visible thumbnails.
+- Import/reload/rescan never whole-file content-hash for cache keys; identity (path/size/mtime/root) is enough for match and DerivedCache.
 - Decode: `createImageBitmap`; resize: OffscreenCanvas; JPEG/WebP encode: native `convertToBlob`; AVIF: WASM encoder (e.g. `@jsquash/avif`) in a worker.
 - Site derivatives are a config, not code: `sizes` (start 400 / 2000 / 3840 long edge) and quality. Final sizes are decided by viewing tests on phone and 27″ 4K.
 - One modern format (AVIF) plus a fallback only where it matters (likely the screen size) — do not double every size by default.
 - Convert to sRGB for the web. HEIC input needs a WASM decoder (libheif) — deferred.
-- Derivative cache key: `(assetHash, presetId)` → incremental export and publish.
+- Derivative cache key: `(identityDigest, presetId)` → incremental export and publish.
 - Keep `exifr` (MIT) for metadata.
 
 ## Print

@@ -153,6 +153,15 @@ The system SHALL expose a pure function that, given book asset records and a lis
 - **WHEN** the match function runs
 - **THEN** it returns only derived match data and does not read files or use filesystem handles
 
+### Requirement: Derived cache keys do not use content hashing
+
+Import, reload, and rescan paths that already know path/size/mtime MUST obtain DerivedCache keys from that identity (or a stable digest of it) and MUST NOT read whole file bodies solely to compute `contentHash` for caching. Body reads for decode/encode remain allowed on their own paths.
+
+#### Scenario: Reload hydrate without hashContent
+
+- **WHEN** a saved book with complete identity is restored and DerivedCache holds thumb/tier presets for those identity digests
+- **THEN** filmstrip thumbs and frame previews hydrate without calling `hashContent` and without reading original file bodies for the cache lookup
+
 ### Requirement: Assets module boundary
 
 Asset-source code SHALL live under `src/assets` and MUST NOT import React or DOM UI modules. Dependency cruiser SHALL keep `src/core` from importing `src/assets`. The session `File` retain map under `src/photo` remains a separate concern and MUST NOT be the domain asset-source API.

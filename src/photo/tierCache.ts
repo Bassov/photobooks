@@ -56,7 +56,7 @@ export function subscribeTier(
 export function requestTier(
   assetId: string,
   tier: number,
-  contentHash?: string,
+  cacheKey?: string,
 ): void {
   const key = tierCacheKey(assetId, tier)
   if (lru.has(key) || inflight.has(key)) {
@@ -67,12 +67,12 @@ export function requestTier(
 
   void (async () => {
     try {
-      if (contentHash !== undefined && contentHash.length > 0) {
+      if (cacheKey !== undefined && cacheKey.length > 0) {
         const cache = await getDerivedCache()
         if (inflight.get(key)?.controller !== controller) {
           return
         }
-        const got = await cache.get(contentHash, tierPresetId(tier))
+        const got = await cache.get(cacheKey, tierPresetId(tier))
         if (inflight.get(key)?.controller !== controller) {
           return
         }
@@ -91,12 +91,12 @@ export function requestTier(
 
       const file = getAssetSource(assetId)
       if (file === undefined) {
-        if (contentHash !== undefined && contentHash.length > 0) {
+        if (cacheKey !== undefined && cacheKey.length > 0) {
           const cache = await getDerivedCache()
           if (inflight.get(key)?.controller !== controller) {
             return
           }
-          const thumb = await cache.get(contentHash, THUMB_PRESET_ID)
+          const thumb = await cache.get(cacheKey, THUMB_PRESET_ID)
           if (inflight.get(key)?.controller !== controller || !thumb.ok) {
             return
           }
@@ -129,9 +129,9 @@ export function requestTier(
           buffer: retained,
           mimeType: result.previewMimeType,
         })
-        if (contentHash !== undefined && contentHash.length > 0) {
+        if (cacheKey !== undefined && cacheKey.length > 0) {
           const cache = await getDerivedCache()
-          await cache.put(contentHash, tierPresetId(tier), {
+          await cache.put(cacheKey, tierPresetId(tier), {
             bytes: retained.slice(0),
             mimeType: result.previewMimeType,
           })
@@ -166,12 +166,12 @@ export function cancelTier(assetId: string, tier: number): void {
   job.controller.abort()
 }
 
-/** Put last hot tier buffers for an asset into DerivedCache once hash is known. */
+/** Put last hot tier buffers for an asset into DerivedCache once identity key is known. */
 export async function putCachedTierForHash(
   assetId: string,
-  contentHash: string,
+  cacheKey: string,
 ): Promise<void> {
-  if (contentHash.length === 0) {
+  if (cacheKey.length === 0) {
     return
   }
   const prefix = `${assetId}:`
@@ -187,7 +187,7 @@ export async function putCachedTierForHash(
       continue
     }
     puts.push(
-      cache.put(contentHash, tierPresetId(tier), {
+      cache.put(cacheKey, tierPresetId(tier), {
         bytes: entry.buffer.slice(0),
         mimeType: entry.mimeType,
       }),

@@ -21,12 +21,6 @@ import {
 import { getThumbUrl, resetThumbCache } from './thumbCache'
 
 const runImportBatch = vi.hoisted(() => vi.fn())
-const hashContentMock = vi.hoisted(() =>
-  vi.fn((buf: ArrayBuffer) => {
-    const bytes = new Uint8Array(buf)
-    return Promise.resolve(`hash-${[...bytes].join('.')}`)
-  }),
-)
 
 vi.mock('../photo/assetPool', async () => {
   const actual =
@@ -37,14 +31,6 @@ vi.mock('../photo/assetPool', async () => {
     ...actual,
     runImportBatch: (...args: unknown[]): unknown =>
       runImportBatch(...args) as unknown,
-  }
-})
-
-vi.mock('../assets', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../assets')>()
-  return {
-    ...actual,
-    hashContent: (buf: ArrayBuffer): Promise<string> => hashContentMock(buf),
   }
 })
 
@@ -452,12 +438,11 @@ describe('importPhotoFiles library identity', () => {
     expect(getThumbUrl(assetId)).toBeUndefined()
 
     await vi.waitFor(() => {
-      expect(
-        getBookStoreSnapshot().book.assets[assetId]?.contentHash,
-      ).toBeTypeOf('string')
+      const asset = getBookStoreSnapshot().book.assets[assetId]
+      expect(asset?.byteSize).toBeTypeOf('number')
+      expect(asset?.mtimeMs).toBeTypeOf('number')
+      expect(asset?.relativePath).toBeTypeOf('string')
     })
-    hashContentMock.mockClear()
-
     const sameFile = tinyJpeg('dup.jpg', 42)
     await importPhotoFiles([sameFile], {
       libraryBacked: true,
@@ -474,7 +459,6 @@ describe('importPhotoFiles library identity', () => {
     expect(getBookStoreSnapshot().book.assets[assetId]?.sourceRootId).toBe(
       'root-first',
     )
-    expect(hashContentMock).not.toHaveBeenCalled()
     await vi.waitFor(() => {
       expect(getRegisteredAssetSource('root-first')).toBeDefined()
     })

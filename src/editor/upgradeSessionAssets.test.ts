@@ -14,17 +14,6 @@ import {
 } from './projectSession'
 import { resetPendingHashesForTests } from './pendingHashes'
 
-const SAMPLE_HASH =
-  'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
-
-vi.mock('../assets', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../assets')>()
-  return {
-    ...actual,
-    hashContent: vi.fn(() => Promise.resolve(SAMPLE_HASH)),
-  }
-})
-
 describe('upgradeSessionAssetsForLibrary via adopt', () => {
   beforeEach(() => {
     resetBookStore()
@@ -41,7 +30,7 @@ describe('upgradeSessionAssetsForLibrary via adopt', () => {
     vi.clearAllMocks()
   })
 
-  it('writes identity and contentHash for session Files on adopt', async () => {
+  it('writes durable identity for session Files on adopt', async () => {
     const file = new File([new Uint8Array([1, 2, 3])], 'shot.jpg', {
       type: 'image/jpeg',
     })
@@ -74,7 +63,8 @@ describe('upgradeSessionAssetsForLibrary via adopt', () => {
       expect(asset?.sourceRootId).toBeDefined()
       expect(asset?.relativePath).toBe('shot.jpg')
       expect(asset?.byteSize).toBe(3)
-      expect(asset?.contentHash).toBe(SAMPLE_HASH)
+      expect(asset?.mtimeMs).toBe(file.lastModified)
+      expect(asset?.contentHash).toBeUndefined()
     })
 
     const rootId =
@@ -104,7 +94,6 @@ describe('upgradeSessionAssetsForLibrary via adopt', () => {
           relativePath: 'kept.jpg',
           byteSize: 1,
           mtimeMs: 1,
-          contentHash: SAMPLE_HASH,
         },
       },
     ])
@@ -166,7 +155,10 @@ describe('upgradeSessionAssetsForLibrary via adopt', () => {
     await vi.waitFor(() => {
       expect(isLibraryBacked()).toBe(true)
       const asset = getBookStoreSnapshot().book.assets['asset-up-0']
-      expect(asset?.contentHash).toBe(SAMPLE_HASH)
+      expect(asset?.sourceRootId).toBeDefined()
+      expect(asset?.byteSize).toBeDefined()
+      expect(asset?.mtimeMs).toBeDefined()
+      expect(asset?.contentHash).toBeUndefined()
     })
     expect(peak).toBeLessThanOrEqual(16)
   })

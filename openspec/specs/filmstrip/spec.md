@@ -63,12 +63,12 @@ Each thumbnail MUST use the session file name as accessible name when present, e
 
 ### Requirement: Derived-cache thumbnails
 
-When `contentHash` is known, thumbnail bytes SHALL persist under that hash and a thumbnail preset id, and hydrate from derived cache before re-encode. Without `contentHash`, caching stays memory-only (no fabricated hash keys); layout/virtualization/naming unchanged.
+When durable identity (`sourceRootId`, `relativePath`, `byteSize`, `mtimeMs`) is complete, thumbnail bytes SHALL persist under the identity digest and a thumbnail preset id, and hydrate from derived cache before re-encode. Without complete identity, caching stays memory-only (hot object-URL LRU) without fabricating keys; layout/virtualization/naming unchanged. In-session thumb bytes MAY republish after LRU eviction before a durable identity digest is available for DerivedCache.
 
-#### Scenario: Hashed hydrate; unhashed memory-only
+#### Scenario: Identity hydrate; incomplete identity memory-only
 
-- **WHEN** a hashed asset’s hot URL is missing and cache holds the preset — or an unhashed asset produces a thumb
-- **THEN** hashed thumbs hydrate from cache / are stored after encode, and unhashed thumbs do not write derived-cache keys
+- **WHEN** an identity-complete asset’s hot URL is missing and cache holds the preset — or an identity-incomplete asset produces a thumb
+- **THEN** identity thumbs hydrate from cache / are stored after encode, and incomplete-identity thumbs do not write derived-cache keys
 
 ### Requirement: Variable-width packing and sliding window
 
@@ -81,7 +81,7 @@ Variable-width packing MUST use absolute offsets from each card’s end plus gap
 
 ### Requirement: Progressive reveal and import pacing
 
-Progressive reveal MUST NOT lag `scrollLeft` into a mid-scroll dead zone of unrevealed in-range content. Mid-import mounts MUST stay within frame-budget gates without freezing the gallery id list solely to pass LoAF. Once a gallery id has been flushed into the filmstrip, scrolling during continued import MUST NOT permanently drop that tile from the gallery or leave it unrestorable when it re-enters the virtual window (in-session thumb bytes MAY republish after LRU eviction before `contentHash` exists).
+Progressive reveal MUST NOT lag `scrollLeft` into a mid-scroll dead zone of unrevealed in-range content. Mid-import mounts MUST stay within frame-budget gates without freezing the gallery id list solely to pass LoAF. Once a gallery id has been flushed into the filmstrip, scrolling during continued import MUST NOT permanently drop that tile from the gallery or leave it unrestorable when it re-enters the virtual window (in-session thumb bytes MAY republish after LRU eviction before a durable identity digest is available for DerivedCache).
 
 #### Scenario: Mid-scroll reveal and mid-import scroll
 
