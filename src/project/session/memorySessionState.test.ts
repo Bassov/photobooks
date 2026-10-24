@@ -69,4 +69,25 @@ describe('createMemorySessionState', () => {
       code: 'not-found',
     })
   })
+
+  it('rejects reserved keys on recall and peek while a library is remembered', async () => {
+    const session = createMemorySessionState()
+    await session.rememberLibraryHandle('lib-a', { name: 'A' }, 'A')
+
+    await expect(session.recallLibraryHandle('__recents')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(session.peekLibraryHandle('__active')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(session.clearLibraryHandle('__libraryLabel')).resolves.toEqual(
+      {
+        ok: false,
+        code: 'not-found',
+      },
+    )
+    await expect(session.getLibraryLabel('lib-a')).resolves.toBe('A')
+  })
 })

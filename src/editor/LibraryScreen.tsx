@@ -21,7 +21,9 @@ import {
   subscribeProjectSession,
 } from './projectSession'
 import { promptBookTitle } from './promptBookTitle'
-import './screenPlaceholders.css'
+import { ensureScreenPlaceholderStyles } from './screenPlaceholdersStyles'
+
+ensureScreenPlaceholderStyles()
 
 const SR_ONLY: CSSProperties = {
   position: 'absolute',

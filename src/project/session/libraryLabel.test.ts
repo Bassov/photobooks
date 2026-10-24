@@ -68,4 +68,15 @@ describe('libraryLabel helpers', () => {
       { id: 'b', label: 'B' },
     ])
   })
+
+  it('skips non-object recent entries even when they carry id/label fields', () => {
+    const weird = ((id: string, label: string) => {
+      const fn = Object.assign(() => undefined, { id, label })
+      return fn
+    })('fn', 'Fn')
+
+    expect(parseRecents([weird, { id: 'ok', label: 'Ok' }])).toEqual([
+      { id: 'ok', label: 'Ok' },
+    ])
+  })
 })

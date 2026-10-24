@@ -96,6 +96,62 @@ test('memory library opens library screen then editor and back', async ({
   await assertDocumentFitsViewport(page)
 })
 
+test('change library updates folder name via FSA picker stub', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  const firstBookId = await page.evaluate(async () => {
+    const api = window.__photobooksProject
+    if (!api) {
+      throw new Error('missing api')
+    }
+    const attached = await api.attachMemoryLibraryForTests()
+    if (!attached.ok) {
+      throw new Error(attached.code ?? 'attach')
+    }
+    const created = await api.createBookInLibrary()
+    if (!created.ok || !created.value) {
+      throw new Error(created.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    return created.value.id
+  })
+
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('library-folder-name')).toHaveText(
+    'Memory Library',
+  )
+  await expect(page.getByTestId(`library-book-${firstBookId}`)).toBeVisible()
+
+  // Chromium FSA double: change-library uses showDirectoryPicker.
+  await page.evaluate(() => {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: () =>
+        Promise.resolve({
+          name: 'Second Library',
+          kind: 'directory',
+        } as FileSystemDirectoryHandle),
+    })
+  })
+
+  await page.getByTestId('change-library').click()
+  await expect(page.getByTestId('library-folder-name')).toHaveText(
+    'Second Library',
+    { timeout: 15_000 },
+  )
+  // Same memory storage is rebound; books stay, folder label updates.
+  await expect(page.getByTestId(`library-book-${firstBookId}`)).toBeVisible()
+  await assertDocumentFitsViewport(page)
+})
+
 test('library scrollport contains overflow when many books', async ({
   page,
 }) => {

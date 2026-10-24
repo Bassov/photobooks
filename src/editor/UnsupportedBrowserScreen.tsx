@@ -1,7 +1,9 @@
 import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
 import { UNSUPPORTED_BROWSER_MESSAGE } from './browserSupport'
-import './screenPlaceholders.css'
+import { ensureScreenPlaceholderStyles } from './screenPlaceholdersStyles'
+
+ensureScreenPlaceholderStyles()
 
 export function UnsupportedBrowserScreen() {
   return (

@@ -527,7 +527,9 @@ export function createLibraryActivation(
       host.emit()
       return activated
     }
+    // Stryker disable next-line CallExpression: activateLoadedBook already set surface to editor
     host.setSurface('editor')
+    // Stryker disable next-line CallExpression: openBookFromHome clears homeError before load
     host.setHomeError(null)
     host.emit()
     return activated
@@ -582,6 +584,7 @@ export function createLibraryActivation(
         host.setBookId(null)
         host.persistIds()
         host.setAccessPhase('idle')
+        // Stryker disable next-line CallExpression: openBoundLibraryBook failure paths already clear blocked/pending
         host.clearBlockedAndPending()
         host.setSurface('library')
         host.emit()

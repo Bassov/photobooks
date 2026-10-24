@@ -168,11 +168,15 @@ describe('createSessionIdb (fake-indexeddb)', () => {
     db.close()
   })
 
-  it('closes the database after get and runReadwrite', async () => {
+  it('closes the database after get, keys, and runReadwrite', async () => {
     const closeSpy = vi.spyOn(IDBDatabase.prototype, 'close')
     const idb = createSessionIdb()
 
     await idb.get('any')
+    expect(closeSpy).toHaveBeenCalled()
+    closeSpy.mockClear()
+
+    await idb.keys()
     expect(closeSpy).toHaveBeenCalled()
     closeSpy.mockClear()
 
@@ -235,17 +239,138 @@ describe('createSessionIdb (fake-indexeddb)', () => {
     })
   })
 
-  it('migrateLegacyRecents is a no-op when __recents is absent', async () => {
+  it('migrateLegacyRecents drops empty __recents without touching other keys', async () => {
     const idb = createSessionIdb()
-    await idb.set(LEGACY_LIBRARY_ID, {
-      kind: 'directory',
-      name: 'Only',
-    })
+    await idb.runReadwrite([
+      {
+        op: 'set',
+        key: LEGACY_LIBRARY_ID,
+        value: { kind: 'directory', name: 'Keep' },
+      },
+      { op: 'set', key: RECENTS_KEY, value: [] },
+      { op: 'set', key: LABEL_KEY, value: 'Keep' },
+    ])
+    const run = vi.spyOn(idb, 'runReadwrite')
+
     await migrateLegacyRecents(idb)
+
+    expect(run).toHaveBeenCalledWith([{ op: 'del', key: RECENTS_KEY }])
     await expect(idb.get(RECENTS_KEY)).resolves.toEqual({ present: false })
     await expect(idb.get(LEGACY_LIBRARY_ID)).resolves.toEqual({
       present: true,
-      value: { kind: 'directory', name: 'Only' },
+      value: { kind: 'directory', name: 'Keep' },
+    })
+    await expect(idb.get(LABEL_KEY)).resolves.toEqual({
+      present: true,
+      value: 'Keep',
+    })
+  })
+
+  it('migrateLegacyRecents is a pure no-op when __recents key is absent', async () => {
+    const idb = createSessionIdb()
+    await idb.set(LEGACY_LIBRARY_ID, { kind: 'directory', name: 'Only' })
+    const run = vi.spyOn(idb, 'runReadwrite')
+
+    await migrateLegacyRecents(idb)
+
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('migrateLegacyRecents writes label from recents when stored label is blank', async () => {
+    const idb = createSessionIdb()
+    await idb.runReadwrite([
+      {
+        op: 'set',
+        key: 'trip',
+        value: { kind: 'directory', name: 'TripDir' },
+      },
+      {
+        op: 'set',
+        key: RECENTS_KEY,
+        value: [{ id: 'trip', label: 'Trip Label' }],
+      },
+      { op: 'set', key: LABEL_KEY, value: '   ' },
+      {
+        op: 'set',
+        key: ACTIVE_KEY,
+        value: { libraryId: null, bookId: 'b1' },
+      },
+    ])
+
+    await migrateLegacyRecents(idb)
+
+    await expect(idb.get(LABEL_KEY)).resolves.toEqual({
+      present: true,
+      value: 'Trip Label',
+    })
+    await expect(idb.get(ACTIVE_KEY)).resolves.toEqual({
+      present: true,
+      value: { libraryId: null, bookId: 'b1' },
+    })
+  })
+
+  it('migrateLegacyRecents keeps DEFAULT handle and preserves a valid label', async () => {
+    const idb = createSessionIdb()
+    await idb.runReadwrite([
+      {
+        op: 'set',
+        key: DEFAULT_LIBRARY_ID,
+        value: { kind: 'directory', name: 'Default' },
+      },
+      { op: 'set', key: 'other', value: { kind: 'directory', name: 'Other' } },
+      {
+        op: 'set',
+        key: RECENTS_KEY,
+        value: [{ id: DEFAULT_LIBRARY_ID, label: 'FromRecents' }],
+      },
+      { op: 'set', key: LABEL_KEY, value: 'Existing Label' },
+      {
+        op: 'set',
+        key: ACTIVE_KEY,
+        value: { libraryId: 'other', bookId: 'b1' },
+      },
+    ])
+
+    await migrateLegacyRecents(idb)
+
+    await expect(idb.get(RECENTS_KEY)).resolves.toEqual({ present: false })
+    await expect(idb.get('other')).resolves.toEqual({ present: false })
+    await expect(idb.get(DEFAULT_LIBRARY_ID)).resolves.toEqual({
+      present: true,
+      value: { kind: 'directory', name: 'Default' },
+    })
+    await expect(idb.get(LABEL_KEY)).resolves.toEqual({
+      present: true,
+      value: 'Existing Label',
+    })
+    await expect(idb.get(ACTIVE_KEY)).resolves.toEqual({
+      present: true,
+      value: { libraryId: DEFAULT_LIBRARY_ID, bookId: 'b1' },
+    })
+  })
+
+  it('migrateLegacyRecents drops sibling handles when preferred handle is missing', async () => {
+    const idb = createSessionIdb()
+    await idb.runReadwrite([
+      { op: 'set', key: 'stale', value: { kind: 'directory', name: 'Stale' } },
+      {
+        op: 'set',
+        key: RECENTS_KEY,
+        value: [{ id: 'missing', label: 'Gone' }],
+      },
+      { op: 'set', key: LABEL_KEY, value: 'Old' },
+    ])
+
+    await migrateLegacyRecents(idb)
+
+    await expect(idb.get(RECENTS_KEY)).resolves.toEqual({ present: false })
+    await expect(idb.get('stale')).resolves.toEqual({ present: false })
+    await expect(idb.get(DEFAULT_LIBRARY_ID)).resolves.toEqual({
+      present: false,
+    })
+    await expect(idb.get(LABEL_KEY)).resolves.toEqual({
+      present: true,
+      value: 'Old',
     })
   })
 

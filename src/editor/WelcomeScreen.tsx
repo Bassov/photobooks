@@ -9,7 +9,9 @@ import {
   regrantLibrary,
   subscribeProjectSession,
 } from './projectSession'
-import './screenPlaceholders.css'
+import { ensureScreenPlaceholderStyles } from './screenPlaceholdersStyles'
+
+ensureScreenPlaceholderStyles()
 
 export function WelcomeScreen() {
   const project = useSyncExternalStore(

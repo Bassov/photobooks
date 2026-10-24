@@ -115,6 +115,17 @@ describe('getBrowserSupport', () => {
     })
   })
 
+  it('allows a host object without navigator when the picker exists', () => {
+    expect(
+      getBrowserSupport({
+        isSecureContext: true,
+        showDirectoryPicker: () => {
+          throw new Error('unused')
+        },
+      } as unknown as typeof globalThis),
+    ).toEqual({ supported: true, reason: 'ok' })
+  })
+
   it('exports Chromium-required copy', () => {
     expect(UNSUPPORTED_BROWSER_MESSAGE).toMatch(/Chrome, Edge/)
   })

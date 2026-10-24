@@ -1198,6 +1198,30 @@ export function setSurfaceForTests(next: ProjectSessionSurface): void {
   emit()
 }
 
+/** Test seam: patch snapshot fields for screen RTL without full session setup. */
+export function patchProjectSessionSnapshotForTests(
+  patch: Partial<
+    Pick<
+      ProjectSessionSnapshot,
+      'restorePending' | 'libraryLabel' | 'homeError' | 'actionBusy'
+    >
+  >,
+): void {
+  if (patch.restorePending !== undefined) {
+    restorePending = patch.restorePending
+  }
+  if (patch.libraryLabel !== undefined) {
+    libraryLabel = patch.libraryLabel
+  }
+  if (patch.homeError !== undefined) {
+    homeError = patch.homeError
+  }
+  if (patch.actionBusy !== undefined) {
+    actionBusy = patch.actionBusy
+  }
+  emit()
+}
+
 export function setAccessPhaseForTests(phase: AccessPhase): void {
   accessPhase = phase
   if (phase === 'permission-required') {

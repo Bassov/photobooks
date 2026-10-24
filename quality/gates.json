@@ -26,30 +26,6 @@
         "until": "project-session-mutation"
       },
       {
-        "path": "src/App.tsx",
-        "until": "app-surface-mutation"
-      },
-      {
-        "path": "src/editor/LibraryScreen.tsx",
-        "until": "library-screens-mutation"
-      },
-      {
-        "path": "src/editor/WelcomeScreen.tsx",
-        "until": "library-screens-mutation"
-      },
-      {
-        "path": "src/editor/UnsupportedBrowserScreen.tsx",
-        "until": "library-screens-mutation"
-      },
-      {
-        "path": "src/project/session/browserSessionState.ts",
-        "until": "session-idb-mutation"
-      },
-      {
-        "path": "src/project/session/idb.ts",
-        "until": "session-idb-mutation"
-      },
-      {
         "path": "src/editor/usePasteboardCamera.ts",
         "until": "mutation-reinclude-camera"
       },

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { WelcomeScreen } from './WelcomeScreen'
 import {
+  patchProjectSessionSnapshotForTests,
   resetProjectSessionForTests,
   setAccessPhaseForTests,
   setSurfaceForTests,
@@ -63,5 +64,40 @@ describe('WelcomeScreen', () => {
     await waitFor(() => {
       expect(regrant).toHaveBeenCalled()
     })
+  })
+
+  it('uses library folder fallback and disables choose while busy', () => {
+    patchProjectSessionSnapshotForTests({
+      libraryLabel: null,
+      actionBusy: true,
+      restorePending: false,
+    })
+    setAccessPhaseForTests('permission-required')
+    render(<WelcomeScreen />)
+    expect(screen.getByTestId('allow-library-access').textContent).toMatch(
+      /library folder/,
+    )
+    const allow = screen.getByTestId('allow-library-access')
+    expect(
+      allow.getAttribute('data-disabled') ??
+        allow.getAttribute('aria-disabled') ??
+        allow.getAttribute('disabled'),
+    ).toBeTruthy()
+  })
+
+  it('shows loading while restorePending and hides choose', () => {
+    patchProjectSessionSnapshotForTests({ restorePending: true })
+    render(<WelcomeScreen />)
+    expect(screen.getByTestId('welcome-loading')).toBeTruthy()
+    expect(screen.queryByTestId('choose-library')).toBeNull()
+  })
+
+  it('shows welcome error status when homeError is set', () => {
+    patchProjectSessionSnapshotForTests({
+      restorePending: false,
+      homeError: 'Pick failed',
+    })
+    render(<WelcomeScreen />)
+    expect(screen.getByTestId('welcome-error').textContent).toBe('Pick failed')
   })
 })

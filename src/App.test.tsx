@@ -11,6 +11,7 @@ import { getBookStoreSnapshot, resetBookStore } from './editor/bookStore'
 import {
   attachMemoryLibraryForTests,
   resetProjectSessionForTests,
+  setSurfaceForTests,
   startSessionEditor,
 } from './editor/projectSession'
 import { resetThumbCache } from './editor/thumbCache'
@@ -62,6 +63,27 @@ describe('App editor shell', () => {
     expect(screen.getByRole('button', { name: 'Add photos' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add folder' })).toBeTruthy()
     expect(screen.queryByTestId('photo-card')).toBeNull()
+  })
+
+  it('shows unsupported screen when the directory picker is missing', async () => {
+    Reflect.deleteProperty(globalThis, 'showDirectoryPicker')
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByTestId('unsupported-browser')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('welcome-screen')).toBeNull()
+    expect(screen.queryByTestId('editor-shell')).toBeNull()
+  })
+
+  it('shows library screen after attaching a memory library', async () => {
+    render(<App />)
+    expect(screen.getByTestId('welcome-screen')).toBeTruthy()
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    setSurfaceForTests('library')
+    await waitFor(() => {
+      expect(screen.getByTestId('library-screen')).toBeTruthy()
+    })
   })
 
   it('imports a file via the hidden input into the gallery', async () => {

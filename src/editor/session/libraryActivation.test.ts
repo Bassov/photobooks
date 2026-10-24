@@ -634,6 +634,9 @@ describe('createLibraryActivation', () => {
     expect(bookId).toBeNull()
     expect(libraryId).toBe('lib-clean')
     expect(surface).toBe('library')
+    // Empty in-memory book must not be reset on browse bind.
+    expect(book.id).toBe('session-book')
+    expect(clearAssetSources).not.toHaveBeenCalled()
   })
 
   it('createLibrary still releases when storage is bound but bookId is null', async () => {
@@ -1383,10 +1386,106 @@ describe('createLibraryActivation', () => {
     expect(resetAutosave).toHaveBeenCalled()
   })
 
+  it('openBookFromHome uses already-bound storage without recalling', async () => {
+    const lib = createMemoryLibraryStorage()
+    await lib.updateLibrary({})
+    const target = makeBook({ id: 'bound-book', gallery: [] })
+    expect((await lib.createBook(target)).ok).toBe(true)
+    storage = lib
+    libraryId = 'lib-bound'
+    const recall = vi.fn(host.recallLibraryHandle)
+    host = buildHost()
+    host.recallLibraryHandle = recall
+    controller.setHost(host)
+
+    const opened = await controller.openBookFromHome('lib-bound', 'bound-book')
+    expect(opened.ok).toBe(true)
+    expect(bookId).toBe('bound-book')
+    expect(surface).toBe('editor')
+    expect(recall).not.toHaveBeenCalled()
+    expect(emit).toHaveBeenCalled()
+  })
+
+  it('openBookFromHome recalls when storage is bound to a different library id', async () => {
+    const libBound = createMemoryLibraryStorage()
+    const libOther = createMemoryLibraryStorage()
+    await libBound.updateLibrary({})
+    await libOther.updateLibrary({})
+    expect(
+      (await libOther.createBook(makeBook({ id: 'other-book', gallery: [] })))
+        .ok,
+    ).toBe(true)
+    storage = libBound
+    libraryId = 'lib-bound'
+    const handle = createFakeBrowserDirectory({ name: 'OtherLib' })
+    storagesByHandle.set('OtherLib', libOther)
+    remembered.set('lib-other', handle)
+
+    const opened = await controller.openBookFromHome('lib-other', 'other-book')
+    expect(opened.ok).toBe(true)
+    expect(libraryId).toBe('lib-other')
+    expect(bookId).toBe('other-book')
+    expect(storage).toBe(libOther)
+  })
+
+  it('openBookFromHome bound load failure stays on library without clearing storage', async () => {
+    const lib = createMemoryLibraryStorage()
+    await lib.updateLibrary({})
+    storage = lib
+    libraryId = 'lib-bound'
+    accessPhase = 'permission-required'
+    emit.mockClear()
+    clearBlockedAndPending.mockClear()
+    setAccessPhase.mockClear()
+
+    const result = await controller.openBookFromHome('lib-bound', 'missing')
+    expect(result).toEqual({ ok: false, code: 'not-found' })
+    expect(storage).toBe(lib)
+    expect(libraryId).toBe('lib-bound')
+    expect(surface).toBe('library')
+    expect(homeError).toBe('Could not open that book.')
+    expect(accessPhase).toBe('idle')
+    expect(setAccessPhase).toHaveBeenCalledWith('idle')
+    expect(clearBlockedAndPending).toHaveBeenCalled()
+    expect(emit).toHaveBeenCalled()
+  })
+
+  it('openBookFromHome bound activate failure clears assets on library', async () => {
+    const lib = createMemoryLibraryStorage()
+    await lib.updateLibrary({})
+    expect(
+      (await lib.createBook(makeBook({ id: 'bound-lock-fail', gallery: [] })))
+        .ok,
+    ).toBe(true)
+    storage = lib
+    libraryId = 'lib-bound'
+    takeBookLockResult = failure('locked-elsewhere')
+    clearAssetSources.mockClear()
+    emit.mockClear()
+
+    const result = await controller.openBookFromHome(
+      'lib-bound',
+      'bound-lock-fail',
+    )
+    expect(result).toEqual({ ok: false, code: 'locked-elsewhere' })
+    expect(storage).toBe(lib)
+    expect(libraryId).toBe('lib-bound')
+    expect(surface).toBe('library')
+    expect(editorStatus).toBe('')
+    expect(clearAssetSources).toHaveBeenCalled()
+    expect(book.id).toBe('empty-book-id')
+    expect(setAccessPhase).toHaveBeenCalledWith('idle')
+    expect(clearBlockedAndPending).toHaveBeenCalled()
+    expect(emit).toHaveBeenCalled()
+  })
+
   it('openBookFromHome catch returns not-found', async () => {
     recallThrows.add('lib-throw')
+    homeError = 'stale'
     const result = await controller.openBookFromHome('lib-throw', 'book-x')
     expect(result).toEqual({ ok: false, code: 'not-found' })
+    expect(setHomeError).toHaveBeenCalledWith(null)
+    expect(homeError).toBeNull()
   })
 
   it('openBookFromHome permission denied sets pending regrant for book', async () => {
@@ -1578,6 +1677,14 @@ describe('createLibraryActivation', () => {
     remembered.set('lib-restore', handle)
     persisted = { libraryId: 'lib-restore', bookId: 'restored-book' }
     activeIds = { libraryId: 'lib-restore', bookId: 'restored-book' }
+    emit.mockClear()
+    let emitCountWhenLoadStarted = 0
+    const originalLoad = lib.loadBook.bind(lib)
+    lib.loadBook = async (id) => {
+      emitCountWhenLoadStarted = emit.mock.calls.length
+      expect(surface).toBe('editor')
+      return originalLoad(id)
+    }
 
     const result = await controller.tryRestore()
     expect(result.ok).toBe(true)
@@ -1590,6 +1697,8 @@ describe('createLibraryActivation', () => {
     expect(cancelAutosave).toHaveBeenCalled()
     expect(resetAutosave).toHaveBeenCalled()
     expect(emit).toHaveBeenCalled()
+    // Editor surface emit happens before loadBook so the shell can paint while loading.
+    expect(emitCountWhenLoadStarted).toBeGreaterThan(0)
   })
 
   it('tryRestore with granted handle and no bookId goes to library', async () => {
@@ -1599,6 +1708,14 @@ describe('createLibraryActivation', () => {
     storagesByHandle.set('LibX', lib)
     remembered.set('lib-x', handle)
     persisted = { libraryId: 'lib-x', bookId: null }
+    emit.mockClear()
+    let emitsBeforeRestoreDone = 0
+    setRestorePending.mockImplementation((next: boolean) => {
+      if (!next) {
+        emitsBeforeRestoreDone = emit.mock.calls.length
+      }
+      restorePending = next
+    })
     const result = await controller.tryRestore()
     expect(result).toEqual({ ok: true, value: null })
     expect(surface).toBe('library')
@@ -1609,6 +1726,8 @@ describe('createLibraryActivation', () => {
     expect(setRestorePending).toHaveBeenCalledWith(true)
     expect(setRestorePending).toHaveBeenCalledWith(false)
     expect(emit).toHaveBeenCalled()
+    // Mid-restore emit (library surface) before the finally restorePending=false emit.
+    expect(emitsBeforeRestoreDone).toBeGreaterThan(1)
     expect(restorePending).toBe(false)
   })
 
@@ -1676,11 +1795,15 @@ describe('createLibraryActivation', () => {
 
   it('tryRestore permission path keeps library id for re-grant', async () => {
     persisted = { libraryId: 'lib-r2', bookId: 'book-r2' }
+    storage = createMemoryLibraryStorage()
     recallResults.set('lib-r2', failure('permission-required'))
+    setPendingRegrant.mockClear()
     const result = await controller.tryRestore()
     expect(result).toEqual({ ok: true, value: null })
     expect(setLibraryId).toHaveBeenCalledWith('lib-r2')
     expect(setBookId).toHaveBeenCalledWith(null)
+    expect(storage).toBeNull()
+    expect(setPendingRegrant).toHaveBeenCalledWith('lib-r2', 'book-r2')
     expect(setDirty).toHaveBeenCalledWith(false)
     expect(resetAutosave).toHaveBeenCalled()
     expect(setSurface).toHaveBeenCalledWith('welcome')

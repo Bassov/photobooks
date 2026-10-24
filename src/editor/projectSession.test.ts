@@ -30,6 +30,7 @@ import {
   holdExternalBookLockForTests,
   isLibraryBacked,
   leaveEditorForLibrary,
+  listLibraryBooks,
   openBookFromHome,
   openLibrary,
   regrantLibrary,
@@ -1857,5 +1858,101 @@ describe('projectSession', () => {
       startSessionEditor()
       expect(getEditorStatus()).not.toMatch(/another tab/i)
     })
+  })
+
+  it('leaveEditorForLibrary re-binds storage after permission restore path', async () => {
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    const handle = { name: 'RebindLib' }
+    const map = new Map<string, string>()
+    const storageKey: Storage = {
+      get length() {
+        return map.size
+      },
+      clear: () => {
+        map.clear()
+      },
+      getItem: (key) => map.get(key) ?? null,
+      key: (index) => [...map.keys()][index] ?? null,
+      removeItem: (key) => {
+        map.delete(key)
+      },
+      setItem: (key, value) => {
+        map.set(key, value)
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => storage,
+      storageKey,
+    })
+    await attachLibraryForTests({
+      storage,
+      session,
+      handle,
+      mode: 'browse',
+    })
+    expect(getProjectSessionSnapshot().libraryId).toBe('library')
+    session.setPermissionRequired(true)
+    await tryRestore()
+    expect(getProjectSessionSnapshot().accessPhase).toBe('permission-required')
+    expect(getProjectSessionSnapshot().libraryOpen).toBe(false)
+    session.setPermissionRequired(false)
+    await leaveEditorForLibrary()
+    expect(getProjectSessionSnapshot().libraryLabel).toBe('RebindLib')
+    expect(getProjectSessionSnapshot().surface).toBe('library')
+  })
+
+  it('tryActivateLibraryBookForTests and listLibraryBooks edge paths', async () => {
+    await expect(tryActivateLibraryBookForTests('x')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    exposeProjectSessionTestApi({ DEV: true }, undefined)
+
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    await expect(tryActivateLibraryBookForTests('missing')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(listLibraryBooks()).resolves.toMatchObject({ ok: true })
+
+    const storage = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    const boomStorage = {
+      ...storage,
+      listBooks: () => {
+        throw new Error('list boom')
+      },
+    }
+    configureProjectSession({
+      session,
+      createStorage: () => boomStorage,
+    })
+    await attachLibraryForTests({
+      storage: boomStorage,
+      session,
+      handle: { name: 'Boom' },
+      mode: 'browse',
+    })
+    await expect(listLibraryBooks()).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+  })
+
+  it('setLibraryId(null) clears libraryLabel via open failure rollback', async () => {
+    const other = createMemoryLibraryStorage()
+    const session = createMemorySessionState()
+    await session.rememberLibraryHandle('other', { name: 'Other' }, 'Other')
+    configureProjectSession({
+      session,
+      createStorage: () => other,
+    })
+    const opened = await openBookFromHome('other', 'missing-book')
+    expect(opened.ok).toBe(false)
+    expect(getProjectSessionSnapshot().libraryId).toBeNull()
+    expect(getProjectSessionSnapshot().libraryLabel).toBeNull()
   })
 })
