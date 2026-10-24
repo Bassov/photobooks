@@ -29,11 +29,6 @@ function ingestRecords(recordList: PerformanceEntryList): void {
     if (loaf.startTime < watermarkMs) {
       continue
     }
-    // Chromium sometimes reports LoAF with blockingDuration 0 under CPU
-    // throttle; those do not block input and are not a 60 fps failure.
-    if (loaf.blockingDuration <= 0) {
-      continue
-    }
     entries.push(loaf)
   }
 }

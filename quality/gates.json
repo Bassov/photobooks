@@ -62,19 +62,11 @@
         "until": "photo-root-session-mutation"
       },
       {
-        "path": "src/assets/fsa/fsaAssetSource.ts",
-        "until": "photo-root-session-mutation"
-      },
-      {
-        "path": "src/photo/pickPhotos.ts",
+        "path": "src/photo/directoryHandleFromFiles.ts",
         "until": "photo-root-session-mutation"
       },
       {
         "path": "src/project/session/browserSourceRootHandles.ts",
-        "until": "photo-root-session-mutation"
-      },
-      {
-        "path": "src/photo/directoryHandleFromFiles.ts",
         "until": "photo-root-session-mutation"
       }
     ]

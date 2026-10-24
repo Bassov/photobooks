@@ -196,16 +196,108 @@ describe('pickFolderWithDirectoryPicker', () => {
           yield ['sub', nestedDir] as const
         })(),
     }
+    const picker = vi.fn().mockResolvedValue(root)
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      writable: true,
+      value: picker,
+    })
+    const picked = await pickFolderWithDirectoryPicker()
+    expect(picker).toHaveBeenCalledWith({
+      id: 'photobooks-photos',
+      mode: 'read',
+      startIn: 'pictures',
+    })
+    expect(picked?.directory).toBe(root)
+    expect(picked?.files).toHaveLength(2)
+    expect(picked?.files[0]).toMatchObject({
+      name: 'top.png',
+      webkitRelativePath: 'top.png',
+    })
+    expect(picked?.files[1]).toMatchObject({
+      name: 'nested.jpg',
+      webkitRelativePath: 'sub/nested.jpg',
+    })
+    expect(canUseDirectoryPicker()).toBe(true)
+  })
+
+  it('keeps an existing matching webkitRelativePath without redefining', async () => {
+    const prelabeled = new File([new Uint8Array([9])], 'pre.jpg', {
+      type: 'image/jpeg',
+    })
+    Object.defineProperty(prelabeled, 'webkitRelativePath', {
+      value: 'pre.jpg',
+      configurable: true,
+    })
+    const root = {
+      kind: 'directory' as const,
+      entries: (): AsyncGenerator<
+        readonly [string, { kind: 'file'; getFile: () => Promise<File> }],
+        void
+      > =>
+        (async function* () {
+          await Promise.resolve()
+          yield [
+            'pre.jpg',
+            {
+              kind: 'file' as const,
+              getFile: vi.fn().mockResolvedValue(prelabeled),
+            },
+          ] as const
+        })(),
+    }
     Object.defineProperty(window, 'showDirectoryPicker', {
       configurable: true,
       writable: true,
       value: vi.fn().mockResolvedValue(root),
     })
-    await expect(pickFolderWithDirectoryPicker()).resolves.toEqual({
-      directory: root,
-      files: [top, nested],
+    const picked = await pickFolderWithDirectoryPicker()
+    expect(picked?.files).toHaveLength(1)
+    expect(picked?.files[0]).toBe(prelabeled)
+    expect(
+      (picked?.files[0] as File & { webkitRelativePath?: string })
+        .webkitRelativePath,
+    ).toBe('pre.jpg')
+  })
+
+  it('copies the File when webkitRelativePath cannot be redefined', async () => {
+    const sealed = new File([new Uint8Array([3])], 'sealed.jpg', {
+      type: 'image/jpeg',
     })
-    expect(canUseDirectoryPicker()).toBe(true)
+    Object.defineProperty(sealed, 'webkitRelativePath', {
+      value: 'wrong/path.jpg',
+      configurable: false,
+    })
+    const root = {
+      kind: 'directory' as const,
+      entries: (): AsyncGenerator<
+        readonly [string, { kind: 'file'; getFile: () => Promise<File> }],
+        void
+      > =>
+        (async function* () {
+          await Promise.resolve()
+          yield [
+            'sealed.jpg',
+            {
+              kind: 'file' as const,
+              getFile: vi.fn().mockResolvedValue(sealed),
+            },
+          ] as const
+        })(),
+    }
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockResolvedValue(root),
+    })
+    const picked = await pickFolderWithDirectoryPicker()
+    expect(picked?.files).toHaveLength(1)
+    expect(picked?.files[0]).not.toBe(sealed)
+    expect(picked?.files[0]?.name).toBe('sealed.jpg')
+    expect(
+      (picked?.files[0] as File & { webkitRelativePath?: string })
+        .webkitRelativePath,
+    ).toBe('sealed.jpg')
   })
 
   it('walks fake browser directories via entries()', async () => {
@@ -220,9 +312,17 @@ describe('pickFolderWithDirectoryPicker', () => {
     })
     const picked = await pickFolderWithDirectoryPicker()
     expect(picked?.directory).toBe(root)
-    expect(picked?.files.map((file) => file.name).sort()).toEqual([
-      'a.jpg',
-      'b.png',
+    expect(
+      picked?.files
+        .map((file) => ({
+          name: file.name,
+          path: (file as File & { webkitRelativePath?: string })
+            .webkitRelativePath,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    ).toEqual([
+      { name: 'a.jpg', path: 'a.jpg' },
+      { name: 'b.png', path: 'nested/b.png' },
     ])
   })
 

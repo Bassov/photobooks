@@ -29,10 +29,9 @@ const config = {
     '!src/editor/useChromeImport.tsx',
     '!src/editor/EditorTopBar.tsx',
     '!src/editor/PasteboardEmptyGuidance.tsx',
+    // Browser FSA / e2e doubles: high NoCoverage dual-paths; locked by unit + e2e.
     '!src/assets/fsa/handles.ts',
     '!src/assets/scanWalk.ts',
-    '!src/assets/fsa/fsaAssetSource.ts',
-    '!src/photo/pickPhotos.ts',
     '!src/photo/directoryHandleFromFiles.ts',
     '!src/project/session/browserSourceRootHandles.ts',
   ],
