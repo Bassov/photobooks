@@ -36,7 +36,7 @@ describe('matchAssets', () => {
     expect(result.statuses.get('a')).toBe('missing')
   })
 
-  it('matches on source root, path, size, and mtime', () => {
+  it('matches on path, size, and mtime', () => {
     const entries: ScannedEntry[] = [
       { relativePath: 'album/a.jpg', byteSize: 10, mtimeMs: 5 },
     ]
@@ -54,6 +54,26 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
+    expect(result.matched.get('a')).toEqual(entries[0])
+    expect(result.statuses.get('a')).toBe('ok')
+  })
+
+  it('matches path size mtime across a different source root (relink)', () => {
+    const entries: ScannedEntry[] = [
+      { relativePath: 'shot.jpg', byteSize: 4, mtimeMs: 42 },
+    ]
+    const result = matchAssets(
+      {
+        a: {
+          sourceRootId: 'old-root',
+          relativePath: 'shot.jpg',
+          byteSize: 4,
+          mtimeMs: 42,
+        },
+      },
+      entries,
+      { sourceRootId: 'relink-new' },
+    )
     expect(result.matched.get('a')).toEqual(entries[0])
     expect(result.statuses.get('a')).toBe('ok')
   })
@@ -168,7 +188,7 @@ describe('matchAssets', () => {
     expect(result.unmatchedAssetIds).toEqual(['a', 'b'])
   })
 
-  it('does not metadata-match across different source roots', () => {
+  it('metadata-matches across different source roots for relink', () => {
     const entries: ScannedEntry[] = [
       { relativePath: 'album/a.jpg', byteSize: 10, mtimeMs: 5 },
     ]
@@ -186,9 +206,8 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
-    expect(result.matched.size).toBe(0)
-    expect(result.unmatchedAssetIds).toEqual(['a'])
-    expect(result.statuses.has('a')).toBe(false)
+    expect(result.matched.get('a')).toEqual(entries[0])
+    expect(result.statuses.get('a')).toBe('ok')
   })
 
   it('reports ok for path+size+mtime when record has no sourceRootId', () => {
@@ -208,7 +227,7 @@ describe('matchAssets', () => {
       { sourceRootId: 'root' },
     )
 
-    expect(result.matched.size).toBe(0)
+    expect(result.matched.get('a')).toEqual(entries[0])
     expect(result.statuses.get('a')).toBe('ok')
   })
 

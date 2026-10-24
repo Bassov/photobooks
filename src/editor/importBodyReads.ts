@@ -50,28 +50,6 @@ export function buildReuseIndex(
   return index
 }
 
-/**
- * Index gallery assets that already have a contentHash (first id wins).
- * Used when path+size+mtime miss (e.g. renamed files under the photo folder).
- */
-export function buildContentHashIndex(
-  gallery: readonly string[],
-  assets: Readonly<Record<string, Asset | undefined>>,
-): Map<string, string> {
-  const index = new Map<string, string>()
-  for (const assetId of gallery) {
-    const asset = assets[assetId]
-    const hash = asset?.contentHash
-    if (hash === undefined || hash.length === 0) {
-      continue
-    }
-    if (!index.has(hash)) {
-      index.set(hash, assetId)
-    }
-  }
-  return index
-}
-
 /** Reuse gallery asset when path + size + mtime match (re-import / restore thumbs). */
 export function findReusableAssetId(
   gallery: readonly string[],
@@ -85,14 +63,6 @@ export function findReusableAssetId(
   )
 }
 
-/** Reuse gallery asset when contentHash matches an existing gallery entry. */
-export function findReusableAssetIdByContentHash(
-  gallery: readonly string[],
-  assets: Readonly<Record<string, Asset | undefined>>,
-  contentHash: string,
-): string | undefined {
-  return buildContentHashIndex(gallery, assets).get(contentHash)
-}
 /** Run async work over items with at most `concurrency` in flight. */
 export async function mapWithConcurrency<T>(
   items: readonly T[],

@@ -10,17 +10,13 @@ export interface MatchAssetsResult {
   statuses: ReadonlyMap<string, AssetMatchStatus>
 }
 
-function metadataKey(
-  sourceRootId: string,
+/** Path + size + mtime only — source root may change on relink. */
+function identityKey(
   relativePath: string,
   byteSize: number,
   mtimeMs: number,
 ): string {
-  return `${sourceRootId}\0${relativePath}\0${String(byteSize)}\0${String(mtimeMs)}`
-}
-
-function pathKey(sourceRootId: string, relativePath: string): string {
-  return `${sourceRootId}\0${relativePath}`
+  return `${relativePath}\0${String(byteSize)}\0${String(mtimeMs)}`
 }
 
 function classifyStatus(
@@ -48,47 +44,43 @@ function classifyStatus(
 }
 
 /**
- * Pure match/relink on source root + path + size + mtime only.
- * Content hash is ignored for identity and status.
+ * Pure match/relink on path + size + mtime only (no content-hash).
+ * Source-root id is not part of identity so a fresh relink scan can rematch
+ * assets bound to a previous root.
  */
 export function matchAssets(
   records: Readonly<Record<string, Asset>>,
   entries: readonly ScannedEntry[],
   options: { sourceRootId: string },
 ): MatchAssetsResult {
-  const { sourceRootId } = options
+  if (typeof options.sourceRootId !== 'string') {
+    throw new TypeError('sourceRootId required')
+  }
   const matched = new Map<string, ScannedEntry>()
   const usedEntries = new Set<ScannedEntry>()
 
-  const byMeta = new Map<string, ScannedEntry[]>()
+  const byIdentity = new Map<string, ScannedEntry[]>()
   for (const entry of entries) {
-    const key = metadataKey(
-      sourceRootId,
-      entry.relativePath,
-      entry.byteSize,
-      entry.mtimeMs,
-    )
-    const list = byMeta.get(key) ?? []
+    const key = identityKey(entry.relativePath, entry.byteSize, entry.mtimeMs)
+    const list = byIdentity.get(key) ?? []
     list.push(entry)
-    byMeta.set(key, list)
+    byIdentity.set(key, list)
   }
 
   for (const [assetId, record] of Object.entries(records)) {
     if (
-      record.sourceRootId !== sourceRootId ||
       record.relativePath === undefined ||
       record.byteSize === undefined ||
       record.mtimeMs === undefined
     ) {
       continue
     }
-    const key = metadataKey(
-      record.sourceRootId,
+    const key = identityKey(
       record.relativePath,
       record.byteSize,
       record.mtimeMs,
     )
-    const candidates = byMeta.get(key)
+    const candidates = byIdentity.get(key)
     const entry = candidates?.find((item) => !usedEntries.has(item))
     if (!entry) {
       continue
@@ -99,29 +91,22 @@ export function matchAssets(
 
   const byPath = new Map<string, ScannedEntry>()
   for (const entry of entries) {
-    const key = pathKey(sourceRootId, entry.relativePath)
-    if (!byPath.has(key)) {
-      byPath.set(key, entry)
+    if (!byPath.has(entry.relativePath)) {
+      byPath.set(entry.relativePath, entry)
     }
   }
 
   const statuses = new Map<string, AssetMatchStatus>()
   for (const [assetId, record] of Object.entries(records)) {
     if (
-      record.sourceRootId !== undefined &&
-      record.sourceRootId !== sourceRootId
-    ) {
-      continue
-    }
-    if (
-      record.sourceRootId === undefined &&
-      record.relativePath === undefined
+      record.relativePath === undefined &&
+      record.sourceRootId === undefined
     ) {
       continue
     }
     const pathEntry =
       record.relativePath !== undefined
-        ? byPath.get(pathKey(sourceRootId, record.relativePath))
+        ? byPath.get(record.relativePath)
         : undefined
     statuses.set(
       assetId,

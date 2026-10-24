@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Asset } from '../core'
 import {
-  buildContentHashIndex,
   buildReuseIndex,
   createBodyReadGate,
   findReusableAssetId,
-  findReusableAssetIdByContentHash,
   IMPORT_BODY_READ_CAP,
   mapWithConcurrency,
   relativePathFor,
@@ -96,32 +94,6 @@ describe('findReusableAssetId', () => {
       c: { relativePath: 'c.jpg', byteSize: 1 },
     })
     expect(index.size).toBe(0)
-  })
-
-  it('buildContentHashIndex keeps the first id per hash and skips empty', () => {
-    const index = buildContentHashIndex(['a1', 'a2', 'a3', 'a4', 'missing'], {
-      a1: { contentHash: 'hhh' },
-      a2: { contentHash: 'hhh' },
-      a3: { contentHash: '' },
-      a4: {},
-      missing: undefined,
-    })
-    expect(index.get('hhh')).toBe('a1')
-    expect(index.size).toBe(1)
-    expect(
-      findReusableAssetIdByContentHash(
-        ['a1'],
-        { a1: { contentHash: 'hhh' } },
-        'hhh',
-      ),
-    ).toBe('a1')
-    expect(
-      findReusableAssetIdByContentHash(
-        ['a1'],
-        { a1: { contentHash: 'hhh' } },
-        'nope',
-      ),
-    ).toBeUndefined()
   })
 })
 
