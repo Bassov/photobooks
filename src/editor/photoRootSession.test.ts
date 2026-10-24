@@ -37,6 +37,9 @@ function createMemoryIdb(): SessionIdb {
       map.delete(key)
       return Promise.resolve()
     },
+    keys() {
+      return Promise.resolve([...map.keys()])
+    },
     runReadwrite(mutations) {
       for (const mutation of mutations) {
         if (mutation.op === 'set') {
