@@ -7,8 +7,6 @@ import { readExifImageSize } from './readExifImageSize'
 import { readExifOrientation } from './readExifOrientation'
 import type { ExifOrientation } from './types'
 
-export { THUMB_MAX_EDGE } from './photoEdges'
-
 export interface PhotoWorkerRequest {
   id: string
   file: File
