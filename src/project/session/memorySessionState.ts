@@ -50,14 +50,12 @@ export function createMemorySessionState(): MemorySessionState {
     },
 
     recallLibraryHandle(id) {
-      // Stryker disable next-line ConditionalExpression: reserved + missing-id both yield not-found; public API cannot store a reserved id
       if (isReservedSessionKey(id)) {
         return Promise.resolve(failure('not-found'))
       }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
-      // Stryker disable next-line ConditionalExpression: handle is always cleared with libraryId; null-handle alone is unreachable
       if (handle === null || libraryId !== id) {
         return Promise.resolve(failure('not-found'))
       }
@@ -65,11 +63,9 @@ export function createMemorySessionState(): MemorySessionState {
     },
 
     peekLibraryHandle(id) {
-      // Stryker disable next-line ConditionalExpression: reserved + missing-id both yield not-found; public API cannot store a reserved id
       if (isReservedSessionKey(id)) {
         return Promise.resolve(failure('not-found'))
       }
-      // Stryker disable next-line ConditionalExpression: handle is always cleared with libraryId; null-handle alone is unreachable
       if (handle === null || libraryId !== id) {
         return Promise.resolve(failure('not-found'))
       }
@@ -77,14 +73,12 @@ export function createMemorySessionState(): MemorySessionState {
     },
 
     clearLibraryHandle(id) {
-      // Stryker disable next-line ConditionalExpression: reserved + missing-id both yield not-found; public API cannot store a reserved id
       if (isReservedSessionKey(id)) {
         return Promise.resolve(failure('not-found'))
       }
       if (permissionRequired) {
         return Promise.resolve(failure('permission-required'))
       }
-      // Stryker disable next-line ConditionalExpression: handle is always cleared with libraryId; null-handle alone is unreachable
       if (handle === null || libraryId !== id) {
         return Promise.resolve(failure('not-found'))
       }
@@ -95,7 +89,6 @@ export function createMemorySessionState(): MemorySessionState {
     },
 
     getLibraryLabel(id) {
-      // Stryker disable next-line ConditionalExpression: handle is always cleared with libraryId; null-handle alone is unreachable
       if (handle === null || libraryId !== id) {
         return Promise.resolve(null)
       }

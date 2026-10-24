@@ -92,7 +92,6 @@ export async function migrateLegacyRecents(idb: SessionIdb): Promise<void> {
   }
 
   const mostRecent = recents[0]
-  // Stryker disable next-line ConditionalExpression,BlockStatement: length===0 already returned; indexed access is for TS
   if (mostRecent === undefined) {
     await idb.runReadwrite(mutations)
     return
