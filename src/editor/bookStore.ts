@@ -48,6 +48,12 @@ type BookStoreInit = Omit<BookStoreState, 'previewUrls'> & {
 }
 
 const GALLERY_FLUSH_CHUNK = 4
+/**
+ * Cap session-meta (aspect) publishes per flush. Gallery ids already chunk;
+ * unbounded meta used to rebuild the whole filmstrip prefix in one frame
+ * when decode results land during scroll-during-import.
+ */
+const META_FLUSH_CHUNK = 1
 
 function createSessionBook(): Book {
   const empty: Book = {
@@ -181,12 +187,42 @@ function emitGallery(): void {
   emit()
 }
 
+/**
+ * Take meta for this frame: always include entries for gallery ids being
+ * flushed, then at most {@link META_FLUSH_CHUNK} decode/refine updates when
+ * the flush is meta-only (gallery already mounted).
+ */
+function takePendingMetaBatch(
+  galleryIds: readonly string[],
+): Map<string, AssetSessionMeta> {
+  const batch = new Map<string, AssetSessionMeta>()
+  for (const id of galleryIds) {
+    const meta = pendingMeta.get(id)
+    // enqueueGalleryAssets always pairs meta with the id; skip only if a
+    // caller cleared pending meta before the gallery row flushed.
+    if (meta !== undefined) {
+      pendingMeta.delete(id)
+      batch.set(id, meta)
+    }
+  }
+  if (galleryIds.length > 0) {
+    return batch
+  }
+  for (const [id, meta] of pendingMeta) {
+    if (batch.size >= META_FLUSH_CHUNK) {
+      break
+    }
+    pendingMeta.delete(id)
+    batch.set(id, meta)
+  }
+  return batch
+}
+
 function flushPendingGalleryAndMeta(): void {
   const ids = pendingGalleryIds.splice(0, GALLERY_FLUSH_CHUNK)
-  const metaBatch = pendingMeta
-  pendingMeta = new Map()
+  const metaBatch = takePendingMetaBatch(ids)
   if (ids.length === 0 && metaBatch.size === 0) {
-    if (pendingGalleryIds.length > 0) {
+    if (pendingGalleryIds.length > 0 || pendingMeta.size > 0) {
       scheduleFlush()
     }
     return
@@ -231,7 +267,7 @@ function flushPendingGalleryAndMeta(): void {
     sessionMeta = nextMeta
   }
   if (!galleryChanged && !metaChanged && book === state.book) {
-    if (pendingGalleryIds.length > 0) {
+    if (pendingGalleryIds.length > 0 || pendingMeta.size > 0) {
       scheduleFlush()
     }
     return
