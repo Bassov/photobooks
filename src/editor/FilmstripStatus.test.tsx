@@ -7,10 +7,15 @@ import {
   resetImportErrorsStoreForTests,
 } from './importErrorsStore'
 import { FilmstripStatus } from './FilmstripStatus'
+import {
+  resetFolderRescanForTests,
+  setFolderRescanProgressForTests,
+} from './photoRootSession'
 
 afterEach(() => {
   cleanup()
   resetImportErrorsStoreForTests()
+  resetFolderRescanForTests()
 })
 
 describe('FilmstripStatus', () => {
@@ -64,6 +69,40 @@ describe('FilmstripStatus', () => {
     expect(
       screen
         .getByRole('progressbar', { name: 'Importing' })
+        .getAttribute('aria-valuemax'),
+    ).toBe('1')
+  })
+
+  it('shows folder re-scan progress with a stable test id', () => {
+    setFolderRescanProgressForTests({
+      total: 8,
+      completed: 2,
+      running: true,
+      phase: 'priority',
+    })
+    render(<FilmstripStatus photoCount={3} progress={null} />)
+    expect(screen.getByTestId('folder-rescan-progress').textContent).toMatch(
+      /Checking photos 2 \/ 8/,
+    )
+    expect(
+      screen.getByRole('progressbar', { name: 'Checking photos' }),
+    ).toBeTruthy()
+  })
+
+  it('shows lazy-phase folder re-scan label and clamps zero total', () => {
+    setFolderRescanProgressForTests({
+      total: 0,
+      completed: 0,
+      running: true,
+      phase: 'lazy',
+    })
+    render(<FilmstripStatus photoCount={0} progress={null} />)
+    expect(screen.getByTestId('folder-rescan-progress').textContent).toMatch(
+      /Scanning folder 0 \/ 0/,
+    )
+    expect(
+      screen
+        .getByRole('progressbar', { name: 'Checking photos' })
         .getAttribute('aria-valuemax'),
     ).toBe('1')
   })

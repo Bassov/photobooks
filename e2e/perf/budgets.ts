@@ -9,6 +9,7 @@ export const PERF_BUDGETS = {
   inpMs: 100,
   frameP95Ms: 16.7,
   droppedFrameRatio: 0.02,
+  scanSchedulerLongTaskMs: 100,
 } as const
 
 /** Must match `IMPORT_PHOTOS_HANDLER_LABEL` in `src/editor/importPhotos.ts`. */

@@ -15,6 +15,7 @@ export async function runChromeImport(
     source?: 'files' | 'folder'
     sourceRootId?: string
     libraryBacked?: boolean
+    awaitPriorHashes?: boolean
   },
 ): Promise<ChromeImportResult> {
   if (files.length === 0) {
@@ -40,6 +41,9 @@ export async function runChromeImport(
       : {}),
     ...(options.libraryBacked !== undefined
       ? { libraryBacked: options.libraryBacked }
+      : {}),
+    ...(options.awaitPriorHashes !== undefined
+      ? { awaitPriorHashes: options.awaitPriorHashes }
       : {}),
   })
   if (raf !== 0) {

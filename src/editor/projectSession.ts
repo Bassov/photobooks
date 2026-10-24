@@ -1364,9 +1364,16 @@ export function exposeProjectSessionTestApi(
     restorePhotoFolderForActiveBook,
     regrantPhotoFolder,
     getPhotoRootSessionSnapshot,
+    setFolderRescanProgressForTests: () => undefined,
   }
   void import('./relink').then((relink) => {
     relink.exposeRelinkTestApi(win)
+  })
+  void import('./photoRootSession').then((photoRoot) => {
+    if (win.__photobooksProject !== undefined) {
+      win.__photobooksProject.setFolderRescanProgressForTests =
+        photoRoot.setFolderRescanProgressForTests
+    }
   })
 }
 
@@ -1403,6 +1410,14 @@ declare global {
       restorePhotoFolderForActiveBook: typeof restorePhotoFolderForActiveBook
       regrantPhotoFolder: typeof regrantPhotoFolder
       getPhotoRootSessionSnapshot: typeof getPhotoRootSessionSnapshot
+      setFolderRescanProgressForTests: (
+        state: {
+          total: number
+          completed: number
+          running: boolean
+          phase: 'priority' | 'lazy'
+        } | null,
+      ) => void
     }
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
@@ -1449,6 +1464,20 @@ export async function listLibraryBooks(): Promise<
   return libraryActivation.selectRecentLibrary(
     libraryId ?? preferredLibraryId ?? DEFAULT_LIBRARY_ID,
   )
+}
+
+/** Load a library book document (used for cross-book photo-root priority). */
+export async function loadLibraryBook(
+  targetBookId: string,
+): Promise<StorageResult<Book>> {
+  if (storage === null || targetBookId === '') {
+    return { ok: false, code: 'not-found' }
+  }
+  try {
+    return await storage.loadBook(targetBookId)
+  } catch {
+    return { ok: false, code: 'not-found' }
+  }
 }
 
 export async function chooseLibraryFolder(): Promise<StorageResult<void>> {

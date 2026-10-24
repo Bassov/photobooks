@@ -15,6 +15,10 @@ import {
 import { Pasteboard } from './Pasteboard'
 import { REVEAL_TRY_CEILING } from './pasteboardReveal'
 import { PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME } from './pasteboardWindow'
+import {
+  getActiveSpreadId,
+  resetActiveSpreadIdForTests,
+} from './photoRootSession'
 
 interface PaceTimeout {
   id: number
@@ -141,8 +145,36 @@ describe('Pasteboard view wiring', () => {
     cleanup()
     resetBookStore()
     resetCameraStore()
+    resetActiveSpreadIdForTests()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it('publishes the active spread id for prioritized photo-folder re-scan', () => {
+    resetBookStore()
+    resetActiveSpreadIdForTests()
+    for (let i = 0; i < 3; i += 1) {
+      dispatchBookOp({ type: 'addSpread' })
+    }
+    const spreadIds = getSpreadIdsSnapshot()
+    assert.ok(spreadIds[1])
+    commitZoom(1, 0, 0)
+    stubViewport(500, 240)
+    const { callbacks } = stubIntersectionObserverCapture()
+    render(<Pasteboard />)
+    expect(callbacks.length).toBeGreaterThan(0)
+    const slots = screen.getAllByTestId('pasteboard-slot')
+    const target = slots.find(
+      (slot) => slot.getAttribute('data-spread-id') === spreadIds[1],
+    )
+    assert.ok(target)
+    act(() => {
+      callbacks[0]?.(
+        [fakeIntersectionEntry(target, 0.9)],
+        {} as IntersectionObserver,
+      )
+    })
+    expect(getActiveSpreadId()).toBe(spreadIds[1])
   })
 
   it('coalesces scroll updates onto one animation frame', () => {

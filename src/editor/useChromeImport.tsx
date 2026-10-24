@@ -6,12 +6,14 @@ import {
   type ReactNode,
 } from 'react'
 import { flushSync } from 'react-dom'
+import { createFsaAssetSource } from '../assets'
 import { directoryHandleFromFiles } from '../photo/directoryHandleFromFiles'
 import {
   canUseDirectoryPicker,
   pickFolderWithDirectoryPicker,
 } from '../photo/pickPhotos'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
+import { registerAssetSource } from './assetSourceRegistry'
 import { isImportDisabled } from './editorChromeDisabled'
 import { setEditorStatus } from './editorStatus'
 import { applyChromeImportHint } from './chromeImportHint'
@@ -29,11 +31,13 @@ import {
   isLibraryBacked,
   subscribeProjectSession,
 } from './projectSession'
-import { runChromeImport } from './runChromeImport'
 import {
   bindPhotoFolder,
+  cancelFolderRescan,
   clearBoundPhotoFolderForReplace,
   getPhotoRootSessionSnapshot,
+  importFilesInBatches,
+  importScannedEntriesInBatches,
   persistBoundPhotoFolder,
   photoFolderActionLabel,
   registerBoundPhotoFolderSource,
@@ -81,50 +85,37 @@ export function useChromeImport(options: {
   const importDisabled = isImportDisabled(pickerBusy, writeBlocked)
   const photoFolderLabel = photoFolderActionLabel(photoRoot.hasPhotoFolder)
 
-  const runFolderImport = async (
-    files: readonly File[],
-    sourceRootId: string,
-  ): Promise<void> => {
-    const result = await runChromeImport(files, {
-      source: 'folder',
-      sourceRootId,
-      libraryBacked: isLibraryBacked(),
-      onProgress: options.onImportProgress,
-      onErrors: (next) => {
-        if (next.length === 0) {
-          clearImportErrorsToast(options.toastQueue)
-          return
-        }
-        const snapshot = [...next]
-        appendImportErrors(snapshot)
-        setEditorStatus(importErrorsStatusText(snapshot))
-        enqueueImportErrorsToast(options.toastQueue, snapshot, () => {
-          openImportErrorsPanel()
-        })
-      },
-    })
-    if (result.skipped > 0 && result.errors.length === 0) {
-      setEditorStatus(folderSkippedStatusText(result.skipped))
+  const reportErrors = (
+    next: Parameters<typeof appendImportErrors>[0],
+  ): void => {
+    if (next.length === 0) {
+      clearImportErrorsToast(options.toastQueue)
+      return
     }
-    applyChromeImportHint(result.imported, files.length)
+    const snapshot = [...next]
+    appendImportErrors(snapshot)
+    setEditorStatus(importErrorsStatusText(snapshot))
+    enqueueImportErrorsToast(options.toastQueue, snapshot, () => {
+      openImportErrorsPanel()
+    })
   }
 
   const importPickedFolder = async (
     directory: FileSystemDirectoryHandle,
-    files: readonly File[],
+    knownFiles: readonly File[] | null,
     replace: boolean,
   ): Promise<void> => {
-    // Change-folder: clear the prior gallery first, then paint Importing on the
-    // empty strip so progressive start is not blocked by a full-filmstrip commit.
-    const earlyProgress = replace && files.length > 0
+    cancelFolderRescan()
+    const earlyProgress =
+      replace && (knownFiles === null || knownFiles.length > 0)
     const priorRootCleared = replace
       ? clearBoundPhotoFolderForReplace()
       : Promise.resolve()
     if (earlyProgress) {
       flushSync(() => {
-        setImportRunning(true, files.length)
+        setImportRunning(true, knownFiles?.length ?? 1)
         options.onImportProgress({
-          total: files.length,
+          total: knownFiles?.length ?? 1,
           completed: 0,
           errors: [],
           running: true,
@@ -136,13 +127,59 @@ export function useChromeImport(options: {
       const { sourceRootId } = await bindPhotoFolder({
         directory,
         replace: false,
-        // Import first; persist IDB + register FSA after so library seed/scroll
-        // matches the prior setInputFiles frame-budget path.
         persist: false,
         registerSource: false,
       })
+      // Register FSA early so worker scanRoot / path resolve work during import.
+      registerAssetSource(
+        sourceRootId,
+        createFsaAssetSource({ rootId: sourceRootId, directory }),
+      )
       try {
-        await runFolderImport(files, sourceRootId)
+        let result
+        if (knownFiles !== null) {
+          result = await importFilesInBatches(knownFiles, {
+            sourceRootId,
+            libraryBacked: isLibraryBacked(),
+            onProgress: options.onImportProgress,
+            onErrors: reportErrors,
+          })
+        } else {
+          options.onImportProgress({
+            total: 1,
+            completed: 0,
+            errors: [],
+            running: true,
+          })
+          const source = createFsaAssetSource({
+            rootId: sourceRootId,
+            directory,
+          })
+          registerAssetSource(sourceRootId, source)
+          const scanned = await source.scanRoot(sourceRootId)
+          if (!scanned.ok) {
+            options.onImportProgress(null)
+            setEditorStatus('Could not read photo folder')
+            return
+          }
+          result = await importScannedEntriesInBatches(
+            directory,
+            scanned.value,
+            {
+              sourceRootId,
+              libraryBacked: isLibraryBacked(),
+              onProgress: options.onImportProgress,
+              onErrors: reportErrors,
+            },
+          )
+        }
+        if (result.skipped > 0 && result.errors.length === 0) {
+          setEditorStatus(folderSkippedStatusText(result.skipped))
+        }
+        applyChromeImportHint(
+          result.imported,
+          knownFiles?.length ?? result.imported + result.skipped,
+        )
       } finally {
         await priorRootCleared
         await persistBoundPhotoFolder(sourceRootId, directory)
@@ -182,11 +219,7 @@ export function useChromeImport(options: {
     if (picked === null) {
       return
     }
-    await importPickedFolder(
-      picked.directory,
-      picked.files,
-      photoRoot.hasPhotoFolder,
-    )
+    await importPickedFolder(picked.directory, null, photoRoot.hasPhotoFolder)
   }
 
   const onE2eFolderInputChange = async (

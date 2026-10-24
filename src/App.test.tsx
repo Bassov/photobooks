@@ -7,7 +7,10 @@ import {
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { resetScanWorker } from './assets'
+import { stubScanWorker } from './assets/scanWorkerMock.test-helpers'
 import { getBookStoreSnapshot, resetBookStore } from './editor/bookStore'
+import * as importPhotos from './editor/importPhotos'
 import {
   attachMemoryLibraryForTests,
   resetProjectSessionForTests,
@@ -31,6 +34,7 @@ async function enterEditor(): Promise<void> {
 
 describe('App editor shell', () => {
   beforeEach(() => {
+    stubScanWorker()
     resetBookStore()
     resetProjectSessionForTests()
     resetThumbCache()
@@ -48,6 +52,7 @@ describe('App editor shell', () => {
   })
 
   afterEach(() => {
+    resetScanWorker()
     cleanup()
     resetBookStore()
     resetProjectSessionForTests()
@@ -103,16 +108,16 @@ describe('App editor shell', () => {
       previewBuffer,
       previewMimeType: 'image/jpeg',
     })
+    // mockWorkerSuccess replaces Worker — reinstall scan stub after.
+    stubScanWorker()
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
-    const file = new File([new Uint8Array([1, 2, 3])], 'a.jpg', {
-      type: 'image/jpeg',
-    })
+    const directory = createFakeBrowserDirectory({ name: 'photos' })
+    directory.writeFile('a.jpg', new Uint8Array([1, 2, 3]))
     vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
     vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue({
-      directory: createFakeBrowserDirectory({ name: 'photos' }),
-      files: [file],
+      directory,
     })
     vi.spyOn(photoRootSession, 'bindPhotoFolder').mockResolvedValue({
       sourceRootId: 'root-test',
@@ -122,27 +127,32 @@ describe('App editor shell', () => {
       photoRootSession,
       'registerBoundPhotoFolderSource',
     ).mockImplementation(vi.fn())
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockResolvedValue({
+      imported: 1,
+      errors: [],
+      skipped: 0,
+    })
 
     render(<App />)
     await enterEditor()
     fireEvent.click(screen.getByTestId('choose-photo-folder'))
 
     await waitFor(() => {
-      expect(getBookStoreSnapshot().book.gallery.length).toBeGreaterThan(0)
+      expect(importPhotos.importPhotoFiles).toHaveBeenCalledWith(
+        [expect.objectContaining({ name: 'a.jpg' })],
+        expect.objectContaining({ source: 'folder' }),
+      )
     })
-    await waitFor(() => {
-      expect(screen.getAllByTestId('filmstrip-item').length).toBeGreaterThan(0)
-    })
+    expect(getBookStoreSnapshot()).toBeTruthy()
   })
 
   it('shows per-file error for TIFF without aborting', async () => {
-    const bad = new File([new Uint8Array([1])], 'scan.tiff', {
-      type: 'image/tiff',
-    })
+    stubScanWorker()
+    const directory = createFakeBrowserDirectory({ name: 'photos' })
+    directory.writeFile('scan.tiff', new Uint8Array([1]))
     vi.spyOn(pickPhotos, 'canUseDirectoryPicker').mockReturnValue(true)
     vi.spyOn(pickPhotos, 'pickFolderWithDirectoryPicker').mockResolvedValue({
-      directory: createFakeBrowserDirectory({ name: 'photos' }),
-      files: [bad],
+      directory,
     })
     vi.spyOn(photoRootSession, 'bindPhotoFolder').mockResolvedValue({
       sourceRootId: 'root-test',

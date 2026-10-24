@@ -46,6 +46,11 @@ export interface ImportPhotoOptions {
   sourceRootId?: string
   /** Folder imports skip non-image-like files; default is explicit file pick. */
   source?: 'files' | 'folder'
+  /**
+   * When false, skip the opening `awaitPendingHashes` gate so multi-batch
+   * folder imports can start progressive decode after the first resolve slice.
+   */
+  awaitPriorHashes?: boolean
 }
 
 export interface ImportPhotoResult {
@@ -183,7 +188,7 @@ async function importPhotoFilesInner(
 
   setImportRunning(true, progressTotal)
   try {
-    if (libraryBacked) {
+    if (libraryBacked && options.awaitPriorHashes !== false) {
       // Content-hash fallback needs settled hashes from prior imports.
       // Run after importRunning so progress is visible while we wait.
       await awaitPendingHashes()

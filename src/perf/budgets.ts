@@ -16,4 +16,9 @@ export const PERF_BUDGETS = {
   frameP95Ms: 16.7,
   /** Max fraction of frames slower than `frameP95Ms` for local `pnpm perf`. */
   droppedFrameRatio: 0.02,
+  /**
+   * Max main-thread long task (ms) for folder scan/import scheduler harnesses.
+   * Does not relax LoAF-zero CI interaction gates.
+   */
+  scanSchedulerLongTaskMs: 100,
 } as const

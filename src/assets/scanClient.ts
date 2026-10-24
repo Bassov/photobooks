@@ -1,6 +1,11 @@
 import type { AssetDirectoryHandle } from './fsa/handles'
 import type { ScanWorkerRequest, ScanWorkerResponse } from './scan.worker'
+import { walkAssetDirectory } from './scanWalk'
 import type { ScannedEntry } from './types'
+
+function isDataCloneError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'DataCloneError'
+}
 
 let scanWorker: Worker | undefined
 let requestCounter = 0
@@ -51,15 +56,26 @@ function nextScanId(): string {
   return `scan-${String((requestCounter += 1))}`
 }
 
-/** Walk a directory handle inside the scan worker. */
-export function scanDirectoryInWorker(
+/**
+ * Walk a directory handle inside the scan worker.
+ * Non-cloneable test doubles fall back to an in-process walk (not a permission
+ * bypass — real FSA handles always take the worker path).
+ */
+export async function scanDirectoryInWorker(
   directory: AssetDirectoryHandle | FileSystemDirectoryHandle,
 ): Promise<ScannedEntry[]> {
-  return requestScan({
-    id: nextScanId(),
-    kind: 'directory',
-    directory: directory as AssetDirectoryHandle,
-  })
+  try {
+    return await requestScan({
+      id: nextScanId(),
+      kind: 'directory',
+      directory: directory as AssetDirectoryHandle,
+    })
+  } catch (error) {
+    if (isDataCloneError(error)) {
+      return walkAssetDirectory(directory)
+    }
+    throw error
+  }
 }
 
 /** Finalize a memory file table inside the scan worker. */

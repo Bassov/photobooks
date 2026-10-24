@@ -5,6 +5,10 @@ import {
   filmstripImportErrorsActionStyle,
   filmstripImportProgressStyle,
 } from './filmstripChromeStyles'
+import {
+  getFolderRescanProgress,
+  subscribeFolderRescanProgress,
+} from './photoRootSession'
 import type { ImportProgress } from './importPhotos'
 import {
   getImportErrors,
@@ -24,8 +28,14 @@ export function FilmstripStatus({
     getImportErrors,
     getImportErrors,
   )
+  const rescan = useSyncExternalStore(
+    subscribeFolderRescanProgress,
+    getFolderRescanProgress,
+    getFolderRescanProgress,
+  )
   const running = progress?.running === true
-  const showCount = photoCount > 0 || running
+  const rescanning = rescan?.running === true
+  const showCount = photoCount > 0 || running || rescanning
   const errorCount = storeErrors.length
 
   let progressNode: ReactNode = null
@@ -33,6 +43,14 @@ export function FilmstripStatus({
     progressNode = (
       <span className="import-progress" data-testid="import-progress">
         {`Importing ${String(progress.completed)} / ${String(progress.total)}…`}
+      </span>
+    )
+  } else if (rescanning) {
+    const label =
+      rescan.phase === 'priority' ? 'Checking photos' : 'Scanning folder'
+    progressNode = (
+      <span className="import-progress" data-testid="folder-rescan-progress">
+        {`${label} ${String(rescan.completed)} / ${String(rescan.total)}…`}
       </span>
     )
   } else if (errorCount > 0) {
@@ -55,6 +73,15 @@ export function FilmstripStatus({
     return null
   }
 
+  const barRunning = running || rescanning
+  const barValue = running
+    ? progress.completed
+    : rescanning
+      ? rescan.completed
+      : 0
+  const rawBarMax = running ? progress.total : rescanning ? rescan.total : 1
+  const barMax = Math.max(rawBarMax, 1)
+
   return (
     <Status className="filmstrip-status" data-testid="filmstrip-status">
       {showCount ? (
@@ -62,12 +89,12 @@ export function FilmstripStatus({
           {photoCount === 1 ? '1 photo' : `${String(photoCount)} photos`}
         </span>
       ) : null}
-      {progress?.running ? (
+      {barRunning ? (
         <ProgressBar
           style={filmstripImportProgressStyle}
-          aria-label="Importing"
-          value={progress.completed}
-          maxValue={progress.total > 0 ? progress.total : 1}
+          aria-label={running ? 'Importing' : 'Checking photos'}
+          value={barValue}
+          maxValue={barMax}
           minValue={0}
         />
       ) : null}

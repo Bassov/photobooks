@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { CameraBar } from './CameraBar'
+import { setActiveSpreadId } from './photoRootSession'
 import { getCommittedCamera, subscribeCommitted } from './cameraStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { installGalleryDrop, type DropGeometry } from './galleryDrop'
@@ -97,6 +98,9 @@ export const Pasteboard = memo(function Pasteboard({
   const scrollTop = resolveTrackedScrollTop(trackedScroll, cameraFrame)
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
   const [activeId, setActiveId] = useState<string | null>(null)
+  useEffect(() => {
+    setActiveSpreadId(activeId)
+  }, [activeId])
   const scrollRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
   const geometryRef = useRef<DropGeometry>({
