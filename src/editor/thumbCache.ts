@@ -20,8 +20,8 @@ const hydrateInflight = new Map<string, AbortController>()
 /** Last encoded thumb bytes per asset for put-after-hash. */
 const lastThumb = new Map<string, { buffer: ArrayBuffer; mimeType: string }>()
 
-/** contentHashes already written to DerivedCache this session (skip re-puts). */
-const putContentHashes = new Set<string>()
+/** Identity digests already written to DerivedCache this session (skip re-puts). */
+const putCacheKeys = new Set<string>()
 
 interface PendingThumb {
   assetId: string
@@ -137,63 +137,63 @@ export function setThumbUrl(
   assetId: string,
   buffer: ArrayBuffer,
   mimeType: string,
-  contentHash?: string,
+  cacheKey?: string,
 ): void {
   // Retain a copy so callers can reuse/detach the source buffer safely.
   const retained = buffer.slice(0)
   lastThumb.set(assetId, { buffer: retained, mimeType })
   enqueuePublish(assetId, retained, mimeType)
-  if (contentHash !== undefined && contentHash.length > 0) {
-    // Encode-after-hash path: put must be awaited by Save (awaitPendingHashes),
-    // otherwise reload hydrates gray placeholders for late gallery assets.
-    void trackHashJob(putThumbForHash(contentHash, retained, mimeType))
+  if (cacheKey !== undefined && cacheKey.length > 0) {
+    // Encode-after-identity path: put must be awaited by Save
+    // (awaitPendingHashes), otherwise reload hydrates gray placeholders.
+    void trackHashJob(putThumbForKey(cacheKey, retained, mimeType))
   }
 }
 
-async function putThumbForHash(
-  contentHash: string,
+async function putThumbForKey(
+  cacheKey: string,
   buffer: ArrayBuffer,
   mimeType: string,
 ): Promise<void> {
-  if (putContentHashes.has(contentHash)) {
+  if (putCacheKeys.has(cacheKey)) {
     return
   }
-  putContentHashes.add(contentHash)
+  putCacheKeys.add(cacheKey)
   const cache = await getDerivedCache()
   // `buffer` is already a retained copy from setThumbUrl / lastThumb.
-  await cache.put(contentHash, THUMB_PRESET_ID, {
+  await cache.put(cacheKey, THUMB_PRESET_ID, {
     bytes: buffer,
     mimeType,
   })
 }
 
-/** Put the last hot thumb into DerivedCache once contentHash is known. */
+/** Put the last hot thumb into DerivedCache once the identity cache key is known. */
 export async function putCachedThumbForHash(
   assetId: string,
-  contentHash: string,
+  cacheKey: string,
 ): Promise<void> {
-  if (contentHash.length === 0) {
+  if (cacheKey.length === 0) {
     return
   }
   const last = lastThumb.get(assetId)
   if (last === undefined) {
     return
   }
-  await putThumbForHash(contentHash, last.buffer, last.mimeType)
+  await putThumbForKey(cacheKey, last.buffer, last.mimeType)
 }
 
-export function ensureThumb(assetId: string, contentHash?: string): void {
+export function ensureThumb(assetId: string, cacheKey?: string): void {
   if (lru.has(assetId) || hydrateInflight.has(assetId)) {
     return
   }
   // Remount after LRU eviction during import: republish in-session bytes
-  // before contentHash / DerivedCache are available.
+  // before identity / DerivedCache are available.
   const hot = lastThumb.get(assetId)
   if (hot !== undefined) {
     enqueuePublish(assetId, hot.buffer, hot.mimeType)
     return
   }
-  if (contentHash === undefined || contentHash.length === 0) {
+  if (cacheKey === undefined || cacheKey.length === 0) {
     return
   }
   const controller = new AbortController()
@@ -204,7 +204,7 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
       if (hydrateInflight.get(assetId) !== controller) {
         return
       }
-      const got = await cache.get(contentHash, THUMB_PRESET_ID)
+      const got = await cache.get(cacheKey, THUMB_PRESET_ID)
       if (hydrateInflight.get(assetId) !== controller || !got.ok) {
         return
       }
@@ -228,7 +228,7 @@ export function ensureThumb(assetId: string, contentHash?: string): void {
 
 /**
  * Test seam: revoke the hot object URL while keeping lastThumb bytes so
- * remount-after-eviction (ensureThumb without contentHash) can be asserted.
+ * remount-after-eviction (ensureThumb without cacheKey) can be asserted.
  */
 export function dropHotThumbUrlForTests(assetId: string): void {
   lru.delete(assetId)
@@ -236,7 +236,7 @@ export function dropHotThumbUrlForTests(assetId: string): void {
 
 export function resetThumbCache(): void {
   lastThumb.clear()
-  putContentHashes.clear()
+  putCacheKeys.clear()
   pendingById.clear()
   flushScheduled = false
   clearTimeout(flushWatchdogTimer)

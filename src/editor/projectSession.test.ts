@@ -11,6 +11,7 @@ import {
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
+  getAssetCacheKey,
   getAssetContentHash,
   patchAssetRecord,
   resetBookStore,
@@ -704,9 +705,15 @@ describe('projectSession', () => {
     expect(bare.__photobooksThumbs).toBeUndefined()
   })
 
-  it('restored hashed assets hydrate thumbs from DerivedCache', async () => {
-    const hash =
-      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  it('restored identity-keyed assets hydrate thumbs from DerivedCache', async () => {
+    const { cacheKeyFromIdentity } = await import('../assets/cacheKey')
+    const identity = {
+      sourceRootId: 'root-b',
+      relativePath: 'b.jpg',
+      byteSize: 3,
+      mtimeMs: 42,
+    }
+    const cacheKey = cacheKeyFromIdentity(identity)
     const storage = createMemoryLibraryStorage()
     const session = createMemorySessionState()
     configureProjectSession({
@@ -722,11 +729,7 @@ describe('projectSession', () => {
         ...created.value,
         gallery: ['asset-restore'],
         assets: {
-          'asset-restore': {
-            sourceRootId: 'root-b',
-            relativePath: 'b.jpg',
-            contentHash: hash,
-          },
+          'asset-restore': identity,
         },
       },
       sessionMeta: new Map(),
@@ -740,7 +743,7 @@ describe('projectSession', () => {
 
     const cache = createMemoryDerivedCache()
     setDerivedCacheForTests(cache)
-    await cache.put(hash, 'thumb', {
+    await cache.put(cacheKey, 'thumb', {
       bytes: new Uint8Array([9, 8, 7]).buffer,
       mimeType: 'image/png',
     })
@@ -749,7 +752,8 @@ describe('projectSession', () => {
     resetThumbCache()
     const restored = await tryRestore()
     expect(restored.ok).toBe(true)
-    expect(getAssetContentHash('asset-restore')).toBe(hash)
+    expect(getAssetCacheKey('asset-restore')).toBe(cacheKey)
+    expect(getAssetContentHash('asset-restore')).toBeUndefined()
 
     const callbacks: FrameRequestCallback[] = []
     vi.stubGlobal(
@@ -762,7 +766,7 @@ describe('projectSession', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:restored-thumb')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
-    ensureThumb('asset-restore', getAssetContentHash('asset-restore'))
+    ensureThumb('asset-restore', getAssetCacheKey('asset-restore'))
     for (let step = 0; step < 5; step += 1) {
       await Promise.resolve()
       const queued = callbacks.splice(0)

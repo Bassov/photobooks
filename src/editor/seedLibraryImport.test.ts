@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryAssetSource } from '../assets'
+import { cacheKeyFromIdentity } from '../assets/cacheKey'
 import {
   enqueueGalleryAssets,
   getBookStoreSnapshot,
@@ -10,15 +11,8 @@ import {
   registerAssetSource,
   resetProjectSessionForTests,
 } from './projectSession'
-import {
-  memorySourceForRoot,
-  resolveSeedContentHash,
-  seedAndHashEntry,
-} from './seedLibraryImport'
-import { resetPendingHashesForTests } from './pendingHashes'
-
-const SAMPLE_HASH =
-  'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
+import { resetPendingHashesForTests, awaitPendingHashes } from './pendingHashes'
 
 const putCachedThumbForHash = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 const putCachedTierForHash = vi.hoisted(() => vi.fn(() => Promise.resolve()))
@@ -27,7 +21,9 @@ vi.mock('../assets', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../assets')>()
   return {
     ...actual,
-    hashContent: vi.fn(() => Promise.resolve(SAMPLE_HASH)),
+    hashContent: vi.fn(() =>
+      Promise.reject(new Error('hashContent must not run on seed path')),
+    ),
   }
 })
 
@@ -85,31 +81,7 @@ describe('seedLibraryImport', () => {
     expect(getRegisteredAssetSource('root-plain')).toBe(fsaLike)
   })
 
-  it('resolveSeedContentHash prefers known hash then book asset record', () => {
-    expect(resolveSeedContentHash('missing')).toBeUndefined()
-    expect(resolveSeedContentHash('missing', SAMPLE_HASH)).toBe(SAMPLE_HASH)
-    resetBookStore({
-      book: {
-        ...getBookStoreSnapshot().book,
-        assets: {
-          hashed: {
-            sourceRootId: 'r',
-            relativePath: 'a.jpg',
-            byteSize: 1,
-            mtimeMs: 1,
-            contentHash: SAMPLE_HASH,
-          },
-        },
-      },
-      sessionMeta: new Map(),
-      importRunning: false,
-      importExpectedCount: 0,
-    })
-    expect(resolveSeedContentHash('hashed')).toBe(SAMPLE_HASH)
-    expect(resolveSeedContentHash('hashed', 'other')).toBe('other')
-  })
-
-  it('seedAndHashEntry seeds bytes and patches contentHash when Worker exists', async () => {
+  it('seedAndHashEntry seeds bytes and puts caches under identity key', async () => {
     vi.stubGlobal(
       'requestAnimationFrame',
       (cb: FrameRequestCallback): number => {
@@ -117,14 +89,15 @@ describe('seedLibraryImport', () => {
         return 1
       },
     )
-    vi.stubGlobal(
-      'Worker',
-      class {
-        terminate(): void {
-          /* no-op */
-        }
-      },
-    )
+    const file = new File([new Uint8Array([1, 2, 3])], 's.jpg', {
+      type: 'image/jpeg',
+    })
+    const expectedKey = cacheKeyFromIdentity({
+      sourceRootId: 'root-seed',
+      relativePath: 's.jpg',
+      byteSize: file.size,
+      mtimeMs: file.lastModified,
+    })
     enqueueGalleryAssets([
       {
         assetId: 'asset-seed',
@@ -135,6 +108,12 @@ describe('seedLibraryImport', () => {
           orientation: 1,
           aspect: 1,
         },
+        asset: {
+          sourceRootId: 'root-seed',
+          relativePath: 's.jpg',
+          byteSize: file.size,
+          mtimeMs: file.lastModified,
+        },
       },
     ])
     await vi.waitFor(() => {
@@ -142,9 +121,6 @@ describe('seedLibraryImport', () => {
     })
     const source = createMemoryAssetSource()
     const seedSpy = vi.spyOn(source, 'seedFile')
-    const file = new File([new Uint8Array([1, 2, 3])], 's.jpg', {
-      type: 'image/jpeg',
-    })
     await seedAndHashEntry({
       assetId: 'asset-seed',
       file,
@@ -158,19 +134,20 @@ describe('seedLibraryImport', () => {
       expect.any(ArrayBuffer),
       file.lastModified,
     )
-    await vi.waitFor(() => {
-      expect(
-        getBookStoreSnapshot().book.assets['asset-seed']?.contentHash,
-      ).toBe(SAMPLE_HASH)
-    })
+    await awaitPendingHashes()
     expect(putCachedThumbForHash).toHaveBeenCalledWith(
       'asset-seed',
-      SAMPLE_HASH,
+      expectedKey,
     )
-    expect(putCachedTierForHash).toHaveBeenCalledWith('asset-seed', SAMPLE_HASH)
+    expect(putCachedTierForHash).toHaveBeenCalledWith('asset-seed', expectedKey)
+    expect(
+      getBookStoreSnapshot().book.assets['asset-seed']?.contentHash,
+    ).toBeUndefined()
+    const { hashContent } = await import('../assets')
+    expect(hashContent).not.toHaveBeenCalled()
   })
 
-  it('seedAndHashEntry uses preloaded bytes and known contentHash', async () => {
+  it('seedAndHashEntry uses preloaded bytes without a second body read', async () => {
     vi.stubGlobal(
       'requestAnimationFrame',
       (cb: FrameRequestCallback): number => {
@@ -178,14 +155,8 @@ describe('seedLibraryImport', () => {
         return 1
       },
     )
-    vi.stubGlobal(
-      'Worker',
-      class {
-        terminate(): void {
-          /* no-op */
-        }
-      },
-    )
+    const bytes = new Uint8Array([7, 8, 9]).buffer
+    const file = new File([bytes], 'k.jpg', { type: 'image/jpeg' })
     enqueueGalleryAssets([
       {
         assetId: 'asset-known',
@@ -196,21 +167,20 @@ describe('seedLibraryImport', () => {
           orientation: 1,
           aspect: 1,
         },
+        asset: {
+          sourceRootId: 'root-known',
+          relativePath: 'k.jpg',
+          byteSize: file.size,
+          mtimeMs: file.lastModified,
+        },
       },
     ])
     await vi.waitFor(() => {
       expect(getBookStoreSnapshot().book.gallery).toContain('asset-known')
     })
-    const { hashContent } = await import('../assets')
-    const hashSpy = vi.mocked(hashContent)
-    hashSpy.mockClear()
     const source = createMemoryAssetSource()
     const seedSpy = vi.spyOn(source, 'seedFile')
-    const bytes = new Uint8Array([7, 8, 9]).buffer
-    const file = new File([bytes], 'k.jpg', { type: 'image/jpeg' })
     const arrayBufferSpy = vi.spyOn(file, 'arrayBuffer')
-    const known =
-      'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
     await seedAndHashEntry({
       assetId: 'asset-known',
       file,
@@ -218,7 +188,6 @@ describe('seedLibraryImport', () => {
       sourceRootId: 'root-known',
       memorySource: source,
       bytes,
-      contentHash: known,
     })
     expect(arrayBufferSpy).not.toHaveBeenCalled()
     expect(seedSpy).toHaveBeenCalledWith(
@@ -227,57 +196,9 @@ describe('seedLibraryImport', () => {
       bytes,
       file.lastModified,
     )
-    expect(hashSpy).not.toHaveBeenCalled()
-    expect(putCachedThumbForHash).not.toHaveBeenCalled()
-    expect(putCachedTierForHash).not.toHaveBeenCalled()
-    expect(
-      getBookStoreSnapshot().book.assets['asset-known']?.contentHash,
-    ).toBeUndefined()
-  })
-
-  it('seedAndHashEntry seeds without hashing when Worker is undefined', async () => {
-    vi.stubGlobal('Worker', undefined)
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (cb: FrameRequestCallback): number => {
-        cb(0)
-        return 1
-      },
-    )
-    enqueueGalleryAssets([
-      {
-        assetId: 'asset-nw',
-        meta: {
-          name: 'n.jpg',
-          correctedWidth: 1,
-          correctedHeight: 1,
-          orientation: 1,
-          aspect: 1,
-        },
-      },
-    ])
-    await vi.waitFor(() => {
-      expect(getBookStoreSnapshot().book.gallery).toContain('asset-nw')
-    })
+    await awaitPendingHashes()
+    expect(putCachedThumbForHash).toHaveBeenCalledOnce()
     const { hashContent } = await import('../assets')
-    const hashSpy = vi.mocked(hashContent)
-    hashSpy.mockClear()
-    const source = createMemoryAssetSource()
-    const seedSpy = vi.spyOn(source, 'seedFile')
-    const file = new File([new Uint8Array([9])], 'n.jpg', {
-      type: 'image/jpeg',
-    })
-    await seedAndHashEntry({
-      assetId: 'asset-nw',
-      file,
-      relativePath: 'n.jpg',
-      sourceRootId: 'root-no-worker',
-      memorySource: source,
-    })
-    expect(seedSpy).toHaveBeenCalledOnce()
-    expect(hashSpy).not.toHaveBeenCalled()
-    expect(getBookStoreSnapshot().book.assets['asset-nw']?.contentHash).toBe(
-      undefined,
-    )
+    expect(hashContent).not.toHaveBeenCalled()
   })
 })

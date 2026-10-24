@@ -11,7 +11,7 @@ import { partitionImportFiles } from '../photo/pickPhotos'
 import type { ExifOrientation } from '../photo/types'
 import {
   enqueueGalleryAssets,
-  getAssetContentHash,
+  getAssetCacheKey,
   getBookStoreSnapshot,
   getGalleryRelativePathIndex,
   mintAssetId,
@@ -124,7 +124,7 @@ function applyImportResult(result: {
     result.assetId,
     result.previewBuffer,
     result.previewMimeType,
-    getAssetContentHash(result.assetId),
+    getAssetCacheKey(result.assetId),
   )
 }
 
@@ -284,8 +284,7 @@ async function importPhotoFilesInner(
             const existingRoot =
               getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId
             const sourceRootId = existingRoot ?? batchRootId
-            // Async contentHash for DerivedCache thumb hydrate after reload —
-            // not used for import identity (path/size/mtime only).
+            // Seed memory source + identity-keyed DerivedCache puts (no contentHash).
             await seedAndHashEntry({
               assetId: entry.assetId,
               file: entry.file,

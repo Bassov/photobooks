@@ -11,6 +11,7 @@ import {
   type ResolvedSpread,
   type Spread,
 } from '../core'
+import { tryCacheKeyFromAsset } from '../assets/cacheKey'
 import {
   makePainterFixture,
   PAINTER_ASSET_IDS,
@@ -335,6 +336,24 @@ export function getAssetContentHash(assetId: string): string | undefined {
     pendingAssetRecords.get(assetId)?.contentHash ??
     pendingAssetPatches.get(assetId)?.contentHash
   )
+}
+
+/**
+ * DerivedCache key from durable identity (path/size/mtime/root).
+ * Undefined until identity is complete — not file-byte contentHash.
+ */
+export function getAssetCacheKey(assetId: string): string | undefined {
+  const book = state.book.assets[assetId]
+  const pending = pendingAssetRecords.get(assetId)
+  const patch = pendingAssetPatches.get(assetId)
+  return tryCacheKeyFromAsset({
+    sourceRootId:
+      book?.sourceRootId ?? pending?.sourceRootId ?? patch?.sourceRootId,
+    relativePath:
+      book?.relativePath ?? pending?.relativePath ?? patch?.relativePath,
+    byteSize: book?.byteSize ?? pending?.byteSize ?? patch?.byteSize,
+    mtimeMs: book?.mtimeMs ?? pending?.mtimeMs ?? patch?.mtimeMs,
+  })
 }
 
 /** Merge identity fields onto an existing gallery asset record. */

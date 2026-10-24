@@ -452,9 +452,10 @@ describe('importPhotoFiles library identity', () => {
     expect(getThumbUrl(assetId)).toBeUndefined()
 
     await vi.waitFor(() => {
-      expect(
-        getBookStoreSnapshot().book.assets[assetId]?.contentHash,
-      ).toBeTypeOf('string')
+      const asset = getBookStoreSnapshot().book.assets[assetId]
+      expect(asset?.byteSize).toBeTypeOf('number')
+      expect(asset?.mtimeMs).toBeTypeOf('number')
+      expect(asset?.relativePath).toBeTypeOf('string')
     })
     hashContentMock.mockClear()
 

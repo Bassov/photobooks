@@ -3,7 +3,7 @@ import { GridListItem } from 'react-aria-components'
 import { Badge } from '../ui/Badge'
 import {
   getAssetAspectSnapshot,
-  getAssetContentHash,
+  getAssetCacheKey,
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
@@ -47,10 +47,10 @@ export function FilmstripItemView({
     () => getAssetAspectSnapshot(id),
     () => getAssetAspectSnapshot(id),
   )
-  const contentHash = useSyncExternalStore(
+  const cacheKey = useSyncExternalStore(
     subscribeBookStore,
-    () => getAssetContentHash(id),
-    () => getAssetContentHash(id),
+    () => getAssetCacheKey(id),
+    () => getAssetCacheKey(id),
   )
   const placementCount = useSyncExternalStore(
     subscribeBookStore,
@@ -63,8 +63,8 @@ export function FilmstripItemView({
     getFilmstripJumpHighlightId,
   )
   useEffect(() => {
-    ensureThumb(id, contentHash)
-  }, [id, contentHash])
+    ensureThumb(id, cacheKey)
+  }, [id, cacheKey])
   const { width, height } = thumbSlotSize(aspect)
 
   return (

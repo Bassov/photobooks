@@ -6,7 +6,7 @@ import { IMAGE_TIERS, selectImageTier } from '../photo/imageTiers'
 import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import {
-  getAssetContentHash,
+  getAssetCacheKey,
   getSpreadPaintSnapshot,
   subscribeSpread,
 } from './bookStore'
@@ -128,7 +128,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
           }
         }),
       )
-      requestTier(assetId, tier, getAssetContentHash(assetId))
+      requestTier(assetId, tier, getAssetCacheKey(assetId))
       queueCachedLadderTiers(
         assetId,
         tier,

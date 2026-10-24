@@ -663,7 +663,7 @@ async function verifyRef(
     }),
   )
   // Patch identity from the cheap scan when present (no content-hash).
-  // Clear stale contentHash when size/mtime change so DerivedCache cannot hydrate old bytes.
+  // Size/mtime change ⇒ new identity cache key; clear legacy contentHash field.
   if (scanned !== undefined) {
     const prev = assetRecordFor(ref)
     const metaChanged =
