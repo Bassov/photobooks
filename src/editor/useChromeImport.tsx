@@ -43,6 +43,13 @@ import {
   registerBoundPhotoFolderSource,
   subscribePhotoRootSession,
 } from './photoRootSession'
+import { enqueueScannedGalleryList } from './enqueueScannedGalleryList'
+import { persistScannedEntryIndex } from '../project/session/sourceRootEntryIndex'
+import {
+  isAcceptedPhotoPath,
+  isImageLikePath,
+  isUnsupportedImagePath,
+} from '../photo/pickPhotos'
 
 function isE2eBuild(): boolean {
   const env = import.meta.env as { VITE_E2E?: string }
@@ -168,17 +175,42 @@ export function useChromeImport(options: {
             setEditorStatus('Could not read photo folder')
             return
           }
+          // Always-walk result: persist entry index, then list-first placeholders.
+          await persistScannedEntryIndex(sourceRootId, scanned.value)
+          enqueueScannedGalleryList(sourceRootId, scanned.value)
+          const accepted = scanned.value.filter((entry) =>
+            isAcceptedPhotoPath(entry.relativePath),
+          )
+          const unsupported = scanned.value.filter((entry) =>
+            isUnsupportedImagePath(entry.relativePath),
+          )
+          const folderSkipped = scanned.value.filter(
+            (entry) => !isImageLikePath(entry.relativePath),
+          ).length
+          options.onImportProgress({
+            total: Math.max(accepted.length + unsupported.length, 1),
+            completed: 0,
+            errors: [],
+            running: true,
+          })
+          // Import accepted (list already enqueued) plus unsupported image-like
+          // paths so TIFF/HEIC still surface per-file errors.
           result = await importScannedEntriesInBatches(
             directory,
-            scanned.value,
+            [...accepted, ...unsupported],
             {
               sourceRootId,
               libraryBacked: isLibraryBacked(),
+              listAlreadyEnqueued: true,
               onProgress: options.onImportProgress,
               onErrors: reportErrors,
               onFirstBatchYielded: persistRootAfterFirstBatch,
             },
           )
+          result = {
+            ...result,
+            skipped: result.skipped + folderSkipped,
+          }
         }
         if (result.skipped > 0 && result.errors.length === 0) {
           setEditorStatus(folderSkippedStatusText(result.skipped))

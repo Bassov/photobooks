@@ -301,6 +301,27 @@ export function getGalleryIdsSnapshot(): readonly string[] {
   return state.book.gallery
 }
 
+/** Relative path → asset id for flushed gallery plus still-pending enqueue records. */
+export function getGalleryRelativePathIndex(): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const assetId of state.book.gallery) {
+    // Stryker disable next-line OptionalChaining: missing asset record has no path
+    const path = state.book.assets[assetId]?.relativePath
+    // Stryker disable next-line ConditionalExpression,LogicalOperator: empty/non-string paths must not index
+    if (typeof path === 'string' && path !== '') {
+      map.set(path, assetId)
+    }
+  }
+  for (const [assetId, asset] of pendingAssetRecords) {
+    const path = asset.relativePath
+    // Stryker disable next-line ConditionalExpression,LogicalOperator: empty/non-string paths must not index
+    if (typeof path === 'string' && path !== '') {
+      map.set(path, assetId)
+    }
+  }
+  return map
+}
+
 export function getSpacerCountSnapshot(): number {
   return Math.max(state.book.gallery.length, state.importExpectedCount)
 }

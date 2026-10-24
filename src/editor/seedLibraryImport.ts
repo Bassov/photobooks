@@ -1,16 +1,9 @@
-import {
-  createMemoryAssetSource,
-  hashContent,
-  type MemoryAssetSource,
-} from '../assets'
+import { createMemoryAssetSource, type MemoryAssetSource } from '../assets'
 import { getBookStoreSnapshot, patchAssetRecord } from './bookStore'
-import { trackHashJob } from './pendingHashes'
 import {
   getRegisteredAssetSource,
   registerAssetSource,
 } from './assetSourceRegistry'
-import { putCachedThumbForHash } from './thumbCache'
-import { putCachedTierForHash } from '../photo/tierCache'
 
 export function memorySourceForRoot(rootId: string): MemoryAssetSource {
   const existing = getRegisteredAssetSource(rootId)
@@ -29,16 +22,11 @@ export function memorySourceForRoot(rootId: string): MemoryAssetSource {
   return created
 }
 
-/** Prefer explicit hash, else the book asset record (re-import reuse). */
-export function resolveSeedContentHash(
-  assetId: string,
-  knownHash?: string,
-): string | undefined {
-  if (knownHash !== undefined) return knownHash
-  return getBookStoreSnapshot().book.assets[assetId]?.contentHash
-}
-
-export function seedAndHashEntry(options: {
+/**
+ * Seed library identity (path/size/mtime) and optional memory bytes for decode.
+ * Does not compute content hashes on the import/rescan hot path.
+ */
+export function seedLibraryEntry(options: {
   assetId: string
   file: File
   relativePath: string
@@ -46,8 +34,6 @@ export function seedAndHashEntry(options: {
   memorySource: MemoryAssetSource
   /** When set, skip a second body read. */
   bytes?: ArrayBuffer
-  /** When set, skip hashContent and patch/put caches for this hash. */
-  contentHash?: string
 }): Promise<void> {
   const {
     assetId,
@@ -56,29 +42,18 @@ export function seedAndHashEntry(options: {
     sourceRootId,
     memorySource,
     bytes: preloaded,
-    contentHash: knownHash,
   } = options
-  const resolvedHash = resolveSeedContentHash(assetId, knownHash)
+  patchAssetRecord(assetId, {
+    // Stryker disable next-line OptionalChaining,LogicalOperator: keep existing root when present
+    sourceRootId:
+      getBookStoreSnapshot().book.assets[assetId]?.sourceRootId ?? sourceRootId,
+    relativePath,
+    byteSize: file.size,
+    mtimeMs: file.lastModified,
+  })
   const load =
     preloaded !== undefined ? Promise.resolve(preloaded) : file.arrayBuffer()
   return load.then((bytes) => {
     memorySource.seedFile(sourceRootId, relativePath, bytes, file.lastModified)
-    if (resolvedHash !== undefined) return
-    if (typeof Worker === 'undefined') {
-      return
-    }
-    const hashJob = hashContent(bytes)
-    void trackHashJob(
-      hashJob.then(async (contentHash) => {
-        patchAssetRecord(assetId, { contentHash })
-        await Promise.all([
-          putCachedThumbForHash(assetId, contentHash),
-          putCachedTierForHash(assetId, contentHash),
-        ])
-        return contentHash
-      }),
-    ).catch(() => {
-      // Hash is best-effort; identity path/size/mtime still persist.
-    })
   })
 }

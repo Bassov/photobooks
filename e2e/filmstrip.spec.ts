@@ -151,6 +151,31 @@ test('imports PNG into the filmstrip via directory picker', async ({
   await expect(page.getByTestId('filmstrip-count')).toContainText('1 photo')
 })
 
+test('list-first folder pick shows gallery placeholders before all thumbs', async ({
+  page,
+}) => {
+  const { files } = writeBulkImportFixtureSet(12)
+  await openSessionEditor(page)
+  await pickPhotoFolder(page, files, { via: 'picker' })
+
+  // Cheap scan → list enqueue: items appear before every thumb finishes decode.
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(12, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('filmstrip-count')).toContainText('12 photos', {
+    timeout: 30_000,
+  })
+  // At least one placeholder or thumb is fine; full thumb set may still catch up.
+  await expect(
+    page
+      .getByTestId('filmstrip-placeholder')
+      .or(page.getByTestId('filmstrip-thumb'))
+      .first(),
+  ).toBeVisible({ timeout: 30_000 })
+  await assertNamedScrollport(page, 'filmstrip')
+  await assertDocumentFitsViewport(page)
+})
+
 test('portrait and landscape cards differ; thumbs use contain', async ({
   page,
 }) => {

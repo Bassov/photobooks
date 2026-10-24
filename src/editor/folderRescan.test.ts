@@ -114,7 +114,7 @@ describe('startFolderRescan', () => {
     expect(getFolderRescanProgress()).toBeNull()
   })
 
-  it('rehashes when size/mtime differ', async () => {
+  it('updates identity when size/mtime differ without hashing', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('shot.jpg', new Uint8Array([1, 2, 3]), 99)
     const sourceRootId = 'root-src'
@@ -142,11 +142,11 @@ describe('startFolderRescan', () => {
 
     await startFolderRescan({ sourceRootId, runLazy: false })
     expect(getAssetSource('a1')?.name).toBe('shot.jpg')
-    expect(assets.hashContent).toHaveBeenCalled()
+    expect(assets.hashContent).not.toHaveBeenCalled()
     await vi.waitFor(() => {
-      expect(getBookStoreSnapshot().book.assets.a1?.contentHash).toBe(
-        'c'.repeat(64),
-      )
+      const asset = getBookStoreSnapshot().book.assets.a1
+      expect(asset?.byteSize).toBe(3)
+      expect(asset?.mtimeMs).toBe(99)
     })
   })
 

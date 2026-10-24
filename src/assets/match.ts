@@ -28,8 +28,7 @@ function classifyStatus(
   matchedEntry: ScannedEntry | undefined,
   pathEntry: ScannedEntry | undefined,
 ): AssetMatchStatus {
-  // Matched entries are always ok: pairing only happens via equal hash or
-  // equal path+size+mtime, so a further size/hash re-check is redundant.
+  // Matched entries are always ok: pairing only happens via equal path+size+mtime.
   if (matchedEntry !== undefined) {
     return 'ok'
   }
@@ -45,17 +44,12 @@ function classifyStatus(
     return 'ok'
   }
 
-  const bothHashes =
-    record.contentHash !== undefined && pathEntry.contentHash !== undefined
-  if (bothHashes && record.contentHash === pathEntry.contentHash) {
-    return 'ok'
-  }
   return 'modified'
 }
 
 /**
- * Pure match/relink: prefer contentHash, else source root + path + size + mtime.
- * Also reports per-asset `ok | missing | modified` for the scanned root.
+ * Pure match/relink on source root + path + size + mtime only.
+ * Content hash is ignored for identity and status.
  */
 export function matchAssets(
   records: Readonly<Record<string, Asset>>,
@@ -66,34 +60,8 @@ export function matchAssets(
   const matched = new Map<string, ScannedEntry>()
   const usedEntries = new Set<ScannedEntry>()
 
-  const byHash = new Map<string, ScannedEntry[]>()
-  for (const entry of entries) {
-    if (entry.contentHash === undefined) {
-      continue
-    }
-    const list = byHash.get(entry.contentHash) ?? []
-    list.push(entry)
-    byHash.set(entry.contentHash, list)
-  }
-
-  for (const [assetId, record] of Object.entries(records)) {
-    if (record.contentHash === undefined) {
-      continue
-    }
-    const candidates = byHash.get(record.contentHash)
-    const entry = candidates?.find((item) => !usedEntries.has(item))
-    if (!entry) {
-      continue
-    }
-    matched.set(assetId, entry)
-    usedEntries.add(entry)
-  }
-
   const byMeta = new Map<string, ScannedEntry[]>()
   for (const entry of entries) {
-    if (usedEntries.has(entry)) {
-      continue
-    }
     const key = metadataKey(
       sourceRootId,
       entry.relativePath,
@@ -106,9 +74,6 @@ export function matchAssets(
   }
 
   for (const [assetId, record] of Object.entries(records)) {
-    if (matched.has(assetId)) {
-      continue
-    }
     if (
       record.sourceRootId !== sourceRootId ||
       record.relativePath === undefined ||
@@ -148,10 +113,10 @@ export function matchAssets(
     ) {
       continue
     }
+    // Stryker disable next-line ConditionalExpression: both-undefined skip is equivalent for empty identity records
     if (
       record.sourceRootId === undefined &&
-      record.relativePath === undefined &&
-      record.contentHash === undefined
+      record.relativePath === undefined
     ) {
       continue
     }
