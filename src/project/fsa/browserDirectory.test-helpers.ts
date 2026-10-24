@@ -1,5 +1,7 @@
+type FakeFileContent = string | Uint8Array | ArrayBuffer
+
 interface FakeDir {
-  files: Map<string, string>
+  files: Map<string, FakeFileContent>
   dirs: Map<string, FakeDir>
 }
 
@@ -8,6 +10,8 @@ function createFakeDir(): FakeDir {
 }
 
 export interface FakeBrowserDirectoryHandle extends FileSystemDirectoryHandle {
+  /** Writes or replaces a file entry (string or binary). */
+  writeFile: (name: string, content: FakeFileContent) => void
   setPermission: (state: PermissionState) => void
   enqueueQueryResults: (...states: PermissionState[]) => void
   enqueueRequestResults: (...states: PermissionState[]) => void
@@ -54,6 +58,18 @@ function nextPermission(
   return controller.sticky
 }
 
+function fileFromContent(name: string, content: FakeFileContent): File {
+  if (typeof content === 'string') {
+    return new File([content], name)
+  }
+  if (content instanceof ArrayBuffer) {
+    return new File([content], name)
+  }
+  const copy = new Uint8Array(content.byteLength)
+  copy.set(content)
+  return new File([copy], name)
+}
+
 function toHandle(
   node: FakeDir,
   name: string,
@@ -62,6 +78,9 @@ function toHandle(
   const handle = {
     kind: 'directory' as const,
     name,
+    writeFile(child: string, content: FakeFileContent) {
+      node.files.set(child, content)
+    },
     setPermission(state: PermissionState) {
       permission.sticky = state
     },
@@ -71,16 +90,10 @@ function toHandle(
     enqueueRequestResults(...states: PermissionState[]) {
       permission.requestQueue.push(...states)
     },
-    queryPermission(descriptor?: FileSystemHandlePermissionDescriptor) {
-      if (descriptor?.mode !== undefined && descriptor.mode !== 'readwrite') {
-        return Promise.resolve('prompt' as PermissionState)
-      }
+    queryPermission() {
       return Promise.resolve(nextPermission(permission, 'query'))
     },
-    requestPermission(descriptor?: FileSystemHandlePermissionDescriptor) {
-      if (descriptor?.mode !== undefined && descriptor.mode !== 'readwrite') {
-        return Promise.resolve('prompt' as PermissionState)
-      }
+    requestPermission() {
       return Promise.resolve(nextPermission(permission, 'request'))
     },
     getDirectoryHandle(
@@ -117,7 +130,9 @@ function toHandle(
         kind: 'file' as const,
         name: child,
         getFile() {
-          return Promise.resolve(new File([node.files.get(child) ?? ''], child))
+          return Promise.resolve(
+            fileFromContent(child, node.files.get(child) ?? ''),
+          )
         },
         createWritable() {
           let content = ''
@@ -148,6 +163,24 @@ function toHandle(
           kind: 'directory' as const,
           name: dirName,
         })
+      }
+    },
+    async *entries(): AsyncIterableIterator<
+      [string, FileSystemFileHandle | FileSystemDirectoryHandle]
+    > {
+      for (const fileName of node.files.keys()) {
+        const fileHandle = await handle.getFileHandle(fileName)
+        yield [fileName, fileHandle as unknown as FileSystemFileHandle]
+      }
+      for (const dirName of node.dirs.keys()) {
+        const sub = node.dirs.get(dirName)
+        if (sub === undefined) {
+          continue
+        }
+        yield [
+          dirName,
+          toHandle(sub, dirName, createPermissionController('granted')),
+        ]
       }
     },
   }

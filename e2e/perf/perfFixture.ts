@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { type Page, type TestInfo } from '@playwright/test'
+import { installPhotoDirectoryPickerStub } from '../fixtures/photoDirectoryPicker'
 import { OPEN_PHOTO_HANDLER_LABEL, PERF_BUDGETS } from './budgets'
 
 /** Mirrors `PhotobooksPerfApi` without importing app modules. */
@@ -208,6 +209,15 @@ declare global {
       ) => Promise<{ ok: boolean; code?: string; value?: { id: string } }>
       configureProjectSession: (deps: Record<string, unknown>) => void
       getSnapshot: () => unknown
+      restorePhotoFolderForActiveBook: () => Promise<void>
+      regrantPhotoFolder: () => Promise<
+        'granted' | 'denied' | 'unavailable' | 'missing'
+      >
+      getPhotoRootSessionSnapshot: () => {
+        photoAccessPhase: 'idle' | 'permission-required'
+        photoFolderLabel: string | null
+        hasPhotoFolder: boolean
+      }
     }
   }
 }
@@ -223,22 +233,7 @@ export async function enablePerfScenario(
   page: Page,
   url = '/?perf=1',
 ): Promise<void> {
-  await page.addInitScript(() => {
-    // Force the file-input fallback so Playwright can setInputFiles / filechooser.
-    // Keep showDirectoryPicker (stub ok) so the unsupported-browser gate stays off.
-    const w = window as Window & {
-      showOpenFilePicker?: unknown
-      showDirectoryPicker?: unknown
-    }
-    Reflect.deleteProperty(w, 'showOpenFilePicker')
-    if (typeof w.showDirectoryPicker !== 'function') {
-      Object.defineProperty(w, 'showDirectoryPicker', {
-        configurable: true,
-        value: () =>
-          Promise.reject(new DOMException('cancelled', 'AbortError')),
-      })
-    }
-  })
+  await installPhotoDirectoryPickerStub(page)
   await page.goto(url)
   await page.waitForFunction(() => window.__photobooksPerf !== undefined)
   const home = page.getByTestId('welcome-screen')

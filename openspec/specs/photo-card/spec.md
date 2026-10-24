@@ -8,30 +8,30 @@ Lets the user import local images into the editor gallery filmstrip with worker-
 
 ### Requirement: Open a local image file
 
-The system SHALL let the user choose local image files (one or many) or a folder for import into the editor gallery. When the File System Access API is available, the system MUST prefer it for picking. The system MUST also provide a file input path suitable for automated tests.
+The system SHALL let the user choose exactly one local photo folder for the open book via `showDirectoryPicker` (Chromium File System Access). The product UI MUST NOT offer individual-file import or a hidden `<input type="file">` / `webkitdirectory` fallback. Automated tests MUST stub the directory picker (or inject an equivalent FSA directory handle), not ship a product file-input path.
 
-#### Scenario: Open via primary picker
+#### Scenario: Open via directory picker
 
-- **WHEN** the user activates Add photos or Add folder and the File System Access API is available
-- **THEN** the system presents the appropriate picker and imports chosen images into the gallery filmstrip flow
+- **WHEN** the user activates Choose photo folder… (or Change photo folder… after confirm) and `showDirectoryPicker` is available
+- **THEN** the system presents a read-mode directory picker, keeps the directory handle, and imports accepted images from that folder into the gallery filmstrip flow
 
-#### Scenario: Open via file input fallback
+#### Scenario: Test seam uses directory-picker double
 
-- **WHEN** supported image files are supplied through the hidden file input
-- **THEN** the system imports those files into the same gallery filmstrip flow as the primary picker
+- **WHEN** an automated test supplies a stubbed directory picker / fake directory handle yielding supported images
+- **THEN** the system imports those images into the same gallery filmstrip flow as a real picker
 
 ### Requirement: Accepted and rejected image types
 
-The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other image-like types, including TIFF and HEIC/HEIF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. HEIC/HEIF MUST be rejected with an actionable conversion message (export as JPEG, including an iPhone Camera Formats hint), detected by file extension, MIME type (`image/heic`, `image/heif`, and `-sequence` variants), or ISO-BMFF `ftyp` signature brands. A rejected file in a batch MUST NOT abort import of other accepted files. An accepted file whose decode fails MUST show a visible per-file import error and MUST NOT remain as a gallery filmstrip tile or count toward the gallery photo count. When the import source is a folder, files that are not image-like (MIME not `image/*` and no image extension) MUST be skipped without a per-file import error; the editor MUST announce a single polite status summary of how many non-image files were skipped. Explicit file picks MUST keep per-file errors for non-image files. Skipped files MUST NOT count toward import progress total or gallery photo count. The photo picker accept list MAY include HEIC/HEIF so users can select those files and receive the conversion message; acceptance for decode MUST still exclude HEIC/HEIF.
+The system SHALL accept JPEG, PNG, and WebP images. The system MUST reject other image-like types, including TIFF and HEIC/HEIF, and MUST show a visible per-file error without treating the rejected file as a successful gallery entry. HEIC/HEIF MUST be rejected with an actionable conversion message (export as JPEG, including an iPhone Camera Formats hint), detected by file extension, MIME type (`image/heic`, `image/heif`, and `-sequence` variants), or ISO-BMFF `ftyp` signature brands. A rejected file in a batch MUST NOT abort import of other accepted files. An accepted file whose decode fails MUST show a visible per-file import error and MUST NOT remain as a gallery filmstrip tile or count toward the gallery photo count. When importing from the book's photo folder, files that are not image-like (MIME not `image/*` and no image extension) MUST be skipped without a per-file import error; the editor MUST announce a single polite status summary of how many non-image files were skipped. Skipped files MUST NOT count toward import progress total or gallery photo count. The directory scan MAY encounter HEIC/HEIF so users receive the conversion message; acceptance for decode MUST still exclude HEIC/HEIF.
 
 #### Scenario: Accept JPEG
 
-- **WHEN** the user imports an `image/jpeg` file
+- **WHEN** the user imports an `image/jpeg` file from the photo folder
 - **THEN** the system adds that asset to the gallery filmstrip
 
 #### Scenario: Reject TIFF
 
-- **WHEN** the user imports an `image/tiff` file
+- **WHEN** the user imports an `image/tiff` file from the photo folder
 - **THEN** the system shows a visible unsupported-format error for that file and does not add it as a successful gallery asset
 
 #### Scenario: Reject HEIC with conversion message
@@ -144,7 +144,7 @@ The system SHALL successfully import accepted WebP images (`image/webp`) even wh
 
 #### Scenario: Lossy and lossless WebP import into the filmstrip
 
-- **WHEN** the user imports a lossy WebP and a lossless WebP through the hidden file input
+- **WHEN** the user imports a lossy WebP and a lossless WebP from the chosen photo folder
 - **THEN** both appear in the gallery filmstrip with preview thumbnails, the gallery count includes both, no import error is shown for those files, and placing one into a frame shows a rendered `spread-frame-image` with non-zero natural width
 
 #### Scenario: Corrupt WebP reports a decode error

@@ -262,7 +262,7 @@ describe('Filmstrip aspect cards', () => {
     render(<Filmstrip />)
 
     const empty = screen.getByTestId('filmstrip-empty')
-    expect(empty.textContent).toMatch(/Add a folder or photos/)
+    expect(empty.textContent).toMatch(/Choose a photo folder/)
     // Bug: empty lived inside width:1px window → one word per line.
     expect(document.querySelector('.filmstrip-window')).toBeNull()
     expect(empty.parentElement?.getAttribute('data-testid')).toBe(

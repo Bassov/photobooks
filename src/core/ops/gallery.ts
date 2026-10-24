@@ -25,25 +25,40 @@ export function addToGallery(book: Book, assetIds: readonly string[]): Book {
 }
 
 export function removeFromGallery(book: Book, assetId: string): Book {
-  if (!(assetId in book.assets) && !book.gallery.includes(assetId)) {
+  return removeManyFromGallery(book, [assetId])
+}
+
+/** Drop many gallery assets in one pass (placements cascade). */
+export function removeManyFromGallery(
+  book: Book,
+  assetIds: readonly string[],
+): Book {
+  const remove = new Set(assetIds)
+  let anyPresent = false
+  for (const assetId of remove) {
+    if (assetId in book.assets || book.gallery.includes(assetId)) {
+      anyPresent = true
+      break
+    }
+  }
+  if (!anyPresent) {
     return book
   }
 
-  const gallery = book.gallery.filter((id) => id !== assetId)
+  const gallery = book.gallery.filter((id) => !remove.has(id))
   const assets = Object.fromEntries(
-    Object.entries(book.assets).filter(([id]) => id !== assetId),
+    Object.entries(book.assets).filter(([id]) => !remove.has(id)),
   )
 
   let next: Book = { ...book, assets, gallery }
   for (const spread of book.spreads) {
-    const hasPlacement = spread.frames.some(
-      (frame) => frame.assetId === assetId,
-    )
-    if (!hasPlacement) {
-      continue
-    }
     next = updateSpread(next, spread.id, (current) => {
-      const frames = current.frames.map((frame) => clearAsset(frame, assetId))
+      const frames = current.frames.map((frame) => {
+        if (frame.assetId !== undefined && remove.has(frame.assetId)) {
+          return clearAsset(frame)
+        }
+        return frame
+      })
       if (frames.every((frame, index) => frame === current.frames[index])) {
         return current
       }
@@ -53,10 +68,7 @@ export function removeFromGallery(book: Book, assetId: string): Book {
   return next
 }
 
-function clearAsset(frame: Frame, assetId: string): Frame {
-  if (frame.assetId !== assetId) {
-    return frame
-  }
+function clearAsset(frame: Frame): Frame {
   return {
     id: frame.id,
     rect: frame.rect,

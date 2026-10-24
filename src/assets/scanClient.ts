@@ -53,9 +53,13 @@ function nextScanId(): string {
 
 /** Walk a directory handle inside the scan worker. */
 export function scanDirectoryInWorker(
-  directory: AssetDirectoryHandle,
+  directory: AssetDirectoryHandle | FileSystemDirectoryHandle,
 ): Promise<ScannedEntry[]> {
-  return requestScan({ id: nextScanId(), kind: 'directory', directory })
+  return requestScan({
+    id: nextScanId(),
+    kind: 'directory',
+    directory: directory as AssetDirectoryHandle,
+  })
 }
 
 /** Finalize a memory file table inside the scan worker. */

@@ -130,7 +130,7 @@ function StateOverlay({ v }: { v: string }) {
       <FeaturedIcon size="lg" theme="outline" className="mx-auto mb-4"><Images /></FeaturedIcon>
       <div className="heading text-lg">Start with your photos</div>
       <p className="mt-1.5 text-[13px] text-muted-foreground">One empty / loading / error pattern for the whole editor: icon, title, one sentence, one primary action.</p>
-      <Button size="sm" className="mt-4 h-9 px-3.5 shadow-sm">Add folder…</Button>
+      <Button size="sm" className="mt-4 h-9 px-3.5 shadow-sm">Choose photo folder…</Button>
     </div>
   )
 }

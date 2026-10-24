@@ -8,12 +8,12 @@ Book-gallery filmstrip: import, progressive reveal, virtualized variable-width p
 
 ### Requirement: Import folder or files into gallery
 
-The system SHALL add a local folder or individual image files to the book gallery. Prefer directory picker when available; provide a file-input path for tests. Accepted types: JPEG, PNG, WebP. Import MUST append without clearing prior entries. Unsupported image-like types in a batch MUST show a per-file error without aborting accepted files. Folder imports MUST skip non-image files without per-file import errors and announce one polite skip summary on editor status. When reading `input.files` then clearing `value`, the handler MUST copy `FileList` to a stable array first.
+The system SHALL add images from the book's single chosen photo folder to the gallery. Product import is directory-picker only; tests stub that picker. Accepted types: JPEG, PNG, WebP. Choosing a folder for a book that already has a photo folder MUST replace that root after confirm (not accumulate multiple roots). Unsupported image-like types in a batch MUST show a per-file error without aborting accepted files. Folder imports MUST skip non-image files without per-file import errors and announce one polite skip summary on editor status.
 
-#### Scenario: Import appends and rejects unsupported
+#### Scenario: Import from chosen folder
 
-- **WHEN** supported files are imported (including a second batch) or a batch includes TIFF among supported images
-- **THEN** supported assets append in order and TIFF shows a visible per-file error without aborting the batch
+- **WHEN** supported files are imported from the chosen photo folder (including after Change photo folder… replaces the root)
+- **THEN** supported assets appear in gallery order for that folder and TIFF among them shows a visible per-file error without aborting the batch
 
 #### Scenario: Folder skips non-images with status summary
 
@@ -49,7 +49,7 @@ When the gallery is longer than the visible filmstrip, horizontal scrolling MUST
 
 ### Requirement: Thumbnail file names and empty copy
 
-Each thumbnail MUST use the session file name as accessible name when present, else the asset id. Selection/drag identity remains the asset id. Empty gallery MUST show “Add a folder or photos to build the gallery.” with no thumbnails, and empty-state UI MUST span the full filmstrip scrollport width (not a collapsed virtualizer slot).
+Each thumbnail MUST use the session file name as accessible name when present, else the asset id. Selection/drag identity remains the asset id. Empty gallery MUST show “Choose a photo folder to build the gallery.” with no thumbnails, and empty-state UI MUST span the full filmstrip scrollport width (not a collapsed virtualizer slot).
 
 #### Scenario: Cyrillic name and empty state
 

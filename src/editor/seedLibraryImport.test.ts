@@ -73,15 +73,16 @@ describe('seedLibraryImport', () => {
     expect(getRegisteredAssetSource('root-reuse')).toBe(first)
   })
 
-  it('memorySourceForRoot replaces a non-seedable registered source', () => {
-    registerAssetSource('root-plain', {
+  it('memorySourceForRoot does not overwrite a non-seedable registered source', () => {
+    const fsaLike = {
       scanRoot: () => Promise.resolve({ ok: true as const, value: [] }),
       readForHash: () =>
         Promise.resolve({ ok: false as const, code: 'not-found' as const }),
-    })
+    }
+    registerAssetSource('root-plain', fsaLike)
     const created = memorySourceForRoot('root-plain')
     expect(typeof created.seedFile).toBe('function')
-    expect(getRegisteredAssetSource('root-plain')).toBe(created)
+    expect(getRegisteredAssetSource('root-plain')).toBe(fsaLike)
   })
 
   it('resolveSeedContentHash prefers known hash then book asset record', () => {

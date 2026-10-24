@@ -25,10 +25,16 @@ import {
   getProjectSessionSnapshot,
   leaveEditorForLibrary,
   regrantLibrary,
+  regrantPhotoFolder,
   renameBookInLibrary,
   saveBookNow,
   subscribeProjectSession,
 } from './projectSession'
+import {
+  allowAccessPhotoFolderLabel,
+  getPhotoRootSessionSnapshot,
+  subscribePhotoRootSession,
+} from './photoRootSession'
 import {
   saveIndicatorBadgeColor,
   saveIndicatorLabel,
@@ -69,6 +75,11 @@ export function EditorTopBar({
     subscribeProjectSession,
     getProjectSessionSnapshot,
     getProjectSessionSnapshot,
+  )
+  const photoRoot = useSyncExternalStore(
+    subscribePhotoRootSession,
+    getPhotoRootSessionSnapshot,
+    getPhotoRootSessionSnapshot,
   )
 
   useEffect(
@@ -114,6 +125,18 @@ export function EditorTopBar({
             }}
           >
             Grant access
+          </Button>
+        ) : null}
+        {photoRoot.photoAccessPhase === 'permission-required' ? (
+          <Button
+            size="sm"
+            data-testid="regrant-photo-folder"
+            isDisabled={chromeBusy}
+            onPress={() => {
+              void regrantPhotoFolder()
+            }}
+          >
+            {allowAccessPhotoFolderLabel(photoRoot.photoFolderLabel)}
           </Button>
         ) : null}
         <ChromeButton
@@ -186,20 +209,13 @@ export function EditorTopBar({
               ? 'secondary'
               : 'default'
           }
+          data-testid="choose-photo-folder"
           onClick={() => {
-            void chromeImport.onAddPhotos()
+            void chromeImport.onChoosePhotoFolder()
           }}
           disabled={chromeImport.importDisabled}
         >
-          Add photos
-        </ChromeButton>
-        <ChromeButton
-          onClick={() => {
-            void chromeImport.onAddFolder()
-          }}
-          disabled={chromeImport.importDisabled}
-        >
-          Add folder
+          {chromeImport.photoFolderLabel}
         </ChromeButton>
         {chromeImport.inputs}
       </div>

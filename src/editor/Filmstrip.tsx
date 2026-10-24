@@ -232,7 +232,7 @@ export const Filmstrip = memo(function Filmstrip({
             style={filmstripEmptyStyle}
             title={
               <span style={filmstripEmptyTitleStyle}>
-                Add a folder or photos to build the gallery.
+                Choose a photo folder to build the gallery.
               </span>
             }
           />

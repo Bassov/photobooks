@@ -85,14 +85,11 @@ describe('SpecimenPage', () => {
     ).toBeTruthy()
     expect(screen.getByRole('progressbar', { name: 'Working' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add folder…' }))
-    expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
-      'Add folder…',
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Choose photo folder…' }),
     )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Add photos…' }))
     expect(screen.getByTestId('specimen-status-polite').textContent).toBe(
-      'Add photos…',
+      'Choose photo folder…',
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Show error toast' }))

@@ -1,6 +1,11 @@
 import type { AssetSource } from '../assets'
 import { addSpread, CURRENT_SCHEMA_VERSION, type Book } from '../core'
 import {
+  clearRegisteredAssetSources,
+  getRegisteredAssetSource as getRegisteredFromRegistry,
+  registerAssetSource as registerInRegistry,
+} from './assetSourceRegistry'
+import {
   createFsaLibraryStorage,
   createMemoryLibraryStorage,
   createMemorySessionState,
@@ -39,6 +44,7 @@ import {
 } from './session/bookLockController'
 import {
   browserPickDirectory,
+  browserRequestReadPermission,
   browserRequestReadwritePermission,
   browserTimers,
   createDefaultSession,
@@ -46,6 +52,12 @@ import {
   type ProjectSessionTimers,
   type RequestReadwritePermission,
 } from './session/browserProjectSessionPlatform'
+import {
+  getPhotoRootSessionSnapshot,
+  regrantPhotoFolder as regrantPhotoFolderSession,
+  resetPhotoRootSessionForTests,
+  restorePhotoFolderForActiveBook,
+} from './photoRootSession'
 import {
   createLibraryActivation,
   type LibraryActivation,
@@ -141,7 +153,6 @@ let homeError: string | null = null
 let preferredLibraryId: string | null = null
 let libraryLabel: string | null = null
 let recentsRevision = 0
-const assetSources = new Map<string, AssetSource>()
 const listeners = new Set<Listener>()
 let snapshot: ProjectSessionSnapshot = {
   libraryOpen: false,
@@ -371,7 +382,7 @@ function buildLibraryActivationHost(): LibraryActivationHost {
     },
     withoutDirtyTrackingAsync: (fn) => withoutDirtyTrackingAsync(fn),
     clearAssetSources: () => {
-      assetSources.clear()
+      clearRegisteredAssetSources()
     },
     createEmptyLibraryBook: (id) => createEmptyLibraryBook(id),
     nowId: () => nowId(),
@@ -385,6 +396,7 @@ function buildLibraryActivationHost(): LibraryActivationHost {
       preferredLibraryId = id
     },
     defaultLibraryId: () => DEFAULT_LIBRARY_ID,
+    onBookActivated: () => restorePhotoFolderForActiveBook(),
   }
 }
 
@@ -800,9 +812,10 @@ export function resetProjectSessionForTests(): void {
   bookLocks = createBookLockController(buildBookLockHost())
   libraryActivation = createLibraryActivation(buildLibraryActivationHost())
   bookLocks.setHost(buildBookLockHost())
-  assetSources.clear()
+  clearRegisteredAssetSources()
   resetPendingHashesForTests()
   resetEditorGestureForTests()
+  resetPhotoRootSessionForTests()
   lastBookRef = getBookStoreSnapshot().book
   refreshSnapshot()
 }
@@ -848,13 +861,13 @@ export function isLibraryBacked(): boolean {
 
 /** Register an in-session AssetSource root for a library-backed import. */
 export function registerAssetSource(rootId: string, source: AssetSource): void {
-  assetSources.set(rootId, source)
+  registerInRegistry(rootId, source)
 }
 
 export function getRegisteredAssetSource(
   rootId: string,
 ): AssetSource | undefined {
-  return assetSources.get(rootId)
+  return getRegisteredFromRegistry(rootId)
 }
 
 function bindLibrary(
@@ -914,7 +927,7 @@ export async function leaveEditorForLibrary(): Promise<void> {
         importExpectedCount: 0,
       })
     })
-    assetSources.clear()
+    clearRegisteredAssetSources()
     dirty = false
     autosave.reset()
     setStatus({ kind: 'idle' })
@@ -1348,6 +1361,9 @@ export function exposeProjectSessionTestApi(
     tryActivateLibraryBookForTests,
     configureProjectSession,
     getSnapshot: getProjectSessionSnapshot,
+    restorePhotoFolderForActiveBook,
+    regrantPhotoFolder,
+    getPhotoRootSessionSnapshot,
   }
   void import('./relink').then((relink) => {
     relink.exposeRelinkTestApi(win)
@@ -1384,6 +1400,9 @@ declare global {
       tryActivateLibraryBookForTests: typeof tryActivateLibraryBookForTests
       configureProjectSession: typeof configureProjectSession
       getSnapshot: typeof getProjectSessionSnapshot
+      restorePhotoFolderForActiveBook: typeof restorePhotoFolderForActiveBook
+      regrantPhotoFolder: typeof regrantPhotoFolder
+      getPhotoRootSessionSnapshot: typeof getPhotoRootSessionSnapshot
     }
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
@@ -1538,6 +1557,16 @@ export async function openBookFromHome(
 /** Enter the editor without a library (session-only editing). */
 export function startSessionEditor(): void {
   enterEditorSurface()
+  void restorePhotoFolderForActiveBook()
+}
+
+/** One-click photo-folder re-grant (`requestPermission` read). */
+export async function regrantPhotoFolder(): Promise<
+  'granted' | 'denied' | 'unavailable' | 'missing'
+> {
+  return regrantPhotoFolderSession((handle) =>
+    browserRequestReadPermission(handle),
+  )
 }
 
 export async function tryRestore(): Promise<StorageResult<Book | null>> {

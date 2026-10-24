@@ -6,6 +6,7 @@ import {
 } from '../../project/fsa/browserDirectory.test-helpers'
 import {
   browserPickDirectory,
+  browserRequestReadPermission,
   browserRequestReadwritePermission,
   browserTimers,
   createBrowserProjectSessionDeps,
@@ -115,6 +116,41 @@ describe('browserProjectSessionPlatform', () => {
     await expect(browserRequestReadwritePermission(handle)).resolves.toBe(
       'denied',
     )
+  })
+
+  it('browserRequestReadPermission reports granted and denied', async () => {
+    const granted = createFakeBrowserDirectory({
+      name: 'ReadGranted',
+      initialPermission: 'granted',
+    })
+    await expect(browserRequestReadPermission(granted)).resolves.toBe('granted')
+
+    const denied = createFakeBrowserDirectory({
+      name: 'ReadDenied',
+      initialPermission: 'prompt',
+    })
+    denied.enqueueRequestResults('denied')
+    await expect(browserRequestReadPermission(denied)).resolves.toBe('denied')
+  })
+
+  it('browserRequestReadPermission requests read mode', async () => {
+    const handle = createFakeBrowserDirectory({ name: 'ReadMode' })
+    const spy = vi.spyOn(handle, 'requestPermission')
+    await browserRequestReadPermission(handle)
+    expect(spy).toHaveBeenCalledWith({ mode: 'read' })
+  })
+
+  it('browserRequestReadPermission reports unavailable without the method', async () => {
+    await expect(browserRequestReadPermission({ id: 'opaque' })).resolves.toBe(
+      'unavailable',
+    )
+  })
+
+  it('browserRequestReadPermission maps thrown errors to denied', async () => {
+    const handle = {
+      requestPermission: () => Promise.reject(new Error('boom')),
+    }
+    await expect(browserRequestReadPermission(handle)).resolves.toBe('denied')
   })
 
   it('createBrowserProjectSessionDeps wires browser defaults and sessionStorage', () => {

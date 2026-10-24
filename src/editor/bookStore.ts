@@ -443,24 +443,43 @@ export function mintAssetId(fileName: string): string {
  * `patchAssetRecord` cannot recreate a record.
  */
 export function removeFailedImportAsset(assetId: string): void {
-  droppedImportIds.add(assetId)
-  const pendingIndex = pendingGalleryIds.indexOf(assetId)
-  if (pendingIndex !== -1) {
-    pendingGalleryIds.splice(pendingIndex, 1)
-  }
-  pendingMeta.delete(assetId)
-  pendingAssetRecords.delete(assetId)
-  pendingAssetPatches.delete(assetId)
+  removeFailedImportAssets([assetId])
+}
 
-  const inBook =
-    state.book.gallery.includes(assetId) || assetId in state.book.assets
+/**
+ * Batch variant of {@link removeFailedImportAsset}: one gallery op and one
+ * store emit. Used when Change photo folder clears a full prior root.
+ */
+export function removeFailedImportAssets(assetIds: readonly string[]): void {
+  const unique = [...new Set(assetIds)]
+  if (unique.length === 0) {
+    return
+  }
+  const remove = new Set(unique)
+  for (const assetId of unique) {
+    droppedImportIds.add(assetId)
+    pendingMeta.delete(assetId)
+    pendingAssetRecords.delete(assetId)
+    pendingAssetPatches.delete(assetId)
+  }
+  pendingGalleryIds = pendingGalleryIds.filter((id) => !remove.has(id))
+
+  const inBook = unique.some(
+    (assetId) =>
+      state.book.gallery.includes(assetId) || assetId in state.book.assets,
+  )
   if (inBook) {
-    dispatchBookOp({ type: 'removeFromGallery', assetId })
+    dispatchBookOp({ type: 'removeManyFromGallery', assetIds: unique })
   }
 
-  if (state.sessionMeta.has(assetId)) {
-    const nextMeta = new Map(state.sessionMeta)
-    nextMeta.delete(assetId)
+  let metaChanged = false
+  const nextMeta = new Map(state.sessionMeta)
+  for (const assetId of unique) {
+    if (nextMeta.delete(assetId)) {
+      metaChanged = true
+    }
+  }
+  if (metaChanged) {
     const prev = state
     state = { ...state, sessionMeta: nextMeta }
     invalidateGalleryAspectsCache()

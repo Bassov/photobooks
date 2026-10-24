@@ -77,6 +77,8 @@ export interface LibraryActivationHost {
   setRestorePending: (next: boolean) => void
   setPreferredLibraryId: (id: string | null) => void
   defaultLibraryId: () => string
+  /** Optional: restore durable photo-folder handle after book is in the editor. */
+  onBookActivated?: () => Promise<void>
 }
 
 export interface LibraryActivation {
@@ -134,6 +136,9 @@ export function createLibraryActivation(
     host.setStatus({ kind: 'open', libraryId, bookId: book.id })
     host.setSurface('editor')
     host.setEditorStatus('Book restored')
+    if (host.onBookActivated !== undefined) {
+      await host.onBookActivated()
+    }
     return { ok: true, value: book }
   }
 

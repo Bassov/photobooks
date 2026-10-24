@@ -38,7 +38,11 @@ export { TEMPLATE_IDS, isTemplateId, type TemplateId } from './templates/types'
 export { generateTemplateFrames, frameIdFor } from './templates/catalog'
 export { applyTemplate } from './templates/apply'
 
-export { addToGallery, removeFromGallery } from './ops/gallery'
+export {
+  addToGallery,
+  removeFromGallery,
+  removeManyFromGallery,
+} from './ops/gallery'
 export { placeAsset, replaceAsset, unplaceAsset, swapFrames } from './ops/place'
 export {
   addSpread,

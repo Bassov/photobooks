@@ -55,6 +55,7 @@ export async function browserPickDirectory(): Promise<FileSystemDirectoryHandle 
           | 'music'
           | 'pictures'
           | 'videos'
+          | FileSystemHandle
       }) => Promise<FileSystemDirectoryHandle>
     }
   ).showDirectoryPicker
@@ -75,8 +76,9 @@ export async function browserPickDirectory(): Promise<FileSystemDirectoryHandle 
   }
 }
 
-export async function browserRequestReadwritePermission(
+async function browserRequestPermission(
   handle: SessionDirectoryHandle,
+  mode: 'read' | 'readwrite',
 ): Promise<'granted' | 'denied' | 'unavailable'> {
   const candidate = handle as {
     requestPermission?: (options?: {
@@ -88,11 +90,23 @@ export async function browserRequestReadwritePermission(
     return 'unavailable'
   }
   try {
-    const state = await requestPermission.call(handle, { mode: 'readwrite' })
+    const state = await requestPermission.call(handle, { mode })
     return state === 'granted' ? 'granted' : 'denied'
   } catch {
     return 'denied'
   }
+}
+
+export function browserRequestReadwritePermission(
+  handle: SessionDirectoryHandle,
+): Promise<'granted' | 'denied' | 'unavailable'> {
+  return browserRequestPermission(handle, 'readwrite')
+}
+
+export function browserRequestReadPermission(
+  handle: SessionDirectoryHandle,
+): Promise<'granted' | 'denied' | 'unavailable'> {
+  return browserRequestPermission(handle, 'read')
 }
 
 /** Browser defaults for `configureProjectSession` at the composition root. */

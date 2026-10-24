@@ -11,6 +11,14 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
+import {
+  choosePhotoFolder,
+  installPhotoDirectoryPickerStub,
+} from './fixtures/photoDirectoryPicker'
+
+test.beforeEach(async ({ page }) => {
+  await installPhotoDirectoryPickerStub(page)
+})
 
 function writeBulkImportFixtures(count: number): string[] {
   const dir = join(tmpdir(), `photobooks-open-save-bulk-${String(process.pid)}`)
@@ -70,12 +78,10 @@ test('save, reload, and restore keep gallery ids', async ({ page }) => {
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
   await expect(page.getByTestId('save-book')).toBeEnabled()
 
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([
-      photoFixturePaths.samplePng,
-      photoFixturePaths.sampleOrient6,
-    ])
+  await choosePhotoFolder(page, [
+    photoFixturePaths.samplePng,
+    photoFixturePaths.sampleOrient6,
+  ])
   await expect
     .poll(async () => page.getByTestId('filmstrip-item').count())
     .toBeGreaterThanOrEqual(2)
@@ -117,12 +123,10 @@ test('session import then attach library saves without New book; reload hydrates
   await expect(page.getByTestId('editor-shell')).toBeVisible()
   await expect(page.getByTestId('save-book')).toBeDisabled()
 
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([
-      photoFixturePaths.samplePng,
-      photoFixturePaths.sampleOrient6,
-    ])
+  await choosePhotoFolder(page, [
+    photoFixturePaths.samplePng,
+    photoFixturePaths.sampleOrient6,
+  ])
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
     timeout: 30_000,
   })
@@ -214,7 +218,7 @@ test('bulk library import reload hydrates thumbs across the filmstrip', async ({
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
-  await page.getByTestId('photo-file-input').setInputFiles(files)
+  await choosePhotoFolder(page, files)
   await expect
     .poll(
       async () =>
@@ -292,12 +296,10 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
   await expect(page.getByTestId('save-book')).toBeEnabled()
   await page.bringToFront()
 
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([
-      photoFixturePaths.samplePng,
-      photoFixturePaths.sampleOrient6,
-    ])
+  await choosePhotoFolder(page, [
+    photoFixturePaths.samplePng,
+    photoFixturePaths.sampleOrient6,
+  ])
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
     timeout: 30_000,
   })
@@ -396,9 +398,7 @@ test('New book confirm accept replaces content with an empty book', async ({
   await page.goto('/?testLibrary=1')
   await expect(page.getByTestId('save-book')).toBeEnabled({ timeout: 15_000 })
 
-  await page
-    .getByTestId('photo-file-input')
-    .setInputFiles([photoFixturePaths.samplePng])
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
     timeout: 30_000,
   })

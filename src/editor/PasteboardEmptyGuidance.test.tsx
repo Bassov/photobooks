@@ -21,6 +21,8 @@ import {
 import { seedGallery } from './gallery.test-helpers'
 import { PasteboardEmptyGuidance } from './PasteboardEmptyGuidance'
 
+const CHOOSE_LABEL = 'Choose photo folder…'
+
 describe('PasteboardEmptyGuidance', () => {
   afterEach(() => {
     cleanup()
@@ -29,48 +31,39 @@ describe('PasteboardEmptyGuidance', () => {
     setEditorStatus('')
   })
 
-  it('shows the empty card with both import actions when gallery is empty', () => {
-    const onAddFolder = vi.fn()
-    const onAddPhotos = vi.fn()
+  it('shows the empty card with choose-folder action when gallery is empty', () => {
+    const onChoosePhotoFolder = vi.fn()
     render(
       <PasteboardEmptyGuidance
-        onAddFolder={onAddFolder}
-        onAddPhotos={onAddPhotos}
+        onChoosePhotoFolder={onChoosePhotoFolder}
+        photoFolderLabel={CHOOSE_LABEL}
         importDisabled={false}
       />,
     )
 
     expect(screen.getByTestId('pasteboard-empty-card')).toBeTruthy()
     expect(screen.getByText('Start with your photos')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Add folder…' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Add photos…' }))
-    expect(onAddFolder).toHaveBeenCalledTimes(1)
-    expect(onAddPhotos).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: CHOOSE_LABEL }))
+    expect(onChoosePhotoFolder).toHaveBeenCalledTimes(1)
   })
 
   const noopImport = (): Promise<void> => Promise.resolve()
 
+  const defaultProps = {
+    onChoosePhotoFolder: noopImport,
+    photoFolderLabel: CHOOSE_LABEL,
+    importDisabled: false,
+  }
+
   it('shows No photos found after a zero-photo folder import', () => {
     setNoPhotosFoundHint(true)
-    render(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    render(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(screen.getByText('No photos found in that folder')).toBeTruthy()
   })
 
   it('shows the placement hint when photos exist and nothing is placed', () => {
     seedGallery(1)
-    render(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    render(<PasteboardEmptyGuidance {...defaultProps} />)
     const hint = screen.getByTestId('pasteboard-placement-hint')
     expect(hint).toBeTruthy()
     expect(hint.getAttribute('role')).toBe('status')
@@ -80,13 +73,7 @@ describe('PasteboardEmptyGuidance', () => {
 
   it('hides the hint after the first placement and when placements already exist', () => {
     const ids = seedGallery(1)
-    const { rerender } = render(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    const { rerender } = render(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(screen.getByTestId('pasteboard-placement-hint')).toBeTruthy()
 
     const snap = getBookStoreSnapshot()
@@ -104,13 +91,7 @@ describe('PasteboardEmptyGuidance', () => {
         importExpectedCount: 0,
       })
     })
-    rerender(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    rerender(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(getHasAnyPlacementSnapshot()).toBe(true)
     expect(screen.queryByTestId('pasteboard-placement-hint')).toBeNull()
 
@@ -129,62 +110,32 @@ describe('PasteboardEmptyGuidance', () => {
       importRunning: false,
       importExpectedCount: 0,
     })
-    rerender(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    rerender(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(screen.queryByTestId('pasteboard-placement-hint')).toBeNull()
   })
 
   it('does not overwrite the shared editor-status line with the placement hint', () => {
     setEditorStatus('Book restored')
     seedGallery(1)
-    const { rerender } = render(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    const { rerender } = render(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(screen.getByTestId('pasteboard-placement-hint').textContent).toBe(
       STATUS_PLACEMENT_HINT,
     )
     expect(
       screen.getByTestId('pasteboard-placement-hint').getAttribute('aria-live'),
     ).toBe('polite')
-    rerender(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    rerender(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(getEditorStatus()).toBe('Book restored')
   })
 
   it('clears the no-photos line when the gallery gains photos', () => {
     setNoPhotosFoundHint(true)
-    const { rerender } = render(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    const { rerender } = render(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(screen.getByText('No photos found in that folder')).toBeTruthy()
     act(() => {
       seedGallery(1)
     })
-    rerender(
-      <PasteboardEmptyGuidance
-        onAddFolder={noopImport}
-        onAddPhotos={noopImport}
-        importDisabled={false}
-      />,
-    )
+    rerender(<PasteboardEmptyGuidance {...defaultProps} />)
     expect(getNoPhotosFoundHint()).toBe(false)
     expect(screen.queryByText('No photos found in that folder')).toBeNull()
   })

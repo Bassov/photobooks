@@ -10,11 +10,19 @@ import {
 import { DEFAULT_LIBRARY_ID } from './types'
 
 const DB_NAME = 'photobooks-session'
-const STORE_NAME = 'library-handles'
-/** v3: single library + label; migrate legacy `__recents` on open. */
+export const LIBRARY_HANDLES_STORE = 'library-handles'
+export const SOURCE_ROOT_HANDLES_STORE = 'source-root-handles'
+export const BOOK_PHOTO_ROOTS_STORE = 'book-photo-roots'
+/** v3: single library + label + photo source-root stores; migrate legacy `__recents` on open. */
 const DB_VERSION = 3
 
 export { ACTIVE_KEY, LABEL_KEY, RECENTS_KEY }
+
+const ALL_STORES = [
+  LIBRARY_HANDLES_STORE,
+  SOURCE_ROOT_HANDLES_STORE,
+  BOOK_PHOTO_ROOTS_STORE,
+] as const
 
 export type SessionIdbGetResult =
   { present: true; value: unknown } | { present: false }
@@ -28,6 +36,14 @@ export interface SessionIdb {
   del: (key: string) => Promise<void>
   keys: () => Promise<string[]>
   runReadwrite: (mutations: readonly SessionIdbMutation[]) => Promise<void>
+}
+
+function ensureStores(db: IDBDatabase): void {
+  for (const storeName of ALL_STORES) {
+    if (!db.objectStoreNames.contains(storeName)) {
+      db.createObjectStore(storeName)
+    }
+  }
 }
 
 function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
@@ -63,9 +79,7 @@ function openDb(): Promise<IDBDatabase> {
     }
     request.onupgradeneeded = () => {
       const db = request.result
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME)
-      }
+      ensureStores(db)
       // Recents → single-library migration runs after open (needs async gets).
     }
     request.onsuccess = () => {
@@ -148,13 +162,13 @@ export async function migrateLegacyRecents(idb: SessionIdb): Promise<void> {
   await idb.runReadwrite(mutations)
 }
 
-export function createSessionIdb(): SessionIdb {
-  const idb: SessionIdb = {
+function createStoreIdb(storeName: string): SessionIdb {
+  return {
     async get(key) {
       const db = await openDb()
       try {
-        const tx = db.transaction(STORE_NAME, 'readonly')
-        const store = tx.objectStore(STORE_NAME)
+        const tx = db.transaction(storeName, 'readonly')
+        const store = tx.objectStore(storeName)
         const raw: unknown = await requestToPromise(
           store.get(key) as IDBRequest<unknown>,
         )
@@ -175,8 +189,8 @@ export function createSessionIdb(): SessionIdb {
     async keys() {
       const db = await openDb()
       try {
-        const tx = db.transaction(STORE_NAME, 'readonly')
-        const store = tx.objectStore(STORE_NAME)
+        const tx = db.transaction(storeName, 'readonly')
+        const store = tx.objectStore(storeName)
         const raw = await requestToPromise(store.getAllKeys())
         return raw.map(String)
       } finally {
@@ -186,8 +200,8 @@ export function createSessionIdb(): SessionIdb {
     async runReadwrite(mutations) {
       const db = await openDb()
       try {
-        const tx = db.transaction(STORE_NAME, 'readwrite')
-        const store = tx.objectStore(STORE_NAME)
+        const tx = db.transaction(storeName, 'readwrite')
+        const store = tx.objectStore(storeName)
         for (const mutation of mutations) {
           if (mutation.op === 'set') {
             store.put(mutation.value, mutation.key)
@@ -201,5 +215,19 @@ export function createSessionIdb(): SessionIdb {
       }
     },
   }
-  return idb
+}
+
+/** Library directory handles only (`library-handles`). */
+export function createSessionIdb(): SessionIdb {
+  return createStoreIdb(LIBRARY_HANDLES_STORE)
+}
+
+/** Photo source-root directory handles (`source-root-handles`). */
+export function createSourceRootIdb(): SessionIdb {
+  return createStoreIdb(SOURCE_ROOT_HANDLES_STORE)
+}
+
+/** Book → photo source-root binding (`book-photo-roots`). */
+export function createBookPhotoRootIdb(): SessionIdb {
+  return createStoreIdb(BOOK_PHOTO_ROOTS_STORE)
 }

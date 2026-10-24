@@ -2,67 +2,33 @@ import { acceptedPhotoAcceptAttr, isAcceptedPhotoMime } from './mime'
 import { HEIC_UNSUPPORTED_MESSAGE, isHeicLikeFile } from './heic'
 import type { ImportErrorReason } from './assetPool'
 
-const PICKER_TYPES = [
-  {
-    description: 'Images',
-    accept: {
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/webp': ['.webp'],
-      // Stryker disable next-line ArrayDeclaration: FSA accept extensions asserted in pickPhotos.test; empty-array mutants are picker-filter only
-      'image/heic': ['.heic'],
-      // Stryker disable next-line ArrayDeclaration: FSA accept extensions asserted in pickPhotos.test; empty-array mutants are picker-filter only
-      'image/heif': ['.heif'],
-    },
-  },
-]
-
-export function canUseOpenFilePicker(): boolean {
-  return typeof window.showOpenFilePicker === 'function'
-}
-
 export function canUseDirectoryPicker(): boolean {
   return typeof window.showDirectoryPicker === 'function'
 }
 
-export async function pickPhotosWithFilePicker(): Promise<File[] | null> {
-  const openFilePicker = window.showOpenFilePicker
-  if (typeof openFilePicker !== 'function') {
-    return null
-  }
-
-  try {
-    const handles = await openFilePicker({
-      multiple: true,
-      types: PICKER_TYPES,
-      excludeAcceptAllOption: true,
-    })
-    const files: File[] = []
-    for (const handle of handles) {
-      files.push(await handle.getFile())
-    }
-    return files
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return null
-    }
-    throw error
-  }
+export interface PickedPhotoFolder {
+  directory: FileSystemDirectoryHandle
+  files: File[]
 }
 
 /**
- * Prefer FSA directory picker. Returns File refs from the directory (accepted MIME only
- * filtering is left to the importer so unsupported files can surface as errors).
+ * Prefer FSA directory picker. Keeps the handle for durable source-root binding
+ * and returns File refs from the walk (MIME filtering stays in the importer).
  */
-export async function pickFolderWithDirectoryPicker(): Promise<File[] | null> {
+export async function pickFolderWithDirectoryPicker(): Promise<PickedPhotoFolder | null> {
   const showDirectoryPicker = window.showDirectoryPicker
   if (typeof showDirectoryPicker !== 'function') {
     return null
   }
 
   try {
-    const directory = await showDirectoryPicker({ mode: 'read' })
-    return await collectImageFilesFromDirectory(directory)
+    const directory = await showDirectoryPicker({
+      id: 'photobooks-photos',
+      mode: 'read',
+      startIn: 'pictures',
+    })
+    const files = await collectFilesFromDirectory(directory)
+    return { directory, files }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return null
@@ -71,20 +37,48 @@ export async function pickFolderWithDirectoryPicker(): Promise<File[] | null> {
   }
 }
 
-async function collectImageFilesFromDirectory(
+/** Attach a webkitRelativePath-style path so `relativePathFor` works. */
+function fileWithRelativePath(file: File, relativePath: string): File {
+  if (
+    (file as File & { webkitRelativePath?: string }).webkitRelativePath ===
+    relativePath
+  ) {
+    return file
+  }
+  try {
+    Object.defineProperty(file, 'webkitRelativePath', {
+      value: relativePath,
+      configurable: true,
+    })
+    return file
+  } catch {
+    const copy = new File([file], file.name, {
+      type: file.type,
+      lastModified: file.lastModified,
+    })
+    Object.defineProperty(copy, 'webkitRelativePath', {
+      value: relativePath,
+      configurable: true,
+    })
+    return copy
+  }
+}
+
+async function collectFilesFromDirectory(
   directory: FileSystemDirectoryHandle,
+  prefix = '',
 ): Promise<File[]> {
   const files: File[] = []
-  // Directory iteration yields handles; getFile reads bytes via the handle API.
-  for await (const [, handle] of directory.entries()) {
+  for await (const [name, handle] of directory.entries()) {
+    const relativePath = prefix.length > 0 ? `${prefix}/${name}` : name
     if (handle.kind === 'file') {
-      const fileHandle = handle as FileSystemFileHandle
-      const file = await fileHandle.getFile()
-      files.push(file)
+      const file = await (handle as FileSystemFileHandle).getFile()
+      files.push(fileWithRelativePath(file, relativePath))
       continue
     }
-    const nested = await collectImageFilesFromDirectory(
+    const nested = await collectFilesFromDirectory(
       handle as FileSystemDirectoryHandle,
+      relativePath,
     )
     files.push(...nested)
   }
@@ -144,16 +138,22 @@ export function partitionImportFiles(
       accepted.push(file)
       continue
     }
-    if (source === 'folder' && !isImageLikeFile(file)) {
-      skipped.push(file)
-      continue
-    }
+    // HEIC before folder skip so extension-less `octet-stream` HEIC still errors.
     if (isHeicLikeFile(file)) {
       rejected.push({
         file,
         message: HEIC_UNSUPPORTED_MESSAGE,
         reason: 'heic',
       })
+      continue
+    }
+    // Keep bare `octet-stream` for HEIC ftyp sniff; skip only clear non-images.
+    if (
+      source === 'folder' &&
+      !isImageLikeFile(file) &&
+      mimeType !== 'application/octet-stream'
+    ) {
+      skipped.push(file)
       continue
     }
     rejected.push({

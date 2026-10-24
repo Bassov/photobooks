@@ -10,6 +10,7 @@ import {
   clearPerfScenario,
   enablePerfScenario,
 } from './perf/perfFixture'
+import { choosePhotoFolder } from './fixtures/photoDirectoryPicker'
 
 /** Local widen: create/rename title APIs land in this change; shared fixture types lag. */
 interface TitleProjectApi {
@@ -272,7 +273,7 @@ test.describe('frame-budget gates', () => {
     await expect(page.getByTestId('rename-book')).toBeEnabled()
 
     const files = writeBulkImportFixtures(40)
-    await page.getByTestId('photo-file-input').setInputFiles(files)
+    await choosePhotoFolder(page, files)
     await expect
       .poll(
         async () =>

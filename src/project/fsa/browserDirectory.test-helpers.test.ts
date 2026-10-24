@@ -60,12 +60,20 @@ describe('createFakeBrowserDirectory permissions', () => {
     )
   })
 
-  it('returns prompt for non-readwrite mode descriptors', async () => {
+  it('honours read and readwrite mode descriptors the same way', async () => {
     const root = createFakeBrowserDirectory({ initialPermission: 'granted' })
 
-    await expect(root.queryPermission({ mode: 'read' })).resolves.toBe('prompt')
+    await expect(root.queryPermission({ mode: 'read' })).resolves.toBe(
+      'granted',
+    )
     await expect(root.requestPermission({ mode: 'read' })).resolves.toBe(
-      'prompt',
+      'granted',
+    )
+    await expect(root.queryPermission({ mode: 'readwrite' })).resolves.toBe(
+      'granted',
+    )
+    await expect(root.requestPermission({ mode: 'readwrite' })).resolves.toBe(
+      'granted',
     )
   })
 })

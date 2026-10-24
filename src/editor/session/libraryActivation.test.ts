@@ -765,6 +765,18 @@ describe('createLibraryActivation', () => {
     })
   })
 
+  it('activateLoadedBook awaits onBookActivated when provided', async () => {
+    libraryId = 'lib-ok'
+    const onBookActivated = vi.fn().mockResolvedValue(undefined)
+    host.onBookActivated = onBookActivated
+    const next = makeBook({ id: 'with-photo-root', gallery: [] })
+    await expect(controller.activateLoadedBook(next)).resolves.toEqual({
+      ok: true,
+      value: next,
+    })
+    expect(onBookActivated).toHaveBeenCalledTimes(1)
+  })
+
   it('adoptCurrentBookInLibrary fails when storage is missing', async () => {
     storage = null
     libraryId = 'lib-only'
