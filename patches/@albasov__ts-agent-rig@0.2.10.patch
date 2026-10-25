@@ -1,0 +1,35 @@
+diff --git a/src/check-patch-coverage.mjs b/src/check-patch-coverage.mjs
+index 2776331cf0a038f0cf7a651faeb982417724db58..9f896f6ae62479c253d3957246bcc1d6184305dc 100644
+--- a/src/check-patch-coverage.mjs
++++ b/src/check-patch-coverage.mjs
+@@ -95,6 +95,7 @@ function defaultGit(args, cwd) {
+ function skipFile(file) {
+   return (
+     /\.(test|spec)\.[a-z]+$/i.test(file) ||
++    file.endsWith('.css') ||
+     file.endsWith('.test-helpers.ts') ||
+     file.endsWith('.d.ts') ||
+     file === 'src/main.tsx' ||
+diff --git a/src/check-patch-coverage.test.mjs b/src/check-patch-coverage.test.mjs
+index c8251aac6027b3c823a112ced323ce490320c9df..3b083749c7b0a7b81361b3a79296820a064ce880 100644
+--- a/src/check-patch-coverage.test.mjs
++++ b/src/check-patch-coverage.test.mjs
+@@ -90,6 +90,18 @@ describe('check-patch-coverage', () => {
+     expect(result.uncovered[0]?.lines).toEqual([1, 2])
+   })
+ 
++  it('skips CSS (never in unit lcov)', () => {
++    const result = computePatchCoverage({
++      baseRef: 'BASE',
++      diffText: '+++ b/src/ui/tokens.css\n@@ -0,0 +1,2 @@\n+a\n+b\n',
++      lcovText: '',
++      loadGatesFn: () => ({ coverage: { patch: 85 } }),
++    })
++    expect(result.ok).toBe(true)
++    expect(result.percent).toBe(100)
++    expect(result.total).toBe(0)
++  })
++
+   it('always scores vs merge-base with origin/main (ignores STRYKER_DIFF_BASE)', () => {
+     /** @type {string[]} */
+     const diffs = []

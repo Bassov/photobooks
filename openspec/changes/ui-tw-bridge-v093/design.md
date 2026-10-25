@@ -8,7 +8,7 @@
 
 ## Touch-set & Test Plan
 
-- Files: `package.json`, `pnpm-lock.yaml`, `vite.config.ts`, `src/index.css`, `src/ui/tokens.css`, `src/ui/cn.ts`, `src/ui/SpecimenPage.*`, `scripts/check-css-tokens*`, `docs/design.md`, `e2e/design-tokens.spec.ts`
+- Files: `package.json`, `pnpm-lock.yaml`, `vite.config.ts`, `src/index.css`, `src/ui/tokens.css`, `src/ui/cn.ts`, `src/ui/SpecimenPage.*`, `scripts/check-css-tokens*`, `docs/design.md`, `e2e/design-tokens.spec.ts`, `knip.json` (`tailwindcss` ignore — CSS `@import` not followed), `patches/@albasov__ts-agent-rig@0.2.10.patch` (restore skip `.css` in local patch-coverage — stylesheets are never in unit lcov; not a threshold change)
 - Reuse: kit `uikit/src/index.css` + `uikit/src/lib/utils.ts` as copy source; app fonts unchanged
 - Tests: unit `cn` + specimen Tailwind classes; e2e specimen + Theme B hex lock-ins; `assert:no-uikit-in-app`; `audit:ci`
 - Gates: no coverage / Stryker / e2e threshold changes
