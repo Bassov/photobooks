@@ -10,10 +10,16 @@
 ## Manual test scenarios
 
 1. Empty gallery → Choose photo folder → first viewport shows EXIF/placeholder tiles (happy).
-   - OK: e2e `long gallery scrolls inside the filmstrip` (gallery fills + `assertNamedScrollport('filmstrip-scroll')` + `assertDocumentFitsViewport`).
+   - OK: unit `runImportBatch defers off-screen JPEG` + `does not queue off-screen JPEG at prefetch; queues when visible (lazy like HEIC)`; e2e `long gallery scrolls…` covers gallery fill + filmstrip scrollport only (not thumb DOM assert).
 2. Scroll filmstrip mid and to end during/after import — visible tiles upgrade; only filmstrip scrollport scrolls (no page H/V).
-   - OK: e2e `scroll mid-import keeps earlier revealed tile ids`.
+   - OK: e2e `scroll mid-import keeps earlier revealed tile ids` + unit `promotes deferred tail JPEG`.
 3. Place a photo on pasteboard — 1280 working preview appears (progressive thumb ok).
-   - OK: covered by existing ConnectedSpreadView/`requestTier` unit path; no new chrome (`ui-review`: pre-existing FilmstripStatus a11y residual out of scope).
+   - OK: covered by existing ConnectedSpreadView/`requestTier` unit path; no new chrome.
 4. N/A synthetic: unit coverage when large multi-MB fixtures unavailable locally.
-   - OK: unit suites for lazy JPEG / defer 1280 / single body-read / import concurrency.
+   - OK: unit suites for lazy JPEG / defer 1280 / single body-read / import concurrency / import-cap hold across defer→visible.
+
+### ui-review (filmstrip import — no new chrome)
+
+- empty: OK (unchanged empty guidance; no new surfaces)
+- happy first viewport: OK (placeholders / EXIF thumbs via existing FilmstripTile; progressive upgrade)
+- scroll mid/end: OK (visible-window promote; scrollport-only; pre-existing FilmstripStatus a11y residual out of scope)

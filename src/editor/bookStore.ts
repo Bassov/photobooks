@@ -16,7 +16,11 @@ import {
   makePainterFixture,
   PAINTER_ASSET_IDS,
 } from '../core/testing/painterFixture'
-import { setBookUsedAssetIds, setDecodeImportActive } from '../photo/assetPool'
+import {
+  requestDecodeImportRelease,
+  setBookUsedAssetIds,
+  setDecodeImportActive,
+} from '../photo/assetPool'
 import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
 import { setEditorStatus, unplacedFromSpreadStatus } from './editorStatus'
@@ -663,7 +667,13 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
     importRunning: running,
     importExpectedCount: running ? expectedCount : 0,
   }
-  setDecodeImportActive(running)
+  if (running) {
+    setDecodeImportActive(true)
+  } else {
+    // Keep import decode cap through first filmstrip visibility + now quiet
+    // so lazy JPEG viewport promotes still use 6–8 slots (not idle 4).
+    requestDecodeImportRelease()
+  }
   notifyAffectedSpreads(prev, state)
   if (!running) {
     // Import ended: deliver any coalesced hash-patch emit before the gallery

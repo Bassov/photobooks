@@ -16,6 +16,7 @@ import {
   getVisibleAssetIds,
   noteDecodePressure,
   processAsset,
+  requestDecodeImportRelease,
   resetAssetPool,
   runImportBatch,
   type AssetProcessResult,
@@ -1441,6 +1442,36 @@ describe('assetPool', () => {
     setDecodeImportActive(false)
     expect(getDecodeImportActiveForTests()).toBe(false)
     expect(getEffectiveDecodeSlotLimitForTests()).toBe(4)
+  })
+
+  it('holds import decode cap across defer→visible promote after soft release', async () => {
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 14,
+    })
+    hangWorker()
+    warmAssetPool()
+    const jpeg = new File([new Uint8Array([1])], 'hold.jpg', {
+      type: 'image/jpeg',
+    })
+    setDecodeImportActive(true)
+    await runImportBatch([{ assetId: 'hold-jpeg', file: jpeg }], {
+      priority: 'prefetch',
+    })
+    expect(getDeferredLazyAssetIds()).toContain('hold-jpeg')
+    requestDecodeImportRelease()
+    expect(getDecodeImportActiveForTests()).toBe(true)
+    expect(getEffectiveDecodeSlotLimitForTests()).toBe(DECODE_POOL_CAP)
+    setFilmstripVisibleAssetIds(['hold-jpeg'])
+    // Hang worker: promote leaves deferred and starts in-flight (may leave queue).
+    expect(getDeferredLazyAssetIds()).not.toContain('hold-jpeg')
+    expect(getDecodeImportActiveForTests()).toBe(true)
+    expect(getEffectiveDecodeSlotLimitForTests()).toBe(DECODE_POOL_CAP)
+    // Hard clear still works for teardown / idle browse.
+    setDecodeImportActive(false)
+    expect(getDecodeImportActiveForTests()).toBe(false)
+    expect(getEffectiveDecodeSlotLimitForTests()).toBe(4)
+    resetAssetPool()
   })
 
   it('warmAssetPool allocates import-cap worker slots even when idle', () => {

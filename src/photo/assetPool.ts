@@ -188,6 +188,17 @@ const deferredLazyByAsset = new Map<string, DeferredLazyItem>()
 
 /** True while a gallery import is running — raises the effective decode cap. */
 let decodeImportActive = false
+/**
+ * After importRunning clears, keep the import decode cap through the first
+ * filmstrip visibility pass + now-lane quiet so lazy JPEG viewport promotes
+ * still run at 6–8 (not idle 4).
+ */
+let decodeImportReleasePending = false
+let decodeImportSawVisibilitySinceRelease = false
+let decodeImportReleaseTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Max hold after import ends before forcing idle decode cap. */
+const DECODE_IMPORT_RELEASE_MAX_MS = 8_000
 
 function lazyMayDecodeNow(
   assetId: string,
@@ -222,14 +233,86 @@ export function shouldDeferHeicDecode(
   return isKnownHeicFile(file) && !lazyMayDecodeNow(assetId, priority)
 }
 
-/** Raise/lower import-time decode concurrency (wired from setImportRunning). */
-export function setDecodeImportActive(active: boolean): void {
-  if (decodeImportActive === active) {
+function clearDecodeImportReleaseTimer(): void {
+  if (decodeImportReleaseTimer !== null) {
+    clearTimeout(decodeImportReleaseTimer)
+    decodeImportReleaseTimer = null
+  }
+}
+
+function hasNowDecodeWork(): boolean {
+  if (queue.some((job) => job.lane === 'now')) {
+    return true
+  }
+  for (const job of inFlightJobs) {
+    if (job.lane === 'now') {
+      return true
+    }
+  }
+  return false
+}
+
+function forceDecodeImportInactive(): void {
+  clearDecodeImportReleaseTimer()
+  decodeImportReleasePending = false
+  decodeImportSawVisibilitySinceRelease = false
+  if (!decodeImportActive) {
     return
   }
-  decodeImportActive = active
-  // Grow workers lazily via pump when work is queued (avoids Worker in flag-only tests).
+  decodeImportActive = false
   pumpNowThenBackground()
+}
+
+function tryFinishDecodeImportRelease(): void {
+  if (!decodeImportReleasePending) {
+    return
+  }
+  if (!decodeImportSawVisibilitySinceRelease) {
+    return
+  }
+  if (hasNowDecodeWork()) {
+    return
+  }
+  forceDecodeImportInactive()
+}
+
+/**
+ * Soft-release import decode cap after list/import UX ends: wait for one
+ * visibility rebuild (lazy JPEG promote) then now-lane quiet, or max timer.
+ */
+export function requestDecodeImportRelease(): void {
+  if (!decodeImportActive) {
+    return
+  }
+  if (deferredLazyByAsset.size === 0 && !hasNowDecodeWork()) {
+    forceDecodeImportInactive()
+    return
+  }
+  decodeImportReleasePending = true
+  decodeImportSawVisibilitySinceRelease = false
+  clearDecodeImportReleaseTimer()
+  decodeImportReleaseTimer = setTimeout(() => {
+    decodeImportReleaseTimer = null
+    forceDecodeImportInactive()
+  }, DECODE_IMPORT_RELEASE_MAX_MS)
+  // Visibility may already match; rebuild path marks the pass when filmstrip syncs.
+}
+
+/** Raise/lower import-time decode concurrency (wired from setImportRunning). */
+export function setDecodeImportActive(active: boolean): void {
+  if (active) {
+    clearDecodeImportReleaseTimer()
+    decodeImportReleasePending = false
+    decodeImportSawVisibilitySinceRelease = false
+    if (decodeImportActive) {
+      return
+    }
+    decodeImportActive = true
+    // Grow workers lazily via pump when work is queued (avoids Worker in flag-only tests).
+    pumpNowThenBackground()
+    return
+  }
+  forceDecodeImportInactive()
 }
 
 export function getDecodeImportActiveForTests(): boolean {
@@ -368,7 +451,11 @@ function rebuildVisibleAssetIds(): void {
   visibleAssetIds = next
   applyNowSetTransition(previousNow)
   promoteDeferredLazy()
+  if (decodeImportReleasePending) {
+    decodeImportSawVisibilitySinceRelease = true
+  }
   pumpNowThenBackground()
+  tryFinishDecodeImportRelease()
 }
 
 /** Snapshot of deferred lazy (JPEG/HEIC) asset ids (tests / metrics). */
@@ -468,6 +555,7 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
     slot.busy = false
     fn()
     pumpNowThenBackground()
+    tryFinishDecodeImportRelease()
   }
 
   const onAbort = (): void => {
@@ -577,6 +665,9 @@ export function resetAssetPool(): void {
   nowAssetIds = new Set()
   longTaskPressure = false
   memoryPressure = false
+  clearDecodeImportReleaseTimer()
+  decodeImportReleasePending = false
+  decodeImportSawVisibilitySinceRelease = false
   decodeImportActive = false
   resetDecodeScrollQuietForTests()
   // Drop controllers without aborting — in-flight were rejected above; aborting

@@ -144,12 +144,17 @@ Newly encoded filmstrip thumbnails and working previews MUST be `image/webp` (qu
 
 ### Requirement: Decode pool raises concurrency during import
 
-While a gallery import is running, the decode worker pool MAY use a higher concurrency cap (target 6–8) than the idle/browse cap. Under longtask or memory pressure the effective limit MUST still back off (half / floor 1). Idle/browse MUST keep the safer lower cap.
+While a gallery import is running, the decode worker pool MAY use a higher concurrency cap (target 6–8) than the idle/browse cap. After import UX ends, the higher cap MUST remain through the next filmstrip visibility sync and until the now-lane is quiet so deferred lazy JPEG/HEIC viewport promotes still use the import ceiling (bounded max hold). Under longtask or memory pressure the effective limit MUST still back off (half / floor 1). Idle/browse MUST keep the safer lower cap.
 
 #### Scenario: Import concurrency exceeds idle
 
 - **WHEN** import is running and there is no memory/longtask pressure
 - **THEN** the effective decode slot limit is higher than the idle/browse cap and at most the import-time maximum
+
+#### Scenario: Import cap holds through first viewport promote
+
+- **WHEN** import UX ends while deferred lazy JPEG remain and the filmstrip then marks those ids visible
+- **THEN** the effective decode slot limit stays at the import-time ceiling until those now-lane promotes settle (or the max hold elapses)
 
 #### Scenario: Pressure still backs off
 
