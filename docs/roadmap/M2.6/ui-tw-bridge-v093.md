@@ -8,7 +8,7 @@ Status: done
 ## Scope
 
 - [x] Add `tailwindcss` + `@tailwindcss/vite` to the app (match `uikit/package.json` versions); wire the Vite plugin
-- [x] Port kit `@theme` / Theme B token subset from `uikit/src/index.css` into app CSS (`styles/tokens.css` + entry); kit v0.9.3 values win (grayscale chrome, `--color-sel: #CACACA`, gray `--crop`, no blue brand fills)
+- [x] Port kit `@theme` / Theme B token subset from `uikit/src/index.css` into app CSS (`src/ui/tokens.css` + entry); kit v0.9.3 values win (grayscale chrome, `--color-sel: #CACACA`, gray `--crop`, no blue brand fills)
 - [x] Add thin `cn` helpers matching kit (`clsx` + `tailwind-merge` + `class-variance-authority` as needed); keep fonts Inter/Lora; scope or omit Tailwind preflight so existing screens stay CI-green
 - [x] Tiny proof: specimen or unit test using `bg-chrome` / `bg-sel` / `text-muted-foreground` (or kit equivalents) that builds
 - [x] Keep `assert:no-uikit-in-app`, `check:css-tokens` (update intentionally if token names/hex change), `pnpm check:fast`, unit, e2e green — no gate weakening
