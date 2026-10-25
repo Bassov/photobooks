@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M2.2
 Title: Tailwind 4 + uikit v0.9.3 token bridge
+Status: done
 
 ## Scope
 
@@ -35,3 +36,7 @@ N/A (CSS/toolchain foundation; no interaction path change).
 ## Source
 
 Owner package B (kit v0.9.3 screen-port foundation).
+
+## Done note
+
+Tailwind 4 + kit v0.9.3 @theme bridge; cn/cva; specimen computed-color proof; CSS skip in local patch-coverage
