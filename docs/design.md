@@ -15,7 +15,7 @@ UI ref: `uikit#/feature/design-tokens`, `uikit#/feature/editor-chrome-toolbar`.
 
 ## Visual direction
 
-Single product theme: **B** (light) from `uikit/src/index.css` / `styles/tokens.css` (via `src/ui/tokens.css`). Fonts: Inter Variable (UI), Lora Variable (headings), self-hosted woff2 (Latin + Cyrillic). No dark theme and no theme switching in the product or kit.
+Single product theme: **B** (light) from `uikit/src/index.css` / `styles/tokens.css`. Fonts: Inter Variable (UI), Lora Variable (headings), self-hosted woff2 (Latin + Cyrillic). No dark theme and no theme switching in the product or kit.
 
 UI ref: `uikit#/feature/design-tokens`.
 
@@ -46,7 +46,7 @@ Editor: `--select` (canvas frame selection / handles — ink/black), tone select
 Status: `--success`, `--warning`, `--destructive` (text/icon); `--destructive-solid` (+ hover) only for AlertDialog confirm.  
 Badges: `--badge-{gray,brand,success,warning,error}-{fg,bg,ring,dot}`.
 
-App Tailwind 4 bridge: `@theme` tokens in `styles/tokens.css` (re-exported from `src/ui/tokens.css`; no `uikit/src` imports); utilities via `@tailwindcss/vite`; preflight omitted until screen ports. Helpers: `src/ui/cn.ts` (`cn` / `cva`).
+App Tailwind 4 bridge: `@theme` tokens in `styles/tokens.css` (entry `styles/app.css` from `src/main.tsx`; no `uikit/src` imports); utilities via `@tailwindcss/vite`; preflight omitted until screen ports. Helpers: `src/ui/cn.ts` (`cn` / `cva`).
 
 Do not put raw brand colour on large surfaces. Book page fills come from the document, not chrome tokens.
 
@@ -121,7 +121,7 @@ Checklist for M2.5 token adoption. **Kit wins** on every gap.
 
 | Area                | Current (`src/`)                                                                                                                                                                                               | Kit target                                                              | Gap                                                |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
-| Global tokens       | `styles/tokens.css` (+ `src/ui/tokens.css` re-export) Theme B light; Inter + Lora self-hosted; `?specimen`                                                                                                     | Theme B neutrals, Inter + Lora, `--chrome`/`--canvas`/`--paper`         | Done (this change)                                 |
+| Global tokens       | `styles/tokens.css` Theme B light; Inter + Lora self-hosted; `?specimen`                                                                                                                                       | Theme B neutrals, Inter + Lora, `--chrome`/`--canvas`/`--paper`         | Done (this change)                                 |
 | Buttons             | Action primitives in `src/ui` (`default`/`secondary`/`ghost`); chrome still has duplicated `.editor-action*` until adoption                                                                                    | Button / IconButton / Toolbar primitives                                | Adopt in editor chrome; drop per-surface copies    |
 | Hardcoded colour    | Chrome CSS uses semantic vars; enforced by `scripts/check-css-tokens.mjs`                                                                                                                                      | Semantic roles (`--destructive`, `--background`, `--paper`, …)          | Done for listed chrome CSS                         |
 | Radius              | Chrome uses `--radius-*`                                                                                                                                                                                       | `--radius-*`                                                            | Done for listed chrome CSS                         |

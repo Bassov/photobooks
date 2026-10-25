@@ -11,7 +11,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = path.join(ROOT, 'src')
 
 const ALLOWED_FILES = new Set([
-  path.join(SRC, 'ui', 'tokens.css'),
   path.join(ROOT, 'styles', 'tokens.css'),
   path.join(ROOT, 'public', 'fonts', 'fonts.css'),
 ])
@@ -73,7 +72,7 @@ export function findCssTokenViolations(file, css) {
 
 /**
  * Light-theme `--muted-foreground` must stay ≥ WCAG AA on kit `--muted` (`#dcdcdc`).
- * Locked to kit v0.9.3 hex in `src/ui/tokens.css` / axe contrast gate.
+ * Locked to kit v0.9.3 hex in `styles/tokens.css` / axe contrast gate.
  */
 export const MUTED_FOREGROUND_LIGHT_AA = '#535152'
 

@@ -27,7 +27,7 @@ describe('findCssTokenViolations', () => {
   })
 
   it('skips token file path', () => {
-    const tokens = path.join(ROOT, 'src', 'ui', 'tokens.css')
+    const tokens = path.join(ROOT, 'styles', 'tokens.css')
     const css = `:root { --x: #fff; font-size: 12px; }`
     expect(findCssTokenViolations(tokens, css)).toEqual([])
   })
