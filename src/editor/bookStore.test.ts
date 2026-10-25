@@ -4,6 +4,7 @@ import { getAssetSource, resetAssetSources } from '../photo/assetSources'
 import { makePlacedTemplateBook } from '../core/testing/fixtures'
 import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
 import {
+  awaitPendingGalleryFlush,
   enqueueGalleryAssets,
   loadPainterFixture,
   getAssetAspectSnapshot,
@@ -601,6 +602,41 @@ describe('bookStore', () => {
     expect(
       getBookStoreSnapshot().book.assets['pending-hash']?.contentHash,
     ).toBe(hash)
+  })
+
+  it('awaitPendingGalleryFlush drains queued gallery ids before snapshot', async () => {
+    vi.stubGlobal('requestAnimationFrame', (): number => 1)
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+    const yieldSpy = vi.fn(() => Promise.resolve())
+    enqueueGalleryAssets([
+      { assetId: 'q1' },
+      { assetId: 'q2' },
+      { assetId: 'q3' },
+      { assetId: 'q4' },
+      { assetId: 'q5' },
+      { assetId: 'q6' },
+      { assetId: 'q7' },
+      { assetId: 'q8' },
+      { assetId: 'q9' },
+    ])
+    expect(getBookStoreSnapshot().book.gallery).toEqual([])
+
+    await awaitPendingGalleryFlush(yieldSpy)
+
+    expect(getBookStoreSnapshot().book.gallery).toEqual([
+      'q1',
+      'q2',
+      'q3',
+      'q4',
+      'q5',
+      'q6',
+      'q7',
+      'q8',
+      'q9',
+    ])
+    // GALLERY_FLUSH_CHUNK is 4 → two yields between three drain steps.
+    expect(yieldSpy).toHaveBeenCalledTimes(2)
+    expect(clearTimeoutSpy).toHaveBeenCalled()
   })
 
   it('exposes flushed gallery ids while import is running', () => {

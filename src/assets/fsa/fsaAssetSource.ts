@@ -1,4 +1,5 @@
 import { scanDirectoryInWorker } from '../scanClient'
+import { fileWithRelativePath } from '../resolveRelativeFile'
 import type {
   AssetSource,
   AssetSourceFailure,
@@ -77,6 +78,24 @@ export function createFsaAssetSource(options: {
         const entries: ScannedEntry[] =
           await scanDirectoryInWorker(scanDirectory)
         return success(entries)
+      } catch {
+        return failure('corrupted')
+      }
+    },
+    async resolveFile(id, relativePath) {
+      if (permissionRequired) {
+        return failure('permission-required')
+      }
+      if (id !== rootId) {
+        return failure('not-found')
+      }
+      const handle = await resolveAssetFile(directory, relativePath)
+      if (!handle) {
+        return failure('not-found')
+      }
+      try {
+        const file = await handle.getFile()
+        return success(fileWithRelativePath(file, relativePath))
       } catch {
         return failure('corrupted')
       }

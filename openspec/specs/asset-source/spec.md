@@ -8,7 +8,7 @@ Defines the domain contract for reading photo-folder originals, scanning source 
 
 ### Requirement: Domain asset source API
 
-The system SHALL expose a domain asset-source API that registers read-only source roots, lists scanned file entries for a root, and resolves an entry for hashing or identity updates using domain types only. The API MUST NOT accept or return filesystem handles. Relative paths MAY appear as domain strings that match asset-record `relativePath` values.
+The system SHALL expose a domain asset-source API that registers read-only source roots, lists scanned file entries for a root, resolves a live `File` for session retain without reading the file body, and resolves an entry for hashing or identity updates using domain types only. The API MUST NOT accept or return filesystem handles. Relative paths MAY appear as domain strings that match asset-record `relativePath` values.
 
 #### Scenario: Scan returns domain entries
 
@@ -19,6 +19,11 @@ The system SHALL expose a domain asset-source API that registers read-only sourc
 
 - **WHEN** a caller uses only the domain asset-source API
 - **THEN** no method parameter or return value is a File System Access directory or file handle
+
+#### Scenario: Resolve File without body read
+
+- **WHEN** a caller needs a session `File` for an entry whose path is known
+- **THEN** `resolveFile` returns that `File` without requiring the caller to read `arrayBuffer` / full body bytes
 
 ### Requirement: Persist photo source-root handles outside the domain API
 
@@ -206,7 +211,7 @@ First photo-folder import MUST NOT collect or hash the entire directory tree on 
 
 ### Requirement: Prioritized re-scan after reload
 
-When a remembered photo root is restored with `read` permission, the system SHALL hydrate the gallery from the persisted folder manifest when present (path, size, mtime, and dims/orientation when known) so slots and identity-keyed DerivedCache thumbs can render before the walk finishes. It SHALL then always run a cheap full worker `scanRoot` (path/size/mtime only; no body reads). It MUST compare that list to the manifest and book assets for new/changed files and MUST NOT skip the walk based solely on entry count, max-mtime, or manifest presence. After the walk, thumb320 / preview MUST prefer the **now** set (visible spread ∪ book-used ∪ mounted filmstrip); remaining entries stay placeholders until needed. Content-hash MUST NOT run on this rescan hot path.
+When a remembered photo root is restored with `read` permission, the system SHALL hydrate the gallery from the persisted folder manifest when present (path, size, mtime, and dims/orientation when known) so slots and identity-keyed DerivedCache thumbs can render before the walk finishes. It SHALL then always run a cheap full worker `scanRoot` (path/size/mtime only; no body reads). It MUST compare that list to the manifest and book assets for new/changed files and MUST NOT skip the walk based solely on entry count, max-mtime, or manifest presence. After list-first gallery enqueue from the walk, the system MUST finish flushing pending gallery ids into `book.gallery` before building the priority verify plan, so unchanged newly listed paths are not misclassified into the lazy import remainder. Priority verify MUST reattach session `File`s via `resolveFile` / `getFile` and MUST NOT call `readForHash` or full-file `arrayBuffer` / `new File([buffer])` when scanned size+mtime match the asset record; verify MUST run with bounded concurrency in the same order as the import body-read cap (8–16), with coalesced progress updates. After the walk, thumb320 / preview MUST prefer the **now** set (visible spread ∪ book-used ∪ mounted filmstrip); remaining entries stay placeholders until needed. Content-hash MUST NOT run on this rescan hot path.
 
 #### Scenario: Manifest paints before the walk finishes
 
@@ -228,10 +233,20 @@ When a remembered photo root is restored with `read` permission, the system SHAL
 - **WHEN** a restored root has both placed open-book assets and many unused files
 - **THEN** thumb320 / preview for visible-spread and other book-used assets is queued before idle decode of unused placeholders
 
+#### Scenario: Unchanged size+mtime skips body read on priority verify
+
+- **WHEN** priority verify runs for a gallery asset whose scanned size and mtime match the asset record
+- **THEN** the session retains a `File` from `resolveFile` / `getFile` and does not read the full file body via `readForHash` or `arrayBuffer`
+
+#### Scenario: Gallery list flush precedes priority plan
+
+- **WHEN** the cheap walk enqueues new list-first gallery placeholders that are still pending flush
+- **THEN** those paths are included in the priority plan after flush and are not sent through lazy folder import solely because the gallery snapshot lagged
+
 #### Scenario: Mid-import reload continues missing gallery entries
 
 - **WHEN** a book was partially imported, persisted with some gallery ids, and reloads with a granted photo root whose scan lists additional image paths not in the gallery
-- **THEN** saved gallery tiles (especially book-used) are visible immediately and the missing scanned paths continue importing in the background
+- **THEN** saved gallery tiles (especially book-used) are visible immediately and the missing scanned paths are list-enqueued, flushed into the gallery, and priority-verified (session `File` retained) so they are not left solely for a misclassified lazy import pass
 
 ### Requirement: JPEG head pass for dims and EXIF thumb
 

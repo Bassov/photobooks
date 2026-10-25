@@ -22,6 +22,14 @@ export type AssetSourceResult<T> = AssetSourceSuccess<T> | AssetSourceFailure
 
 export interface AssetSource {
   scanRoot: (rootId: string) => Promise<AssetSourceResult<ScannedEntry[]>>
+  /**
+   * Resolve a live `File` for session retain / decode without reading the body.
+   * Prefer this over `readForHash` when size+mtime identity already matches.
+   */
+  resolveFile: (
+    rootId: string,
+    relativePath: string,
+  ) => Promise<AssetSourceResult<File>>
   readForHash: (
     rootId: string,
     relativePath: string,

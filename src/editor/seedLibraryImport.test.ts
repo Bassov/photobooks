@@ -62,6 +62,8 @@ describe('seedLibraryImport', () => {
   it('memorySourceForRoot does not overwrite a non-seedable registered source', () => {
     const fsaLike = {
       scanRoot: () => Promise.resolve({ ok: true as const, value: [] }),
+      resolveFile: () =>
+        Promise.resolve({ ok: false as const, code: 'not-found' as const }),
       readForHash: () =>
         Promise.resolve({ ok: false as const, code: 'not-found' as const }),
     }
