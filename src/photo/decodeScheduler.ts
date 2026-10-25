@@ -95,19 +95,23 @@ export function takeNextDecodeJob<T extends RankedDecodeJob>(
   onAborted: (job: T) => void,
 ): T | undefined {
   sortDecodeJobs(queue, nowAssetIds)
-  const index = queue.findIndex((job) => allowBackground || job.lane === 'now')
-  if (index < 0) {
-    return undefined
+  while (queue.length > 0) {
+    const head = queue[0]
+    if (head !== undefined && !allowBackground && head.lane !== 'now') {
+      return undefined
+    }
+    const job = queue.shift()
+    // Stryker disable next-line ConditionalExpression,BlockStatement: shift after length>0 is defined at runtime
+    if (job === undefined) {
+      return undefined
+    }
+    if (job.signal?.aborted) {
+      onAborted(job)
+      continue
+    }
+    return job
   }
-  const [job] = queue.splice(index, 1)
-  if (job === undefined) {
-    return undefined
-  }
-  if (job.signal?.aborted) {
-    onAborted(job)
-    return takeNextDecodeJob(queue, allowBackground, nowAssetIds, onAborted)
-  }
-  return job
+  return undefined
 }
 
 export function pendingRetryFromJob(job: {
@@ -158,7 +162,7 @@ export function scheduleWhenNowEmpty(run: () => void): void {
     typeof schedulerUnknown === 'object' &&
     schedulerUnknown !== null &&
     'postTask' in schedulerUnknown &&
-    typeof (schedulerUnknown).postTask === 'function'
+    typeof schedulerUnknown.postTask === 'function'
   ) {
     void (
       schedulerUnknown as {
