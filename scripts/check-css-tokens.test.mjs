@@ -56,9 +56,9 @@ describe('muted-foreground AA lock', () => {
 
   it('flags a lighter muted-foreground that would break AA', () => {
     const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-fixture')
-    fs.mkdirSync(path.join(tmp, 'src', 'ui'), { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'styles'), { recursive: true })
     fs.writeFileSync(
-      path.join(tmp, 'src', 'ui', 'tokens.css'),
+      path.join(tmp, 'styles', 'tokens.css'),
       ':root { --muted-foreground: #74716b; }\n',
       'utf8',
     )
@@ -77,9 +77,9 @@ describe('muted-foreground AA lock', () => {
 
   it('flags tokens.css without --muted-foreground', () => {
     const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-empty')
-    fs.mkdirSync(path.join(tmp, 'src', 'ui'), { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'styles'), { recursive: true })
     fs.writeFileSync(
-      path.join(tmp, 'src', 'ui', 'tokens.css'),
+      path.join(tmp, 'styles', 'tokens.css'),
       ':root { --foreground: #1f1e1c; }\n',
       'utf8',
     )

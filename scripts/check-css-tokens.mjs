@@ -12,6 +12,7 @@ const SRC = path.join(ROOT, 'src')
 
 const ALLOWED_FILES = new Set([
   path.join(SRC, 'ui', 'tokens.css'),
+  path.join(ROOT, 'styles', 'tokens.css'),
   path.join(ROOT, 'public', 'fonts', 'fonts.css'),
 ])
 
@@ -92,11 +93,11 @@ export function readMutedForegroundLight(css) {
  * @returns {{ file: string, rule: string, match: string }[]}
  */
 export function checkMutedForegroundAa(root = ROOT) {
-  const tokensPath = path.join(root, 'src', 'ui', 'tokens.css')
+  const tokensPath = path.join(root, 'styles', 'tokens.css')
   if (!fs.existsSync(tokensPath)) {
     return [
       {
-        file: 'src/ui/tokens.css',
+        file: 'styles/tokens.css',
         rule: 'muted-foreground-aa',
         match: 'missing tokens.css',
       },
@@ -106,7 +107,7 @@ export function checkMutedForegroundAa(root = ROOT) {
   if (hex == null) {
     return [
       {
-        file: 'src/ui/tokens.css',
+        file: 'styles/tokens.css',
         rule: 'muted-foreground-aa',
         match: 'missing --muted-foreground',
       },
@@ -115,7 +116,7 @@ export function checkMutedForegroundAa(root = ROOT) {
   if (hex !== MUTED_FOREGROUND_LIGHT_AA) {
     return [
       {
-        file: 'src/ui/tokens.css',
+        file: 'styles/tokens.css',
         rule: 'muted-foreground-aa',
         match: `expected ${MUTED_FOREGROUND_LIGHT_AA}, got ${hex}`,
       },

@@ -1,0 +1,329 @@
+/* Theme B semantic tokens — kit v0.9.3 (uikit/src/index.css) wins. */
+
+@theme {
+  --text-2xs: 11px;
+  --text-2xs--line-height: 1.35;
+  --text-md: 15px;
+  --text-md--line-height: 1.45;
+  --text-subhead: 16px;
+  --text-subhead--line-height: 1.4;
+  --text-lead: 17px;
+  --text-lead--line-height: 1.4;
+  --text-display: 34px;
+  --text-display--line-height: 1.1;
+  --shadow-ink-sm: 0 12px 26px -14px rgb(35 34 35 / 0.6);
+  --shadow-ink: 0 14px 30px -14px rgb(35 34 35 / 0.55);
+  --shadow-xs: 0 1px 2px 0 rgb(20 20 19 / 0.06);
+  --shadow-sm:
+    0 1px 3px 0 rgb(20 20 19 / 0.09), 0 1px 2px -1px rgb(20 20 19 / 0.07);
+  --shadow-md:
+    0 4px 14px -3px rgb(20 20 19 / 0.13), 0 2px 4px -2px rgb(20 20 19 / 0.07);
+  --shadow-lg:
+    0 14px 32px -8px rgb(20 20 19 / 0.2), 0 4px 8px -4px rgb(20 20 19 / 0.08);
+  --shadow-hairline: 0 0 0 1px rgb(0 0 0 / 0.08);
+  --shadow-thumb: 0 1px 2px rgb(0 0 0 / 0.14);
+  --shadow-book: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
+  --shadow-book-hover:
+    0 2px 4px rgb(0 0 0 / 0.08), 0 16px 36px rgb(0 0 0 / 0.14);
+  --shadow-card:
+    0 0 0 1px rgb(20 20 19 / 0.1), 0 1px 2px rgb(20 20 19 / 0.06),
+    0 6px 16px -6px rgb(20 20 19 / 0.12);
+  --shadow-card-hover:
+    0 0 0 1px rgb(20 20 19 / 0.14), 0 2px 4px rgb(20 20 19 / 0.08),
+    0 14px 30px -10px rgb(20 20 19 / 0.2);
+  --shadow-float: var(--shadow-md);
+  --shadow-stage: var(--shadow-lg);
+  --shadow-stage-dark: 0 20px 60px rgb(0 0 0 / 0.6);
+  --shadow-pill:
+    0 1px 2px rgb(20 20 19 / 0.08), 0 0 0 0.5px rgb(20 20 19 / 0.06);
+  --shadow-ring-white: 0 0 0 1px rgba(255, 255, 255, 0.9);
+  --shadow-inset-hairline: inset 0 0 0 1px rgb(0 0 0 / 0.07);
+  --shadow-page: var(--page-shadow);
+  --radius-2xs: 2px;
+  --radius-device: 34px;
+}
+
+@custom-variant dark (&:where([data-theme=__no-dark-theme__], [data-theme=__no-dark-theme__] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--foreground);
+  --color-card-foreground: var(--foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-solid: var(--destructive-solid);
+  --color-destructive-solid-hover: var(--destructive-solid-hover);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted-foreground-on-app: var(--muted-foreground-on-app);
+  --color-accent-text: var(--accent-text);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-control: var(--control);
+  --color-success-fg: var(--success-fg);
+  --color-warning-fg: var(--warning-fg);
+  --color-bleed: var(--bleed);
+  --color-guide-solid: var(--guide-solid);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-warning: var(--ink-warning);
+  --color-placeholder: var(--placeholder);
+  --color-placeholder-border: var(--placeholder-border);
+  --color-placeholder-fg: var(--placeholder-fg);
+  --color-placeholder-block: var(--placeholder-block);
+  --color-parent: var(--parent);
+  --color-parent-soft: var(--parent-soft);
+  --color-dpi-low: var(--dpi-low);
+  --color-dpi-warn: var(--dpi-warn);
+  --color-on-dark-warning: var(--on-dark-warning);
+  --color-presentation: var(--presentation);
+  --color-terminal: var(--terminal);
+  --color-terminal-fg: var(--terminal-fg);
+  --color-portrait: var(--portrait);
+  --color-field: var(--field);
+  --color-sel: #cacaca;
+  --color-mark: #8e8e8e;
+  --color-meter: #a8a8a8;
+  --color-tag: #535152;
+  --color-crop: var(--crop);
+  --color-parent-fg: var(--parent-fg);
+  --color-parent-tint: var(--parent-tint);
+  --color-parent-tint-fg: var(--parent-tint-fg);
+  --color-bleed-fg: var(--bleed-fg);
+  --color-chrome: var(--chrome);
+  --color-canvas: var(--canvas);
+  --color-app: var(--app);
+  --color-card-edge: var(--card-edge);
+  --color-cover-empty: var(--cover-empty);
+  --color-step-tile: var(--step-tile);
+  --color-paper: var(--paper);
+  --color-select: var(--select);
+  --color-guide: var(--guide);
+  --color-grid: var(--grid);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-heading);
+}
+
+/* Kit v0.9.3 Procreate-light (grayscale chrome; no blue brand fills). */
+:root {
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f2f2f2;
+  --color-neutral-200: #e4e4e4;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-400: #a6a6a6;
+  --color-neutral-500: #7b7b7b;
+  --color-neutral-600: #5c5d5e;
+  --color-neutral-700: #454647;
+  --color-neutral-800: #2e2f2f;
+  --color-neutral-900: #1e1e1f;
+  --color-neutral-950: #141414;
+  --color-slate-300: #afafaf;
+  --color-slate-400: #8b8b8b;
+  --color-slate-500: #6a6a6a;
+  --color-slate-600: #525252;
+
+  --font-ui: 'Inter Variable', Inter, sans-serif;
+  --font-heading: 'Lora Variable', Lora, serif;
+  --heading-weight: 500;
+
+  --spacing: 0.25rem;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 18px;
+  --text-xl: 21px;
+  --text-2xl: 26px;
+  --text-3xl: 32px;
+  --text-eyebrow: 11px;
+
+  --icon-size-14: 14px;
+  --icon-size-16: 16px;
+  --icon-size-20: 20px;
+
+  --control-xs: 28px;
+  --control-sm: 32px;
+  --control-md: 36px;
+  --control-lg: 40px;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-exit: 150ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  --radius: 10px;
+  --radius-2xs: 2px;
+  --radius-xs: 4px;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-full: 999px;
+  --overlay-scrim: rgb(0 0 0 / 0.4);
+
+  --shadow-xs: 0 1px 2px 0 rgb(20 20 19 / 0.06);
+  --shadow-sm:
+    0 1px 3px 0 rgb(20 20 19 / 0.09), 0 1px 2px -1px rgb(20 20 19 / 0.07);
+  --shadow-md:
+    0 4px 14px -3px rgb(20 20 19 / 0.13), 0 2px 4px -2px rgb(20 20 19 / 0.07);
+  --shadow-lg:
+    0 14px 32px -8px rgb(20 20 19 / 0.2), 0 4px 8px -4px rgb(20 20 19 / 0.08);
+
+  --panel-left: 252px;
+  --panel-right: 300px;
+  --topbar: 56px;
+  --thumb: 104px;
+  --rail: 52px;
+
+  --t-bg: #c8cacb;
+  --t-canvas: #c8cacb;
+  --t-bar: #e1e1e1;
+  --t-panel: #e1e1e1;
+  --t-raised: #e1e1e1;
+  --t-field: #d7d7d7;
+  --t-text: #393738;
+  --t-ink: #232223;
+  --t-ink-hover: #3a3839;
+  --t-on-ink: #f2f2f2;
+
+  --foreground: var(--t-text);
+  --accent-foreground: var(--t-text);
+  --app: var(--t-bg);
+  --canvas: var(--t-canvas);
+  --chrome: var(--t-bar);
+  --background: var(--t-panel);
+  --card: var(--t-raised);
+  --popover: var(--t-raised);
+  --cover-empty: #cfcfcf;
+  --step-tile: var(--t-raised);
+  --field: var(--t-field);
+  --secondary: var(--t-field);
+  --subtle: #dadada;
+  --muted: #dcdcdc;
+  --accent: #cfcfcf;
+  --border: #cdcdcd;
+  --control: #bebebe;
+  --input: #a3a3a3;
+  --primary: var(--t-ink);
+  --primary-hover: var(--t-ink-hover);
+  --primary-foreground: var(--t-on-ink);
+  --ring: var(--t-ink-hover);
+  --select: var(--t-ink);
+  --card-edge: rgb(0 0 0 / 0.07);
+  --dot: rgb(255 255 255 / 0.55);
+  --scroll-thumb-rest: #a8a8a8;
+  --scroll-thumb: #969696;
+  --scroll-thumb-hover: #7e7e7e;
+  --paper: #ffffff;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.14), 0 6px 16px -6px rgb(0 0 0 / 0.22);
+  --shadow-card-hover:
+    0 2px 4px rgb(0 0 0 / 0.16), 0 14px 30px -10px rgb(0 0 0 / 0.3);
+  --muted-foreground: #535152;
+  --muted-foreground-on-app: #535152;
+  --accent-text: var(--t-text);
+  --shadow-book:
+    0 1px 1px rgb(0 0 0 / 0.1), 0 3px 8px rgb(0 0 0 / 0.1),
+    0 10px 22px rgb(0 0 0 / 0.1);
+  --shadow-book-hover:
+    0 2px 3px rgb(0 0 0 / 0.12), 0 8px 16px rgb(0 0 0 / 0.12),
+    0 18px 36px rgb(0 0 0 / 0.14);
+  --page-shadow: 0 2px 6px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.14);
+
+  /* Grayscale status (kit P1-4) */
+  --destructive: #393738;
+  --destructive-solid: #232223;
+  --destructive-solid-hover: #393738;
+  --destructive-foreground: #f2f2f2;
+  --guide: #6b696a;
+  --guide-solid: #535152;
+  --bleed: #393738;
+  --grid: rgb(83 81 82 / 0.1);
+  --grid-line: rgb(83 81 82 / 0.6);
+  --success: #6b696a;
+  --warning: #535152;
+  --success-fg: #393738;
+  --warning-fg: #393738;
+  --crop: #6b696a;
+  --portrait: #535152;
+  --bleed-fg: #393738;
+
+  --badge-gray-fg: #4f4d4e;
+  --badge-gray-bg: rgb(57 55 56 / 0.08);
+  --badge-gray-ring: rgb(57 55 56 / 0.1);
+  --badge-gray-dot: #8b8b8b;
+  --badge-brand-fg: #393738;
+  --badge-brand-bg: rgb(35 34 35 / 0.12);
+  --badge-brand-ring: rgb(35 34 35 / 0.18);
+  --badge-brand-dot: #6b696a;
+  --badge-success-fg: #393738;
+  --badge-success-bg: rgb(57 55 56 / 0.08);
+  --badge-success-ring: rgb(47 107 69 / 0.16);
+  --badge-success-dot: #6b696a;
+  --badge-warning-fg: #393738;
+  --badge-warning-bg: rgb(57 55 56 / 0.12);
+  --badge-warning-ring: rgb(134 86 26 / 0.17);
+  --badge-warning-dot: #535152;
+  --badge-error-fg: #232223;
+  --badge-error-bg: rgb(57 55 56 / 0.14);
+  --badge-error-ring: rgb(159 58 48 / 0.16);
+  --badge-error-dot: #393738;
+
+  --ink: #232220;
+  --ink-muted: #5e5c5d;
+  --ink-warning: #393738;
+  --placeholder: #ededed;
+  --placeholder-border: #c6c6c6;
+  --placeholder-fg: #5e5c5d;
+  --placeholder-block: #d5d5d5;
+  --parent: #6b696a;
+  --parent-soft: #a3a1a2;
+  --dpi-low: #393738;
+  --dpi-warn: #535152;
+  --on-dark-warning: #ededed;
+  --presentation: #0d0d0d;
+  --terminal: #161616;
+  --terminal-fg: #e6e6e6;
+  --parent-fg: #4f4d4e;
+  --parent-tint: #efefef;
+  --parent-tint-fg: #393738;
+
+  --motion-duration-fast: 100ms;
+  --motion-duration: 200ms;
+  --motion-press-scale: 0.98;
+
+  color-scheme: light;
+}
+
+html[data-density='compact'] {
+  --spacing: 0.2rem;
+  --text-sm: 12.5px;
+  --text-xs: 11.5px;
+  --thumb: 80px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-fast: 0ms;
+    --motion-duration: 0ms;
+    --motion-press-scale: 1;
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-exit: 0ms;
+  }
+}
