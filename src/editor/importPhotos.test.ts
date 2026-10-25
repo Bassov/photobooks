@@ -560,7 +560,8 @@ describe('importPhotoFiles', () => {
     const file = new File([new Uint8Array([1])], 'bad.jpg', {
       type: 'image/jpeg',
     })
-    const result = await importPhotoFiles([file])
+    const onDecodeError = vi.fn()
+    const result = await importPhotoFiles([file], { onDecodeError })
     for (const cb of callbacks) {
       cb(0)
     }
@@ -568,6 +569,12 @@ describe('importPhotoFiles', () => {
     expect(getGalleryIdsSnapshot()).toEqual([])
     expect(getSelectedAssetId()).toBeNull()
     expect(getAssetSource(result.errors[0]?.assetId ?? '')).toBeUndefined()
+    expect(onDecodeError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'decode-failed',
+        name: 'bad.jpg',
+      }),
+    )
   })
 
   it('onError removes a flushed id, placement, selection; move source clears via store', async () => {

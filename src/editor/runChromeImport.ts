@@ -35,8 +35,25 @@ export async function runChromeImport(
       options.onProgress(latest)
     })
   }
+  const reportedErrorIds = new Set<string>()
+  const reportErrors = (errors: readonly ImportFileError[]): void => {
+    const fresh = errors.filter((error) => {
+      if (reportedErrorIds.has(error.id)) {
+        return false
+      }
+      reportedErrorIds.add(error.id)
+      return true
+    })
+    if (fresh.length === 0) {
+      return
+    }
+    options.onErrors(fresh)
+  }
   const result = await importPhotoFiles(files, {
     onProgress,
+    onDecodeError: (error) => {
+      reportErrors([error])
+    },
     source: options.source ?? 'folder',
     ...(options.sourceRootId !== undefined
       ? { sourceRootId: options.sourceRootId }
@@ -57,8 +74,10 @@ export async function runChromeImport(
   if (raf !== 0) {
     cancelAnimationFrame(raf)
   }
-  options.onErrors(result.errors)
-  if (result.errors.length === 0) {
+  reportErrors(result.errors)
+  if (reportedErrorIds.size === 0) {
+    // Keep the empty call so callers can clear toasts / reset error UI.
+    options.onErrors([])
     options.onProgress(null)
     return result
   }

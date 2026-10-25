@@ -50,6 +50,12 @@ export type ImportProgress = ImportBatchState
 
 export interface ImportPhotoOptions {
   onProgress?: (state: ImportProgress) => void
+  /**
+   * Fired when a non-HEIC decode fails (including deferred lazy JPEG after the
+   * batch return). Callers that surface import-errors MUST listen here — the
+   * batch result alone can miss late failures.
+   */
+  onDecodeError?: (error: ImportFileError) => void
   /** When set, overrides `isLibraryBacked()` for identity registration. */
   libraryBacked?: boolean
   sourceRootId?: string
@@ -217,22 +223,24 @@ function discardFailedImport(assetId: string): void {
 function importDecodeBatchOptions(
   report: (state: ImportBatchState) => void,
   heicAssetIds: ReadonlySet<string>,
+  onDecodeError: ((error: ImportFileError) => void) | undefined,
 ): {
   onProgress: (state: ImportBatchState) => void
   priority: 'prefetch'
   onResult: typeof applyImportResult
-  onError: (assetId: string) => void
+  onError: (assetId: string, error: ImportFileError) => void
 } {
   return {
     onProgress: report,
     priority: 'prefetch',
     onResult: applyImportResult,
-    onError: (assetId) => {
+    onError: (assetId, error) => {
       // HEIC placeholders stay in the gallery when decode is unsupported.
       if (heicAssetIds.has(assetId)) {
         return
       }
       discardFailedImport(assetId)
+      onDecodeError?.(error)
     },
   }
 }
@@ -409,7 +417,7 @@ async function importPhotoFilesInner(
     // body read). Deferred JPEG/HEIC seed when they later decode into now.
     const immediateOutcome = await runImportBatch(
       immediate,
-      importDecodeBatchOptions(report, heicAssetIds),
+      importDecodeBatchOptions(report, heicAssetIds, options.onDecodeError),
     )
 
     return {
