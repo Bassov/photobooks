@@ -4,7 +4,7 @@
 import { chromium } from "playwright-core"
 import fs from "node:fs"
 import { chromePath } from "./chrome.mjs"
-const url = "file://" + new URL("../dist/index.html", import.meta.url).pathname
+const url = "file://" + new URL("../../dist/uikit/index.html", import.meta.url).pathname
 const out = process.argv[2] ?? "shots"; fs.mkdirSync(out, { recursive: true })
 const pages = JSON.parse(fs.readFileSync(new URL("../src/kit/pages.json", import.meta.url)))
 const all = pages.map((p) => p.slug)

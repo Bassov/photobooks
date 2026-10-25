@@ -8,7 +8,7 @@
 import { chromium } from "playwright-core"
 import fs from "node:fs"
 import { chromePath } from "./chrome.mjs"
-const url = "file://" + new URL("../dist/index.html", import.meta.url).pathname
+const url = "file://" + new URL("../../dist/uikit/index.html", import.meta.url).pathname
 const pages = JSON.parse(fs.readFileSync(new URL("../src/kit/pages.json", import.meta.url)))
 const screens = JSON.parse(fs.readFileSync(new URL("../src/kit/screens.json", import.meta.url)))
 const screenIds = screens.map((s) => s.id)
@@ -1264,7 +1264,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   // P2-10 #/full/* loads without a failed request (favicon) — over http, like the reviewer
   {
     const http = await import("node:http"); const path = await import("node:path")
-    const root = new URL("../dist", import.meta.url).pathname
+    const root = new URL("../../dist/uikit", import.meta.url).pathname
     const srv = http.createServer((q, s) => { const f = path.join(root, decodeURIComponent(q.url.split("?")[0]) === "/" ? "index.html" : decodeURIComponent(q.url.split("?")[0])); fs.readFile(f, (e, b) => { if (e) { s.writeHead(404); s.end() } else { s.writeHead(200, { "content-type": f.endsWith(".js") ? "text/javascript" : f.endsWith(".css") ? "text/css" : f.endsWith(".html") ? "text/html" : "application/octet-stream" }); s.end(b) } }) })
     await new Promise((r) => srv.listen(0, r)); const port = srv.address().port
     const p2 = await browser.newPage(); const fails = []
