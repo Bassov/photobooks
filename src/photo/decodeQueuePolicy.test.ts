@@ -3,6 +3,8 @@ import {
   backoffConcurrency,
   compareDecodeJobs,
   DECODE_POOL_CAP,
+  DECODE_POOL_CAP_IDLE,
+  DECODE_POOL_CAP_IMPORT,
   decodeLaneFor,
   decodeWorkerCount,
   isNowPriority,
@@ -18,14 +20,24 @@ describe('decodeQueuePolicy', () => {
     expect(resolveDecodeCores(8)).toBe(8)
   })
 
-  it('sizes decode pool as min(4, max(1, hw-1))', () => {
+  it('sizes idle pool as min(4, max(1, hw-1)) and import higher', () => {
+    expect(DECODE_POOL_CAP_IDLE).toBe(4)
+    expect(DECODE_POOL_CAP_IMPORT).toBe(8)
+    expect(DECODE_POOL_CAP).toBe(DECODE_POOL_CAP_IMPORT)
     expect(decodeWorkerCount(undefined)).toBe(1)
     expect(decodeWorkerCount(0)).toBe(1)
     expect(decodeWorkerCount(1)).toBe(1)
     expect(decodeWorkerCount(2)).toBe(1)
     expect(decodeWorkerCount(3)).toBe(2)
-    expect(decodeWorkerCount(5)).toBe(DECODE_POOL_CAP)
-    expect(decodeWorkerCount(32)).toBe(DECODE_POOL_CAP)
+    expect(decodeWorkerCount(5)).toBe(DECODE_POOL_CAP_IDLE)
+    expect(decodeWorkerCount(32)).toBe(DECODE_POOL_CAP_IDLE)
+    expect(decodeWorkerCount(5, { importActive: true })).toBe(4)
+    expect(decodeWorkerCount(9, { importActive: true })).toBe(
+      DECODE_POOL_CAP_IMPORT,
+    )
+    expect(decodeWorkerCount(32, { importActive: true })).toBe(
+      DECODE_POOL_CAP_IMPORT,
+    )
   })
 
   it('treats only visible and zoom as now priorities', () => {

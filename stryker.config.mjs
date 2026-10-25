@@ -17,6 +17,7 @@ const config = {
     '!src/**/*.d.ts',
     '!src/**/*.test-helpers.ts',
     '!src/core/testing/**',
+    // Vite needs static Worker options; Stryker instrumentation breaks that parse.
     '!src/photo/photo.worker.ts',
     '!src/project/fsa/bookLoad.worker.ts',
     '!src/App.tsx',

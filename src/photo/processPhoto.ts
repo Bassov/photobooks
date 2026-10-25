@@ -40,6 +40,11 @@ export interface PhotoWorkerSuccess {
   /** Present when `dualTiers` — working pasteboard preview (1280 WebP). */
   workingBuffer?: ArrayBuffer
   workingMimeType?: string
+  /**
+   * Original file body read for this job — transferred back so the main thread
+   * can seed the library without a second full-file `arrayBuffer`.
+   */
+  sourceBuffer?: ArrayBuffer
 }
 
 export interface PhotoWorkerFailure {
@@ -220,6 +225,7 @@ export async function processPhotoRequest(
           previewMimeType: thumb.mimeType,
           workingBuffer: working.buffer,
           workingMimeType: working.mimeType,
+          sourceBuffer: buffer,
         }
       }
 
@@ -238,6 +244,7 @@ export async function processPhotoRequest(
         orientation,
         previewBuffer: preview.buffer,
         previewMimeType: preview.mimeType,
+        sourceBuffer: buffer,
       }
     } finally {
       bitmap.close()

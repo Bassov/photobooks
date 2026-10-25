@@ -1,7 +1,6 @@
 import { measureHandlerSync } from '../perf/measureHandler'
 import {
   runImportBatch,
-  shouldDeferHeicDecode,
   type ImportBatchState,
   createImportFileError,
   type ImportFileError,
@@ -32,7 +31,6 @@ import {
 import { getSelectedAssetId, setSelectedAssetId } from './gallerySelection'
 import {
   buildReuseIndex,
-  createBodyReadGate,
   IMPORT_BODY_READ_CAP,
   mapWithConcurrency,
   relativePathFor,
@@ -40,7 +38,6 @@ import {
 } from './importBodyReads'
 import { tryPatchManifestFromAsset } from './folderManifestWrite'
 import { isLibraryBacked } from './projectSession'
-import { yieldForPaint } from './relink/yieldForPaint'
 import { seedWorkingPreview } from '../photo/tierCache'
 import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
 import { trackHashJob } from './pendingHashes'
@@ -128,6 +125,7 @@ function applyImportResult(result: {
   previewMimeType: string
   workingBuffer?: ArrayBuffer
   workingMimeType?: string
+  sourceBuffer?: ArrayBuffer
 }): void {
   const prior = getBookStoreSnapshot().sessionMeta.get(result.assetId)
   // Skip when session meta already matches decode output — including the
@@ -178,7 +176,7 @@ function applyImportResult(result: {
       ),
     )
   }
-  // Lazy HEIC: body seed was skipped while deferred; seed once decode lands.
+  // Library seed once decode lands — reuse worker body when present (no second read).
   const asset = getBookStoreSnapshot().book.assets[result.assetId]
   const file = getAssetSource(result.assetId)
   const sourceRootId = asset?.sourceRootId
@@ -186,16 +184,19 @@ function applyImportResult(result: {
   if (
     file !== undefined &&
     sourceRootId !== undefined &&
-    relativePath !== undefined &&
-    isKnownHeicFile(file)
+    relativePath !== undefined
   ) {
-    void seedAndHashEntry({
+    const seedOptions: Parameters<typeof seedAndHashEntry>[0] = {
       assetId: result.assetId,
       file,
       relativePath,
       sourceRootId,
       memorySource: memorySourceForRoot(sourceRootId),
-    })
+    }
+    if (result.sourceBuffer !== undefined) {
+      seedOptions.bytes = result.sourceBuffer
+    }
+    void seedAndHashEntry(seedOptions)
   }
 }
 
@@ -382,7 +383,6 @@ async function importPhotoFilesInner(
       return { imported: 0, errors: earlyErrors, skipped: skippedCount }
     }
 
-    const bodyGate = createBodyReadGate(IMPORT_BODY_READ_CAP)
     const heicAssetIds = new Set(
       immediate
         .filter((entry) => isKnownHeicFile(entry.file))
@@ -397,38 +397,12 @@ async function importPhotoFilesInner(
       })
     }
 
-    const immediateBatch = runImportBatch(
+    // Library seed runs from applyImportResult with worker sourceBuffer (single
+    // body read). Deferred JPEG/HEIC seed when they later decode into now.
+    const immediateOutcome = await runImportBatch(
       immediate,
       importDecodeBatchOptions(report, heicAssetIds),
     )
-
-    const immediateOutcome = await immediateBatch
-
-    // Body seed after decode batch so scroll-during-import LoAF windows are not
-    // competing with parallel arrayBuffer + seedFile main-thread bursts.
-    if (libraryBacked && batchRootId !== undefined && immediate.length > 0) {
-      const seedConcurrency = Math.min(4, IMPORT_BODY_READ_CAP)
-      void mapWithConcurrency(immediate, seedConcurrency, async (entry) => {
-        // Idle HEIC: no full-body seed until visible ∪ book-used decode.
-        if (shouldDeferHeicDecode(entry.assetId, entry.file, 'prefetch')) {
-          return
-        }
-        await bodyGate.withBodyRead(async () => {
-          const existingRoot =
-            getBookStoreSnapshot().book.assets[entry.assetId]?.sourceRootId
-          const sourceRootId = existingRoot ?? batchRootId
-          // Seed memory source + identity-keyed DerivedCache puts (no contentHash).
-          await seedAndHashEntry({
-            assetId: entry.assetId,
-            file: entry.file,
-            relativePath: entry.relativePath,
-            sourceRootId,
-            memorySource: memorySourceForRoot(sourceRootId),
-          })
-        })
-        await yieldForPaint()
-      })
-    }
 
     return {
       imported: immediateOutcome.results.length,

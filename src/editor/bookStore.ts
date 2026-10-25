@@ -16,7 +16,7 @@ import {
   makePainterFixture,
   PAINTER_ASSET_IDS,
 } from '../core/testing/painterFixture'
-import { setBookUsedAssetIds } from '../photo/assetPool'
+import { setBookUsedAssetIds, setDecodeImportActive } from '../photo/assetPool'
 import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
 import { setEditorStatus, unplacedFromSpreadStatus } from './editorStatus'
@@ -663,6 +663,7 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
     importRunning: running,
     importExpectedCount: running ? expectedCount : 0,
   }
+  setDecodeImportActive(running)
   notifyAffectedSpreads(prev, state)
   if (!running) {
     // Import ended: deliver any coalesced hash-patch emit before the gallery
@@ -893,6 +894,7 @@ export function resetBookStore(next?: BookStoreInit): void {
         importRunning: false,
         importExpectedCount: 0,
       }
+  setDecodeImportActive(state.importRunning)
   pendingGalleryIds = []
   pendingMeta = new Map()
   pendingAssetRecords = new Map()

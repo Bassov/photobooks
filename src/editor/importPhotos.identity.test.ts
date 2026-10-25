@@ -36,7 +36,6 @@ vi.mock('../photo/assetPool', async () => {
   }
 })
 
-import { IMPORT_BODY_READ_CAP } from './importBodyReads'
 import { importPhotoFiles } from './importPhotos'
 import * as pendingHashes from './pendingHashes'
 import * as seedLibraryImport from './seedLibraryImport'
@@ -529,7 +528,7 @@ describe('importPhotoFiles library identity', () => {
     })
   })
 
-  it('enqueues and starts decode before body reads finish; caps in-flight reads', async () => {
+  it('enqueues gallery and starts decode without a second full-body seed read', async () => {
     const storage = createMemoryLibraryStorage()
     await attachLibraryForTests({
       storage,
@@ -537,42 +536,67 @@ describe('importPhotoFiles library identity', () => {
     })
     await createBookInLibrary()
 
-    let pendingReads = 0
-    let peakPending = 0
-    const files = Array.from({ length: 24 }, (_, i) =>
+    let bodyReads = 0
+    const files = Array.from({ length: 8 }, (_, i) =>
       neverResolvingFile(`slow-${String(i).padStart(2, '0')}.jpg`, () => {
-        pendingReads += 1
-        peakPending = Math.max(peakPending, pendingReads)
+        bodyReads += 1
       }),
     )
 
     let batchStarted = false
-    runImportBatch.mockImplementation((items: unknown[]) => {
-      batchStarted = true
-      expect(items.length).toBe(24)
-      // Resolve decode immediately; capped body reads start afterward.
-      return Promise.resolve({ results: [], errors: [] })
-    })
+    const seedSpy = vi.spyOn(seedLibraryImport, 'seedAndHashEntry')
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+            sourceBuffer?: ArrayBuffer
+          }) => void
+        },
+      ) => {
+        batchStarted = true
+        expect(items.length).toBe(8)
+        for (const item of items) {
+          const sourceBuffer = new Uint8Array([1, 2, 3]).buffer
+          options?.onResult?.({
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 10,
+            correctedHeight: 10,
+            orientation: 1,
+            previewBuffer: new Uint8Array([9]).buffer,
+            previewMimeType: 'image/webp',
+            sourceBuffer,
+          })
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
 
-    void importPhotoFiles(files, {
+    await importPhotoFiles(files, {
       libraryBacked: true,
       sourceRootId: 'root-slow',
     })
 
     await vi.waitFor(() => {
-      expect(getGalleryIdsSnapshot().length).toBeGreaterThan(0)
+      expect(getGalleryIdsSnapshot().length).toBe(8)
     })
+    expect(batchStarted).toBe(true)
     await vi.waitFor(() => {
-      expect(batchStarted).toBe(true)
-    })
-    await vi.waitFor(() => {
-      expect(peakPending).toBeGreaterThan(0)
+      expect(seedSpy).toHaveBeenCalled()
     })
     expect(
-      peakPending,
-      `observed peak in-flight body reads ${String(peakPending)}`,
-    ).toBeLessThanOrEqual(IMPORT_BODY_READ_CAP)
-    expect(pendingReads).toBeLessThanOrEqual(IMPORT_BODY_READ_CAP)
+      seedSpy.mock.calls.every((call) => call[0].bytes !== undefined),
+    ).toBe(true)
+    // Worker-provided bytes must skip File.arrayBuffer on the seed path.
+    expect(bodyReads).toBe(0)
   })
 
   it('defaults libraryBacked from the session and mints a root-* id', async () => {
@@ -796,6 +820,109 @@ describe('importPhotoFiles library identity', () => {
       expect(spy).toHaveBeenCalled()
     })
     spy.mockRestore()
+  })
+
+  it('skips library seed when decode result lacks relativePath identity', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    const seedSpy = vi.spyOn(seedLibraryImport, 'seedAndHashEntry')
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+            sourceBuffer?: ArrayBuffer
+          }) => void
+        },
+      ) => {
+        for (const item of items) {
+          // Strip relativePath so applyImportResult must refuse to seed.
+          const book = getBookStoreSnapshot().book
+          const asset = book.assets[item.assetId]
+          if (asset !== undefined) {
+            delete (asset as { relativePath?: string }).relativePath
+          }
+          options?.onResult?.({
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 10,
+            correctedHeight: 10,
+            orientation: 1,
+            previewBuffer: new Uint8Array([1]).buffer,
+            previewMimeType: 'image/webp',
+            sourceBuffer: new Uint8Array([2]).buffer,
+          })
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
+    await importPhotoFiles([tinyJpeg('no-path.jpg')], {
+      libraryBacked: true,
+      sourceRootId: 'root-no-path',
+    })
+    expect(seedSpy).not.toHaveBeenCalled()
+  })
+
+  it('seeds without bytes when worker omits sourceBuffer', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    const seedSpy = vi
+      .spyOn(seedLibraryImport, 'seedAndHashEntry')
+      .mockResolvedValue(undefined)
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        for (const item of items) {
+          options?.onResult?.({
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 10,
+            correctedHeight: 10,
+            orientation: 1,
+            previewBuffer: new Uint8Array([1]).buffer,
+            previewMimeType: 'image/webp',
+          })
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
+    await importPhotoFiles([tinyJpeg('no-src.jpg')], {
+      libraryBacked: true,
+      sourceRootId: 'root-no-src',
+    })
+    await vi.waitFor(() => {
+      expect(seedSpy).toHaveBeenCalled()
+    })
+    expect(
+      seedSpy.mock.calls.every((call) => call[0].bytes === undefined),
+    ).toBe(true)
   })
 
   it('does not seed deferred HEIC body reads during prefetch import', async () => {
