@@ -27,7 +27,7 @@ describe('findCssTokenViolations', () => {
   })
 
   it('skips token file path', () => {
-    const tokens = path.join(ROOT, 'src', 'ui', 'tokens.css')
+    const tokens = path.join(ROOT, 'styles', 'tokens.css')
     const css = `:root { --x: #fff; font-size: 12px; }`
     expect(findCssTokenViolations(tokens, css)).toEqual([])
   })
@@ -43,22 +43,22 @@ describe('muted-foreground AA lock', () => {
   it('reads the first --muted-foreground hex', () => {
     expect(
       readMutedForegroundLight(
-        ':root { --muted-foreground: #6A6761; } .other { --muted-foreground: #9a968f; }',
+        ':root { --muted-foreground: #535152; } .other { --muted-foreground: #9a968f; }',
       ),
-    ).toBe('#6a6761')
+    ).toBe('#535152')
     expect(readMutedForegroundLight('.x { color: red; }')).toBeNull()
   })
 
   it('accepts the product tokens.css light muted-foreground', () => {
     expect(checkMutedForegroundAa(ROOT)).toEqual([])
-    expect(MUTED_FOREGROUND_LIGHT_AA).toBe('#6a6761')
+    expect(MUTED_FOREGROUND_LIGHT_AA).toBe('#535152')
   })
 
   it('flags a lighter muted-foreground that would break AA', () => {
     const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-fixture')
-    fs.mkdirSync(path.join(tmp, 'src', 'ui'), { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'styles'), { recursive: true })
     fs.writeFileSync(
-      path.join(tmp, 'src', 'ui', 'tokens.css'),
+      path.join(tmp, 'styles', 'tokens.css'),
       ':root { --muted-foreground: #74716b; }\n',
       'utf8',
     )
@@ -77,9 +77,9 @@ describe('muted-foreground AA lock', () => {
 
   it('flags tokens.css without --muted-foreground', () => {
     const tmp = path.join(ROOT, '.cache', 'muted-fg-aa-empty')
-    fs.mkdirSync(path.join(tmp, 'src', 'ui'), { recursive: true })
+    fs.mkdirSync(path.join(tmp, 'styles'), { recursive: true })
     fs.writeFileSync(
-      path.join(tmp, 'src', 'ui', 'tokens.css'),
+      path.join(tmp, 'styles', 'tokens.css'),
       ':root { --foreground: #1f1e1c; }\n',
       'utf8',
     )

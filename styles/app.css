@@ -1,4 +1,9 @@
-@import './ui/tokens.css';
+/* Theme + utilities only — skip Tailwind preflight so hand-CSS screens stay CI-green. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@import './tokens.css';
 
 *,
 *::before,

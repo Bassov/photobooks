@@ -19,6 +19,12 @@ describe('SpecimenPage', () => {
     render(<SpecimenPage />)
     expect(screen.getByTestId('specimen')).toBeTruthy()
     expect(screen.getByRole('heading', { name: '?specimen' })).toBeTruthy()
+    expect(screen.getByTestId('specimen-tw-bridge')).toBeTruthy()
+    expect(screen.getByTestId('tw-bg-chrome').className).toContain('bg-chrome')
+    expect(screen.getByTestId('tw-bg-sel').className).toContain('bg-sel')
+    expect(screen.getByTestId('tw-text-muted').className).toContain(
+      'text-muted-foreground',
+    )
     expect(screen.getByText('Semantic colour roles')).toBeTruthy()
     expect(screen.getByText('chrome')).toBeTruthy()
     expect(
