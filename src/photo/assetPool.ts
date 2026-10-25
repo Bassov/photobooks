@@ -28,6 +28,7 @@ import {
 } from './decodeScheduler'
 
 export { noteDecodeScrollActivity } from './decodeScrollQuiet'
+import { createDecodeWorker } from './createDecodeWorker'
 import { isKnownHeicFile } from './heic'
 import { isJpegLikeFile } from './mime'
 import { THUMB_MAX_EDGE } from './photoEdges'
@@ -137,15 +138,18 @@ function hardwareConcurrencyOrUndefined(): number | undefined {
     : undefined
 }
 
-/** Max worker slots to allocate (import ceiling). */
-function poolSlotCount(): number {
+/**
+ * Worker slot count — always the import ceiling so raising importActive can
+ * use more slots without recreating the pool.
+ */
+function poolSize(): number {
   return decodeWorkerCount(hardwareConcurrencyOrUndefined(), {
     importActive: true,
   })
 }
 
-/** Effective base concurrency for the current import/idle mode. */
-function poolSize(): number {
+/** Effective decode concurrency for the current import/idle mode (+ backoff). */
+function effectiveBaseConcurrency(): number {
   return decodeWorkerCount(hardwareConcurrencyOrUndefined(), {
     importActive: decodeImportActive,
   })
@@ -387,25 +391,20 @@ export function getQueuedDecodeAssetIds(): readonly string[] {
   return queue.map((job) => job.assetId)
 }
 
-function createDecodeWorker(): Worker {
-  return new Worker(
-    /* @vite-ignore */ new URL('./photo.worker.ts', import.meta.url),
-    { type: 'module' },
-  )
-}
-
 function ensureSlots(): void {
-  const size = poolSlotCount()
-  while (decodeSlots.length < size) {
-    decodeSlots.push({
-      worker: createDecodeWorker(),
-      busy: false,
-    })
+  if (decodeSlots.length === 0) {
+    const size = poolSize()
+    for (let i = 0; i < size; i += 1) {
+      decodeSlots.push({
+        worker: createDecodeWorker(),
+        busy: false,
+      })
+    }
   }
 }
 
 function effectiveSlotLimit(): number {
-  return backoffConcurrency(poolSize(), {
+  return backoffConcurrency(effectiveBaseConcurrency(), {
     longTaskPressure,
     memoryPressure,
   })

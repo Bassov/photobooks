@@ -10,6 +10,10 @@
 ## Manual test scenarios
 
 1. Empty gallery → Choose photo folder → first viewport shows EXIF/placeholder tiles (happy).
+   - OK: e2e `long gallery scrolls inside the filmstrip` (gallery fills + `assertNamedScrollport('filmstrip-scroll')` + `assertDocumentFitsViewport`).
 2. Scroll filmstrip mid and to end during/after import — visible tiles upgrade; only filmstrip scrollport scrolls (no page H/V).
+   - OK: e2e `scroll mid-import keeps earlier revealed tile ids`.
 3. Place a photo on pasteboard — 1280 working preview appears (progressive thumb ok).
+   - OK: covered by existing ConnectedSpreadView/`requestTier` unit path; no new chrome (`ui-review`: pre-existing FilmstripStatus a11y residual out of scope).
 4. N/A synthetic: unit coverage when large multi-MB fixtures unavailable locally.
+   - OK: unit suites for lazy JPEG / defer 1280 / single body-read / import concurrency.

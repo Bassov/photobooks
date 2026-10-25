@@ -41,8 +41,8 @@ export interface PhotoWorkerSuccess {
   workingBuffer?: ArrayBuffer
   workingMimeType?: string
   /**
-   * Original file body read for this job — transferred back so the main thread
-   * can seed the library without a second full-file `arrayBuffer`.
+   * Original file body read for this job — returned to the main thread
+   * (structured clone) so library seed can skip a second full-file `arrayBuffer`.
    */
   sourceBuffer?: ArrayBuffer
 }
