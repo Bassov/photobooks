@@ -45,10 +45,6 @@ export const templates: Template[] = [
   { id: "t-pano", name: "Panorama", count: 0, group: "p", frames: [{ x: 0, y: 22, w: 100, h: 56 }] },
   { id: "t-three", name: "Three across", count: 0, group: "3", frames: [{ x: 4, y: 20, w: 28, h: 60 }, { x: 36, y: 20, w: 28, h: 60 }, { x: 68, y: 20, w: 28, h: 60 }] },
   { id: "t-margin", name: "Framed single", count: 0, group: "1", frames: [{ x: 54, y: 14, w: 42, h: 72 }] },
-  { id: "t-six", name: "Contact grid", count: 0, group: "4", frames: [{ x: 4, y: 8, w: 13, h: 40 }, { x: 18.5, y: 8, w: 13, h: 40 }, { x: 33, y: 8, w: 13, h: 40 }, { x: 4, y: 52, w: 13, h: 40 }, { x: 18.5, y: 52, w: 13, h: 40 }, { x: 33, y: 52, w: 13, h: 40 }, { x: 54, y: 8, w: 42, h: 84 }] },
-  { id: "t-stack", name: "Stacked pair", count: 0, group: "2", frames: [{ x: 4, y: 8, w: 42, h: 40 }, { x: 4, y: 52, w: 42, h: 40 }, { x: 50, y: 0, w: 50, h: 100 }] },
-  { id: "t-wide", name: "Wide + caption", count: 0, group: "2", frames: [{ x: 0, y: 0, w: 100, h: 62 }, { x: 54, y: 68, w: 42, h: 24 }] },
-  { id: "t-quad", name: "Four squares", count: 0, group: "4", frames: [{ x: 5, y: 10, w: 19, h: 38 }, { x: 26, y: 10, w: 19, h: 38 }, { x: 5, y: 52, w: 19, h: 38 }, { x: 26, y: 52, w: 19, h: 38 }, { x: 55, y: 10, w: 40, h: 80 }] },
   { id: "t-offset", name: "Offset pair", count: 0, group: "2", frames: [{ x: 6, y: 6, w: 38, h: 60 }, { x: 56, y: 34, w: 38, h: 60 }] },
 ]
 export const T = (id: string) => templates.find((t) => t.id === id)!
@@ -68,11 +64,11 @@ export const BOOK_TITLE = "Summer by the sea"
 /** spread = two 200 × 200 mm pages */
 export const SPREAD_MM = { w: 400, h: 200 }
 export const books = [
-  { title: "Summer by the sea", cover: "p16", spreads: 8, edited: "2 hours ago", folder: "~/Pictures/Summer 2025" },
+  { title: "Summer by the sea", cover: "p16", spreads: 10, edited: "2 hours ago", folder: "~/Pictures/Summer 2025" },
   { title: "Mountains, July", cover: "p01", spreads: 18, edited: "Yesterday", folder: "~/Pictures/Mountains" },
   { title: "Family album 2025", cover: "p15", spreads: 24, edited: "Oct 2", folder: "~/Pictures/Family" },
   { title: "Road trip west", cover: "p08", spreads: 12, edited: "Sep 28", folder: "~/Pictures/Road trip" },
   { title: "Forest walks", cover: "p10", spreads: 10, edited: "Sep 14", folder: "~/Pictures/Forest" },
-  { title: "Vineyards & coffee", cover: "p06", spreads: 6, edited: "Aug 30", folder: "~/Pictures/Autumn" },
+  { title: "Vineyards & coffee", cover: "p06", spreads: 11, edited: "Aug 30", folder: "~/Pictures/Autumn" },
 ]
 templates.forEach((t) => { t.count = t.frames.length; t.group = t.id === "t-pano" ? "p" : t.count >= 4 ? "4" : String(t.count) })

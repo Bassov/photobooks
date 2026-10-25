@@ -3,7 +3,7 @@
  * Only layout/density decisions live here; behaviour is the JollyUI/RAC component's.
  */
 import * as React from "react"
-import { Slider, SliderTrack, SliderFillTrack, SliderThumb, SliderOutput } from "@/components/ui/slider"
+import { Slider, SliderTrack, SliderFillTrack, SliderThumb, SliderOutput, SliderValueField } from "@/components/ui/slider"
 import { SliderStateContext } from "react-aria-components"
 import { Label } from "@/components/ui/field"
 import { Switch } from "@/components/ui/switch"
@@ -15,21 +15,21 @@ import { cn } from "@/lib/utils"
 function RangeFill() {
   const state = React.useContext(SliderStateContext)!
   const a = state.getThumbPercent(0) * 100, b = state.getThumbPercent(1) * 100
-  return <div className="absolute h-full rounded-full bg-primary" style={{ left: `${a}%`, width: `${b - a}%` }} />
+  return <div className="sl-fill absolute h-full rounded-full" style={{ left: `${a}%`, width: `${b - a}%` }} />
 }
 
 export function SliderRow({ label, className, ...props }: React.ComponentProps<typeof Slider> & { label: string }) {
   const range = Array.isArray(props.defaultValue)
   return (
-    <Slider {...props} className={cn("flex-col items-stretch gap-2.5", className as string)}>
+    <Slider {...props} className={cn("flex-col items-stretch gap-2", className as string)}>
       <div className="flex items-center justify-between">
         <Label className="text-xs font-normal text-muted-foreground">{label}</Label>
-        <SliderOutput className="text-xs font-medium tabular-nums text-foreground" />
+        {range ? <SliderOutput className="text-xs font-medium tabular-nums text-foreground" /> : <SliderValueField label={label} className="text-xs font-medium tabular-nums text-foreground" />}
       </div>
-      <SliderTrack className="h-1.5 bg-secondary dark:bg-accent">
+      <SliderTrack>
         {range ? <RangeFill /> : <SliderFillTrack />}
-        <SliderThumb index={0} className="top-1/2 size-4 border-[1.5px] shadow-xs" />
-        {range && <SliderThumb index={1} className="top-1/2 size-4 border-[1.5px] shadow-xs" />}
+        <SliderThumb index={0} />
+        {range && <SliderThumb index={1} />}
       </SliderTrack>
     </Slider>
   )
@@ -37,7 +37,7 @@ export function SliderRow({ label, className, ...props }: React.ComponentProps<t
 
 export function SwitchRow({ children, ...props }: React.ComponentProps<typeof Switch>) {
   return (
-    <Switch size="sm" {...props} className="w-full flex-row-reverse justify-between gap-3 text-[13px] font-normal">
+    <Switch size="sm" {...props} className="w-full flex-row-reverse justify-between gap-3 text-sm font-normal">
       {children as React.ReactNode}
     </Switch>
   )
@@ -50,13 +50,13 @@ export function Segmented({ items, defaultValue, value, onChange, label, classNa
   return (
     <ToggleButtonGroup selectionMode="single" disallowEmptySelection defaultSelectedKeys={defaultValue ? [defaultValue] : undefined}
       selectedKeys={value !== undefined ? [value] : undefined} onSelectionChange={(k) => { const v = [...k][0]; if (v !== undefined) onChange?.(String(v)) }} aria-label={label}
-      className={cn("grid gap-0.5 rounded-lg bg-muted p-[3px] dark:bg-black/25", className)} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0,1fr))` }}>
+      className={cn("grid gap-0.5 rounded-lg bg-field p-0.5", className)} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0,1fr))` }}>
       {items.map((it) => (
         <Toggle key={it.id} id={it.id} aria-label={it.aria} size="sm"
-          className={cn(size === "sm" ? "h-[22px] text-xs" : "h-[26px] text-[13px]", "gap-1.5 rounded-[6px] px-2 leading-none text-muted-foreground [&_svg]:size-3.5",
+          className={cn(size === "sm" ? "h-6 text-xs" : "h-7 text-sm", "gap-1.5 rounded-sm px-2 leading-none text-muted-foreground [&_svg]:size-3.5",
             "data-[hovered]:bg-transparent data-[hovered]:text-foreground",
             /* v3: same selected pill as Tabs (ui/tabs.tsx) */
-            "data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-[0_1px_2px_rgb(20_20_19/.08),0_0_0_.5px_rgb(20_20_19/.06)] dark:data-[selected]:bg-accent dark:data-[selected]:shadow-[0_1px_2px_rgb(0_0_0/.4)]")}>
+            "data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-pill")}>
           {it.label}
         </Toggle>
       ))}
@@ -68,7 +68,7 @@ export function SelectRow({ label, items, defaultValue, value, onChange, classNa
   return (
     <Select defaultSelectedKey={defaultValue} selectedKey={value} onSelectionChange={(k) => k !== null && onChange?.(String(k))} className={cn("flex flex-col gap-1.5", className)}>
       <Label className="text-xs font-normal text-muted-foreground">{label}</Label>
-      <SelectTrigger className="h-8 px-2.5 text-[13px] shadow-xs data-[focus-visible]:ring-offset-0"><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-8 px-3 text-sm shadow-xs data-[focus-visible]:ring-offset-0"><SelectValue /></SelectTrigger>
       <SelectPopover><SelectListBox>{items.map(([id, l]) => <SelectItem key={id} id={id} textValue={l}>{l}</SelectItem>)}</SelectListBox></SelectPopover>
     </Select>
   )

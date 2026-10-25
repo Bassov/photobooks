@@ -3,18 +3,50 @@
 @import "./fonts/fonts.css";
 
 /* ---------------------------------------------------------------------------
-   Single Theme B (light). JollyUI components use semantic tokens only
-   (bg-background, text-muted-foreground, border-input, ring-ring, …).
+   Theming strategy (v3)
+   * src/components/ui/* — JollyUI components ported to Tailwind v4 (MIT). They use only
+     semantic tokens (bg-background, text-muted-foreground, border-input, ring-ring,
+     rounded-md, shadow-xs …), so a theme = one block of CSS variables below.
+   * `dark:` is a no-op since v5 (single Procreate-light theme); kept so ported JollyUI classes compile.
    --------------------------------------------------------------------------- */
 
 @theme {
+  /* v6: register the extra type / shadow steps so their utilities exist (text-2xs was referenced but never generated before v6) */
+  --text-2xs: 11px; --text-2xs--line-height: 1.35;
+  --text-md: 15px; --text-md--line-height: 1.45;
+  --text-subhead: 16px; --text-subhead--line-height: 1.4;
+  --text-lead: 17px; --text-lead--line-height: 1.4;
+  --text-display: 34px; --text-display--line-height: 1.1;
+  --shadow-ink-sm: 0 12px 26px -14px rgb(35 34 35 / .6);
+  --shadow-ink: 0 14px 30px -14px rgb(35 34 35 / .55);
   /* soft layered shadows (shadcn-like); static: v4 inlines shadow values into utilities */
   --shadow-xs: 0 1px 2px 0 rgb(20 20 19 / .06);
   --shadow-sm: 0 1px 3px 0 rgb(20 20 19 / .09), 0 1px 2px -1px rgb(20 20 19 / .07);
   --shadow-md: 0 4px 14px -3px rgb(20 20 19 / .13), 0 2px 4px -2px rgb(20 20 19 / .07);
   --shadow-lg: 0 14px 32px -8px rgb(20 20 19 / .20), 0 4px 8px -4px rgb(20 20 19 / .08);
+  /* v4.1 named shadows (audit 2.1: no shadow-[…] literals) */
+  --shadow-hairline: 0 0 0 1px rgb(0 0 0 / .08);
+  --shadow-thumb: 0 1px 2px rgb(0 0 0 / .14);
+  /* v4.2: role shadows alias the base scale so depth changes in one place */
+  /* proto: layered soft shadow for cards on the app surface (hairline + contact + ambient) */
+  /* proto-4: book cover mockup (physical object) */
+  --shadow-book: 0 1px 2px rgb(0 0 0 / .06), 0 8px 24px rgb(0 0 0 / .08);
+  --shadow-book-hover: 0 2px 4px rgb(0 0 0 / .08), 0 16px 36px rgb(0 0 0 / .14);
+  /* proto-3: white-on-white cards: visible hairline edge + contact + ambient shadow */
+  --shadow-card: 0 0 0 1px rgb(20 20 19 / .10), 0 1px 2px rgb(20 20 19 / .06), 0 6px 16px -6px rgb(20 20 19 / .12);
+  --shadow-card-hover: 0 0 0 1px rgb(20 20 19 / .14), 0 2px 4px rgb(20 20 19 / .08), 0 14px 30px -10px rgb(20 20 19 / .20);
+  --shadow-float: var(--shadow-md);
+  --shadow-stage: var(--shadow-lg);
+  --shadow-stage-dark: 0 20px 60px rgb(0 0 0 / .6);
+  --shadow-pill: 0 1px 2px rgb(20 20 19 / .08), 0 0 0 .5px rgb(20 20 19 / .06);
+  --shadow-ring-white: 0 0 0 1px rgba(255, 255, 255, .9);
+  --shadow-inset-hairline: inset 0 0 0 1px rgb(0 0 0 / .07);
+  --shadow-page: var(--page-shadow);
+  --radius-2xs: 2px;
+  --radius-device: 34px; /* phone-frame mock on the unsupported-browser screen */
 }
 
+@custom-variant dark (&:where([data-theme=__no-dark-theme__], [data-theme=__no-dark-theme__] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -30,17 +62,50 @@
   --color-destructive-solid-hover: var(--destructive-solid-hover);
   --color-ring: var(--ring);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted-foreground-on-app: var(--muted-foreground-on-app);
+  --color-accent-text: var(--accent-text);
   --color-subtle: var(--subtle);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-control: var(--control);
+  --color-success-fg: var(--success-fg);
+  --color-warning-fg: var(--warning-fg);
+  --color-bleed: var(--bleed);
+  --color-guide-solid: var(--guide-solid);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-warning: var(--ink-warning);
+  --color-placeholder: var(--placeholder);
+  --color-placeholder-border: var(--placeholder-border);
+  --color-placeholder-fg: var(--placeholder-fg);
+  --color-placeholder-block: var(--placeholder-block);
+  --color-parent: var(--parent);
+  --color-parent-soft: var(--parent-soft);
+  --color-dpi-low: var(--dpi-low);
+  --color-dpi-warn: var(--dpi-warn);
+  --color-on-dark-warning: var(--on-dark-warning);
+  --color-presentation: var(--presentation);
+  --color-terminal: var(--terminal);
+  --color-terminal-fg: var(--terminal-fg);
+  --color-portrait: var(--portrait);
+  --color-field: var(--field); --color-sel: #CACACA; --color-mark: #8E8E8E; --color-meter: #A8A8A8; --color-tag: #535152;
+  --color-crop: var(--crop);
+  --color-parent-fg: var(--parent-fg);
+  --color-parent-tint: var(--parent-tint);
+  --color-parent-tint-fg: var(--parent-tint-fg);
+  --color-bleed-fg: var(--bleed-fg);
   --color-chrome: var(--chrome);
   --color-canvas: var(--canvas);
+  --color-app: var(--app);
+  --color-card-edge: var(--card-edge);
+  --color-cover-empty: var(--cover-empty); --color-step-tile: var(--step-tile);
   --color-paper: var(--paper);
   --color-select: var(--select);
   --color-guide: var(--guide);
@@ -51,61 +116,116 @@
   --font-display: var(--font-heading);
 }
 
-/* ---------- Theme B (light): neutral photo-first ---------- */
-:root {
-  /* warm-neutral grays: OKLCH chroma ≤ 0.01; canvas #e9e9e8 ≈ 0.001 — never tint photos */
-  --color-neutral-50: #fafaf9;  --color-neutral-100: #f4f3f1; --color-neutral-200: #e7e5e2;
-  --color-neutral-300: #d6d3cf; --color-neutral-400: #a8a49e; --color-neutral-500: #7c7873;
-  --color-neutral-600: #5e5b57; --color-neutral-700: #474542; --color-neutral-800: #2f2e2c;
-  --color-neutral-900: #1f1e1d; --color-neutral-950: #141413;
-  /* muted slate: selection / drop target / focus only (never large surfaces) */
-  --color-slate-300: #a2b5c9; --color-slate-400: #7b93ad; --color-slate-500: #5f7894; --color-slate-600: #4b627c;
+/* ---------- v5.1: the one theme — Procreate light (palette → derivations). Single block. ---------- */
+:root, html[data-theme="procreate-light"], [data-theme="procreate-light"] {
+  /* v5.1: neutral grays (no warm tint) — never tint photos */
+  --color-neutral-50: #fafafa;  --color-neutral-100: #f2f2f2; --color-neutral-200: #e4e4e4;
+  --color-neutral-300: #d4d4d4; --color-neutral-400: #a6a6a6; --color-neutral-500: #7b7b7b;
+  --color-neutral-600: #5c5d5e; --color-neutral-700: #454647; --color-neutral-800: #2e2f2f;
+  --color-neutral-900: #1e1e1f; --color-neutral-950: #141414;
+  /* v6: slate neutralised to warm grays (no blue anywhere) */
+  --color-slate-300: #afafaf; --color-slate-400: #8b8b8b; --color-slate-500: #6a6a6a; --color-slate-600: #525252;
 
   --font-ui: "Inter Variable", Inter, sans-serif;
   --font-heading: "Lora Variable", Lora, serif;
   --heading-weight: 500;
   /* density (JollyUI default scale, slightly compact chrome via size="sm") */
   --spacing: 0.25rem;
+  /* v4.1 type scale (audit: 365 arbitrary text-[Npx] → tokens only; qa fails on text-[Npx]).
+     2xs 11 · xs 12 · sm 13 (UI default) · base 14 · lg 18 (v4.2: 15 px dropped) · xl 21 · 2xl 26 · 3xl 32 */
+  --text-2xs: 11px; --text-2xs--line-height: 1.35;
   --text-xs: 12px; --text-xs--line-height: 1.4;
-  --text-sm: 13.5px; --text-sm--line-height: 1.45;
-  --text-base: 15px; --text-lg: 18px; --text-xl: 21px; --text-2xl: 26px; --text-3xl: 32px;
+  --text-sm: 13px; --text-sm--line-height: 1.45;
+  --text-base: 14px; --text-base--line-height: 1.5;
+  --text-lg: 18px; --text-lg--line-height: 1.35;
+  --text-xl: 21px; --text-xl--line-height: 1.3;
+  --text-2xl: 26px; --text-2xl--line-height: 1.2;
+  --text-3xl: 32px; --text-3xl--line-height: 1.15;
+  /* v4.1 control heights: xs 28 (toolbar) · sm 32 (default app control) · md 36 · lg 40 (dialog / hero) */
+  --control-xs: 28px; --control-sm: 32px; --control-md: 36px; --control-lg: 40px;
+  /* v4.1 motion */
+  --duration-fast: 120ms; --duration-base: 200ms; --ease-out: cubic-bezier(.2, .7, .3, 1);
+  --duration-exit: 150ms; --ease-in: cubic-bezier(.4, 0, 1, 1); /* v4.2: exits are quicker and accelerate */
   /* shadcn radius scale: --radius drives md/lg, sm = radius-4 */
   --radius: 10px;
-  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px); --radius-2xl: calc(var(--radius) + 8px);
+  --radius-2xs: 2px; --radius-xs: 4px; --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px); /* v4.2: xl (14) = dialogs, popover cards, empty-state cards; 2xl removed */
   --panel-left: 252px; --panel-right: 300px; --topbar: 56px; --thumb: 104px; --rail: 52px;
 
-  --background: #fbfaf8; --foreground: #1f1e1c; --card: #ffffff; --popover: #ffffff;
-  --primary: #2a2927; --primary-foreground: #fbfaf8;
-  --secondary: #efede9; --muted: #f4f2ef; --muted-foreground: #6a6761; --subtle: #efede9;
-  --accent: #ebe8e3; --accent-foreground: #1f1e1c;
   /* v3: destructive = a warm brick red tuned to the neutral palette (not a signal red).
      --destructive is the text/icon colour on surfaces (AA on background/card);
      --destructive-solid is the fill used ONLY by the confirm button inside an AlertDialog. */
-  --destructive: #b3453a;
+  --destructive: #a8403a;
   --destructive-solid: #b3453a; --destructive-solid-hover: #9f3c32; --destructive-foreground: #fffaf8;
-  --border: #e6e3de; --input: #dcd8d1; --ring: #a8a39b;
-  --chrome: #fbfaf8;
-  --canvas: #e9e9e8;
-  --paper: #ffffff;
-  --select: var(--color-slate-500);
-  --guide: #2f9e9a; --grid: rgb(47 158 154 / .10); --grid-line: rgb(47 158 154 / .75);
-  --success: #3d8b5a; --warning: #b7791f;
-  --page-shadow: 0 2px 6px rgb(0 0 0 / .06), 0 12px 32px rgb(0 0 0 / .08);
+  --guide: #2f9e9a; --guide-solid: #1f7470; --bleed: #a83f6e; --grid: rgb(47 158 154 / .10); --grid-line: rgb(47 158 154 / .75);
+  /* status: --success/--warning for icons, dots, borders, fills; *-fg for text (≥ 4.5:1 on every surface) */
+  --success: #3d8b5a; --warning: #b7791f; --success-fg: #2c7346; --warning-fg: #8a5a12;
   /* v3 badge palette: low-chroma tints over the surface, AA text (≥ 5:1), hairline inset ring, status dot */
-  --badge-gray-fg: #55524d;    --badge-gray-bg: rgb(124 120 115 / .10);  --badge-gray-ring: rgb(31 30 28 / .07);   --badge-gray-dot: #a8a49e;
-  --badge-brand-fg: #40566d;   --badge-brand-bg: rgb(95 120 148 / .12);  --badge-brand-ring: rgb(75 98 124 / .16); --badge-brand-dot: #6f87a2;
-  --badge-success-fg: #2f6b45; --badge-success-bg: rgb(61 139 90 / .11); --badge-success-ring: rgb(47 107 69 / .16); --badge-success-dot: #4c9a69;
-  --badge-warning-fg: #86561a; --badge-warning-bg: rgb(183 121 31 / .13); --badge-warning-ring: rgb(134 86 26 / .17); --badge-warning-dot: #c48a34;
+  --badge-gray-fg: #4f4d4e;    --badge-gray-bg: rgb(57 55 56 / .08);  --badge-gray-ring: rgb(57 55 56 / .10);   --badge-gray-dot: #8b8b8b;
+  --badge-brand-fg: #393738;   --badge-brand-bg: rgb(35 34 35 / .12);  --badge-brand-ring: rgb(35 34 35 / .18); --badge-brand-dot: #6b696a;
+  --badge-success-fg: var(--success-fg); --badge-success-bg: rgb(61 139 90 / .11); --badge-success-ring: rgb(47 107 69 / .16); --badge-success-dot: #4c9a69;
+  --badge-warning-fg: var(--warning-fg); --badge-warning-bg: rgb(183 121 31 / .13); --badge-warning-ring: rgb(134 86 26 / .17); --badge-warning-dot: #c48a34;
   --badge-error-fg: #9f3a30;   --badge-error-bg: rgb(179 69 58 / .10);   --badge-error-ring: rgb(159 58 48 / .16);  --badge-error-dot: #c65a4e;
+  /* Procreate-light palette + derivations */
+  --t-bg: #C8CACB; --t-canvas: #C8CACB; --t-bar: #E1E1E1; --t-panel: #E1E1E1; --t-raised: #E1E1E1; --t-field: #D7D7D7; /* v6.1: 3 levels — canvas #C8CACB (dots) · chrome #E1E1E1 · controls #D7D7D7; white = paper only */ --t-text: #393738; --t-ink: #232223; --t-ink-hover: #3A3839; --t-on-ink: #F2F2F2;
+  --foreground: var(--t-text); --accent-foreground: var(--t-text);
+  --app: var(--t-bg); --canvas: var(--t-canvas); --chrome: var(--t-bar); --background: var(--t-panel);
+  --card: var(--t-raised); --popover: var(--t-raised); --cover-empty: var(--t-raised); --step-tile: var(--t-raised);
+  /* v6.1 neutral derivations (R=G=B): field #D7D7D7 for controls/inputs */
+  --field: var(--t-field); --secondary: var(--t-field); --subtle: #DADADA; --muted: #DCDCDC; --accent: #CFCFCF;
+  --border: #CDCDCD; --control: #BEBEBE; --input: #A3A3A3;
+  /* v6 grayscale: no blue anywhere. Primary = ink fill, never with an icon; selection = 2px #393738; focus = 2px #3A3839 */
+  --primary: var(--t-ink); --primary-hover: var(--t-ink-hover); --primary-foreground: var(--t-on-ink); --ring: var(--t-ink-hover); --select: var(--t-ink); /* v7: selection = 2px #232223 */
+  --card-edge: rgb(0 0 0 / .07); --dot: rgb(255 255 255 / .55); /* v6.1: proto welcome7 canvas dots */
+  --scroll-thumb-rest: #A8A8A8; --scroll-thumb: #969696; --scroll-thumb-hover: #7E7E7E;
+  --paper: #ffffff;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / .14), 0 6px 16px -6px rgb(0 0 0 / .22);
+  --shadow-card-hover: 0 2px 4px rgb(0 0 0 / .16), 0 14px 30px -10px rgb(0 0 0 / .3);
+  --muted-foreground: #535152; --muted-foreground-on-app: #535152; --accent-text: var(--t-text); --cover-empty: #CFCFCF; --shadow-book: 0 1px 1px rgb(0 0 0 / .10), 0 3px 8px rgb(0 0 0 / .10), 0 10px 22px rgb(0 0 0 / .10); --shadow-book-hover: 0 2px 3px rgb(0 0 0 / .12), 0 8px 16px rgb(0 0 0 / .12), 0 18px 36px rgb(0 0 0 / .14); --page-shadow: 0 2px 6px rgb(0 0 0 / .10), 0 12px 32px rgb(0 0 0 / .14);
+  /* v0.7.2 grayscale status (P1-4) — overrides the hued status tokens above */
+  --destructive: #393738; --destructive-solid: #232223; --destructive-solid-hover: #393738; --destructive-foreground: #F2F2F2;
+  --guide: #6b696a; --guide-solid: #535152; --bleed: #393738; --grid: rgb(83 81 82 / .10); --grid-line: rgb(83 81 82 / .6);
+  --success: #6b696a; --warning: #535152; --success-fg: #393738; --warning-fg: #393738;
+  --badge-success-fg: #393738; --badge-success-bg: rgb(57 55 56 / .08); --badge-success-dot: #6b696a;
+  --badge-warning-fg: #393738; --badge-warning-bg: rgb(57 55 56 / .12); --badge-warning-dot: #535152;
+  --badge-error-fg: #232223;   --badge-error-bg: rgb(57 55 56 / .14);   --badge-error-dot: #393738;
+  --ink-warning: #393738; --dpi-low: #393738; --dpi-warn: #535152; --on-dark-warning: #EDEDED;
+  --crop: #6b696a; --portrait: #535152; --bleed-fg: #393738;
 }
 html[data-density="compact"], .density-compact {
-  --spacing: 0.2rem; --text-sm: 12.5px; --text-xs: 11px; --thumb: 80px;
+  --spacing: 0.2rem; --text-sm: 12.5px; --text-xs: 11.5px; --thumb: 80px; /* v4.2: shift steps together, 2xs stays 11 — no two steps collapse */
+}
+
+
+/* v4.1: on-paper / canvas content tokens. Paper is always white
+   (book ink, placeholders, parent-spread accents, DPI badges, presentation backdrop, CLI sample). */
+:root, [data-theme] {
+  --ink: #232220;
+  --ink-muted: #5E5C5D;
+  --ink-warning: #845510;
+  --placeholder: #EDEDED;
+  --placeholder-border: #C6C6C6;
+  --placeholder-fg: #5E5C5D;
+  --placeholder-block: #D5D5D5;
+  --parent: #6b696a;
+  --parent-soft: #a3a1a2;
+  --dpi-low: #c2410c;
+  --dpi-warn: #a16207;
+  --on-dark-warning: #f2c46d;
+  --presentation: #0d0d0d;
+  --terminal: #161616;
+  --terminal-fg: #e6e6e6;
+  --parent-fg: #4f4d4e;
+  --parent-tint: #efefef;
+  --parent-tint-fg: #393738;
+  --portrait: #8a5a2b; /* v6: was a violet-blue, now warm brown */
+  --bleed-fg: #a83f6e;
 }
 
 
 @layer base {
-  *, ::before, ::after { border-color: var(--border); }
+  /* v0.7.1: no global border colour — surfaces separate by tone only; a border must name its colour explicitly */
+  *, ::before, ::after { border-color: transparent; }
   html, body, #root { height: 100%; }
   body {
     background: var(--background); color: var(--foreground);
@@ -114,11 +234,19 @@ html[data-density="compact"], .density-compact {
     font-feature-settings: "cv11", "ss01";
   }
   .heading { font-family: var(--font-heading); font-weight: var(--heading-weight); letter-spacing: -0.005em; }
-  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+  .eyebrow { font-size: var(--text-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+}
+
+@layer base {
+  /* v4.1: hover-revealed controls (e.g. the book card “···”) are always visible on touch screens */
+  @media (hover: none) { .reveal-on-hover { opacity: 1; } }
 }
 
 @layer components {
-  /* Badge (uui/Badge.tsx): colour comes from the --badge-<tone>-* tokens above, Theme B */
+  /* v4.1: missing-photo hatch (was an inline gradient literal in 2 places) */
+  .hatch-missing { background: repeating-linear-gradient(45deg, #E4E4E4, #E4E4E4 7px, #D7D7D7 7px, #D7D7D7 14px); }
+  .hatch-missing-sm { background: repeating-linear-gradient(45deg, #E4E4E4, #E4E4E4 3px, #D7D7D7 3px, #D7D7D7 6px); }
+  /* Badge (uui/Badge.tsx): colour comes from the --badge-<tone>-* tokens above, per theme */
   .pb-badge { background: var(--b-bg); color: var(--b-fg); box-shadow: inset 0 0 0 1px var(--b-ring); }
   .pb-badge[data-color="gray"]    { --b-bg: var(--badge-gray-bg);    --b-fg: var(--badge-gray-fg);    --b-ring: var(--badge-gray-ring);    --b-dot: var(--badge-gray-dot); }
   .pb-badge[data-color="brand"]   { --b-bg: var(--badge-brand-bg);   --b-fg: var(--badge-brand-fg);   --b-ring: var(--badge-brand-ring);   --b-dot: var(--badge-brand-dot); }
@@ -131,3 +259,51 @@ html[data-density="compact"], .density-compact {
 
 /* UI kit: monospace for checkbox ids (system stack, no download) */
 @theme { --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+
+/* v4.2: reduced motion — durations collapse, animations stop */
+@media (prefers-reduced-motion: reduce) {
+  /* v4.3 (G-04): same selectors as the token definition, so the override wins */
+  :root, html[data-theme], [data-theme] { --duration-fast: 0ms; --duration-base: 0ms; --duration-exit: 0ms; }
+  *, ::before, ::after { animation-duration: 0.01ms; animation-iteration-count: 1; transition-duration: 0.01ms; scroll-behavior: auto; }
+}
+
+/* proto: canvas dot grid + minimal scrollbars */
+@layer components {
+  .canvas-dots { background-color: var(--canvas); background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.4px); background-size: 16px 16px; background-position: 8px 8px; }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  /* v5: applied to every scroll area (not only .scroll-thin). Always-visible thin thumb. Rest 4px faint · area hover 6px · thumb hover 8px darker (10px gutter, thickness via transparent border) */
+  *::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+  *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-corner { background: transparent; }
+  *::-webkit-scrollbar-thumb { background-color: var(--scroll-thumb-rest); border: 3px solid transparent; border-radius: 99px; background-clip: content-box; min-height: 32px; min-width: 32px; }
+  *:hover::-webkit-scrollbar-thumb { border-width: 2px; background-color: var(--scroll-thumb); }
+  *::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-thumb:active { border-width: 1px; background-color: var(--scroll-thumb-hover); }
+  /* NB: no scrollbar-color / scrollbar-width here — in Chrome they override the ::-webkit-scrollbar styles */
+}
+
+/* v7 slider, variant B: 3px #CACACA track · fill #A8A8A8 (#8E8E8E dragging) · 14px #F7F7F7 knob, soft shadow, 4px halo while dragging. No black. */
+.sl-track { background: #CACACA; }
+.sl-fill { background: #A8A8A8; transition: background-color .12s; }
+.sl-track:has([data-dragging]) .sl-fill, :has(> .sl-track):has(.sl-thumb[data-dragging]) .sl-fill, :has(> .sl-track):has([data-dragging] .sl-thumb) .sl-fill { background: #8E8E8E; }
+.sl-thumb { background: #F7F7F7; box-shadow: 0 1px 3px rgb(0 0 0/.22), 0 0 0 .5px rgb(0 0 0/.06); transition: box-shadow .12s; }
+.sl-thumb[data-dragging] { box-shadow: 0 1px 3px rgb(0 0 0/.22), 0 0 0 4px rgb(0 0 0/.06); }
+.sl-thumb[data-focus-visible] { outline: 2px solid #535152; outline-offset: 2px; }
+input[type=range].e7-range::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, #A8A8A8 var(--v), #CACACA var(--v)); }
+input[type=range].e7-range:active::-webkit-slider-runnable-track { background: linear-gradient(90deg, #8E8E8E var(--v), #CACACA var(--v)); }
+input[type=range].e7-range::-webkit-slider-thumb { width: 14px; height: 14px; margin-top: -5.5px; background: #F7F7F7; box-shadow: 0 1px 3px rgb(0 0 0/.22); }
+input[type=range].e7-range:active::-webkit-slider-thumb { box-shadow: 0 1px 3px rgb(0 0 0/.22), 0 0 0 4px rgb(0 0 0/.06); }
+
+/* v7 toggles: ON #A8A8A8 (hover #8E8E8E) · OFF #CACACA · knob #F7F7F7 soft shadow. Swatch selected: 2px #8E8E8E ring, 2px offset. */
+.sw-track { background: #CACACA; }
+.group[data-selected] .sw-track { background: #A8A8A8; }
+.group[data-selected][data-hovered] .sw-track { background: #8E8E8E; }
+.sw-knob, .e7-knob { background: #F7F7F7; box-shadow: 0 1px 3px rgb(0 0 0/.22); }
+.swatch-on { outline: 2px solid #8E8E8E; outline-offset: 2px; }
+
+/* ---------- v0.7.2 grayscale status (P1-4): no hue anywhere in the editor or the demos.
+   Status reads through weight, icon and label; text tones stay ≥ 4.5:1 on #E1E1E1 / #D7D7D7 / white.
+   Badges lose their inset ring (P2-8): tone only. */
+/* (grayscale overrides merged into the single procreate-light token block above) */
+.pb-badge { box-shadow: none; }

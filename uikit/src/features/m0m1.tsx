@@ -1,4 +1,5 @@
 /* M0 Foundation + M1 Editor skeleton — shown as they should look in style B. */
+import { pagesName } from "@/sandbox/v7"
 import * as React from "react"
 import { FolderOpen, Loader2, RotateCw, ImagePlus, FileWarning, Images, Plus, Gauge } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,17 +20,26 @@ import type { FeatureDef } from "./types"
 function PhotoCardDemo() {
   const [st, setSt] = React.useState<"empty" | "loading" | "ok" | "rotated" | "error">("empty")
   const [hover, setHover] = React.useState(false)
+  const [filesHint, setFilesHint] = React.useState(false)
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setHover(false)
+    // v4: folders only. A dropped folder opens; loose files get a hint instead of being imported.
+    const entries = [...e.dataTransfer.items].map((it) => it.webkitGetAsEntry?.()).filter(Boolean)
+    if (entries.length && entries.every((x) => !x!.isDirectory)) { setFilesHint(true); return }
+    setFilesHint(false); open("ok")
+  }
   const open = (next: "ok" | "rotated" | "error") => { setSt("loading"); setTimeout(() => setSt(next), 900) }
   const p = st === "rotated" ? P("p12") : P("p01")
   return (
     <div className="grid h-full grid-cols-[1fr_300px] bg-background">
       <div className="flex flex-col items-center justify-center gap-5 p-8">
         {st === "empty" && (
-          <div onDragOver={(e) => { e.preventDefault(); setHover(true) }} onDragLeave={() => setHover(false)} onDrop={(e) => { e.preventDefault(); setHover(false); open("ok") }}
-            className={cn("flex w-[460px] flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-8 py-12 text-center transition-colors", hover ? "border-select bg-select/5" : "border-border")}>
-            <FeaturedIcon theme="outline" size="lg"><ImagePlus /></FeaturedIcon>
-            <div><div className="heading text-xl">Open a photo</div><p className="mt-1 text-[13px] text-muted-foreground">JPEG, PNG or WebP from your disk. Nothing is uploaded — the preview is decoded in a worker.</p></div>
-            <div className="flex gap-2"><Button size="sm" className="h-9 gap-1.5 px-3.5 shadow-sm [&_svg]:size-4" onPress={() => open("ok")} data-testid="open-photo"><FolderOpen />Choose file…</Button></div>
+          <div onDragOver={(e) => { e.preventDefault(); setHover(true) }} onDragLeave={() => setHover(false)} onDrop={onDrop}
+            className={cn("flex w-[460px] flex-col items-center gap-4 rounded-xl border-2 border-dashed px-8 py-12 text-center transition-colors", hover ? " bg-select/5" : "")}>
+            <FeaturedIcon theme="outline" size="lg"><FolderOpen /></FeaturedIcon>
+            <div><div className="heading text-xl">Add a photo folder</div><p className="mt-1 text-sm text-muted-foreground">Choose or drop the folder with your photos (JPEG, PNG, WebP). Nothing is uploaded — previews are decoded in a worker.</p></div>
+            <div className="flex gap-2"><Button size="md" className="gap-1.5 px-4 shadow-sm [&_svg]:size-4" onPress={() => open("ok")} data-testid="open-photo">Add folder…</Button></div>
+            {filesHint && <p className="text-sm text-muted-foreground" role="status" data-testid="files-hint">Photobooks adds whole folders. Drop the folder that holds these photos instead.</p>}
           </div>
         )}
         {st === "loading" && (
@@ -40,12 +50,12 @@ function PhotoCardDemo() {
         )}
         {(st === "ok" || st === "rotated") && (
           <div className="w-[520px] overflow-hidden rounded-xl border bg-card shadow-md" data-testid="photo-card">
-            <div className="grid place-items-center bg-[#e9e9e8] dark:bg-black/40" style={{ height: 300 }}>
+            <div className="grid place-items-center bg-canvas" style={{ height: 300 }}>
               <img src={p.src} alt="" className="max-h-[300px] max-w-full object-contain" />
             </div>
             <div className="flex items-start gap-3 p-4">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-semibold">{p.name}</div>
+                <div className="truncate text-base font-semibold">{p.name}</div>
                 <div className="text-xs tabular-nums text-muted-foreground">{p.w} × {p.h} px · 4.8 MB · JPEG · sRGB</div>
               </div>
               {st === "rotated" ? <Badge color="brand" icon={<RotateCw />}>EXIF orientation 6 → rotated 90°</Badge> : <Badge color="success" dot>Orientation 1</Badge>}
@@ -55,18 +65,18 @@ function PhotoCardDemo() {
         {st === "error" && (
           <div className="flex w-[460px] items-start gap-4 rounded-xl border bg-card p-5 shadow-md" role="alert">
             <FeaturedIcon color="error" theme="soft"><FileWarning /></FeaturedIcon>
-            <div className="min-w-0 flex-1"><div className="text-[14px] font-semibold">Can’t read “scan_0042.heic”</div><p className="mt-1 text-[13px] text-muted-foreground">HEIC isn’t supported yet. Export it as JPEG from Photos, or open another file.</p>
-              <Button variant="outline" size="sm" className="mt-3 h-8 px-3 text-[13px] shadow-xs" onPress={() => setSt("empty")}>Choose another file</Button></div>
+            <div className="min-w-0 flex-1"><div className="text-base font-semibold">Can’t read “scan_0042.heic”</div><p className="mt-1 text-sm text-muted-foreground">HEIC isn’t supported yet. The rest of the folder was added; export this one as JPEG from Photos and add the folder again.</p>
+              <Button variant="outline" size="sm" className="mt-3 px-3 text-sm shadow-xs" onPress={() => setSt("empty")}>Choose another folder</Button></div>
           </div>
         )}
       </div>
       <aside className="flex flex-col gap-2 border-l bg-chrome p-4">
         <div className="eyebrow mb-1">Scenarios</div>
-        <Button variant="outline" size="sm" className="h-8 justify-start text-[13px] shadow-xs" onPress={() => setSt("empty")}>Empty · drop zone</Button>
-        <Button variant="outline" size="sm" className="h-8 justify-start text-[13px] shadow-xs" onPress={() => open("ok")}>Open landscape JPEG</Button>
-        <Button variant="outline" size="sm" className="h-8 justify-start text-[13px] shadow-xs" onPress={() => open("rotated")} data-testid="open-rotated">Open EXIF-rotated portrait</Button>
-        <Button variant="outline" size="sm" className="h-8 justify-start text-[13px] shadow-xs" onPress={() => open("error")}>Open unsupported HEIC</Button>
-        <div className="mt-auto text-xs leading-relaxed text-muted-foreground">State: <b className="text-foreground">{st}</b>. Dropping any file on the empty zone opens it too (simulated).</div>
+        <Button variant="outline" size="sm" className="justify-start text-sm shadow-xs" onPress={() => setSt("empty")}>Empty · drop zone</Button>
+        <Button variant="outline" size="sm" className="justify-start text-sm shadow-xs" onPress={() => open("ok")}>Folder → landscape JPEG</Button>
+        <Button variant="outline" size="sm" className="justify-start text-sm shadow-xs" onPress={() => open("rotated")} data-testid="open-rotated">Folder → EXIF-rotated portrait</Button>
+        <Button variant="outline" size="sm" className="justify-start text-sm shadow-xs" onPress={() => open("error")}>Folder with a HEIC file</Button>
+        <div className="mt-auto text-xs leading-relaxed text-muted-foreground">State: <b className="text-foreground">{st}</b>. Dropping a folder on the empty zone adds it (simulated); loose files show a hint instead.</div>
       </aside>
     </div>
   )
@@ -82,7 +92,7 @@ function useImporter() {
     const t = setInterval(() => {
       i++; setN(i)
       st.update((d) => ({ ...d, gallery: photos.slice(0, i).map((p) => p.id) }), "Import")
-      if (i >= 20) { clearInterval(t); setTimeout(() => setN(-1), 600); st.toast({ tone: "success", title: "20 photos added", description: "~/Pictures/Summer 2025" }) }
+      if (i >= 20) { clearInterval(t); setTimeout(() => setN(-1), 600); st.setStatus("20 photos added · ~/Pictures/Summer 2025") }
     }, 140)
   }
   return { n, start }
@@ -94,12 +104,12 @@ function ImportDock() {
   const st = useStudio()
   return (
     <Dock left={imp.n >= 0 ? (
-      <div className="flex items-center gap-2.5 text-xs text-muted-foreground"><Progress aria-label="Importing" value={imp.n} maxValue={20} className="w-32" barClassName="h-1 bg-secondary dark:bg-accent" /><span className="tabular-nums">Reading {imp.n} of 20{imp.n > 0 && imp.n <= 20 ? ` · ${photos[imp.n - 1].name}` : ""}</span></div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground"><Progress aria-label="Importing" value={imp.n} maxValue={20} className="w-32" barClassName="h-1 bg-secondary" /><span className="tabular-nums">Reading {imp.n} of 20{imp.n > 0 && imp.n <= 20 ? ` · ${photos[imp.n - 1].name}` : ""}</span></div>
     ) : <span className="text-xs text-muted-foreground">{st.doc.gallery.length ? `${st.doc.gallery.length} photos` : "No photos yet"}</span>}>
       {imp.n >= 0 && imp.n < 20 ? (
         <div className="flex gap-2 overflow-hidden p-1 pb-2">
-          {photos.slice(0, Math.max(imp.n, 0)).map((p) => <PhotoThumb key={p.id} src={p.src} w={p.w} h={p.h} className="rounded-[5px]" />)}
-          {Array.from({ length: 20 - Math.max(imp.n, 0) }, (_, i) => <div key={i} className="h-(--thumb) w-[110px] shrink-0 animate-pulse rounded-[5px] bg-muted" />)}
+          {photos.slice(0, Math.max(imp.n, 0)).map((p) => <PhotoThumb key={p.id} src={p.src} w={p.w} h={p.h} className="rounded-xs" />)}
+          {Array.from({ length: 20 - Math.max(imp.n, 0) }, (_, i) => <div key={i} className="h-(--thumb) w-[110px] shrink-0 animate-pulse rounded-xs bg-muted" />)}
         </div>
       ) : <Filmstrip />}
     </Dock>
@@ -112,21 +122,21 @@ function ImportEmpty() {
   return (
     <div className="absolute left-1/2 top-1/2 z-30 w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-popover p-6 text-center shadow-lg">
       <FeaturedIcon size="lg" theme="outline" className="mx-auto mb-4"><Images /></FeaturedIcon>
-      <div className="heading text-lg">Add your photos</div>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">Pick a folder or drop files. Thumbnails appear while the rest is still being read.</p>
-      <Button size="sm" className="mt-4 h-9 gap-1.5 px-3.5 shadow-sm [&_svg]:size-4" onPress={imp.start} data-testid="choose-photo-folder"><FolderOpen />Choose photo folder…</Button>
+      <div className="heading text-lg">Add a photo folder</div>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Add the folder with your photos, or drop it here. Thumbnails appear while the rest is still being read.</p>
+      <Button size="md" className="mt-4 gap-1.5 px-4 shadow-sm [&_svg]:size-4" onPress={imp.start} data-testid="add-folder">Add folder…</Button>
     </div>
   )
 }
 function ImportDemoWrap() {
   return <Std init={() => ({ ...emptyDoc(4), gallery: [] })} features={{ drop: true }} cur={0} pager={false} wrap={ImportProvider}
-    right={<InspectorPanel frame={<EmptyInspector hint="Choose a photo folder to start. They appear in the filmstrip as they are read." />} />}
+    right={<InspectorPanel frame={<EmptyInspector hint="Add a photo folder to start. Its photos appear in the filmstrip as they are read." />} />}
     dock={<ImportDock />} canvasExtra={<ImportEmpty />} />
 }
 
 /* ---------------------------------------------------------------- spread-templates-ui: start a book */
 function StartBook() {
-  return <Std init={() => emptyDoc(1)} cur={0} features={{ drop: true }} dock={<Dock templates defaultTab="templates" />} canvasExtra={<StartCard />}
+  return <Std init={() => emptyDoc(1)} cur={0} features={{ drop: true }} top={<TopBar exportPrimary={false} />} dock={<Dock templates defaultTab="templates" />} canvasExtra={<StartCard />}
     left={<SpreadsPanel actions />} />
 }
 function StartCard() {
@@ -137,17 +147,17 @@ function StartCard() {
   return (
     <div className="absolute left-1/2 top-1/2 z-30 w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-popover p-5 shadow-lg" data-testid="start-card">
       <div className="heading text-lg">Start a book</div>
-      <p className="mt-1 text-[13px] text-muted-foreground">How many spreads? You can add or remove them any time.</p>
+      <p className="mt-1 text-sm text-muted-foreground">How many spreads? You can add or remove them any time.</p>
       <div className="mt-3 flex gap-1.5">
-        {[4, 8, 12, 20].map((k) => <Button key={k} variant={n === k ? "default" : "outline"} size="sm" className="h-8 flex-1 text-[13px] shadow-xs" onPress={() => setN(k)}>{k}</Button>)}
+        {[4, 8, 12, 20].map((k) => <Button key={k} variant="outline" size="sm" aria-pressed={n === k} className={cn("flex-1 text-sm shadow-xs", n === k && " bg-accent font-semibold")} onPress={() => setN(k)}>{k}</Button>)}
       </div>
       <div className="mt-4 text-xs text-muted-foreground">Starting layout</div>
       <div className="mt-2 grid grid-cols-3 gap-2">
         {["t-pair", "t-hero2", "t-full"].map((t) => <TemplateThumb key={t} id={t} width={118} className="w-full" />)}
       </div>
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="ghost" size="sm" className="h-9 px-3" onPress={() => setDone(true)}>Empty book</Button>
-        <Button size="sm" className="h-9 px-4 shadow-sm" data-testid="start-create" onPress={() => {
+        <Button variant="ghost" size="md" className="px-3" onPress={() => setDone(true)}>Empty book</Button>
+        <Button size="md" className="px-4 shadow-sm" data-testid="start-create" onPress={() => {
           st.update((d) => ({ ...d, spreads: Array.from({ length: n }, (_, i) => spread(SAMPLE_BOOK[i % SAMPLE_BOOK.length][0])) }), `New book · ${n} spreads`)
           st.setStatus(`${n} spreads created · pick a template per spread below`); setDone(true)
         }}>Create {n} spreads</Button>
@@ -183,15 +193,15 @@ function UnplaceHint() {
   const st = useStudio()
   return (
     <div className="absolute left-3 top-3 z-30 flex items-center gap-2 rounded-lg border bg-popover/95 px-3 py-2 text-xs shadow-sm">
-      Spread {st.cur + 1} has 5 photos. Pick “Full bleed” below →
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs shadow-xs" onPress={() => applyTemplate(st, "t-full")} data-testid="apply-full">Apply</Button>
+      {pagesName(st.cur)} have 5 photos. Pick “Full bleed” below →
+      <Button size="xs" variant="outline" className="px-2 text-xs shadow-xs" onPress={() => applyTemplate(st, "t-full")} data-testid="apply-full">Apply</Button>
     </div>
   )
 }
 
 /* ---------------------------------------------------------------- add-spread-camera */
 function AddSpread() {
-  return <Std features={{ stack: true, drop: true }} cur={0} view={{ zoom: 1 }} left={<SpreadsPanel actions />} pager={false} canvasExtra={<AddSpreadFab />} />
+  return <Std features={{ stack: true, drop: true }} top={<TopBar exportPrimary={false} />} cur={0} view={{ zoom: 1 }} left={<SpreadsPanel actions />} pager={false} canvasExtra={<AddSpreadFab />} />
 }
 function AddSpreadFab() {
   const st = useStudio()
@@ -202,12 +212,12 @@ function AddSpreadFab() {
   const add = () => {
     const i = st.cur + 1
     st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, i), spread("t-pair"), ...d.spreads.slice(i)] }), "Add spread")
-    st.setCur(i); st.setStatus(`Spread ${i + 1} added after the current one · zoom kept at ${Math.round(st.view.zoom * 100)}%`)
+    st.setCur(i); st.setStatus(`${pagesName(i)} added after the current ones · zoom kept at ${Math.round(st.view.zoom * 100)}%`)
   }
   return (
     <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-lg border bg-popover p-1 shadow-md">
-      <Button size="sm" className="h-8 gap-1.5 px-2.5 text-[13px] shadow-sm [&_svg]:size-4" onPress={add} data-testid="fab-add"><Plus />Add spread</Button><Kbd>Ctrl+↵</Kbd>
-      <span className="px-1.5 text-xs tabular-nums text-muted-foreground">zoom {Math.round(st.view.zoom * 100)}%</span>
+      <Button size="sm" className="gap-1.5 px-3 text-sm shadow-sm [&_svg]:size-4" onPress={add} data-testid="fab-add">Add spread</Button><Kbd>Ctrl+↵</Kbd>
+      <span className="px-2 text-xs tabular-nums text-muted-foreground">zoom {Math.round(st.view.zoom * 100)}%</span>
     </div>
   )
 }
@@ -221,12 +231,12 @@ function FileNameInfo() {
   const id = st.filmSel[0] ?? "p02"
   const p = P(id)
   return (
-    <div className="p-3.5 text-[13px]">
+    <div className="p-4 text-sm">
       <div className="eyebrow mb-2">Selected photo</div>
       <img src={p.src} alt="" className="h-28 w-full rounded-md object-cover" />
       <dl className="mt-3 grid grid-cols-[92px_1fr] gap-x-3 gap-y-1.5 text-xs">
         <dt className="text-muted-foreground">Label</dt><dd className="truncate font-medium">{p.name}</dd>
-        <dt className="text-muted-foreground">Asset id</dt><dd className="truncate font-mono text-[11px] text-muted-foreground">sha256-{(id + "9f3c1ab0e4d2").slice(0, 12)}…</dd>
+        <dt className="text-muted-foreground">Asset id</dt><dd className="truncate font-mono text-2xs text-muted-foreground">sha256-{(id + "9f3c1ab0e4d2").slice(0, 12)}…</dd>
       </dl>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">The filmstrip label is the original file name (<span className="font-mono">File.name</span>), not the sanitised id. Click a photo in the filmstrip.</p>
     </div>
@@ -238,21 +248,21 @@ export const M0M1: Record<string, FeatureDef> = {
   "m0-photo-card": {
     Demo: PhotoCardDemo, h: 560,
     notes: {
-      what: "First vertical slice: the user opens a file from disk and sees a correctly rotated preview with size and format.",
-      where: "Start screen before the editor exists; later the photo card in the inspector.",
+      what: "First vertical slice: the user adds a photo folder and sees its first photo as a correctly rotated preview with size and format. v4: photos only ever come in by folder — there is no single-file picker.",
+      where: "Start screen before the editor exists; later the photo card in the inspector (#/screen/import).",
       why: "Exercises the whole file → worker → preview path and removes the main fear up front: photos are not uploaded anywhere.",
-      keys: [["Enter", "open the file picker when the button is focused"]],
-      edge: ["EXIF orientation 5–8: a badge says the photo was rotated automatically", "HEIC and broken files: a clear error with a “choose another” way out", "Huge 100 MP files: decoded in a worker, the UI never freezes"],
+      keys: [["Enter", "open the folder picker when the button is focused"]],
+      edge: ["EXIF orientation 5–8: a badge says the photo was rotated automatically", "HEIC and broken files inside the folder: a clear error; the rest of the folder still comes in", "Loose files dropped instead of a folder: nothing is imported; a hint says to drop the folder that holds them", "Huge 100 MP files: decoded in a worker, the UI never freezes"],
     },
   },
   "editor-shell-filmstrip": {
     Demo: ImportDemoWrap,
     notes: {
-      what: "Editor layout: top bar, spreads on the left, canvas, filmstrip at the bottom, inspector on the right. Import is progressive: placeholders are replaced by thumbnails as files are read.",
-      where: "The main book screen. Empty state: an “Add your photos” card in the middle of the canvas.",
+      what: "Editor layout: top bar, spreads on the left, canvas, filmstrip at the bottom, inspector on the right. Import is by folder only (Add folder… or drop a folder) and progressive: placeholders are replaced by thumbnails as files are read.",
+      where: "The main book screen. Empty state: an “Add a photo folder” card in the middle of the canvas.",
       why: "The user sees results immediately instead of waiting for the whole folder; the filmstrip is the single source of photos.",
-      keys: [["Ctrl O", "add folder"]],
-      edge: ["Press “Choose photo folder…” to see the progress and the toast", "A folder without images → empty state with a hint", "A file that fails to read does not stop the import — a toast reports how many were skipped"],
+      keys: [["Ctrl+O", "add folder"]],
+      edge: ["Press “Add folder…” to see the progress and the quiet status line", "A folder without images → empty state with a hint", "Subfolders are included; non-image files are skipped with one summary line", "Adding a second folder appends its photos; a folder already in the book is not added twice", "Loose files dropped → not imported; status says to drop a folder instead (see filmstrip-resize-drop)", "A file that fails to read does not stop the import — status reports how many were skipped"],
     },
   },
   "pasteboard-workspace": {
@@ -261,7 +271,7 @@ export const M0M1: Record<string, FeatureDef> = {
       what: "All spreads are stacked on a neutral pasteboard; the active one is outlined and labelled.",
       where: "Central editor area; the list on the left is synced with scrolling.",
       why: "The book reads as a whole: rhythm and empty spots are visible without paging one by one.",
-      keys: [["Ctrl wheel", "zoom"], ["← →", "previous / next spread"]],
+      keys: [["Ctrl+wheel", "zoom"], ["← →", "previous / next spread"]],
       edge: ["Clicking a thumbnail on the left scrolls to that spread", "40+ spreads are virtualised (outside this demo)"],
     },
   },
@@ -271,7 +281,7 @@ export const M0M1: Record<string, FeatureDef> = {
       what: "A “Start a book” card: how many spreads and a starting template; then the Templates tab in the dock changes the layout of the current spread.",
       where: "Empty book → centre of the canvas; Templates tab in the bottom dock.",
       why: "A quick start instead of a blank page; the template can always be changed.",
-      keys: [["Ctrl ↵", "add spread"]],
+      keys: [["Ctrl+↵", "add spread"]],
       edge: ["“Empty book” closes the card without creating spreads", "A template with fewer frames sends extra photos back to the filmstrip (see template-unplace-notice)"],
     },
   },
@@ -281,7 +291,7 @@ export const M0M1: Record<string, FeatureDef> = {
       what: "Canvas camera: Fit, fixed zoom levels, wheel zoom around the cursor, pan with the Hand tool or Space.",
       where: "Zoom menu on the right of the top bar; Hand tool in the centre.",
       why: "Check crops and small captions without losing your place.",
-      keys: [["Ctrl wheel", "zoom around the cursor"], ["Ctrl =", "zoom in"], ["Ctrl -", "zoom out"], ["Ctrl 0", "fit spread"], ["Space drag", "pan"], ["H", "Hand tool"]],
+      keys: [["Ctrl+wheel", "zoom around the cursor"], ["Ctrl+=", "zoom in"], ["Ctrl+-", "zoom out"], ["Ctrl+0", "fit spread"], ["Space+drag", "pan"], ["H", "Hand tool"]],
       edge: ["Above 100% the wheel without Ctrl pans", "Returning to Fit resets the offset"],
     },
   },
@@ -291,7 +301,7 @@ export const M0M1: Record<string, FeatureDef> = {
       what: "As you zoom, the editor swaps the preview for a larger tier; a dev overlay shows the active tier.",
       where: "Canvas; the overlay exists only in dev builds (never visible in the product).",
       why: "Sharp images without loading originals at small zoom — saves memory and keeps things smooth.",
-      keys: [["Ctrl =", "zoom in and watch the tier change"]],
+      keys: [["Ctrl+=", "zoom in and watch the tier change"]],
       edge: ["While the new tier decodes, the previous one stays (no flashing)", "The original loads only at ≥ 300%"],
     },
   },
@@ -330,7 +340,7 @@ export const M0M1: Record<string, FeatureDef> = {
       what: "If the new template holds fewer photos, the extra ones go back to the filmstrip and a polite status says how many.",
       where: "Templates tab in the dock; status at the bottom left of the canvas (aria-live=polite).",
       why: "Photos never disappear silently — the user understands what happened and can undo.",
-      keys: [["Ctrl Z", "restore the previous template with its photos"]],
+      keys: [["Ctrl+Z", "restore the previous template with its photos"]],
       edge: ["Nothing unplaced — the status just names the template", "No toasts: this is not an error"],
     },
   },
@@ -340,7 +350,7 @@ export const M0M1: Record<string, FeatureDef> = {
       what: "“Add spread” inserts a spread after the current one, keeps the zoom level and scrolls to it after layout.",
       where: "Button in the spreads panel and a floating button; Ctrl+Enter.",
       why: "The camera does not jump — the user keeps their place in the book.",
-      keys: [["Ctrl ↵", "add spread"]],
+      keys: [["Ctrl+↵", "add spread"]],
       edge: ["Adding at the end scrolls to the bottom", "Zoom is preserved (the value is shown next to the button)"],
     },
   },

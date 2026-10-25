@@ -1,12 +1,15 @@
 /* Sandbox canvas: spread surface with frames, crop, handles, snapping, guides, rulers, grid, print overlays. */
+import { useMasters } from "./v7"
 import * as React from "react"
 import { useDrop, useDrag, type DropItem } from "react-aria"
 import { AlertTriangle, ImagePlus, Lock, Link2 } from "lucide-react"
+import { TT, useTemplatePreview } from "./templates"
 import { cn } from "@/lib/utils"
 import { P } from "@/data"
 import {
-  SW, SH, PAGE, type Frame, type Spread, type Rect, type SnapLine, anchors, snapRect, resolveGrid, effectiveGrid,
+  SW, SH, PAGE, type Frame, type Spread, type Rect, type SnapLine, type Anchor, anchors, snapRect, resolveGrid, effectiveGrid,
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
+  parentOf,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, type Studio } from "./store"
 import { fillTokens } from "./meta"
@@ -21,7 +24,7 @@ export function PhotoImg({ f, wpx, hpx, ghost = false }: { f: Frame; wpx: number
   const o = orientedSize(p, f.qt)
   const a = Math.abs(f.straighten) * Math.PI / 180
   const k = f.straighten ? Math.cos(a) + Math.sin(a) * Math.max(wpx / hpx, hpx / wpx) : 1
-  const s = Math.max(wpx / o.w, hpx / o.h) * f.zoom
+  const s = (f.fit === "fit" ? Math.min(wpx / o.w, hpx / o.h) : Math.max(wpx / o.w, hpx / o.h)) * f.zoom
   const dw = o.w * s, dh = o.h * s
   const left = (wpx - dw) / 2 + f.ox * (dw - wpx) / 2, top = (hpx - dh) / 2 + f.oy * (dh - hpx) / 2
   const iw = f.qt % 180 ? dh : dw, ih = f.qt % 180 ? dw : dh
@@ -29,7 +32,8 @@ export function PhotoImg({ f, wpx, hpx, ghost = false }: { f: Frame; wpx: number
   return (
     <img src={p.src} alt="" draggable={false}
       className={cn("pointer-events-none absolute max-w-none select-none", ghost && "opacity-30")}
-      style={{ left: cx - iw / 2, top: cy - ih / 2, width: iw, height: ih, transform: `rotate(${f.qt + f.straighten}deg) scale(${k})` }} />
+      style={{ left: cx - iw / 2, top: cy - ih / 2, width: iw, height: ih, transform: `rotate(${f.qt + f.straighten}deg) scale(${k * (f.flipH ? -1 : 1)}, ${k * (f.flipV ? -1 : 1)})`,
+        filter: f.adj ? `brightness(${1 + f.adj.b / 100}) contrast(${1 + f.adj.c / 100}) saturate(${1 + f.adj.s / 100})` : undefined }} />
   )
 }
 
@@ -65,13 +69,13 @@ function FrameBody({ f, s, sc, missing, inherited, editing, onEditDone }: {
       <div className="absolute overflow-hidden" style={{ left: mat, top: mat, width: wpx, height: hpx, borderRadius: Math.max(0, (style?.radius ?? 0) * sc - mat) }}>
         {f.photo && !missing ? <PhotoImg f={f} wpx={wpx} hpx={hpx} />
           : missing ? (
-            <div className="flex size-full flex-col items-center justify-center gap-1 bg-[repeating-linear-gradient(45deg,#efedea,#efedea_7px,#e4e1dd_7px,#e4e1dd_14px)] text-[11px] text-[#9a6a1c]">
+            <div className="flex size-full flex-col items-center justify-center gap-1 hatch-missing text-2xs text-ink-warning">
               <AlertTriangle className="size-4" />{f.w * sc > 110 && <span className="font-medium">{P(f.photo!).name} not found</span>}
             </div>
           ) : (
-            <div className={cn("flex size-full flex-col items-center justify-center gap-1 border border-dashed border-[#cfcbc5] bg-[#f4f3f1] text-[#8a867f]", inherited && "border-[#8fa6bf]/70 bg-[#eef1f4]")}>
+            <div className={cn("flex size-full flex-col items-center justify-center gap-1 bg-placeholder text-placeholder-fg", inherited && " bg-parent-tint")}>
               {f.w * sc > 46 && <ImagePlus className="size-4 opacity-70" />}
-              {f.w * sc > 110 && <span className="text-[11px]">{inherited ? "Parent frame" : "Drop photo"}</span>}
+              {f.w * sc > 110 && <span className="text-2xs">{inherited ? "Parent frame" : "Drop photo"}</span>}
             </div>
           )}
       </div>
@@ -105,24 +109,25 @@ function FrameEl(p: FrameProps) {
   const dpi = st.view.dpi && f.kind === "image" ? effectiveDpi(f) : null
   return (
     <div ref={ref} {...(canDrop ? dropProps : {})} {...(st.features.swap && f.photo && !p.inherited ? dragProps : {})}
-      data-frame={f.id} data-testid="frame"
+      data-frame={f.id} data-testid={p.inherited ? "master-frame" : "frame"}
       onPointerDown={(e) => p.onDown(e, f)} onDoubleClick={() => p.onDouble(f)}
-      className={cn("group/frame absolute", p.inherited ? "pointer-events-auto" : "", isDragging && "opacity-40", p.hidden && "opacity-0")}
+      className={cn("group/frame absolute", p.inherited ? "pointer-events-none z-10" : "", isDragging && "opacity-40", p.hidden && "opacity-0")}
       style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop ? 30 : undefined }}>
       {crop && <div className="pointer-events-none absolute inset-0 overflow-visible"><PhotoImg f={f} wpx={f.w * sc} hpx={f.h * sc} ghost /></div>}
       <FrameBody f={f} s={p.s} sc={sc} missing={missing} inherited={p.inherited} editing={p.editing} onEditDone={p.onEditDone} />
+      {f.kind === "image" && f.caption && <div data-testid="frame-caption" className="pointer-events-none absolute inset-x-0 truncate" style={{ top: f.h * sc + 1.5 * sc, fontSize: TEXT.caption.size * sc, fontFamily: TEXT.caption.font, color: "#535152", lineHeight: 1.3 }}>{f.caption}</div>}
       {!p.selected && !p.inherited && <div className="pointer-events-none absolute inset-0 outline-1 outline-select/0 transition-[outline-color] group-hover/frame:outline-select/70 [outline-style:solid]" />}
-      {p.inherited && !st.view.preview && <div className="pointer-events-none absolute inset-0 outline-1 outline-offset-0 outline-[#8fa6bf] [outline-style:dashed]" />}
-      {f.overrides && !st.view.preview && <span className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-1 rounded-[4px] bg-[#5f7894] px-1 py-px text-[9.5px] font-semibold text-white"><Link2 className="size-2.5" />override</span>}
+      {p.inherited && !st.view.preview && <div data-allow-border className="pointer-events-none absolute inset-0 outline-1 outline-offset-0 outline-parent-soft [outline-style:dashed]" />}
+      {f.overrides && !st.view.preview && <span className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-1 rounded-xs bg-parent px-1 py-px text-2xs font-semibold text-white"><Link2 className="size-2.5" />override</span>}
       {isDropTarget && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center bg-[#5f7894]/20 pt-2 outline-2 outline-select [outline-style:solid]">
-          <span className="rounded-md bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground shadow">{f.photo ? "Release to replace" : "Release to place"}</span>
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center bg-parent/20 pt-2 outline-2 outline-select [outline-style:solid]">
+          <span className="rounded-md bg-field px-2 py-0.5 text-2xs font-medium text-foreground shadow">{f.photo ? "Release to replace" : "Release to place"}</span>
         </div>
       )}
-      {st.dragging && canDrop && !isDropTarget && !f.photo && <div className="pointer-events-none absolute inset-0 bg-[#5f7894]/10 outline-1 outline-select/60 [outline-style:dashed]" />}
+      {st.dragging && canDrop && !isDropTarget && !f.photo && <div className="pointer-events-none absolute inset-0 bg-parent/10 outline-1 outline-select/60 [outline-style:dashed]" />}
       {f.locked && !st.view.preview && <span className="pointer-events-none absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-black/55 text-white"><Lock className="size-3" /></span>}
       {dpi !== null && dpi < 300 && !st.view.preview && (
-        <span className={cn("pointer-events-none absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm", dpi < 150 ? "bg-[#c2410c]" : "bg-[#a16207]")} data-testid="dpi-badge">
+        <span className={cn("pointer-events-none absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-xs bg-field px-1.5 py-0.5 text-2xs text-ink-warning shadow-sm", dpi < 150 ? "font-semibold" : "font-medium")} data-testid="dpi-badge">
           <AlertTriangle className="size-2.5" />{dpi} dpi
         </span>
       )}
@@ -178,16 +183,16 @@ export async function handleDrop(st: Studio, si: number, frameId: string | null,
 
 /* ---------------------------------------------------------------- overlays */
 function GridOverlay({ s, sc }: { s: Spread; sc: number }) {
-  const st = useStudio()
+  const st = useStudio(); useMasters()
   const g = effectiveGrid(st.doc, s)
   return (
     <div className="pointer-events-none absolute inset-0" data-testid="grid-overlay">
       {resolveGrid(g).map((p, i) => (
         <React.Fragment key={i}>
-          {p.cols.map((c, ci) => p.rows.map((r, ri) => (
-            <div key={`${ci}-${ri}`} className="absolute border border-(--grid-line)/50 bg-grid" style={{ left: c.x * sc, top: r.y * sc, width: c.w * sc, height: r.h * sc }} />
-          )))}
-          <div className="absolute border-[1.5px] border-dashed border-(--grid-line)" style={{ left: p.content.x * sc, top: p.content.y * sc, width: p.content.w * sc, height: p.content.h * sc }} />
+          {/* v0.8 §3.4: column guides + row guides (cells read as their intersection) */}
+          {p.cols.map((c, ci) => <div key={`c${ci}`} data-testid="grid-col" data-allow-border className="absolute border-x border-(--grid-line)/50 bg-grid" style={{ left: c.x * sc, top: p.content.y * sc, width: c.w * sc, height: p.content.h * sc }} />)}
+          {p.rows.map((r, ri) => <div key={`r${ri}`} data-testid="grid-row" data-allow-border className="absolute border-y border-(--grid-line)/50" style={{ left: p.content.x * sc, top: r.y * sc, width: p.content.w * sc, height: r.h * sc }} />)}
+          <div data-allow-border className="absolute border-[1.5px] border-dashed border-(--grid-line)" style={{ left: p.content.x * sc, top: p.content.y * sc, width: p.content.w * sc, height: p.content.h * sc }} />
         </React.Fragment>
       ))}
     </div>
@@ -197,11 +202,11 @@ function PrintOverlay({ sc }: { sc: number }) {
   const bleed = 3 * sc, safe = 6 * sc
   return (
     <div className="pointer-events-none absolute inset-0" data-testid="print-overlay">
-      <div className="absolute border border-[#e0567a]" style={{ left: -bleed, top: -bleed, right: -bleed, bottom: -bleed }} />
-      <span className="absolute rounded-[3px] bg-[#e0567a] px-1 text-[9.5px] font-semibold text-white" style={{ left: -bleed, top: -bleed - 15 }}>bleed 3 mm</span>
+      <div data-allow-border className="absolute border border-bleed" style={{ left: -bleed, top: -bleed, right: -bleed, bottom: -bleed }} />
+      <span className="absolute rounded-2xs bg-field px-1 text-2xs font-semibold leading-4 text-foreground" style={{ left: -bleed, top: -bleed - 17 }}>bleed 3 mm</span>
       <div className="absolute inset-0 outline-1 outline-black/60 [outline-style:solid]" />
-      {[0, 1].map((p) => <div key={p} className="absolute border border-dashed border-[#2f9e9a]" style={{ left: p * PAGE * sc + safe, top: safe, width: PAGE * sc - safe * 2, height: SH * sc - safe * 2 }} />)}
-      <span className="absolute rounded-[3px] bg-[#2f9e9a] px-1 text-[9.5px] font-semibold text-white" style={{ left: safe, top: safe + 2 }}>safe 6 mm</span>
+      {[0, 1].map((p) => <div key={p} data-allow-border className="absolute border border-dashed border-guide" style={{ left: p * PAGE * sc + safe, top: safe, width: PAGE * sc - safe * 2, height: SH * sc - safe * 2 }} />)}
+      <span className="absolute rounded-2xs bg-field px-1 text-2xs font-semibold leading-4 text-foreground" style={{ left: safe, top: safe + 2 }}>safe 6 mm</span>
       <div className="absolute inset-y-0 w-px bg-black/40" style={{ left: PAGE * sc }} />
     </div>
   )
@@ -210,19 +215,19 @@ function PrintOverlay({ sc }: { sc: number }) {
 function Handles({ r, sc, rotate, onHandle }: { r: Rect & { rot?: number }; sc: number; rotate: boolean; onHandle: (e: React.PointerEvent, h: string) => void }) {
   const pts: [string, number, number, string][] = [["nw", 0, 0, "nwse-resize"], ["n", 50, 0, "ns-resize"], ["ne", 100, 0, "nesw-resize"], ["w", 0, 50, "ew-resize"], ["e", 100, 50, "ew-resize"], ["sw", 0, 100, "nesw-resize"], ["s", 50, 100, "ns-resize"], ["se", 100, 100, "nwse-resize"]]
   return (
-    <div className="absolute z-40" style={{ left: r.x * sc, top: r.y * sc, width: r.w * sc, height: r.h * sc, transform: r.rot ? `rotate(${r.rot}deg)` : undefined }} data-testid="handles">
-      <div className="pointer-events-none absolute inset-0 shadow-[0_0_0_1px_rgba(255,255,255,.9)] outline-2 outline-offset-1 outline-select [outline-style:solid]" />
+    <div className="pointer-events-none absolute z-40" style={{ left: r.x * sc, top: r.y * sc, width: r.w * sc, height: r.h * sc, transform: r.rot ? `rotate(${r.rot}deg)` : undefined }} data-testid="handles">
+      <div className="pointer-events-none absolute inset-0 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" data-testid="sel-outline" />
       {pts.map(([h, x, y, c]) => (
-        <span key={h} onPointerDown={(e) => onHandle(e, h)} data-handle={h}
-          className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border-[1.5px] border-select bg-white shadow-sm" style={{ left: `${x}%`, top: `${y}%`, cursor: c }} />
+        <span key={h} onPointerDown={(e) => onHandle(e, h)} data-handle={h} data-testid="sel-handle"
+          className="pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-2xs bg-white" style={{ left: `${x}%`, top: `${y}%`, cursor: c, boxShadow: "0 0 0 1.5px #232223" }} />
       ))}
       {rotate && (
         <>
           <span className="pointer-events-none absolute left-1/2 top-[-22px] h-[20px] w-px bg-select" />
-          <span onPointerDown={(e) => onHandle(e, "rot")} data-handle="rot" className="absolute left-1/2 top-[-28px] size-3 -translate-x-1/2 cursor-grab rounded-full border-[1.5px] border-select bg-white shadow-sm" />
+          <span onPointerDown={(e) => onHandle(e, "rot")} data-handle="rot" className="pointer-events-auto absolute left-1/2 top-[-28px] size-3 -translate-x-1/2 cursor-grab rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #232223" }} />
         </>
       )}
-      <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-select px-1.5 py-0.5 text-[10.5px] font-medium tabular-nums text-white dark:text-neutral-950">
+      <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-tag px-1.5 py-0.5 text-2xs font-medium tabular-nums text-white">
         {round(r.w)} × {round(r.h)} mm{r.rot ? ` · ${round(r.rot)}°` : ""}
       </span>
     </div>
@@ -241,7 +246,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const [lines, setLines] = React.useState<SnapLine[]>([])
   const [marquee, setMarquee] = React.useState<Rect | null>(null)
   const [editing, setEditing] = React.useState<string | null>(null)
-  const par = s.parent ? doc.parents.find((p) => p.id === s.parent) : undefined
+  const par = parentOf(doc, s)
   const overridden = new Set(s.frames.map((f) => f.overrides).filter(Boolean) as string[])
   const parentFrames = (par?.frames ?? []).filter((f) => !(s.hiddenParent ?? []).includes(f.id) && !overridden.has(f.id))
   const selFrames = s.frames.filter((f) => st.sel.includes(f.id))
@@ -281,20 +286,31 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     if (e.shiftKey && ft.multi) sel = sel.includes(f.id) ? sel.filter((x) => x !== f.id) : [...sel, f.id]
     else if (!sel.includes(f.id)) sel = [f.id]
     st.setSel(sel)
-    if (!ft.handles || view.tool !== "select") return
+    // v0.7.3 (P2): a plain click (no drag) on one frame of a multi-selection collapses to that frame, so its toolbar (Crop) shows up
+    const collapse = !e.shiftKey && sel.length > 1 && sel.includes(f.id)
+    if (!ft.handles || view.tool !== "select") { if (collapse) st.setSel([f.id]); return }
     const moving = s.frames.filter((x) => sel.includes(x.id) && !x.locked)
-    if (!moving.length) { if (f.locked) st.setStatus("Frame is locked — unlock it in the inspector (Ctrl+Shift+L)"); return }
+    if (!moving.length) { if (collapse) st.setSel([f.id]); if (f.locked) st.setStatus("Frame is locked — unlock it in the inspector (Ctrl+Shift+L)"); return }
     const orig = moving.map((x) => ({ id: x.id, x: x.x, y: x.y }))
     const bb = bbox(moving)
     const A = anc(moving.map((x) => x.id))
+    const GA = view.grid && view.snapGrid ? (() => { const a = anchors(doc, s, { grid: true, guides: false, frames: false, exclude: [] }); const k = (x: Anchor) => /^(column|row) /.test(x.kind); return { xs: a.xs.filter(k), ys: a.ys.filter(k) } })() : null
     const start = gesture(e, (p, ev) => {
       let dx = p.x - start.x, dy = p.y - start.y
       if (ev.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0 }
       let ls: SnapLine[] = []
-      if (snapOn && !ev.altKey) { const r = snapRect({ ...bb, x: bb.x + dx, y: bb.y + dy }, A, th); dx += r.dx; dy += r.dy; ls = r.lines }
+      if (snapOn && !ev.altKey) {
+        // v0.8.1 (P2-9): with the layout grid visible, column / row edges win within a wider 16px pull, per axis
+        const R = { ...bb, x: bb.x + dx, y: bb.y + dy }, r = snapRect(R, A, th)
+        const g = GA ? snapRect(R, GA, 16 / sc, { x: ["l", "r"], y: ["t", "b"] }) : null
+        const gx = g?.lines.find((l) => l.axis === "v"), gy = g?.lines.find((l) => l.axis === "h")
+        dx += gx ? g!.dx : r.dx; dy += gy ? g!.dy : r.dy
+        ls = [gx ?? r.lines.find((l) => l.axis === "v"), gy ?? r.lines.find((l) => l.axis === "h")].filter(Boolean) as SnapLine[]
+        if (gx || gy) st.setStatus(`Snapped to ${[gx?.kind, gy?.kind].filter(Boolean).join(" · ")}`)
+      }
       setLines(ls)
       st.preview((d) => mapSpread(d, si, (sp) => ({ ...sp, template: null, frames: sp.frames.map((x) => { const o = orig.find((q) => q.id === x.id); return o ? { ...x, x: round(o.x + dx, 2), y: round(o.y + dy, 2) } : x }) })))
-    }, (m) => { if (m) { st.commit(moving.length > 1 ? `Move ${moving.length} frames` : "Move frame"); st.setStatus("") } })
+    }, (m) => { if (m) { st.commit(moving.length > 1 ? `Move ${moving.length} frames` : "Move frame"); st.setStatus("") } else if (collapse) st.setSel([f.id]) })
   }
   const onHandle = (e: React.PointerEvent, h: string) => {
     e.stopPropagation()
@@ -377,8 +393,9 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const pageNo = (side: 0 | 1) => (doc.pageStart ?? 1) + si * 2 - 1 + side
   return (
     <div ref={ref} {...dropProps} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si}
-      className={cn("relative shrink-0 select-none", view.preview ? "" : "shadow-[var(--page-shadow)]", isDropTarget && "outline-2 outline-offset-4 outline-select [outline-style:dashed]", className)}
-      style={{ width: SW * sc, height: SH * sc, background: s.bg ?? "var(--paper, #fff)", cursor: view.tool === "frame" || view.tool === "text" ? "crosshair" : undefined }}>
+      className={cn("relative shrink-0 select-none", view.preview ? "" : "shadow-page", isDropTarget && "outline-2 outline-offset-4 outline-mark [outline-style:dashed]",
+        view.tool === "frame" && "cursor-tool-frame", view.tool === "text" && "cursor-tool-text", view.tool === "hand" && "cursor-grab", className)}
+      style={{ width: SW * sc, height: SH * sc, background: s.bg ?? "var(--paper, #fff)", clipPath: si === 0 ? "inset(-60px -60px -60px 50%)" : undefined }}>
       {parentFrames.map((f) => (
         <FrameEl key={`p-${f.id}`} f={f} si={si} s={s} sc={sc} selected={false} inherited
           onDown={(e) => {
@@ -401,30 +418,32 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
         <div key={g.id} data-guide={g.id} onPointerDown={(e) => onGuideDown?.(e, g.id, !!g.inherited)}
           className={cn("absolute z-20", g.axis === "v" ? "inset-y-[-12px] w-[7px] -translate-x-[3px] cursor-ew-resize" : "inset-x-[-12px] h-[7px] -translate-y-[3px] cursor-ns-resize", (g.locked || g.inherited) && "cursor-default")}
           style={g.axis === "v" ? { left: g.pos * sc } : { top: g.pos * sc }}>
-          <div className={cn("absolute", g.axis === "v" ? "inset-y-0 left-[3px] w-px" : "inset-x-0 top-[3px] h-px", g.inherited ? "bg-[#8fa6bf] [background:repeating-linear-gradient(var(--dir),#7d93ad_0_4px,transparent_4px_7px)]" : g.scope === "book" ? "bg-[#7c5cc4]" : "bg-guide")}
+          <div className={cn("absolute", g.axis === "v" ? "inset-y-0 left-[3px] w-px" : "inset-x-0 top-[3px] h-px", g.inherited ? "bg-parent-soft [background:repeating-linear-gradient(var(--dir),#a3a1a2_0_4px,transparent_4px_7px)]" : g.scope === "book" ? "bg-portrait" : "bg-guide")}
             style={{ ["--dir" as string]: g.axis === "v" ? "180deg" : "90deg" }} />
         </div>
       ))}
       {view.overlays && <PrintOverlay sc={sc} />}
       {pn && !view.preview && [0, 1].map((side) => (si === 0 && doc.skipFirst && side === 0 ? null :
-        <span key={side} className="pointer-events-none absolute text-[#3a3936]" data-testid="page-number"
+        <span key={side} className="pointer-events-none absolute text-ink" data-testid="page-number"
           style={{ bottom: 7 * sc, [side === 0 ? "left" : "right"]: 12 * sc, fontSize: Math.max(8, 3 * sc), fontFamily: "'Inter Variable', sans-serif" }}>{pageNo(side as 0 | 1)}</span>
       ))}
-      {pn && view.preview && [0, 1].map((side) => <span key={side} className="pointer-events-none absolute text-[#3a3936]" style={{ bottom: 7 * sc, [side === 0 ? "left" : "right"]: 12 * sc, fontSize: Math.max(8, 3 * sc) }}>{pageNo(side as 0 | 1)}</span>)}
+      {pn && view.preview && [0, 1].map((side) => <span key={side} className="pointer-events-none absolute text-ink" style={{ bottom: 7 * sc, [side === 0 ? "left" : "right"]: 12 * sc, fontSize: Math.max(8, 3 * sc) }}>{pageNo(side as 0 | 1)}</span>)}
       {!view.preview && <div className="pointer-events-none absolute inset-y-0 left-1/2 w-[3%] -translate-x-1/2 bg-gradient-to-r from-transparent via-black/[0.06] to-transparent" />}
       {lines.map((l, i) => (
         <React.Fragment key={i}>
-          <div className={cn("pointer-events-none absolute z-50 bg-[#e0567a]", l.axis === "v" ? "inset-y-[-10px] w-[1.5px]" : "inset-x-[-10px] h-[1.5px]")} style={l.axis === "v" ? { left: l.pos * sc } : { top: l.pos * sc }} />
-          <span className="pointer-events-none absolute z-50 whitespace-nowrap rounded-[4px] bg-[#e0567a] px-1.5 py-px text-[10px] font-semibold text-white" style={l.axis === "v" ? { left: l.pos * sc + 4, top: -22 } : { top: l.pos * sc + 3, left: -8, transform: "translateX(-100%)" }} data-testid="snap-line">snap · {l.kind}</span>
+          <div className={cn("pointer-events-none absolute z-50 bg-bleed", l.axis === "v" ? "inset-y-[-10px] w-[1.5px]" : "inset-x-[-10px] h-[1.5px]")} style={l.axis === "v" ? { left: l.pos * sc } : { top: l.pos * sc }} />
+          <span className="pointer-events-none absolute z-50 whitespace-nowrap rounded-xs bg-field px-1.5 py-px text-2xs font-semibold text-foreground" style={l.axis === "v" ? { left: l.pos * sc + 4, top: -22 } : { top: l.pos * sc + 3, left: -8, transform: "translateX(-100%)" }} data-testid="snap-line">snap · {l.kind}</span>
         </React.Fragment>
       ))}
-      {marquee && <div className="pointer-events-none absolute z-50 border border-select bg-select/10" style={{ left: marquee.x * sc, top: marquee.y * sc, width: marquee.w * sc, height: marquee.h * sc }} />}
+      {marquee && <div className="pointer-events-none absolute z-50 bg-select/10 outline-1 outline-mark [outline-style:solid]" style={{ left: marquee.x * sc, top: marquee.y * sc, width: marquee.w * sc, height: marquee.h * sc }} />}
       {showSel && single && ft.handles && !single.locked && <Handles r={single} sc={sc} rotate={!!ft.rotateHandle} onHandle={onHandle} />}
       {showSel && (!ft.handles || selFrames.length > 1 || single?.locked) && selFrames.map((f) => (
-        <div key={f.id} className="pointer-events-none absolute z-40 shadow-[0_0_0_1px_rgba(255,255,255,.9)] outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
+        <div key={f.id} data-testid="sel-outline" className="pointer-events-none absolute z-40 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
       ))}
-      {showSel && selFrames.length > 1 && (() => { const b = bbox(selFrames); return <div className="pointer-events-none absolute z-40 border border-dashed border-select" style={{ left: b.x * sc - 4, top: b.y * sc - 4, width: b.w * sc + 8, height: b.h * sc + 8 }}><span className="absolute -top-6 left-0 rounded-md bg-select px-1.5 py-0.5 text-[10.5px] font-medium text-white dark:text-neutral-950">{selFrames.length} frames</span></div> })()}
-      {st.cropId && s.frames.some((f) => f.id === st.cropId) && (() => { const f = s.frames.find((x) => x.id === st.cropId)!; return <div className="pointer-events-none absolute z-40 outline-2 outline-[#e0a33a] [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc }}><span className="absolute -top-6 left-0 rounded-md bg-[#e0a33a] px-1.5 py-0.5 text-[10.5px] font-semibold text-neutral-950">Crop · {Math.round(f.zoom * 100)}%</span></div> })()}
+      {showSel && selFrames.length > 1 && (() => { const b = bbox(selFrames); return <div className="pointer-events-none absolute z-40 outline-1 outline-dashed outline-mark" style={{ left: b.x * sc - 4, top: b.y * sc - 4, width: b.w * sc + 8, height: b.h * sc + 8 }}><span className="absolute -top-6 left-0 rounded-md bg-tag px-1.5 py-0.5 text-2xs font-medium text-white">{selFrames.length} frames</span></div> })()}
+      {/* proto: floating contextual toolbar for a single selected frame */}
+      {active && si === st.cur && <TemplatePreview sc={sc} />}
+      {st.cropId && s.frames.some((f) => f.id === st.cropId) && (() => { const f = s.frames.find((x) => x.id === st.cropId)!; return <div data-testid="crop-overlay" className="pointer-events-none absolute z-40 outline-2 outline-crop [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc }}><span className="absolute -top-6 left-0 rounded-md bg-field px-1.5 py-0.5 text-2xs font-semibold text-foreground">Crop · {Math.round(f.zoom * 100)}%</span></div> })()}
     </div>
   )
 }
@@ -433,3 +452,17 @@ export function bbox(fs: Rect[]): Rect {
   return { x, y, w: Math.max(...fs.map((f) => f.x + f.w)) - x, h: Math.max(...fs.map((f) => f.y + f.h)) - y }
 }
 export { framesFromTemplate }
+
+
+/* proto-2: hovering a layout thumbnail previews its slots on the current spread */
+function TemplatePreview({ sc }: { sc: number }) {
+  const id = useTemplatePreview()
+  if (!id) return null
+  const t = TT(id)
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 bg-background/70" data-testid="tpl-preview">
+      {t.frames.map((b, i) => <div key={i} className="absolute rounded-2xs bg-select/15 outline-2 -outline-offset-2 outline-dashed outline-mark" style={{ left: b.x * SW / 100 * sc, top: b.y * SH / 100 * sc, width: b.w * SW / 100 * sc, height: b.h * SH / 100 * sc }} />)}
+      <div className="absolute left-2 top-2 rounded-md bg-field px-2 py-1 text-xs font-medium text-foreground">Preview · {t.name}</div>
+    </div>
+  )
+}

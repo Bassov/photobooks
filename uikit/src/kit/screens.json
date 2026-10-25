@@ -1,0 +1,16 @@
+[
+  {"id": "first-run", "title": "First run and library folder", "summary": "One welcome screen with a text-only Create Library button → the system folder picker → the empty library (example cover “Fog”, Create book)."},
+  {"id": "home", "title": "Home: your library", "summary": "The library: a top bar with the folder path and Change, then your books as realistic book objects with a meta line, or the empty library."},
+  {"id": "import", "title": "Import a photo folder", "summary": "Photos come in by folder only: Add folder… or drop a folder. The filmstrip fills progressively; moved folders are relinked."},
+  {"id": "editor", "title": "Editor: spreads and layout", "summary": "The book editor: spreads on a pasteboard, templates, drag and drop from the filmstrip, zoom, history and side panels."},
+  {"id": "editor-chrome", "title": "Editor chrome, saving and access", "summary": "The design system the editor is built on, plus the always-on states: autosave, folder access, single editor, the Procreate-light theme."},
+  {"id": "free-layout", "title": "Free layout: grids, guides, frames", "summary": "Layouts beyond templates: rulers, guides, layout grids with snapping, free frames, handles, inspector, stacking and multi-select."},
+  {"id": "text-styles", "title": "Text, styles and parent spreads", "summary": "Captions and text blocks, frame styles, your own templates and parent spreads with inherited grids, guides and page numbers."},
+  {"id": "presentation", "title": "Presentation", "summary": "Full-screen preview of the book, spread by spread."},
+  {"id": "print-prep", "title": "Print preparation", "summary": "Print-aware editing: the DPI badge, bleed / trim / safe overlays, preflight warnings and fixes, and the cover editor."},
+  {"id": "print-export", "title": "Print export", "summary": "What leaves the app for the printer: PDF, JPEG spreads, the print package report, home booklets and the cover PDF."},
+  {"id": "showcase-site", "title": "Showcase site", "summary": "The public site with your books: the viewer, the lightbox and the in-editor preview."},
+  {"id": "publish", "title": "Export and publish the site", "summary": "Write the site to a folder, choose web image sizes, deploy by hand or with the Publish button."},
+  {"id": "settings", "title": "Settings", "summary": "App settings: the library folder (Change library folder…), hosting, site personalisation and printer presets."},
+  {"id": "unsupported-browser", "title": "Unsupported browser", "summary": "Shown instead of the app when the browser has no File System Access API (Firefox, Safari, mobile): use Chrome or another Chromium desktop browser."}
+]
