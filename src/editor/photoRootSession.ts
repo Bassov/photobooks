@@ -47,6 +47,7 @@ import {
   patchAssetRecord,
   removeFailedImportAssets,
   setAssetSessionMeta,
+  setImportRunning,
 } from './bookStore'
 
 export type PhotoAccessPhase = 'idle' | 'permission-required'
@@ -1000,76 +1001,84 @@ export async function importScannedEntriesInBatches(
     errors: [],
     running: true,
   })
+  // Hold importRunning for the whole multi-wave import so list-first
+  // placeholders are not treated as missing between importPhotoFiles calls.
+  setImportRunning(true, entries.length)
   let imported = 0
   let skipped = 0
   const errors: ImportFileError[] = []
   let awaitPriorHashes = true
   let resolvedAny = false
   let firstBatchYielded = false
-  for (
-    let offset = 0;
-    offset < entries.length;
-    offset += FOLDER_IMPORT_BATCH_SIZE
-  ) {
-    const slice = entries.slice(offset, offset + FOLDER_IMPORT_BATCH_SIZE)
-    const files: File[] = []
-    for (const entry of slice) {
-      const file = await resolveRelativeFile(directory, entry.relativePath)
-      if (file !== null) {
-        files.push(file)
+  try {
+    for (
+      let offset = 0;
+      offset < entries.length;
+      offset += FOLDER_IMPORT_BATCH_SIZE
+    ) {
+      const slice = entries.slice(offset, offset + FOLDER_IMPORT_BATCH_SIZE)
+      const files: File[] = []
+      for (const entry of slice) {
+        const file = await resolveRelativeFile(directory, entry.relativePath)
+        if (file !== null) {
+          files.push(file)
+        }
+      }
+      options.onProgress({
+        total: entries.length,
+        completed: Math.min(entries.length, offset + slice.length),
+        errors: [...errors],
+        running: true,
+      })
+      if (files.length > 0) {
+        resolvedAny = true
+        const result = await runChromeImport(files, {
+          source: 'folder',
+          sourceRootId: options.sourceRootId,
+          ...(options.libraryBacked !== undefined
+            ? { libraryBacked: options.libraryBacked }
+            : {}),
+          ...(options.listAlreadyEnqueued === true
+            ? { listAlreadyEnqueued: true }
+            : {}),
+          manageImportRunning: false,
+          awaitPriorHashes,
+          onProgress: (progress) => {
+            if (progress === null) {
+              const moreBatches =
+                offset + FOLDER_IMPORT_BATCH_SIZE < entries.length
+              if (!moreBatches) {
+                options.onProgress(null)
+              }
+              return
+            }
+            options.onProgress({
+              total: entries.length,
+              completed: Math.min(
+                entries.length,
+                offset + Math.max(progress.completed, 1),
+              ),
+              errors: [...errors, ...progress.errors],
+              running: true,
+            })
+          },
+          onErrors: (batchErrors) => {
+            errors.push(...batchErrors)
+            options.onErrors(batchErrors)
+          },
+        })
+        imported += result.imported
+        skipped += result.skipped
+        awaitPriorHashes = false
+      }
+      await yieldForPaint()
+      if (!firstBatchYielded) {
+        firstBatchYielded = true
+        await options.onFirstBatchYielded?.()
       }
     }
-    options.onProgress({
-      total: entries.length,
-      completed: Math.min(entries.length, offset + slice.length),
-      errors: [...errors],
-      running: true,
-    })
-    if (files.length > 0) {
-      resolvedAny = true
-      const result = await runChromeImport(files, {
-        source: 'folder',
-        sourceRootId: options.sourceRootId,
-        ...(options.libraryBacked !== undefined
-          ? { libraryBacked: options.libraryBacked }
-          : {}),
-        ...(options.listAlreadyEnqueued === true
-          ? { listAlreadyEnqueued: true }
-          : {}),
-        awaitPriorHashes,
-        onProgress: (progress) => {
-          if (progress === null) {
-            const moreBatches =
-              offset + FOLDER_IMPORT_BATCH_SIZE < entries.length
-            if (!moreBatches) {
-              options.onProgress(null)
-            }
-            return
-          }
-          options.onProgress({
-            total: entries.length,
-            completed: Math.min(
-              entries.length,
-              offset + Math.max(progress.completed, 1),
-            ),
-            errors: [...errors, ...progress.errors],
-            running: true,
-          })
-        },
-        onErrors: (batchErrors) => {
-          errors.push(...batchErrors)
-          options.onErrors(batchErrors)
-        },
-      })
-      imported += result.imported
-      skipped += result.skipped
-      awaitPriorHashes = false
-    }
-    await yieldForPaint()
-    if (!firstBatchYielded) {
-      firstBatchYielded = true
-      await options.onFirstBatchYielded?.()
-    }
+  } finally {
+    setImportRunning(false)
   }
   if (!resolvedAny) {
     options.onProgress(null)
