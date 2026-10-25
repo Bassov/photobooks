@@ -22,10 +22,6 @@
     "disableBudget": 10,
     "temporaryExcludes": [
       {
-        "path": "src/photo/createDecodeWorker.ts",
-        "until": "photo-worker-shim"
-      },
-      {
         "path": "src/editor/projectSession.ts",
         "until": "project-session-mutation"
       },

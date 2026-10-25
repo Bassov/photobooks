@@ -8,7 +8,6 @@ Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in t
 - `!src/**/*.test-helpers.ts` — test helpers are not production code
 - `!src/core/testing/**` — fixtures for tests
 - `!src/photo/photo.worker.ts` — onmessage wrapper; logic lives in processPhoto.ts
-- `!src/photo/createDecodeWorker.ts` — tiny Worker factory (static options for Vite); Stryker instrument of callers broke `new Worker` parse — keep shim uninstrumented
 - `!src/project/fsa/bookLoad.worker.ts` — onmessage wrapper; logic lives in bookLoad.ts
 - `!src/App.tsx` — surface switch + bootstrap wiring; locked by App RTL and e2e welcome/library/editor entry
 - `!src/editor/previewAspect.ts` — JPEG SOF aspect restore covered by unit tests; non-JPEG path only delegates to `processAsset` (mutated via `assetPool`)
