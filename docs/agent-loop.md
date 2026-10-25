@@ -30,13 +30,13 @@ Do not re-list inventory members here. Hand-push always runs C1+A via `ts-rig-ci
 
 ## Diff bases
 
-| Context                                        | Base                          | Tip                   |
-| ---------------------------------------------- | ----------------------------- | --------------------- |
-| CI                                             | merge-base with `origin/main` | `HEAD`                |
-| Stages 3–4 (first A + first B)                 | `origin/main`                 | working tree / `HEAD` |
-| After phase commit (5 / 8): re-run A patch + B | that **phase commit**         | working tree / `HEAD` |
+| Context                                       | Base                          | Tip                   |
+| --------------------------------------------- | ----------------------------- | --------------------- |
+| CI / local **A** patch coverage               | merge-base with `origin/main` | `HEAD` / working tree |
+| Stages 3–4 first **B**                        | `origin/main`                 | working tree / `HEAD` |
+| After phase commit (5 / 8): re-run **B** only | that **phase commit**         | working tree / `HEAD` |
 
-No commit in stages 3–4. CI never scores vs phase commits.
+No commit in stages 3–4. Local patch coverage always scores vs branch base (`origin/main`), matching Codecov; phase commit (`STRYKER_DIFF_BASE`) is only for `e2e:changed` and `stryker:diff`.
 
 ## Stages
 
@@ -69,11 +69,11 @@ No commit in stages 3–4. CI never scores vs phase commits.
 
 ### 5 · Phase commit
 
-- First green checkpoint after A+B. SHA becomes local scoring base for later rework.
+- First green checkpoint after A+B. SHA becomes local **B** scoring base for later rework (not A patch).
 
 ### 6 · Implementation review
 
-- `openspec-implementation-reviewer` once (incl. docs-only). Rework via A with patch base = stage 5; +1 delta re-review if code changed.
+- `openspec-implementation-reviewer` once (incl. docs-only). Rework via A (patch vs `origin/main`); +1 delta re-review if code changed.
 - **How:** `.cursor/agents/openspec-implementation-reviewer.md`.
 
 ### 7 · B after review (if needed)
@@ -82,13 +82,13 @@ No commit in stages 3–4. CI never scores vs phase commits.
 
 ### 8 · Phase commit
 
-- Updates local scoring base for stage 9 rework.
+- Updates local **B** scoring base for stage 9 rework.
 
 ### 9 · Browser / security QA (if needed)
 
 - `pnpm agent manual-qa` (N/A non-UI): scenarios from roadmap Browser/Perf + `tasks.md` `## Manual test scenarios`; paste OK/problem lines back into that section (not an Implementation checkbox).
 - Skill `ui-review` when UI in scope; Security Review when tagged / security surface.
-- Rework via A (base = stage 8); re-B only if UI/e2e/tests changed (B base = stage 8).
+- Rework via A (patch vs `origin/main`); re-B only if UI/e2e/tests changed (B base = stage 8).
 
 ### 10 · Archive + PR body
 
@@ -105,12 +105,12 @@ No commit in stages 3–4. CI never scores vs phase commits.
 
 - `pnpm -s agent finish --title "…" --body-file …` — push + create/update PR only.
 - No happy-path merge of `origin/main`; no C2 in finish; skip A/C1 in pre-push when stamp matches.
-- Stop after PR URL — no `gh pr checks --watch`.
+- After push/PR: `pnpm agent ci-wait` (wait for required CI; not `gh pr checks --watch`).
 - **How (precedence):** `.cursor/rules/git-finish.mdc`.
 
 ### 13 · CI fix loop
 
-- `pnpm agent ci-brief` → fix → A/B as needed (bases per Diff bases) → push. No auto-merge main; sibling conflicts = orchestrator turn.
+- On red: `pnpm agent ci-brief` → fix → A/B as needed (bases per Diff bases) → push → `pnpm agent ci-wait`. No auto-merge main; sibling conflicts = orchestrator turn.
 
 ## Parallel agents
 
