@@ -45,7 +45,7 @@ const Progress = ({
         >
           <div
             className={cn(
-              "size-full flex-1 bg-primary transition-all",
+              "size-full flex-1 bg-meter transition-[color,background-color,border-color,box-shadow,opacity,transform]",
               fillClassName
             )}
             style={{

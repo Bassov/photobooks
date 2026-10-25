@@ -36,7 +36,7 @@ const Switch = ({ children, className, size = "default", ...props }: AriaSwitchP
             /* Disabled */
             "group-data-[disabled]:cursor-not-allowed group-data-[disabled]:opacity-50",
             /* Selected */
-            "bg-input group-data-[selected]:bg-primary",
+            "sw-track",
             /* Readonly */
             "group-data-[readonly]:cursor-default",
             /* Resets */
@@ -46,7 +46,7 @@ const Switch = ({ children, className, size = "default", ...props }: AriaSwitchP
           <div
             className={cn(
               size === "sm" ? "size-4 group-data-[selected]:translate-x-4" : "size-5 group-data-[selected]:translate-x-5",
-              "pointer-events-none block rounded-full bg-background shadow-lg ring-0 transition-transform",
+              "sw-knob pointer-events-none block rounded-full ring-0 transition-transform",
               /* Selected */
               "translate-x-0"
             )}

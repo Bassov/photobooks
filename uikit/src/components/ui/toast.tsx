@@ -50,9 +50,9 @@ export function ToastRegion({ className, ...props }: Omit<ToastRegionProps<Toast
             toast={toast}
             style={{ viewTransitionName: toast.key } as CSSProperties}
             className={cn(
-              "group/toast relative flex w-full items-start gap-3 rounded-lg border bg-popover p-3.5 pr-10 text-popover-foreground shadow-lg outline-hidden [view-transition-class:toast]",
+              "group/toast relative flex w-full items-start gap-3 rounded-lg border bg-popover p-4 pr-10 text-popover-foreground shadow-lg outline-hidden [view-transition-class:toast]",
               "data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring data-[focus-visible]:ring-offset-2 ring-offset-background",
-              c.tone === "error" && "border-destructive/30",
+              c.tone === "error" && "",
             )}
           >
             {c.icon && (
@@ -61,11 +61,11 @@ export function ToastRegion({ className, ...props }: Omit<ToastRegionProps<Toast
             )}
             <AriaToastContent className="flex min-w-0 flex-1 flex-col gap-0.5">
               <Text slot="title" className="text-sm font-semibold leading-snug">{c.title}</Text>
-              {c.description && <Text slot="description" className="text-[13px] leading-snug text-muted-foreground">{c.description}</Text>}
+              {c.description && <Text slot="description" className="text-sm leading-snug text-muted-foreground">{c.description}</Text>}
               {c.action && (
-                <div className="mt-2.5">
+                <div className="mt-2">
                   <AriaButton onPress={c.action.onAction}
-                    className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground outline-hidden ring-offset-background data-[hovered]:bg-primary/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring data-[focus-visible]:ring-offset-2">
+                    className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground outline-hidden ring-offset-background data-[hovered]:bg-primary/90 data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring data-[focus-visible]:ring-offset-2">
                     {c.action.label}
                   </AriaButton>
                 </div>

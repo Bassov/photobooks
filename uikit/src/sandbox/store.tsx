@@ -2,6 +2,7 @@
 import * as React from "react"
 import { createToastQueue, type ToastContent } from "@/components/ui/toast"
 import type { Doc, Frame, Spread } from "./model"
+import { setGeom, reflowDoc } from "./model"
 
 export type View = {
   grid: boolean; snap: boolean; guides: boolean; rulers: boolean; overlays: boolean; preview: boolean
@@ -46,7 +47,15 @@ export type Studio = {
   dragging: string[] | null; setDragging: (ids: string[] | null) => void
   saveState: "saved" | "saving" | "dirty" | "error"; setSaveState: (s: Studio["saveState"]) => void
   missing: Set<string>; setMissing: (s: Set<string>) => void
+  /** v0.7.1: book-level node selected in the list (cover, endpaper, master, last page, book settings, nothing); null = the current spread */
+  node: Node; setNode: (n: Node) => void
+  mode: "pages" | "masters"; setMode: (m: "pages" | "masters") => void
+  book: Book; setBook: (b: Book) => void
+  panels: { l: boolean; b: boolean }; setPanels: (p: { l: boolean; b: boolean }) => void
 }
+export type Node = { k: "cover" } | { k: "endpaper"; w: "front" | "back" } | { k: "master"; id: "A" | "B" } | { k: "last" } | { k: "book" } | { k: "none" } | null
+export type Book = { endp: boolean; endpSame: boolean; w: number; h: number; preset: string }
+export const BOOK0: Book = { endp: true, endpSame: true, w: 20, h: 20, preset: "sq20" }
 const Ctx = React.createContext<Studio | null>(null)
 export const useStudio = () => React.useContext(Ctx)!
 
@@ -55,10 +64,20 @@ export const DEFAULT_VIEW: View = {
   snapFrames: true, snapGrid: true, snapGuides: true, pageNumbers: false, tool: "select", zoom: 1, thumb: 76, unplacedOnly: false, sort: "date",
 }
 
-export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: sel0 = [], missing: miss0, children }: {
+export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: sel0 = [], missing: miss0, node: node0 = null, mode: mode0 = "pages", book: book0, children }: {
   init: Doc | (() => Doc); view?: Partial<View>; features?: Features; cur?: number; sel?: string[]; missing?: string[]; children: React.ReactNode
+  node?: Node; mode?: "pages" | "masters"; book?: Partial<Book>
 }) {
-  const [h, setH] = React.useState<Hist>(() => ({ doc: typeof init === "function" ? init() : init, past: [], future: [] }))
+  const [node, setNodeRaw] = React.useState<Node>(node0)
+  const [mode, setMode] = React.useState(mode0)
+  const [book, setBookRaw] = React.useState<Book>({ ...BOOK0, ...book0 })
+  setGeom(book.w, book.h)
+  const [panels, setPanels] = React.useState({ l: true, b: true })
+  const [h, setH] = React.useState<Hist>(() => { setGeom(BOOK0.w, BOOK0.h); const d0 = typeof init === "function" ? init() : init; setGeom(book.w, book.h); return { doc: reflowDoc(d0, BOOK0, { ...BOOK0, ...book0 }), past: [], future: [] } })
+  const setBook = (b: Book) => {
+    if (b.w !== book.w || b.h !== book.h) { const from = book; setGeom(b.w, b.h); setH((s) => ({ ...s, doc: reflowDoc(s.doc, from, b) })) }
+    setBookRaw(b)
+  }
   const [draft, setDraft] = React.useState<Doc | null>(null)
   const draftRef = React.useRef<Doc | null>(null)
   const [cur, setCur] = React.useState(cur0)
@@ -112,10 +131,11 @@ export function StudioProvider({ init, view, features = {}, cur: cur0 = 0, sel: 
   }), [])
   const value: Studio = {
     doc, update, preview, commit, cancelPreview, undo, redo, past: h.past, future: h.future,
-    cur: Math.min(cur, doc.spreads.length - 1), setCur, sel, setSel, filmSel, setFilmSel, cropId, setCropId,
+    cur: Math.min(cur, doc.spreads.length - 1), setCur: (i: number) => { setCur(i); setNodeRaw(null) }, sel, setSel: (ids: string[]) => { setSel(ids); if (ids.length) setNodeRaw(null) }, filmSel, setFilmSel, cropId, setCropId,
     view: v, setView: (p) => setV((o) => ({ ...o, ...p })), features,
     toast: (c, timeout = 5000) => { queue.add(c, { timeout }) }, queue, status, setStatus, dragging, setDragging,
     saveState, setSaveState, missing, setMissing,
+    node, setNode: (n) => { setNodeRaw(n); if (n) setSel([]) }, mode, setMode, book, setBook, panels, setPanels,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -28,10 +28,7 @@ export function FeaturedIcon({ color = "gray", size = "md", theme = "light", chi
   )
   return (
     <span
-      className={cn("relative grid shrink-0 place-items-center border bg-background shadow-xs", sizes[size], fg[color], className)}
-      style={theme === "outline" ? {
-        boxShadow: "0 1px 2px rgb(0 0 0 / .05), 0 0 0 6px color-mix(in oklab, var(--border) 55%, transparent), 0 0 0 12px color-mix(in oklab, var(--border) 25%, transparent)",
-      } : undefined}
+      className={cn("relative grid shrink-0 place-items-center border", theme === "outline" ? "bg-muted shadow-none" : "bg-background shadow-xs", sizes[size], fg[color], className)}
     >
       {children}
     </span>

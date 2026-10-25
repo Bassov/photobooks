@@ -64,28 +64,28 @@ function ParentsPanel() {
   return (
     <aside className="flex min-h-0 flex-col border-r bg-chrome" data-testid="parents-panel">
       <PanelHeader icon={<Layers />} title="Parents" meta={`${st.doc.parents.length}`} />
-      <div className="flex flex-col gap-1 p-1.5">
+      <div className="flex flex-col gap-1 p-1">
         {st.doc.parents.map((p) => {
           const n = spreads.filter((s) => s.parent === p.id).length
           const on = sh?.parent === p.id
           return (
-            <div key={p.id} className={cn("group/pp flex flex-col gap-1 rounded-lg p-1.5", on ? "bg-accent" : "hover:bg-accent/50")}>
-              <div className="relative overflow-hidden rounded-[3px] bg-white shadow-[0_0_0_1px_rgb(0_0_0/.08)]" style={{ width: 160, height: 80 }}>
-                {p.frames.map((f) => <div key={f.id} className={cn("absolute", f.kind === "text" ? "border-b border-[#8fa6bf]" : "border border-dashed border-[#8fa6bf] bg-[#eef1f4]")} style={{ left: f.x * 0.4, top: f.y * 0.4, width: f.w * 0.4, height: f.kind === "text" ? 2 : f.h * 0.4 }} />)}
+            <div key={p.id} className={cn("group/pp flex flex-col gap-1 rounded-lg p-2", on ? "bg-accent" : "hover:bg-accent/50")}>
+              <div className="relative overflow-hidden rounded-2xs bg-white shadow-hairline" style={{ width: 160, height: 80 }}>
+                {p.frames.map((f) => <div key={f.id} className={cn("absolute", f.kind === "text" ? "border-b " : "border border-dashed  bg-parent-tint")} style={{ left: f.x * 0.4, top: f.y * 0.4, width: f.w * 0.4, height: f.kind === "text" ? 2 : f.h * 0.4 }} />)}
                 <div className="absolute inset-y-0 left-1/2 w-px bg-black/10" />
-                {p.pageNumbers && <><Hash className="absolute bottom-1 left-1 size-2.5 text-[#5f7894]" /><Hash className="absolute bottom-1 right-1 size-2.5 text-[#5f7894]" /></>}
+                {p.pageNumbers && <><Hash className="absolute bottom-1 left-1 size-2.5 text-parent-fg" /><Hash className="absolute bottom-1 right-1 size-2.5 text-parent-fg" /></>}
               </div>
-              <div className="flex items-center gap-1 text-[11.5px]">
+              <div className="flex items-center gap-1 text-xs">
                 <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
-                {on ? <Button size="sm" className="h-6 gap-1 px-1.5 text-[11px] [&_svg]:size-3" onPress={() => exitParent(st)} data-testid="parent-done"><Check />Done</Button>
-                  : <Button size="sm" variant="outline" isDisabled={!!sh} className="h-6 gap-1 px-1.5 text-[11px] shadow-xs [&_svg]:size-3" onPress={() => enterParent(st, p.id)} data-testid={`edit-${p.id}`}><Pencil />Edit</Button>}
+                {on ? <Button size="xs" className="gap-1 px-2 text-xs [&_svg]:size-3" onPress={() => exitParent(st)} data-testid="parent-done">Done</Button>
+                  : <Button size="xs" variant="outline" isDisabled={!!sh} className="gap-1 px-2 text-xs shadow-xs [&_svg]:size-3" onPress={() => enterParent(st, p.id)} data-testid={`edit-${p.id}`}><Pencil />Edit</Button>}
               </div>
-              <span className="text-[11px] text-muted-foreground">used on {n} spread{n === 1 ? "" : "s"}</span>
+              <span className="text-2xs text-muted-foreground">used on {n} spread{n === 1 ? "" : "s"}</span>
             </div>
           )
         })}
       </div>
-      {!sh && <div className="mt-auto border-t p-2.5 text-[11.5px] leading-relaxed text-muted-foreground">Assign a parent in Inspector → Spread. Parent items are dashed blue on spreads.</div>}
+      {!sh && <div className="mt-auto border-t p-3 text-xs leading-relaxed text-muted-foreground">Assign a parent in Inspector → Spread. Parent items show a quiet dashed outline on spreads.</div>}
     </aside>
   )
 }
@@ -95,9 +95,9 @@ function ParentBanner() {
   if (!sh) return null
   const p = st.doc.parents.find((x) => x.id === sh.parent)!
   return (
-    <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-[#8fa6bf]/60 bg-[#eef1f4] py-1 pl-3 pr-1 text-[12.5px] text-[#2f4256] shadow-sm dark:bg-[#26303b] dark:text-[#cfe0f1]" data-testid="parent-banner">
+    <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border  bg-parent-tint py-1 pl-3 pr-1 text-sm text-parent-tint-fg shadow-sm  " data-testid="parent-banner">
       <Layers className="size-3.5" />Editing parent <b>{p.name}</b> · {sh.spreads.filter((s) => s.parent === p.id).length} spreads follow it
-      <Button size="sm" className="h-6 gap-1 px-2 text-[11px] [&_svg]:size-3" onPress={() => exitParent(st)}><Check />Done</Button>
+      <Button size="xs" className="gap-1 px-2 text-xs [&_svg]:size-3" onPress={() => exitParent(st)}>Done</Button>
     </div>
   )
 }
@@ -108,7 +108,6 @@ function ParentAssign() {
   return (
     <Section title="Parent" summary={st.doc.parents.find((p) => p.id === s.parent)?.name.split(" · ")[0] ?? "None"}>
       <SelectRow label="Parent spread" value={s.parent ?? "none"} onChange={(v) => { st.update((d) => mapSpread(d, st.cur, (sp) => ({ ...sp, parent: v === "none" ? null : v, hiddenParent: [] })), v === "none" ? "Remove parent" : "Apply parent"); }} items={[["none", "None"], ...st.doc.parents.map((p) => [p.id, p.name] as [string, string])]} />
-      {s.parent && <Button size="sm" variant="ghost" className="mt-2 h-8 w-full gap-1.5 text-[13px] text-muted-foreground [&_svg]:size-3.5" onPress={() => enterParent(st, s.parent!)}><Pencil />Edit this parent</Button>}
     </Section>
   )
 }
@@ -131,15 +130,15 @@ function ParentItems() {
     <Section title="Parent items" summary={`${ov.size} overridden · ${hidden.size} hidden`}>
       <ul className="flex flex-col gap-1" data-testid="parent-items">
         {items.map((it) => (
-          <li key={it.id} className={cn("flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[12.5px]", hidden.has(it.id) && "text-muted-foreground line-through")}>
-            <Link2 className="size-3.5 shrink-0 text-[#5f7894]" /><span className="min-w-0 flex-1 truncate">{it.label}</span>
+          <li key={it.id} className={cn("flex items-center gap-1.5 rounded-md px-2 py-1 text-sm", hidden.has(it.id) && "text-muted-foreground line-through")}>
+            <Link2 className="size-3.5 shrink-0 text-parent-fg" /><span className="min-w-0 flex-1 truncate">{it.label}</span>
             {ov.has(it.id) ? <><Badge color="brand">override</Badge><IconButton size="sm" label="Reset to parent" onPress={() => reset(it.id)}><RotateCcw className="size-3.5!" /></IconButton></>
-              : it.kind === "item" && !hidden.has(it.id) && <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[11px]" onPress={() => override(it.id)}>Override</Button>}
+              : it.kind === "item" && !hidden.has(it.id) && <Button size="xs" variant="ghost" className="px-2 text-xs" onPress={() => override(it.id)}>Override</Button>}
             <IconButton size="sm" label={hidden.has(it.id) ? "Show on this spread" : "Hide on this spread"} onPress={() => toggle(it.id)}>{hidden.has(it.id) ? <EyeOff className="size-3.5!" /> : <Eye className="size-3.5!" />}</IconButton>
           </li>
         ))}
       </ul>
-      <div className="mt-2 text-[11.5px] text-muted-foreground">Alt+click a parent item on the canvas to override it here.</div>
+      <div className="mt-2 text-xs text-muted-foreground">Alt+click a parent item on the canvas to override it here.</div>
     </Section>
   )
 }
@@ -147,18 +146,18 @@ function PageNumbersSection() {
   const st = useStudio()
   return (
     <Section title="Page numbers">
-      <div className="flex flex-col gap-2.5" data-testid="page-numbers">
+      <div className="flex flex-col gap-2" data-testid="page-numbers">
         <SwitchRow isSelected={st.view.pageNumbers} onChange={(v) => st.setView({ pageNumbers: v })}>Show on every page (book-wide)</SwitchRow>
         <MmField label="First page number" unit="" value={st.doc.pageStart ?? 1} min={0} max={99} onChange={(v) => st.update((d) => ({ ...d, pageStart: Math.round(v) }), "Page start", "pstart")} />
         <SwitchRow isSelected={!!st.doc.skipFirst} onChange={(v) => st.update((d) => ({ ...d, skipFirst: v }), "Skip first page")}>Skip number on the first page</SwitchRow>
-        <div className="text-[11.5px] text-muted-foreground">Parents with a <span className="font-mono">#</span> token show numbers on their spreads: left page even, right odd.</div>
+        <div className="text-xs text-muted-foreground">Parents with a <span className="font-mono">#</span> token show numbers on their spreads: left page even, right odd.</div>
       </div>
     </Section>
   )
 }
 function PFrameTab() { const { f } = useSelected(); return f ? <>{f.kind === "text" ? <TextSection /> : <PhotoSection />}<GeometrySection rotation={false} /><DeleteFrameButton /></> : <EmptyInspector /> }
 function ParentStd({ spread: sp, book, features, view, cur = 3 }: { spread: React.ReactNode; book?: React.ReactNode; features?: object; view?: object; cur?: number }) {
-  return <Std init={parentDoc} cur={cur} view={{ guides: true, ...view }} features={{ drop: true, handles: true, ...features }} left={<ParentsPanel />} canvasExtra={<ParentBanner />} pager
+  return <Std init={parentDoc} cur={cur} view={{ guides: true, ...view }} features={{ drop: true, handles: true, ...features }} left={<ParentsPanel />} canvasExtra={<ParentBanner />}
     top={<TopBar tools={["select", "frame", "text", "hand"]} views={["snap", "grid", "guides", "rulers"]} />}
     right={<InspectorPanel frame={<PFrameTab />} spread={<><ParentAssign />{sp}</>} book={book} defaultTab="spread" />} />
 }
@@ -173,7 +172,7 @@ function UserTemplates() {
   const save = () => {
     const frames = s.frames.map((f) => ({ ...f, photo: null, id: uid() }))
     st.update((d) => ({ ...d, userTemplates: [...(d.userTemplates ?? []), { id: uid("ut"), name, frames }] }), "Save as template")
-    setOpen(false); st.toast({ tone: "success", title: `Template “${name}” saved`, description: "Available in every book of this library." }, 3000)
+    setOpen(false); st.toast({ tone: "success", title: `Template “${name}” saved`, description: "Available in every book in your library." }, 3000)
   }
   const apply = (t: { name: string; frames: Frame[] }) => {
     const ph = s.frames.filter((f) => f.kind === "image" && f.photo).map((f) => f.photo)
@@ -185,18 +184,18 @@ function UserTemplates() {
     <>
       <div className="flex items-start gap-3" data-testid="user-templates">
         <div className="flex shrink-0 flex-col gap-1.5">
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 px-2.5 text-[12.5px] shadow-xs [&_svg]:size-3.5" onPress={() => setOpen(true)} data-testid="save-template"><Save />Save spread as template</Button>
-          <span className="w-[180px] text-[11px] leading-snug text-muted-foreground">Frames are normalized to trim; slot aspects are kept.</span>
+          <Button size="sm" variant="outline" className="gap-1.5 px-3 text-sm shadow-xs [&_svg]:size-3.5" onPress={() => setOpen(true)} data-testid="save-template"><Save />Save spread as template</Button>
+          <span className="w-[180px] text-2xs leading-snug text-muted-foreground">Frames are normalized to trim; slot aspects are kept.</span>
         </div>
-        <div className="flex gap-2.5 overflow-x-auto p-1 pb-2">
-          {ut.length === 0 && <div className="grid h-[62px] w-[220px] place-items-center rounded-md border border-dashed text-[11.5px] text-muted-foreground">No templates of your own yet</div>}
+        <div className="flex gap-2 overflow-x-auto p-1 pb-2">
+          {ut.length === 0 && <div className="grid h-[62px] w-[220px] place-items-center rounded-md border border-dashed text-xs text-muted-foreground">No templates of your own yet</div>}
           {ut.map((t) => (
-            <button key={t.id} type="button" onClick={() => apply(t)} className="flex shrink-0 flex-col gap-1 rounded-[4px] text-left outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
-              <span className="relative block rounded-[3px] bg-white shadow-[0_0_0_1px_rgb(0_0_0/.1)]" style={{ width: 92, height: 46 }}>
-                {t.frames.map((f) => <span key={f.id} className={cn("absolute", f.kind === "text" ? "h-px bg-[#8a867f]" : "bg-[#d9d6d1]")} style={{ left: (f.x / SW) * 92, top: (f.y / SH) * 46, width: (f.w / SW) * 92, height: f.kind === "text" ? 1 : (f.h / SH) * 46 }} />)}
+            <button key={t.id} type="button" onClick={() => apply(t)} className="flex shrink-0 flex-col gap-1 rounded-xs text-left outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="relative block rounded-2xs bg-white shadow-hairline" style={{ width: 92, height: 46 }}>
+                {t.frames.map((f) => <span key={f.id} className={cn("absolute", f.kind === "text" ? "h-px bg-placeholder-fg" : "bg-placeholder-block")} style={{ left: (f.x / SW) * 92, top: (f.y / SH) * 46, width: (f.w / SW) * 92, height: f.kind === "text" ? 1 : (f.h / SH) * 46 }} />)}
                 <span className="absolute inset-y-0 left-1/2 w-px bg-black/10" />
               </span>
-              <span className="flex w-[92px] items-center gap-1 truncate text-[10.5px] text-muted-foreground"><LayoutTemplate className="size-3" />{t.name}</span>
+              <span className="flex w-[92px] items-center gap-1 truncate text-2xs text-muted-foreground"><LayoutTemplate className="size-3" />{t.name}</span>
             </button>
           ))}
         </div>
@@ -204,8 +203,8 @@ function UserTemplates() {
       </div>
       <AppModal isOpen={open} isDismissable={false} width={420}>
         <DialogHeader><DialogTitle>Save spread as template</DialogTitle><DialogDescription>{s.frames.length} frames · photos are not saved, only the layout.</DialogDescription></DialogHeader>
-        <TextField value={name} onChange={setName} autoFocus className="flex flex-col gap-1.5"><Label className="text-xs font-normal text-muted-foreground">Name</Label><Input className="h-9 text-[13px]" /></TextField>
-        <DialogFooter><Button variant="outline" onPress={() => setOpen(false)}>Cancel</Button><Button isDisabled={!name.trim()} onPress={save}>Save template</Button></DialogFooter>
+        <TextField value={name} onChange={setName} autoFocus className="flex flex-col gap-1.5"><Label className="text-xs font-normal text-muted-foreground">Name</Label><Input className="h-9 text-sm" /></TextField>
+        <DialogFooter><Button size="md" variant="outline" onPress={() => setOpen(false)}>Cancel</Button><Button size="md" isDisabled={!name.trim()} onPress={save}>Save template</Button></DialogFooter>
       </AppModal>
     </>
   )
@@ -219,7 +218,7 @@ const userTplDoc = (): Doc => {
 export const M45: Record<string, FeatureDef> = {
   "text-blocks": {
     Demo: () => <Std init={() => textDoc(false)} cur={3} features={{ drop: true, handles: true, textEdit: true }} pick={2} top={<TopBar tools={["select", "frame", "text", "hand"]} />} right={<InspectorPanel frame={<PFrameTab />} />} />,
-    notes: { what: "Text frames edited right on the canvas (double-click); built-in styles Title, Caption, Body; alignment.", where: "Text tool (T) → draw a frame; inspector → Text.", why: "The story next to the photos — no external editor.", keys: [["T", "Text tool"], ["dbl-click", "edit"], ["Ctrl Enter / Esc", "finish"]], edge: ["Empty text shows a placeholder", "Overset text is reported by preflight", "Fonts come from the curated book font set"] },
+    notes: { what: "Text frames edited right on the canvas (double-click); built-in styles Title, Caption, Body; alignment.", where: "Text tool (T) → draw a frame; inspector → Text.", why: "The story next to the photos — no external editor.", keys: [["T", "Text tool"], ["dbl-click", "edit"], ["Ctrl+Enter / Esc", "finish"]], edge: ["Empty text shows a placeholder", "Overset text is reported by preflight", "Fonts come from the curated book font set"] },
   },
   "live-captions": {
     Demo: () => <Std init={() => textDoc(true)} cur={3} features={{ drop: true, handles: true, textEdit: true, swap: true }} pick={2} right={<InspectorPanel frame={<LiveTab />} />} />,
@@ -235,7 +234,7 @@ export const M45: Record<string, FeatureDef> = {
   },
   "parent-spreads": {
     Demo: () => <ParentStd spread={<ParentItems />} />,
-    notes: { what: "Edit parents (shared items) and assign a parent to a spread, or “None”.", where: "Parents panel on the left → Edit; inspector → Spread → Parent.", why: "Running heads and repeated items in one place.", edge: ["Parent edit mode shows a blue banner and Done", "Parent items on a spread have a blue dashed outline and cannot be selected", "A “used on N spreads” counter"] },
+    notes: { what: "Edit parents (shared items) and assign a parent to a spread, or “None”.", where: "Parents panel on the left → Edit; inspector → Spread → Parent.", why: "Running heads and repeated items in one place.", edge: ["Parent edit mode shows a banner and Done", "Parent items on a spread have a quiet dashed outline and cannot be selected", "A “used on N spreads” counter"] },
   },
   "layout-grids-parent-inherit": {
     Demo: () => <ParentStd view={{ grid: true }} spread={<GridSection scope="spread" />} book={<GridSection scope="book" title="Book grid" />} />,
@@ -247,7 +246,7 @@ export const M45: Record<string, FeatureDef> = {
   },
   "parent-overrides": {
     Demo: () => <ParentStd features={{ overrides: true }} spread={<ParentItems />} />,
-    notes: { what: "Alt+click or the Override button creates a local copy of a parent item; an item can be hidden on this spread only; Reset restores the link.", where: "Canvas; inspector → Spread → Parent items.", why: "Exceptions without giving up the parent.", keys: [["Alt click", "override a parent item"]], edge: ["An override badge on the canvas and in the list", "Hidden items are struck through", "Editing the parent leaves overridden copies alone"] },
+    notes: { what: "Alt+click or the Override button creates a local copy of a parent item; an item can be hidden on this spread only; Reset restores the link.", where: "Canvas; inspector → Spread → Parent items.", why: "Exceptions without giving up the parent.", keys: [["Alt+click", "override a parent item"]], edge: ["An override badge on the canvas and in the list", "Hidden items are struck through", "Editing the parent leaves overridden copies alone"] },
   },
   "page-numbers": {
     Demo: () => <ParentStd cur={1} spread={<ParentItems />} book={<PageNumbersSection />} />,

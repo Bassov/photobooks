@@ -46,9 +46,9 @@ function Tabs({ className, ...props }: AriaTabsProps) {
  *  - Nested radius: tab radius = track radius − inset.
  */
 const tabListSizes = {
-  sm: "h-7 p-[2px] gap-px rounded-md text-xs *:px-2 *:rounded-[5px]",
-  md: "h-8 p-[3px] gap-0.5 rounded-lg text-[13px] *:px-2.5 *:rounded-[6px]",
-  lg: "h-10 p-1 gap-1 rounded-lg text-sm *:px-3 *:rounded-[6px]",
+  sm: "h-7 p-0.5 gap-px rounded-md text-xs *:px-2 *:rounded-xs",
+  md: "h-8 p-0.5 gap-0.5 rounded-lg text-sm *:px-3 *:rounded-sm",
+  lg: "h-10 p-1 gap-1 rounded-lg text-sm *:px-3 *:rounded-sm",
 } as const
 
 const TabList = <T extends object>({
@@ -59,7 +59,7 @@ const TabList = <T extends object>({
   <AriaTabList
     className={composeRenderProps(className, (className) =>
       cn(
-        "inline-flex items-stretch justify-center bg-muted text-muted-foreground dark:bg-black/25",
+        "inline-flex items-stretch justify-center bg-field text-muted-foreground",
         tabListSizes[size],
         /* Orientation */
         "data-[orientation=vertical]:h-auto data-[orientation=vertical]:flex-col",
@@ -74,7 +74,7 @@ const Tab = ({ className, ...props }: AriaTabProps) => (
   <AriaTab
     className={composeRenderProps(className, (className) =>
       cn(
-        "group/tab inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium leading-none outline-hidden ring-offset-background transition-[color,background-color,box-shadow] duration-150",
+        "group/tab inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium leading-none outline-hidden ring-offset-background transition-[color,background-color,box-shadow] duration-(--duration-fast)",
         "[&_svg]:size-3.5 [&_svg]:shrink-0",
         /* Hovered */
         "data-[hovered]:text-foreground",
@@ -83,7 +83,7 @@ const Tab = ({ className, ...props }: AriaTabProps) => (
         /* Disabled */
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-45",
         /* Selected */
-        "data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-[0_1px_2px_rgb(20_20_19/.08),0_0_0_.5px_rgb(20_20_19/.06)] dark:data-[selected]:bg-accent dark:data-[selected]:shadow-[0_1px_2px_rgb(0_0_0/.4)]",
+        "data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-pill",
         /* Orientation */
         "group-data-[orientation=vertical]:w-full",
         className
@@ -97,8 +97,8 @@ const Tab = ({ className, ...props }: AriaTabProps) => (
 const TabCount = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <span
     className={cn(
-      "-my-px inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground/[.06] px-[5px] text-[10.5px] font-medium tabular-nums leading-none text-muted-foreground",
-      "group-data-[selected]/tab:bg-foreground/[.07] group-data-[selected]/tab:text-foreground/70 dark:bg-white/[.07] dark:group-data-[selected]/tab:bg-white/10",
+      "-my-px inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground/[.06] px-1 text-2xs font-medium tabular-nums leading-none text-muted-foreground",
+      "group-data-[selected]/tab:bg-foreground/[.07] group-data-[selected]/tab:text-foreground/70",
       className
     )}
   >
