@@ -297,6 +297,23 @@ describe('decodeScheduler', () => {
     vi.unstubAllGlobals()
   })
 
+  it('scheduleWhenNowEmpty uses requestIdleCallback when postTask is absent', async () => {
+    vi.stubGlobal('scheduler', undefined)
+    const ric = vi.fn((cb: () => void) => {
+      queueMicrotask(cb)
+      return 1
+    })
+    vi.stubGlobal('requestIdleCallback', ric)
+    const order: string[] = []
+    scheduleWhenNowEmpty(() => {
+      order.push('idle')
+    })
+    order.push('sync')
+    expect(ric).toHaveBeenCalled()
+    await Promise.resolve()
+    expect(order).toEqual(['sync', 'idle'])
+  })
+
   it('ensureActiveAbortController replaces aborted controllers', () => {
     expect(ensureActiveAbortController(undefined).signal.aborted).toBe(false)
     const live = new AbortController()

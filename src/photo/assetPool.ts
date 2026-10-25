@@ -471,9 +471,6 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
 /** Eagerly construct the worker pool (one-time setup outside hot-handler measures). */
 export function warmAssetPool(): void {
   ensureSlots()
-  void import('./decodePressure').then((mod) => {
-    mod.startDecodePressureObserver()
-  })
 }
 
 /** Terminates workers and clears the queue (tests / teardown). */
