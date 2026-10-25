@@ -6,7 +6,11 @@ import {
   bookUsedIdsUnchanged,
   DECODE_POOL_CAP,
   decodeWorkerCount,
+  DECODE_POOL_CAP_IMPORT,
+  getDecodeImportActiveForTests,
   getDeferredHeicAssetIds,
+  getDeferredLazyAssetIds,
+  getEffectiveDecodeSlotLimitForTests,
   getPendingRetryAssetIdsForTests,
   getQueuedDecodeAssetIds,
   getVisibleAssetIds,
@@ -19,10 +23,12 @@ import {
   noteDecodeScrollActivity,
   setBookUsedAssetIds,
   setDecodeBackgroundIdleForTests,
+  setDecodeImportActive,
   setFilmstripVisibleAssetIds,
   setSpreadVisibleAssetIds,
   setVisibleAssetIds,
   shouldDeferHeicDecode,
+  shouldDeferLazyDecode,
   warmAssetPool,
 } from './assetPool'
 import {
@@ -53,13 +59,14 @@ function hangWorker(): void {
 }
 
 describe('assetPool', () => {
-  it('caps decode workers at DECODE_POOL_CAP', () => {
+  it('caps idle decode workers at DECODE_POOL_CAP_IDLE', () => {
     expect(decodeWorkerCount(undefined)).toBe(1)
     expect(decodeWorkerCount(0)).toBe(1)
     expect(decodeWorkerCount(-1)).toBe(1)
     expect(decodeWorkerCount(1)).toBe(1)
-    expect(decodeWorkerCount(5)).toBe(DECODE_POOL_CAP)
-    expect(decodeWorkerCount(32)).toBe(DECODE_POOL_CAP)
+    expect(decodeWorkerCount(5)).toBe(4)
+    expect(decodeWorkerCount(32)).toBe(4)
+    expect(decodeWorkerCount(32, { importActive: true })).toBe(DECODE_POOL_CAP)
   })
 
   afterEach(() => {
@@ -95,7 +102,11 @@ describe('assetPool', () => {
     const file = new File([new Uint8Array([1])], 'a.jpg', {
       type: 'image/jpeg',
     })
-    const result = await processAsset({ assetId: 'a1', file })
+    const result = await processAsset({
+      assetId: 'a1',
+      file,
+      priority: 'visible',
+    })
     expect(result.assetId).toBe('a1')
     expect(result.correctedWidth).toBe(10)
     expect(result.previewMimeType).toBe('image/jpeg')
@@ -140,6 +151,11 @@ describe('assetPool', () => {
     assignWorkingFields(mimeOnly, { workingMimeType: 'image/webp' })
     expect(Object.hasOwn(mimeOnly, 'workingBuffer')).toBe(false)
     expect(mimeOnly.workingMimeType).toBe('image/webp')
+
+    const withSource: AssetProcessResult = { ...base }
+    const sourceBuffer = new Uint8Array([7]).buffer
+    assignWorkingFields(withSource, { sourceBuffer })
+    expect(withSource.sourceBuffer).toBe(sourceBuffer)
   })
 
   it('forwards dualTiers and working buffers from the worker response', async () => {
@@ -200,6 +216,7 @@ describe('assetPool', () => {
       type: 'image/jpeg',
     })
     const result = await processAsset({
+      priority: 'visible',
       assetId: 'dual',
       file,
       dualTiers: true,
@@ -266,6 +283,7 @@ describe('assetPool', () => {
     vi.stubGlobal('Worker', CapturingWorker)
     warmAssetPool()
     await processAsset({
+      priority: 'visible',
       assetId: 'plain',
       file: new File([new Uint8Array([1])], 'plain.jpg', {
         type: 'image/jpeg',
@@ -294,7 +312,12 @@ describe('assetPool', () => {
       type: 'image/jpeg',
     })
     await expect(
-      processAsset({ assetId: 'a1', file, signal: controller.signal }),
+      processAsset({
+        priority: 'visible',
+        assetId: 'a1',
+        file,
+        signal: controller.signal,
+      }),
     ).rejects.toMatchObject({ name: 'AbortError' })
   })
 
@@ -304,9 +327,13 @@ describe('assetPool', () => {
     const file = new File([new Uint8Array([1])], 'a.jpg', {
       type: 'image/jpeg',
     })
-    await expect(processAsset({ assetId: 'a1', file })).rejects.toThrow(
-      /worker crashed|Photo worker failed/,
-    )
+    await expect(
+      processAsset({
+        priority: 'visible',
+        assetId: 'a1',
+        file,
+      }),
+    ).rejects.toThrow(/worker crashed|Photo worker failed/)
   })
 
   it('continues a batch when one job fails', async () => {
@@ -322,6 +349,7 @@ describe('assetPool', () => {
     const progress: { completed: number; errors: number }[] = []
     const onError = vi.fn()
     const { results, errors } = await runImportBatch(files, {
+      priority: 'visible',
       onProgress: (state) => {
         progress.push({
           completed: state.completed,
@@ -407,12 +435,12 @@ describe('assetPool', () => {
     expect(errors).toHaveLength(0)
   })
 
-  it('completes never-visible background import jobs while another id is preferred', async () => {
+  it('defers never-visible JPEG import jobs; still completes off-screen PNG', async () => {
     const previewBuffer = new Uint8Array([9]).buffer
     mockWorkerSuccess({
       ok: true,
-      name: 'photo.jpg',
-      mimeType: 'image/jpeg',
+      name: 'photo.png',
+      mimeType: 'image/png',
       byteLength: 1,
       width: 4,
       height: 4,
@@ -423,35 +451,31 @@ describe('assetPool', () => {
       previewMimeType: 'image/webp',
     })
     warmAssetPool()
-    // No force-idle: background drains via idle/postTask/setTimeout(0).
     setVisibleAssetIds(['visible-only'])
     const pending = runImportBatch(
       [
         {
-          assetId: 'offscreen-a',
+          assetId: 'offscreen-jpeg',
           file: new File([new Uint8Array([1])], 'a.jpg', {
             type: 'image/jpeg',
           }),
         },
         {
-          assetId: 'offscreen-b',
-          file: new File([new Uint8Array([2])], 'b.jpg', {
-            type: 'image/jpeg',
+          assetId: 'offscreen-png',
+          file: new File([new Uint8Array([2])], 'b.png', {
+            type: 'image/png',
           }),
         },
       ],
       { priority: 'prefetch', maxEdge: 64 },
     )
-    setVisibleAssetIds(['visible-only'])
     const { results, errors } = await pending
     expect(errors).toHaveLength(0)
-    expect(results.map((r) => r.assetId).sort()).toEqual([
-      'offscreen-a',
-      'offscreen-b',
-    ])
+    expect(results.map((r) => r.assetId)).toEqual(['offscreen-png'])
+    expect(getDeferredLazyAssetIds()).toContain('offscreen-jpeg')
   })
 
-  it('runImportBatch enables dualTiers only when maxEdge is omitted', async () => {
+  it('runImportBatch never enables dualTiers (bulk thumb320 only)', async () => {
     const posts: PhotoWorkerRequest[] = []
     class CapturingWorker {
       private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
@@ -489,8 +513,6 @@ describe('assetPool', () => {
               orientation: 1,
               previewBuffer: new Uint8Array([1]).buffer,
               previewMimeType: 'image/webp',
-              workingBuffer: new Uint8Array([2]).buffer,
-              workingMimeType: 'image/webp',
             },
           } as MessageEvent
           for (const listener of this.listeners.get('message') ?? []) {
@@ -508,7 +530,7 @@ describe('assetPool', () => {
     await runImportBatch(
       [
         {
-          assetId: 'dual-default',
+          assetId: 'thumb-only',
           file: new File([new Uint8Array([1])], 'a.jpg', {
             type: 'image/jpeg',
           }),
@@ -516,7 +538,7 @@ describe('assetPool', () => {
       ],
       { priority: 'visible' },
     )
-    expect(posts[0]?.dualTiers).toBe(true)
+    expect(posts[0]?.dualTiers).toBeUndefined()
     posts.length = 0
     await runImportBatch(
       [
@@ -568,7 +590,8 @@ describe('assetPool', () => {
   })
 
   it('noteDecodePressure lowers effective concurrency via backoff', () => {
-    expect(decodeWorkerCount(8)).toBe(DECODE_POOL_CAP)
+    expect(decodeWorkerCount(8)).toBe(4)
+    expect(decodeWorkerCount(9, { importActive: true })).toBe(DECODE_POOL_CAP)
     noteDecodePressure({ memoryPressure: true })
     noteDecodePressure({ memoryPressure: false, longTaskPressure: false })
   })
@@ -583,7 +606,7 @@ describe('assetPool', () => {
     noteDecodeScrollActivity(200)
     void processAsset({
       assetId: 'bg-quiet',
-      file: new File([new Uint8Array([1])], 'bg.jpg', { type: 'image/jpeg' }),
+      file: new File([new Uint8Array([1])], 'bg.png', { type: 'image/png' }),
       priority: 'prefetch',
     })
     await Promise.resolve()
@@ -606,7 +629,7 @@ describe('assetPool', () => {
     setVisibleAssetIds([])
     void processAsset({
       assetId: 'bg-free',
-      file: new File([new Uint8Array([1])], 'free.jpg', { type: 'image/jpeg' }),
+      file: new File([new Uint8Array([1])], 'free.png', { type: 'image/png' }),
       priority: 'prefetch',
     })
     await Promise.resolve()
@@ -650,7 +673,7 @@ describe('assetPool', () => {
     const pending = processAsset({
       assetId: 'gone',
       file,
-      priority: 'prefetch',
+      priority: 'visible',
       signal: controller.signal,
     })
     controller.abort()
@@ -720,28 +743,28 @@ describe('assetPool', () => {
     setFilmstripVisibleAssetIds(['film'])
 
     const file = (name: string): File =>
-      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+      new File([new Uint8Array([1])], name, { type: 'image/png' })
     // Same priority for all queued work — only visibility boost distinguishes.
     const hold = processAsset({
       assetId: 'hold',
-      file: file('hold.jpg'),
+      file: file('hold.png'),
       priority: 'prefetch',
     })
     const other = processAsset({
       assetId: 'other',
-      file: file('other.jpg'),
+      file: file('other.png'),
       priority: 'prefetch',
     })
     const film = processAsset({
       assetId: 'film',
-      file: file('film.jpg'),
+      file: file('film.png'),
       priority: 'prefetch',
     })
     await Promise.resolve()
     release?.()
     await Promise.all([hold, other, film])
     // Now-lane (film) starts before earlier background jobs still waiting on idle.
-    expect(order).toEqual(['film.jpg', 'hold.jpg', 'other.jpg'])
+    expect(order).toEqual(['film.png', 'hold.png', 'other.png'])
   })
 
   it('boosts spread-visible ids without a filmstrip window', async () => {
@@ -807,26 +830,26 @@ describe('assetPool', () => {
     setSpreadVisibleAssetIds('s0', ['spread'])
 
     const file = (name: string): File =>
-      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+      new File([new Uint8Array([1])], name, { type: 'image/png' })
     const hold = processAsset({
       assetId: 'hold',
-      file: file('hold.jpg'),
+      file: file('hold.png'),
       priority: 'prefetch',
     })
     const other = processAsset({
       assetId: 'other',
-      file: file('other.jpg'),
+      file: file('other.png'),
       priority: 'prefetch',
     })
     const spread = processAsset({
       assetId: 'spread',
-      file: file('spread.jpg'),
+      file: file('spread.png'),
       priority: 'prefetch',
     })
     await Promise.resolve()
     release?.()
     await Promise.all([hold, other, spread])
-    expect(order).toEqual(['spread.jpg', 'hold.jpg', 'other.jpg'])
+    expect(order).toEqual(['spread.png', 'hold.png', 'other.png'])
   })
 
   it('drops spread preference when cleared and resets via setVisibleAssetIds', async () => {
@@ -894,26 +917,26 @@ describe('assetPool', () => {
     setFilmstripVisibleAssetIds(['film-only'])
 
     const file = (name: string): File =>
-      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+      new File([new Uint8Array([1])], name, { type: 'image/png' })
     const hold = processAsset({
       assetId: 'hold',
-      file: file('hold.jpg'),
+      file: file('hold.png'),
       priority: 'prefetch',
     })
     const cleared = processAsset({
       assetId: 'spread',
-      file: file('cleared.jpg'),
+      file: file('cleared.png'),
       priority: 'prefetch',
     })
     const filmOnly = processAsset({
       assetId: 'film-only',
-      file: file('film-only.jpg'),
+      file: file('film-only.png'),
       priority: 'prefetch',
     })
     await Promise.resolve()
     release?.()
     await Promise.all([hold, cleared, filmOnly])
-    expect(order).toEqual(['film-only.jpg', 'hold.jpg', 'cleared.jpg'])
+    expect(order).toEqual(['film-only.png', 'hold.png', 'cleared.png'])
   })
 
   it('resetAssetPool forgets prior spread preference', async () => {
@@ -987,26 +1010,26 @@ describe('assetPool', () => {
     setFilmstripVisibleAssetIds(['film'])
 
     const file = (name: string): File =>
-      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+      new File([new Uint8Array([1])], name, { type: 'image/png' })
     const hold = processAsset({
       assetId: 'hold',
-      file: file('hold.jpg'),
+      file: file('hold.png'),
       priority: 'prefetch',
     })
     const stale = processAsset({
       assetId: 'spread',
-      file: file('stale.jpg'),
+      file: file('stale.png'),
       priority: 'prefetch',
     })
     const film = processAsset({
       assetId: 'film',
-      file: file('film.jpg'),
+      file: file('film.png'),
       priority: 'prefetch',
     })
     await Promise.resolve()
     release?.()
     await Promise.all([hold, stale, film])
-    expect(order).toEqual(['film.jpg', 'hold.jpg', 'stale.jpg'])
+    expect(order).toEqual(['film.png', 'hold.png', 'stale.png'])
   })
 
   it('setVisibleAssetIds clears prior spread preference', async () => {
@@ -1073,26 +1096,26 @@ describe('assetPool', () => {
     setVisibleAssetIds(['film-only'])
 
     const file = (name: string): File =>
-      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+      new File([new Uint8Array([1])], name, { type: 'image/png' })
     const hold = processAsset({
       assetId: 'hold',
-      file: file('hold.jpg'),
+      file: file('hold.png'),
       priority: 'prefetch',
     })
     const cleared = processAsset({
       assetId: 'spread',
-      file: file('cleared.jpg'),
+      file: file('cleared.png'),
       priority: 'prefetch',
     })
     const filmOnly = processAsset({
       assetId: 'film-only',
-      file: file('film-only.jpg'),
+      file: file('film-only.png'),
       priority: 'prefetch',
     })
     await Promise.resolve()
     release?.()
     await Promise.all([hold, cleared, filmOnly])
-    expect(order).toEqual(['film-only.jpg', 'hold.jpg', 'cleared.jpg'])
+    expect(order).toEqual(['film-only.png', 'hold.png', 'cleared.png'])
   })
 
   it('prefers visible assets when draining a single-worker queue', async () => {
@@ -1164,7 +1187,7 @@ describe('assetPool', () => {
     })
     const background = processAsset({
       assetId: 'bg',
-      file: new File([new Uint8Array([1])], 'bg.jpg', { type: 'image/jpeg' }),
+      file: new File([new Uint8Array([1])], 'bg.png', { type: 'image/png' }),
       priority: 'background',
     })
     const visible = processAsset({
@@ -1175,7 +1198,7 @@ describe('assetPool', () => {
     expect(order).toEqual(['hold.jpg'])
     release?.()
     await Promise.all([blocker, background, visible])
-    expect(order).toEqual(['hold.jpg', 'vis.jpg', 'bg.jpg'])
+    expect(order).toEqual(['hold.jpg', 'vis.jpg', 'bg.png'])
   })
 
   it('runs zoom jobs after visible work and before prefetch', async () => {
@@ -1239,27 +1262,29 @@ describe('assetPool', () => {
     vi.stubGlobal('Worker', GatedWorker)
     warmAssetPool()
 
-    const file = (name: string): File =>
-      new File([new Uint8Array([1])], name, { type: 'image/jpeg' })
+    const jpeg = (name: string): File =>
+      new File([new Uint8Array([1])], name, { type: 'image/png' })
+    const png = (name: string): File =>
+      new File([new Uint8Array([1])], name, { type: 'image/png' })
     const hold = processAsset({
       assetId: 'hold',
-      file: file('hold.jpg'),
+      file: jpeg('hold.jpg'),
       priority: 'visible',
     })
     const prefetch = processAsset({
       assetId: 'pre',
-      file: file('pre.jpg'),
+      file: png('pre.png'),
       priority: 'prefetch',
     })
     const zoom = processAsset({
       assetId: 'zoom',
-      file: file('zoom.jpg'),
+      file: jpeg('zoom.jpg'),
       priority: 'zoom',
     })
     expect(order).toEqual(['hold.jpg'])
     release?.()
     await Promise.all([hold, prefetch, zoom])
-    expect(order).toEqual(['hold.jpg', 'zoom.jpg', 'pre.jpg'])
+    expect(order).toEqual(['hold.jpg', 'zoom.jpg', 'pre.png'])
   })
 
   it('resetAssetPool rejects jobs still waiting in the queue', async () => {
@@ -1276,7 +1301,7 @@ describe('assetPool', () => {
     })
     const second = processAsset({
       assetId: 'b',
-      file: new File([new Uint8Array([1])], 'b.jpg', { type: 'image/jpeg' }),
+      file: new File([new Uint8Array([1])], 'b.png', { type: 'image/png' }),
       priority: 'background',
     })
     const secondResult = second.then(
@@ -1345,6 +1370,233 @@ describe('assetPool', () => {
     setVisibleAssetIds(['heic-off'])
     expect(getDeferredHeicAssetIds()).not.toContain('heic-off')
     await expect(pending).resolves.toMatchObject({ assetId: 'heic-off' })
+  })
+
+  it('does not queue off-screen JPEG at prefetch; queues when visible (lazy like HEIC)', async () => {
+    mockWorkerSuccess({
+      ok: true,
+      name: 'big.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([1]).buffer,
+      previewMimeType: 'image/webp',
+      sourceBuffer: new Uint8Array([9]).buffer,
+    })
+    warmAssetPool()
+    const jpeg = new File([new Uint8Array([1])], 'big.jpg', {
+      type: 'image/jpeg',
+    })
+    expect(shouldDeferLazyDecode('jpeg-off', jpeg, 'prefetch')).toBe(true)
+    expect(shouldDeferHeicDecode('jpeg-off', jpeg, 'prefetch')).toBe(false)
+
+    const pending = processAsset({
+      assetId: 'jpeg-off',
+      file: jpeg,
+      priority: 'prefetch',
+    })
+    expect(getDeferredLazyAssetIds()).toContain('jpeg-off')
+    expect(getQueuedDecodeAssetIds()).not.toContain('jpeg-off')
+
+    setVisibleAssetIds(['jpeg-off'])
+    expect(getDeferredLazyAssetIds()).not.toContain('jpeg-off')
+    const result = await pending
+    expect(result.assetId).toBe('jpeg-off')
+    expect(result.sourceBuffer).toBeDefined()
+  })
+
+  it('runImportBatch defers off-screen JPEG without awaiting full decode', async () => {
+    hangWorker()
+    warmAssetPool()
+    const jpeg = new File([new Uint8Array([1])], 'defer.jpg', {
+      type: 'image/jpeg',
+    })
+    const batch = runImportBatch([{ assetId: 'jpeg-defer', file: jpeg }], {
+      priority: 'prefetch',
+    })
+    const outcome = await batch
+    expect(outcome.results).toEqual([])
+    expect(getDeferredLazyAssetIds()).toContain('jpeg-defer')
+    expect(getQueuedDecodeAssetIds()).not.toContain('jpeg-defer')
+    resetAssetPool()
+  })
+
+  it('raises effective decode concurrency while import is active', () => {
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 14,
+    })
+    expect(getDecodeImportActiveForTests()).toBe(false)
+    expect(getEffectiveDecodeSlotLimitForTests()).toBe(4)
+    setDecodeImportActive(true)
+    expect(getDecodeImportActiveForTests()).toBe(true)
+    expect(getEffectiveDecodeSlotLimitForTests()).toBe(DECODE_POOL_CAP)
+    noteDecodePressure({ memoryPressure: true })
+    expect(getEffectiveDecodeSlotLimitForTests()).toBe(1)
+    noteDecodePressure({ memoryPressure: false })
+    setDecodeImportActive(false)
+    expect(getDecodeImportActiveForTests()).toBe(false)
+    expect(getEffectiveDecodeSlotLimitForTests()).toBe(4)
+  })
+
+  it('warmAssetPool allocates import-cap worker slots even when idle', () => {
+    let created = 0
+    class CountingWorker {
+      addEventListener(): void {
+        // no-op
+      }
+
+      removeEventListener(): void {
+        // no-op
+      }
+
+      postMessage(): void {
+        // no-op
+      }
+
+      terminate(): void {
+        // no-op
+      }
+
+      constructor() {
+        created += 1
+      }
+    }
+    Object.defineProperty(navigator, 'hardwareConcurrency', {
+      configurable: true,
+      value: 32,
+    })
+    vi.stubGlobal('Worker', CountingWorker)
+    expect(getDecodeImportActiveForTests()).toBe(false)
+    warmAssetPool()
+    expect(created).toBe(DECODE_POOL_CAP_IMPORT)
+  })
+
+  it('assignWorkingFields leaves sourceBuffer unset when the worker omitted it', () => {
+    const base: AssetProcessResult = {
+      assetId: 'x',
+      name: 'x.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1,
+      previewBuffer: new ArrayBuffer(1),
+      previewMimeType: 'image/webp',
+    }
+    const none: AssetProcessResult = { ...base }
+    assignWorkingFields(none, { workingMimeType: 'image/webp' })
+    expect(Object.hasOwn(none, 'sourceBuffer')).toBe(false)
+  })
+
+  it('deferred JPEG decode failure invokes onError (unlike HEIC)', async () => {
+    mockWorkerFailure('jpeg boom')
+    warmAssetPool()
+    const onError = vi.fn()
+    const jpeg = new File([new Uint8Array([1])], 'bad.jpg', {
+      type: 'image/jpeg',
+    })
+    const batch = runImportBatch([{ assetId: 'jpeg-async-fail', file: jpeg }], {
+      priority: 'prefetch',
+      onError,
+    })
+    await Promise.resolve()
+    expect(getDeferredLazyAssetIds()).toContain('jpeg-async-fail')
+    setVisibleAssetIds(['jpeg-async-fail'])
+    await batch
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledWith(
+        'jpeg-async-fail',
+        expect.objectContaining({
+          reason: 'decode-failed',
+          message: 'jpeg boom',
+        }),
+      )
+    })
+  })
+
+  it('promotes deferred tail JPEG ahead of start-ordered background', async () => {
+    const order: string[] = []
+    class OrderedWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: { id: string; file: File }): void {
+        order.push(data.file.name)
+        queueMicrotask(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: data.file.name,
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/webp',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', OrderedWorker)
+    warmAssetPool()
+    setDecodeBackgroundIdleForTests(true)
+    // Fill pool so later enqueue stays queued until we free a slot via visibility.
+    setVisibleAssetIds([])
+    const early = new File([new Uint8Array([1])], 'early.jpg', {
+      type: 'image/jpeg',
+    })
+    const tail = new File([new Uint8Array([2])], 'tail.jpg', {
+      type: 'image/jpeg',
+    })
+    void processAsset({
+      assetId: 'early',
+      file: early,
+      priority: 'prefetch',
+    }).catch(() => undefined)
+    void processAsset({
+      assetId: 'tail',
+      file: tail,
+      priority: 'prefetch',
+    }).catch(() => undefined)
+    expect([...getDeferredLazyAssetIds()].sort()).toEqual(['early', 'tail'])
+    setVisibleAssetIds(['tail'])
+    await vi.waitFor(() => {
+      expect(order[0]).toBe('tail.jpg')
+    })
   })
 
   it('queues deferred HEIC when marked book-used', async () => {
@@ -1569,8 +1821,8 @@ describe('assetPool', () => {
       value: 1,
     })
     warmAssetPool()
-    const file = new File([new Uint8Array([1])], 'wait.jpg', {
-      type: 'image/jpeg',
+    const file = new File([new Uint8Array([1])], 'wait.png', {
+      type: 'image/png',
     })
     void processAsset({
       assetId: 'queued',
@@ -1811,8 +2063,8 @@ describe('assetPool', () => {
   it('runImportBatch finishes without waiting on deferred HEIC', async () => {
     mockWorkerSuccess({
       ok: true,
-      name: 'ok.jpg',
-      mimeType: 'image/jpeg',
+      name: 'ok.png',
+      mimeType: 'image/png',
       byteLength: 1,
       width: 2,
       height: 2,
@@ -1826,20 +2078,20 @@ describe('assetPool', () => {
     const heic = new File([new Uint8Array([1])], 'idle.heic', {
       type: 'image/heic',
     })
-    const jpeg = new File([new Uint8Array([1])], 'ok.jpg', {
-      type: 'image/jpeg',
+    const png = new File([new Uint8Array([1])], 'ok.png', {
+      type: 'image/png',
     })
 
     const outcome = await runImportBatch(
       [
         { assetId: 'heic-idle', file: heic },
-        { assetId: 'jpeg-ok', file: jpeg },
+        { assetId: 'png-ok', file: png },
       ],
       { priority: 'prefetch' },
     )
 
     expect(getDeferredHeicAssetIds()).toContain('heic-idle')
-    expect(outcome.results.some((r) => r.assetId === 'jpeg-ok')).toBe(true)
+    expect(outcome.results.some((r) => r.assetId === 'png-ok')).toBe(true)
 
     setVisibleAssetIds(['heic-idle'])
     await vi.waitFor(() => {

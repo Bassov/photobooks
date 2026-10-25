@@ -21,7 +21,12 @@ export function decodeLaneFor(
   return 'background'
 }
 
-export const DECODE_POOL_CAP = 4
+/** Safer browse/idle decode slot ceiling. */
+export const DECODE_POOL_CAP_IDLE = 4
+/** Higher ceiling while a gallery import is running. */
+export const DECODE_POOL_CAP_IMPORT = 8
+/** Absolute max slots / backoff ceiling (same numeric value as import cap). */
+export const DECODE_POOL_CAP = 8
 
 /**
  * Resolve raw `navigator.hardwareConcurrency` to a positive core count.
@@ -36,14 +41,19 @@ export function resolveDecodeCores(
   return 2
 }
 
-/** Pure pool sizing: min(4, max(1, hardwareConcurrency - 1)). */
+/**
+ * Pure pool sizing: min(cap, max(1, hardwareConcurrency - 1)).
+ * Import-active uses the higher ceiling; idle/browse stays at DECODE_POOL_CAP_IDLE.
+ */
 export function decodeWorkerCount(
   hardwareConcurrency: number | undefined,
+  options: { importActive?: boolean } = {},
 ): number {
-  return Math.min(
-    DECODE_POOL_CAP,
-    Math.max(1, resolveDecodeCores(hardwareConcurrency) - 1),
-  )
+  const cap =
+    options.importActive === true
+      ? DECODE_POOL_CAP_IMPORT
+      : DECODE_POOL_CAP_IDLE
+  return Math.min(cap, Math.max(1, resolveDecodeCores(hardwareConcurrency) - 1))
 }
 
 export interface BackoffSignals {
@@ -55,7 +65,7 @@ export interface BackoffSignals {
 
 /**
  * Temporarily lower effective decode concurrency under pressure.
- * Floor is 1; never raises above `base`.
+ * Floor is 1; never raises above `base` or the absolute DECODE_POOL_CAP.
  */
 export function backoffConcurrency(
   base: number,

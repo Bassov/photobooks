@@ -46,7 +46,7 @@ The filmstrip SHALL list gallery assets horizontally with virtualization. Each i
 
 ### Requirement: Import progress and status strip
 
-While multi-file import runs, the filmstrip status strip SHALL show progress and remain scrollable. The strip MUST show gallery photo count when non-empty or importing.
+While multi-file import runs, the filmstrip status strip SHALL show progress and remain scrollable. The strip MUST show gallery photo count when non-empty or importing. Progress MAY reflect list/enqueue readiness and visible-window decode rather than requiring every gallery original to be fully decoded before import is treated as complete.
 
 #### Scenario: Progress during import
 
@@ -105,7 +105,7 @@ Progressive reveal MUST NOT lag `scrollLeft` into a mid-scroll dead zone of unre
 
 ### Requirement: Visible-window decode priority
 
-Decode and thumbnail work SHALL use two lanes: **now** (mounted filmstrip window ∪ painted-spread ∪ book-used) and **background** (other gallery prefetch). Now MUST always outrank background; background MUST run only in idle time and MUST NOT starve now. Changing the visible window MUST update the now set: assets that leave now with an unfinished thumb/working job MUST have that job aborted (queued dropped; in-flight aborted where possible) and MUST be re-enqueued at now when they re-enter without a hot thumb. The gallery import batch itself MUST continue (list-first placeholders). HEIC/HEIF assets MUST NOT be queued for background work while outside now; when such an asset enters now, decode MUST be queued at now priority.
+Decode and thumbnail work SHALL use two lanes: **now** (mounted filmstrip window ∪ painted-spread ∪ book-used) and **background** (other gallery prefetch). Now MUST always outrank background; background MUST run only in idle time and MUST NOT starve now. Changing the visible window MUST update the now set: assets that leave now with an unfinished thumb/working job MUST have that job aborted (queued dropped; in-flight aborted where possible) and MUST be re-enqueued at now when they re-enter without a hot thumb. The gallery import batch itself MUST continue (list-first placeholders). JPEG and HEIC/HEIF assets MUST NOT be queued for background full-original decode while outside now; when such an asset enters now, decode MUST be queued at now priority ahead of start-ordered off-window work (including when the user scrolls to the filmstrip tail).
 
 #### Scenario: Scrolling promotes newly visible tiles
 
@@ -127,7 +127,12 @@ Decode and thumbnail work SHALL use two lanes: **now** (mounted filmstrip window
 - **WHEN** book-used assets and many unused gallery placeholders compete for thumb320 work
 - **THEN** book-used ids are preferred over idle unused placeholders
 
-#### Scenario: Off-screen HEIC stays unqueued
+#### Scenario: Off-screen JPEG or HEIC stays unqueued
 
-- **WHEN** a HEIC/HEIF asset is outside the now set
-- **THEN** no background thumb decode is queued for it
+- **WHEN** a JPEG or HEIC/HEIF asset is outside the now set
+- **THEN** no background full-original decode is queued for it
+
+#### Scenario: Tail scroll outranks start-ordered prefetch
+
+- **WHEN** the user scrolls the filmstrip to near the end while earlier off-window assets remain undecoded
+- **THEN** decode slots prefer the newly visible tail ids over start-ordered background work

@@ -235,43 +235,32 @@ When a remembered photo root is restored with `read` permission, the system SHAL
 
 ### Requirement: JPEG head pass for dims and EXIF thumb
 
-After list-first gallery enqueue for JPEG sources, the system SHALL read a bounded file head (≤64 KiB) with capped parallelism (same order as import body-read cap, with yields) to (1) publish an IFD1 embedded JPEG thumbnail as a temporary filmstrip thumb until thumb320 replaces it, and (2) obtain width/height/orientation from JPEG SOF/EXIF, apply them to session aspect, and persist them into the folder manifest. Absent or corrupt embedded thumbs MUST leave the placeholder and MUST NOT crash. The head pass MUST NOT require a full-file decode. Assets that already have real dimensions or a hot DerivedCache/thumb320 MAY skip redundant head work.
+After list-first gallery enqueue for JPEG sources, the system SHALL read a bounded file head (≤64 KiB) with capped parallelism (same order as import body-read cap, with yields) to (1) publish an IFD1 embedded thumbnail as a temporary filmstrip thumb until thumb320 replaces it, and (2) obtain width/height/orientation from JPEG SOF/EXIF for session aspect and the folder manifest. Absent/corrupt thumbs MUST leave the placeholder. The head pass MUST NOT require a full-file decode; assets with real dims or hot thumb320 MAY skip it. Full-body decode for off-now JPEG MUST wait until visible ∪ book-used (same lazy policy as HEIC).
 
-#### Scenario: Embedded EXIF thumb paints before thumb320
+#### Scenario: Embedded EXIF thumb or grey placeholder before thumb320
 
-- **WHEN** a JPEG with an IFD1 embedded thumbnail is imported and thumb320 is not ready
-- **THEN** the filmstrip may show that embedded thumbnail as a temporary tile image until the 320-tier preview replaces it
+- **WHEN** a first-import JPEG has (or lacks) a usable IFD1 thumbnail and thumb320 is not ready
+- **THEN** the filmstrip shows that embedded thumb or the ordinary placeholder until thumb320 publishes
 
-#### Scenario: Missing or corrupt EXIF thumb stays grey
+#### Scenario: Head dims and off-now lazy decode
 
-- **WHEN** a JPEG has no IFD1 thumbnail or the embedded bytes are corrupt
-- **THEN** the tile keeps the ordinary placeholder and import continues without throwing
-
-#### Scenario: Header dims update aspect and manifest
-
-- **WHEN** a JPEG head yields SOF/EXIF width, height, and orientation before full decode
-- **THEN** session aspect uses those values and the folder manifest entry stores them for later hydrate
+- **WHEN** a JPEG head yields SOF/EXIF dims, or a gallery JPEG stays outside visible ∪ book-used
+- **THEN** aspect/manifest update without createImageBitmap, and full decode waits until the asset enters that set
 
 ### Requirement: Persisted folder manifest for matching and hydrate
 
-The system SHALL persist a per-`sourceRootId` folder manifest in IndexedDB after cheap walks, after the JPEG head pass supplies dimensions, and when decode supplies dimensions. Each entry MUST store relative path, byte size, and mtime, and MAY store width, height, and orientation once known. The manifest MUST hydrate the gallery list/aspects before the next visit’s walk completes and match/detect new/changed/removed entries against the latest scan. It MUST NOT substitute for the walk (every visit still cheap-scans). It stores metadata only (no bodies, content hash, or embedded thumbs). Writes MUST be batched with yields. Corrupt or version-mismatched data MUST be ignored and rebuilt from the next scan without crashing.
+The system SHALL persist a per-`sourceRootId` folder manifest in IndexedDB after cheap walks / JPEG head dims / decode dims. Entries MUST store relative path, size, mtime (MAY store width/height/orientation). The manifest MUST hydrate gallery list/aspects before the next walk completes and match new/changed/removed against the latest scan, MUST NOT skip the walk, stores metadata only, batches writes with yields, and ignores corrupt/version-mismatched data (rebuild on next scan).
 
-#### Scenario: Manifest updates after a cheap walk
+#### Scenario: Manifest walk update, no skip, corrupt/head dims
 
-- **WHEN** a cheap full `scanRoot` completes for a registered root
-- **THEN** the persisted folder manifest for that `sourceRootId` is updated to the scanned path/size/mtime set, preserving prior width/height/orientation when size and mtime are unchanged and clearing them when size or mtime change
+- **WHEN** a cheap `scanRoot` completes, or a prior manifest exists, or bytes are corrupt/unsupported / head pass yields dims
+- **THEN** the manifest updates (preserving dims when size+mtime unchanged), the next visit still walks, corrupt data is ignored without crash, and head dims land without waiting for thumb320
 
-#### Scenario: Manifest alone does not skip the walk
+### Requirement: Import decode reuses one body read for library seed
 
-- **WHEN** a persisted folder manifest already exists for the root
-- **THEN** the next visit still runs the cheap full walk before using the manifest for matching
+When a full original body is read for import decode/encode, the system MUST reuse those bytes for library `seedAndHashEntry` (no second full-file `arrayBuffer` on the happy path). Deferred lazy assets MAY skip body read until decode runs.
 
-#### Scenario: Corrupt or version-mismatched manifest is ignored
+#### Scenario: Seed uses preloaded bytes
 
-- **WHEN** stored manifest bytes are corrupt or the schema version is unsupported
-- **THEN** the reader treats the manifest as missing, the UI does not crash, and the next successful scan rebuilds it
-
-#### Scenario: Head-pass dims land in the manifest
-
-- **WHEN** the JPEG head pass obtains width/height/orientation for an identity-complete asset
-- **THEN** those dimensions are written into the folder manifest without waiting for thumb320 decode
+- **WHEN** import decode already has the file body for an asset that needs library seed
+- **THEN** seed uses those bytes without a second full-file body read

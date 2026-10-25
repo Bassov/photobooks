@@ -28,12 +28,19 @@ import {
 } from './decodeScheduler'
 
 export { noteDecodeScrollActivity } from './decodeScrollQuiet'
+import { createDecodeWorker } from './createDecodeWorker'
 import { isKnownHeicFile } from './heic'
+import { isJpegLikeFile } from './mime'
 import { THUMB_MAX_EDGE } from './photoEdges'
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
 
 export type { DecodeJobPriority } from './decodeQueuePolicy'
-export { DECODE_POOL_CAP, decodeWorkerCount } from './decodeQueuePolicy'
+export {
+  DECODE_POOL_CAP,
+  DECODE_POOL_CAP_IDLE,
+  DECODE_POOL_CAP_IMPORT,
+  decodeWorkerCount,
+} from './decodeQueuePolicy'
 
 export interface AssetProcessResult {
   assetId: string
@@ -49,6 +56,8 @@ export interface AssetProcessResult {
   previewMimeType: string
   workingBuffer?: ArrayBuffer
   workingMimeType?: string
+  /** Original body from the worker — reuse for library seed (no second read). */
+  sourceBuffer?: ArrayBuffer
 }
 
 export type ImportErrorReason = 'unsupported-type' | 'heic' | 'decode-failed'
@@ -122,11 +131,28 @@ interface WorkerSlot {
   busy: boolean
 }
 
-function poolSize(): number {
+function hardwareConcurrencyOrUndefined(): number | undefined {
   // Stryker disable next-line ConditionalExpression,EqualityOperator: navigator is always defined in app + Vitest
-  const concurrency =
-    typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined
-  return decodeWorkerCount(concurrency)
+  return typeof navigator !== 'undefined'
+    ? navigator.hardwareConcurrency
+    : undefined
+}
+
+/**
+ * Worker slot count — always the import ceiling so raising importActive can
+ * use more slots without recreating the pool.
+ */
+function poolSize(): number {
+  return decodeWorkerCount(hardwareConcurrencyOrUndefined(), {
+    importActive: true,
+  })
+}
+
+/** Effective decode concurrency for the current import/idle mode (+ backoff). */
+function effectiveBaseConcurrency(): number {
+  return decodeWorkerCount(hardwareConcurrencyOrUndefined(), {
+    importActive: decodeImportActive,
+  })
 }
 
 let decodeSlots: WorkerSlot[] = []
@@ -148,16 +174,22 @@ let longTaskPressure = false
 let memoryPressure = false
 let backgroundPumpScheduled = false
 
-interface DeferredHeicItem {
+interface DeferredLazyItem {
   options: ProcessAssetOptions
   resolve: (result: AssetProcessResult) => void
   reject: (error: Error) => void
 }
 
-/** HEIC/HEIF waiting for visible ∪ book-used before entering the decode queue. */
-const deferredHeicByAsset = new Map<string, DeferredHeicItem>()
+/**
+ * JPEG / HEIC waiting for visible ∪ book-used before full-original decode.
+ * Filmstrip may show EXIF thumb / grey placeholder until then.
+ */
+const deferredLazyByAsset = new Map<string, DeferredLazyItem>()
 
-function heicMayDecodeNow(
+/** True while a gallery import is running — raises the effective decode cap. */
+let decodeImportActive = false
+
+function lazyMayDecodeNow(
   assetId: string,
   priority: DecodeJobPriority,
 ): boolean {
@@ -167,13 +199,46 @@ function heicMayDecodeNow(
   return priority === 'visible' || priority === 'zoom'
 }
 
-/** True when a HEIC/HEIF file would be deferred (not queued yet). */
+/** JPEG or HEIC/HEIF that defer full decode until now. */
+export function isLazyDecodeFile(file: File): boolean {
+  return isKnownHeicFile(file) || isJpegLikeFile(file)
+}
+
+/** True when a JPEG/HEIC would be deferred (not queued yet). */
+export function shouldDeferLazyDecode(
+  assetId: string,
+  file: File,
+  priority: DecodeJobPriority = 'prefetch',
+): boolean {
+  return isLazyDecodeFile(file) && !lazyMayDecodeNow(assetId, priority)
+}
+
+/** HEIC-only defer check (JPEG uses shouldDeferLazyDecode). */
 export function shouldDeferHeicDecode(
   assetId: string,
   file: File,
   priority: DecodeJobPriority = 'prefetch',
 ): boolean {
-  return isKnownHeicFile(file) && !heicMayDecodeNow(assetId, priority)
+  return isKnownHeicFile(file) && !lazyMayDecodeNow(assetId, priority)
+}
+
+/** Raise/lower import-time decode concurrency (wired from setImportRunning). */
+export function setDecodeImportActive(active: boolean): void {
+  if (decodeImportActive === active) {
+    return
+  }
+  decodeImportActive = active
+  // Grow workers lazily via pump when work is queued (avoids Worker in flag-only tests).
+  pumpNowThenBackground()
+}
+
+export function getDecodeImportActiveForTests(): boolean {
+  return decodeImportActive
+}
+
+/** Test seam: effective slot limit after import-active + backoff. */
+export function getEffectiveDecodeSlotLimitForTests(): number {
+  return effectiveSlotLimit()
 }
 
 function scheduleBackgroundPump(): void {
@@ -250,15 +315,15 @@ function applyNowSetTransition(previous: ReadonlySet<string>): void {
   relabelQueueLanes(queue, nowAssetIds)
 }
 
-function promoteDeferredHeic(): void {
-  if (deferredHeicByAsset.size === 0) {
+function promoteDeferredLazy(): void {
+  if (deferredLazyByAsset.size === 0) {
     return
   }
-  const ready: DeferredHeicItem[] = []
-  for (const [assetId, deferred] of deferredHeicByAsset) {
+  const ready: DeferredLazyItem[] = []
+  for (const [assetId, deferred] of deferredLazyByAsset) {
     const priority = deferred.options.priority ?? 'prefetch'
-    if (heicMayDecodeNow(assetId, priority)) {
-      deferredHeicByAsset.delete(assetId)
+    if (lazyMayDecodeNow(assetId, priority)) {
+      deferredLazyByAsset.delete(assetId)
       ready.push(deferred)
     }
   }
@@ -302,13 +367,18 @@ function rebuildVisibleAssetIds(): void {
   }
   visibleAssetIds = next
   applyNowSetTransition(previousNow)
-  promoteDeferredHeic()
+  promoteDeferredLazy()
   pumpNowThenBackground()
 }
 
-/** Snapshot of deferred HEIC asset ids (tests / metrics). */
+/** Snapshot of deferred lazy (JPEG/HEIC) asset ids (tests / metrics). */
+export function getDeferredLazyAssetIds(): readonly string[] {
+  return [...deferredLazyByAsset.keys()]
+}
+
+/** Alias for HEIC-focused tests; same map as getDeferredLazyAssetIds. */
 export function getDeferredHeicAssetIds(): readonly string[] {
-  return [...deferredHeicByAsset.keys()]
+  return getDeferredLazyAssetIds()
 }
 
 /** Test seam: abort the import decode controller for one gallery asset. */
@@ -326,9 +396,7 @@ function ensureSlots(): void {
     const size = poolSize()
     for (let i = 0; i < size; i += 1) {
       decodeSlots.push({
-        worker: new Worker(new URL('./photo.worker.ts', import.meta.url), {
-          type: 'module',
-        }),
+        worker: createDecodeWorker(),
         busy: false,
       })
     }
@@ -336,7 +404,7 @@ function ensureSlots(): void {
 }
 
 function effectiveSlotLimit(): number {
-  return backoffConcurrency(poolSize(), {
+  return backoffConcurrency(effectiveBaseConcurrency(), {
     longTaskPressure,
     memoryPressure,
   })
@@ -497,10 +565,10 @@ export function resetAssetPool(): void {
     job.reject(resetError)
   }
   inFlightJobs.clear()
-  for (const deferred of deferredHeicByAsset.values()) {
+  for (const deferred of deferredLazyByAsset.values()) {
     deferred.reject(resetError)
   }
-  deferredHeicByAsset.clear()
+  deferredLazyByAsset.clear()
   pendingRetryByAsset.clear()
   filmstripVisibleIds = new Set()
   spreadVisibleById.clear()
@@ -509,6 +577,7 @@ export function resetAssetPool(): void {
   nowAssetIds = new Set()
   longTaskPressure = false
   memoryPressure = false
+  decodeImportActive = false
   resetDecodeScrollQuietForTests()
   // Drop controllers without aborting — in-flight were rejected above; aborting
   // would double-reject via AbortSignal listeners as unhandled rejections.
@@ -604,16 +673,17 @@ export function setBookUsedAssetIds(assetIds: readonly string[]): void {
   const previousNow = nowAssetIds
   bookUsedAssetIds = new Set(assetIds)
   applyNowSetTransition(previousNow)
-  promoteDeferredHeic()
+  promoteDeferredLazy()
   pumpNowThenBackground()
 }
 
-/** Copy dual-tier fields only when the worker actually sent them. */
+/** Copy dual-tier / source-body fields only when the worker actually sent them. */
 export function assignWorkingFields(
   result: AssetProcessResult,
   response: {
     workingBuffer?: ArrayBuffer
     workingMimeType?: string
+    sourceBuffer?: ArrayBuffer
   },
 ): void {
   if (response.workingBuffer !== undefined) {
@@ -621,6 +691,9 @@ export function assignWorkingFields(
   }
   if (response.workingMimeType !== undefined) {
     result.workingMimeType = response.workingMimeType
+  }
+  if (response.sourceBuffer !== undefined) {
+    result.sourceBuffer = response.sourceBuffer
   }
 }
 
@@ -649,11 +722,8 @@ export function processAsset(
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
-    if (
-      isKnownHeicFile(options.file) &&
-      !heicMayDecodeNow(options.assetId, priority)
-    ) {
-      deferredHeicByAsset.set(options.assetId, {
+    if (shouldDeferLazyDecode(options.assetId, options.file, priority)) {
+      deferredLazyByAsset.set(options.assetId, {
         options: { ...options, priority },
         resolve,
         reject,
@@ -683,6 +753,15 @@ export function processAsset(
 }
 
 export type ImportBatchListener = (state: ImportBatchState) => void
+
+function notifyImportDecodeError(
+  onError: ((assetId: string, error: ImportFileError) => void) | undefined,
+  assetId: string,
+  importError: ImportFileError,
+): void {
+  // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
+  onError?.(assetId, importError)
+}
 
 /**
  * Process many files with shared progress. Per-file failures do not abort the batch.
@@ -731,8 +810,8 @@ export async function runImportBatch(
             assetId: item.assetId,
             file: item.file,
             priority,
-            // One decode → 320+1280 unless the caller pins a single maxEdge.
-            dualTiers: dualTiersDefaultForImport(options.maxEdge),
+            // Bulk import: thumb320 only; 1280 via requestTier when needed.
+            dualTiers: dualTiersDefaultForImport(),
           }
           const signal = abortByAsset.get(item.assetId)?.signal
           if (signal) {
@@ -741,8 +820,9 @@ export async function runImportBatch(
           if (options.maxEdge !== undefined) {
             processOptions.maxEdge = options.maxEdge
           }
-          // Off-screen HEIC: register deferred decode without blocking the batch.
-          if (shouldDeferHeicDecode(item.assetId, item.file, priority)) {
+          // Off-screen JPEG/HEIC: register deferred decode without blocking the batch.
+          if (shouldDeferLazyDecode(item.assetId, item.file, priority)) {
+            const heic = isKnownHeicFile(item.file)
             void processAsset(processOptions)
               .then((result) => {
                 results.push(result)
@@ -762,10 +842,17 @@ export async function runImportBatch(
                 const importError = createImportFileError({
                   name: item.file.name,
                   message,
-                  reason: 'heic',
+                  reason: heic ? 'heic' : 'decode-failed',
                   assetId: item.assetId,
                 })
                 errors.push(importError)
+                if (!heic) {
+                  notifyImportDecodeError(
+                    options.onError,
+                    item.assetId,
+                    importError,
+                  )
+                }
                 // Keep HEIC placeholder tiles (do not call onError discard).
               })
             return
@@ -788,8 +875,7 @@ export async function runImportBatch(
           })
           errors.push(importError)
           if (!heic) {
-            // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
-            options.onError?.(item.assetId, importError)
+            notifyImportDecodeError(options.onError, item.assetId, importError)
           }
         } finally {
           completed += 1

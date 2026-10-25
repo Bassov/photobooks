@@ -234,11 +234,12 @@ export function shouldScheduleBackgroundDrain(
   return !allowBackground && hasBackground
 }
 
-/** Import batch: dual tiers unless the caller pinned a single maxEdge. */
-export function dualTiersDefaultForImport(
-  maxEdge: number | undefined,
-): boolean {
-  return maxEdge === undefined
+/**
+ * Bulk/prefetch import encodes thumb320 only; working 1280 is built on
+ * pasteboard/placement/need via requestTier (or an explicit dualTiers job).
+ */
+export function dualTiersDefaultForImport(): boolean {
+  return false
 }
 
 /** Merge adaptive backoff flags; omit keys leave the prior value. */

@@ -37,6 +37,7 @@ describe('runChromeImport', () => {
     })
     expect(importSpy).toHaveBeenCalledWith([file], {
       onProgress: expect.any(Function),
+      onDecodeError: expect.any(Function),
       source: 'folder',
       sourceRootId: 'root-fwd',
       libraryBacked: true,
@@ -80,6 +81,7 @@ describe('runChromeImport', () => {
     })
     expect(importSpy).toHaveBeenCalledWith([file], {
       onProgress: expect.any(Function),
+      onDecodeError: expect.any(Function),
       source: 'folder',
     })
     const forwarded = importSpy.mock.calls[0]?.[1]
@@ -195,5 +197,36 @@ describe('runChromeImport', () => {
       errors,
       running: false,
     })
+  })
+
+  it('reports late onDecodeError without double-counting the batch result', async () => {
+    const late = makeImportFileError({
+      name: 'lazy-bad.jpg',
+      message: 'deferred boom',
+      reason: 'decode-failed',
+      assetId: 'lazy-1',
+    })
+    const sync = makeImportFileError({
+      name: 'sync-bad.tif',
+      message: 'unsupported',
+      reason: 'unsupported-type',
+    })
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockImplementation(
+      async (_files, options) => {
+        const outcome = { imported: 0, errors: [sync, late], skipped: 0 }
+        await Promise.resolve()
+        options?.onDecodeError?.(late)
+        return outcome
+      },
+    )
+
+    const onErrors = vi.fn()
+    const file = new File([new Uint8Array([1])], 'lazy-bad.jpg', {
+      type: 'image/jpeg',
+    })
+    await runChromeImport([file], { onProgress: vi.fn(), onErrors })
+    expect(onErrors).toHaveBeenCalledTimes(2)
+    expect(onErrors).toHaveBeenNthCalledWith(1, [late])
+    expect(onErrors).toHaveBeenNthCalledWith(2, [sync])
   })
 })

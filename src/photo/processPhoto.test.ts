@@ -590,6 +590,7 @@ describe('processPhotoRequest', () => {
     expect(result.previewMimeType).toBe('image/webp')
     expect(result.workingMimeType).toBe('image/webp')
     expect(result.workingBuffer?.byteLength).toBeGreaterThan(0)
+    expect(result.sourceBuffer?.byteLength).toBeGreaterThan(0)
   })
 
   it('encodes WebP sources as image/webp and reports blob type', async () => {

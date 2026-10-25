@@ -33,6 +33,11 @@ import {
   resetFilmstripScrollQuietForTests,
 } from './filmstripScrollQuiet'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
+import {
+  getDecodeImportActiveForTests,
+  resetAssetPool,
+  setDecodeImportActive,
+} from '../photo/assetPool'
 
 function sessionFile(name: string, aspect = 1.5): AssetSessionMeta {
   return {
@@ -633,6 +638,18 @@ describe('bookStore', () => {
     galleryListener.mockClear()
     setImportRunning(true, 3)
     expect(galleryListener).not.toHaveBeenCalled()
+  })
+
+  it('mirrors importRunning onto decode import-active concurrency', () => {
+    resetAssetPool()
+    expect(getDecodeImportActiveForTests()).toBe(false)
+    setImportRunning(true, 2)
+    expect(getDecodeImportActiveForTests()).toBe(true)
+    setImportRunning(false)
+    expect(getDecodeImportActiveForTests()).toBe(false)
+    setDecodeImportActive(true)
+    resetBookStore()
+    expect(getDecodeImportActiveForTests()).toBe(false)
   })
 
   it('patchAssetRecord no-ops when the merge leaves the asset unchanged', () => {

@@ -265,7 +265,8 @@ describe('tierCache', () => {
     retainAssetSource('imp', imported)
     retainAssetSource('tier-asset', jpeg('tier.jpg'))
     const batch = runImportBatch([{ assetId: 'imp', file: imported }], {
-      priority: 'prefetch',
+      // Visible so JPEG is not lazy-deferred while we cancel a peer tier job.
+      priority: 'visible',
     })
     await Promise.resolve()
     requestTier('tier-asset', 320)

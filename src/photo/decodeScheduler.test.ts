@@ -131,10 +131,8 @@ describe('decodeScheduler', () => {
     expect(shouldScheduleBackgroundDrain(true, false)).toBe(false)
   })
 
-  it('dualTiersDefaultForImport is true only when maxEdge is omitted', () => {
-    expect(dualTiersDefaultForImport(undefined)).toBe(true)
-    expect(dualTiersDefaultForImport(320)).toBe(false)
-    expect(dualTiersDefaultForImport(0)).toBe(false)
+  it('dualTiersDefaultForImport is always false (bulk encodes thumb320 only)', () => {
+    expect(dualTiersDefaultForImport()).toBe(false)
   })
 
   it('applyDecodePressureSignals updates only provided flags', () => {
