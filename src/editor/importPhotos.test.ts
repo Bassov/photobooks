@@ -24,6 +24,9 @@ import { getThumbUrl, resetThumbCache } from './thumbCache'
 import type { ImportFileError } from '../photo/assetPool'
 
 const runImportBatch = vi.hoisted(() => vi.fn())
+const seedWorkingPreview = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+)
 
 vi.mock('../photo/assetPool', async () => {
   const actual =
@@ -37,6 +40,18 @@ vi.mock('../photo/assetPool', async () => {
   }
 })
 
+vi.mock('../photo/tierCache', async () => {
+  const actual =
+    await vi.importActual<typeof import('../photo/tierCache')>(
+      '../photo/tierCache',
+    )
+  return {
+    ...actual,
+    seedWorkingPreview: (...args: unknown[]): unknown =>
+      seedWorkingPreview(...args) as unknown,
+  }
+})
+
 import { importPhotoFiles } from './importPhotos'
 
 describe('importPhotoFiles', () => {
@@ -47,6 +62,8 @@ describe('importPhotoFiles', () => {
     resetGallerySelection()
     resetFrameSelection()
     runImportBatch.mockReset()
+    seedWorkingPreview.mockReset()
+    seedWorkingPreview.mockResolvedValue(undefined)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -254,6 +271,150 @@ describe('importPhotoFiles', () => {
     expect(getThumbUrl(assetId)).toBe('blob:imported')
     expect(getAssetSource(assetId)?.name).toBe('a.jpg')
     expect(getBookStoreSnapshot().importRunning).toBe(false)
+    expect(seedWorkingPreview).not.toHaveBeenCalled()
+  })
+
+  it('seeds working preview only when both workingBuffer and workingMimeType are set', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:dual')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+
+    const jpeg = new File([new Uint8Array([1])], 'dual.jpg', {
+      type: 'image/jpeg',
+    })
+    const workingBuffer = new Uint8Array([2, 3]).buffer
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File }[],
+        options: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+            workingBuffer?: ArrayBuffer
+            workingMimeType?: string
+          }) => void
+        },
+      ) => {
+        const item = items[0]
+        if (!item) {
+          return Promise.resolve({ results: [], errors: [] })
+        }
+        options.onResult?.({
+          assetId: item.assetId,
+          name: item.file.name,
+          correctedWidth: 40,
+          correctedHeight: 20,
+          orientation: 1,
+          previewBuffer: new Uint8Array([9]).buffer,
+          previewMimeType: 'image/webp',
+          workingBuffer,
+          workingMimeType: 'image/webp',
+        })
+        return Promise.resolve({
+          results: [
+            {
+              assetId: item.assetId,
+              name: item.file.name,
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 40,
+              height: 20,
+              correctedWidth: 40,
+              correctedHeight: 20,
+              orientation: 1,
+              previewBuffer: new Uint8Array([9]).buffer,
+              previewMimeType: 'image/webp',
+              workingBuffer,
+              workingMimeType: 'image/webp',
+            },
+          ],
+          errors: [],
+        })
+      },
+    )
+
+    const result = await importPhotoFiles([jpeg])
+    expect(result.imported).toBe(1)
+    expect(seedWorkingPreview).toHaveBeenCalledOnce()
+    expect(seedWorkingPreview).toHaveBeenCalledWith(
+      expect.any(String),
+      workingBuffer,
+      'image/webp',
+      undefined,
+    )
+  })
+
+  it('does not seed working preview when only one dual-tier field is present', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:partial')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+
+    const emitPartial = (partial: {
+      workingBuffer?: ArrayBuffer
+      workingMimeType?: string
+    }): void => {
+      runImportBatch.mockImplementationOnce(
+        (
+          items: { assetId: string; file: File }[],
+          options: {
+            onResult?: (result: {
+              assetId: string
+              name: string
+              correctedWidth: number
+              correctedHeight: number
+              orientation: number
+              previewBuffer: ArrayBuffer
+              previewMimeType: string
+              workingBuffer?: ArrayBuffer
+              workingMimeType?: string
+            }) => void
+          },
+        ) => {
+          const item = items[0]
+          if (!item) {
+            return Promise.resolve({ results: [], errors: [] })
+          }
+          options.onResult?.({
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 10,
+            correctedHeight: 10,
+            orientation: 1,
+            previewBuffer: new Uint8Array([1]).buffer,
+            previewMimeType: 'image/webp',
+            ...partial,
+          })
+          return Promise.resolve({ results: [], errors: [] })
+        },
+      )
+    }
+
+    emitPartial({ workingBuffer: new Uint8Array([2]).buffer })
+    await importPhotoFiles([
+      new File([new Uint8Array([1])], 'buf-only.jpg', { type: 'image/jpeg' }),
+    ])
+    emitPartial({ workingMimeType: 'image/webp' })
+    await importPhotoFiles([
+      new File([new Uint8Array([1])], 'mime-only.jpg', { type: 'image/jpeg' }),
+    ])
+    expect(seedWorkingPreview).not.toHaveBeenCalled()
   })
 
   it('merges pool errors with early reject errors', async () => {

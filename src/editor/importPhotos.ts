@@ -41,7 +41,9 @@ import {
 import { tryPatchManifestFromAsset } from './folderManifestWrite'
 import { isLibraryBacked } from './projectSession'
 import { yieldForPaint } from './relink/yieldForPaint'
+import { seedWorkingPreview } from '../photo/tierCache'
 import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
+import { trackHashJob } from './pendingHashes'
 import { setThumbUrl } from './thumbCache'
 
 /** `performance.measure` label for the sync import kickoff (handler p95 gate). */
@@ -124,6 +126,8 @@ function applyImportResult(result: {
   orientation: number
   previewBuffer: ArrayBuffer
   previewMimeType: string
+  workingBuffer?: ArrayBuffer
+  workingMimeType?: string
 }): void {
   const prior = getBookStoreSnapshot().sessionMeta.get(result.assetId)
   // Skip when session meta already matches decode output — including the
@@ -154,12 +158,26 @@ function applyImportResult(result: {
       },
     )
   }
+  const cacheKey = getAssetCacheKey(result.assetId)
   setThumbUrl(
     result.assetId,
     result.previewBuffer,
     result.previewMimeType,
-    getAssetCacheKey(result.assetId),
+    cacheKey,
   )
+  if (
+    result.workingBuffer !== undefined &&
+    result.workingMimeType !== undefined
+  ) {
+    void trackHashJob(
+      seedWorkingPreview(
+        result.assetId,
+        result.workingBuffer,
+        result.workingMimeType,
+        cacheKey,
+      ),
+    )
+  }
   // Lazy HEIC: body seed was skipped while deferred; seed once decode lands.
   const asset = getBookStoreSnapshot().book.assets[result.assetId]
   const file = getAssetSource(result.assetId)

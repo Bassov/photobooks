@@ -11,8 +11,14 @@ import {
   putCachedTierForHash,
   requestTier,
   resetTierCache,
+  seedWorkingPreview,
+  dualThumbCacheKey,
+  selectTierEncodeBuffers,
+  shouldSeedThumbFromDual,
   subscribeTier,
 } from './tierCache'
+import { WORKING_PREVIEW_EDGE } from './imageTiers'
+import { tierPresetId } from '../assets/derivedCache/presets'
 
 const SAMPLE_HASH =
   '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
@@ -543,5 +549,459 @@ describe('tierCache', () => {
 
     expect(getTierUrl('a', 320)).toBe('blob:plain')
     expect(put).not.toHaveBeenCalled()
+  })
+
+  it('selectTierEncodeBuffers prefers working fields only for dualTiers', () => {
+    const previewBuffer = new Uint8Array([1]).buffer
+    const workingBuffer = new Uint8Array([2]).buffer
+    expect(
+      selectTierEncodeBuffers(false, {
+        previewBuffer,
+        previewMimeType: 'image/jpeg',
+        workingBuffer,
+        workingMimeType: 'image/webp',
+      }),
+    ).toEqual({ buffer: previewBuffer, mimeType: 'image/jpeg' })
+    expect(
+      selectTierEncodeBuffers(true, {
+        previewBuffer,
+        previewMimeType: 'image/jpeg',
+        workingBuffer,
+        workingMimeType: 'image/webp',
+      }),
+    ).toEqual({ buffer: workingBuffer, mimeType: 'image/webp' })
+    expect(
+      selectTierEncodeBuffers(true, {
+        previewBuffer,
+        previewMimeType: 'image/jpeg',
+      }),
+    ).toEqual({ buffer: previewBuffer, mimeType: 'image/jpeg' })
+  })
+
+  it('shouldSeedThumbFromDual requires dualTiers, non-empty thumb, and cacheKey', () => {
+    const preview = new Uint8Array([1]).buffer
+    const empty = new ArrayBuffer(0)
+    expect(
+      shouldSeedThumbFromDual(true, { previewBuffer: preview }, SAMPLE_HASH),
+    ).toBe(true)
+    expect(
+      dualThumbCacheKey(true, { previewBuffer: preview }, SAMPLE_HASH),
+    ).toBe(SAMPLE_HASH)
+    expect(
+      shouldSeedThumbFromDual(false, { previewBuffer: preview }, SAMPLE_HASH),
+    ).toBe(false)
+    expect(
+      shouldSeedThumbFromDual(true, { previewBuffer: empty }, SAMPLE_HASH),
+    ).toBe(false)
+    expect(
+      dualThumbCacheKey(true, { previewBuffer: empty }, SAMPLE_HASH),
+    ).toBeUndefined()
+    expect(
+      shouldSeedThumbFromDual(true, { previewBuffer: preview }, undefined),
+    ).toBe(false)
+    expect(shouldSeedThumbFromDual(true, { previewBuffer: preview }, '')).toBe(
+      false,
+    )
+  })
+
+  it('does not seed thumb from dual encode when previewBuffer is empty', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:empty-thumb')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    class EmptyThumbWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: { id: string }): void {
+        queueMicrotask(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: 'e.jpg',
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 2,
+              height: 2,
+              correctedWidth: 2,
+              correctedHeight: 2,
+              orientation: 1,
+              previewBuffer: new ArrayBuffer(0),
+              previewMimeType: 'image/webp',
+              workingBuffer: new Uint8Array([8]).buffer,
+              workingMimeType: 'image/webp',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', EmptyThumbWorker)
+    retainAssetSource('empty-thumb', jpeg('e.jpg'))
+    requestTier('empty-thumb', WORKING_PREVIEW_EDGE, SAMPLE_HASH)
+    for (let step = 0; step < 20; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+    const thumb = await cache.get(SAMPLE_HASH, 'thumb')
+    expect(thumb.ok).toBe(false)
+    const working = await cache.get(
+      SAMPLE_HASH,
+      tierPresetId(WORKING_PREVIEW_EDGE),
+    )
+    expect(working.ok).toBe(true)
+  })
+
+  it('seedWorkingPreview stores WebP under the working preset', async () => {
+    const cache = createMemoryDerivedCache()
+    const put = vi.spyOn(cache, 'put')
+    setDerivedCacheForTests(cache)
+    const bytes = new Uint8Array([1, 2, 3]).buffer
+
+    await seedWorkingPreview('a1', bytes, 'image/webp', SAMPLE_HASH)
+
+    const got = await cache.get(SAMPLE_HASH, tierPresetId(WORKING_PREVIEW_EDGE))
+    expect(got.ok).toBe(true)
+    assert.equal(got.ok, true)
+    expect(got.value.mimeType).toBe('image/webp')
+    expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([1, 2, 3]))
+    const putArgs = put.mock.calls[0]
+    expect(putArgs?.[2]?.bytes).not.toBe(bytes)
+    expect(putArgs?.[2]?.mimeType).toBe('image/webp')
+    // Retained copy — mutating the source must not change the cache row.
+    new Uint8Array(bytes)[0] = 99
+    const again = await cache.get(
+      SAMPLE_HASH,
+      tierPresetId(WORKING_PREVIEW_EDGE),
+    )
+    assert.equal(again.ok, true)
+    expect(new Uint8Array(again.value.bytes)[0]).toBe(1)
+  })
+
+  it('seedWorkingPreview keeps an independent lastTier buffer without a cacheKey', async () => {
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    const bytes = new Uint8Array([4, 5, 6]).buffer
+    await seedWorkingPreview('solo', bytes, 'image/webp')
+    new Uint8Array(bytes)[0] = 99
+    await putCachedTierForHash('solo', SAMPLE_HASH)
+    const got = await cache.get(SAMPLE_HASH, tierPresetId(WORKING_PREVIEW_EDGE))
+    expect(got.ok).toBe(true)
+    assert.equal(got.ok, true)
+    expect(new Uint8Array(got.value.bytes)).toEqual(new Uint8Array([4, 5, 6]))
+    expect(got.value.mimeType).toBe('image/webp')
+  })
+
+  it('seedWorkingPreview skips DerivedCache when cacheKey is missing or empty', async () => {
+    const cache = createMemoryDerivedCache()
+    const put = vi.spyOn(cache, 'put')
+    setDerivedCacheForTests(cache)
+    const bytes = new Uint8Array([4, 5]).buffer
+
+    await expect(
+      seedWorkingPreview('no-key', bytes, 'image/webp'),
+    ).resolves.toBeUndefined()
+    await expect(
+      seedWorkingPreview('empty-key', bytes, 'image/webp', ''),
+    ).resolves.toBeUndefined()
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('hydrates a legacy JPEG working-preview row without re-encode', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:legacy-jpeg')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    await cache.put(SAMPLE_HASH, tierPresetId(WORKING_PREVIEW_EDGE), {
+      bytes: new Uint8Array([9, 8, 7]).buffer,
+      mimeType: 'image/jpeg',
+    })
+    const worker = vi.fn()
+    vi.stubGlobal('Worker', worker)
+
+    requestTier('legacy', WORKING_PREVIEW_EDGE, SAMPLE_HASH)
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+
+    expect(getTierUrl('legacy', WORKING_PREVIEW_EDGE)).toBe('blob:legacy-jpeg')
+    expect(worker).not.toHaveBeenCalled()
+  })
+
+  it('encodes working preview with dualTiers and seeds thumb+working cache rows', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:working')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    const posts: { dualTiers?: boolean; maxEdge: number }[] = []
+    class DualWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: {
+        id: string
+        dualTiers?: boolean
+        maxEdge: number
+      }): void {
+        const entry: { dualTiers?: boolean; maxEdge: number } = {
+          maxEdge: data.maxEdge,
+        }
+        if (data.dualTiers !== undefined) {
+          entry.dualTiers = data.dualTiers
+        }
+        posts.push(entry)
+        queueMicrotask(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: 'w.jpg',
+              mimeType: 'image/jpeg',
+              byteLength: 2,
+              width: 4,
+              height: 4,
+              correctedWidth: 4,
+              correctedHeight: 4,
+              orientation: 1,
+              previewBuffer: new Uint8Array([10]).buffer,
+              previewMimeType: 'image/webp',
+              workingBuffer: new Uint8Array([20, 21]).buffer,
+              workingMimeType: 'image/webp',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', DualWorker)
+    retainAssetSource('work', jpeg('w.jpg'))
+
+    requestTier('work', WORKING_PREVIEW_EDGE, SAMPLE_HASH)
+    for (let step = 0; step < 20; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+
+    expect(posts[0]?.dualTiers).toBe(true)
+    expect(posts[0]?.maxEdge).toBe(WORKING_PREVIEW_EDGE)
+    expect(getTierUrl('work', WORKING_PREVIEW_EDGE)).toBe('blob:working')
+    const thumb = await cache.get(SAMPLE_HASH, 'thumb')
+    expect(thumb.ok).toBe(true)
+    assert.equal(thumb.ok, true)
+    expect(new Uint8Array(thumb.value.bytes)).toEqual(new Uint8Array([10]))
+    const working = await cache.get(
+      SAMPLE_HASH,
+      tierPresetId(WORKING_PREVIEW_EDGE),
+    )
+    expect(working.ok).toBe(true)
+    assert.equal(working.ok, true)
+    expect(new Uint8Array(working.value.bytes)).toEqual(
+      new Uint8Array([20, 21]),
+    )
+    expect(working.value.mimeType).toBe('image/webp')
+  })
+
+  it('does not set dualTiers when requesting a non-working tier edge', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:320')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const posts: { dualTiers?: boolean; maxEdge: number }[] = []
+    class CaptureWorker {
+      private listeners = new Map<string, Set<(event: MessageEvent) => void>>()
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        const set = this.listeners.get(type) ?? new Set()
+        set.add(listener)
+        this.listeners.set(type, set)
+      }
+
+      removeEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      postMessage(data: {
+        id: string
+        dualTiers?: boolean
+        maxEdge: number
+      }): void {
+        const entry: { dualTiers?: boolean; maxEdge: number } = {
+          maxEdge: data.maxEdge,
+        }
+        if (data.dualTiers !== undefined) {
+          entry.dualTiers = data.dualTiers
+        }
+        posts.push(entry)
+        queueMicrotask(() => {
+          const event = {
+            data: {
+              id: data.id,
+              ok: true,
+              name: 't.jpg',
+              mimeType: 'image/jpeg',
+              byteLength: 1,
+              width: 2,
+              height: 2,
+              correctedWidth: 2,
+              correctedHeight: 2,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/jpeg',
+            },
+          } as MessageEvent
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener(event)
+          }
+        })
+      }
+
+      terminate(): void {
+        this.listeners.clear()
+      }
+    }
+    vi.stubGlobal('Worker', CaptureWorker)
+    retainAssetSource('t320', jpeg('t.jpg'))
+    requestTier('t320', 320)
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+    expect(posts[0]?.maxEdge).toBe(320)
+    expect(posts[0]?.dualTiers).toBeUndefined()
+  })
+
+  it('falls back to previewBuffer when dualTiers response omits workingBuffer', async () => {
+    const callbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        callbacks.push(cb)
+        return callbacks.length
+      },
+    )
+    let blobType = ''
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      blobType = (blob as Blob).type
+      return 'blob:fallback'
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    mockWorkerSuccess({
+      ok: true,
+      name: 'f.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 1,
+      width: 2,
+      height: 2,
+      correctedWidth: 2,
+      correctedHeight: 2,
+      orientation: 1,
+      previewBuffer: new Uint8Array([7]).buffer,
+      previewMimeType: 'image/jpeg',
+    })
+    retainAssetSource('fb', jpeg('f.jpg'))
+
+    requestTier('fb', WORKING_PREVIEW_EDGE)
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+      const queued = callbacks.splice(0)
+      for (const callback of queued) {
+        callback(0)
+      }
+    }
+
+    expect(getTierUrl('fb', WORKING_PREVIEW_EDGE)).toBe('blob:fallback')
+    expect(blobType).toBe('image/jpeg')
   })
 })

@@ -868,7 +868,7 @@ test('bulk import fills every revealed placeholder even while scrolling', async 
     timeout: 30_000,
   })
 
-  // Shift the visible window during import — must not cancel off-screen decode.
+  // Shift the visible window during import — leave-now cancels; re-enter retries.
   for (let i = 0; i < 20; i += 1) {
     await page.getByTestId('filmstrip-scroll').evaluate((node) => {
       node.scrollLeft += 120

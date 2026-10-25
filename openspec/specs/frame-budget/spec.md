@@ -26,7 +26,7 @@ When performance hooks are enabled (development builds or an explicit `perf` / l
 
 ### Requirement: CI proxy gates under CPU throttling
 
-Automated Playwright interaction scenarios in CI MUST run with CDP CPU throttling calibrated for shared runners. Those scenarios MUST hard-fail when any LoAF entry is recorded during the scenario window, when INP exceeds the shared budget, or when measured hot-handler p95 exceeds the shared budget. Frame-pacing statistics MUST be published as a non-blocking CI artifact for the same scenarios.
+Automated Playwright interaction scenarios in CI MUST run with CDP CPU throttling calibrated for shared runners. Those scenarios MUST hard-fail when any LoAF entry is recorded during the scenario window, when INP exceeds the shared budget, or when measured hot-handler p95 exceeds the shared budget. Frame-pacing statistics MUST be published as a non-blocking CI artifact for the same scenarios. Dual-lane decode scheduling, cancel-on-scroll, and dual-tier WebP encode MUST NOT relax these thresholds or how LoAF entries are counted.
 
 #### Scenario: Photo import scenario fails on LoAF
 

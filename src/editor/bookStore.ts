@@ -16,6 +16,7 @@ import {
   makePainterFixture,
   PAINTER_ASSET_IDS,
 } from '../core/testing/painterFixture'
+import { setBookUsedAssetIds } from '../photo/assetPool'
 import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
 import { setEditorStatus, unplacedFromSpreadStatus } from './editorStatus'
@@ -159,6 +160,7 @@ function assetPatchNoOp(
 }
 
 function emit(): void {
+  syncBookUsedDecodeIds(state.book)
   for (const listener of listeners) {
     listener()
   }
@@ -471,12 +473,23 @@ export function getAssetDisplayName(assetId: string): string {
 
 let placementCountsFor: Book | null = null
 let placementCounts: ReadonlyMap<string, number> = new Map()
+let bookUsedSyncedFor: Book | null = null
+
+function syncBookUsedDecodeIds(book: Book): void {
+  if (bookUsedSyncedFor === book) {
+    return
+  }
+  bookUsedSyncedFor = book
+  const counts = placementCountByAsset(book)
+  setBookUsedAssetIds([...counts.keys()])
+}
 
 export function getPlacementCountSnapshot(assetId: string): number {
   const book = state.book
   if (placementCountsFor !== book) {
     placementCounts = placementCountByAsset(book)
     placementCountsFor = book
+    syncBookUsedDecodeIds(book)
   }
   return placementCounts.get(assetId) ?? 0
 }
@@ -895,6 +908,7 @@ export function resetBookStore(next?: BookStoreInit): void {
   clearTimeout(quietFlushTimer)
   quietFlushTimer = undefined
   placementCountsFor = null
+  bookUsedSyncedFor = null
   hasAnyPlacementFor = null
   assetSeq = 0
   paintCache.clear()

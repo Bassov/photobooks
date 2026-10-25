@@ -69,7 +69,7 @@ describe('processPhotoRequest', () => {
     expect(result.correctedWidth).toBe(20)
     expect(result.correctedHeight).toBe(40)
     expect(result.orientation).toBe(6)
-    expect(result.previewMimeType).toBe('image/jpeg')
+    expect(result.previewMimeType).toBe('image/webp')
     expect(result.previewBuffer.byteLength).toBeGreaterThan(0)
   })
 
@@ -510,29 +510,29 @@ describe('processPhotoRequest', () => {
     expect(ctx.drawImage).toHaveBeenCalled()
     expect(convertToBlob).toHaveBeenCalledWith({
       type: 'image/webp',
-      quality: 0.85,
+      quality: 0.8,
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.previewMimeType).toBe('image/webp')
   })
 
-  it('encodes JPEG sources as image/jpeg and reports blob type', async () => {
+  it('encodes JPEG sources as image/webp and reports blob type', async () => {
     const file = sampleOrient6File()
     const { convertToBlob } = stubImageDecodeApis({ width: 40, height: 20 })
 
     const result = await processPhotoRequest({ id: 'req-jpeg-enc', file })
 
     expect(convertToBlob).toHaveBeenCalledWith({
-      type: 'image/jpeg',
-      quality: 0.85,
+      type: 'image/webp',
+      quality: 0.8,
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.previewMimeType).toBe('image/jpeg')
+    expect(result.previewMimeType).toBe('image/webp')
   })
 
-  it('encodes image/jpg alias as image/jpeg preview', async () => {
+  it('encodes image/jpg alias as image/webp preview', async () => {
     ensurePhotoFixtures({ includeLargeJpeg: false })
     const bytes = readFileSync(photoFixturePaths.sampleOrient6)
     const file = new File([bytes], 'sample.jpg', { type: 'image/jpg' })
@@ -541,15 +541,15 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-jpg-enc', file })
 
     expect(convertToBlob).toHaveBeenCalledWith({
-      type: 'image/jpeg',
-      quality: 0.85,
+      type: 'image/webp',
+      quality: 0.8,
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.previewMimeType).toBe('image/jpeg')
+    expect(result.previewMimeType).toBe('image/webp')
   })
 
-  it('encodes empty File.type as image/jpeg preview (not webp)', async () => {
+  it('encodes empty File.type as image/webp preview', async () => {
     ensurePhotoFixtures({ includeLargeJpeg: false })
     const bytes = readFileSync(photoFixturePaths.sampleOrient6)
     const file = new File([bytes], 'sample.bin', { type: '' })
@@ -558,12 +558,38 @@ describe('processPhotoRequest', () => {
     const result = await processPhotoRequest({ id: 'req-empty-mime-enc', file })
 
     expect(convertToBlob).toHaveBeenCalledWith({
-      type: 'image/jpeg',
-      quality: 0.85,
+      type: 'image/webp',
+      quality: 0.8,
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.previewMimeType).toBe('image/jpeg')
+    expect(result.previewMimeType).toBe('image/webp')
+  })
+
+  it('dualTiers decodes once and returns thumb + working WebP', async () => {
+    const file = sampleOrient6File()
+    const { createImageBitmap, convertToBlob } = stubImageDecodeApis({
+      width: 40,
+      height: 20,
+    })
+
+    const result = await processPhotoRequest({
+      id: 'req-dual',
+      file,
+      dualTiers: true,
+    })
+
+    expect(createImageBitmap).toHaveBeenCalledTimes(1)
+    expect(convertToBlob).toHaveBeenCalledTimes(2)
+    expect(convertToBlob).toHaveBeenCalledWith({
+      type: 'image/webp',
+      quality: 0.8,
+    })
+    expect(result.ok).toBe(true)
+    assert.equal(result.ok, true)
+    expect(result.previewMimeType).toBe('image/webp')
+    expect(result.workingMimeType).toBe('image/webp')
+    expect(result.workingBuffer?.byteLength).toBeGreaterThan(0)
   })
 
   it('encodes WebP sources as image/webp and reports blob type', async () => {
@@ -575,7 +601,7 @@ describe('processPhotoRequest', () => {
 
     expect(convertToBlob).toHaveBeenCalledWith({
       type: 'image/webp',
-      quality: 0.85,
+      quality: 0.8,
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
@@ -593,7 +619,7 @@ describe('processPhotoRequest', () => {
 
     expect(convertToBlob).toHaveBeenCalledWith({
       type: 'image/webp',
-      quality: 0.85,
+      quality: 0.8,
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)

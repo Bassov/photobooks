@@ -7,6 +7,9 @@ import { readExifImageSize } from './readExifImageSize'
 import { readExifOrientation } from './readExifOrientation'
 import type { ExifOrientation } from './types'
 
+/** WebP encode quality for disposable thumb + working preview tiers. */
+const PREVIEW_WEBP_QUALITY = 0.8
+
 export interface PhotoWorkerRequest {
   id: string
   file: File
@@ -14,6 +17,11 @@ export interface PhotoWorkerRequest {
   maxEdge?: number
   /** When true, the preview long edge equals maxEdge even if the source is smaller. */
   cover?: boolean
+  /**
+   * Decode once and produce both thumb320 and working-preview-1280 WebP.
+   * `previewBuffer` is the thumb; `workingBuffer` is the 1280 tier.
+   */
+  dualTiers?: boolean
 }
 
 export interface PhotoWorkerSuccess {
@@ -29,6 +37,9 @@ export interface PhotoWorkerSuccess {
   orientation: ExifOrientation
   previewBuffer: ArrayBuffer
   previewMimeType: string
+  /** Present when `dualTiers` — working pasteboard preview (1280 WebP). */
+  workingBuffer?: ArrayBuffer
+  workingMimeType?: string
 }
 
 export interface PhotoWorkerFailure {
@@ -83,19 +94,11 @@ function applyOrientationTransform(
   ctx.translate(-width / 2, -height / 2)
 }
 
-function previewEncodeType(sourceMime: string): string {
-  if (sourceMime === 'image/png' || sourceMime === 'image/webp') {
-    return 'image/webp'
-  }
-  return 'image/jpeg'
-}
-
 async function buildPreview(
   bitmap: ImageBitmap,
   orientation: ExifOrientation,
   maxEdge: number,
   cover: boolean,
-  sourceMime: string,
 ): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
   const rawW = bitmap.width
   const rawH = bitmap.height
@@ -120,12 +123,14 @@ async function buildPreview(
   applyOrientationTransform(ctx, orientation, rawW, rawH)
   ctx.drawImage(bitmap, 0, 0)
 
-  const encodeType = previewEncodeType(sourceMime)
   const blob = await canvas.convertToBlob({
-    type: encodeType,
-    quality: 0.85,
+    type: 'image/webp',
+    quality: PREVIEW_WEBP_QUALITY,
   })
-  return { buffer: await blob.arrayBuffer(), mimeType: blob.type }
+  return {
+    buffer: await blob.arrayBuffer(),
+    mimeType: blob.type || 'image/webp',
+  }
 }
 
 export async function processPhotoRequest(
@@ -159,7 +164,10 @@ export async function processPhotoRequest(
     const blob = new Blob([new Uint8Array(decodeBuffer)], {
       type: mimeType,
     })
-    const maxEdge = request.maxEdge ?? PREVIEW_MAX_EDGE
+    const dualTiers = request.dualTiers === true
+    const maxEdge = dualTiers
+      ? PREVIEW_MAX_EDGE
+      : (request.maxEdge ?? PREVIEW_MAX_EDGE)
     const cover = request.cover === true
     const knownWidth = sof?.width ?? parsed.ImageWidth ?? parsed.ExifImageWidth
     const knownHeight =
@@ -184,13 +192,38 @@ export async function processPhotoRequest(
       const height = knownHeight ?? bitmap.height
 
       const transform = normalizeOrientation(orientation, width, height)
-      const preview = await buildPreview(
-        bitmap,
-        orientation,
-        maxEdge,
-        cover,
-        mimeType,
-      )
+      if (dualTiers) {
+        const working = await buildPreview(
+          bitmap,
+          orientation,
+          PREVIEW_MAX_EDGE,
+          cover,
+        )
+        const thumb = await buildPreview(
+          bitmap,
+          orientation,
+          THUMB_MAX_EDGE,
+          cover,
+        )
+        return {
+          id: request.id,
+          ok: true,
+          name,
+          mimeType,
+          byteLength,
+          width,
+          height,
+          correctedWidth: transform.correctedW,
+          correctedHeight: transform.correctedH,
+          orientation,
+          previewBuffer: thumb.buffer,
+          previewMimeType: thumb.mimeType,
+          workingBuffer: working.buffer,
+          workingMimeType: working.mimeType,
+        }
+      }
+
+      const preview = await buildPreview(bitmap, orientation, maxEdge, cover)
 
       return {
         id: request.id,

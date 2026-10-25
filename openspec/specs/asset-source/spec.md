@@ -178,16 +178,26 @@ Asset-source code SHALL live under `src/assets` and MUST NOT import React or DOM
 
 ### Requirement: Visibility must not abort off-screen import jobs
 
-Filmstrip or viewport visibility MAY raise decode priority for on-screen assets. Visibility changes MUST NOT abort in-flight import or decode jobs for off-screen assets; aborted work that never retries leaves permanent gray placeholders.
+Filmstrip or viewport visibility MUST place on-screen and book-used assets on the **now** decode lane and MAY enqueue other gallery assets on the **background** lane only during idle time. When an asset leaves the now set (and is not book-used), the system MUST abort that asset’s queued or in-flight thumb/working decode job and MUST re-enqueue at now when it re-enters without a hot thumb. Per-asset abort MUST NOT cancel the gallery import batch or list-first placeholder progress; aborted work that never retries MUST NOT leave permanent gray placeholders.
 
-#### Scenario: Scrolling away does not cancel an in-flight import decode
+#### Scenario: Scrolling away cancels off-now decode
 
-- **WHEN** an import decode job is running for an asset that scrolls out of the filmstrip viewport
-- **THEN** that job is not aborted solely due to leaving the viewport
+- **WHEN** a thumb decode job is running or queued for an asset that leaves the filmstrip/spread now set and is not book-used
+- **THEN** that job is aborted solely due to leaving the now set
+
+#### Scenario: Re-entry retries decode
+
+- **WHEN** a cancelled asset re-enters the now set without a hot thumb
+- **THEN** decode is queued again on the now lane
+
+#### Scenario: Import batch continues after per-asset abort
+
+- **WHEN** off-now thumb jobs are aborted during an import
+- **THEN** list-first gallery placeholders and the import batch continue for remaining files
 
 ### Requirement: Batched folder import without main-thread full walk
 
-First photo-folder import MUST NOT collect or hash the entire directory tree in one synchronous main-thread pass. After the directory handle is obtained, the system SHALL discover entries via worker `scanRoot` (or equivalent off-main-thread walk), enqueue gallery placeholders from that entry list before body reads, then resolve `File` / decode for prioritized entries in bounded batches with yields. The picker path MUST NOT await a complete in-memory `File[]` for the whole tree before starting list-first UI. Content-hash computation MUST NOT run on this import hot path.
+First photo-folder import MUST NOT collect or hash the entire directory tree on the main thread. After the directory handle is obtained, the system SHALL discover entries via worker `scanRoot` (or equivalent off-main-thread walk), enqueue gallery placeholders before body reads, then resolve `File` / decode for prioritized entries in bounded batches with yields. The picker MUST NOT await a complete in-memory `File[]` for the whole tree before list-first UI. Content-hash MUST NOT run on this import hot path.
 
 #### Scenario: Large folder import stays interruptible
 
@@ -196,7 +206,7 @@ First photo-folder import MUST NOT collect or hash the entire directory tree in 
 
 ### Requirement: Prioritized re-scan after reload
 
-When a remembered photo root is restored with `read` permission, the system SHALL first hydrate the gallery list from the persisted folder manifest when present (relative path, size, mtime, and width/height/orientation when known) so filmstrip slots and identity-keyed DerivedCache thumbs can render before the walk finishes. It SHALL then always run a cheap full worker `scanRoot` (relative path, byte size, mtime only; no body reads during the walk). It MUST compare that full entry list to the persisted manifest and book assets to detect new and metadata-changed files. It MUST NOT skip the walk based solely on entry count, max-mtime, or manifest presence. After the walk, thumb320 / preview work MUST prioritize (1) placed assets on the open book’s visible spread, (2) other open-book assets for that `sourceRootId`, (3) mounted filmstrip tiles; remaining entries stay placeholders until needed. Content-hash MUST NOT run on this rescan hot path.
+When a remembered photo root is restored with `read` permission, the system SHALL hydrate the gallery from the persisted folder manifest when present (path, size, mtime, and dims/orientation when known) so slots and identity-keyed DerivedCache thumbs can render before the walk finishes. It SHALL then always run a cheap full worker `scanRoot` (path/size/mtime only; no body reads). It MUST compare that list to the manifest and book assets for new/changed files and MUST NOT skip the walk based solely on entry count, max-mtime, or manifest presence. After the walk, thumb320 / preview MUST prefer the **now** set (visible spread ∪ book-used ∪ mounted filmstrip); remaining entries stay placeholders until needed. Content-hash MUST NOT run on this rescan hot path.
 
 #### Scenario: Manifest paints before the walk finishes
 
@@ -225,7 +235,7 @@ When a remembered photo root is restored with `read` permission, the system SHAL
 
 ### Requirement: JPEG head pass for dims and EXIF thumb
 
-After list-first gallery enqueue for JPEG sources, the system SHALL read a bounded file head (at most 64 KiB) with capped parallelism (same order as import body-read cap, with yields) to (1) extract an IFD1 embedded JPEG thumbnail when present and publish it as a temporary filmstrip thumb until thumb320 replaces it, and (2) obtain width/height/orientation from JPEG SOF and EXIF via existing head parsers, apply them to session aspect, and persist them into the folder manifest. Absent or corrupt embedded thumbs MUST leave the current placeholder and MUST NOT crash. The head pass MUST NOT require a full-file decode or whole-file body read. Assets that already have real dimensions or a hot DerivedCache/thumb320 MAY skip redundant head work.
+After list-first gallery enqueue for JPEG sources, the system SHALL read a bounded file head (≤64 KiB) with capped parallelism (same order as import body-read cap, with yields) to (1) publish an IFD1 embedded JPEG thumbnail as a temporary filmstrip thumb until thumb320 replaces it, and (2) obtain width/height/orientation from JPEG SOF/EXIF, apply them to session aspect, and persist them into the folder manifest. Absent or corrupt embedded thumbs MUST leave the placeholder and MUST NOT crash. The head pass MUST NOT require a full-file decode. Assets that already have real dimensions or a hot DerivedCache/thumb320 MAY skip redundant head work.
 
 #### Scenario: Embedded EXIF thumb paints before thumb320
 
@@ -244,7 +254,7 @@ After list-first gallery enqueue for JPEG sources, the system SHALL read a bound
 
 ### Requirement: Persisted folder manifest for matching and hydrate
 
-The system SHALL persist a per-`sourceRootId` folder manifest in IndexedDB after cheap walks, after the JPEG head pass supplies dimensions, and when decode supplies dimensions. Each entry MUST store relative path, byte size, and mtime, and MAY store width, height, and orientation once known. The manifest MUST be used to (1) hydrate the gallery list and aspects before the next visit’s walk completes and (2) match/detect new/changed/removed entries against the latest scan. The manifest MUST NOT substitute for the walk: every visit still performs the cheap full scan. The manifest stores metadata only (no file bodies, no content hash, no embedded thumbs). Writes MUST be batched with yields so large folders do not create main-thread long tasks. Corrupt or version-mismatched stored data MUST be ignored and rebuilt from the next scan without crashing.
+The system SHALL persist a per-`sourceRootId` folder manifest in IndexedDB after cheap walks, after the JPEG head pass supplies dimensions, and when decode supplies dimensions. Each entry MUST store relative path, byte size, and mtime, and MAY store width, height, and orientation once known. The manifest MUST hydrate the gallery list/aspects before the next visit’s walk completes and match/detect new/changed/removed entries against the latest scan. It MUST NOT substitute for the walk (every visit still cheap-scans). It stores metadata only (no bodies, content hash, or embedded thumbs). Writes MUST be batched with yields. Corrupt or version-mismatched data MUST be ignored and rebuilt from the next scan without crashing.
 
 #### Scenario: Manifest updates after a cheap walk
 
