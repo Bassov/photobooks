@@ -1,6 +1,6 @@
 # M2.1 — notes
 
-**Order:** M2.1 (core hardening and the agent loop) still runs before every other open item. M2.5 (design foundation) has already shipped. When the remaining M2.1 items are done, product work continues with M2.2 (library and metadata). Items run in index order. Source issues: #72 (process and gates, subset A–N), #50 (quality roadmap, flake/retry items), #77 / #78 / #79 (agent pipeline). The **Done when:** line of each `[prep]` here is its success criteria.
+**Order:** M2.1 (core hardening and the agent loop) still runs before every other open item. M2.5 (design foundation) has already shipped. When the remaining M2.1 items are done, finish M2.2 correctness as needed, then **M2.6** (kit v0.9.3 editor shell ports), then resume M3–M4.5 on the new chrome. Items run in index order. Source issues: #72 (process and gates, subset A–N), #50 (quality roadmap, flake/retry items), #77 / #78 / #79 (agent pipeline). The **Done when:** line of each `[prep]` here is its success criteria.
 
 Prior M2.1 phases (flake hardening, mechanical gates, findings-journal dissolve, FSA/session split, reusable CI) are retired from the index; their item files live in git history.
 
