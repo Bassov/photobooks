@@ -14,7 +14,7 @@ import { yieldForPaint } from './relink/yieldForPaint'
 import { resolveRelativeFile } from '../assets/resolveRelativeFile'
 import type { AssetDirectoryHandle } from '../assets/fsa/handles'
 import type { ImportFileError } from '../photo/assetPool'
-import { IMPORT_BODY_READ_CAP } from './importBodyReads'
+import { IMPORT_BODY_READ_CAP, mapWithConcurrency } from './importBodyReads'
 import type { ImportPhotoResult, ImportProgress } from './importPhotos'
 import { runChromeImport } from './runChromeImport'
 import {
@@ -43,6 +43,7 @@ import {
   registerAssetSource,
 } from './assetSourceRegistry'
 import {
+  awaitPendingGalleryFlush,
   getBookStoreSnapshot,
   patchAssetRecord,
   removeFailedImportAssets,
@@ -657,27 +658,24 @@ async function verifyRef(
   scannedByPath: ReadonlyMap<string, ScannedEntry>,
 ): Promise<void> {
   const scanned = scannedByPath.get(ref.relativePath)
-  // Metadata match: unchanged size/mtime → still reattach File for session use,
-  // but skip body read when we only need identity confirmation and already have
-  // a live source. Always prefer getFile-style resolve via readForHash only when
-  // we need bytes for decode; here we reattach a File for the session retain map.
-  const read = await source.readForHash(sourceRootId, ref.relativePath)
-  if (!read.ok) {
+  const prev = assetRecordFor(ref)
+  const identityMatches =
+    scanned !== undefined &&
+    prev.byteSize === scanned.byteSize &&
+    prev.mtimeMs === scanned.mtimeMs
+  // Size+mtime match (and changed/missing scan meta): reattach a live File via
+  // resolveFile / getFile only. Never call readForHash / file.arrayBuffer() /
+  // new File([buffer]) on this priority path — body reads belong to decode /
+  // import.
+  const resolved = await source.resolveFile(sourceRootId, ref.relativePath)
+  if (!resolved.ok) {
     return
   }
-  const name = ref.relativePath.split('/').pop() ?? ref.relativePath
-  retainAssetSource(
-    ref.assetId,
-    new File([read.value], name, {
-      lastModified: scanned?.mtimeMs ?? ref.mtimeMs ?? Date.now(),
-    }),
-  )
+  retainAssetSource(ref.assetId, resolved.value)
   // Patch identity from the cheap scan when present (no content-hash).
   // Size/mtime change ⇒ new identity cache key; clear legacy contentHash field.
   if (scanned !== undefined) {
-    const prev = assetRecordFor(ref)
-    const metaChanged =
-      prev.byteSize !== scanned.byteSize || prev.mtimeMs !== scanned.mtimeMs
+    const metaChanged = !identityMatches
     patchAssetRecord(ref.assetId, {
       sourceRootId,
       relativePath: scanned.relativePath,
@@ -752,6 +750,9 @@ export async function startFolderRescan(options: {
       markImportRunning: false,
       dimsByPath,
     })
+    // Finish list-first gallery writes before priority planning so newly
+    // enqueued placeholders are not misclassified into lazy "Scanning folder".
+    await awaitPendingGalleryFlush(yieldForPaint)
     if (changedPathSet.size > 0) {
       const { book, sessionMeta } = getBookStoreSnapshot()
       for (const assetId of book.gallery) {
@@ -847,21 +848,60 @@ export async function startFolderRescan(options: {
       phase: 'priority',
     })
 
-    for (const ref of prioritizedRefs) {
-      if (isCancelled()) {
-        emitProgress(null)
-        return
+    const progressRaf = { id: null as number | null }
+    const flushPriorityProgress = (): void => {
+      if (progressRaf.id !== null) {
+        cancelAnimationFrame(progressRaf.id)
+        progressRaf.id = null
       }
-      await verifyRef(options.sourceRootId, source, ref, scannedByPath)
-      completed += 1
       emitProgress({
         total: Math.max(total, 1),
         completed,
         running: true,
         phase: 'priority',
       })
-      await yieldForPaint()
     }
+    const schedulePriorityProgress = (): void => {
+      if (progressRaf.id !== null) {
+        return
+      }
+      progressRaf.id = requestAnimationFrame(() => {
+        progressRaf.id = null
+        if (!isCancelled()) {
+          emitProgress({
+            total: Math.max(total, 1),
+            completed,
+            running: true,
+            phase: 'priority',
+          })
+        }
+      })
+    }
+
+    await mapWithConcurrency(
+      prioritizedRefs,
+      IMPORT_BODY_READ_CAP,
+      async (ref) => {
+        if (isCancelled()) {
+          return
+        }
+        await verifyRef(options.sourceRootId, source, ref, scannedByPath)
+        completed += 1
+        schedulePriorityProgress()
+        if (completed % IMPORT_BODY_READ_CAP === 0) {
+          await yieldForPaint()
+        }
+      },
+    )
+    if (isCancelled()) {
+      if (progressRaf.id !== null) {
+        cancelAnimationFrame(progressRaf.id)
+        progressRaf.id = null
+      }
+      emitProgress(null)
+      return
+    }
+    flushPriorityProgress()
 
     if (!runLazy || missingEntries.length === 0 || isCancelled()) {
       emitProgress(null)

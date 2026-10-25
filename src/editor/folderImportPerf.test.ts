@@ -106,8 +106,7 @@ describe('folder import / re-scan responsiveness', () => {
     const longTasks: number[] = []
     let mark = 0
     let measuring = false
-    let sawLazy = false
-    let priorityCompletedBeforeLazy = false
+    let cancelledDuringPriority = false
     const unsubscribe = subscribeFolderRescanProgress((state) => {
       const now = performance.now()
       if (!measuring) {
@@ -120,13 +119,17 @@ describe('folder import / re-scan responsiveness', () => {
       if (state?.phase !== undefined) {
         phases.push(state.phase)
       }
-      if (state?.phase === 'lazy') {
-        if (!sawLazy) {
-          priorityCompletedBeforeLazy = phases.includes('priority')
-          // Stop after the first lazy slice — ordering is what we assert.
-          cancelFolderRescan()
-        }
-        sawLazy = true
+      // List-first flush puts the whole folder into gallery → priority covers
+      // unused paths too (no lazy phase). Cancel mid-priority once used-in-book
+      // ordering has been scheduled and slices are measurable.
+      if (
+        state !== null &&
+        state.phase === 'priority' &&
+        state.completed >= 2 &&
+        !cancelledDuringPriority
+      ) {
+        cancelledDuringPriority = true
+        cancelFolderRescan()
       }
     })
 
@@ -141,12 +144,8 @@ describe('folder import / re-scan responsiveness', () => {
     const maxSlice = Math.max(0, ...longTasks)
     expect(maxSlice).toBeLessThanOrEqual(PERF_BUDGETS.scanSchedulerLongTaskMs)
     expect(phases.includes('priority')).toBe(true)
-    expect(sawLazy).toBe(true)
-    expect(priorityCompletedBeforeLazy).toBe(true)
-    const firstLazy = phases.indexOf('lazy')
-    const lastPriority = phases.lastIndexOf('priority')
-    expect(lastPriority).toBeGreaterThanOrEqual(0)
-    expect(firstLazy).toBeGreaterThan(lastPriority)
+    expect(phases.includes('lazy')).toBe(false)
+    expect(cancelledDuringPriority).toBe(true)
   }, 60_000)
 
   it('cancelFolderRescan stops a subsequent idle remainder', async () => {

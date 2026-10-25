@@ -295,7 +295,14 @@ describe('startFolderRescan', () => {
     expect(getAssetSource('u')?.name).toBe('used.jpg')
     await awaitFolderRescanForTests()
     expect(phases[0]).toBe('priority')
-    expect(phases.includes('lazy')).toBe(true)
+    // List-first flush puts unused scanned paths into gallery → priority verify
+    // retains Files; no lazy import phase when every accepted path is planned.
+    expect(phases.includes('lazy')).toBe(false)
+    const lazyId = getBookStoreSnapshot().book.gallery.find(
+      (id) =>
+        getBookStoreSnapshot().book.assets[id]?.relativePath === 'lazy.jpg',
+    )
+    expect(getAssetSource(lazyId ?? '')?.name).toBe('lazy.jpg')
     expect(getFolderRescanProgress()).toBeNull()
   })
 
@@ -376,7 +383,7 @@ describe('startFolderRescan', () => {
     await awaitFolderRescanForTests()
   })
 
-  it('continues importing scanned paths missing from the open gallery', async () => {
+  it('list-enqueues missing scanned paths into priority verify instead of lazy import', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('used.jpg', new Uint8Array([9, 9]), 42)
     tree.putFile('missing.jpg', new Uint8Array([3, 3]), 3)
@@ -416,16 +423,184 @@ describe('startFolderRescan', () => {
       runLazy: true,
     })
     await awaitFolderRescanForTests()
-    expect(importSpy).toHaveBeenCalled()
-    const importedFiles = importSpy.mock.calls.flatMap((call) => call[0])
-    // Memory directory Files use a generic name; assert we imported the one
-    // missing path (not the already-gallery used.jpg) as a single-file batch.
-    expect(importedFiles).toHaveLength(1)
-    expect(importSpy.mock.calls[0]?.[1]).toMatchObject({
-      source: 'folder',
-      sourceRootId,
-      libraryBacked: true,
+    // After gallery flush-before-plan, new list-first rows are priority-verified
+    // (File retain) rather than misclassified into lazy importPhotoFiles.
+    expect(importSpy).not.toHaveBeenCalled()
+    const paths = getBookStoreSnapshot().book.gallery.map(
+      (id) => getBookStoreSnapshot().book.assets[id]?.relativePath,
+    )
+    expect(paths).toEqual(expect.arrayContaining(['used.jpg', 'missing.jpg']))
+    expect(getAssetSource('u')?.name).toBe('used.jpg')
+    const missingId = getBookStoreSnapshot().book.gallery.find(
+      (id) =>
+        getBookStoreSnapshot().book.assets[id]?.relativePath === 'missing.jpg',
+    )
+    expect(missingId).toBeDefined()
+    expect(getAssetSource(missingId ?? '')?.name).toBe('missing.jpg')
+  })
+
+  it('unchanged priority verify skips readForHash and File.arrayBuffer', async () => {
+    const fileCount = 32
+    const tree = createMemoryAssetDirectory()
+    const gallery: string[] = []
+    const assets: Record<
+      string,
+      {
+        sourceRootId: string
+        relativePath: string
+        byteSize: number
+        mtimeMs: number
+      }
+    > = {}
+    for (let i = 0; i < fileCount; i += 1) {
+      const path = `shot-${String(i)}.jpg`
+      const bytes = new Uint8Array([i + 1, i + 2])
+      tree.putFile(path, bytes, 100 + i)
+      const assetId = `a${String(i)}`
+      gallery.push(assetId)
+      assets[assetId] = {
+        sourceRootId: 'root-skip-body',
+        relativePath: path,
+        byteSize: bytes.byteLength,
+        mtimeMs: 100 + i,
+      }
+    }
+    const sourceRootId = 'root-skip-body'
+    const source = createFsaAssetSource({
+      rootId: sourceRootId,
+      directory: tree.root,
     })
+    registerAssetSource(sourceRootId, source)
+    const readSpy = vi.spyOn(source, 'readForHash')
+    const arrayBufferSpy = vi.spyOn(File.prototype, 'arrayBuffer')
+
+    resetBookStore({
+      book: makeBook({ gallery, assets }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    await startFolderRescan({ sourceRootId, runLazy: false })
+    await awaitFolderRescanForTests()
+
+    expect(readSpy).not.toHaveBeenCalled()
+    expect(arrayBufferSpy).not.toHaveBeenCalled()
+    for (const assetId of gallery) {
+      expect(getAssetSource(assetId)?.name).toMatch(/\.jpg$/)
+    }
+  })
+
+  it('verifies priority refs with import-cap concurrency', async () => {
+    const fileCount = 32
+    const tree = createMemoryAssetDirectory()
+    const gallery: string[] = []
+    const assets: Record<
+      string,
+      {
+        sourceRootId: string
+        relativePath: string
+        byteSize: number
+        mtimeMs: number
+      }
+    > = {}
+    for (let i = 0; i < fileCount; i += 1) {
+      const path = `p-${String(i)}.jpg`
+      tree.putFile(path, new Uint8Array([i]), i)
+      const assetId = `p${String(i)}`
+      gallery.push(assetId)
+      assets[assetId] = {
+        sourceRootId: 'root-conc',
+        relativePath: path,
+        byteSize: 1,
+        mtimeMs: i,
+      }
+    }
+    const sourceRootId = 'root-conc'
+    const source = createFsaAssetSource({
+      rootId: sourceRootId,
+      directory: tree.root,
+    })
+    registerAssetSource(sourceRootId, source)
+
+    let inFlight = 0
+    let peak = 0
+    const realResolve = source.resolveFile.bind(source)
+    vi.spyOn(source, 'resolveFile').mockImplementation(async (...args) => {
+      inFlight += 1
+      peak = Math.max(peak, inFlight)
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 5)
+      })
+      try {
+        return await realResolve(...args)
+      } finally {
+        inFlight -= 1
+      }
+    })
+
+    resetBookStore({
+      book: makeBook({ gallery, assets }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    await startFolderRescan({ sourceRootId, runLazy: false })
+    await awaitFolderRescanForTests()
+
+    expect(peak).toBeGreaterThanOrEqual(8)
+    expect(peak).toBeLessThanOrEqual(16)
+  })
+
+  it('flushes list-first gallery before priority plan so new paths are not lazy-imported', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        // Defer rAF so pending gallery would lag without awaitPendingGalleryFlush.
+        queueMicrotask(() => {
+          cb(0)
+        })
+        return 1
+      },
+    )
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('new-a.jpg', new Uint8Array([1, 2]), 10)
+    tree.putFile('new-b.jpg', new Uint8Array([3]), 11)
+    const sourceRootId = 'root-flush-plan'
+    registerAssetSource(
+      sourceRootId,
+      createFsaAssetSource({ rootId: sourceRootId, directory: tree.root }),
+    )
+    resetBookStore({
+      book: makeBook({ gallery: [], assets: {} }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const importSpy = vi
+      .spyOn(importPhotos, 'importPhotoFiles')
+      .mockResolvedValue({
+        imported: 0,
+        errors: [],
+        skipped: 0,
+      })
+
+    await startFolderRescan({
+      sourceRootId,
+      directory: tree.root,
+      runLazy: true,
+    })
+    await awaitFolderRescanForTests()
+
+    expect(importSpy).not.toHaveBeenCalled()
+    const paths = getBookStoreSnapshot().book.gallery.map(
+      (id) => getBookStoreSnapshot().book.assets[id]?.relativePath,
+    )
+    expect(paths).toEqual(expect.arrayContaining(['new-a.jpg', 'new-b.jpg']))
+    for (const id of getBookStoreSnapshot().book.gallery) {
+      expect(getAssetSource(id)).toBeDefined()
+    }
   })
 
   it('cancel during priority prevents lazy phase', async () => {

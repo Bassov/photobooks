@@ -102,5 +102,13 @@ describe('createFsaAssetSource', () => {
       ok: false,
       code: 'not-found',
     })
+    await expect(source.resolveFile('root', '')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
+    await expect(source.resolveFile('root', 'nope.jpg')).resolves.toEqual({
+      ok: false,
+      code: 'not-found',
+    })
   })
 })

@@ -642,6 +642,26 @@ export function enqueueGalleryAssets(
   scheduleFlush()
 }
 
+/**
+ * Drain pending gallery id chunks (list-first enqueue) before callers snapshot
+ * `book.gallery` — e.g. folder-rescan priority planning. Yields between chunks
+ * so large folders stay interruptible. Cancels any scheduled rAF/watchdog flush
+ * so a deferred callback cannot race this drain.
+ */
+export async function awaitPendingGalleryFlush(
+  yieldBetweenChunks: () => Promise<void>,
+): Promise<void> {
+  flushScheduled = false
+  clearTimeout(flushWatchdogTimer)
+  flushWatchdogTimer = undefined
+  while (pendingGalleryIds.length > 0) {
+    flushPendingGalleryAndMeta()
+    if (pendingGalleryIds.length > 0) {
+      await yieldBetweenChunks()
+    }
+  }
+}
+
 export function setAssetSessionMeta(
   assetId: string,
   meta: AssetSessionMeta,

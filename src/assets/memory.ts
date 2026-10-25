@@ -1,4 +1,5 @@
 import { scanMemoryFilesInWorker } from './scanClient'
+import { fileWithRelativePath } from './resolveRelativeFile'
 import type {
   AssetSource,
   AssetSourceFailure,
@@ -94,6 +95,35 @@ export function createMemoryAssetSource(): MemoryAssetSource {
       } catch {
         return failure('corrupted')
       }
+    },
+    resolveFile(rootId, relativePath) {
+      return Promise.resolve(
+        gate(() => {
+          const root = getRoot(rootId)
+          if (!root) {
+            return failure('not-found')
+          }
+          const file = root.get(relativePath)
+          if (!file) {
+            return failure('not-found')
+          }
+          if (file.corrupted === true) {
+            return failure('corrupted')
+          }
+          const slash = relativePath.lastIndexOf('/')
+          const name = slash >= 0 ? relativePath.slice(slash + 1) : relativePath
+          // Stryker disable next-line MethodExpression: File copies parts; slice keeps adapter store isolated
+          const body = file.bytes.slice(0)
+          return success(
+            fileWithRelativePath(
+              new File([body], name, {
+                lastModified: file.mtimeMs,
+              }),
+              relativePath,
+            ),
+          )
+        }),
+      )
     },
     readForHash(rootId, relativePath) {
       return Promise.resolve(

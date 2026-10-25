@@ -11,7 +11,10 @@ function notFound(name: string): DOMException {
 class MemoryFileHandle implements AssetFileHandle {
   readonly kind = 'file' as const
 
-  constructor(private readonly entry: Extract<Entry, { kind: 'file' }>) {}
+  constructor(
+    private readonly entry: Extract<Entry, { kind: 'file' }>,
+    private readonly name: string,
+  ) {}
 
   getFile(): Promise<File> {
     if (this.entry.corrupted === true) {
@@ -21,7 +24,7 @@ class MemoryFileHandle implements AssetFileHandle {
     }
     const copy = this.entry.bytes.slice()
     return Promise.resolve(
-      new File([copy], 'file', { lastModified: this.entry.mtimeMs }),
+      new File([copy], this.name, { lastModified: this.entry.mtimeMs }),
     )
   }
 }
@@ -58,7 +61,7 @@ class MemoryDirectoryHandle implements AssetDirectoryHandle {
   ): Promise<AssetFileHandle> {
     const existing = this.node.children.get(name)
     if (existing?.kind === 'file') {
-      return Promise.resolve(new MemoryFileHandle(existing))
+      return Promise.resolve(new MemoryFileHandle(existing, name))
     }
     if (existing?.kind === 'directory') {
       return Promise.reject(
@@ -74,7 +77,7 @@ class MemoryDirectoryHandle implements AssetDirectoryHandle {
       mtimeMs: 0,
     }
     this.node.children.set(name, created)
-    return Promise.resolve(new MemoryFileHandle(created))
+    return Promise.resolve(new MemoryFileHandle(created, name))
   }
 
   *entries(): IterableIterator<
@@ -84,7 +87,7 @@ class MemoryDirectoryHandle implements AssetDirectoryHandle {
       if (entry.kind === 'directory') {
         yield [name, new MemoryDirectoryHandle(entry)]
       } else {
-        yield [name, new MemoryFileHandle(entry)]
+        yield [name, new MemoryFileHandle(entry, name)]
       }
     }
   }

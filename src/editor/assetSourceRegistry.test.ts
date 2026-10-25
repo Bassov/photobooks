@@ -13,6 +13,8 @@ describe('assetSourceRegistry', () => {
   it('registers, gets, and clears sources', () => {
     const source = {
       scanRoot: () => Promise.resolve({ ok: true as const, value: [] }),
+      resolveFile: () =>
+        Promise.resolve({ ok: false as const, code: 'not-found' as const }),
       readForHash: () =>
         Promise.resolve({ ok: false as const, code: 'not-found' as const }),
     }

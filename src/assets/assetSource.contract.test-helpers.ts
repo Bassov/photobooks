@@ -49,6 +49,27 @@ export function runAssetSourceContract(
       }
     })
 
+    it('resolves a File without requiring a body read by the caller', async () => {
+      const harness = createHarness()
+
+      const resolved = await harness.source.resolveFile(
+        harness.rootId,
+        harness.relativePath,
+      )
+
+      expect(resolved.ok).toBe(true)
+      if (resolved.ok) {
+        const slash = harness.relativePath.lastIndexOf('/')
+        const basename =
+          slash >= 0
+            ? harness.relativePath.slice(slash + 1)
+            : harness.relativePath
+        expect(resolved.value.name).toBe(basename)
+        expect(resolved.value.size).toBe(harness.fileBytes.byteLength)
+        expect(resolved.value.lastModified).toBe(harness.mtimeMs)
+      }
+    })
+
     it('returns not-found for an unknown root on scan and read', async () => {
       const harness = createHarness()
 
@@ -59,6 +80,9 @@ export function runAssetSourceContract(
       expect(
         await harness.source.readForHash('missing-root', harness.relativePath),
       ).toEqual({ ok: false, code: 'not-found' })
+      expect(
+        await harness.source.resolveFile('missing-root', harness.relativePath),
+      ).toEqual({ ok: false, code: 'not-found' })
     })
 
     it('returns not-found when reading a missing relative path', async () => {
@@ -66,6 +90,9 @@ export function runAssetSourceContract(
 
       expect(
         await harness.source.readForHash(harness.rootId, 'missing/file.jpg'),
+      ).toEqual({ ok: false, code: 'not-found' })
+      expect(
+        await harness.source.resolveFile(harness.rootId, 'missing/file.jpg'),
       ).toEqual({ ok: false, code: 'not-found' })
     })
 
@@ -80,6 +107,9 @@ export function runAssetSourceContract(
       expect(
         await harness.source.readForHash(harness.rootId, harness.relativePath),
       ).toEqual({ ok: false, code: 'permission-required' })
+      expect(
+        await harness.source.resolveFile(harness.rootId, harness.relativePath),
+      ).toEqual({ ok: false, code: 'permission-required' })
     })
 
     it('returns corrupted when reading a corrupted entry', async () => {
@@ -88,6 +118,9 @@ export function runAssetSourceContract(
 
       expect(
         await harness.source.readForHash(harness.rootId, 'broken.bin'),
+      ).toEqual({ ok: false, code: 'corrupted' })
+      expect(
+        await harness.source.resolveFile(harness.rootId, 'broken.bin'),
       ).toEqual({ ok: false, code: 'corrupted' })
     })
   })
