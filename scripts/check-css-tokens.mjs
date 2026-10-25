@@ -71,10 +71,10 @@ export function findCssTokenViolations(file, css) {
 }
 
 /**
- * Light-theme `--muted-foreground` must stay ≥ WCAG AA on `--muted` (`#f4f2ef`).
- * Locked to the hex used by `src/ui/tokens.css` / axe contrast gate.
+ * Light-theme `--muted-foreground` must stay ≥ WCAG AA on kit `--muted` (`#dcdcdc`).
+ * Locked to kit v0.9.3 hex in `src/ui/tokens.css` / axe contrast gate.
  */
-export const MUTED_FOREGROUND_LIGHT_AA = '#6a6761'
+export const MUTED_FOREGROUND_LIGHT_AA = '#535152'
 
 /**
  * Read the first `--muted-foreground:` hex from a CSS string (Theme B light block).

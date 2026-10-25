@@ -21,7 +21,8 @@
     "@lhci/cli",
     "fast-check",
     "nyc",
-    "@albasov/ts-agent-rig"
+    "@albasov/ts-agent-rig",
+    "tailwindcss"
   ],
   "ignoreIssues": {
     "src/core/index.ts": ["types", "exports"],

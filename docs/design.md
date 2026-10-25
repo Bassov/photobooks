@@ -7,7 +7,7 @@ Agents: use tokens and primitives named here. New tokens or primitives are added
 ## Principles
 
 1. **Photo is the visual anchor** — chrome stays quiet; metadata is secondary to the image.
-2. **Neutral chrome** — warm-neutral Theme B; no purple brand fills, no tinted pasteboard that competes with photos.
+2. **Neutral chrome** — grayscale Theme B (kit v0.9.3 Procreate-light); no blue/purple brand fills, no tinted pasteboard that competes with photos.
 3. **Density** — editor controls prefer compact (`sm` / h-8) over marketing spacing.
 4. **One primary action per view** — e.g. Export, Open library, Grant access; everything else is quiet (ghost / outline / icon).
 
@@ -23,14 +23,14 @@ UI ref: `uikit#/feature/design-tokens`.
 
 Values resolve from kit CSS variables (Theme B). Prefer tokens over raw hex in app chrome.
 
-| Scale     | Tokens / notes                                                                                                                                                                                      |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Type      | `--text-xs` 12px · `--text-sm` 13.5px (default UI) · `--text-base` 15px · `--text-lg` 18px · `--text-xl` 21px · `--text-2xl` 26px · `--text-3xl` 32px; `.heading` → Lora; `.eyebrow` 11px uppercase |
-| Spacing   | `--spacing` 0.25rem (4 px base); compact density `--spacing` 0.2rem                                                                                                                                 |
-| Radius    | `--radius` 10px; `sm`/`md`/`lg`/`xl`/`2xl` from `--radius-*`                                                                                                                                        |
-| Elevation | `--shadow-xs` … `--shadow-lg`; page stack `--page-shadow`                                                                                                                                           |
-| Z-layer   | overlays (popover/dialog/toast) above chrome; pasteboard content below chrome; no ad-hoc z-index races — stack: content → chrome → floating camera bar → modal → toast                              |
-| Motion    | short press scale (~0.98), disclosure chevron 200 ms; honor `prefers-reduced-motion` (non-essential motion off)                                                                                     |
+| Scale     | Tokens / notes                                                                                                                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type      | `--text-xs` 12px · `--text-sm` 13px (default UI) · `--text-base` 14px · `--text-lg` 18px · `--text-xl` 21px · `--text-2xl` 26px · `--text-3xl` 32px; `.heading` → Lora; `.eyebrow` 11px uppercase |
+| Spacing   | `--spacing` 0.25rem (4 px base); compact density `--spacing` 0.2rem                                                                                                                               |
+| Radius    | `--radius` 10px; `sm`/`md`/`lg`/`xl`/`2xl` from `--radius-*`                                                                                                                                      |
+| Elevation | `--shadow-xs` … `--shadow-lg`; page stack `--page-shadow`                                                                                                                                         |
+| Z-layer   | overlays (popover/dialog/toast) above chrome; pasteboard content below chrome; no ad-hoc z-index races — stack: content → chrome → floating camera bar → modal → toast                            |
+| Motion    | short press scale (~0.98), disclosure chevron 200 ms; honor `prefers-reduced-motion` (non-essential motion off)                                                                                   |
 
 Chrome geometry: `--panel-left` / `--panel-right` / `--topbar` / `--thumb` / `--rail` (kit demo may tighten these).
 
@@ -42,9 +42,11 @@ Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popove
 Text: `--foreground`, `--muted-foreground`, `--primary` / `--primary-foreground`.  
 Fills: `--secondary`, `--muted`, `--subtle`, `--accent` / `--accent-foreground`.  
 Lines: `--border`, `--input`, `--ring`.  
-Editor: `--select` (selection / drop), `--guide`, `--grid` / `--grid-line`.  
+Editor: `--select` (canvas frame selection / handles — ink/black), tone selection `--color-sel` / `bg-sel` (`#CACACA`), `--crop` (gray), `--guide`, `--grid` / `--grid-line`.  
 Status: `--success`, `--warning`, `--destructive` (text/icon); `--destructive-solid` (+ hover) only for AlertDialog confirm.  
 Badges: `--badge-{gray,brand,success,warning,error}-{fg,bg,ring,dot}`.
+
+App Tailwind 4 bridge: `@theme` tokens in `src/ui/tokens.css` (no `uikit/src` imports); utilities via `@tailwindcss/vite`; preflight omitted until screen ports. Helpers: `src/ui/cn.ts` (`cn` / `cva`).
 
 Do not put raw brand colour on large surfaces. Book page fills come from the document, not chrome tokens.
 

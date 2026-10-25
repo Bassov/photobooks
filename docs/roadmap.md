@@ -29,6 +29,7 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 **Review cut:** under the M2.1 gates — the home screen handles every permission, picker and storage failure with a readable message, books have titles you set and rename, and photo metadata (capture time, orientation, color space) is in the document, read off the main thread.
 
+- [ ] [prep] [ui-tw-bridge-v093](roadmap/M2.2/ui-tw-bridge-v093.md) — Tailwind 4 + uikit v0.9.3 token bridge
 - [x] [feature] [reimport-async](roadmap/M2.2/reimport-async.md) — re-import into an existing project starts as fast as a fresh import
 - [x] [feature] [webp-import](roadmap/M2.2/webp-import.md) — WebP photos import instead of failing with "Unknown file format"
 - [ ] [feature] [failed-import-no-tile](roadmap/M2.2/failed-import-no-tile.md) — a photo that fails to decode leaves no tile, is not counted and cannot be placed

@@ -43,15 +43,15 @@ describe('muted-foreground AA lock', () => {
   it('reads the first --muted-foreground hex', () => {
     expect(
       readMutedForegroundLight(
-        ':root { --muted-foreground: #6A6761; } .other { --muted-foreground: #9a968f; }',
+        ':root { --muted-foreground: #535152; } .other { --muted-foreground: #9a968f; }',
       ),
-    ).toBe('#6a6761')
+    ).toBe('#535152')
     expect(readMutedForegroundLight('.x { color: red; }')).toBeNull()
   })
 
   it('accepts the product tokens.css light muted-foreground', () => {
     expect(checkMutedForegroundAa(ROOT)).toEqual([])
-    expect(MUTED_FOREGROUND_LIGHT_AA).toBe('#6a6761')
+    expect(MUTED_FOREGROUND_LIGHT_AA).toBe('#535152')
   })
 
   it('flags a lighter muted-foreground that would break AA', () => {

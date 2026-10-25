@@ -1,4 +1,5 @@
 import { codecovVitePlugin } from '@codecov/vite-plugin'
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import IstanbulPlugin from 'vite-plugin-istanbul'
 import { defineConfig } from 'vitest/config'
@@ -36,6 +37,7 @@ export default defineConfig({
     react({
       compiler: true,
     }),
+    tailwindcss(),
     uikitDevMiddleware(),
     codecovVitePlugin({
       enableBundleAnalysis: Boolean(codecovToken),

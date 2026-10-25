@@ -40,6 +40,32 @@ export function SpecimenPage() {
         </span>
       </header>
 
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-tw-bridge"
+        data-testid="specimen-tw-bridge"
+      >
+        <h2 id="specimen-tw-bridge">Tailwind token bridge</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="size-8 rounded-md bg-chrome shadow-xs"
+            title="bg-chrome"
+            data-testid="tw-bg-chrome"
+          />
+          <div
+            className="size-8 rounded-md bg-sel shadow-xs"
+            title="bg-sel"
+            data-testid="tw-bg-sel"
+          />
+          <span
+            className="text-sm text-muted-foreground"
+            data-testid="tw-text-muted"
+          >
+            muted-foreground
+          </span>
+        </div>
+      </section>
+
       <section className="specimen-section" aria-labelledby="specimen-colors">
         <h2 id="specimen-colors">Semantic colour roles</h2>
         <div className="specimen-swatches">

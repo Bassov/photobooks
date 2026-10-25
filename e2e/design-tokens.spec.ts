@@ -19,6 +19,10 @@ test('specimen page shows token swatches without third-party fonts', async ({
   await page.goto('/?specimen')
   await expect(page.getByTestId('specimen')).toBeVisible()
   await expect(page.getByRole('heading', { name: '?specimen' })).toBeVisible()
+  await expect(page.getByTestId('specimen-tw-bridge')).toBeVisible()
+  await expect(page.getByTestId('tw-bg-chrome')).toBeVisible()
+  await expect(page.getByTestId('tw-bg-sel')).toBeVisible()
+  await expect(page.getByTestId('tw-text-muted')).toBeVisible()
   await expect(page.getByText('Semantic colour roles')).toBeVisible()
   await expect(page.getByText('Type scale', { exact: false })).toBeVisible()
   await expect(page.getByTestId('specimen-icons')).toBeVisible()
@@ -155,8 +159,9 @@ test('book paper and canvas use light Theme B tokens', async ({ page }) => {
   })
 
   expect(['#ffffff', '#fff']).toContain(colors.paper.toLowerCase())
-  expect(colors.canvas.toLowerCase()).toBe('#e9e9e8')
-  expect(colors.chrome.toLowerCase()).toBe('#fbfaf8')
+  // Kit v0.9.3 Procreate-light surfaces
+  expect(colors.canvas.toLowerCase()).toBe('#c8cacb')
+  expect(colors.chrome.toLowerCase()).toBe('#e1e1e1')
   // rgb(255, 255, 255) == #fff / #ffffff
   expect(colors.spreadBg).toMatch(/255,\s*255,\s*255/)
   await assertDocumentFitsViewport(page)
