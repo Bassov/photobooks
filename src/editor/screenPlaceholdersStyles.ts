@@ -1,4 +1,4 @@
-/** Placeholder screen layout (welcome / library / unsupported). */
+/** Placeholder screen layout (library / unsupported). Welcome uses WelcomeScreen.css. */
 
 const STYLE_TEXT = `
 .pb-screen {
@@ -19,8 +19,7 @@ const STYLE_TEXT = `
   margin: 0;
   font-size: var(--text-2xl);
 }
-.pb-screen--unsupported,
-.pb-screen--welcome {
+.pb-screen--unsupported {
   align-items: center;
   justify-content: center;
   text-align: center;

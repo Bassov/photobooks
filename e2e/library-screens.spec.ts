@@ -28,12 +28,13 @@ test('unsupported browser blocks when directory picker is missing', async ({
   await assertDocumentFitsViewport(page)
 })
 
-test('welcome shows choose library without page scroll', async ({ page }) => {
+test('welcome shows Create Library without page scroll', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('welcome-screen')).toBeVisible({
     timeout: 15_000,
   })
-  await expect(page.getByTestId('choose-library')).toBeVisible()
+  await expect(page.getByTestId('create-library')).toBeVisible()
+  await expect(page.getByTestId('screen-credit')).toBeVisible()
   await expect(page.getByTestId('editor-shell')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })

@@ -16,6 +16,6 @@ test('welcome replaces recents home without page scroll', async ({ page }) => {
     timeout: 15_000,
   })
   await expect(page.getByTestId('home-screen')).toHaveCount(0)
-  await expect(page.getByTestId('choose-library')).toBeVisible()
+  await expect(page.getByTestId('create-library')).toBeVisible()
   await assertDocumentFitsViewport(page)
 })
