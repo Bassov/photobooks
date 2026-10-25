@@ -195,7 +195,7 @@ function enqueueDecodeJob(item: DecodeQueueItem): void {
     pump({ allowBackground: false })
     return
   }
-  // Background drains on a microtask so a sync now-enqueue in this turn wins.
+  // Background drains via postTask/idle/setTimeout so a sync now-enqueue wins.
   scheduleBackgroundPump()
 }
 
@@ -509,7 +509,7 @@ export function resetAssetPool(): void {
 
 /**
  * Test seam: historically forced idle callback; background now drains via
- * microtask when the now lane is empty, so this only kicks a background pump.
+ * idle/postTask when the now lane is empty, so this only kicks a background pump.
  */
 export function setDecodeBackgroundIdleForTests(immediate: boolean): void {
   if (immediate) {

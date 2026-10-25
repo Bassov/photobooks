@@ -696,7 +696,7 @@ describe('assetPool', () => {
     await Promise.resolve()
     release?.()
     await Promise.all([hold, other, film])
-    // Now-lane (film) starts before earlier background jobs still waiting on the microtask.
+    // Now-lane (film) starts before earlier background jobs still waiting on idle.
     expect(order).toEqual(['film.jpg', 'hold.jpg', 'other.jpg'])
   })
 
