@@ -65,6 +65,11 @@ export interface ImportPhotoOptions {
    * Still resolves Files, reuses by path+size+mtime, and runs thumb decode.
    */
   listAlreadyEnqueued?: boolean
+  /**
+   * When false, caller owns `importRunning` for a multi-batch folder import.
+   * Default true (single-call imports set and clear the flag).
+   */
+  manageImportRunning?: boolean
 }
 
 export interface ImportPhotoResult {
@@ -274,8 +279,11 @@ async function importPhotoFilesInner(
     options.sourceRootId ??
     (libraryBacked ? `root-${crypto.randomUUID()}` : undefined)
   const listAlreadyEnqueued = options.listAlreadyEnqueued === true
+  const manageImportRunning = options.manageImportRunning !== false
 
-  setImportRunning(true, progressTotal)
+  if (manageImportRunning) {
+    setImportRunning(true, progressTotal)
+  }
   try {
     const book = getBookStoreSnapshot().book
     // List-first placeholders must resolve by path even in session (non-library)
@@ -410,6 +418,8 @@ async function importPhotoFilesInner(
       skipped: skippedCount,
     }
   } finally {
-    setImportRunning(false)
+    if (manageImportRunning) {
+      setImportRunning(false)
+    }
   }
 }

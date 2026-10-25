@@ -12,6 +12,7 @@ import {
   getBookStoreSnapshot,
   getGalleryIdsSnapshot,
   resetBookStore,
+  setImportRunning,
 } from './bookStore'
 import { resetAssetSources } from '../photo/assetSources'
 import {
@@ -729,6 +730,20 @@ describe('importPhotoFiles library identity', () => {
     expect(
       getBookStoreSnapshot().sessionMeta.get(assetId)?.correctedWidth,
     ).toBe(10)
+  })
+
+  it('manageImportRunning false leaves importRunning to the caller', async () => {
+    const jpeg = tinyJpeg('held.jpg')
+    runImportBatch.mockResolvedValue({ results: [], errors: [] })
+    setImportRunning(true, 9)
+    await importPhotoFiles([jpeg], {
+      libraryBacked: true,
+      sourceRootId: 'root-held',
+      manageImportRunning: false,
+    })
+    expect(getBookStoreSnapshot().importRunning).toBe(true)
+    expect(getBookStoreSnapshot().importExpectedCount).toBe(9)
+    setImportRunning(false)
   })
 
   it('enqueues placeholder meta before decode for new library assets', async () => {

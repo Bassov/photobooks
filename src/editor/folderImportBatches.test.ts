@@ -5,22 +5,30 @@ import {
   resetScanWorker,
 } from '../assets'
 import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
+import { IMPORT_BODY_READ_CAP } from './importBodyReads'
+import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import {
   importFilesInBatches,
   importScannedEntriesInBatches,
 } from './photoRootSession'
 import * as importPhotos from './importPhotos'
 import { resetPendingHashesForTests } from './pendingHashes'
+import { detectMissingAssets } from './relink/detect'
+import { isRelinkDialogOpen, resetRelinkStore } from './relink/statusStore'
 
 describe('folderImportBatches', () => {
   beforeEach(() => {
     stubScanWorker()
     resetPendingHashesForTests()
+    resetBookStore()
+    resetRelinkStore()
   })
 
   afterEach(() => {
     resetScanWorker()
     resetPendingHashesForTests()
+    resetBookStore()
+    resetRelinkStore()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
@@ -118,6 +126,68 @@ describe('folderImportBatches', () => {
     expect(spy.mock.calls[0]?.[1]).toMatchObject({
       source: 'folder',
       sourceRootId: 'root',
+      manageImportRunning: false,
     })
+  })
+
+  it('holds importRunning across multi-batch waves so missing detect stays quiet', async () => {
+    const tree = createMemoryAssetDirectory()
+    const fileCount = IMPORT_BODY_READ_CAP + 1
+    for (let i = 0; i < fileCount; i += 1) {
+      tree.putFile(`f${String(i)}.jpg`, new Uint8Array([i + 1]), i + 1)
+    }
+    const source = createFsaAssetSource({
+      rootId: 'root',
+      directory: tree.root,
+    })
+    const scanned = await source.scanRoot('root')
+    const entries = scanned.ok ? scanned.value : []
+    expect(entries.length).toBe(fileCount)
+
+    // List-first style: identity placeholders without session Files.
+    resetBookStore({
+      book: {
+        ...getBookStoreSnapshot().book,
+        gallery: ['pending'],
+        assets: {
+          pending: {
+            relativePath: 'pending.jpg',
+            sourceRootId: 'root',
+          },
+        },
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    const runningAtWave: boolean[] = []
+    const dialogAtWave: boolean[] = []
+    const spy = vi
+      .spyOn(importPhotos, 'importPhotoFiles')
+      .mockImplementation(() => {
+        runningAtWave.push(getBookStoreSnapshot().importRunning)
+        detectMissingAssets({ openDialog: true })
+        dialogAtWave.push(isRelinkDialogOpen())
+        return Promise.resolve({ imported: 1, errors: [], skipped: 0 })
+      })
+
+    await importScannedEntriesInBatches(tree.root, entries, {
+      sourceRootId: 'root',
+      onProgress: vi.fn(),
+      onErrors: vi.fn(),
+    })
+
+    expect(spy.mock.calls.length).toBe(2)
+    expect(runningAtWave).toEqual([true, true])
+    expect(dialogAtWave).toEqual([false, false])
+    expect(getBookStoreSnapshot().importRunning).toBe(false)
+    for (const call of spy.mock.calls) {
+      expect(call[1]).toMatchObject({ manageImportRunning: false })
+    }
+
+    // Idle + still unsourced identity → Missing UI may open again.
+    detectMissingAssets({ openDialog: true })
+    expect(isRelinkDialogOpen()).toBe(true)
   })
 })

@@ -17,6 +17,7 @@ export async function runChromeImport(
     libraryBacked?: boolean
     awaitPriorHashes?: boolean
     listAlreadyEnqueued?: boolean
+    manageImportRunning?: boolean
   },
 ): Promise<ChromeImportResult> {
   if (files.length === 0) {
@@ -48,6 +49,9 @@ export async function runChromeImport(
       : {}),
     ...(options.listAlreadyEnqueued !== undefined
       ? { listAlreadyEnqueued: options.listAlreadyEnqueued }
+      : {}),
+    ...(options.manageImportRunning !== undefined
+      ? { manageImportRunning: options.manageImportRunning }
       : {}),
   })
   if (raf !== 0) {
