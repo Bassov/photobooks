@@ -200,7 +200,8 @@ function useRun(on: boolean, ms: number, done: () => void) {
     const t0 = performance.now(); let raf = 0
     const tick = () => { const k = Math.min(1, (performance.now() - t0) / ms); setV(Math.round(k * 100)); if (k < 1) raf = requestAnimationFrame(tick); else done() }
     raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf)
-  }, [on]) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on])
   return v
 }
 const slug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "book"
@@ -245,7 +246,8 @@ function DemoSite({ id }: { id: string }) {
   const [bookId, setBookId] = React.useState(id)
   const entry = d.siteEntry ?? "catalog"
   const b = d.books.find((x) => x.id === bookId) ?? d.books.find((x) => x.id === id) ?? published[0]
-  React.useLayoutEffect(() => { if (b) setEditorExtras(b.extras ?? blankExtras(b.title)) }, [b?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useLayoutEffect(() => { if (b) setEditorExtras(b.extras ?? blankExtras(b.title)) }, [b?.id])
   const cards = (published.length ? published : b ? [b] : []).map((x) => ({
     ...BOOKS[0], id: x.id, title: x.title, cover: coverOf(x) ?? "", spreads: x.doc?.spreads.length ?? 10, format: fmtOf(x.book), status: "published" as const,
   }))

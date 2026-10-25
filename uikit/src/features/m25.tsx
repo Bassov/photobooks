@@ -139,7 +139,8 @@ function StateOverlay({ v }: { v: string }) {
     if (v === "error") st.toast({ tone: "error", icon: <AlertTriangle />, title: "3 files couldn’t be read", description: "scan_0042.heic, broken.jpg, IMG_9999.tif — unsupported or damaged.", action: { label: "Show files" } }, 60000)
     if (v === "drag") { st.setDragging(["p17"]); st.setStatus("Dragging IMG_4333.jpg — empty frames are highlighted as drop targets") }
     if (v === "placed") { st.setSel([st.doc.spreads[2].frames[1].id]); st.setStatus("Placed ✓ marks in the filmstrip; selected frame has handles and a size label") }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   if (v !== "empty") return null
   return (
     <div className="absolute left-1/2 top-1/2 z-30 w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-popover p-6 text-center shadow-lg">
@@ -171,7 +172,8 @@ function ScreenDialogs({ v }: { v: string }) {
 }
 function SaveCycle() {
   const st = useStudio()
-  React.useEffect(() => { const seq: ("dirty" | "saving" | "saved" | "error")[] = ["dirty", "saving", "saved", "error", "saved"]; let i = 0; const t = setInterval(() => { st.setSaveState(seq[i++ % seq.length]) }, 1200); return () => clearInterval(t) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => { const seq: ("dirty" | "saving" | "saved" | "error")[] = ["dirty", "saving", "saved", "error", "saved"]; let i = 0; const t = setInterval(() => { st.setSaveState(seq[i++ % seq.length]) }, 1200); return () => clearInterval(t) }, [])
   return <div className="absolute right-3 top-3 z-30 rounded-lg border bg-popover p-3 text-xs shadow-md">Save indicator cycles: <SaveStatus /></div>
 }
 
