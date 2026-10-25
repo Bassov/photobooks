@@ -234,7 +234,6 @@ export function shouldScheduleBackgroundDrain(
   return !allowBackground && hasBackground
 }
 
-/** Import batch: dual tiers unless the caller pinned a single maxEdge. */
 /**
  * Bulk/prefetch import encodes thumb320 only; working 1280 is built on
  * pasteboard/placement/need via requestTier (or an explicit dualTiers job).

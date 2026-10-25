@@ -67,14 +67,7 @@ workerScope.onmessage = (event: MessageEvent<WorkerRequest>) => {
   }
   void processPhotoRequest(request).then((response) => {
     if (response.ok) {
-      const transfer: Transferable[] = [response.previewBuffer]
-      if (response.workingBuffer !== undefined) {
-        transfer.push(response.workingBuffer)
-      }
-      if (response.sourceBuffer !== undefined) {
-        transfer.push(response.sourceBuffer)
-      }
-      workerScope.postMessage(response, { transfer })
+      workerScope.postMessage(response, { transfer: [response.previewBuffer] })
     } else {
       workerScope.postMessage(response)
     }

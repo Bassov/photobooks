@@ -13,10 +13,8 @@ describe('photo.worker shell', () => {
     Reflect.deleteProperty(globalThis, 'onmessage')
   })
 
-  it('posts success with transferred preview, working, and source buffers', async () => {
+  it('posts success with transferred preview buffer', async () => {
     const previewBuffer = new ArrayBuffer(4)
-    const workingBuffer = new ArrayBuffer(8)
-    const sourceBuffer = new ArrayBuffer(16)
     vi.mocked(processPhotoRequest).mockResolvedValue({
       id: '1',
       ok: true,
@@ -30,9 +28,6 @@ describe('photo.worker shell', () => {
       orientation: 1,
       previewBuffer,
       previewMimeType: 'image/jpeg',
-      workingBuffer,
-      workingMimeType: 'image/webp',
-      sourceBuffer,
     })
 
     const postMessage = vi.fn()
@@ -59,7 +54,7 @@ describe('photo.worker shell', () => {
     })
     expect(postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ ok: true, id: '1' }),
-      { transfer: [previewBuffer, workingBuffer, sourceBuffer] },
+      { transfer: [previewBuffer] },
     )
   })
 

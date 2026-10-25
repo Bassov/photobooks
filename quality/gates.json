@@ -22,10 +22,6 @@
     "disableBudget": 10,
     "temporaryExcludes": [
       {
-        "path": "src/photo/photo.worker.ts",
-        "until": "photo-worker-vite-static-options"
-      },
-      {
         "path": "src/editor/projectSession.ts",
         "until": "project-session-mutation"
       },

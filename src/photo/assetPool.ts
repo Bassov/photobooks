@@ -183,7 +183,6 @@ interface DeferredLazyItem {
 const deferredLazyByAsset = new Map<string, DeferredLazyItem>()
 
 /** True while a gallery import is running — raises the effective decode cap. */
-// Stryker disable next-line BooleanLiteral: resetAssetPool clears; idle default must stay false
 let decodeImportActive = false
 
 function lazyMayDecodeNow(
@@ -221,7 +220,6 @@ export function shouldDeferHeicDecode(
 
 /** Raise/lower import-time decode concurrency (wired from setImportRunning). */
 export function setDecodeImportActive(active: boolean): void {
-  // Stryker disable next-line ConditionalExpression,BlockStatement: idempotent no-op; covered by getDecodeImportActiveForTests
   if (decodeImportActive === active) {
     return
   }
@@ -314,7 +312,6 @@ function applyNowSetTransition(previous: ReadonlySet<string>): void {
 }
 
 function promoteDeferredLazy(): void {
-  // Stryker disable next-line ConditionalExpression: empty-map fast path; promote loop is covered
   if (deferredLazyByAsset.size === 0) {
     return
   }
@@ -393,14 +390,12 @@ export function getQueuedDecodeAssetIds(): readonly string[] {
 function createDecodeWorker(): Worker {
   return new Worker(
     /* @vite-ignore */ new URL('./photo.worker.ts', import.meta.url),
-    // Stryker disable next-line ObjectLiteral: module workers required; {} breaks Vitest Worker mock parity
     { type: 'module' },
   )
 }
 
 function ensureSlots(): void {
   const size = poolSlotCount()
-  // Stryker disable next-line EqualityOperator: < vs <= only changes spare slot count, not observable decode results
   while (decodeSlots.length < size) {
     decodeSlots.push({
       worker: createDecodeWorker(),
@@ -760,6 +755,15 @@ export function processAsset(
 
 export type ImportBatchListener = (state: ImportBatchState) => void
 
+function notifyImportDecodeError(
+  onError: ((assetId: string, error: ImportFileError) => void) | undefined,
+  assetId: string,
+  importError: ImportFileError,
+): void {
+  // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
+  onError?.(assetId, importError)
+}
+
 /**
  * Process many files with shared progress. Per-file failures do not abort the batch.
  * Caller filters MIME before enqueue when rejecting unsupported types as errors.
@@ -844,8 +848,11 @@ export async function runImportBatch(
                 })
                 errors.push(importError)
                 if (!heic) {
-                  // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
-                  options.onError?.(item.assetId, importError)
+                  notifyImportDecodeError(
+                    options.onError,
+                    item.assetId,
+                    importError,
+                  )
                 }
                 // Keep HEIC placeholder tiles (do not call onError discard).
               })
@@ -869,8 +876,7 @@ export async function runImportBatch(
           })
           errors.push(importError)
           if (!heic) {
-            // Stryker disable next-line OptionalChaining: onError is optional; ?. vs bare is equivalent when set
-            options.onError?.(item.assetId, importError)
+            notifyImportDecodeError(options.onError, item.assetId, importError)
           }
         } finally {
           completed += 1
