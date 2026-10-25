@@ -645,7 +645,6 @@ describe('bookStore', () => {
     expect(getDecodeImportActiveForTests()).toBe(false)
     setImportRunning(true, 2)
     expect(getDecodeImportActiveForTests()).toBe(true)
-    // No deferred lazy → soft release finishes immediately.
     setImportRunning(false)
     expect(getDecodeImportActiveForTests()).toBe(false)
     setDecodeImportActive(true)

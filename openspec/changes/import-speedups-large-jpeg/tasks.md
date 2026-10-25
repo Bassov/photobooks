@@ -16,7 +16,7 @@
 3. Place a photo on pasteboard — 1280 working preview appears (progressive thumb ok).
    - OK: covered by existing ConnectedSpreadView/`requestTier` unit path; no new chrome.
 4. N/A synthetic: unit coverage when large multi-MB fixtures unavailable locally.
-   - OK: unit suites for lazy JPEG / defer 1280 / single body-read / import concurrency / import-cap hold across defer→visible.
+   - OK: unit suites for lazy JPEG / defer 1280 / single body-read / import concurrency.
 
 ### ui-review (filmstrip import — no new chrome)
 
