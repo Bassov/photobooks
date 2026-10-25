@@ -2,20 +2,20 @@
 
 Execution plan for the photobook editor. Architecture and decisions: `docs/future-architecture.md`.
 
-This index and the item files under `docs/roadmap/` are the single source of truth for what gets built and in which order: issues, proposals and review notes are inputs until they land here. The UI kit (`uikit/`, from `uikit-import`) is the UI/UX reference for roadmap items, not a second plan.
+This index and the item files under `docs/roadmap/` are the single source of truth for what gets built and in which order: issues, proposals and review notes are inputs until they land here. The UI kit **v0.9.3** (`uikit/`) is the UI/UX reference for roadmap items (screen / full / demo / feature routes), not a second plan.
 
 Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<milestone>/<slug>.md`. Retire a finished milestone with `pnpm roadmap archive <M>` (drops the index block and folder; git history is SoT). Change the index only with `pnpm roadmap` (`add` / `done` / `move` / `sync` / `archive`), never by hand.
 
 ## Order
 
-1. **M1–M4.5 — the local editor, complete for personal use.** M2.5 (design foundation) has shipped. Finish the remaining M2.1 quality-gate items, then M2.2 completes the library under those gates, then M3–M4.5. Other hardening ideas sit in `docs/backlog/` until the owner re-adds them.
-2. **M5, then M7 — books as a website:** the showcase site built and previewed locally, then deployed as my own site.
-3. **M6 — print** (after M7).
+1. **M1–M4.5 — the local editor, complete for personal use.** M2.5 (design foundation) has shipped. Finish remaining M2.1 quality-gate items and M2.2 correctness as needed, then **M2.6** ports product screens onto UI kit **v0.9.3** (editor-ready chrome; existing chrome may be thrown away, keep working logic). Resume M3–M4.5 features on that chrome. Other hardening ideas sit in `docs/backlog/` until the owner re-adds them.
+2. **M5, then M7 — books as a website (parked):** needs photo preprocessing + Cloudflare before work resumes. Kit site demos (`uikit#/screen/showcase-site`, publish) are **not now**.
+3. **M6 — print** (after M7). Kit print demos (`uikit#/screen/print-prep`, `print-export`) are **not now**.
 4. **M8 — let others create their own books, sites and prints.**
 
 ## M2.1 — Quality gates & dev process
 
-**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI (and local `check:fast` / stage-11 self-check) refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, and PR bodies with stale metrics or missing verdicts. Apply loop is `pnpm check:fast`; local stryker/e2e:changed are agent B (not pre-push); `agent finish` is thin push+PR. Diff size is advisory only (target ~1000 / prefer ≤1500; check/CI warn, never block merge — prefer `pnpm roadmap add --after` when planning oversized work). The agent findings journal is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, product work resumes with M2.2 (M2.5 design foundation already shipped); the rest of the hardening ideas live in `docs/backlog/`.
+**Review cut:** reviews stop bouncing on mechanical issues. PR e2e runs with zero retries and an empty `@flaky` list. CI (and local `check:fast` / stage-11 self-check) refuse, with no label or agent override: gate values getting weaker, test-level weakening (skip / fixme / only / retries / deleted tests), any `Stryker disable` except the budgeted next-line form, new exclusions of production code, patch coverage under 85% (unit + e2e merged), a diff mutation score under 85 or any NoCoverage mutant, a changed-but-excluded file, and PR bodies with stale metrics or missing verdicts. Apply loop is `pnpm check:fast`; local stryker/e2e:changed are agent B (not pre-push); `agent finish` is thin push+PR. Diff size is advisory only (target ~1000 / prefer ≤1500; check/CI warn, never block merge — prefer `pnpm roadmap add --after` when planning oversized work). The agent findings journal is replaced by checks. Agent test runs stay cheap and fast (targeted quiet runs once; flake proof from CI burn-in). The stateful session and editor files are back in mutation scope behind unit-level fakes. After M2.1, finish M2.2 as needed, then M2.6 kit v0.9.3 screen ports (M2.5 design foundation already shipped); then resume M3–M4.5. The rest of the hardening ideas live in `docs/backlog/`.
 
 Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
@@ -29,20 +29,35 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 **Review cut:** under the M2.1 gates — the home screen handles every permission, picker and storage failure with a readable message, books have titles you set and rename, and photo metadata (capture time, orientation, color space) is in the document, read off the main thread.
 
-- [ ] [prep] [ui-tw-bridge-v093](roadmap/M2.2/ui-tw-bridge-v093.md) — Tailwind 4 + uikit v0.9.3 token bridge
 - [x] [feature] [reimport-async](roadmap/M2.2/reimport-async.md) — re-import into an existing project starts as fast as a fresh import
 - [x] [feature] [webp-import](roadmap/M2.2/webp-import.md) — WebP photos import instead of failing with "Unknown file format"
-- [ ] [feature] [failed-import-no-tile](roadmap/M2.2/failed-import-no-tile.md) — a photo that fails to decode leaves no tile, is not counted and cannot be placed
+- [x] [feature] [failed-import-no-tile](roadmap/M2.2/failed-import-no-tile.md) — a photo that fails to decode leaves no tile, is not counted and cannot be placed
 - [x] [feature] [add-spread-keeps-template](roadmap/M2.2/add-spread-keeps-template.md) — Add spread uses the active spread's template, and the template control says it is per spread
-- [ ] [feature] [transparent-preview](roadmap/M2.2/transparent-preview.md) — transparent PNG / WebP areas stay transparent in thumbnails and frames
-- [ ] [feature] [folder-skip-non-images](roadmap/M2.2/folder-skip-non-images.md) — folder import skips non-image files with one summary line instead of errors
-- [ ] [feature] [heic-unsupported-message](roadmap/M2.2/heic-unsupported-message.md) — HEIC/HEIF photos get a clear "not supported yet, convert to JPEG" message
-- [ ] [feature] [recents-home-quality](roadmap/M2.2/recents-home-quality.md) — home polish after correctness (what M2.1 does not cover)
+- [x] [feature] [transparent-preview](roadmap/M2.2/transparent-preview.md) — transparent PNG / WebP areas stay transparent in thumbnails and frames
+- [x] [feature] [folder-skip-non-images](roadmap/M2.2/folder-skip-non-images.md) — folder import skips non-image files with one summary line instead of errors
+- [x] [feature] [heic-unsupported-message](roadmap/M2.2/heic-unsupported-message.md) — HEIC/HEIF photos get a clear "not supported yet, convert to JPEG" message
+- [x] [feature] [recents-home-quality](roadmap/M2.2/recents-home-quality.md) — home polish after correctness (what M2.1 does not cover)
 - [ ] [feature] [recents-idb-dedup](roadmap/M2.2/recents-idb-dedup.md) — session IDB typed faults, recents isSameEntry dedup, eviction cleanup
 - [x] [prep] [asset-metadata-schema](roadmap/M2.2/asset-metadata-schema.md) — photo metadata in the document
 - [x] [feature] [book-titles](roadmap/M2.2/book-titles.md) — create-with-title and rename
 - [x] [prep] [asset-metadata-extract](roadmap/M2.2/asset-metadata-extract.md) — fill metadata off the main thread
 - [x] [feature] [spread-thumb-render-scope](roadmap/M2.2/spread-thumb-render-scope.md) — ConnectedSpreadView re-renders only when its own spread's thumbnails change
+
+## M2.6 — Kit v0.9.3 editor shell
+
+**Review cut:** product chrome matches UI kit **v0.9.3** for Welcome, unsupported browser, library (empty + grid), settings stub, and editor shell; working logic kept (FSA import, `bookStore` / `projectSession`, filmstrip place/crop, checking-photos reload); editor hard-no parity from v0.9. Site and print kit demos are **not** in this cut.
+
+Notes: [INTRO.md](roadmap/M2.6/INTRO.md)
+
+- [x] [prep] [uikit-sync](roadmap/M2.6/uikit-sync.md) — Import Designer-approved UI kit v0.9.3 into uikit/
+- [ ] [prep] [ui-tw-bridge-v093](roadmap/M2.6/ui-tw-bridge-v093.md) — Tailwind 4 + uikit v0.9.3 token bridge
+- [ ] [feature] [ui-welcome-v93](roadmap/M2.6/ui-welcome-v93.md) — Port Welcome / first-run from kit v0.9.3
+- [ ] [feature] [ui-unsupported-v93](roadmap/M2.6/ui-unsupported-v93.md) — Port unsupported-browser screen from kit v0.9.3
+- [ ] [feature] [ui-library-empty-v93](roadmap/M2.6/ui-library-empty-v93.md) — Port empty library + Create book dialog from kit v0.9.3
+- [ ] [feature] [ui-library-grid-v93](roadmap/M2.6/ui-library-grid-v93.md) — Port library grid from kit v0.9.3
+- [ ] [feature] [ui-settings-stub-v93](roadmap/M2.6/ui-settings-stub-v93.md) — Port Settings stub from kit v0.9.3
+- [ ] [feature] [ui-editor-shell-v93](roadmap/M2.6/ui-editor-shell-v93.md) — Port editor shell chrome from kit v0.9.3
+- [ ] [feature] [ui-editor-parity-v93](roadmap/M2.6/ui-editor-parity-v93.md) — Editor v0.9 hard-no parity with kit
 
 ## M3 — Building a real book
 
@@ -104,6 +119,8 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 **Review cut:** the showcase site with your books, previewed from the editor and exported to a folder, looks right and scrolls / swipes at 60 fps on a phone and on a 27″ 4K screen.
 
+**Not now:** parked until photo preprocessing + Cloudflare; kit site demos (`uikit#/screen/showcase-site`) are reference only until this milestone resumes.
+
 - [ ] [prep] [image-derivatives](roadmap/M5/image-derivatives.md) — web image pipeline
 - [ ] [prep] [avif-encoder](roadmap/M5/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
 - [ ] [prep] [publish-revisions](roadmap/M5/publish-revisions.md) — draft vs published
@@ -118,6 +135,8 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 
 **Review cut:** your own live site with your books, updated incrementally from the editor.
 
+**Not now:** parked with M5 (photo preprocess + Cloudflare); kit publish demos are reference only until this milestone resumes.
+
 - [ ] [prep] [hosting-decision](roadmap/M7/hosting-decision.md) — spike
 - [ ] [feature] [manual-deploy](roadmap/M7/manual-deploy.md) — documented deploy path
 - [ ] [feature] [publish-credentials](roadmap/M7/publish-credentials.md) — connect the editor to your hosting (Security Review)
@@ -126,6 +145,8 @@ Notes: [INTRO.md](roadmap/M2.1/INTRO.md)
 ## M6 — Print
 
 **Review cut:** a PDF (pages or spreads, as the print shop wants) or JPEG spreads you can send to a print shop, a cover with the right spine, and a booklet you can print at home; low-resolution photos are flagged on their frames while you lay out; exporting never freezes the editor.
+
+**Not now for kit demos:** print screens (`uikit#/screen/print-prep`, `print-export`) wait until after the editor-ready M2.6 cut and M5/M7; do not start print UI ports from those demos yet.
 
 - [ ] [prep] [print-model-schema](roadmap/M6/print-model-schema.md) — print settings and cover in the document
 - [ ] [prep] [print-profiles](roadmap/M6/print-profiles.md) — printer data and preflight
