@@ -590,6 +590,9 @@ describe('assetPool', () => {
     await vi.advanceTimersByTimeAsync(0)
     // Quiet gates allowBackground inside pump — job stays queued.
     expect(getQueuedDecodeAssetIds()).toContain('bg-quiet')
+    // Force-idle still cannot start background while scroll quiet is open.
+    setDecodeBackgroundIdleForTests(true)
+    expect(getQueuedDecodeAssetIds()).toContain('bg-quiet')
     now = 10_201
     setDecodeBackgroundIdleForTests(true)
     expect(getQueuedDecodeAssetIds()).not.toContain('bg-quiet')
@@ -1452,6 +1455,8 @@ describe('assetPool', () => {
     expect(bookUsedIdsUnchanged(new Set(['a', 'b']), ['b', 'a'])).toBe(true)
     expect(bookUsedIdsUnchanged(new Set(['a']), ['a', 'b'])).toBe(false)
     expect(bookUsedIdsUnchanged(new Set(['a', 'b']), ['a'])).toBe(false)
+    expect(bookUsedIdsUnchanged(new Set(['a']), ['a', 'a'])).toBe(false)
+    expect(bookUsedIdsUnchanged(new Set(['a', 'b']), ['a', 'c'])).toBe(false)
     expect(bookUsedIdsUnchanged(new Set(), [])).toBe(true)
   })
 
@@ -1471,6 +1476,8 @@ describe('assetPool', () => {
     // Unchanged empty membership must not pump/promote.
     setBookUsedAssetIds([])
     expect(getDeferredHeicAssetIds()).toContain('heic-stable')
+    setBookUsedAssetIds(['heic-stable'])
+    expect(getDeferredHeicAssetIds()).not.toContain('heic-stable')
   })
 
   it('ignores AbortError from deferred HEIC imports in batch progress', async () => {
