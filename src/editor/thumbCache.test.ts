@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryDerivedCache, setDerivedCacheForTests } from '../assets'
+import {
+  isDecodeScrollQuiet,
+  resetDecodeScrollQuietForTests,
+} from '../photo/decodeScrollQuiet'
 import { getAssetAspectSnapshot, resetBookStore } from './bookStore'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import { resetFilmstripScrollQuietForTests } from './filmstripScrollQuiet'
@@ -108,6 +112,13 @@ describe('thumbCache', () => {
     expect(listener).toHaveBeenCalledTimes(1)
     expect(getThumbUrl('a1')).toBe('blob:thumb-2')
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1')
+  })
+
+  it('noteFilmstripScroll opens decode scroll quiet for background drains', () => {
+    resetDecodeScrollQuietForTests()
+    expect(isDecodeScrollQuiet()).toBe(false)
+    noteFilmstripScroll()
+    expect(isDecodeScrollQuiet()).toBe(true)
   })
 
   it('defers React publishes while noteFilmstripScroll quiet is active', () => {

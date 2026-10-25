@@ -3,6 +3,7 @@ import type { PhotoWorkerRequest } from './processPhoto'
 import {
   abortDecodeForTests,
   assignWorkingFields,
+  bookUsedIdsUnchanged,
   DECODE_POOL_CAP,
   decodeWorkerCount,
   getDeferredHeicAssetIds,
@@ -15,6 +16,7 @@ import {
   runImportBatch,
   type AssetProcessResult,
   type ImportFileError,
+  noteDecodeScrollActivity,
   setBookUsedAssetIds,
   setDecodeBackgroundIdleForTests,
   setFilmstripVisibleAssetIds,
@@ -569,6 +571,45 @@ describe('assetPool', () => {
     expect(decodeWorkerCount(8)).toBe(DECODE_POOL_CAP)
     noteDecodePressure({ memoryPressure: true })
     noteDecodePressure({ memoryPressure: false, longTaskPressure: false })
+  })
+
+  it('noteDecodeScrollActivity gates background drains inside pump', async () => {
+    vi.useFakeTimers()
+    let now = 10_000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    hangWorker()
+    warmAssetPool()
+    setVisibleAssetIds([])
+    noteDecodeScrollActivity(200)
+    void processAsset({
+      assetId: 'bg-quiet',
+      file: new File([new Uint8Array([1])], 'bg.jpg', { type: 'image/jpeg' }),
+      priority: 'prefetch',
+    })
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(0)
+    // Quiet gates allowBackground inside pump — job stays queued.
+    expect(getQueuedDecodeAssetIds()).toContain('bg-quiet')
+    now = 10_201
+    setDecodeBackgroundIdleForTests(true)
+    expect(getQueuedDecodeAssetIds()).not.toContain('bg-quiet')
+    vi.useRealTimers()
+  })
+
+  it('without scroll quiet, background pump claims prefetch jobs', async () => {
+    vi.useFakeTimers()
+    hangWorker()
+    warmAssetPool()
+    setVisibleAssetIds([])
+    void processAsset({
+      assetId: 'bg-free',
+      file: new File([new Uint8Array([1])], 'free.jpg', { type: 'image/jpeg' }),
+      priority: 'prefetch',
+    })
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(getQueuedDecodeAssetIds()).not.toContain('bg-free')
+    vi.useRealTimers()
   })
 
   it('setDecodeBackgroundIdleForTests(false) is a no-op on an idle pool', () => {
@@ -1405,6 +1446,31 @@ describe('assetPool', () => {
     expect(getDeferredHeicAssetIds()).toContain('heic-pump')
     setBookUsedAssetIds(['heic-pump'])
     expect(getDeferredHeicAssetIds()).not.toContain('heic-pump')
+  })
+
+  it('bookUsedIdsUnchanged compares membership ignoring order', () => {
+    expect(bookUsedIdsUnchanged(new Set(['a', 'b']), ['b', 'a'])).toBe(true)
+    expect(bookUsedIdsUnchanged(new Set(['a']), ['a', 'b'])).toBe(false)
+    expect(bookUsedIdsUnchanged(new Set(['a', 'b']), ['a'])).toBe(false)
+    expect(bookUsedIdsUnchanged(new Set(), [])).toBe(true)
+  })
+
+  it('setBookUsedAssetIds skips promote when ids are unchanged', () => {
+    hangWorker()
+    warmAssetPool()
+    const heic = new File([new Uint8Array([1])], 'stable.heic', {
+      type: 'image/heic',
+    })
+    void processAsset({
+      assetId: 'heic-stable',
+      file: heic,
+      priority: 'prefetch',
+    })
+    expect(getDeferredHeicAssetIds()).toContain('heic-stable')
+    setBookUsedAssetIds([])
+    // Unchanged empty membership must not pump/promote.
+    setBookUsedAssetIds([])
+    expect(getDeferredHeicAssetIds()).toContain('heic-stable')
   })
 
   it('ignores AbortError from deferred HEIC imports in batch progress', async () => {

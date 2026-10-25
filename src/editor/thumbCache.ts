@@ -1,5 +1,6 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
+import { noteDecodeScrollActivity } from '../photo/decodeScrollQuiet'
 import { ObjectUrlLru } from '../photo/objectUrlLru'
 import {
   filmstripScrollQuietRemainingMs,
@@ -122,6 +123,8 @@ function scheduleFlush(): void {
  */
 export function noteFilmstripScroll(): void {
   noteFilmstripScrollActivity()
+  // Pause background decode drains for the same quiet window (scroll LoAF).
+  noteDecodeScrollActivity()
 }
 
 function enqueuePublish(

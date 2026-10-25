@@ -7,6 +7,10 @@ import {
   type DecodeLane,
 } from './decodeQueuePolicy'
 import {
+  isDecodeScrollQuiet,
+  resetDecodeScrollQuietForTests,
+} from './decodeScrollQuiet'
+import {
   applyDecodePressureSignals,
   assetsLeavingNow,
   buildNowAssetIds,
@@ -22,6 +26,8 @@ import {
   shouldScheduleBackgroundDrain,
   takeNextDecodeJob,
 } from './decodeScheduler'
+
+export { noteDecodeScrollActivity } from './decodeScrollQuiet'
 import { isKnownHeicFile } from './heic'
 import { THUMB_MAX_EDGE } from './photoEdges'
 import type { PhotoWorkerRequest, PhotoWorkerResponse } from './processPhoto'
@@ -337,7 +343,9 @@ function effectiveSlotLimit(): number {
 }
 
 function pump(options: { allowBackground?: boolean } = {}): void {
-  const allowBackground = options.allowBackground === true
+  // Background lane stays idle while the filmstrip scroll quiet window is open.
+  const allowBackground =
+    options.allowBackground === true && !isDecodeScrollQuiet()
   if (queue.length === 0) {
     return
   }
@@ -501,6 +509,7 @@ export function resetAssetPool(): void {
   nowAssetIds = new Set()
   longTaskPressure = false
   memoryPressure = false
+  resetDecodeScrollQuietForTests()
   // Drop controllers without aborting — in-flight were rejected above; aborting
   // would double-reject via AbortSignal listeners as unhandled rejections.
   abortByAsset.clear()
@@ -569,8 +578,29 @@ export function setSpreadVisibleAssetIds(
   rebuildVisibleAssetIds()
 }
 
+/** True when `ids` has the same membership as `current` (order ignored). */
+export function bookUsedIdsUnchanged(
+  current: ReadonlySet<string>,
+  ids: readonly string[],
+): boolean {
+  if (current.size !== ids.length) {
+    return false
+  }
+  for (const id of ids) {
+    if (!current.has(id)) {
+      return false
+    }
+  }
+  return true
+}
+
 /** Book-used (placed) asset ids — HEIC may decode even when off-filmstrip. */
 export function setBookUsedAssetIds(assetIds: readonly string[]): void {
+  // Gallery flushes during import change book identity without placements;
+  // skip now-set transition / pump when membership is unchanged (LoAF).
+  if (bookUsedIdsUnchanged(bookUsedAssetIds, assetIds)) {
+    return
+  }
   const previousNow = nowAssetIds
   bookUsedAssetIds = new Set(assetIds)
   applyNowSetTransition(previousNow)
