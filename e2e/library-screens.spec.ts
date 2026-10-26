@@ -324,6 +324,63 @@ test('change library updates folder name via FSA picker stub', async ({
   await assertDocumentFitsViewport(page)
 })
 
+test('library-with-books chrome visible at 1280x800', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  const bookId = await page.evaluate(async () => {
+    const api = window.__photobooksProject as
+      | {
+          attachMemoryLibraryForTests: () => Promise<{
+            ok: boolean
+            code?: string
+          }>
+          createBookInLibrary: (title?: string) => Promise<{
+            ok: boolean
+            code?: string
+            value?: { id: string }
+          }>
+          leaveEditorForLibrary: () => Promise<void>
+        }
+      | undefined
+    if (!api) {
+      throw new Error('missing api')
+    }
+    const attached = await api.attachMemoryLibraryForTests()
+    if (!attached.ok) {
+      throw new Error(attached.code ?? 'attach')
+    }
+    const created = await api.createBookInLibrary('Chrome Book')
+    if (!created.ok || !created.value) {
+      throw new Error(created.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    return created.value.id
+  })
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('new-book')).toBeVisible()
+  await expect(page.getByTestId('lib-search')).toBeVisible()
+  await expect(page.getByTestId('lib-sort')).toBeVisible()
+  await expect(page.getByTestId('library-settings')).toBeVisible()
+  const createBg = await page
+    .getByTestId('new-book')
+    .evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(createBg).toMatch(/rgb\(\s*35,\s*34,\s*35\s*\)|#232223/i)
+  const cover = page.getByTestId(`library-book-${bookId}`)
+  await expect(cover).toBeVisible()
+  await expect(cover.getByTestId('book-object-spine')).toBeVisible()
+  await expect(cover.getByTestId('book-object-pages')).toBeVisible()
+  await expect(cover.locator('em')).toHaveText('Chrome Book')
+  await expect(page.getByTestId('book-meta').first()).toContainText('pages')
+  await expect(page.getByTestId('book-meta').first()).toContainText('edited')
+  await assertDocumentFitsViewport(page)
+})
+
 test('library grid sort by title reorders books', async ({ page }) => {
   test.setTimeout(90_000)
   await page.goto('/')

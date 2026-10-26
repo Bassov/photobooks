@@ -16,6 +16,8 @@ describe('ensureLibraryScreenStyles', () => {
     expect(nodes).toHaveLength(1)
     expect(nodes[0]?.textContent).toMatch(/\.pb-library/)
     expect(nodes[0]?.textContent).toMatch(/pb-lib-create/)
+    expect(nodes[0]?.textContent).toMatch(/heading-weight/)
+    expect(nodes[0]?.textContent).toMatch(/pb-book-object-title em/)
   })
 
   it('no-ops when document is unavailable', () => {

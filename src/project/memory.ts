@@ -36,8 +36,14 @@ function mapParseFailure(
 export function createMemoryLibraryStorage(): MemoryLibraryStorage {
   let libraryMeta: LibraryMeta = {}
   const books = new Map<string, unknown>()
+  const editedAtMsById = new Map<string, number>()
   let permissionRequired = false
   let lockedElsewhere = false
+  const touchEdited = (id: string): number => {
+    const at = Date.now()
+    editedAtMsById.set(id, at)
+    return at
+  }
 
   const gateRead = <T>(run: () => StorageResult<T>): StorageResult<T> => {
     if (permissionRequired) {
@@ -65,6 +71,7 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
     },
     seedRawBook(id: string, raw: unknown) {
       books.set(id, structuredClone(raw))
+      touchEdited(id)
     },
     getLibrary() {
       return Promise.resolve(gateRead(() => success(libraryMeta)))
@@ -82,11 +89,22 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
         gateRead(() => {
           const summaries: BookSummary[] = [...books.entries()].map(
             ([id, raw]) => {
+              const editedAtMs = editedAtMsById.get(id)
               const parsed = parseBook(raw)
               if (!parsed.ok) {
-                return { id, title: bookTitleFromUnknown(raw) }
+                const summary: BookSummary = {
+                  id,
+                  title: bookTitleFromUnknown(raw),
+                }
+                if (editedAtMs !== undefined) {
+                  summary.editedAtMs = editedAtMs
+                }
+                return summary
               }
-              return bookSummaryFromBook(parsed.book)
+              return bookSummaryFromBook(
+                parsed.book,
+                editedAtMs === undefined ? undefined : { editedAtMs },
+              )
             },
           )
           return success(summaries)
@@ -100,6 +118,7 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
             return failure('already-exists')
           }
           books.set(book.id, structuredClone(book))
+          touchEdited(book.id)
           return success(structuredClone(book))
         }),
       )
@@ -126,6 +145,7 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
             return failure('not-found')
           }
           books.set(book.id, structuredClone(book))
+          touchEdited(book.id)
           return success(structuredClone(book))
         }),
       )
@@ -137,6 +157,7 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
             return failure('not-found')
           }
           books.delete(id)
+          editedAtMsById.delete(id)
           return success(undefined)
         }),
       )

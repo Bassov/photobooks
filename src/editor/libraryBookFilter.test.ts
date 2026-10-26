@@ -13,6 +13,7 @@ const sample: LibraryGridBook[] = [
     displayTitle: 'Zulu',
     fmt: 'portrait',
     spreads: 2,
+    editedAtMs: 10,
   },
   {
     id: 'b',
@@ -20,6 +21,7 @@ const sample: LibraryGridBook[] = [
     displayTitle: 'Alpha',
     fmt: 'landscape',
     spreads: 3,
+    editedAtMs: 30,
   },
   {
     id: 'c',
@@ -27,6 +29,7 @@ const sample: LibraryGridBook[] = [
     displayTitle: 'Untitled book',
     fmt: 'square',
     spreads: 1,
+    editedAtMs: 20,
   },
 ]
 
@@ -39,6 +42,7 @@ describe('toLibraryGridBook', () => {
         spreadCount: 4,
         pageWidthMm: 250,
         pageHeightMm: 200,
+        editedAtMs: 99,
       }),
     ).toEqual({
       id: '1',
@@ -46,6 +50,7 @@ describe('toLibraryGridBook', () => {
       displayTitle: 'Untitled book',
       fmt: 'landscape',
       spreads: 4,
+      editedAtMs: 99,
     })
   })
 
@@ -85,9 +90,9 @@ describe('filterAndSortLibraryBooks', () => {
     ).toEqual(['c', 'b', 'a'])
   })
 
-  it('keeps list order for last edited', () => {
+  it('sorts last edited by editedAtMs descending', () => {
     expect(
       filterAndSortLibraryBooks(sample, '', 'edited').map((b) => b.id),
-    ).toEqual(['a', 'b', 'c'])
+    ).toEqual(['b', 'c', 'a'])
   })
 })

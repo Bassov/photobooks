@@ -10,6 +10,8 @@ export interface BookSummary {
   spreadCount?: number
   pageWidthMm?: number
   pageHeightMm?: number
+  /** Document modification time (UTC ms) when the adapter can observe it. */
+  editedAtMs?: number
 }
 
 export type StorageFailureCode =

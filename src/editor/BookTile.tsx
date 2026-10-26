@@ -7,6 +7,7 @@ import {
 } from './bookObjectLayout'
 import { BookObject } from './BookObject'
 import type { LibraryGridBook } from './libraryBookFilter'
+import { formatLibraryBookMeta } from './libraryEditedLabel'
 
 const DEFAULT_H = 236
 
@@ -17,16 +18,19 @@ export function BookTile({
   onOpen,
   menu,
   title,
+  nowMs,
 }: {
   book: LibraryGridBook
   H?: number
   onOpen?: () => void
   menu?: ReactNode
   title?: ReactNode
+  nowMs?: number
 }) {
   const objectH = bookObjectDisplayHeight(H, book.fmt)
   const captionW = bookObjectWidthForHeight(objectH, book.fmt)
   const pageCount = book.spreads * 2
+  const meta = formatLibraryBookMeta(pageCount, book.editedAtMs, nowMs)
   return (
     <div className="group pt-8" data-testid="book-card">
       <button
@@ -72,7 +76,7 @@ export function BookTile({
           className="mt-0.5 text-left text-xs tabular-nums text-muted-foreground"
           data-testid="book-meta"
         >
-          {pageCount} pages
+          {meta}
         </div>
         {menu ? (
           <div className="absolute right-0 top-0" data-testid="book-menu-slot">

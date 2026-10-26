@@ -2,13 +2,32 @@ import { describe, expect, it } from 'vitest'
 
 import { CURRENT_SCHEMA_VERSION, type Book } from '../core'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
-import type { LibraryStorage } from './types'
+import type { LibraryStorage, StorageResult, BookSummary } from './types'
 
 export interface LibraryStorageContractHarness {
   storage: LibraryStorage
   setPermissionRequired: (required: boolean) => void
   setLockedElsewhere: (locked: boolean) => void
   seedRawBook: (id: string, raw: unknown) => void | Promise<void>
+}
+
+function expectListedBook(
+  listed: StorageResult<BookSummary[]>,
+  summary: {
+    id: string
+    title: string
+    spreadCount: number
+    pageWidthMm: number
+    pageHeightMm: number
+  },
+): void {
+  expect(listed).toMatchObject({
+    ok: true,
+    value: [summary],
+  })
+  expect(listed.ok && typeof listed.value[0]?.editedAtMs === 'number').toBe(
+    true,
+  )
 }
 
 export function runLibraryStorageContract(
@@ -33,17 +52,12 @@ export function runLibraryStorageContract(
       const listed = await storage.listBooks()
 
       expect(created).toEqual({ ok: true, value: book })
-      expect(listed).toEqual({
-        ok: true,
-        value: [
-          {
-            id: book.id,
-            title: book.title ?? '',
-            spreadCount: book.spreads.length,
-            pageWidthMm: book.settings.trim.widthMm,
-            pageHeightMm: book.settings.trim.heightMm,
-          },
-        ],
+      expectListedBook(listed, {
+        id: book.id,
+        title: book.title ?? '',
+        spreadCount: book.spreads.length,
+        pageWidthMm: book.settings.trim.widthMm,
+        pageHeightMm: book.settings.trim.heightMm,
       })
     })
 
@@ -54,17 +68,12 @@ export function runLibraryStorageContract(
       await storage.createBook(book)
       const listed = await storage.listBooks()
 
-      expect(listed).toEqual({
-        ok: true,
-        value: [
-          {
-            id: 'titled-book',
-            title: 'Summer',
-            spreadCount: book.spreads.length,
-            pageWidthMm: book.settings.trim.widthMm,
-            pageHeightMm: book.settings.trim.heightMm,
-          },
-        ],
+      expectListedBook(listed, {
+        id: 'titled-book',
+        title: 'Summer',
+        spreadCount: book.spreads.length,
+        pageWidthMm: book.settings.trim.widthMm,
+        pageHeightMm: book.settings.trim.heightMm,
       })
     })
 
@@ -80,17 +89,12 @@ export function runLibraryStorageContract(
       await storage.createBook(book)
       const listed = await storage.listBooks()
 
-      expect(listed).toEqual({
-        ok: true,
-        value: [
-          {
-            id: 'sized-book',
-            title: 'Sized',
-            spreadCount: 2,
-            pageWidthMm: 148,
-            pageHeightMm: 210,
-          },
-        ],
+      expectListedBook(listed, {
+        id: 'sized-book',
+        title: 'Sized',
+        spreadCount: 2,
+        pageWidthMm: 148,
+        pageHeightMm: 210,
       })
     })
 
@@ -228,17 +232,12 @@ export function runLibraryStorageContract(
       await harness.storage.createBook(book)
       harness.setLockedElsewhere(true)
 
-      expect(await harness.storage.listBooks()).toEqual({
-        ok: true,
-        value: [
-          {
-            id: book.id,
-            title: book.title ?? '',
-            spreadCount: book.spreads.length,
-            pageWidthMm: book.settings.trim.widthMm,
-            pageHeightMm: book.settings.trim.heightMm,
-          },
-        ],
+      expectListedBook(await harness.storage.listBooks(), {
+        id: book.id,
+        title: book.title ?? '',
+        spreadCount: book.spreads.length,
+        pageWidthMm: book.settings.trim.widthMm,
+        pageHeightMm: book.settings.trim.heightMm,
       })
       expect(await harness.storage.loadBook(book.id)).toEqual({
         ok: true,
