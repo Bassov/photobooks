@@ -14,6 +14,7 @@ import { fromFileSystemDirectoryHandle } from './handles'
 import {
   bookDirectoryExists,
   listBookIds,
+  readBookJsonListing,
   readBookJsonText,
   readLibraryMeta,
   removeBookDirectory,
@@ -124,16 +125,20 @@ export function createFsaLibraryStorage(
         const ids = await listBookIds(root)
         const summaries: BookSummary[] = []
         for (const id of ids) {
-          const text = await readBookJsonText(root, id)
-          if (text === undefined) {
+          const listed = await readBookJsonListing(root, id)
+          if (listed === undefined) {
             summaries.push({ id, title: '' })
             continue
           }
-          const loaded = await loadBookText(text)
+          const loaded = await loadBookText(listed.text)
           if (loaded.ok) {
-            summaries.push(bookSummaryFromBook(loaded.book))
+            summaries.push(
+              bookSummaryFromBook(loaded.book, {
+                editedAtMs: listed.editedAtMs,
+              }),
+            )
           } else {
-            summaries.push({ id, title: '' })
+            summaries.push({ id, title: '', editedAtMs: listed.editedAtMs })
           }
         }
         return success(summaries)
