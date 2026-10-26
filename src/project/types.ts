@@ -6,6 +6,10 @@ export type LibraryMeta = Record<string, never>
 export interface BookSummary {
   id: string
   title: string
+  /** Present when the book document parsed successfully. */
+  spreadCount?: number
+  pageWidthMm?: number
+  pageHeightMm?: number
 }
 
 export type StorageFailureCode =

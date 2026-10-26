@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { CURRENT_SCHEMA_VERSION, type Book } from '../core'
-import { makeBook } from '../core/testing/fixtures'
+import { makeBook, makeSpread } from '../core/testing/fixtures'
 import type { LibraryStorage } from './types'
 
 export interface LibraryStorageContractHarness {
@@ -35,7 +35,15 @@ export function runLibraryStorageContract(
       expect(created).toEqual({ ok: true, value: book })
       expect(listed).toEqual({
         ok: true,
-        value: [{ id: book.id, title: book.title ?? '' }],
+        value: [
+          {
+            id: book.id,
+            title: book.title ?? '',
+            spreadCount: book.spreads.length,
+            pageWidthMm: book.settings.trim.widthMm,
+            pageHeightMm: book.settings.trim.heightMm,
+          },
+        ],
       })
     })
 
@@ -48,7 +56,41 @@ export function runLibraryStorageContract(
 
       expect(listed).toEqual({
         ok: true,
-        value: [{ id: 'titled-book', title: 'Summer' }],
+        value: [
+          {
+            id: 'titled-book',
+            title: 'Summer',
+            spreadCount: book.spreads.length,
+            pageWidthMm: book.settings.trim.widthMm,
+            pageHeightMm: book.settings.trim.heightMm,
+          },
+        ],
+      })
+    })
+
+    it('lists spread count and page trim on the book summary', async () => {
+      const { storage } = createHarness()
+      const book = makeBook({
+        id: 'sized-book',
+        title: 'Sized',
+        settings: { trim: { widthMm: 148, heightMm: 210 } },
+        spreads: [makeSpread({ id: 's1' }), makeSpread({ id: 's2' })],
+      })
+
+      await storage.createBook(book)
+      const listed = await storage.listBooks()
+
+      expect(listed).toEqual({
+        ok: true,
+        value: [
+          {
+            id: 'sized-book',
+            title: 'Sized',
+            spreadCount: 2,
+            pageWidthMm: 148,
+            pageHeightMm: 210,
+          },
+        ],
       })
     })
 
@@ -188,7 +230,15 @@ export function runLibraryStorageContract(
 
       expect(await harness.storage.listBooks()).toEqual({
         ok: true,
-        value: [{ id: book.id, title: book.title ?? '' }],
+        value: [
+          {
+            id: book.id,
+            title: book.title ?? '',
+            spreadCount: book.spreads.length,
+            pageWidthMm: book.settings.trim.widthMm,
+            pageHeightMm: book.settings.trim.heightMm,
+          },
+        ],
       })
       expect(await harness.storage.loadBook(book.id)).toEqual({
         ok: true,

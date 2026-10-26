@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { bookObjectLayout } from './bookObjectLayout'
+import {
+  bookCoverStageHeight,
+  bookFloorBackground,
+  bookFormatFromTrim,
+  bookObjectDisplayHeight,
+  bookObjectLayout,
+  bookObjectWidthForHeight,
+} from './bookObjectLayout'
 
 describe('bookObjectLayout', () => {
   it('sizes portrait from height and ratio', () => {
@@ -30,5 +37,32 @@ describe('bookObjectLayout', () => {
   ] as const)('applies %s ratio', (fmt, ratio) => {
     const layout = bookObjectLayout(200, fmt)
     expect(layout.width).toBe(200 * ratio)
+  })
+
+  it.each([
+    [200, 200, 'square'],
+    [250, 200, 'landscape'],
+    [148, 210, 'portrait'],
+    [210, 148, 'landscape'],
+  ] as const)('maps trim %s×%s to %s', (w, h, fmt) => {
+    expect(bookFormatFromTrim(w, h)).toBe(fmt)
+  })
+
+  it('uses Math.sign so equal sizes are square before landscape', () => {
+    expect(bookFormatFromTrim(100, 100)).toBe('square')
+    expect(bookFormatFromTrim(101, 100)).toBe('landscape')
+    expect(bookFormatFromTrim(100, 101)).toBe('portrait')
+  })
+
+  it('scales display height and width by format', () => {
+    expect(bookObjectDisplayHeight(236, 'portrait')).toBe(236)
+    expect(bookObjectDisplayHeight(236, 'square')).toBe(236 * 0.86)
+    expect(bookObjectDisplayHeight(236, 'landscape')).toBe(236 * 0.74)
+    expect(bookObjectWidthForHeight(100, 'portrait')).toBe(80)
+  })
+
+  it('exposes cover stage height and floor gradient', () => {
+    expect(bookCoverStageHeight(236)).toBe(248)
+    expect(bookFloorBackground()).toMatch(/radial-gradient/)
   })
 })

@@ -6,6 +6,50 @@ const RATIO: Record<BookObjectFmt, number> = {
   square: 1,
 }
 
+/** Map page trim mm to kit book-object format. */
+export function bookFormatFromTrim(
+  widthMm: number,
+  heightMm: number,
+): BookObjectFmt {
+  const cmp = Math.sign(widthMm - heightMm)
+  if (cmp === 0) {
+    return 'square'
+  }
+  if (cmp > 0) {
+    return 'landscape'
+  }
+  return 'portrait'
+}
+
+export function bookObjectWidthForHeight(
+  h: number,
+  fmt: BookObjectFmt,
+): number {
+  return h * RATIO[fmt]
+}
+
+/** Soft shadow ellipse under a library book cover. */
+export function bookFloorBackground(): string {
+  return 'radial-gradient(closest-side, rgb(35 34 35/.22), transparent)'
+}
+
+export function bookCoverStageHeight(baseH: number): number {
+  return baseH + 12
+}
+
+export function bookObjectDisplayHeight(
+  baseH: number,
+  fmt: BookObjectFmt,
+): number {
+  if (fmt === 'square') {
+    return baseH * 0.86
+  }
+  if (fmt === 'landscape') {
+    return baseH * 0.74
+  }
+  return baseH
+}
+
 /** Pure geometry for kit BookObject chrome (mm-free CSS px at height `h`). */
 export function bookObjectLayout(h: number, fmt: BookObjectFmt) {
   const w = h * RATIO[fmt]

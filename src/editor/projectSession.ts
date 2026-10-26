@@ -9,6 +9,7 @@ import {
   createFsaLibraryStorage,
   createMemoryLibraryStorage,
   createMemorySessionState,
+  displayBookTitle,
   normalizeBookTitleInput,
   DEFAULT_LIBRARY_ID,
   type BookSummary,
@@ -1359,6 +1360,8 @@ export function exposeProjectSessionTestApi(
     saveBookNow,
     createBookInLibrary,
     renameBookInLibrary,
+    duplicateBookInLibrary,
+    deleteBookInLibrary,
     createLibrary,
     openLibrary,
     tryRestore,
@@ -1405,6 +1408,8 @@ declare global {
       saveBookNow: typeof saveBookNow
       createBookInLibrary: typeof createBookInLibrary
       renameBookInLibrary: typeof renameBookInLibrary
+      duplicateBookInLibrary: typeof duplicateBookInLibrary
+      deleteBookInLibrary: typeof deleteBookInLibrary
       createLibrary: typeof createLibrary
       openLibrary: typeof openLibrary
       tryRestore: typeof tryRestore
@@ -1518,6 +1523,66 @@ export async function openBookFromLibrary(
     libraryId ?? DEFAULT_LIBRARY_ID,
     nextBookId,
   )
+}
+
+/** Duplicate a library book in place (new id); stay on the library surface. */
+export async function duplicateBookInLibrary(
+  targetBookId: string,
+): Promise<StorageResult<Book>> {
+  if (storage === null) {
+    const failure = { ok: false as const, code: 'not-found' as const }
+    setStatus({ kind: 'error', code: 'not-found', action: 'duplicate book' })
+    setHomeError('Could not duplicate book.')
+    return failure
+  }
+  const loaded = await storage.loadBook(targetBookId)
+  if (!loaded.ok) {
+    setStatus({ kind: 'error', code: loaded.code, action: 'duplicate book' })
+    setHomeError(humanMessageForCode(loaded.code, 'Could not duplicate book.'))
+    return { ok: false, code: loaded.code }
+  }
+  const copyTitle = `${displayBookTitle(loaded.value.title)} (copy)`
+  const duplicated: Book = {
+    ...structuredClone(loaded.value),
+    id: nowId(),
+    title: copyTitle,
+  }
+  const created = await storage.createBook(duplicated)
+  if (!created.ok) {
+    setStatus({ kind: 'error', code: created.code, action: 'duplicate book' })
+    setHomeError(humanMessageForCode(created.code, 'Could not duplicate book.'))
+    return created
+  }
+  setEditorStatus('Book duplicated')
+  recentsRevision += 1
+  emit()
+  return created
+}
+
+/** Remove a book directory from the bound library. */
+export async function deleteBookInLibrary(
+  targetBookId: string,
+): Promise<StorageResult<void>> {
+  if (storage === null) {
+    const failure = { ok: false as const, code: 'not-found' as const }
+    setStatus({ kind: 'error', code: 'not-found', action: 'remove book' })
+    setHomeError('Could not remove book.')
+    return failure
+  }
+  const deleted = await storage.deleteBook(targetBookId)
+  if (!deleted.ok) {
+    setStatus({ kind: 'error', code: deleted.code, action: 'remove book' })
+    setHomeError(humanMessageForCode(deleted.code, 'Could not remove book.'))
+    return deleted
+  }
+  if (bookId === targetBookId) {
+    bookId = null
+    persistIds()
+  }
+  setEditorStatus('Book removed')
+  recentsRevision += 1
+  emit()
+  return deleted
 }
 
 export async function renameBookInLibrary(

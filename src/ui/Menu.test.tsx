@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Button } from './Button'
-import { Menu, MenuItem, MenuPopover, MenuTrigger } from './Menu'
+import { Menu, MenuItem, MenuPopover, MenuSeparator, MenuTrigger } from './Menu'
 
 describe('Menu', () => {
   afterEach(() => {
@@ -30,5 +30,22 @@ describe('Menu', () => {
     expect(del.getAttribute('data-variant')).toBe('destructive')
     fireEvent.click(del)
     expect(onAction.mock.calls[0]?.[0]).toBe('del')
+  })
+
+  it('renders a menu separator between items', async () => {
+    render(
+      <MenuTrigger>
+        <Button>More</Button>
+        <MenuPopover>
+          <Menu>
+            <MenuItem id="a">A</MenuItem>
+            <MenuSeparator data-testid="menu-sep" />
+            <MenuItem id="b">B</MenuItem>
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'More' }))
+    expect(await screen.findByTestId('menu-sep')).toBeTruthy()
   })
 })

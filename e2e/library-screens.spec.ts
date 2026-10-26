@@ -296,11 +296,118 @@ test('change library updates folder name via FSA picker stub', async ({
   })
 
   await page.getByTestId('change-library').click()
+  await page.getByRole('button', { name: 'Choose folder…' }).click()
   await expect(page.getByTestId('library-path')).toHaveText('Second Library', {
     timeout: 15_000,
   })
   // Same memory storage is rebound; books stay, folder label updates.
   await expect(page.getByTestId(`library-book-${firstBookId}`)).toBeVisible()
+  await assertDocumentFitsViewport(page)
+})
+
+test('library grid sort by title reorders books', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  const ids = await page.evaluate(async () => {
+    const api = window.__photobooksProject as
+      | {
+          attachMemoryLibraryForTests: () => Promise<{
+            ok: boolean
+            code?: string
+          }>
+          createBookInLibrary: (title?: string) => Promise<{
+            ok: boolean
+            code?: string
+            value?: { id: string }
+          }>
+          leaveEditorForLibrary: () => Promise<void>
+        }
+      | undefined
+    if (!api) {
+      throw new Error('missing api')
+    }
+    const attached = await api.attachMemoryLibraryForTests()
+    if (!attached.ok) {
+      throw new Error(attached.code ?? 'attach')
+    }
+    const zulu = await api.createBookInLibrary('Zulu Night')
+    if (!zulu.ok || !zulu.value) {
+      throw new Error(zulu.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    const alpha = await api.createBookInLibrary('Alpha Trip')
+    if (!alpha.ok || !alpha.value) {
+      throw new Error(alpha.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    return { z: zulu.value.id, a: alpha.value.id }
+  })
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.getByTestId('lib-sort').click()
+  await page.getByText('Title', { exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: 'Sort books: Title' }),
+  ).toBeVisible()
+  const order = await page
+    .locator('[data-testid^="library-book-"]')
+    .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-testid')))
+  expect(order.indexOf(`library-book-${ids.a}`)).toBeLessThan(
+    order.indexOf(`library-book-${ids.z}`),
+  )
+  await assertDocumentFitsViewport(page)
+})
+
+test('library grid search filters by title', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  const ids = await page.evaluate(async () => {
+    const api = window.__photobooksProject as
+      | {
+          attachMemoryLibraryForTests: () => Promise<{
+            ok: boolean
+            code?: string
+          }>
+          createBookInLibrary: (
+            title?: string,
+          ) => Promise<{ ok: boolean; code?: string; value?: { id: string } }>
+          leaveEditorForLibrary: () => Promise<void>
+        }
+      | undefined
+    if (!api) {
+      throw new Error('missing api')
+    }
+    const attached = await api.attachMemoryLibraryForTests()
+    if (!attached.ok) {
+      throw new Error(attached.code ?? 'attach')
+    }
+    const first = await api.createBookInLibrary('Alpha Trip')
+    if (!first.ok || !first.value) {
+      throw new Error(first.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    const second = await api.createBookInLibrary('Zulu Night')
+    if (!second.ok || !second.value) {
+      throw new Error(second.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    return { a: first.value.id, z: second.value.id }
+  })
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId(`library-book-${ids.a}`)).toBeVisible()
+  await expect(page.getByTestId(`library-book-${ids.z}`)).toBeVisible()
+  await page.getByTestId('lib-search-input').fill('zulu')
+  await expect(page.getByTestId(`library-book-${ids.z}`)).toBeVisible()
+  await expect(page.getByTestId(`library-book-${ids.a}`)).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
 

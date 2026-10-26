@@ -45,7 +45,7 @@ describe('Icon', () => {
   })
 
   it('ships the named glyphs from the roadmap set', () => {
-    expect(ICON_NAMES.length).toBe(32)
+    expect(ICON_NAMES.length).toBe(38)
     expect(ICON_NAMES).toEqual(
       expect.arrayContaining([
         'undo',
@@ -80,6 +80,12 @@ describe('Icon', () => {
         'monitorSmartphone',
         'externalLink',
         'copy',
+        'search',
+        'moreHorizontal',
+        'pencil',
+        'chevronDown',
+        'folderOpen',
+        'folderSync',
       ]),
     )
   })

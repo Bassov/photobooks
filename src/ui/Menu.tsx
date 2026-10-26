@@ -3,10 +3,12 @@ import {
   MenuItem as AriaMenuItem,
   MenuTrigger as AriaMenuTrigger,
   Popover as AriaPopover,
+  Separator as AriaSeparator,
   type MenuItemProps as AriaMenuItemProps,
   type MenuProps as AriaMenuProps,
   type MenuTriggerProps as AriaMenuTriggerProps,
   type PopoverProps,
+  type SeparatorProps as AriaSeparatorProps,
 } from 'react-aria-components'
 import { cx } from './className'
 import './Menu.css'
@@ -56,5 +58,14 @@ export function MenuItem({
       data-variant={variant}
       className={cx('pb-menu-item', className)}
     />
+  )
+}
+
+export function MenuSeparator({
+  className,
+  ...props
+}: AriaSeparatorProps & { className?: string }) {
+  return (
+    <AriaSeparator {...props} className={cx('pb-menu-separator', className)} />
   )
 }
