@@ -202,7 +202,7 @@ test('memory library opens library screen then editor and back', async ({
     timeout: 15_000,
   })
 
-  const bookId = await page.evaluate(async () => {
+  const { bookId, bookCount } = await page.evaluate(async () => {
     const api = window.__photobooksProject
     if (!api) {
       throw new Error('missing api')
@@ -215,13 +215,14 @@ test('memory library opens library screen then editor and back', async ({
     if (!created.ok || !created.value) {
       throw new Error(created.code ?? 'create')
     }
-    return created.value.id
+    await api.leaveEditorForLibrary()
+    const listed = await api.listLibraryBooks()
+    if (!listed.ok || !listed.value) {
+      throw new Error(listed.code ?? 'list')
+    }
+    return { bookId: created.value.id, bookCount: listed.value.length }
   })
 
-  await expect(page.getByTestId('editor-shell')).toBeVisible({
-    timeout: 15_000,
-  })
-  await page.getByTestId('go-library').click()
   await expect(page.getByTestId('library-screen')).toBeVisible({
     timeout: 15_000,
   })
@@ -231,9 +232,27 @@ test('memory library opens library screen then editor and back', async ({
   await expect(page.getByTestId(`library-book-${bookId}`)).toBeVisible()
 
   await page.getByTestId('library-settings').click()
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await page.getByTestId('settings-close').click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByTestId('settings')).toBeVisible()
+  await expect(page.getByTestId('settings-book-count')).toHaveText(
+    String(bookCount),
+  )
+  await expect(page.getByTestId('settings-scroll')).toHaveAttribute(
+    'data-scrollport',
+    'settings',
+  )
+  await page.evaluate(() => {
+    const scroll = document.querySelector('[data-testid="settings-scroll"]')
+    if (!(scroll instanceof HTMLElement)) {
+      throw new Error('settings-scroll missing')
+    }
+    scroll.style.maxHeight = '120px'
+  })
+  await assertNamedScrollport(page, 'settings-scroll', { axis: 'vertical' })
+  await assertDocumentFitsViewport(page)
+  await page.getByTestId('settings-back').click()
+  await expect(page.getByTestId('library-books')).toBeVisible()
+  await expect(page.getByTestId('library-settings')).toBeVisible()
+  await expect(page.getByTestId('settings')).toBeHidden()
 
   const opened = await page.evaluate(async (id) => {
     const api = window.__photobooksProject

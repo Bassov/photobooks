@@ -39,6 +39,11 @@ export const ICON_NAMES = [
   'chevronDown',
   'folderOpen',
   'folderSync',
+  'hardDrive',
+  'keyRound',
+  'globe',
+  'printer',
+  'slidersHorizontal',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -300,5 +305,51 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['path', { d: 'm12 14 1.535-1.605a5 5 0 0 1 8 1.5' }],
     ['path', { d: 'M22 22v-4h-4' }],
     ['path', { d: 'm22 18-1.535 1.605a5 5 0 0 1-8-1.5' }],
+  ],
+  hardDrive: [
+    ['line', { x1: '22', x2: '2', y1: '12', y2: '12' }],
+    [
+      'path',
+      {
+        d: 'M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z',
+      },
+    ],
+    ['line', { x1: '6', x2: '6.01', y1: '16', y2: '16' }],
+    ['line', { x1: '10', x2: '10.01', y1: '16', y2: '16' }],
+  ],
+  keyRound: [
+    [
+      'path',
+      {
+        d: 'M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z',
+      },
+    ],
+    ['circle', { cx: '16.5', cy: '7.5', r: '.5', fill: 'currentColor' }],
+  ],
+  globe: [
+    ['circle', { cx: '12', cy: '12', r: '10' }],
+    ['path', { d: 'M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20' }],
+    ['path', { d: 'M2 12h20' }],
+  ],
+  printer: [
+    [
+      'path',
+      {
+        d: 'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2',
+      },
+    ],
+    ['path', { d: 'M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6' }],
+    ['rect', { x: '6', y: '14', width: '12', height: '8', rx: '1' }],
+  ],
+  slidersHorizontal: [
+    ['line', { x1: '21', x2: '14', y1: '4', y2: '4' }],
+    ['line', { x1: '10', x2: '3', y1: '4', y2: '4' }],
+    ['line', { x1: '21', x2: '12', y1: '12', y2: '12' }],
+    ['line', { x1: '8', x2: '3', y1: '12', y2: '12' }],
+    ['line', { x1: '21', x2: '16', y1: '20', y2: '20' }],
+    ['line', { x1: '12', x2: '3', y1: '20', y2: '20' }],
+    ['line', { x1: '14', x2: '14', y1: '2', y2: '6' }],
+    ['line', { x1: '8', x2: '8', y1: '10', y2: '14' }],
+    ['line', { x1: '16', x2: '16', y1: '18', y2: '22' }],
   ],
 }
