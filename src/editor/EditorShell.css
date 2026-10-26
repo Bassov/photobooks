@@ -13,6 +13,67 @@
   color: var(--foreground);
 }
 
+.editor-panel-l {
+  width: 0;
+}
+.editor-panel-l[data-open='true'] {
+  width: 212px;
+}
+.editor-panel-l-inner {
+  width: 212px;
+}
+.editor-panel-r {
+  width: 0;
+}
+.editor-panel-r[data-open='true'] {
+  width: 300px;
+}
+.editor-inspector {
+  width: 300px;
+  background: var(--chrome);
+}
+.editor-panel-b[data-open='false'] {
+  height: 0;
+}
+.editor-canvas-inner {
+  background: var(--canvas);
+}
+
+.editor-dock {
+  background: var(--chrome);
+}
+.editor-dock-meta {
+  color: var(--muted-foreground);
+}
+.editor-inspector-stub__title {
+  color: var(--muted-foreground);
+}
+.editor-inspector-stub__body {
+  color: var(--foreground);
+}
+
+.editor-spreads {
+  background: var(--chrome);
+  color: var(--foreground);
+}
+.editor-spreads-mode {
+  background: var(--chrome);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+}
+.editor-spread-thumb {
+  aspect-ratio: 1.6;
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+}
+.editor-spreads [data-align='r'] {
+  padding-left: 50%;
+}
+.editor-add-spread {
+  height: 32px;
+  color: var(--muted-foreground);
+}
+
 .editor-live {
   position: absolute;
   width: 1px;

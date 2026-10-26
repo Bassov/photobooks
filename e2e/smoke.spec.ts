@@ -16,5 +16,10 @@ test('kit editor chrome mounts pasteboard and filmstrip', async ({ page }) => {
   await expect(page.getByTestId('panel-r')).toBeVisible()
   await expect(page.getByTestId('editor-preview')).toBeDisabled()
   await expect(page.getByTestId('export')).toBeDisabled()
+  await expect(page.getByTestId('editor-publish')).toBeDisabled()
+  await expect(page.getByTestId('spreads-list')).toHaveAttribute(
+    'data-scrollport',
+    'spreads-list',
+  )
   await assertDocumentFitsViewport(page)
 })

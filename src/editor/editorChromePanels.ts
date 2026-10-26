@@ -67,8 +67,9 @@ export function mmToCm(mm: number): number {
 }
 
 export function zoomChromeLabel(zoom: number): string {
-  if (Math.abs(zoom - 1) < 0.02) return 'Fit'
-  return `${String(Math.round(zoom * 100))}%`
+  const pct = Math.round(zoom * 100)
+  if (pct === 100) return 'Fit'
+  return `${String(pct)}%`
 }
 
 export function bookSizeLine(input: {

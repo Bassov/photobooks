@@ -1,7 +1,5 @@
-// Stryker disable all: kit dock chrome wrapper; Filmstrip behavior covered by filmstrip suite
 import { useSyncExternalStore } from 'react'
 import { getGalleryIdsSnapshot, subscribeGallery } from './bookStore'
-import { BAR, SUB } from './editorChromeTokens'
 import { Filmstrip } from './Filmstrip'
 
 /** Kit bottom dock chrome wrapping the working product Filmstrip. */
@@ -14,11 +12,10 @@ export function FilmstripDock() {
   const count = gallery.length
 
   return (
-    <div className="shrink-0" style={{ background: BAR }} data-testid="dock">
-      <div className="flex h-10 items-center gap-3 px-3">
+    <div className="editor-dock shrink-0" data-testid="dock">
+      <div className="editor-dock-head flex h-10 items-center gap-3 px-3">
         <span
-          className="text-sm tabular-nums"
-          style={{ color: SUB }}
+          className="editor-dock-meta text-sm tabular-nums"
           data-testid="film-head"
         >
           <span data-testid="placed-count">Photos · {count}</span>

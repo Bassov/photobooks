@@ -344,9 +344,6 @@ export function EditorTopBar({
       <ZoomChrome />
       <PanelToggles
         panels={panels}
-        hasLeft
-        hasBottom
-        hasRight
         onToggle={(key) => {
           onPanelsChange(toggleEditorPanel(panels, key))
         }}

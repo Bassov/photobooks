@@ -56,7 +56,7 @@ describe('editorChromePanels', () => {
     expect(pageLabel(0)).toBe('1')
     expect(pageLabel(2)).toBe('4–5')
     expect(zoomChromeLabel(1)).toBe('Fit')
-    expect(zoomChromeLabel(1.019)).toBe('Fit')
+    expect(zoomChromeLabel(0.995)).toBe('Fit')
     expect(zoomChromeLabel(1.02)).toBe('102%')
     expect(zoomChromeLabel(1.5)).toBe('150%')
     expect(
