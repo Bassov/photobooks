@@ -1,5 +1,5 @@
-import { Button as AriaButton } from 'react-aria-components'
 import { useSyncExternalStore } from 'react'
+import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { Status } from '../ui/Status'
 import {
@@ -10,10 +10,9 @@ import {
 } from './projectSession'
 import { WELCOME_HERO_SRC } from './welcomeCredits'
 import { WelcomePhotoCaption } from './WelcomePhotoCaption'
-import './WelcomeScreen.css'
+import { ensureWelcomeScreenStyles } from './welcomeScreenStyles'
 
-const createCls =
-  'inline-flex h-12 cursor-default items-center justify-center rounded-full bg-primary px-7 text-md font-medium text-primary-foreground shadow-ink outline-hidden transition-colors data-[hovered]:bg-primary-hover data-[pressed]:scale-[0.98] data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-ring data-[disabled]:pointer-events-none data-[disabled]:opacity-50'
+ensureWelcomeScreenStyles()
 
 function Mark() {
   return (
@@ -71,8 +70,8 @@ export function WelcomeScreen() {
               Chrome needs permission again for “{folderName}”.
             </h1>
             <div className="pb-welcome-rise pb-welcome-rise--d4 mt-10">
-              <AriaButton
-                className={createCls}
+              <Button
+                className="pb-welcome-create"
                 isDisabled={busy}
                 data-testid="allow-library-access"
                 onPress={() => {
@@ -80,7 +79,7 @@ export function WelcomeScreen() {
                 }}
               >
                 {`Allow access to ${folderName}`}
-              </AriaButton>
+              </Button>
             </div>
           </>
         ) : (
@@ -98,8 +97,8 @@ export function WelcomeScreen() {
               library. Choose where it lives.
             </p>
             <div className="pb-welcome-rise pb-welcome-rise--d4 mt-10">
-              <AriaButton
-                className={createCls}
+              <Button
+                className="pb-welcome-create"
                 isDisabled={busy}
                 data-testid="create-library"
                 onPress={() => {
@@ -107,7 +106,7 @@ export function WelcomeScreen() {
                 }}
               >
                 Create Library
-              </AriaButton>
+              </Button>
             </div>
             <p className="pb-welcome-rise pb-welcome-rise--d5 mt-4 pl-1 text-sm text-muted-foreground">
               You’ll choose a folder on your disk.
