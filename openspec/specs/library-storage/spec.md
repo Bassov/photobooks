@@ -8,7 +8,7 @@ Defines the domain library persistence contract: listing and mutating books and 
 
 ### Requirement: Domain library storage API
 
-The system SHALL expose a domain library storage API that lists books, creates/loads/saves/deletes books, and reads/updates library metadata using domain types only. The API MUST NOT accept or return file paths, raw bytes, or platform handles. Book summaries SHALL include `id` and the book document `title`.
+The system SHALL expose a domain library storage API that lists books, creates/loads/saves/deletes books, and reads/updates library metadata using domain types only. The API MUST NOT accept or return file paths, raw bytes, or platform handles. Book summaries SHALL include `id` and the book document `title`. When a listed book document parses successfully, the summary MUST also include `spreadCount` (number of spreads) and the page trim size as `pageWidthMm` / `pageHeightMm` from `settings.trim`. Corrupted or unreadable books MAY omit those optional fields while still listing `id` and `title` (empty title when unknown).
 
 #### Scenario: Empty library lists no books
 
@@ -24,6 +24,11 @@ The system SHALL expose a domain library storage API that lists books, creates/l
 
 - **WHEN** a book with `title` `"Summer"` is created and books are listed
 - **THEN** the summary for that book includes `title` `"Summer"`
+
+#### Scenario: Listed summary carries spread count and page trim
+
+- **WHEN** a valid book with N spreads and trim width/height is created and books are listed
+- **THEN** the summary for that book includes `spreadCount` N and matching `pageWidthMm` / `pageHeightMm`
 
 #### Scenario: Save then load round-trip
 
