@@ -18,6 +18,53 @@ import {
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
+const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
+
+async function dropAssetOnFrame(
+  page: import('@playwright/test').Page,
+  assetId: string,
+  frame: import('@playwright/test').Locator,
+): Promise<void> {
+  const box = await frame.boundingBox()
+  if (box === null) {
+    throw new Error('frame has no box')
+  }
+  const point = {
+    clientX: box.x + box.width / 2,
+    clientY: box.y + box.height / 2,
+  }
+  await page.evaluate(
+    ({ mime, id, point: p }) => {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData(mime, id)
+      document.dispatchEvent(
+        new DragEvent('dragstart', { bubbles: true, dataTransfer }),
+      )
+      const scroll = document.querySelector('[data-testid="pasteboard-scroll"]')
+      if (!(scroll instanceof HTMLElement)) {
+        throw new Error('missing pasteboard scroll')
+      }
+      scroll.dispatchEvent(
+        new DragEvent('dragover', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+          ...p,
+        }),
+      )
+      scroll.dispatchEvent(
+        new DragEvent('drop', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+          ...p,
+        }),
+      )
+      document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+    },
+    { mime: ASSET_DRAG_MIME, id: assetId, point },
+  )
+}
 
 test.beforeAll(() => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -73,31 +120,29 @@ test.describe('keyboard rearrange', () => {
 
     const first = page.getByTestId('filmstrip-item').nth(0)
     const second = page.getByTestId('filmstrip-item').nth(1)
-    await first.focus()
-    await page.keyboard.press('Space')
-    await expect(first).toHaveAttribute('aria-selected', 'true')
+    const firstId = await first.getAttribute('data-asset-id')
+    const secondId = await second.getAttribute('data-asset-id')
+    expect(firstId).toBeTruthy()
+    expect(secondId).toBeTruthy()
+
     const firstFrame = active
       .getByRole('button', { name: 'Place photo', exact: true })
       .nth(0)
-    await firstFrame.focus()
-    await expect(firstFrame).toBeFocused()
-    await page.keyboard.press('Enter')
+    await dropAssetOnFrame(page, String(firstId), firstFrame)
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
       timeout: 30_000,
     })
     await expect(
       active.getByRole('button', { name: 'Replace photo' }),
+    ).toHaveCount(0)
+    await expect(
+      active.getByRole('button', { name: 'Select photo to move' }),
     ).toHaveCount(1)
 
-    await second.focus()
-    await page.keyboard.press('Space')
-    await expect(second).toHaveAttribute('aria-selected', 'true')
     const secondFrame = active
       .getByRole('button', { name: 'Place photo', exact: true })
       .nth(0)
-    await secondFrame.focus()
-    await expect(secondFrame).toBeFocused()
-    await page.keyboard.press('Enter')
+    await dropAssetOnFrame(page, String(secondId), secondFrame)
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(2, {
       timeout: 30_000,
     })
@@ -260,14 +305,12 @@ test.describe('keyboard rearrange', () => {
     const active = page.getByTestId('spread-view').first()
     for (const index of [0, 1] as const) {
       const item = page.getByTestId('filmstrip-item').nth(index)
-      await item.focus()
-      await page.keyboard.press('Space')
-      await expect(item).toHaveAttribute('aria-selected', 'true')
+      const assetId = await item.getAttribute('data-asset-id')
+      expect(assetId).toBeTruthy()
       const frame = active
         .getByRole('button', { name: 'Place photo', exact: true })
         .nth(0)
-      await frame.focus()
-      await page.keyboard.press('Enter')
+      await dropAssetOnFrame(page, String(assetId), frame)
       await expect(page.getByTestId('spread-frame-image')).toHaveCount(
         index + 1,
         { timeout: 30_000 },
@@ -330,15 +373,12 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
   await page.getByRole('radio', { name: '4-grid' }).click()
   const active = page.getByTestId('spread-view').first()
   const firstItem = page.getByTestId('filmstrip-item').first()
-  await firstItem.focus()
-  await page.keyboard.press('Space')
-  await expect(firstItem).toHaveAttribute('aria-selected', 'true')
+  const assetId = await firstItem.getAttribute('data-asset-id')
+  expect(assetId).toBeTruthy()
   const frame = active
     .getByRole('button', { name: 'Place photo', exact: true })
     .first()
-  await frame.focus()
-  await expect(frame).toBeFocused()
-  await page.keyboard.press('Enter')
+  await dropAssetOnFrame(page, String(assetId), frame)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })

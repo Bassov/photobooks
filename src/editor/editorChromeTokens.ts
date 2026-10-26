@@ -17,9 +17,21 @@ export const EDITOR_CHROME_CSS = `
 .e7-ghost:hover { background: rgb(57 55 56/.08) }
 .e7-ghost:focus-visible, .e7-item:focus-visible, .e7-title:focus-visible, .e7-canvas:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .e7-canvas[data-panning], .e7-canvas[data-panning]:focus-visible { outline: none }
+.e7-canvas[data-panning] .pasteboard-scroll { cursor: grab }
+.e7-canvas[data-panning] .pasteboard-scroll:active { cursor: grabbing }
+.e7-canvas[data-panning] button.spread-frame:focus-visible::after,
+.e7-canvas[data-panning] button.spread-frame[aria-pressed=true]:focus-visible::after { content: none; box-shadow: none }
 .e7-item { cursor: default; outline: none; transition: background-color .12s; border: 0; background: transparent; width: 100%; text-align: left }
 .e7-item:hover { background: ${FIELD} }
 .e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: ${SEL} }
+.filmstrip-item { box-shadow: none }
+.filmstrip-item[aria-selected=true] { background: ${SEL} }
+.filmstrip-item[aria-selected=true][data-focused] { background: ${SEL}; box-shadow: 0 0 0 2px #535152 }
+.filmstrip-placed { --badge-fg: ${ON_INK}; --badge-bg: color-mix(in srgb, #232223 72%, transparent); --badge-ring: #232223; --badge-dot: ${ON_INK} }
+.pb-segmented__segment { position: relative; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2); border-radius: var(--radius-sm); background: transparent; transition: background-color .12s }
+.pb-segmented__segment--selected { background: ${SEL}; font-weight: 600 }
+.pb-segmented__segment input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer }
+.pb-segmented__segment input:disabled { cursor: wait }
 .e7-title { transition: background-color .12s; border: 0; background: transparent; cursor: pointer }
 .e7-title:hover { background: rgb(57 55 56/.08) }
 .e7-title:active { background: #CDCDCD }

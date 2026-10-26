@@ -30,10 +30,15 @@ describe('SegmentedControl', () => {
     expect(
       screen.getByRole('radio', { name: 'Fill' }).getAttribute('data-selected'),
     ).toBe('true')
+    expect(
+      screen.getByRole('radio', { name: 'Fill' }).closest('label')?.className,
+    ).toContain('pb-segmented__segment--selected')
 
     fireEvent.click(screen.getByRole('radio', { name: 'Fit' }))
     expect(onChange).toHaveBeenCalledWith('fit')
   })
+
+  // Tone fill for --selected lives in editorChromeTokens (kit hard-no #CACACA).
 
   it('supports controlled value, sm size, and item ariaLabel', () => {
     const onChange = vi.fn()

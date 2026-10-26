@@ -850,10 +850,12 @@ async function readSpreadView(
 }
 
 async function fitSpreadUntilFilled(page: Page): Promise<void> {
-  // Side chrome eats pasteboard width; close spreads list for fit geometry parity.
-  const spreadsToggle = page.getByTestId('toggle-l')
-  if ((await spreadsToggle.getAttribute('aria-expanded')) === 'true') {
-    await spreadsToggle.click()
+  // Side/bottom chrome eats pasteboard; close spreads + filmstrip for fit geometry.
+  for (const testId of ['toggle-l', 'toggle-b'] as const) {
+    const toggle = page.getByTestId(testId)
+    if ((await toggle.getAttribute('aria-expanded')) === 'true') {
+      await toggle.click()
+    }
   }
   await page.getByRole('button', { name: 'Fit spread' }).click()
   await expect

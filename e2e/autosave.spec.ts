@@ -8,6 +8,7 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
+import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
@@ -54,14 +55,7 @@ test('autosave persists edits across reload without manual Save', async ({
     timeout: 30_000,
   })
   await page.bringToFront()
-  const first = page.getByTestId('filmstrip-item').nth(0)
-  await first.focus()
-  await page.keyboard.press('Space')
-  await expect(first).toHaveAttribute('aria-selected', 'true')
-  const place = page.getByRole('button', { name: 'Place photo' }).first()
-  await place.focus()
-  await expect(place).toBeFocused()
-  await page.keyboard.press('Enter')
+  await dragPlaceFirstFilmstripItem(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })

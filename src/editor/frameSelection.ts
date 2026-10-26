@@ -98,13 +98,9 @@ export function withSelectionSync(fn: () => void): void {
 
 export function frameControlLabel(
   filled: boolean,
-  gallerySelected: boolean,
   frameSource: FrameSource | null,
   frame: FrameSource,
 ): string {
-  if (gallerySelected) {
-    return filled ? 'Replace photo' : 'Place photo'
-  }
   if (sameSource(frameSource, frame)) {
     return filled ? 'Cancel move' : 'Place photo'
   }

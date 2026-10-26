@@ -24,6 +24,8 @@ describe('editorChromeTokens', () => {
 
   it('injects chrome CSS once and reuses a pre-existing style node', () => {
     expect(EDITOR_CHROME_CSS).toContain('#CACACA')
+    expect(EDITOR_CHROME_CSS).toContain('data-panning')
+    expect(EDITOR_CHROME_CSS).toContain('cursor: grab')
     expect(EDITOR_CHROME_CSS).toContain('.editor-panel-l')
     expect(EDITOR_CHROME_CSS).toContain('.e7 .pasteboard')
     expect(EDITOR_CHROME_CSS).toContain('.e7 .editor-workspace')

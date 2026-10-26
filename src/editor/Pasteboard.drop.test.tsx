@@ -211,7 +211,7 @@ describe('Pasteboard gallery drop', () => {
     expect(getBookStoreSnapshot().book).toBe(before)
   })
 
-  it('places and replaces from the frame button when a photo is selected', () => {
+  it('does not place or replace from a frame click when a photo is selected', () => {
     seedGridBook()
     render(<Pasteboard />)
     setSelectedAssetId('a')
@@ -226,17 +226,8 @@ describe('Pasteboard gallery drop', () => {
       getBookStoreSnapshot().book.spreads[0]?.frames.find(
         (frame) => frame.id === first.frameId,
       )?.assetId,
-    ).toBe('a')
-
-    setSelectedAssetId('b')
-    const replace = screen.getByRole('button', { name: 'Replace photo' })
-    fireEvent.click(replace)
-    expect(
-      getBookStoreSnapshot().book.spreads[0]?.frames.find(
-        (frame) => frame.id === first.frameId,
-      )?.assetId,
-    ).toBe('b')
-    expect(getBookStoreSnapshot().book.gallery).toEqual(['a', 'b'])
+    ).toBeUndefined()
+    expect(screen.queryByRole('button', { name: 'Replace photo' })).toBeNull()
   })
 
   it('swaps on a frame drop, moves onto an empty frame, and ignores a self-drop', () => {
@@ -640,7 +631,7 @@ describe('Pasteboard gallery drop', () => {
     expect(getBookStoreSnapshot().book).toBe(before)
   })
 
-  it('replaces a filled frame and clears the move source when a photo is selected', () => {
+  it('clears the move source when a gallery photo is selected without click-replace', () => {
     seedGridBook()
     const spreadId = getBookStoreSnapshot().book.spreads[0]?.id
     const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id
@@ -658,9 +649,12 @@ describe('Pasteboard gallery drop', () => {
       setSelectedAssetId('b')
     })
     expect(getFrameSource()).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Replace photo' }))
-    expect(assetIn(frameId)).toBe('b')
-    expect(getFrameSource()).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Replace photo' })).toBeNull()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select photo to move' }),
+    )
+    expect(assetIn(frameId)).toBe('a')
+    expect(getFrameSource()).toEqual({ spreadId, frameId })
   })
 
   it('uses live filled state on drop when the dragstart snapshot is stale', () => {

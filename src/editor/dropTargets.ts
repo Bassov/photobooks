@@ -11,8 +11,6 @@ export interface FrameDragSource {
 }
 
 export type FrameActivation =
-  | { type: 'place'; assetId: string }
-  | { type: 'replace'; assetId: string }
   | { type: 'select-source' }
   | { type: 'clear-source' }
   | { type: 'swap'; source: FrameDragSource }
@@ -38,16 +36,9 @@ export function decodeFrameDrag(payload: string): FrameDragSource | null {
 }
 
 export function resolveFrameActivation(input: {
-  galleryAssetId: string | null
   source: FrameDragSource | null
   target: FrameDragSource & { filled: boolean }
 }): FrameActivation {
-  const galleryAssetId = input.galleryAssetId
-  if (galleryAssetId !== null && galleryAssetId !== '') {
-    return input.target.filled
-      ? { type: 'replace', assetId: galleryAssetId }
-      : { type: 'place', assetId: galleryAssetId }
-  }
   const source = input.source
   if (source === null) {
     return input.target.filled ? { type: 'select-source' } : { type: 'noop' }

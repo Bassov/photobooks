@@ -114,7 +114,7 @@ export function FilmstripItemView({
         )}
         {placementCount > 0 ? (
           <Badge
-            color="brand"
+            color="gray"
             size="sm"
             className="filmstrip-placed"
             data-testid="filmstrip-placed"

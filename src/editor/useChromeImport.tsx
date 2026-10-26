@@ -55,7 +55,8 @@ function isE2eBuild(): boolean {
   return env.VITE_E2E === '1' || env.VITE_E2E === 'true'
 }
 
-function folderSkippedStatusText(skipped: number): string {
+/** Folder non-image skips → editor status line (never toast). */
+export function folderSkippedStatusText(skipped: number): string {
   return skipped === 1
     ? '1 non-image file skipped'
     : `${String(skipped)} non-image files skipped`
