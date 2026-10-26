@@ -74,6 +74,7 @@ export function LibraryScreen() {
   const [books, setBooks] = useState<readonly BookSummary[]>([])
   const [listFailed, setListFailed] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsMounted, setSettingsMounted] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [confirmChange, setConfirmChange] = useState(false)
   const [query, setQuery] = useState('')
@@ -201,314 +202,329 @@ export function LibraryScreen() {
     })()
   }
 
-  if (settingsOpen) {
-    return (
-      <main
-        className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden text-foreground"
-        data-testid="library-screen"
-      >
-        <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4"
-            onPress={() => {
-              setSettingsOpen(false)
-            }}
-            data-testid="settings-back"
-          >
-            <Icon name="chevronLeft" size={16} />
-            Library
-          </Button>
-          <span className="text-sm font-medium">Settings</span>
-        </div>
-        <div className="min-h-0 flex-1">
-          <SettingsScreen
-            libraryPath={folderName}
-            bookCount={books.length}
-            changeDisabled={busy}
-          />
-        </div>
-      </main>
-    )
-  }
-
   return (
     <main
       className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden text-foreground"
       data-testid="library-screen"
     >
-      <LibraryBar
-        path={folderName}
-        changeDisabled={busy}
-        settingsDisabled={busy}
-        tools={barTools}
-        onChange={() => {
-          setConfirmChange(true)
-        }}
-        onSettings={() => {
-          setSettingsOpen(true)
-        }}
-      />
-      <div className="pb-library-main relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mx-auto flex w-full max-w-[1280px] min-h-0 flex-1 flex-col px-12">
-          <div className="flex shrink-0 items-end justify-between pb-2 pt-10">
-            <div className="flex items-baseline gap-3">
-              <h1 className="pb-library-heading">Your books</h1>
-              {books.length >= 1 ? (
-                <span
-                  className="text-sm text-muted-foreground"
-                  data-testid="book-count"
+      <div
+        className={
+          settingsOpen
+            ? 'hidden'
+            : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+        }
+        aria-hidden={settingsOpen ? true : undefined}
+      >
+        <LibraryBar
+          path={folderName}
+          changeDisabled={busy}
+          settingsDisabled={busy}
+          tools={barTools}
+          onChange={() => {
+            setConfirmChange(true)
+          }}
+          onSettings={() => {
+            setSettingsMounted(true)
+            setSettingsOpen(true)
+          }}
+        />
+        <div className="pb-library-main relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="mx-auto flex w-full max-w-[1280px] min-h-0 flex-1 flex-col px-12">
+            <div className="flex shrink-0 items-end justify-between pb-2 pt-10">
+              <div className="flex items-baseline gap-3">
+                <h1 className="pb-library-heading">Your books</h1>
+                {books.length >= 1 ? (
+                  <span
+                    className="text-sm text-muted-foreground"
+                    data-testid="book-count"
+                  >
+                    {books.length} {books.length === 1 ? 'book' : 'books'}
+                  </span>
+                ) : null}
+              </div>
+              {books.length > 0 ? (
+                <Button
+                  className="pb-lib-create-sm"
+                  isDisabled={busy}
+                  onPress={() => {
+                    setCreateOpen(true)
+                  }}
+                  data-testid="new-book"
                 >
-                  {books.length} {books.length === 1 ? 'book' : 'books'}
-                </span>
+                  Create book
+                </Button>
               ) : null}
             </div>
-            {books.length > 0 ? (
-              <Button
-                className="pb-lib-create-sm"
-                isDisabled={busy}
-                onPress={() => {
+
+            {listFailed ? (
+              <EmptyState
+                title="Could not list books"
+                description="Something went wrong reading this library folder."
+                actions={
+                  <Button
+                    data-testid="library-retry"
+                    onPress={() => {
+                      void refreshBooks()
+                    }}
+                  >
+                    Retry
+                  </Button>
+                }
+              />
+            ) : books.length === 0 ? (
+              <LibraryEmpty
+                createDisabled={busy}
+                onCreate={() => {
                   setCreateOpen(true)
                 }}
-                data-testid="new-book"
+              />
+            ) : shown.length === 0 ? (
+              <div
+                className="mt-20 text-center text-sm text-muted-foreground"
+                data-testid="lib-no-results"
               >
-                Create book
-              </Button>
-            ) : null}
-          </div>
-
-          {listFailed ? (
-            <EmptyState
-              title="Could not list books"
-              description="Something went wrong reading this library folder."
-              actions={
-                <Button
-                  data-testid="library-retry"
-                  onPress={() => {
-                    void refreshBooks()
+                No books match “{query.trim()}”.{' '}
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => {
+                    setQuery('')
                   }}
                 >
-                  Retry
-                </Button>
-              }
-            />
-          ) : books.length === 0 ? (
-            <LibraryEmpty
-              createDisabled={busy}
-              onCreate={() => {
-                setCreateOpen(true)
-              }}
-            />
-          ) : shown.length === 0 ? (
-            <div
-              className="mt-20 text-center text-sm text-muted-foreground"
-              data-testid="lib-no-results"
-            >
-              No books match “{query.trim()}”.{' '}
-              <button
-                type="button"
-                className="underline underline-offset-2"
-                onClick={() => {
-                  setQuery('')
-                }}
-              >
-                Clear search
-              </button>
-            </div>
-          ) : (
-            <div
-              className="pb-library-scroll min-h-0 flex-1 overflow-y-auto"
-              data-testid="library-scroll"
-              data-scrollport="library"
-            >
+                  Clear search
+                </button>
+              </div>
+            ) : (
               <div
-                className="pb-library-grid pb-12"
-                data-testid="library-books"
+                className="pb-library-scroll min-h-0 flex-1 overflow-y-auto"
+                data-testid="library-scroll"
+                data-scrollport="library"
               >
-                {shown.map((book) => {
-                  const summary = books.find((b) => b.id === book.id)
-                  return (
-                    <BookTile
-                      key={book.id}
-                      book={book}
-                      onOpen={() => {
-                        if (busy) {
-                          return
-                        }
-                        void openBookFromLibrary(book.id)
-                      }}
-                      title={
-                        renamingId === book.id ? (
-                          <input
-                            aria-label="Book title"
-                            defaultValue={book.displayTitle}
-                            autoFocus
-                            className="h-7 w-full rounded-md bg-background px-2 text-sm outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
-                            data-testid="rename-input"
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') {
-                                commitRename(
-                                  book.id,
-                                  (event.target as HTMLInputElement).value,
-                                )
-                              }
-                              if (event.key === 'Escape') {
-                                setRenamingId(null)
-                              }
-                            }}
-                            onBlur={(event) => {
-                              commitRename(book.id, event.target.value)
-                            }}
-                          />
-                        ) : undefined
-                      }
-                      menu={
-                        <MenuTrigger>
-                          <IconButton
-                            label="Book actions"
-                            size="sm"
-                            tooltip={false}
-                            className="pb-lib-book-menu size-8"
-                            data-testid={`book-menu-${book.id}`}
-                            isDisabled={busy}
-                          >
-                            <Icon name="moreHorizontal" size={16} />
-                          </IconButton>
-                          <MenuPopover placement="bottom end" className="w-44">
-                            <Menu
-                              className="[&_svg]:size-4"
-                              onAction={(key) => {
-                                const effect = libraryBookMenuEffect(
-                                  String(key),
-                                  summary?.title,
-                                )
-                                if (effect.type === 'open') {
-                                  void openBookFromLibrary(book.id)
-                                  return
+                <div
+                  className="pb-library-grid pb-12"
+                  data-testid="library-books"
+                >
+                  {shown.map((book) => {
+                    const summary = books.find((b) => b.id === book.id)
+                    return (
+                      <BookTile
+                        key={book.id}
+                        book={book}
+                        onOpen={() => {
+                          if (busy) {
+                            return
+                          }
+                          void openBookFromLibrary(book.id)
+                        }}
+                        title={
+                          renamingId === book.id ? (
+                            <input
+                              aria-label="Book title"
+                              defaultValue={book.displayTitle}
+                              autoFocus
+                              className="h-7 w-full rounded-md bg-background px-2 text-sm outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
+                              data-testid="rename-input"
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  commitRename(
+                                    book.id,
+                                    (event.target as HTMLInputElement).value,
+                                  )
                                 }
-                                if (effect.type === 'rename') {
-                                  setRenamingId(book.id)
-                                  return
-                                }
-                                if (effect.type === 'duplicate') {
-                                  void (async () => {
-                                    const duplicated =
-                                      await duplicateBookInLibrary(book.id)
-                                    if (duplicated.ok) {
-                                      await refreshBooks()
-                                    }
-                                  })()
-                                  return
-                                }
-                                if (effect.type === 'remove' && summary) {
-                                  pendingRemoveId.current = summary.id
-                                  setRemovingTitle(effect.title)
-                                  setRemovingOpen(true)
+                                if (event.key === 'Escape') {
+                                  setRenamingId(null)
                                 }
                               }}
+                              onBlur={(event) => {
+                                commitRename(book.id, event.target.value)
+                              }}
+                            />
+                          ) : undefined
+                        }
+                        menu={
+                          <MenuTrigger>
+                            <IconButton
+                              label="Book actions"
+                              size="sm"
+                              tooltip={false}
+                              className="pb-lib-book-menu size-8"
+                              data-testid={`book-menu-${book.id}`}
+                              isDisabled={busy}
                             >
-                              <MenuItem id="open" textValue="Open">
-                                <Icon name="folderOpen" size={16} />
-                                Open
-                              </MenuItem>
-                              <MenuItem
-                                id="rename"
-                                textValue="Rename"
-                                data-testid={`library-rename-${book.id}`}
+                              <Icon name="moreHorizontal" size={16} />
+                            </IconButton>
+                            <MenuPopover
+                              placement="bottom end"
+                              className="w-44"
+                            >
+                              <Menu
+                                className="[&_svg]:size-4"
+                                onAction={(key) => {
+                                  const effect = libraryBookMenuEffect(
+                                    String(key),
+                                    summary?.title,
+                                  )
+                                  if (effect.type === 'open') {
+                                    void openBookFromLibrary(book.id)
+                                    return
+                                  }
+                                  if (effect.type === 'rename') {
+                                    setRenamingId(book.id)
+                                    return
+                                  }
+                                  if (effect.type === 'duplicate') {
+                                    void (async () => {
+                                      const duplicated =
+                                        await duplicateBookInLibrary(book.id)
+                                      if (duplicated.ok) {
+                                        await refreshBooks()
+                                      }
+                                    })()
+                                    return
+                                  }
+                                  if (effect.type === 'remove' && summary) {
+                                    pendingRemoveId.current = summary.id
+                                    setRemovingTitle(effect.title)
+                                    setRemovingOpen(true)
+                                  }
+                                }}
                               >
-                                <Icon name="pencil" size={16} />
-                                Rename
-                              </MenuItem>
-                              <MenuItem id="dup" textValue="Duplicate">
-                                <Icon name="copy" size={16} />
-                                Duplicate
-                              </MenuItem>
-                              <MenuSeparator />
-                              <MenuItem
-                                id="rm"
-                                textValue="Remove"
-                                variant="destructive"
-                              >
-                                <Icon name="delete" size={16} />
-                                Remove…
-                              </MenuItem>
-                            </Menu>
-                          </MenuPopover>
-                        </MenuTrigger>
-                      }
-                    />
-                  )
-                })}
+                                <MenuItem id="open" textValue="Open">
+                                  <Icon name="folderOpen" size={16} />
+                                  Open
+                                </MenuItem>
+                                <MenuItem
+                                  id="rename"
+                                  textValue="Rename"
+                                  data-testid={`library-rename-${book.id}`}
+                                >
+                                  <Icon name="pencil" size={16} />
+                                  Rename
+                                </MenuItem>
+                                <MenuItem id="dup" textValue="Duplicate">
+                                  <Icon name="copy" size={16} />
+                                  Duplicate
+                                </MenuItem>
+                                <MenuSeparator />
+                                <MenuItem
+                                  id="rm"
+                                  textValue="Remove"
+                                  variant="destructive"
+                                >
+                                  <Icon name="delete" size={16} />
+                                  Remove…
+                                </MenuItem>
+                              </Menu>
+                            </MenuPopover>
+                          </MenuTrigger>
+                        }
+                      />
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {project.homeError ? (
+          <Status data-testid="library-error">{project.homeError}</Status>
+        ) : null}
+
+        <span style={SR_ONLY} aria-live="polite">
+          {folderName}
+        </span>
+
+        <CreateBookDialog
+          isOpen={createOpen}
+          createDisabled={busy}
+          onCancel={() => {
+            setCreateOpen(false)
+          }}
+          onCreate={(result) => {
+            setCreateOpen(false)
+            void createBookInLibrary(result.title, { trim: result.trim })
+          }}
+        />
+
+        <AlertDialog
+          isOpen={confirmChange}
+          tone="neutral"
+          title="Change the library folder?"
+          confirmLabel="Choose folder…"
+          onCancel={() => {
+            setConfirmChange(false)
+          }}
+          onConfirm={() => {
+            setConfirmChange(false)
+            void changeLibraryFolder()
+          }}
+        >
+          Photobooks works with one library at a time. Your books stay in{' '}
+          <span className="font-mono text-sm text-foreground/80">
+            {folderName}
+          </span>{' '}
+          — nothing is moved or deleted. Pick another folder to use it as the
+          library (an empty folder starts a new one). Change it back to see
+          these books again.
+        </AlertDialog>
+
+        <AlertDialog
+          isOpen={removingOpen}
+          title={<>Remove “{removingTitle}”?</>}
+          confirmLabel="Remove book"
+          onCancel={() => {
+            setRemovingOpen(false)
+          }}
+          onConfirm={() => {
+            const targetId = pendingRemoveId.current
+            setRemovingOpen(false)
+            void (async () => {
+              const deleted = await deleteBookInLibrary(targetId)
+              if (deleted.ok) {
+                await refreshBooks()
+              }
+            })()
+          }}
+        >
+          The book is removed from your library folder. Photos stay on disk,
+          untouched.
+        </AlertDialog>
       </div>
 
-      {project.homeError ? (
-        <Status data-testid="library-error">{project.homeError}</Status>
+      {settingsMounted ? (
+        <div
+          className={
+            settingsOpen
+              ? 'absolute inset-0 z-20 flex flex-col bg-background'
+              : 'hidden'
+          }
+          aria-hidden={settingsOpen ? undefined : true}
+        >
+          <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4"
+              onPress={() => {
+                setSettingsOpen(false)
+              }}
+              data-testid="settings-back"
+            >
+              <Icon name="chevronLeft" size={16} />
+              Library
+            </Button>
+            <span className="text-sm font-medium">Settings</span>
+          </div>
+          <div className="min-h-0 flex-1">
+            <SettingsScreen
+              libraryPath={folderName}
+              bookCount={books.length}
+              changeDisabled={busy}
+            />
+          </div>
+        </div>
       ) : null}
-
-      <span style={SR_ONLY} aria-live="polite">
-        {folderName}
-      </span>
-
-      <CreateBookDialog
-        isOpen={createOpen}
-        createDisabled={busy}
-        onCancel={() => {
-          setCreateOpen(false)
-        }}
-        onCreate={(result) => {
-          setCreateOpen(false)
-          void createBookInLibrary(result.title, { trim: result.trim })
-        }}
-      />
-
-      <AlertDialog
-        isOpen={confirmChange}
-        tone="neutral"
-        title="Change the library folder?"
-        confirmLabel="Choose folder…"
-        onCancel={() => {
-          setConfirmChange(false)
-        }}
-        onConfirm={() => {
-          setConfirmChange(false)
-          void changeLibraryFolder()
-        }}
-      >
-        Photobooks works with one library at a time. Your books stay in{' '}
-        <span className="font-mono text-sm text-foreground/80">
-          {folderName}
-        </span>{' '}
-        — nothing is moved or deleted. Pick another folder to use it as the
-        library (an empty folder starts a new one). Change it back to see these
-        books again.
-      </AlertDialog>
-
-      <AlertDialog
-        isOpen={removingOpen}
-        title={<>Remove “{removingTitle}”?</>}
-        confirmLabel="Remove book"
-        onCancel={() => {
-          setRemovingOpen(false)
-        }}
-        onConfirm={() => {
-          const targetId = pendingRemoveId.current
-          setRemovingOpen(false)
-          void (async () => {
-            const deleted = await deleteBookInLibrary(targetId)
-            if (deleted.ok) {
-              await refreshBooks()
-            }
-          })()
-        }}
-      >
-        The book is removed from your library folder. Photos stay on disk,
-        untouched.
-      </AlertDialog>
     </main>
   )
 }

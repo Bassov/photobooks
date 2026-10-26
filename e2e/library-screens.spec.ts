@@ -250,8 +250,9 @@ test('memory library opens library screen then editor and back', async ({
   await assertNamedScrollport(page, 'settings-scroll', { axis: 'vertical' })
   await assertDocumentFitsViewport(page)
   await page.getByTestId('settings-back').click()
-  await expect(page.getByTestId('settings')).toHaveCount(0)
   await expect(page.getByTestId('library-books')).toBeVisible()
+  await expect(page.getByTestId('library-settings')).toBeVisible()
+  await expect(page.getByTestId('settings')).toBeHidden()
 
   const opened = await page.evaluate(async (id) => {
     const api = window.__photobooksProject

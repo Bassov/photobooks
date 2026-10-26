@@ -85,12 +85,19 @@ describe('LibraryScreen', () => {
     expect(screen.getByTestId('settings-book-count').textContent).toBe(
       String(expectedCount),
     )
+    expect(
+      screen
+        .getByTestId('library-bar')
+        .parentElement?.getAttribute('aria-hidden'),
+    ).toBe('true')
     fireEvent.click(screen.getByTestId('settings-back'))
     await waitFor(() => {
-      expect(screen.queryByTestId('settings')).toBeNull()
+      expect(screen.getByTestId('library-books')).toBeTruthy()
     })
+    expect(
+      screen.getByTestId('settings').closest('[aria-hidden="true"]'),
+    ).toBeTruthy()
     expect(getProjectSessionSnapshot().surface).toBe('library')
-    expect(screen.getByTestId('library-books')).toBeTruthy()
   })
 
   it('change-library confirms then invokes changeLibraryFolder', async () => {
@@ -106,10 +113,12 @@ describe('LibraryScreen', () => {
     })
     fireEvent.click(screen.getByTestId('change-library'))
     expect(change).not.toHaveBeenCalled()
+    expect(screen.getByRole('alertdialog')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Choose folder…' }))
     await waitFor(() => {
       expect(change).toHaveBeenCalled()
     })
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
   it('shows loading while restorePending', () => {
@@ -269,6 +278,9 @@ describe('LibraryScreen', () => {
       expect(create).toHaveBeenCalledWith('New', {
         trim: { widthMm: 148, heightMm: 210 },
       })
+    })
+    await waitFor(() => {
+      expect(screen.queryByTestId('create-book-dialog')).toBeNull()
     })
   })
 
@@ -474,11 +486,13 @@ describe('LibraryScreen', () => {
 
     fireEvent.click(screen.getByTestId('book-menu-b1'))
     fireEvent.click(await screen.findByRole('menuitem', { name: /Remove/ }))
+    expect(screen.getByRole('alertdialog')).toBeTruthy()
     fireEvent.click(await screen.findByRole('button', { name: 'Remove book' }))
     await waitFor(() => {
       expect(del).toHaveBeenCalledWith('b1')
       expect(list.mock.calls.length).toBeGreaterThan(afterDup)
     })
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
   it('skips rename persistence when the title is unchanged', async () => {
@@ -565,8 +579,10 @@ describe('LibraryScreen', () => {
       expect(screen.getByTestId('change-library')).toBeTruthy()
     })
     fireEvent.click(screen.getByTestId('change-library'))
+    expect(screen.getByRole('alertdialog')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(change).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
   it('changes sort via the sort menu', async () => {
