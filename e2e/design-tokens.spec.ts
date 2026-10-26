@@ -45,9 +45,9 @@ test('specimen page shows token swatches without third-party fonts', async ({
     }),
   ).toBeVisible()
   await expect(
-    page.locator('[data-testid="specimen-icons"] .specimen-swatch-name', {
-      hasText: 'folder',
-    }),
+    page
+      .locator('[data-testid="specimen-icons"] .specimen-swatch-name')
+      .filter({ hasText: /^folder$/ }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Icon size 20' }).click()
   await expect(
