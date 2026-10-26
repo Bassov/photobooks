@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: Welcome Lora italic + weight 400 vs kit
+Status: done
 
 ## Scope
 

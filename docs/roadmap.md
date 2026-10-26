@@ -17,7 +17,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 **Review cut:** you can assemble a complete real book from your own photos without reaching for InDesign — orientation-aware templates and multi-photo drops make layout fast, the assets panel shows what is used, missing or modified — and a 1000-photo library feels instant.
 
-- [ ] [feature] [ui-welcome-type-v93](roadmap/M3/ui-welcome-type-v93.md) — Welcome Lora italic + weight 400 vs kit
+- [x] [feature] [ui-welcome-type-v93](roadmap/M3/ui-welcome-type-v93.md) — Welcome Lora italic + weight 400 vs kit
 - [ ] [prep] [editor-command-sequence-pbt](roadmap/M3/editor-command-sequence-pbt.md) — property tests over command sequences (issue #50 item 2)
 - [ ] [feature] [document-history](roadmap/M3/document-history.md) — undo / redo
 - [ ] [feature] [filmstrip-sort-filter](roadmap/M3/filmstrip-sort-filter.md) — working with the gallery
