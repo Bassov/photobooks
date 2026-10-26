@@ -28,13 +28,63 @@ test('unsupported browser blocks when directory picker is missing', async ({
   await assertDocumentFitsViewport(page)
 })
 
-test('welcome shows choose library without page scroll', async ({ page }) => {
+test('welcome shows Create Library without page scroll', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('welcome-screen')).toBeVisible({
     timeout: 15_000,
   })
-  await expect(page.getByTestId('choose-library')).toBeVisible()
+  await expect(page.getByTestId('create-library')).toBeVisible()
+  await expect(page.getByTestId('screen-credit')).toBeVisible()
+  await expect(page.getByTestId('welcome-hero')).toHaveAttribute(
+    'data-hero-src',
+    '/photos/hi/c18.jpg',
+  )
   await expect(page.getByTestId('editor-shell')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+})
+
+test('Create Library cancel stays on Welcome', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.evaluate(() => {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: () =>
+        Promise.reject(new DOMException('User cancelled', 'AbortError')),
+    })
+  })
+  await page.getByTestId('create-library').click()
+  await expect(page.getByTestId('welcome-screen')).toBeVisible()
+  await expect(page.getByTestId('welcome-error')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('library-screen')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+})
+
+test('Create Library success opens library via FSA stub', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    const dir = await root.getDirectoryHandle('welcome-create-lib', {
+      create: true,
+    })
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: () => Promise.resolve(dir),
+    })
+  })
+  await page.getByTestId('create-library').click()
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('welcome-screen')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
 
