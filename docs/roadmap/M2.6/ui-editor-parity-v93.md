@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.6
 Title: Editor v0.9 hard-no parity with kit
+Status: done
 
 ## Scope
 
@@ -14,3 +15,7 @@ Title: Editor v0.9 hard-no parity with kit
 - **Perf:** Parity CSS/cursor changes must not regress editor frame-budget scenarios
 - **Size:** ~400–1000 changed lines
 - **Source:** Owner package J
+
+## Done note
+
+kit v0.9.3 hard-nos on live editor; inspector Crop checkbox left open (pasteboard Crop)
