@@ -36,6 +36,11 @@ jobs:
         env:
           FC_NUM_RUNS: '500'
 
+      - name: Command-sequence PBT (long run)
+        run: pnpm exec vitest run src/core/ops/sequence.pbt.test.ts
+        env:
+          FC_NUM_RUNS: '2000'
+
       - name: Upload Stryker report
         if: always()
         uses: actions/upload-artifact@v7
