@@ -334,6 +334,19 @@ describe('SpreadView', () => {
     // Ring is CSS ::after inset box-shadow (not inline outline under the photo).
     expect(selected.style.outline).toBe('')
     expect(screen.getAllByTestId('spread-frame-handles')).toHaveLength(1)
-    expect(selected.querySelectorAll('.spread-frame-handle')).toHaveLength(8)
+    const handles = [
+      ...selected.querySelectorAll<HTMLElement>('.spread-frame-handle'),
+    ]
+    expect(handles).toHaveLength(8)
+    expect(handles.map((h) => `${h.style.left} ${h.style.top}`)).toEqual([
+      '0% 0%',
+      '50% 0%',
+      '100% 0%',
+      '0% 50%',
+      '100% 50%',
+      '0% 100%',
+      '50% 100%',
+      '100% 100%',
+    ])
   })
 })
