@@ -59,15 +59,16 @@ function nextPermission(
 }
 
 function fileFromContent(name: string, content: FakeFileContent): File {
+  const lastModified = Date.now()
   if (typeof content === 'string') {
-    return new File([content], name)
+    return new File([content], name, { lastModified })
   }
   if (content instanceof ArrayBuffer) {
-    return new File([content], name)
+    return new File([content], name, { lastModified })
   }
   const copy = new Uint8Array(content.byteLength)
   copy.set(content)
-  return new File([copy], name)
+  return new File([copy], name, { lastModified })
 }
 
 function toHandle(

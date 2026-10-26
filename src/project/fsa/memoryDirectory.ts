@@ -5,7 +5,7 @@ import type {
 } from './handles'
 
 type Entry =
-  | { kind: 'file'; content: string }
+  | { kind: 'file'; content: string; mtimeMs: number }
   | { kind: 'directory'; children: Map<string, Entry> }
 
 function notFound(name: string): DOMException {
@@ -21,7 +21,12 @@ class MemoryFileHandle implements LibraryFileHandle {
 
   writeText(text: string): Promise<void> {
     this.entry.content = text
+    this.entry.mtimeMs = Date.now()
     return Promise.resolve()
+  }
+
+  getLastModifiedMs(): Promise<number> {
+    return Promise.resolve(this.entry.mtimeMs)
   }
 }
 
@@ -65,7 +70,7 @@ class MemoryDirectoryHandle implements LibraryDirectoryHandle {
     if (options?.create !== true) {
       return Promise.reject(notFound(name))
     }
-    const created: Entry = { kind: 'file', content: '' }
+    const created: Entry = { kind: 'file', content: '', mtimeMs: Date.now() }
     this.node.children.set(name, created)
     return Promise.resolve(new MemoryFileHandle(created))
   }

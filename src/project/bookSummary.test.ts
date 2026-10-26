@@ -18,6 +18,14 @@ describe('bookSummaryFromBook', () => {
       pageWidthMm: 200,
       pageHeightMm: 250,
     })
+    expect(bookSummaryFromBook(book, { editedAtMs: 42 })).toEqual({
+      id: 'b1',
+      title: 'Fog',
+      spreadCount: 2,
+      pageWidthMm: 200,
+      pageHeightMm: 250,
+      editedAtMs: 42,
+    })
   })
 
   it('uses empty title when the document omits title', () => {

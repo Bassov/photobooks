@@ -36,8 +36,7 @@ const config = {
   ],
   ignorePatterns: [
     '.local_dev',
-    '.claude',
-    '.cursor',
+    '.claude', // dir symlinks into .cursor/skills crash the sandbox copy (EISDIR)
     'dist',
     'coverage',
     'reports',

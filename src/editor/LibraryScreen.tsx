@@ -230,12 +230,12 @@ export function LibraryScreen() {
         />
         <div className="pb-library-main relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="mx-auto flex w-full max-w-[1280px] min-h-0 flex-1 flex-col px-12">
-            <div className="flex shrink-0 items-end justify-between pb-2 pt-10">
-              <div className="flex items-baseline gap-3">
+            <div className="flex shrink-0 items-end justify-between gap-4 pb-2 pt-10">
+              <div className="flex min-w-0 items-baseline gap-3">
                 <h1 className="pb-library-heading">Your books</h1>
                 {books.length >= 1 ? (
                   <span
-                    className="text-sm text-muted-foreground"
+                    className="shrink-0 text-sm text-muted-foreground"
                     data-testid="book-count"
                   >
                     {books.length} {books.length === 1 ? 'book' : 'books'}
@@ -244,7 +244,7 @@ export function LibraryScreen() {
               </div>
               {books.length > 0 ? (
                 <Button
-                  className="pb-lib-create-sm"
+                  className="pb-lib-create-sm shrink-0"
                   isDisabled={busy}
                   onPress={() => {
                     setCreateOpen(true)
