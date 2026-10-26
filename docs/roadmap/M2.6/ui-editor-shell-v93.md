@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.6
 Title: Port editor shell chrome from kit v0.9.3
+Status: done
 
 ## Scope
 
