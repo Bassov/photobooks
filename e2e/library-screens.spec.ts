@@ -88,6 +88,39 @@ test('Create Library success opens library via FSA stub', async ({ page }) => {
   await assertDocumentFitsViewport(page)
 })
 
+test('empty library kit chrome and Create book dialog open editor', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.evaluate(async () => {
+    const api = window.__photobooksProject
+    if (!api?.seedHomeRecentsForTests) {
+      throw new Error('missing api')
+    }
+    // Empty memory library (attach would adopt the session book).
+    await api.seedHomeRecentsForTests(0)
+  })
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('library-empty')).toBeVisible()
+  await expect(page.getByTestId('example-book')).toBeVisible()
+  await expect(page.getByTestId('screen-credit')).toBeVisible()
+  await expect(page.getByText(/0 books/i)).toHaveCount(0)
+  await page.getByTestId('new-book').click()
+  await expect(page.getByTestId('create-book-dialog')).toBeVisible()
+  await page.getByTestId('create-title').fill('Trip')
+  await page.getByTestId('create-book').click()
+  await expect(page.getByTestId('editor-shell')).toBeVisible({
+    timeout: 15_000,
+  })
+  await assertDocumentFitsViewport(page)
+})
+
 test('memory library opens library screen then editor and back', async ({
   page,
 }) => {
@@ -120,7 +153,7 @@ test('memory library opens library screen then editor and back', async ({
   await expect(page.getByTestId('library-screen')).toBeVisible({
     timeout: 15_000,
   })
-  await expect(page.getByTestId('library-folder-name')).toBeVisible()
+  await expect(page.getByTestId('library-path')).toBeVisible()
   await expect(page.getByTestId('change-library')).toBeVisible()
   await expect(page.getByTestId('library-settings')).toBeVisible()
   await expect(page.getByTestId(`library-book-${bookId}`)).toBeVisible()
@@ -175,9 +208,7 @@ test('change library updates folder name via FSA picker stub', async ({
   await expect(page.getByTestId('library-screen')).toBeVisible({
     timeout: 15_000,
   })
-  await expect(page.getByTestId('library-folder-name')).toHaveText(
-    'Memory Library',
-  )
+  await expect(page.getByTestId('library-path')).toHaveText('Memory Library')
   await expect(page.getByTestId(`library-book-${firstBookId}`)).toBeVisible()
 
   // Chromium FSA double: change-library uses showDirectoryPicker.
@@ -193,10 +224,9 @@ test('change library updates folder name via FSA picker stub', async ({
   })
 
   await page.getByTestId('change-library').click()
-  await expect(page.getByTestId('library-folder-name')).toHaveText(
-    'Second Library',
-    { timeout: 15_000 },
-  )
+  await expect(page.getByTestId('library-path')).toHaveText('Second Library', {
+    timeout: 15_000,
+  })
   // Same memory storage is rebound; books stay, folder label updates.
   await expect(page.getByTestId(`library-book-${firstBookId}`)).toBeVisible()
   await assertDocumentFitsViewport(page)

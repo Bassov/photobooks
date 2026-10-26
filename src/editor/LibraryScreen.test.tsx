@@ -43,16 +43,26 @@ describe('LibraryScreen', () => {
   it('shows empty create affordance then lists a created book', async () => {
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)
+    await leaveEditorForLibrary()
     setSurfaceForTests('library')
+    // Attach adopts the session book; force empty for empty-chrome assertions.
+    vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
+      ok: true,
+      value: [],
+    })
     render(<LibraryScreen />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('create-book')).toBeTruthy()
+      expect(screen.getByTestId('library-empty')).toBeTruthy()
     })
-    expect(screen.getByTestId('library-folder-name').textContent).toBe(
+    expect(screen.getByTestId('example-book')).toBeTruthy()
+    expect(screen.getByTestId('screen-credit')).toBeTruthy()
+    expect(screen.getByTestId('new-book').textContent).toMatch(/Create book/)
+    expect(screen.getByTestId('library-path').textContent).toBe(
       'Memory Library',
     )
 
+    vi.mocked(projectSession.listLibraryBooks).mockRestore()
     const created = await createBookInLibrary('Trip')
     expect(created.ok).toBe(true)
     await leaveEditorForLibrary()
@@ -95,7 +105,7 @@ describe('LibraryScreen', () => {
     patchProjectSessionSnapshotForTests({ restorePending: true })
     render(<LibraryScreen />)
     expect(screen.getByTestId('library-loading')).toBeTruthy()
-    expect(screen.queryByTestId('create-book')).toBeNull()
+    expect(screen.queryByTestId('new-book')).toBeNull()
   })
 
   it('falls back to Library folder name and shows re-grant', async () => {
@@ -179,7 +189,7 @@ describe('LibraryScreen', () => {
     await Promise.resolve()
   })
 
-  it('shows empty state and New book label for non-empty libraries', async () => {
+  it('shows empty kit chrome and Create book for non-empty libraries', async () => {
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)
     await leaveEditorForLibrary()
@@ -192,7 +202,8 @@ describe('LibraryScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('library-empty')).toBeTruthy()
     })
-    expect(screen.getByTestId('create-book').textContent).toMatch(/Create book/)
+    expect(screen.getByTestId('new-book').textContent).toMatch(/Create book/)
+    expect(screen.queryByText(/0 books/i)).toBeNull()
     expect(screen.queryByTestId('settings-dialog')).toBeNull()
     emptyView.unmount()
 
@@ -204,37 +215,52 @@ describe('LibraryScreen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('new-book')).toBeTruthy()
     })
-    expect(screen.getByTestId('new-book').textContent).toMatch(/New book/)
-    expect(screen.queryByTestId('create-book')).toBeNull()
+    expect(screen.getByTestId('new-book').textContent).toMatch(/Create book/)
   })
 
-  it('create-book prompts and opens the new book', async () => {
+  it('create dialog confirms and opens the new book', async () => {
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)
     await leaveEditorForLibrary()
     setSurfaceForTests('library')
-    // Clear adopted book so the empty create affordance is shown.
     vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
       ok: true,
       value: [],
     })
-    vi.spyOn(promptBookTitleModule, 'promptBookTitle').mockReturnValue('New')
     const create = vi.spyOn(projectSession, 'createBookInLibrary')
     create.mockResolvedValue({
       ok: true,
-      value: makeBook({ id: 'new-1', title: 'New', gallery: [] }),
+      value: makeBook({
+        id: 'new-1',
+        title: 'New',
+        gallery: [],
+        settings: {
+          bleedMm: 3,
+          safeMarginMm: 5,
+          trim: { widthMm: 148, heightMm: 210 },
+        },
+      }),
     })
     render(<LibraryScreen />)
     await waitFor(() => {
-      expect(screen.getByTestId('create-book')).toBeTruthy()
+      expect(screen.getByTestId('new-book')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByTestId('new-book'))
+    await waitFor(() => {
+      expect(screen.getByTestId('create-book-dialog')).toBeTruthy()
+    })
+    fireEvent.change(screen.getByTestId('create-title'), {
+      target: { value: 'New' },
     })
     fireEvent.click(screen.getByTestId('create-book'))
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith('New')
+      expect(create).toHaveBeenCalledWith('New', {
+        trim: { widthMm: 148, heightMm: 210 },
+      })
     })
   })
 
-  it('create-book cancel does not create', async () => {
+  it('create dialog cancel does not create', async () => {
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)
     await leaveEditorForLibrary()
@@ -243,15 +269,18 @@ describe('LibraryScreen', () => {
       ok: true,
       value: [],
     })
-    vi.spyOn(promptBookTitleModule, 'promptBookTitle').mockReturnValue(null)
     const create = vi.spyOn(projectSession, 'createBookInLibrary')
     render(<LibraryScreen />)
     await waitFor(() => {
-      expect(screen.getByTestId('create-book')).toBeTruthy()
+      expect(screen.getByTestId('new-book')).toBeTruthy()
     })
-    fireEvent.click(screen.getByTestId('create-book'))
+    fireEvent.click(screen.getByTestId('new-book'))
     await waitFor(() => {
-      expect(promptBookTitleModule.promptBookTitle).toHaveBeenCalled()
+      expect(screen.getByTestId('create-book-dialog')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByText('Cancel'))
+    await waitFor(() => {
+      expect(screen.queryByTestId('create-book-dialog')).toBeNull()
     })
     expect(create).not.toHaveBeenCalled()
   })
@@ -341,13 +370,108 @@ describe('LibraryScreen', () => {
         change.getAttribute('aria-disabled') ??
         change.getAttribute('disabled'),
     ).toBeTruthy()
-    const newOrCreate =
-      screen.queryByTestId('new-book') ?? screen.getByTestId('create-book')
+    const newBook = screen.getByTestId('new-book')
     expect(
-      newOrCreate.getAttribute('data-disabled') ??
-        newOrCreate.getAttribute('aria-disabled') ??
-        newOrCreate.getAttribute('disabled'),
+      newBook.getAttribute('data-disabled') ??
+        newBook.getAttribute('aria-disabled') ??
+        newBook.getAttribute('disabled'),
     ).toBeTruthy()
+  })
+
+  it('shows singular and plural book counts', async () => {
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    await leaveEditorForLibrary()
+    setSurfaceForTests('library')
+    vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
+      ok: true,
+      value: [{ id: 'b1', title: 'One' }],
+    })
+    const one = render(<LibraryScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('book-count').textContent).toBe('1 book')
+    })
+    one.unmount()
+
+    vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
+      ok: true,
+      value: [
+        { id: 'b1', title: 'One' },
+        { id: 'b2', title: 'Two' },
+      ],
+    })
+    render(<LibraryScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('book-count').textContent).toBe('2 books')
+    })
+  })
+
+  it('create dialog starts closed on empty library', async () => {
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    await leaveEditorForLibrary()
+    setSurfaceForTests('library')
+    vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
+      ok: true,
+      value: [],
+    })
+    render(<LibraryScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('library-empty')).toBeTruthy()
+    })
+    expect(screen.queryByTestId('create-book-dialog')).toBeNull()
+    expect(screen.queryByTestId('create-book')).toBeNull()
+  })
+
+  it('toolbar Create book opens dialog when books exist', async () => {
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    await leaveEditorForLibrary()
+    setSurfaceForTests('library')
+    const create = vi.spyOn(projectSession, 'createBookInLibrary')
+    create.mockResolvedValue({
+      ok: true,
+      value: makeBook({ id: 'n2', title: 'More', gallery: [] }),
+    })
+    vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
+      ok: true,
+      value: [{ id: 'b1', title: 'One' }],
+    })
+    render(<LibraryScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('library-books')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByTestId('new-book'))
+    await waitFor(() => {
+      expect(screen.getByTestId('create-book-dialog')).toBeTruthy()
+    })
+    const confirm = screen.getByTestId('create-book')
+    expect(
+      confirm.getAttribute('data-disabled') ??
+        confirm.getAttribute('aria-disabled'),
+    ).toBeFalsy()
+    fireEvent.click(confirm)
+    await waitFor(() => {
+      expect(create).toHaveBeenCalled()
+    })
+  })
+
+  it('homeError surfaces on the library screen', async () => {
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    await leaveEditorForLibrary()
+    setSurfaceForTests('library')
+    vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
+      ok: true,
+      value: [],
+    })
+    patchProjectSessionSnapshotForTests({ homeError: 'Could not change' })
+    render(<LibraryScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('library-error').textContent).toMatch(
+        /Could not change/,
+      )
+    })
   })
 })
 

@@ -719,7 +719,15 @@ function scheduleBackground(task: () => Promise<void>): void {
   void Promise.resolve().then(task)
 }
 
-function createEmptyLibraryBook(id: string, title?: string): Book {
+export interface CreateBookInLibraryOptions {
+  trim?: { widthMm: number; heightMm: number }
+}
+
+function createEmptyLibraryBook(
+  id: string,
+  title?: string,
+  trim?: { widthMm: number; heightMm: number },
+): Book {
   const empty: Book = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     id,
@@ -727,7 +735,10 @@ function createEmptyLibraryBook(id: string, title?: string): Book {
     settings: {
       bleedMm: 3,
       safeMarginMm: 5,
-      trim: { widthMm: 300, heightMm: 300 },
+      trim: {
+        widthMm: trim?.widthMm ?? 300,
+        heightMm: trim?.heightMm ?? 300,
+      },
     },
     layoutGrid: {
       columns: 2,
@@ -979,6 +990,7 @@ export async function adoptCurrentBookInLibrary(): Promise<
 
 export async function createBookInLibrary(
   title?: string,
+  options?: CreateBookInLibraryOptions,
 ): Promise<StorageResult<Book>> {
   if (!storage || !libraryId) {
     const failure = { ok: false as const, code: 'not-found' as const }
@@ -988,7 +1000,7 @@ export async function createBookInLibrary(
   const id = nowId()
   const normalized =
     title === undefined ? undefined : normalizeBookTitleInput(title)
-  const book = createEmptyLibraryBook(id, normalized)
+  const book = createEmptyLibraryBook(id, normalized, options?.trim)
   const created = await storage.createBook(book)
   if (!created.ok) {
     setStatus({ kind: 'error', code: created.code, action: 'create book' })

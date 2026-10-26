@@ -1,4 +1,4 @@
-/** Welcome hero attribution — mirrors uikit PHOTO-CREDITS / kit credits.ts (c18 only). */
+/** Screen photo attribution — mirrors uikit PHOTO-CREDITS / kit credits.ts. */
 
 export interface WelcomeCredit {
   id: string
@@ -20,7 +20,17 @@ export const WELCOME_CREDITS: Record<string, WelcomeCredit> = {
     url: 'https://commons.wikimedia.org/wiki/File:D%C3%BClmen,_Leuste,_B%C3%A4ume_im_Nebel_--_2020_--_5042_(bw).jpg',
     license: 'CC BY-SA 4.0',
   },
+  c18b: {
+    id: 'c18b',
+    title: 'Dülmen, Leuste, Bäume im Nebel -- 2020 -- 5041 (bw)',
+    author: 'Dietmar Rabich',
+    url: 'https://commons.wikimedia.org/wiki/File:D%C3%BClmen,_Leuste,_B%C3%A4ume_im_Nebel_--_2020_--_5041_(bw).jpg',
+    license: 'CC BY-SA 4.0',
+  },
 }
 
 /** Public path for the welcome hero (also referenced from welcomeScreenStyles). */
 export const WELCOME_HERO_SRC = '/photos/hi/c18.jpg'
+
+/** Empty-library example cover. */
+export const LIBRARY_EXAMPLE_SRC = '/photos/hi/c18b.jpg'
