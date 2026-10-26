@@ -36,6 +36,8 @@ const config = {
   ],
   ignorePatterns: [
     '.local_dev',
+    '.claude',
+    '.cursor',
     'dist',
     'coverage',
     'reports',
