@@ -28,6 +28,11 @@ export const ICON_NAMES = [
   'bookOpen',
   'moon',
   'sun',
+  'appWindow',
+  'shieldOff',
+  'monitorSmartphone',
+  'externalLink',
+  'copy',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -199,5 +204,56 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['path', { d: 'M20 12h2' }],
     ['path', { d: 'm6.34 17.66-1.41 1.41' }],
     ['path', { d: 'm19.07 4.93-1.41 1.41' }],
+  ],
+  appWindow: [
+    ['rect', { x: '2', y: '4', width: '20', height: '16', rx: '2' }],
+    ['path', { d: 'M10 4v4' }],
+    ['path', { d: 'M2 8h20' }],
+    ['path', { d: 'M6 4v4' }],
+  ],
+  shieldOff: [
+    ['path', { d: 'm2 2 20 20' }],
+    [
+      'path',
+      {
+        d: 'M5 5a1 1 0 0 0-1 1v7c0 5 3.5 7.5 7.67 8.94a1 1 0 0 0 .67.01c2.35-.82 4.48-1.97 5.9-3.71',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M9.309 3.652A12.252 12.252 0 0 0 11.24 2.28a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1v7a9.784 9.784 0 0 1-.08 1.264',
+      },
+    ],
+  ],
+  monitorSmartphone: [
+    [
+      'path',
+      {
+        d: 'M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8',
+      },
+    ],
+    ['path', { d: 'M10 19v-3.96 3.15' }],
+    ['path', { d: 'M7 19h5' }],
+    ['rect', { width: '6', height: '10', x: '16', y: '12', rx: '2' }],
+  ],
+  externalLink: [
+    ['path', { d: 'M15 3h6v6' }],
+    ['path', { d: 'M10 14 21 3' }],
+    [
+      'path',
+      {
+        d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6',
+      },
+    ],
+  ],
+  copy: [
+    ['rect', { width: '14', height: '14', x: '8', y: '8', rx: '2', ry: '2' }],
+    [
+      'path',
+      {
+        d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2',
+      },
+    ],
   ],
 }
