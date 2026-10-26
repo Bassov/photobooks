@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.6
 Title: Port Welcome / first-run from kit v0.9.3
+Status: done
 
 ## Scope
 
@@ -14,3 +15,7 @@ Title: Port Welcome / first-run from kit v0.9.3
 - **Perf:** Welcome mount stays under frame-budget idle; no LoAF on the Create Library click path (p95 handler ≤ 2 ms before picker)
 - **Size:** ~600–1000 changed lines; prefer ≤1500
 - **Source:** Owner package D
+
+## Done note
+
+kit Welcome + FSA Create Library; PR pending
