@@ -93,7 +93,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ### 10 · Archive + PR body
 
-- Sync delta specs; `pnpm agent archive <slug>`; `pnpm roadmap done <slug>`; commit if needed.
+- Sync delta specs; `pnpm agent archive <slug>`; `pnpm roadmap done <slug> && pnpm roadmap sync` (item Status + own index tick, same PR); commit if needed.
 - Draft **final** PR body (`.github/PULL_REQUEST_TEMPLATE.md`) so stage 11 C2 is not stale.
 - **How:** `operations.archive`.
 
@@ -115,7 +115,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ## Parallel agents
 
-Claimed slug + non-overlapping touch-sets / worktrees. Do not `git merge origin/main` in preflight/finish/apply on the happy path. Behind main without conflicts is OK for PR create.
+Any open slug, out of order: `/next-roadmap-item <slug>` (preflight `--slug`). Claimed slug + non-overlapping touch-sets / worktrees. Index tick conflicts: skill `roadmap` (Close). Do not `git merge origin/main` in preflight/finish/apply on the happy path. Behind main without conflicts is OK for PR create.
 
 ## Harnesses
 

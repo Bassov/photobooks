@@ -88,5 +88,5 @@ operations:
       - NEVER skip-sync when delta specs exist.
       - If sync is blocked or verification fails, STOP — do not archive until fixed.
       - 'If there are no delta specs, archive may proceed; note "No delta specs".'
-      - 'Use `pnpm agent archive <slug>` (native; no openspec CLI), then `pnpm roadmap done <slug>` (`--note` when scope differs; contingency not-needed note required).'
+      - 'Use `pnpm agent archive <slug>` (native; no openspec CLI), then `pnpm roadmap done <slug>` (`--note` when scope differs; contingency not-needed note required) and `pnpm roadmap sync` (own index tick in the same PR).'
       - Summarize what merged into specs/ in a few bullets.
