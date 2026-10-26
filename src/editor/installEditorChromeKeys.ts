@@ -6,7 +6,7 @@ import {
   toggleEditorPanel,
   type EditorPanels,
 } from './editorChromePanels'
-import { isTypingTarget } from './isTypingTarget'
+import { isTypingTarget, shouldDeferChromeSpacePan } from './isTypingTarget'
 
 export function installEditorChromeKeys(options: {
   getPanels: () => EditorPanels
@@ -17,7 +17,7 @@ export function installEditorChromeKeys(options: {
   let spaceDown = false
 
   const onSpace = (e: KeyboardEvent) => {
-    if (!isSpacePanCode(e.code) || isTypingTarget(e.target)) return
+    if (!isSpacePanCode(e.code) || shouldDeferChromeSpacePan(e.target)) return
     if (e.type === 'keydown') {
       e.preventDefault()
       e.stopPropagation()

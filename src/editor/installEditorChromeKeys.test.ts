@@ -44,11 +44,8 @@ describe('installEditorChromeKeys', () => {
     expect(setPanels).toHaveBeenCalledWith({ l: false, b: false, r: false })
   })
 
-  it('arms and clears Space pan; ignores typing targets', () => {
+  it('arms and clears Space pan; ignores typing and filmstrip targets', () => {
     const { setPanels, setSpaceDown } = mount()
-    const input = document.createElement('input')
-    input.type = 'text'
-    document.body.appendChild(input)
     window.dispatchEvent(
       new KeyboardEvent('keydown', {
         code: 'Space',
@@ -76,7 +73,26 @@ describe('installEditorChromeKeys', () => {
     setPanels.mockClear()
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '[' }))
     expect(setPanels).not.toHaveBeenCalled()
-    input.remove()
+    window.dispatchEvent(
+      new KeyboardEvent('keyup', { code: 'Space', key: ' ' }),
+    )
+    setSpaceDown.mockClear()
+
+    const film = document.createElement('div')
+    film.dataset.testid = 'filmstrip'
+    const tile = document.createElement('div')
+    tile.setAttribute('role', 'option')
+    film.appendChild(tile)
+    document.body.appendChild(film)
+    tile.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        code: 'Space',
+        key: ' ',
+        bubbles: true,
+      }),
+    )
+    expect(setSpaceDown).not.toHaveBeenCalled()
+    film.remove()
   })
 
   it('ignores panel keys with alt / plain letters', () => {

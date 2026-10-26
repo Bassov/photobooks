@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isTypingTarget } from './isTypingTarget'
+import { isTypingTarget, shouldDeferChromeSpacePan } from './isTypingTarget'
 
 describe('isTypingTarget', () => {
   it('detects text inputs, textarea, and contenteditable', () => {
@@ -25,5 +25,20 @@ describe('isTypingTarget', () => {
 
     const div = document.createElement('div')
     expect(isTypingTarget(div)).toBe(false)
+  })
+
+  it('defers chrome Space pan for filmstrip and activatable controls', () => {
+    expect(shouldDeferChromeSpacePan(null)).toBe(false)
+    const text = document.createElement('input')
+    text.type = 'text'
+    expect(shouldDeferChromeSpacePan(text)).toBe(true)
+    const film = document.createElement('div')
+    film.dataset.testid = 'filmstrip'
+    const tile = document.createElement('div')
+    film.appendChild(tile)
+    expect(shouldDeferChromeSpacePan(tile)).toBe(true)
+    const btn = document.createElement('button')
+    expect(shouldDeferChromeSpacePan(btn)).toBe(true)
+    expect(shouldDeferChromeSpacePan(document.createElement('div'))).toBe(false)
   })
 })

@@ -53,7 +53,7 @@ export function EditorFrame({
       data-testid="editor-shell"
     >
       <div
-        className="relative flex h-full min-h-0 flex-col"
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
         data-testid="editor"
       >
         {top}
