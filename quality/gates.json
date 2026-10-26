@@ -312,6 +312,41 @@
         "maxChars": 1061
       },
       {
+        "path": "CLAUDE.md",
+        "maxLines": 18,
+        "maxChars": 900
+      },
+      {
+        "path": ".claude/agents/manual-qa.md",
+        "maxLines": 12,
+        "maxChars": 450
+      },
+      {
+        "path": ".claude/agents/openspec-implementation-reviewer.md",
+        "maxLines": 13,
+        "maxChars": 560
+      },
+      {
+        "path": ".claude/agents/openspec-planning-reviewer.md",
+        "maxLines": 13,
+        "maxChars": 560
+      },
+      {
+        "path": ".claude/commands/next-roadmap-item.md",
+        "maxLines": 10,
+        "maxChars": 260
+      },
+      {
+        "path": ".claude/rules/data-model.md",
+        "maxLines": 8,
+        "maxChars": 120
+      },
+      {
+        "path": ".claude/rules/design.md",
+        "maxLines": 8,
+        "maxChars": 120
+      },
+      {
         "path": "AGENTS.md",
         "maxLines": 81,
         "maxChars": 6094

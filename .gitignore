@@ -65,3 +65,8 @@ docs/roadmap/archive/
 
 # OpenSpec change working dirs are removed on archive; do not keep archive/ in-tree
 openspec/changes/archive/
+
+# Headless agent launcher files (orchestrator)
+.fix-task.md
+.fix-agent.*
+.claude/settings.local.json
