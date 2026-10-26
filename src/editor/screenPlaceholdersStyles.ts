@@ -1,4 +1,4 @@
-/** Placeholder screen layout (library / unsupported). Welcome uses WelcomeScreen.css. */
+/** Placeholder screen layout (library / unsupported). Welcome uses welcomeScreenStyles.ts. */
 
 const STYLE_TEXT = `
 .pb-screen {

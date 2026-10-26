@@ -22,5 +22,5 @@ export const WELCOME_CREDITS: Record<string, WelcomeCredit> = {
   },
 }
 
-/** Public path for the welcome hero (also referenced from WelcomeScreen.css). */
+/** Public path for the welcome hero (also referenced from welcomeScreenStyles). */
 export const WELCOME_HERO_SRC = '/photos/hi/c18.jpg'
