@@ -32,18 +32,24 @@ const STYLE_TEXT = `
 }
 .pb-library-headline {
   font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
   font-size: clamp(44px, 4vw, 64px);
   line-height: 0.98;
   letter-spacing: -0.035em;
 }
 .pb-library-heading {
   font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
   font-size: var(--text-display);
   line-height: 1;
   letter-spacing: -0.025em;
 }
 .pb-book-object-title {
   font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+}
+.pb-book-object-title em {
+  font-style: italic;
 }
 .pb-lib-quiet {
   height: calc(var(--spacing) * 9);

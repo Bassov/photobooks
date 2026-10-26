@@ -21,6 +21,11 @@ describe('BookTile', () => {
     const onOpen = vi.fn()
     render(<BookTile book={book} H={236} onOpen={onOpen} />)
     expect(screen.getByTestId('book-meta').textContent).toBe('6 pages')
+    expect(screen.getByTestId('book-object-spine')).toBeTruthy()
+    expect(screen.getByTestId('book-object-pages')).toBeTruthy()
+    expect(
+      screen.getByTestId('book-object-ink').querySelector('em')?.textContent,
+    ).toBe('Fog')
     expect(
       screen.getByTestId('book-cover-stage').getAttribute('data-stage-height'),
     ).toBe('248')
@@ -31,6 +36,16 @@ describe('BookTile', () => {
     ).toBeGreaterThan(0)
     fireEvent.click(screen.getByTestId('library-book-b1'))
     expect(onOpen).toHaveBeenCalled()
+  })
+
+  it('includes edited meta when editedAtMs is present', () => {
+    const now = Date.UTC(2026, 9, 26, 12, 0, 0)
+    render(
+      <BookTile book={{ ...book, editedAtMs: now - 3_600_000 }} nowMs={now} />,
+    )
+    expect(screen.getByTestId('book-meta').textContent).toBe(
+      '6 pages · edited 1 hour ago',
+    )
   })
 
   it('renders custom title and menu slot', () => {

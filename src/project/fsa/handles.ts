@@ -2,6 +2,8 @@
 export interface LibraryFileHandle {
   getText: () => Promise<string>
   writeText: (text: string) => Promise<void>
+  /** UTC epoch ms of last write when the platform exposes it. */
+  getLastModifiedMs: () => Promise<number>
 }
 
 export type LibraryDirectoryEntry =
@@ -54,6 +56,9 @@ function wrapDirectory(
           const writable = await file.createWritable()
           await writable.write(text)
           await writable.close()
+        },
+        async getLastModifiedMs() {
+          return (await file.getFile()).lastModified
         },
       }
     },
