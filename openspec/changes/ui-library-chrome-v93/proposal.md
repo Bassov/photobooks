@@ -1,6 +1,6 @@
 ## Proposal
 
-Roadmap: `docs/roadmap/M2.6/ui-library-chrome-v93.md`.
+Roadmap: `docs/roadmap/M3/ui-library-chrome-v93.md`.
 
 ### Scope out
 

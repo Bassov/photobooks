@@ -1,7 +1,7 @@
 # ui-library-chrome-v93
 
 Tag: feature
-Milestone: M2.6
+Milestone: M3
 Title: Kit v0.9.3 library chrome + book covers
 
 ## Scope

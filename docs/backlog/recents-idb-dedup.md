@@ -22,3 +22,7 @@ Block site storage (or stub IDB), open home — readable error + retry, focus st
 ## Perf
 
 No new interaction; existing gates stay green.
+
+## Reason
+
+Owner 2026-10-27: blocked/failed IndexedDB and duplicate folder handles are edge cases for personal use; product first (editor, then the personal site).

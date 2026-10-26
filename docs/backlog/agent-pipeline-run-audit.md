@@ -19,3 +19,4 @@ Title: Check one /next-roadmap-item run against the #77 and #79 targets
 - **Done when:** one checked run is recorded in the PR with the call and token numbers against every #77 / #79 target (and the stage-loop bullets above), each missed target has a reason or a next checkbox, and #77 / #79 are closed or carry a link to that record.
 - **Size:** ~200 changed lines (target ~1000, max 1500 incl. tests)
 - **Source:** #77 Done when 3, #79 Done when 2; agent-loop stages redesign
+- **Reason:** owner 2026-10-27: product first (finish the editor on the kit v0.9.3 chrome, then the personal site); quality-gate and audit work waits until the owner re-adds it.

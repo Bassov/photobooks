@@ -22,27 +22,27 @@ Vite + React 19 + TypeScript. Product/toolchain conventions: `.cursor/rules/over
 | Shared helpers       | `src/lib/`                             | —                                                |
 | Preview hosting      | `wrangler.jsonc`, deploy scripts       | `openspec/specs/preview-hosting/`                |
 | CI quality gates     | `.github/`, `ts-rig-*` (rig package)   | `quality/gates.json` (see `ci-gates/` pointer)   |
-| Agent pipeline       | `.cursor/`, `@albasov/ts-agent-rig`    | `docs/agent-loop.md` (see `agent-context/`)      |
+| Agent pipeline       | `.cursor/`, `.claude/`, `ts-agent-rig` | `docs/agent-loop.md` (see `agent-context/`)      |
 | Design language      | `docs/design.md` + kit `/uikit/`       | — (`UI ref: uikit#/feature/<slug>`)              |
 
 New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capability>/`.
 
 ## Commands (reference)
 
-| Command                       | Use                                                                       |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `/next-roadmap-item`          | one roadmap item end to end (unattended)                                  |
-| `pnpm roadmap`                | `next` / `show` / `add` / `done` / `check`                                |
-| `pnpm agent`                  | `preflight` / `finish` / `stamp-green` / `ci-brief` / `archive` / `stats` |
-| `pnpm check:fast` / `check`   | A: unit gates + patch-coverage (no stryker); apply loops                  |
-| `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (hand-push · CI; see agent-loop)       |
-| `pnpm verify`                 | `check:fast` + Playwright                                                 |
-| `pnpm test:e2e:changed:quiet` | B (with `stryker:diff`): changed e2e, quiet                               |
-| `pnpm perf`                   | Playwright frame-budget scenarios                                         |
-| `pnpm stryker:diff`           | B + CI mutation (not in check:fast / pre-push)                            |
-| `pnpm test:lhci`              | Lighthouse budgets                                                        |
-| `pnpm audit:ci`               | high-severity **production** dependency audit                             |
-| `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo `/uikit/`                         |
+| Command                       | Use                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------- |
+| `/next-roadmap-item`          | one roadmap item end to end (unattended)                                              |
+| `pnpm roadmap`                | `next` / `show` / `add` / `done` / `check`                                            |
+| `pnpm agent`                  | `preflight` / `finish` / `stamp-green` / `ci-wait` / `ci-brief` / `archive` / `stats` |
+| `pnpm check:fast` / `check`   | A: unit gates + patch-coverage (no stryker); apply loops                              |
+| `pnpm check:integrity`        | C1: budget / codecov-yml / roadmap (hand-push · CI; see agent-loop)                   |
+| `pnpm verify`                 | `check:fast` + Playwright                                                             |
+| `pnpm test:e2e:changed:quiet` | B (with `stryker:diff`): changed e2e, quiet                                           |
+| `pnpm perf`                   | Playwright frame-budget scenarios                                                     |
+| `pnpm stryker:diff`           | B + CI mutation (not in check:fast / pre-push)                                        |
+| `pnpm test:lhci`              | Lighthouse budgets                                                                    |
+| `pnpm audit:ci`               | high-severity **production** dependency audit                                         |
+| `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo `/uikit/`                                     |
 
 ## Skills (on demand)
 
@@ -65,11 +65,9 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
 - Execution plan: `docs/roadmap.md` + `docs/roadmap/` via `pnpm roadmap` (skill `roadmap`); process: `docs/roadmap/RULES.md`.
 
-## Toolchain / Cursor Cloud
+## Toolchain / headless agents
 
-Headless `cursor-agent -p`: project `.cursor/cli.json`; launcher must `source scripts/agent-env.sh` and start with `--trust --force` (deny still honored). Prefer preflight run card / `pnpm agent instructions` over denied raw OpenSpec reads. `pnpm agent stats <path>` exits 1 if peak context >300K or first-round input >400K.
-
-Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Always-on: `.cursor/rules/testing.mdc`, `git-finish.mdc`. Unattended: `/next-roadmap-item`.
+Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Unattended: `/next-roadmap-item`. Harness wiring (Cursor `.cursor/cli.json`; Claude Code `CLAUDE.md` + `.claude/`): `docs/agent-loop.md` `## Harnesses`. Prefer preflight run card / `pnpm agent instructions` over raw OpenSpec reads (denied headless). `pnpm agent stats <log>` exits 1 if peak context >300K or first-round input >400K.
 
 Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
 

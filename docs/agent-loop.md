@@ -9,11 +9,12 @@ How for each stage lives elsewhere (do not duplicate here):
 | Proposal / design / tasks / specs shape                  | `openspec/config.yaml` `rules.*`                                        |
 | Change-quality during implement (UI smoke, survivors, …) | `openspec/config.yaml` `operations.apply` (no stryker item in tasks.md) |
 | Spec sync / archive / roadmap done                       | `openspec/config.yaml` `operations.archive`                             |
-| Plan / impl review                                       | `.cursor/agents/openspec-*-reviewer.md`                                 |
+| Plan / impl review                                       | `.cursor/agents/openspec-*-reviewer.md` (Claude: `.claude/agents/`)     |
 | Tests                                                    | skill `write-tests`                                                     |
 | UI review                                                | skill `ui-review`                                                       |
 | Commit/PR harness precedence                             | `.cursor/rules/git-finish.mdc`                                          |
-| Unattended runner                                        | `.cursor/commands/next-roadmap-item.md`                                 |
+| Unattended runner                                        | `.cursor/commands/next-roadmap-item.md` (Claude: `.claude/commands/`)   |
+| Harness wiring                                           | `## Harnesses` below                                                    |
 
 Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict. Else record assumptions and continue.
 
@@ -92,7 +93,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ### 10 · Archive + PR body
 
-- Sync delta specs; `pnpm agent archive <slug>`; `pnpm roadmap done <slug>`; commit if needed.
+- Sync delta specs; `pnpm agent archive <slug>`; `pnpm roadmap done <slug> && pnpm roadmap sync` (item Status + own index tick, same PR); commit if needed.
 - Draft **final** PR body (`.github/PULL_REQUEST_TEMPLATE.md`) so stage 11 C2 is not stale.
 - **How:** `operations.archive`.
 
@@ -114,4 +115,15 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ## Parallel agents
 
-Claimed slug + non-overlapping touch-sets / worktrees. Do not `git merge origin/main` in preflight/finish/apply on the happy path. Behind main without conflicts is OK for PR create.
+Any open slug, out of order: `/next-roadmap-item <slug>` (preflight `--slug`). Claimed slug + non-overlapping touch-sets / worktrees. Index tick conflicts: skill `roadmap` (Close). Do not `git merge origin/main` in preflight/finish/apply on the happy path. Behind main without conflicts is OK for PR create.
+
+## Harnesses
+
+Same loop, same rules; harness files only wire it up. SoT text stays in `.cursor/`; `.claude/` holds wrappers and symlinks.
+
+| Harness     | Headless launch                                                                           | Permissions / settings                                              |
+| ----------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Cursor      | `cursor-agent -p --trust --force` after `source scripts/agent-env.sh`                     | `.cursor/cli.json`                                                  |
+| Claude Code | `claude -p --settings .claude/settings.headless.json` after `source scripts/agent-env.sh` | `.claude/settings.json` (shared) + `.claude/settings.headless.json` |
+
+Claude Code entry: `CLAUDE.md` (imports `AGENTS.md` + always-on rules). Token stats: `pnpm agent stats <log>` reads `--output-format stream-json --verbose` logs.
