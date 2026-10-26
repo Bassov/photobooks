@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: Kit v0.9.3 library chrome + book covers
+Status: done
 
 ## Scope
 
