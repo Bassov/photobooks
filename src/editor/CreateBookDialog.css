@@ -1,0 +1,24 @@
+/* Kit v0.9.3 create-book panel: centered by the overlay, no outer padding
+   (unlayered .pb-dialog padding would beat Tailwind utilities), footer always in view. */
+.pb-dialog.pb-create-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(460px, calc(100vw - 2rem));
+  max-width: 460px;
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  border: 0;
+}
+
+.pb-create-dialog .pb-create-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pb-create-dialog .pb-create-footer {
+  flex: none;
+}
+
+.pb-create-dialog .pb-create-field {
+  border: 1px solid var(--field);
+}
