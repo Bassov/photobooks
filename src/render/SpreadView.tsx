@@ -25,6 +25,18 @@ import './SpreadView.css'
 
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
 
+/** Kit selection handles: corners + edge midpoints, % of the frame. */
+const HANDLE_POINTS = [
+  ['0%', '0%'],
+  ['50%', '0%'],
+  ['100%', '0%'],
+  ['0%', '50%'],
+  ['100%', '50%'],
+  ['0%', '100%'],
+  ['50%', '100%'],
+  ['100%', '100%'],
+] as const
+
 export function SpreadView({
   spreadId,
   resolved,
@@ -188,6 +200,21 @@ function SpreadFrame({
       onClick={control.onActivate}
     >
       {body}
+      {control.pressed === true ? (
+        <span
+          className="spread-frame-handles"
+          data-testid="spread-frame-handles"
+          aria-hidden
+        >
+          {HANDLE_POINTS.map(([x, y]) => (
+            <span
+              key={`${x}-${y}`}
+              className="spread-frame-handle"
+              style={{ left: x, top: y }}
+            />
+          ))}
+        </span>
+      ) : null}
     </button>
   )
 }

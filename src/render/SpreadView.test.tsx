@@ -308,6 +308,7 @@ describe('SpreadView', () => {
     expect(
       document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
     ).toBe('false')
+    expect(screen.queryByTestId('spread-frame-handles')).toBeNull()
     unmount()
 
     render(
@@ -332,5 +333,20 @@ describe('SpreadView', () => {
     expect(selected.getAttribute('aria-pressed')).toBe('true')
     // Ring is CSS ::after inset box-shadow (not inline outline under the photo).
     expect(selected.style.outline).toBe('')
+    expect(screen.getAllByTestId('spread-frame-handles')).toHaveLength(1)
+    const handles = [
+      ...selected.querySelectorAll<HTMLElement>('.spread-frame-handle'),
+    ]
+    expect(handles).toHaveLength(8)
+    expect(handles.map((h) => `${h.style.left} ${h.style.top}`)).toEqual([
+      '0% 0%',
+      '50% 0%',
+      '100% 0%',
+      '0% 50%',
+      '100% 50%',
+      '0% 100%',
+      '50% 100%',
+      '100% 100%',
+    ])
   })
 })

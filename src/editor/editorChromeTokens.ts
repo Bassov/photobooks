@@ -54,7 +54,7 @@ export const EDITOR_CHROME_CSS = `
 .editor-panel-r[data-open='true'] { width: 300px }
 .editor-inspector { width: 300px; background: var(--chrome) }
 .editor-panel-b[data-open='false'] { height: 0 }
-.editor-canvas-inner { background: var(--canvas) }
+.editor-canvas-inner { background: transparent }
 .editor-dock { background: var(--chrome) }
 .editor-dock-meta { color: var(--muted-foreground) }
 .editor-inspector-stub__title { color: var(--muted-foreground) }
