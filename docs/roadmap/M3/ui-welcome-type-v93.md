@@ -1,7 +1,7 @@
 # ui-welcome-type-v93
 
 Tag: feature
-Milestone: M2.6
+Milestone: M3
 Title: Welcome Lora italic + weight 400 vs kit
 
 ## Scope

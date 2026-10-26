@@ -2,7 +2,7 @@
 
 Owner picks items back into a milestone explicitly (`pnpm roadmap add` + move the file back).
 
-These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipeline/gates optimization prune of 2026-10-20. File contents are unchanged except defer notes and where links would otherwise be dead.
+These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipeline/gates optimization prune of 2026-10-20, and **M2.1** / **M2.2** in the product-first prune of 2026-10-27. File contents are unchanged except defer notes and where links would otherwise be dead.
 
 | Slug                                                          | Title                                                                             | Original milestone | Source                          |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------ | ------------------------------- |
@@ -34,3 +34,9 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipel
 | [`no-untested-branches`](no-untested-branches.md)             | unreachable code is deleted, not defended (dead/defensive code finding)           | M2.1               | pipeline-gates opt §3.1         |
 | [`diff-size-check`](diff-size-check.md)                       | size limit on an item's initial scope; review fixes warn only (issue #72 H)       | M2.1               | pipeline-gates opt §3.2         |
 | [`pr-body-check`](pr-body-check.md)                           | machine-checked PR body: verdicts, dispositions, scenarios (issue #72 G)          | M2.1               | pipeline-gates opt §3.2         |
+| [`codecov-validate-timeout`](codecov-validate-timeout.md)     | AbortSignal.timeout for Codecov YAML validate fetch                               | M2.1               | CI run 39250896481              |
+| [`mutation-reinclude-small`](mutation-reinclude-small.md)     | mutate the small files that already have tests (issue #72 B)                      | M2.1               | #72 B                           |
+| [`mutation-reinclude-camera`](mutation-reinclude-camera.md)   | mutate `usePasteboardCamera.ts` again (issue #72 B)                               | M2.1               | #72 B                           |
+| [`project-session-mutation`](project-session-mutation.md)     | mutate what is left of `projectSession.ts` (issue #72 B)                          | M2.1               | #72 B                           |
+| [`agent-pipeline-run-audit`](agent-pipeline-run-audit.md)     | Check one /next-roadmap-item run against the #77 and #79 targets                  | M2.1               | #77, #79                        |
+| [`recents-idb-dedup`](recents-idb-dedup.md)                   | session IDB typed faults, recents isSameEntry dedup, eviction cleanup             | M2.2               | —                               |

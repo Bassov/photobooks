@@ -1,6 +1,6 @@
 ## Proposal
 
-Roadmap: `docs/roadmap/M2.6/ui-welcome-type-v93.md` (scope / Done when / Browser / Perf SoT). UI ref: `uikit#/screen/first-run`.
+Roadmap: `docs/roadmap/M3/ui-welcome-type-v93.md` (scope / Done when / Browser / Perf SoT). UI ref: `uikit#/screen/first-run`.
 
 ### Scope out
 

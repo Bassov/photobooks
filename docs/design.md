@@ -2,7 +2,7 @@
 
 Source of truth for product UI. Live specimens: UI kit **v0.9.3** at `/uikit/` — screens (`UI ref: uikit#/screen/<id>`), full demos (`uikit#/full/<id>`), end-to-end (`uikit#/demo`), and feature pages (`uikit#/feature/<slug>`). When this doc and the current `src/` chrome disagree, **the kit wins**; gaps are listed in [Migration audit](#migration-audit).
 
-Agents: use tokens and primitives named here. New tokens or primitives are added to this file in the same change. Cursor rule: `.cursor/rules/design.mdc`. Skill gate: `ui-review`.
+Agents: use tokens and primitives named here. New tokens or primitives are added to this file in the same change. Rule: `.cursor/rules/design.mdc` (Claude: `.claude/rules/design.md`). Skill gate: `ui-review`.
 
 ## Principles
 

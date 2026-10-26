@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "deny": [
+      "WebSearch",
+      "WebFetch",
+      "TodoWrite",
+      "NotebookEdit",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "ScheduleWakeup",
+      "EnterWorktree",
+      "ExitWorktree",
+      "SendMessage",
+      "ListAgents",
+      "Workflow",
+      "ReportFindings",
+      "Read(openspec/config.yaml)",
+      "Read(openspec/changes/archive/**)"
+    ]
+  }
+}

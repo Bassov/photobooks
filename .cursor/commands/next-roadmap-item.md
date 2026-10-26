@@ -2,10 +2,11 @@
 
 Run ONE roadmap item end to end. Optional `/next-roadmap-item <slug>` →
 preflight `--slug <slug>`. Without slug: bare `roadmap next` + claimed set.
-This message authorizes plan → apply → manual → archive → PR (no CI watch).
+This message authorizes plan → apply → manual → archive → PR → CI fix loop.
 
 **SoT:** execute [`docs/agent-loop.md`](../../docs/agent-loop.md) stages 0–13.
-Artifact how: `openspec/config.yaml`. Reviewers: `.cursor/agents`. Roadmap:
+Artifact how: `openspec/config.yaml`. Reviewers: `.cursor/agents` (Claude:
+subagents of the same name). Roadmap:
 skill `roadmap`. Finish precedence: `.cursor/rules/git-finish.mdc`.
 
 Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`.
@@ -31,11 +32,12 @@ OpenSpec artifact; validate once per stage.
    same failure on unmodified `origin/main`; else `pnpm roadmap add … --after`
    or a bug issue — filing never greens a red PR. Code after review → re-run
    implementation reviewer on the delta.
-3. Stop after PR URL — no `gh pr checks --watch`. CI red: `pnpm agent ci-brief`.
+3. After the PR URL: `pnpm agent ci-wait` (stages 12–13). CI red:
+   `pnpm agent ci-brief` → fix → push → `ci-wait`. Never `gh pr checks --watch`.
 
 Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict.
 Security-tagged: Security Review before archive. Gate-config edits must be
 stricter and touch-set listed. New/changed deps need `pnpm audit:ci` + Security
 Review until dependency-policy is re-added. Else record assumptions and continue.
-Final reply in Russian: item, PR URL, check status (not watched), reviewer
+Final reply in Russian: item, PR URL, required-check status, reviewer
 verdicts, skipped survivors, assumptions.
