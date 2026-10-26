@@ -9,6 +9,18 @@
     "deny": [
       "WebSearch",
       "WebFetch",
+      "TodoWrite",
+      "NotebookEdit",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "ScheduleWakeup",
+      "EnterWorktree",
+      "ExitWorktree",
+      "SendMessage",
+      "ListAgents",
+      "Workflow",
+      "ReportFindings",
       "Read(openspec/config.yaml)",
       "Read(openspec/changes/archive/**)"
     ]
