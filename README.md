@@ -55,7 +55,7 @@ Lefthook: pre-commit lint/format on staged files; pre-push is `ts-rig-ci hook-pr
 
 - Loop SoT: [`docs/agent-loop.md`](docs/agent-loop.md) (stages, A/B/C, stamp, thin finish)
 - Artifact config: `openspec/config.yaml` (proposal/design/tasks shape + change-quality rules)
-- Cursor skills/commands under `.cursor/`; reviewers under `.cursor/agents/`
+- Skills/commands/reviewers: SoT under `.cursor/` (`skills/`, `commands/`, `agents/`); Claude Code wrappers in `CLAUDE.md` + `.claude/` (harnesses: `docs/agent-loop.md`)
 - Unattended: `/next-roadmap-item` (executes the loop SoT)
 
 ## CI

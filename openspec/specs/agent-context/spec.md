@@ -1,6 +1,6 @@
 # agent-context (architecture pointer)
 
-Agent / OpenSpec pipeline **behavior is owned by the harness package and Cursor config**, not this file.
+Agent / OpenSpec pipeline **behavior is owned by the harness package and agent config (`.cursor/`, `.claude/`)**, not this file.
 
 | Concern                                                 | Source of truth                           |
 | ------------------------------------------------------- | ----------------------------------------- |
@@ -12,6 +12,7 @@ Agent / OpenSpec pipeline **behavior is owned by the harness package and Cursor 
 | Verify / flake pointer                                  | `.cursor/rules/testing.mdc`               |
 | Unattended runner                                       | `.cursor/commands/next-roadmap-item.md`   |
 | Reviewers                                               | `.cursor/agents/openspec-*-reviewer.md`   |
+| Claude Code wiring                                      | `CLAUDE.md`, `.claude/` (wrappers only)   |
 | Rule-file budgets                                       | `quality/gates.json` `agentRules.budgets` |
 
-Changes to `.cursor/**` or agent harness pins: set `skip_specs: true` — do not grow Gherkin mirrors here.
+Changes to `.cursor/**`, `.claude/**`, `CLAUDE.md` or agent harness pins: set `skip_specs: true` — do not grow Gherkin mirrors here.

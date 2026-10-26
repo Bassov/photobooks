@@ -22,11 +22,11 @@ context: |
   - NEVER weaken a quality gate. Only budgeted `// Stryker disable next-line …: <reason>` within mutation.disableBudget
   - Necessary minimum (artifacts + prod code): reuse ladder exists → codebase → platform → installed dep → new code. Tests are exempt
   - UI in scope: tokens/primitives from docs/design.md (add new ones in the same change); evidenced browser smoke + skill `ui-review` before push/archive
-  - Scripts/CI/.cursor-only changes: always `skip_specs: true` (no product-spec deltas)
+  - Scripts/CI/.cursor/.claude-only changes: always `skip_specs: true` (no product-spec deltas)
 
   Doc budget:
   - Artifact mandates (rules + operations) live in this file. Loop orchestration lives only in `docs/agent-loop.md`. Do not duplicate either in AGENTS.md or alwaysApply Cursor rules.
-  - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI behavior: @albasov/ts-agent-rig, quality/gates.json, .cursor/ — not openspec/specs prose mirrors.
+  - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI behavior: @albasov/ts-agent-rig, quality/gates.json, .cursor/, .claude/ — not openspec/specs prose mirrors.
   - Durable docs: docs/agent-loop.md; docs/design.md; docs/future-architecture.md; docs/roadmap.md + docs/roadmap/ via `pnpm roadmap` (skill `roadmap`)
 
   Security surface (tag changes that touch these):
