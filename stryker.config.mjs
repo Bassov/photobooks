@@ -36,6 +36,8 @@ const config = {
   ],
   ignorePatterns: [
     '.local_dev',
+    // Harness symlinks (dirs) break Stryker's sandbox copyfile (EISDIR).
+    '.claude',
     'dist',
     'coverage',
     'reports',
