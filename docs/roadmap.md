@@ -58,6 +58,7 @@ Notes: [INTRO.md](roadmap/M2.6/INTRO.md)
 - [ ] [feature] [ui-settings-stub-v93](roadmap/M2.6/ui-settings-stub-v93.md) — Port Settings stub from kit v0.9.3
 - [ ] [feature] [ui-editor-shell-v93](roadmap/M2.6/ui-editor-shell-v93.md) — Port editor shell chrome from kit v0.9.3
 - [ ] [feature] [ui-editor-parity-v93](roadmap/M2.6/ui-editor-parity-v93.md) — Editor v0.9 hard-no parity with kit
+- [ ] [feature] [ui-welcome-type-v93](roadmap/M2.6/ui-welcome-type-v93.md) — Welcome Lora italic + weight 400 vs kit
 
 ## M3 — Building a real book
 
