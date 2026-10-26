@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Dialog, DialogTitle } from '../ui/Dialog'
 import { SegmentedControl } from '../ui/SegmentedControl'
-import './CreateBookDialog.css'
 import { acceptPositiveCm, createBookFormDefaults } from './createBookForm'
 import {
   clampCustomCm,
