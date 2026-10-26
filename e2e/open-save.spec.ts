@@ -11,6 +11,7 @@ import {
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
 import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
+import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
@@ -134,14 +135,8 @@ test('session import then attach library saves without New book; reload hydrates
     timeout: 30_000,
   })
 
-  const first = page.getByTestId('filmstrip-item').nth(0)
   await page.bringToFront()
-  await first.focus()
-  await page.keyboard.press('Space')
-  await expect(first).toHaveAttribute('aria-selected', 'true')
-  const place = page.getByRole('button', { name: 'Place photo' }).first()
-  await place.focus()
-  await page.keyboard.press('Enter')
+  await dragPlaceFirstFilmstripItem(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })
@@ -308,14 +303,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
   })
 
   await page.bringToFront()
-  const first = page.getByTestId('filmstrip-item').nth(0)
-  await first.focus()
-  await page.keyboard.press('Space')
-  await expect(first).toHaveAttribute('aria-selected', 'true')
-  const place = page.getByRole('button', { name: 'Place photo' }).first()
-  await place.focus()
-  await expect(place).toBeFocused()
-  await page.keyboard.press('Enter')
+  await dragPlaceFirstFilmstripItem(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })
@@ -456,11 +444,7 @@ test('reload mid-import restores partial gallery and continues import', async ({
   expect(countBefore).toBeGreaterThanOrEqual(4)
 
   // Place one book-used tile before reload so restore prioritizes it.
-  await page.getByTestId('filmstrip-item').first().focus()
-  await page.keyboard.press('Space')
-  const place = page.getByRole('button', { name: 'Place photo' }).first()
-  await place.focus()
-  await page.keyboard.press('Enter')
+  await dragPlaceFirstFilmstripItem(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })

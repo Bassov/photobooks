@@ -8,6 +8,10 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
+import {
+  dragPlaceFirstFilmstripItem,
+  dropAssetOnFrame,
+} from './fixtures/dropAssetOnFrame'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
@@ -50,26 +54,19 @@ test.describe('template change with photos', () => {
 
     await page.getByRole('radio', { name: '4-grid' }).click()
     const active = page.getByTestId('spread-view').first()
-    const first = page.getByTestId('filmstrip-item').nth(0)
-    const second = page.getByTestId('filmstrip-item').nth(1)
-    await first.focus()
-    await page.keyboard.press('Space')
-    await active
-      .getByRole('button', { name: 'Place photo', exact: true })
-      .nth(0)
-      .focus()
-    await page.keyboard.press('Enter')
+    await dragPlaceFirstFilmstripItem(page, 0)
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
       timeout: 30_000,
     })
 
-    await second.focus()
-    await page.keyboard.press('Space')
-    await active
-      .getByRole('button', { name: 'Place photo', exact: true })
-      .nth(0)
-      .focus()
-    await page.keyboard.press('Enter')
+    const second = page.getByTestId('filmstrip-item').nth(1)
+    const secondId = await second.getAttribute('data-asset-id')
+    expect(secondId).toBeTruthy()
+    await dropAssetOnFrame(
+      page,
+      String(secondId),
+      active.getByRole('button', { name: 'Place photo', exact: true }).first(),
+    )
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(2, {
       timeout: 30_000,
     })
@@ -95,13 +92,7 @@ test.describe('template change with photos', () => {
       timeout: 30_000,
     })
 
-    await page.getByTestId('filmstrip-item').first().focus()
-    await page.keyboard.press('Space')
-    await page
-      .getByRole('button', { name: 'Place photo', exact: true })
-      .first()
-      .focus()
-    await page.keyboard.press('Enter')
+    await dragPlaceFirstFilmstripItem(page)
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
       timeout: 30_000,
     })

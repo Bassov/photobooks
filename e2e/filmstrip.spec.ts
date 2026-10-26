@@ -29,6 +29,7 @@ import {
   queuePhotoDirectoryPicker,
   type StubPhotoFile,
 } from './fixtures/photoDirectoryPicker'
+import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import type { Page } from '@playwright/test'
 
@@ -517,14 +518,8 @@ test('imports lossy and lossless WebP; place shows rendered frame image', async 
     .toBe('2')
   await expect(page.getByTestId('import-errors')).toHaveCount(0)
 
-  const first = page.getByTestId('filmstrip-item').nth(0)
   await page.bringToFront()
-  await first.focus()
-  await page.keyboard.press('Space')
-  await expect(first).toHaveAttribute('aria-selected', 'true')
-  const place = page.getByRole('button', { name: 'Place photo' }).first()
-  await place.focus()
-  await page.keyboard.press('Enter')
+  await dragPlaceFirstFilmstripItem(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })
@@ -596,14 +591,8 @@ test('transparent PNG corners stay transparent in thumb and frame', async ({
     })
     .toBe(0)
 
-  const first = page.getByTestId('filmstrip-item').nth(0)
   await page.bringToFront()
-  await first.focus()
-  await page.keyboard.press('Space')
-  await expect(first).toHaveAttribute('aria-selected', 'true')
-  const place = page.getByRole('button', { name: 'Place photo' }).first()
-  await place.focus()
-  await page.keyboard.press('Enter')
+  await dragPlaceFirstFilmstripItem(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })

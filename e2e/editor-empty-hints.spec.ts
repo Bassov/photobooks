@@ -11,6 +11,7 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
+import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
@@ -60,15 +61,8 @@ test('placement hint appears after import and clears after first place', async (
   await expect(hint).toContainText('Drag a photo onto a frame')
   await expect(hint).toHaveAttribute('role', 'status')
 
-  const item = page.getByTestId('filmstrip-item').first()
   await page.bringToFront()
-  await item.focus()
-  await page.keyboard.press('Space')
-  await expect(item).toHaveAttribute('aria-selected', 'true')
-
-  const place = page.getByRole('button', { name: 'Place photo' }).first()
-  await place.focus()
-  await page.keyboard.press('Enter')
+  await dragPlaceFirstFilmstripItem(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })
