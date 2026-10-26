@@ -102,7 +102,6 @@ describe('frameSelection', () => {
     expect(
       frameControlLabel(
         true,
-        false,
         { spreadId: 's0', frameId: 'f' },
         { spreadId: 's1', frameId: 'f' },
       ),
@@ -120,21 +119,15 @@ describe('frameSelection', () => {
     expect(calls).toBe(1)
   })
 
-  it('names place, replace, select, swap, and move', () => {
+  it('names place, select, swap, and move — never Replace photo', () => {
     const frame = { spreadId: 's', frameId: 'f' }
     const other = { spreadId: 's', frameId: 'g' }
-    expect(frameControlLabel(false, true, null, frame)).toBe('Place photo')
-    expect(frameControlLabel(true, true, null, frame)).toBe('Replace photo')
-    expect(frameControlLabel(false, false, null, frame)).toBe('Place photo')
-    expect(frameControlLabel(true, false, null, frame)).toBe(
-      'Select photo to move',
-    )
-    expect(frameControlLabel(true, false, frame, frame)).toBe('Cancel move')
-    expect(frameControlLabel(false, false, frame, frame)).toBe('Place photo')
-    expect(frameControlLabel(true, false, frame, other)).toBe('Swap photos')
-    expect(frameControlLabel(false, false, frame, other)).toBe(
-      'Move photo here',
-    )
+    expect(frameControlLabel(false, null, frame)).toBe('Place photo')
+    expect(frameControlLabel(true, null, frame)).toBe('Select photo to move')
+    expect(frameControlLabel(true, frame, frame)).toBe('Cancel move')
+    expect(frameControlLabel(false, frame, frame)).toBe('Place photo')
+    expect(frameControlLabel(true, frame, other)).toBe('Swap photos')
+    expect(frameControlLabel(false, frame, other)).toBe('Move photo here')
   })
 
   it('clears a source whose frame disappears with the template', () => {

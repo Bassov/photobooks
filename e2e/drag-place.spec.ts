@@ -44,8 +44,8 @@ test('empty gallery has no Placed badge and activation leaves placeholders', asy
   await assertDocumentFitsViewport(page)
 })
 
-test.describe('keyboard place', () => {
-  test('keyboard place then replace keeps both photos in the filmstrip', async ({
+test.describe('filmstrip drag place', () => {
+  test('drag place then replace keeps both photos in the filmstrip', async ({
     page,
   }) => {
     test.setTimeout(120_000)
@@ -60,18 +60,66 @@ test.describe('keyboard place', () => {
 
     const first = page.getByTestId('filmstrip-item').nth(0)
     const second = page.getByTestId('filmstrip-item').nth(1)
-    await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
-      timeout: 30_000,
-    })
-    // Tier swap waits on Image.decode, which Chromium defers on background pages.
     await page.bringToFront()
-    await first.focus()
-    await page.keyboard.press('Space')
-    await expect(first).toHaveAttribute('aria-selected', 'true')
+    // Thumbs may lag placeholders; drag place only needs asset ids on items.
+    await expect
+      .poll(async () => {
+        const a = await first.getAttribute('data-asset-id')
+        const b = await second.getAttribute('data-asset-id')
+        return a !== null && b !== null && a !== '' && b !== ''
+      })
+      .toBe(true)
 
-    const place = page.getByRole('button', { name: 'Place photo' }).first()
-    await place.focus()
-    await page.keyboard.press('Enter')
+    const firstId = await first.getAttribute('data-asset-id')
+    const secondId = await second.getAttribute('data-asset-id')
+    expect(firstId).toBeTruthy()
+    expect(secondId).toBeTruthy()
+
+    const dropOnFirstFrame = async (assetId: string): Promise<void> => {
+      await page.evaluate(
+        ({ mime, id }) => {
+          const dataTransfer = new DataTransfer()
+          dataTransfer.setData(mime, id)
+          document.dispatchEvent(
+            new DragEvent('dragstart', { bubbles: true, dataTransfer }),
+          )
+          const scroll = document.querySelector(
+            '[data-testid="pasteboard-scroll"]',
+          )
+          const frame = document.querySelector<HTMLElement>(
+            '[data-testid="spread-view"] [data-frame-id]',
+          )
+          if (!(scroll instanceof HTMLElement) || frame === null) {
+            throw new Error('missing pasteboard frame')
+          }
+          const box = frame.getBoundingClientRect()
+          const point = {
+            clientX: box.left + box.width / 2,
+            clientY: box.top + box.height / 2,
+          }
+          scroll.dispatchEvent(
+            new DragEvent('dragover', {
+              bubbles: true,
+              cancelable: true,
+              dataTransfer,
+              ...point,
+            }),
+          )
+          scroll.dispatchEvent(
+            new DragEvent('drop', {
+              bubbles: true,
+              cancelable: true,
+              dataTransfer,
+              ...point,
+            }),
+          )
+          document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+        },
+        { mime: ASSET_DRAG_MIME, id: assetId },
+      )
+    }
+
+    await dropOnFirstFrame(String(firstId))
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(1, {
       timeout: 5_000,
     })
@@ -81,12 +129,11 @@ test.describe('keyboard place', () => {
     await expect(first.getByTestId('filmstrip-placed')).toBeVisible()
     await expect(second.getByTestId('filmstrip-placed')).toHaveCount(0)
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
+    await expect(
+      page.getByRole('button', { name: 'Replace photo' }),
+    ).toHaveCount(0)
 
-    await second.focus()
-    await page.keyboard.press('Space')
-    await expect(second).toHaveAttribute('aria-selected', 'true')
-    await page.getByRole('button', { name: 'Replace photo' }).focus()
-    await page.keyboard.press('Enter')
+    await dropOnFirstFrame(String(secondId))
     await expect(first.getByTestId('filmstrip-placed')).toHaveCount(0)
     await expect(second.getByTestId('filmstrip-placed')).toBeVisible()
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)

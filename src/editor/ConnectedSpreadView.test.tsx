@@ -563,30 +563,23 @@ describe('per-spread paint subscription', () => {
     )
     const renders = mountSiblingPaint(book)
 
+    // Gallery selection no longer changes frame labels (drag place/replace only).
     act(() => {
       setSelectedAssetId('a')
     })
-    expect(renders.selfCount).toBeGreaterThan(renders.selfBefore)
-    expect(renders.count).toBeGreaterThan(renders.before)
-    const selected = { self: renders.selfCount, sibling: renders.count }
+    expect(renders.selfCount).toBe(renders.selfBefore)
+    expect(renders.count).toBe(renders.before)
+    expect(screen.queryByRole('button', { name: 'Replace photo' })).toBeNull()
 
     act(() => {
       setSelectedAssetId('b')
     })
-    expect(renders.selfCount).toBe(selected.self)
-    expect(renders.count).toBe(selected.sibling)
-    expect(
-      screen.getAllByRole('button', { name: 'Replace photo' }),
-    ).toHaveLength(2)
-    expect(screen.getAllByRole('button', { name: 'Place photo' })).toHaveLength(
-      3,
-    )
+    expect(renders.selfCount).toBe(renders.selfBefore)
+    expect(renders.count).toBe(renders.before)
 
     act(() => {
       setSelectedAssetId(null)
     })
-    expect(renders.selfCount).toBeGreaterThan(selected.self)
-    expect(renders.count).toBeGreaterThan(selected.sibling)
     const cleared = renders.count
 
     act(() => {

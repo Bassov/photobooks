@@ -265,68 +265,42 @@ describe('dropTargets', () => {
     expect(isFrameDrag(null)).toBe(false)
   })
 
-  it('lets a gallery selection place or replace and ignores the frame source', () => {
-    const target = { spreadId: 's1', frameId: 'f1', filled: false }
-    expect(
-      resolveFrameActivation({
-        galleryAssetId: 'a',
-        source: { spreadId: 's0', frameId: 'f0' },
-        target,
-      }),
-    ).toEqual({ type: 'place', assetId: 'a' })
-    expect(
-      resolveFrameActivation({
-        galleryAssetId: 'a',
-        source: null,
-        target: { ...target, filled: true },
-      }),
-    ).toEqual({ type: 'replace', assetId: 'a' })
-  })
-
   it('selects a filled frame, swaps a different one, and clears the same frame', () => {
     const source = { spreadId: 's0', frameId: 'f0' }
+    const empty = { spreadId: 's1', frameId: 'f1', filled: false }
     expect(
       resolveFrameActivation({
-        galleryAssetId: null,
         source: null,
         target: { ...source, filled: true },
       }),
     ).toEqual({ type: 'select-source' })
     expect(
       resolveFrameActivation({
-        galleryAssetId: null,
         source: null,
         target: { ...source, filled: false },
       }),
     ).toEqual({ type: 'noop' })
     expect(
       resolveFrameActivation({
-        galleryAssetId: null,
         source,
         target: { spreadId: 's0', frameId: 'f1', filled: false },
       }),
     ).toEqual({ type: 'swap', source })
     expect(
       resolveFrameActivation({
-        galleryAssetId: null,
         source,
         target: { ...source, filled: true },
       }),
     ).toEqual({ type: 'clear-source' })
     expect(
       resolveFrameActivation({
-        galleryAssetId: '',
-        source: null,
-        target: { ...source, filled: true },
-      }),
-    ).toEqual({ type: 'select-source' })
-    expect(
-      resolveFrameActivation({
-        galleryAssetId: null,
         source,
         target: { spreadId: 's1', frameId: 'f0', filled: true },
       }),
     ).toEqual({ type: 'swap', source })
+    expect(resolveFrameActivation({ source: null, target: empty })).toEqual({
+      type: 'noop',
+    })
   })
 
   it('misses outside every frame and ignores a non-finite point', () => {

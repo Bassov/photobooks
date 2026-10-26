@@ -228,6 +228,8 @@
   --primary-foreground: var(--t-on-ink);
   --ring: var(--t-ink-hover);
   --select: var(--t-ink);
+  /* Tone selection fill (filmstrip / templates / spreads) — not canvas --select ink. */
+  --sel: #cacaca;
   --card-edge: rgb(0 0 0 / 0.07);
   --dot: rgb(255 255 255 / 0.55);
   --scroll-thumb-rest: #a8a8a8;

@@ -91,9 +91,20 @@
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--muted);
+  /* Kit hard-no: selection is tone-only (#CACACA), never black ring-select. */
+  box-shadow: none;
+}
+
+.filmstrip-item[aria-selected='true'] {
+  background: var(--sel);
 }
 
 .filmstrip-item[data-focused] {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.filmstrip-item[aria-selected='true'][data-focused] {
+  background: var(--sel);
   box-shadow: 0 0 0 2px var(--ring);
 }
 
@@ -114,6 +125,11 @@
   position: absolute;
   left: calc(var(--spacing) * 1.2);
   bottom: calc(var(--spacing) * 1.2);
+  /* Kit hard-no: used-photo badges are black/ink (not blue brand). */
+  --badge-fg: var(--primary-foreground);
+  --badge-bg: color-mix(in srgb, var(--primary) 72%, transparent);
+  --badge-ring: var(--primary);
+  --badge-dot: var(--primary-foreground);
 }
 
 .filmstrip-placeholder {

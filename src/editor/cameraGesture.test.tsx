@@ -220,14 +220,19 @@ describe('pasteboard camera gestures', () => {
     const indicator = screen.getByTestId('zoom-indicator')
     expect(indicator.textContent).toBe('13%')
 
+    // Kit hard-no: plain wheel zooms (Ctrl/Cmd optional).
     wheel(scroll, { deltaY: -80 })
-    expect(indicator.textContent).toBe('13%')
-
-    wheel(scroll, { deltaY: -240, ctrlKey: true })
     expect(isEditorGestureActive()).toBe(true)
     await flushGesture()
     expect(isEditorGestureActive()).toBe(false)
     expect(indicator.textContent).not.toBe('13%')
+
+    const afterPlain = indicator.textContent
+    wheel(scroll, { deltaY: -240, ctrlKey: true })
+    expect(isEditorGestureActive()).toBe(true)
+    await flushGesture()
+    expect(isEditorGestureActive()).toBe(false)
+    expect(indicator.textContent).not.toBe(afterPlain)
 
     const afterWheel = indicator.textContent
     fireEvent.keyDown(window, { key: '+', code: 'Equal' })

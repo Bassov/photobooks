@@ -19,10 +19,6 @@ import {
   subscribeSpreadFrameSource,
 } from './frameSelection'
 import {
-  getGalleryPhotoSelected,
-  subscribeGalleryPhotoSelected,
-} from './gallerySelection'
-import {
   clearSpreadTiers,
   clearStaleDisplayedPreview,
   getTierDisplaySnapshot,
@@ -67,11 +63,6 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     subscribeCommitted,
     getCommittedZoom,
     getCommittedZoom,
-  )
-  const galleryPhotoSelected = useSyncExternalStore(
-    subscribeGalleryPhotoSelected,
-    getGalleryPhotoSelected,
-    getGalleryPhotoSelected,
   )
   const frameSourceKey = useSyncExternalStore(
     (listener) => subscribeSpreadFrameSource(spreadId, listener),
@@ -169,12 +160,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         const frame = { spreadId, frameId: item.frameId }
         const pressed = isFramePressed(frameSourceKey, item.frameId)
         const control: FrameControl = {
-          label: frameControlLabel(
-            filled,
-            galleryPhotoSelected,
-            frameSource,
-            frame,
-          ),
+          label: frameControlLabel(filled, frameSource, frame),
           onActivate: () => {
             activateFrame(spreadId, item.frameId, filled)
           },

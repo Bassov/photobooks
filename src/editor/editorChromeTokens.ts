@@ -17,6 +17,10 @@ export const EDITOR_CHROME_CSS = `
 .e7-ghost:hover { background: rgb(57 55 56/.08) }
 .e7-ghost:focus-visible, .e7-item:focus-visible, .e7-title:focus-visible, .e7-canvas:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .e7-canvas[data-panning], .e7-canvas[data-panning]:focus-visible { outline: none }
+.e7-canvas[data-panning] .pasteboard-scroll { cursor: grab }
+.e7-canvas[data-panning] .pasteboard-scroll:active { cursor: grabbing }
+.e7-canvas[data-panning] button.spread-frame:focus-visible::after,
+.e7-canvas[data-panning] button.spread-frame[aria-pressed=true]:focus-visible::after { content: none; box-shadow: none }
 .e7-item { cursor: default; outline: none; transition: background-color .12s; border: 0; background: transparent; width: 100%; text-align: left }
 .e7-item:hover { background: ${FIELD} }
 .e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: ${SEL} }

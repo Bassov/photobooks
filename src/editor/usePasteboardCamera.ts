@@ -524,7 +524,9 @@ export function usePasteboardCamera({
     }
 
     const onWheel = (event: WheelEvent): void => {
-      if ((!event.ctrlKey && !event.metaKey) || pointersRef.current.size >= 2) {
+      // Kit hard-no: wheel over pasteboard always zooms to pointer (no wheel-pan).
+      // Ctrl/Cmd still accepted for trackpad pinch-emulation and existing e2e.
+      if (pointersRef.current.size >= 2) {
         return
       }
       event.preventDefault()

@@ -23,7 +23,7 @@ import {
   setEditorStatus,
 } from './editorStatus'
 import { getFrameSource, setFrameSource } from './frameSelection'
-import { getSelectedAssetId, setSelectedAssetId } from './gallerySelection'
+import { setSelectedAssetId } from './gallerySelection'
 
 function clearDropSession(): void {
   session = null
@@ -129,23 +129,9 @@ export function activateFrame(
     return
   }
   const action = resolveFrameActivation({
-    galleryAssetId: getSelectedAssetId(),
     source: getFrameSource(),
     target: { spreadId, frameId, filled },
   })
-  if (action.type === 'place' || action.type === 'replace') {
-    const book = getBookStoreSnapshot().book
-    if (!book.gallery.includes(action.assetId)) {
-      return
-    }
-    dispatchBookOp({
-      type: action.type,
-      spreadId,
-      frameId,
-      assetId: action.assetId,
-    })
-    return
-  }
   if (action.type === 'select-source') {
     setFrameSource({ spreadId, frameId })
     setEditorStatus(STATUS_SELECTED)
@@ -398,7 +384,6 @@ export function installGalleryDrop(
     const book = getBookStoreSnapshot().book
     const filled = frameFilledInBook(book, target.spreadId, target.frameId)
     const action = resolveFrameActivation({
-      galleryAssetId: null,
       source: current.source,
       target: {
         spreadId: target.spreadId,
