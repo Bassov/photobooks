@@ -27,7 +27,17 @@ describe('SettingsScreen', () => {
     expect(screen.getByTestId('library-settings-panel').className).not.toMatch(
       /border(?!-)/,
     )
-    expect(screen.getAllByTestId('settings-rule')).toHaveLength(2)
+    expect(screen.getAllByTestId('settings-rule')).toHaveLength(3)
+    expect(screen.getByTestId('settings-preview-cache')).toBeTruthy()
+    expect(
+      screen
+        .getByText('Allowed · read and write')
+        .closest('[data-color]')
+        ?.getAttribute('data-color'),
+    ).toBe('gray')
+    expect(screen.getByTestId('settings-nav-library').className).not.toMatch(
+      /\bring-/,
+    )
     expect(
       screen.getByTestId('settings-nav-library').getAttribute('aria-current'),
     ).toBe('page')
