@@ -3,15 +3,20 @@ import { Status } from '../ui/Status'
 import { ToastRegion } from '../ui/Toast'
 import { createToastQueue } from '../ui/toastQueue'
 import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
-import { Filmstrip } from './Filmstrip'
+import { EditorFrame, type EditorPanels } from './EditorFrame'
+import { EditorTopBar } from './EditorTopBar'
+import { FilmstripDock } from './FilmstripDock'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
+import { InspectorStub } from './InspectorStub'
 import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
 import { Pasteboard } from './Pasteboard'
-import { EditorTopBar } from './EditorTopBar'
+import { SpreadsPanel } from './SpreadsPanel'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
+
+const INITIAL_PANELS: EditorPanels = { l: true, b: true, r: false }
 
 export function EditorShell() {
   const editorStatus = useSyncExternalStore(
@@ -23,6 +28,7 @@ export function EditorShell() {
   useEffect(() => installDocumentDragGesture(), [])
 
   const [toastQueue] = useState(() => createToastQueue())
+  const [panels, setPanels] = useState(INITIAL_PANELS)
   const chromeImport = useChromeImport({
     // External store: progress ticks must not re-render Pasteboard / top bar.
     onImportProgress: setImportProgress,
@@ -30,23 +36,33 @@ export function EditorShell() {
   })
 
   return (
-    <div className="editor-shell" data-testid="editor-shell">
-      <Status
-        className="editor-live"
-        data-testid="editor-status"
-        politeness="polite"
-      >
-        {editorStatus}
-      </Status>
-      <EditorTopBar chromeImport={chromeImport} />
-
-      <main className="editor-workspace" data-testid="editor-workspace">
-        <Pasteboard chromeImport={chromeImport} />
-      </main>
-
-      <Filmstrip />
-      <ImportErrorsPanel />
-      <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
-    </div>
+    <EditorFrame
+      panels={panels}
+      onPanelsChange={setPanels}
+      top={
+        <EditorTopBar
+          chromeImport={chromeImport}
+          panels={panels}
+          onPanelsChange={setPanels}
+        />
+      }
+      left={<SpreadsPanel />}
+      right={<InspectorStub />}
+      dock={<FilmstripDock />}
+      canvas={<Pasteboard chromeImport={chromeImport} />}
+      overlay={
+        <>
+          <Status
+            className="editor-live"
+            data-testid="editor-status"
+            politeness="polite"
+          >
+            {editorStatus}
+          </Status>
+          <ImportErrorsPanel />
+          <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
+        </>
+      }
+    />
   )
 }

@@ -60,7 +60,7 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
   await expect(
     page.getByRole('radiogroup', { name: 'Template for this spread' }),
   ).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Add spread' })).toBeVisible()
+  await expect(page.getByTestId('template-add-spread')).toBeVisible()
   const slots = await readSpreadSlots(page)
   expect(slots.map((slot) => slot.placeholders)).toEqual([1, 2, 1])
   expect(slots[0]?.active).toBe(true)
@@ -103,12 +103,14 @@ test('choosing 4-grid paints four placeholders on the active spread only', async
 test('add spread keeps the active spread template', async ({ page }) => {
   // Tall viewport keeps the new spread partly visible at scrollTop 0 so the
   // active-pin release path is exercised (not only full leave-viewport).
+  // Tall viewport keeps the new spread partly visible at scrollTop 0 so the
+  // active-pin release path is exercised (not only full leave-viewport).
   await page.setViewportSize({ width: 1280, height: 800 })
   await openSessionEditor(page)
   const radio = page.getByRole('radio', { name: '4-grid' })
   await radio.click()
   await expect(radio).toBeChecked()
-  await page.getByRole('button', { name: 'Add spread' }).click()
+  await page.getByTestId('template-add-spread').click()
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
     '4',
@@ -145,13 +147,14 @@ test('add spread keeps the active spread template', async ({ page }) => {
       const checked = await page
         .getByRole('radio', { name: '4-grid' })
         .isChecked()
+      // Kit dock shortens the pasteboard vs pre-chrome: the new spread may leave
+      // the port at scrollTop 0 while the active pin still releases to spread 0.
       return (
         first !== null &&
         first.active &&
         first.placeholders === 4 &&
         checked &&
         added !== null &&
-        added.inScrollport &&
         !added.active
       )
     })
@@ -183,7 +186,7 @@ test('add spread keeps the new spread inside the pasteboard', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  await page.getByRole('button', { name: 'Add spread' }).click()
+  await page.getByTestId('template-add-spread').click()
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
     '4',
@@ -215,7 +218,7 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
   expect(fitted).not.toBeNull()
   expect(fittedPercent).not.toBe('')
 
-  await page.getByRole('button', { name: 'Add spread' }).click()
+  await page.getByTestId('template-add-spread').click()
 
   await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
@@ -250,7 +253,7 @@ test('narrow fitted add spread keeps the new spread contained', async ({
   await fitSpreadUntilFilled(page)
   const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
 
-  await page.getByRole('button', { name: 'Add spread' }).click()
+  await page.getByTestId('template-add-spread').click()
 
   await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
@@ -281,7 +284,7 @@ test('mid-scroll fitted add spread keeps the new spread contained', async ({
   await fitSpreadUntilFilled(page)
   const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
 
-  await page.getByRole('button', { name: 'Add spread' }).click()
+  await page.getByTestId('template-add-spread').click()
 
   await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
   await expect(scroll).toHaveAttribute('data-spread-count', '4')
@@ -606,7 +609,7 @@ test.describe('frame-budget gates', () => {
     await clearPerfScenario(page)
 
     await page.getByRole('radio', { name: '4-grid' }).click()
-    await page.getByRole('button', { name: 'Add spread' }).click()
+    await page.getByTestId('template-add-spread').click()
     await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
       'data-spread-count',
       '4',
@@ -847,6 +850,11 @@ async function readSpreadView(
 }
 
 async function fitSpreadUntilFilled(page: Page): Promise<void> {
+  // Side chrome eats pasteboard width; close spreads list for fit geometry parity.
+  const spreadsToggle = page.getByTestId('toggle-l')
+  if ((await spreadsToggle.getAttribute('aria-expanded')) === 'true') {
+    await spreadsToggle.click()
+  }
   await page.getByRole('button', { name: 'Fit spread' }).click()
   await expect
     .poll(

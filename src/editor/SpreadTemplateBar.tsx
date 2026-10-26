@@ -48,6 +48,7 @@ export const SpreadTemplateBar = memo(function SpreadTemplateBar({
       <button
         type="button"
         className="pb-button pb-button--secondary pb-button--sm spread-template-add"
+        data-testid="template-add-spread"
         onClick={onAddSpread}
         disabled={spreadId === null}
       >

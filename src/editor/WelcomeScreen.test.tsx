@@ -39,6 +39,7 @@ describe('WelcomeScreen', () => {
   it('offers Create Library with kit chrome and plain credit', () => {
     render(<WelcomeScreen />)
     expect(screen.getByTestId('welcome-screen')).toBeTruthy()
+    expect(screen.getByTestId('home-screen')).toBeTruthy()
     expect(screen.getByTestId('welcome-mark').textContent).toMatch(/Photobooks/)
     expect(
       screen.getByTestId('welcome-hero').getAttribute('data-hero-src'),
@@ -51,6 +52,13 @@ describe('WelcomeScreen', () => {
     expect(credit.textContent).toMatch(/Dietmar Rabich/)
     expect(credit.textContent).toMatch(/CC BY-SA 4\.0/)
     expect(credit.textContent).toMatch(/modified/)
+  })
+
+  it('exposes start-session harness for manual-qa entry', () => {
+    const start = vi.spyOn(projectSession, 'startSessionEditor')
+    render(<WelcomeScreen />)
+    fireEvent.click(screen.getByTestId('start-session'))
+    expect(start).toHaveBeenCalled()
   })
 
   it('calls chooseLibraryFolder from Create Library', async () => {
