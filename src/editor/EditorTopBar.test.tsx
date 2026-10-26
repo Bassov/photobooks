@@ -93,6 +93,8 @@ describe('EditorTopBar', () => {
     expect(screen.getByRole('toolbar', { name: 'Editor' })).toBeTruthy()
     const topBarChoose = screen.getByTestId('choose-photo-folder')
     expect(topBarChoose.textContent).toBe(CHOOSE_LABEL)
+    expect(topBarChoose.className).toContain('pb-button--secondary')
+    expect(topBarChoose.className).not.toContain('pb-button--default')
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
     expect(screen.queryByTestId('app-theme-toggle')).toBeNull()
     expect(screen.getByTestId('book-title')).toBeTruthy()

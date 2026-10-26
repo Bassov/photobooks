@@ -64,13 +64,11 @@ import {
 import type { ChromeImportApi } from './useChromeImport'
 
 function ChromeButton({
-  variant = 'secondary',
   size = 'sm',
   className,
   style,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'secondary'
   size?: 'sm' | 'md'
   style?: CSSProperties
 }) {
@@ -79,7 +77,7 @@ function ChromeButton({
       type="button"
       className={[
         'pb-button',
-        `pb-button--${variant}`,
+        'pb-button--secondary',
         `pb-button--${size}`,
         className,
       ]
@@ -331,11 +329,6 @@ export function EditorTopBar({
           </Status>
         ) : null}
         <ChromeButton
-          variant={
-            project.accessPhase === 'permission-required'
-              ? 'secondary'
-              : 'default'
-          }
           data-testid="choose-photo-folder"
           onClick={() => {
             void chromeImport.onChoosePhotoFolder()

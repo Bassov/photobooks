@@ -17,6 +17,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 **Review cut:** you can assemble a complete real book from your own photos without reaching for InDesign — orientation-aware templates and multi-photo drops make layout fast, the assets panel shows what is used, missing or modified — and a 1000-photo library feels instant.
 
+- [x] [feature] [ui-editor-look-v93](roadmap/M3/ui-editor-look-v93.md) — Editor look: kit canvas surround, selection-only outline, quiet header
 - [x] [feature] [ui-library-chrome-v93](roadmap/M3/ui-library-chrome-v93.md) — Kit v0.9.3 library chrome + book covers
 - [ ] [prep] [editor-command-sequence-pbt](roadmap/M3/editor-command-sequence-pbt.md) — property tests over command sequences (issue #50 item 2)
 - [ ] [feature] [document-history](roadmap/M3/document-history.md) — undo / redo
