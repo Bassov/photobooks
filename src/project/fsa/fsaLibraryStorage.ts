@@ -1,4 +1,5 @@
 import type { Book } from '../../core'
+import { bookSummaryFromBook } from '../bookSummary'
 import type {
   BookSummary,
   LibraryMeta,
@@ -129,10 +130,11 @@ export function createFsaLibraryStorage(
             continue
           }
           const loaded = await loadBookText(text)
-          summaries.push({
-            id,
-            title: loaded.ok ? (loaded.book.title ?? '') : '',
-          })
+          if (loaded.ok) {
+            summaries.push(bookSummaryFromBook(loaded.book))
+          } else {
+            summaries.push({ id, title: '' })
+          }
         }
         return success(summaries)
       })

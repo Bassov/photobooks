@@ -12,6 +12,7 @@ export {
   displayBookTitle,
   normalizeBookTitleInput,
 } from './bookTitle'
+export { bookSummaryFromBook } from './bookSummary'
 export { createMemoryLibraryStorage, type MemoryLibraryStorage } from './memory'
 export {
   createFsaLibraryStorage,

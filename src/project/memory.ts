@@ -1,4 +1,5 @@
 import { parseBook, type Book } from '../core'
+import { bookSummaryFromBook } from './bookSummary'
 import { bookTitleFromUnknown } from './bookTitle'
 import type {
   BookSummary,
@@ -80,10 +81,13 @@ export function createMemoryLibraryStorage(): MemoryLibraryStorage {
       return Promise.resolve(
         gateRead(() => {
           const summaries: BookSummary[] = [...books.entries()].map(
-            ([id, raw]) => ({
-              id,
-              title: bookTitleFromUnknown(raw),
-            }),
+            ([id, raw]) => {
+              const parsed = parseBook(raw)
+              if (!parsed.ok) {
+                return { id, title: bookTitleFromUnknown(raw) }
+              }
+              return bookSummaryFromBook(parsed.book)
+            },
           )
           return success(summaries)
         }),

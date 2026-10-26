@@ -81,7 +81,15 @@ describe('FSA library storage layout', () => {
     const listed = await storage.listBooks()
     expect(listed).toEqual({
       ok: true,
-      value: [{ id: book.id, title: book.title ?? '' }],
+      value: [
+        {
+          id: book.id,
+          title: book.title ?? '',
+          spreadCount: book.spreads.length,
+          pageWidthMm: book.settings.trim.widthMm,
+          pageHeightMm: book.settings.trim.heightMm,
+        },
+      ],
     })
 
     await storage.deleteBook(book.id)
@@ -123,7 +131,15 @@ describe('FSA library storage layout', () => {
     await storage.createBook(book)
     expect(await storage.listBooks()).toEqual({
       ok: true,
-      value: [{ id: 'named', title: 'Summer' }],
+      value: [
+        {
+          id: 'named',
+          title: 'Summer',
+          spreadCount: book.spreads.length,
+          pageWidthMm: book.settings.trim.widthMm,
+          pageHeightMm: book.settings.trim.heightMm,
+        },
+      ],
     })
   })
 
@@ -140,7 +156,15 @@ describe('FSA library storage layout', () => {
     expect(await storage.loadBook(book.id)).toEqual({ ok: true, value: book })
     expect(await storage.listBooks()).toEqual({
       ok: true,
-      value: [{ id: book.id, title: book.title ?? '' }],
+      value: [
+        {
+          id: book.id,
+          title: book.title ?? '',
+          spreadCount: book.spreads.length,
+          pageWidthMm: book.settings.trim.widthMm,
+          pageHeightMm: book.settings.trim.heightMm,
+        },
+      ],
     })
   })
 })

@@ -1,23 +1,46 @@
 import {
   useEffect,
+  useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { displayBookTitle, type BookSummary } from '../project'
+import { normalizeBookTitleInput, type BookSummary } from '../project'
+import { AlertDialog } from '../ui/AlertDialog'
 import { Button } from '../ui/Button'
 import { Dialog, DialogTitle } from '../ui/Dialog'
 import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
+import { IconButton } from '../ui/IconButton'
+import {
+  Menu,
+  MenuItem,
+  MenuPopover,
+  MenuSeparator,
+  MenuTrigger,
+} from '../ui/Menu'
 import { Status } from '../ui/Status'
+import { BookTile } from './BookTile'
 import { CreateBookDialog } from './CreateBookDialog'
+import { LibSearch } from './LibSearch'
+import { LibSort } from './LibSort'
+import {
+  filterAndSortLibraryBooks,
+  toLibraryGridBook,
+  type LibrarySortKey,
+} from './libraryBookFilter'
+import { libraryBookMenuEffect } from './libraryBookMenu'
+import { shouldSkipLibraryRename } from './libraryRename'
 import { ensureLibraryScreenStyles } from './libraryScreenStyles'
 import { LibraryBar } from './LibraryBar'
 import { LibraryEmpty } from './LibraryEmpty'
 import {
   changeLibraryFolder,
   createBookInLibrary,
+  deleteBookInLibrary,
+  duplicateBookInLibrary,
   getProjectSessionSnapshot,
   listLibraryBooks,
   openBookFromLibrary,
@@ -25,7 +48,6 @@ import {
   renameBookInLibrary,
   subscribeProjectSession,
 } from './projectSession'
-import { promptBookTitle } from './promptBookTitle'
 import { ensureScreenPlaceholderStyles } from './screenPlaceholdersStyles'
 
 ensureLibraryScreenStyles()
@@ -53,6 +75,13 @@ export function LibraryScreen() {
   const [listFailed, setListFailed] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [confirmChange, setConfirmChange] = useState(false)
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<LibrarySortKey>('edited')
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<BookSummary | null>(null)
+  const [removingTitle, setRemovingTitle] = useState('')
+  const renameCancelled = useRef(false)
 
   const busy = project.actionBusy || project.restorePending
   const folderName = project.libraryLabel ?? 'Library'
@@ -95,6 +124,15 @@ export function LibraryScreen() {
     setListFailed(false)
     setBooks(listed.value)
   }
+
+  const gridBooks = useMemo(
+    () => books.map((summary) => toLibraryGridBook(summary)),
+    [books],
+  )
+  const shown = useMemo(
+    () => filterAndSortLibraryBooks(gridBooks, query, sort),
+    [gridBooks, query, sort],
+  )
 
   if (project.restorePending) {
     return (
@@ -139,19 +177,29 @@ export function LibraryScreen() {
     )
   }
 
-  const createTools: ReactNode =
+  const barTools: ReactNode =
     books.length > 0 ? (
-      <Button
-        className="pb-lib-create-sm"
-        isDisabled={busy}
-        onPress={() => {
-          setCreateOpen(true)
-        }}
-        data-testid="new-book"
-      >
-        Create book
-      </Button>
+      <>
+        <LibSearch value={query} onChange={setQuery} />
+        <LibSort value={sort} onChange={setSort} />
+      </>
     ) : null
+
+  const commitRename = (bookId: string, nextRaw: string): void => {
+    setRenamingId(null)
+    void (async () => {
+      const next = normalizeBookTitleInput(nextRaw)
+      const current = books.find((b) => b.id === bookId)
+      if (shouldSkipLibraryRename(current?.title, next)) {
+        return
+      }
+      const renamed = await renameBookInLibrary(bookId, next)
+      if (!renamed.ok) {
+        return
+      }
+      await refreshBooks()
+    })()
+  }
 
   return (
     <main
@@ -162,9 +210,9 @@ export function LibraryScreen() {
         path={folderName}
         changeDisabled={busy}
         settingsDisabled={busy}
-        tools={createTools}
+        tools={barTools}
         onChange={() => {
-          void changeLibraryFolder()
+          setConfirmChange(true)
         }}
         onSettings={() => {
           setSettingsOpen(true)
@@ -184,6 +232,18 @@ export function LibraryScreen() {
                 </span>
               ) : null}
             </div>
+            {books.length > 0 ? (
+              <Button
+                className="pb-lib-create-sm"
+                isDisabled={busy}
+                onPress={() => {
+                  setCreateOpen(true)
+                }}
+                data-testid="new-book"
+              >
+                Create book
+              </Button>
+            ) : null}
           </div>
 
           {listFailed ? (
@@ -208,54 +268,154 @@ export function LibraryScreen() {
                 setCreateOpen(true)
               }}
             />
+          ) : shown.length === 0 ? (
+            <div
+              className="mt-20 text-center text-sm text-muted-foreground"
+              data-testid="lib-no-results"
+            >
+              No books match “{query.trim()}”.{' '}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => {
+                  setQuery('')
+                }}
+              >
+                Clear search
+              </button>
+            </div>
           ) : (
             <div
               className="pb-library-scroll min-h-0 flex-1 overflow-y-auto"
               data-testid="library-scroll"
               data-scrollport="library"
             >
-              <ul className="pb-library-list pb-12" data-testid="library-books">
-                {books.map((book) => (
-                  <li key={book.id}>
-                    <Button
-                      variant="ghost"
-                      data-testid={`library-book-${book.id}`}
-                      isDisabled={busy}
-                      onPress={() => {
+              <div
+                className="pb-library-grid pb-12"
+                data-testid="library-books"
+              >
+                {shown.map((book) => {
+                  const summary = books.find((b) => b.id === book.id)
+                  return (
+                    <BookTile
+                      key={book.id}
+                      book={book}
+                      onOpen={() => {
+                        if (busy) {
+                          return
+                        }
                         void openBookFromLibrary(book.id)
                       }}
-                    >
-                      {displayBookTitle(book.title)}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      data-testid={`library-rename-${book.id}`}
-                      isDisabled={busy}
-                      onPress={() => {
-                        void (async () => {
-                          const next = promptBookTitle(
-                            'Rename book',
-                            displayBookTitle(book.title),
-                          )
-                          if (next === null) {
-                            return
-                          }
-                          const renamed = await renameBookInLibrary(
-                            book.id,
-                            next,
-                          )
-                          if (!renamed.ok) {
-                            return
-                          }
-                          await refreshBooks()
-                        })()
-                      }}
-                    >
-                      Rename
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+                      title={
+                        renamingId === book.id ? (
+                          <input
+                            aria-label="Book title"
+                            defaultValue={book.displayTitle}
+                            autoFocus
+                            className="h-7 w-full rounded-md bg-background px-2 text-sm outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
+                            data-testid="rename-input"
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                commitRename(
+                                  book.id,
+                                  (event.target as HTMLInputElement).value,
+                                )
+                              }
+                              if (event.key === 'Escape') {
+                                renameCancelled.current = true
+                                setRenamingId(null)
+                              }
+                            }}
+                            onBlur={(event) => {
+                              // Stryker disable next-line ConditionalExpression,BlockStatement: Escape sets the flag then unmounts; blur cancel is browser-only
+                              if (renameCancelled.current) {
+                                // Stryker disable next-line BooleanLiteral: reset after Escape; unmount path does not re-enter
+                                renameCancelled.current = false
+                                return
+                              }
+                              commitRename(book.id, event.target.value)
+                            }}
+                          />
+                        ) : undefined
+                      }
+                      menu={
+                        <MenuTrigger>
+                          <IconButton
+                            label="Book actions"
+                            size="sm"
+                            tooltip={false}
+                            className="pb-lib-book-menu size-8"
+                            data-testid={`book-menu-${book.id}`}
+                            isDisabled={busy}
+                          >
+                            <Icon name="moreHorizontal" size={16} />
+                          </IconButton>
+                          <MenuPopover placement="bottom end" className="w-44">
+                            <Menu
+                              className="[&_svg]:size-4"
+                              onAction={(key) => {
+                                const effect = libraryBookMenuEffect(
+                                  String(key),
+                                  summary?.title,
+                                )
+                                if (effect.type === 'open') {
+                                  void openBookFromLibrary(book.id)
+                                  return
+                                }
+                                if (effect.type === 'rename') {
+                                  renameCancelled.current = false
+                                  setRenamingId(book.id)
+                                  return
+                                }
+                                if (effect.type === 'duplicate') {
+                                  void (async () => {
+                                    const duplicated =
+                                      await duplicateBookInLibrary(book.id)
+                                    if (duplicated.ok) {
+                                      await refreshBooks()
+                                    }
+                                  })()
+                                  return
+                                }
+                                if (effect.type === 'remove' && summary) {
+                                  setRemovingTitle(effect.title)
+                                  setRemoving(summary)
+                                }
+                              }}
+                            >
+                              <MenuItem id="open" textValue="Open">
+                                <Icon name="folderOpen" size={16} />
+                                Open
+                              </MenuItem>
+                              <MenuItem
+                                id="rename"
+                                textValue="Rename"
+                                data-testid={`library-rename-${book.id}`}
+                              >
+                                <Icon name="pencil" size={16} />
+                                Rename
+                              </MenuItem>
+                              <MenuItem id="dup" textValue="Duplicate">
+                                <Icon name="copy" size={16} />
+                                Duplicate
+                              </MenuItem>
+                              <MenuSeparator />
+                              <MenuItem
+                                id="rm"
+                                textValue="Remove"
+                                variant="destructive"
+                              >
+                                <Icon name="delete" size={16} />
+                                Remove…
+                              </MenuItem>
+                            </Menu>
+                          </MenuPopover>
+                        </MenuTrigger>
+                      }
+                    />
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -280,6 +440,54 @@ export function LibraryScreen() {
           void createBookInLibrary(result.title, { trim: result.trim })
         }}
       />
+
+      <AlertDialog
+        isOpen={confirmChange}
+        tone="neutral"
+        title="Change the library folder?"
+        confirmLabel="Choose folder…"
+        onCancel={() => {
+          setConfirmChange(false)
+        }}
+        onConfirm={() => {
+          setConfirmChange(false)
+          void changeLibraryFolder()
+        }}
+      >
+        Photobooks works with one library at a time. Your books stay in{' '}
+        <span className="font-mono text-sm text-foreground/80">
+          {folderName}
+        </span>{' '}
+        — nothing is moved or deleted. Pick another folder to use it as the
+        library (an empty folder starts a new one). Change it back to see these
+        books again.
+      </AlertDialog>
+
+      <AlertDialog
+        isOpen={removing !== null}
+        title={<>Remove “{removingTitle}”?</>}
+        confirmLabel="Remove book"
+        onCancel={() => {
+          setRemoving(null)
+        }}
+        onConfirm={() => {
+          const target = removing
+          setRemoving(null)
+          // Stryker disable next-line ConditionalExpression,BlockStatement: confirm only fires while removing is set
+          if (target === null) {
+            return
+          }
+          void (async () => {
+            const deleted = await deleteBookInLibrary(target.id)
+            if (deleted.ok) {
+              await refreshBooks()
+            }
+          })()
+        }}
+      >
+        The book is removed from your library folder. Photos stay on disk,
+        untouched.
+      </AlertDialog>
 
       <Dialog
         isOpen={settingsOpen}

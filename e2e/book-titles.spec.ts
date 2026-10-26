@@ -110,14 +110,15 @@ test('create with title, rename, reload and home show titles not ids', async ({
   })
 
   const bookButton = page.getByTestId(`library-book-${prepared.bookId}`)
-  await expect(bookButton).toHaveText('Trip')
-  await expect(bookButton).not.toHaveText(prepared.bookId)
+  await expect(bookButton).toContainText('Trip')
+  await expect(bookButton).not.toContainText(prepared.bookId)
 
-  page.once('dialog', (dialog) => {
-    void dialog.accept('HomeRename')
-  })
+  await page.getByTestId(`book-menu-${prepared.bookId}`).click()
   await page.getByTestId(`library-rename-${prepared.bookId}`).click()
-  await expect(bookButton).toHaveText('HomeRename')
+  const renameInput = page.getByTestId('rename-input')
+  await renameInput.fill('HomeRename')
+  await renameInput.press('Enter')
+  await expect(bookButton).toContainText('HomeRename')
   await assertDocumentFitsViewport(page)
 
   await page.evaluate(() => {
@@ -128,7 +129,7 @@ test('create with title, rename, reload and home show titles not ids', async ({
     timeout: 15_000,
   })
   await expect(page.getByTestId('library-screen')).toBeVisible()
-  await expect(bookButton).toHaveText('HomeRename', { timeout: 15_000 })
+  await expect(bookButton).toContainText('HomeRename', { timeout: 15_000 })
   await bookButton.click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
     timeout: 20_000,
@@ -177,9 +178,9 @@ test('empty title shows Untitled book on home and chrome', async ({ page }) => {
   await expect(page.getByTestId('book-title')).toHaveText('Untitled book')
   await page.getByTestId('go-library').click()
   await expect(page.getByTestId('library-screen')).toBeVisible()
-  await expect(page.getByTestId(`library-book-${prepared.bookId}`)).toHaveText(
-    'Untitled book',
-  )
+  await expect(
+    page.getByTestId(`library-book-${prepared.bookId}`),
+  ).toContainText('Untitled book')
   await assertDocumentFitsViewport(page)
 })
 

@@ -33,6 +33,12 @@ export const ICON_NAMES = [
   'monitorSmartphone',
   'externalLink',
   'copy',
+  'search',
+  'moreHorizontal',
+  'pencil',
+  'chevronDown',
+  'folderOpen',
+  'folderSync',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -255,5 +261,44 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
         d: 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2',
       },
     ],
+  ],
+  search: [
+    ['circle', { cx: '11', cy: '11', r: '8' }],
+    ['path', { d: 'm21 21-4.3-4.3' }],
+  ],
+  moreHorizontal: [
+    ['circle', { cx: '12', cy: '12', r: '1' }],
+    ['circle', { cx: '19', cy: '12', r: '1' }],
+    ['circle', { cx: '5', cy: '12', r: '1' }],
+  ],
+  pencil: [
+    [
+      'path',
+      {
+        d: 'M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z',
+      },
+    ],
+    ['path', { d: 'm15 5 4 4' }],
+  ],
+  chevronDown: [['path', { d: 'm6 9 6 6 6-6' }]],
+  folderOpen: [
+    [
+      'path',
+      {
+        d: 'm6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2',
+      },
+    ],
+  ],
+  folderSync: [
+    [
+      'path',
+      {
+        d: 'M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v.5',
+      },
+    ],
+    ['path', { d: 'M12 10v4h4' }],
+    ['path', { d: 'm12 14 1.535-1.605a5 5 0 0 1 8 1.5' }],
+    ['path', { d: 'M22 22v-4h-4' }],
+    ['path', { d: 'm22 18-1.535 1.605a5 5 0 0 1-8-1.5' }],
   ],
 }

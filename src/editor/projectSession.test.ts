@@ -27,6 +27,8 @@ import {
   configureProjectSession,
   createBookInLibrary,
   createLibrary,
+  deleteBookInLibrary,
+  duplicateBookInLibrary,
   exposeProjectSessionTestApi,
   getProjectSessionSnapshot,
   holdExternalBookLockForTests,
@@ -506,8 +508,8 @@ describe('projectSession', () => {
     assert(listed.ok, 'expected list after home rename')
     expect(listed.value).toEqual(
       expect.arrayContaining([
-        { id: first.value.id, title: 'FromHome' },
-        { id: second.value.id, title: 'Other' },
+        expect.objectContaining({ id: first.value.id, title: 'FromHome' }),
+        expect.objectContaining({ id: second.value.id, title: 'Other' }),
       ]),
     )
 
@@ -517,6 +519,39 @@ describe('projectSession', () => {
     const other = await storage.loadBook(second.value.id)
     assert(other.ok, 'expected other book unchanged')
     expect(other.value.title).toBe('Other')
+  })
+
+  it('duplicates and deletes library books without opening the editor', async () => {
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    const created = await createBookInLibrary('Source')
+    assert(created.ok, 'expected create')
+    await leaveEditorForLibrary()
+    expect(getProjectSessionSnapshot().surface).toBe('library')
+
+    const before = await listLibraryBooks()
+    assert(before.ok, 'expected list before duplicate')
+    const beforeIds = new Set(before.value.map((b) => b.id))
+
+    const duplicated = await duplicateBookInLibrary(created.value.id)
+    assert(duplicated.ok, 'expected duplicate')
+    expect(duplicated.value.id).not.toBe(created.value.id)
+    expect(duplicated.value.title).toBe('Source (copy)')
+    expect(getProjectSessionSnapshot().surface).toBe('library')
+    expect(getProjectSessionSnapshot().bookId).toBeNull()
+
+    const listed = await listLibraryBooks()
+    assert(listed.ok, 'expected list')
+    expect(listed.value.map((b) => b.id)).toEqual(
+      expect.arrayContaining([...beforeIds, duplicated.value.id]),
+    )
+    expect(listed.value).toHaveLength(beforeIds.size + 1)
+
+    const deleted = await deleteBookInLibrary(duplicated.value.id)
+    expect(deleted).toEqual({ ok: true, value: undefined })
+    const after = await listLibraryBooks()
+    assert(after.ok, 'expected list after delete')
+    expect(after.value.map((b) => b.id).sort()).toEqual([...beforeIds].sort())
   })
 
   it('home rename refuses when the book lock is held elsewhere', async () => {

@@ -49,3 +49,10 @@
   background: color-mix(in srgb, var(--destructive) 10%, var(--popover));
   color: var(--destructive);
 }
+
+.pb-menu-separator {
+  height: 1px;
+  margin: calc(var(--spacing) * 1) calc(var(--spacing) * -1);
+  background: var(--border);
+  border: none;
+}
