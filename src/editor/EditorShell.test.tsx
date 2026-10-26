@@ -124,6 +124,9 @@ describe('EditorShell viewport containment', () => {
     expect(editorShellCss).toMatch(/\.editor-shell\s*\{[^}]*max-width:\s*100%/s)
     expect(editorShellCss).toMatch(/\.editor-shell\s*\{[^}]*min-width:\s*0/s)
     expect(editorShellCss).toMatch(
+      /\.editor-workspace\s*\{[^}]*background-color:\s*var\(--canvas\)[^}]*radial-gradient\([^)]*var\(--dot\)/s,
+    )
+    expect(editorShellCss).toMatch(
       /\.editor-shell\s*\{[^}]*max-height:\s*100svh/s,
     )
     expect(editorShellCss).toMatch(
