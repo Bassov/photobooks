@@ -113,6 +113,12 @@ test('empty library kit chrome and Create book dialog open editor', async ({
   await expect(page.getByText(/0 books/i)).toHaveCount(0)
   await page.getByTestId('new-book').click()
   await expect(page.getByTestId('create-book-dialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByTestId('create-book-dialog')).toHaveCount(0)
+  await expect(page.getByTestId('library-empty')).toBeVisible()
+  await expect(page.getByTestId('editor-shell')).toHaveCount(0)
+  await page.getByTestId('new-book').click()
+  await expect(page.getByTestId('create-book-dialog')).toBeVisible()
   await page.getByTestId('create-title').fill('Trip')
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-shell')).toBeVisible({
