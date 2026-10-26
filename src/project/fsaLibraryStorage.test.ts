@@ -79,7 +79,7 @@ describe('FSA library storage layout', () => {
     expect(libraryText).toBe('{}')
 
     const listed = await storage.listBooks()
-    expect(listed).toEqual({
+    expect(listed).toMatchObject({
       ok: true,
       value: [
         {
@@ -91,6 +91,9 @@ describe('FSA library storage layout', () => {
         },
       ],
     })
+    expect(listed.ok && typeof listed.value[0]?.editedAtMs === 'number').toBe(
+      true,
+    )
 
     await storage.deleteBook(book.id)
     expect(await memoryDirectoryExists(root, [BOOKS_DIR, book.id])).toBe(false)
@@ -109,10 +112,14 @@ describe('FSA library storage layout', () => {
   it('lists corrupt books with empty title while keeping the id', async () => {
     const { storage, seedRawBook } = createFsaHarness()
     await seedRawBook('corrupt-book', { not: 'a-book' })
-    expect(await storage.listBooks()).toEqual({
+    const listed = await storage.listBooks()
+    expect(listed).toMatchObject({
       ok: true,
       value: [{ id: 'corrupt-book', title: '' }],
     })
+    expect(listed.ok && typeof listed.value[0]?.editedAtMs === 'number').toBe(
+      true,
+    )
   })
 
   it('lists book dirs without book.json with empty title', async () => {
@@ -129,7 +136,8 @@ describe('FSA library storage layout', () => {
     const { storage } = createFsaHarness()
     const book = makeBook({ id: 'named', title: 'Summer' })
     await storage.createBook(book)
-    expect(await storage.listBooks()).toEqual({
+    const listed = await storage.listBooks()
+    expect(listed).toMatchObject({
       ok: true,
       value: [
         {
@@ -141,6 +149,9 @@ describe('FSA library storage layout', () => {
         },
       ],
     })
+    expect(listed.ok && typeof listed.value[0]?.editedAtMs === 'number').toBe(
+      true,
+    )
   })
 
   it('accepts a browser FileSystemDirectoryHandle via the adapter wrapper', async () => {
@@ -154,7 +165,8 @@ describe('FSA library storage layout', () => {
     const book = makeBook({ id: 'browser-root-book' })
     expect(await storage.createBook(book)).toEqual({ ok: true, value: book })
     expect(await storage.loadBook(book.id)).toEqual({ ok: true, value: book })
-    expect(await storage.listBooks()).toEqual({
+    const listed = await storage.listBooks()
+    expect(listed).toMatchObject({
       ok: true,
       value: [
         {
@@ -166,5 +178,8 @@ describe('FSA library storage layout', () => {
         },
       ],
     })
+    expect(listed.ok && typeof listed.value[0]?.editedAtMs === 'number').toBe(
+      true,
+    )
   })
 })

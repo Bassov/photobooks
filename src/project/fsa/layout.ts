@@ -80,10 +80,21 @@ export async function readBookJsonText(
   root: LibraryDirectoryHandle,
   bookId: string,
 ): Promise<string | undefined> {
+  const listed = await readBookJsonListing(root, bookId)
+  return listed?.text
+}
+
+/** book.json text + last-modified ms when the file exists. */
+export async function readBookJsonListing(
+  root: LibraryDirectoryHandle,
+  bookId: string,
+): Promise<{ text: string; editedAtMs: number } | undefined> {
   try {
     const bookDir = await getBookDirectory(root, bookId, false)
     const file = await bookDir.getFile(BOOK_JSON)
-    return await file.getText()
+    const text = await file.getText()
+    const editedAtMs = await file.getLastModifiedMs()
+    return { text, editedAtMs }
   } catch (error) {
     if (isNotFoundError(error)) {
       return undefined
