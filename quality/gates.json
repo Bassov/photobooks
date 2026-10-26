@@ -18,6 +18,10 @@
       "break": 85
     }
   },
+  "pbt": {
+    "seed": 20261027,
+    "numRuns": 100
+  },
   "mutation": {
     "disableBudget": 10,
     "temporaryExcludes": [
