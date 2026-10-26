@@ -14,3 +14,7 @@
 3. Hold Space → pan pasteboard; `[` / `]` / `i` do not toggle panels; canvas has no focus ring while `data-panning`
 4. Wheel over pasteboard zooms to pointer; no page-level scroll
 5. Import folder → status line updates; no folder-progress toast; Preview/Print/Publish stay quiet
+
+OK: e2e drag-place/swap + Space/wheel camera unit proofs; hard-no CSS/token unit locks; `assertDocumentFitsViewport` on place flows.
+problem: `pnpm agent manual-qa` could not open editor from Welcome (`start-session` intercept) — covered by existing e2e `openSessionEditor` paths instead.
+ui-review: PASS — tokens (`--sel`, chrome CSS); focus rings gray; no blue chrome; empty/happy/scroll locked in e2e; Theme B density.

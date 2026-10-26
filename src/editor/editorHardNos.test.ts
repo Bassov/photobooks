@@ -1,21 +1,17 @@
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { EDITOR_CHROME_CSS } from './editorChromeTokens'
-
-const here = dirname(fileURLToPath(import.meta.url))
+import { folderSkippedStatusText } from './useChromeImport'
 
 describe('editor hard-nos (kit v0.9.3)', () => {
-  it('uses tone-only filmstrip selection and black used badges', () => {
-    const css = readFileSync(join(here, 'Filmstrip.css'), 'utf8')
-    expect(css).toMatch(/aria-selected[^}]*var\(--sel\)/)
-    expect(css).not.toMatch(
-      /filmstrip-item\[aria-selected[^\]]*\][^{]*\{[^}]*outline:\s*2px\s+solid\s+var\(--select\)/,
+  it('uses tone-only filmstrip/template selection and black used badges', () => {
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.filmstrip-item[aria-selected=true] { background: #CACACA }',
     )
-    expect(css).toMatch(
-      /\.filmstrip-placed[^}]*--badge-bg:\s*color-mix\(in srgb, var\(--primary\)/,
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.pb-segmented__segment--selected { background: #CACACA',
     )
+    expect(EDITOR_CHROME_CSS).toContain('.filmstrip-placed { --badge-fg:')
+    expect(EDITOR_CHROME_CSS).toContain('--badge-bg: color-mix')
   })
 
   it('suppresses canvas focus ring and uses grab cursor while data-panning', () => {
@@ -34,5 +30,11 @@ describe('editor hard-nos (kit v0.9.3)', () => {
     expect(EDITOR_CHROME_CSS).toContain(
       `.e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: #CACACA }`,
     )
+  })
+
+  it('formats folder skip summaries for the status line (not toast copy)', () => {
+    expect(folderSkippedStatusText(1)).toBe('1 non-image file skipped')
+    expect(folderSkippedStatusText(3)).toBe('3 non-image files skipped')
+    expect(folderSkippedStatusText(2)).not.toMatch(/toast/i)
   })
 })

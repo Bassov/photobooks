@@ -38,6 +38,8 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledWith('fit')
   })
 
+  // Tone fill for --selected lives in editorChromeTokens (kit hard-no #CACACA).
+
   it('supports controlled value, sm size, and item ariaLabel', () => {
     const onChange = vi.fn()
     const { rerender } = render(
