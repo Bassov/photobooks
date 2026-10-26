@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M3
 Title: property tests over command sequences (issue #50 item 2)
+Status: done
 
 ## Scope
 

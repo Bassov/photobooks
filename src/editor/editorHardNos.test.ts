@@ -26,6 +26,12 @@ describe('editor hard-nos (kit v0.9.3)', () => {
     )
   })
 
+  it('lets the canvas dots show through the canvas inner wrapper', () => {
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.editor-canvas-inner { background: transparent }',
+    )
+  })
+
   it('keeps spreads list selection on #CACACA tone', () => {
     expect(EDITOR_CHROME_CSS).toContain(
       `.e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: #CACACA }`,
