@@ -2,13 +2,24 @@ import {
   useEffect,
   useSyncExternalStore,
   type ButtonHTMLAttributes,
+  type CSSProperties,
 } from 'react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import '../ui/Button.css'
+import { Icon } from '../ui/Icon'
+import { IconButton } from '../ui/IconButton'
 import { Status } from '../ui/Status'
 import '../ui/Toolbar.css'
-import { BookTitleChrome } from './BookTitleChrome'
+import { displayBookTitle } from '../project'
+import {
+  commitZoom,
+  getCommittedCamera,
+  getCommittedZoom,
+  getLiveZoom,
+  subscribeCommitted,
+  subscribeLive,
+} from './cameraStore'
 import {
   createBookWithPrompt,
   renameActiveBook,
@@ -19,6 +30,15 @@ import {
   isRenameDisabled,
   isSaveDisabled,
 } from './editorChromeDisabled'
+import {
+  bookSizeLine,
+  toggleEditorPanel,
+  zoomChromeLabel,
+  type EditorPanels,
+} from './editorChromePanels'
+import { BAR, FIELD, SUB, T } from './editorChromeTokens'
+import { PanelToggles } from './EditorFrame'
+import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { installEditorSaveShortcut } from './installEditorSaveShortcut'
 import {
   createBookInLibrary,
@@ -45,10 +65,12 @@ function ChromeButton({
   variant = 'secondary',
   size = 'sm',
   className,
+  style,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'secondary'
   size?: 'sm' | 'md'
+  style?: CSSProperties
 }) {
   return (
     <button
@@ -61,15 +83,97 @@ function ChromeButton({
       ]
         .filter(Boolean)
         .join(' ')}
+      style={style}
       {...props}
     />
   )
 }
 
+function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
+  const book = useSyncExternalStore(
+    subscribeBookStore,
+    () => getBookStoreSnapshot().book,
+    () => getBookStoreSnapshot().book,
+  )
+  const title = displayBookTitle(book.title)
+  const sizeLine = bookSizeLine({
+    widthMm: book.settings.trim.widthMm,
+    heightMm: book.settings.trim.heightMm,
+    spreads: book.spreads.length,
+    saveLabel,
+  })
+  return (
+    <div className="e7-title ml-1 flex h-8 items-baseline gap-2 rounded-md border-0 px-2.5 pt-1.5">
+      <span
+        className="text-md"
+        style={{ fontFamily: 'var(--font-heading)', color: T }}
+        data-testid="book-title"
+        title={title}
+      >
+        <em>{title}</em>
+      </span>
+      <span
+        className="text-sm tabular-nums"
+        style={{ color: SUB }}
+        data-testid="book-size"
+      >
+        {sizeLine}
+      </span>
+    </div>
+  )
+}
+
+function ZoomChrome() {
+  const live = useSyncExternalStore(subscribeLive, getLiveZoom, getLiveZoom)
+  const committed = useSyncExternalStore(
+    subscribeCommitted,
+    getCommittedZoom,
+    getCommittedZoom,
+  )
+  const zoom = live || committed
+  const label = zoomChromeLabel(zoom)
+  return (
+    <div className="flex items-center gap-0.5 text-sm" style={{ color: SUB }}>
+      <IconButton
+        label="Zoom out (Ctrl −)"
+        size="sm"
+        data-testid="zoom-out"
+        onPress={() => {
+          const cam = getCommittedCamera()
+          commitZoom(Math.max(0.25, zoom / 1.25), cam.scrollLeft, cam.scrollTop)
+        }}
+      >
+        <Icon name="zoomOut" size={16} />
+      </IconButton>
+      <span
+        className="min-w-12 px-1 text-center text-sm tabular-nums"
+        data-testid="zoom-menu"
+      >
+        {label}
+      </span>
+      <IconButton
+        label="Zoom in (Ctrl +)"
+        size="sm"
+        data-testid="zoom-in"
+        onPress={() => {
+          const cam = getCommittedCamera()
+          commitZoom(Math.min(8, zoom * 1.25), cam.scrollLeft, cam.scrollTop)
+        }}
+      >
+        <Icon name="zoomIn" size={16} />
+      </IconButton>
+    </div>
+  )
+}
+
 export function EditorTopBar({
   chromeImport,
+  panels,
+  onPanelsChange,
 }: {
   chromeImport: ChromeImportApi
+  panels: EditorPanels
+  onPanelsChange: (next: EditorPanels) => void
 }) {
   const project = useSyncExternalStore(
     subscribeProjectSession,
@@ -97,24 +201,41 @@ export function EditorTopBar({
     project.restorePending,
   )
 
+  const saveMeta =
+    libraryReady && !writeBlocked
+      ? project.savePhase === 'saving'
+        ? 'saving'
+        : project.savePhase === 'error'
+          ? 'not saved'
+          : 'saved'
+      : null
+
   return (
-    <header className="editor-chrome">
-      <p className="brand">Photobooks</p>
-      <BookTitleChrome />
+    <header
+      className="editor-chrome relative z-10 flex h-12 shrink-0 items-center gap-2 px-3"
+      style={{ background: BAR, color: T }}
+      data-testid="editor-bar"
+    >
+      <ChromeButton
+        className="h-8 gap-1 pl-1.5 pr-2.5 text-sm"
+        style={{ color: SUB, background: 'transparent' }}
+        data-testid="go-library"
+        aria-label="Library"
+        onClick={() => {
+          void leaveEditorForLibrary()
+        }}
+        disabled={chromeBusy}
+      >
+        <Icon name="chevronLeft" size={16} />
+        Library
+      </ChromeButton>
+      <BookMetaChrome saveLabel={saveMeta} />
+
       <div
         role="toolbar"
         aria-label="Editor"
-        className="editor-top-bar pb-toolbar"
+        className="editor-top-bar pb-toolbar ml-2 flex min-w-0 flex-1 flex-wrap items-center gap-1"
       >
-        <ChromeButton
-          data-testid="go-library"
-          onClick={() => {
-            void leaveEditorForLibrary()
-          }}
-          disabled={chromeBusy}
-        >
-          Library
-        </ChromeButton>
         {project.accessPhase === 'permission-required' ? (
           <Button
             size="sm"
@@ -218,6 +339,48 @@ export function EditorTopBar({
           {chromeImport.photoFolderLabel}
         </ChromeButton>
         {chromeImport.inputs}
+      </div>
+
+      <ZoomChrome />
+      <PanelToggles
+        panels={panels}
+        hasLeft
+        hasBottom
+        hasRight
+        onToggle={(key) => {
+          onPanelsChange(toggleEditorPanel(panels, key))
+        }}
+      />
+      <div className="flex items-center gap-1.5">
+        <ChromeButton
+          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="editor-preview"
+          disabled
+          title="Preview coming later"
+        >
+          <Icon name="eye" size={16} />
+          Preview
+        </ChromeButton>
+        <ChromeButton
+          className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="export"
+          disabled
+          title="Export coming later"
+        >
+          <Icon name="export" size={16} />
+          Export
+        </ChromeButton>
+        <ChromeButton
+          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="editor-publish"
+          disabled
+          title="Publish coming later"
+        >
+          Publish
+        </ChromeButton>
       </div>
     </header>
   )

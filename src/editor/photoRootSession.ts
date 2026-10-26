@@ -54,9 +54,17 @@ import {
 export type PhotoAccessPhase = 'idle' | 'permission-required'
 
 let activeSpreadId: string | null = null
+const activeSpreadListeners = new Set<() => void>()
 
 export function getActiveSpreadId(): string | null {
   return activeSpreadId
+}
+
+export function subscribeActiveSpreadId(listener: () => void): () => void {
+  activeSpreadListeners.add(listener)
+  return () => {
+    activeSpreadListeners.delete(listener)
+  }
 }
 
 export function setActiveSpreadId(next: string | null): void {
@@ -64,6 +72,9 @@ export function setActiveSpreadId(next: string | null): void {
     return
   }
   activeSpreadId = next
+  for (const listener of activeSpreadListeners) {
+    listener()
+  }
 }
 
 export function resetActiveSpreadIdForTests(): void {

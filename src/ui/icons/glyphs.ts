@@ -44,6 +44,9 @@ export const ICON_NAMES = [
   'globe',
   'printer',
   'slidersHorizontal',
+  'panelLeft',
+  'panelRight',
+  'panelBottom',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -351,5 +354,17 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['line', { x1: '14', x2: '14', y1: '2', y2: '6' }],
     ['line', { x1: '8', x2: '8', y1: '10', y2: '14' }],
     ['line', { x1: '16', x2: '16', y1: '18', y2: '22' }],
+  ],
+  panelLeft: [
+    ['rect', { width: '18', height: '18', x: '3', y: '3', rx: '2' }],
+    ['path', { d: 'M9 3v18' }],
+  ],
+  panelRight: [
+    ['rect', { width: '18', height: '18', x: '3', y: '3', rx: '2' }],
+    ['path', { d: 'M15 3v18' }],
+  ],
+  panelBottom: [
+    ['rect', { width: '18', height: '18', x: '3', y: '3', rx: '2' }],
+    ['path', { d: 'M3 15h18' }],
   ],
 }
