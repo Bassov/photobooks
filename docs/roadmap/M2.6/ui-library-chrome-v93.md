@@ -6,8 +6,6 @@ Title: Kit v0.9.3 library chrome + book covers
 
 ## Scope
 
-## Scope
-
 - [x] Fix library-with-books chrome so at ≥1280×800 **Create book** (black primary), **Search books**, **Sort**, and settings gear are all visible and usable (layout/CSS; APIs already exist)
 - [x] Book covers are book-shaped objects (spine + page edge + Lora italic title), not square plates; caption meta is `N pages · edited …` when edited time is available
 - [x] Inter Variable + Lora Variable application matches kit (heading weight 500, cover italic via synthesis parity; no system-ui for Latin UI when fonts.css loads)
