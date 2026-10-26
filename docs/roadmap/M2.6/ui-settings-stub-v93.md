@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.6
 Title: Port Settings stub from kit v0.9.3
+Status: done
 
 ## Scope
 
@@ -14,3 +15,7 @@ Title: Port Settings stub from kit v0.9.3
 - **Perf:** Settings is a light overlay/page; open/close no LoAF
 - **Size:** ~400–800 changed lines
 - **Source:** Owner package H
+
+## Done note
+
+kit Settings shell; Library live + Change FSA; deferred Hosting/Site/Print/Interface
