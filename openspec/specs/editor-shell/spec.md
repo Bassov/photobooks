@@ -29,7 +29,7 @@ The system SHALL let the user choose the single library folder via `showDirector
 
 ### Requirement: Adopt, upgrade assets, and create book
 
-With a library open and no library-backed book id, the system SHALL adopt the in-memory book without clearing gallery/placements; if the same id exists on disk and the editor is empty, load the stored document. Adopt SHALL write durable identity (path/size/mtime/root) for session assets that still have originals so DerivedCache can key by identity digest. Create book MUST ask for a title before persist; cancel MUST NOT create; whitespace title stores empty (display Untitled). New book becomes active and is persisted under the library layout.
+With a library open and no library-backed book id, the system SHALL adopt the in-memory book without clearing gallery/placements; if the same id exists on disk and the editor is empty, load the stored document. Adopt SHALL write durable identity (path/size/mtime/root) for session assets that still have originals so DerivedCache can key by identity digest. Create book MUST open a dialog for title and page size (kit presets / custom cm → `settings.trim` mm) before persist; cancel MUST NOT create; whitespace title stores empty (display Untitled). New book becomes active and is persisted under the library layout.
 
 #### Scenario: Adopt then save keeps session work
 
@@ -154,12 +154,17 @@ With no remembered library handle, or after permission denied/missing with no us
 
 ### Requirement: Library screen (empty and with books)
 
-With a granted library handle and no in-tab active book, the system SHALL show the library surface. When `listBooks()` is empty, it MUST offer a primary Create book action. When books exist, it MUST list them (open on activation), and offer New book, Change library (showing the current folder name as the path), and Settings. Settings MUST open a simple stub dialog (“Settings coming soon”). Library overflow scrolls only in a named library scrollport. Actions MUST serialize while busy. The surface MUST expose one page `h1` and visible `:focus-visible` rings on list controls.
+With a granted library handle and no in-tab active book, the system SHALL show the library surface matching kit empty-library chrome when `listBooks()` is empty: example book cover, plain CC BY-SA `screen-credit` (no capsule), and a primary black Create book that opens the shared Create book dialog — no “0 books” copy. When books exist, it MUST list them (open on activation), and offer Create book (same dialog), Change library (showing the current folder name as the path), and Settings. Settings MUST open a simple stub dialog (“Settings coming soon”). Library overflow scrolls only in a named library scrollport (`library-scroll` / `data-scrollport="library"`); no page-level H/V scroll. Actions MUST serialize while busy. The surface MUST expose one page `h1` and visible `:focus-visible` rings on list controls.
 
 #### Scenario: Empty library offers create
 
 - **WHEN** the granted library has no books
-- **THEN** the empty library surface shows Create book and no book list rows
+- **THEN** the empty library surface shows the example book, plain screen credit, Create book, and no book list rows
+
+#### Scenario: Create book dialog
+
+- **WHEN** the user activates Create book, enters a title and page size, and confirms
+- **THEN** a new book is persisted with that title and trim and becomes the active editor book; cancel leaves the library unchanged
 
 #### Scenario: One click opens a book
 

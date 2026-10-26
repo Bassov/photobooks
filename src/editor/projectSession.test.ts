@@ -423,7 +423,7 @@ describe('projectSession', () => {
     expect(getProjectSessionSnapshot().accessPhase).toBe('permission-required')
   })
 
-  it('createBookInLibrary stores title and rename updates it', async () => {
+  it('createBookInLibrary stores title, trim, and rename updates it', async () => {
     const storage = createMemoryLibraryStorage()
     const session = createMemorySessionState()
     configureProjectSession({
@@ -433,9 +433,15 @@ describe('projectSession', () => {
     const attached = await attachLibraryForTests({ storage, session })
     expect(attached.ok).toBe(true)
 
-    const created = await createBookInLibrary('  Summer  ')
+    const created = await createBookInLibrary('  Summer  ', {
+      trim: { widthMm: 148, heightMm: 210 },
+    })
     assert(created.ok, 'expected create with title')
     expect(created.value.title).toBe('Summer')
+    expect(created.value.settings.trim).toEqual({
+      widthMm: 148,
+      heightMm: 210,
+    })
     expect(getBookStoreSnapshot().book.title).toBe('Summer')
 
     const renamed = await renameBookInLibrary(created.value.id, 'Trip')

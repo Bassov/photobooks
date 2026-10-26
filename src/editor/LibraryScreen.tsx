@@ -3,6 +3,7 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
+  type ReactNode,
 } from 'react'
 import { displayBookTitle, type BookSummary } from '../project'
 import { Button } from '../ui/Button'
@@ -10,6 +11,10 @@ import { Dialog, DialogTitle } from '../ui/Dialog'
 import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
 import { Status } from '../ui/Status'
+import { CreateBookDialog } from './CreateBookDialog'
+import { ensureLibraryScreenStyles } from './libraryScreenStyles'
+import { LibraryBar } from './LibraryBar'
+import { LibraryEmpty } from './LibraryEmpty'
 import {
   changeLibraryFolder,
   createBookInLibrary,
@@ -23,6 +28,7 @@ import {
 import { promptBookTitle } from './promptBookTitle'
 import { ensureScreenPlaceholderStyles } from './screenPlaceholdersStyles'
 
+ensureLibraryScreenStyles()
 ensureScreenPlaceholderStyles()
 
 const SR_ONLY: CSSProperties = {
@@ -46,6 +52,7 @@ export function LibraryScreen() {
   const [books, setBooks] = useState<readonly BookSummary[]>([])
   const [listFailed, setListFailed] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const busy = project.actionBusy || project.restorePending
   const folderName = project.libraryLabel ?? 'Library'
@@ -91,15 +98,26 @@ export function LibraryScreen() {
 
   if (project.restorePending) {
     return (
-      <main className="pb-screen" data-testid="library-screen">
-        <p data-testid="library-loading">Loading…</p>
+      <main
+        className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden"
+        data-testid="library-screen"
+      >
+        <p
+          className="px-6 py-9 text-sm text-muted-foreground"
+          data-testid="library-loading"
+        >
+          Loading…
+        </p>
       </main>
     )
   }
 
   if (needsRegrant) {
     return (
-      <main className="pb-screen" data-testid="library-screen">
+      <main
+        className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden"
+        data-testid="library-screen"
+      >
         <EmptyState
           icon={<Icon name="folder" size={20} />}
           title="Allow library access"
@@ -121,123 +139,127 @@ export function LibraryScreen() {
     )
   }
 
-  return (
-    <main className="pb-screen" data-testid="library-screen">
-      <h1 className="heading">Library</h1>
-      <div className="pb-library-toolbar">
-        <Button
-          data-testid={books.length === 0 ? 'create-book' : 'new-book'}
-          isDisabled={busy}
-          onPress={() => {
-            void (async () => {
-              const title = promptBookTitle('New book', '')
-              if (title === null) {
-                return
-              }
-              await createBookInLibrary(title)
-            })()
-          }}
-        >
-          {books.length === 0 ? 'Create book' : 'New book'}
-        </Button>
-        <Button
-          variant="secondary"
-          data-testid="change-library"
-          isDisabled={busy}
-          onPress={() => {
-            void changeLibraryFolder()
-          }}
-        >
-          Change library
-        </Button>
-        <span
-          className="pb-library-folder"
-          data-testid="library-folder-name"
-          title={folderName}
-        >
-          {folderName}
-        </span>
-        <Button
-          variant="ghost"
-          data-testid="library-settings"
-          isDisabled={busy}
-          onPress={() => {
-            setSettingsOpen(true)
-          }}
-        >
-          Settings
-        </Button>
-      </div>
+  const createTools: ReactNode =
+    books.length > 0 ? (
+      <Button
+        className="pb-lib-create-sm"
+        isDisabled={busy}
+        onPress={() => {
+          setCreateOpen(true)
+        }}
+        data-testid="new-book"
+      >
+        Create book
+      </Button>
+    ) : null
 
-      {listFailed ? (
-        <EmptyState
-          title="Could not list books"
-          description="Something went wrong reading this library folder."
-          actions={
-            <Button
-              data-testid="library-retry"
-              onPress={() => {
-                void refreshBooks()
+  return (
+    <main
+      className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden text-foreground"
+      data-testid="library-screen"
+    >
+      <LibraryBar
+        path={folderName}
+        changeDisabled={busy}
+        settingsDisabled={busy}
+        tools={createTools}
+        onChange={() => {
+          void changeLibraryFolder()
+        }}
+        onSettings={() => {
+          setSettingsOpen(true)
+        }}
+      />
+      <div className="pb-library-main relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mx-auto flex w-full max-w-[1280px] min-h-0 flex-1 flex-col px-12">
+          <div className="flex shrink-0 items-end justify-between pb-2 pt-10">
+            <div className="flex items-baseline gap-3">
+              <h1 className="pb-library-heading">Your books</h1>
+              {books.length >= 1 ? (
+                <span
+                  className="text-sm text-muted-foreground"
+                  data-testid="book-count"
+                >
+                  {books.length} {books.length === 1 ? 'book' : 'books'}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {listFailed ? (
+            <EmptyState
+              title="Could not list books"
+              description="Something went wrong reading this library folder."
+              actions={
+                <Button
+                  data-testid="library-retry"
+                  onPress={() => {
+                    void refreshBooks()
+                  }}
+                >
+                  Retry
+                </Button>
+              }
+            />
+          ) : books.length === 0 ? (
+            <LibraryEmpty
+              createDisabled={busy}
+              onCreate={() => {
+                setCreateOpen(true)
               }}
+            />
+          ) : (
+            <div
+              className="pb-library-scroll min-h-0 flex-1 overflow-y-auto"
+              data-testid="library-scroll"
+              data-scrollport="library"
             >
-              Retry
-            </Button>
-          }
-        />
-      ) : books.length === 0 ? (
-        <EmptyState
-          data-testid="library-empty"
-          icon={<Icon name="folder" size={20} />}
-          title="No books yet"
-          description="Create a book to start laying out photos."
-        />
-      ) : (
-        <div
-          className="pb-library-scroll"
-          data-testid="library-scroll"
-          data-scrollport="library"
-        >
-          <ul className="pb-library-list" data-testid="library-books">
-            {books.map((book) => (
-              <li key={book.id}>
-                <Button
-                  variant="ghost"
-                  data-testid={`library-book-${book.id}`}
-                  isDisabled={busy}
-                  onPress={() => {
-                    void openBookFromLibrary(book.id)
-                  }}
-                >
-                  {displayBookTitle(book.title)}
-                </Button>
-                <Button
-                  variant="ghost"
-                  data-testid={`library-rename-${book.id}`}
-                  isDisabled={busy}
-                  onPress={() => {
-                    void (async () => {
-                      const next = promptBookTitle(
-                        'Rename book',
-                        displayBookTitle(book.title),
-                      )
-                      if (next === null) {
-                        return
-                      }
-                      const renamed = await renameBookInLibrary(book.id, next)
-                      if (!renamed.ok) {
-                        return
-                      }
-                      await refreshBooks()
-                    })()
-                  }}
-                >
-                  Rename
-                </Button>
-              </li>
-            ))}
-          </ul>
+              <ul className="pb-library-list pb-12" data-testid="library-books">
+                {books.map((book) => (
+                  <li key={book.id}>
+                    <Button
+                      variant="ghost"
+                      data-testid={`library-book-${book.id}`}
+                      isDisabled={busy}
+                      onPress={() => {
+                        void openBookFromLibrary(book.id)
+                      }}
+                    >
+                      {displayBookTitle(book.title)}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      data-testid={`library-rename-${book.id}`}
+                      isDisabled={busy}
+                      onPress={() => {
+                        void (async () => {
+                          const next = promptBookTitle(
+                            'Rename book',
+                            displayBookTitle(book.title),
+                          )
+                          if (next === null) {
+                            return
+                          }
+                          const renamed = await renameBookInLibrary(
+                            book.id,
+                            next,
+                          )
+                          if (!renamed.ok) {
+                            return
+                          }
+                          await refreshBooks()
+                        })()
+                      }}
+                    >
+                      Rename
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {project.homeError ? (
         <Status data-testid="library-error">{project.homeError}</Status>
@@ -246,6 +268,18 @@ export function LibraryScreen() {
       <span style={SR_ONLY} aria-live="polite">
         {folderName}
       </span>
+
+      <CreateBookDialog
+        isOpen={createOpen}
+        createDisabled={busy}
+        onCancel={() => {
+          setCreateOpen(false)
+        }}
+        onCreate={(result) => {
+          setCreateOpen(false)
+          void createBookInLibrary(result.title, { trim: result.trim })
+        }}
+      />
 
       <Dialog
         isOpen={settingsOpen}
