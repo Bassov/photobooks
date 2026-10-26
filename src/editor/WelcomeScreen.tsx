@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react'
 import { Button } from '../ui/Button'
-import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
 import { Status } from '../ui/Status'
 import {
@@ -9,9 +8,25 @@ import {
   regrantLibrary,
   subscribeProjectSession,
 } from './projectSession'
-import { ensureScreenPlaceholderStyles } from './screenPlaceholdersStyles'
+import { WELCOME_HERO_SRC } from './welcomeCredits'
+import { WelcomePhotoCaption } from './WelcomePhotoCaption'
+import { ensureWelcomeScreenStyles } from './welcomeScreenStyles'
 
-ensureScreenPlaceholderStyles()
+ensureWelcomeScreenStyles()
+
+function Mark() {
+  return (
+    <div
+      className="flex items-center gap-2 text-sm font-semibold tracking-[-0.01em] text-foreground"
+      data-testid="welcome-mark"
+    >
+      <div className="grid size-6 place-items-center rounded-md bg-field text-foreground">
+        <Icon name="bookOpen" size={14} className="size-3.5" />
+      </div>
+      Photobooks
+    </div>
+  )
+}
 
 export function WelcomeScreen() {
   const project = useSyncExternalStore(
@@ -24,48 +39,91 @@ export function WelcomeScreen() {
   const folderName = project.libraryLabel ?? 'library folder'
 
   return (
-    <main className="pb-screen pb-screen--welcome" data-testid="welcome-screen">
-      <h1 className="heading">Photobooks</h1>
-      {project.restorePending ? (
-        <p data-testid="welcome-loading">Loading…</p>
-      ) : needsRegrant ? (
-        <EmptyState
-          icon={<Icon name="folder" size={20} />}
-          title="Allow library access"
-          description={`Chrome needs permission again for “${folderName}”.`}
-          actions={
-            <Button
-              data-testid="allow-library-access"
-              isDisabled={busy}
-              onPress={() => {
-                void regrantLibrary()
-              }}
-            >
-              {`Allow access to ${folderName}`}
-            </Button>
-          }
+    <main
+      className="pb-welcome relative h-dvh min-h-dvh w-full overflow-hidden text-foreground"
+      data-testid="welcome-screen"
+    >
+      <div className="pb-welcome-hero-mask absolute inset-y-0 left-[33%] right-0 overflow-hidden">
+        <div
+          className="pb-welcome-hero absolute inset-0"
+          data-testid="welcome-hero"
+          data-hero-src={WELCOME_HERO_SRC}
         />
-      ) : (
-        <EmptyState
-          icon={<Icon name="folder" size={20} />}
-          title="Choose a library folder"
-          description="Pick one folder on this computer to store your photobooks. Photobooks keeps working offline with File System Access."
-          actions={
-            <Button
-              data-testid="choose-library"
-              isDisabled={busy}
-              onPress={() => {
-                void chooseLibraryFolder()
-              }}
-            >
-              Choose library folder
-            </Button>
-          }
-        />
-      )}
-      {project.homeError ? (
-        <Status data-testid="welcome-error">{project.homeError}</Status>
-      ) : null}
+      </div>
+      <header className="absolute inset-x-0 top-0 flex items-center px-14 py-9">
+        <Mark />
+      </header>
+      <div className="absolute left-14 top-1/2 w-[min(780px,46%)] -translate-y-1/2">
+        {project.restorePending ? (
+          <p
+            className="pb-welcome-rise text-sm text-muted-foreground"
+            data-testid="welcome-loading"
+          >
+            Loading…
+          </p>
+        ) : needsRegrant ? (
+          <>
+            <div className="pb-welcome-rise text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              Allow library access
+            </div>
+            <h1 className="pb-welcome-rise pb-welcome-rise--d1 pb-welcome-headline pb-welcome-headline--regrant mt-5 leading-[0.94] tracking-[-0.04em]">
+              Chrome needs permission again for “{folderName}”.
+            </h1>
+            <div className="pb-welcome-rise pb-welcome-rise--d4 mt-10">
+              <Button
+                className="pb-welcome-create"
+                isDisabled={busy}
+                data-testid="allow-library-access"
+                onPress={() => {
+                  void regrantLibrary()
+                }}
+              >
+                {`Allow access to ${folderName}`}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="pb-welcome-rise text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              Welcome to Photobooks
+            </div>
+            <h1 className="pb-welcome-rise pb-welcome-rise--d1 pb-welcome-headline mt-5 leading-[0.94] tracking-[-0.04em]">
+              A quiet place
+              <br />
+              <em>for your books.</em>
+            </h1>
+            <p className="pb-welcome-rise pb-welcome-rise--d25 mt-7 max-w-[440px] text-lead leading-7 text-muted-foreground">
+              One folder on your disk where all your books are saved — your
+              library. Choose where it lives.
+            </p>
+            <div className="pb-welcome-rise pb-welcome-rise--d4 mt-10">
+              <Button
+                className="pb-welcome-create"
+                isDisabled={busy}
+                data-testid="create-library"
+                onPress={() => {
+                  void chooseLibraryFolder()
+                }}
+              >
+                Create Library
+              </Button>
+            </div>
+            <p className="pb-welcome-rise pb-welcome-rise--d5 mt-4 pl-1 text-sm text-muted-foreground">
+              You’ll choose a folder on your disk.
+            </p>
+          </>
+        )}
+        {project.homeError ? (
+          <Status className="mt-6" data-testid="welcome-error">
+            {project.homeError}
+          </Status>
+        ) : null}
+      </div>
+      <WelcomePhotoCaption
+        id="c18"
+        testid="screen-credit"
+        className="absolute top-6 right-6"
+      />
     </main>
   )
 }

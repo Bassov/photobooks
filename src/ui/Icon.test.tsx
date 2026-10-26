@@ -72,6 +72,7 @@ describe('Icon', () => {
         'chevronLeft',
         'chevronRight',
         'folder',
+        'bookOpen',
         'moon',
         'sun',
         'appWindow',
@@ -79,7 +80,6 @@ describe('Icon', () => {
         'monitorSmartphone',
         'externalLink',
         'copy',
-        'bookOpen',
       ]),
     )
   })

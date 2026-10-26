@@ -1,4 +1,4 @@
-/** Placeholder screen layout (welcome / library). Unsupported uses kit Tailwind. */
+/** Placeholder screen layout (library). Welcome uses welcomeScreenStyles.ts; unsupported uses kit Tailwind. */
 
 const STYLE_TEXT = `
 .pb-screen {
@@ -18,11 +18,6 @@ const STYLE_TEXT = `
 .pb-screen h1 {
   margin: 0;
   font-size: var(--text-2xl);
-}
-.pb-screen--welcome {
-  align-items: center;
-  justify-content: center;
-  text-align: center;
 }
 .pb-library-toolbar {
   display: flex;

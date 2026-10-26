@@ -36,18 +36,29 @@ describe('WelcomeScreen', () => {
     vi.restoreAllMocks()
   })
 
-  it('offers choose library folder', () => {
+  it('offers Create Library with kit chrome and plain credit', () => {
     render(<WelcomeScreen />)
     expect(screen.getByTestId('welcome-screen')).toBeTruthy()
-    expect(screen.getByTestId('choose-library')).toBeTruthy()
+    expect(screen.getByTestId('welcome-mark').textContent).toMatch(/Photobooks/)
+    expect(
+      screen.getByTestId('welcome-hero').getAttribute('data-hero-src'),
+    ).toBe('/photos/hi/c18.jpg')
+    expect(screen.getByTestId('create-library')).toBeTruthy()
+    expect(screen.getByTestId('create-library').textContent).toMatch(
+      /Create Library/,
+    )
+    const credit = screen.getByTestId('screen-credit')
+    expect(credit.textContent).toMatch(/Dietmar Rabich/)
+    expect(credit.textContent).toMatch(/CC BY-SA 4\.0/)
+    expect(credit.textContent).toMatch(/modified/)
   })
 
-  it('calls chooseLibraryFolder from the primary action', async () => {
+  it('calls chooseLibraryFolder from Create Library', async () => {
     const choose = vi
       .spyOn(projectSession, 'chooseLibraryFolder')
       .mockResolvedValue({ ok: true, value: undefined })
     render(<WelcomeScreen />)
-    fireEvent.click(screen.getByTestId('choose-library'))
+    fireEvent.click(screen.getByTestId('create-library'))
     await waitFor(() => {
       expect(choose).toHaveBeenCalled()
     })
@@ -60,13 +71,14 @@ describe('WelcomeScreen', () => {
     setAccessPhaseForTests('permission-required')
     render(<WelcomeScreen />)
     expect(screen.getByTestId('allow-library-access')).toBeTruthy()
+    expect(screen.queryByTestId('create-library')).toBeNull()
     fireEvent.click(screen.getByTestId('allow-library-access'))
     await waitFor(() => {
       expect(regrant).toHaveBeenCalled()
     })
   })
 
-  it('uses library folder fallback and disables choose while busy', () => {
+  it('uses library folder fallback and disables allow while busy', () => {
     patchProjectSessionSnapshotForTests({
       libraryLabel: null,
       actionBusy: true,
@@ -85,11 +97,11 @@ describe('WelcomeScreen', () => {
     ).toBeTruthy()
   })
 
-  it('shows loading while restorePending and hides choose', () => {
+  it('shows loading while restorePending and hides Create Library', () => {
     patchProjectSessionSnapshotForTests({ restorePending: true })
     render(<WelcomeScreen />)
     expect(screen.getByTestId('welcome-loading')).toBeTruthy()
-    expect(screen.queryByTestId('choose-library')).toBeNull()
+    expect(screen.queryByTestId('create-library')).toBeNull()
   })
 
   it('shows welcome error status when homeError is set', () => {

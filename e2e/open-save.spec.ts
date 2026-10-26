@@ -36,10 +36,10 @@ function writeBulkImportFixtures(count: number): string[] {
   return paths
 }
 
-test('welcome offers choose library without page scroll', async ({ page }) => {
+test('welcome offers Create Library without page scroll', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('welcome-screen')).toBeVisible()
-  await expect(page.getByTestId('choose-library')).toBeVisible()
+  await expect(page.getByTestId('create-library')).toBeVisible()
   await assertDocumentFitsViewport(page)
 })
 
