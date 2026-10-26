@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M2.6
 Title: Port empty library + Create book dialog from kit v0.9.3
+Status: done
 
 ## Scope
 
@@ -14,3 +15,7 @@ Title: Port empty library + Create book dialog from kit v0.9.3
 - **Perf:** Empty library is static chrome; Create book open/close has no LoAF; dialog open handler p95 ≤ 2 ms
 - **Size:** ~600–1000 changed lines
 - **Source:** Owner package F
+
+## Done note
+
+kit empty library + Create book dialog; PR pending
