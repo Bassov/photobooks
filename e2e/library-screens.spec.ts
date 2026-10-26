@@ -240,6 +240,14 @@ test('memory library opens library screen then editor and back', async ({
     'data-scrollport',
     'settings',
   )
+  await page.evaluate(() => {
+    const scroll = document.querySelector('[data-testid="settings-scroll"]')
+    if (!(scroll instanceof HTMLElement)) {
+      throw new Error('settings-scroll missing')
+    }
+    scroll.style.maxHeight = '120px'
+  })
+  await assertNamedScrollport(page, 'settings-scroll', { axis: 'vertical' })
   await assertDocumentFitsViewport(page)
   await page.getByTestId('settings-back').click()
   await expect(page.getByTestId('settings')).toHaveCount(0)

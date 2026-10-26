@@ -12,6 +12,7 @@ import { LibraryScreen } from './LibraryScreen'
 import {
   attachMemoryLibraryForTests,
   createBookInLibrary,
+  getProjectSessionSnapshot,
   leaveEditorForLibrary,
   patchProjectSessionSnapshotForTests,
   resetProjectSessionForTests,
@@ -77,8 +78,10 @@ describe('LibraryScreen', () => {
     const listed = await projectSession.listLibraryBooks()
     expect(listed.ok).toBe(true)
     const expectedCount = listed.ok ? listed.value.length : 0
+    expect(getProjectSessionSnapshot().surface).toBe('library')
     fireEvent.click(screen.getByTestId('library-settings'))
     expect(screen.getByTestId('settings')).toBeTruthy()
+    expect(getProjectSessionSnapshot().surface).toBe('library')
     expect(screen.getByTestId('settings-book-count').textContent).toBe(
       String(expectedCount),
     )
@@ -86,6 +89,7 @@ describe('LibraryScreen', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('settings')).toBeNull()
     })
+    expect(getProjectSessionSnapshot().surface).toBe('library')
     expect(screen.getByTestId('library-books')).toBeTruthy()
   })
 
