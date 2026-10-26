@@ -10,7 +10,6 @@ import {
 import { normalizeBookTitleInput, type BookSummary } from '../project'
 import { AlertDialog } from '../ui/AlertDialog'
 import { Button } from '../ui/Button'
-import { Dialog, DialogTitle } from '../ui/Dialog'
 import { EmptyState } from '../ui/EmptyState'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
@@ -36,6 +35,7 @@ import { shouldSkipLibraryRename } from './libraryRename'
 import { ensureLibraryScreenStyles } from './libraryScreenStyles'
 import { LibraryBar } from './LibraryBar'
 import { LibraryEmpty } from './LibraryEmpty'
+import { SettingsScreen } from './SettingsScreen'
 import {
   changeLibraryFolder,
   createBookInLibrary,
@@ -199,6 +199,38 @@ export function LibraryScreen() {
       }
       await refreshBooks()
     })()
+  }
+
+  if (settingsOpen) {
+    return (
+      <main
+        className="pb-library relative flex h-dvh min-h-dvh w-full flex-col overflow-hidden text-foreground"
+        data-testid="library-screen"
+      >
+        <div className="flex h-12 shrink-0 items-center gap-2 bg-chrome px-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4"
+            onPress={() => {
+              setSettingsOpen(false)
+            }}
+            data-testid="settings-back"
+          >
+            <Icon name="chevronLeft" size={16} />
+            Library
+          </Button>
+          <span className="text-sm font-medium">Settings</span>
+        </div>
+        <div className="min-h-0 flex-1">
+          <SettingsScreen
+            libraryPath={folderName}
+            bookCount={books.length}
+            changeDisabled={busy}
+          />
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -477,23 +509,6 @@ export function LibraryScreen() {
         The book is removed from your library folder. Photos stay on disk,
         untouched.
       </AlertDialog>
-
-      <Dialog
-        isOpen={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        data-testid="settings-dialog"
-      >
-        <DialogTitle>Settings</DialogTitle>
-        <p>Settings coming soon</p>
-        <Button
-          data-testid="settings-close"
-          onPress={() => {
-            setSettingsOpen(false)
-          }}
-        >
-          Close
-        </Button>
-      </Dialog>
     </main>
   )
 }

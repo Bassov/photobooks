@@ -74,12 +74,19 @@ describe('LibraryScreen', () => {
     expect(screen.getByTestId('change-library')).toBeTruthy()
     expect(screen.getByTestId('library-settings')).toBeTruthy()
 
+    const listed = await projectSession.listLibraryBooks()
+    expect(listed.ok).toBe(true)
+    const expectedCount = listed.ok ? listed.value.length : 0
     fireEvent.click(screen.getByTestId('library-settings'))
-    expect(screen.getByTestId('settings-dialog')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('settings-close'))
+    expect(screen.getByTestId('settings')).toBeTruthy()
+    expect(screen.getByTestId('settings-book-count').textContent).toBe(
+      String(expectedCount),
+    )
+    fireEvent.click(screen.getByTestId('settings-back'))
     await waitFor(() => {
-      expect(screen.queryByTestId('settings-dialog')).toBeNull()
+      expect(screen.queryByTestId('settings')).toBeNull()
     })
+    expect(screen.getByTestId('library-books')).toBeTruthy()
   })
 
   it('change-library confirms then invokes changeLibraryFolder', async () => {
