@@ -11,11 +11,20 @@ test.afterEach(async ({ page }) => {
 
 test('unsupported browser blocks when directory picker is missing', async ({
   page,
+  context,
 }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.addInitScript(() => {
     Object.defineProperty(window, 'showDirectoryPicker', {
       configurable: true,
       value: undefined,
+    })
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: {
+        brands: [{ brand: 'Firefox', version: '130' }],
+        mobile: false,
+      },
     })
   })
   await page.goto('/')
@@ -23,16 +32,65 @@ test('unsupported browser blocks when directory picker is missing', async ({
     timeout: 15_000,
   })
   await expect(page.getByTestId('unsupported-scroll')).toBeVisible()
+  await expect(page.getByTestId('unsupported')).toHaveAttribute(
+    'data-variant',
+    'other',
+  )
   await expect(page.getByTestId('get-chrome')).toBeVisible()
   await expect(page.getByTestId('get-chrome')).toHaveAttribute(
     'rel',
     'noopener noreferrer',
   )
   await expect(page.getByTestId('unsupported-title')).toBeVisible()
+  await expect(page.getByTestId('browser-list')).toBeVisible()
+  await expect(page.getByTestId('browser-link-Microsoft Edge')).toBeVisible()
+  await page.getByTestId('copy-link').click()
+  await expect(page.getByText('Link copied')).toBeVisible()
   await expect(page.getByTestId('welcome-screen')).toHaveCount(0)
   await expect(page.getByTestId('library-screen')).toHaveCount(0)
   await expect(page.getByTestId('editor-shell')).toHaveCount(0)
   await expect(page.getByText(/continue anyway/i)).toHaveCount(0)
+  await page.evaluate(() => {
+    const scroll = document.querySelector('[data-testid="unsupported-scroll"]')
+    if (!(scroll instanceof HTMLElement)) {
+      throw new Error('unsupported-scroll missing')
+    }
+    scroll.style.maxHeight = '160px'
+  })
+  await assertNamedScrollport(page, 'unsupported-scroll', { axis: 'vertical' })
+  await assertDocumentFitsViewport(page)
+})
+
+test('unsupported no-api shows reload when Chromium lacks the picker', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: undefined,
+    })
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: {
+        brands: [
+          { brand: 'Chromium', version: '130' },
+          { brand: 'Google Chrome', version: '130' },
+        ],
+        mobile: false,
+      },
+    })
+  })
+  await page.goto('/')
+  await expect(page.getByTestId('unsupported-browser')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('unsupported')).toHaveAttribute(
+    'data-variant',
+    'no-api',
+  )
+  await expect(page.getByTestId('reload-after-enable')).toBeVisible()
+  await expect(page.getByTestId('get-chrome')).toBeVisible()
+  await expect(page.getByTestId('browser-list')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
 

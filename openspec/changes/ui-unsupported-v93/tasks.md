@@ -2,7 +2,7 @@
 
 - [x] 1. Extend `getBrowserSupport` with UI `variant` + browser label (iframe/insecure/missing-picker stay gate inputs; brands for copy/label only) — `browserSupport.ts` + unit tests
 - [x] 2. Port `FeaturedIcon` + needed Icon glyphs; replace `UnsupportedBrowserScreen` with kit layout/CTAs driven by support snapshot — `src/ui/FeaturedIcon.tsx`, glyphs, screen
-- [x] 3. Update editor-shell unsupported requirement (kit copy/CTAs/variants; no continue-anyway); retire EmptyState placeholder for this surface; unit + e2e lock-ins — specs delta, `UnsupportedBrowserScreen.test.tsx`, `e2e/library-screens.spec.ts`; A+B green
+- [x] 3. Update editor-shell unsupported requirement (kit copy/CTAs/variants; no continue-anyway); retire EmptyState placeholder for this surface; unit + e2e lock-ins — specs delta, `UnsupportedBrowserScreen.test.tsx`, `e2e/library-screens.spec.ts`
 
 ## Manual test scenarios
 

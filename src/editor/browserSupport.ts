@@ -102,11 +102,13 @@ function fail(
     variant,
   }
   if (variant === 'other') {
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: empty vs undefined both map to the same fallback label
     snap.browserName =
       browserName !== undefined && browserName.length > 0
         ? browserName
         : 'this browser'
   } else if (browserName !== undefined && browserName.length > 0) {
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: no-api omits empty labels; equivalent under public snapshots
     snap.browserName = browserName
   }
   return snap
