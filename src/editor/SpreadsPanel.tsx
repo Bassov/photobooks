@@ -6,28 +6,8 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { pageLabel } from './editorChromePanels'
-import {
-  getActiveSpreadId,
-  setActiveSpreadId,
-  subscribeActiveSpreadId,
-} from './photoRootSession'
-
-export function scrollPasteboardToSpread(spreadId: string): void {
-  const slot = document.querySelector(
-    `[data-pasteboard-slot][data-spread-id="${CSS.escape(spreadId)}"]`,
-  )
-  if (slot instanceof HTMLElement) {
-    slot.scrollIntoView()
-  }
-  setActiveSpreadId(spreadId)
-}
-
-export function selectedSpreadId(
-  activeId: string | null,
-  spreadIds: readonly string[],
-): string | null {
-  return activeId ?? spreadIds[0] ?? null
-}
+import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
+import { scrollPasteboardToSpread, selectedSpreadId } from './spreadsPanelModel'
 
 /** Kit left spreads list wired to product bookStore (pages only — no masters). */
 export function SpreadsPanel() {

@@ -16,7 +16,7 @@ import type { PickedPhotoFolder } from '../photo/pickPhotos'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
-import { resetCameraStore } from './cameraStore'
+import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
 import * as importPhotos from './importPhotos'
@@ -95,6 +95,17 @@ describe('EditorTopBar', () => {
     expect(topBarChoose.textContent).toBe(CHOOSE_LABEL)
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
     expect(screen.queryByTestId('app-theme-toggle')).toBeNull()
+    expect(screen.getByTestId('book-title')).toBeTruthy()
+    expect(screen.getByTestId('book-size')).toBeTruthy()
+  })
+
+  it('zooms in and out from the chrome controls', () => {
+    commitZoom(1, 0, 0)
+    render(<EditorShell />)
+    fireEvent.click(screen.getByTestId('zoom-in'))
+    expect(getCommittedZoom()).toBeCloseTo(1.25)
+    fireEvent.click(screen.getByTestId('zoom-out'))
+    expect(getCommittedZoom()).toBeCloseTo(1)
   })
 
   it('saves on Ctrl+S when a library is open and ignores other keys', async () => {

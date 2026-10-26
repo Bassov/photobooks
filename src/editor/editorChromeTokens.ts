@@ -31,29 +31,38 @@ export const EDITOR_CHROME_CSS = `
 .e7-tip > .e7-tt { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s .25s; z-index: 50; background: #535152; color: ${ON_INK}; font-size: 11px; line-height: 16px; padding: 3px 7px; border-radius: 5px }
 .e7-tip:hover > .e7-tt, .e7-tip:focus-visible > .e7-tt { opacity: 1 }
 .e7-tt kbd { font-family: inherit; opacity: .7; margin-left: 6px }
+.e7.editor-shell { display: flex; flex-direction: column; background: var(--canvas) }
+.e7 .editor-chrome { flex-wrap: nowrap; gap: calc(var(--spacing) * 2); padding: 0 calc(var(--spacing) * 3); border-bottom: 0; height: 3rem; flex-shrink: 0 }
+.editor-panel-l { width: 0 }
+.editor-panel-l[data-open='true'] { width: 212px }
+.editor-panel-l-inner { width: 212px }
+.editor-panel-r { width: 0 }
+.editor-panel-r[data-open='true'] { width: 300px }
+.editor-inspector { width: 300px; background: var(--chrome) }
+.editor-panel-b[data-open='false'] { height: 0 }
+.editor-canvas-inner { background: var(--canvas) }
+.editor-dock { background: var(--chrome) }
+.editor-dock-meta { color: var(--muted-foreground) }
+.editor-inspector-stub__title { color: var(--muted-foreground) }
+.editor-inspector-stub__body { color: var(--foreground) }
+.editor-spreads { background: var(--chrome); color: var(--foreground) }
+.editor-spreads-mode { background: var(--chrome); color: var(--foreground); box-shadow: var(--shadow-sm) }
+.editor-spread-thumb { aspect-ratio: 1.6; background: var(--paper); box-shadow: var(--shadow-sm) }
+.editor-add-spread { height: 32px; color: var(--muted-foreground) }
 `
 
 const STYLE_ID = 'pb-editor-chrome-v93'
-let injected = false
 
+/** Inject kit chrome CSS once (idempotent). */
 export function ensureEditorChromeStyles(): void {
-  // Stryker disable next-line ConditionalExpression: inject-once guard; double-call unit test covers skip
-  if (injected) return
-  if (document.getElementById(STYLE_ID)) {
-    // Stryker disable next-line BooleanLiteral: idempotent flag; double-call unit test covers skip path
-    injected = true
-    return
-  }
+  if (document.getElementById(STYLE_ID)) return
   const el = document.createElement('style')
   el.id = STYLE_ID
   el.textContent = EDITOR_CHROME_CSS
   document.head.appendChild(el)
-  // Stryker disable next-line BooleanLiteral: inject-once flag; double-call unit test covers skip path
-  injected = true
 }
 
-/** Test seam: reset inject flag between suites. */
+/** Test seam: remove injected style between suites. */
 export function resetEditorChromeStylesForTests(): void {
-  injected = false
   document.getElementById(STYLE_ID)?.remove()
 }

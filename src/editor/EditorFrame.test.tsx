@@ -53,10 +53,11 @@ describe('EditorFrame', () => {
   })
 
   it('marks closed panels hidden and arms Space pan', () => {
+    const onPanelsChange = vi.fn()
     render(
       <EditorFrame
         panels={{ l: false, b: false, r: false }}
-        onPanelsChange={() => undefined}
+        onPanelsChange={onPanelsChange}
         left={<div>left</div>}
         right={<div>right</div>}
         dock={<div>dock</div>}
@@ -75,5 +76,11 @@ describe('EditorFrame', () => {
     expect(canvas.getAttribute('data-panning')).toBe('true')
     fireEvent(window, new Event('blur'))
     expect(canvas.getAttribute('data-panning')).toBeNull()
+    fireEvent.keyDown(window, { key: '[' })
+    expect(onPanelsChange).toHaveBeenCalledWith({
+      l: true,
+      b: false,
+      r: false,
+    })
   })
 })

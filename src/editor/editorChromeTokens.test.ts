@@ -24,6 +24,7 @@ describe('editorChromeTokens', () => {
 
   it('injects chrome CSS once and reuses a pre-existing style node', () => {
     expect(EDITOR_CHROME_CSS).toContain('#CACACA')
+    expect(EDITOR_CHROME_CSS).toContain('.editor-panel-l')
     ensureEditorChromeStyles()
     ensureEditorChromeStyles()
     expect(document.querySelectorAll('#pb-editor-chrome-v93')).toHaveLength(1)
@@ -37,9 +38,5 @@ describe('editorChromeTokens', () => {
     ensureEditorChromeStyles()
     expect(document.querySelectorAll('#pb-editor-chrome-v93')).toHaveLength(1)
     expect(pre.isConnected).toBe(true)
-
-    resetEditorChromeStylesForTests()
-    ensureEditorChromeStyles()
-    expect(document.querySelectorAll('#pb-editor-chrome-v93')).toHaveLength(1)
   })
 })

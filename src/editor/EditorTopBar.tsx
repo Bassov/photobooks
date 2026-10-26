@@ -32,6 +32,8 @@ import {
 } from './editorChromeDisabled'
 import {
   bookSizeLine,
+  nextZoomIn,
+  nextZoomOut,
   toggleEditorPanel,
   zoomChromeLabel,
   type EditorPanels,
@@ -89,11 +91,15 @@ function ChromeButton({
   )
 }
 
+function readActiveBook() {
+  return getBookStoreSnapshot().book
+}
+
 function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
   const book = useSyncExternalStore(
     subscribeBookStore,
-    () => getBookStoreSnapshot().book,
-    () => getBookStoreSnapshot().book,
+    readActiveBook,
+    readActiveBook,
   )
   const title = displayBookTitle(book.title)
   const sizeLine = bookSizeLine({
@@ -140,7 +146,7 @@ function ZoomChrome() {
         data-testid="zoom-out"
         onPress={() => {
           const cam = getCommittedCamera()
-          commitZoom(Math.max(0.25, zoom / 1.25), cam.scrollLeft, cam.scrollTop)
+          commitZoom(nextZoomOut(zoom), cam.scrollLeft, cam.scrollTop)
         }}
       >
         <Icon name="zoomOut" size={16} />
@@ -157,7 +163,7 @@ function ZoomChrome() {
         data-testid="zoom-in"
         onPress={() => {
           const cam = getCommittedCamera()
-          commitZoom(Math.min(8, zoom * 1.25), cam.scrollLeft, cam.scrollTop)
+          commitZoom(nextZoomIn(zoom), cam.scrollLeft, cam.scrollTop)
         }}
       >
         <Icon name="zoomIn" size={16} />

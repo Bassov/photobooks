@@ -4,6 +4,8 @@ import {
   DEFAULT_EDITOR_PANELS,
   isPanelToggleChord,
   isSpacePanCode,
+  nextZoomIn,
+  nextZoomOut,
   pageLabel,
   pagesOf,
   panelHotkeyAction,
@@ -59,6 +61,10 @@ describe('editorChromePanels', () => {
     expect(zoomChromeLabel(0.995)).toBe('Fit')
     expect(zoomChromeLabel(1.02)).toBe('102%')
     expect(zoomChromeLabel(1.5)).toBe('150%')
+    expect(nextZoomOut(1)).toBe(0.8)
+    expect(nextZoomOut(0.25)).toBe(0.25)
+    expect(nextZoomIn(1)).toBe(1.25)
+    expect(nextZoomIn(8)).toBe(8)
     expect(
       bookSizeLine({
         widthMm: 300,

@@ -72,6 +72,14 @@ export function zoomChromeLabel(zoom: number): string {
   return `${String(pct)}%`
 }
 
+export function nextZoomOut(zoom: number): number {
+  return Math.max(0.25, zoom / 1.25)
+}
+
+export function nextZoomIn(zoom: number): number {
+  return Math.min(8, zoom * 1.25)
+}
+
 export function bookSizeLine(input: {
   widthMm: number
   heightMm: number
