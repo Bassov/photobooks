@@ -305,6 +305,63 @@ test('change library updates folder name via FSA picker stub', async ({
   await assertDocumentFitsViewport(page)
 })
 
+test('library grid sort by title reorders books', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  const ids = await page.evaluate(async () => {
+    const api = window.__photobooksProject as
+      | {
+          attachMemoryLibraryForTests: () => Promise<{
+            ok: boolean
+            code?: string
+          }>
+          createBookInLibrary: (title?: string) => Promise<{
+            ok: boolean
+            code?: string
+            value?: { id: string }
+          }>
+          leaveEditorForLibrary: () => Promise<void>
+        }
+      | undefined
+    if (!api) {
+      throw new Error('missing api')
+    }
+    const attached = await api.attachMemoryLibraryForTests()
+    if (!attached.ok) {
+      throw new Error(attached.code ?? 'attach')
+    }
+    const zulu = await api.createBookInLibrary('Zulu Night')
+    if (!zulu.ok || !zulu.value) {
+      throw new Error(zulu.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    const alpha = await api.createBookInLibrary('Alpha Trip')
+    if (!alpha.ok || !alpha.value) {
+      throw new Error(alpha.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    return { z: zulu.value.id, a: alpha.value.id }
+  })
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.getByTestId('lib-sort').click()
+  await page.getByText('Title', { exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: 'Sort books: Title' }),
+  ).toBeVisible()
+  const order = await page
+    .locator('[data-testid^="library-book-"]')
+    .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-testid')))
+  expect(order.indexOf(`library-book-${ids.a}`)).toBeLessThan(
+    order.indexOf(`library-book-${ids.z}`),
+  )
+  await assertDocumentFitsViewport(page)
+})
+
 test('library grid search filters by title', async ({ page }) => {
   test.setTimeout(90_000)
   await page.goto('/')

@@ -48,6 +48,8 @@ Badges: `--badge-{gray,brand,success,warning,error}-{fg,bg,ring,dot}`.
 
 App Tailwind 4 bridge: `@theme` tokens in `styles/tokens.css` (entry `styles/app.css` from `src/main.tsx`; no `uikit/src` imports); utilities via `@tailwindcss/vite`; preflight omitted until screen ports. Helpers: `src/ui/cn.ts` (`cn` / `cva`).
 
+Library quiet controls (search/sort): kit v0.9.1 tone-only field fill `#D7D7D7` on `--chrome` (no border); focus ring `#3A3839` (same ink as kit `--ring` companion). Hover uses `--accent`.
+
 Do not put raw brand colour on large surfaces. Book page fills come from the document, not chrome tokens.
 
 UI ref: `uikit#/feature/design-tokens`.

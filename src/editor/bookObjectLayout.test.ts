@@ -43,8 +43,15 @@ describe('bookObjectLayout', () => {
     [200, 200, 'square'],
     [250, 200, 'landscape'],
     [148, 210, 'portrait'],
+    [210, 148, 'landscape'],
   ] as const)('maps trim %s×%s to %s', (w, h, fmt) => {
     expect(bookFormatFromTrim(w, h)).toBe(fmt)
+  })
+
+  it('uses Math.sign so equal sizes are square before landscape', () => {
+    expect(bookFormatFromTrim(100, 100)).toBe('square')
+    expect(bookFormatFromTrim(101, 100)).toBe('landscape')
+    expect(bookFormatFromTrim(100, 101)).toBe('portrait')
   })
 
   it('scales display height and width by format', () => {

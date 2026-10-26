@@ -79,9 +79,9 @@ export function LibraryScreen() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<LibrarySortKey>('edited')
   const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [removing, setRemoving] = useState<BookSummary | null>(null)
+  const [removingOpen, setRemovingOpen] = useState(false)
   const [removingTitle, setRemovingTitle] = useState('')
-  const renameCancelled = useRef(false)
+  const pendingRemoveId = useRef('')
 
   const busy = project.actionBusy || project.restorePending
   const folderName = project.libraryLabel ?? 'Library'
@@ -322,17 +322,10 @@ export function LibraryScreen() {
                                 )
                               }
                               if (event.key === 'Escape') {
-                                renameCancelled.current = true
                                 setRenamingId(null)
                               }
                             }}
                             onBlur={(event) => {
-                              // Stryker disable next-line ConditionalExpression,BlockStatement: Escape sets the flag then unmounts; blur cancel is browser-only
-                              if (renameCancelled.current) {
-                                // Stryker disable next-line BooleanLiteral: reset after Escape; unmount path does not re-enter
-                                renameCancelled.current = false
-                                return
-                              }
                               commitRename(book.id, event.target.value)
                             }}
                           />
@@ -363,7 +356,6 @@ export function LibraryScreen() {
                                   return
                                 }
                                 if (effect.type === 'rename') {
-                                  renameCancelled.current = false
                                   setRenamingId(book.id)
                                   return
                                 }
@@ -378,8 +370,9 @@ export function LibraryScreen() {
                                   return
                                 }
                                 if (effect.type === 'remove' && summary) {
+                                  pendingRemoveId.current = summary.id
                                   setRemovingTitle(effect.title)
-                                  setRemoving(summary)
+                                  setRemovingOpen(true)
                                 }
                               }}
                             >
@@ -464,21 +457,17 @@ export function LibraryScreen() {
       </AlertDialog>
 
       <AlertDialog
-        isOpen={removing !== null}
+        isOpen={removingOpen}
         title={<>Remove “{removingTitle}”?</>}
         confirmLabel="Remove book"
         onCancel={() => {
-          setRemoving(null)
+          setRemovingOpen(false)
         }}
         onConfirm={() => {
-          const target = removing
-          setRemoving(null)
-          // Stryker disable next-line ConditionalExpression,BlockStatement: confirm only fires while removing is set
-          if (target === null) {
-            return
-          }
+          const targetId = pendingRemoveId.current
+          setRemovingOpen(false)
           void (async () => {
-            const deleted = await deleteBookInLibrary(target.id)
+            const deleted = await deleteBookInLibrary(targetId)
             if (deleted.ok) {
               await refreshBooks()
             }

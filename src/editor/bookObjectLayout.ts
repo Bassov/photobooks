@@ -11,12 +11,11 @@ export function bookFormatFromTrim(
   widthMm: number,
   heightMm: number,
 ): BookObjectFmt {
-  // Stryker disable next-line EqualityOperator: === vs == identical for finite numbers
-  if (widthMm === heightMm) {
+  const cmp = Math.sign(widthMm - heightMm)
+  if (cmp === 0) {
     return 'square'
   }
-  // Stryker disable next-line EqualityOperator: > vs >= only differs on equal, already handled above
-  if (widthMm > heightMm) {
+  if (cmp > 0) {
     return 'landscape'
   }
   return 'portrait'
