@@ -16,7 +16,7 @@ import { SpreadsPanel } from './SpreadsPanel'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
 
-const INITIAL_PANELS: EditorPanels = { l: true, b: true, r: true }
+const INITIAL_PANELS: EditorPanels = { l: true, b: true, r: false }
 
 export function EditorShell() {
   const editorStatus = useSyncExternalStore(

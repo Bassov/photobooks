@@ -22,6 +22,10 @@ export function isTypingTarget(el: EventTarget | null): boolean {
  */
 export function shouldDeferChromeSpacePan(el: EventTarget | null): boolean {
   if (isTypingTarget(el)) return true
+  if (el instanceof HTMLInputElement) {
+    // Native radios/checkboxes use Space to toggle; not covered by isTypingTarget.
+    if (el.type === 'radio' || el.type === 'checkbox') return true
+  }
   if (!(el instanceof HTMLElement)) return false
   if (
     el.closest(

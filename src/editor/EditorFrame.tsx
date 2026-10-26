@@ -137,7 +137,7 @@ export function PanelToggles({
         key={k}
         type="button"
         className="e7-ghost e7-tip e7-tog grid size-8 place-items-center rounded-md"
-        aria-pressed={on}
+        aria-expanded={on}
         aria-label={`${on ? 'Hide' : 'Show'} ${name}`}
         data-testid={`toggle-${k}`}
         onClick={() => {

@@ -32,6 +32,15 @@ describe('isTypingTarget', () => {
     const text = document.createElement('input')
     text.type = 'text'
     expect(shouldDeferChromeSpacePan(text)).toBe(true)
+    const radio = document.createElement('input')
+    radio.type = 'radio'
+    expect(shouldDeferChromeSpacePan(radio)).toBe(true)
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    expect(shouldDeferChromeSpacePan(checkbox)).toBe(true)
+    const range = document.createElement('input')
+    range.type = 'range'
+    expect(shouldDeferChromeSpacePan(range)).toBe(false)
     const film = document.createElement('div')
     film.dataset.testid = 'filmstrip'
     const tile = document.createElement('div')

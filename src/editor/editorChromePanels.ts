@@ -4,10 +4,11 @@ export interface EditorPanels {
   r: boolean
 }
 
+/** Kit defaults: spreads + filmstrip open; inspector closed until toggled. */
 export const DEFAULT_EDITOR_PANELS: EditorPanels = {
   l: true,
   b: true,
-  r: true,
+  r: false,
 }
 
 export function toggleEditorPanel(

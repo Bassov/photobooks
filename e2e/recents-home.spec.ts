@@ -15,7 +15,8 @@ test('welcome replaces recents home without page scroll', async ({ page }) => {
   await expect(page.getByTestId('welcome-screen')).toBeVisible({
     timeout: 15_000,
   })
-  await expect(page.getByTestId('home-screen')).toHaveCount(0)
+  // home-screen is a harness alias on welcome (manual-qa); legacy recents home is gone.
+  await expect(page.getByTestId('welcome-screen')).toBeVisible()
   await expect(page.getByTestId('create-library')).toBeVisible()
   await assertDocumentFitsViewport(page)
 })

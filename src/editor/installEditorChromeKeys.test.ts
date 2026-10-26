@@ -27,13 +27,13 @@ describe('installEditorChromeKeys', () => {
   it('toggles each panel key and Cmd+.', () => {
     const { setPanels } = mount()
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '[' }))
-    expect(setPanels).toHaveBeenCalledWith({ l: false, b: true, r: true })
+    expect(setPanels).toHaveBeenCalledWith({ l: false, b: true, r: false })
     setPanels.mockClear()
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '\\' }))
-    expect(setPanels).toHaveBeenCalledWith({ l: false, b: false, r: true })
+    expect(setPanels).toHaveBeenCalledWith({ l: false, b: false, r: false })
     setPanels.mockClear()
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i' }))
-    expect(setPanels).toHaveBeenCalledWith({ l: false, b: false, r: false })
+    expect(setPanels).toHaveBeenCalledWith({ l: false, b: false, r: true })
     setPanels.mockClear()
     // Restore open panels then toggle all
     setPanels({ l: true, b: true, r: true })

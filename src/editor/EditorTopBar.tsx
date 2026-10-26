@@ -218,7 +218,7 @@ export function EditorTopBar({
 
   return (
     <header
-      className="editor-chrome relative z-10 flex h-12 shrink-0 items-center gap-2 px-3"
+      className="editor-chrome relative z-10 flex min-h-12 shrink-0 flex-wrap items-center gap-2 px-3"
       style={{ background: BAR, color: T }}
       data-testid="editor-bar"
     >
