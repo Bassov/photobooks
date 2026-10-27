@@ -13,21 +13,31 @@ export interface ThumbSlotSize {
 }
 
 /** Fixed-height filmstrip slot; width follows clamped aspect. */
-export function thumbSlotSize(aspect: number): ThumbSlotSize {
+export function thumbSlotSize(
+  aspect: number,
+  height = THUMB_HEIGHT,
+): ThumbSlotSize {
   const safe = Number.isFinite(aspect) && aspect > 0 ? aspect : 1
+  const scale = height / THUMB_HEIGHT
   const width = Math.round(
-    clamp(THUMB_HEIGHT * safe, THUMB_WIDTH_MIN, THUMB_WIDTH_MAX),
+    clamp(height * safe, THUMB_WIDTH_MIN * scale, THUMB_WIDTH_MAX * scale),
   )
-  return { width, height: THUMB_HEIGHT }
+  return { width, height }
 }
 
-export function thumbStride(aspect: number): number {
-  return thumbSlotSize(aspect).width + THUMB_GAP
+/** Widest possible slot at `height` (window overscan sizing). */
+export function thumbWidthMax(height = THUMB_HEIGHT): number {
+  return Math.round((THUMB_WIDTH_MAX * height) / THUMB_HEIGHT)
+}
+
+export function thumbStride(aspect: number, height = THUMB_HEIGHT): number {
+  return thumbSlotSize(aspect, height).width + THUMB_GAP
 }
 
 /** Inclusive prefix sums of item strides (length = aspects.length + 1, [0]=0). */
 export function buildStridePrefix(
   aspects: readonly number[],
+  height = THUMB_HEIGHT,
 ): readonly number[] {
   const prefix = new Array<number>(aspects.length + 1)
   prefix[0] = 0
@@ -37,7 +47,7 @@ export function buildStridePrefix(
     if (prev === undefined || aspect === undefined) {
       continue
     }
-    prefix[i + 1] = prev + thumbStride(aspect)
+    prefix[i + 1] = prev + thumbStride(aspect, height)
   }
   return prefix
 }
@@ -103,6 +113,7 @@ export function spacerWidthPx(
   aspects: readonly number[],
   reservedCount: number,
   defaultAspect = 1,
+  height = THUMB_HEIGHT,
 ): number {
   const count = Math.max(aspects.length, reservedCount)
   if (count === 0) {
@@ -110,7 +121,7 @@ export function spacerWidthPx(
   }
   let total = 0
   for (let i = 0; i < count; i += 1) {
-    total += thumbStride(aspects[i] ?? defaultAspect)
+    total += thumbStride(aspects[i] ?? defaultAspect, height)
   }
   return total
 }

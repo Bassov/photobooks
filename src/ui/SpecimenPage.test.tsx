@@ -182,4 +182,22 @@ describe('SpecimenPage', () => {
     expect(icons?.length).toBe(ICON_NAMES.length)
     expect(icons?.[0]?.getAttribute('data-size')).toBe('20')
   })
+
+  it('collapses the demo panel from header and splitter, then expands it', () => {
+    render(<SpecimenPage />)
+    const demo = screen.getByTestId('specimen-panels')
+    const splitter = within(demo).getByTestId('resize-left')
+    fireEvent.keyDown(splitter, { key: 'ArrowRight' })
+    const pane = demo.querySelector<HTMLElement>('.specimen-panels-pane')
+    expect(pane?.style.width).toBe(
+      `${String(splitter.getAttribute('aria-valuenow'))}px`,
+    )
+    fireEvent.click(within(demo).getByTestId('panel-collapse-left'))
+    expect(within(demo).queryByTestId('resize-left')).toBeNull()
+    fireEvent.click(within(demo).getByRole('button', { name: /expand/i }))
+    fireEvent.keyDown(within(demo).getByTestId('resize-left'), {
+      key: 'Enter',
+    })
+    expect(within(demo).queryByTestId('resize-left')).toBeNull()
+  })
 })

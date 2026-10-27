@@ -7,6 +7,7 @@ import {
   applyBookOp,
   applyTemplate,
   checkBookInvariants,
+  duplicateSpread,
   moveSpread,
   placeAsset,
   placementCountByAsset,
@@ -439,6 +440,81 @@ describe('spread ops', () => {
     expect(next.spreads.map((spread) => spread.id)).toEqual(['a', 'c'])
     expect(next.spreads[0]).toBe(a)
     expect(next.spreads[1]).toBe(c)
+  })
+
+  it('duplicates a spread right after the source with a fresh id', () => {
+    const a = makeSpread({ id: 'a', frames: [makeFrame({ id: 'f1' })] })
+    const b = makeSpread({ id: 'b' })
+    const book = makeBook({ spreads: [a, b] })
+    const next = duplicateSpread(book, 'a', { id: 'a-copy' })
+    expect(next.spreads.map((spread) => spread.id)).toEqual([
+      'a',
+      'a-copy',
+      'b',
+    ])
+    expect(next.spreads[1]?.frames.map((frame) => frame.id)).toEqual(['f1'])
+    expect(next.spreads[1]?.frames[0]).not.toBe(a.frames[0])
+    expect(next.spreads[0]).toBe(a)
+    expect(checkBookInvariants(next)).toEqual({ ok: true })
+  })
+
+  it('duplicateSpread allocates an id and no-ops for a missing spread', () => {
+    const book = makeBook({
+      spreads: [makeSpread({ id: 'spread-2' }), makeSpread({ id: 'b' })],
+    })
+    const next = applyBookOp(book, { type: 'duplicateSpread', spreadId: 'b' })
+    expect(next.spreads).toHaveLength(3)
+    expect(new Set(next.spreads.map((spread) => spread.id)).size).toBe(3)
+    expect(duplicateSpread(book, 'missing')).toBe(book)
+    const named = applyBookOp(book, {
+      type: 'duplicateSpread',
+      spreadId: 'b',
+      id: 'chosen',
+    })
+    expect(named.spreads.map((spread) => spread.id)).toEqual([
+      'spread-2',
+      'b',
+      'chosen',
+    ])
+    expect(next.spreads[2]?.id).not.toBe('chosen')
+  })
+
+  it('moveSpread re-lays a templated spread whose page count changes and keeps its photos', () => {
+    const base = makeBook({
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b' }),
+        makeSpread({ id: 'c' }),
+      ],
+    })
+    const first = applyTemplate(base, 'a', 'one-per-page')
+    const before = first.spreads[0]
+    const moved = moveSpread(first, 'a', 1)
+    const after = moved.spreads[1]
+    expect(after?.id).toBe('a')
+    expect(after?.templateId).toBe('one-per-page')
+    expect(after?.frames.length).toBeGreaterThan(before?.frames.length ?? 0)
+  })
+
+  it('applyTemplate with fewer frames keeps the first photos in order and unplaces the rest', () => {
+    let book = makeBook({
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b' }),
+        makeSpread({ id: 'c' }),
+      ],
+    })
+    book = addToGallery(book, ['p1', 'p2', 'p3', 'p4'])
+    book = applyTemplate(book, 'b', '4-grid')
+    const frames = book.spreads[1]?.frames ?? []
+    expect(frames).toHaveLength(4)
+    frames.forEach((frame, i) => {
+      book = placeAsset(book, 'b', frame.id, `p${String(i + 1)}`)
+    })
+    const next = applyTemplate(book, 'b', '2-up')
+    const placed = (next.spreads[1]?.frames ?? []).map((f) => f.assetId)
+    expect(placed).toEqual(['p1', 'p2'])
+    expect(unplacedAssetIds(next)).toEqual(['p3', 'p4'])
   })
 
   it('moves a spread and keeps unrelated identity', () => {

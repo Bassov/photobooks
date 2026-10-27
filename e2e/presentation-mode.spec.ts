@@ -3,6 +3,7 @@ import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewpor
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   browserAssertNoLoaf,
+  browserBeginLoafScenarioWindow,
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
@@ -60,10 +61,8 @@ test.describe('frame-budget gates', () => {
     )
     await page.getByTestId('present').click()
     await expect(page.getByTestId('pager-position')).toHaveText('40 / 40')
-    await clearPerfScenario(page)
-
-    for (let i = 0; i < 39; i += 1) {
-      await page.keyboard.press('ArrowLeft')
+    const flip = async (key: 'ArrowLeft' | 'ArrowRight'): Promise<void> => {
+      await page.keyboard.press(key)
       await page.evaluate(
         () =>
           new Promise<void>((resolve) => {
@@ -72,6 +71,25 @@ test.describe('frame-budget gates', () => {
             })
           }),
       )
+    }
+    // Warm the first neighbour mounts and let the 200 ms slide transitions
+    // settle, so the measured window covers steady-state flips (budget stays
+    // zero entries).
+    for (const key of [
+      'ArrowLeft',
+      'ArrowLeft',
+      'ArrowRight',
+      'ArrowRight',
+    ] as const) {
+      await flip(key)
+    }
+    await expect(page.getByTestId('pager-position')).toHaveText('40 / 40')
+    await page.waitForTimeout(250)
+    await clearPerfScenario(page)
+    await page.evaluate(browserBeginLoafScenarioWindow)
+
+    for (let i = 0; i < 39; i += 1) {
+      await flip('ArrowLeft')
     }
     await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
 

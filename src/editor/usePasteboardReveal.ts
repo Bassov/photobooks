@@ -145,6 +145,7 @@ export function usePasteboardReveal({
       spreadCount: spreadIds.length,
       stride,
       state: revealState.current,
+      index: spreadIds.indexOf(id),
     })
     revealState.current = state
     if (slot !== null) {

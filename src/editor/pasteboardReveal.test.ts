@@ -193,6 +193,27 @@ describe('actionAfterPaintConfirm', () => {
 })
 
 describe('turnPendingReveal', () => {
+  it('awaits a missing slot at the requested index', () => {
+    const result = turnPendingReveal({
+      slot: null,
+      scroll: mockScroll(),
+      spreadCount: 10,
+      stride: 100,
+      state: { tries: 0, paintConfirmed: false },
+      index: 3,
+    })
+    expect(result.turn).toEqual({ kind: 'await-slot', top: 300 })
+    const first = turnPendingReveal({
+      slot: null,
+      scroll: mockScroll(),
+      spreadCount: 10,
+      stride: 100,
+      state: { tries: 0, paintConfirmed: false },
+      index: 0,
+    })
+    expect(first.turn).toEqual({ kind: 'await-slot', top: 0 })
+  })
+
   it('awaits a missing slot at the stack end', () => {
     const scroll = mockScroll()
     const result = turnPendingReveal({

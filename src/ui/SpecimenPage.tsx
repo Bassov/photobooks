@@ -8,6 +8,9 @@ import { Icon, ICON_NAMES, ICON_SIZES, type IconSize } from './Icon'
 import { IconButton } from './IconButton'
 import { Menu, MenuItem, MenuPopover, MenuTrigger } from './Menu'
 import { Popover, PopoverDialog, PopoverTrigger } from './Popover'
+import { Panel } from './Panel'
+import { PanelSplitter } from './PanelSplitter'
+import { PANEL_DEFAULTS } from './panelSize'
 import { ProgressBar } from './ProgressBar'
 import { SegmentedControl } from './SegmentedControl'
 import { Status } from './Status'
@@ -30,6 +33,8 @@ export function SpecimenPage() {
   const [toastQueue] = useState(() => createToastQueue())
   const [alertOpen, setAlertOpen] = useState(false)
   const [menuChoice, setMenuChoice] = useState('')
+  const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULTS.left)
+  const [panelOpen, setPanelOpen] = useState(true)
 
   return (
     <main className="specimen-page" data-testid="specimen">
@@ -586,6 +591,52 @@ export function SpecimenPage() {
         >
           The book disappears from this library. Photos stay on disk.
         </AlertDialog>
+      </section>
+
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-panels-h"
+        data-testid="specimen-panels"
+      >
+        <h2 id="specimen-panels-h">Panels · resize + collapse</h2>
+        <div className="specimen-panels-demo">
+          {panelOpen ? (
+            <>
+              <div
+                className="specimen-panels-pane"
+                style={{ width: panelWidth }}
+              >
+                <Panel
+                  side="left"
+                  title="Spreads"
+                  shortcut="["
+                  onCollapse={() => {
+                    setPanelOpen(false)
+                  }}
+                >
+                  <p className="specimen-note px-3">{panelWidth}px</p>
+                </Panel>
+              </div>
+              <PanelSplitter
+                side="left"
+                width={panelWidth}
+                onResize={setPanelWidth}
+                onCollapse={() => {
+                  setPanelOpen(false)
+                }}
+              />
+            </>
+          ) : (
+            <Button
+              variant="secondary"
+              onPress={() => {
+                setPanelOpen(true)
+              }}
+            >
+              Expand spreads
+            </Button>
+          )}
+        </div>
       </section>
 
       <ToastRegion queue={toastQueue} data-testid="specimen-toast-region" />

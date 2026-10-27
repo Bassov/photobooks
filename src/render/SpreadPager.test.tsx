@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SpreadPager } from './SpreadPager'
 
@@ -26,9 +26,12 @@ function Harness({
 
 const position = () => screen.getByTestId('pager-position').textContent
 
-const firstFit = () =>
+const firstShadowBox = () =>
   screen.getAllByTestId('presentation-slide')[0]?.firstElementChild as
     HTMLElement | null | undefined
+
+const firstFit = () =>
+  firstShadowBox()?.firstElementChild as HTMLElement | null | undefined
 
 function stubSizes(sizes: {
   w: number
@@ -209,6 +212,10 @@ describe('SpreadPager', () => {
     render(<Harness />)
     // min(2000*.94/1000, (1064-64)*.96/500) = min(1.88, 1.92)
     expect(firstFit()?.style.transform).toBe('scale(1.88)')
+    // The shadow box stays unscaled and wraps the scaled spread exactly.
+    expect(firstShadowBox()?.style.width).toBe('1880px')
+    expect(firstShadowBox()?.style.height).toBe('940px')
+    expect(firstShadowBox()?.style.transform).toBe('')
   })
 
   it('lets the height bound the scale when the stage is wide', () => {
@@ -224,6 +231,7 @@ describe('SpreadPager', () => {
     stubSizes({ w, h, stageW: 2000, stageH: 1064 })
     render(<Harness />)
     expect(firstFit()?.style.transform).toBe('scale(1)')
+    expect(firstShadowBox()?.style.width).toBe('0px')
   })
 
   it('observes stage and spread, re-observes per index, disconnects on unmount', () => {
@@ -251,6 +259,72 @@ describe('SpreadPager', () => {
     expect(disconnect).toHaveBeenCalledTimes(1)
     unmount()
     expect(disconnect).toHaveBeenCalledTimes(2)
+  })
+
+  it('re-renders on a resize only when scale, width or height changed', () => {
+    let measure: () => void = vi.fn()
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          measure = cb
+        }
+        observe = vi.fn()
+        disconnect = vi.fn()
+      },
+    )
+    const sizes = { w: 1000, h: 500, stageW: 2000, stageH: 1064 }
+    stubSizes(sizes)
+    const renderSpread = vi.fn(() => null)
+    render(
+      <SpreadPager
+        count={1}
+        index={0}
+        onIndexChange={() => undefined}
+        onExit={() => undefined}
+        renderSpread={renderSpread}
+      />,
+    )
+    const box = () => firstShadowBox()
+    expect(box()?.style.width).toBe('1880px')
+    const baseline = renderSpread.mock.calls.length
+
+    // Same measurements: state is kept, nothing re-renders.
+    act(() => {
+      measure()
+    })
+    expect(renderSpread).toHaveBeenCalledTimes(baseline)
+
+    // Height only: the scale stays width-bound (1.88), the height grows.
+    sizes.h = 450
+    stubSizes(sizes)
+    act(() => {
+      measure()
+    })
+    expect(renderSpread.mock.calls.length).toBeGreaterThan(baseline)
+    expect(firstFit()?.style.transform).toBe('scale(1.88)')
+    expect(parseFloat(box()?.style.height ?? '')).toBeCloseTo(846, 6)
+    expect(box()?.style.width).toBe('1880px')
+
+    // Stage only: the spread size is unchanged, the scale alone differs.
+    const afterHeight = renderSpread.mock.calls.length
+    sizes.stageW = 1000
+    stubSizes(sizes)
+    act(() => {
+      measure()
+    })
+    expect(renderSpread.mock.calls.length).toBeGreaterThan(afterHeight)
+    expect(firstFit()?.style.transform).toBe('scale(0.94)')
+
+    // Width halves while the stage halves too: the scale is back to 1.88.
+    sizes.w = 500
+    sizes.stageW = 1000
+    stubSizes(sizes)
+    act(() => {
+      measure()
+    })
+    expect(firstFit()?.style.transform).toBe('scale(1.88)')
+    expect(box()?.style.width).toBe('940px')
   })
 
   it('renders no slides or position for an empty book and still exits', () => {
