@@ -1,6 +1,9 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { GridListItem } from 'react-aria-components'
 import { Badge } from '../ui/Badge'
+import { Icon } from '../ui/Icon'
+import { IconButton } from '../ui/IconButton'
+import { requestGalleryRemove } from './galleryRemoveRequest'
 import {
   getAssetAspectSnapshot,
   getAssetCacheKey,
@@ -122,6 +125,18 @@ export function FilmstripItemView({
             Placed
           </Badge>
         ) : null}
+        <IconButton
+          label={`Remove ${name} from gallery`}
+          size="sm"
+          tooltip={false}
+          className="filmstrip-remove"
+          data-testid="filmstrip-remove"
+          onPress={() => {
+            requestGalleryRemove(id, name)
+          }}
+        >
+          <Icon name="delete" size={14} />
+        </IconButton>
       </div>
     </GridListItem>
   )

@@ -1,6 +1,11 @@
 import { resolveSpread, type Book } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
-import { getBookStoreSnapshot, dispatchBookOp } from './bookStore'
+import {
+  dispatchBookOp,
+  getAssetDisplayName,
+  getBookStoreSnapshot,
+} from './bookStore'
+import { requestGalleryRemove } from './galleryRemoveRequest'
 import { clearDropHover, setDropHover } from './dropHover'
 import {
   ASSET_DRAG_MIME,
@@ -457,6 +462,14 @@ export function installEditorKeys(): () => void {
       return
     }
     if (isTypingTarget(event.target) || !(event.target instanceof Element)) {
+      return
+    }
+    const thumbId =
+      event.target.closest('.filmstrip-item')?.getAttribute('data-asset-id') ??
+      ''
+    if (thumbId !== '') {
+      event.preventDefault()
+      requestGalleryRemove(thumbId, getAssetDisplayName(thumbId))
       return
     }
     const button = event.target.closest('button.spread-frame')
