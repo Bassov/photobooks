@@ -8,13 +8,13 @@ import { EditorTopBar } from './EditorTopBar'
 import { FilmstripDock } from './FilmstripDock'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
 import { InspectorStub } from './InspectorStub'
+import { LeftPanel } from './LeftPanel'
 import { installCropGesture } from './cropGesture'
 import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
 import { Pasteboard } from './Pasteboard'
 import { PresentationMode } from './PresentationMode'
-import { SpreadsPanel } from './SpreadsPanel'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
 
@@ -53,7 +53,7 @@ export function EditorShell() {
           }}
         />
       }
-      left={<SpreadsPanel toastQueue={toastQueue} />}
+      left={<LeftPanel toastQueue={toastQueue} />}
       right={(collapse) => <InspectorStub onCollapse={collapse} />}
       dock={
         <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />

@@ -273,6 +273,85 @@
   border: 0;
 }
 
+.assets-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+  padding: 0 calc(var(--spacing) * 3);
+}
+
+.assets-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
+  height: 100%;
+  padding: 0 calc(var(--spacing) * 1);
+  border-radius: var(--radius-md);
+}
+
+.assets-thumb {
+  flex-shrink: 0;
+  width: 40px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.assets-thumb-empty {
+  border: 1px dashed var(--border);
+}
+
+.assets-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.assets-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.assets-uses {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-2xs);
+  color: var(--muted-foreground);
+}
+
+.editor-left-tabs {
+  background: var(--muted);
+  padding: 2px;
+  gap: 2px;
+}
+
+.editor-left-tab {
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.editor-left-tab[aria-selected='true'] {
+  background: var(--chrome);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+.editor-left-tab:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
 /* "Drop here for a new spread" band; hit-testing is dropTargets.hitTestGap. */
 .pasteboard-gap {
   position: absolute;

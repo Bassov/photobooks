@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type DragEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 import { flushSync } from 'react-dom'
 import { Icon } from '../ui/Icon'
@@ -93,8 +94,10 @@ interface DragState {
 /** Kit left spreads list wired to product bookStore (pages only — no masters). */
 export function SpreadsPanel({
   toastQueue,
+  modeSwitch,
 }: {
-  toastQueue?: PhotobooksToastQueue
+  toastQueue?: PhotobooksToastQueue | undefined
+  modeSwitch?: ReactNode
 }) {
   const spreadIds = useSyncExternalStore(
     subscribeBookStore,
@@ -280,9 +283,11 @@ export function SpreadsPanel({
       }
     >
       <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg">
-        <div className="editor-spreads-mode flex h-6.5 items-center justify-center rounded-sm text-sm font-medium">
-          Pages
-        </div>
+        {modeSwitch ?? (
+          <div className="editor-spreads-mode flex h-6.5 items-center justify-center rounded-sm text-sm font-medium">
+            Pages
+          </div>
+        )}
       </div>
       <div
         ref={attachList}
