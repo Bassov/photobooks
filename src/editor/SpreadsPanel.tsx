@@ -1,5 +1,6 @@
 import type { DragEvent, KeyboardEvent } from 'react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useRef, useState, useSyncExternalStore } from 'react'
+import { flushSync } from 'react-dom'
 import { Icon } from '../ui/Icon'
 import {
   dispatchBookOp,
@@ -39,9 +40,6 @@ export function SpreadsPanel() {
     getActiveSpreadId,
   )
   const selected = selectedSpreadId(activeId, spreadIds)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const focusIdRef = useRef<string | null>(null)
-  // Re-renders only when the drop target changes, not on every dragover.
   const [drag, setDrag] = useState<DragState | null>(null)
   // The ref is the synchronous truth for handlers; state only drives render.
   const dragRef = useRef<DragState | null>(null)
@@ -51,32 +49,22 @@ export function SpreadsPanel() {
   }
   const canReorder = spreadIds.length > 1
 
-  useEffect(() => {
-    // Stryker disable next-line ConditionalExpression,BlockStatement: a null id matches no item, so skipping the guard is a no-op
-    if (focusIdRef.current === null) {
+  // dragstart bubbles from the draggable item to the list.
+  const onDragStart = (event: DragEvent<HTMLElement>): void => {
+    const nodes = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>('[data-item]'),
+    )
+    const from = nodes.findIndex((el) => el === event.target)
+    if (from < 0) {
       return
     }
-    const id = focusIdRef.current
-    focusIdRef.current = null
-    // Stryker disable next-line OptionalChaining: the ref is mounted while effects run
-    contentRef.current
-      ?.querySelector<HTMLElement>(`[data-item="${CSS.escape(id)}"]`)
-      ?.focus()
-  }, [spreadIds])
-
-  const onDragStart = (event: DragEvent<HTMLElement>, id: string): void => {
     // Rects are content-relative (offsetTop), so list scroll mid-drag is safe.
-    // Stryker disable OptionalChaining,ArrayDeclaration: the ref is mounted while handlers fire
-    const nodes =
-      contentRef.current?.querySelectorAll<HTMLElement>('[data-item]') ?? []
-    // Stryker restore OptionalChaining,ArrayDeclaration
-    const spans = Array.from(nodes, (el) => ({
+    const spans = nodes.map((el) => ({
       top: el.offsetTop,
       height: el.offsetHeight + SPREAD_ITEM_GAP_PX,
     }))
-    const from = spreadIds.indexOf(id)
     setSession({ from, target: from, spans })
-    event.dataTransfer.setData(SPREAD_DRAG_MIME, id)
+    event.dataTransfer.setData(SPREAD_DRAG_MIME, String(from))
     event.dataTransfer.effectAllowed = 'move'
   }
 
@@ -97,10 +85,7 @@ export function SpreadsPanel() {
       scroller.scrollTop,
     )
     const target = reorderTargetIndex(session.spans, session.from, y)
-    // Stryker disable next-line ConditionalExpression,BlockStatement: skipping only avoids same-target re-renders (perf, not behavior)
-    if (target !== session.target) {
-      setSession({ ...session, target })
-    }
+    setSession({ ...session, target })
   }
 
   const onDrop = (event: DragEvent<HTMLElement>): void => {
@@ -127,8 +112,12 @@ export function SpreadsPanel() {
       return
     }
     event.preventDefault()
-    focusIdRef.current = id
-    dispatchBookOp({ type: 'moveSpread', spreadId: id, toIndex: to })
+    // A keyed reorder re-inserts the node and drops focus; restore it after a sync commit.
+    const node = event.currentTarget
+    flushSync(() => {
+      dispatchBookOp({ type: 'moveSpread', spreadId: id, toIndex: to })
+    })
+    node.focus()
   }
 
   const lineY =
@@ -150,13 +139,14 @@ export function SpreadsPanel() {
         data-scrollport="spreads-list"
         role="listbox"
         aria-label="Pages"
+        onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDrop={onDrop}
         onDragEnd={() => {
           setSession(null)
         }}
       >
-        <div ref={contentRef} className="relative flex flex-col">
+        <div className="relative flex flex-col">
           {lineY === null ? null : (
             <div
               aria-hidden="true"
@@ -192,9 +182,6 @@ export function SpreadsPanel() {
                     ? undefined
                     : { transform: `translateY(${String(shift)}px)` }
                 }
-                onDragStart={(event) => {
-                  onDragStart(event, id)
-                }}
                 onKeyDown={(event) => {
                   onItemKeyDown(event, id, i)
                 }}
