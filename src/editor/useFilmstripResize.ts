@@ -13,6 +13,15 @@ export interface FilmstripResize {
   cancel: () => void
 }
 
+const PREVIEW_ATTR = 'data-film-resizing'
+
+/** Drop the preview scale on the dock that contains `node` (if resizing). */
+export function endFilmstripResizePreview(node: HTMLElement | null): void {
+  const dock = node?.closest<HTMLElement>(`[${PREVIEW_ATTR}]`)
+  dock?.removeAttribute(PREVIEW_ATTR)
+  dock?.style.removeProperty('--film-preview-scale')
+}
+
 /**
  * Drives `--film-preview-scale` on the dock during a resize gesture and commits
  * the final height to the size store on release.
@@ -38,10 +47,13 @@ export function useFilmstripResize(
     },
     commit: () => {
       const value = draft.current
-      clear()
-      if (value !== null) {
-        setFilmstripThumbHeight(value)
+      draft.current = null
+      if (value === null || value === getFilmstripThumbHeight()) {
+        clear()
+        return
       }
+      // The strip clears the preview once it has re-laid out (Filmstrip.tsx).
+      setFilmstripThumbHeight(value)
     },
     cancel: clear,
   }

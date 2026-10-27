@@ -1,6 +1,8 @@
 import {
   memo,
+  useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -65,6 +67,7 @@ import {
   getFilmstripThumbHeight,
   subscribeFilmstripThumbHeight,
 } from './filmstripSize'
+import { endFilmstripResizePreview } from './useFilmstripResize'
 import './Filmstrip.css'
 
 /** Extra cover beyond the scrollport so fast scroll does not flash holes. */
@@ -98,11 +101,21 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const committedWindowStart = useRef(0)
   const prefixRef = useRef<readonly number[]>([0])
   const total = gallery.length
-  const thumbHeight = useSyncExternalStore(
-    subscribeFilmstripThumbHeight,
-    getFilmstripThumbHeight,
-    getFilmstripThumbHeight,
+  // Deferred: a committed resize re-lays out every visible thumb, which is
+  // too much script for the pointerup frame. React renders it time-sliced.
+  const thumbHeight = useDeferredValue(
+    useSyncExternalStore(
+      subscribeFilmstripThumbHeight,
+      getFilmstripThumbHeight,
+      getFilmstripThumbHeight,
+    ),
   )
+
+  // The resize preview scale holds until the strip has re-laid out at the
+  // committed height, so release never flashes the old size.
+  useLayoutEffect(() => {
+    endFilmstripResizePreview(scrollRef.current)
+  }, [thumbHeight])
 
   const prefix = useMemo(
     () => buildStridePrefix(aspects, thumbHeight),

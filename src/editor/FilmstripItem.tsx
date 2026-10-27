@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { memo, useEffect, useSyncExternalStore } from 'react'
 import { GridListItem } from 'react-aria-components'
 import { Badge } from '../ui/Badge'
 import { Icon } from '../ui/Icon'
@@ -33,6 +33,80 @@ function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
   }
   return 'square'
 }
+
+/**
+ * Thumb, badge and remove button. Memoized apart from the slot geometry so a
+ * committed filmstrip resize only re-renders the outer slot (CSS sizes the
+ * thumb to 100%).
+ */
+const FilmstripItemBody = memo(function FilmstripItemBody({
+  id,
+  name,
+  thumbUrl,
+  placed,
+}: {
+  id: string
+  name: string
+  thumbUrl: string | undefined
+  placed: boolean
+}) {
+  return (
+    <div
+      className="filmstrip-drag"
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData(ASSET_DRAG_MIME, id)
+        event.dataTransfer.effectAllowed = 'copy'
+        const selection = getSelectedAssetIds()
+        if (selection.length > 1 && selection.includes(id)) {
+          event.dataTransfer.setData(
+            ASSET_MULTI_MIME,
+            encodeAssetIds(selection),
+          )
+          return
+        }
+        setSelectedAssetId(id)
+      }}
+    >
+      {thumbUrl ? (
+        <img
+          className="filmstrip-thumb"
+          data-testid="filmstrip-thumb"
+          src={thumbUrl}
+          alt=""
+          decoding="async"
+        />
+      ) : (
+        <div
+          className="filmstrip-placeholder"
+          data-testid="filmstrip-placeholder"
+        />
+      )}
+      {placed ? (
+        <Badge
+          color="gray"
+          size="sm"
+          className="filmstrip-placed"
+          data-testid="filmstrip-placed"
+        >
+          Placed
+        </Badge>
+      ) : null}
+      <IconButton
+        label={`Remove ${name} from gallery`}
+        size="sm"
+        tooltip={false}
+        className="filmstrip-remove"
+        data-testid="filmstrip-remove"
+        onPress={() => {
+          requestGalleryRemove(id, name)
+        }}
+      >
+        <Icon name="delete" size={14} />
+      </IconButton>
+    </div>
+  )
+})
 
 export function FilmstripItemView({
   id,
@@ -97,62 +171,12 @@ export function FilmstripItemView({
         ...(jumpHighlightId === id ? filmstripImportJumpHighlightStyle : {}),
       }}
     >
-      <div
-        className="filmstrip-drag"
-        draggable
-        onDragStart={(event) => {
-          event.dataTransfer.setData(ASSET_DRAG_MIME, id)
-          event.dataTransfer.effectAllowed = 'copy'
-          const selection = getSelectedAssetIds()
-          if (selection.length > 1 && selection.includes(id)) {
-            event.dataTransfer.setData(
-              ASSET_MULTI_MIME,
-              encodeAssetIds(selection),
-            )
-            return
-          }
-          setSelectedAssetId(id)
-        }}
-      >
-        {thumbUrl ? (
-          <img
-            className="filmstrip-thumb"
-            data-testid="filmstrip-thumb"
-            src={thumbUrl}
-            alt=""
-            decoding="async"
-            width={width}
-            height={height}
-          />
-        ) : (
-          <div
-            className="filmstrip-placeholder"
-            data-testid="filmstrip-placeholder"
-          />
-        )}
-        {placementCount > 0 ? (
-          <Badge
-            color="gray"
-            size="sm"
-            className="filmstrip-placed"
-            data-testid="filmstrip-placed"
-          >
-            Placed
-          </Badge>
-        ) : null}
-        <IconButton
-          label={`Remove ${name} from gallery`}
-          size="sm"
-          tooltip={false}
-          className="filmstrip-remove"
-          data-testid="filmstrip-remove"
-          onPress={() => {
-            requestGalleryRemove(id, name)
-          }}
-        >
-          <Icon name="delete" size={14} />
-        </IconButton>
-      </div>
+      <FilmstripItemBody
+        id={id}
+        name={name}
+        thumbUrl={thumbUrl}
+        placed={placementCount > 0}
+      />
     </GridListItem>
   )
 }
