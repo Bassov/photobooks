@@ -26,9 +26,12 @@ function Harness({
 
 const position = () => screen.getByTestId('pager-position').textContent
 
-const firstFit = () =>
+const firstShadowBox = () =>
   screen.getAllByTestId('presentation-slide')[0]?.firstElementChild as
     HTMLElement | null | undefined
+
+const firstFit = () =>
+  firstShadowBox()?.firstElementChild as HTMLElement | null | undefined
 
 function stubSizes(sizes: {
   w: number
@@ -209,6 +212,10 @@ describe('SpreadPager', () => {
     render(<Harness />)
     // min(2000*.94/1000, (1064-64)*.96/500) = min(1.88, 1.92)
     expect(firstFit()?.style.transform).toBe('scale(1.88)')
+    // The shadow box stays unscaled and wraps the scaled spread exactly.
+    expect(firstShadowBox()?.style.width).toBe('1880px')
+    expect(firstShadowBox()?.style.height).toBe('940px')
+    expect(firstShadowBox()?.style.transform).toBe('')
   })
 
   it('lets the height bound the scale when the stage is wide', () => {
@@ -224,6 +231,7 @@ describe('SpreadPager', () => {
     stubSizes({ w, h, stageW: 2000, stageH: 1064 })
     render(<Harness />)
     expect(firstFit()?.style.transform).toBe('scale(1)')
+    expect(firstShadowBox()?.style.width).toBe('0px')
   })
 
   it('observes stage and spread, re-observes per index, disconnects on unmount', () => {
