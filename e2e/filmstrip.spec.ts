@@ -1642,6 +1642,7 @@ test.describe('sort / filter / remove', () => {
     await page.mouse.move(box.x + box.width / 2, box.y + 3)
     await page.mouse.down()
     await page.mouse.move(box.x + box.width / 2, box.y - 40, { steps: 8 })
+    await page.evaluate(browserAssertNoLoaf, 0)
     await page.mouse.up()
     await expect(splitter).not.toHaveAttribute('aria-valuenow', '96')
     const committed = Number(await splitter.getAttribute('aria-valuenow'))
