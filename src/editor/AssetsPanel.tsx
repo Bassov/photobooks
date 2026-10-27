@@ -148,13 +148,11 @@ function AssetRowView({ row, top }: { row: AssetRow; top: number }) {
   )
 }
 
+const selectBook = () => getBookStoreSnapshot().book
+
 /** Assets tab: virtualized list of gallery photos with status, uses and spreads. */
 export function AssetsPanel({ modeSwitch }: { modeSwitch?: ReactNode }) {
-  const book = useSyncExternalStore(
-    subscribeBookStore,
-    () => getBookStoreSnapshot().book,
-    () => getBookStoreSnapshot().book,
-  )
+  const book = useSyncExternalStore(subscribeBookStore, selectBook, selectBook)
   const statuses = useSyncExternalStore(
     subscribeRelink,
     getRelinkStatuses,
