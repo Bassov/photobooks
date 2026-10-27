@@ -60,9 +60,17 @@
   outline-offset: -2px;
 }
 
+/* Resize drag: only --film-preview-scale changes (compositor transform, no
+   layout, so the pasteboard is not resized per move); the virtualizer and dock
+   re-lay out once on release via the committed height. */
+[data-film-resizing='true'] .filmstrip-spacer {
+  transform: scale(var(--film-preview-scale, 1));
+  transform-origin: left top;
+}
+
 .filmstrip-spacer {
   position: relative;
-  height: 120px;
+  height: calc(var(--film-thumb-h, 96px) + 24px);
 }
 
 .filmstrip-window {
