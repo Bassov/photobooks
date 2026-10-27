@@ -180,3 +180,12 @@ Library book summaries SHALL include `id` and `title`, where `title` is the book
 
 - **WHEN** a stored book has `title` `"Summer"` and books are listed
 - **THEN** the summary for that book includes `title` `"Summer"`
+
+### Requirement: Move spread re-lays changed page roles
+
+`moveSpread` SHALL reapply the template of every spread whose page count changes because of the move (first and last spreads are single-page), keeping its photos.
+
+#### Scenario: First spread moved to the middle
+
+- **WHEN** the first spread is moved to the middle of the book
+- **THEN** it becomes a two-page spread laid out with its template and keeps its photos

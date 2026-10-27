@@ -184,6 +184,9 @@ export function SpreadsPanel() {
                 data-first={i === 0 ? 'true' : 'false'}
                 data-testid={`spread-list-item-${id}`}
                 draggable={canReorder}
+                aria-keyshortcuts={
+                  canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined
+                }
                 style={
                   drag === null
                     ? undefined

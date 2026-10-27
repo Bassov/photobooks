@@ -261,12 +261,16 @@ describe('SpreadsPanel reorder', () => {
     const ids = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
     expect(item(ids[0]).getAttribute('draggable')).toBe('true')
+    expect(item(ids[0]).getAttribute('aria-keyshortcuts')).toBe(
+      'Alt+ArrowUp Alt+ArrowDown',
+    )
     cleanup()
     for (const id of ids.slice(1)) {
       dispatchBookOp({ type: 'removeSpread', spreadId: id })
     }
     render(<SpreadsPanel />)
     expect(item(ids[0]).getAttribute('draggable')).toBe('false')
+    expect(item(ids[0]).hasAttribute('aria-keyshortcuts')).toBe(false)
     expect(
       fireEvent.keyDown(item(ids[0]), { key: 'ArrowDown', altKey: true }),
     ).toBe(true)

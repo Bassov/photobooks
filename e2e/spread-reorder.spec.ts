@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
-import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import {
+  assertDocumentFitsViewport,
+  assertNamedScrollport,
+} from './fixtures/assertDocumentFitsViewport'
 import { dropAssetOnFrame } from './fixtures/dropAssetOnFrame'
 import {
   ensurePhotoFixtures,
@@ -147,4 +150,48 @@ test('switching a template keeps photos in order and unplaces extras', async ({
     .evaluateAll((els) => els.map((el) => el.getAttribute('data-asset-id')))
   expect(placedAfter).toEqual(placedBefore)
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(2)
+
+  await page.getByRole('radio', { name: 'Full bleed' }).click()
+  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1)
+  const placedOne = await active
+    .locator('button[data-filled="true"]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-asset-id')))
+  expect(placedOne).toEqual(placedBefore.slice(0, 1))
+  await expect(page.getByTestId('filmstrip-placed')).toHaveCount(1)
+})
+
+test('reorder in an overflowing list scrolls only inside spreads-list', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  for (let i = 0; i < 12; i += 1) {
+    await page.getByTestId('add-spread').click()
+  }
+  const list = page.getByTestId('spreads-list')
+  await expect(list.locator('[data-item]')).toHaveCount(15)
+  await assertNamedScrollport(page, 'spreads-list', {
+    axis: 'vertical',
+    nudgeHorizontal: true,
+  })
+  await assertDocumentFitsViewport(page)
+
+  const before = await panelOrder(page)
+  const lastId = before.at(-1) ?? ''
+  await list.evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+  })
+  const listBox = await list.boundingBox()
+  expect(listBox).not.toBeNull()
+  await dragItemTo(page, lastId, (listBox?.y ?? 0) + 2)
+
+  await expect
+    .poll(async () => (await panelOrder(page)).at(-1))
+    .not.toBe(lastId)
+  const after = await panelOrder(page)
+  // Scrolled to the bottom, the pointer at the list top maps past the first items.
+  expect(after.indexOf(lastId)).toBeGreaterThan(3)
+  expect(after.filter((id) => id !== lastId)).toEqual(
+    before.filter((id) => id !== lastId),
+  )
+  await assertDocumentFitsViewport(page)
 })
