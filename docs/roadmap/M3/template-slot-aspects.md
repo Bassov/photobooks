@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: orientation-aware templates
+Status: done
 
 ## Scope
 

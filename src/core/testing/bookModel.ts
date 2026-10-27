@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { fc } from '@fast-check/vitest'
 import { applyBookOp, type BookOp } from '../ops/applyBookOp'
 import type { Book } from '../schema'
-import { TEMPLATE_IDS } from '../templates/types'
+import { TEMPLATE_IDS, contactSheetId } from '../templates/types'
 
 /** Simple reference model of the book: gallery order plus per-frame placement. */
 interface ModelFrame {
@@ -352,7 +352,10 @@ export function commandFactories(options: CommandOptions) {
     applyTemplate: (s: number, t: number) =>
       make(`applyTemplate(s${String(s)},t${String(t)})`, (model) => {
         const spread = pick(model.spreads, s)
-        const templateId = pick(TEMPLATE_IDS, t)
+        const templateId = pick(
+          [...TEMPLATE_IDS, contactSheetId(2, 2), contactSheetId(3, 4)],
+          t,
+        )
         return (
           spread &&
           templateId && {
