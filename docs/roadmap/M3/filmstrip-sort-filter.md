@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: working with the gallery
+Status: done
 
 ## Scope
 
