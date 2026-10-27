@@ -55,7 +55,7 @@ export function SettingsScreen({
                 setSec(section.id)
               }}
               className={cn(
-                'flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-hidden hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring',
+                'flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-hidden hover:bg-accent/60 focus-visible:bg-accent/60',
                 settingsNavActiveClass(active),
               )}
             >
@@ -137,9 +137,28 @@ export function SettingsScreen({
               />
               <div className={ROW}>
                 <div className="min-w-0 flex-1 text-sm">Folder access</div>
-                <Badge color="success" dot>
+                <Badge color="gray" dot>
                   Allowed · read and write
                 </Badge>
+              </div>
+              <div
+                className="mx-4 h-px shrink-0 bg-black/[0.06]"
+                aria-hidden
+                data-testid="settings-rule"
+              />
+              <div className={ROW}>
+                <div className="min-w-0 flex-1 text-sm">
+                  Preview cache
+                  <div className="text-xs text-muted-foreground">
+                    Rebuilt automatically if cleared
+                  </div>
+                </div>
+                <span
+                  className="text-sm text-muted-foreground"
+                  data-testid="settings-preview-cache"
+                >
+                  Automatic
+                </span>
               </div>
             </div>
           </>
