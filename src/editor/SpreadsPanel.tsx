@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
   useSyncExternalStore,
   type CSSProperties,
@@ -33,6 +32,13 @@ import {
 } from './spreadsPanelModel'
 
 type RowAction = 'add' | 'duplicate' | 'delete'
+
+function revealRow(list: HTMLElement, index: number): void {
+  const next = scrollTopToReveal(index, list.scrollTop, list.clientHeight)
+  if (next !== null) {
+    list.scrollTop = next
+  }
+}
 
 function run(
   action: RowAction,
@@ -83,14 +89,15 @@ export function SpreadsPanel({
     getActiveSpreadId,
   )
   const selected = selectedSpreadId(activeId, spreadIds)
-  const listRef = useRef<HTMLDivElement | null>(null)
+  // State, not a ref: the reveal effect re-runs once the list is attached.
+  const [listNode, setListNode] = useState<HTMLDivElement | null>(null)
   // Quantized to whole rows so React bails out while the window is unchanged.
   const [firstRow, setFirstRow] = useState(0)
   const [viewport, setViewport] = useState(0)
 
   // React 19 ref callback: `node` is never null here; the cleanup runs on detach.
   const attachList = useCallback((node: HTMLDivElement) => {
-    listRef.current = node
+    setListNode(node)
     const measure = (): void => {
       setViewport(node.clientHeight)
     }
@@ -104,17 +111,11 @@ export function SpreadsPanel({
 
   // Keep the selected row visible when the pasteboard changes the active spread.
   useEffect(() => {
-    const node = listRef.current
-    const index = spreadIds.indexOf(selected ?? '')
-    // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: ref is set once mounted; no selection only when the list is empty
-    if (node === null || index < 0) {
+    if (listNode === null) {
       return
     }
-    const next = scrollTopToReveal(index, node.scrollTop, node.clientHeight)
-    if (next !== null) {
-      node.scrollTop = next
-    }
-  }, [selected, spreadIds])
+    revealRow(listNode, spreadIds.indexOf(selected ?? ''))
+  }, [listNode, selected, spreadIds])
 
   const win = spreadsListWindow(
     spreadIds.length,
@@ -146,7 +147,7 @@ export function SpreadsPanel({
     const next = spreadIds[spreadIds.indexOf(id) + action.delta]
     if (next !== undefined) {
       scrollPasteboardToSpread(next)
-      listRef.current
+      listNode
         ?.querySelector<HTMLElement>(`[data-item="${CSS.escape(next)}"]`)
         ?.focus()
     }

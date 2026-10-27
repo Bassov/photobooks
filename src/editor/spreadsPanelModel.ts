@@ -55,6 +55,10 @@ export function scrollTopToReveal(
   scrollTop: number,
   viewportPx: number,
 ): number | null {
+  // -1: no selection (empty list) — nothing to reveal.
+  if (index < 0) {
+    return null
+  }
   const top = index * SPREADS_ROW_PX
   const bottom = top + SPREADS_ROW_PX
   if (top < scrollTop) {

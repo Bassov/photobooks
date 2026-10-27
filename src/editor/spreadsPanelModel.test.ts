@@ -74,6 +74,8 @@ describe('spreadsPanelModel', () => {
     expect(scrollTopToReveal(1, 0, 2 * SPREADS_ROW_PX)).toBeNull()
     // Taller-than-viewport rows never scroll below zero.
     expect(scrollTopToReveal(0, 10, 20)).toBe(0)
+    // No selection never scrolls.
+    expect(scrollTopToReveal(-1, SPREADS_ROW_PX, 400)).toBeNull()
   })
 
   it('maps keys to panel actions', () => {
