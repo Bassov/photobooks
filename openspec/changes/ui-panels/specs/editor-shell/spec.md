@@ -31,7 +31,7 @@ The system SHALL present an editor shell matching kit editor chrome when the edi
 
 ### Requirement: Resizable side panels
 
-The left spreads and right inspector panels SHALL be resizable from a `role=separator` splitter on their inner edge by primary-button pointer drag and by ArrowLeft/ArrowRight (8 px; Shift ×4), clamped to 150–360 px (defaults 212 / 300). Widths MUST persist per browser in `localStorage`; missing, invalid or unreadable values MUST fall back to the defaults. Enter on a splitter and the panel header collapse button MUST hide the panel through the existing open/hide state and move focus to that panel's top-bar toggle. No panel width MAY introduce page-level H/V scroll.
+The left spreads and right inspector panels SHALL be resizable from a `role=separator` splitter on their inner edge by primary-button pointer drag and by ArrowLeft/ArrowRight (8 px; Shift ×4), clamped to 150–360 px (defaults 212 / 300). Widths MUST persist per browser in `localStorage`; missing, invalid or unreadable values MUST fall back to the defaults. Enter on a splitter and the inspector header collapse button MUST hide the panel through the existing open/hide state and move focus to that panel's top-bar toggle. No panel width MAY introduce page-level H/V scroll.
 
 #### Scenario: Resize persists across reload
 
