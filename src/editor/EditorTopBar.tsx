@@ -43,6 +43,7 @@ import { PanelToggles } from './EditorFrame'
 import {
   getBookStoreSnapshot,
   getHistorySnapshot,
+  getSpreadIdsSnapshot,
   redoBook,
   subscribeBookStore,
   subscribeHistory,
@@ -106,6 +107,10 @@ function ChromeButton({
 
 function readActiveBook() {
   return getBookStoreSnapshot().book
+}
+
+function readSpreadCount() {
+  return getSpreadIdsSnapshot().length
 }
 
 function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
@@ -219,11 +224,18 @@ export function EditorTopBar({
   chromeImport,
   panels,
   onPanelsChange,
+  onPresent,
 }: {
   chromeImport: ChromeImportApi
   panels: EditorPanels
   onPanelsChange: (next: EditorPanels) => void
+  onPresent: () => void
 }) {
+  const spreadCount = useSyncExternalStore(
+    subscribeBookStore,
+    readSpreadCount,
+    readSpreadCount,
+  )
   const project = useSyncExternalStore(
     subscribeProjectSession,
     getProjectSessionSnapshot,
@@ -405,6 +417,17 @@ export function EditorTopBar({
         >
           <Icon name="eye" size={16} />
           Preview
+        </ChromeButton>
+        <ChromeButton
+          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="present"
+          disabled={spreadCount === 0}
+          title="Present the book"
+          onClick={onPresent}
+        >
+          <Icon name="present" size={16} />
+          Present
         </ChromeButton>
         <ChromeButton
           className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium"

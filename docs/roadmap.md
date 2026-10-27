@@ -34,7 +34,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [ ] [feature] [spread-list-panel](roadmap/M3/spread-list-panel.md) — spread list (Google Slides style)
 - [ ] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads
 - [ ] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
-- [ ] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
+- [x] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
 
 ## M4 — Free layout: grids, guides, frames
 
