@@ -40,7 +40,15 @@ import {
 } from './editorChromePanels'
 import { BAR, FIELD, SUB, T } from './editorChromeTokens'
 import { PanelToggles } from './EditorFrame'
-import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  getHistorySnapshot,
+  redoBook,
+  subscribeBookStore,
+  subscribeHistory,
+  undoBook,
+} from './bookStore'
+import { installEditorHistoryShortcut } from './installEditorHistoryShortcut'
 import { installEditorSaveShortcut } from './installEditorSaveShortcut'
 import {
   createBookInLibrary,
@@ -127,6 +135,36 @@ function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
   )
 }
 
+function HistoryChrome() {
+  const { canUndo, canRedo } = useSyncExternalStore(
+    subscribeHistory,
+    getHistorySnapshot,
+    getHistorySnapshot,
+  )
+  return (
+    <div className="flex items-center gap-0.5" style={{ color: SUB }}>
+      <IconButton
+        label="Undo (Ctrl Z)"
+        size="sm"
+        data-testid="undo"
+        isDisabled={!canUndo}
+        onPress={undoBook}
+      >
+        <Icon name="undo" size={16} />
+      </IconButton>
+      <IconButton
+        label="Redo (Shift Ctrl Z)"
+        size="sm"
+        data-testid="redo"
+        isDisabled={!canRedo}
+        onPress={redoBook}
+      >
+        <Icon name="redo" size={16} />
+      </IconButton>
+    </div>
+  )
+}
+
 function ZoomChrome() {
   const live = useSyncExternalStore(subscribeLive, getLiveZoom, getLiveZoom)
   const committed = useSyncExternalStore(
@@ -194,6 +232,8 @@ export function EditorTopBar({
     () => installEditorSaveShortcut(project.libraryOpen),
     [project.libraryOpen],
   )
+
+  useEffect(() => installEditorHistoryShortcut(), [])
 
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
@@ -340,6 +380,7 @@ export function EditorTopBar({
         {chromeImport.inputs}
       </div>
 
+      <HistoryChrome />
       <ZoomChrome />
       <PanelToggles
         panels={panels}

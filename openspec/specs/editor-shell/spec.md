@@ -318,3 +318,12 @@ Editor chrome SHALL enforce kit v0.9.x hard-nos: grayscale chrome; filmstrip / t
 
 - **WHEN** the editor surface is active with a library-backed book
 - **THEN** chrome selection is tone-only, Space pans without toggling panels, no Replace control is offered, and folder messages appear on the status line
+
+### Requirement: Undo / redo of layout edits
+
+The editor SHALL keep an in-memory snapshot history of spreads and title: each book op is one step (consecutive title edits coalesce), up to 100 steps with the oldest evicted, a new edit drops redo steps, and gallery / assets / import state are never rolled back. Undo/redo SHALL be available as top-bar buttons (`data-testid` `undo` / `redo`, disabled when empty) and as Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z, Ctrl+Y outside text fields. Loading another book clears history.
+
+#### Scenario: Placement is one step
+
+- **WHEN** a photo is placed in a frame and the user presses Undo, then Redo
+- **THEN** the frame is empty after Undo and holds the photo again after Redo
