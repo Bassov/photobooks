@@ -1,12 +1,12 @@
 ## Implementation
 
-- [ ] 1. Core ops fill + insert-spread-with-assets with unit + PBT tests
-- [ ] 2. Wire ops into `BookOp`, history (one step each), core exports
-- [ ] 3. Multi-selection store + Filmstrip GridList multiple / Ctrl+A / Esc
-- [ ] 4. Multi-asset drag payload from `FilmstripItem`
-- [ ] 5. Drop index gaps + `hitTestGap`; drop dispatch in `galleryDrop`; leftover status
-- [ ] 6. Between-spread drop zone visuals in Pasteboard
-- [ ] 7. e2e `multi-drop-fill.spec.ts` + perf scenario
+- [x] 1. Core ops fill + insert-spread-with-assets with unit + PBT tests
+- [x] 2. Wire ops into `BookOp`, history (one step each), core exports
+- [x] 3. Multi-selection store + Filmstrip GridList multiple / Ctrl+A / Esc
+- [x] 4. Multi-asset drag payload from `FilmstripItem`
+- [x] 5. Drop index gaps + `hitTestGap`; drop dispatch in `galleryDrop`; leftover status
+- [x] 6. Between-spread drop zone visuals in Pasteboard
+- [x] 7. e2e `multi-drop-fill.spec.ts` + perf scenario
 
 ## Manual test scenarios
 
