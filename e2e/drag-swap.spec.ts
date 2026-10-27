@@ -79,7 +79,9 @@ test('empty gallery has no Unplace control and activation leaves placeholders', 
 }) => {
   await openSessionEditor(page)
 
-  await expect(page.getByRole('button', { name: 'Unplace' })).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Unplace', exact: true }),
+  ).toHaveCount(0)
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
   const frame = page
     .getByRole('button', { name: 'Place photo', exact: true })
@@ -265,7 +267,7 @@ test.describe('keyboard rearrange', () => {
     const unplaceSourceId = await page
       .getByRole('button', { pressed: true })
       .getAttribute('data-frame-id')
-    await page.getByRole('button', { name: 'Unplace' }).focus()
+    await page.getByRole('button', { name: 'Unplace', exact: true }).focus()
     await page.keyboard.press('Enter')
     await expect
       .poll(async () =>
@@ -405,7 +407,9 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
   await expect(page.getByRole('button', { name: 'Cancel move' })).toHaveCount(1)
   await page.keyboard.press('Enter')
   await expect(page.getByRole('button', { pressed: true })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Unplace' })).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Unplace', exact: true }),
+  ).toHaveCount(0)
 
   await filled.focus()
   await page.keyboard.press('Delete')

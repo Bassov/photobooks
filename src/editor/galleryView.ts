@@ -1,5 +1,15 @@
 export type GallerySortKey = 'added' | 'captured' | 'name'
 
+let collator: Intl.Collator | undefined
+
+function nameCollator(): Intl.Collator {
+  collator ??= new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  })
+  return collator
+}
+
 /** Per-asset sort inputs; keep lookups cheap (called once per id). */
 export interface GalleryViewSource {
   name(assetId: string): string
@@ -36,13 +46,11 @@ export function deriveGalleryView(
     ? gallery.filter((id) => !source.isPlaced(id))
     : gallery
   if (options.sort === 'name') {
-    const collator = new Intl.Collator(undefined, {
-      numeric: true,
-      sensitivity: 'base',
-    })
     return ids
       .map((id, index) => ({ id, index, name: source.name(id) }))
-      .sort((a, b) => collator.compare(a.name, b.name) || a.index - b.index)
+      .sort(
+        (a, b) => nameCollator().compare(a.name, b.name) || a.index - b.index,
+      )
       .map((entry) => entry.id)
   }
   if (options.sort === 'captured') {
