@@ -9,10 +9,13 @@ import { requestGalleryRemove } from './galleryRemoveRequest'
 import { clearDropHover, setDropHover } from './dropHover'
 import {
   ASSET_DRAG_MIME,
+  ASSET_MULTI_MIME,
   FRAME_DRAG_MIME,
   buildDropIndex,
+  decodeAssetIds,
   decodeFrameDrag,
   hitTestDrop,
+  hitTestGap,
   isAssetDrag,
   isFrameDrag,
   resolveFrameActivation,
@@ -20,6 +23,7 @@ import {
   type DropSpreadInput,
   type FrameDragSource,
 } from './dropTargets'
+import { dropAssets } from './multiDrop'
 import {
   STATUS_MOVED,
   STATUS_SELECTED,
@@ -61,11 +65,13 @@ interface DropSessionBase {
   originY: number
   index: DropIndex
   elements: ReadonlyMap<string, HTMLElement>
+  /** "New spread" zone elements keyed by insert index. */
+  gapElements: ReadonlyMap<number, HTMLElement>
 }
 
 type DropSession = DropSessionBase &
   (
-    | { kind: 'asset'; assetId: string }
+    | { kind: 'asset'; assetId: string; assetIds: readonly string[] }
     | { kind: 'frame'; source: FrameDragSource }
   )
 
@@ -247,11 +253,21 @@ function frameElements(scroll: HTMLElement): Map<string, HTMLElement> {
   return elements
 }
 
+function gapElements(scroll: HTMLElement): Map<number, HTMLElement> {
+  const elements = new Map<number, HTMLElement>()
+  for (const node of scroll.querySelectorAll<HTMLElement>(
+    '[data-gap-insert-index]',
+  )) {
+    elements.set(Number(node.getAttribute('data-gap-insert-index')), node)
+  }
+  return elements
+}
+
 function beginSession(
   scroll: HTMLElement,
   readGeometry: () => DropGeometry,
   drag:
-    | { kind: 'asset'; assetId: string }
+    | { kind: 'asset'; assetId: string; assetIds: readonly string[] }
     | { kind: 'frame'; source: FrameDragSource },
 ): DropSession {
   const geometry = readGeometry()
@@ -266,8 +282,10 @@ function beginSession(
       pxPerMm: geometry.pxPerMm,
       stridePx: geometry.stridePx,
       worldWidthPx: geometry.worldWidthPx,
+      spreadHeightPx: book.settings.trim.heightMm * geometry.pxPerMm,
     }),
     elements: frameElements(scroll),
+    gapElements: gapElements(scroll),
   }
 }
 
@@ -288,7 +306,15 @@ export function installGalleryDrop(
         clearDropSession()
         return
       }
-      session = beginSession(scroll, readGeometry, { kind: 'asset', assetId })
+      // Stryker disable next-line OptionalChaining: isAssetDrag above proves a DataTransfer
+      const carried = event.dataTransfer?.getData(ASSET_MULTI_MIME) ?? ''
+      const multi = decodeAssetIds(carried)
+      session = beginSession(scroll, readGeometry, {
+        kind: 'asset',
+        assetId,
+        assetIds: multi.includes(assetId) ? multi : [assetId],
+      })
+      scroll.dataset.assetDrag = 'true'
       return
     }
     if (!isFrameDrag(event.dataTransfer)) {
@@ -337,17 +363,23 @@ export function installGalleryDrop(
       const x = event.clientX - current.originX + scroll.scrollLeft
       const y = event.clientY - current.originY + scroll.scrollTop
       const target = hitTestDrop(current.index, x, y)
-      const element =
-        target === undefined
-          ? null
-          : (current.elements.get(`${target.spreadId}\n${target.frameId}`) ??
-            null)
-      setDropHover(element)
+      if (target !== undefined) {
+        setDropHover(
+          current.elements.get(`${target.spreadId}\n${target.frameId}`) ?? null,
+        )
+        return
+      }
+      const gap =
+        current.kind === 'asset' ? hitTestGap(current.index, y) : undefined
+      setDropHover(
+        gap === undefined ? null : (current.gapElements.get(gap) ?? null),
+      )
     })
   }
 
   const onDrop = (event: DragEvent): void => {
     releaseFrameDragClickSoon()
+    delete scroll.dataset.assetDrag
     if (session === null || world?.dataset.gesture === 'zoom') {
       clearDropHover()
       session = null
@@ -361,28 +393,17 @@ export function installGalleryDrop(
     session = null
     clearDropHover()
     if (target === undefined) {
+      const insertIndex =
+        current.kind === 'asset' ? hitTestGap(current.index, y) : undefined
+      if (current.kind === 'asset' && insertIndex !== undefined) {
+        dropAssets({ type: 'gap', insertIndex }, current.assetIds)
+      }
       return
     }
     if (current.kind === 'asset') {
-      const book = getBookStoreSnapshot().book
-      if (!book.gallery.includes(current.assetId)) {
-        return
-      }
-      const filled = frameFilledInBook(book, target.spreadId, target.frameId)
-      dispatchBookOp(
-        filled
-          ? {
-              type: 'replace',
-              spreadId: target.spreadId,
-              frameId: target.frameId,
-              assetId: current.assetId,
-            }
-          : {
-              type: 'place',
-              spreadId: target.spreadId,
-              frameId: target.frameId,
-              assetId: current.assetId,
-            },
+      dropAssets(
+        { type: 'frame', spreadId: target.spreadId, frameId: target.frameId },
+        current.assetIds,
       )
       return
     }
@@ -421,6 +442,7 @@ export function installGalleryDrop(
   const end = (): void => {
     clearDropSession()
     clearDropHover()
+    delete scroll.dataset.assetDrag
     requestAnimationFrame(() => {
       suppressFrameClick = false
     })
