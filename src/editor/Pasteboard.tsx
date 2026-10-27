@@ -469,6 +469,14 @@ export const Pasteboard = memo(function Pasteboard({
               }}
             >
               <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+              <div
+                className="pasteboard-gap"
+                data-testid="pasteboard-gap"
+                data-gap-insert-index={range.start + index + 1}
+                aria-hidden="true"
+              >
+                Drop here for a new spread
+              </div>
             </div>
           ))}
           {shouldRenderSpacer(range.tailPx) ? (

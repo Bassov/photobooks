@@ -5,6 +5,20 @@ export const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
 export const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
 
+/** Newline-joined asset ids when a multi-selection is dragged. */
+export const ASSET_MULTI_MIME = 'application/x-photobooks-assets'
+
+/** Minimum height of the "new spread" zone under each spread. */
+const GAP_ZONE_MIN_PX = 16
+
+export function encodeAssetIds(ids: readonly string[]): string {
+  return ids.join('\n')
+}
+
+export function decodeAssetIds(payload: string): string[] {
+  return payload.split('\n').filter((id) => id !== '')
+}
+
 export interface FrameDragSource {
   spreadId: string
   frameId: string
@@ -70,6 +84,8 @@ export interface DropIndexInput {
   pxPerMm: number
   stridePx: number
   worldWidthPx: number
+  /** Painted spread height; the "new spread" zone starts there (default: stride). */
+  spreadHeightPx?: number
 }
 
 export interface DropTarget {
@@ -86,17 +102,30 @@ interface IndexedFrame extends DropTarget {
   z: number
 }
 
+/** Vertical band under spread `insertIndex - 1` where a new spread is inserted. */
+interface GapZone {
+  top: number
+  bottom: number
+  insertIndex: number
+}
+
 export interface DropIndex {
   readonly frames: readonly IndexedFrame[]
+  readonly gaps: readonly GapZone[]
 }
 
 export function buildDropIndex(input: DropIndexInput): DropIndex {
   const frames: IndexedFrame[] = []
+  const gaps: GapZone[] = []
   const pxPerMm = input.pxPerMm
   const stride = input.stridePx
   if (!Number.isFinite(pxPerMm) || !Number.isFinite(stride) || stride <= 0) {
-    return { frames }
+    return { frames, gaps }
   }
+  const zoneTop = Math.min(
+    input.spreadHeightPx ?? stride,
+    stride - GAP_ZONE_MIN_PX,
+  )
   const worldWidth = Number.isFinite(input.worldWidthPx)
     ? input.worldWidthPx
     : 0
@@ -110,6 +139,11 @@ export function buildDropIndex(input: DropIndexInput): DropIndex {
       : 0
     const offsetX = (worldWidth - spreadWidth) / 2
     const originY = index * stride
+    gaps.push({
+      top: originY + zoneTop,
+      bottom: originY + stride,
+      insertIndex: index + 1,
+    })
     for (const item of spread.items) {
       const box = frameBox(item.rectMm, pxPerMm)
       if (!(box.width > 0) || !(box.height > 0)) {
@@ -127,7 +161,17 @@ export function buildDropIndex(input: DropIndexInput): DropIndex {
       })
     }
   }
-  return { frames }
+  return { frames, gaps }
+}
+
+/** Insert index of the "new spread" zone under `y` (NaN never hits). Allocates nothing. */
+export function hitTestGap(index: DropIndex, y: number): number | undefined {
+  for (const gap of index.gaps) {
+    if (y >= gap.top && y < gap.bottom) {
+      return gap.insertIndex
+    }
+  }
+  return undefined
 }
 
 /** Point-in-rect scan. Returns the stored target; allocates nothing. */
