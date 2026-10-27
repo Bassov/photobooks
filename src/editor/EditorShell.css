@@ -371,3 +371,7 @@
 .pasteboard-gap[data-drop-hover='true'] {
   border-color: var(--select);
 }
+/* Spread reorder insertion line (left panel). */
+.editor-spread-drop-line {
+  background: var(--select);
+}

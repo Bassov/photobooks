@@ -8,7 +8,7 @@ Editor chrome and library surfaces: unsupported/welcome/library/editor, single-l
 
 ### Requirement: Editor shell layout
 
-The system SHALL present an editor shell matching kit editor chrome when the editor surface is active: top bar, left spreads panel frame, center canvas workspace, bottom filmstrip dock, and right inspector frame. App surfaces SHALL be one of: unsupported-browser, welcome, library (empty or with books), or editor. When File System Access directory picking is unavailable (or the context is insecure / mobile-only), unsupported-browser MUST be the only surface. When a library handle is granted and no in-tab book is active, library MUST be primary. When no library handle is available (or permission is denied/missing), welcome MUST be primary. The legacy single photo-card success screen and the multi-recent home screen MUST NOT be primary. The shell SHALL fill the viewport without page-level H/V scroll (library, filmstrip, pasteboard, and spreads-list are the named scrollports for their surfaces). The center canvas MUST mount the working pasteboard (including ConnectedSpreadView); the dock MUST mount the working filmstrip. Folder import, filmstrip place, and checking-photos reload behavior MUST continue to work through the new chrome. The right inspector frame MAY be stub chrome in this change; crop stays on existing pasteboard/filmstrip paths (kit inspector crop is out of scope). Preview, Print, and Publish chrome MUST be look-only (disabled or quiet no-op; in-app Preview deferred) and MUST NOT call production site/print backends. A Library control in the top bar MUST leave the editor for the library surface via the existing leave-editor path. Panel collapse MAY follow kit toggles (show/hide); drag-resize is not required.
+The system SHALL present an editor shell matching kit editor chrome when the editor surface is active: top bar, left spreads panel frame, center canvas workspace, bottom filmstrip dock, and right inspector frame. App surfaces SHALL be one of: unsupported-browser, welcome, library (empty or with books), or editor. When File System Access directory picking is unavailable (or the context is insecure / mobile-only), unsupported-browser MUST be the only surface. When a library handle is granted and no in-tab book is active, library MUST be primary. When no library handle is available (or permission is denied/missing), welcome MUST be primary. The legacy single photo-card success screen and the multi-recent home screen MUST NOT be primary. The shell SHALL fill the viewport without page-level H/V scroll (library, filmstrip, pasteboard, and spreads-list are the named scrollports for their surfaces). The center canvas MUST mount the working pasteboard (including ConnectedSpreadView); the dock MUST mount the working filmstrip. Folder import, filmstrip place, and checking-photos reload behavior MUST continue to work through the new chrome. The right inspector frame MAY be stub chrome in this change; crop stays on existing pasteboard/filmstrip paths (kit inspector crop is out of scope). Preview, Print, and Publish chrome MUST be look-only (disabled or quiet no-op; in-app Preview deferred) and MUST NOT call production site/print backends. A Library control in the top bar MUST leave the editor for the library surface via the existing leave-editor path. Panel collapse MAY follow kit toggles (show/hide); side-panel widths follow "Resizable side panels".
 
 #### Scenario: Shell vs library
 
@@ -32,6 +32,20 @@ The system SHALL present an editor shell matching kit editor chrome when the edi
 
 - **WHEN** the user activates Library in the editor top bar
 - **THEN** the leave-editor path runs and the library surface is shown (or the editor stays with a message on flush failure)
+
+### Requirement: Resizable side panels
+
+The left spreads and right inspector panels SHALL be resizable from a `role=separator` splitter on their inner edge by primary-button pointer drag and by ArrowLeft/ArrowRight (8 px; Shift ×4), clamped to 150–360 px (defaults 212 / 300). Widths MUST persist per browser in `localStorage`; missing, invalid or unreadable values MUST fall back to the defaults. Enter on a splitter and the inspector header collapse button MUST hide the panel through the existing open/hide state and move focus to that panel's top-bar toggle. No panel width MAY introduce page-level H/V scroll.
+
+#### Scenario: Resize persists across reload
+
+- **WHEN** the user drags or arrow-keys the left splitter past either bound and reloads
+- **THEN** the panel stays clamped to 150–360 px at the last committed width
+
+#### Scenario: Keyboard collapse keeps focus
+
+- **WHEN** the user presses Enter on a focused splitter
+- **THEN** the panel hides and focus lands on its top-bar toggle
 
 ### Requirement: Create or open a library folder
 
@@ -346,3 +360,36 @@ The system SHALL let the user enter crop mode on a filled frame by double-click 
 
 - **WHEN** the user wheels out past cover
 - **THEN** zoom stays at 1 with no empty edges
+
+### Requirement: Spreads list panel
+
+The left panel SHALL list every spread as an inert thumbnail (the spread painter at thumb size, filmstrip thumbs only, windowed by a fixed row stride); a thumbnail MUST re-render only when its own spread changes. Clicking a row, or ↑/↓ on the list, SHALL make that spread active and reveal it on the pasteboard even when its slot is not mounted. A per-row menu SHALL offer Add after, Duplicate and Delete; Ctrl/Cmd+Enter, Ctrl/Cmd+D and Delete/Backspace on a row act on that (focused) row's spread. Duplicate inserts a copy (same frames and template, new id) right after the source; Delete is disabled for the last spread, selects the next (else previous) spread and shows an Undo toast. Thumbnails MUST NOT carry the pasteboard's test ids or register image tiers. Scrolling stays inside `spreads-list` and the pasteboard; no page-level H/V scroll.
+
+#### Scenario: Click navigates
+
+- **WHEN** the user clicks a thumbnail of a far-away spread
+- **THEN** that row is selected and the pasteboard scrolls to that spread
+
+#### Scenario: Duplicate and delete
+
+- **WHEN** the user duplicates a spread, then deletes it and presses Undo
+- **THEN** the copy appears right after the source, disappears on Delete, and returns on Undo
+
+#### Scenario: Last spread
+
+- **WHEN** only one spread remains
+- **THEN** Delete does nothing and the menu item is disabled
+
+### Requirement: Reorder spreads in the left panel
+
+The system SHALL let the user reorder spreads by dragging a thumbnail in the left panel (insertion line shown, items shift by `transform`) or with Alt+↑/↓ on a focused item. A reorder SHALL be one history step and the pasteboard SHALL follow the new order. Switching a spread's template SHALL keep its photos in order; photos without a frame in the new template become unplaced.
+
+#### Scenario: Drag reorder
+
+- **WHEN** the user drags the third spread above the first and then presses Undo
+- **THEN** the list and pasteboard show the new order after the drop and the old order after Undo
+
+#### Scenario: Template with fewer frames
+
+- **WHEN** a spread with four photos switches to a two-frame template
+- **THEN** the first two photos stay in their frames and the other two are unplaced

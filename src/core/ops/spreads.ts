@@ -53,6 +53,26 @@ function reapplyChangedPageRoles(before: Book, after: Book): Book {
   return next
 }
 
+export function duplicateSpread(
+  book: Book,
+  spreadId: string,
+  options: { id?: string } = {},
+): Book {
+  const index = book.spreads.findIndex((spread) => spread.id === spreadId)
+  const source = book.spreads[index]
+  if (source === undefined) {
+    return book
+  }
+  const copy: Spread = {
+    ...source,
+    id: options.id ?? nextSpreadId(book),
+    frames: source.frames.map((frame) => ({ ...frame })),
+  }
+  const spreads = book.spreads.slice()
+  spreads.splice(index + 1, 0, copy)
+  return reapplyChangedPageRoles(book, { ...book, spreads })
+}
+
 export function removeSpread(book: Book, spreadId: string): Book {
   if (book.spreads.length <= 1) {
     return book
@@ -61,7 +81,7 @@ export function removeSpread(book: Book, spreadId: string): Book {
   if (spreads.length === book.spreads.length) {
     return book
   }
-  return { ...book, spreads }
+  return reapplyChangedPageRoles(book, { ...book, spreads })
 }
 
 export function moveSpread(
@@ -80,7 +100,7 @@ export function moveSpread(
   const spreads = book.spreads.slice()
   const moved = spreads.splice(fromIndex, 1)
   spreads.splice(clamped, 0, ...moved)
-  return { ...book, spreads }
+  return reapplyChangedPageRoles(book, { ...book, spreads })
 }
 
 export function nextSpreadId(book: Book): string {

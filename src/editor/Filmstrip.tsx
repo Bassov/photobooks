@@ -58,14 +58,19 @@ import {
   buildStridePrefix,
   indexFromScrollOffset,
   spacerWidthPx,
-  THUMB_HEIGHT,
-  THUMB_WIDTH_MAX,
+  thumbWidthMax,
   windowCountForCover,
 } from './thumbSlotSize'
+import {
+  getFilmstripThumbHeight,
+  subscribeFilmstripThumbHeight,
+} from './filmstripSize'
 import './Filmstrip.css'
 
 /** Extra cover beyond the scrollport so fast scroll does not flash holes. */
-const WINDOW_OVERSCAN_PX = THUMB_WIDTH_MAX * 2
+function windowOverscanPx(thumbHeight: number): number {
+  return thumbWidthMax(thumbHeight) * 2
+}
 
 /**
  * Owns scrollLeft / virtualizer state so status + unplace chrome are not
@@ -93,12 +98,20 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const committedWindowStart = useRef(0)
   const prefixRef = useRef<readonly number[]>([0])
   const total = gallery.length
+  const thumbHeight = useSyncExternalStore(
+    subscribeFilmstripThumbHeight,
+    getFilmstripThumbHeight,
+    getFilmstripThumbHeight,
+  )
 
-  const prefix = useMemo(() => buildStridePrefix(aspects), [aspects])
+  const prefix = useMemo(
+    () => buildStridePrefix(aspects, thumbHeight),
+    [aspects, thumbHeight],
+  )
   prefixRef.current = prefix
   const spacerWidth = useMemo(
-    () => spacerWidthPx(aspects, spacerCount),
-    [aspects, spacerCount],
+    () => spacerWidthPx(aspects, spacerCount, 1, thumbHeight),
+    [aspects, spacerCount, thumbHeight],
   )
 
   useEffect(() => {
@@ -126,7 +139,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   )
   committedWindowStart.current = windowStart
 
-  const coverPx = Math.max(viewportWidth, 1) + WINDOW_OVERSCAN_PX
+  const coverPx = Math.max(viewportWidth, 1) + windowOverscanPx(thumbHeight)
   const windowSize = Math.max(
     windowCountForCover(prefix, windowStart, coverPx),
     1,
@@ -252,7 +265,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
             style={{
               transform: `translateX(${String(windowOffset)}px)`,
               width: Math.max(windowWidth, 1),
-              height: THUMB_HEIGHT + 24,
+              height: thumbHeight + 24,
             }}
           >
             <GridList
@@ -265,7 +278,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
               items={items}
               className="filmstrip-list"
               style={{
-                height: THUMB_HEIGHT + 24,
+                height: thumbHeight + 24,
                 width: Math.max(windowWidth, 1),
               }}
             >
@@ -274,6 +287,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
                   id={item.id}
                   name={item.name}
                   offsetLeft={item.offsetLeft}
+                  thumbHeight={thumbHeight}
                 />
               )}
             </GridList>

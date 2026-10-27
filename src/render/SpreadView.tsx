@@ -55,6 +55,7 @@ export function SpreadView({
   frameControlFor,
   isMissingAsset,
   pxPerMm = SPREAD_PX_PER_MM,
+  thumb = false,
 }: {
   spreadId: string
   resolved: ResolvedSpread
@@ -64,12 +65,18 @@ export function SpreadView({
   /** When true, show hatched missing placeholder instead of a stale preview. */
   isMissingAsset?: (assetId: string) => boolean
   pxPerMm?: number
+  /**
+   * Inert list thumbnail: no test ids / data ids (so pasteboard selectors and
+   * counts never match it) and no pointer events.
+   */
+  thumb?: boolean
 }) {
   return (
     <div
-      className="spread-view"
-      data-testid="spread-view"
-      data-spread-id={spreadId}
+      className={thumb ? 'spread-view spread-view--thumb' : 'spread-view'}
+      data-testid={thumb ? undefined : 'spread-view'}
+      data-spread-id={thumb ? undefined : spreadId}
+      aria-hidden={thumb ? true : undefined}
       style={{
         width: resolved.spreadWidthMm * pxPerMm,
         height: resolved.spreadHeightMm * pxPerMm,
@@ -82,6 +89,7 @@ export function SpreadView({
             key={item.frameId}
             item={item}
             pxPerMm={pxPerMm}
+            thumb={thumb}
             missing={missing}
             previewUrl={previewUrlUnlessMissing(
               missing,
@@ -100,7 +108,7 @@ export function SpreadView({
           <div
             key={`${line.orientation}:${String(line.offsetPx)}`}
             className="spread-page-cut"
-            data-testid="spread-page-cut"
+            data-testid={thumb ? undefined : 'spread-page-cut'}
             data-orientation={line.orientation}
             aria-hidden="true"
             style={
@@ -132,7 +140,9 @@ function SpreadFrame({
   pxPerMm,
   control,
   missing,
+  thumb,
 }: {
+  thumb: boolean
   item: ResolvedItem
   previewUrl: string | undefined
   tier: number | undefined
@@ -167,12 +177,12 @@ function SpreadFrame({
     previewUrl === undefined ? (
       <div
         className={missingPlaceholderClass(missing)}
-        data-testid={missingPlaceholderTestId(missing)}
+        data-testid={thumb ? undefined : missingPlaceholderTestId(missing)}
       />
     ) : (
       <img
         className="spread-frame-image"
-        data-testid="spread-frame-image"
+        data-testid={thumb ? undefined : 'spread-frame-image'}
         alt=""
         decoding="async"
         src={previewUrl}
@@ -210,10 +220,10 @@ function SpreadFrame({
     return (
       <div
         className="spread-frame"
-        data-testid="spread-frame"
-        data-frame-id={item.frameId}
+        data-testid={thumb ? undefined : 'spread-frame'}
+        data-frame-id={thumb ? undefined : item.frameId}
         data-filled={item.assetId === undefined ? 'false' : 'true'}
-        data-asset-id={item.assetId}
+        data-asset-id={thumb ? undefined : item.assetId}
         style={style}
       >
         {body}

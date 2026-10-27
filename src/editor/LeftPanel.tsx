@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import { AssetsPanel } from './AssetsPanel'
 import { SpreadsPanel } from './SpreadsPanel'
 
@@ -10,7 +11,11 @@ const TABS: readonly { id: Tab; label: string }[] = [
 ]
 
 /** Left panel: Pages | Assets tabs; the switcher replaces the panel's own header. */
-export function LeftPanel() {
+export function LeftPanel({
+  toastQueue,
+}: {
+  toastQueue?: PhotobooksToastQueue
+}) {
   const [tab, setTab] = useState<Tab>('pages')
   const modeSwitch = (
     <div
@@ -38,6 +43,6 @@ export function LeftPanel() {
   return tab === 'assets' ? (
     <AssetsPanel modeSwitch={modeSwitch} />
   ) : (
-    <SpreadsPanel modeSwitch={modeSwitch} />
+    <SpreadsPanel toastQueue={toastQueue} modeSwitch={modeSwitch} />
   )
 }

@@ -53,9 +53,11 @@ export function EditorShell() {
           }}
         />
       }
-      left={<LeftPanel />}
-      right={<InspectorStub />}
-      dock={<FilmstripDock />}
+      left={<LeftPanel toastQueue={toastQueue} />}
+      right={(collapse) => <InspectorStub onCollapse={collapse} />}
+      dock={
+        <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />
+      }
       canvas={presenting ? null : <Pasteboard chromeImport={chromeImport} />}
       overlay={
         <>

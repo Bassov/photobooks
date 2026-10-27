@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { COVER_CROP, MAX_CROP_ZOOM, clampCrop } from '../core'
 import { Button } from '../ui/Button'
+import { Panel } from '../ui/Panel'
 import {
   dispatchBookOp,
   getAssetAspectSnapshot,
@@ -17,7 +18,7 @@ import {
 const ZOOM_STEP = 0.01
 
 /** Kit right inspector frame — crop section only while a frame is in crop mode. */
-export function InspectorStub() {
+export function InspectorStub({ onCollapse }: { onCollapse?: () => void }) {
   const cropKey = useSyncExternalStore(
     subscribeCropMode,
     getCropTargetKey,
@@ -25,21 +26,24 @@ export function InspectorStub() {
   )
   const target = cropKey === '' ? null : getCropTarget()
   return (
-    <div
-      className="editor-inspector-stub flex h-full min-h-0 flex-col px-4 py-4"
+    <Panel
+      side="right"
+      title="Inspector"
+      shortcut="]"
+      {...(onCollapse ? { onCollapse } : {})}
+      className="editor-inspector-stub"
       data-testid="inspector-stub"
     >
-      <h3 className="editor-inspector-stub__title mb-3 text-2xs font-semibold tracking-[0.12em] uppercase">
-        Inspector
-      </h3>
-      {target === null ? (
-        <p className="editor-inspector-stub__body text-sm">
-          Double-click a photo to crop it. Full inspector tools arrive later.
-        </p>
-      ) : (
-        <FitAndCrop target={target} />
-      )}
-    </div>
+      <div className="px-4">
+        {target === null ? (
+          <p className="editor-inspector-stub__body text-sm">
+            Double-click a photo to crop it. Full inspector tools arrive later.
+          </p>
+        ) : (
+          <FitAndCrop target={target} />
+        )}
+      </div>
+    </Panel>
   )
 }
 
