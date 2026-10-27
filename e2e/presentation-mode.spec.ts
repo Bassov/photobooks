@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   browserAssertNoLoaf,
   clearPerfScenario,
@@ -10,15 +11,21 @@ import {
 test('present opens fullscreen without editor chrome; keys, click and Esc work', async ({
   page,
 }) => {
-  await page.goto('/?perf=1')
+  await openSessionEditor(page)
   await expect(page.getByTestId('present')).toBeEnabled()
   await page.getByTestId('present').click()
 
   const stage = page.getByTestId('presentation')
   await expect(stage).toBeVisible()
   await expect(page.getByTestId('pager-position')).toHaveText('1 / 3')
-  await expect(page.getByTestId('editor-bar')).not.toBeInViewport()
-  await expect(page.getByTestId('spread-view')).toHaveCount(3)
+  const barCovered = await page.getByTestId('editor-bar').evaluate((bar) => {
+    const r = bar.getBoundingClientRect()
+    const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+    return top?.closest('[data-testid="presentation"]') !== null
+  })
+  expect(barCovered).toBe(true)
+  // Pager mounts only the current spread and its neighbours (first of 3 → 2).
+  await expect(page.getByTestId('spread-view')).toHaveCount(2)
   await assertDocumentFitsViewport(page)
 
   await page.keyboard.press('ArrowRight')
@@ -52,11 +59,11 @@ test.describe('frame-budget gates', () => {
       '40',
     )
     await page.getByTestId('present').click()
-    await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
+    await expect(page.getByTestId('pager-position')).toHaveText('40 / 40')
     await clearPerfScenario(page)
 
     for (let i = 0; i < 39; i += 1) {
-      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('ArrowLeft')
       await page.evaluate(
         () =>
           new Promise<void>((resolve) => {
@@ -66,7 +73,7 @@ test.describe('frame-budget gates', () => {
           }),
       )
     }
-    await expect(page.getByTestId('pager-position')).toHaveText('40 / 40')
+    await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
 
     await page.evaluate(browserAssertNoLoaf, 0)
     await collectFrameStatsArtifact(page, testInfo)

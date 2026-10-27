@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from 'react'
 import { halfDelta, stepIndex, swipeDelta } from './pagerIndex'
-import './SpreadPager.css'
 
 /**
  * Fullscreen one-spread-at-a-time pager (presentation mode; reusable by a
@@ -123,7 +122,7 @@ export function SpreadPager({
   return (
     <div
       ref={stageRef}
-      className="spread-pager"
+      className="fixed inset-0 z-60 touch-pan-y overflow-hidden bg-(--presentation) text-(--presentation-ink) select-none"
       data-testid="presentation"
       role="dialog"
       aria-modal="true"
@@ -144,7 +143,7 @@ export function SpreadPager({
         return (
           <div
             key={i}
-            className="spread-pager-slide"
+            className="absolute inset-0 grid place-items-center transition-[transform,opacity] duration-200 ease-out will-change-transform motion-reduce:transition-none data-[active=false]:pointer-events-none data-[active=false]:opacity-0"
             data-testid="presentation-slide"
             data-active={active ? 'true' : 'false'}
             aria-hidden={active ? undefined : true}
@@ -153,7 +152,7 @@ export function SpreadPager({
           >
             <div
               ref={active ? fitRef : undefined}
-              className="spread-pager-fit"
+              className="origin-center shadow-[var(--shadow-stage-dark)]"
               style={{ transform: `scale(${String(scale)})` }}
             >
               {renderSpread(i)}
@@ -161,14 +160,14 @@ export function SpreadPager({
           </div>
         )
       })}
-      <div className="spread-pager-bar">
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 text-center text-xs">
         <span className="tabular-nums" data-testid="pager-position">
           {count === 0 ? '' : `${String(index + 1)} / ${String(count)}`}
         </span>
       </div>
       <button
         type="button"
-        className="spread-pager-exit"
+        className="absolute top-4 right-4 grid h-8 cursor-pointer place-items-center rounded-full border-0 bg-(--presentation-chip) px-3 text-xs text-(--presentation-chip-ink) hover:bg-(--presentation-chip-hover)"
         data-testid="presentation-exit"
         aria-label="Exit presentation"
         onClick={(e) => {

@@ -86,9 +86,8 @@ describe('SpreadPager', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(2000)
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(1064)
     render(<Harness />)
-    const fit = screen
-      .getAllByTestId('presentation-slide')[0]
-      ?.querySelector<HTMLElement>('.spread-pager-fit')
+    const fit = screen.getAllByTestId('presentation-slide')[0]
+      ?.firstElementChild as HTMLElement | null | undefined
     // min(2000*.94/1000, (1064-64)*.96/500) = min(1.88, 1.92)
     expect(fit?.style.transform).toBe('scale(1.88)')
     vi.restoreAllMocks()
