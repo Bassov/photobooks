@@ -1578,4 +1578,47 @@ test.describe('sort / filter / remove', () => {
     await assertDocumentFitsViewport(page)
     await assertNamedScrollport(page, 'filmstrip-scroll')
   })
+
+  test('resizing the filmstrip mid-gallery re-lays out without gaps or LoAF', async ({
+    page,
+  }) => {
+    test.setTimeout(300_000)
+    await enablePerfScenario(page)
+    await clearPerfScenario(page)
+    const files = writeBulkImportFixtures(300)
+    await expect(page.getByTestId('choose-photo-folder')).toBeEnabled()
+    await choosePhotoFolder(page, files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 240_000 },
+      )
+      .toBe('300')
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 120_000,
+    })
+
+    await beginFilmstripLoafScrollWindow(page)
+    await scrollFilmstripLoafWindow(page, 10)
+    const splitter = page.getByTestId('film-splitter')
+    const box = await splitter.boundingBox()
+    assert(box !== null)
+    await page.mouse.move(box.x + box.width / 2, box.y + 3)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2, box.y - 40, { steps: 8 })
+    await page.mouse.up()
+    await expect(splitter).not.toHaveAttribute('aria-valuenow', '96')
+    const committed = Number(await splitter.getAttribute('aria-valuenow'))
+    expect(committed).toBeGreaterThan(120)
+    await scrollFilmstripLoafWindow(page, 5)
+    await page.evaluate(browserAssertNoLoaf, 0)
+
+    await expect(page.getByTestId('filmstrip-item').first()).toHaveJSProperty(
+      'offsetHeight',
+      committed,
+    )
+    await assertDocumentFitsViewport(page)
+    await assertNamedScrollport(page, 'filmstrip-scroll')
+  })
 })

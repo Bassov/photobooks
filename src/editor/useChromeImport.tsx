@@ -64,6 +64,8 @@ export function folderSkippedStatusText(skipped: number): string {
 
 export interface ChromeImportApi {
   onChoosePhotoFolder: () => Promise<void>
+  /** Desktop folder dropped on the filmstrip; same path as Choose folder. */
+  onDropPhotoFolder: (directory: FileSystemDirectoryHandle) => Promise<void>
   photoFolderLabel: string
   importDisabled: boolean
   pickerBusy: boolean
@@ -269,6 +271,23 @@ export function useChromeImport(options: {
     await importPickedFolder(picked.directory, null, photoRoot.hasPhotoFolder)
   }
 
+  const onDropPhotoFolder = async (
+    directory: FileSystemDirectoryHandle,
+  ): Promise<void> => {
+    if (importDisabled) {
+      return
+    }
+    if (photoRoot.hasPhotoFolder) {
+      const ok = window.confirm(
+        'Change photo folder? This replaces the current folder and removes photos imported from it.',
+      )
+      if (!ok) {
+        return
+      }
+    }
+    await importPickedFolder(directory, null, photoRoot.hasPhotoFolder)
+  }
+
   const onE2eFolderInputChange = async (
     input: HTMLInputElement,
   ): Promise<void> => {
@@ -309,6 +328,7 @@ export function useChromeImport(options: {
 
   return {
     onChoosePhotoFolder,
+    onDropPhotoFolder,
     photoFolderLabel,
     importDisabled,
     pickerBusy,

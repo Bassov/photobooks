@@ -1,9 +1,28 @@
 import {
   startTransition,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
 } from 'react'
+import { clearDropHover, setDropHover } from './dropHover'
+import { setEditorStatus } from './editorStatus'
+import {
+  FILMSTRIP_THUMB_MAX,
+  FILMSTRIP_THUMB_MIN,
+  FILMSTRIP_THUMB_STEP,
+  getFilmstripThumbHeight,
+  setFilmstripThumbHeight,
+  subscribeFilmstripThumbHeight,
+} from './filmstripSize'
+import {
+  isExternalFilesDrag,
+  resolveDroppedFolder,
+  STATUS_DROP_FILES_IGNORED,
+  STATUS_DROP_FOLDER_ONLY,
+} from './filmstripDropFolder'
+import { useFilmstripResize, type FilmstripResize } from './useFilmstripResize'
 import { Button as AriaButton } from 'react-aria-components'
 import { AlertDialog } from '../ui/AlertDialog'
 import { Icon } from '../ui/Icon'
@@ -49,8 +68,68 @@ function RemovePlacedDialog({ assetId }: { assetId: string }) {
   )
 }
 
+function ResizeSplitter({
+  height,
+  resize,
+}: {
+  height: number
+  resize: FilmstripResize
+}) {
+  const startRef = useRef<{ y: number; height: number } | null>(null)
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize filmstrip"
+      aria-valuemin={FILMSTRIP_THUMB_MIN}
+      aria-valuemax={FILMSTRIP_THUMB_MAX}
+      aria-valuenow={height}
+      tabIndex={0}
+      className="editor-dock-splitter"
+      data-testid="film-splitter"
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId)
+        startRef.current = { y: event.clientY, height }
+      }}
+      onPointerMove={(event) => {
+        const start = startRef.current
+        if (start !== null) {
+          resize.preview(start.height + (start.y - event.clientY))
+        }
+      }}
+      onPointerUp={() => {
+        startRef.current = null
+        resize.commit()
+      }}
+      onPointerCancel={() => {
+        startRef.current = null
+        resize.cancel()
+      }}
+      onKeyDown={(event) => {
+        const dir =
+          event.key === 'ArrowUp' ? 1 : event.key === 'ArrowDown' ? -1 : 0
+        if (dir !== 0) {
+          event.preventDefault()
+          setFilmstripThumbHeight(height + dir * FILMSTRIP_THUMB_STEP)
+        }
+      }}
+    />
+  )
+}
+
 /** Kit bottom dock chrome wrapping the working product Filmstrip. */
-export function FilmstripDock() {
+export function FilmstripDock({
+  onDropPhotoFolder,
+}: {
+  onDropPhotoFolder?: (directory: FileSystemDirectoryHandle) => Promise<void>
+}) {
+  const dockRef = useRef<HTMLDivElement>(null)
+  const resize = useFilmstripResize(dockRef)
+  const thumbHeight = useSyncExternalStore(
+    subscribeFilmstripThumbHeight,
+    getFilmstripThumbHeight,
+    getFilmstripThumbHeight,
+  )
   const gallery = useSyncExternalStore(
     subscribeGallery,
     getGalleryIdsSnapshot,
@@ -81,7 +160,51 @@ export function FilmstripDock() {
     : count
 
   return (
-    <div className="editor-dock shrink-0" data-testid="dock">
+    <div
+      ref={dockRef}
+      className="editor-dock relative shrink-0"
+      data-testid="dock"
+      style={{ '--film-thumb-h': `${String(thumbHeight)}px` } as CSSProperties}
+      onDragOver={(event) => {
+        if (
+          onDropPhotoFolder === undefined ||
+          !isExternalFilesDrag(event.dataTransfer.types)
+        ) {
+          return
+        }
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+        setDropHover(event.currentTarget)
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          clearDropHover()
+        }
+      }}
+      onDrop={(event) => {
+        if (
+          onDropPhotoFolder === undefined ||
+          !isExternalFilesDrag(event.dataTransfer.types)
+        ) {
+          return
+        }
+        event.preventDefault()
+        clearDropHover()
+        // Handles must be requested synchronously inside the drop event.
+        const pending = resolveDroppedFolder(event.dataTransfer.items)
+        void pending.then((result) => {
+          if (result.kind === 'no-folder') {
+            setEditorStatus(STATUS_DROP_FOLDER_ONLY)
+            return
+          }
+          if (result.ignoredFiles > 0) {
+            setEditorStatus(STATUS_DROP_FILES_IGNORED)
+          }
+          return onDropPhotoFolder(result.directory)
+        })
+      }}
+    >
+      <ResizeSplitter height={thumbHeight} resize={resize} />
       <div className="editor-dock-head flex h-10 items-center gap-3 px-3">
         <span
           className="editor-dock-meta text-sm tabular-nums"
@@ -94,6 +217,22 @@ export function FilmstripDock() {
           </span>
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <input
+            type="range"
+            className="editor-dock-size"
+            aria-label="Thumbnail size"
+            data-testid="film-size"
+            min={FILMSTRIP_THUMB_MIN}
+            max={FILMSTRIP_THUMB_MAX}
+            step={FILMSTRIP_THUMB_STEP}
+            defaultValue={thumbHeight}
+            key={thumbHeight}
+            onChange={(event) => {
+              resize.preview(Number(event.currentTarget.value))
+            }}
+            onPointerUp={resize.commit}
+            onKeyUp={resize.commit}
+          />
           <MenuTrigger>
             <AriaButton
               className="pb-lib-quiet inline-flex cursor-default items-center gap-1.5 px-3"

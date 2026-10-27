@@ -34,9 +34,12 @@ export function FilmstripItemView({
   id,
   name,
   offsetLeft,
+  thumbHeight,
 }: {
   id: string
   name: string
+  /** Committed slot height (filmstrip size store). */
+  thumbHeight: number
   /** Left origin within the filmstrip window from actual-width prefix sums. */
   offsetLeft: number
 }) {
@@ -68,7 +71,7 @@ export function FilmstripItemView({
   useEffect(() => {
     ensureThumb(id, cacheKey)
   }, [id, cacheKey])
-  const { width, height } = thumbSlotSize(aspect)
+  const { width, height } = thumbSlotSize(aspect, thumbHeight)
 
   return (
     <GridListItem

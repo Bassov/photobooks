@@ -60,9 +60,49 @@
   outline-offset: -2px;
 }
 
+/* Resize drag: only --film-preview-scale changes (compositor transform); the
+   virtualizer re-lays out once on release via the committed height. */
+[data-film-resizing='true'] .filmstrip-scroll {
+  height: calc(
+    (var(--film-thumb-h, 96px) + 24px) * var(--film-preview-scale, 1)
+  );
+}
+
+[data-film-resizing='true'] .filmstrip-spacer {
+  transform: scale(var(--film-preview-scale, 1));
+  transform-origin: left top;
+}
+
+.editor-dock[data-drop-hover='true'] {
+  outline: 2px solid var(--select);
+  outline-offset: -2px;
+}
+
+.editor-dock-splitter {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  z-index: 1;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.editor-dock-splitter:hover,
+.editor-dock-splitter:focus-visible {
+  background: var(--ring);
+  outline: none;
+}
+
+.editor-dock-size {
+  width: 7rem;
+  accent-color: var(--select);
+}
+
 .filmstrip-spacer {
   position: relative;
-  height: 120px;
+  height: calc(var(--film-thumb-h, 96px) + 24px);
 }
 
 .filmstrip-window {
