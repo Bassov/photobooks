@@ -1,5 +1,5 @@
 import { Profiler } from 'react'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addSpread, applyTemplate, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
@@ -11,7 +11,12 @@ import { mockWorkerSuccess } from '../photo/photo.test-helpers'
 import * as tierCache from '../photo/tierCache'
 import { resetTierCache } from '../photo/tierCache'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
-import { resetFrameSelection, setFrameSource } from './frameSelection'
+import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
+import {
+  getFrameSource,
+  resetFrameSelection,
+  setFrameSource,
+} from './frameSelection'
 import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
 import { resetCameraStore } from './cameraStore'
 import assert from 'node:assert/strict'
@@ -23,6 +28,7 @@ import {
 } from './tierDisplay'
 import {
   dispatchBookOp,
+  getBookStoreSnapshot,
   getSpreadPaintSnapshot,
   resetBookStore,
   subscribeSpread,
@@ -78,6 +84,7 @@ describe('per-spread paint subscription', () => {
 
   afterEach(() => {
     cleanup()
+    exitCropMode()
     resetBookStore()
     resetTierDisplay()
     resetTierCache()
@@ -89,6 +96,51 @@ describe('per-spread paint subscription', () => {
     resetGallerySelection()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('enters crop mode on double-click of a filled frame only', () => {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const frame = screen.getByTestId('spread-frame')
+    expect(frame.getAttribute('data-crop-active')).toBeNull()
+    const frameId = frame.getAttribute('data-frame-id') ?? ''
+    act(() => {
+      setFrameSource({ spreadId: 's0', frameId })
+    })
+    fireEvent.doubleClick(frame)
+    expect(getCropTarget()).toMatchObject({ spreadId: 's0', frameId })
+    expect(getFrameSource()).toBeNull()
+    expect(frame.getAttribute('data-crop-active')).toBe('true')
+    act(() => {
+      exitCropMode()
+    })
+    expect(frame.getAttribute('data-crop-active')).toBeNull()
+  })
+
+  it('keeps other spreads out of crop mode', () => {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s1" />)
+    const frame = screen.getByTestId('spread-frame')
+    const other = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id ?? ''
+    act(() => {
+      enterCropMode('s0', other)
+    })
+    expect(frame.getAttribute('data-crop-active')).toBeNull()
+    act(() => {
+      exitCropMode()
+    })
   })
 
   it('renders nothing for a missing spread', () => {
