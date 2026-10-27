@@ -237,7 +237,6 @@ export function FilmstripDock({
             max={FILMSTRIP_THUMB_MAX}
             step={FILMSTRIP_THUMB_STEP}
             defaultValue={thumbHeight}
-            key={thumbHeight}
             onChange={(event) => {
               resize.preview(Number(event.currentTarget.value))
             }}
