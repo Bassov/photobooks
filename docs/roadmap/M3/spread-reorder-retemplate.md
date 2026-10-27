@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: reorder and re-template spreads
+Status: done
 
 ## Scope
 

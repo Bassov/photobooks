@@ -273,7 +273,8 @@ class OpCommand implements fc.Command<BookModel, BookRun> {
     if (
       op.type === 'applyTemplate' ||
       op.type === 'addSpread' ||
-      op.type === 'removeSpread'
+      op.type === 'removeSpread' ||
+      op.type === 'moveSpread'
     ) {
       syncFrameCounts(model, run.book)
     }
