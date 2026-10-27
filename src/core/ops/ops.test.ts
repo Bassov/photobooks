@@ -441,6 +441,44 @@ describe('spread ops', () => {
     expect(next.spreads[1]).toBe(c)
   })
 
+  it('moveSpread re-lays a templated spread whose page count changes and keeps its photos', () => {
+    const base = makeBook({
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b' }),
+        makeSpread({ id: 'c' }),
+      ],
+    })
+    const first = applyTemplate(base, 'a', 'one-per-page')
+    const before = first.spreads[0]
+    const moved = moveSpread(first, 'a', 1)
+    const after = moved.spreads[1]
+    expect(after?.id).toBe('a')
+    expect(after?.templateId).toBe('one-per-page')
+    expect(after?.frames.length).toBeGreaterThan(before?.frames.length ?? 0)
+  })
+
+  it('applyTemplate with fewer frames keeps the first photos in order and unplaces the rest', () => {
+    let book = makeBook({
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b' }),
+        makeSpread({ id: 'c' }),
+      ],
+    })
+    book = addToGallery(book, ['p1', 'p2', 'p3', 'p4'])
+    book = applyTemplate(book, 'b', '4-grid')
+    const frames = book.spreads[1]?.frames ?? []
+    expect(frames).toHaveLength(4)
+    frames.forEach((frame, i) => {
+      book = placeAsset(book, 'b', frame.id, `p${String(i + 1)}`)
+    })
+    const next = applyTemplate(book, 'b', '2-up')
+    const placed = (next.spreads[1]?.frames ?? []).map((f) => f.assetId)
+    expect(placed).toEqual(['p1', 'p2'])
+    expect(unplacedAssetIds(next)).toEqual(['p3', 'p4'])
+  })
+
   it('moves a spread and keeps unrelated identity', () => {
     const a = makeSpread({ id: 'a' })
     const b = makeSpread({ id: 'b' })
