@@ -49,7 +49,6 @@ const STYLE_TEXT = `
   transition: background-color 0.12s;
 }
 .pb-splitter:hover::after,
-.pb-splitter:focus-visible,
 .pb-splitter[data-dragging='true']::after {
   background: var(--ring);
 }
@@ -57,7 +56,14 @@ const STYLE_TEXT = `
   outline: none;
 }
 .pb-splitter:focus-visible::after {
+  width: 2px;
+  margin-left: -0.5px;
   background: var(--ring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-splitter::after {
+    transition: none;
+  }
 }
 .specimen-panels-demo {
   display: flex;
