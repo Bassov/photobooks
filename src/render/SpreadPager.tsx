@@ -28,7 +28,7 @@ export function SpreadPager({
 }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const fitRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
+  const [fit, setFit] = useState({ scale: 1, width: 0, height: 0 })
   const swipeStart = useRef<number | null>(null)
   const swiped = useRef(false)
   const live = useRef({ index, count, onIndexChange, onExit })
@@ -82,11 +82,14 @@ export function SpreadPager({
         return
       }
       // Leave room for the position line under the spread.
-      setScale(
-        Math.min(
-          (stage.clientWidth * 0.94) / w,
-          ((stage.clientHeight - 64) * 0.96) / h,
-        ),
+      const scale = Math.min(
+        (stage.clientWidth * 0.94) / w,
+        ((stage.clientHeight - 64) * 0.96) / h,
+      )
+      setFit((prev) =>
+        prev.scale === scale && prev.width === w && prev.height === h
+          ? prev
+          : { scale, width: w, height: h },
       )
     }
     measure()
@@ -150,12 +153,23 @@ export function SpreadPager({
             inert={active ? undefined : true}
             style={{ transform: `translateX(${String((i - index) * 100)}%)` }}
           >
+            {/* The shadow sits on an unscaled box: a blurred shadow painted
+                under scale() loses the cached fast path and re-rasters on
+                every flip, stalling frames on software compositors. */}
             <div
-              ref={active ? fitRef : undefined}
-              className="origin-center shadow-[var(--shadow-stage-dark)]"
-              style={{ transform: `scale(${String(scale)})` }}
+              className="shadow-[var(--shadow-stage-dark)]"
+              style={{
+                width: fit.width * fit.scale,
+                height: fit.height * fit.scale,
+              }}
             >
-              {renderSpread(i)}
+              <div
+                ref={active ? fitRef : undefined}
+                className="w-max origin-top-left"
+                style={{ transform: `scale(${String(fit.scale)})` }}
+              >
+                {renderSpread(i)}
+              </div>
             </div>
           </div>
         )
