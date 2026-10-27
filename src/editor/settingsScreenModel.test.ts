@@ -22,7 +22,7 @@ describe('settingsScreenModel', () => {
   })
 
   it('returns active nav class only when active', () => {
-    expect(settingsNavActiveClass(true)).toBe('bg-accent font-medium')
+    expect(settingsNavActiveClass(true)).toBe('bg-[#CACACA] font-medium')
     expect(settingsNavActiveClass(false)).toBe(false)
   })
 })

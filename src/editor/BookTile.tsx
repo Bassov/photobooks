@@ -10,6 +10,7 @@ import type { LibraryGridBook } from './libraryBookFilter'
 import { formatLibraryBookMeta } from './libraryEditedLabel'
 
 const DEFAULT_H = 236
+const SHELF_FMT = 'portrait' as const
 
 /** Library book card: cover object + caption + optional menu. */
 export function BookTile({
@@ -27,8 +28,9 @@ export function BookTile({
   title?: ReactNode
   nowMs?: number
 }) {
-  const objectH = bookObjectDisplayHeight(H, book.fmt)
-  const captionW = bookObjectWidthForHeight(objectH, book.fmt)
+  // Shelf draws every book vertical (kit look), whatever the trim.
+  const objectH = bookObjectDisplayHeight(H, SHELF_FMT)
+  const captionW = bookObjectWidthForHeight(objectH, SHELF_FMT)
   const pageCount = book.spreads * 2
   const meta = formatLibraryBookMeta(pageCount, book.editedAtMs, nowMs)
   return (
@@ -52,7 +54,7 @@ export function BookTile({
             style={{ background: bookFloorBackground() }}
           />
           <div className="pb-lib-obj relative">
-            <BookObject title={book.displayTitle} fmt={book.fmt} h={objectH} />
+            <BookObject title={book.displayTitle} fmt={SHELF_FMT} h={objectH} />
           </div>
         </div>
       </button>

@@ -86,12 +86,19 @@ function ChromeButton({
       className={[
         'pb-button',
         'pb-button--secondary',
+        'e7-ghost',
         `pb-button--${size}`,
         className,
       ]
         .filter(Boolean)
         .join(' ')}
-      style={style}
+      style={{
+        color: SUB,
+        background: 'transparent',
+        border: 0,
+        boxShadow: 'none',
+        ...style,
+      }}
       {...props}
     />
   )
@@ -359,7 +366,7 @@ export function EditorTopBar({
             data-dirty={project.dirty ? 'true' : 'false'}
           >
             <Badge
-              color={saveIndicatorBadgeColor(project.savePhase, project.dirty)}
+              color={saveIndicatorBadgeColor(project.savePhase)}
               size="sm"
               type="pill-color"
               dot

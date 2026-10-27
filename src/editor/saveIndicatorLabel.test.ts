@@ -14,10 +14,9 @@ describe('saveIndicatorLabel', () => {
   })
 
   it('maps badge colors to status roles', () => {
-    expect(saveIndicatorBadgeColor('error', false)).toBe('error')
-    expect(saveIndicatorBadgeColor('saving', false)).toBe('warning')
-    expect(saveIndicatorBadgeColor('pending', false)).toBe('warning')
-    expect(saveIndicatorBadgeColor('idle', true)).toBe('warning')
-    expect(saveIndicatorBadgeColor('idle', false)).toBe('success')
+    expect(saveIndicatorBadgeColor('error')).toBe('error')
+    expect(saveIndicatorBadgeColor('saving')).toBe('gray')
+    expect(saveIndicatorBadgeColor('pending')).toBe('gray')
+    expect(saveIndicatorBadgeColor('idle')).toBe('gray')
   })
 })

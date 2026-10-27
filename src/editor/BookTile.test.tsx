@@ -48,6 +48,13 @@ describe('BookTile', () => {
     )
   })
 
+  it('draws square trims as vertical book objects', () => {
+    render(<BookTile book={{ ...book, fmt: 'square' }} />)
+    const obj = screen.getByTestId('book-object')
+    expect(obj.getAttribute('data-format')).toBe('portrait')
+    expect(Number(obj.getAttribute('data-width'))).toBeLessThan(236)
+  })
+
   it('renders custom title and menu slot', () => {
     render(
       <BookTile
