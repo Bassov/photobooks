@@ -10,6 +10,11 @@ function nameCollator(): Intl.Collator {
   return collator
 }
 
+/** Build the collator and run one compare so ICU data loads off the sort path. */
+export function warmNameCollator(): void {
+  nameCollator().compare('a', 'b')
+}
+
 /** Per-asset sort inputs; keep lookups cheap (called once per id). */
 export interface GalleryViewSource {
   name(assetId: string): string

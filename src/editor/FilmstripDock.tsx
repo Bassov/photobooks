@@ -1,4 +1,9 @@
-import { startTransition, useState, useSyncExternalStore } from 'react'
+import {
+  startTransition,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { Button as AriaButton } from 'react-aria-components'
 import { AlertDialog } from '../ui/AlertDialog'
 import { Icon } from '../ui/Icon'
@@ -18,7 +23,7 @@ import {
   getPendingGalleryRemoveId,
   subscribePendingGalleryRemove,
 } from './galleryRemoveRequest'
-import type { GallerySortKey } from './galleryView'
+import { warmNameCollator, type GallerySortKey } from './galleryView'
 
 const SORT_LABELS: Record<GallerySortKey, string> = {
   added: 'Added order',
@@ -63,6 +68,13 @@ export function FilmstripDock() {
   )
   const [sort, setSort] = useState<GallerySortKey>('added')
   const [unplacedOnly, setUnplacedOnly] = useState(false)
+  // First Intl.Collator use loads ICU data (tens of ms); pay it before the first sort pick.
+  useEffect(() => {
+    const id = setTimeout(warmNameCollator, 0)
+    return () => {
+      clearTimeout(id)
+    }
+  }, [])
   const count = gallery.length
   const shown = unplacedOnly
     ? gallery.filter((id) => !placed.has(id)).length
