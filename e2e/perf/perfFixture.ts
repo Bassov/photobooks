@@ -111,6 +111,18 @@ export async function beginFilmstripLoafScrollWindow(
   await page.evaluate(browserBeginLoafScenarioWindow)
 }
 
+/**
+ * Open and close the sort popover once before a LoAF window. The first open
+ * mounts the popover cold (a ~55 ms render-only frame, blockingDuration 0);
+ * later opens are clean, so the measured window covers the steady state.
+ */
+export async function warmFilmstripSortMenu(page: Page): Promise<void> {
+  await page.getByTestId('film-sort').click()
+  await page.getByTestId('film-sort-menu').waitFor({ state: 'visible' })
+  await page.keyboard.press('Escape')
+  await page.getByTestId('film-sort-menu').waitFor({ state: 'hidden' })
+}
+
 /** Measured filmstrip scroll steps inside an open LoAF scenario window. */
 export async function scrollFilmstripLoafWindow(
   page: Page,

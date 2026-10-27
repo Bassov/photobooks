@@ -17,6 +17,7 @@ import {
   assertCiPerfGates,
   assertCrossOriginIsolated,
   beginFilmstripLoafScrollWindow,
+  warmFilmstripSortMenu,
   browserAssertNoLoaf,
   clearPerfScenario,
   collectFrameStatsArtifact,
@@ -1564,6 +1565,7 @@ test.describe('sort / filter / remove', () => {
       timeout: 120_000,
     })
 
+    await warmFilmstripSortMenu(page)
     await beginFilmstripLoafScrollWindow(page)
     await scrollFilmstripLoafWindow(page, 10)
     await page.getByTestId('film-unplaced-only').click()
