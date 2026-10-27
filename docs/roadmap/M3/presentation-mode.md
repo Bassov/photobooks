@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: preview the book
+Status: done
 
 ## Scope
 

@@ -13,6 +13,7 @@ import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
 import { Pasteboard } from './Pasteboard'
+import { PresentationMode } from './PresentationMode'
 import { SpreadsPanel } from './SpreadsPanel'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
@@ -31,6 +32,7 @@ export function EditorShell() {
 
   const [toastQueue] = useState(() => createToastQueue())
   const [panels, setPanels] = useState(INITIAL_PANELS)
+  const [presenting, setPresenting] = useState(false)
   const chromeImport = useChromeImport({
     // External store: progress ticks must not re-render Pasteboard / top bar.
     onImportProgress: setImportProgress,
@@ -46,14 +48,24 @@ export function EditorShell() {
           chromeImport={chromeImport}
           panels={panels}
           onPanelsChange={setPanels}
+          onPresent={() => {
+            setPresenting(true)
+          }}
         />
       }
       left={<SpreadsPanel />}
       right={<InspectorStub />}
       dock={<FilmstripDock />}
-      canvas={<Pasteboard chromeImport={chromeImport} />}
+      canvas={presenting ? null : <Pasteboard chromeImport={chromeImport} />}
       overlay={
         <>
+          {presenting ? (
+            <PresentationMode
+              onExit={() => {
+                setPresenting(false)
+              }}
+            />
+          ) : null}
           <Status
             className="editor-live"
             data-testid="editor-status"
