@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: filmstrip size and desktop drop
+Status: done
 
 ## Scope
 
