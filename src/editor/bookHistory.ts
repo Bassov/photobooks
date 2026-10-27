@@ -43,7 +43,15 @@ export function isUndoableOp(op: BookOp): boolean {
 
 /** Consecutive ops with the same key (e.g. title typing) share one step. */
 export function coalesceKey(op: BookOp): string | undefined {
-  return op.type === 'setTitle' ? 'setTitle' : undefined
+  switch (op.type) {
+    case 'setTitle':
+      return 'setTitle'
+    case 'setCrop':
+    case 'resetCrop':
+      return `crop:${op.spreadId}:${op.frameId}`
+    default:
+      return undefined
+  }
 }
 
 /** Push the pre-op snapshot; drops redo steps and evicts the oldest over the limit. */

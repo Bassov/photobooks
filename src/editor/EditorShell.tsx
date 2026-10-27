@@ -8,6 +8,7 @@ import { EditorTopBar } from './EditorTopBar'
 import { FilmstripDock } from './FilmstripDock'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
 import { InspectorStub } from './InspectorStub'
+import { installCropGesture } from './cropGesture'
 import { installDocumentDragGesture } from './editorGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
@@ -27,6 +28,7 @@ export function EditorShell() {
   )
   useEffect(() => installEditorKeys(), [])
   useEffect(() => installDocumentDragGesture(), [])
+  useEffect(() => installCropGesture(), [])
 
   const [toastQueue] = useState(() => createToastQueue())
   const [panels, setPanels] = useState(INITIAL_PANELS)

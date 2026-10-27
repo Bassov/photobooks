@@ -71,6 +71,28 @@ button.spread-frame[aria-pressed='true']::after {
   overflow: hidden;
 }
 
+/* Crop mode: the part of the photo outside the frame is shown dimmed. */
+.spread-frame[data-crop-active='true'] .spread-frame-body {
+  overflow: visible;
+}
+
+.spread-frame[data-crop-active='true'] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.spread-frame-ghost {
+  opacity: 0.4;
+  pointer-events: none;
+  outline: 1px solid var(--crop);
+}
+
+.spread-frame-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
 .spread-frame-placeholder {
   width: 100%;
   height: 100%;
