@@ -15,7 +15,7 @@ UI ref: `uikit#/demo`, `uikit#/full/editor`, `uikit#/feature/design-tokens`.
 
 ## Visual direction
 
-Single product theme: **B** (light) from `uikit/src/index.css` / `styles/tokens.css`. Fonts: Inter Variable (UI), Lora Variable (headings), self-hosted woff2 (Latin + Cyrillic). No dark theme and no theme switching in the product or kit.
+Single product theme: **B** (light) from `uikit/src/index.css` / `styles/tokens.css`. Fonts: Inter Variable (UI), Lora Variable (headings; roman + italic faces), self-hosted woff2 (Latin + Cyrillic). No dark theme and no theme switching in the product or kit.
 
 UI ref: `uikit#/feature/design-tokens`.
 
