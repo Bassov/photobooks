@@ -65,7 +65,7 @@
    re-lay out once on release via the committed height. */
 [data-film-resizing='true'] .filmstrip-spacer {
   transform: scale(var(--film-preview-scale, 1));
-  transform-origin: left top;
+  transform-origin: var(--film-preview-origin, 0) top;
 }
 
 .filmstrip-spacer {
@@ -77,21 +77,34 @@
   position: absolute;
   top: 0;
   left: 0;
+  height: calc(var(--film-slot-h, 96px) + 24px);
   will-change: transform;
 }
 
+/* Slot geometry keys off --film-slot-h on the window: origins pack by card
+   width + 8px gap (the buildStridePrefix sums) and widths round like
+   thumbSlotSize, so a committed resize restyles one element, not every item. */
 .filmstrip-list {
   outline: none;
   overflow: visible;
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   position: relative;
+  height: 100%;
   padding: 0;
   margin: 0;
 }
 
 .filmstrip-item {
-  position: absolute;
-  top: 0;
+  position: relative;
+  flex: none;
+  width: round(
+    nearest,
+    calc(var(--film-slot-h, 96px) * var(--slot-aspect, 1)),
+    1px
+  );
+  height: var(--film-slot-h, 96px);
   display: flex;
   align-items: stretch;
   justify-content: center;

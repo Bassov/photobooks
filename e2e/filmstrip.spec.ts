@@ -1627,8 +1627,8 @@ test.describe('sort / filter / remove', () => {
     )
   })
 
-  // The release frame re-renders every visible thumb (~35 ms of script under
-  // CI-like CPU), so Istanbul overhead alone can push it past the LoAF line.
+  // The release frame re-lays out the filmstrip window under CI-like CPU, so
+  // Istanbul overhead alone can push it past the LoAF line.
   // Zero-LoAF windows run without coverage (CI: -g "frame-budget gates").
   test.describe('frame-budget gates', () => {
     test('resizing the filmstrip mid-gallery re-lays out without gaps or LoAF', async ({

@@ -41,10 +41,14 @@ import {
   indexFromScrollOffset,
   spacerWidthPx,
   thumbSlotSize,
-  thumbStride,
   windowCountForCover,
+  THUMB_HEIGHT,
   THUMB_WIDTH_MAX,
 } from './thumbSlotSize'
+import {
+  resetFilmstripThumbHeightForTests,
+  setFilmstripThumbHeight,
+} from './filmstripSize'
 
 const filmstripCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'Filmstrip.css'),
@@ -202,9 +206,12 @@ describe('Filmstrip viewport containment', () => {
     expect(filmstripCss).toMatch(/\.filmstrip-scroll\s*\{[^}]*min-width:\s*0/s)
   })
 
-  it('absolutely packs items from each card end (not max-width slots)', () => {
+  it('packs items from each card end + gap (not max-width slots)', () => {
     expect(filmstripCss).toMatch(
-      /\.filmstrip-item\s*\{[^}]*position:\s*absolute/s,
+      /\.filmstrip-list\s*\{[^}]*display:\s*flex[^}]*gap:\s*8px/s,
+    )
+    expect(filmstripCss).toMatch(
+      /\.filmstrip-item\s*\{[^}]*flex:\s*none[^}]*--slot-aspect/s,
     )
   })
 })
@@ -217,6 +224,8 @@ describe('Filmstrip aspect cards', () => {
     resetBookStore()
     resetThumbCache()
     resetAssetPool()
+    resetFilmstripThumbHeightForTests()
+    vi.restoreAllMocks()
   })
 
   it('renders distinct widths for landscape, portrait, and square', () => {
@@ -229,26 +238,41 @@ describe('Filmstrip aspect cards', () => {
     expect(items[1]?.getAttribute('data-orientation')).toBe('portrait')
     expect(items[2]?.getAttribute('data-orientation')).toBe('square')
 
-    const landW = thumbSlotSize(1.5).width
-    const portW = thumbSlotSize(0.5).width
-    const squareW = thumbSlotSize(1).width
-    expect(items[0]?.style.width).toBe(`${String(landW)}px`)
-    expect(items[1]?.style.width).toBe(`${String(portW)}px`)
-    expect(items[2]?.style.width).toBe(`${String(squareW)}px`)
-    expect(portW).toBeLessThan(landW)
+    // CSS sizes each slot from --film-slot-h × --slot-aspect (flex row packs
+    // origins by card width + gap); widths match thumbSlotSize at that height.
+    const aspects = items.map((item) =>
+      Number(item.style.getPropertyValue('--slot-aspect')),
+    )
+    expect(aspects).toEqual([1.5, 0.5, 1])
+    for (const [index, aspect] of [1.5, 0.5, 1].entries()) {
+      expect(Math.round(THUMB_HEIGHT * (aspects[index] ?? 0))).toBe(
+        thumbSlotSize(aspect).width,
+      )
+    }
+    expect(
+      screen
+        .getByTestId('filmstrip-window')
+        .style.getPropertyValue('--film-slot-h'),
+    ).toBe(`${String(THUMB_HEIGHT)}px`)
+    expect(items.some((item) => item.style.left !== '')).toBe(false)
+  })
 
-    // Origins follow each card's end + gap — not a fixed max-width stride.
-    expect(items[0]?.getAttribute('data-offset-left')).toBe('0')
-    expect(items[1]?.getAttribute('data-offset-left')).toBe(
-      String(thumbStride(1.5)),
-    )
-    expect(items[2]?.getAttribute('data-offset-left')).toBe(
-      String(thumbStride(1.5) + thumbStride(0.5)),
-    )
-    expect(items[1]?.style.left).toBe(`${String(thumbStride(1.5))}px`)
-    expect(items[2]?.style.left).toBe(
-      `${String(thumbStride(1.5) + thumbStride(0.5))}px`,
-    )
+  it('keeps item rows unrendered when the committed height changes', () => {
+    seedMixedAspectGallery()
+    const renders = vi.spyOn(thumbCache, 'getThumbUrl')
+    render(<Filmstrip />)
+    renders.mockClear()
+
+    act(() => {
+      setFilmstripThumbHeight(144)
+    })
+
+    expect(
+      screen
+        .getByTestId('filmstrip-window')
+        .style.getPropertyValue('--film-slot-h'),
+    ).toBe('144px')
+    expect(renders).not.toHaveBeenCalled()
   })
 
   it('shows gallery count on the status strip', () => {

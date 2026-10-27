@@ -20,6 +20,7 @@ export function endFilmstripResizePreview(node: HTMLElement | null): void {
   const dock = node?.closest<HTMLElement>(`[${PREVIEW_ATTR}]`)
   dock?.removeAttribute(PREVIEW_ATTR)
   dock?.style.removeProperty('--film-preview-scale')
+  dock?.style.removeProperty('--film-preview-origin')
 }
 
 /**
@@ -34,15 +35,24 @@ export function useFilmstripResize(
     draft.current = null
     dockRef.current?.removeAttribute('data-film-resizing')
     dockRef.current?.style.removeProperty('--film-preview-scale')
+    dockRef.current?.style.removeProperty('--film-preview-origin')
   }
   return {
     preview: (next) => {
       const value = clampThumbHeight(next)
       draft.current = value
-      dockRef.current?.setAttribute('data-film-resizing', 'true')
-      dockRef.current?.style.setProperty(
+      const dock = dockRef.current
+      dock?.setAttribute('data-film-resizing', 'true')
+      dock?.style.setProperty(
         '--film-preview-scale',
         String(value / getFilmstripThumbHeight()),
+      )
+      // Scale around the left edge of the scrollport: the commit keeps the
+      // first visible photo there (Filmstrip.tsx anchors the scroll).
+      const scroller = dock?.querySelector('.filmstrip-scroll')
+      dock?.style.setProperty(
+        '--film-preview-origin',
+        `${String(scroller?.scrollLeft ?? 0)}px`,
       )
     },
     commit: () => {

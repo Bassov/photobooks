@@ -12,6 +12,19 @@ export interface ThumbSlotSize {
   height: number
 }
 
+/**
+ * Width / height ratio of a filmstrip slot: the aspect clamped to the slot
+ * width bounds (scale-free, so CSS can size the slot from the height alone).
+ */
+export function thumbSlotAspect(aspect: number): number {
+  const safe = Number.isFinite(aspect) && aspect > 0 ? aspect : 1
+  return clamp(
+    safe,
+    THUMB_WIDTH_MIN / THUMB_HEIGHT,
+    THUMB_WIDTH_MAX / THUMB_HEIGHT,
+  )
+}
+
 /** Fixed-height filmstrip slot; width follows clamped aspect. */
 export function thumbSlotSize(
   aspect: number,
@@ -85,6 +98,25 @@ export function indexFromScrollOffset(
     }
   }
   return Math.max(0, lo - overscan)
+}
+
+/**
+ * Scroll offset in `nextPrefix` that keeps the item under `scrollLeft` in
+ * `prevPrefix` (and the same fraction into it) at the scrollport's left edge.
+ */
+export function anchoredScrollOffset(
+  scrollLeft: number,
+  prevPrefix: readonly number[],
+  nextPrefix: readonly number[],
+): number {
+  const index = indexFromScrollOffset(scrollLeft, prevPrefix, 0)
+  const prevStart = prevPrefix[index] ?? 0
+  const prevStride = (prevPrefix[index + 1] ?? prevStart) - prevStart
+  const nextStart = nextPrefix[index] ?? 0
+  const nextStride = (nextPrefix[index + 1] ?? nextStart) - nextStart
+  const fraction =
+    prevStride > 0 ? Math.min((scrollLeft - prevStart) / prevStride, 1) : 0
+  return Math.round(nextStart + fraction * nextStride)
 }
 
 /**

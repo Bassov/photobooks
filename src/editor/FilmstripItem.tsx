@@ -1,4 +1,9 @@
-import { memo, useEffect, useSyncExternalStore } from 'react'
+import {
+  memo,
+  useEffect,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react'
 import { GridListItem } from 'react-aria-components'
 import { Badge } from '../ui/Badge'
 import { Icon } from '../ui/Icon'
@@ -22,7 +27,7 @@ import {
 } from './filmstripJump'
 import { getSelectedAssetIds, setSelectedAssetId } from './gallerySelection'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
-import { thumbSlotSize } from './thumbSlotSize'
+import { thumbSlotAspect } from './thumbSlotSize'
 
 function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
   if (aspect < 0.95) {
@@ -34,11 +39,7 @@ function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
   return 'square'
 }
 
-/**
- * Thumb, badge and remove button. Memoized apart from the slot geometry so a
- * committed filmstrip resize only re-renders the outer slot (CSS sizes the
- * thumb to 100%).
- */
+/** Thumb, badge and remove button (CSS sizes the thumb to 100% of the slot). */
 const FilmstripItemBody = memo(function FilmstripItemBody({
   id,
   name,
@@ -108,19 +109,12 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
   )
 })
 
-export function FilmstripItemView({
-  id,
-  name,
-  offsetLeft,
-  thumbHeight,
-}: {
-  id: string
-  name: string
-  /** Committed slot height (filmstrip size store). */
-  thumbHeight: number
-  /** Left origin within the filmstrip window from actual-width prefix sums. */
-  offsetLeft: number
-}) {
+/**
+ * Slot geometry is CSS-only: height and width follow `--film-slot-h` on the
+ * filmstrip window and origins come from the flex row, so a committed resize
+ * commits one style on the window instead of re-rendering every item.
+ */
+export function FilmstripItemView({ id, name }: { id: string; name: string }) {
   const thumbUrl = useSyncExternalStore(
     (listener) => subscribeThumb(id, listener),
     () => getThumbUrl(id),
@@ -149,8 +143,6 @@ export function FilmstripItemView({
   useEffect(() => {
     ensureThumb(id, cacheKey)
   }, [id, cacheKey])
-  const { width, height } = thumbSlotSize(aspect, thumbHeight)
-
   return (
     <GridListItem
       id={id}
@@ -160,16 +152,13 @@ export function FilmstripItemView({
       data-asset-id={id}
       data-aspect={String(aspect)}
       data-orientation={orientationLabel(aspect)}
-      data-offset-left={String(offsetLeft)}
       {...(jumpHighlightId === id ? { 'data-import-jump': '' } : {})}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: offsetLeft,
-        width,
-        height,
-        ...(jumpHighlightId === id ? filmstripImportJumpHighlightStyle : {}),
-      }}
+      style={
+        {
+          '--slot-aspect': String(thumbSlotAspect(aspect)),
+          ...(jumpHighlightId === id ? filmstripImportJumpHighlightStyle : {}),
+        } as CSSProperties
+      }
     >
       <FilmstripItemBody
         id={id}

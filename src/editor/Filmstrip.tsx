@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type UIEvent,
 } from 'react'
 import { GridList, type Selection } from 'react-aria-components'
@@ -57,6 +58,7 @@ import {
   matchingSelection,
 } from './filmstripSelection'
 import {
+  anchoredScrollOffset,
   buildStridePrefix,
   indexFromScrollOffset,
   spacerWidthPx,
@@ -69,6 +71,11 @@ import {
 } from './filmstripSize'
 import { endFilmstripResizePreview } from './useFilmstripResize'
 import './Filmstrip.css'
+
+interface FilmstripRow {
+  id: string
+  name: string
+}
 
 /** Extra cover beyond the scrollport so fast scroll does not flash holes. */
 function windowOverscanPx(thumbHeight: number): number {
@@ -100,6 +107,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const scrollRaf = useRef(0)
   const committedWindowStart = useRef(0)
   const prefixRef = useRef<readonly number[]>([0])
+  const scrollLeftRef = useRef(0)
   const total = gallery.length
   // Deferred: a committed resize re-lays out every visible thumb, which is
   // too much script for the pointerup frame. React renders it time-sliced.
@@ -111,17 +119,37 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     ),
   )
 
-  // The resize preview scale holds until the strip has re-laid out at the
-  // committed height, so release never flashes the old size.
-  useLayoutEffect(() => {
-    endFilmstripResizePreview(scrollRef.current)
-  }, [thumbHeight])
-
   const prefix = useMemo(
     () => buildStridePrefix(aspects, thumbHeight),
     [aspects, thumbHeight],
   )
   prefixRef.current = prefix
+  scrollLeftRef.current = scrollLeft
+
+  // A committed resize keeps the first visible photo at the left edge (the
+  // preview scales around it too), so the window keeps its rows and the
+  // deferred render trims or extends it instead of mounting a new set.
+  const [anchorHeight, setAnchorHeight] = useState(thumbHeight)
+  if (anchorHeight !== thumbHeight) {
+    setAnchorHeight(thumbHeight)
+    setScrollLeft(
+      anchoredScrollOffset(
+        pendingScrollLeft.current,
+        buildStridePrefix(aspects, anchorHeight),
+        prefix,
+      ),
+    )
+  }
+
+  // The resize preview scale holds until the strip has re-laid out at the
+  // committed height, so release never flashes the old size.
+  useLayoutEffect(() => {
+    const node = scrollRef.current
+    if (node) {
+      node.scrollLeft = scrollLeftRef.current
+    }
+    endFilmstripResizePreview(node)
+  }, [thumbHeight])
   const spacerWidth = useMemo(
     () => spacerWidthPx(aspects, spacerCount, 1, thumbHeight),
     [aspects, spacerCount, thumbHeight],
@@ -165,19 +193,25 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const windowEnd = Math.min(windowStart + windowCount, prefix.length - 1)
   const windowWidth = (prefix[windowEnd] ?? windowOffset) - windowOffset
 
+  // Item objects keep their identity while id + name hold: react-aria caches
+  // each rendered row by item object, so a resize or window shift does not
+  // re-render (or commit) the rows that stay in the window.
+  const itemCache = useRef(new Map<string, FilmstripRow>())
   const items = useMemo(() => {
     if (!windowKey) {
-      return [] as { id: string; name: string; offsetLeft: number }[]
+      return [] as FilmstripRow[]
     }
-    return windowKey.split('\0').map((assetId, index) => {
-      const absolute = prefix[windowStart + index] ?? 0
-      return {
-        id: assetId,
-        name: displayNames[windowStart + index] ?? assetId,
-        offsetLeft: absolute - windowOffset,
-      }
+    const next = new Map<string, FilmstripRow>()
+    const rows = windowKey.split('\0').map((assetId, index) => {
+      const name = displayNames[windowStart + index] ?? assetId
+      const cached = itemCache.current.get(assetId)
+      const row = cached?.name === name ? cached : { id: assetId, name }
+      next.set(assetId, row)
+      return row
     })
-  }, [windowKey, prefix, windowStart, windowOffset, displayNames])
+    itemCache.current = next
+    return rows
+  }, [windowKey, windowStart, displayNames])
 
   useEffect(() => {
     return scheduleFilmstripVisibleSync(
@@ -275,11 +309,13 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
             className="filmstrip-window"
             data-testid="filmstrip-window"
             data-window-count={windowCount}
-            style={{
-              transform: `translateX(${String(windowOffset)}px)`,
-              width: Math.max(windowWidth, 1),
-              height: thumbHeight + 24,
-            }}
+            style={
+              {
+                '--film-slot-h': `${String(thumbHeight)}px`,
+                transform: `translateX(${String(windowOffset)}px)`,
+                width: Math.max(windowWidth, 1),
+              } as CSSProperties
+            }
           >
             <GridList
               aria-label="Book gallery"
@@ -290,19 +326,8 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
               onSelectionChange={onSelectionChange}
               items={items}
               className="filmstrip-list"
-              style={{
-                height: thumbHeight + 24,
-                width: Math.max(windowWidth, 1),
-              }}
             >
-              {(item) => (
-                <FilmstripItemView
-                  id={item.id}
-                  name={item.name}
-                  offsetLeft={item.offsetLeft}
-                  thumbHeight={thumbHeight}
-                />
-              )}
+              {(item) => <FilmstripItemView id={item.id} name={item.name} />}
             </GridList>
           </div>
         </div>
