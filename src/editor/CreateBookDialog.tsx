@@ -76,7 +76,7 @@ export function CreateBookDialog({
           onCancel()
         }
       }}
-      className="w-[min(460px,calc(100vw-2rem))] max-w-[460px] p-0"
+      className="pb-create-dialog"
       data-testid="create-book-dialog"
     >
       <div className="px-6 pb-3 pt-5">
@@ -85,7 +85,7 @@ export function CreateBookDialog({
           A title and a page size — both can change later.
         </p>
       </div>
-      <div className="flex flex-col gap-3 px-6 pb-2">
+      <div className="pb-create-body flex flex-col gap-3 px-6 pb-2">
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-normal text-muted-foreground">
             Title
@@ -104,7 +104,7 @@ export function CreateBookDialog({
                 go()
               }
             }}
-            className="h-9 rounded-md bg-field px-2.5 text-sm outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
+            className="pb-create-field h-9 rounded-md bg-field px-2.5 text-sm outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
           />
         </label>
         <label className="flex flex-col gap-1.5">
@@ -116,7 +116,7 @@ export function CreateBookDialog({
             onChange={(e) => {
               setPresetId(e.target.value as PageSizePresetId)
             }}
-            className="h-9 rounded-md bg-field px-2.5 text-sm outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
+            className="pb-create-field h-9 rounded-md bg-field px-2.5 text-sm outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
           >
             {PAGE_SIZE_PRESETS.map((p) => (
               <option key={p.id} value={p.id}>
@@ -153,7 +153,7 @@ export function CreateBookDialog({
                   onBlur={() => {
                     setValue(clampCustomCm(value))
                   }}
-                  className="h-9 rounded-md bg-field px-2.5 text-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
+                  className="pb-create-field h-9 rounded-md bg-field px-2.5 text-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
                 />
               </label>
             ))}
@@ -187,7 +187,7 @@ export function CreateBookDialog({
           Size of one page. To print 2 pages per A4 sheet, choose A5.
         </p>
       </div>
-      <div className="flex justify-end gap-2 px-6 pb-5 pt-3">
+      <div className="pb-create-footer flex justify-end gap-2 px-6 pb-5 pt-3">
         <Button variant="ghost" size="md" className="px-4" onPress={onCancel}>
           Cancel
         </Button>

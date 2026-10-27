@@ -44,6 +44,9 @@ describe('WelcomeScreen', () => {
     expect(
       screen.getByTestId('welcome-hero').getAttribute('data-hero-src'),
     ).toBe('/photos/hi/c18.jpg')
+    const headline = screen.getByRole('heading', { level: 1 })
+    expect(headline.className).toMatch(/pb-welcome-headline/)
+    expect(headline.querySelector('em')?.textContent).toMatch(/for your books/)
     expect(screen.getByTestId('create-library')).toBeTruthy()
     expect(screen.getByTestId('create-library').textContent).toMatch(
       /Create Library/,
