@@ -1,8 +1,5 @@
 export const SPREAD_DRAG_MIME = 'application/x-photobooks-spread'
 
-/** Vertical gap between list items (`mb-1`); item pitch = height + gap. */
-export const SPREAD_ITEM_GAP_PX = 4
-
 export interface ItemSpan {
   /** Offset from the top of the list content (scroll-independent). */
   top: number
