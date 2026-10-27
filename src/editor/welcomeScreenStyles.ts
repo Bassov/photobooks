@@ -55,6 +55,7 @@ const STYLE_TEXT = `
 .pb-welcome-headline {
   font-family: var(--font-heading);
   font-size: var(--text-welcome-display);
+  font-weight: 400;
 }
 .pb-welcome-headline--regrant {
   font-size: var(--text-welcome-regrant);

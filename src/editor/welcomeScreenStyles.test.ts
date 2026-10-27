@@ -16,6 +16,9 @@ describe('ensureWelcomeScreenStyles', () => {
     expect(nodes).toHaveLength(1)
     expect(nodes[0]?.textContent).toMatch(/\.pb-welcome/)
     expect(nodes[0]?.textContent).toMatch(/pb-welcome-create/)
+    expect(nodes[0]?.textContent).toMatch(
+      /\.pb-welcome-headline\s*\{[^}]*font-weight:\s*400/,
+    )
   })
 
   it('no-ops when document is unavailable', () => {
