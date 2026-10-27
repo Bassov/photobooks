@@ -57,7 +57,6 @@ function frameContext(
   const frame = book.spreads
     .find((spread) => spread.id === target.spreadId)
     ?.frames.find((item) => item.id === target.frameId)
-  // Stryker disable next-line BlockStatement: crop mode exits when the frame loses its photo, so the context always resolves
   if (frame?.assetId === undefined) {
     return null
   }
@@ -232,7 +231,6 @@ export function installCropGesture(): () => void {
     }
     flushWheel()
     const frame = frameContext(element, cropTarget)
-    // Stryker disable next-line BlockStatement: unreachable, see frameContext
     if (frame === null) {
       return
     }
@@ -298,7 +296,6 @@ export function installCropGesture(): () => void {
     event.stopPropagation()
     if (wheel === null) {
       const frame = frameContext(element, cropTarget)
-      // Stryker disable next-line BlockStatement: unreachable, see frameContext
       if (frame === null) {
         return
       }
@@ -336,7 +333,6 @@ export function installCropGesture(): () => void {
     }
     const element = activeFrameElement()
     const frame = element === null ? null : frameContext(element, cropTarget)
-    // Stryker disable next-line BlockStatement: unreachable when an element is found, see frameContext
     if (frame === null) {
       return
     }

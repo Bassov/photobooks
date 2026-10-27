@@ -57,7 +57,6 @@ function useFrameCrop(target: CropTarget) {
 
 function FitAndCrop({ target }: { target: CropTarget }) {
   const frame = useFrameCrop(target)
-  // Stryker disable next-line BlockStatement: crop mode exits when the frame loses its photo, so the target always resolves
   if (frame?.assetId === undefined) {
     return null
   }

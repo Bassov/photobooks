@@ -5,6 +5,7 @@ import { cropWheelFactor } from './cropMath'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import { installCropGesture } from './cropGesture'
+import * as cropMode from './cropMode'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
 
 const ZOOMED = { zoom: 2, center: { x: 0.5, y: 0.5 } }
@@ -511,6 +512,28 @@ describe('cropGesture details', () => {
     pointer('pointerup', { target: el, clientX: 0, clientY: 0 })
     el.click()
     expect(onClick).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores gestures when the crop target frame holds no photo', () => {
+    const el = setup()
+    vi.spyOn(cropMode, 'getCropTarget').mockReturnValue({
+      spreadId: 'spread-1',
+      frameId: 'missing-frame',
+    })
+    const before = getBookStoreSnapshot().book
+    const down = pointer('pointerdown', { target: el, clientX: 0, clientY: 0 })
+    expect(down.defaultPrevented).toBe(false)
+    wheel(el, -300)
+    vi.advanceTimersByTime(200)
+    const arrow = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+      cancelable: true,
+    })
+    el.dispatchEvent(arrow)
+    expect(arrow.defaultPrevented).toBe(false)
+    expect(getBookStoreSnapshot().book).toBe(before)
+    vi.restoreAllMocks()
   })
 
   it('ignores a press whose target is not an element', () => {

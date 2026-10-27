@@ -1,7 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeBookWithAsset } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import * as cropMode from './cropMode'
 import { enterCropMode, exitCropMode } from './cropMode'
 import { InspectorStub } from './InspectorStub'
 
@@ -46,6 +47,23 @@ describe('InspectorStub', () => {
 
     fireEvent.click(reset)
     expect(crop()).toEqual({ zoom: 1, center: { x: 0.5, y: 0.5 } })
+  })
+
+  it('shows no crop section when the target frame has no photo', () => {
+    resetBookStore({
+      book: makeBookWithAsset('a'),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    vi.spyOn(cropMode, 'getCropTargetKey').mockReturnValue('spread-1/missing')
+    vi.spyOn(cropMode, 'getCropTarget').mockReturnValue({
+      spreadId: 'spread-1',
+      frameId: 'missing',
+    })
+    render(<InspectorStub />)
+    expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+    vi.restoreAllMocks()
   })
 
   it('drops the section when crop mode ends', () => {
