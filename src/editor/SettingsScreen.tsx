@@ -55,7 +55,7 @@ export function SettingsScreen({
                 setSec(section.id)
               }}
               className={cn(
-                'flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-hidden hover:bg-accent/60 focus-visible:bg-accent/60',
+                'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
                 settingsNavActiveClass(active),
               )}
             >

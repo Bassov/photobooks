@@ -48,5 +48,5 @@ export function settingsNavIsCurrent(
 }
 
 export function settingsNavActiveClass(active: boolean): string | false {
-  return active && 'bg-accent font-medium'
+  return active && 'bg-[#CACACA] font-medium'
 }

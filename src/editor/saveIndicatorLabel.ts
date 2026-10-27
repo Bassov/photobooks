@@ -20,13 +20,7 @@ export function saveIndicatorLabel(
 /** Badge color for the chrome save indicator (status tokens, not ad-hoc hex). */
 export function saveIndicatorBadgeColor(
   savePhase: SavePhase,
-  dirty: boolean,
 ): NonNullable<BadgeProps['color']> {
-  if (savePhase === 'error') {
-    return 'error'
-  }
-  if (savePhase === 'saving' || savePhase === 'pending' || dirty) {
-    return 'warning'
-  }
-  return 'success'
+  // Grayscale chrome: only failure is tinted; no green "Saved".
+  return savePhase === 'error' ? 'error' : 'gray'
 }

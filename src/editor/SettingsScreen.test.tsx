@@ -42,7 +42,10 @@ describe('SettingsScreen', () => {
       screen.getByTestId('settings-nav-library').getAttribute('aria-current'),
     ).toBe('page')
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
-      /\bbg-accent\b/,
+      /bg-\[#CACACA\]/,
+    )
+    expect(screen.getByTestId('settings-nav-library').className).toMatch(
+      /\bborder-0\b/,
     )
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
       /\bfont-medium\b/,
