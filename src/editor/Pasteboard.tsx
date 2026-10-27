@@ -9,7 +9,6 @@ import {
   type UIEvent,
 } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
-import './PasteboardGapZone.css'
 import { CameraBar } from './CameraBar'
 import { setActiveSpreadId } from './photoRootSession'
 import { getCommittedCamera, subscribeCommitted } from './cameraStore'

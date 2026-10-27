@@ -3,7 +3,7 @@ import { applyTemplate } from '../templates/apply'
 import { photoAspectClass, type AspectClass } from '../templates/aspect'
 import { bestTemplateId } from '../templates/best'
 import { updateSpread } from '../update'
-import { addSpread } from './spreads'
+import { addSpread, nextSpreadId } from './spreads'
 
 type Asset = Book['assets'][string]
 
@@ -103,10 +103,9 @@ export function insertSpreadWithAssets(
   if (usable.length === 0) {
     return book
   }
-  const added = addSpread(book, { index })
+  const spreadId = nextSpreadId(book)
+  const added = addSpread(book, { index, id: spreadId })
   const at = Math.max(0, Math.min(index, book.spreads.length))
-  // Stryker disable next-line all: addSpread always inserts at the clamped index
-  const spreadId = added.spreads[at]?.id ?? ''
   const templated = applyTemplate(
     added,
     spreadId,
