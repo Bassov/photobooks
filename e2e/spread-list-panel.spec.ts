@@ -74,14 +74,20 @@ test('long list is windowed, scrolls inside spreads-list and navigates far', asy
   await expect(page.getByTestId('spread-list-item-spread-1')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 
-  // Clicking a far row reveals that spread on the pasteboard.
-  const id = (await rows(page).last().getAttribute('data-item')) ?? ''
-  const far = page.getByTestId(`spread-list-item-${id}`)
-  await far.click()
-  await expect(far).toHaveAttribute('aria-selected', 'true')
-  await expect(
-    page.locator(`[data-pasteboard-slot][data-spread-id="${id}"]`),
-  ).toHaveAttribute('data-active', 'true')
+  // Clicking a far row reveals that spread on the pasteboard. A late active
+  // spread change (add-spread reveal) may still re-window the list, so read
+  // and click the row as one retried step.
+  await expect(async () => {
+    const id = (await rows(page).last().getAttribute('data-item')) ?? ''
+    const far = page.getByTestId(`spread-list-item-${id}`)
+    await far.click({ timeout: 2000 })
+    await expect(far).toHaveAttribute('aria-selected', 'true', {
+      timeout: 2000,
+    })
+    await expect(
+      page.locator(`[data-pasteboard-slot][data-spread-id="${id}"]`),
+    ).toHaveAttribute('data-active', 'true', { timeout: 2000 })
+  }).toPass({ timeout: 20_000 })
 })
 
 test('last spread cannot be deleted', async ({ page }) => {

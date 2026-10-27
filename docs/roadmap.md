@@ -32,7 +32,6 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [crop-in-frame](roadmap/M3/crop-in-frame.md) — non-destructive crop
 - [ ] [prep] [ui-panels](roadmap/M3/ui-panels.md) — side panel frame
 - [x] [feature] [spread-list-panel](roadmap/M3/spread-list-panel.md) — spread list (Google Slides style)
-- [ ] [prep] [manual-qa-start-click](roadmap/M3/manual-qa-start-click.md) — manual-qa start-session click
 - [ ] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads
 - [ ] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
 - [x] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
