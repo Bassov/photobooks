@@ -38,6 +38,8 @@ describe('swipeDelta', () => {
   it('ignores short moves', () => {
     expect(swipeDelta(100, 60)).toBe(0)
     expect(swipeDelta(100, 140)).toBe(0)
+    expect(swipeDelta(100, 160)).toBe(0)
+    expect(swipeDelta(100, 40)).toBe(0)
   })
 
   it('swipe left is forward, right is back', () => {
