@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeBookWithAsset } from '../core/testing/fixtures'
 import {
   dispatchBookOp,
@@ -6,12 +6,58 @@ import {
   getHistorySnapshot,
   redoBook,
   resetBookStore,
+  subscribeHistory,
   undoBook,
 } from './bookStore'
 
 describe('bookStore history', () => {
   afterEach(() => {
     resetBookStore()
+  })
+
+  it('starts with nothing to undo or redo', () => {
+    expect(getHistorySnapshot()).toEqual({ canUndo: false, canRedo: false })
+  })
+
+  it('notifies subscribers only when availability changes', () => {
+    resetBookStore()
+    const listener = vi.fn()
+    const stop = subscribeHistory(listener)
+    dispatchBookOp({ type: 'addSpread', id: 'a' })
+    dispatchBookOp({ type: 'addSpread', id: 'b' })
+    expect(listener).toHaveBeenCalledTimes(1)
+    undoBook()
+    expect(listener).toHaveBeenCalledTimes(2)
+    undoBook()
+    expect(listener).toHaveBeenCalledTimes(3)
+    redoBook()
+    expect(listener).toHaveBeenCalledTimes(4)
+    stop()
+    redoBook()
+    expect(listener).toHaveBeenCalledTimes(4)
+  })
+
+  it('a no-op dispatch records nothing', () => {
+    resetBookStore()
+    dispatchBookOp({ type: 'removeFromGallery', assetId: 'missing' })
+    expect(getHistorySnapshot().canUndo).toBe(false)
+  })
+
+  it('gallery adds keep earlier steps undoable', () => {
+    resetBookStore()
+    const start = getBookStoreSnapshot().book.spreads
+    dispatchBookOp({ type: 'addSpread', id: 'extra' })
+    dispatchBookOp({ type: 'addToGallery', assetIds: ['a1'] })
+    expect(getHistorySnapshot().canUndo).toBe(true)
+    undoBook()
+    expect(getBookStoreSnapshot().book.spreads).toBe(start)
+  })
+
+  it('undo to an untitled book drops the title key', () => {
+    resetBookStore()
+    dispatchBookOp({ type: 'setTitle', title: 'T' })
+    undoBook()
+    expect(getBookStoreSnapshot().book).not.toHaveProperty('title')
   })
 
   it('undoes and redoes layout edits, coalescing title typing', () => {

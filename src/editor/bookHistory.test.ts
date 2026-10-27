@@ -57,6 +57,38 @@ describe('bookHistory', () => {
     expect(h.past.map((s) => s.spreads[0]?.id)).toEqual(['b', 'c'])
   })
 
+  it('does not coalesce without a key, on first entry, or with redo steps', () => {
+    const a = snap('a')
+    let h = recordStep(EMPTY_HISTORY, a, undefined)
+    h = recordStep(h, snap('b'), undefined)
+    expect(h.past).toHaveLength(2)
+
+    const firstKeyed = recordStep({ ...EMPTY_HISTORY, key: 'k' }, a, 'k')
+    expect(firstKeyed.past).toEqual([a])
+
+    const keyed = recordStep(EMPTY_HISTORY, a, 'k')
+    const withFuture = {
+      ...keyed,
+      future: [snap('z')],
+    }
+    const next = recordStep(withFuture, snap('b'), 'k')
+    expect(next.past).toHaveLength(2)
+    expect(next.future).toEqual([])
+  })
+
+  it('redo walks one step at a time', () => {
+    const [a, b, c] = [snap('a'), snap('b'), snap('c')]
+    const h = { past: [], future: [c, b], key: undefined }
+    const first = redoStep(h, a)
+    expect(first?.snapshot).toBe(b)
+    expect(first?.history.future).toEqual([c])
+    expect(first?.history.past).toEqual([a])
+  })
+
+  it('starts empty', () => {
+    expect(EMPTY_HISTORY).toEqual({ past: [], future: [], key: undefined })
+  })
+
   it('classifies ops', () => {
     expect(isUndoableOp({ type: 'addToGallery', assetIds: [] })).toBe(false)
     expect(isUndoableOp({ type: 'removeFromGallery', assetId: 'x' })).toBe(
