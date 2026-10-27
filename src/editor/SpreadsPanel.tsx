@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useSyncExternalStore, type ReactNode } from 'react'
 import { Icon } from '../ui/Icon'
 import {
   dispatchBookOp,
@@ -10,7 +10,7 @@ import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 import { scrollPasteboardToSpread, selectedSpreadId } from './spreadsPanelModel'
 
 /** Kit left spreads list wired to product bookStore (pages only — no masters). */
-export function SpreadsPanel() {
+export function SpreadsPanel({ modeSwitch }: { modeSwitch?: ReactNode }) {
   const spreadIds = useSyncExternalStore(
     subscribeBookStore,
     getSpreadIdsSnapshot,
@@ -29,9 +29,11 @@ export function SpreadsPanel() {
       data-testid="spreads-panel"
     >
       <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg">
-        <div className="editor-spreads-mode flex h-6.5 items-center justify-center rounded-sm text-sm font-medium">
-          Pages
-        </div>
+        {modeSwitch ?? (
+          <div className="editor-spreads-mode flex h-6.5 items-center justify-center rounded-sm text-sm font-medium">
+            Pages
+          </div>
+        )}
       </div>
       <div
         className="e7 scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1"
