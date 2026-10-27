@@ -158,7 +158,10 @@ describe('PanelSplitter', () => {
     expect(s.getAttribute('data-dragging')).toBeNull()
     const capture = vi.fn()
     s.setPointerCapture = capture
-    fireEvent.pointerDown(s, { clientX: 100, pointerId: 7 })
+    fireEvent.pointerDown(s, { clientX: 100, pointerId: 6, button: 2 })
+    expect(capture).not.toHaveBeenCalled()
+    expect(s.getAttribute('data-dragging')).toBeNull()
+    fireEvent.pointerDown(s, { clientX: 100, pointerId: 7, button: 0 })
     expect(capture).toHaveBeenCalledWith(7)
   })
 

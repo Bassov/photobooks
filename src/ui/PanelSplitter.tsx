@@ -31,6 +31,7 @@ export function PanelSplitter({
   const [dragging, setDragging] = useState(false)
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
     drag.current = { x: e.clientX, w: width, last: width }
     e.currentTarget.setPointerCapture(e.pointerId)
     setDragging(true)

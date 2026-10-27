@@ -35,8 +35,9 @@ export function keyPanelWidth(
 ): number | null {
   if (key !== 'ArrowLeft' && key !== 'ArrowRight') return null
   const step = shift ? PANEL_STEP_LARGE : PANEL_STEP
-  const dir = key === 'ArrowRight' ? 1 : -1
-  return clampPanelWidth(width + dir * step * (side === 'left' ? 1 : -1))
+  // The left panel grows rightward, the right panel leftward.
+  const grows = (key === 'ArrowRight') === (side === 'left')
+  return clampPanelWidth(width + (grows ? step : -step))
 }
 
 export function loadPanelWidth(side: PanelSide): number {

@@ -141,6 +141,7 @@ describe('EditorShell viewport containment', () => {
     fireEvent.click(screen.getByTestId('panel-collapse-right'))
     expect(screen.queryByTestId('resize-right')).toBeNull()
     expect(screen.getByTestId('panel-l').getAttribute('data-open')).toBe('true')
+    expect(document.activeElement).toBe(screen.getByTestId('toggle-r'))
   })
 
   it('shows Grant access only when permission is required', () => {

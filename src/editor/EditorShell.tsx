@@ -52,13 +52,7 @@ export function EditorShell() {
         />
       }
       left={<SpreadsPanel />}
-      right={
-        <InspectorStub
-          onCollapse={() => {
-            setPanels((p) => ({ ...p, r: false }))
-          }}
-        />
-      }
+      right={(collapse) => <InspectorStub onCollapse={collapse} />}
       dock={<FilmstripDock />}
       canvas={presenting ? null : <Pasteboard chromeImport={chromeImport} />}
       overlay={

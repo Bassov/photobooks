@@ -27,7 +27,8 @@ export function EditorFrame({
 }: {
   top?: ReactNode
   left: ReactNode
-  right: ReactNode
+  /** Render prop receives the frame's collapse (state + focus hand-off). */
+  right: PanelSlotContent
   dock: ReactNode
   canvas: ReactNode
   overlay?: ReactNode
@@ -48,11 +49,16 @@ export function EditorFrame({
   const [spaceDown, setSpaceDown] = useState(false)
   const [widthL, setWidthL] = useState(() => loadPanelWidth('left'))
   const [widthR, setWidthR] = useState(() => loadPanelWidth('right'))
+  // The focused splitter / header button goes inert: hand focus to the toggle.
+  const close = (k: 'l' | 'r') => {
+    setPn({ ...pnRef.current, [k]: false })
+    document.querySelector<HTMLElement>(`[data-panel-toggle="${k}"]`)?.focus()
+  }
   const closeL = () => {
-    setPn({ ...pnRef.current, l: false })
+    close('l')
   }
   const closeR = () => {
-    setPn({ ...pnRef.current, r: false })
+    close('r')
   }
 
   useEffect(() => {
@@ -152,7 +158,7 @@ export function EditorFrame({
               data-testid="inspector"
               data-scrollport="inspector"
             >
-              {right}
+              <PanelSlot slot={right} collapse={closeR} />
             </div>
           </div>
         </div>
@@ -160,6 +166,18 @@ export function EditorFrame({
       </div>
     </div>
   )
+}
+
+type PanelSlotContent = ReactNode | ((collapse: () => void) => ReactNode)
+
+function PanelSlot({
+  slot,
+  collapse,
+}: {
+  slot: PanelSlotContent
+  collapse: () => void
+}) {
+  return typeof slot === 'function' ? slot(collapse) : slot
 }
 
 export function PanelToggles({
@@ -184,6 +202,7 @@ export function PanelToggles({
         aria-expanded={on}
         aria-label={`${on ? 'Hide' : 'Show'} ${name}`}
         data-testid={`toggle-${k}`}
+        data-panel-toggle={k}
         onClick={() => {
           onToggle(k)
         }}
