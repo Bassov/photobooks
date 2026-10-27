@@ -46,6 +46,15 @@
       "Bash(ls *)",
       "Bash(cat *)",
       "Bash(rg *)",
+      "Bash(grep *)",
+      "Bash(sed -n *)",
+      "Bash(awk *)",
+      "Bash(cut *)",
+      "Bash(tr *)",
+      "Bash(echo *)",
+      "Bash(git check-ignore *)",
+      "Bash(git worktree list*)",
+      "Bash(VITE_E2E=1 pnpm *)",
       "Bash(head *)",
       "Bash(tail *)",
       "Bash(wc *)",
@@ -118,7 +127,23 @@
       "Read(**/.dev.vars*)",
       "Edit(**/.env*)",
       "Edit(**/.dev.vars*)",
-      "Edit(.git/**)"
+      "Edit(.git/**)",
+      "Bash(sed *-i*)",
+      "Bash(awk *system*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const f=JSON.parse(s).tool_input?.file_path;if(f)require('child_process').spawnSync(process.env.CLAUDE_PROJECT_DIR+'/node_modules/.bin/prettier',['--write','--ignore-unknown','--log-level=silent',f],{stdio:'ignore'})})\" 2>/dev/null || true",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

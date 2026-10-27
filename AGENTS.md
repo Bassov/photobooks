@@ -2,10 +2,6 @@
 
 Navigation only. Agent loop: `docs/agent-loop.md`. Artifact mandates: `openspec/config.yaml`. Behavior: `openspec/specs/`.
 
-## Stack
-
-Vite + React 19 + TypeScript. Product/toolchain conventions: `.cursor/rules/overview.mdc`.
-
 ## Module map
 
 | Area                 | Code                                   | Spec                                             |
@@ -43,16 +39,6 @@ New capabilities: add `src/<capability>/` and a matching `openspec/specs/<capabi
 | `pnpm test:lhci`              | Lighthouse budgets                                                                    |
 | `pnpm audit:ci`               | high-severity **production** dependency audit                                         |
 | `pnpm uikit:*`                | kit typecheck / build / qa:quick / solo `/uikit/`                                     |
-
-## Skills (on demand)
-
-| Skill               | When                               |
-| ------------------- | ---------------------------------- |
-| `react-composition` | component APIs, composition        |
-| `react-perf-spa`    | SPA bundle / re-render / workers   |
-| `ui-review`         | UI a11y / layout smoke / anti-slop |
-| `write-tests`       | unit / e2e / PBT authorship        |
-| `roadmap`           | pick / grow / close roadmap items  |
 
 ## Security surface
 
