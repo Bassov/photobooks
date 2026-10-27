@@ -1502,3 +1502,80 @@ test('scroll mid-import keeps earlier revealed tile ids', async ({ page }) => {
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'filmstrip-scroll')
 })
+
+test.describe('sort / filter / remove', () => {
+  test('Unplaced only shrinks after placing; empty filter; placed removal asks first', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    const files = writeBulkImportFixtures(2)
+    await openSessionEditor(page)
+    await pickPhotoFolder(page, files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 60_000 },
+      )
+      .toBe('2')
+
+    await page.getByTestId('film-unplaced-only').click()
+    await expect(page.getByTestId('placed-count')).toHaveText('Photos · 2 of 2')
+
+    await dragPlaceFirstFilmstripItem(page)
+    await expect(page.getByTestId('filmstrip-item')).toHaveCount(1)
+    await expect(page.getByTestId('placed-count')).toHaveText('Photos · 1 of 2')
+
+    await dragPlaceFirstFilmstripItem(page)
+    await expect(page.getByTestId('filmstrip-filter-empty')).toHaveText(
+      'All photos are placed.',
+    )
+    await assertDocumentFitsViewport(page)
+
+    await page.getByTestId('film-unplaced-only').click()
+    await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
+    const images = page.getByTestId('spread-frame-image')
+    const placedBefore = await images.count()
+    await page.getByTestId('filmstrip-item').first().hover()
+    await page.getByTestId('filmstrip-remove').first().click()
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+    await page.getByRole('button', { name: 'Remove and empty frame' }).click()
+    await expect(page.getByTestId('filmstrip-item')).toHaveCount(1)
+    await expect(images).toHaveCount(placedBefore - 1)
+  })
+
+  test('1000-photo gallery scroll, sort and filter toggle stay LoAF-free', async ({
+    page,
+  }) => {
+    test.setTimeout(300_000)
+    await enablePerfScenario(page)
+    await clearPerfScenario(page)
+    const files = writeBulkImportFixtures(1000)
+    await expect(page.getByTestId('choose-photo-folder')).toBeEnabled()
+    await choosePhotoFolder(page, files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 240_000 },
+      )
+      .toBe('1000')
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 120_000,
+    })
+
+    await beginFilmstripLoafScrollWindow(page)
+    await scrollFilmstripLoafWindow(page, 10)
+    await page.getByTestId('film-unplaced-only').click()
+    await scrollFilmstripLoafWindow(page, 5)
+    await page.getByTestId('film-sort').click()
+    await page.getByRole('menuitemradio', { name: 'Name' }).click()
+    await scrollFilmstripLoafWindow(page, 5)
+    await page.getByTestId('film-unplaced-only').click()
+    await scrollFilmstripLoafWindow(page, 10)
+    await page.evaluate(browserAssertNoLoaf, 0)
+
+    await assertDocumentFitsViewport(page)
+    await assertNamedScrollport(page, 'filmstrip-scroll')
+  })
+})

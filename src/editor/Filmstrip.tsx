@@ -21,7 +21,11 @@ import {
 import {
   getGalleryAspectsSnapshot,
   getGalleryDisplayNamesSnapshot,
+  getAssetDisplayName,
+  getAssetTimeMs,
+  getBookStoreSnapshot,
   getGalleryIdsSnapshot,
+  getPlacedAssetIdsSnapshot,
   getSpacerCountSnapshot,
   subscribeBookStore,
   subscribeGallery,
@@ -40,6 +44,11 @@ import {
   getFilmstripJumpRequest,
   subscribeFilmstripJump,
 } from './filmstripJump'
+import {
+  deriveGalleryView,
+  projectOntoView,
+  type GallerySortKey,
+} from './galleryView'
 import { FilmstripStatus } from './FilmstripStatus'
 import { onFilmstripGridSelectionChange } from './filmstripSelection'
 import {
@@ -64,11 +73,14 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   spacerCount,
   aspects,
   displayNames,
+  galleryEmpty,
 }: {
   gallery: readonly string[]
   spacerCount: number
   aspects: readonly number[]
   displayNames: readonly string[]
+  /** True when the book gallery itself has no photos (vs. a filter hiding all). */
+  galleryEmpty: boolean
 }) {
   const [scrollLeft, setScrollLeft] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(0)
@@ -203,7 +215,16 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
       data-testid="filmstrip-scroll"
       onScroll={onScroll}
     >
-      {isEmpty ? (
+      {isEmpty && !galleryEmpty ? (
+        <EmptyState
+          className="filmstrip-empty"
+          data-testid="filmstrip-filter-empty"
+          style={filmstripEmptyStyle}
+          title={
+            <span style={filmstripEmptyTitleStyle}>All photos are placed.</span>
+          }
+        />
+      ) : isEmpty ? (
         <EmptyState
           className="filmstrip-empty"
           data-testid="filmstrip-empty"
@@ -254,7 +275,13 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   )
 })
 
-export const Filmstrip = memo(function Filmstrip() {
+export const Filmstrip = memo(function Filmstrip({
+  sort,
+  unplacedOnly = false,
+}: {
+  sort?: GallerySortKey
+  unplacedOnly?: boolean
+}) {
   const gallery = useSyncExternalStore(
     subscribeGallery,
     getGalleryIdsSnapshot,
@@ -280,13 +307,50 @@ export const Filmstrip = memo(function Filmstrip() {
     getFrameSource,
     getFrameSource,
   )
+  const placed = useSyncExternalStore(
+    subscribeBookStore,
+    getPlacedAssetIdsSnapshot,
+    getPlacedAssetIdsSnapshot,
+  )
+  // Asset records change identity when capturedAt lands; only sort-by-capture reads them.
+  const assets = useSyncExternalStore(
+    subscribeBookStore,
+    () => getBookStoreSnapshot().book.assets,
+    () => getBookStoreSnapshot().book.assets,
+  )
   const total = gallery.length
+
+  const viewIds = useMemo(
+    () =>
+      deriveGalleryView(
+        gallery,
+        { sort, unplacedOnly },
+        {
+          name: getAssetDisplayName,
+          timeMs: getAssetTimeMs,
+          isPlaced: (id) => placed.has(id),
+        },
+      ),
+    // displayNames / assets: name and capture-time sorts re-derive when
+    // session names or capturedAt land (the lookups read the store directly).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gallery, sort, unplacedOnly, placed, displayNames, assets],
+  )
+  const viewAspects = useMemo(
+    () => projectOntoView(gallery, viewIds, aspects, () => 1),
+    [gallery, viewIds, aspects],
+  )
+  const viewNames = useMemo(
+    () => projectOntoView(gallery, viewIds, displayNames, (id) => id),
+    [gallery, viewIds, displayNames],
+  )
 
   return (
     <section
       className="filmstrip"
       data-testid="filmstrip"
       data-gallery-count={total}
+      data-view-count={viewIds.length}
       aria-label="Gallery"
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -306,10 +370,12 @@ export const Filmstrip = memo(function Filmstrip() {
         Unplace
       </button>
       <FilmstripScrollTrack
-        gallery={gallery}
-        spacerCount={spacerCount}
-        aspects={aspects}
-        displayNames={displayNames}
+        gallery={viewIds}
+        spacerCount={viewIds === gallery ? spacerCount : viewIds.length}
+        // (spacer reserves import-expected extent only for the unfiltered strip)
+        aspects={viewAspects}
+        displayNames={viewNames}
+        galleryEmpty={total === 0}
       />
     </section>
   )

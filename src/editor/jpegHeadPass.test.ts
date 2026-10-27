@@ -6,6 +6,7 @@ import {
   resetBookStore,
   setAssetSessionMeta,
 } from './bookStore'
+import * as bookStore from './bookStore'
 import * as folderManifestWrite from './folderManifestWrite'
 import { runJpegHeadPass } from './jpegHeadPass'
 import {
@@ -16,6 +17,12 @@ import {
 } from './thumbCache'
 
 const parseJpegHead = vi.hoisted(() => vi.fn())
+const extractAssetMetadata = vi.hoisted(() => vi.fn())
+
+vi.mock('../assets/extractAssetMetadata', () => ({
+  extractAssetMetadata: (...args: unknown[]): unknown =>
+    extractAssetMetadata(...args),
+}))
 
 vi.mock('../photo/jpegHead', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../photo/jpegHead')>()
@@ -40,6 +47,8 @@ describe('runJpegHeadPass', () => {
     resetThumbCache()
     resetAssetPool()
     parseJpegHead.mockReset()
+    extractAssetMetadata.mockReset()
+    extractAssetMetadata.mockResolvedValue({})
     vi.stubGlobal(
       'requestAnimationFrame',
       (cb: FrameRequestCallback): number => {
@@ -328,7 +337,10 @@ describe('runJpegHeadPass', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('skips the head read when real dims and a hot thumb already exist', async () => {
+  it('skips the head read when dims, thumb and capturedAt already exist', async () => {
+    enqueueGalleryAssets([
+      { assetId: 'done', asset: { capturedAt: '2024-01-01T00:00:00.000Z' } },
+    ])
     setAssetSessionMeta('done', {
       name: 'done.jpg',
       correctedWidth: 120,
@@ -438,7 +450,167 @@ describe('runJpegHeadPass', () => {
     expect(getThumbUrl('keep')).toBe('blob:keep')
   })
 
+  it('writes capturedAt from the head onto the asset record', async () => {
+    extractAssetMetadata.mockResolvedValue({
+      capturedAt: '2024-05-01T10:00:00.000Z',
+    })
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 4,
+      height: 4,
+      orientation: 1,
+      correctedWidth: 4,
+      correctedHeight: 4,
+    })
+    enqueueGalleryAssets([{ assetId: 'cap', asset: {} }])
+
+    await runJpegHeadPass([{ assetId: 'cap', file: jpegFile('cap.jpg') }])
+
+    expect(getBookStoreSnapshot().book.assets.cap?.capturedAt).toBe(
+      '2024-05-01T10:00:00.000Z',
+    )
+  })
+
+  it('leaves capturedAt unset when EXIF has no capture time', async () => {
+    extractAssetMetadata.mockResolvedValue({})
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 4,
+      height: 4,
+      orientation: 1,
+      correctedWidth: 4,
+      correctedHeight: 4,
+    })
+    enqueueGalleryAssets([{ assetId: 'nocap', asset: {} }])
+
+    await runJpegHeadPass([{ assetId: 'nocap', file: jpegFile('n.jpg') }])
+
+    expect(getBookStoreSnapshot().book.assets.nocap?.capturedAt).toBeUndefined()
+  })
+
+  it('does not patch the asset record when EXIF has no capture time', async () => {
+    const patch = vi.spyOn(bookStore, 'patchAssetRecord')
+    extractAssetMetadata.mockResolvedValue({})
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 4,
+      height: 4,
+      orientation: 1,
+      correctedWidth: 4,
+      correctedHeight: 4,
+    })
+    enqueueGalleryAssets([{ assetId: 'nopatch', asset: {} }])
+
+    await runJpegHeadPass([{ assetId: 'nopatch', file: jpegFile('n.jpg') }])
+
+    expect(patch).not.toHaveBeenCalled()
+    patch.mockRestore()
+  })
+
+  it('does not re-read capturedAt when the record already has it', async () => {
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 4,
+      height: 4,
+      orientation: 1,
+      correctedWidth: 4,
+      correctedHeight: 4,
+    })
+    enqueueGalleryAssets([
+      { assetId: 'has', asset: { capturedAt: '2024-01-01T00:00:00.000Z' } },
+    ])
+
+    await runJpegHeadPass([{ assetId: 'has', file: jpegFile('h.jpg') }])
+
+    expect(extractAssetMetadata).not.toHaveBeenCalled()
+    expect(parseJpegHead).toHaveBeenCalledTimes(1)
+  })
+
+  it('still reads the head for capturedAt when dims and thumb already exist', async () => {
+    extractAssetMetadata.mockResolvedValue({
+      capturedAt: '2023-03-03T03:03:03.000Z',
+    })
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 100,
+      height: 50,
+      orientation: 1,
+      correctedWidth: 100,
+      correctedHeight: 50,
+    })
+    enqueueGalleryAssets([{ assetId: 'late', asset: {} }])
+    setAssetSessionMeta('late', {
+      name: 'late.jpg',
+      correctedWidth: 100,
+      correctedHeight: 50,
+      orientation: 1,
+      aspect: 2,
+    })
+    setThumbUrl(
+      'late',
+      new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x11]).buffer,
+      'image/jpeg',
+    )
+
+    await runJpegHeadPass([{ assetId: 'late', file: jpegFile('late.jpg') }])
+
+    expect(getBookStoreSnapshot().book.assets.late?.capturedAt).toBe(
+      '2023-03-03T03:03:03.000Z',
+    )
+  })
+
+  it('reads the head for a missing thumb even when capturedAt is known', async () => {
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0xaa]),
+      width: 100,
+      height: 50,
+      orientation: 1,
+      correctedWidth: 100,
+      correctedHeight: 50,
+    })
+    enqueueGalleryAssets([
+      { assetId: 'nothumb', asset: { capturedAt: '2024-01-01T00:00:00.000Z' } },
+    ])
+    setAssetSessionMeta('nothumb', {
+      name: 'nothumb.jpg',
+      correctedWidth: 100,
+      correctedHeight: 50,
+      orientation: 1,
+      aspect: 2,
+    })
+
+    await runJpegHeadPass([{ assetId: 'nothumb', file: jpegFile('t.jpg') }])
+
+    expect(getThumbUrl('nothumb')).toMatch(/^blob:/)
+  })
+
+  it('reads the head for placeholder dims even when thumb and capturedAt exist', async () => {
+    parseJpegHead.mockResolvedValue({
+      thumbJpeg: null,
+      width: 100,
+      height: 50,
+      orientation: 1,
+      correctedWidth: 100,
+      correctedHeight: 50,
+    })
+    enqueueGalleryAssets([
+      { assetId: 'nodims', asset: { capturedAt: '2024-01-01T00:00:00.000Z' } },
+    ])
+    setThumbUrl(
+      'nodims',
+      new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x11]).buffer,
+      'image/jpeg',
+    )
+
+    await runJpegHeadPass([{ assetId: 'nodims', file: jpegFile('d.jpg') }])
+
+    expect(parseJpegHead).toHaveBeenCalledTimes(1)
+  })
+
   it('does not overwrite existing real dims or hot thumbs', async () => {
+    enqueueGalleryAssets([
+      { assetId: 'a3', asset: { capturedAt: '2024-01-01T00:00:00.000Z' } },
+    ])
     setAssetSessionMeta('a3', {
       name: 'c.jpg',
       correctedWidth: 100,
