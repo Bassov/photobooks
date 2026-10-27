@@ -55,7 +55,9 @@ export function EditorShell() {
       }
       left={<SpreadsPanel />}
       right={<InspectorStub />}
-      dock={<FilmstripDock />}
+      dock={
+        <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />
+      }
       canvas={presenting ? null : <Pasteboard chromeImport={chromeImport} />}
       overlay={
         <>
