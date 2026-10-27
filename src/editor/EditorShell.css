@@ -175,17 +175,13 @@
   display: inline-flex;
   align-items: center;
   gap: calc(var(--spacing) * 1.4);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  color: var(--muted-foreground);
+  font: var(--text-sm) var(--font-ui);
 }
 .spread-template-count {
   width: calc(var(--spacing) * 12);
   padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
   font: inherit;
-  text-align: center;
   color: var(--foreground);
-  background: var(--background);
   border: 1px solid var(--input);
   border-radius: var(--radius-sm);
 }
