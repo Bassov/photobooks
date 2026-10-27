@@ -29,7 +29,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [ ] [feature] [filmstrip-resize-drop](roadmap/M3/filmstrip-resize-drop.md) — filmstrip size and desktop drop
 - [x] [feature] [template-slot-aspects](roadmap/M3/template-slot-aspects.md) — orientation-aware templates
 - [x] [feature] [multi-drop-fill](roadmap/M3/multi-drop-fill.md) — faster layout
-- [ ] [feature] [crop-in-frame](roadmap/M3/crop-in-frame.md) — non-destructive crop
+- [x] [feature] [crop-in-frame](roadmap/M3/crop-in-frame.md) — non-destructive crop
 - [ ] [prep] [ui-panels](roadmap/M3/ui-panels.md) — side panel frame
 - [ ] [feature] [spread-list-panel](roadmap/M3/spread-list-panel.md) — spread list (Google Slides style)
 - [ ] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads

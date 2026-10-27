@@ -1,4 +1,4 @@
-import type { Book } from '../schema'
+import type { Book, Frame } from '../schema'
 import { applyTemplate } from '../templates/apply'
 import type { TemplateId } from '../templates/types'
 import {
@@ -6,6 +6,7 @@ import {
   removeFromGallery,
   removeManyFromGallery,
 } from './gallery'
+import { resetCrop, setCrop } from './crop'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { addSpread, moveSpread, removeSpread } from './spreads'
@@ -38,6 +39,13 @@ export type BookOp =
       index: number
       assetIds: readonly string[]
     }
+  | {
+      type: 'setCrop'
+      spreadId: string
+      frameId: string
+      crop: NonNullable<Frame['crop']>
+    }
+  | { type: 'resetCrop'; spreadId: string; frameId: string }
   | {
       type: 'swap'
       spreadIdA: string
@@ -73,6 +81,10 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return fillSpread(book, op.spreadId, op.frameId, op.assetIds)
     case 'insertSpreadWithAssets':
       return insertSpreadWithAssets(book, op.index, op.assetIds)
+    case 'setCrop':
+      return setCrop(book, op.spreadId, op.frameId, op.crop)
+    case 'resetCrop':
+      return resetCrop(book, op.spreadId, op.frameId)
     case 'swap':
       return swapFrames(
         book,

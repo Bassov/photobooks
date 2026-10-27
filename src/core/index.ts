@@ -20,7 +20,8 @@ export {
   getSpreadPageCount,
   getSpreadSizeMm,
 } from './geometry/spreadSize'
-export { sourceCropRect } from './geometry/cropRect'
+export { clampCrop, MAX_CROP_ZOOM, sourceCropRect } from './geometry/cropRect'
+export { COVER_CROP, resetCrop, setCrop } from './ops/crop'
 export {
   resolveSpread,
   type ResolveSpreadOptions,

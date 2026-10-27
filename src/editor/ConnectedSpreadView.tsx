@@ -12,9 +12,11 @@ import {
 } from './bookStore'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
 import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
+import { enterCropMode, getCropTarget, subscribeCropMode } from './cropMode'
 import {
   frameControlLabel,
   getSpreadFrameSourceKey,
+  setFrameSource,
   sourceFromKey,
   subscribeSpreadFrameSource,
 } from './frameSelection'
@@ -47,6 +49,12 @@ import {
   tierNumberFromKey,
 } from './spreadPreviewKeys'
 
+/** Frame id in crop mode on this spread, else `''` (keeps other spreads quiet). */
+function cropFrameOnSpread(spreadId: string): string {
+  const target = getCropTarget()
+  return target?.spreadId === spreadId ? target.frameId : ''
+}
+
 export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   spreadId,
   pxPerMm = SPREAD_PX_PER_MM,
@@ -70,6 +78,11 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => getSpreadFrameSourceKey(spreadId),
   )
   const frameSource = sourceFromKey(spreadId, frameSourceKey)
+  const cropFrameId = useSyncExternalStore(
+    subscribeCropMode,
+    () => cropFrameOnSpread(spreadId),
+    () => cropFrameOnSpread(spreadId),
+  )
   const spreadAssetIds =
     snapshot === undefined ? [] : assetIdsOnSpread(snapshot.resolved.items)
   // Per-spread keys: global tier/thumb emits must not re-render unrelated spreads.
@@ -167,6 +180,15 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         }
         if (pressed) {
           control.pressed = true
+        }
+        if (filled) {
+          control.onDoubleActivate = () => {
+            setFrameSource(null)
+            enterCropMode(spreadId, item.frameId)
+          }
+        }
+        if (cropFrameId === item.frameId) {
+          control.cropActive = true
         }
         if (filled) {
           control.onDragStart = (event) => {

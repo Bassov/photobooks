@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: non-destructive crop
+Status: done
 
 ## Scope
 

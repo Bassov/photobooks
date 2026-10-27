@@ -32,6 +32,31 @@ export function sourceCropRect(
   return { x, y, width, height }
 }
 
+export const MAX_CROP_ZOOM = 8
+
+type Crop = NonNullable<Frame['crop']>
+
+/**
+ * Effective crop: zoom within [1, MAX_CROP_ZOOM] and center moved so the
+ * window stays inside the image (no empty edges).
+ */
+export function clampCrop(
+  frameRect: RectMm,
+  crop: Crop,
+  aspectRatio: number,
+): Crop {
+  const zoom = clamp(crop.zoom, 1, MAX_CROP_ZOOM)
+  const rect = sourceCropRect(
+    frameRect,
+    { zoom, center: crop.center },
+    aspectRatio,
+  )
+  return {
+    zoom,
+    center: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+  }
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (value < min) {
     return min
