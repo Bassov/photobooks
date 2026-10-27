@@ -671,11 +671,12 @@ describe('Pasteboard gallery drop', () => {
     scroll.dispatchEvent(dragEvent('drop', 'a', point))
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'place',
+        type: 'fillSpread',
         frameId: first.frameId,
-        assetId: 'a',
+        assetIds: ['a'],
       }),
     )
+    expect(assetIn(first.frameId)).toBe('a')
 
     act(() => {
       bookStore.dispatchBookOp({
@@ -698,9 +699,9 @@ describe('Pasteboard gallery drop', () => {
     scroll.dispatchEvent(dragEvent('drop', 'b', point))
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'replace',
+        type: 'fillSpread',
         frameId: first.frameId,
-        assetId: 'b',
+        assetIds: ['b'],
       }),
     )
     expect(assetIn(first.frameId)).toBe('b')
