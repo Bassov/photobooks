@@ -82,7 +82,6 @@ export function positiveDevicePixelRatio(
   return typeof ratio === 'number' && ratio > 0 ? ratio : 1
 }
 
-/** Max desired decode tier per asset on a spread at the given zoom. */
 /** Crop zoom: how much larger than the frame the longest image edge is drawn. */
 function cropMagnification(item: {
   sourceCropRect?: { width: number; height: number }
@@ -95,6 +94,7 @@ function cropMagnification(item: {
   return visible > 0 ? Math.max(1, 1 / visible) : 1
 }
 
+/** Max desired decode tier per asset on a spread at the given zoom. */
 export function desiredTiersForItems(
   items: readonly {
     assetId?: string
