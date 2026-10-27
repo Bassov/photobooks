@@ -6,7 +6,9 @@ import {
   keyPanelWidth,
   type PanelSide,
 } from './panelSize'
-import './Panel.css'
+import { ensurePanelStyles } from './panelStyles'
+
+ensurePanelStyles()
 
 export interface PanelSplitterProps {
   side: PanelSide

@@ -121,6 +121,18 @@ describe('EditorFrame panel sizes', () => {
     expect(screen.queryByTestId('resize-right')).toBeNull()
   })
 
+  it('persists the right width after a keyboard resize', () => {
+    render(frame({ l: false, b: true, r: true }))
+    fireEvent.keyDown(screen.getByTestId('resize-right'), { key: 'ArrowLeft' })
+    const stored = window.localStorage.getItem('photobooks.panel.right')
+    expect(stored).toMatch(/^\d+$/)
+    expect(
+      screen
+        .getByTestId('editor-shell')
+        .style.getPropertyValue('--panel-right'),
+    ).toBe(`${String(stored)}px`)
+  })
+
   it('collapses a side from its splitter via Enter', () => {
     const onPanelsChange = vi.fn()
     render(frame({ l: true, b: true, r: true }, onPanelsChange))

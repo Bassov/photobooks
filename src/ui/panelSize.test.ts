@@ -13,8 +13,8 @@ import {
 
 describe('panelSize', () => {
   afterEach(() => {
-    window.localStorage.clear()
     vi.restoreAllMocks()
+    window.localStorage.clear()
   })
 
   it('clamps any width into [min, max] and is idempotent', () => {
@@ -59,10 +59,7 @@ describe('panelSize', () => {
   })
 
   it('falls back to defaults when storage throws', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('denied')
-    })
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
       throw new Error('denied')
     })
     expect(loadPanelWidth('right')).toBe(PANEL_DEFAULTS.right)

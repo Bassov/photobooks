@@ -304,17 +304,3 @@
   flex-direction: column;
   gap: calc(var(--spacing) * 3);
 }
-
-.specimen-panels-demo {
-  display: flex;
-  height: 12rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--canvas);
-}
-
-.specimen-panels-pane {
-  flex-shrink: 0;
-  min-width: 0;
-}

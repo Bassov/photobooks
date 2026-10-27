@@ -3,7 +3,9 @@ import { cx } from './className'
 import { Icon } from './Icon'
 import { IconButton } from './IconButton'
 import type { PanelSide } from './panelSize'
-import './Panel.css'
+import { ensurePanelStyles } from './panelStyles'
+
+ensurePanelStyles()
 
 export interface PanelProps {
   side: PanelSide
