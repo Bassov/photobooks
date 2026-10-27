@@ -302,6 +302,10 @@
   --dpi-warn: #535152;
   --on-dark-warning: #ededed;
   --presentation: #0d0d0d;
+  --presentation-ink: rgb(255 255 255 / 0.6);
+  --presentation-chip: rgb(255 255 255 / 0.1);
+  --presentation-chip-hover: rgb(255 255 255 / 0.2);
+  --presentation-chip-ink: #fff;
   --terminal: #161616;
   --terminal-fg: #e6e6e6;
   --parent-fg: #4f4d4e;

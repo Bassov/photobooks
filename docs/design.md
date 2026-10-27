@@ -38,7 +38,7 @@ UI ref: `uikit#/feature/design-tokens`.
 
 ## Semantic color roles
 
-Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popover`.  
+Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popover`. Presentation overlay (`SpreadPager`): `--presentation` backdrop, `--presentation-ink/-chip/-chip-hover/-chip-ink`, `--shadow-stage-dark`; sits above chrome and toast.  
 Text: `--foreground`, `--muted-foreground`, `--primary` / `--primary-foreground`.  
 Fills: `--secondary`, `--muted`, `--subtle`, `--accent` / `--accent-foreground`.  
 Lines: `--border`, `--input`, `--ring`.  
