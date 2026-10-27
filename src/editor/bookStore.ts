@@ -33,6 +33,7 @@ import {
   type HistoryMove,
 } from './bookHistory'
 import { setEditorStatus, unplacedFromSpreadStatus } from './editorStatus'
+import { parseCapturedAtMs } from './galleryView'
 import {
   filmstripScrollQuietRemainingMs,
   isFilmstripScrollQuiet,
@@ -505,6 +506,43 @@ export function getPlacementCountSnapshot(assetId: string): number {
     syncBookUsedDecodeIds(book)
   }
   return placementCounts.get(assetId) ?? 0
+}
+
+let placedIdsFor: Book | null = null
+let placedIds: ReadonlySet<string> = new Set()
+
+/**
+ * Asset ids placed on any frame. Reference-stable while the placed set is
+ * unchanged, so import/meta churn does not re-derive the filmstrip view.
+ */
+export function getPlacedAssetIdsSnapshot(): ReadonlySet<string> {
+  const book = state.book
+  if (placedIdsFor === book) {
+    return placedIds
+  }
+  placedIdsFor = book
+  const next = new Set(placementCountByAsset(book).keys())
+  if (
+    next.size !== placedIds.size ||
+    [...next].some((id) => !placedIds.has(id))
+  ) {
+    placedIds = next
+  }
+  return placedIds
+}
+
+/** Epoch ms for sort-by-capture: `capturedAt`, else file mtime, else null. */
+export function getAssetTimeMs(assetId: string): number | null {
+  const asset = state.book.assets[assetId]
+  return (
+    parseCapturedAtMs(asset?.capturedAt) ??
+    (typeof asset?.mtimeMs === 'number' ? asset.mtimeMs : null)
+  )
+}
+
+/** User-initiated gallery removal (placements cascade); file on disk untouched. */
+export function removeAssetFromGallery(assetId: string): void {
+  removeFailedImportAssets([assetId])
 }
 
 let hasAnyPlacementFor: Book | null = null

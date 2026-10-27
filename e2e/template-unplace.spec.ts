@@ -104,7 +104,7 @@ test.describe('template change with photos', () => {
       .first()
       .focus()
     await page.keyboard.press('Enter')
-    await page.getByRole('button', { name: 'Unplace' }).focus()
+    await page.getByRole('button', { name: 'Unplace', exact: true }).focus()
     await page.keyboard.press('Enter')
     await expect(page.getByTestId('editor-status')).toHaveText('Photo unplaced')
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
