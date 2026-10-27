@@ -26,7 +26,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [prep] [editor-command-sequence-pbt](roadmap/M3/editor-command-sequence-pbt.md) — property tests over command sequences (issue #50 item 2)
 - [x] [feature] [document-history](roadmap/M3/document-history.md) — undo / redo
 - [x] [feature] [filmstrip-sort-filter](roadmap/M3/filmstrip-sort-filter.md) — working with the gallery
-- [ ] [feature] [filmstrip-resize-drop](roadmap/M3/filmstrip-resize-drop.md) — filmstrip size and desktop drop
+- [x] [feature] [filmstrip-resize-drop](roadmap/M3/filmstrip-resize-drop.md) — filmstrip size and desktop drop
 - [x] [feature] [template-slot-aspects](roadmap/M3/template-slot-aspects.md) — orientation-aware templates
 - [ ] [feature] [multi-drop-fill](roadmap/M3/multi-drop-fill.md) — faster layout
 - [ ] [feature] [crop-in-frame](roadmap/M3/crop-in-frame.md) — non-destructive crop
