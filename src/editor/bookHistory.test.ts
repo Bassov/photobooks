@@ -97,5 +97,8 @@ describe('bookHistory', () => {
     expect(isUndoableOp({ type: 'removeSpread', spreadId: 's' })).toBe(true)
     expect(coalesceKey({ type: 'setTitle', title: 'x' })).toBe('setTitle')
     expect(coalesceKey({ type: 'removeSpread', spreadId: 's' })).toBeUndefined()
+    expect(
+      coalesceKey({ type: 'resetCrop', spreadId: 's', frameId: 'f' }),
+    ).toBe('crop:s:f')
   })
 })
