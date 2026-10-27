@@ -96,7 +96,7 @@ export function SpreadsPanel({
   toastQueue,
   modeSwitch,
 }: {
-  toastQueue?: PhotobooksToastQueue
+  toastQueue?: PhotobooksToastQueue | undefined
   modeSwitch?: ReactNode
 }) {
   const spreadIds = useSyncExternalStore(
