@@ -2,11 +2,20 @@ import { setFrameSource, withSelectionSync } from './frameSelection'
 
 type Listener = () => void
 
+const NONE: readonly string[] = []
+
+/** Primary = the most recently picked photo; `ids` = the whole selection. */
 let selected: string | null = null
+let ids: readonly string[] = NONE
 const listeners = new Set<Listener>()
 
 export function getSelectedAssetId(): string | null {
   return selected
+}
+
+/** Stable snapshot: identity changes only when the selection changes. */
+export function getSelectedAssetIds(): readonly string[] {
+  return ids
 }
 
 export function getGalleryPhotoSelected(): boolean {
@@ -26,12 +35,27 @@ export function subscribeGalleryPhotoSelected(listener: Listener): () => void {
 }
 
 export function setSelectedAssetId(assetId: string | null): void {
-  if (selected === assetId) {
+  setSelectedAssetIds(assetId === null ? NONE : [assetId], assetId)
+}
+
+/** Replace the selection; `primary` defaults to the last id. */
+export function setSelectedAssetIds(
+  next: readonly string[],
+  primary: string | null = next[next.length - 1] ?? null,
+): void {
+  const unique = [...new Set(next)]
+  const nextPrimary = unique.length === 0 ? null : primary
+  const same =
+    nextPrimary === selected &&
+    unique.length === ids.length &&
+    unique.every((id, index) => id === ids[index])
+  if (same) {
     return
   }
-  selected = assetId
+  selected = nextPrimary
+  ids = unique.length === 0 ? NONE : unique
   emit()
-  if (assetId !== null) {
+  if (nextPrimary !== null) {
     withSelectionSync(() => {
       setFrameSource(null)
     })

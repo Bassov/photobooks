@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
   type UIEvent,
 } from 'react'
-import { GridList } from 'react-aria-components'
+import { GridList, type Selection } from 'react-aria-components'
 import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
 import { shouldCommitFilmstripScroll } from './filmstripScrollCommit'
 import { noteFilmstripScroll } from './thumbCache'
@@ -34,7 +34,7 @@ import { FilmstripItemView } from './FilmstripItem'
 import { unplaceSelectedFrame } from './galleryDrop'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import {
-  getSelectedAssetId,
+  getSelectedAssetIds,
   setSelectedAssetId,
   subscribeGallerySelection,
 } from './gallerySelection'
@@ -50,7 +50,10 @@ import {
   type GallerySortKey,
 } from './galleryView'
 import { FilmstripStatus } from './FilmstripStatus'
-import { onFilmstripGridSelectionChange } from './filmstripSelection'
+import {
+  filmstripSelectionHandler,
+  matchingSelection,
+} from './filmstripSelection'
 import {
   buildStridePrefix,
   indexFromScrollOffset,
@@ -210,11 +213,16 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     })
   }
 
-  const selectedId = useSyncExternalStore(
+  const selectedIds = useSyncExternalStore(
     subscribeGallerySelection,
-    getSelectedAssetId,
-    getSelectedAssetId,
+    getSelectedAssetIds,
+    getSelectedAssetIds,
   )
+  const lastSelection = useRef<Selection | null>(null)
+  const onSelectionChange = filmstripSelectionHandler(gallery, (keys) => {
+    lastSelection.current = keys
+  })
+  const selectedKeys = matchingSelection(lastSelection.current, selectedIds)
   const isEmpty = total === 0
 
   useEffect(() => {
@@ -263,9 +271,10 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
             <GridList
               aria-label="Book gallery"
               orientation="horizontal"
-              selectionMode="single"
-              selectedKeys={selectedId === null ? [] : [selectedId]}
-              onSelectionChange={onFilmstripGridSelectionChange}
+              selectionMode="multiple"
+              selectionBehavior="replace"
+              selectedKeys={selectedKeys}
+              onSelectionChange={onSelectionChange}
               items={items}
               className="filmstrip-list"
               style={{

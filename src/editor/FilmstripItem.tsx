@@ -10,13 +10,17 @@ import {
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { ASSET_DRAG_MIME } from './dropTargets'
+import {
+  ASSET_DRAG_MIME,
+  ASSET_MULTI_MIME,
+  encodeAssetIds,
+} from './dropTargets'
 import { filmstripImportJumpHighlightStyle } from './filmstripChromeStyles'
 import {
   getFilmstripJumpHighlightId,
   subscribeFilmstripJump,
 } from './filmstripJump'
-import { setSelectedAssetId } from './gallerySelection'
+import { getSelectedAssetIds, setSelectedAssetId } from './gallerySelection'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotSize } from './thumbSlotSize'
 
@@ -99,6 +103,14 @@ export function FilmstripItemView({
         onDragStart={(event) => {
           event.dataTransfer.setData(ASSET_DRAG_MIME, id)
           event.dataTransfer.effectAllowed = 'copy'
+          const selection = getSelectedAssetIds()
+          if (selection.length > 1 && selection.includes(id)) {
+            event.dataTransfer.setData(
+              ASSET_MULTI_MIME,
+              encodeAssetIds(selection),
+            )
+            return
+          }
           setSelectedAssetId(id)
         }}
       >
