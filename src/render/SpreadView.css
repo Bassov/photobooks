@@ -5,6 +5,11 @@
   box-shadow: var(--page-shadow);
 }
 
+.spread-view--thumb {
+  pointer-events: none;
+  box-shadow: none;
+}
+
 .spread-frame {
   position: absolute;
   /* Overflow clips on `.spread-frame-body` so rings on the control are not

@@ -62,6 +62,7 @@ export { placeAsset, replaceAsset, unplaceAsset, swapFrames } from './ops/place'
 export {
   addSpread,
   removeSpread,
+  duplicateSpread,
   moveSpread,
   resolveAddSpreadTemplateId,
 } from './ops/spreads'

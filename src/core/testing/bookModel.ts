@@ -147,6 +147,17 @@ function reduceModel(model: BookModel, op: BookOp): void {
         )
       }
       return
+    case 'duplicateSpread': {
+      const at = model.spreads.findIndex((spread) => spread.id === op.spreadId)
+      const source = model.spreads[at]
+      if (source !== undefined) {
+        model.spreads.splice(at + 1, 0, {
+          id: op.id ?? '',
+          frames: source.frames.map((frame) => ({ ...frame })),
+        })
+      }
+      return
+    }
     case 'moveSpread': {
       const from = model.spreads.findIndex(
         (spread) => spread.id === op.spreadId,
@@ -259,7 +270,11 @@ class OpCommand implements fc.Command<BookModel, BookRun> {
     if (op.type === 'addSpread') {
       model.serial += 1
     }
-    if (op.type === 'applyTemplate' || op.type === 'addSpread') {
+    if (
+      op.type === 'applyTemplate' ||
+      op.type === 'addSpread' ||
+      op.type === 'removeSpread'
+    ) {
       syncFrameCounts(model, run.book)
     }
     this.parse(run.book)

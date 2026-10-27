@@ -7,6 +7,7 @@ import {
   applyBookOp,
   applyTemplate,
   checkBookInvariants,
+  duplicateSpread,
   moveSpread,
   placeAsset,
   placementCountByAsset,
@@ -439,6 +440,43 @@ describe('spread ops', () => {
     expect(next.spreads.map((spread) => spread.id)).toEqual(['a', 'c'])
     expect(next.spreads[0]).toBe(a)
     expect(next.spreads[1]).toBe(c)
+  })
+
+  it('duplicates a spread right after the source with a fresh id', () => {
+    const a = makeSpread({ id: 'a', frames: [makeFrame({ id: 'f1' })] })
+    const b = makeSpread({ id: 'b' })
+    const book = makeBook({ spreads: [a, b] })
+    const next = duplicateSpread(book, 'a', { id: 'a-copy' })
+    expect(next.spreads.map((spread) => spread.id)).toEqual([
+      'a',
+      'a-copy',
+      'b',
+    ])
+    expect(next.spreads[1]?.frames.map((frame) => frame.id)).toEqual(['f1'])
+    expect(next.spreads[1]?.frames[0]).not.toBe(a.frames[0])
+    expect(next.spreads[0]).toBe(a)
+    expect(checkBookInvariants(next)).toEqual({ ok: true })
+  })
+
+  it('duplicateSpread allocates an id and no-ops for a missing spread', () => {
+    const book = makeBook({
+      spreads: [makeSpread({ id: 'spread-2' }), makeSpread({ id: 'b' })],
+    })
+    const next = applyBookOp(book, { type: 'duplicateSpread', spreadId: 'b' })
+    expect(next.spreads).toHaveLength(3)
+    expect(new Set(next.spreads.map((spread) => spread.id)).size).toBe(3)
+    expect(duplicateSpread(book, 'missing')).toBe(book)
+    const named = applyBookOp(book, {
+      type: 'duplicateSpread',
+      spreadId: 'b',
+      id: 'chosen',
+    })
+    expect(named.spreads.map((spread) => spread.id)).toEqual([
+      'spread-2',
+      'b',
+      'chosen',
+    ])
+    expect(next.spreads[2]?.id).not.toBe('chosen')
   })
 
   it('moves a spread and keeps unrelated identity', () => {

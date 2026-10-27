@@ -10,7 +10,10 @@ import {
 } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { CameraBar } from './CameraBar'
-import { setActiveSpreadId } from './photoRootSession'
+import {
+  setActiveSpreadId,
+  subscribeSpreadRevealRequest,
+} from './photoRootSession'
 import { getCommittedCamera, subscribeCommitted } from './cameraStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { installGalleryDrop, type DropGeometry } from './galleryDrop'
@@ -345,6 +348,21 @@ export const Pasteboard = memo(function Pasteboard({
       reveal.beginRevealForNewSpread(newId)
     }
   }, [markedId, reveal])
+
+  useEffect(
+    () =>
+      subscribeSpreadRevealRequest((spreadId) => {
+        const index = getSpreadIdsSnapshot().indexOf(spreadId)
+        if (index < 0) {
+          return
+        }
+        forceMountIndexRef.current = index
+        preferredActiveRef.current = spreadId
+        setActiveId(spreadId)
+        reveal.beginRevealForNewSpread(spreadId)
+      }),
+    [reveal],
+  )
 
   useEffect(() => {
     const root = scrollRef.current

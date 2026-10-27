@@ -1,6 +1,10 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { getSpreadIdsSnapshot, resetBookStore } from './bookStore'
+import {
+  dispatchBookOp,
+  getSpreadIdsSnapshot,
+  resetBookStore,
+} from './bookStore'
 import {
   getActiveSpreadId,
   resetActiveSpreadIdForTests,
@@ -22,6 +26,54 @@ describe('SpreadsPanel', () => {
     expect(screen.getByTestId('spreads-list')).toBeTruthy()
     fireEvent.click(screen.getByTestId('add-spread'))
     expect(getSpreadIdsSnapshot().length).toBe(before + 1)
+  })
+
+  it('duplicates, adds after and deletes the selected spread by keyboard', () => {
+    render(<SpreadsPanel />)
+    const [first, second] = getSpreadIdsSnapshot()
+    const row = screen.getByTestId(`spread-list-item-${first ?? ''}`)
+    fireEvent.keyDown(row, { key: 'd', ctrlKey: true })
+    const afterDup = getSpreadIdsSnapshot()
+    expect(afterDup[0]).toBe(first)
+    expect(afterDup[2]).toBe(second)
+    const copy = afterDup[1] ?? ''
+    expect(getActiveSpreadId()).toBe(copy)
+
+    fireEvent.keyDown(screen.getByTestId(`spread-list-item-${copy}`), {
+      key: 'Enter',
+      ctrlKey: true,
+    })
+    expect(getSpreadIdsSnapshot()).toHaveLength(afterDup.length + 1)
+    expect(getSpreadIdsSnapshot().indexOf(copy)).toBe(1)
+
+    // Add-after selected the new spread; Delete acts on the selection.
+    const added = getActiveSpreadId() ?? ''
+    expect(added).not.toBe(copy)
+    const total = getSpreadIdsSnapshot().length
+    fireEvent.keyDown(screen.getByTestId(`spread-list-item-${added}`), {
+      key: 'Delete',
+    })
+    expect(getSpreadIdsSnapshot()).toHaveLength(total - 1)
+    expect(getSpreadIdsSnapshot()).not.toContain(added)
+    expect(getActiveSpreadId()).toBe(second)
+  })
+
+  it('keeps the last spread and renders inert thumbnails', () => {
+    const [only] = getSpreadIdsSnapshot()
+    for (const id of getSpreadIdsSnapshot().slice(1)) {
+      dispatchBookOp({ type: 'removeSpread', spreadId: id })
+    }
+    render(<SpreadsPanel />)
+    fireEvent.keyDown(screen.getByTestId(`spread-list-item-${only ?? ''}`), {
+      key: 'Delete',
+    })
+    expect(getSpreadIdsSnapshot()).toEqual([only])
+    expect(screen.queryByTestId('spread-view')).toBeNull()
+    expect(
+      screen
+        .getByTestId(`spread-list-item-${only ?? ''}`)
+        .querySelector('.spread-view--thumb'),
+    ).not.toBeNull()
   })
 
   it('marks the active spread selected and first-spread data-first', () => {

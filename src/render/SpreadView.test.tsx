@@ -16,6 +16,45 @@ describe('SpreadView', () => {
     cleanup()
   })
 
+  it('renders thumb mode inert: no ids, hidden from a11y, pointer-less class', () => {
+    const resolved = resolveSpread(makeBook(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+
+    const { container } = render(
+      <SpreadView
+        thumb
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+      />,
+    )
+
+    const root = container.firstElementChild
+    expect(root?.className).toBe('spread-view spread-view--thumb')
+    expect(root?.getAttribute('aria-hidden')).toBe('true')
+    expect(root?.hasAttribute('data-spread-id')).toBe(false)
+    expect(container.querySelector('[data-testid]')).toBeNull()
+    expect(container.querySelector('[data-frame-id]')).toBeNull()
+  })
+
+  it('keeps ids and a11y on the default (non-thumb) view', () => {
+    const resolved = resolveSpread(makeBook(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+      />,
+    )
+
+    const root = screen.getByTestId('spread-view')
+    expect(root.className).toBe('spread-view')
+    expect(root.getAttribute('data-spread-id')).toBe('spread-1')
+    expect(root.hasAttribute('aria-hidden')).toBe(false)
+  })
+
   it('shows a placeholder and no image for an empty frame', () => {
     const book = makeBook()
     const resolved = resolveSpread(book, 'spread-1')

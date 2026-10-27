@@ -51,7 +51,7 @@ export function EditorShell() {
           }}
         />
       }
-      left={<SpreadsPanel />}
+      left={<SpreadsPanel toastQueue={toastQueue} />}
       right={<InspectorStub />}
       dock={<FilmstripDock />}
       canvas={presenting ? null : <Pasteboard chromeImport={chromeImport} />}

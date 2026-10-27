@@ -7,7 +7,7 @@ import {
   removeManyFromGallery,
 } from './gallery'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
-import { addSpread, moveSpread, removeSpread } from './spreads'
+import { addSpread, duplicateSpread, moveSpread, removeSpread } from './spreads'
 
 export type BookOp =
   | { type: 'addToGallery'; assetIds: readonly string[] }
@@ -40,6 +40,7 @@ export type BookOp =
     }
   | { type: 'addSpread'; index?: number; id?: string; templateId?: string }
   | { type: 'removeSpread'; spreadId: string }
+  | { type: 'duplicateSpread'; spreadId: string; id?: string }
   | { type: 'moveSpread'; spreadId: string; toIndex: number }
   | { type: 'setTitle'; title: string }
 
@@ -82,6 +83,12 @@ export function applyBookOp(book: Book, op: BookOp): Book {
     }
     case 'removeSpread':
       return removeSpread(book, op.spreadId)
+    case 'duplicateSpread':
+      return duplicateSpread(
+        book,
+        op.spreadId,
+        op.id === undefined ? {} : { id: op.id },
+      )
     case 'moveSpread':
       return moveSpread(book, op.spreadId, op.toIndex)
     case 'setTitle': {
