@@ -91,9 +91,6 @@ export function SpreadPager({
       )
     }
     measure()
-    if (typeof ResizeObserver === 'undefined') {
-      return
-    }
     const observer = new ResizeObserver(measure)
     observer.observe(stage)
     observer.observe(fit)
@@ -166,7 +163,7 @@ export function SpreadPager({
       })}
       <div className="spread-pager-bar">
         <span className="tabular-nums" data-testid="pager-position">
-          {index + 1} / {count}
+          {count === 0 ? '' : `${String(index + 1)} / ${String(count)}`}
         </span>
       </div>
       <button
@@ -177,12 +174,6 @@ export function SpreadPager({
         onClick={(e) => {
           e.stopPropagation()
           onExit()
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-        }}
-        onPointerUp={(e) => {
-          e.stopPropagation()
         }}
       >
         Esc

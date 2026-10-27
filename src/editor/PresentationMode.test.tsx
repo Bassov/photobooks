@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { resetBookStore } from './bookStore'
+import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { EditorShell } from './EditorShell'
 
 const position = () => screen.getByTestId('pager-position').textContent
@@ -9,6 +9,18 @@ describe('PresentationMode', () => {
   afterEach(() => {
     cleanup()
     resetBookStore()
+  })
+
+  it('disables Present when the book has no spreads', () => {
+    const { book, sessionMeta } = getBookStoreSnapshot()
+    resetBookStore({
+      book: { ...book, spreads: [] },
+      sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<EditorShell />)
+    expect(screen.getByTestId('present').hasAttribute('disabled')).toBe(true)
   })
 
   it('opens from Present, pages, and Esc returns to the editor', () => {

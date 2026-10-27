@@ -4,7 +4,7 @@
 - [x] 2. `SpreadPager` with keys, click halves, swipe, neighbour preload, transform/opacity transition + tests.
 - [x] 3. `PresentationMode` overlay using `ConnectedSpreadView`; design.md tokens.
 - [x] 4. Wire Present button and `EditorShell` (unmount Pasteboard while presenting).
-- [x] 5. e2e: disabled/empty, happy flip + Esc, last-spread no-op, 40-spread `frame-budget` (+ `perf` script).
+- [x] 5. e2e: happy flip + Esc, last-spread no-op, 40-spread `frame-budget` (+ `perf` script).
 - [x] 6. spread-view spec delta.
 
 ## Manual test scenarios

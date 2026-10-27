@@ -109,6 +109,10 @@ function readActiveBook() {
   return getBookStoreSnapshot().book
 }
 
+function readSpreadCount() {
+  return getSpreadIdsSnapshot().length
+}
+
 function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
   const book = useSyncExternalStore(
     subscribeBookStore,
@@ -229,8 +233,8 @@ export function EditorTopBar({
 }) {
   const spreadCount = useSyncExternalStore(
     subscribeBookStore,
-    () => getSpreadIdsSnapshot().length,
-    () => getSpreadIdsSnapshot().length,
+    readSpreadCount,
+    readSpreadCount,
   )
   const project = useSyncExternalStore(
     subscribeProjectSession,

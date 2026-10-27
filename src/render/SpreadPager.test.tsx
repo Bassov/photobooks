@@ -67,10 +67,42 @@ describe('SpreadPager', () => {
     const stage = screen.getByTestId('presentation')
     stage.getBoundingClientRect = () =>
       ({ left: 0, width: 100 }) as unknown as DOMRect
+    fireEvent.pointerUp(stage, { clientX: 10 })
     fireEvent.pointerDown(stage, { clientX: 300 })
     fireEvent.pointerUp(stage, { clientX: 100 })
     fireEvent.click(stage, { clientX: 90 })
     expect(position()).toBe('2 / 3')
+  })
+
+  it('ignores unrelated keys', () => {
+    render(<Harness />)
+    fireEvent.keyDown(window, { key: 'a' })
+    expect(position()).toBe('1 / 3')
+  })
+
+  it('scales the spread to fit the stage', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(500)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(2000)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(1064)
+    render(<Harness />)
+    const fit = screen
+      .getAllByTestId('presentation-slide')[0]
+      ?.querySelector<HTMLElement>('.spread-pager-fit')
+    // min(2000*.94/1000, (1064-64)*.96/500) = min(1.88, 1.92)
+    expect(fit?.style.transform).toBe('scale(1.88)')
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('renders no slides or position for an empty book and still exits', () => {
+    const onExit = vi.fn()
+    render(<Harness count={0} onExit={onExit} />)
+    expect(screen.queryAllByTestId('presentation-slide')).toHaveLength(0)
+    expect(position()).toBe('')
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onExit).toHaveBeenCalledTimes(1)
   })
 
   it('keeps only the current spread and its neighbours mounted', () => {
