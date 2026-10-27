@@ -475,9 +475,7 @@ export const Pasteboard = memo(function Pasteboard({
                 data-gap-insert-index={range.start + index + 1}
                 aria-hidden="true"
               >
-                <span className="pasteboard-gap-label">
-                  Drop here for a new spread
-                </span>
+                Drop here for a new spread
               </div>
             </div>
           ))}
