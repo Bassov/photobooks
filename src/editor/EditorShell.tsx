@@ -54,8 +54,10 @@ export function EditorShell() {
         />
       }
       left={<SpreadsPanel toastQueue={toastQueue} />}
-      right={<InspectorStub />}
-      dock={<FilmstripDock />}
+      right={(collapse) => <InspectorStub onCollapse={collapse} />}
+      dock={
+        <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />
+      }
       canvas={presenting ? null : <Pasteboard chromeImport={chromeImport} />}
       overlay={
         <>

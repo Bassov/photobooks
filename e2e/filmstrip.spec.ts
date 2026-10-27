@@ -1591,4 +1591,83 @@ test.describe('sort / filter / remove', () => {
     await assertDocumentFitsViewport(page)
     await assertNamedScrollport(page, 'filmstrip-scroll')
   })
+
+  test('empty dock: keyboard resize persists across reload; loose file drop is refused', async ({
+    page,
+  }) => {
+    await openSessionEditor(page)
+    await expect(page.getByTestId('filmstrip-empty')).toBeVisible()
+    const splitter = page.getByTestId('film-splitter')
+    await splitter.focus()
+    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('ArrowUp')
+    await expect(splitter).toHaveAttribute('aria-valuenow', '112')
+    await assertDocumentFitsViewport(page)
+
+    await page.getByTestId('dock').evaluate((dock) => {
+      const event = new Event('drop', { bubbles: true, cancelable: true })
+      const item = {
+        kind: 'file',
+        getAsFileSystemHandle: () => Promise.resolve({ kind: 'file' }),
+      }
+      Object.defineProperty(event, 'dataTransfer', {
+        value: { types: ['Files'], items: [item] },
+      })
+      dock.dispatchEvent(event)
+    })
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Drop a folder — Photobooks adds folders, not single photos',
+    )
+
+    await page.reload()
+    await openSessionEditor(page)
+    await expect(page.getByTestId('film-splitter')).toHaveAttribute(
+      'aria-valuenow',
+      '112',
+    )
+  })
+
+  test('resizing the filmstrip mid-gallery re-lays out without gaps or LoAF', async ({
+    page,
+  }) => {
+    test.setTimeout(300_000)
+    await enablePerfScenario(page)
+    await clearPerfScenario(page)
+    const files = writeBulkImportFixtures(300)
+    await expect(page.getByTestId('choose-photo-folder')).toBeEnabled()
+    await choosePhotoFolder(page, files)
+    await expect
+      .poll(
+        async () =>
+          page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
+        { timeout: 240_000 },
+      )
+      .toBe('300')
+    await expect(page.getByTestId('import-progress')).toBeHidden({
+      timeout: 120_000,
+    })
+
+    await beginFilmstripLoafScrollWindow(page)
+    await scrollFilmstripLoafWindow(page, 10)
+    const splitter = page.getByTestId('film-splitter')
+    const box = await splitter.boundingBox()
+    assert(box !== null)
+    await page.mouse.move(box.x + box.width / 2, box.y + 3)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2, box.y - 40, { steps: 8 })
+    await page.evaluate(browserAssertNoLoaf, 0)
+    await page.mouse.up()
+    await expect(splitter).not.toHaveAttribute('aria-valuenow', '96')
+    const committed = Number(await splitter.getAttribute('aria-valuenow'))
+    expect(committed).toBeGreaterThan(120)
+    await scrollFilmstripLoafWindow(page, 5)
+    await page.evaluate(browserAssertNoLoaf, 0)
+
+    await expect(page.getByTestId('filmstrip-item').first()).toHaveJSProperty(
+      'offsetHeight',
+      committed,
+    )
+    await assertDocumentFitsViewport(page)
+    await assertNamedScrollport(page, 'filmstrip-scroll')
+  })
 })

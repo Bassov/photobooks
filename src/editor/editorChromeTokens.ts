@@ -48,11 +48,12 @@ export const EDITOR_CHROME_CSS = `
 .e7 .editor-workspace { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; height: auto; overflow: hidden }
 .e7 .pasteboard { flex: 1 1 0; min-height: 0; height: auto }
 .editor-panel-l { width: 0 }
-.editor-panel-l[data-open='true'] { width: 212px }
-.editor-panel-l-inner { width: 212px }
+.editor-panel-l[data-open='true'] { width: var(--panel-left, 212px) }
+.editor-panel-l-inner { width: var(--panel-left, 212px) }
 .editor-panel-r { width: 0 }
-.editor-panel-r[data-open='true'] { width: 300px }
-.editor-inspector { width: 300px; background: var(--chrome) }
+.editor-panel-r[data-open='true'] { width: var(--panel-right, 300px) }
+.editor-inspector { width: var(--panel-right, 300px); background: var(--chrome) }
+.e7:has([data-dragging='true']) .e7-pan { transition: none }
 .editor-panel-b[data-open='false'] { height: 0 }
 .editor-canvas-inner { background: transparent }
 .editor-dock { background: var(--chrome) }
