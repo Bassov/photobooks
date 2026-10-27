@@ -15,6 +15,7 @@ import {
   resetActiveSpreadIdForTests,
 } from './photoRootSession'
 import { replaceRelinkStatuses, resetRelinkStore } from './relink/statusStore'
+import { resetThumbCache, setThumbUrl } from './thumbCache'
 
 const accept = vi.hoisted(() => vi.fn<(id: string) => Promise<boolean>>())
 vi.mock('./relink/rescan', () => ({ acceptModifiedAsset: accept }))
@@ -62,6 +63,8 @@ describe('AssetsPanel', () => {
     resetBookStore()
     resetRelinkStore()
     resetActiveSpreadIdForTests()
+    resetThumbCache()
+    vi.restoreAllMocks()
   })
 
   it('shows the empty state without photos', () => {
@@ -133,5 +136,28 @@ describe('AssetsPanel', () => {
     render(<AssetsPanel />)
     expect(screen.getAllByTestId('assets-row').length).toBeLessThan(40)
     expect(screen.getByTestId('assets-count').textContent).toBe('1000')
+  })
+
+  it('renders a thumbnail once the thumb is published', async () => {
+    seedGallery(1)
+    render(<AssetsPanel />)
+    expect(screen.getByTestId('assets-thumb-placeholder')).toBeTruthy()
+    setThumbUrl('seed-0', new ArrayBuffer(4), 'image/jpeg')
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('assets-row').querySelector('img.assets-thumb'),
+      ).not.toBeNull()
+    })
+  })
+
+  it('re-windows rows when the list scrolls and resizes', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200)
+    seedGallery(1000)
+    render(<AssetsPanel />)
+    const list = screen.getByTestId('assets-list')
+    const before = ids()[0]
+    list.scrollTop = 20000
+    fireEvent.scroll(list)
+    expect(ids()[0]).not.toBe(before)
   })
 })
