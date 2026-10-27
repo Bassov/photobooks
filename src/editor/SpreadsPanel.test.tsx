@@ -34,6 +34,54 @@ describe('SpreadsPanel', () => {
     expect(getSpreadIdsSnapshot().length).toBe(before + 1)
   })
 
+  it('duplicates, adds after and deletes the selected spread by keyboard', () => {
+    render(<SpreadsPanel />)
+    const [first, second] = getSpreadIdsSnapshot()
+    const row = screen.getByTestId(`spread-list-item-${first ?? ''}`)
+    fireEvent.keyDown(row, { key: 'd', ctrlKey: true })
+    const afterDup = getSpreadIdsSnapshot()
+    expect(afterDup[0]).toBe(first)
+    expect(afterDup[2]).toBe(second)
+    const copy = afterDup[1] ?? ''
+    expect(getActiveSpreadId()).toBe(copy)
+
+    fireEvent.keyDown(screen.getByTestId(`spread-list-item-${copy}`), {
+      key: 'Enter',
+      ctrlKey: true,
+    })
+    expect(getSpreadIdsSnapshot()).toHaveLength(afterDup.length + 1)
+    expect(getSpreadIdsSnapshot().indexOf(copy)).toBe(1)
+
+    // Add-after selected the new spread; Delete acts on the selection.
+    const added = getActiveSpreadId() ?? ''
+    expect(added).not.toBe(copy)
+    const total = getSpreadIdsSnapshot().length
+    fireEvent.keyDown(screen.getByTestId(`spread-list-item-${added}`), {
+      key: 'Delete',
+    })
+    expect(getSpreadIdsSnapshot()).toHaveLength(total - 1)
+    expect(getSpreadIdsSnapshot()).not.toContain(added)
+    expect(getActiveSpreadId()).toBe(second)
+  })
+
+  it('keeps the last spread and renders inert thumbnails', () => {
+    const [only] = getSpreadIdsSnapshot()
+    for (const id of getSpreadIdsSnapshot().slice(1)) {
+      dispatchBookOp({ type: 'removeSpread', spreadId: id })
+    }
+    render(<SpreadsPanel />)
+    fireEvent.keyDown(screen.getByTestId(`spread-list-item-${only ?? ''}`), {
+      key: 'Delete',
+    })
+    expect(getSpreadIdsSnapshot()).toEqual([only])
+    expect(screen.queryByTestId('spread-view')).toBeNull()
+    expect(
+      screen
+        .getByTestId(`spread-list-item-${only ?? ''}`)
+        .querySelector('.spread-view--thumb'),
+    ).not.toBeNull()
+  })
+
   it('marks the active spread selected and first-spread data-first', () => {
     const ids = getSpreadIdsSnapshot()
     expect(ids.length).toBeGreaterThan(1)
@@ -104,21 +152,12 @@ describe('SpreadsPanel reorder', () => {
     return fireEvent(target, event)
   }
 
-  /** Items are 96px tall + 4px gap → 100px pitch, stacked from 0. */
-  function stubLayout(): void {
-    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(
-      function (this: HTMLElement) {
-        const siblings = Array.from(
-          this.parentElement?.querySelectorAll('[data-item]') ?? [],
-        )
-        return siblings.indexOf(this) * 100
-      },
-    )
-    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(96)
-  }
-
   const item = (id: string | undefined) =>
     screen.getByTestId(`spread-list-item-${id ?? ''}`)
+
+  /** The fixed-stride row that carries the drag shift; pitch is 104px. */
+  const row = (id: string | undefined): HTMLElement =>
+    item(id).parentElement ?? item(id)
 
   it('Alt+ArrowDown / Alt+ArrowUp move the focused spread and keep focus', () => {
     const [a, b] = getSpreadIdsSnapshot()
@@ -140,7 +179,7 @@ describe('SpreadsPanel reorder', () => {
     render(<SpreadsPanel />)
     const first = item(before[0])
     const last = item(before.at(-1))
-    expect(fireEvent.keyDown(first, { key: 'ArrowDown' })).toBe(true)
+    expect(fireEvent.keyDown(first, { key: 'ArrowLeft' })).toBe(true)
     expect(fireEvent.keyDown(first, { key: 'ArrowUp', altKey: true })).toBe(
       true,
     )
@@ -152,11 +191,12 @@ describe('SpreadsPanel reorder', () => {
   })
 
   it('dragging shows the target by transform and an insertion line, then drops as one move', () => {
-    stubLayout()
     const [a, b, c] = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
+    // The reveal effect may have scrolled the list to the active row.
+    screen.getByTestId('spreads-list').scrollTop = 0
     expect(screen.queryByTestId('spread-drop-line')).toBeNull()
-    expect(item(a).style.transform).toBe('')
+    expect(row(a).style.transform).toBe('')
 
     const dt = transfer()
     fireDrag('dragStart', item(c), dt)
@@ -169,42 +209,40 @@ describe('SpreadsPanel reorder', () => {
     const list = screen.getByTestId('spreads-list')
     expect(fireDrag('dragOver', list, dt, 10)).toBe(false)
     expect(dt.dropEffect).toBe('move')
-    expect(item(a).style.transform).toBe('translateY(100px)')
-    expect(item(b).style.transform).toBe('translateY(100px)')
-    expect(item(c).style.transform).toBe('translateY(0px)')
+    expect(row(a).style.transform).toBe('translateY(104px)')
+    expect(row(b).style.transform).toBe('translateY(104px)')
+    expect(row(c).style.transform).toBe('translateY(0px)')
     expect(screen.getByTestId('spread-drop-line').style.transform).toBe(
       'translateY(0px)',
     )
 
     fireDrag('dragOver', list, dt, 90)
-    expect(item(a).style.transform).toBe('translateY(0px)')
-    expect(item(b).style.transform).toBe('translateY(100px)')
+    expect(row(a).style.transform).toBe('translateY(0px)')
+    expect(row(b).style.transform).toBe('translateY(104px)')
     expect(screen.getByTestId('spread-drop-line').style.transform).toBe(
-      'translateY(100px)',
+      'translateY(104px)',
     )
 
     expect(fireDrag('drop', list, dt)).toBe(false)
     expect(getSpreadIdsSnapshot()).toEqual([a, c, b])
     expect(screen.queryByTestId('spread-drop-line')).toBeNull()
-    expect(item(a).style.transform).toBe('')
+    expect(row(a).style.transform).toBe('')
     expect(item(c).hasAttribute('data-dragging')).toBe(false)
   })
 
   it('places the line below the target when dragging down', () => {
-    stubLayout()
     const [a, , c] = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
     const dt = transfer()
     fireDrag('dragStart', item(a), dt)
     fireDrag('dragOver', screen.getByTestId('spreads-list'), dt, 290)
     expect(screen.getByTestId('spread-drop-line').style.transform).toBe(
-      'translateY(300px)',
+      'translateY(312px)',
     )
-    expect(item(c).style.transform).toBe('translateY(-100px)')
+    expect(row(c).style.transform).toBe('translateY(-104px)')
   })
 
   it('adds the list scroll offset to the pointer position', () => {
-    stubLayout()
     const [a, b, c] = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
     const list = screen.getByTestId('spreads-list')
@@ -217,7 +255,6 @@ describe('SpreadsPanel reorder', () => {
   })
 
   it('dragend without a drop clears the drag and keeps the order', () => {
-    stubLayout()
     const ids = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
     const list = screen.getByTestId('spreads-list')
@@ -232,7 +269,6 @@ describe('SpreadsPanel reorder', () => {
   })
 
   it('dropping in place keeps the order', () => {
-    stubLayout()
     const ids = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
     const list = screen.getByTestId('spreads-list')
@@ -245,7 +281,6 @@ describe('SpreadsPanel reorder', () => {
   })
 
   it('ignores drags that did not start in the list or carry another type', () => {
-    stubLayout()
     const ids = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
     const list = screen.getByTestId('spreads-list')

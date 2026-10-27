@@ -17,6 +17,7 @@ import { REVEAL_TRY_CEILING } from './pasteboardReveal'
 import { PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME } from './pasteboardWindow'
 import {
   getActiveSpreadId,
+  requestSpreadReveal,
   resetActiveSpreadIdForTests,
 } from './photoRootSession'
 
@@ -500,6 +501,71 @@ describe('Pasteboard view wiring', () => {
     expect(after).toHaveLength(4)
     expect(after[3]?.templateId).toBe('4-grid')
     expect(after[3]?.frames).toHaveLength(4)
+  })
+
+  it('reveals and pins a spread requested by the spreads panel', () => {
+    const hooks = stubPaceFrameHooks()
+    resetBookStore()
+    const { callbacks } = stubIntersectionObserverCapture()
+    stubViewport(800, 600)
+    const view = render(<Pasteboard />)
+    flushPaceSteps(hooks)
+    const ids = getSpreadIdsSnapshot()
+    const target = ids.at(-1)
+    assert(target !== undefined && target !== ids[0])
+
+    act(() => {
+      requestSpreadReveal(target)
+    })
+    flushPaceSteps(hooks)
+    expect(getActiveSpreadId()).toBe(target)
+    const slot = screen
+      .getAllByTestId('pasteboard-slot')
+      .find((s) => s.getAttribute('data-spread-id') === target)
+    assert(slot !== undefined, 'expected requested slot mounted')
+    expect(slot.getAttribute('data-active')).toBe('true')
+
+    // The pin beats a higher-ratio neighbour until the user scrolls.
+    const other = screen
+      .getAllByTestId('pasteboard-slot')
+      .find((s) => s.getAttribute('data-spread-id') !== target)
+    assert(other !== undefined)
+    act(() => {
+      callbacks.at(-1)?.(
+        [fakeIntersectionEntry(other, 0.95), fakeIntersectionEntry(slot, 0.2)],
+        {} as IntersectionObserver,
+      )
+    })
+    expect(slot.getAttribute('data-active')).toBe('true')
+
+    // The first spread (index 0) is a valid target too.
+    const first = ids[0]
+    assert(first !== undefined)
+    act(() => {
+      requestSpreadReveal(first)
+    })
+    flushPaceSteps(hooks)
+    expect(getActiveSpreadId()).toBe(first)
+    expect(
+      screen
+        .getAllByTestId('pasteboard-slot')
+        .find((s) => s.getAttribute('data-spread-id') === first)
+        ?.getAttribute('data-active'),
+    ).toBe('true')
+    act(() => {
+      requestSpreadReveal(target)
+    })
+    flushPaceSteps(hooks)
+
+    // Unknown ids are ignored, and unmount unsubscribes.
+    act(() => {
+      requestSpreadReveal('nope')
+    })
+    expect(slot.getAttribute('data-active')).toBe('true')
+    view.unmount()
+    expect(() => {
+      requestSpreadReveal(target)
+    }).not.toThrow()
   })
 
   it('keeps the added spread marked until the user scrolls', () => {

@@ -57,8 +57,17 @@ const STYLE_TEXT = `
   background: #D7D7D7;
   font-size: var(--text-sm);
   color: var(--foreground);
+  border: 0;
+  font-family: inherit;
   outline: none;
   transition: background-color 0.15s ease;
+}
+.pb-lib-quiet input {
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
 }
 .pb-lib-quiet:hover,
 .pb-lib-quiet[data-hovered] {
@@ -71,6 +80,9 @@ const STYLE_TEXT = `
   outline-offset: 2px;
 }
 .pb-lib-book {
+  background: none;
+  border: 0;
+  padding: 0;
   outline: none;
 }
 .pb-lib-book .pb-lib-obj {

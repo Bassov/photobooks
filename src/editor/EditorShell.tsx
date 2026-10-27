@@ -53,7 +53,7 @@ export function EditorShell() {
           }}
         />
       }
-      left={<SpreadsPanel />}
+      left={<SpreadsPanel toastQueue={toastQueue} />}
       right={(collapse) => <InspectorStub onCollapse={collapse} />}
       dock={
         <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />

@@ -77,6 +77,25 @@ export function setActiveSpreadId(next: string | null): void {
   }
 }
 
+const spreadRevealListeners = new Set<(spreadId: string) => void>()
+
+/** Ask the pasteboard (windowed) to scroll a spread into view and make it active. */
+export function requestSpreadReveal(spreadId: string): void {
+  setActiveSpreadId(spreadId)
+  for (const listener of spreadRevealListeners) {
+    listener(spreadId)
+  }
+}
+
+export function subscribeSpreadRevealRequest(
+  listener: (spreadId: string) => void,
+): () => void {
+  spreadRevealListeners.add(listener)
+  return () => {
+    spreadRevealListeners.delete(listener)
+  }
+}
+
 export function resetActiveSpreadIdForTests(): void {
   activeSpreadId = null
 }
