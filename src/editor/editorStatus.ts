@@ -22,6 +22,13 @@ export function unplacedFromSpreadStatus(count: number): string {
   return `${String(count)} photos were unplaced from the spread`
 }
 
+export function leftInFilmstripStatus(count: number): string {
+  if (count === 1) {
+    return '1 photo left in the filmstrip'
+  }
+  return `${String(count)} photos left in the filmstrip`
+}
+
 export function getEditorStatus(): string {
   return text
 }

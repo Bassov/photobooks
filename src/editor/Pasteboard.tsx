@@ -9,6 +9,7 @@ import {
   type UIEvent,
 } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
+import './PasteboardGapZone.css'
 import { CameraBar } from './CameraBar'
 import { setActiveSpreadId } from './photoRootSession'
 import { getCommittedCamera, subscribeCommitted } from './cameraStore'
@@ -469,6 +470,16 @@ export const Pasteboard = memo(function Pasteboard({
               }}
             >
               <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+              <div
+                className="pasteboard-gap"
+                data-testid="pasteboard-gap"
+                data-gap-insert-index={range.start + index + 1}
+                aria-hidden="true"
+              >
+                <span className="pasteboard-gap-label">
+                  Drop here for a new spread
+                </span>
+              </div>
             </div>
           ))}
           {shouldRenderSpacer(range.tailPx) ? (

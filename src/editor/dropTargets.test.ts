@@ -5,9 +5,12 @@ import {
   ASSET_DRAG_MIME,
   FRAME_DRAG_MIME,
   buildDropIndex,
+  decodeAssetIds,
   decodeFrameDrag,
+  encodeAssetIds,
   encodeFrameDrag,
   hitTestDrop,
+  hitTestGap,
   isAssetDrag,
   isFrameDrag,
   resolveFrameActivation,
@@ -374,4 +377,66 @@ describe('dropTargets', () => {
       expect(hitTestDrop(index, frame.left - 0.01, frame.top)).toBeUndefined()
     },
   )
+})
+
+describe('gap zones', () => {
+  const spreads = [
+    { spreadId: 's0', spreadWidthPx: 100, items: [] },
+    { spreadId: 's1', spreadWidthPx: 100, items: [] },
+  ]
+
+  it('maps the band under each spread to its insert index', () => {
+    const index = buildDropIndex({
+      spreads,
+      pxPerMm: 1,
+      stridePx: 100,
+      worldWidthPx: 100,
+      spreadHeightPx: 80,
+    })
+    expect(hitTestGap(index, 79)).toBeUndefined()
+    expect(hitTestGap(index, 80)).toBe(1)
+    expect(hitTestGap(index, 99.9)).toBe(1)
+    expect(hitTestGap(index, 180)).toBe(2)
+    expect(hitTestGap(index, 200)).toBeUndefined()
+    expect(hitTestGap(index, Number.NaN)).toBeUndefined()
+  })
+
+  it('has no zones for an unusable stride', () => {
+    const index = buildDropIndex({
+      spreads,
+      pxPerMm: 1,
+      stridePx: 0,
+      worldWidthPx: 100,
+    })
+    expect(index.gaps).toEqual([])
+  })
+
+  it('widens a thin gap to the minimum zone height', () => {
+    const index = buildDropIndex({
+      spreads,
+      pxPerMm: 1,
+      stridePx: 100,
+      worldWidthPx: 100,
+      spreadHeightPx: 98,
+    })
+    expect(hitTestGap(index, 83)).toBeUndefined()
+    expect(hitTestGap(index, 84)).toBe(1)
+  })
+
+  it('defaults to the minimum zone at the bottom of each stride', () => {
+    const index = buildDropIndex({
+      spreads,
+      pxPerMm: 1,
+      stridePx: 100,
+      worldWidthPx: 100,
+    })
+    expect(hitTestGap(index, 83)).toBeUndefined()
+    expect(hitTestGap(index, 84)).toBe(1)
+  })
+
+  it('round-trips multi-asset payloads and drops empty ids', () => {
+    expect(decodeAssetIds(encodeAssetIds(['a', 'b']))).toEqual(['a', 'b'])
+    expect(decodeAssetIds('')).toEqual([])
+    expect(decodeAssetIds('a\n\nb\n')).toEqual(['a', 'b'])
+  })
 })
