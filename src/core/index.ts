@@ -67,6 +67,7 @@ export {
   moveSpread,
   resolveAddSpreadTemplateId,
 } from './ops/spreads'
+export { fillSpread, insertSpreadWithAssets } from './ops/fill'
 export { applyBookOp, type BookOp } from './ops/applyBookOp'
 
 export {

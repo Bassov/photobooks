@@ -321,7 +321,9 @@ test('drag hover follows one frame and clears off a frame', async ({
     return {
       onFirst,
       onSecond,
-      cleared: scroll.querySelector('[data-drop-hover="true"]') === null,
+      // Below the frames the pointer is over the between-spread gap zone.
+      cleared:
+        scroll.querySelector('.spread-frame[data-drop-hover="true"]') === null,
     }
   }, ASSET_DRAG_MIME)
 

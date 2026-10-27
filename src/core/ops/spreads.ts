@@ -103,7 +103,7 @@ export function moveSpread(
   return { ...book, spreads }
 }
 
-function nextSpreadId(book: Book): string {
+export function nextSpreadId(book: Book): string {
   let n = book.spreads.length + 1
   let id = `spread-${String(n)}`
   const existing = new Set(book.spreads.map((spread) => spread.id))
