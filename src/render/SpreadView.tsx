@@ -1,4 +1,8 @@
-import type { DragEvent as ReactDragEvent } from 'react'
+import {
+  useLayoutEffect,
+  useRef,
+  type DragEvent as ReactDragEvent,
+} from 'react'
 import type { ResolvedItem, ResolvedSpread } from '../core'
 
 export interface FrameControl {
@@ -6,6 +10,9 @@ export interface FrameControl {
   pressed?: boolean
   onActivate: () => void
   onDragStart?: (event: ReactDragEvent<HTMLDivElement>) => void
+  /** Crop mode: unclipped dim ghost, no drag; the editor owns the gestures. */
+  cropActive?: boolean
+  onDoubleActivate?: () => void
 }
 import {
   frameBox,
@@ -22,6 +29,9 @@ import {
 } from './spreadMissing'
 import { spreadFrameControlStyle } from './spreadChromeStyles'
 import './SpreadView.css'
+
+/** Keeps the crop-mode frame (and its ghost) above neighbouring frames. */
+const CROP_Z_BOOST = 1000
 
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
 
@@ -142,12 +152,26 @@ function SpreadFrame({
 }) {
   const box = frameBox(item.rectMm, pxPerMm)
   const crop = imageCropBox(item.sourceCropRect ?? FULL_CROP)
+  const cropActive = control?.cropActive === true
+  const bodyRef = useRef<HTMLDivElement>(null)
+  // The committed crop replaces the rAF preview transform.
+  useLayoutEffect(() => {
+    bodyRef.current?.querySelectorAll('img').forEach((img) => {
+      img.style.transform = ''
+    })
+  }, [crop.left, crop.top, crop.width, crop.height])
   const style = {
     left: box.left,
     top: box.top,
     width: box.width,
     height: box.height,
-    zIndex: item.z,
+    zIndex: cropActive ? item.z + CROP_Z_BOOST : item.z,
+  }
+  const imageStyle = {
+    left: crop.left,
+    top: crop.top,
+    width: crop.width,
+    height: crop.height,
   }
   const image =
     previewUrl === undefined ? (
@@ -163,23 +187,33 @@ function SpreadFrame({
         decoding="async"
         src={previewUrl}
         data-tier={tier}
-        style={{
-          left: crop.left,
-          top: crop.top,
-          width: crop.width,
-          height: crop.height,
-        }}
+        style={imageStyle}
       />
     )
   // Stay mounted when a frame empties mid-drop so dragend still reaches document.
   // A draggable element inside a button is invalid HTML; Chromium still drags it.
   const body = (
     <div
+      ref={bodyRef}
       className="spread-frame-body"
-      draggable={control?.onDragStart !== undefined}
+      draggable={!cropActive && control?.onDragStart !== undefined}
       onDragStart={control?.onDragStart}
     >
-      {image}
+      {cropActive && previewUrl !== undefined ? (
+        <>
+          <img
+            className="spread-frame-image spread-frame-ghost"
+            data-testid="spread-frame-ghost"
+            alt=""
+            aria-hidden
+            src={previewUrl}
+            style={imageStyle}
+          />
+          <div className="spread-frame-clip">{image}</div>
+        </>
+      ) : (
+        image
+      )}
     </div>
   )
   if (control === undefined) {
@@ -204,10 +238,12 @@ function SpreadFrame({
       data-frame-id={item.frameId}
       data-filled={item.assetId === undefined ? 'false' : 'true'}
       data-asset-id={item.assetId}
+      data-crop-active={cropActive ? 'true' : undefined}
       aria-label={control.label}
       aria-pressed={control.pressed === true ? true : undefined}
       style={spreadFrameControlStyle(style, control.pressed === true)}
       onClick={control.onActivate}
+      onDoubleClick={control.onDoubleActivate}
     >
       {body}
       {control.pressed === true ? (

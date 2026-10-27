@@ -21,6 +21,9 @@ import {
 } from './bookStore'
 import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
+import { addSpread, placeAsset } from '../core'
+import { makeBook } from '../core/testing/fixtures'
+import { enterCropMode, getCropTarget } from './cropMode'
 import { EditorShell } from './EditorShell'
 import { seedGallery } from './gallery.test-helpers'
 import {
@@ -50,6 +53,31 @@ describe('EditorShell viewport containment', () => {
     resetProjectSessionForTests()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('installs the crop gestures: Escape leaves crop mode', () => {
+    window.history.pushState({}, '', '/')
+    render(<EditorShell />)
+    let book = addSpread(
+      makeBook({ id: 'crop', spreads: [], gallery: ['a'], assets: { a: {} } }),
+      { id: 's0' },
+    )
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    book = placeAsset(book, 's0', frame.id, 'a')
+    act(() => {
+      resetBookStore({
+        book,
+        sessionMeta: new Map(),
+        previewUrls: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+      enterCropMode('s0', frame.id)
+    })
+    expect(getCropTarget()).not.toBeNull()
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(getCropTarget()).toBeNull()
   })
 
   it('paints the session spread instead of a placeholder', () => {

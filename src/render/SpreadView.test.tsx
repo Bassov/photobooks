@@ -388,4 +388,63 @@ describe('SpreadView', () => {
       '100% 100%',
     ])
   })
+
+  it('crop mode shows a dim ghost, disables drag and forwards double-click', () => {
+    const book = makeBookWithAsset()
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    const onDoubleActivate = vi.fn()
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Crop',
+          onActivate: vi.fn(),
+          onDragStart: vi.fn(),
+          cropActive: true,
+          onDoubleActivate,
+        })}
+      />,
+    )
+    const frame = screen.getByTestId('spread-frame')
+    expect(frame.getAttribute('data-crop-active')).toBe('true')
+    expect(screen.getByTestId('spread-frame-ghost')).toBeTruthy()
+    expect(screen.getByTestId('spread-frame-image')).toBeTruthy()
+    expect(
+      document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
+    ).toBe('false')
+    expect(Number(frame.style.zIndex)).toBeGreaterThanOrEqual(1000)
+    fireEvent.doubleClick(frame)
+    expect(onDoubleActivate).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears the preview transform when the committed crop changes', () => {
+    const book = makeBookWithAsset()
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    const view = (zoomed: boolean) => (
+      <SpreadView
+        spreadId="spread-1"
+        resolved={
+          zoomed
+            ? {
+                ...resolved,
+                items: resolved.items.map((item) => ({
+                  ...item,
+                  sourceCropRect: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+                })),
+              }
+            : resolved
+        }
+        previewUrlFor={previewUrlFor}
+      />
+    )
+    const { rerender } = render(view(false))
+    const img = screen.getByTestId<HTMLImageElement>('spread-frame-image')
+    img.style.transform = 'translate(5px, 5px)'
+    rerender(view(true))
+    expect(img.style.transform).toBe('')
+  })
 })
