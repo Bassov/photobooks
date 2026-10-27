@@ -181,13 +181,16 @@ export function turnPendingReveal(input: {
   spreadCount: number
   stride: number
   state: PendingRevealState
+  /** Index of the spread being revealed; defaults to the last (add-spread). */
+  index?: number
 }): { turn: PendingRevealTurn; state: PendingRevealState } {
   const state = { ...input.state }
   if (input.slot === null) {
+    const index = input.index ?? input.spreadCount - 1
     return {
       turn: {
         kind: 'await-slot',
-        top: Math.max(0, (input.spreadCount - 1) * input.stride),
+        top: Math.max(0, index * input.stride),
       },
       state,
     }

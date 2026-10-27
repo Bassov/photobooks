@@ -8,6 +8,6 @@
 
 ## Touch-set & Test Plan
 
-- Files: `src/core/ops/{spreads,applyBookOp}.ts`, `src/core/index.ts`, `src/editor/{SpreadsPanel,SpreadThumb,spreadsPanelModel,photoRootSession,Pasteboard,EditorShell}`, `EditorShell.css`, specs `book-core`, `editor-shell`.
+- Files: `src/core/ops/{spreads,applyBookOp}.ts`, `src/core/index.ts`, `src/editor/{SpreadsPanel,SpreadThumb,spreadsPanelModel,photoRootSession,Pasteboard,EditorShell}`, `src/render/SpreadView.{tsx,css}` (inert `thumb` mode: no test/data ids, so pasteboard selectors never match), `editorChromeTokens.ts` (thumb height var), `src/core/testing/bookModel.ts` (model cases), specs `book-core`, `editor-shell`. No gate-config edits.
 - Reuse: `Menu`, `IconButton`, `Toast`, `pasteboardWindow`, `thumbCache`.
 - Tests: unit (ops + PBT in `bookModel`, panel model, panel RTL), e2e `spread-list-panel.spec.ts` (thumbs, click scrolls, add/duplicate/delete+undo, no page scroll).

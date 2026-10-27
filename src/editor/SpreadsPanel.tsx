@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -82,17 +83,14 @@ export function SpreadsPanel({
     getActiveSpreadId,
   )
   const selected = selectedSpreadId(activeId, spreadIds)
-  const listRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement | null>(null)
   // Quantized to whole rows so React bails out while the window is unchanged.
   const [firstRow, setFirstRow] = useState(0)
   const [viewport, setViewport] = useState(0)
 
-  useEffect(() => {
-    const node = listRef.current
-    // Stryker disable next-line ConditionalExpression,BlockStatement: ref is set once mounted
-    if (node === null) {
-      return
-    }
+  // React 19 ref callback: `node` is never null here; the cleanup runs on detach.
+  const attachList = useCallback((node: HTMLDivElement) => {
+    listRef.current = node
     const measure = (): void => {
       setViewport(node.clientHeight)
     }
@@ -167,7 +165,7 @@ export function SpreadsPanel({
         </div>
       </div>
       <div
-        ref={listRef}
+        ref={attachList}
         className="e7 scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1"
         data-testid="spreads-list"
         data-scrollport="spreads-list"

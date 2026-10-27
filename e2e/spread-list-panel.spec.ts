@@ -1,5 +1,8 @@
 import { expect, test } from './fixtures/coverage'
-import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import {
+  assertDocumentFitsViewport,
+  assertNamedScrollport,
+} from './fixtures/assertDocumentFitsViewport'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const rows = (page: import('@playwright/test').Page) =>
@@ -43,6 +46,42 @@ test('spreads panel lists thumbnails, navigates, and manages spreads', async ({
   await expect(rows(page)).toHaveCount(5)
 
   await assertDocumentFitsViewport(page)
+})
+
+test('long list is windowed, scrolls inside spreads-list and navigates far', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  const add = page.getByTestId('add-spread')
+  for (let i = 0; i < 37; i += 1) {
+    await add.click()
+  }
+  await expect(rows(page).first()).toBeVisible()
+  const mounted = await rows(page).count()
+  expect(mounted).toBeGreaterThan(0)
+  expect(mounted).toBeLessThan(40)
+
+  await assertNamedScrollport(page, 'spreads-list', {
+    axis: 'vertical',
+    nudgeHorizontal: true,
+  })
+  await assertDocumentFitsViewport(page)
+
+  // Jump the list to the middle: the window slides, first row unmounts.
+  await page
+    .getByTestId('spreads-list')
+    .evaluate((el) => (el.scrollTop = el.scrollHeight / 2))
+  await expect(page.getByTestId('spread-list-item-spread-1')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+
+  // Clicking a far row reveals that spread on the pasteboard.
+  const id = (await rows(page).last().getAttribute('data-item')) ?? ''
+  const far = page.getByTestId(`spread-list-item-${id}`)
+  await far.click()
+  await expect(far).toHaveAttribute('aria-selected', 'true')
+  await expect(
+    page.locator(`[data-pasteboard-slot][data-spread-id="${id}"]`),
+  ).toHaveAttribute('data-active', 'true')
 })
 
 test('last spread cannot be deleted', async ({ page }) => {
