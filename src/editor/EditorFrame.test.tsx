@@ -138,5 +138,11 @@ describe('EditorFrame panel sizes', () => {
     render(frame({ l: true, b: true, r: true }, onPanelsChange))
     fireEvent.keyDown(screen.getByTestId('resize-right'), { key: 'Enter' })
     expect(onPanelsChange).toHaveBeenCalledWith({ l: true, b: true, r: false })
+    fireEvent.keyDown(screen.getByTestId('resize-left'), { key: 'Enter' })
+    expect(onPanelsChange).toHaveBeenLastCalledWith({
+      l: false,
+      b: true,
+      r: true,
+    })
   })
 })

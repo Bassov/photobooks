@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Panel } from './Panel'
 import { PanelSplitter } from './PanelSplitter'
 
@@ -35,11 +35,48 @@ describe('Panel', () => {
     fireEvent.click(btn)
     expect(onCollapse).toHaveBeenCalledTimes(1)
   })
+
+  it.each([
+    ['left', 'panelLeft', 'right'],
+    ['right', 'panelRight', 'left'],
+  ] as const)(
+    '%s panel: side icon and tooltip toward the canvas',
+    (side, icon, placement) => {
+      render(
+        <Panel side={side} title="Spreads" onCollapse={vi.fn()}>
+          <p>x</p>
+        </Panel>,
+      )
+      const btn = screen.getByTestId(`panel-collapse-${side}`)
+      expect(btn.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(
+        icon,
+      )
+      fireEvent.keyDown(document.body, { key: 'Tab' })
+      act(() => {
+        btn.focus()
+      })
+      expect(screen.getByRole('tooltip').getAttribute('data-placement')).toBe(
+        placement,
+      )
+    },
+  )
 })
 
 describe('PanelSplitter', () => {
+  // React reports handler throws on window, not to the test.
+  const errors: unknown[] = []
+  const onError = (e: ErrorEvent) => {
+    errors.push(e.error)
+    e.preventDefault()
+  }
+  beforeEach(() => {
+    errors.length = 0
+    window.addEventListener('error', onError)
+  })
   afterEach(() => {
+    window.removeEventListener('error', onError)
     cleanup()
+    expect(errors).toEqual([])
   })
 
   it('exposes separator semantics with current width', () => {
@@ -110,6 +147,49 @@ describe('PanelSplitter', () => {
     expect(onCommit).toHaveBeenCalledWith(230)
     expect(s.getAttribute('data-dragging')).toBeNull()
     fireEvent.pointerMove(s, { clientX: 200, pointerId: 1 })
+    fireEvent.pointerUp(s, { pointerId: 1 })
     expect(onResize).toHaveBeenCalledTimes(1)
+    expect(onCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('captures the pointer and starts idle', () => {
+    render(<PanelSplitter side="left" width={200} onResize={vi.fn()} />)
+    const s = screen.getByTestId('resize-left')
+    expect(s.getAttribute('data-dragging')).toBeNull()
+    const capture = vi.fn()
+    s.setPointerCapture = capture
+    fireEvent.pointerDown(s, { clientX: 100, pointerId: 7 })
+    expect(capture).toHaveBeenCalledWith(7)
+  })
+
+  it('prevents default only for handled keys', () => {
+    const { rerender } = render(
+      <PanelSplitter side="left" width={200} onResize={vi.fn()} />,
+    )
+    const s = screen.getByTestId('resize-left')
+    expect(fireEvent.keyDown(s, { key: 'ArrowRight' })).toBe(false)
+    expect(fireEvent.keyDown(s, { key: 'a' })).toBe(true)
+    rerender(
+      <PanelSplitter
+        side="left"
+        width={200}
+        onResize={vi.fn()}
+        onCollapse={vi.fn()}
+      />,
+    )
+    expect(fireEvent.keyDown(s, { key: 'Enter' })).toBe(false)
+  })
+
+  it('works without onCommit and ignores stray pointer events', () => {
+    const onResize = vi.fn()
+    render(<PanelSplitter side="left" width={200} onResize={onResize} />)
+    const s = screen.getByTestId('resize-left')
+    s.setPointerCapture = vi.fn()
+    fireEvent.pointerMove(s, { clientX: 150, pointerId: 1 })
+    fireEvent.pointerUp(s, { pointerId: 1 })
+    fireEvent.keyDown(s, { key: 'ArrowRight' })
+    fireEvent.pointerDown(s, { clientX: 100, pointerId: 1 })
+    fireEvent.pointerUp(s, { pointerId: 1 })
+    expect(onResize.mock.calls).toEqual([[208]])
   })
 })

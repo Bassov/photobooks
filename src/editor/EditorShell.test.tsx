@@ -136,8 +136,11 @@ describe('EditorShell viewport containment', () => {
 
   it('collapses the inspector from its panel header', () => {
     render(<EditorShell />)
+    fireEvent.click(screen.getByTestId('toggle-r'))
+    expect(screen.getByTestId('resize-right')).toBeTruthy()
     fireEvent.click(screen.getByTestId('panel-collapse-right'))
     expect(screen.queryByTestId('resize-right')).toBeNull()
+    expect(screen.getByTestId('panel-l').getAttribute('data-open')).toBe('true')
   })
 
   it('shows Grant access only when permission is required', () => {

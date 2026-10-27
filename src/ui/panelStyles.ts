@@ -75,9 +75,6 @@ const STYLE_TEXT = `
 
 /** Idempotent inject for Panel / PanelSplitter / specimen demo styles. */
 export function ensurePanelStyles(): void {
-  if (typeof document === 'undefined') {
-    return
-  }
   if (document.querySelector('style[data-pb-panel]')) {
     return
   }
