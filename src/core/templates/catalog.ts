@@ -164,11 +164,11 @@ function pageBoxes(
   H: number,
   pageCount: 1 | 2,
   margins: Book['layoutGrid']['margins'],
-): RectMm[] {
+): [RectMm] | [RectMm, RectMm] {
   if (pageCount === 1) {
     return [contentBox(W, H, margins)]
   }
-  return [0, 1].map((page) => contentBox(W / 2, H, margins, (W / 2) * page))
+  return [contentBox(W / 2, H, margins), contentBox(W / 2, H, margins, W / 2)]
 }
 
 function splitColumns(box: RectMm, gutterMm: number): [RectMm, RectMm] {
@@ -198,11 +198,8 @@ function twoPortraitsRects(
   columnGutterMm: number,
 ): RectMm[] {
   const boxes = pageBoxes(W, H, pageCount, margins)
-  const first = boxes[0]
   const cells =
-    pageCount === 2 || first === undefined
-      ? boxes
-      : splitColumns(first, columnGutterMm)
+    boxes.length === 2 ? boxes : splitColumns(boxes[0], columnGutterMm)
   return cells.map((cell) => fitAspect(cell, PORTRAIT_RATIO))
 }
 
@@ -215,9 +212,6 @@ function landscapeTwoPortraitsRects(
   rowGutterMm: number,
 ): RectMm[] {
   const [left, right] = pageBoxes(W, H, pageCount, margins)
-  if (left === undefined) {
-    return []
-  }
   let landscapeCell = left
   let portraitBox = right ?? left
   if (right === undefined) {

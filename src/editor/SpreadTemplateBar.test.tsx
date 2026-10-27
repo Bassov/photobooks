@@ -215,8 +215,63 @@ describe('SpreadTemplateBar', () => {
     }
   })
 
+  it('accepts boundary counts and rejects non-integer text', () => {
+    resetBookStore()
+    const marked = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(marked !== undefined)
+    render(
+      <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
+    )
+    const apply = screen.getByRole('button', { name: 'Contact sheet' })
+    for (const [value, disabled] of [
+      ['1', false],
+      ['05', false],
+      ['2.5', true],
+      ['-1', true],
+    ] as const) {
+      fireEvent.change(screen.getByLabelText('Columns'), {
+        target: { value },
+      })
+      expect(apply.hasAttribute('disabled')).toBe(disabled)
+    }
+  })
+
+  it('enables the count inputs when a spread is marked', () => {
+    resetBookStore()
+    const marked = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(marked !== undefined)
+    render(
+      <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
+    )
+    expect(screen.getByLabelText('Columns').hasAttribute('disabled')).toBe(
+      false,
+    )
+    expect(screen.getByLabelText('Rows').hasAttribute('disabled')).toBe(false)
+  })
+
+  it('keeps typed counts after leaving a contact-sheet template', () => {
+    resetBookStore()
+    const marked = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(marked !== undefined)
+    applyMarkedSpreadTemplate(marked, 'contact-2x3')
+    render(
+      <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
+    )
+    act(() => {
+      applyMarkedSpreadTemplate(marked, '4-grid')
+    })
+    expect(screen.getByLabelText<HTMLInputElement>('Columns').value).toBe('2')
+    expect(screen.getByLabelText<HTMLInputElement>('Rows').value).toBe('3')
+    expect(
+      screen
+        .getByRole('radio', { name: '4-grid' })
+        .getAttribute('data-selected'),
+    ).toBe('true')
+  })
+
   it('disables the contact-sheet controls without a marked spread', () => {
     render(<SpreadTemplateBar spreadId={null} onAddSpread={() => undefined} />)
+    expect(screen.getByLabelText('Rows').hasAttribute('disabled')).toBe(true)
     expect(screen.getByLabelText('Columns').hasAttribute('disabled')).toBe(true)
     expect(
       screen

@@ -124,6 +124,46 @@ describe('bestTemplateId', () => {
     )
   })
 
+  it.each([
+    ['one portrait', 1, ['portrait'], 'two-portraits'],
+    ['one landscape', 1, ['landscape'], 'full-bleed'],
+    ['two landscapes', 1, ['landscape', 'landscape'], 'one-per-page'],
+    ['square wildcard', 1, ['portrait', 'square'], 'two-portraits'],
+    [
+      'one mismatch beats none available',
+      1,
+      ['landscape', 'portrait', 'landscape'],
+      'landscape-two-portraits',
+    ],
+    ['three portraits', 1, ['portrait', 'portrait', 'portrait'], 'contact-2x1'],
+  ] as const)('%s (spread %i)', (_name, spread, photos, expected) => {
+    expect(bestTemplateId(interiorBook(), spread, photos)).toBe(expected)
+  })
+
+  it('single-page spread uses the page count for fit', () => {
+    const one = makeBook()
+    expect(bestTemplateId(one, 0, ['landscape', 'landscape'])).toBe('4-grid')
+    expect(bestTemplateId(one, 0, ['portrait', 'portrait'])).toBe(
+      'two-portraits',
+    )
+    expect(bestTemplateId(one, 0, Array(13).fill('landscape'))).toBe(
+      'contact-5x3',
+    )
+    expect(bestTemplateId(one, 0, Array(15).fill('landscape'))).toBe(
+      'contact-5x3',
+    )
+  })
+
+  it('picks the smallest contact sheet that fits per page', () => {
+    const book = interiorBook()
+    expect(bestTemplateId(book, 1, Array(30).fill('landscape'))).toBe(
+      'contact-5x3',
+    )
+    expect(bestTemplateId(book, 1, Array(21).fill('landscape'))).toBe(
+      'contact-4x3',
+    )
+  })
+
   fcTest.prop([
     fc.array(fc.constantFrom('portrait', 'landscape', 'square'), {
       maxLength: 12,

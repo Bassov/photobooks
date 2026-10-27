@@ -16,17 +16,19 @@ test('portrait and contact-sheet templates apply and switch back', async ({
     .first()
     .getByTestId('spread-frame-placeholder')
 
-  await page.getByRole('radio', { name: '2 portraits' }).click()
-  await expect(page.getByRole('radio', { name: '2 portraits' })).toBeChecked()
+  const twoPortraits = page.getByRole('radio', {
+    name: '2 portraits',
+    exact: true,
+  })
+  await twoPortraits.click()
+  await expect(twoPortraits).toBeChecked()
   await expect(frames).toHaveCount(2)
 
   await page.getByLabel('Columns').fill('3')
   await page.getByLabel('Rows').fill('4')
   await page.getByRole('button', { name: 'Contact sheet' }).click()
   await expect(frames).toHaveCount(12)
-  await expect(
-    page.getByRole('radio', { name: '2 portraits' }),
-  ).not.toBeChecked()
+  await expect(twoPortraits).not.toBeChecked()
 
   await page.getByLabel('Columns').fill('9')
   await expect(
