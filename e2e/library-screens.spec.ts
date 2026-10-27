@@ -179,6 +179,28 @@ test('empty library kit chrome and Create book dialog open editor', async ({
   await expect(page.getByText(/0 books/i)).toHaveCount(0)
   await page.getByTestId('new-book').click()
   await expect(page.getByTestId('create-book-dialog')).toBeVisible()
+  const offCenter = await page.evaluate(() => {
+    const r = document
+      .querySelector('[data-testid="create-book-dialog"]')
+      ?.getBoundingClientRect()
+    return r
+      ? [
+          Math.abs(r.x + r.width / 2 - innerWidth / 2),
+          Math.abs(r.y + r.height / 2 - innerHeight / 2),
+        ]
+      : [Infinity, Infinity]
+  })
+  expect(Math.max(...offCenter)).toBeLessThan(2)
+  for (const btn of [
+    page.getByRole('button', { name: 'Cancel' }),
+    page.getByTestId('create-book'),
+  ]) {
+    await expect(btn).toBeInViewport({ ratio: 1 })
+  }
+  await expect(page.getByTestId('create-title')).toHaveCSS(
+    'border-top-color',
+    'rgb(215, 215, 215)',
+  )
   await page.getByRole('button', { name: 'Cancel' }).click()
   await expect(page.getByTestId('create-book-dialog')).toHaveCount(0)
   await expect(page.getByTestId('library-empty')).toBeVisible()

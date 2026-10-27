@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: undo / redo
+Status: done
 
 ## Scope
 

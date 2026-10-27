@@ -19,6 +19,19 @@ import {
 import { setBookUsedAssetIds, setDecodeImportActive } from '../photo/assetPool'
 import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
+import {
+  canRedo,
+  canUndo,
+  coalesceKey,
+  EMPTY_HISTORY,
+  isUndoableOp,
+  recordStep,
+  redoStep,
+  snapshotOf,
+  undoStep,
+  type History,
+  type HistoryMove,
+} from './bookHistory'
 import { setEditorStatus, unplacedFromSpreadStatus } from './editorStatus'
 import { parseCapturedAtMs } from './galleryView'
 import {
@@ -731,11 +744,42 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
   emitGallery()
 }
 
-export function dispatchBookOp(op: BookOp): void {
-  const book = applyBookOp(state.book, op)
-  if (book === state.book) {
+export interface HistoryAvailability {
+  canUndo: boolean
+  canRedo: boolean
+}
+
+let history: History = EMPTY_HISTORY
+let historySnapshot: HistoryAvailability = { canUndo: false, canRedo: false }
+const historyListeners = new Set<Listener>()
+
+function setHistory(next: History): void {
+  history = next
+  const avail = { canUndo: canUndo(next), canRedo: canRedo(next) }
+  if (
+    avail.canUndo === historySnapshot.canUndo &&
+    avail.canRedo === historySnapshot.canRedo
+  ) {
     return
   }
+  historySnapshot = avail
+  for (const listener of historyListeners) {
+    listener()
+  }
+}
+
+export function subscribeHistory(listener: Listener): () => void {
+  historyListeners.add(listener)
+  return () => {
+    historyListeners.delete(listener)
+  }
+}
+
+export function getHistorySnapshot(): HistoryAvailability {
+  return historySnapshot
+}
+
+function publishBook(book: Book): void {
   const prev = state
   state = { ...state, book }
   if (book.gallery !== prev.book.gallery) {
@@ -747,6 +791,46 @@ export function dispatchBookOp(op: BookOp): void {
   } else {
     emit()
   }
+}
+
+function moveHistory(move: HistoryMove | null): void {
+  if (move === null) {
+    return
+  }
+  const book: Book = { ...state.book, spreads: move.snapshot.spreads }
+  if (move.snapshot.title === undefined) {
+    delete book.title
+  } else {
+    book.title = move.snapshot.title
+  }
+  setHistory(move.history)
+  publishBook(book)
+}
+
+/** Step back one layout/title edit. No-op when there is nothing to undo. */
+export function undoBook(): void {
+  moveHistory(undoStep(history, snapshotOf(state.book)))
+}
+
+/** Step forward one undone edit. No-op when there is nothing to redo. */
+export function redoBook(): void {
+  moveHistory(redoStep(history, snapshotOf(state.book)))
+}
+
+export function dispatchBookOp(op: BookOp): void {
+  const book = applyBookOp(state.book, op)
+  if (book === state.book) {
+    return
+  }
+  const prev = state
+  if (isUndoableOp(op)) {
+    setHistory(recordStep(history, snapshotOf(prev.book), coalesceKey(op)))
+  } else if (book.spreads !== prev.book.spreads) {
+    // Gallery removal also unplaced frames: older snapshots would reference
+    // assets that are gone.
+    setHistory(EMPTY_HISTORY)
+  }
+  publishBook(book)
   if (op.type === 'applyTemplate') {
     const removed = removedPlacementCount(prev.book, book, op.spreadId)
     if (removed > 0) {
@@ -953,6 +1037,7 @@ export function resetBookStore(next?: BookStoreInit): void {
         importExpectedCount: 0,
       }
   setDecodeImportActive(state.importRunning)
+  setHistory(EMPTY_HISTORY)
   pendingGalleryIds = []
   pendingMeta = new Map()
   pendingAssetRecords = new Map()
