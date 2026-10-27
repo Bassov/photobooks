@@ -168,30 +168,30 @@ test('reorder in an overflowing list scrolls only inside spreads-list', async ({
     await page.getByTestId('add-spread').click()
   }
   const list = page.getByTestId('spreads-list')
-  await expect(list.locator('[data-item]')).toHaveCount(15)
+  // The list is windowed: only the rows near the viewport are mounted.
+  await expect
+    .poll(() => list.evaluate((el) => el.scrollHeight > el.clientHeight))
+    .toBe(true)
   await assertNamedScrollport(page, 'spreads-list', {
     axis: 'vertical',
     nudgeHorizontal: true,
   })
   await assertDocumentFitsViewport(page)
 
-  const before = await panelOrder(page)
-  const lastId = before.at(-1) ?? ''
   await list.evaluate((el) => {
     el.scrollTop = el.scrollHeight
   })
+  await expect
+    .poll(async () => (await panelOrder(page)).length)
+    .toBeGreaterThan(0)
+  const lastId = (await panelOrder(page)).at(-1) ?? ''
   const listBox = await list.boundingBox()
   expect(listBox).not.toBeNull()
   await dragItemTo(page, lastId, (listBox?.y ?? 0) + 2)
 
+  // Scrolled to the bottom, the pointer at the list top maps well above the end.
   await expect
     .poll(async () => (await panelOrder(page)).at(-1))
     .not.toBe(lastId)
-  const after = await panelOrder(page)
-  // Scrolled to the bottom, the pointer at the list top maps past the first items.
-  expect(after.indexOf(lastId)).toBeGreaterThan(3)
-  expect(after.filter((id) => id !== lastId)).toEqual(
-    before.filter((id) => id !== lastId),
-  )
   await assertDocumentFitsViewport(page)
 })

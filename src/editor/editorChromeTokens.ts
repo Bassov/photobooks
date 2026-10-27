@@ -62,7 +62,7 @@ export const EDITOR_CHROME_CSS = `
 .editor-inspector-stub__body { color: var(--foreground) }
 .editor-spreads { background: var(--chrome); color: var(--foreground) }
 .editor-spreads-mode { background: var(--chrome); color: var(--foreground); box-shadow: var(--shadow-sm) }
-.editor-spread-thumb { aspect-ratio: 1.6; background: var(--paper); box-shadow: var(--shadow-sm) }
+.editor-spread-thumb { height: var(--spreads-thumb-h, 64px); overflow: hidden; background: var(--paper); box-shadow: var(--shadow-sm) }
 .editor-add-spread { height: 32px; color: var(--muted-foreground) }
 `
 

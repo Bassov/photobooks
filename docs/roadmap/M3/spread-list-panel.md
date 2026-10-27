@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: spread list (Google Slides style)
+Status: done
 
 ## Scope
 
