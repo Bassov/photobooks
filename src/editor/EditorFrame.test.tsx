@@ -84,3 +84,47 @@ describe('EditorFrame', () => {
     })
   })
 })
+
+describe('EditorFrame panel sizes', () => {
+  afterEach(() => {
+    cleanup()
+    window.localStorage.clear()
+  })
+
+  const frame = (panels: EditorPanels, onPanelsChange = vi.fn()) => (
+    <EditorFrame
+      panels={panels}
+      onPanelsChange={onPanelsChange}
+      left={<div>left</div>}
+      right={<div>right</div>}
+      dock={<div>dock</div>}
+      canvas={<div>canvas</div>}
+    />
+  )
+
+  it('restores stored widths into chrome CSS variables', () => {
+    window.localStorage.setItem('photobooks.panel.left', '260')
+    window.localStorage.setItem('photobooks.panel.right', '9999')
+    render(frame({ l: true, b: true, r: true }))
+    const shell = screen.getByTestId('editor-shell')
+    expect(shell.style.getPropertyValue('--panel-left')).toBe('260px')
+    expect(shell.style.getPropertyValue('--panel-right')).toBe('360px')
+  })
+
+  it('resizes with the keyboard and persists the width', () => {
+    render(frame({ l: true, b: true, r: false }))
+    fireEvent.keyDown(screen.getByTestId('resize-left'), { key: 'ArrowRight' })
+    expect(
+      screen.getByTestId('editor-shell').style.getPropertyValue('--panel-left'),
+    ).toBe('220px')
+    expect(window.localStorage.getItem('photobooks.panel.left')).toBe('220')
+    expect(screen.queryByTestId('resize-right')).toBeNull()
+  })
+
+  it('collapses a side from its splitter via Enter', () => {
+    const onPanelsChange = vi.fn()
+    render(frame({ l: true, b: true, r: true }, onPanelsChange))
+    fireEvent.keyDown(screen.getByTestId('resize-right'), { key: 'Enter' })
+    expect(onPanelsChange).toHaveBeenCalledWith({ l: true, b: true, r: false })
+  })
+})

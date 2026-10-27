@@ -1,5 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import { Icon } from '../ui/Icon'
+import { PanelSplitter } from '../ui/PanelSplitter'
+import { loadPanelWidth, savePanelWidth } from '../ui/panelSize'
 import { DEFAULT_EDITOR_PANELS, type EditorPanels } from './editorChromePanels'
 import { ensureEditorChromeStyles } from './editorChromeTokens'
 import { installEditorChromeKeys } from './installEditorChromeKeys'
@@ -38,6 +46,14 @@ export function EditorFrame({
   }, [pn])
 
   const [spaceDown, setSpaceDown] = useState(false)
+  const [widthL, setWidthL] = useState(() => loadPanelWidth('left'))
+  const [widthR, setWidthR] = useState(() => loadPanelWidth('right'))
+  const closeL = () => {
+    setPn({ ...pnRef.current, l: false })
+  }
+  const closeR = () => {
+    setPn({ ...pnRef.current, r: false })
+  }
 
   useEffect(() => {
     return installEditorChromeKeys({
@@ -51,6 +67,12 @@ export function EditorFrame({
     <div
       className={['e7', 'editor-shell', className].filter(Boolean).join(' ')}
       data-testid="editor-shell"
+      style={
+        {
+          '--panel-left': `${String(widthL)}px`,
+          '--panel-right': `${String(widthR)}px`,
+        } as CSSProperties
+      }
     >
       <div
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -68,6 +90,17 @@ export function EditorFrame({
           >
             <div className="editor-panel-l-inner h-full">{left}</div>
           </div>
+          {pn.l ? (
+            <PanelSplitter
+              side="left"
+              width={widthL}
+              onResize={setWidthL}
+              onCommit={(w) => {
+                savePanelWidth('left', w)
+              }}
+              onCollapse={closeL}
+            />
+          ) : null}
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <div
               className="e7-canvas editor-workspace relative flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -95,6 +128,17 @@ export function EditorFrame({
               {dock}
             </div>
           </main>
+          {pn.r ? (
+            <PanelSplitter
+              side="right"
+              width={widthR}
+              onResize={setWidthR}
+              onCommit={(w) => {
+                savePanelWidth('right', w)
+              }}
+              onCollapse={closeR}
+            />
+          ) : null}
           <div
             className="e7-pan editor-panel-r shrink-0 overflow-hidden"
             data-open={pn.r ? 'true' : 'false'}
