@@ -71,6 +71,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 ### 5 · Phase commit
 
 - First green checkpoint after A+B. SHA becomes local **B** scoring base for later rework (not A patch).
+- Session split: brief says stop after stage 5 → print the SHA and exit. A fresh session resumes at stage 6 from `git log origin/main..HEAD`, `tasks.md` and the review brief; it does not redo stages 1–5.
 
 ### 6 · Implementation review
 
@@ -106,12 +107,12 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 - `pnpm -s agent finish --title "…" --body-file …` — push + create/update PR only.
 - No happy-path merge of `origin/main`; no C2 in finish; skip A/C1 in pre-push when stamp matches.
-- After push/PR: `pnpm agent ci-wait` (wait for required CI; not `gh pr checks --watch`).
+- After push/PR: print the PR URL and exit. The orchestrator owns CI wait, sole-flake re-runs and merge. `pnpm agent ci-wait` only when the brief asks for it (never `gh pr checks --watch`).
 - **How (precedence):** `.cursor/rules/git-finish.mdc`.
 
-### 13 · CI fix loop
+### 13 · CI fix (fresh session)
 
-- On red: `pnpm agent ci-brief` → fix → A/B as needed (bases per Diff bases) → push → `pnpm agent ci-wait`. No auto-merge main; sibling conflicts = orchestrator turn.
+- Launched by the orchestrator with a short brief (tip SHA, failing check, log path). `pnpm agent ci-brief` → fix only that → A/B as needed (bases per Diff bases) → push → exit. No auto-merge main; sibling conflicts = orchestrator turn.
 
 ## Parallel agents
 
