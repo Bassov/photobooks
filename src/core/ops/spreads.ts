@@ -80,7 +80,7 @@ export function moveSpread(
   const spreads = book.spreads.slice()
   const moved = spreads.splice(fromIndex, 1)
   spreads.splice(clamped, 0, ...moved)
-  return { ...book, spreads }
+  return reapplyChangedPageRoles(book, { ...book, spreads })
 }
 
 export function nextSpreadId(book: Book): string {

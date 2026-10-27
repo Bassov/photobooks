@@ -259,7 +259,11 @@ class OpCommand implements fc.Command<BookModel, BookRun> {
     if (op.type === 'addSpread') {
       model.serial += 1
     }
-    if (op.type === 'applyTemplate' || op.type === 'addSpread') {
+    if (
+      op.type === 'applyTemplate' ||
+      op.type === 'addSpread' ||
+      op.type === 'moveSpread'
+    ) {
       syncFrameCounts(model, run.book)
     }
     this.parse(run.book)
