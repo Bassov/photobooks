@@ -14,7 +14,7 @@ const TABS: readonly { id: Tab; label: string }[] = [
 export function LeftPanel({
   toastQueue,
 }: {
-  toastQueue?: PhotobooksToastQueue
+  toastQueue?: PhotobooksToastQueue | undefined
 }) {
   const [tab, setTab] = useState<Tab>('pages')
   const modeSwitch = (
