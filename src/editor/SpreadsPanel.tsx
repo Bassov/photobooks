@@ -122,6 +122,9 @@ export function SpreadsPanel({
     viewport,
   )
   const visible = spreadIds.slice(win.start, win.end)
+  // Roving tab stop must live on a mounted row even when the selection is windowed out.
+  const tabStop =
+    selected !== null && visible.includes(selected) ? selected : visible[0]
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     const id =
@@ -198,7 +201,7 @@ export function SpreadsPanel({
                 type="button"
                 role="option"
                 aria-selected={sel}
-                tabIndex={sel ? 0 : -1}
+                tabIndex={id === tabStop ? 0 : -1}
                 className="e7-item rounded-md p-2"
                 data-item={id}
                 data-first={i === 0 ? 'true' : 'false'}

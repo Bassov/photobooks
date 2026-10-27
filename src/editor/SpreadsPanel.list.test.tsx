@@ -177,6 +177,21 @@ describe('SpreadsPanel list', () => {
     ])
   })
 
+  it('keeps a tab stop on the first mounted row when the selection is windowed out', () => {
+    seedSpreads(200)
+    stubViewport(300)
+    render(<SpreadsPanel />)
+    const list = screen.getByTestId('spreads-list')
+    list.scrollTop = 100 * SPREADS_ROW_PX
+    fireEvent.scroll(list)
+    const ids = renderedIds()
+    expect(ids).not.toContain('s0')
+    const stops = screen
+      .getAllByRole('option')
+      .filter((row) => row.getAttribute('tabindex') === '0')
+    expect(stops.map((row) => row.getAttribute('data-item'))).toEqual([ids[0]])
+  })
+
   it('moves selection and focus with the arrow keys, stopping at the ends', () => {
     seedSpreads(3)
     render(<SpreadsPanel />)
