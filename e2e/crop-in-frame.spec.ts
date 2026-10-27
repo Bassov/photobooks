@@ -35,6 +35,17 @@ async function placeOnePhoto(page: Page): Promise<void> {
   })
 }
 
+async function openRightPanel(page: Page): Promise<void> {
+  const open = await page.getByTestId('panel-r').getAttribute('data-open')
+  if (open !== 'true') {
+    await page.getByTestId('toggle-r').click()
+  }
+}
+
+function filledFrame(page: Page) {
+  return page.locator('[data-testid="spread-frame"][data-filled="true"]')
+}
+
 async function imageBox(page: Page) {
   return page.getByTestId('spread-frame-image').evaluate((el) => ({
     left: (el as HTMLElement).style.left,
@@ -44,7 +55,7 @@ async function imageBox(page: Page) {
 }
 
 async function frameCenter(page: Page) {
-  const box = await page.getByTestId('spread-frame').boundingBox()
+  const box = await filledFrame(page).boundingBox()
   if (box === null) {
     throw new Error('frame not visible')
   }
@@ -58,14 +69,11 @@ test('no crop section until a photo is double-clicked; Esc leaves crop mode', as
   await openSessionEditor(page)
   await expect(page.getByTestId('inspector-fit-crop')).toHaveCount(0)
   await placeOnePhoto(page)
-  await page.getByTestId('spread-frame').dblclick()
-  await expect(page.getByTestId('spread-frame')).toHaveAttribute(
-    'data-crop-active',
-    'true',
-  )
+  await filledFrame(page).dblclick()
+  await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
   await expect(page.getByTestId('spread-frame-ghost')).toHaveCount(1)
   await page.keyboard.press('Escape')
-  await expect(page.getByTestId('spread-frame')).not.toHaveAttribute(
+  await expect(filledFrame(page)).not.toHaveAttribute(
     'data-crop-active',
     'true',
   )
@@ -80,9 +88,10 @@ test('wheel zooms, arrows nudge, drag pans, Reset to cover restores', async ({
   await openSessionEditor(page)
   await placeOnePhoto(page)
   const cover = await imageBox(page)
-  await page.getByTestId('spread-frame').dblclick()
-  // Right panel starts collapsed: open it through the top-bar toggle.
+  // Right panel starts collapsed; pressing outside the frame leaves crop mode,
+  // so open it through the top-bar toggle before entering crop mode.
   await page.getByTestId('toggle-r').click()
+  await filledFrame(page).dblclick()
   await expect(page.getByTestId('inspector-fit-crop')).toBeVisible()
   await expect(page.getByTestId('crop-reset')).toBeDisabled()
 
@@ -107,18 +116,16 @@ test('wheel zooms, arrows nudge, drag pans, Reset to cover restores', async ({
   await page.mouse.up()
   await expect.poll(async () => (await imageBox(page)).top).not.toBe(before.top)
   // The drag did not toggle the move-source selection.
-  await expect(page.getByTestId('spread-frame')).not.toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  await expect(filledFrame(page)).not.toHaveAttribute('aria-pressed', 'true')
 
   await page.getByTestId('crop-reset').click()
   await expect.poll(async () => imageBox(page)).toEqual(cover)
 
+  // Pressing outside the frame leaves crop mode; the whole burst (zoom, nudge,
+  // pan, reset) is a single undo step, so redo returns to cover.
   await page.getByTestId('undo').click()
-  await expect
-    .poll(async () => (await imageBox(page)).width)
-    .not.toBe(cover.width)
+  await expect(page.getByTestId('redo')).toBeEnabled()
+  await expect.poll(async () => imageBox(page)).toEqual(cover)
   await assertDocumentFitsViewport(page)
 })
 
@@ -134,14 +141,19 @@ test('reload keeps the crop', async ({ page }) => {
   await page.getByTestId('create-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
   await placeOnePhoto(page)
+  const cover = await imageBox(page)
 
-  await page.getByTestId('spread-frame').dblclick()
+  await page.getByTestId('toggle-r').click()
+  await filledFrame(page).dblclick()
   const center = await frameCenter(page)
   await page.mouse.move(center.x, center.y)
   await page.mouse.wheel(0, -600)
-  await expect.poll(async () => (await imageBox(page)).width).not.toBe('100%')
+  await expect
+    .poll(async () => (await imageBox(page)).width)
+    .not.toBe(cover.width)
+  const savedZoom = await page.getByTestId('crop-zoom').inputValue()
+  expect(Number(savedZoom)).toBeGreaterThan(1)
   await page.keyboard.press('Escape')
-  const saved = await imageBox(page)
 
   await page.getByTestId('save-book').click()
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
@@ -151,10 +163,14 @@ test('reload keeps the crop', async ({ page }) => {
   await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
     timeout: 20_000,
   })
-  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
-    timeout: 30_000,
-  })
-  await expect.poll(async () => imageBox(page)).toEqual(saved)
+  // Assets are unlinked after reload (no image painted); the crop lives on the
+  // frame, so read it back through crop mode in the inspector.
+  await expect(filledFrame(page)).toHaveCount(1, { timeout: 30_000 })
+  await page.getByTestId('relink-skip').click()
+  await expect(page.getByTestId('relink-dialog')).toHaveCount(0)
+  await openRightPanel(page)
+  await filledFrame(page).dblclick()
+  await expect(page.getByTestId('crop-zoom')).toHaveValue(savedZoom)
 })
 
 test('panning a crop for 5 s has zero LoAF and pointermove p95 within budget', async ({
@@ -168,11 +184,14 @@ test('panning a crop for 5 s has zero LoAF and pointermove p95 within budget', a
   })
   await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
   await placeOnePhoto(page)
-  await page.getByTestId('spread-frame').dblclick()
+  const cover = await imageBox(page)
+  await filledFrame(page).dblclick()
   const center = await frameCenter(page)
   await page.mouse.move(center.x, center.y)
   await page.mouse.wheel(0, -900)
-  await expect.poll(async () => (await imageBox(page)).width).not.toBe('100%')
+  await expect
+    .poll(async () => (await imageBox(page)).width)
+    .not.toBe(cover.width)
   await page.waitForTimeout(300)
 
   await applyCpuThrottling(page)
