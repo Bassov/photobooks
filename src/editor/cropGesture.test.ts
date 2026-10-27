@@ -513,6 +513,25 @@ describe('cropGesture details', () => {
     expect(onClick).toHaveBeenCalledTimes(2)
   })
 
+  it('ignores a press whose target is not an element', () => {
+    setup()
+    document.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+    expect(getCropTarget()).not.toBeNull()
+  })
+
+  it('ignores arrows once crop mode has ended', () => {
+    const el = setup()
+    exitCropMode()
+    const arrow = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+      cancelable: true,
+    })
+    el.dispatchEvent(arrow)
+    expect(arrow.defaultPrevented).toBe(false)
+    expect(crop()).toEqual(ZOOMED)
+  })
+
   it('does not swallow a click after a pointercancel', () => {
     const el = setup()
     const onClick = vi.fn()

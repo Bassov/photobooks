@@ -49,15 +49,15 @@ function activeFrameElement(): HTMLElement | null {
   return element instanceof HTMLElement ? element : null
 }
 
-function frameContext(element: HTMLElement): FrameContext | null {
-  const target = getCropTarget()
-  if (target === null) {
-    return null
-  }
+function frameContext(
+  element: HTMLElement,
+  target: CropTarget,
+): FrameContext | null {
   const book = getBookStoreSnapshot().book
   const frame = book.spreads
     .find((spread) => spread.id === target.spreadId)
     ?.frames.find((item) => item.id === target.frameId)
+  // Stryker disable next-line BlockStatement: crop mode exits when the frame loses its photo, so the context always resolves
   if (frame?.assetId === undefined) {
     return null
   }
@@ -180,11 +180,7 @@ export function installCropGesture(): () => void {
     )
   }
 
-  const paintWheel = (): void => {
-    const current = wheel
-    if (current === null) {
-      return
-    }
+  const paintWheel = (current: NonNullable<typeof wheel>): void => {
     current.raf = null
     const { frame } = current
     const scale = Math.min(
@@ -218,7 +214,8 @@ export function installCropGesture(): () => void {
 
   const onPointerDown = (event: PointerEvent): void => {
     swallowClick = false
-    if (getCropTarget() === null || event.button !== 0) {
+    const cropTarget = getCropTarget()
+    if (cropTarget === null || event.button !== 0) {
       return
     }
     const target = event.target
@@ -234,7 +231,8 @@ export function installCropGesture(): () => void {
       return
     }
     flushWheel()
-    const frame = frameContext(element)
+    const frame = frameContext(element, cropTarget)
+    // Stryker disable next-line BlockStatement: unreachable, see frameContext
     if (frame === null) {
       return
     }
@@ -288,7 +286,8 @@ export function installCropGesture(): () => void {
   }
 
   const onWheel = (event: WheelEvent): void => {
-    if (getCropTarget() === null || !(event.target instanceof Element)) {
+    const cropTarget = getCropTarget()
+    if (cropTarget === null || !(event.target instanceof Element)) {
       return
     }
     const element = event.target.closest(CROP_FRAME_SELECTOR)
@@ -298,7 +297,8 @@ export function installCropGesture(): () => void {
     event.preventDefault()
     event.stopPropagation()
     if (wheel === null) {
-      const frame = frameContext(element)
+      const frame = frameContext(element, cropTarget)
+      // Stryker disable next-line BlockStatement: unreachable, see frameContext
       if (frame === null) {
         return
       }
@@ -308,11 +308,14 @@ export function installCropGesture(): () => void {
     current.factor *= cropWheelFactor(event.deltaY)
     window.clearTimeout(current.timer)
     current.timer = window.setTimeout(flushWheel, WHEEL_SETTLE_MS)
-    current.raf ??= requestAnimationFrame(paintWheel)
+    current.raf ??= requestAnimationFrame(() => {
+      paintWheel(current)
+    })
   }
 
   const onKeyDown = (event: KeyboardEvent): void => {
-    if (getCropTarget() === null) {
+    const cropTarget = getCropTarget()
+    if (cropTarget === null) {
       return
     }
     if (event.key === 'Escape') {
@@ -332,7 +335,8 @@ export function installCropGesture(): () => void {
       return
     }
     const element = activeFrameElement()
-    const frame = element === null ? null : frameContext(element)
+    const frame = element === null ? null : frameContext(element, cropTarget)
+    // Stryker disable next-line BlockStatement: unreachable when an element is found, see frameContext
     if (frame === null) {
       return
     }

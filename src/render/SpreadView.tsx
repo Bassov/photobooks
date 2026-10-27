@@ -146,9 +146,9 @@ function SpreadFrame({
   const bodyRef = useRef<HTMLDivElement>(null)
   // The committed crop replaces the rAF preview transform.
   useLayoutEffect(() => {
-    for (const img of bodyRef.current?.querySelectorAll('img') ?? []) {
+    bodyRef.current?.querySelectorAll('img').forEach((img) => {
       img.style.transform = ''
-    }
+    })
   }, [crop.left, crop.top, crop.width, crop.height])
   const style = {
     left: box.left,
