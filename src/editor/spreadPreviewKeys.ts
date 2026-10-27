@@ -83,10 +83,23 @@ export function positiveDevicePixelRatio(
 }
 
 /** Max desired decode tier per asset on a spread at the given zoom. */
+/** Crop zoom: how much larger than the frame the longest image edge is drawn. */
+function cropMagnification(item: {
+  sourceCropRect?: { width: number; height: number }
+}): number {
+  const rect = item.sourceCropRect
+  if (rect === undefined) {
+    return 1
+  }
+  const visible = Math.max(rect.width, rect.height)
+  return visible > 0 ? Math.max(1, 1 / visible) : 1
+}
+
 export function desiredTiersForItems(
   items: readonly {
     assetId?: string
     rectMm: { width: number; height: number }
+    sourceCropRect?: { width: number; height: number }
   }[],
   zoom: number,
   dpr: number,
@@ -99,7 +112,10 @@ export function desiredTiersForItems(
     if (assetId === undefined) {
       continue
     }
-    const tier = selectTier(frameEdgePx(item.rectMm, pxPerMm) * zoom, dpr)
+    const tier = selectTier(
+      frameEdgePx(item.rectMm, pxPerMm) * zoom * cropMagnification(item),
+      dpr,
+    )
     const prev = tiers.get(assetId)
     if (prev === undefined || tier > prev) {
       tiers.set(assetId, tier)

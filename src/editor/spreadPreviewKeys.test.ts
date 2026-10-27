@@ -121,6 +121,30 @@ describe('spreadPreviewKeys', () => {
     expect(selectTier).toHaveBeenCalledWith(80, 1)
   })
 
+  it('asks for a bigger tier when crop zoom enlarges the image', () => {
+    const select = (cssPx: number): number => Math.round(cssPx)
+    const tiers = desiredTiersForItems(
+      [
+        {
+          assetId: 'a',
+          rectMm: { width: 10, height: 10 },
+          sourceCropRect: { width: 0.25, height: 0.25 },
+        },
+        {
+          assetId: 'b',
+          rectMm: { width: 10, height: 10 },
+          sourceCropRect: { width: 1, height: 0.5 },
+        },
+      ],
+      1,
+      1,
+      1,
+      select,
+    )
+    expect(tiers.get('a')).toBe(40)
+    expect(tiers.get('b')).toBe(10)
+  })
+
   it('resolves preview url from tier, book preview, then thumb snapshot', () => {
     expect(
       resolveSpreadPreviewUrl(
