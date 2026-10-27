@@ -34,7 +34,22 @@ export type {
   ResolvedSpread,
 } from './geometry/types'
 
-export { TEMPLATE_IDS, isTemplateId, type TemplateId } from './templates/types'
+export {
+  TEMPLATE_IDS,
+  CONTACT_MAX_COLS,
+  CONTACT_MAX_ROWS,
+  contactSheetId,
+  isTemplateId,
+  parseContactSheetId,
+  type TemplateId,
+} from './templates/types'
+export {
+  photoAspectClass,
+  slotAspect,
+  templateSlotAspects,
+  type AspectClass,
+} from './templates/aspect'
+export { bestTemplateId } from './templates/best'
 export { generateTemplateFrames, frameIdFor } from './templates/catalog'
 export { applyTemplate } from './templates/apply'
 

@@ -171,6 +171,33 @@
   gap: calc(var(--spacing) * 1.4) calc(var(--spacing) * 3.4);
 }
 
+.spread-template-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1.4);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+
+.spread-template-count {
+  width: calc(var(--spacing) * 12);
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
+  font: inherit;
+  text-align: center;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-sm);
+}
+
+.spread-template-count:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
+}
+
 .spread-template-choice {
   display: inline-flex;
   align-items: center;

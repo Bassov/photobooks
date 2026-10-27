@@ -162,6 +162,69 @@ describe('SpreadTemplateBar', () => {
     expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBe('2-up')
     expect(dispatch).toHaveBeenCalledTimes(1)
   })
+
+  it('applies a contact sheet from the Columns / Rows inputs', () => {
+    resetBookStore()
+    render(<Pasteboard />)
+    fireEvent.change(screen.getByLabelText('Columns'), {
+      target: { value: '3' },
+    })
+    fireEvent.change(screen.getByLabelText('Rows'), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Contact sheet' }))
+    const first = getBookStoreSnapshot().book.spreads[0]
+    expect(first?.templateId).toBe('contact-3x4')
+    expect(first?.frames).toHaveLength(12)
+    expect(
+      screen
+        .getAllByRole('radio')
+        .some((r) => r.getAttribute('data-selected') === 'true'),
+    ).toBe(false)
+  })
+
+  it('prefills the inputs from a contact-sheet spread', () => {
+    resetBookStore()
+    const marked = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(marked !== undefined)
+    applyMarkedSpreadTemplate(marked, 'contact-2x3')
+    render(
+      <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
+    )
+    expect(screen.getByLabelText<HTMLInputElement>('Columns').value).toBe('2')
+    expect(screen.getByLabelText<HTMLInputElement>('Rows').value).toBe('3')
+  })
+
+  it('disables Apply for out-of-range or empty values', () => {
+    resetBookStore()
+    const marked = getBookStoreSnapshot().book.spreads[0]?.id
+    assert(marked !== undefined)
+    render(
+      <SpreadTemplateBar spreadId={marked} onAddSpread={() => undefined} />,
+    )
+    const apply = screen.getByRole('button', { name: 'Contact sheet' })
+    expect(apply.hasAttribute('disabled')).toBe(false)
+    for (const [label, value] of [
+      ['Columns', '6'],
+      ['Columns', ''],
+      ['Rows', '5'],
+      ['Rows', '0'],
+    ] as const) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } })
+      expect(apply.hasAttribute('disabled')).toBe(true)
+      fireEvent.change(screen.getByLabelText(label), { target: { value: '2' } })
+      expect(apply.hasAttribute('disabled')).toBe(false)
+    }
+  })
+
+  it('disables the contact-sheet controls without a marked spread', () => {
+    render(<SpreadTemplateBar spreadId={null} onAddSpread={() => undefined} />)
+    expect(screen.getByLabelText('Columns').hasAttribute('disabled')).toBe(true)
+    expect(
+      screen
+        .getByRole('button', { name: 'Contact sheet' })
+        .hasAttribute('disabled'),
+    ).toBe(true)
+  })
+
   it('keeps the committed zoom when a spread is added', () => {
     resetBookStore()
     commitZoom(2, 0, 0)
