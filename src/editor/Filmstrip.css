@@ -73,33 +73,6 @@
   transform-origin: left top;
 }
 
-.editor-dock[data-drop-hover='true'] {
-  outline: 2px solid var(--select);
-  outline-offset: -2px;
-}
-
-.editor-dock-splitter {
-  position: absolute;
-  top: -3px;
-  left: 0;
-  right: 0;
-  height: 6px;
-  z-index: 1;
-  cursor: ns-resize;
-  touch-action: none;
-}
-
-.editor-dock-splitter:hover,
-.editor-dock-splitter:focus-visible {
-  background: var(--ring);
-  outline: none;
-}
-
-.editor-dock-size {
-  width: 7rem;
-  accent-color: var(--select);
-}
-
 .filmstrip-spacer {
   position: relative;
   height: calc(var(--film-thumb-h, 96px) + 24px);

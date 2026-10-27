@@ -68,6 +68,17 @@ function RemovePlacedDialog({ assetId }: { assetId: string }) {
   )
 }
 
+const SLIDER_KEYS = new Set([
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+])
+
 function ResizeSplitter({
   height,
   resize,
@@ -85,7 +96,7 @@ function ResizeSplitter({
       aria-valuemax={FILMSTRIP_THUMB_MAX}
       aria-valuenow={height}
       tabIndex={0}
-      className="editor-dock-splitter"
+      className="absolute inset-x-0 -top-[3px] z-10 h-1.5 cursor-ns-resize touch-none outline-none hover:bg-[var(--ring)] focus-visible:bg-[var(--ring)]"
       data-testid="film-splitter"
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -162,7 +173,7 @@ export function FilmstripDock({
   return (
     <div
       ref={dockRef}
-      className="editor-dock relative shrink-0"
+      className="editor-dock relative shrink-0 data-[drop-hover=true]:outline-2 data-[drop-hover=true]:-outline-offset-2 data-[drop-hover=true]:outline-[var(--select)]"
       data-testid="dock"
       style={{ '--film-thumb-h': `${String(thumbHeight)}px` } as CSSProperties}
       onDragOver={(event) => {
@@ -219,7 +230,7 @@ export function FilmstripDock({
         <div className="ml-auto flex items-center gap-2">
           <input
             type="range"
-            className="editor-dock-size"
+            className="w-28 accent-[var(--select)]"
             aria-label="Thumbnail size"
             data-testid="film-size"
             min={FILMSTRIP_THUMB_MIN}
@@ -231,7 +242,11 @@ export function FilmstripDock({
               resize.preview(Number(event.currentTarget.value))
             }}
             onPointerUp={resize.commit}
-            onKeyUp={resize.commit}
+            onKeyUp={(event) => {
+              if (SLIDER_KEYS.has(event.key)) {
+                resize.commit()
+              }
+            }}
           />
           <MenuTrigger>
             <AriaButton

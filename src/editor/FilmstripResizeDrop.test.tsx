@@ -103,6 +103,8 @@ describe('FilmstripDock resize', () => {
     fireEvent.change(slider, { target: { value: '144' } })
     expect(dock.style.getPropertyValue('--film-preview-scale')).toBe('1.5')
     expect(getFilmstripThumbHeight()).toBe(96)
+    fireEvent.keyUp(slider, { key: 'Tab' })
+    expect(getFilmstripThumbHeight()).toBe(96)
     fireEvent.keyUp(slider, { key: 'ArrowRight' })
     expect(getFilmstripThumbHeight()).toBe(144)
   })

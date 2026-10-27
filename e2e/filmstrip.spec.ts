@@ -1579,6 +1579,41 @@ test.describe('sort / filter / remove', () => {
     await assertNamedScrollport(page, 'filmstrip-scroll')
   })
 
+  test('empty dock: keyboard resize persists across reload; loose file drop is refused', async ({
+    page,
+  }) => {
+    await openSessionEditor(page)
+    await expect(page.getByTestId('filmstrip-empty')).toBeVisible()
+    const splitter = page.getByTestId('film-splitter')
+    await splitter.focus()
+    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('ArrowUp')
+    await expect(splitter).toHaveAttribute('aria-valuenow', '112')
+    await assertDocumentFitsViewport(page)
+
+    await page.getByTestId('dock').evaluate((dock) => {
+      const event = new Event('drop', { bubbles: true, cancelable: true })
+      const item = {
+        kind: 'file',
+        getAsFileSystemHandle: () => Promise.resolve({ kind: 'file' }),
+      }
+      Object.defineProperty(event, 'dataTransfer', {
+        value: { types: ['Files'], items: [item] },
+      })
+      dock.dispatchEvent(event)
+    })
+    await expect(page.getByTestId('editor-status')).toHaveText(
+      'Drop a folder — Photobooks adds folders, not single photos',
+    )
+
+    await page.reload()
+    await openSessionEditor(page)
+    await expect(page.getByTestId('film-splitter')).toHaveAttribute(
+      'aria-valuenow',
+      '112',
+    )
+  })
+
   test('resizing the filmstrip mid-gallery re-lays out without gaps or LoAF', async ({
     page,
   }) => {

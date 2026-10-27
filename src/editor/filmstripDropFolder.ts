@@ -31,13 +31,11 @@ export async function resolveDroppedFolder(
     }
     const read = (item as HandleItem).getAsFileSystemHandle
     handles.push(
-      typeof read === 'function'
-        ? // Stryker disable next-line ArrowFunction: null vs undefined are equivalent below (`handle?.kind`)
-          read.call(item).catch(() => null)
-        : Promise.resolve(null),
+      typeof read === 'function' ? read.call(item) : Promise.resolve(null),
     )
   }
-  for (const handle of await Promise.all(handles)) {
+  for (const settled of await Promise.allSettled(handles)) {
+    const handle = settled.status === 'fulfilled' ? settled.value : null
     if (handle?.kind === 'directory' && directory === null) {
       directory = handle as FileSystemDirectoryHandle
     } else {
