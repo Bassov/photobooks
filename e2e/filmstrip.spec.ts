@@ -17,7 +17,6 @@ import {
   assertCiPerfGates,
   assertCrossOriginIsolated,
   beginFilmstripLoafScrollWindow,
-  warmFilmstripSortMenu,
   browserAssertNoLoaf,
   clearPerfScenario,
   collectFrameStatsArtifact,
@@ -748,6 +747,18 @@ function writeCorruptTruncatedJpeg(): string {
     ]),
   )
   return path
+}
+
+/**
+ * Open and close the sort popover once before a LoAF window. The first open
+ * mounts the popover cold (a ~55 ms render-only frame, blockingDuration 0);
+ * later opens are clean, so the measured window covers the steady state.
+ */
+async function warmFilmstripSortMenu(page: Page): Promise<void> {
+  await page.getByTestId('film-sort').click()
+  await page.getByTestId('film-sort-menu').waitFor({ state: 'visible' })
+  await page.keyboard.press('Escape')
+  await page.getByTestId('film-sort-menu').waitFor({ state: 'hidden' })
 }
 
 function writeBulkImportFixtureSet(count: number): {
