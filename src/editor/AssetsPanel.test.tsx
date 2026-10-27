@@ -15,9 +15,14 @@ import {
   resetActiveSpreadIdForTests,
 } from './photoRootSession'
 import { replaceRelinkStatuses, resetRelinkStore } from './relink/statusStore'
-import { resetThumbCache, setThumbUrl } from './thumbCache'
+import { ASSET_ROW_HEIGHT } from './assetsPanelModel'
+import { ensureThumb, resetThumbCache, setThumbUrl } from './thumbCache'
 
 const accept = vi.hoisted(() => vi.fn<(id: string) => Promise<boolean>>())
+vi.mock('./thumbCache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./thumbCache')>()
+  return { ...actual, ensureThumb: vi.fn(actual.ensureThumb) }
+})
 vi.mock('./relink/rescan', () => ({ acceptModifiedAsset: accept }))
 
 function placeTwice(assetId: string): string {
@@ -56,6 +61,7 @@ function ids(): string[] {
 describe('AssetsPanel', () => {
   beforeEach(() => {
     accept.mockReset()
+    vi.mocked(ensureThumb).mockClear()
     setEditorStatus('')
   })
   afterEach(() => {
@@ -159,5 +165,69 @@ describe('AssetsPanel', () => {
     list.scrollTop = 20000
     fireEvent.scroll(list)
     expect(ids()[0]).not.toBe(before)
+  })
+
+  it('requests thumbs for present assets only', () => {
+    seedGallery(2)
+    replaceRelinkStatuses(new Map([['seed-1', 'missing']]))
+    render(<AssetsPanel />)
+    const requested = vi.mocked(ensureThumb).mock.calls.map(([id]) => id)
+    expect(requested).toContain('seed-0')
+    expect(requested).not.toContain('seed-1')
+  })
+
+  it('never shows a thumbnail for a missing asset', () => {
+    seedGallery(1)
+    replaceRelinkStatuses(new Map([['seed-0', 'missing']]))
+    setThumbUrl('seed-0', new ArrayBuffer(4), 'image/jpeg')
+    render(<AssetsPanel />)
+    expect(screen.queryByTestId('assets-thumb')).toBeNull()
+    expect(screen.getByTestId('assets-thumb-placeholder')).toBeTruthy()
+  })
+
+  it('shows Update only for modified rows and a status badge otherwise', () => {
+    seedGallery(2)
+    render(<AssetsPanel />)
+    expect(screen.queryByTestId('assets-update')).toBeNull()
+    expect(screen.getAllByTestId('assets-status')).toHaveLength(2)
+  })
+
+  it('switches the sort back to status', () => {
+    seedGallery(3)
+    placeTwice('seed-1')
+    replaceRelinkStatuses(new Map([['seed-2', 'missing']]))
+    render(<AssetsPanel />)
+    fireEvent.click(screen.getByLabelText('Uses'))
+    fireEvent.click(screen.getByLabelText('Status'))
+    expect(ids()).toEqual(['seed-2', 'seed-1', 'seed-0'])
+  })
+
+  it('positions rows absolutely inside a full-height track', () => {
+    seedGallery(3)
+    render(<AssetsPanel />)
+    const rows = screen.getAllByTestId('assets-row')
+    expect(rows[0]?.style.top).toBe('0px')
+    expect(rows[1]?.style.top).toBe(`${String(ASSET_ROW_HEIGHT)}px`)
+    expect(rows[2]?.style.top).toBe(`${String(2 * ASSET_ROW_HEIGHT)}px`)
+    expect(rows[0]?.style.height).toBe(`${String(ASSET_ROW_HEIGHT)}px`)
+    const track = screen.getByTestId('assets-list').firstElementChild
+    expect((track as HTMLElement).style.height).toBe(
+      `${String(3 * ASSET_ROW_HEIGHT)}px`,
+    )
+  })
+
+  it('windows rows to the measured list height', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200)
+    seedGallery(1000)
+    render(<AssetsPanel />)
+    // ceil(200 / 48) = 5 visible + 6 overscan
+    expect(screen.getAllByTestId('assets-row')).toHaveLength(11)
+  })
+
+  it('keeps the default window while the list is unmeasured', () => {
+    seedGallery(1000)
+    render(<AssetsPanel />)
+    // default 480px: 10 visible + 6 overscan
+    expect(screen.getAllByTestId('assets-row')).toHaveLength(16)
   })
 })

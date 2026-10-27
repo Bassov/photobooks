@@ -22,6 +22,9 @@ describe('LeftPanel', () => {
     expect(
       screen.getByTestId('left-tab-assets').getAttribute('aria-selected'),
     ).toBe('true')
+    expect(
+      screen.getByTestId('left-tab-pages').getAttribute('aria-selected'),
+    ).toBe('false')
 
     fireEvent.click(screen.getByTestId('left-tab-pages'))
     expect(screen.getByTestId('spreads-panel')).toBeTruthy()
