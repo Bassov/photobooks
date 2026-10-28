@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M3
 Title: Finish PR body free-form: docs and live-PR waiver in checks.yml
+Status: done
 
 ## Scope
 
