@@ -1,5 +1,6 @@
 import {
   memo,
+  startTransition,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -226,9 +227,14 @@ export const Pasteboard = memo(function Pasteboard({
       })
       forceMountIndexRef.current = clearForceMountIndex(forceIdx, next)
       pacedRef.current = next
-      setPaced((prev) =>
-        prev !== null && pasteboardWindowsEqual(prev, next) ? prev : next,
-      )
+      // rAF/IO-driven updates (paced mounts, tracked scroll, active spread) run
+      // as transitions so React time-slices them instead of one blocking
+      // default-lane render per frame (LoAF during zoom settle remount).
+      startTransition(() => {
+        setPaced((prev) =>
+          prev !== null && pasteboardWindowsEqual(prev, next) ? prev : next,
+        )
+      })
       return next.start !== targetWindow.start || next.end !== targetWindow.end
     }
 
@@ -384,19 +390,19 @@ export const Pasteboard = memo(function Pasteboard({
         }
         const preferred = resolvePreferredActiveId(preferredActiveRef.current)
         preferredActiveRef.current = preferred.preferredId
-        if (preferred.activeId !== null) {
-          setActiveId(preferred.activeId)
-          return
-        }
-        const bestId = pickActiveSpread(
-          [...ratios.entries()].map(([id, entry]) => ({
-            id,
-            ratio: entry.ratio,
-            index: entry.index,
-          })),
-        )
-        if (bestId !== null) {
-          setActiveId(bestId)
+        const nextId =
+          preferred.activeId ??
+          pickActiveSpread(
+            [...ratios.entries()].map(([id, entry]) => ({
+              id,
+              ratio: entry.ratio,
+              index: entry.index,
+            })),
+          )
+        if (nextId !== null) {
+          startTransition(() => {
+            setActiveId(nextId)
+          })
         }
       },
       { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
@@ -426,7 +432,9 @@ export const Pasteboard = memo(function Pasteboard({
       scrollRaf.current = 0
       const top = pendingTop.current
       const epoch = pendingEpoch.current
-      setTrackedScroll((current) => nextTrackedScroll(current, top, epoch))
+      startTransition(() => {
+        setTrackedScroll((current) => nextTrackedScroll(current, top, epoch))
+      })
     })
   }
 
