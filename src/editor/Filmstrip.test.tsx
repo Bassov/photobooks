@@ -275,6 +275,30 @@ describe('Filmstrip aspect cards', () => {
     expect(renders).not.toHaveBeenCalled()
   })
 
+  it('pins the first visible photo to the left edge when the height commits', () => {
+    seedMixedAspectGallery()
+    const aspects = [1.5, 0.5, 1]
+    const prev = buildStridePrefix(aspects, 96)
+    const next = buildStridePrefix(aspects, 144)
+    render(<Filmstrip />)
+    const scroll = screen.getByTestId('filmstrip-scroll')
+    const midSecond = Math.round(((prev[1] ?? 0) + (prev[2] ?? 0)) / 2)
+    Object.defineProperty(scroll, 'scrollLeft', {
+      configurable: true,
+      writable: true,
+      value: midSecond,
+    })
+    fireEvent.scroll(scroll)
+
+    act(() => {
+      setFilmstripThumbHeight(144)
+    })
+
+    expect(scroll.scrollLeft).toBe(
+      Math.round(((next[1] ?? 0) + (next[2] ?? 0)) / 2),
+    )
+  })
+
   it('shows gallery count on the status strip', () => {
     seedGallery(3)
     render(<Filmstrip />)

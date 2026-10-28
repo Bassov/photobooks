@@ -39,6 +39,11 @@ describe('anchoredScrollOffset', () => {
     )
   })
 
+  it('lands on the item start when the previous stride is empty', () => {
+    expect(anchoredScrollOffset(5, [0, 0, 0], [0, 100, 200])).toBe(100)
+    expect(anchoredScrollOffset(0, [0, 0, 0], [0, 100, 200])).toBe(100)
+  })
+
   it('stays at the origin and past the end stays on the last item', () => {
     expect(anchoredScrollOffset(0, prev, next)).toBe(0)
     expect(anchoredScrollOffset(1e6, prev, next)).toBe(next[5])

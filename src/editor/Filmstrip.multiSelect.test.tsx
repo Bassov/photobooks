@@ -77,6 +77,19 @@ describe('Filmstrip multi-selection', () => {
     expect(getSelectedAssetIds()).toEqual(['seed-2'])
   })
 
+  it('treats a single selected card as a plain drag', () => {
+    seedGallery(3)
+    setSelectedAssetIds(['seed-0'])
+    render(<Filmstrip />)
+
+    const items = screen.getAllByTestId('filmstrip-item')
+    const data = dragStartData(dragHandle(items[0]))
+
+    expect(data.get(ASSET_DRAG_MIME)).toBe('seed-0')
+    expect(data.has(ASSET_MULTI_MIME)).toBe(false)
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+  })
+
   it('extends the selection with ctrl-click', () => {
     seedGallery(3)
     render(<Filmstrip />)
