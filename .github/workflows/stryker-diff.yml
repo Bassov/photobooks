@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Mutation test changed files
         id: mutate
@@ -49,7 +49,7 @@ jobs:
 
       - name: Pack mutation section
         if: always()
-        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.10
         with:
           section: mutation
           step-outcome: ${{ steps.mutate.outcome }}
@@ -61,7 +61,7 @@ jobs:
   ci-comment:
     needs: stryker-diff
     if: always() && github.event_name == 'pull_request' && needs['stryker-diff'].result != 'cancelled'
-    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.1
+    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.10
     with:
       section: mutation
       artifact-name: ci-section-mutation

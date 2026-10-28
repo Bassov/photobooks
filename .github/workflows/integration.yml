@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Resolve burn-in count
         id: burn-in-count
@@ -127,7 +127,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -205,7 +205,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Resolve @flaky list
         id: flaky
@@ -230,7 +230,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
@@ -312,7 +312,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Download e2e results
         continue-on-error: true
