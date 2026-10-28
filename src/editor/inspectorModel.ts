@@ -17,6 +17,8 @@ export interface InspectorPanel {
   kind: InspectorView['kind']
   name: string
   meta: string
+  /** Spread the Spread tab edits (the frame's spread for a frame), else null. */
+  spreadId: string | null
   rows: readonly InspectorRow[]
 }
 
@@ -29,6 +31,7 @@ export function sameInspectorPanel(
     a.kind === b.kind &&
     a.name === b.name &&
     a.meta === b.meta &&
+    a.spreadId === b.spreadId &&
     a.rows.length === b.rows.length &&
     a.rows.every(
       (row, i) =>
