@@ -40,6 +40,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [look-parity-fit-crop](roadmap/M3/look-parity-fit-crop.md) — look parity: Fit & crop in the inspector
 - [x] [feature] [look-parity-filmstrip](roadmap/M3/look-parity-filmstrip.md) — look parity: filmstrip kit chrome
 - [x] [feature] [look-parity-tool-rail](roadmap/M3/look-parity-tool-rail.md) — look parity: tool rail in the header
+- [x] [feature] [look-parity-masters](roadmap/M3/look-parity-masters.md) — look parity: left list kit chrome
 - [x] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
 
 ## M4 — Free layout: grids, guides, frames

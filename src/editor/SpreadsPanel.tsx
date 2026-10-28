@@ -32,6 +32,7 @@ import {
   type ItemSpan,
 } from './spreadReorder'
 import { SpreadThumb } from './SpreadThumb'
+import './SpreadsPanel.css'
 import {
   canDeleteSpread,
   neighbourAfterDelete,
