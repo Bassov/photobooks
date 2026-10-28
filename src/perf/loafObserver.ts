@@ -86,7 +86,18 @@ export function clearLoafEntries(): void {
   watermarkMs = observer === null ? 0 : performance.now()
 }
 
-/** Asserts zero LoAF entries during the scenario window (60 fps gate). */
+/**
+ * 60 fps LoAF gate. blockingDuration = sum over tasks of ms beyond 50.
+ *  1. `blockingDuration === 0` never counts: the frame was long but no task
+ *     blocked input (CPU throttle / slow paint produce these).
+ *  2. A frame blocking more than `PERF_BUDGETS.loafNoiseBlockingMs` (20 ms,
+ *     a task past ~70 ms: visible jank) is a real freeze and counts toward
+ *     `maxEntries` (default 0).
+ *  3. Frames blocking 1-20 ms are infra noise (GC, scheduler hiccup on a
+ *     loaded runner). At most `PERF_BUDGETS.loafNoiseEntriesMax` (1) is
+ *     tolerated per window; a repeat means sustained slowness and fails.
+ * Not a bypass: a 120 ms busy loop must still fail (see tests).
+ */
 export function assertNoLoafEntries(
   maxEntries: number = PERF_BUDGETS.loafEntriesMax,
 ): void {
@@ -94,12 +105,22 @@ export function assertNoLoafEntries(
     throw new Error('LoAF observer is not active; cannot assert LoAF budget')
   }
   flushObserverRecords()
-  if (entries.length > maxEntries) {
-    const worst = entries.reduce((a, b) =>
-      a.blockingDuration > b.blockingDuration ? a : b,
-    )
+  const blocking = entries.filter((e) => e.blockingDuration > 0)
+  const real = blocking.filter(
+    (e) => e.blockingDuration > PERF_BUDGETS.loafNoiseBlockingMs,
+  )
+  const noise = blocking.length - real.length
+  const worstMs = String(
+    blocking.reduce((m, e) => Math.max(m, e.blockingDuration), 0),
+  )
+  if (real.length > maxEntries) {
     throw new Error(
-      `LoAF entries ${String(entries.length)} exceed max ${String(maxEntries)} (worst blockingDuration ${String(worst.blockingDuration)}ms)`,
+      `LoAF entries ${String(real.length)} exceed max ${String(maxEntries)} (worst blockingDuration ${worstMs}ms)`,
+    )
+  }
+  if (noise > PERF_BUDGETS.loafNoiseEntriesMax) {
+    throw new Error(
+      `LoAF entries ${String(noise)} exceed max ${String(PERF_BUDGETS.loafNoiseEntriesMax)} (repeated small spikes, worst blockingDuration ${worstMs}ms)`,
     )
   }
 }

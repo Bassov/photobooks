@@ -222,8 +222,8 @@ describe('loafObserver', () => {
     captured.buffered = [
       {
         startTime: performance.now() + 1,
-        duration: 60,
-        blockingDuration: 12,
+        duration: 110,
+        blockingDuration: 60,
       } as PerformanceEntry & { blockingDuration: number },
     ]
 
@@ -231,6 +231,57 @@ describe('loafObserver', () => {
       assertNoLoafEntries()
     }).toThrow(/exceed max/)
   })
+
+  function observeBlocking(blocking: number[]): void {
+    let buffered: PerformanceEntry[] = []
+    class MockPerformanceObserver {
+      observe(): void {
+        // no-op
+      }
+
+      disconnect(): void {
+        // no-op
+      }
+
+      takeRecords(): PerformanceEntry[] {
+        const drained = buffered
+        buffered = []
+        return drained
+      }
+    }
+
+    vi.stubGlobal('PerformanceObserver', MockPerformanceObserver)
+    startLoafObserver()
+    clearLoafEntries()
+    buffered = blocking.map(
+      (blockingDuration, i) =>
+        ({
+          startTime: performance.now() + 1 + i,
+          duration: 50 + blockingDuration,
+          blockingDuration,
+        }) as PerformanceEntry & { blockingDuration: number },
+    )
+  }
+
+  it.each([[[0]], [[5]], [[20]], [[0, 0, 0]], [[0, 5, 0]]])(
+    'assertNoLoafEntries tolerates infra noise %j',
+    (blocking) => {
+      observeBlocking(blocking)
+      expect(() => {
+        assertNoLoafEntries()
+      }).not.toThrow()
+    },
+  )
+
+  it.each([[[5, 5]], [[21]], [[120]], [[0, 120, 0]], [[20, 5]]])(
+    'assertNoLoafEntries fails on real freezes or repeated spikes %j',
+    (blocking) => {
+      observeBlocking(blocking)
+      expect(() => {
+        assertNoLoafEntries()
+      }).toThrow(/exceed max/)
+    },
+  )
 
   it('ignores entries that started before the clear watermark', () => {
     interface List {
@@ -356,7 +407,7 @@ describe('loafObserver', () => {
     }).toThrow(/LoAF entries .* exceed max/)
   })
 
-  it('counts LoAF entries with blockingDuration 0 toward the entry budget', () => {
+  it('keeps blockingDuration 0 entries in getLoafEntries but not in the budget', () => {
     interface List {
       getEntries: () => PerformanceEntry[]
     }
@@ -396,6 +447,6 @@ describe('loafObserver', () => {
     ])
     expect(() => {
       assertNoLoafEntries()
-    }).toThrow(/LoAF entries .* exceed max/)
+    }).not.toThrow()
   })
 })

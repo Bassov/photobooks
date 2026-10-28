@@ -408,9 +408,12 @@ async function importPhotoFilesInner(
     // Load jpegHeadPass (exifr) only when the batch has JPEGs — PNG/WebP
     // re-import must not pull EXIF parsing into the editor main chunk.
     if (immediate.some((entry) => isJpegLikeFile(entry.file))) {
-      void import('./jpegHeadPass').then(({ runJpegHeadPass }) => {
-        void runJpegHeadPass(immediate)
-      })
+      // Tracked so Save (and test teardown) can await the lazy chunk + pass.
+      void trackHashJob(
+        import('./jpegHeadPass').then(({ runJpegHeadPass }) =>
+          runJpegHeadPass(immediate),
+        ),
+      )
     }
 
     // Library seed runs from applyImportResult with worker sourceBuffer (single
