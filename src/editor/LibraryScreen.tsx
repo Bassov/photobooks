@@ -72,6 +72,9 @@ export function LibraryScreen() {
     getProjectSessionSnapshot,
   )
   const [books, setBooks] = useState<readonly BookSummary[]>([])
+  // Until the first listing lands, show neither the empty state nor the grid:
+  // a flash of LibraryEmpty swaps its Create book for the header one mid-click.
+  const [booksListed, setBooksListed] = useState(false)
   const [listFailed, setListFailed] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsMounted, setSettingsMounted] = useState(false)
@@ -97,6 +100,7 @@ export function LibraryScreen() {
       if (ac.signal.aborted) {
         return
       }
+      setBooksListed(true)
       if (!listed.ok) {
         setListFailed(true)
         setBooks([])
@@ -271,7 +275,7 @@ export function LibraryScreen() {
                   </Button>
                 }
               />
-            ) : books.length === 0 ? (
+            ) : !booksListed ? null : books.length === 0 ? (
               <LibraryEmpty
                 createDisabled={busy}
                 onCreate={() => {

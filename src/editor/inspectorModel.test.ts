@@ -4,9 +4,40 @@ import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
   framePhotoRows,
   inspectorView,
+  sameInspectorPanel,
   spreadRows,
   spreadTitle,
+  type InspectorPanel,
 } from './inspectorModel'
+
+describe('sameInspectorPanel', () => {
+  const base: InspectorPanel = {
+    kind: 'frame',
+    name: 'a.jpg',
+    meta: 'Photo',
+    rows: [{ label: 'Size', value: '1 × 2' }],
+  }
+
+  it('is true for an equal copy with new row objects', () => {
+    expect(
+      sameInspectorPanel(base, {
+        ...base,
+        rows: [{ label: 'Size', value: '1 × 2' }],
+      }),
+    ).toBe(true)
+  })
+
+  it.each<[string, Partial<InspectorPanel>]>([
+    ['kind', { kind: 'spread' }],
+    ['name', { name: 'b.jpg' }],
+    ['meta', { meta: 'Spread' }],
+    ['row count', { rows: [] }],
+    ['row label', { rows: [{ label: 'Pixels', value: '1 × 2' }] }],
+    ['row value', { rows: [{ label: 'Size', value: '3 × 4' }] }],
+  ])('is false when %s differs', (_, patch) => {
+    expect(sameInspectorPanel(base, { ...base, ...patch })).toBe(false)
+  })
+})
 
 const f1 = makeFrame({ id: 'f1', assetId: 'a' })
 const f2 = makeFrame({ id: 'f2' })

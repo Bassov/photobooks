@@ -12,6 +12,31 @@ export interface InspectorRow {
   value: string
 }
 
+/** What the panel paints: view kind, header and rows (no crop state). */
+export interface InspectorPanel {
+  kind: InspectorView['kind']
+  name: string
+  meta: string
+  rows: readonly InspectorRow[]
+}
+
+/** Value equality so book edits that leave the panel unchanged skip a render. */
+export function sameInspectorPanel(
+  a: InspectorPanel,
+  b: InspectorPanel,
+): boolean {
+  return (
+    a.kind === b.kind &&
+    a.name === b.name &&
+    a.meta === b.meta &&
+    a.rows.length === b.rows.length &&
+    a.rows.every(
+      (row, i) =>
+        row.label === b.rows[i]?.label && row.value === b.rows[i].value,
+    )
+  )
+}
+
 /** Frame wins, then the active spread (unless Esc dismissed it), else empty. */
 export function inspectorView(
   book: Book,

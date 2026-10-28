@@ -1,4 +1,10 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { COVER_CROP, MAX_CROP_ZOOM, clampCrop } from '../core'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -22,8 +28,10 @@ import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import {
   framePhotoRows,
   inspectorView,
+  sameInspectorPanel,
   spreadRows,
   spreadTitle,
+  type InspectorPanel,
   type InspectorRow,
 } from './inspectorModel'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
@@ -37,7 +45,6 @@ function readBook() {
 
 /** Kit InspectorPanel: BAR surface, quiet header, rows follow the selection. */
 export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
-  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const frameSource = useSyncExternalStore(
     subscribeFrameSelection,
     getFrameSource,
@@ -67,33 +74,26 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
       document.removeEventListener('keydown', onKey)
     }
   }, [])
-  const view = inspectorView(book, frameSource, activeId, dismissed)
-
-  let header = { name: 'Inspector', meta: '' }
-  let rows: InspectorRow[] = []
-  if (view.kind === 'spread') {
-    header = { name: spreadTitle(view.spreadIndex), meta: 'Spread' }
-    rows = spreadRows(view.spread)
-  } else if (view.kind === 'frame') {
-    const assetId = view.frame.assetId
-    header = {
-      name:
-        assetId === undefined ? 'Empty frame' : getAssetDisplayName(assetId),
-      meta: 'Photo',
+  // Crop pans commit the book every pointermove; keep the previous snapshot
+  // while header and rows are unchanged so the (often hidden) panel skips it.
+  const lastPanel = useRef<InspectorPanel | null>(null)
+  const readPanel = useCallback(() => {
+    const next = inspectorPanel(frameSource, activeId, dismissed)
+    const prev = lastPanel.current
+    if (prev !== null && sameInspectorPanel(prev, next)) {
+      return prev
     }
-    rows = framePhotoRows(
-      book,
-      view.frame,
-      view.spreadIndex,
-      assetId === undefined ? 0 : getPlacementCountSnapshot(assetId),
-    )
-  }
+    lastPanel.current = next
+    return next
+  }, [frameSource, activeId, dismissed])
+  const panel = useSyncExternalStore(subscribeBookStore, readPanel, readPanel)
+  const { kind, rows } = panel
   return (
     <section
       className="editor-inspector-panel flex min-h-full flex-col"
       aria-label="Inspector"
       data-testid="inspector-panel"
-      data-inspector-view={view.kind}
+      data-inspector-view={kind}
       style={{ color: T }}
     >
       <header className="flex h-10 shrink-0 items-center gap-2 pr-1.5 pl-3">
@@ -101,11 +101,11 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
           className="min-w-0 truncate text-[13px] font-medium"
           data-testid="inspector-name"
         >
-          {header.name}
+          {panel.name}
         </span>
-        {header.meta ? (
+        {panel.meta ? (
           <span className="text-xs" style={{ color: SUB }}>
-            {header.meta}
+            {panel.meta}
           </span>
         ) : null}
         {onCollapse ? (
@@ -123,7 +123,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         ) : null}
       </header>
       <div className="px-3 pb-4">
-        {view.kind === 'empty' ? (
+        {kind === 'empty' ? (
           <p
             className="text-[12.5px] leading-snug"
             style={{ color: SUB }}
@@ -142,6 +142,39 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
       </div>
     </section>
   )
+}
+
+function inspectorPanel(
+  frameSource: ReturnType<typeof getFrameSource>,
+  activeId: ReturnType<typeof getActiveSpreadId>,
+  dismissed: string | null,
+): InspectorPanel {
+  const book = readBook()
+  const view = inspectorView(book, frameSource, activeId, dismissed)
+  if (view.kind === 'spread') {
+    return {
+      kind: view.kind,
+      name: spreadTitle(view.spreadIndex),
+      meta: 'Spread',
+      rows: spreadRows(view.spread),
+    }
+  }
+  if (view.kind === 'frame') {
+    const assetId = view.frame.assetId
+    return {
+      kind: view.kind,
+      name:
+        assetId === undefined ? 'Empty frame' : getAssetDisplayName(assetId),
+      meta: 'Photo',
+      rows: framePhotoRows(
+        book,
+        view.frame,
+        view.spreadIndex,
+        assetId === undefined ? 0 : getPlacementCountSnapshot(assetId),
+      ),
+    }
+  }
+  return { kind: view.kind, name: 'Inspector', meta: '', rows: [] }
 }
 
 function Row({ row }: { row: InspectorRow }) {
