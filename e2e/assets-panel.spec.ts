@@ -112,7 +112,7 @@ function writeBulkPngs(count: number): string[] {
   return files
 }
 
-test('1000-asset panel scroll and sort by status stay LoAF-free', async ({
+test('1000-asset panel scroll and sort by status stay within frame-budget gates', async ({
   page,
 }) => {
   test.setTimeout(300_000)

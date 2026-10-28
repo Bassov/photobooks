@@ -34,7 +34,7 @@
     "test:e2e": "ts-rig-ci with-playwright-env playwright test --project=chromium --workers=1",
     "test:e2e:flaky": "ts-rig-ci with-playwright-env playwright test --project=flaky --workers=1",
     "test:e2e:quiet": "ts-rig-ci with-playwright-env playwright test --project=chromium --workers=1 --reporter=dot",
-    "test:e2e:changed:quiet": "ts-rig-check --run e2e-changed -- ts-rig-gate e2e-changed",
+    "test:e2e:changed:quiet": "E2E_LANE=functional ts-rig-check --run e2e-changed -- ts-rig-gate e2e-changed",
     "perf": "PERF_HARD_FRAME_PACING=1 ts-rig-ci with-playwright-env playwright test --project=chromium e2e/filmstrip.spec.ts e2e/spread-view.spec.ts e2e/drag-place.spec.ts e2e/drag-swap.spec.ts e2e/presentation-mode.spec.ts -g \"frame-budget\"",
     "test:lhci": "ts-rig-ci with-playwright-env pnpm build && ts-rig-ci with-playwright-env lhci autorun --config=lighthouserc.cjs",
     "stryker": "stryker run",
