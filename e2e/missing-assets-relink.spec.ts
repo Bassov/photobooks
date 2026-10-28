@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
 import { expect, test } from './fixtures/coverage'
 import {
   assertDocumentFitsViewport,
@@ -111,13 +112,13 @@ test('rescan by metadata then Resolve clears missing pill', async ({
 }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
   page.once('dialog', (dialog) => {
     void dialog.accept('Relink book')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
   await choosePhotoFolder(page, [photoFixturePaths.samplePng])
@@ -125,7 +126,7 @@ test('rescan by metadata then Resolve clears missing pill', async ({
     .poll(async () => page.getByTestId('filmstrip-item').count())
     .toBeGreaterThanOrEqual(1)
 
-  await page.getByTestId('save-book').click()
+  await page.keyboard.press('Control+s')
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
     timeout: 15_000,
   })
@@ -179,13 +180,13 @@ test('filmstrip scrolls during rescan without page scroll', async ({
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1&perf=1')
   await page.waitForFunction(() => window.__photobooksPerf !== undefined)
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
   page.once('dialog', (dialog) => {
     void dialog.accept('Rescan loaf')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
   const many = Array.from({ length: 24 }, () => photoFixturePaths.samplePng)

@@ -2,23 +2,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
-import {
-  getBookStoreSnapshot,
-  loadPainterFixture,
-  resetBookStore,
-} from './bookStore'
+import { loadPainterFixture, resetBookStore } from './bookStore'
 import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { addSpread, placeAsset } from '../core'
@@ -185,105 +174,30 @@ describe('EditorShell viewport containment', () => {
     expect(grant.tagName).toBe('BUTTON')
   })
 
-  it('shows lock banner and disables Save when locked elsewhere', async () => {
+  it('shows the lock banner and drops the saved meta when locked elsewhere', async () => {
     render(<EditorShell />)
     await act(async () => {
       await attachMemoryLibraryForTests()
     })
-    const saveBefore = screen.getByTestId('save-book')
-    assert(saveBefore instanceof HTMLButtonElement, 'expected save button')
-    expect(saveBefore.disabled).toBe(false)
+    expect(screen.getByTestId('book-size').textContent).toContain('saved')
     act(() => {
       setAccessPhaseForTests('locked-elsewhere')
     })
     expect(screen.getByTestId('book-lock-banner').textContent).toBe(
       'This book is open in another tab',
     )
-    const saveAfter = screen.getByTestId('save-book')
-    assert(saveAfter instanceof HTMLButtonElement, 'expected save button')
-    expect(saveAfter.disabled).toBe(true)
-    expect(screen.queryByTestId('save-indicator')).toBeNull()
+    expect(screen.getByTestId('book-size').textContent).not.toContain('saved')
   })
 
-  it('rename prompt updates chrome title via setTitle', async () => {
+  it('has no Rename / New book / Save chrome', async () => {
     render(<EditorShell />)
     await act(async () => {
       await attachMemoryLibraryForTests()
     })
     expect(getProjectSessionSnapshot().bookId).not.toBeNull()
-    expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
-
-    vi.stubGlobal(
-      'prompt',
-      vi.fn(() => 'EditorRename'),
-    )
-    fireEvent.click(screen.getByTestId('rename-book'))
-    await waitFor(() => {
-      expect(screen.getByTestId('book-title').textContent).toBe('EditorRename')
-    })
-    expect(getBookStoreSnapshot().book.title).toBe('EditorRename')
-  })
-
-  it('create book prompt stores the entered title', async () => {
-    render(<EditorShell />)
-    await act(async () => {
-      await attachMemoryLibraryForTests()
-    })
-    const beforeId = getProjectSessionSnapshot().bookId
-
-    vi.stubGlobal(
-      'prompt',
-      vi.fn(() => 'BrandNew'),
-    )
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    )
-    fireEvent.click(screen.getByTestId('create-book'))
-    await waitFor(() => {
-      expect(getProjectSessionSnapshot().bookId).not.toBe(beforeId)
-    })
-    expect(getBookStoreSnapshot().book.title).toBe('BrandNew')
-    expect(screen.getByTestId('book-title').textContent).toBe('BrandNew')
-  })
-
-  it('cancel rename leaves the chrome title unchanged', async () => {
-    render(<EditorShell />)
-    await act(async () => {
-      await attachMemoryLibraryForTests()
-    })
-    vi.stubGlobal(
-      'prompt',
-      vi.fn(() => null),
-    )
-    fireEvent.click(screen.getByTestId('rename-book'))
-    expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
-  })
-
-  it('cancel create leaves the active book unchanged', async () => {
-    render(<EditorShell />)
-    await act(async () => {
-      await attachMemoryLibraryForTests()
-    })
-    const beforeId = getProjectSessionSnapshot().bookId
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    )
-    vi.stubGlobal(
-      'prompt',
-      vi.fn(() => null),
-    )
-    fireEvent.click(screen.getByTestId('create-book'))
-    expect(getProjectSessionSnapshot().bookId).toBe(beforeId)
-    expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
-  })
-
-  it('rename is disabled when no active book id', () => {
-    render(<EditorShell />)
-    expect(getProjectSessionSnapshot().bookId).toBeNull()
-    const rename = screen.getByTestId('rename-book')
-    expect(rename.hasAttribute('disabled')).toBe(true)
+    for (const id of ['rename-book', 'create-book', 'save-book']) {
+      expect(screen.queryByTestId(id)).toBeNull()
+    }
     expect(screen.getByTestId('book-title').textContent).toBe('Untitled book')
   })
 })

@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures/coverage'
+import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -50,10 +51,7 @@ async function createBookFromEditorChrome(
   }
   page.on('dialog', onDialog)
   try {
-    await page.getByTestId('create-book').click()
-    await expect(page.getByTestId('editor-status')).toHaveText('Book created', {
-      timeout: 15_000,
-    })
+    await createBookViaLibrary(page, title)
   } finally {
     page.off('dialog', onDialog)
   }
@@ -1009,7 +1007,7 @@ test.describe('library re-import async', () => {
     })
 
     await page.goto('/?testLibrary=1')
-    await expect(page.getByTestId('create-book')).toBeEnabled({
+    await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
       timeout: 15_000,
     })
     await createBookFromEditorChrome(page)
@@ -1025,7 +1023,7 @@ test.describe('library re-import async', () => {
     await expect(page.getByTestId('import-progress')).toBeHidden({
       timeout: 60_000,
     })
-    await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+    await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
       timeout: 60_000,
     })
 
@@ -1051,7 +1049,7 @@ test.describe('library re-import async', () => {
     const { files } = writeBulkImportFixtureSet(count)
 
     await page.goto('/?testLibrary=1')
-    await expect(page.getByTestId('create-book')).toBeEnabled({
+    await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
       timeout: 15_000,
     })
     await createBookFromEditorChrome(page)
@@ -1125,7 +1123,7 @@ test.describe('library re-import async', () => {
       await page.goto('/?testLibrary=1&perf=1')
       await page.waitForFunction(() => window.__photobooksPerf !== undefined)
       await applyCpuThrottling(page)
-      await expect(page.getByTestId('create-book')).toBeEnabled({
+      await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
         timeout: 15_000,
       })
       await createBookFromEditorChrome(page)
@@ -1197,7 +1195,7 @@ test.describe('library re-import async', () => {
 
       // Settle first-import autosave before clearing thumbs so its OPFS write
       // cannot land inside the re-import LoAF scroll window.
-      await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+      await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
         timeout: 60_000,
       })
 

@@ -4,7 +4,6 @@ import {
   type ButtonHTMLAttributes,
   type CSSProperties,
 } from 'react'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import '../ui/Button.css'
 import { Icon } from '../ui/Icon'
@@ -20,16 +19,7 @@ import {
   subscribeCommitted,
   subscribeLive,
 } from './cameraStore'
-import {
-  createBookWithPrompt,
-  renameActiveBook,
-} from './editorChromeBookActions'
-import {
-  isChromeBusy,
-  isNewBookDisabled,
-  isRenameDisabled,
-  isSaveDisabled,
-} from './editorChromeDisabled'
+import { isChromeBusy } from './editorChromeDisabled'
 import {
   bookSizeLine,
   nextZoomIn,
@@ -52,13 +42,10 @@ import {
 import { installEditorHistoryShortcut } from './installEditorHistoryShortcut'
 import { installEditorSaveShortcut } from './installEditorSaveShortcut'
 import {
-  createBookInLibrary,
   getProjectSessionSnapshot,
   leaveEditorForLibrary,
   regrantLibrary,
   regrantPhotoFolder,
-  renameBookInLibrary,
-  saveBookNow,
   subscribeProjectSession,
 } from './projectSession'
 import {
@@ -66,10 +53,7 @@ import {
   getPhotoRootSessionSnapshot,
   subscribePhotoRootSession,
 } from './photoRootSession'
-import {
-  saveIndicatorBadgeColor,
-  saveIndicatorLabel,
-} from './saveIndicatorLabel'
+import { saveIndicatorLabel } from './saveIndicatorLabel'
 import type { ChromeImportApi } from './useChromeImport'
 
 function ChromeButton({
@@ -256,7 +240,6 @@ export function EditorTopBar({
 
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
-  const activeBookId = project.bookId
   const pickerBusy = chromeImport.pickerBusy
   const chromeBusy = isChromeBusy(
     pickerBusy,
@@ -266,11 +249,7 @@ export function EditorTopBar({
 
   const saveMeta =
     libraryReady && !writeBlocked
-      ? project.savePhase === 'saving'
-        ? 'saving'
-        : project.savePhase === 'error'
-          ? 'not saved'
-          : 'saved'
+      ? saveIndicatorLabel(project.savePhase, project.dirty).toLowerCase()
       : null
 
   return (
@@ -323,68 +302,9 @@ export function EditorTopBar({
             {allowAccessPhotoFolderLabel(photoRoot.photoFolderLabel)}
           </Button>
         ) : null}
-        <ChromeButton
-          data-testid="rename-book"
-          onClick={() => {
-            renameActiveBook(activeBookId, (bookId, title) => {
-              void renameBookInLibrary(bookId, title)
-            })
-          }}
-          disabled={isRenameDisabled(
-            chromeBusy,
-            libraryReady,
-            writeBlocked,
-            activeBookId,
-          )}
-        >
-          Rename
-        </ChromeButton>
-        <ChromeButton
-          data-testid="create-book"
-          onClick={() => {
-            createBookWithPrompt((title) => {
-              void createBookInLibrary(title)
-            })
-          }}
-          disabled={isNewBookDisabled(chromeBusy, libraryReady)}
-        >
-          New book
-        </ChromeButton>
-        <ChromeButton
-          data-testid="save-book"
-          title="Save (Ctrl+S)"
-          onClick={() => {
-            saveBookNow()
-          }}
-          disabled={isSaveDisabled(
-            pickerBusy,
-            libraryReady,
-            project.saving,
-            writeBlocked,
-          )}
-        >
-          Save
-        </ChromeButton>
         {writeBlocked ? (
           <Status className="book-lock-banner" data-testid="book-lock-banner">
             This book is open in another tab
-          </Status>
-        ) : null}
-        {libraryReady && !writeBlocked ? (
-          <Status
-            className="save-indicator"
-            data-testid="save-indicator"
-            data-save-phase={project.savePhase}
-            data-dirty={project.dirty ? 'true' : 'false'}
-          >
-            <Badge
-              color={saveIndicatorBadgeColor(project.savePhase)}
-              size="sm"
-              type="pill-color"
-              dot
-            >
-              {saveIndicatorLabel(project.savePhase, project.dirty)}
-            </Badge>
           </Status>
         ) : null}
         <ChromeButton

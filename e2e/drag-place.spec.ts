@@ -545,7 +545,7 @@ test.describe('frame-budget gates', () => {
 
       // Dirty the book so autosave debounce arms, then drag longer than 1s.
       await page.getByRole('radio', { name: '2-up' }).click()
-      await expect(page.getByTestId('save-indicator')).toHaveText('Unsaved')
+      await expect(page.getByTestId('book-size')).toHaveText(/· unsaved$/)
 
       const points = await page.evaluate((mime) => {
         const dataTransfer = new DataTransfer()
@@ -604,10 +604,10 @@ test.describe('frame-budget gates', () => {
               }),
             )
             const indicator = document.querySelector(
-              '[data-testid="save-indicator"]',
+              '[data-testid="book-size"]',
             )
             const text = indicator?.textContent ?? ''
-            if (text === 'Saved') {
+            if (text.endsWith('· saved')) {
               sawSavedMidDrag = true
             }
             if (text === 'Saving…') {
@@ -650,7 +650,7 @@ test.describe('frame-budget gates', () => {
       })
       await collectFrameStatsArtifact(page, testInfo)
 
-      await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+      await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
         timeout: 15_000,
       })
     })

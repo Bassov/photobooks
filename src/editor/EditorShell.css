@@ -95,13 +95,6 @@
   color: var(--foreground);
 }
 
-.save-indicator {
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-}
-
 .import-progress {
   margin: 0;
   width: 100%;

@@ -51,15 +51,13 @@ export const EDITOR_CHROME_CSS = `
 .editor-panel-l[data-open='true'] { width: var(--panel-left, 212px) }
 .editor-panel-l-inner { width: var(--panel-left, 212px) }
 .editor-panel-r { width: 0 }
-.editor-panel-r[data-open='true'] { width: var(--panel-right, 300px) }
-.editor-inspector { width: var(--panel-right, 300px); background: var(--chrome) }
+.editor-panel-r[data-open='true'] { width: var(--panel-right, 264px) }
+.editor-inspector { width: var(--panel-right, 264px); background: ${BAR}; color: ${T}; border: 0; outline: 0; box-shadow: none; scrollbar-width: thin; scrollbar-color: #A8A8A8 transparent }
 .e7:has([data-dragging='true']) .e7-pan { transition: none }
 .editor-panel-b[data-open='false'] { height: 0 }
 .editor-canvas-inner { background: transparent }
 .editor-dock { background: var(--chrome) }
 .editor-dock-meta { color: var(--muted-foreground) }
-.editor-inspector-stub__title { color: var(--muted-foreground) }
-.editor-inspector-stub__body { color: var(--foreground) }
 .editor-spreads { background: var(--chrome); color: var(--foreground) }
 .editor-spreads-mode { background: var(--chrome); color: var(--foreground); box-shadow: var(--shadow-sm) }
 .editor-spread-thumb { height: var(--spreads-thumb-h, 64px); overflow: hidden; background: var(--paper); box-shadow: var(--shadow-sm) }

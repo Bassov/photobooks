@@ -15,14 +15,12 @@ import * as pickPhotos from '../photo/pickPhotos'
 import type { PickedPhotoFolder } from '../photo/pickPhotos'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import { resetBookStore } from './bookStore'
 import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import { EditorShell } from './EditorShell'
-import { seedGallery } from './gallery.test-helpers'
 import * as importPhotos from './importPhotos'
 import {
   attachMemoryLibraryForTests,
-  getProjectSessionSnapshot,
   resetProjectSessionForTests,
   setAccessPhaseForTests,
 } from './projectSession'
@@ -95,7 +93,7 @@ describe('EditorTopBar', () => {
     expect(topBarChoose.textContent).toBe(CHOOSE_LABEL)
     expect(topBarChoose.className).toContain('pb-button--secondary')
     expect(topBarChoose.className).not.toContain('pb-button--default')
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
     expect(screen.queryByTestId('app-theme-toggle')).toBeNull()
     expect(screen.getByTestId('book-title')).toBeTruthy()
     expect(screen.getByTestId('book-size')).toBeTruthy()
@@ -243,43 +241,6 @@ describe('EditorTopBar', () => {
     })
   })
 
-  it('confirms before creating a book when the editor has content', async () => {
-    seedGallery(1)
-    render(<EditorShell />)
-    await act(async () => {
-      await attachMemoryLibraryForTests()
-    })
-    const confirm = vi.fn(() => false)
-    vi.stubGlobal('confirm', confirm)
-    const prompt = vi.fn(() => 'Nope')
-    vi.stubGlobal('prompt', prompt)
-    fireEvent.click(screen.getByTestId('create-book'))
-    expect(confirm).toHaveBeenCalled()
-    expect(prompt).not.toHaveBeenCalled()
-  })
-
-  it('creates a book after confirm when content exists', async () => {
-    seedGallery(1)
-    render(<EditorShell />)
-    await act(async () => {
-      await attachMemoryLibraryForTests()
-    })
-    const beforeId = getProjectSessionSnapshot().bookId
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    )
-    vi.stubGlobal(
-      'prompt',
-      vi.fn(() => 'AfterConfirm'),
-    )
-    fireEvent.click(screen.getByTestId('create-book'))
-    await waitFor(() => {
-      expect(getProjectSessionSnapshot().bookId).not.toBe(beforeId)
-    })
-    expect(getBookStoreSnapshot().book.title).toBe('AfterConfirm')
-  })
-
   it('invokes library chrome actions', () => {
     const leave = vi
       .spyOn(projectSession, 'leaveEditorForLibrary')
@@ -332,22 +293,14 @@ describe('EditorTopBar', () => {
     ).toBe(true)
   })
 
-  it('shows Saved in the save indicator when a library is ready', async () => {
+  it('shows "saved" in the book meta when a library is ready', async () => {
     render(<EditorShell />)
     await act(async () => {
       await attachMemoryLibraryForTests()
     })
-    expect(screen.getByTestId('save-indicator').textContent).toBe('Saved')
-  })
-
-  it('saves when the Save button is pressed', async () => {
-    const save = vi.spyOn(projectSession, 'saveBookNow')
-    render(<EditorShell />)
-    await act(async () => {
-      await attachMemoryLibraryForTests()
-    })
-    fireEvent.click(screen.getByTestId('save-book'))
-    expect(save).toHaveBeenCalled()
+    expect(screen.getByTestId('book-size').textContent).toBe(
+      '30 × 30 cm · 6 pages · saved',
+    )
   })
 
   it('clears the import-error toast after a successful import', async () => {
