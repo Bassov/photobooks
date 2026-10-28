@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   Input,
   Label,
@@ -209,14 +209,13 @@ function ZoomSlider({
   value: number
   onChange: (zoom: number) => void
 }) {
-  const root = useRef<HTMLDivElement>(null)
+  const [element, setElement] = useState<HTMLDivElement | null>(null)
   const hovered = useRef(false)
   const live = useRef({ value, onChange })
   useEffect(() => {
     live.current = { value, onChange }
   })
   useEffect(() => {
-    const element = root.current
     if (element === null) {
       return undefined
     }
@@ -260,11 +259,11 @@ function ZoomSlider({
       element.removeEventListener('pointerleave', leave)
       window.removeEventListener('keydown', onKey, true)
     }
-  }, [])
+  }, [element])
   const shown = Math.min(ZOOM_MAX, value)
   return (
     <Slider
-      ref={root}
+      ref={setElement}
       className="fit-crop-slider"
       data-testid="crop-zoom"
       minValue={ZOOM_MIN}
