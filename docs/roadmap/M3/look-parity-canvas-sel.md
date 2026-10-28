@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: look parity: canvas selection-only chrome
+Status: done
 
 ## Scope
 
@@ -15,3 +16,7 @@ Look parity, Phase A #2: canvas chrome only on the selection.
 **Done when:** canvas shows chrome only on the selected frame; no blue, no always-on borders/shadows.
 **Browser check:** select a frame: outline + 8 handles; deselect: flush photos, no chrome.
 **Perf:** no new per-frame work.
+
+## Done note
+
+canvas chrome on selected frame only; focus ring dropped on unselected

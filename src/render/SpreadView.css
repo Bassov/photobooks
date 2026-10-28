@@ -12,8 +12,8 @@
 
 .spread-frame {
   position: absolute;
-  /* Overflow clips on `.spread-frame-body` so rings on the control are not
-     clipped (Chromium clips outlines under overflow:hidden). */
+  /* Overflow clips on `.spread-frame-body` so the selection chrome on the
+     control is not clipped. */
   background: var(--paper);
 }
 
@@ -28,24 +28,19 @@ button.spread-frame {
   cursor: pointer;
 }
 
-/* Inset outline sits under `.spread-frame-body` / the photo. Paint a CSS-px
-   ring on ::after above content so it stays visible at every layout zoom
-   (including stack-fit ~13%) and is not scaled by a pasteboard transform. */
-button.spread-frame:focus-visible::after,
+/* Kit selection (FrameView/Selection): chrome on the selected frame only.
+   Unselected frames carry no ring, outline or edge, so photos sit flush.
+   Painted on ::after above the photo in CSS px so it stays visible at every
+   layout zoom and is not scaled by a pasteboard transform. */
 button.spread-frame[aria-pressed='true']::after {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  box-shadow: inset 0 0 0 3px var(--ring);
-}
-
-/* Kit selection: outline + handles on the selected frame only. */
-button.spread-frame[aria-pressed='true']::after {
-  box-shadow:
-    var(--shadow-ring-white),
-    0 0 0 3px var(--select);
+  box-shadow: var(--shadow-ring-white);
+  outline: 2px solid var(--select);
+  outline-offset: 1px;
 }
 
 .spread-frame-handles {

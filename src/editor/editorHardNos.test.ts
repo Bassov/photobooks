@@ -22,7 +22,7 @@ describe('editor hard-nos (kit v0.9.3)', () => {
       '.e7-canvas[data-panning] .pasteboard-scroll { cursor: grab }',
     )
     expect(EDITOR_CHROME_CSS).toContain(
-      '.e7-canvas[data-panning] button.spread-frame:focus-visible::after',
+      '.e7-canvas[data-panning] button.spread-frame[aria-pressed=true]:focus-visible::after',
     )
   })
 
