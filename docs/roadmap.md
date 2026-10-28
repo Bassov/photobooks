@@ -44,6 +44,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [look-parity-tool-rail](roadmap/M3/look-parity-tool-rail.md) — look parity: tool rail in the header
 - [x] [feature] [look-parity-masters](roadmap/M3/look-parity-masters.md) — look parity: left list kit chrome
 - [x] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
+- [x] [prep] [denials-zero](roadmap/M3/denials-zero.md) — Cut headless permission denials (run card + scratch dir)
 
 ## M4 — Free layout: grids, guides, frames
 

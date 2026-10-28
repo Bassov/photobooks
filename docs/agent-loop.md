@@ -45,7 +45,12 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ### 0 · Prep
 
-- `source scripts/agent-env.sh` once; `pnpm -s agent preflight --json` [`--slug <slug>`].
+- `pnpm -s agent preflight --json` [`--slug <slug>`]. Headless: the launcher preloads the env — **do not** `source scripts/agent-env.sh` (interactive shells still source it once).
+- Shell hygiene (each of these is a permission denial otherwise; deny rules stay as they are):
+  - Scratch files go under `.cache/agent/` (gitignored; `Write` creates it, or `mkdir -p .cache/agent`), never `/tmp`.
+  - No `timeout` wrapper on `stryker:diff` or other long commands; the Bash tool `timeout` is the limit.
+  - Edit files with `Edit`/`Write`, not `sed -i` or `python3`.
+  - No `cd` / `git -C`: run from the worktree root and pass paths.
 - Clean tree; `feat|fix/<slug>` from `origin/main`.
 - Do **not** merge/rebase `origin/main` on the happy path (behind + unique commits → warn only).
 
@@ -120,9 +125,9 @@ Any open slug, out of order: `/next-roadmap-item <slug>` (preflight `--slug`). C
 
 Same loop, same rules; harness files only wire it up. SoT text stays in `.cursor/`; `.claude/` holds wrappers and symlinks.
 
-| Harness     | Headless launch                                                                           | Permissions / settings                                              |
-| ----------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Cursor      | `cursor-agent -p --trust --force` after `source scripts/agent-env.sh`                     | `.cursor/cli.json`                                                  |
-| Claude Code | `claude -p --settings .claude/settings.headless.json` after `source scripts/agent-env.sh` | `.claude/settings.json` (shared) + `.claude/settings.headless.json` |
+| Harness     | Headless launch                                                                        | Permissions / settings                                              |
+| ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Cursor      | `cursor-agent -p --trust --force` with env preloaded (`source scripts/agent-env.sh`)   | `.cursor/cli.json`                                                  |
+| Claude Code | `claude -p --settings .claude/settings.headless.json` with env preloaded (same script) | `.claude/settings.json` (shared) + `.claude/settings.headless.json` |
 
 Claude Code entry: `CLAUDE.md` (imports `AGENTS.md` + always-on rules). Token stats: `pnpm agent stats <log>` reads `--output-format stream-json --verbose` logs.

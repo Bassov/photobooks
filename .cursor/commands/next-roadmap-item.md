@@ -24,7 +24,9 @@ brief path only). Ignore `openspec/changes/archive/**` in search.
 Batch: parallel independent reads; dependent shell with `&&`. One Write per
 OpenSpec artifact; validate once per stage.
 
-1. Preflight: `source scripts/agent-env.sh` once, then
+1. Preflight (env is preloaded by the launcher; do not source
+   `scripts/agent-env.sh`; scratch in `.cache/agent/`, not `/tmp`; no `timeout`
+   wrapper, no `cd`/`git -C` — see `docs/agent-loop.md` stage 0):
    `pnpm -s agent preflight --json` (or `… --slug <slug> --json`). Clean tree.
    Without `--slug`, syncs `main` and skips claimed slugs. With `--slug`,
    branches from `origin/main` (worktrees OK). Creates `feat|fix/<slug>`.
