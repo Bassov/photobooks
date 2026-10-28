@@ -1,4 +1,10 @@
-import { MIN_FRAME_EDGE_MM, getSpreadSizeMm, type RectMm } from '../core'
+import {
+  MIN_FRAME_EDGE_MM,
+  getSpreadSizeMm,
+  nextFrameId,
+  type RectMm,
+  type Spread,
+} from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { getCropTarget } from './cropMode'
@@ -20,6 +26,8 @@ const SPREAD_SELECTOR = '[data-testid="spread-view"]'
 
 interface SpreadContext {
   spreadId: string
+  /** The spread as it was when the gesture started. */
+  spread: Spread
   element: HTMLElement
   left: number
   top: number
@@ -81,6 +89,7 @@ function spreadContext(
   }
   return {
     spreadId: spread.id,
+    spread,
     element,
     left: box.left,
     top: box.top,
@@ -349,10 +358,12 @@ export function installFrameGesture(): () => void {
     ) {
       return
     }
-    const { spreadId } = draw.ctx
+    const { spreadId, spread } = draw.ctx
+    const frameId = nextFrameId(spread)
     dispatchBookOp({
       type: 'addFrame',
       spreadId,
+      id: frameId,
       rect: {
         x: round(rect.x),
         y: round(rect.y),
@@ -360,15 +371,8 @@ export function installFrameGesture(): () => void {
         height: round(rect.height),
       },
     })
-    const frames =
-      getBookStoreSnapshot().book.spreads.find((item) => item.id === spreadId)
-        ?.frames ?? []
-    const created = frames[frames.length - 1]
     armSwallow()
-    if (created === undefined) {
-      return
-    }
-    setFrameSource({ spreadId, frameId: created.id })
+    setFrameSource({ spreadId, frameId })
     setEditorTool('select')
   }
 

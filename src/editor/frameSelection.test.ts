@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { addToGallery, applyTemplate, placeAsset } from '../core'
+import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import assert from 'node:assert/strict'
 import {
   dispatchBookOp,
@@ -200,6 +201,27 @@ describe('frameSelection', () => {
       type: 'removeFrames',
       spreadId,
       frameIds: [frames[1] ?? ''],
+    })
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it('judges a selected frame by its own spread when frame ids repeat', () => {
+    resetBookStore({
+      book: makeBook({
+        spreads: [
+          makeSpread({ id: 's1', frames: [makeFrame({ id: 'frame-1' })] }),
+          makeSpread({ id: 's2', frames: [makeFrame({ id: 'frame-1' })] }),
+        ],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setFrameSource({ spreadId: 's2', frameId: 'frame-1' })
+    dispatchBookOp({
+      type: 'removeFrames',
+      spreadId: 's2',
+      frameIds: ['frame-1'],
     })
     expect(getFrameSource()).toBeNull()
   })

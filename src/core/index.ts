@@ -81,6 +81,7 @@ export {
 export {
   MIN_FRAME_EDGE_MM,
   addFrame,
+  nextFrameId,
   removeFrames,
   setFrameRect,
 } from './ops/frames'

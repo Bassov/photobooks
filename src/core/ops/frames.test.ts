@@ -43,6 +43,56 @@ describe('addFrame', () => {
     ).toBe(before)
   })
 
+  it('picks the next free id when the count-based one is taken', () => {
+    const before = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [makeFrame({ id: 'frame-2' }), makeFrame({ id: 'frame-3' })],
+        }),
+      ],
+    })
+    const next = applyBookOp(before, {
+      type: 'addFrame',
+      spreadId: 'spread-1',
+      rect: RECT,
+    })
+    expect(next.spreads[0]?.frames.map((f) => f.id)).toEqual([
+      'frame-2',
+      'frame-3',
+      'frame-4',
+    ])
+  })
+
+  it('refuses an id that matches any existing frame', () => {
+    const before = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [makeFrame({ id: 'a' }), makeFrame({ id: 'b', z: 1 })],
+        }),
+      ],
+    })
+    expect(
+      applyBookOp(before, {
+        type: 'addFrame',
+        spreadId: 'spread-1',
+        rect: RECT,
+        id: 'a',
+      }),
+    ).toBe(before)
+  })
+
+  it('starts z at 1 on an empty spread and keeps the other frames', () => {
+    const before = makeBook({ spreads: [makeSpread({ frames: [] })] })
+    const next = applyBookOp(before, {
+      type: 'addFrame',
+      spreadId: 'spread-1',
+      rect: RECT,
+    })
+    expect(next.spreads[0]?.frames).toEqual([
+      { id: 'frame-1', rect: RECT, z: 1 },
+    ])
+  })
+
   it('accepts exactly 5 mm and ignores a duplicate id or unknown spread', () => {
     const before = book()
     const small = { x: 0, y: 0, width: 5, height: 5 }
@@ -104,12 +154,38 @@ describe('setFrameRect', () => {
     expect(next.spreads[0]?.templateId).toBeUndefined()
   })
 
+  it.each(['x', 'y', 'width', 'height'] as const)(
+    'a change in %s alone is applied, and only to that frame',
+    (field) => {
+      const before = makeBook({
+        spreads: [
+          makeSpread({
+            templateId: 'one-per-page',
+            frames: [
+              makeFrame({ id: 'a', rect: RECT }),
+              makeFrame({ id: 'b', rect: { ...RECT, x: 90 } }),
+            ],
+          }),
+        ],
+      })
+      const next = applyBookOp(before, {
+        type: 'setFrameRect',
+        spreadId: 'spread-1',
+        frameId: 'a',
+        rect: { ...RECT, [field]: RECT[field] + 1 },
+      })
+      expect(next.spreads[0]?.frames[0]?.rect[field]).toBe(RECT[field] + 1)
+      expect(next.spreads[0]?.frames[1]).toBe(before.spreads[0]?.frames[1])
+    },
+  )
+
   it('is a no-op for the same rect, a degenerate rect or an unknown frame', () => {
     const before = book()
     const same = before.spreads[0]?.frames[0]?.rect ?? RECT
     for (const [frameId, rect] of [
       ['frame-1', same],
       ['frame-1', { ...RECT, width: 0 }],
+      ['frame-1', { ...RECT, height: 0 }],
       ['ghost', RECT],
     ] as const) {
       expect(

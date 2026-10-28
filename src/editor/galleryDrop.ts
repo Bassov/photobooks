@@ -214,21 +214,12 @@ function removeSelectedEmptyFrame(): boolean {
   ) {
     return false
   }
-  const exists = getBookStoreSnapshot().book.spreads.some(
-    (spread) =>
-      spread.id === selected.spreadId &&
-      spread.frames.some((frame) => frame.id === selected.frameId),
-  )
-  if (!exists) {
-    return false
-  }
-  setFrameSource(null)
+  // The book change also ends the selection (the frame is gone).
   dispatchBookOp({
     type: 'removeFrames',
     spreadId: selected.spreadId,
     frameIds: [selected.frameId],
   })
-  setEditorStatus('')
   return true
 }
 

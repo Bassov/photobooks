@@ -12,7 +12,8 @@ function detached(spread: Spread, frames: Frame[]): Spread {
   return next
 }
 
-function nextFrameId(spread: Spread): string {
+/** First `frame-<n>` not used on the spread. */
+export function nextFrameId(spread: Spread): string {
   const existing = new Set(spread.frames.map((frame) => frame.id))
   let n = spread.frames.length + 1
   while (existing.has(`frame-${String(n)}`)) {

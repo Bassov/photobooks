@@ -14,6 +14,7 @@ import { addSpread, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { enterCropMode, getCropTarget } from './cropMode'
 import { EditorShell } from './EditorShell'
+import { resetEditorToolForTests } from './editorToolStore'
 import { seedGallery } from './gallery.test-helpers'
 import {
   attachMemoryLibraryForTests,
@@ -33,6 +34,7 @@ describe('EditorShell viewport containment', () => {
     cleanup()
     window.history.pushState({}, '', '/')
     resetBookStore()
+    resetEditorToolForTests()
     resetCameraStore()
     resetThumbCache()
     resetAssetPool()
@@ -67,6 +69,56 @@ describe('EditorShell viewport containment', () => {
     expect(getCropTarget()).not.toBeNull()
     fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(getCropTarget()).toBeNull()
+  })
+
+  it('installs the frame gesture: F then a drag draws a selected frame', () => {
+    window.history.pushState({}, '', '/')
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 600,
+      height: 600,
+    } as DOMRect)
+    render(<EditorShell />)
+    const book = addSpread(makeBook({ id: 'draw', spreads: [] }), { id: 's0' })
+    act(() => {
+      resetBookStore({
+        book,
+        sessionMeta: new Map(),
+        previewUrls: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+    })
+    const spread = document.querySelector<HTMLElement>(
+      '[data-testid="spread-view"][data-spread-id="s0"]',
+    )
+    assert(spread !== null, 'expected the spread')
+    const before = spread.querySelectorAll(
+      '[data-testid="spread-frame"]',
+    ).length
+    fireEvent.keyDown(document.body, { key: 'f' })
+    // A bare corner of the paper: spread frames are inset from the edge.
+    const pointer = (type: string, x: number, y: number) => {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: x,
+        clientY: y,
+        altKey: true,
+      })
+      Object.defineProperty(event, 'pointerId', { value: 1 })
+      spread.dispatchEvent(event)
+    }
+    act(() => {
+      pointer('pointerdown', 2, 2)
+      pointer('pointermove', 100, 100)
+      pointer('pointerup', 100, 100)
+    })
+    expect(
+      spread.querySelectorAll('[data-testid="spread-frame"]'),
+    ).toHaveLength(before + 1)
   })
 
   it('paints the session spread instead of a placeholder', () => {

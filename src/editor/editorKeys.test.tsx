@@ -144,4 +144,47 @@ describe('editor keys', () => {
       stop()
     }
   })
+
+  it('handles Delete on a focused empty frame and leaves a filled selection to unplace', () => {
+    let book = addToGallery(
+      makeBook({
+        spreads: [
+          makeSpread({
+            templateId: 'one-per-page',
+            frames: [
+              makeFrame({ id: 'filled' }),
+              makeFrame({ id: 'empty', z: 1 }),
+            ],
+          }),
+        ],
+      }),
+      ['a'],
+    )
+    book = placeAsset(book, 'spread-1', 'filled', 'a')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const stop = installEditorKeys()
+    try {
+      render(<Pasteboard />)
+      const empty = screen.getByRole('button', { name: 'Place photo' })
+      setFrameSource({ spreadId: 'spread-1', frameId: 'empty' })
+      empty.focus()
+      // fireEvent returns false when the handler called preventDefault.
+      expect(fireEvent.keyDown(empty, { key: 'Delete' })).toBe(false)
+      expect(
+        getBookStoreSnapshot().book.spreads[0]?.frames.map((f) => f.id),
+      ).toEqual(['filled'])
+
+      // A selected photo is not deleted from the page by an unfocused Delete.
+      setFrameSource({ spreadId: 'spread-1', frameId: 'filled' })
+      expect(fireEvent.keyDown(document.body, { key: 'Delete' })).toBe(true)
+      expect(getBookStoreSnapshot().book.spreads[0]?.frames).toHaveLength(1)
+    } finally {
+      stop()
+    }
+  })
 })
