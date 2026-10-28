@@ -1558,7 +1558,7 @@ test.describe('sort / filter / remove', () => {
     await expect(images).toHaveCount(placedBefore - 1)
   })
 
-  test('1000-photo gallery scroll, sort and filter toggle stay LoAF-free', async ({
+  test('1000-photo gallery scroll, sort and filter toggle stay within frame-budget gates', async ({
     page,
   }) => {
     test.setTimeout(300_000)
