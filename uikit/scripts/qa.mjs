@@ -1959,9 +1959,26 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await go(scr("editor"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(300)
   const thumb = page.locator('[data-testid="demo"] [data-testid="filmstrip"] [role="row"]').first()
   await thumb.click(); await page.waitForTimeout(150)
-  const filmSel = await thumb.evaluate((el) => {
-    const s = getComputedStyle(el)
-    return { boxShadow: s.boxShadow, outline: s.outlineStyle, bg: s.backgroundColor, cls: el.className }
+  // Chrome may serialize the bg as oklab(...) around transition-colors: normalise to rgb via a 1x1 canvas
+  // and poll until the transition settles on the selection tone (any other tone still fails).
+  const filmSel = await thumb.evaluate(async (el) => {
+    const toRgb = (c) => {
+      const g = document.createElement("canvas").getContext("2d", { willReadFrequently: true })
+      g.canvas.width = g.canvas.height = 1
+      g.fillStyle = c; g.fillRect(0, 0, 1, 1)
+      return `rgb(${g.getImageData(0, 0, 1, 1).data.slice(0, 3).join(", ")})`
+    }
+    const read = () => {
+      const s = getComputedStyle(el)
+      return { boxShadow: s.boxShadow, outline: s.outlineStyle, bg: toRgb(s.backgroundColor), cls: el.className }
+    }
+    const t0 = performance.now()
+    let r = read()
+    while (!/202,\s*202,\s*202/.test(r.bg) && performance.now() - t0 < 1500) {
+      await new Promise((res) => setTimeout(res, 50))
+      r = read()
+    }
+    return r
   })
   const blackRing = await thumb.evaluate((el) => {
     const s = getComputedStyle(el)
