@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: M4
 Title: rotation and lock in the document
+Status: done
 
 ## Scope
 
