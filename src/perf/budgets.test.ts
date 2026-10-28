@@ -6,6 +6,8 @@ describe('PERF_BUDGETS', () => {
     expect(PERF_BUDGETS).toEqual({
       cpuThrottleRate: 2,
       loafEntriesMax: 0,
+      loafNoiseBlockingMs: 20,
+      loafNoiseEntriesMax: 1,
       handlerP95Ms: 2,
       inpMs: 100,
       frameP95Ms: 16.7,

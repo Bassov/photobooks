@@ -8,6 +8,10 @@ export const PERF_BUDGETS = {
   cpuThrottleRate: 2,
   /** Maximum LoAF entries allowed during a scenario window. */
   loafEntriesMax: 0,
+  /** LoAF blockingDuration (ms) at or below which a frame is infra noise. */
+  loafNoiseBlockingMs: 20,
+  /** Isolated noise frames tolerated per scenario window; repeats fail. */
+  loafNoiseEntriesMax: 1,
   /** Hot-handler `performance.measure` p95 ceiling (ms), unthrottled. */
   handlerP95Ms: 2,
   /** Interaction to next paint ceiling (ms), unthrottled. */
