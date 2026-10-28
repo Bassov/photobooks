@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M4
 Title: see the grid, snap to it
+Status: done
 
 ## Scope
 
