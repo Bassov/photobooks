@@ -11,6 +11,7 @@ import {
   getSpreadPaintSnapshot,
   subscribeSpread,
 } from './bookStore'
+import { GridOverlay } from './GridOverlay'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
 import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
 import { enterCropMode, getCropTarget, subscribeCropMode } from './cropMode'
@@ -167,6 +168,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
+      overlay={<GridOverlay spreadId={spreadId} pxPerMm={pxPerMm} />}
       isMissingAsset={missingAssetChecker(relinkRevision)}
       previewUrlFor={(assetId) =>
         resolveSpreadPreviewUrl(

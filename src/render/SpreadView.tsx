@@ -2,6 +2,7 @@ import {
   useLayoutEffect,
   useRef,
   type DragEvent as ReactDragEvent,
+  type ReactNode,
 } from 'react'
 import type { ResolvedItem, ResolvedSpread } from '../core'
 
@@ -58,6 +59,7 @@ export function SpreadView({
   isMissingAsset,
   pxPerMm = SPREAD_PX_PER_MM,
   thumb = false,
+  overlay,
 }: {
   spreadId: string
   resolved: ResolvedSpread
@@ -72,6 +74,8 @@ export function SpreadView({
    * counts never match it) and no pointer events.
    */
   thumb?: boolean
+  /** Editor-layer chrome (e.g. the layout grid) painted above the frames. */
+  overlay?: ReactNode
 }) {
   return (
     <div
@@ -131,6 +135,7 @@ export function SpreadView({
           />
         )
       })}
+      {thumb ? null : overlay}
     </div>
   )
 }

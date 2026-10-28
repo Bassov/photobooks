@@ -1,4 +1,5 @@
 import type { Book, Frame, Spread } from '../schema'
+import { resolveLayoutGrid } from '../grid/layoutGrid'
 import { getSpreadSizeMm } from '../geometry/spreadSize'
 import type { RectMm } from '../geometry/types'
 import {
@@ -19,7 +20,7 @@ export function generateTemplateFrames(
     pageCount,
   } = getSpreadSizeMm(book, spreadIndex)
   const bleed = book.settings.bleedMm
-  const grid = spread?.layoutGrid ?? book.layoutGrid
+  const grid = resolveLayoutGrid(book, spread)
   const { margins, columnGutterMm: cg, rowGutterMm: rg } = grid
 
   const contact = parseContactSheetId(templateId)

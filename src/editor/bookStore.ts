@@ -797,7 +797,11 @@ function moveHistory(move: HistoryMove | null): void {
   if (move === null) {
     return
   }
-  const book: Book = { ...state.book, spreads: move.snapshot.spreads }
+  const book: Book = {
+    ...state.book,
+    spreads: move.snapshot.spreads,
+    layoutGrid: move.snapshot.layoutGrid,
+  }
   if (move.snapshot.title === undefined) {
     delete book.title
   } else {
