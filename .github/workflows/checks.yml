@@ -29,11 +29,29 @@ jobs:
       - name: Setup Node and pnpm
         uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
 
+      - name: Read live PR body (waiver token only)
+        # The event payload is frozen at trigger time, so a body edited after
+        # the run started (or a re-run) would carry a stale waiver. Read the
+        # live body; the payload stays as the fallback (never looser).
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PAYLOAD_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Random delimiter: the body is untrusted and must not inject env lines.
+          delim="EOF_$(openssl rand -hex 16)"
+          {
+            echo "PR_POLICY_BODY<<$delim"
+            gh pr view "$PR_NUMBER" --json body --jq .body || printf '%s' "$PAYLOAD_BODY"
+            echo
+            echo "$delim"
+          } >> "$GITHUB_ENV"
+
       - name: Fast checks
         # Unit suite runs once below via test:coverage; skip unit here.
-        # PR body carries Owner-approved waivers for pin / ratchet (git log alone is not enough in CI).
+        # PR body is only read for the Owner-approved waiver token (pin / ratchet); it has no content gate.
         env:
-          PR_POLICY_BODY: ${{ github.event.pull_request.body }}
           PR_POLICY_BRANCH: ${{ github.head_ref }}
         run: pnpm check:fast --verbose --skip-unit
 
