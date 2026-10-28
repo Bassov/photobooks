@@ -3,11 +3,10 @@
 Tag: prep
 Milestone: M4
 Title: pure free-layout math
-Status: done
 
 ## Scope
 
-- [x] Move / resize / rotate ops; align / distribute; locked frames are skipped
+- [ ] Move / resize / rotate ops; align / distribute; locked frames are skipped
 - **Kit components:** N/A (prep; no UI)
 - **Demo:** N/A
 - **Musts:**
