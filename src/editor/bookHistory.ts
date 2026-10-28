@@ -1,13 +1,14 @@
 import type { Book, BookOp } from '../core'
 
 /**
- * Undoable slice of the document: layout and title only. Gallery, assets and
+ * Undoable slice of the document: layout (incl. the book grid) and title only. Gallery, assets and
  * session meta are transient (import keeps landing while the user edits), so
  * undo never rolls them back.
  */
 export interface HistorySnapshot {
   spreads: Book['spreads']
   title: Book['title']
+  layoutGrid: Book['layoutGrid']
 }
 
 export interface History {
@@ -26,7 +27,11 @@ export const EMPTY_HISTORY: History = {
 }
 
 export function snapshotOf(book: Book): HistorySnapshot {
-  return { spreads: book.spreads, title: book.title }
+  return {
+    spreads: book.spreads,
+    title: book.title,
+    layoutGrid: book.layoutGrid,
+  }
 }
 
 /** Ops that edit the undoable slice; gallery ops are not steps. */

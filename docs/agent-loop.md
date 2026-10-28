@@ -53,10 +53,12 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 - Write OpenSpec artifacts via `pnpm agent instructions` / run card.
 - **How:** `openspec/config.yaml` `rules.*` (incl. prep/contingency fast-track).
+- **Lite track (`[lite]` items):** no `openspec/changes/<slug>`; the roadmap item and the PR body are the plan. Skip stages 1–2 and archive: in 10–11 `pnpm -s agent finalize <slug>` (no change dir → no delta-spec/archive; it proceeds to roadmap done+sync, C1, C2, stamp; if it errors on the missing change, run `pnpm roadmap done <slug>` + `sync`, `check:integrity`, `quality:self-check`, `stamp-green` by hand). Everything else stays: A, B (changed specs), `ui-review` + evidenced browser smoke when UI is in scope, stage 6 implementation reviewer on the diff, thin finish. The PR body MUST carry the plan (scope, touch-set, Done when).
+- **Escalation:** apply passes ~200 changed lines or needs a spec delta / domain behavior → stop, re-tag the item `[feature]`/`[prep]` (or `roadmap add --after`) and run the normal track.
 
 ### 2 · Plan review
 
-- `pnpm agent review-brief --out <file>`; `openspec-planning-reviewer` once (≤1 re-review). Skip on fast-track; docs-only skips design checklist.
+- `pnpm agent review-brief --out <file>`; `openspec-planning-reviewer` once (≤1 re-review). Skip on fast-track and lite; docs-only skips design checklist.
 - **How:** `.cursor/agents/openspec-planning-reviewer.md`.
 
 ### 3 · Apply (cheap)

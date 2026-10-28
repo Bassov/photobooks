@@ -1,4 +1,5 @@
 import type { Book, Frame } from '../schema'
+import type { GridPatch } from '../grid/layoutGrid'
 import { applyTemplate } from '../templates/apply'
 import type { TemplateId } from '../templates/types'
 import {
@@ -9,6 +10,7 @@ import {
 import { resetCrop, setCrop, setFit } from './crop'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
+import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
 import { addSpread, duplicateSpread, moveSpread, removeSpread } from './spreads'
 
 export type BookOp =
@@ -69,6 +71,9 @@ export type BookOp =
   | { type: 'duplicateSpread'; spreadId: string; id?: string }
   | { type: 'moveSpread'; spreadId: string; toIndex: number }
   | { type: 'setTitle'; title: string }
+  | { type: 'setBookGrid'; patch: GridPatch }
+  | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
+  | { type: 'resetSpreadGrid'; spreadId: string }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -127,6 +132,12 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       )
     case 'moveSpread':
       return moveSpread(book, op.spreadId, op.toIndex)
+    case 'setBookGrid':
+      return setBookGrid(book, op.patch)
+    case 'setSpreadGrid':
+      return setSpreadGrid(book, op.spreadId, op.patch)
+    case 'resetSpreadGrid':
+      return resetSpreadGrid(book, op.spreadId)
     case 'setTitle': {
       if (book.title === op.title) {
         return book

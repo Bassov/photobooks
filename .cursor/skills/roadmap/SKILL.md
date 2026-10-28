@@ -16,6 +16,7 @@ Run `pnpm -s roadmap <cmd>` (`-s` drops pnpm's banner; `--json` for JSON). Error
 
 - `next [--slug S] --skip <claimed slugs>` prints the current item: slug, tag, milestone goal, title, file and full scope. Do not open the index or item file to find work. Claimed set includes open PRs, remote/local `feat|fix/*`, and worktree checkouts.
 - `claim <slug>` validates an open slug for an explicit hold. `show <slug>` prints any active item. `list --open [--milestone M]` only for a real overview need.
+- `[lite]` (`next --tag lite`): small, no new domain behavior; no OpenSpec change/archive, see `docs/agent-loop.md` Stage 1.
 - `next` skips `[contingency]`; work one only when its gate failed. Read a `Notes:` goal line's file once per milestone.
 
 ## Scope and size

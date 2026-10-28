@@ -15,6 +15,7 @@ describe('sameInspectorPanel', () => {
     kind: 'frame',
     name: 'a.jpg',
     meta: 'Photo',
+    spreadId: 's1',
     rows: [{ label: 'Size', value: '1 × 2' }],
   }
 
@@ -31,6 +32,7 @@ describe('sameInspectorPanel', () => {
     ['kind', { kind: 'spread' }],
     ['name', { name: 'b.jpg' }],
     ['meta', { meta: 'Spread' }],
+    ['spread id', { spreadId: 's2' }],
     ['row count', { rows: [] }],
     ['row label', { rows: [{ label: 'Pixels', value: '1 × 2' }] }],
     ['row value', { rows: [{ label: 'Size', value: '3 × 4' }] }],

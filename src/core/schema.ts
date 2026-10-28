@@ -29,6 +29,15 @@ const layoutGridSchema = z.object({
   rowGutterMm: nonNegativeMm,
 })
 
+/** Per-spread override: only the fields the spread changes (the rest inherit from the book). */
+const layoutGridOverrideSchema = z.object({
+  margins: marginsMmSchema.partial().optional(),
+  columns: z.number().int().positive().optional(),
+  rows: z.number().int().positive().optional(),
+  columnGutterMm: nonNegativeMm.optional(),
+  rowGutterMm: nonNegativeMm.optional(),
+})
+
 const guideSchema = z.object({
   id: nonEmptyString,
   orientation: z.enum(['horizontal', 'vertical']),
@@ -89,7 +98,7 @@ const frameSchema = z.object({
 const spreadSchema = z.object({
   id: nonEmptyString,
   templateId: nonEmptyString.optional(),
-  layoutGrid: layoutGridSchema.optional(),
+  layoutGrid: layoutGridOverrideSchema.optional(),
   guides: z.array(guideSchema).optional(),
   frames: z.array(frameSchema),
 })

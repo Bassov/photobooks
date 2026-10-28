@@ -14,6 +14,17 @@ export {
 } from './invariants'
 export { parseBook, serializeBook, type ParseResult } from './parse'
 export { updateFrame, updateSpread } from './update'
+export {
+  GRID_COUNT_MAX,
+  GRID_COUNT_MIN,
+  GRID_FIELDS,
+  effectiveGrid,
+  hasGridOverride,
+  type GridField,
+  type GridPatch,
+  type GridSource,
+  type GridValues,
+} from './grid/layoutGrid'
 
 export {
   getPageCuts,

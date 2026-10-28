@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   getAssetDisplayName,
   getBookStoreSnapshot,
@@ -17,6 +18,7 @@ import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
 import { FitCropSection } from './FitCropSection'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
+import { GridSection } from './GridSection'
 import {
   framePhotoRows,
   inspectorView,
@@ -54,6 +56,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
   const target = cropKey === '' ? null : getCropTarget()
   // Esc drops the spread view to the empty hint until another spread is picked.
   const [dismissed, setDismissed] = useState<string | null>(null)
+  const [tab, setTab] = useState<'spread' | 'book'>('spread')
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -116,8 +119,24 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
           </div>
         ) : null}
       </header>
-      <div className="px-3 pb-4">
-        {kind === 'empty' ? (
+      <div className="px-3 pb-2">
+        <SegmentedControl
+          label="Inspector tab"
+          size="sm"
+          value={tab}
+          onChange={(next) => {
+            setTab(next === 'book' ? 'book' : 'spread')
+          }}
+          items={[
+            { id: 'spread', label: 'Spread' },
+            { id: 'book', label: 'Book' },
+          ]}
+        />
+      </div>
+      <div className="px-3 pb-4" data-testid={`inspector-tab-${tab}`}>
+        {tab === 'book' ? (
+          <GridSection scope="book" />
+        ) : kind === 'empty' ? (
           <p
             className="text-[12.5px] leading-snug"
             style={{ color: SUB }}
@@ -132,9 +151,14 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
             ))}
           </dl>
         )}
-        {section === null ? null : (
+        {tab === 'book' || section === null ? null : (
           <FitCropSection target={section} cropping={target !== null} />
         )}
+        {tab === 'spread' && panel.spreadId !== null ? (
+          <div className="mt-4">
+            <GridSection scope="spread" spreadId={panel.spreadId} />
+          </div>
+        ) : null}
       </div>
     </section>
   )
@@ -152,6 +176,7 @@ function inspectorPanel(
       kind: view.kind,
       name: spreadTitle(view.spreadIndex),
       meta: 'Spread',
+      spreadId: view.spread.id,
       rows: spreadRows(view.spread),
     }
   }
@@ -162,6 +187,7 @@ function inspectorPanel(
       name:
         assetId === undefined ? 'Empty frame' : getAssetDisplayName(assetId),
       meta: 'Photo',
+      spreadId: view.spread.id,
       rows: framePhotoRows(
         book,
         view.frame,
@@ -170,7 +196,13 @@ function inspectorPanel(
       ),
     }
   }
-  return { kind: view.kind, name: 'Inspector', meta: '', rows: [] }
+  return {
+    kind: view.kind,
+    name: 'Inspector',
+    meta: '',
+    spreadId: null,
+    rows: [],
+  }
 }
 
 function Row({ row }: { row: InspectorRow }) {

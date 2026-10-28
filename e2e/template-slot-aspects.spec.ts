@@ -24,13 +24,13 @@ test('portrait and contact-sheet templates apply and switch back', async ({
   await expect(twoPortraits).toBeChecked()
   await expect(frames).toHaveCount(2)
 
-  await page.getByLabel('Columns').fill('3')
-  await page.getByLabel('Rows').fill('4')
+  await page.getByTestId('contact-cols').fill('3')
+  await page.getByTestId('contact-rows').fill('4')
   await page.getByRole('button', { name: 'Contact sheet' }).click()
   await expect(frames).toHaveCount(12)
   await expect(twoPortraits).not.toBeChecked()
 
-  await page.getByLabel('Columns').fill('9')
+  await page.getByTestId('contact-cols').fill('9')
   await expect(
     page.getByRole('button', { name: 'Contact sheet' }),
   ).toBeDisabled()
