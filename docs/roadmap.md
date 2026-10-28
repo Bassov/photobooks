@@ -51,7 +51,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 - [x] [prep] [frame-geometry-schema](roadmap/M4/frame-geometry-schema.md) — rotation and lock in the document
 - [ ] [prep] [layout-grids-schema](roadmap/M4/layout-grids-schema.md) — page layout grids in the document
-- [ ] [prep] [frame-transform-ops](roadmap/M4/frame-transform-ops.md) — pure free-layout math
+- [x] [prep] [frame-transform-ops](roadmap/M4/frame-transform-ops.md) — pure free-layout math
 - [ ] [prep] [snapping-engine](roadmap/M4/snapping-engine.md) — pure snapping
 - [ ] [prep] [ui-primitives-forms](roadmap/M4/ui-primitives-forms.md) — form primitives in `src/ui/`
 - [ ] [feature] [rulers](roadmap/M4/rulers.md) — mm rulers
