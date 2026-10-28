@@ -185,11 +185,9 @@ export function distributeFrames(
     const start = (f: Frame) => (horizontal ? f.rect.x : f.rect.y)
     const size = (f: Frame) => (horizontal ? f.rect.width : f.rect.height)
     const sorted = [...frames].sort((a, b) => start(a) - start(b))
-    const first = sorted[0]
-    const last = sorted[sorted.length - 1]
-    if (first === undefined || last === undefined) {
-      return changed
-    }
+    // Seedless reduce yields a typed Frame (length >= 3 is guaranteed above).
+    const first = sorted.reduce((head) => head)
+    const last = sorted.reduce((_, f) => f)
     const span = start(last) + size(last) - start(first)
     const gap =
       (span - sorted.reduce((sum, f) => sum + size(f), 0)) / (sorted.length - 1)
