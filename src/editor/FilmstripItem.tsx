@@ -5,7 +5,6 @@ import {
   type CSSProperties,
 } from 'react'
 import { GridListItem } from 'react-aria-components'
-import { Badge } from '../ui/Badge'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import { requestGalleryRemove } from './galleryRemoveRequest'
@@ -84,14 +83,15 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
         />
       )}
       {placed ? (
-        <Badge
-          color="gray"
-          size="sm"
+        <span
           className="filmstrip-placed"
+          role="img"
+          aria-label="Placed in the book"
+          title="Placed in the book"
           data-testid="filmstrip-placed"
         >
-          Placed
-        </Badge>
+          <Icon name="check" size={14} />
+        </span>
       ) : null}
       <IconButton
         label={`Remove ${name} from gallery`}

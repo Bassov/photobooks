@@ -61,7 +61,7 @@ export function FilmstripStatus({ photoCount }: { photoCount: number }) {
         type="button"
         className="import-progress"
         style={filmstripImportErrorsActionStyle}
-        data-testid="import-progress"
+        data-testid="import-errors"
         onClick={() => {
           openImportErrorsPanel()
         }}

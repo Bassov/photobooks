@@ -12,18 +12,13 @@ import {
   canUseDirectoryPicker,
   pickFolderWithDirectoryPicker,
 } from '../photo/pickPhotos'
-import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import { registerAssetSource } from './assetSourceRegistry'
 import { isImportDisabled } from './editorChromeDisabled'
 import { setEditorStatus } from './editorStatus'
 import { applyChromeImportHint } from './chromeImportHint'
 import { filesFromInputChange } from './filesFromInputChange'
-import {
-  clearImportErrorsToast,
-  enqueueImportErrorsToast,
-  importErrorsStatusText,
-} from './importErrorToast'
-import { appendImportErrors, openImportErrorsPanel } from './importErrorsStore'
+import { importErrorsStatusText } from './importErrorsStatus'
+import { appendImportErrors } from './importErrorsStore'
 import type { ImportProgress } from './importPhotos'
 import {
   getProjectSessionSnapshot,
@@ -74,7 +69,6 @@ export interface ChromeImportApi {
 
 export function useChromeImport(options: {
   onImportProgress: (progress: ImportProgress | null) => void
-  toastQueue: PhotobooksToastQueue
 }): ChromeImportApi {
   const project = useSyncExternalStore(
     subscribeProjectSession,
@@ -98,15 +92,12 @@ export function useChromeImport(options: {
     next: Parameters<typeof appendImportErrors>[0],
   ): void => {
     if (next.length === 0) {
-      clearImportErrorsToast(options.toastQueue)
       return
     }
+    // Quiet inline status only (filmstrip status opens the files panel).
     const snapshot = [...next]
     appendImportErrors(snapshot)
     setEditorStatus(importErrorsStatusText(snapshot))
-    enqueueImportErrorsToast(options.toastQueue, snapshot, () => {
-      openImportErrorsPanel()
-    })
   }
 
   const importPickedFolder = async (

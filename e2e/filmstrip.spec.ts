@@ -372,7 +372,7 @@ test('unsupported TIFF shows import error without gallery entry', async ({
   ])
 
   await expect(page.getByTestId('import-errors')).toBeVisible()
-  await expect(page.getByTestId('import-errors')).toContainText('Unsupported')
+  await expect(page.getByTestId('editor-status')).toContainText('Unsupported')
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
 })
 
@@ -682,7 +682,7 @@ test('import errors panel groups, dismisses, clears; decode shows Not imported',
     )
     .toBe('16')
 
-  await page.getByRole('button', { name: 'Show files' }).click()
+  await page.getByTestId('import-errors').click()
   const panel = page.getByTestId('import-errors-panel')
   await expect(panel).toBeVisible()
   await expect(panel.getByText(/Unsupported format \(2\)/)).toBeVisible()
@@ -1530,11 +1530,15 @@ test.describe('sort / filter / remove', () => {
       .toBe('2')
 
     await page.getByTestId('film-unplaced-only').click()
-    await expect(page.getByTestId('placed-count')).toHaveText('Photos · 2 of 2')
+    await expect(page.getByTestId('placed-count')).toHaveText(
+      'Photos · 2 of 2 · 0 used',
+    )
 
     await dragPlaceFirstFilmstripItem(page)
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(1)
-    await expect(page.getByTestId('placed-count')).toHaveText('Photos · 1 of 2')
+    await expect(page.getByTestId('placed-count')).toHaveText(
+      'Photos · 1 of 2 · 1 used',
+    )
 
     await dragPlaceFirstFilmstripItem(page)
     await expect(page.getByTestId('filmstrip-filter-empty')).toHaveText(

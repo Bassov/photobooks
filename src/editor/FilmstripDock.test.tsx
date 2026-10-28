@@ -14,7 +14,18 @@ describe('FilmstripDock', () => {
     seedGallery(3)
     render(<FilmstripDock />)
     expect(screen.getByTestId('dock')).toBeTruthy()
-    expect(screen.getByTestId('placed-count').textContent).toBe('Photos · 3')
+    expect(screen.getByTestId('placed-count').textContent).toBe(
+      'Photos · 3 · 0 used',
+    )
     expect(screen.getByTestId('filmstrip')).toBeTruthy()
+  })
+
+  it('uses quiet ghost chips and no outline toggle', () => {
+    seedGallery(1)
+    render(<FilmstripDock />)
+    expect(screen.getByTestId('film-sort').className).toContain('film-chip')
+    const toggle = screen.getByTestId('film-unplaced-only')
+    expect(toggle.className).toContain('film-chip')
+    expect(toggle.className).not.toContain('outline')
   })
 })

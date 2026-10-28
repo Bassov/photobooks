@@ -168,7 +168,7 @@ describe('App editor shell', () => {
     fireEvent.click(screen.getByTestId('choose-photo-folder'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('import-errors').textContent).toMatch(
+      expect(screen.getByTestId('editor-status').textContent).toMatch(
         /Unsupported/i,
       )
     })
