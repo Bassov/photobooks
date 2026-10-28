@@ -68,6 +68,14 @@ function readOverrideField(
     : override[field]
 }
 
+/** The spread's override of one field, if any. */
+export function spreadOverrideValue(
+  spread: Spread,
+  field: GridField,
+): number | undefined {
+  return readOverrideField(spread.layoutGrid, field)
+}
+
 /** True when the spread overrides this single field. */
 export function overridesGridField(spread: Spread, field: GridField): boolean {
   return readOverrideField(spread.layoutGrid, field) !== undefined

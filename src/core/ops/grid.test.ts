@@ -118,6 +118,18 @@ describe('spread overrides', () => {
     expect(source.outside).toBe('book')
   })
 
+  it('an empty or repeated patch is a no-op', () => {
+    const book = applyBookOp(bookWithTemplates(), {
+      type: 'setSpreadGrid',
+      spreadId: 'a',
+      patch: { columns: 5 },
+    })
+    const empty = { type: 'setSpreadGrid', spreadId: 'a', patch: {} } as const
+    expect(applyBookOp(book, empty)).toBe(book)
+    const same = { ...empty, patch: { columns: 5 } } as const
+    expect(applyBookOp(book, same)).toBe(book)
+  })
+
   it('does not touch other spreads', () => {
     const book = bookWithTemplates()
     const next = applyBookOp(book, {

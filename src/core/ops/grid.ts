@@ -4,6 +4,7 @@ import {
   patchBookGrid,
   patchGridOverride,
   readGridField,
+  spreadOverrideValue,
   type GridPatch,
 } from '../grid/layoutGrid'
 import type { Book } from '../schema'
@@ -48,10 +49,16 @@ export function setSpreadGrid(
   spreadId: string,
   patch: GridPatch,
 ): Book {
-  const next = updateSpread(book, spreadId, (spread) => ({
-    ...spread,
-    layoutGrid: patchGridOverride(spread.layoutGrid, patch),
-  }))
+  const next = updateSpread(book, spreadId, (spread) => {
+    const layoutGrid = patchGridOverride(spread.layoutGrid, patch)
+    const candidate = { ...spread, layoutGrid }
+    const unchanged = GRID_FIELDS.every(
+      (field) =>
+        spreadOverrideValue(candidate, field) ===
+        spreadOverrideValue(spread, field),
+    )
+    return unchanged ? spread : candidate
+  })
   return realign(next, [spreadId])
 }
 

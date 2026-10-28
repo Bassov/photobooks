@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 async function openRightPanel(page: Page): Promise<void> {
@@ -39,6 +40,7 @@ test('Book → Layout grid: Columns updates the summary and the overlay', async 
     'true',
   )
   await expect(page.getByTestId('grid-overlay-column').first()).toBeAttached()
+  await assertDocumentFitsViewport(page)
 })
 
 test('Spread override shows SPREAD and enables Reset to book grid', async ({

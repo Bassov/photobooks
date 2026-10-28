@@ -95,7 +95,7 @@ export function GridSection({
           {`${String(values.columns)}×${String(values.rows)}`}
         </span>
         <IconButton
-          label={shown ? "Hide grid (Ctrl+')" : "Show grid (Ctrl+')"}
+          label={shown ? 'Hide grid' : 'Show grid'}
           size="sm"
           className="grid-eye ml-auto"
           aria-pressed={shown}
