@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: PBT invariants for placement/fit
+Status: done
 
 ## Scope
 

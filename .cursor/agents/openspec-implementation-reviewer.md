@@ -24,6 +24,7 @@ transcripts; no unrelated tool discovery.
 1. **Traceability:** matches proposal/design; no silent creep. Same-capability helper/test extracts (`src/<cap>/`, `scripts/`) OK without design.md backport. Unrelated subsystems → high.
 2. **Tasks:** unfinished substance → fail. Mechanical `- [x]` ticks alone belong to `pnpm quality:self-check`, not a re-review trigger.
 3. **Tests:** unit/PBT/e2e matches success criteria; missing critical cases → high.
+   3a. **Domain behavior changed →** is there an invariant/PBT or e2e asserting the user-visible result, not just coverage? Missing → high.
    3b. **Test style:** flag private/`as any`/deep-internal access, copy-pasted Arrange/helpers, or internal-call-count mocks as high (skill `write-tests`). Prefer shared fixtures and public API.
    3c. **Scrollport:** if an in-app scrollport changed, require Playwright `assertDocumentFitsViewport` (and `assertNamedScrollport` when content overflows); element `scrollLeft` alone is not enough.
    3d. **UI smoke:** if UI in scope, require evidenced empty + happy + primary scroll/interact and skill `ui-review`. Missing → high. Green typecheck/unit alone is not enough.
