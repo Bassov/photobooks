@@ -156,7 +156,8 @@ test('reload keeps the crop', async ({ page }) => {
   await expect
     .poll(async () => (await imageBox(page)).width)
     .not.toBe(cover.width)
-  const savedZoom = await page.getByTestId('crop-zoom').inputValue()
+  const zoomSlider = page.getByTestId('crop-zoom').getByRole('slider')
+  const savedZoom = await zoomSlider.inputValue()
   expect(Number(savedZoom)).toBeGreaterThan(1)
   await page.keyboard.press('Escape')
 
@@ -175,7 +176,36 @@ test('reload keeps the crop', async ({ page }) => {
   await expect(page.getByTestId('relink-dialog')).toHaveCount(0)
   await openRightPanel(page)
   await filledFrame(page).dblclick()
-  await expect(page.getByTestId('crop-zoom')).toHaveValue(savedZoom)
+  await expect(zoomSlider).toHaveValue(savedZoom)
+})
+
+test('Fit & crop is driven from the inspector: Crop shows grey chrome, Done exits', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await openSessionEditor(page)
+  await placeOnePhoto(page)
+  await page.getByTestId('toggle-r').click()
+  await expect(page.getByTestId('inspector-fit-crop')).toHaveCount(0)
+
+  await filledFrame(page).click()
+  await expect(page.getByTestId('inspector-fit-crop')).toBeVisible()
+  await expect(page.getByTestId('spread-frame-handles')).toHaveCount(1)
+  await expect(page.getByTestId('crop-overlay-tag')).toHaveCount(0)
+
+  await page.getByTestId('crop-toggle').click()
+  await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
+  await expect(page.getByTestId('crop-overlay-tag')).toHaveText('Crop · 100%')
+  await expect(page.getByTestId('spread-frame-handles')).toHaveCount(0)
+  await expect(page.getByTestId('crop-toggle')).toHaveText('Done')
+
+  await page.getByTestId('crop-toggle').click()
+  await expect(filledFrame(page)).not.toHaveAttribute(
+    'data-crop-active',
+    'true',
+  )
+  await expect(page.getByTestId('crop-overlay-tag')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
 })
 
 test('panning a crop for 5 s has zero LoAF and pointermove p95 within budget', async ({

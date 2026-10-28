@@ -6,7 +6,7 @@ import {
   removeFromGallery,
   removeManyFromGallery,
 } from './gallery'
-import { resetCrop, setCrop } from './crop'
+import { resetCrop, setCrop, setFit } from './crop'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { addSpread, duplicateSpread, moveSpread, removeSpread } from './spreads'
@@ -47,6 +47,12 @@ export type BookOp =
     }
   | { type: 'resetCrop'; spreadId: string; frameId: string }
   | {
+      type: 'setFit'
+      spreadId: string
+      frameId: string
+      fit: NonNullable<Frame['fit']>
+    }
+  | {
       type: 'swap'
       spreadIdA: string
       frameIdA: string
@@ -84,6 +90,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return insertSpreadWithAssets(book, op.index, op.assetIds)
     case 'setCrop':
       return setCrop(book, op.spreadId, op.frameId, op.crop)
+    case 'setFit':
+      return setFit(book, op.spreadId, op.frameId, op.fit)
     case 'resetCrop':
       return resetCrop(book, op.spreadId, op.frameId)
     case 'swap':

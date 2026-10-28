@@ -98,6 +98,57 @@ describe('per-spread paint subscription', () => {
     vi.restoreAllMocks()
   })
 
+  it('tags the cropped frame with its committed zoom', () => {
+    const base = twoSpreadBook()
+    const book = {
+      ...base,
+      spreads: base.spreads.map((spread) => ({
+        ...spread,
+        frames: spread.frames.map((frame) =>
+          frame.assetId === undefined
+            ? frame
+            : { ...frame, crop: { zoom: 2.5, center: { x: 0.5, y: 0.5 } } },
+        ),
+      })),
+    }
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const frameId =
+      screen.getByTestId('spread-frame').getAttribute('data-frame-id') ?? ''
+    expect(screen.queryByTestId('crop-overlay-tag')).toBeNull()
+    act(() => {
+      enterCropMode('s0', frameId)
+    })
+    expect(screen.getByTestId('crop-overlay-tag').textContent).toBe(
+      'Crop · 250%',
+    )
+  })
+
+  it('tags an uncropped frame at 100%', () => {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const frameId =
+      screen.getByTestId('spread-frame').getAttribute('data-frame-id') ?? ''
+    act(() => {
+      enterCropMode('s0', frameId)
+    })
+    expect(screen.getByTestId('crop-overlay-tag').textContent).toBe(
+      'Crop · 100%',
+    )
+  })
+
   it('enters crop mode on double-click of a filled frame only', () => {
     resetBookStore({
       book: twoSpreadBook(),

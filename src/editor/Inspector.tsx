@@ -5,25 +5,17 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { COVER_CROP, MAX_CROP_ZOOM, clampCrop } from '../core'
-import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import {
-  dispatchBookOp,
-  getAssetAspectSnapshot,
   getAssetDisplayName,
   getBookStoreSnapshot,
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import {
-  getCropTarget,
-  getCropTargetKey,
-  subscribeCropMode,
-  type CropTarget,
-} from './cropMode'
+import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
+import { FitCropSection } from './FitCropSection'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import {
   framePhotoRows,
@@ -36,7 +28,6 @@ import {
 } from './inspectorModel'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 
-const ZOOM_STEP = 0.01
 const EMPTY_HINT = 'Select a spread or a photo to see its properties.'
 
 function readBook() {
@@ -88,6 +79,9 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
   }, [frameSource, activeId, dismissed])
   const panel = useSyncExternalStore(subscribeBookStore, readPanel, readPanel)
   const { kind, rows } = panel
+  // Crop mode keeps its frame (double-click drops the selection); else the
+  // selected frame. Empty frames render nothing inside the section.
+  const section = target ?? frameSource
   return (
     <section
       className="editor-inspector-panel flex min-h-full flex-col"
@@ -138,7 +132,9 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
             ))}
           </dl>
         )}
-        {target === null ? null : <FitAndCrop target={target} />}
+        {section === null ? null : (
+          <FitCropSection target={section} cropping={target !== null} />
+        )}
       </div>
     </section>
   )
@@ -185,79 +181,5 @@ function Row({ row }: { row: InspectorRow }) {
         {row.value}
       </dd>
     </>
-  )
-}
-
-function useFrameCrop(target: CropTarget) {
-  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
-  return book.spreads
-    .find((spread) => spread.id === target.spreadId)
-    ?.frames.find((item) => item.id === target.frameId)
-}
-
-/** Crop-mode controls (existing behavior; not the kit FitCrop section). */
-function FitAndCrop({ target }: { target: CropTarget }) {
-  const frame = useFrameCrop(target)
-  if (frame?.assetId === undefined) {
-    return null
-  }
-  const crop = frame.crop ?? COVER_CROP
-  const atCover =
-    crop.zoom === COVER_CROP.zoom &&
-    crop.center.x === COVER_CROP.center.x &&
-    crop.center.y === COVER_CROP.center.y
-  const aspect = getAssetAspectSnapshot(frame.assetId)
-  return (
-    <section
-      className="mt-4 flex flex-col gap-3"
-      data-testid="inspector-fit-crop"
-      data-crop-keep=""
-      aria-label="Fit and crop"
-    >
-      <h4 className="text-2xs font-semibold tracking-[0.12em] uppercase">
-        Fit &amp; crop
-      </h4>
-      <label className="flex flex-col gap-1 text-sm">
-        <span>Zoom</span>
-        <input
-          type="range"
-          data-testid="crop-zoom"
-          min={1}
-          max={MAX_CROP_ZOOM}
-          step={ZOOM_STEP}
-          value={crop.zoom}
-          onChange={(event) => {
-            dispatchBookOp({
-              type: 'setCrop',
-              spreadId: target.spreadId,
-              frameId: target.frameId,
-              crop: clampCrop(
-                frame.rect,
-                {
-                  zoom: Number(event.currentTarget.value),
-                  center: crop.center,
-                },
-                aspect,
-              ),
-            })
-          }}
-        />
-      </label>
-      <Button
-        variant="secondary"
-        size="sm"
-        data-testid="crop-reset"
-        isDisabled={atCover}
-        onPress={() => {
-          dispatchBookOp({
-            type: 'resetCrop',
-            spreadId: target.spreadId,
-            frameId: target.frameId,
-          })
-        }}
-      >
-        Reset to cover
-      </Button>
-    </section>
   )
 }

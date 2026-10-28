@@ -26,6 +26,7 @@ interface FrameContext {
   element: HTMLElement
   rect: RectMm
   crop: Crop
+  fit: Frame['fit']
   aspect: number
   framePx: FramePx
   /** Layout px per client px (camera zoom inverse). */
@@ -67,6 +68,7 @@ function frameContext(
     element,
     rect: frame.rect,
     crop: frame.crop ?? COVER_CROP,
+    fit: frame.fit,
     aspect: getAssetAspectSnapshot(frame.assetId),
     framePx: { width, height },
     toLayout: client > 0 && element.offsetWidth > 0 ? width / client : 1,
@@ -175,6 +177,7 @@ export function installCropGesture(): () => void {
         session.frame.framePx,
         dx,
         dy,
+        session.frame.fit,
       ),
     )
   }
@@ -207,7 +210,7 @@ export function installCropGesture(): () => void {
     const { frame } = current
     commit(
       frame,
-      zoomCrop(frame.rect, frame.crop, frame.aspect, current.factor),
+      zoomCrop(frame.rect, frame.crop, frame.aspect, current.factor, frame.fit),
     )
   }
 
@@ -348,6 +351,7 @@ export function installCropGesture(): () => void {
         frame.framePx,
         vx * step,
         vy * step,
+        frame.fit,
       ),
     )
   }

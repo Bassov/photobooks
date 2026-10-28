@@ -20,8 +20,9 @@ export function panCrop(
   framePx: FramePx,
   dx: number,
   dy: number,
+  fit?: Frame['fit'],
 ): Crop {
-  const window = sourceCropRect(rect, crop, aspect)
+  const window = sourceCropRect(rect, crop, aspect, fit)
   return clampCrop(
     rect,
     {
@@ -32,6 +33,7 @@ export function panCrop(
       },
     },
     aspect,
+    fit,
   )
 }
 
@@ -41,8 +43,9 @@ export function zoomCrop(
   crop: Crop,
   aspect: number,
   factor: number,
+  fit?: Frame['fit'],
 ): Crop {
-  const window = sourceCropRect(rect, crop, aspect)
+  const window = sourceCropRect(rect, crop, aspect, fit)
   return clampCrop(
     rect,
     {
@@ -53,5 +56,6 @@ export function zoomCrop(
       },
     },
     aspect,
+    fit,
   )
 }

@@ -83,6 +83,7 @@ const frameSchema = z.object({
   z: z.number().int(),
   assetId: nonEmptyString.optional(),
   crop: cropSchema.optional(),
+  fit: z.enum(['fill', 'fit']).optional(),
 })
 
 const spreadSchema = z.object({

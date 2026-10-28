@@ -1,4 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   makeBook,
@@ -46,6 +53,16 @@ function seedBook(book: ReturnType<typeof makeBook>) {
 
 function crop() {
   return getBookStoreSnapshot().book.spreads[0]?.frames[0]?.crop
+}
+
+function zoomInput() {
+  return within(screen.getByTestId('crop-zoom')).getByRole<HTMLInputElement>(
+    'slider',
+  )
+}
+
+function frame() {
+  return getBookStoreSnapshot().book.spreads[0]?.frames[0]
 }
 
 function seed() {
@@ -122,9 +139,7 @@ describe('Inspector', () => {
     const reset = screen.getByTestId<HTMLButtonElement>('crop-reset')
     expect(reset.disabled).toBe(true)
 
-    fireEvent.change(screen.getByTestId('crop-zoom'), {
-      target: { value: '2' },
-    })
+    fireEvent.change(zoomInput(), { target: { value: '2' } })
     expect(crop()?.zoom).toBe(2)
     expect(reset.disabled).toBe(false)
 
@@ -232,9 +247,7 @@ describe('Inspector', () => {
     act(() => {
       enterCropMode('spread-2', 'frame-2')
     })
-    expect(
-      screen.getByTestId<HTMLInputElement>('crop-zoom').valueAsNumber,
-    ).toBe(2)
+    expect(zoomInput().valueAsNumber).toBe(2)
     expect(screen.getByTestId<HTMLButtonElement>('crop-reset').disabled).toBe(
       false,
     )
@@ -268,6 +281,189 @@ describe('Inspector', () => {
       setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
     })
     expect(screen.getByText('Used').nextElementSibling?.textContent).toBe('1×')
+  })
+
+  it('shows Fit & crop for a selected photo frame and toggles Crop / Done', () => {
+    seed()
+    render(<Inspector />)
+    expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    expect(screen.getByText('Fit & crop')).toBeTruthy()
+    const toggle = screen.getByTestId('crop-toggle')
+    expect(toggle.textContent).toBe('Crop')
+    expect(getCropTarget()).toBeNull()
+
+    fireEvent.click(toggle)
+    expect(getCropTarget()).toMatchObject({
+      spreadId: 'spread-1',
+      frameId: 'frame-1',
+    })
+    expect(screen.getByTestId('crop-toggle').textContent).toBe('Done')
+
+    fireEvent.click(screen.getByTestId('crop-toggle'))
+    expect(getCropTarget()).toBeNull()
+    expect(screen.getByTestId('crop-toggle').textContent).toBe('Crop')
+  })
+
+  it('shows no Fit & crop for a selected empty frame', () => {
+    seedBook(
+      makeBook({
+        spreads: [
+          makeSpread({
+            id: 'spread-1',
+            frames: [makeFrame({ id: 'frame-1' })],
+          }),
+        ],
+      }),
+    )
+    render(<Inspector />)
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+  })
+
+  it('switches Fill | Fit and resets zoom and pan', () => {
+    seed()
+    render(<Inspector />)
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    fireEvent.change(zoomInput(), { target: { value: '2' } })
+    expect(crop()?.zoom).toBe(2)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Fit' }))
+    expect(frame()?.fit).toBe('fit')
+    expect(frame()?.crop).toBeUndefined()
+    expect(screen.getByTestId<HTMLButtonElement>('crop-reset').disabled).toBe(
+      true,
+    )
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Fill' }))
+    expect(frame()?.fit).toBeUndefined()
+  })
+
+  it('pans through the percent fields', () => {
+    seed()
+    render(<Inspector />)
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    fireEvent.change(zoomInput(), { target: { value: '3' } })
+    const panX = screen.getByRole('textbox', { name: 'Pan X' })
+    fireEvent.change(panX, { target: { value: '30' } })
+    fireEvent.blur(panX)
+    expect(crop()?.center.x).toBeCloseTo(0.65)
+  })
+
+  it('steps zoom with ArrowUp while hovered and resets on double-click', () => {
+    seed()
+    render(<Inspector />)
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    const slider = screen.getByTestId('crop-zoom')
+    fireEvent.change(zoomInput(), { target: { value: '2' } })
+    fireEvent.pointerEnter(slider)
+    fireEvent.keyDown(document.body, { key: 'ArrowUp' })
+    expect(crop()?.zoom).toBeCloseTo(2.01)
+
+    fireEvent.doubleClick(slider)
+    expect(crop()?.zoom).toBe(1)
+  })
+
+  describe('zoom slider hover keys', () => {
+    function openZoomed(zoom: string) {
+      seed()
+      render(<Inspector />)
+      act(() => {
+        setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+      })
+      fireEvent.change(zoomInput(), { target: { value: zoom } })
+      return screen.getByTestId('crop-zoom')
+    }
+
+    it('ArrowDown steps down, Shift multiplies by ten', () => {
+      const slider = openZoomed('2')
+      fireEvent.pointerEnter(slider)
+      fireEvent.keyDown(document.body, { key: 'ArrowDown' })
+      expect(crop()?.zoom).toBeCloseTo(1.99)
+      fireEvent.keyDown(document.body, { key: 'ArrowUp', shiftKey: true })
+      expect(crop()?.zoom).toBeCloseTo(2.09)
+      fireEvent.keyDown(document.body, { key: 'ArrowDown', shiftKey: true })
+      expect(crop()?.zoom).toBeCloseTo(1.99)
+    })
+
+    it('clamps at 100% and 400% and swallows the key', () => {
+      const slider = openZoomed('4')
+      fireEvent.pointerEnter(slider)
+      const swallowed = !fireEvent.keyDown(document.body, { key: 'ArrowUp' })
+      expect(swallowed).toBe(true)
+      expect(crop()?.zoom).toBe(4)
+      fireEvent.change(zoomInput(), { target: { value: '1' } })
+      fireEvent.keyDown(document.body, { key: 'ArrowDown' })
+      expect(crop()?.zoom).toBe(1)
+    })
+
+    it('ignores keys when not hovered, after leaving, or with modifiers', () => {
+      const slider = openZoomed('2')
+      fireEvent.keyDown(document.body, { key: 'ArrowUp' })
+      expect(crop()?.zoom).toBe(2)
+      fireEvent.pointerEnter(slider)
+      fireEvent.keyDown(document.body, { key: 'ArrowUp', ctrlKey: true })
+      fireEvent.keyDown(document.body, { key: 'ArrowUp', metaKey: true })
+      fireEvent.keyDown(document.body, { key: 'ArrowUp', altKey: true })
+      fireEvent.keyDown(document.body, { key: 'ArrowLeft' })
+      expect(crop()?.zoom).toBe(2)
+      fireEvent.pointerLeave(slider)
+      fireEvent.keyDown(document.body, { key: 'ArrowUp' })
+      expect(crop()?.zoom).toBe(2)
+    })
+
+    it('leaves the key to the focused slider thumb', () => {
+      const slider = openZoomed('2')
+      fireEvent.pointerEnter(slider)
+      zoomInput().focus()
+      fireEvent.keyDown(zoomInput(), { key: 'ArrowUp' })
+      // One native step, not doubled by the hover handler.
+      expect(crop()?.zoom).toBeCloseTo(2.01)
+    })
+
+    it('shows the zoom as a percent and caps the thumb at 400%', () => {
+      const slider = openZoomed('2')
+      expect(within(slider).getByRole('status').textContent).toBe('200%')
+      expect(
+        slider.querySelector<HTMLElement>('.fit-crop-fill')?.style.width,
+      ).toBe('33.33333333333333%')
+    })
+  })
+
+  it('pans Y and X from the percent fields and shows the current pan', () => {
+    seed()
+    render(<Inspector />)
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    fireEvent.change(zoomInput(), { target: { value: '3' } })
+    const panY = screen.getByRole('textbox', { name: 'Pan Y' })
+    fireEvent.change(panY, { target: { value: '-30' } })
+    fireEvent.blur(panY)
+    expect(crop()?.center.y).toBeCloseTo(0.35)
+    expect(crop()?.center.x).toBe(0.5)
+    expect((panY as HTMLInputElement).value).toBe('-30')
+
+    const panX = screen.getByRole('textbox', { name: 'Pan X' })
+    fireEvent.change(panX, { target: { value: '20' } })
+    fireEvent.blur(panX)
+    expect(crop()?.center.x).toBeCloseTo(0.6)
+    expect(crop()?.center.y).toBeCloseTo(0.35)
+    expect((panX as HTMLInputElement).value).toBe('20')
+
+    fireEvent.change(panX, { target: { value: '' } })
+    fireEvent.blur(panX)
+    expect(crop()?.center.x).toBeCloseTo(0.6)
   })
 
   it('titles the empty panel without meta', () => {

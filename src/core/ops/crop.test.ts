@@ -6,15 +6,65 @@ import {
   MAX_CROP_ZOOM,
   resetCrop,
   setCrop,
+  setFit,
   sourceCropRect,
 } from '../index'
-import { makeBookWithAsset } from '../testing/fixtures'
+import {
+  makeBook,
+  makeBookWithAsset,
+  makeFrame,
+  makeSpread,
+} from '../testing/fixtures'
 
 const RECT = { x: 0, y: 0, width: 100, height: 100 }
 
 function cropOf(book: ReturnType<typeof makeBookWithAsset>) {
   return book.spreads[0]?.frames[0]?.crop
 }
+
+describe('setFit', () => {
+  const frameOf = (book: ReturnType<typeof makeBookWithAsset>) =>
+    book.spreads[0]?.frames[0]
+
+  it('sets fit and drops crop; fill removes the field', () => {
+    const zoomed = setCrop(makeBookWithAsset(), 'spread-1', 'frame-1', {
+      zoom: 2,
+      center: { x: 0.3, y: 0.6 },
+    })
+    const fit = applyBookOp(zoomed, {
+      type: 'setFit',
+      spreadId: 'spread-1',
+      frameId: 'frame-1',
+      fit: 'fit',
+    })
+    expect(frameOf(fit)?.fit).toBe('fit')
+    expect(frameOf(fit)?.crop).toBeUndefined()
+    const fill = setFit(fit, 'spread-1', 'frame-1', 'fill')
+    expect(frameOf(fill)).not.toHaveProperty('fit')
+  })
+
+  it('is a no-op when nothing changes or the frame is empty', () => {
+    const book = makeBook({
+      assets: { a: {} },
+      gallery: ['a'],
+      spreads: [
+        makeSpread({ id: 's', frames: [makeFrame({ id: 'f', assetId: 'a' })] }),
+      ],
+    })
+    expect(setFit(book, 's', 'f', 'fill')).toBe(book)
+    const zoomed = setCrop(book, 's', 'f', {
+      zoom: 2,
+      center: { x: 0.5, y: 0.5 },
+    })
+    expect(zoomed.spreads[0]?.frames[0]?.crop?.zoom).toBe(2)
+    const reset = setFit(zoomed, 's', 'f', 'fill')
+    expect(reset.spreads[0]?.frames[0]?.crop).toBeUndefined()
+    const empty = makeBook({
+      spreads: [makeSpread({ id: 's', frames: [makeFrame({ id: 'f' })] })],
+    })
+    expect(setFit(empty, 's', 'f', 'fit')).toBe(empty)
+  })
+})
 
 describe('setCrop / resetCrop', () => {
   it('sets crop on a filled frame', () => {

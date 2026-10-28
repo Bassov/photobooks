@@ -38,6 +38,25 @@ export function setCrop(
   })
 }
 
+/** Set fill / fit of a filled frame; zoom and pan reset to centered. */
+export function setFit(
+  book: Book,
+  spreadId: string,
+  frameId: string,
+  fit: NonNullable<Frame['fit']>,
+): Book {
+  return updateFrame(book, spreadId, frameId, (frame) => {
+    if (frame.assetId === undefined) {
+      return frame
+    }
+    const { crop, fit: prevFit, ...rest } = frame
+    if (crop === undefined && (prevFit ?? 'fill') === fit) {
+      return frame
+    }
+    return fit === 'fit' ? { ...rest, fit } : rest
+  })
+}
+
 /** Reset to cover: zoom 1, centered. */
 export function resetCrop(book: Book, spreadId: string, frameId: string): Book {
   return setCrop(book, spreadId, frameId, COVER_CROP)

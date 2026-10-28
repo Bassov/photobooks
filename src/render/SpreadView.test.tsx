@@ -404,11 +404,17 @@ describe('SpreadView', () => {
           onActivate: vi.fn(),
           onDragStart: vi.fn(),
           cropActive: true,
+          cropZoom: 1.5,
+          pressed: true,
           onDoubleActivate,
         })}
       />,
     )
     const frame = screen.getByTestId('spread-frame')
+    expect(screen.getByTestId('crop-overlay-tag').textContent).toBe(
+      'Crop · 150%',
+    )
+    expect(screen.queryByTestId('spread-frame-handles')).toBeNull()
     expect(frame.getAttribute('data-crop-active')).toBe('true')
     expect(screen.getByTestId('spread-frame-ghost')).toBeTruthy()
     expect(screen.getByTestId('spread-frame-image')).toBeTruthy()
