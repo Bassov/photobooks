@@ -278,6 +278,125 @@ describe('resolveSpread', () => {
   })
 })
 
+describe('rotation in resolve', () => {
+  const resolveOne = (frame: ReturnType<typeof makeFrame>, aspect = 2) =>
+    resolveSpread(
+      makeBook({
+        assets: { a: {} },
+        gallery: ['a'],
+        spreads: [makeSpread({ frames: [frame] })],
+      }),
+      'spread-1',
+      { getAspectRatio: () => aspect },
+    )?.items[0]
+
+  it('exposes frame rotationDeg, defaulting to 0', () => {
+    expect(resolveOne(makeFrame())?.rotation).toBe(0)
+    expect(resolveOne(makeFrame({ rotationDeg: 37.5 }))?.rotation).toBe(37.5)
+    expect(resolveOne(makeFrame({ rotationDeg: -90 }))?.rotation).toBe(-90)
+  })
+
+  it('does not change the rect when rotated', () => {
+    const frame = makeFrame({ rotationDeg: 45 })
+    expect(resolveOne(frame)?.rectMm).toEqual(frame.rect)
+  })
+
+  it('omits photo rotation fields when crop has none', () => {
+    const item = resolveOne(makeFrame({ assetId: 'a' }))
+    expect(item).not.toHaveProperty('photoQuarterTurns')
+    expect(item).not.toHaveProperty('straightenDeg')
+  })
+
+  it('exposes photo quarter turns and straighten', () => {
+    const item = resolveOne(
+      makeFrame({
+        assetId: 'a',
+        crop: {
+          zoom: 1,
+          center: { x: 0.5, y: 0.5 },
+          quarterTurns: 1,
+          straightenDeg: -3,
+        },
+      }),
+    )
+    expect(item?.photoQuarterTurns).toBe(1)
+    expect(item?.straightenDeg).toBe(-3)
+  })
+
+  it('treats quarterTurns 0 as no rotation', () => {
+    const rect = { x: 0, y: 0, width: 120, height: 80 }
+    const base = { zoom: 2, center: { x: 0.4, y: 0.6 } }
+    expect(sourceCropRect(rect, { ...base, quarterTurns: 0 }, 1.5)).toEqual(
+      sourceCropRect(rect, base, 1.5),
+    )
+  })
+
+  it('maps a quarter-turned centered window to the matching source axes', () => {
+    // Square frame on a 2:1 image turned 90° shows a 1:2 image: the window
+    // spans the full source height... in source space it is a full-width strip.
+    const rect = { x: 0, y: 0, width: 100, height: 100 }
+    const turned = sourceCropRect(
+      rect,
+      { zoom: 1, center: { x: 0.5, y: 0.5 }, quarterTurns: 1 },
+      2,
+    )
+    expect(turned.width).toBeCloseTo(0.5)
+    expect(turned.height).toBeCloseTo(1)
+    expect(turned.x).toBeCloseTo(0.25)
+    // Turning 180° keeps the unturned window for a centered crop.
+    expect(
+      sourceCropRect(
+        rect,
+        { zoom: 1, center: { x: 0.5, y: 0.5 }, quarterTurns: 2 },
+        2,
+      ),
+    ).toEqual(sourceCropRect(rect, { zoom: 1, center: { x: 0.5, y: 0.5 } }, 2))
+  })
+
+  it('moves the window toward the correct source edge per quarter turn', () => {
+    // Center at top-left of the displayed image.
+    const rect = { x: 0, y: 0, width: 100, height: 100 }
+    const crop = (quarterTurns: number) =>
+      sourceCropRect(rect, { zoom: 4, center: { x: 0, y: 0 }, quarterTurns }, 1)
+    // Displayed top-left corner is source: 90° cw → bottom-left,
+    // 180° → bottom-right, 270° → top-right.
+    expect(crop(1)).toMatchObject({ x: 0, y: 0.75 })
+    expect(crop(2)).toMatchObject({ x: 0.75, y: 0.75 })
+    expect(crop(3)).toMatchObject({ x: 0.75, y: 0 })
+  })
+
+  test.prop(
+    [
+      fc.integer({ min: 0, max: 3 }),
+      fc.double({ min: 1, max: 4, noNaN: true }),
+      fc.double({ min: 0, max: 1, noNaN: true }),
+      fc.double({ min: 0, max: 1, noNaN: true }),
+      fc.double({ min: 0.4, max: 3, noNaN: true }),
+      fc.double({ min: -720, max: 720, noNaN: true }),
+    ],
+    { numRuns: 100 },
+  )(
+    'rotated frames and photos keep source crop inside the unit square',
+    (quarterTurns, zoom, cx, cy, aspect, rotationDeg) => {
+      const item = resolveOne(
+        makeFrame({
+          assetId: 'a',
+          rotationDeg,
+          rect: { x: 5, y: 5, width: 120, height: 80 },
+          crop: { zoom, center: { x: cx, y: cy }, quarterTurns },
+        }),
+        aspect,
+      )
+      const rect = item?.sourceCropRect
+      expect(item?.rotation).toBe(rotationDeg)
+      expect(rect?.x).toBeGreaterThanOrEqual(-1e-9)
+      expect(rect?.y).toBeGreaterThanOrEqual(-1e-9)
+      expect((rect?.x ?? 0) + (rect?.width ?? 0)).toBeLessThanOrEqual(1 + 1e-9)
+      expect((rect?.y ?? 0) + (rect?.height ?? 0)).toBeLessThanOrEqual(1 + 1e-9)
+    },
+  )
+})
+
 test.prop(
   [
     fc.double({ min: 1, max: 4, noNaN: true }),

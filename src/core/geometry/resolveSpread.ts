@@ -45,8 +45,14 @@ export function resolveSpread(
     const frame = spread.frames.find(
       (candidate) => candidate.id === item.frameId,
     )
+    const quarterTurns = frame?.crop?.quarterTurns ?? 0
+    const straightenDeg = frame?.crop?.straightenDeg ?? 0
     return {
       ...item,
+      ...(quarterTurns > 0
+        ? { photoQuarterTurns: quarterTurns as 1 | 2 | 3 }
+        : {}),
+      ...(straightenDeg === 0 ? {} : { straightenDeg }),
       sourceCropRect: computeSourceCropRect(
         item.rectMm,
         frame?.crop,
@@ -87,7 +93,7 @@ function getStructural(
         frameId: frame.id,
         rectMm: { ...frame.rect },
         z: frame.z,
-        rotation: 0,
+        rotation: frame.rotationDeg ?? 0,
       }
       if (frame.assetId !== undefined) {
         return { ...base, assetId: frame.assetId }

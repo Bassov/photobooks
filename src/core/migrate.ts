@@ -55,6 +55,33 @@ function migrateV2ToV3(
   }
 }
 
+function migrateV3ToV4(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const spreads = Array.isArray(input.spreads)
+    ? input.spreads.map((spread: unknown) => {
+        if (
+          spread === null ||
+          typeof spread !== 'object' ||
+          !Array.isArray((spread as { frames?: unknown }).frames)
+        ) {
+          return spread
+        }
+        const frames = (spread as { frames: unknown[] }).frames.map((frame) =>
+          frame !== null && typeof frame === 'object'
+            ? { rotationDeg: 0, ...frame }
+            : frame,
+        )
+        return { ...spread, frames }
+      })
+    : input.spreads
+  return {
+    ...input,
+    schemaVersion: 4,
+    spreads,
+  }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -92,6 +119,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 2) {
     value = migrateV2ToV3(value as Record<string, unknown>)
+    version = 3
+  }
+  if (version === 3) {
+    value = migrateV3ToV4(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }

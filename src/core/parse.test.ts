@@ -23,6 +23,60 @@ describe('parseBook', () => {
     expect(result).toMatchObject({ ok: false, code: 'newer-schema' })
   })
 
+  it('round-trips rotationDeg, locked and crop rotation', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              rotationDeg: -12.5,
+              locked: true,
+              crop: {
+                zoom: 1,
+                center: { x: 0.5, y: 0.5 },
+                quarterTurns: 3,
+                straightenDeg: 2.5,
+              },
+            }),
+          ],
+        }),
+      ],
+    })
+    const parsed = parseBook(serializeBook(book))
+    assert.equal(parsed.ok, true)
+    expect(parsed.book).toEqual(book)
+  })
+
+  it.each([
+    ['quarterTurns 4', { quarterTurns: 4 }],
+    ['fractional quarterTurns', { quarterTurns: 1.5 }],
+    ['straightenDeg out of range', { straightenDeg: 90 }],
+  ])('rejects crop with %s', (_label, extra) => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, ...extra },
+            }),
+          ],
+        }),
+      ],
+    })
+    expect(parseBook(book)).toMatchObject({ ok: false })
+  })
+
+  it('rejects non-numeric rotationDeg', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [makeFrame({ rotationDeg: Number.NaN })],
+        }),
+      ],
+    })
+    expect(parseBook(book)).toMatchObject({ ok: false })
+  })
+
   it('rejects invalid shape', () => {
     const result = parseBook({ schemaVersion: CURRENT_SCHEMA_VERSION })
     expect(result).toMatchObject({ ok: false, code: 'invalid-shape' })

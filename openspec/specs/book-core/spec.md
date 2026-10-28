@@ -8,12 +8,12 @@ Defines the pure book document model: schema versioning, parse/serialize boundar
 
 ### Requirement: Book document schema v1
 
-The system SHALL represent a photobook as a pure, serializable document with integer `schemaVersion` 3, an optional book `title` string (may be empty when present), book settings (trim size in mm, bleed, safe margin), a book-level layout grid (margins, columns, rows, gutters in mm), book-level guides, an assets map keyed by asset id, an ordered gallery of unique asset ids, and an ordered list of spreads. Each spread SHALL contain frames (rect in mm, z-order, optional asset id, optional crop) and MAY override layout grid and guides. Crop SHALL be `{ zoom ≥ 1, center: { x, y } }` in normalized source coordinates. A frame MAY carry `fit` (`fill` | `fit`; absent = fill/cover). Asset identity SHALL be the map key (values carry no duplicate id field). Each asset value SHALL be an asset record (see Asset record fields and Asset metadata fields). Assets SHALL be referenced by id only (no File, Blob, or handles). The document SHALL NOT store a separate `pages` collection.
+The system SHALL represent a photobook as a pure, serializable document with integer `schemaVersion` 4, an optional book `title` string (may be empty when present), book settings (trim size in mm, bleed, safe margin), a book-level layout grid (margins, columns, rows, gutters in mm), book-level guides, an assets map keyed by asset id, an ordered gallery of unique asset ids, and an ordered list of spreads. Each spread SHALL contain frames (rect in mm, z-order, optional asset id, optional crop) and MAY override layout grid and guides. Crop SHALL be `{ zoom ≥ 1, center: { x, y } }` in normalized source coordinates. A frame MAY carry `fit` (`fill` | `fit`; absent = fill/cover). Asset identity SHALL be the map key (values carry no duplicate id field). Each asset value SHALL be an asset record (see Asset record fields and Asset metadata fields). Assets SHALL be referenced by id only (no File, Blob, or handles). The document SHALL NOT store a separate `pages` collection.
 
 #### Scenario: Minimal valid book parses
 
 - **WHEN** a JSON document matching the current schema with empty gallery, omitted `title`, and at least one spread is parsed
-- **THEN** the system returns a typed book document with `schemaVersion` 3 and no invented `title`
+- **THEN** the system returns a typed book document with `schemaVersion` 4 and no invented `title`
 
 #### Scenario: Frame crop shape
 
@@ -36,7 +36,7 @@ The system SHALL parse unknown input into a book document (or a typed failure) a
 
 ### Requirement: Schema version gate and migrations
 
-The system SHALL refuse documents whose `schemaVersion` is greater than the supported version. The system SHALL provide a pure migration chain that upgrades supported older versions up to the current version before Zod validation of the current shape. Migrating schemaVersion 1 to 2 SHALL set `schemaVersion` to 2 and replace each asset value with an empty asset record (`{}`), without inventing source root, relative path, size, mtime, or hash. Migrating schemaVersion 2 to 3 SHALL set `schemaVersion` to 3 and set `title` to `""` when `title` is absent or not a string, without inventing asset metadata, orientation, capture time, color space, mime, or `meta` (including GPS). Non-asset fields other than the added `title` default SHALL be preserved. A schemaVersion 1 document SHALL migrate through 2 then 3 to the current version.
+The system SHALL refuse documents whose `schemaVersion` is greater than the supported version. The system SHALL provide a pure migration chain that upgrades supported older versions up to the current version before Zod validation of the current shape. Migrating schemaVersion 1 to 2 SHALL set `schemaVersion` to 2 and replace each asset value with an empty asset record (`{}`), without inventing source root, relative path, size, mtime, or hash. Migrating schemaVersion 2 to 3 SHALL set `schemaVersion` to 3 and set `title` to `""` when `title` is absent or not a string, without inventing asset metadata, orientation, capture time, color space, mime, or `meta` (including GPS). Non-asset fields other than the added `title` default SHALL be preserved. A schemaVersion 1 document SHALL migrate through 2, 3, then 4 to the current version (3 → 4 is specified under Frame rotation, lock and photo rotation fields).
 
 #### Scenario: Newer schema rejected
 
@@ -51,12 +51,12 @@ The system SHALL refuse documents whose `schemaVersion` is greater than the supp
 #### Scenario: v1 empty assets migrate without invented identity
 
 - **WHEN** a valid schemaVersion 1 document with asset values `{}` is migrated
-- **THEN** the result has `schemaVersion` 3, each asset is an empty record with no source root, relative path, size, mtime, hash, or metadata fields, `title` is `""`, and other pre-existing document fields are unchanged
+- **THEN** the result has `schemaVersion` 4, each asset is an empty record with no source root, relative path, size, mtime, hash, or metadata fields, `title` is `""`, and other pre-existing document fields are unchanged
 
 #### Scenario: v2 book migrates with empty title and preserved identity
 
 - **WHEN** a valid schemaVersion 2 document with identity-filled assets and no `title` is migrated
-- **THEN** the result has `schemaVersion` 3, `title` is `""`, identity fields on assets are preserved, and no metadata or GPS fields are invented
+- **THEN** the result has `schemaVersion` 4, `title` is `""`, identity fields on assets are preserved, and no metadata or GPS fields are invented
 
 ### Requirement: Asset record fields
 
