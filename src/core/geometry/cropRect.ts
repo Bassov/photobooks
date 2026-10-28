@@ -18,10 +18,8 @@ export function sourceCropRect(
 
   // Fill (cover) shows the smaller window; fit (contain) the larger one, so
   // the window exceeds the image on one axis and the photo is letterboxed.
-  // Stryker disable next-line EqualityOperator: equal aspects give the same window either way
-  const wide = imageAspect > frameAspect
-  const coverW = wide ? frameAspect / imageAspect : 1
-  const coverH = wide ? 1 : imageAspect / frameAspect
+  const coverW = Math.min(1, frameAspect / imageAspect)
+  const coverH = Math.min(1, imageAspect / frameAspect)
   const baseW = fit === 'fit' ? 1 / coverH : coverW
   const baseH = fit === 'fit' ? 1 / coverW : coverH
 
@@ -37,8 +35,10 @@ export function sourceCropRect(
 
 /** Window start on one axis: inside the image, or centered when larger. */
 function place(center: number, size: number): number {
-  // Stryker disable next-line EqualityOperator: at size 1 both branches return 0
-  return size >= 1 ? (1 - size) / 2 : clamp(center - size / 2, 0, 1 - size)
+  const slack = 1 - size
+  return (
+    clamp(center - size / 2, 0, Math.max(slack, 0)) + Math.min(slack, 0) / 2
+  )
 }
 
 export const MAX_CROP_ZOOM = 8

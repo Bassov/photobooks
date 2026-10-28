@@ -9,7 +9,7 @@ globs: src/**/*.{ts,tsx}
 Canonical shape (see `src/core` / `openspec/specs/book-core/`): `book.json` as book → spreads → frames, plus assets map and ordered gallery of asset ids. Pages are derived from spreads — do not store `pages[]` or slots.
 
 - Current `schemaVersion` is 3. Books MAY include optional `title` (string, may be empty; migration writes `""` when absent). Asset map values MAY include identity (`sourceRootId`, `relativePath`, `byteSize`, `mtimeMs`, `contentHash` as 64 lowercase hex SHA-256) and optional metadata (`widthPx`/`heightPx`, EXIF `orientation` 1..8, `capturedAt`, `colorSpace`, `iccProfileName`, `mime`, `meta` with title/caption/keywords/camera/lens/gps). GPS is stored only on user opt-in and must not leave the library in site export. Book summaries always expose `title` as a string (`""` when missing).
-- Physical units are millimeters; crop is `{ zoom ≥ 1, center }` in normalized source space; frame `fit` (`fill` | `fit`, absent = fill) is optional.
+- Physical units are millimeters; crop is `{ zoom ≥ 1, center }` in normalized source space.
 - Validate load boundaries with Zod (`parseBook`); refuse newer `schemaVersion`; migrate supported older versions.
 - Prefer immutable updates with structural sharing (`updateSpread` / `updateFrame`).
 - Do not store `File` / `Blob` / handles in the document — assets are ids only.

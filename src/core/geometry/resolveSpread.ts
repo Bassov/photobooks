@@ -49,10 +49,8 @@ export function resolveSpread(
       ...item,
       sourceCropRect: computeSourceCropRect(
         item.rectMm,
-        // Stryker disable next-line OptionalChaining: a resolved item always has its frame
         frame?.crop,
         aspect,
-        // Stryker disable next-line OptionalChaining: a resolved item always has its frame
         frame?.fit,
       ),
     }
