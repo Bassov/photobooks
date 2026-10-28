@@ -163,8 +163,8 @@ test('locked-elsewhere shows banner and blocks Save', async ({ page }) => {
   await expect(page.getByTestId('book-lock-banner')).toHaveText(
     'This book is open in another tab',
   )
-  await expect(page.getByTestId('save-book')).toBeDisabled()
-  await expect(page.getByTestId('create-book')).toBeEnabled()
+  await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
+  await expect(page.getByTestId('go-library')).toBeEnabled()
   await expect(page.getByTestId('choose-photo-folder')).toBeDisabled()
   await assertDocumentFitsViewport(page)
 })

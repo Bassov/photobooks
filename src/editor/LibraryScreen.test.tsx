@@ -40,6 +40,29 @@ describe('LibraryScreen', () => {
     vi.restoreAllMocks()
   })
 
+  it('shows no empty state or Create book until the first listing lands', async () => {
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    await leaveEditorForLibrary()
+    setSurfaceForTests('library')
+    type Listed = Awaited<ReturnType<typeof projectSession.listLibraryBooks>>
+    const resolvers: ((value: Listed) => void)[] = []
+    vi.spyOn(projectSession, 'listLibraryBooks').mockReturnValue(
+      new Promise<Listed>((resolve) => {
+        resolvers.push(resolve)
+      }),
+    )
+    render(<LibraryScreen />)
+
+    expect(screen.queryByTestId('library-empty')).toBeNull()
+    expect(screen.queryByTestId('new-book')).toBeNull()
+
+    resolvers[0]?.({ ok: true, value: [] })
+    await waitFor(() => {
+      expect(screen.getByTestId('library-empty')).toBeTruthy()
+    })
+  })
+
   it('shows empty create affordance then lists a created book', async () => {
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)

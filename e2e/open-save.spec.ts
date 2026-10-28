@@ -1,3 +1,4 @@
+import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -55,8 +56,8 @@ test('Start editing from empty home restores empty-editor pasteboard scroll', as
     window.__photobooksProject?.startSessionEditor()
   })
   await expect(page.getByTestId('editor-shell')).toBeVisible()
-  await expect(page.getByTestId('create-book')).toBeDisabled()
-  await expect(page.getByTestId('save-book')).toBeDisabled()
+  await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
+  await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
   await expect(page.getByTestId('pasteboard-empty-card')).toBeVisible()
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
@@ -68,16 +69,16 @@ test('Start editing from empty home restores empty-editor pasteboard scroll', as
 test('save, reload, and restore keep gallery ids', async ({ page }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
-  await expect(page.getByTestId('save-book')).toBeEnabled()
+  await expect(page.getByTestId('book-size')).toContainText(/· (un)?saved$/)
   page.once('dialog', (dialog) => {
     void dialog.accept('Save restore')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
-  await expect(page.getByTestId('save-book')).toBeEnabled()
+  await expect(page.getByTestId('book-size')).toContainText(/· (un)?saved$/)
 
   await choosePhotoFolder(page, [
     photoFixturePaths.samplePng,
@@ -87,7 +88,7 @@ test('save, reload, and restore keep gallery ids', async ({ page }) => {
     .poll(async () => page.getByTestId('filmstrip-item').count())
     .toBeGreaterThanOrEqual(2)
 
-  await page.getByTestId('save-book').click()
+  await page.keyboard.press('Control+s')
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
     timeout: 15_000,
   })
@@ -122,7 +123,7 @@ test('session import then attach library saves without New book; reload hydrates
     window.__photobooksProject?.startSessionEditor()
   })
   await expect(page.getByTestId('editor-shell')).toBeVisible()
-  await expect(page.getByTestId('save-book')).toBeDisabled()
+  await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
 
   await choosePhotoFolder(page, [
     photoFixturePaths.samplePng,
@@ -153,19 +154,15 @@ test('session import then attach library saves without New book; reload hydrates
       : { ok: false as const, reason: result.code }
   }, libraryFolder)
   expect(attached.ok).toBe(true)
-  await expect(page.getByTestId('save-book')).toBeEnabled()
+  await expect(page.getByTestId('book-size')).toContainText(/· (un)?saved$/)
   await expect(page.getByTestId('editor-status')).toHaveText(
     'Book created in library',
   )
 
-  page.once('dialog', (dialog) => {
-    void dialog.dismiss()
-  })
-  await page.getByTestId('create-book').click()
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1)
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
 
-  await page.getByTestId('save-book').click()
+  await page.keyboard.press('Control+s')
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
     timeout: 30_000,
   })
@@ -204,13 +201,13 @@ test('bulk library import reload hydrates thumbs across the filmstrip', async ({
   const files = writeBulkImportFixtures(count)
 
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
   page.once('dialog', (dialog) => {
     void dialog.accept('Bulk import')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
   await choosePhotoFolder(page, files)
@@ -225,7 +222,7 @@ test('bulk library import reload hydrates thumbs across the filmstrip', async ({
     timeout: 60_000,
   })
 
-  await page.getByTestId('save-book').click()
+  await page.keyboard.press('Control+s')
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
     timeout: 60_000,
   })
@@ -275,7 +272,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
     window.__photobooksProject?.startSessionEditor()
   })
   await expect(page.getByTestId('editor-shell')).toBeVisible()
-  await expect(page.getByTestId('save-book')).toBeDisabled()
+  await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
 
   const attached = await page.evaluate(async (folderName) => {
     const api = window.__photobooksProject
@@ -288,7 +285,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
       : { ok: false as const, reason: result.code }
   }, libraryFolder)
   expect(attached.ok).toBe(true)
-  await expect(page.getByTestId('save-book')).toBeEnabled()
+  await expect(page.getByTestId('book-size')).toContainText(/· (un)?saved$/)
   await page.bringToFront()
 
   await choosePhotoFolder(page, [
@@ -308,7 +305,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
     timeout: 30_000,
   })
 
-  await page.getByTestId('save-book').click()
+  await page.keyboard.press('Control+s')
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
     timeout: 30_000,
   })
@@ -337,7 +334,7 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
     window.__photobooksProject?.startSessionEditor()
   })
   await expect(page.getByTestId('editor-shell')).toBeVisible()
-  await expect(page.getByTestId('save-book')).toBeDisabled()
+  await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
 
   const opened = await page.evaluate(async (folderName) => {
@@ -384,7 +381,9 @@ test('New book confirm accept replaces content with an empty book', async ({
 }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('save-book')).toBeEnabled({ timeout: 15_000 })
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
+    timeout: 15_000,
+  })
 
   await choosePhotoFolder(page, [photoFixturePaths.samplePng])
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
@@ -398,7 +397,7 @@ test('New book confirm accept replaces content with an empty book', async ({
     }
     void dialog.accept('Replacement')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(0)
@@ -412,13 +411,13 @@ test('reload mid-import restores partial gallery and continues import', async ({
   const files = writeBulkImportFixtures(count)
 
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
   page.once('dialog', (dialog) => {
     void dialog.accept('Mid import reload')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
 
   await choosePhotoFolder(page, files)
@@ -450,7 +449,7 @@ test('reload mid-import restores partial gallery and continues import', async ({
   })
 
   // Progressive autosave during import (no hash wait) — wait for Saved.
-  await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+  await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
     timeout: 60_000,
   })
 

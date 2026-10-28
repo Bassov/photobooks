@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
 import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
@@ -132,19 +133,23 @@ test('wheel zooms, arrows nudge, drag pans, Reset to cover restores', async ({
 test('reload keeps the crop', async ({ page }) => {
   test.setTimeout(150_000)
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
   page.once('dialog', (dialog) => {
     void dialog.accept('Crop reload')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
   await placeOnePhoto(page)
   const cover = await imageBox(page)
 
   await page.getByTestId('toggle-r').click()
   await filledFrame(page).dblclick()
+  // Opening the panel refits the spread; measure the frame only once crop mode
+  // and the inspector have settled, or the wheel lands on a stale position.
+  await expect(page.getByTestId('inspector-fit-crop')).toBeVisible()
+  await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
   const center = await frameCenter(page)
   await page.mouse.move(center.x, center.y)
   await page.mouse.wheel(0, -600)
@@ -155,7 +160,7 @@ test('reload keeps the crop', async ({ page }) => {
   expect(Number(savedZoom)).toBeGreaterThan(1)
   await page.keyboard.press('Escape')
 
-  await page.getByTestId('save-book').click()
+  await page.keyboard.press('Control+s')
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
     timeout: 15_000,
   })

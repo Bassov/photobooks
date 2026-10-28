@@ -7,7 +7,7 @@ import { EditorFrame, type EditorPanels } from './EditorFrame'
 import { EditorTopBar } from './EditorTopBar'
 import { FilmstripDock } from './FilmstripDock'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
-import { InspectorStub } from './InspectorStub'
+import { Inspector } from './Inspector'
 import { LeftPanel } from './LeftPanel'
 import { installCropGesture } from './cropGesture'
 import { installDocumentDragGesture } from './editorGesture'
@@ -54,7 +54,7 @@ export function EditorShell() {
         />
       }
       left={<LeftPanel toastQueue={toastQueue} />}
-      right={(collapse) => <InspectorStub onCollapse={collapse} />}
+      right={(collapse) => <Inspector onCollapse={collapse} />}
       dock={
         <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />
       }

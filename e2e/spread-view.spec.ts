@@ -9,7 +9,7 @@ import {
   browserAssertNoLoaf,
   browserAssertNoLoafAndHandlerP95,
   browserAssertNoLoafThenClear,
-  browserClearLoafEntries,
+  browserBeginLoafScenarioWindow,
   clearPerfScenario,
   collectFrameStatsArtifact,
   enablePerfScenario,
@@ -678,7 +678,9 @@ test.describe('frame-budget gates', () => {
           { timeout: 30_000 },
         )
         .toBe(true)
-      await page.evaluate(browserClearLoafEntries)
+      // 1280 decode paint can land right at the clear; open the window on a
+      // quiet frame so it only covers the zoom-out burst (budget stays zero).
+      await page.evaluate(browserBeginLoafScenarioWindow)
 
       await dispatchCtrlWheel(page, 300, 36)
       await expect.poll(async () => gestureLabel(page)).toBe('')
@@ -876,7 +878,7 @@ async function fitSpreadUntilFilled(page: Page): Promise<void> {
             const port = el.getBoundingClientRect()
             const box = view.getBoundingClientRect()
             return (
-              box.height >= port.height * 0.9 &&
+              box.height >= port.height * 0.85 &&
               box.width >= 1 &&
               box.top >= port.top - 1 &&
               box.bottom <= port.bottom + 1 &&

@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures/coverage'
+import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
 import {
   ensurePhotoFixtures,
   photoFixturePaths,
@@ -15,13 +16,10 @@ test('Allow access re-grants the photo folder without a new picker', async ({
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await installPhotoDirectoryPickerStub(page)
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
-  await page.getByTestId('create-book').click()
-  await expect(page.getByTestId('editor-status')).toHaveText(
-    'Book created in library',
-  )
+  await createBookViaLibrary(page)
 
   await choosePhotoFolder(page, [photoFixturePaths.samplePng], {
     via: 'picker',
@@ -69,13 +67,10 @@ test('folder-rescan-progress testid is wired on the filmstrip status strip', asy
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await installPhotoDirectoryPickerStub(page)
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
-  await page.getByTestId('create-book').click()
-  await expect(page.getByTestId('editor-status')).toHaveText(
-    'Book created in library',
-  )
+  await createBookViaLibrary(page)
 
   await choosePhotoFolder(page, [photoFixturePaths.samplePng], {
     via: 'picker',

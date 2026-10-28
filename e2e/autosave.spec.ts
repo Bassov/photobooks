@@ -14,14 +14,16 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 
+import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
+
 test('clean library-backed book shows Saved without page scroll', async ({
   page,
 }) => {
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('save-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
-  await expect(page.getByTestId('save-indicator')).toHaveText('Saved')
+  await expect(page.getByTestId('book-size')).toHaveText(/· saved$/)
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',
@@ -36,15 +38,15 @@ test('autosave persists edits across reload without manual Save', async ({
   ensurePhotoFixtures({ includeLargeJpeg: false })
   await installPhotoDirectoryPickerStub(page)
   await page.goto('/?testLibrary=1')
-  await expect(page.getByTestId('create-book')).toBeEnabled({
+  await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,
   })
   page.once('dialog', (dialog) => {
     void dialog.accept('Autosave book')
   })
-  await page.getByTestId('create-book').click()
+  await createBookViaLibrary(page)
   await expect(page.getByTestId('editor-status')).toHaveText('Book created')
-  await expect(page.getByTestId('save-indicator')).toHaveText('Saved')
+  await expect(page.getByTestId('book-size')).toHaveText(/· saved$/)
   await page.bringToFront()
 
   await choosePhotoFolder(page, [photoFixturePaths.samplePng])
@@ -64,9 +66,9 @@ test('autosave persists edits across reload without manual Save', async ({
     name: 'Template for this spread',
   })
   await templateGroup.getByRole('radio', { name: '2-up' }).click()
-  await expect(page.getByTestId('save-indicator')).toHaveText(/Unsaved|Saving/)
+  await expect(page.getByTestId('book-size')).toHaveText(/· (unsaved|saving…)$/)
 
-  await expect(page.getByTestId('save-indicator')).toHaveText('Saved', {
+  await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
     timeout: 30_000,
   })
   await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
@@ -88,7 +90,7 @@ test('autosave persists edits across reload without manual Save', async ({
         name: '2-up',
       }),
   ).toBeChecked()
-  await expect(page.getByTestId('save-indicator')).toHaveText('Saved')
+  await expect(page.getByTestId('book-size')).toHaveText(/· saved$/)
 
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {

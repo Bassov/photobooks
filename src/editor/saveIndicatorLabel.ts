@@ -1,4 +1,3 @@
-import type { BadgeProps } from '../ui/Badge'
 import type { SavePhase } from './session/autosaveController'
 
 export function saveIndicatorLabel(
@@ -15,12 +14,4 @@ export function saveIndicatorLabel(
     return 'Unsaved'
   }
   return 'Saved'
-}
-
-/** Badge color for the chrome save indicator (status tokens, not ad-hoc hex). */
-export function saveIndicatorBadgeColor(
-  savePhase: SavePhase,
-): NonNullable<BadgeProps['color']> {
-  // Grayscale chrome: only failure is tinted; no green "Saved".
-  return savePhase === 'error' ? 'error' : 'gray'
 }

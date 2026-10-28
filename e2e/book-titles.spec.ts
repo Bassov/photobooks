@@ -97,10 +97,15 @@ test('create with title, rename, reload and home show titles not ids', async ({
 
   await expect(page.getByTestId('book-title')).toHaveText('Summer')
 
-  page.once('dialog', (dialog) => {
-    void dialog.accept('Trip')
-  })
-  await page.getByTestId('rename-book').click()
+  await page.evaluate(
+    async ({ bookId }) => {
+      const api = window.__photobooksProject as unknown as {
+        renameBookInLibrary: (id: string, title: string) => Promise<unknown>
+      }
+      await api.renameBookInLibrary(bookId, 'Trip')
+    },
+    { bookId: prepared.bookId },
+  )
   await expect(page.getByTestId('book-title')).toHaveText('Trip')
   await waitForSaveIdle(page)
 
@@ -218,16 +223,8 @@ test('cancelled create and rename leave titles unchanged', async ({ page }) => {
   assert.equal(prepared.ok, true)
   await expect(page.getByTestId('book-title')).toHaveText('KeepMe')
 
-  page.once('dialog', (dialog) => {
-    void dialog.dismiss()
-  })
-  await page.getByTestId('rename-book').click()
-  await expect(page.getByTestId('book-title')).toHaveText('KeepMe')
-
-  page.once('dialog', (dialog) => {
-    void dialog.dismiss()
-  })
-  await page.getByTestId('create-book').click()
+  await expect(page.getByTestId('rename-book')).toHaveCount(0)
+  await expect(page.getByTestId('create-book')).toHaveCount(0)
   await expect(page.getByTestId('book-title')).toHaveText('KeepMe')
   await expect
     .poll(async () => {
@@ -271,7 +268,7 @@ test.describe('frame-budget gates', () => {
     expect(prepared.ok).toBe(true)
     assert.equal(prepared.ok, true)
     await expect(page.getByTestId('book-title')).toHaveText('Perf title')
-    await expect(page.getByTestId('rename-book')).toBeEnabled()
+    await expect(page.getByTestId('book-size')).toContainText(/· saved$/)
 
     const files = writeBulkImportFixtures(40)
     await choosePhotoFolder(page, files)
