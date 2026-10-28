@@ -35,6 +35,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads
 - [ ] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
 - [x] [feature] [look-parity-inspector](roadmap/M3/look-parity-inspector.md) — look parity: inspector shell + quiet header
+- [x] [feature] [look-parity-canvas-sel](roadmap/M3/look-parity-canvas-sel.md) — look parity: canvas selection-only chrome
 - [x] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
 
 ## M4 — Free layout: grids, guides, frames

@@ -237,8 +237,12 @@ asset; frame drag MUST identify the source frame; neither MUST carry file bytes.
 
 ### Requirement: Pressed frame outline
 
-A frame button that is the move source MUST show an outline wider than zero while
-`aria-pressed` is true.
+A frame button that is the move source MUST show a 2px solid `--select` outline (1px offset) with a white 1px ring and eight resize handles while `aria-pressed` is true. Unselected frames MUST NOT show any border, outline, ring or shadow, including on keyboard focus; photos fill flush.
+
+#### Scenario: Selection-only chrome
+
+- **WHEN** no frame is pressed
+- **THEN** no frame paints a ring or outline
 
 ### Requirement: Selection re-renders only when labels change
 
