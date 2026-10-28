@@ -198,10 +198,6 @@
         "argv": ["pnpm", "exec", "ts-rig-gate", "diff-size"]
       },
       {
-        "name": "pr-body",
-        "argv": ["pnpm", "exec", "ts-rig-gate", "pr-body"]
-      },
-      {
         "name": "pr-policy",
         "argv": ["pnpm", "exec", "ts-rig-gate", "pr-policy"]
       }

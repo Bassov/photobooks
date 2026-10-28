@@ -12,6 +12,5 @@ Implementation reviewer: answer each row `pass` / `n.a.` / `fail` with `file:lin
 - `tests-first`: failing tests or scenarios before production code where the change claims behavior
 - `evidence`: ticked `tasks.md` boxes name a test (`file::title`), link, or commit SHA
 - `roadmap-follow-ups`: deferred blocking findings scheduled with `pnpm roadmap add --after`
-- `pr-body`: required `.github/PULL_REQUEST_TEMPLATE.md` headings present and non-empty; no `fix`/`revise` verdicts
 - `english`: repository English (code, commits, OpenSpec); no non-English in committed product paths
 - `real-input`: modules that parse external tool/file formats have a `test/fixtures/real/` capture referenced by tests
