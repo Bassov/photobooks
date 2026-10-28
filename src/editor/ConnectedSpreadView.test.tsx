@@ -664,6 +664,8 @@ describe('per-spread paint subscription', () => {
         ownFrame !== undefined,
       'expected frames',
     )
+    // Applying the template emptied the frames; the move source holds a photo.
+    book = placeAsset(book, 's0', sourceFrame, 'a')
     const renders = mountSiblingPaint(book)
 
     // Gallery selection no longer changes frame labels (drag place/replace only).

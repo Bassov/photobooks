@@ -65,6 +65,7 @@ export function setFrameSource(next: FrameSource | null): void {
     return
   }
   source = next
+  sourceWasFilled = next !== null && sourceFrameFilled(next)
   emit()
   if (next !== null) {
     withSelectionSync(() => {
@@ -100,11 +101,13 @@ export function frameControlLabel(
   filled: boolean,
   frameSource: FrameSource | null,
   frame: FrameSource,
+  /** False when the selected frame is empty: nothing to move or swap. */
+  sourceFilled = true,
 ): string {
   if (sameSource(frameSource, frame)) {
     return filled ? 'Cancel move' : 'Place photo'
   }
-  if (frameSource === null) {
+  if (frameSource === null || !sourceFilled) {
     return filled ? 'Select photo to move' : 'Place photo'
   }
   return filled ? 'Swap photos' : 'Move photo here'
@@ -126,18 +129,32 @@ function emit(): void {
   }
 }
 
-function sourceFrameFilled(current: FrameSource): boolean {
+export function sourceFrameFilled(current: FrameSource): boolean {
   const book = getBookStoreSnapshot().book
   const spread = book.spreads.find((item) => item.id === current.spreadId)
   const frame = spread?.frames.find((item) => item.id === current.frameId)
   return frame?.assetId !== undefined
 }
 
+/** Whether the selected frame held a photo when it was selected. */
+let sourceWasFilled = false
+
 subscribeBookStore(() => {
   const current = source
-  if (current === null || sourceFrameFilled(current)) {
+  if (current === null) {
+    return
+  }
+  // A frame that vanished, or gained / lost its photo, ends the selection.
+  if (frameExists(current) && sourceFrameFilled(current) === sourceWasFilled) {
     return
   }
   setFrameSource(null)
   setEditorStatus('')
 })
+
+function frameExists(current: FrameSource): boolean {
+  const spread = getBookStoreSnapshot().book.spreads.find(
+    (item) => item.id === current.spreadId,
+  )
+  return spread?.frames.some((item) => item.id === current.frameId) ?? false
+}

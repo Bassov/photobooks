@@ -11,6 +11,7 @@ import { Inspector } from './Inspector'
 import { LeftPanel } from './LeftPanel'
 import { installCropGesture } from './cropGesture'
 import { installDocumentDragGesture } from './editorGesture'
+import { installFrameGesture } from './frameGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
 import { Pasteboard } from './Pasteboard'
@@ -29,6 +30,7 @@ export function EditorShell() {
   useEffect(() => installEditorKeys(), [])
   useEffect(() => installDocumentDragGesture(), [])
   useEffect(() => installCropGesture(), [])
+  useEffect(() => installFrameGesture(), [])
 
   const [toastQueue] = useState(() => createToastQueue())
   const [panels, setPanels] = useState(INITIAL_PANELS)

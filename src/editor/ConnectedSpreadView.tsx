@@ -19,6 +19,7 @@ import {
   frameControlLabel,
   getSpreadFrameSourceKey,
   setFrameSource,
+  sourceFrameFilled,
   sourceFromKey,
   subscribeSpreadFrameSource,
 } from './frameSelection'
@@ -184,7 +185,16 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         const frame = { spreadId, frameId: item.frameId }
         const pressed = isFramePressed(frameSourceKey, item.frameId)
         const control: FrameControl = {
-          label: frameControlLabel(filled, frameSource, frame),
+          label: frameControlLabel(
+            filled,
+            frameSource,
+            frame,
+            // Another spread keeps the move wording (its key does not track
+            // whether the selected frame is empty).
+            frameSource === null ||
+              frameSourceKey === '' ||
+              sourceFrameFilled(frameSource),
+          ),
           onActivate: () => {
             activateFrame(spreadId, item.frameId, filled)
           },

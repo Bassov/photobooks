@@ -139,13 +139,22 @@ export function activateFrame(
   if (takeFrameDragClick()) {
     return
   }
+  const source = getFrameSource()
   const action = resolveFrameActivation({
-    source: getFrameSource(),
+    source,
+    sourceFilled:
+      source === null ||
+      frameFilledInBook(
+        getBookStoreSnapshot().book,
+        source.spreadId,
+        source.frameId,
+      ),
     target: { spreadId, frameId, filled },
   })
   if (action.type === 'select-source') {
     setFrameSource({ spreadId, frameId })
-    setEditorStatus(STATUS_SELECTED)
+    // An empty frame has no photo to announce as selected.
+    setEditorStatus(filled ? STATUS_SELECTED : '')
     return
   }
   if (action.type === 'clear-source') {
@@ -190,6 +199,37 @@ function unplaceFrame(source: FrameDragSource): void {
     setFrameSource(null)
   }
   setEditorStatus(STATUS_UNPLACED)
+}
+
+/** Delete on a selected empty frame removes it (the spread leaves its template). */
+function removeSelectedEmptyFrame(): boolean {
+  const selected = getFrameSource()
+  if (
+    selected === null ||
+    frameFilledInBook(
+      getBookStoreSnapshot().book,
+      selected.spreadId,
+      selected.frameId,
+    )
+  ) {
+    return false
+  }
+  const exists = getBookStoreSnapshot().book.spreads.some(
+    (spread) =>
+      spread.id === selected.spreadId &&
+      spread.frames.some((frame) => frame.id === selected.frameId),
+  )
+  if (!exists) {
+    return false
+  }
+  setFrameSource(null)
+  dispatchBookOp({
+    type: 'removeFrames',
+    spreadId: selected.spreadId,
+    frameIds: [selected.frameId],
+  })
+  setEditorStatus('')
+  return true
 }
 
 function sameFrame(a: FrameDragSource, b: FrameDragSource): boolean {
@@ -495,10 +535,15 @@ export function installEditorKeys(): () => void {
       return
     }
     const button = event.target.closest('button.spread-frame')
-    if (!(button instanceof HTMLElement)) {
-      return
-    }
-    if (button.getAttribute('data-filled') !== 'true') {
+    if (
+      !(button instanceof HTMLElement) ||
+      button.getAttribute('data-filled') !== 'true'
+    ) {
+      // A filled focused frame unplaces below; otherwise Delete removes the
+      // selected empty frame.
+      if (removeSelectedEmptyFrame()) {
+        event.preventDefault()
+      }
       return
     }
     const frameId = button.getAttribute('data-frame-id')

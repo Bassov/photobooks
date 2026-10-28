@@ -159,6 +159,51 @@ describe('frameSelection', () => {
     ).toBe(true)
   })
 
+  it('labels frames next to an empty selected frame without offering a move', () => {
+    const frame = { spreadId: 's', frameId: 'f' }
+    const other = { spreadId: 's', frameId: 'g' }
+    expect(frameControlLabel(true, frame, other, false)).toBe(
+      'Select photo to move',
+    )
+    expect(frameControlLabel(false, frame, other, false)).toBe('Place photo')
+  })
+
+  it('keeps an empty frame selected through unrelated edits, then drops it when it fills or goes', () => {
+    resetBookStore()
+    let book = addToGallery(getBookStoreSnapshot().book, ['a', 'b'])
+    const spreadId = book.spreads[0]?.id
+    assert(spreadId !== undefined, 'expected a spread')
+    book = applyTemplate(book, spreadId, '4-grid')
+    const frames = book.spreads[0]?.frames.map((f) => f.id) ?? []
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const selected = { spreadId, frameId: frames[0] ?? '' }
+    setFrameSource(selected)
+
+    dispatchBookOp({ type: 'setTitle', title: 'T' })
+    expect(getFrameSource()).toEqual(selected)
+
+    dispatchBookOp({
+      type: 'place',
+      spreadId,
+      frameId: selected.frameId,
+      assetId: 'a',
+    })
+    expect(getFrameSource()).toBeNull()
+
+    setFrameSource({ spreadId, frameId: frames[1] ?? '' })
+    dispatchBookOp({
+      type: 'removeFrames',
+      spreadId,
+      frameIds: [frames[1] ?? ''],
+    })
+    expect(getFrameSource()).toBeNull()
+  })
+
   it('clears a source when the book is reset without that frame', () => {
     setFrameSource({ spreadId: 'gone', frameId: 'gone' })
     resetBookStore()
