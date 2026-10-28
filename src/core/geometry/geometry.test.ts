@@ -49,6 +49,36 @@ describe('sourceCropRect', () => {
     expect(rect).toEqual({ x: 0, y: 0, width: 1, height: 1 })
   })
 
+  it.each([
+    ['portrait', 0.75],
+    ['landscape', 1.5],
+    ['panorama', 3],
+  ])(
+    'default fill of a %s photo in a 14.8x21 page covers without stretching',
+    (_name, imageAspect) => {
+      const frame = { x: 0, y: 0, width: 138.8, height: 201 }
+      const rect = sourceCropRect(frame, undefined, imageAspect)
+      // Window inside the image, and its pixel aspect equals the frame's.
+      expect(rect.x).toBeGreaterThanOrEqual(0)
+      expect(rect.y).toBeGreaterThanOrEqual(0)
+      expect(rect.x + rect.width).toBeLessThanOrEqual(1 + 1e-9)
+      expect(rect.y + rect.height).toBeLessThanOrEqual(1 + 1e-9)
+      expect((rect.width * imageAspect) / rect.height).toBeCloseTo(
+        frame.width / frame.height,
+      )
+    },
+  )
+
+  it('default fill of a landscape photo in a portrait page crops the center', () => {
+    const rect = sourceCropRect(
+      { x: 0, y: 0, width: 138.8, height: 201 },
+      undefined,
+      1.5,
+    )
+    expect(rect.height).toBe(1)
+    expect(rect.x + rect.width / 2).toBeCloseTo(0.5)
+  })
+
   it('fit contains a wide photo: window taller than the image, centered', () => {
     const rect = sourceCropRect(
       { x: 0, y: 0, width: 100, height: 100 },

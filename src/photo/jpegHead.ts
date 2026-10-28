@@ -94,6 +94,15 @@ export async function parseJpegHead(
     }
   }
 
+  if (
+    thumbJpeg !== null &&
+    correctedWidth !== null &&
+    correctedHeight !== null &&
+    isTurnedThumb(thumbJpeg, correctedWidth, correctedHeight)
+  ) {
+    thumbJpeg = null
+  }
+
   return {
     thumbJpeg,
     width,
@@ -102,4 +111,27 @@ export async function parseJpegHead(
     correctedWidth,
     correctedHeight,
   }
+}
+
+/**
+ * Embedded thumbs are stored unrotated, so a portrait photo (EXIF orientation
+ * 5-8) carries a landscape thumb. Painted into a portrait box it would be
+ * stretched; a thumb of unknown size is kept.
+ */
+function isTurnedThumb(
+  thumb: Uint8Array,
+  correctedWidth: number,
+  correctedHeight: number,
+): boolean {
+  const copy = new Uint8Array(thumb.byteLength)
+  copy.set(thumb)
+  const size = readJpegSofSize(copy.buffer)
+  if (size === null) {
+    return false
+  }
+  return (
+    Math.sign(size.width - size.height) *
+      Math.sign(correctedWidth - correctedHeight) <
+    0
+  )
 }
