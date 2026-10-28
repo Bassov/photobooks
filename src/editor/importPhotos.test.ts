@@ -27,6 +27,10 @@ const runImportBatch = vi.hoisted(() => vi.fn())
 const seedWorkingPreview = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 )
+// The JPEG head pass is fire-and-forget (lazy exifr) and covered by
+// jpegHeadPass.test.ts; stubbing the boundary keeps it from loading after
+// environment teardown under full-suite load.
+const runJpegHeadPass = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 
 vi.mock('../photo/assetPool', async () => {
   const actual =
@@ -52,6 +56,11 @@ vi.mock('../photo/tierCache', async () => {
   }
 })
 
+vi.mock('./jpegHeadPass', () => ({
+  runJpegHeadPass: (...args: unknown[]): unknown =>
+    runJpegHeadPass(...args) as unknown,
+}))
+
 import { importPhotoFiles } from './importPhotos'
 
 describe('importPhotoFiles', () => {
@@ -64,6 +73,8 @@ describe('importPhotoFiles', () => {
     runImportBatch.mockReset()
     seedWorkingPreview.mockReset()
     seedWorkingPreview.mockResolvedValue(undefined)
+    runJpegHeadPass.mockReset()
+    runJpegHeadPass.mockResolvedValue(undefined)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -272,6 +283,11 @@ describe('importPhotoFiles', () => {
     expect(getAssetSource(assetId)?.name).toBe('a.jpg')
     expect(getBookStoreSnapshot().importRunning).toBe(false)
     expect(seedWorkingPreview).not.toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(runJpegHeadPass).toHaveBeenCalledWith([
+        expect.objectContaining({ assetId, file: jpeg }),
+      ])
+    })
   })
 
   it('seeds working preview only when both workingBuffer and workingMimeType are set', async () => {

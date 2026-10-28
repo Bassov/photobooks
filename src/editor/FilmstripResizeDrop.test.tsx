@@ -96,6 +96,35 @@ describe('FilmstripDock resize', () => {
     expect(dock.hasAttribute('data-film-resizing')).toBe(false)
   })
 
+  it('clears the preview when the draft equals the committed height', () => {
+    render(<FilmstripDock />)
+    const dock = screen.getByTestId('dock')
+    const slider = screen.getByTestId('film-size')
+    fireEvent.change(slider, { target: { value: '144' } })
+    fireEvent.change(slider, { target: { value: '96' } })
+    expect(dock.getAttribute('data-film-resizing')).toBe('true')
+    fireEvent.keyUp(slider, { key: 'ArrowRight' })
+    expect(getFilmstripThumbHeight()).toBe(96)
+    expect(dock.hasAttribute('data-film-resizing')).toBe(false)
+    expect(dock.style.getPropertyValue('--film-preview-scale')).toBe('')
+    expect(dock.style.getPropertyValue('--film-preview-origin')).toBe('')
+  })
+
+  it('previews around the strip scroll offset', () => {
+    render(<FilmstripDock />)
+    const dock = screen.getByTestId('dock')
+    const scroller = dock.querySelector<HTMLElement>('.filmstrip-scroll')
+    expect(scroller).not.toBeNull()
+    Object.defineProperty(scroller, 'scrollLeft', {
+      configurable: true,
+      value: 240,
+    })
+    fireEvent.change(screen.getByTestId('film-size'), {
+      target: { value: '144' },
+    })
+    expect(dock.style.getPropertyValue('--film-preview-origin')).toBe('240px')
+  })
+
   it('slider previews on change and commits on release', () => {
     render(<FilmstripDock />)
     const slider = screen.getByTestId('film-size')
