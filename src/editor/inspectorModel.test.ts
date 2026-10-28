@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Book } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
   framePhotoRows,
@@ -38,6 +39,27 @@ describe('inspectorView', () => {
     expect(inspectorView(book, null, 'gone', null).kind).toBe('empty')
   })
 
+  it('ignores a frame id that belongs to another spread', () => {
+    const view = inspectorView(
+      book,
+      { spreadId: 's2', frameId: 'f1' },
+      's2',
+      null,
+    )
+    expect(view.kind).toBe('spread')
+  })
+
+  it('reports the index of the picked spread', () => {
+    const other = makeSpread({ id: 's3', frames: [makeFrame({ id: 'f3' })] })
+    const view = inspectorView(
+      makeBook({ spreads: [s1, s2, other] }),
+      { spreadId: 's3', frameId: 'f3' },
+      null,
+      null,
+    )
+    expect(view).toMatchObject({ kind: 'frame', spreadIndex: 2 })
+  })
+
   it('ignores a stale frame source', () => {
     const view = inspectorView(
       book,
@@ -62,6 +84,46 @@ describe('rows', () => {
       { label: 'Photos', value: '1' },
     ])
     expect(spreadRows(s2)[0]?.value).toBe('two up')
+  })
+
+  it('names templates by stripping only the leading t- and all dashes', () => {
+    const named = (templateId: string) =>
+      spreadRows(makeSpread({ templateId }))[0]?.value
+    expect(named('t-three-up-wide')).toBe('three up wide')
+    expect(named('split-two')).toBe('split two')
+  })
+
+  it('counts only frames that hold a photo', () => {
+    const three = makeSpread({
+      frames: [
+        makeFrame({ id: 'x1', assetId: 'a' }),
+        makeFrame({ id: 'x2', assetId: 'b' }),
+        makeFrame({ id: 'x3' }),
+      ],
+    })
+    const rows = spreadRows(three)
+    expect(rows[1]?.value).toBe('3')
+    expect(rows[2]?.value).toBe('2')
+  })
+
+  it('does not look up an asset for an empty frame', () => {
+    const odd = makeBook({
+      assets: { undefined: { widthPx: 1, heightPx: 2, relativePath: 'u.jpg' } },
+    })
+    expect(framePhotoRows(odd, f2, 0, 0).map((r) => r.label)).toEqual([
+      'Spread',
+      'Size',
+    ])
+  })
+
+  it('shows pixels only when both dimensions are known', () => {
+    const labels = (asset: Book['assets'][string]) =>
+      framePhotoRows(makeBook({ assets: { a: asset } }), f1, 0, 1).map(
+        (r) => r.label,
+      )
+    expect(labels({ widthPx: 10 })).toEqual(['Spread', 'Size', 'Used'])
+    expect(labels({ heightPx: 10 })).toEqual(['Spread', 'Size', 'Used'])
+    expect(labels({ widthPx: 10, heightPx: 20 })).toContain('Pixels')
   })
 
   it('describes a placed photo and an empty frame', () => {

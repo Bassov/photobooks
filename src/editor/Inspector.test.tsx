@@ -102,6 +102,48 @@ describe('Inspector', () => {
     expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
   })
 
+  it('shows no crop section when the target spread is gone', () => {
+    seed()
+    render(<Inspector />)
+    act(() => {
+      enterCropMode('gone', 'frame-1')
+    })
+    expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+  })
+
+  it.each([
+    ['x', { x: 0.3, y: 0.5 }],
+    ['y', { x: 0.5, y: 0.3 }],
+  ])('enables reset when only the %s center is off cover', (_axis, center) => {
+    const base = makeBookWithAsset('a')
+    const [spread] = base.spreads
+    const book = {
+      ...base,
+      spreads: [
+        {
+          ...spread,
+          frames: spread?.frames.map((item) => ({
+            ...item,
+            crop: { zoom: 1, center },
+          })),
+        },
+      ],
+    } as typeof base
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<Inspector />)
+    act(() => {
+      enterCropMode('spread-1', 'frame-1')
+    })
+    expect(screen.getByTestId<HTMLButtonElement>('crop-reset').disabled).toBe(
+      false,
+    )
+  })
+
   it('drops the section when crop mode ends', () => {
     seed()
     render(<Inspector />)
