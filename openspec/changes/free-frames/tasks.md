@@ -13,3 +13,5 @@
 2. Drag < 5 mm → no frame; Frame tool stays active.
 3. Draw near another frame / guide → snap line + `snap · …` label; hold Alt → none.
 4. Drag a photo from the filmstrip onto the empty frame → fills.
+
+Evidence: `pnpm agent manual-qa` was denied by the harness (not run). OK via `e2e/free-frames.spec.ts` (Chromium): scenarios 1–4, empty-frame Select-tool drag with snap + Alt, and the dense-spread drag gate (zero LoAF, `frame-gesture` p95 within budget at 2× CPU throttle).

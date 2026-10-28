@@ -205,6 +205,57 @@ test('drawing near another frame shows a snap line; Alt suppresses it', async ({
   await expect(frames(page)).toHaveCount(3)
 })
 
+test('an empty frame drags with the Select tool, snapping to a neighbour; Alt skips it', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await openSessionEditor(page)
+  await clearSpread(page)
+  await draw(page, [0.1, 0.1], [0.4, 0.4])
+  await draw(page, [0.6, 0.5], [0.9, 0.8], { keys: ['Alt'] })
+  await expect(frames(page)).toHaveCount(2)
+  const first = frames(page).nth(0)
+  const second = frames(page).nth(1)
+  const box = await spreadBox(page)
+  const snapLines = page.getByTestId('snap-line')
+
+  const dragSecond = async (keys: string[], midDrag: () => Promise<void>) => {
+    const from = await centerOf(second)
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    for (const key of keys) {
+      await page.keyboard.down(key)
+    }
+    // Left edge lands 3 px right of the first frame's right edge.
+    await page.mouse.move(from.x - box.width * 0.2 + 3, from.y + 20, {
+      steps: 6,
+    })
+    await midDrag()
+    for (const key of keys) {
+      await page.keyboard.up(key)
+    }
+    await page.mouse.up()
+  }
+
+  await dragSecond([], async () => {
+    await expect(snapLines.first()).toContainText('snap · ')
+  })
+  await expect(snapLines).toHaveCount(0)
+  await expect(second).toHaveAttribute('aria-pressed', 'true')
+  const a = await first.boundingBox()
+  const b = await second.boundingBox()
+  const gap = (b?.x ?? 0) - ((a?.x ?? 0) + (a?.width ?? 0))
+  expect(Math.abs(gap)).toBeLessThan(1)
+
+  const before = await second.boundingBox()
+  await dragSecond(['Alt'], async () => {
+    await expect(snapLines).toHaveCount(0)
+  })
+  const after = await second.boundingBox()
+  expect(Math.abs((after?.x ?? 0) - (before?.x ?? 0))).toBeGreaterThan(20)
+  await assertDocumentFitsViewport(page)
+})
+
 test('dragging a frame across a dense spread with snapping stays within frame-budget gates', async ({
   page,
 }) => {

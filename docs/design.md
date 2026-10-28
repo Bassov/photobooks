@@ -42,7 +42,7 @@ Surfaces: `--background`, `--chrome`, `--canvas`, `--paper`, `--card`, `--popove
 Text: `--foreground`, `--muted-foreground`, `--primary` / `--primary-foreground`.  
 Fills: `--secondary`, `--muted`, `--subtle`, `--accent` / `--accent-foreground`.  
 Lines: `--border`, `--input`, `--ring`.  
-Editor: `--select` (canvas frame selection / handles — ink/black), tone selection `--sel` / `--color-sel` / `bg-sel` (`#CACACA`), `--crop` (gray; active crop outline 2px + "Crop · N%" tag on `--field`), slider B `--sel` track / `--scroll-thumb-rest` fill / `--slider-fill-drag` / `--slider-thumb` / `--shadow-slider-thumb*` (inspector zoom), `--guide`, `--grid` / `--grid-line` (product: `--grid-fill` rgb(83 81 82/.10), `--grid-line` rgb(83 81 82/.6), grayscale only; snap label `.snap-label` = `--field` pill).  
+Editor: `--select` (canvas frame selection / handles — ink/black), tone selection `--sel` / `--color-sel` / `bg-sel` (`#CACACA`), `--crop` (gray; active crop outline 2px + "Crop · N%" tag on `--field`), slider B `--sel` track / `--scroll-thumb-rest` fill / `--slider-fill-drag` / `--slider-thumb` / `--shadow-slider-thumb*` (inspector zoom), `--guide`, `--grid` / `--grid-line` (product: `--grid-fill` rgb(83 81 82/.10), `--grid-line` rgb(83 81 82/.6), grayscale only; snap label `.snap-label` = `--field` pill), frame tool `.frame-draft` (dashed grey outline + 8% wash) and `.snap-line` (1.5px grey line, `.snap-line-label` = `--field` pill `snap · <kind>`).  
 Status: `--success`, `--warning`, `--destructive` (text/icon); `--destructive-solid` (+ hover) only for AlertDialog confirm.  
 Badges: `--badge-{gray,brand,success,warning,error}-{fg,bg,ring,dot}`.
 
