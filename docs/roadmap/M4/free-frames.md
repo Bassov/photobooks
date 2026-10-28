@@ -21,5 +21,5 @@ Title: free layout
   - Selected frame: Phase A canvas-sel only (`#232223` outline + white handles). Live snap to the visible grid (if render-snap shipped) / other frames; Alt suppresses snap.
 - **Hard nos:** no floating `frame-toolbar`; no Text tool in this slice; no multi-select / marquee / arrange; no rotate handle required this PR (can follow); no toast on create — quiet status ok; no blue.
 - **Tokens:** canvas sel `#232223`; placeholder dashed quiet gray; tool cursor white + black outline.
-- **Test:** F → drag ≥ 5 mm → frame appears selected; Delete removes; drop photo from filmstrip into empty frame; drag < 5 mm → no frame.
+- **Test:** F → drag ≥ 5 mm → frame appears selected; Delete removes; drop photo from filmstrip into empty frame; drag under 5 mm → no frame.
 - **Depends:** frame-geometry-schema, frame-transform-ops, layout-grids-render-snap (snap optional, soft), Phase A canvas-sel + filmstrip, tool-rail
