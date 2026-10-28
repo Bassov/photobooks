@@ -19,6 +19,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 - [x] [prep] [pr-body-free-form](roadmap/M3/pr-body-free-form.md) — Drop PR body content gate (rig + CI)
 - [x] [prep] [pr-body-free-form-tail](roadmap/M3/pr-body-free-form-tail.md) — Finish PR body free-form: docs and live-PR waiver in checks.yml
+- [x] [prep] [stryker-diff-scope](roadmap/M3/stryker-diff-scope.md) — Measure stryker-diff cost and survivors; Owner picks keep / exclude / C-session
 - [ ] [prep] [rig-pr-body-gate-removal](roadmap/M3/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [x] [prep] [fix-place-fit-aspect](roadmap/M3/fix-place-fit-aspect.md) — Fix placed photo aspect: no stretched portraits, cover crop in thumbs and canvas
 - [x] [feature] [ui-chrome-musts-recheck](roadmap/M3/ui-chrome-musts-recheck.md) — Chrome Musts: book covers, settings nav tone-only, quiet editor header
