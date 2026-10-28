@@ -61,7 +61,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [layout-grids-settings](roadmap/M4/layout-grids-settings.md) — margins, columns, rows, gutters
 - [x] [feature] [layout-grids-render-snap](roadmap/M4/layout-grids-render-snap.md) — see the grid
 - [ ] [feature] [layout-grids-snap-wire](roadmap/M4/layout-grids-snap-wire.md) — wire grid snap into frame move/resize
-- [ ] [feature] [free-frames](roadmap/M4/free-frames.md) — free layout
+- [x] [feature] [free-frames](roadmap/M4/free-frames.md) — free layout
 - [ ] [feature] [photo-rotate](roadmap/M4/photo-rotate.md) — rotate photos in frames
 - [ ] [feature] [inspector](roadmap/M4/inspector.md) — numeric properties
 - [ ] [feature] [arrange-lock](roadmap/M4/arrange-lock.md) — stacking and locking
