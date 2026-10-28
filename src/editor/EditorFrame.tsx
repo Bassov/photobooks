@@ -17,6 +17,7 @@ import {
   type EditorTool,
 } from './editorToolStore'
 import { installEditorChromeKeys } from './installEditorChromeKeys'
+import { installEditorGridKeys } from './installEditorGridKeys'
 import { installEditorToolKeys } from './installEditorToolKeys'
 
 export type { EditorPanels } from './editorChromePanels'
@@ -89,9 +90,11 @@ export function EditorFrame({
       setSpaceDown,
     })
     const offTool = installEditorToolKeys()
+    const offGrid = installEditorGridKeys()
     return () => {
       offChrome()
       offTool()
+      offGrid()
     }
   }, [setPn])
 

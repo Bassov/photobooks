@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getGridVisible,
+  getSnapOn,
   setGridVisible,
+  setSnapOn,
   subscribeGridVisible,
   toggleGridVisible,
+  toggleSnapOn,
 } from './gridView'
 
 describe('gridView', () => {
@@ -30,5 +33,23 @@ describe('gridView', () => {
     stop()
     setGridVisible(false)
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('snap flag', () => {
+  afterEach(() => {
+    setSnapOn(true)
+  })
+
+  it('is on by default, toggles, and notifies only on change', () => {
+    expect(getSnapOn()).toBe(true)
+    const listener = vi.fn()
+    const stop = subscribeGridVisible(listener)
+    setSnapOn(true)
+    expect(listener).not.toHaveBeenCalled()
+    toggleSnapOn()
+    expect(getSnapOn()).toBe(false)
+    expect(listener).toHaveBeenCalledTimes(1)
+    stop()
   })
 })

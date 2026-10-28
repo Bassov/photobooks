@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EditorFrame, PanelToggles } from './EditorFrame'
 import type { EditorPanels } from './editorChromePanels'
+import { getGridVisible, setGridVisible } from './gridView'
 
 describe('EditorFrame', () => {
   afterEach(() => {
@@ -50,6 +51,27 @@ describe('EditorFrame', () => {
       b: true,
       r: false,
     })
+  })
+
+  it("arms Ctrl+' for the layout grid while mounted and releases it on unmount", () => {
+    const panels: EditorPanels = { l: true, b: true, r: true }
+    const { unmount } = render(
+      <EditorFrame
+        panels={panels}
+        onPanelsChange={vi.fn()}
+        top={null}
+        left={null}
+        right={null}
+        dock={null}
+        canvas={null}
+      />,
+    )
+    fireEvent.keyDown(window, { key: "'", ctrlKey: true })
+    expect(getGridVisible()).toBe(true)
+    unmount()
+    fireEvent.keyDown(window, { key: "'", ctrlKey: true })
+    expect(getGridVisible()).toBe(true)
+    setGridVisible(false)
   })
 
   it('marks closed panels hidden and arms Space pan', () => {
