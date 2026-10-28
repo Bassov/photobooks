@@ -34,6 +34,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [prep] [ui-panels](roadmap/M3/ui-panels.md) — side panel frame
 - [x] [feature] [spread-list-panel](roadmap/M3/spread-list-panel.md) — spread list (Google Slides style)
 - [x] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads
+- [ ] [feature] [behavior-invariants](roadmap/M3/behavior-invariants.md) — PBT invariants for placement/fit
 - [ ] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
 - [x] [feature] [look-parity-inspector](roadmap/M3/look-parity-inspector.md) — look parity: inspector shell + quiet header
 - [x] [feature] [look-parity-canvas-sel](roadmap/M3/look-parity-canvas-sel.md) — look parity: canvas selection-only chrome
