@@ -17,6 +17,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 **Review cut:** you can assemble a complete real book from your own photos without reaching for InDesign — orientation-aware templates and multi-photo drops make layout fast, the assets panel shows what is used, missing or modified — and a 1000-photo library feels instant.
 
+- [ ] [prep] [pr-body-free-form](roadmap/M3/pr-body-free-form.md) — Drop PR body content gate (rig + CI)
 - [x] [prep] [fix-place-fit-aspect](roadmap/M3/fix-place-fit-aspect.md) — Fix placed photo aspect: no stretched portraits, cover crop in thumbs and canvas
 - [x] [feature] [ui-chrome-musts-recheck](roadmap/M3/ui-chrome-musts-recheck.md) — Chrome Musts: book covers, settings nav tone-only, quiet editor header
 - [x] [feature] [ui-create-dialog-chrome-v93](roadmap/M3/ui-create-dialog-chrome-v93.md) — Create dialog chrome: centered+dim, Cancel+Create visible, field borders #D7D7D7
@@ -41,6 +42,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [look-parity-fit-crop](roadmap/M3/look-parity-fit-crop.md) — look parity: Fit & crop in the inspector
 - [x] [feature] [look-parity-filmstrip](roadmap/M3/look-parity-filmstrip.md) — look parity: filmstrip kit chrome
 - [x] [feature] [look-parity-tool-rail](roadmap/M3/look-parity-tool-rail.md) — look parity: tool rail in the header
+- [x] [feature] [look-parity-masters](roadmap/M3/look-parity-masters.md) — look parity: left list kit chrome
 - [x] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
 
 ## M4 — Free layout: grids, guides, frames

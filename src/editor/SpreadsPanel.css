@@ -1,0 +1,46 @@
+/* Left list kit chrome: BAR panel, tone selection (#CACACA), no ink ring on rows/thumbs. */
+.editor-spreads {
+  background: var(--chrome);
+  color: var(--foreground);
+}
+
+.editor-spreads-mode {
+  background: var(--field);
+  padding: 2px;
+  color: var(--foreground);
+}
+
+.e7-item {
+  cursor: default;
+  outline: none;
+  box-shadow: none;
+  color: var(--muted-foreground);
+  transition: background-color 0.12s;
+}
+
+.e7-item:hover {
+  background: var(--field);
+}
+
+.e7-item[aria-selected='true'],
+.e7-item[aria-selected='true']:hover {
+  background: var(--sel);
+}
+
+.e7-item [data-label] {
+  color: var(--muted-foreground);
+}
+
+.e7-item[aria-selected='true'] [data-label] {
+  color: var(--foreground);
+}
+
+.e7-item:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 2px;
+}
+
+.editor-spread-thumb {
+  outline: none;
+  box-shadow: none;
+}
