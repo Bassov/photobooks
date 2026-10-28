@@ -53,7 +53,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 ## Toolchain / headless agents
 
-Agent shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`). Unattended: `/next-roadmap-item`. Harness wiring (Cursor `.cursor/cli.json`; Claude Code `CLAUDE.md` + `.claude/`): `docs/agent-loop.md` `## Harnesses`. Prefer preflight run card / `pnpm agent instructions` over raw OpenSpec reads (denied headless). `pnpm agent stats <log>` exits 1 if peak context >300K or first-round input >400K.
+Interactive shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`); headless launcher preloads it — do not source. Unattended: `/next-roadmap-item`. Harness wiring (Cursor `.cursor/cli.json`; Claude Code `CLAUDE.md` + `.claude/`): `docs/agent-loop.md` `## Harnesses`. Prefer preflight run card / `pnpm agent instructions` over raw OpenSpec reads (denied headless). `pnpm agent stats <log>` exits 1 if peak context >300K or first-round input >400K.
 
 Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
 
