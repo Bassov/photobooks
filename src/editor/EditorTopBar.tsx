@@ -30,6 +30,7 @@ import {
 } from './editorChromePanels'
 import { BAR, FIELD, SUB, T } from './editorChromeTokens'
 import { PanelToggles } from './EditorFrame'
+import { EditorToolGroup } from './EditorToolGroup'
 import {
   getBookStoreSnapshot,
   getHistorySnapshot,
@@ -317,6 +318,7 @@ export function EditorTopBar({
           {chromeImport.photoFolderLabel}
         </ChromeButton>
         {chromeImport.inputs}
+        <EditorToolGroup />
       </div>
 
       <HistoryChrome />
