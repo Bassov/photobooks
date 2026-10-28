@@ -24,6 +24,8 @@ export interface ResolvedItem {
   z: number
   /** Frame rotation in degrees about the rect center. */
   rotation: number
+  /** Locked frame: no move / resize / rotate; omitted when unlocked. */
+  locked?: true
   /** Photo quarter turns (clockwise) inside the frame; omitted when 0. */
   photoQuarterTurns?: 1 | 2 | 3
   /** Photo fine rotation in degrees; omitted when 0. */

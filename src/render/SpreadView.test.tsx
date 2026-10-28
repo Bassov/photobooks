@@ -363,9 +363,10 @@ describe('SpreadView', () => {
         })}
       />,
     )
+    // A selected frame moves by its body (pointer gesture), not photo drag.
     expect(
       document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
-    ).toBe('true')
+    ).toBe('false')
     const selected = screen.getByRole('button', {
       name: 'Select photo to move',
     })
@@ -374,7 +375,9 @@ describe('SpreadView', () => {
     expect(selected.style.outline).toBe('')
     expect(screen.getAllByTestId('spread-frame-handles')).toHaveLength(1)
     const handles = [
-      ...selected.querySelectorAll<HTMLElement>('.spread-frame-handle'),
+      ...selected.querySelectorAll<HTMLElement>(
+        '.spread-frame-handle:not(.spread-frame-rotate)',
+      ),
     ]
     expect(handles).toHaveLength(8)
     expect(handles.map((h) => `${h.style.left} ${h.style.top}`)).toEqual([
@@ -387,6 +390,158 @@ describe('SpreadView', () => {
       '50% 100%',
       '100% 100%',
     ])
+  })
+
+  it('selected frame shows 8 resize handles, a rotate handle and a size tag', () => {
+    const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Sel',
+          pressed: true,
+          onActivate: vi.fn(),
+        })}
+      />,
+    )
+    expect(
+      screen.getAllByTestId('sel-handle').map((h) => h.dataset.handle),
+    ).toEqual(['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'])
+    expect(screen.getByTestId('rotate-handle').dataset.handle).toBe('rotate')
+    expect(screen.getByTestId('frame-size-tag').textContent).toMatch(
+      / × .* mm$/,
+    )
+  })
+
+  it('rounds the size tag to 0.1 mm', () => {
+    const book = makeBookWithAsset()
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    frame.rect = { x: 10, y: 10, width: 33.37, height: 20.04 }
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Sel',
+          pressed: true,
+          onActivate: vi.fn(),
+        })}
+      />,
+    )
+    expect(screen.getByTestId('frame-size-tag').textContent).toBe(
+      '33.4 × 20 mm',
+    )
+  })
+
+  it('rotates a rotated frame about its centre and leaves others upright', () => {
+    const book = makeBookWithAsset()
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    const upright = resolveSpread(book, 'spread-1')
+    assert(upright !== undefined, 'expected resolved spread')
+    const { unmount } = render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={upright}
+        previewUrlFor={previewUrlFor}
+      />,
+    )
+    expect(screen.getByTestId('spread-frame').style.transform).toBe('')
+    unmount()
+    const turnedBook = structuredClone(book)
+    const turnedFrame = turnedBook.spreads[0]?.frames[0]
+    assert(turnedFrame !== undefined, 'expected a frame')
+    turnedFrame.rotationDeg = 30
+    const turned = resolveSpread(turnedBook, 'spread-1')
+    assert(turned !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={turned}
+        previewUrlFor={previewUrlFor}
+      />,
+    )
+    expect(screen.getByTestId('spread-frame').style.transform).toBe(
+      'rotate(30deg)',
+    )
+  })
+
+  it('marks only a locked frame and presses only a selected one', () => {
+    const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Idle',
+          pressed: false,
+          onActivate: vi.fn(),
+          onDragStart: vi.fn(),
+        })}
+      />,
+    )
+    const frame = screen.getByTestId('spread-frame')
+    expect(frame.hasAttribute('data-locked')).toBe(false)
+    expect(frame.hasAttribute('aria-pressed')).toBe(false)
+    expect(screen.queryByTestId('frame-size-tag')).toBeNull()
+    expect(
+      document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
+    ).toBe('true')
+  })
+
+  it('does not drag a frame without a drag handler', () => {
+    const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Idle',
+          pressed: false,
+          onActivate: vi.fn(),
+        })}
+      />,
+    )
+    expect(
+      document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
+    ).toBe('false')
+  })
+
+  it('locked frame shows no handles and no size tag', () => {
+    const book = makeBookWithAsset()
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    frame.locked = true
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Sel',
+          pressed: true,
+          onActivate: vi.fn(),
+        })}
+      />,
+    )
+    expect(screen.queryByTestId('sel-handle')).toBeNull()
+    expect(screen.queryByTestId('rotate-handle')).toBeNull()
+    expect(screen.getByTestId('spread-frame').getAttribute('data-locked')).toBe(
+      'true',
+    )
   })
 
   it('crop mode shows a dim ghost, disables drag and forwards double-click', () => {
