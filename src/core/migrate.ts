@@ -60,11 +60,7 @@ function migrateV3ToV4(
 ): Record<string, unknown> {
   const spreads = Array.isArray(input.spreads)
     ? input.spreads.map((spread: unknown) => {
-        if (
-          spread === null ||
-          typeof spread !== 'object' ||
-          !Array.isArray((spread as { frames?: unknown }).frames)
-        ) {
+        if (!Array.isArray((spread as { frames?: unknown } | null)?.frames)) {
           return spread
         }
         const frames = (spread as { frames: unknown[] }).frames.map((frame) =>
@@ -72,7 +68,7 @@ function migrateV3ToV4(
             ? { rotationDeg: 0, ...frame }
             : frame,
         )
-        return { ...spread, frames }
+        return { ...(spread as object), frames }
       })
     : input.spreads
   return {

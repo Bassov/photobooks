@@ -66,6 +66,42 @@ describe('parseBook', () => {
     expect(parseBook(book)).toMatchObject({ ok: false })
   })
 
+  describe('crop rotation bounds', () => {
+    const parseCrop = (extra: Record<string, number>) =>
+      parseBook(
+        makeBook({
+          spreads: [
+            makeSpread({
+              frames: [
+                makeFrame({
+                  crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, ...extra },
+                }),
+              ],
+            }),
+          ],
+        }),
+      )
+
+    it.each([0, 1, 2, 3])('accepts quarterTurns %d', (quarterTurns) => {
+      expect(parseCrop({ quarterTurns }).ok).toBe(true)
+    })
+
+    it.each([-1, 4, 0.5])('rejects quarterTurns %d', (quarterTurns) => {
+      expect(parseCrop({ quarterTurns }).ok).toBe(false)
+    })
+
+    it.each([-45, -44.99, 0, 44.99, 45])(
+      'accepts straightenDeg %d',
+      (straightenDeg) => {
+        expect(parseCrop({ straightenDeg }).ok).toBe(true)
+      },
+    )
+
+    it.each([-45.01, 45.01])('rejects straightenDeg %d', (straightenDeg) => {
+      expect(parseCrop({ straightenDeg }).ok).toBe(false)
+    })
+  })
+
   it('rejects non-numeric rotationDeg', () => {
     const book = makeBook({
       spreads: [

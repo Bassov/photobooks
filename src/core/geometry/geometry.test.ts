@@ -365,6 +365,62 @@ describe('rotation in resolve', () => {
     expect(crop(3)).toMatchObject({ x: 0.75, y: 0 })
   })
 
+  it('maps the bottom-right displayed corner per quarter turn', () => {
+    const rect = { x: 0, y: 0, width: 100, height: 100 }
+    const crop = (quarterTurns: number) =>
+      sourceCropRect(rect, { zoom: 4, center: { x: 1, y: 1 }, quarterTurns }, 1)
+    const expectRect = (
+      actual: ReturnType<typeof crop>,
+      x: number,
+      y: number,
+    ) => {
+      expect(actual.x).toBeCloseTo(x)
+      expect(actual.y).toBeCloseTo(y)
+      expect(actual.width).toBeCloseTo(0.25)
+      expect(actual.height).toBeCloseTo(0.25)
+    }
+    expectRect(crop(1), 0.75, 0)
+    expectRect(crop(2), 0, 0)
+    expectRect(crop(3), 0, 0.75)
+  })
+
+  it('swaps window size for odd turns on a non-square source', () => {
+    const rect = { x: 0, y: 0, width: 100, height: 100 }
+    const r = sourceCropRect(
+      rect,
+      { zoom: 2, center: { x: 1, y: 1 }, quarterTurns: 3 },
+      2,
+    )
+    expect(r.width).toBeCloseTo(0.25)
+    expect(r.height).toBeCloseTo(0.5)
+    expect(r.x).toBeCloseTo(0)
+    expect(r.y).toBeCloseTo(0.5)
+  })
+
+  it('treats a zero aspect ratio as square when turned', () => {
+    const rect = { x: 0, y: 0, width: 120, height: 80 }
+    const crop = { zoom: 2, center: { x: 0.3, y: 0.7 }, quarterTurns: 1 }
+    expect(sourceCropRect(rect, crop, 0)).toEqual(sourceCropRect(rect, crop, 1))
+  })
+
+  it('omits straightenDeg when zero and keeps it when set', () => {
+    const item = resolveOne(
+      makeFrame({
+        assetId: 'a',
+        crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, straightenDeg: 0 },
+      }),
+    )
+    expect(item).not.toHaveProperty('straightenDeg')
+    const turned = resolveOne(
+      makeFrame({
+        assetId: 'a',
+        crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, straightenDeg: 2 },
+      }),
+    )
+    expect(turned).not.toHaveProperty('photoQuarterTurns')
+    expect(turned?.straightenDeg).toBe(2)
+  })
+
   test.prop(
     [
       fc.integer({ min: 0, max: 3 }),

@@ -254,6 +254,21 @@ describe('migrateToCurrent', () => {
       expect(spreads.slice(1)).toEqual(['junk', { id: 's2' }])
     })
 
+    it('passes null spreads and null frames through untouched', () => {
+      const result = migrateToCurrent({
+        ...makeBook(),
+        schemaVersion: 3,
+        spreads: [null, { id: 's1', frames: [null, frameV3] }, [], 7],
+      })
+      assert.equal(result.ok, true)
+      expect((result.value as { spreads: unknown[] }).spreads).toEqual([
+        null,
+        { id: 's1', frames: [null, { ...frameV3, rotationDeg: 0 }] },
+        [],
+        7,
+      ])
+    })
+
     it('leaves a missing spreads field alone', () => {
       const result = migrateToCurrent({
         ...makeBook(),
