@@ -8,6 +8,7 @@ import {
   removeManyFromGallery,
 } from './gallery'
 import { resetCrop, setCrop, setFit } from './crop'
+import { addFrame, removeFrames, setFrameRect } from './frames'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
@@ -70,6 +71,19 @@ export type BookOp =
   | { type: 'removeSpread'; spreadId: string }
   | { type: 'duplicateSpread'; spreadId: string; id?: string }
   | { type: 'moveSpread'; spreadId: string; toIndex: number }
+  | {
+      type: 'addFrame'
+      spreadId: string
+      rect: Frame['rect']
+      id?: string
+    }
+  | { type: 'removeFrames'; spreadId: string; frameIds: readonly string[] }
+  | {
+      type: 'setFrameRect'
+      spreadId: string
+      frameId: string
+      rect: Frame['rect']
+    }
   | { type: 'setTitle'; title: string }
   | { type: 'setBookGrid'; patch: GridPatch }
   | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
@@ -138,6 +152,12 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setSpreadGrid(book, op.spreadId, op.patch)
     case 'resetSpreadGrid':
       return resetSpreadGrid(book, op.spreadId)
+    case 'addFrame':
+      return addFrame(book, op.spreadId, op.rect, op.id)
+    case 'removeFrames':
+      return removeFrames(book, op.spreadId, op.frameIds)
+    case 'setFrameRect':
+      return setFrameRect(book, op.spreadId, op.frameId, op.rect)
     case 'setTitle': {
       if (book.title === op.title) {
         return book

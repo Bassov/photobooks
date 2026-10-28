@@ -52,16 +52,21 @@ export function decodeFrameDrag(payload: string): FrameDragSource | null {
 export function resolveFrameActivation(input: {
   source: FrameDragSource | null
   target: FrameDragSource & { filled: boolean }
+  /** False when the selected source is an empty frame (nothing to move). */
+  sourceFilled?: boolean
 }): FrameActivation {
   const source = input.source
   if (source === null) {
-    return input.target.filled ? { type: 'select-source' } : { type: 'noop' }
+    return { type: 'select-source' }
   }
   if (
     source.spreadId === input.target.spreadId &&
     source.frameId === input.target.frameId
   ) {
     return { type: 'clear-source' }
+  }
+  if (input.sourceFilled === false) {
+    return { type: 'select-source' }
   }
   return { type: 'swap', source }
 }

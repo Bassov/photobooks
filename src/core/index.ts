@@ -78,6 +78,13 @@ export {
   moveSpread,
   resolveAddSpreadTemplateId,
 } from './ops/spreads'
+export {
+  MIN_FRAME_EDGE_MM,
+  addFrame,
+  nextFrameId,
+  removeFrames,
+  setFrameRect,
+} from './ops/frames'
 export { fillSpread, insertSpreadWithAssets } from './ops/fill'
 export { applyBookOp, type BookOp } from './ops/applyBookOp'
 

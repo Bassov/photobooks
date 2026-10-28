@@ -12,6 +12,13 @@ export { fmtN, mmToCm, pageLabel, pagesOf } from './editorChromePanels'
 export const EDITOR_CHROME_CSS = `
 .e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10) }
 .snap-label { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 9999px; background: ${FIELD}; color: ${T}; font-size: 11px; white-space: nowrap }
+.frame-draft { position: absolute; z-index: 5000; pointer-events: none; outline: 1.5px dashed ${SUB}; outline-offset: -1px; background: rgb(83 81 82 / .08) }
+.snap-line { position: absolute; z-index: 5001; pointer-events: none; background: ${SUB} }
+.snap-line[data-axis=x] { top: -10px; bottom: -10px; width: 1.5px; transform: translateX(-.75px) }
+.snap-line[data-axis=y] { left: -10px; right: -10px; height: 1.5px; transform: translateY(-.75px) }
+.snap-line-label { position: absolute; padding: 1px 6px; border-radius: 4px; background: ${FIELD}; color: ${T}; font-size: 11px; font-weight: 600; white-space: nowrap }
+.snap-line[data-axis=x] .snap-line-label { left: 4px; top: -22px }
+.snap-line[data-axis=y] .snap-line-label { left: -8px; top: 3px; transform: translateX(-100%) }
 .e7 ::-webkit-scrollbar-thumb { background-color: #A8A8A8 }
 .e7 *:hover::-webkit-scrollbar-thumb { background-color: #969696 }
 .e7 ::-webkit-scrollbar-thumb:hover { background-color: #7E7E7E }

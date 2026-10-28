@@ -268,7 +268,7 @@ describe('dropTargets', () => {
     expect(isFrameDrag(null)).toBe(false)
   })
 
-  it('selects a filled frame, swaps a different one, and clears the same frame', () => {
+  it('selects any frame, swaps a different one, and clears the same frame', () => {
     const source = { spreadId: 's0', frameId: 'f0' }
     const empty = { spreadId: 's1', frameId: 'f1', filled: false }
     expect(
@@ -282,13 +282,21 @@ describe('dropTargets', () => {
         source: null,
         target: { ...source, filled: false },
       }),
-    ).toEqual({ type: 'noop' })
+    ).toEqual({ type: 'select-source' })
     expect(
       resolveFrameActivation({
         source,
         target: { spreadId: 's0', frameId: 'f1', filled: false },
       }),
     ).toEqual({ type: 'swap', source })
+    // An empty selected frame has nothing to move: the target is selected.
+    expect(
+      resolveFrameActivation({
+        source,
+        sourceFilled: false,
+        target: { spreadId: 's0', frameId: 'f1', filled: true },
+      }),
+    ).toEqual({ type: 'select-source' })
     expect(
       resolveFrameActivation({
         source,
@@ -302,7 +310,7 @@ describe('dropTargets', () => {
       }),
     ).toEqual({ type: 'swap', source })
     expect(resolveFrameActivation({ source: null, target: empty })).toEqual({
-      type: 'noop',
+      type: 'select-source',
     })
   })
 

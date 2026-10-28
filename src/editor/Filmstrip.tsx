@@ -35,7 +35,11 @@ import {
 } from './bookStore'
 import { FilmstripItemView } from './FilmstripItem'
 import { unplaceSelectedFrame } from './galleryDrop'
-import { getFrameSource, subscribeFrameSelection } from './frameSelection'
+import {
+  getFrameSource,
+  sourceFrameFilled,
+  subscribeFrameSelection,
+} from './frameSelection'
 import {
   getSelectedAssetIds,
   setSelectedAssetId,
@@ -423,7 +427,7 @@ export const Filmstrip = memo(function Filmstrip({
       <button
         type="button"
         className="filmstrip-unplace"
-        disabled={frameSource === null}
+        disabled={frameSource === null || !sourceFrameFilled(frameSource)}
         onClick={() => {
           unplaceSelectedFrame()
         }}

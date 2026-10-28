@@ -1,5 +1,12 @@
 import { Profiler } from 'react'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addSpread, applyTemplate, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
@@ -714,6 +721,37 @@ describe('per-spread paint subscription', () => {
       setFrameSource(null)
     })
     expect(renders.count).toBeGreaterThan(moved)
+  })
+
+  it('keeps move wording off while an empty frame is selected', () => {
+    let book = twoSpreadBook()
+    book = applyTemplate(book, 's0', '4-grid')
+    // The template keeps the photo in the first frame; the second is empty.
+    const sourceFrame = book.spreads[0]?.frames[1]?.id
+    assert(sourceFrame !== undefined, 'expected a frame')
+    mountSiblingPaint(book)
+
+    act(() => {
+      setFrameSource({ spreadId: 's0', frameId: sourceFrame })
+    })
+    // Empty selected frame: no swap / move wording on its own spread.
+    const spreadEl = document.querySelector<HTMLElement>(
+      '[data-testid="spread-view"][data-spread-id="s0"]',
+    )
+    assert(spreadEl !== null, 'expected the spread')
+    const spread = within(spreadEl)
+    expect(
+      spread.queryAllByRole('button', { name: 'Swap photos' }),
+    ).toHaveLength(0)
+    expect(
+      spread.queryAllByRole('button', { name: 'Move photo here' }),
+    ).toHaveLength(0)
+    expect(spread.getAllByRole('button', { name: 'Place photo' })).toHaveLength(
+      3,
+    )
+    expect(
+      spread.getAllByRole('button', { name: 'Select photo to move' }),
+    ).toHaveLength(1)
   })
 })
 

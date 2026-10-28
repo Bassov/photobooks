@@ -296,3 +296,12 @@ The renderer SHALL provide a shared pager showing one spread at a time, navigabl
 
 - **WHEN** the user clicks the right (left) half, or presses Esc
 - **THEN** the pager moves forward (back), or calls exit
+
+### Requirement: Empty frames are selectable
+
+Clicking an empty frame SHALL select it with the Phase A selection chrome (no photo-selected announcement). An empty selected frame is never a move / swap source: activating another frame selects that frame instead. The selection ends when the frame is removed or gains / loses its photo.
+
+#### Scenario: Select empty, then another
+
+- **WHEN** an empty frame is selected and the user clicks a filled frame
+- **THEN** the filled frame becomes selected and no photo moves
