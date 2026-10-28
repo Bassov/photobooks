@@ -2,9 +2,11 @@ import { useSyncExternalStore } from 'react'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { getGridVisible, subscribeGridVisible } from './gridView'
 import { pageGridRects } from './gridOverlayModel'
+import { SnapLabel } from './SnapLabel'
 
-// Quiet neutral ink (no accent); bands are drawn as hairline outlines + tint.
-const INK = '#535152'
+// Grayscale tokens (`.e7` in EDITOR_CHROME_CSS): no accent, no black.
+const LINE = 'var(--grid-line)'
+const FILL = 'var(--grid-fill)'
 
 function readBook() {
   return getBookStoreSnapshot().book
@@ -24,7 +26,10 @@ export function GridOverlay({
     getGridVisible,
   )
   return visible ? (
-    <GridOverlayLayer spreadId={spreadId} pxPerMm={pxPerMm} />
+    <>
+      <GridOverlayLayer spreadId={spreadId} pxPerMm={pxPerMm} />
+      <SnapLabel />
+    </>
   ) : null
 }
 
@@ -54,14 +59,15 @@ function GridOverlayLayer({
       {pages.map((page, p) => (
         <g key={p} data-testid="grid-overlay-page">
           <rect
+            data-testid="grid-overlay-content"
             x={px(page.content.x)}
             y={px(page.content.y)}
             width={px(page.content.width)}
             height={px(page.content.height)}
             fill="none"
-            stroke={INK}
-            strokeOpacity={0.5}
-            strokeWidth={1}
+            style={{ stroke: LINE }}
+            strokeDasharray="6 4"
+            strokeWidth={1.5}
           />
           {page.columns.map((c, i) => (
             <rect
@@ -71,8 +77,7 @@ function GridOverlayLayer({
               y={px(c.y)}
               width={px(c.width)}
               height={px(c.height)}
-              fill={INK}
-              fillOpacity={0.07}
+              style={{ fill: FILL }}
             />
           ))}
           {page.rows.map((r, i) => (
@@ -84,8 +89,7 @@ function GridOverlayLayer({
               width={px(r.width)}
               height={px(r.height)}
               fill="none"
-              stroke={INK}
-              strokeOpacity={0.25}
+              style={{ stroke: LINE, strokeOpacity: 0.5 }}
               strokeWidth={1}
             />
           ))}

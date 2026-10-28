@@ -10,6 +10,8 @@ const SEL = '#CACACA'
 export { fmtN, mmToCm, pageLabel, pagesOf } from './editorChromePanels'
 
 export const EDITOR_CHROME_CSS = `
+.e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10) }
+.snap-label { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 9999px; background: ${FIELD}; color: ${T}; font-size: 11px; white-space: nowrap }
 .e7 ::-webkit-scrollbar-thumb { background-color: #A8A8A8 }
 .e7 *:hover::-webkit-scrollbar-thumb { background-color: #969696 }
 .e7 ::-webkit-scrollbar-thumb:hover { background-color: #7E7E7E }
