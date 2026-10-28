@@ -7,6 +7,7 @@ import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import {
   getAssetCacheKey,
+  getBookStoreSnapshot,
   getSpreadPaintSnapshot,
   subscribeSpread,
 } from './bookStore'
@@ -53,6 +54,14 @@ import {
 function cropFrameOnSpread(spreadId: string): string {
   const target = getCropTarget()
   return target?.spreadId === spreadId ? target.frameId : ''
+}
+
+/** Committed crop zoom of a frame (1 = cover); the paint snapshot re-renders on change. */
+function cropZoomOf(spreadId: string, frameId: string): number {
+  const spread = getBookStoreSnapshot().book.spreads.find(
+    (item) => item.id === spreadId,
+  )
+  return spread?.frames.find((item) => item.id === frameId)?.crop?.zoom ?? 1
 }
 
 export const ConnectedSpreadView = memo(function ConnectedSpreadView({
@@ -189,6 +198,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
         }
         if (cropFrameId === item.frameId) {
           control.cropActive = true
+          control.cropZoom = cropZoomOf(spreadId, item.frameId)
         }
         if (filled) {
           control.onDragStart = (event) => {

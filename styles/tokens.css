@@ -230,6 +230,13 @@
   --select: var(--t-ink);
   /* Tone selection fill (filmstrip / templates / spreads) — not canvas --select ink. */
   --sel: #cacaca;
+  /* Kit slider B (inspector): track --sel, fill --scroll-thumb-rest. */
+  --slider-fill-drag: #8e8e8e;
+  --slider-thumb: #f7f7f7;
+  --shadow-slider-thumb:
+    0 1px 3px rgb(0 0 0 / 0.22), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  --shadow-slider-thumb-drag:
+    0 1px 3px rgb(0 0 0 / 0.22), 0 0 0 4px rgb(0 0 0 / 0.06);
   --card-edge: rgb(0 0 0 / 0.07);
   --dot: rgb(255 255 255 / 0.55);
   --scroll-thumb-rest: #a8a8a8;

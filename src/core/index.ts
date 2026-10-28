@@ -21,7 +21,7 @@ export {
   getSpreadSizeMm,
 } from './geometry/spreadSize'
 export { clampCrop, MAX_CROP_ZOOM, sourceCropRect } from './geometry/cropRect'
-export { COVER_CROP, resetCrop, setCrop } from './ops/crop'
+export { COVER_CROP, resetCrop, setCrop, setFit } from './ops/crop'
 export {
   resolveSpread,
   type ResolveSpreadOptions,

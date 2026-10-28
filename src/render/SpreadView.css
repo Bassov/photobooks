@@ -43,6 +43,34 @@ button.spread-frame[aria-pressed='true']::after {
   outline-offset: 1px;
 }
 
+/* Active crop: grey --crop outline and tag replace the black selection chrome. */
+button.spread-frame[data-crop-active='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: none;
+  outline: 2px solid var(--crop);
+  outline-offset: 0;
+}
+
+.spread-frame-crop-tag {
+  position: absolute;
+  left: 0;
+  top: -24px;
+  z-index: 3;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  color: var(--foreground);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .spread-frame-handles {
   position: absolute;
   inset: 0;

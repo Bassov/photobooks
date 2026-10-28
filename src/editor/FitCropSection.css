@@ -1,0 +1,93 @@
+/* Kit CropSection controls. Slider B: 3px --sel track, --scroll-thumb-rest
+   fill (--slider-fill-drag while dragging), --slider-thumb knob — no black. */
+.fit-crop-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  touch-action: none;
+  user-select: none;
+}
+
+.fit-crop-track {
+  position: relative;
+  height: 14px;
+}
+
+.fit-crop-track::before {
+  content: '';
+  position: absolute;
+  inset: 5.5px 0;
+  border-radius: var(--radius-full);
+  background: var(--sel);
+}
+
+.fit-crop-fill {
+  position: absolute;
+  top: 5.5px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--scroll-thumb-rest);
+  transition: background-color var(--motion-duration-fast);
+}
+
+.fit-crop-slider:has([data-dragging]) .fit-crop-fill {
+  background: var(--slider-fill-drag);
+}
+
+.fit-crop-thumb {
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--slider-thumb);
+  box-shadow: var(--shadow-slider-thumb);
+  transition: box-shadow var(--motion-duration-fast);
+}
+
+.fit-crop-thumb[data-dragging] {
+  box-shadow: var(--shadow-slider-thumb-drag);
+}
+
+.fit-crop-thumb[data-focus-visible] {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 2px;
+}
+
+.fit-crop-field {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  font-size: var(--text-sm);
+}
+
+.fit-crop-field:focus-within {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 1px;
+}
+
+.fit-crop-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fit-crop-label,
+.fit-crop-affix {
+  color: var(--muted-foreground);
+}
+
+.fit-crop-affix {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+}

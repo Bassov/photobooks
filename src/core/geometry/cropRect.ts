@@ -10,26 +10,35 @@ export function sourceCropRect(
   frameRect: RectMm,
   crop: Frame['crop'] | undefined,
   aspectRatio: number,
+  fit: Frame['fit'] = 'fill',
 ): NormalizedRect {
   const { zoom, center } = crop ?? DEFAULT_CROP
   const frameAspect = frameRect.width / frameRect.height
   const imageAspect = aspectRatio > 0 ? aspectRatio : 1
 
-  let baseW: number
-  let baseH: number
-  if (imageAspect > frameAspect) {
-    baseW = frameAspect / imageAspect
-    baseH = 1
-  } else {
-    baseW = 1
-    baseH = imageAspect / frameAspect
-  }
+  // Fill (cover) shows the smaller window; fit (contain) the larger one, so
+  // the window exceeds the image on one axis and the photo is letterboxed.
+  const coverW = Math.min(1, frameAspect / imageAspect)
+  const coverH = Math.min(1, imageAspect / frameAspect)
+  const baseW = fit === 'fit' ? 1 / coverH : coverW
+  const baseH = fit === 'fit' ? 1 / coverW : coverH
 
   const width = baseW / zoom
   const height = baseH / zoom
-  const x = clamp(center.x - width / 2, 0, 1 - width)
-  const y = clamp(center.y - height / 2, 0, 1 - height)
-  return { x, y, width, height }
+  return {
+    x: place(center.x, width),
+    y: place(center.y, height),
+    width,
+    height,
+  }
+}
+
+/** Window start on one axis: inside the image, or centered when larger. */
+function place(center: number, size: number): number {
+  const slack = 1 - size
+  return (
+    clamp(center - size / 2, 0, Math.max(slack, 0)) + Math.min(slack, 0) / 2
+  )
 }
 
 export const MAX_CROP_ZOOM = 8
@@ -44,12 +53,14 @@ export function clampCrop(
   frameRect: RectMm,
   crop: Crop,
   aspectRatio: number,
+  fit: Frame['fit'] = 'fill',
 ): Crop {
   const zoom = clamp(crop.zoom, 1, MAX_CROP_ZOOM)
   const rect = sourceCropRect(
     frameRect,
     { zoom, center: crop.center },
     aspectRatio,
+    fit,
   )
   return {
     zoom,

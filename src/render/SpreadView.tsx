@@ -12,6 +12,8 @@ export interface FrameControl {
   onDragStart?: (event: ReactDragEvent<HTMLDivElement>) => void
   /** Crop mode: unclipped dim ghost, no drag; the editor owns the gestures. */
   cropActive?: boolean
+  /** Crop zoom (1 = cover) shown in the "Crop · N%" tag. */
+  cropZoom?: number
   onDoubleActivate?: () => void
 }
 import {
@@ -246,7 +248,12 @@ function SpreadFrame({
       onDoubleClick={control.onDoubleActivate}
     >
       {body}
-      {control.pressed === true ? (
+      {cropActive ? (
+        <span className="spread-frame-crop-tag" data-testid="crop-overlay-tag">
+          Crop · {Math.round((control.cropZoom ?? 1) * 100)}%
+        </span>
+      ) : null}
+      {control.pressed === true && !cropActive ? (
         <span
           className="spread-frame-handles"
           data-testid="spread-frame-handles"

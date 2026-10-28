@@ -49,6 +49,44 @@ describe('sourceCropRect', () => {
     expect(rect).toEqual({ x: 0, y: 0, width: 1, height: 1 })
   })
 
+  it('fit contains a wide photo: window taller than the image, centered', () => {
+    const rect = sourceCropRect(
+      { x: 0, y: 0, width: 100, height: 100 },
+      undefined,
+      2,
+      'fit',
+    )
+    expect(rect.width).toBe(1)
+    expect(rect.height).toBeCloseTo(2)
+    expect(rect.x).toBe(0)
+    expect(rect.y).toBeCloseTo(-0.5)
+  })
+
+  it('fit contains a tall photo: window wider than the image, centered', () => {
+    const rect = sourceCropRect(
+      { x: 0, y: 0, width: 100, height: 50 },
+      undefined,
+      0.5,
+      'fit',
+    )
+    expect(rect.height).toBe(1)
+    expect(rect.width).toBeCloseTo(4)
+    expect(rect.x).toBeCloseTo(-1.5)
+  })
+
+  it('fit zoomed past the image edge pans inside it again', () => {
+    const rect = sourceCropRect(
+      { x: 0, y: 0, width: 100, height: 100 },
+      { zoom: 4, center: { x: 0.9, y: 0.5 } },
+      2,
+      'fit',
+    )
+    expect(rect.width).toBeCloseTo(0.25)
+    expect(rect.x + rect.width).toBeCloseTo(1)
+    expect(rect.height).toBeCloseTo(0.5)
+    expect(rect.y).toBeCloseTo(0.25)
+  })
+
   it('shrinks the window when zoomed', () => {
     const rect = sourceCropRect(
       { x: 0, y: 0, width: 100, height: 100 },
@@ -120,6 +158,22 @@ describe('resolveSpread', () => {
     expect(resolved?.pageCuts).toEqual([
       { orientation: 'vertical', offsetMm: book.settings.trim.widthMm },
     ])
+  })
+
+  it('resolves a fit frame to a window larger than the image', () => {
+    const book = makeBook({
+      assets: { a: {} },
+      gallery: ['a'],
+      spreads: [
+        makeSpread({
+          frames: [makeFrame({ id: 'f', assetId: 'a', fit: 'fit' })],
+        }),
+      ],
+    })
+    const [item] =
+      resolveSpread(book, 'spread-1', { getAspectRatio: () => 0.1 })?.items ??
+      []
+    expect(item?.sourceCropRect?.width).toBeGreaterThan(1)
   })
 
   it('omits source crop for empty frames', () => {

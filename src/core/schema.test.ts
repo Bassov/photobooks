@@ -60,6 +60,25 @@ describe('bookSchema', () => {
     expect(result.data.assets.a).toEqual(FULL_META_ASSET)
   })
 
+  it.each([
+    ['fit', true],
+    ['fill', true],
+    ['cover', false],
+  ])('frame fit %s parses: %s', (fit, ok) => {
+    const book = makeBookWithAsset()
+    const spread = book.spreads[0]
+    const frame = spread?.frames[0]
+    assert(
+      frame !== undefined && spread !== undefined,
+      'expected fixture frame',
+    )
+    const next = {
+      ...book,
+      spreads: [{ ...spread, frames: [{ ...frame, fit }] }],
+    }
+    expect(bookSchema.safeParse(next).success).toBe(ok)
+  })
+
   it('rejects crop zoom below 1', () => {
     const book = makeBookWithAsset()
     const spread = book.spreads[0]

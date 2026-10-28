@@ -47,7 +47,12 @@ export function resolveSpread(
     )
     return {
       ...item,
-      sourceCropRect: computeSourceCropRect(item.rectMm, frame?.crop, aspect),
+      sourceCropRect: computeSourceCropRect(
+        item.rectMm,
+        frame?.crop,
+        aspect,
+        frame?.fit,
+      ),
     }
   })
 
