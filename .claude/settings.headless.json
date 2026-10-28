@@ -20,9 +20,8 @@
       "SendMessage",
       "ListAgents",
       "Workflow",
-      "ReportFindings",
-      "Read(openspec/config.yaml)",
-      "Read(openspec/changes/archive/**)"
-    ]
+      "ReportFindings"
+    ],
+    "allow": ["Edit(openspec/config.yaml)", "Edit(openspec/changes/archive/**)"]
   }
 }
