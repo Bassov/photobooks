@@ -7,8 +7,8 @@ Status: done
 
 ## Scope
 
-- [ ] Schema version bump with migration: frame `rotationDeg` and `locked?`; crop quarter-turn rotation and `straightenDeg?`
-- [ ] Resolver honours frame and photo rotation (`ResolvedItem.rotation`); PBT for rotated geometry
+- [x] Schema version bump with migration: frame `rotationDeg` and `locked?`; crop quarter-turn rotation and `straightenDeg?`
+- [x] Resolver honours frame and photo rotation (`ResolvedItem.rotation`); PBT for rotated geometry
 - **Kit components:** N/A (prep; no UI)
 - **Demo:** N/A
 - **Musts:**
