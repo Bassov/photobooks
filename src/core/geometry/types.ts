@@ -22,7 +22,12 @@ export interface ResolvedItem {
   frameId: string
   rectMm: RectMm
   z: number
-  rotation: 0
+  /** Frame rotation in degrees about the rect center. */
+  rotation: number
+  /** Photo quarter turns (clockwise) inside the frame; omitted when 0. */
+  photoQuarterTurns?: 1 | 2 | 3
+  /** Photo fine rotation in degrees; omitted when 0. */
+  straightenDeg?: number
   assetId?: string
   sourceCropRect?: NormalizedRect
 }

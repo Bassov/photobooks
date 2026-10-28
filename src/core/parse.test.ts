@@ -23,6 +23,96 @@ describe('parseBook', () => {
     expect(result).toMatchObject({ ok: false, code: 'newer-schema' })
   })
 
+  it('round-trips rotationDeg, locked and crop rotation', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              rotationDeg: -12.5,
+              locked: true,
+              crop: {
+                zoom: 1,
+                center: { x: 0.5, y: 0.5 },
+                quarterTurns: 3,
+                straightenDeg: 2.5,
+              },
+            }),
+          ],
+        }),
+      ],
+    })
+    const parsed = parseBook(serializeBook(book))
+    assert.equal(parsed.ok, true)
+    expect(parsed.book).toEqual(book)
+  })
+
+  it.each([
+    ['quarterTurns 4', { quarterTurns: 4 }],
+    ['fractional quarterTurns', { quarterTurns: 1.5 }],
+    ['straightenDeg out of range', { straightenDeg: 90 }],
+  ])('rejects crop with %s', (_label, extra) => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [
+            makeFrame({
+              crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, ...extra },
+            }),
+          ],
+        }),
+      ],
+    })
+    expect(parseBook(book)).toMatchObject({ ok: false })
+  })
+
+  describe('crop rotation bounds', () => {
+    const parseCrop = (extra: Record<string, number>) =>
+      parseBook(
+        makeBook({
+          spreads: [
+            makeSpread({
+              frames: [
+                makeFrame({
+                  crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, ...extra },
+                }),
+              ],
+            }),
+          ],
+        }),
+      )
+
+    it.each([0, 1, 2, 3])('accepts quarterTurns %d', (quarterTurns) => {
+      expect(parseCrop({ quarterTurns }).ok).toBe(true)
+    })
+
+    it.each([-1, 4, 0.5])('rejects quarterTurns %d', (quarterTurns) => {
+      expect(parseCrop({ quarterTurns }).ok).toBe(false)
+    })
+
+    it.each([-45, -44.99, 0, 44.99, 45])(
+      'accepts straightenDeg %d',
+      (straightenDeg) => {
+        expect(parseCrop({ straightenDeg }).ok).toBe(true)
+      },
+    )
+
+    it.each([-45.01, 45.01])('rejects straightenDeg %d', (straightenDeg) => {
+      expect(parseCrop({ straightenDeg }).ok).toBe(false)
+    })
+  })
+
+  it('rejects non-numeric rotationDeg', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({
+          frames: [makeFrame({ rotationDeg: Number.NaN })],
+        }),
+      ],
+    })
+    expect(parseBook(book)).toMatchObject({ ok: false })
+  })
+
   it('rejects invalid shape', () => {
     const result = parseBook({ schemaVersion: CURRENT_SCHEMA_VERSION })
     expect(result).toMatchObject({ ok: false, code: 'invalid-shape' })

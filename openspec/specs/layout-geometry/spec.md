@@ -51,7 +51,7 @@ The system SHALL classify each template slot as portrait, landscape, or square f
 
 ### Requirement: Resolve spread for painters
 
-The system SHALL resolve a spread into a flat list of items (frame id, rect in mm, optional asset id, optional source crop rect in normalized source space, z-order, rotation) plus derived page cut lines. First and last spreads SHALL be one page wide (trim width); interior spreads SHALL be two pages wide (twice trim width). One-page spreads SHALL have no page cuts; two-page spreads SHALL expose a vertical cut at trim width. Rotation SHALL be zero until free-frame rotation exists. When an item has an asset id, source crop rect SHALL be derived from cover-fit of the asset aspect into the frame rect combined with the frame crop (default crop is cover at zoom 1, center 0.5/0.5). When the frame `fit` is `fit`, the window SHALL instead contain the whole image (larger than the image on one axis, centered, so the photo is letterboxed). Aspect ratio SHALL come from a caller-supplied lookup defaulting to 1 when omitted. Structural resolve data (frame geometry, z, page cuts) for the same spread object, book settings identity, spread index, and spread count MAY be memoized; source crop rects MUST be recomputed from the current aspect lookup on every call. Memo MUST invalidate when move/add/remove changes a spread's page role.
+The system SHALL resolve a spread into a flat list of items (frame id, rect in mm, optional asset id, optional source crop rect in normalized source space, z-order, rotation) plus derived page cut lines. First and last spreads SHALL be one page wide (trim width); interior spreads SHALL be two pages wide (twice trim width). One-page spreads SHALL have no page cuts; two-page spreads SHALL expose a vertical cut at trim width. Rotation SHALL come from the frame `rotationDeg` (see Resolve exposes frame and photo rotation). When an item has an asset id, source crop rect SHALL be derived from cover-fit of the asset aspect into the frame rect combined with the frame crop (default crop is cover at zoom 1, center 0.5/0.5). When the frame `fit` is `fit`, the window SHALL instead contain the whole image (larger than the image on one axis, centered, so the photo is letterboxed). Aspect ratio SHALL come from a caller-supplied lookup defaulting to 1 when omitted. Structural resolve data (frame geometry, z, page cuts) for the same spread object, book settings identity, spread index, and spread count MAY be memoized; source crop rects MUST be recomputed from the current aspect lookup on every call. Memo MUST invalidate when move/add/remove changes a spread's page role.
 
 #### Scenario: Interior spread has a center cut
 
@@ -134,3 +134,12 @@ The system SHALL expose pure ops to add an empty frame (rejected when either edg
 
 - **WHEN** a frame is added to a spread bound to a template
 - **THEN** the spread has no `templateId` and the new frame has the highest `z`
+
+### Requirement: Resolve exposes frame and photo rotation
+
+A resolved item's `rotation` SHALL equal the frame `rotationDeg` (0 when absent); `rectMm` stays the unrotated rect. When the crop has non-zero `quarterTurns` the resolved item SHALL expose `photoQuarterTurns`, and the source crop rect SHALL be computed in the turned image (aspect inverted for odd turns) and mapped back to unturned source space. A non-zero crop `straightenDeg` SHALL be exposed as `straightenDeg`.
+
+#### Scenario: Turned photo
+
+- **WHEN** a frame crop has `quarterTurns` 1
+- **THEN** the item has `photoQuarterTurns` 1 and a source crop rect inside the unit square

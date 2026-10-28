@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 3 as const
+export const CURRENT_SCHEMA_VERSION = 4 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -51,6 +51,10 @@ const cropSchema = z.object({
     x: normalizedUnit,
     y: normalizedUnit,
   }),
+  /** Clockwise quarter turns of the photo inside the frame; absent → 0. */
+  quarterTurns: z.number().int().min(0).max(3).optional(),
+  /** Fine rotation of the photo in degrees; absent → 0. */
+  straightenDeg: z.number().min(-45).max(45).optional(),
 })
 
 const assetMetaSchema = z.object({
@@ -93,6 +97,9 @@ const frameSchema = z.object({
   assetId: nonEmptyString.optional(),
   crop: cropSchema.optional(),
   fit: z.enum(['fill', 'fit']).optional(),
+  /** Frame rotation in degrees about its center; absent → 0. */
+  rotationDeg: z.number().optional(),
+  locked: z.boolean().optional(),
 })
 
 const spreadSchema = z.object({

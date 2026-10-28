@@ -7,10 +7,15 @@ interface StructuralCache {
   settings: Book['settings']
   spreadCount: number
   spreadIndex: number
-  items: Omit<ResolvedItem, 'sourceCropRect'>[]
+  entries: StructuralEntry[]
   pageCuts: ResolvedSpread['pageCuts']
   spreadWidthMm: number
   spreadHeightMm: number
+}
+
+interface StructuralEntry {
+  item: Omit<ResolvedItem, 'sourceCropRect'>
+  frame: Spread['frames'][number]
 }
 
 const structuralMemo = new WeakMap<Spread, StructuralCache>()
@@ -37,21 +42,24 @@ export function resolveSpread(
 
   const getAspectRatio = options.getAspectRatio ?? defaultAspect
   const structural = getStructural(book, spread, index)
-  const items: ResolvedItem[] = structural.items.map((item) => {
+  const items: ResolvedItem[] = structural.entries.map(({ item, frame }) => {
     if (item.assetId === undefined) {
       return { ...item }
     }
     const aspect = getAspectRatio(item.assetId)
-    const frame = spread.frames.find(
-      (candidate) => candidate.id === item.frameId,
-    )
+    const quarterTurns = frame.crop?.quarterTurns ?? 0
+    const straightenDeg = frame.crop?.straightenDeg ?? 0
     return {
       ...item,
+      ...(quarterTurns > 0
+        ? { photoQuarterTurns: quarterTurns as 1 | 2 | 3 }
+        : {}),
+      ...(straightenDeg === 0 ? {} : { straightenDeg }),
       sourceCropRect: computeSourceCropRect(
         item.rectMm,
-        frame?.crop,
+        frame.crop,
         aspect,
-        frame?.fit,
+        frame.fit,
       ),
     }
   })
@@ -81,26 +89,24 @@ function getStructural(
 
   const size = getSpreadSizeMm(book, index)
   const pageCuts = getPageCuts(book, index)
-  const items: Omit<ResolvedItem, 'sourceCropRect'>[] = spread.frames.map(
-    (frame) => {
-      const base: Omit<ResolvedItem, 'sourceCropRect'> = {
-        frameId: frame.id,
-        rectMm: { ...frame.rect },
-        z: frame.z,
-        rotation: 0,
-      }
-      if (frame.assetId !== undefined) {
-        return { ...base, assetId: frame.assetId }
-      }
-      return base
-    },
-  )
+  const entries: StructuralEntry[] = spread.frames.map((frame) => {
+    const base: Omit<ResolvedItem, 'sourceCropRect'> = {
+      frameId: frame.id,
+      rectMm: { ...frame.rect },
+      z: frame.z,
+      rotation: frame.rotationDeg ?? 0,
+    }
+    if (frame.assetId !== undefined) {
+      return { item: { ...base, assetId: frame.assetId }, frame }
+    }
+    return { item: base, frame }
+  })
 
   const next: StructuralCache = {
     settings: book.settings,
     spreadCount,
     spreadIndex: index,
-    items,
+    entries,
     pageCuts,
     spreadWidthMm: size.widthMm,
     spreadHeightMm: size.heightMm,

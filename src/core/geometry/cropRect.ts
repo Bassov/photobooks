@@ -12,6 +12,18 @@ export function sourceCropRect(
   aspectRatio: number,
   fit: Frame['fit'] = 'fill',
 ): NormalizedRect {
+  const quarterTurns = crop?.quarterTurns ?? 0
+  if (quarterTurns > 0) {
+    // Crop is authored in the turned (displayed) image; map it back to source.
+    const sourceAspect = aspectRatio > 0 ? aspectRatio : 1
+    const shown = sourceCropRect(
+      frameRect,
+      { ...crop, quarterTurns: 0 } as NonNullable<Frame['crop']>,
+      quarterTurns % 2 === 1 ? 1 / sourceAspect : sourceAspect,
+      fit,
+    )
+    return unturn(shown, quarterTurns)
+  }
   const { zoom, center } = crop ?? DEFAULT_CROP
   const frameAspect = frameRect.width / frameRect.height
   const imageAspect = aspectRatio > 0 ? aspectRatio : 1
@@ -30,6 +42,23 @@ export function sourceCropRect(
     y: place(center.y, height),
     width,
     height,
+  }
+}
+
+/** Map a rect in the clockwise-turned image back to unturned source space. */
+function unturn(r: NormalizedRect, quarterTurns: number): NormalizedRect {
+  switch (quarterTurns) {
+    case 1:
+      return { x: r.y, y: 1 - r.x - r.width, width: r.height, height: r.width }
+    case 2:
+      return {
+        x: 1 - r.x - r.width,
+        y: 1 - r.y - r.height,
+        width: r.width,
+        height: r.height,
+      }
+    default:
+      return { x: 1 - r.y - r.height, y: r.x, width: r.height, height: r.width }
   }
 }
 
