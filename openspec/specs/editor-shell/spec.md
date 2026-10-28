@@ -393,3 +393,7 @@ The system SHALL let the user reorder spreads by dragging a thumbnail in the lef
 
 - **WHEN** a spread with four photos switches to a two-frame template
 - **THEN** the first two photos stay in their frames and the other two are unplaced
+
+### Requirement: Layout grid overlay and snap state
+
+The editor SHALL draw the effective layout grid (content box, columns, rows per page) as a non-interactive editor-only overlay when shown, toggled by a TopBar control and Ctrl+'; Shift+S flips a snap on/off flag (default on). The pure grid snap (16 px pull; off when hidden, snap off or Alt) is dormant until frame move/resize.
