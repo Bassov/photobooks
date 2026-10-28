@@ -333,20 +333,6 @@ Editor chrome SHALL enforce kit v0.9.x hard-nos: grayscale chrome; filmstrip / t
 - **WHEN** the editor surface is active with a library-backed book
 - **THEN** chrome selection is tone-only, Space pans without toggling panels, no Replace control is offered, and folder messages appear on the status line
 
-### Requirement: Header tool group
-
-The editor header toolbar SHALL hold a single-select tool group (Select · Frame · Text · Hand, hotkeys V / F / T / H; never empty, Select by default), not a floating rail. The group is a `bg-muted` rounded pill; each tool is a 32 px muted toggle whose selected state is a raised light pill (`bg-background` + `shadow-sm`), never an ink/black fill or blue. View toggles keep their own `bg-accent` selected look. Hotkeys SHALL be ignored with modifiers, while typing, and while Space is held. The canvas cursor SHALL follow the tool: Frame/Text white mark with a thin black outline, Hand `grab`, Select the default arrow; Space-pan keeps its grab cursor and no-outline behavior. Crop stays in the inspector (no floating frame toolbar).
-
-#### Scenario: Tool switches by click and hotkey
-
-- **WHEN** the user clicks Text or presses F
-- **THEN** that tool shows the raised selected pill, the others are muted, and the canvas cursor class matches the tool
-
-#### Scenario: Space pan overrides the tool cursor
-
-- **WHEN** Space is held with the Frame tool active
-- **THEN** the canvas shows the pan grab cursor with no focus outline, and the tool cursor returns on release
-
 ### Requirement: Undo / redo of layout edits
 
 The editor SHALL keep an in-memory snapshot history of spreads and title: each book op is one step (consecutive title edits coalesce), up to 100 steps with the oldest evicted, a new edit drops redo steps, and gallery / assets / import state are never rolled back. Undo/redo SHALL be available as top-bar buttons (`data-testid` `undo` / `redo`, disabled when empty) and as Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z, Ctrl+Y outside text fields. Loading another book clears history.

@@ -107,3 +107,17 @@ Dropping several photos on a spread frame SHALL place them in gallery order into
 
 - **WHEN** photos are dropped on a filled frame
 - **THEN** it is replaced and the rest go to empty frames
+
+### Requirement: Header tool group and tool cursors
+
+The editor header toolbar SHALL hold a single-select tool group (Select · Frame · Text · Hand, hotkeys V / F / T / H; never empty, Select by default), not a floating rail. The group is a `bg-muted` rounded pill; each tool is a 32 px muted toggle whose selected state is a raised light pill (`bg-background` + `shadow-sm`), never an ink/black fill or blue. View toggles keep their own `bg-accent` selected look. Hotkeys SHALL be ignored with modifiers, while typing, and while Space is held. The canvas cursor SHALL follow the tool: Frame/Text white mark with a thin black outline, Hand `grab`, Select the default arrow; Space-pan keeps its grab cursor and no-outline behavior. Crop stays in the inspector (no floating frame toolbar).
+
+#### Scenario: Tool switches by click and hotkey
+
+- **WHEN** the user clicks Text or presses F
+- **THEN** that tool shows the raised selected pill, the others are muted, and the canvas cursor class matches the tool
+
+#### Scenario: Space pan overrides the tool cursor
+
+- **WHEN** Space is held with the Frame tool active
+- **THEN** the canvas shows the pan grab cursor with no focus outline, and the tool cursor returns on release
