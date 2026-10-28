@@ -1,11 +1,48 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makeBookWithAsset } from '../core/testing/fixtures'
+import {
+  makeBook,
+  makeBookWithAsset,
+  makeFrame,
+  makeSpread,
+} from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
-import { enterCropMode, exitCropMode } from './cropMode'
+import {
+  enterCropMode,
+  exitCropMode,
+  getCropTarget,
+  getCropTargetKey,
+} from './cropMode'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
 import { setActiveSpreadId } from './photoRootSession'
+
+// Pass-through so a test can hand the panel a stale crop target.
+vi.mock('./cropMode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./cropMode')>()
+  return {
+    ...actual,
+    getCropTarget: vi.fn(actual.getCropTarget),
+    getCropTargetKey: vi.fn(actual.getCropTargetKey),
+  }
+})
+
+const realCrop =
+  await vi.importActual<typeof import('./cropMode')>('./cropMode')
+
+function staleCropTarget(spreadId: string, frameId: string) {
+  vi.mocked(getCropTargetKey).mockImplementation(() => `${spreadId}/${frameId}`)
+  vi.mocked(getCropTarget).mockImplementation(() => ({ spreadId, frameId }))
+}
+
+function seedBook(book: ReturnType<typeof makeBook>) {
+  resetBookStore({
+    book,
+    sessionMeta: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+}
 
 function crop() {
   return getBookStoreSnapshot().book.spreads[0]?.frames[0]?.crop
@@ -22,6 +59,8 @@ function seed() {
 
 describe('Inspector', () => {
   afterEach(() => {
+    vi.mocked(getCropTarget).mockImplementation(realCrop.getCropTarget)
+    vi.mocked(getCropTargetKey).mockImplementation(realCrop.getCropTargetKey)
     cleanup()
     exitCropMode()
     resetFrameSelection()
@@ -155,5 +194,86 @@ describe('Inspector', () => {
       exitCropMode()
     })
     expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+  })
+
+  it.each([
+    ['frame', 'spread-1', 'missing'],
+    ['spread', 'gone', 'frame-1'],
+  ])('ignores a stale crop target whose %s is gone', (_what, spreadId, id) => {
+    seed()
+    staleCropTarget(spreadId, id)
+    render(<Inspector />)
+    expect(screen.getByTestId('inspector-panel')).toBeTruthy()
+    expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+  })
+
+  it('crops the targeted frame, not the first one', () => {
+    const zoomed = { zoom: 2, center: { x: 0.5, y: 0.5 } }
+    seedBook(
+      makeBook({
+        assets: { a: {} },
+        gallery: ['a'],
+        spreads: [
+          makeSpread({
+            id: 'spread-1',
+            frames: [makeFrame({ id: 'frame-1', assetId: 'a' })],
+          }),
+          makeSpread({
+            id: 'spread-2',
+            frames: [
+              makeFrame({ id: 'frame-1', assetId: 'a' }),
+              makeFrame({ id: 'frame-2', assetId: 'a', crop: zoomed }),
+            ],
+          }),
+        ],
+      }),
+    )
+    render(<Inspector />)
+    act(() => {
+      enterCropMode('spread-2', 'frame-2')
+    })
+    expect(
+      screen.getByTestId<HTMLInputElement>('crop-zoom').valueAsNumber,
+    ).toBe(2)
+    expect(screen.getByTestId<HTMLButtonElement>('crop-reset').disabled).toBe(
+      false,
+    )
+  })
+
+  it('names an empty frame and counts uses of a placed photo', () => {
+    seedBook(
+      makeBook({
+        assets: { a: {} },
+        gallery: ['a'],
+        spreads: [
+          makeSpread({
+            id: 'spread-1',
+            frames: [
+              makeFrame({ id: 'frame-1', assetId: 'a' }),
+              makeFrame({ id: 'frame-2' }),
+            ],
+          }),
+        ],
+      }),
+    )
+    render(<Inspector />)
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-2' })
+    })
+    expect(screen.getByTestId('inspector-name').textContent).toBe('Empty frame')
+    expect(screen.getByText('Photo')).toBeTruthy()
+    expect(screen.queryByText('Used')).toBeNull()
+
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    expect(screen.getByText('Used').nextElementSibling?.textContent).toBe('1×')
+  })
+
+  it('titles the empty panel without meta', () => {
+    render(<Inspector />)
+    const name = screen.getByTestId('inspector-name')
+    expect(name.textContent).toBe('Inspector')
+    expect(name.nextElementSibling).toBeNull()
   })
 })
