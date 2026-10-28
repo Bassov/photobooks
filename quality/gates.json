@@ -253,6 +253,7 @@
   "requiredCheckJobs": [
     "checks",
     "integration",
+    "perf",
     "lighthouse",
     "stryker-diff",
     "gitleaks",

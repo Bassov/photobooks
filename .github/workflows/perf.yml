@@ -1,0 +1,109 @@
+name: perf
+
+# Frame-budget / LoAF lane, split from functional e2e (integration.yml).
+# Required check `perf` always reports: out-of-scope PRs finish green with
+# "not in scope". Thresholds are unchanged (PERF_BUDGETS + LoAF noise rule);
+# only the lane is repeated: 3 runs per scenario, red when a scenario fails in
+# >=2 runs or any run blocks a frame for >50 ms (scripts/perf-lane.mjs).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Nightly full run on main; red → flake/perf roadmap item (agent-loop.md).
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: perf-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node and pnpm
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+
+      - name: Path filter
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_REF"
+            node scripts/perf-lane.mjs scope "origin/$BASE_REF" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo "in_scope=true" >> "$GITHUB_OUTPUT"
+          fi
+          if ! grep -q 'in_scope=true' "$GITHUB_OUTPUT"; then
+            echo "perf: not in scope (no render/perf/photo/assets/filmstrip/pasteboard/frame-budget paths touched)" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Cache Playwright browsers
+        if: steps.scope.outputs.in_scope == 'true'
+        uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        if: steps.scope.outputs.in_scope == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.scope.outputs.in_scope == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Build app for E2E
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm build
+
+      - name: Frame-budget runs (3x, no coverage)
+        if: steps.scope.outputs.in_scope == 'true'
+        env:
+          E2E_COVERAGE: '0'
+          E2E_LANE: perf
+        run: |
+          # Reports live outside test-results/: Playwright wipes that dir per run.
+          mkdir -p perf-runs
+          for run in 1 2 3; do
+            PLAYWRIGHT_JSON_OUTPUT_NAME="perf-runs/run-$run.json" \
+              pnpm test:e2e -g "frame-budget gates" || echo "run $run: playwright exit non-zero (judged below)"
+          done
+
+      - name: Judge runs
+        if: steps.scope.outputs.in_scope == 'true'
+        run: node scripts/perf-lane.mjs verdict perf-runs/run-1.json perf-runs/run-2.json perf-runs/run-3.json
+
+      - name: Upload frame-pacing stats (report-only)
+        if: always() && steps.scope.outputs.in_scope == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-frame-stats
+          path: |
+            perf-runs/
+            test-results/**/perf-frame-stats.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-perf
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

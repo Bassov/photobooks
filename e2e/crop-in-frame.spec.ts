@@ -208,7 +208,7 @@ test('Fit & crop is driven from the inspector: Crop shows grey chrome, Done exit
   await assertDocumentFitsViewport(page)
 })
 
-test('panning a crop for 5 s has zero LoAF and pointermove p95 within budget', async ({
+test('panning a crop for 5 s stays within frame-budget gates', async ({
   page,
 }) => {
   test.setTimeout(150_000)

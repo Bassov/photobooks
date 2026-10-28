@@ -12,6 +12,16 @@ const gates = loadGates({ root: repoRoot })
 // frame-budget gates. Opt in with E2E_COVERAGE=1; webServer is still the only
 // place that sets VITE_COVERAGE=1 on the build (never production/preview/LHCI).
 const e2eCoverage = process.env.E2E_COVERAGE === '1'
+// Lanes: `functional` skips the LoAF/frame-budget describes (deterministic, no
+// frame assertions); `perf` runs only them. Unset runs everything (local ad hoc).
+const frameBudgetTitle = /frame-budget gates/
+const e2eLane = process.env.E2E_LANE
+const laneFilter =
+  e2eLane === 'functional'
+    ? { grepInvert: frameBudgetTitle }
+    : e2eLane === 'perf'
+      ? { grep: frameBudgetTitle }
+      : {}
 
 /**
  * Flaky globs from quality/gates.json via loadGates (Playwright TS config
@@ -60,6 +70,7 @@ export default defineConfig({
   testIgnore: ['**/burn-in-fixtures/**'],
   fullyParallel: true,
   forbidOnly: true,
+  ...laneFilter,
   retries: gates.playwright.retries,
   ...(isCi ? { workers: 1 } : {}),
   reporter: isCi

@@ -174,7 +174,7 @@ test('rescan by metadata then Resolve clears missing pill', async ({
   await assertDocumentFitsViewport(page)
 })
 
-test('filmstrip scrolls during rescan without page scroll', async ({
+test('filmstrip scrolls during rescan without page scroll within frame-budget gates', async ({
   page,
 }) => {
   ensurePhotoFixtures({ includeLargeJpeg: false })
