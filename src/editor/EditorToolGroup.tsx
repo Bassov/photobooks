@@ -33,8 +33,8 @@ export function EditorToolGroup() {
       disallowEmptySelection
       selectedKeys={[tool]}
       onSelectionChange={(keys) => {
-        const next = [...keys][0]
-        if (next) setEditorTool(next as EditorTool)
+        // disallowEmptySelection: a single key is always present.
+        setEditorTool([...keys][0] as EditorTool)
       }}
       aria-label="Tool"
       data-testid="tool-group"

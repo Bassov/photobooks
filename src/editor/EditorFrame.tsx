@@ -83,14 +83,17 @@ export function EditorFrame({
   }
 
   useEffect(() => {
-    return installEditorChromeKeys({
+    const offChrome = installEditorChromeKeys({
       getPanels: () => pnRef.current,
       setPanels: setPn,
       setSpaceDown,
     })
+    const offTool = installEditorToolKeys()
+    return () => {
+      offChrome()
+      offTool()
+    }
   }, [setPn])
-
-  useEffect(() => installEditorToolKeys(), [])
 
   return (
     <div

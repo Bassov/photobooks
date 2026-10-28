@@ -102,6 +102,11 @@ describe('EditorToolGroup', () => {
     expect(getEditorTool()).toBe('frame')
   })
 
+  it('leaves no stray whitespace in the canvas class with the Select tool', () => {
+    renderFrame()
+    expect(screen.getByTestId('canvas').className).not.toMatch(/\s$/)
+  })
+
   it('sets the canvas cursor class per tool; Space pan suppresses it', () => {
     renderFrame()
     const canvas = screen.getByTestId('canvas')
