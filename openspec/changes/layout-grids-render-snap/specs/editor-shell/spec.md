@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: Layout grid overlay and snap
+### Requirement: Layout grid overlay and snap state
 
-The editor SHALL draw the effective layout grid (content box, columns, rows per page) as a non-interactive editor-only overlay when the grid is shown, toggled by a TopBar control and Ctrl+'. Grid snapping SHALL pull frame edges to column/row edges within 16 CSS px only while the grid is shown and snap is on, and not while Alt is held.
+The editor SHALL draw the effective layout grid (content box, columns, rows per page) as a non-interactive editor-only overlay when the grid is shown, toggled by a TopBar control and Ctrl+'. Shift+S SHALL flip a snap on/off view flag (default on). A pure grid-snap module (16 CSS px pull; inactive when the grid is hidden, snap is off, or Alt is held) is available but dormant until frame move/resize exists (`layout-grids-snap-wire`).
 
 #### Scenario: Show and hide
 
