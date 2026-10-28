@@ -62,9 +62,12 @@ vi.mock('./jpegHeadPass', () => ({
 }))
 
 import { importPhotoFiles } from './importPhotos'
+import { awaitPendingHashes } from './pendingHashes'
 
 describe('importPhotoFiles', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    // Fire-and-forget seed / head-pass jobs must settle before teardown.
+    await awaitPendingHashes()
     resetBookStore()
     resetThumbCache()
     resetAssetSources()
