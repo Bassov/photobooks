@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from 'react'
@@ -10,9 +11,22 @@ import { PanelSplitter } from '../ui/PanelSplitter'
 import { loadPanelWidth, savePanelWidth } from '../ui/panelSize'
 import { DEFAULT_EDITOR_PANELS, type EditorPanels } from './editorChromePanels'
 import { ensureEditorChromeStyles } from './editorChromeTokens'
+import {
+  getEditorTool,
+  subscribeEditorTool,
+  type EditorTool,
+} from './editorToolStore'
 import { installEditorChromeKeys } from './installEditorChromeKeys'
+import { installEditorToolKeys } from './installEditorToolKeys'
 
 export type { EditorPanels } from './editorChromePanels'
+
+const TOOL_CURSOR: Record<EditorTool, string | null> = {
+  select: null,
+  frame: 'cursor-tool-frame',
+  text: 'cursor-tool-text',
+  hand: 'cursor-grab',
+}
 
 export function EditorFrame({
   top,
@@ -47,6 +61,13 @@ export function EditorFrame({
   }, [pn])
 
   const [spaceDown, setSpaceDown] = useState(false)
+  const tool = useSyncExternalStore(
+    subscribeEditorTool,
+    getEditorTool,
+    getEditorTool,
+  )
+  // Space-pan keeps its own grab cursor, so the tool cursor yields to it.
+  const toolCursor = spaceDown ? null : TOOL_CURSOR[tool]
   const [widthL, setWidthL] = useState(() => loadPanelWidth('left'))
   const [widthR, setWidthR] = useState(() => loadPanelWidth('right'))
   // The focused splitter / header button goes inert: hand focus to the toggle.
@@ -62,11 +83,16 @@ export function EditorFrame({
   }
 
   useEffect(() => {
-    return installEditorChromeKeys({
+    const offChrome = installEditorChromeKeys({
       getPanels: () => pnRef.current,
       setPanels: setPn,
       setSpaceDown,
     })
+    const offTool = installEditorToolKeys()
+    return () => {
+      offChrome()
+      offTool()
+    }
   }, [setPn])
 
   return (
@@ -109,7 +135,13 @@ export function EditorFrame({
           ) : null}
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <div
-              className="e7-canvas editor-workspace relative flex min-h-0 flex-1 flex-col overflow-hidden"
+              className={[
+                'e7-canvas editor-workspace relative flex min-h-0 flex-1 flex-col overflow-hidden',
+                toolCursor,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              data-tool={tool}
               data-testid="canvas"
               data-workspace="editor-workspace"
               tabIndex={0}

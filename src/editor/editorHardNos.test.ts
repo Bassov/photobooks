@@ -28,6 +28,18 @@ describe('editor hard-nos (kit v0.9.3)', () => {
     )
   })
 
+  it('draws Frame/Text cursors white-with-black-outline and Hand as grab', () => {
+    expect(EDITOR_CHROME_CSS).toMatch(
+      /\.cursor-tool-frame \{ cursor: url\("data:image\/svg\+xml,[^"]*%23232223[^"]*%23ffffff[^"]*"\) 12 12, crosshair \}/,
+    )
+    expect(EDITOR_CHROME_CSS).toMatch(
+      /\.cursor-tool-text \{ cursor: url\("data:image\/svg\+xml,[^"]*%23232223[^"]*%23ffffff[^"]*"\) 7 11, text \}/,
+    )
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.e7-canvas.cursor-grab .pasteboard-scroll { cursor: grab }',
+    )
+  })
+
   it('lets the canvas dots show through the canvas inner wrapper', () => {
     expect(EDITOR_CHROME_CSS).toContain(
       '.editor-canvas-inner { background: transparent }',

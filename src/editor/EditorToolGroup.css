@@ -1,0 +1,29 @@
+.e7-tool-group {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 0.5);
+  padding: calc(var(--spacing) * 0.5);
+  border-radius: var(--radius-lg);
+  background: var(--muted);
+}
+
+.e7-tool-group .pb-toggle.e7-tool {
+  width: calc(var(--spacing) * 8);
+  height: calc(var(--spacing) * 8);
+  min-width: 0;
+  padding: 0;
+  color: var(--muted-foreground);
+  background: transparent;
+  box-shadow: none;
+}
+
+.e7-tool-group .pb-toggle.e7-tool[data-hovered] {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.e7-tool-group .pb-toggle.e7-tool[data-selected] {
+  color: var(--foreground);
+  background: var(--background);
+  box-shadow: var(--shadow-sm);
+}
