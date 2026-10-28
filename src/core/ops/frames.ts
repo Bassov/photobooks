@@ -6,7 +6,7 @@ type Rect = Frame['rect']
 /** Smallest edge (mm) a drawn frame may commit with. */
 export const MIN_FRAME_EDGE_MM = 5
 
-function detached(spread: Spread, frames: Frame[]): Spread {
+export function detached(spread: Spread, frames: Frame[]): Spread {
   const next: Spread = { ...spread, frames }
   delete next.templateId
   return next

@@ -9,6 +9,15 @@ import {
 } from './gallery'
 import { resetCrop, setCrop, setFit } from './crop'
 import { addFrame, removeFrames, setFrameRect } from './frames'
+import {
+  alignFrames,
+  distributeFrames,
+  moveFrame,
+  resizeFrame,
+  rotateFrame,
+  type AlignEdge,
+  type DistributeAxis,
+} from './transform'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
@@ -84,6 +93,37 @@ export type BookOp =
       frameId: string
       rect: Frame['rect']
     }
+  | {
+      type: 'moveFrame'
+      spreadId: string
+      frameId: string
+      dx: number
+      dy: number
+    }
+  | {
+      type: 'resizeFrame'
+      spreadId: string
+      frameId: string
+      rect: Frame['rect']
+    }
+  | {
+      type: 'rotateFrame'
+      spreadId: string
+      frameId: string
+      rotationDeg: number
+    }
+  | {
+      type: 'alignFrames'
+      spreadId: string
+      frameIds: readonly string[]
+      edge: AlignEdge
+    }
+  | {
+      type: 'distributeFrames'
+      spreadId: string
+      frameIds: readonly string[]
+      axis: DistributeAxis
+    }
   | { type: 'setTitle'; title: string }
   | { type: 'setBookGrid'; patch: GridPatch }
   | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
@@ -158,6 +198,16 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return removeFrames(book, op.spreadId, op.frameIds)
     case 'setFrameRect':
       return setFrameRect(book, op.spreadId, op.frameId, op.rect)
+    case 'moveFrame':
+      return moveFrame(book, op.spreadId, op.frameId, op.dx, op.dy)
+    case 'resizeFrame':
+      return resizeFrame(book, op.spreadId, op.frameId, op.rect)
+    case 'rotateFrame':
+      return rotateFrame(book, op.spreadId, op.frameId, op.rotationDeg)
+    case 'alignFrames':
+      return alignFrames(book, op.spreadId, op.frameIds, op.edge)
+    case 'distributeFrames':
+      return distributeFrames(book, op.spreadId, op.frameIds, op.axis)
     case 'setTitle': {
       if (book.title === op.title) {
         return book

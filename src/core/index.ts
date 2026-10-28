@@ -85,6 +85,15 @@ export {
   removeFrames,
   setFrameRect,
 } from './ops/frames'
+export {
+  alignFrames,
+  distributeFrames,
+  moveFrame,
+  resizeFrame,
+  rotateFrame,
+  type AlignEdge,
+  type DistributeAxis,
+} from './ops/transform'
 export { fillSpread, insertSpreadWithAssets } from './ops/fill'
 export { applyBookOp, type BookOp } from './ops/applyBookOp'
 
