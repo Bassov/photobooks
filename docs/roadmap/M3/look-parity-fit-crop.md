@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: look parity: Fit & crop in the inspector
+Status: done
 
 ## Scope
 
@@ -16,3 +17,7 @@ Look parity, Phase A #3: Fit & crop section in the inspector (kit CropSection), 
 **Done when:** crop is driven from the inspector only; no amber, blue or black crop ring.
 **Browser check:** select a photo, Fit & crop shows; Crop → grey overlay + tag, Done/Esc exits; Fit shows the whole photo.
 **Perf:** crop preview stays a transform in rAF; no new per-frame work.
+
+## Done note
+
+Fit & crop inspector section, fit field, grey crop overlay
