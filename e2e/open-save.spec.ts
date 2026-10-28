@@ -159,10 +159,6 @@ test('session import then attach library saves without New book; reload hydrates
     'Book created in library',
   )
 
-  page.once('dialog', (dialog) => {
-    void dialog.dismiss()
-  })
-  await createBookViaLibrary(page)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1)
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
 

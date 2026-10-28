@@ -74,7 +74,7 @@ test('both panels at max keep the page fit; spreads-list stays the scrollport', 
   await page.getByTestId('resize-left').focus()
   for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowRight')
   await page.getByTestId('resize-right').focus()
-  for (let i = 0; i < 2; i += 1) await page.keyboard.press('Shift+ArrowLeft')
+  for (let i = 0; i < 3; i += 1) await page.keyboard.press('Shift+ArrowLeft')
 
   for (const id of ['panel-l', 'panel-r']) {
     await expect

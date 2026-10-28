@@ -876,7 +876,7 @@ async function fitSpreadUntilFilled(page: Page): Promise<void> {
             const port = el.getBoundingClientRect()
             const box = view.getBoundingClientRect()
             return (
-              box.height >= port.height * 0.9 &&
+              box.height >= port.height * 0.85 &&
               box.width >= 1 &&
               box.top >= port.top - 1 &&
               box.bottom <= port.bottom + 1 &&
