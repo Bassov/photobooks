@@ -146,6 +146,10 @@ test('reload keeps the crop', async ({ page }) => {
 
   await page.getByTestId('toggle-r').click()
   await filledFrame(page).dblclick()
+  // Opening the panel refits the spread; measure the frame only once crop mode
+  // and the inspector have settled, or the wheel lands on a stale position.
+  await expect(page.getByTestId('inspector-fit-crop')).toBeVisible()
+  await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
   const center = await frameCenter(page)
   await page.mouse.move(center.x, center.y)
   await page.mouse.wheel(0, -600)
