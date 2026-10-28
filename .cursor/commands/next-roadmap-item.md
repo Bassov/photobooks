@@ -29,7 +29,8 @@ OpenSpec artifact; validate once per stage.
    Without `--slug`, syncs `main` and skips claimed slugs. With `--slug`,
    branches from `origin/main` (worktrees OK). Creates `feat|fix/<slug>`.
    Contingency: only when its gate failed (`pnpm -s roadmap show <slug>`).
-2. Execute `docs/agent-loop.md` from plan through thin finish (stage 12).
+2. Execute `docs/agent-loop.md` from plan through thin finish (stage 12);
+   stages 10–11: `pnpm -s agent finalize <slug>`, fix what it prints.
    Prep/contingency fast-track and oversize → `roadmap add --after` per
    `openspec/config.yaml` / loop SoT. Out-of-scope fails: fix in this PR unless
    same failure on unmodified `origin/main`; else `pnpm roadmap add … --after`

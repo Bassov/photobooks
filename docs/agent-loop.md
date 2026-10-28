@@ -94,16 +94,10 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - Skill `ui-review` when UI in scope; Security Review when tagged / security surface.
 - Rework via A (patch vs `origin/main`); re-B only if UI/e2e/tests changed (B base = stage 8).
 
-### 10 · Archive + PR body
+### 10–11 · Finalize
 
-- Sync delta specs; `pnpm agent archive <slug>`; `pnpm roadmap done <slug> && pnpm roadmap sync` (item Status + own index tick, same PR); commit if needed.
-- Draft **final** PR body (`.github/PULL_REQUEST_TEMPLATE.md`) so stage 11 C2 is not stale.
+- `pnpm -s agent finalize <slug>`: delta-spec sync check → archive → roadmap done+sync → `check:integrity` → `quality:self-check` → `stamp-green`. Prints only failures + one OK line; fix what it prints, re-run, commit.
 - **How:** `operations.archive`.
-
-### 11 · Final gates + stamp
-
-- `pnpm check:integrity`; `pnpm quality:self-check --body-file …`; `pnpm agent stamp-green`.
-- Do not rewrite PR body after C2 without re-running C2.
 
 ### 12 · Thin finish
 
