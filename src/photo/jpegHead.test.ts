@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { encode as jpegEncode } from 'jpeg-js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ensurePhotoFixtures,
@@ -124,6 +125,34 @@ describe('parseJpegHead', () => {
 
     expect(result.thumbJpeg).toEqual(thumb)
     expect(result.thumbJpeg).not.toBe(thumb)
+  })
+
+  it('drops an unrotated landscape thumb of a portrait (orientation 6) photo', async () => {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const original = readFileSync(photoFixturePaths.sampleOrient6)
+    exifrApi.orientation.mockResolvedValue(6)
+    // The fixture itself is a 40x20 landscape JPEG, like a raw IFD1 thumb.
+    exifrApi.thumbnail.mockResolvedValue(new Uint8Array(original))
+
+    const result = await parseJpegHead(asBuffer(original))
+
+    expect(result.correctedHeight).toBeGreaterThan(result.correctedWidth ?? 0)
+    expect(result.thumbJpeg).toBeNull()
+  })
+
+  it('keeps a thumb whose orientation matches the photo', async () => {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+    const original = readFileSync(photoFixturePaths.sampleOrient6)
+    const portraitThumb = jpegEncode(
+      { data: new Uint8Array(4 * 8 * 4), width: 4, height: 8 },
+      80,
+    ).data
+    exifrApi.orientation.mockResolvedValue(6)
+    exifrApi.thumbnail.mockResolvedValue(new Uint8Array(portraitThumb))
+
+    const result = await parseJpegHead(asBuffer(original))
+
+    expect(result.thumbJpeg).not.toBeNull()
   })
 
   it('treats absent EXIF thumb as null', async () => {

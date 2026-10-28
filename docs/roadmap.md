@@ -17,6 +17,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 
 **Review cut:** you can assemble a complete real book from your own photos without reaching for InDesign — orientation-aware templates and multi-photo drops make layout fast, the assets panel shows what is used, missing or modified — and a 1000-photo library feels instant.
 
+- [x] [prep] [fix-place-fit-aspect](roadmap/M3/fix-place-fit-aspect.md) — Fix placed photo aspect: no stretched portraits, cover crop in thumbs and canvas
 - [x] [feature] [ui-chrome-musts-recheck](roadmap/M3/ui-chrome-musts-recheck.md) — Chrome Musts: book covers, settings nav tone-only, quiet editor header
 - [x] [feature] [ui-create-dialog-chrome-v93](roadmap/M3/ui-create-dialog-chrome-v93.md) — Create dialog chrome: centered+dim, Cancel+Create visible, field borders #D7D7D7
 - [x] [feature] [ui-settings-chrome-v93](roadmap/M3/ui-settings-chrome-v93.md) — Settings chrome: tone-only nav, gray folder access, Preview cache
