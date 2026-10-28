@@ -36,7 +36,6 @@ export function EditorShell() {
   const chromeImport = useChromeImport({
     // External store: progress ticks must not re-render Pasteboard / top bar.
     onImportProgress: setImportProgress,
-    toastQueue,
   })
 
   return (

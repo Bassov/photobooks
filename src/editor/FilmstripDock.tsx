@@ -166,9 +166,8 @@ export function FilmstripDock({
     }
   }, [])
   const count = gallery.length
-  const shown = unplacedOnly
-    ? gallery.filter((id) => !placed.has(id)).length
-    : count
+  const used = gallery.filter((id) => placed.has(id)).length
+  const shown = unplacedOnly ? count - used : count
 
   return (
     <div
@@ -223,8 +222,8 @@ export function FilmstripDock({
         >
           <span data-testid="placed-count">
             {unplacedOnly
-              ? `Photos · ${String(shown)} of ${String(count)}`
-              : `Photos · ${String(count)}`}
+              ? `Photos · ${String(shown)} of ${String(count)} · ${String(used)} used`
+              : `Photos · ${String(count)} · ${String(used)} used`}
           </span>
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -249,17 +248,12 @@ export function FilmstripDock({
           />
           <MenuTrigger>
             <AriaButton
-              className="pb-lib-quiet inline-flex cursor-default items-center gap-1.5 px-3"
+              className="film-chip inline-flex cursor-default items-center gap-1.5"
               aria-label={`Sort photos: ${SORT_LABELS[sort]}`}
               data-testid="film-sort"
             >
-              <span className="text-muted-foreground">Sort:</span>{' '}
-              {SORT_LABELS[sort]}
-              <Icon
-                name="chevronDown"
-                size={14}
-                className="size-3.5 text-muted-foreground"
-              />
+              <span>Sort:</span> {SORT_LABELS[sort]}
+              <Icon name="chevronDown" size={14} className="size-3.5" />
             </AriaButton>
             <MenuPopover placement="top end" className="min-w-40">
               <Menu
@@ -282,7 +276,7 @@ export function FilmstripDock({
           </MenuTrigger>
           <ToggleButton
             size="sm"
-            variant="outline"
+            className="film-chip"
             isSelected={unplacedOnly}
             onChange={(next) => {
               startTransition(() => {

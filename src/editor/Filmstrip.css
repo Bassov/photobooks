@@ -131,10 +131,16 @@
   object-fit: contain;
 }
 
+/* Used mark: corner check (disc colors in editorChromeTokens). */
 .filmstrip-placed {
   position: absolute;
-  left: calc(var(--spacing) * 1.2);
-  bottom: calc(var(--spacing) * 1.2);
+  right: calc(var(--spacing) * 1);
+  bottom: calc(var(--spacing) * 1);
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
 }
 
 .filmstrip-remove {

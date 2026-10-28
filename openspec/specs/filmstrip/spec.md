@@ -139,17 +139,17 @@ Decode and thumbnail work SHALL use two lanes: **now** (mounted filmstrip window
 
 ### Requirement: Tone-only filmstrip selection and used badges
 
-Selected filmstrip thumbs SHALL use tone fill `#CACACA` only (no black ring-select, no blue). Keyboard focus MAY show a gray a11y ring. Used/placed badges on thumbs SHALL use black/ink styling (not a blue brand fill). Folder-import and filmstrip folder messages (“no new photos”, loose-file drop hints, skip summaries) MUST go to the editor status line, not toast popups.
+Selected filmstrip thumbs SHALL use tone fill `#CACACA` only (no black ring-select, no blue). Keyboard focus MAY show a gray a11y ring. Used/placed photos SHALL show a corner check (black/55 disc, white check; no pill, no green, no blue). The dock bar is `#E1E1E1` with a plain head “Photos · {gallery} · {used} used” and quiet ghost sort/filter chips. Folder-import and filmstrip folder messages (“no new photos”, loose-file drop hints, skip summaries) MUST go to the editor status line, not toast popups.
 
 #### Scenario: Selected thumb is tone-only
 
 - **WHEN** the user selects a filmstrip photo
 - **THEN** the selected thumb shows `#CACACA` background without a black selection ring
 
-#### Scenario: Placed badge is black ink
+#### Scenario: Used mark is a corner check
 
 - **WHEN** a gallery photo is placed on a frame
-- **THEN** the filmstrip Placed badge uses black/ink styling
+- **THEN** its thumb shows a corner check and the dock head counts it as used
 
 ### Requirement: Gallery sort and unplaced filter
 
@@ -158,7 +158,7 @@ The filmstrip dock SHALL offer sort by capture time (asset `capturedAt`, else fi
 #### Scenario: Unplaced only shrinks as the book fills
 
 - **WHEN** "Unplaced only" is on and a gallery photo is placed
-- **THEN** that photo leaves the list and the dock count reads "N of M"
+- **THEN** that photo leaves the list and the dock count reads "N of M · U used"
 
 ### Requirement: Remove photo from gallery
 

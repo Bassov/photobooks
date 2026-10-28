@@ -80,14 +80,14 @@ describe('filmstrip sort / filter / remove', () => {
     render(<FilmstripDock />)
     fireEvent.click(screen.getByTestId('film-unplaced-only'))
     expect(screen.getByTestId('placed-count').textContent).toBe(
-      'Photos · 2 of 2',
+      'Photos · 2 of 2 · 0 used',
     )
     expect(itemIds()).toEqual([...ids])
 
     placeFirst(ids, 0)
     expect(itemIds()).toEqual([ids[1]])
     expect(screen.getByTestId('placed-count').textContent).toBe(
-      'Photos · 1 of 2',
+      'Photos · 1 of 2 · 1 used',
     )
     // The book gallery itself is untouched by the filter.
     expect(getBookStoreSnapshot().book.gallery).toEqual([...ids])
@@ -195,7 +195,9 @@ describe('filmstrip sort / filter / remove', () => {
     expect(screen.getByTestId('film-sort').getAttribute('aria-label')).toBe(
       'Sort photos: Added order',
     )
-    expect(screen.getByTestId('placed-count').textContent).toBe('Photos · 1')
+    expect(screen.getByTestId('placed-count').textContent).toBe(
+      'Photos · 1 · 0 used',
+    )
     fireEvent.click(screen.getByTestId('film-sort'))
     const added = await screen.findByRole('menuitemradio', {
       name: 'Added order',

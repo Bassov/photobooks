@@ -10,8 +10,10 @@ describe('editor hard-nos (kit v0.9.3)', () => {
     expect(EDITOR_CHROME_CSS).toContain(
       '.pb-segmented__segment--selected { background: #CACACA',
     )
-    expect(EDITOR_CHROME_CSS).toContain('.filmstrip-placed { --badge-fg:')
-    expect(EDITOR_CHROME_CSS).toContain('--badge-bg: color-mix')
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }',
+    )
+    expect(EDITOR_CHROME_CSS).toContain('.editor-dock { background: #E1E1E1 }')
   })
 
   it('suppresses canvas focus ring and uses grab cursor while data-panning', () => {

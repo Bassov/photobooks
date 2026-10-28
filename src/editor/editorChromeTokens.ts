@@ -24,9 +24,14 @@ export const EDITOR_CHROME_CSS = `
 .e7-item:hover { background: ${FIELD} }
 .e7-item[aria-selected=true], .e7-item[aria-selected=true]:hover { background: ${SEL} }
 .filmstrip-item { box-shadow: none }
+.filmstrip-item::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgb(0 0 0/.08); pointer-events: none }
 .filmstrip-item[aria-selected=true] { background: ${SEL} }
 .filmstrip-item[aria-selected=true][data-focused] { background: ${SEL}; box-shadow: 0 0 0 2px #535152 }
-.filmstrip-placed { --badge-fg: ${ON_INK}; --badge-bg: color-mix(in srgb, #232223 72%, transparent); --badge-ring: #232223; --badge-dot: ${ON_INK} }
+.filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }
+.filmstrip-placed svg { stroke-width: 3 }
+.film-chip { color: ${SUB}; background: transparent; border: 0; border-radius: var(--radius-md); height: 28px; padding: 0 8px; font-size: var(--text-xs); box-shadow: none; transition: background-color .12s }
+.film-chip:hover, .film-chip[data-hovered], .film-chip[data-selected] { background: ${FIELD}; color: ${T} }
+.film-chip:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .pb-segmented__segment { position: relative; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2); border-radius: var(--radius-sm); background: transparent; transition: background-color .12s }
 .pb-segmented__segment--selected { background: ${SEL}; font-weight: 600 }
 .pb-segmented__segment input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer }
@@ -55,8 +60,9 @@ export const EDITOR_CHROME_CSS = `
 .e7:has([data-dragging='true']) .e7-pan { transition: none }
 .editor-panel-b[data-open='false'] { height: 0 }
 .editor-canvas-inner { background: transparent }
-.editor-dock { background: var(--chrome) }
-.editor-dock-meta { color: var(--muted-foreground) }
+.editor-dock { background: ${BAR} }
+.editor-dock-meta { color: ${SUB} }
+.filmstrip-empty, .filmstrip-empty * { color: ${SUB} }
 .editor-spreads { background: var(--chrome); color: var(--foreground) }
 .editor-spreads-mode { background: var(--chrome); color: var(--foreground); box-shadow: var(--shadow-sm) }
 .editor-spread-thumb { height: var(--spreads-thumb-h, 64px); overflow: hidden; background: var(--paper); box-shadow: var(--shadow-sm) }

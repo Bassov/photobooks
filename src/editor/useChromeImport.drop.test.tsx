@@ -1,6 +1,5 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createToastQueue } from '../ui/toastQueue'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
 import { useChromeImport } from './useChromeImport'
 
@@ -41,9 +40,7 @@ const directory = {
 
 function mount() {
   const onImportProgress = vi.fn()
-  const hook = renderHook(() =>
-    useChromeImport({ onImportProgress, toastQueue: createToastQueue() }),
-  )
+  const hook = renderHook(() => useChromeImport({ onImportProgress }))
   return { hook, onImportProgress }
 }
 

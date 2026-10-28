@@ -226,16 +226,12 @@ describe('EditorTopBar', () => {
     render(<EditorShell />)
     clickChoosePhotoFolder()
     await waitFor(() => {
-      expect(screen.getByTestId('import-errors').textContent).toContain(
-        'bad.jpg',
-      )
-    })
-    await waitFor(() => {
       expect(screen.getByTestId('editor-status').textContent).toContain(
         'bad.jpg: decode failed',
       )
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Show files' }))
+    expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull()
+    fireEvent.click(screen.getByTestId('import-errors'))
     await waitFor(() => {
       expect(screen.getByTestId('import-errors-panel')).toBeTruthy()
     })
@@ -350,7 +346,7 @@ describe('EditorTopBar', () => {
     })
     clickChoosePhotoFolder()
     await waitFor(() => {
-      expect(screen.queryByTestId('import-errors')).toBeNull()
+      expect(importPhotos.importPhotoFiles).toHaveBeenCalledTimes(2)
     })
     expect(screen.queryByRole('button', { name: 'Show files' })).toBeNull()
     expect(
