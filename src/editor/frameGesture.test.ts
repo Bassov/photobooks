@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
-import { getEditorStatus } from './editorStatus'
+import { getEditorStatus, setEditorStatus } from './editorStatus'
 import {
   getEditorTool,
   resetEditorToolForTests,
@@ -339,6 +339,16 @@ describe('frameGesture · draw', () => {
     )
   })
 
+  it('draws through the selection handles of a frame', () => {
+    const handle = document.createElement('span')
+    handle.setAttribute('data-handle', 'se')
+    button.append(handle)
+    pointer('pointerdown', handle, 110, 110)
+    pointer('pointermove', window, 200, 200)
+    pointer('pointerup', window, 200, 200)
+    expect(frames()).toHaveLength(2)
+  })
+
   it('does not start on an existing frame or with another tool', () => {
     pointer('pointerdown', button, 110, 110)
     pointer('pointermove', window, 200, 200)
@@ -591,6 +601,45 @@ describe('frameGesture · move', () => {
     drag(40, 25, ALT)
     expect(frames()[1]?.rect).toEqual(rect(10, 10, 40, 40))
     expect(getEditorStatus()).toMatch(/locked/i)
+  })
+
+  it('an unlocked move stays quiet in the status line', () => {
+    setEditorStatus('')
+    drag(40, 25, ALT)
+    expect(getEditorStatus()).toBe('')
+  })
+
+  it('a locked move reports once, never previews and commits nothing', () => {
+    load([
+      makeFrame({ id: 'a', rect: rect(100, 100, 50, 50) }),
+      makeFrame({ id: 'b', rect: rect(10, 10, 40, 40), z: 1, locked: true }),
+    ])
+    const before = getBookStoreSnapshot().book
+    pointer('pointerdown', button, 30, 30, ALT)
+    pointer('pointermove', window, 50, 40, ALT)
+    expect(getEditorStatus()).toMatch(/locked/i)
+    expect(button.style.left).toBe('')
+    setEditorStatus('')
+    pointer('pointermove', window, 60, 50, ALT)
+    expect(getEditorStatus()).toBe('')
+    expect(button.style.left).toBe('')
+    pointer('pointerup', window, 60, 50, ALT)
+    expect(getBookStoreSnapshot().book).toBe(before)
+    const onClick = vi.fn()
+    spread.addEventListener('click', onClick)
+    spread.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('does not move a frame by its selection handle', () => {
+    const handle = document.createElement('span')
+    handle.setAttribute('data-handle', 'se')
+    button.append(handle)
+    button.setAttribute('aria-pressed', 'true')
+    pointer('pointerdown', handle, 30, 30, ALT)
+    pointer('pointermove', window, 70, 55, ALT)
+    pointer('pointerup', window, 70, 55, ALT)
+    expect(frames()[1]?.rect).toEqual(rect(10, 10, 40, 40))
   })
 
   it('selects while dragging, snaps to a neighbour and keeps it selected', () => {

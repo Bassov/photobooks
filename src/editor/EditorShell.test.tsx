@@ -7,7 +7,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
-import { loadPainterFixture, resetBookStore } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  loadPainterFixture,
+  resetBookStore,
+} from './bookStore'
+import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
 import { addSpread, placeAsset } from '../core'
@@ -119,6 +124,33 @@ describe('EditorShell viewport containment', () => {
     expect(
       spread.querySelectorAll('[data-testid="spread-frame"]'),
     ).toHaveLength(before + 1)
+  })
+
+  it('installs the handle gesture: an arrow key nudges the selected frame', () => {
+    window.history.pushState({}, '', '/')
+    render(<EditorShell />)
+    const book = addSpread(makeBook({ id: 'nudge', spreads: [] }), {
+      id: 's0',
+    })
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    const x0 = frame.rect.x
+    act(() => {
+      resetBookStore({
+        book,
+        sessionMeta: new Map(),
+        previewUrls: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+      setFrameSource({ spreadId: 's0', frameId: frame.id })
+    })
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' })
+    const moved = getBookStoreSnapshot().book.spreads[0]?.frames[0]
+    expect(moved?.rect.x).toBe(x0 + 1)
+    act(() => {
+      resetFrameSelection()
+    })
   })
 
   it('paints the session spread instead of a placeholder', () => {

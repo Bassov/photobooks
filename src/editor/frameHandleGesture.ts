@@ -125,6 +125,7 @@ export function installFrameHandleGesture(): () => void {
     if (
       !button ||
       !spreadEl ||
+      getEditorTool() !== 'select' ||
       !(handle === ROTATE_HANDLE || isResizeHandle(handle)) ||
       getCropTarget() !== null
     ) {
@@ -236,13 +237,11 @@ export function installFrameHandleGesture(): () => void {
   }
 
   function onUp(event: PointerEvent): void {
-    if (session?.pointerId !== event.pointerId) {
+    const current = session
+    if (current?.pointerId !== event.pointerId) {
       return
     }
-    const current = finish()
-    if (current === null) {
-      return
-    }
+    finish()
     // The press never reaches the frame's click toggle.
     armSwallow()
     if (!current.started) {

@@ -207,7 +207,10 @@ export function installFrameGesture(): () => void {
     }
     const tool = getEditorTool()
     const frameEl = event.target.closest<HTMLElement>('.spread-frame')
-    if (tool === 'frame' && frameEl === null) {
+    if (
+      tool === 'frame' &&
+      (frameEl === null || event.target.closest('[data-handle]') !== null)
+    ) {
       const ctx = spreadContext(spreadEl, null)
       if (ctx === null) {
         return
@@ -441,7 +444,7 @@ export function installFrameGesture(): () => void {
     if (swallowClick) {
       swallowClick = false
       event.preventDefault()
-      event.stopPropagation()
+      event.stopImmediatePropagation()
     }
   }
 

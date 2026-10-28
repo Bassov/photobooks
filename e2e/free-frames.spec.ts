@@ -278,7 +278,8 @@ test('dragging a frame across a dense spread with snapping stays within frame-bu
   }
   await expect(frames(page)).toHaveCount(20)
   await page.waitForTimeout(300)
-  const { x: cx, y: cy } = await centerOf(frames(page).last())
+  // The last frame is still selected; its handles cover a frame this small.
+  const { x: cx, y: cy } = await centerOf(frames(page).first())
 
   await applyCpuThrottling(page)
   await clearPerfScenario(page)
