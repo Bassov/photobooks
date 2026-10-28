@@ -363,9 +363,10 @@ describe('SpreadView', () => {
         })}
       />,
     )
+    // A selected frame moves by its body (pointer gesture), not photo drag.
     expect(
       document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
-    ).toBe('true')
+    ).toBe('false')
     const selected = screen.getByRole('button', {
       name: 'Select photo to move',
     })
@@ -374,7 +375,9 @@ describe('SpreadView', () => {
     expect(selected.style.outline).toBe('')
     expect(screen.getAllByTestId('spread-frame-handles')).toHaveLength(1)
     const handles = [
-      ...selected.querySelectorAll<HTMLElement>('.spread-frame-handle'),
+      ...selected.querySelectorAll<HTMLElement>(
+        '.spread-frame-handle:not(.spread-frame-rotate)',
+      ),
     ]
     expect(handles).toHaveLength(8)
     expect(handles.map((h) => `${h.style.left} ${h.style.top}`)).toEqual([
@@ -387,6 +390,56 @@ describe('SpreadView', () => {
       '50% 100%',
       '100% 100%',
     ])
+  })
+
+  it('selected frame shows 8 resize handles, a rotate handle and a size tag', () => {
+    const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Sel',
+          pressed: true,
+          onActivate: vi.fn(),
+        })}
+      />,
+    )
+    expect(
+      screen.getAllByTestId('sel-handle').map((h) => h.dataset.handle),
+    ).toEqual(['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'])
+    expect(screen.getByTestId('rotate-handle').dataset.handle).toBe('rotate')
+    expect(screen.getByTestId('frame-size-tag').textContent).toMatch(
+      / × .* mm$/,
+    )
+  })
+
+  it('locked frame shows no handles and no size tag', () => {
+    const book = makeBookWithAsset()
+    const frame = book.spreads[0]?.frames[0]
+    assert(frame !== undefined, 'expected a frame')
+    frame.locked = true
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({
+          label: 'Sel',
+          pressed: true,
+          onActivate: vi.fn(),
+        })}
+      />,
+    )
+    expect(screen.queryByTestId('sel-handle')).toBeNull()
+    expect(screen.queryByTestId('rotate-handle')).toBeNull()
+    expect(screen.getByTestId('spread-frame').getAttribute('data-locked')).toBe(
+      'true',
+    )
   })
 
   it('crop mode shows a dim ghost, disables drag and forwards double-click', () => {

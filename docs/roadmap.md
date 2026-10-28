@@ -57,7 +57,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [ ] [feature] [rulers](roadmap/M4/rulers.md) — mm rulers
 - [ ] [feature] [guides](roadmap/M4/guides.md) — guides
 - [ ] [feature] [guides-precise](roadmap/M4/guides-precise.md) — exact guides
-- [ ] [feature] [frame-selection-handles](roadmap/M4/frame-selection-handles.md) — direct manipulation
+- [x] [feature] [frame-selection-handles](roadmap/M4/frame-selection-handles.md) — direct manipulation
 - [x] [feature] [layout-grids-settings](roadmap/M4/layout-grids-settings.md) — margins, columns, rows, gutters
 - [x] [feature] [layout-grids-render-snap](roadmap/M4/layout-grids-render-snap.md) — see the grid
 - [ ] [feature] [layout-grids-snap-wire](roadmap/M4/layout-grids-snap-wire.md) — wire grid snap into frame move/resize

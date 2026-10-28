@@ -10,6 +10,7 @@ import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { getCropTarget } from './cropMode'
 import { isSpacePanCode } from './editorChromePanels'
 import { getEditorTool, setEditorTool } from './editorToolStore'
+import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { setFrameSource } from './frameSelection'
 import { isTypingTarget } from './isTypingTarget'
 import {
@@ -24,7 +25,7 @@ import {
 const MOVE_SLOP_PX = 3
 const SPREAD_SELECTOR = '[data-testid="spread-view"]'
 
-interface SpreadContext {
+export interface SpreadContext {
   spreadId: string
   /** The spread as it was when the gesture started. */
   spread: Spread
@@ -58,12 +59,14 @@ interface MoveSession {
   rect0: RectMm
   rect: RectMm
   started: boolean
+  /** A locked frame only reports; it never moves. */
+  locked: boolean
   saved: { left: string; top: string }
 }
 
 type Session = DrawSession | MoveSession
 
-function round(mm: number): number {
+export function round(mm: number): number {
   return Math.round(mm * 10) / 10
 }
 
@@ -71,7 +74,7 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.min(Math.max(value, lo), hi)
 }
 
-function spreadContext(
+export function spreadContext(
   element: HTMLElement,
   excludeFrameId: string | null,
 ): SpreadContext | null {
@@ -109,7 +112,11 @@ function pct(mm: number, total: number): string {
   return `${String((mm / total) * 100)}%`
 }
 
-function placeBox(el: HTMLElement, ctx: SpreadContext, rect: RectMm): void {
+export function placeBox(
+  el: HTMLElement,
+  ctx: SpreadContext,
+  rect: RectMm,
+): void {
   el.style.left = pct(rect.x, ctx.widthMm)
   el.style.top = pct(rect.y, ctx.heightMm)
   el.style.width = pct(rect.width, ctx.widthMm)
@@ -230,7 +237,11 @@ export function installFrameGesture(): () => void {
     } else if (
       tool === 'select' &&
       frameEl instanceof HTMLButtonElement &&
-      frameEl.getAttribute('data-filled') === 'false'
+      event.target.closest('[data-handle]') === null &&
+      // A selected filled frame moves by its body; unselected filled ones
+      // keep the photo drag-and-drop.
+      (frameEl.getAttribute('data-filled') === 'false' ||
+        frameEl.getAttribute('aria-pressed') === 'true')
     ) {
       const frameId = frameEl.getAttribute('data-frame-id') ?? ''
       const ctx = spreadContext(spreadEl, frameId)
@@ -251,6 +262,7 @@ export function installFrameGesture(): () => void {
         rect0: frame.rect,
         rect: frame.rect,
         started: false,
+        locked: frame.locked === true,
         saved: { left: frameEl.style.left, top: frameEl.style.top },
       }
     } else {
@@ -310,6 +322,12 @@ export function installFrameGesture(): () => void {
     if (!move.started) {
       move.started = true
       setFrameSource({ spreadId: ctx.spreadId, frameId: move.frameId })
+      if (move.locked) {
+        setEditorStatus(STATUS_FRAME_LOCKED)
+      }
+    }
+    if (move.locked) {
+      return
     }
     const { width, height } = move.rect0
     const moved = {
@@ -381,6 +399,9 @@ export function installFrameGesture(): () => void {
       return
     }
     armSwallow()
+    if (move.locked) {
+      return
+    }
     const { spreadId } = move.ctx
     const rect = {
       x: round(move.rect.x),

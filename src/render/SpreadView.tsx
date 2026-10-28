@@ -40,15 +40,20 @@ const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
 
 /** Kit selection handles: corners + edge midpoints, % of the frame. */
 const HANDLE_POINTS = [
-  ['0%', '0%'],
-  ['50%', '0%'],
-  ['100%', '0%'],
-  ['0%', '50%'],
-  ['100%', '50%'],
-  ['0%', '100%'],
-  ['50%', '100%'],
-  ['100%', '100%'],
+  ['nw', '0%', '0%'],
+  ['n', '50%', '0%'],
+  ['ne', '100%', '0%'],
+  ['w', '0%', '50%'],
+  ['e', '100%', '50%'],
+  ['sw', '0%', '100%'],
+  ['s', '50%', '100%'],
+  ['se', '100%', '100%'],
 ] as const
+
+function sizeLabel(item: ResolvedItem): string {
+  const round = (mm: number) => String(Math.round(mm * 10) / 10)
+  return `${round(item.rectMm.width)} × ${round(item.rectMm.height)} mm`
+}
 
 export function SpreadView({
   spreadId,
@@ -173,7 +178,11 @@ function SpreadFrame({
     width: box.width,
     height: box.height,
     zIndex: cropActive ? item.z + CROP_Z_BOOST : item.z,
+    ...(item.rotation === 0
+      ? {}
+      : { transform: `rotate(${String(item.rotation)}deg)` }),
   }
+  const selected = control?.pressed === true && !cropActive
   const imageStyle = {
     left: crop.left,
     top: crop.top,
@@ -203,7 +212,7 @@ function SpreadFrame({
     <div
       ref={bodyRef}
       className="spread-frame-body"
-      draggable={!cropActive && control?.onDragStart !== undefined}
+      draggable={!cropActive && !selected && control?.onDragStart !== undefined}
       onDragStart={control?.onDragStart}
     >
       {cropActive && previewUrl !== undefined ? (
@@ -246,6 +255,7 @@ function SpreadFrame({
       data-filled={item.assetId === undefined ? 'false' : 'true'}
       data-asset-id={item.assetId}
       data-crop-active={cropActive ? 'true' : undefined}
+      data-locked={item.locked === true ? 'true' : undefined}
       aria-label={control.label}
       aria-pressed={control.pressed === true ? true : undefined}
       style={spreadFrameControlStyle(style, control.pressed === true)}
@@ -258,20 +268,36 @@ function SpreadFrame({
           Crop · {Math.round((control.cropZoom ?? 1) * 100)}%
         </span>
       ) : null}
-      {control.pressed === true && !cropActive ? (
-        <span
-          className="spread-frame-handles"
-          data-testid="spread-frame-handles"
-          aria-hidden
-        >
-          {HANDLE_POINTS.map(([x, y]) => (
+      {selected && item.locked !== true ? (
+        <>
+          <span
+            className="spread-frame-handles"
+            data-testid="spread-frame-handles"
+            aria-hidden
+          >
+            {HANDLE_POINTS.map(([id, x, y]) => (
+              <span
+                key={id}
+                className="spread-frame-handle"
+                data-handle={id}
+                data-testid="sel-handle"
+                style={{ left: x, top: y }}
+              />
+            ))}
             <span
-              key={`${x}-${y}`}
-              className="spread-frame-handle"
-              style={{ left: x, top: y }}
+              className="spread-frame-handle spread-frame-rotate"
+              data-handle="rotate"
+              data-testid="rotate-handle"
             />
-          ))}
-        </span>
+          </span>
+          <span
+            className="spread-frame-size-tag"
+            data-testid="frame-size-tag"
+            aria-hidden
+          >
+            {sizeLabel(item)}
+          </span>
+        </>
       ) : null}
     </button>
   )

@@ -6,6 +6,9 @@ const listeners = new Set<Listener>()
 export const STATUS_SELECTED =
   'Photo selected to move. Activate another frame to swap or move it, or press Unplace.'
 
+export const STATUS_FRAME_LOCKED =
+  'Frame is locked. Unlock it to move, resize or rotate.'
+
 export const STATUS_SWAPPED = 'Photos swapped'
 
 export const STATUS_MOVED = 'Photo moved'

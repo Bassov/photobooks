@@ -96,6 +96,9 @@ function getStructural(
       z: frame.z,
       rotation: frame.rotationDeg ?? 0,
     }
+    if (frame.locked === true) {
+      base.locked = true
+    }
     if (frame.assetId !== undefined) {
       return { item: { ...base, assetId: frame.assetId }, frame }
     }

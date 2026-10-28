@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import { getEditorStatus } from './editorStatus'
 import {
   getEditorTool,
   resetEditorToolForTests,
@@ -567,6 +568,29 @@ describe('frameGesture · move', () => {
     drag(40, 25, ALT)
     expect(frames()[1]?.rect).toEqual(rect(50, 35, 40, 40))
     expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBeUndefined()
+  })
+
+  it('moves a selected filled frame by its body', () => {
+    button.setAttribute('data-filled', 'true')
+    button.setAttribute('aria-pressed', 'true')
+    drag(40, 25, ALT)
+    expect(frames()[1]?.rect).toEqual(rect(50, 35, 40, 40))
+  })
+
+  it('leaves an unselected filled frame to photo drag-and-drop', () => {
+    button.setAttribute('data-filled', 'true')
+    drag(40, 25, ALT)
+    expect(frames()[1]?.rect).toEqual(rect(10, 10, 40, 40))
+  })
+
+  it('a locked frame reports the lock and does not move', () => {
+    load([
+      makeFrame({ id: 'a', rect: rect(100, 100, 50, 50) }),
+      makeFrame({ id: 'b', rect: rect(10, 10, 40, 40), z: 1, locked: true }),
+    ])
+    drag(40, 25, ALT)
+    expect(frames()[1]?.rect).toEqual(rect(10, 10, 40, 40))
+    expect(getEditorStatus()).toMatch(/locked/i)
   })
 
   it('selects while dragging, snaps to a neighbour and keeps it selected', () => {
