@@ -322,7 +322,7 @@
 }
 
 .editor-left-tabs {
-  background: var(--muted);
+  background: var(--field);
   padding: 2px;
   gap: 2px;
 }
@@ -337,7 +337,7 @@
 .editor-left-tab[aria-selected='true'] {
   background: var(--chrome);
   color: var(--foreground);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-segment);
 }
 
 .editor-left-tab:focus-visible {
