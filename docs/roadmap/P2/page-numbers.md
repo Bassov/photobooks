@@ -8,7 +8,7 @@ Title: page numbers
 
 - [ ] Page-number item on parents (from `parent-spreads-schema`), derived from the spread's pages (left / right, start number, skip first, format)
 - **Browser check:** page numbers appear on every page, follow reordering, and skip the first page.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`page-numbers`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** page numbers on spreads

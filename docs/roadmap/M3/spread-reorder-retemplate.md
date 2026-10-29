@@ -12,4 +12,4 @@ Status: done
 - **Perf:** reorder drag moves thumbnails by `transform`.
 - **Browser check:** reorder spreads in the left panel; the pasteboard follows; switching templates keeps photos.
 - **UI ref:** `kit v0.9.3 #/feature/spread-reorder-retemplate (removed in kit v0.10.0, no replacement)`
-- **UI kit:** `uikit/src/features/pages.tsx` (`spread-reorder-retemplate` demo + notes), `UI ref: kit v0.9.3 #/feature/spread-reorder-retemplate (removed in kit v0.10.0, no replacement)` — reorder drag + template change keeps photos
+- **UI kit:** none in v0.10.0 (kit v0.9.3 `#/feature/spread-reorder-retemplate (removed in kit v0.10.0)`, removed) — reorder drag + template change keeps photos

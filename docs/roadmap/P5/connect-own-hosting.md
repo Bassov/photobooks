@@ -8,7 +8,7 @@ Title: bring your own hosting (Security Review)
 
 - [ ] Guided connection of the user's own Cloudflare account with minimal scopes; automatic provisioning of site and storage
 - **Browser check:** with a new Cloudflare account, connect and publish a site in one guided flow.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`connect own hosting`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first; Settings → Hosting covers the owner only)
 - **Musts:** bring your own hosting

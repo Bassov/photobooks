@@ -11,7 +11,7 @@ Title: guides
 - [ ] Show / hide guides, snap on / off (view state)
 - **Perf:** guide drag is a `transform` in rAF, committed at gesture end.
 - **Browser check:** pull guides from both rulers, move and delete one, zoom — guides stay aligned with rulers; guides never appear in presentation mode.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`guides`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** drag guides from rulers

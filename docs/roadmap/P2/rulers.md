@@ -9,7 +9,7 @@ Title: mm rulers
 - [ ] mm rulers following the camera
 - **Perf:** rulers drawn on a `<canvas>` per camera frame. Gate: pan / zoom with rulers visible — zero LoAF.
 - **Browser check:** pan and zoom; ruler ticks stay aligned with the spread.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`rulers`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** mm rulers follow the camera

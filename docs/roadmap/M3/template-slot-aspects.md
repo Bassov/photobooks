@@ -12,4 +12,4 @@ Status: done
 - **Perf:** a template switch still re-renders only the affected spread.
 - **Browser check:** apply the 2-portrait and a 3×4 contact-sheet template; frames fit the grid margins; switching back keeps photos in order.
 - **UI ref:** `kit v0.9.3 #/feature/template-slot-aspects (removed in kit v0.10.0, no replacement)`
-- **UI kit:** `uikit/src/features/pages.tsx` (`template-slot-aspects` demo + notes), `UI ref: kit v0.9.3 #/feature/template-slot-aspects (removed in kit v0.10.0, no replacement)` — portrait templates + best-template highlight
+- **UI kit:** none in v0.10.0 (kit v0.9.3 `#/feature/template-slot-aspects (removed in kit v0.10.0)`, removed) — portrait templates + best-template highlight

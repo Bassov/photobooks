@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-Look parity, Phase B #2 (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake or disabled controls — omit what has no real data). The visual subset of [`inspector`](inspector.md) (numeric properties) and [`arrange-lock`](arrange-lock.md) (stacking and locking), which stay open as the full features (context menu, shortcuts, multi-frame editing).
+Look parity, Phase B #2 (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake or disabled controls — omit what has no real data). The visual subset of [`inspector`](../P2/inspector.md) (numeric properties) and [`arrange-lock`](../P2/arrange-lock.md) (stacking and locking), which stay open as the full features (context menu, shortcuts, multi-frame editing).
 
 - [x] Frame tab order: Photo rows → Geometry → Fit & crop (existing) → Arrange → Delete; nothing selected → spread properties + "Select a frame to edit it." (kit `EmptyInspector`, unchanged)
 - [x] Geometry ("Position & size"): X / Y / W / H mm fields (W / H min 5) on `moveFrame` / `resizeFrame`, rotation slider (variant B) + degree field on `rotateFrame`; lock toggle in the section header; fields and slider disabled when the frame is locked

@@ -12,7 +12,7 @@ Status: done
 - **Perf:** snapping via the anchor index. Gate: drag a frame across a dense spread with snapping on — zero LoAF, `pointermove` p95 ≤ 2 ms.
 - **Browser check:** draw a frame, snap it to a guide (and to a grid column when snap-wire is in), resize with handles — snap lines appear without lag.
 - **UI ref:** `kit v0.9.3 #/feature/free-frames (removed in kit v0.10.0, no replacement)`
-- **UI kit:** `uikit/src/features/pages.tsx` (`free-frames` demo + notes), `UI ref: kit v0.9.3 #/feature/free-frames (removed in kit v0.10.0, no replacement)` — Frame tool draw + snap lines
+- **UI kit:** none in v0.10.0 (kit v0.9.3 `#/feature/free-frames (removed in kit v0.10.0)`, removed) — Frame tool draw + snap lines
 - **Kit components:** `ToolGroup` / `TopBar` tools `select | frame | hand` (`uikit/src/sandbox/chrome.tsx`); frame draw + drop in `uikit/src/sandbox/canvas.tsx` (`view.tool === "frame"`); canvas selection handles (Phase A look-parity — reuse, do not re-skin); filmstrip drop onto an empty frame (`Filmstrip` in `chrome.tsx` + canvas drop). Cursor class `cursor-tool-frame` (`uikit/src/sandbox/v7.tsx`).
 - **Demo:** `free-frames` → `uikit/src/features/pages.tsx`
 - **Musts:**

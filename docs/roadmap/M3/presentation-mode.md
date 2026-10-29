@@ -12,4 +12,4 @@ Status: done
 - **Perf:** neighbouring spreads preloaded and decoded; transitions `transform` / `opacity` only. Gate: flip through 40 spreads quickly — zero LoAF, no blank frames.
 - **Browser check:** present the book fullscreen and flip through it like a finished album.
 - **UI ref:** `kit v0.9.3 #/feature/presentation-mode (removed in kit v0.10.0, no replacement)`
-- **UI kit:** `uikit/src/features/pages.tsx` (`presentation-mode` demo + notes), `UI ref: kit v0.9.3 #/feature/presentation-mode (removed in kit v0.10.0, no replacement)` — fullscreen present, no chrome
+- **UI kit:** none in v0.10.0 (kit v0.9.3 `#/feature/presentation-mode (removed in kit v0.10.0)`, removed) — fullscreen present, no chrome

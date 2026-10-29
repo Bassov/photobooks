@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-Look parity, Phase B #3 (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake or disabled controls — omit what has no real data). The visual subset of [`inspector`](inspector.md) (which stays open as the full feature), following [`look-parity-inspector-tabs`](look-parity-inspector-tabs.md) and [`inspector-frame-sections`](inspector-frame-sections.md).
+Look parity, Phase B #3 (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake or disabled controls — omit what has no real data). The visual subset of [`inspector`](../P2/inspector.md) (which stays open as the full feature), following [`look-parity-inspector-tabs`](look-parity-inspector-tabs.md) and [`inspector-frame-sections`](inspector-frame-sections.md).
 
 - [x] Spread tab order: Layout (templates) → Layout grid; the spread rows stay on top
 - [x] Layout section (kit `LayoutSection`): template tiles with a thumbnail and name, the current one highlighted; contact-sheet columns × rows + apply; all through `applyTemplate` (undoable)

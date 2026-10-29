@@ -12,4 +12,4 @@ Status: done
 - **Perf:** one op per drop; drop targets from cached mm rects. Gate: drop 4 photos on a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
 - **Browser check:** select four photos, drop them on a 4-grid spread, all frames fill in order; drop two portraits between spreads — a new 2-portrait spread appears.
 - **UI ref:** `uikit#/feature/drag-place-replace`
-- **UI kit:** `uikit/src/features/pages.tsx` (`multi-drop-fill` demo + notes), `UI ref: uikit#/feature/drag-place-replace` — multi-select drop fill + between-spread zones
+- **UI kit:** `uikit/src/features/pages.tsx` page `drag-place-replace`, `UI ref: uikit#/feature/drag-place-replace` — multi-select drop fill + between-spread zones

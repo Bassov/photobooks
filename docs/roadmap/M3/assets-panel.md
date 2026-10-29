@@ -12,7 +12,7 @@ Status: done
 - **Perf:** virtualized rows; row data from selectors via `startTransition`. Gate: 1000-asset book, scroll the panel and sort by status — zero LoAF.
 - **Browser check:** retouch a placed photo on disk — it shows as modified, Update refreshes it in place with the crop kept; clicking a row jumps to its frame.
 - **UI ref:** `kit v0.9.3 #/feature/assets-panel (removed in kit v0.10.0, no replacement)`
-- **UI kit:** `uikit/src/features/pages.tsx` (`assets-panel` demo + notes), `UI ref: kit v0.9.3 #/feature/assets-panel (removed in kit v0.10.0, no replacement)` — assets list: status, uses, jump, Update
+- **UI kit:** none in v0.10.0 (kit v0.9.3 `#/feature/assets-panel (removed in kit v0.10.0)`, removed) — assets list: status, uses, jump, Update
 
 ## Done note
 

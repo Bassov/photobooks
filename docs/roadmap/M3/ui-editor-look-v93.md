@@ -11,5 +11,5 @@ Status: done
 - [ ] Frames: no always-on white borders/shadows; black outline + handles only on the selected frame.
 - [ ] Header quiet: **Change photo folder…** uses the secondary (tone) style, not black primary.
 - Look only: no new editor capabilities (masters, tools, inspector, crop).
-- UI ref: uikit#/demo (editor stage; `uikit/src/demo-parts/editor.tsx` Selection, `.canvas-dots`)
+- UI ref: uikit#/demo (editor stage; selection outline / handles in `uikit/src/sandbox/canvas.tsx` (`sel-outline` / `sel-handle`), `.canvas-dots`)
 - **Browser check:** open a book in the editor; selected frame shows black outline + 8 handles, others none; dots visible around the spread; no page-level scroll.

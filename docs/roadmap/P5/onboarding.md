@@ -8,7 +8,7 @@ Title: first run
 
 - [ ] Start screen explaining the flow, sample book, helpful empty states
 - **Browser check:** a fresh browser profile reaches a first laid-out spread without guidance.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`onboarding for other users`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first; Designer drafts flows first)
 - **Musts:** a new user reaches a laid-out spread without help

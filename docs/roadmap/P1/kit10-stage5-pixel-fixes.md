@@ -9,7 +9,7 @@ Title: Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pag
 - [ ] After Designer ships the stage-5 fixes in the kit, port them to product: gray Low-res chip, contrast fixes, layout with 20+ pages.
 - **Perf:** look-only change; no new subscriptions; scrolling and drag stay at 60 fps (Performance panel).
 - **Browser check:** compare the product screen with the kit `#/demo` steps listed in Demo on the preview URL; no page-level H/V scroll.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page fixes (kit v0.10.x stage-5 backlog) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** kit-first: steps named by the kit fix
 - **Musts:** match the fixed kit pages

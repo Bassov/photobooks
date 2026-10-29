@@ -8,7 +8,7 @@ Title: preview the site from the editor
 
 - [ ] "Preview site" mode inside the app reading the current library
 - **Perf:** preview mounts lazily; the editor store is not re-subscribed per spread.
-- **Browser check:** preview the site from the editor, edit a caption, preview again — it updates.
+- **Browser check:** preview the site from the editor, change a photo or the cover title, preview again — it updates.
 - **Kit components:** `uikit#/feature/site-preview-mode` (`uikit/src/features/pages.tsx` page `site-preview-mode`)
 - **Demo:** `uikit#/demo` steps 26 `editor-preview` (walk in `uikit/scripts/demo-capture.mjs`)
 - **Musts:** preview current book without publishing; Esc returns

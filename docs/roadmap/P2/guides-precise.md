@@ -8,7 +8,7 @@ Title: exact guides
 
 - [ ] Numeric entry; lock; book-level vs spread guides
 - **Browser check:** place a guide at an exact mm value, lock it, switch it between book and spread scope — it stays put while dragging nearby.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`guides-precise`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** numeric guide positions

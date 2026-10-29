@@ -10,7 +10,7 @@ Title: guides on parent spreads
 - [ ] Spread guides are added on top of parent guides; show / hide guides and snap on / off cover both
 - **Perf:** a parent guide drag is a `transform` in rAF on the parent view, committed at gesture end; only spreads using that parent re-render. Gate: drag a guide on a parent used by 40 spreads — zero LoAF.
 - **Browser check:** add two guides on a parent — they appear on every spread using it and frames snap to them; add a spread-only guide — it shows on that spread alone.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`parent-guides`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** guides on masters

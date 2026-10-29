@@ -9,7 +9,7 @@ Title: spread reorder and spread menu (kit-first)
 - [ ] Reorder spreads and a spread context menu in the spread list (v0.9.3 `spread-reorder-retemplate` removed in v0.10).
 - **Perf:** look-only change; no new subscriptions; scrolling and drag stay at 60 fps (Performance panel).
 - **Browser check:** compare the product screen with the kit `#/demo` steps listed in Demo on the preview URL; no page-level H/V scroll.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer); `roadmap next` must skip it until then.
+- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (replaces removed v0.9.3 `spread-reorder-retemplate`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** Designer defines

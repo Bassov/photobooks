@@ -12,7 +12,7 @@ Status: done
 - **Browser check:** move, resize and rotate a frame with handles — handles never lag behind the cursor.
 - **UI ref:** `uikit#/feature/frame-selection-handles`
 - **UI kit:** `uikit/src/features/pages.tsx` (`frame-selection-handles` demo + notes), `UI ref: uikit#/feature/frame-selection-handles` — select/move/resize/rotate handles
-- **Kit components:** Handles + frame pointer handlers in `uikit/src/sandbox/canvas.tsx` (`data-testid` handles / sel-outline / sel-handle); selection outline pattern in `uikit/src/demo-parts/editor.tsx` (`Selection` — not exported, visual SoT only). Feature flags `handles`, `rotateHandle` on sandbox features.
+- **Kit components:** Handles + frame pointer handlers in `uikit/src/sandbox/canvas.tsx` (`data-testid` handles / sel-outline / sel-handle); selection outline / handles in `uikit/src/sandbox/canvas.tsx` (`sel-outline` / `sel-handle`). Feature flags `handles`, `rotateHandle` on sandbox features.
 - **Demo:** `frame-selection-handles` → `uikit/src/features/pages.tsx`
 - **Musts:**
   - Click frame → select (Select tool). Esc / click empty → deselect. Single selection only this slice (no Shift/marquee — that is multi-select).

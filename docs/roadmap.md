@@ -16,11 +16,11 @@ Owner priorities (2026-10-29), kit **v0.10.0**:
 4. **P4 — print.**
 5. **P5 — let other people make their own personal site** (kit-first).
 
-M3–M8 below keep finished items until the owner archives them; their open items moved into P1–P5. Items whose kit page was removed in v0.10 with no replacement and no current priority are held in `docs/backlog/`.
+M3 and M4 below keep finished items until the owner archives them (M4 is fully done; M3 has one open rig item, `rig-pr-body-gate-removal`); all other open items moved into P1–P5. Items whose kit page was removed in v0.10 with no replacement and no current priority are held in `docs/backlog/`.
 
 ## P1 — Align the editor to the kit (v0.10.0)
 
-**Review cut:** product screens look like kit v0.10.0 `#/demo`; stubs allowed, no fake controls. Done when: product screens match `#/demo` baseline steps 01–49 by Designer review.
+**Review cut:** product screens look like kit v0.10.0 `#/demo`; stubs allowed, no fake controls. Done when: product screens match `#/demo` baseline steps 01–20, 23–26 and 39–49 by Designer review (21–22 land with P2 `parent-spreads`, 27–31 with P4 `pdf-export`, 32–38 with P3).
 
 - [ ] [prep] [ui-primitives-forms](roadmap/P1/ui-primitives-forms.md) — form primitives in `src/ui/`
 - [ ] [feature] [kit10-library](roadmap/P1/kit10-library.md) — Library and folder: kit v0.10 look (welcome, folder, your books)
