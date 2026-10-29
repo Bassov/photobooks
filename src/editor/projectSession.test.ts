@@ -726,26 +726,6 @@ describe('projectSession', () => {
     ).toBeTypeOf('function')
   })
 
-  it('shouldExposeProjectSessionTestApi is true in DEV and VITE_E2E only', async () => {
-    const { shouldExposeProjectSessionTestApi } =
-      await import('./projectSession')
-    expect(shouldExposeProjectSessionTestApi({ DEV: true })).toBe(true)
-    expect(
-      shouldExposeProjectSessionTestApi({ DEV: false, VITE_E2E: '1' }),
-    ).toBe(true)
-    expect(
-      shouldExposeProjectSessionTestApi({ DEV: false, VITE_E2E: 'true' }),
-    ).toBe(true)
-    expect(shouldExposeProjectSessionTestApi({ DEV: false })).toBe(false)
-  })
-
-  it('does not attach thumbs or project test APIs when the gate is off', () => {
-    const bare = {} as Window
-    exposeProjectSessionTestApi({ DEV: false }, bare)
-    expect(bare.__photobooksProject).toBeUndefined()
-    expect(bare.__photobooksThumbs).toBeUndefined()
-  })
-
   it('restored identity-keyed assets hydrate thumbs from DerivedCache', async () => {
     const { cacheKeyFromIdentity } = await import('../assets/cacheKey')
     const identity = {
@@ -1976,7 +1956,7 @@ describe('projectSession', () => {
       ok: false,
       code: 'not-found',
     })
-    exposeProjectSessionTestApi({ DEV: true }, undefined)
+    exposeProjectSessionTestApi(undefined)
 
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)

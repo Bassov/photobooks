@@ -20,5 +20,5 @@ Each `!` pattern in `stryker.config.mjs` `mutate` has one reason here (kept in t
 - `!src/editor/PasteboardEmptyGuidance.tsx` — empty-state CTA wiring; copy/actions locked by PasteboardEmptyGuidance unit + empty-hints e2e
 - `!src/assets/fsa/handles.ts` — browser `FileSystemDirectoryHandle` adapter (`entries`/`values` dual-path); high unit NoCoverage; locked by `fsaAssetSource` + scan worker tests
 - `!src/assets/scanWalk.ts` — worker-safe directory walk dual-path; high unit NoCoverage on handle.kind branches; locked by `scanWalk` / `scanRoot.worker` tests
-- `!src/photo/directoryHandleFromFiles.ts` — VITE_E2E setInputFiles folder-handle double only (not product UI); locked by `directoryHandleFromFiles.test.ts` + bulk filmstrip e2e
-- `!src/project/session/browserSourceRootHandles.ts` — photo-root IDB + VITE_E2E memory handle store dual-path; locked by `browserSourceRootHandles.test.ts` + folder import/re-grant e2e
+- `!src/photo/directoryHandleFromFiles.ts` — VITE_TEST_FIXTURES setInputFiles folder-handle double only (not product UI); locked by `directoryHandleFromFiles.test.ts` + bulk filmstrip e2e
+- `!src/project/session/browserSourceRootHandles.ts` — photo-root IDB + VITE_TEST_FIXTURES memory handle store dual-path; locked by `browserSourceRootHandles.test.ts` + folder import/re-grant e2e

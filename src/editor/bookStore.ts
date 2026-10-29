@@ -12,12 +12,7 @@ import {
   type Spread,
 } from '../core'
 import { tryCacheKeyFromAsset } from '../assets/cacheKey'
-import {
-  makePainterFixture,
-  PAINTER_ASSET_IDS,
-} from '../core/testing/painterFixture'
 import { setBookUsedAssetIds, setDecodeImportActive } from '../photo/assetPool'
-import { painterSourceFile, retainAssetSource } from '../photo/assetSources'
 import type { ExifOrientation } from '../photo/types'
 import {
   canRedo,
@@ -864,21 +859,6 @@ function removedPlacementCount(
     }
   }
   return removed
-}
-
-/** Replace the in-memory book with the painter fixture and its preview URLs. */
-export function loadPainterFixture(): void {
-  const fixture = makePainterFixture()
-  resetBookStore({
-    book: fixture.book,
-    sessionMeta: new Map(),
-    previewUrls: fixture.previewUrls,
-    importRunning: false,
-    importExpectedCount: 0,
-  })
-  for (const assetId of PAINTER_ASSET_IDS) {
-    retainAssetSource(assetId, painterSourceFile(assetId), { cover: true })
-  }
 }
 
 export function subscribeSpread(

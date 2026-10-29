@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getAssetSource, resetAssetSources } from '../photo/assetSources'
+import { resetAssetSources } from '../photo/assetSources'
 import { makePlacedTemplateBook } from '../core/testing/fixtures'
-import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
+import { loadPainterFixture } from '../testFixtures/loadPainterFixture'
 import type { ResolvedItem } from '../core/geometry/types'
 import {
   awaitPendingGalleryFlush,
   enqueueGalleryAssets,
-  loadPainterFixture,
   getAssetAspectSnapshot,
   getAssetContentHash,
   getAssetDisplayName,
@@ -71,15 +70,6 @@ describe('bookStore', () => {
     expect(getPlacementCountSnapshot('painter-b')).toBeGreaterThan(0)
     expect(getPlacementCountSnapshot('missing')).toBe(0)
     expect(getHasAnyPlacementSnapshot()).toBe(true)
-  })
-
-  it('retains a session file for each painter fixture asset', () => {
-    loadPainterFixture()
-
-    for (const assetId of PAINTER_ASSET_IDS) {
-      expect(getAssetSource(assetId)?.type).toBe('image/png')
-    }
-    expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
   })
 
   it('mints unique asset ids with sanitized names', () => {

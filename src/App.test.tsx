@@ -82,6 +82,19 @@ describe('App editor shell', () => {
     expect(screen.queryByTestId('editor-shell')).toBeNull()
   })
 
+  it('loads the painter fixture for ?fixture=painter in a fixtures build', async () => {
+    window.history.replaceState(null, '', '/?fixture=painter')
+    try {
+      render(<App />)
+      await waitFor(() => {
+        expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
+      })
+      expect(screen.getByTestId('editor-shell')).toBeTruthy()
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
   it('shows library screen after attaching a memory library', async () => {
     render(<App />)
     expect(screen.getByTestId('welcome-screen')).toBeTruthy()
