@@ -18,6 +18,5 @@ Title: wire grid snap into frame move/resize
   - Grid visible + snap on → move / resize edges to column / row; label `snap · column N` / `snap · row N` (`bg-field` pill, not toast).
   - ~16 CSS px pull when grid visible; hidden grid / Alt / snap-off → no grid snap.
 - **Hard nos:** no teal / cyan; no toast for snap hints; no inventing move / resize without `frame-selection-handles`.
-- **Tokens:** snap label `bg-field` + foreground text; stroke quiet dark gray `#393738`; no teal / `#2f9e9a`.
 - **Test:** grid on + snap on → drag snaps to column with label; hide grid / Alt / snap off → no grid snap.
 - **Depends:** frame-selection-handles, snapping-engine, layout-grids-render-snap (after frame-selection-handles + snapping-engine). Pure helpers may already exist from render-snap; this item wires them into the gesture.
