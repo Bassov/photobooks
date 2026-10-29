@@ -74,3 +74,44 @@ a {
 .pb-create-dialog .pb-create-field {
   border: 1px solid var(--field);
 }
+
+/* Kit v5 scrollbars (uikit/src/index.css): every scroll area, 10px gutter, thumb thickness via transparent border (4px rest · 6px area hover · 8px thumb hover). No scrollbar-color / scrollbar-width: in Chrome they override ::-webkit-scrollbar. */
+@layer components {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    background: transparent;
+  }
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scroll-thumb-rest);
+    border: 3px solid transparent;
+    border-radius: 99px;
+    background-clip: content-box;
+    min-height: 32px;
+    min-width: 32px;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    border-width: 2px;
+    background-color: var(--scroll-thumb);
+  }
+  *::-webkit-scrollbar-thumb:hover,
+  *::-webkit-scrollbar-thumb:active {
+    border-width: 1px;
+    background-color: var(--scroll-thumb-hover);
+  }
+}

@@ -19,9 +19,6 @@ export const EDITOR_CHROME_CSS = `
 .snap-line-label { position: absolute; padding: 1px 6px; border-radius: 4px; background: ${FIELD}; color: ${T}; font-size: 11px; font-weight: 600; white-space: nowrap }
 .snap-line[data-axis=x] .snap-line-label { left: 4px; top: -22px }
 .snap-line[data-axis=y] .snap-line-label { left: -8px; top: 3px; transform: translateX(-100%) }
-.e7 ::-webkit-scrollbar-thumb { background-color: #A8A8A8 }
-.e7 *:hover::-webkit-scrollbar-thumb { background-color: #969696 }
-.e7 ::-webkit-scrollbar-thumb:hover { background-color: #7E7E7E }
 .e7-ghost { color: ${T}; border: 0; outline: none; transition: background-color .15s; background: transparent; cursor: pointer }
 .e7-ghost:hover { background: rgb(57 55 56/.08) }
 .e7-ghost:focus-visible, .e7-item:focus-visible, .e7-title:focus-visible, .e7-canvas:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
@@ -69,7 +66,7 @@ export const EDITOR_CHROME_CSS = `
 .editor-panel-l-inner { width: var(--panel-left, 212px) }
 .editor-panel-r { width: 0 }
 .editor-panel-r[data-open='true'] { width: var(--panel-right, 264px) }
-.editor-inspector { width: var(--panel-right, 264px); background: ${BAR}; color: ${T}; border: 0; outline: 0; box-shadow: none; scrollbar-width: thin; scrollbar-color: #A8A8A8 transparent }
+.editor-inspector { width: var(--panel-right, 264px); background: ${BAR}; color: ${T}; border: 0; outline: 0; box-shadow: none }
 .e7:has([data-dragging='true']) .e7-pan { transition: none }
 .editor-panel-b[data-open='false'] { height: 0 }
 .editor-canvas-inner { background: transparent }
