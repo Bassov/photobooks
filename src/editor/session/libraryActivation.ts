@@ -648,6 +648,7 @@ export function createLibraryActivation(
   async function tryRestore(): Promise<StorageResult<Book | null>> {
     const result = await host.withActionBusy(async () => {
       host.setRestorePending(true)
+      host.setHomeError(null)
       host.emit()
       try {
         host.cancelAutosave()
@@ -662,6 +663,27 @@ export function createLibraryActivation(
           return { ok: true as const, value: null }
         }
         if (!recalled.ok) {
+          if (recalled.code === 'storage-unavailable') {
+            // Keep persisted ids: the browser store is only unreachable, not stale.
+            await host.releaseHeldBookLock()
+            host.setStorage(null)
+            host.setBookId(null)
+            host.setDirty(false)
+            host.resetAutosave()
+            host.setSurface('welcome')
+            host.setHomeError(
+              host.humanMessageForCode(
+                'storage-unavailable',
+                'Could not read saved folder access.',
+              ),
+            )
+            host.setStatus({
+              kind: 'error',
+              code: 'storage-unavailable',
+              action: 'restore library',
+            })
+            return { ok: true as const, value: null }
+          }
           if (recalled.code === 'permission-required') {
             await host.releaseHeldBookLock()
             host.setStorage(null)

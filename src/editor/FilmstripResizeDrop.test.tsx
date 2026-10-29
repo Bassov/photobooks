@@ -197,6 +197,25 @@ describe('FilmstripDock desktop drop', () => {
     expect(await dropOn([handleItem({ kind: 'directory' })])).toBe(true)
   })
 
+  it('shows the kit drop overlay only during an external drag', async () => {
+    render(<FilmstripDock onDropPhotoFolder={() => Promise.resolve()} />)
+    const dock = screen.getByTestId('dock')
+    expect(screen.queryByTestId('film-drop-overlay')).toBeNull()
+    fireEvent.dragOver(dock, {
+      dataTransfer: dropData([], ['application/x-photobooks-asset']),
+    })
+    expect(screen.queryByTestId('film-drop-overlay')).toBeNull()
+    fireEvent.dragOver(dock, { dataTransfer: dropData([]) })
+    expect(screen.getByTestId('film-drop-overlay').textContent).toBe(
+      'Drop a folder to add its photos',
+    )
+    fireEvent.dragLeave(dock, { relatedTarget: null })
+    expect(screen.queryByTestId('film-drop-overlay')).toBeNull()
+    fireEvent.dragOver(dock, { dataTransfer: dropData([]) })
+    await dropOn([handleItem({ kind: 'directory' })])
+    expect(screen.queryByTestId('film-drop-overlay')).toBeNull()
+  })
+
   it('clears the hover only when the drag leaves the dock', () => {
     render(<FilmstripDock onDropPhotoFolder={() => Promise.resolve()} />)
     const dock = screen.getByTestId('dock')

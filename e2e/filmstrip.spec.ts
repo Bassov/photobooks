@@ -105,13 +105,16 @@ test('empty filmstrip message spans the scrollport', async ({ page }) => {
   await openSessionEditor(page)
   const empty = page.getByTestId('filmstrip-empty')
   await expect(empty).toBeVisible()
-  await expect(empty).toHaveText('Choose a photo folder to build the gallery.')
+  await expect(empty).toHaveText(
+    'No photos yet — add a folder or drop one here.',
+  )
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   const box = await empty.boundingBox()
   assert.ok(box)
   // Bug: 1px virtualizer window stacked one word per line.
   expect(box.width).toBeGreaterThan(240)
-  expect(box.height).toBeLessThan(72)
+  // Kit empty row is one thumb tall (h-(--thumb)).
+  expect(box.height).toBeLessThan(120)
   await assertDocumentFitsViewport(page)
 })
 
@@ -185,7 +188,7 @@ test('list-first folder pick shows gallery placeholders before all thumbs', asyn
   await assertDocumentFitsViewport(page)
 })
 
-test('portrait and landscape cards differ; thumbs use contain', async ({
+test('portrait and landscape cards differ; thumbs use cover', async ({
   page,
 }) => {
   await openSessionEditor(page)
@@ -221,7 +224,41 @@ test('portrait and landscape cards differ; thumbs use contain', async ({
     .getByTestId('filmstrip-thumb')
     .first()
     .evaluate((node) => getComputedStyle(node).objectFit)
-  expect(objectFit).toBe('contain')
+  expect(objectFit).toBe('cover')
+})
+
+test('name strip fits inside the scrollport; external drag shows the overlay', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  await pickPhotoFolder(page, [
+    photoFixturePaths.samplePng,
+    photoFixturePaths.sampleOrient6,
+  ])
+  await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  const names = page.getByTestId('filmstrip-name')
+  await expect(names).toHaveCount(2)
+  const scrollBox = await page.getByTestId('filmstrip-scroll').boundingBox()
+  const nameBox = await names.first().boundingBox()
+  assert.ok(scrollBox && nameBox)
+  expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(
+    scrollBox.y + scrollBox.height + 0.5,
+  )
+
+  const overlay = page.getByTestId('film-drop-overlay')
+  await expect(overlay).toHaveCount(0)
+  await page.getByTestId('dock').dispatchEvent('dragover', {
+    dataTransfer: await page.evaluateHandle(() => {
+      const data = new DataTransfer()
+      data.items.add(new File(['x'], 'x.txt'))
+      return data
+    }),
+  })
+  await expect(overlay).toHaveText('Drop a folder to add its photos')
+  await page.getByTestId('dock').dispatchEvent('dragleave')
+  await expect(overlay).toHaveCount(0)
 })
 
 test('portrait gallery fills the scrollport while scrolling', async ({
@@ -1542,7 +1579,7 @@ test.describe('sort / filter / remove', () => {
 
     await dragPlaceFirstFilmstripItem(page)
     await expect(page.getByTestId('filmstrip-filter-empty')).toHaveText(
-      'All photos are placed.',
+      'Every photo is placed. Turn off “Unplaced” to see all.',
     )
     await assertDocumentFitsViewport(page)
 
