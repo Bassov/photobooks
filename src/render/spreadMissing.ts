@@ -40,3 +40,11 @@ export function missingPlaceholderClass(missing: boolean): string {
 export function missingPlaceholderTestId(missing: boolean): string {
   return missing ? 'spread-frame-missing' : 'spread-frame-placeholder'
 }
+
+/** The asset id of a frame that paints as missing, else undefined. */
+export function missingAssetId(
+  assetId: string | undefined,
+  isMissingAsset: ((id: string) => boolean) | undefined,
+): string | undefined {
+  return frameShowsMissing(assetId, isMissingAsset) ? assetId : undefined
+}
