@@ -8,6 +8,14 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 const rows = (page: import('@playwright/test').Page) =>
   page.locator('[data-testid^="spread-list-item-"]')
 
+async function boxOf(locator: import('@playwright/test').Locator) {
+  const box = await locator.boundingBox()
+  if (box === null) {
+    throw new Error('not visible')
+  }
+  return box
+}
+
 test('spreads panel lists thumbnails, navigates, and manages spreads', async ({
   page,
 }) => {
@@ -88,6 +96,22 @@ test('long list is windowed, scrolls inside spreads-list and navigates far', asy
       page.locator(`[data-pasteboard-slot][data-spread-id="${id}"]`),
     ).toHaveAttribute('data-active', 'true', { timeout: 2000 })
   }).toPass({ timeout: 20_000 })
+})
+
+test('a two-page spread thumbnail fills the card width at the spread aspect', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  const row = rows(page).nth(1)
+  const card = await boxOf(row)
+  const thumb = await boxOf(row.locator('.spread-view--thumb'))
+  const spread = await boxOf(page.getByTestId('spread-view').nth(1))
+  // The card carries p-2 (8px) on both sides.
+  expect(thumb.width).toBeGreaterThanOrEqual(card.width - 16 - 1)
+  expect(thumb.width / thumb.height).toBeCloseTo(
+    spread.width / spread.height,
+    1,
+  )
 })
 
 test('last spread cannot be deleted', async ({ page }) => {

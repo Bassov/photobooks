@@ -1,6 +1,7 @@
 import { memo, useSyncExternalStore } from 'react'
 import { SpreadView } from '../render/SpreadView'
 import { getSpreadPaintSnapshot, subscribeSpread } from './bookStore'
+import { fitThumbPx } from './spreadsPanelModel'
 import { getThumbUrl, subscribeThumb } from './thumbCache'
 import {
   assetIdsOnSpread,
@@ -22,10 +23,13 @@ import {
  */
 export const SpreadThumb = memo(function SpreadThumb({
   spreadId,
-  widthPx,
+  boxWidthPx,
+  boxHeightPx,
 }: {
   spreadId: string
-  widthPx: number
+  /** Paper is fitted inside this box at its own aspect (rows differ). */
+  boxWidthPx: number
+  boxHeightPx: number
 }) {
   const snapshot = useSyncExternalStore(
     (listener) => subscribeSpread(spreadId, listener),
@@ -47,12 +51,18 @@ export const SpreadThumb = memo(function SpreadThumb({
   if (snapshot === undefined) {
     return null
   }
+  const { resolved } = snapshot
+  const { widthPx } = fitThumbPx(
+    boxWidthPx,
+    boxHeightPx,
+    resolved.spreadWidthMm / resolved.spreadHeightMm,
+  )
   return (
     <SpreadView
       thumb
       spreadId={spreadId}
-      resolved={snapshot.resolved}
-      pxPerMm={widthPx / snapshot.resolved.spreadWidthMm}
+      resolved={resolved}
+      pxPerMm={widthPx / resolved.spreadWidthMm}
       isMissingAsset={missingAssetChecker(relinkRevision)}
       previewUrlFor={(assetId) =>
         thumbUrlFromSnapshot(thumbs, assetId) ?? snapshot.previewUrlFor(assetId)

@@ -393,7 +393,8 @@ export function SpreadsPanel({
                   >
                     <SpreadThumb
                       spreadId={id}
-                      widthPx={geometry.thumbWidthPx}
+                      boxWidthPx={geometry.boxWidthPx}
+                      boxHeightPx={geometry.boxHeightPx}
                     />
                   </div>
                   <div className="mt-1.5 flex text-2xs tabular-nums">

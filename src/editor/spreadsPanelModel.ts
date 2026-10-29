@@ -13,7 +13,22 @@ const ROW_CHROME_Y_PX = 16 + 6 + 4
 /** Label line: `text-2xs` (11px) at line-height 1.35. */
 const LABEL_LINE_PX = 11 * 1.35
 
+/**
+ * Paper size (px) that fits `aspect` (width / height) inside a thumb box:
+ * full box width for wide spreads, full box height for narrow ones.
+ */
+export function fitThumbPx(
+  boxWidthPx: number,
+  boxHeightPx: number,
+  aspect: number,
+): { widthPx: number; heightPx: number } {
+  const widthPx = Math.min(boxWidthPx, boxHeightPx * aspect)
+  return { widthPx, heightPx: widthPx / aspect }
+}
+
 export interface SpreadsRowGeometry {
+  /** Thumb box width (row inner width). */
+  boxWidthPx: number
   /** Paper size inside the thumb box (real spread aspect). */
   thumbWidthPx: number
   thumbHeightPx: number
@@ -40,6 +55,7 @@ export function spreadsRowGeometry(
   // Fills the box width from 1.6:1 up; narrower spreads centre inside the box.
   const thumbWidthPx = boxHeightPx * aspect
   return {
+    boxWidthPx,
     thumbWidthPx,
     thumbHeightPx: thumbWidthPx / aspect,
     boxHeightPx,
