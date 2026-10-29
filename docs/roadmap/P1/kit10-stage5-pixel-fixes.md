@@ -2,14 +2,14 @@
 
 Tag: feature
 Milestone: P1
-Title: Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages) — blocked: Owner go
+Title: Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
 
 ## Scope
 
 - [ ] After Designer ships the stage-5 fixes in the kit, port them to product: gray Low-res chip, contrast fixes, layout with 20+ pages.
 - **Perf:** look-only change; no new subscriptions; scrolling and drag stay at 60 fps (Performance panel).
 - **Browser check:** compare the product screen with the kit `#/demo` steps listed in Demo on the preview URL; no page-level H/V scroll.
-- **Blocked: Owner go** (**Owner-confirm**). Stays in P1 (Designer call B1); do not start until the Owner says go and the kit stage-5 fixes exist. **Kit-first:** yes. `roadmap next` does not skip it: pass `--skip kit10-stage5-pixel-fixes` until the Owner says go.
+- **Owner go 2026-10-30 02:14** (unblocked). Stays in P1 (Designer call B1); needs the kit stage-5 fixes to exist first. **Kit-first:** yes.
 - **Kit components:** none, **kit-first**: Designer adds the kit page fixes (kit v0.10.x stage-5 backlog) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** kit-first: steps named by the kit fix
 - **Musts:** match the fixed kit pages

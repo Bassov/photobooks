@@ -2,14 +2,14 @@
 
 Tag: feature
 Milestone: P1
-Title: Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink) — blocked: Owner go
+Title: Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)
 
 ## Scope
 
 - [ ] Kit item (Designer, in `uikit/`): expose the sandbox features #/demo hides, and add capture steps: TopBar `views` with guides / rulers / dpi (`uikit/src/sandbox/chrome.tsx:64,143`); `<SpreadsPanel reorder actions />` (`uikit/src/features/parts.tsx:32`, `uikit/src/sandbox/chrome.tsx:267,337,365`); `parentEdit` / `overrides` in Masters (`DEMO_FEATURES` `uikit/src/demo-parts/editor.tsx:22`); a missing-photo step (seed `missing`, `uikit/src/sandbox/store.tsx:49,91`); a Relink dialog part (none in the kit yet; port the product `src/editor/relink/RelinkDialog.tsx`); wire the v7 master Page numbers toggle to `Parent.pageNumbers`.
 - **Perf:** kit-only change; no product code.
 - **Browser check:** open `uikit#/demo`; the new steps show rulers, guides, the frame dpi badge, the spread row menu / reorder, master guide editing and overrides, a missing photo and the relink dialog.
-- **Blocked: Owner go** (**Owner-confirm**). Do not start until the Owner says go. `roadmap next` does not skip it: pass `--skip kit10-demo-expose-hidden` until then.
+- **Owner go 2026-10-30 02:14** (unblocked). Actionable now.
 - **Kit components:** `uikit/src/sandbox/chrome.tsx` (`TopBar`, `SpreadsPanel`, `SpreadItemMenu`, `ViewToggle`), `uikit/src/sandbox/viewport.tsx` (`Ruler`, guide drag), `uikit/src/sandbox/canvas.tsx` (dpi badge, overrides, missing hatch), `uikit/src/demo-parts/editor.tsx` (`DemoEditor`, `DEMO_FEATURES`)
 - **Demo:** new capture steps in `uikit/scripts/demo-capture.mjs`
 - **Musts:** every item marked "kit: sandbox, not shown in #/demo" becomes reachable from a visible control in #/demo

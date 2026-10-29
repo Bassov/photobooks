@@ -41,8 +41,8 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [ ] [feature] [kit10-masters](roadmap/P1/kit10-masters.md) — Masters mode: kit v0.10 look
 - [ ] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
 - [ ] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
-- [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages) — blocked: Owner go
-- [ ] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink) — blocked: Owner go
+- [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
+- [ ] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)
 
 ## P2 — Missing features, iterative
 
