@@ -20,6 +20,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [prep] [pr-body-free-form](roadmap/M3/pr-body-free-form.md) — Drop PR body content gate (rig + CI)
 - [x] [prep] [pr-body-free-form-tail](roadmap/M3/pr-body-free-form-tail.md) — Finish PR body free-form: docs and live-PR waiver in checks.yml
 - [x] [prep] [stryker-diff-scope](roadmap/M3/stryker-diff-scope.md) — Measure stryker-diff cost and survivors; Owner picks keep / exclude / C-session
+- [x] [prep] [stryker-c-session](roadmap/M3/stryker-c-session.md) — Stryker survivors move to a dedicated C-session (Owner option (c), #267)
 - [ ] [prep] [rig-pr-body-gate-removal](roadmap/M3/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [x] [prep] [fix-place-fit-aspect](roadmap/M3/fix-place-fit-aspect.md) — Fix placed photo aspect: no stretched portraits, cover crop in thumbs and canvas
 - [x] [lite] [fix-landscape-letterbox](roadmap/M3/fix-landscape-letterbox.md) — Fix landscape/panorama letterboxing in portrait frames: place and Fill use cover crop

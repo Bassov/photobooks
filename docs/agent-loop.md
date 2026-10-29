@@ -117,6 +117,13 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 - Launched by the orchestrator with a short brief (tip SHA, failing check, log path). `pnpm agent ci-brief` → fix only that → A/B as needed (bases per Diff bases) → push → exit. No auto-merge main; sibling conflicts = orchestrator turn.
 
+## Stryker C-session
+
+Owner decision (c) on #267 (2026-10-29): killing mutants is not feature work. Thresholds are unchanged (diff break 85, 0 NoCoverage, no mutator excludes, no new Stryker disables, `stryker-diff` stays required).
+
+- **Feature session:** run `pnpm stryker:diff` at most twice (initial + one fix attempt with real tests). If still < 85 or NoCoverage > 0: stop fixing, open the PR anyway. The PR body has a line `stryker: deferred to C-session` followed by the survivor files (file, score, survived / NoCoverage counts).
+- **C-session:** a separate brief ([template](agent-loop/stryker-c-session-brief.md)) resumes the SAME branch/worktree (no RESET, no new PR). It adds tests only, or removes genuinely dead code; no feature work, no threshold / mutator / disable changes. It re-runs `stryker:diff` until >= 85 and 0 NoCoverage, pushes, prints the PR URL and exits.
+
 ## Parallel agents
 
 Any open slug, out of order: `/next-roadmap-item <slug>` (preflight `--slug`). Claimed slug + non-overlapping touch-sets / worktrees. Index tick conflicts: skill `roadmap` (Close). Do not `git merge origin/main` in preflight/finish/apply on the happy path. Behind main without conflicts is OK for PR create.
