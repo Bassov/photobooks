@@ -9,7 +9,6 @@ import { getBookStoreSnapshot, resetBookStore } from '../bookStore'
 import { detectMissingAssets } from './detect'
 import * as projectSession from '../projectSession'
 import {
-  acceptModifiedAsset,
   clearPendingRelinkMatches,
   getPendingRelinkMatches,
   locateMissingAsset,
@@ -262,7 +261,6 @@ describe('rescanRelinkFiles', () => {
     expect(getPendingRelinkMatches()).toBeNull()
     expect(getFoundRelinkIds().size).toBe(0)
     await expect(resolvePendingRelink()).resolves.toBe(0)
-    await expect(acceptModifiedAsset('photo-a')).resolves.toBe(false)
   })
 
   it('defaults sourceRootId from crypto.randomUUID when omitted', async () => {
@@ -335,25 +333,7 @@ describe('rescanRelinkFiles', () => {
     await expect(resolvePendingRelink()).resolves.toBe(0)
   })
 
-  it('acceptModifiedAsset returns false for unknown asset ids', async () => {
-    seedBook(['photo-a'], {
-      'photo-a': {
-        contentHash: EMPTY_HASH,
-        relativePath: 'a.jpg',
-        sourceRootId: 'relink-test-root',
-        byteSize: 0,
-        mtimeMs: 1,
-      },
-    })
-    const file = new File([new Uint8Array([1, 2, 3, 4])], 'a.jpg', {
-      type: 'image/jpeg',
-      lastModified: 99,
-    })
-    await rescanRelinkFiles([file], { sourceRootId: 'relink-test-root' })
-    await expect(acceptModifiedAsset('unknown')).resolves.toBe(false)
-  })
-
-  it('indexes modified path hits and acceptModifiedAsset applies them', async () => {
+  it('indexes modified path hits by asset id', async () => {
     seedBook(['photo-a'], {
       'photo-a': {
         contentHash: EMPTY_HASH,
@@ -372,8 +352,6 @@ describe('rescanRelinkFiles', () => {
       sourceRootId: 'relink-test-root',
     })
     expect(result.byAssetId.has('photo-a')).toBe(true)
-    await expect(acceptModifiedAsset('photo-a')).resolves.toBe(true)
-    expect(getAssetSource('photo-a')).toBe(file)
   })
 
   it('keeps unscanned entries when readForHash fails', async () => {

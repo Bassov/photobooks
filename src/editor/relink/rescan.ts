@@ -137,21 +137,6 @@ export async function resolvePendingRelink(): Promise<number> {
   return count
 }
 
-export async function acceptModifiedAsset(assetId: string): Promise<boolean> {
-  const pending = pendingMatches
-  if (pending === null) {
-    return false
-  }
-  const hit = pending.byAssetId.get(assetId)
-  if (hit === undefined) {
-    return false
-  }
-  await applyRelinkEntries([{ assetId, entry: hit.entry, file: hit.file }], {
-    sourceRootId: pending.sourceRootId,
-  })
-  return true
-}
-
 /**
  * Per-row Locate: match the picked file to the asset by size+mtime (no content-hash).
  * Return codes keep historical names (`hash-mismatch` / `no-hash`) for callers.

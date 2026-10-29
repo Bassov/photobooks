@@ -74,7 +74,7 @@ export function FitCropSection({
   }
   return (
     <section
-      className="fit-crop mt-4 flex flex-col gap-3"
+      className="fit-crop flex flex-col gap-3 px-4 py-4"
       data-testid="inspector-fit-crop"
       data-crop-keep=""
       aria-label="Fit and crop"

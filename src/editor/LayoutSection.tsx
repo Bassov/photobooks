@@ -132,7 +132,7 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
   const summary = templateName(current)
   return (
     <section
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-3 px-4 py-4"
       data-testid="layout-section"
       aria-label="Layout"
     >

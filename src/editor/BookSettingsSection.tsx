@@ -24,7 +24,7 @@ export function BookSettingsSection() {
   ]
   return (
     <section
-      className="mb-4 flex flex-col gap-3"
+      className="flex flex-col gap-3 px-4 py-4"
       data-testid="book-settings"
       aria-label="Book settings"
     >

@@ -10,10 +10,12 @@ import {
   scrollPasteboardToSpread,
   scrollTopToReveal,
   selectedSpreadId,
-  SPREADS_ROW_PX,
   spreadsKeyAction,
   spreadsListWindow,
+  spreadsRowGeometry,
 } from './spreadsPanelModel'
+
+const ROW = spreadsRowGeometry(0, 2).rowPx
 
 const key = (k: string, mod = false) => ({
   key: k,
@@ -55,27 +57,46 @@ describe('spreadsPanelModel', () => {
   })
 
   it('windows only the rows near the viewport', () => {
-    const win = spreadsListWindow(1000, 0, 400)
+    const win = spreadsListWindow(1000, 0, 400, ROW)
     expect(win.start).toBe(0)
     expect(win.end).toBeLessThan(15)
     expect(win.tailPx).toBeGreaterThan(0)
-    const mid = spreadsListWindow(1000, 500 * SPREADS_ROW_PX, 400)
+    const mid = spreadsListWindow(1000, 500 * ROW, 400, ROW)
     expect(mid.start).toBeGreaterThan(400)
     expect(mid.end - mid.start).toBeLessThan(20)
-    expect(spreadsListWindow(0, 0, 400).end).toBe(0)
+    expect(spreadsListWindow(0, 0, 400, ROW).end).toBe(0)
   })
 
   it('computes the scroll needed to reveal a row', () => {
-    expect(scrollTopToReveal(1, 0, 400)).toBeNull()
-    expect(scrollTopToReveal(0, SPREADS_ROW_PX, 400)).toBe(0)
-    expect(scrollTopToReveal(10, 0, 400)).toBe(11 * SPREADS_ROW_PX - 400)
+    expect(scrollTopToReveal(1, 0, 400, ROW)).toBeNull()
+    expect(scrollTopToReveal(0, ROW, 400, ROW)).toBe(0)
+    expect(scrollTopToReveal(10, 0, 400, ROW)).toBe(11 * ROW - 400)
     // Exactly flush with either edge is already visible.
-    expect(scrollTopToReveal(2, 2 * SPREADS_ROW_PX, 400)).toBeNull()
-    expect(scrollTopToReveal(1, 0, 2 * SPREADS_ROW_PX)).toBeNull()
+    expect(scrollTopToReveal(2, 2 * ROW, 400, ROW)).toBeNull()
+    expect(scrollTopToReveal(1, 0, 2 * ROW, ROW)).toBeNull()
     // Taller-than-viewport rows never scroll below zero.
-    expect(scrollTopToReveal(0, 10, 20)).toBe(0)
+    expect(scrollTopToReveal(0, 10, 20, ROW)).toBe(0)
     // No selection never scrolls.
-    expect(scrollTopToReveal(-1, SPREADS_ROW_PX, 400)).toBeNull()
+    expect(scrollTopToReveal(-1, ROW, 400, ROW)).toBeNull()
+  })
+
+  it('sizes the row like the kit: thumb keeps the spread aspect', () => {
+    // 188px panel: 188 - 12 (pl-3) - 4 (pr-1) - 16 (p-2) = 156px thumb box.
+    const wide = spreadsRowGeometry(188, 2)
+    expect(wide.thumbWidthPx).toBe(156)
+    expect(wide.thumbHeightPx).toBe(78)
+    expect(wide.boxHeightPx).toBe(78)
+    // box + p-2 (16) + mt-1.5 (6) + label line (14.85) + mb-1 (4)
+    expect(wide.rowPx).toBeCloseTo(78 + 16 + 6 + 14.85 + 4, 5)
+    // Narrower than 1.6:1 keeps the 1.6 box and centres a narrower paper.
+    const narrow = spreadsRowGeometry(188, 1.2)
+    expect(narrow.boxHeightPx).toBe(156 / 1.6)
+    expect(narrow.thumbWidthPx).toBeCloseTo((156 / 1.6) * 1.2, 5)
+    expect(narrow.thumbWidthPx / narrow.thumbHeightPx).toBeCloseTo(1.2, 5)
+    // Unmeasured width falls back to the default panel width.
+    expect(spreadsRowGeometry(0, 2)).toEqual(wide)
+    // A resized panel scales the thumb with it.
+    expect(spreadsRowGeometry(260, 2).thumbWidthPx).toBe(228)
   })
 
   it('maps keys to panel actions', () => {

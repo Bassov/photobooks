@@ -80,7 +80,7 @@ export function GridSection({
   }
   return (
     <section
-      className="grid-section flex flex-col gap-2"
+      className="grid-section flex flex-col gap-3 px-4 py-4"
       data-testid={`grid-section-${scope}`}
       aria-label="Layout grid"
     >

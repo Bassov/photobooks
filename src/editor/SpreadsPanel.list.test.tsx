@@ -10,10 +10,15 @@ import {
   setActiveSpreadId,
 } from './photoRootSession'
 import { SpreadsPanel } from './SpreadsPanel'
-import { SPREADS_ROW_PX, SPREADS_THUMB_HEIGHT_PX } from './spreadsPanelModel'
+import { spreadsRowPx as rowPx } from './spreadsPanel.test-helpers'
+import { spreadsRowGeometry } from './spreadsPanelModel'
 
-function seedSpreads(count: number): void {
-  let book = makeBook({ id: 'many', spreads: [] })
+function seedSpreads(count: number, trimWidthMm = 300): void {
+  let book = makeBook({
+    id: 'many',
+    spreads: [],
+    settings: { trim: { widthMm: trimWidthMm, heightMm: 300 } },
+  })
   for (let i = 0; i < count; i += 1) {
     book = addSpread(book, { id: `s${String(i)}` })
   }
@@ -58,7 +63,7 @@ describe('SpreadsPanel list', () => {
     expect(first.length).toBeLessThan(15)
     expect(first[0]).toBe('s0')
 
-    const far = 100 * SPREADS_ROW_PX
+    const far = 100 * rowPx()
     list.scrollTop = far
     fireEvent.scroll(list)
     const moved = renderedIds()
@@ -66,14 +71,16 @@ describe('SpreadsPanel list', () => {
     expect(moved).toContain('s100')
     expect(moved.length).toBeLessThan(15)
     const start = Number(moved[0]?.slice(1))
-    expect(screen.getByTestId('spreads-lead').style.height).toBe(
-      `${String(start * SPREADS_ROW_PX)}px`,
-    )
-    expect(screen.getByTestId('spreads-tail').style.height).toBe(
-      `${String((200 - start - moved.length) * SPREADS_ROW_PX)}px`,
-    )
+    expect(
+      Number.parseFloat(screen.getByTestId('spreads-lead').style.height),
+    ).toBeCloseTo(start * rowPx(), 1)
+    expect(
+      Number.parseFloat(screen.getByTestId('spreads-tail').style.height),
+    ).toBeCloseTo((200 - start - moved.length) * rowPx(), 1)
     const row = screen.getByTestId('spread-list-item-s100')
-    expect(row.parentElement?.style.height).toBe(`${String(SPREADS_ROW_PX)}px`)
+    expect(
+      Number.parseFloat(row.parentElement?.style.height ?? ''),
+    ).toBeCloseTo(rowPx(), 2)
     expect(row.querySelector('[data-label]')?.textContent).toBe('200–201')
     expect(row.getAttribute('data-first')).toBe('false')
 
@@ -85,7 +92,7 @@ describe('SpreadsPanel list', () => {
 
   it('re-measures when the list is resized and disconnects on unmount', () => {
     seedSpreads(200)
-    let height = SPREADS_ROW_PX
+    let height = rowPx()
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
       () => height,
     )
@@ -105,7 +112,7 @@ describe('SpreadsPanel list', () => {
     )
     const view = render(<SpreadsPanel />)
     const small = renderedIds().length
-    height = 10 * SPREADS_ROW_PX
+    height = 10 * rowPx()
     act(() => {
       observers[0]?.([], {} as ResizeObserver)
     })
@@ -126,15 +133,57 @@ describe('SpreadsPanel list', () => {
     act(() => {
       setActiveSpreadId('s30')
     })
-    expect(list.scrollTop).toBe(31 * SPREADS_ROW_PX - 300)
+    expect(list.scrollTop).toBeCloseTo(31 * rowPx() - 300, 3)
     act(() => {
       setActiveSpreadId('s5')
     })
-    expect(list.scrollTop).toBe(5 * SPREADS_ROW_PX)
+    expect(list.scrollTop).toBeCloseTo(5 * rowPx(), 3)
     act(() => {
       setActiveSpreadId('s0')
     })
     expect(list.scrollTop).toBe(0)
+  })
+
+  it('sizes each thumb from the measured list width and the spread aspect', () => {
+    seedSpreads(2)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(220)
+    render(<SpreadsPanel />)
+    const box = document.querySelector<HTMLElement>('.editor-spread-thumb')
+    const view = document.querySelector<HTMLElement>('.spread-view--thumb')
+    const spreadAspect =
+      Number.parseFloat(view?.style.width ?? '') /
+      Number.parseFloat(view?.style.height ?? '')
+    // 220 - list inset 16 - row padding 16.
+    const geometry = spreadsRowGeometry(220, spreadAspect)
+    expect(Number.parseFloat(view?.style.width ?? '')).toBeCloseTo(
+      geometry.thumbWidthPx,
+      3,
+    )
+    expect(Number.parseFloat(box?.style.height ?? '')).toBeCloseTo(
+      188 / Math.max(spreadAspect, 1.6),
+      3,
+    )
+    const row = screen.getByTestId('spread-list-item-s0').parentElement
+    expect(Number.parseFloat(row?.style.height ?? '')).toBeCloseTo(
+      spreadsRowGeometry(220, spreadAspect).rowPx,
+      3,
+    )
+  })
+
+  it('re-derives the row height when the spread aspect changes', () => {
+    seedSpreads(2)
+    render(<SpreadsPanel />)
+    const rowHeight = (): number =>
+      Number.parseFloat(
+        screen.getByTestId('spread-list-item-s0').parentElement?.style.height ??
+          '',
+      )
+    const square = rowHeight()
+    act(() => {
+      seedSpreads(2, 1000)
+    })
+    // A much wider page makes a wider spread → a shorter thumb box.
+    expect(rowHeight()).toBeLessThan(square)
   })
 
   it('acts on the focused row, not on a stale selection', () => {
@@ -153,15 +202,10 @@ describe('SpreadsPanel list', () => {
     expect(getActiveSpreadId()).toBe(getSpreadIdsSnapshot()[3])
   })
 
-  it('exposes roving tabindex, selection and the thumb height variable', () => {
+  it('exposes roving tabindex and selection', () => {
     seedSpreads(3)
     setActiveSpreadId('s1')
     render(<SpreadsPanel />)
-    expect(
-      screen
-        .getByTestId('spreads-panel')
-        .style.getPropertyValue('--spreads-thumb-h'),
-    ).toBe(`${String(SPREADS_THUMB_HEIGHT_PX)}px`)
     const rows = ['s0', 's1', 's2'].map((id) =>
       screen.getByTestId(`spread-list-item-${id}`),
     )
@@ -182,7 +226,7 @@ describe('SpreadsPanel list', () => {
     stubViewport(300)
     render(<SpreadsPanel />)
     const list = screen.getByTestId('spreads-list')
-    list.scrollTop = 100 * SPREADS_ROW_PX
+    list.scrollTop = 100 * rowPx()
     fireEvent.scroll(list)
     const ids = renderedIds()
     expect(ids).not.toContain('s0')
@@ -222,7 +266,7 @@ describe('SpreadsPanel list', () => {
 
   it('offers add after, duplicate and delete in the row menu', async () => {
     seedSpreads(3)
-    stubViewport(10 * SPREADS_ROW_PX)
+    stubViewport(10 * rowPx())
     render(<SpreadsPanel />)
 
     fireEvent.click(screen.getByTestId('spread-menu-s1'))

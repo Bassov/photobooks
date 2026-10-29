@@ -1,16 +1,16 @@
 import { useState } from 'react'
+import { EmptyState } from '../ui/EmptyState'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
-import { AssetsPanel } from './AssetsPanel'
 import { SpreadsPanel } from './SpreadsPanel'
 
-type Tab = 'pages' | 'assets'
+type Tab = 'pages' | 'masters'
 
 const TABS: readonly { id: Tab; label: string }[] = [
   { id: 'pages', label: 'Pages' },
-  { id: 'assets', label: 'Assets' },
+  { id: 'masters', label: 'Masters' },
 ]
 
-/** Left panel: Pages | Assets tabs; the switcher replaces the panel's own header. */
+/** Left panel: Pages | Masters switcher; Masters is a placeholder until masters ship. */
 export function LeftPanel({
   toastQueue,
 }: {
@@ -40,8 +40,20 @@ export function LeftPanel({
       ))}
     </div>
   )
-  return tab === 'assets' ? (
-    <AssetsPanel modeSwitch={modeSwitch} />
+  return tab === 'masters' ? (
+    <aside
+      className="editor-spreads flex h-full min-h-0 flex-col"
+      data-testid="masters-panel"
+    >
+      <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg">
+        {modeSwitch}
+      </div>
+      <EmptyState
+        title="No masters yet"
+        description="Masters are page templates shared across spreads."
+        data-testid="masters-stub"
+      />
+    </aside>
   ) : (
     <SpreadsPanel toastQueue={toastQueue} modeSwitch={modeSwitch} />
   )

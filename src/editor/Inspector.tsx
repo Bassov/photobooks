@@ -166,17 +166,21 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         </div>
         <TabPanel
           id="frame"
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto"
           data-testid="inspector-panel-frame"
         >
-          {panel.kind === 'frame' ? <RowList rows={panel.rows} /> : null}
+          {panel.kind === 'frame' ? (
+            <div className="px-4 py-4">
+              <RowList rows={panel.rows} />
+            </div>
+          ) : null}
           {panel.kind === 'spread' ? (
-            <>
+            <div className="px-4 py-4">
               <div className="mb-3 text-xs font-medium" style={{ color: SUB }}>
                 Spread properties
               </div>
               <RowList rows={panel.spreadRows} />
-            </>
+            </div>
           ) : null}
           {panel.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
           {panel.kind === 'spread' && section === null ? (
@@ -193,26 +197,24 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         </TabPanel>
         <TabPanel
           id="spread"
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto"
           data-testid="inspector-panel-spread"
         >
           {panel.kind === 'empty' ? (
             <Hint>{EMPTY_HINT}</Hint>
           ) : (
             <>
-              <RowList rows={panel.spreadRows} />
-              <div className="mt-4">
-                <LayoutSection spreadId={panel.spreadId} />
+              <div className="px-4 py-4">
+                <RowList rows={panel.spreadRows} />
               </div>
-              <div className="mt-4">
-                <GridSection scope="spread" spreadId={panel.spreadId} />
-              </div>
+              <LayoutSection spreadId={panel.spreadId} />
+              <GridSection scope="spread" spreadId={panel.spreadId} />
             </>
           )}
         </TabPanel>
         <TabPanel
           id="book"
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto"
           data-testid="inspector-panel-book"
         >
           <BookSettingsSection />
@@ -226,7 +228,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
 function Hint({ children }: { children: string }) {
   return (
     <p
-      className="text-[12.5px] leading-snug"
+      className="px-4 py-4 text-[12.5px] leading-snug"
       style={{ color: SUB }}
       data-testid="inspector-empty"
     >

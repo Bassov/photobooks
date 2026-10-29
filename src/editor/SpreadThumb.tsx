@@ -22,10 +22,10 @@ import {
  */
 export const SpreadThumb = memo(function SpreadThumb({
   spreadId,
-  heightPx,
+  widthPx,
 }: {
   spreadId: string
-  heightPx: number
+  widthPx: number
 }) {
   const snapshot = useSyncExternalStore(
     (listener) => subscribeSpread(spreadId, listener),
@@ -52,7 +52,7 @@ export const SpreadThumb = memo(function SpreadThumb({
       thumb
       spreadId={spreadId}
       resolved={snapshot.resolved}
-      pxPerMm={heightPx / snapshot.resolved.spreadHeightMm}
+      pxPerMm={widthPx / snapshot.resolved.spreadWidthMm}
       isMissingAsset={missingAssetChecker(relinkRevision)}
       previewUrlFor={(assetId) =>
         thumbUrlFromSnapshot(thumbs, assetId) ?? snapshot.previewUrlFor(assetId)

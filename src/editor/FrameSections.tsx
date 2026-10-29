@@ -111,7 +111,7 @@ export function GeometrySection({ target }: { target: CropTarget }) {
   }
   return (
     <section
-      className="mt-4 flex flex-col gap-3"
+      className="flex flex-col gap-3 px-4 py-4"
       data-testid="inspector-geometry"
       aria-label="Position and size"
     >
@@ -263,7 +263,7 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
   }
   return (
     <section
-      className="mt-4 flex flex-col gap-3"
+      className="flex flex-col gap-3 px-4 py-4"
       data-testid="inspector-arrange"
       aria-label="Arrange"
     >
@@ -311,7 +311,7 @@ export function DeleteFrameButton({ target }: { target: CropTarget }) {
     return null
   }
   return (
-    <div className="mt-4">
+    <div className="px-4 pb-4">
       <Button
         variant="ghost"
         size="sm"

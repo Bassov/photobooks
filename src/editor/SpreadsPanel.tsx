@@ -4,7 +4,6 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type CSSProperties,
   type DragEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -17,7 +16,9 @@ import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import {
   dispatchBookOp,
   getSpreadIdsSnapshot,
+  getSpreadPaintSnapshot,
   subscribeBookStore,
+  subscribeSpread,
   undoBook,
 } from './bookStore'
 import { pageLabel } from './editorChromePanels'
@@ -39,16 +40,20 @@ import {
   scrollPasteboardToSpread,
   scrollTopToReveal,
   selectedSpreadId,
-  SPREADS_ROW_PX,
-  SPREADS_THUMB_HEIGHT_PX,
   spreadsKeyAction,
   spreadsListWindow,
+  spreadsRowGeometry,
 } from './spreadsPanelModel'
 
 type RowAction = 'add' | 'duplicate' | 'delete'
 
-function revealRow(list: HTMLElement, index: number): void {
-  const next = scrollTopToReveal(index, list.scrollTop, list.clientHeight)
+function revealRow(list: HTMLElement, index: number, rowPx: number): void {
+  const next = scrollTopToReveal(
+    index,
+    list.scrollTop,
+    list.clientHeight,
+    rowPx,
+  )
   if (next !== null) {
     list.scrollTop = next
   }
@@ -86,6 +91,14 @@ function run(
   scrollPasteboardToSpread(getSpreadIdsSnapshot()[at] ?? id)
 }
 
+/** Spread width / height, or the 2:1 default while the book has no spread. */
+function spreadAspect(spreadId: string): number {
+  const resolved = getSpreadPaintSnapshot(spreadId)?.resolved
+  return resolved === undefined
+    ? 2
+    : resolved.spreadWidthMm / resolved.spreadHeightMm
+}
+
 interface DragState {
   from: number
   target: number
@@ -116,12 +129,21 @@ export function SpreadsPanel({
   // Quantized to whole rows so React bails out while the window is unchanged.
   const [firstRow, setFirstRow] = useState(0)
   const [viewport, setViewport] = useState(0)
+  const [listWidth, setListWidth] = useState(0)
+  const aspect = useSyncExternalStore(
+    (listener) => subscribeSpread(spreadIds[0] ?? '', listener),
+    () => spreadAspect(spreadIds[0] ?? ''),
+    () => spreadAspect(spreadIds[0] ?? ''),
+  )
+  const geometry = spreadsRowGeometry(listWidth, aspect)
+  const rowPx = geometry.rowPx
 
   // React 19 ref callback: `node` is never null here; the cleanup runs on detach.
   const attachList = useCallback((node: HTMLDivElement) => {
     setListNode(node)
     const measure = (): void => {
       setViewport(node.clientHeight)
+      setListWidth(node.clientWidth)
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -136,13 +158,14 @@ export function SpreadsPanel({
     if (listNode === null) {
       return
     }
-    revealRow(listNode, spreadIds.indexOf(selected ?? ''))
-  }, [listNode, selected, spreadIds])
+    revealRow(listNode, spreadIds.indexOf(selected ?? ''), rowPx)
+  }, [listNode, selected, spreadIds, rowPx])
 
   const win = spreadsListWindow(
     spreadIds.length,
-    firstRow * SPREADS_ROW_PX,
+    firstRow * rowPx,
     viewport,
+    rowPx,
   )
   const visible = spreadIds.slice(win.start, win.end)
   // Roving tab stop must live on a mounted row even when the selection is windowed out.
@@ -199,8 +222,8 @@ export function SpreadsPanel({
     }
     // Rows have a fixed stride, so spans are exact even for windowed-out rows.
     const spans: ItemSpan[] = spreadIds.map((_, i) => ({
-      top: i * SPREADS_ROW_PX,
-      height: SPREADS_ROW_PX,
+      top: i * rowPx,
+      height: rowPx,
     }))
     setSession({ from, target: from, spans })
     event.dataTransfer.setData(SPREAD_DRAG_MIME, String(from))
@@ -263,7 +286,7 @@ export function SpreadsPanel({
     flushSync(() => {
       dispatchBookOp({ type: 'moveSpread', spreadId: id, toIndex: to })
     })
-    revealRow(event.currentTarget, to)
+    revealRow(event.currentTarget, to, rowPx)
     event.currentTarget
       .querySelector<HTMLElement>(`[data-item="${CSS.escape(id)}"]`)
       ?.focus()
@@ -277,11 +300,6 @@ export function SpreadsPanel({
     <aside
       className="editor-spreads flex h-full min-h-0 flex-col"
       data-testid="spreads-panel"
-      style={
-        {
-          '--spreads-thumb-h': `${String(SPREADS_THUMB_HEIGHT_PX)}px`,
-        } as CSSProperties
-      }
     >
       <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg">
         {modeSwitch ?? (
@@ -299,9 +317,7 @@ export function SpreadsPanel({
         aria-label="Pages"
         onKeyDown={onKeyDown}
         onScroll={(event) => {
-          setFirstRow(
-            Math.floor(event.currentTarget.scrollTop / SPREADS_ROW_PX),
-          )
+          setFirstRow(Math.floor(event.currentTarget.scrollTop / rowPx))
         }}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
@@ -338,7 +354,7 @@ export function SpreadsPanel({
                 role="presentation"
                 className="group/sp relative"
                 style={{
-                  height: SPREADS_ROW_PX,
+                  height: rowPx,
                   transform:
                     drag === null
                       ? undefined
@@ -363,10 +379,13 @@ export function SpreadsPanel({
                     scrollPasteboardToSpread(id)
                   }}
                 >
-                  <div className="editor-spread-thumb grid w-full place-items-center rounded-2xs">
+                  <div
+                    className="editor-spread-thumb grid w-full place-items-center"
+                    style={{ height: geometry.boxHeightPx }}
+                  >
                     <SpreadThumb
                       spreadId={id}
-                      heightPx={SPREADS_THUMB_HEIGHT_PX}
+                      widthPx={geometry.thumbWidthPx}
                     />
                   </div>
                   <div className="mt-1.5 flex text-2xs tabular-nums">

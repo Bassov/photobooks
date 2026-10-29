@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M3
 Title: book assets at a glance
+Status: done
 
 ## Scope
 
@@ -12,3 +13,7 @@ Title: book assets at a glance
 - **Browser check:** retouch a placed photo on disk — it shows as modified, Update refreshes it in place with the crop kept; clicking a row jumps to its frame.
 - **UI ref:** `uikit#/feature/assets-panel`
 - **UI kit:** `uikit/src/features/m3.tsx:325-333` (`assets-panel` demo + notes), `UI ref: uikit#/feature/assets-panel` — assets list: status, uses, jump, Update
+
+## Done note
+
+dropped: Owner decision, no Assets surface (filmstrip covers it)
