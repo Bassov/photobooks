@@ -7,6 +7,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   choosePhotoFolder,
@@ -29,7 +30,8 @@ async function placeOnePhoto(page: Page): Promise<void> {
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
     timeout: 30_000,
   })
-  await page.getByRole('radio', { name: 'Full bleed' }).click()
+  // The tests below open the right panel themselves (it starts collapsed).
+  await applyLayout(page, 'Full bleed', { restorePanel: true })
   await dragPlaceFirstFilmstripItem(page, 0)
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,

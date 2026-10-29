@@ -15,6 +15,7 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
+import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
@@ -544,7 +545,7 @@ test.describe('frame-budget gates', () => {
       })
 
       // Dirty the book so autosave debounce arms, then drag longer than 1s.
-      await page.getByRole('radio', { name: '2-up' }).click()
+      await applyLayout(page, '2-up')
       await expect(page.getByTestId('book-size')).toHaveText(/· unsaved$/)
 
       const points = await page.evaluate((mime) => {

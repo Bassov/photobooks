@@ -34,6 +34,7 @@ export function RelinkHost() {
           <Button
             variant="secondary"
             size="sm"
+            style={{ pointerEvents: 'auto' }}
             data-testid="missing-assets-review"
             onPress={openRelinkReview}
           >

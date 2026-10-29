@@ -1,6 +1,11 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resetBookStore } from './bookStore'
+import {
+  dispatchBookOp,
+  getSpreadIdsSnapshot,
+  resetBookStore,
+} from './bookStore'
+import { requestSpreadReveal } from './photoRootSession'
 import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
 import {
   isEditorGestureActive,
@@ -198,7 +203,9 @@ describe('pasteboard camera gestures', () => {
     scroll.scrollLeft = 40
     scroll.scrollTop = 50
 
-    const radio = screen.getByRole('radio', { name: '4-grid' })
+    const radio = document.createElement('input')
+    radio.type = 'radio'
+    document.body.append(radio)
     radio.focus()
     expect(document.activeElement).toBe(radio)
 
@@ -209,6 +216,7 @@ describe('pasteboard camera gestures', () => {
     fireEvent.pointerUp(scroll, { pointerId: 9, clientX: 40, clientY: 40 })
     await flushGesture()
     fireEvent.keyUp(window, { key: ' ', code: 'Space' })
+    radio.remove()
 
     expect(scroll.scrollLeft).toBe(40)
     expect(scroll.scrollTop).toBe(50)
@@ -381,7 +389,13 @@ describe('pasteboard camera gestures', () => {
     try {
       render(<Pasteboard />)
       const scroll = screen.getByTestId('pasteboard-scroll')
-      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      act(() => {
+        dispatchBookOp({ type: 'addSpread' })
+        const last = getSpreadIdsSnapshot().at(-1)
+        if (last !== undefined) {
+          requestSpreadReveal(last)
+        }
+      })
       const nudged = scroll.scrollTop
       expect(nudged).toBeGreaterThan(0)
       // Epoch bump would restore scrollTop from the camera store; hold skips it.

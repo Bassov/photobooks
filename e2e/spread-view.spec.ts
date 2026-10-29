@@ -23,6 +23,12 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
+import {
+  addSpreadAfterLast,
+  applyLayout,
+  layoutTile,
+  openSpreadTab,
+} from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
@@ -41,9 +47,7 @@ test('editor chrome bars wrap without page scroll at 320px and 4K', async ({
     await page.setViewportSize(size)
     await expect(page.getByRole('toolbar', { name: 'Editor' })).toBeVisible()
     await expect(page.getByTestId('zoom-menu')).toBeVisible()
-    await expect(
-      page.getByRole('radiogroup', { name: 'Template for this spread' }),
-    ).toBeVisible()
+    await expect(page.getByTestId('add-spread')).toBeVisible()
     await assertDocumentFitsViewport(page)
   }
 })
@@ -58,10 +62,8 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
     'data-spread-count',
     '3',
   )
-  await expect(
-    page.getByRole('radiogroup', { name: 'Template for this spread' }),
-  ).toBeVisible()
-  await expect(page.getByTestId('template-add-spread')).toBeVisible()
+  await expect(page.getByTestId('add-spread')).toBeVisible()
+  await expect(page.getByTestId('template-add-spread')).toHaveCount(0)
   const slots = await readSpreadSlots(page)
   expect(slots.map((slot) => slot.placeholders)).toEqual([1, 2, 1])
   expect(slots[0]?.active).toBe(true)
@@ -86,10 +88,11 @@ test('choosing 4-grid paints four placeholders on the active spread only', async
   const before = await readSpreadSlots(page)
   const activeIndex = before.findIndex((slot) => slot.active)
   expect(activeIndex).toBe(0)
-  const radio = page.getByRole('radio', { name: '4-grid' })
-  await radio.focus()
-  await page.keyboard.press('Space')
-  await expect(radio).toBeChecked()
+  await openSpreadTab(page)
+  const tile = layoutTile(page, '4-grid')
+  await tile.focus()
+  await page.keyboard.press('Enter')
+  await expect(tile).toHaveAttribute('aria-pressed', 'true')
   const slots = await readSpreadSlots(page)
   expect(slots[activeIndex]?.placeholders).toBe(4)
   expect(
@@ -104,34 +107,25 @@ test('choosing 4-grid paints four placeholders on the active spread only', async
   await assertDocumentFitsViewport(page)
 })
 
-test('add spread keeps the active spread template', async ({ page }) => {
-  // Tall viewport keeps the new spread partly visible at scrollTop 0 so the
-  // active-pin release path is exercised (not only full leave-viewport).
+test('a spread added from the row menu is revealed and a later template change leaves it alone', async ({
+  page,
+}) => {
   // Tall viewport keeps the new spread partly visible at scrollTop 0 so the
   // active-pin release path is exercised (not only full leave-viewport).
   await page.setViewportSize({ width: 1280, height: 800 })
   await openSessionEditor(page)
-  const radio = page.getByRole('radio', { name: '4-grid' })
-  await radio.click()
-  await expect(radio).toBeChecked()
-  await page.getByTestId('template-add-spread').click()
+  await applyLayout(page, '4-grid')
+  const tile = layoutTile(page, '4-grid')
+  await addSpreadAfterLast(page)
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
     '4',
   )
+  const addedPlaceholders = (await readSpreadSlotAt(page, 3))?.placeholders
   await expect
     .poll(async () => {
       const added = await readSpreadSlotAt(page, 3)
-      const checked = await page
-        .getByRole('radio', { name: '4-grid' })
-        .isChecked()
-      return (
-        added !== null &&
-        added.inScrollport &&
-        added.active &&
-        added.placeholders === 4 &&
-        checked
-      )
+      return added !== null && added.inScrollport && added.active
     })
     .toBe(true)
   await assertDocumentFitsViewport(page)
@@ -148,9 +142,7 @@ test('add spread keeps the active spread template', async ({ page }) => {
     .poll(async () => {
       const first = await readSpreadSlotAt(page, 0)
       const added = await readSpreadSlotAt(page, 3)
-      const checked = await page
-        .getByRole('radio', { name: '4-grid' })
-        .isChecked()
+      const checked = (await tile.getAttribute('aria-pressed')) === 'true'
       // Kit dock shortens the pasteboard vs pre-chrome: the new spread may leave
       // the port at scrollTop 0 while the active pin still releases to spread 0.
       return (
@@ -168,7 +160,7 @@ test('add spread keeps the active spread template', async ({ page }) => {
     nudgeHorizontal: false,
   })
 
-  await page.getByRole('radio', { name: '2-up' }).click()
+  await applyLayout(page, '2-up')
   await expect
     .poll(async () => {
       const first = await readSpreadSlotAt(page, 0)
@@ -178,11 +170,10 @@ test('add spread keeps the active spread template', async ({ page }) => {
         first.active &&
         first.placeholders === 2 &&
         added !== null &&
-        added.placeholders === 4
+        added.placeholders === addedPlaceholders
       )
     })
     .toBe(true)
-  await expect(page.getByRole('radio', { name: '2-up' })).toBeChecked()
   await assertDocumentFitsViewport(page)
 })
 
@@ -190,7 +181,7 @@ test('add spread keeps the new spread inside the pasteboard', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  await page.getByTestId('template-add-spread').click()
+  await addSpreadAfterLast(page)
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
     '4',
@@ -222,7 +213,7 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
   expect(fitted).not.toBeNull()
   expect(fittedPercent).not.toBe('')
 
-  await page.getByTestId('template-add-spread').click()
+  await addSpreadAfterLast(page)
 
   await expect(page.getByTestId('zoom-label')).toHaveAttribute(
     'data-zoom-percent',
@@ -254,13 +245,15 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
 test('narrow fitted add spread keeps the new spread contained', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 400, height: 720 })
+  // The template bar no longer eats canvas height, so a shorter viewport keeps
+  // the width-limited fit filling the pasteboard.
+  await page.setViewportSize({ width: 400, height: 480 })
   await openSessionEditor(page)
   await assertDocumentFitsViewport(page)
   await fitSpreadUntilFilled(page)
   const fittedPercent = await readZoomPercent(page)
 
-  await page.getByTestId('template-add-spread').click()
+  await addSpreadAfterLast(page)
 
   await expect(page.getByTestId('zoom-label')).toHaveAttribute(
     'data-zoom-percent',
@@ -294,7 +287,7 @@ test('mid-scroll fitted add spread keeps the new spread contained', async ({
   await fitSpreadUntilFilled(page)
   const fittedPercent = await readZoomPercent(page)
 
-  await page.getByTestId('template-add-spread').click()
+  await addSpreadAfterLast(page)
 
   await expect(page.getByTestId('zoom-label')).toHaveAttribute(
     'data-zoom-percent',
@@ -624,11 +617,12 @@ test.describe('frame-budget gates', () => {
   }, testInfo) => {
     test.setTimeout(120_000)
     await enablePerfScenario(page, '/?perf=1')
-    await expect(page.getByRole('radio', { name: '4-grid' })).toBeVisible()
+    await openSpreadTab(page)
+    await expect(layoutTile(page, '4-grid')).toBeVisible()
     await clearPerfScenario(page)
 
-    await page.getByRole('radio', { name: '4-grid' }).click()
-    await page.getByTestId('template-add-spread').click()
+    await layoutTile(page, '4-grid').click()
+    await addSpreadAfterLast(page)
     await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
       'data-spread-count',
       '4',

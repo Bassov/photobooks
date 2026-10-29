@@ -61,7 +61,20 @@ export function EditorShell() {
       dock={
         <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />
       }
-      canvas={presenting ? null : <Pasteboard chromeImport={chromeImport} />}
+      canvas={
+        presenting ? null : (
+          <>
+            <Pasteboard chromeImport={chromeImport} />
+            <Status
+              className="editor-status-pill"
+              data-testid="editor-status"
+              politeness="polite"
+            >
+              {editorStatus}
+            </Status>
+          </>
+        )
+      }
       overlay={
         <>
           {presenting ? (
@@ -71,13 +84,6 @@ export function EditorShell() {
               }}
             />
           ) : null}
-          <Status
-            className="editor-live"
-            data-testid="editor-status"
-            politeness="polite"
-          >
-            {editorStatus}
-          </Status>
           <ImportErrorsPanel />
           <ToastRegion queue={toastQueue} data-testid="editor-toast-region" />
         </>

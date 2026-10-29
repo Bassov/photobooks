@@ -30,6 +30,18 @@ describe('RelinkHost', () => {
     expect(screen.getByTestId('relink-dialog')).toBeTruthy()
   })
 
+  it('keeps Review clickable inside the pointer-events:none pill', () => {
+    replaceRelinkStatuses(new Map([['a1', 'missing']]))
+    render(<RelinkHost />)
+
+    expect(screen.getByTestId('missing-assets-pill').style.pointerEvents).toBe(
+      'none',
+    )
+    expect(
+      screen.getByTestId('missing-assets-review').style.pointerEvents,
+    ).toBe('auto')
+  })
+
   it('hides the pill when there are no problems', () => {
     replaceRelinkStatuses(new Map())
     render(<RelinkHost />)

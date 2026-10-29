@@ -10,6 +10,7 @@ import {
 import { chooseZoom } from './fixtures/zoomMenu'
 import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
+import { applyLayout, layoutTile, openSpreadTab } from './fixtures/layoutTiles'
 import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
@@ -63,10 +64,7 @@ test('autosave persists edits across reload without manual Save', async ({
     timeout: 30_000,
   })
 
-  const templateGroup = page.getByRole('radiogroup', {
-    name: 'Template for this spread',
-  })
-  await templateGroup.getByRole('radio', { name: '2-up' }).click()
+  await applyLayout(page, '2-up')
   await expect(page.getByTestId('book-size')).toHaveText(/· (unsaved|saving…)$/)
 
   await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
@@ -84,13 +82,8 @@ test('autosave persists edits across reload without manual Save', async ({
     timeout: 20_000,
   })
   await expectMissingHatchAfterRestore(page, 1)
-  await expect(
-    page
-      .getByRole('radiogroup', { name: 'Template for this spread' })
-      .getByRole('radio', {
-        name: '2-up',
-      }),
-  ).toBeChecked()
+  await openSpreadTab(page)
+  await expect(layoutTile(page, '2-up')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('book-size')).toHaveText(/· saved$/)
 
   await assertDocumentFitsViewport(page)

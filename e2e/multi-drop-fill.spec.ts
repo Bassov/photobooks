@@ -17,6 +17,7 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { pointOf } from './fixtures/locatorBox'
+import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import type { Page } from '@playwright/test'
 
@@ -129,7 +130,7 @@ test.describe('multi-select and multi-drop', () => {
   }) => {
     test.setTimeout(120_000)
     const ids = await importFour(page)
-    await page.getByRole('radio', { name: '4-grid' }).click()
+    await applyLayout(page, '4-grid')
     const frame = page
       .getByRole('button', { name: 'Place photo', exact: true })
       .first()

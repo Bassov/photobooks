@@ -13,16 +13,31 @@
   color: var(--foreground);
 }
 
-.editor-live {
+/* Kit StatusLine: visible pill at the canvas bottom-left (pager and toasts sit bottom-right). */
+.editor-status-pill {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+  bottom: calc(var(--spacing) * 3);
+  left: calc(var(--spacing) * 3);
+  z-index: 30;
+  max-width: 60%;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  text-overflow: ellipsis;
   white-space: nowrap;
-  border: 0;
+  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--popover) 95%, transparent);
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+
+/* Empty: invisible but still rendered, so the live region keeps announcing. */
+.editor-status-pill.pb-status:empty {
+  display: block;
+  visibility: hidden;
+  padding: 0;
+  box-shadow: none;
 }
 
 .editor-chrome {
@@ -134,93 +149,19 @@
   display: none;
 }
 
-.pasteboard-scroll:focus-visible,
-.spread-template-bar input:focus-visible {
+.pasteboard-scroll:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
 /* prettier-ignore */
-.editor-top-bar .pb-button:focus-visible, .spread-template-add:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.editor-top-bar .pb-button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
 /* prettier-ignore */
 .editor-top-bar .pb-button--default:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 90%, var(--foreground)); }
 /* prettier-ignore */
 .editor-top-bar .pb-button--secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--secondary) 80%, var(--muted)); }
 /* prettier-ignore */
 .editor-top-bar .pb-button:disabled { color: var(--muted-foreground); background: var(--muted); border-color: var(--border); box-shadow: none; cursor: not-allowed; }
-
-.spread-template-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
-  padding: calc(var(--spacing) * 1.6) calc(var(--spacing) * 3);
-  border-bottom: 1px solid var(--border);
-  background: var(--chrome);
-  min-width: 0;
-}
-
-.spread-template-bar [role='radiogroup'] {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--spacing) * 1.4) calc(var(--spacing) * 3.4);
-}
-
-.spread-template-contact {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 1.4);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  color: var(--muted-foreground);
-}
-.spread-template-count {
-  width: calc(var(--spacing) * 12);
-  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2);
-  font: inherit;
-  text-align: center;
-  color: var(--foreground);
-  background: var(--background);
-  border: 1px solid var(--input);
-  border-radius: var(--radius-sm);
-}
-.spread-template-count:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--background),
-    0 0 0 4px var(--ring);
-}
-
-.spread-template-choice {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 1.4);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  color: var(--foreground);
-}
-
-.spread-template-add {
-  appearance: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  padding: calc(var(--spacing) * 1.6) calc(var(--spacing) * 3);
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--foreground);
-  background: var(--secondary);
-  cursor: pointer;
-}
-
-.spread-template-add:disabled,
-.spread-template-bar input:disabled {
-  color: var(--muted-foreground);
-  background: var(--muted);
-  border-color: var(--border);
-  box-shadow: none;
-  cursor: wait;
-}
 
 .pasteboard-spacer {
   min-width: 0;
