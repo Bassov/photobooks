@@ -6,6 +6,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   choosePhotoFolder,
@@ -48,7 +49,7 @@ for (const [label, key] of cases) {
       .poll(async () => Number(await item.getAttribute('data-aspect')))
       .toBeGreaterThan(1)
 
-    await page.getByRole('radio', { name: 'Full bleed' }).click()
+    await applyLayout(page, 'Full bleed')
     await dragPlaceFirstFilmstripItem(page, 0)
     const image = page.getByTestId('spread-frame-image')
     await expect(image).toHaveCount(1, { timeout: 30_000 })

@@ -15,6 +15,7 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
+import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
@@ -122,7 +123,7 @@ test.describe('keyboard rearrange', () => {
     })
     await page.bringToFront()
 
-    await page.getByRole('radio', { name: '4-grid' }).click()
+    await applyLayout(page, '4-grid')
     const active = page.getByTestId('spread-view').first()
     await expect(
       active.getByRole('button', { name: 'Place photo', exact: true }),
@@ -310,7 +311,7 @@ test.describe('keyboard rearrange', () => {
       timeout: 30_000,
     })
     await page.bringToFront()
-    await page.getByRole('radio', { name: '4-grid' }).click()
+    await applyLayout(page, '4-grid')
     const active = page.getByTestId('spread-view').first()
     for (const index of [0, 1] as const) {
       const item = page.getByTestId('filmstrip-item').nth(index)
@@ -385,7 +386,7 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
     timeout: 30_000,
   })
   await page.bringToFront()
-  await page.getByRole('radio', { name: '4-grid' }).click()
+  await applyLayout(page, '4-grid')
   const active = page.getByTestId('spread-view').first()
   const firstItem = page.getByTestId('filmstrip-item').first()
   const assetId = await firstItem.getAttribute('data-asset-id')
