@@ -6,6 +6,7 @@ import {
   setSnapOn,
 } from './gridView'
 import { installEditorGridKeys } from './installEditorGridKeys'
+import { getRulersVisible, setRulersVisible } from './rulersView'
 
 function press(init: KeyboardEventInit, target: EventTarget = window) {
   const event = new KeyboardEvent('keydown', {
@@ -26,6 +27,7 @@ describe('installEditorGridKeys', () => {
     off()
     setGridVisible(false)
     setSnapOn(true)
+    setRulersVisible(false)
   })
 
   it("Ctrl+' and Cmd+' flip the grid and swallow the key", () => {
@@ -46,6 +48,32 @@ describe('installEditorGridKeys', () => {
     expect(getSnapOn()).toBe(false)
     press({ key: 'S', shiftKey: true })
     expect(getSnapOn()).toBe(true)
+  })
+
+  it('Shift+R flips rulers and swallows the key', () => {
+    expect(press({ key: 'R', shiftKey: true }).defaultPrevented).toBe(true)
+    expect(getRulersVisible()).toBe(true)
+    press({ key: 'R', shiftKey: true })
+    expect(getRulersVisible()).toBe(false)
+  })
+
+  it('plain R, Ctrl+Shift+R, typing targets and repeat leave rulers alone', () => {
+    const input = document.createElement('input')
+    document.body.append(input)
+    const presses: [KeyboardEventInit, EventTarget?][] = [
+      [{ key: 'r' }],
+      [{ key: 'X', shiftKey: true }],
+      [{ key: 'R', shiftKey: true, ctrlKey: true }],
+      [{ key: 'R', shiftKey: true, metaKey: true }],
+      [{ key: 'R', shiftKey: true, repeat: true }],
+      [{ key: 'R', shiftKey: true, altKey: true }],
+      [{ key: 'R', shiftKey: true }, input],
+    ]
+    for (const [init, target] of presses) {
+      press(init, target)
+      expect(getRulersVisible()).toBe(false)
+    }
+    input.remove()
   })
 
   it('plain S, Shift+other, Ctrl+Shift+S and Cmd+Shift+S do not touch snap', () => {
