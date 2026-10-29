@@ -11,9 +11,9 @@ Status: done
 - **Perf:** drag / resize preview in the overlay and on the frame's `transform`; op committed at gesture end. Gate: drag a frame across a dense spread — zero LoAF, `pointermove` p95 ≤ 2 ms.
 - **Browser check:** move, resize and rotate a frame with handles — handles never lag behind the cursor.
 - **UI ref:** `uikit#/feature/frame-selection-handles`
-- **UI kit:** `uikit/src/features/m4.tsx:47-50` (`frame-selection-handles` demo + notes), `UI ref: uikit#/feature/frame-selection-handles` — select/move/resize/rotate handles
-- **Kit components:** Handles + frame pointer handlers in `uikit/src/sandbox/canvas.tsx` (`data-testid` handles / sel-outline / sel-handle); selection outline pattern in `uikit/src/spread.tsx` (`Selection` — not exported, visual SoT only). Feature flags `handles`, `rotateHandle` on sandbox features.
-- **Demo:** `frame-selection-handles` → `uikit/src/features/m4.tsx`
+- **UI kit:** `uikit/src/features/pages.tsx` (`frame-selection-handles` demo + notes), `UI ref: uikit#/feature/frame-selection-handles` — select/move/resize/rotate handles
+- **Kit components:** Handles + frame pointer handlers in `uikit/src/sandbox/canvas.tsx` (`data-testid` handles / sel-outline / sel-handle); selection outline pattern in `uikit/src/demo-parts/editor.tsx` (`Selection` — not exported, visual SoT only). Feature flags `handles`, `rotateHandle` on sandbox features.
+- **Demo:** `frame-selection-handles` → `uikit/src/features/pages.tsx`
 - **Musts:**
   - Click frame → select (Select tool). Esc / click empty → deselect. Single selection only this slice (no Shift/marquee — that is multi-select).
   - Selected unlocked frame: 2px `#232223` outline + white ring; 8 white square handles (nw/n/ne/w/e/sw/s/se) with `boxShadow 0 0 0 1.5px #232223`; round rotate handle above center (same white + 1.5px `#232223`).

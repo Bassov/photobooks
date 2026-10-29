@@ -11,5 +11,5 @@ Status: done
 - [ ] Pure "best template for these photos" by count and orientation (used by `multi-drop-fill`)
 - **Perf:** a template switch still re-renders only the affected spread.
 - **Browser check:** apply the 2-portrait and a 3×4 contact-sheet template; frames fit the grid margins; switching back keeps photos in order.
-- **UI ref:** `uikit#/feature/template-slot-aspects`
-- **UI kit:** `uikit/src/features/m3.tsx:266-274` (`template-slot-aspects` demo + notes), `UI ref: uikit#/feature/template-slot-aspects` — portrait templates + best-template highlight
+- **UI ref:** `kit v0.9.3 #/feature/template-slot-aspects (removed in kit v0.10.0, no replacement)`
+- **UI kit:** `uikit/src/features/pages.tsx` (`template-slot-aspects` demo + notes), `UI ref: kit v0.9.3 #/feature/template-slot-aspects (removed in kit v0.10.0, no replacement)` — portrait templates + best-template highlight

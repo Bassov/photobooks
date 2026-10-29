@@ -22,7 +22,7 @@ Look parity, Phase B #2 (Owner 2026-10-29: the editor must look exactly like the
 **Perf:** sections subscribe to the book snapshot only; the rotation slider coalesces a drag into one undo step (`rotateFrame` `live`).
 
 - **Kit components:** `GeometrySection`, `ArrangeSection`, `AlignSection` (omitted), `DeleteFrameButton`, `MmField`, `EmptyInspector`, `InspectorPanel` (`uikit/src/sandbox/inspector.tsx`); `Section` (`components/app/ui`).
-- **Demo:** `inspector`, `arrange-lock` → `uikit/src/features/m4.tsx`
+- **Demo:** `inspector`, `arrange-lock` → `uikit/src/features/pages.tsx`
 - **Musts:**
   - Frame tab order Photo → Geometry → Crop → Arrange → Delete.
   - Align only with 2+ selected; multi-select is held → Align is not rendered.

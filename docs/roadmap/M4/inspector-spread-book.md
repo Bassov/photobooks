@@ -23,7 +23,7 @@ Look parity, Phase B #3 (Owner 2026-10-29: the editor must look exactly like the
 **Perf:** sections subscribe to the book snapshot / the active spread only.
 
 - **Kit components:** `LayoutSection`, `TemplateTile`, `SpreadBgSection` (omitted), `GridSection` (`uikit/src/sandbox/context-inspector.tsx`, `sections.tsx`), `BookInspector` "Book settings" (`v7.tsx`); `Section` (`components/app/ui`).
-- **Demo:** `inspector` → `uikit/src/features/m4.tsx`
+- **Demo:** `inspector` → `uikit/src/features/pages.tsx`
 - **Musts:**
   - Spread tab order Layout → Background → Layout grid (Background omitted, see Scope).
   - Templates live only in the inspector Layout section (dock removal deferred, see Scope).

@@ -20,7 +20,7 @@ Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit; no 
 **Perf:** drawn on a `<canvas>` from scroll / camera rAF; no React re-render per frame; zero LoAF.
 
 - **Kit components:** `Ruler` and `Viewport` rulers block (`uikit/src/sandbox/viewport.tsx` l.83-108, 212, 228-233); ViewKey `rulers` (`uikit/src/sandbox/chrome.tsx` l.61-64).
-- **Demo:** `rulers` → `uikit/src/features/m4.tsx`
+- **Demo:** `rulers` → `uikit/src/features/pages.tsx`
 - **Musts:**
   - 22 px rulers with mm ticks / labels following scroll and zoom (kit math), cursor tick, corner "mm" square, topbar toggle + `Shift+R`, default off.
   - Tokens only, no accent colour.

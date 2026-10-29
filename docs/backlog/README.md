@@ -39,3 +39,18 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipel
 | [`mutation-reinclude-camera`](mutation-reinclude-camera.md)   | mutate `usePasteboardCamera.ts` again (issue #72 B)                               | M2.1               | #72 B                           |
 | [`project-session-mutation`](project-session-mutation.md)     | mutate what is left of `projectSession.ts` (issue #72 B)                          | M2.1               | #72 B                           |
 | [`agent-pipeline-run-audit`](agent-pipeline-run-audit.md)     | Check one /next-roadmap-item run against the #77 and #79 targets                  | M2.1               | #77, #79                        |
+
+## Held at the kit v0.10.0 roadmap update (2026-10-30)
+
+Kit pages removed in v0.10.0 with no replacement. Owner re-adds one with `pnpm roadmap add` after Designer adds its kit page.
+
+| Slug                                              | Title                     | Original milestone | Source                               |
+| ------------------------------------------------- | ------------------------- | ------------------ | ------------------------------------ |
+| [`jpeg-spreads-export`](jpeg-spreads-export.md)   | JPEG spreads              | M6                 | kit v0.10.0 removal, held 2026-10-30 |
+| [`cover-pdf`](cover-pdf.md)                       | cover PDF                 | M6                 | kit v0.10.0 removal, held 2026-10-30 |
+| [`preflight-panel`](preflight-panel.md)           | print warnings            | M6                 | kit v0.10.0 removal, held 2026-10-30 |
+| [`preflight-fixes`](preflight-fixes.md)           | fix from the panel        | M6                 | kit v0.10.0 removal, held 2026-10-30 |
+| [`print-overlays`](print-overlays.md)             | see print constraints     | M6                 | kit v0.10.0 removal, held 2026-10-30 |
+| [`pdf-captions`](pdf-captions.md)                 | text in the PDF           | M6                 | kit v0.10.0 removal, held 2026-10-30 |
+| [`print-package-report`](print-package-report.md) | what the print shop needs | M6                 | kit v0.10.0 removal, held 2026-10-30 |
+| [`manual-deploy`](manual-deploy.md)               | documented deploy path    | M7                 | kit v0.10.0 removal, held 2026-10-30 |
