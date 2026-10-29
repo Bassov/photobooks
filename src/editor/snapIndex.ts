@@ -3,7 +3,48 @@ import type { RectMm } from '../core'
 /** Pull distance in CSS px for frame / guide / gap snapping. */
 export const FRAME_SNAP_PULL_PX = 8
 
-type SnapKind = 'frame edge' | 'frame center' | 'guide' | 'equal gap'
+type SnapKind =
+  | 'frame'
+  | 'frame center'
+  | 'trim'
+  | 'spine'
+  | 'page center'
+  | 'center'
+  | 'guide'
+  | 'equal gap'
+
+/** Spread paper the page anchors derive from. */
+export interface SnapPage {
+  widthMm: number
+  heightMm: number
+  /** 2 = facing pages around a spine; 1 = a lone page. */
+  pageCount: number
+}
+
+function pageAnchors(page: SnapPage): { x: SnapAnchor[]; y: SnapAnchor[] } {
+  const { widthMm: w, heightMm: h } = page
+  const x: SnapAnchor[] = [
+    { mm: 0, kind: 'trim' },
+    { mm: w, kind: 'trim' },
+  ]
+  if (page.pageCount === 2) {
+    x.push(
+      { mm: w / 2, kind: 'spine' },
+      { mm: w / 4, kind: 'page center' },
+      { mm: (w * 3) / 4, kind: 'page center' },
+    )
+  } else {
+    x.push({ mm: w / 2, kind: 'center' })
+  }
+  return {
+    x,
+    y: [
+      { mm: 0, kind: 'trim' },
+      { mm: h, kind: 'trim' },
+      { mm: h / 2, kind: 'center' },
+    ],
+  }
+}
 
 /** Which dragged edge an anchor may catch; unset = any. */
 type Edge = 'start' | 'center' | 'end'
@@ -83,18 +124,20 @@ function gapAnchors(
 export function buildSnapIndex(
   frames: readonly RectMm[],
   guides: readonly SnapGuide[],
+  page?: SnapPage,
 ): SnapIndex {
-  const x: SnapAnchor[] = []
-  const y: SnapAnchor[] = []
+  const paper = page === undefined ? undefined : pageAnchors(page)
+  const x: SnapAnchor[] = paper?.x ?? []
+  const y: SnapAnchor[] = paper?.y ?? []
   for (const f of frames) {
     x.push(
-      { mm: f.x, kind: 'frame edge' },
-      { mm: f.x + f.width, kind: 'frame edge' },
+      { mm: f.x, kind: 'frame' },
+      { mm: f.x + f.width, kind: 'frame' },
       { mm: f.x + f.width / 2, kind: 'frame center' },
     )
     y.push(
-      { mm: f.y, kind: 'frame edge' },
-      { mm: f.y + f.height, kind: 'frame edge' },
+      { mm: f.y, kind: 'frame' },
+      { mm: f.y + f.height, kind: 'frame' },
       { mm: f.y + f.height / 2, kind: 'frame center' },
     )
   }
@@ -185,6 +228,41 @@ export function snapRect(
     spanProbes(rect.y, rect.height),
     options,
   )
+}
+
+/** Edges a resize handle drags; only these probe the index. */
+export interface MovingEdges {
+  left: boolean
+  right: boolean
+  top: boolean
+  bottom: boolean
+}
+
+/**
+ * Shift (dx / dy) that lands each moving edge of `rect` on the nearest anchor;
+ * the caller applies it to those edges only.
+ */
+export function snapEdges(
+  index: SnapIndex,
+  rect: RectMm,
+  moving: MovingEdges,
+  options: SnapOptions,
+): SnapResult {
+  const xProbes: Probe[] = []
+  const yProbes: Probe[] = []
+  if (moving.left) {
+    xProbes.push({ mm: rect.x, edge: 'start' })
+  }
+  if (moving.right) {
+    xProbes.push({ mm: rect.x + rect.width, edge: 'end' })
+  }
+  if (moving.top) {
+    yProbes.push({ mm: rect.y, edge: 'start' })
+  }
+  if (moving.bottom) {
+    yProbes.push({ mm: rect.y + rect.height, edge: 'end' })
+  }
+  return snapProbes(index, xProbes, yProbes, options)
 }
 
 /** Shift that lands a single dragged point (the draw corner) on an anchor. */

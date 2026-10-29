@@ -10,6 +10,7 @@ import {
 } from './editorToolStore'
 import { getFrameSource, resetFrameSelection } from './frameSelection'
 import { installFrameGesture } from './frameGesture'
+import { setSnapOn } from './gridView'
 
 /** 300 × 300 mm spread laid out at 2 client px per mm, offset on the page. */
 const SIZE_MM = 300
@@ -237,7 +238,7 @@ describe('frameGesture · draw', () => {
     expect(parseFloat(line.style.left)).toBeCloseTo((100 / 300) * 100)
     expect(line.style.top).toBe('')
     expect(line.querySelector('.snap-line-label')?.textContent).toBe(
-      'snap · frame edge',
+      'snap · frame',
     )
     pointer('pointerup', window, 97, 40)
     // The corner snapped from 97 to the frame's left edge at 100.
@@ -677,6 +678,26 @@ describe('frameGesture · move', () => {
     expect(spread.querySelector('.snap-line')).toBeNull()
     pointer('pointerup', window, 30 + 98, 30 + 5, ALT)
     expect(frames()[1]?.rect.x).toBe(108)
+  })
+
+  it('snap off moves without snapping', () => {
+    setSnapOn(false)
+    pointer('pointerdown', button, 30, 30)
+    pointer('pointermove', window, 30 + 98, 30 + 5)
+    expect(spread.querySelector('.snap-line')).toBeNull()
+    pointer('pointerup', window, 30 + 98, 30 + 5)
+    setSnapOn(true)
+    expect(frames()[1]?.rect.x).toBe(108)
+  })
+
+  it('snaps the frame to the trim edge', () => {
+    pointer('pointerdown', button, 30, 30)
+    pointer('pointermove', window, 30 - 8, 30 + 60)
+    expect(spread.querySelector('.snap-line-label')?.textContent).toBe(
+      'snap · trim',
+    )
+    pointer('pointerup', window, 30 - 8, 30 + 60)
+    expect(frames()[1]?.rect.x).toBe(0)
   })
 
   it('starts at the slop distance (3 px) and not before', () => {

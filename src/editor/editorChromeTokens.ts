@@ -13,7 +13,7 @@ export const EDITOR_CHROME_CSS = `
 .e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10) }
 .snap-label { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 9999px; background: ${FIELD}; color: ${T}; font-size: 11px; white-space: nowrap }
 .frame-draft { position: absolute; z-index: 5000; pointer-events: none; outline: 1.5px dashed ${SUB}; outline-offset: -1px; background: rgb(83 81 82 / .08) }
-.snap-line { position: absolute; z-index: 5001; pointer-events: none; background: ${SUB} }
+.snap-line { position: absolute; z-index: 5001; pointer-events: none; background: ${T} }
 .snap-line[data-axis=x] { top: -10px; bottom: -10px; width: 1.5px; transform: translateX(-.75px) }
 .snap-line[data-axis=y] { left: -10px; right: -10px; height: 1.5px; transform: translateY(-.75px) }
 .snap-line-label { position: absolute; padding: 1px 6px; border-radius: 4px; background: ${FIELD}; color: ${T}; font-size: 11px; font-weight: 600; white-space: nowrap }

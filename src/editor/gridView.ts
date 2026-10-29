@@ -36,6 +36,10 @@ export function toggleGridVisible(): void {
 }
 
 /** Snap is on by default; it only acts on the grid while the grid is shown. */
+export function subscribeSnapOn(listener: Listener): () => void {
+  return subscribeGridVisible(listener)
+}
+
 export function getSnapOn(): boolean {
   return snapOn
 }

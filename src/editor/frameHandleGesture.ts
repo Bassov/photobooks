@@ -1,4 +1,4 @@
-import type { Frame } from '../core'
+import { MIN_FRAME_EDGE_MM, type Frame } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { getCropTarget } from './cropMode'
@@ -6,11 +6,15 @@ import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { getEditorTool } from './editorToolStore'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import {
+  clearSnapLines,
+  paintSnapLines,
   placeBox,
   round,
+  snapBypassed,
   spreadContext,
   type SpreadContext,
 } from './frameGesture'
+import { snapEdges, type SnapLine } from './snapIndex'
 import {
   RESIZE_HANDLES,
   ROTATE_HANDLE,
@@ -78,7 +82,8 @@ function writeSizeTag(button: HTMLElement, rect: Rect): void {
  * handle), arrow-key nudges and click-empty deselect. Previews are direct DOM
  * writes on the frame button; one BookOp is committed at gesture end (one undo
  * step). Alt = from centre, Shift = keep proportions / 15° rotation steps.
- * Snapping joins later (snap-wire).
+ * Resizes snap their dragged edges to frames / page anchors (Alt or the snap
+ * toggle off: no snap). Grid snapping joins later (snap-wire).
  */
 export function installFrameHandleGesture(): () => void {
   let session: Session | null = null
@@ -107,6 +112,9 @@ export function installFrameHandleGesture(): () => void {
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
     window.removeEventListener('pointercancel', onCancel)
+    if (current !== null) {
+      clearSnapLines(current.ctx)
+    }
     return current
   }
 
@@ -219,8 +227,52 @@ export function installFrameHandleGesture(): () => void {
       (event.clientY - current.startY) / ctx.pxPerMm,
       { keepRatio: event.shiftKey, fromCenter: event.altKey },
     )
+    // Axis-aligned, free-ratio resizes snap the dragged edges; Alt / snap off
+    // / rotated / Shift-ratio leave the pointer result untouched.
+    const snapped =
+      current.rotation0 === 0 && !event.shiftKey && !snapBypassed(event)
+        ? snapResizedRect(current, handle)
+        : null
+    if (snapped !== null) {
+      current.rect = snapped.rect
+    }
+    paintSnapLines(ctx, snapped?.lines ?? [])
     placeBox(current.button, ctx, current.rect)
     writeSizeTag(current.button, current.rect)
+  }
+
+  function snapResizedRect(
+    current: Session,
+    handle: ResizeHandle,
+  ): { rect: Rect; lines: SnapLine[] } | null {
+    const { rect } = current
+    const hit = snapEdges(
+      current.ctx.index,
+      rect,
+      {
+        left: handle.includes('w'),
+        right: handle.includes('e'),
+        top: handle.includes('n'),
+        bottom: handle.includes('s'),
+      },
+      { pxPerMm: current.ctx.pxPerMm, altKey: false },
+    )
+    const west = handle.includes('w')
+    const north = handle.includes('n')
+    const width = rect.width + (west ? -hit.dx : hit.dx)
+    const height = rect.height + (north ? -hit.dy : hit.dy)
+    if (width < MIN_FRAME_EDGE_MM || height < MIN_FRAME_EDGE_MM) {
+      return null
+    }
+    return {
+      rect: {
+        x: west ? rect.x + hit.dx : rect.x,
+        y: north ? rect.y + hit.dy : rect.y,
+        width,
+        height,
+      },
+      lines: hit.lines,
+    }
   }
 
   function rotateMove(current: Session, event: PointerEvent): void {

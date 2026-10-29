@@ -11,6 +11,7 @@ import {
   setFrameSource,
 } from './frameSelection'
 import { installFrameHandleGesture } from './frameHandleGesture'
+import { setSnapOn } from './gridView'
 
 const SIZE_MM = 300
 const SCALE = 2
@@ -127,6 +128,8 @@ describe('frameHandleGesture', () => {
   let dom: ReturnType<typeof mount>
 
   function setup(extra: FrameExtra = {}) {
+    // Gesture maths assert raw pointer travel; snapping has its own suite.
+    setSnapOn(false)
     load(extra)
     dom = mount()
     stop = installFrameHandleGesture()
@@ -138,11 +141,67 @@ describe('frameHandleGesture', () => {
 
   afterEach(() => {
     stop()
+    setSnapOn(true)
     dom.pasteboard.remove()
     resetFrameSelection()
     resetEditorToolForTests()
     setEditorStatus('')
     resetBookStore()
+  })
+
+  describe('snapping', () => {
+    beforeEach(() => {
+      setup()
+      setSnapOn(true)
+    })
+
+    const dragSe = (init: MouseEventInit = {}) => {
+      const se = dom.handles.get('se')
+      assert(se !== undefined)
+      fire('pointerdown', se, 150, 150)
+      fire('pointermove', window, 147, 147, init)
+      return se
+    }
+    const lines = () => dom.spread.querySelectorAll('.snap-line')
+
+    it('pulls a dragged edge onto the page center and labels it', () => {
+      dragSe()
+      expect([...lines()].map((line) => line.textContent)).toEqual([
+        'snap · center',
+        'snap · center',
+      ])
+      fire('pointerup', window, 147, 147)
+      expect(frame().rect).toMatchObject({ width: 50, height: 50 })
+      expect(lines()).toHaveLength(0)
+    })
+
+    it('Alt leaves the pointer result and draws no line', () => {
+      dragSe({ altKey: true })
+      expect(lines()).toHaveLength(0)
+    })
+
+    it('snap off draws no line and keeps the raw rect', () => {
+      setSnapOn(false)
+      dragSe()
+      expect(lines()).toHaveLength(0)
+      fire('pointerup', window, 147, 147)
+      expect(frame().rect.width).toBe(47)
+    })
+
+    it('clears the lines when the gesture is cancelled', () => {
+      dragSe()
+      fire('pointercancel', window, 147, 147)
+      expect(lines()).toHaveLength(0)
+    })
+
+    it('does not snap a rotated frame', () => {
+      stop()
+      dom.pasteboard.remove()
+      setup({ rotationDeg: 30 })
+      setSnapOn(true)
+      dragSe()
+      expect(lines()).toHaveLength(0)
+    })
   })
 
   describe('unlocked', () => {

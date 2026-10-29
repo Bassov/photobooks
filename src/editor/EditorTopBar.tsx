@@ -32,6 +32,7 @@ import { BAR, FIELD, SUB, T } from './editorChromeTokens'
 import { PanelToggles } from './EditorFrame'
 import { EditorToolGroup } from './EditorToolGroup'
 import { GridToggle } from './GridToggle'
+import { SnapToggle } from './SnapToggle'
 import {
   getBookStoreSnapshot,
   getHistorySnapshot,
@@ -321,6 +322,7 @@ export function EditorTopBar({
         {chromeImport.inputs}
         <EditorToolGroup />
         <GridToggle />
+        <SnapToggle />
       </div>
 
       <HistoryChrome />

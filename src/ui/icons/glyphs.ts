@@ -50,6 +50,7 @@ export const ICON_NAMES = [
   'select',
   'frame',
   'hand',
+  'magnet',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -402,5 +403,15 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
         d: 'M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 3.14-2.5L7 15',
       },
     ],
+  ],
+  magnet: [
+    ['path', { d: 'm12 15 4 4' }],
+    [
+      'path',
+      {
+        d: 'M2.352 10.648a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.029-6.029a1 1 0 1 1 3 3l-6.029 6.029a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.365-6.367A1 1 0 0 0 8.716 4.282z',
+      },
+    ],
+    ['path', { d: 'm5 8 4 4' }],
   ],
 }

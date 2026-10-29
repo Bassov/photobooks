@@ -1,5 +1,6 @@
 import {
   MIN_FRAME_EDGE_MM,
+  getSpreadPageCount,
   getSpreadSizeMm,
   nextFrameId,
   type RectMm,
@@ -12,6 +13,7 @@ import { isSpacePanCode } from './editorChromePanels'
 import { getEditorTool, setEditorTool } from './editorToolStore'
 import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { setFrameSource } from './frameSelection'
+import { getSnapOn } from './gridView'
 import { isTypingTarget } from './isTypingTarget'
 import {
   buildSnapIndex,
@@ -104,8 +106,18 @@ export function spreadContext(
         .filter((frame) => frame.id !== excludeFrameId)
         .map((frame) => frame.rect),
       [...book.guides, ...(spread.guides ?? [])],
+      {
+        widthMm,
+        heightMm,
+        pageCount: getSpreadPageCount(spreadIndex, book.spreads.length),
+      },
     ),
   }
+}
+
+/** Alt held or the TopBar snap toggle off: the gesture runs without snapping. */
+export function snapBypassed(event: { altKey: boolean }): boolean {
+  return event.altKey || !getSnapOn()
 }
 
 function pct(mm: number, total: number): string {
@@ -124,7 +136,10 @@ export function placeBox(
 }
 
 /** Editor-layer snap lines inside the spread; removed at gesture end. */
-function paintSnapLines(ctx: SpreadContext, lines: readonly SnapLine[]): void {
+export function paintSnapLines(
+  ctx: SpreadContext,
+  lines: readonly SnapLine[],
+): void {
   const host = ctx.element
   const existing = host.querySelectorAll<HTMLElement>('.snap-line')
   existing.forEach((node) => {
@@ -149,7 +164,7 @@ function paintSnapLines(ctx: SpreadContext, lines: readonly SnapLine[]): void {
   }
 }
 
-function clearSnapLines(ctx: SpreadContext): void {
+export function clearSnapLines(ctx: SpreadContext): void {
   paintSnapLines(ctx, [])
 }
 
@@ -227,7 +242,7 @@ export function installFrameGesture(): () => void {
       }
       const snap = snapPoint(ctx.index, raw, {
         pxPerMm: ctx.pxPerMm,
-        altKey: event.altKey,
+        altKey: snapBypassed(event),
       })
       session = {
         kind: 'draw',
@@ -298,7 +313,7 @@ export function installFrameGesture(): () => void {
     }
     const snap = snapPoint(ctx.index, raw, {
       pxPerMm: ctx.pxPerMm,
-      altKey: event.altKey,
+      altKey: snapBypassed(event),
     })
     const x = clamp(raw.x + snap.dx, 0, ctx.widthMm)
     const y = clamp(raw.y + snap.dy, 0, ctx.heightMm)
@@ -349,7 +364,7 @@ export function installFrameGesture(): () => void {
     }
     const snap = snapRect(ctx.index, moved, {
       pxPerMm: ctx.pxPerMm,
-      altKey: event.altKey,
+      altKey: snapBypassed(event),
     })
     move.rect = { ...moved, x: moved.x + snap.dx, y: moved.y + snap.dy }
     move.button.style.left = pct(move.rect.x, ctx.widthMm)

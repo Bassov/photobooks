@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   FRAME_SNAP_PULL_PX,
   buildSnapIndex,
+  snapEdges,
   snapPoint,
   snapRect,
 } from './snapIndex'
@@ -20,7 +21,7 @@ describe('snapRect', () => {
     )
     expect(result.dx).toBe(-3)
     expect(result.dy).toBe(0)
-    expect(result.lines).toEqual([{ axis: 'x', mm: 150, kind: 'frame edge' }])
+    expect(result.lines).toEqual([{ axis: 'x', mm: 150, kind: 'frame' }])
   })
 
   it('snaps centers and reports the kind', () => {
@@ -214,7 +215,65 @@ describe('snapRect · anchors', () => {
     )
     const result = snapRect(index, rectAt(98, 400, 20, 20), OPTS)
     expect(result.dx).toBe(2)
-    expect(result.lines[0]?.kind).toBe('frame edge')
+    expect(result.lines[0]?.kind).toBe('frame')
+  })
+})
+
+describe('page anchors', () => {
+  const OUT = { x: 120, y: 120, width: 20, height: 20 }
+  const facing = { widthMm: 400, heightMm: 300, pageCount: 2 }
+
+  it('snaps to the trim edge', () => {
+    const index = buildSnapIndex([], [], facing)
+    const result = snapRect(index, { ...OUT, x: 3, y: 50 }, OPTS)
+    expect(result.dx).toBe(-3)
+    expect(result.lines[0]).toEqual({ axis: 'x', mm: 0, kind: 'trim' })
+  })
+
+  it('names the spine and the page centers on facing pages', () => {
+    const index = buildSnapIndex([], [], facing)
+    const kinds = (x: number) =>
+      snapRect(index, { x, y: 50, width: 0.001, height: 20 }, OPTS).lines.find(
+        (line) => line.axis === 'x',
+      )?.kind
+    expect(kinds(201)).toBe('spine')
+    expect(kinds(101)).toBe('page center')
+    expect(kinds(299)).toBe('page center')
+  })
+
+  it('uses center for a lone page and for the vertical middle', () => {
+    const index = buildSnapIndex([], [], { ...facing, pageCount: 1 })
+    const lines = snapRect(
+      index,
+      { x: 191, y: 141, width: 20, height: 20 },
+      OPTS,
+    ).lines
+    expect(lines.map((line) => line.kind)).toEqual(['center', 'center'])
+  })
+
+  it('has no page anchors without a page', () => {
+    const index = buildSnapIndex([], [])
+    expect(snapRect(index, { ...OUT, x: 1 }, OPTS).lines).toEqual([])
+  })
+})
+
+describe('snapEdges', () => {
+  const index = buildSnapIndex([A], [])
+  const rect = { x: 20, y: 20, width: 83, height: 83 }
+
+  it('probes only the moving edges', () => {
+    const none = { left: false, right: false, top: false, bottom: false }
+    expect(snapEdges(index, rect, none, OPTS).lines).toEqual([])
+    const right = snapEdges(index, rect, { ...none, right: true }, OPTS)
+    expect(right.dx).toBe(-3)
+    expect(right.lines).toEqual([{ axis: 'x', mm: 100, kind: 'frame' }])
+  })
+
+  it('Alt suppresses it', () => {
+    const all = { left: true, right: true, top: true, bottom: true }
+    expect(
+      snapEdges(index, rect, all, { ...OPTS, altKey: true }).lines,
+    ).toEqual([])
   })
 })
 
