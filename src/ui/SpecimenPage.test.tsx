@@ -201,3 +201,20 @@ describe('SpecimenPage', () => {
     expect(within(demo).queryByTestId('resize-left')).toBeNull()
   })
 })
+
+describe('SpecimenPage forms', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('renders every form primitive state and they are interactive', () => {
+    render(<SpecimenPage />)
+    const forms = screen.getByTestId('specimen-forms')
+    expect(within(forms).getAllByRole('spinbutton')).toHaveLength(4)
+    expect(within(forms).getAllByRole('checkbox')).toHaveLength(5)
+    expect(within(forms).getAllByRole('combobox')).toHaveLength(2)
+    const mm = screen.getByTestId<HTMLInputElement>('specimen-mm')
+    fireEvent.keyDown(mm, { key: 'ArrowUp', shiftKey: true })
+    expect(mm.value).toBe('15')
+  })
+})

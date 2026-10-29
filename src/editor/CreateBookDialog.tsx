@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Dialog, DialogTitle } from '../ui/Dialog'
 import { SegmentedControl } from '../ui/SegmentedControl'
+import { Select } from '../ui/Select'
+import { TextField } from '../ui/TextField'
 import { acceptPositiveCm, createBookFormDefaults } from './createBookForm'
 import {
   clampCustomCm,
@@ -86,46 +88,31 @@ export function CreateBookDialog({
         </p>
       </div>
       <div className="pb-create-body flex flex-col gap-3 px-6 pb-2">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-normal text-muted-foreground">
-            Title
-          </span>
-          <input
-            type="text"
-            value={title}
-            autoFocus
-            data-testid="create-title"
-            aria-label="Title"
-            onChange={(e) => {
-              setTitle(e.target.value)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                go()
-              }
-            }}
-            className="pb-create-field h-9 rounded-md bg-field px-2.5 text-sm outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs text-muted-foreground">Page size</span>
-          <select
-            aria-label="Page size"
-            data-testid="create-preset"
-            value={presetId}
-            onChange={(e) => {
-              setPresetId(e.target.value as PageSizePresetId)
-            }}
-            className="pb-create-field h-9 rounded-md bg-field px-2.5 text-sm outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
-          >
-            {PAGE_SIZE_PRESETS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {presetLabel(p, orientation === 'landscape')}
-              </option>
-            ))}
-            <option value="custom">Custom size…</option>
-          </select>
-        </label>
+        <TextField
+          label="Title"
+          aria-label="Title"
+          value={title}
+          autoFocus
+          data-testid="create-title"
+          onChange={setTitle}
+          onSubmit={go}
+        />
+        <Select
+          label="Page size"
+          aria-label="Page size"
+          data-testid="create-preset"
+          value={presetId}
+          onChange={(v) => {
+            setPresetId(v as PageSizePresetId)
+          }}
+          options={[
+            ...PAGE_SIZE_PRESETS.map((p) => ({
+              value: p.id,
+              label: presetLabel(p, orientation === 'landscape'),
+            })),
+            { value: 'custom', label: 'Custom size…' },
+          ]}
+        />
         {custom ? (
           <div className="grid grid-cols-2 gap-2" data-testid="create-custom">
             {(
