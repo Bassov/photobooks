@@ -51,52 +51,6 @@ export function GridSection({ scope, parentId, title = "Layout grid" }: { scope:
   )
 }
 
-export function GuidesSection({ bookScope = true, precise = true }: { bookScope?: boolean; precise?: boolean }) {
-  const st = useStudio()
-  const s = st.doc.spreads[st.cur]
-  const gs = allGuides(st.doc, s)
-  const [axis, setAxis] = React.useState<"v" | "h">("v")
-  const [pos, setPos] = React.useState(100)
-  const edit = (id: string, patch: Partial<Guide>, label: string, key?: string) =>
-    st.update((d) => ({ ...d, spreads: d.spreads.map((sp, i) => (i === st.cur || sp.guides.some((g) => g.id === id && g.scope === "book") ? { ...sp, guides: sp.guides.map((g) => (g.id === id ? { ...g, ...patch } : g)) } : sp)) }), label, key)
-  const del = (id: string) => st.update((d) => ({ ...d, spreads: d.spreads.map((sp) => ({ ...sp, guides: sp.guides.filter((g) => g.id !== id) })) }), "Delete guide")
-  const setScope = (g: Guide, scope: "book" | "spread") => st.update((d) => ({
-    ...d, spreads: d.spreads.map((sp, i) => {
-      const without = sp.guides.filter((x) => x.id !== g.id)
-      if (scope === "book") return { ...sp, guides: [...without, { ...g, scope }] }
-      return i === st.cur ? { ...sp, guides: [...without, { ...g, scope }] } : { ...sp, guides: without }
-    }),
-  }), scope === "book" ? "Make book guide" : "Make spread guide")
-  const add = () => { const id = uid("g"); st.update((d) => mapSpread(d, st.cur, (sp) => ({ ...sp, guides: [...sp.guides, { id, axis, pos, scope: "spread" }] })), "Add guide"); st.setView({ guides: true }) }
-  return (
-    <Section title="Guides" summary={`${gs.length}`}>
-      {precise && (
-        <div className="mb-3 flex items-end gap-1.5" data-testid="guide-add">
-          <Segmented label="Axis" size="sm" value={axis} onChange={(v) => setAxis(v as "v")} className="w-[74px]" items={[{ id: "v", label: <SeparatorVertical />, aria: "Vertical" }, { id: "h", label: <SeparatorHorizontal />, aria: "Horizontal" }]} />
-          <MmField label="Position" prefix={axis === "v" ? "X" : "Y"} value={pos} onChange={setPos} min={0} max={axis === "v" ? 400 : 200} className="flex-1" />
-          <Button size="sm" variant="outline" className="gap-1 px-2 text-sm shadow-xs [&_svg]:size-3.5" onPress={add}><Plus />Add</Button>
-        </div>
-      )}
-      {gs.length === 0 ? <div className="rounded-md bg-field/60 px-3 py-3 text-center text-xs text-muted-foreground">No guides. Drag from a ruler{precise ? " or type a position" : ""}.</div> : (
-        <ul className="flex flex-col gap-1" data-testid="guide-list">
-          {gs.map((g) => (
-            <li key={g.id} className="flex items-center gap-1">
-              {g.axis === "v" ? <SeparatorVertical className="size-3.5 shrink-0 text-muted-foreground" /> : <SeparatorHorizontal className="size-3.5 shrink-0 text-muted-foreground" />}
-              {precise ? <MmField label="Guide position" prefix={g.axis === "v" ? "X" : "Y"} value={g.pos} isDisabled={g.locked || g.inherited} onChange={(v) => edit(g.id, { pos: v }, "Move guide", `gp-${g.id}`)} className="flex-1" />
-                : <span className="flex-1 text-sm tabular-nums">{g.axis === "v" ? "X" : "Y"} {Math.round(g.pos * 10) / 10} mm</span>}
-              {g.inherited ? <Badge color="brand" className="shrink-0"><Link2 />parent</Badge> : <>
-                {bookScope && <button type="button" onClick={() => setScope(g, g.scope === "book" ? "spread" : "book")} className={cn("h-6 shrink-0 rounded-md bg-field px-1.5 text-2xs font-medium", g.scope === "book" ? " bg-select/10 text-accent-text" : "text-muted-foreground")} aria-label="Toggle book / spread guide">{g.scope === "book" ? "book" : "spread"}</button>}
-                {precise && <IconButton size="sm" label={g.locked ? "Unlock guide" : "Lock guide"} onPress={() => edit(g.id, { locked: !g.locked }, g.locked ? "Unlock guide" : "Lock guide")}>{g.locked ? <Lock className="size-3.5!" /> : <Unlock className="size-3.5!" />}</IconButton>}
-                <IconButton size="sm" label="Delete guide" isDisabled={g.locked} onPress={() => del(g.id)}><Trash2 className="size-3.5!" /></IconButton>
-              </>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
-  )
-}
-
 const BGS = ["#ffffff", "#f4f4f4", "#e9e9e9", "#e3e3e3", "#2a2927", "#111111"]
 export function SpreadBgSection() {
   const st = useStudio()

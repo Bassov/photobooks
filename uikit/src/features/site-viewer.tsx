@@ -28,8 +28,7 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
     if (s.page !== "book" || s.lb) return
     const k = (e: KeyboardEvent) => { const t = e.target as HTMLElement; if (t?.closest?.("input,textarea")) return; if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1) }
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  })
+  }) // eslint-disable-line react-hooks/exhaustive-deps
   // v0.8.1 (P1-2): resolve from the books passed in (the user's own book in #/demo), then the sample catalog
   const book = books.find((b) => b.id === s.book) ?? BOOKS.find((b) => b.id === s.book) ?? books[0] ?? BOOKS[0]
   const fsBtn = React.useRef<HTMLButtonElement>(null)

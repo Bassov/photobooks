@@ -1,7 +1,7 @@
 // Quick file:// smoke test: console errors, fonts, photos.
 import { chromium } from "playwright-core"
 import { chromePath } from "./chrome.mjs"
-const url = "file://" + new URL("../../dist/uikit/index.html", import.meta.url).pathname
+const url = "file://" + new URL("../dist/index.html", import.meta.url).pathname
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--no-sandbox"] })
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 const errs = []

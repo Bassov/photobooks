@@ -258,7 +258,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const th = 6 / sc
   const gesture = (e: React.PointerEvent, onMove: (p: { x: number; y: number }, ev: PointerEvent) => void, onUp: (moved: boolean) => void) => {
     const start = pt(e); let moved = false
-    const mv = (ev: PointerEvent) => { const p = pt(ev); if (!moved && Math.hypot(p.x - start.x, p.y - start.y) * sc < 3) return; moved = true; onMove(p, ev) }
+    const mv = (ev: PointerEvent) => { if (!ref.current) { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); return } const p = pt(ev); if (!moved && Math.hypot(p.x - start.x, p.y - start.y) * sc < 3) return; moved = true; onMove(p, ev) }
     const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); setLines([]); onUp(moved) }
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up)
     return start
