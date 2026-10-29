@@ -2,7 +2,7 @@ import { useId, type ReactNode, type SelectHTMLAttributes } from 'react'
 import { cx } from './className'
 import { FieldFrame } from './Field'
 
-export interface SelectOption {
+interface SelectOption {
   value: string
   label: string
   isDisabled?: boolean
