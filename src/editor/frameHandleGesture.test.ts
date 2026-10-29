@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MIN_FRAME_EDGE_MM, type Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
@@ -23,7 +24,7 @@ interface FrameExtra {
   assetId?: string
 }
 
-function load(extra: FrameExtra = {}) {
+function load(extra: FrameExtra = {}, neighbour?: Frame['rect']) {
   resetBookStore({
     book: makeBook({
       spreads: [
@@ -34,6 +35,9 @@ function load(extra: FrameExtra = {}) {
               rect: { x: 100, y: 100, width: 50, height: 50 },
               ...extra,
             }),
+            ...(neighbour === undefined
+              ? []
+              : [makeFrame({ id: 'n', rect: neighbour })]),
           ],
         }),
       ],
@@ -127,10 +131,10 @@ describe('frameHandleGesture', () => {
   let stop: () => void
   let dom: ReturnType<typeof mount>
 
-  function setup(extra: FrameExtra = {}) {
+  function setup(extra: FrameExtra = {}, neighbour?: Frame['rect']) {
     // Gesture maths assert raw pointer travel; snapping has its own suite.
     setSnapOn(false)
-    load(extra)
+    load(extra, neighbour)
     dom = mount()
     stop = installFrameHandleGesture()
     setFrameSource({
@@ -192,6 +196,21 @@ describe('frameHandleGesture', () => {
       dragSe()
       fire('pointercancel', window, 147, 147)
       expect(lines()).toHaveLength(0)
+    })
+
+    it('never snaps an edge past the minimum frame size', () => {
+      stop()
+      dom.pasteboard.remove()
+      // A neighbour edge at 104 would pull the clamped right edge (105) to a 4 mm width.
+      setup({}, { x: 102, y: 0, width: 2, height: 10 })
+      setSnapOn(true)
+      const se = dom.handles.get('se')
+      assert(se !== undefined)
+      fire('pointerdown', se, 150, 150)
+      fire('pointermove', window, 104, 104)
+      expect(lines()).toHaveLength(0)
+      fire('pointerup', window, 104, 104)
+      expect(frame().rect.width).toBe(MIN_FRAME_EDGE_MM)
     })
 
     it('does not snap a rotated frame', () => {
