@@ -4,7 +4,6 @@ import { makeBook } from '../core/testing/fixtures'
 import {
   assetSourceCovers,
   getAssetSource,
-  painterSourceFile,
   releaseAssetSource,
   resetAssetSources,
   retainAssetSource,
@@ -39,15 +38,5 @@ describe('assetSources', () => {
     retainAssetSource('asset-1', new File([new Uint8Array([1])], 'a.jpg'))
     releaseAssetSource('asset-1')
     expect(getAssetSource('asset-1')).toBeUndefined()
-  })
-
-  it('builds a png session file for a painter asset', async () => {
-    const file = painterSourceFile('painter-a')
-    const bytes = new Uint8Array(await file.arrayBuffer())
-
-    expect(file.type).toBe('image/png')
-    expect(bytes[0]).toBe(137)
-    expect(bytes[1]).toBe(80)
-    expect(painterSourceFile('unknown-asset').type).toBe('image/png')
   })
 })

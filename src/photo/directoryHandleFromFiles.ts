@@ -1,6 +1,6 @@
 /**
  * Build a FileSystemDirectoryHandle-shaped double from already-granted Files.
- * Used by the VITE_E2E folder-input seam (Playwright setInputFiles) so bulk
+ * Used by the VITE_TEST_FIXTURES folder-input seam (Playwright setInputFiles) so bulk
  * imports do not re-encode bytes through the showDirectoryPicker test stub.
  */
 export function directoryHandleFromFiles(

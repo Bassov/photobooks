@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getAssetSource, resetAssetSources } from '../photo/assetSources'
+import { resetAssetSources } from '../photo/assetSources'
 import { makePlacedTemplateBook } from '../core/testing/fixtures'
-import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
+import { loadPainterFixture } from '../testFixtures/loadPainterFixture'
 import type { ResolvedItem } from '../core/geometry/types'
 import {
   awaitPendingGalleryFlush,
   enqueueGalleryAssets,
-  loadPainterFixture,
+  loadPainterFixture as loadPainterFixtureLazy,
   getAssetAspectSnapshot,
   getAssetContentHash,
   getAssetDisplayName,
@@ -73,13 +73,37 @@ describe('bookStore', () => {
     expect(getHasAnyPlacementSnapshot()).toBe(true)
   })
 
-  it('retains a session file for each painter fixture asset', () => {
-    loadPainterFixture()
+  it('loads the painter fixture in dev/fixture builds', async () => {
+    loadPainterFixtureLazy()
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
+    })
+  })
 
-    for (const assetId of PAINTER_ASSET_IDS) {
-      expect(getAssetSource(assetId)?.type).toBe('image/png')
+  it('loads the painter fixture in a non-dev VITE_TEST_FIXTURES build', async () => {
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '1')
+    try {
+      loadPainterFixtureLazy()
+      await vi.waitFor(() => {
+        expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
+      })
+    } finally {
+      vi.unstubAllEnvs()
     }
-    expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
+  })
+
+  it('does not load the painter fixture in a deploy build', async () => {
+    const before = getBookStoreSnapshot().book.id
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '')
+    try {
+      loadPainterFixtureLazy()
+      await new Promise((r) => setTimeout(r, 20))
+      expect(getBookStoreSnapshot().book.id).toBe(before)
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('mints unique asset ids with sanitized names', () => {

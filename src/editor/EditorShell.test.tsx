@@ -7,11 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetPool } from '../photo/assetPool'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
-import {
-  getBookStoreSnapshot,
-  loadPainterFixture,
-  resetBookStore,
-} from './bookStore'
+import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import { loadPainterFixture } from '../testFixtures/loadPainterFixture'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { resetTierDisplay } from './tierDisplay'
 import { resetCameraStore } from './cameraStore'
