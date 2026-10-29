@@ -18,6 +18,7 @@ import {
   type AlignEdge,
   type DistributeAxis,
 } from './transform'
+import { reorderFrame, setFrameLocked, type ZMove } from './arrange'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
@@ -111,6 +112,20 @@ export type BookOp =
       spreadId: string
       frameId: string
       rotationDeg: number
+      /** Slider drags: consecutive live rotations of one frame share an undo step. */
+      live?: boolean
+    }
+  | {
+      type: 'reorderFrame'
+      spreadId: string
+      frameId: string
+      move: ZMove
+    }
+  | {
+      type: 'setFrameLocked'
+      spreadId: string
+      frameId: string
+      locked: boolean
     }
   | {
       type: 'alignFrames'
@@ -204,6 +219,10 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return resizeFrame(book, op.spreadId, op.frameId, op.rect)
     case 'rotateFrame':
       return rotateFrame(book, op.spreadId, op.frameId, op.rotationDeg)
+    case 'reorderFrame':
+      return reorderFrame(book, op.spreadId, op.frameId, op.move)
+    case 'setFrameLocked':
+      return setFrameLocked(book, op.spreadId, op.frameId, op.locked)
     case 'alignFrames':
       return alignFrames(book, op.spreadId, op.frameIds, op.edge)
     case 'distributeFrames':

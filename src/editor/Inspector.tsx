@@ -16,6 +16,11 @@ import {
 import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
 import { FitCropSection } from './FitCropSection'
+import {
+  ArrangeSection,
+  DeleteFrameButton,
+  GeometrySection,
+} from './FrameSections'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import { GridSection } from './GridSection'
 import {
@@ -176,7 +181,12 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
             <Hint>{FRAME_HINT}</Hint>
           ) : null}
           {section === null ? null : (
-            <FitCropSection target={section} cropping={target !== null} />
+            <>
+              <GeometrySection target={section} />
+              <FitCropSection target={section} cropping={target !== null} />
+              <ArrangeSection target={section} />
+              <DeleteFrameButton target={section} />
+            </>
           )}
         </TabPanel>
         <TabPanel

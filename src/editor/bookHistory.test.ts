@@ -100,5 +100,10 @@ describe('bookHistory', () => {
     expect(
       coalesceKey({ type: 'resetCrop', spreadId: 's', frameId: 'f' }),
     ).toBe('crop:s:f')
+    const rotate = { type: 'rotateFrame', spreadId: 's', frameId: 'f' } as const
+    expect(coalesceKey({ ...rotate, rotationDeg: 5 })).toBeUndefined()
+    expect(coalesceKey({ ...rotate, rotationDeg: 5, live: true })).toBe(
+      'rotate:s:f',
+    )
   })
 })
