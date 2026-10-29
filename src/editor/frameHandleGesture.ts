@@ -7,6 +7,7 @@ import { getEditorTool } from './editorToolStore'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import {
   clearSnapLines,
+  gridSnapActive,
   paintSnapLines,
   placeBox,
   round,
@@ -14,6 +15,7 @@ import {
   spreadContext,
   type SpreadContext,
 } from './frameGesture'
+import { setSnapHint } from './snapHint'
 import { snapEdges, type SnapLine } from './snapIndex'
 import {
   RESIZE_HANDLES,
@@ -83,7 +85,7 @@ function writeSizeTag(button: HTMLElement, rect: Rect): void {
  * writes on the frame button; one BookOp is committed at gesture end (one undo
  * step). Alt = from centre, Shift = keep proportions / 15° rotation steps.
  * Resizes snap their dragged edges to frames / page anchors (Alt or the snap
- * toggle off: no snap). Grid snapping joins later (snap-wire).
+ * toggle off: no snap) and, while the grid is shown, to column / row edges.
  */
 export function installFrameHandleGesture(): () => void {
   let session: Session | null = null
@@ -114,6 +116,7 @@ export function installFrameHandleGesture(): () => void {
     window.removeEventListener('pointercancel', onCancel)
     if (current !== null) {
       clearSnapLines(current.ctx)
+      setSnapHint(null)
     }
     return current
   }
@@ -231,12 +234,13 @@ export function installFrameHandleGesture(): () => void {
     // / rotated / Shift-ratio leave the pointer result untouched.
     const snapped =
       current.rotation0 === 0 && !event.shiftKey && !snapBypassed(event)
-        ? snapResizedRect(current, handle)
+        ? snapResizedRect(current, handle, event)
         : null
     if (snapped !== null) {
       current.rect = snapped.rect
     }
     paintSnapLines(ctx, snapped?.lines ?? [])
+    setSnapHint(snapped?.hint ?? null, ctx.spreadId)
     placeBox(current.button, ctx, current.rect)
     writeSizeTag(current.button, current.rect)
   }
@@ -244,7 +248,8 @@ export function installFrameHandleGesture(): () => void {
   function snapResizedRect(
     current: Session,
     handle: ResizeHandle,
-  ): { rect: Rect; lines: SnapLine[] } | null {
+    event: PointerEvent,
+  ): { rect: Rect; lines: SnapLine[]; hint: string | null } | null {
     const { rect } = current
     const hit = snapEdges(
       current.ctx.index,
@@ -255,7 +260,11 @@ export function installFrameHandleGesture(): () => void {
         top: handle.includes('n'),
         bottom: handle.includes('s'),
       },
-      { pxPerMm: current.ctx.pxPerMm, altKey: false },
+      {
+        pxPerMm: current.ctx.pxPerMm,
+        altKey: false,
+        grid: gridSnapActive(event),
+      },
     )
     const west = handle.includes('w')
     const north = handle.includes('n')
@@ -272,6 +281,7 @@ export function installFrameHandleGesture(): () => void {
         height,
       },
       lines: hit.lines,
+      hint: hit.hint,
     }
   }
 

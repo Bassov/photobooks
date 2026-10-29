@@ -12,7 +12,8 @@ import {
   setFrameSource,
 } from './frameSelection'
 import { installFrameHandleGesture } from './frameHandleGesture'
-import { setSnapOn } from './gridView'
+import { setGridVisible, setSnapOn } from './gridView'
+import { getSnapHint, setSnapHint } from './snapHint'
 
 const SIZE_MM = 300
 const SCALE = 2
@@ -190,6 +191,66 @@ describe('frameHandleGesture', () => {
       expect(lines()).toHaveLength(0)
       fire('pointerup', window, 147, 147)
       expect(frame().rect.width).toBe(47)
+    })
+
+    describe('grid', () => {
+      beforeEach(() => {
+        setGridVisible(true)
+      })
+
+      afterEach(() => {
+        setGridVisible(false)
+        setSnapHint(null)
+      })
+
+      const dragNw = (toX: number, toY: number, init: MouseEventInit = {}) => {
+        const nw = dom.handles.get('nw')
+        assert(nw !== undefined)
+        fire('pointerdown', nw, 100, 100)
+        fire('pointermove', window, toX, toY, init)
+      }
+
+      it('snaps a resized edge to the column and labels it', () => {
+        dragNw(20, 60)
+        expect(getSnapHint()).toBe('snap · column 1')
+        expect(dom.spread.querySelectorAll('.snap-line')).toHaveLength(1)
+        fire('pointerup', window, 20, 60)
+        expect(frame().rect).toMatchObject({ x: 15, width: 135 })
+        expect(getSnapHint()).toBeNull()
+      })
+
+      it('snaps a resized edge to the row and labels it', () => {
+        dragNw(60, 20)
+        expect(getSnapHint()).toBe('snap · row 1')
+        fire('pointerup', window, 60, 20)
+        expect(frame().rect).toMatchObject({ y: 15, height: 135 })
+      })
+
+      it('hidden grid: no grid snap', () => {
+        setGridVisible(false)
+        dragNw(20, 60)
+        expect(getSnapHint()).toBeNull()
+        fire('pointerup', window, 20, 60)
+        expect(frame().rect.x).toBe(20)
+      })
+
+      it('Alt: no grid snap', () => {
+        dragNw(20, 60, { altKey: true })
+        expect(getSnapHint()).toBeNull()
+      })
+
+      it('snap off: no grid snap', () => {
+        setSnapOn(false)
+        dragNw(20, 60)
+        expect(getSnapHint()).toBeNull()
+        expect(dom.spread.querySelectorAll('.snap-line')).toHaveLength(0)
+      })
+
+      it('clears the pill when the gesture is cancelled', () => {
+        dragNw(20, 60)
+        fire('pointercancel', window, 20, 60)
+        expect(getSnapHint()).toBeNull()
+      })
     })
 
     it('clears the lines when the gesture is cancelled', () => {

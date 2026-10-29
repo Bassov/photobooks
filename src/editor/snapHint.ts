@@ -3,6 +3,7 @@
 type Listener = () => void
 
 let hint: string | null = null
+let hintSpreadId: string | undefined
 const listeners = new Set<Listener>()
 
 export function subscribeSnapHint(listener: Listener): () => void {
@@ -16,11 +17,17 @@ export function getSnapHint(): string | null {
   return hint
 }
 
-export function setSnapHint(next: string | null): void {
-  if (next === hint) {
+/** Spread the hint belongs to; undefined = any spread shows it. */
+export function getSnapHintSpread(): string | undefined {
+  return hintSpreadId
+}
+
+export function setSnapHint(next: string | null, spreadId?: string): void {
+  if (next === hint && spreadId === hintSpreadId) {
     return
   }
   hint = next
+  hintSpreadId = spreadId
   for (const listener of listeners) {
     listener()
   }

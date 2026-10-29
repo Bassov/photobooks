@@ -1,4 +1,5 @@
 import type { RectMm } from '../core'
+import { GRID_SNAP_PULL_PX, type GridAnchors } from './gridSnap'
 
 /** Pull distance in CSS px for frame / guide / gap snapping. */
 export const FRAME_SNAP_PULL_PX = 8
@@ -12,6 +13,7 @@ type SnapKind =
   | 'center'
   | 'guide'
   | 'equal gap'
+  | 'grid'
 
 /** Spread paper the page anchors derive from. */
 export interface SnapPage {
@@ -53,12 +55,19 @@ interface SnapAnchor {
   mm: number
   kind: SnapKind
   edge?: Edge
+  /** Grid anchors only: `column 3` / `row 2`. */
+  label?: string
 }
 
 /** Anchors per axis, sorted by position so a query is a binary search. */
 export interface SnapIndex {
   x: readonly SnapAnchor[]
   y: readonly SnapAnchor[]
+  /**
+   * Layout-grid column / row edges. Queried only when the frame / page /
+   * guide anchors miss, so they never override those snaps.
+   */
+  grid: { x: readonly SnapAnchor[]; y: readonly SnapAnchor[] }
 }
 
 export interface SnapGuide {
@@ -76,9 +85,11 @@ export interface SnapResult {
   dx: number
   dy: number
   lines: SnapLine[]
+  /** `snap · column N` / `snap · row N` when a grid anchor was hit; else null. */
+  hint: string | null
 }
 
-const NO_SNAP: SnapResult = { dx: 0, dy: 0, lines: [] }
+const NO_SNAP: SnapResult = { dx: 0, dy: 0, lines: [], hint: null }
 
 function sorted(anchors: SnapAnchor[]): SnapAnchor[] {
   return anchors.sort((a, b) => a.mm - b.mm)
@@ -125,6 +136,7 @@ export function buildSnapIndex(
   frames: readonly RectMm[],
   guides: readonly SnapGuide[],
   page?: SnapPage,
+  grid?: GridAnchors,
 ): SnapIndex {
   const paper = page === undefined ? undefined : pageAnchors(page)
   const x: SnapAnchor[] = paper?.x ?? []
@@ -149,7 +161,22 @@ export function buildSnapIndex(
   }
   x.push(...gapAnchors(frames, true))
   y.push(...gapAnchors(frames, false))
-  return { x: sorted(x), y: sorted(y) }
+  return {
+    x: sorted(x),
+    y: sorted(y),
+    grid: {
+      x: sorted(gridSnapAnchors(grid?.x)),
+      y: sorted(gridSnapAnchors(grid?.y)),
+    },
+  }
+}
+
+function gridSnapAnchors(anchors: GridAnchors['x'] | undefined): SnapAnchor[] {
+  return (anchors ?? []).map((a) => ({
+    mm: a.mm,
+    kind: 'grid',
+    label: a.label,
+  }))
 }
 
 function lowerBound(anchors: readonly SnapAnchor[], mm: number): number {
@@ -203,6 +230,8 @@ export interface SnapOptions {
   /** Client px per mm at the current camera zoom. */
   pxPerMm: number
   altKey: boolean
+  /** Also snap edges to the layout grid (grid visible and snap on). */
+  grid?: boolean
 }
 
 function spanProbes(lo: number, size: number): Probe[] {
@@ -295,8 +324,13 @@ function snapProbes(
     return NO_SNAP
   }
   const reachMm = FRAME_SNAP_PULL_PX / options.pxPerMm
-  const hitX = nearest(index.x, xProbes, reachMm)
-  const hitY = nearest(index.y, yProbes, reachMm)
+  let hitX = nearest(index.x, xProbes, reachMm)
+  let hitY = nearest(index.y, yProbes, reachMm)
+  if (options.grid === true) {
+    const gridReachMm = GRID_SNAP_PULL_PX / options.pxPerMm
+    hitX ??= nearest(index.grid.x, edgeProbes(xProbes), gridReachMm)
+    hitY ??= nearest(index.grid.y, edgeProbes(yProbes), gridReachMm)
+  }
   const lines: SnapLine[] = []
   if (hitX !== null) {
     lines.push({ axis: 'x', mm: hitX.anchor.mm, kind: hitX.anchor.kind })
@@ -304,5 +338,16 @@ function snapProbes(
   if (hitY !== null) {
     lines.push({ axis: 'y', mm: hitY.anchor.mm, kind: hitY.anchor.kind })
   }
-  return { dx: hitX?.delta ?? 0, dy: hitY?.delta ?? 0, lines }
+  const gridLabel = hitX?.anchor.label ?? hitY?.anchor.label
+  return {
+    dx: hitX?.delta ?? 0,
+    dy: hitY?.delta ?? 0,
+    lines,
+    hint: gridLabel === undefined ? null : `snap · ${gridLabel}`,
+  }
+}
+
+/** Grid bands snap edges, not centers. */
+function edgeProbes(probes: readonly Probe[]): Probe[] {
+  return probes.filter((probe) => probe.edge !== 'center')
 }

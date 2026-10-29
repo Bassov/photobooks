@@ -10,7 +10,8 @@ import {
 } from './editorToolStore'
 import { getFrameSource, resetFrameSelection } from './frameSelection'
 import { installFrameGesture } from './frameGesture'
-import { setSnapOn } from './gridView'
+import { setGridVisible, setSnapOn } from './gridView'
+import { getSnapHint, setSnapHint } from './snapHint'
 
 /** 300 × 300 mm spread laid out at 2 client px per mm, offset on the page. */
 const SIZE_MM = 300
@@ -579,6 +580,82 @@ describe('frameGesture · move', () => {
     drag(40, 25, ALT)
     expect(frames()[1]?.rect).toEqual(rect(50, 35, 40, 40))
     expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBeUndefined()
+  })
+
+  describe('grid snap', () => {
+    beforeEach(() => {
+      setGridVisible(true)
+      setSnapOn(true)
+    })
+
+    afterEach(() => {
+      setGridVisible(false)
+      setSnapOn(true)
+      setSnapHint(null)
+    })
+
+    /** Press frame b, move it by (dx, dy) mm and stay mid-gesture. */
+    function dragHold(dx: number, dy: number, init: MouseEventInit = {}) {
+      pointer('pointerdown', button, 30, 30)
+      pointer('pointermove', window, 30 + dx, 30 + dy, init)
+    }
+
+    it('snaps the left edge to the column edge with the column pill', () => {
+      // left edge 10 + 10 = 20 -> column 1 at 15 (5 mm away)
+      dragHold(10, 200)
+      expect(getSnapHint()).toBe('snap · column 1')
+      expect(button.style.left).toBe(`${String((15 / SIZE_MM) * 100)}%`)
+      expect(spread.querySelectorAll('.snap-line[data-axis="x"]')).toHaveLength(
+        1,
+      )
+      pointer('pointerup', window, 40, 230)
+      expect(frames()[1]?.rect.x).toBe(15)
+      expect(getSnapHint()).toBeNull()
+    })
+
+    it('snaps the top edge to the row edge with the row pill', () => {
+      dragHold(200, 10)
+      expect(getSnapHint()).toBe('snap · row 1')
+      expect(button.style.top).toBe(`${String((15 / SIZE_MM) * 100)}%`)
+      pointer('pointerup', window, 230, 40)
+      expect(frames()[1]?.rect.y).toBe(15)
+    })
+
+    it('draws no inline label on the grid line (the pill carries it)', () => {
+      dragHold(10, 200)
+      expect(spread.querySelector('.snap-line')).not.toBeNull()
+      expect(spread.querySelector('.snap-line-label')).toBeNull()
+    })
+
+    it('hidden grid: no grid snap and no pill', () => {
+      setGridVisible(false)
+      dragHold(10, 200)
+      expect(getSnapHint()).toBeNull()
+      expect(button.style.left).toBe(`${String((20 / SIZE_MM) * 100)}%`)
+      pointer('pointerup', window, 40, 230)
+    })
+
+    it('Alt: no grid snap and no pill', () => {
+      dragHold(10, 200, ALT)
+      expect(getSnapHint()).toBeNull()
+      pointer('pointerup', window, 40, 230, ALT)
+      expect(frames()[1]?.rect.x).toBe(20)
+    })
+
+    it('snap off: no grid snap and no snap lines', () => {
+      setSnapOn(false)
+      dragHold(10, 200)
+      expect(getSnapHint()).toBeNull()
+      expect(spread.querySelectorAll('.snap-line')).toHaveLength(0)
+      pointer('pointerup', window, 40, 230)
+    })
+
+    it('clears the pill when the gesture is cancelled', () => {
+      dragHold(10, 200)
+      expect(getSnapHint()).not.toBeNull()
+      pointer('pointercancel', window, 40, 230)
+      expect(getSnapHint()).toBeNull()
+    })
   })
 
   it('moves a selected filled frame by its body', () => {
