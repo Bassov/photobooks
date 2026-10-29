@@ -30,6 +30,16 @@ describe('numberField helpers', () => {
     expect(formatNumber(5, 1)).toBe('5.0')
   })
 
+  it('handles non-finite input, long fractions and multi-digit fractions', () => {
+    expect(decimalsOf(Infinity)).toBe(0)
+    expect(decimalsOf(NaN)).toBe(0)
+    expect(decimalsOf(1.123456789)).toBe(6)
+    expect(parseNumberText('.55')).toBe(0.55)
+    expect(parseNumberText('+.25')).toBe(0.25)
+    expect(parseNumberText('.')).toBeNull()
+    expect(parseNumberText('1.5.2')).toBeNull()
+  })
+
   it('steps without float drift and clamps at the ends', () => {
     const base = { min: 0, max: 1, step: 0.1, shiftStep: 0.5 } as const
     expect(
