@@ -15,6 +15,11 @@ test('zoom menu picks 200% then Fit spread; camera strip is gone', async ({
 
   await chooseZoom(page, 'Fit spread')
   await expect(label).toHaveText('Fit')
+
+  await chooseZoom(page, '150%')
+  await expect(label).toHaveText('150%')
+  await page.keyboard.press('Control+0')
+  await expect(label).toHaveText('Fit')
 })
 
 test('zoom menu shows the Ctrl+0 hint on Fit spread', async ({ page }) => {
