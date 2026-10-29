@@ -269,6 +269,39 @@ describe('snapEdges', () => {
     expect(right.lines).toEqual([{ axis: 'x', mm: 100, kind: 'frame' }])
   })
 
+  it('each moving edge probes on its own axis side', () => {
+    const none = { left: false, right: false, top: false, bottom: false }
+    const near = { x: 103, y: 103, width: 83, height: 83 }
+    const left = snapEdges(index, near, { ...none, left: true }, OPTS)
+    expect(left).toEqual({
+      dx: -3,
+      dy: 0,
+      lines: [{ axis: 'x', mm: 100, kind: 'frame' }],
+    })
+    const top = snapEdges(index, near, { ...none, top: true }, OPTS)
+    expect(top).toEqual({
+      dx: 0,
+      dy: -3,
+      lines: [{ axis: 'y', mm: 100, kind: 'frame' }],
+    })
+    expect(
+      snapEdges(index, near, { ...none, right: true, bottom: true }, OPTS)
+        .lines,
+    ).toEqual([])
+  })
+
+  it('snaps the bottom edge onto a frame bottom', () => {
+    const none = { left: false, right: false, top: false, bottom: false }
+    const result = snapEdges(
+      index,
+      { x: 20, y: 20, width: 83, height: 133 },
+      { ...none, bottom: true },
+      OPTS,
+    )
+    expect(result.dy).toBe(-3)
+    expect(result.lines).toEqual([{ axis: 'y', mm: 150, kind: 'frame' }])
+  })
+
   it('Alt suppresses it', () => {
     const all = { left: true, right: true, top: true, bottom: true }
     expect(

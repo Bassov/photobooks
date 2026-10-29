@@ -213,6 +213,53 @@ describe('frameHandleGesture', () => {
       expect(frame().rect.width).toBe(MIN_FRAME_EDGE_MM)
     })
 
+    function withNeighbour(neighbour: Frame['rect']) {
+      stop()
+      dom.pasteboard.remove()
+      setup({}, neighbour)
+      setSnapOn(true)
+    }
+
+    function drag(handle: string, fromMm: number, toX: number, toY: number) {
+      const el = dom.handles.get(handle)
+      assert(el !== undefined)
+      fire('pointerdown', el, fromMm, fromMm)
+      fire('pointermove', window, toX, toY)
+      const count = lines().length
+      fire('pointerup', window, toX, toY)
+      return count
+    }
+
+    it('keeps the pull distance: an edge far from every anchor stays put', () => {
+      withNeighbour({ x: 0, y: 0, width: 10, height: 10 })
+      expect(drag('se', 150, 120, 120)).toBe(0)
+      expect(frame().rect).toMatchObject({ width: 20, height: 20 })
+    })
+
+    it('snaps a nw drag: the near edges move, the far corner stays', () => {
+      withNeighbour({ x: 90, y: 90, width: 5, height: 5 })
+      drag('nw', 100, 97, 97)
+      expect(frame().rect).toEqual({ x: 95, y: 95, width: 55, height: 55 })
+    })
+
+    it('allows a snap that lands exactly on the minimum width', () => {
+      withNeighbour({ x: 50, y: 50, width: 55, height: 55 })
+      drag('se', 150, 107, 150)
+      expect(frame().rect.width).toBe(MIN_FRAME_EDGE_MM)
+    })
+
+    it('allows a snap that lands exactly on the minimum height', () => {
+      withNeighbour({ x: 50, y: 50, width: 55, height: 55 })
+      drag('se', 150, 150, 107)
+      expect(frame().rect.height).toBe(MIN_FRAME_EDGE_MM)
+    })
+
+    it('refuses a snap that would shrink only the height below the minimum', () => {
+      withNeighbour({ x: 0, y: 50, width: 10, height: 54 })
+      expect(drag('se', 150, 150, 104)).toBe(0)
+      expect(frame().rect.height).toBe(MIN_FRAME_EDGE_MM)
+    })
+
     it('does not snap a rotated frame', () => {
       stop()
       dom.pasteboard.remove()
