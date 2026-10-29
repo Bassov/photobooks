@@ -246,7 +246,7 @@ export function useChromeImport(options: {
       }
     }
     setPickerBusy(true)
-    let picked: Awaited<ReturnType<typeof pickFolderWithDirectoryPicker>> = null
+    let picked: Awaited<ReturnType<typeof pickFolderWithDirectoryPicker>>
     try {
       picked = await pickFolderWithDirectoryPicker()
     } finally {
