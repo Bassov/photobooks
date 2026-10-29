@@ -7,6 +7,7 @@ Title: form primitives in `src/ui/`
 ## Scope
 
 - [ ] NumberField with mm units and step / shift-step, TextField, Checkbox, Select, field groups; every state; specimen section and baselines
+- **Done when:** each primitive has unit tests for keyboard and value clamping; used by at least one shipped screen with no visual change (screenshot diff)
 - **Kit components:** none (no matching component); kit primitives: `uikit/src/components/ui/numberfield.tsx`, `uikit/src/components/ui/textfield.tsx`, `uikit/src/components/ui/checkbox.tsx`, `uikit/src/components/ui/select.tsx`
 - **Demo:** n/a (primitives; shown via `?specimen`)
 - **Musts:** every state in `?specimen`

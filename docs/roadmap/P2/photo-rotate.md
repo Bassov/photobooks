@@ -15,5 +15,5 @@ Title: rotate photos in frames
 - **Hard nos:** no rotate handle styles not in the kit
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
-- **Depends:** kit10-inspector, kit10-frame-selection
+- **Depends:** kit10-inspector-frame-spread, kit10-frame-selection
 - **UI kit:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); `PhotoRotateSection` (`uikit/src/sandbox/inspector.tsx`, mounted by `InspectorPart` via `ContextInspector`)

@@ -1,7 +1,7 @@
 # parent-overrides
 
 Tag: feature
-Milestone: P2
+Milestone: backlog (held 2026-10-30; target P2)
 Title: change one spread without touching the parent
 
 ## Scope
@@ -10,7 +10,7 @@ Title: change one spread without touching the parent
 - [ ] Overridden and hidden parent items marked in the inspector; the spread's own frames and guides add on top as usual
 - **Perf:** an override or reset re-renders only its spread; parent edits skip overridden copies. Gate: edit a parent used by 40 spreads where 10 override its logo — zero LoAF.
 - **Browser check:** override the parent logo on one spread and move it, hide a parent guide on another, then move the logo on the parent — every other spread follows, the overridden one keeps its position, the hidden guide stays hidden; Reset to parent restores both.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
+- **Kit-first:** yes. Held in `docs/backlog/` (Designer call B1, 2026-10-30) until its kit page lands; then the Owner re-adds it with `pnpm roadmap add <slug> --after <X>` and the Reviewer fills in Kit components / Demo / Musts.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`parent-overrides`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** override one spread

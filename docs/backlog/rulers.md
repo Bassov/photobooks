@@ -1,15 +1,15 @@
 # rulers
 
 Tag: feature
-Milestone: P2
+Milestone: backlog (held 2026-10-30; target P2)
 Title: mm rulers
 
 ## Scope
 
-- [ ] mm rulers following the camera
+- [ ] Restyle the shipped mm rulers (`src/editor/Rulers.tsx`, done in M4 `look-parity-rulers`) to the new kit page; rulers default **off** (**Owner-confirm**, Designer call M5/D1)
 - **Perf:** rulers drawn on a `<canvas>` per camera frame. Gate: pan / zoom with rulers visible — zero LoAF.
 - **Browser check:** pan and zoom; ruler ticks stay aligned with the spread.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
+- **Kit-first:** yes. Held in `docs/backlog/` (Designer call B1, 2026-10-30) until its kit page lands; then the Owner re-adds it with `pnpm roadmap add <slug> --after <X>` and the Reviewer fills in Kit components / Demo / Musts.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`rulers`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** mm rulers follow the camera

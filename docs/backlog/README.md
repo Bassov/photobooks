@@ -44,13 +44,33 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipel
 
 Kit pages removed in v0.10.0 with no replacement. Owner re-adds one with `pnpm roadmap add` after Designer adds its kit page.
 
-| Slug                                              | Title                     | Original milestone | Source                               |
-| ------------------------------------------------- | ------------------------- | ------------------ | ------------------------------------ |
-| [`jpeg-spreads-export`](jpeg-spreads-export.md)   | JPEG spreads              | M6                 | kit v0.10.0 removal, held 2026-10-30 |
-| [`cover-pdf`](cover-pdf.md)                       | cover PDF                 | M6                 | kit v0.10.0 removal, held 2026-10-30 |
-| [`preflight-panel`](preflight-panel.md)           | print warnings            | M6                 | kit v0.10.0 removal, held 2026-10-30 |
-| [`preflight-fixes`](preflight-fixes.md)           | fix from the panel        | M6                 | kit v0.10.0 removal, held 2026-10-30 |
-| [`print-overlays`](print-overlays.md)             | see print constraints     | M6                 | kit v0.10.0 removal, held 2026-10-30 |
-| [`pdf-captions`](pdf-captions.md)                 | text in the PDF           | M6                 | kit v0.10.0 removal, held 2026-10-30 |
-| [`print-package-report`](print-package-report.md) | what the print shop needs | M6                 | kit v0.10.0 removal, held 2026-10-30 |
-| [`manual-deploy`](manual-deploy.md)               | documented deploy path    | M7                 | kit v0.10.0 removal, held 2026-10-30 |
+| Slug                                            | Title                 | Original milestone | Source                                                                                   |
+| ----------------------------------------------- | --------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| [`jpeg-spreads-export`](jpeg-spreads-export.md) | JPEG spreads          | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+| [`cover-pdf`](cover-pdf.md)                     | cover PDF             | M6                 | held; P4 after `cover-editor` once Designer adds a Cover option to the Print dialog (D3) |
+| [`preflight-panel`](preflight-panel.md)         | print warnings        | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+| [`preflight-fixes`](preflight-fixes.md)         | fix from the panel    | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+| [`print-overlays`](print-overlays.md)           | see print constraints | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+
+Deleted 2026-10-30 (Designer call D3, **Owner-confirm**): `manual-deploy` (superseded by P3 `in-app-publish`) and `print-package-report` (no kit, low value). `pdf-captions` moved back to P4.
+
+## Held until a kit page exists (kit-first)
+
+Designer call B1 (2026-10-30). Re-add each with `pnpm roadmap add <slug> --after <X>` once its kit page lands.
+
+| Slug                                            | Title                                         | Target P | Depends                                |
+| ----------------------------------------------- | --------------------------------------------- | -------- | -------------------------------------- |
+| [`rulers`](rulers.md)                           | mm rulers                                     | P2       | kit10-canvas                           |
+| [`guides`](guides.md)                           | guides                                        | P2       | rulers                                 |
+| [`guides-precise`](guides-precise.md)           | exact guides                                  | P2       | guides                                 |
+| [`text-blocks`](text-blocks.md)                 | captions                                      | P2       | text-frame-model                       |
+| [`live-captions`](live-captions.md)             | captions from photo metadata                  | P2       | text-blocks                            |
+| [`parent-guides`](parent-guides.md)             | guides on parent spreads                      | P2       | guides, parent-spreads                 |
+| [`parent-overrides`](parent-overrides.md)       | change one spread without touching the parent | P2       | parent-spreads                         |
+| [`page-numbers`](page-numbers.md)               | page numbers                                  | P2       | text-frame-model, parent-spreads       |
+| [`kit2-undo-history`](kit2-undo-history.md)     | undo history UI                               | P2       | none (behavior shipped)                |
+| [`kit2-spread-menu`](kit2-spread-menu.md)       | spread reorder and spread menu                | P2       | none (behavior shipped)                |
+| [`kit2-missing-relink`](kit2-missing-relink.md) | missing-photo relink                          | P2       | none (behavior shipped)                |
+| [`dpi-badge`](dpi-badge.md)                     | resolution while you lay out                  | P2       | kit10-canvas                           |
+| [`connect-own-hosting`](connect-own-hosting.md) | bring your own hosting                        | P5       | publisher-targets, publish-credentials |
+| [`onboarding-others`](onboarding-others.md)     | first run for other users                     | P5       | kit10-library-books                    |

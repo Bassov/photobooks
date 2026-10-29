@@ -8,6 +8,7 @@ Title: deterministic site tree
 
 - [ ] Prerendered HTML via `react-dom/server`, viewer bundle, derivatives, manifest; deterministic output
 - [ ] Only published books, using their frozen revision
+- **Done when:** the same book twice yields a byte-identical site tree (snapshot); PBT green
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

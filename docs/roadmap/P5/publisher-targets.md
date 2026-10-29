@@ -8,6 +8,7 @@ Title: generalize publishing
 
 - [ ] `Publisher` interface with target capabilities; the M7 path becomes one target
 - [ ] Contract tests shared by all targets
+- **Done when:** publishing goes through a target interface with the current host as the only implementation; unit tests green
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

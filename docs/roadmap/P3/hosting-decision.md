@@ -8,6 +8,7 @@ Title: spike
 
 - [ ] Verify Workers static-asset limits/terms vs R2 public bucket + custom domain; browser CORS options
 - [ ] Record the decision in `docs/future-architecture.md`
+- **Done when:** decision recorded in `docs/future-architecture.md` with the chosen host, limits and cost
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

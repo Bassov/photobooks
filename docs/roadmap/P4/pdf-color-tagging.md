@@ -7,6 +7,7 @@ Title: keep photo colors
 ## Scope
 
 - [ ] Source ICC profile kept on image XObjects (sRGB tag when untagged); preflight warns on non-sRGB sources (Adobe RGB, Display P3) for sRGB profiles
+- **Done when:** photo colors survive into the PDF (embedded ICC / sRGB tag) on the color fixtures
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

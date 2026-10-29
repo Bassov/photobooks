@@ -1,7 +1,7 @@
 # layout-grids-schema
 
 Tag: prep
-Milestone: P1
+Milestone: P2
 Title: page layout grids in the document
 
 ## Scope
@@ -10,6 +10,7 @@ Title: page layout grids in the document
 - [ ] Pure `resolveLayoutGrid(book, spreadIndex)` → per-page content box, column and row rects (single first / last pages included), memoized by spread reference; inheritance chain book grid → spread override, written so a parent level can be inserted
 - [ ] Templates read margins and gutters from the resolved grid (geometry unchanged for symmetric margins); PBT: cells tile the content box, facing pages mirror
 - [ ] `docs/future-architecture.md` "Grids and guides" describes the page-scoped model
+- **Done when:** vN migrates every v(N-1) fixture; `resolveLayoutGrid` PBT (cells tile the content box, facing pages mirror) green; template geometry unchanged for symmetric margins
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

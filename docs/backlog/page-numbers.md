@@ -1,14 +1,14 @@
 # page-numbers
 
 Tag: feature
-Milestone: P2
+Milestone: backlog (held 2026-10-30; target P2)
 Title: page numbers
 
 ## Scope
 
 - [ ] Page-number item on parents (from `parent-spreads-schema`), derived from the spread's pages (left / right, start number, skip first, format)
 - **Browser check:** page numbers appear on every page, follow reordering, and skip the first page.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
+- **Kit-first:** yes. Held in `docs/backlog/` (Designer call B1, 2026-10-30) until its kit page lands; then the Owner re-adds it with `pnpm roadmap add <slug> --after <X>` and the Reviewer fills in Kit components / Demo / Musts.
 - **Kit components:** none, **kit-first**: Designer adds the kit page (`page-numbers`) before this item can be built; then the Reviewer fills in Kit components / Demo / Musts
 - **Demo:** none yet (kit-first)
 - **Musts:** page numbers on spreads

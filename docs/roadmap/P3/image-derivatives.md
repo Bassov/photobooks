@@ -9,6 +9,7 @@ Title: web image pipeline
 - [ ] Worker pool: resize presets from config, native JPEG / WebP encode, sRGB
 - [ ] Cache via `DerivedCache` by `(assetHash, presetId)`; benchmark
 - [ ] Derivative jobs at the lowest priority; scenario: edit with drag while derivatives encode — zero LoAF
+- **Done when:** derivatives for the fixture library are deterministic (same hash twice); worker scenario zero LoAF
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

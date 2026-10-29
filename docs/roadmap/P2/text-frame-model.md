@@ -7,6 +7,7 @@ Title: text in the document
 ## Scope
 
 - [ ] Schema version bump with migration: frame `kind` (image / text); text content (static or template); optional anchor to an image frame; built-in text style id; alignment; resolved text items
+- **Done when:** vN migrates every v(N-1) fixture; text frame parse / migrate PBT green
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

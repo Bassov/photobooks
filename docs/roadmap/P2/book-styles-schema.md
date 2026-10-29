@@ -8,6 +8,7 @@ Title: book-level styles in the document
 
 - [ ] Schema version bump with migration: frame styles (stroke, mat, corner radius, sRGB colors) and `frame.styleId?`; spread background color
 - [ ] Resolver applies styles to resolved items; PBT
+- **Done when:** vN migrates every v(N-1) fixture; parse / migrate PBT green
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

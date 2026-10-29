@@ -8,6 +8,7 @@ Title: AVIF derivatives (Security Review: dependency)
 
 - [ ] AVIF (multithreaded WASM, needs cross-origin isolation) + fallback where configured
 - [ ] Scenario: edit with drag while AVIF encodes — zero LoAF
+- **Done when:** AVIF derivatives decode in Chrome / Safari fixtures; encoder runs in a worker; Security Review passed
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

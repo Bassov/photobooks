@@ -7,6 +7,7 @@ Title: fonts for book content
 ## Scope
 
 - [ ] Curated book font set (woff2, Latin + Cyrillic) shipped as files later reused by the PDF painter; loading API with `document.fonts` readiness; metric tests
+- **Done when:** fonts load from the book folder, the same files embed in DOM and PDF; unit tests for the font registry
 - **Kit components:** none (prep, no UI)
 - **Demo:** n/a (prep)
 - **Musts:** see Scope

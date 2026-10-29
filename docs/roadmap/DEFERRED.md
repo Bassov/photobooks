@@ -13,3 +13,4 @@
 - Data merge (CSV / JSON → captions and order); scripting API over `BookOp`
 - IDML import; changing trim size with automatic layout rescale
 - Firefox smoke e2e (#50 item 8): a Firefox Playwright project running the specs that need no File System Access (home without a library, `?fixture=` editor views); revisit when the app gets a non-FSA storage path or at the M8 review cut
+- Not planned (**Owner-confirm**, Designer call M6 2026-10-30): photo Adjust (brightness / contrast / saturation, kit `AdjustSection`) and Flip H / V (kit `PhotoRotateSection`); hidden in the product inspector

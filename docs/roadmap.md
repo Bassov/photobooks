@@ -16,14 +16,17 @@ Owner priorities (2026-10-29), kit **v0.10.0**:
 4. **P4 — print.**
 5. **P5 — let other people make their own personal site** (kit-first).
 
-M3 and M4 below keep finished items until the owner archives them (M4 is fully done; M3 has one open rig item, `rig-pr-body-gate-removal`); all other open items moved into P1–P5. Items whose kit page was removed in v0.10 with no replacement and no current priority are held in `docs/backlog/`.
+M3 and M4 below keep finished items until the owner archives them (M4 is fully done; M3 is now fully done too: its open rig item `rig-pr-body-gate-removal` moved to the top of P1, Owner-confirm); all other open items moved into P1–P5. Items whose kit page was removed in v0.10 with no replacement, and kit-first items without a kit page yet (Designer call B1, 2026-10-30), are held in `docs/backlog/`; Owner re-adds them with `pnpm roadmap add` once their kit page lands.
 
 ## P1 — Align the editor to the kit (v0.10.0)
 
 **Review cut:** product screens look like kit v0.10.0 `#/demo`; stubs allowed, no fake controls. Done when: product screens match `#/demo` baseline steps 01–20, 23–26 and 39–49 by Designer review (21–22 land with P2 `parent-spreads`, 27–31 with P4 `pdf-export`, 32–38 with P3).
 
+- [ ] [prep] [rig-pr-body-gate-removal](roadmap/P1/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [ ] [prep] [ui-primitives-forms](roadmap/P1/ui-primitives-forms.md) — form primitives in `src/ui/`
-- [ ] [feature] [kit10-library](roadmap/P1/kit10-library.md) — Library and folder: kit v0.10 look (welcome, folder, your books)
+- [ ] [prep] [cover-endpaper-schema](roadmap/P1/cover-endpaper-schema.md) — cover and endpapers in the document
+- [ ] [feature] [kit10-library-folder](roadmap/P1/kit10-library-folder.md) — Welcome and library folder: kit v0.10 look
+- [ ] [feature] [kit10-library-books](roadmap/P1/kit10-library-books.md) — Your books grid: kit v0.10 look
 - [ ] [feature] [kit10-create-book](roadmap/P1/kit10-create-book.md) — Create book dialog: kit v0.10 look (title, page size, custom size)
 - [ ] [feature] [kit10-editor-chrome](roadmap/P1/kit10-editor-chrome.md) — Editor top bar and panels: kit v0.10 look
 - [ ] [feature] [kit10-filmstrip](roadmap/P1/kit10-filmstrip.md) — Photos dock and filmstrip: kit v0.10 look (Photos only)
@@ -32,42 +35,32 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [ ] [feature] [kit10-place-replace](roadmap/P1/kit10-place-replace.md) — Drag place and replace: kit v0.10 look
 - [ ] [feature] [kit10-frame-selection](roadmap/P1/kit10-frame-selection.md) — Frame selection and move: kit v0.10 look
 - [ ] [feature] [kit10-crop](roadmap/P1/kit10-crop.md) — Crop in frame: kit v0.10 look
-- [ ] [feature] [kit10-inspector](roadmap/P1/kit10-inspector.md) — Inspector frame / spread / book / endpaper: kit v0.10 look
-- [ ] [prep] [layout-grids-schema](roadmap/P1/layout-grids-schema.md) — page layout grids in the document
+- [ ] [feature] [kit10-inspector-frame-spread](roadmap/P1/kit10-inspector-frame-spread.md) — Inspector frame and spread: kit v0.10 look
+- [ ] [feature] [kit10-inspector-book-endpaper](roadmap/P1/kit10-inspector-book-endpaper.md) — Inspector book settings and endpaper: kit v0.10 look
 - [ ] [feature] [kit10-grid-snap](roadmap/P1/kit10-grid-snap.md) — Layout grid and snap: kit v0.10 look
 - [ ] [feature] [kit10-masters](roadmap/P1/kit10-masters.md) — Masters mode: kit v0.10 look
 - [ ] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
 - [ ] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
-- [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
+- [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages) — blocked: Owner go
 
 ## P2 — Missing features, iterative
 
-**Review cut:** features removed or held in kit v0.10 come back one by one; each is **kit-first** unless a kit page already covers it: Designer adds the kit page, then the Reviewer fills in the item contract. Owner and Designer decide the order.
+**Review cut:** features removed or held in kit v0.10 come back one by one; kit-first items are held in `docs/backlog/` until Designer adds the kit page; then the Owner re-adds them and the Reviewer fills in the item contract. Owner and Designer decide the order.
 
-- [ ] [feature] [rulers](roadmap/P2/rulers.md) — mm rulers
-- [ ] [feature] [guides](roadmap/P2/guides.md) — guides
-- [ ] [feature] [guides-precise](roadmap/P2/guides-precise.md) — exact guides
 - [ ] [feature] [photo-rotate](roadmap/P2/photo-rotate.md) — rotate photos in frames
 - [ ] [feature] [inspector](roadmap/P2/inspector.md) — numeric properties
 - [ ] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
 - [ ] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
 - [ ] [prep] [book-fonts](roadmap/P2/book-fonts.md) — fonts for book content
 - [ ] [prep] [text-frame-model](roadmap/P2/text-frame-model.md) — text in the document
-- [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
-- [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [ ] [prep] [book-styles-schema](roadmap/P2/book-styles-schema.md) — book-level styles in the document
 - [ ] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
+- [ ] [prep] [layout-grids-schema](roadmap/P2/layout-grids-schema.md) — page layout grids in the document
 - [ ] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
 - [ ] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
-- [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
-- [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
-- [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
+- [ ] [prep] [library-json-schema](roadmap/P2/library-json-schema.md) — `library.json` versioning
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
-- [ ] [feature] [kit2-undo-history](roadmap/P2/kit2-undo-history.md) — undo history UI (kit-first)
-- [ ] [feature] [kit2-spread-menu](roadmap/P2/kit2-spread-menu.md) — spread reorder and spread menu (kit-first)
-- [ ] [feature] [kit2-missing-relink](roadmap/P2/kit2-missing-relink.md) — missing-photo relink (kit-first)
-- [ ] [feature] [dpi-badge](roadmap/P2/dpi-badge.md) — resolution while you lay out
 
 ## P3 — Personal site
 
@@ -81,7 +74,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
 - [ ] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
 - [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
-- [ ] [feature] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
+- [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
 - [ ] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
 - [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
 - [ ] [feature] [in-app-publish](roadmap/P3/in-app-publish.md) — publish button (Security Review)
@@ -89,24 +82,24 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 
 ## P4 — Print
 
-**Review cut:** a print PDF from the `#/demo` Print dialog (imposition A5 → A4, duplex, bleed) and a cover with the right spine; exporting never freezes the editor.
+**Review cut:** a print PDF from the `#/demo` Print dialog (1 per sheet with a bleed checkbox; 2-up saddle-stitch and 4-up duplex with `booklet-imposition`) and a cover with the right spine; exporting never freezes the editor.
 
 - [ ] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
-- [ ] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data and preflight
+- [ ] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
+- [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
 - [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
 - [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
 - [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
+- [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
 - [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
 - [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
 - [ ] [feature] [cover-editor](roadmap/P4/cover-editor.md) — cover in the editor
 
 ## P5 — Others make their own personal site
 
-**Review cut:** someone else gets their own library and site. **Kit-first:** no kit pages yet; Designer drafts the flows (onboarding / account, own library + site, hosting / connect) before items are sliced.
+**Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` has a partial kit (Settings → Print presets). `onboarding-others` and `connect-own-hosting` are held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
-- [ ] [feature] [onboarding](roadmap/P5/onboarding.md) — first run
-- [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 
 ## M3 — Building a real book
@@ -117,7 +110,6 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [prep] [pr-body-free-form-tail](roadmap/M3/pr-body-free-form-tail.md) — Finish PR body free-form: docs and live-PR waiver in checks.yml
 - [x] [prep] [stryker-diff-scope](roadmap/M3/stryker-diff-scope.md) — Measure stryker-diff cost and survivors; Owner picks keep / exclude / C-session
 - [x] [prep] [stryker-c-session](roadmap/M3/stryker-c-session.md) — Stryker survivors move to a dedicated C-session (Owner option (c), #267)
-- [ ] [prep] [rig-pr-body-gate-removal](roadmap/M3/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [x] [prep] [fix-place-fit-aspect](roadmap/M3/fix-place-fit-aspect.md) — Fix placed photo aspect: no stretched portraits, cover crop in thumbs and canvas
 - [x] [lite] [fix-landscape-letterbox](roadmap/M3/fix-landscape-letterbox.md) — Fix landscape/panorama letterboxing in portrait frames: place and Fill use cover crop
 - [x] [feature] [ui-chrome-musts-recheck](roadmap/M3/ui-chrome-musts-recheck.md) — Chrome Musts: book covers, settings nav tone-only, quiet editor header

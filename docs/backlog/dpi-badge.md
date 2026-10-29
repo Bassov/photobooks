@@ -1,7 +1,7 @@
 # dpi-badge
 
 Tag: feature
-Milestone: P2
+Milestone: backlog (held 2026-10-30; target P2)
 Title: resolution while you lay out
 
 ## Scope
@@ -9,7 +9,7 @@ Title: resolution while you lay out
 - [ ] Badge on frames below the profile's warn / min DPI (book-editor defaults when no profile is chosen) on the editor overlay layer (editor-only, never in output)
 - **Perf:** DPI computed inside the memoized resolve per spread; one badge element per low frame; recomputed only for changed spreads. Gate: crop-zoom pan across the threshold — zero LoAF.
 - **Browser check:** zoom a low-DPI photo inside its frame — the badge appears at the book-editor default threshold (warn 200 / min 150 dpi until `print-profiles`) and clears when zoomed out; badges never appear in Preview or output.
-- **Kit-first:** yes. Not buildable until the kit page exists (Designer). `roadmap next` does NOT skip it automatically: pass `--skip <slug>` (or the Owner holds it) until the kit page lands.
+- **Kit-first:** yes. Held in `docs/backlog/` (Designer call B1, 2026-10-30) until its kit page lands; then the Owner re-adds it with `pnpm roadmap add <slug> --after <X>` and the Reviewer fills in Kit components / Demo / Musts.
 - **Kit components:** partial: Low-res chip on filmstrip thumbnails (`uikit/src/sandbox/chrome.tsx` `Filmstrip`, visible in `#/demo` 11–12); frame badge kit-first: Designer adds it before the frame part can be built
 - **Demo:** none yet (kit-first; Low-res chip in sandbox only)
 - **Musts:** low-resolution warning on frames
