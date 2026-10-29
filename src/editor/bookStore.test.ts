@@ -80,6 +80,19 @@ describe('bookStore', () => {
     })
   })
 
+  it('loads the painter fixture in a non-dev VITE_TEST_FIXTURES build', async () => {
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '1')
+    try {
+      loadPainterFixtureLazy()
+      await vi.waitFor(() => {
+        expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
+      })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('does not load the painter fixture in a deploy build', async () => {
     const before = getBookStoreSnapshot().book.id
     vi.stubEnv('DEV', false)
