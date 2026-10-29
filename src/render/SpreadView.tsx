@@ -17,6 +17,7 @@ export interface FrameControl {
   cropZoom?: number
   onDoubleActivate?: () => void
 }
+import { dropChipLabel } from './dropChip'
 import {
   frameBox,
   imageCropBox,
@@ -239,6 +240,9 @@ function SpreadFrame({
         data-testid={thumb ? undefined : 'spread-frame'}
         data-frame-id={thumb ? undefined : item.frameId}
         data-filled={item.assetId === undefined ? 'false' : 'true'}
+        data-drop-label={
+          thumb ? undefined : dropChipLabel(item.assetId !== undefined)
+        }
         data-asset-id={thumb ? undefined : item.assetId}
         style={style}
       >
@@ -253,6 +257,7 @@ function SpreadFrame({
       data-testid="spread-frame"
       data-frame-id={item.frameId}
       data-filled={item.assetId === undefined ? 'false' : 'true'}
+      data-drop-label={dropChipLabel(item.assetId !== undefined)}
       data-asset-id={item.assetId}
       data-crop-active={cropActive ? 'true' : undefined}
       data-locked={item.locked === true ? 'true' : undefined}

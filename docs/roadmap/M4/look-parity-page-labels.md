@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M4
 Title: look parity: canvas page labels and drop-target visuals
+Status: done
 
 ## Scope
 
