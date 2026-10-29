@@ -293,3 +293,25 @@ describe('snapPoint', () => {
     ).toEqual([])
   })
 })
+
+describe('query budget', () => {
+  it('stays well under a millisecond on a dense spread', () => {
+    const frames = Array.from({ length: 60 }, (_, i) => ({
+      x: (i % 10) * 40,
+      y: Math.floor(i / 10) * 45,
+      width: 35,
+      height: 40,
+    }))
+    const index = buildSnapIndex(frames, [], {
+      widthMm: 420,
+      heightMm: 297,
+      pageCount: 2,
+    })
+    const rounds = 2000
+    const t0 = performance.now()
+    for (let i = 0; i < rounds; i += 1) {
+      snapRect(index, { x: 100 + (i % 7), y: 98, width: 35, height: 40 }, OPTS)
+    }
+    expect((performance.now() - t0) / rounds).toBeLessThan(0.5)
+  })
+})
