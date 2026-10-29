@@ -99,6 +99,32 @@ export function resetCameraStore(): void {
   }
 }
 
+/** Pasteboard-side camera actions the top bar can invoke (viewport lives there). */
+export interface CameraCommands {
+  fitSpread: () => void
+  fitWidth: () => void
+  actualSize: () => void
+  /** Place (clamped, centred) an absolute zoom. */
+  zoomTo: (zoom: number) => void
+  /** Zoom at which the spread fits the pasteboard, `null` without a viewport. */
+  fitSpreadZoom: () => number | null
+}
+
+let commands: CameraCommands | null = null
+
+export function registerCameraCommands(next: CameraCommands): () => void {
+  commands = next
+  return () => {
+    if (commands === next) {
+      commands = null
+    }
+  }
+}
+
+export function getCameraCommands(): CameraCommands | null {
+  return commands
+}
+
 function emit(listeners: Set<Listener>): void {
   for (const listener of listeners) {
     listener()

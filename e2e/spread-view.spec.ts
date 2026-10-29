@@ -24,6 +24,7 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
 test.beforeEach(async ({ page }) => {
   await installPhotoDirectoryPickerStub(page)
@@ -39,7 +40,7 @@ test('editor chrome bars wrap without page scroll at 320px and 4K', async ({
   ] as const) {
     await page.setViewportSize(size)
     await expect(page.getByRole('toolbar', { name: 'Editor' })).toBeVisible()
-    await expect(page.getByRole('toolbar', { name: 'Camera' })).toBeVisible()
+    await expect(page.getByTestId('zoom-menu')).toBeVisible()
     await expect(
       page.getByRole('radiogroup', { name: 'Template for this spread' }),
     ).toBeVisible()
@@ -71,7 +72,10 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
   expect(box?.width ?? 0).toBeGreaterThan(40)
   expect(box?.height ?? 0).toBeGreaterThan(40)
   await expect(page.getByRole('region', { name: 'Spreads' })).toBeVisible()
-  await expect(page.getByTestId('zoom-indicator')).toHaveText('13%')
+  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+    'data-zoom-percent',
+    '13%',
+  )
   await assertDocumentFitsViewport(page)
 })
 
@@ -213,14 +217,17 @@ test('add spread keeps the fitted zoom and reveals the new spread', async ({
 }) => {
   await openSessionEditor(page)
   await fitSpreadUntilFilled(page)
-  const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
+  const fittedPercent = await readZoomPercent(page)
   const fitted = await readSpreadView(page, 0)
   expect(fitted).not.toBeNull()
   expect(fittedPercent).not.toBe('')
 
   await page.getByTestId('template-add-spread').click()
 
-  await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
+  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+    'data-zoom-percent',
+    fittedPercent,
+  )
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
     '4',
@@ -251,11 +258,14 @@ test('narrow fitted add spread keeps the new spread contained', async ({
   await openSessionEditor(page)
   await assertDocumentFitsViewport(page)
   await fitSpreadUntilFilled(page)
-  const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
+  const fittedPercent = await readZoomPercent(page)
 
   await page.getByTestId('template-add-spread').click()
 
-  await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
+  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+    'data-zoom-percent',
+    fittedPercent,
+  )
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
     '4',
@@ -282,11 +292,14 @@ test('mid-scroll fitted add spread keeps the new spread contained', async ({
     .poll(async () => scroll.evaluate((el) => el.scrollTop > 0))
     .toBe(true)
   await fitSpreadUntilFilled(page)
-  const fittedPercent = await page.getByTestId('zoom-indicator').innerText()
+  const fittedPercent = await readZoomPercent(page)
 
   await page.getByTestId('template-add-spread').click()
 
-  await expect(page.getByTestId('zoom-indicator')).toHaveText(fittedPercent)
+  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+    'data-zoom-percent',
+    fittedPercent,
+  )
   await expect(scroll).toHaveAttribute('data-spread-count', '4')
   await expect
     .poll(async () => spreadViewContained(page, 3), { timeout: 15_000 })
@@ -420,10 +433,16 @@ test('camera controls set physical size, fit width, and fit spread', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  await expect(page.getByTestId('zoom-indicator')).toHaveText('13%')
+  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+    'data-zoom-percent',
+    '13%',
+  )
 
-  await page.getByRole('button', { name: '100%' }).click()
-  await expect(page.getByTestId('zoom-indicator')).toHaveText('100%')
+  await chooseZoom(page, '100%')
+  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+    'data-zoom-percent',
+    '100%',
+  )
   const physical = await readSpreadSlots(page)
   expect(physical[0]?.widthPx).toBeCloseTo(300 * (96 / 25.4), 0)
   await assertDocumentFitsViewport(page)
@@ -431,7 +450,7 @@ test('camera controls set physical size, fit width, and fit spread', async ({
     axis: 'horizontal',
   })
 
-  await page.getByRole('button', { name: 'Fit width' }).click()
+  await chooseZoom(page, 'Fit width')
   const portWidth = await page
     .getByTestId('pasteboard-scroll')
     .evaluate((el) => el.clientWidth)
@@ -439,7 +458,7 @@ test('camera controls set physical size, fit width, and fit spread', async ({
   const activeWidth = fittedWidth.find((slot) => slot.active)
   expect(activeWidth?.widthPx).toBeCloseTo(portWidth, 0)
 
-  await page.getByRole('button', { name: 'Fit spread' }).click()
+  await chooseZoom(page, 'Fit spread')
   await expect
     .poll(async () => {
       const port = await page
@@ -462,7 +481,7 @@ test('wheel, keys, pinch, and space-drag stay inside the pasteboard', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  await page.getByRole('button', { name: '100%' }).click()
+  await chooseZoom(page, '100%')
   const beforeKey = await readCenterAnchor(page)
   await page.keyboard.press('+')
   expectAnchorHeld(beforeKey, await readCenterAnchor(page))
@@ -475,7 +494,7 @@ test('wheel, keys, pinch, and space-drag stay inside the pasteboard', async ({
   await dispatchPinch(page)
   expectAnchorHeld(beforePinch, await readCenterAnchor(page))
 
-  await page.getByRole('button', { name: '100%' }).click()
+  await chooseZoom(page, '100%')
   const scroll = page.getByTestId('pasteboard-scroll')
   await scroll.focus()
   const topBefore = await scroll.evaluate((el) => el.scrollTop)
@@ -504,7 +523,7 @@ test('space-drag pans after filmstrip tile focus (PB-04)', async ({ page }) => {
   const tile = page.getByTestId('filmstrip-item').first()
   await expect(tile).toBeVisible({ timeout: 30_000 })
 
-  await page.getByRole('button', { name: '100%' }).click()
+  await chooseZoom(page, '100%')
   await tile.click()
   await expect(tile).toHaveAttribute('aria-selected', 'true')
 
@@ -630,9 +649,7 @@ test.describe('frame-budget gates', () => {
 
     await dispatchCtrlWheel(page, -300, 28)
     await expect
-      .poll(async () =>
-        percentOf(await page.getByTestId('zoom-indicator').innerText()),
-      )
+      .poll(async () => percentOf(await readZoomPercent(page)))
       .toBeGreaterThanOrEqual(400)
     await expect.poll(async () => gestureLabel(page)).toBe('')
     await expect
@@ -660,9 +677,7 @@ test.describe('frame-budget gates', () => {
 
       await dispatchCtrlWheel(page, -300, 28)
       await expect
-        .poll(async () =>
-          percentOf(await page.getByTestId('zoom-indicator').innerText()),
-        )
+        .poll(async () => percentOf(await readZoomPercent(page)))
         .toBeGreaterThanOrEqual(400)
       await expect.poll(async () => gestureLabel(page)).toBe('')
       await expect
@@ -706,9 +721,7 @@ test.describe('frame-budget gates', () => {
       // Phase 1: continuous zoom-in gesture (exclude async preview decode waits).
       await dispatchCtrlWheel(page, -300, 28)
       await expect
-        .poll(async () =>
-          percentOf(await page.getByTestId('zoom-indicator').innerText()),
-        )
+        .poll(async () => percentOf(await readZoomPercent(page)))
         .toBeGreaterThanOrEqual(400)
       await expect
         .poll(async () =>
@@ -859,7 +872,7 @@ async function fitSpreadUntilFilled(page: Page): Promise<void> {
       await toggle.click()
     }
   }
-  await page.getByRole('button', { name: 'Fit spread' }).click()
+  await chooseZoom(page, 'Fit spread')
   await expect
     .poll(
       async () => {
@@ -898,8 +911,9 @@ async function fitSpreadUntilFilled(page: Page): Promise<void> {
       async () => {
         const key = await page.evaluate(() => {
           const zoom =
-            document.querySelector('[data-testid="zoom-indicator"]')
-              ?.textContent ?? ''
+            document
+              .querySelector('[data-testid="zoom-label"]')
+              ?.getAttribute('data-zoom-percent') ?? ''
           const scroll = document.querySelector(
             '[data-testid="pasteboard-scroll"]',
           )

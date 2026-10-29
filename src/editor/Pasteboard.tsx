@@ -10,12 +10,15 @@ import {
   type UIEvent,
 } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
-import { CameraBar } from './CameraBar'
 import {
   setActiveSpreadId,
   subscribeSpreadRevealRequest,
 } from './photoRootSession'
-import { getCommittedCamera, subscribeCommitted } from './cameraStore'
+import {
+  getCommittedCamera,
+  registerCameraCommands,
+  subscribeCommitted,
+} from './cameraStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { installGalleryDrop, type DropGeometry } from './galleryDrop'
 import { SpreadTemplateBar } from './SpreadTemplateBar'
@@ -346,6 +349,27 @@ export const Pasteboard = memo(function Pasteboard({
     committedEpoch: cameraFrame.epoch,
     holdScrollRef: reveal.holdCameraScrollRef,
   })
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+  useEffect(
+    () =>
+      registerCameraCommands({
+        fitSpread: () => {
+          cameraRef.current.fitSpread()
+        },
+        fitWidth: () => {
+          cameraRef.current.fitWidth()
+        },
+        actualSize: () => {
+          cameraRef.current.actualSize()
+        },
+        zoomTo: (zoom) => {
+          cameraRef.current.zoomTo(zoom)
+        },
+        fitSpreadZoom: () => cameraRef.current.fitSpreadZoom(),
+      }),
+    [],
+  )
 
   const onAddSpread = useCallback((): void => {
     const before = new Set(getSpreadIdsSnapshot())
@@ -453,11 +477,6 @@ export const Pasteboard = memo(function Pasteboard({
       <SpreadTemplateBar
         spreadId={markedId ?? null}
         onAddSpread={onAddSpread}
-      />
-      <CameraBar
-        onFitSpread={camera.fitSpread}
-        onFitWidth={camera.fitWidth}
-        onActualSize={camera.actualSize}
       />
       {chromeImport !== undefined ? (
         <PasteboardEmptyGuidance

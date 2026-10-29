@@ -3,16 +3,17 @@
 Tag: feature
 Milestone: M4
 Title: look parity: editor top bar and zoom menu as UI kit
+Status: done
 
 ## Scope
 
 Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake / disabled controls). Top bar and zoom menu as in `uikit/src/sandbox/chrome.tsx`.
 
-- [ ] Remove the disabled Preview / Export / Publish placeholders; restyle Present as the kit Preview pill (Eye, `h-8 rounded-full px-3`) wired to `onPresent`
-- [ ] Zoom control: − / menu button ("Fit" or "N%", ChevronDown at .5) / +; `w-48` menu with Fit spread (Ctrl+0), Fit width, 100%, 150%, 200%, 400%, separator, 50%; `MenuKeyboard` key hints in `src/ui/Menu`; all through the existing camera store
-- [ ] Delete the CameraBar strip (render, component, `.camera-bar` / `.zoom-indicator` CSS) and move its tests
-- [ ] Top bar layout: `h-12`, `px-3 gap-2`, chrome bg, no border-bottom, no wrap; order Library, Title, History (ml-2), centred `mx-auto` tools and view toggles, Zoom, Panels, Preview
-- [ ] Undo / Redo tooltips "Undo (Ctrl+Z)" / "Redo (...)"
+- [x] Remove the disabled Preview / Export / Publish placeholders; restyle Present as the kit Preview pill (Eye, `h-8 rounded-full px-3`) wired to `onPresent`
+- [x] Zoom control: − / menu button ("Fit" or "N%", ChevronDown at .5) / +; `w-48` menu with Fit spread (Ctrl+0), Fit width, 100%, 150%, 200%, 400%, separator, 50%; `MenuKeyboard` key hints in `src/ui/Menu`; all through the existing camera store
+- [x] Delete the CameraBar strip (render, component, `.camera-bar` / `.zoom-indicator` CSS) and move its tests
+- [x] Top bar layout: `h-12`, `px-3 gap-2`, chrome bg, no border-bottom, no wrap; order Library, Title, History (ml-2), centred `mx-auto` tools and view toggles, Zoom, Panels, Preview
+- [x] Undo / Redo tooltips "Undo (Ctrl+Z)" / "Redo (...)"
 
 **Done when:** the top bar matches the kit order and look, zoom is driven from the menu, CameraBar is gone, no placeholder buttons remain.
 **Browser check:** open the zoom menu, pick 200% (label "200%"), Fit spread (label "Fit"); Preview pill enters presentation.

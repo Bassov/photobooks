@@ -78,7 +78,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [lite] [look-parity-scrollbars](roadmap/M4/look-parity-scrollbars.md) — look parity: thin custom scrollbars (kit v5)
 - [x] [feature] [look-parity-rulers](roadmap/M4/look-parity-rulers.md) — look parity: mm rulers (kit look, no guides)
 - [x] [feature] [look-parity-page-labels](roadmap/M4/look-parity-page-labels.md) — look parity: canvas page labels and drop-target visuals
-- [ ] [feature] [topbar-kit-parity](roadmap/M4/topbar-kit-parity.md) — look parity: editor top bar and zoom menu as UI kit
+- [x] [feature] [topbar-kit-parity](roadmap/M4/topbar-kit-parity.md) — look parity: editor top bar and zoom menu as UI kit
 
 ## M4.5 — Text, styles and reuse (local editor complete)
 

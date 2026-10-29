@@ -20,9 +20,10 @@ test('kit editor chrome mounts pasteboard and filmstrip', async ({ page }) => {
   await page.getByTestId('toggle-r').click()
   await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
   await expect(page.getByTestId('inspector')).toBeVisible()
-  await expect(page.getByTestId('editor-preview')).toBeDisabled()
-  await expect(page.getByTestId('export')).toBeDisabled()
-  await expect(page.getByTestId('editor-publish')).toBeDisabled()
+  await expect(page.getByTestId('editor-preview')).toHaveCount(0)
+  await expect(page.getByTestId('export')).toHaveCount(0)
+  await expect(page.getByTestId('editor-publish')).toHaveCount(0)
+  await expect(page.getByTestId('camera-bar')).toHaveCount(0)
   await expect(page.getByTestId('spreads-list')).toHaveAttribute(
     'data-scrollport',
     'spreads-list',

@@ -27,11 +27,7 @@
 
 .editor-chrome {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--spacing) * 2) calc(var(--spacing) * 3.4);
-  padding: calc(var(--spacing) * 2.2) calc(var(--spacing) * 3);
-  border-bottom: 1px solid var(--border);
   background: var(--chrome);
   min-width: 0;
 }
@@ -139,13 +135,13 @@
 }
 
 /* prettier-ignore */
-.editor-top-bar .pb-button:focus-visible, .camera-bar .pb-button:focus-visible, .spread-template-add:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.editor-top-bar .pb-button:focus-visible, .spread-template-add:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
 /* prettier-ignore */
 .editor-top-bar .pb-button--default:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 90%, var(--foreground)); }
 /* prettier-ignore */
-.editor-top-bar .pb-button--secondary:hover:not(:disabled), .camera-bar .pb-button--secondary:hover:not(:disabled), .camera-bar .pb-button--ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--secondary) 80%, var(--muted)); }
+.editor-top-bar .pb-button--secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--secondary) 80%, var(--muted)); }
 /* prettier-ignore */
-.editor-top-bar .pb-button:disabled, .camera-bar .pb-button:disabled { color: var(--muted-foreground); background: var(--muted); border-color: var(--border); box-shadow: none; cursor: not-allowed; }
+.editor-top-bar .pb-button:disabled { color: var(--muted-foreground); background: var(--muted); border-color: var(--border); box-shadow: none; cursor: not-allowed; }
 
 .spread-template-bar {
   display: flex;
@@ -234,24 +230,6 @@
 
 .pasteboard-world[data-gesture='zoom'] .pasteboard-slot {
   content-visibility: visible;
-}
-
-.camera-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
-  padding: 0 calc(var(--spacing) * 3) calc(var(--spacing) * 1.8);
-  min-width: 0;
-  background: var(--chrome);
-}
-
-.zoom-indicator {
-  min-width: 3.25rem;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
 }
 
 .photo-file-input {

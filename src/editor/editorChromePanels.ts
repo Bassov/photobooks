@@ -1,3 +1,5 @@
+import { formatZoomPercent } from './camera'
+
 export interface EditorPanels {
   l: boolean
   b: boolean
@@ -67,10 +69,12 @@ export function mmToCm(mm: number): number {
   return mm / 10
 }
 
-export function zoomChromeLabel(zoom: number): string {
-  const pct = Math.round(zoom * 100)
-  if (pct === 100) return 'Fit'
-  return `${String(pct)}%`
+/** "Fit" while the spread fills the pasteboard, else the physical percent. */
+export function zoomChromeLabel(zoom: number, fitZoom: number | null): string {
+  if (fitZoom !== null && Math.abs(zoom - fitZoom) <= fitZoom * 0.005) {
+    return 'Fit'
+  }
+  return formatZoomPercent(zoom)
 }
 
 export function nextZoomOut(zoom: number): number {

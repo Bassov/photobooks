@@ -1,4 +1,6 @@
+import type { ComponentProps } from 'react'
 import {
+  Keyboard as AriaKeyboard,
   Menu as AriaMenu,
   MenuItem as AriaMenuItem,
   MenuTrigger as AriaMenuTrigger,
@@ -58,6 +60,17 @@ export function MenuItem({
       data-variant={variant}
       className={cx('pb-menu-item', className)}
     />
+  )
+}
+
+export function MenuKeyboard({
+  className,
+  ...props
+}: Omit<ComponentProps<typeof AriaKeyboard>, 'className'> & {
+  className?: string
+}) {
+  return (
+    <AriaKeyboard {...props} className={cx('pb-menu-keyboard', className)} />
   )
 }
 

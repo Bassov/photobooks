@@ -7,7 +7,7 @@ import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { formatZoomPercent } from './camera'
 import { commitZoom, resetCameraStore, setLiveZoom } from './cameraStore'
 import { resetBookStore } from './bookStore'
-import { Pasteboard } from './Pasteboard'
+import { PasteboardWithCameraBar as Pasteboard } from './testing/PasteboardWithCameraBar'
 
 const editorShellCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'EditorShell.css'),
@@ -30,7 +30,8 @@ describe('pasteboard camera', () => {
     expect(screen.getByRole('button', { name: 'Fit width' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '100%' })).toBeTruthy()
     expect(screen.getByTestId('zoom-indicator').textContent).toBe('13%')
-    expect(editorShellCss).toMatch(/\.camera-bar/)
+    expect(editorShellCss).not.toMatch(/\.camera-bar|\.zoom-indicator/)
+    expect(screen.queryByRole('toolbar', { name: 'Camera' })).toBeNull()
 
     const before = screen.getAllByTestId('pasteboard-slot').length
     act(() => {

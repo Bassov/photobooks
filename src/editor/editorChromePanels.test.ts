@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { formatZoomPercent } from './camera'
 import {
   bookSizeLine,
   DEFAULT_EDITOR_PANELS,
@@ -57,10 +58,11 @@ describe('editorChromePanels', () => {
     expect(pagesOf(3)).toBe(6)
     expect(pageLabel(0)).toBe('1')
     expect(pageLabel(2)).toBe('4–5')
-    expect(zoomChromeLabel(1)).toBe('Fit')
-    expect(zoomChromeLabel(0.995)).toBe('Fit')
-    expect(zoomChromeLabel(1.02)).toBe('102%')
-    expect(zoomChromeLabel(1.5)).toBe('150%')
+    expect(zoomChromeLabel(0.5, 0.5)).toBe('Fit')
+    expect(zoomChromeLabel(0.4985, 0.5)).toBe('Fit')
+    expect(zoomChromeLabel(0.5, null)).toBe(formatZoomPercent(0.5))
+    expect(zoomChromeLabel(0.52, 0.5)).toBe(formatZoomPercent(0.52))
+    expect(zoomChromeLabel(0.4, 0.5)).toBe(formatZoomPercent(0.4))
     expect(nextZoomOut(1)).toBe(0.8)
     expect(nextZoomOut(0.25)).toBe(0.25)
     expect(nextZoomIn(1)).toBe(1.25)

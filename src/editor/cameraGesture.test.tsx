@@ -6,7 +6,7 @@ import {
   isEditorGestureActive,
   resetEditorGestureForTests,
 } from './editorGesture'
-import { Pasteboard } from './Pasteboard'
+import { PasteboardWithCameraBar as Pasteboard } from './testing/PasteboardWithCameraBar'
 
 async function flushGesture(): Promise<void> {
   await act(async () => {
