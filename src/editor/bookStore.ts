@@ -2,6 +2,8 @@ import {
   addSpread,
   applyBookOp,
   CURRENT_SCHEMA_VERSION,
+  defaultCover,
+  defaultEndpapers,
   bookHasAnyPlacement,
   placementCountByAsset,
   resolveSpread,
@@ -73,6 +75,8 @@ function createSessionBook(): Book {
   const empty: Book = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     id: 'session-book',
+    cover: defaultCover(''),
+    endpapers: defaultEndpapers(),
     settings: {
       bleedMm: 3,
       safeMarginMm: 5,

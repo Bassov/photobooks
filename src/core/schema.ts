@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 4 as const
+export const CURRENT_SCHEMA_VERSION = 5 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -110,6 +110,30 @@ const spreadSchema = z.object({
   frames: z.array(frameSchema),
 })
 
+/** One cover panel (front / spine / back): optional photo plus text. */
+const coverPanelSchema = z.object({
+  assetId: nonEmptyString.optional(),
+  crop: cropSchema.optional(),
+  text: z.string(),
+})
+
+const coverSchema = z.object({
+  front: coverPanelSchema,
+  spine: coverPanelSchema,
+  back: coverPanelSchema,
+})
+
+/** One endpaper: optional photo only. */
+const endpaperSchema = z.object({
+  assetId: nonEmptyString.optional(),
+  crop: cropSchema.optional(),
+})
+
+const endpapersSchema = z.object({
+  front: endpaperSchema,
+  back: endpaperSchema,
+})
+
 const bookSettingsSchema = z.object({
   trim: z.object({
     widthMm: positiveMm,
@@ -124,6 +148,8 @@ export const bookSchema = z.object({
   id: nonEmptyString,
   title: z.string().optional(),
   settings: bookSettingsSchema,
+  cover: coverSchema,
+  endpapers: endpapersSchema,
   layoutGrid: layoutGridSchema,
   guides: z.array(guideSchema),
   assets: z.record(nonEmptyString, assetSchema),
@@ -147,4 +173,8 @@ export const bookSchema = z.object({
 export type Asset = z.infer<typeof assetSchema>
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
+export type CoverPanel = z.infer<typeof coverPanelSchema>
+export type Cover = z.infer<typeof coverSchema>
+export type Endpaper = z.infer<typeof endpaperSchema>
+export type Endpapers = z.infer<typeof endpapersSchema>
 export type Book = z.infer<typeof bookSchema>

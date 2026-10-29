@@ -1,4 +1,5 @@
 import { addToGallery } from '../ops/gallery'
+import { defaultCover, defaultEndpapers } from '../cover'
 import { placeAsset } from '../ops/place'
 import type { Book, Frame, Spread } from '../schema'
 import { CURRENT_SCHEMA_VERSION } from '../schema'
@@ -38,6 +39,8 @@ export function makeBook(overrides: BookOverrides = {}): Book {
     schemaVersion = CURRENT_SCHEMA_VERSION,
     id = 'book-1',
     title,
+    cover,
+    endpapers,
     guides = [],
     assets = {},
     gallery = [],
@@ -70,6 +73,8 @@ export function makeBook(overrides: BookOverrides = {}): Book {
     schemaVersion,
     id,
     ...(title === undefined ? {} : { title }),
+    cover: cover ?? defaultCover(title ?? ''),
+    endpapers: endpapers ?? defaultEndpapers(),
     settings,
     layoutGrid,
     guides,
