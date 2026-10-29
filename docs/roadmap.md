@@ -22,6 +22,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [prep] [stryker-diff-scope](roadmap/M3/stryker-diff-scope.md) — Measure stryker-diff cost and survivors; Owner picks keep / exclude / C-session
 - [ ] [prep] [rig-pr-body-gate-removal](roadmap/M3/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [x] [prep] [fix-place-fit-aspect](roadmap/M3/fix-place-fit-aspect.md) — Fix placed photo aspect: no stretched portraits, cover crop in thumbs and canvas
+- [x] [lite] [fix-landscape-letterbox](roadmap/M3/fix-landscape-letterbox.md) — Fix landscape/panorama letterboxing in portrait frames: place and Fill use cover crop
 - [x] [feature] [ui-chrome-musts-recheck](roadmap/M3/ui-chrome-musts-recheck.md) — Chrome Musts: book covers, settings nav tone-only, quiet editor header
 - [x] [feature] [ui-create-dialog-chrome-v93](roadmap/M3/ui-create-dialog-chrome-v93.md) — Create dialog chrome: centered+dim, Cancel+Create visible, field borders #D7D7D7
 - [x] [feature] [ui-settings-chrome-v93](roadmap/M3/ui-settings-chrome-v93.md) — Settings chrome: tone-only nav, gray folder access, Preview cache

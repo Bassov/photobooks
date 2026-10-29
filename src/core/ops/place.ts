@@ -1,6 +1,20 @@
 import type { Book, Frame } from '../schema'
 import { updateFrame } from '../update'
 
+/**
+ * Put a new photo in a frame: cover crop (zoom 1, centered) and fill. A `fit`
+ * left over from the previous photo is dropped so Fit stays opt-in.
+ */
+export function withPlacedAsset(frame: Frame, assetId: string): Frame {
+  const next: Frame = {
+    ...frame,
+    assetId,
+    crop: { zoom: 1, center: { x: 0.5, y: 0.5 } },
+  }
+  delete next.fit
+  return next
+}
+
 export function placeAsset(
   book: Book,
   spreadId: string,
@@ -14,11 +28,7 @@ export function placeAsset(
     if (frame.assetId !== undefined) {
       return frame
     }
-    return {
-      ...frame,
-      assetId,
-      crop: { zoom: 1, center: { x: 0.5, y: 0.5 } },
-    }
+    return withPlacedAsset(frame, assetId)
   })
 }
 
@@ -35,11 +45,7 @@ export function replaceAsset(
     if (frame.assetId === assetId) {
       return frame
     }
-    return {
-      ...frame,
-      assetId,
-      crop: { zoom: 1, center: { x: 0.5, y: 0.5 } },
-    }
+    return withPlacedAsset(frame, assetId)
   })
 }
 

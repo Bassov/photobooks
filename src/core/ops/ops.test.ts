@@ -15,6 +15,7 @@ import {
   removeManyFromGallery,
   removeSpread,
   replaceAsset,
+  setFit,
   resolveAddSpreadTemplateId,
   swapFrames,
   TEMPLATE_IDS,
@@ -188,6 +189,29 @@ describe('placement ops', () => {
       zoom: 1,
       center: { x: 0.5, y: 0.5 },
     })
+  })
+
+  it('replace and place drop a leftover fit so the new photo fills', () => {
+    const fitted = setFit(
+      addToGallery(makeBookWithAsset('a'), ['b']),
+      'spread-1',
+      'frame-1',
+      'fit',
+    )
+    const replaced = replaceAsset(fitted, 'spread-1', 'frame-1', 'b')
+    expect(replaced.spreads[0]?.frames[0]).not.toHaveProperty('fit')
+    const emptied = unplaceAsset(fitted, 'spread-1', 'frame-1')
+    const base = {
+      ...emptied,
+      spreads: [
+        {
+          ...emptied.spreads[0],
+          frames: [{ ...emptied.spreads[0]?.frames[0], fit: 'fit' }],
+        },
+      ],
+    } as unknown as typeof emptied
+    const placed = placeAsset(base, 'spread-1', 'frame-1', 'a')
+    expect(placed.spreads[0]?.frames[0]).not.toHaveProperty('fit')
   })
 
   it('replace same asset is a no-op', () => {
