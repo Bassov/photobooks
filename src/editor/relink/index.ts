@@ -12,7 +12,6 @@ export {
   problemRevisionFromIds,
 } from './hatch'
 export {
-  acceptModifiedAsset,
   clearPendingRelinkMatches,
   getPendingRelinkMatches,
   locateMissingAsset,

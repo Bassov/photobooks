@@ -17,6 +17,7 @@ import {
   setActiveSpreadId,
 } from './photoRootSession'
 import { SpreadsPanel } from './SpreadsPanel'
+import { spreadsRowPx } from './spreadsPanel.test-helpers'
 
 describe('SpreadsPanel', () => {
   afterEach(() => {
@@ -155,7 +156,9 @@ describe('SpreadsPanel reorder', () => {
   const item = (id: string | undefined) =>
     screen.getByTestId(`spread-list-item-${id ?? ''}`)
 
-  /** The fixed-stride row that carries the drag shift; pitch is 104px. */
+  /** The fixed-stride row that carries the drag shift; pitch is the kit row stride. */
+  const shift = (rows: number): string =>
+    `translateY(${String(Number((rows * spreadsRowPx()).toFixed(2)))}px)`
   const row = (id: string | undefined): HTMLElement =>
     item(id).parentElement ?? item(id)
 
@@ -209,18 +212,18 @@ describe('SpreadsPanel reorder', () => {
     const list = screen.getByTestId('spreads-list')
     expect(fireDrag('dragOver', list, dt, 10)).toBe(false)
     expect(dt.dropEffect).toBe('move')
-    expect(row(a).style.transform).toBe('translateY(104px)')
-    expect(row(b).style.transform).toBe('translateY(104px)')
+    expect(row(a).style.transform).toBe(shift(1))
+    expect(row(b).style.transform).toBe(shift(1))
     expect(row(c).style.transform).toBe('translateY(0px)')
     expect(screen.getByTestId('spread-drop-line').style.transform).toBe(
       'translateY(0px)',
     )
 
-    fireDrag('dragOver', list, dt, 90)
+    fireDrag('dragOver', list, dt, spreadsRowPx() * 0.9)
     expect(row(a).style.transform).toBe('translateY(0px)')
-    expect(row(b).style.transform).toBe('translateY(104px)')
+    expect(row(b).style.transform).toBe(shift(1))
     expect(screen.getByTestId('spread-drop-line').style.transform).toBe(
-      'translateY(104px)',
+      shift(1),
     )
 
     expect(fireDrag('drop', list, dt)).toBe(false)
@@ -235,11 +238,17 @@ describe('SpreadsPanel reorder', () => {
     render(<SpreadsPanel />)
     const dt = transfer()
     fireDrag('dragStart', item(a), dt)
-    fireDrag('dragOver', screen.getByTestId('spreads-list'), dt, 290)
-    expect(screen.getByTestId('spread-drop-line').style.transform).toBe(
-      'translateY(312px)',
+    fireDrag(
+      'dragOver',
+      screen.getByTestId('spreads-list'),
+      dt,
+      spreadsRowPx() * 2.8,
     )
-    expect(row(c).style.transform).toBe('translateY(-104px)')
+    const lineY = /translateY\((.+)px\)/.exec(
+      screen.getByTestId('spread-drop-line').style.transform,
+    )?.[1]
+    expect(Number(lineY)).toBeCloseTo(3 * spreadsRowPx(), 2)
+    expect(row(c).style.transform).toBe(shift(-1))
   })
 
   it('adds the list scroll offset to the pointer position', () => {

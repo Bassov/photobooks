@@ -11,7 +11,7 @@ test('left panel resizes by keyboard, persists across reload, collapses on Enter
   await openSessionEditor(page)
   const panel = page.getByTestId('panel-l')
   const before = (await panel.boundingBox())?.width ?? 0
-  expect(Math.round(before)).toBe(212)
+  expect(Math.round(before)).toBe(188)
 
   const splitter = page.getByTestId('resize-left')
   await splitter.focus()
@@ -19,7 +19,7 @@ test('left panel resizes by keyboard, persists across reload, collapses on Enter
   await page.keyboard.press('Shift+ArrowRight')
   await expect
     .poll(async () => Math.round((await panel.boundingBox())?.width ?? 0))
-    .toBe(252)
+    .toBe(228)
   await assertDocumentFitsViewport(page)
 
   await page.reload()
@@ -28,7 +28,7 @@ test('left panel resizes by keyboard, persists across reload, collapses on Enter
     .poll(async () =>
       Math.round((await page.getByTestId('panel-l').boundingBox())?.width ?? 0),
     )
-    .toBe(252)
+    .toBe(228)
 
   await page.getByTestId('resize-left').focus()
   await page.keyboard.press('Enter')
@@ -72,7 +72,7 @@ test('both panels at max keep the page fit; spreads-list stays the scrollport', 
   await page.getByTestId('toggle-r').click()
 
   await page.getByTestId('resize-left').focus()
-  for (let i = 0; i < 5; i += 1) await page.keyboard.press('Shift+ArrowRight')
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('Shift+ArrowRight')
   await page.getByTestId('resize-right').focus()
   for (let i = 0; i < 3; i += 1) await page.keyboard.press('Shift+ArrowLeft')
 
@@ -96,10 +96,10 @@ test('specimen panels demo resizes, collapses and expands', async ({
   const splitter = demo.getByTestId('resize-left')
   await splitter.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(splitter).toHaveAttribute('aria-valuenow', '220')
+  await expect(splitter).toHaveAttribute('aria-valuenow', '196')
   await expect(demo.locator('.specimen-panels-pane')).toHaveCSS(
     'width',
-    '220px',
+    '196px',
   )
 
   await demo.getByTestId('panel-collapse-left').click()

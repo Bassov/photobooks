@@ -1,11 +1,51 @@
+import { PANEL_DEFAULTS } from '../ui/panelSize'
 import { pasteboardWindow, type PasteboardWindow } from './pasteboardWindow'
 import { requestSpreadReveal } from './photoRootSession'
 
-/** Thumbnail box height; also exposed as the `--spreads-thumb-h` CSS variable. */
-export const SPREADS_THUMB_HEIGHT_PX = 64
-/** Fixed row stride (thumb + label + gap) so the list can be windowed. */
-export const SPREADS_ROW_PX = 104
 const OVERSCAN_ROWS = 3
+
+/** Kit thumb box never gets narrower than this spread aspect (kit `chrome.tsx` ThumbGrid). */
+const THUMB_MIN_ASPECT = 1.6
+/** List `pl-3 pr-1` plus row `p-2` on both sides. */
+const LIST_INSET_X_PX = 12 + 4 + 16
+/** Row `p-2` top and bottom, label `mt-1.5` and the `mb-1` gap between rows. */
+const ROW_CHROME_Y_PX = 16 + 6 + 4
+/** Label line: `text-2xs` (11px) at line-height 1.35. */
+const LABEL_LINE_PX = 11 * 1.35
+
+export interface SpreadsRowGeometry {
+  /** Paper size inside the thumb box (real spread aspect). */
+  thumbWidthPx: number
+  thumbHeightPx: number
+  /** Thumb box height (the paper is centred in it). */
+  boxHeightPx: number
+  /** Fixed row stride (row + gap) so the list can be windowed. */
+  rowPx: number
+}
+
+/**
+ * Kit row sizing for a list `listWidthPx` wide (scrollport client width) and a
+ * spread of `aspect` = width / height. A non-positive width (unmeasured)
+ * falls back to `fallbackWidthPx`.
+ */
+export function spreadsRowGeometry(
+  listWidthPx: number,
+  aspect: number,
+  fallbackWidthPx = PANEL_DEFAULTS.left,
+): SpreadsRowGeometry {
+  const list = listWidthPx > 0 ? listWidthPx : fallbackWidthPx
+  const boxWidthPx = Math.max(0, list - LIST_INSET_X_PX)
+  const boxAspect = Math.max(aspect, THUMB_MIN_ASPECT)
+  const boxHeightPx = boxWidthPx / boxAspect
+  // Fills the box width from 1.6:1 up; narrower spreads centre inside the box.
+  const thumbWidthPx = boxHeightPx * aspect
+  return {
+    thumbWidthPx,
+    thumbHeightPx: thumbWidthPx / aspect,
+    boxHeightPx,
+    rowPx: boxHeightPx + LABEL_LINE_PX + ROW_CHROME_Y_PX,
+  }
+}
 
 export function scrollPasteboardToSpread(spreadId: string): void {
   requestSpreadReveal(spreadId)
@@ -39,13 +79,14 @@ export function spreadsListWindow(
   count: number,
   scrollTop: number,
   viewportPx: number,
+  rowPx: number,
 ): PasteboardWindow {
   return pasteboardWindow({
     count,
-    stridePx: SPREADS_ROW_PX,
+    stridePx: rowPx,
     scrollTop,
     viewportPx,
-    overscanPx: OVERSCAN_ROWS * SPREADS_ROW_PX,
+    overscanPx: OVERSCAN_ROWS * rowPx,
   })
 }
 
@@ -54,13 +95,14 @@ export function scrollTopToReveal(
   index: number,
   scrollTop: number,
   viewportPx: number,
+  rowPx: number,
 ): number | null {
   // -1: no selection (empty list) — nothing to reveal.
   if (index < 0) {
     return null
   }
-  const top = index * SPREADS_ROW_PX
-  const bottom = top + SPREADS_ROW_PX
+  const top = index * rowPx
+  const bottom = top + rowPx
   if (top < scrollTop) {
     return top
   }
