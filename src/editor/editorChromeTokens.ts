@@ -6,11 +6,15 @@ const ON_INK = '#F2F2F2'
 export const BAR = '#E1E1E1'
 export const FIELD = '#D7D7D7'
 const SEL = '#CACACA'
+/** Owner 2026-10-29: toggle on / off fills and the swatch selection ring (2px, 2px offset). */
+export const TOGGLE_ON = '#A8A8A8'
+export const TOGGLE_OFF = '#CACACA'
+export const SWATCH_RING = '#8E8E8E'
 
 export { fmtN, mmToCm, pageLabel, pagesOf } from './editorChromePanels'
 
 export const EDITOR_CHROME_CSS = `
-.e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10) }
+.e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10); --toggle-on: ${TOGGLE_ON}; --toggle-off: ${TOGGLE_OFF}; --swatch-ring: ${SWATCH_RING} }
 .snap-label { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 9999px; background: ${FIELD}; color: ${T}; font-size: 11px; white-space: nowrap }
 .frame-draft { position: absolute; z-index: 5000; pointer-events: none; outline: 1.5px dashed ${SUB}; outline-offset: -1px; background: rgb(83 81 82 / .08) }
 .snap-line { position: absolute; z-index: 5001; pointer-events: none; background: ${T} }

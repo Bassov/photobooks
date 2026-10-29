@@ -32,6 +32,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.grid-eye {
+  background: var(--toggle-off);
+}
+
 .grid-eye[aria-pressed='true'] {
-  background: var(--field);
+  background: var(--toggle-on);
 }

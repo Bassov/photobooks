@@ -74,6 +74,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [ ] [feature] [arrange-lock](roadmap/M4/arrange-lock.md) — stacking and locking
 - [ ] [feature] [multi-select](roadmap/M4/multi-select.md) — group operations
 - [x] [feature] [inspector-frame-sections](roadmap/M4/inspector-frame-sections.md) — look parity: inspector Frame tab sections (Geometry / Arrange / Align / Delete)
+- [x] [feature] [inspector-spread-book](roadmap/M4/inspector-spread-book.md) — look parity: inspector Spread and Book tab sections (Layout / Layout grid; Book settings + grid)
 - [x] [lite] [look-parity-scrollbars](roadmap/M4/look-parity-scrollbars.md) — look parity: thin custom scrollbars (kit v5)
 
 ## M4.5 — Text, styles and reuse (local editor complete)
