@@ -32,6 +32,14 @@
   pointer-events: none;
 }
 
+/* Empty: invisible but still rendered, so the live region keeps announcing. */
+.editor-status-pill.pb-status:empty {
+  display: block;
+  visibility: hidden;
+  padding: 0;
+  box-shadow: none;
+}
+
 .editor-chrome {
   display: flex;
   align-items: center;

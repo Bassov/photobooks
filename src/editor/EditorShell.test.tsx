@@ -285,6 +285,10 @@ describe('EditorShell viewport containment', () => {
     expect(editorShellCss).toMatch(
       /\.editor-status-pill\s*\{[^}]*pointer-events:\s*none/s,
     )
+    // Empty hides visually but stays rendered so the live region announces.
+    expect(editorShellCss).toMatch(
+      /\.editor-status-pill\.pb-status:empty\s*\{[^}]*visibility:\s*hidden/s,
+    )
 
     act(() => {
       setEditorStatus('Book saved')
