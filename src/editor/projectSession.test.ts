@@ -726,24 +726,31 @@ describe('projectSession', () => {
     ).toBeTypeOf('function')
   })
 
-  it('shouldExposeProjectSessionTestApi is true in DEV and VITE_E2E only', async () => {
-    const { shouldExposeProjectSessionTestApi } =
-      await import('./projectSession')
-    expect(shouldExposeProjectSessionTestApi({ DEV: true })).toBe(true)
-    expect(
-      shouldExposeProjectSessionTestApi({ DEV: false, VITE_E2E: '1' }),
-    ).toBe(true)
-    expect(
-      shouldExposeProjectSessionTestApi({ DEV: false, VITE_E2E: 'true' }),
-    ).toBe(true)
-    expect(shouldExposeProjectSessionTestApi({ DEV: false })).toBe(false)
+  it('attachOpfsTestLibrary is a no-op in a deploy build', async () => {
+    const { attachOpfsTestLibrary } = await import('./projectSession')
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '')
+    try {
+      expect(await attachOpfsTestLibrary()).toEqual({
+        ok: false,
+        code: 'not-found',
+      })
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
-  it('does not attach thumbs or project test APIs when the gate is off', () => {
+  it('does not attach thumbs or project test APIs in a deploy build', () => {
     const bare = {} as Window
-    exposeProjectSessionTestApi({ DEV: false }, bare)
-    expect(bare.__photobooksProject).toBeUndefined()
-    expect(bare.__photobooksThumbs).toBeUndefined()
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '')
+    try {
+      exposeProjectSessionTestApi(bare)
+      expect(bare.__photobooksProject).toBeUndefined()
+      expect(bare.__photobooksThumbs).toBeUndefined()
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('restored identity-keyed assets hydrate thumbs from DerivedCache', async () => {
@@ -1976,7 +1983,7 @@ describe('projectSession', () => {
       ok: false,
       code: 'not-found',
     })
-    exposeProjectSessionTestApi({ DEV: true }, undefined)
+    exposeProjectSessionTestApi(undefined)
 
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)

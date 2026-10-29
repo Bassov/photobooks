@@ -44,11 +44,7 @@ import { isClearFolderSkipPath } from '../photo/pickPhotos'
 import { getVisibleAssetIds } from '../photo/assetPool'
 import { getGalleryRelativePathIndex, setImportRunning } from './bookStore'
 import { yieldForPaint } from './relink/yieldForPaint'
-
-function isE2eBuild(): boolean {
-  const env = import.meta.env as { VITE_E2E?: string }
-  return env.VITE_E2E === '1' || env.VITE_E2E === 'true'
-}
+import { TEST_FIXTURES_FLAG } from '../lib/testFixturesBuild'
 
 /** Folder non-image skips → editor status line (never toast). */
 export function folderSkippedStatusText(skipped: number): string {
@@ -300,7 +296,7 @@ export function useChromeImport(options: {
 
   // E2E-only: plain multi-file input (not webkitdirectory) so Playwright can
   // setInputFiles(paths). Still runs the same bind+import folder path.
-  const e2eInputs = isE2eBuild() ? (
+  const e2eInputs = TEST_FIXTURES_FLAG ? (
     <input
       id={e2eFolderInputId}
       ref={e2eFolderInputRef}

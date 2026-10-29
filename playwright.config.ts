@@ -93,13 +93,15 @@ export default defineConfig({
   },
   projects: flakyProject ? [chromiumProject, flakyProject] : [chromiumProject],
   webServer: {
-    // VITE_E2E exposes `__photobooksProject` in the production preview build.
+    // VITE_TEST_FIXTURES=1 compiles in `?fixture=painter`, `?testLibrary` and
+    // `__photobooksProject` (the deploy build has none of them). `pnpm perf`
+    // runs through this same webServer build.
     // E2E_PORT isolates parallel worktree agents; never reuse another cwd's server.
     // VITE_COVERAGE=1 is set only here (not production/preview/LHCI). Opt out with
     // E2E_COVERAGE=0 when LoAF frame-budget assertions must run on a clean build.
     command: e2eCoverage
-      ? `rm -rf .nyc_output coverage-e2e && VITE_COVERAGE=1 VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`
-      : `VITE_E2E=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`,
+      ? `rm -rf .nyc_output coverage-e2e && VITE_COVERAGE=1 VITE_TEST_FIXTURES=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`
+      : `VITE_TEST_FIXTURES=1 pnpm build && pnpm preview --host 127.0.0.1 --port ${e2ePort}`,
     url: e2eOrigin,
     reuseExistingServer: false,
     timeout: 180_000,

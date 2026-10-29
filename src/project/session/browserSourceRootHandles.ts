@@ -1,3 +1,4 @@
+import { TEST_FIXTURES_FLAG } from '../../lib/testFixturesBuild'
 import type { StorageFailure, StorageResult } from '../types'
 import {
   createBookPhotoRootIdb,
@@ -75,11 +76,6 @@ function resolveBookPhotoRootIdb(
 /** Playwright directory-picker doubles are not structured-cloneable into IDB. */
 const e2eSourceRootMemory = new Map<string, SessionDirectoryHandle>()
 
-function viteE2eEnabled(): boolean {
-  const env = import.meta.env as { VITE_E2E?: string }
-  return env.VITE_E2E === '1' || env.VITE_E2E === 'true'
-}
-
 async function readStoredHandle(
   idb: SessionIdb,
   sourceRootId: string,
@@ -87,7 +83,7 @@ async function readStoredHandle(
   if (sourceRootId === '') {
     return failure('not-found')
   }
-  if (viteE2eEnabled()) {
+  if (TEST_FIXTURES_FLAG) {
     const memory = e2eSourceRootMemory.get(sourceRootId)
     if (memory !== undefined) {
       return success(memory)
@@ -116,14 +112,14 @@ export async function rememberSourceRootHandle(
     await idb.set(sourceRootId, handle)
     // Keep a live handle in e2e: Playwright picker doubles are often
     // structured-cloneable into IDB but lose methods on round-trip.
-    if (viteE2eEnabled()) {
+    if (TEST_FIXTURES_FLAG) {
       e2eSourceRootMemory.set(sourceRootId, handle)
     } else {
       e2eSourceRootMemory.delete(sourceRootId)
     }
     return success(undefined)
   } catch {
-    if (viteE2eEnabled()) {
+    if (TEST_FIXTURES_FLAG) {
       e2eSourceRootMemory.set(sourceRootId, handle)
       return success(undefined)
     }

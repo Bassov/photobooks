@@ -191,7 +191,7 @@ export async function queuePhotoDirectoryPicker(
 
 /**
  * Import a photo folder in e2e.
- * Prefer the VITE_E2E `e2e-photo-folder-input` seam (setInputFiles) for bulk
+ * Prefer the VITE_TEST_FIXTURES `e2e-photo-folder-input` seam (setInputFiles) for bulk
  * and happy-path imports — avoids base64 stub walks that trip LoAF gates.
  * Use `via: 'picker'` when the test needs the showDirectoryPicker double
  * (abort, permission, pasteboard button).

@@ -1200,6 +1200,9 @@ async function opfsTestLibraryHandle(
 export async function attachOpfsTestLibrary(
   folderName?: string,
 ): Promise<StorageResult<void>> {
+  if (!(import.meta.env.DEV || import.meta.env.VITE_TEST_FIXTURES === '1')) {
+    return { ok: false, code: 'not-found' }
+  }
   const dir = await opfsTestLibraryHandle(folderName)
   if (!dir) {
     return { ok: false, code: 'not-found' }
@@ -1331,29 +1334,16 @@ async function seedHomeRecentsForTests(count: number): Promise<void> {
   emit()
 }
 
-export interface ProjectSessionTestEnv {
-  DEV?: boolean
-  VITE_E2E?: string
-}
-
-/** Pure gate shared by `__photobooksProject` and `__photobooksThumbs`. */
-export function shouldExposeProjectSessionTestApi(
-  env: ProjectSessionTestEnv = import.meta.env,
-): boolean {
-  if (env.DEV) {
-    return true
-  }
-  return env.VITE_E2E === '1' || env.VITE_E2E === 'true'
-}
-
+/** Compile-time gated: dead-code eliminated from the deploy build. */
 export function exposeProjectSessionTestApi(
-  env: ProjectSessionTestEnv = import.meta.env,
   win: Window | undefined = typeof window !== 'undefined' ? window : undefined,
 ): void {
-  if (win === undefined) {
+  // Literal `import.meta.env` check: Rollup folds it before tree-shaking
+  // (an imported constant is only folded by the minifier, too late).
+  if (!(import.meta.env.DEV || import.meta.env.VITE_TEST_FIXTURES === '1')) {
     return
   }
-  if (!shouldExposeProjectSessionTestApi(env)) {
+  if (win === undefined) {
     return
   }
   win.__photobooksThumbs = { clearThumbsAndDerivedCacheForTests }
