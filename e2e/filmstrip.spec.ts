@@ -150,7 +150,7 @@ test('imports PNG into the filmstrip via directory picker', async ({
   await expect(page.getByTestId('filmstrip-thumb')).toBeVisible({
     timeout: 30_000,
   })
-  await expect(page.getByTestId('filmstrip-count')).toContainText('1 photo')
+  await expect(page.getByTestId('film-head')).toContainText('Photos · 1 ·')
 })
 
 test('list-first folder pick shows gallery placeholders before all thumbs', async ({
@@ -176,12 +176,9 @@ test('list-first folder pick shows gallery placeholders before all thumbs', asyn
     })
     await pickPhotoFolder(page, files, { via: 'picker' })
     await sawListFirst
-    await expect(page.getByTestId('filmstrip-count')).toContainText(
-      '48 photos',
-      {
-        timeout: 60_000,
-      },
-    )
+    await expect(page.getByTestId('film-head')).toContainText('Photos · 48 ·', {
+      timeout: 60_000,
+    })
   } finally {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
   }
@@ -203,7 +200,7 @@ test('portrait and landscape cards differ; thumbs use cover', async ({
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
     timeout: 30_000,
   })
-  await expect(page.getByTestId('filmstrip-count')).toContainText('2 photos')
+  await expect(page.getByTestId('film-head')).toContainText('Photos · 2 ·')
 
   const land = page.locator(
     '[data-testid="filmstrip-item"][data-orientation="landscape"]',

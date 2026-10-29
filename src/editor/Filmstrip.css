@@ -1,9 +1,8 @@
 .filmstrip {
-  border-top: 1px solid var(--border);
+  /* Kit dock: the row sits directly under the header (p-1 around the strip). */
+  position: relative;
   background: var(--chrome);
-  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3)
-    calc(var(--spacing) * 3);
-  min-height: 8rem;
+  padding: 0;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -14,8 +13,8 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
-  margin: 0 0 calc(var(--spacing) * 1.4);
-  min-height: 1.25rem;
+  margin: 0;
+  padding: 0 calc(var(--spacing) * 1);
 }
 
 .filmstrip-count,
@@ -26,8 +25,13 @@
   color: var(--muted-foreground);
 }
 
+/* Out of flow: sits in the free middle of the dock header, not above the row. */
 .filmstrip-unplace {
-  margin: 0 0 calc(var(--spacing) * 1.4);
+  position: absolute;
+  top: calc(var(--spacing) * -8.5);
+  left: 16rem;
+  z-index: 1;
+  margin: 0;
   padding: calc(var(--spacing) * 0.6) calc(var(--spacing) * 2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -70,14 +74,14 @@
 
 .filmstrip-spacer {
   position: relative;
-  height: calc(var(--film-thumb-h, 96px) + 24px);
+  height: calc(var(--film-thumb-h, 96px) + 12px);
 }
 
 .filmstrip-window {
   position: absolute;
-  top: 0;
+  top: 4px;
   left: 0;
-  height: calc(var(--film-slot-h, 96px) + 24px);
+  height: calc(var(--film-slot-h, 96px) + 8px);
   will-change: transform;
 }
 

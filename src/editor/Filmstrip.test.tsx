@@ -299,10 +299,10 @@ describe('Filmstrip aspect cards', () => {
     )
   })
 
-  it('shows gallery count on the status strip', () => {
+  it('renders no count line (the dock header owns the count)', () => {
     seedGallery(3)
     render(<Filmstrip />)
-    expect(screen.getByTestId('filmstrip-count').textContent).toBe('3 photos')
+    expect(screen.queryByTestId('filmstrip-count')).toBeNull()
   })
 
   it('shows import progress on the status strip', () => {

@@ -433,7 +433,7 @@ export const Filmstrip = memo(function Filmstrip({
         }
       }}
     >
-      <FilmstripStatus photoCount={total} />
+      <FilmstripStatus />
       <button
         type="button"
         className="filmstrip-unplace"

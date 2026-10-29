@@ -19,7 +19,8 @@ import {
   subscribeImportErrors,
 } from './importErrorsStore'
 
-export function FilmstripStatus({ photoCount }: { photoCount: number }) {
+/** Import / rescan progress only; the photo count lives in the dock header. */
+export function FilmstripStatus() {
   const progress = useSyncExternalStore(
     subscribeImportProgress,
     getImportProgress,
@@ -37,7 +38,6 @@ export function FilmstripStatus({ photoCount }: { photoCount: number }) {
   )
   const running = progress?.running === true
   const rescanning = rescan?.running === true
-  const showCount = photoCount > 0 || running || rescanning
   const errorCount = storeErrors.length
 
   let progressNode: ReactNode = null
@@ -71,7 +71,7 @@ export function FilmstripStatus({ photoCount }: { photoCount: number }) {
     )
   }
 
-  if (!showCount && progressNode === null) {
+  if (progressNode === null) {
     return null
   }
 
@@ -86,11 +86,6 @@ export function FilmstripStatus({ photoCount }: { photoCount: number }) {
 
   return (
     <Status className="filmstrip-status" data-testid="filmstrip-status">
-      {showCount ? (
-        <span className="filmstrip-count" data-testid="filmstrip-count">
-          {photoCount === 1 ? '1 photo' : `${String(photoCount)} photos`}
-        </span>
-      ) : null}
       {barRunning ? (
         <ProgressBar
           style={filmstripImportProgressStyle}
