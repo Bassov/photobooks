@@ -5,11 +5,10 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
-import { SegmentedControl } from '../ui/SegmentedControl'
 import {
-  getAssetDisplayName,
   getBookStoreSnapshot,
   getPlacementCountSnapshot,
   subscribeBookStore,
@@ -24,13 +23,25 @@ import {
   inspectorView,
   sameInspectorPanel,
   spreadRows,
-  spreadTitle,
   type InspectorPanel,
   type InspectorRow,
 } from './inspectorModel'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 
 const EMPTY_HINT = 'Select a spread or a photo to see its properties.'
+const FRAME_HINT = 'Select a frame to edit it.'
+
+type InspectorTab = 'frame' | 'spread' | 'book'
+
+const TABS: readonly { id: InspectorTab; label: string }[] = [
+  { id: 'frame', label: 'Frame' },
+  { id: 'spread', label: 'Spread' },
+  { id: 'book', label: 'Book' },
+]
+
+function isInspectorTab(key: unknown): key is InspectorTab {
+  return TABS.some((item) => item.id === key)
+}
 
 function readBook() {
   return getBookStoreSnapshot().book
@@ -56,7 +67,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
   const target = cropKey === '' ? null : getCropTarget()
   // Esc drops the spread view to the empty hint until another spread is picked.
   const [dismissed, setDismissed] = useState<string | null>(null)
-  const [tab, setTab] = useState<'spread' | 'book'>('spread')
+  const [tab, setTab] = useState<InspectorTab>('frame')
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -85,82 +96,136 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
   // Crop mode keeps its frame (double-click drops the selection); else the
   // selected frame. Empty frames render nothing inside the section.
   const section = target ?? frameSource
+  // Picking a frame (or entering crop on one) jumps to the Frame tab; picking
+  // a spread leaves the user's tab alone.
+  const sectionKey =
+    section === null ? '' : `${section.spreadId}/${section.frameId}`
+  const [seenKey, setSeenKey] = useState(sectionKey)
+  if (seenKey !== sectionKey) {
+    setSeenKey(sectionKey)
+    if (sectionKey !== '') {
+      setTab('frame')
+    }
+  }
   return (
     <section
-      className="editor-inspector-panel flex min-h-full flex-col"
+      className="editor-inspector-panel flex h-full min-h-0 flex-col"
       aria-label="Inspector"
       data-testid="inspector-panel"
       data-inspector-view={kind}
       style={{ color: T }}
     >
-      <header className="flex h-10 shrink-0 items-center gap-2 pr-1.5 pl-3">
-        <span
-          className="min-w-0 truncate text-[13px] font-medium"
-          data-testid="inspector-name"
-        >
-          {panel.name}
-        </span>
-        {panel.meta ? (
-          <span className="text-xs" style={{ color: SUB }}>
-            {panel.meta}
-          </span>
-        ) : null}
-        {onCollapse ? (
-          <div className="ml-auto flex items-center" style={{ color: SUB }}>
-            <IconButton
-              label="Collapse inspector ]"
-              size="sm"
-              placement="left"
-              onPress={onCollapse}
-              data-testid="panel-collapse-right"
-            >
-              <Icon name="panelRight" />
-            </IconButton>
-          </div>
-        ) : null}
-      </header>
-      <div className="px-3 pb-2">
-        <SegmentedControl
-          label="Inspector tab"
-          size="sm"
-          value={tab}
-          onChange={(next) => {
-            setTab(next === 'book' ? 'book' : 'spread')
-          }}
-          items={[
-            { id: 'spread', label: 'Spread' },
-            { id: 'book', label: 'Book' },
-          ]}
-        />
-      </div>
-      <div className="px-3 pb-4" data-testid={`inspector-tab-${tab}`}>
-        {tab === 'book' ? (
-          <GridSection scope="book" />
-        ) : kind === 'empty' ? (
-          <p
-            className="text-[12.5px] leading-snug"
-            style={{ color: SUB }}
-            data-testid="inspector-empty"
+      <Tabs
+        className="flex min-h-0 flex-1 flex-col"
+        selectedKey={tab}
+        onSelectionChange={(key) => {
+          if (isInspectorTab(key)) {
+            setTab(key)
+          }
+        }}
+      >
+        <div className="flex h-12 shrink-0 items-center gap-1.5 pr-1.5 pl-2">
+          <TabList
+            aria-label="Inspector"
+            className="editor-inspector-tabs grid flex-1"
+            style={{
+              gridTemplateColumns: `repeat(${String(TABS.length)}, minmax(0, 1fr))`,
+            }}
           >
-            {EMPTY_HINT}
-          </p>
-        ) : (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[12.5px]">
-            {rows.map((row) => (
-              <Row key={row.label} row={row} />
+            {TABS.map((item) => (
+              <Tab
+                key={item.id}
+                id={item.id}
+                className="editor-inspector-tab"
+                data-testid={`inspector-tab-${item.id}`}
+              >
+                {item.label}
+              </Tab>
             ))}
-          </dl>
-        )}
-        {tab === 'book' || section === null ? null : (
-          <FitCropSection target={section} cropping={target !== null} />
-        )}
-        {tab === 'spread' && panel.spreadId !== null ? (
-          <div className="mt-4">
-            <GridSection scope="spread" spreadId={panel.spreadId} />
-          </div>
-        ) : null}
-      </div>
+          </TabList>
+          {onCollapse ? (
+            <div className="flex items-center" style={{ color: SUB }}>
+              <IconButton
+                label="Hide inspector (I)"
+                size="sm"
+                placement="left"
+                onPress={onCollapse}
+                data-testid="panel-collapse-right"
+              >
+                <Icon name="panelRight" />
+              </IconButton>
+            </div>
+          ) : null}
+        </div>
+        <TabPanel
+          id="frame"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+          data-testid="inspector-panel-frame"
+        >
+          {kind === 'frame' ? <RowList rows={rows} /> : null}
+          {kind === 'spread' ? (
+            <>
+              <div className="mb-3 text-xs font-medium" style={{ color: SUB }}>
+                Spread properties
+              </div>
+              <RowList rows={panel.spreadRows} />
+            </>
+          ) : null}
+          {kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
+          {kind === 'spread' && section === null ? (
+            <Hint>{FRAME_HINT}</Hint>
+          ) : null}
+          {section === null ? null : (
+            <FitCropSection target={section} cropping={target !== null} />
+          )}
+        </TabPanel>
+        <TabPanel
+          id="spread"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+          data-testid="inspector-panel-spread"
+        >
+          {panel.spreadId === null ? (
+            <Hint>{EMPTY_HINT}</Hint>
+          ) : (
+            <>
+              <RowList rows={panel.spreadRows} />
+              <div className="mt-4">
+                <GridSection scope="spread" spreadId={panel.spreadId} />
+              </div>
+            </>
+          )}
+        </TabPanel>
+        <TabPanel
+          id="book"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+          data-testid="inspector-panel-book"
+        >
+          <GridSection scope="book" />
+        </TabPanel>
+      </Tabs>
     </section>
+  )
+}
+
+function Hint({ children }: { children: string }) {
+  return (
+    <p
+      className="text-[12.5px] leading-snug"
+      style={{ color: SUB }}
+      data-testid="inspector-empty"
+    >
+      {children}
+    </p>
+  )
+}
+
+function RowList({ rows }: { rows: readonly InspectorRow[] }) {
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[12.5px]">
+      {rows.map((row) => (
+        <Row key={row.label} row={row} />
+      ))}
+    </dl>
   )
 }
 
@@ -174,20 +239,17 @@ function inspectorPanel(
   if (view.kind === 'spread') {
     return {
       kind: view.kind,
-      name: spreadTitle(view.spreadIndex),
-      meta: 'Spread',
       spreadId: view.spread.id,
-      rows: spreadRows(view.spread),
+      rows: [],
+      spreadRows: spreadRows(view.spread),
     }
   }
   if (view.kind === 'frame') {
     const assetId = view.frame.assetId
     return {
       kind: view.kind,
-      name:
-        assetId === undefined ? 'Empty frame' : getAssetDisplayName(assetId),
-      meta: 'Photo',
       spreadId: view.spread.id,
+      spreadRows: spreadRows(view.spread),
       rows: framePhotoRows(
         book,
         view.frame,
@@ -196,13 +258,7 @@ function inspectorPanel(
       ),
     }
   }
-  return {
-    kind: view.kind,
-    name: 'Inspector',
-    meta: '',
-    spreadId: null,
-    rows: [],
-  }
+  return { kind: view.kind, spreadId: null, rows: [], spreadRows: [] }
 }
 
 function Row({ row }: { row: InspectorRow }) {

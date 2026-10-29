@@ -13,10 +13,9 @@ import {
 describe('sameInspectorPanel', () => {
   const base: InspectorPanel = {
     kind: 'frame',
-    name: 'a.jpg',
-    meta: 'Photo',
     spreadId: 's1',
     rows: [{ label: 'Size', value: '1 × 2' }],
+    spreadRows: [{ label: 'Frames', value: '2' }],
   }
 
   it('is true for an equal copy with new row objects', () => {
@@ -30,8 +29,8 @@ describe('sameInspectorPanel', () => {
 
   it.each<[string, Partial<InspectorPanel>]>([
     ['kind', { kind: 'spread' }],
-    ['name', { name: 'b.jpg' }],
-    ['meta', { meta: 'Spread' }],
+    ['spread row value', { spreadRows: [{ label: 'Frames', value: '3' }] }],
+    ['spread row count', { spreadRows: [] }],
     ['spread id', { spreadId: 's2' }],
     ['row count', { rows: [] }],
     ['row label', { rows: [{ label: 'Pixels', value: '1 × 2' }] }],

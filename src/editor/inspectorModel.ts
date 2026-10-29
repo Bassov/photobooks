@@ -12,14 +12,25 @@ export interface InspectorRow {
   value: string
 }
 
-/** What the panel paints: view kind, header and rows (no crop state). */
+/** What the panel paints: view kind and rows (no crop state). */
 export interface InspectorPanel {
   kind: InspectorView['kind']
-  name: string
-  meta: string
   /** Spread the Spread tab edits (the frame's spread for a frame), else null. */
   spreadId: string | null
+  /** Photo rows of the selected frame; empty otherwise. */
   rows: readonly InspectorRow[]
+  /** Summary rows of the spread in view; empty when there is none. */
+  spreadRows: readonly InspectorRow[]
+}
+
+function sameRows(
+  a: readonly InspectorRow[],
+  b: readonly InspectorRow[],
+): boolean {
+  return (
+    a.length === b.length &&
+    a.every((row, i) => row.label === b[i]?.label && row.value === b[i].value)
+  )
 }
 
 /** Value equality so book edits that leave the panel unchanged skip a render. */
@@ -29,14 +40,9 @@ export function sameInspectorPanel(
 ): boolean {
   return (
     a.kind === b.kind &&
-    a.name === b.name &&
-    a.meta === b.meta &&
     a.spreadId === b.spreadId &&
-    a.rows.length === b.rows.length &&
-    a.rows.every(
-      (row, i) =>
-        row.label === b.rows[i]?.label && row.value === b.rows[i].value,
-    )
+    sameRows(a.rows, b.rows) &&
+    sameRows(a.spreadRows, b.spreadRows)
   )
 }
 
