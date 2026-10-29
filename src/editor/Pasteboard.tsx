@@ -41,6 +41,8 @@ import {
 } from './pasteboardWindow'
 import { PasteboardEmptyGuidance } from './PasteboardEmptyGuidance'
 import { RelinkHost } from './relink'
+import { Rulers } from './Rulers'
+import { getRulersVisible, subscribeRulersVisible } from './rulersView'
 import type { ChromeImportApi } from './useChromeImport'
 import {
   bindGalleryDrop,
@@ -94,6 +96,11 @@ export const Pasteboard = memo(function Pasteboard({
     subscribeCommitted,
     getCommittedCamera,
     getCommittedCamera,
+  )
+  const rulersOn = useSyncExternalStore(
+    subscribeRulersVisible,
+    getRulersVisible,
+    getRulersVisible,
   )
   const committedZoom = cameraFrame.zoom
   const pxPerMm = SPREAD_PX_PER_MM * committedZoom
@@ -457,62 +464,71 @@ export const Pasteboard = memo(function Pasteboard({
         />
       ) : null}
       <div
-        ref={scrollRef}
-        className="pasteboard-scroll"
-        data-testid="pasteboard-scroll"
-        data-spread-count={spreadIds.length}
-        role="region"
-        aria-label="Spreads"
-        tabIndex={0}
-        onScroll={onScroll}
+        className="pasteboard-stage"
+        data-testid="pasteboard-stage"
+        data-rulers={rulersOn ? 'true' : 'false'}
       >
         <div
-          ref={worldRef}
-          className="pasteboard-world"
-          data-testid="pasteboard-world"
-          style={{ width: worldWidth }}
+          ref={scrollRef}
+          className="pasteboard-scroll"
+          data-testid="pasteboard-scroll"
+          data-spread-count={spreadIds.length}
+          role="region"
+          aria-label="Spreads"
+          tabIndex={0}
+          onScroll={onScroll}
         >
-          {shouldRenderSpacer(range.leadPx) ? (
-            <div
-              className="pasteboard-spacer"
-              data-testid="pasteboard-lead"
-              style={{ height: range.leadPx }}
-            />
-          ) : null}
-          {mounted.map((spreadId, index) => (
-            <div
-              key={spreadId}
-              className="pasteboard-slot"
-              data-pasteboard-slot=""
-              data-testid="pasteboard-slot"
-              data-spread-id={spreadId}
-              data-slot-index={range.start + index}
-              data-active={markedId === spreadId ? 'true' : 'false'}
-              style={{
-                height: stride,
-                paddingBottom: pasteboardSlotPaddingBottom(committedZoom),
-                containIntrinsicBlockSize: `auto ${String(stride)}px`,
-              }}
-            >
-              <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+          <div
+            ref={worldRef}
+            className="pasteboard-world"
+            data-testid="pasteboard-world"
+            style={{ width: worldWidth }}
+          >
+            {shouldRenderSpacer(range.leadPx) ? (
               <div
-                className="pasteboard-gap"
-                data-testid="pasteboard-gap"
-                data-gap-insert-index={range.start + index + 1}
-                aria-hidden="true"
+                className="pasteboard-spacer"
+                data-testid="pasteboard-lead"
+                style={{ height: range.leadPx }}
+              />
+            ) : null}
+            {mounted.map((spreadId, index) => (
+              <div
+                key={spreadId}
+                className="pasteboard-slot"
+                data-pasteboard-slot=""
+                data-testid="pasteboard-slot"
+                data-spread-id={spreadId}
+                data-slot-index={range.start + index}
+                data-active={markedId === spreadId ? 'true' : 'false'}
+                style={{
+                  height: stride,
+                  paddingBottom: pasteboardSlotPaddingBottom(committedZoom),
+                  containIntrinsicBlockSize: `auto ${String(stride)}px`,
+                }}
               >
-                Drop here for a new spread
+                <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+                <div
+                  className="pasteboard-gap"
+                  data-testid="pasteboard-gap"
+                  data-gap-insert-index={range.start + index + 1}
+                  aria-hidden="true"
+                >
+                  Drop here for a new spread
+                </div>
               </div>
-            </div>
-          ))}
-          {shouldRenderSpacer(range.tailPx) ? (
-            <div
-              className="pasteboard-spacer"
-              data-testid="pasteboard-tail"
-              style={{ height: range.tailPx }}
-            />
-          ) : null}
+            ))}
+            {shouldRenderSpacer(range.tailPx) ? (
+              <div
+                className="pasteboard-spacer"
+                data-testid="pasteboard-tail"
+                style={{ height: range.tailPx }}
+              />
+            ) : null}
+          </div>
         </div>
+        {rulersOn ? (
+          <Rulers scrollRef={scrollRef} pageMm={trimWidthMm} />
+        ) : null}
       </div>
       <RelinkHost />
     </div>

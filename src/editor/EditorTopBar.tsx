@@ -33,6 +33,7 @@ import { PanelToggles } from './EditorFrame'
 import { EditorToolGroup } from './EditorToolGroup'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
+import { RulersToggle } from './RulersToggle'
 import {
   getBookStoreSnapshot,
   getHistorySnapshot,
@@ -323,6 +324,7 @@ export function EditorTopBar({
         <EditorToolGroup />
         <GridToggle />
         <SnapToggle />
+        <RulersToggle />
       </div>
 
       <HistoryChrome />

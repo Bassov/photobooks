@@ -6,8 +6,6 @@ Title: look parity: mm rulers (kit look, no guides)
 
 ## Scope
 
-## Scope
-
 Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake / disabled controls). This is the **visual look-parity subset of [`rulers`](rulers.md)**: the kit mm rulers, cursor tick, corner "mm" square and visibility toggle. No guide creation (see [`guides`](guides.md)).
 
 - [ ] Pure tick math (`rulersMath`): mm to px at zoom, major step by scale (>2.4 → 5, >1.2 → 10, else 20 mm), range culling, page-local X labels that wrap at the spine
