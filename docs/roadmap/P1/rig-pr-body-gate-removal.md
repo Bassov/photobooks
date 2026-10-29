@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
+Status: done
 
 ## Scope
 
