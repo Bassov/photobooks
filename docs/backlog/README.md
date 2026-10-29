@@ -56,21 +56,12 @@ Deleted 2026-10-30 (Designer call D3, **Owner-confirm**): `manual-deploy` (super
 
 ## Held until a kit page exists (kit-first)
 
-Designer call B1 (2026-10-30). Re-add each with `pnpm roadmap add <slug> --after <X>` once its kit page lands.
+Designer call B1 (2026-10-30), narrowed by the Designer kit-first audit (2026-10-30): only UI absent from `uikit/src/sandbox` is held. Re-add each with `pnpm roadmap add <slug> --after <X>` once its kit page lands.
 
-| Slug                                            | Title                                         | Target P | Depends                                |
-| ----------------------------------------------- | --------------------------------------------- | -------- | -------------------------------------- |
-| [`rulers`](rulers.md)                           | mm rulers                                     | P2       | kit10-canvas                           |
-| [`guides`](guides.md)                           | guides                                        | P2       | rulers                                 |
-| [`guides-precise`](guides-precise.md)           | exact guides                                  | P2       | guides                                 |
-| [`text-blocks`](text-blocks.md)                 | captions                                      | P2       | text-frame-model                       |
-| [`live-captions`](live-captions.md)             | captions from photo metadata                  | P2       | text-blocks                            |
-| [`parent-guides`](parent-guides.md)             | guides on parent spreads                      | P2       | guides, parent-spreads                 |
-| [`parent-overrides`](parent-overrides.md)       | change one spread without touching the parent | P2       | parent-spreads                         |
-| [`page-numbers`](page-numbers.md)               | page numbers                                  | P2       | text-frame-model, parent-spreads       |
-| [`kit2-undo-history`](kit2-undo-history.md)     | undo history UI                               | P2       | none (behavior shipped)                |
-| [`kit2-spread-menu`](kit2-spread-menu.md)       | spread reorder and spread menu                | P2       | none (behavior shipped)                |
-| [`kit2-missing-relink`](kit2-missing-relink.md) | missing-photo relink                          | P2       | none (behavior shipped)                |
-| [`dpi-badge`](dpi-badge.md)                     | resolution while you lay out                  | P2       | kit10-canvas                           |
-| [`connect-own-hosting`](connect-own-hosting.md) | bring your own hosting                        | P5       | publisher-targets, publish-credentials |
-| [`onboarding-others`](onboarding-others.md)     | first run for other users                     | P5       | kit10-library-books                    |
+| Slug                                        | Title                     | Target P | Depends             |
+| ------------------------------------------- | ------------------------- | -------- | ------------------- |
+| [`guides-precise`](guides-precise.md)       | exact guides              | P2       | guides              |
+| [`kit2-undo-history`](kit2-undo-history.md) | undo history list         | P2       | kit10-editor-chrome |
+| [`onboarding-others`](onboarding-others.md) | first run for other users | P5       | kit10-library-books |
+
+Moved back into P1–P5 on 2026-10-30 (present in the kit sandbox; Owner-approved scope change): `rulers`, `guides`, `dpi-badge`, `text-blocks`, `live-captions`, `parent-guides`, `parent-overrides`, `page-numbers` (P2), `connect-own-hosting` (P5). Deleted: `kit2-spread-menu` (row menu and reorder ship on main, #284; restyle folded into P1 `kit10-spread-list`) and `kit2-missing-relink` (relink ships in `src/editor/relink`; restyle folded into P1 `kit10-canvas`, `kit10-spread-list`, `kit10-filmstrip`).

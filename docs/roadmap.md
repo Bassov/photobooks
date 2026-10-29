@@ -16,7 +16,7 @@ Owner priorities (2026-10-29), kit **v0.10.0**:
 4. **P4 — print.**
 5. **P5 — let other people make their own personal site** (kit-first).
 
-M3 and M4 below keep finished items until the owner archives them (M4 is fully done; M3 is now fully done too: its open rig item `rig-pr-body-gate-removal` moved to the top of P1, Owner-confirm); all other open items moved into P1–P5. Items whose kit page was removed in v0.10 with no replacement, and kit-first items without a kit page yet (Designer call B1, 2026-10-30), are held in `docs/backlog/`; Owner re-adds them with `pnpm roadmap add` once their kit page lands.
+M3 and M4 below keep finished items until the owner archives them (M4 is fully done; M3 is now fully done too: its open rig item `rig-pr-body-gate-removal` moved to the top of P1, Owner-confirm); all other open items moved into P1–P5. Items whose kit page was removed in v0.10 with no replacement, and kit-first items whose UI is absent from `uikit/src/sandbox` (Designer call B1, 2026-10-30), are held in `docs/backlog/`; Owner re-adds them with `pnpm roadmap add` once their kit page lands. "In the kit" means present in `uikit/src/sandbox` and wired into the `#/demo` editor, even if reachable only through a flag or shortcut (RULES.md); such items are scheduled with sandbox `file:line` refs and marked `kit: sandbox, not shown in #/demo` (Designer kit-first audit, 2026-10-30). Counts: P1 21, P2 22, P3 13, P4 10, P5 3 open; held in `docs/backlog/`: 3 kit-first (`guides-precise`, `kit2-undo-history` history list, `onboarding-others`) and 5 with their kit page removed (incl. `preflight-fixes`).
 
 ## P1 — Align the editor to the kit (v0.10.0)
 
@@ -42,23 +42,32 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [ ] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
 - [ ] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages) — blocked: Owner go
+- [ ] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink) — blocked: Owner go
 
 ## P2 — Missing features, iterative
 
-**Review cut:** features removed or held in kit v0.10 come back one by one; kit-first items are held in `docs/backlog/` until Designer adds the kit page; then the Owner re-adds them and the Reviewer fills in the item contract. Owner and Designer decide the order.
+**Review cut:** features removed or held in kit v0.10 come back one by one; items whose UI is in the kit sandbox carry sandbox refs (`rulers`, `guides`, `dpi-badge`, `text-blocks`, `live-captions`, `parent-guides`, `parent-overrides`, `page-numbers`); P1 `kit10-demo-expose-hidden` makes the hidden ones visible in `#/demo`. Only UI absent from the sandbox stays held in `docs/backlog/` until Designer adds the kit page. Owner and Designer decide the order.
 
+- [ ] [feature] [rulers](roadmap/P2/rulers.md) — mm rulers
+- [ ] [feature] [guides](roadmap/P2/guides.md) — guides
+- [ ] [feature] [dpi-badge](roadmap/P2/dpi-badge.md) — resolution while you lay out
 - [ ] [feature] [photo-rotate](roadmap/P2/photo-rotate.md) — rotate photos in frames
 - [ ] [feature] [inspector](roadmap/P2/inspector.md) — numeric properties
 - [ ] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
 - [ ] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
 - [ ] [prep] [book-fonts](roadmap/P2/book-fonts.md) — fonts for book content
 - [ ] [prep] [text-frame-model](roadmap/P2/text-frame-model.md) — text in the document
+- [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
+- [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [ ] [prep] [book-styles-schema](roadmap/P2/book-styles-schema.md) — book-level styles in the document
 - [ ] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
 - [ ] [prep] [layout-grids-schema](roadmap/P2/layout-grids-schema.md) — page layout grids in the document
 - [ ] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
 - [ ] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
+- [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
+- [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
+- [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
 - [ ] [prep] [library-json-schema](roadmap/P2/library-json-schema.md) — `library.json` versioning
 - [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
 
@@ -97,9 +106,10 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 
 ## P5 — Others make their own personal site
 
-**Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` has a partial kit (Settings → Print presets). `onboarding-others` and `connect-own-hosting` are held in `docs/backlog/` until then.
+**Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
 
 - [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
 - [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 
 ## M3 — Building a real book
