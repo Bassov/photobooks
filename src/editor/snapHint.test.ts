@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getSnapHint, setSnapHint, subscribeSnapHint } from './snapHint'
+import {
+  getSnapHint,
+  getSnapHintSpread,
+  setSnapHint,
+  subscribeSnapHint,
+} from './snapHint'
 
 describe('snapHint', () => {
   afterEach(() => {
@@ -17,6 +22,19 @@ describe('snapHint', () => {
     expect(listener).toHaveBeenCalledTimes(1)
     setSnapHint(null)
     expect(listener).toHaveBeenCalledTimes(2)
+    stop()
+  })
+
+  it('keeps the spread the hint belongs to and notifies when it changes', () => {
+    const listener = vi.fn()
+    const stop = subscribeSnapHint(listener)
+    setSnapHint('snap · row 2', 's1')
+    expect(getSnapHintSpread()).toBe('s1')
+    setSnapHint('snap · row 2', 's2')
+    expect(getSnapHintSpread()).toBe('s2')
+    expect(listener).toHaveBeenCalledTimes(2)
+    setSnapHint(null)
+    expect(getSnapHintSpread()).toBeUndefined()
     stop()
   })
 

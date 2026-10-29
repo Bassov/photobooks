@@ -6,8 +6,8 @@ Title: wire grid snap into frame move/resize
 
 ## Scope
 
-- [ ] When the grid is visible and snap is on, frame move / resize edges snap to column and row edges; show `snap · column N` / `snap · row N` as a `bg-field` pill
-- [ ] ~16 CSS px pull while the grid is visible; hidden grid, Alt held, or snap off → no grid snap
+- [x] When the grid is visible and snap is on, frame move / resize edges snap to column and row edges; show `snap · column N` / `snap · row N` as a `bg-field` pill
+- [x] ~16 CSS px pull while the grid is visible; hidden grid, Alt held, or snap off → no grid snap
 - Call `buildGridAnchors` at gesture start and `snapEdgesToGrid` on each `pointermove` of the `frame-selection-handles` move / resize; publish `setSnapHint`.
 - **Perf:** anchors built once per gesture. Gate: drag a frame across a 12-column spread with snapping on — zero LoAF, `pointermove` p95 ≤ 2 ms.
 - **Browser check:** hide grid → drag does not snap to columns; Alt-drag → no `snap · column N` label; snap off → no snap lines.

@@ -13,7 +13,9 @@ import { isSpacePanCode } from './editorChromePanels'
 import { getEditorTool, setEditorTool } from './editorToolStore'
 import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { setFrameSource } from './frameSelection'
-import { getSnapOn } from './gridView'
+import { buildGridAnchors } from './gridSnap'
+import { getGridVisible, getSnapOn } from './gridView'
+import { setSnapHint } from './snapHint'
 import { isTypingTarget } from './isTypingTarget'
 import {
   buildSnapIndex,
@@ -111,8 +113,17 @@ export function spreadContext(
         heightMm,
         pageCount: getSpreadPageCount(spreadIndex, book.spreads.length),
       },
+      // Built once per gesture, and only while the grid is shown.
+      getGridVisible() && getSnapOn()
+        ? buildGridAnchors(book, spreadIndex)
+        : undefined,
     ),
   }
+}
+
+/** Grid snap runs while the grid is visible, unless Alt or the snap toggle bypass. */
+export function gridSnapActive(event: { altKey: boolean }): boolean {
+  return getGridVisible() && !snapBypassed(event)
 }
 
 /** Alt held or the TopBar snap toggle off: the gesture runs without snapping. */
@@ -156,10 +167,13 @@ export function paintSnapLines(
     } else {
       node.style.top = pct(line.mm, ctx.heightMm)
     }
-    const label = document.createElement('span')
-    label.className = 'snap-line-label'
-    label.textContent = `snap · ${line.kind}`
-    node.append(label)
+    // Grid snaps are labelled by the `snap · column N` pill, not on the line.
+    if (line.kind !== 'grid') {
+      const label = document.createElement('span')
+      label.className = 'snap-line-label'
+      label.textContent = `snap · ${line.kind}`
+      node.append(label)
+    }
     host.append(node)
   }
 }
@@ -192,6 +206,7 @@ export function installFrameGesture(): () => void {
       return
     }
     clearSnapLines(current.ctx)
+    setSnapHint(null)
     if (current.kind === 'draw') {
       current.draft.remove()
     }
@@ -365,11 +380,13 @@ export function installFrameGesture(): () => void {
     const snap = snapRect(ctx.index, moved, {
       pxPerMm: ctx.pxPerMm,
       altKey: snapBypassed(event),
+      grid: gridSnapActive(event),
     })
     move.rect = { ...moved, x: moved.x + snap.dx, y: moved.y + snap.dy }
     move.button.style.left = pct(move.rect.x, ctx.widthMm)
     move.button.style.top = pct(move.rect.y, ctx.heightMm)
     paintSnapLines(ctx, snap.lines)
+    setSnapHint(snap.hint, ctx.spreadId)
   }
 
   function onUp(event: PointerEvent): void {

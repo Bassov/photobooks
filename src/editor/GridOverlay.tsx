@@ -28,7 +28,7 @@ export function GridOverlay({
   return visible ? (
     <>
       <GridOverlayLayer spreadId={spreadId} pxPerMm={pxPerMm} />
-      <SnapLabel />
+      <SnapLabel spreadId={spreadId} />
     </>
   ) : null
 }

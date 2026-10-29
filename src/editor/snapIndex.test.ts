@@ -44,7 +44,7 @@ describe('snapRect', () => {
       { x: far, y: 400, width: 20, height: 20 },
       OPTS,
     )
-    expect(result).toEqual({ dx: 0, dy: 0, lines: [] })
+    expect(result).toEqual({ dx: 0, dy: 0, lines: [], hint: null })
   })
 
   it('reach shrinks as the camera zooms in', () => {
@@ -61,7 +61,7 @@ describe('snapRect', () => {
       { x: 153, y: 100, width: 20, height: 20 },
       { ...OPTS, altKey: true },
     )
-    expect(result).toEqual({ dx: 0, dy: 0, lines: [] })
+    expect(result).toEqual({ dx: 0, dy: 0, lines: [], hint: null })
   })
 
   it('snaps to guides by orientation', () => {
@@ -277,12 +277,14 @@ describe('snapEdges', () => {
       dx: -3,
       dy: 0,
       lines: [{ axis: 'x', mm: 100, kind: 'frame' }],
+      hint: null,
     })
     const top = snapEdges(index, near, { ...none, top: true }, OPTS)
     expect(top).toEqual({
       dx: 0,
       dy: -3,
       lines: [{ axis: 'y', mm: 100, kind: 'frame' }],
+      hint: null,
     })
     expect(
       snapEdges(index, near, { ...none, right: true, bottom: true }, OPTS)
@@ -324,6 +326,137 @@ describe('snapPoint', () => {
     expect(
       snapPoint(index, { x: 148, y: 103 }, { ...OPTS, altKey: true }).lines,
     ).toEqual([])
+  })
+})
+
+describe('grid anchors', () => {
+  const grid = {
+    x: [
+      { mm: 40, label: 'column 1' },
+      { mm: 80, label: 'column 1' },
+    ],
+    y: [{ mm: 60, label: 'row 2' }],
+  }
+  const GRID_OPTS = { ...OPTS, grid: true }
+  const none = { left: false, right: false, top: false, bottom: false }
+
+  it('pulls a moved edge to a column with the column pill', () => {
+    const index = buildSnapIndex([], [], undefined, grid)
+    const result = snapRect(
+      index,
+      { x: 52, y: 300, width: 20, height: 20 },
+      GRID_OPTS,
+    )
+    // right edge 72 -> 80 (8 away); left 52 is 12 away from 40.
+    expect(result.dx).toBe(8)
+    expect(result.lines).toEqual([{ axis: 'x', mm: 80, kind: 'grid' }])
+    expect(result.hint).toBe('snap · column 1')
+  })
+
+  it('reaches the 16 px grid pull, scaled by zoom, and not farther', () => {
+    const index = buildSnapIndex([], [], undefined, grid)
+    const at = (x: number, pxPerMm = 1) =>
+      snapRect(
+        index,
+        { x, y: 300, width: 5, height: 5 },
+        { ...GRID_OPTS, pxPerMm },
+      ).dx
+    expect(at(56)).toBe(-16)
+    expect(at(56.5)).toBe(0)
+    expect(at(56, 2)).toBe(0)
+  })
+
+  it('snaps rows and labels them', () => {
+    const index = buildSnapIndex([], [], undefined, grid)
+    const result = snapRect(
+      index,
+      { x: 300, y: 52, width: 5, height: 5 },
+      GRID_OPTS,
+    )
+    expect(result.dy).toBe(3)
+    expect(result.hint).toBe('snap · row 2')
+  })
+
+  it('snaps a resized edge to the grid', () => {
+    const index = buildSnapIndex([], [], undefined, grid)
+    const result = snapEdges(
+      index,
+      { x: 10, y: 10, width: 66, height: 20 },
+      { ...none, right: true },
+      GRID_OPTS,
+    )
+    expect(result.dx).toBe(4)
+    expect(result.hint).toBe('snap · column 1')
+  })
+
+  it('does not snap the center to the grid', () => {
+    const index = buildSnapIndex([], [], undefined, grid)
+    const result = snapRect(
+      index,
+      { x: 300, y: 300, width: 2, height: 2 },
+      GRID_OPTS,
+    )
+    expect(result.hint).toBeNull()
+    const centered = snapRect(
+      index,
+      { x: 100, y: 300, width: 40, height: 5 },
+      GRID_OPTS,
+    )
+    // center 120 is far from 80/40; edges 100 / 140 are 20 / 60 away.
+    expect(centered.dx).toBe(0)
+    const mid = snapRect(
+      index,
+      { x: 70, y: 300, width: 20, height: 5 },
+      GRID_OPTS,
+    )
+    // center 80 would be a hit; edges 70 / 90 are 10 away from 80.
+    expect(mid.dx).toBe(10)
+  })
+
+  it('is inert unless grid is requested, and under Alt', () => {
+    const index = buildSnapIndex([], [], undefined, grid)
+    const rect = { x: 52, y: 55, width: 20, height: 20 }
+    expect(snapRect(index, rect, OPTS).hint).toBeNull()
+    expect(snapRect(index, rect, OPTS).lines).toEqual([])
+    expect(
+      snapRect(index, rect, { ...GRID_OPTS, altKey: true }).hint,
+    ).toBeNull()
+  })
+
+  it('never overrides a frame or page snap', () => {
+    const index = buildSnapIndex(
+      [{ x: 100, y: 0, width: 10, height: 10 }],
+      [],
+      undefined,
+      grid,
+    )
+    // right edge 78: grid 80 is 2 away, frame edge 100 is 22 away -> grid.
+    // left edge 98 snaps to the frame (2 away) though grid 80 is 18 away.
+    const frameWins = snapRect(
+      index,
+      { x: 98, y: 300, width: 3, height: 5 },
+      GRID_OPTS,
+    )
+    expect(frameWins.lines).toEqual([{ axis: 'x', mm: 100, kind: 'frame' }])
+    expect(frameWins.hint).toBeNull()
+    // Frame anchor within 8 beats a nearer grid anchor.
+    const nearGrid = snapRect(
+      index,
+      { x: 92, y: 300, width: 8, height: 5 },
+      GRID_OPTS,
+    )
+    expect(nearGrid.lines[0]).toEqual({ axis: 'x', mm: 100, kind: 'frame' })
+  })
+
+  it('adds at most one line per axis', () => {
+    const index = buildSnapIndex([], [], undefined, grid)
+    const result = snapRect(
+      index,
+      { x: 38, y: 58, width: 40, height: 4 },
+      GRID_OPTS,
+    )
+    expect(result.lines.filter((l) => l.axis === 'x')).toHaveLength(1)
+    expect(result.lines.filter((l) => l.axis === 'y')).toHaveLength(1)
   })
 })
 

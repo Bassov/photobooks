@@ -98,4 +98,20 @@ describe('GridOverlay', () => {
     })
     expect(screen.queryByTestId('snap-label')).toBeNull()
   })
+
+  it('shows a spread-scoped snap label only on that spread', () => {
+    seed()
+    act(() => {
+      setGridVisible(true)
+    })
+    render(<GridOverlay spreadId="s1" pxPerMm={1} />)
+    act(() => {
+      setSnapHint('snap · row 1', 's2')
+    })
+    expect(screen.queryByTestId('snap-label')).toBeNull()
+    act(() => {
+      setSnapHint('snap · row 1', 's1')
+    })
+    expect(screen.getByTestId('snap-label').textContent).toBe('snap · row 1')
+  })
 })
