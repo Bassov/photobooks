@@ -27,7 +27,7 @@ jobs:
           git fetch --no-tags origin "${BASE_REF}:refs/remotes/origin/main"
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Read live PR body (waiver token only)
         # The event payload is frozen at trigger time, so a body edited after
@@ -83,7 +83,7 @@ jobs:
 
       - name: Pack coverage section
         if: always()
-        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.10
         with:
           section: coverage
           step-outcome: ${{ steps.unit.outcome }}
@@ -119,7 +119,7 @@ jobs:
   ci-comment:
     needs: checks
     if: always() && github.event_name == 'pull_request' && needs.checks.result != 'cancelled'
-    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.1
+    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.10
     with:
       section: coverage
       artifact-name: ci-section-coverage
