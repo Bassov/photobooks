@@ -105,13 +105,16 @@ test('empty filmstrip message spans the scrollport', async ({ page }) => {
   await openSessionEditor(page)
   const empty = page.getByTestId('filmstrip-empty')
   await expect(empty).toBeVisible()
-  await expect(empty).toHaveText('Choose a photo folder to build the gallery.')
+  await expect(empty).toHaveText(
+    'No photos yet — add a folder or drop one here.',
+  )
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   const box = await empty.boundingBox()
   assert.ok(box)
   // Bug: 1px virtualizer window stacked one word per line.
   expect(box.width).toBeGreaterThan(240)
-  expect(box.height).toBeLessThan(72)
+  // Kit empty row is one thumb tall (h-(--thumb)).
+  expect(box.height).toBeLessThan(120)
   await assertDocumentFitsViewport(page)
 })
 
@@ -185,7 +188,7 @@ test('list-first folder pick shows gallery placeholders before all thumbs', asyn
   await assertDocumentFitsViewport(page)
 })
 
-test('portrait and landscape cards differ; thumbs use contain', async ({
+test('portrait and landscape cards differ; thumbs use cover', async ({
   page,
 }) => {
   await openSessionEditor(page)
@@ -221,7 +224,7 @@ test('portrait and landscape cards differ; thumbs use contain', async ({
     .getByTestId('filmstrip-thumb')
     .first()
     .evaluate((node) => getComputedStyle(node).objectFit)
-  expect(objectFit).toBe('contain')
+  expect(objectFit).toBe('cover')
 })
 
 test('portrait gallery fills the scrollport while scrolling', async ({
@@ -1542,7 +1545,7 @@ test.describe('sort / filter / remove', () => {
 
     await dragPlaceFirstFilmstripItem(page)
     await expect(page.getByTestId('filmstrip-filter-empty')).toHaveText(
-      'All photos are placed.',
+      'Every photo is placed. Turn off “Unplaced” to see all.',
     )
     await assertDocumentFitsViewport(page)
 

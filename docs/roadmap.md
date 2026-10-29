@@ -41,7 +41,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [spread-list-panel](roadmap/M3/spread-list-panel.md) — spread list (Google Slides style)
 - [x] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads
 - [x] [feature] [behavior-invariants](roadmap/M3/behavior-invariants.md) — PBT invariants for placement/fit
-- [ ] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
+- [x] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
 - [x] [feature] [look-parity-inspector](roadmap/M3/look-parity-inspector.md) — look parity: inspector shell + quiet header
 - [x] [feature] [look-parity-canvas-sel](roadmap/M3/look-parity-canvas-sel.md) — look parity: canvas selection-only chrome
 - [x] [feature] [look-parity-fit-crop](roadmap/M3/look-parity-fit-crop.md) — look parity: Fit & crop in the inspector
@@ -80,6 +80,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [look-parity-page-labels](roadmap/M4/look-parity-page-labels.md) — look parity: canvas page labels and drop-target visuals
 - [x] [feature] [canvas-frame-chrome](roadmap/M4/canvas-frame-chrome.md) — look parity: canvas frame chrome (size tag, hover, empty/missing, lock, chips, rotate handle)
 - [x] [feature] [topbar-kit-parity](roadmap/M4/topbar-kit-parity.md) — look parity: editor top bar and zoom menu as UI kit
+- [x] [feature] [look-parity-dock-filmstrip](roadmap/M4/look-parity-dock-filmstrip.md) — look parity: dock header, folder drop overlay, filmstrip tiles and empty text
 
 ## M4.5 — Text, styles and reuse (local editor complete)
 

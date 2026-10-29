@@ -12,6 +12,10 @@ import { FilmstripDock } from './FilmstripDock'
 import { seedGallery } from './gallery.test-helpers'
 import { installEditorKeys } from './galleryDrop'
 import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
+import {
+  resetFilmstripThumbHeightForTests,
+  setFilmstripThumbHeight,
+} from './filmstripSize'
 import { resetThumbCache } from './thumbCache'
 
 function stubScrollportWidth(width: number): () => void {
@@ -72,6 +76,7 @@ describe('filmstrip sort / filter / remove', () => {
     resetBookStore()
     resetThumbCache()
     resetGallerySelection()
+    resetFilmstripThumbHeightForTests()
     setEditorStatus('')
   })
 
@@ -93,13 +98,40 @@ describe('filmstrip sort / filter / remove', () => {
     expect(getBookStoreSnapshot().book.gallery).toEqual([...ids])
   })
 
-  it('shows "All photos are placed." when the filter hides everything', () => {
+  it('shows the placed badge only on placed assets', () => {
+    const ids = seedGallery(2)
+    render(<FilmstripDock />)
+    expect(screen.queryAllByTestId('filmstrip-placed')).toHaveLength(0)
+    placeFirst(ids, 0)
+    const badges = screen.getAllByTestId('filmstrip-placed')
+    expect(badges).toHaveLength(1)
+    expect(
+      badges[0]?.closest('[data-asset-id]')?.getAttribute('data-asset-id'),
+    ).toBe(ids[0])
+  })
+
+  it('shows the name strip only from thumb height 90', () => {
+    seedGallery(2)
+    setFilmstripThumbHeight(88)
+    render(<FilmstripDock />)
+    expect(screen.queryAllByTestId('filmstrip-name')).toHaveLength(0)
+    act(() => {
+      setFilmstripThumbHeight(96)
+    })
+    expect(screen.getAllByTestId('filmstrip-name')).toHaveLength(2)
+    act(() => {
+      setFilmstripThumbHeight(88)
+    })
+    expect(screen.queryAllByTestId('filmstrip-name')).toHaveLength(0)
+  })
+
+  it('shows the every-photo-placed copy when the filter hides everything', () => {
     const ids = seedGallery(1)
     render(<FilmstripDock />)
     placeFirst(ids, 0)
     fireEvent.click(screen.getByTestId('film-unplaced-only'))
-    expect(screen.getByTestId('filmstrip-filter-empty').textContent).toContain(
-      'All photos are placed.',
+    expect(screen.getByTestId('filmstrip-filter-empty').textContent).toBe(
+      'Every photo is placed. Turn off “Unplaced” to see all.',
     )
     expect(screen.queryByTestId('filmstrip-empty')).toBeNull()
   })

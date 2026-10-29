@@ -42,6 +42,7 @@ export const EDITOR_CHROME_CSS = `
 .filmstrip-item[aria-selected=true] { background: ${SEL} }
 .filmstrip-item[aria-selected=true][data-focused] { background: ${SEL}; box-shadow: 0 0 0 2px #535152 }
 .filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }
+.filmstrip-remove { border-radius: 9999px; background: rgb(0 0 0/.6); color: #fff }
 .filmstrip-placed svg { stroke-width: 3 }
 .film-chip { color: ${SUB}; background: transparent; border: 0; border-radius: var(--radius-md); height: 28px; padding: 0 8px; font-size: var(--text-xs); box-shadow: none; transition: background-color .12s }
 .film-chip:hover, .film-chip[data-hovered], .film-chip[data-selected] { background: ${FIELD}; color: ${T} }
