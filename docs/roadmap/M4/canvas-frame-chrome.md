@@ -4,7 +4,7 @@ Tag: feature
 Milestone: M4
 Title: look parity: canvas frame chrome (size tag, hover, empty/missing, lock, chips, rotate handle)
 
-## Scope
+Status: done
 
 ## Scope
 

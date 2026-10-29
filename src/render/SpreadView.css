@@ -61,7 +61,7 @@ button.spread-frame[data-crop-active='true']::after {
   top: -24px;
   z-index: 3;
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--field);
   color: var(--foreground);
   font-size: var(--text-2xs);
@@ -117,10 +117,23 @@ button.spread-frame[data-crop-active='true']::after {
   cursor: ew-resize;
 }
 
-/* Round rotate handle above the top edge, centred. */
-.spread-frame-rotate {
+/* Kit rotate handle: 1x20 line at -22px, 12px round knob at -28px. */
+.spread-frame-rotate-line {
+  position: absolute;
   left: 50%;
   top: -22px;
+  width: 1px;
+  height: 20px;
+  background: var(--select);
+  pointer-events: none;
+}
+
+.spread-frame-handle.spread-frame-rotate {
+  left: 50%;
+  top: -28px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%);
   border-radius: 50%;
   cursor: grab;
 }
@@ -128,17 +141,59 @@ button.spread-frame[data-crop-active='true']::after {
 .spread-frame-size-tag {
   position: absolute;
   left: 50%;
-  top: 100%;
+  bottom: -28px;
   z-index: 3;
-  transform: translate(-50%, 8px);
+  transform: translateX(-50%);
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--field);
-  color: var(--foreground);
+  border-radius: var(--radius-md);
+  background: var(--color-tag);
+  color: var(--paper);
   font-size: var(--text-2xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   line-height: 16px;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Kit lock badge: 20px round, top-right. */
+.spread-frame-lock {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, black 55%, transparent);
+  color: var(--paper);
+  pointer-events: none;
+}
+
+/* Kit hover outline: unselected frames only; selection / crop / drop own
+   ::after otherwise. Paint-only, never receives the pointer. */
+button.spread-frame:not(
+    [aria-pressed='true'],
+    [data-crop-active='true'],
+    [data-drop-hover='true']
+  )::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  outline: 1px solid transparent;
+  transition: outline-color 0.15s;
+}
+
+button.spread-frame:not(
+    [aria-pressed='true'],
+    [data-crop-active='true'],
+    [data-drop-hover='true']
+  ):hover::after {
+  outline-color: color-mix(in srgb, var(--select) 70%, transparent);
 }
 
 /* Kit FrameEl drop target: tinted overlay + chip. `data-drop-hover` is set
@@ -162,14 +217,14 @@ button.spread-frame[data-crop-active='true']::after {
   z-index: 11;
   transform: translateX(-50%);
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--field);
   color: var(--foreground);
   font-size: var(--text-2xs);
   font-weight: 500;
   line-height: 16px;
   white-space: nowrap;
-  box-shadow: var(--shadow-segment);
+  box-shadow: var(--shadow-sm);
   pointer-events: none;
 }
 
@@ -204,9 +259,26 @@ button.spread-frame[data-crop-active='true']::after {
 .spread-frame-placeholder {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   background: var(--placeholder);
-  outline: 1px dashed var(--placeholder-border);
-  outline-offset: -1px;
+  color: var(--placeholder-fg);
+  font-size: var(--text-2xs);
+}
+
+.spread-frame-placeholder .spread-frame-glyph {
+  flex-shrink: 0;
+}
+
+.spread-frame-placeholder:not(.spread-frame-missing) .spread-frame-glyph {
+  opacity: 0.7;
+}
+
+.spread-frame-hint--missing {
+  font-weight: 500;
 }
 
 .spread-frame-image {
@@ -230,5 +302,5 @@ button.spread-frame[data-crop-active='true']::after {
       color-mix(in srgb, var(--foreground) 14%, transparent) 8px
     ),
     color-mix(in srgb, var(--foreground) 4%, var(--paper));
-  outline-color: var(--badge-warning-ring);
+  color: var(--ink-warning);
 }

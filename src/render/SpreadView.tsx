@@ -1,4 +1,5 @@
 import {
+  createElement,
   useLayoutEffect,
   useRef,
   type DragEvent as ReactDragEvent,
@@ -32,6 +33,7 @@ import {
   tierUnlessMissing,
 } from './spreadMissing'
 import { spreadFrameControlStyle } from './spreadChromeStyles'
+import { ICON_GLYPHS } from '../ui/icons/glyphs'
 import './SpreadView.css'
 
 /** Keeps the crop-mode frame (and its ghost) above neighbouring frames. */
@@ -51,6 +53,56 @@ const HANDLE_POINTS = [
   ['se', '100%', '100%'],
 ] as const
 
+/** On-screen frame widths (px) where the kit shows the empty / missing hints. */
+const FRAME_ICON_MIN_PX = 46
+const FRAME_LABEL_MIN_PX = 110
+
+type GlyphNodes = readonly (readonly [string, Record<string, string>])[]
+
+/** Lucide `image-plus`; the in-repo icon set has no equivalent. */
+const IMAGE_PLUS_GLYPH: GlyphNodes = [
+  ['path', { d: 'M16 5h6' }],
+  ['path', { d: 'M19 2v6' }],
+  [
+    'path',
+    { d: 'M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5' },
+  ],
+  ['path', { d: 'm21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21' }],
+  ['circle', { cx: '9', cy: '9', r: '2' }],
+]
+
+/** Decorative chrome glyph at an exact px size (the Icon set has no 12). */
+function FrameGlyph({
+  nodes,
+  size,
+  name,
+}: {
+  nodes: GlyphNodes
+  size: number
+  name: string
+}) {
+  return (
+    <svg
+      className="spread-frame-glyph"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      data-glyph={name}
+      aria-hidden
+      focusable="false"
+    >
+      {nodes.map(([tag, attrs], i) =>
+        createElement(tag, { ...attrs, key: `${tag}-${String(i)}` }),
+      )}
+    </svg>
+  )
+}
+
 function sizeLabel(item: ResolvedItem): string {
   const round = (mm: number) => String(Math.round(mm * 10) / 10)
   return `${round(item.rectMm.width)} × ${round(item.rectMm.height)} mm`
@@ -63,6 +115,7 @@ export function SpreadView({
   tierFor,
   frameControlFor,
   isMissingAsset,
+  assetNameFor,
   pxPerMm = SPREAD_PX_PER_MM,
   thumb = false,
   overlay,
@@ -74,6 +127,8 @@ export function SpreadView({
   frameControlFor?: (item: ResolvedItem) => FrameControl
   /** When true, show hatched missing placeholder instead of a stale preview. */
   isMissingAsset?: (assetId: string) => boolean
+  /** File name for the "‹name› not found" hint; falls back to "Photo". */
+  assetNameFor?: (assetId: string) => string | undefined
   pxPerMm?: number
   /**
    * Inert list thumbnail: no test ids / data ids (so pasteboard selectors and
@@ -103,6 +158,11 @@ export function SpreadView({
             pxPerMm={pxPerMm}
             thumb={thumb}
             missing={missing}
+            assetName={
+              missing && item.assetId !== undefined
+                ? assetNameFor?.(item.assetId)
+                : undefined
+            }
             previewUrl={previewUrlUnlessMissing(
               missing,
               item.assetId,
@@ -153,8 +213,10 @@ function SpreadFrame({
   pxPerMm,
   control,
   missing,
+  assetName,
   thumb,
 }: {
+  assetName: string | undefined
   thumb: boolean
   item: ResolvedItem
   previewUrl: string | undefined
@@ -190,12 +252,54 @@ function SpreadFrame({
     width: crop.width,
     height: crop.height,
   }
+  // Kit hints are editor chrome: only frames with a control (never thumbs).
+  const showHints = control !== undefined
+  const showIcon = showHints && box.width > FRAME_ICON_MIN_PX
+  const showLabel = showHints && box.width > FRAME_LABEL_MIN_PX
   const image =
     previewUrl === undefined ? (
       <div
         className={missingPlaceholderClass(missing)}
         data-testid={thumb ? undefined : missingPlaceholderTestId(missing)}
-      />
+      >
+        {missing ? (
+          <>
+            {showHints ? (
+              <FrameGlyph
+                nodes={ICON_GLYPHS.warning}
+                size={16}
+                name="warning"
+              />
+            ) : null}
+            {showLabel ? (
+              <span
+                className="spread-frame-hint spread-frame-hint--missing"
+                data-testid="frame-missing-label"
+              >
+                {assetName ?? 'Photo'} not found
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {showIcon ? (
+              <FrameGlyph
+                nodes={IMAGE_PLUS_GLYPH}
+                size={16}
+                name="image-plus"
+              />
+            ) : null}
+            {showLabel ? (
+              <span
+                className="spread-frame-hint"
+                data-testid="frame-empty-label"
+              >
+                Drop photo
+              </span>
+            ) : null}
+          </>
+        )}
+      </div>
     ) : (
       <img
         className="spread-frame-image"
@@ -273,6 +377,15 @@ function SpreadFrame({
           Crop · {Math.round((control.cropZoom ?? 1) * 100)}%
         </span>
       ) : null}
+      {item.locked === true ? (
+        <span
+          className="spread-frame-lock"
+          data-testid="frame-lock-badge"
+          aria-hidden
+        >
+          <FrameGlyph nodes={ICON_GLYPHS.lock} size={12} name="lock" />
+        </span>
+      ) : null}
       {selected && item.locked !== true ? (
         <>
           <span
@@ -289,6 +402,7 @@ function SpreadFrame({
                 style={{ left: x, top: y }}
               />
             ))}
+            <span className="spread-frame-rotate-line" />
             <span
               className="spread-frame-handle spread-frame-rotate"
               data-handle="rotate"

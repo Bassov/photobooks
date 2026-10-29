@@ -123,11 +123,11 @@ test('F → drag ≥ 5 mm draws a selected frame; Delete removes it', async ({
   await expect(page.getByTestId('spread-frame-handles')).toHaveCount(1)
   // Back on the Select tool.
   await expect(page.getByTestId('tool-select')).toBeChecked()
-  // Empty frame reads as the dashed quiet-gray placeholder.
+  // Empty frame reads as the kit quiet-gray placeholder (no dashed outline).
   const placeholder = frame.locator('.spread-frame-placeholder')
   expect(
     await placeholder.evaluate((el) => getComputedStyle(el).outlineStyle),
-  ).toBe('dashed')
+  ).toBe('none')
   await assertDocumentFitsViewport(page)
 
   await page.keyboard.press('Delete')
