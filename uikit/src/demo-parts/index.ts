@@ -1,0 +1,10 @@
+/* #/demo parts. #/demo (features/demo.tsx) is assembled only from these; feature pages (features/pages.tsx) mount only these. */
+export { DEMO_SESSION, DemoSessionProvider, createSession, useSession, blankDoc, type DBook, type SessionState, type Stage } from "./session"
+export { PrintDialog, PublishDialog, type RunStep } from "./dialogs"
+export { DemoWelcome } from "./welcome"
+export { DemoLibrary, type LibraryInit } from "./library"
+export { DemoSettings, SettingsScreen, type SettingsSection } from "./settings"
+export { DemoSite, SiteCover } from "./site"
+export { DemoEditor, EditorView, EditorTopBar, PhotosDock, AddFolder, DocSpy, DEMO_FEATURES, PartStudio, FilmstripPart, SpreadListPart, TopBarPart, InspectorPart, CanvasPart, type PartState, type EditorSlots } from "./editor"
+export { DemoRoot, type RootInit } from "./root"
+export { SLOT } from "./layout"

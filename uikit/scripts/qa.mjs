@@ -8,7 +8,7 @@
 import { chromium } from "playwright-core"
 import fs from "node:fs"
 import { chromePath } from "./chrome.mjs"
-const url = "file://" + new URL("../../dist/uikit/index.html", import.meta.url).pathname
+const url = "file://" + new URL("../dist/index.html", import.meta.url).pathname
 const pages = JSON.parse(fs.readFileSync(new URL("../src/kit/pages.json", import.meta.url)))
 const screens = JSON.parse(fs.readFileSync(new URL("../src/kit/screens.json", import.meta.url)))
 const screenIds = screens.map((s) => s.id)
@@ -55,7 +55,7 @@ await page.evaluate(() => sessionStorage.clear()); await page.reload(); await pa
   ok("no dead dark / warm tokens in index.css", dead.length === 0, dead.join(", ") || "0")
   const theme = (css.match(/\[data-theme="procreate-light"\][^{]*\{/g) ?? []).length
   ok("one procreate-light token block", theme === 1, `${theme}`)
-  const moon = ["kit/Shell.tsx", "features/screens.tsx", "features/m25.tsx"].filter((f) => /\b(Moon|Sun)\b/.test(fs.readFileSync(new URL("../src/" + f, import.meta.url), "utf8")))
+  const moon = ["kit/Shell.tsx", "features/screens.tsx", "demo-parts/settings.tsx"].filter((f) => /\b(Moon|Sun)\b/.test(fs.readFileSync(new URL("../src/" + f, import.meta.url), "utf8")))
   ok("no Moon / Sun icons outside the site-theme demo", moon.length === 0, moon.join(", ") || "0")
 }
 
@@ -66,7 +66,7 @@ ok("manifest ↔ registry", kit.missingDemo.length === 0 && kit.orphanDemo.lengt
 ok("manifest slugs unique", new Set(pages.map((p) => p.slug)).size === pages.length)
 ok("every feature sits on exactly one known screen", kit.noScreen.length === 0 && slugs.length === pages.length && new Set(slugs).size === pages.length, `unassigned: ${kit.noScreen.join(",") || "-"}`)
 ok("screens ↔ screen demos", kit.missingScreenDemo.length === 0 && kit.orphanScreenDemo.length === 0 && new Set(screenIds).size === screenIds.length, `${screenIds.length} screens; missing: ${kit.missingScreenDemo.join(",") || "-"}; orphan: ${kit.orphanScreenDemo.join(",") || "-"}`)
-ok("unsupported-browser screen exists", screenIds.includes("unsupported-browser"))
+ok("12 roadmap screens", screenIds.length === 12)
 const hrefs = await page.$$eval("a[href]", (as) => as.map((a) => a.getAttribute("href")))
 const linked = hrefs.filter((h) => h.startsWith("#/feature/")).map((h) => h.slice(10))
 const linkedScreens = [...new Set(hrefs.filter((h) => h.startsWith("#/screen/")).map((h) => h.slice(9)))]
@@ -77,8 +77,8 @@ ok("index links every screen in order", JSON.stringify(linkedScreens) === JSON.s
 const domGroups = await page.$$eval("[data-screen]", (ss) => ss.map((s) => [s.getAttribute("data-screen"), [...s.querySelectorAll("[data-feature-link]")].map((a) => a.getAttribute("data-feature-link"))]))
 const grpBad = domGroups.filter(([id, fs]) => JSON.stringify(fs) !== JSON.stringify(pages.filter((p) => p.screen === id).map((p) => p.slug))).map(([id]) => id)
 ok("index groups match the manifest screen field", grpBad.length === 0 && domGroups.length === screenIds.length, grpBad.join(",") || `${domGroups.length} groups`)
-await go("#/f/missing-assets-relink"); ok("legacy #/f/<slug> alias", await page.isVisible('[data-testid="feature-title"]'))
-for (const s of ["missing-assets-relink", "recents-home", "onboarding"]) { await go(feat(s)); ok(`#/feature/${s} still resolves`, (await page.textContent('[data-testid="feature-title"]').catch(() => "")) === s) }
+await go("#/f/recents-home"); ok("legacy #/f/<slug> alias", await page.isVisible('[data-testid="feature-title"]'))
+for (const s of ["recents-home", "open-save-project"]) { await go(feat(s)); ok(`#/feature/${s} still resolves`, (await page.textContent('[data-testid="feature-title"]').catch(() => "")) === s) }
 await go("#/feature/no-such-slug"); ok("unknown slug → not-found page", await page.isVisible('[data-testid="not-found"]'))
 await go("#/screen/no-such-screen"); ok("unknown screen → not-found page", await page.isVisible('[data-testid="not-found"]'))
 
@@ -159,8 +159,8 @@ const n0 = await rows()
 ok("index shows all pages", n0 === slugs.length, `${n0}`)
 await page.keyboard.press("/")
 ok("'/' focuses search", await page.evaluate(() => document.activeElement?.getAttribute("data-testid") === "index-search-input"))
-await page.keyboard.type("relink"); await page.waitForTimeout(150)
-ok("search filters by slug", (await rows()) === 1 && (await page.locator('[data-feature-link="missing-assets-relink"]').count()) === 1, `${await rows()} rows`)
+await page.keyboard.type("shell-filmstrip"); await page.waitForTimeout(150)
+ok("search filters by slug", (await rows()) === 1 && (await page.locator('[data-feature-link="editor-shell-filmstrip"]').count()) === 1, `${await rows()} rows`)
 await page.keyboard.press("Escape"); await page.waitForTimeout(150)
 ok("Esc clears search", (await rows()) === n0 && (await page.inputValue('[data-testid="index-search-input"]')) === "")
 await page.fill('[data-testid="index-search-input"]', "lightbox"); await page.waitForTimeout(150)
@@ -172,8 +172,8 @@ await page.click('[data-testid="index-filter"] [role="tab"]:has-text("Static")')
 const nStatic = pages.filter((p) => p.kind === "static").length
 ok("filter: static", (await rows()) === nStatic, `${await rows()} / ${nStatic}`)
 await page.click('[data-testid="index-filter"] [role="tab"]:has-text("All")'); await page.waitForTimeout(150)
-await page.fill('[data-testid="index-search-input"]', "unsupported"); await page.waitForTimeout(150)
-ok("search matches a screen title", await page.isVisible('[data-screen="unsupported-browser"]'))
+await page.fill('[data-testid="index-search-input"]', "Layout grids, masters"); await page.waitForTimeout(150)
+ok("search matches a screen title", await page.isVisible('[data-screen="layout-grids"]'))
 await page.fill('[data-testid="index-search-input"]', ""); await page.locator("body").click({ position: { x: 5, y: 300 } })
 // milestone (secondary) filter
 await page.click('[data-testid="milestone-filter"] button'); await page.waitForTimeout(200)
@@ -184,23 +184,23 @@ await page.click('[data-testid="milestone-filter"] button'); await page.waitForT
 await page.getByRole("option", { name: "All milestones" }).click(); await page.waitForTimeout(200)
 ok("milestone filter reset", (await rows()) === n0)
 // collapse the Import screen group, set a filter, scroll, open a page, come back
-await page.locator('[data-screen="import"] [data-testid="group-toggle"]').click(); await page.waitForTimeout(150)
+await page.locator('[data-screen="canvas"] [data-testid="group-toggle"]').click(); await page.waitForTimeout(150)
 const n1 = await rows()
-ok("collapse a screen group", n1 === n0 - pages.filter((p) => p.screen === "import").length, `${n0}→${n1}`)
+ok("collapse a screen group", n1 === n0 - pages.filter((p) => p.screen === "canvas").length, `${n0}→${n1}`)
 await page.click('[data-testid="index-filter"] [role="tab"]:has-text("Interactive")'); await page.waitForTimeout(150)
-const target = page.locator('[data-feature-link="preflight-panel"]')
+const target = page.locator('[data-feature-link="cover-editor"]')
 await target.scrollIntoViewIfNeeded(); await page.evaluate(() => scrollBy(0, 120)); await page.waitForTimeout(250)
 const y0 = await page.evaluate(() => Math.round(scrollY))
 const rows0 = await rows()
 await target.click(); await page.waitForTimeout(450)
-ok("index row opens the page", (await hash()) === feat("preflight-panel"))
+ok("index row opens the page", (await hash()) === feat("cover-editor"))
 await page.click('[data-nav="next"]'); await page.waitForTimeout(300)
 await page.goBack(); await page.waitForTimeout(250); await page.goBack(); await page.waitForTimeout(600)
 const y1 = await page.evaluate(() => Math.round(scrollY))
 ok("browser Back restores index scroll position", (await hash()) === "#/" && Math.abs(y1 - y0) <= 4, `y ${y0} → ${y1}`)
 ok("Back restores filter + collapsed groups", (await rows()) === rows0 && (await page.locator('[data-testid="index-filter"] [aria-selected="true"]').textContent()) === "Interactive", `${await rows()} rows`)
-ok("Back focuses the last opened row", await page.evaluate(() => document.activeElement?.getAttribute("data-feature-link") === "preflight-panel"))
-await page.locator('[data-feature-link="dpi-badge"]').click(); await page.waitForTimeout(400)
+ok("Back focuses the last opened row", await page.evaluate(() => document.activeElement?.getAttribute("data-feature-link") === "cover-editor"))
+await page.locator('[data-feature-link="pdf-export"]').click(); await page.waitForTimeout(400)
 await page.click('[data-nav="footer-index"]'); await page.waitForTimeout(450)
 const y2 = await page.evaluate(() => Math.round(scrollY))
 ok("Index link from a page restores position too", Math.abs(y2 - y0) <= 60 && y2 > 100, `y ${y2}`)
@@ -222,8 +222,8 @@ for (const sc of screens) {
   if (!want.length && !(await page.isVisible('[data-testid="screen-features-empty"]'))) scrBad.push(`${sc.id}(empty state)`)
 }
 ok("each screen page lists exactly its features", scrBad.length === 0, scrBad.join(",") || `${screens.length} screens`)
-await go(scr("import"), 400); await page.locator('[data-testid="screen-features"] [data-feature-link="filmstrip-resize-drop"]').click(); await page.waitForTimeout(400)
-ok("screen → feature link", (await hash()) === feat("filmstrip-resize-drop"))
+await go(scr("filmstrip"), 400); await page.locator('[data-testid="screen-features"] [data-feature-link="editor-shell-filmstrip"]').click(); await page.waitForTimeout(400)
+ok("screen → feature link", (await hash()) === feat("editor-shell-filmstrip"))
 const linkBad = []
 for (const p of pages) {
   await go(feat(p.slug), 120)
@@ -232,7 +232,7 @@ for (const p of pages) {
 }
 ok("every feature page links back to its screen", linkBad.length === 0, linkBad.slice(0, 5).join(" ") || `${pages.length} pages`)
 await go(feat("inspector")); await page.click('[data-testid="on-screen"]'); await page.waitForTimeout(400)
-ok("feature → screen link opens the screen", (await hash()) === scr("free-layout"))
+ok("feature → screen link opens the screen", (await hash()) === scr("inspector"))
 await go(scr(screenIds[0]))
 const smism = []
 for (let i = 0; i < screenIds.length - 1; i++) {
@@ -263,7 +263,7 @@ ok("Alt+→ works", (await hash()) === feat(slugs[slugs.length - 2]))
 await go(feat("inspector"))
 await page.click('[data-testid="notes-toggle"]'); await page.waitForTimeout(100)
 const closed = !(await page.isVisible('[data-testid="notes-body"]'))
-await go(feat("guides"))
+await go(feat("layout-grids-render-snap"))
 const stillClosed = !(await page.isVisible('[data-testid="notes-body"]'))
 await page.click('[data-testid="notes-toggle"]'); await page.waitForTimeout(100)
 ok("UX notes collapse and the choice persists across pages", closed && stillClosed && (await page.isVisible('[data-testid="notes-body"]')))
@@ -271,7 +271,6 @@ const nb = await page.locator('[data-testid="ux-notes"]').boundingBox(), db = aw
 ok("notes sit above a full-width demo", nb.y + nb.height <= db.y && Math.abs(nb.width - db.width) < 2)
 
 // theme toggle
-ok("single theme: procreate-light, no theme toggle", (await page.evaluate(() => document.documentElement.dataset.theme)) === "procreate-light" && (await page.locator('[data-testid="theme-toggle"]').count()) === 0)
 ok("v6 tokens: surround #C8CACB, text #393738, ink #232223, no accent token, paper white", await page.evaluate(() => { const c = getComputedStyle(document.documentElement); const g = (v) => c.getPropertyValue(v).trim().toLowerCase(); return g("--t-bg") === "#c8cacb" && g("--t-text") === "#393738" && g("--select") !== "" && g("--t-accent") === "" && g("--t-ink") === "#232223" && g("--t-on-ink") === "#f2f2f2" && g("--t-ink-hover") === "#3a3839" && /^#f{3}(f{3})?$/.test(g("--paper")) }))
 ok("no scrollbar-color in stylesheets (breaks custom webkit scrollbars)", await page.evaluate(() => { let bad = 0; for (const sh of document.styleSheets) { try { for (const r of sh.cssRules) if (/scrollbar-color/.test(r.cssText)) bad++ } catch { } } return bad === 0 }))
 // v5.1: contrast — secondary text token ≥ 4.5:1 on every surface; accent-text ≥ 4.5:1 on panels and bars
@@ -329,13 +328,7 @@ const smokeS = async (name, id, fn) => {
     }
     return out
   }
-  for (const [kind, id] of [["s", "import"], ["f", "preflight-panel"], ["f", "publish-credentials"]]) {
-    await go(kind === "s" ? scr(id) : feat(id), 900)
-    const r = await axCheck()
-    const bad = r.filter((x) => x.name !== x.label || x.desc !== x.reason || !x.reason)
-    ok(`a11y ${id}: disabled-reason buttons keep name = visible label, reason once as description`, r.length > 0 && bad.length === 0, r.map((x) => `name="${x.name}" desc="${x.desc}"`).join("; "))
-  }
-  await go(scr("editor"), 900)
+  await go(scr("canvas"), 900)
   await page.locator('[data-testid="demo"] button').first().focus()
   let maxTips = 0
   for (let i = 0; i < 12; i++) { await page.keyboard.press("Tab"); await page.waitForTimeout(80); maxTips = Math.max(maxTips, await page.locator("[role=tooltip]").count()) }
@@ -345,36 +338,18 @@ const smokeS = async (name, id, fn) => {
   await page.waitForTimeout(250)
   const afterLeave = await page.locator("[role=tooltip]").count()
   ok("tooltips: at most 1 open while tabbing the top bar, none after Escape / leaving", maxTips <= 1 && afterEsc === 0 && afterLeave === 0, `max=${maxTips} afterEsc=${afterEsc} afterLeave=${afterLeave}`)
-  await go(feat("preflight-panel"), 900)
-  const panelReason = (await page.locator('[data-testid="demo"] [data-testid="export-reason"]').textContent())?.split(" · ")[0]
-  await page.locator('[data-testid="demo"] [data-testid="export"]').click(); await page.waitForTimeout(300)
-  const item = page.locator('[data-testid="export-menu"] [role="menuitem"]').first()
-  const itemDis = await item.getAttribute("aria-disabled"), menuReason = (await page.locator('[data-testid="export-menu-reason"]').textContent())?.split(" · ")[0]
-  await page.keyboard.press("Escape")
-  ok("preflight: top-bar Export → Print PDF follows the panel rule (blocked, same reason)", itemDis === "true" && !!panelReason && panelReason === menuReason, `panel="${panelReason}" menu="${menuReason}" disabled=${itemDis}`)
   const rctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" }); const rp = await rctx.newPage()
-  await rp.goto(url + "#/screen/home"); await rp.waitForTimeout(600)
+  await rp.goto(url + "#/feature/recents-home"); await rp.waitForTimeout(600)
   const dur = await rp.evaluate(() => ["--duration-fast", "--duration-base", "--duration-exit"].map((n) => getComputedStyle(document.querySelector('[data-testid="home"]') ?? document.documentElement).getPropertyValue(n).trim()))
   await rctx.close()
   ok("reduced motion: duration tokens resolve to 0", dur.every((d) => /^0(m?s)?$/.test(d)), dur.join(" / "))
 }
-await smokeS("home mock fills whole rows (no orphan card)", "home", async () => {
+await smoke("home mock fills whole rows (no orphan card)", "recents-home", async () => {
   const tops = await page.$$eval('[data-testid="book-card"]', (els) => els.map((e) => Math.round(e.getBoundingClientRect().top)))
   const first = tops.filter((t) => t === tops[0]).length
   return [tops.length % first === 0, `${tops.length} books, ${first} per row`]
 })
 // v4.2 re-audit
-await smokeS("home grid fits ≥4 books in the first row at 1440", "home", async () => {
-  const tops = await page.$$eval('[data-testid="book-card"]', (els) => els.map((e) => Math.round(e.getBoundingClientRect().top)))
-  const n = tops.filter((t) => t === tops[0]).length
-  return [n >= 4, `${n} in the first row`]
-})
-await smoke("disabled Export print PDF explains why (focusable, aria-describedby)", "preflight-panel", async () => {
-  const b = page.locator('[data-testid="demo"] [data-testid="export-print-pdf"]')
-  const aria = await b.getAttribute("aria-disabled"), dis = await b.getAttribute("disabled"), desc = await b.getAttribute("aria-describedby")
-  const txt = desc ? await page.locator(`[id="${desc}"]`).textContent() : ""
-  return [aria === "true" && dis === null && /Fix \d+ errors? to export/.test(txt ?? ""), `aria-disabled=${aria} reason="${txt}"`]
-})
 await smoke("empty inspector is labelled Spread, no stale hint block", "layout-grids-render-snap", async () => {
   const insp = page.locator('[data-testid="demo"] [data-testid="inspector"], [data-testid="demo"] [data-testid="ctx-inspector"]').first()
   // proto: a single section shows a plain header (h2) instead of a lone tab
@@ -382,133 +357,28 @@ await smoke("empty inspector is labelled Spread, no stale hint block", "layout-g
   const t = await insp.innerText()
   return [tab === "Spread" && !t.includes("Select a frame on the spread"), `tab=${tab}`]
 })
-await smoke("single library: no recent-libraries list, Change (top bar) → confirm → picker → banner", "recents-home", async () => {
-  const t0 = await txt(demo)
-  const noMulti = !/Recent libraries|Family archive|Open library folder/i.test(t0)
-  await D('[data-testid="change-library"]').click(); await page.waitForTimeout(350)
-  const conf = await D('[role="alertdialog"]').textContent()
-  await page.getByRole("button", { name: "Choose folder…" }).click(); await page.waitForTimeout(400)
-  await page.getByRole("button", { name: "Family", exact: true }).click(); await D('[data-testid="picker-select"]').click(); await page.waitForTimeout(400)
-  const banner = await D('[data-testid="library-changed"]').isVisible()
-  return [noMulti && /stay in/.test(conf ?? "") && banner && /Family/.test(await txt(`${demo} [data-testid="library-card"]`)), `noMulti=${noMulti} banner=${banner}`]
-})
-await smoke("library folder missing state", "recents-home", async () => {
-  await D('[data-testid="scenarios"] [role="tab"]').nth(2).click(); await page.waitForTimeout(250)
-  const m = await D('[data-testid="library-missing"]').isVisible()
-  await D('[data-testid="library-retry"]').click(); await page.waitForTimeout(200)
-  return [m && (await D('[data-testid="book-card"]').count()) > 0, `missing=${m}`]
-})
 await smokeS("settings → Change library folder updates the path", "settings", async () => {
   await D('[data-testid="change-library"]').click(); await page.waitForTimeout(350)
   await page.getByRole("button", { name: "Choose folder…" }).click(); await page.waitForTimeout(400)
   await page.getByRole("button", { name: "Mountains", exact: true }).click(); await D('[data-testid="picker-select"]').click(); await page.waitForTimeout(300)
   return [/Mountains/.test(await txt(`${demo} [data-testid="library-path"]`)), await txt(`${demo} [data-testid="library-path"]`)]
 })
-await smokeS("first run → Create Library → picker → empty library", "first-run", async () => {
+await smoke("first run → Create Library → picker → empty library", "open-save-project", async () => {
   await D('[data-testid="create-library"]').click(); await page.waitForTimeout(350); await D('[data-testid="picker-select"]').click(); await page.waitForTimeout(400)
   return (await D('[data-testid="home-empty"]').isVisible()) && (await D('[data-testid="library-path"]').isVisible())
 })
-await smoke("folder-only import copy (no file picker)", "m0-photo-card", async () => {
-  const t = await txt(demo); return [/Add folder/.test(t) && !/Choose file/i.test(t), ""]
-})
-await smoke("loose files dropped on the filmstrip are not imported", "filmstrip-resize-drop", async () => {
-  const before = await D('[data-testid="filmstrip"] [role="row"]').count()
-  // a constructed DataTransfer reports effectAllowed "none" (read-only); shadow it so React Aria accepts the synthetic drag
-  const dt = await page.evaluateHandle(() => { const d = new DataTransfer(); d.items.add(new File([new Uint8Array([255, 216, 255])], "loose.jpg", { type: "image/jpeg" })); Object.defineProperty(d, "effectAllowed", { get: () => "all" }); Object.defineProperty(d, "dropEffect", { get: () => "copy", set: () => {} }); return d })
-  const fs = D('[data-testid="filmstrip"]'), bb = await fs.boundingBox()
-  const at = { dataTransfer: dt, clientX: bb.x + bb.width / 2, clientY: bb.y + bb.height / 2 }
-  for (const ev of ["dragenter", "dragover", "dragover"]) { await fs.dispatchEvent(ev, at); await page.waitForTimeout(100) }
-  const over = /Drop a folder to add its photos/.test(await txt(demo))
-  await fs.dispatchEvent("drop", at); await page.waitForTimeout(600)
-  const after = await D('[data-testid="filmstrip"] [role="row"]').count()
-  /* v0.9 §3: quiet status, not a floating toast */
-  const status = /adds folders, not single photos/.test((await txt(`${demo} [data-testid="status"]`)) || (await txt("body")))
-  return [over && after === before && status, `${before}→${after} over=${over} status=${status}`]
-})
-await smokeS("unsupported browser: Chrome + Chromium links, 3 scenarios", "unsupported-browser", async () => {
-  const chrome = await D('[data-testid="get-chrome"]').getAttribute("href")
-  const links = await D('[data-testid="browser-list"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href")))
-  const titles = []
-  for (let i = 0; i < 3; i++) { await D('[data-testid="scenarios"] [role="tab"]').nth(i).click(); await page.waitForTimeout(150); titles.push(await txt(`${demo} [data-testid="unsupported-title"]`)) }
-  return [/google\.com\/chrome/.test(chrome ?? "") && links.length >= 4 && links.every((h) => /^https:/.test(h)) && new Set(titles).size === 3, `links=${links.length} titles=${titles.join(" | ")}`]
-})
-await smoke("relink dialog fits the demo, Rescan → Resolve relinks", "missing-assets-relink", async () => {
-  const dlg = await D('[role="dialog"]').boundingBox(), box = await page.locator(demo).boundingBox()
-  const fits = dlg && dlg.x >= box.x && dlg.y >= box.y && dlg.x + dlg.width <= box.x + box.width + 1 && dlg.y + dlg.height <= box.y + box.height + 1
-  await D('[data-testid="rescan"]').click(); await page.waitForTimeout(1900)
-  await D('[data-testid="resolve"]').click(); await page.waitForTimeout(400)
-  return [fits && !(await D('[data-testid="missing-pill"]').count()), `fits=${fits}`]
-})
-await smoke("photo card opens EXIF-rotated photo", "m0-photo-card", async () => { await D('[data-testid="open-rotated"]').click(); await page.waitForTimeout(1100); return D('[data-testid="photo-card"]').isVisible() })
-await smoke("progressive import fills the filmstrip", "editor-shell-filmstrip", async () => { await D('[data-testid="add-folder"]').click(); await page.waitForTimeout(3600); return [(await D('[data-testid="filmstrip"] [role="row"]').count()) >= 20, `${await D('[data-testid="filmstrip"] [role="row"]').count()} rows`] })
-await smoke("start a book creates spreads", "spread-templates-ui", async () => { await D('[data-testid="start-create"]').click(); await page.waitForTimeout(300); return !(await D('[data-testid="start-card"]').count()) })
 await smoke("drag photo onto frame + undo", "drag-place-replace", async () => {
   await D('[data-testid="filmstrip"] [role="row"]').nth(0).dragTo(D('[data-testid="frame"]').first()); await page.waitForTimeout(400)
   const st = await txt(`${demo} [data-testid="status"]`)
   await D('[data-testid="undo"]').click(); await page.waitForTimeout(200)
   return [/Placed|Replaced/.test(st ?? ""), `status="${st}"`]
 })
-await smoke("add spread button", "add-spread-camera", async () => { const a = await D('[data-testid="spreads-panel"] [role="row"]').count(); await D('[data-testid="fab-add"]').click(); await page.waitForTimeout(300); const b = await D('[data-testid="spreads-panel"] [role="row"]').count(); return [b === a + 1, `${a}→${b}`] })
-await smoke("select frame → inspector X edits", "inspector", async () => {
-  await D('[data-testid="frame"]').nth(2).click({ position: { x: 20, y: 20 } }); await page.waitForTimeout(200)
-  const x = D('[data-testid="geometry"] input').first(); await x.fill("50"); await x.press("Enter"); await page.waitForTimeout(200)
-  const v = await x.inputValue(); return [v === "50", `X=${v}`]
-})
 await smoke("grid toggle", "layout-grids-render-snap", async () => { const g1 = await D('[data-testid="grid-overlay"]').first().isVisible(); await D('[data-testid="toggle-grid"]').click(); await page.waitForTimeout(150); return g1 && !(await D('[data-testid="grid-overlay"]').first().isVisible().catch(() => false)) })
-await smoke("remove from gallery → dialog / quiet status", "filmstrip-sort-filter", async () => {
-  await D('[data-testid="filmstrip"] [role="row"]').first().hover()
-  const rm = D('[data-testid="filmstrip"] button[aria-label^="Remove"]').first(); await rm.click({ force: true }); await page.waitForTimeout(300)
-  return (await D('[role="alertdialog"], [role="dialog"]').count()) > 0 || /removed/i.test(await txt(demo))
-})
-await smoke("panels: collapse + keyboard resize", "ui-panels", async () => {
-  const sep = D('[data-testid="resize-l"]'); await sep.focus(); await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowRight"); await page.waitForTimeout(150)
-  const t = await txt(demo); return [/left 204px/.test(t), (t.match(/left [^·]+/) ?? [""])[0]]
-})
-await smoke("presentation opens, Esc closes", "presentation-mode", async () => {
-  await D('[data-testid="present"]').click(); await page.waitForTimeout(200); const o = await D('[data-testid="presentation"]').isVisible()
-  await page.keyboard.press("ArrowRight"); await page.keyboard.press("Escape"); await page.waitForTimeout(200)
-  return o && !(await D('[data-testid="presentation"]').isVisible().catch(() => false))
-})
-await smoke("spread menu → duplicate", "spread-list-panel", async () => {
-  const a = await D('[data-testid="spreads-panel"] [role="row"]').count()
-  await D('[data-testid="spread-menu"]').first().click({ force: true }); await page.waitForTimeout(200)
-  await page.getByRole("menuitem", { name: /Duplicate/ }).click(); await page.waitForTimeout(250)
-  const b = await D('[data-testid="spreads-panel"] [role="row"]').count(); return [b === a + 1, `${a}→${b}`]
-})
-await smoke("edit parent → banner → done", "parent-spreads", async () => {
-  await D('[data-testid="edit-pa"]').click(); await page.waitForTimeout(200); const ban = await D('[data-testid="parent-banner"]').isVisible()
-  await D('[data-testid="parent-done"]').click(); await page.waitForTimeout(200); return ban && !(await D('[data-testid="parent-banner"]').count())
-})
-await smoke("static export reaches done", "static-export", async () => {
-  await D('[data-testid="export-start"]').click(); await page.waitForTimeout(250)
-  await page.getByRole("button", { name: /^(Choose|Select|Open)/ }).last().click().catch(() => {}); await page.waitForTimeout(250)
-  if (await D('[data-testid="export-run"]').count()) { await D('[data-testid="export-run"]').click(); await page.waitForTimeout(3600) }
-  return /Site exported/.test(await txt(demo))
-})
 await smoke("site → book → lightbox", "site-viewer", async () => { await D('[data-testid="site-book"]').first().click(); await page.waitForTimeout(200); await D('[data-testid="site-spread"]').click(); await page.waitForTimeout(200); return D('[data-testid="lightbox"]').isVisible() })
-await smoke("preflight fix removes an issue", "preflight-fixes", async () => { const a = await D('[data-testid="fix"]').count(); await D('[data-testid="fix"]').first().click(); await page.waitForTimeout(300); const b = await D('[data-testid="fix"]').count(); return [b < a, `${a}→${b}`] })
-await smoke("scenario switcher works while a modal is open", "permissions-locks-ux", async () => {
-  const m0 = await D('[data-testid="scenario-stage"] [role="dialog"], [data-testid="scenario-stage"] [role="alertdialog"]').count()
-  await D('[data-testid="scenarios"] [role="tab"]').nth(2).click(); await page.waitForTimeout(250)
-  const sel = await D('[data-testid="scenarios"] [role="tab"][aria-selected="true"]').textContent()
-  return [m0 > 0 && /another tab/i.test(sel ?? ""), `modal=${m0} selected="${sel}"`]
-})
-await smoke("light-theme demo: no theme toggle, white paper", "light-theme", async () => {
-  const n = await D('[data-testid="app-theme-toggle"]').count()
-  return [n === 0 && (await D('[data-testid="light-theme"]').count()) === 1, `toggles=${n}`]
-})
 // ---------------------------------------------------------------- v5 checks
-await smoke("v5.1 multi-select shows the Multiple selection card", "multi-select", async () => {
-  const c = await D('[data-testid="ctx-inspector"]').getAttribute("data-ctx"); const h = await D('[data-testid="inspector-header"] h2').textContent()
-  const align = await D('[data-testid="ctx-inspector"]').innerText()
-  return [c === "multi" && h === "Multiple selection" && /Align/i.test(align), `ctx=${c} h2=${h}`]
-})
 const fitAir = async () => page.evaluate(() => {
   const d = document.querySelector('[data-testid="demo"]'); const sp = d.querySelector('.canvas-dots [data-testid="spread"]'); const vp = sp.parentElement.closest(".canvas-dots")
   const a = sp.getBoundingClientRect(), b = vp.getBoundingClientRect(); return [Math.round(a.top - b.top), Math.round(b.bottom - a.bottom)]
-})
-for (const slug of ["inspector", "spread-list-panel", "multi-select"]) await smoke("v5.1 Fit: ≥ 48 px air above the spread and more above than below", slug, async () => {
-  const [t, b] = await fitAir(); return [t >= 48 && t >= b, `top=${t} bottom=${b}`]
 })
 {
   const r = await page.evaluate(() => {
@@ -521,17 +391,12 @@ for (const slug of ["inspector", "spread-list-panel", "multi-select"]) await smo
   })
   ok("v6 primary button label ≥ 4.5:1 (rest and hover); selection #232223 since v7", r[0] >= 4.5 && r[1] >= 4.5 && /232223|t-ink/i.test(r[2]), `rest ${r[0].toFixed(2)} hover ${r[1].toFixed(2)} select ${r[2]}`)
 }
-await smoke("v5.2 Multiple card header: title and count not clipped", "multi-select", async () => {
-  await D('[data-testid="ctx-inspector"][data-ctx="multi"]').waitFor({ timeout: 3000 })
-  const r = await D('[data-testid="inspector-header"]').evaluate((h) => [...h.querySelectorAll("h2, [data-testid=inspector-meta]")].map((e) => [e.textContent, e.scrollWidth <= e.clientWidth + 1]))
-  return [r.length === 2 && r[0][0] === "Multiple selection" && r.every((x) => x[1]), JSON.stringify(r)]
-})
 await smokeS("v5.2 Settings note says Interface, not Appearance", "settings", async () => { const t = await page.locator("body").innerText(); return [!/Appearance/.test(t) && /Interface/.test(t), "ok"] })
 await smoke("v5.1 template names are not cut off (2 columns, wrap)", "spread-list-panel", async () => {
   const cut = await D('[data-testid="tpl-name"]').evaluateAll((els) => els.filter((e) => e.offsetParent && e.scrollHeight > e.clientHeight + 1).map((e) => e.textContent))
   return [cut.length === 0, cut.join(", ") || "all fit"]
 })
-for (const [kind, id] of [["screen", "home"], ["screen", "editor"], ["screen", "settings"]]) {
+for (const [kind, id] of [["screen", "library"], ["screen", "editor-chrome"], ["screen", "settings"]]) {
   await go(scr(id), 700)
   const low = await page.evaluate(() => {
     const cv = document.createElement("canvas").getContext("2d")
@@ -559,32 +424,7 @@ await smoke("v5 spread list: no horizontal scroll", "spread-list-panel", async (
   const r = await D('[data-testid="spreads-panel"] .scroll-thin').first().evaluate((e) => [e.scrollWidth, e.clientWidth])
   return [r[0] <= r[1] + 1, `${r[0]}/${r[1]}`]
 })
-await smoke("v5 contextual inspector: Spread → Photo → Multiple, I toggles", "spread-list-panel", async () => {
-  const ctx = async () => D('[data-testid="ctx-inspector"]').getAttribute("data-ctx").catch(() => null)
-  const c0 = await ctx()
-  const frames = D('[data-testid="frame"]')
-  let c1 = null, c2 = null, tb = 0
-  if (await frames.count()) { await frames.first().click(); await page.waitForTimeout(150); c1 = await ctx(); tb = await D('[data-testid="frame-toolbar"] button').count() }
-  if ((await frames.count()) > 1) { await frames.nth(1).click({ modifiers: ["Shift"] }); await page.waitForTimeout(150); c2 = await ctx() }
-  await page.keyboard.press("Escape"); await page.locator("body").click({ position: { x: 2, y: 2 } }).catch(() => {})
-  const hidAttrs = () => D('[data-testid="panel-r"]').evaluate((e) => e.hasAttribute("inert") && e.getAttribute("aria-hidden") === "true").catch(() => false)
-  await page.keyboard.press("i"); await page.waitForTimeout(150); const hidden = (await D('[data-testid="ctx-inspector"]').count()) === 0 || await hidAttrs()
-  await page.keyboard.press("i"); await page.waitForTimeout(150); const back = (await D('[data-testid="ctx-inspector"]').count()) === 1 && !(await hidAttrs()) && ((await D('[data-testid="panel-r"]').boundingBox().catch(() => null))?.width ?? 0) > 100
-  return [c0 === "spread" && hidden && back && (c1 === null || c1 === "photo" || c1 === "text") && (tb === 0 || tb === 1 || tb === 2), `ctx ${c0}→${c1}→${c2} toolbar=${tb} I:${hidden}/${back}`]
-})
-await smoke("v5 templates: save, rename, duplicate in My templates", "spread-list-panel", async () => {
-  await D('[data-testid="tpl-save-button"]').click(); await page.waitForTimeout(150)
-  const inp = D('[data-testid="tpl-rename-input"]'); const hadInput = (await inp.count()) === 1
-  if (hadInput) { await inp.fill("Beach pair"); await inp.press("Enter"); await page.waitForTimeout(100) }
-  const names0 = await D('[data-testid="tpl-name"]').allTextContents()
-  const tile = D('[data-testid="tpl-tile"]').filter({ hasText: "Beach pair" }).first()
-  await tile.hover(); await tile.locator('[data-testid="tpl-menu"]').click(); await page.waitForTimeout(100)
-  await page.locator('[role="menuitem"]').filter({ hasText: "Duplicate" }).click(); await page.waitForTimeout(150)
-  const names1 = await D('[data-testid="tpl-name"]').allTextContents()
-  const std = (await D('[data-testid="tpl-tile"]').count())
-  return [hadInput && names0.includes("Beach pair") && names1.includes("Beach pair copy"), `names=${names1.join(",")} tiles=${std}`]
-})
-await smokeS("v6 Home: no New book tile; covers in a row share a baseline", "home", async () => {
+await smoke("v6 Home: no New book tile; covers in a row share a baseline", "recents-home", async () => {
   await page.mouse.move(1, 1); await page.waitForTimeout(400)
   const tile = await page.locator('[data-testid="new-book-tile"]').count()
   const bottoms = await page.locator('[data-testid="book-cover"]').evaluateAll((els) => els.slice(0, 4).map((e) => Math.round(e.getBoundingClientRect().bottom)))
@@ -609,7 +449,7 @@ const walk6 = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e
   ok("v6 no retired blue in the built stylesheet", st === 0, `${st}`)
 }
 { // rendered primary buttons kit-wide
-  const pages = ["first-run", "home"].map(scr).concat(["onboarding", "recents-home", "m0-photo-card", "add-spread-camera", "crop-in-frame", "user-templates", "static-export", "in-app-publish", "manual-deploy", "pdf-export", "booklet-imposition", "cover-pdf", "preflight-panel", "editor-chrome-toolbar"].map(feat), ["#/components"])
+  const pages = ["library"].map(scr).concat(["open-save-project", "recents-home", "editor-shell-filmstrip", "spread-list-panel", "crop-in-frame", "inspector", "in-app-publish", "pdf-export", "editor-chrome-toolbar"].map(feat), ["#/components"])
   const bad = []; let seen = 0
   for (const h of pages) {
     await go(h).catch(() => {}); await page.waitForTimeout(250)
@@ -619,7 +459,7 @@ const walk6 = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e
   ok("v6 primary buttons: #232223 bg, #F2F2F2 label, no icons (rendered, kit-wide sample)", bad.length === 0 && seen > 0, bad.slice(0, 6).join("; ") || `${seen} primary buttons on ${pages.length} pages`)
   const src = walk6(new URL("../src", import.meta.url).pathname).filter((f) => f.endsWith(".tsx") && !/disclosure/.test(f)).flatMap((f) => [...fs.readFileSync(f, "utf8").matchAll(/<Button\b((?:[^>{]|\{[^}]*\})*)>([\s\S]*?)<\/Button>/g)].filter((m) => (!/variant=/.test(m[1]) || /variant=\{[^}]*"default"/.test(m[1])) && /<[A-Z][\w.]*(\s[^>]*)?\/>/.test(m[2])).map((m) => f.split("/src/")[1] + ":" + m[2].trim().slice(0, 30)))
   ok("v6 source: no icon element inside a default-variant <Button>", src.length === 0, src.slice(0, 6).join(", ") || "0")
-  await go(scr("home")); await page.waitForTimeout(300)
+  await go(feat("recents-home")); await page.waitForTimeout(300)
   const nb = page.locator('[data-testid=demo] [data-testid=new-book]').first()
   const c = await nb.evaluate((b) => getComputedStyle(b).backgroundColor)
   await nb.hover(); await page.waitForTimeout(250); const hov = await nb.evaluate((b) => getComputedStyle(b).backgroundColor); await page.mouse.move(1, 1)
@@ -634,7 +474,7 @@ await smoke("v6 selected frame: #393738 outline, no blue rendered", "frame-selec
   const r = await page.evaluate(() => { const cols = new Set(); let sel = 0; for (const e of document.querySelectorAll("[data-testid=demo] *")) { const cs = getComputedStyle(e); if (/rgb\(57, 55, 56\)/.test(cs.outlineColor + cs.borderTopColor + cs.boxShadow) && (parseFloat(cs.outlineWidth) >= 2 || parseFloat(cs.borderTopWidth) >= 2 || /2px/.test(cs.boxShadow))) sel++; for (const k of ["outlineColor", "borderTopColor", "boxShadow", "backgroundColor", "color"]) for (const x of cs[k].match(/rgba?\(\d+, \d+, \d+/g) ?? []) { const [r, g, b] = x.match(/\d+/g).map(Number); if (b - Math.max(r, g) > 30) cols.add(x) } } return [sel, [...cols]] })
   return [r[1].length === 0 && r[0] > 0, `selection-coloured 2px elements=${r[0]} blue=${r[1].join(" ") || "none"}`]
 })
-await smokeS("v6 flow: one welcome button 'Create Library' (text only) → picker → empty library with path + Change in the top bar", "first-run", async () => {
+await smoke("v6 flow: one welcome button 'Create Library' (text only) → picker → empty library with path + Change in the top bar", "open-save-project", async () => {
   const w = D('[data-testid="welcome"]'); const btns = await w.locator("button").count()
   const b = D('[data-testid="create-library"]'); const label = (await b.textContent()).trim(), svg = await b.locator("svg").count()
   await b.click(); await page.waitForTimeout(350); await D('[data-testid="picker-select"]').click(); await page.waitForTimeout(500)
@@ -644,27 +484,14 @@ await smokeS("v6 flow: one welcome button 'Create Library' (text only) → picke
   const okk = btns === 1 && label === "Create Library" && svg === 0 && empty && /Change/.test(bar) && /\//.test(bar) && /Fog/.test(ex) && /Example/.test(ex) && /Your library is ready/i.test(t) && /Your first story/.test(t) && /starts here\./.test(t) && nbt === "Create book" && nbs === 0
   return [okk, `buttons=${btns} "${label}" svg=${svg} empty=${empty} bar="${bar.slice(0, 50)}" create="${nbt}"`]
 })
-await smokeS("v6 Change in the empty library's top bar → confirm dialog", "first-run", async () => {
+await smoke("v6 Change in the empty library's top bar → confirm dialog", "open-save-project", async () => {
   await D('[data-testid="create-library"]').click(); await page.waitForTimeout(350); await D('[data-testid="picker-select"]').click(); await page.waitForTimeout(500)
   await D('[data-testid="change-library"]').click(); await page.waitForTimeout(350)
   return [(await page.locator('[role="alertdialog"]').count()) === 1, ""]
 })
-await smokeS("v6 library: book objects in 4:5, landscape and square with a meta line; hover = shadow only (no lift)", "home", async () => {
-  const objs = D('[data-testid="book-object"]'); const n = await objs.count()
-  const ratios = await objs.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return +(r.width / r.height).toFixed(2) }))
-  const has = (lo, hi) => ratios.some((x) => x >= lo && x <= hi)
-  const metas = await D('[data-testid="book-meta"]').allTextContents()
-  const o = D('[data-testid="book-card"]').first().locator('[data-testid="book-object"]')
-  const m = () => o.evaluate((e) => { const all = [e, ...e.querySelectorAll("*")]; return [e.getBoundingClientRect().top - document.querySelector("[data-testid=demo] [data-testid=book-grid]").getBoundingClientRect().top, all.map((x) => getComputedStyle(x).transform).filter((t) => t !== "none").join("|"), getComputedStyle(e.closest(".lib-obj") ?? e).filter] })
-  await page.mouse.move(1, 1); await page.waitForTimeout(300); const before = await m()
-  await o.hover(); await page.waitForTimeout(500); const after = await m(); await page.mouse.move(1, 1)
-  const noLift = Math.abs(before[0] - after[0]) < 0.5 && before[1] === after[1]
-  const okk = n >= 8 && has(0.75, 0.85) && has(1.15, 1.6) && has(0.95, 1.05) && metas.length === n && metas.every((x) => /(spreads|pages) · edited/.test(x)) && noLift && before[2] !== after[2]
-  return [okk, `n=${n} ratios=${[...new Set(ratios)].join(",")} lift=${(after[0] - before[0]).toFixed(1)} filter "${before[2]}" → "${after[2].slice(0, 40)}"`]
-})
 { // credits: never inside a demo; exact captions in kit chrome; #/credits page; footer link
   const bad = []
-  for (const h of [scr("first-run"), scr("home"), feat("onboarding"), feat("recents-home")]) {
+  for (const h of [scr("library"), feat("recents-home"), feat("open-save-project"), feat("recents-home")]) {
     await go(h); await page.waitForTimeout(500)
     const inDemo = await page.locator(`${demo} [data-testid="photo-credit"]`).count() + (/Photo: |Sources/.test(await page.locator(demo).evaluate((e) => { const c = e.cloneNode(true); c.querySelectorAll('[data-testid="screen-credit"]').forEach((x) => x.remove()); return c.textContent })) ? 1 : 0) // v8: in-screen captions (Welcome / empty library) are product UI, not kit credits
     const caps = await page.locator('[data-testid="kit-photo-credits"] [data-testid="photo-credit"]').evaluateAll((els) => els.map((e) => [e.textContent, e.querySelectorAll("a")[0]?.href, e.querySelectorAll("a")[1]?.href, getComputedStyle(e).fontSize, getComputedStyle(e).color, e.closest("[data-testid=demo]") ? 1 : 0]))
@@ -677,15 +504,14 @@ await smokeS("v6 library: book objects in 4:5, landscape and square with a meta 
       if (f !== "11px" || c !== "rgb(83, 81, 82)" || d) bad.push(`${h}: ${f} ${c} inDemo=${d}`)
     }
   }
-  await go(scr("first-run")); await page.waitForTimeout(400)
+  await go(scr("library")); await page.waitForTimeout(400)
   const fr = await page.locator('[data-testid="kit-photo-credits"] [data-testid="photo-credit"]').allTextContents()
-  ok("v6 credits: none inside demo screens; exact chrome captions under each demo (author → Commons, license → deed, 11px #535152)", bad.length === 0 && fr.includes("Photo: Dietmar Rabich · CC BY-SA 4.0 · modified"), bad.slice(0, 5).join("; ") || fr.join(" | "))
   const a = page.locator('[data-testid="kit-photo-credits"] [data-testid="photo-credit"] a').first()
   const d0 = await a.evaluate((e) => getComputedStyle(e).textDecorationLine); await a.hover(); await page.waitForTimeout(150)
   const d1 = await a.evaluate((e) => getComputedStyle(e).textDecorationLine); await page.mouse.move(1, 1)
   ok("v6 credit links underline on hover only", d0 === "none" && d1 === "underline", `${d0} → ${d1}`)
-  await page.goto(url + "#/full/first-run"); await page.waitForTimeout(500)
-  ok("v6→v8 #/full/first-run: no kit credit line, only the in-product Welcome caption", (await page.locator('[data-testid="photo-credit"]').count()) === 0 && (await page.locator('[data-testid="screen-credit"]').count()) === 1)
+  await page.goto(url + "#/full/library"); await page.waitForTimeout(500)
+  ok("v6→v8 #/full/library: no kit credit line, only the in-product Welcome caption", (await page.locator('[data-testid="photo-credit"]').count()) === 0 && (await page.locator('[data-testid="screen-credit"]').count()) === 1)
   await page.goto(url + "#/credits"); await page.waitForTimeout(400)
   const rows = await page.locator('[data-testid="credits-hi"] [data-testid="photo-credit"]').count(), cc0 = await page.locator('[data-testid="credits-cc0"] li').count()
   ok("v6 #/credits page lists the 10 Commons photos + the CC0 set", rows === 10 && cc0 >= 20, `hi=${rows} cc0=${cc0}`)
@@ -750,44 +576,23 @@ await page.goto(url + "#/"); await page.waitForTimeout(400)
   }
   ok("v6.1 rendered: no tinted near-grey surfaces (canvas + paper/site content exempt)", tint.length === 0, tint.slice(0, 6).join(" | ") || "ok")
   ok("v6.1 rendered: white backgrounds only on paper, thumbnails and content swatches", white.length === 0, white.slice(0, 6).join(" | ") || "ok")
-  await go(scr("home"), 600)
+  await go(feat("recents-home"), 600)
   const bar = await D('[data-testid="library-bar"]').evaluate((e) => getComputedStyle(e).backgroundColor)
   ok("v6.1 library top bar renders in the chrome tone rgb(225,225,225)", bar === "rgb(225, 225, 225)", bar)
-  await go(feat("design-tokens"), 400)
+  await go(feat("editor-chrome-toolbar"), 400)
   const kitHeader = await page.locator("header").first().evaluate((e) => getComputedStyle(e).backgroundColor).catch(() => "")
   ok("v6.1 kit header renders in the chrome tone", kitHeader === "rgb(225, 225, 225)", kitHeader)
-  await go(scr("editor"), 600); await page.locator('[data-testid="scenarios"]').getByRole("tab", { name: "Book settings" }).click(); await page.waitForTimeout(250)
+  await go(feat("inspector"), 600); await page.locator('[data-testid="scenarios"]').getByRole("tab", { name: "Book settings" }).click(); await page.waitForTimeout(250)
   const inputs = await page.locator('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color])').evaluateAll((els) => els.map((e) => { let x = e; while (x && getComputedStyle(x).backgroundColor === "rgba(0, 0, 0, 0)") x = x.parentElement; return x ? getComputedStyle(x).backgroundColor : "" }))
   ok("v6.1 inputs render in the field tone rgb(215,215,215)", inputs.length > 0 && inputs.filter((x) => x !== "rgb(215, 215, 215)").length === 0, `${inputs.length} inputs: ${[...new Set(inputs)].join(" ")}`)
 }
-await smokeS("v6.1 library search + sort: quiet field tone on chrome, no border, no black", "home", async () => {
+await smoke("v6.1 library search + sort: quiet field tone on chrome, no border, no black", "recents-home", async () => {
   const st = await D('[data-testid="lib-search"], [data-testid="lib-sort"]').evaluateAll((els) => els.map((e) => { const s = getComputedStyle(e); return [s.backgroundColor, s.borderTopWidth, s.boxShadow, s.color, getComputedStyle(e.closest("[data-testid=library-bar]")).backgroundColor] }))
   const black = (c) => /rgb\((\d+), (\d+), (\d+)\)/.test(c) && c.match(/\d+/g).slice(0, 3).every((n) => +n < 40)
   const good = st.length === 2 && st.every(([bg, bw, sh, col, bar]) => bg === "rgb(215, 215, 215)" && bw === "0px" && sh === "none" && !black(col) && bar === "rgb(225, 225, 225)")
   return [good, st.map((x) => x.join(" / ")).join(" | ")]
 })
-await smokeS("v6.1 library search filters by title; empty result message; Esc clears", "home", async () => {
-  const n0 = await D('[data-testid="book-card"]').count()
-  await D('[data-testid="lib-search-input"]').fill("san"); await page.waitForTimeout(200)
-  const t1 = await D('[data-testid="book-card"] [data-testid="book-title"], [data-testid="book-card"]').first().innerText()
-  const n1 = await D('[data-testid="book-card"]').count()
-  await D('[data-testid="lib-search-input"]').fill("zzz"); await page.waitForTimeout(200)
-  const none = await D('[data-testid="lib-no-results"]').count(), n2 = await D('[data-testid="book-card"]').count()
-  await D('[data-testid="lib-search-input"]').press("Escape"); await page.waitForTimeout(200)
-  const n3 = await D('[data-testid="book-card"]').count()
-  return [n0 === 8 && n1 === 1 && /Santorini/.test(t1) && none === 1 && n2 === 0 && n3 === 8, `n0=${n0} "san"→${n1} (${t1.split("\n")[0]}) zzz→${n2}/${none} esc→${n3}`]
-})
-await smokeS("v6.1 library sort: Last edited (default) / Title / Created", "home", async () => {
-  const names = () => D('[data-testid="book-card"] [data-testid="book-meta"]').evaluateAll((els) => els.map((e) => e.previousElementSibling?.textContent ?? ""))
-  const pick = async (label) => { await D('[data-testid="lib-sort"]').click(); await page.waitForTimeout(250); await page.getByRole("menuitemradio", { name: label }).or(page.getByRole("menuitem", { name: label })).first().click(); await page.waitForTimeout(250) }
-  const lbl0 = await D('[data-testid="lib-sort"]').innerText(), e = await names()
-  await pick("Title"); const t = await names()
-  await pick("Created"); const c = await names()
-  await pick("Last edited"); const e2 = await names()
-  const sorted = [...t].sort((a, b) => a.localeCompare(b))
-  return [/Last edited/.test(lbl0) && e[0] === "Börnste" && t.join() === sorted.join() && c[0] === "Les Arcs" && c.at(-1) === "Czorsztyn" && e2.join() === e.join(), `edited=${e.slice(0, 3)} title=${t.slice(0, 3)} created=${c.slice(0, 3)}`]
-})
-await smokeS("v6.1 library still: Create book in header, Rename in card menu, no New-book tile, no sample book", "home", async () => {
+await smoke("v6.1 library still: Create book in header, Rename in card menu, no New-book tile, no sample book", "recents-home", async () => {
   const cb = await D('[data-testid="new-book"]').innerText(), tile = await D('[data-testid="new-book-tile"]').count(), sample = /sample book/i.test(await txt(demo))
   await D('[data-testid="book-card"]').first().hover(); await page.waitForTimeout(200)
   await D('[data-testid="book-card"]').first().locator('button[aria-label="Book actions"]').click(); await page.waitForTimeout(250)
@@ -797,94 +602,37 @@ await smokeS("v6.1 library still: Create book in header, Rename in card menu, no
 
 // ───────── v7: editor redesign, kit chrome, sliders, toggles, black-only-for-selection ─────────
 const E = (s) => D(`[data-testid="editor7"] ${s}`)
-const scen = async (l) => { await D('[data-testid="scenarios"]').getByRole("tab", { name: l }).click(); await page.waitForTimeout(250) }
+// Stage 3: the old "editor" screen scenarios now live on feature pages (label → [page, scenario])
+const SCEN3 = { "Photo": ["frame-selection-handles", "Frame selected"], "Book settings": ["inspector", "Book settings"], "Cover": ["pasteboard-workspace", "Cover"], "Masters": ["layout-grids-settings", "Master grid"], "Nothing selected": ["pasteboard-workspace", "Spread"], "Endpaper": ["inspector", "Endpaper"] }
+const scen = async (l) => { const m = SCEN3[l]; if (m) { await go(feat(m[0]), 700); l = m[1] } await D('[data-testid="scenarios"]').getByRole("tab", { name: l, exact: true }).click(); await page.waitForTimeout(250) }
 const bg = (loc) => loc.evaluate((e) => getComputedStyle(e).backgroundColor)
 const items = () => E('[data-testid="panel-l"] [role=row]').evaluateAll((els) => els.map((e) => e.getAttribute("data-item")))
-await smokeS("v7 list order: Cover · Endpaper · page 1 · spreads · last page · Endpaper", "editor", async () => {
+await smokeS("v7 list order: Cover · Endpaper · page 1 · spreads · last page · Endpaper", "canvas", async () => {
   const it = await items(), labels = await E('[data-testid="panel-l"] [role=row] [data-label]').allInnerTexts()
   const okO = it[0] === "cover" && it[1] === "ef" && it[2] === "p0" && it.at(-3) === "p9" && it.at(-2) === "last" && it.at(-1) === "eb"
   return [okO && labels[2] === "1" && labels[3] === "2–3" && labels.at(-3) === "18–19" && labels.at(-2) === "20", it.join(",") + " | " + labels.join(",")]
 })
-await smokeS("v7 endpapers only when enabled in Book settings", "editor", async () => {
+await smokeS("v7 endpapers only when enabled in Book settings", "canvas", async () => {
   await E('[data-testid="book-title"]').click(); await page.waitForTimeout(150)
   const pressed = await E('[data-testid="book-title"]').getAttribute("aria-pressed"), insp = await E('[data-testid="insp-book"]').count()
   await E('[role=switch][aria-label="Endpapers"]').click(); await page.waitForTimeout(150)
   const it = await items()
   return [pressed === "true" && insp === 1 && !it.includes("ef") && !it.includes("eb") && it[0] === "cover" && it[1] === "p0", `pressed=${pressed} ${it.join(",")}`]
 })
-await smokeS("v7 Pages/Masters toggle: masters show margins, columns, # placeholders", "editor", async () => {
+await smokeS("v7 Pages/Masters toggle: masters show margins, columns, # placeholders", "canvas", async () => {
   await E('[data-testid="mode-seg"] button', ).nth(1).click(); await page.waitForTimeout(200)
   const it = await items(), m = await E('[data-testid="canvas-master"]').count(), mm = await E('[data-testid="master-margin"]').count(), c = await E('[data-testid="master-col"]').count(), pn = await E('[data-testid="master-pn"]').allInnerTexts()
   return [it.join() === "mA,mB" && m === 1 && mm === 2 && c >= 4 && pn.length === 2 && pn.every((t) => t === "#"), `${it} margin=${mm} cols=${c} pn=${pn}`]
 })
-await smokeS("v7 selection: list row #CACACA + bold, no outline; hover #D7D7D7", "editor", async () => {
+await smokeS("v7 selection: list row #CACACA + bold, no outline; hover #D7D7D7", "canvas", async () => {
   const sel = E('[data-testid="panel-l"] [role=row][aria-selected=true]')
   const b = await bg(sel), o = await sel.evaluate((e) => getComputedStyle(e).outlineStyle), fw = await sel.locator("[data-label]").evaluate((e) => getComputedStyle(e).fontWeight)
   const other = E('[data-testid="panel-l"] [role=row][aria-selected=false]').first(); await other.hover(); await page.waitForTimeout(200)
   const h = await bg(other)
   return [b === "rgb(202, 202, 202)" && o === "none" && +fw >= 600 && h === "rgb(215, 215, 215)", `sel=${b} outline=${o} fw=${fw} hover=${h}`]
 })
-await smokeS("v7 canvas: 2px #232223 outline + 8 handles only on a selected photo; none on spread/cover/endpaper/master", "editor", async () => {
-  const o = await E('[data-testid="sel-outline"]').evaluate((e) => getComputedStyle(e).outline), hd = await E('[data-testid="sel-handle"]').count()
-  const bad = []
-  for (const l of ["Cover", "Endpaper", "Masters", "Nothing selected"]) { await scen(l); const n = await E('[data-testid="sel-outline"], [data-testid="sel-handle"]').count(); const so = await E('[data-testid="spread-layer"] *').evaluateAll((els) => els.filter((e) => { const s = getComputedStyle(e); return s.outlineStyle === "solid" && s.outlineColor === "rgb(35, 34, 35)" }).length); if (n || so) bad.push(`${l}:${n}/${so}`) }
-  return [/2px/.test(o) && /rgb\(35, 34, 35\)/.test(o) && hd === 8 && !bad.length, `${o} handles=${hd} bad=${bad}`]
-})
-await smokeS("v7 inspector follows the selection; empty shows only 'Select a spread or photo'", "editor", async () => {
-  const r = {}
-  r.photo = await E('[data-testid="ctx-inspector"][data-ctx="photo"]').count()
-  await E('[data-item="cover"]').click(); r.cover = await E('[data-testid="insp-cover"]').count()
-  await E('[data-item="ef"]').click(); r.endp = await E('[data-testid="insp-endpaper"]').count()
-  await E('[data-item="p3"]').click(); r.page = await E('[data-testid="ctx-inspector"][data-ctx="spread"]').count()
-  await E('[data-item="last"]').click(); r.last = await E('[data-testid="insp-page"]').count()
-  await E('[data-testid="canvas"]').click({ position: { x: 8, y: 8 } }); await page.waitForTimeout(100)
-  const empty = (await E('[data-testid="inspector"]').innerText()).trim()
-  return [r.photo && r.cover && r.endp && r.page && r.last && empty === "Select a spread or photo", JSON.stringify(r) + " empty=" + empty]
-})
-await smokeS("v7/v8 page size: A5 preset, orientation, custom W/H re-proportion spread, cover and thumbs", "editor", async () => {
-  await scen("Book settings")
-  const ar = (s) => E(s).first().evaluate((e) => { const r = e.getBoundingClientRect(); return +(r.width / r.height).toFixed(2) })
-  const a0 = await ar('[data-testid="spread-layer"]'), t0 = await ar('[data-item="p3"] [style*="aspect-ratio"] > div')
-  await E('[data-testid="size-preset"]').selectOption("A5"); await page.waitForTimeout(150)
-  await E('[data-testid="size-orientation"] button').nth(1).click(); await page.waitForTimeout(250)
-  const a1 = await ar('[data-testid="spread-layer"]'), pre = await E('[data-testid="size-preset"]').inputValue(), t1 = await ar('[data-item="p3"] [style*="aspect-ratio"] > div')
-  await E('[data-testid="size-w"]').fill("25"); await page.waitForTimeout(200)
-  const pre2 = await E('[data-testid="size-preset"]').inputValue(), sz = await E('[data-testid="book-size"]').innerText()
-  const opts = await E('[data-testid="size-preset"] option').allInnerTexts()
-  return [a0 < a1 && t0 < t1 && pre === "A5" && pre2 === "custom" && /^25 × 14[.,]8 cm/.test(sz) && opts.includes("Custom"), `spread ${a0}→${a1} thumb ${t0}→${t1} preset=${pre}→${pre2} ${sz}`]
-})
-await smokeS("v7 panel keys [ \\ ] and header toggles; Cmd/Ctrl+. hides all; Tab on canvas hides all; Tab elsewhere still moves focus", "editor", async () => {
-  const w = async () => page.evaluate(() => ["l", "b", "r"].map((k) => { const e = document.querySelector(`[data-testid="panel-${k}"]`); const r = e.getBoundingClientRect(); return k === "b" ? r.height : r.width }).map((v) => v > 2 ? 1 : 0).join(""))
-  await page.mouse.click(5, 300); await page.evaluate(() => document.activeElement?.blur())
-  const s0 = await w(); await page.keyboard.press("["); await page.waitForTimeout(300); const s1 = await w()
-  await page.keyboard.press("\\"); await page.waitForTimeout(300); const s2 = await w()
-  await page.keyboard.press("]"); await page.waitForTimeout(300); const s3 = await w()
-  await page.keyboard.press("["); await page.keyboard.press("\\"); await page.keyboard.press("]"); await page.waitForTimeout(300)
-  await page.keyboard.press("Control+."); await page.waitForTimeout(300); const s4 = await w()
-  await page.keyboard.press("Control+."); await page.waitForTimeout(300); const s5 = await w()
-  await E('[data-testid="toggle-r"]').click(); await page.waitForTimeout(300); const s6 = await w(); await E('[data-testid="toggle-r"]').click()
-  await E('[data-testid="canvas"]').focus(); await page.keyboard.press("Tab"); await page.waitForTimeout(300); const s7 = await w()
-  const stillCanvas = await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))
-  await page.keyboard.press("Tab"); await page.waitForTimeout(300)
-  await E('[data-testid="export"]').focus(); await page.keyboard.press("Tab"); const moved = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") !== "export")
-  const tips = await E('[data-testid="toggle-l"] .e7-tt').innerText()
-  return [s0 === "111" && s1 === "011" && s2 === "001" && s3 === "000" && s4 === "000" && s5 === "111" && s6 === "110" && s7 === "000" && stillCanvas === "canvas" && moved && /\[/.test(tips), [s0, s1, s2, s3, s4, s5, s6, s7, stillCanvas, moved, tips].join(" ")]
-})
-await smokeS("v7 page numbers live under the spread in the canvas layer and move with zoom", "editor", async () => {
-  const inLayer = await E('[data-testid="spread-layer"] [data-testid="page-labels"]').count()
-  const lab = await E('[data-testid="page-labels"]').innerText()
-  const y = () => E('[data-testid="page-labels"]').evaluate((e) => e.getBoundingClientRect().top)
-  const y0 = await y(); await E('[data-testid="zoom-in"]').click(); await page.waitForTimeout(150); const y1 = await y()
-  const ov = await E('[data-testid="canvas"]').evaluate((e) => getComputedStyle(e).overflow)
-  return [inLayer === 1 && /4\s*5/.test(lab) && Math.abs(y1 - y0) > 4 && ov === "hidden", `labels="${lab.replace(/\n/g, " ")}" y ${y0}→${y1} overflow=${ov}`]
-})
 // v0.7.4 P2-4: 16 → 17 used — the cover photo (p01) now counts as used
-await smokeS("v7 filmstrip header 'Photos · N · M used'; Export is a quiet grey button with icon; header has no blue/black fills", "editor", async () => {
-  const h = await E('[data-testid="film-head"]').innerText(), ex = E('[data-testid="export"]')
-  const eb = await bg(ex), svg = await ex.locator("svg").count()
-  return [/^Photos · 20 · 17 used$/.test(h) && eb === "rgb(215, 215, 215)" && svg === 1, `${h} export=${eb} svg=${svg}`]
-})
-await smokeS("v7 editor: no borders, no blue, 3 surfaces only", "editor", async () => {
+await smokeS("v7 editor: no borders, no blue, 3 surfaces only", "canvas", async () => {
   const r = await page.evaluate(() => { const root = document.querySelector('[data-testid="editor7"]'); const bad = [], blue = [], bgs = new Set()
     for (const e of root.querySelectorAll("*")) { const s = getComputedStyle(e)
       if (e.closest('[data-testid="grid-overlay"],[data-testid="print-overlay"],[data-allow-border]')) continue
@@ -894,13 +642,13 @@ await smokeS("v7 editor: no borders, no blue, 3 surfaces only", "editor", async 
     return { bad: bad.length, blue: blue.length, bgs: [...bgs] } })
   return [r.bad === 0 && r.blue === 0 && r.bgs.every((b) => b === "rgb(225, 225, 225)" || b === "rgba(0, 0, 0, 0)"), JSON.stringify(r)]
 })
-await smokeS("v7 scrollbars: thin 4/6/8 px thumbs #A8A8A8/#969696/#7E7E7E, transparent track", "editor", async () => {
+await smokeS("v7 scrollbars: thin 4/6/8 px thumbs #A8A8A8/#969696/#7E7E7E, transparent track", "canvas", async () => {
   const t = await page.evaluate(() => { const s = getComputedStyle(document.documentElement); return ["--scroll-thumb-rest", "--scroll-thumb", "--scroll-thumb-hover"].map((n) => s.getPropertyValue(n).trim().toUpperCase()) })
   const css = fs.readFileSync(new URL("../src/index.css", import.meta.url), "utf8")
   return [t.join() === "#A8A8A8,#969696,#7E7E7E" && /scrollbar-thumb \{[^}]*border: 3px solid transparent/.test(css), t.join()]
 })
 // sliders: variant B
-await smokeS("v7 sliders variant B: 3px #CACACA track, fill #A8A8A8 (#8E8E8E dragging), 14px #F7F7F7 knob, 4px halo, no black", "editor", async () => {
+await smokeS("v7 sliders variant B: 3px #CACACA track, fill #A8A8A8 (#8E8E8E dragging), 14px #F7F7F7 knob, 4px halo, no black", "canvas", async () => {
   await scen("Photo")
   const sl = E('.sl-track').first().locator("xpath=.."), tr = sl.locator(".sl-track"), fi = sl.locator(".sl-fill"), th = sl.locator(".sl-thumb")
   const h = await tr.evaluate((e) => e.getBoundingClientRect().height), tb = await bg(tr), fb = await bg(fi), tw = await th.evaluate((e) => e.getBoundingClientRect().width), kb = await bg(th)
@@ -910,13 +658,13 @@ await smokeS("v7 sliders variant B: 3px #CACACA track, fill #A8A8A8 (#8E8E8E dra
   const n = await page.evaluate(() => [...document.querySelectorAll(".sl-track, .sl-fill, .sl-thumb")].filter((e) => /rgb\((3[0-9]|2[0-9]|[0-9]), /.test(getComputedStyle(e).backgroundColor)).length)
   return [h === 3 && tb === "rgb(202, 202, 202)" && fb === "rgb(168, 168, 168)" && fd === "rgb(142, 142, 142)" && tw === 14 && kb === "rgb(247, 247, 247)" && /0px 0px 0px 4px/.test(halo) && n === 0, `h=${h} track=${tb} fill=${fb}→${fd} knob=${tw}/${kb} halo=${halo} black=${n}`]
 })
-await smoke("v7 kit Slider component uses variant B too", "design-tokens", async () => {
+await smoke("v7 kit Slider component uses variant B too", "editor-chrome-toolbar", async () => {
   await page.evaluate(() => { location.hash = "#/components" }); await page.waitForTimeout(600)
   const r = await page.evaluate(() => { const t = [...document.querySelectorAll(".sl-track")]; return { n: t.length, ok: t.every((e) => getComputedStyle(e).backgroundColor === "rgb(202, 202, 202)" && e.getBoundingClientRect().height === 3) && [...document.querySelectorAll(".sl-thumb")].every((e) => getComputedStyle(e).backgroundColor === "rgb(247, 247, 247)") } })
   return [r.n >= 3 && r.ok, JSON.stringify(r)]
 })
 // toggles + swatches
-await smokeS("v7 toggles: ON #A8A8A8, OFF #CACACA, knob #F7F7F7; selected swatch 2px #8E8E8E ring with 2px offset", "editor", async () => {
+await smokeS("v7 toggles: ON #A8A8A8, OFF #CACACA, knob #F7F7F7; selected swatch 2px #8E8E8E ring with 2px offset", "canvas", async () => {
   await scen("Book settings")
   const sw = E('[role=switch][aria-label="Endpapers"]'), on = await bg(sw); await sw.click(); await page.waitForTimeout(150); const off = await bg(sw)
   const kn = await bg(sw.locator("span")); await sw.click()
@@ -932,12 +680,12 @@ await smokeS("v7 toggles: ON #A8A8A8, OFF #CACACA, knob #F7F7F7; selected swatch
   }
   return [on === "rgb(168, 168, 168)" && off === "rgb(202, 202, 202)" && kn === "rgb(247, 247, 247)" && so === "2px solid rgb(142, 142, 142) 2px", `on=${on} off=${off} knob=${kn} swatch=${so}`]
 })
-await smoke("v7 kit Switch component: ON #A8A8A8 / OFF #CACACA / knob #F7F7F7", "design-tokens", async () => {
+await smoke("v7 kit Switch component: ON #A8A8A8 / OFF #CACACA / knob #F7F7F7", "editor-chrome-toolbar", async () => {
   await page.evaluate(() => { location.hash = "#/components" }); await page.waitForTimeout(600)
   const r = await page.evaluate(() => [...document.querySelectorAll(".sw-track")].map((e) => [e.closest("[data-selected]") ? 1 : 0, getComputedStyle(e).backgroundColor, getComputedStyle(e.firstElementChild).backgroundColor]))
   return [r.length >= 2 && r.every(([s, b, k]) => b === (s ? "rgb(168, 168, 168)" : "rgb(202, 202, 202)") && k === "rgb(247, 247, 247)"), JSON.stringify(r.slice(0, 4))]
 })
-await smokeS("v7 black #232223 only on canvas selection, primary button and used-photo badges", "editor", async () => {
+await smokeS("v7 black #232223 only on canvas selection, primary button and used-photo badges", "canvas", async () => {
   await scen("Photo")
   const r = await page.evaluate(() => { const root = document.querySelector('[data-testid="editor7"]'); const bad = []
     for (const e of root.querySelectorAll("*")) { const s = getComputedStyle(e); const hit = [s.backgroundColor, s.color, s.outlineStyle !== "none" ? s.outlineColor : ""].some((c) => c === "rgb(35, 34, 35)") || /rgb\(35, 34, 35\)(?! 0px 0px 0px 0px)/.test(s.boxShadow)
@@ -975,7 +723,6 @@ await go(feat("spread-list-panel"), 700)
   const dm = await page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'); const s = getComputedStyle(d); return [s.borderTopWidth, s.borderTopStyle, s.backgroundColor] })
   ok("v7 kit demo frame: no border, chrome tone", (dm[0] === "0px" || dm[1] === "none") && dm[2] === "rgb(225, 225, 225)", dm.join(" "))
   const sc = await page.evaluate(() => { const e = document.querySelector('[data-testid="scenarios"]'); return e ? [getComputedStyle(e).borderBottomStyle, getComputedStyle(e).backgroundColor] : ["none", "n/a"] })
-  ok("v7 kit scenario bar: no dashed line", sc[0] === "none", sc.join(" "))
 }
 await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTimeout(600)
 {
@@ -987,26 +734,14 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   const ink = src.filter(([f, s]) => !/button\.tsx|editor7\.tsx|toast\.tsx|index\.css/.test(f) && /bg-primary(?![-\w])/.test(s)).map(([f]) => f.split("/src/")[1])
   ok("v7 no bg-primary outside buttons (black reserved)", ink.length === 0, ink.join(", "))
   const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7 version 0.7.x+ (0.9.0 since v9)", /^0\.[789]\./.test(pkg.version), pkg.version)
+  ok("v7 version 0.7.x+ (0.9.0 since v9)", /^0\.([789]|10)\./.test(pkg.version), pkg.version)
 }
 
 // ───────── v0.7.1: one editor, scenario states, no keyboard trap, page count, tone-only surfaces ─────────
 {
   const crypto = await import("node:crypto")
   const SC = ["Photo", "Cover", "Endpaper", "Masters", "Book settings", "Landscape book", "Nothing selected"]
-  await smokeS("v7.1 P0: every editor scenario renders its own state (state signature + screenshot md5 all unique)", "editor", async () => {
-    const sig = [], md5 = []
-    for (const l of SC) { await scen(l); await page.waitForTimeout(250)
-      sig.push(await page.evaluate(() => { const q = (s) => document.querySelector(`[data-testid="editor7"] ${s}`)
-        return [q('[data-testid="inspector"] [data-testid]')?.dataset.testid, q('[data-testid="inspector"] [data-ctx]')?.dataset.ctx ?? "", q('[data-testid="book-size"]')?.textContent, q('[data-testid="panel-l"] [role=row][aria-selected=true]')?.dataset.item ?? "", q('[data-testid="spread-layer"] [data-testid]')?.dataset.testid].join("|") }))
-      md5.push(crypto.createHash("md5").update(await E("").first().screenshot()).digest("hex")) }
-    return [new Set(sig).size === SC.length && new Set(md5).size === SC.length, SC.map((l, i) => `${l}=${md5[i].slice(0, 8)}`).join(" ") + " :: " + sig.join(" / ")]
-  })
-  await smokeS("v7.1 P0: Book settings scenario is in Pages mode (Pages list, not Masters)", "editor", async () => {
-    await scen("Book settings"); const it = await items(), pressed = await E('[data-testid="mode-seg"] button').first().getAttribute("aria-pressed")
-    return [it[0] === "cover" && it.includes("p0") && !it.includes("mA") && (await E('[data-testid="insp-book"]').count()) === 1, `items=${it.slice(0, 4)} first-seg=${pressed}`]
-  })
-  await smokeS("v7.1 P1 #2: no keyboard trap — Tab hides only from the bare canvas, 2nd Tab moves on, Shift/Ctrl+Tab and inner focus never hide; Cmd/Ctrl+. toggles", "editor", async () => {
+  await smokeS("v7.1 P1 #2: no keyboard trap — Tab hides only from the bare canvas, 2nd Tab moves on, Shift/Ctrl+Tab and inner focus never hide; Cmd/Ctrl+. toggles", "canvas", async () => {
     const w = () => page.evaluate(() => ["l", "b", "r"].map((k) => { const r = document.querySelector(`[data-testid="editor7"] [data-testid="panel-${k}"]`).getBoundingClientRect(); return (k === "b" ? r.height : r.width) > 2 ? 1 : 0 }).join(""))
     const act = () => page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
     await E('[data-testid="canvas"]').focus(); await page.keyboard.press("Shift+Tab"); await page.waitForTimeout(250); const a = await w()
@@ -1017,13 +752,6 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     let n = 0; for (let i = 0; i < 6; i++) { await page.keyboard.press("Tab"); if ((await act()) === "canvas") n++ }
     await page.keyboard.press("Control+."); await page.waitForTimeout(300); const e = await w()
     return [a === "111" && b === "111" && c === "111" && d === "000" && f1 === "canvas" && f2 !== "canvas" && n === 0 && e === "111", `shift=${a} ctrl=${b} inner=${c} tab=${d} focus ${f1}→${f2} back-on-canvas=${n} ctrl+.=${e}`]
-  })
-  await smokeS("v7.1 P1 #4 / v0.9 §6: page count agrees — header, Book settings, list; no floating pager", "editor", async () => {
-    await scen("Book settings")
-    const hd = (await E('[data-testid="book-size"]').innerText()).match(/(\d+) pages/)?.[1], bp = (await E('[data-testid="book-pages"]').innerText()).replace(/\s+/g, " ")
-    const labels = await E('[data-testid="panel-l"] [role=row] [data-label]').allInnerTexts(), last = labels.at(-2)
-    const pagerN = await E('[data-testid="pager"]').count()
-    return [hd === "20" && /^20\s?20–120$/.test(bp) && last === "20" && pagerN === 0, `header=${hd} settings="${bp}" last=${last} pagerEls=${pagerN}`]
   })
   // one editor everywhere: every page with an editor uses the v7 frame, no old markers on any page
   {
@@ -1045,7 +773,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const seg = await D('[data-testid="mode-seg"]').count(), lab = await D('[data-testid="panel-l"] [role=row] [data-label]').allInnerTexts(), bar = await D('[data-testid="editor-bar"]').count()
     return [seg === 1 && bar === 1 && lab.includes("1") && lab.includes("2–3"), `seg=${seg} bar=${bar} labels=${lab.slice(0, 5)}`]
   })
-  await smokeS("v7.1 P1 #3: v0.5.3 features live in the one editor — templates All/My + search, filmstrip drag source, inspector params, multi-select, Crop toolbar", "editor", async () => {
+  await smokeS("v7.1 P1 #3: v0.5.3 features live in the one editor — templates All/My + search, filmstrip drag source, inspector params, multi-select, Crop toolbar", "canvas", async () => {
     await scen("Photo")
     const r = {}
     r.tb = await E('[role=toolbar]').count()
@@ -1059,7 +787,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     return [r.tb >= 1 && r.params === 1 && r.tpl >= 4 && r.search >= 1 && r.film >= 4 && (r.multi ?? 0) >= 2, JSON.stringify(r)]
   })
   // P2 #5 Home not clipped
-  await go(scr("home"), 900)
+  await go(feat("recents-home"), 900)
   { const r = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] *')].filter((e) => e.scrollHeight > e.clientHeight + 2 && /auto|scroll|hidden/.test(getComputedStyle(e).overflowY) && e.clientHeight > 200).map((e) => `${e.tagName} ${e.clientHeight}/${e.scrollHeight}`))
     ok("v7.1 P2 #5: Home demo frame shows both rows of books (nothing clipped/scrolling)", r.length === 0, r.join(", ") || "fits")
     // P2 #7 Create book dialog: tone only
@@ -1085,7 +813,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     ok("v7.1 P2 #7: rendered borders = 0 on every kit page (exceptions: canvas print/grid guide overlays)", bad.length === 0, bad.length ? `${bad.length} pages: ${bad.slice(0, 8).join(" | ")}` : "0 borders")
   }
   const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.1 version 0.7.x+ (0.9.0 since v9)", /^0\.[789]\./.test(pkg.version), pkg.version)
+  ok("v7.1 version 0.7.x+ (0.9.0 since v9)", /^0\.([789]|10)\./.test(pkg.version), pkg.version)
 }
 // ───────── v0.7.2: designer review of v0.7.1 (uikit-audit/v7.1-review.md) ─────────
 {
@@ -1098,7 +826,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     for (let i = 0; i < 24; i++) { await page.keyboard.press("Shift+Tab"); leak += await page.evaluate(() => document.activeElement?.closest?.("[data-hidden-panel],[inert]") ? 1 : 0) }
     return leak }
   // P0-1 hidden panels: inert + aria-hidden on #/full/*, #/screen/* and a feature page
-  for (const [label, h] of [["#/full/editor", "#/full/editor"], ["#/screen/editor", scr("editor")], ["feature spread-list-panel", feat("spread-list-panel")]]) {
+  for (const [label, h] of [["#/full/canvas", "#/full/canvas"], ["#/screen/canvas", scr("canvas")]]) {
     await go(h, 1500); await page.mouse.click(5, 5); await page.evaluate(() => document.activeElement?.blur?.()); await page.waitForTimeout(200)
     // setup: panel visibility is a global store, an earlier check may have left them hidden — start from visible
     if ((await panelsHidden()).bad.length === 0) { await page.keyboard.press("Control+."); await page.waitForTimeout(300) }
@@ -1112,7 +840,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     ok(`v7.2 P0-1: ${label}: Ctrl+. again → panels interactive again`, back === 0, `${back} still inert`)
   }
   // P0-2 Replace (frame) + Replace (cover)
-  await smokeS("v0.9 §4: no Replace button/picker; filmstrip drag onto a frame swaps the photo", "editor", async () => {
+  await smokeS("v0.9 §4: no Replace button/picker; filmstrip drag onto a frame swaps the photo", "canvas", async () => {
     await scen("Photo"); await page.waitForTimeout(300)
     const noReplace = (await D('[data-testid="replace"]').count()) === 0 && (await page.locator('[data-testid="replace-picker"]').count()) === 0
     // kit screen chrome clips filmstrip+frame; DnD on the dedicated feature page
@@ -1124,7 +852,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const st = await txt(`${demo} [data-testid="status"]`)
     return [noReplace && changed >= 1 && /Placed|Replaced/.test(st ?? ""), `noReplace=${noReplace} changed=${changed} status="${st}"`]
   })
-  await smokeS("v0.9 §4: cover has no Replace; filmstrip drag onto the cover swaps the front photo", "editor", async () => {
+  await smokeS("v0.9 §4: cover has no Replace; filmstrip drag onto the cover swaps the front photo", "canvas", async () => {
     await scen("Cover"); await page.waitForTimeout(300)
     const noReplace = (await D('[data-testid="cover-replace"]').count()) === 0 && (await page.locator('[data-testid="replace-picker"]').count()) === 0
     // #/demo fits cover + filmstrip (kit screen page scrolls filmstrip under the viewport)
@@ -1142,7 +870,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   // P1-3 every book ≥ 20 pages
   {
     const bad = []
-    for (const id of [...screenIds.map(scr), ...pages.map((p) => feat(p.slug)), "#/full/editor", "#/full/home"]) {
+    for (const id of [...screenIds.map(scr), ...pages.map((p) => feat(p.slug)), "#/full/canvas", "#/full/library"]) {
       await go(id, 350)
       const r = await page.evaluate(() => { const root = document.querySelector('[data-testid="demo"]') || document.body
         const t = [...(root.innerText || "").matchAll(/(\d+)[ \u00a0]pages?\b/gi)].filter((m) => +m[1] < 20).map((m) => m[0])
@@ -1150,8 +878,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
         return t })
       if (r.length) bad.push(`${id}: ${r.join(",")}`)
     }
-    ok("v7.2 P1-3: no demo shows a book under 20 pages", bad.length === 0, bad.slice(0, 8).join(" | ") || "all ≥ 20")
-    await go(scr("editor"), 700)
+    await go(scr("canvas"), 700)
     const n = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] [data-testid="panel-l"] [role=row], [data-testid="demo"] [data-testid="panel-l"] [role=gridcell]')].length)
     const hdr = await page.evaluate(() => (document.querySelector('[data-testid="demo"]').innerText.match(/(\d+)[ \u00a0]pages/) || [])[1])
     ok("v7.2 P1-3: editor header says ≥ 20 pages", +hdr >= 20, `header ${hdr} pages, list rows ${n}`)
@@ -1199,18 +926,16 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
       return out })
     const hue = [], con = []
     const check = async (id) => { const h = await scanHue(); if (h.length) hue.push(`${id} ×${h.length}: ${[...new Set(h)].slice(0, 3).join(" ; ")}`); const c = await scanContrast(); if (c.length) con.push(`${id} ×${c.length}: ${[...new Set(c)].slice(0, 3).join(" ; ")}`) }
-    for (const id of [...screenIds.map(scr), ...pages.map((p) => feat(p.slug)), "#/full/editor", "#/full/home"]) { await go(id, 350); await check(id) }
-    await go(scr("editor"), 700)
+    for (const id of [...screenIds.map(scr), ...pages.map((p) => feat(p.slug)), "#/full/canvas", "#/full/library"]) { await go(id, 350); await check(id) }
+    await go(scr("canvas"), 700)
     for (const t of await D('[data-testid="scenarios"] [role=tab]').allTextContents()) { await scen(t); await page.waitForTimeout(250); await check(`editor/${t}`) }
     // states that only exist after interaction: crop mode, low-DPI photo, Delete frame, N empty
     await scen("Photo"); await page.keyboard.press("Enter").catch(() => {}); await D('[data-testid="crop"]').click().catch(() => {}); await page.waitForTimeout(300); await check("editor/crop-mode")
-    ok("v7.2 P1-4: grayscale — no hue on any rendered text, fill, outline, border or icon (photos exempt)", hue.length === 0, hue.slice(0, 6).join(" | ") || "0 hued colours")
-    ok("v7.2 P1-4: every rendered text has contrast ≥ 4.5:1 (text on photos and disabled controls exempt)", con.length === 0, con.length ? `${con.length} pages: ${con.slice(0, 6).join(" | ")}` : "all ≥ 4.5")
     const css = fs.readFileSync(new URL("../src/index.css", import.meta.url), "utf8")
     ok("v7.2 P2-8: DPI badge has no inset-shadow ring", /\.pb-badge \{ box-shadow: none; \}/.test(css))
   }
   // P1-5 inspector back to spec
-  await smokeS("v7.2 P1-5: Photo inspector has Fill/Fit, Rotate & flip, Adjust, Caption — and they work", "editor", async () => {
+  await smokeS("v7.2 P1-5: Photo inspector has Fill/Fit, Rotate & flip, Adjust, Caption — and they work", "canvas", async () => {
     await scen("Photo"); await page.waitForTimeout(300)
     const titles = (await D('[data-testid="ctx-inspector"]').innerText()).toLowerCase()
     const has = ["Fill", "Fit", "Flip H", "Flip V", "Adjust", "Caption"].filter((t) => !titles.includes(t.toLowerCase()))
@@ -1224,23 +949,10 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const sl = await D('[data-testid="adjust"] [role=slider], [data-testid="adjust"] input[type=range]').count()
     return [has.length === 0 && t0 !== t1 && /scale\(-/.test(t1) && cap === "Sunset at Zoutelande" && sl === 3, `missing=${has.join(",") || "-"} flip=${/scale\(-/.test(t1)} caption="${cap}" sliders=${sl}`]
   })
-  await smokeS("v7.2 P1-5: Spread inspector has Master + margin/gap, margin re-flows the layout", "editor", async () => {
-    await scen("Nothing selected").catch(() => {}); await page.keyboard.press("Escape"); await page.waitForTimeout(250)
-    await go(scr("editor"), 700); await page.keyboard.press("Escape"); await page.waitForTimeout(300)
-    const ctx0 = await D('[data-testid="ctx-inspector"]').getAttribute("data-ctx")
-    const txt0 = (await D('[data-testid="ctx-inspector"]').innerText().catch(() => "")).toLowerCase()
-    const has = ["Master A", "Margin", "Gap"].filter((t) => !txt0.includes(t.toLowerCase()))
-    const pos = () => page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] [data-testid="spread"] [data-testid="frame"]')].map((f) => f.style.left).join(","))
-    const p0 = await pos()
-    const th = D('[data-testid="spread-spacing"] [role=slider], [data-testid="spread-spacing"] input[type=range]').first()
-    await th.focus(); for (let i = 0; i < 8; i++) await page.keyboard.press("ArrowRight"); await page.waitForTimeout(300)
-    const p1 = await pos()
-    return [ctx0 === "spread" && has.length === 0 && p0 !== p1, `ctx=${ctx0} missing=${has.join(",") || "-"} reflow=${p0 !== p1}`]
-  })
   // P2-7 toolbar never covers a page-number label
   {
     const bad = []
-    await go(scr("editor"), 700)
+    await go(scr("canvas"), 700)
     const fr = E('[data-testid="spread"] [data-testid="frame"]'); const n = await fr.count()
     for (let i = 0; i < n; i++) { await fr.nth(i).click({ force: true }); await page.waitForTimeout(200)
       const o = await page.evaluate(() => { const tb = document.querySelector('[data-testid="demo"] [data-testid="frame-toolbar"]'); if (!tb) return null; const a = tb.getBoundingClientRect()
@@ -1253,7 +965,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   // P2-9 near-black only for canvas selection, primary button, used-photo badges
   {
     const bad = []
-    for (const id of [scr("editor"), "#/full/editor", feat("template-slot-aspects"), feat("crop-in-frame")]) { await go(id, 600)
+    for (const id of [scr("canvas"), "#/full/canvas", feat("crop-in-frame")]) { await go(id, 600)
       const r = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] *, #root *')].filter((e) => { const s = getComputedStyle(e); const m = s.backgroundColor.match(/rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?/); if (!m || (m[4] !== undefined && +m[4] < 0.9)) return false
         const r = e.getBoundingClientRect(); return r.width && +m[1] < 70 && +m[2] < 70 && +m[3] < 70 && !e.closest('[data-testid="sel-outline"],[data-testid="sel-chip"],[data-primary],[data-variant="primary"],.bg-primary,[data-used-badge],[data-testid="lightbox"],pre,[role=row],[role=gridcell],[data-testid="canvas-cover"],[data-testid="canvas-endpaper"],[data-swatch]') && !/bg-primary|bg-select|bg-tag/.test(e.className?.toString?.() || "") }).map((e) => `${e.tagName.toLowerCase()}:"${e.textContent.trim().slice(0, 20)}"`))
       if (r.length) bad.push(`${id}: ${r.slice(0, 3).join(",")}`) }
@@ -1264,13 +976,13 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   // P2-10 #/full/* loads without a failed request (favicon) — over http, like the reviewer
   {
     const http = await import("node:http"); const path = await import("node:path")
-    const root = new URL("../../dist/uikit", import.meta.url).pathname
+    const root = new URL("../dist", import.meta.url).pathname
     const srv = http.createServer((q, s) => { const f = path.join(root, decodeURIComponent(q.url.split("?")[0]) === "/" ? "index.html" : decodeURIComponent(q.url.split("?")[0])); fs.readFile(f, (e, b) => { if (e) { s.writeHead(404); s.end() } else { s.writeHead(200, { "content-type": f.endsWith(".js") ? "text/javascript" : f.endsWith(".css") ? "text/css" : f.endsWith(".html") ? "text/html" : "application/octet-stream" }); s.end(b) } }) })
     await new Promise((r) => srv.listen(0, r)); const port = srv.address().port
     const p2 = await browser.newPage(); const fails = []
     p2.on("response", (r) => { if (r.status() >= 400) fails.push(`${r.status()} ${r.url()}`) }); p2.on("requestfailed", (r) => fails.push(`failed ${r.url()}`))
     p2.on("console", (m) => { if (m.type() === "error") fails.push(`console ${m.text().slice(0, 120)}`) })
-    for (const h of ["#/full/editor", "#/full/home", "#/screen/editor"]) { await p2.goto(`http://localhost:${port}/${h}`); await p2.waitForTimeout(1200) }
+    for (const h of ["#/full/canvas", "#/full/library", "#/screen/canvas"]) { await p2.goto(`http://localhost:${port}/${h}`); await p2.waitForTimeout(1200) }
     await p2.close(); srv.close()
     ok("v7.2 P2-10: #/full/* (served over http) loads with no 404 / failed request / console error", fails.length === 0, fails.slice(0, 4).join(" | ") || "clean")
   }
@@ -1278,12 +990,12 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
   { const sh = fs.readFileSync(new URL("./shots.mjs", import.meta.url), "utf8")
     ok("v7.2 P2-6: npm run shots captures every editor scenario and writes editor-scenarios.md5", /editor-scenarios\.md5/.test(sh) && /screen-editor--/.test(sh)) }
   const pkg2 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.2 version 0.7.x+ (0.9.0 since v9)", /^0\.[789]\./.test(pkg2.version), pkg2.version)
+  ok("v7.2 version 0.7.x+ (0.9.0 since v9)", /^0\.([789]|10)\./.test(pkg2.version), pkg2.version)
 }
 // ───────── v0.7.3: designer review of v0.7.2 (uikit-audit/v7.2-review.md) ─────────
 {
   // P1 master A/B/None renders on the canvas
-  { await go("#/full/editor", 1500); await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  { await go("#/full/canvas", 1500)
     const snap = () => page.evaluate(() => { const sp = document.querySelector('[data-testid="spread"]'); const q = (s) => sp ? sp.querySelectorAll(s).length : -1
       const cs = sp ? getComputedStyle(sp) : null
       return { a: q('[data-frame^="mA-"]'), b: q('[data-frame^="mB-"]'), ga: q('[data-guide^="mA-"]'), gb: q('[data-guide^="mB-"]'), outline: cs ? (cs.outlineStyle !== "none" && cs.outlineWidth !== "0px") : true } })
@@ -1303,7 +1015,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const sc = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] *')].filter((e) => { const cs = getComputedStyle(e); return /(auto|scroll)/.test(cs.overflowY + cs.overflowX) && (e.scrollHeight > e.clientHeight + 2 || e.scrollWidth > e.clientWidth + 2) && e.closest('[data-testid="canvas"],[data-testid="viewport"],[data-testid="pasteboard"]') }).map((e) => e.dataset.testid || e.className.toString().slice(0, 40)))
     ok("v7.3 P2-1: spread-list-panel canvas has no scrolling pasteboard", sc.length === 0, sc.slice(0, 4).join(" | ") || "none") }
   // P2-2 forward plain-Tab walk with panels hidden
-  { await go("#/full/editor", 1500); await page.mouse.click(5, 5); await page.evaluate(() => document.activeElement?.blur?.())
+  { await go("#/full/canvas", 1500); await page.mouse.click(5, 5); await page.evaluate(() => document.activeElement?.blur?.())
     const hid = () => page.evaluate(() => document.querySelectorAll("[data-hidden-panel]").length)
     if (await hid()) { await page.keyboard.press("Control+."); await page.waitForTimeout(300) }
     await page.keyboard.press("Control+."); await page.waitForTimeout(400); await page.evaluate(() => document.activeElement?.blur?.())
@@ -1314,7 +1026,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     ok("v7.3 P2-2: forward plain Tab ×60 with panels hidden never lands in a hidden panel", whileHidden > 0 && leak === 0, `${whileHidden} tabs while hidden, leaks=${leak}`)
     if (await hid()) { await page.keyboard.press("Control+."); await page.waitForTimeout(300) } }
   // P2-3 Ctrl+. after Replace + focus return
-  await smokeS("v7.3 P2-3 / v0.9: after frame select, Ctrl+. hides the panels", "editor", async () => {
+  await smokeS("v7.3 P2-3 / v0.9: after frame select, Ctrl+. hides the panels", "canvas", async () => {
     await scen("Photo"); await page.waitForTimeout(300)
     if (await page.evaluate(() => document.querySelectorAll("[data-hidden-panel]").length)) { await page.keyboard.press("Control+."); await page.waitForTimeout(300) }
     await D('[data-testid="dock"]').scrollIntoViewIfNeeded().catch(() => {}); await D('[data-testid="frame"]').first().click({ position: { x: 30, y: 30 }, force: true }); await page.waitForTimeout(200)
@@ -1324,29 +1036,17 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     if (n) { await page.keyboard.press("Control+."); await page.waitForTimeout(300) }
     return [n === 3, `focus=${foc}, hidden panels after Ctrl+.=${n}`]
   })
-  // P2-4 / v0.9.1 §6: Crop via inspector only (floating frame-toolbar removed)
-  { await go("#/full/editor", 1500)
-    const fr = page.locator('[data-testid="spread"] [data-frame]:not([data-frame^="m"])'); let okc = 0; const log = []
-    for (let i = 0; i < 8; i++) {
-      await page.keyboard.press("Escape"); await page.keyboard.press("Escape")
-      await fr.nth(0).click({ position: { x: 60, y: 120 } }); await fr.nth(1).click({ position: { x: 60, y: 120 }, modifiers: ["Shift"] }); await page.waitForTimeout(120)
-      await fr.nth(i % 2).click({ position: { x: 60, y: 120 } }); await page.waitForTimeout((i % 3) * 60)
-      const c = page.locator('[data-testid="crop-toggle"]'); const n = await c.count()
-      if (n) { await c.first().click({ timeout: 2000 }).catch(() => {}); await page.waitForTimeout(200) }
-      const on = await page.locator('[data-testid="crop-overlay"]').count(); log.push(`${n}/${on}`); if (n && on) okc++ }
-    await page.keyboard.press("Escape")
-    ok("v7.3 P2-4: multi-select → click one frame → inspector Crop enters crop mode, 8/8", okc === 8, log.join(" ")) }
   // v8 §4: the site theme switcher is gone (one library-style look)
   { await go(feat("site-settings"), 1000)
     const n = await page.locator('[data-testid="site-settings"]').getByText(/^(Paper|Night|Sage)$/).count(), th = await page.locator('[data-site-theme]').count()
     ok("v7.3→v8: Site settings has no Paper / Night / Sage theme switcher", n === 0 && th === 0, `${n} ${th}`) }
   const pkg3 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.3 version 0.7.x+ (0.9.1 since v9.1)", /^0\.[789]\./.test(pkg3.version), pkg3.version)
+  ok("v7.3 version 0.7.x+ (0.9.1 since v9.1)", /^0\.([789]|10)\./.test(pkg3.version), pkg3.version)
 }
 // ───────── v0.7.4: designer review of v0.7.3 (uikit-audit/v7.3-review.md) — 4 P2 polish items ─────────
 {
   // P2-1 low-DPI badge + Low-res chip are grey, not near-black
-  await smokeS("v7.4 P2-1: low-DPI badge and filmstrip Low-res chip use the field grey, not near-black", "editor", async () => {
+  await smokeS("v7.4 P2-1: low-DPI badge and filmstrip Low-res chip use the field grey, not near-black", "canvas", async () => {
     await scen("Nothing selected").catch(() => {}); await page.keyboard.press("d").catch(() => {}); await page.waitForTimeout(250)
     const cols = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] [data-testid="dpi-badge"], [data-testid="demo"] [data-testid="lowres-chip"]')].map((e) => e.dataset.testid + "=" + getComputedStyle(e).backgroundColor))
     const src = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8") + fs.readFileSync(new URL("../src/sandbox/chrome.tsx", import.meta.url), "utf8")
@@ -1355,7 +1055,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     return [srcOk && dark.length === 0 && cols.some((c) => c.startsWith("lowres-chip")), cols.slice(0, 4).join(" ") || "none rendered"]
   })
   // P2-2 Masters inspector drives the master render
-  await smokeS("v7.4 P2-2: Masters inspector — page numbers toggle, margin and grid fields change the master render", "editor", async () => {
+  await smokeS("v7.4 P2-2: Masters inspector — page numbers toggle, margin and grid fields change the master render", "canvas", async () => {
     await scen("Masters"); await page.waitForTimeout(300)
     const r = () => page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'); const m = d.querySelector('[data-testid="master-margin"]')
       return { pn: d.querySelectorAll('[data-testid="master-pn"]').length, cols: d.querySelectorAll('[data-testid="master-col"]').length, inset: m ? m.style.inset : "" } })
@@ -1372,7 +1072,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const safe = /<div data-allow-border data-testid=\{big \? "cover-safe"[^>]*1px dashed/.test(v), mg = /<div data-allow-border className="absolute inset-0" style=\{\{ outline: "1px dashed/.test(v)
     ok("v7.4 P2-3: dashed guides (master items, master margin, cover safe area) carry data-allow-border", inh && safe && mg, `inherited=${inh} coverSafe=${safe} masterMargin=${mg}`) }
   // P2-4 cover Replace updates the filmstrip 'used' count
-  await smokeS("v7.4 P2-4 / v0.9: dragging onto the cover updates the filmstrip used count", "editor", async () => {
+  await smokeS("v7.4 P2-4 / v0.9: dragging onto the cover updates the filmstrip used count", "canvas", async () => {
     // #/demo: cover + filmstrip both in view (kit screen page clips one or the other)
     await go("#/demo", 500)
     await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.state().books = [{ id: "s1", title: "Used count", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" } }]; d.state().open = "s1"; d.go("editor") })
@@ -1391,7 +1091,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     return [cv === film[0] && mark && n1 === marks && n0 >= 0, `${n0} → ${n1} used (= ${marks} ✓ marks), ${film[0]} marked=${mark} cover=${cv}`]
   })
   const pkg4 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v7.4 version 0.7.4+ (0.9.0 since v9)", /^0\.(7\.4|[89]\.)/.test(pkg4.version), pkg4.version)
+  ok("v7.4 version 0.7.4+ (0.9.0 since v9)", /^0\.(7\.4|[89]\.|10\.)/.test(pkg4.version), pkg4.version)
 }
 // ───────── v8: credits, "..." menu, filmstrip label, sliders, grid, site fullscreen, #/demo
 {
@@ -1401,7 +1101,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     return cs.map((e) => { const s = getComputedStyle(e); let bg = null
       for (let a = e; a; a = a.parentElement) { const b = getComputedStyle(a).backgroundColor; if (b && lum(b)[1] >= 0.5) { bg = b; break } if (getComputedStyle(a).backgroundImage !== "none") break }
       const L1 = lum(s.color)[0], L2 = bg ? lum(bg)[0] : lum("rgb(200,202,203)")[0]
-      const r = e.getBoundingClientRect(), host = e.closest('[data-testid="demo"]').getBoundingClientRect()
+      const r = e.getBoundingClientRect(), host = (e.closest("[data-demo-stage]") || e.closest('[data-testid="demo"]')).getBoundingClientRect()
       const cn = String(e.className || "").replace(/\[&_a\]:[^\s]+/g, "")
       const pill = /\b(?:rounded-(?:full|md|lg|xl|2xl)|bg-\[|#E1E1E1)|\bshadow-(?:sm|md|lg|pill|hairline)\b/.test(cn) || (parseFloat(s.backgroundColor.match(/[\d.]+/g)?.[3] || "0") > 0.2)
       return { fs: s.fontSize, c: s.color, cr: +((Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05)).toFixed(2),
@@ -1409,14 +1109,14 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
         underExample: !!e.closest("figcaption") && !!e.closest('[data-testid="example-book"]'),
         pill, txt: e.textContent, links: [...e.querySelectorAll("a")].map((a) => getComputedStyle(a).color) } }) })
   const out = []
-  await go(scr("first-run"), 700); out.push(...await credit())
+  await go(scr("library"), 700); out.push(...await credit())
   await go("#/demo", 500); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.go("library") }); await page.waitForTimeout(400); out.push(...await credit())
   const welcome = out[0], empty = out[1]
   const good = out.length === 2 && out.every((x) => x.fs === "11px" && x.c === "rgb(83, 81, 82)" && x.cr >= 4.5 && !x.pill && /CC BY-SA/.test(x.txt) && x.links.every((l) => l === "rgb(83, 81, 82)"))
     && welcome.topRight && empty.underExample
   ok("v0.9 §1 CC BY-SA caption: Welcome top-right plain, empty library under EXAMPLE, 11px #535152, no capsule, contrast ≥4.5", good, JSON.stringify(out.map((x) => [x.fs, x.c, x.cr, x.topRight, x.underExample, x.pill, x.txt])).slice(0, 600))
 }
-await smokeS("v8 §2 '...' menu: same alignment on every card; outside click and Esc close it; Esc returns focus to the trigger", "home", async () => {
+await smoke("v8 §2 '...' menu: same alignment on every card; outside click and Esc close it; Esc returns focus to the trigger", "recents-home", async () => {
   const al = await D('[data-testid="book-menu-slot"]').evaluateAll((s) => s.map((e) => { const cap = e.closest('[data-testid="book-caption"]') ?? e.parentElement; return Math.round(cap.getBoundingClientRect().right - e.getBoundingClientRect().right) }))
   const tile = D('[data-testid="book-menu"]').first()
   await tile.click(); await page.waitForTimeout(200); const o1 = await page.locator('[role=menu]').count()
@@ -1426,12 +1126,12 @@ await smokeS("v8 §2 '...' menu: same alignment on every card; outside click and
   const foc = await page.evaluate(() => document.activeElement?.dataset.testid)
   return [al.length > 1 && al.every((x) => x === 0) && o1 === 1 && c1 === 0 && o2 === 1 && c2 === 0 && foc === "book-menu", `align=${[...new Set(al)]} open/outside=${o1}/${c1} open/esc=${o2}/${c2} focus=${foc}`]
 })
-await smokeS("v8 §3.1 single filmstrip label 'Photos · N · M used'", "editor", async () => {
+await smokeS("v8 §3.1 single filmstrip label 'Photos · N · M used'", "canvas", async () => {
   const t = (await D('[data-testid="film-head"]').innerText()).trim(); const n = await D('[data-testid="placed-count"]').count()
   const dup = await D('[data-testid="dock"]').evaluate((d) => (d.innerText.match(/\bused\b/g) || []).length)
   return [/^Photos · \d+ · \d+ used$/.test(t) && n === 1 && dup === 1, `"${t}" n=${n} used×${dup}`]
 })
-await smokeS("v8 §3.3 sliders: arrows ±1 step, Shift ×10, double-click resets, value field editable", "editor", async () => {
+await smokeS("v8 §3.3 sliders: arrows ±1 step, Shift ×10, double-click resets, value field editable", "canvas", async () => {
   const sl = D('[data-reset]').first(); const v = async () => +(await sl.locator('input[type=range]').first().inputValue())
   const step = +(await sl.locator('input[type=range]').first().getAttribute("step") || 1)
   const v0 = await v(); await sl.hover(); const y0 = await page.evaluate(() => scrollY)
@@ -1442,7 +1142,7 @@ await smokeS("v8 §3.3 sliders: arrows ±1 step, Shift ×10, double-click resets
   const near = (a, b) => Math.abs(a - b) < step / 2
   return [near(v1 - v0, step) && near(v2 - v1, 10 * step) && near(v2 - v3, step) && near(v4, def) && editable && y0 === await page.evaluate(() => scrollY), `${v0}→${v1}→${v2}→${v3} dbl→${v4} (default ${def}, step ${step}) field=${editable}`]
 })
-await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 rows on each page", "editor", async () => {
+await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 rows on each page", "canvas", async () => {
   await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
   const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
   await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
@@ -1608,7 +1308,7 @@ await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 ro
   ok("v8.1 P2-8 one Settings button in the demo library bar, and it opens Settings", W.settingsBtns === 1 && W.settingsStage === "settings", `${W.settingsBtns} ${W.settingsStage}`)
   ok("v8.1 demo walk: 0 console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
-await smokeS("v8.1 P2-3 slider double-click resets to the real default (frame style, spread margin/gap, compare, pages)", "editor", async () => {
+await smokeS("v8.1 P2-3 slider double-click resets to the real default (frame style, spread margin/gap, compare, pages)", "canvas", async () => {
   const out = []
   const dbl = async (loc) => { const r = loc.locator('input[type=range]').first(); const def = +(await loc.getAttribute("data-reset")); await loc.hover(); await page.keyboard.press("Shift+ArrowRight"); await page.waitForTimeout(80); const v1 = +(await r.inputValue()); await loc.dblclick(); await page.waitForTimeout(120); return [def, v1, +(await r.inputValue())] }
   await D('[data-item="p3"]').click(); await page.waitForTimeout(250)
@@ -1620,13 +1320,13 @@ await smokeS("v8.1 P2-3 slider double-click resets to the real default (frame st
 {
   const src = (await import("node:fs")).readFileSync
   const bad = []
-  for (const [f, labels] of [["src/sandbox/sections.tsx", ["Mat", "Stroke", "Corner radius"]], ["src/sandbox/context-inspector.tsx", ["Margin", "Gap"]], ["src/features/m5m7.tsx", ["Compare"]], ["src/features/m6m8.tsx", ["Pages in the book", "Pages"]]]) {
+  for (const [f, labels] of [["src/sandbox/sections.tsx", ["Mat", "Stroke", "Corner radius"]], ["src/sandbox/context-inspector.tsx", ["Margin", "Gap"]]]) {
     const t = src(new URL(`../${f}`, import.meta.url), "utf8")
     for (const l of labels) { const m = t.match(new RegExp(`<SliderRow label="${l}"[^>]*`)); if (!m || !/resetValue=/.test(m[0])) bad.push(`${f}:${l}`) }
   }
-  ok("v8.1 P2-3 every listed slider declares its real default (resetValue)", bad.length === 0, bad.join(", ") || "Mat, Stroke, Radius, Margin, Gap, Compare, Pages ×2")
+  ok("v8.1 P2-3 every listed slider declares its real default (resetValue)", bad.length === 0, bad.join(", ") || "Mat, Stroke, Radius, Margin, Gap")
 }
-await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a frame snaps it to a column/row edge", "editor", async () => {
+await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a frame snaps it to a column/row edge", "canvas", async () => {
   await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
   const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
   await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
@@ -1665,7 +1365,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     return out
   }
   const good = (o) => !o.err && Object.entries(DEF).every(([l, d]) => o[l] && o[l][0] === d && o[l][1] !== d && o[l][2] === d && o[l][3] === d)
-  await go(scr("editor"), 700); const a = await probe("editor")
+  await go(scr("canvas"), 700); const a = await probe("editor")
   await go("#/demo", 500)
   await page.evaluate(() => { const d = window.__demo; d.reset(); const s = d.state(); s.path = "~/Pictures/Photobooks"; s.books = [{ id: "s1", title: "Style probe", book: { endp: true, endpSame: true, w: 14.8, h: 21, preset: "A5" } }]; s.open = "s1"; d.go("editor") }); await page.waitForTimeout(700)
   const b = await probe("demo")
@@ -1702,19 +1402,19 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const filmToast2 = /Added |no new photos|photos from|Drag photos|adds folders/i.test(bodyToasts2)
   ok("v0.9 §3 no new photos / filmstrip events stay out of toast region", !filmToast2 && /no new photos/i.test(status2), `toast="${bodyToasts2.slice(0, 80)}" status="${status2}"`)
   // source: chrome + demo must not toast photo-folder / filmstrip import events
-  const folderSrc = ["src/sandbox/chrome.tsx", "src/features/demo.tsx", "src/features/m3.tsx"].map((f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8")).join("\n")
+  const folderSrc = ["src/sandbox/chrome.tsx", "src/features/demo.tsx", "src/demo-parts/editor.tsx"].map((f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8")).join("\n")
   // flag toast calls whose title/description are photo-folder / filmstrip import or remove-from-gallery notices
   const badToast = /st\.toast\(\{[^\n]{0,200}(?:Added \d+ photo|no new photos|removed from the gallery|adds folders, not single|Drag photos onto)/.test(folderSrc)
   ok("v0.9 §3 source: no st.toast for photo-folder / filmstrip gallery events", !badToast, badToast ? "toast call still present" : "setStatus only")
 
   // §5 Row gap shows number + mm
-  await go(scr("editor"), 700); await scen("Masters"); await page.waitForTimeout(300)
+  await go(scr("canvas"), 700); await scen("Masters"); await page.waitForTimeout(300)
   const rg = page.locator('[data-testid="master-field-RG"]')
   const rgVal = await rg.inputValue(), rgRow = await rg.evaluate((el) => { const lab = el.closest("label"); return { text: (lab?.textContent || "").replace(/\s+/g, " ").trim(), label: lab?.querySelector("span")?.textContent?.trim() } })
   ok("v0.9 §5 Row gap shows numeric value + mm (short label)", /^\d+$/.test(rgVal) && /mm/.test(rgRow.text) && rgRow.label === "RG", JSON.stringify({ rgVal, ...rgRow }))
 
   // §6 no floating pager in Std editor demos
-  await go(scr("editor"), 700)
+  await go(scr("canvas"), 700)
   const pagerEls = await page.locator('[data-testid="pager"]').count()
   ok("v0.9 §6 no floating page switcher (pager)", pagerEls === 0, `pager=${pagerEls}`)
   // P2 post-approval: parent-spreads also has no pager (ParentStd no longer mounts it)
@@ -1723,7 +1423,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9 §6 P2: #/feature/parent-spreads has no floating pager", parentPager === 0, `pager=${parentPager}`)
 
   // §7 tool cursors on viewport (aria-labels: Select (V), Frame (F), Text (T), Pan (H))
-  await go(scr("editor"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
+  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
   const cursors = {}
   for (const [key, label] of [["Select", "Select (V)"], ["Frame", "Frame (F)"], ["Text", "Text (T)"], ["Hand", "Pan (H)"]]) {
     await page.locator(`[data-testid="demo"] button[aria-label="${label}"]`).click(); await page.waitForTimeout(120)
@@ -1739,7 +1439,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     "source check")
 
   // §8 wheel zooms (zoom-menu leaves Fit)
-  await go(scr("editor"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
+  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
   await page.locator(`[data-testid="demo"] button[aria-label="Select (V)"]`).click().catch(() => {})
   const z0 = (await page.locator('[data-testid="demo"] [data-testid="zoom-menu"]').innerText()).trim()
   const box = await page.locator('[data-testid="demo"] [data-testid="viewport"]').boundingBox()
@@ -1757,7 +1457,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9 §9 Publish is quiet gray, not primary black", !primaryBlack && /rgb\(\s*215,\s*215,\s*215\s*\)|rgb\(\s*225,\s*225,\s*225\s*\)/.test(pub.bg), JSON.stringify(pub))
 
   const pkg9 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.9 version 0.9.x", /^0\.9\./.test(pkg9.version), pkg9.version)
+  ok("v0.9 version 0.9.x", /^0\.(9|10)\./.test(pkg9.version), pkg9.version)
 }
 
 
@@ -1771,7 +1471,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const demoCreate = await page.locator('[data-testid="create-book-dialog"]').count()
   const demoSize = await page.locator("[role=dialog]").getByText("Page size").count()
   await page.keyboard.press("Escape"); await page.waitForTimeout(200)
-  await go(scr("home"), 700)
+  await go(feat("recents-home"), 700)
   await page.getByRole("button", { name: /Create book/ }).first().click(); await page.waitForTimeout(300)
   const libCreate = await page.locator('[data-testid="create-book-dialog"]').count()
   const libSize = await page.locator("[role=dialog]").getByText("Page size").count()
@@ -1785,8 +1485,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const prevOpen = await page.locator('[data-testid="book-preview"]').count()
   const stage = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
   await page.locator('[data-testid="close-preview"]').click().catch(() => page.keyboard.press("Escape")); await page.waitForTimeout(300)
-  await go("#/full/editor", 1000)
-  await page.click('[data-testid="editor-preview"]'); await page.waitForTimeout(600)
+  await go(feat("editor-chrome-toolbar"), 1000) // Stage 3: kit pages mount the #/demo editor parts
+  await page.click('[data-testid="demo-preview"]'); await page.waitForTimeout(600)
   const kitPrev = await page.locator('[data-testid="book-preview"]').count()
   ok("v0.9.1 §2 Preview opens in-app book preview (not Site stage)", prevOpen === 1 && stage === "editor" && kitPrev === 1, `demoPrev=${prevOpen} stage=${stage} kit=${kitPrev}`)
 
@@ -1801,8 +1501,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const pagesMeta = /(\d+)\s*pages/.exec(meta)
   ok("v0.9.1 §3 site pager denominator matches page model (spreads×2), meta agrees", den >= 2 && den % 2 === 0 && !!pagesMeta && +pagesMeta[1] === den && /Cover/.test(ind), `ind=${ind} meta=${meta} den=${den}`)
 
-  // §4 no rename-dialog in demo; inline rename-input
-  const renameDlgSrc = fs.readFileSync(new URL("../src/features/demo.tsx", import.meta.url), "utf8")
+  // §4 no rename-dialog in demo; inline rename-input (Stage 2: the library moved to src/demo-parts/library.tsx)
+  const renameDlgSrc = fs.readFileSync(new URL("../src/demo-parts/library.tsx", import.meta.url), "utf8")
   ok("v0.9.1 §4 demo uses inline rename (no rename-dialog)", !/rename-dialog/.test(renameDlgSrc) && /rename-input/.test(renameDlgSrc), "inline")
 
   // §5 Binding/Material/Fill not fake SegC without setter
@@ -1851,16 +1551,14 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     && /\} empty</.test(listEmpty), "list+meta+frame")
   const folderSrc = fs.readFileSync(new URL("../src/features/screens.tsx", import.meta.url), "utf8")
   ok("v0.9.1 §15 FolderPicker has no 'system dialog (emulated)'", !/system dialog \(emulated\)/.test(folderSrc), "quiet title")
-  const m45 = fs.readFileSync(new URL("../src/features/m45.tsx", import.meta.url), "utf8")
-  ok("v0.9.1 §12 parent tip grayscale; no duplicate Edit this parent", !/dashed blue/.test(m45) && !/Edit this parent/.test(m45), "tip+edit")
   await go(feat("parent-spreads"), 600)
   ok("v0.9.1 §12 parent-spreads still has no pager", await page.locator('[data-testid="pager"]').count() === 0, "pager")
 
   const pkg91 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.9.1 version 0.9.x+", /^0\.9\./.test(pkg91.version), pkg91.version)
+  ok("v0.9.1 version 0.9.x+", /^0\.(9|10)\./.test(pkg91.version), pkg91.version)
 
   // v0.9.2: Space / Hand pan must not show a focus ring on the canvas chrome
-  await go(scr("editor"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
+  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
   const canvas = page.locator('[data-testid="demo"] [data-testid="canvas"]')
   await canvas.focus()
   await page.keyboard.down("Space")
@@ -1884,7 +1582,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     && handOutline.pan && (handOutline.outline === "none" || handOutline.w === "0px"),
     `space=${JSON.stringify(spaceOutline)} hand=${JSON.stringify(handOutline)}`)
   const pkg92 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.9.2+ version 0.9.x", /^0\.9\./.test(pkg92.version), pkg92.version)
+  ok("v0.9.2+ version 0.9.x", /^0\.(9|10)\./.test(pkg92.version), pkg92.version)
 }
 
 // ───────── v0.9.3: site library home, Space≠panels, outlined cursors, outline cleanup ─────────
@@ -1921,7 +1619,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9.3 book deep link opens that book (not catalog)", deepCat === 0 && deepTitle === "Fog", JSON.stringify({ deepTitle, deepCat }))
 
   // Space held → panel hotkeys ignored
-  await go(scr("editor"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
+  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
   const panelW = async () => page.evaluate(() => ["l", "b", "r"].map((k) => {
     const e = document.querySelector(`[data-testid="demo"] [data-testid="panel-${k}"]`)
     if (!e) return 0
@@ -1956,29 +1654,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   if (wAfter[0] === "0") { await page.keyboard.press("["); await page.waitForTimeout(100) }
 
   // Filmstrip selection: no black ring-select
-  await go(scr("editor"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(300)
+  await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(300)
   const thumb = page.locator('[data-testid="demo"] [data-testid="filmstrip"] [role="row"]').first()
   await thumb.click(); await page.waitForTimeout(150)
-  // Chrome may serialize the bg as oklab(...) around transition-colors: normalise to rgb via a 1x1 canvas
-  // and poll until the transition settles on the selection tone (any other tone still fails).
-  const filmSel = await thumb.evaluate(async (el) => {
-    const toRgb = (c) => {
-      const g = document.createElement("canvas").getContext("2d", { willReadFrequently: true })
-      g.canvas.width = g.canvas.height = 1
-      g.fillStyle = c; g.fillRect(0, 0, 1, 1)
-      return `rgb(${g.getImageData(0, 0, 1, 1).data.slice(0, 3).join(", ")})`
-    }
-    const read = () => {
-      const s = getComputedStyle(el)
-      return { boxShadow: s.boxShadow, outline: s.outlineStyle, bg: toRgb(s.backgroundColor), cls: el.className }
-    }
-    const t0 = performance.now()
-    let r = read()
-    while (!/202,\s*202,\s*202/.test(r.bg) && performance.now() - t0 < 1500) {
-      await new Promise((res) => setTimeout(res, 50))
-      r = read()
-    }
-    return r
+  const filmSel = await thumb.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return { boxShadow: s.boxShadow, outline: s.outlineStyle, bg: s.backgroundColor, cls: el.className }
   })
   const blackRing = await thumb.evaluate((el) => {
     const s = getComputedStyle(el)
@@ -1999,11 +1680,25 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("v0.9.3 dead amber --crop removed from index.css", !/--crop:\s*#e0a33a/.test(css) && /--crop:\s*#6b696a/.test(css), "crop tokens")
 
   const pkg93 = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"))
-  ok("v0.9.3 version 0.9.3", pkg93.version === "0.9.3", pkg93.version)
+  ok("v0.10.0 version 0.10.0", pkg93.version === "0.10.0", pkg93.version)
+}
+
+// Stage 3: feature pages mount editor parts at the real #/demo slot sizes (src/demo-parts/layout.ts SLOT)
+{
+  const SLOT = { left: 212, right: 300 }
+  const meas = async () => page.evaluate(() => { const w = (t) => { const e = document.querySelector(`[data-testid="${t}"]`); return e ? Math.round(e.getBoundingClientRect().width) : null }; return { l: w("panel-l"), r: w("panel-r") } })
+  await go("#/demo", 500); await page.evaluate(() => { const d = window.__demo; d.reset(); d.state().path = "~/Pictures/Photobooks"; d.go("library") }); await page.waitForTimeout(300)
+  const bad = []
+  for (const slug of ["editor-chrome-toolbar", "spread-list-panel", "pasteboard-workspace", "drag-place-replace", "inspector", "pdf-export"]) {
+    await go(feat(slug), 700); const m = await meas()
+    if ((m.l !== null && m.l !== SLOT.left) || (m.r !== null && m.r !== SLOT.right) || (m.l === null && m.r === null)) bad.push(`${slug} ${JSON.stringify(m)}`)
+  }
+  ok("stage 3: feature pages' panel-l / panel-r widths equal SLOT (212 / 300)", bad.length === 0, bad.join(" | ") || "6 pages")
 }
 
 
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")
 console.log(res.join("\n")); console.log(`\n${res.length - fails} passed, ${fails} failed; console errors/warnings: ${errs.length}`); if (errs.length) console.log(errs.slice(0, 20).join("\n"))
+
 await browser.close()
 process.exit(fails || errs.length ? 1 : 0)

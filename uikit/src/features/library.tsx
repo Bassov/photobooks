@@ -299,16 +299,3 @@ export function HomeScreen({ empty = false, onOpenBook, banner, libState = "ok",
 }
 
 function FolderPickerLazy(p: { isOpen: boolean; onPick: (path: string) => void; onCancel: () => void }) { return <FolderPicker {...p} title="Choose the library folder" /> }
-
-/** First run: Welcome → system folder picker → empty library. */
-export function FirstRun() {
-  const [stage, setStage] = React.useState<"welcome" | "picker" | "home">("welcome")
-  const [path, setPath] = React.useState(LIBRARY_PATH)
-  if (stage === "home") return <HomeScreen empty initialPath={path} />
-  return (
-    <>
-      <WelcomeScreen onCreate={() => setStage("picker")} />
-      <FolderPicker isOpen={stage === "picker"} title="Choose where your library lives" onCancel={() => setStage("welcome")} onPick={(p) => { setPath(p); setStage("home") }} />
-    </>
-  )
-}

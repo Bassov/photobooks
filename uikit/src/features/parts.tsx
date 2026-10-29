@@ -4,15 +4,12 @@ import * as React from "react"
 import { setInspectorOpen } from "@/sandbox/inspectorState"
 import { resetCoverPhoto, resetMasters } from "@/sandbox/v7"
 import { UNSAFE_PortalProvider } from "react-aria"
-import { FileCode2 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { StudioProvider, useStudio, type Features, type View, type Node, type Book } from "@/sandbox/store"
 import { makeDoc, type Doc } from "@/sandbox/model"
 import { EditorFrame, TopBar, SpreadsPanel, Dock, StatusLine, Pager, Toasts } from "@/sandbox/chrome"
 import { BOOKS } from "./screens"
 import { SiteViewer } from "./site-viewer"
 import { Viewport } from "@/sandbox/viewport"
-import { InspectorPanel, GeometrySection, PhotoSection, EmptyInspector, useSelected } from "@/sandbox/inspector"
 
 export function Std({ init, features, view, cur = 2, sel, missing, node, mode, book, top, left, right, dock, overlay, canvasExtra, pager = false, wrap, pick, keep }: {
   init?: Doc | (() => Doc); features?: Features; view?: Partial<View>; cur?: number; sel?: string[]; missing?: string[]
@@ -42,14 +39,8 @@ export function Std({ init, features, view, cur = 2, sel, missing, node, mode, b
 }
 function AutoPick({ pick }: { pick: number | number[] }) {
   const st = useStudio()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { const fs = st.doc.spreads[st.cur]?.frames ?? []; st.setSel((Array.isArray(pick) ? pick : [pick]).map((i) => fs[i]?.id).filter(Boolean) as string[]) }, [])
   return null
-}
-export function DefaultFrameTab() {
-  const { f } = useSelected()
-  if (!f) return <EmptyInspector />
-  return <><PhotoSection /><GeometrySection rotation={false} /></>
 }
 
 
@@ -69,21 +60,6 @@ function PreviewTopBar(props: React.ComponentProps<typeof TopBar>) {
     </>
   )
 }
-
-/* ---------------------------------------------------------------- specimen cards (static pages) */
-export function SpecCard({ title, icon, children, className }: { title: string; icon?: React.ReactNode; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn("overflow-hidden rounded-xl border bg-card shadow-xs", className)}>
-      <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-2">
-        <span className="text-muted-foreground [&_svg]:size-4">{icon ?? <FileCode2 />}</span>
-        <span className="text-sm font-semibold">{title}</span>
-      </div>
-      <div className="p-4">{children}</div>
-    </div>
-  )
-}
-/** padded column of specimen cards */
-export const Dev = ({ children }: { children: React.ReactNode }) => <div className="flex flex-col gap-4 p-4">{children}</div>
 
 /* Scenario switcher strip above a demo (kit chrome, not product UI) */
 import { Tabs as KTabs, TabList as KTabList, Tab as KTab } from "@/components/ui/tabs"

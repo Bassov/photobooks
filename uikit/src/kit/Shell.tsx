@@ -4,7 +4,6 @@ import { BookOpen, ChevronLeft, ChevronRight, ChevronDown, LayoutGrid, Shapes, M
 import { Link } from "react-aria-components"
 import { UNSAFE_PortalProvider } from "react-aria"
 import { cn } from "@/lib/utils"
-import { Toggle, ToggleButtonGroup } from "@/components/ui/toggle"
 import { Badge } from "@/components/uui/Badge"
 import { Kbd } from "@/components/app/ui"
 import { SearchField, SearchFieldGroup, SearchFieldInput, SearchFieldClear } from "@/components/ui/searchfield"
@@ -95,7 +94,6 @@ export function IndexPage() {
   React.useLayoutEffect(() => {
     window.scrollTo(0, init.y)
     if (init.last) document.querySelector<HTMLElement>(`[data-feature-link="${CSS.escape(init.last)}"], [data-screen-link="${CSS.escape(init.last)}"]`)?.focus({ preventScroll: true })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   React.useEffect(() => {
     let raf = 0
@@ -265,10 +263,10 @@ export function UxNotes({ def }: { def: Pick<FeatureDef, "notes"> }) {
         <ChevronDown className={cn("ml-auto size-4 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")} />
       </button>
       {open && (
-        <div className={cn("grid gap-x-6 gap-y-3 px-4 pb-3 pt-3", n.keys?.length ? "grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.15fr)_minmax(0,1.35fr)]" : "grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.6fr)]")} data-testid="notes-body">
+        <div className="grid gap-x-6 gap-y-3 px-4 pb-3 pt-3" style={{ gridTemplateColumns: `repeat(${n.why ? 3 : 2},minmax(0,1fr))${n.keys?.length ? " minmax(0,1.15fr) minmax(0,1.35fr)" : " minmax(0,1.6fr)"}` }} data-testid="notes-body">
           <NoteCol title="What">{n.what}</NoteCol>
           <NoteCol title="Where">{n.where}</NoteCol>
-          <NoteCol title="Why">{n.why}</NoteCol>
+          {n.why && <NoteCol title="Why">{n.why}</NoteCol>}
           {!!n.keys?.length && <NoteCol title="Keys">
             {n.keys?.length ? (
               <div className="flex flex-col gap-1">

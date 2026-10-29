@@ -1,4 +1,4 @@
-# Photobooks UI kit (v0.9.3)
+# Photobooks UI kit (v0.10.0)
 
 A UI/UX reference for Photobooks, **organised by app screen**. Each screen
 (Home, Import, Editor, Settings, Unsupported browser, …) has its own page with a
@@ -16,6 +16,10 @@ and the kit disagree, the roadmap wins and the kit gets updated.
 Stack: Vite 8, React 19, TypeScript, Tailwind 4 and react-aria-components (a
 JollyUI port, in a single Procreate-light theme). The kit is a standalone package and shares
 nothing with the app build.
+
+## v0.10.0 — kit decomposed into #/demo parts
+
+Every feature page now mounts only `src/demo-parts` at real editor slot sizes, grouped by roadmap item with a scenario switcher; old kit-only feature components and the `#/parts` scratch route are removed; qa checks for the old kit-only editor are deleted. `#/demo` is pixel-identical to v0.9.3. Old→new page slugs: see the Stage 4 slug map.
 
 ## v0.9.3 — site library home, outlined tool cursors, Space≠panels, outline cleanup
 

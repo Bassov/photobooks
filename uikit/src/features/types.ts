@@ -3,7 +3,8 @@ import type { ComponentType, ReactNode } from "react"
 export type Notes = {
   what: ReactNode
   where: ReactNode
-  why: ReactNode
+  /** optional; Stage 3 pages use what / where / edge only */
+  why?: ReactNode
   keys?: [string, string][]
   edge?: ReactNode[]
 }

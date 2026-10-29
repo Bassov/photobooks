@@ -1,8 +1,8 @@
 /* Components page: every ported component in its variants and states, in the single v5 theme, interactive. */
 import * as React from "react"
 import {
-  Download, Trash2, Bold, Italic, Underline, Check, CloudOff, Copy, FolderOpen, Pencil, AlertTriangle, CircleCheck, Search,
-  MousePointer2, Hand, Type, LayoutTemplate, Link2, Maximize, Minimize, Undo2, Redo2, Grid3x3, Magnet, Loader2, Plus, Info, Images, Settings, ChevronDown, Eye,
+  Trash2, Bold, Italic, Underline, Check, CloudOff, Copy, FolderOpen, Pencil, AlertTriangle, CircleCheck, Search,
+  MousePointer2, Hand, Type, LayoutTemplate, Link2, Maximize, Minimize, Undo2, Redo2, Grid3x3, Magnet, Plus, Info, Images, Settings, ChevronDown, Eye,
 } from "lucide-react"
 import { TooltipTrigger } from "react-aria-components"
 import { cn } from "@/lib/utils"
@@ -125,9 +125,9 @@ const SPECS: Spec[] = [
         <div className="flex items-center gap-3">
           <TooltipTrigger delay={0}>
             <Button variant="outline" size="md" className={cn(sb, "shadow-xs")}><Magnet />Snap</Button>
-            <Tooltip placement="top" className="flex items-center gap-2 px-2 py-1 text-xs">Snap to grid & guides <Kbd className="h-4.5">Shift+S</Kbd></Tooltip>
+            <Tooltip placement="top" className="flex items-center gap-2 px-2 py-1 text-xs">Snap to grid <Kbd className="h-4.5">Shift+S</Kbd></Tooltip>
           </TooltipTrigger>
-          <span className="flex items-center gap-2 rounded-md bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md">Snap to grid & guides <Kbd className="h-4.5">Shift+S</Kbd></span>
+          <span className="flex items-center gap-2 rounded-md bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md">Snap to grid <Kbd className="h-4.5">Shift+S</Kbd></span>
         </div>
       </>
     ),
@@ -293,7 +293,7 @@ const SPECS: Spec[] = [
         <Sub>Switch</Sub>
         <StateRow cells={[
           ["sm off", <Switch size="sm" className="text-sm font-normal">Snap</Switch>], ["sm on", <Switch size="sm" defaultSelected className="text-sm font-normal">Snap</Switch>],
-          ["default", <Switch defaultSelected className="text-sm font-normal">Guides</Switch>], ["focus-visible", <Force state={["focus-visible"]}><Switch size="sm" className="text-sm font-normal">Focus</Switch></Force>],
+          ["default", <Switch defaultSelected className="text-sm font-normal">Grid</Switch>], ["focus-visible", <Force state={["focus-visible"]}><Switch size="sm" className="text-sm font-normal">Focus</Switch></Force>],
           ["disabled", <Switch size="sm" isDisabled defaultSelected className="text-sm font-normal">Locked</Switch>],
         ]} />
         <div className="mt-3 flex w-[280px] flex-col gap-2"><SwitchRow defaultSelected>Mirror on facing pages</SwitchRow><SwitchRow>Snap to other frames</SwitchRow></div>
@@ -339,7 +339,7 @@ const SPECS: Spec[] = [
           <Section title="Caption" summary="Off" defaultExpanded={false} />
         </div>
         <DisclosureGroup defaultExpandedKeys={["a"]} className="w-full">
-          <Disclosure id="a"><DisclosureHeader>What is a parent spread?</DisclosureHeader><DisclosurePanel><p className="text-sm text-muted-foreground">Shared items, grid and guides for many spreads.</p></DisclosurePanel></Disclosure>
+          <Disclosure id="a"><DisclosureHeader>What is a parent spread?</DisclosureHeader><DisclosurePanel><p className="text-sm text-muted-foreground">Shared items and grid for many spreads.</p></DisclosurePanel></Disclosure>
           <Disclosure id="b"><DisclosureHeader>Disabled</DisclosureHeader><DisclosurePanel>—</DisclosurePanel></Disclosure>
         </DisclosureGroup>
       </div>
