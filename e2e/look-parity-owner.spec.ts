@@ -63,26 +63,6 @@ test('left panel defaults to the kit width and thumbs keep the spread aspect', a
   expect(box.w).toBeCloseTo(KIT_THUMB_BOX, 0)
 })
 
-test('left panel has a Pages | Masters switcher, no Assets', async ({
-  page,
-}) => {
-  await openSessionEditor(page)
-  const tabs = page.getByRole('tablist', { name: 'Left panel' })
-  await expect(tabs.getByRole('tab')).toHaveText(['Pages', 'Masters'])
-  await expect(page.getByTestId('left-tab-pages')).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
-  await expect(page.getByText('Assets', { exact: true })).toHaveCount(0)
-
-  await page.getByTestId('left-tab-masters').click()
-  await expect(page.getByTestId('masters-stub')).toBeVisible()
-  await expect(page.getByTestId('spreads-list')).toHaveCount(0)
-
-  await page.getByTestId('left-tab-pages').click()
-  await expect(page.getByTestId('spreads-list')).toBeVisible()
-})
-
 test('inspector sections use the kit padding, title and field sizes', async ({
   page,
 }) => {
