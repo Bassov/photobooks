@@ -20,6 +20,13 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
 const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
+// The snap toggle is default-on and aria-pressed; keep it out of move-source queries.
+function pressedMoveSource(page: import('@playwright/test').Page) {
+  return page.locator(
+    'button[aria-pressed="true"]:not([data-testid="snap-topbar-toggle"])',
+  )
+}
+
 async function dropAssetOnFrame(
   page: import('@playwright/test').Page,
   assetId: string,
@@ -173,7 +180,7 @@ test.describe('keyboard rearrange', () => {
       .first()
       .focus()
     await page.keyboard.press('Enter')
-    await expect(page.getByRole('button', { pressed: true })).toHaveAttribute(
+    await expect(pressedMoveSource(page)).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -188,11 +195,11 @@ test.describe('keyboard rearrange', () => {
     const zoomPercent = Number.parseInt(zoomText.replace('%', ''), 10)
     expect(zoomPercent).toBeGreaterThan(0)
     expect(zoomPercent).toBeLessThan(40)
-    const pressed = page.getByRole('button', { pressed: true })
+    const pressed = pressedMoveSource(page)
     await expect(pressed).toHaveAttribute('aria-label', 'Cancel move')
     const activeShot = await pressed.screenshot()
     await page.keyboard.press('Escape')
-    await expect(page.getByRole('button', { pressed: true })).toHaveCount(0)
+    await expect(pressedMoveSource(page)).toHaveCount(0)
     // Blur so cancelled shot has no focus-visible ring either.
     await page.getByRole('grid', { name: 'Book gallery' }).focus()
     const cancelledShot = await page
@@ -204,7 +211,7 @@ test.describe('keyboard rearrange', () => {
     ).not.toBe(0)
     await page.locator(`button[data-frame-id="${firstPlacedId ?? ''}"]`).focus()
     await page.keyboard.press('Enter')
-    await expect(page.getByRole('button', { pressed: true })).toHaveAttribute(
+    await expect(pressedMoveSource(page)).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -234,7 +241,7 @@ test.describe('keyboard rearrange', () => {
       .first()
       .focus()
     await page.keyboard.press('Enter')
-    const moveSource = page.getByRole('button', { pressed: true })
+    const moveSource = pressedMoveSource(page)
     const moveSourceFrameId = await moveSource.getAttribute('data-frame-id')
     const moveSourceAssetId = await moveSource.getAttribute('data-asset-id')
     expect(moveSourceFrameId).toBeTruthy()
@@ -264,9 +271,8 @@ test.describe('keyboard rearrange', () => {
       .first()
       .focus()
     await page.keyboard.press('Enter')
-    const unplaceSourceId = await page
-      .getByRole('button', { pressed: true })
-      .getAttribute('data-frame-id')
+    const unplaceSourceId =
+      await pressedMoveSource(page).getAttribute('data-frame-id')
     await page.getByRole('button', { name: 'Unplace', exact: true }).focus()
     await page.keyboard.press('Enter')
     await expect
@@ -396,7 +402,7 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
   const filled = active.locator('button[data-filled="true"]')
   await filled.focus()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { pressed: true })).toHaveCount(0)
+  await expect(pressedMoveSource(page)).toHaveCount(0)
   await expect(page.getByTestId('filmstrip-item').first()).not.toHaveAttribute(
     'aria-selected',
     'true',
@@ -406,7 +412,7 @@ test('escape cancels a move source and Delete unplaces a focused frame', async (
   await page.keyboard.press('Enter')
   await expect(page.getByRole('button', { name: 'Cancel move' })).toHaveCount(1)
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('button', { pressed: true })).toHaveCount(0)
+  await expect(pressedMoveSource(page)).toHaveCount(0)
   await expect(
     page.getByRole('button', { name: 'Unplace', exact: true }),
   ).toHaveCount(0)

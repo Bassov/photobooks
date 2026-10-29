@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MIN_FRAME_EDGE_MM, type Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
@@ -11,6 +12,7 @@ import {
   setFrameSource,
 } from './frameSelection'
 import { installFrameHandleGesture } from './frameHandleGesture'
+import { setSnapOn } from './gridView'
 
 const SIZE_MM = 300
 const SCALE = 2
@@ -22,7 +24,7 @@ interface FrameExtra {
   assetId?: string
 }
 
-function load(extra: FrameExtra = {}) {
+function load(extra: FrameExtra = {}, neighbour?: Frame['rect']) {
   resetBookStore({
     book: makeBook({
       spreads: [
@@ -33,6 +35,9 @@ function load(extra: FrameExtra = {}) {
               rect: { x: 100, y: 100, width: 50, height: 50 },
               ...extra,
             }),
+            ...(neighbour === undefined
+              ? []
+              : [makeFrame({ id: 'n', rect: neighbour })]),
           ],
         }),
       ],
@@ -126,8 +131,10 @@ describe('frameHandleGesture', () => {
   let stop: () => void
   let dom: ReturnType<typeof mount>
 
-  function setup(extra: FrameExtra = {}) {
-    load(extra)
+  function setup(extra: FrameExtra = {}, neighbour?: Frame['rect']) {
+    // Gesture maths assert raw pointer travel; snapping has its own suite.
+    setSnapOn(false)
+    load(extra, neighbour)
     dom = mount()
     stop = installFrameHandleGesture()
     setFrameSource({
@@ -138,11 +145,129 @@ describe('frameHandleGesture', () => {
 
   afterEach(() => {
     stop()
+    setSnapOn(true)
     dom.pasteboard.remove()
     resetFrameSelection()
     resetEditorToolForTests()
     setEditorStatus('')
     resetBookStore()
+  })
+
+  describe('snapping', () => {
+    beforeEach(() => {
+      setup()
+      setSnapOn(true)
+    })
+
+    const dragSe = (init: MouseEventInit = {}) => {
+      const se = dom.handles.get('se')
+      assert(se !== undefined)
+      fire('pointerdown', se, 150, 150)
+      fire('pointermove', window, 147, 147, init)
+      return se
+    }
+    const lines = () => dom.spread.querySelectorAll('.snap-line')
+
+    it('pulls a dragged edge onto the page center and labels it', () => {
+      dragSe()
+      expect([...lines()].map((line) => line.textContent)).toEqual([
+        'snap · center',
+        'snap · center',
+      ])
+      fire('pointerup', window, 147, 147)
+      expect(frame().rect).toMatchObject({ width: 50, height: 50 })
+      expect(lines()).toHaveLength(0)
+    })
+
+    it('Alt leaves the pointer result and draws no line', () => {
+      dragSe({ altKey: true })
+      expect(lines()).toHaveLength(0)
+    })
+
+    it('snap off draws no line and keeps the raw rect', () => {
+      setSnapOn(false)
+      dragSe()
+      expect(lines()).toHaveLength(0)
+      fire('pointerup', window, 147, 147)
+      expect(frame().rect.width).toBe(47)
+    })
+
+    it('clears the lines when the gesture is cancelled', () => {
+      dragSe()
+      fire('pointercancel', window, 147, 147)
+      expect(lines()).toHaveLength(0)
+    })
+
+    it('never snaps an edge past the minimum frame size', () => {
+      stop()
+      dom.pasteboard.remove()
+      // A neighbour edge at 104 would pull the clamped right edge (105) to a 4 mm width.
+      setup({}, { x: 102, y: 0, width: 2, height: 10 })
+      setSnapOn(true)
+      const se = dom.handles.get('se')
+      assert(se !== undefined)
+      fire('pointerdown', se, 150, 150)
+      fire('pointermove', window, 104, 104)
+      expect(lines()).toHaveLength(0)
+      fire('pointerup', window, 104, 104)
+      expect(frame().rect.width).toBe(MIN_FRAME_EDGE_MM)
+    })
+
+    function withNeighbour(neighbour: Frame['rect']) {
+      stop()
+      dom.pasteboard.remove()
+      setup({}, neighbour)
+      setSnapOn(true)
+    }
+
+    function drag(handle: string, fromMm: number, toX: number, toY: number) {
+      const el = dom.handles.get(handle)
+      assert(el !== undefined)
+      fire('pointerdown', el, fromMm, fromMm)
+      fire('pointermove', window, toX, toY)
+      const count = lines().length
+      fire('pointerup', window, toX, toY)
+      return count
+    }
+
+    it('keeps the pull distance: an edge far from every anchor stays put', () => {
+      withNeighbour({ x: 0, y: 0, width: 10, height: 10 })
+      expect(drag('se', 150, 120, 120)).toBe(0)
+      expect(frame().rect).toMatchObject({ width: 20, height: 20 })
+    })
+
+    it('snaps a nw drag: the near edges move, the far corner stays', () => {
+      withNeighbour({ x: 90, y: 90, width: 5, height: 5 })
+      drag('nw', 100, 97, 97)
+      expect(frame().rect).toEqual({ x: 95, y: 95, width: 55, height: 55 })
+    })
+
+    it('allows a snap that lands exactly on the minimum width', () => {
+      withNeighbour({ x: 50, y: 50, width: 55, height: 55 })
+      drag('se', 150, 107, 150)
+      expect(frame().rect.width).toBe(MIN_FRAME_EDGE_MM)
+    })
+
+    it('allows a snap that lands exactly on the minimum height', () => {
+      withNeighbour({ x: 50, y: 50, width: 55, height: 55 })
+      drag('se', 150, 150, 107)
+      expect(frame().rect.height).toBe(MIN_FRAME_EDGE_MM)
+    })
+
+    it('refuses a snap that would shrink only the height below the minimum', () => {
+      withNeighbour({ x: 0, y: 50, width: 10, height: 54 })
+      expect(drag('se', 150, 150, 104)).toBe(0)
+      expect(frame().rect.height).toBe(MIN_FRAME_EDGE_MM)
+    })
+
+    it('does not snap a rotated frame', () => {
+      stop()
+      dom.pasteboard.remove()
+      setup({ rotationDeg: 30 })
+      setSnapOn(true)
+      dragSe()
+      expect(lines()).toHaveLength(0)
+    })
   })
 
   describe('unlocked', () => {

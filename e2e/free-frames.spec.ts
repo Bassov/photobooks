@@ -247,6 +247,20 @@ test('an empty frame drags with the Select tool, snapping to a neighbour; Alt sk
   const gap = (b?.x ?? 0) - ((a?.x ?? 0) + (a?.width ?? 0))
   expect(Math.abs(gap)).toBeLessThan(1)
 
+  // Shift+S turns snapping off: the same near-miss drag shows no line.
+  const snapToggle = page.getByTestId('snap-topbar-toggle')
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Shift+S')
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'false')
+  const resting = await centerOf(second)
+  await page.mouse.move(resting.x, resting.y)
+  await page.mouse.down()
+  await page.mouse.move(resting.x + 3, resting.y + 20, { steps: 6 })
+  await expect(snapLines).toHaveCount(0)
+  await page.mouse.up()
+  await snapToggle.click()
+  await expect(snapToggle).toHaveAttribute('aria-pressed', 'true')
+
   const before = await second.boundingBox()
   await dragSecond(['Alt'], async () => {
     await expect(snapLines).toHaveCount(0)
