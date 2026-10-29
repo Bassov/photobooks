@@ -63,6 +63,8 @@ describe('editorChromePanels', () => {
     expect(zoomChromeLabel(0.5, null)).toBe(formatZoomPercent(0.5))
     expect(zoomChromeLabel(0.52, 0.5)).toBe(formatZoomPercent(0.52))
     expect(zoomChromeLabel(0.4, 0.5)).toBe(formatZoomPercent(0.4))
+    expect(zoomChromeLabel(1005, 1000)).toBe('Fit')
+    expect(zoomChromeLabel(0, null)).toBe(formatZoomPercent(0))
     expect(nextZoomOut(1)).toBe(0.8)
     expect(nextZoomOut(0.25)).toBe(0.25)
     expect(nextZoomIn(1)).toBe(1.25)
