@@ -1777,6 +1777,33 @@ describe('createLibraryActivation', () => {
     expect(emit).toHaveBeenCalled()
   })
 
+  it('tryRestore storage-unavailable keeps persisted ids and shows an error on welcome', async () => {
+    persisted = { libraryId: 'lib-blocked', bookId: 'book-1' }
+    recallResults.set('lib-blocked', failure('storage-unavailable'))
+    storage = createMemoryLibraryStorage()
+    bookId = 'stale-book'
+    dirty = true
+    homeError = 'previous error'
+    heldLocks.add('stale-book')
+    const result = await controller.tryRestore()
+    expect(result).toEqual({ ok: true, value: null })
+    expect(surface).toBe('welcome')
+    expect(storage).toBeNull()
+    expect(bookId).toBeNull()
+    expect(dirty).toBe(false)
+    expect(heldLocks.size).toBe(0)
+    expect(resetAutosave).toHaveBeenCalled()
+    expect(setHomeError).toHaveBeenCalledWith(null)
+    expect(clearPersistedIdKeys).not.toHaveBeenCalled()
+    expect(setActiveIds).not.toHaveBeenCalled()
+    expect(homeError).toBe('Could not read saved folder access.')
+    expect(status).toEqual({
+      kind: 'error',
+      code: 'storage-unavailable',
+      action: 'restore library',
+    })
+  })
+
   it('tryRestore load failure sets restore book status', async () => {
     const lib = createMemoryLibraryStorage()
     await lib.updateLibrary({})

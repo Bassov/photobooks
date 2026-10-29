@@ -41,7 +41,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [spread-list-panel](roadmap/M3/spread-list-panel.md) — spread list (Google Slides style)
 - [x] [feature] [spread-reorder-retemplate](roadmap/M3/spread-reorder-retemplate.md) — reorder and re-template spreads
 - [x] [feature] [behavior-invariants](roadmap/M3/behavior-invariants.md) — PBT invariants for placement/fit
-- [ ] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
+- [x] [feature] [assets-panel](roadmap/M3/assets-panel.md) — book assets at a glance
 - [x] [feature] [look-parity-inspector](roadmap/M3/look-parity-inspector.md) — look parity: inspector shell + quiet header
 - [x] [feature] [look-parity-canvas-sel](roadmap/M3/look-parity-canvas-sel.md) — look parity: canvas selection-only chrome
 - [x] [feature] [look-parity-fit-crop](roadmap/M3/look-parity-fit-crop.md) — look parity: Fit & crop in the inspector
@@ -50,6 +50,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [look-parity-masters](roadmap/M3/look-parity-masters.md) — look parity: left list kit chrome
 - [x] [feature] [presentation-mode](roadmap/M3/presentation-mode.md) — preview the book
 - [x] [prep] [denials-zero](roadmap/M3/denials-zero.md) — Cut headless permission denials (run card + scratch dir)
+- [x] [feature] [recents-idb-dedup](roadmap/M3/recents-idb-dedup.md) — session IDB typed faults, recents isSameEntry dedup, eviction cleanup
 
 ## M4 — Free layout: grids, guides, frames
 

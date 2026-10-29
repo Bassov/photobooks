@@ -39,4 +39,3 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipel
 | [`mutation-reinclude-camera`](mutation-reinclude-camera.md)   | mutate `usePasteboardCamera.ts` again (issue #72 B)                               | M2.1               | #72 B                           |
 | [`project-session-mutation`](project-session-mutation.md)     | mutate what is left of `projectSession.ts` (issue #72 B)                          | M2.1               | #72 B                           |
 | [`agent-pipeline-run-audit`](agent-pipeline-run-audit.md)     | Check one /next-roadmap-item run against the #77 and #79 targets                  | M2.1               | #77, #79                        |
-| [`recents-idb-dedup`](recents-idb-dedup.md)                   | session IDB typed faults, recents isSameEntry dedup, eviction cleanup             | M2.2               | —                               |
