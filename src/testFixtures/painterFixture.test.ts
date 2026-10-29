@@ -54,33 +54,34 @@ async function decode(assetId: string) {
   const file = painterSourceFile(assetId)
   const bytes = new Uint8Array(await file.arrayBuffer())
   const chunks = readChunks(bytes)
+  const [head, idat, end] = chunks
+  if (head === undefined || idat === undefined || end === undefined) {
+    throw new Error('expected IHDR, IDAT and IEND chunks')
+  }
   const ihdr = new DataView(
-    chunks[0].data.buffer,
-    chunks[0].data.byteOffset,
-    chunks[0].data.byteLength,
+    head.data.buffer,
+    head.data.byteOffset,
+    head.data.byteLength,
   )
-  const pixels = inflateSync(chunks[1].data)
-  return { file, bytes, chunks, ihdr, pixels }
+  const pixels = inflateSync(idat.data)
+  return { file, bytes, chunks, head, end, ihdr, pixels }
 }
 
 describe('painterSourceFile', () => {
   it('builds a well-formed 2x2 RGB png named after the asset', async () => {
-    const { file, bytes, chunks, ihdr, pixels } = await decode('painter-a')
+    const { file, bytes, chunks, head, end, ihdr, pixels } =
+      await decode('painter-a')
 
     expect(file.name).toBe('painter-a.png')
     expect(file.type).toBe('image/png')
     expect([...bytes.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
     expect(chunks.map((c) => c.type)).toEqual(['IHDR', 'IDAT', 'IEND'])
     expect(chunks.every((c) => c.crcOk)).toBe(true)
-    expect(chunks[2].data.length).toBe(0)
-    expect(chunks[0].data.length).toBe(13)
+    expect(end.data.length).toBe(0)
+    expect(head.data.length).toBe(13)
     expect(ihdr.getUint32(0)).toBe(2)
     expect(ihdr.getUint32(4)).toBe(2)
-    expect(chunks[0].data[8]).toBe(8)
-    expect(chunks[0].data[9]).toBe(2)
-    expect(chunks[0].data[10]).toBe(0)
-    expect(chunks[0].data[11]).toBe(0)
-    expect(chunks[0].data[12]).toBe(0)
+    expect([...head.data.subarray(8)]).toEqual([8, 2, 0, 0, 0])
     expect(pixels.length).toBe(2 * (1 + 2 * 3))
   })
 
