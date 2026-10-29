@@ -139,6 +139,8 @@ export function Rulers({
     stage.addEventListener('pointerleave', onLeave)
     const offCamera = subscribeCommitted(schedule)
     resize.observe(scroll)
+    // The world re-sizes (and re-centres the spread) a frame after the scroll area is inset.
+    if (scroll.firstElementChild) resize.observe(scroll.firstElementChild)
     const mutations = new MutationObserver(schedule)
     mutations.observe(scroll, {
       childList: true,
