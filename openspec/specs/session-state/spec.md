@@ -132,6 +132,20 @@ Session state SHALL remember at most one library directory handle plus an option
 - **WHEN** IndexedDB contains a legacy `__recents` list with multiple entries and matching handles
 - **THEN** after open, recall returns the most recent entry’s handle and listing multiple recents is not part of the API
 
+### Requirement: Blocked or failing browser storage
+
+The browser session-state adapter MUST NOT throw when IndexedDB is blocked or fails. Operations that return a typed result MUST fail with code `storage-unavailable`; label and active-id reads MUST return their empty values. A failed restore caused by `storage-unavailable` MUST keep the persisted ids and show a readable storage error with a retry action on the welcome screen.
+
+#### Scenario: Handle read fails with storage-unavailable
+
+- **WHEN** IndexedDB rejects while recalling or peeking the library handle
+- **THEN** the result is a typed failure with code `storage-unavailable` and nothing is thrown
+
+#### Scenario: Blocked IndexedDB shows retry on home
+
+- **WHEN** the app starts with IndexedDB blocked
+- **THEN** the welcome screen shows a storage error and a Retry control, and Retry restores normally once storage works
+
 ### Requirement: Library folder label
 
 Session state SHALL expose the remembered library’s display label (the directory handle’s folder name when known) for UI that shows the current library “path”. Missing label MUST be distinguishable without throwing.

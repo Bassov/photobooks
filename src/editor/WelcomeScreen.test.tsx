@@ -115,6 +115,26 @@ describe('WelcomeScreen', () => {
     expect(screen.queryByTestId('create-library')).toBeNull()
   })
 
+  it('offers Retry only for the storage-unavailable error and retries restore', () => {
+    patchProjectSessionSnapshotForTests({
+      restorePending: false,
+      homeError: 'Pick failed',
+    })
+    const { unmount } = render(<WelcomeScreen />)
+    expect(screen.queryByTestId('welcome-retry')).toBeNull()
+    unmount()
+
+    const restore = vi
+      .spyOn(projectSession, 'tryRestore')
+      .mockResolvedValue({ ok: true, value: null })
+    patchProjectSessionSnapshotForTests({
+      homeError: projectSession.STORAGE_UNAVAILABLE_MESSAGE,
+    })
+    render(<WelcomeScreen />)
+    fireEvent.click(screen.getByTestId('welcome-retry'))
+    expect(restore).toHaveBeenCalledTimes(1)
+  })
+
   it('shows welcome error status when homeError is set', () => {
     patchProjectSessionSnapshotForTests({
       restorePending: false,

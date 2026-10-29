@@ -406,6 +406,10 @@ let libraryActivation: LibraryActivation = createLibraryActivation(
 )
 bookLocks.setHost(buildBookLockHost())
 
+/** Home error when browser site storage (IndexedDB) cannot be read; the welcome screen offers Retry. */
+export const STORAGE_UNAVAILABLE_MESSAGE =
+  'Browser storage is unavailable, so your saved library cannot be read. Check that site data is allowed, then retry.'
+
 function humanMessageForCode(
   code: StorageFailureCode,
   fallback: string,
@@ -413,6 +417,8 @@ function humanMessageForCode(
   switch (code) {
     case 'locked-elsewhere':
       return LOCK_BANNER_MESSAGE
+    case 'storage-unavailable':
+      return STORAGE_UNAVAILABLE_MESSAGE
     case 'permission-required':
       return 'Folder access is required. Use Grant access and allow write permission.'
     case 'not-found':

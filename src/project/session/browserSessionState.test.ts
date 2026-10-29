@@ -86,6 +86,85 @@ runSessionStateContract(() => {
   }
 })
 
+describe('createBrowserSessionState with failing IndexedDB', () => {
+  function createBlockedIdb(): SessionIdb {
+    const fail = () => Promise.reject(new Error('indexedDB blocked'))
+    return {
+      get: fail,
+      set: fail,
+      del: fail,
+      keys: fail,
+      runReadwrite: fail,
+    }
+  }
+
+  function createBlocked() {
+    return createBrowserSessionState({
+      idb: createBlockedIdb(),
+      locks: createMemoryLocks(),
+    })
+  }
+
+  it('returns storage-unavailable instead of throwing on handle reads', async () => {
+    const session = createBlocked()
+
+    expect(await session.recallLibraryHandle('library')).toEqual({
+      ok: false,
+      code: 'storage-unavailable',
+    })
+    expect(await session.peekLibraryHandle('library')).toEqual({
+      ok: false,
+      code: 'storage-unavailable',
+    })
+  })
+
+  it('returns storage-unavailable instead of throwing on writes', async () => {
+    const session = createBlocked()
+    const handle = createFakeBrowserDirectory({ name: 'Trip' })
+
+    expect(await session.rememberLibraryHandle('library', handle)).toEqual({
+      ok: false,
+      code: 'storage-unavailable',
+    })
+    expect(await session.clearLibraryHandle('library')).toEqual({
+      ok: false,
+      code: 'storage-unavailable',
+    })
+    expect(
+      await session.setActiveIds({ libraryId: 'library', bookId: 'b1' }),
+    ).toEqual({ ok: false, code: 'storage-unavailable' })
+  })
+
+  it('returns empty label and active ids instead of throwing', async () => {
+    const session = createBlocked()
+
+    expect(await session.getLibraryLabel('library')).toBeNull()
+    expect(await session.getActiveIds()).toEqual({
+      libraryId: null,
+      bookId: null,
+    })
+  })
+
+  it('returns null label when only the label read fails', async () => {
+    const memory = createMemoryIdb()
+    const session = createBrowserSessionState({
+      idb: {
+        ...memory,
+        async get(key) {
+          if (key === 'library') {
+            return { present: false }
+          }
+          return Promise.reject(new Error('label read failed'))
+        },
+      },
+      locks: createMemoryLocks(),
+      skipLegacyMigration: true,
+    })
+
+    expect(await session.getLibraryLabel('library')).toBeNull()
+  })
+})
+
 describe('createBrowserSessionState', () => {
   it('returns permission-required when queryPermission is not granted for readwrite', async () => {
     const idb = createMemoryIdb()

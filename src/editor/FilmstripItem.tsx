@@ -1,5 +1,6 @@
 import {
   memo,
+  useContext,
   useEffect,
   useSyncExternalStore,
   type CSSProperties,
@@ -24,6 +25,7 @@ import {
   getFilmstripJumpHighlightId,
   subscribeFilmstripJump,
 } from './filmstripJump'
+import { FilmstripNameStripContext } from './filmstripNameStrip'
 import { getSelectedAssetIds, setSelectedAssetId } from './gallerySelection'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotAspect } from './thumbSlotSize'
@@ -115,6 +117,7 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
  * commits one style on the window instead of re-rendering every item.
  */
 export function FilmstripItemView({ id, name }: { id: string; name: string }) {
+  const showName = useContext(FilmstripNameStripContext)
   const thumbUrl = useSyncExternalStore(
     (listener) => subscribeThumb(id, listener),
     () => getThumbUrl(id),
@@ -166,6 +169,11 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
         thumbUrl={thumbUrl}
         placed={placementCount > 0}
       />
+      {showName ? (
+        <div className="filmstrip-name" data-testid="filmstrip-name">
+          {name}
+        </div>
+      ) : null}
     </GridListItem>
   )
 }

@@ -60,7 +60,12 @@ async function readStoredHandle(
   if (isReservedSessionKey(libraryId)) {
     return failure('not-found')
   }
-  const stored = await idb.get(libraryId)
+  let stored: Awaited<ReturnType<SessionIdb['get']>>
+  try {
+    stored = await idb.get(libraryId)
+  } catch {
+    return failure('storage-unavailable')
+  }
   if (!stored.present) {
     return failure('not-found')
   }
@@ -115,7 +120,7 @@ export function createBrowserSessionState(
         ])
         return success(undefined)
       } catch {
-        return failure('not-found')
+        return failure('storage-unavailable')
       }
     },
 
@@ -156,7 +161,7 @@ export function createBrowserSessionState(
         ])
         return success(undefined)
       } catch {
-        return failure('not-found')
+        return failure('storage-unavailable')
       }
     },
 
@@ -166,22 +171,26 @@ export function createBrowserSessionState(
         return null
       }
       const handle = await readStoredHandle(idb, libraryId)
-      if (!handle.ok) {
-        // Prefer DEFAULT_LIBRARY_ID label when callers ask with that id after migrate.
-        if (libraryId === DEFAULT_LIBRARY_ID) {
-          const stored = await idb.get(LABEL_KEY)
-          return stored.present ? parseLibraryLabel(stored.value) : null
+      try {
+        if (!handle.ok) {
+          // Prefer DEFAULT_LIBRARY_ID label when callers ask with that id after migrate.
+          if (libraryId === DEFAULT_LIBRARY_ID) {
+            const stored = await idb.get(LABEL_KEY)
+            return stored.present ? parseLibraryLabel(stored.value) : null
+          }
+          return null
         }
+        const stored = await idb.get(LABEL_KEY)
+        if (stored.present) {
+          const parsed = parseLibraryLabel(stored.value)
+          if (parsed !== null) {
+            return parsed
+          }
+        }
+        return labelForHandle(libraryId, handle.value)
+      } catch {
         return null
       }
-      const stored = await idb.get(LABEL_KEY)
-      if (stored.present) {
-        const parsed = parseLibraryLabel(stored.value)
-        if (parsed !== null) {
-          return parsed
-        }
-      }
-      return labelForHandle(libraryId, handle.value)
     },
 
     async setActiveIds(ids) {
@@ -193,7 +202,7 @@ export function createBrowserSessionState(
         })
         return success(undefined)
       } catch {
-        return failure('not-found')
+        return failure('storage-unavailable')
       }
     },
 

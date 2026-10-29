@@ -21,6 +21,7 @@ export type StorageFailureCode =
   | 'corrupted'
   | 'newer-schema'
   | 'already-exists'
+  | 'storage-unavailable'
 
 export interface StorageFailure {
   ok: false
