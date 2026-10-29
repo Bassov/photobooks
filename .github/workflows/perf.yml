@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Path filter
         id: scope
