@@ -276,6 +276,8 @@ test('narrow fitted add spread keeps the new spread contained', async ({
 test('mid-scroll fitted add spread keeps the new spread contained', async ({
   page,
 }) => {
+  // Short enough that the tight dock still leaves the pasteboard scrolling.
+  await page.setViewportSize({ width: 1280, height: 600 })
   await openSessionEditor(page)
   const scroll = page.getByTestId('pasteboard-scroll')
   await scroll.evaluate((el) => {
