@@ -11,6 +11,20 @@ export async function dropAssetOnFrame(
   assetId: string,
   frame: Locator,
 ): Promise<void> {
+  // A panel toggle just before the drop animates the spread; wait for the
+  // frame to hold still so the synthetic point lands inside it.
+  let prev = ''
+  await expect
+    .poll(
+      async () => {
+        const now = JSON.stringify(await frame.boundingBox())
+        const settled = now === prev
+        prev = now
+        return settled
+      },
+      { intervals: [100] },
+    )
+    .toBe(true)
   const box = await frame.boundingBox()
   if (box === null) {
     throw new Error('frame has no box')
