@@ -11,7 +11,14 @@ import {
 import { flushSync } from 'react-dom'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
-import { Menu, MenuItem, MenuPopover, MenuTrigger } from '../ui/Menu'
+import {
+  Menu,
+  MenuItem,
+  MenuKeyboard,
+  MenuPopover,
+  MenuSeparator,
+  MenuTrigger,
+} from '../ui/Menu'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import {
   dispatchBookOp,
@@ -353,6 +360,7 @@ export function SpreadsPanel({
                 key={id}
                 role="presentation"
                 className="group/sp relative"
+                data-selected={sel ? 'true' : undefined}
                 style={{
                   height: rowPx,
                   transform:
@@ -399,17 +407,17 @@ export function SpreadsPanel({
                 </button>
                 <MenuTrigger>
                   <IconButton
-                    label="Spread actions"
+                    label={`Pages ${label} actions`}
                     size="sm"
                     tooltip={false}
-                    className="absolute right-3 top-3"
+                    className="spread-row-menu"
                     data-testid={`spread-menu-${id}`}
                   >
                     <Icon name="moreHorizontal" size={14} />
                   </IconButton>
                   <MenuPopover placement="bottom end" className="w-44">
                     <Menu
-                      className="[&_svg]:size-4"
+                      className="[&_svg]:size-4 [&_svg]:text-muted-foreground"
                       onAction={(key) => {
                         run(String(key) as RowAction, id, toastQueue)
                       }}
@@ -421,6 +429,7 @@ export function SpreadsPanel({
                       >
                         <Icon name="addSpread" size={16} />
                         Add after
+                        <MenuKeyboard>Ctrl+↵</MenuKeyboard>
                       </MenuItem>
                       <MenuItem
                         id="duplicate"
@@ -429,7 +438,9 @@ export function SpreadsPanel({
                       >
                         <Icon name="duplicate" size={16} />
                         Duplicate
+                        <MenuKeyboard>Ctrl+D</MenuKeyboard>
                       </MenuItem>
+                      <MenuSeparator />
                       <MenuItem
                         id="delete"
                         textValue="Delete"
@@ -439,6 +450,7 @@ export function SpreadsPanel({
                       >
                         <Icon name="delete" size={16} />
                         Delete
+                        <MenuKeyboard>Del</MenuKeyboard>
                       </MenuItem>
                     </Menu>
                   </MenuPopover>

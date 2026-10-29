@@ -19,6 +19,7 @@ import { addSpread, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { enterCropMode, getCropTarget } from './cropMode'
 import { EditorShell } from './EditorShell'
+import { setEditorStatus } from './editorStatus'
 import { resetEditorToolForTests } from './editorToolStore'
 import { seedGallery } from './gallery.test-helpers'
 import {
@@ -271,6 +272,37 @@ describe('EditorShell viewport containment', () => {
       'This book is open in another tab',
     )
     expect(screen.getByTestId('book-size').textContent).not.toContain('saved')
+  })
+
+  it('shows the editor status as a kit pill inside the canvas, empty when cleared', () => {
+    setEditorStatus('')
+    render(<EditorShell />)
+    const pill = screen.getByTestId('editor-status')
+    expect(pill.classList.contains('editor-status-pill')).toBe(true)
+    expect(pill.getAttribute('role')).toBe('status')
+    expect(screen.getByTestId('editor-workspace').contains(pill)).toBe(true)
+    expect(pill.textContent).toBe('')
+    expect(editorShellCss).toMatch(
+      /\.editor-status-pill\s*\{[^}]*pointer-events:\s*none/s,
+    )
+
+    act(() => {
+      setEditorStatus('Book saved')
+    })
+    expect(screen.getByTestId('editor-status').textContent).toBe('Book saved')
+
+    act(() => {
+      setEditorStatus('')
+    })
+    expect(screen.getByTestId('editor-status').textContent).toBe('')
+  })
+
+  it('hides the status pill in Presentation', () => {
+    render(<EditorShell />)
+    expect(screen.queryByTestId('editor-status')).not.toBeNull()
+    fireEvent.click(screen.getByTestId('present'))
+    expect(screen.queryByTestId('presentation')).not.toBeNull()
+    expect(screen.queryByTestId('editor-status')).toBeNull()
   })
 
   it('has no Rename / New book / Save chrome', async () => {

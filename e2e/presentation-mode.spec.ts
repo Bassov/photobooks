@@ -51,7 +51,7 @@ test.describe('frame-budget gates', () => {
   }, testInfo) => {
     test.setTimeout(180_000)
     await enablePerfScenario(page, '/?perf=1')
-    const add = page.getByTestId('template-add-spread')
+    const add = page.getByTestId('add-spread')
     for (let i = 0; i < 37; i += 1) {
       await add.click()
     }
@@ -60,7 +60,7 @@ test.describe('frame-budget gates', () => {
       '40',
     )
     await page.getByTestId('present').click()
-    await expect(page.getByTestId('pager-position')).toHaveText('40 / 40')
+    await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
     const flip = async (key: 'ArrowLeft' | 'ArrowRight'): Promise<void> => {
       await page.keyboard.press(key)
       await page.evaluate(
@@ -76,22 +76,22 @@ test.describe('frame-budget gates', () => {
     // settle, so the measured window covers steady-state flips (budget stays
     // zero entries).
     for (const key of [
-      'ArrowLeft',
-      'ArrowLeft',
       'ArrowRight',
       'ArrowRight',
+      'ArrowLeft',
+      'ArrowLeft',
     ] as const) {
       await flip(key)
     }
-    await expect(page.getByTestId('pager-position')).toHaveText('40 / 40')
+    await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
     await page.waitForTimeout(250)
     await clearPerfScenario(page)
     await page.evaluate(browserBeginLoafScenarioWindow)
 
     for (let i = 0; i < 39; i += 1) {
-      await flip('ArrowLeft')
+      await flip('ArrowRight')
     }
-    await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
+    await expect(page.getByTestId('pager-position')).toHaveText('40 / 40')
 
     await page.evaluate(browserAssertNoLoaf, 0)
     await collectFrameStatsArtifact(page, testInfo)

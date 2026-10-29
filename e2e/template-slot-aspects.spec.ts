@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import { applyLayout, layoutTile } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
 
@@ -16,26 +17,22 @@ test('portrait and contact-sheet templates apply and switch back', async ({
     .first()
     .getByTestId('spread-frame-placeholder')
 
-  const twoPortraits = page.getByRole('radio', {
-    name: '2 portraits',
-    exact: true,
-  })
-  await twoPortraits.click()
-  await expect(twoPortraits).toBeChecked()
+  await applyLayout(page, '2 portraits')
+  const twoPortraits = layoutTile(page, '2 portraits')
   await expect(frames).toHaveCount(2)
 
-  await page.getByTestId('contact-cols').fill('3')
-  await page.getByTestId('contact-rows').fill('4')
-  await page.getByRole('button', { name: 'Contact sheet' }).click()
+  await page.getByTestId('layout-contact-cols').fill('3')
+  await page.getByTestId('layout-contact-rows').fill('4')
+  await page.getByTestId('layout-contact-apply').click()
   await expect(frames).toHaveCount(12)
-  await expect(twoPortraits).not.toBeChecked()
+  await expect(twoPortraits).toHaveAttribute('aria-pressed', 'false')
 
-  await page.getByTestId('contact-cols').fill('9')
-  await expect(
-    page.getByRole('button', { name: 'Contact sheet' }),
-  ).toBeDisabled()
+  // The inspector clamps out-of-range counts instead of disabling Apply.
+  await page.getByTestId('layout-contact-cols').fill('9')
+  await page.getByTestId('layout-contact-cols').press('Tab')
+  await expect(page.getByTestId('layout-contact-cols')).toHaveValue('5')
 
-  await page.getByRole('radio', { name: '2-up' }).click()
+  await applyLayout(page, '2-up')
   await expect(frames).toHaveCount(2)
   await assertDocumentFitsViewport(page)
 })

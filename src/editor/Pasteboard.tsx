@@ -1,7 +1,6 @@
 import {
   memo,
   startTransition,
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -21,15 +20,11 @@ import {
 } from './cameraStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { installGalleryDrop, type DropGeometry } from './galleryDrop'
-import { SpreadTemplateBar } from './SpreadTemplateBar'
 import { usePasteboardCamera } from './usePasteboardCamera'
 import { usePasteboardReveal } from './usePasteboardReveal'
-import { resolveAddSpreadTemplateId } from '../core'
 import {
-  dispatchBookOp,
   getBookStoreSnapshot,
   getSpreadIdsSnapshot,
-  getSpreadTemplateId,
   subscribeBookStore,
 } from './bookStore'
 import {
@@ -371,24 +366,6 @@ export const Pasteboard = memo(function Pasteboard({
     [],
   )
 
-  const onAddSpread = useCallback((): void => {
-    const before = new Set(getSpreadIdsSnapshot())
-    const activeTemplate =
-      markedId === undefined ? null : getSpreadTemplateId(markedId)
-    dispatchBookOp({
-      type: 'addSpread',
-      templateId: resolveAddSpreadTemplateId(activeTemplate ?? undefined),
-    })
-    const ids = getSpreadIdsSnapshot()
-    const newId = ids.find((id) => !before.has(id))
-    if (newId !== undefined) {
-      forceMountIndexRef.current = ids.indexOf(newId)
-      preferredActiveRef.current = newId
-      setActiveId(newId)
-      reveal.beginRevealForNewSpread(newId)
-    }
-  }, [markedId, reveal])
-
   useEffect(
     () =>
       subscribeSpreadRevealRequest((spreadId) => {
@@ -474,10 +451,6 @@ export const Pasteboard = memo(function Pasteboard({
 
   return (
     <div className="pasteboard" data-testid="pasteboard">
-      <SpreadTemplateBar
-        spreadId={markedId ?? null}
-        onAddSpread={onAddSpread}
-      />
       {chromeImport !== undefined ? (
         <PasteboardEmptyGuidance
           onChoosePhotoFolder={chromeImport.onChoosePhotoFolder}

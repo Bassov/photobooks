@@ -9,6 +9,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   choosePhotoFolder,
@@ -120,7 +121,7 @@ test('switching a template keeps photos in order and unplaces extras', async ({
   })
   await page.bringToFront()
 
-  await page.getByRole('radio', { name: '4-grid' }).click()
+  await applyLayout(page, '4-grid')
   const active = page.getByTestId('spread-view').first()
   const empty = active.getByRole('button', {
     name: 'Place photo',
@@ -141,7 +142,7 @@ test('switching a template keeps photos in order and unplaces extras', async ({
     .locator('button[data-filled="true"]')
     .evaluateAll((els) => els.map((el) => el.getAttribute('data-asset-id')))
 
-  await page.getByRole('radio', { name: '2-up' }).click()
+  await applyLayout(page, '2-up')
   await expect(active.getByRole('button', { name: 'Place photo' })).toHaveCount(
     0,
   )
@@ -151,7 +152,7 @@ test('switching a template keeps photos in order and unplaces extras', async ({
   expect(placedAfter).toEqual(placedBefore)
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(2)
 
-  await page.getByRole('radio', { name: 'Full bleed' }).click()
+  await applyLayout(page, 'Full bleed')
   await expect(page.getByTestId('spread-frame-image')).toHaveCount(1)
   const placedOne = await active
     .locator('button[data-filled="true"]')

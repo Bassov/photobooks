@@ -356,6 +356,32 @@ describe('SpreadsPanel list', () => {
     expect(getSpreadIdsSnapshot()).toHaveLength(4)
   })
 
+  it('names the trigger by pages and shows only bound key hints with a separator before Delete', async () => {
+    seedSpreads(3)
+    stubViewport(10 * rowPx())
+    render(<SpreadsPanel />)
+
+    const trigger = screen.getByTestId('spread-menu-s1')
+    expect(trigger.getAttribute('aria-label')).toBe('Pages 2–3 actions')
+    fireEvent.click(trigger)
+    const add = await screen.findByTestId('spread-menu-add')
+    expect(add.textContent).toContain('Ctrl+↵')
+    expect(screen.getByTestId('spread-menu-duplicate').textContent).toContain(
+      'Ctrl+D',
+    )
+    const del = screen.getByTestId('spread-menu-delete')
+    expect(del.textContent).toContain('Del')
+    const separator = screen.getByRole('separator')
+    expect(
+      separator.compareDocumentPosition(del) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      separator.compareDocumentPosition(
+        screen.getByTestId('spread-menu-duplicate'),
+      ) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy()
+  })
+
   it('disables Delete in the menu for the last spread', async () => {
     seedSpreads(1)
     render(<SpreadsPanel />)

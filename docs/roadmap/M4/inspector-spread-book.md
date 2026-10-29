@@ -15,7 +15,7 @@ Look parity, Phase B #3 (Owner 2026-10-29: the editor must look exactly like the
 - [x] Book tab: Book settings (page size, bleed, safe margin, pages — read-only rows from the model) + Book grid
 - [x] Tokens `--toggle-on` / `--toggle-off` (and `--swatch-ring`, reserved for Background) in the editor chrome tokens
 - Background swatches are NOT rendered: the model has no spread background field (no new model fields in this package). They land with the item that adds the field.
-- The dock `SpreadTemplateBar` stays for now: it also carries "Add spread", and removing its mount from `Pasteboard.tsx` (rulers area, open PR #274) is not a one-line edit. Removal is deferred until #274 merges.
+- The `SpreadTemplateBar` above the canvas is removed by [`look-parity-spread-row-status`](look-parity-spread-row-status.md); Add spread lives in the Spreads panel.
 - Omitted (no real data): My templates, template search / photo-count chips, Save as template, hover preview, Cover / Endpaper / Last-page nodes, paper / print / default-master rows.
 
 **Done when:** the Spread tab shows Layout → Layout grid and the Book tab shows Book settings + Book grid in kit look; applying a template from the inspector changes the spread; no blue, no black chrome, no fake controls.

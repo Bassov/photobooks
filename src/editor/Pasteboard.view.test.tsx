@@ -3,7 +3,6 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   dispatchBookOp,
-  getBookStoreSnapshot,
   getSpreadIdsSnapshot,
   resetBookStore,
 } from './bookStore'
@@ -465,7 +464,10 @@ describe('Pasteboard view wiring', () => {
     expect(Math.max(...slotIndices())).toBeLessThan(12)
 
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      dispatchBookOp({ type: 'addSpread' })
+      const last = getSpreadIdsSnapshot().at(-1)
+      assert(last !== undefined)
+      requestSpreadReveal(last)
     })
     const forcedIndex = getSpreadIdsSnapshot().length - 1
     expect(forcedIndex).toBeGreaterThan(0)
@@ -480,27 +482,6 @@ describe('Pasteboard view wiring', () => {
     expect(spacerHeight('pasteboard-tail')).toBe(
       (getSpreadIdsSnapshot().length - forceEnd) * stride,
     )
-  })
-
-  it('Add spread copies the marked spread template into the new spread', () => {
-    resetBookStore()
-    const ids = getSpreadIdsSnapshot()
-    const markedId = ids[0]
-    assert(markedId !== undefined)
-    dispatchBookOp({
-      type: 'applyTemplate',
-      spreadId: markedId,
-      templateId: '4-grid',
-    })
-    stubViewport(800, 600)
-    render(<Pasteboard />)
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
-    })
-    const after = getBookStoreSnapshot().book.spreads
-    expect(after).toHaveLength(4)
-    expect(after[3]?.templateId).toBe('4-grid')
-    expect(after[3]?.frames).toHaveLength(4)
   })
 
   it('reveals and pins a spread requested by the spreads panel', () => {
@@ -578,7 +559,10 @@ describe('Pasteboard view wiring', () => {
     expect(callbacks.length).toBeGreaterThan(0)
     const beforeIds = getSpreadIdsSnapshot()
     act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add spread' }))
+      dispatchBookOp({ type: 'addSpread' })
+      const last = getSpreadIdsSnapshot().at(-1)
+      assert(last !== undefined)
+      requestSpreadReveal(last)
     })
     flushPaceSteps(hooks)
     const afterIds = getSpreadIdsSnapshot()

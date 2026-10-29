@@ -12,6 +12,7 @@ import {
   dragPlaceFirstFilmstripItem,
   dropAssetOnFrame,
 } from './fixtures/dropAssetOnFrame'
+import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
@@ -29,9 +30,8 @@ test('empty gallery template change leaves status empty and shows no Placed badg
 
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
   await expect(page.getByTestId('editor-status')).toHaveText('')
-  await page.getByRole('radio', { name: '4-grid' }).click()
+  await applyLayout(page, '4-grid')
 
-  await expect(page.getByRole('radio', { name: '4-grid' })).toBeChecked()
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
   await expect(page.getByTestId('editor-status')).toHaveText('')
   await assertDocumentFitsViewport(page)
@@ -52,7 +52,7 @@ test.describe('template change with photos', () => {
       timeout: 30_000,
     })
 
-    await page.getByRole('radio', { name: '4-grid' }).click()
+    await applyLayout(page, '4-grid')
     const active = page.getByTestId('spread-view').first()
     await dragPlaceFirstFilmstripItem(page, 0)
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
@@ -71,7 +71,7 @@ test.describe('template change with photos', () => {
       timeout: 30_000,
     })
 
-    await page.getByRole('radio', { name: 'One per page' }).click()
+    await applyLayout(page, 'One per page')
 
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(1)
@@ -109,9 +109,8 @@ test.describe('template change with photos', () => {
     await expect(page.getByTestId('editor-status')).toHaveText('Photo unplaced')
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
 
-    await page.getByRole('radio', { name: 'Full bleed' }).click()
+    await applyLayout(page, 'Full bleed')
 
-    await expect(page.getByRole('radio', { name: 'Full bleed' })).toBeChecked()
     await expect(page.getByTestId('editor-status')).toHaveText('Photo unplaced')
     await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
     await assertDocumentFitsViewport(page)

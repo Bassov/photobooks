@@ -44,3 +44,33 @@
   outline: none;
   box-shadow: none;
 }
+
+/* Kit SpreadMenu trigger: hidden until the row is hovered / selected / focused. */
+.pb-icon-button.pb-button.spread-row-menu {
+  position: absolute;
+  top: calc(var(--spacing) * 2.5);
+  right: calc(var(--spacing) * 2.5);
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  width: calc(var(--spacing) * 6);
+  height: calc(var(--spacing) * 6);
+  padding: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--popover) 90%, transparent);
+  color: var(--muted-foreground);
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+}
+
+.group\/sp:hover .spread-row-menu,
+.group\/sp[data-selected='true'] .spread-row-menu,
+.spread-row-menu[data-focus-visible],
+.spread-row-menu[data-pressed] {
+  opacity: 1;
+}
+
+.spread-row-menu[data-focus-visible] {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
