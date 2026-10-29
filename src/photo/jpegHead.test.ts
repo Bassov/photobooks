@@ -140,6 +140,53 @@ describe('parseJpegHead', () => {
     expect(result.thumbJpeg).toBeNull()
   })
 
+  describe('embedded thumb acceptance by EXIF orientation', () => {
+    // Raw 40x20 photo; the IFD1 thumb is stored unrotated, like the photo.
+    const rawThumb = (): Uint8Array =>
+      new Uint8Array(
+        jpegEncode({ data: new Uint8Array(8 * 4 * 4), width: 8, height: 4 }, 80)
+          .data,
+      )
+
+    it.each([2, 3, 4, 5, 6, 7, 8] as const)(
+      'rejects the unrotated thumb for orientation %i',
+      async (orientation) => {
+        ensurePhotoFixtures({ includeLargeJpeg: false })
+        const original = readFileSync(photoFixturePaths.sampleOrient6)
+        exifrApi.orientation.mockResolvedValue(orientation)
+        exifrApi.thumbnail.mockResolvedValue(rawThumb())
+
+        const result = await parseJpegHead(asBuffer(original))
+
+        expect(result.thumbJpeg).toBeNull()
+      },
+    )
+
+    it('keeps a thumb of known size for orientation 1', async () => {
+      ensurePhotoFixtures({ includeLargeJpeg: false })
+      const original = readFileSync(photoFixturePaths.sampleOrient6)
+      exifrApi.orientation.mockResolvedValue(1)
+      exifrApi.thumbnail.mockResolvedValue(rawThumb())
+
+      const result = await parseJpegHead(asBuffer(original))
+
+      expect(result.thumbJpeg).not.toBeNull()
+    })
+
+    it('rejects a thumb whose size cannot be read', async () => {
+      ensurePhotoFixtures({ includeLargeJpeg: false })
+      const original = readFileSync(photoFixturePaths.sampleOrient6)
+      exifrApi.orientation.mockResolvedValue(1)
+      exifrApi.thumbnail.mockResolvedValue(
+        new Uint8Array([0xff, 0xd8, 0xff, 0xd9, 0x01]),
+      )
+
+      const result = await parseJpegHead(asBuffer(original))
+
+      expect(result.thumbJpeg).toBeNull()
+    })
+  })
+
   it('keeps a thumb whose orientation matches the photo', async () => {
     ensurePhotoFixtures({ includeLargeJpeg: false })
     const original = readFileSync(photoFixturePaths.sampleOrient6)

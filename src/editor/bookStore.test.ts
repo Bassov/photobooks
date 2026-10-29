@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getAssetSource, resetAssetSources } from '../photo/assetSources'
 import { makePlacedTemplateBook } from '../core/testing/fixtures'
 import { PAINTER_ASSET_IDS } from '../core/testing/painterFixture'
+import type { ResolvedItem } from '../core/geometry/types'
 import {
   awaitPendingGalleryFlush,
   enqueueGalleryAssets,
@@ -17,6 +18,7 @@ import {
   getGalleryDisplayNamesSnapshot,
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
+  getSpreadPaintSnapshot,
   mintAssetId,
   patchAssetRecord,
   removeFailedImportAsset,
@@ -1345,6 +1347,52 @@ describe('bookStore', () => {
 
     expect(getAssetContentHash('a1')).toBe(hash)
     expect(getAssetContentHash('missing')).toBeUndefined()
+  })
+})
+
+describe('bookStore crop window follows real dims', () => {
+  afterEach(() => {
+    resetBookStore()
+    vi.unstubAllGlobals()
+  })
+
+  function firstItem(): ResolvedItem | undefined {
+    return getSpreadPaintSnapshot('spread-1')?.resolved.items[0]
+  }
+
+  it('recomputes the default-cover window when the real aspect arrives', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    resetBookStore({
+      book: makePlacedTemplateBook('one-per-page', ['a']),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const before = firstItem()?.sourceCropRect
+    setAssetSessionMeta('a', {
+      name: 'a.jpg',
+      correctedWidth: 4000,
+      correctedHeight: 3000,
+      orientation: 6,
+      aspect: 4 / 3,
+    })
+    const item = firstItem()
+    const after = item?.sourceCropRect
+    expect(after).toBeDefined()
+    expect(after).not.toEqual(before)
+    const rect = item?.rectMm
+    const frameAspect = (rect?.width ?? 1) / (rect?.height ?? 1)
+    // Cover: the window has the frame's aspect in image space.
+    expect(((after?.width ?? 0) * 4) / 3 / (after?.height ?? 1)).toBeCloseTo(
+      frameAspect,
+      5,
+    )
   })
 })
 

@@ -136,11 +136,13 @@ describe('parsing and orientation edges', () => {
     }
   })
 
-  it('swaps width and height for EXIF orientation 5 and above only', () => {
-    expect(photoAspectClass(4000, 3000, 4)).toBe('landscape')
-    expect(photoAspectClass(4000, 3000, 5)).toBe('portrait')
-    expect(photoAspectClass(4000, 3000)).toBe('landscape')
-  })
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])(
+    'does not swap already-oriented dims again for EXIF orientation %i',
+    (orientation) => {
+      expect(photoAspectClass(4000, 3000, orientation)).toBe('landscape')
+      expect(photoAspectClass(3000, 4000, orientation)).toBe('portrait')
+    },
+  )
 
   it('uses four rows when the per-page count needs them', () => {
     const book = gridBook(3)

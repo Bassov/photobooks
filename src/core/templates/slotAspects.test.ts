@@ -49,8 +49,8 @@ describe('slot aspects', () => {
       'landscape',
     )
     expect(photoAspectClass(4000, 3000)).toBe('landscape')
-    expect(photoAspectClass(4000, 3000, 6)).toBe('portrait')
-    expect(photoAspectClass(3000, 4000, 1)).toBe('portrait')
+    expect(photoAspectClass(3000, 4000)).toBe('portrait')
+    expect(photoAspectClass(3000, 3100)).toBe('square')
   })
 
   it('portrait templates expose portrait / landscape slots', () => {
