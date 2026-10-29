@@ -66,7 +66,9 @@ export const relinkFileInputStyle: CSSProperties = {
   pointerEvents: 'none',
 }
 
+/** Click-through body: the pill floats over the spread, only Review is live. */
 export const missingPillStyle: CSSProperties = {
+  pointerEvents: 'none',
   position: 'absolute',
   top: '0.7rem',
   left: '50%',
@@ -84,3 +86,5 @@ export const missingPillStyle: CSSProperties = {
   fontSize: 'var(--text-sm)',
   color: 'var(--foreground)',
 }
+
+export const missingPillActionStyle: CSSProperties = { pointerEvents: 'auto' }
