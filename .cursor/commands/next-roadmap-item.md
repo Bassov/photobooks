@@ -48,5 +48,6 @@ Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict.
 Security-tagged: Security Review before archive. Gate-config edits must be
 stricter and touch-set listed. New/changed deps need `pnpm audit:ci` + Security
 Review until dependency-policy is re-added. Else record assumptions and continue.
+`stryker:diff` ≤2 runs, then defer survivors: `docs/agent-loop.md` `## Stryker C-session`.
 Final reply in Russian: item, PR URL, required-check status, reviewer
 verdicts, skipped survivors, assumptions.

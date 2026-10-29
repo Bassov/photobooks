@@ -49,6 +49,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 ## Docs
 
 - Target architecture (incl. 60 fps model): `docs/future-architecture.md`.
+- Stryker survivors (C-session): `docs/agent-loop.md` `## Stryker C-session`.
 - Execution plan: `docs/roadmap.md` + `docs/roadmap/` via `pnpm roadmap` (skill `roadmap`); process: `docs/roadmap/RULES.md`.
 
 ## Toolchain / headless agents
