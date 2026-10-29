@@ -81,6 +81,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [look-parity-page-labels](roadmap/M4/look-parity-page-labels.md) — look parity: canvas page labels and drop-target visuals
 - [x] [feature] [canvas-frame-chrome](roadmap/M4/canvas-frame-chrome.md) — look parity: canvas frame chrome (size tag, hover, empty/missing, lock, chips, rotate handle)
 - [x] [feature] [topbar-kit-parity](roadmap/M4/topbar-kit-parity.md) — look parity: editor top bar and zoom menu as UI kit
+- [x] [feature] [look-parity-dock-filmstrip](roadmap/M4/look-parity-dock-filmstrip.md) — look parity: dock header, folder drop overlay, filmstrip tiles and empty text
 
 ## M4.5 — Text, styles and reuse (local editor complete)
 

@@ -158,6 +158,7 @@ export function FilmstripDock({
   )
   const [sort, setSort] = useState<GallerySortKey>('added')
   const [unplacedOnly, setUnplacedOnly] = useState(false)
+  const [externalDrag, setExternalDrag] = useState(false)
   // First Intl.Collator use loads ICU data (tens of ms); pay it before the first sort pick.
   useEffect(() => {
     const id = setTimeout(warmNameCollator, 0)
@@ -172,7 +173,7 @@ export function FilmstripDock({
   return (
     <div
       ref={dockRef}
-      className="editor-dock relative shrink-0 data-[drop-hover=true]:outline-2 data-[drop-hover=true]:-outline-offset-2 data-[drop-hover=true]:outline-[var(--select)]"
+      className="editor-dock relative shrink-0"
       data-testid="dock"
       style={{ '--film-thumb-h': `${String(thumbHeight)}px` } as CSSProperties}
       onDragOver={(event) => {
@@ -185,10 +186,12 @@ export function FilmstripDock({
         event.preventDefault()
         event.dataTransfer.dropEffect = 'copy'
         setDropHover(event.currentTarget)
+        setExternalDrag(true)
       }}
       onDragLeave={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           clearDropHover()
+          setExternalDrag(false)
         }
       }}
       onDrop={(event) => {
@@ -200,6 +203,7 @@ export function FilmstripDock({
         }
         event.preventDefault()
         clearDropHover()
+        setExternalDrag(false)
         // Handles must be requested synchronously inside the drop event.
         const pending = resolveDroppedFolder(event.dataTransfer.items)
         void pending.then((result) => {
@@ -252,7 +256,7 @@ export function FilmstripDock({
               aria-label={`Sort photos: ${SORT_LABELS[sort]}`}
               data-testid="film-sort"
             >
-              <span>Sort:</span> {SORT_LABELS[sort]}
+              {SORT_LABELS[sort]}
               <Icon name="chevronDown" size={14} className="size-3.5" />
             </AriaButton>
             <MenuPopover placement="top end" className="min-w-40">
@@ -285,13 +289,21 @@ export function FilmstripDock({
             }}
             data-testid="film-unplaced-only"
           >
-            Unplaced only
+            Unplaced
           </ToggleButton>
         </div>
       </div>
       <div className="mt-0 px-2 pb-1" data-testid="film-panel">
         <Filmstrip sort={sort} unplacedOnly={unplacedOnly} />
       </div>
+      {externalDrag ? (
+        <div
+          className="pointer-events-none absolute inset-0 grid place-items-center rounded-lg bg-[var(--select)]/15 text-sm font-medium outline-2 -outline-offset-2 outline-dashed outline-[#8E8E8E]"
+          data-testid="film-drop-overlay"
+        >
+          Drop a folder to add its photos
+        </div>
+      ) : null}
       {pendingRemoveId === null ? null : (
         <RemovePlacedDialog assetId={pendingRemoveId} />
       )}

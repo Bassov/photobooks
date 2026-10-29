@@ -34,6 +34,10 @@ import {
   subscribeGallery,
 } from './bookStore'
 import { FilmstripItemView } from './FilmstripItem'
+import {
+  FILMSTRIP_NAME_MIN_HEIGHT,
+  FilmstripNameStripContext,
+} from './filmstripNameStrip'
 import { unplaceSelectedFrame } from './galleryDrop'
 import {
   getFrameSource,
@@ -293,7 +297,9 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
           data-testid="filmstrip-filter-empty"
           style={filmstripEmptyStyle}
           title={
-            <span style={filmstripEmptyTitleStyle}>All photos are placed.</span>
+            <span style={filmstripEmptyTitleStyle}>
+              Every photo is placed. Turn off “Unplaced” to see all.
+            </span>
           }
         />
       ) : isEmpty ? (
@@ -303,7 +309,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
           style={filmstripEmptyStyle}
           title={
             <span style={filmstripEmptyTitleStyle}>
-              Choose a photo folder to build the gallery.
+              No photos yet — add a folder or drop one here.
             </span>
           }
         />
@@ -321,18 +327,22 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
               } as CSSProperties
             }
           >
-            <GridList
-              aria-label="Book gallery"
-              orientation="horizontal"
-              selectionMode="multiple"
-              selectionBehavior="replace"
-              selectedKeys={selectedKeys}
-              onSelectionChange={onSelectionChange}
-              items={items}
-              className="filmstrip-list"
+            <FilmstripNameStripContext
+              value={thumbHeight >= FILMSTRIP_NAME_MIN_HEIGHT}
             >
-              {(item) => <FilmstripItemView id={item.id} name={item.name} />}
-            </GridList>
+              <GridList
+                aria-label="Book gallery"
+                orientation="horizontal"
+                selectionMode="multiple"
+                selectionBehavior="replace"
+                selectedKeys={selectedKeys}
+                onSelectionChange={onSelectionChange}
+                items={items}
+                className="filmstrip-list"
+              >
+                {(item) => <FilmstripItemView id={item.id} name={item.name} />}
+              </GridList>
+            </FilmstripNameStripContext>
           </div>
         </div>
       )}
