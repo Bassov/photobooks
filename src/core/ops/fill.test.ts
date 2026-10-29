@@ -123,13 +123,27 @@ describe('fillSpread details', () => {
 describe('insertSpreadWithAssets', () => {
   const portrait = { widthPx: 2000, heightPx: 3000 }
 
-  it('uses photo orientation (EXIF swap, missing size) to pick the template', () => {
+  it('reads stored dims as already oriented (no second EXIF swap)', () => {
+    let book = addToGallery(makeBook(), ['l1', 'l2'])
+    book = {
+      ...book,
+      assets: {
+        l1: { widthPx: 3000, heightPx: 2000, orientation: 6 },
+        l2: { widthPx: 3000, heightPx: 2000, orientation: 8 },
+      },
+    }
+    expect(
+      insertSpreadWithAssets(book, 1, ['l1', 'l2']).spreads[1]?.templateId,
+    ).not.toBe('two-portraits')
+  })
+
+  it('uses photo size (missing size) to pick the template', () => {
     let book = addToGallery(makeBook(), ['p1', 'p2', 'w', 'h'])
     book = {
       ...book,
       assets: {
-        p1: { widthPx: 3000, heightPx: 2000, orientation: 6 },
-        p2: { widthPx: 3000, heightPx: 2000, orientation: 6 },
+        p1: { widthPx: 2000, heightPx: 3000, orientation: 6 },
+        p2: { widthPx: 2000, heightPx: 3000, orientation: 6 },
         w: { widthPx: 3000 },
         h: { heightPx: 3000 },
       },

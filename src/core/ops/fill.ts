@@ -84,10 +84,10 @@ export function fillSpread(
 }
 
 function assetAspectClass({ asset }: UsableAsset): AspectClass {
-  const { widthPx, heightPx, orientation } = asset
+  const { widthPx, heightPx } = asset
   return widthPx === undefined || heightPx === undefined
     ? 'square'
-    : photoAspectClass(widthPx, heightPx, orientation)
+    : photoAspectClass(widthPx, heightPx)
 }
 
 /** Insert a spread at `index` with the best-fit template and place photos in order. */

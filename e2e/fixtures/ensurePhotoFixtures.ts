@@ -10,6 +10,9 @@ export const photoFixturePaths = {
   samplePng: join(fixturesDir, 'sample-3x2.png'),
   transparentCornersPng: join(fixturesDir, 'transparent_corners.png'),
   sampleOrient6: join(fixturesDir, 'sample-orient6.jpg'),
+  sampleOrient6Landscape: join(fixturesDir, 'sample-orient6-landscape.jpg'),
+  sampleOrient8Landscape: join(fixturesDir, 'sample-orient8-landscape.jpg'),
+  sampleOrient3Landscape: join(fixturesDir, 'sample-orient3-landscape.jpg'),
   sampleLossyWebp: join(fixturesDir, 'sample-lossy-3x2.webp'),
   sampleLosslessWebp: join(fixturesDir, 'sample-lossless-3x2.webp'),
   sampleCorruptWebp: join(fixturesDir, 'sample-corrupt.webp'),
@@ -25,6 +28,11 @@ export function ensurePhotoFixtures(options?: {
   execFileSync(process.execPath, [join(fixturesDir, 'write-exif-jpeg.mjs')], {
     stdio: 'pipe',
   })
+  execFileSync(
+    process.execPath,
+    [join(fixturesDir, 'write-exif-orient-jpegs.mjs')],
+    { stdio: 'pipe' },
+  )
   execFileSync(process.execPath, [join(fixturesDir, 'write-sample-webp.mjs')], {
     stdio: 'pipe',
   })

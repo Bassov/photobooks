@@ -136,10 +136,9 @@ describe('parsing and orientation edges', () => {
     }
   })
 
-  it('swaps width and height for EXIF orientation 5 and above only', () => {
-    expect(photoAspectClass(4000, 3000, 4)).toBe('landscape')
-    expect(photoAspectClass(4000, 3000, 5)).toBe('portrait')
+  it('classifies already-oriented dims without any further swap', () => {
     expect(photoAspectClass(4000, 3000)).toBe('landscape')
+    expect(photoAspectClass(3000, 4000)).toBe('portrait')
   })
 
   it('uses four rows when the per-page count needs them', () => {
