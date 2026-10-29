@@ -19,15 +19,15 @@ export function slotAspect(rect: RectMm): AspectClass {
   return aspectClass(rect.width, rect.height)
 }
 
+/**
+ * Class of photo dims. Asset `widthPx`/`heightPx` are already EXIF-oriented
+ * (extractAssetMetadata), so no orientation swap happens here.
+ */
 export function photoAspectClass(
   widthPx: number,
   heightPx: number,
-  orientation?: number,
 ): AspectClass {
-  const swapped = orientation !== undefined && orientation >= 5
-  return swapped
-    ? aspectClass(heightPx, widthPx)
-    : aspectClass(widthPx, heightPx)
+  return aspectClass(widthPx, heightPx)
 }
 
 export function templateSlotAspects(
