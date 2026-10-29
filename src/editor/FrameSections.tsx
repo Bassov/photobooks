@@ -45,8 +45,8 @@ function MmField({
   prefix,
   unit = 'mm',
   value,
-  min,
-  max,
+  min = -Infinity,
+  max = Infinity,
   isDisabled,
   onChange,
 }: {
@@ -63,8 +63,8 @@ function MmField({
     <NumberField
       aria-label={label}
       value={round1(value)}
-      {...(min === undefined ? {} : { minValue: min })}
-      {...(max === undefined ? {} : { maxValue: max })}
+      minValue={min}
+      maxValue={max}
       isDisabled={isDisabled}
       formatOptions={{ maximumFractionDigits: 1 }}
       onChange={(next) => {
@@ -294,8 +294,7 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
           </IconButton>
         ))}
         <span
-          className="ml-auto text-xs tabular-nums"
-          style={{ color: 'var(--muted-foreground)' }}
+          className="frame-layer ml-auto text-xs tabular-nums"
           data-testid="frame-layer"
         >
           layer {layer.layer} of {layer.count}

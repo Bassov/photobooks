@@ -63,6 +63,16 @@ describe('reorderFrame', () => {
     expect(stackOf(reorder(start, 'a', 'front'))).toEqual(['b', 'a'])
   })
 
+  it('keeps the original order among three frames sharing a z', () => {
+    const start = book([
+      makeFrame({ id: 'a', z: 0 }),
+      makeFrame({ id: 'b', z: 0 }),
+      makeFrame({ id: 'c', z: 0 }),
+    ])
+    expect(stackOf(reorder(start, 'a', 'forward'))).toEqual(['b', 'a', 'c'])
+    expect(stackOf(reorder(start, 'c', 'back'))).toEqual(['c', 'a', 'b'])
+  })
+
   it.each<[string, ZMove]>([
     ['c', 'front'],
     ['c', 'forward'],
@@ -107,6 +117,15 @@ describe('setFrameLocked', () => {
     expect(locked.spreads[0]?.templateId).toBe('one-per-page')
     const open = applyBookOp(locked, op(false))
     expect(open.spreads[0]?.frames[0]).not.toHaveProperty('locked')
+  })
+
+  it('touches only the named frame', () => {
+    const next = applyBookOp(book(trio()), op(true))
+    expect(next.spreads[0]?.frames.map((f) => f.locked)).toEqual([
+      true,
+      undefined,
+      undefined,
+    ])
   })
 
   it('same state or unknown frame → unchanged', () => {

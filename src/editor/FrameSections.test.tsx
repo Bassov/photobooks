@@ -8,7 +8,12 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import {
+  ArrangeSection,
+  DeleteFrameButton,
+  GeometrySection,
+} from './FrameSections'
 import { enterCropMode, exitCropMode } from './cropMode'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
@@ -240,5 +245,119 @@ describe('Inspector frame sections', () => {
     expect(frames().map((f) => f.id)).toEqual(['f2', 'f3'])
     expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBeUndefined()
     expect(screen.queryByTestId('inspector-geometry')).toBeNull()
+  })
+
+  it('shows 180° as 180 and clamps the degree field to ±180', () => {
+    seed()
+    render(<Inspector />)
+    select()
+    type('Rotation', '180')
+    expect(frames()[0]?.rotationDeg).toBe(180)
+    expect(field('Rotation').value).toBe('180')
+    type('Rotation', '500')
+    expect(frames()[0]?.rotationDeg).toBe(180)
+    type('Rotation', '-500')
+    // −180° and 180° are the same stored angle.
+    expect(frames()[0]?.rotationDeg).toBe(180)
+    expect(field('Rotation').value).toBe('180')
+  })
+
+  it('ignores an emptied field', () => {
+    seed()
+    render(<Inspector />)
+    select()
+    type('Width', '')
+    expect(frames()[0]?.rect.width).toBe(50)
+  })
+
+  it('shows the slider value in degrees and fills the track to it', () => {
+    seed()
+    render(<Inspector />)
+    select()
+    const slider = within(screen.getByTestId('frame-rotation'))
+    fireEvent.change(slider.getByRole('slider'), { target: { value: '90' } })
+    expect(
+      screen.getByTestId('frame-rotation').querySelector('output')?.textContent,
+    ).toBe('90°')
+    const fill = screen
+      .getByTestId('frame-rotation')
+      .querySelector<HTMLElement>('.fit-crop-fill')
+    expect(fill?.style.width).toBe('75%')
+  })
+
+  it('folds a slider drag into one undo step; the field is one step per edit', () => {
+    seed()
+    render(<Inspector />)
+    select()
+    const slider = within(screen.getByTestId('frame-rotation')).getByRole(
+      'slider',
+    )
+    fireEvent.change(slider, { target: { value: '10' } })
+    fireEvent.change(slider, { target: { value: '20' } })
+    fireEvent.change(slider, { target: { value: '30' } })
+    act(() => {
+      undoBook()
+    })
+    expect(frames()[0]?.rotationDeg).toBeUndefined()
+
+    type('Rotation', '10')
+    type('Rotation', '20')
+    act(() => {
+      undoBook()
+    })
+    expect(frames()[0]?.rotationDeg).toBe(10)
+  })
+
+  it('mutes the layer label', () => {
+    seed()
+    render(<Inspector />)
+    select()
+    expect(screen.getByTestId('frame-layer').className).toContain('frame-layer')
+  })
+
+  it('renders nothing for a target whose spread or frame is gone', () => {
+    seed()
+    for (const target of [
+      { spreadId: 'nope', frameId: 'f1' },
+      { spreadId: 'spread-1', frameId: 'nope' },
+    ]) {
+      const { container } = render(
+        <>
+          <GeometrySection target={target} />
+          <ArrangeSection target={target} />
+          <DeleteFrameButton target={target} />
+        </>,
+      )
+      expect(container.innerHTML).toBe('')
+      cleanup()
+    }
+  })
+
+  it('edits the targeted frame, not the first or another spread', () => {
+    resetBookStore({
+      book: makeBook({
+        spreads: [
+          makeSpread({ id: 's1', frames: [makeFrame({ id: 'f1', z: 1 })] }),
+          makeSpread({
+            id: 's2',
+            frames: [
+              makeFrame({ id: 'f1', z: 1 }),
+              makeFrame({ id: 'f2', z: 2 }),
+            ],
+          }),
+        ],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ArrangeSection target={{ spreadId: 's2', frameId: 'f2' }} />)
+    expect(screen.getByTestId('frame-layer').textContent).toBe('layer 2 of 2')
+    cleanup()
+    render(<GeometrySection target={{ spreadId: 's2', frameId: 'f2' }} />)
+    fireEvent.click(screen.getByTestId('frame-lock'))
+    const spreads = getBookStoreSnapshot().book.spreads
+    expect(spreads[1]?.frames.map((f) => f.locked)).toEqual([undefined, true])
+    expect(spreads[0]?.frames[0]?.locked).toBeUndefined()
   })
 })

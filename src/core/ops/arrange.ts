@@ -33,10 +33,11 @@ export function reorderFrame(
 ): Book {
   return updateSpread(book, spreadId, (spread) => {
     const order = stacked(spread)
-    const from = order.findIndex((frame) => frame.id === frameId)
-    if (from < 0) {
+    const moved = order.find((frame) => frame.id === frameId)
+    if (moved === undefined) {
       return spread
     }
+    const from = order.indexOf(moved)
     const to =
       move === 'front'
         ? order.length - 1
@@ -49,10 +50,7 @@ export function reorderFrame(
     if (to === from) {
       return spread
     }
-    const [moved] = order.splice(from, 1)
-    if (moved === undefined) {
-      return spread
-    }
+    order.splice(from, 1)
     order.splice(to, 0, moved)
     const z = new Map(order.map((frame, index) => [frame.id, index + 1]))
     return detached(

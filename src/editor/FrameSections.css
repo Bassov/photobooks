@@ -12,6 +12,10 @@
   background: var(--field);
 }
 
+.frame-layer {
+  color: var(--muted-foreground);
+}
+
 .frame-delete.pb-button {
   justify-content: flex-start;
   gap: 6px;
