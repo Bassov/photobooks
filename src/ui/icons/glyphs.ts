@@ -51,6 +51,11 @@ export const ICON_NAMES = [
   'frame',
   'hand',
   'magnet',
+  'unlock',
+  'bringToFront',
+  'sendToBack',
+  'arrowUp',
+  'arrowDown',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -413,5 +418,28 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
       },
     ],
     ['path', { d: 'm5 8 4 4' }],
+  ],
+  unlock: [
+    ['rect', { width: '18', height: '11', x: '3', y: '11', rx: '2', ry: '2' }],
+    ['path', { d: 'M7 11V7a5 5 0 0 1 9.9-1' }],
+  ],
+  bringToFront: [
+    ['rect', { x: '8', y: '8', width: '8', height: '8', rx: '2' }],
+    ['path', { d: 'M10 4H6a2 2 0 0 0-2 2v4' }],
+    ['path', { d: 'M14 20h4a2 2 0 0 0 2-2v-4' }],
+  ],
+  sendToBack: [
+    ['rect', { x: '14', y: '14', width: '8', height: '8', rx: '2' }],
+    ['rect', { x: '2', y: '2', width: '8', height: '8', rx: '2' }],
+    ['path', { d: 'M7 14v1a2 2 0 0 0 2 2h1' }],
+    ['path', { d: 'M14 7h1a2 2 0 0 1 2 2v1' }],
+  ],
+  arrowUp: [
+    ['path', { d: 'm5 12 7-7 7 7' }],
+    ['path', { d: 'M12 19V5' }],
+  ],
+  arrowDown: [
+    ['path', { d: 'M12 5v14' }],
+    ['path', { d: 'm19 12-7 7-7-7' }],
   ],
 }

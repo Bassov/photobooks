@@ -1,0 +1,22 @@
+/* Kit Geometry / Arrange / Delete — shares the Fit & crop field and slider B
+   rules (FitCropSection.css). */
+.frame-field[data-disabled] {
+  opacity: 0.6;
+}
+
+.fit-crop-slider[data-disabled] {
+  opacity: 0.6;
+}
+
+.frame-z-button.pb-button {
+  background: var(--field);
+}
+
+.frame-layer {
+  color: var(--muted-foreground);
+}
+
+.frame-delete.pb-button {
+  justify-content: flex-start;
+  gap: 6px;
+}

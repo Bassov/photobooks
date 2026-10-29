@@ -86,6 +86,12 @@ export {
   setFrameRect,
 } from './ops/frames'
 export {
+  layerOf,
+  reorderFrame,
+  setFrameLocked,
+  type ZMove,
+} from './ops/arrange'
+export {
   alignFrames,
   distributeFrames,
   moveFrame,
