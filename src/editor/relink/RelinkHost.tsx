@@ -8,7 +8,7 @@ import {
   readRelinkPillCount,
   shouldShowMissingPill,
 } from './hostModel'
-import { missingPillActionStyle, missingPillStyle } from './relinkStyles'
+import { missingPillStyle } from './relinkStyles'
 import { rescanRelinkFiles, resolvePendingRelink } from './rescan'
 import { subscribeRelink } from './statusStore'
 
@@ -34,7 +34,7 @@ export function RelinkHost() {
           <Button
             variant="secondary"
             size="sm"
-            style={missingPillActionStyle}
+            style={{ pointerEvents: 'auto' }}
             data-testid="missing-assets-review"
             onPress={openRelinkReview}
           >

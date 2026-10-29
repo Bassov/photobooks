@@ -86,5 +86,3 @@ export const missingPillStyle: CSSProperties = {
   fontSize: 'var(--text-sm)',
   color: 'var(--foreground)',
 }
-
-export const missingPillActionStyle: CSSProperties = { pointerEvents: 'auto' }
