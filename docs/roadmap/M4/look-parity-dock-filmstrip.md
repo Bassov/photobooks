@@ -7,8 +7,6 @@ Status: done
 
 ## Scope
 
-## Scope
-
 Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit `uikit/` v0.9.3; no fake / disabled controls). This is a **visual-only look-parity subset** of the existing filmstrip items ([`filmstrip-resize-drop`](../M3/filmstrip-resize-drop.md), [`filmstrip-sort-filter`](../M3/filmstrip-sort-filter.md), [`look-parity-filmstrip`](../M3/look-parity-filmstrip.md)): they own the behaviour and their boxes stay as they are; no new drop / import logic here.
 
 - [x] Dock header (kit `Dock`): `Photos · {gallery} · {used} used` label; sort and Unplaced chips restyled to the kit chip text ("Added order" etc. without the `Sort:` prefix, "Unplaced")
