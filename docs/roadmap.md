@@ -77,7 +77,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [inspector-spread-book](roadmap/M4/inspector-spread-book.md) — look parity: inspector Spread and Book tab sections (Layout / Layout grid; Book settings + grid)
 - [x] [lite] [look-parity-scrollbars](roadmap/M4/look-parity-scrollbars.md) — look parity: thin custom scrollbars (kit v5)
 - [x] [feature] [look-parity-rulers](roadmap/M4/look-parity-rulers.md) — look parity: mm rulers (kit look, no guides)
-- [ ] [feature] [look-parity-page-labels](roadmap/M4/look-parity-page-labels.md) — look parity: canvas page labels and drop-target visuals
+- [x] [feature] [look-parity-page-labels](roadmap/M4/look-parity-page-labels.md) — look parity: canvas page labels and drop-target visuals
 
 ## M4.5 — Text, styles and reuse (local editor complete)
 
