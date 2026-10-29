@@ -328,6 +328,50 @@ describe('SpreadView', () => {
     expect(onActivate).toHaveBeenCalledOnce()
   })
 
+  it('labels the drop chip place / replace on controlled and plain frames, none on thumbs', () => {
+    const empty = resolveSpread(makeBook(), 'spread-1')
+    const filled = resolveSpread(makeBookWithAsset(), 'spread-1')
+    assert(
+      empty !== undefined && filled !== undefined,
+      'expected resolved spreads',
+    )
+    const labels = (
+      resolved: typeof empty,
+      opts: { control?: boolean; thumb?: boolean },
+    ): (string | null)[] => {
+      const { container, unmount } = render(
+        <SpreadView
+          spreadId="spread-1"
+          resolved={resolved}
+          previewUrlFor={previewUrlFor}
+          thumb={opts.thumb === true}
+          {...(opts.control === true
+            ? {
+                frameControlFor: () => ({
+                  label: 'Frame',
+                  onActivate: vi.fn(),
+                }),
+              }
+            : {})}
+        />,
+      )
+      const result = [...container.querySelectorAll('.spread-frame')].map(
+        (node) => node.getAttribute('data-drop-label'),
+      )
+      unmount()
+      return result
+    }
+    const place = 'Release to place'
+    const replace = 'Release to replace'
+    expect(labels(empty, { control: true }).every((l) => l === place)).toBe(
+      true,
+    )
+    expect(labels(empty, {}).every((l) => l === place)).toBe(true)
+    expect(labels(filled, { control: true })).toContain(replace)
+    expect(labels(filled, {})).toContain(replace)
+    expect(labels(filled, { thumb: true }).every((l) => l === null)).toBe(true)
+  })
+
   it('makes a filled frame body draggable without pressing an empty frame', () => {
     const empty = resolveSpread(makeBook(), 'spread-1')
     const filled = resolveSpread(makeBookWithAsset(), 'spread-1')

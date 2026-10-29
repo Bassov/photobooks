@@ -39,6 +39,9 @@ import {
   pickActiveSpread,
   type PasteboardWindow,
 } from './pasteboardWindow'
+import { Icon } from '../ui/Icon'
+import { PageLabels } from './PageLabels'
+import { pageLabelsFit } from './pageLabelsModel'
 import { PasteboardEmptyGuidance } from './PasteboardEmptyGuidance'
 import { RelinkHost } from './relink'
 import { Rulers } from './Rulers'
@@ -504,15 +507,20 @@ export const Pasteboard = memo(function Pasteboard({
                   height: stride,
                   paddingBottom: pasteboardSlotPaddingBottom(committedZoom),
                   containIntrinsicBlockSize: `auto ${String(stride)}px`,
+                  ['--slot-pad' as string]: `${String(pasteboardSlotPaddingBottom(committedZoom))}px`,
                 }}
               >
                 <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+                {pageLabelsFit(committedZoom) ? (
+                  <PageLabels spreadIndex={range.start + index} />
+                ) : null}
                 <div
                   className="pasteboard-gap"
                   data-testid="pasteboard-gap"
                   data-gap-insert-index={range.start + index + 1}
                   aria-hidden="true"
                 >
+                  <Icon name="addSpread" size={14} />
                   Drop here for a new spread
                 </div>
               </div>

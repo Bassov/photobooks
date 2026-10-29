@@ -141,9 +141,36 @@ button.spread-frame[data-crop-active='true']::after {
   pointer-events: none;
 }
 
-.spread-frame[data-drop-hover='true'] {
+/* Kit FrameEl drop target: tinted overlay + chip. `data-drop-hover` is set
+   only by the editor drop logic, so render / PDF output never shows it. */
+.spread-frame[data-drop-hover='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--parent) 20%, transparent);
   outline: 2px solid var(--select);
   outline-offset: -2px;
+  pointer-events: none;
+}
+
+.spread-frame[data-drop-hover='true']::after {
+  content: attr(data-drop-label);
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 11;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  color: var(--foreground);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-segment);
+  pointer-events: none;
 }
 
 .spread-frame-body {
