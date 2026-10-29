@@ -7,6 +7,7 @@ import type { ResolvedItem } from '../core/geometry/types'
 import {
   awaitPendingGalleryFlush,
   enqueueGalleryAssets,
+  loadPainterFixture as loadPainterFixtureLazy,
   getAssetAspectSnapshot,
   getAssetContentHash,
   getAssetDisplayName,
@@ -70,6 +71,26 @@ describe('bookStore', () => {
     expect(getPlacementCountSnapshot('painter-b')).toBeGreaterThan(0)
     expect(getPlacementCountSnapshot('missing')).toBe(0)
     expect(getHasAnyPlacementSnapshot()).toBe(true)
+  })
+
+  it('loads the painter fixture in dev/fixture builds', async () => {
+    loadPainterFixtureLazy()
+    await vi.waitFor(() => {
+      expect(getBookStoreSnapshot().book.id).toBe('painter-fixture')
+    })
+  })
+
+  it('does not load the painter fixture in a deploy build', async () => {
+    const before = getBookStoreSnapshot().book.id
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '')
+    try {
+      loadPainterFixtureLazy()
+      await new Promise((r) => setTimeout(r, 20))
+      expect(getBookStoreSnapshot().book.id).toBe(before)
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('mints unique asset ids with sanitized names', () => {

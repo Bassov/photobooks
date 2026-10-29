@@ -1194,6 +1194,9 @@ async function opfsTestLibraryHandle(
 export async function attachOpfsTestLibrary(
   folderName?: string,
 ): Promise<StorageResult<void>> {
+  if (!(import.meta.env.DEV || import.meta.env.VITE_TEST_FIXTURES === '1')) {
+    return { ok: false, code: 'not-found' }
+  }
   const dir = await opfsTestLibraryHandle(folderName)
   if (!dir) {
     return { ok: false, code: 'not-found' }

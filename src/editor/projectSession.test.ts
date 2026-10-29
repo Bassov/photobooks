@@ -726,6 +726,33 @@ describe('projectSession', () => {
     ).toBeTypeOf('function')
   })
 
+  it('attachOpfsTestLibrary is a no-op in a deploy build', async () => {
+    const { attachOpfsTestLibrary } = await import('./projectSession')
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '')
+    try {
+      expect(await attachOpfsTestLibrary()).toEqual({
+        ok: false,
+        code: 'not-found',
+      })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('does not attach thumbs or project test APIs in a deploy build', () => {
+    const bare = {} as Window
+    vi.stubEnv('DEV', false)
+    vi.stubEnv('VITE_TEST_FIXTURES', '')
+    try {
+      exposeProjectSessionTestApi(bare)
+      expect(bare.__photobooksProject).toBeUndefined()
+      expect(bare.__photobooksThumbs).toBeUndefined()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('restored identity-keyed assets hydrate thumbs from DerivedCache', async () => {
     const { cacheKeyFromIdentity } = await import('../assets/cacheKey')
     const identity = {

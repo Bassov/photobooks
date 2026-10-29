@@ -11,7 +11,6 @@ export const MARKERS = Object.freeze([
   '__photobooksProject',
   '__photobooksThumbs',
   '__photobooksRelink',
-  'testLibrary',
   'painter-fixture',
   'painter-a',
   'e2e-photo-folder-input',

@@ -4,33 +4,31 @@ import { LibraryScreen } from './editor/LibraryScreen'
 import { UnsupportedBrowserScreen } from './editor/UnsupportedBrowserScreen'
 import { WelcomeScreen } from './editor/WelcomeScreen'
 import { getBrowserSupport } from './editor/browserSupport'
+import { loadPainterFixture } from './editor/bookStore'
+import { isPainterFixtureQuery } from './editor/painterFixtureQuery'
 import {
+  attachOpfsTestLibrary,
   exposeProjectSessionTestApi,
   getProjectSessionSnapshot,
   setSurfaceForTests,
+  startSessionEditor,
   subscribeProjectSession,
   tryRestore,
 } from './editor/projectSession'
 
-/** Fixture entries are reached only through `import()` in test-fixture builds. */
-function startTestFixtureEntry(): boolean {
-  // Literal `import.meta.env` check so Rollup folds it before chunking.
-  if (import.meta.env.DEV || import.meta.env.VITE_TEST_FIXTURES === '1') {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('fixture') === 'painter') {
-      void import('./testFixtures/entries').then((entries) => {
-        entries.enterPainterFixture()
-      })
-      return true
-    }
-    if (params.has('testLibrary')) {
-      void import('./testFixtures/entries').then((entries) =>
-        entries.enterTestLibrary(),
-      )
-      return true
-    }
+function isTestLibraryQuery(): boolean {
+  if (typeof window === 'undefined') {
+    return false
   }
-  return false
+  return new URLSearchParams(window.location.search).has('testLibrary')
+}
+
+async function ensureTestLibrary(): Promise<void> {
+  const restored = await tryRestore()
+  if (restored.ok && restored.value !== null) {
+    return
+  }
+  await attachOpfsTestLibrary()
 }
 
 function App() {
@@ -42,7 +40,13 @@ function App() {
 
   useEffect(() => {
     exposeProjectSessionTestApi()
-    if (startTestFixtureEntry()) {
+    if (isPainterFixtureQuery()) {
+      startSessionEditor()
+      loadPainterFixture()
+      return
+    }
+    if (isTestLibraryQuery()) {
+      void ensureTestLibrary()
       return
     }
     if (!getBrowserSupport().supported) {

@@ -861,6 +861,15 @@ function removedPlacementCount(
   return removed
 }
 
+/** Replace the in-memory book with the painter fixture (fixture builds only). */
+export function loadPainterFixture(): void {
+  if (import.meta.env.DEV || import.meta.env.VITE_TEST_FIXTURES === '1') {
+    void import('../testFixtures/loadPainterFixture').then((m) => {
+      m.loadPainterFixture()
+    })
+  }
+}
+
 export function subscribeSpread(
   spreadId: string,
   listener: Listener,
