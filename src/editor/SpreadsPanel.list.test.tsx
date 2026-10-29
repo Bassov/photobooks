@@ -1,9 +1,15 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { addSpread } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
-import { getSpreadIdsSnapshot, resetBookStore } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  getSpreadIdsSnapshot,
+  getSpreadPaintSnapshot,
+  resetBookStore,
+} from './bookStore'
 import {
   getActiveSpreadId,
   resetActiveSpreadIdForTests,
@@ -184,6 +190,69 @@ describe('SpreadsPanel list', () => {
     })
     // A much wider page makes a wider spread → a shorter thumb box.
     expect(rowHeight()).toBeLessThan(square)
+  })
+
+  it('re-derives the row height when only the trim changes, keeping the same spreads', () => {
+    seedSpreads(2)
+    render(<SpreadsPanel />)
+    const rowHeight = (): number =>
+      Number.parseFloat(
+        screen.getByTestId('spread-list-item-s0').parentElement?.style.height ??
+          '',
+      )
+    const square = rowHeight()
+    const { book } = getBookStoreSnapshot()
+    act(() => {
+      resetBookStore({
+        book: {
+          ...book,
+          settings: {
+            ...book.settings,
+            trim: { widthMm: 1000, heightMm: 300 },
+          },
+        },
+        sessionMeta: new Map(),
+        previewUrls: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+    })
+    expect(rowHeight()).toBeLessThan(square)
+  })
+
+  it('sizes the row from the first spread aspect, not the 2:1 default', () => {
+    seedSpreads(2, 1000)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(220)
+    render(<SpreadsPanel />)
+    const resolved = getSpreadPaintSnapshot('s0')?.resolved
+    const aspect =
+      (resolved?.spreadWidthMm ?? 1) / (resolved?.spreadHeightMm ?? 1)
+    expect(aspect).toBeGreaterThan(2.5)
+    const row = screen.getByTestId('spread-list-item-s0').parentElement
+    expect(Number.parseFloat(row?.style.height ?? '')).toBeCloseTo(
+      spreadsRowGeometry(220, aspect).rowPx,
+      3,
+    )
+  })
+
+  it('renders the rows on the server snapshot', () => {
+    seedSpreads(2)
+    const html = renderToString(<SpreadsPanel />)
+    expect(html).toContain('data-item="s0"')
+    expect(html).toContain('data-item="s1"')
+  })
+
+  it('reveals the row an Alt+Arrow move lands on', () => {
+    seedSpreads(50)
+    stubViewport(300)
+    render(<SpreadsPanel />)
+    const list = screen.getByTestId('spreads-list')
+    const to = Math.floor(300 / rowPx()) + 1
+    const from = screen.getByTestId(`spread-list-item-s${String(to - 1)}`)
+    expect(list.scrollTop).toBe(0)
+    fireEvent.keyDown(from, { key: 'ArrowDown', altKey: true })
+    expect(getSpreadIdsSnapshot()[to]).toBe(`s${String(to - 1)}`)
+    expect(list.scrollTop).toBeCloseTo((to + 1) * rowPx() - 300, 3)
   })
 
   it('acts on the focused row, not on a stale selection', () => {
