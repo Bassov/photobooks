@@ -17,6 +17,12 @@ describe('sameInspectorPanel', () => {
     rows: [{ label: 'Size', value: '1 × 2' }],
     spreadRows: [{ label: 'Frames', value: '2' }],
   }
+  const spread: InspectorPanel = {
+    kind: 'spread',
+    spreadId: 's1',
+    spreadRows: [{ label: 'Frames', value: '2' }],
+  }
+  const empty: InspectorPanel = { kind: 'empty' }
 
   it('is true for an equal copy with new row objects', () => {
     expect(
@@ -25,11 +31,18 @@ describe('sameInspectorPanel', () => {
         rows: [{ label: 'Size', value: '1 × 2' }],
       }),
     ).toBe(true)
+    expect(
+      sameInspectorPanel(spread, {
+        ...spread,
+        spreadRows: [{ label: 'Frames', value: '2' }],
+      }),
+    ).toBe(true)
+    expect(sameInspectorPanel(empty, { kind: 'empty' })).toBe(true)
   })
 
-  it.each<[string, Partial<InspectorPanel>]>([
-    ['kind', { kind: 'spread' }],
+  it.each<[string, Partial<Extract<InspectorPanel, { kind: 'frame' }>>]>([
     ['spread row value', { spreadRows: [{ label: 'Frames', value: '3' }] }],
+    ['spread row label', { spreadRows: [{ label: 'Photos', value: '2' }] }],
     ['spread row count', { spreadRows: [] }],
     ['spread id', { spreadId: 's2' }],
     ['row count', { rows: [] }],
@@ -37,6 +50,44 @@ describe('sameInspectorPanel', () => {
     ['row value', { rows: [{ label: 'Size', value: '3 × 4' }] }],
   ])('is false when %s differs', (_, patch) => {
     expect(sameInspectorPanel(base, { ...base, ...patch })).toBe(false)
+  })
+
+  it('does not merge rows across label/value boundaries', () => {
+    const row = (label: string, value: string) => [{ label, value }]
+    expect(
+      sameInspectorPanel(
+        { ...base, rows: row('a', 'b') },
+        { ...base, rows: row('ab', '') },
+      ),
+    ).toBe(false)
+    expect(
+      sameInspectorPanel(
+        { ...base, rows: [...row('a', 'b'), ...row('c', 'd')] },
+        { ...base, rows: [...row('a', 'b\u0001c'), ...row('', 'd')] },
+      ),
+    ).toBe(false)
+  })
+
+  it('is false across kinds in either order', () => {
+    for (const [x, y] of [
+      [base, spread],
+      [spread, base],
+      [base, empty],
+      [empty, base],
+      [spread, empty],
+      [empty, spread],
+    ] as const) {
+      expect(sameInspectorPanel(x, y)).toBe(false)
+    }
+  })
+
+  it('compares spread panels by id and rows', () => {
+    expect(sameInspectorPanel(spread, { ...spread, spreadId: 's2' })).toBe(
+      false,
+    )
+    expect(sameInspectorPanel(spread, { ...spread, spreadRows: [] })).toBe(
+      false,
+    )
   })
 })
 

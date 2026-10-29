@@ -92,7 +92,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
     return next
   }, [frameSource, activeId, dismissed])
   const panel = useSyncExternalStore(subscribeBookStore, readPanel, readPanel)
-  const { kind, rows } = panel
+  const { kind } = panel
   // Crop mode keeps its frame (double-click drops the selection); else the
   // selected frame. Empty frames render nothing inside the section.
   const section = target ?? frameSource
@@ -162,8 +162,8 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
           className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
           data-testid="inspector-panel-frame"
         >
-          {kind === 'frame' ? <RowList rows={rows} /> : null}
-          {kind === 'spread' ? (
+          {panel.kind === 'frame' ? <RowList rows={panel.rows} /> : null}
+          {panel.kind === 'spread' ? (
             <>
               <div className="mb-3 text-xs font-medium" style={{ color: SUB }}>
                 Spread properties
@@ -171,8 +171,8 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
               <RowList rows={panel.spreadRows} />
             </>
           ) : null}
-          {kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
-          {kind === 'spread' && section === null ? (
+          {panel.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
+          {panel.kind === 'spread' && section === null ? (
             <Hint>{FRAME_HINT}</Hint>
           ) : null}
           {section === null ? null : (
@@ -184,7 +184,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
           className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
           data-testid="inspector-panel-spread"
         >
-          {panel.spreadId === null ? (
+          {panel.kind === 'empty' ? (
             <Hint>{EMPTY_HINT}</Hint>
           ) : (
             <>
@@ -240,7 +240,6 @@ function inspectorPanel(
     return {
       kind: view.kind,
       spreadId: view.spread.id,
-      rows: [],
       spreadRows: spreadRows(view.spread),
     }
   }
@@ -258,7 +257,7 @@ function inspectorPanel(
       ),
     }
   }
-  return { kind: view.kind, spreadId: null, rows: [], spreadRows: [] }
+  return { kind: view.kind }
 }
 
 function Row({ row }: { row: InspectorRow }) {

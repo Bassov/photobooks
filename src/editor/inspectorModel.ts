@@ -13,24 +13,25 @@ export interface InspectorRow {
 }
 
 /** What the panel paints: view kind and rows (no crop state). */
-export interface InspectorPanel {
-  kind: InspectorView['kind']
-  /** Spread the Spread tab edits (the frame's spread for a frame), else null. */
-  spreadId: string | null
-  /** Photo rows of the selected frame; empty otherwise. */
-  rows: readonly InspectorRow[]
-  /** Summary rows of the spread in view; empty when there is none. */
-  spreadRows: readonly InspectorRow[]
-}
+export type InspectorPanel =
+  | { kind: 'empty' }
+  | {
+      kind: 'spread'
+      spreadId: string
+      /** Summary rows of the spread in view. */
+      spreadRows: readonly InspectorRow[]
+    }
+  | {
+      kind: 'frame'
+      /** The frame's spread: what the Spread tab edits. */
+      spreadId: string
+      spreadRows: readonly InspectorRow[]
+      /** Photo rows of the selected frame. */
+      rows: readonly InspectorRow[]
+    }
 
-function sameRows(
-  a: readonly InspectorRow[],
-  b: readonly InspectorRow[],
-): boolean {
-  return (
-    a.length === b.length &&
-    a.every((row, i) => row.label === b[i]?.label && row.value === b[i].value)
-  )
+function rowsKey(rows: readonly InspectorRow[]): string {
+  return rows.map((row) => `${row.label}\u0000${row.value}`).join('\u0001')
 }
 
 /** Value equality so book edits that leave the panel unchanged skip a render. */
@@ -38,11 +39,20 @@ export function sameInspectorPanel(
   a: InspectorPanel,
   b: InspectorPanel,
 ): boolean {
+  if (a.kind === 'empty' || b.kind === 'empty') {
+    return a.kind === b.kind
+  }
+  if (a.kind === 'spread' || b.kind === 'spread') {
+    return (
+      a.kind === b.kind &&
+      a.spreadId === b.spreadId &&
+      rowsKey(a.spreadRows) === rowsKey(b.spreadRows)
+    )
+  }
   return (
-    a.kind === b.kind &&
     a.spreadId === b.spreadId &&
-    sameRows(a.rows, b.rows) &&
-    sameRows(a.spreadRows, b.spreadRows)
+    rowsKey(a.spreadRows) === rowsKey(b.spreadRows) &&
+    rowsKey(a.rows) === rowsKey(b.rows)
   )
 }
 
