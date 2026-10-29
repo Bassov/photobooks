@@ -205,6 +205,33 @@ describe('EditorTopBar', () => {
     expect(screen.getByTestId('zoom-label').textContent).toBe('200%')
   })
 
+  it('fits the spread on Ctrl+0 / Cmd+0 except in text fields', () => {
+    render(<EditorShell />)
+    const fitSpread = vi.fn()
+    registerCameraCommands({
+      fitSpread,
+      fitWidth: vi.fn(),
+      actualSize: vi.fn(),
+      zoomTo: vi.fn(),
+      fitSpreadZoom: () => null,
+    })
+    fireEvent.keyDown(window, { key: '0', ctrlKey: true })
+    fireEvent.keyDown(window, { key: '0', metaKey: true })
+    expect(fitSpread).toHaveBeenCalledTimes(2)
+    fireEvent.keyDown(window, { key: '0' })
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true })
+    expect(fitSpread).toHaveBeenCalledTimes(2)
+    const input = document.createElement('input')
+    document.body.append(input)
+    fireEvent.keyDown(input, { key: '0', ctrlKey: true })
+    const area = document.createElement('textarea')
+    document.body.append(area)
+    fireEvent.keyDown(area, { key: '0', ctrlKey: true })
+    input.remove()
+    area.remove()
+    expect(fitSpread).toHaveBeenCalledTimes(2)
+  })
+
   it('saves on Ctrl+S when a library is open and ignores other keys', async () => {
     const save = vi.spyOn(projectSession, 'saveBookNow')
     render(<EditorShell />)

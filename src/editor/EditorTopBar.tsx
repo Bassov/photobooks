@@ -188,6 +188,26 @@ function ZoomChrome() {
     zoom,
     getCameraCommands()?.fitSpreadZoom() ?? null,
   )
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== '0' || !(event.ctrlKey || event.metaKey)) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement)
+      ) {
+        return
+      }
+      event.preventDefault()
+      getCameraCommands()?.fitSpread()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
   const onAction = (key: Key): void => {
     const commands = getCameraCommands()
     if (commands === null) return
