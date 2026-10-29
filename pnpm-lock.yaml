@@ -39,8 +39,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@albasov/ts-agent-rig':
-        specifier: github:Bassov/ts-agent-rig#v0.2.13
-        version: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/823bbe5ee27700c201f080781be442afff0b27c2
+        specifier: github:Bassov/ts-agent-rig#v0.2.14
+        version: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ebf1a3edc3ba7fe5f6cf8413058567d46587d65b
       '@codecov/vite-plugin':
         specifier: 2.0.1
         version: 2.0.1(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -174,8 +174,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.58.0
-        version: 1.59.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.61.0
+        version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -240,9 +240,9 @@ packages:
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
 
-  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/823bbe5ee27700c201f080781be442afff0b27c2':
-    resolution: {tarball: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/823bbe5ee27700c201f080781be442afff0b27c2}
-    version: 0.2.13
+  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ebf1a3edc3ba7fe5f6cf8413058567d46587d65b':
+    resolution: {tarball: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ebf1a3edc3ba7fe5f6cf8413058567d46587d65b}
+    version: 0.2.14
     engines: {node: ^22.0.0}
     hasBin: true
 
@@ -3710,8 +3710,8 @@ packages:
     resolution: {integrity: sha512-jumlc0BIUrS3qJGgIkWZsyfAM7NCWiBcCDhnd+3NNM5KbBmLTgHVfWBcg6W+rLUsIpzpERPsvwUP7CckAQSOoA==}
     engines: {node: '>=12'}
 
-  lucide-react@1.59.0:
-    resolution: {integrity: sha512-5qgMyyCPU6OvnKpLS2t693+ZtiqA8oaSweWoUows0BLFKFf6V75m4+CptpmohZHpD5IuOVIBXHBBiv2vpLJmtw==}
+  lucide-react@1.61.0:
+    resolution: {integrity: sha512-v2SQPPPNjnr+BlhL9Spuzmo5yR+hLkftfuE4E3jaxdNPgSH0hJKPcLJBP7yAta87jQNPsSERS59PJjCJ/CorBA==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -4933,7 +4933,7 @@ snapshots:
 
   '@actions/io@3.0.2': {}
 
-  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/823bbe5ee27700c201f080781be442afff0b27c2':
+  '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ebf1a3edc3ba7fe5f6cf8413058567d46587d65b':
     dependencies:
       typescript: 5.9.3
       yaml: 2.9.1
@@ -8121,7 +8121,7 @@ snapshots:
 
   lru-cache@7.18.3: {}
 
-  lucide-react@1.59.0(@types/react@19.3.0)(react@19.3.1):
+  lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
     optionalDependencies:

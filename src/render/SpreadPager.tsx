@@ -46,7 +46,7 @@ export function SpreadPager({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      let delta = 0
+      let delta: number
       if (e.key === 'ArrowRight' || e.key === ' ') {
         delta = 1
       } else if (e.key === 'ArrowLeft') {
