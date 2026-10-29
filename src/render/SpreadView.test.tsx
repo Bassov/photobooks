@@ -344,12 +344,15 @@ describe('SpreadView', () => {
           spreadId="spread-1"
           resolved={resolved}
           previewUrlFor={previewUrlFor}
-          thumb={opts.thumb}
-          frameControlFor={
-            opts.control === true
-              ? () => ({ label: 'Frame', onActivate: vi.fn() })
-              : undefined
-          }
+          thumb={opts.thumb === true}
+          {...(opts.control === true
+            ? {
+                frameControlFor: () => ({
+                  label: 'Frame',
+                  onActivate: vi.fn(),
+                }),
+              }
+            : {})}
         />,
       )
       const result = [...container.querySelectorAll('.spread-frame')].map(
