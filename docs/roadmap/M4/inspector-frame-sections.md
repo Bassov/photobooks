@@ -15,7 +15,7 @@ Look parity, Phase B #2 (Owner 2026-10-29: the editor must look exactly like the
 - [x] Lock: pure `setFrameLocked` op (the model already has `Frame.locked`; transform ops already skip locked frames)
 - [x] Delete: ghost button with the trash icon and a "Del" hint; `removeFrames` (placement dropped, spread leaves its template)
 - [x] Icons `unlock`, `bringToFront`, `sendToBack`, `arrowUp`, `arrowDown` added to the in-repo set
-- Align is **omitted entirely**: multi-select is not built (`multi-select`), so the section would never apply; it lands with that item.
+- Align is not rendered: it needs 2+ selected frames and the editor holds a single selection (`multi-select` is a separate item).
 
 **Done when:** selecting a frame shows the kit Geometry / Arrange / Delete sections in the Frame tab; no blue, no black chrome, no fake controls.
 **Browser check:** select a frame → type W → it resizes; Arrange "front" → "layer N of M" updates; Lock disables the fields; Delete removes the frame; Ctrl+Z undoes each.
@@ -37,4 +37,4 @@ Look parity, Phase B #2 (Owner 2026-10-29: the editor must look exactly like the
 
 ## Done note
 
-Frame tab Geometry / Arrange / Delete sections (Align omitted until multi-select)
+Frame tab Geometry / Arrange / Delete sections
