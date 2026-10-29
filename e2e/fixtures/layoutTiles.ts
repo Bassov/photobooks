@@ -19,16 +19,22 @@ export function layoutTile(page: Page, name: string): Locator {
   })
 }
 
-/** Apply a template from the inspector Layout section; restores the right panel's open state. */
-export async function applyLayout(page: Page, name: string): Promise<void> {
+/**
+ * Apply a template from the inspector Layout section. The right panel stays
+ * open unless `restorePanel` puts it back as found (for specs that toggle it).
+ */
+export async function applyLayout(
+  page: Page,
+  name: string,
+  { restorePanel = false }: { restorePanel?: boolean } = {},
+): Promise<void> {
   const panel = page.getByTestId('panel-r')
   const wasOpen = (await panel.getAttribute('data-open')) === 'true'
   await openSpreadTab(page)
   const tile = layoutTile(page, name)
   await tile.click()
   await expect(tile).toHaveAttribute('aria-pressed', 'true')
-  if (!wasOpen) {
-    // Leave the panel as found: specs that toggle it themselves start closed.
+  if (restorePanel && !wasOpen) {
     await page.getByTestId('toggle-r').click()
     await expect(panel).toHaveAttribute('data-open', 'false')
   }
