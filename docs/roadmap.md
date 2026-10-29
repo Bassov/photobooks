@@ -78,6 +78,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [lite] [look-parity-scrollbars](roadmap/M4/look-parity-scrollbars.md) — look parity: thin custom scrollbars (kit v5)
 - [x] [feature] [look-parity-rulers](roadmap/M4/look-parity-rulers.md) — look parity: mm rulers (kit look, no guides)
 - [x] [feature] [look-parity-page-labels](roadmap/M4/look-parity-page-labels.md) — look parity: canvas page labels and drop-target visuals
+- [ ] [feature] [canvas-frame-chrome](roadmap/M4/canvas-frame-chrome.md) — look parity: canvas frame chrome (size tag, hover, empty/missing, lock, chips, rotate handle)
 
 ## M4.5 — Text, styles and reuse (local editor complete)
 
