@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M4
 Title: look parity: mm rulers (kit look, no guides)
+Status: done
 
 ## Scope
 
