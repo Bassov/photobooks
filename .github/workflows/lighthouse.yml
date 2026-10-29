@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Node and pnpm
-        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/setup-node-pnpm@v0.2.10
 
       - name: Lighthouse CI
         id: lhci
@@ -34,7 +34,7 @@ jobs:
 
       - name: Pack Lighthouse section
         if: always()
-        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.1
+        uses: Bassov/ts-agent-rig/.github/actions/report-section-pack@v0.2.10
         with:
           section: lighthouse
           step-outcome: ${{ steps.lhci.outcome }}
@@ -46,7 +46,7 @@ jobs:
   ci-comment:
     needs: lighthouse
     if: always() && github.event_name == 'pull_request' && needs.lighthouse.result != 'cancelled'
-    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.1
+    uses: Bassov/ts-agent-rig/.github/workflows/ci-report-comment.yml@v0.2.10
     with:
       section: lighthouse
       artifact-name: ci-section-lighthouse
