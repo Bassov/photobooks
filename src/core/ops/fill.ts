@@ -3,6 +3,7 @@ import { applyTemplate } from '../templates/apply'
 import { photoAspectClass, type AspectClass } from '../templates/aspect'
 import { bestTemplateId } from '../templates/best'
 import { updateSpread } from '../update'
+import { withPlacedAsset } from './place'
 import { addSpread, nextSpreadId } from './spreads'
 
 type Asset = Book['assets'][string]
@@ -31,11 +32,7 @@ function withAsset(frame: Frame, assetId: string): Frame {
   if (frame.assetId === assetId) {
     return frame
   }
-  return {
-    ...frame,
-    assetId,
-    crop: { zoom: 1, center: { x: 0.5, y: 0.5 } },
-  }
+  return withPlacedAsset(frame, assetId)
 }
 
 function fillFrames(
