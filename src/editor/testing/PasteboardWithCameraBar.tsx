@@ -4,7 +4,7 @@ import { getCameraCommands, getLiveZoom, subscribeLive } from '../cameraStore'
 import { Pasteboard } from '../Pasteboard'
 
 /** Test-only stand-in for the removed camera strip: drives the camera store. */
-function CameraTestBar() {
+export function CameraTestBar() {
   const zoom = useSyncExternalStore(subscribeLive, getLiveZoom, getLiveZoom)
   return (
     <div role="toolbar" aria-label="Camera test bar">

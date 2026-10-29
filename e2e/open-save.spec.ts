@@ -11,6 +11,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { chooseZoom } from './fixtures/zoomMenu'
 import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import {
@@ -104,6 +105,14 @@ test('save, reload, and restore keep gallery ids', async ({ page }) => {
     .toBe(galleryBefore)
 
   await assertDocumentFitsViewport(page)
+  // Restore opens the relink dialog (modal); skip it before using the menu.
+  await expect(page.getByTestId('relink-dialog')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.getByTestId('relink-skip').click()
+  await expect(page.getByTestId('relink-dialog')).toHaveCount(0)
+  // Fit shows the whole spread, so overflow needs a deterministic zoom-in.
+  await chooseZoom(page, '200%')
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',
     nudgeHorizontal: false,
