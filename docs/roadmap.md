@@ -74,6 +74,7 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [ ] [feature] [arrange-lock](roadmap/M4/arrange-lock.md) — stacking and locking
 - [ ] [feature] [multi-select](roadmap/M4/multi-select.md) — group operations
 - [x] [lite] [look-parity-scrollbars](roadmap/M4/look-parity-scrollbars.md) — look parity: thin custom scrollbars (kit v5)
+- [ ] [feature] [look-parity-rulers](roadmap/M4/look-parity-rulers.md) — look parity: mm rulers (kit look, no guides)
 
 ## M4.5 — Text, styles and reuse (local editor complete)
 
