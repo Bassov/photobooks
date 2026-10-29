@@ -54,6 +54,10 @@ export function coalesceKey(op: BookOp): string | undefined {
     case 'setCrop':
     case 'resetCrop':
       return `crop:${op.spreadId}:${op.frameId}`
+    case 'rotateFrame':
+      return op.live === true
+        ? `rotate:${op.spreadId}:${op.frameId}`
+        : undefined
     default:
       return undefined
   }
