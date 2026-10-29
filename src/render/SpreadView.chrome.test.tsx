@@ -144,6 +144,69 @@ describe('SpreadView frame chrome', () => {
     expect(rule).not.toMatch(/dashed|outline/)
   })
 
+  it('renders the glyph child nodes with their attributes', () => {
+    const { container } = renderEmptyAt(200)
+    const glyph = container.querySelector('[data-glyph="image-plus"]')
+    assert(glyph !== null, 'expected the image-plus glyph')
+    expect(glyph.children).toHaveLength(5)
+    expect(glyph.children[0]?.tagName).toBe('path')
+    expect(glyph.children[0]?.getAttribute('d')).toBe('M16 5h6')
+    const circle = glyph.querySelector('circle')
+    expect(circle?.getAttribute('cx')).toBe('9')
+    expect(circle?.getAttribute('cy')).toBe('9')
+    expect(circle?.getAttribute('r')).toBe('2')
+  })
+
+  it('renders the warning glyph children on a missing frame', () => {
+    const { container } = renderMissingAt(200)
+    const glyph = container.querySelector('[data-glyph="warning"]')
+    assert(glyph !== null, 'expected the warning glyph')
+    expect(glyph.children.length).toBeGreaterThan(1)
+    expect(glyph.querySelector('path[d="M12 9v4"]')).not.toBeNull()
+  })
+
+  it('present frame is not missing and never asks for an asset name', () => {
+    const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    const assetNameFor = vi.fn(() => 'IMG')
+    const { container } = render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => 'blob:x'}
+        isMissingAsset={() => false}
+        assetNameFor={assetNameFor}
+        frameControlFor={control}
+      />,
+    )
+    expect(assetNameFor).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('spread-frame-missing')).toBeNull()
+    expect(screen.queryByTestId('frame-missing-label')).toBeNull()
+    expect(container.querySelector('[data-glyph="warning"]')).toBeNull()
+  })
+
+  it('empty frame is not missing even if the predicate says so', () => {
+    const resolved = resolveSpread(makeBook(), 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    const assetNameFor = vi.fn(() => 'IMG')
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={() => undefined}
+        isMissingAsset={() => true}
+        assetNameFor={assetNameFor}
+        pxPerMm={10}
+        frameControlFor={control}
+      />,
+    )
+    expect(assetNameFor).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('spread-frame-missing')).toBeNull()
+    expect(
+      screen.getAllByTestId('spread-frame-placeholder').length,
+    ).toBeGreaterThan(0)
+  })
+
   it('selected frame renders the rotate line next to the knob', () => {
     const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
     assert(resolved !== undefined, 'expected resolved spread')

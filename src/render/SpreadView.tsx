@@ -26,7 +26,7 @@ import {
   SPREAD_PX_PER_MM,
 } from './frameBox'
 import {
-  frameShowsMissing,
+  missingAssetId,
   missingPlaceholderClass,
   missingPlaceholderTestId,
   previewUrlUnlessMissing,
@@ -150,7 +150,8 @@ export function SpreadView({
       }}
     >
       {resolved.items.map((item) => {
-        const missing = frameShowsMissing(item.assetId, isMissingAsset)
+        const missingId = missingAssetId(item.assetId, isMissingAsset)
+        const missing = missingId !== undefined
         return (
           <SpreadFrame
             key={item.frameId}
@@ -159,9 +160,7 @@ export function SpreadView({
             thumb={thumb}
             missing={missing}
             assetName={
-              missing && item.assetId !== undefined
-                ? assetNameFor?.(item.assetId)
-                : undefined
+              missingId === undefined ? undefined : assetNameFor?.(missingId)
             }
             previewUrl={previewUrlUnlessMissing(
               missing,

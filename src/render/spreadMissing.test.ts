@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   frameShowsMissing,
+  missingAssetId,
   missingPlaceholderClass,
   missingPlaceholderTestId,
   previewUrlUnlessMissing,
@@ -17,6 +18,13 @@ describe('spreadMissing', () => {
     const isMissing = vi.fn((id: string) => id === 'a')
     expect(frameShowsMissing('a', isMissing)).toBe(true)
     expect(isMissing).toHaveBeenCalledWith('a')
+  })
+
+  it('missingAssetId returns the id only for a frame that shows missing', () => {
+    expect(missingAssetId('a', () => true)).toBe('a')
+    expect(missingAssetId('a', () => false)).toBeUndefined()
+    expect(missingAssetId('a', undefined)).toBeUndefined()
+    expect(missingAssetId(undefined, () => true)).toBeUndefined()
   })
 
   it('previewUrlUnlessMissing hides preview for missing or empty frames', () => {
