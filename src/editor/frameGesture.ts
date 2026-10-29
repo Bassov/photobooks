@@ -113,7 +113,8 @@ export function spreadContext(
         heightMm,
         pageCount: getSpreadPageCount(spreadIndex, book.spreads.length),
       },
-      // Built once per gesture, and only while the grid is shown.
+      // Built once per gesture, and only while the grid is shown; toggling
+      // the grid mid-gesture leaves the anchors as built.
       getGridVisible() && getSnapOn()
         ? buildGridAnchors(book, spreadIndex)
         : undefined,
