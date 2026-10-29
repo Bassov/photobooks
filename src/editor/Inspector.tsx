@@ -13,6 +13,7 @@ import {
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
+import { BookSettingsSection } from './BookSettingsSection'
 import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
 import { FitCropSection } from './FitCropSection'
@@ -23,6 +24,7 @@ import {
 } from './FrameSections'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import { GridSection } from './GridSection'
+import { LayoutSection } from './LayoutSection'
 import {
   framePhotoRows,
   inspectorView,
@@ -200,6 +202,9 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
             <>
               <RowList rows={panel.spreadRows} />
               <div className="mt-4">
+                <LayoutSection spreadId={panel.spreadId} />
+              </div>
+              <div className="mt-4">
                 <GridSection scope="spread" spreadId={panel.spreadId} />
               </div>
             </>
@@ -210,6 +215,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
           className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
           data-testid="inspector-panel-book"
         >
+          <BookSettingsSection />
           <GridSection scope="book" />
         </TabPanel>
       </Tabs>
