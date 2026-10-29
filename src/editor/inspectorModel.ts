@@ -12,14 +12,26 @@ export interface InspectorRow {
   value: string
 }
 
-/** What the panel paints: view kind, header and rows (no crop state). */
-export interface InspectorPanel {
-  kind: InspectorView['kind']
-  name: string
-  meta: string
-  /** Spread the Spread tab edits (the frame's spread for a frame), else null. */
-  spreadId: string | null
-  rows: readonly InspectorRow[]
+/** What the panel paints: view kind and rows (no crop state). */
+export type InspectorPanel =
+  | { kind: 'empty' }
+  | {
+      kind: 'spread'
+      spreadId: string
+      /** Summary rows of the spread in view. */
+      spreadRows: readonly InspectorRow[]
+    }
+  | {
+      kind: 'frame'
+      /** The frame's spread: what the Spread tab edits. */
+      spreadId: string
+      spreadRows: readonly InspectorRow[]
+      /** Photo rows of the selected frame. */
+      rows: readonly InspectorRow[]
+    }
+
+function rowsKey(rows: readonly InspectorRow[]): string {
+  return rows.map((row) => `${row.label}\u0000${row.value}`).join('\u0001')
 }
 
 /** Value equality so book edits that leave the panel unchanged skip a render. */
@@ -27,16 +39,20 @@ export function sameInspectorPanel(
   a: InspectorPanel,
   b: InspectorPanel,
 ): boolean {
-  return (
-    a.kind === b.kind &&
-    a.name === b.name &&
-    a.meta === b.meta &&
-    a.spreadId === b.spreadId &&
-    a.rows.length === b.rows.length &&
-    a.rows.every(
-      (row, i) =>
-        row.label === b.rows[i]?.label && row.value === b.rows[i].value,
+  if (a.kind === 'empty' || b.kind === 'empty') {
+    return a.kind === b.kind
+  }
+  if (a.kind === 'spread' || b.kind === 'spread') {
+    return (
+      a.kind === b.kind &&
+      a.spreadId === b.spreadId &&
+      rowsKey(a.spreadRows) === rowsKey(b.spreadRows)
     )
+  }
+  return (
+    a.spreadId === b.spreadId &&
+    rowsKey(a.spreadRows) === rowsKey(b.spreadRows) &&
+    rowsKey(a.rows) === rowsKey(b.rows)
   )
 }
 

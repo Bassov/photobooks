@@ -21,10 +21,7 @@ test('Book → Layout grid: Columns updates the summary and the overlay', async 
 }) => {
   await openSessionEditor(page)
   await openRightPanel(page)
-  await page
-    .getByTestId('inspector-panel')
-    .locator('.pb-segmented__segment', { hasText: 'Book' })
-    .click()
+  await page.getByTestId('inspector-tab-book').click()
 
   const section = page.getByTestId('grid-section-book')
   await expect(section.getByText('Layout grid')).toBeVisible()
@@ -52,6 +49,7 @@ test('Spread override shows SPREAD and enables Reset to book grid', async ({
     .getByTestId('spread-view')
     .first()
     .click({ position: { x: 4, y: 4 } })
+  await page.getByTestId('inspector-tab-spread').click()
 
   const section = page.getByTestId('grid-section-spread')
   await expect(section).toBeVisible()

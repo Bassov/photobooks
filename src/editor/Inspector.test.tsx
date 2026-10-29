@@ -20,6 +20,7 @@ import {
   getCropTarget,
   getCropTargetKey,
 } from './cropMode'
+import { SUB } from './editorChromeTokens'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
 import { setActiveSpreadId } from './photoRootSession'
@@ -103,8 +104,11 @@ describe('Inspector', () => {
     })
     const panel = screen.getByTestId('inspector-panel')
     expect(panel.getAttribute('data-inspector-view')).toBe('spread')
-    expect(screen.getByTestId('inspector-name').textContent).toBe('Cover')
+    expect(screen.getByText('Spread properties')).toBeTruthy()
     expect(screen.getByText('Frames')).toBeTruthy()
+    expect(screen.getByTestId('inspector-empty').textContent).toBe(
+      'Select a frame to edit it.',
+    )
 
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(panel.getAttribute('data-inspector-view')).toBe('empty')
@@ -119,15 +123,193 @@ describe('Inspector', () => {
     expect(
       screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
     ).toBe('frame')
-    expect(screen.getByTestId('inspector-name').textContent).toBe('a')
     expect(screen.getByText('Used')).toBeTruthy()
   })
 
   it('collapses through the header button', () => {
     const onCollapse = vi.fn()
     render(<Inspector onCollapse={onCollapse} />)
-    fireEvent.click(screen.getByTestId('panel-collapse-right'))
-    expect(onCollapse).toHaveBeenCalled()
+    const btn = screen.getByTestId('panel-collapse-right')
+    expect(btn.getAttribute('aria-label')).toBe('Hide inspector (I)')
+    fireEvent.click(btn)
+    expect(onCollapse).toHaveBeenCalledTimes(1)
+  })
+
+  describe('tab chrome and panels', () => {
+    const cssColor = (value: string) => {
+      const probe = document.createElement('div')
+      probe.style.color = value
+      return probe.style.color
+    }
+    const selected = () =>
+      within(screen.getByRole('tablist'))
+        .getAllByRole('tab')
+        .map((t) => t.getAttribute('aria-selected'))
+
+    it('lays the tablist out as three equal columns', () => {
+      render(<Inspector />)
+      expect(screen.getByRole('tablist').style.gridTemplateColumns).toBe(
+        'repeat(3, minmax(0, 1fr))',
+      )
+    })
+
+    it('selects the clicked tab and only that one', () => {
+      render(<Inspector />)
+      fireEvent.click(screen.getByTestId('inspector-tab-spread'))
+      expect(selected()).toEqual(['false', 'true', 'false'])
+      fireEvent.click(screen.getByTestId('inspector-tab-book'))
+      expect(selected()).toEqual(['false', 'false', 'true'])
+    })
+
+    it('paints the collapse wrapper and hints in the muted colour', () => {
+      render(<Inspector onCollapse={() => undefined} />)
+      const muted = cssColor(SUB)
+      expect(muted).not.toBe('')
+      expect(
+        screen.getByTestId('panel-collapse-right').parentElement?.style.color,
+      ).toBe(muted)
+      expect(screen.getByTestId('inspector-empty').style.color).toBe(muted)
+    })
+
+    it('renders no row list in the Frame tab with nothing selected', () => {
+      seed()
+      render(<Inspector />)
+      expect(
+        screen.getByTestId('inspector-panel-frame').querySelector('dl'),
+      ).toBeNull()
+    })
+
+    it('shows the spread rows once and a muted heading for a spread', () => {
+      seed()
+      act(() => {
+        setActiveSpreadId('spread-1')
+      })
+      render(<Inspector />)
+      const panel = screen.getByTestId('inspector-panel-frame')
+      expect(panel.querySelectorAll('dl')).toHaveLength(1)
+      expect(within(panel).getByText('Frames')).toBeTruthy()
+      expect(within(panel).getByText('Spread properties').style.color).toBe(
+        cssColor(SUB),
+      )
+    })
+
+    it('shows photo rows and no spread heading for a frame', () => {
+      seed()
+      act(() => {
+        setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+      })
+      render(<Inspector />)
+      const panel = screen.getByTestId('inspector-panel-frame')
+      expect(panel.querySelectorAll('dl')).toHaveLength(1)
+      expect(within(panel).getByText('Used')).toBeTruthy()
+      expect(within(panel).queryByText('Spread properties')).toBeNull()
+      expect(within(panel).queryByText('Frames')).toBeNull()
+    })
+
+    it('hints to pick a frame only when no frame section is shown', () => {
+      seed()
+      act(() => {
+        setActiveSpreadId('spread-1')
+      })
+      staleCropTarget('spread-1', 'missing')
+      render(<Inspector />)
+      expect(screen.queryByText('Select a frame to edit it.')).toBeNull()
+    })
+
+    it('shows the empty hint, not a grid, in the Spread tab without a spread', () => {
+      render(<Inspector />)
+      fireEvent.click(screen.getByTestId('inspector-tab-spread'))
+      const panel = screen.getByTestId('inspector-panel-spread')
+      expect(within(panel).getByTestId('inspector-empty').textContent).toBe(
+        'Select a spread or a photo to see its properties.',
+      )
+      expect(screen.queryByTestId('grid-section-spread')).toBeNull()
+    })
+
+    it('lists the spread rows above the grid in the Spread tab', () => {
+      seed()
+      act(() => {
+        setActiveSpreadId('spread-1')
+      })
+      render(<Inspector />)
+      fireEvent.click(screen.getByTestId('inspector-tab-spread'))
+      const panel = screen.getByTestId('inspector-panel-spread')
+      expect(within(panel).getByText('Template')).toBeTruthy()
+      expect(within(panel).queryByTestId('inspector-empty')).toBeNull()
+    })
+
+    it('keeps the chosen tab when the frame selection is cleared', () => {
+      seed()
+      render(<Inspector />)
+      act(() => {
+        setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+      })
+      fireEvent.click(screen.getByTestId('inspector-tab-book'))
+      act(() => {
+        resetFrameSelection()
+      })
+      expect(selected()).toEqual(['false', 'false', 'true'])
+    })
+  })
+
+  it('lists Frame / Spread / Book tabs in order with Frame selected', () => {
+    render(<Inspector />)
+    const tabs = within(screen.getByRole('tablist')).getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Frame', 'Spread', 'Book'])
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual([
+      'true',
+      'false',
+      'false',
+    ])
+  })
+
+  it('keeps the Frame tab with a hint when nothing is selected', () => {
+    seed()
+    render(<Inspector />)
+    expect(screen.getByTestId('inspector-tab-frame')).toBeTruthy()
+    expect(screen.getByTestId('inspector-empty')).toBeTruthy()
+  })
+
+  it('switches tabs on click and shows each tab content', () => {
+    seed()
+    act(() => {
+      setActiveSpreadId('spread-1')
+    })
+    render(<Inspector />)
+    fireEvent.click(screen.getByTestId('inspector-tab-spread'))
+    expect(screen.getByTestId('grid-section-spread')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('inspector-tab-book'))
+    expect(screen.getByTestId('grid-section-book')).toBeTruthy()
+  })
+
+  it('selecting a frame jumps to the Frame tab; a spread keeps the tab', () => {
+    seed()
+    render(<Inspector />)
+    fireEvent.click(screen.getByTestId('inspector-tab-book'))
+    act(() => {
+      setActiveSpreadId('spread-1')
+    })
+    expect(screen.getByTestId('grid-section-book')).toBeTruthy()
+    act(() => {
+      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    })
+    expect(screen.getByTestId('inspector-fit-crop')).toBeTruthy()
+    expect(
+      screen.getByTestId('inspector-tab-frame').getAttribute('aria-selected'),
+    ).toBe('true')
+  })
+
+  it('crop mode jumps to the Frame tab', () => {
+    seed()
+    render(<Inspector />)
+    fireEvent.click(screen.getByTestId('inspector-tab-book'))
+    act(() => {
+      enterCropMode('spread-1', 'frame-1')
+    })
+    expect(
+      screen.getByTestId('inspector-tab-frame').getAttribute('aria-selected'),
+    ).toBe('true')
+    expect(screen.getByTestId('crop-reset')).toBeTruthy()
   })
 
   it('zooms via the slider and resets to cover', () => {
@@ -273,8 +455,7 @@ describe('Inspector', () => {
     act(() => {
       setFrameSource({ spreadId: 'spread-1', frameId: 'frame-2' })
     })
-    expect(screen.getByTestId('inspector-name').textContent).toBe('Empty frame')
-    expect(screen.getByText('Photo')).toBeTruthy()
+    expect(screen.getByText('Size')).toBeTruthy()
     expect(screen.queryByText('Used')).toBeNull()
 
     act(() => {
@@ -464,12 +645,5 @@ describe('Inspector', () => {
     fireEvent.change(panX, { target: { value: '' } })
     fireEvent.blur(panX)
     expect(crop()?.center.x).toBeCloseTo(0.6)
-  })
-
-  it('titles the empty panel without meta', () => {
-    render(<Inspector />)
-    const name = screen.getByTestId('inspector-name')
-    expect(name.textContent).toBe('Inspector')
-    expect(name.nextElementSibling).toBeNull()
   })
 })
