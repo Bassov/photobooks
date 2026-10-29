@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: M4
 Title: wire grid snap into frame move/resize
+Status: done
 
 ## Scope
 
