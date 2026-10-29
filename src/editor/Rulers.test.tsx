@@ -69,6 +69,7 @@ describe('Rulers', () => {
       'ResizeObserver',
       class {
         observe = vi.fn()
+        unobserve = vi.fn()
         disconnect = vi.fn()
       },
     )
@@ -109,6 +110,8 @@ describe('Rulers', () => {
   it('paints ticks and labels at the spread origin and scale', () => {
     const { container } = render(<Stage scrollRef={createRef()} />)
     const [canvasX, canvasY] = container.querySelectorAll('canvas')
+    expect(screen.getByTestId('ruler-x').dataset.origin).toBe('100')
+    expect(screen.getByTestId('ruler-y').dataset.origin).toBe('50')
     expect([canvasX?.width, canvasX?.height]).toEqual([500, 22])
     expect([canvasY?.width, canvasY?.height]).toEqual([22, 300])
     // origin X = 122 - 22, origin Y = 72 - 22, scale 2 px/mm, step 10 mm.

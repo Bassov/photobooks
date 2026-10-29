@@ -22,6 +22,7 @@ function measure(scroll: HTMLElement, pageMm: number) {
   const box = spread.getBoundingClientRect()
   const area = scroll.getBoundingClientRect()
   return {
+    spread,
     ...rulerGeometry({
       boxLeft: box.left,
       boxTop: box.top,
@@ -75,6 +76,8 @@ export function Rulers({
   scrollRef: RefObject<HTMLDivElement | null>
   pageMm: number
 }) {
+  const rulerX = useRef<HTMLDivElement>(null)
+  const rulerY = useRef<HTMLDivElement>(null)
   const canvasX = useRef<HTMLCanvasElement>(null)
   const canvasY = useRef<HTMLCanvasElement>(null)
   const spine = useRef<HTMLSpanElement>(null)
@@ -87,11 +90,23 @@ export function Rulers({
     if (!scroll || !stage) return
     let raf = 0
     let area = { left: 0, top: 0 }
+    // The spread's own size changes when the zoom commits (after our camera tick).
+    const resize = new ResizeObserver(() => {
+      schedule()
+    })
+    let observed: HTMLElement | null = null
     const paint = (): void => {
       raf = 0
       const g = measure(scroll, pageMm)
       if (g === null) return
+      if (g.spread !== observed) {
+        if (observed) resize.unobserve(observed)
+        resize.observe(g.spread)
+        observed = g.spread
+      }
       area = { left: g.areaLeft, top: g.areaTop }
+      if (rulerX.current) rulerX.current.dataset.origin = String(g.originX)
+      if (rulerY.current) rulerY.current.dataset.origin = String(g.originY)
       if (canvasX.current)
         paintAxis(canvasX.current, 'x', g.originX, g.sc, g.lenX, pageMm)
       if (canvasY.current)
@@ -123,14 +138,13 @@ export function Rulers({
     stage.addEventListener('pointermove', onMove)
     stage.addEventListener('pointerleave', onLeave)
     const offCamera = subscribeCommitted(schedule)
-    const resize = new ResizeObserver(schedule)
     resize.observe(scroll)
     const mutations = new MutationObserver(schedule)
     mutations.observe(scroll, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['data-active', 'style'],
+      attributeFilter: ['data-active'],
     })
     return () => {
       cancelAnimationFrame(raf)
@@ -145,12 +159,22 @@ export function Rulers({
 
   return (
     <>
-      <div className="ruler ruler-x" data-testid="ruler-x" aria-hidden="true">
+      <div
+        ref={rulerX}
+        className="ruler ruler-x"
+        data-testid="ruler-x"
+        aria-hidden="true"
+      >
         <canvas ref={canvasX} />
         <span ref={spine} className="ruler-spine" hidden />
         <span ref={cursorX} className="ruler-cursor ruler-cursor-x" hidden />
       </div>
-      <div className="ruler ruler-y" data-testid="ruler-y" aria-hidden="true">
+      <div
+        ref={rulerY}
+        className="ruler ruler-y"
+        data-testid="ruler-y"
+        aria-hidden="true"
+      >
         <canvas ref={canvasY} />
         <span ref={cursorY} className="ruler-cursor ruler-cursor-y" hidden />
       </div>

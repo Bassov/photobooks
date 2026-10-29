@@ -8,11 +8,11 @@ Title: look parity: mm rulers (kit look, no guides)
 
 Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake / disabled controls). This is the **visual look-parity subset of [`rulers`](rulers.md)**: the kit mm rulers, cursor tick, corner "mm" square and visibility toggle. No guide creation (see [`guides`](guides.md)).
 
-- [ ] Pure tick math (`rulersMath`): mm to px at zoom, major step by scale (>2.4 → 5, >1.2 → 10, else 20 mm), range culling, page-local X labels that wrap at the spine
-- [ ] 22 px X / Y rulers (`ruler-x` / `ruler-y`) with mm ticks and labels that follow scroll / zoom of the active spread; spine marker on X; corner "mm" square
-- [ ] Cursor tick on pointer move over the pasteboard, cleared on leave, only while rulers are visible
-- [ ] Rulers toggle in the top bar (same group as Layout grid / Snap, "Rulers (Shift+R)") and `Shift+R` hotkey (typing-target guard); default off
-- [ ] Pasteboard content inset by 22 px while rulers are on
+- [x] Pure tick math (`rulersMath`): mm to px at zoom, major step by scale (>2.4 → 5, >1.2 → 10, else 20 mm; coarser 50 / 100 / … mm below that so labels never overlap at the pasteboard's low zooms), range culling, page-local X labels that wrap at the spine
+- [x] 22 px X / Y rulers (`ruler-x` / `ruler-y`) with mm ticks and labels that follow scroll / zoom of the active spread; spine marker on X; corner "mm" square
+- [x] Cursor tick on pointer move over the pasteboard, cleared on leave, only while rulers are visible
+- [x] Rulers toggle in the top bar (same group as Layout grid / Snap, "Rulers (Shift+R)") and `Shift+R` hotkey (typing-target guard); default off
+- [x] Pasteboard content inset by 22 px while rulers are on
 
 **Done when:** with rulers on the pasteboard shows kit rulers aligned with the active spread through scroll and zoom; the toggle and `Shift+R` show / hide them; default off; no accent colour.
 **Browser check:** toggle rulers, scroll and zoom; ticks stay on the spread edges, label resets to 0 at the spine, cursor tick follows the pointer.
