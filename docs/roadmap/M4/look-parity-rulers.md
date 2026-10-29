@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake / disabled controls). This is the **visual look-parity subset of [`rulers`](rulers.md)**: the kit mm rulers, cursor tick, corner "mm" square and visibility toggle. No guide creation (see [`guides`](guides.md)).
+Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit; no fake / disabled controls). This is the **visual look-parity subset of [`rulers`](../../backlog/rulers.md)**: the kit mm rulers, cursor tick, corner "mm" square and visibility toggle. No guide creation (see [`guides`](../../backlog/guides.md)).
 
 - [x] Pure tick math (`rulersMath`): mm to px at zoom, major step by scale (>2.4 → 5, >1.2 → 10, else 20 mm; coarser 50 / 100 / … mm below that so labels never overlap at the pasteboard's low zooms), range culling, page-local X labels that wrap at the spine
 - [x] 22 px X / Y rulers (`ruler-x` / `ruler-y`) with mm ticks and labels that follow scroll / zoom of the active spread; spine marker on X; corner "mm" square
@@ -20,7 +20,7 @@ Look parity (Owner 2026-10-29: the editor must look exactly like the UI kit; no 
 **Perf:** drawn on a `<canvas>` from scroll / camera rAF; no React re-render per frame; zero LoAF.
 
 - **Kit components:** `Ruler` and `Viewport` rulers block (`uikit/src/sandbox/viewport.tsx` l.83-108, 212, 228-233); ViewKey `rulers` (`uikit/src/sandbox/chrome.tsx` l.61-64).
-- **Demo:** `rulers` → `uikit/src/features/m4.tsx`
+- **Demo:** `rulers` → `uikit/src/features/pages.tsx`
 - **Musts:**
   - 22 px rulers with mm ticks / labels following scroll and zoom (kit math), cursor tick, corner "mm" square, topbar toggle + `Shift+R`, default off.
   - Tokens only, no accent colour.

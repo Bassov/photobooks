@@ -39,3 +39,29 @@ These items left **M2.1** in the owner-directed trim of 2026-10-18 and the pipel
 | [`mutation-reinclude-camera`](mutation-reinclude-camera.md)   | mutate `usePasteboardCamera.ts` again (issue #72 B)                               | M2.1               | #72 B                           |
 | [`project-session-mutation`](project-session-mutation.md)     | mutate what is left of `projectSession.ts` (issue #72 B)                          | M2.1               | #72 B                           |
 | [`agent-pipeline-run-audit`](agent-pipeline-run-audit.md)     | Check one /next-roadmap-item run against the #77 and #79 targets                  | M2.1               | #77, #79                        |
+
+## Held at the kit v0.10.0 roadmap update (2026-10-30)
+
+Kit pages removed in v0.10.0 with no replacement. Owner re-adds one with `pnpm roadmap add` after Designer adds its kit page.
+
+| Slug                                            | Title                 | Original milestone | Source                                                                                   |
+| ----------------------------------------------- | --------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| [`jpeg-spreads-export`](jpeg-spreads-export.md) | JPEG spreads          | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+| [`cover-pdf`](cover-pdf.md)                     | cover PDF             | M6                 | held; P4 after `cover-editor` once Designer adds a Cover option to the Print dialog (D3) |
+| [`preflight-panel`](preflight-panel.md)         | print warnings        | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+| [`preflight-fixes`](preflight-fixes.md)         | fix from the panel    | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+| [`print-overlays`](print-overlays.md)           | see print constraints | M6                 | kit v0.10.0 removal, held 2026-10-30                                                     |
+
+Deleted 2026-10-30 (Designer call D3, **Owner-confirm**): `manual-deploy` (superseded by P3 `in-app-publish`) and `print-package-report` (no kit, low value). `pdf-captions` moved back to P4.
+
+## Held until a kit page exists (kit-first)
+
+Designer call B1 (2026-10-30), narrowed by the Designer kit-first audit (2026-10-30): only UI absent from `uikit/src/sandbox` is held. Re-add each with `pnpm roadmap add <slug> --after <X>` once its kit page lands.
+
+| Slug                                        | Title                     | Target P | Depends             |
+| ------------------------------------------- | ------------------------- | -------- | ------------------- |
+| [`guides-precise`](guides-precise.md)       | exact guides              | P2       | guides              |
+| [`kit2-undo-history`](kit2-undo-history.md) | undo history list         | P2       | kit10-editor-chrome |
+| [`onboarding-others`](onboarding-others.md) | first run for other users | P5       | kit10-library-books |
+
+Moved back into P1–P5 on 2026-10-30 (present in the kit sandbox; Owner-approved scope change): `rulers`, `guides`, `dpi-badge`, `text-blocks`, `live-captions`, `parent-guides`, `parent-overrides`, `page-numbers` (P2), `connect-own-hosting` (P5). Deleted: `kit2-spread-menu` (row menu and reorder ship on main, #284; restyle folded into P1 `kit10-spread-list`) and `kit2-missing-relink` (relink ships in `src/editor/relink`; restyle folded into P1 `kit10-canvas`, `kit10-spread-list`, `kit10-filmstrip`).

@@ -14,7 +14,7 @@ Status: done
 - **Browser check:** hide grid → drag does not snap to columns; Alt-drag → no `snap · column N` label; snap off → no snap lines.
 - **UI ref:** `uikit#/feature/layout-grids-render-snap`
 - **Kit components:** `effectiveGrid` / `resolveGrid` / `anchors` / `snapRect` (`uikit/src/sandbox/model.ts`); snap label chrome from the render-snap demo.
-- **Demo:** `layout-grids-render-snap` → `uikit/src/features/m4.tsx` (snap labels)
+- **Demo:** `layout-grids-render-snap` → `uikit/src/features/pages.tsx` (snap labels)
 - **Musts:**
   - Grid visible + snap on → move / resize edges to column / row; label `snap · column N` / `snap · row N` (`bg-field` pill, not toast).
   - ~16 CSS px pull when grid visible; hidden grid / Alt / snap-off → no grid snap.

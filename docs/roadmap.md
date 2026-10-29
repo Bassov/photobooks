@@ -2,16 +2,115 @@
 
 Execution plan for the photobook editor. Architecture and decisions: `docs/future-architecture.md`.
 
-This index and the item files under `docs/roadmap/` are the single source of truth for what gets built and in which order: issues, proposals and review notes are inputs until they land here. The UI kit **v0.9.3** (`uikit/`) is the UI/UX reference for roadmap items (screen / full / demo / feature routes), not a second plan.
+This index and the item files under `docs/roadmap/` are the single source of truth for what gets built and in which order: issues, proposals and review notes are inputs until they land here. The UI kit **v0.10.0** (`uikit/`) is the UI/UX reference for roadmap items (screen / full / demo / feature routes), not a second plan.
 
 Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<milestone>/<slug>.md`. Retire a finished milestone with `pnpm roadmap archive <M>` (drops the index block and folder; git history is SoT). Change the index only with `pnpm roadmap` (`add` / `done` / `move` / `sync` / `archive`), never by hand.
 
 ## Order
 
-1. **M1–M4.5 — the local editor, complete for personal use.** M2.1–M2.6 have shipped or moved to `docs/backlog/` (product screens run on UI kit **v0.9.3** chrome since M2.6). M3–M4.5 build the editor on that chrome. Hardening ideas sit in `docs/backlog/` until the owner re-adds them.
-2. **M5, then M7 — books as a website (parked):** needs photo preprocessing + Cloudflare before work resumes. Kit site demos (`uikit#/screen/showcase-site`, publish) are **not now**.
-3. **M6 — print** (after M7). Kit print demos (`uikit#/screen/print-prep`, `print-export`) are **not now**.
-4. **M8 — let others create their own books, sites and prints.**
+Owner priorities (2026-10-29), kit **v0.10.0**:
+
+1. **P1 — align the current editor to the kit.**
+2. **P2 — add missing features iteratively** (kit-first).
+3. **P3 — personal site.**
+4. **P4 — print.**
+5. **P5 — let other people make their own personal site** (kit-first).
+
+M3 and M4 below keep finished items until the owner archives them (M4 is fully done; M3 is now fully done too: its open rig item `rig-pr-body-gate-removal` moved to the top of P1, Owner-confirm); all other open items moved into P1–P5. Items whose kit page was removed in v0.10 with no replacement, and kit-first items whose UI is absent from `uikit/src/sandbox` (Designer call B1, 2026-10-30), are held in `docs/backlog/`; Owner re-adds them with `pnpm roadmap add` once their kit page lands. "In the kit" means present in `uikit/src/sandbox` and wired into the `#/demo` editor, even if reachable only through a flag or shortcut (RULES.md); such items are scheduled with sandbox `file:line` refs and marked `kit: sandbox, not shown in #/demo` (Designer kit-first audit, 2026-10-30). Counts: P1 21, P2 22, P3 13, P4 10, P5 3 open; held in `docs/backlog/`: 3 kit-first (`guides-precise`, `kit2-undo-history` history list, `onboarding-others`) and 5 with their kit page removed (incl. `preflight-fixes`).
+
+## P1 — Align the editor to the kit (v0.10.0)
+
+**Review cut:** product screens look like kit v0.10.0 `#/demo`; stubs allowed, no fake controls. Done when: product screens match `#/demo` baseline steps 01–20, 23–26 and 39–49 by Designer review (21–22 land with P2 `parent-spreads`, 27–31 with P4 `pdf-export`, 32–38 with P3).
+
+- [ ] [prep] [rig-pr-body-gate-removal](roadmap/P1/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
+- [ ] [prep] [ui-primitives-forms](roadmap/P1/ui-primitives-forms.md) — form primitives in `src/ui/`
+- [ ] [prep] [cover-endpaper-schema](roadmap/P1/cover-endpaper-schema.md) — cover and endpapers in the document
+- [ ] [feature] [kit10-library-folder](roadmap/P1/kit10-library-folder.md) — Welcome and library folder: kit v0.10 look
+- [ ] [feature] [kit10-library-books](roadmap/P1/kit10-library-books.md) — Your books grid: kit v0.10 look
+- [ ] [feature] [kit10-create-book](roadmap/P1/kit10-create-book.md) — Create book dialog: kit v0.10 look (title, page size, custom size)
+- [ ] [feature] [kit10-editor-chrome](roadmap/P1/kit10-editor-chrome.md) — Editor top bar and panels: kit v0.10 look
+- [ ] [feature] [kit10-filmstrip](roadmap/P1/kit10-filmstrip.md) — Photos dock and filmstrip: kit v0.10 look (Photos only)
+- [ ] [feature] [kit10-spread-list](roadmap/P1/kit10-spread-list.md) — Spread list panel: kit v0.10 look (cover, endpapers, spreads, Pages / Masters)
+- [ ] [feature] [kit10-canvas](roadmap/P1/kit10-canvas.md) — Canvas and pasteboard: kit v0.10 look
+- [ ] [feature] [kit10-place-replace](roadmap/P1/kit10-place-replace.md) — Drag place and replace: kit v0.10 look
+- [ ] [feature] [kit10-frame-selection](roadmap/P1/kit10-frame-selection.md) — Frame selection and move: kit v0.10 look
+- [ ] [feature] [kit10-crop](roadmap/P1/kit10-crop.md) — Crop in frame: kit v0.10 look
+- [ ] [feature] [kit10-inspector-frame-spread](roadmap/P1/kit10-inspector-frame-spread.md) — Inspector frame and spread: kit v0.10 look
+- [ ] [feature] [kit10-inspector-book-endpaper](roadmap/P1/kit10-inspector-book-endpaper.md) — Inspector book settings and endpaper: kit v0.10 look
+- [ ] [feature] [kit10-grid-snap](roadmap/P1/kit10-grid-snap.md) — Layout grid and snap: kit v0.10 look
+- [ ] [feature] [kit10-masters](roadmap/P1/kit10-masters.md) — Masters mode: kit v0.10 look
+- [ ] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
+- [ ] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
+- [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
+- [ ] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)
+
+## P2 — Missing features, iterative
+
+**Review cut:** features removed or held in kit v0.10 come back one by one; items whose UI is in the kit sandbox carry sandbox refs (`rulers`, `guides`, `dpi-badge`, `text-blocks`, `live-captions`, `parent-guides`, `parent-overrides`, `page-numbers`); P1 `kit10-demo-expose-hidden` makes the hidden ones visible in `#/demo`. Only UI absent from the sandbox stays held in `docs/backlog/` until Designer adds the kit page. Owner and Designer decide the order.
+
+- [ ] [feature] [rulers](roadmap/P2/rulers.md) — mm rulers
+- [ ] [feature] [guides](roadmap/P2/guides.md) — guides
+- [ ] [feature] [dpi-badge](roadmap/P2/dpi-badge.md) — resolution while you lay out
+- [ ] [feature] [photo-rotate](roadmap/P2/photo-rotate.md) — rotate photos in frames
+- [ ] [feature] [inspector](roadmap/P2/inspector.md) — numeric properties
+- [ ] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
+- [ ] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
+- [ ] [prep] [book-fonts](roadmap/P2/book-fonts.md) — fonts for book content
+- [ ] [prep] [text-frame-model](roadmap/P2/text-frame-model.md) — text in the document
+- [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
+- [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
+- [ ] [prep] [book-styles-schema](roadmap/P2/book-styles-schema.md) — book-level styles in the document
+- [ ] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
+- [ ] [prep] [layout-grids-schema](roadmap/P2/layout-grids-schema.md) — page layout grids in the document
+- [ ] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
+- [ ] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
+- [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
+- [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
+- [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
+- [ ] [feature] [page-numbers](roadmap/P2/page-numbers.md) — page numbers
+- [ ] [prep] [library-json-schema](roadmap/P2/library-json-schema.md) — `library.json` versioning
+- [ ] [feature] [user-templates](roadmap/P2/user-templates.md) — your own layouts
+
+## P3 — Personal site
+
+**Review cut:** your own live site with your books: viewer, lightbox, preview, publish, site and hosting settings, at 60 fps on a phone and a 27″ 4K screen.
+
+- [ ] [prep] [image-derivatives](roadmap/P3/image-derivatives.md) — web image pipeline
+- [ ] [prep] [avif-encoder](roadmap/P3/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
+- [ ] [prep] [publish-revisions](roadmap/P3/publish-revisions.md) — draft vs published
+- [ ] [feature] [site-viewer](roadmap/P3/site-viewer.md) — viewer entry
+- [ ] [feature] [site-preview-mode](roadmap/P3/site-preview-mode.md) — preview the site from the editor
+- [ ] [feature] [site-lightbox](roadmap/P3/site-lightbox.md) — fullscreen and swipe
+- [ ] [prep] [static-export-core](roadmap/P3/static-export-core.md) — deterministic site tree
+- [ ] [feature] [static-export](roadmap/P3/static-export.md) — write `dist/`
+- [ ] [prep] [derivative-tuning](roadmap/P3/derivative-tuning.md) — decide final sizes
+- [ ] [prep] [hosting-decision](roadmap/P3/hosting-decision.md) — spike
+- [ ] [feature] [publish-credentials](roadmap/P3/publish-credentials.md) — connect the editor to your hosting (Security Review)
+- [ ] [feature] [in-app-publish](roadmap/P3/in-app-publish.md) — publish button (Security Review)
+- [ ] [feature] [site-settings](roadmap/P3/site-settings.md) — personalize the showcase
+
+## P4 — Print
+
+**Review cut:** a print PDF from the `#/demo` Print dialog (1 per sheet with a bleed checkbox; 2-up saddle-stitch and 4-up duplex with `booklet-imposition`) and a cover with the right spine; exporting never freezes the editor.
+
+- [ ] [prep] [print-model-schema](roadmap/P4/print-model-schema.md) — print settings and cover in the document
+- [ ] [prep] [print-profiles](roadmap/P4/print-profiles.md) — printer data
+- [ ] [prep] [preflight-core](roadmap/P4/preflight-core.md) — pure preflight
+- [ ] [prep] [pdf-painter](roadmap/P4/pdf-painter.md) — worker PDF painter (Security Review: dependency)
+- [ ] [prep] [pdf-color-tagging](roadmap/P4/pdf-color-tagging.md) — keep photo colors
+- [ ] [feature] [pdf-export](roadmap/P4/pdf-export.md) — print PDF
+- [ ] [prep] [pdf-captions](roadmap/P4/pdf-captions.md) — text in the PDF
+- [ ] [contingency] [pdf-streaming](roadmap/P4/pdf-streaming.md) — only if `pdf-export` peak memory is too high
+- [ ] [feature] [booklet-imposition](roadmap/P4/booklet-imposition.md) — home printing
+- [ ] [feature] [cover-editor](roadmap/P4/cover-editor.md) — cover in the editor
+
+## P5 — Others make their own personal site
+
+**Review cut:** someone else gets their own library and site. **Kit-first:** Designer drafts the P5 kit pages (onboarding / account, own library + site, hosting / connect) before items are sliced (call D6); `printer-presets` and `connect-own-hosting` have a partial kit (Settings → Print presets / Hosting rows). `onboarding-others` is held in `docs/backlog/` until then.
+
+- [ ] [prep] [publisher-targets](roadmap/P5/publisher-targets.md) — generalize publishing
+- [ ] [feature] [connect-own-hosting](roadmap/P5/connect-own-hosting.md) — bring your own hosting (Security Review)
+- [ ] [feature] [printer-presets](roadmap/P5/printer-presets.md) — print for everyone
 
 ## M3 — Building a real book
 
@@ -21,7 +120,6 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [prep] [pr-body-free-form-tail](roadmap/M3/pr-body-free-form-tail.md) — Finish PR body free-form: docs and live-PR waiver in checks.yml
 - [x] [prep] [stryker-diff-scope](roadmap/M3/stryker-diff-scope.md) — Measure stryker-diff cost and survivors; Owner picks keep / exclude / C-session
 - [x] [prep] [stryker-c-session](roadmap/M3/stryker-c-session.md) — Stryker survivors move to a dedicated C-session (Owner option (c), #267)
-- [ ] [prep] [rig-pr-body-gate-removal](roadmap/M3/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [x] [prep] [fix-place-fit-aspect](roadmap/M3/fix-place-fit-aspect.md) — Fix placed photo aspect: no stretched portraits, cover crop in thumbs and canvas
 - [x] [lite] [fix-landscape-letterbox](roadmap/M3/fix-landscape-letterbox.md) — Fix landscape/panorama letterboxing in portrait frames: place and Fill use cover crop
 - [x] [feature] [ui-chrome-musts-recheck](roadmap/M3/ui-chrome-musts-recheck.md) — Chrome Musts: book covers, settings nav tone-only, quiet editor header
@@ -57,23 +155,14 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 **Review cut:** layouts beyond templates — page layout grids and guides like InDesign / Affinity / Figma with snapping, direct manipulation, precise numeric control and photo rotation, all at 60 fps.
 
 - [x] [prep] [frame-geometry-schema](roadmap/M4/frame-geometry-schema.md) — rotation and lock in the document
-- [ ] [prep] [layout-grids-schema](roadmap/M4/layout-grids-schema.md) — page layout grids in the document
 - [x] [prep] [frame-transform-ops](roadmap/M4/frame-transform-ops.md) — pure free-layout math
 - [x] [prep] [snapping-engine](roadmap/M4/snapping-engine.md) — pure snapping
-- [ ] [prep] [ui-primitives-forms](roadmap/M4/ui-primitives-forms.md) — form primitives in `src/ui/`
-- [ ] [feature] [rulers](roadmap/M4/rulers.md) — mm rulers
-- [ ] [feature] [guides](roadmap/M4/guides.md) — guides
-- [ ] [feature] [guides-precise](roadmap/M4/guides-precise.md) — exact guides
 - [x] [feature] [frame-selection-handles](roadmap/M4/frame-selection-handles.md) — direct manipulation
 - [x] [feature] [layout-grids-settings](roadmap/M4/layout-grids-settings.md) — margins, columns, rows, gutters
 - [x] [feature] [layout-grids-render-snap](roadmap/M4/layout-grids-render-snap.md) — see the grid
 - [x] [feature] [layout-grids-snap-wire](roadmap/M4/layout-grids-snap-wire.md) — wire grid snap into frame move/resize
 - [x] [feature] [free-frames](roadmap/M4/free-frames.md) — free layout
 - [x] [feature] [look-parity-inspector-tabs](roadmap/M4/look-parity-inspector-tabs.md) — look parity: inspector Frame / Spread / Book tabs
-- [ ] [feature] [photo-rotate](roadmap/M4/photo-rotate.md) — rotate photos in frames
-- [ ] [feature] [inspector](roadmap/M4/inspector.md) — numeric properties
-- [ ] [feature] [arrange-lock](roadmap/M4/arrange-lock.md) — stacking and locking
-- [ ] [feature] [multi-select](roadmap/M4/multi-select.md) — group operations
 - [x] [feature] [inspector-frame-sections](roadmap/M4/inspector-frame-sections.md) — look parity: inspector Frame tab sections (Geometry / Arrange / Align / Delete)
 - [x] [feature] [inspector-spread-book](roadmap/M4/inspector-spread-book.md) — look parity: inspector Spread and Book tab sections (Layout / Layout grid; Book settings + grid)
 - [x] [lite] [look-parity-scrollbars](roadmap/M4/look-parity-scrollbars.md) — look parity: thin custom scrollbars (kit v5)
@@ -82,86 +171,6 @@ Process: [roadmap/RULES.md](roadmap/RULES.md). One file per item: `roadmap/<mile
 - [x] [feature] [canvas-frame-chrome](roadmap/M4/canvas-frame-chrome.md) — look parity: canvas frame chrome (size tag, hover, empty/missing, lock, chips, rotate handle)
 - [x] [feature] [topbar-kit-parity](roadmap/M4/topbar-kit-parity.md) — look parity: editor top bar and zoom menu as UI kit
 - [x] [feature] [look-parity-dock-filmstrip](roadmap/M4/look-parity-dock-filmstrip.md) — look parity: dock header, folder drop overlay, filmstrip tiles and empty text
-
-## M4.5 — Text, styles and reuse (local editor complete)
-
-**Review cut:** the local editor is complete for personal use — captions from photo metadata, frame styles, parent spreads that carry layout grids, guides and shared elements across the book (overridable per spread), your own templates, all at 60 fps.
-
-- [ ] [prep] [book-fonts](roadmap/M4.5/book-fonts.md) — fonts for book content
-- [ ] [prep] [text-frame-model](roadmap/M4.5/text-frame-model.md) — text in the document
-- [ ] [feature] [text-blocks](roadmap/M4.5/text-blocks.md) — captions
-- [ ] [feature] [live-captions](roadmap/M4.5/live-captions.md) — captions from photo metadata
-- [ ] [prep] [book-styles-schema](roadmap/M4.5/book-styles-schema.md) — book-level styles in the document
-- [ ] [feature] [frame-styles](roadmap/M4.5/frame-styles.md) — consistent frames across the book
-- [ ] [feature] [user-templates](roadmap/M4.5/user-templates.md) — your own layouts
-- [ ] [prep] [parent-spreads-schema](roadmap/M4.5/parent-spreads-schema.md) — parent spreads in the document
-- [ ] [feature] [parent-spreads](roadmap/M4.5/parent-spreads.md) — parent spreads
-- [ ] [feature] [layout-grids-parent-inherit](roadmap/M4.5/layout-grids-parent-inherit.md) — grids on parent spreads
-- [ ] [feature] [parent-guides](roadmap/M4.5/parent-guides.md) — guides on parent spreads
-- [ ] [feature] [parent-overrides](roadmap/M4.5/parent-overrides.md) — change one spread without touching the parent
-- [ ] [feature] [page-numbers](roadmap/M4.5/page-numbers.md) — page numbers
-
-## M5 — Showcase site with books (local)
-
-**Review cut:** the showcase site with your books, previewed from the editor and exported to a folder, looks right and scrolls / swipes at 60 fps on a phone and on a 27″ 4K screen.
-
-**Not now:** parked until photo preprocessing + Cloudflare; kit site demos (`uikit#/screen/showcase-site`) are reference only until this milestone resumes.
-
-- [ ] [prep] [image-derivatives](roadmap/M5/image-derivatives.md) — web image pipeline
-- [ ] [prep] [avif-encoder](roadmap/M5/avif-encoder.md) — AVIF derivatives (Security Review: dependency)
-- [ ] [prep] [publish-revisions](roadmap/M5/publish-revisions.md) — draft vs published
-- [ ] [feature] [site-viewer](roadmap/M5/site-viewer.md) — viewer entry
-- [ ] [feature] [site-preview-mode](roadmap/M5/site-preview-mode.md) — preview the site from the editor
-- [ ] [feature] [site-lightbox](roadmap/M5/site-lightbox.md) — fullscreen and swipe
-- [ ] [prep] [static-export-core](roadmap/M5/static-export-core.md) — deterministic site tree
-- [ ] [feature] [static-export](roadmap/M5/static-export.md) — write `dist/`
-- [ ] [feature] [derivative-tuning](roadmap/M5/derivative-tuning.md) — decide final sizes
-
-## M7 — Deploy as my site
-
-**Review cut:** your own live site with your books, updated incrementally from the editor.
-
-**Not now:** parked with M5 (photo preprocess + Cloudflare); kit publish demos are reference only until this milestone resumes.
-
-- [ ] [prep] [hosting-decision](roadmap/M7/hosting-decision.md) — spike
-- [ ] [feature] [manual-deploy](roadmap/M7/manual-deploy.md) — documented deploy path
-- [ ] [feature] [publish-credentials](roadmap/M7/publish-credentials.md) — connect the editor to your hosting (Security Review)
-- [ ] [feature] [in-app-publish](roadmap/M7/in-app-publish.md) — publish button (Security Review)
-
-## M6 — Print
-
-**Review cut:** a PDF (pages or spreads, as the print shop wants) or JPEG spreads you can send to a print shop, a cover with the right spine, and a booklet you can print at home; low-resolution photos are flagged on their frames while you lay out; exporting never freezes the editor.
-
-**Not now for kit demos:** print screens (`uikit#/screen/print-prep`, `print-export`) wait until after the editor-ready M2.6 cut and M5/M7; do not start print UI ports from those demos yet.
-
-- [ ] [prep] [print-model-schema](roadmap/M6/print-model-schema.md) — print settings and cover in the document
-- [ ] [prep] [print-profiles](roadmap/M6/print-profiles.md) — printer data and preflight
-- [ ] [feature] [dpi-badge](roadmap/M6/dpi-badge.md) — resolution while you lay out
-- [ ] [feature] [print-overlays](roadmap/M6/print-overlays.md) — see print constraints
-- [ ] [feature] [preflight-panel](roadmap/M6/preflight-panel.md) — print warnings
-- [ ] [feature] [preflight-fixes](roadmap/M6/preflight-fixes.md) — fix from the panel
-- [ ] [prep] [pdf-painter](roadmap/M6/pdf-painter.md) — worker PDF painter (Security Review: dependency)
-- [ ] [prep] [pdf-color-tagging](roadmap/M6/pdf-color-tagging.md) — keep photo colors
-- [ ] [feature] [pdf-export](roadmap/M6/pdf-export.md) — print PDF
-- [ ] [contingency] [pdf-streaming](roadmap/M6/pdf-streaming.md) — only if `pdf-export` peak memory is too high
-- [ ] [feature] [jpeg-spreads-export](roadmap/M6/jpeg-spreads-export.md) — JPEG spreads
-- [ ] [feature] [pdf-captions](roadmap/M6/pdf-captions.md) — text in the PDF
-- [ ] [feature] [print-package-report](roadmap/M6/print-package-report.md) — what the print shop needs
-- [ ] [feature] [booklet-imposition](roadmap/M6/booklet-imposition.md) — home printing
-- [ ] [feature] [cover-editor](roadmap/M6/cover-editor.md) — cover in the editor
-- [ ] [feature] [cover-pdf](roadmap/M6/cover-pdf.md) — cover PDF
-
-## M8 — For others
-
-**Review cut:** someone else opens the editor, makes a book, prints it and publishes their own site to their own account without touching code or config files.
-
-**Re-plan:** at the M6 review cut; items are not yet sliced to the change budget.
-
-- [ ] [prep] [publisher-targets](roadmap/M8/publisher-targets.md) — generalize publishing
-- [ ] [feature] [onboarding](roadmap/M8/onboarding.md) — first run
-- [ ] [feature] [connect-own-hosting](roadmap/M8/connect-own-hosting.md) — bring your own hosting (Security Review)
-- [ ] [feature] [site-settings](roadmap/M8/site-settings.md) — personalize the showcase
-- [ ] [feature] [printer-presets](roadmap/M8/printer-presets.md) — print for everyone
 
 ## Deferred (not scheduled)
 

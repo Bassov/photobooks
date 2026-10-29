@@ -20,7 +20,7 @@ Look parity, Phase B #1 (Owner 2026-10-29: the editor must look exactly like the
 **Perf:** no new per-frame work; panel still subscribes to selection and the book snapshot only.
 
 - **Kit components:** `InspectorPanel`, `EmptyInspector` (`uikit/src/sandbox/inspector.tsx`); `Tabs` / `TabList` / `Tab` size sm (`uikit/src/components/ui/tabs.tsx`; `segList` / `segTab` in `uikit/src/sandbox/chrome.tsx` are empty hooks); `IconButton` + `PanelRightClose`; hotkeys `[` `\` `]` / `I` in `chrome.tsx`.
-- **Demo:** `inspector` → `uikit/src/features/m4.tsx`
+- **Demo:** `inspector` → `uikit/src/features/pages.tsx`
 - **Musts:**
   - Tabs `[frame "Frame", spread "Spread", book "Book"]` in that order, default Frame; header row `h-12`, `gap-1.5`, `pl-2 pr-1.5`; tabs `grid flex-1` with `repeat(3, minmax(0,1fr))`; collapse button right of the tabs.
   - Frame tab always present; with no frame it shows the spread summary and "Select a frame to edit it."

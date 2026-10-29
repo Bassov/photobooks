@@ -11,5 +11,5 @@ Status: done
 - [ ] Drop between spreads creates a new spread with the best-fit template (`template-slot-aspects`)
 - **Perf:** one op per drop; drop targets from cached mm rects. Gate: drop 4 photos on a zoomed-out book — zero LoAF, `dragover` p95 ≤ 2 ms.
 - **Browser check:** select four photos, drop them on a 4-grid spread, all frames fill in order; drop two portraits between spreads — a new 2-portrait spread appears.
-- **UI ref:** `uikit#/feature/multi-drop-fill`
-- **UI kit:** `uikit/src/features/m3.tsx:275-284` (`multi-drop-fill` demo + notes), `UI ref: uikit#/feature/multi-drop-fill` — multi-select drop fill + between-spread zones
+- **UI ref:** `uikit#/feature/drag-place-replace`
+- **UI kit:** `uikit/src/features/pages.tsx` page `drag-place-replace`, `UI ref: uikit#/feature/drag-place-replace` — multi-select drop fill + between-spread zones
