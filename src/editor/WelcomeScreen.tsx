@@ -7,7 +7,9 @@ import {
   getProjectSessionSnapshot,
   regrantLibrary,
   startSessionEditor,
+  STORAGE_UNAVAILABLE_MESSAGE,
   subscribeProjectSession,
+  tryRestore,
 } from './projectSession'
 import { WELCOME_HERO_SRC } from './welcomeCredits'
 import { WelcomePhotoCaption } from './WelcomePhotoCaption'
@@ -134,6 +136,18 @@ export function WelcomeScreen() {
             <Status className="mt-6" data-testid="welcome-error">
               {project.homeError}
             </Status>
+          ) : null}
+          {project.homeError === STORAGE_UNAVAILABLE_MESSAGE ? (
+            <Button
+              className="mt-4"
+              isDisabled={busy}
+              data-testid="welcome-retry"
+              onPress={() => {
+                void tryRestore()
+              }}
+            >
+              Retry
+            </Button>
           ) : null}
         </div>
         <WelcomePhotoCaption
