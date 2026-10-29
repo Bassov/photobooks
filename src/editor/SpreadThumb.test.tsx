@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import { Profiler } from 'react'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addSpread, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { dispatchBookOp, resetBookStore } from './bookStore'
 import { patchRelinkStatus, resetRelinkStore } from './relink/statusStore'
 import { SpreadThumb } from './SpreadThumb'
+import { queueTierSwap, resetTierDisplay, setSpreadTiers } from './tierDisplay'
 import { resetThumbCache, setThumbUrl } from './thumbCache'
 
 function twoSpreadBook() {
@@ -62,13 +63,17 @@ describe('SpreadThumb', () => {
 
   it('renders nothing for an unknown spread', () => {
     seed()
-    const { container } = render(<SpreadThumb spreadId="nope" widthPx={128} />)
+    const { container } = render(
+      <SpreadThumb spreadId="nope" boxWidthPx={128} boxHeightPx={1000} />,
+    )
     expect(container.firstChild).toBeNull()
   })
 
   it('paints an inert view scaled to the requested width', () => {
     seed()
-    const { container } = render(<SpreadThumb spreadId="s0" widthPx={128} />)
+    const { container } = render(
+      <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />,
+    )
     const view = container.firstElementChild as HTMLElement
     expect(view.classList.contains('spread-view--thumb')).toBe(true)
     expect(view.getAttribute('aria-hidden')).toBe('true')
@@ -80,7 +85,9 @@ describe('SpreadThumb', () => {
 
   it('shows the filmstrip thumb, and picks up one that arrives later', () => {
     seed()
-    const { container } = render(<SpreadThumb spreadId="s0" widthPx={128} />)
+    const { container } = render(
+      <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />,
+    )
     expect(container.querySelector('img')).toBeNull()
     act(() => {
       setThumbUrl('a', new Uint8Array([1]).buffer, 'image/jpeg')
@@ -92,7 +99,9 @@ describe('SpreadThumb', () => {
 
   it('falls back to the book preview url when there is no thumb', () => {
     seed(new Map([['a', 'data:image/svg+xml,preview']]))
-    const { container } = render(<SpreadThumb spreadId="s0" widthPx={128} />)
+    const { container } = render(
+      <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />,
+    )
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       'data:image/svg+xml,preview',
     )
@@ -101,15 +110,43 @@ describe('SpreadThumb', () => {
   it('prefers the thumb over the book preview url', () => {
     seed(new Map([['a', 'data:image/svg+xml,preview']]))
     setThumbUrl('a', new Uint8Array([1]).buffer, 'image/jpeg')
-    const { container } = render(<SpreadThumb spreadId="s0" widthPx={128} />)
+    const { container } = render(
+      <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />,
+    )
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       'blob:thumb',
     )
   })
 
+  it('shows the canvas tier image when the filmstrip has no thumb for a placed photo', async () => {
+    seed()
+    class DecodedImage {
+      decoding = ''
+      src = ''
+      decode(): Promise<void> {
+        return Promise.resolve()
+      }
+    }
+    vi.stubGlobal('Image', DecodedImage)
+    const { container } = render(
+      <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />,
+    )
+    expect(container.querySelector('img')).toBeNull()
+    setSpreadTiers('canvas', new Map([['a', 640]]))
+    queueTierSwap('a', 640, 'blob:tier')
+    await waitFor(() => {
+      expect(container.querySelector('img')?.getAttribute('src')).toBe(
+        'blob:tier',
+      )
+    })
+    resetTierDisplay()
+  })
+
   it('hatches a missing asset and clears when it is found again', () => {
     seed(new Map([['a', 'data:image/svg+xml,preview']]))
-    const { container } = render(<SpreadThumb spreadId="s0" widthPx={128} />)
+    const { container } = render(
+      <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />,
+    )
     expect(container.querySelector('.spread-frame-missing')).toBeNull()
     act(() => {
       patchRelinkStatus('a', 'missing')
@@ -133,10 +170,10 @@ describe('SpreadThumb', () => {
     render(
       <>
         <Profiler id="s0" onRender={() => (counts.s0 += 1)}>
-          <SpreadThumb spreadId="s0" widthPx={128} />
+          <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />
         </Profiler>
         <Profiler id="s1" onRender={() => (counts.s1 += 1)}>
-          <SpreadThumb spreadId="s1" widthPx={128} />
+          <SpreadThumb spreadId="s1" boxWidthPx={128} boxHeightPx={1000} />
         </Profiler>
       </>,
     )

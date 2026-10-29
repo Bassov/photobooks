@@ -13,6 +13,7 @@ import {
   spreadsKeyAction,
   spreadsListWindow,
   spreadsRowGeometry,
+  fitThumbPx,
 } from './spreadsPanelModel'
 
 const ROW = spreadsRowGeometry(0, 2).rowPx
@@ -78,6 +79,12 @@ describe('spreadsPanelModel', () => {
     expect(scrollTopToReveal(0, 10, 20, ROW)).toBe(0)
     // No selection never scrolls.
     expect(scrollTopToReveal(-1, ROW, 400, ROW)).toBeNull()
+  })
+
+  it('fits each spread into the shared thumb box at its own aspect', () => {
+    // Wide spread fills the width, a square one is height-limited.
+    expect(fitThumbPx(156, 97.5, 2)).toEqual({ widthPx: 156, heightPx: 78 })
+    expect(fitThumbPx(156, 97.5, 1)).toEqual({ widthPx: 97.5, heightPx: 97.5 })
   })
 
   it('sizes the row like the kit: thumb keeps the spread aspect', () => {

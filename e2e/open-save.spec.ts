@@ -49,6 +49,8 @@ test('welcome offers Create Library without page scroll', async ({ page }) => {
 test('Start editing from empty home restores empty-editor pasteboard scroll', async ({
   page,
 }) => {
+  // Short enough that the tight dock still leaves the pasteboard scrolling.
+  await page.setViewportSize({ width: 1280, height: 600 })
   await page.goto('/')
   await expect(page.getByTestId('welcome-loading')).toHaveCount(0, {
     timeout: 15_000,

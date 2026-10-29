@@ -229,6 +229,9 @@ button.spread-frame:not(
 }
 
 .spread-frame-body {
+  /* Containing block for the absolute image: overflow clips only descendants
+     whose containing block is inside the clipping box. */
+  position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;

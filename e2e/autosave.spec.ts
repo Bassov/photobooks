@@ -21,6 +21,8 @@ import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
 test('clean library-backed book shows Saved without page scroll', async ({
   page,
 }) => {
+  // Short enough that the tight dock still leaves the pasteboard scrolling.
+  await page.setViewportSize({ width: 1280, height: 600 })
   await page.goto('/?testLibrary=1')
   await expect(page.getByTestId('book-size')).toContainText(/· saved$/, {
     timeout: 15_000,

@@ -25,13 +25,14 @@ afterEach(() => {
 
 describe('FilmstripStatus', () => {
   it('returns null when idle with an empty gallery', () => {
-    const { container } = render(<FilmstripStatus photoCount={0} />)
+    const { container } = render(<FilmstripStatus />)
     expect(container.firstChild).toBeNull()
   })
 
-  it('shows photo count without a progress bar when not importing', () => {
-    render(<FilmstripStatus photoCount={2} />)
-    expect(screen.getByTestId('filmstrip-count').textContent).toBe('2 photos')
+  it('has no separate photo count line (the dock header owns it)', () => {
+    const { container } = render(<FilmstripStatus />)
+    expect(screen.queryByTestId('filmstrip-count')).toBeNull()
+    expect(container.firstChild).toBeNull()
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.queryByTestId('import-progress')).toBeNull()
   })
@@ -43,8 +44,7 @@ describe('FilmstripStatus', () => {
       errors: [],
       running: true,
     })
-    render(<FilmstripStatus photoCount={0} />)
-    expect(screen.getByTestId('filmstrip-count').textContent).toBe('0 photos')
+    render(<FilmstripStatus />)
     expect(screen.getByTestId('import-progress').textContent).toMatch(
       /Importing 3 \/ 10/,
     )
@@ -60,7 +60,7 @@ describe('FilmstripStatus', () => {
       errors: [],
       running: true,
     })
-    render(<FilmstripStatus photoCount={0} />)
+    render(<FilmstripStatus />)
     expect(
       screen
         .getByRole('progressbar', { name: 'Importing' })
@@ -75,7 +75,7 @@ describe('FilmstripStatus', () => {
       running: true,
       phase: 'priority',
     })
-    render(<FilmstripStatus photoCount={3} />)
+    render(<FilmstripStatus />)
     expect(screen.getByTestId('folder-rescan-progress').textContent).toMatch(
       /Checking photos 2 \/ 8/,
     )
@@ -91,7 +91,7 @@ describe('FilmstripStatus', () => {
       running: true,
       phase: 'lazy',
     })
-    render(<FilmstripStatus photoCount={0} />)
+    render(<FilmstripStatus />)
     expect(screen.getByTestId('folder-rescan-progress').textContent).toMatch(
       /Scanning folder 0 \/ 0/,
     )
@@ -116,12 +116,11 @@ describe('FilmstripStatus', () => {
       errors: [],
       running: false,
     })
-    render(<FilmstripStatus photoCount={1} />)
+    render(<FilmstripStatus />)
     const button = screen.getByRole('button', {
       name: /Imported with 1 error/,
     })
     expect(screen.queryByRole('progressbar')).toBeNull()
-    expect(screen.getByTestId('filmstrip-count').textContent).toBe('1 photo')
     expect(isImportErrorsPanelOpen()).toBe(false)
     fireEvent.click(button)
     expect(isImportErrorsPanelOpen()).toBe(true)
