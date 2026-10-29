@@ -16,7 +16,7 @@ export function DemoSite({ id, initial }: { id: string; initial?: Partial<SiteSt
   const [bookId, setBookId] = React.useState(id)
   const entry = d.siteEntry ?? "catalog"
   const b = d.books.find((x) => x.id === bookId) ?? d.books.find((x) => x.id === id) ?? published[0]
-  React.useLayoutEffect(() => { if (b) setEditorExtras(b.extras ?? blankExtras(b.title)) }, [b?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useLayoutEffect(() => { if (b) setEditorExtras(b.extras ?? blankExtras(b.title)) }, [b?.id])
   const cards = (published.length ? published : b ? [b] : []).map((x) => ({
     ...BOOKS[0], id: x.id, title: x.title, cover: coverOf(x) ?? "", spreads: x.doc?.spreads.length ?? 10, format: fmtOf(x.book), status: "published" as const,
   }))

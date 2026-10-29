@@ -30,7 +30,7 @@ export function DocSpy({ id }: { id: string }) {
     const doc = reflowDoc(st.doc, st.book, BOOK0) // store in base geometry: StudioProvider reflows init docs from BOOK0
     // v0.8.1 (P1-1): the whole editor state is kept per book — doc, size, cover photo + texts, masters (incl. grids)
     set({ books: S.books.map((b) => (b.id === id ? { ...b, doc, book: st.book, extras: { cover: cov, coverText: ct, masters: ms } } : b)) })
-  }, [st.doc, st.book, id, cov, ct, ms]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [st.doc, st.book, id, cov, ct, ms])
   return null
 }
 /** Filmstrip dock "Add folder…" button + folder picker (adds all kit photos not yet in the gallery). */
@@ -115,7 +115,7 @@ export function InspectorPart({ view = "spread", frame = 0, ...p }: PartState & 
 }
 function InspectorPick({ view, frame }: { view: string; frame: number }) {
   const st = useStudio()
-  React.useEffect(() => { if (view === "frame") { const f = st.doc.spreads[st.cur]?.frames[frame]; if (f) st.setSel([f.id]) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { if (view === "frame") { const f = st.doc.spreads[st.cur]?.frames[frame]; if (f) st.setSel([f.id]) } }, [])
   return null
 }
 /** Canvas (pasteboard + spread + status line) alone, in the editor shell with no panels. */
@@ -142,6 +142,6 @@ export function EditorView({ title = "Lake trip", slots = {}, pick, crop, view, 
 }
 function CropOn() {
   const st = useStudio()
-  React.useEffect(() => { const t = setTimeout(() => { if (st.sel[0]) st.setCropId(st.sel[0]) }, 0); return () => clearTimeout(t) }, [st.sel[0]]) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { const t = setTimeout(() => { if (st.sel[0]) st.setCropId(st.sel[0]) }, 0); return () => clearTimeout(t) }, [st.sel[0]])
   return null
 }

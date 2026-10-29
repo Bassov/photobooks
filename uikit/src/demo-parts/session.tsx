@@ -47,6 +47,6 @@ export function useRun(on: boolean, ms: number, done: () => void) {
     const t0 = performance.now(); let raf = 0
     const tick = () => { const k = Math.min(1, (performance.now() - t0) / ms); setV(Math.round(k * 100)); if (k < 1) raf = requestAnimationFrame(tick); else done() }
     raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf)
-  }, [on]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [on])
   return v
 }
