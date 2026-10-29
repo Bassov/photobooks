@@ -228,6 +228,8 @@ export function usePasteboardCamera({
   fitSpread: () => void
   fitWidth: () => void
   actualSize: () => void
+  zoomTo: (zoom: number) => void
+  fitSpreadZoom: () => number | null
 } {
   const bookRef = useRef({
     spreadCount,
@@ -839,6 +841,11 @@ export function usePasteboardCamera({
   }, [scrollRef, worldRef])
 
   return {
+    zoomTo: (zoom) => {
+      stopFollowingFit()
+      placeZoom(zoom)
+    },
+    fitSpreadZoom,
     fitSpread: () => {
       beginDelayedFitFollow(delayedFitRef.current)
       applyFitSpread()

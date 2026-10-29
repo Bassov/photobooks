@@ -4,10 +4,16 @@ import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
-import { formatZoomPercent } from './camera'
-import { commitZoom, resetCameraStore, setLiveZoom } from './cameraStore'
+import { formatZoomPercent, physicalZoom } from './camera'
+import {
+  commitZoom,
+  getCameraCommands,
+  getCommittedZoom,
+  resetCameraStore,
+  setLiveZoom,
+} from './cameraStore'
 import { resetBookStore } from './bookStore'
-import { Pasteboard } from './Pasteboard'
+import { PasteboardWithCameraBar as Pasteboard } from './testing/PasteboardWithCameraBar'
 
 const editorShellCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'EditorShell.css'),
@@ -30,7 +36,8 @@ describe('pasteboard camera', () => {
     expect(screen.getByRole('button', { name: 'Fit width' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '100%' })).toBeTruthy()
     expect(screen.getByTestId('zoom-indicator').textContent).toBe('13%')
-    expect(editorShellCss).toMatch(/\.camera-bar/)
+    expect(editorShellCss).not.toMatch(/\.camera-bar|\.zoom-indicator/)
+    expect(screen.queryByRole('toolbar', { name: 'Camera' })).toBeNull()
 
     const before = screen.getAllByTestId('pasteboard-slot').length
     act(() => {
@@ -42,6 +49,41 @@ describe('pasteboard camera', () => {
       formatZoomPercent(3),
     )
     expect(screen.getAllByTestId('spread-view')[0]?.style.width).toBe('150px')
+  })
+
+  it('exposes camera commands to the top bar and clears them on unmount', () => {
+    const view = render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    Object.defineProperty(scroll, 'clientWidth', {
+      configurable: true,
+      get: () => 640,
+    })
+    Object.defineProperty(scroll, 'clientHeight', {
+      configurable: true,
+      get: () => 400,
+    })
+    const commands = getCameraCommands()
+    expect(commands).not.toBeNull()
+
+    act(() => {
+      commands?.zoomTo(physicalZoom() * 2)
+    })
+    expect(screen.getByTestId('zoom-indicator').textContent).toBe('200%')
+
+    act(() => {
+      commands?.fitWidth()
+    })
+    const width = Number.parseFloat(
+      screen.getAllByTestId('spread-view')[0]?.style.width ?? '',
+    )
+    expect(width).toBeCloseTo(640, 0)
+
+    const fit = commands?.fitSpreadZoom() ?? 0
+    expect(fit).toBeGreaterThan(0)
+    expect(fit).toBeLessThanOrEqual(getCommittedZoom())
+
+    view.unmount()
+    expect(getCameraCommands()).toBeNull()
   })
 
   it('sets physical size when 100% is chosen', () => {

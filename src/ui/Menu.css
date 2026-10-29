@@ -50,6 +50,14 @@
   color: var(--destructive);
 }
 
+.pb-menu-keyboard {
+  margin-left: auto;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+
 .pb-menu-separator {
   height: 1px;
   margin: calc(var(--spacing) * 1) calc(var(--spacing) * -1);

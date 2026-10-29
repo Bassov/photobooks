@@ -7,6 +7,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { chooseZoom } from './fixtures/zoomMenu'
 import { expectMissingHatchAfterRestore } from './fixtures/relinkAfterRestore'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import {
@@ -93,6 +94,8 @@ test('autosave persists edits across reload without manual Save', async ({
   await expect(page.getByTestId('book-size')).toHaveText(/· saved$/)
 
   await assertDocumentFitsViewport(page)
+  // Fit shows the whole spread, so overflow needs a deterministic zoom-in.
+  await chooseZoom(page, '200%')
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',
     nudgeHorizontal: false,

@@ -15,8 +15,14 @@ import * as pickPhotos from '../photo/pickPhotos'
 import type { PickedPhotoFolder } from '../photo/pickPhotos'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
-import { resetBookStore } from './bookStore'
-import { commitZoom, getCommittedZoom, resetCameraStore } from './cameraStore'
+import { dispatchBookOp, resetBookStore } from './bookStore'
+import { physicalZoom } from './camera'
+import {
+  commitZoom,
+  getCommittedZoom,
+  registerCameraCommands,
+  resetCameraStore,
+} from './cameraStore'
 import { EditorShell } from './EditorShell'
 import * as importPhotos from './importPhotos'
 import {
@@ -106,6 +112,124 @@ describe('EditorTopBar', () => {
     expect(getCommittedZoom()).toBeCloseTo(1.25)
     fireEvent.click(screen.getByTestId('zoom-out'))
     expect(getCommittedZoom()).toBeCloseTo(1)
+  })
+
+  it('has no placeholder buttons and a Preview pill that presents', () => {
+    render(<EditorShell />)
+    expect(screen.queryByTestId('editor-preview')).toBeNull()
+    expect(screen.queryByTestId('export')).toBeNull()
+    expect(screen.queryByTestId('editor-publish')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Export' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Publish' })).toBeNull()
+    expect(screen.queryByTestId('camera-bar')).toBeNull()
+    expect(screen.queryByRole('toolbar', { name: 'Camera' })).toBeNull()
+    const preview = screen.getByTestId('present')
+    expect(preview.textContent).toBe('Preview')
+  })
+
+  it('uses kit undo / redo tooltips without action names', () => {
+    render(<EditorShell />)
+    expect(screen.getByTestId('undo').getAttribute('aria-label')).toBe(
+      'Nothing to undo',
+    )
+    expect(screen.getByTestId('redo').getAttribute('aria-label')).toBe(
+      'Nothing to redo',
+    )
+    act(() => {
+      dispatchBookOp({ type: 'addSpread', templateId: 'one-per-page' })
+    })
+    expect(screen.getByTestId('undo').getAttribute('aria-label')).toBe(
+      'Undo (Ctrl+Z)',
+    )
+    fireEvent.click(screen.getByTestId('undo'))
+    expect(screen.getByTestId('redo').getAttribute('aria-label')).toBe(
+      'Redo (Shift+Ctrl+Z)',
+    )
+  })
+
+  it('drives the camera from the zoom menu with key hints', () => {
+    render(<EditorShell />)
+    const commands = {
+      fitSpread: vi.fn(),
+      fitWidth: vi.fn(),
+      actualSize: vi.fn(),
+      zoomTo: vi.fn(),
+      fitSpreadZoom: vi.fn(() => 0.5),
+    }
+    registerCameraCommands(commands)
+    act(() => {
+      commitZoom(0.5, 0, 0)
+    })
+    const trigger = screen.getByTestId('zoom-menu')
+    expect(screen.getByTestId('zoom-label').textContent).toBe('Fit')
+
+    const open = (): void => {
+      fireEvent.click(trigger)
+    }
+    open()
+    const items = screen.getAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Fit spread Ctrl+0',
+      'Fit width',
+      '100%',
+      '150%',
+      '200%',
+      '400%',
+      '50%',
+    ])
+    expect(screen.getByText('Ctrl+0').className).toContain('pb-menu-keyboard')
+    fireEvent.click(screen.getByRole('menuitem', { name: /Fit spread/ }))
+    expect(commands.fitSpread).toHaveBeenCalledTimes(1)
+
+    open()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fit width' }))
+    expect(commands.fitWidth).toHaveBeenCalledTimes(1)
+
+    open()
+    fireEvent.click(screen.getByRole('menuitem', { name: '100%' }))
+    expect(commands.actualSize).toHaveBeenCalledTimes(1)
+
+    for (const percent of [150, 200, 400, 50]) {
+      open()
+      fireEvent.click(
+        screen.getByRole('menuitem', { name: `${String(percent)}%` }),
+      )
+      expect(commands.zoomTo).toHaveBeenLastCalledWith(
+        (physicalZoom() * percent) / 100,
+      )
+    }
+
+    act(() => {
+      commitZoom(physicalZoom() * 2, 0, 0)
+    })
+    expect(screen.getByTestId('zoom-label').textContent).toBe('200%')
+  })
+
+  it('fits the spread on Ctrl+0 / Cmd+0 except in text fields', () => {
+    render(<EditorShell />)
+    const fitSpread = vi.fn()
+    registerCameraCommands({
+      fitSpread,
+      fitWidth: vi.fn(),
+      actualSize: vi.fn(),
+      zoomTo: vi.fn(),
+      fitSpreadZoom: () => null,
+    })
+    fireEvent.keyDown(window, { key: '0', ctrlKey: true })
+    fireEvent.keyDown(window, { key: '0', metaKey: true })
+    expect(fitSpread).toHaveBeenCalledTimes(2)
+    fireEvent.keyDown(window, { key: '0' })
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true })
+    expect(fitSpread).toHaveBeenCalledTimes(2)
+    const input = document.createElement('input')
+    document.body.append(input)
+    fireEvent.keyDown(input, { key: '0', ctrlKey: true })
+    const area = document.createElement('textarea')
+    document.body.append(area)
+    fireEvent.keyDown(area, { key: '0', ctrlKey: true })
+    input.remove()
+    area.remove()
+    expect(fitSpread).toHaveBeenCalledTimes(2)
   })
 
   it('saves on Ctrl+S when a library is open and ignores other keys', async () => {

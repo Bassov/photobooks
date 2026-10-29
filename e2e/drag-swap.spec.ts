@@ -16,6 +16,7 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
 const FRAME_DRAG_MIME = 'application/x-photobooks-frame'
 const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
@@ -191,7 +192,7 @@ test.describe('keyboard rearrange', () => {
     await assertDocumentFitsViewport(page)
     // Session opens at stack-fit (~13%). Classes/outlineWidth were green while
     // the inset ring stayed under the photo — assert pixels change vs cancel.
-    const zoomText = await page.getByTestId('zoom-indicator').innerText()
+    const zoomText = await readZoomPercent(page)
     const zoomPercent = Number.parseInt(zoomText.replace('%', ''), 10)
     expect(zoomPercent).toBeGreaterThan(0)
     expect(zoomPercent).toBeLessThan(40)
@@ -335,7 +336,10 @@ test.describe('keyboard rearrange', () => {
     const frame = active.locator(`button[data-frame-id="${frameId ?? ''}"]`)
 
     async function assertRingPaintsAtZoom(expectedZoom: RegExp): Promise<void> {
-      await expect(page.getByTestId('zoom-indicator')).toHaveText(expectedZoom)
+      await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+        'data-zoom-percent',
+        expectedZoom,
+      )
       await frame.focus()
       await page.keyboard.press('Enter')
       await expect(frame).toHaveAttribute('aria-pressed', 'true')
@@ -345,23 +349,26 @@ test.describe('keyboard rearrange', () => {
       await expect(frame).not.toHaveAttribute('aria-pressed', 'true')
       await page.getByRole('grid', { name: 'Book gallery' }).focus()
       const cancelledShot = await frame.screenshot()
-      const zoomLabel = await page.getByTestId('zoom-indicator').innerText()
+      const zoomLabel = await readZoomPercent(page)
       expect(
         Buffer.compare(activeShot, cancelledShot),
         `move-source ring must paint at ${zoomLabel} (active vs cancelled pixels)`,
       ).not.toBe(0)
     }
 
-    await expect(page.getByTestId('zoom-indicator')).toHaveText(/^\d+%$/)
+    await expect(page.getByTestId('zoom-label')).toHaveAttribute(
+      'data-zoom-percent',
+      /^\d+%$/,
+    )
     const fitPercent = Number.parseInt(
-      (await page.getByTestId('zoom-indicator').innerText()).replace('%', ''),
+      (await readZoomPercent(page)).replace('%', ''),
       10,
     )
     expect(fitPercent).toBeGreaterThan(0)
     expect(fitPercent).toBeLessThan(40)
     await assertRingPaintsAtZoom(new RegExp(`^${String(fitPercent)}%$`))
 
-    await page.getByRole('button', { name: '100%' }).click()
+    await chooseZoom(page, '100%')
     await assertRingPaintsAtZoom(/^100%$/)
     await assertDocumentFitsViewport(page)
   })

@@ -1,3 +1,4 @@
+import type { Key } from 'react-aria-components'
 import {
   useEffect,
   useSyncExternalStore,
@@ -7,12 +8,22 @@ import {
 import { Button } from '../ui/Button'
 import '../ui/Button.css'
 import { Icon } from '../ui/Icon'
+import {
+  Menu,
+  MenuItem,
+  MenuKeyboard,
+  MenuPopover,
+  MenuSeparator,
+  MenuTrigger,
+} from '../ui/Menu'
 import { IconButton } from '../ui/IconButton'
 import { Status } from '../ui/Status'
 import '../ui/Toolbar.css'
 import { displayBookTitle } from '../project'
+import { formatZoomPercent, physicalZoom } from './camera'
 import {
   commitZoom,
+  getCameraCommands,
   getCommittedCamera,
   getCommittedZoom,
   getLiveZoom,
@@ -142,9 +153,9 @@ function HistoryChrome() {
     getHistorySnapshot,
   )
   return (
-    <div className="flex items-center gap-0.5" style={{ color: SUB }}>
+    <div className="ml-2 flex items-center gap-0.5" style={{ color: SUB }}>
       <IconButton
-        label="Undo (Ctrl Z)"
+        label={canUndo ? 'Undo (Ctrl+Z)' : 'Nothing to undo'}
         size="sm"
         data-testid="undo"
         isDisabled={!canUndo}
@@ -153,7 +164,7 @@ function HistoryChrome() {
         <Icon name="undo" size={16} />
       </IconButton>
       <IconButton
-        label="Redo (Shift Ctrl Z)"
+        label={canRedo ? 'Redo (Shift+Ctrl+Z)' : 'Nothing to redo'}
         size="sm"
         data-testid="redo"
         isDisabled={!canRedo}
@@ -173,7 +184,38 @@ function ZoomChrome() {
     getCommittedZoom,
   )
   const zoom = live || committed
-  const label = zoomChromeLabel(zoom)
+  const label = zoomChromeLabel(
+    zoom,
+    getCameraCommands()?.fitSpreadZoom() ?? null,
+  )
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== '0' || !(event.ctrlKey || event.metaKey)) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement)
+      ) {
+        return
+      }
+      event.preventDefault()
+      getCameraCommands()?.fitSpread()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
+  const onAction = (key: Key): void => {
+    const commands = getCameraCommands()
+    if (commands === null) return
+    if (key === 'fit-spread') commands.fitSpread()
+    else if (key === 'fit-width') commands.fitWidth()
+    else if (key === '100') commands.actualSize()
+    else commands.zoomTo((physicalZoom() * Number(key)) / 100)
+  }
   return (
     <div className="flex items-center gap-0.5 text-sm" style={{ color: SUB }}>
       <IconButton
@@ -187,12 +229,38 @@ function ZoomChrome() {
       >
         <Icon name="zoomOut" size={16} />
       </IconButton>
-      <span
-        className="min-w-12 px-1 text-center text-sm tabular-nums"
-        data-testid="zoom-menu"
-      >
-        {label}
-      </span>
+      <MenuTrigger>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1 px-2 text-sm tabular-nums"
+          style={{ color: SUB, background: 'transparent' }}
+          aria-label="Zoom"
+          data-testid="zoom-menu"
+        >
+          <span
+            data-testid="zoom-label"
+            data-zoom-percent={formatZoomPercent(zoom)}
+          >
+            {label}
+          </span>
+          <Icon name="chevronDown" size={14} className="opacity-50" />
+        </Button>
+        <MenuPopover placement="bottom end" className="w-48">
+          <Menu onAction={onAction}>
+            <MenuItem id="fit-spread">
+              Fit spread <MenuKeyboard>Ctrl+0</MenuKeyboard>
+            </MenuItem>
+            <MenuItem id="fit-width">Fit width</MenuItem>
+            <MenuItem id="100">100%</MenuItem>
+            <MenuItem id="150">150%</MenuItem>
+            <MenuItem id="200">200%</MenuItem>
+            <MenuItem id="400">400%</MenuItem>
+            <MenuSeparator />
+            <MenuItem id="50">50%</MenuItem>
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>
       <IconButton
         label="Zoom in (Ctrl +)"
         size="sm"
@@ -258,7 +326,7 @@ export function EditorTopBar({
 
   return (
     <header
-      className="editor-chrome relative z-10 flex min-h-12 shrink-0 flex-wrap items-center gap-2 px-3"
+      className="editor-chrome relative z-10 flex h-12 shrink-0 items-center gap-2 px-3"
       style={{ background: BAR, color: T }}
       data-testid="editor-bar"
     >
@@ -276,11 +344,12 @@ export function EditorTopBar({
         Library
       </ChromeButton>
       <BookMetaChrome saveLabel={saveMeta} />
+      <HistoryChrome />
 
       <div
         role="toolbar"
         aria-label="Editor"
-        className="editor-top-bar pb-toolbar ml-2 flex min-w-0 flex-1 flex-wrap items-center gap-1"
+        className="editor-top-bar pb-toolbar mx-auto flex min-w-0 items-center gap-1"
       >
         {project.accessPhase === 'permission-required' ? (
           <Button
@@ -327,7 +396,6 @@ export function EditorTopBar({
         <RulersToggle />
       </div>
 
-      <HistoryChrome />
       <ZoomChrome />
       <PanelToggles
         panels={panels}
@@ -335,48 +403,17 @@ export function EditorTopBar({
           onPanelsChange(toggleEditorPanel(panels, key))
         }}
       />
-      <div className="flex items-center gap-1.5">
-        <ChromeButton
-          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
-          style={{ background: FIELD, color: T }}
-          data-testid="editor-preview"
-          disabled
-          title="Preview coming later"
-        >
-          <Icon name="eye" size={16} />
-          Preview
-        </ChromeButton>
-        <ChromeButton
-          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
-          style={{ background: FIELD, color: T }}
-          data-testid="present"
-          disabled={spreadCount === 0}
-          title="Present the book"
-          onClick={onPresent}
-        >
-          <Icon name="present" size={16} />
-          Present
-        </ChromeButton>
-        <ChromeButton
-          className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium"
-          style={{ background: FIELD, color: T }}
-          data-testid="export"
-          disabled
-          title="Export coming later"
-        >
-          <Icon name="export" size={16} />
-          Export
-        </ChromeButton>
-        <ChromeButton
-          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
-          style={{ background: FIELD, color: T }}
-          data-testid="editor-publish"
-          disabled
-          title="Publish coming later"
-        >
-          Publish
-        </ChromeButton>
-      </div>
+      <ChromeButton
+        className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
+        style={{ background: FIELD, color: T }}
+        data-testid="present"
+        disabled={spreadCount === 0}
+        title="Preview"
+        onClick={onPresent}
+      >
+        <Icon name="eye" size={16} />
+        Preview
+      </ChromeButton>
     </header>
   )
 }
