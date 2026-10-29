@@ -8,7 +8,10 @@ import {
   subscribeAssetIds,
   thumbSnapshotFor,
   thumbUrlFromSnapshot,
+  tierDisplayKeyFor,
+  tierUrlFromKey,
 } from './spreadPreviewKeys'
+import { getTierDisplaySnapshot, subscribeTierDisplay } from './tierDisplay'
 import {
   getProblemRevisionSnapshot,
   missingAssetChecker,
@@ -43,6 +46,13 @@ export const SpreadThumb = memo(function SpreadThumb({
     () => thumbSnapshotFor(assetIds, getThumbUrl),
     () => thumbSnapshotFor(assetIds, getThumbUrl),
   )
+  // A placed photo can lack a filmstrip thumb while the canvas already shows
+  // its tier; fall back to what the canvas displays so the panel never lags.
+  const tierDisplayKey = useSyncExternalStore(
+    subscribeTierDisplay,
+    () => tierDisplayKeyFor(assetIds, getTierDisplaySnapshot().urls),
+    () => tierDisplayKeyFor(assetIds, getTierDisplaySnapshot().urls),
+  )
   const relinkRevision = useSyncExternalStore(
     subscribeRelink,
     getProblemRevisionSnapshot,
@@ -65,7 +75,9 @@ export const SpreadThumb = memo(function SpreadThumb({
       pxPerMm={widthPx / resolved.spreadWidthMm}
       isMissingAsset={missingAssetChecker(relinkRevision)}
       previewUrlFor={(assetId) =>
-        thumbUrlFromSnapshot(thumbs, assetId) ?? snapshot.previewUrlFor(assetId)
+        thumbUrlFromSnapshot(thumbs, assetId) ??
+        snapshot.previewUrlFor(assetId) ??
+        tierUrlFromKey(tierDisplayKey, assetId)
       }
     />
   )

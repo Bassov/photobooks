@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import { Profiler } from 'react'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addSpread, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { dispatchBookOp, resetBookStore } from './bookStore'
 import { patchRelinkStatus, resetRelinkStore } from './relink/statusStore'
 import { SpreadThumb } from './SpreadThumb'
+import { queueTierSwap, resetTierDisplay, setSpreadTiers } from './tierDisplay'
 import { resetThumbCache, setThumbUrl } from './thumbCache'
 
 function twoSpreadBook() {
@@ -115,6 +116,30 @@ describe('SpreadThumb', () => {
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       'blob:thumb',
     )
+  })
+
+  it('shows the canvas tier image when the filmstrip has no thumb for a placed photo', async () => {
+    seed()
+    class DecodedImage {
+      decoding = ''
+      src = ''
+      decode(): Promise<void> {
+        return Promise.resolve()
+      }
+    }
+    vi.stubGlobal('Image', DecodedImage)
+    const { container } = render(
+      <SpreadThumb spreadId="s0" boxWidthPx={128} boxHeightPx={1000} />,
+    )
+    expect(container.querySelector('img')).toBeNull()
+    setSpreadTiers('canvas', new Map([['a', 640]]))
+    queueTierSwap('a', 640, 'blob:tier')
+    await waitFor(() => {
+      expect(container.querySelector('img')?.getAttribute('src')).toBe(
+        'blob:tier',
+      )
+    })
+    resetTierDisplay()
   })
 
   it('hatches a missing asset and clears when it is found again', () => {
