@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P2
 Title: fonts for book content
+Status: done
 
 ## Scope
 
