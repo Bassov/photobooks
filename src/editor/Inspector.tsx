@@ -181,12 +181,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
       >
         {view.kind === 'cover' ? <CoverSection /> : null}
         {view.kind === 'endpaper' ? <EndpaperSection side={view.side} /> : null}
-        {view.kind === 'book' ? (
-          <>
-            <BookSettingsSection />
-            <GridSection scope="book" />
-          </>
-        ) : null}
+        {view.kind === 'book' ? <BookSettingsSection /> : null}
         {view.kind === 'photo' ? (
           <>
             <h2

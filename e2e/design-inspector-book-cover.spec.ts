@@ -49,6 +49,7 @@ test('Book settings edits size, orientation, units and endpapers (#17)', async (
   const panel = page.getByTestId('book-settings')
   await expect(panel).toBeVisible()
   await expect(panel.getByTestId('binding-readonly')).toHaveText('read-only')
+  await panel.getByTestId('size-preset').selectOption('custom')
   await panel.getByTestId('size-unit').getByText('mm').click()
   const width = panel.getByTestId('size-w')
   const height = panel.getByTestId('size-h')
@@ -70,10 +71,9 @@ test('Book settings edits size, orientation, units and endpapers (#17)', async (
   await toggle.click()
   await expect(page.getByText('Endpaper', { exact: true })).toHaveCount(2)
 
-  await panel.getByRole('button', { name: 'Cream' }).click()
-  await expect(panel.getByRole('button', { name: 'Cream' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
+  // Kit v7.tsx:201,210: page colour is "Paper white · coming later", no swatches.
+  await expect(panel.getByTestId('page-colour-readonly')).toHaveText(
+    'Paper white · coming later',
   )
 })
 
@@ -84,7 +84,8 @@ test('Cover inspector style controls change the cover (#14)', async ({
   await page.getByTestId('cover-list-item').click()
   const cover = page.getByTestId('insp-cover')
   await expect(cover).toBeVisible()
-  await expect(cover.getByText('coming later')).toHaveCount(0)
+  // Kit v7.tsx:216: only the Back fill keeps its "coming later" note.
+  await expect(cover.getByText('coming later')).toHaveCount(1)
   await cover.getByTestId('cover-title-font').selectOption('sans')
   await expect(page.getByTestId('canvas-cover')).toHaveAttribute(
     'data-title-font',
@@ -100,18 +101,9 @@ test('Cover inspector style controls change the cover (#14)', async ({
     'data-finish',
     'gloss',
   )
-  await cover.getByRole('radio', { name: 'Bottom to top' }).check({
-    force: true,
-  })
-  await expect(page.getByTestId('cover-spine-text')).toHaveAttribute(
-    'data-direction',
-    'bottom-to-top',
-  )
-  await cover.getByRole('button', { name: 'Navy' }).click()
-  await expect(page.getByTestId('cover-back')).toHaveCSS(
-    'background-color',
-    'rgb(31, 42, 68)',
-  )
+  // Kit v7.tsx:215-216: Direction and Back fill are read-only pills.
+  await expect(cover.getByTestId('cover-direction')).toHaveText('Top to bottom')
+  await expect(cover.getByTestId('cover-back-fill')).toHaveText('Paper white')
   const spine = page.getByTestId('cover-spine')
   const before = (await spine.boundingBox())?.width ?? 0
   await cover.getByTestId('cover-spine-width').getByRole('slider').focus()
@@ -130,9 +122,11 @@ test('Spread list has front and back Endpaper rows with an inspector (#12)', asy
   await expect(front).toContainText('Endpaper')
   await expect(back).toContainText('Endpaper')
   await front.click()
-  await expect(page.getByTestId('canvas-endpaper')).toContainText(
-    'Pastedown · glued to front board',
+  // Kit v7.tsx:78-85: no inner label; "Endpaper" caption under the spread.
+  await expect(page.getByTestId('canvas-endpaper')).not.toContainText(
+    'Pastedown',
   )
+  await expect(page.getByTestId('canvas-endpaper')).toContainText('Endpaper')
   await expect(front).toHaveAttribute('aria-pressed', 'true')
   const insp = page.getByTestId('insp-endpaper')
   await expect(insp).toContainText('Endpaper · front')
@@ -140,8 +134,9 @@ test('Spread list has front and back Endpaper rows with an inspector (#12)', asy
     'Pastedown and free leaf, printed full bleed',
   )
   await back.click()
-  await expect(page.getByTestId('canvas-endpaper')).toContainText(
-    'Pastedown · glued to back board',
+  await expect(page.getByTestId('canvas-endpaper')).toHaveAttribute(
+    'data-side',
+    'back',
   )
   await expect(front).toHaveAttribute('aria-pressed', 'false')
   const same = page.getByTestId('endpaper-same')

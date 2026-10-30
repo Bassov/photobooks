@@ -227,7 +227,7 @@ describe('Inspector', () => {
         setBookSettingsSelected(true)
       })
       expect(screen.getByTestId('book-settings')).toBeTruthy()
-      expect(screen.getByTestId('grid-section-book')).toBeTruthy()
+      expect(screen.queryByTestId('grid-section-book')).toBeNull()
       expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
       act(() => {
         setActiveSpreadId('spread-1')
