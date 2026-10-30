@@ -74,16 +74,7 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
         setSelectedAssetId(id)
       }}
     >
-      {missing ? (
-        <div
-          className="filmstrip-missing"
-          role="img"
-          aria-label="Photo file is missing"
-          data-testid="filmstrip-missing"
-        >
-          <Icon name="imageOff" size={16} />
-        </div>
-      ) : thumbUrl ? (
+      {thumbUrl ? (
         <img
           className="filmstrip-thumb"
           data-testid="filmstrip-thumb"
@@ -91,12 +82,24 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
           alt=""
           decoding="async"
         />
-      ) : (
+      ) : missing ? null : (
         <div
           className="filmstrip-placeholder"
           data-testid="filmstrip-placeholder"
         />
       )}
+      {missing ? (
+        <div
+          className={
+            thumbUrl ? 'filmstrip-missing is-overlay' : 'filmstrip-missing'
+          }
+          role="img"
+          aria-label="Photo file is missing"
+          data-testid="filmstrip-missing"
+        >
+          <Icon name="imageOff" size={16} />
+        </div>
+      ) : null}
       {placed ? (
         <span
           className="filmstrip-placed"

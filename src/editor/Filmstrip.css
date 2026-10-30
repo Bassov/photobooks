@@ -195,6 +195,14 @@
   color: var(--muted-foreground);
 }
 
+.filmstrip-missing.is-overlay {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  background: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
 .filmstrip-placeholder {
   width: 100%;
   height: 100%;
