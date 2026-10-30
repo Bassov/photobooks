@@ -141,19 +141,23 @@ test('#14: the cover inspector lists the kit rows without fake inputs', async ({
   await expect(inspector.getByText('12 mm')).toBeVisible()
   // Superseded by #14 (design-inspector-book-cover): the same rows are now
   // real kit-backed controls instead of "coming later" placeholders.
-  await expect(inspector.getByText('coming later')).toHaveCount(0)
-  await expect(page.getByTestId('fill-readonly')).toHaveCount(0)
+  // Kit v7.tsx:216: only the Back fill keeps its "coming later" note.
+  await expect(inspector.getByText('coming later')).toHaveCount(1)
+  await expect(page.getByTestId('fill-readonly')).toHaveCount(1)
   await expect(page.getByTestId('material-readonly')).toHaveCount(0)
   await expect(inspector.getByTestId('cover-title-font')).toBeEnabled()
   await expect(inspector.getByTestId('cover-material')).toBeEnabled()
   await expect(inspector.getByTestId('cover-finish')).toBeEnabled()
-  await expect(inspector.getByTestId('cover-back-fill')).toBeVisible()
+  await expect(inspector.getByTestId('cover-back-fill')).toHaveText(
+    'Paper white',
+  )
   await expect(
     inspector.getByTestId('cover-spine-width').getByRole('slider'),
   ).toBeVisible()
-  await expect(
-    inspector.getByRole('radio', { name: 'Bottom to top' }),
-  ).toBeAttached()
+  // Kit v7.tsx:215: Direction is a Val pill.
+  await expect(inspector.getByTestId('cover-direction')).toHaveText(
+    'Top to bottom',
+  )
 })
 
 test('#10/#11: image-only kit-height tiles with no hover trash', async ({

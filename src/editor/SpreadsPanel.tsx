@@ -529,16 +529,14 @@ export function SpreadsPanel({
             data-testid="spreads-tail"
             aria-hidden
           />
+          {/* Kit chrome.tsx:268-278: the back Endpaper stacks after the pages in the one list. */}
+          {endpapersOn ? (
+            <div data-testid="endpaper-back-list">
+              <EndpaperRow side="back" />
+            </div>
+          ) : null}
         </div>
       </div>
-      {endpapersOn ? (
-        <div
-          className="shrink-0 pb-1 pl-3 pr-1"
-          data-testid="endpaper-back-list"
-        >
-          <EndpaperRow side="back" />
-        </div>
-      ) : null}
       <div className="flex items-center gap-1 p-1">
         <button
           type="button"

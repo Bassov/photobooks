@@ -101,7 +101,15 @@ describe('CoverSection kit rows', () => {
     expect(value('cover-material')).toBe('printed')
     expect(value('cover-finish')).toBe('matte')
     expect(screen.getByTestId('cover-spine-width').textContent).toContain('12')
-    expect(screen.queryByText('coming later')).toBeNull()
+    // Kit v7.tsx:216: Fill is a read-only "Paper white" pill + "coming later".
+    expect(screen.getByTestId('cover-back-fill').textContent).toBe(
+      'Paper white',
+    )
+    expect(screen.getByTestId('fill-readonly').textContent).toBe('coming later')
+    // Kit v7.tsx:215: Direction is a Val pill, not a segmented control.
+    expect(screen.getByTestId('cover-direction').textContent).toBe(
+      'Top to bottom',
+    )
     expect(section.querySelectorAll('input[type="text"]')).toHaveLength(3)
   })
 
@@ -114,15 +122,11 @@ describe('CoverSection kit rows', () => {
     pick('cover-title-font', 'sans')
     pick('cover-material', 'linen')
     pick('cover-finish', 'gloss')
-    fireEvent.click(screen.getByLabelText('Bottom to top'))
-    fireEvent.click(screen.getByLabelText('Navy'))
     const { style } = getBookStoreSnapshot().book.cover
     expect(style).toMatchObject({
       titleFont: 'sans',
       material: 'linen',
       finish: 'gloss',
-      spineDirection: 'bottom-to-top',
-      backFill: '#1f2a44',
     })
   })
 

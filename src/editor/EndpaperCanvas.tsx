@@ -42,6 +42,7 @@ export function EndpaperCanvas({
     event.preventDefault()
     dispatchBookOp({ type: 'setEndpaperPhoto', side, assetId: dropped })
   }
+  const ratio = (2 * widthMm) / heightMm
   const paper = (
     <div
       className="endpaper-page"
@@ -54,18 +55,17 @@ export function EndpaperCanvas({
       data-testid={mini ? undefined : 'canvas-endpaper'}
       data-side={side}
       data-photo-id={assetId}
-      style={{ aspectRatio: (2 * widthMm) / heightMm }}
+      style={{
+        aspectRatio: ratio,
+        width: mini ? undefined : `min(100cqw, 100cqh * ${String(ratio)})`,
+      }}
       onDragOver={mini ? undefined : onDragOver}
       onDrop={mini ? undefined : onDrop}
     >
       {paper}
       {paper}
       <div aria-hidden="true" className="endpaper-gutter" />
-      {mini ? null : (
-        <span className="endpaper-label" data-side={side}>
-          Pastedown · glued to {side} board
-        </span>
-      )}
+      {mini ? null : <span className="endpaper-caption">Endpaper</span>}
     </div>
   )
   return mini ? (
