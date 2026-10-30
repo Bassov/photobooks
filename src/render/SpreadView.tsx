@@ -2,7 +2,9 @@ import {
   createElement,
   useLayoutEffect,
   useRef,
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
+  type ReactElement,
   type ReactNode,
 } from 'react'
 import type { ResolvedItem, ResolvedSpread } from '../core'
@@ -19,6 +21,11 @@ export interface FrameControl {
   onDoubleActivate?: () => void
 }
 import { dropChipLabel } from './dropChip'
+import {
+  clearPhotoPreview,
+  PHOTO_LAYER_ATTR,
+  turnedPhotoStyle,
+} from './photoLayout'
 import {
   frameBox,
   imageCropBox,
@@ -235,11 +242,21 @@ function SpreadFrame({
   const cropActive = control?.cropActive === true
   const bodyRef = useRef<HTMLDivElement>(null)
   // The committed crop replaces the rAF preview transform.
+  const quarterTurns = item.photoQuarterTurns ?? 0
+  const straightenDeg = item.straightenDeg ?? 0
+  const turned = quarterTurns > 0 || straightenDeg !== 0
   useLayoutEffect(() => {
-    bodyRef.current?.querySelectorAll('img').forEach((img) => {
-      img.style.transform = ''
-    })
-  }, [crop.left, crop.top, crop.width, crop.height])
+    if (bodyRef.current !== null) {
+      clearPhotoPreview(bodyRef.current)
+    }
+  }, [
+    crop.left,
+    crop.top,
+    crop.width,
+    crop.height,
+    quarterTurns,
+    straightenDeg,
+  ])
   const style = {
     left: box.left,
     top: box.top,
@@ -251,12 +268,28 @@ function SpreadFrame({
       : { transform: `rotate(${String(item.rotation)}deg)` }),
   }
   const selected = control?.pressed === true && !cropActive
-  const imageStyle = {
-    left: crop.left,
-    top: crop.top,
-    width: crop.width,
-    height: crop.height,
-  }
+  const imageStyle: CSSProperties = turned
+    ? turnedPhotoStyle(
+        { width: box.width, height: box.height },
+        item.sourceCropRect ?? FULL_CROP,
+        quarterTurns,
+        straightenDeg,
+      )
+    : {
+        left: crop.left,
+        top: crop.top,
+        width: crop.width,
+        height: crop.height,
+      }
+  // A turned photo's transform is its layout; previews go on a wrapper.
+  const layer = (img: ReactElement): ReactElement =>
+    turned ? (
+      <div className="spread-frame-layer" {...{ [PHOTO_LAYER_ATTR]: '' }}>
+        {img}
+      </div>
+    ) : (
+      img
+    )
   // Kit hints are editor chrome: only frames with a control (never thumbs).
   const showHints = control !== undefined
   const showIcon = showHints && box.width > FRAME_ICON_MIN_PX
@@ -306,15 +339,17 @@ function SpreadFrame({
         )}
       </div>
     ) : (
-      <img
-        className="spread-frame-image"
-        data-testid={thumb ? undefined : 'spread-frame-image'}
-        alt=""
-        decoding="async"
-        src={previewUrl}
-        data-tier={tier}
-        style={imageStyle}
-      />
+      layer(
+        <img
+          className="spread-frame-image"
+          data-testid={thumb ? undefined : 'spread-frame-image'}
+          alt=""
+          decoding="async"
+          src={previewUrl}
+          data-tier={tier}
+          style={imageStyle}
+        />,
+      )
     )
   // Stay mounted when a frame empties mid-drop so dragend still reaches document.
   // A draggable element inside a button is invalid HTML; Chromium still drags it.
@@ -327,14 +362,16 @@ function SpreadFrame({
     >
       {cropActive && previewUrl !== undefined ? (
         <>
-          <img
-            className="spread-frame-image spread-frame-ghost"
-            data-testid="spread-frame-ghost"
-            alt=""
-            aria-hidden
-            src={previewUrl}
-            style={imageStyle}
-          />
+          {layer(
+            <img
+              className="spread-frame-image spread-frame-ghost"
+              data-testid="spread-frame-ghost"
+              alt=""
+              aria-hidden
+              src={previewUrl}
+              style={imageStyle}
+            />,
+          )}
           <div className="spread-frame-clip">{image}</div>
         </>
       ) : (

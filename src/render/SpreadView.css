@@ -313,6 +313,12 @@ button.spread-frame:not(
   max-width: none;
 }
 
+.spread-frame-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 .spread-page-cut {
   position: absolute;
   pointer-events: none;

@@ -34,6 +34,15 @@ URL → empty placeholder.
 - **WHEN** a resolved item has an asset id but no preview URL
 - **THEN** the frame shows a placeholder and no image
 
+### Requirement: Rotated photo inside a frame
+
+A filled frame whose crop has quarter turns and/or a straighten angle (±45°) SHALL paint the photo turned about the frame center inside the frame clip. The crop window MUST keep the frame covered: with a straighten angle the window is sized and the crop center clamped so the frame's rotated bounding box stays inside the image (Fit mode is exempt). A turned photo's preview transform (crop gesture, straighten drag) SHALL go on a layer around the image, committed as one crop op at gesture end. Quarter turn resets zoom and pan; Fill|Fit and Reset to cover keep the rotation. Inspector "Rotate" (90° left / right, Straighten slider) and the `,` / `.` keys drive it; the rotation persists across save and reload.
+
+#### Scenario: Straighten keeps the frame covered
+
+- **WHEN** the user straightens a photo by any angle up to ±45°
+- **THEN** all four frame corners lie inside the rotated photo
+
 ### Requirement: Missing-asset hatched frame
 
 When a placed frame's asset is marked `missing` by the relink status store, the frame SHALL render a hatched (pattern) placeholder distinct from an empty-frame placeholder, and MUST NOT show a stale preview image for that asset. Empty frames (no `assetId`) keep the existing empty placeholder.

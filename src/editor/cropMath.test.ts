@@ -51,3 +51,26 @@ describe('cropWheelFactor', () => {
     expect(cropWheelFactor(0)).toBe(1)
   })
 })
+
+describe('panCrop on a turned or straightened photo', () => {
+  it('moves the center in the turned image, not the source', () => {
+    const turned = { zoom: 2, center: { x: 0.5, y: 0.5 }, quarterTurns: 1 }
+    const next = panCrop(RECT, turned, 1, PX, 100, 0)
+    expect(next.center.x).toBeCloseTo(0.25)
+    expect(next.quarterTurns).toBe(1)
+  })
+
+  it('follows the photo tilt: a screen drag is rotated into photo axes', () => {
+    const tilted = {
+      zoom: 3,
+      center: { x: 0.5, y: 0.5 },
+      straightenDeg: 90 as number,
+    }
+    // 90° is outside the product range but the math is exact: a screen drag
+    // to the right moves the photo's own y axis.
+    const next = panCrop(RECT, { ...tilted, straightenDeg: 45 }, 1, PX, 10, 0)
+    expect(next.center.x).toBeLessThan(0.5)
+    expect(next.center.y).toBeGreaterThan(0.5 - 1e-9)
+    expect(next.straightenDeg).toBe(45)
+  })
+})
