@@ -379,7 +379,7 @@ export function SpreadsPanel({
       </div>
       <div
         ref={attachList}
-        className="e7 scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1"
+        className="e7 scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1 [contain:layout_paint]"
         data-testid="spreads-list"
         data-scrollport="spreads-list"
         role="listbox"
