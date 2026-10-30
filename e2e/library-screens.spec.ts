@@ -600,3 +600,101 @@ test('kit v0.10 welcome, empty library and change-folder confirm tokens', async 
   await expect(dialog).toHaveCount(0)
   await expect(page.getByTestId('library-empty')).toBeVisible()
 })
+
+test('kit v0.10 books grid: tile, menu, rename, sort, search, remove tokens', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  const bookId = await page.evaluate(async () => {
+    const api = window.__photobooksProject as
+      | {
+          attachMemoryLibraryForTests: () => Promise<{
+            ok: boolean
+            code?: string
+          }>
+          createBookInLibrary: (title?: string) => Promise<{
+            ok: boolean
+            code?: string
+            value?: { id: string }
+          }>
+          leaveEditorForLibrary: () => Promise<void>
+        }
+      | undefined
+    if (!api) {
+      throw new Error('missing api')
+    }
+    const attached = await api.attachMemoryLibraryForTests()
+    if (!attached.ok) {
+      throw new Error(attached.code ?? 'attach')
+    }
+    const created = await api.createBookInLibrary('Kit Book')
+    if (!created.ok || !created.value) {
+      throw new Error(created.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+    return created.value.id
+  })
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  // Step 41: tile = BookObject cover; quiet search / sort on the #D7D7D7 field.
+  const tile = page.getByTestId(`library-book-${bookId}`)
+  await expect(tile.getByTestId('book-object')).toBeVisible()
+  await expect(page.getByTestId('lib-search')).toHaveCSS(
+    'background-color',
+    'rgb(215, 215, 215)',
+  )
+  await expect(page.getByTestId('lib-sort')).toHaveCSS(
+    'background-color',
+    'rgb(215, 215, 215)',
+  )
+  await assertDocumentFitsViewport(page)
+
+  // Step 42: book menu (Open · Rename · Duplicate · Remove…), icons muted.
+  await page.getByTestId('book-card').filter({ has: tile }).hover()
+  await page.getByTestId(`book-menu-${bookId}`).click()
+  const menu = page.getByRole('menu')
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    'Open',
+    'Rename',
+    'Duplicate',
+    'Remove…',
+  ])
+
+  // Step 43: rename input sits on the field tone.
+  await menu.getByRole('menuitem', { name: 'Rename' }).click()
+  await expect(page.getByTestId('rename-input')).toHaveCSS(
+    'background-color',
+    'rgb(215, 215, 215)',
+  )
+  await page.getByTestId('rename-input').press('Escape')
+
+  // Step 45: sort menu.
+  await page.getByTestId('lib-sort').click()
+  await expect(page.getByTestId('lib-sort-menu')).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  // Step 46: search with no results.
+  await page.getByTestId('lib-search-input').fill('zzz')
+  await expect(page.getByTestId('lib-no-results')).toContainText(
+    'No books match “zzz”',
+  )
+  await page.getByRole('button', { name: 'Clear search' }).click()
+  await expect(tile).toBeVisible()
+
+  // Step 47: remove confirms first.
+  await page.getByTestId('book-card').filter({ has: tile }).hover()
+  await page.getByTestId(`book-menu-${bookId}`).click()
+  await page.getByRole('menuitem', { name: 'Remove…' }).click()
+  const dialog = page.getByRole('alertdialog')
+  await expect(dialog).toContainText('Remove “Kit Book”?')
+  await expect(dialog).toContainText('Photos stay on disk')
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+})

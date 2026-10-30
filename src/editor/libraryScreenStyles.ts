@@ -115,6 +115,9 @@ const STYLE_TEXT = `
 .pb-lib-book-menu[aria-expanded='true'] {
   opacity: 1;
 }
+.pb-lib-book-actions .pb-menu-item:not([data-variant='destructive']) svg {
+  color: var(--muted-foreground);
+}
 .pb-library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
