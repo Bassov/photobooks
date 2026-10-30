@@ -140,6 +140,42 @@ describe('bookStore history', () => {
     expect(getHistorySnapshot().canUndo).toBe(false)
   })
 
+  it('a fresh store has an empty history snapshot', async () => {
+    vi.resetModules()
+    const fresh = await import('./bookStore')
+    expect(fresh.getHistorySnapshot()).toStrictEqual({
+      canUndo: false,
+      canRedo: false,
+      undoLabel: null,
+      redoLabel: null,
+    })
+  })
+
+  it('notifies when only the redo label changes', () => {
+    resetBookStore()
+    dispatchBookOp({ type: 'addSpread', id: 'a' })
+    dispatchBookOp({ type: 'addSpread', id: 'b' })
+    dispatchBookOp({ type: 'removeSpread', spreadId: 'a' })
+    undoBook()
+    expect(getHistorySnapshot()).toEqual({
+      canUndo: true,
+      canRedo: true,
+      undoLabel: 'Add spread',
+      redoLabel: 'Delete spread',
+    })
+    const listener = vi.fn()
+    const stop = subscribeHistory(listener)
+    undoBook()
+    stop()
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(getHistorySnapshot()).toEqual({
+      canUndo: true,
+      canRedo: true,
+      undoLabel: 'Add spread',
+      redoLabel: 'Add spread',
+    })
+  })
+
   it('reset clears history', () => {
     dispatchBookOp({ type: 'addSpread', id: 'x' })
     resetBookStore()
