@@ -23,6 +23,7 @@ import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
 import { setCoverPhoto, setCoverText, type CoverPanelName } from '../cover'
+import { addGuide, moveGuide, removeGuide } from './guides'
 import { addSpread, duplicateSpread, moveSpread, removeSpread } from './spreads'
 
 export type BookOp =
@@ -146,6 +147,15 @@ export type BookOp =
   | { type: 'setBookGrid'; patch: GridPatch }
   | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
   | { type: 'resetSpreadGrid'; spreadId: string }
+  | {
+      type: 'addGuide'
+      spreadId: string
+      orientation: 'horizontal' | 'vertical'
+      offsetMm: number
+      id?: string
+    }
+  | { type: 'moveGuide'; spreadId: string; guideId: string; offsetMm: number }
+  | { type: 'removeGuide'; spreadId: string; guideId: string }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -214,6 +224,16 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setSpreadGrid(book, op.spreadId, op.patch)
     case 'resetSpreadGrid':
       return resetSpreadGrid(book, op.spreadId)
+    case 'addGuide':
+      return addGuide(book, op.spreadId, {
+        orientation: op.orientation,
+        offsetMm: op.offsetMm,
+        id: op.id,
+      })
+    case 'moveGuide':
+      return moveGuide(book, op.spreadId, op.guideId, op.offsetMm)
+    case 'removeGuide':
+      return removeGuide(book, op.spreadId, op.guideId)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
     case 'removeFrames':

@@ -1,6 +1,7 @@
 import { COVER_CROP, MAX_CROP_ZOOM, type Frame, type RectMm } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
+import { clearPhotoPreview, paintPhotoPreview } from '../render/photoLayout'
 import {
   dispatchBookOp,
   getAssetAspectSnapshot,
@@ -76,16 +77,7 @@ function frameContext(
   }
 }
 
-function previewImages(element: HTMLElement): HTMLImageElement[] {
-  return Array.from(element.querySelectorAll('img'))
-}
-
-function clearPreview(element: HTMLElement): void {
-  for (const img of previewImages(element)) {
-    img.style.transform = ''
-    img.style.transformOrigin = ''
-  }
-}
+const clearPreview = clearPhotoPreview
 
 function commit(frame: FrameContext, next: Crop): void {
   const prev = frame.crop
@@ -147,9 +139,10 @@ export function installCropGesture(): () => void {
     session.raf = null
     const dx = (session.x - session.startX) * session.frame.toLayout
     const dy = (session.y - session.startY) * session.frame.toLayout
-    for (const img of previewImages(session.frame.element)) {
-      img.style.transform = `translate(${String(dx)}px, ${String(dy)}px)`
-    }
+    paintPhotoPreview(
+      session.frame.element,
+      `translate(${String(dx)}px, ${String(dy)}px)`,
+    )
   }
 
   const finishPan = (commitPan: boolean): void => {
@@ -189,12 +182,7 @@ export function installCropGesture(): () => void {
       MAX_CROP_ZOOM / frame.crop.zoom,
       Math.max(1 / frame.crop.zoom, current.factor),
     )
-    for (const img of previewImages(frame.element)) {
-      const ox = frame.framePx.width / 2 - img.offsetLeft
-      const oy = frame.framePx.height / 2 - img.offsetTop
-      img.style.transformOrigin = `${String(ox)}px ${String(oy)}px`
-      img.style.transform = `scale(${String(scale)})`
-    }
+    paintPhotoPreview(frame.element, `scale(${String(scale)})`)
   }
 
   const flushWheel = (): void => {

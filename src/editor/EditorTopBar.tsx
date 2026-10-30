@@ -45,6 +45,7 @@ import { EditorToolGroup } from './EditorToolGroup'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
 import { RulersToggle } from './RulersToggle'
+import { GuidesToggle } from './GuidesToggle'
 import {
   getBookStoreSnapshot,
   getHistorySnapshot,
@@ -402,6 +403,7 @@ export function EditorTopBar({
         <GridToggle />
         <SnapToggle />
         <RulersToggle />
+        <GuidesToggle />
       </div>
 
       <ZoomChrome />

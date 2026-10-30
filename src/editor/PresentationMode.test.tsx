@@ -7,7 +7,12 @@ import {
   within,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  getSpreadIdsSnapshot,
+  resetBookStore,
+} from './bookStore'
 import { EditorShell } from './EditorShell'
 import {
   resetActiveSpreadIdForTests,
@@ -57,6 +62,21 @@ describe('PresentationMode', () => {
     expect(views()).toHaveLength(2)
     fireEvent.keyDown(window, { key: 'ArrowRight' })
     expect(views()).toHaveLength(3)
+  })
+
+  it('never draws guides, which the editor canvas does draw', () => {
+    dispatchBookOp({
+      type: 'addGuide',
+      spreadId: getSpreadIdsSnapshot()[0] ?? '',
+      orientation: 'vertical',
+      offsetMm: 40,
+    })
+    render(<EditorShell />)
+    expect(screen.getAllByTestId('guide-line')).toHaveLength(1)
+    fireEvent.click(screen.getByTestId('present'))
+    expect(
+      within(screen.getByTestId('presentation')).queryAllByTestId('guide-line'),
+    ).toHaveLength(0)
   })
 
   it('opens at the active spread', () => {
