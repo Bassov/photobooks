@@ -19,6 +19,7 @@ describe('ensureLibraryScreenStyles', () => {
     expect(nodes[0]?.textContent).toMatch(/heading-weight/)
     expect(nodes[0]?.textContent).toMatch(/pb-lib-change\[data-hovered\]/)
     expect(nodes[0]?.textContent).toMatch(/pb-book-object-title em/)
+    expect(nodes[0]?.textContent).toMatch(/pb-lib-book-actions/)
   })
 
   it('no-ops when document is unavailable', () => {

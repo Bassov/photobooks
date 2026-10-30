@@ -326,7 +326,7 @@ export function LibraryScreen() {
                               aria-label="Book title"
                               defaultValue={book.displayTitle}
                               autoFocus
-                              className="h-7 w-full rounded-md bg-background px-2 text-sm outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
+                              className="pb-lib-rename h-7 w-full rounded-md bg-field px-2 text-sm outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
                               data-testid="rename-input"
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
@@ -362,7 +362,7 @@ export function LibraryScreen() {
                               className="w-44"
                             >
                               <Menu
-                                className="[&_svg]:size-4"
+                                className="pb-lib-book-actions [&_svg]:size-4"
                                 onAction={(key) => {
                                   const effect = libraryBookMenuEffect(
                                     String(key),

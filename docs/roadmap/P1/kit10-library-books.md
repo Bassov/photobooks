@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Your books grid: kit v0.10 look
+Status: done
 
 ## Scope
 
