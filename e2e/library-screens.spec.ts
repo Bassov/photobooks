@@ -698,3 +698,60 @@ test('kit v0.10 books grid: tile, menu, rename, sort, search, remove tokens', as
   await expect(dialog).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
+
+test('kit v0.10 create book: dialog, size menu, custom size tokens', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.evaluate(async () => {
+    const api = window.__photobooksProject
+    if (!api?.seedHomeRecentsForTests) {
+      throw new Error('missing api')
+    }
+    await api.seedHomeRecentsForTests(0)
+  })
+  await expect(page.getByTestId('library-empty')).toBeVisible({
+    timeout: 15_000,
+  })
+
+  // Step 05: centered dialog, title on the field tone, Cancel + Create visible.
+  await page.getByTestId('new-book').click()
+  const dialog = page.getByTestId('create-book-dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('Create book')
+  await expect(page.getByTestId('create-title')).toHaveCSS(
+    'background-color',
+    'rgb(215, 215, 215)',
+  )
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeInViewport({
+    ratio: 1,
+  })
+  await expect(page.getByTestId('create-book')).toBeInViewport({ ratio: 1 })
+  await assertDocumentFitsViewport(page)
+
+  // Step 06: size menu lists only supported presets plus Custom.
+  const options = page.getByTestId('create-preset').getByRole('option')
+  await expect(options.first()).toHaveText(/^A6 /)
+  await expect(options.last()).toHaveText('Custom size…')
+  await page.getByTestId('create-preset').selectOption('custom')
+
+  // Step 07: custom size in cm, kit field look.
+  const custom = page.getByTestId('create-custom')
+  await expect(custom).toBeVisible()
+  for (const id of ['create-custom-w', 'create-custom-h']) {
+    await expect(page.getByTestId(id).locator('..')).toHaveCSS(
+      'background-color',
+      'rgb(215, 215, 215)',
+    )
+  }
+  await expect(custom).toContainText('cm')
+  await expect(page.getByTestId('create-orientation')).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toHaveCount(0)
+})

@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Create book dialog: kit v0.10 look (title, page size, custom size)
+Status: done
 
 ## Scope
 
