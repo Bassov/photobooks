@@ -76,27 +76,19 @@ export function hasGridOverride(spread: Spread): boolean {
 }
 
 /**
- * Inheritance chain, lowest priority first. A parent (master) level slots in
- * between the book grid and the spread override.
+ * Override levels above the book grid, lowest priority first. A parent
+ * (master) level slots in before the spread override.
  */
-function gridLevels(book: Book, spread: Spread | undefined): GridOverride[] {
-  const levels: GridOverride[] = [book.layoutGrid]
-  if (spread?.layoutGrid !== undefined) {
-    levels.push(spread.layoutGrid)
-  }
-  return levels
+function gridOverrides(spread: Spread | undefined): GridOverride[] {
+  return spread?.layoutGrid === undefined ? [] : [spread.layoutGrid]
 }
 
-function mergeLevels(levels: readonly GridOverride[]): Grid {
-  const pick = (field: GridField): number => {
-    for (let i = levels.length - 1; i >= 0; i -= 1) {
-      const value = readOverrideField(levels[i], field)
-      if (value !== undefined) {
-        return value
-      }
-    }
-    throw new Error(`Layout grid has no value for ${field}`)
-  }
+function mergeLevels(base: Grid, overrides: readonly GridOverride[]): Grid {
+  const pick = (field: GridField): number =>
+    overrides.reduce(
+      (value, level) => readOverrideField(level, field) ?? value,
+      readGridField(base, field),
+    )
   return {
     columns: pick('columns'),
     rows: pick('rows'),
@@ -113,9 +105,10 @@ function mergeLevels(levels: readonly GridOverride[]): Grid {
 
 /** The book grid with the spread's per-field overrides applied. */
 export function mergeLayoutGrid(book: Book, spread?: Spread): Grid {
-  return spread?.layoutGrid === undefined
+  const overrides = gridOverrides(spread)
+  return overrides.length === 0
     ? book.layoutGrid
-    : mergeLevels(gridLevels(book, spread))
+    : mergeLevels(book.layoutGrid, overrides)
 }
 
 export function effectiveGrid(

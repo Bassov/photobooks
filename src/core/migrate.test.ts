@@ -398,6 +398,16 @@ describe('migrateToCurrent', () => {
       })
     })
 
+    it('tolerates null margins', () => {
+      const result = migrateToCurrent({
+        schemaVersion: 6,
+        layoutGrid: { margins: null },
+        spreads: [],
+      })
+      assert.equal(result.ok, true)
+      expect(result.value).toMatchObject({ layoutGrid: { margins: null } })
+    })
+
     it('passes a non-object grid and missing spreads through', () => {
       const result = migrateToCurrent({
         schemaVersion: 6,

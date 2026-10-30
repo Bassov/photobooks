@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P2
 Title: page layout grids in the document
+Status: done
 
 ## Scope
 

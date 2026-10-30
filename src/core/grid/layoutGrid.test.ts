@@ -77,6 +77,43 @@ describe('resolveLayoutGrid', () => {
     expect(resolveLayoutGrid(next, 1).pages[0].columns).toHaveLength(4)
   })
 
+  it('recomputes for the same spread when trim, spread count or index change', () => {
+    const [a, b, c] = threeSpreads
+    assert(a && b && c)
+    const book = makeBook({ spreads: [a, b, c] })
+    const first = resolveLayoutGrid(book, 1)
+    expect(first.pages.map((p) => p.page)).toEqual([
+      { x: 0, y: 0, width: 300, height: 300 },
+      { x: 300, y: 0, width: 300, height: 300 },
+    ])
+
+    const narrow = makeBook({
+      spreads: [a, b, c],
+      settings: { trim: { widthMm: 200 } },
+    })
+    expect(resolveLayoutGrid(narrow, 1).pages[0].page.width).toBe(200)
+
+    const shorter = makeBook({ spreads: [a, b] })
+    expect(resolveLayoutGrid(shorter, 1).pages).toHaveLength(1)
+
+    const moved = makeBook({ spreads: [b, a, c] })
+    expect(resolveLayoutGrid(moved, 0).pages).toHaveLength(1)
+  })
+
+  it('falls back to the book grid for an index without a spread', () => {
+    const book = makeBook({ spreads: threeSpreads, layoutGrid: { columns: 5 } })
+    expect(resolveLayoutGrid(book, 9).values.columns).toBe(5)
+    expect(resolveLayoutGrid(book, 9).source.columns).toBe('book')
+  })
+
+  it('resolves a candidate spread that is not stored yet', () => {
+    const book = makeBook({ spreads: threeSpreads })
+    const candidate = makeSpread({ id: 'a', layoutGrid: { columns: 3 } })
+    expect(resolveLayoutGrid(book, 0, candidate).pages[0].columns).toHaveLength(
+      3,
+    )
+  })
+
   it('mirrors inside across a facing spread and splits single pages', () => {
     const book = makeBook({
       layoutGrid: { margins: { top: 10, bottom: 20, inside: 30, outside: 12 } },
