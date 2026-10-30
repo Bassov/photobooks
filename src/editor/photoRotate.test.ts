@@ -4,6 +4,7 @@ import { COVER_CROP, shownCropRect } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import {
+  flipPhoto,
   straightenedCrop,
   straightenPhoto,
   straightenPreviewTransform,
@@ -171,6 +172,8 @@ describe('turnPhoto / straightenPhoto', () => {
     turnPhoto({ spreadId: 's1', frameId: 'f1' }, 1)
     straightenPhoto({ spreadId: 's1', frameId: 'f1' }, 3)
     turnPhoto({ spreadId: 'x', frameId: 'y' }, 1)
+    flipPhoto({ spreadId: 's1', frameId: 'f1' }, 'h')
+    flipPhoto({ spreadId: 'x', frameId: 'y' }, 'v')
     expect(crop()).toBeUndefined()
   })
 })

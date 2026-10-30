@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
@@ -15,7 +16,11 @@ import {
 // Design review r2: kit v0.10.0 `#/demo` is the reference for every control.
 
 test.beforeAll(() => {
-  ensurePhotoFixtures({ includeLargeJpeg: false })
+  // Every worker rewriting the PNG races with another worker's import read
+  // ("The requested file could not be read"); generate it only when missing.
+  if (!existsSync(photoFixturePaths.samplePng)) {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+  }
 })
 
 test.beforeEach(async ({ page }) => {

@@ -86,6 +86,7 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     fireEvent.click(chip('1'))
     expect(listed()).toEqual(['full-bleed', 'one-per-page'])
     expect(chip('1').getAttribute('aria-pressed')).toBe('true')
+    expect(chip('all').getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(chip('4'))
     expect(listed()).toEqual(['4-grid'])
     fireEvent.click(chip('all'))
@@ -109,6 +110,12 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     fireEvent.click(screen.getByTestId('tab-mine'))
+    expect(screen.getByTestId('tab-mine').getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    expect(screen.getByTestId('tab-all').getAttribute('aria-pressed')).toBe(
+      'false',
+    )
     expect(listed()).toEqual([])
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
       'No templates yet.',

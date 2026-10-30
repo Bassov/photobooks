@@ -133,11 +133,11 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
       setRows(contact.rows)
     }
   }
-  if (spreadIndex < 0) {
+  const spread = book.spreads[spreadIndex]
+  if (spread === undefined) {
     return null
   }
   const summary = templateName(current)
-  const spread = book.spreads[spreadIndex]
   const slots = new Map(
     TEMPLATE_IDS.map((id) => [
       id,
@@ -146,9 +146,8 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
   )
   const slotCount = (id: FixedTemplateId) => slots.get(id) ?? 0
   // Kit: filled photo frames, else every frame of the spread.
-  const filled =
-    spread?.frames.filter((f) => f.assetId !== undefined).length ?? 0
-  const photos = filled > 0 ? filled : (spread?.frames.length ?? 0)
+  const filled = spread.frames.filter((f) => f.assetId !== undefined).length
+  const photos = filled > 0 ? filled : spread.frames.length
   const wanted = query.trim().toLowerCase()
   // "My templates" has no saved templates yet: the tab lists nothing.
   const list =
@@ -161,9 +160,7 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
         )
   const suggested =
     tab === 'all' && chip === 'all' && wanted === ''
-      ? TEMPLATE_IDS.filter(
-          (id) => slotCount(id) === photos && id !== current,
-        ).slice(0, 3)
+      ? TEMPLATE_IDS.filter((id) => slotCount(id) === photos && id !== current)
       : []
   const tile = (id: FixedTemplateId, testId: string) => (
     <button
@@ -286,7 +283,7 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
             className="layout-empty text-center text-xs"
             data-testid="tpl-empty"
           >
-            {tab === 'mine' && query === '' && chip === 'all'
+            {query === '' && chip === 'all'
               ? 'No templates yet.'
               : 'No layouts match.'}
           </p>
