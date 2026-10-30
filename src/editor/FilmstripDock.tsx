@@ -45,9 +45,9 @@ import {
 import { warmNameCollator, type GallerySortKey } from './galleryView'
 
 const SORT_LABELS: Record<GallerySortKey, string> = {
+  captured: 'Date taken',
+  name: 'File name',
   added: 'Added order',
-  captured: 'Capture time',
-  name: 'Name',
 }
 
 function RemovePlacedDialog({ assetId }: { assetId: string }) {
@@ -67,17 +67,6 @@ function RemovePlacedDialog({ assetId }: { assetId: string }) {
     </AlertDialog>
   )
 }
-
-const SLIDER_KEYS = new Set([
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowUp',
-  'ArrowDown',
-  'Home',
-  'End',
-  'PageUp',
-  'PageDown',
-])
 
 function ResizeSplitter({
   height,
@@ -131,8 +120,12 @@ function ResizeSplitter({
 /** Kit bottom dock chrome wrapping the working product Filmstrip. */
 export function FilmstripDock({
   onDropPhotoFolder,
+  onChoosePhotoFolder,
+  importDisabled = false,
 }: {
   onDropPhotoFolder?: (directory: FileSystemDirectoryHandle) => Promise<void>
+  onChoosePhotoFolder?: () => Promise<void>
+  importDisabled?: boolean
 }) {
   const dockRef = useRef<HTMLDivElement>(null)
   const resize = useFilmstripResize(dockRef)
@@ -231,31 +224,27 @@ export function FilmstripDock({
           </span>
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <input
-            type="range"
-            className="w-28 accent-[var(--select)]"
-            aria-label="Thumbnail size"
-            data-testid="film-size"
-            min={FILMSTRIP_THUMB_MIN}
-            max={FILMSTRIP_THUMB_MAX}
-            step={FILMSTRIP_THUMB_STEP}
-            defaultValue={thumbHeight}
-            onChange={(event) => {
-              resize.preview(Number(event.currentTarget.value))
+          <ToggleButton
+            size="sm"
+            className="film-chip inline-flex items-center gap-1.5"
+            isSelected={unplacedOnly}
+            onChange={(next) => {
+              startTransition(() => {
+                setUnplacedOnly(next)
+              })
             }}
-            onPointerUp={resize.commit}
-            onKeyUp={(event) => {
-              if (SLIDER_KEYS.has(event.key)) {
-                resize.commit()
-              }
-            }}
-          />
+            data-testid="film-unplaced-only"
+          >
+            <Icon name="filter" size={14} className="size-3.5" />
+            Unplaced
+          </ToggleButton>
           <MenuTrigger>
             <AriaButton
               className="film-chip inline-flex cursor-default items-center gap-1.5"
               aria-label={`Sort photos: ${SORT_LABELS[sort]}`}
               data-testid="film-sort"
             >
+              <Icon name="arrowDownUp" size={14} className="size-3.5" />
               {SORT_LABELS[sort]}
               <Icon name="chevronDown" size={14} className="size-3.5" />
             </AriaButton>
@@ -278,19 +267,19 @@ export function FilmstripDock({
               </Menu>
             </MenuPopover>
           </MenuTrigger>
-          <ToggleButton
-            size="sm"
-            className="film-chip"
-            isSelected={unplacedOnly}
-            onChange={(next) => {
-              startTransition(() => {
-                setUnplacedOnly(next)
-              })
-            }}
-            data-testid="film-unplaced-only"
-          >
-            Unplaced
-          </ToggleButton>
+          {onChoosePhotoFolder === undefined ? null : (
+            <AriaButton
+              className="film-chip inline-flex cursor-default items-center gap-1.5 rounded-full"
+              isDisabled={importDisabled}
+              onPress={() => {
+                void onChoosePhotoFolder()
+              }}
+              data-testid="film-add-folder"
+            >
+              <Icon name="folderPlus" size={14} className="size-3.5" />
+              Add folder…
+            </AriaButton>
+          )}
         </div>
       </div>
       <div className="mt-0 px-2 pb-1" data-testid="film-panel">

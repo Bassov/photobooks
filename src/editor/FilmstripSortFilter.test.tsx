@@ -155,7 +155,9 @@ describe('filmstrip sort / filter / remove', () => {
     })
     render(<FilmstripDock />)
     fireEvent.click(screen.getByTestId('film-sort'))
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Name' }))
+    fireEvent.click(
+      await screen.findByRole('menuitemradio', { name: 'File name' }),
+    )
     expect(itemIds()).toEqual([ids[1], ids[2], ids[0]])
     expect(getBookStoreSnapshot().book.gallery).toEqual([...ids])
   })
@@ -237,12 +239,12 @@ describe('filmstrip sort / filter / remove', () => {
     expect(added.getAttribute('aria-checked')).toBe('true')
     expect(
       screen
-        .getByRole('menuitemradio', { name: 'Name' })
+        .getByRole('menuitemradio', { name: 'File name' })
         .getAttribute('aria-checked'),
     ).toBe('false')
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Capture time' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Date taken' }))
     expect(screen.getByTestId('film-sort').getAttribute('aria-label')).toBe(
-      'Sort photos: Capture time',
+      'Sort photos: Date taken',
     )
   })
 
@@ -253,7 +255,7 @@ describe('filmstrip sort / filter / remove', () => {
       { name: 'b.jpg', aspect: 1 },
     ])
     render(<FilmstripDock />)
-    await pickSort('Name')
+    await pickSort('File name')
     const aspects = screen
       .getAllByTestId('filmstrip-item')
       .map((node) => node.getAttribute('data-aspect'))
@@ -271,7 +273,7 @@ describe('filmstrip sort / filter / remove', () => {
   it('re-sorts by capture time when capturedAt lands after the sort is chosen', async () => {
     const ids = seedGallery(2)
     render(<FilmstripDock />)
-    await pickSort('Capture time')
+    await pickSort('Date taken')
     expect(itemIds()).toEqual([...ids])
     act(() => {
       patchAssetRecord(ids[0] ?? '', { capturedAt: '2024-06-01T00:00:00.000Z' })

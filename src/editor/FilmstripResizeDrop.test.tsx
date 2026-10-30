@@ -99,11 +99,13 @@ describe('FilmstripDock resize', () => {
   it('clears the preview when the draft equals the committed height', () => {
     render(<FilmstripDock />)
     const dock = screen.getByTestId('dock')
-    const slider = screen.getByTestId('film-size')
-    fireEvent.change(slider, { target: { value: '144' } })
-    fireEvent.change(slider, { target: { value: '96' } })
+    const splitter = screen.getByTestId('film-splitter')
+    Object.assign(splitter, { setPointerCapture: vi.fn() })
+    fireEvent.pointerDown(splitter, { clientY: 300, pointerId: 1 })
+    fireEvent.pointerMove(splitter, { clientY: 250, pointerId: 1 })
+    fireEvent.pointerMove(splitter, { clientY: 300, pointerId: 1 })
     expect(dock.getAttribute('data-film-resizing')).toBe('true')
-    fireEvent.keyUp(slider, { key: 'ArrowRight' })
+    fireEvent.pointerUp(splitter, { pointerId: 1 })
     expect(getFilmstripThumbHeight()).toBe(96)
     expect(dock.hasAttribute('data-film-resizing')).toBe(false)
     expect(dock.style.getPropertyValue('--film-preview-scale')).toBe('')
@@ -119,23 +121,26 @@ describe('FilmstripDock resize', () => {
       configurable: true,
       value: 240,
     })
-    fireEvent.change(screen.getByTestId('film-size'), {
-      target: { value: '144' },
-    })
+    const splitter = screen.getByTestId('film-splitter')
+    Object.assign(splitter, { setPointerCapture: vi.fn() })
+    fireEvent.pointerDown(splitter, { clientY: 300, pointerId: 1 })
+    fireEvent.pointerMove(splitter, { clientY: 252, pointerId: 1 })
     expect(dock.style.getPropertyValue('--film-preview-origin')).toBe('240px')
   })
 
-  it('slider previews on change and commits on release', () => {
+  it('has no thumbnail size slider', () => {
     render(<FilmstripDock />)
-    const slider = screen.getByTestId('film-size')
-    const dock = screen.getByTestId('dock')
-    fireEvent.change(slider, { target: { value: '144' } })
-    expect(dock.style.getPropertyValue('--film-preview-scale')).toBe('1.5')
-    expect(getFilmstripThumbHeight()).toBe(96)
-    fireEvent.keyUp(slider, { key: 'Tab' })
-    expect(getFilmstripThumbHeight()).toBe(96)
-    fireEvent.keyUp(slider, { key: 'ArrowRight' })
-    expect(getFilmstripThumbHeight()).toBe(144)
+    expect(screen.queryByRole('slider')).toBeNull()
+  })
+
+  it('Add folder… calls the chooser and respects importDisabled', () => {
+    const choose = vi.fn(() => Promise.resolve())
+    const { rerender } = render(<FilmstripDock onChoosePhotoFolder={choose} />)
+    fireEvent.click(screen.getByTestId('film-add-folder'))
+    expect(choose).toHaveBeenCalledTimes(1)
+    rerender(<FilmstripDock onChoosePhotoFolder={choose} importDisabled />)
+    fireEvent.click(screen.getByTestId('film-add-folder'))
+    expect(choose).toHaveBeenCalledTimes(1)
   })
 })
 

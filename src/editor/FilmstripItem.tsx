@@ -27,6 +27,7 @@ import {
 } from './filmstripJump'
 import { FilmstripNameStripContext } from './filmstripNameStrip'
 import { getSelectedAssetIds, setSelectedAssetId } from './gallerySelection'
+import { getRelinkStatus, subscribeRelink } from './relink/statusStore'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotAspect } from './thumbSlotSize'
 
@@ -46,15 +47,18 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
   name,
   thumbUrl,
   placed,
+  missing,
 }: {
   id: string
   name: string
   thumbUrl: string | undefined
   placed: boolean
+  missing: boolean
 }) {
   return (
     <div
       className="filmstrip-drag"
+      title={name}
       draggable
       onDragStart={(event) => {
         event.dataTransfer.setData(ASSET_DRAG_MIME, id)
@@ -78,12 +82,24 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
           alt=""
           decoding="async"
         />
-      ) : (
+      ) : missing ? null : (
         <div
           className="filmstrip-placeholder"
           data-testid="filmstrip-placeholder"
         />
       )}
+      {missing ? (
+        <div
+          className={
+            thumbUrl ? 'filmstrip-missing is-overlay' : 'filmstrip-missing'
+          }
+          role="img"
+          aria-label="Photo file is missing"
+          data-testid="filmstrip-missing"
+        >
+          <Icon name="imageOff" size={16} />
+        </div>
+      ) : null}
       {placed ? (
         <span
           className="filmstrip-placed"
@@ -143,6 +159,12 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
     getFilmstripJumpHighlightId,
     getFilmstripJumpHighlightId,
   )
+  const readMissing = () => getRelinkStatus(id) === 'missing'
+  const missing = useSyncExternalStore(
+    subscribeRelink,
+    readMissing,
+    readMissing,
+  )
   useEffect(() => {
     ensureThumb(id, cacheKey)
   }, [id, cacheKey])
@@ -168,6 +190,7 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
         name={name}
         thumbUrl={thumbUrl}
         placed={placementCount > 0}
+        missing={missing}
       />
       {showName ? (
         <div className="filmstrip-name" data-testid="filmstrip-name">
