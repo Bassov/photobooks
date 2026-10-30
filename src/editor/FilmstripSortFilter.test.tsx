@@ -12,10 +12,7 @@ import { FilmstripDock } from './FilmstripDock'
 import { seedGallery } from './gallery.test-helpers'
 import { installEditorKeys } from './galleryDrop'
 import { resetGallerySelection, setSelectedAssetId } from './gallerySelection'
-import {
-  resetFilmstripThumbHeightForTests,
-  setFilmstripThumbHeight,
-} from './filmstripSize'
+import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
 import { resetThumbCache } from './thumbCache'
 
 function stubScrollportWidth(width: number): () => void {
@@ -78,8 +75,6 @@ function removeFirst(): void {
 describe('filmstrip sort / filter / remove', () => {
   let restore: () => void
   beforeEach(() => {
-    // Geometry assertions below are written for 96 px tiles.
-    setFilmstripThumbHeight(96)
     restore = stubScrollportWidth(1200)
   })
   afterEach(() => {
@@ -88,7 +83,6 @@ describe('filmstrip sort / filter / remove', () => {
     resetBookStore()
     resetThumbCache()
     resetGallerySelection()
-    resetFilmstripThumbHeightForTests()
     setEditorStatus('')
   })
 
@@ -120,21 +114,6 @@ describe('filmstrip sort / filter / remove', () => {
     expect(
       badges[0]?.closest('[data-asset-id]')?.getAttribute('data-asset-id'),
     ).toBe(ids[0])
-  })
-
-  it('shows the name strip only from thumb height 90', () => {
-    seedGallery(2)
-    setFilmstripThumbHeight(88)
-    render(<FilmstripDock />)
-    expect(screen.queryAllByTestId('filmstrip-name')).toHaveLength(0)
-    act(() => {
-      setFilmstripThumbHeight(96)
-    })
-    expect(screen.getAllByTestId('filmstrip-name')).toHaveLength(2)
-    act(() => {
-      setFilmstripThumbHeight(88)
-    })
-    expect(screen.queryAllByTestId('filmstrip-name')).toHaveLength(0)
   })
 
   it('shows the every-photo-placed copy when the filter hides everything', () => {
@@ -305,11 +284,15 @@ describe('filmstrip sort / filter / remove', () => {
     const spacer = (): string | undefined =>
       document.querySelector<HTMLElement>('.filmstrip-spacer')?.style.width
     const aspects = [1.5, 1.5, 1.5]
-    expect(spacer()).toBe(`${String(spacerWidthPx(aspects, 10))}px`)
+    expect(spacer()).toBe(
+      `${String(spacerWidthPx(aspects, 10, 1, FILMSTRIP_THUMB_HEIGHT))}px`,
+    )
 
     placeFirst(ids, 0)
     fireEvent.click(screen.getByTestId('film-unplaced-only'))
-    expect(spacer()).toBe(`${String(spacerWidthPx([1.5, 1.5], 2))}px`)
+    expect(spacer()).toBe(
+      `${String(spacerWidthPx([1.5, 1.5], 2, 1, FILMSTRIP_THUMB_HEIGHT))}px`,
+    )
   })
 
   it('names the photo and removes it with an exact status when confirmed', () => {

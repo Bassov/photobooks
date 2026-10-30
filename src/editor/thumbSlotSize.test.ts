@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { test, fc } from '@fast-check/vitest'
 import {
-  anchoredScrollOffset,
   buildStridePrefix,
   indexFromScrollOffset,
   itemOriginOffsets,
@@ -22,31 +21,6 @@ describe('thumbSlotAspect', () => {
     expect(thumbSlotAspect(0.1)).toBe(THUMB_WIDTH_MIN / THUMB_HEIGHT)
     expect(thumbSlotAspect(10)).toBe(THUMB_WIDTH_MAX / THUMB_HEIGHT)
     expect(thumbSlotAspect(Number.NaN)).toBe(1)
-  })
-})
-
-describe('anchoredScrollOffset', () => {
-  const aspects = [1.5, 0.5, 1, 1.5, 2]
-  const prev = buildStridePrefix(aspects, 96)
-  const next = buildStridePrefix(aspects, 144)
-
-  it('keeps the item under the left edge (and the fraction into it)', () => {
-    const start = prev[2] ?? 0
-    const stride = (prev[3] ?? 0) - start
-    expect(anchoredScrollOffset(start, prev, next)).toBe(next[2])
-    expect(anchoredScrollOffset(start + stride / 2, prev, next)).toBe(
-      Math.round(((next[2] ?? 0) + (next[3] ?? 0)) / 2),
-    )
-  })
-
-  it('lands on the item start when the previous stride is empty', () => {
-    expect(anchoredScrollOffset(5, [0, 0, 0], [0, 100, 200])).toBe(100)
-    expect(anchoredScrollOffset(0, [0, 0, 0], [0, 100, 200])).toBe(100)
-  })
-
-  it('stays at the origin and past the end stays on the last item', () => {
-    expect(anchoredScrollOffset(0, prev, next)).toBe(0)
-    expect(anchoredScrollOffset(1e6, prev, next)).toBe(next[5])
   })
 })
 
