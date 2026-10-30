@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Drag place and replace: kit v0.10 look
+Status: done
 
 ## Scope
 
