@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -69,18 +70,21 @@ export function usePasteboardReveal({
   const [revealTick, setRevealTick] = useState(0)
 
   /** Mirrors the hold on the scrollport so e2e can wait for the reveal to end. */
-  const setHold = (hold: boolean): void => {
-    holdCameraScrollRef.current = hold
-    const scroll = scrollRef.current
-    if (scroll === null) {
-      return
-    }
-    if (hold) {
-      scroll.dataset.revealHold = 'true'
-    } else {
-      delete scroll.dataset.revealHold
-    }
-  }
+  const setHold = useCallback(
+    (hold: boolean): void => {
+      holdCameraScrollRef.current = hold
+      const scroll = scrollRef.current
+      if (scroll === null) {
+        return
+      }
+      if (hold) {
+        scroll.dataset.revealHold = 'true'
+      } else {
+        delete scroll.dataset.revealHold
+      }
+    },
+    [scrollRef],
+  )
 
   const clearRevealState = (): void => {
     restoreRevealSlotVisibility(revealSlotRef.current)
@@ -94,14 +98,14 @@ export function usePasteboardReveal({
    * nudge still see hold=true (Pasteboard clears the add-spread pin on scroll
    * only when hold is false).
    */
-  const scheduleHoldRelease = (): void => {
+  const scheduleHoldRelease = useCallback((): void => {
     const gen = ++holdReleaseGenRef.current
     requestAnimationFrame(() => {
       if (gen === holdReleaseGenRef.current) {
         setHold(false)
       }
     })
-  }
+  }, [setHold])
 
   const beginRevealForNewSpread = (newSpreadId: string | null): void => {
     clearRevealState()
@@ -209,6 +213,7 @@ export function usePasteboardReveal({
     windowKey,
     revealTick,
     turnFn,
+    scheduleHoldRelease,
   ])
 
   return { holdCameraScrollRef, beginRevealForNewSpread, revealTick }
