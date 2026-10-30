@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Inspector book settings and endpaper: kit v0.10 look
+Status: done
 
 ## Scope
 
@@ -17,3 +18,7 @@ Title: Inspector book settings and endpaper: kit v0.10 look
 - **Test:** Playwright e2e on the `?fixture=` editor/library view asserting the kit structure and tokens; screenshot side by side with the kit baseline for steps 24, 25, signed off by Designer review
 - **Depends:** kit10-inspector-frame-spread, cover-endpaper-schema
 - **UI kit:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); parts: `uikit/src/demo-parts/editor.tsx` (`InspectorPart`), `uikit/src/components/ui/numberfield.tsx` (`NumberField`)
+
+## Done note
+
+Book settings restyled (kit head + eyebrow section). The Endpaper inspector context is not built: endpapers have no selection path yet (spread list and canvas hide them, D2); it lands with `kit10-cover`, which depends on this item.
