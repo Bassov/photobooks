@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { EmptyState } from '../ui/EmptyState'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import { SpreadsPanel } from './SpreadsPanel'
 
@@ -21,7 +20,7 @@ export function LeftPanel({
     <div
       role="tablist"
       aria-label="Left panel"
-      className="editor-left-tabs flex h-6.5 items-center rounded-sm text-sm font-medium"
+      className="editor-left-tabs flex h-6.5 items-center rounded-md text-sm font-medium"
     >
       {TABS.map((item) => (
         <button
@@ -48,11 +47,12 @@ export function LeftPanel({
       <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg">
         {modeSwitch}
       </div>
-      <EmptyState
-        title="No masters yet"
-        description="Masters are page templates shared across spreads."
-        data-testid="masters-stub"
-      />
+      <div className="editor-masters-empty" data-testid="masters-stub">
+        <div className="editor-masters-empty-title">No masters yet</div>
+        <div className="editor-masters-empty-description">
+          Masters are page templates shared across spreads.
+        </div>
+      </div>
     </aside>
   ) : (
     <SpreadsPanel toastQueue={toastQueue} modeSwitch={modeSwitch} />
