@@ -86,15 +86,43 @@ export function pasteboardWorldWidthPx(input: {
   return Math.max(input.viewportWidth, stackWidth)
 }
 
+/** Kit `stackGap`: the spread scales with zoom, the gap stays 44 screen px. */
 export function pasteboardStrideAtZoom(
   trimHeightMm: number,
   zoom: number,
 ): number {
-  return pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM) * zoom
+  return pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM * zoom)
 }
 
-export function pasteboardSlotPaddingBottom(zoom: number): number {
-  return PASTEBOARD_GAP_PX * zoom
+export function pasteboardSlotPaddingBottom(): number {
+  return PASTEBOARD_GAP_PX
+}
+
+/**
+ * Stack y (px below the first spread's top) at zoom `to` of the point at `y`
+ * at zoom `from`: a point on a spread keeps its place on that spread, a point
+ * in a gap keeps its offset below the spread. Above the stack it scales.
+ */
+export function stackContentYAtZoom(
+  y: number,
+  spreadHeightPx: number,
+  from: number,
+  to: number,
+): number {
+  const scale = to / from
+  const fromSpread = spreadHeightPx * from
+  const stride = fromSpread + PASTEBOARD_GAP_PX
+  if (!(y > 0) || !(stride > 0) || !Number.isFinite(scale)) {
+    return y * scale
+  }
+  const index = Math.floor(y / stride)
+  const local = y - index * stride
+  const onSpread = Math.min(local, fromSpread)
+  return (
+    index * (spreadHeightPx * to + PASTEBOARD_GAP_PX) +
+    onSpread * scale +
+    (local - onSpread)
+  )
 }
 
 export function pasteboardWindowKey(mountedIds: readonly string[]): string {

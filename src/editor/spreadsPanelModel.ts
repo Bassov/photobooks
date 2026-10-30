@@ -26,6 +26,41 @@ export function fitThumbPx(
   return { widthPx, heightPx: widthPx / aspect }
 }
 
+export interface ThumbCardStyle {
+  box: { aspectRatio: string }
+  inner: { width: string; aspectRatio: string }
+}
+
+/**
+ * Kit list card (`chrome.tsx` ThumbItem): a box at least 1.6:1 with the
+ * `ratio` (width / height) paper centred in it, full width from 1.6:1 up.
+ */
+export function thumbCardStyle(ratio: number): ThumbCardStyle {
+  const box = Math.max(ratio, THUMB_MIN_ASPECT)
+  return {
+    box: { aspectRatio: String(box) },
+    inner: {
+      width: `${String((ratio / box) * 100)}%`,
+      aspectRatio: String(ratio),
+    },
+  }
+}
+
+interface Trim {
+  widthMm: number
+  heightMm: number
+}
+
+/** Kit `coverW(bk) / bk.h`: back · spine · front over the page height. */
+export function coverCardRatio(trim: Trim, spineMm: number): number {
+  return (2 * trim.widthMm + spineMm) / trim.heightMm
+}
+
+/** Two pastedown pages over the page height. */
+export function endpaperCardRatio(trim: Trim): number {
+  return (2 * trim.widthMm) / trim.heightMm
+}
+
 export interface SpreadsRowGeometry {
   /** Thumb box width (row inner width). */
   boxWidthPx: number
@@ -106,18 +141,22 @@ export function spreadsListWindow(
   })
 }
 
-/** Scroll offset that brings row `index` fully into the viewport, or null. */
+/**
+ * Scroll offset that brings row `index` fully into the viewport, or null.
+ * `leadPx`: rows above the spreads in the same scroller (Cover, Endpaper).
+ */
 export function scrollTopToReveal(
   index: number,
   scrollTop: number,
   viewportPx: number,
   rowPx: number,
+  leadPx = 0,
 ): number | null {
   // -1: no selection (empty list) — nothing to reveal.
   if (index < 0) {
     return null
   }
-  const top = index * rowPx
+  const top = leadPx + index * rowPx
   const bottom = top + rowPx
   if (top < scrollTop) {
     return top

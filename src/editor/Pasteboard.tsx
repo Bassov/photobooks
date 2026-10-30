@@ -9,6 +9,7 @@ import {
   type PointerEvent,
   type UIEvent,
 } from 'react'
+import { getSpreadPageCount } from '../core'
 import { setFrameSource } from './frameSelection'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
@@ -527,14 +528,20 @@ export const Pasteboard = memo(function Pasteboard({
                 data-active={markedId === spreadId ? 'true' : 'false'}
                 style={{
                   height: stride,
-                  paddingBottom: pasteboardSlotPaddingBottom(committedZoom),
+                  paddingBottom: pasteboardSlotPaddingBottom(),
                   containIntrinsicBlockSize: `auto ${String(stride)}px`,
-                  ['--slot-pad' as string]: `${String(pasteboardSlotPaddingBottom(committedZoom))}px`,
+                  ['--slot-pad' as string]: `${String(pasteboardSlotPaddingBottom())}px`,
                 }}
               >
                 <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
                 {pageLabelsFit(committedZoom) ? (
-                  <PageLabels spreadIndex={range.start + index} />
+                  <PageLabels
+                    spreadIndex={range.start + index}
+                    pages={getSpreadPageCount(
+                      range.start + index,
+                      spreadIds.length,
+                    )}
+                  />
                 ) : null}
                 <div
                   className="pasteboard-gap"

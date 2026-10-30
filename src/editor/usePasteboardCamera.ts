@@ -71,8 +71,9 @@ interface StackMetrics {
   spreadWidth: number
   spreadHeight: number
   stackWidth: number
+  /** Zoom-1 stack height (gap included) for the whole-stack zoom floor. */
   stackHeight: number
-  stride: number
+  count: number
 }
 
 function blankFrame(): ZoomFrame {
@@ -140,7 +141,7 @@ function stackMetrics(
     spreadHeight: trimHeightMm * SPREAD_PX_PER_MM,
     stackWidth: trimWidthMm * widest * SPREAD_PX_PER_MM,
     stackHeight: Math.max(spreadCount, 0) * stride,
-    stride,
+    count: Math.max(spreadCount, 0),
   }
 }
 
@@ -215,20 +216,22 @@ function placedScroll(
 ): ScrollPosition {
   const spreadWidth = metrics.spreadWidth * zoom
   const spreadHeight = metrics.spreadHeight * zoom
+  // The gap stays 44 screen px: only the spread part of the stride scales.
+  const stride = pasteboardStridePx(spreadHeight)
   return centerSpreadScroll({
     spreadLeftPx:
       PASTEBOARD_PAD_PX + (metrics.stackWidth * zoom - spreadWidth) / 2,
     // The band centre sits (bottom − top) / 2 below the viewport centre.
     spreadTopPx:
       PASTEBOARD_PAD_PX +
-      activeIndex * metrics.stride * zoom -
+      activeIndex * stride -
       (FIT_TOP_PX - FIT_BOTTOM_PX) / 2,
     spreadWidthPx: spreadWidth,
     spreadHeightPx: spreadHeight,
     viewportWidth,
     viewportHeight,
     contentWidth: 2 * PASTEBOARD_PAD_PX + metrics.stackWidth * zoom,
-    contentHeight: 2 * PASTEBOARD_PAD_PX + metrics.stackHeight * zoom,
+    contentHeight: 2 * PASTEBOARD_PAD_PX + metrics.count * stride,
   })
 }
 
@@ -383,6 +386,7 @@ export function usePasteboardCamera({
         maxZoom: limits.maxZoom,
         originX: PASTEBOARD_PAD_PX,
         originY: PASTEBOARD_PAD_PX,
+        stackSpreadHeightPx: book.trimHeightMm * SPREAD_PX_PER_MM,
       },
       frame,
     )
@@ -446,6 +450,8 @@ export function usePasteboardCamera({
             maxZoom: gesture.maxZoom,
             originX: PASTEBOARD_PAD_PX,
             originY: PASTEBOARD_PAD_PX,
+            stackSpreadHeightPx:
+              bookRef.current.trimHeightMm * SPREAD_PX_PER_MM,
           },
           gesture.frame,
         )
@@ -711,6 +717,7 @@ export function usePasteboardCamera({
           maxZoom: gesture.maxZoom,
           originX: PASTEBOARD_PAD_PX,
           originY: PASTEBOARD_PAD_PX,
+          stackSpreadHeightPx: bookRef.current.trimHeightMm * SPREAD_PX_PER_MM,
         },
         gesture.frame,
       )

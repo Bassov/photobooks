@@ -84,6 +84,48 @@ describe('zoomAtPoint', () => {
     expect(frame.translateX).toBeCloseTo((10 + 30) * (1 - 1.5))
   })
 
+  it('keeps the stack point under the anchor with a constant gap', () => {
+    // Spread 100 px at zoom 1 (stride 144): anchor on spread 1, 50 px down.
+    const frame = zoomAtPoint(
+      {
+        zoom: 1,
+        scrollLeft: 0,
+        scrollTop: 1000 + 144,
+        anchorX: 0,
+        anchorY: 50,
+        factor: 2,
+        minZoom: 0.1,
+        maxZoom: 40,
+        originY: 1000,
+        stackSpreadHeightPx: 100,
+      },
+      blankFrame(),
+    )
+    // Zoom 2: spread 1 starts at 244; the point sits 100 px into it.
+    expect(frame.scrollTop + 50).toBe(1000 + 244 + 100)
+    // The gesture preview is still a plain scale about the anchor.
+    expect(frame.translateY).toBe((144 + 50) * (1 - 2))
+  })
+
+  it('pinch passes the stack spread height through', () => {
+    const frame = pinchZoom(
+      {
+        zoom: 1,
+        scrollLeft: 0,
+        scrollTop: 144,
+        startA: { x: 0, y: 40 },
+        startB: { x: 0, y: 60 },
+        currentA: { x: 0, y: 30 },
+        currentB: { x: 0, y: 70 },
+        minZoom: 0.1,
+        maxZoom: 40,
+        stackSpreadHeightPx: 100,
+      },
+      blankFrame(),
+    )
+    expect(frame.scrollTop + 50).toBe(244 + 100)
+  })
+
   it('ignores a non-positive factor', () => {
     const frame = zoomAtPoint(
       {

@@ -1,3 +1,4 @@
+import fc from 'fast-check'
 import { describe, expect, it, vi } from 'vitest'
 import { PASTEBOARD_GAP_PX } from './pasteboardWindow'
 import {
@@ -17,6 +18,7 @@ import {
   shouldRenderSpacer,
   PASTEBOARD_PAD_PX,
   spreadActiveIndex,
+  stackContentYAtZoom,
   stackScrollTop,
   widestPageCount,
 } from './pasteboardView'
@@ -120,11 +122,11 @@ describe('world / stride helpers', () => {
     ).toBe(400)
   })
 
-  it('scales stride and gap padding by zoom', () => {
-    expect(pasteboardStrideAtZoom(100, 2)).toBeGreaterThan(
-      pasteboardStrideAtZoom(100, 1),
-    )
-    expect(pasteboardSlotPaddingBottom(2)).toBe(PASTEBOARD_GAP_PX * 2)
+  it('scales the spread part of the stride by zoom; the gap stays 44 px', () => {
+    // 100 mm × 0.5 px/mm = 50 px at zoom 1.
+    expect(pasteboardStrideAtZoom(100, 1)).toBe(50 + PASTEBOARD_GAP_PX)
+    expect(pasteboardStrideAtZoom(100, 3)).toBe(150 + PASTEBOARD_GAP_PX)
+    expect(pasteboardSlotPaddingBottom()).toBe(44)
   })
 
   it('joins mounted ids for the window key', () => {
@@ -272,5 +274,44 @@ describe('stackScrollTop', () => {
     expect(stackScrollTop(0)).toBe(0)
     expect(stackScrollTop(PASTEBOARD_PAD_PX - 1)).toBe(0)
     expect(stackScrollTop(PASTEBOARD_PAD_PX + 300)).toBe(300)
+  })
+})
+
+describe('stackContentYAtZoom', () => {
+  // Zoom-1 spread height 100 px: stride 144 at zoom 1, 244 at zoom 2.
+  it('keeps a point on its spread and a gap offset in px', () => {
+    expect(stackContentYAtZoom(50, 100, 1, 2)).toBe(100)
+    expect(stackContentYAtZoom(120, 100, 1, 2)).toBe(220)
+    expect(stackContentYAtZoom(144 + 50, 100, 1, 2)).toBe(244 + 100)
+    expect(stackContentYAtZoom(2 * 144, 100, 1, 2)).toBe(2 * 244)
+  })
+
+  it('scales points above the stack', () => {
+    expect(stackContentYAtZoom(0, 100, 1, 2)).toBe(0)
+    expect(stackContentYAtZoom(-40, 100, 1, 2)).toBe(-80)
+  })
+
+  it('scales linearly when the stride is not usable', () => {
+    expect(stackContentYAtZoom(30, -100, 1, 2)).toBe(60)
+  })
+
+  it('maps spread i, fraction f to the same spread and fraction (PBT)', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 40 }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 10, max: 2000, noNaN: true }),
+        fc.double({ min: 0.05, max: 8, noNaN: true }),
+        fc.double({ min: 0.05, max: 8, noNaN: true }),
+        (index, f, h, from, to) => {
+          const y = index * (h * from + PASTEBOARD_GAP_PX) + f * h * from
+          const mapped = stackContentYAtZoom(y, h, from, to)
+          const expected = index * (h * to + PASTEBOARD_GAP_PX) + f * h * to
+          expect(Math.abs(mapped - expected)).toBeLessThan(1e-6 * (1 + y))
+          const back = stackContentYAtZoom(mapped, h, to, from)
+          expect(Math.abs(back - y)).toBeLessThan(1e-6 * (1 + y))
+        },
+      ),
+    )
   })
 })

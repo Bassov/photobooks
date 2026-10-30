@@ -33,7 +33,8 @@ test('spread list follows kit v0.10 structure and tokens', async ({ page }) => {
   )
   expect(await selected.count()).toBeGreaterThan(0)
 
-  await expect(page.getByTestId('add-spread')).toContainText('Add spread')
+  // design-r2-spread-list M17: the kit #/demo list has no Add spread button.
+  await expect(page.getByTestId('add-spread')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
 

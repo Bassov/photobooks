@@ -6,6 +6,8 @@ import {
 } from './photoRootSession'
 import {
   canDeleteSpread,
+  coverCardRatio,
+  endpaperCardRatio,
   neighbourAfterDelete,
   scrollPasteboardToSpread,
   scrollTopToReveal,
@@ -14,6 +16,7 @@ import {
   spreadsListWindow,
   spreadsRowGeometry,
   fitThumbPx,
+  thumbCardStyle,
 } from './spreadsPanelModel'
 
 const ROW = spreadsRowGeometry(0, 2).rowPx
@@ -79,6 +82,32 @@ describe('spreadsPanelModel', () => {
     expect(scrollTopToReveal(0, 10, 20, ROW)).toBe(0)
     // No selection never scrolls.
     expect(scrollTopToReveal(-1, ROW, 400, ROW)).toBeNull()
+  })
+
+  it('reveals rows below the Cover / Endpaper head', () => {
+    const head = 250
+    expect(scrollTopToReveal(0, 0, 2 * ROW + head, ROW, head)).toBeNull()
+    expect(scrollTopToReveal(0, head + 1, 400, ROW, head)).toBe(head)
+    expect(scrollTopToReveal(10, 0, 400, ROW, head)).toBe(head + 11 * ROW - 400)
+    expect(scrollTopToReveal(-1, 0, 400, ROW, head)).toBeNull()
+  })
+
+  it('builds the kit card: a ≥1.6 box with the ratio paper centred', () => {
+    expect(thumbCardStyle(2)).toEqual({
+      box: { aspectRatio: '2' },
+      inner: { width: '100%', aspectRatio: '2' },
+    })
+    expect(thumbCardStyle(1.6).inner.width).toBe('100%')
+    expect(thumbCardStyle(0.8)).toEqual({
+      box: { aspectRatio: '1.6' },
+      inner: { width: '50%', aspectRatio: '0.8' },
+    })
+  })
+
+  it('derives the cover and endpaper card ratios from the trim', () => {
+    const trim = { widthMm: 200, heightMm: 100 }
+    expect(coverCardRatio(trim, 12)).toBe(4.12)
+    expect(endpaperCardRatio(trim)).toBe(4)
   })
 
   it('fits each spread into the shared thumb box at its own aspect', () => {

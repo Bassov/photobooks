@@ -80,7 +80,6 @@ export const EDITOR_CHROME_CSS = `
 .editor-spreads { background: var(--chrome); color: var(--foreground) }
 .editor-spreads-mode { background: var(--chrome); color: var(--foreground); box-shadow: var(--shadow-sm) }
 .editor-spread-thumb { overflow: hidden; background: var(--paper); box-shadow: var(--shadow-sm) }
-.editor-add-spread { height: 32px; color: var(--muted-foreground) }
 `
 
 const STYLE_ID = 'pb-editor-chrome-v93'
