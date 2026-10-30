@@ -14,7 +14,7 @@ interface Box {
   height: number
 }
 
-const margins = { top: 10, bottom: 12, left: 8, right: 14 }
+const margins = { top: 10, bottom: 12, inside: 8, outside: 14 }
 const COL_GUTTER = 4
 const ROW_GUTTER = 6
 
@@ -34,10 +34,14 @@ function gridBook(spreads = 1) {
 function boxFor(book: ReturnType<typeof gridBook>, page: 0 | 1, pages: 1 | 2) {
   const trimW = book.settings.trim.widthMm
   const trimH = book.settings.trim.heightMm
+  // Facing pages mirror: the right-hand page (and a lone first page) puts inside on its left.
+  const rightHand = pages === 1 || page === 1
   return {
-    x: (pages === 2 ? trimW * page : 0) + margins.left,
+    x:
+      (pages === 2 ? trimW * page : 0) +
+      (rightHand ? margins.inside : margins.outside),
     y: margins.top,
-    width: trimW - margins.left - margins.right,
+    width: trimW - margins.inside - margins.outside,
     height: trimH - margins.top - margins.bottom,
   }
 }

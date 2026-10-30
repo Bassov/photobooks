@@ -28,6 +28,7 @@ import {
   DeleteFrameButton,
   GeometrySection,
 } from './FrameSections'
+import { PhotoRotateSection } from './PhotoRotateSection'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import { GridSection } from './GridSection'
 import { LayoutSection } from './LayoutSection'
@@ -224,6 +225,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
             <>
               <GeometrySection target={section} />
               <FitCropSection target={section} cropping={target !== null} />
+              <PhotoRotateSection target={section} />
               <ArrangeSection target={section} />
               <DeleteFrameButton target={section} />
             </>

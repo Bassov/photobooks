@@ -15,9 +15,6 @@ export const STATUS_MOVED = 'Photo moved'
 
 export const STATUS_UNPLACED = 'Photo unplaced'
 
-export const STATUS_PLACEMENT_HINT =
-  'Drag a photo onto a frame, or click a photo and then a frame.'
-
 export function unplacedFromSpreadStatus(count: number): string {
   if (count === 1) {
     return '1 photo was unplaced from the spread'

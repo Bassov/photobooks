@@ -5,12 +5,12 @@ const MM_PER_INCH = 25.4
 /** Kit key / button step (`viewport.tsx` L67–68). */
 export const ZOOM_STEP = 1.25
 /** One wheel notch (deltaY 100) zooms by this factor (kit L145–157). */
-export const WHEEL_NOTCH_FACTOR = 1.1
+const WHEEL_NOTCH_FACTOR = 1.1
 const WHEEL_NOTCH_DELTA = 100
 const WHEEL_ZOOM_GAIN = Math.log(WHEEL_NOTCH_FACTOR) / WHEEL_NOTCH_DELTA
 /** Zoom range relative to Fit (kit clamp 0.25–8). */
-export const MIN_FIT_RATIO = 0.25
-export const MAX_FIT_RATIO = 8
+const MIN_FIT_RATIO = 0.25
+const MAX_FIT_RATIO = 8
 /** Kit `FIT_TOP` / `FIT_BOTTOM` / side `pad` (viewport.tsx L110–126). */
 export const FIT_TOP_PX = 56
 export const FIT_BOTTOM_PX = 48

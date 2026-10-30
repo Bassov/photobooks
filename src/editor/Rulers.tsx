@@ -1,4 +1,9 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import {
+  useEffect,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { getCommittedCamera, subscribeCommitted } from './cameraStore'
 import {
@@ -7,6 +12,8 @@ import {
   rulerTicks,
   type RulerAxis,
 } from './rulersMath'
+import { startGuideDrag } from './guideGesture'
+import type { GuideOrientation } from './guidesMath'
 import { drawRulerTicks } from './rulersPaint'
 import './Rulers.css'
 
@@ -83,6 +90,23 @@ export function Rulers({
   const spine = useRef<HTMLSpanElement>(null)
   const cursorX = useRef<HTMLSpanElement>(null)
   const cursorY = useRef<HTMLSpanElement>(null)
+  const activeSpread = useRef<HTMLElement | null>(null)
+
+  // Pulling from the top strip makes a horizontal guide, from the left strip a vertical one.
+  const pull = (
+    e: ReactPointerEvent<HTMLDivElement>,
+    orientation: GuideOrientation,
+  ): void => {
+    const spreadEl = activeSpread.current
+    if (e.button !== 0 || spreadEl === null) return
+    e.preventDefault()
+    startGuideDrag({
+      event: e.nativeEvent,
+      spreadEl,
+      orientation,
+      rulerEl: e.currentTarget,
+    })
+  }
 
   useEffect(() => {
     const scroll = scrollRef.current
@@ -98,6 +122,7 @@ export function Rulers({
     const paint = (): void => {
       raf = 0
       const g = measure(scroll, pageMm)
+      activeSpread.current = g?.spread ?? null
       if (g === null) return
       if (g.spread !== observed) {
         if (observed) resize.unobserve(observed)
@@ -166,6 +191,9 @@ export function Rulers({
         className="ruler ruler-x"
         data-testid="ruler-x"
         aria-hidden="true"
+        onPointerDown={(e) => {
+          pull(e, 'horizontal')
+        }}
       >
         <canvas ref={canvasX} />
         <span ref={spine} className="ruler-spine" hidden />
@@ -176,6 +204,9 @@ export function Rulers({
         className="ruler ruler-y"
         data-testid="ruler-y"
         aria-hidden="true"
+        onPointerDown={(e) => {
+          pull(e, 'vertical')
+        }}
       >
         <canvas ref={canvasY} />
         <span ref={cursorY} className="ruler-cursor ruler-cursor-y" hidden />

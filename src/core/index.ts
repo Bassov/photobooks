@@ -33,6 +33,9 @@ export {
   GRID_FIELDS,
   effectiveGrid,
   hasGridOverride,
+  resolveLayoutGrid,
+  type PageGrid,
+  type ResolvedLayoutGrid,
   type GridField,
   type GridPatch,
   type GridSource,
@@ -45,7 +48,12 @@ export {
   getSpreadSizeMm,
 } from './geometry/spreadSize'
 export { DPI_MIN, DPI_WARN, frameDpi, lowDpi } from './geometry/dpi'
-export { clampCrop, MAX_CROP_ZOOM, sourceCropRect } from './geometry/cropRect'
+export {
+  clampCrop,
+  MAX_CROP_ZOOM,
+  shownCropRect,
+  sourceCropRect,
+} from './geometry/cropRect'
 export { COVER_CROP, resetCrop, setCrop, setFit } from './ops/crop'
 export {
   resolveSpread,
@@ -115,6 +123,14 @@ export {
   type DistributeAxis,
 } from './ops/transform'
 export { fillSpread, insertSpreadWithAssets } from './ops/fill'
+export {
+  GUIDE_OVERSHOOT_MM,
+  addGuide,
+  moveGuide,
+  nextGuideId,
+  removeGuide,
+  type Guide,
+} from './ops/guides'
 export { applyBookOp, type BookOp } from './ops/applyBookOp'
 
 export {

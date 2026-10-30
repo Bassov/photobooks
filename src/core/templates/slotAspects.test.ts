@@ -191,10 +191,10 @@ describe('contact sheet geometry', () => {
     for (const [index, frame] of frames.entries()) {
       const page = index < 12 ? 0 : 1
       const { x, y, width, height } = frame.rect
-      expect(x).toBeGreaterThanOrEqual(page * trimW + margins.left - 1e-6)
-      expect(x + width).toBeLessThanOrEqual(
-        (page + 1) * trimW - margins.right + 1e-6,
-      )
+      const left = page === 0 ? margins.outside : margins.inside
+      const right = page === 0 ? margins.inside : margins.outside
+      expect(x).toBeGreaterThanOrEqual(page * trimW + left - 1e-6)
+      expect(x + width).toBeLessThanOrEqual((page + 1) * trimW - right + 1e-6)
       expect(y).toBeGreaterThanOrEqual(margins.top - 1e-6)
       expect(y + height).toBeLessThanOrEqual(trimH - margins.bottom + 1e-6)
     }

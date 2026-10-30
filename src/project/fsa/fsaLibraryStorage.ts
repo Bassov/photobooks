@@ -1,5 +1,6 @@
 import type { Book } from '../../core'
 import { bookSummaryFromBook } from '../bookSummary'
+import type { LibraryParseResult } from '../libraryDocument'
 import type {
   BookSummary,
   LibraryMeta,
@@ -47,6 +48,10 @@ function failure(code: StorageFailure['code']): StorageFailure {
 
 function success<T>(value: T): StorageResult<T> {
   return { ok: true, value }
+}
+
+function libraryResult(parsed: LibraryParseResult): StorageResult<LibraryMeta> {
+  return parsed.ok ? success(parsed.meta) : failure(parsed.code)
 }
 
 function mapLoadFailure(
@@ -112,12 +117,16 @@ export function createFsaLibraryStorage(
       await writeRawBookJson(root, id, raw)
     },
     getLibrary() {
-      return gateRead(async () => success(await readLibraryMeta(root)))
+      return gateRead(async () => libraryResult(await readLibraryMeta(root)))
     },
     updateLibrary(meta: LibraryMeta) {
       return gateWrite(async () => {
+        const existing = await readLibraryMeta(root)
+        if (!existing.ok) {
+          return libraryResult(existing)
+        }
         await writeLibraryMeta(root, meta)
-        return success(await readLibraryMeta(root))
+        return libraryResult(await readLibraryMeta(root))
       })
     },
     listBooks() {

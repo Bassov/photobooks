@@ -1,0 +1,72 @@
+/* Editor-layer guides (kit `GuideLine`): hairline in the grayscale `--guide` token, wide invisible hit strip. */
+.guides-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.guide-line {
+  position: absolute;
+  z-index: 50;
+  pointer-events: auto;
+  background: var(--guide);
+}
+
+.guide-line[data-orientation='vertical'] {
+  top: -24px;
+  bottom: -24px;
+  width: 1px;
+  margin-left: -0.5px;
+  cursor: ew-resize;
+}
+
+.guide-line[data-orientation='horizontal'] {
+  left: -24px;
+  right: -24px;
+  height: 1px;
+  margin-top: -0.5px;
+  cursor: ns-resize;
+}
+
+.guide-line::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.guide-line[data-orientation='vertical']::before {
+  inset: 0 -4px;
+}
+
+.guide-line[data-orientation='horizontal']::before {
+  inset: -4px 0;
+}
+
+.guide-line[data-dragging='true'] {
+  pointer-events: none;
+}
+
+.guide-line[data-removing='true'] {
+  opacity: 0.35;
+}
+
+.guide-line-tag {
+  position: absolute;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--field);
+  color: var(--foreground);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.guide-line[data-orientation='vertical'] .guide-line-tag {
+  left: 4px;
+  top: 28px;
+}
+
+.guide-line[data-orientation='horizontal'] .guide-line-tag {
+  left: 28px;
+  top: 4px;
+}

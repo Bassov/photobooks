@@ -84,6 +84,9 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   setBookGrid: 'Change grid',
   setSpreadGrid: 'Change grid',
   resetSpreadGrid: 'Reset grid',
+  addGuide: 'Add guide',
+  moveGuide: 'Move guide',
+  removeGuide: 'Delete guide',
 }
 
 /** Short name of the step an op creates, for the undo / redo tooltip. */

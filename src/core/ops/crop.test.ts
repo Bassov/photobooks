@@ -158,3 +158,76 @@ describe('clampCrop', () => {
     expect(again.center.y).toBeCloseTo(crop.center.y, 9)
   })
 })
+
+describe('photo rotation in crop ops', () => {
+  const frameOf = (book: ReturnType<typeof makeBookWithAsset>) =>
+    book.spreads[0]?.frames[0]
+
+  it('setCrop stores quarter turns and angle, normalized; zero is absent', () => {
+    const turned = setCrop(makeBookWithAsset(), 'spread-1', 'frame-1', {
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      quarterTurns: 5,
+      straightenDeg: 99,
+    })
+    expect(frameOf(turned)?.crop).toEqual({
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      quarterTurns: 1,
+      straightenDeg: 45,
+    })
+    const zero = setCrop(turned, 'spread-1', 'frame-1', {
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      quarterTurns: 0,
+      straightenDeg: 0,
+    })
+    expect(frameOf(zero)?.crop).toEqual({ zoom: 1, center: { x: 0.5, y: 0.5 } })
+  })
+
+  it('a rotation-only change is a real change; the same crop is a no-op', () => {
+    const base = setCrop(makeBookWithAsset(), 'spread-1', 'frame-1', {
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      straightenDeg: 3,
+    })
+    expect(
+      setCrop(base, 'spread-1', 'frame-1', {
+        zoom: 1,
+        center: { x: 0.5, y: 0.5 },
+        straightenDeg: 3,
+      }),
+    ).toBe(base)
+    expect(
+      setCrop(base, 'spread-1', 'frame-1', {
+        zoom: 1,
+        center: { x: 0.5, y: 0.5 },
+        quarterTurns: 2,
+        straightenDeg: 3,
+      }),
+    ).not.toBe(base)
+  })
+
+  it('resetCrop and setFit keep the rotation, reset zoom and pan', () => {
+    const rotated = setCrop(makeBookWithAsset(), 'spread-1', 'frame-1', {
+      zoom: 2,
+      center: { x: 0.3, y: 0.6 },
+      quarterTurns: 1,
+      straightenDeg: -5,
+    })
+    expect(frameOf(resetCrop(rotated, 'spread-1', 'frame-1'))?.crop).toEqual({
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      quarterTurns: 1,
+      straightenDeg: -5,
+    })
+    const fit = setFit(rotated, 'spread-1', 'frame-1', 'fit')
+    expect(frameOf(fit)?.fit).toBe('fit')
+    expect(frameOf(fit)?.crop).toEqual({
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      quarterTurns: 1,
+      straightenDeg: -5,
+    })
+  })
+})

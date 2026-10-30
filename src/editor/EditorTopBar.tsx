@@ -42,6 +42,7 @@ import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
 import { DpiToggle } from './DpiToggle'
 import { RulersToggle } from './RulersToggle'
+import { GuidesToggle } from './GuidesToggle'
 import {
   getBookStoreSnapshot,
   getHistorySnapshot,
@@ -397,6 +398,7 @@ export function EditorTopBar({
         <GridToggle />
         <SnapToggle />
         <RulersToggle />
+        <GuidesToggle />
         <DpiToggle />
       </div>
 
