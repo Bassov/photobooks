@@ -248,9 +248,8 @@ button.spread-frame:not(
 }
 
 .spread-frame-ghost {
-  opacity: 0.4;
+  opacity: 0.3;
   pointer-events: none;
-  outline: 1px solid var(--crop);
 }
 
 .spread-frame-clip {

@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Crop in frame: kit v0.10 look
+Status: done
 
 ## Scope
 
