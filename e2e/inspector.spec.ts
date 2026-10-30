@@ -2,6 +2,12 @@ import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
+import {
+  browserAssertNoLoafThenClear,
+  browserBeginLoafScenarioWindow,
+  clearPerfScenario,
+  enablePerfScenario,
+} from './perf/perfFixture'
 
 test.beforeEach(async ({ page }) => {
   await installPhotoDirectoryPickerStub(page)
@@ -75,5 +81,34 @@ test.describe('inspector numeric properties', () => {
     await page.keyboard.press('Escape')
     await expect(width).toHaveValue(before)
     await page.mouse.up()
+  })
+})
+
+test.describe('inspector frame-budget gates', () => {
+  test('resizing a frame with the inspector open stays within frame-budget gates', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page)
+    const frame = await selectFrame(page)
+    const width = page.getByRole('textbox', { name: 'Width' })
+    const se = await frame.locator('[data-handle="se"]').boundingBox()
+    const sx = (se?.x ?? 0) + (se?.width ?? 0) / 2
+    const sy = (se?.y ?? 0) + (se?.height ?? 0) / 2
+
+    await page.evaluate(browserBeginLoafScenarioWindow)
+    await clearPerfScenario(page)
+    const before = await width.inputValue()
+    await page.mouse.move(sx, sy)
+    await page.mouse.down()
+    for (let tick = 1; tick <= 120; tick += 1) {
+      await page.mouse.move(sx - 30 - Math.sin(tick / 8) * 25, sy - 20)
+      await page.waitForTimeout(8)
+    }
+    // Live values were flowing while the pointer was down.
+    await expect(width).not.toHaveValue(before)
+    await page.mouse.up()
+
+    await page.evaluate(browserAssertNoLoafThenClear)
   })
 })
