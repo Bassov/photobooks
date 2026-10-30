@@ -1,5 +1,6 @@
 import { isTypingTarget } from './isTypingTarget'
 import { toggleGridVisible, toggleSnapOn } from './gridView'
+import { toggleGuidesVisible } from './guidesView'
 import { toggleRulersVisible } from './rulersView'
 
 /** Ctrl/⌘+' shows / hides the layout grid; Shift+S turns snapping on / off; Shift+R shows / hides rulers. */
@@ -9,6 +10,11 @@ export function installEditorGridKeys(): () => void {
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "'") {
       e.preventDefault()
       toggleGridVisible()
+      return
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === ';') {
+      e.preventDefault()
+      toggleGuidesVisible()
       return
     }
     if (e.shiftKey && !e.ctrlKey && !e.metaKey) {

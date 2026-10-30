@@ -5,6 +5,7 @@ import {
   setGridVisible,
   setSnapOn,
 } from './gridView'
+import { getGuidesVisible, setGuidesVisible } from './guidesView'
 import { installEditorGridKeys } from './installEditorGridKeys'
 import { getRulersVisible, setRulersVisible } from './rulersView'
 
@@ -28,6 +29,7 @@ describe('installEditorGridKeys', () => {
     setGridVisible(false)
     setSnapOn(true)
     setRulersVisible(false)
+    setGuidesVisible(true)
   })
 
   it("Ctrl+' and Cmd+' flip the grid and swallow the key", () => {
@@ -39,8 +41,19 @@ describe('installEditorGridKeys', () => {
 
   it("a bare ' or another Ctrl key leaves the grid alone", () => {
     expect(press({ key: "'" }).defaultPrevented).toBe(false)
-    press({ key: ';', ctrlKey: true })
+    press({ key: 'k', ctrlKey: true })
     expect(getGridVisible()).toBe(false)
+    expect(getGuidesVisible()).toBe(true)
+  })
+
+  it('Ctrl+; and Cmd+; flip the guides and swallow the key; Ctrl+Shift+; and a bare ; do not', () => {
+    expect(press({ key: ';', ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(getGuidesVisible()).toBe(false)
+    expect(press({ key: ';', metaKey: true }).defaultPrevented).toBe(true)
+    expect(getGuidesVisible()).toBe(true)
+    expect(press({ key: ';' }).defaultPrevented).toBe(false)
+    press({ key: ';', ctrlKey: true, shiftKey: true })
+    expect(getGuidesVisible()).toBe(true)
   })
 
   it('Shift+S flips snap and swallows the key', () => {
