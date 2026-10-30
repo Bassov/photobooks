@@ -2,11 +2,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { resetBookStore } from './bookStore'
 import { LeftPanel } from './LeftPanel'
+import { resetLeftPanelTabForTests } from './leftPanelTabStore'
 
 describe('LeftPanel', () => {
   afterEach(() => {
     cleanup()
     resetBookStore()
+    resetLeftPanelTabForTests()
   })
 
   it('shows Pages first and switches to the Masters stub and back', () => {
