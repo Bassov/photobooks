@@ -67,7 +67,7 @@ describe('v5 to v6', () => {
       spreads: 'none',
     })
     assert.equal(result.ok, true)
-    expect(result.value).toMatchObject({ schemaVersion: 6, spreads: 'none' })
+    expect(result.value).toMatchObject({ schemaVersion: 7, spreads: 'none' })
   })
 
   it('parses into a valid current book', () => {

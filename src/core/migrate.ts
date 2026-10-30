@@ -110,6 +110,48 @@ function migrateV5ToV6(
   return { ...input, schemaVersion: 6, spreads }
 }
 
+/** v2 `left / right` margins become page-scoped `outside / inside`. */
+function pageScopedGrid(grid: unknown): unknown {
+  if (grid === null || typeof grid !== 'object' || Array.isArray(grid)) {
+    return grid
+  }
+  const margins = (grid as { margins?: unknown }).margins
+  if (
+    margins === null ||
+    typeof margins !== 'object' ||
+    Array.isArray(margins)
+  ) {
+    return grid
+  }
+  const { left, right, ...rest } = margins as Record<string, unknown>
+  return {
+    ...grid,
+    margins: {
+      ...rest,
+      ...(left === undefined ? {} : { outside: left }),
+      ...(right === undefined ? {} : { inside: right }),
+    },
+  }
+}
+
+function migrateV6ToV7(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const spreads = Array.isArray(input.spreads)
+    ? input.spreads.map((spread: unknown) =>
+        spread !== null && typeof spread === 'object' && 'layoutGrid' in spread
+          ? { ...spread, layoutGrid: pageScopedGrid(spread.layoutGrid) }
+          : spread,
+      )
+    : input.spreads
+  return {
+    ...input,
+    schemaVersion: 7,
+    layoutGrid: pageScopedGrid(input.layoutGrid),
+    spreads,
+  }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -159,6 +201,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 5) {
     value = migrateV5ToV6(value as Record<string, unknown>)
+    version = 6
+  }
+  if (version === 6) {
+    value = migrateV6ToV7(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }

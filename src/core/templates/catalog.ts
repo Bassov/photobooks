@@ -14,19 +14,20 @@ export function generateTemplateFrames(
   spreadIndex: number,
   spread?: Spread,
 ): Frame[] {
-  const {
-    widthMm: W,
-    heightMm: H,
-    pageCount,
-  } = getSpreadSizeMm(book, spreadIndex)
+  const { widthMm: W, heightMm: H } = getSpreadSizeMm(book, spreadIndex)
   const bleed = book.settings.bleedMm
-  const grid = resolveLayoutGrid(book, spread)
-  const { margins, columnGutterMm: cg, rowGutterMm: rg } = grid
+  const { values, pages } = resolveLayoutGrid(book, spreadIndex, spread)
+  const boxes: Boxes =
+    pages.length === 2
+      ? [pages[0].content, pages[1].content]
+      : [pages[0].content]
+  const cg = values.columnGutterMm
+  const rg = values.rowGutterMm
 
   const contact = parseContactSheetId(templateId)
   const rects = (() => {
     if (contact !== null) {
-      return contactSheetRects(W, H, pageCount, margins, cg, rg, contact)
+      return contactSheetRects(boxes, cg, rg, contact)
     }
     switch (templateId as FixedTemplateId) {
       case 'full-bleed':
@@ -39,15 +40,15 @@ export function generateTemplateFrames(
           },
         ]
       case 'one-per-page':
-        return onePerPageRects(W, H, pageCount, margins)
+        return boxes
       case '2-up':
-        return twoUpRects(W, H, margins, cg)
+        return twoUpRects(spanBox(boxes), cg)
       case '4-grid':
-        return fourGridRects(W, H, margins, cg, rg)
+        return fourGridRects(spanBox(boxes), cg, rg)
       case 'two-portraits':
-        return twoPortraitsRects(W, H, pageCount, margins, cg)
+        return twoPortraitsRects(boxes, cg)
       case 'landscape-two-portraits':
-        return landscapeTwoPortraitsRects(W, H, pageCount, margins, cg, rg)
+        return landscapeTwoPortraitsRects(boxes, cg, rg)
     }
   })()
 
@@ -58,60 +59,16 @@ export function generateTemplateFrames(
   }))
 }
 
-function onePerPageRects(
-  W: number,
-  H: number,
-  pageCount: 1 | 2,
-  margins: Book['layoutGrid']['margins'],
-): RectMm[] {
-  if (pageCount === 1) {
-    return [
-      {
-        x: margins.left,
-        y: margins.top,
-        width: W - margins.left - margins.right,
-        height: H - margins.top - margins.bottom,
-      },
-    ]
-  }
-  const pageW = W / 2
-  return [
-    {
-      x: margins.left,
-      y: margins.top,
-      width: pageW - margins.left - margins.right,
-      height: H - margins.top - margins.bottom,
-    },
-    {
-      x: pageW + margins.left,
-      y: margins.top,
-      width: pageW - margins.left - margins.right,
-      height: H - margins.top - margins.bottom,
-    },
-  ]
+/** Outer edges of the page content boxes: the whole spread inside its margins. */
+type Boxes = [RectMm] | [RectMm, RectMm]
+
+function spanBox(boxes: Boxes): RectMm {
+  const first = boxes[0]
+  const last = boxes.length === 2 ? boxes[1] : first
+  return { ...first, width: last.x + last.width - first.x }
 }
 
-function contentBox(
-  W: number,
-  H: number,
-  margins: Book['layoutGrid']['margins'],
-  offsetX = 0,
-): RectMm {
-  return {
-    x: offsetX + margins.left,
-    y: margins.top,
-    width: W - margins.left - margins.right,
-    height: H - margins.top - margins.bottom,
-  }
-}
-
-function twoUpRects(
-  W: number,
-  H: number,
-  margins: Book['layoutGrid']['margins'],
-  columnGutterMm: number,
-): RectMm[] {
-  const box = contentBox(W, H, margins)
+function twoUpRects(box: RectMm, columnGutterMm: number): RectMm[] {
   const colW = (box.width - columnGutterMm) / 2
   return [
     { x: box.x, y: box.y, width: colW, height: box.height },
@@ -125,13 +82,10 @@ function twoUpRects(
 }
 
 function fourGridRects(
-  W: number,
-  H: number,
-  margins: Book['layoutGrid']['margins'],
+  box: RectMm,
   columnGutterMm: number,
   rowGutterMm: number,
 ): RectMm[] {
-  const box = contentBox(W, H, margins)
   const cellW = (box.width - columnGutterMm) / 2
   const cellH = (box.height - rowGutterMm) / 2
   return [
@@ -160,18 +114,6 @@ function fourGridRects(
 const PORTRAIT_RATIO = 3 / 4
 const LANDSCAPE_RATIO = 3 / 2
 
-function pageBoxes(
-  W: number,
-  H: number,
-  pageCount: 1 | 2,
-  margins: Book['layoutGrid']['margins'],
-): [RectMm] | [RectMm, RectMm] {
-  if (pageCount === 1) {
-    return [contentBox(W, H, margins)]
-  }
-  return [contentBox(W / 2, H, margins), contentBox(W / 2, H, margins, W / 2)]
-}
-
 function splitColumns(box: RectMm, gutterMm: number): [RectMm, RectMm] {
   const width = (box.width - gutterMm) / 2
   return [
@@ -191,28 +133,19 @@ function fitAspect(cell: RectMm, ratio: number): RectMm {
   }
 }
 
-function twoPortraitsRects(
-  W: number,
-  H: number,
-  pageCount: 1 | 2,
-  margins: Book['layoutGrid']['margins'],
-  columnGutterMm: number,
-): RectMm[] {
-  const boxes = pageBoxes(W, H, pageCount, margins)
+function twoPortraitsRects(boxes: Boxes, columnGutterMm: number): RectMm[] {
   const cells =
     boxes.length === 2 ? boxes : splitColumns(boxes[0], columnGutterMm)
   return cells.map((cell) => fitAspect(cell, PORTRAIT_RATIO))
 }
 
 function landscapeTwoPortraitsRects(
-  W: number,
-  H: number,
-  pageCount: 1 | 2,
-  margins: Book['layoutGrid']['margins'],
+  boxes: Boxes,
   columnGutterMm: number,
   rowGutterMm: number,
 ): RectMm[] {
-  const [left, right] = pageBoxes(W, H, pageCount, margins)
+  const left = boxes[0]
+  const right = boxes[1]
   let landscapeCell = left
   let portraitBox = right ?? left
   if (right === undefined) {
@@ -229,16 +162,13 @@ function landscapeTwoPortraitsRects(
 }
 
 function contactSheetRects(
-  W: number,
-  H: number,
-  pageCount: 1 | 2,
-  margins: Book['layoutGrid']['margins'],
+  boxes: Boxes,
   columnGutterMm: number,
   rowGutterMm: number,
   { cols, rows }: { cols: number; rows: number },
 ): RectMm[] {
   const rects: RectMm[] = []
-  for (const box of pageBoxes(W, H, pageCount, margins)) {
+  for (const box of boxes) {
     const cellW = (box.width - columnGutterMm * (cols - 1)) / cols
     const cellH = (box.height - rowGutterMm * (rows - 1)) / rows
     for (let r = 0; r < rows; r += 1) {

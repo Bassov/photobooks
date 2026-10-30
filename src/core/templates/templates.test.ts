@@ -61,9 +61,9 @@ describe('template generators', () => {
     const W = book.settings.trim.widthMm
     const H = book.settings.trim.heightMm
     expect(frames[0]?.rect).toEqual({
-      x: m.left,
+      x: m.inside,
       y: m.top,
-      width: W - m.left - m.right,
+      width: W - m.inside - m.outside,
       height: H - m.top - m.bottom,
     })
   })
@@ -80,10 +80,10 @@ describe('template generators', () => {
     expect(frames).toHaveLength(2)
     const pageW = book.settings.trim.widthMm
     const m = book.layoutGrid.margins
-    expect(frames[0]?.rect.x).toBe(m.left)
-    expect(frames[0]?.rect.width).toBe(pageW - m.left - m.right)
-    expect(frames[1]?.rect.x).toBe(pageW + m.left)
-    expect(frames[1]?.rect.width).toBe(pageW - m.left - m.right)
+    expect(frames[0]?.rect.x).toBe(m.outside)
+    expect(frames[0]?.rect.width).toBe(pageW - m.inside - m.outside)
+    expect(frames[1]?.rect.x).toBe(pageW + m.inside)
+    expect(frames[1]?.rect.width).toBe(pageW - m.inside - m.outside)
   })
 
   it('2-up uses whole-spread columns on one- and two-page spreads', () => {
@@ -103,22 +103,22 @@ describe('template generators', () => {
     const W = book.settings.trim.widthMm * 2
     const m = book.layoutGrid.margins
     const cg = book.layoutGrid.columnGutterMm
-    const contentW = W - m.left - m.right
+    const contentW = W - 2 * m.outside
     const colW = (contentW - cg) / 2
     expect(frames[0]?.rect).toEqual({
-      x: m.left,
+      x: m.outside,
       y: m.top,
       width: colW,
       height: book.settings.trim.heightMm - m.top - m.bottom,
     })
-    expect(frames[1]?.rect.x).toBeCloseTo(m.left + colW + cg)
+    expect(frames[1]?.rect.x).toBeCloseTo(m.outside + colW + cg)
     expect(frames[1]?.rect.width).toBeCloseTo(colW)
   })
 
   it('4-grid yields exact 2×2 cells in the margin box', () => {
     const book = makeBook({
       layoutGrid: {
-        margins: { top: 10, right: 10, bottom: 10, left: 10 },
+        margins: { top: 10, bottom: 10, inside: 10, outside: 10 },
         columns: 2,
         rows: 2,
         columnGutterMm: 4,
@@ -148,10 +148,10 @@ describe('template generators', () => {
     const W = book.settings.trim.widthMm * 2
     const m = book.layoutGrid.margins
     const cg = book.layoutGrid.columnGutterMm
-    const contentW = W - m.left - m.right
+    const contentW = W - 2 * m.outside
     const cellW = (contentW - cg) / 2
     expect(frames[0]?.rect.width).toBeCloseTo(cellW)
-    expect(frames[3]?.rect.x).toBeCloseTo(m.left + cellW + cg)
+    expect(frames[3]?.rect.x).toBeCloseTo(m.outside + cellW + cg)
   })
 })
 
