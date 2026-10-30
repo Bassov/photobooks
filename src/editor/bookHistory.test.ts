@@ -211,13 +211,14 @@ describe('step label bookkeeping', () => {
   })
 
   it('redo leaves the remaining future labels and exposes the next one', () => {
-    const h = labelled(['a', 'b', 'c'])
+    const h = labelled(['a', 'b', 'c', 'd'])
     const u1 = undoStep(h, snap('x'))?.history ?? EMPTY_HISTORY
     const u2 = undoStep(u1, snap('y'))?.history ?? EMPTY_HISTORY
-    expect(u2.futureLabels).toEqual(['c', 'b'])
-    const redone = redoStep(u2, snap('z'))?.history ?? EMPTY_HISTORY
+    const u3 = undoStep(u2, snap('w'))?.history ?? EMPTY_HISTORY
+    expect(u3.futureLabels).toEqual(['d', 'c', 'b'])
+    const redone = redoStep(u3, snap('z'))?.history ?? EMPTY_HISTORY
     expect(redone.pastLabels).toEqual(['a', 'b'])
-    expect(redone.futureLabels).toEqual(['c'])
+    expect(redone.futureLabels).toEqual(['d', 'c'])
     expect(undoLabel(redone)).toBe('b')
     expect(redoLabel(redone)).toBe('c')
   })

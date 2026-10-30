@@ -770,9 +770,8 @@ function setHistory(next: History): void {
     undoLabel: undoLabel(next),
     redoLabel: redoLabel(next),
   }
+  // A null label is exactly "nothing to undo / redo", so labels cover availability.
   if (
-    avail.canUndo === historySnapshot.canUndo &&
-    avail.canRedo === historySnapshot.canRedo &&
     avail.undoLabel === historySnapshot.undoLabel &&
     avail.redoLabel === historySnapshot.redoLabel
   ) {
