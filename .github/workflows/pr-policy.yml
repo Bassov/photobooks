@@ -15,5 +15,5 @@ permissions:
 
 jobs:
   pr-policy:
-    uses: Bassov/ts-agent-rig/.github/workflows/pr-policy.yml@v0.2.10
+    uses: Bassov/ts-agent-rig/.github/workflows/pr-policy.yml@v0.2.15
     secrets: inherit

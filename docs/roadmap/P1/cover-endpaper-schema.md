@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: cover and endpapers in the document
+Status: done
 
 ## Scope
 
@@ -15,3 +16,7 @@ Title: cover and endpapers in the document
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit + PBT on the pure module; no e2e (no UI)
 - **Depends:** none
+
+## Done note
+
+schema v5: cover + endpapers, v4→v5 migration

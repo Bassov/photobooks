@@ -24,7 +24,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 
 - [ ] [prep] [rig-pr-body-gate-removal](roadmap/P1/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [x] [prep] [ui-primitives-forms](roadmap/P1/ui-primitives-forms.md) — form primitives in `src/ui/`
-- [ ] [prep] [cover-endpaper-schema](roadmap/P1/cover-endpaper-schema.md) — cover and endpapers in the document
+- [x] [prep] [cover-endpaper-schema](roadmap/P1/cover-endpaper-schema.md) — cover and endpapers in the document
 - [ ] [feature] [kit10-library-folder](roadmap/P1/kit10-library-folder.md) — Welcome and library folder: kit v0.10 look
 - [ ] [feature] [kit10-library-books](roadmap/P1/kit10-library-books.md) — Your books grid: kit v0.10 look
 - [ ] [feature] [kit10-create-book](roadmap/P1/kit10-create-book.md) — Create book dialog: kit v0.10 look (title, page size, custom size)

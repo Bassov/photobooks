@@ -161,4 +161,96 @@ describe('bookSchema', () => {
       path: ['gallery', 1],
     })
   })
+  describe('cover and endpapers', () => {
+    const crop = { zoom: 2, center: { x: 0.25, y: 0.75 } }
+    const badCrop = { zoom: 0.5, center: { x: 0, y: 0 } }
+    const populated = () => ({
+      cover: {
+        front: { assetId: 'a', crop, text: 'Front' },
+        spine: { text: 'Spine' },
+        back: { assetId: 'b', text: '' },
+      },
+      endpapers: {
+        front: { assetId: 'a', crop },
+        back: {},
+      },
+    })
+    const omit = (value: object, key: string) =>
+      Object.fromEntries(Object.entries(value).filter(([k]) => k !== key))
+    const parse = (patch: Record<string, unknown>) =>
+      bookSchema.safeParse({
+        ...makeBook({ assets: { a: {}, b: {} }, gallery: ['a', 'b'] }),
+        ...patch,
+      })
+
+    it('retains populated cover panels and endpapers', () => {
+      const value = populated()
+      const result = parse(value)
+      assert.equal(result.success, true)
+      expect(result.data.cover).toEqual(value.cover)
+      expect(result.data.endpapers).toEqual(value.endpapers)
+    })
+
+    it('accepts panels and endpapers without photo', () => {
+      expect(
+        parse({
+          cover: {
+            front: { text: '' },
+            spine: { text: '' },
+            back: { text: '' },
+          },
+          endpapers: { front: {}, back: {} },
+        }).success,
+      ).toBe(true)
+    })
+
+    it.each(['cover', 'endpapers'])('rejects a book without %s', (key) => {
+      const rest = omit({ ...makeBook() }, key)
+      expect(bookSchema.safeParse(rest).success).toBe(false)
+    })
+
+    it.each(['front', 'spine', 'back'])('rejects cover without %s', (panel) => {
+      const cover = omit(populated().cover, panel)
+      expect(parse({ cover }).success).toBe(false)
+    })
+
+    it.each(['front', 'back'])('rejects endpapers without %s', (side) => {
+      const endpapers = omit(populated().endpapers, side)
+      expect(parse({ endpapers }).success).toBe(false)
+    })
+
+    it.each(['front', 'spine', 'back'])(
+      'rejects malformed cover %s panel',
+      (panel) => {
+        const bad = [
+          { text: 1 },
+          {},
+          { text: '', assetId: '' },
+          { text: '', crop: badCrop },
+        ]
+        for (const entry of bad) {
+          const value = populated()
+          expect(
+            parse({ cover: { ...value.cover, [panel]: entry } }).success,
+          ).toBe(false)
+        }
+      },
+    )
+
+    it.each(['front', 'back'])('rejects malformed %s endpaper', (side) => {
+      const bad = [{ assetId: '' }, { crop: badCrop }]
+      for (const entry of bad) {
+        const value = populated()
+        expect(
+          parse({ endpapers: { ...value.endpapers, [side]: entry } }).success,
+        ).toBe(false)
+      }
+    })
+
+    it('rejects the previous schema version', () => {
+      expect(parse({ schemaVersion: CURRENT_SCHEMA_VERSION - 1 }).success).toBe(
+        false,
+      )
+    })
+  })
 })

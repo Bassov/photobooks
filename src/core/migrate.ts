@@ -1,3 +1,4 @@
+import { defaultCover, defaultEndpapers } from './cover'
 import { CURRENT_SCHEMA_VERSION } from './schema'
 
 export type MigrateResult =
@@ -78,6 +79,18 @@ function migrateV3ToV4(
   }
 }
 
+function migrateV4ToV5(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const title = typeof input.title === 'string' ? input.title : ''
+  return {
+    ...input,
+    schemaVersion: 5,
+    cover: defaultCover(title),
+    endpapers: defaultEndpapers(),
+  }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -119,6 +132,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 3) {
     value = migrateV3ToV4(value as Record<string, unknown>)
+    version = 4
+  }
+  if (version === 4) {
+    value = migrateV4ToV5(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }
