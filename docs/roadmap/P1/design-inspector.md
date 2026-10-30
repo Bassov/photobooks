@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-inspector: prod parity design fixes
+Status: done
 
 ## Scope
 
