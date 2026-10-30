@@ -8,6 +8,7 @@ import { EditorTopBar } from './EditorTopBar'
 import { FilmstripDock } from './FilmstripDock'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
 import { CoverOverlay } from './CoverOverlay'
+import { EndpaperOverlay } from './EndpaperOverlay'
 import { Inspector } from './Inspector'
 import { LeftPanel } from './LeftPanel'
 import { installCropGesture } from './cropGesture'
@@ -72,6 +73,7 @@ export function EditorShell() {
           <>
             <Pasteboard chromeImport={chromeImport} />
             <CoverOverlay />
+            <EndpaperOverlay />
             <MastersCanvasStub />
             <Status
               className="editor-status-pill"

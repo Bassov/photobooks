@@ -85,6 +85,11 @@ export function spreadTitle(index: number): string {
   return index === 0 ? 'Cover' : `Pages ${pageLabel(index)}`
 }
 
+/** Kit spread label (uikit/src/sandbox/context-inspector.tsx:59): "Page 1" first. */
+export function spreadLabel(index: number): string {
+  return index === 0 ? 'Page 1' : `Pages ${pageLabel(index)}`
+}
+
 export function spreadRows(spread: Spread): InspectorRow[] {
   return [
     {
@@ -113,7 +118,7 @@ export function framePhotoRows(
   const asset =
     frame.assetId === undefined ? undefined : book.assets[frame.assetId]
   const rows: InspectorRow[] = [
-    { label: 'Spread', value: spreadTitle(spreadIndex) },
+    { label: 'Spread', value: spreadLabel(spreadIndex) },
     {
       label: 'Size',
       value: `${fmtN(mmToCm(frame.rect.width))} × ${fmtN(mmToCm(frame.rect.height))} cm`,

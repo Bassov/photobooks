@@ -163,24 +163,52 @@ describe('BookSettingsSection', () => {
     resetBookStore()
   })
 
-  it('lists only settings the document holds', () => {
+  it('shows the kit sections with working controls (uikit/src/sandbox/v7.tsx:200-210)', () => {
     seed()
     render(<BookSettingsSection />)
-    const { settings } = getBookStoreSnapshot().book
-    const labels = screen.getAllByRole('term').map((el) => el.textContent)
-    expect(labels).toEqual(['Page size', 'Bleed', 'Safe margin', 'Pages'])
-    const values = screen.getAllByRole('definition').map((el) => el.textContent)
-    expect(values[0]).toBe(
-      `${String(settings.trim.widthMm)} × ${String(settings.trim.heightMm)} mm`,
-    )
-    expect(values[3]).toBe('4')
     expect(screen.getByTestId('inspector-context').textContent).toBe(
       'Book settings',
     )
     expect(screen.getByText('Applies to the whole book')).toBeTruthy()
-    const eyebrow = screen.getByText('Page')
-    expect(eyebrow.tagName).toBe('H4')
-    expect(eyebrow.className).toBe('inspector-eyebrow')
+    const eyebrows = screen
+      .getAllByRole('heading', { level: 4 })
+      .map((el) => el.textContent)
+    expect(eyebrows).toEqual(['Page size', 'Binding', 'Print', 'Defaults'])
+    for (const el of screen.getAllByRole('heading', { level: 4 })) {
+      expect(el.className).toBe('inspector-eyebrow')
+    }
+    expect(screen.getByTestId('book-pages').textContent).toBe('4')
+    expect(screen.getByTestId('binding-readonly').textContent).toBe('read-only')
+  })
+
+  it('edits size, orientation, endpapers and page colour', () => {
+    seed()
+    render(<BookSettingsSection />)
+    const trim = () => getBookStoreSnapshot().book.settings.trim
+    const before = trim()
+    fireEvent.click(screen.getByLabelText('Landscape'))
+    expect(trim()).toEqual({
+      widthMm: Math.max(before.widthMm, before.heightMm),
+      heightMm: Math.min(before.widthMm, before.heightMm),
+    })
+    fireEvent.click(screen.getByLabelText('mm'))
+    fireEvent.change(screen.getByLabelText('Width (mm)'), {
+      target: { value: '210' },
+    })
+    expect(trim().widthMm).toBe(210)
+    fireEvent.change(screen.getByLabelText('Height (mm)'), {
+      target: { value: '9999' },
+    })
+    expect(trim().heightMm).not.toBe(9999)
+    const { settings } = getBookStoreSnapshot().book
+    fireEvent.click(screen.getByRole('switch', { name: 'Endpapers' }))
+    expect(getBookStoreSnapshot().book.settings.endpapers.enabled).toBe(
+      !settings.endpapers.enabled,
+    )
+    fireEvent.click(screen.getByLabelText('Cream'))
+    expect(getBookStoreSnapshot().book.settings.pageColor).toBe('#f4f1ea')
+    fireEvent.click(screen.getByLabelText('Paper white'))
+    expect(getBookStoreSnapshot().book.settings.pageColor).toBeUndefined()
   })
 })
 

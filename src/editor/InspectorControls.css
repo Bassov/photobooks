@@ -7,14 +7,14 @@
   flex: none;
   padding: 0;
   border: 0;
-  border-radius: 9999px;
-  background: var(--toggle-off, #cacaca);
+  border-radius: var(--radius-full);
+  background: var(--toggle-off);
   cursor: pointer;
   transition: background-color 0.12s;
 }
 
 .insp-toggle[aria-checked='true'] {
-  background: var(--toggle-on, #a8a8a8);
+  background: var(--toggle-on);
 }
 
 .insp-toggle:focus-visible,
@@ -29,8 +29,8 @@
   left: 2px;
   width: 0.875rem;
   height: 0.875rem;
-  border-radius: 9999px;
-  background: #fff;
+  border-radius: var(--radius-full);
+  background: var(--cover-title-ink);
   transition: left 0.12s;
 }
 
@@ -43,12 +43,36 @@
   height: 1.25rem;
   padding: 0;
   border: 0;
-  border-radius: 9999px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  border-radius: var(--radius-full);
+  box-shadow: 0 1px 2px color-mix(in srgb, black 15%, transparent);
   cursor: pointer;
 }
 
 .insp-swatch[aria-pressed='true'] {
-  outline: 2px solid var(--swatch-ring, #8e8e8e);
+  outline: 2px solid var(--swatch-ring);
   outline-offset: 2px;
+}
+
+/* Kit SizeEditor number field (uikit/src/sandbox/v7.tsx:162). */
+.insp-size-field {
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.625rem;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  font-size: var(--text-sm);
+}
+
+.insp-size-field input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
 }

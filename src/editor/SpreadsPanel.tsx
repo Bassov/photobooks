@@ -22,6 +22,7 @@ import {
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
 import {
   dispatchBookOp,
+  getBookStoreSnapshot,
   getSpreadIdsSnapshot,
   getSpreadPaintSnapshot,
   subscribeBookStore,
@@ -45,6 +46,11 @@ import {
   setCoverSelected,
   subscribeCoverSelection,
 } from './coverSelection'
+import { EndpaperRow } from './EndpaperRow'
+import {
+  getSelectedEndpaper,
+  subscribeEndpaperSelection,
+} from './endpaperSelection'
 import { SpreadRowEmpty } from './SpreadRowEmpty'
 import { SpreadRowMissing } from './SpreadRowMissing'
 import { SpreadThumb } from './SpreadThumb'
@@ -59,6 +65,10 @@ import {
   spreadsListWindow,
   spreadsRowGeometry,
 } from './spreadsPanelModel'
+
+function endpapersEnabled(): boolean {
+  return getBookStoreSnapshot().book.settings.endpapers.enabled
+}
 
 type RowAction = 'add' | 'duplicate' | 'delete'
 
@@ -143,7 +153,20 @@ export function SpreadsPanel({
     isCoverSelected,
     isCoverSelected,
   )
-  const selected = coverSelected ? null : selectedSpreadId(activeId, spreadIds)
+  const endpapersOn = useSyncExternalStore(
+    subscribeBookStore,
+    endpapersEnabled,
+    endpapersEnabled,
+  )
+  const endpaperPicked = useSyncExternalStore(
+    subscribeEndpaperSelection,
+    getSelectedEndpaper,
+    getSelectedEndpaper,
+  )
+  const selected =
+    coverSelected || endpaperPicked !== null
+      ? null
+      : selectedSpreadId(activeId, spreadIds)
   // State, not a ref: the reveal effect re-runs once the list is attached.
   const [listNode, setListNode] = useState<HTMLDivElement | null>(null)
   // Quantized to whole rows so React bails out while the window is unchanged.
@@ -352,6 +375,7 @@ export function SpreadsPanel({
             </span>
           </div>
         </button>
+        {endpapersOn ? <EndpaperRow side="front" /> : null}
       </div>
       <div
         ref={attachList}
@@ -507,6 +531,14 @@ export function SpreadsPanel({
           />
         </div>
       </div>
+      {endpapersOn ? (
+        <div
+          className="shrink-0 pb-1 pl-3 pr-1"
+          data-testid="endpaper-back-list"
+        >
+          <EndpaperRow side="back" />
+        </div>
+      ) : null}
       <div className="flex items-center gap-1 p-1">
         <button
           type="button"

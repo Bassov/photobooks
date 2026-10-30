@@ -19,6 +19,17 @@ import {
   subscribeBookSettingsSelection,
 } from './bookSettingsSelection'
 import { BookSettingsSection } from './BookSettingsSection'
+import { EndpaperSection } from './EndpaperSection'
+import {
+  AdjustSection,
+  CaptionSection,
+  FrameStyleSection,
+} from './FrameLookSections'
+import {
+  getSelectedEndpaper,
+  subscribeEndpaperSelection,
+  type EndpaperSide,
+} from './endpaperSelection'
 import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
 import { FitCropSection } from './FitCropSection'
@@ -51,6 +62,7 @@ type InspectorContext =
   | InspectorPanel
   | { kind: 'cover' }
   | { kind: 'book' }
+  | { kind: 'endpaper'; side: EndpaperSide }
   | {
       kind: 'photo'
       target: NonNullable<ReturnType<typeof getFrameSource>>
@@ -88,6 +100,11 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
     isBookSettingsSelected,
     isBookSettingsSelected,
   )
+  const endpaperSide = useSyncExternalStore(
+    subscribeEndpaperSelection,
+    getSelectedEndpaper,
+    getSelectedEndpaper,
+  )
   const target = cropKey === '' ? null : getCropTarget()
   // Esc drops the spread view to the empty hint until another spread is picked.
   const [dismissed, setDismissed] = useState<string | null>(null)
@@ -117,18 +134,23 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
   const panel = useSyncExternalStore(subscribeBookStore, readPanel, readPanel)
   // Crop mode keeps its frame (double-click drops the selection); else the
   // selected frame. Empty frames render nothing inside the section.
-  const section = coverSelected || bookSelected ? null : (target ?? frameSource)
+  const section =
+    coverSelected || bookSelected || endpaperSide !== null
+      ? null
+      : (target ?? frameSource)
   const view: InspectorContext = coverSelected
     ? { kind: 'cover' }
-    : bookSelected
-      ? { kind: 'book' }
-      : section === null
-        ? panel
-        : {
-            kind: 'photo',
-            target: section,
-            rows: panel.kind === 'frame' ? panel.rows : [],
-          }
+    : endpaperSide !== null
+      ? { kind: 'endpaper', side: endpaperSide }
+      : bookSelected
+        ? { kind: 'book' }
+        : section === null
+          ? panel
+          : {
+              kind: 'photo',
+              target: section,
+              rows: panel.kind === 'frame' ? panel.rows : [],
+            }
   return (
     <section
       className="editor-inspector-panel flex h-full min-h-0 flex-col"
@@ -158,6 +180,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         data-testid="inspector-body"
       >
         {view.kind === 'cover' ? <CoverSection /> : null}
+        {view.kind === 'endpaper' ? <EndpaperSection side={view.side} /> : null}
         {view.kind === 'book' ? (
           <>
             <BookSettingsSection />
@@ -181,10 +204,28 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
             <FitCropSection target={view.target} cropping={target !== null} />
             <PhotoRotateSection target={view.target} />
             <Disclosure
+              title="Adjust"
+              data-testid="inspector-adjust-disclosure"
+            >
+              <AdjustSection target={view.target} />
+            </Disclosure>
+            <Disclosure
+              title="Caption"
+              data-testid="inspector-caption-disclosure"
+            >
+              <CaptionSection target={view.target} />
+            </Disclosure>
+            <Disclosure
               title="Position & size"
               data-testid="inspector-geometry-disclosure"
             >
               <GeometrySection target={view.target} />
+            </Disclosure>
+            <Disclosure
+              title="Frame style"
+              data-testid="inspector-style-disclosure"
+            >
+              <FrameStyleSection target={view.target} />
             </Disclosure>
             <Disclosure
               title="Arrange"

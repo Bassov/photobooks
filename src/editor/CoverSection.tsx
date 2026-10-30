@@ -1,11 +1,26 @@
 import { useSyncExternalStore } from 'react'
-import type { CoverPanelName } from '../core'
+import {
+  SPINE_WIDTH_MAX_MM,
+  SPINE_WIDTH_MIN_MM,
+  type CoverPanelName,
+  type CoverStyle,
+} from '../core'
+import { SegmentedControl } from '../ui/SegmentedControl'
+import { Select } from '../ui/Select'
+import {
+  BACK_FILL_OPTIONS,
+  DIRECTION_OPTIONS,
+  FINISH_OPTIONS,
+  MATERIAL_OPTIONS,
+  TITLE_FONT_OPTIONS,
+} from './coverOptions'
+import { InspectorRow, InspectorSlider, Swatches } from './InspectorControls'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { COVER_SPINE_MM, COVER_WRAP_MM, coverPanelPpi } from './coverLayout'
+import { COVER_WRAP_MM, coverPanelPpi } from './coverLayout'
 import { SUB } from './editorChromeTokens'
 import './CoverCanvas.css'
 import { useCoverPhotoUrl } from './useCoverPhotoUrl'
@@ -39,31 +54,43 @@ function CoverText({ panel, label }: { panel: CoverPanelName; label: string }) {
   )
 }
 
-function Row({
+function useStyle(): CoverStyle {
+  return useSyncExternalStore(
+    subscribeBookStore,
+    () => readBook().cover.style,
+    () => readBook().cover.style,
+  )
+}
+
+function setStyle(patch: Partial<CoverStyle>): void {
+  dispatchBookOp({ type: 'setCoverStyle', patch })
+}
+
+/** Kit Row with a native select for a cover style choice. */
+function ChoiceRow<K extends 'titleFont' | 'material' | 'finish'>({
   label,
-  value,
-  note,
+  field,
+  options,
+  testId,
 }: {
   label: string
-  value: string
-  note?: { text: string; testId: string }
+  field: K
+  options: readonly { value: CoverStyle[K]; label: string }[]
+  testId: string
 }) {
+  const style = useStyle()
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span style={{ color: SUB }}>{label}</span>
-      <span>
-        {value}
-        {note === undefined ? null : (
-          <span
-            className="ml-1.5 text-2xs"
-            style={{ color: SUB }}
-            data-testid={note.testId}
-          >
-            {note.text}
-          </span>
-        )}
-      </span>
-    </div>
+    <InspectorRow label={label}>
+      <Select
+        aria-label={label}
+        data-testid={testId}
+        value={style[field]}
+        options={options.map((item) => ({ ...item }))}
+        onChange={(value) => {
+          setStyle({ [field]: value })
+        }}
+      />
+    </InspectorRow>
   )
 }
 
@@ -88,8 +115,6 @@ function frontPpi(): number | undefined {
   )
 }
 
-const COMING_LATER = (testId: string) => ({ text: 'coming later', testId })
-
 /**
  * Kit InspectorPart "Cover" (cover-editor): front photo and title, spine text,
  * back text. Values the document does not hold yet are read-only rows.
@@ -110,6 +135,7 @@ export function CoverSection() {
     () => undefined,
   )
   const ppi = useSyncExternalStore(subscribeBookStore, frontPpi, frontPpi)
+  const style = useStyle()
   return (
     <section
       className="flex flex-col gap-3 px-4 py-4"
@@ -149,28 +175,67 @@ export function CoverSection() {
         </div>
       </div>
       <CoverText panel="front" label="Front title" />
-      <Row label="Title font" value="Serif italic" />
+      <ChoiceRow
+        label="Title font"
+        field="titleFont"
+        options={TITLE_FONT_OPTIONS}
+        testId="cover-title-font"
+      />
       <h4 className="inspector-eyebrow">Spine</h4>
       <CoverText panel="spine" label="Spine text" />
-      <Row label="Spine width" value={`${String(COVER_SPINE_MM)} mm`} />
-      <Row label="Direction" value="Top to bottom" />
+      <InspectorSlider
+        label="Spine width"
+        value={style.spineWidthMm}
+        min={SPINE_WIDTH_MIN_MM}
+        max={SPINE_WIDTH_MAX_MM}
+        unit="millimeter"
+        testId="cover-spine-width"
+        onChange={(spineWidthMm) => {
+          setStyle({ spineWidthMm })
+        }}
+      />
+      <InspectorRow label="Direction">
+        <SegmentedControl
+          label="Direction"
+          size="sm"
+          items={DIRECTION_OPTIONS.map((item) => ({
+            id: item.value,
+            label: item.label,
+          }))}
+          value={style.spineDirection}
+          onChange={(value) => {
+            const next = DIRECTION_OPTIONS.find((item) => item.value === value)
+            if (next !== undefined) {
+              setStyle({ spineDirection: next.value })
+            }
+          }}
+        />
+      </InspectorRow>
       <h4 className="inspector-eyebrow">Back</h4>
       <CoverText panel="back" label="Back text" />
-      <Row
-        label="Fill"
-        value="Paper white"
-        note={COMING_LATER('fill-readonly')}
-      />
+      <InspectorRow label="Fill">
+        <Swatches
+          label="Back fill"
+          options={BACK_FILL_OPTIONS}
+          value={style.backFill}
+          testId="cover-back-fill"
+          onChange={(backFill) => {
+            setStyle({ backFill })
+          }}
+        />
+      </InspectorRow>
       <h4 className="inspector-eyebrow">Material</h4>
-      <Row
+      <ChoiceRow
         label="Cover"
-        value="Printed"
-        note={COMING_LATER('material-readonly')}
+        field="material"
+        options={MATERIAL_OPTIONS}
+        testId="cover-material"
       />
-      <Row
+      <ChoiceRow
         label="Finish"
-        value="Matte laminate"
-        note={COMING_LATER('finish-readonly')}
+        field="finish"
+        options={FINISH_OPTIONS}
+        testId="cover-finish"
       />
     </section>
   )
