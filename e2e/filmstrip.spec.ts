@@ -224,13 +224,7 @@ test('portrait and landscape cards differ; thumbs use cover', async ({
   expect(objectFit).toBe('cover')
 })
 
-test('name strip fits inside the scrollport; external drag shows the overlay', async ({
-  page,
-}) => {
-  // The name strip shows from 90 px tiles; the default is the kit's 76 px.
-  await page.addInitScript(() => {
-    window.localStorage.setItem('photobooks.filmstrip.thumbHeight', '96')
-  })
+test('external drag shows the overlay', async ({ page }) => {
   await openSessionEditor(page)
   await pickPhotoFolder(page, [
     photoFixturePaths.samplePng,
@@ -239,14 +233,6 @@ test('name strip fits inside the scrollport; external drag shows the overlay', a
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
     timeout: 30_000,
   })
-  const names = page.getByTestId('filmstrip-name')
-  await expect(names).toHaveCount(2)
-  const scrollBox = await page.getByTestId('filmstrip-scroll').boundingBox()
-  const nameBox = await names.first().boundingBox()
-  assert.ok(scrollBox && nameBox)
-  expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(
-    scrollBox.y + scrollBox.height + 0.5,
-  )
 
   const overlay = page.getByTestId('film-drop-overlay')
   await expect(overlay).toHaveCount(0)
@@ -1632,21 +1618,9 @@ test.describe('sort / filter / remove', () => {
     await assertNamedScrollport(page, 'filmstrip-scroll')
   })
 
-  test('empty dock: keyboard resize persists across reload; loose file drop is refused', async ({
-    page,
-  }) => {
-    // Start from 96 px (the default is the kit's 76); keep the stored value on reload.
-    await page.addInitScript(() => {
-      const key = 'photobooks.filmstrip.thumbHeight'
-      window.localStorage.setItem(key, window.localStorage.getItem(key) ?? '96')
-    })
+  test('empty dock: loose file drop is refused', async ({ page }) => {
     await openSessionEditor(page)
     await expect(page.getByTestId('filmstrip-empty')).toBeVisible()
-    const splitter = page.getByTestId('film-splitter')
-    await splitter.focus()
-    await page.keyboard.press('ArrowUp')
-    await page.keyboard.press('ArrowUp')
-    await expect(splitter).toHaveAttribute('aria-valuenow', '112')
     await assertDocumentFitsViewport(page)
 
     await page.getByTestId('dock').evaluate((dock) => {
@@ -1663,61 +1637,5 @@ test.describe('sort / filter / remove', () => {
     await expect(page.getByTestId('editor-status')).toHaveText(
       'Drop a folder — Photobooks adds folders, not single photos',
     )
-
-    await page.reload()
-    await openSessionEditor(page)
-    await expect(page.getByTestId('film-splitter')).toHaveAttribute(
-      'aria-valuenow',
-      '112',
-    )
-  })
-
-  // The release frame re-lays out the filmstrip window under CI-like CPU, so
-  // Istanbul overhead alone can push it past the LoAF line.
-  // Zero-LoAF windows run without coverage (CI: -g "frame-budget gates").
-  test.describe('frame-budget gates', () => {
-    test('resizing the filmstrip mid-gallery re-lays out without gaps or LoAF', async ({
-      page,
-    }) => {
-      test.setTimeout(300_000)
-      await enablePerfScenario(page)
-      await clearPerfScenario(page)
-      const files = writeBulkImportFixtures(300)
-      await expect(page.getByTestId('choose-photo-folder')).toBeEnabled()
-      await choosePhotoFolder(page, files)
-      await expect
-        .poll(
-          async () =>
-            page.getByTestId('filmstrip').getAttribute('data-gallery-count'),
-          { timeout: 240_000 },
-        )
-        .toBe('300')
-      await expect(page.getByTestId('import-progress')).toBeHidden({
-        timeout: 120_000,
-      })
-
-      await beginFilmstripLoafScrollWindow(page)
-      await scrollFilmstripLoafWindow(page, 10)
-      const splitter = page.getByTestId('film-splitter')
-      const box = await splitter.boundingBox()
-      assert(box !== null)
-      await page.mouse.move(box.x + box.width / 2, box.y + 3)
-      await page.mouse.down()
-      await page.mouse.move(box.x + box.width / 2, box.y - 60, { steps: 8 })
-      await page.evaluate(browserAssertNoLoaf, 0)
-      await page.mouse.up()
-      await expect(splitter).not.toHaveAttribute('aria-valuenow', '96')
-      const committed = Number(await splitter.getAttribute('aria-valuenow'))
-      expect(committed).toBeGreaterThan(120)
-      await scrollFilmstripLoafWindow(page, 5)
-      await page.evaluate(browserAssertNoLoaf, 0)
-
-      await expect(page.getByTestId('filmstrip-item').first()).toHaveJSProperty(
-        'offsetHeight',
-        committed,
-      )
-      await assertDocumentFitsViewport(page)
-      await assertNamedScrollport(page, 'filmstrip-scroll')
-    })
   })
 })

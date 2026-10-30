@@ -1,28 +1,19 @@
 import {
   startTransition,
   useEffect,
-  useRef,
   useState,
   useSyncExternalStore,
   type CSSProperties,
 } from 'react'
 import { clearDropHover, setDropHover } from './dropHover'
 import { setEditorStatus } from './editorStatus'
-import {
-  FILMSTRIP_THUMB_MAX,
-  FILMSTRIP_THUMB_MIN,
-  FILMSTRIP_THUMB_STEP,
-  getFilmstripThumbHeight,
-  setFilmstripThumbHeight,
-  subscribeFilmstripThumbHeight,
-} from './filmstripSize'
+import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
 import {
   isExternalFilesDrag,
   resolveDroppedFolder,
   STATUS_DROP_FILES_IGNORED,
   STATUS_DROP_FOLDER_ONLY,
 } from './filmstripDropFolder'
-import { useFilmstripResize, type FilmstripResize } from './useFilmstripResize'
 import { Button as AriaButton } from 'react-aria-components'
 import { AlertDialog } from '../ui/AlertDialog'
 import { Icon } from '../ui/Icon'
@@ -68,55 +59,6 @@ function RemovePlacedDialog({ assetId }: { assetId: string }) {
   )
 }
 
-function ResizeSplitter({
-  height,
-  resize,
-}: {
-  height: number
-  resize: FilmstripResize
-}) {
-  const startRef = useRef<{ y: number; height: number } | null>(null)
-  return (
-    <div
-      role="separator"
-      aria-orientation="horizontal"
-      aria-label="Resize filmstrip"
-      aria-valuemin={FILMSTRIP_THUMB_MIN}
-      aria-valuemax={FILMSTRIP_THUMB_MAX}
-      aria-valuenow={height}
-      tabIndex={0}
-      className="absolute inset-x-0 -top-[3px] z-10 h-1.5 cursor-ns-resize touch-none outline-none hover:bg-[var(--ring)] focus-visible:bg-[var(--ring)]"
-      data-testid="film-splitter"
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId)
-        startRef.current = { y: event.clientY, height }
-      }}
-      onPointerMove={(event) => {
-        const start = startRef.current
-        if (start !== null) {
-          resize.preview(start.height + (start.y - event.clientY))
-        }
-      }}
-      onPointerUp={() => {
-        startRef.current = null
-        resize.commit()
-      }}
-      onPointerCancel={() => {
-        startRef.current = null
-        resize.cancel()
-      }}
-      onKeyDown={(event) => {
-        const dir =
-          event.key === 'ArrowUp' ? 1 : event.key === 'ArrowDown' ? -1 : 0
-        if (dir !== 0) {
-          event.preventDefault()
-          setFilmstripThumbHeight(height + dir * FILMSTRIP_THUMB_STEP)
-        }
-      }}
-    />
-  )
-}
-
 /** Kit bottom dock chrome wrapping the working product Filmstrip. */
 export function FilmstripDock({
   onDropPhotoFolder,
@@ -127,13 +69,6 @@ export function FilmstripDock({
   onChoosePhotoFolder?: () => Promise<void>
   importDisabled?: boolean
 }) {
-  const dockRef = useRef<HTMLDivElement>(null)
-  const resize = useFilmstripResize(dockRef)
-  const thumbHeight = useSyncExternalStore(
-    subscribeFilmstripThumbHeight,
-    getFilmstripThumbHeight,
-    getFilmstripThumbHeight,
-  )
   const gallery = useSyncExternalStore(
     subscribeGallery,
     getGalleryIdsSnapshot,
@@ -165,10 +100,13 @@ export function FilmstripDock({
 
   return (
     <div
-      ref={dockRef}
       className="editor-dock relative shrink-0"
       data-testid="dock"
-      style={{ '--film-thumb-h': `${String(thumbHeight)}px` } as CSSProperties}
+      style={
+        {
+          '--film-thumb-h': `${String(FILMSTRIP_THUMB_HEIGHT)}px`,
+        } as CSSProperties
+      }
       onDragOver={(event) => {
         if (
           onDropPhotoFolder === undefined ||
@@ -211,7 +149,6 @@ export function FilmstripDock({
         })
       }}
     >
-      <ResizeSplitter height={thumbHeight} resize={resize} />
       <div className="editor-dock-head flex h-10 items-center gap-3 px-3">
         <span
           className="editor-dock-meta text-sm tabular-nums"

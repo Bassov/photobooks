@@ -101,25 +101,6 @@ export function indexFromScrollOffset(
 }
 
 /**
- * Scroll offset in `nextPrefix` that keeps the item under `scrollLeft` in
- * `prevPrefix` (and the same fraction into it) at the scrollport's left edge.
- */
-export function anchoredScrollOffset(
-  scrollLeft: number,
-  prevPrefix: readonly number[],
-  nextPrefix: readonly number[],
-): number {
-  const index = indexFromScrollOffset(scrollLeft, prevPrefix, 0)
-  const prevStart = prevPrefix[index] ?? 0
-  const prevStride = (prevPrefix[index + 1] ?? prevStart) - prevStart
-  const nextStart = nextPrefix[index] ?? 0
-  const nextStride = (nextPrefix[index + 1] ?? nextStart) - nextStart
-  const fraction =
-    prevStride > 0 ? Math.min((scrollLeft - prevStart) / prevStride, 1) : 0
-  return Math.round(nextStart + fraction * nextStride)
-}
-
-/**
  * How many items from `start` are needed so their packed width covers `coverPx`.
  * Fixed WINDOW_SIZE left a viewport hole for narrow (portrait) cards.
  */

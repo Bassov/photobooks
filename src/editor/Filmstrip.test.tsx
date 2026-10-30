@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyTemplate, placeAsset } from '../core'
 import * as assetPool from '../photo/assetPool'
 import { resetAssetPool } from '../photo/assetPool'
@@ -42,13 +42,13 @@ import {
   spacerWidthPx,
   thumbSlotSize,
   windowCountForCover,
+  thumbWidthMax,
   THUMB_HEIGHT,
-  THUMB_WIDTH_MAX,
 } from './thumbSlotSize'
-import {
-  resetFilmstripThumbHeightForTests,
-  setFilmstripThumbHeight,
-} from './filmstripSize'
+import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+
+/** Window overscan at the fixed filmstrip height (two widest slots). */
+const OVERSCAN = thumbWidthMax(FILMSTRIP_THUMB_HEIGHT) * 2
 
 const filmstripCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'Filmstrip.css'),
@@ -171,10 +171,6 @@ describe('Filmstrip thumbnail file name', () => {
 })
 
 describe('Filmstrip viewport containment', () => {
-  beforeEach(() => {
-    setFilmstripThumbHeight(96)
-  })
-
   afterEach(() => {
     cleanup()
     resetBookStore()
@@ -193,7 +189,7 @@ describe('Filmstrip viewport containment', () => {
     expect(spacer).toBeTruthy()
     const aspects = Array.from({ length: 80 }, () => 1.5)
     expect((spacer as HTMLElement).style.width).toBe(
-      `${String(spacerWidthPx(aspects, 80))}px`,
+      `${String(spacerWidthPx(aspects, 80, 1, FILMSTRIP_THUMB_HEIGHT))}px`,
     )
     expect(
       screen.getByTestId('filmstrip').getAttribute('data-gallery-count'),
@@ -221,10 +217,6 @@ describe('Filmstrip viewport containment', () => {
 })
 
 describe('Filmstrip aspect cards', () => {
-  beforeEach(() => {
-    setFilmstripThumbHeight(96)
-  })
-
   afterEach(() => {
     cleanup()
     clearDropHover()
@@ -232,7 +224,6 @@ describe('Filmstrip aspect cards', () => {
     resetBookStore()
     resetThumbCache()
     resetAssetPool()
-    resetFilmstripThumbHeightForTests()
     vi.restoreAllMocks()
   })
 
@@ -261,50 +252,8 @@ describe('Filmstrip aspect cards', () => {
       screen
         .getByTestId('filmstrip-window')
         .style.getPropertyValue('--film-slot-h'),
-    ).toBe(`${String(THUMB_HEIGHT)}px`)
+    ).toBe(`${String(FILMSTRIP_THUMB_HEIGHT)}px`)
     expect(items.some((item) => item.style.left !== '')).toBe(false)
-  })
-
-  it('keeps item rows unrendered when the committed height changes', () => {
-    seedMixedAspectGallery()
-    const renders = vi.spyOn(thumbCache, 'getThumbUrl')
-    render(<Filmstrip />)
-    renders.mockClear()
-
-    act(() => {
-      setFilmstripThumbHeight(144)
-    })
-
-    expect(
-      screen
-        .getByTestId('filmstrip-window')
-        .style.getPropertyValue('--film-slot-h'),
-    ).toBe('144px')
-    expect(renders).not.toHaveBeenCalled()
-  })
-
-  it('pins the first visible photo to the left edge when the height commits', () => {
-    seedMixedAspectGallery()
-    const aspects = [1.5, 0.5, 1]
-    const prev = buildStridePrefix(aspects, 96)
-    const next = buildStridePrefix(aspects, 144)
-    render(<Filmstrip />)
-    const scroll = screen.getByTestId('filmstrip-scroll')
-    const midSecond = Math.round(((prev[1] ?? 0) + (prev[2] ?? 0)) / 2)
-    Object.defineProperty(scroll, 'scrollLeft', {
-      configurable: true,
-      writable: true,
-      value: midSecond,
-    })
-    fireEvent.scroll(scroll)
-
-    act(() => {
-      setFilmstripThumbHeight(144)
-    })
-
-    expect(scroll.scrollLeft).toBe(
-      Math.round(((next[1] ?? 0) + (next[2] ?? 0)) / 2),
-    )
   })
 
   it('renders no count line (the dock header owns the count)', () => {
@@ -380,8 +329,8 @@ describe('Filmstrip aspect cards', () => {
       render(<Filmstrip />)
 
       const aspects = Array.from({ length: 40 }, () => 0.5)
-      const prefix = buildStridePrefix(aspects)
-      const coverPx = 1200 + THUMB_WIDTH_MAX * 2
+      const prefix = buildStridePrefix(aspects, FILMSTRIP_THUMB_HEIGHT)
+      const coverPx = 1200 + OVERSCAN
       const expected = windowCountForCover(prefix, 0, coverPx)
       expect(expected).toBeGreaterThan(16)
 
@@ -407,7 +356,10 @@ describe('Filmstrip aspect cards', () => {
       render(<Filmstrip />)
 
       const scroll = screen.getByTestId('filmstrip-scroll')
-      const prefix = buildStridePrefix(Array.from({ length: 50 }, () => 0.5))
+      const prefix = buildStridePrefix(
+        Array.from({ length: 50 }, () => 0.5),
+        FILMSTRIP_THUMB_HEIGHT,
+      )
       const scrollLeft = prefix[12] ?? 0
 
       act(() => {
@@ -423,7 +375,7 @@ describe('Filmstrip aspect cards', () => {
       })
 
       const windowStart = indexFromScrollOffset(scrollLeft, prefix)
-      const coverPx = 1000 + THUMB_WIDTH_MAX * 2
+      const coverPx = 1000 + OVERSCAN
       const expected = windowCountForCover(prefix, windowStart, coverPx)
       expect(expected).toBeGreaterThan(16)
       expect(
@@ -457,6 +409,7 @@ describe('Filmstrip aspect cards', () => {
       const scroll = screen.getByTestId('filmstrip-scroll')
       const landPrefix = buildStridePrefix(
         Array.from({ length: 24 }, () => 1.5),
+        FILMSTRIP_THUMB_HEIGHT,
       )
       const scrollLeft = landPrefix[8] ?? 0
 
@@ -502,9 +455,10 @@ describe('Filmstrip aspect cards', () => {
 
       const portPrefix = buildStridePrefix(
         Array.from({ length: allIds.length }, () => 0.5),
+        FILMSTRIP_THUMB_HEIGHT,
       )
       const windowStart = indexFromScrollOffset(scrollLeft, portPrefix)
-      const coverPx = 900 + THUMB_WIDTH_MAX * 2
+      const coverPx = 900 + OVERSCAN
       const expected = windowCountForCover(portPrefix, windowStart, coverPx)
       expect(expected).toBeGreaterThan(14)
 

@@ -1,8 +1,6 @@
 import {
   memo,
-  useDeferredValue,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -34,10 +32,6 @@ import {
   subscribeGallery,
 } from './bookStore'
 import { FilmstripItemView } from './FilmstripItem'
-import {
-  FILMSTRIP_NAME_MIN_HEIGHT,
-  FilmstripNameStripContext,
-} from './filmstripNameStrip'
 import { unplaceSelectedFrame } from './galleryDrop'
 import {
   getFrameSource,
@@ -66,18 +60,13 @@ import {
   matchingSelection,
 } from './filmstripSelection'
 import {
-  anchoredScrollOffset,
   buildStridePrefix,
   indexFromScrollOffset,
   spacerWidthPx,
   thumbWidthMax,
   windowCountForCover,
 } from './thumbSlotSize'
-import {
-  getFilmstripThumbHeight,
-  subscribeFilmstripThumbHeight,
-} from './filmstripSize'
-import { endFilmstripResizePreview } from './useFilmstripResize'
+import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
 import './Filmstrip.css'
 
 interface FilmstripRow {
@@ -117,15 +106,7 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const prefixRef = useRef<readonly number[]>([0])
   const scrollLeftRef = useRef(0)
   const total = gallery.length
-  // Deferred: a committed resize re-lays out every visible thumb, which is
-  // too much script for the pointerup frame. React renders it time-sliced.
-  const thumbHeight = useDeferredValue(
-    useSyncExternalStore(
-      subscribeFilmstripThumbHeight,
-      getFilmstripThumbHeight,
-      getFilmstripThumbHeight,
-    ),
-  )
+  const thumbHeight = FILMSTRIP_THUMB_HEIGHT
 
   const prefix = useMemo(
     () => buildStridePrefix(aspects, thumbHeight),
@@ -134,30 +115,6 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   prefixRef.current = prefix
   scrollLeftRef.current = scrollLeft
 
-  // A committed resize keeps the first visible photo at the left edge (the
-  // preview scales around it too), so the window keeps its rows and the
-  // deferred render trims or extends it instead of mounting a new set.
-  const [anchorHeight, setAnchorHeight] = useState(thumbHeight)
-  if (anchorHeight !== thumbHeight) {
-    setAnchorHeight(thumbHeight)
-    setScrollLeft(
-      anchoredScrollOffset(
-        pendingScrollLeft.current,
-        buildStridePrefix(aspects, anchorHeight),
-        prefix,
-      ),
-    )
-  }
-
-  // The resize preview scale holds until the strip has re-laid out at the
-  // committed height, so release never flashes the old size.
-  useLayoutEffect(() => {
-    const node = scrollRef.current
-    if (node) {
-      node.scrollLeft = scrollLeftRef.current
-    }
-    endFilmstripResizePreview(node)
-  }, [thumbHeight])
   const spacerWidth = useMemo(
     () => spacerWidthPx(aspects, spacerCount, 1, thumbHeight),
     [aspects, spacerCount, thumbHeight],
@@ -327,22 +284,18 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
               } as CSSProperties
             }
           >
-            <FilmstripNameStripContext
-              value={thumbHeight >= FILMSTRIP_NAME_MIN_HEIGHT}
+            <GridList
+              aria-label="Book gallery"
+              orientation="horizontal"
+              selectionMode="multiple"
+              selectionBehavior="replace"
+              selectedKeys={selectedKeys}
+              onSelectionChange={onSelectionChange}
+              items={items}
+              className="filmstrip-list"
             >
-              <GridList
-                aria-label="Book gallery"
-                orientation="horizontal"
-                selectionMode="multiple"
-                selectionBehavior="replace"
-                selectedKeys={selectedKeys}
-                onSelectionChange={onSelectionChange}
-                items={items}
-                className="filmstrip-list"
-              >
-                {(item) => <FilmstripItemView id={item.id} name={item.name} />}
-              </GridList>
-            </FilmstripNameStripContext>
+              {(item) => <FilmstripItemView id={item.id} name={item.name} />}
+            </GridList>
           </div>
         </div>
       )}
