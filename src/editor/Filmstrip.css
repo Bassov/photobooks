@@ -165,26 +165,6 @@
   pointer-events: none;
 }
 
-.filmstrip-remove {
-  position: absolute;
-  top: calc(var(--spacing) * 1);
-  right: calc(var(--spacing) * 1);
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  min-width: 0;
-  padding: 0;
-  opacity: 0;
-}
-
-.filmstrip-item:hover .filmstrip-remove,
-.filmstrip-item[data-focused] .filmstrip-remove,
-.filmstrip-item[data-selected] .filmstrip-remove,
-.filmstrip-remove:focus-visible {
-  opacity: 1;
-}
-
 /* Missing file mark (kit sandbox `miss`): muted tile with an image-off glyph. */
 .filmstrip-missing {
   display: grid;

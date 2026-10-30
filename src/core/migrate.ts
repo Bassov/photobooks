@@ -152,6 +152,12 @@ function migrateV6ToV7(
   }
 }
 
+function migrateV7ToV8(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...input, schemaVersion: 8, frameStyles: {} }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -205,6 +211,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 6) {
     value = migrateV6ToV7(value as Record<string, unknown>)
+    version = 7
+  }
+  if (version === 7) {
+    value = migrateV7ToV8(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }

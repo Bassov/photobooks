@@ -29,6 +29,29 @@ describe('checkBookInvariants', () => {
     expect(result.violation.code).toBe('dangling-frame-asset')
   })
 
+  it('rejects a frame whose styleId is not in frameStyles', () => {
+    const book = makeBook({
+      spreads: [makeSpread({ frames: [makeFrame({ frameStyleId: 'nope' })] })],
+    })
+    expect(checkBookInvariants(book)).toEqual({
+      ok: false,
+      violation: {
+        code: 'dangling-frame-style',
+        spreadId: 'spread-1',
+        frameId: 'frame-1',
+        frameStyleId: 'nope',
+      },
+    })
+  })
+
+  it('accepts a frame whose styleId exists', () => {
+    const book = makeBook({
+      frameStyles: { s: { strokeMm: 1 } },
+      spreads: [makeSpread({ frames: [makeFrame({ frameStyleId: 's' })] })],
+    })
+    expect(checkBookInvariants(book)).toEqual({ ok: true })
+  })
+
   it('rejects placed asset missing from gallery', () => {
     const book = makeBook({
       assets: { 'asset-1': {} },

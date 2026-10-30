@@ -93,6 +93,7 @@ function createSessionBook(): Book {
       margins: { top: 15, bottom: 15, inside: 15, outside: 15 },
     },
     guides: [],
+    frameStyles: {},
     assets: {},
     gallery: [],
     spreads: [],
@@ -970,6 +971,16 @@ export function getSpreadPaintSnapshot(
 
 let spreadIdsSnapshot: readonly string[] = []
 let spreadIdsFor: Book['spreads'] | null = null
+
+/** Photo frames on the spread with no asset placed (text frames hold none). */
+export function getSpreadEmptyFrameCount(spreadId: string): number {
+  const spread = state.book.spreads.find((item) => item.id === spreadId)
+  return (
+    spread?.frames.filter(
+      (frame) => frame.kind !== 'text' && frame.assetId === undefined,
+    ).length ?? 0
+  )
+}
 
 export function getSpreadTemplateId(spreadId: string): string | null {
   const spread = state.book.spreads.find((item) => item.id === spreadId)

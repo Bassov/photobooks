@@ -43,6 +43,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
 - [ ] [fix] [design-canvas-camera](roadmap/P1/design-canvas-camera.md) — Prod parity: canvas camera, top air, fit default, chips
+- [ ] [feature] [design-filmstrip-cover](roadmap/P1/design-filmstrip-cover.md) — Bug: design-filmstrip-cover: prod parity design fixes
 - [ ] [feature] [design-frame-crop-masters](roadmap/P1/design-frame-crop-masters.md) — Bug: design-frame-crop-masters: prod parity design fixes
 - [x] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)
 
