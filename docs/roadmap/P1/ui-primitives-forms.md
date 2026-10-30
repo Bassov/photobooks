@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: form primitives in `src/ui/`
+Status: done
 
 ## Scope
 

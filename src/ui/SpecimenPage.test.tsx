@@ -201,3 +201,64 @@ describe('SpecimenPage', () => {
     expect(within(demo).queryByTestId('resize-left')).toBeNull()
   })
 })
+
+describe('SpecimenPage forms', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('renders every form primitive state and they are interactive', () => {
+    render(<SpecimenPage />)
+    const forms = screen.getByTestId('specimen-forms')
+    expect(within(forms).getAllByRole('spinbutton')).toHaveLength(4)
+    expect(within(forms).getAllByRole('checkbox')).toHaveLength(5)
+    expect(within(forms).getAllByRole('combobox')).toHaveLength(2)
+    const mm = screen.getByTestId<HTMLInputElement>('specimen-mm')
+    fireEvent.keyDown(mm, { key: 'ArrowUp', shiftKey: true })
+    expect(mm.value).toBe('15')
+  })
+})
+
+describe('SpecimenPage forms state', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('wires text, select and checkbox demos to state', () => {
+    render(<SpecimenPage />)
+    const text = screen.getByTestId<HTMLInputElement>('specimen-text')
+    expect(text.value).toBe('Holiday')
+    fireEvent.change(text, { target: { value: 'Trip' } })
+    expect(text.value).toBe('Trip')
+
+    const select = screen.getByTestId<HTMLSelectElement>('specimen-select')
+    expect(select.value).toBe('a4')
+    fireEvent.change(select, { target: { value: 'sq' } })
+    expect(select.value).toBe('sq')
+
+    const check = screen.getByTestId<HTMLInputElement>('specimen-check')
+    expect(check.checked).toBe(true)
+    fireEvent.click(check)
+    expect(check.checked).toBe(false)
+  })
+
+  it('shows the disabled, invalid and boundary states', () => {
+    render(<SpecimenPage />)
+    const forms = within(screen.getByTestId('specimen-forms'))
+    expect(forms.getByText('Title is required')).toBeTruthy()
+    expect(forms.getByText('Max 20 mm')).toBeTruthy()
+    expect(forms.getAllByRole<HTMLInputElement>('spinbutton')[1]?.value).toBe(
+      '0',
+    )
+    const inert = [
+      ...forms.getAllByRole<HTMLInputElement>('spinbutton'),
+      ...forms.getAllByRole<HTMLInputElement>('checkbox'),
+    ].filter((el) => el.disabled)
+    expect(inert).toHaveLength(2)
+    expect(
+      forms
+        .getAllByRole<HTMLSelectElement>('combobox')
+        .filter((s) => s.disabled),
+    ).toHaveLength(1)
+  })
+})

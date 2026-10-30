@@ -2,18 +2,23 @@ import { useState } from 'react'
 import { AlertDialog } from './AlertDialog'
 import { Badge } from './Badge'
 import { Button } from './Button'
+import { Checkbox } from './Checkbox'
 import { Dialog, DialogTitle, DialogTrigger } from './Dialog'
 import { EmptyState } from './EmptyState'
+import { FieldGroup } from './Field'
 import { Icon, ICON_NAMES, ICON_SIZES, type IconSize } from './Icon'
 import { IconButton } from './IconButton'
 import { Menu, MenuItem, MenuPopover, MenuTrigger } from './Menu'
 import { Popover, PopoverDialog, PopoverTrigger } from './Popover'
 import { Panel } from './Panel'
+import { NumberField } from './NumberField'
 import { PanelSplitter } from './PanelSplitter'
 import { PANEL_DEFAULTS } from './panelSize'
 import { ProgressBar } from './ProgressBar'
 import { SegmentedControl } from './SegmentedControl'
+import { Select } from './Select'
 import { Status } from './Status'
+import { TextField } from './TextField'
 import { ToggleButton } from './ToggleButton'
 import {
   enqueueSpecimenErrorToast,
@@ -23,6 +28,8 @@ import { ToastRegion } from './Toast'
 import { createToastQueue } from './toastQueue'
 import { Toolbar } from './Toolbar'
 import './SpecimenPage.css'
+
+const noop = () => undefined
 
 export function SpecimenPage() {
   const [iconSize, setIconSize] = useState<IconSize>(16)
@@ -35,6 +42,10 @@ export function SpecimenPage() {
   const [menuChoice, setMenuChoice] = useState('')
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULTS.left)
   const [panelOpen, setPanelOpen] = useState(true)
+  const [formText, setFormText] = useState('Holiday')
+  const [formMm, setFormMm] = useState(5)
+  const [formSelect, setFormSelect] = useState('a4')
+  const [formCheck, setFormCheck] = useState(true)
 
   return (
     <main className="specimen-page" data-testid="specimen">
@@ -374,6 +385,105 @@ export function SpecimenPage() {
             </Button>
           </Toolbar>
         </div>
+      </section>
+
+      <section
+        className="specimen-section"
+        aria-labelledby="specimen-forms-heading"
+        data-testid="specimen-forms"
+      >
+        <h2 id="specimen-forms-heading">
+          Forms · TextField / NumberField / Select / Checkbox
+        </h2>
+        <p className="specimen-note">
+          Every state · field #D7D7D7 · ink focus ring (no blue)
+        </p>
+        <FieldGroup legend="Text field" row>
+          <TextField
+            label="Default"
+            value={formText}
+            onChange={setFormText}
+            data-testid="specimen-text"
+          />
+          <TextField
+            label="Placeholder"
+            value=""
+            onChange={noop}
+            placeholder="Untitled"
+          />
+          <TextField label="Disabled" value="Locked" onChange={noop} disabled />
+          <TextField
+            label="Invalid"
+            value=""
+            onChange={noop}
+            error="Title is required"
+          />
+        </FieldGroup>
+        <FieldGroup legend="Number field (mm, step 1, shift 10)" row>
+          <NumberField
+            label="Bleed"
+            value={formMm}
+            onChange={setFormMm}
+            min={0}
+            max={20}
+            data-testid="specimen-mm"
+          />
+          <NumberField
+            label="At minimum"
+            value={0}
+            onChange={noop}
+            min={0}
+            max={20}
+          />
+          <NumberField label="Disabled" value={3} onChange={noop} isDisabled />
+          <NumberField
+            label="Invalid"
+            value={25}
+            onChange={noop}
+            max={20}
+            error="Max 20 mm"
+          />
+        </FieldGroup>
+        <FieldGroup legend="Select" row>
+          <Select
+            label="Page size"
+            value={formSelect}
+            onChange={setFormSelect}
+            options={[
+              { value: 'a4', label: 'A4' },
+              { value: 'sq', label: 'Square' },
+            ]}
+            data-testid="specimen-select"
+          />
+          <Select
+            label="Disabled"
+            value="a4"
+            onChange={noop}
+            disabled
+            options={[{ value: 'a4', label: 'A4' }]}
+          />
+        </FieldGroup>
+        <FieldGroup legend="Checkbox">
+          <Checkbox
+            checked={formCheck}
+            onChange={setFormCheck}
+            data-testid="specimen-check"
+          >
+            Show guides
+          </Checkbox>
+          <Checkbox checked={false} onChange={noop}>
+            Unchecked
+          </Checkbox>
+          <Checkbox checked onChange={noop} isIndeterminate>
+            Indeterminate
+          </Checkbox>
+          <Checkbox checked onChange={noop} isDisabled>
+            Disabled
+          </Checkbox>
+          <Checkbox checked={false} onChange={noop} isInvalid>
+            Invalid
+          </Checkbox>
+        </FieldGroup>
       </section>
 
       <section
