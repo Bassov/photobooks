@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
 import { FieldFrame } from './Field'
+import { Icon } from './Icon'
 import {
   clampNumber,
   decimalsOf,
@@ -22,8 +23,13 @@ export interface NumberFieldProps {
   step?: number
   /** Shift+Arrow step (default 10 × step). */
   shiftStep?: number
-  /** Suffix shown in the field. */
-  unit?: string
+  /** Suffix shown in the field; `null` hides it (unit lives in the label). */
+  unit?: string | null
+  /**
+   * Kit stepper column (uikit/src/components/ui/numberfield.tsx:27-55): up /
+   * down chevrons and a quiet focus state instead of the heavy ring.
+   */
+  steppers?: boolean
   isDisabled?: boolean
   className?: string
   'data-testid'?: string
@@ -45,6 +51,7 @@ export function NumberField({
   step = 1,
   shiftStep = step * 10,
   unit = 'mm',
+  steppers = false,
   isDisabled = false,
   className,
   'data-testid': testId,
@@ -92,6 +99,7 @@ export function NumberField({
     >
       <span
         className="pb-field__unit-wrap"
+        data-steppers={steppers ? 'true' : undefined}
         data-invalid={error ? 'true' : undefined}
         data-disabled={isDisabled ? 'true' : undefined}
       >
@@ -108,7 +116,11 @@ export function NumberField({
           aria-valuenow={value}
           aria-valuemin={Number.isFinite(min) ? min : undefined}
           aria-valuemax={Number.isFinite(max) ? max : undefined}
-          aria-valuetext={`${formatNumber(value, decimals)} ${unit}`}
+          aria-valuetext={
+            unit === null
+              ? formatNumber(value, decimals)
+              : `${formatNumber(value, decimals)} ${unit}`
+          }
           data-testid={testId}
           onChange={(e) => {
             setDraft(e.target.value)
@@ -141,9 +153,41 @@ export function NumberField({
             }
           }}
         />
-        <span className="pb-field__unit" aria-hidden="true">
-          {unit}
-        </span>
+        {unit === null ? null : (
+          <span className="pb-field__unit" aria-hidden="true">
+            {unit}
+          </span>
+        )}
+        {steppers ? (
+          <span className="pb-field__steppers">
+            {([1, -1] as const).map((direction) => (
+              <button
+                key={direction}
+                type="button"
+                tabIndex={-1}
+                className="pb-field__stepper"
+                data-direction={direction === 1 ? 'up' : 'down'}
+                aria-label={direction === 1 ? 'Increase' : 'Decrease'}
+                disabled={isDisabled}
+                onClick={() => {
+                  commit(
+                    stepNumber({
+                      value: base(),
+                      min,
+                      max,
+                      step,
+                      shiftStep,
+                      direction,
+                      shift: false,
+                    }),
+                  )
+                }}
+              >
+                <Icon name="chevronDown" size={14} />
+              </button>
+            ))}
+          </span>
+        ) : null}
       </span>
     </FieldFrame>
   )

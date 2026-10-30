@@ -61,7 +61,9 @@ test.describe('low-resolution badge on frames', () => {
     await placeLargePhoto(page)
     const badge = page.getByTestId('dpi-badge')
     await expect(badge).toHaveCount(0)
-    await page.getByTestId('dpi-topbar-toggle').click()
+    // Kit bar has no DPI toggle (uikit/src/sandbox/chrome.tsx:168-180): View menu.
+    await page.getByTestId('view-menu').click()
+    await page.getByTestId('view-dpi-item').click()
 
     // Inspector is open by default (uikit/src/sandbox/chrome.tsx:139).
     await filledFrame(page).dblclick()
@@ -89,8 +91,9 @@ test.describe('low-resolution badge on frames', () => {
     test.setTimeout(180_000)
     await openSessionEditor(page)
     await placeLargePhoto(page)
-    await page.getByTestId('dpi-topbar-toggle').click()
-    // Inspector is open by default (uikit/src/sandbox/chrome.tsx:139).
+    await page.getByTestId('view-menu').click()
+    await page.getByTestId('view-dpi-item').click()
+    // Inspector is open by default (uikit/src/features/parts.tsx:26).
     await filledFrame(page).dblclick()
     const center = await frameCenter(page)
     await page.mouse.move(center.x, center.y)

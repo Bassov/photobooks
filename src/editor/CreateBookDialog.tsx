@@ -124,7 +124,8 @@ export function CreateBookDialog({
               <NumberField
                 key={label}
                 label={`${label} (cm)`}
-                unit="cm"
+                unit={null}
+                steppers
                 min={CUSTOM_CM_MIN}
                 max={CUSTOM_CM_MAX}
                 step={0.1}
