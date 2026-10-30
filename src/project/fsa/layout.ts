@@ -1,4 +1,9 @@
 import { serializeBook, type Book } from '../../core'
+import {
+  parseLibrary,
+  serializeLibrary,
+  type LibraryParseResult,
+} from '../libraryDocument'
 import type { LibraryMeta } from '../types'
 import type { LibraryDirectoryHandle } from './handles'
 
@@ -9,25 +14,17 @@ export const BOOK_JSON_BAK = 'book.json.bak'
 
 export async function readLibraryMeta(
   root: LibraryDirectoryHandle,
-): Promise<LibraryMeta> {
+): Promise<LibraryParseResult> {
   try {
     const file = await root.getFile(LIBRARY_JSON)
     const text = await file.getText()
     if (text.trim() === '') {
-      return {}
+      return parseLibrary(undefined)
     }
-    const parsed: unknown = JSON.parse(text)
-    if (
-      parsed === null ||
-      typeof parsed !== 'object' ||
-      Array.isArray(parsed)
-    ) {
-      return {}
-    }
-    return parsed as LibraryMeta
+    return parseLibrary(JSON.parse(text))
   } catch (error) {
     if (isNotFoundError(error)) {
-      return {}
+      return parseLibrary(undefined)
     }
     throw error
   }
@@ -38,7 +35,7 @@ export async function writeLibraryMeta(
   meta: LibraryMeta,
 ): Promise<void> {
   const file = await root.getFile(LIBRARY_JSON, { create: true })
-  await file.writeText(JSON.stringify(meta))
+  await file.writeText(JSON.stringify(serializeLibrary(meta)))
 }
 
 export async function listBookIds(
