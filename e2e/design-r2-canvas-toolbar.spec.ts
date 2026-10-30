@@ -26,11 +26,8 @@ test.beforeEach(async ({ page }) => {
 
 async function openWithPlacedPhoto(page: Page) {
   await openSessionEditor(page)
-  await choosePhotoFolder(page, [
-    photoFixturePaths.samplePng,
-    photoFixturePaths.sampleOrient6,
-  ])
-  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
     timeout: 30_000,
   })
   await applyLayout(page, '4-grid')

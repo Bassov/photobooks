@@ -188,13 +188,25 @@ test('the Guides toggle and Ctrl+; hide and show guides without deleting them', 
   await openWithRulers(page)
   await pullHorizontal(page, 60)
   // Kit bar has no Guides toggle (uikit/src/sandbox/chrome.tsx:168-180): View menu.
+  const expectChecked = async (checked: 'true' | 'false'): Promise<void> => {
+    await page.getByTestId('view-menu').click()
+    await expect(page.getByTestId('view-guides-item')).toHaveAttribute(
+      'aria-checked',
+      checked,
+    )
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('view-guides-item')).toHaveCount(0)
+  }
+  await expectChecked('true')
   await expect(page.getByTestId('guide-line')).toHaveCount(1)
 
   await page.getByTestId('view-menu').click()
   await page.getByTestId('view-guides-item').click()
+  await expectChecked('false')
   await expect(page.getByTestId('guide-line')).toHaveCount(0)
 
   await page.keyboard.press('Control+;')
+  await expectChecked('true')
   await expect(page.getByTestId('guide-line')).toHaveCount(1)
   await page.keyboard.press('Control+;')
   await expect(page.getByTestId('guide-line')).toHaveCount(0)
