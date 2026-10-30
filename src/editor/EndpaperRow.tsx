@@ -22,7 +22,7 @@ export function EndpaperRow({ side }: { side: EndpaperSide }) {
       aria-pressed={selected}
       aria-label={`Endpaper ${side}`}
       className="e7-item rounded-md p-2"
-      data-item={`endpaper-${side}`}
+      data-endpaper-row={side}
       data-testid={`endpaper-list-item-${side}`}
       onClick={() => {
         setCoverSelected(false)

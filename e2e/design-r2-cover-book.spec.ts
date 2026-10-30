@@ -27,10 +27,16 @@ test('M5: cover captions sit under the cover and the back text is in the back pa
   page,
 }) => {
   await page.getByTestId('cover-list-item').click()
-  const cover = await box(page, 'canvas-cover')
+  // Poll the whole comparison: the stage refits while the panels settle, so
+  // two separate boxes can straddle a relayout.
   for (const name of ['back', 'spine', 'front']) {
-    const label = await box(page, `cover-label-${name}`)
-    expect(label.y).toBeGreaterThanOrEqual(cover.y + cover.height)
+    await expect
+      .poll(async () => {
+        const cover = await box(page, 'canvas-cover')
+        const label = await box(page, `cover-label-${name}`)
+        return label.y - (cover.y + cover.height)
+      })
+      .toBeGreaterThanOrEqual(0)
   }
   await page.getByTestId('cover-text-back').fill('Back words')
   const back = await box(page, 'cover-back')
