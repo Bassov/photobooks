@@ -123,12 +123,11 @@ export function GeometrySection({ target }: { target: CropTarget }) {
   }
   return (
     <section
-      className="flex flex-col gap-3 px-4 py-4"
+      className="flex flex-col gap-3 px-4 pt-0.5 pb-3"
       data-testid="inspector-geometry"
       aria-label="Position and size"
     >
-      <div className="flex items-center justify-between">
-        <h4 className="inspector-eyebrow">Position &amp; size</h4>
+      <div className="flex items-center justify-end">
         <IconButton
           label={locked ? 'Unlock frame' : 'Lock frame'}
           size="sm"
@@ -273,11 +272,10 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
   }
   return (
     <section
-      className="flex flex-col gap-3 px-4 py-4"
+      className="flex flex-col gap-3 px-4 pt-0.5 pb-3"
       data-testid="inspector-arrange"
       aria-label="Arrange"
     >
-      <h4 className="inspector-eyebrow">Arrange</h4>
       <div
         role="group"
         aria-label="Arrange"

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   makeBook,
@@ -9,6 +9,8 @@ import { resetBookStore } from './bookStore'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { GridOverlay } from './GridOverlay'
 import { setGridVisible } from './gridView'
+import { setBookSettingsSelected } from './bookSettingsSelection'
+import { setCoverSelected } from './coverSelection'
 import { Inspector } from './Inspector'
 import { setActiveSpreadId } from './photoRootSession'
 
@@ -23,43 +25,50 @@ function seed() {
   })
 }
 
-describe('Inspector layout grid tabs', () => {
+describe('Inspector layout grid contexts', () => {
   afterEach(() => {
     cleanup()
+    setBookSettingsSelected(false)
     setGridVisible(false)
     setActiveSpreadId(null)
     resetBookStore()
   })
 
-  it('Book tab holds the book grid; Spread tab the override section', () => {
+  it('Book settings hold the book grid; a spread the override section', () => {
     seed()
     act(() => {
       setActiveSpreadId('s1')
     })
     render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-spread'))
     expect(screen.getByTestId('grid-section-spread')).toBeTruthy()
     expect(screen.queryByTestId('grid-section-book')).toBeNull()
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
+    act(() => {
+      setBookSettingsSelected(true)
+    })
     expect(screen.getByTestId('grid-section-book')).toBeTruthy()
     expect(screen.queryByTestId('grid-section-spread')).toBeNull()
     expect(screen.getByText('Layout grid')).toBeTruthy()
     expect(screen.getByTestId('grid-summary').textContent).toBe('2×2')
   })
 
-  it('switches back from Book to the Spread tab', () => {
+  it('switches back from Book settings to the spread', () => {
     seed()
     act(() => {
       setActiveSpreadId('s1')
     })
     render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
-    fireEvent.click(screen.getByTestId('inspector-tab-spread'))
+    act(() => {
+      setBookSettingsSelected(true)
+    })
+    act(() => {
+      setActiveSpreadId('s1')
+      setCoverSelected(false)
+    })
     expect(screen.getByTestId('grid-section-spread')).toBeTruthy()
     expect(screen.queryByTestId('grid-section-book')).toBeNull()
   })
 
-  it('the Book tab does not show the frame fit & crop section', () => {
+  it('Book settings do not show the frame fit & crop section', () => {
     resetBookStore({
       book: makeBookWithAsset('a'),
       sessionMeta: new Map(),
@@ -71,7 +80,9 @@ describe('Inspector layout grid tabs', () => {
     })
     render(<Inspector />)
     expect(screen.getByTestId('inspector-fit-crop')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
+    act(() => {
+      setBookSettingsSelected(true)
+    })
     expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
     act(() => {
       resetFrameSelection()
@@ -81,7 +92,6 @@ describe('Inspector layout grid tabs', () => {
   it('shows no spread grid with nothing selected', () => {
     seed()
     render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-spread'))
     expect(screen.queryByTestId('grid-section-spread')).toBeNull()
   })
 })

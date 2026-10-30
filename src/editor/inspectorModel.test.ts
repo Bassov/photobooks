@@ -6,6 +6,7 @@ import {
   inspectorView,
   sameInspectorPanel,
   spreadRows,
+  spreadSummary,
   spreadTitle,
   type InspectorPanel,
 } from './inspectorModel'
@@ -216,5 +217,30 @@ describe('rows', () => {
       'Spread',
       'Size',
     ])
+  })
+})
+
+describe('spreadSummary', () => {
+  const book = makeBook({
+    spreads: [
+      makeSpread({ id: 'cover', frames: [makeFrame({ id: 'c1' })] }),
+      makeSpread({
+        id: 'mid',
+        frames: [
+          makeFrame({ id: 'a', assetId: 'x' }),
+          makeFrame({ id: 'b' }),
+          makeFrame({ id: 'c' }),
+        ],
+      }),
+    ],
+  })
+
+  it('names the pages and counts empty frames (kit Spread header)', () => {
+    expect(spreadSummary(book, 'mid')).toBe('Pages 2–3 · 2 empty')
+    expect(spreadSummary(book, 'cover')).toBe('Cover · 1 empty')
+  })
+
+  it('is blank for an unknown spread', () => {
+    expect(spreadSummary(book, 'nope')).toBe('')
   })
 })

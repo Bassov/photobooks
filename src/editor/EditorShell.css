@@ -253,46 +253,6 @@
   font-weight: 600;
 }
 
-/* Inspector Frame / Spread / Book tabs: kit TabList size sm. */
-.editor-inspector-tabs {
-  height: calc(var(--spacing) * 7);
-  padding: 2px;
-  gap: 1px;
-  align-items: stretch;
-  border-radius: var(--radius-md);
-  background: var(--field);
-  color: var(--muted-foreground);
-  font-size: var(--text-xs);
-}
-
-.editor-inspector-tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 calc(var(--spacing) * 2);
-  border-radius: var(--radius-xs);
-  font-weight: 500;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: default;
-  outline: none;
-}
-
-.editor-inspector-tab[data-hovered] {
-  color: var(--foreground);
-}
-
-.editor-inspector-tab[data-selected] {
-  background: var(--chrome);
-  color: var(--foreground);
-  box-shadow: var(--shadow-segment);
-}
-
-.editor-inspector-tab[data-focus-visible] {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-}
-
 /* "Drop here for a new spread" band; hit-testing is dropTargets.hitTestGap. */
 .pasteboard-gap {
   position: absolute;
@@ -360,4 +320,19 @@
 /* Spread reorder insertion line (left panel). */
 .editor-spread-drop-line {
   background: var(--select);
+}
+
+/* Book title: kit step 24, a click opens Book settings in the inspector. */
+.e7-title-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.e7-title-button[data-focus-visible],
+.e7-title-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+  border-radius: var(--radius-xs);
 }

@@ -9,6 +9,7 @@ import {
   TOGGLE_OFF,
   TOGGLE_ON,
 } from './editorChromeTokens'
+import { setBookSettingsSelected } from './bookSettingsSelection'
 import { Inspector } from './Inspector'
 import { LayoutSection } from './LayoutSection'
 import { setActiveSpreadId } from './photoRootSession'
@@ -112,20 +113,20 @@ describe('LayoutSection', () => {
   })
 })
 
-describe('Inspector Spread / Book tab sections', () => {
+describe('Inspector Spread / Book settings sections', () => {
   afterEach(() => {
     cleanup()
+    setBookSettingsSelected(false)
     setActiveSpreadId(null)
     resetBookStore()
   })
 
-  it('Spread tab: Layout comes before Layout grid; no Background', () => {
+  it('Spread: Layout comes before Layout grid; no Background', () => {
     seed()
     act(() => {
       setActiveSpreadId('s1')
     })
     render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-spread'))
     const layout = screen.getByTestId('layout-section')
     const grid = screen.getByTestId('grid-section-spread')
     expect(
@@ -134,17 +135,18 @@ describe('Inspector Spread / Book tab sections', () => {
     expect(screen.queryByText('Background')).toBeNull()
   })
 
-  it('Spread tab without a spread shows no Layout section', () => {
+  it('Without a spread, no Layout section; shows no Layout section', () => {
     seed()
     render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-spread'))
     expect(screen.queryByTestId('layout-section')).toBeNull()
   })
 
-  it('Book tab: settings from the model above the book grid, no Layout', () => {
+  it('Book settings: settings from the model above the book grid, no Layout', () => {
     seed()
     render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
+    act(() => {
+      setBookSettingsSelected(true)
+    })
     const settings = screen.getByTestId('book-settings')
     expect(
       settings.compareDocumentPosition(
