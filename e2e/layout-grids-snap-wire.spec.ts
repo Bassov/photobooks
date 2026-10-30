@@ -157,14 +157,11 @@ test('dragging a frame across a 12-column grid with snapping stays within frame-
   await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
 
   await openRightPanel(page)
-  // Book settings no longer hold a grid section (uikit/src/sandbox/v7.tsx:202-210);
-  // the same 12-column grid is set as the spread's own grid.
-  await spreadView(page).click({ position: { x: 4, y: 4 } })
-  const section = page.getByTestId('grid-section-spread')
-  const columns = section.getByTestId('grid-field-columns').getByRole('textbox')
+  await page.getByTestId('book-title').click()
+  const columns = page.getByTestId('grid-field-columns').getByRole('textbox')
   await columns.fill('12')
   await columns.blur()
-  await expect(section.getByTestId('grid-summary')).toHaveText('12×2')
+  await expect(page.getByTestId('grid-summary')).toHaveText('12×2')
   await gridToggle(page).click()
   await expect(page.getByTestId('grid-overlay-column').first()).toBeAttached()
 
