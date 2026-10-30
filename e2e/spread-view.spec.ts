@@ -141,6 +141,12 @@ test('a spread added from the row menu is revealed and a later template change l
     nudgeHorizontal: false,
   })
 
+  // The reveal holds the camera until it settles; a scroll during the hold
+  // does not release the add-spread active pin.
+  await expect(page.getByTestId('pasteboard-scroll')).not.toHaveAttribute(
+    'data-reveal-hold',
+    'true',
+  )
   await scrollToStackStart(page)
   await expect
     .poll(async () => {

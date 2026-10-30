@@ -68,6 +68,20 @@ export function usePasteboardReveal({
   const holdReleaseGenRef = useRef(0)
   const [revealTick, setRevealTick] = useState(0)
 
+  /** Mirrors the hold on the scrollport so e2e can wait for the reveal to end. */
+  const setHold = (hold: boolean): void => {
+    holdCameraScrollRef.current = hold
+    const scroll = scrollRef.current
+    if (scroll === null) {
+      return
+    }
+    if (hold) {
+      scroll.dataset.revealHold = 'true'
+    } else {
+      delete scroll.dataset.revealHold
+    }
+  }
+
   const clearRevealState = (): void => {
     restoreRevealSlotVisibility(revealSlotRef.current)
     revealSlotRef.current = null
@@ -84,7 +98,7 @@ export function usePasteboardReveal({
     const gen = ++holdReleaseGenRef.current
     requestAnimationFrame(() => {
       if (gen === holdReleaseGenRef.current) {
-        holdCameraScrollRef.current = false
+        setHold(false)
       }
     })
   }
@@ -94,7 +108,7 @@ export function usePasteboardReveal({
     // Cancel any deferred hold release from a prior reveal.
     holdReleaseGenRef.current += 1
     revealSpreadId.current = newSpreadId
-    holdCameraScrollRef.current = newSpreadId !== null
+    setHold(newSpreadId !== null)
     // Refs alone do not invalidate layout deps; bump tick so the turn runs.
     setRevealTick((tick) => tick + 1)
   }
