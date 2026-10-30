@@ -95,7 +95,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 6,
+      schemaVersion: 7,
       title: '',
       assets: { a: {}, b: {} },
       gallery: ['a', 'b'],
@@ -130,7 +130,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 6,
+      schemaVersion: 7,
       title: '',
       assets: { a: identity },
     })
@@ -163,7 +163,7 @@ describe('migrateToCurrent', () => {
       const result = migrateToCurrent(v2)
       expect(result.ok).toBe(true)
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 6, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 7, title: '' })
     },
   )
 
@@ -174,7 +174,7 @@ describe('migrateToCurrent', () => {
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.value).toMatchObject({ schemaVersion: 6, title: 'Summer' })
+    expect(result.value).toMatchObject({ schemaVersion: 7, title: 'Summer' })
   })
 
   it('rejects non-finite schemaVersion', () => {
@@ -207,7 +207,7 @@ describe('migrateToCurrent', () => {
       expect(
         (result.value as { assets: Record<string, unknown> }).assets,
       ).toEqual({})
-      expect(result.value).toMatchObject({ schemaVersion: 6, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 7, title: '' })
     },
   )
 
@@ -231,7 +231,7 @@ describe('migrateToCurrent', () => {
       ).spreads[0]?.frames[0]
       expect(frame).toEqual({ ...frameV3, rotationDeg: 0, kind: 'image' })
       expect(frame).not.toHaveProperty('locked')
-      expect(result.value).toMatchObject({ schemaVersion: 6 })
+      expect(result.value).toMatchObject({ schemaVersion: 7 })
     })
 
     it('migrates a v3 book into a valid current book', () => {
@@ -241,14 +241,14 @@ describe('migrateToCurrent', () => {
       expect(result.book.spreads[0]?.frames[0]?.rotationDeg).toBe(0)
     })
 
-    it('chains v1 through v6', () => {
+    it('chains v1 through v7', () => {
       const result = migrateToCurrent({
         ...v3Book([frameV3]),
         schemaVersion: 1,
       })
       expect(result).toMatchObject({
         ok: true,
-        value: { schemaVersion: 6 },
+        value: { schemaVersion: 7 },
       })
     })
 
@@ -295,7 +295,7 @@ describe('migrateToCurrent', () => {
         schemaVersion: 3,
       })
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 6, spreads: 'none' })
+      expect(result.value).toMatchObject({ schemaVersion: 7, spreads: 'none' })
     })
   })
 
@@ -334,6 +334,78 @@ describe('migrateToCurrent', () => {
       const result = parseBook({ ...v4Book('T'), schemaVersion: 1 })
       assert.equal(result.ok, true)
       expect(result.book.cover.front.text).toBe('T')
+    })
+  })
+
+  describe('v6 to v7', () => {
+    const v6Book = (
+      margins: unknown,
+      spreadGrid?: unknown,
+    ): Record<string, unknown> => {
+      const book = makeBook({ spreads: [{ id: 's', frames: [] }] })
+      return {
+        ...book,
+        schemaVersion: 6,
+        layoutGrid: { ...book.layoutGrid, margins },
+        spreads: [
+          {
+            id: 's',
+            frames: [],
+            ...(spreadGrid === undefined ? {} : { layoutGrid: spreadGrid }),
+          },
+        ],
+      }
+    }
+
+    it('maps left / right to outside / inside in the book grid', () => {
+      const result = parseBook(
+        v6Book({ top: 1, right: 22, bottom: 3, left: 11 }),
+      )
+      assert.equal(result.ok, true)
+      expect(result.book.layoutGrid.margins).toEqual({
+        top: 1,
+        bottom: 3,
+        outside: 11,
+        inside: 22,
+      })
+    })
+
+    it('maps a partial spread override and keeps absent sides absent', () => {
+      const result = parseBook(
+        v6Book(
+          { top: 1, right: 2, bottom: 3, left: 4 },
+          { columns: 3, margins: { left: 9 } },
+        ),
+      )
+      assert.equal(result.ok, true)
+      expect(result.book.spreads[0]?.layoutGrid).toEqual({
+        columns: 3,
+        margins: { outside: 9 },
+      })
+    })
+
+    it('leaves a spread without an override and odd grids alone', () => {
+      const result = migrateToCurrent({
+        ...v6Book({ top: 1 }),
+        spreads: [null, { id: 'x', layoutGrid: 'odd' }],
+        layoutGrid: { margins: 'odd' },
+      })
+      assert.equal(result.ok, true)
+      expect(result.value).toMatchObject({
+        schemaVersion: 7,
+        layoutGrid: { margins: 'odd' },
+        spreads: [null, { id: 'x', layoutGrid: 'odd' }],
+      })
+    })
+
+    it('passes a non-object grid and missing spreads through', () => {
+      const result = migrateToCurrent({
+        schemaVersion: 6,
+        layoutGrid: null,
+        spreads: 'none',
+      })
+      assert.equal(result.ok, true)
+      expect(result.value).toMatchObject({ layoutGrid: null, spreads: 'none' })
     })
   })
 
