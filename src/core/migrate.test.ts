@@ -95,7 +95,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 6,
+      schemaVersion: 7,
       title: '',
       assets: { a: {}, b: {} },
       gallery: ['a', 'b'],
@@ -130,7 +130,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 6,
+      schemaVersion: 7,
       title: '',
       assets: { a: identity },
     })
@@ -163,7 +163,7 @@ describe('migrateToCurrent', () => {
       const result = migrateToCurrent(v2)
       expect(result.ok).toBe(true)
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 6, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 7, title: '' })
     },
   )
 
@@ -174,7 +174,7 @@ describe('migrateToCurrent', () => {
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.value).toMatchObject({ schemaVersion: 6, title: 'Summer' })
+    expect(result.value).toMatchObject({ schemaVersion: 7, title: 'Summer' })
   })
 
   it('rejects non-finite schemaVersion', () => {
@@ -207,7 +207,7 @@ describe('migrateToCurrent', () => {
       expect(
         (result.value as { assets: Record<string, unknown> }).assets,
       ).toEqual({})
-      expect(result.value).toMatchObject({ schemaVersion: 6, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 7, title: '' })
     },
   )
 
@@ -231,7 +231,7 @@ describe('migrateToCurrent', () => {
       ).spreads[0]?.frames[0]
       expect(frame).toEqual({ ...frameV3, rotationDeg: 0, kind: 'image' })
       expect(frame).not.toHaveProperty('locked')
-      expect(result.value).toMatchObject({ schemaVersion: 6 })
+      expect(result.value).toMatchObject({ schemaVersion: 7 })
     })
 
     it('migrates a v3 book into a valid current book', () => {
@@ -241,14 +241,14 @@ describe('migrateToCurrent', () => {
       expect(result.book.spreads[0]?.frames[0]?.rotationDeg).toBe(0)
     })
 
-    it('chains v1 through v6', () => {
+    it('chains v1 through v7', () => {
       const result = migrateToCurrent({
         ...v3Book([frameV3]),
         schemaVersion: 1,
       })
       expect(result).toMatchObject({
         ok: true,
-        value: { schemaVersion: 6 },
+        value: { schemaVersion: 7 },
       })
     })
 
@@ -295,7 +295,7 @@ describe('migrateToCurrent', () => {
         schemaVersion: 3,
       })
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 6, spreads: 'none' })
+      expect(result.value).toMatchObject({ schemaVersion: 7, spreads: 'none' })
     })
   })
 
@@ -337,6 +337,38 @@ describe('migrateToCurrent', () => {
     })
   })
 
+  describe('v6 to v7', () => {
+    const v6Book = (title?: string) => {
+      const doc: Record<string, unknown> = {
+        ...makeBook(title === undefined ? {} : { title }),
+        schemaVersion: 6,
+      }
+      delete doc.frameStyles
+      return doc
+    }
+
+    it('adds an empty frameStyles map and keeps the rest', () => {
+      const input = v6Book('Summer')
+      const result = migrateToCurrent(input)
+      assert.equal(result.ok, true)
+      expect(result.value).toEqual({
+        ...input,
+        schemaVersion: 7,
+        frameStyles: {},
+      })
+    })
+
+    it('yields a parseable book with unstyled frames and no background', () => {
+      const result = parseBook(v6Book())
+      assert.equal(result.ok, true)
+      expect(result.book.frameStyles).toEqual({})
+      expect(result.book.spreads[0]?.frames[0]).not.toHaveProperty(
+        'frameStyleId',
+      )
+      expect(result.book.spreads[0]).not.toHaveProperty('backgroundColor')
+    })
+  })
+
   it('a new book cover text is its title', () => {
     expect(makeBook({ title: 'Trip' }).cover.front.text).toBe('Trip')
     expect(defaultCover('Trip').spine.text).toBe('Trip')
@@ -344,13 +376,16 @@ describe('migrateToCurrent', () => {
     expect(defaultEndpapers()).toEqual({ front: {}, back: {} })
   })
 
-  test.prop([fc.string(), fc.integer({ min: 1, max: 4 })])(
+  test.prop([fc.string(), fc.integer({ min: 1, max: 6 })])(
     'every older version migrates to a parseable current book',
     (title, version) => {
-      const result = parseBook({
-        ...withoutCover(makeBook({ title })),
-        schemaVersion: version,
-      })
+      const doc = withoutCover(makeBook({ title }))
+      if (version >= 5) {
+        Object.assign(doc, { cover: defaultCover(title) })
+        Object.assign(doc, { endpapers: defaultEndpapers() })
+      }
+      delete doc.frameStyles
+      const result = parseBook({ ...doc, schemaVersion: version })
       assert.equal(result.ok, true)
       expect(result.book.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
       expect(result.book.cover.front.text).toBe(title)

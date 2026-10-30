@@ -93,6 +93,7 @@ function createSessionBook(): Book {
       margins: { top: 15, right: 15, bottom: 15, left: 15 },
     },
     guides: [],
+    frameStyles: {},
     assets: {},
     gallery: [],
     spreads: [],

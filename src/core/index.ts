@@ -8,6 +8,7 @@ export {
   type Endpaper,
   type Endpapers,
   type Frame,
+  type FrameStyle,
   type Spread,
   type TextContent,
   type TextStyleId,
@@ -56,6 +57,7 @@ export type {
   NormalizedRect,
   PageCut,
   RectMm,
+  ResolvedFrameStyle,
   ResolvedItem,
   ResolvedSpread,
 } from './geometry/types'

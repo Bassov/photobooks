@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 6 as const
+export const CURRENT_SCHEMA_VERSION = 7 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -98,6 +98,33 @@ const textContentSchema = z.discriminatedUnion('type', [
   /** `{title}`, `{caption}`, `{spread}` tokens resolved by `resolveTextItems`. */
   z.object({ type: z.literal('template'), template: z.string() }),
 ])
+/*
+ * Style shapes are built per parse (like cover) so that their mutants are
+ * reachable by per-test mutant switching.
+ */
+
+/** sRGB color as lowercase `#rrggbb`. */
+function makeSrgbHexSchema() {
+  return z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/, 'color must be lowercase #rrggbb sRGB')
+}
+
+/** Book-level frame style; absent fields mean "none" (no stroke, mat, rounding). */
+function makeFrameStyleSchema() {
+  const color = makeSrgbHexSchema()
+  return z.object({
+    strokeMm: nonNegativeMm.optional(),
+    strokeColor: color.optional(),
+    matMm: nonNegativeMm.optional(),
+    matColor: color.optional(),
+    cornerRadiusMm: nonNegativeMm.optional(),
+  })
+}
+
+function makeFrameStylesSchema() {
+  return z.record(nonEmptyString, makeFrameStyleSchema())
+}
 
 const frameSchema = z.object({
   id: nonEmptyString,
@@ -117,6 +144,8 @@ const frameSchema = z.object({
   anchorFrameId: nonEmptyString.optional(),
   styleId: z.enum(TEXT_STYLE_IDS).optional(),
   align: z.enum(['left', 'center', 'right']).optional(),
+  /** Key into `book.frameStyles`; absent → unstyled. */
+  frameStyleId: nonEmptyString.optional(),
 })
 
 const spreadSchema = z.object({
@@ -124,6 +153,8 @@ const spreadSchema = z.object({
   templateId: nonEmptyString.optional(),
   layoutGrid: layoutGridOverrideSchema.optional(),
   guides: z.array(guideSchema).optional(),
+  /** Spread background; absent → the paper default. */
+  backgroundColor: atParseTime(makeSrgbHexSchema).optional(),
   frames: z.array(frameSchema),
 })
 
@@ -186,6 +217,7 @@ export const bookSchema = z.object({
   endpapers: atParseTime(makeEndpapersSchema),
   layoutGrid: layoutGridSchema,
   guides: z.array(guideSchema),
+  frameStyles: atParseTime(makeFrameStylesSchema),
   assets: z.record(nonEmptyString, assetSchema),
   gallery: z.array(nonEmptyString).superRefine((gallery, ctx) => {
     const seen = new Set<string>()
@@ -207,6 +239,7 @@ export const bookSchema = z.object({
 export type Asset = z.infer<typeof assetSchema>
 export type TextContent = z.infer<typeof textContentSchema>
 export type TextStyleId = (typeof TEXT_STYLE_IDS)[number]
+export type FrameStyle = z.output<ReturnType<typeof makeFrameStyleSchema>>
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
 export type Cover = z.output<ReturnType<typeof makeCoverSchema>>
