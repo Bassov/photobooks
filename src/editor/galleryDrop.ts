@@ -63,6 +63,8 @@ export interface DropGeometry {
 interface DropSessionBase {
   originX: number
   originY: number
+  insetX: number
+  insetY: number
   index: DropIndex
   elements: ReadonlyMap<string, HTMLElement>
   /** "New spread" zone elements keyed by insert index. */
@@ -294,6 +296,50 @@ function gapElements(scroll: HTMLElement): Map<number, HTMLElement> {
   return elements
 }
 
+/**
+ * Empty world margin left/top of the spread stack, measured from layout so the
+ * hit-test index stays in stack coordinates (0 when nothing is laid out).
+ */
+export function insetFromRects(
+  world: { width: number; top: number },
+  first: { top: number } | undefined,
+  stackWidthPx: number,
+): { insetX: number; insetY: number } {
+  return {
+    insetX: Math.max(0, (world.width - stackWidthPx) / 2),
+    insetY: first === undefined ? 0 : Math.max(0, first.top - world.top),
+  }
+}
+
+export function stackInset(
+  scroll: HTMLElement,
+  stackWidthPx: number,
+): { insetX: number; insetY: number } {
+  const world = scroll.querySelector<HTMLElement>(
+    '[data-testid="pasteboard-world"]',
+  )
+  if (world === null) {
+    return { insetX: 0, insetY: 0 }
+  }
+  return insetFromRects(
+    world.getBoundingClientRect(),
+    world.firstElementChild?.getBoundingClientRect(),
+    stackWidthPx,
+  )
+}
+
+/** Pointer position in stack coordinates (scrollport origin, scroll, inset). */
+export function stackPoint(
+  event: { clientX: number; clientY: number },
+  session: Pick<DropSessionBase, 'originX' | 'originY' | 'insetX' | 'insetY'>,
+  scroll: { scrollLeft: number; scrollTop: number },
+): { x: number; y: number } {
+  return {
+    x: event.clientX - session.originX + scroll.scrollLeft - session.insetX,
+    y: event.clientY - session.originY + scroll.scrollTop - session.insetY,
+  }
+}
+
 function beginSession(
   scroll: HTMLElement,
   readGeometry: () => DropGeometry,
@@ -308,6 +354,7 @@ function beginSession(
     ...drag,
     originX: origin.left,
     originY: origin.top,
+    ...stackInset(scroll, geometry.worldWidthPx),
     index: buildDropIndex({
       spreads: dropSpreadsFromBook(book, geometry),
       pxPerMm: geometry.pxPerMm,
@@ -391,8 +438,7 @@ export function installGalleryDrop(
       event.dataTransfer.dropEffect = current.kind === 'frame' ? 'move' : 'copy'
     }
     measureHandlerSync('dragover', () => {
-      const x = event.clientX - current.originX + scroll.scrollLeft
-      const y = event.clientY - current.originY + scroll.scrollTop
+      const { x, y } = stackPoint(event, current, scroll)
       const target = hitTestDrop(current.index, x, y)
       if (target !== undefined) {
         setDropHover(
@@ -418,8 +464,7 @@ export function installGalleryDrop(
     }
     event.preventDefault()
     const current = session
-    const x = event.clientX - current.originX + scroll.scrollLeft
-    const y = event.clientY - current.originY + scroll.scrollTop
+    const { x, y } = stackPoint(event, current, scroll)
     const target = hitTestDrop(current.index, x, y)
     session = null
     clearDropHover()

@@ -21,7 +21,32 @@ async function selectFrame(page: Page) {
   ) {
     await page.getByTestId('toggle-r').click()
   }
-  const frame = page.getByTestId('spread-frame').nth(2)
+  // The panel toggle resizes the pasteboard and the camera refits to it; wait
+  // for that to settle so the click does not land mid-refit and shift the view
+  // under the drag below.
+  const port = page.getByTestId('pasteboard-scroll')
+  await expect(port).not.toHaveAttribute('data-reveal-hold', 'true')
+  let last = ''
+  let steady = 0
+  await expect
+    .poll(
+      async () => {
+        const now = await port.evaluate(
+          (el) => `${String(el.clientWidth)}:${String(el.scrollLeft)}`,
+        )
+        steady = now === last ? steady + 1 : 0
+        last = now
+        return steady
+      },
+      { intervals: [50] },
+    )
+    .toBeGreaterThanOrEqual(5)
+  // The camera opens on the active spread (kit Fit); pick a frame that is
+  // already in view.
+  const frame = page
+    .locator('[data-spread-id][data-active="true"]')
+    .getByTestId('spread-frame')
+    .first()
   await frame.click()
   await expandDisclosure(page, 'Position & size')
   await expect(page.getByTestId('inspector-geometry')).toBeVisible()

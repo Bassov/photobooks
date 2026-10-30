@@ -11,7 +11,6 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
-import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
@@ -22,55 +21,27 @@ test.beforeEach(async ({ page }) => {
   await installPhotoDirectoryPickerStub(page)
 })
 
-test('fresh session shows pasteboard empty card and Choose photo folder imports from the picker', async ({
+// The pasteboard overlay card and placement hint pill are gone (kit #/demo
+// shows only the empty frame and the empty filmstrip); import still works from
+// the top-bar Choose photo folder button.
+test('fresh session imports from the Choose photo folder picker', async ({
   page,
 }) => {
   await openSessionEditor(page)
-
-  const card = page.getByTestId('pasteboard-empty-card')
-  await expect(card).toBeVisible()
-  await expect(card.getByText('Start with your photos')).toBeVisible()
-  await expect(
-    card.getByRole('button', { name: 'Choose photo folder…' }),
-  ).toBeVisible()
+  await expect(page.getByTestId('pasteboard-empty-card')).toHaveCount(0)
 
   await choosePhotoFolder(page, [photoFixturePaths.samplePng], {
-    button: 'pasteboard',
+    via: 'picker',
   })
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
-    timeout: 30_000,
-  })
-
-  await assertDocumentFitsViewport(page)
-})
-
-test('placement hint appears after import and clears after first place', async ({
-  page,
-}) => {
-  test.setTimeout(120_000)
-  await openSessionEditor(page)
-
-  await expect(page.getByTestId('pasteboard-empty-card')).toBeVisible()
-  await choosePhotoFolder(page, [photoFixturePaths.samplePng])
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
-    timeout: 30_000,
-  })
-  await expect(page.getByTestId('pasteboard-empty-card')).toHaveCount(0)
-  const hint = page.getByTestId('pasteboard-placement-hint')
-  await expect(hint).toBeVisible()
-  await expect(hint).toContainText('Drag a photo onto a frame')
-  await expect(hint).toHaveAttribute('role', 'status')
-
-  await page.bringToFront()
-  await dragPlaceFirstFilmstripItem(page)
-  await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {
     timeout: 30_000,
   })
   await expect(page.getByTestId('pasteboard-placement-hint')).toHaveCount(0)
+
   await assertDocumentFitsViewport(page)
 })
 
-test('folder with only non-images keeps empty card and No photos found line', async ({
+test('folder with only non-images is reported and adds nothing', async ({
   page,
 }) => {
   const dir = mkdtempSync(join(tmpdir(), 'pb-empty-folder-'))
@@ -78,14 +49,11 @@ test('folder with only non-images keeps empty card and No photos found line', as
 
   await openSessionEditor(page)
   await choosePhotoFolder(page, [join(dir, 'README.md')])
-  await expect(page.getByTestId('pasteboard-empty-card')).toBeVisible({
-    timeout: 15_000,
-  })
-  await expect(page.getByText('No photos found in that folder')).toBeVisible()
-  await expect(page.getByTestId('import-errors')).toHaveCount(0)
   await expect(page.getByTestId('editor-status')).toHaveText(
     '1 non-image file skipped',
+    { timeout: 15_000 },
   )
+  await expect(page.getByTestId('import-errors')).toHaveCount(0)
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { PASTEBOARD_PAD_PX } from './pasteboardView'
+import { makeBook } from '../core/testing/fixtures'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -6,7 +8,12 @@ import {
   getSpreadIdsSnapshot,
   resetBookStore,
 } from './bookStore'
-import { commitZoom, resetCameraStore } from './cameraStore'
+import {
+  commitZoom,
+  getCameraCommands,
+  getCommittedZoom,
+  resetCameraStore,
+} from './cameraStore'
 import {
   fakeIntersectionEntry,
   stubIntersectionObserverCapture,
@@ -199,9 +206,9 @@ describe('Pasteboard view wiring', () => {
       },
     })
 
-    scroll.scrollTop = 800
+    scroll.scrollTop = PASTEBOARD_PAD_PX + 800
     fireEvent.scroll(scroll)
-    scroll.scrollTop = 900
+    scroll.scrollTop = PASTEBOARD_PAD_PX + 900
     fireEvent.scroll(scroll)
 
     expect(hooks.rafQueue).toHaveLength(1)
@@ -221,7 +228,7 @@ describe('Pasteboard view wiring', () => {
     for (let i = 0; i < 8; i += 1) {
       dispatchBookOp({ type: 'addSpread' })
     }
-    commitZoom(1, 0, 1200)
+    commitZoom(1, 0, PASTEBOARD_PAD_PX + 1200)
     stubViewport(500, 240)
     render(<Pasteboard />)
     expect(
@@ -702,6 +709,74 @@ describe('Pasteboard view wiring', () => {
     view.unmount()
     expect(hooks.cancelAnimationFrame).toHaveBeenCalledWith(pendingRafId)
     expect(hooks.clearTimeout).toHaveBeenCalledWith(pendingWatchdog?.id)
+  })
+
+  it('pads the world by the camera margin on every side', () => {
+    resetBookStore()
+    commitZoom(1, 0, 0)
+    stubViewport(800, 600)
+    render(<Pasteboard />)
+    const world = screen.getByTestId('pasteboard-world')
+    expect(world.getAttribute('data-stack-inset')).toBe(
+      String(PASTEBOARD_PAD_PX),
+    )
+    expect(world.style.padding).toBe(`${String(PASTEBOARD_PAD_PX)}px`)
+    expect(world.style.boxSizing).toBe('border-box')
+    expect(Number.parseFloat(world.style.width)).toBeGreaterThan(
+      2 * PASTEBOARD_PAD_PX,
+    )
+  })
+
+  it('fits the selected spread once the viewport is measured when asked to', () => {
+    resetBookStore()
+    commitZoom(1, 0, 0)
+    stubViewport(800, 600)
+    render(<Pasteboard fitOnOpen />)
+    expect(getCommittedZoom()).not.toBe(1)
+  })
+
+  it('leaves the zoom alone without fitOnOpen', () => {
+    resetBookStore()
+    commitZoom(1, 0, 0)
+    stubViewport(800, 600)
+    render(<Pasteboard />)
+    expect(getCommittedZoom()).toBe(1)
+  })
+
+  it.each([
+    ['unmeasured', 0, 0],
+    ['zero width', 0, 600],
+    ['zero height', 800, 0],
+  ])('does not fit while the viewport is %s', (_label, width, height) => {
+    resetBookStore()
+    commitZoom(1, 0, 0)
+    stubViewport(width, height)
+    render(<Pasteboard fitOnOpen />)
+    expect(getCommittedZoom()).toBe(1)
+  })
+
+  it('does not fit an empty book', () => {
+    resetBookStore({
+      book: makeBook({ spreads: [] }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    commitZoom(1, 0, 0)
+    stubViewport(800, 600)
+    render(<Pasteboard fitOnOpen />)
+    expect(getCommittedZoom()).toBe(1)
+  })
+
+  it('registers a zoom-step command that steps about the viewport centre', () => {
+    resetBookStore()
+    commitZoom(1, 0, 0)
+    stubViewport(800, 600)
+    render(<Pasteboard />)
+    act(() => {
+      getCameraCommands()?.zoomStep(1)
+    })
+    expect(getCommittedZoom()).toBeGreaterThan(1)
   })
 
   it('cancels a pending scroll frame on unmount', () => {

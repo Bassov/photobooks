@@ -16,6 +16,7 @@ function makeCommands(): CameraCommands {
     fitWidth: vi.fn(),
     actualSize: vi.fn(),
     zoomTo: vi.fn(),
+    zoomStep: vi.fn(),
     fitSpreadZoom: vi.fn(() => null),
   }
 }

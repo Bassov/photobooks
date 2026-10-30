@@ -1,6 +1,6 @@
 import { clamp } from '../lib/clamp'
 
-export const PASTEBOARD_GAP_PX = 24
+export const PASTEBOARD_GAP_PX = 44
 
 /** Subpixel clipping must not steal "active" from the spread above. */
 const ACTIVE_RATIO_EPSILON = 0.02

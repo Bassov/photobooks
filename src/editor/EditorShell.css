@@ -13,31 +13,17 @@
   color: var(--foreground);
 }
 
-/* Kit StatusLine: visible pill at the canvas bottom-left (pager and toasts sit bottom-right). */
+/* Live region only: save and hint chips are not part of the kit canvas (save state lives in the top-bar subtitle). */
 .editor-status-pill {
   position: absolute;
-  bottom: calc(var(--spacing) * 3);
-  left: calc(var(--spacing) * 3);
-  z-index: 30;
-  max-width: 60%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--popover) 95%, transparent);
-  color: var(--muted-foreground);
-  font-size: var(--text-xs);
-  box-shadow: var(--shadow-sm);
-  pointer-events: none;
-}
-
-/* Empty: invisible but still rendered, so the live region keeps announcing. */
-.editor-status-pill.pb-status:empty {
-  display: block;
-  visibility: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
   padding: 0;
-  box-shadow: none;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .editor-chrome {

@@ -39,6 +39,25 @@ async function pasteboardOrder(page: Page): Promise<string[]> {
     )
 }
 
+/**
+ * The pasteboard opens fitted on one spread, so only a window of the stack is
+ * mounted: it must be the leading run of the expected order.
+ */
+async function expectPasteboardFollows(
+  page: Page,
+  expected: readonly string[],
+): Promise<void> {
+  await expect
+    .poll(async () => {
+      const mounted = await pasteboardOrder(page)
+      return (
+        mounted.length >= 2 &&
+        mounted.every((id, index) => id === expected[index])
+      )
+    })
+    .toBe(true)
+}
+
 /** Synthetic drag of a list item to a viewport Y inside the spreads list. */
 async function dragItemTo(
   page: Page,
@@ -76,7 +95,7 @@ test('drag reorders spreads, the pasteboard follows, and undo restores', async (
   await openSessionEditor(page)
   const before = await panelOrder(page)
   expect(before.length).toBeGreaterThan(1)
-  expect(await pasteboardOrder(page)).toEqual(before)
+  await expectPasteboardFollows(page, before)
 
   const lastId = before.at(-1) ?? ''
   const listBox = await page.getByTestId('spreads-list').boundingBox()
@@ -85,12 +104,12 @@ test('drag reorders spreads, the pasteboard follows, and undo restores', async (
 
   const after = [lastId, ...before.slice(0, -1)]
   await expect.poll(() => panelOrder(page)).toEqual(after)
-  await expect.poll(() => pasteboardOrder(page)).toEqual(after)
+  await expectPasteboardFollows(page, after)
   await assertDocumentFitsViewport(page)
 
   await page.getByTestId('undo').click()
   await expect.poll(() => panelOrder(page)).toEqual(before)
-  await expect.poll(() => pasteboardOrder(page)).toEqual(before)
+  await expectPasteboardFollows(page, before)
 })
 
 test('Alt+ArrowDown on a focused spread moves it and keeps focus', async ({

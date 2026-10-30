@@ -63,6 +63,18 @@ export function widestPageCount(spreadCount: number): number {
   return spreadCount >= 2 ? 2 : 1
 }
 
+/**
+ * Constant empty margin around the spread stack inside the scroll world.
+ * Larger than any viewport so zoom/pan never hits a scroll clamp and the
+ * anchor math stays linear in content space (kit camera has no clamp).
+ */
+export const PASTEBOARD_PAD_PX = 2400
+
+/** Scroll offset into the stack (negative before the first slot is reached). */
+export function stackScrollTop(scrollTop: number): number {
+  return Math.max(0, scrollTop - PASTEBOARD_PAD_PX)
+}
+
 export function pasteboardWorldWidthPx(input: {
   viewportWidth: number
   trimWidthMm: number

@@ -2,9 +2,19 @@ import { SPREAD_PX_PER_MM } from '../render/frameBox'
 
 const CSS_PX_PER_INCH = 96
 const MM_PER_INCH = 25.4
-export const ZOOM_STEP = 2 ** 0.25
-const WHEEL_ZOOM_GAIN = 0.0015
-const MAX_PHYSICAL_ZOOM_RATIO = 4
+/** Kit key / button step (`viewport.tsx` L67–68). */
+export const ZOOM_STEP = 1.25
+/** One wheel notch (deltaY 100) zooms by this factor (kit L145–157). */
+const WHEEL_NOTCH_FACTOR = 1.1
+const WHEEL_NOTCH_DELTA = 100
+const WHEEL_ZOOM_GAIN = Math.log(WHEEL_NOTCH_FACTOR) / WHEEL_NOTCH_DELTA
+/** Zoom range relative to Fit (kit clamp 0.25–8). */
+const MIN_FIT_RATIO = 0.25
+const MAX_FIT_RATIO = 8
+/** Kit `FIT_TOP` / `FIT_BOTTOM` / side `pad` (viewport.tsx L110–126). */
+export const FIT_TOP_PX = 56
+export const FIT_BOTTOM_PX = 48
+export const FIT_SIDE_PX = 40
 
 export interface CameraPoint {
   readonly x: number
@@ -60,26 +70,22 @@ export function clampZoom(
   return zoom
 }
 
-export function zoomLimits(input: {
-  fitSpread: number
-  fitWidth: number
-  fitStack: number
-}): { minZoom: number; maxZoom: number } {
-  const minZoom = input.fitStack > 0 ? input.fitStack : 1
-  const floors = [physicalZoom() * MAX_PHYSICAL_ZOOM_RATIO, minZoom]
-  if (input.fitSpread > 0) {
-    floors.push(input.fitSpread)
-  }
-  if (input.fitWidth > 0) {
-    floors.push(input.fitWidth)
-  }
-  let maxZoom = minZoom
-  for (const floor of floors) {
-    if (floor > maxZoom) {
-      maxZoom = floor
-    }
-  }
-  return { minZoom, maxZoom }
+/**
+ * Kit clamp (0.25–8 × Fit). A long book may zoom further out, down to the
+ * whole-stack fit, so every spread can still be shown at once.
+ */
+export function zoomLimits(
+  fitSpread: number,
+  fitStack?: number,
+): {
+  minZoom: number
+  maxZoom: number
+} {
+  const fit = fitSpread > 0 && Number.isFinite(fitSpread) ? fitSpread : 1
+  const stack = fitStack ?? 0
+  const minZoom =
+    stack > 0 ? Math.min(fit * MIN_FIT_RATIO, stack) : fit * MIN_FIT_RATIO
+  return { minZoom, maxZoom: fit * MAX_FIT_RATIO }
 }
 
 export function zoomAtPoint(
@@ -92,6 +98,9 @@ export function zoomAtPoint(
     factor: number
     minZoom: number
     maxZoom: number
+    /** Scroll coords of the content origin (constant world padding). */
+    originX?: number | undefined
+    originY?: number | undefined
   },
   out: ZoomFrame,
 ): ZoomFrame {
@@ -100,12 +109,14 @@ export function zoomAtPoint(
     Number.isFinite(input.factor) && input.factor > 0 ? input.factor : 1
   const zoom = clampZoom(start * factor, input.minZoom, input.maxZoom)
   const scale = zoom / start
-  const contentX = input.scrollLeft + input.anchorX
-  const contentY = input.scrollTop + input.anchorY
+  const originX = input.originX ?? 0
+  const originY = input.originY ?? 0
+  const contentX = input.scrollLeft + input.anchorX - originX
+  const contentY = input.scrollTop + input.anchorY - originY
   out.zoom = zoom
   out.scale = scale
-  out.scrollLeft = contentX * scale - input.anchorX
-  out.scrollTop = contentY * scale - input.anchorY
+  out.scrollLeft = originX + contentX * scale - input.anchorX
+  out.scrollTop = originY + contentY * scale - input.anchorY
   out.translateX = contentX * (1 - scale)
   out.translateY = contentY * (1 - scale)
   return out
@@ -126,6 +137,8 @@ export function pinchZoom(
     currentB: CameraPoint
     minZoom: number
     maxZoom: number
+    originX?: number | undefined
+    originY?: number | undefined
   },
   out: ZoomFrame,
 ): ZoomFrame {
@@ -142,6 +155,8 @@ export function pinchZoom(
       factor,
       minZoom: input.minZoom,
       maxZoom: input.maxZoom,
+      originX: input.originX,
+      originY: input.originY,
     },
     out,
   )
