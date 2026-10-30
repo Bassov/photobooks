@@ -43,6 +43,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
 - [ ] [feature] [design-inspector-book-cover](roadmap/P1/design-inspector-book-cover.md) — Bug: design-inspector-book-cover: finish the partly-done inspector, cover and spread-list items
+- [ ] [feature] [design-filmstrip-fixed](roadmap/P1/design-filmstrip-fixed.md) — Bug: design-filmstrip-fixed: fixed filmstrip height, no filename captions
 - [x] [feature] [design-inspector](roadmap/P1/design-inspector.md) — Bug: design-inspector: prod parity design fixes
 - [ ] [feature] [design-filmstrip-cover](roadmap/P1/design-filmstrip-cover.md) — Bug: design-filmstrip-cover: prod parity design fixes
 - [ ] [feature] [design-frame-crop-masters](roadmap/P1/design-frame-crop-masters.md) — Bug: design-frame-crop-masters: prod parity design fixes
