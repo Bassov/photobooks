@@ -5,7 +5,6 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import {
@@ -14,11 +13,11 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { CoverSection } from './CoverSection'
+import { isCoverSelected, subscribeCoverSelection } from './coverSelection'
 import {
-  isCoverSelected,
-  setCoverSelected,
-  subscribeCoverSelection,
-} from './coverSelection'
+  isBookSettingsSelected,
+  subscribeBookSettingsSelection,
+} from './bookSettingsSelection'
 import { BookSettingsSection } from './BookSettingsSection'
 import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
@@ -28,8 +27,10 @@ import {
   DeleteFrameButton,
   GeometrySection,
 } from './FrameSections'
+import { Disclosure } from '../ui/Disclosure'
 import { PhotoRotateSection } from './PhotoRotateSection'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
+import { PhotoSection } from './PhotoSection'
 import { GridSection } from './GridSection'
 import { LayoutSection } from './LayoutSection'
 import {
@@ -37,25 +38,24 @@ import {
   inspectorView,
   sameInspectorPanel,
   spreadRows,
+  spreadSummary,
   type InspectorPanel,
   type InspectorRow,
 } from './inspectorModel'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 
 const EMPTY_HINT = 'Select a spread or a photo to see its properties.'
-const FRAME_HINT = 'Select a frame to edit it.'
 
-type InspectorTab = 'frame' | 'spread' | 'book'
-
-const TABS: readonly { id: InspectorTab; label: string }[] = [
-  { id: 'frame', label: 'Frame' },
-  { id: 'spread', label: 'Spread' },
-  { id: 'book', label: 'Book' },
-]
-
-function isInspectorTab(key: unknown): key is InspectorTab {
-  return TABS.some((item) => item.id === key)
-}
+/** What the panel shows: the selection-driven context (kit InspectorPanel). */
+type InspectorContext =
+  | InspectorPanel
+  | { kind: 'cover' }
+  | { kind: 'book' }
+  | {
+      kind: 'photo'
+      target: NonNullable<ReturnType<typeof getFrameSource>>
+      rows: readonly InspectorRow[]
+    }
 
 function readBook() {
   return getBookStoreSnapshot().book
@@ -83,10 +83,14 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
     isCoverSelected,
     isCoverSelected,
   )
+  const bookSelected = useSyncExternalStore(
+    subscribeBookSettingsSelection,
+    isBookSettingsSelected,
+    isBookSettingsSelected,
+  )
   const target = cropKey === '' ? null : getCropTarget()
   // Esc drops the spread view to the empty hint until another spread is picked.
   const [dismissed, setDismissed] = useState<string | null>(null)
-  const [tab, setTab] = useState<InspectorTab>('frame')
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -111,153 +115,126 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
     return next
   }, [frameSource, activeId, dismissed])
   const panel = useSyncExternalStore(subscribeBookStore, readPanel, readPanel)
-  const { kind } = panel
   // Crop mode keeps its frame (double-click drops the selection); else the
   // selected frame. Empty frames render nothing inside the section.
-  const section = target ?? frameSource
-  // Picking a frame (or entering crop on one) jumps to the Frame tab; picking
-  // a spread leaves the user's tab alone.
-  const sectionKey =
-    section === null ? '' : `${section.spreadId}/${section.frameId}`
-  const [seenKey, setSeenKey] = useState(sectionKey)
-  if (seenKey !== sectionKey) {
-    setSeenKey(sectionKey)
-    if (sectionKey !== '') {
-      setTab('frame')
-    }
-  }
+  const section = coverSelected || bookSelected ? null : (target ?? frameSource)
+  const view: InspectorContext = coverSelected
+    ? { kind: 'cover' }
+    : bookSelected
+      ? { kind: 'book' }
+      : section === null
+        ? panel
+        : {
+            kind: 'photo',
+            target: section,
+            rows: panel.kind === 'frame' ? panel.rows : [],
+          }
   return (
     <section
       className="editor-inspector-panel flex h-full min-h-0 flex-col"
       aria-label="Inspector"
       data-testid="inspector-panel"
-      data-inspector-view={kind}
+      data-inspector-view={view.kind === 'photo' ? 'frame' : view.kind}
       style={{ color: T }}
     >
-      <Tabs
-        className="flex min-h-0 flex-1 flex-col"
-        selectedKey={coverSelected ? 'frame' : tab}
-        onSelectionChange={(key) => {
-          setCoverSelected(false)
-          if (isInspectorTab(key)) {
-            setTab(key)
-          }
-        }}
-      >
-        <div className="flex h-12 shrink-0 items-center gap-1.5 pr-1.5 pl-2">
-          <TabList
-            aria-label="Inspector"
-            className="editor-inspector-tabs grid flex-1"
-            style={{
-              gridTemplateColumns: `repeat(${String(TABS.length)}, minmax(0, 1fr))`,
-            }}
+      {onCollapse ? (
+        <div
+          className="flex h-12 shrink-0 items-center justify-end pr-1.5 pl-2"
+          style={{ color: SUB }}
+        >
+          <IconButton
+            label="Hide inspector (I)"
+            size="sm"
+            placement="left"
+            onPress={onCollapse}
+            data-testid="panel-collapse-right"
           >
-            {TABS.map((item) => (
-              <Tab
-                key={item.id}
-                id={item.id}
-                className="editor-inspector-tab"
-                data-testid={`inspector-tab-${item.id}`}
-              >
-                {item.label}
-              </Tab>
-            ))}
-          </TabList>
-          {onCollapse ? (
-            <div className="flex items-center" style={{ color: SUB }}>
-              <IconButton
-                label="Hide inspector (I)"
-                size="sm"
-                placement="left"
-                onPress={onCollapse}
-                data-testid="panel-collapse-right"
-              >
-                <Icon name="panelRight" />
-              </IconButton>
-            </div>
-          ) : null}
+            <Icon name="panelRight" />
+          </IconButton>
         </div>
-        <TabPanel
-          id="frame"
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto"
-          data-testid="inspector-panel-frame"
-        >
-          {coverSelected ? <CoverSection /> : null}
-          {!coverSelected && panel.kind === 'frame' ? (
-            <>
-              <h2
-                className="inspector-context-title"
-                data-testid="inspector-context"
+      ) : null}
+      <div
+        className="scroll-thin min-h-0 flex-1 overflow-y-auto"
+        data-testid="inspector-body"
+      >
+        {view.kind === 'cover' ? <CoverSection /> : null}
+        {view.kind === 'book' ? (
+          <>
+            <BookSettingsSection />
+            <GridSection scope="book" />
+          </>
+        ) : null}
+        {view.kind === 'photo' ? (
+          <>
+            <h2
+              className="inspector-context-title"
+              data-testid="inspector-context"
+            >
+              Photo
+            </h2>
+            <PhotoSection target={view.target} />
+            {view.rows.length === 0 ? null : (
+              <div className="px-4 pb-4">
+                <RowList rows={view.rows} />
+              </div>
+            )}
+            <FitCropSection target={view.target} cropping={target !== null} />
+            <PhotoRotateSection target={view.target} />
+            <Disclosure
+              title="Position & size"
+              data-testid="inspector-geometry-disclosure"
+            >
+              <GeometrySection target={view.target} />
+            </Disclosure>
+            <Disclosure
+              title="Arrange"
+              data-testid="inspector-arrange-disclosure"
+            >
+              <ArrangeSection target={view.target} />
+            </Disclosure>
+            <DeleteFrameButton target={view.target} />
+          </>
+        ) : null}
+        {view.kind === 'spread' ? (
+          <>
+            <h2
+              className="inspector-context-title"
+              data-testid="inspector-context"
+            >
+              Spread
+            </h2>
+            <SpreadSummary spreadId={view.spreadId} />
+            <div className="px-4 py-4">
+              <div
+                className="inspector-eyebrow mb-3"
+                data-testid="inspector-spread-properties"
               >
-                Photo
-              </h2>
-              <div className="px-4 py-4">
-                <RowList rows={panel.rows} />
+                Spread properties
               </div>
-            </>
-          ) : null}
-          {!coverSelected && panel.kind === 'spread' ? (
-            <>
-              <h2
-                className="inspector-context-title"
-                data-testid="inspector-context"
-              >
-                Spread
-              </h2>
-              <div className="px-4 py-4">
-                <div
-                  className="inspector-eyebrow mb-3"
-                  data-testid="inspector-spread-properties"
-                >
-                  Spread properties
-                </div>
-                <RowList rows={panel.spreadRows} />
-              </div>
-            </>
-          ) : null}
-          {!coverSelected && panel.kind === 'empty' ? (
-            <Hint>{EMPTY_HINT}</Hint>
-          ) : null}
-          {!coverSelected && panel.kind === 'spread' && section === null ? (
-            <Hint>{FRAME_HINT}</Hint>
-          ) : null}
-          {coverSelected || section === null ? null : (
-            <>
-              <GeometrySection target={section} />
-              <FitCropSection target={section} cropping={target !== null} />
-              <PhotoRotateSection target={section} />
-              <ArrangeSection target={section} />
-              <DeleteFrameButton target={section} />
-            </>
-          )}
-        </TabPanel>
-        <TabPanel
-          id="spread"
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto"
-          data-testid="inspector-panel-spread"
-        >
-          {panel.kind === 'empty' ? (
-            <Hint>{EMPTY_HINT}</Hint>
-          ) : (
-            <>
-              <div className="px-4 py-4">
-                <RowList rows={panel.spreadRows} />
-              </div>
-              <LayoutSection spreadId={panel.spreadId} />
-              <GridSection scope="spread" spreadId={panel.spreadId} />
-            </>
-          )}
-        </TabPanel>
-        <TabPanel
-          id="book"
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto"
-          data-testid="inspector-panel-book"
-        >
-          <BookSettingsSection />
-          <GridSection scope="book" />
-        </TabPanel>
-      </Tabs>
+              <RowList rows={view.spreadRows} />
+            </div>
+            <LayoutSection spreadId={view.spreadId} />
+            <GridSection scope="spread" spreadId={view.spreadId} />
+          </>
+        ) : null}
+        {view.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
+      </div>
     </section>
+  )
+}
+
+/** Kit Spread header line: "Pages 2–3 · 1 empty". */
+function SpreadSummary({ spreadId }: { spreadId: string }) {
+  const read = () => spreadSummary(readBook(), spreadId)
+  const line = useSyncExternalStore(subscribeBookStore, read, read)
+  return (
+    <p
+      className="px-4 pt-0.5 text-xs"
+      style={{ color: SUB }}
+      data-testid="inspector-spread-summary"
+    >
+      {line}
+    </p>
   )
 }
 

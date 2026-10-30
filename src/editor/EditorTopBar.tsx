@@ -1,3 +1,5 @@
+import { setBookSettingsSelected } from './bookSettingsSelection'
+import { setCoverSelected } from './coverSelection'
 import type { Key } from 'react-aria-components'
 import {
   useEffect,
@@ -128,14 +130,19 @@ function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
   })
   return (
     <div className="e7-title ml-1 flex h-8 items-baseline gap-2 rounded-md border-0 px-2.5 pt-1.5">
-      <span
-        className="text-md"
+      <button
+        type="button"
+        className="e7-title-button text-md"
         style={{ fontFamily: 'var(--font-heading)', color: T }}
         data-testid="book-title"
         title={title}
+        onClick={() => {
+          setCoverSelected(false)
+          setBookSettingsSelected(true)
+        }}
       >
         <em>{title}</em>
-      </span>
+      </button>
       <span
         className="text-sm tabular-nums"
         style={{ color: SUB }}

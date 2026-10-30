@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }) => {
 test('step 24: Book tab shows kit Book settings head, rows and book grid', async ({
   page,
 }) => {
-  await page.getByTestId('inspector-tab-book').click()
+  await page.getByTestId('book-title').click()
   const settings = page.getByTestId('book-settings')
   await expect(settings.getByTestId('inspector-context')).toHaveText(
     'Book settings',

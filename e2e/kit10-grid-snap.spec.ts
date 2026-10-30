@@ -83,7 +83,6 @@ test.describe('kit v0.10 grid and snap (demo steps 14, 20)', () => {
   test('step 20: spread Layout grid section has kit structure and tokens', async ({
     page,
   }) => {
-    await page.getByTestId('inspector-tab-spread').click()
     const section = page.getByTestId('grid-section-spread')
     await expect(section).toBeVisible()
     const heading = section.locator('.inspector-eyebrow')
@@ -125,7 +124,6 @@ test.describe('kit v0.10 grid and snap (demo steps 14, 20)', () => {
   })
 
   test('step 20: out-of-range column count clamps', async ({ page }) => {
-    await page.getByTestId('inspector-tab-spread').click()
     const section = page.getByTestId('grid-section-spread')
     const columns = section.getByRole('textbox', { name: 'Columns' })
     await columns.fill('99')

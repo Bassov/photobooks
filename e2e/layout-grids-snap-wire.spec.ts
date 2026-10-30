@@ -157,7 +157,7 @@ test('dragging a frame across a 12-column grid with snapping stays within frame-
   await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
 
   await openRightPanel(page)
-  await page.getByTestId('inspector-tab-book').click()
+  await page.getByTestId('book-title').click()
   const columns = page.getByTestId('grid-field-columns').getByRole('textbox')
   await columns.fill('12')
   await columns.blur()
