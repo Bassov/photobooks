@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { BookOp } from '../core'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import {
   canRedo,
@@ -7,6 +8,9 @@ import {
   EMPTY_HISTORY,
   isUndoableOp,
   recordStep,
+  opLabel,
+  undoLabel,
+  redoLabel,
   redoStep,
   snapshotOf,
   undoStep,
@@ -78,7 +82,11 @@ describe('bookHistory', () => {
 
   it('redo walks one step at a time', () => {
     const [a, b, c] = [snap('a'), snap('b'), snap('c')]
-    const h = { past: [], future: [c, b], key: undefined }
+    const h = {
+      ...EMPTY_HISTORY,
+      future: [c, b],
+      futureLabels: ['Edit', 'Edit'],
+    }
     const first = redoStep(h, a)
     expect(first?.snapshot).toBe(b)
     expect(first?.history.future).toEqual([c])
@@ -86,7 +94,13 @@ describe('bookHistory', () => {
   })
 
   it('starts empty', () => {
-    expect(EMPTY_HISTORY).toEqual({ past: [], future: [], key: undefined })
+    expect(EMPTY_HISTORY).toEqual({
+      past: [],
+      future: [],
+      key: undefined,
+      pastLabels: [],
+      futureLabels: [],
+    })
   })
 
   it('classifies ops', () => {
@@ -105,5 +119,107 @@ describe('bookHistory', () => {
     expect(coalesceKey({ ...rotate, rotationDeg: 5, live: true })).toBe(
       'rotate:s:f',
     )
+  })
+})
+
+describe('step labels', () => {
+  it('names ops and falls back to Edit', () => {
+    expect(opLabel({ type: 'setTitle', title: 'x' })).toBe('Rename book')
+    expect(undoLabel(EMPTY_HISTORY)).toBeNull()
+    expect(redoLabel(EMPTY_HISTORY)).toBeNull()
+  })
+
+  it('moves the label between undo and redo', () => {
+    const h = recordStep(EMPTY_HISTORY, snap('a'), undefined, undefined, 'Crop')
+    expect(undoLabel(h)).toBe('Crop')
+    const undone = undoStep(h, snap('b'))?.history ?? EMPTY_HISTORY
+    expect(undoLabel(undone)).toBeNull()
+    expect(redoLabel(undone)).toBe('Crop')
+    const redone = redoStep(undone, snap('a'))?.history ?? EMPTY_HISTORY
+    expect(undoLabel(redone)).toBe('Crop')
+  })
+})
+
+describe('step label bookkeeping', () => {
+  const labelled = (names: string[], limit?: number) =>
+    names.reduce(
+      (h, name, i) =>
+        recordStep(h, snap(`s${String(i)}`), undefined, limit, name),
+      EMPTY_HISTORY,
+    )
+
+  it('maps every op kind to its label', () => {
+    const expected: Record<string, string> = {
+      place: 'Place photo',
+      replace: 'Replace photo',
+      unplace: 'Remove photo',
+      fillSpread: 'Fill spread',
+      insertSpreadWithAssets: 'Insert spread',
+      setCrop: 'Crop',
+      resetCrop: 'Reset crop',
+      setFit: 'Change fit',
+      swap: 'Swap photos',
+      applyTemplate: 'Apply layout',
+      addSpread: 'Add spread',
+      removeSpread: 'Delete spread',
+      duplicateSpread: 'Duplicate spread',
+      moveSpread: 'Move spread',
+      addFrame: 'Add frame',
+      removeFrames: 'Delete frame',
+      setFrameRect: 'Edit frame',
+      moveFrame: 'Move frame',
+      resizeFrame: 'Resize frame',
+      rotateFrame: 'Rotate frame',
+      reorderFrame: 'Reorder frame',
+      setFrameLocked: 'Lock frame',
+      alignFrames: 'Align frames',
+      distributeFrames: 'Distribute frames',
+      setTitle: 'Rename book',
+      setBookGrid: 'Change grid',
+      setSpreadGrid: 'Change grid',
+      resetSpreadGrid: 'Reset grid',
+    }
+    for (const [type, text] of Object.entries(expected)) {
+      expect(opLabel({ type } as unknown as BookOp)).toBe(text)
+    }
+    expect(opLabel({ type: 'nope' } as unknown as BookOp)).toBe('Edit')
+  })
+
+  it('keeps the newest labels when over the limit', () => {
+    const h = labelled(['a', 'b', 'c', 'd', 'e'], 3)
+    expect(h.past).toHaveLength(3)
+    expect(h.pastLabels).toEqual(['c', 'd', 'e'])
+  })
+
+  it('a new record after undo clears redo labels', () => {
+    const h = labelled(['a', 'b'])
+    const undone = undoStep(h, snap('x'))?.history ?? EMPTY_HISTORY
+    expect(undone.futureLabels).toEqual(['b'])
+    const next = recordStep(undone, snap('y'), undefined, undefined, 'c')
+    expect(next.futureLabels).toEqual([])
+    expect(redoLabel(next)).toBeNull()
+    expect(next.pastLabels).toEqual(['a', 'c'])
+  })
+
+  it('undo leaves the remaining past labels and exposes the previous one', () => {
+    const h = labelled(['a', 'b', 'c'])
+    const undone = undoStep(h, snap('x'))?.history ?? EMPTY_HISTORY
+    expect(undone.pastLabels).toEqual(['a', 'b'])
+    expect(undone.futureLabels).toEqual(['c'])
+    expect(undoLabel(undone)).toBe('b')
+    expect(redoLabel(undone)).toBe('c')
+  })
+
+  it('redo leaves the remaining future labels and exposes the next one', () => {
+    const h = labelled(['a', 'b', 'c', 'd'])
+    const u1 = undoStep(h, snap('x'))?.history ?? EMPTY_HISTORY
+    const u2 = undoStep(u1, snap('y'))?.history ?? EMPTY_HISTORY
+    const u3 = undoStep(u2, snap('w'))?.history ?? EMPTY_HISTORY
+    expect(u3.futureLabels).toEqual(['d', 'c', 'b'])
+    const redone = redoStep(u3, snap('z'))?.history ?? EMPTY_HISTORY
+    expect(redone.pastLabels).toEqual(['a', 'b'])
+    expect(redone.futureLabels).toEqual(['d', 'c'])
+    expect(undoLabel(redone)).toBe('b')
+    expect(redoLabel(redone)).toBe('c')
   })
 })

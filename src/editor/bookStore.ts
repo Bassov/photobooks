@@ -22,9 +22,12 @@ import {
   coalesceKey,
   EMPTY_HISTORY,
   isUndoableOp,
+  opLabel,
   recordStep,
+  redoLabel,
   redoStep,
   snapshotOf,
+  undoLabel,
   undoStep,
   type History,
   type HistoryMove,
@@ -746,18 +749,31 @@ export function setImportRunning(running: boolean, expectedCount = 0): void {
 export interface HistoryAvailability {
   canUndo: boolean
   canRedo: boolean
+  undoLabel: string | null
+  redoLabel: string | null
 }
 
 let history: History = EMPTY_HISTORY
-let historySnapshot: HistoryAvailability = { canUndo: false, canRedo: false }
+let historySnapshot: HistoryAvailability = {
+  canUndo: false,
+  canRedo: false,
+  undoLabel: null,
+  redoLabel: null,
+}
 const historyListeners = new Set<Listener>()
 
 function setHistory(next: History): void {
   history = next
-  const avail = { canUndo: canUndo(next), canRedo: canRedo(next) }
+  const avail = {
+    canUndo: canUndo(next),
+    canRedo: canRedo(next),
+    undoLabel: undoLabel(next),
+    redoLabel: redoLabel(next),
+  }
+  // A null label is exactly "nothing to undo / redo", so labels cover availability.
   if (
-    avail.canUndo === historySnapshot.canUndo &&
-    avail.canRedo === historySnapshot.canRedo
+    avail.undoLabel === historySnapshot.undoLabel &&
+    avail.redoLabel === historySnapshot.redoLabel
   ) {
     return
   }
@@ -827,7 +843,15 @@ export function dispatchBookOp(op: BookOp): void {
   }
   const prev = state
   if (isUndoableOp(op)) {
-    setHistory(recordStep(history, snapshotOf(prev.book), coalesceKey(op)))
+    setHistory(
+      recordStep(
+        history,
+        snapshotOf(prev.book),
+        coalesceKey(op),
+        undefined,
+        opLabel(op),
+      ),
+    )
   } else if (book.spreads !== prev.book.spreads) {
     // Gallery removal also unplaced frames: older snapshots would reference
     // assets that are gone.

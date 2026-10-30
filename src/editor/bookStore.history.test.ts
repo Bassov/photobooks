@@ -16,7 +16,9 @@ describe('bookStore history', () => {
   })
 
   it('starts with nothing to undo or redo', () => {
-    expect(getHistorySnapshot()).toEqual({ canUndo: false, canRedo: false })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: false, canRedo: false }),
+    )
   })
 
   it('notifies subscribers only when availability changes', () => {
@@ -66,14 +68,18 @@ describe('bookStore history', () => {
     dispatchBookOp({ type: 'addSpread', id: 'extra' })
     dispatchBookOp({ type: 'setTitle', title: 'A' })
     dispatchBookOp({ type: 'setTitle', title: 'AB' })
-    expect(getHistorySnapshot()).toEqual({ canUndo: true, canRedo: false })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: true, canRedo: false }),
+    )
 
     undoBook()
     expect(getBookStoreSnapshot().book.title).toBeUndefined()
     expect(getBookStoreSnapshot().book.spreads).toHaveLength(4)
     undoBook()
     expect(getBookStoreSnapshot().book.spreads).toBe(start.spreads)
-    expect(getHistorySnapshot()).toEqual({ canUndo: false, canRedo: true })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: false, canRedo: true }),
+    )
     undoBook()
 
     redoBook()
@@ -134,9 +140,47 @@ describe('bookStore history', () => {
     expect(getHistorySnapshot().canUndo).toBe(false)
   })
 
+  it('a fresh store has an empty history snapshot', async () => {
+    vi.resetModules()
+    const fresh = await import('./bookStore')
+    expect(fresh.getHistorySnapshot()).toStrictEqual({
+      canUndo: false,
+      canRedo: false,
+      undoLabel: null,
+      redoLabel: null,
+    })
+  })
+
+  it('notifies when only the redo label changes', () => {
+    resetBookStore()
+    dispatchBookOp({ type: 'addSpread', id: 'a' })
+    dispatchBookOp({ type: 'addSpread', id: 'b' })
+    dispatchBookOp({ type: 'removeSpread', spreadId: 'a' })
+    undoBook()
+    expect(getHistorySnapshot()).toEqual({
+      canUndo: true,
+      canRedo: true,
+      undoLabel: 'Add spread',
+      redoLabel: 'Delete spread',
+    })
+    const listener = vi.fn()
+    const stop = subscribeHistory(listener)
+    undoBook()
+    stop()
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(getHistorySnapshot()).toEqual({
+      canUndo: true,
+      canRedo: true,
+      undoLabel: 'Add spread',
+      redoLabel: 'Add spread',
+    })
+  })
+
   it('reset clears history', () => {
     dispatchBookOp({ type: 'addSpread', id: 'x' })
     resetBookStore()
-    expect(getHistorySnapshot()).toEqual({ canUndo: false, canRedo: false })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: false, canRedo: false }),
+    )
   })
 })

@@ -127,7 +127,7 @@ describe('EditorTopBar', () => {
     expect(preview.textContent).toBe('Preview')
   })
 
-  it('uses kit undo / redo tooltips without action names', () => {
+  it('labels undo / redo tooltips with the step name', () => {
     render(<EditorShell />)
     expect(screen.getByTestId('undo').getAttribute('aria-label')).toBe(
       'Nothing to undo',
@@ -139,11 +139,11 @@ describe('EditorTopBar', () => {
       dispatchBookOp({ type: 'addSpread', templateId: 'one-per-page' })
     })
     expect(screen.getByTestId('undo').getAttribute('aria-label')).toBe(
-      'Undo (Ctrl+Z)',
+      'Undo “Add spread” (Ctrl+Z)',
     )
     fireEvent.click(screen.getByTestId('undo'))
     expect(screen.getByTestId('redo').getAttribute('aria-label')).toBe(
-      'Redo (Shift+Ctrl+Z)',
+      'Redo “Add spread” (Shift+Ctrl+Z)',
     )
   })
 

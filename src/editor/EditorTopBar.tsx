@@ -147,7 +147,7 @@ function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
 }
 
 function HistoryChrome() {
-  const { canUndo, canRedo } = useSyncExternalStore(
+  const { canUndo, canRedo, undoLabel, redoLabel } = useSyncExternalStore(
     subscribeHistory,
     getHistorySnapshot,
     getHistorySnapshot,
@@ -155,7 +155,11 @@ function HistoryChrome() {
   return (
     <div className="ml-2 flex items-center gap-0.5" style={{ color: SUB }}>
       <IconButton
-        label={canUndo ? 'Undo (Ctrl+Z)' : 'Nothing to undo'}
+        label={
+          undoLabel !== null
+            ? `Undo “${undoLabel}” (Ctrl+Z)`
+            : 'Nothing to undo'
+        }
         size="sm"
         data-testid="undo"
         isDisabled={!canUndo}
@@ -164,7 +168,11 @@ function HistoryChrome() {
         <Icon name="undo" size={16} />
       </IconButton>
       <IconButton
-        label={canRedo ? 'Redo (Shift+Ctrl+Z)' : 'Nothing to redo'}
+        label={
+          redoLabel !== null
+            ? `Redo “${redoLabel}” (Shift+Ctrl+Z)`
+            : 'Nothing to redo'
+        }
         size="sm"
         data-testid="redo"
         isDisabled={!canRedo}
