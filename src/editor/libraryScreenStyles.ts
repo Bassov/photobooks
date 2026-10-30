@@ -78,7 +78,7 @@ const STYLE_TEXT = `
 .pb-lib-quiet[data-hovered] {
   background: var(--accent);
 }
-/* uikit/src/features/library.tsx:127 — focus-within:outline-2 outline-offset-2 outline-[#3A3839] */
+/* kit features/library.tsx:127 — focus-within:outline-2 outline-offset-2 outline-[#3A3839] */
 .pb-lib-quiet:focus-visible,
 .pb-lib-quiet[data-focus-visible],
 .pb-lib-quiet:focus-within {
