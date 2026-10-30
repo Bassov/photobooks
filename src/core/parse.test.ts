@@ -301,7 +301,7 @@ test.prop(
     const book = makeBook({
       settings: { trim: { widthMm, heightMm }, bleedMm: 3, safeMarginMm: 5 },
       layoutGrid: {
-        margins: { top: 10, right: 10, bottom: 10, left: 10 },
+        margins: { top: 10, bottom: 10, inside: 10, outside: 10 },
         columns,
         rows,
         columnGutterMm: gutterMm,

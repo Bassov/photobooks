@@ -107,11 +107,11 @@ describe('spread overrides', () => {
       patch: { columns: 5, inside: 22 },
     })
     const spread = next.spreads[0]
-    expect(spread?.layoutGrid).toEqual({ columns: 5, margins: { left: 22 } })
+    expect(spread?.layoutGrid).toEqual({ columns: 5, margins: { inside: 22 } })
     const { values, source } = effectiveGrid(next, spread)
     expect(values.columns).toBe(5)
     expect(values.inside).toBe(22)
-    expect(values.outside).toBe(next.layoutGrid.margins.right)
+    expect(values.outside).toBe(next.layoutGrid.margins.outside)
     expect(source.columns).toBe('spread')
     expect(source.inside).toBe('spread')
     expect(source.rows).toBe('book')
@@ -167,7 +167,7 @@ describe('spread overrides', () => {
     const parsed = parseBook(serializeBook(book))
     expect(parsed).toMatchObject({
       ok: true,
-      book: { spreads: [{}, { layoutGrid: { margins: { right: 9 } } }, {}] },
+      book: { spreads: [{}, { layoutGrid: { margins: { outside: 9 } } }, {}] },
     })
   })
 })

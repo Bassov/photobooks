@@ -14,7 +14,7 @@ function seed() {
         rows: 3,
         columnGutterMm: 4,
         rowGutterMm: 4,
-        margins: { top: 10, bottom: 10, left: 10, right: 10 },
+        margins: { top: 10, bottom: 10, inside: 10, outside: 10 },
       },
       spreads: [
         makeSpread({ id: 's1' }),
