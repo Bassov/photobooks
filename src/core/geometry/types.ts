@@ -18,6 +18,15 @@ export interface PageCut {
   offsetMm: number
 }
 
+/** Frame style with every field defaulted (0 mm / no color → not drawn). */
+export interface ResolvedFrameStyle {
+  strokeMm: number
+  strokeColor?: string
+  matMm: number
+  matColor?: string
+  cornerRadiusMm: number
+}
+
 export interface ResolvedItem {
   frameId: string
   rectMm: RectMm
@@ -30,6 +39,8 @@ export interface ResolvedItem {
   photoQuarterTurns?: 1 | 2 | 3
   /** Photo fine rotation in degrees; omitted when 0. */
   straightenDeg?: number
+  /** Omitted when the frame has no (or a dangling) `frameStyleId`. */
+  style?: ResolvedFrameStyle
   assetId?: string
   sourceCropRect?: NormalizedRect
   /** Editor-only: set when the photo prints below the warn DPI. */
@@ -41,6 +52,8 @@ export interface ResolvedSpread {
   pageCuts: PageCut[]
   spreadWidthMm: number
   spreadHeightMm: number
+  /** sRGB `#rrggbb`; omitted → paper default. */
+  backgroundColor?: string
 }
 
 export type AspectRatioLookup = (assetId: string) => number

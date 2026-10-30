@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P2
 Title: book-level styles in the document
+Status: done
 
 ## Scope
 
