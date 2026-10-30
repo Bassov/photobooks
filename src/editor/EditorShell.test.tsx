@@ -156,7 +156,7 @@ describe('EditorShell viewport containment', () => {
     render(<EditorShell />)
 
     expect(screen.queryByText(/Pasteboard workspace arrives/)).toBeNull()
-    expect(screen.getByTestId('pasteboard-empty-card')).toBeTruthy()
+    expect(screen.queryByTestId('pasteboard-empty-card')).toBeNull()
     expect(screen.getByTestId('pasteboard-scroll').dataset.spreadCount).toBe(
       '3',
     )
@@ -282,9 +282,10 @@ describe('EditorShell viewport containment', () => {
     expect(editorShellCss).toMatch(
       /\.editor-status-pill\s*\{[^}]*pointer-events:\s*none/s,
     )
-    // Empty hides visually but stays rendered so the live region announces.
+    // Never a visible chip (kit canvas has none); stays rendered so the live
+    // region announces.
     expect(editorShellCss).toMatch(
-      /\.editor-status-pill\.pb-status:empty\s*\{[^}]*visibility:\s*hidden/s,
+      /\.editor-status-pill\s*\{[^}]*clip-path:\s*inset\(50%\)/s,
     )
 
     act(() => {

@@ -42,16 +42,15 @@ import {
 import { Icon } from '../ui/Icon'
 import { PageLabels } from './PageLabels'
 import { pageLabelsFit } from './pageLabelsModel'
-import { PasteboardEmptyGuidance } from './PasteboardEmptyGuidance'
 import { RelinkHost } from './relink'
 import { Rulers } from './Rulers'
 import { getRulersVisible, subscribeRulersVisible } from './rulersView'
-import type { ChromeImportApi } from './useChromeImport'
 import {
   bindGalleryDrop,
   cancelPendingScrollFrame,
   nextTrackedScroll,
   nextViewportSize,
+  PASTEBOARD_PAD_PX,
   pasteboardClickSpreadId,
   pasteboardSlotPaddingBottom,
   pasteboardStrideAtZoom,
@@ -63,6 +62,7 @@ import {
   selectMarkedSpreadId,
   shouldRenderSpacer,
   spreadActiveIndex,
+  stackScrollTop,
 } from './pasteboardView'
 
 function getTrimHeightMm(): number {
@@ -74,12 +74,10 @@ function getTrimWidthMm(): number {
 }
 
 export const Pasteboard = memo(function Pasteboard({
-  chromeImport,
+  fitOnOpen = false,
 }: {
-  chromeImport?: Pick<
-    ChromeImportApi,
-    'onChoosePhotoFolder' | 'photoFolderLabel' | 'importDisabled'
-  >
+  /** Fit the selected spread once the viewport is measured (editor shell). */
+  fitOnOpen?: boolean
 }) {
   const spreadIds = useSyncExternalStore(
     subscribeBookStore,
@@ -110,7 +108,9 @@ export const Pasteboard = memo(function Pasteboard({
   const pxPerMm = SPREAD_PX_PER_MM * committedZoom
   const stride = pasteboardStrideAtZoom(trimHeightMm, committedZoom)
   const [trackedScroll, setTrackedScroll] = useState({ top: 0, epoch: 0 })
-  const scrollTop = resolveTrackedScrollTop(trackedScroll, cameraFrame)
+  const scrollTop = stackScrollTop(
+    resolveTrackedScrollTop(trackedScroll, cameraFrame),
+  )
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
   const [activeId, setActiveId] = useState<string | null>(null)
   useEffect(() => {
@@ -321,7 +321,7 @@ export const Pasteboard = memo(function Pasteboard({
   const markedId = selectMarkedSpreadId(activeId, mounted)
   const activeIndex = spreadActiveIndex(markedId, spreadIds)
   const worldWidth = pasteboardWorldWidthPx({
-    viewportWidth: viewport.width,
+    viewportWidth: 0,
     trimWidthMm,
     spreadCount: spreadIds.length,
     pxPerMm,
@@ -349,6 +349,15 @@ export const Pasteboard = memo(function Pasteboard({
   })
   const cameraRef = useRef(camera)
   cameraRef.current = camera
+  useLayoutEffect(() => {
+    if (!fitOnOpen || spreadIds.length === 0) {
+      return
+    }
+    if (viewport.width === 0 || viewport.height === 0) {
+      return
+    }
+    cameraRef.current.refitIfFitted()
+  }, [fitOnOpen, spreadIds.length, viewport.width, viewport.height])
   useEffect(
     () =>
       registerCameraCommands({
@@ -363,6 +372,9 @@ export const Pasteboard = memo(function Pasteboard({
         },
         zoomTo: (zoom) => {
           cameraRef.current.zoomTo(zoom)
+        },
+        zoomStep: (direction) => {
+          cameraRef.current.zoomStep(direction)
         },
         fitSpreadZoom: () => cameraRef.current.fitSpreadZoom(),
       }),
@@ -470,13 +482,6 @@ export const Pasteboard = memo(function Pasteboard({
 
   return (
     <div className="pasteboard" data-testid="pasteboard">
-      {chromeImport !== undefined ? (
-        <PasteboardEmptyGuidance
-          onChoosePhotoFolder={chromeImport.onChoosePhotoFolder}
-          photoFolderLabel={chromeImport.photoFolderLabel}
-          importDisabled={chromeImport.importDisabled}
-        />
-      ) : null}
       <div
         className="pasteboard-stage"
         data-testid="pasteboard-stage"
@@ -497,7 +502,12 @@ export const Pasteboard = memo(function Pasteboard({
             ref={worldRef}
             className="pasteboard-world"
             data-testid="pasteboard-world"
-            style={{ width: worldWidth }}
+            data-stack-inset={PASTEBOARD_PAD_PX}
+            style={{
+              width: worldWidth + 2 * PASTEBOARD_PAD_PX,
+              padding: PASTEBOARD_PAD_PX,
+              boxSizing: 'border-box',
+            }}
           >
             {shouldRenderSpacer(range.leadPx) ? (
               <div

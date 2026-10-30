@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -13,7 +14,7 @@ import {
   turnPendingReveal,
   type PendingRevealState,
 } from './pasteboardReveal'
-import { nextTrackedScroll } from './pasteboardView'
+import { PASTEBOARD_PAD_PX, nextTrackedScroll } from './pasteboardView'
 
 type TurnFn = typeof turnPendingReveal
 
@@ -68,6 +69,23 @@ export function usePasteboardReveal({
   const holdReleaseGenRef = useRef(0)
   const [revealTick, setRevealTick] = useState(0)
 
+  /** Mirrors the hold on the scrollport so e2e can wait for the reveal to end. */
+  const setHold = useCallback(
+    (hold: boolean): void => {
+      holdCameraScrollRef.current = hold
+      const scroll = scrollRef.current
+      if (scroll === null) {
+        return
+      }
+      if (hold) {
+        scroll.dataset.revealHold = 'true'
+      } else {
+        delete scroll.dataset.revealHold
+      }
+    },
+    [scrollRef],
+  )
+
   const clearRevealState = (): void => {
     restoreRevealSlotVisibility(revealSlotRef.current)
     revealSlotRef.current = null
@@ -80,21 +98,21 @@ export function usePasteboardReveal({
    * nudge still see hold=true (Pasteboard clears the add-spread pin on scroll
    * only when hold is false).
    */
-  const scheduleHoldRelease = (): void => {
+  const scheduleHoldRelease = useCallback((): void => {
     const gen = ++holdReleaseGenRef.current
     requestAnimationFrame(() => {
       if (gen === holdReleaseGenRef.current) {
-        holdCameraScrollRef.current = false
+        setHold(false)
       }
     })
-  }
+  }, [setHold])
 
   const beginRevealForNewSpread = (newSpreadId: string | null): void => {
     clearRevealState()
     // Cancel any deferred hold release from a prior reveal.
     holdReleaseGenRef.current += 1
     revealSpreadId.current = newSpreadId
-    holdCameraScrollRef.current = newSpreadId !== null
+    setHold(newSpreadId !== null)
     // Refs alone do not invalidate layout deps; bump tick so the turn runs.
     setRevealTick((tick) => tick + 1)
   }
@@ -153,7 +171,10 @@ export function usePasteboardReveal({
     }
     if (turn.kind === 'await-slot') {
       const epoch = getCommittedCamera().epoch
-      setTrackedScroll((current) => nextTrackedScroll(current, turn.top, epoch))
+      // Tracked scroll is raw scroll space; the stack starts after the world pad.
+      setTrackedScroll((current) =>
+        nextTrackedScroll(current, PASTEBOARD_PAD_PX + turn.top, epoch),
+      )
       return
     }
     if (turn.kind === 'retry') {
@@ -192,6 +213,7 @@ export function usePasteboardReveal({
     windowKey,
     revealTick,
     turnFn,
+    scheduleHoldRelease,
   ])
 
   return { holdCameraScrollRef, beginRevealForNewSpread, revealTick }

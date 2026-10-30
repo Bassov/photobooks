@@ -25,9 +25,7 @@ import '../ui/Toolbar.css'
 import { displayBookTitle } from '../project'
 import { formatZoomPercent, physicalZoom } from './camera'
 import {
-  commitZoom,
   getCameraCommands,
-  getCommittedCamera,
   getCommittedZoom,
   getLiveZoom,
   subscribeCommitted,
@@ -36,8 +34,6 @@ import {
 import { isChromeBusy } from './editorChromeDisabled'
 import {
   bookSizeLine,
-  nextZoomIn,
-  nextZoomOut,
   toggleEditorPanel,
   zoomChromeLabel,
   type EditorPanels,
@@ -48,6 +44,7 @@ import { EditorSettings } from './EditorSettings'
 import { EditorToolGroup } from './EditorToolGroup'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
+import { DpiToggle } from './DpiToggle'
 import { RulersToggle } from './RulersToggle'
 import { GuidesToggle } from './GuidesToggle'
 import {
@@ -241,8 +238,7 @@ function ZoomChrome() {
         size="sm"
         data-testid="zoom-out"
         onPress={() => {
-          const cam = getCommittedCamera()
-          commitZoom(nextZoomOut(zoom), cam.scrollLeft, cam.scrollTop)
+          getCameraCommands()?.zoomStep(-1)
         }}
       >
         <Icon name="zoomOut" size={16} />
@@ -251,7 +247,7 @@ function ZoomChrome() {
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1 px-2 text-sm tabular-nums"
+          className="min-w-[4.75rem] justify-center gap-1 px-2 text-sm tabular-nums"
           style={{ color: SUB, background: 'transparent' }}
           aria-label="Zoom"
           data-testid="zoom-menu"
@@ -284,8 +280,7 @@ function ZoomChrome() {
         size="sm"
         data-testid="zoom-in"
         onPress={() => {
-          const cam = getCommittedCamera()
-          commitZoom(nextZoomIn(zoom), cam.scrollLeft, cam.scrollTop)
+          getCameraCommands()?.zoomStep(1)
         }}
       >
         <Icon name="zoomIn" size={16} />
@@ -405,6 +400,7 @@ export function EditorTopBar({
         <SnapToggle />
         <RulersToggle />
         <GuidesToggle />
+        <DpiToggle />
       </div>
 
       <ZoomChrome />

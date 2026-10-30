@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { PASTEBOARD_PAD_PX } from './pasteboardView'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import {
   useCallback,
@@ -480,7 +481,9 @@ describe('usePasteboardReveal', () => {
       top: 400,
     })
     expect(rafQueue).toHaveLength(0)
-    expect(screen.getByTestId('tracked-top').textContent).toBe('400')
+    expect(screen.getByTestId('tracked-top').textContent).toBe(
+      String(PASTEBOARD_PAD_PX + 400),
+    )
 
     act(() => {
       observers[0]?.([], {} as ResizeObserver)

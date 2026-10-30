@@ -46,16 +46,19 @@ describe('clampZoom', () => {
 })
 
 describe('zoomLimits', () => {
-  it('keeps the stack fit as the minimum and 400% physical as a maximum floor', () => {
-    const limits = zoomLimits({ fitSpread: 2, fitWidth: 3, fitStack: 0.4 })
-    expect(limits.minZoom).toBe(0.4)
-    expect(limits.maxZoom).toBeGreaterThanOrEqual(physicalZoom() * 4)
-    expect(limits.maxZoom).toBeGreaterThanOrEqual(3)
+  it('spans 0.25x to 8x of the Fit zoom (kit viewport.tsx clamp)', () => {
+    expect(zoomLimits(2)).toEqual({ minZoom: 0.5, maxZoom: 16 })
   })
 
-  it('raises the maximum when fit width exceeds 400% physical', () => {
-    const limits = zoomLimits({ fitSpread: 1, fitWidth: 80, fitStack: 0.2 })
-    expect(limits.maxZoom).toBe(80)
+  it('lets a long book zoom out to the whole-stack fit', () => {
+    expect(zoomLimits(2, 0.1)).toEqual({ minZoom: 0.1, maxZoom: 16 })
+    expect(zoomLimits(2, 0.9)).toEqual({ minZoom: 0.5, maxZoom: 16 })
+    expect(zoomLimits(2, 0)).toEqual({ minZoom: 0.5, maxZoom: 16 })
+  })
+
+  it('falls back to a unit fit without a usable fit zoom', () => {
+    expect(zoomLimits(0)).toEqual({ minZoom: 0.25, maxZoom: 8 })
+    expect(zoomLimits(Number.NaN)).toEqual({ minZoom: 0.25, maxZoom: 8 })
   })
 })
 
@@ -217,6 +220,50 @@ describe('stepZoom', () => {
   it('multiplies by the quarter-stop and divides on zoom out', () => {
     expect(stepZoom(1, 1, 0.1, 10)).toBeCloseTo(ZOOM_STEP)
     expect(stepZoom(ZOOM_STEP, -1, 0.1, 10)).toBeCloseTo(1)
+  })
+})
+
+describe('kit zoom steps', () => {
+  it('steps x1.25 per key / button and x1.1 per wheel notch', () => {
+    expect(ZOOM_STEP).toBe(1.25)
+    expect(wheelZoomFactor(-100)).toBeCloseTo(1.1, 10)
+    expect(wheelZoomFactor(100)).toBeCloseTo(1 / 1.1, 10)
+  })
+})
+
+describe('zoomAtPoint with a constant world pad', () => {
+  it('keeps the anchored content point fixed in the padded world', () => {
+    const pad = 100
+    const zoom = 2
+    const scrollLeft = 340
+    const scrollTop = 220
+    const anchorX = 80
+    const anchorY = 60
+    const frame = zoomAtPoint(
+      {
+        zoom,
+        scrollLeft,
+        scrollTop,
+        anchorX,
+        anchorY,
+        factor: 1.5,
+        minZoom: 0.1,
+        maxZoom: 10,
+        originX: pad,
+        originY: pad,
+      },
+      blankFrame(),
+    )
+    // Content coordinate under the anchor (content space, pad removed).
+    const contentX = (scrollLeft + anchorX - pad) / zoom
+    const contentY = (scrollTop + anchorY - pad) / zoom
+    expect(frame.zoom).toBeCloseTo(3)
+    expect(pad + contentX * frame.zoom - frame.scrollLeft).toBeCloseTo(anchorX)
+    expect(pad + contentY * frame.zoom - frame.scrollTop).toBeCloseTo(anchorY)
+    // The live preview (scale about the pad origin + translate) agrees.
+    const previewX =
+      pad + (scrollLeft + anchorX - pad) * frame.scale + frame.translateX
+    expect(previewX - scrollLeft).toBeCloseTo(anchorX)
   })
 })
 

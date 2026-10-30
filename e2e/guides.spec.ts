@@ -140,7 +140,12 @@ test('a placed guide moves, and dragging it back onto the ruler deletes it; undo
   const before = Number(await line.getAttribute('data-offset-mm'))
 
   const grab = await middleOf(line)
-  await drag(page, grab, { x: grab.x, y: grab.y + 20 })
+  // 25 mm of drag whatever zoom Fit chose (the kit fits the spread, not 13%).
+  const spread = await spreadBox(page)
+  await drag(page, grab, {
+    x: grab.x,
+    y: grab.y + (25 / SPREAD_HEIGHT_MM) * spread.height,
+  })
   await expect
     .poll(async () => Number(await line.getAttribute('data-offset-mm')))
     .toBeGreaterThan(before + 20)

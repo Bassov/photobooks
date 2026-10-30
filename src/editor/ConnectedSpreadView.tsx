@@ -11,6 +11,7 @@ import {
   getSpreadPaintSnapshot,
   subscribeSpread,
 } from './bookStore'
+import { getDpiView, subscribeDpiView } from './dpiView'
 import { GridOverlay } from './GridOverlay'
 import { GuidesOverlay } from './GuidesOverlay'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
@@ -71,14 +72,14 @@ function cropZoomOf(spreadId: string, frameId: string): number {
 export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   spreadId,
   pxPerMm = SPREAD_PX_PER_MM,
-  lowDpiBadge = true,
+  lowDpiBadge,
   editorLayer = true,
 }: {
   spreadId: string
   pxPerMm?: number
   /** Editor-only guides layer; off in Preview. */
   editorLayer?: boolean
-  /** Editor-only low-resolution badge; off in Preview. */
+  /** Overrides the DPI view flag (Preview passes `false`). */
   lowDpiBadge?: boolean
 }) {
   const snapshot = useSyncExternalStore(
@@ -86,6 +87,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => getSpreadPaintSnapshot(spreadId),
     () => getSpreadPaintSnapshot(spreadId),
   )
+  const dpiView = useSyncExternalStore(subscribeDpiView, getDpiView, getDpiView)
   const zoom = useSyncExternalStore(
     subscribeCommitted,
     getCommittedZoom,
@@ -177,7 +179,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
-      lowDpiBadge={lowDpiBadge}
+      lowDpiBadge={lowDpiBadge ?? dpiView}
       overlay={
         <>
           <GridOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
