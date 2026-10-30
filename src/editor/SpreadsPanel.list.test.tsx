@@ -129,7 +129,7 @@ describe('SpreadsPanel list', () => {
 
   it('scrolls the list to reveal the active row, only when needed', () => {
     seedSpreads(50)
-    stubViewport(300)
+    stubViewport(400)
     render(<SpreadsPanel />)
     const list = screen.getByTestId('spreads-list')
     act(() => {
@@ -139,7 +139,7 @@ describe('SpreadsPanel list', () => {
     act(() => {
       setActiveSpreadId('s30')
     })
-    expect(list.scrollTop).toBeCloseTo(31 * rowPx() - 300, 3)
+    expect(list.scrollTop).toBeCloseTo(31 * rowPx() - 400, 3)
     act(() => {
       setActiveSpreadId('s5')
     })
