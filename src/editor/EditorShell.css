@@ -361,3 +361,16 @@
 .editor-spread-drop-line {
   background: var(--select);
 }
+
+/* Masters mode: covers the pasteboard so no book pages show (above empty guidance, under the status pill). */
+.editor-masters-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--spacing) * 1);
+  background: var(--canvas);
+}

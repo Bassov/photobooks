@@ -16,6 +16,7 @@ import { installFrameGesture } from './frameGesture'
 import { installFrameHandleGesture } from './frameHandleGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
+import { MastersCanvasStub } from './MastersCanvasStub'
 import { Pasteboard } from './Pasteboard'
 import { PresentationMode } from './PresentationMode'
 import { useChromeImport } from './useChromeImport'
@@ -71,6 +72,7 @@ export function EditorShell() {
           <>
             <Pasteboard chromeImport={chromeImport} />
             <CoverOverlay />
+            <MastersCanvasStub />
             <Status
               className="editor-status-pill"
               data-testid="editor-status"
