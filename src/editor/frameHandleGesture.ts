@@ -15,6 +15,7 @@ import {
   spreadContext,
   type SpreadContext,
 } from './frameGesture'
+import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
 import { setSnapHint } from './snapHint'
 import { snapEdges, type SnapLine } from './snapIndex'
 import {
@@ -117,6 +118,7 @@ export function installFrameHandleGesture(): () => void {
     if (current !== null) {
       clearSnapLines(current.ctx)
       setSnapHint(null)
+      clearLiveGeometry()
     }
     return current
   }
@@ -213,6 +215,12 @@ export function installFrameHandleGesture(): () => void {
       } else {
         resizeMove(current, current.handle, event)
       }
+      publishLiveGeometry({
+        spreadId: current.ctx.spreadId,
+        frameId: current.frameId,
+        rect: current.rect,
+        rotationDeg: current.rotation,
+      })
     })
   }
 

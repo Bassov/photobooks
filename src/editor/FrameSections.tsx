@@ -18,6 +18,11 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import type { CropTarget } from './cropMode'
+import {
+  getLiveGeometry,
+  liveGeometryFor,
+  subscribeLiveGeometry,
+} from './liveGeometry'
 import './FitCropSection.css'
 import './FrameSections.css'
 
@@ -84,14 +89,21 @@ function MmField({
 /** Kit GeometrySection: X / Y / W / H in mm, rotation slider + degrees, lock. */
 export function GeometrySection({ target }: { target: CropTarget }) {
   const found = useTarget(target)
+  const liveAll = useSyncExternalStore(
+    subscribeLiveGeometry,
+    getLiveGeometry,
+    getLiveGeometry,
+  )
   if (found === null) {
     return null
   }
   const { frame } = found
   const { spreadId, frameId } = target
+  const live = liveGeometryFor(liveAll, spreadId, frameId)
   const locked = frame.locked === true
-  const { x, y, width, height } = frame.rect
-  const rotation = signedDeg(frame.rotationDeg ?? 0)
+  // During a drag the numbers follow the gesture's transient state.
+  const { x, y, width, height } = live?.rect ?? frame.rect
+  const rotation = signedDeg(live?.rotationDeg ?? frame.rotationDeg ?? 0)
   const resize = (patch: Partial<Frame['rect']>) => {
     dispatchBookOp({
       type: 'resizeFrame',
