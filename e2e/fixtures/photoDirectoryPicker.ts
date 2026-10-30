@@ -216,5 +216,5 @@ export async function choosePhotoFolder(
       .click()
     return
   }
-  await page.getByTestId('choose-photo-folder').click()
+  await page.getByTestId('film-add-folder').click()
 }

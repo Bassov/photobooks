@@ -4,11 +4,13 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
 
 // uikit/src/index.css: --muted-foreground #535152, --field #D7D7D7,
-// --grid-line rgb(83 81 82 / .6) (:187). Owner toggle fills: on #A8A8A8, off #CACACA.
+// --grid-line rgb(83 81 82 / .6) (:187). Top-bar toggles (design-create-library-chrome #7):
+// ghost at rest, on = --color-sel #CACACA (uikit/src/index.css:98), as the kit's
+// chrome.tsx:211 view toggle (ghost, pressed fill) — black / dark fills are reserved.
 const MUTED = 'rgb(83, 81, 82)'
 const FIELD = 'rgb(215, 215, 215)'
-const TOGGLE_ON = 'rgb(168, 168, 168)'
-const TOGGLE_OFF = 'rgb(202, 202, 202)'
+const TOGGLE_ON = 'rgb(202, 202, 202)'
+const TOGGLE_OFF = 'rgba(0, 0, 0, 0)'
 const GRID_LINE = 'rgba(83, 81, 82, 0.6)'
 
 test.beforeEach(async ({ page }) => {

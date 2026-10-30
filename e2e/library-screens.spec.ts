@@ -735,10 +735,12 @@ test('kit v0.10 create book: dialog, size menu, custom size tokens', async ({
   await assertDocumentFitsViewport(page)
 
   // Step 06: size menu lists only supported presets plus Custom.
-  const options = page.getByTestId('create-preset').getByRole('option')
+  // The kit Select opens a ListBox popover below the trigger (not the native menu).
+  await page.getByTestId('create-preset').click()
+  const options = page.getByRole('listbox').getByRole('option')
   await expect(options.first()).toHaveText(/^A6 /)
   await expect(options.last()).toHaveText('Custom size…')
-  await page.getByTestId('create-preset').selectOption('custom')
+  await options.last().click()
 
   // Step 07: custom size in cm, kit field look.
   const custom = page.getByTestId('create-custom')

@@ -94,6 +94,13 @@
   transform: none;
 }
 
+/* Ghost stays unboxed when disabled (kit: dimmed only). */
+.pb-button--ghost[data-disabled] {
+  background: transparent;
+  border-color: transparent;
+  opacity: 0.5;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pb-button {
     transition: none;
