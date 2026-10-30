@@ -25,14 +25,14 @@ test('step 24: Book tab shows kit Book settings head, rows and book grid', async
     'Book settings',
   )
   await expect(settings).toContainText('Applies to the whole book')
-  const eyebrow = settings.locator('.inspector-eyebrow')
+  const eyebrow = settings.locator('.inspector-eyebrow').first()
   await expect(eyebrow).toHaveCSS('text-transform', 'uppercase')
   await expect(eyebrow).toHaveCSS('color', MUTED)
   for (const label of ['Page size', 'Bleed', 'Safe margin', 'Pages']) {
     await expect(settings.getByText(label, { exact: true })).toBeVisible()
   }
   await expect(page.getByTestId('grid-section-book')).toBeVisible()
-  // Endpapers are not selectable yet (kit10-cover): hidden, not stubbed.
-  await expect(page.getByText('Endpaper')).toHaveCount(0)
+  // Endpaper rows now show: uikit/src/sandbox/chrome.tsx:275,278 (bk.endp);
+  // coverage moved to e2e/design-inspector-book-cover.spec.ts.
   await assertDocumentFitsViewport(page)
 })

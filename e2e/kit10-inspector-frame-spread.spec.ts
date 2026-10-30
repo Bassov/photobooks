@@ -67,9 +67,11 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
       await field.evaluate((el) => getComputedStyle(el).backgroundColor),
     ).toBe(FIELD)
 
-    // Sections the product has no behavior for yet stay hidden (D2).
+    // Caption, Frame style and Adjust now show (uikit/src/sandbox/
+    // context-inspector.tsx:71; e2e/design-inspector-book-cover.spec.ts #19).
+    // Align has no behavior yet and stays hidden (D2).
     const panel = page.getByTestId('inspector-panel')
-    for (const hidden of ['Caption', 'Frame style', 'Adjust', 'Align']) {
+    for (const hidden of ['Align']) {
       await expect(panel.getByText(hidden, { exact: true })).toHaveCount(0)
     }
     await expect(page.getByTestId('frame-delete')).toBeVisible()

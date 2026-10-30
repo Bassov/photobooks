@@ -86,9 +86,8 @@ test('step 09: selecting the cover shows back · spine · front and the Cover in
     )
   }
   // uikit/src/sandbox/v7.tsx:214-217 lists Title font, Spine width, Direction and
-  // Material in the Cover inspector; the product shows them as read-only rows
-  // (see e2e/design-filmstrip-cover.spec.ts), never as inputs.
-  await expect(inspector.locator('select, [role="combobox"]')).toHaveCount(0)
+  // Material as editable controls; their coverage is in
+  // e2e/design-inspector-book-cover.spec.ts (#14).
   await assertDocumentFitsViewport(page)
 
   // Picking a page leaves the cover.
