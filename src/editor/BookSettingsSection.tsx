@@ -28,7 +28,15 @@ export function BookSettingsSection() {
       data-testid="book-settings"
       aria-label="Book settings"
     >
-      <h4 className="inspector-eyebrow">Book settings</h4>
+      <div>
+        <h2 className="text-sm font-semibold" data-testid="inspector-context">
+          Book settings
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Applies to the whole book
+        </p>
+      </div>
+      <h4 className="inspector-eyebrow">Page</h4>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[12.5px]">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">

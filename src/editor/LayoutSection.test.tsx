@@ -172,6 +172,13 @@ describe('BookSettingsSection', () => {
       `${String(settings.trim.widthMm)} × ${String(settings.trim.heightMm)} mm`,
     )
     expect(values[3]).toBe('4')
+    expect(screen.getByTestId('inspector-context').textContent).toBe(
+      'Book settings',
+    )
+    expect(screen.getByText('Applies to the whole book')).toBeTruthy()
+    const eyebrow = screen.getByText('Page')
+    expect(eyebrow.tagName).toBe('H4')
+    expect(eyebrow.className).toBe('inspector-eyebrow')
   })
 })
 
