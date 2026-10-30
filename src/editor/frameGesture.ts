@@ -220,6 +220,11 @@ export function installFrameGesture(): () => void {
     }, 0)
   }
 
+  const swallowRelease = (): void => {
+    window.removeEventListener('pointerup', swallowRelease)
+    armSwallow()
+  }
+
   const onDown = (event: PointerEvent): void => {
     if (
       session !== null ||
@@ -470,6 +475,9 @@ export function installFrameGesture(): () => void {
     if (event.key === 'Escape' && session !== null) {
       event.stopPropagation()
       onCancel()
+      // The button is still down: its release must not click through and
+      // deselect the frame that was just restored.
+      window.addEventListener('pointerup', swallowRelease)
     }
   }
 

@@ -857,6 +857,24 @@ describe('frameGesture · move', () => {
     expect(frames()[1]?.rect.x).toBe(10)
   })
 
+  it('releasing the button after Escape does not click through', async () => {
+    const onClick = vi.fn()
+    document.addEventListener('click', onClick)
+    pointer('pointerdown', button, 30, 30)
+    pointer('pointermove', window, 90, 90)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    pointer('pointerup', window, 90, 90)
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(onClick).not.toHaveBeenCalled()
+
+    // Only that one release is swallowed; a later plain click goes through.
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    pointer('pointerup', window, 90, 90)
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    document.removeEventListener('click', onClick)
+    expect(onClick).toHaveBeenCalledOnce()
+  })
+
   it('a press that never became a move leaves the inline style alone', () => {
     button.style.left = '12px'
     pointer('pointerdown', button, 30, 30)
