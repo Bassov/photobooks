@@ -45,6 +45,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [design-inspector](roadmap/P1/design-inspector.md) — Bug: design-inspector: prod parity design fixes
 - [ ] [feature] [design-filmstrip-cover](roadmap/P1/design-filmstrip-cover.md) — Bug: design-filmstrip-cover: prod parity design fixes
 - [ ] [feature] [design-frame-crop-masters](roadmap/P1/design-frame-crop-masters.md) — Bug: design-frame-crop-masters: prod parity design fixes
+- [ ] [feature] [design-create-library-chrome](roadmap/P1/design-create-library-chrome.md) — Bug: design-create-library-chrome: prod parity design fixes
 - [x] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)
 
 ## P2 — Missing features, iterative

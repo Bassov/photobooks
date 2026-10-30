@@ -39,3 +39,9 @@
 .grid-eye[aria-pressed='true'] {
   background: var(--toggle-on);
 }
+
+/* Top-bar view toggles: ghost at rest, #CACACA (--sel) fill when on; no black. */
+.pb-button.pb-view-toggle[aria-pressed='true'] {
+  background: var(--sel);
+  color: var(--foreground);
+}

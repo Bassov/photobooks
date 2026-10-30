@@ -56,8 +56,6 @@ const STYLE_TEXT = `
   outline: none;
 }
 .pb-splitter:focus-visible::after {
-  width: 2px;
-  margin-left: -0.5px;
   background: var(--ring);
 }
 @media (prefers-reduced-motion: reduce) {
