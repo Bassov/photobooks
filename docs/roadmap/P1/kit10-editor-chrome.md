@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Editor top bar and panels: kit v0.10 look
+Status: done
 
 ## Scope
 
@@ -18,3 +19,7 @@ Title: Editor top bar and panels: kit v0.10 look
 - **Depends:** kit10-create-book
 - **UI kit:** `uikit#/feature/editor-chrome-toolbar` (`uikit/src/features/pages.tsx` page `editor-chrome-toolbar`); parts: `uikit/src/demo-parts/editor.tsx` (`EditorTopBar, TopBarPart, EditorView`)
 - **Owner-approved scope change:** 2026-10-30 02:01 (UTC+4) the Owner said to finish the roadmap with Designer and Grok Bot, then commit and merge without waiting for his formal approval; this item was updated from the Designer kit-first audit and the Grok Bot #/demo check (kit present in `uikit/src/sandbox`).
+
+## Done note
+
+top bar already kit v0.10; labelled undo/redo tooltips, tokens e2e; Print/Publish/Settings hidden (not wired)

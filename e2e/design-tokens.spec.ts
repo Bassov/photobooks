@@ -179,3 +179,25 @@ test('book paper and canvas use light Theme B tokens', async ({ page }) => {
   expect(colors.spreadBg).toMatch(/255,\s*255,\s*255/)
   await assertDocumentFitsViewport(page)
 })
+
+test('editor top bar follows kit v0.10 structure and tokens', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter')
+  const bar = page.getByTestId('editor-bar')
+  await expect(bar).toBeVisible()
+  await expect(bar).toHaveCSS('background-color', 'rgb(225, 225, 225)')
+  await expect(page.getByTestId('go-library')).toContainText('Library')
+  await expect(page.getByTestId('book-title')).toBeVisible()
+  await expect(page.getByTestId('undo')).toBeVisible()
+  await expect(page.getByTestId('redo')).toBeVisible()
+  await expect(page.getByTestId('zoom-menu')).toBeVisible()
+  const present = page.getByTestId('present')
+  await expect(present).toHaveText('Preview')
+  await expect(present).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  // Print / Publish / Settings are not wired in the editor: hidden, not stubbed.
+  for (const name of ['Print', 'Publish', 'Settings']) {
+    await expect(bar.getByRole('button', { name })).toHaveCount(0)
+  }
+  await assertDocumentFitsViewport(page)
+})

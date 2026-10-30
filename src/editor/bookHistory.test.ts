@@ -7,6 +7,9 @@ import {
   EMPTY_HISTORY,
   isUndoableOp,
   recordStep,
+  opLabel,
+  undoLabel,
+  redoLabel,
   redoStep,
   snapshotOf,
   undoStep,
@@ -78,7 +81,11 @@ describe('bookHistory', () => {
 
   it('redo walks one step at a time', () => {
     const [a, b, c] = [snap('a'), snap('b'), snap('c')]
-    const h = { past: [], future: [c, b], key: undefined }
+    const h = {
+      ...EMPTY_HISTORY,
+      future: [c, b],
+      futureLabels: ['Edit', 'Edit'],
+    }
     const first = redoStep(h, a)
     expect(first?.snapshot).toBe(b)
     expect(first?.history.future).toEqual([c])
@@ -86,7 +93,13 @@ describe('bookHistory', () => {
   })
 
   it('starts empty', () => {
-    expect(EMPTY_HISTORY).toEqual({ past: [], future: [], key: undefined })
+    expect(EMPTY_HISTORY).toEqual({
+      past: [],
+      future: [],
+      key: undefined,
+      pastLabels: [],
+      futureLabels: [],
+    })
   })
 
   it('classifies ops', () => {
@@ -105,5 +118,23 @@ describe('bookHistory', () => {
     expect(coalesceKey({ ...rotate, rotationDeg: 5, live: true })).toBe(
       'rotate:s:f',
     )
+  })
+})
+
+describe('step labels', () => {
+  it('names ops and falls back to Edit', () => {
+    expect(opLabel({ type: 'setTitle', title: 'x' })).toBe('Rename book')
+    expect(undoLabel(EMPTY_HISTORY)).toBeNull()
+    expect(redoLabel(EMPTY_HISTORY)).toBeNull()
+  })
+
+  it('moves the label between undo and redo', () => {
+    const h = recordStep(EMPTY_HISTORY, snap('a'), undefined, undefined, 'Crop')
+    expect(undoLabel(h)).toBe('Crop')
+    const undone = undoStep(h, snap('b'))?.history ?? EMPTY_HISTORY
+    expect(undoLabel(undone)).toBeNull()
+    expect(redoLabel(undone)).toBe('Crop')
+    const redone = redoStep(undone, snap('a'))?.history ?? EMPTY_HISTORY
+    expect(undoLabel(redone)).toBe('Crop')
   })
 })

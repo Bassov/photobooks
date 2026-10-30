@@ -16,7 +16,9 @@ describe('bookStore history', () => {
   })
 
   it('starts with nothing to undo or redo', () => {
-    expect(getHistorySnapshot()).toEqual({ canUndo: false, canRedo: false })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: false, canRedo: false }),
+    )
   })
 
   it('notifies subscribers only when availability changes', () => {
@@ -66,14 +68,18 @@ describe('bookStore history', () => {
     dispatchBookOp({ type: 'addSpread', id: 'extra' })
     dispatchBookOp({ type: 'setTitle', title: 'A' })
     dispatchBookOp({ type: 'setTitle', title: 'AB' })
-    expect(getHistorySnapshot()).toEqual({ canUndo: true, canRedo: false })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: true, canRedo: false }),
+    )
 
     undoBook()
     expect(getBookStoreSnapshot().book.title).toBeUndefined()
     expect(getBookStoreSnapshot().book.spreads).toHaveLength(4)
     undoBook()
     expect(getBookStoreSnapshot().book.spreads).toBe(start.spreads)
-    expect(getHistorySnapshot()).toEqual({ canUndo: false, canRedo: true })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: false, canRedo: true }),
+    )
     undoBook()
 
     redoBook()
@@ -137,6 +143,8 @@ describe('bookStore history', () => {
   it('reset clears history', () => {
     dispatchBookOp({ type: 'addSpread', id: 'x' })
     resetBookStore()
-    expect(getHistorySnapshot()).toEqual({ canUndo: false, canRedo: false })
+    expect(getHistorySnapshot()).toEqual(
+      expect.objectContaining({ canUndo: false, canRedo: false }),
+    )
   })
 })

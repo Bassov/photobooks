@@ -27,8 +27,8 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [prep] [cover-endpaper-schema](roadmap/P1/cover-endpaper-schema.md) — cover and endpapers in the document
 - [x] [feature] [kit10-library-folder](roadmap/P1/kit10-library-folder.md) — Welcome and library folder: kit v0.10 look
 - [x] [feature] [kit10-library-books](roadmap/P1/kit10-library-books.md) — Your books grid: kit v0.10 look
-- [ ] [feature] [kit10-create-book](roadmap/P1/kit10-create-book.md) — Create book dialog: kit v0.10 look (title, page size, custom size)
-- [ ] [feature] [kit10-editor-chrome](roadmap/P1/kit10-editor-chrome.md) — Editor top bar and panels: kit v0.10 look
+- [x] [feature] [kit10-create-book](roadmap/P1/kit10-create-book.md) — Create book dialog: kit v0.10 look (title, page size, custom size)
+- [x] [feature] [kit10-editor-chrome](roadmap/P1/kit10-editor-chrome.md) — Editor top bar and panels: kit v0.10 look
 - [ ] [feature] [kit10-filmstrip](roadmap/P1/kit10-filmstrip.md) — Photos dock and filmstrip: kit v0.10 look (Photos only)
 - [ ] [feature] [kit10-spread-list](roadmap/P1/kit10-spread-list.md) — Spread list panel: kit v0.10 look (cover, endpapers, spreads, Pages / Masters)
 - [ ] [feature] [kit10-canvas](roadmap/P1/kit10-canvas.md) — Canvas and pasteboard: kit v0.10 look
