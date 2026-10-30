@@ -13,6 +13,7 @@ import {
 } from './frameSelection'
 import { installFrameHandleGesture } from './frameHandleGesture'
 import { setGridVisible, setSnapOn } from './gridView'
+import { clearLiveGeometry, getLiveGeometry } from './liveGeometry'
 import { getSnapHint, setSnapHint } from './snapHint'
 
 const SIZE_MM = 300
@@ -974,5 +975,71 @@ describe('frameHandleGesture', () => {
       expect(frame().rect.x).toBe(100)
       expect(getEditorStatus()).toMatch(/locked/i)
     })
+  })
+})
+
+describe('frameHandleGesture · live geometry', () => {
+  let stop: () => void
+  let dom: ReturnType<typeof mount>
+
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    setSnapOn(false)
+    load({ rotationDeg: 30 })
+    dom = mount()
+    stop = installFrameHandleGesture()
+    setFrameSource({
+      spreadId: getBookStoreSnapshot().book.spreads[0]?.id ?? '',
+      frameId: 'a',
+    })
+  })
+
+  afterEach(() => {
+    stop()
+    setSnapOn(true)
+    dom.pasteboard.remove()
+    clearLiveGeometry()
+    resetFrameSelection()
+    resetEditorToolForTests()
+    resetBookStore()
+    vi.unstubAllGlobals()
+  })
+
+  it('mirrors a rotate drag and clears on release', () => {
+    const rot = dom.handles.get('rotate')
+    assert(rot !== undefined)
+    fire('pointerdown', rot, 225, 125)
+    fire('pointermove', window, 125, 225)
+    const live = getLiveGeometry()
+    expect(live?.frameId).toBe('a')
+    expect(live?.rotationDeg).toBe(120)
+    expect(live?.rect).toEqual(frame().rect)
+    fire('pointerup', window, 125, 225)
+    expect(getLiveGeometry()).toBeNull()
+  })
+
+  it('mirrors a resize drag and clears on Escape', () => {
+    stop()
+    dom.pasteboard.remove()
+    resetFrameSelection()
+    load()
+    dom = mount()
+    stop = installFrameHandleGesture()
+    setFrameSource({
+      spreadId: getBookStoreSnapshot().book.spreads[0]?.id ?? '',
+      frameId: 'a',
+    })
+    const se = dom.handles.get('se')
+    assert(se !== undefined)
+    fire('pointerdown', se, 150, 150)
+    fire('pointermove', window, 170, 170)
+    expect(getLiveGeometry()?.rect.width).toBeGreaterThan(50)
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    )
+    expect(getLiveGeometry()).toBeNull()
   })
 })

@@ -11,6 +11,11 @@ import {
 import { getFrameSource, resetFrameSelection } from './frameSelection'
 import { installFrameGesture } from './frameGesture'
 import { setGridVisible, setSnapOn } from './gridView'
+import {
+  clearLiveGeometry,
+  getLiveGeometry,
+  publishLiveGeometry,
+} from './liveGeometry'
 import { getSnapHint, setSnapHint } from './snapHint'
 
 /** 300 × 300 mm spread laid out at 2 client px per mm, offset on the page. */
@@ -905,5 +910,65 @@ describe('frameGesture · move', () => {
     button.setAttribute('data-frame-id', 'ghost')
     drag(60, 60)
     expect(frames().map((f) => f.rect.x)).toEqual([100, 10])
+  })
+})
+
+describe('frameGesture · live geometry', () => {
+  let stop: () => void
+  let spread: HTMLElement
+  let button: HTMLElement
+
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    load([
+      makeFrame({ id: 'a', rect: rect(100, 100, 50, 50) }),
+      makeFrame({ id: 'b', rect: rect(10, 10, 40, 40), z: 1, rotationDeg: 30 }),
+    ])
+    const mounted = mount()
+    spread = mounted.spread
+    const second = mounted.buttons[1]
+    assert(second !== undefined, 'expected a second frame')
+    button = second
+    stop = installFrameGesture()
+  })
+
+  afterEach(() => {
+    stop()
+    spread.remove()
+    clearLiveGeometry()
+    resetFrameSelection()
+    resetBookStore()
+    vi.unstubAllGlobals()
+  })
+
+  it('mirrors the dragged frame to the inspector and clears on release', () => {
+    pointer('pointerdown', button, 30, 30)
+    pointer('pointermove', window, 70, 55, ALT)
+    expect(getLiveGeometry()).toEqual({
+      spreadId: 'spread-1',
+      frameId: 'b',
+      rect: rect(50, 35, 40, 40),
+      rotationDeg: 30,
+    })
+    pointer('pointerup', window, 70, 55, ALT)
+    expect(getLiveGeometry()).toBeNull()
+  })
+
+  it('clears the live values when a draw ends', () => {
+    publishLiveGeometry({
+      spreadId: 'spread-1',
+      frameId: 'a',
+      rect: rect(1, 1, 1, 1),
+      rotationDeg: 0,
+    })
+    expect(getLiveGeometry()).not.toBeNull()
+    setEditorTool('frame')
+    pointer('pointerdown', spread, 200, 200)
+    pointer('pointerup', window, 200, 200)
+    expect(getLiveGeometry()).toBeNull()
+    resetEditorToolForTests()
   })
 })

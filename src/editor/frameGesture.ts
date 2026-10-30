@@ -15,6 +15,7 @@ import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { setFrameSource } from './frameSelection'
 import { buildGridAnchors } from './gridSnap'
 import { getGridVisible, getSnapOn } from './gridView'
+import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
 import { setSnapHint } from './snapHint'
 import { isTypingTarget } from './isTypingTarget'
 import {
@@ -208,6 +209,7 @@ export function installFrameGesture(): () => void {
     }
     clearSnapLines(current.ctx)
     setSnapHint(null)
+    clearLiveGeometry()
     if (current.kind === 'draw') {
       current.draft.remove()
     }
@@ -393,6 +395,14 @@ export function installFrameGesture(): () => void {
     move.button.style.top = pct(move.rect.y, ctx.heightMm)
     paintSnapLines(ctx, snap.lines)
     setSnapHint(snap.hint, ctx.spreadId)
+    publishLiveGeometry({
+      spreadId: ctx.spreadId,
+      frameId: move.frameId,
+      rect: move.rect,
+      rotationDeg:
+        ctx.spread.frames.find((frame) => frame.id === move.frameId)
+          ?.rotationDeg ?? 0,
+    })
   }
 
   function onUp(event: PointerEvent): void {
