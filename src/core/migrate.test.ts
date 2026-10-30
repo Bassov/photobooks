@@ -95,7 +95,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       title: '',
       assets: { a: {}, b: {} },
       gallery: ['a', 'b'],
@@ -130,7 +130,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       title: '',
       assets: { a: identity },
     })
@@ -163,7 +163,7 @@ describe('migrateToCurrent', () => {
       const result = migrateToCurrent(v2)
       expect(result.ok).toBe(true)
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 5, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 6, title: '' })
     },
   )
 
@@ -174,7 +174,7 @@ describe('migrateToCurrent', () => {
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.value).toMatchObject({ schemaVersion: 5, title: 'Summer' })
+    expect(result.value).toMatchObject({ schemaVersion: 6, title: 'Summer' })
   })
 
   it('rejects non-finite schemaVersion', () => {
@@ -207,7 +207,7 @@ describe('migrateToCurrent', () => {
       expect(
         (result.value as { assets: Record<string, unknown> }).assets,
       ).toEqual({})
-      expect(result.value).toMatchObject({ schemaVersion: 5, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 6, title: '' })
     },
   )
 
@@ -229,9 +229,9 @@ describe('migrateToCurrent', () => {
       const frame = (
         result.value as { spreads: { frames: Record<string, unknown>[] }[] }
       ).spreads[0]?.frames[0]
-      expect(frame).toEqual({ ...frameV3, rotationDeg: 0 })
+      expect(frame).toEqual({ ...frameV3, rotationDeg: 0, kind: 'image' })
       expect(frame).not.toHaveProperty('locked')
-      expect(result.value).toMatchObject({ schemaVersion: 5 })
+      expect(result.value).toMatchObject({ schemaVersion: 6 })
     })
 
     it('migrates a v3 book into a valid current book', () => {
@@ -241,14 +241,14 @@ describe('migrateToCurrent', () => {
       expect(result.book.spreads[0]?.frames[0]?.rotationDeg).toBe(0)
     })
 
-    it('chains v1 through v5', () => {
+    it('chains v1 through v6', () => {
       const result = migrateToCurrent({
         ...v3Book([frameV3]),
         schemaVersion: 1,
       })
       expect(result).toMatchObject({
         ok: true,
-        value: { schemaVersion: 5 },
+        value: { schemaVersion: 6 },
       })
     })
 
@@ -279,7 +279,10 @@ describe('migrateToCurrent', () => {
       assert.equal(result.ok, true)
       expect((result.value as { spreads: unknown[] }).spreads).toEqual([
         null,
-        { id: 's1', frames: [null, { ...frameV3, rotationDeg: 0 }] },
+        {
+          id: 's1',
+          frames: [null, { ...frameV3, rotationDeg: 0, kind: 'image' }],
+        },
         [],
         7,
       ])
@@ -292,7 +295,7 @@ describe('migrateToCurrent', () => {
         schemaVersion: 3,
       })
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 5, spreads: 'none' })
+      expect(result.value).toMatchObject({ schemaVersion: 6, spreads: 'none' })
     })
   })
 

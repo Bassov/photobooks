@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P2
 Title: text in the document
+Status: done
 
 ## Scope
 

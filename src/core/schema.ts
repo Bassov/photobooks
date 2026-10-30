@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 5 as const
+export const CURRENT_SCHEMA_VERSION = 6 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -90,6 +90,15 @@ const assetSchema = z.object({
   meta: assetMetaSchema.optional(),
 })
 
+/** Built-in text styles (kit `TextStyle`); the type scale lives with the painter. */
+export const TEXT_STYLE_IDS = ['title', 'caption', 'body'] as const
+
+const textContentSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('static'), text: z.string() }),
+  /** `{title}`, `{caption}`, `{spread}` tokens resolved by `resolveTextItems`. */
+  z.object({ type: z.literal('template'), template: z.string() }),
+])
+
 const frameSchema = z.object({
   id: nonEmptyString,
   rect: rectMmSchema,
@@ -100,6 +109,14 @@ const frameSchema = z.object({
   /** Frame rotation in degrees about its center; absent → 0. */
   rotationDeg: z.number().optional(),
   locked: z.boolean().optional(),
+  /** Frame kind; absent → 'image'. Text frames never carry `assetId` / `crop`. */
+  kind: z.enum(['image', 'text']).optional(),
+  /** Text frames only. */
+  content: textContentSchema.optional(),
+  /** Text frames only: id of an image frame on the same spread this text follows. */
+  anchorFrameId: nonEmptyString.optional(),
+  styleId: z.enum(TEXT_STYLE_IDS).optional(),
+  align: z.enum(['left', 'center', 'right']).optional(),
 })
 
 const spreadSchema = z.object({
@@ -188,6 +205,8 @@ export const bookSchema = z.object({
 })
 
 export type Asset = z.infer<typeof assetSchema>
+export type TextContent = z.infer<typeof textContentSchema>
+export type TextStyleId = (typeof TEXT_STYLE_IDS)[number]
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
 export type Cover = z.output<ReturnType<typeof makeCoverSchema>>
