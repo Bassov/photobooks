@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Spread list panel: kit v0.10 look (cover, endpapers, spreads, Pages / Masters)
+Status: done
 
 ## Scope
 
@@ -20,3 +21,7 @@ Title: Spread list panel: kit v0.10 look (cover, endpapers, spreads, Pages / Mas
 - **Depends:** kit10-editor-chrome, cover-endpaper-schema
 - **UI kit:** `uikit#/feature/spread-list-panel` (`uikit/src/features/pages.tsx` page `spread-list-panel`); parts: `uikit/src/demo-parts/editor.tsx` (`SpreadListPart`)
 - **Owner-approved scope change:** 2026-10-30 02:01 (UTC+4) the Owner said to finish the roadmap with Designer and Grok Bot, then commit and merge without waiting for his formal approval; this item was updated from the Designer kit-first audit and the Grok Bot #/demo check (kit present in `uikit/src/sandbox`).
+
+## Done note
+
+212 px list, kit row menu / reorder / missing badge; cover, endpaper rows and Masters switch hidden until kit10-cover / kit10-masters (D2)

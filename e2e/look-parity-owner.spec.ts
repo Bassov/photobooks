@@ -3,11 +3,11 @@ import { expect, test } from './fixtures/coverage'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 // Kit reference values (uikit/ measured in the browser, px):
-// left panel 188; list inset 12+4 and row p-2 → thumb box 156 wide; label
+// left panel 212 (v0.10); list inset 12+4 and row p-2 → thumb box 180 wide; label
 // line 14.85; inspector section px-4 py-4 (16), title text-2xs (11) with a
 // 12px gap to the fields, fields h-8 (32) with gap-2 (8).
-const KIT_PANEL_LEFT = 188
-const KIT_THUMB_BOX = 156
+const KIT_PANEL_LEFT = 212
+const KIT_THUMB_BOX = 180
 const KIT_SECTION_PAD = 16
 const KIT_TITLE_PX = 11
 const KIT_TITLE_GAP = 12
@@ -55,7 +55,7 @@ test('left panel defaults to the kit width and thumbs keep the spread aspect', a
   )
   expect(thumb.w / thumb.h / spreadAspect).toBeGreaterThan(0.98)
   expect(thumb.w / thumb.h / spreadAspect).toBeLessThan(1.02)
-  // Kit box: panel 188 - list inset 16 - row padding 16.
+  // Kit box: panel 212 - list inset 16 - row padding 16.
   expect(Math.min(thumb.w, KIT_THUMB_BOX)).toBeCloseTo(thumb.w, 0)
   const box = await sizeOf(
     page.getByTestId('spreads-list').locator('.editor-spread-thumb').first(),

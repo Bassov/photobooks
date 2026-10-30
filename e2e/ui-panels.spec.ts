@@ -11,7 +11,7 @@ test('left panel resizes by keyboard, persists across reload, collapses on Enter
   await openSessionEditor(page)
   const panel = page.getByTestId('panel-l')
   const before = (await panel.boundingBox())?.width ?? 0
-  expect(Math.round(before)).toBe(188)
+  expect(Math.round(before)).toBe(212)
 
   const splitter = page.getByTestId('resize-left')
   await splitter.focus()
@@ -19,7 +19,7 @@ test('left panel resizes by keyboard, persists across reload, collapses on Enter
   await page.keyboard.press('Shift+ArrowRight')
   await expect
     .poll(async () => Math.round((await panel.boundingBox())?.width ?? 0))
-    .toBe(228)
+    .toBe(252)
   await assertDocumentFitsViewport(page)
 
   await page.reload()
@@ -28,7 +28,7 @@ test('left panel resizes by keyboard, persists across reload, collapses on Enter
     .poll(async () =>
       Math.round((await page.getByTestId('panel-l').boundingBox())?.width ?? 0),
     )
-    .toBe(228)
+    .toBe(252)
 
   await page.getByTestId('resize-left').focus()
   await page.keyboard.press('Enter')
@@ -96,10 +96,10 @@ test('specimen panels demo resizes, collapses and expands', async ({
   const splitter = demo.getByTestId('resize-left')
   await splitter.focus()
   await page.keyboard.press('ArrowRight')
-  await expect(splitter).toHaveAttribute('aria-valuenow', '196')
+  await expect(splitter).toHaveAttribute('aria-valuenow', '220')
   await expect(demo.locator('.specimen-panels-pane')).toHaveCSS(
     'width',
-    '196px',
+    '220px',
   )
 
   await demo.getByTestId('panel-collapse-left').click()

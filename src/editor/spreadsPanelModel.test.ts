@@ -101,7 +101,7 @@ describe('spreadsPanelModel', () => {
     expect(narrow.thumbWidthPx).toBeCloseTo((156 / 1.6) * 1.2, 5)
     expect(narrow.thumbWidthPx / narrow.thumbHeightPx).toBeCloseTo(1.2, 5)
     // Unmeasured width falls back to the default panel width.
-    expect(spreadsRowGeometry(0, 2)).toEqual(wide)
+    expect(spreadsRowGeometry(0, 2)).toEqual(spreadsRowGeometry(212, 2))
     // A resized panel scales the thumb with it.
     expect(spreadsRowGeometry(260, 2).thumbWidthPx).toBe(228)
   })

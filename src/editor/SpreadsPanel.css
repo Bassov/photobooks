@@ -74,3 +74,8 @@
   outline: none;
   box-shadow: 0 0 0 2px var(--ring);
 }
+
+/* Kit row badge: destructive ink, sits at the right end of the label line. */
+.spread-row-missing {
+  color: var(--destructive);
+}
