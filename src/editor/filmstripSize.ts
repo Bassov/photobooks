@@ -1,6 +1,6 @@
 import { clamp } from '../lib/clamp'
-import { THUMB_HEIGHT } from './thumbSlotSize'
-
+/** Kit sandbox `view.thumb` default (below the 90 px name-strip threshold). */
+export const FILMSTRIP_THUMB_DEFAULT = 76
 export const FILMSTRIP_THUMB_MIN = 64
 export const FILMSTRIP_THUMB_MAX = 192
 export const FILMSTRIP_THUMB_STEP = 8
@@ -12,7 +12,7 @@ const listeners = new Set<Listener>()
 
 export function clampThumbHeight(value: number): number {
   if (!Number.isFinite(value)) {
-    return THUMB_HEIGHT
+    return FILMSTRIP_THUMB_DEFAULT
   }
   return Math.round(clamp(value, FILMSTRIP_THUMB_MIN, FILMSTRIP_THUMB_MAX))
 }
@@ -20,9 +20,11 @@ export function clampThumbHeight(value: number): number {
 export function readStored(): number {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw === null ? THUMB_HEIGHT : clampThumbHeight(Number(raw))
+    return raw === null
+      ? FILMSTRIP_THUMB_DEFAULT
+      : clampThumbHeight(Number(raw))
   } catch {
-    return THUMB_HEIGHT
+    return FILMSTRIP_THUMB_DEFAULT
   }
 }
 
@@ -57,7 +59,7 @@ export function setFilmstripThumbHeight(next: number): void {
 }
 
 export function resetFilmstripThumbHeightForTests(): void {
-  height = THUMB_HEIGHT
+  height = FILMSTRIP_THUMB_DEFAULT
   window.localStorage.removeItem(STORAGE_KEY)
   for (const listener of listeners) {
     listener()

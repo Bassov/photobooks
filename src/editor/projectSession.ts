@@ -763,6 +763,7 @@ function createEmptyLibraryBook(
       margins: { top: 15, bottom: 15, inside: 15, outside: 15 },
     },
     guides: [],
+    frameStyles: {},
     assets: {},
     gallery: [],
     spreads: [],

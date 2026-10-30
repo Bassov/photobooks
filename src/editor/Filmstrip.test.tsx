@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { applyTemplate, placeAsset } from '../core'
 import * as assetPool from '../photo/assetPool'
 import { resetAssetPool } from '../photo/assetPool'
@@ -171,6 +171,10 @@ describe('Filmstrip thumbnail file name', () => {
 })
 
 describe('Filmstrip viewport containment', () => {
+  beforeEach(() => {
+    setFilmstripThumbHeight(96)
+  })
+
   afterEach(() => {
     cleanup()
     resetBookStore()
@@ -217,6 +221,10 @@ describe('Filmstrip viewport containment', () => {
 })
 
 describe('Filmstrip aspect cards', () => {
+  beforeEach(() => {
+    setFilmstripThumbHeight(96)
+  })
+
   afterEach(() => {
     cleanup()
     clearDropHover()

@@ -1,11 +1,17 @@
-import type { Book, Spread } from '../schema'
+import type { Book, FrameStyle, Spread } from '../schema'
 import { sourceCropRect as computeSourceCropRect } from './cropRect'
 import { frameDpi, lowDpi } from './dpi'
 import { getPageCuts, getSpreadSizeMm } from './spreadSize'
-import type { AspectRatioLookup, ResolvedItem, ResolvedSpread } from './types'
+import type {
+  AspectRatioLookup,
+  ResolvedFrameStyle,
+  ResolvedItem,
+  ResolvedSpread,
+} from './types'
 
 interface StructuralCache {
   settings: Book['settings']
+  frameStyles: Book['frameStyles']
   spreadCount: number
   spreadIndex: number
   entries: StructuralEntry[]
@@ -94,6 +100,9 @@ export function resolveSpread(
 
   return {
     items,
+    ...(spread.backgroundColor === undefined
+      ? {}
+      : { backgroundColor: spread.backgroundColor }),
     pageCuts: structural.pageCuts,
     spreadWidthMm: structural.spreadWidthMm,
     spreadHeightMm: structural.spreadHeightMm,
@@ -109,6 +118,7 @@ function getStructural(
   const cached = structuralMemo.get(spread)
   if (
     cached?.settings === book.settings &&
+    cached.frameStyles === book.frameStyles &&
     cached.spreadCount === spreadCount &&
     cached.spreadIndex === index
   ) {
@@ -127,6 +137,13 @@ function getStructural(
     if (frame.locked === true) {
       base.locked = true
     }
+    const style =
+      frame.frameStyleId === undefined
+        ? undefined
+        : book.frameStyles[frame.frameStyleId]
+    if (style !== undefined) {
+      base.style = resolveFrameStyle(style)
+    }
     if (frame.assetId !== undefined) {
       return { item: { ...base, assetId: frame.assetId }, frame }
     }
@@ -135,6 +152,7 @@ function getStructural(
 
   const next: StructuralCache = {
     settings: book.settings,
+    frameStyles: book.frameStyles,
     spreadCount,
     spreadIndex: index,
     entries,
@@ -144,4 +162,17 @@ function getStructural(
   }
   structuralMemo.set(spread, next)
   return next
+}
+
+/** Fills the defaults of a stored style; colors stay absent when unset. */
+function resolveFrameStyle(style: FrameStyle): ResolvedFrameStyle {
+  return {
+    strokeMm: style.strokeMm ?? 0,
+    ...(style.strokeColor === undefined
+      ? {}
+      : { strokeColor: style.strokeColor }),
+    matMm: style.matMm ?? 0,
+    ...(style.matColor === undefined ? {} : { matColor: style.matColor }),
+    cornerRadiusMm: style.cornerRadiusMm ?? 0,
+  }
 }

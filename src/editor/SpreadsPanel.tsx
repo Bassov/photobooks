@@ -45,6 +45,7 @@ import {
   setCoverSelected,
   subscribeCoverSelection,
 } from './coverSelection'
+import { SpreadRowEmpty } from './SpreadRowEmpty'
 import { SpreadRowMissing } from './SpreadRowMissing'
 import { SpreadThumb } from './SpreadThumb'
 import './SpreadsPanel.css'
@@ -442,6 +443,7 @@ export function SpreadsPanel({
                     >
                       {label}
                     </span>
+                    <SpreadRowEmpty spreadId={id} />
                     <SpreadRowMissing spreadId={id} />
                   </div>
                 </button>

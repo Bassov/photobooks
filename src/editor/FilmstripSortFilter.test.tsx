@@ -65,9 +65,21 @@ function firstOf(testId: string): HTMLElement {
   return node
 }
 
+/** Delete key on the first tile: the kit's tile has no remove button. */
+function removeFirst(): void {
+  const uninstall = installEditorKeys()
+  try {
+    fireEvent.keyDown(firstOf('filmstrip-item'), { key: 'Delete' })
+  } finally {
+    uninstall()
+  }
+}
+
 describe('filmstrip sort / filter / remove', () => {
   let restore: () => void
   beforeEach(() => {
+    // Geometry assertions below are written for 96 px tiles.
+    setFilmstripThumbHeight(96)
     restore = stubScrollportWidth(1200)
   })
   afterEach(() => {
@@ -165,7 +177,7 @@ describe('filmstrip sort / filter / remove', () => {
   it('removes an unplaced photo immediately with a status message', () => {
     const ids = seedGallery(2)
     render(<FilmstripDock />)
-    fireEvent.click(firstOf('filmstrip-remove'))
+    removeFirst()
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(getBookStoreSnapshot().book.gallery).toEqual([ids[1]])
     expect(getEditorStatus()).toContain('removed from the gallery')
@@ -175,14 +187,14 @@ describe('filmstrip sort / filter / remove', () => {
     const ids = seedGallery(2)
     render(<FilmstripDock />)
     placeFirst(ids, 0)
-    fireEvent.click(firstOf('filmstrip-remove'))
+    removeFirst()
     expect(screen.getByRole('alertdialog')).toBeTruthy()
     expect(getBookStoreSnapshot().book.gallery).toEqual([...ids])
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(getBookStoreSnapshot().book.gallery).toEqual([...ids])
 
-    fireEvent.click(firstOf('filmstrip-remove'))
+    removeFirst()
     fireEvent.click(
       screen.getByRole('button', { name: 'Remove and empty frame' }),
     )
@@ -261,13 +273,11 @@ describe('filmstrip sort / filter / remove', () => {
       .map((node) => node.getAttribute('data-aspect'))
     expect(aspects).toEqual(['0.5', '1', '1.5'])
     const labels = screen
-      .getAllByTestId('filmstrip-remove')
-      .map((node) => node.getAttribute('aria-label'))
-    expect(labels).toEqual([
-      'Remove a.jpg from gallery',
-      'Remove b.jpg from gallery',
-      'Remove c.jpg from gallery',
-    ])
+      .getAllByTestId('filmstrip-item')
+      .map((node) =>
+        node.querySelector('.filmstrip-drag')?.getAttribute('title'),
+      )
+    expect(labels).toEqual(['a.jpg', 'b.jpg', 'c.jpg'])
   })
 
   it('re-sorts by capture time when capturedAt lands after the sort is chosen', async () => {
@@ -306,7 +316,7 @@ describe('filmstrip sort / filter / remove', () => {
     const ids = seedNamed([{ name: 'beach.jpg', aspect: 1 }])
     render(<FilmstripDock />)
     placeFirst(ids, 0)
-    fireEvent.click(firstOf('filmstrip-remove'))
+    removeFirst()
     expect(screen.getByRole('alertdialog').textContent).toContain('“beach.jpg”')
     fireEvent.click(
       screen.getByRole('button', { name: 'Remove and empty frame' }),
