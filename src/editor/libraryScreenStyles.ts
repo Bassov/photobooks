@@ -42,6 +42,7 @@ const STYLE_TEXT = `
   letter-spacing: -0.035em;
 }
 .pb-library-heading {
+  margin: 0; /* kit uses a margin-free h2 (library.tsx:238); a UA h1 margin pushed the page ~40px down */
   font-family: var(--font-heading);
   font-weight: var(--heading-weight);
   font-size: var(--text-display);
@@ -77,16 +78,12 @@ const STYLE_TEXT = `
 .pb-lib-quiet[data-hovered] {
   background: var(--accent);
 }
+/* uikit/src/features/library.tsx:127 — focus-within:outline-2 outline-offset-2 outline-[#3A3839] */
 .pb-lib-quiet:focus-visible,
-.pb-lib-quiet[data-focus-visible] {
+.pb-lib-quiet[data-focus-visible],
+.pb-lib-quiet:focus-within {
   outline: 2px solid #3A3839;
   outline-offset: 2px;
-}
-/* Search field: subtle tone shift + hairline, not the heavy offset ring. */
-.pb-lib-quiet:focus-within:not(:focus-visible) {
-  background: var(--accent);
-  outline: 1px solid var(--muted-foreground);
-  outline-offset: 0;
 }
 .pb-lib-book {
   background: none;

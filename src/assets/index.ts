@@ -43,6 +43,7 @@ export {
   type OpfsDerivedCache,
   type OpfsDerivedCacheOptions,
 } from './derivedCache/opfs'
+export { measureDerivedCacheBytes } from './derivedCache/opfsUsage'
 export {
   getDerivedCache,
   setDerivedCacheForTests,
