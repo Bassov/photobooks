@@ -156,6 +156,31 @@ button.spread-frame[data-crop-active='true']::after {
   pointer-events: none;
 }
 
+/* Kit frame dpi badge (sandbox canvas.tsx): field chip, bottom-left. */
+.spread-frame-dpi {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 2px);
+  background: var(--field);
+  color: var(--ink-warning);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.spread-frame-dpi[data-level='min'] {
+  font-weight: 600;
+}
+
 /* Kit lock badge: 20px round, top-right. */
 .spread-frame-lock {
   position: absolute;

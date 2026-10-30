@@ -916,6 +916,19 @@ export function subscribeSpread(
   }
 }
 
+/** Decoded pixel size; the 1×1 enqueue placeholder counts as unknown. */
+function sessionPixelSize(
+  meta: AssetSessionMeta | undefined,
+): { widthPx: number; heightPx: number } | undefined {
+  if (
+    meta === undefined ||
+    (meta.correctedWidth <= 1 && meta.correctedHeight <= 1)
+  ) {
+    return undefined
+  }
+  return { widthPx: meta.correctedWidth, heightPx: meta.correctedHeight }
+}
+
 export function getSpreadPaintSnapshot(
   spreadId: string,
 ): SpreadPaintSnapshot | undefined {
@@ -939,6 +952,7 @@ export function getSpreadPaintSnapshot(
   const meta = state.sessionMeta
   const resolved = resolveSpread(state.book, spreadId, {
     getAspectRatio: (assetId) => meta.get(assetId)?.aspect ?? 1,
+    getPixelSize: (assetId) => sessionPixelSize(meta.get(assetId)),
   })
   if (resolved === undefined) {
     return undefined
@@ -991,7 +1005,9 @@ function paintInputKey(
     }
     const aspect = sessionMeta.get(assetId)?.aspect ?? 1
     const url = previewUrls.get(assetId) ?? ''
-    key += `|${assetId}:${String(aspect)}:${url}`
+    const asset = book.assets[assetId]
+    const size = sessionPixelSize(sessionMeta.get(assetId))
+    key += `|${assetId}:${String(aspect)}:${url}:${String(size?.widthPx ?? asset?.widthPx)}x${String(size?.heightPx ?? asset?.heightPx)}`
   }
   return key
 }

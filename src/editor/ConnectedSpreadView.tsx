@@ -69,9 +69,12 @@ function cropZoomOf(spreadId: string, frameId: string): number {
 export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   spreadId,
   pxPerMm = SPREAD_PX_PER_MM,
+  lowDpiBadge = true,
 }: {
   spreadId: string
   pxPerMm?: number
+  /** Editor-only low-resolution badge; off in Preview. */
+  lowDpiBadge?: boolean
 }) {
   const snapshot = useSyncExternalStore(
     (listener) => subscribeSpread(spreadId, listener),
@@ -169,6 +172,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
+      lowDpiBadge={lowDpiBadge}
       overlay={<GridOverlay spreadId={spreadId} pxPerMm={pxPerMm} />}
       isMissingAsset={missingAssetChecker(relinkRevision)}
       previewUrlFor={(assetId) =>

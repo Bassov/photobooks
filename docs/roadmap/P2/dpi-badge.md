@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: resolution while you lay out
+Status: done
 
 ## Scope
 
@@ -18,3 +19,7 @@ Title: resolution while you lay out
 - **Depends:** kit10-canvas
 - **UI kit:** partial: frame badge `uikit/src/sandbox/canvas.tsx:109-131`, inspector badge `uikit/src/sandbox/inspector.tsx:103-117`, Low-res chip `uikit/src/sandbox/chrome.tsx:469`; missing: the frame badge is not reachable in #/demo
 - **Owner-approved scope change:** 2026-10-30 02:01 (UTC+4) the Owner said to finish the roadmap with Designer and Grok Bot, then commit and merge without waiting for his formal approval; this item was updated from the Designer kit-first audit and the Grok Bot #/demo check (kit present in `uikit/src/sandbox`).
+
+## Done note
+
+frame badge on the editor overlay (session pixel size, warn 200 / min 150); inspector Photo-row dpi badge and filmstrip Low-res chip left to inspector/filmstrip items

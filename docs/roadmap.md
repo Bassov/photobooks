@@ -50,7 +50,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 
 - [ ] [feature] [rulers](roadmap/P2/rulers.md) — mm rulers
 - [ ] [feature] [guides](roadmap/P2/guides.md) — guides
-- [ ] [feature] [dpi-badge](roadmap/P2/dpi-badge.md) — resolution while you lay out
+- [x] [feature] [dpi-badge](roadmap/P2/dpi-badge.md) — resolution while you lay out
 - [ ] [feature] [photo-rotate](roadmap/P2/photo-rotate.md) — rotate photos in frames
 - [ ] [feature] [inspector](roadmap/P2/inspector.md) — numeric properties
 - [ ] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
