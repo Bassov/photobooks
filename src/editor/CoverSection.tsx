@@ -5,16 +5,18 @@ import {
   type CoverPanelName,
   type CoverStyle,
 } from '../core'
-import { SegmentedControl } from '../ui/SegmentedControl'
 import { Select } from '../ui/Select'
 import {
-  BACK_FILL_OPTIONS,
   DIRECTION_OPTIONS,
   FINISH_OPTIONS,
   MATERIAL_OPTIONS,
   TITLE_FONT_OPTIONS,
 } from './coverOptions'
-import { InspectorRow, InspectorSlider, Swatches } from './InspectorControls'
+import {
+  InspectorRow,
+  InspectorSlider,
+  ReadOnlyPill,
+} from './InspectorControls'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -194,35 +196,26 @@ export function CoverSection() {
           setStyle({ spineWidthMm })
         }}
       />
+      {/* Kit v7.tsx:215: Direction is a read-only Val pill. */}
       <InspectorRow label="Direction">
-        <SegmentedControl
-          label="Direction"
-          size="sm"
-          items={DIRECTION_OPTIONS.map((item) => ({
-            id: item.value,
-            label: item.label,
-          }))}
-          value={style.spineDirection}
-          onChange={(value) => {
-            for (const item of DIRECTION_OPTIONS) {
-              if (item.value === value) {
-                setStyle({ spineDirection: item.value })
-              }
-            }
-          }}
+        <ReadOnlyPill
+          value={
+            DIRECTION_OPTIONS.find(
+              (item) => item.value === style.spineDirection,
+            )?.label ?? ''
+          }
+          testId="cover-direction"
         />
       </InspectorRow>
       <h4 className="inspector-eyebrow">Back</h4>
       <CoverText panel="back" label="Back text" />
+      {/* Kit v7.tsx:216: Fill is a "Paper white" pill with a "coming later" note. */}
       <InspectorRow label="Fill">
-        <Swatches
-          label="Back fill"
-          options={BACK_FILL_OPTIONS}
-          value={style.backFill}
+        <ReadOnlyPill
+          value="Paper white"
+          note="coming later"
           testId="cover-back-fill"
-          onChange={(backFill) => {
-            setStyle({ backFill })
-          }}
+          noteTestId="fill-readonly"
         />
       </InspectorRow>
       <h4 className="inspector-eyebrow">Material</h4>

@@ -16,27 +16,16 @@ async function setField(page: Page, name: string, value: string) {
   await input.blur()
 }
 
-test('Book → Layout grid: Columns updates the summary and the overlay', async ({
-  page,
-}) => {
+test('Book settings hold no Layout grid section', async ({ page }) => {
   await openSessionEditor(page)
   await openRightPanel(page)
   await page.getByTestId('book-title').click()
 
-  const section = page.getByTestId('grid-section-book')
-  await expect(section.getByText('Layout grid')).toBeVisible()
-  await expect(page.getByTestId('grid-summary')).toHaveText('2×2')
+  // Kit book settings (uikit/src/sandbox/v7.tsx:202-210) have no Layout grid section.
+  await expect(page.getByTestId('book-settings')).toBeVisible()
+  await expect(page.getByTestId('grid-section-book')).toHaveCount(0)
 
-  await setField(page, 'columns', '6')
-  await expect(page.getByTestId('grid-summary')).toHaveText('6×2')
-
-  await expect(page.getByTestId('grid-overlay')).toHaveCount(0)
-  await page.getByTestId('grid-toggle').click()
-  await expect(page.getByTestId('grid-toggle')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-  await expect(page.getByTestId('grid-overlay-column').first()).toBeAttached()
+  // The overlay eye is covered on the spread (inspector-spread-book.spec.ts).
   await assertDocumentFitsViewport(page)
 })
 

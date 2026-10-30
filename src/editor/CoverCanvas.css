@@ -6,7 +6,8 @@
   z-index: 30;
   display: grid;
   place-items: center;
-  padding: 48px;
+  /* Kit viewport.tsx:110-121: band [FIT_TOP 56, H - FIT_BOTTOM 48], 40 px sides. */
+  padding: 56px 40px 48px;
   container-type: size;
   background: var(--canvas);
 }
@@ -57,21 +58,17 @@
   font-size: var(--text-2xs);
 }
 
+/* Kit v7.tsx:67-71 captions: Back / Spine / Front sit under the cover, centred on their panel. */
 .cover-panel-label {
   position: absolute;
-  top: 0.375rem;
-  left: 0.5rem;
-  pointer-events: none;
-  color: color-mix(in srgb, var(--cover-title-ink) 70%, transparent);
-  font-size: var(--text-2xs);
-}
-
-.cover-spine .cover-panel-label {
-  top: auto;
-  bottom: 0.5rem;
+  top: 100%;
   left: 50%;
+  margin-top: 0.5rem;
   transform: translateX(-50%);
-  writing-mode: vertical-rl;
+  pointer-events: none;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  white-space: nowrap;
 }
 
 .cover-back-text {

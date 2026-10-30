@@ -148,11 +148,9 @@ describe('Inspector Spread / Book settings sections', () => {
       setBookSettingsSelected(true)
     })
     const settings = screen.getByTestId('book-settings')
-    expect(
-      settings.compareDocumentPosition(
-        screen.getByTestId('grid-section-book'),
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    expect(settings).toBeTruthy()
+    // Kit v7.tsx:202-210: no Layout grid section in Book settings.
+    expect(screen.queryByTestId('grid-section-book')).toBeNull()
     expect(screen.queryByTestId('layout-section')).toBeNull()
   })
 })
@@ -191,6 +189,9 @@ describe('BookSettingsSection', () => {
       widthMm: Math.max(before.widthMm, before.heightMm),
       heightMm: Math.min(before.widthMm, before.heightMm),
     })
+    fireEvent.change(screen.getByLabelText('Page size'), {
+      target: { value: 'custom' },
+    })
     fireEvent.click(screen.getByLabelText('mm'))
     fireEvent.change(screen.getByLabelText('Width (mm)'), {
       target: { value: '210' },
@@ -205,10 +206,10 @@ describe('BookSettingsSection', () => {
     expect(getBookStoreSnapshot().book.settings.endpapers.enabled).toBe(
       !settings.endpapers.enabled,
     )
-    fireEvent.click(screen.getByLabelText('Cream'))
-    expect(getBookStoreSnapshot().book.settings.pageColor).toBe('#f4f1ea')
-    fireEvent.click(screen.getByLabelText('Paper white'))
-    expect(getBookStoreSnapshot().book.settings.pageColor).toBeUndefined()
+    // Kit v7.tsx:201: page colour is read-only text, no swatches.
+    expect(screen.getByTestId('page-colour-readonly').textContent).toBe(
+      'Paper white · coming later',
+    )
   })
 })
 

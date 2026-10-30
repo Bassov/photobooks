@@ -28,10 +28,11 @@ test('step 24: Book tab shows kit Book settings head, rows and book grid', async
   const eyebrow = settings.locator('.inspector-eyebrow').first()
   await expect(eyebrow).toHaveCSS('text-transform', 'uppercase')
   await expect(eyebrow).toHaveCSS('color', MUTED)
-  for (const label of ['Page size', 'Bleed', 'Safe margin', 'Pages']) {
+  for (const label of ['Page size', 'Print', 'Pages', 'Paper']) {
     await expect(settings.getByText(label, { exact: true })).toBeVisible()
   }
-  await expect(page.getByTestId('grid-section-book')).toBeVisible()
+  // Kit book settings have no Layout grid section (uikit/src/sandbox/v7.tsx:202-210).
+  await expect(page.getByTestId('grid-section-book')).toHaveCount(0)
   // Endpaper rows now show: uikit/src/sandbox/chrome.tsx:275,278 (bk.endp);
   // coverage moved to e2e/design-inspector-book-cover.spec.ts.
   await assertDocumentFitsViewport(page)

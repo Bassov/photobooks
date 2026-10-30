@@ -157,13 +157,16 @@ test('dragging a frame across a 12-column grid with snapping stays within frame-
   await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
 
   await openRightPanel(page)
-  await page.getByTestId('book-title').click()
-  const columns = page.getByTestId('grid-field-columns').getByRole('textbox')
-  await columns.fill('12')
-  await columns.blur()
-  await expect(page.getByTestId('grid-summary')).toHaveText('12×2')
+  // Book settings has no grid UI (uikit/src/sandbox/v7.tsx:202-210); set the
+  // same book-wide grid through the existing setBookGrid op.
+  await page.evaluate(() => {
+    window.__photobooksProject?.setBookGridForTests({ columns: 12 })
+  })
   await gridToggle(page).click()
   await expect(page.getByTestId('grid-overlay-column').first()).toBeAttached()
+  await expect(spreadView(page).getByTestId('grid-overlay-column')).toHaveCount(
+    12,
+  )
 
   await clearSpread(page)
   await drawFrame(page, [0.25, 0.3], [0.7, 0.8])

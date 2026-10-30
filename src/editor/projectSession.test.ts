@@ -44,6 +44,7 @@ import {
   saveBookNow,
   selectRecentLibrary,
   setAccessPhaseForTests,
+  setBookGridForTests,
   startSessionEditor,
   tryActivateLibraryBookForTests,
   tryRestore,
@@ -724,6 +725,15 @@ describe('projectSession', () => {
     expect(
       window.__photobooksThumbs?.clearThumbsAndDerivedCacheForTests,
     ).toBeTypeOf('function')
+  })
+
+  it('setBookGridForTests patches the book-wide layout grid', () => {
+    exposeProjectSessionTestApi()
+    expect(window.__photobooksProject?.setBookGridForTests).toBe(
+      setBookGridForTests,
+    )
+    setBookGridForTests({ columns: 12 })
+    expect(getBookStoreSnapshot().book.layoutGrid.columns).toBe(12)
   })
 
   it('attachOpfsTestLibrary is a no-op in a deploy build', async () => {

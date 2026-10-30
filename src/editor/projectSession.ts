@@ -5,6 +5,7 @@ import {
   defaultCover,
   defaultEndpapers,
   type Book,
+  type GridPatch,
 } from '../core'
 import {
   clearRegisteredAssetSources,
@@ -1239,6 +1240,11 @@ async function openOpfsTestLibrary(
   })
 }
 
+/** Test seam: set the book-wide layout grid (book settings has no grid UI). */
+export function setBookGridForTests(patch: GridPatch): void {
+  dispatchBookOp({ type: 'setBookGrid', patch })
+}
+
 /** Test seam: force access chrome phase without a real FSA denial. */
 export function setSurfaceForTests(next: ProjectSessionSurface): void {
   surface = next
@@ -1383,6 +1389,7 @@ export function exposeProjectSessionTestApi(
     regrantLibrary,
     regrantLibraryWithHandleForTests,
     setAccessPhaseForTests,
+    setBookGridForTests,
     holdExternalBookLockForTests,
     tryActivateLibraryBookForTests,
     configureProjectSession,
@@ -1431,6 +1438,7 @@ declare global {
       regrantLibrary: typeof regrantLibrary
       regrantLibraryWithHandleForTests: typeof regrantLibraryWithHandleForTests
       setAccessPhaseForTests: typeof setAccessPhaseForTests
+      setBookGridForTests: typeof setBookGridForTests
       holdExternalBookLockForTests: typeof holdExternalBookLockForTests
       tryActivateLibraryBookForTests: typeof tryActivateLibraryBookForTests
       configureProjectSession: typeof configureProjectSession

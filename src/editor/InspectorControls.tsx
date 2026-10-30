@@ -6,7 +6,7 @@ import {
   SliderThumb,
   SliderTrack,
 } from 'react-aria-components'
-import { SUB } from './editorChromeTokens'
+import { FIELD, SUB, T } from './editorChromeTokens'
 import './FitCropSection.css'
 import './InspectorControls.css'
 
@@ -23,6 +23,40 @@ export function InspectorRow({
       <span style={{ color: SUB }}>{label}</span>
       {children}
     </div>
+  )
+}
+
+/** Kit `Val` (uikit/src/sandbox/v7.tsx:149): FIELD pill, optional muted note beside it. */
+export function ReadOnlyPill({
+  value,
+  note,
+  testId,
+  noteTestId,
+}: {
+  value: string
+  note?: string
+  testId?: string
+  noteTestId?: string
+}) {
+  return (
+    <span className="flex items-center">
+      <span
+        className="rounded-sm px-2 py-1 text-sm"
+        style={{ background: FIELD, color: T }}
+        data-testid={testId}
+      >
+        {value}
+      </span>
+      {note === undefined ? null : (
+        <span
+          className="ml-1.5 text-2xs text-muted-foreground"
+          style={{ color: SUB }}
+          data-testid={noteTestId}
+        >
+          {note}
+        </span>
+      )}
+    </span>
   )
 }
 

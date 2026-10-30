@@ -160,21 +160,13 @@ describe('BookSettingsSection controls', () => {
     expect(width.value).toBe('20')
   })
 
-  it('marks the page colour in use and writes the choice', () => {
+  it('shows page colour as read-only text, no swatches (uikit/src/sandbox/v7.tsx:201)', () => {
     seed({ widthMm: 200, heightMm: 300 })
     render(<BookSettingsSection />)
-    const pressed = () =>
-      screen
-        .getAllByRole('button', { pressed: true })
-        .map((el) => el.getAttribute('aria-label'))
-    expect(pressed()).toEqual(['Paper white'])
-    fireEvent.click(screen.getByLabelText('Charcoal'))
-    expect(getBookStoreSnapshot().book.settings.pageColor).toBe('#3e3c3b')
-    expect(pressed()).toEqual(['Charcoal'])
-    cleanup()
-    seed({ widthMm: 200, heightMm: 300 }, '#e6e6e6')
-    render(<BookSettingsSection />)
-    expect(pressed()).toEqual(['Light grey'])
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0)
+    expect(screen.getByTestId('page-colour-readonly').textContent).toBe(
+      'Paper white · coming later',
+    )
   })
 
   it('dims hints, labels and units with the muted ink', () => {
@@ -268,17 +260,23 @@ describe('CoverSection spine and direction', () => {
     expect(getBookStoreSnapshot().book.cover.style.spineWidthMm).toBe(20)
   })
 
-  it('switches direction both ways', () => {
+  it('shows the direction as a read-only pill (uikit/src/sandbox/v7.tsx:215)', () => {
     seed()
-    render(<CoverSection />)
-    fireEvent.click(screen.getByLabelText('Bottom to top'))
-    expect(getBookStoreSnapshot().book.cover.style.spineDirection).toBe(
-      'bottom-to-top',
+    const { rerender } = render(<CoverSection />)
+    expect(screen.getByTestId('cover-direction').textContent).toBe(
+      'Top to bottom',
     )
-    fireEvent.click(screen.getByLabelText('Top to bottom'))
-    expect(getBookStoreSnapshot().book.cover.style.spineDirection).toBe(
-      'top-to-bottom',
+    act(() => {
+      dispatchBookOp({
+        type: 'setCoverStyle',
+        patch: { spineDirection: 'bottom-to-top' },
+      })
+    })
+    rerender(<CoverSection />)
+    expect(screen.getByTestId('cover-direction').textContent).toBe(
+      'Bottom to top',
     )
+    expect(screen.queryByRole('radio')).toBeNull()
   })
 
   it('shows the style from the book', () => {
@@ -313,9 +311,9 @@ describe('Endpaper pieces', () => {
       .querySelectorAll<HTMLElement>('.endpaper-page')) {
       expect(page.style.backgroundImage).toBe('')
     }
-    expect(
-      document.querySelector('.endpaper-label')?.getAttribute('data-side'),
-    ).toBe('back')
+    expect(document.querySelector('.endpaper-caption')?.textContent).toBe(
+      'Endpaper',
+    )
   })
 
   it('drop: ignores an empty payload, takes an asset and stops the browser', () => {
@@ -381,7 +379,11 @@ describe('Endpaper pieces', () => {
     expect(
       screen.getByText('Pastedown and free leaf, printed full bleed').className,
     ).toContain(SUB_INK)
-    expect(screen.getByText(/Drag a photo/).className).toContain(SUB_INK)
+    // Kit v7.tsx:218-221 has no "Drag a photo" hint.
+    expect(screen.queryByText(/Drag a photo/)).toBeNull()
+    expect(screen.getByTestId('endp-fill-readonly').textContent).toBe(
+      'coming later',
+    )
     expect(screen.getByTestId('endpaper-fill').style.backgroundImage).toBe('')
     act(() => {
       dispatchBookOp({ type: 'setEndpaperPhoto', side: 'front', assetId: 'a1' })

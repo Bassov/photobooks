@@ -68,6 +68,7 @@ test('the Book tab shows the book settings and the book grid', async ({
   test.setTimeout(90_000)
   await openInspectorTab(page, 'book')
   await expect(page.getByTestId('book-settings')).toBeVisible()
-  await expect(page.getByTestId('grid-section-book')).toBeVisible()
+  // Kit book settings have no Layout grid section (uikit/src/sandbox/v7.tsx:202-210).
+  await expect(page.getByTestId('grid-section-book')).toHaveCount(0)
   await expect(page.getByTestId('layout-section')).toHaveCount(0)
 })

@@ -87,7 +87,9 @@ describe('EndpaperCanvas', () => {
     seed()
     render(<EndpaperCanvas side="front" />)
     const canvas = screen.getByTestId('canvas-endpaper')
-    expect(canvas.textContent).toContain('Pastedown · glued to front board')
+    // Kit v7.tsx:78-85: no inner label; the caption sits under the spread.
+    expect(canvas.textContent).not.toContain('Pastedown')
+    expect(canvas.textContent).toBe('Endpaper')
     const drop = (id: string) => {
       const data = new Map([[ASSET_DRAG_MIME, id]])
       fireEvent.drop(canvas, {
@@ -120,7 +122,7 @@ describe('EndpaperCanvas', () => {
     expect(over(['text/plain'])).toBe(false)
     rerender(<EndpaperCanvas side="back" mini />)
     expect(screen.queryByTestId('canvas-endpaper')).toBeNull()
-    expect(document.querySelector('.endpaper-label')).toBeNull()
+    expect(document.querySelector('.endpaper-caption')).toBeNull()
   })
 })
 

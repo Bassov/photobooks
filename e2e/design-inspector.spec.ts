@@ -78,7 +78,8 @@ test('the book title opens Book settings until another item is picked (#17)', as
   await page.getByTestId('book-title').click()
   await expect(context(page)).toHaveText('Book settings')
   await expect(page.getByTestId('book-settings')).toBeVisible()
-  await expect(page.getByTestId('grid-section-book')).toBeVisible()
+  // Kit book settings have no Layout grid section (uikit/src/sandbox/v7.tsx:202-210).
+  await expect(page.getByTestId('grid-section-book')).toHaveCount(0)
   await expect(page.getByTestId('layout-section')).toHaveCount(0)
   await filled(page).click()
   await expect(context(page)).toHaveText('Photo')
