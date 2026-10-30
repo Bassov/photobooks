@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Dialog, DialogTitle } from '../ui/Dialog'
+import { NumberField } from '../ui/NumberField'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { Select } from '../ui/Select'
 import { TextField } from '../ui/TextField'
-import { acceptPositiveCm, createBookFormDefaults } from './createBookForm'
+import { createBookFormDefaults } from './createBookForm'
 import {
   clampCustomCm,
   CUSTOM_CM_MAX,
@@ -121,28 +122,21 @@ export function CreateBookDialog({
                 ['Height', customH, setCustomH, 'h'],
               ] as const
             ).map(([label, value, setValue, key]) => (
-              <label key={label} className="flex flex-col gap-1.5">
-                <span className="text-xs text-muted-foreground">
-                  {label} (cm)
-                </span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min={CUSTOM_CM_MIN}
-                  max={CUSTOM_CM_MAX}
-                  step={0.1}
-                  value={value}
-                  aria-label={`${label} (cm)`}
-                  data-testid={`create-custom-${key}`}
-                  onChange={(e) => {
-                    setValue(acceptPositiveCm(e.target.value, value))
-                  }}
-                  onBlur={() => {
-                    setValue(clampCustomCm(value))
-                  }}
-                  className="pb-create-field h-9 rounded-md bg-field px-2.5 text-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-[#535152]"
-                />
-              </label>
+              <NumberField
+                key={label}
+                label={label}
+                ariaLabel={`${label} (cm)`}
+                unit="cm"
+                min={CUSTOM_CM_MIN}
+                max={CUSTOM_CM_MAX}
+                step={0.1}
+                shiftStep={1}
+                value={value}
+                data-testid={`create-custom-${key}`}
+                onChange={(v) => {
+                  setValue(clampCustomCm(v))
+                }}
+              />
             ))}
             <p className="col-span-2 text-xs text-muted-foreground">
               {CUSTOM_CM_MIN}–{CUSTOM_CM_MAX} cm per side ·{' '}
