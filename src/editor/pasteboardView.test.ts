@@ -5,6 +5,7 @@ import {
   cancelPendingScrollFrame,
   nextTrackedScroll,
   nextViewportSize,
+  pasteboardClickSpreadId,
   pasteboardSlotPaddingBottom,
   pasteboardStrideAtZoom,
   pasteboardWindowKey,
@@ -203,5 +204,42 @@ describe('resolvePreferredActiveId', () => {
       activeId: null,
       preferredId: null,
     })
+  })
+})
+
+describe('pasteboardClickSpreadId', () => {
+  function build(): {
+    slot: HTMLElement
+    inner: HTMLElement
+    btn: HTMLElement
+  } {
+    const slot = document.createElement('div')
+    slot.setAttribute('data-pasteboard-slot', '')
+    slot.setAttribute('data-spread-id', 's1')
+    const inner = document.createElement('span')
+    const btn = document.createElement('button')
+    slot.append(inner, btn)
+    return { slot, inner, btn }
+  }
+
+  it('resolves the slot under the target', () => {
+    const { inner } = build()
+    expect(pasteboardClickSpreadId(inner, 0, [])).toBe('s1')
+  })
+
+  it('leaves controls alone', () => {
+    const { btn } = build()
+    expect(pasteboardClickSpreadId(btn, 0, [])).toBeNull()
+  })
+
+  it('maps the gray beside a spread to the slot row under clientY', () => {
+    const { slot } = build()
+    slot.getBoundingClientRect = () => ({ top: 100, bottom: 200 }) as DOMRect
+    expect(
+      pasteboardClickSpreadId(document.createElement('div'), 150, [slot]),
+    ).toBe('s1')
+    expect(
+      pasteboardClickSpreadId(document.createElement('div'), 250, [slot]),
+    ).toBeNull()
   })
 })
