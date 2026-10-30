@@ -7,8 +7,6 @@ import {
 } from 'react'
 import { GridListItem } from 'react-aria-components'
 import { Icon } from '../ui/Icon'
-import { IconButton } from '../ui/IconButton'
-import { requestGalleryRemove } from './galleryRemoveRequest'
 import {
   getAssetAspectSnapshot,
   getAssetCacheKey,
@@ -41,7 +39,7 @@ function orientationLabel(aspect: number): 'portrait' | 'landscape' | 'square' {
   return 'square'
 }
 
-/** Thumb, badge and remove button (CSS sizes the thumb to 100% of the slot). */
+/** Thumb and placed badge (CSS sizes the thumb to 100% of the slot). */
 const FilmstripItemBody = memo(function FilmstripItemBody({
   id,
   name,
@@ -111,18 +109,6 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
           <Icon name="check" size={14} />
         </span>
       ) : null}
-      <IconButton
-        label={`Remove ${name} from gallery`}
-        size="sm"
-        tooltip={false}
-        className="filmstrip-remove"
-        data-testid="filmstrip-remove"
-        onPress={() => {
-          requestGalleryRemove(id, name)
-        }}
-      >
-        <Icon name="delete" size={14} />
-      </IconButton>
     </div>
   )
 })

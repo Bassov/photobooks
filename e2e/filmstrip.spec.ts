@@ -227,6 +227,10 @@ test('portrait and landscape cards differ; thumbs use cover', async ({
 test('name strip fits inside the scrollport; external drag shows the overlay', async ({
   page,
 }) => {
+  // The name strip shows from 90 px tiles; the default is the kit's 76 px.
+  await page.addInitScript(() => {
+    window.localStorage.setItem('photobooks.filmstrip.thumbHeight', '96')
+  })
   await openSessionEditor(page)
   await pickPhotoFolder(page, [
     photoFixturePaths.samplePng,
@@ -1584,8 +1588,8 @@ test.describe('sort / filter / remove', () => {
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(2)
     const images = page.getByTestId('spread-frame-image')
     const placedBefore = await images.count()
-    await page.getByTestId('filmstrip-item').first().hover()
-    await page.getByTestId('filmstrip-remove').first().click()
+    await page.getByTestId('filmstrip-item').first().click()
+    await page.keyboard.press('Delete')
     await expect(page.getByRole('alertdialog')).toBeVisible()
     await page.getByRole('button', { name: 'Remove and empty frame' }).click()
     await expect(page.getByTestId('filmstrip-item')).toHaveCount(1)
@@ -1631,6 +1635,11 @@ test.describe('sort / filter / remove', () => {
   test('empty dock: keyboard resize persists across reload; loose file drop is refused', async ({
     page,
   }) => {
+    // Start from 96 px (the default is the kit's 76); keep the stored value on reload.
+    await page.addInitScript(() => {
+      const key = 'photobooks.filmstrip.thumbHeight'
+      window.localStorage.setItem(key, window.localStorage.getItem(key) ?? '96')
+    })
     await openSessionEditor(page)
     await expect(page.getByTestId('filmstrip-empty')).toBeVisible()
     const splitter = page.getByTestId('film-splitter')
@@ -1694,7 +1703,7 @@ test.describe('sort / filter / remove', () => {
       assert(box !== null)
       await page.mouse.move(box.x + box.width / 2, box.y + 3)
       await page.mouse.down()
-      await page.mouse.move(box.x + box.width / 2, box.y - 40, { steps: 8 })
+      await page.mouse.move(box.x + box.width / 2, box.y - 60, { steps: 8 })
       await page.evaluate(browserAssertNoLoaf, 0)
       await page.mouse.up()
       await expect(splitter).not.toHaveAttribute('aria-valuenow', '96')

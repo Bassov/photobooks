@@ -6,11 +6,22 @@ import {
 } from './bookStore'
 import { ASSET_DRAG_MIME } from './dropTargets'
 import { useCoverPhotoUrl } from './useCoverPhotoUrl'
-import { coverLayout } from './coverLayout'
+import { COVER_WRAP_MM, coverLayout } from './coverLayout'
 import './CoverCanvas.css'
 
 function readBook() {
   return getBookStoreSnapshot().book
+}
+
+function PanelLabel({ text }: { text: string }) {
+  return (
+    <span
+      className="cover-panel-label"
+      data-testid={`cover-label-${text.toLowerCase()}`}
+    >
+      {text}
+    </span>
+  )
 }
 
 /**
@@ -52,6 +63,7 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
         data-testid={id('cover-back')}
         style={{ width: `${String(layout.pagePct)}%` }}
       >
+        {mini ? null : <PanelLabel text="Back" />}
         <div className="cover-back-text" data-testid={id('cover-back-text')}>
           {cover.back.text}
         </div>
@@ -61,6 +73,7 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
         data-testid={id('cover-spine')}
         style={{ width: `${String(layout.spinePct)}%` }}
       >
+        {mini ? null : <PanelLabel text="Spine" />}
         <span className="cover-spine-text" data-testid={id('cover-spine-text')}>
           <em>{cover.spine.text}</em>
         </span>
@@ -76,10 +89,26 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
         onDragOver={mini ? undefined : onDragOver}
         onDrop={mini ? undefined : onDrop}
       >
+        {mini ? null : <PanelLabel text="Front" />}
         <div className="cover-front-text" data-testid={id('cover-front-text')}>
           <em>{cover.front.text}</em>
         </div>
       </div>
+      {mini ? null : (
+        <>
+          <div
+            aria-hidden="true"
+            className="cover-wrap-guide"
+            data-testid="cover-safe"
+            style={{
+              inset: `${String(layout.wrapInsetYPct)}% ${String(layout.wrapInsetXPct)}%`,
+            }}
+          />
+          <span className="cover-wrap-chip" data-testid="cover-wrap-chip">
+            Wrap {COVER_WRAP_MM} mm
+          </span>
+        </>
+      )}
     </div>
   )
   return mini ? (

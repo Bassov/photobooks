@@ -40,6 +40,40 @@
   background-size: cover;
 }
 
+/* Kit cover-editor: dashed wrap/bleed guide, "Wrap 15 mm" chip, panel names. */
+.cover-wrap-guide {
+  position: absolute;
+  pointer-events: none;
+  outline: 1px dashed
+    color-mix(in srgb, var(--cover-title-ink) 45%, transparent);
+}
+
+.cover-wrap-chip {
+  position: absolute;
+  top: 0.375rem;
+  right: 0.5rem;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--cover-title-ink) 92%, transparent);
+  font-size: var(--text-2xs);
+}
+
+.cover-panel-label {
+  position: absolute;
+  top: 0.375rem;
+  left: 0.5rem;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--cover-title-ink) 70%, transparent);
+  font-size: var(--text-2xs);
+}
+
+.cover-spine .cover-panel-label {
+  top: auto;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  writing-mode: vertical-rl;
+}
+
 .cover-back-text {
   position: absolute;
   right: 12%;
