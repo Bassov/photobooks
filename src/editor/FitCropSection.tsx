@@ -100,7 +100,7 @@ export function FitCropSection({
       <ZoomSlider
         value={crop.zoom}
         onChange={(zoom) => {
-          commit({ zoom, center: crop.center })
+          commit({ ...crop, zoom })
         }}
       />
       <div className="grid grid-cols-2 gap-2">
@@ -110,7 +110,7 @@ export function FitCropSection({
           value={centerToPan(crop.center.x)}
           onChange={(percent) => {
             commit({
-              zoom: crop.zoom,
+              ...crop,
               center: { x: panToCenter(percent), y: crop.center.y },
             })
           }}
@@ -121,7 +121,7 @@ export function FitCropSection({
           value={centerToPan(crop.center.y)}
           onChange={(percent) => {
             commit({
-              zoom: crop.zoom,
+              ...crop,
               center: { x: crop.center.x, y: panToCenter(percent) },
             })
           }}

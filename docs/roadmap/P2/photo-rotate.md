@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: rotate photos in frames
+Status: done
 
 ## Scope
 

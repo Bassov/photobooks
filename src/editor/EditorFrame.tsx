@@ -18,6 +18,7 @@ import {
 } from './editorToolStore'
 import { installEditorChromeKeys } from './installEditorChromeKeys'
 import { installEditorGridKeys } from './installEditorGridKeys'
+import { installEditorRotateKeys } from './installEditorRotateKeys'
 import { installEditorToolKeys } from './installEditorToolKeys'
 
 export type { EditorPanels } from './editorChromePanels'
@@ -91,10 +92,12 @@ export function EditorFrame({
     })
     const offTool = installEditorToolKeys()
     const offGrid = installEditorGridKeys()
+    const offRotate = installEditorRotateKeys()
     return () => {
       offChrome()
       offTool()
       offGrid()
+      offRotate()
     }
   }, [setPn])
 
