@@ -42,8 +42,19 @@ test.describe('kit v0.10 frame selection (demo steps 16–18)', () => {
   })
 
   test('Esc mid-drag puts the frame back where it was', async ({ page }) => {
-    const frame = page.getByTestId('spread-frame').first()
+    // Frames fill their spread, so a move is clamped to a few px; shrink the
+    // right page's frame (resize commits) to leave room to travel.
+    const frame = page.getByTestId('spread-frame').nth(2)
     await frame.click()
+    const se = await frame.locator('[data-handle="se"]').boundingBox()
+    const sx = (se?.x ?? 0) + (se?.width ?? 0) / 2
+    const sy = (se?.y ?? 0) + (se?.height ?? 0) / 2
+    await page.mouse.move(sx, sy)
+    await page.mouse.down()
+    await page.mouse.move(sx - 40, sy - 40, { steps: 4 })
+    await page.mouse.move(sx - 80, sy - 80, { steps: 4 })
+    await page.mouse.up()
+    await expect(frame).toHaveAttribute('aria-pressed', 'true')
     const before = await frame.boundingBox()
     expect(before).not.toBeNull()
     const x = (before?.x ?? 0) + (before?.width ?? 0) / 2
@@ -51,10 +62,12 @@ test.describe('kit v0.10 frame selection (demo steps 16–18)', () => {
     await page.mouse.move(x, y)
     await page.mouse.down()
     for (let i = 1; i <= 6; i += 1) {
-      await page.mouse.move(x - 25 * i, y + 15 * i)
+      await page.mouse.move(x - 10 * i, y + 6 * i)
     }
     const mid = await frame.boundingBox()
-    expect(Math.abs((mid?.x ?? 0) - (before?.x ?? 0))).toBeGreaterThan(5)
+    // The frame follows the pointer: (-60, +36) px of travel.
+    expect((before?.x ?? 0) - (mid?.x ?? 0)).toBeGreaterThan(20)
+    expect((mid?.y ?? 0) - (before?.y ?? 0)).toBeGreaterThan(12)
     await expect(frame.getByTestId('sel-handle')).toHaveCount(8)
 
     await expect(frame).toHaveAttribute('aria-pressed', 'true')
