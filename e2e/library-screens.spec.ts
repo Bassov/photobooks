@@ -539,3 +539,64 @@ test('library scrollport contains overflow when many books', async ({
   await assertNamedScrollport(page, 'library-scroll', { axis: 'vertical' })
   await assertDocumentFitsViewport(page)
 })
+
+test('kit v0.10 welcome, empty library and change-folder confirm tokens', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  // Demo step 01: text-only ink primary on the tonal wash, no blue / teal.
+  await expect(page.getByTestId('create-library')).toHaveCSS(
+    'background-color',
+    'rgb(35, 34, 35)',
+  )
+  await expect(page.getByTestId('create-library')).toHaveCSS(
+    'border-radius',
+    '999px',
+  )
+  await expect(page.getByTestId('welcome-mark')).toBeVisible()
+  await assertDocumentFitsViewport(page)
+
+  await page.evaluate(async () => {
+    const api = window.__photobooksProject
+    if (!api?.seedHomeRecentsForTests) {
+      throw new Error('missing api')
+    }
+    await api.seedHomeRecentsForTests(0)
+  })
+  // Demo step 03: LibraryEmpty inside the #E1E1E1 bar + canvas shell.
+  await expect(page.getByTestId('library-empty')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByTestId('library-bar')).toHaveCSS(
+    'background-color',
+    'rgb(225, 225, 225)',
+  )
+  await expect(page.getByTestId('example-book')).toBeVisible()
+  await expect(page.getByTestId('new-book')).toHaveCSS(
+    'background-color',
+    'rgb(35, 34, 35)',
+  )
+  await assertDocumentFitsViewport(page)
+
+  // Demo step 04: change confirms first and names the no-move guarantee.
+  await page.getByTestId('change-library').hover()
+  await expect(page.getByTestId('change-library')).toHaveCSS(
+    'background-color',
+    'rgb(215, 215, 215)',
+  )
+  await page.getByTestId('change-library').click()
+  const dialog = page.getByRole('alertdialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('Change the library folder?')
+  await expect(dialog).toContainText('nothing is moved or deleted')
+  await expect(
+    page.getByRole('button', { name: 'Choose folder…' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByTestId('library-empty')).toBeVisible()
+})
