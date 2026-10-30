@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import { expect, test } from './fixtures/coverage'
 import {
   ensurePhotoFixtures,
@@ -17,7 +18,14 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 const KIT_THUMB = 76
 
 test.beforeAll(() => {
-  ensurePhotoFixtures({ includeLargeJpeg: false })
+  // Every worker rewrites the fixtures; a rewrite while another worker reads
+  // them makes the import fail and shifts the dock height. Write only if absent.
+  if (
+    !existsSync(photoFixturePaths.samplePng) ||
+    !existsSync(photoFixturePaths.sampleOrient6)
+  ) {
+    ensurePhotoFixtures({ includeLargeJpeg: false })
+  }
 })
 
 test.beforeEach(async ({ page }) => {
@@ -37,6 +45,11 @@ async function importPhotos(
     photoFixturePaths.sampleOrient6,
   ])
   await expect(page.getByTestId('filmstrip-item')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  // The import / rescan status row is transient and changes the dock height
+  // while it shows; measure only once it is gone.
+  await expect(page.getByTestId('filmstrip-status')).toHaveCount(0, {
     timeout: 30_000,
   })
 }
