@@ -4,6 +4,7 @@ import {
   Menu as AriaMenu,
   MenuItem as AriaMenuItem,
   MenuTrigger as AriaMenuTrigger,
+  composeRenderProps,
   Popover as AriaPopover,
   Separator as AriaSeparator,
   type MenuItemProps as AriaMenuItemProps,
@@ -13,6 +14,7 @@ import {
   type SeparatorProps as AriaSeparatorProps,
 } from 'react-aria-components'
 import { cx } from './className'
+import { Icon } from './Icon'
 import './Menu.css'
 
 export function MenuTrigger(props: AriaMenuTriggerProps) {
@@ -51,6 +53,7 @@ export interface MenuItemProps extends Omit<AriaMenuItemProps, 'className'> {
 
 export function MenuItem({
   className,
+  children,
   variant = 'default',
   ...props
 }: MenuItemProps) {
@@ -59,7 +62,21 @@ export function MenuItem({
       {...props}
       data-variant={variant}
       className={cx('pb-menu-item', className)}
-    />
+    >
+      {composeRenderProps(
+        children,
+        (content, { isSelected, selectionMode }) => (
+          <>
+            {selectionMode === 'none' ? null : (
+              <span className="pb-menu-item__check" aria-hidden="true">
+                {isSelected ? <Icon name="check" size={16} /> : null}
+              </span>
+            )}
+            {content}
+          </>
+        ),
+      )}
+    </AriaMenuItem>
   )
 }
 

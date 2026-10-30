@@ -1,12 +1,41 @@
+/* Kit Segmented: field track, raised pill on the selected item; the radio itself is invisible. */
 /* prettier-ignore */
-.pb-segmented { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 1.4) calc(var(--spacing) * 3.4); }
+.pb-segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: center; gap: calc(var(--spacing) * 0.5); padding: calc(var(--spacing) * 0.5); border-radius: var(--radius-lg); background: var(--field); }
 /* prettier-ignore */
-.pb-segmented__segment { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1.4); margin: 0; font-family: var(--font-ui); font-size: var(--text-sm); color: var(--foreground); cursor: pointer; }
+.pb-segmented__segment { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1.5); margin: 0; padding: 0 calc(var(--spacing) * 2); border-radius: var(--radius-sm); font-family: var(--font-ui); font-size: var(--text-sm); line-height: 1; color: var(--muted-foreground); cursor: pointer; transition: background-color 0.12s; }
+.pb-segmented--md .pb-segmented__segment {
+  height: calc(var(--spacing) * 7);
+}
+.pb-segmented--sm .pb-segmented__segment {
+  height: calc(var(--spacing) * 6);
+  font-size: var(--text-xs);
+}
+.pb-segmented__segment:hover {
+  color: var(--foreground);
+}
+.pb-segmented__segment--selected,
+.pb-segmented__segment--selected:hover {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+}
+.pb-segmented__segment input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
 .pb-segmented__segment input:disabled {
   cursor: wait;
+  opacity: 0;
+}
+.pb-segmented__segment:has(input:disabled) {
   opacity: 0.65;
 }
-.pb-segmented__segment:focus-within {
-  outline: 2px solid var(--ring);
+.pb-segmented__segment:has(input:focus-visible) {
+  outline: 2px solid var(--muted-foreground);
   outline-offset: 2px;
 }

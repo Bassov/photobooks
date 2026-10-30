@@ -3,7 +3,7 @@ import { Button } from '../ui/Button'
 import { Dialog, DialogTitle } from '../ui/Dialog'
 import { NumberField } from '../ui/NumberField'
 import { SegmentedControl } from '../ui/SegmentedControl'
-import { Select } from '../ui/Select'
+import { ListSelect } from '../ui/ListSelect'
 import { TextField } from '../ui/TextField'
 import { createBookFormDefaults } from './createBookForm'
 import {
@@ -98,9 +98,8 @@ export function CreateBookDialog({
           onChange={setTitle}
           onSubmit={go}
         />
-        <Select
+        <ListSelect
           label="Page size"
-          aria-label="Page size"
           data-testid="create-preset"
           value={presetId}
           onChange={(v) => {
@@ -124,8 +123,7 @@ export function CreateBookDialog({
             ).map(([label, value, setValue, key]) => (
               <NumberField
                 key={label}
-                label={label}
-                ariaLabel={`${label} (cm)`}
+                label={`${label} (cm)`}
                 unit="cm"
                 min={CUSTOM_CM_MIN}
                 max={CUSTOM_CM_MAX}

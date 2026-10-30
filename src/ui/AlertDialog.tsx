@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { alertConfirmVariant } from './alertConfirm'
 import { Button } from './Button'
 import { Dialog, DialogTitle } from './Dialog'
+import { FeaturedIcon } from './FeaturedIcon'
 import { cx } from './className'
 import './AlertDialog.css'
 
@@ -12,6 +13,8 @@ export interface AlertDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   tone?: 'destructive' | 'neutral'
+  /** Leading soft tile (kit AlertDialog `icon`); omit for none. */
+  icon?: ReactNode
   onConfirm?: () => void
   onCancel?: () => void
   className?: string
@@ -28,6 +31,7 @@ export function AlertDialog({
   confirmLabel = 'Remove',
   cancelLabel = 'Cancel',
   tone = 'destructive',
+  icon,
   onConfirm,
   onCancel,
   className,
@@ -41,8 +45,23 @@ export function AlertDialog({
       className={cx('pb-alert-dialog', className)}
       data-tone={tone}
     >
-      <DialogTitle>{title}</DialogTitle>
-      {children ? <div className="pb-alert-dialog-body">{children}</div> : null}
+      <div className="pb-alert-dialog-head">
+        {icon ? (
+          <FeaturedIcon
+            theme="soft"
+            color={tone === 'destructive' ? 'error' : 'gray'}
+            size="md"
+          >
+            {icon}
+          </FeaturedIcon>
+        ) : null}
+        <div className="pb-alert-dialog-text">
+          <DialogTitle>{title}</DialogTitle>
+          {children ? (
+            <div className="pb-alert-dialog-body">{children}</div>
+          ) : null}
+        </div>
+      </div>
       <div className="pb-alert-dialog-actions">
         <Button
           variant="ghost"

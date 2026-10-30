@@ -70,7 +70,7 @@ function stubFolderPick(files: File[]): FileSystemDirectoryHandle {
 }
 
 function clickChoosePhotoFolder(): void {
-  fireEvent.click(screen.getByTestId('choose-photo-folder'))
+  fireEvent.click(screen.getByTestId('film-add-folder'))
 }
 
 describe('EditorTopBar', () => {
@@ -97,13 +97,16 @@ describe('EditorTopBar', () => {
     vi.restoreAllMocks()
   })
 
-  it('uses Toolbar primitives and one primary choose-photo-folder action', () => {
+  it('uses Toolbar primitives; Add folder… lives in the filmstrip, not the top bar', () => {
     render(<EditorShell />)
-    expect(screen.getByRole('toolbar', { name: 'Editor' })).toBeTruthy()
-    const topBarChoose = screen.getByTestId('choose-photo-folder')
-    expect(topBarChoose.textContent).toBe(CHOOSE_LABEL)
-    expect(topBarChoose.className).toContain('pb-button--secondary')
-    expect(topBarChoose.className).not.toContain('pb-button--default')
+    const toolbar = screen.getByRole('toolbar', { name: 'Editor' })
+    expect(toolbar).toBeTruthy()
+    // uikit/src/sandbox/chrome.tsx TopBar has no folder button; Add folder… is a filmstrip chip.
+    expect(screen.queryByTestId('choose-photo-folder')).toBeNull()
+    expect(toolbar.textContent).not.toContain(CHOOSE_LABEL)
+    expect(screen.getByTestId('film-add-folder').textContent).toBe(
+      'Add folder…',
+    )
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
     expect(screen.queryByTestId('app-theme-toggle')).toBeNull()
     expect(screen.getByTestId('book-title')).toBeTruthy()
@@ -334,7 +337,7 @@ describe('EditorTopBar', () => {
       pending,
     )
     render(<EditorShell />)
-    const choose = screen.getByTestId('choose-photo-folder')
+    const choose = screen.getByTestId('film-add-folder')
     fireEvent.click(choose)
     await waitFor(() => {
       expect(choose.hasAttribute('disabled')).toBe(true)
@@ -422,9 +425,9 @@ describe('EditorTopBar', () => {
     act(() => {
       setAccessPhaseForTests('locked-elsewhere')
     })
-    expect(
-      screen.getByTestId('choose-photo-folder').hasAttribute('disabled'),
-    ).toBe(true)
+    expect(screen.getByTestId('film-add-folder').hasAttribute('disabled')).toBe(
+      true,
+    )
   })
 
   it('shows "saved" in the book meta when a library is ready', async () => {
@@ -479,7 +482,7 @@ describe('EditorTopBar', () => {
     })
     await waitFor(() => {
       expect(
-        screen.getByTestId('choose-photo-folder').hasAttribute('disabled'),
+        screen.getByTestId('film-add-folder').hasAttribute('disabled'),
       ).toBe(false)
     })
     clickChoosePhotoFolder()
