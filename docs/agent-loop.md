@@ -75,7 +75,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 ### 4 · First B
 
 - Run **B** once vs `origin/main` (full current diff). Fix; re-run failed slice; re-A if code changed (still no phase commit).
-- Skip B when pointless (CI still runs e2e + perf + stryker-diff). In-scope once: `audit:ci` / `test:lhci`.
+- Skip the e2e half of B when pointless (CI still runs e2e + perf); never skip `stryker:diff` on `src/` changes (`agent finish` runs it, 2-run cap). In-scope once: `audit:ci` / `test:lhci`.
 
 ### 5 · Phase commit
 
