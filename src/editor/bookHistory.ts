@@ -10,6 +10,9 @@ export interface HistorySnapshot {
   title: Book['title']
   layoutGrid: Book['layoutGrid']
   cover: Book['cover']
+  settings: Book['settings']
+  endpapers: Book['endpapers']
+  frameStyles: Book['frameStyles']
 }
 
 export interface History {
@@ -38,6 +41,9 @@ export function snapshotOf(book: Book): HistorySnapshot {
     title: book.title,
     layoutGrid: book.layoutGrid,
     cover: book.cover,
+    settings: book.settings,
+    endpapers: book.endpapers,
+    frameStyles: book.frameStyles,
   }
 }
 
@@ -81,6 +87,17 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   setTitle: 'Rename book',
   setCoverText: 'Edit cover text',
   setCoverPhoto: 'Cover photo',
+  setCoverStyle: 'Cover style',
+  setTrim: 'Page size',
+  setEndpapersEnabled: 'Endpapers',
+  setEndpapersSame: 'Endpapers',
+  setEndpaperPhoto: 'Endpaper photo',
+  setPageColor: 'Page colour',
+  setFrameCaption: 'Edit caption',
+  setFrameAdjust: 'Adjust photo',
+  applyFrameStyle: 'Frame style',
+  editFrameStyle: 'Edit frame style',
+  newFrameStyle: 'New frame style',
   setBookGrid: 'Change grid',
   setSpreadGrid: 'Change grid',
   resetSpreadGrid: 'Reset grid',
@@ -101,6 +118,18 @@ export function coalesceKey(op: BookOp): string | undefined {
       return 'setTitle'
     case 'setCoverText':
       return `cover:${op.panel}`
+    case 'setCoverStyle':
+      return `coverStyle:${Object.keys(op.patch).join(',')}`
+    case 'setTrim':
+      return 'setTrim'
+    case 'setFrameCaption':
+      return `caption:${op.spreadId}:${op.frameId}`
+    case 'setFrameAdjust':
+      return op.patch === null
+        ? undefined
+        : `adjust:${op.spreadId}:${op.frameId}:${Object.keys(op.patch).join(',')}`
+    case 'editFrameStyle':
+      return `frameStyle:${op.styleId}:${Object.keys(op.patch).join(',')}`
     case 'setCrop':
     case 'resetCrop':
       return `crop:${op.spreadId}:${op.frameId}`

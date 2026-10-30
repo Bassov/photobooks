@@ -1,4 +1,5 @@
 import { setBookSettingsSelected } from './bookSettingsSelection'
+import { setEndpaperSelected } from './endpaperSelection'
 
 /**
  * Whether the cover (not a spread) is the editor's current selection. Kit step
@@ -23,6 +24,7 @@ export function subscribeCoverSelection(listener: () => void): () => void {
 /** Picking the cover or any other item also leaves Book settings. */
 export function setCoverSelected(next: boolean): void {
   setBookSettingsSelected(false)
+  setEndpaperSelected(null)
   if (next === selected) {
     return
   }

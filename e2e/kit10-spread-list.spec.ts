@@ -15,11 +15,13 @@ test('spread list follows kit v0.10 structure and tokens', async ({ page }) => {
 
   // Pages switch segment uses the field tone.
   await expect(page.getByTestId('mode-seg')).toContainText('Pages')
-  // Masters / endpaper are not wired yet: hidden, not stubbed. The cover row
-  // is wired (kit10-cover): one pinned row above the pages.
+  // Masters are not wired yet: hidden, not stubbed. The cover row is wired
+  // (kit10-cover): one pinned row above the pages. Endpaper rows (front, back)
+  // show while the book has endpapers: uikit/src/sandbox/chrome.tsx:275,278
+  // (covered in design-inspector-book-cover.spec.ts).
   await expect(page.getByRole('button', { name: 'Masters' })).toHaveCount(0)
   await expect(page.getByText('Cover', { exact: true })).toHaveCount(1)
-  await expect(page.getByText('Endpaper')).toHaveCount(0)
+  await expect(page.getByText('Endpaper', { exact: true })).toHaveCount(2)
 
   // Selection is the list tone #CACACA, no blue / teal ring.
   const selected = rows(page).filter({ has: page.locator('[data-label]') })

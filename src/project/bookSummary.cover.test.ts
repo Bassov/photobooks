@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { tryCacheKeyFromAsset } from '../assets/cacheKey'
+import { defaultCoverStyle } from '../core/cover'
 import { makeBook } from '../core/testing/fixtures'
 import { bookSummaryFromBook } from './bookSummary'
 
@@ -17,6 +18,7 @@ describe('bookSummaryFromBook cover', () => {
       assets: { a1: asset },
       gallery: ['a1'],
       cover: {
+        style: defaultCoverStyle(),
         front: {
           text: 'T',
           assetId: 'a1',
@@ -35,6 +37,7 @@ describe('bookSummaryFromBook cover', () => {
     const noCrop = makeBook({
       assets: { a1: asset },
       cover: {
+        style: defaultCoverStyle(),
         front: { text: 'T', assetId: 'a1' },
         spine: { text: '' },
         back: { text: '' },
@@ -47,6 +50,7 @@ describe('bookSummaryFromBook cover', () => {
     const noIdentity = makeBook({
       assets: { a1: {} },
       cover: {
+        style: defaultCoverStyle(),
         front: { text: 'T', assetId: 'a1' },
         spine: { text: '' },
         back: { text: '' },

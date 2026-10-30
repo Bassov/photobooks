@@ -98,11 +98,10 @@ export function resolveSpread(
     }
   })
 
+  const background = spread.backgroundColor ?? book.settings.pageColor
   return {
     items,
-    ...(spread.backgroundColor === undefined
-      ? {}
-      : { backgroundColor: spread.backgroundColor }),
+    ...(background === undefined ? {} : { backgroundColor: background }),
     pageCuts: structural.pageCuts,
     spreadWidthMm: structural.spreadWidthMm,
     spreadHeightMm: structural.spreadHeightMm,
@@ -143,6 +142,12 @@ function getStructural(
         : book.frameStyles[frame.frameStyleId]
     if (style !== undefined) {
       base.style = resolveFrameStyle(style)
+    }
+    if (frame.caption !== undefined) {
+      base.caption = frame.caption
+    }
+    if (frame.adjust !== undefined) {
+      base.adjust = frame.adjust
     }
     if (frame.assetId !== undefined) {
       return { item: { ...base, assetId: frame.assetId }, frame }

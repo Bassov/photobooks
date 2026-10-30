@@ -5,6 +5,7 @@ import {
   type Book,
   CURRENT_SCHEMA_VERSION,
   defaultCover,
+  defaultCoverStyle,
   defaultEndpapers,
   migrateToCurrent,
   parseBook,
@@ -95,7 +96,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 8,
+      schemaVersion: 9,
       title: '',
       assets: { a: {}, b: {} },
       gallery: ['a', 'b'],
@@ -130,7 +131,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 8,
+      schemaVersion: 9,
       title: '',
       assets: { a: identity },
     })
@@ -163,7 +164,7 @@ describe('migrateToCurrent', () => {
       const result = migrateToCurrent(v2)
       expect(result.ok).toBe(true)
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 8, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 9, title: '' })
     },
   )
 
@@ -174,7 +175,7 @@ describe('migrateToCurrent', () => {
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.value).toMatchObject({ schemaVersion: 8, title: 'Summer' })
+    expect(result.value).toMatchObject({ schemaVersion: 9, title: 'Summer' })
   })
 
   it('rejects non-finite schemaVersion', () => {
@@ -207,7 +208,7 @@ describe('migrateToCurrent', () => {
       expect(
         (result.value as { assets: Record<string, unknown> }).assets,
       ).toEqual({})
-      expect(result.value).toMatchObject({ schemaVersion: 8, title: '' })
+      expect(result.value).toMatchObject({ schemaVersion: 9, title: '' })
     },
   )
 
@@ -231,7 +232,7 @@ describe('migrateToCurrent', () => {
       ).spreads[0]?.frames[0]
       expect(frame).toEqual({ ...frameV3, rotationDeg: 0, kind: 'image' })
       expect(frame).not.toHaveProperty('locked')
-      expect(result.value).toMatchObject({ schemaVersion: 8 })
+      expect(result.value).toMatchObject({ schemaVersion: 9 })
     })
 
     it('migrates a v3 book into a valid current book', () => {
@@ -241,14 +242,14 @@ describe('migrateToCurrent', () => {
       expect(result.book.spreads[0]?.frames[0]?.rotationDeg).toBe(0)
     })
 
-    it('chains v1 through v8', () => {
+    it('chains v1 through v9', () => {
       const result = migrateToCurrent({
         ...v3Book([frameV3]),
         schemaVersion: 1,
       })
       expect(result).toMatchObject({
         ok: true,
-        value: { schemaVersion: 8 },
+        value: { schemaVersion: 9 },
       })
     })
 
@@ -295,7 +296,7 @@ describe('migrateToCurrent', () => {
         schemaVersion: 3,
       })
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 8, spreads: 'none' })
+      expect(result.value).toMatchObject({ schemaVersion: 9, spreads: 'none' })
     })
   })
 
@@ -313,6 +314,7 @@ describe('migrateToCurrent', () => {
         front: { text: 'Summer' },
         spine: { text: 'Summer' },
         back: { text: '' },
+        style: defaultCoverStyle(),
       })
       expect(result.book.endpapers).toEqual({ front: {}, back: {} })
       expect(result.book.title).toBe('Summer')
@@ -353,8 +355,13 @@ describe('migrateToCurrent', () => {
       assert.equal(result.ok, true)
       expect(result.value).toEqual({
         ...input,
-        schemaVersion: 8,
+        schemaVersion: 9,
         frameStyles: {},
+        cover: { ...(input.cover as object), style: defaultCoverStyle() },
+        settings: {
+          ...(input.settings as object),
+          endpapers: { enabled: true, same: true },
+        },
       })
     })
 
@@ -424,7 +431,7 @@ describe('migrateToCurrent', () => {
       })
       assert.equal(result.ok, true)
       expect(result.value).toMatchObject({
-        schemaVersion: 8,
+        schemaVersion: 9,
         layoutGrid: { margins: 'odd' },
         spreads: [null, { id: 'x', layoutGrid: 'odd' }],
       })

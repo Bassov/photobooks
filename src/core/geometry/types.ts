@@ -41,6 +41,10 @@ export interface ResolvedItem {
   straightenDeg?: number
   /** Omitted when the frame has no (or a dangling) `frameStyleId`. */
   style?: ResolvedFrameStyle
+  /** Printed under the frame; omitted when empty. */
+  caption?: string
+  /** Tone adjustments; omitted when untouched. */
+  adjust?: { brightness: number; contrast: number; saturation: number }
   assetId?: string
   sourceCropRect?: NormalizedRect
   /** Editor-only: set when the photo prints below the warn DPI. */

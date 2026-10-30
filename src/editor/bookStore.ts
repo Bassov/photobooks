@@ -83,6 +83,7 @@ function createSessionBook(): Book {
     settings: {
       bleedMm: 3,
       safeMarginMm: 5,
+      endpapers: { enabled: true, same: true },
       trim: { widthMm: 300, heightMm: 300 },
     },
     layoutGrid: {
@@ -832,6 +833,9 @@ function moveHistory(move: HistoryMove | null): void {
     spreads: move.snapshot.spreads,
     layoutGrid: move.snapshot.layoutGrid,
     cover: move.snapshot.cover,
+    settings: move.snapshot.settings,
+    endpapers: move.snapshot.endpapers,
+    frameStyles: move.snapshot.frameStyles,
   }
   if (move.snapshot.title === undefined) {
     delete book.title
@@ -1023,7 +1027,11 @@ function paintInputKey(
   const index = book.spreads.indexOf(spread)
   const { trim, bleedMm, safeMarginMm } = book.settings
   let key = `${String(index)}:${String(book.spreads.length)}:${String(trim.widthMm)}:${String(trim.heightMm)}:${String(bleedMm)}:${String(safeMarginMm)}`
+  key += `:${book.settings.pageColor ?? ''}`
   for (const frame of spread.frames) {
+    if (frame.frameStyleId !== undefined) {
+      key += `#${JSON.stringify(book.frameStyles[frame.frameStyleId] ?? null)}`
+    }
     const assetId = frame.assetId
     if (assetId === undefined) {
       key += '|'

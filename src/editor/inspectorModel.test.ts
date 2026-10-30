@@ -5,6 +5,7 @@ import {
   framePhotoRows,
   inspectorView,
   sameInspectorPanel,
+  spreadLabel,
   spreadRows,
   spreadSummary,
   spreadTitle,
@@ -159,6 +160,15 @@ describe('rows', () => {
   it('titles the cover and page spreads', () => {
     expect(spreadTitle(0)).toBe('Cover')
     expect(spreadTitle(1)).toBe('Pages 2–3')
+  })
+
+  it('labels the first spread "Page 1" like the kit and shows it on the Photo Spread row', () => {
+    expect(spreadLabel(0)).toBe('Page 1')
+    expect(spreadLabel(2)).toBe('Pages 4–5')
+    const spreadRow = (index: number) =>
+      framePhotoRows(book, f2, index, 0).find((r) => r.label === 'Spread')
+    expect(spreadRow(0)?.value).toBe('Page 1')
+    expect(spreadRow(1)?.value).toBe('Pages 2–3')
   })
 
   it('describes a spread', () => {

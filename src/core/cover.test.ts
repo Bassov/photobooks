@@ -4,7 +4,12 @@ import {
   checkBookInvariants,
   removeManyFromGallery,
 } from './index'
-import { defaultCover, setCoverPhoto, setCoverText } from './cover'
+import {
+  defaultCover,
+  defaultCoverStyle,
+  setCoverPhoto,
+  setCoverText,
+} from './cover'
 import { makeBook, makeBookWithAsset } from './testing/fixtures'
 
 describe('cover ops', () => {
@@ -13,6 +18,7 @@ describe('cover ops', () => {
       front: { text: 'Lake trip' },
       spine: { text: 'Lake trip' },
       back: { text: '' },
+      style: defaultCoverStyle(),
     })
   })
 
@@ -110,6 +116,7 @@ describe('cover ops', () => {
         front: { text: 'F', ...used },
         spine: { text: 'S', ...used },
         back: { text: 'B', ...used },
+        style: defaultCoverStyle(),
       },
       endpapers: { front: { ...used }, back: { ...used } },
     }
@@ -118,6 +125,7 @@ describe('cover ops', () => {
       front: { text: 'F' },
       spine: { text: 'S' },
       back: { text: 'B' },
+      style: defaultCoverStyle(),
     })
     expect(next.endpapers).toEqual({ front: {}, back: {} })
   })
@@ -132,6 +140,7 @@ describe('cover ops', () => {
         front: { text: 'F', assetId: 'a2' },
         spine: { text: 'S', assetId: 'a1' },
         back: { text: 'B' },
+        style: defaultCoverStyle(),
       },
     }
     const next = removeManyFromGallery(book, ['a1'])

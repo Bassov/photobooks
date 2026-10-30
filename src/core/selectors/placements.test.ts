@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { defaultCoverStyle } from '../cover'
 import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 import {
   bookHasAnyPlacement,
@@ -17,6 +18,7 @@ describe('placements on the cover and endpapers', () => {
         front: { text: '', assetId: 'a' },
         spine: { text: '' },
         back: { text: '', assetId: 'b' },
+        style: defaultCoverStyle(),
       },
       endpapers: { front: { assetId: 'c' }, back: {} },
     })
@@ -34,6 +36,7 @@ describe('placements on the cover and endpapers', () => {
         front: { text: '' },
         spine: { text: '', assetId: 'a' },
         back: { text: '' },
+        style: defaultCoverStyle(),
       },
       endpapers: { front: {}, back: { assetId: 'b' } },
     })
@@ -48,6 +51,7 @@ describe('placements on the cover and endpapers', () => {
         front: { text: '', assetId: 'a' },
         spine: { text: '' },
         back: { text: '' },
+        style: defaultCoverStyle(),
       },
     })
     expect(bookHasAnyPlacement(book)).toBe(false)

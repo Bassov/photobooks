@@ -21,6 +21,7 @@ export interface FrameControl {
   onDoubleActivate?: () => void
 }
 import { dropChipLabel } from './dropChip'
+import { adjustFilter, frameStyleCss } from './frameLookCss'
 import {
   clearPhotoPreview,
   PHOTO_LAYER_ATTR,
@@ -110,6 +111,9 @@ function FrameGlyph({
   )
 }
 
+/** Gap between the frame and its caption (kit: 1.5 mm under the frame). */
+const CAPTION_GAP_MM = 1.5
+
 function sizeLabel(item: ResolvedItem): string {
   const round = (mm: number) => String(Math.round(mm * 10) / 10)
   return `${round(item.rectMm.width)} × ${round(item.rectMm.height)} mm`
@@ -157,6 +161,9 @@ export function SpreadView({
       style={{
         width: resolved.spreadWidthMm * pxPerMm,
         height: resolved.spreadHeightMm * pxPerMm,
+        ...(resolved.backgroundColor === undefined
+          ? {}
+          : { background: resolved.backgroundColor }),
       }}
     >
       {resolved.items.map((item) => {
@@ -268,19 +275,23 @@ function SpreadFrame({
       : { transform: `rotate(${String(item.rotation)}deg)` }),
   }
   const selected = control?.pressed === true && !cropActive
-  const imageStyle: CSSProperties = turned
-    ? turnedPhotoStyle(
-        { width: box.width, height: box.height },
-        item.sourceCropRect ?? FULL_CROP,
-        quarterTurns,
-        straightenDeg,
-      )
-    : {
-        left: crop.left,
-        top: crop.top,
-        width: crop.width,
-        height: crop.height,
-      }
+  const filter = adjustFilter(item.adjust)
+  const imageStyle: CSSProperties = {
+    ...(turned
+      ? turnedPhotoStyle(
+          { width: box.width, height: box.height },
+          item.sourceCropRect ?? FULL_CROP,
+          quarterTurns,
+          straightenDeg,
+        )
+      : {
+          left: crop.left,
+          top: crop.top,
+          width: crop.width,
+          height: crop.height,
+        }),
+    ...(filter === undefined ? {} : { filter }),
+  }
   // A turned photo's transform is its layout; previews go on a wrapper.
   const layer = (img: ReactElement): ReactElement =>
     turned ? (
@@ -357,6 +368,8 @@ function SpreadFrame({
     <div
       ref={bodyRef}
       className="spread-frame-body"
+      style={frameStyleCss(item.style, pxPerMm)}
+      data-frame-style={item.style === undefined ? undefined : 'true'}
       draggable={!cropActive && !selected && control?.onDragStart !== undefined}
       onDragStart={control?.onDragStart}
     >
@@ -379,6 +392,16 @@ function SpreadFrame({
       )}
     </div>
   )
+  const captionNode =
+    item.caption === undefined ? null : (
+      <span
+        className="spread-frame-caption"
+        data-testid={thumb ? undefined : 'frame-caption'}
+        style={{ top: `calc(100% + ${String(CAPTION_GAP_MM * pxPerMm)}px)` }}
+      >
+        {item.caption}
+      </span>
+    )
   if (control === undefined) {
     return (
       <div
@@ -393,6 +416,7 @@ function SpreadFrame({
         style={style}
       >
         {body}
+        {captionNode}
       </div>
     )
   }
@@ -414,6 +438,7 @@ function SpreadFrame({
       onDoubleClick={control.onDoubleActivate}
     >
       {body}
+      {captionNode}
       {cropActive ? (
         <span className="spread-frame-crop-tag" data-testid="crop-overlay-tag">
           Crop · {Math.round((control.cropZoom ?? 1) * 100)}%

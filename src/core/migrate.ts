@@ -1,4 +1,4 @@
-import { defaultCover, defaultEndpapers } from './cover'
+import { defaultCover, defaultCoverStyle, defaultEndpapers } from './cover'
 import { CURRENT_SCHEMA_VERSION } from './schema'
 
 export type MigrateResult =
@@ -158,6 +158,24 @@ function migrateV7ToV8(
   return { ...input, schemaVersion: 8, frameStyles: {} }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object'
+}
+
+/** v9: cover style, endpaper switches (settings) — kit defaults. */
+function migrateV8ToV9(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const cover = isRecord(input.cover) ? input.cover : {}
+  const settings = isRecord(input.settings) ? input.settings : {}
+  return {
+    ...input,
+    schemaVersion: 9,
+    cover: { ...cover, style: defaultCoverStyle() },
+    settings: { ...settings, endpapers: { enabled: true, same: true } },
+  }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -215,6 +233,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 7) {
     value = migrateV7ToV8(value as Record<string, unknown>)
+    version = 8
+  }
+  if (version === 8) {
+    value = migrateV8ToV9(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }

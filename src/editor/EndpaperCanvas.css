@@ -1,0 +1,68 @@
+/* Kit EndpaperSpread (uikit/src/sandbox/v7.tsx:32,78): dotted pastedown. */
+.endpaper-spread {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-height: 100%;
+  container-type: inline-size;
+  box-shadow: var(--cover-shadow);
+}
+
+.endpaper-page,
+.endpaper-swatch {
+  background-color: var(--endpaper);
+  background-image:
+    radial-gradient(
+      circle at 25% 25%,
+      color-mix(in srgb, white 10%, transparent) 1.2px,
+      transparent 1.6px
+    ),
+    radial-gradient(
+      circle at 75% 75%,
+      color-mix(in srgb, white 10%, transparent) 1.2px,
+      transparent 1.6px
+    );
+  background-size: 14px 14px;
+}
+
+.endpaper-page {
+  height: 100%;
+  flex: 1;
+}
+
+.endpaper-page[style],
+.endpaper-swatch[style] {
+  background-size: cover;
+  background-position: center;
+}
+
+.endpaper-swatch {
+  width: 3rem;
+  height: 1.5rem;
+  border-radius: var(--radius-2xs);
+}
+
+.endpaper-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: color-mix(in srgb, black 18%, transparent);
+}
+
+.endpaper-label {
+  position: absolute;
+  top: 0.5rem;
+  pointer-events: none;
+  color: var(--cover-title-ink);
+  font-size: var(--text-2xs);
+}
+
+.endpaper-label[data-side='front'] {
+  left: 10px;
+}
+
+.endpaper-label[data-side='back'] {
+  right: 10px;
+}
