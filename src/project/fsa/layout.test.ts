@@ -46,20 +46,37 @@ describe('fsa layout helpers', () => {
 
   it('treats missing, empty, and non-object library.json as empty meta', async () => {
     const root = createMemoryDirectory()
-    expect(await readLibraryMeta(root)).toEqual({})
+    const empty_ = { ok: true, meta: {} }
+    expect(await readLibraryMeta(root)).toEqual(empty_)
 
     const empty = await root.getFile(LIBRARY_JSON, { create: true })
     await empty.writeText('   ')
-    expect(await readLibraryMeta(root)).toEqual({})
+    expect(await readLibraryMeta(root)).toEqual(empty_)
 
     await empty.writeText('null')
-    expect(await readLibraryMeta(root)).toEqual({})
+    expect(await readLibraryMeta(root)).toEqual(empty_)
 
     await empty.writeText('[]')
-    expect(await readLibraryMeta(root)).toEqual({})
+    expect(await readLibraryMeta(root)).toEqual(empty_)
+
+    await empty.writeText('{}')
+    expect(await readLibraryMeta(root)).toEqual(empty_)
 
     await writeLibraryMeta(root, {})
-    expect(await readLibraryMeta(root)).toEqual({})
-    expect(await readMemoryFileText(root, [LIBRARY_JSON])).toBe('{}')
+    expect(await readLibraryMeta(root)).toEqual(empty_)
+    expect(await readMemoryFileText(root, [LIBRARY_JSON])).toBe(
+      '{"schemaVersion":1}',
+    )
+  })
+
+  it('reports a newer library.json instead of reading it', async () => {
+    const root = createMemoryDirectory()
+    const file = await root.getFile(LIBRARY_JSON, { create: true })
+    await file.writeText('{"schemaVersion":99}')
+    expect(await readLibraryMeta(root)).toMatchObject({
+      ok: false,
+      code: 'newer-schema',
+      schemaVersion: 99,
+    })
   })
 })

@@ -63,9 +63,9 @@ export function makeBook(overrides: BookOverrides = {}): Book {
     rowGutterMm: layoutGridOverride?.rowGutterMm ?? 5,
     margins: {
       top: layoutGridOverride?.margins?.top ?? 15,
-      right: layoutGridOverride?.margins?.right ?? 15,
+      inside: layoutGridOverride?.margins?.inside ?? 15,
       bottom: layoutGridOverride?.margins?.bottom ?? 15,
-      left: layoutGridOverride?.margins?.left ?? 15,
+      outside: layoutGridOverride?.margins?.outside ?? 15,
     },
   }
 

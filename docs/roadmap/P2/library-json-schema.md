@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P2
 Title: `library.json` versioning
+Status: done
 
 ## Scope
 

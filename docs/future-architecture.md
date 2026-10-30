@@ -137,7 +137,8 @@ References: InDesign / Affinity Publisher (pasteboard, guides), Google Slides (s
 
 ## Grids and guides
 
-- **Layout grid (document):** book-level margins, columns, rows and gutters in mm (Figma layout grids / InDesign margins and columns), with an optional per-spread override. Templates generate frames aligned to the layout grid.
+- **Layout grid (document):** page-scoped and mirrored on facing pages. Book level: margins `top / bottom / inside / outside` (`inside` = spine side), `columns`, `rows`, column and row gutters, all in mm (Figma layout grids / InDesign margins and columns). A spread's `layoutGrid` is a partial override: it stores only the fields it changes. Schema v7 renamed the v6 `left / right` margins to `outside / inside`.
+- **Resolution (pure, `src/core/grid`):** `resolveLayoutGrid(book, spreadIndex)` folds the inheritance chain (book grid → spread override; a parent / master level slots in between) and returns, per page, the content box and the column and row rects. A lone first page is right-hand, a lone last page left-hand. Results are memoized by spread reference. Templates read margins and gutters from this resolved grid, so their frames align to the layout grid.
 - **Guides (document):** horizontal / vertical guides in spread coordinates, created by dragging from rulers or by numeric entry; movable, deletable, lockable. Book-level guides apply to every spread.
 - **Rulers:** mm rulers on the workspace edges following the camera; origin at the top-left trim corner of the active spread.
 - **Visibility and snapping toggles** (show grid, show guides, snap on/off) are view state, not document state.

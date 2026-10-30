@@ -14,7 +14,7 @@ const book = makeBook({
     rows: 2,
     columnGutterMm: 5,
     rowGutterMm: 10,
-    margins: { top: 10, bottom: 10, left: 10, right: 10 },
+    margins: { top: 10, bottom: 10, inside: 10, outside: 10 },
   },
   spreads: [
     makeSpread({ id: 'a' }),

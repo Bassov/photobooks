@@ -14,6 +14,7 @@ import {
 import { GridOverlay } from './GridOverlay'
 import { GuidesOverlay } from './GuidesOverlay'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
+import { setDragSource } from './dropHover'
 import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
 import { enterCropMode, getCropTarget, subscribeCropMode } from './cropMode'
 import {
@@ -232,6 +233,12 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
             event.dataTransfer.setData(FRAME_DRAG_MIME, encodeFrameDrag(frame))
             event.dataTransfer.effectAllowed = 'move'
             armFrameDragClick()
+            const source =
+              event.currentTarget.closest<HTMLElement>('[data-frame-id]')
+            // After the browser snapshots the drag image, so the ghost stays opaque.
+            setTimeout(() => {
+              setDragSource(source)
+            }, 0)
           }
         }
         return control
