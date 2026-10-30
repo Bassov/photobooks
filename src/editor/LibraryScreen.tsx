@@ -327,7 +327,7 @@ export function LibraryScreen() {
                               aria-label="Book title"
                               defaultValue={book.displayTitle}
                               autoFocus
-                              className="pb-lib-rename h-7 w-full rounded-md bg-field px-2 text-sm outline-hidden focus-visible:outline-1 focus-visible:outline-[#535152]"
+                              className="pb-lib-rename h-7 w-full rounded-md bg-field px-2 text-sm outline-hidden focus:shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--ring)]"
                               data-testid="rename-input"
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
