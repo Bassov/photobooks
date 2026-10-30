@@ -124,6 +124,7 @@
 }
 
 .pb-check {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: calc(var(--spacing) * 2);
