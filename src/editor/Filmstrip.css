@@ -64,14 +64,6 @@
   outline-offset: -2px;
 }
 
-/* Resize drag: only --film-preview-scale changes (compositor transform, no
-   layout, so the pasteboard is not resized per move); the virtualizer and dock
-   re-lay out once on release via the committed height. */
-[data-film-resizing='true'] .filmstrip-spacer {
-  transform: scale(var(--film-preview-scale, 1));
-  transform-origin: var(--film-preview-origin, 0) top;
-}
-
 .filmstrip-spacer {
   position: relative;
   height: calc(var(--film-thumb-h, 96px) + 12px);
@@ -135,22 +127,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-/* Kit name strip: same width as the tile, from thumb height 90. */
-.filmstrip-name {
-  flex: none;
-  box-sizing: border-box;
-  height: 18px;
-  line-height: 14px;
-  contain: strict;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1);
-  background: var(--chrome);
-  color: var(--muted-foreground);
-  font-size: var(--text-2xs);
 }
 
 /* Used mark: corner check (disc colors in editorChromeTokens). */
