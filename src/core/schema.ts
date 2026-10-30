@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 7 as const
+export const CURRENT_SCHEMA_VERSION = 8 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -16,9 +16,11 @@ const rectMmSchema = z.object({
 
 const marginsMmSchema = z.object({
   top: nonNegativeMm,
-  right: nonNegativeMm,
   bottom: nonNegativeMm,
-  left: nonNegativeMm,
+  /** Spine side of the page; mirrored on facing pages. */
+  inside: nonNegativeMm,
+  /** Fore-edge side of the page. */
+  outside: nonNegativeMm,
 })
 
 const layoutGridSchema = z.object({

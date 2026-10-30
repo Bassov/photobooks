@@ -118,7 +118,7 @@ The system SHALL provide a File System Access library storage adapter that imple
 
 ### Requirement: On-disk library layout and durable book writes
 
-The File System Access adapter SHALL persist library metadata and books using the library folder layout: `library.json` at the library root and `books/<bookId>/book.json` per book. Book writes MUST use a writable stream commit and rotate the previous book file to `book.json.bak` before replacing `book.json`. Creating a book MUST create its book directory. Deleting a book MUST remove that book's directory contents from the library.
+The File System Access adapter SHALL persist library metadata and books using the library folder layout: `library.json` at the library root and `books/<bookId>/book.json` per book. Book writes MUST use a writable stream commit and rotate the previous book file to `book.json.bak` before replacing `book.json`. Creating a book MUST create its book directory. Deleting a book MUST remove that book's directory contents from the library. `library.json` MUST carry `schemaVersion` (currently 1); a file without it is v0 and migrates to v1 on read, and a file with a newer version MUST fail reads and writes with `newer-schema` without being overwritten.
 
 #### Scenario: Create writes library layout files
 

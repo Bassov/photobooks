@@ -90,7 +90,7 @@ function createSessionBook(): Book {
       rows: 2,
       columnGutterMm: 5,
       rowGutterMm: 5,
-      margins: { top: 15, right: 15, bottom: 15, left: 15 },
+      margins: { top: 15, bottom: 15, inside: 15, outside: 15 },
     },
     guides: [],
     frameStyles: {},

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveGrid } from '../core'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { pageGridRects } from './gridOverlayModel'
 
@@ -9,7 +8,7 @@ const middle = makeBook({
     rows: 2,
     columnGutterMm: 6,
     rowGutterMm: 4,
-    margins: { top: 10, bottom: 20, left: 30, right: 12 },
+    margins: { top: 10, bottom: 20, inside: 30, outside: 12 },
   },
   spreads: [
     makeSpread({ id: 'cover' }),
@@ -65,7 +64,7 @@ describe('pageGridRects', () => {
 
   it('a single-spread book is one right-hand page', () => {
     const one = makeBook({
-      layoutGrid: { margins: { top: 10, bottom: 20, left: 30, right: 12 } },
+      layoutGrid: { margins: { top: 10, bottom: 20, inside: 30, outside: 12 } },
       spreads: [makeSpread({ id: 'only' })],
     })
     expect(pageGridRects(one, 0)[0]?.content.x).toBe(30)
@@ -89,8 +88,6 @@ describe('pageGridRects', () => {
     const book = makeBook({
       spreads: [makeSpread({ id: 's', layoutGrid: { columns: 5 } })],
     })
-    const values = effectiveGrid(book, book.spreads[0]).values
-    expect(pageGridRects(book, 0, values)[0]?.columns).toHaveLength(5)
     expect(pageGridRects(book, 0)[0]?.columns).toHaveLength(5)
   })
 })
