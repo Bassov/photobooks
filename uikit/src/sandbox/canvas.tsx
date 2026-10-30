@@ -9,7 +9,7 @@ import { P } from "@/data"
 import {
   SW, SH, PAGE, type Frame, type Spread, type Rect, type SnapLine, type Anchor, anchors, snapRect, resolveGrid, effectiveGrid,
   allGuides, clamp, round, effectiveDpi, orientedSize, photoOf, uid, framesFromTemplate,
-  parentOf,
+  parentOf, pageNumbersOf, type Guide,
 } from "./model"
 import { useStudio, mapSpread, mapFrames, type Studio } from "./store"
 import { fillTokens } from "./meta"
@@ -111,7 +111,7 @@ function FrameEl(p: FrameProps) {
     <div ref={ref} {...(canDrop ? dropProps : {})} {...(st.features.swap && f.photo && !p.inherited ? dragProps : {})}
       data-frame={f.id} data-testid={p.inherited ? "master-frame" : "frame"}
       onPointerDown={(e) => p.onDown(e, f)} onDoubleClick={() => p.onDouble(f)}
-      className={cn("group/frame absolute", p.inherited ? "pointer-events-none z-10" : "", isDragging && "opacity-40", p.hidden && "opacity-0")}
+      className={cn("group/frame absolute", p.inherited ? cn("z-10", st.features.overrides && st.view.tool === "select" && !st.view.preview ? "cursor-default" : "pointer-events-none") : "", isDragging && "opacity-40", p.hidden && "opacity-0")}
       style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop ? 30 : undefined }}>
       {crop && <div className="pointer-events-none absolute inset-0 overflow-visible"><PhotoImg f={f} wpx={f.w * sc} hpx={f.h * sc} ghost /></div>}
       <FrameBody f={f} s={p.s} sc={sc} missing={missing} inherited={p.inherited} editing={p.editing} onEditDone={p.onEditDone} />
@@ -235,6 +235,17 @@ function Handles({ r, sc, rotate, onHandle }: { r: Rect & { rot?: number }; sc: 
 }
 
 /* ---------------------------------------------------------------- spread surface */
+/** One guide line with its 7 px grab strip; `inherited` guides come from the parent master (dashed, not draggable on the spread). */
+export function GuideLine({ g, sc, onDown }: { g: Guide & { inherited?: boolean }; sc: number; onDown: (e: React.PointerEvent) => void }) {
+  return (
+    <div data-guide={g.id} onPointerDown={onDown}
+      className={cn("absolute z-20", g.axis === "v" ? "inset-y-[-12px] w-[7px] -translate-x-[3px] cursor-ew-resize" : "inset-x-[-12px] h-[7px] -translate-y-[3px] cursor-ns-resize", (g.locked || g.inherited) && "cursor-default")}
+      style={g.axis === "v" ? { left: g.pos * sc } : { top: g.pos * sc }}>
+      <div className={cn("absolute", g.axis === "v" ? "inset-y-0 left-[3px] w-px" : "inset-x-0 top-[3px] h-px", g.inherited ? "bg-parent-soft [background:repeating-linear-gradient(var(--dir),#a3a1a2_0_4px,transparent_4px_7px)]" : g.scope === "book" ? "bg-portrait" : "bg-guide")}
+        style={{ ["--dir" as string]: g.axis === "v" ? "180deg" : "90deg" }} />
+    </div>
+  )
+}
 export function SpreadSurface({ si, sc, active = true, onGuideDown, className }: {
   si: number; sc: number; active?: boolean; className?: string
   onGuideDown?: (e: React.PointerEvent, id: string, inherited: boolean) => void
@@ -389,7 +400,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   })
   const showSel = active && selFrames.length > 0 && !st.cropId && !view.preview
   const single = selFrames.length === 1 ? selFrames[0] : null
-  const pn = view.pageNumbers || par?.pageNumbers
+  const pn = view.pageNumbers || pageNumbersOf(par)
   const pageNo = (side: 0 | 1) => (doc.pageStart ?? 1) + si * 2 - 1 + side
   return (
     <div ref={ref} {...dropProps} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si}
@@ -414,14 +425,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       ))}
       {view.preview && <div className="pointer-events-none absolute inset-0 outline-[4000px] outline-canvas [outline-style:solid]" />}
       {view.grid && !view.preview && <GridOverlay s={s} sc={sc} />}
-      {view.guides && !view.preview && allGuides(doc, s).map((g) => (
-        <div key={g.id} data-guide={g.id} onPointerDown={(e) => onGuideDown?.(e, g.id, !!g.inherited)}
-          className={cn("absolute z-20", g.axis === "v" ? "inset-y-[-12px] w-[7px] -translate-x-[3px] cursor-ew-resize" : "inset-x-[-12px] h-[7px] -translate-y-[3px] cursor-ns-resize", (g.locked || g.inherited) && "cursor-default")}
-          style={g.axis === "v" ? { left: g.pos * sc } : { top: g.pos * sc }}>
-          <div className={cn("absolute", g.axis === "v" ? "inset-y-0 left-[3px] w-px" : "inset-x-0 top-[3px] h-px", g.inherited ? "bg-parent-soft [background:repeating-linear-gradient(var(--dir),#a3a1a2_0_4px,transparent_4px_7px)]" : g.scope === "book" ? "bg-portrait" : "bg-guide")}
-            style={{ ["--dir" as string]: g.axis === "v" ? "180deg" : "90deg" }} />
-        </div>
-      ))}
+      {view.guides && !view.preview && allGuides(doc, s).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown?.(e, g.id, !!g.inherited)} />)}
       {view.overlays && <PrintOverlay sc={sc} />}
       {pn && !view.preview && [0, 1].map((side) => (si === 0 && doc.skipFirst && side === 0 ? null :
         <span key={side} className="pointer-events-none absolute text-ink" data-testid="page-number"

@@ -1,6 +1,7 @@
 /* #/demo editor and its parts. Each part can mount alone through <PartStudio> with an explicit book / doc / spread / selection / node / mode. */
 import * as React from "react"
-import { Settings, FolderPlus, Printer, Eye } from "lucide-react"
+import type { ComponentProps } from "react"
+import { Settings, FolderPlus, Printer, Eye, ImageOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { photos as ALL_PHOTOS } from "@/data"
 import { Std } from "@/features/parts"
@@ -14,12 +15,12 @@ import type { View } from "@/sandbox/store"
 import { FolderPicker, BOOKS } from "@/features/screens"
 import { SiteViewer } from "@/features/site-viewer"
 import { useSession, blankDoc, blankExtras, coverOf, fmtOf, type Extras } from "./session"
-import { PrintDialog, PublishDialog } from "./dialogs"
+import { PrintDialog, PublishDialog, RelinkDialog } from "./dialogs"
 import { SiteCover } from "./site"
 import { SLOT } from "./layout"
 
-/** The editor features #/demo enables. */
-export const DEMO_FEATURES: Features = { handles: true, swap: true, drop: true, multiDrop: true, crop: true, multi: true, marquee: true, textEdit: true }
+/** The editor features #/demo enables. `overrides`: Alt+click a parent item on a spread to make a local copy. Guides on a master are edited in the Masters view (see Viewport). */
+export const DEMO_FEATURES: Features = { handles: true, swap: true, drop: true, multiDrop: true, crop: true, multi: true, marquee: true, textEdit: true, overrides: true }
 
 /** Writes the studio state back into the session book (doc, size, cover, masters). */
 export function DocSpy({ id }: { id: string }) {
@@ -29,9 +30,42 @@ export function DocSpy({ id }: { id: string }) {
   React.useEffect(() => {
     const doc = reflowDoc(st.doc, st.book, BOOK0) // store in base geometry: StudioProvider reflows init docs from BOOK0
     // v0.8.1 (P1-1): the whole editor state is kept per book — doc, size, cover photo + texts, masters (incl. grids)
-    set({ books: S.books.map((b) => (b.id === id ? { ...b, doc, book: st.book, extras: { cover: cov, coverText: ct, masters: ms } } : b)) })
-  }, [st.doc, st.book, id, cov, ct, ms])
+    set({ books: S.books.map((b) => (b.id === id ? { ...b, doc, book: st.book, extras: { cover: cov, coverText: ct, masters: ms }, missing: [...st.missing] } : b)) })
+  }, [st.doc, st.book, st.missing, id, cov, ct, ms])
   return null
+}
+const idsKey = (ids: Iterable<string>) => [...ids].sort().join()
+/** Session → studio: photos the session marks missing (`__demo.missing()`) show hatched until relinked. */
+export function MissingSync({ id }: { id: string }) {
+  const { S } = useSession()
+  const st = useStudio()
+  const miss = S.books.find((b) => b.id === id)?.missing
+  React.useEffect(() => { if (miss && idsKey(miss) !== idsKey(st.missing)) st.setMissing(new Set(miss)) }, [miss])
+  return null
+}
+/** Dock chip + Relink dialog: shown only while photos are missing. Rescan matches by folder; Resolve relinks the matches; Skip keeps hatched frames. */
+export function RelinkControl() {
+  const st = useStudio()
+  const [open, setOpen] = React.useState(false)
+  const [picking, setPicking] = React.useState(false)
+  const [found, setFound] = React.useState<ReadonlySet<string>>(new Set())
+  const missing = [...st.missing]
+  if (!missing.length) return null
+  const close = () => { setOpen(false); setFound(new Set()) }
+  return <>
+    <Button variant="ghost" size="sm" className="h-7 gap-1.5 rounded-full px-2.5 text-xs text-ink-warning [&_svg]:size-3.5" onPress={() => setOpen(true)} data-testid="demo-relink"><ImageOff />{missing.length} missing · Relink…</Button>
+    {open && <RelinkDialog missing={missing} found={found} onSkip={close} onRescan={() => setPicking(true)}
+      onResolve={() => {
+        const rest = new Set(missing.filter((m) => !found.has(m)))
+        st.setMissing(rest); st.setStatus(`Relinked ${found.size} photo${found.size === 1 ? "" : "s"}`); close()
+      }} />}
+    <FolderPicker isOpen={picking} title="Rescan a folder for missing photos" onCancel={() => setPicking(false)} onPick={(p) => {
+      setPicking(false)
+      /* kit stand-in for the worker hash scan: the library folder holds the originals, any other folder matches nothing */
+      const hit = p.endsWith("/Photobooks") ? new Set(missing) : new Set<string>()
+      setFound(hit); st.setStatus(hit.size ? `Found ${hit.size} of ${missing.length} in “${p}”` : `No matches in “${p}”`)
+    }} />
+  </>
 }
 /** Filmstrip dock "Add folder…" button + folder picker (adds all kit photos not yet in the gallery). */
 export function AddFolder() {
@@ -49,9 +83,10 @@ export function AddFolder() {
   </>
 }
 /** #/demo filmstrip dock (photos only + Add folder…). Needs a studio (Std or PartStudio). */
-export function PhotosDock() { return <Dock right={<AddFolder />} /> }
+export function PhotosDock() { return <Dock right={<><RelinkControl /><AddFolder /></>} /> }
 
-/** #/demo editor top bar: tools, history, snap / grid, zoom, save, title (→ Book settings) and Preview · Settings · Print · Publish. */
+const DEMO_VIEWS: ComponentProps<typeof TopBar>["views"] = ["snap", "grid", "guides", "rulers", "overlays", "dpi"]
+/** #/demo editor top bar: tools, history, view toggles (snap, grid, guides, rulers, bleed / trim / safe, DPI badges), zoom, save, title (→ Book settings) and Preview · Settings · Print · Publish. */
 export function EditorTopBar({ title, onLibrary, onPreview, onSettings, onPrint, onPublish }: {
   title: string; onLibrary?: () => void; onPreview?: () => void; onSettings?: () => void; onPrint?: () => void; onPublish?: () => void
 }) {
@@ -64,7 +99,7 @@ export function EditorTopBar({ title, onLibrary, onPreview, onSettings, onPrint,
       <Button variant="ghost" size="sm" className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium [&_svg]:size-4" style={quiet} onPress={onPublish} data-testid="demo-publish">Publish</Button>
     </div>
   )
-  return <TopBar title={title} onLibrary={onLibrary} right={right} />
+  return <TopBar title={title} onLibrary={onLibrary} views={DEMO_VIEWS} right={right} />
 }
 
 /** The whole #/demo editor for one session book. */
@@ -78,10 +113,10 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
   const openSite = () => { const oid = S.open; set({ books: S.books.map((x) => (x.id === oid ? { ...x, published: true } : x)), stage: "site", back: "editor", siteEntry: "catalog" }) }
   return (
     <div className="h-full" data-testid="demo-editor">
-      <Std keep init={() => b.doc ?? blankDoc()} book={b.book} cur={0} features={DEMO_FEATURES}
+      <Std keep init={() => b.doc ?? blankDoc()} book={b.book} cur={0} features={DEMO_FEATURES} missing={b.missing} left={<SpreadsPanel reorder actions />}
         top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor" })} onPrint={() => setDlg("print")} onPublish={() => setDlg("publish")} />}
         dock={<PhotosDock />}
-        overlay={<><DocSpy id={id} />
+        overlay={<><DocSpy id={id} /><MissingSync id={id} />
           {preview && <div className="fixed inset-0 z-[80]" data-testid="book-preview"><SiteViewer single onClose={() => setPreview(false)} books={[card]} initial={{ page: "book", book: b.id }} cover={(w) => <SiteCover w={w} />} /></div>}
           {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} onClose={() => setDlg(null)} />}</>} />
     </div>
@@ -106,7 +141,7 @@ const box = "relative flex h-full min-h-0 flex-col overflow-hidden bg-chrome"
 /** Filmstrip (the #/demo photos dock) alone. */
 export function FilmstripPart(p: PartState) { return <PartStudio {...p}><div className={box} data-testid="part-filmstrip"><div className="flex-1" /><PhotosDock /></div></PartStudio> }
 /** Spread list (left panel) alone. */
-export function SpreadListPart(p: PartState) { return <PartStudio {...p}><div className={box} style={{ width: SLOT.left }} data-testid="part-spreads"><SpreadsPanel /></div></PartStudio> }
+export function SpreadListPart(p: PartState) { return <PartStudio {...p}><div className={box} style={{ width: SLOT.left }} data-testid="part-spreads"><SpreadsPanel reorder actions /></div></PartStudio> }
 /** Editor top bar alone. */
 export function TopBarPart({ title = "Untitled book", ...p }: PartState & { title?: string }) { return <PartStudio {...p}><div data-testid="part-topbar"><EditorTopBar title={title} /></div></PartStudio> }
 /** Inspector alone. view "frame" selects frame `frame` (index on spread `cur`), "spread" clears selection, "book" opens Book settings. */
@@ -133,7 +168,7 @@ export function EditorView({ title = "Lake trip", slots = {}, pick, crop, view, 
     <div className="h-full" data-testid="editor-view">
       <Std keep init={p.doc ?? (() => blankDoc())} book={p.book} cur={p.cur ?? 0} sel={p.sel} node={p.node} mode={p.mode} features={p.features ?? DEMO_FEATURES} view={view} pick={pick}
         top={<EditorTopBar title={title} />}
-        left={slots.left === false ? false : undefined}
+        left={slots.left === false ? false : <SpreadsPanel reorder actions />}
         right={slots.right === false ? false : undefined}
         dock={slots.dock === false ? false : <PhotosDock />}
         overlay={<>{crop && <CropOn />}{overlay}</>} />

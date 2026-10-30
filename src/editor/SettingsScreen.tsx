@@ -7,12 +7,8 @@ import { FeaturedIcon } from '../ui/FeaturedIcon'
 import { Icon } from '../ui/Icon'
 import { changeLibraryFolder } from './projectSession'
 import {
-  SETTINGS_DEFERRED_COPY,
   SETTINGS_SECTIONS,
   settingsNavActiveClass,
-  settingsNavIsCurrent,
-  settingsSectionLabel,
-  type SettingsSectionId,
 } from './settingsScreenModel'
 
 const ROW =
@@ -27,9 +23,7 @@ export function SettingsScreen({
   bookCount: number
   changeDisabled?: boolean
 }) {
-  const [sec, setSec] = useState<SettingsSectionId>('library')
   const [confirm, setConfirm] = useState(false)
-  const sectionLabel = settingsSectionLabel(sec)
 
   return (
     <div
@@ -44,19 +38,15 @@ export function SettingsScreen({
           <span className="text-base font-semibold">Settings</span>
         </div>
         {SETTINGS_SECTIONS.map((section) => {
-          const active = settingsNavIsCurrent(sec, section.id)
           return (
             <button
               key={section.id}
               type="button"
-              aria-current={active ? 'page' : undefined}
+              aria-current="page"
               data-testid={`settings-nav-${section.id}`}
-              onClick={() => {
-                setSec(section.id)
-              }}
               className={cn(
                 'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
-                settingsNavActiveClass(active),
+                settingsNavActiveClass(),
               )}
             >
               <Icon
@@ -76,102 +66,91 @@ export function SettingsScreen({
         data-testid="settings-scroll"
       >
         <h1 className="heading text-2xl" data-testid="settings-section-title">
-          {sectionLabel}
+          Library
         </h1>
-        {sec === 'library' ? (
-          <>
-            <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
-              Photobooks keeps every book in one folder on your disk — your
-              library. To use a different library, change the folder.
-            </p>
-            <div
-              className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome"
-              data-testid="library-settings-panel"
-            >
-              <div className={ROW}>
-                <FeaturedIcon color="gray" theme="outline" size="md">
-                  <Icon name="hardDrive" size={16} />
-                </FeaturedIcon>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">Library folder</div>
-                  <div
-                    className="truncate font-mono text-xs text-muted-foreground"
-                    data-testid="library-path"
-                    title={libraryPath}
-                  >
-                    {libraryPath}
-                  </div>
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="gap-1.5 px-3 text-sm shadow-xs [&_svg]:size-4"
-                  isDisabled={Boolean(changeDisabled)}
-                  onPress={() => {
-                    setConfirm(true)
-                  }}
-                  data-testid="change-library"
-                >
-                  <Icon name="folderSync" size={16} />
-                  Change library folder…
-                </Button>
-              </div>
-              <div
-                className="mx-4 h-px shrink-0 bg-black/[0.06]"
-                aria-hidden
-                data-testid="settings-rule"
-              />
-              <div className={ROW}>
-                <div className="min-w-0 flex-1 text-sm">Books</div>
-                <span
-                  className="text-sm tabular-nums text-muted-foreground"
-                  data-testid="settings-book-count"
-                >
-                  {bookCount}
-                </span>
-              </div>
-              <div
-                className="mx-4 h-px shrink-0 bg-black/[0.06]"
-                aria-hidden
-                data-testid="settings-rule"
-              />
-              <div className={ROW}>
-                <div className="min-w-0 flex-1 text-sm">Folder access</div>
-                <Badge color="gray" dot>
-                  Allowed · read and write
-                </Badge>
-              </div>
-              <div
-                className="mx-4 h-px shrink-0 bg-black/[0.06]"
-                aria-hidden
-                data-testid="settings-rule"
-              />
-              <div className={ROW}>
-                <div className="min-w-0 flex-1 text-sm">
-                  Preview cache
-                  <div className="text-xs text-muted-foreground">
-                    Rebuilt automatically if cleared
-                  </div>
-                </div>
-                <span
-                  className="text-sm text-muted-foreground"
-                  data-testid="settings-preview-cache"
-                >
-                  Automatic
-                </span>
-              </div>
-            </div>
-          </>
-        ) : (
+        <>
+          <p className="mt-1 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
+            Photobooks keeps every book in one folder on your disk — your
+            library. To use a different library, change the folder.
+          </p>
           <div
-            className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome px-4 py-5"
-            data-testid={`settings-deferred-${sec}`}
+            className="mt-5 max-w-[640px] overflow-hidden rounded-xl bg-chrome"
+            data-testid="library-settings-panel"
           >
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {SETTINGS_DEFERRED_COPY[sec]}
-            </p>
+            <div className={ROW}>
+              <FeaturedIcon color="gray" theme="outline" size="md">
+                <Icon name="hardDrive" size={16} />
+              </FeaturedIcon>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium">Library folder</div>
+                <div
+                  className="truncate font-mono text-xs text-muted-foreground"
+                  data-testid="library-path"
+                  title={libraryPath}
+                >
+                  {libraryPath}
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1.5 px-3 text-sm shadow-xs [&_svg]:size-4"
+                isDisabled={Boolean(changeDisabled)}
+                onPress={() => {
+                  setConfirm(true)
+                }}
+                data-testid="change-library"
+              >
+                <Icon name="folderSync" size={16} />
+                Change library folder…
+              </Button>
+            </div>
+            <div
+              className="mx-4 h-px shrink-0 bg-black/[0.06]"
+              aria-hidden
+              data-testid="settings-rule"
+            />
+            <div className={ROW}>
+              <div className="min-w-0 flex-1 text-sm">Books</div>
+              <span
+                className="text-sm tabular-nums text-muted-foreground"
+                data-testid="settings-book-count"
+              >
+                {bookCount}
+              </span>
+            </div>
+            <div
+              className="mx-4 h-px shrink-0 bg-black/[0.06]"
+              aria-hidden
+              data-testid="settings-rule"
+            />
+            <div className={ROW}>
+              <div className="min-w-0 flex-1 text-sm">Folder access</div>
+              <Badge color="gray" dot>
+                Allowed · read and write
+              </Badge>
+            </div>
+            <div
+              className="mx-4 h-px shrink-0 bg-black/[0.06]"
+              aria-hidden
+              data-testid="settings-rule"
+            />
+            <div className={ROW}>
+              <div className="min-w-0 flex-1 text-sm">
+                Preview cache
+                <div className="text-xs text-muted-foreground">
+                  Rebuilt automatically if cleared
+                </div>
+              </div>
+              <span
+                className="text-sm text-muted-foreground"
+                data-testid="settings-preview-cache"
+              >
+                Automatic
+              </span>
+            </div>
           </div>
-        )}
+        </>
       </main>
 
       <AlertDialog

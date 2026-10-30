@@ -621,6 +621,7 @@ await smokeS("v7 endpapers only when enabled in Book settings", "canvas", async 
 })
 await smokeS("v7 Pages/Masters toggle: masters show margins, columns, # placeholders", "canvas", async () => {
   await E('[data-testid="mode-seg"] button', ).nth(1).click(); await page.waitForTimeout(200)
+  await E('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]').click(); await page.waitForTimeout(200) // kit10: Page numbers start off (they feed Parent.pageNumbers of every spread)
   const it = await items(), m = await E('[data-testid="canvas-master"]').count(), mm = await E('[data-testid="master-margin"]').count(), c = await E('[data-testid="master-col"]').count(), pn = await E('[data-testid="master-pn"]').allInnerTexts()
   return [it.join() === "mA,mB" && m === 1 && mm === 2 && c >= 4 && pn.length === 2 && pn.every((t) => t === "#"), `${it} margin=${mm} cols=${c} pn=${pn}`]
 })
@@ -778,7 +779,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const r = {}
     r.tb = await E('[role=toolbar]').count()
     r.params = await E('[data-testid="inspector"] [data-testid="ctx-inspector"][data-ctx="photo"]').count()
-    await E('[data-item="p3"]').click(); await page.waitForTimeout(200)
+    await E('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await E('[data-item="p3"]').click(); await page.waitForTimeout(200) // the spread list is a drag source (reorder): scroll first, then click
     r.tpl = await E('[data-testid="tpl-tile"]').count(); r.search = await E('[data-testid="inspector"] input[type=search], [data-testid="inspector"] [role=searchbox]').count()
     r.film = await E('[data-testid="filmstrip"] [role=row]').count()
     const fr = E('[data-testid="spread"] [data-testid="frame"]')
@@ -1064,7 +1065,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     await D('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]').click(); await page.waitForTimeout(200)
     await D('[data-testid="master-field-C"]').fill("4"); await page.waitForTimeout(200); const r2 = await r()
     await D('[data-testid="master-field-T"]').fill("20"); await page.waitForTimeout(200); const r3 = await r()
-    return [r1.pn === 0 && r0.pn > 0 && r2.cols === 2 * 4 && r2.cols !== r0.cols && r3.inset !== r2.inset, `pn ${r0.pn}→${r1.pn}, cols ${r0.cols}→${r2.cols}, inset ${r2.inset}→${r3.inset}`]
+    return [r0.pn === 0 && r1.pn > 0 && r2.cols === 2 * 4 && r2.cols !== r0.cols && r3.inset !== r2.inset, `pn ${r0.pn}→${r1.pn}, cols ${r0.cols}→${r2.cols}, inset ${r2.inset}→${r3.inset}`]
   })
   // P2-3 dashed guides carry data-allow-border
   { const c = fs.readFileSync(new URL("../src/sandbox/canvas.tsx", import.meta.url), "utf8"), v = fs.readFileSync(new URL("../src/sandbox/v7.tsx", import.meta.url), "utf8")
@@ -1143,7 +1144,7 @@ await smokeS("v8 §3.3 sliders: arrows ±1 step, Shift ×10, double-click resets
   return [near(v1 - v0, step) && near(v2 - v1, 10 * step) && near(v2 - v3, step) && near(v4, def) && editable && y0 === await page.evaluate(() => scrollY), `${v0}→${v1}→${v2}→${v3} dbl→${v4} (default ${def}, step ${step}) field=${editable}`]
 })
 await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 rows on each page", "canvas", async () => {
-  await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
+  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
   const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
   await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
   if (!(await D('[data-testid="grid-col"]').count())) { await sg.getByLabel("Show grid").click(); await page.waitForTimeout(250) }
@@ -1327,7 +1328,7 @@ await smokeS("v8.1 P2-3 slider double-click resets to the real default (frame st
   ok("v8.1 P2-3 every listed slider declares its real default (resetValue)", bad.length === 0, bad.join(", ") || "Mat, Stroke, Radius, Margin, Gap")
 }
 await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a frame snaps it to a column/row edge", "canvas", async () => {
-  await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
+  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
   const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
   await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
   if (!(await D('[data-testid="grid-col"]').count())) { await sg.getByLabel("Show grid").click(); await page.waitForTimeout(250) }
@@ -1694,6 +1695,59 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     if ((m.l !== null && m.l !== SLOT.left) || (m.r !== null && m.r !== SLOT.right) || (m.l === null && m.r === null)) bad.push(`${slug} ${JSON.stringify(m)}`)
   }
   ok("stage 3: feature pages' panel-l / panel-r widths equal SLOT (212 / 300)", bad.length === 0, bad.join(" | ") || "6 pages")
+}
+
+
+// kit10: #/demo exposes the sandbox features it used to hide — view toggles, rulers + guides, spread menu / reorder, master guides + Page numbers, overrides, missing photo, Relink
+{
+  const e0 = errs.length
+  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
+  const c = (sel) => page.locator(sel).first().click() // dialogs portal outside the demo root
+  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]'); await page.waitForTimeout(300)
+  await c(`${demo} [data-testid="new-book"]`); await page.waitForTimeout(300); await c('[data-testid="create-book"]'); await page.waitForTimeout(500)
+  await c('[data-testid="demo-add-folder"]'); await page.locator("[role=dialog]").getByRole("button", { name: /Choose|Select|Use|Add/i }).last().click(); await page.waitForTimeout(400)
+  await c('[data-item="p1"]'); await page.waitForTimeout(250)
+  const views = await Promise.all(["snap", "grid", "guides", "rulers", "overlays", "dpi"].map((k) => page.locator(`${demo} [data-testid="toggle-${k}"]`).count()))
+  ok("kit10: #/demo top bar has all six view toggles (snap, grid, guides, rulers, bleed / trim / safe, DPI)", views.every((n) => n === 1), views.join())
+  await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(1).dragTo(page.locator(`${demo} [data-testid="canvas"] [data-testid="frame"]`).first()); await page.waitForTimeout(400) // p02 = the 800 px low-res photo
+  await c('[data-testid="toggle-dpi"]'); await page.waitForTimeout(200)
+  ok("kit10: DPI toggle shows the frame dpi badge", (await page.locator(`${demo} [data-testid="canvas"] [data-frame]`).filter({ hasText: /dpi/ }).count()) >= 1)
+  await c('[data-testid="toggle-dpi"]')
+  await c('[data-testid="toggle-rulers"]'); await page.waitForTimeout(200)
+  const g0 = await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()
+  const rx = await page.locator(`${demo} [data-testid="ruler-x"]`).boundingBox(), sp = await page.locator(`${demo} [data-testid="spread"]`).first().boundingBox()
+  await page.mouse.move(rx.x + rx.width / 2, rx.y + 10); await page.mouse.down(); await page.mouse.move(rx.x + rx.width / 2, sp.y + sp.height * 0.4, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(250)
+  ok("kit10: rulers show and a drag from the ruler adds a guide", (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) === g0 + 1, `${g0}→+1`)
+  await c('[data-testid="toggle-rulers"]')
+  await page.locator(`${demo} [data-item="p1"]`).hover(); await c('[data-item="p1"] [data-testid="spread-menu"]'); await page.waitForTimeout(250)
+  ok("kit10: spread row menu offers Add after / Duplicate / Delete", (await page.getByRole("menuitem").allInnerTexts()).filter((t) => /Add after|Duplicate|Delete/.test(t)).length === 3)
+  await page.getByRole("menuitem", { name: /Duplicate/ }).click(); await page.waitForTimeout(300)
+  const n0 = await page.locator(`${demo} [data-testid="panel-l"] [role=row]`).count()
+  ok("kit10: spread list is a drag source (reorder) and Add spread is visible", (await page.locator(`${demo} [data-testid="panel-l"] button`).filter({ hasText: "Drag" }).count()) > 0 && (await page.locator(`${demo} [data-testid="add-spread"]`).count()) === 1, `${n0} rows`)
+  // master guides + Page numbers feed every spread on the master
+  await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Masters", { exact: true }).click(); await page.waitForTimeout(250)
+  await c('[data-testid="toggle-rulers"]'); await page.waitForTimeout(200)
+  const m0 = await page.locator(`${demo} [data-testid="node-view"] [data-guide]`).count()
+  const ry = await page.locator(`${demo} [data-testid="ruler-y"]`).boundingBox(), mb = await page.locator(`${demo} [data-testid="canvas-master"]`).boundingBox()
+  await page.mouse.move(ry.x + 10, ry.y + ry.height / 2); await page.mouse.down(); await page.mouse.move(mb.x + mb.width * 0.3, ry.y + ry.height / 2, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(250)
+  const m1 = await page.locator(`${demo} [data-testid="node-view"] [data-guide]`).count()
+  await c('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]'); await page.waitForTimeout(200)
+  await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250); await c('[data-item="p1"]'); await page.waitForTimeout(250)
+  ok("kit10: a guide dragged on a master is kept and inherited (dashed) by its spreads", m1 === m0 + 1 && (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) >= m1, `master ${m0}→${m1}`)
+  ok("kit10: master Page numbers toggle wires Parent.pageNumbers — spreads show page numbers", (await page.locator(`${demo} [data-testid="spread"] [data-testid="page-number"]`).count()) === 2)
+  await page.locator(`${demo} [data-testid="master-frame"]`).first().click({ modifiers: ["Alt"], force: true }); await page.waitForTimeout(250)
+  ok("kit10: Alt+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"]`).first().getByText("override", { exact: true }).count()) === 1)
+  // missing photo + Relink
+  await page.evaluate(() => window.__demo.missing(1)); await page.waitForTimeout(400)
+  ok("kit10: a missing photo hatches its frame and the dock offers Relink…", (await page.locator(`${demo} [data-testid="demo-relink"]`).count()) === 1 && (await page.locator(`${demo} [data-testid="canvas"] .hatch-missing`).count()) >= 1)
+  await c('[data-testid="demo-relink"]'); await page.waitForTimeout(300)
+  const rows = await page.locator('[data-testid="relink-row"]').count(), dis = await page.locator('[data-testid="relink-resolve"]').getAttribute("aria-disabled")
+  ok("kit10: Relink dialog lists missing photos; Resolve waits for a rescan", rows === 1 && dis === "true", `rows=${rows} resolve aria-disabled=${dis}`)
+  await page.locator('[data-testid="relink-rescan"]').click(); await page.waitForTimeout(250); await page.locator("[role=dialog]").getByRole("button", { name: /Choose|Select|Use|Open/i }).last().click(); await page.waitForTimeout(300)
+  ok("kit10: rescanning the library folder marks the photo Found", (await page.locator('[data-testid="relink-row"]').getAttribute("data-status")) === "found")
+  await page.locator('[data-testid="relink-resolve"]').click(); await page.waitForTimeout(300)
+  ok("kit10: Resolve relinks — Relink… chip and hatch are gone", (await page.locator(`${demo} [data-testid="demo-relink"]`).count()) === 0 && (await page.locator(`${demo} [data-testid="canvas"] .hatch-missing`).count()) === 0)
+  ok("kit10: no console errors in the new flows", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
 

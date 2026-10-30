@@ -300,7 +300,7 @@ export function SpreadsPanel({ reorder = false, actions = false, onCollapse }: {
   return (
     <aside className="flex h-full min-h-0 flex-col" style={{ background: BAR, color: T }} data-testid="spreads-panel">
       <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg"><SegC items={["Pages", "Masters"]} on={st.mode === "pages" ? 0 : 1} set={(i) => { const m = i ? "masters" : "pages"; st.setMode(m); st.setNode(m === "masters" ? { k: "master", id: "A" } : null) }} /></div>
-      <ThumbGrid aria-label={st.mode === "masters" ? "Masters" : "Pages"} selectionMode="single" disallowEmptySelection={false} selectedKeys={selKey ? [selKey] : []} items={list}
+      <ThumbGrid key={st.mode} aria-label={st.mode === "masters" ? "Masters" : "Pages"} selectionMode="single" disallowEmptySelection={false} selectedKeys={selKey ? [selKey] : []} items={list}
         onSelectionChange={(k) => { const id = [...k][0]; if (id !== undefined) pick(String(id)) }}
         dragAndDropHooks={reorder && st.mode === "pages" ? dragAndDropHooks : undefined}
         className="e7 scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1" data-testid="list">
