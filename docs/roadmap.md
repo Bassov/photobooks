@@ -22,10 +22,10 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 
 **Review cut:** product screens look like kit v0.10.0 `#/demo`; stubs allowed, no fake controls. Done when: product screens match `#/demo` baseline steps 01–20, 23–26 and 39–49 by Designer review (21–22 land with P2 `parent-spreads`, 27–31 with P4 `pdf-export`, 32–38 with P3).
 
-- [ ] [prep] [rig-pr-body-gate-removal](roadmap/P1/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
+- [x] [prep] [rig-pr-body-gate-removal](roadmap/P1/rig-pr-body-gate-removal.md) — ts-agent-rig: remove pr-body gate, optional finish --body-file, pin bump
 - [ ] [prep] [ui-primitives-forms](roadmap/P1/ui-primitives-forms.md) — form primitives in `src/ui/`
 - [x] [prep] [cover-endpaper-schema](roadmap/P1/cover-endpaper-schema.md) — cover and endpapers in the document
-- [ ] [feature] [kit10-library-folder](roadmap/P1/kit10-library-folder.md) — Welcome and library folder: kit v0.10 look
+- [x] [feature] [kit10-library-folder](roadmap/P1/kit10-library-folder.md) — Welcome and library folder: kit v0.10 look
 - [ ] [feature] [kit10-library-books](roadmap/P1/kit10-library-books.md) — Your books grid: kit v0.10 look
 - [ ] [feature] [kit10-create-book](roadmap/P1/kit10-create-book.md) — Create book dialog: kit v0.10 look (title, page size, custom size)
 - [ ] [feature] [kit10-editor-chrome](roadmap/P1/kit10-editor-chrome.md) — Editor top bar and panels: kit v0.10 look

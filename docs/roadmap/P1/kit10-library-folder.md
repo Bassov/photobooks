@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Welcome and library folder: kit v0.10 look
+Status: done
 
 ## Scope
 
@@ -17,3 +18,7 @@ Title: Welcome and library folder: kit v0.10 look
 - **Test:** Playwright e2e on the `?fixture=` editor/library view asserting the kit structure and tokens; screenshot side by side with the kit baseline for steps 01–04, signed off by Designer review
 - **Depends:** none
 - **UI kit:** `uikit#/feature/open-save-project` (`uikit/src/features/pages.tsx` page `open-save-project`); parts: `uikit/src/features/library.tsx` (`WelcomeScreen, LibraryBar, LibraryEmpty`), `uikit/src/demo-parts/library.tsx` (`DemoLibrary`)
+
+## Done note
+
+Welcome/bar/empty already ported; aligned wash mid-stop and Change hover to kit v0.10; tokens e2e

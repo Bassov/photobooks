@@ -30,6 +30,10 @@ const STYLE_TEXT = `
   font-size: var(--text-base);
   box-shadow: var(--shadow-ink-sm);
 }
+.pb-button.pb-lib-change[data-hovered] {
+  background: var(--field);
+  color: var(--foreground);
+}
 .pb-library-headline {
   font-family: var(--font-heading);
   font-weight: var(--heading-weight);
