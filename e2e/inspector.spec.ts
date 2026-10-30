@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { expandDisclosure } from './fixtures/expandDisclosure'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
 import {
@@ -22,6 +23,7 @@ async function selectFrame(page: Page) {
   }
   const frame = page.getByTestId('spread-frame').nth(2)
   await frame.click()
+  await expandDisclosure(page, 'Position & size')
   await expect(page.getByTestId('inspector-geometry')).toBeVisible()
   return frame
 }

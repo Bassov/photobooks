@@ -133,3 +133,16 @@ export function framePhotoRows(
   }
   return rows
 }
+
+/** Kit Spread header: "Pages 2–3 · 1 empty" (or "Cover"). */
+export function spreadSummary(book: Book, spreadId: string): string {
+  const index = book.spreads.findIndex((item) => item.id === spreadId)
+  const spread = book.spreads[index]
+  if (spread === undefined) {
+    return ''
+  }
+  const empty = spread.frames.filter(
+    (item) => item.assetId === undefined,
+  ).length
+  return `${spreadTitle(index)} · ${String(empty)} empty`
+}

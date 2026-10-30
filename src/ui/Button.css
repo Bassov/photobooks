@@ -53,6 +53,16 @@
   background: color-mix(in srgb, var(--secondary) 80%, var(--muted));
 }
 
+/* Kit outline: borderless --field fill. */
+.pb-button--outline {
+  color: var(--foreground);
+  background: var(--field);
+}
+
+.pb-button--outline[data-hovered] {
+  background: var(--accent);
+}
+
 .pb-button--ghost {
   color: var(--muted-foreground);
   background: transparent;
@@ -94,10 +104,14 @@
   transform: none;
 }
 
+.pb-button--ghost[data-disabled],
+.pb-button--outline[data-disabled] {
+  border-color: transparent;
+}
+
 /* Ghost stays unboxed when disabled (kit: dimmed only). */
 .pb-button--ghost[data-disabled] {
   background: transparent;
-  border-color: transparent;
   opacity: 0.5;
 }
 

@@ -15,7 +15,12 @@ import * as pickPhotos from '../photo/pickPhotos'
 import type { PickedPhotoFolder } from '../photo/pickPhotos'
 import { resetAssetSources } from '../photo/assetSources'
 import { resetTierCache } from '../photo/tierCache'
+import {
+  isBookSettingsSelected,
+  setBookSettingsSelected,
+} from './bookSettingsSelection'
 import { dispatchBookOp, resetBookStore } from './bookStore'
+import { isCoverSelected, setCoverSelected } from './coverSelection'
 import { physicalZoom } from './camera'
 import {
   commitZoom,
@@ -106,6 +111,15 @@ describe('EditorTopBar', () => {
     expect(screen.queryByTestId('app-theme-toggle')).toBeNull()
     expect(screen.getByTestId('book-title')).toBeTruthy()
     expect(screen.getByTestId('book-size')).toBeTruthy()
+  })
+
+  it('opens Book settings from the title (kit step 24)', () => {
+    setCoverSelected(true)
+    render(<EditorShell />)
+    fireEvent.click(screen.getByTestId('book-title'))
+    expect(isBookSettingsSelected()).toBe(true)
+    expect(isCoverSelected()).toBe(false)
+    setBookSettingsSelected(false)
   })
 
   it('zooms in and out from the chrome controls', () => {

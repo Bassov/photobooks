@@ -129,7 +129,7 @@ export function FitCropSection({
       </div>
       <div className="flex gap-2">
         <Button
-          variant={cropping ? 'default' : 'secondary'}
+          variant={cropping ? 'default' : 'outline'}
           size="sm"
           className="flex-1"
           data-testid="crop-toggle"

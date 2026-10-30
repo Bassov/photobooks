@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { expandDisclosure } from './fixtures/expandDisclosure'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 // Kit reference values (uikit/ measured in the browser, px):
@@ -10,7 +11,9 @@ const KIT_PANEL_LEFT = 212
 const KIT_THUMB_BOX = 180
 const KIT_SECTION_PAD = 16
 const KIT_TITLE_PX = 11
-const KIT_TITLE_GAP = 12
+const KIT_HEADER_H = 36
+const KIT_PANEL_PAD_TOP = 2
+const KIT_PANEL_PAD_BOTTOM = 12
 const KIT_FIELD_H = 32
 const KIT_FIELD_GAP = 8
 
@@ -33,6 +36,7 @@ async function openInspectorOnFrame(page: Page) {
     .getByTestId('spread-frame')
     .first()
     .click()
+  await expandDisclosure(page, 'Position & size')
   await expect(page.getByTestId('inspector-geometry')).toBeVisible()
 }
 
@@ -70,14 +74,14 @@ test('inspector sections use the kit padding, title and field sizes', async ({
   const section = page.getByTestId('inspector-geometry')
   const probe = await section.evaluate((el) => {
     const style = getComputedStyle(el)
-    const title = el.querySelector('h4')
+    const disclosure = el.closest('.pb-disclosure')
+    const title = disclosure?.querySelector('.inspector-eyebrow')
+    const trigger = disclosure?.querySelector('.pb-disclosure__trigger')
     const grid = el.querySelector('.grid')
     const field = el.querySelector('.frame-field')
-    if (!title || !grid || !field) {
+    if (!title || !trigger || !grid || !field) {
       throw new Error('geometry section parts missing')
     }
-    const titleBox = (title.parentElement ?? title).getBoundingClientRect()
-    const gridBox = grid.getBoundingClientRect()
     const fields = [...grid.children].slice(0, 2).map((item) => {
       return item.getBoundingClientRect()
     })
@@ -87,17 +91,18 @@ test('inspector sections use the kit padding, title and field sizes', async ({
       padLeft: Number.parseFloat(style.paddingLeft),
       padRight: Number.parseFloat(style.paddingRight),
       titleSize: Number.parseFloat(getComputedStyle(title).fontSize),
-      titleGap: gridBox.top - titleBox.bottom,
+      headerHeight: trigger.getBoundingClientRect().height,
       fieldHeight: fields[0]?.height ?? 0,
       fieldGap: (fields[1]?.left ?? 0) - (fields[0]?.right ?? 0),
     }
   })
-  expect(probe.padTop).toBe(KIT_SECTION_PAD)
-  expect(probe.padBottom).toBe(KIT_SECTION_PAD)
+  // Kit components/app/ui.tsx Section: header h-9, panel px-4 pb-3 pt-0.5.
+  expect(probe.padTop).toBe(KIT_PANEL_PAD_TOP)
+  expect(probe.padBottom).toBe(KIT_PANEL_PAD_BOTTOM)
   expect(probe.padLeft).toBe(KIT_SECTION_PAD)
   expect(probe.padRight).toBe(KIT_SECTION_PAD)
   expect(probe.titleSize).toBe(KIT_TITLE_PX)
-  expect(probe.titleGap).toBe(KIT_TITLE_GAP)
+  expect(probe.headerHeight).toBe(KIT_HEADER_H)
   expect(probe.fieldHeight).toBe(KIT_FIELD_H)
   expect(probe.fieldGap).toBe(KIT_FIELD_GAP)
 })
