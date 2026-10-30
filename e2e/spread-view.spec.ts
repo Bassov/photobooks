@@ -72,7 +72,10 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
     [1, 2, 1].slice(0, slots.length),
   )
   expect(slots[0]?.active).toBe(true)
-  expect(slots.map((slot) => slot.widthPx)).toEqual(
+  // Widths keep the 1:2:1 page ratio at whatever zoom Fit chose.
+  const unit = (slots[0]?.widthPx ?? 0) / 150
+  expect(unit).toBeGreaterThan(0)
+  expect(slots.map((slot) => Math.round(slot.widthPx / unit))).toEqual(
     [150, 300, 150].slice(0, slots.length),
   )
   const placeholder = page.getByTestId('spread-frame-placeholder').first()
@@ -151,8 +154,9 @@ test('a spread added from the row menu is revealed and a later template change l
         first.active &&
         first.placeholders === 4 &&
         checked &&
-        added !== null &&
-        !added.active
+        // Fitted on one spread, the added spread may be windowed out (kit demo
+        // shows a single spread); either way it is not the active one.
+        (!added?.active)
       )
     })
     .toBe(true)
@@ -165,16 +169,16 @@ test('a spread added from the row menu is revealed and a later template change l
   await expect
     .poll(async () => {
       const first = await readSpreadSlotAt(page, 0)
-      const added = await readSpreadSlotAt(page, 3)
-      return (
-        first !== null &&
-        first.active &&
-        first.placeholders === 2 &&
-        added !== null &&
-        added.placeholders === addedPlaceholders
-      )
+      return first !== null && first.active && first.placeholders === 2
     })
     .toBe(true)
+  // Windowed out at Fit: bring the added spread into the window to read it.
+  await page.getByTestId('pasteboard-scroll').evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+  })
+  await expect
+    .poll(async () => (await readSpreadSlotAt(page, 3))?.placeholders ?? null)
+    .toBe(addedPlaceholders)
   await assertDocumentFitsViewport(page)
 })
 
@@ -193,8 +197,10 @@ test('add spread keeps the new spread inside the pasteboard', async ({
   const slots = await readSpreadSlots(page)
   const mounted = [1, 2, 2, 1].slice(-slots.length)
   expect(slots.map((slot) => slot.placeholders)).toEqual(mounted)
-  expect(slots.at(-2)?.widthPx).toBe(300)
-  expect(slots.at(-1)?.widthPx).toBe(150)
+  // Spread widths keep the 2:1 page ratio at whatever zoom Fit chose.
+  expect(
+    (slots.at(-2)?.widthPx ?? 0) / (slots.at(-1)?.widthPx ?? 1),
+  ).toBeCloseTo(2, 1)
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',

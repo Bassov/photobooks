@@ -238,7 +238,7 @@ function ZoomChrome() {
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1 px-2 text-sm tabular-nums"
+          className="min-w-[4.75rem] justify-center gap-1 px-2 text-sm tabular-nums"
           style={{ color: SUB, background: 'transparent' }}
           aria-label="Zoom"
           data-testid="zoom-menu"
