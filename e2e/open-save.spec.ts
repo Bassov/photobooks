@@ -197,6 +197,9 @@ test('session import then attach library saves without New book; reload hydrates
   // Landscape filmstrip orientation after reload proves aspect was restored
   // from hydrated preview (not forced to square sessionMeta default).
 
+  // The single-row kit top bar leaves the three-spread stack fitting a 720px
+  // viewport; a shorter one keeps the vertical overflow this asserts.
+  await page.setViewportSize({ width: 1280, height: 600 })
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',
@@ -380,6 +383,8 @@ test('fresh session Open loads saved book with thumbs and frames', async ({
   })
   await expectMissingHatchAfterRestore(page, 1)
 
+  // See the first restore test: single-row top bar, so shorten the viewport.
+  await page.setViewportSize({ width: 1280, height: 600 })
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',

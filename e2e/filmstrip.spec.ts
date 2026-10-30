@@ -98,7 +98,7 @@ async function pickPhotoFolderStub(
     })
   }
   await queuePhotoDirectoryPicker(page, files)
-  await page.getByTestId('choose-photo-folder').click()
+  await page.getByTestId('film-add-folder').click()
 }
 
 test('empty filmstrip message spans the scrollport', async ({ page }) => {
@@ -1168,7 +1168,7 @@ test.describe('library re-import async', () => {
 
       // Library-backed fresh bulk import: frame-budget scroll window (Perf line).
       await clearPerfScenario(page)
-      const chooseFolder = page.getByTestId('choose-photo-folder')
+      const chooseFolder = page.getByTestId('film-add-folder')
       await expect(chooseFolder).toBeEnabled()
       await pickPhotoFolder(page, files)
 
@@ -1399,7 +1399,7 @@ test.describe('frame-budget gates', () => {
     await clearPerfScenario(page)
 
     const files = writeBulkImportFixtures(200)
-    await expect(page.getByTestId('choose-photo-folder')).toBeEnabled()
+    await expect(page.getByTestId('film-add-folder')).toBeEnabled()
     // setInputFiles seam (same bind+import path) — directory-picker base64
     // stub walks trip LoAF under CPU throttle for 200 files.
     await choosePhotoFolder(page, files)
@@ -1603,7 +1603,7 @@ test.describe('sort / filter / remove', () => {
     await enablePerfScenario(page)
     await clearPerfScenario(page)
     const files = writeBulkImportFixtures(1000)
-    await expect(page.getByTestId('choose-photo-folder')).toBeEnabled()
+    await expect(page.getByTestId('film-add-folder')).toBeEnabled()
     await choosePhotoFolder(page, files)
     await expect
       .poll(
@@ -1683,7 +1683,7 @@ test.describe('sort / filter / remove', () => {
       await enablePerfScenario(page)
       await clearPerfScenario(page)
       const files = writeBulkImportFixtures(300)
-      await expect(page.getByTestId('choose-photo-folder')).toBeEnabled()
+      await expect(page.getByTestId('film-add-folder')).toBeEnabled()
       await choosePhotoFolder(page, files)
       await expect
         .poll(

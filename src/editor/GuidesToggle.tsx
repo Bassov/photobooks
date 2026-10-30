@@ -19,7 +19,7 @@ export function GuidesToggle() {
     <IconButton
       label="Guides (Ctrl+;)"
       size="sm"
-      className="grid-eye"
+      className="pb-view-toggle"
       aria-pressed={shown}
       data-testid="guides-topbar-toggle"
       onPress={toggleGuidesVisible}

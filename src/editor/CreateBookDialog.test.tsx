@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { CreateBookDialog } from './CreateBookDialog'
 
+/** Open the kit Page size listbox and pick an option by its visible name. */
+async function choosePreset(name: string | RegExp): Promise<void> {
+  fireEvent.click(screen.getByTestId('create-preset'))
+  fireEvent.click(await screen.findByRole('option', { name }))
+}
+
 describe('CreateBookDialog', () => {
   afterEach(() => {
     cleanup()
@@ -54,7 +60,7 @@ describe('CreateBookDialog', () => {
     })
   })
 
-  it('maps custom cm to trim mm', () => {
+  it('maps custom cm to trim mm', async () => {
     const onCreate = vi.fn()
     render(
       <CreateBookDialog
@@ -63,9 +69,7 @@ describe('CreateBookDialog', () => {
         onCreate={onCreate}
       />,
     )
-    fireEvent.change(screen.getByTestId('create-preset'), {
-      target: { value: 'custom' },
-    })
+    await choosePreset('Custom size…')
     expect(screen.getByTestId('create-custom')).toBeTruthy()
     fireEvent.change(screen.getByTestId('create-custom-w'), {
       target: { value: '18' },
@@ -116,7 +120,7 @@ describe('CreateBookDialog', () => {
     expect(onCancel).toHaveBeenCalled()
   })
 
-  it('resets fields after create and ignores non-positive custom cm', () => {
+  it('resets fields after create and ignores non-positive custom cm', async () => {
     const onCreate = vi.fn()
     render(
       <CreateBookDialog
@@ -132,9 +136,7 @@ describe('CreateBookDialog', () => {
     expect(onCreate).toHaveBeenCalled()
     expect(screen.getByTestId('create-title')).toHaveProperty('value', '')
 
-    fireEvent.change(screen.getByTestId('create-preset'), {
-      target: { value: 'custom' },
-    })
+    await choosePreset('Custom size…')
     const width = screen.getByTestId('create-custom-w')
     fireEvent.change(width, { target: { value: 'abc' } })
     fireEvent.blur(width)
@@ -144,7 +146,7 @@ describe('CreateBookDialog', () => {
     expect(width).toHaveProperty('value', '42.0')
   })
 
-  it('updates orientation labels and disables confirm when createDisabled', () => {
+  it('updates orientation labels and disables confirm when createDisabled', async () => {
     render(
       <CreateBookDialog
         isOpen
@@ -154,10 +156,13 @@ describe('CreateBookDialog', () => {
       />,
     )
     expect(screen.getByTestId('create-orientation')).toBeTruthy()
-    const a5 = screen.getByRole('option', { name: /A5 · 14\.8/ })
+    fireEvent.click(screen.getByTestId('create-preset'))
+    const a5 = await screen.findByRole('option', { name: /A5 · 14\.8/ })
     expect(a5).toBeTruthy()
+    fireEvent.click(a5)
     fireEvent.click(screen.getByLabelText('Landscape'))
-    expect(screen.getByRole('option', { name: /A5 · 21/ })).toBeTruthy()
+    fireEvent.click(screen.getByTestId('create-preset'))
+    expect(await screen.findByRole('option', { name: /A5 · 21/ })).toBeTruthy()
     const confirm = screen.getByTestId('create-book')
     expect(
       confirm.getAttribute('data-disabled') ??

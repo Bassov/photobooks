@@ -12,6 +12,10 @@ export interface BookSummary {
   pageHeightMm?: number
   /** Document modification time (UTC ms) when the adapter can observe it. */
   editedAtMs?: number
+  /** DerivedCache key of the cover-front photo, when it has a durable identity. */
+  coverCacheKey?: string
+  /** Cover-front crop center (0..1), for the shelf card's object-position. */
+  coverCenter?: { x: number; y: number }
 }
 
 export type StorageFailureCode =

@@ -290,7 +290,8 @@ export function LibraryScreen() {
                 No books match “{query.trim()}”.{' '}
                 <button
                   type="button"
-                  className="underline underline-offset-2"
+                  className="m-0 inline cursor-pointer border-0 bg-transparent p-0 text-inherit underline underline-offset-2"
+                  data-testid="lib-clear-search"
                   onClick={() => {
                     setQuery('')
                   }}
@@ -326,7 +327,7 @@ export function LibraryScreen() {
                               aria-label="Book title"
                               defaultValue={book.displayTitle}
                               autoFocus
-                              className="pb-lib-rename h-7 w-full rounded-md bg-field px-2 text-sm outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
+                              className="pb-lib-rename h-7 w-full rounded-md bg-field px-2 text-sm outline-hidden focus-visible:outline-1 focus-visible:outline-[#535152]"
                               data-testid="rename-input"
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
@@ -454,6 +455,7 @@ export function LibraryScreen() {
         <AlertDialog
           isOpen={confirmChange}
           tone="neutral"
+          icon={<Icon name="folderSync" size={16} />}
           title="Change the library folder?"
           confirmLabel="Choose folder…"
           onCancel={() => {
@@ -475,6 +477,7 @@ export function LibraryScreen() {
 
         <AlertDialog
           isOpen={removingOpen}
+          icon={<Icon name="delete" size={16} />}
           title={<>Remove “{removingTitle}”?</>}
           confirmLabel="Remove book"
           onCancel={() => {

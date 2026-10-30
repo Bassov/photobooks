@@ -11,7 +11,7 @@ export function SnapToggle() {
     <IconButton
       label="Snap (Shift+S)"
       size="sm"
-      className="grid-eye"
+      className="pb-view-toggle"
       aria-pressed={on}
       data-testid="snap-topbar-toggle"
       onPress={toggleSnapOn}

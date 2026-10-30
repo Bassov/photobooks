@@ -10,6 +10,9 @@ export interface LibraryGridBook {
   fmt: BookObjectFmt
   spreads: number
   editedAtMs?: number
+  coverCacheKey?: string
+  /** CSS object-position of the cover photo, e.g. `30% 40%`. */
+  coverPos?: string
 }
 
 export function toLibraryGridBook(summary: BookSummary): LibraryGridBook {
@@ -24,6 +27,12 @@ export function toLibraryGridBook(summary: BookSummary): LibraryGridBook {
   }
   if (summary.editedAtMs !== undefined) {
     book.editedAtMs = summary.editedAtMs
+  }
+  if (summary.coverCacheKey !== undefined) {
+    book.coverCacheKey = summary.coverCacheKey
+    if (summary.coverCenter !== undefined) {
+      book.coverPos = `${String(summary.coverCenter.x * 100)}% ${String(summary.coverCenter.y * 100)}%`
+    }
   }
   return book
 }

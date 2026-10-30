@@ -19,7 +19,7 @@ export function RulersToggle() {
     <IconButton
       label="Rulers (Shift+R)"
       size="sm"
-      className="grid-eye"
+      className="pb-view-toggle"
       aria-pressed={shown}
       data-testid="rulers-topbar-toggle"
       onPress={toggleRulersVisible}

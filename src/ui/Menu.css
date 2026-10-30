@@ -31,6 +31,24 @@
   outline: none;
 }
 
+.pb-menu-item {
+  position: relative;
+}
+
+.pb-menu-item[data-selection-mode] {
+  padding-left: calc(var(--spacing) * 8);
+}
+
+.pb-menu-item__check {
+  position: absolute;
+  left: calc(var(--spacing) * 2);
+  display: flex;
+  width: calc(var(--spacing) * 4);
+  height: calc(var(--spacing) * 4);
+  align-items: center;
+  justify-content: center;
+}
+
 .pb-menu-item[data-focused] {
   background: var(--accent);
   color: var(--accent-foreground);
