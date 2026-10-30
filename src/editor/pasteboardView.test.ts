@@ -242,4 +242,25 @@ describe('pasteboardClickSpreadId', () => {
       pasteboardClickSpreadId(document.createElement('div'), 250, [slot]),
     ).toBeNull()
   })
+
+  it('treats the slot top as inside and the bottom as outside', () => {
+    const { slot } = build()
+    slot.getBoundingClientRect = () => ({ top: 100, bottom: 200 }) as DOMRect
+    const gray = document.createElement('div')
+    expect(pasteboardClickSpreadId(gray, 100, [slot])).toBe('s1')
+    expect(pasteboardClickSpreadId(gray, 99.5, [slot])).toBeNull()
+    expect(pasteboardClickSpreadId(gray, 199.5, [slot])).toBe('s1')
+    expect(pasteboardClickSpreadId(gray, 200, [slot])).toBeNull()
+  })
+
+  it('picks the matching row among several slots', () => {
+    const { slot } = build()
+    slot.getBoundingClientRect = () => ({ top: 0, bottom: 100 }) as DOMRect
+    const other = document.createElement('div')
+    other.setAttribute('data-spread-id', 's2')
+    other.getBoundingClientRect = () => ({ top: 100, bottom: 200 }) as DOMRect
+    const gray = document.createElement('div')
+    expect(pasteboardClickSpreadId(gray, 150, [slot, other])).toBe('s2')
+    expect(pasteboardClickSpreadId(gray, 50, [slot, other])).toBe('s1')
+  })
 })
