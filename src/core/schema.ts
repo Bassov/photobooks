@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 4 as const
+export const CURRENT_SCHEMA_VERSION = 5 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -110,6 +110,47 @@ const spreadSchema = z.object({
   frames: z.array(frameSchema),
 })
 
+/*
+ * Cover / endpaper shapes are built per parse (not at module load) so that
+ * their mutants are reachable by per-test mutant switching.
+ */
+function makeCoverSchema() {
+  /** One cover panel (front / spine / back): optional photo plus text. */
+  const panel = z.object({
+    assetId: nonEmptyString.optional(),
+    crop: cropSchema.optional(),
+    text: z.string(),
+  })
+  return z.object({ front: panel, spine: panel, back: panel })
+}
+
+function makeEndpapersSchema() {
+  /** One endpaper: optional photo only. */
+  const endpaper = z.object({
+    assetId: nonEmptyString.optional(),
+    crop: cropSchema.optional(),
+  })
+  return z.object({ front: endpaper, back: endpaper })
+}
+
+/** Defers building `make()` to parse time, forwarding its issues. */
+function atParseTime<S extends z.ZodType>(make: () => S) {
+  return z.unknown().transform((value, ctx): z.output<S> => {
+    const result = make().safeParse(value)
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        ctx.addIssue({
+          code: 'custom',
+          message: issue.message,
+          path: issue.path,
+        })
+      }
+      return z.NEVER
+    }
+    return result.data
+  })
+}
+
 const bookSettingsSchema = z.object({
   trim: z.object({
     widthMm: positiveMm,
@@ -124,6 +165,8 @@ export const bookSchema = z.object({
   id: nonEmptyString,
   title: z.string().optional(),
   settings: bookSettingsSchema,
+  cover: atParseTime(makeCoverSchema),
+  endpapers: atParseTime(makeEndpapersSchema),
   layoutGrid: layoutGridSchema,
   guides: z.array(guideSchema),
   assets: z.record(nonEmptyString, assetSchema),
@@ -147,4 +190,8 @@ export const bookSchema = z.object({
 export type Asset = z.infer<typeof assetSchema>
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
+export type Cover = z.output<ReturnType<typeof makeCoverSchema>>
+export type CoverPanel = Cover['front']
+export type Endpapers = z.output<ReturnType<typeof makeEndpapersSchema>>
+export type Endpaper = Endpapers['front']
 export type Book = z.infer<typeof bookSchema>

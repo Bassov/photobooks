@@ -1,5 +1,11 @@
 import type { AssetSource } from '../assets'
-import { addSpread, CURRENT_SCHEMA_VERSION, type Book } from '../core'
+import {
+  addSpread,
+  CURRENT_SCHEMA_VERSION,
+  defaultCover,
+  defaultEndpapers,
+  type Book,
+} from '../core'
 import {
   clearRegisteredAssetSources,
   getRegisteredAssetSource as getRegisteredFromRegistry,
@@ -739,6 +745,8 @@ function createEmptyLibraryBook(
     schemaVersion: CURRENT_SCHEMA_VERSION,
     id,
     ...(title !== undefined ? { title } : {}),
+    cover: defaultCover(title ?? ''),
+    endpapers: defaultEndpapers(),
     settings: {
       bleedMm: 3,
       safeMarginMm: 5,
