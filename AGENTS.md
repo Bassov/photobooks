@@ -56,7 +56,7 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 Interactive shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`); headless launcher preloads it — do not source. Unattended: `/next-roadmap-item`. Harness wiring (Cursor `.cursor/cli.json`; Claude Code `CLAUDE.md` + `.claude/`): `docs/agent-loop.md` `## Harnesses`. Prefer preflight run card / `pnpm agent instructions` over raw OpenSpec reads (denied headless). `pnpm agent stats <log>` exits 1 if peak context >300K or first-round input >400K.
 
-Headless shell style (denied otherwise): change files with the Edit / Write tools, never `sed -i`, `cat > f <<EOF` or `python3 -` heredocs; `pnpm exec <bin>`, never `npx`; one plain command per Bash call (no `bash -c`); no `git commit --amend`; temp files under the worktree, not `/tmp`.
+Headless shell style (denied otherwise): change files with the Edit / Write tools, never `sed -i`, `cat > f <<EOF` or `python3 -` heredocs; `pnpm exec <bin>`, never `npx`; one plain command per Bash call (no `bash -c`); no `git commit --amend` or `node -e`; temp files under the worktree, not `/tmp`.
 
 Run `pnpm stryker:diff` (~2–3 min) before `pnpm agent finish` on `src/` changes; finish also runs it and blocks (2-run cap, then C-session in `docs/agent-loop.md`).
 
