@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { measureDerivedCacheBytes } from '../assets'
+import { formatBytes } from '../photo/formatBytes'
 import { AlertDialog } from '../ui/AlertDialog'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -24,6 +26,11 @@ export function SettingsScreen({
   changeDisabled?: boolean
 }) {
   const [confirm, setConfirm] = useState(false)
+  const [cacheBytes, setCacheBytes] = useState<number | null>(null)
+
+  useEffect(() => {
+    void measureDerivedCacheBytes().then(setCacheBytes)
+  }, [])
 
   return (
     <div
@@ -65,7 +72,10 @@ export function SettingsScreen({
         data-scrollport="settings"
         data-testid="settings-scroll"
       >
-        <h1 className="heading text-2xl" data-testid="settings-section-title">
+        <h1
+          className="heading m-0 text-2xl"
+          data-testid="settings-section-title"
+        >
           Library
         </h1>
         <>
@@ -78,7 +88,12 @@ export function SettingsScreen({
             data-testid="library-settings-panel"
           >
             <div className={ROW}>
-              <FeaturedIcon color="gray" theme="outline" size="md">
+              <FeaturedIcon
+                color="gray"
+                theme="outline"
+                size="md"
+                className="border-transparent" /* kit settings.tsx:42 tile reads borderless */
+              >
                 <Icon name="hardDrive" size={16} />
               </FeaturedIcon>
               <div className="min-w-0 flex-1">
@@ -143,10 +158,10 @@ export function SettingsScreen({
                 </div>
               </div>
               <span
-                className="text-sm text-muted-foreground"
+                className="text-sm tabular-nums text-muted-foreground"
                 data-testid="settings-preview-cache"
               >
-                Automatic
+                {cacheBytes === null ? '—' : formatBytes(cacheBytes)}
               </span>
             </div>
           </div>

@@ -118,7 +118,7 @@ test('library: no-results clear link is plain text, search focus is a hairline',
   await expect(clear).toHaveCSS('border-top-width', '0px')
   await expect(clear).toHaveCSS('background-color', CLEAR)
   await expect(clear).toHaveCSS('text-decoration-line', 'underline')
-  await expect(page.getByTestId('lib-search')).toHaveCSS('outline-width', '1px')
+  await expect(page.getByTestId('lib-search')).toHaveCSS('outline-width', '2px')
   await clear.click()
   await expect(page.getByTestId('lib-no-results')).toHaveCount(0)
 })

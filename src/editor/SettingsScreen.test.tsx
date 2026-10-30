@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import * as assets from '../assets'
 import { SettingsScreen } from './SettingsScreen'
 import * as projectSession from './projectSession'
 
@@ -14,6 +15,31 @@ describe('SettingsScreen', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+  })
+
+  it('shows the measured preview cache size, a dash when unavailable', async () => {
+    const measure = vi
+      .spyOn(assets, 'measureDerivedCacheBytes')
+      .mockResolvedValueOnce(212 * 1024 * 1024)
+    render(<SettingsScreen libraryPath="Lib" bookCount={1} />)
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-preview-cache').textContent).toBe(
+        '212 MB',
+      )
+    })
+    cleanup()
+    measure.mockResolvedValueOnce(null)
+    render(<SettingsScreen libraryPath="Lib" bookCount={1} />)
+    expect(screen.getByTestId('settings-preview-cache').textContent).toBe('—')
+  })
+
+  it('measures the preview cache once per mount, not per re-render', () => {
+    const measure = vi
+      .spyOn(assets, 'measureDerivedCacheBytes')
+      .mockResolvedValue(1)
+    const view = render(<SettingsScreen libraryPath="Lib" bookCount={1} />)
+    view.rerender(<SettingsScreen libraryPath="Lib2" bookCount={2} />)
+    expect(measure).toHaveBeenCalledTimes(1)
   })
 
   it('shows library path and live book count', () => {
