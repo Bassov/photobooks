@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)
+Status: done
 
 ## Scope
 

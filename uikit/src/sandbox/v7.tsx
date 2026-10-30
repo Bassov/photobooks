@@ -4,7 +4,7 @@ import * as React from "react"
 import { useStudio, type Book } from "./store"
 import { Slider as USlider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { P } from "@/data"
-import { MASTER_GRIDS, type Grid } from "./model"
+import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, builtinMaster, type Grid, type Guide } from "./model"
 import { Link2, Unlink2 } from "lucide-react"
 
 export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C8CACB", BAR = "#E1E1E1", FIELD = "#D7D7D7", PAPER = "#FFFFFF"
@@ -83,12 +83,19 @@ export function EndpaperSpread({ big, which }: { big?: boolean; which: "front" |
       {big && <span className="pointer-events-none absolute top-2 text-2xs" style={{ color: "#535152", [which === "front" ? "left" : "right"]: 10 }}>Pastedown · glued to {which} board</span>}
     </div>)
 }
-export type Master = { grid: Grid; link: boolean; pn: boolean; pos: number }
+/** `guides` unset = the built-in master guides; `pn` feeds Parent.pageNumbers of every spread on this master */
+export type Master = { grid: Grid; link: boolean; pn: boolean; pos: number; guides?: Guide[] }
 /** v0.8 §3.4: master grids in mm — columns, rows, gutter, row gap, margins T/B/I/O (linked or not) */
 const MASTERS0: Record<"A" | "B", Master> = {
-  A: { grid: { top: 12, bottom: 16, inside: 12, outside: 12, cols: 2, rows: 1, colGutter: 4, rowGutter: 4 }, link: false, pn: true, pos: 0 },
-  B: { grid: { top: 16, bottom: 16, inside: 16, outside: 16, cols: 3, rows: 2, colGutter: 4, rowGutter: 4 }, link: true, pn: true, pos: 0 } }
-const syncGrids = () => { MASTER_GRIDS.mA = MASTERS.A.grid; MASTER_GRIDS.mB = MASTERS.B.grid }
+  A: { grid: { top: 12, bottom: 16, inside: 12, outside: 12, cols: 2, rows: 1, colGutter: 4, rowGutter: 4 }, link: false, pn: false, pos: 0 },
+  B: { grid: { top: 16, bottom: 16, inside: 16, outside: 16, cols: 3, rows: 2, colGutter: 4, rowGutter: 4 }, link: true, pn: false, pos: 0 } }
+const syncGrids = () => {
+  MASTER_GRIDS.mA = MASTERS.A.grid; MASTER_GRIDS.mB = MASTERS.B.grid
+  MASTER_GUIDES.mA = MASTERS.A.guides; MASTER_GUIDES.mB = MASTERS.B.guides
+  MASTER_PN.mA = MASTERS.A.pn; MASTER_PN.mB = MASTERS.B.pn
+}
+/** The guides a master shows (and edits): its own list once edited, else the built-in ones. */
+export const guidesOfMaster = (id: "A" | "B", m: Master): Guide[] => m.guides ?? builtinMaster(id).guides
 export let MASTERS: Record<"A" | "B", Master> = MASTERS0; const masterSubs = new Set<() => void>()
 syncGrids()
 export const setMaster = (id: "A" | "B", patch: Partial<Master>) => { MASTERS = { ...MASTERS, [id]: { ...MASTERS[id], ...patch } }; syncGrids(); masterSubs.forEach((f) => f()) }

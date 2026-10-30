@@ -8,7 +8,8 @@ import type { LibBook } from "@/features/library"
 
 export type Extras = ReturnType<typeof getEditorExtras>
 export type Stage = "welcome" | "library" | "editor" | "settings" | "site"
-export type DBook = { id: string; title: string; book: Book; doc?: Doc; cover?: string; published?: boolean; extras?: Extras }
+export type DBook = { id: string; title: string; book: Book; doc?: Doc; cover?: string; published?: boolean; extras?: Extras
+  /** ids of photos whose files can't be found (seeded by `__demo.missing()`; resolved through Relink) */ missing?: string[] }
 export type SessionState = { stage: Stage; path: string; books: DBook[]; open: string | null; back: Stage; nonce: number; siteEntry: "catalog" | "book" }
 export type Session = { S: SessionState; set: (p: Partial<SessionState>) => void; useDemo: () => SessionState }
 

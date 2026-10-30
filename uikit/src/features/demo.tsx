@@ -8,7 +8,16 @@ import { DemoSettings } from "@/demo-parts/settings"
 import { DemoSite } from "@/demo-parts/site"
 
 const { S, set, useDemo } = DEMO_SESSION
-;(window as unknown as { __demo: object }).__demo = { go: (stage: Stage) => set({ stage }), state: () => S, reset: () => set({ stage: "welcome", path: "", books: [], open: null, nonce: S.nonce + 1, siteEntry: "catalog" }), openSite: (entry: "catalog" | "book" = "catalog") => set({ stage: "site", siteEntry: entry }) }
+;(window as unknown as { __demo: object }).__demo = { go: (stage: Stage) => set({ stage }), state: () => S, reset: () => set({ stage: "welcome", path: "", books: [], open: null, nonce: S.nonce + 1, siteEntry: "catalog" }), missing: (n = 2) => seedMissing(n), openSite: (entry: "catalog" | "book" = "catalog") => set({ stage: "site", siteEntry: entry }) }
+
+/** Capture / QA seed: the first `n` placed photos of the open book (else its gallery) can't be found any more. */
+function seedMissing(n: number) {
+  const b = S.books.find((x) => x.id === S.open)
+  if (!b?.doc) return
+  const placed = b.doc.spreads.flatMap((sp) => sp.frames.map((f) => f.photo).filter((x): x is string => !!x))
+  const ids = [...new Set(placed.length ? placed : b.doc.gallery)].slice(0, n)
+  set({ books: S.books.map((x) => (x === b ? { ...x, missing: ids } : x)) })
+}
 
 export function DemoApp() {
   const d = useDemo()
