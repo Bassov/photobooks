@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import type { PhotobooksToastQueue } from '../ui/toastQueue'
+import {
+  getLeftPanelTab,
+  setLeftPanelTab,
+  subscribeLeftPanelTab,
+  type LeftPanelTab,
+} from './leftPanelTabStore'
 import { SpreadsPanel } from './SpreadsPanel'
 
-type Tab = 'pages' | 'masters'
-
-const TABS: readonly { id: Tab; label: string }[] = [
+const TABS: readonly { id: LeftPanelTab; label: string }[] = [
   { id: 'pages', label: 'Pages' },
   { id: 'masters', label: 'Masters' },
 ]
@@ -15,7 +19,11 @@ export function LeftPanel({
 }: {
   toastQueue?: PhotobooksToastQueue | undefined
 }) {
-  const [tab, setTab] = useState<Tab>('pages')
+  const tab = useSyncExternalStore(
+    subscribeLeftPanelTab,
+    getLeftPanelTab,
+    getLeftPanelTab,
+  )
   const modeSwitch = (
     <div
       role="tablist"
@@ -31,7 +39,7 @@ export function LeftPanel({
           className="editor-left-tab flex h-full flex-1 items-center justify-center rounded-sm"
           data-testid={`left-tab-${item.id}`}
           onClick={() => {
-            setTab(item.id)
+            setLeftPanelTab(item.id)
           }}
         >
           {item.label}

@@ -181,6 +181,30 @@ describe('per-spread paint subscription', () => {
     expect(frame.getAttribute('data-crop-active')).toBeNull()
   })
 
+  it('dims the dragged frame after dragstart and restores it at dragend', () => {
+    vi.useFakeTimers()
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const frame = screen.getByTestId('spread-frame')
+    const body = frame.querySelector('.spread-frame-body')
+    assert(body !== null)
+    fireEvent.dragStart(body, { dataTransfer: new DataTransfer() })
+    expect(frame.getAttribute('data-drag-source')).toBeNull()
+    act(() => {
+      vi.runAllTimers()
+    })
+    expect(frame.getAttribute('data-drag-source')).toBe('true')
+    fireEvent.dragEnd(document)
+    expect(frame.getAttribute('data-drag-source')).toBeNull()
+    vi.useRealTimers()
+  })
+
   it('keeps other spreads out of crop mode', () => {
     resetBookStore({
       book: twoSpreadBook(),
