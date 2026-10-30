@@ -115,6 +115,14 @@ export {
   type DistributeAxis,
 } from './ops/transform'
 export { fillSpread, insertSpreadWithAssets } from './ops/fill'
+export {
+  GUIDE_OVERSHOOT_MM,
+  addGuide,
+  moveGuide,
+  nextGuideId,
+  removeGuide,
+  type Guide,
+} from './ops/guides'
 export { applyBookOp, type BookOp } from './ops/applyBookOp'
 
 export {

@@ -12,6 +12,7 @@ import {
   subscribeSpread,
 } from './bookStore'
 import { GridOverlay } from './GridOverlay'
+import { GuidesOverlay } from './GuidesOverlay'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
 import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
 import { enterCropMode, getCropTarget, subscribeCropMode } from './cropMode'
@@ -70,9 +71,12 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   spreadId,
   pxPerMm = SPREAD_PX_PER_MM,
   lowDpiBadge = true,
+  editorLayer = true,
 }: {
   spreadId: string
   pxPerMm?: number
+  /** Editor-only guides layer; off in Preview. */
+  editorLayer?: boolean
   /** Editor-only low-resolution badge; off in Preview. */
   lowDpiBadge?: boolean
 }) {
@@ -173,7 +177,14 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
       lowDpiBadge={lowDpiBadge}
-      overlay={<GridOverlay spreadId={spreadId} pxPerMm={pxPerMm} />}
+      overlay={
+        <>
+          <GridOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
+          {editorLayer ? (
+            <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
+          ) : null}
+        </>
+      }
       isMissingAsset={missingAssetChecker(relinkRevision)}
       previewUrlFor={(assetId) =>
         resolveSpreadPreviewUrl(

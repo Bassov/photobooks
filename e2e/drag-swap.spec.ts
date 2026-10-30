@@ -25,7 +25,7 @@ const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 // The snap toggle is default-on and aria-pressed; keep it out of move-source queries.
 function pressedMoveSource(page: import('@playwright/test').Page) {
   return page.locator(
-    'button[aria-pressed="true"]:not([data-testid="snap-topbar-toggle"])',
+    'button[aria-pressed="true"]:not([data-testid="snap-topbar-toggle"]):not([data-testid="guides-topbar-toggle"])',
   )
 }
 
