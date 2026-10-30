@@ -29,7 +29,6 @@ import {
   resetCameraStore,
 } from './cameraStore'
 import { EditorShell } from './EditorShell'
-import { getDpiView, setDpiView } from './dpiView'
 import { getGuidesVisible, setGuidesVisible } from './guidesView'
 import { getRulersVisible, setRulersVisible } from './rulersView'
 import * as importPhotos from './importPhotos'
@@ -134,38 +133,35 @@ describe('EditorTopBar', () => {
     expect(getCommittedZoom()).toBeCloseTo(1)
   })
 
-  it('keeps rulers, guides and DPI badges out of the bar, in a checkable View menu', () => {
+  it('has no rulers, guides, bleed or DPI controls (no View menu); their shortcuts still toggle', () => {
     render(<EditorShell />)
-    for (const id of ['rulers', 'guides', 'dpi']) {
+    for (const id of ['view-menu', 'rulers', 'guides', 'dpi']) {
+      expect(screen.queryByTestId(id)).toBeNull()
       expect(screen.queryByTestId(`${id}-topbar-toggle`)).toBeNull()
     }
-    const open = (): void => {
-      fireEvent.click(screen.getByTestId('view-menu'))
-    }
-    open()
-    expect(
-      screen.getAllByRole('menuitemcheckbox').map((item) => item.textContent),
-    ).toEqual(['RulersShift+R', 'GuidesCtrl+;', 'DPI badges'])
-    expect(
-      screen.getByTestId('view-guides-item').getAttribute('aria-checked'),
-    ).toBe('true')
+    expect(screen.queryByRole('button', { name: 'View options' })).toBeNull()
     expect(getGuidesVisible()).toBe(true)
-    fireEvent.click(screen.getByTestId('view-guides-item'))
+    fireEvent.keyDown(window, { key: ';', ctrlKey: true })
     expect(getGuidesVisible()).toBe(false)
-    open()
-    expect(
-      screen.getByTestId('view-guides-item').getAttribute('aria-checked'),
-    ).toBe('false')
-    fireEvent.click(screen.getByTestId('view-rulers-item'))
+    expect(getRulersVisible()).toBe(false)
+    fireEvent.keyDown(window, { key: 'R', shiftKey: true })
     expect(getRulersVisible()).toBe(true)
-    open()
-    fireEvent.click(screen.getByTestId('view-dpi-item'))
-    expect(getDpiView()).toBe(true)
     act(() => {
       setGuidesVisible(true)
       setRulersVisible(false)
-      setDpiView(false)
     })
+  })
+
+  it('orders the centered tools like the kit: Snap before Grid', () => {
+    render(<EditorShell />)
+    const toolbar = screen.getByRole('toolbar', { name: 'Editor' })
+    const ids = [...toolbar.querySelectorAll('[data-testid]')].map((el) =>
+      el.getAttribute('data-testid'),
+    )
+    expect(ids.indexOf('snap-topbar-toggle')).toBeGreaterThan(-1)
+    expect(ids.indexOf('snap-topbar-toggle')).toBeLessThan(
+      ids.indexOf('grid-topbar-toggle'),
+    )
   })
 
   it('has no placeholder buttons and a Preview pill that presents', () => {
