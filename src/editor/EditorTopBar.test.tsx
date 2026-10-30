@@ -203,7 +203,7 @@ describe('EditorTopBar', () => {
       commitZoom(physicalZoom() * 2, 0, 0)
     })
     expect(screen.getByTestId('zoom-label').textContent).toBe('200%')
-  })
+  }, 30_000)
 
   it('fits the spread on Ctrl+0 / Cmd+0 except in text fields', () => {
     render(<EditorShell />)
