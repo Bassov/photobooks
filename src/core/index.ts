@@ -10,7 +10,7 @@ export {
   type Frame,
   type Spread,
 } from './schema'
-export { defaultCover, defaultEndpapers } from './cover'
+export { defaultCover, defaultEndpapers, type CoverPanelName } from './cover'
 export { migrateToCurrent, type MigrateResult } from './migrate'
 export {
   checkBookInvariants,

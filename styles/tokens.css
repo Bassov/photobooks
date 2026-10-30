@@ -231,6 +231,15 @@
   --select: var(--t-ink);
   /* Tone selection fill (filmstrip / templates / spreads) — not canvas --select ink. */
   --sel: #cacaca;
+  /* Kit CoverSpread (book content, not UI chrome): panel fills and ink. */
+  --cover-back: #3e3c3b;
+  --cover-spine: #353332;
+  --cover-front-empty: #8e8e8e;
+  --cover-ink: #e8e6e3;
+  --cover-title-ink: #fff;
+  --cover-title-shadow: 0 1px 8px rgb(0 0 0 / 0.35);
+  --cover-shadow:
+    0 1px 2px rgb(35 34 35 / 0.2), 0 30px 60px -30px rgb(35 34 35 / 0.55);
   /* Kit slider B (inspector): track --sel, fill --scroll-thumb-rest. */
   --slider-fill-drag: #8e8e8e;
   --slider-thumb: #f7f7f7;

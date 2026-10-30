@@ -184,3 +184,45 @@ describe('bookStore history', () => {
     )
   })
 })
+
+describe('bookStore history: cover', () => {
+  afterEach(() => {
+    resetBookStore()
+  })
+
+  it('undo and redo step cover text and cover photo edits', () => {
+    resetBookStore({
+      book: makeBookWithAsset('a1', { place: false }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    dispatchBookOp({ type: 'setCoverPhoto', assetId: 'a1' })
+    dispatchBookOp({ type: 'setCoverText', panel: 'front', text: 'Lake' })
+    expect(getBookStoreSnapshot().book.cover.front).toMatchObject({
+      assetId: 'a1',
+      text: 'Lake',
+    })
+    undoBook()
+    expect(getBookStoreSnapshot().book.cover.front.text).toBe('')
+    expect(getBookStoreSnapshot().book.cover.front.assetId).toBe('a1')
+    undoBook()
+    expect(getBookStoreSnapshot().book.cover.front.assetId).toBeUndefined()
+    redoBook()
+    redoBook()
+    expect(getBookStoreSnapshot().book.cover.front.text).toBe('Lake')
+  })
+
+  it('typing in one cover panel is one undo step', () => {
+    resetBookStore({
+      book: makeBookWithAsset('a1', { place: false }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    dispatchBookOp({ type: 'setCoverText', panel: 'back', text: 'T' })
+    dispatchBookOp({ type: 'setCoverText', panel: 'back', text: 'Th' })
+    undoBook()
+    expect(getBookStoreSnapshot().book.cover.back.text).toBe('')
+  })
+})

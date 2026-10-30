@@ -39,6 +39,12 @@ import {
   reorderTargetIndex,
   type ItemSpan,
 } from './spreadReorder'
+import { CoverCanvas } from './CoverCanvas'
+import {
+  isCoverSelected,
+  setCoverSelected,
+  subscribeCoverSelection,
+} from './coverSelection'
 import { SpreadRowMissing } from './SpreadRowMissing'
 import { SpreadThumb } from './SpreadThumb'
 import './SpreadsPanel.css'
@@ -131,7 +137,12 @@ export function SpreadsPanel({
     getActiveSpreadId,
     getActiveSpreadId,
   )
-  const selected = selectedSpreadId(activeId, spreadIds)
+  const coverSelected = useSyncExternalStore(
+    subscribeCoverSelection,
+    isCoverSelected,
+    isCoverSelected,
+  )
+  const selected = coverSelected ? null : selectedSpreadId(activeId, spreadIds)
   // State, not a ref: the reveal effect re-runs once the list is attached.
   const [listNode, setListNode] = useState<HTMLDivElement | null>(null)
   // Quantized to whole rows so React bails out while the window is unchanged.
@@ -316,6 +327,31 @@ export function SpreadsPanel({
           </div>
         )}
       </div>
+      <div className="shrink-0 pb-1 pl-3 pr-1" data-testid="cover-list">
+        <button
+          type="button"
+          aria-pressed={coverSelected}
+          aria-label="Cover"
+          className="e7-item rounded-md p-2"
+          data-item="cover"
+          data-testid="cover-list-item"
+          onClick={() => {
+            setCoverSelected(true)
+          }}
+        >
+          <div className="mx-auto w-16">
+            <CoverCanvas mini />
+          </div>
+          <div className="mt-1.5 flex text-2xs tabular-nums">
+            <span
+              data-label
+              className={coverSelected ? 'font-semibold' : 'font-normal'}
+            >
+              Cover
+            </span>
+          </div>
+        </button>
+      </div>
       <div
         ref={attachList}
         className="e7 scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1"
@@ -385,6 +421,7 @@ export function SpreadsPanel({
                     canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined
                   }
                   onClick={() => {
+                    setCoverSelected(false)
                     scrollPasteboardToSpread(id)
                   }}
                 >

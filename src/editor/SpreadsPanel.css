@@ -79,3 +79,13 @@
 .spread-row-missing {
   color: var(--destructive);
 }
+
+/* Cover row (kit step 09): a pressed button, same tone as a selected page. */
+.e7-item[aria-pressed='true'],
+.e7-item[aria-pressed='true']:hover {
+  background: var(--sel);
+}
+
+.e7-item[aria-pressed='true'] [data-label] {
+  color: var(--foreground);
+}

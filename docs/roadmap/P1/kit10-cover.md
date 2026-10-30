@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Cover on canvas and in the inspector: kit v0.10 look
+Status: done
 
 ## Scope
 

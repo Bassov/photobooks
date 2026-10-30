@@ -10,6 +10,7 @@ import {
   type Spread,
 } from '../core'
 import { retainAssetSource } from '../photo/assetSources'
+import { setCoverSelected } from './coverSelection'
 import { yieldForPaint } from './relink/yieldForPaint'
 import { resolveRelativeFile } from '../assets/resolveRelativeFile'
 import type { AssetDirectoryHandle } from '../assets/fsa/handles'
@@ -72,6 +73,7 @@ export function setActiveSpreadId(next: string | null): void {
     return
   }
   activeSpreadId = next
+  setCoverSelected(false)
   for (const listener of activeSpreadListeners) {
     listener()
   }

@@ -816,6 +816,7 @@ function moveHistory(move: HistoryMove | null): void {
     ...state.book,
     spreads: move.snapshot.spreads,
     layoutGrid: move.snapshot.layoutGrid,
+    cover: move.snapshot.cover,
   }
   if (move.snapshot.title === undefined) {
     delete book.title

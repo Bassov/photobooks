@@ -172,6 +172,8 @@ function reduceModel(model: BookModel, op: BookOp): void {
     }
     case 'applyTemplate':
     case 'setTitle':
+    case 'setCoverText':
+    case 'setCoverPhoto':
       return
   }
 }

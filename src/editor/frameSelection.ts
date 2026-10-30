@@ -1,4 +1,5 @@
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import { setCoverSelected } from './coverSelection'
 import type { FrameDragSource } from './dropTargets'
 import { setEditorStatus } from './editorStatus'
 import { setSelectedAssetId } from './gallerySelection'
@@ -68,6 +69,7 @@ export function setFrameSource(next: FrameSource | null): void {
   sourceWasFilled = next !== null && sourceFrameFilled(next)
   emit()
   if (next !== null) {
+    setCoverSelected(false)
     withSelectionSync(() => {
       setSelectedAssetId(null)
     })
