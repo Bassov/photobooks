@@ -71,6 +71,52 @@ test.describe('low-resolution badge on frames', () => {
     await assertDocumentFitsViewport(page)
   })
 
+  // Kit #/demo (Designer ruling 2026-10-31): low-res shows only as the ppi chip
+  // in the Photo inspector header (filename / px / ppi), in the warn tone.
+  test('low resolution shows as the warn-tone ppi chip in the Photo inspector', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000)
+    await openSessionEditor(page)
+    await placeLargePhoto(page)
+    await page.getByTestId('toggle-r').click()
+    await filledFrame(page).click()
+    const chip = page
+      .getByTestId('inspector-photo')
+      .getByTestId('inspector-photo-dpi')
+    await expect(chip).toHaveAttribute('data-color', 'success')
+    const sharp = Number.parseInt((await chip.textContent()) ?? '', 10)
+    expect(sharp).toBeGreaterThanOrEqual(200)
+
+    await filledFrame(page).dblclick()
+    await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
+    const center = await frameCenter(page)
+    await page.mouse.move(center.x, center.y)
+    await page.mouse.wheel(0, -1500)
+    await expect(chip).toHaveAttribute('data-color', /^(warning|error)$/)
+    const soft = Number.parseInt((await chip.textContent()) ?? '', 10)
+    expect(soft).toBeLessThan(200)
+    await expect(chip).toHaveText(`${String(soft)} ppi`)
+    const tone = await chip.getAttribute('data-color')
+    const paint = await chip.evaluate((el, t) => {
+      const s = getComputedStyle(el)
+      const root = getComputedStyle(document.documentElement)
+      const probe = document.createElement('span')
+      probe.style.color = root.getPropertyValue(`--badge-${String(t)}-fg`)
+      probe.style.backgroundColor = root.getPropertyValue(
+        `--badge-${String(t)}-bg`,
+      )
+      document.body.append(probe)
+      const p = getComputedStyle(probe)
+      const want = { bg: p.backgroundColor, color: p.color }
+      probe.remove()
+      return { got: { bg: s.backgroundColor, color: s.color }, want }
+    }, tone)
+    expect(paint.want.color).not.toBe('')
+    expect(paint.got).toEqual(paint.want)
+    await expect(page.getByTestId('dpi-badge')).toHaveCount(0)
+  })
+
   test('never paints in Preview', async ({ page }) => {
     test.setTimeout(180_000)
     await openSessionEditor(page)
