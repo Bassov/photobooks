@@ -4,7 +4,6 @@ import {
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { SUB } from './editorChromeTokens'
 import type { EndpaperSide } from './endpaperSelection'
 import { InspectorRow, ToggleSwitch } from './InspectorControls'
 import { useCoverPhotoUrl } from './useCoverPhotoUrl'
@@ -30,7 +29,7 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
         <h2 className="text-sm font-semibold" data-testid="inspector-context">
           Endpaper · {side}
         </h2>
-        <p className="mt-0.5 text-xs" style={{ color: SUB }}>
+        <p className="mt-0.5 text-xs text-muted-foreground">
           Pastedown and free leaf, printed full bleed
         </p>
       </div>
@@ -49,7 +48,7 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
         />
       </InspectorRow>
       {assetId === undefined ? (
-        <p className="text-2xs" style={{ color: SUB }}>
+        <p className="text-2xs text-muted-foreground">
           Drag a photo from the filmstrip onto the endpaper
         </p>
       ) : (

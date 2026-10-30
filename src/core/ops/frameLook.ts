@@ -3,28 +3,28 @@ import { updateFrame } from '../update'
 import { omitKey } from '../omitKey'
 
 /** Kit built-in frame styles (uikit/src/sandbox/model.ts DEFAULT_STYLES). */
-export const FRAME_STYLE_PRESETS: readonly {
+export function frameStylePresets(): readonly {
   id: string
   name: string
   style: FrameStyle
-}[] = [
-  {
-    id: 'white-mat',
-    name: 'White mat',
-    style: { matMm: 3, matColor: '#ffffff' },
-  },
-  {
-    id: 'hairline',
-    name: 'Hairline',
-    style: { strokeMm: 0.3, strokeColor: '#1c1b1a' },
-  },
-  { id: 'soft-corners', name: 'Soft corners', style: { cornerRadiusMm: 4 } },
-]
+}[] {
+  return [
+    {
+      id: 'white-mat',
+      name: 'White mat',
+      style: { matMm: 3, matColor: '#ffffff' },
+    },
+    {
+      id: 'hairline',
+      name: 'Hairline',
+      style: { strokeMm: 0.3, strokeColor: '#1c1b1a' },
+    },
+    { id: 'soft-corners', name: 'Soft corners', style: { cornerRadiusMm: 4 } },
+  ]
+}
 
-export const NO_ADJUST: FrameAdjust = {
-  brightness: 0,
-  contrast: 0,
-  saturation: 0,
+export function noAdjust(): FrameAdjust {
+  return { brightness: 0, contrast: 0, saturation: 0 }
 }
 
 export function isAdjusted(adjust: FrameAdjust | undefined): boolean {
@@ -38,7 +38,7 @@ export function isAdjusted(adjust: FrameAdjust | undefined): boolean {
 
 /** Display name of a style key: preset name, else "Style n". */
 export function frameStyleName(styleId: string): string {
-  const preset = FRAME_STYLE_PRESETS.find((item) => item.id === styleId)
+  const preset = frameStylePresets().find((item) => item.id === styleId)
   return preset?.name ?? `Style ${styleId.replace(/^style-/, '')}`
 }
 
@@ -58,8 +58,9 @@ export function setFrameCaption(
   })
 }
 
-const clampAmount = (n: number): number =>
-  Math.min(100, Math.max(-100, Math.round(n)))
+function clampAmount(n: number): number {
+  return Math.min(100, Math.max(-100, Math.round(n)))
+}
 
 /** Patch tone adjustments; all-zero removes the field. Needs a photo. */
 export function setFrameAdjust(
@@ -72,10 +73,10 @@ export function setFrameAdjust(
     if (frame.assetId === undefined) {
       return frame
     }
-    const base = frame.adjust ?? NO_ADJUST
+    const base = frame.adjust ?? noAdjust()
     const next: FrameAdjust =
       patch === null
-        ? NO_ADJUST
+        ? noAdjust()
         : {
             brightness: clampAmount(patch.brightness ?? base.brightness),
             contrast: clampAmount(patch.contrast ?? base.contrast),
@@ -105,7 +106,7 @@ export function applyFrameStyle(
 ): Book {
   let frameStyles = book.frameStyles
   if (styleId !== undefined && !(styleId in frameStyles)) {
-    const preset = FRAME_STYLE_PRESETS.find((item) => item.id === styleId)
+    const preset = frameStylePresets().find((item) => item.id === styleId)
     if (preset === undefined) {
       return book
     }
@@ -158,10 +159,7 @@ export function newFrameStyleFromFrame(
     n += 1
   }
   const id = `style-${String(n)}`
-  const source =
-    frame.frameStyleId === undefined
-      ? {}
-      : (book.frameStyles[frame.frameStyleId] ?? {})
+  const source = book.frameStyles[frame.frameStyleId ?? ''] ?? {}
   return applyFrameStyle(
     { ...book, frameStyles: { ...book.frameStyles, [id]: { ...source } } },
     spreadId,

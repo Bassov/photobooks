@@ -6,7 +6,7 @@ import {
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { SUB, fmtN, pagesOf } from './editorChromeTokens'
+import { fmtN, pagesOf } from './editorChromeTokens'
 import {
   InspectorRow,
   Swatches,
@@ -57,7 +57,7 @@ function SizeField({
   }
   return (
     <label className="insp-size-field">
-      <span style={{ color: SUB }}>{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <input
         type="number"
         aria-label={`${axis === 'widthMm' ? 'Width' : 'Height'} (${unit})`}
@@ -74,7 +74,7 @@ function SizeField({
           setDraft(null)
         }}
       />
-      <span style={{ color: SUB }}>{unit}</span>
+      <span className="text-muted-foreground">{unit}</span>
     </label>
   )
 }
@@ -142,7 +142,7 @@ export function BookSettingsSection() {
         <SizeField axis="widthMm" label="W" unit={unit} mm={trim.widthMm} />
         <SizeField axis="heightMm" label="H" unit={unit} mm={trim.heightMm} />
       </div>
-      <p className="text-2xs leading-4" style={{ color: SUB }}>
+      <p className="text-2xs leading-4 text-muted-foreground">
         Size of one page. To print 2 pages per A4 sheet, choose A5.
       </p>
       <h4 className="inspector-eyebrow">Binding</h4>
@@ -150,8 +150,7 @@ export function BookSettingsSection() {
         <span>
           Hardcover
           <span
-            className="ml-1.5 text-2xs"
-            style={{ color: SUB }}
+            className="ml-1.5 text-2xs text-muted-foreground"
             data-testid="binding-readonly"
           >
             read-only

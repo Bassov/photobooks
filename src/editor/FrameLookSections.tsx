@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import {
-  FRAME_STYLE_PRESETS,
+  frameStylePresets,
   frameStyleName,
   isAdjusted,
   type FrameAdjust,
@@ -12,7 +12,6 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import type { CropTarget } from './cropMode'
-import { SUB } from './editorChromeTokens'
 import { InspectorSlider } from './InspectorControls'
 import './FrameSections.css'
 
@@ -62,8 +61,7 @@ export function AdjustSection({ target }: { target: CropTarget }) {
       ))}
       <button
         type="button"
-        className="e7-ghost h-8 w-full rounded-md text-sm"
-        style={{ color: SUB }}
+        className="e7-ghost h-8 w-full rounded-md text-sm text-muted-foreground"
         disabled={!isAdjusted(adjust)}
         data-testid="adjust-reset"
         onClick={() => {
@@ -102,7 +100,7 @@ export function CaptionSection({ target }: { target: CropTarget }) {
           })
         }}
       />
-      <p className="mt-1.5 text-xs" style={{ color: SUB }}>
+      <p className="mt-1.5 text-xs text-muted-foreground">
         Printed 1.5 mm under the frame, Caption style
       </p>
     </div>
@@ -135,11 +133,11 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
   const currentId = frame.frameStyleId
   const current =
     currentId === undefined ? undefined : book.frameStyles[currentId]
-  const presetIds = new Set(FRAME_STYLE_PRESETS.map((item) => item.id))
+  const presetIds = new Set(frameStylePresets().map((item) => item.id))
   const options: { id: string | undefined; name: string; style: FrameStyle }[] =
     [
       { id: undefined, name: 'None', style: {} },
-      ...FRAME_STYLE_PRESETS.map((item) => ({
+      ...frameStylePresets().map((item) => ({
         id: item.id,
         name: item.name,
         style: book.frameStyles[item.id] ?? item.style,
@@ -231,11 +229,7 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
               edit({ cornerRadiusMm })
             }}
           />
-          <p
-            className="text-xs"
-            style={{ color: SUB }}
-            data-testid="style-uses"
-          >
+          <p className="text-xs text-muted-foreground" data-testid="style-uses">
             Editing “{frameStyleName(currentId)}” updates all{' '}
             <b>{String(uses)}</b> frames that use it.
           </p>

@@ -54,12 +54,12 @@ function CoverText({ panel, label }: { panel: CoverPanelName; label: string }) {
   )
 }
 
+function readStyle(): CoverStyle {
+  return readBook().cover.style
+}
+
 function useStyle(): CoverStyle {
-  return useSyncExternalStore(
-    subscribeBookStore,
-    () => readBook().cover.style,
-    () => readBook().cover.style,
-  )
+  return useSyncExternalStore(subscribeBookStore, readStyle, readStyle)
 }
 
 function setStyle(patch: Partial<CoverStyle>): void {
@@ -204,9 +204,10 @@ export function CoverSection() {
           }))}
           value={style.spineDirection}
           onChange={(value) => {
-            const next = DIRECTION_OPTIONS.find((item) => item.value === value)
-            if (next !== undefined) {
-              setStyle({ spineDirection: next.value })
+            for (const item of DIRECTION_OPTIONS) {
+              if (item.value === value) {
+                setStyle({ spineDirection: item.value })
+              }
             }
           }}
         />

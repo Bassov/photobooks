@@ -37,8 +37,8 @@ export {
 } from './schema'
 export { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
 export {
-  FRAME_STYLE_PRESETS,
-  NO_ADJUST,
+  frameStylePresets,
+  noAdjust,
   frameStyleName,
   isAdjusted,
 } from './ops/frameLook'

@@ -9,8 +9,8 @@ import {
 } from './cover'
 import { TRIM_MAX_MM, TRIM_MIN_MM, setTrim } from './ops/bookSettings'
 import {
-  FRAME_STYLE_PRESETS,
-  NO_ADJUST,
+  frameStylePresets,
+  noAdjust,
   applyFrameStyle,
   editFrameStyle,
   frameStyleName,
@@ -230,7 +230,7 @@ describe('frame caption and adjust', () => {
   it('merges adjust patches, drops all-zero, and resets with null', () => {
     const b = book()
     const one = setFrameAdjust(b, 'spread-1', 'frame-1', { brightness: 20 })
-    expect(frameOf(one).adjust).toEqual({ ...NO_ADJUST, brightness: 20 })
+    expect(frameOf(one).adjust).toEqual({ ...noAdjust(), brightness: 20 })
     const two = setFrameAdjust(one, 'spread-1', 'frame-1', { contrast: -5 })
     expect(frameOf(two).adjust).toEqual({
       brightness: 20,
@@ -265,10 +265,10 @@ describe('frame caption and adjust', () => {
 
   it('isAdjusted tells touched from untouched', () => {
     expect(isAdjusted(undefined)).toBe(false)
-    expect(isAdjusted(NO_ADJUST)).toBe(false)
-    expect(isAdjusted({ ...NO_ADJUST, brightness: 1 })).toBe(true)
-    expect(isAdjusted({ ...NO_ADJUST, contrast: 1 })).toBe(true)
-    expect(isAdjusted({ ...NO_ADJUST, saturation: 1 })).toBe(true)
+    expect(isAdjusted(noAdjust())).toBe(false)
+    expect(isAdjusted({ ...noAdjust(), brightness: 1 })).toBe(true)
+    expect(isAdjusted({ ...noAdjust(), contrast: 1 })).toBe(true)
+    expect(isAdjusted({ ...noAdjust(), saturation: 1 })).toBe(true)
   })
 })
 
@@ -291,7 +291,7 @@ describe('frame styles', () => {
   it('applies a preset (adding it to the book) and clears it with undefined', () => {
     const b = book()
     const preset = { id: 'white-mat', style: { matMm: 3, matColor: '#ffffff' } }
-    expect(FRAME_STYLE_PRESETS.find((p) => p.id === preset.id)?.style).toEqual(
+    expect(frameStylePresets().find((p) => p.id === preset.id)?.style).toEqual(
       preset.style,
     )
     const applied = applyFrameStyle(b, 'spread-1', 'frame-1', preset.id)
@@ -309,7 +309,7 @@ describe('frame styles', () => {
   it('rejects unknown style keys and text frames', () => {
     const b = book()
     expect(applyFrameStyle(b, 'spread-1', 'frame-1', 'ghost')).toBe(b)
-    const preset = FRAME_STYLE_PRESETS[0]?.id ?? ''
+    const preset = frameStylePresets()[0]?.id ?? ''
     expect(
       applyFrameStyle(b, 'spread-1', 'frame-t', preset).spreads[0]?.frames[2]
         ?.frameStyleId,
@@ -317,7 +317,7 @@ describe('frame styles', () => {
   })
 
   it('edits a style in place for every frame using it', () => {
-    const preset = FRAME_STYLE_PRESETS[0]?.id ?? ''
+    const preset = frameStylePresets()[0]?.id ?? ''
     const applied = applyFrameStyle(book(), 'spread-1', 'frame-1', preset)
     const edited = editFrameStyle(applied, preset, { cornerRadiusMm: 3 })
     expect(edited.frameStyles[preset]?.cornerRadiusMm).toBe(3)
@@ -326,7 +326,7 @@ describe('frame styles', () => {
   })
 
   it('copies the frame style into a new numbered style and applies it', () => {
-    const preset = FRAME_STYLE_PRESETS[0]?.id ?? ''
+    const preset = frameStylePresets()[0]?.id ?? ''
     const applied = applyFrameStyle(book(), 'spread-1', 'frame-1', preset)
     const next = newFrameStyleFromFrame(applied, 'spread-1', 'frame-1')
     expect(frameOf(next).frameStyleId).toBe('style-2')

@@ -4,7 +4,9 @@ import type { Book } from '../schema'
 export const TRIM_MIN_MM = 50
 export const TRIM_MAX_MM = 500
 
-const round1 = (mm: number): number => Math.round(mm * 10) / 10
+function round1(mm: number): number {
+  return Math.round(mm * 10) / 10
+}
 
 function clampTrim(mm: number): number {
   return Math.min(TRIM_MAX_MM, Math.max(TRIM_MIN_MM, round1(mm)))
