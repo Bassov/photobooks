@@ -58,7 +58,7 @@ Interactive shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc
 
 Headless shell style (denied otherwise): change files with the Edit / Write tools, never `sed -i`, `cat > f <<EOF` or `python3 -` heredocs; `pnpm exec <bin>`, never `npx`; one plain command per Bash call (no `bash -c`); temp files under the worktree, not `/tmp`.
 
-Before `pnpm agent finish` on `src/` changes: `pnpm stryker:diff` (~2–3 min); kill survivors with tests (max two runs, then C-session in `docs/agent-loop.md`).
+Run `pnpm stryker:diff` (~2–3 min) before `pnpm agent finish` on `src/` changes; finish also runs it and blocks (2-run cap, then C-session in `docs/agent-loop.md`).
 
 Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
 

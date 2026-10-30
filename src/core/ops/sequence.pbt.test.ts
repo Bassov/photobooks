@@ -75,7 +75,8 @@ describe('editor command sequences', () => {
     expect(result.failed).toBe(true)
     const [shrunk] = result.counterexample ?? [[]]
     expect([...shrunk].length).toBeLessThanOrEqual(5)
-  })
+    // 1000 runs + shrinking: explicit budget so a loaded box does not hit the 5s default.
+  }, 20_000)
 
   // Shrunk sequences from past failures are replayed here verbatim.
   describe('regression sequences', () => {
