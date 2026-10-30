@@ -6,8 +6,10 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type PointerEvent,
   type UIEvent,
 } from 'react'
+import { setFrameSource } from './frameSelection'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   setActiveSpreadId,
@@ -50,6 +52,7 @@ import {
   cancelPendingScrollFrame,
   nextTrackedScroll,
   nextViewportSize,
+  pasteboardClickSpreadId,
   pasteboardSlotPaddingBottom,
   pasteboardStrideAtZoom,
   pasteboardWindowKey,
@@ -449,6 +452,22 @@ export const Pasteboard = memo(function Pasteboard({
     })
   }
 
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0 || !(event.target instanceof Element)) {
+      return
+    }
+    const slots = event.currentTarget.querySelectorAll('[data-pasteboard-slot]')
+    const id = pasteboardClickSpreadId(event.target, event.clientY, [...slots])
+    if (id === null) {
+      return
+    }
+    preferredActiveRef.current = id
+    setFrameSource(null)
+    startTransition(() => {
+      setActiveId(id)
+    })
+  }
+
   return (
     <div className="pasteboard" data-testid="pasteboard">
       {chromeImport !== undefined ? (
@@ -472,6 +491,7 @@ export const Pasteboard = memo(function Pasteboard({
           aria-label="Spreads"
           tabIndex={0}
           onScroll={onScroll}
+          onPointerDown={onPointerDown}
         >
           <div
             ref={worldRef}

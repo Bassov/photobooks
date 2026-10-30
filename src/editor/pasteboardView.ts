@@ -126,3 +126,29 @@ export function bindGalleryDrop(
   }
   return install(scroll)
 }
+
+/**
+ * Spread id for a pointer-down on the pasteboard background: the slot under the
+ * target, else the slot whose row contains `clientY` (the gray beside a spread).
+ * Controls (frames, gap, labels) keep their own behavior: `null`.
+ */
+export function pasteboardClickSpreadId(
+  target: Element,
+  clientY: number,
+  slots: readonly Element[],
+): string | null {
+  if (target.closest('button, a, input, textarea, [role="button"]') !== null) {
+    return null
+  }
+  const own = target.closest('[data-pasteboard-slot]')
+  if (own !== null) {
+    return own.getAttribute('data-spread-id')
+  }
+  for (const slot of slots) {
+    const rect = slot.getBoundingClientRect()
+    if (clientY >= rect.top && clientY < rect.bottom) {
+      return slot.getAttribute('data-spread-id')
+    }
+  }
+  return null
+}
