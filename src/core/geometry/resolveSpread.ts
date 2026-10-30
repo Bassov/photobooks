@@ -1,5 +1,6 @@
 import type { Book, Spread } from '../schema'
 import { sourceCropRect as computeSourceCropRect } from './cropRect'
+import { frameDpi, lowDpi } from './dpi'
 import { getPageCuts, getSpreadSizeMm } from './spreadSize'
 import type { AspectRatioLookup, ResolvedItem, ResolvedSpread } from './types'
 
@@ -24,6 +25,13 @@ const defaultAspect: AspectRatioLookup = () => 1
 
 export interface ResolveSpreadOptions {
   getAspectRatio?: AspectRatioLookup
+  /**
+   * Decoded (EXIF-oriented) pixel size when known this session; falls back to
+   * the asset record's `widthPx` / `heightPx`.
+   */
+  getPixelSize?: (
+    assetId: string,
+  ) => { widthPx: number; heightPx: number } | undefined
 }
 
 export function resolveSpread(
@@ -49,18 +57,38 @@ export function resolveSpread(
     const aspect = getAspectRatio(item.assetId)
     const quarterTurns = frame.crop?.quarterTurns ?? 0
     const straightenDeg = frame.crop?.straightenDeg ?? 0
+    const sourceCropRect = computeSourceCropRect(
+      item.rectMm,
+      frame.crop,
+      aspect,
+      frame.fit,
+    )
+    const asset = book.assets[item.assetId]
+    const size =
+      options.getPixelSize?.(item.assetId) ??
+      (asset?.widthPx === undefined || asset.heightPx === undefined
+        ? undefined
+        : { widthPx: asset.widthPx, heightPx: asset.heightPx })
+    const low =
+      size === undefined
+        ? undefined
+        : lowDpi(
+            frameDpi(
+              item.rectMm,
+              sourceCropRect,
+              quarterTurns,
+              size.widthPx,
+              size.heightPx,
+            ),
+          )
     return {
       ...item,
       ...(quarterTurns > 0
         ? { photoQuarterTurns: quarterTurns as 1 | 2 | 3 }
         : {}),
       ...(straightenDeg === 0 ? {} : { straightenDeg }),
-      sourceCropRect: computeSourceCropRect(
-        item.rectMm,
-        frame.crop,
-        aspect,
-        frame.fit,
-      ),
+      sourceCropRect,
+      ...(low === undefined ? {} : { lowDpi: low }),
     }
   })
 

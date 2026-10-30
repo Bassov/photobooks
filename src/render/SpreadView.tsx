@@ -119,6 +119,7 @@ export function SpreadView({
   pxPerMm = SPREAD_PX_PER_MM,
   thumb = false,
   overlay,
+  lowDpiBadge = true,
 }: {
   spreadId: string
   resolved: ResolvedSpread
@@ -137,6 +138,8 @@ export function SpreadView({
   thumb?: boolean
   /** Editor-layer chrome (e.g. the layout grid) painted above the frames. */
   overlay?: ReactNode
+  /** Editor-only low-resolution badge on controlled frames (off in Preview). */
+  lowDpiBadge?: boolean
 }) {
   return (
     <div
@@ -158,6 +161,7 @@ export function SpreadView({
             item={item}
             pxPerMm={pxPerMm}
             thumb={thumb}
+            lowDpiBadge={lowDpiBadge}
             missing={missing}
             assetName={
               missingId === undefined ? undefined : assetNameFor?.(missingId)
@@ -214,9 +218,11 @@ function SpreadFrame({
   missing,
   assetName,
   thumb,
+  lowDpiBadge,
 }: {
   assetName: string | undefined
   thumb: boolean
+  lowDpiBadge: boolean
   item: ResolvedItem
   previewUrl: string | undefined
   tier: number | undefined
@@ -383,6 +389,17 @@ function SpreadFrame({
           aria-hidden
         >
           <FrameGlyph nodes={ICON_GLYPHS.lock} size={12} name="lock" />
+        </span>
+      ) : null}
+      {item.lowDpi !== undefined && !missing && !thumb && lowDpiBadge ? (
+        <span
+          className="spread-frame-dpi"
+          data-testid="dpi-badge"
+          data-level={item.lowDpi.level}
+          aria-label={`Low resolution, ${String(item.lowDpi.dpi)} dpi`}
+        >
+          <FrameGlyph nodes={ICON_GLYPHS.warning} size={10} name="warning" />
+          {item.lowDpi.dpi} dpi
         </span>
       ) : null}
       {selected && item.locked !== true ? (

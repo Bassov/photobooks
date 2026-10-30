@@ -36,6 +36,7 @@ export {
   getSpreadPageCount,
   getSpreadSizeMm,
 } from './geometry/spreadSize'
+export { DPI_MIN, DPI_WARN, frameDpi, lowDpi } from './geometry/dpi'
 export { clampCrop, MAX_CROP_ZOOM, sourceCropRect } from './geometry/cropRect'
 export { COVER_CROP, resetCrop, setCrop, setFit } from './ops/crop'
 export {

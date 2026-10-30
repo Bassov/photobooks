@@ -26,7 +26,9 @@ export function PresentationMode({ onExit }: { onExit: () => void }) {
       onExit={onExit}
       renderSpread={(i) => {
         const id = spreadIds[i]
-        return id === undefined ? null : <ConnectedSpreadView spreadId={id} />
+        return id === undefined ? null : (
+          <ConnectedSpreadView spreadId={id} lowDpiBadge={false} />
+        )
       }}
     />
   )

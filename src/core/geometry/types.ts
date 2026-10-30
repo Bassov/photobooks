@@ -32,6 +32,8 @@ export interface ResolvedItem {
   straightenDeg?: number
   assetId?: string
   sourceCropRect?: NormalizedRect
+  /** Editor-only: set when the photo prints below the warn DPI. */
+  lowDpi?: { dpi: number; level: 'warn' | 'min' }
 }
 
 export interface ResolvedSpread {
