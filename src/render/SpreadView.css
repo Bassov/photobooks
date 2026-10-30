@@ -336,3 +336,8 @@ button.spread-frame:not(
   );
   color: var(--ink-warning);
 }
+
+/* Kit FrameEl `isDragging`: the dragged frame dims while its photo is in flight. */
+.spread-frame[data-drag-source='true'] {
+  opacity: 0.4;
+}
