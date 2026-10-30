@@ -36,7 +36,7 @@ test('M5: cover captions sit under the cover and the back text is in the back pa
         const label = await box(page, `cover-label-${name}`)
         return label.y - (cover.y + cover.height)
       })
-      .toBeGreaterThanOrEqual(0)
+      .toBeGreaterThanOrEqual(8)
   }
   await page.getByTestId('cover-text-back').fill('Back words')
   const back = await box(page, 'cover-back')
