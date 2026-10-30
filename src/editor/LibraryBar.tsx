@@ -41,7 +41,7 @@ export function LibraryBar({
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 shrink-0 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
+          className="pb-lib-change h-6 shrink-0 rounded-full px-2.5 text-sm font-medium text-muted-foreground"
           isDisabled={Boolean(changeDisabled)}
           onPress={onChange}
           data-testid="change-library"

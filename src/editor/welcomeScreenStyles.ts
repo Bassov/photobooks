@@ -13,7 +13,7 @@ const STYLE_TEXT = `
   background: linear-gradient(
     180deg,
     var(--chrome) 0%,
-    color-mix(in srgb, var(--chrome) 55%, var(--canvas)) 55%,
+    color-mix(in srgb, var(--chrome) 68%, var(--canvas)) 55%,
     var(--canvas) 100%
   );
 }
