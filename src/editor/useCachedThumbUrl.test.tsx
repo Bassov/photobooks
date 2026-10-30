@@ -15,12 +15,14 @@ function Probe({ cacheKey }: { cacheKey: string | undefined }) {
 
 describe('useCachedThumbUrl', () => {
   const revokeObjectURL = vi.fn()
+  const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:thumb')
 
   beforeEach(() => {
     revokeObjectURL.mockClear()
+    createObjectURL.mockClear()
     vi.stubGlobal('URL', {
       ...URL,
-      createObjectURL: vi.fn(() => 'blob:thumb'),
+      createObjectURL,
       revokeObjectURL,
     })
   })
@@ -56,5 +58,53 @@ describe('useCachedThumbUrl', () => {
     })
     unmount()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:thumb')
+  })
+
+  it('wraps the cached bytes with their mime type', async () => {
+    const cache = createMemoryDerivedCache()
+    await cache.put(KEY, THUMB_PRESET_ID, {
+      bytes: new Uint8Array([1, 2, 3]).buffer,
+      mimeType: 'image/webp',
+    })
+    setDerivedCacheForTests(cache)
+    render(<Probe cacheKey={KEY} />)
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalledTimes(1)
+    })
+    const blob = createObjectURL.mock.calls[0]?.[0]
+    expect(blob?.size).toBe(3)
+    expect(blob?.type).toBe('image/webp')
+  })
+
+  it('does not publish a thumb that lands after unmount', async () => {
+    const cache = createMemoryDerivedCache()
+    await cache.put(KEY, THUMB_PRESET_ID, {
+      bytes: new Uint8Array([1]).buffer,
+      mimeType: 'image/webp',
+    })
+    setDerivedCacheForTests(cache)
+    const { unmount } = render(<Probe cacheKey={KEY} />)
+    unmount()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(createObjectURL).not.toHaveBeenCalled()
+    expect(revokeObjectURL).not.toHaveBeenCalled()
+  })
+
+  it('drops the old url when the key changes to one without a thumb', async () => {
+    const cache = createMemoryDerivedCache()
+    await cache.put(KEY, THUMB_PRESET_ID, {
+      bytes: new Uint8Array([1]).buffer,
+      mimeType: 'image/webp',
+    })
+    setDerivedCacheForTests(cache)
+    const { rerender } = render(<Probe cacheKey={KEY} />)
+    await waitFor(() => {
+      expect(screen.getByTestId('url').textContent).toBe('blob:thumb')
+    })
+    rerender(<Probe cacheKey={'b'.repeat(64)} />)
+    expect(screen.getByTestId('url').textContent).toBe('none')
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:thumb')
+    rerender(<Probe cacheKey={undefined} />)
+    expect(screen.getByTestId('url').textContent).toBe('none')
   })
 })

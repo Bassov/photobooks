@@ -46,5 +46,23 @@ describe('ListSelect', () => {
     )
     expect(document.querySelector('.pb-field__label')).toBeNull()
     expect(screen.getByRole('button', { name: /Beta/ })).toBeTruthy()
+    expect(document.querySelector('[aria-label="Pick"]')).not.toBeNull()
+  })
+
+  it('does not report a pick when the same item is re-chosen', async () => {
+    const onChange = vi.fn()
+    render(
+      <ListSelect
+        label="Size"
+        value="a"
+        onChange={onChange}
+        options={options}
+        data-testid="sel"
+      />,
+    )
+    fireEvent.click(screen.getByTestId('sel'))
+    fireEvent.click(await screen.findByRole('option', { name: 'Alpha' }))
+    expect(onChange).not.toHaveBeenCalledWith(null)
+    expect(onChange).not.toHaveBeenCalledWith('null')
   })
 })
