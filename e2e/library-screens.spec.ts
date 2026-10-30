@@ -698,3 +698,55 @@ test('kit v0.10 books grid: tile, menu, rename, sort, search, remove tokens', as
   await expect(dialog).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
+
+test('kit v0.10 settings (step 49): back bar, Library only, tokens, confirm first', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/')
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.evaluate(async () => {
+    const api = window.__photobooksProject
+    if (!api) {
+      throw new Error('missing api')
+    }
+    const attached = await api.attachMemoryLibraryForTests()
+    if (!attached.ok) {
+      throw new Error(attached.code ?? 'attach')
+    }
+    const created = await api.createBookInLibrary()
+    if (!created.ok) {
+      throw new Error(created.code ?? 'create')
+    }
+    await api.leaveEditorForLibrary()
+  })
+  await expect(page.getByTestId('library-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.getByTestId('library-settings').click()
+  await expect(page.getByTestId('settings')).toBeVisible()
+  await expect(page.getByTestId('settings-back')).toHaveText('Library')
+
+  // Hosting / Site / Print presets / Interface have no backing behavior: hidden.
+  await expect(page.locator('[data-testid^="settings-nav-"]')).toHaveCount(1)
+  await expect(page.getByTestId('settings-nav-library')).toHaveCSS(
+    'background-color',
+    'rgb(202, 202, 202)',
+  )
+  await expect(page.getByTestId('settings-section-title')).toHaveText('Library')
+  await assertDocumentFitsViewport(page)
+
+  // Change library folder confirms first.
+  await page
+    .getByTestId('library-settings-panel')
+    .getByTestId('change-library')
+    .click()
+  const dialog = page.getByRole('alertdialog')
+  await expect(dialog).toContainText('Change the library folder?')
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toHaveCount(0)
+  await assertDocumentFitsViewport(page)
+})
