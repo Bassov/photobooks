@@ -20,6 +20,12 @@ export type InvariantViolation =
       frameId: string
       anchorFrameId: string
     }
+  | {
+      code: 'dangling-frame-style'
+      spreadId: string
+      frameId: string
+      frameStyleId: string
+    }
   | { code: 'gallery-missing-asset'; assetId: string }
   | { code: 'duplicate-gallery-id'; assetId: string }
 
@@ -70,6 +76,18 @@ export function checkBookInvariants(book: Book): InvariantsResult {
               anchorFrameId: anchorId,
             },
           }
+        }
+      }
+      const frameStyleId = frame.frameStyleId
+      if (frameStyleId !== undefined && !(frameStyleId in book.frameStyles)) {
+        return {
+          ok: false,
+          violation: {
+            code: 'dangling-frame-style',
+            spreadId: spread.id,
+            frameId: frame.id,
+            frameStyleId,
+          },
         }
       }
       const assetId = frame.assetId

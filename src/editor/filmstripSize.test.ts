@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clampThumbHeight,
+  FILMSTRIP_THUMB_DEFAULT,
   FILMSTRIP_THUMB_MAX,
   FILMSTRIP_THUMB_MIN,
   getFilmstripThumbHeight,
@@ -19,7 +20,7 @@ describe('filmstrip thumb height', () => {
   it('clamps to the allowed range and rejects non-finite values', () => {
     expect(clampThumbHeight(10)).toBe(FILMSTRIP_THUMB_MIN)
     expect(clampThumbHeight(999)).toBe(FILMSTRIP_THUMB_MAX)
-    expect(clampThumbHeight(Number.NaN)).toBe(96)
+    expect(clampThumbHeight(Number.NaN)).toBe(FILMSTRIP_THUMB_DEFAULT)
   })
 
   it('persists, notifies once and ignores unchanged values', () => {
@@ -38,13 +39,13 @@ describe('filmstrip thumb height', () => {
 
 describe('stored thumb height', () => {
   it('reads a clamped stored value, defaults when absent or unreadable', () => {
-    expect(readStored()).toBe(96)
+    expect(readStored()).toBe(FILMSTRIP_THUMB_DEFAULT)
     window.localStorage.setItem('photobooks.filmstrip.thumbHeight', '500')
     expect(readStored()).toBe(FILMSTRIP_THUMB_MAX)
     vi.spyOn(window.localStorage, 'getItem').mockImplementationOnce(() => {
       throw new Error('denied')
     })
-    expect(readStored()).toBe(96)
+    expect(readStored()).toBe(FILMSTRIP_THUMB_DEFAULT)
   })
 
   it('reset restores the default, clears storage and notifies', () => {
@@ -53,7 +54,7 @@ describe('stored thumb height', () => {
     const off = subscribeFilmstripThumbHeight(listener)
     resetFilmstripThumbHeightForTests()
     off()
-    expect(getFilmstripThumbHeight()).toBe(96)
+    expect(getFilmstripThumbHeight()).toBe(FILMSTRIP_THUMB_DEFAULT)
     expect(
       window.localStorage.getItem('photobooks.filmstrip.thumbHeight'),
     ).toBeNull()

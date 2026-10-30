@@ -75,6 +75,11 @@
   box-shadow: 0 0 0 2px var(--ring);
 }
 
+/* Kit row caption: warning ink. */
+.spread-row-empty {
+  color: var(--warning-fg);
+}
+
 /* Kit row badge: destructive ink, sits at the right end of the label line. */
 .spread-row-missing {
   color: var(--destructive);

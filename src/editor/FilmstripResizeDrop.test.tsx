@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
 import { FilmstripDock } from './FilmstripDock'
 import {
@@ -34,6 +34,10 @@ async function dropOn(items: unknown[], types?: string[]): Promise<boolean> {
 }
 
 describe('FilmstripDock resize', () => {
+  beforeEach(() => {
+    setFilmstripThumbHeight(96)
+  })
+
   it('changes the height with arrow keys and ignores other keys', () => {
     render(<FilmstripDock />)
     const splitter = screen.getByTestId('film-splitter')

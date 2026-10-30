@@ -85,10 +85,10 @@ test('step 09: selecting the cover shows back · spine · front and the Cover in
       FIELD,
     )
   }
-  // Only controls the product can do: no stubbed spine width / fill / material.
-  for (const stub of ['Spine width', 'Direction', 'Material', 'Title font']) {
-    await expect(inspector.getByText(stub)).toHaveCount(0)
-  }
+  // uikit/src/sandbox/v7.tsx:214-217 lists Title font, Spine width, Direction and
+  // Material in the Cover inspector; the product shows them as read-only rows
+  // (see e2e/design-filmstrip-cover.spec.ts), never as inputs.
+  await expect(inspector.locator('select, [role="combobox"]')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 
   // Picking a page leaves the cover.
