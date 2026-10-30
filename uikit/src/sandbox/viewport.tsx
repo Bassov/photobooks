@@ -5,9 +5,9 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
 import { useStudio, mapSpread, useKeys } from "./store"
-import { SpreadSurface, PHOTO_TYPE, readItems } from "./canvas"
+import { SpreadSurface, GuideLine, PHOTO_TYPE, readItems } from "./canvas"
 import { bestTemplate } from "./templates"
-import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, useMasters, coverW, pagesOf, pageLabel, SPINE, T, SUB, setCoverPhoto } from "./v7"
+import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, pageLabel, SPINE, T, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
 
 /* v0.7.1: page labels live in the canvas layer under the spread and move with zoom and pan */
@@ -82,7 +82,7 @@ export function useEditorKeys() {
 
 const RULER = 22
 function Ruler({ axis, origin, sc, len, cursor, onDown }: { axis: "x" | "y"; origin: number; sc: number; len: number; cursor?: number | null; onDown: (e: React.PointerEvent) => void }) {
-  const step = sc > 2.4 ? 5 : sc > 1.2 ? 10 : 20
+  const step = [5, 10, 20, 50, 100].find((x) => x * sc >= 34) ?? 100 // major tick every ≥ 34 px so 3-digit labels never collide
   const ticks: React.ReactNode[] = []
   const from = Math.floor(-origin / sc / step) * step - step, to = Math.ceil((len - origin) / sc / step) * step + step
   for (let mm = from; mm <= to; mm += step / 5) {
@@ -167,10 +167,12 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up)
   }
   const si = st.cur
+  const mid = nd?.k === "master" ? nd.id : null // Masters view: guides are edited on the master and every spread on it inherits them
+  const masterGuides = (id: "A" | "B") => guidesOfMaster(id, MASTERS[id])
   const guideDrag = (e: React.PointerEvent, axis: "v" | "h", existing?: Guide) => {
     e.preventDefault(); e.stopPropagation()
     const id = existing?.id ?? uid("g")
-    const scope = st.features.parentEdit ? "parent" : existing?.scope ?? "spread"
+    const scope = mid || st.features.parentEdit ? "parent" : existing?.scope ?? "spread"
     const mv = (ev: PointerEvent) => {
       const m = toMm(local(ev)); const pos = round(axis === "v" ? m.x : m.y, 1)
       setNewGuide({ id, axis, pos, scope }); setCursor(local(ev))
@@ -185,7 +187,8 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
       if (existing && (onRuler || !inRange)) { removeGuide(id); st.setStatus("Guide removed"); return }
       if (!inRange || onRuler) return
       const g: Guide = { id, axis, pos, scope }
-      if (st.features.parentEdit) {
+      if (mid) setMaster(mid, { guides: [...masterGuides(mid).filter((x) => x.id !== id), g] })
+      else if (st.features.parentEdit) {
         const pid = st.features.parentEdit
         st.update((d) => ({ ...d, parents: d.parents.map((pp) => pp.id === pid ? { ...pp, guides: [...pp.guides.filter((x) => x.id !== id), g] } : pp) }), existing ? "Move parent guide" : "Add parent guide")
       } else st.update((d) => mapSpread(d, si, (s) => ({ ...s, guides: [...s.guides.filter((x) => x.id !== id), { ...existing, ...g }] })), existing ? "Move guide" : "Add guide")
@@ -194,13 +197,14 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up)
   }
   const removeGuide = (id: string) => {
-    if (st.features.parentEdit) { const pid = st.features.parentEdit; st.update((d) => ({ ...d, parents: d.parents.map((pp) => pp.id === pid ? { ...pp, guides: pp.guides.filter((x) => x.id !== id) } : pp) }), "Delete guide") }
+    if (mid) setMaster(mid, { guides: masterGuides(mid).filter((x) => x.id !== id) })
+    else if (st.features.parentEdit) { const pid = st.features.parentEdit; st.update((d) => ({ ...d, parents: d.parents.map((pp) => pp.id === pid ? { ...pp, guides: pp.guides.filter((x) => x.id !== id) } : pp) }), "Delete guide") }
     else st.update((d) => mapSpread(d, si, (s) => ({ ...s, guides: s.guides.filter((x) => x.id !== id) })), "Delete guide")
   }
   const onGuideDown = (e: React.PointerEvent, id: string, inherited: boolean) => {
     const s = st.doc.spreads[si]
     const par = st.features.parentEdit ? st.doc.parents.find((p) => p.id === st.features.parentEdit) : undefined
-    const g = (par?.guides ?? []).find((x) => x.id === id) ?? s.guides.find((x) => x.id === id)
+    const g = (mid ? masterGuides(mid) : par?.guides ?? []).find((x) => x.id === id) ?? s.guides.find((x) => x.id === id)
     if (inherited && !st.features.parentEdit) { e.stopPropagation(); st.setStatus("Guide from the parent spread — edit it on the parent, or Alt+click to override"); return }
     if (!g) return
     if (g.locked) { e.stopPropagation(); st.setStatus("Guide is locked"); return }
@@ -217,9 +221,9 @@ export function Viewport({ className, children, pad = 40, stackGap = 44 }: { cla
         className)} data-testid="viewport">
       {size.w > 0 && (
         <div className="absolute" style={{ left: ox, top: oy, width: VW * sc, height: SH * sc }} data-testid="spread-layer">
-          {nd ? <div className="size-full" data-testid="node-view">{nd.k === "cover" ? <CoverDrop /> : nd.k === "endpaper" ? <EndpaperSpread big which={nd.w} /> : nd.k === "master" ? <MasterSpread big id={nd.id} m={masters[nd.id]} /> : <LastPage big />}</div>
+          {nd ? <div className="size-full" data-testid="node-view">{nd.k === "cover" ? <CoverDrop /> : nd.k === "endpaper" ? <EndpaperSpread big which={nd.w} /> : nd.k === "master" ? <><MasterSpread big id={nd.id} m={masters[nd.id]} />{view.guides && !view.preview && masterGuides(nd.id).map((g) => <GuideLine key={g.id} g={g} sc={sc} onDown={(e) => onGuideDown(e, g.id, false)} />)}</> : <LastPage big />}</div>
             : <SpreadSurface si={si} sc={sc} onGuideDown={onGuideDown} />}
-          {!nd && newGuide && <div className={cn("pointer-events-none absolute z-50 bg-guide", newGuide.axis === "v" ? "w-px" : "h-px")} style={newGuide.axis === "v" ? { left: newGuide.pos * sc, top: -40, height: SH * sc + 80 } : { top: newGuide.pos * sc, left: -40, width: SW * sc + 80 }}>
+          {(!nd || mid) && newGuide && <div className={cn("pointer-events-none absolute z-50 bg-guide", newGuide.axis === "v" ? "w-px" : "h-px")} style={newGuide.axis === "v" ? { left: newGuide.pos * sc, top: -40, height: SH * sc + 80 } : { top: newGuide.pos * sc, left: -40, width: SW * sc + 80 }}>
             <span className="absolute whitespace-nowrap rounded-xs bg-guide-solid px-1.5 py-px text-2xs font-semibold text-white" style={newGuide.axis === "v" ? { left: 4, top: 0 } : { left: 0, top: 4 }}>{newGuide.pos} mm</span>
           </div>}
           {!view.preview && <PageLabels nd={nd} si={si} />}

@@ -178,9 +178,14 @@ export function anchors(doc: Doc, s: Spread, opts: { grid: boolean; guides: bool
   }
   return { xs, ys }
 }
+/** Built-in master overrides edited in the Masters view (v7 store): guide list and Page numbers toggle; unset = the master's own values. */
+export const MASTER_GUIDES: Record<string, Guide[] | undefined> = {}
+export const MASTER_PN: Record<string, boolean | undefined> = {}
+export const guidesOf = (p?: Parent): Guide[] => (p ? MASTER_GUIDES[p.id] ?? p.guides : [])
+export const pageNumbersOf = (p?: Parent): boolean => (p ? MASTER_PN[p.id] ?? !!p.pageNumbers : false)
 export function allGuides(doc: Doc, s: Spread): (Guide & { inherited?: boolean })[] {
   const par = parentOf(doc, s)
-  const pg = (par?.guides ?? []).filter((g) => !(s.hiddenParent ?? []).includes(g.id)).map((g) => ({ ...g, inherited: true }))
+  const pg = guidesOf(par).filter((g) => !(s.hiddenParent ?? []).includes(g.id)).map((g) => ({ ...g, inherited: true }))
   return [...pg, ...s.guides]
 }
 export type SnapLine = { axis: "v" | "h"; pos: number; kind: string }

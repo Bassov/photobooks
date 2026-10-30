@@ -1,5 +1,7 @@
 import * as React from "react"
 import { CircleCheck, Loader2, FolderOpen } from "lucide-react"
+import { Badge } from "@/components/uui/Badge"
+import { P } from "@/data"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -89,6 +91,38 @@ export function PrintDialog({ book, spreads, title, onClose, initialStep = "opts
           {shown && <p className="mt-2 text-xs text-muted-foreground" role="status">Shown in ~/Documents/Photobooks exports</p>}
           <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" size="md" className="gap-1.5 px-4 [&_svg]:size-4" onPress={() => setShown(true)} data-testid="print-show"><FolderOpen />Show in folder</Button><Button size="md" className="px-4" onPress={onClose} data-testid="print-close">Done</Button></div>
         </>}
+      </div>
+    </AppModal>
+  )
+}
+
+/** Relink dialog (port of the product `src/editor/relink/RelinkDialog.tsx`): photos whose files can't be found, matched by a rescanned folder.
+ *  Skip keeps the book editable with hatched frames; Resolve relinks the matches. */
+export function RelinkDialog({ missing, found, onRescan, onResolve, onSkip }: {
+  missing: string[]; found: ReadonlySet<string>; onRescan: () => void; onResolve: () => void; onSkip: () => void
+}) {
+  const open = missing.length - found.size
+  const title = open > 0 ? `${open} photo${open === 1 ? "" : "s"} need${open === 1 ? "s" : ""} attention` : "No photos need attention"
+  return (
+    <AppModal isOpen width={560} isDismissable={false}>
+      <div data-testid="relink-dialog">
+        <header className="px-6 pb-2 pt-5">
+          <div className="heading text-xl leading-tight" data-testid="relink-title">{title}</div>
+          <p className="mt-1 text-sm text-muted-foreground">Rescan a folder to match photos by path, size, and date. Skip keeps the book editable with hatched frames.</p>
+        </header>
+        <div className="scroll-thin mx-6 mt-2 max-h-[280px] overflow-auto rounded-lg bg-field" data-testid="relink-list" tabIndex={0}>
+          {missing.map((id) => (
+            <div key={id} className="flex items-center justify-between gap-3 px-3 py-2" data-testid="relink-row" data-asset-id={id} data-status={found.has(id) ? "found" : "missing"}>
+              <span className="min-w-0 truncate text-sm font-semibold">{P(id).name}</span>
+              <Badge color={found.has(id) ? "success" : "error"} type="pill-color" dot>{found.has(id) ? "Found" : "Missing"}</Badge>
+            </div>
+          ))}
+        </div>
+        <footer className="mt-4 flex items-center justify-end gap-2 px-6 pb-5">
+          <Button variant="ghost" size="sm" className="px-3" onPress={onSkip} data-testid="relink-skip">Skip for now</Button>
+          <Button variant="secondary" size="sm" className="px-3" onPress={onRescan} data-testid="relink-rescan">Rescan folder…</Button>
+          <Button size="sm" className="px-3" isDisabled={found.size === 0} disabledReason={found.size === 0 ? "Rescan a folder first — nothing to resolve yet" : undefined} onPress={onResolve} data-testid="relink-resolve">{found.size ? `Resolve ${found.size}` : "Resolve"}</Button>
+        </footer>
       </div>
     </AppModal>
   )
