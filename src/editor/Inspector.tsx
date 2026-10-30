@@ -170,17 +170,36 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
           data-testid="inspector-panel-frame"
         >
           {panel.kind === 'frame' ? (
-            <div className="px-4 py-4">
-              <RowList rows={panel.rows} />
-            </div>
+            <>
+              <h2
+                className="inspector-context-title"
+                data-testid="inspector-context"
+              >
+                Photo
+              </h2>
+              <div className="px-4 py-4">
+                <RowList rows={panel.rows} />
+              </div>
+            </>
           ) : null}
           {panel.kind === 'spread' ? (
-            <div className="px-4 py-4">
-              <div className="mb-3 text-xs font-medium" style={{ color: SUB }}>
-                Spread properties
+            <>
+              <h2
+                className="inspector-context-title"
+                data-testid="inspector-context"
+              >
+                Spread
+              </h2>
+              <div className="px-4 py-4">
+                <div
+                  className="inspector-eyebrow mb-3"
+                  data-testid="inspector-spread-properties"
+                >
+                  Spread properties
+                </div>
+                <RowList rows={panel.spreadRows} />
               </div>
-              <RowList rows={panel.spreadRows} />
-            </div>
+            </>
           ) : null}
           {panel.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
           {panel.kind === 'spread' && section === null ? (

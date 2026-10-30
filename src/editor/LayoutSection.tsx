@@ -137,9 +137,7 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
       aria-label="Layout"
     >
       <header className="flex items-center gap-2">
-        <h4 className="text-2xs font-semibold tracking-[0.12em] uppercase">
-          Layout
-        </h4>
+        <h4 className="inspector-eyebrow">Layout</h4>
         {summary === null ? null : (
           <span
             className="layout-muted truncate text-xs"

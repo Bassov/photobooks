@@ -79,9 +79,7 @@ export function FitCropSection({
       data-crop-keep=""
       aria-label="Fit and crop"
     >
-      <h4 className="text-2xs font-semibold tracking-[0.12em] uppercase">
-        Fit &amp; crop
-      </h4>
+      <h4 className="inspector-eyebrow">Fit &amp; crop</h4>
       <SegmentedControl
         label="Photo fit"
         size="sm"

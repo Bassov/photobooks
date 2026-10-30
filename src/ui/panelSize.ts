@@ -7,7 +7,7 @@ export type PanelSide = 'left' | 'right'
 
 export const PANEL_DEFAULTS: Record<PanelSide, number> = {
   left: 212,
-  right: 264,
+  right: 300,
 }
 
 const STORAGE_PREFIX = 'photobooks.panel.'

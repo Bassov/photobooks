@@ -188,8 +188,12 @@ describe('Inspector', () => {
       const panel = screen.getByTestId('inspector-panel-frame')
       expect(panel.querySelectorAll('dl')).toHaveLength(1)
       expect(within(panel).getByText('Frames')).toBeTruthy()
-      expect(within(panel).getByText('Spread properties').style.color).toBe(
-        cssColor(SUB),
+      // The muted colour comes from the kit eyebrow class (asserted in e2e).
+      expect(within(panel).getByText('Spread properties').className).toContain(
+        'inspector-eyebrow',
+      )
+      expect(within(panel).getByTestId('inspector-context').textContent).toBe(
+        'Spread',
       )
     })
 

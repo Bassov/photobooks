@@ -85,9 +85,7 @@ export function GridSection({
       aria-label="Layout grid"
     >
       <header className="flex items-center gap-2">
-        <h4 className="text-2xs font-semibold tracking-[0.12em] uppercase">
-          Layout grid
-        </h4>
+        <h4 className="inspector-eyebrow">Layout grid</h4>
         <span
           className="grid-section-muted text-xs tabular-nums"
           data-testid="grid-summary"

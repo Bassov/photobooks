@@ -70,8 +70,8 @@ export const EDITOR_CHROME_CSS = `
 .editor-panel-l[data-open='true'] { width: var(--panel-left, 188px) }
 .editor-panel-l-inner { width: var(--panel-left, 188px) }
 .editor-panel-r { width: 0 }
-.editor-panel-r[data-open='true'] { width: var(--panel-right, 264px) }
-.editor-inspector { width: var(--panel-right, 264px); background: ${BAR}; color: ${T}; border: 0; outline: 0; box-shadow: none }
+.editor-panel-r[data-open='true'] { width: var(--panel-right, 300px) }
+.editor-inspector { width: var(--panel-right, 300px); background: ${BAR}; color: ${T}; border: 0; outline: 0; box-shadow: none }
 .e7:has([data-dragging='true']) .e7-pan { transition: none }
 .editor-panel-b[data-open='false'] { height: 0 }
 .editor-canvas-inner { background: transparent }

@@ -116,9 +116,7 @@ export function GeometrySection({ target }: { target: CropTarget }) {
       aria-label="Position and size"
     >
       <div className="flex items-center justify-between">
-        <h4 className="text-2xs font-semibold tracking-[0.12em] uppercase">
-          Position &amp; size
-        </h4>
+        <h4 className="inspector-eyebrow">Position &amp; size</h4>
         <IconButton
           label={locked ? 'Unlock frame' : 'Lock frame'}
           size="sm"
@@ -267,9 +265,7 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
       data-testid="inspector-arrange"
       aria-label="Arrange"
     >
-      <h4 className="text-2xs font-semibold tracking-[0.12em] uppercase">
-        Arrange
-      </h4>
+      <h4 className="inspector-eyebrow">Arrange</h4>
       <div
         role="group"
         aria-label="Arrange"
