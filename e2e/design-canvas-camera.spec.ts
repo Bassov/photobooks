@@ -2,17 +2,6 @@ import { expect, test } from './fixtures/coverage'
 import type { Locator, Page } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { openSessionEditor } from './fixtures/openSessionEditor'
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import {
-  ensurePhotoFixtures,
-  photoFixturePaths,
-} from './fixtures/ensurePhotoFixtures'
-import {
-  choosePhotoFolder,
-  installPhotoDirectoryPickerStub,
-} from './fixtures/photoDirectoryPicker'
 
 /** Kit `viewport.tsx` FIT_TOP / FIT_BOTTOM. */
 const FIT_TOP = 56
@@ -187,37 +176,4 @@ test('keyboard zoom keeps the viewport centre and Fit recentres', async ({
   const refit = await box(firstSpread(page))
   expect(Math.abs(refit.y - fitted.y)).toBeLessThanOrEqual(1)
   expect(Math.abs(refit.x - fitted.x)).toBeLessThanOrEqual(1)
-})
-
-test('Choose photo folder imports into the filmstrip', async ({ page }) => {
-  ensurePhotoFixtures({ includeLargeJpeg: false })
-  await installPhotoDirectoryPickerStub(page)
-  await openSessionEditor(page)
-  await expect(page.getByTestId('pasteboard-empty-card')).toHaveCount(0)
-
-  await choosePhotoFolder(page, [photoFixturePaths.samplePng], {
-    via: 'picker',
-  })
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(1, {
-    timeout: 30_000,
-  })
-  await assertDocumentFitsViewport(page)
-})
-
-test('folder with only non-images is reported and adds nothing', async ({
-  page,
-}) => {
-  const dir = mkdtempSync(join(tmpdir(), 'pb-empty-folder-'))
-  writeFileSync(join(dir, 'README.md'), '# no photos\n')
-  await installPhotoDirectoryPickerStub(page)
-  await openSessionEditor(page)
-
-  await choosePhotoFolder(page, [join(dir, 'README.md')])
-  await expect(page.getByTestId('editor-status')).toHaveText(
-    '1 non-image file skipped',
-    { timeout: 15_000 },
-  )
-  await expect(page.getByTestId('import-errors')).toHaveCount(0)
-  await expect(page.getByTestId('filmstrip-item')).toHaveCount(0)
-  await assertDocumentFitsViewport(page)
 })

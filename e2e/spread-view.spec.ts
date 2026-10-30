@@ -156,7 +156,7 @@ test('a spread added from the row menu is revealed and a later template change l
         checked &&
         // Fitted on one spread, the added spread may be windowed out (kit demo
         // shows a single spread); either way it is not the active one.
-        (!added?.active)
+        !added?.active
       )
     })
     .toBe(true)
