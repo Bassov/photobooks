@@ -5,6 +5,7 @@ import {
 } from './fixtures/assertDocumentFitsViewport'
 import { dispatchCtrlWheel } from './fixtures/dispatchCtrlWheel'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
 import type { Page } from '@playwright/test'
 
 /** Ruler origins (strip start + mm 0 offset) must sit on the active spread's top-left. */
@@ -102,4 +103,38 @@ test('the cursor tick follows the pointer over the pasteboard and clears on leav
   expect(Number.parseFloat(left)).toBeCloseTo(80, 0)
   await page.mouse.move(2, 2)
   await expect(tick).toBeHidden()
+})
+
+test.describe('frame-budget gates', () => {
+  test('pan and zoom with rulers visible stay within frame-budget gates', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await page.goto('/?perf=1')
+    await page.waitForFunction(() => window.__photobooksPerf !== undefined)
+    await page.evaluate(() => {
+      window.__photobooksProject?.startSessionEditor()
+    })
+    await page.getByTestId('editor-shell').waitFor({ state: 'visible' })
+    await page.keyboard.press('Shift+R')
+    await expect(page.getByTestId('ruler-x')).toBeVisible()
+    await dispatchCtrlWheel(page, -120, 3)
+
+    await applyCpuThrottling(page)
+    await clearPerfScenario(page)
+    for (let step = 0; step < 30; step += 1) {
+      await page.getByTestId('pasteboard-scroll').evaluate((el, i) => {
+        el.scrollTop = (i % 2) * 40
+        el.scrollLeft = (i % 3) * 20
+      }, step)
+      await page.waitForTimeout(32)
+    }
+    await dispatchCtrlWheel(page, 120, 2)
+    await dispatchCtrlWheel(page, -120, 2)
+
+    await page.evaluate(() => {
+      window.__photobooksPerf?.assertNoLoafEntries(0)
+    })
+    await expectAligned(page)
+  })
 })
