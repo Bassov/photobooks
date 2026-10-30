@@ -17,7 +17,9 @@ describe('LeftPanel', () => {
     ).toBe('true')
 
     fireEvent.click(screen.getByTestId('left-tab-masters'))
-    expect(screen.getByTestId('masters-stub')).toBeTruthy()
+    expect(screen.getByTestId('masters-stub').textContent).toContain(
+      'No masters yet',
+    )
     expect(screen.queryByTestId('spreads-panel')).toBeNull()
     expect(
       screen.getByTestId('left-tab-masters').getAttribute('aria-selected'),

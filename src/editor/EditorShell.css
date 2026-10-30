@@ -215,6 +215,28 @@
   outline-offset: 1px;
 }
 
+/* Masters mode, nothing to list until parent spreads ship: quiet gray note on the bar. */
+.editor-masters-empty {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 1);
+  padding: calc(var(--spacing) * 3);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-masters-empty-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.editor-masters-empty-description {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
 /* Inspector Frame / Spread / Book tabs: kit TabList size sm. */
 .editor-inspector-tabs {
   height: calc(var(--spacing) * 7);
