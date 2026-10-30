@@ -139,11 +139,21 @@ test('#14: the cover inspector lists the kit rows without fake inputs', async ({
     await expect(inspector.getByText(label, { exact: true })).toBeVisible()
   }
   await expect(inspector.getByText('12 mm')).toBeVisible()
-  await expect(page.getByTestId('fill-readonly')).toHaveText('coming later')
-  await expect(page.getByTestId('material-readonly')).toHaveText('coming later')
-  // Only the three title/spine/back text inputs are editable.
-  await expect(inspector.locator('input')).toHaveCount(3)
-  await expect(inspector.locator('select, [role="combobox"]')).toHaveCount(0)
+  // Superseded by #14 (design-inspector-book-cover): the same rows are now
+  // real kit-backed controls instead of "coming later" placeholders.
+  await expect(inspector.getByText('coming later')).toHaveCount(0)
+  await expect(page.getByTestId('fill-readonly')).toHaveCount(0)
+  await expect(page.getByTestId('material-readonly')).toHaveCount(0)
+  await expect(inspector.getByTestId('cover-title-font')).toBeEnabled()
+  await expect(inspector.getByTestId('cover-material')).toBeEnabled()
+  await expect(inspector.getByTestId('cover-finish')).toBeEnabled()
+  await expect(inspector.getByTestId('cover-back-fill')).toBeVisible()
+  await expect(
+    inspector.getByTestId('cover-spine-width').getByRole('slider'),
+  ).toBeVisible()
+  await expect(
+    inspector.getByRole('radio', { name: 'Bottom to top' }),
+  ).toBeAttached()
 })
 
 test('#10/#11: image-only kit-height tiles with no hover trash', async ({
