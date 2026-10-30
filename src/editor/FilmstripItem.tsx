@@ -156,10 +156,11 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
     getFilmstripJumpHighlightId,
     getFilmstripJumpHighlightId,
   )
+  const readMissing = () => getRelinkStatus(id) === 'missing'
   const missing = useSyncExternalStore(
     subscribeRelink,
-    () => getRelinkStatus(id) === 'missing',
-    () => false,
+    readMissing,
+    readMissing,
   )
   useEffect(() => {
     ensureThumb(id, cacheKey)
