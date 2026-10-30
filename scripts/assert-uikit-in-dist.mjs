@@ -5,6 +5,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 export function checkUikitInDist(distDir) {
   const index = join(distDir, 'uikit', 'index.html')
@@ -17,11 +18,19 @@ export function checkUikitInDist(distDir) {
   return null
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const err = checkUikitInDist(process.argv[2] ?? 'dist')
+export function main(distDir = 'dist') {
+  const err = checkUikitInDist(distDir)
   if (err) {
     console.error(`assert-uikit-in-dist: ${err}`)
-    process.exit(1)
+    return 1
   }
   console.log('assert-uikit-in-dist: ok')
+  return 0
+}
+
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  process.exitCode = main(process.argv[2])
 }

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { checkUikitInDist } from './assert-uikit-in-dist.mjs'
+import { checkUikitInDist, main } from './assert-uikit-in-dist.mjs'
 
 function dist(files) {
   const d = mkdtempSync(join(tmpdir(), 'uikit-dist-'))
@@ -36,5 +36,13 @@ describe('checkUikitInDist', () => {
       'uikit/index.html': '<script src="./assets/kit.js"></script>',
     })
     expect(checkUikitInDist(d)).toMatch(/missing .*kit\.js/)
+  })
+  it('main returns 0 for a good dist and 1 for a missing kit', () => {
+    const ok = dist({
+      'uikit/index.html': '<script src="./assets/kit.js"></script>',
+      'uikit/assets/kit.js': '',
+    })
+    expect(main(ok)).toBe(0)
+    expect(main(dist({ 'index.html': '' }))).toBe(1)
   })
 })
