@@ -9,7 +9,15 @@ export {
   type Endpapers,
   type Frame,
   type Spread,
+  type TextContent,
+  type TextStyleId,
+  TEXT_STYLE_IDS,
 } from './schema'
+export {
+  isTextFrame,
+  resolveTextItems,
+  type ResolvedTextItem,
+} from './text/resolveText'
 export { defaultCover, defaultEndpapers, type CoverPanelName } from './cover'
 export { migrateToCurrent, type MigrateResult } from './migrate'
 export {

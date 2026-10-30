@@ -91,6 +91,25 @@ function migrateV4ToV5(
   }
 }
 
+function migrateV5ToV6(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const spreads = Array.isArray(input.spreads)
+    ? input.spreads.map((spread: unknown) => {
+        if (!Array.isArray((spread as { frames?: unknown } | null)?.frames)) {
+          return spread
+        }
+        const frames = (spread as { frames: unknown[] }).frames.map((frame) =>
+          frame !== null && typeof frame === 'object'
+            ? { kind: 'image', ...frame }
+            : frame,
+        )
+        return { ...(spread as object), frames }
+      })
+    : input.spreads
+  return { ...input, schemaVersion: 6, spreads }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -136,6 +155,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 4) {
     value = migrateV4ToV5(value as Record<string, unknown>)
+    version = 5
+  }
+  if (version === 5) {
+    value = migrateV5ToV6(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }
