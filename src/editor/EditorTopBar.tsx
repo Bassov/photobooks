@@ -3,6 +3,7 @@ import { setCoverSelected } from './coverSelection'
 import type { Key } from 'react-aria-components'
 import {
   useEffect,
+  useState,
   useSyncExternalStore,
   type ButtonHTMLAttributes,
   type CSSProperties,
@@ -39,6 +40,7 @@ import {
 } from './editorChromePanels'
 import { BAR, FIELD, SUB, T } from './editorChromeTokens'
 import { PanelToggles } from './EditorFrame'
+import { EditorSettings } from './EditorSettings'
 import { EditorToolGroup } from './EditorToolGroup'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
@@ -321,6 +323,7 @@ export function EditorTopBar({
 
   useEffect(() => installEditorHistoryShortcut(), [])
 
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const libraryReady = project.libraryOpen
   const writeBlocked = project.accessPhase === 'locked-elsewhere'
   const pickerBusy = chromeImport.pickerBusy
@@ -391,15 +394,6 @@ export function EditorTopBar({
             This book is open in another tab
           </Status>
         ) : null}
-        <ChromeButton
-          data-testid="choose-photo-folder"
-          onClick={() => {
-            void chromeImport.onChoosePhotoFolder()
-          }}
-          disabled={chromeImport.importDisabled}
-        >
-          {chromeImport.photoFolderLabel}
-        </ChromeButton>
         {chromeImport.inputs}
         <EditorToolGroup />
         <GridToggle />
@@ -427,6 +421,25 @@ export function EditorTopBar({
         <Icon name="eye" size={16} />
         Preview
       </ChromeButton>
+      <IconButton
+        label="Settings"
+        size="sm"
+        data-testid="editor-settings-open"
+        onPress={() => {
+          setSettingsOpen(true)
+        }}
+      >
+        <Icon name="settings" size={16} />
+      </IconButton>
+      {settingsOpen ? (
+        <EditorSettings
+          libraryPath={project.libraryLabel ?? 'Library'}
+          changeDisabled={chromeBusy}
+          onClose={() => {
+            setSettingsOpen(false)
+          }}
+        />
+      ) : null}
     </header>
   )
 }

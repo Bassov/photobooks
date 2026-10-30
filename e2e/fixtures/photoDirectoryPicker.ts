@@ -208,5 +208,5 @@ export async function choosePhotoFolder(
     return
   }
   await queuePhotoDirectoryPicker(page, stubPhotoFilesFromPaths(filePaths))
-  await page.getByTestId('choose-photo-folder').click()
+  await page.getByTestId('film-add-folder').click()
 }

@@ -78,10 +78,15 @@ const STYLE_TEXT = `
   background: var(--accent);
 }
 .pb-lib-quiet:focus-visible,
-.pb-lib-quiet:focus-within,
 .pb-lib-quiet[data-focus-visible] {
   outline: 2px solid #3A3839;
   outline-offset: 2px;
+}
+/* Search field: subtle tone shift + hairline, not the heavy offset ring. */
+.pb-lib-quiet:focus-within:not(:focus-visible) {
+  background: var(--accent);
+  outline: 1px solid var(--muted-foreground);
+  outline-offset: 0;
 }
 .pb-lib-book {
   background: none;

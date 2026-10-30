@@ -165,6 +165,6 @@ test('locked-elsewhere shows banner and blocks Save', async ({ page }) => {
   )
   await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
   await expect(page.getByTestId('go-library')).toBeEnabled()
-  await expect(page.getByTestId('choose-photo-folder')).toBeDisabled()
+  await expect(page.getByTestId('film-add-folder')).toBeDisabled()
   await assertDocumentFitsViewport(page)
 })

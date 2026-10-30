@@ -195,9 +195,11 @@ test('editor top bar follows kit v0.10 structure and tokens', async ({
   const present = page.getByTestId('present')
   await expect(present).toHaveText('Preview')
   await expect(present).toHaveCSS('background-color', 'rgb(215, 215, 215)')
-  // Print / Publish / Settings are not wired in the editor: hidden, not stubbed.
-  for (const name of ['Print', 'Publish', 'Settings']) {
+  // Print / Publish are not wired in the editor: hidden, not stubbed.
+  for (const name of ['Print', 'Publish']) {
     await expect(bar.getByRole('button', { name })).toHaveCount(0)
   }
+  // Kit toolbar ends with Preview · Settings (uikit/src/demo-parts/editor.tsx:97).
+  await expect(bar.getByRole('button', { name: 'Settings' })).toBeVisible()
   await assertDocumentFitsViewport(page)
 })

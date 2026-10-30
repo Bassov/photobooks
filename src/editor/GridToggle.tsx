@@ -19,7 +19,7 @@ export function GridToggle() {
     <IconButton
       label="Layout grid (Ctrl ')"
       size="sm"
-      className="grid-eye"
+      className="pb-view-toggle"
       aria-pressed={shown}
       data-testid="grid-topbar-toggle"
       onPress={toggleGridVisible}

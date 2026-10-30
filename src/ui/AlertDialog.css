@@ -11,3 +11,14 @@
   justify-content: flex-end;
   gap: calc(var(--spacing) * 2);
 }
+
+.pb-alert-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--spacing) * 4);
+}
+
+.pb-alert-dialog-text {
+  min-width: 0;
+  flex: 1;
+}

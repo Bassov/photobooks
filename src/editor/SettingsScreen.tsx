@@ -30,7 +30,7 @@ export function SettingsScreen({
       className="grid h-full min-h-0 grid-cols-[220px_1fr] bg-background"
       data-testid="settings"
     >
-      <nav className="flex flex-col gap-0.5 border-r bg-chrome p-3">
+      <nav className="flex flex-col gap-0.5 bg-chrome p-3">
         <div className="mb-3 flex items-center gap-2 px-2 pt-1">
           <div className="grid size-6 place-items-center rounded-md bg-field text-foreground">
             <Icon name="bookOpen" size={14} className="size-3" />
@@ -156,6 +156,7 @@ export function SettingsScreen({
       <AlertDialog
         isOpen={confirm}
         tone="neutral"
+        icon={<Icon name="folderSync" size={16} />}
         title="Change the library folder?"
         confirmLabel="Choose folder…"
         onCancel={() => {

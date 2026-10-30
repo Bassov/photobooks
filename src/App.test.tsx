@@ -68,7 +68,8 @@ describe('App editor shell', () => {
     await enterEditor()
     expect(screen.getByTestId('editor-workspace')).toBeTruthy()
     expect(screen.getByTestId('filmstrip')).toBeTruthy()
-    expect(screen.getByTestId('choose-photo-folder')).toBeTruthy()
+    expect(screen.getByTestId('film-add-folder')).toBeTruthy()
+    expect(screen.queryByTestId('choose-photo-folder')).toBeNull()
     expect(screen.queryByTestId('photo-card')).toBeNull()
   })
 
@@ -135,7 +136,7 @@ describe('App editor shell', () => {
 
     render(<App />)
     await enterEditor()
-    fireEvent.click(screen.getByTestId('choose-photo-folder'))
+    fireEvent.click(screen.getByTestId('film-add-folder'))
 
     await waitFor(() => {
       expect(importPhotos.importPhotoFiles).toHaveBeenCalledWith(
@@ -165,7 +166,7 @@ describe('App editor shell', () => {
 
     render(<App />)
     await enterEditor()
-    fireEvent.click(screen.getByTestId('choose-photo-folder'))
+    fireEvent.click(screen.getByTestId('film-add-folder'))
 
     await waitFor(() => {
       expect(screen.getByTestId('editor-status').textContent).toMatch(
