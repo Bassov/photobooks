@@ -299,10 +299,10 @@ button.spread-frame:not(
   /* Kit `.hatch-missing` (uikit/src/index.css): grayscale 45deg stripes. */
   background: repeating-linear-gradient(
     45deg,
-    #e4e4e4,
-    #e4e4e4 7px,
-    #d7d7d7 7px,
-    #d7d7d7 14px
+    var(--hatch-missing-a),
+    var(--hatch-missing-a) 7px,
+    var(--hatch-missing-b) 7px,
+    var(--hatch-missing-b) 14px
   );
   color: var(--ink-warning);
 }
