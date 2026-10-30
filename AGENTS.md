@@ -15,7 +15,6 @@ Navigation only. Agent loop: `docs/agent-loop.md`. Artifact mandates: `openspec/
 | Spread painter       | `src/render/`                          | `openspec/specs/spread-view/`                    |
 | Photo / asset pool   | `src/photo/`                           | `openspec/specs/photo-card/`                     |
 | Perf / 60 fps        | `src/perf/`                            | `openspec/specs/frame-budget/`                   |
-| Book fonts           | `src/fonts/`                           | `openspec/specs/book-fonts/`                     |
 | Shared helpers       | `src/lib/`                             | —                                                |
 | Preview hosting      | `wrangler.jsonc`, deploy scripts       | `openspec/specs/preview-hosting/`                |
 | CI quality gates     | `.github/`, `ts-rig-*` (rig package)   | `quality/gates.json` (see `ci-gates/` pointer)   |
