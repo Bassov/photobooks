@@ -6,7 +6,7 @@ const PANEL_STEP_LARGE = PANEL_STEP * 4
 export type PanelSide = 'left' | 'right'
 
 export const PANEL_DEFAULTS: Record<PanelSide, number> = {
-  left: 188,
+  left: 212,
   right: 264,
 }
 

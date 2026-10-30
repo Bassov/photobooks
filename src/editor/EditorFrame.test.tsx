@@ -154,8 +154,8 @@ describe('EditorFrame panel sizes', () => {
     fireEvent.keyDown(screen.getByTestId('resize-left'), { key: 'ArrowRight' })
     expect(
       screen.getByTestId('editor-shell').style.getPropertyValue('--panel-left'),
-    ).toBe('196px')
-    expect(window.localStorage.getItem('photobooks.panel.left')).toBe('196')
+    ).toBe('220px')
+    expect(window.localStorage.getItem('photobooks.panel.left')).toBe('220')
     expect(screen.queryByTestId('resize-right')).toBeNull()
   })
 

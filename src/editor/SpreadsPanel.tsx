@@ -39,6 +39,7 @@ import {
   reorderTargetIndex,
   type ItemSpan,
 } from './spreadReorder'
+import { SpreadRowMissing } from './SpreadRowMissing'
 import { SpreadThumb } from './SpreadThumb'
 import './SpreadsPanel.css'
 import {
@@ -404,6 +405,7 @@ export function SpreadsPanel({
                     >
                       {label}
                     </span>
+                    <SpreadRowMissing spreadId={id} />
                   </div>
                 </button>
                 <MenuTrigger>
