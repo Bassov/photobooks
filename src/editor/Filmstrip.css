@@ -185,6 +185,16 @@
   opacity: 1;
 }
 
+/* Missing file mark (kit sandbox `miss`): muted tile with an image-off glyph. */
+.filmstrip-missing {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
 .filmstrip-placeholder {
   width: 100%;
   height: 100%;

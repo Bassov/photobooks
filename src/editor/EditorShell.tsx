@@ -59,7 +59,11 @@ export function EditorShell() {
       left={<LeftPanel toastQueue={toastQueue} />}
       right={(collapse) => <Inspector onCollapse={collapse} />}
       dock={
-        <FilmstripDock onDropPhotoFolder={chromeImport.onDropPhotoFolder} />
+        <FilmstripDock
+          onDropPhotoFolder={chromeImport.onDropPhotoFolder}
+          onChoosePhotoFolder={chromeImport.onChoosePhotoFolder}
+          importDisabled={chromeImport.importDisabled}
+        />
       }
       canvas={
         presenting ? null : (

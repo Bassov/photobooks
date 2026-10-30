@@ -1618,7 +1618,7 @@ test.describe('sort / filter / remove', () => {
     await page.getByTestId('film-unplaced-only').click()
     await scrollFilmstripLoafWindow(page, 5)
     await page.getByTestId('film-sort').click()
-    await page.getByRole('menuitemradio', { name: 'Name' }).click()
+    await page.getByRole('menuitemradio', { name: 'File name' }).click()
     await scrollFilmstripLoafWindow(page, 5)
     await page.getByTestId('film-unplaced-only').click()
     await scrollFilmstripLoafWindow(page, 10)

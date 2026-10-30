@@ -56,6 +56,10 @@ export const ICON_NAMES = [
   'sendToBack',
   'arrowUp',
   'arrowDown',
+  'folderPlus',
+  'imageOff',
+  'filter',
+  'arrowDownUp',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -441,5 +445,42 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
   arrowDown: [
     ['path', { d: 'M12 5v14' }],
     ['path', { d: 'm19 12-7 7-7-7' }],
+  ],
+  folderPlus: [
+    ['path', { d: 'M12 10v6' }],
+    ['path', { d: 'M9 13h6' }],
+    [
+      'path',
+      {
+        d: 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z',
+      },
+    ],
+  ],
+  imageOff: [
+    ['line', { x1: '2', x2: '22', y1: '2', y2: '22' }],
+    ['path', { d: 'M10.41 10.41a2 2 0 1 1-2.83-2.83' }],
+    ['line', { x1: '13.5', x2: '6', y1: '13.5', y2: '21' }],
+    ['line', { x1: '18', x2: '21', y1: '12', y2: '15' }],
+    [
+      'path',
+      {
+        d: 'M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59',
+      },
+    ],
+    ['path', { d: 'M21 15V5a2 2 0 0 0-2-2H9' }],
+  ],
+  filter: [
+    [
+      'path',
+      {
+        d: 'M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z',
+      },
+    ],
+  ],
+  arrowDownUp: [
+    ['path', { d: 'm3 16 4 4 4-4' }],
+    ['path', { d: 'M7 20V4' }],
+    ['path', { d: 'm21 8-4-4-4 4' }],
+    ['path', { d: 'M17 4v16' }],
   ],
 }

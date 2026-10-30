@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Photos dock and filmstrip: kit v0.10 look (Photos only)
+Status: done
 
 ## Scope
 
