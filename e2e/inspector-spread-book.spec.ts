@@ -16,7 +16,9 @@ async function openInspectorTab(
   ) {
     await page.getByTestId('toggle-r').click()
   }
-  await page.getByTestId(`inspector-tab-${tab}`).click()
+  if (tab === 'book') {
+    await page.getByTestId('book-title').click()
+  }
 }
 
 test('applying a layout tile in the Spread tab re-flows the spread', async ({

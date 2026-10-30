@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
+import { expandDisclosure } from './fixtures/expandDisclosure'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
 
@@ -18,6 +19,7 @@ async function selectFirstFrame(page: Page) {
     await page.getByTestId('toggle-r').click()
   }
   await frames(page).first().click()
+  await expandDisclosure(page, 'Position & size')
   await expect(page.getByTestId('inspector-geometry')).toBeVisible()
 }
 
@@ -71,6 +73,7 @@ test('Arrange "front" updates the layer label', async ({ page }) => {
   await drawFrame(page, 0.1, 0.4)
   await drawFrame(page, 0.5, 0.8)
   await expect(frames(page)).toHaveCount(2)
+  await expandDisclosure(page, 'Arrange')
   const label = page.getByTestId('frame-layer')
   await expect(label).toHaveText('layer 2 of 2')
   await page.getByTestId('z-back').click()

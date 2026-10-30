@@ -412,6 +412,20 @@ export function getAssetAspectSnapshot(assetId: string): number {
   return state.sessionMeta.get(assetId)?.aspect ?? DEFAULT_ASPECT
 }
 
+/** Decoded pixel size, else the book record's; undefined when unknown. */
+export function getAssetPixelSizeSnapshot(
+  assetId: string,
+): { widthPx: number; heightPx: number } | undefined {
+  const session = sessionPixelSize(state.sessionMeta.get(assetId))
+  if (session !== undefined) {
+    return session
+  }
+  const asset = state.book.assets[assetId]
+  return asset?.widthPx === undefined || asset.heightPx === undefined
+    ? undefined
+    : { widthPx: asset.widthPx, heightPx: asset.heightPx }
+}
+
 /** Optional content hash from the book asset record; undefined when unset. */
 export function getAssetContentHash(assetId: string): string | undefined {
   return (

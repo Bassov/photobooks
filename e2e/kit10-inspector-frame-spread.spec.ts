@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import { expandDisclosure } from './fixtures/expandDisclosure'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker'
 
@@ -39,6 +40,9 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
   }) => {
     await page.getByTestId('spread-frame').first().click()
     await expect(page.getByTestId('inspector-context')).toHaveText('Photo')
+    // Kit disclosures start collapsed; the headings are the triggers.
+    await expandDisclosure(page, 'Position & size')
+    await expandDisclosure(page, 'Arrange')
 
     for (const name of ['Position & size', 'Arrange']) {
       const heading = eyebrow(page, name)
@@ -90,7 +94,6 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
     await expect(page.getByTestId('inspector-spread-properties')).toBeVisible()
     expect((await paint(page, 'inspector-spread-properties')).color).toBe(MUTED)
 
-    await page.getByTestId('inspector-tab-spread').click()
     await expect(eyebrow(page, 'Layout').first()).toBeVisible()
     await expect(page.getByTestId('layout-tile').first()).toBeVisible()
     await expect(eyebrow(page, 'Layout grid')).toBeVisible()

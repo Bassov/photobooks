@@ -34,6 +34,14 @@ describe('Button', () => {
       'pb-button pb-button--ghost pb-button--md',
     )
 
+    rerender(<Button variant="outline">Crop</Button>)
+    expect(screen.getByRole('button', { name: 'Crop' }).className).toBe(
+      'pb-button pb-button--outline pb-button--md',
+    )
+    expect(buttonCss).toMatch(
+      /\.pb-button--outline \{[^}]*background: var\(--field\)/,
+    )
+
     rerender(<Button variant="destructive">Remove</Button>)
     expect(screen.getByRole('button', { name: 'Remove' }).className).toBe(
       'pb-button pb-button--destructive pb-button--md',

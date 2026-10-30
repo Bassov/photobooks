@@ -1,13 +1,12 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
-/** Inspector Spread tab (opens the right panel when closed). */
+/** Inspector Spread context (opens the right panel when closed). */
 export async function openSpreadTab(page: Page): Promise<void> {
   if (
     (await page.getByTestId('panel-r').getAttribute('data-open')) !== 'true'
   ) {
     await page.getByTestId('toggle-r').click()
   }
-  await page.getByTestId('inspector-tab-spread').click()
   await expect(page.getByTestId('layout-section')).toBeVisible()
 }
 

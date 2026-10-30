@@ -48,10 +48,19 @@ function seed(locked = false) {
   })
 }
 
+/** Kit disclosures start collapsed; open one by its heading. */
+function expand(name: string) {
+  const trigger = screen.getByRole('button', { name })
+  if (trigger.getAttribute('aria-expanded') !== 'true') {
+    fireEvent.click(trigger)
+  }
+}
+
 function select(frameId = 'f1') {
   act(() => {
     setFrameSource({ spreadId: 'spread-1', frameId })
   })
+  expand('Position & size')
 }
 
 function frames() {
@@ -68,12 +77,12 @@ function type(name: string, value: string) {
   fireEvent.blur(input)
 }
 
-/** Section headings / controls of the Frame tab in document order. */
+/** Section headings / controls of the Photo context in document order. */
 function order() {
-  const panel = screen.getByTestId('inspector-panel-frame')
+  const panel = screen.getByTestId('inspector-body')
   return [
-    'inspector-geometry',
     'inspector-fit-crop',
+    'inspector-geometry',
     'inspector-arrange',
     'frame-delete',
   ].filter((id) => within(panel).queryByTestId(id) !== null)
@@ -95,27 +104,33 @@ describe('Inspector frame sections', () => {
     expect(screen.queryByTestId('frame-lock')).toBeNull()
   })
 
-  it('orders Geometry, Crop, Arrange, Delete for a selected photo frame', () => {
+  it('orders Fit & crop, Geometry, Arrange, Delete for a selected photo frame', () => {
+    // Kit sandbox/inspector.tsx: Photo → Fit & crop → Rotate, then the
+    // collapsed Position & size and Arrange disclosures.
     seed()
     render(<Inspector />)
     select()
-    expect(order()).toEqual([
-      'inspector-geometry',
+    const expected = [
       'inspector-fit-crop',
+      'inspector-geometry',
       'inspector-arrange',
       'frame-delete',
-    ])
-    const geometry = screen.getByTestId('inspector-geometry')
-    const arrange = screen.getByTestId('inspector-arrange')
-    expect(
-      geometry.compareDocumentPosition(
-        screen.getByTestId('inspector-fit-crop'),
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      arrange.compareDocumentPosition(screen.getByTestId('frame-delete')) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    ]
+    const panel = screen.getByTestId('inspector-body')
+    const ids = [
+      'inspector-fit-crop',
+      'inspector-geometry',
+      'inspector-arrange',
+      'frame-delete',
+    ]
+    expect(order()).toEqual(expected)
+    ids.slice(1).forEach((id, at) => {
+      const before = within(panel).getByTestId(ids[at] ?? '')
+      expect(
+        before.compareDocumentPosition(within(panel).getByTestId(id)) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
   })
 
   it('omits Crop for an empty frame and never renders Align', () => {

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { resetBookStore } from './bookStore'
 import { isCoverSelected, setCoverSelected } from './coverSelection'
+import { setBookSettingsSelected } from './bookSettingsSelection'
 import { Inspector } from './Inspector'
 import { resetActiveSpreadIdForTests } from './photoRootSession'
 import { SpreadsPanel } from './SpreadsPanel'
@@ -23,6 +24,7 @@ describe('cover row in the pages list', () => {
   afterEach(() => {
     cleanup()
     setCoverSelected(false)
+    setBookSettingsSelected(false)
     resetBookStore()
     resetActiveSpreadIdForTests()
   })
@@ -79,13 +81,16 @@ describe('Inspector with the cover selected', () => {
     expect(screen.queryByTestId('inspector-empty')).toBeNull()
   })
 
-  it('picking a tab leaves the cover', () => {
+  it('picking Book settings leaves the cover', () => {
     seed()
     render(<Inspector />)
     act(() => {
       setCoverSelected(true)
     })
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
+    act(() => {
+      setCoverSelected(false)
+      setBookSettingsSelected(true)
+    })
     expect(isCoverSelected()).toBe(false)
     expect(screen.queryByTestId('insp-cover')).toBeNull()
   })
