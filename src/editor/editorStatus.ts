@@ -9,6 +9,10 @@ export const STATUS_SELECTED =
 export const STATUS_FRAME_LOCKED =
   'Frame is locked. Unlock it to move, resize or rotate.'
 
+/** Shown while a frame photo is dragged (kit uikit/src/sandbox/canvas.tsx:105). */
+export const STATUS_FRAME_DRAG =
+  'Drag onto another frame to swap, or onto the filmstrip to take the photo back'
+
 export const STATUS_SWAPPED = 'Photos swapped'
 
 export const STATUS_MOVED = 'Photo moved'

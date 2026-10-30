@@ -20,6 +20,12 @@ import { resetTierCache } from '../photo/tierCache'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
 import {
+  getEditorStatus,
+  setEditorStatus,
+  STATUS_FRAME_DRAG,
+  STATUS_SWAPPED,
+} from './editorStatus'
+import {
   getFrameSource,
   resetFrameSelection,
   setFrameSource,
@@ -203,6 +209,39 @@ describe('per-spread paint subscription', () => {
     fireEvent.dragEnd(document)
     expect(frame.getAttribute('data-drag-source')).toBeNull()
     vi.useRealTimers()
+  })
+
+  it('shows the kit drag hint from dragstart and clears it at dragend only', () => {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    setEditorStatus('')
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const body = screen
+      .getByTestId('spread-frame')
+      .querySelector('.spread-frame-body')
+    assert(body !== null)
+
+    fireEvent.dragStart(body, { dataTransfer: new DataTransfer() })
+    expect(getEditorStatus()).toBe(STATUS_FRAME_DRAG)
+    fireEvent.dragEnd(document)
+    expect(getEditorStatus()).toBe('')
+
+    // A drop result set before dragend survives it.
+    fireEvent.dragStart(body, { dataTransfer: new DataTransfer() })
+    setEditorStatus(STATUS_SWAPPED)
+    fireEvent.dragEnd(document)
+    expect(getEditorStatus()).toBe(STATUS_SWAPPED)
+
+    // The dragend listener is one-shot.
+    setEditorStatus(STATUS_FRAME_DRAG)
+    fireEvent.dragEnd(document)
+    expect(getEditorStatus()).toBe(STATUS_FRAME_DRAG)
+    setEditorStatus('')
   })
 
   it('keeps other spreads out of crop mode', () => {
