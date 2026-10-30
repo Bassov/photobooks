@@ -1,6 +1,6 @@
 # design-canvas-camera
 
-Tag: feature
+Tag: fix
 Milestone: P1
 Title: Prod parity: canvas camera, top air, fit default, chips
 
