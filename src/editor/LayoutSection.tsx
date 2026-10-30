@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { memo, useMemo, useState, useSyncExternalStore } from 'react'
 import { Input, NumberField } from 'react-aria-components'
 import {
   CONTACT_MAX_COLS,
@@ -8,8 +8,7 @@ import {
   generateTemplateFrames,
   getSpreadSizeMm,
   parseContactSheetId,
-  type Book,
-  type TemplateId,
+  type Frame,
 } from '../core'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -45,22 +44,15 @@ function templateName(templateId: string | undefined): string | null {
   return fixed === undefined ? null : TEMPLATE_NAMES[fixed]
 }
 
-function TemplateThumb({
-  book,
-  spreadIndex,
-  templateId,
+const TemplateThumb = memo(function TemplateThumb({
+  widthMm,
+  heightMm,
+  frames,
 }: {
-  book: Book
-  spreadIndex: number
-  templateId: TemplateId
+  widthMm: number
+  heightMm: number
+  frames: readonly Frame[]
 }) {
-  const { widthMm, heightMm } = getSpreadSizeMm(book, spreadIndex)
-  const frames = generateTemplateFrames(
-    templateId,
-    book,
-    spreadIndex,
-    book.spreads[spreadIndex],
-  )
   return (
     <svg
       className="layout-thumb"
@@ -78,7 +70,7 @@ function TemplateThumb({
       ))}
     </svg>
   )
-}
+})
 
 function CountField({
   label,
@@ -134,17 +126,39 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
     }
   }
   const spread = book.spreads[spreadIndex]
-  if (spread === undefined) {
+  // Template geometry depends only on grid, trim and spread count: a drop or
+  // crop commit must not regenerate every thumbnail (frame-budget gate).
+  const spreadGrid = spread?.layoutGrid
+  const geometry = useMemo(() => {
+    const at = book.spreads[spreadIndex]
+    if (at === undefined) {
+      return null
+    }
+    const size = getSpreadSizeMm(book, spreadIndex)
+    return {
+      widthMm: size.widthMm,
+      heightMm: size.heightMm,
+      frames: new Map(
+        TEMPLATE_IDS.map((id) => [
+          id,
+          generateTemplateFrames(id, book, spreadIndex, at),
+        ]),
+      ),
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
+  }, [
+    book.layoutGrid,
+    book.settings,
+    book.spreads.length,
+    spreadIndex,
+    spreadGrid,
+  ])
+  if (spread === undefined || geometry === null) {
     return null
   }
   const summary = templateName(current)
-  const slots = new Map(
-    TEMPLATE_IDS.map((id) => [
-      id,
-      generateTemplateFrames(id, book, spreadIndex, spread).length,
-    ]),
-  )
-  const slotCount = (id: FixedTemplateId) => slots.get(id) ?? 0
+  const slotCount = (id: FixedTemplateId) =>
+    geometry.frames.get(id)?.length ?? 0
   // Kit: filled photo frames, else every frame of the spread.
   const filled = spread.frames.filter((f) => f.assetId !== undefined).length
   const photos = filled > 0 ? filled : spread.frames.length
@@ -175,7 +189,11 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
         applyMarkedSpreadTemplate(spreadId, id)
       }}
     >
-      <TemplateThumb book={book} spreadIndex={spreadIndex} templateId={id} />
+      <TemplateThumb
+        widthMm={geometry.widthMm}
+        heightMm={geometry.heightMm}
+        frames={geometry.frames.get(id) ?? []}
+      />
       <span className="layout-tile-name">{TEMPLATE_NAMES[id]}</span>
     </button>
   )
