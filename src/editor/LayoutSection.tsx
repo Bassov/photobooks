@@ -8,7 +8,9 @@ import {
   generateTemplateFrames,
   getSpreadSizeMm,
   parseContactSheetId,
+  type Book,
   type Frame,
+  type Spread,
 } from '../core'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
@@ -108,7 +110,32 @@ function CountField({
 export function LayoutSection({ spreadId }: { spreadId: string }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const spreadIndex = book.spreads.findIndex((item) => item.id === spreadId)
-  const current = book.spreads[spreadIndex]?.templateId
+  const spread = book.spreads[spreadIndex]
+  if (spread === undefined) {
+    return null
+  }
+  return (
+    <LayoutPicker
+      spreadId={spreadId}
+      book={book}
+      spread={spread}
+      spreadIndex={spreadIndex}
+    />
+  )
+}
+
+function LayoutPicker({
+  spreadId,
+  book,
+  spread,
+  spreadIndex,
+}: {
+  spreadId: string
+  book: Book
+  spread: Spread
+  spreadIndex: number
+}) {
+  const current = spread.templateId
   const contact = current === undefined ? null : parseContactSheetId(current)
   const [cols, setCols] = useState(3)
   const [rows, setRows] = useState(2)
@@ -125,26 +152,16 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
       setRows(contact.rows)
     }
   }
-  const spread = book.spreads[spreadIndex]
   // Template geometry depends only on grid, trim and spread count: a drop or
   // crop commit must not regenerate every thumbnail (frame-budget gate).
-  const spreadGrid = spread?.layoutGrid
+  const spreadGrid = spread.layoutGrid
   const geometry = useMemo(() => {
-    const at = book.spreads[spreadIndex]
-    if (at === undefined) {
-      return null
-    }
     const size = getSpreadSizeMm(book, spreadIndex)
-    return {
-      widthMm: size.widthMm,
-      heightMm: size.heightMm,
-      frames: new Map(
-        TEMPLATE_IDS.map((id) => [
-          id,
-          generateTemplateFrames(id, book, spreadIndex, at),
-        ]),
-      ),
+    const frames = {} as Record<FixedTemplateId, readonly Frame[]>
+    for (const id of TEMPLATE_IDS) {
+      frames[id] = generateTemplateFrames(id, book, spreadIndex, spread)
     }
+    return { widthMm: size.widthMm, heightMm: size.heightMm, frames }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [
     book.layoutGrid,
@@ -153,12 +170,8 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
     spreadIndex,
     spreadGrid,
   ])
-  if (spread === undefined || geometry === null) {
-    return null
-  }
   const summary = templateName(current)
-  const slotCount = (id: FixedTemplateId) =>
-    geometry.frames.get(id)?.length ?? 0
+  const slotCount = (id: FixedTemplateId) => geometry.frames[id].length
   // Kit: filled photo frames, else every frame of the spread.
   const filled = spread.frames.filter((f) => f.assetId !== undefined).length
   const photos = filled > 0 ? filled : spread.frames.length
@@ -192,7 +205,7 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
       <TemplateThumb
         widthMm={geometry.widthMm}
         heightMm={geometry.heightMm}
-        frames={geometry.frames.get(id) ?? []}
+        frames={geometry.frames[id]}
       />
       <span className="layout-tile-name">{TEMPLATE_NAMES[id]}</span>
     </button>

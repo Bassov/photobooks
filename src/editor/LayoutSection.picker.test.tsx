@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { resetBookStore } from './bookStore'
@@ -78,6 +78,39 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
       'Click a layout to apply',
     )
     expect(screen.queryByRole('tablist')).toBeNull()
+  })
+
+  it('renders nothing for an unknown spread', () => {
+    seed()
+    render(<LayoutSection spreadId="missing" />)
+    expect(screen.queryByTestId('layout-section')).toBeNull()
+  })
+
+  it('regenerates thumbnails when the trim size changes', () => {
+    seed()
+    render(<LayoutSection spreadId="s1" />)
+    const viewBox = () =>
+      screen
+        .getAllByTestId('layout-tile')[0]
+        ?.querySelector('svg')
+        ?.getAttribute('viewBox')
+    const before = viewBox()
+    act(() => {
+      resetBookStore({
+        book: makeBook({
+          assets: { a: {} },
+          settings: { trim: { widthMm: 200, heightMm: 100 } },
+          spreads: [
+            makeSpread({ id: 's1', frames: [makeFrame({ id: 'f1' })] }),
+          ],
+        }),
+        sessionMeta: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+    })
+    expect(before).not.toBe(viewBox())
+    expect(viewBox()).toBe('0 0 200 100')
   })
 
   it('filters by photo count chip and returns on Any', () => {

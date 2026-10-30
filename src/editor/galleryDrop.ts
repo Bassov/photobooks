@@ -486,11 +486,11 @@ export function installGalleryDrop(
       // Deferred one task: mounting the Photo inspector in the same frame as
       // the drop commit blows the frame budget (multi-drop-fill perf gate).
       const { spreadId, frameId } = target
-      setTimeout(() => {
-        if (frameFilledInBook(getBookStoreSnapshot().book, spreadId, frameId)) {
+      if (frameFilledInBook(getBookStoreSnapshot().book, spreadId, frameId)) {
+        setTimeout(() => {
           setFrameSource({ spreadId, frameId })
-        }
-      }, 0)
+        }, 0)
+      }
       return
     }
     const book = getBookStoreSnapshot().book
