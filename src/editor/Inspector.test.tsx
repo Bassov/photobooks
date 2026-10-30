@@ -13,6 +13,7 @@ import {
   makeFrame,
   makeSpread,
 } from '../core/testing/fixtures'
+import { setBookSettingsSelected } from './bookSettingsSelection'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import {
   enterCropMode,
@@ -80,6 +81,7 @@ describe('Inspector', () => {
     vi.mocked(getCropTarget).mockImplementation(realCrop.getCropTarget)
     vi.mocked(getCropTargetKey).mockImplementation(realCrop.getCropTargetKey)
     cleanup()
+    setBookSettingsSelected(false)
     exitCropMode()
     resetFrameSelection()
     setActiveSpreadId(null)
@@ -106,8 +108,13 @@ describe('Inspector', () => {
     expect(panel.getAttribute('data-inspector-view')).toBe('spread')
     expect(screen.getByText('Spread properties')).toBeTruthy()
     expect(screen.getByText('Frames')).toBeTruthy()
-    expect(screen.getByTestId('inspector-empty').textContent).toBe(
-      'Select a frame to edit it.',
+    // Kit: a spread shows its summary line, Layout and Grid; no frame hint.
+    expect(screen.getByTestId('inspector-spread-summary').textContent).toBe(
+      'Cover · 0 empty',
+    )
+    expect(screen.queryByTestId('inspector-empty')).toBeNull()
+    expect(screen.getByTestId('inspector-spread-summary').style.color).not.toBe(
+      '',
     )
 
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -135,30 +142,17 @@ describe('Inspector', () => {
     expect(onCollapse).toHaveBeenCalledTimes(1)
   })
 
-  describe('tab chrome and panels', () => {
+  describe('context panel (no tabs)', () => {
     const cssColor = (value: string) => {
       const probe = document.createElement('div')
       probe.style.color = value
       return probe.style.color
     }
-    const selected = () =>
-      within(screen.getByRole('tablist'))
-        .getAllByRole('tab')
-        .map((t) => t.getAttribute('aria-selected'))
 
-    it('lays the tablist out as three equal columns', () => {
+    it('renders no tablist: the selection drives the panel', () => {
       render(<Inspector />)
-      expect(screen.getByRole('tablist').style.gridTemplateColumns).toBe(
-        'repeat(3, minmax(0, 1fr))',
-      )
-    })
-
-    it('selects the clicked tab and only that one', () => {
-      render(<Inspector />)
-      fireEvent.click(screen.getByTestId('inspector-tab-spread'))
-      expect(selected()).toEqual(['false', 'true', 'false'])
-      fireEvent.click(screen.getByTestId('inspector-tab-book'))
-      expect(selected()).toEqual(['false', 'false', 'true'])
+      expect(screen.queryByRole('tablist')).toBeNull()
+      expect(screen.queryByTestId('inspector-tab-frame')).toBeNull()
     })
 
     it('paints the collapse wrapper and hints in the muted colour', () => {
@@ -171,11 +165,11 @@ describe('Inspector', () => {
       expect(screen.getByTestId('inspector-empty').style.color).toBe(muted)
     })
 
-    it('renders no row list in the Frame tab with nothing selected', () => {
+    it('renders no row list with nothing selected', () => {
       seed()
       render(<Inspector />)
       expect(
-        screen.getByTestId('inspector-panel-frame').querySelector('dl'),
+        screen.getByTestId('inspector-body').querySelector('dl'),
       ).toBeNull()
     })
 
@@ -185,7 +179,7 @@ describe('Inspector', () => {
         setActiveSpreadId('spread-1')
       })
       render(<Inspector />)
-      const panel = screen.getByTestId('inspector-panel-frame')
+      const panel = screen.getByTestId('inspector-body')
       expect(panel.querySelectorAll('dl')).toHaveLength(1)
       expect(within(panel).getByText('Frames')).toBeTruthy()
       // The muted colour comes from the kit eyebrow class (asserted in e2e).
@@ -203,116 +197,100 @@ describe('Inspector', () => {
         setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
       })
       render(<Inspector />)
-      const panel = screen.getByTestId('inspector-panel-frame')
+      const panel = screen.getByTestId('inspector-body')
       expect(panel.querySelectorAll('dl')).toHaveLength(1)
       expect(within(panel).getByText('Used')).toBeTruthy()
       expect(within(panel).queryByText('Spread properties')).toBeNull()
       expect(within(panel).queryByText('Frames')).toBeNull()
-    })
-
-    it('hints to pick a frame only when no frame section is shown', () => {
-      seed()
-      act(() => {
-        setActiveSpreadId('spread-1')
-      })
-      staleCropTarget('spread-1', 'missing')
-      render(<Inspector />)
-      expect(screen.queryByText('Select a frame to edit it.')).toBeNull()
-    })
-
-    it('shows the empty hint, not a grid, in the Spread tab without a spread', () => {
-      render(<Inspector />)
-      fireEvent.click(screen.getByTestId('inspector-tab-spread'))
-      const panel = screen.getByTestId('inspector-panel-spread')
-      expect(within(panel).getByTestId('inspector-empty').textContent).toBe(
-        'Select a spread or a photo to see its properties.',
+      expect(within(panel).getByTestId('inspector-context').textContent).toBe(
+        'Photo',
       )
-      expect(screen.queryByTestId('grid-section-spread')).toBeNull()
     })
 
-    it('lists the spread rows above the grid in the Spread tab', () => {
+    it('lists the spread rows, layout and grid for a spread', () => {
       seed()
       act(() => {
         setActiveSpreadId('spread-1')
       })
       render(<Inspector />)
-      fireEvent.click(screen.getByTestId('inspector-tab-spread'))
-      const panel = screen.getByTestId('inspector-panel-spread')
+      const panel = screen.getByTestId('inspector-body')
       expect(within(panel).getByText('Template')).toBeTruthy()
+      expect(within(panel).getByTestId('grid-section-spread')).toBeTruthy()
+      expect(within(panel).queryByTestId('grid-section-book')).toBeNull()
       expect(within(panel).queryByTestId('inspector-empty')).toBeNull()
     })
 
-    it('keeps the chosen tab when the frame selection is cleared', () => {
+    it('opens Book settings from the title and leaves it for a spread', () => {
       seed()
       render(<Inspector />)
       act(() => {
+        setBookSettingsSelected(true)
+      })
+      expect(screen.getByTestId('book-settings')).toBeTruthy()
+      expect(screen.getByTestId('grid-section-book')).toBeTruthy()
+      expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+      act(() => {
+        setActiveSpreadId('spread-1')
+      })
+      expect(screen.queryByTestId('book-settings')).toBeNull()
+      expect(screen.getByTestId('grid-section-spread')).toBeTruthy()
+    })
+
+    it('leaves Book settings when a frame is picked', () => {
+      seed()
+      render(<Inspector />)
+      act(() => {
+        setBookSettingsSelected(true)
+      })
+      act(() => {
         setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
       })
-      fireEvent.click(screen.getByTestId('inspector-tab-book'))
+      expect(screen.queryByTestId('book-settings')).toBeNull()
+      expect(screen.getByTestId('inspector-fit-crop')).toBeTruthy()
+    })
+
+    it('orders Photo, Fit & crop, Rotate before the collapsed disclosures', () => {
+      seed()
       act(() => {
-        resetFrameSelection()
+        setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
       })
-      expect(selected()).toEqual(['false', 'false', 'true'])
+      render(<Inspector />)
+      const names = within(screen.getByTestId('inspector-body'))
+        .getAllByRole('button')
+        .map((b) => b.textContent)
+      const at = (label: string) => names.findIndex((n) => n.includes(label))
+      expect(at('Position & size')).toBeGreaterThan(at('Reset to cover'))
+      expect(at('Arrange')).toBeGreaterThan(at('Position & size'))
+      for (const label of ['Position & size', 'Arrange']) {
+        expect(
+          screen
+            .getByRole('button', { name: label })
+            .getAttribute('aria-expanded'),
+        ).toBe('false')
+      }
+    })
+
+    it('removes the photo from its frame', () => {
+      seed()
+      act(() => {
+        setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+      })
+      render(<Inspector />)
+      expect(screen.getByTestId('inspector-photo-thumb')).toBeTruthy()
+      fireEvent.click(screen.getByTestId('photo-remove'))
+      expect(frame()?.assetId).toBeUndefined()
+      expect(screen.queryByTestId('photo-remove')).toBeNull()
     })
   })
 
-  it('lists Frame / Spread / Book tabs in order with Frame selected', () => {
-    render(<Inspector />)
-    const tabs = within(screen.getByRole('tablist')).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Frame', 'Spread', 'Book'])
-    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual([
-      'true',
-      'false',
-      'false',
-    ])
-  })
-
-  it('keeps the Frame tab with a hint when nothing is selected', () => {
+  it('shows the Photo context in crop mode even when the selection is gone', () => {
     seed()
     render(<Inspector />)
-    expect(screen.getByTestId('inspector-tab-frame')).toBeTruthy()
-    expect(screen.getByTestId('inspector-empty')).toBeTruthy()
-  })
-
-  it('switches tabs on click and shows each tab content', () => {
-    seed()
-    act(() => {
-      setActiveSpreadId('spread-1')
-    })
-    render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-spread'))
-    expect(screen.getByTestId('grid-section-spread')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
-    expect(screen.getByTestId('grid-section-book')).toBeTruthy()
-  })
-
-  it('selecting a frame jumps to the Frame tab; a spread keeps the tab', () => {
-    seed()
-    render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
-    act(() => {
-      setActiveSpreadId('spread-1')
-    })
-    expect(screen.getByTestId('grid-section-book')).toBeTruthy()
-    act(() => {
-      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
-    })
-    expect(screen.getByTestId('inspector-fit-crop')).toBeTruthy()
-    expect(
-      screen.getByTestId('inspector-tab-frame').getAttribute('aria-selected'),
-    ).toBe('true')
-  })
-
-  it('crop mode jumps to the Frame tab', () => {
-    seed()
-    render(<Inspector />)
-    fireEvent.click(screen.getByTestId('inspector-tab-book'))
     act(() => {
       enterCropMode('spread-1', 'frame-1')
     })
-    expect(
-      screen.getByTestId('inspector-tab-frame').getAttribute('aria-selected'),
-    ).toBe('true')
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
+    expect(screen.queryByTestId('inspector-empty')).toBeNull()
     expect(screen.getByTestId('crop-reset')).toBeTruthy()
   })
 

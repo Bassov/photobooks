@@ -53,6 +53,16 @@
   background: color-mix(in srgb, var(--secondary) 80%, var(--muted));
 }
 
+/* Kit outline: borderless --field fill. */
+.pb-button--outline {
+  color: var(--foreground);
+  background: var(--field);
+}
+
+.pb-button--outline[data-hovered] {
+  background: var(--accent);
+}
+
 .pb-button--ghost {
   color: var(--muted-foreground);
   background: transparent;
@@ -92,6 +102,11 @@
   cursor: not-allowed;
   pointer-events: none;
   transform: none;
+}
+
+.pb-button--ghost[data-disabled],
+.pb-button--outline[data-disabled] {
+  border-color: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {

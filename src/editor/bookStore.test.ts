@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetSources } from '../photo/assetSources'
-import { makePlacedTemplateBook } from '../core/testing/fixtures'
+import { makeBook, makePlacedTemplateBook } from '../core/testing/fixtures'
 import { loadPainterFixture } from '../testFixtures/loadPainterFixture'
 import type { ResolvedItem } from '../core/geometry/types'
 import {
@@ -9,6 +9,7 @@ import {
   enqueueGalleryAssets,
   loadPainterFixture as loadPainterFixtureLazy,
   getAssetAspectSnapshot,
+  getAssetPixelSizeSnapshot,
   getAssetContentHash,
   getAssetDisplayName,
   getHasAnyPlacementSnapshot,
@@ -1428,3 +1429,46 @@ function loadPlacedBook(assetIds: readonly string[]): void {
     importExpectedCount: 0,
   })
 }
+
+describe('getAssetPixelSizeSnapshot', () => {
+  const meta = (w: number, h: number) => ({
+    name: 'a.jpg',
+    correctedWidth: w,
+    correctedHeight: h,
+    orientation: 1 as const,
+    aspect: w / h,
+  })
+  const seedSize = (
+    asset: { widthPx?: number; heightPx?: number } | undefined,
+    sessionMeta: Map<string, ReturnType<typeof meta>>,
+  ) => {
+    resetBookStore({
+      book: makeBook({ assets: asset === undefined ? {} : { a: asset } }),
+      sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+  }
+
+  it('prefers the decoded session size', () => {
+    seedSize({ widthPx: 1, heightPx: 2 }, new Map([['a', meta(30, 20)]]))
+    expect(getAssetPixelSizeSnapshot('a')).toEqual({
+      widthPx: 30,
+      heightPx: 20,
+    })
+  })
+
+  it('ignores the 1×1 enqueue placeholder and uses the book record', () => {
+    seedSize({ widthPx: 7, heightPx: 5 }, new Map([['a', meta(1, 1)]]))
+    expect(getAssetPixelSizeSnapshot('a')).toEqual({ widthPx: 7, heightPx: 5 })
+  })
+
+  it('needs both record dimensions and a known asset', () => {
+    seedSize({ widthPx: 7 }, new Map())
+    expect(getAssetPixelSizeSnapshot('a')).toBeUndefined()
+    seedSize({ heightPx: 7 }, new Map())
+    expect(getAssetPixelSizeSnapshot('a')).toBeUndefined()
+    seedSize(undefined, new Map())
+    expect(getAssetPixelSizeSnapshot('a')).toBeUndefined()
+  })
+})

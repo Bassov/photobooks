@@ -1,3 +1,5 @@
+import { setBookSettingsSelected } from './bookSettingsSelection'
+
 /**
  * Whether the cover (not a spread) is the editor's current selection. Kit step
  * 09: the cover row in the pages list selects it, the canvas shows back ·
@@ -18,7 +20,9 @@ export function subscribeCoverSelection(listener: () => void): () => void {
   }
 }
 
+/** Picking the cover or any other item also leaves Book settings. */
 export function setCoverSelected(next: boolean): void {
+  setBookSettingsSelected(false)
   if (next === selected) {
     return
   }
