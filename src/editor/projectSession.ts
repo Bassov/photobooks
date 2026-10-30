@@ -750,6 +750,7 @@ function createEmptyLibraryBook(
     settings: {
       bleedMm: 3,
       safeMarginMm: 5,
+      endpapers: { enabled: true, same: true },
       trim: {
         widthMm: trim?.widthMm ?? 300,
         heightMm: trim?.heightMm ?? 300,

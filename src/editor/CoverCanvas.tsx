@@ -32,7 +32,12 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const { cover, settings } = book
   const url = useCoverPhotoUrl(cover.front.assetId)
-  const layout = coverLayout(settings.trim.widthMm, settings.trim.heightMm)
+  const { style: look } = cover
+  const layout = coverLayout(
+    settings.trim.widthMm,
+    settings.trim.heightMm,
+    look.spineWidthMm,
+  )
   const onDragOver = (event: DragEvent<HTMLElement>): void => {
     if (event.dataTransfer.types.includes(ASSET_DRAG_MIME)) {
       event.preventDefault()
@@ -53,6 +58,9 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
       className="cover-spread"
       data-testid={id('canvas-cover')}
       data-mini={mini ? 'true' : undefined}
+      data-title-font={look.titleFont}
+      data-material={look.material}
+      data-finish={look.finish}
       style={{
         aspectRatio: layout.aspectRatio,
         width: mini ? '100%' : layout.fitWidth,
@@ -61,7 +69,10 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
       <div
         className="cover-back"
         data-testid={id('cover-back')}
-        style={{ width: `${String(layout.pagePct)}%` }}
+        style={{
+          width: `${String(layout.pagePct)}%`,
+          background: look.backFill,
+        }}
       >
         {mini ? null : <PanelLabel text="Back" />}
         <div className="cover-back-text" data-testid={id('cover-back-text')}>
@@ -74,7 +85,11 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
         style={{ width: `${String(layout.spinePct)}%` }}
       >
         {mini ? null : <PanelLabel text="Spine" />}
-        <span className="cover-spine-text" data-testid={id('cover-spine-text')}>
+        <span
+          className="cover-spine-text"
+          data-testid={id('cover-spine-text')}
+          data-direction={look.spineDirection}
+        >
           <em>{cover.spine.text}</em>
         </span>
       </div>

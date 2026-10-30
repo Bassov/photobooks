@@ -17,13 +17,17 @@ export interface CoverLayout {
   wrapInsetXPct: number
 }
 
-export function coverLayout(pageWMm: number, pageHMm: number): CoverLayout {
-  const coverW = 2 * pageWMm + COVER_SPINE_MM
+export function coverLayout(
+  pageWMm: number,
+  pageHMm: number,
+  spineMm: number = COVER_SPINE_MM,
+): CoverLayout {
+  const coverW = 2 * pageWMm + spineMm
   return {
     aspectRatio: `${String(coverW)} / ${String(pageHMm)}`,
     fitWidth: `min(100cqw, 100cqh * ${String(coverW / pageHMm)})`,
     pagePct: (pageWMm / coverW) * 100,
-    spinePct: (COVER_SPINE_MM / coverW) * 100,
+    spinePct: (spineMm / coverW) * 100,
     wrapInsetYPct: (COVER_WRAP_MM / pageHMm) * 100,
     wrapInsetXPct: (COVER_WRAP_MM / coverW) * 100,
   }

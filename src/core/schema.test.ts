@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
-import { bookSchema, CURRENT_SCHEMA_VERSION } from './index'
+import { bookSchema, CURRENT_SCHEMA_VERSION, defaultCoverStyle } from './index'
 import { makeBook, makeBookWithAsset } from './testing/fixtures'
 
 const FULL_META_ASSET = {
@@ -169,6 +169,7 @@ describe('bookSchema', () => {
         front: { assetId: 'a', crop, text: 'Front' },
         spine: { text: 'Spine' },
         back: { assetId: 'b', text: '' },
+        style: defaultCoverStyle(),
       },
       endpapers: {
         front: { assetId: 'a', crop },
@@ -198,6 +199,7 @@ describe('bookSchema', () => {
             front: { text: '' },
             spine: { text: '' },
             back: { text: '' },
+            style: defaultCoverStyle(),
           },
           endpapers: { front: {}, back: {} },
         }).success,

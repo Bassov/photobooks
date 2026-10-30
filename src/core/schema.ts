@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 8 as const
+export const CURRENT_SCHEMA_VERSION = 9 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -128,6 +128,16 @@ function makeFrameStylesSchema() {
   return z.record(nonEmptyString, makeFrameStyleSchema())
 }
 
+/** Brightness / contrast / saturation, each −100…100 (0 = untouched). */
+function makeAdjustSchema() {
+  const amount = z.number().int().min(-100).max(100)
+  return z.object({
+    brightness: amount,
+    contrast: amount,
+    saturation: amount,
+  })
+}
+
 const frameSchema = z.object({
   id: nonEmptyString,
   rect: rectMmSchema,
@@ -148,6 +158,10 @@ const frameSchema = z.object({
   align: z.enum(['left', 'center', 'right']).optional(),
   /** Key into `book.frameStyles`; absent → unstyled. */
   frameStyleId: nonEmptyString.optional(),
+  /** Printed under the frame (kit Caption); absent → none. */
+  caption: z.string().min(1).optional(),
+  /** Photo tone adjustments (kit Adjust); absent → untouched. */
+  adjust: atParseTime(makeAdjustSchema).optional(),
 })
 
 const spreadSchema = z.object({
@@ -160,6 +174,14 @@ const spreadSchema = z.object({
   frames: z.array(frameSchema),
 })
 
+/** Cover title faces (kit "Title font"). */
+export const COVER_TITLE_FONTS = ['serif-italic', 'serif', 'sans'] as const
+export const SPINE_DIRECTIONS = ['top-to-bottom', 'bottom-to-top'] as const
+export const COVER_MATERIALS = ['printed', 'linen', 'leatherette'] as const
+export const COVER_FINISHES = ['matte', 'gloss', 'soft-touch'] as const
+export const SPINE_WIDTH_MIN_MM = 4
+export const SPINE_WIDTH_MAX_MM = 40
+
 /*
  * Cover / endpaper shapes are built per parse (not at module load) so that
  * their mutants are reachable by per-test mutant switching.
@@ -171,7 +193,16 @@ function makeCoverSchema() {
     crop: cropSchema.optional(),
     text: z.string(),
   })
-  return z.object({ front: panel, spine: panel, back: panel })
+  const style = z.object({
+    titleFont: z.enum(COVER_TITLE_FONTS),
+    spineWidthMm: z.number().min(SPINE_WIDTH_MIN_MM).max(SPINE_WIDTH_MAX_MM),
+    spineDirection: z.enum(SPINE_DIRECTIONS),
+    /** Back panel fill, sRGB `#rrggbb`. */
+    backFill: makeSrgbHexSchema(),
+    material: z.enum(COVER_MATERIALS),
+    finish: z.enum(COVER_FINISHES),
+  })
+  return z.object({ front: panel, spine: panel, back: panel, style })
 }
 
 function makeEndpapersSchema() {
@@ -208,6 +239,10 @@ const bookSettingsSchema = z.object({
   }),
   bleedMm: nonNegativeMm,
   safeMarginMm: nonNegativeMm,
+  /** Endpaper rows and canvases; `same` mirrors the front photo on the back. */
+  endpapers: z.object({ enabled: z.boolean(), same: z.boolean() }),
+  /** Default page color of spreads without their own; absent → paper. */
+  pageColor: atParseTime(makeSrgbHexSchema).optional(),
 })
 
 export const bookSchema = z.object({
@@ -246,6 +281,8 @@ export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
 export type Cover = z.output<ReturnType<typeof makeCoverSchema>>
 export type CoverPanel = Cover['front']
+export type CoverStyle = Cover['style']
+export type FrameAdjust = NonNullable<Frame['adjust']>
 export type Endpapers = z.output<ReturnType<typeof makeEndpapersSchema>>
 export type Endpaper = Endpapers['front']
 export type Book = z.infer<typeof bookSchema>

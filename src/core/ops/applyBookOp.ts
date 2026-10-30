@@ -22,7 +22,25 @@ import { reorderFrame, setFrameLocked, type ZMove } from './arrange'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
-import { setCoverPhoto, setCoverText, type CoverPanelName } from '../cover'
+import {
+  setCoverPhoto,
+  setCoverStyle,
+  setCoverText,
+  setEndpaperPhoto,
+  setEndpapersEnabled,
+  setEndpapersSame,
+  setPageColor,
+  type CoverPanelName,
+} from '../cover'
+import type { CoverStyle, FrameAdjust, FrameStyle } from '../schema'
+import { setTrim } from './bookSettings'
+import {
+  applyFrameStyle,
+  editFrameStyle,
+  newFrameStyleFromFrame,
+  setFrameAdjust,
+  setFrameCaption,
+} from './frameLook'
 import { addGuide, moveGuide, removeGuide } from './guides'
 import { addSpread, duplicateSpread, moveSpread, removeSpread } from './spreads'
 
@@ -144,6 +162,37 @@ export type BookOp =
   | { type: 'setTitle'; title: string }
   | { type: 'setCoverText'; panel: CoverPanelName; text: string }
   | { type: 'setCoverPhoto'; assetId: string }
+  | { type: 'setCoverStyle'; patch: Partial<CoverStyle> }
+  | { type: 'setTrim'; widthMm: number; heightMm: number }
+  | { type: 'setEndpapersEnabled'; enabled: boolean }
+  | { type: 'setEndpapersSame'; same: boolean }
+  | {
+      type: 'setEndpaperPhoto'
+      side: 'front' | 'back'
+      assetId: string | undefined
+    }
+  | { type: 'setPageColor'; color: string | undefined }
+  | {
+      type: 'setFrameCaption'
+      spreadId: string
+      frameId: string
+      caption: string
+    }
+  | {
+      type: 'setFrameAdjust'
+      spreadId: string
+      frameId: string
+      /** `null` resets all three. */
+      patch: Partial<FrameAdjust> | null
+    }
+  | {
+      type: 'applyFrameStyle'
+      spreadId: string
+      frameId: string
+      styleId: string | undefined
+    }
+  | { type: 'editFrameStyle'; styleId: string; patch: Partial<FrameStyle> }
+  | { type: 'newFrameStyle'; spreadId: string; frameId: string }
   | { type: 'setBookGrid'; patch: GridPatch }
   | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
   | { type: 'resetSpreadGrid'; spreadId: string }
@@ -218,6 +267,28 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setCoverText(book, op.panel, op.text)
     case 'setCoverPhoto':
       return setCoverPhoto(book, op.assetId)
+    case 'setCoverStyle':
+      return setCoverStyle(book, op.patch)
+    case 'setTrim':
+      return setTrim(book, { widthMm: op.widthMm, heightMm: op.heightMm })
+    case 'setEndpapersEnabled':
+      return setEndpapersEnabled(book, op.enabled)
+    case 'setEndpapersSame':
+      return setEndpapersSame(book, op.same)
+    case 'setEndpaperPhoto':
+      return setEndpaperPhoto(book, op.side, op.assetId)
+    case 'setPageColor':
+      return setPageColor(book, op.color)
+    case 'setFrameCaption':
+      return setFrameCaption(book, op.spreadId, op.frameId, op.caption)
+    case 'setFrameAdjust':
+      return setFrameAdjust(book, op.spreadId, op.frameId, op.patch)
+    case 'applyFrameStyle':
+      return applyFrameStyle(book, op.spreadId, op.frameId, op.styleId)
+    case 'editFrameStyle':
+      return editFrameStyle(book, op.styleId, op.patch)
+    case 'newFrameStyle':
+      return newFrameStyleFromFrame(book, op.spreadId, op.frameId)
     case 'setBookGrid':
       return setBookGrid(book, op.patch)
     case 'setSpreadGrid':

@@ -142,3 +142,50 @@
   background-position: 45% 50%;
   background-size: cover;
 }
+
+/* Cover style (schema cover.style): spine direction, title font, material, finish. */
+.cover-spine-text[data-direction='bottom-to-top'] {
+  transform: rotate(-90deg);
+}
+
+.cover-spread[data-title-font='serif'] .cover-front-text em,
+.cover-spread[data-title-font='serif'] .cover-spine-text em {
+  font-style: normal;
+}
+
+.cover-spread[data-title-font='sans'] .cover-front-text em,
+.cover-spread[data-title-font='sans'] .cover-spine-text em {
+  font-family: var(--font-sans, sans-serif);
+  font-style: normal;
+}
+
+.cover-spread[data-material='linen'] .cover-back,
+.cover-spread[data-material='linen'] .cover-spine {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.05) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+.cover-spread[data-material='leatherette'] .cover-back,
+.cover-spread[data-material='leatherette'] .cover-spine {
+  background-image: radial-gradient(rgb(0 0 0 / 0.12) 0.6px, transparent 0.8px);
+  background-size: 4px 4px;
+}
+
+.cover-spread[data-finish='gloss']::after,
+.cover-spread[data-finish='soft-touch']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cover-spread[data-finish='gloss']::after {
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.18), transparent 45%);
+}
+
+.cover-spread[data-finish='soft-touch']::after {
+  background: rgb(255 255 255 / 0.04);
+}

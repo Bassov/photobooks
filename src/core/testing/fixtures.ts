@@ -51,6 +51,10 @@ export function makeBook(overrides: BookOverrides = {}): Book {
   const settings: Book['settings'] = {
     bleedMm: settingsOverride?.bleedMm ?? 3,
     safeMarginMm: settingsOverride?.safeMarginMm ?? 5,
+    endpapers: settingsOverride?.endpapers ?? { enabled: true, same: true },
+    ...(settingsOverride?.pageColor === undefined
+      ? {}
+      : { pageColor: settingsOverride.pageColor }),
     trim: {
       widthMm: settingsOverride?.trim?.widthMm ?? 300,
       heightMm: settingsOverride?.trim?.heightMm ?? 300,

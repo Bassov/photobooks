@@ -19,7 +19,29 @@ export {
   resolveTextItems,
   type ResolvedTextItem,
 } from './text/resolveText'
-export { defaultCover, defaultEndpapers, type CoverPanelName } from './cover'
+export {
+  defaultCover,
+  defaultCoverStyle,
+  defaultEndpapers,
+  type CoverPanelName,
+} from './cover'
+export {
+  COVER_FINISHES,
+  COVER_MATERIALS,
+  COVER_TITLE_FONTS,
+  SPINE_DIRECTIONS,
+  SPINE_WIDTH_MAX_MM,
+  SPINE_WIDTH_MIN_MM,
+  type CoverStyle,
+  type FrameAdjust,
+} from './schema'
+export { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
+export {
+  FRAME_STYLE_PRESETS,
+  NO_ADJUST,
+  frameStyleName,
+  isAdjusted,
+} from './ops/frameLook'
 export { migrateToCurrent, type MigrateResult } from './migrate'
 export {
   checkBookInvariants,
