@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createRef, type RefObject } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GuideDragStart } from './guideGesture'
 import { Rulers } from './Rulers'
 
 const startGuideDrag = vi.hoisted(() =>
@@ -137,15 +138,17 @@ describe('Rulers', () => {
     fireEvent.pointerDown(screen.getByTestId('ruler-x'), { button: 0 })
     fireEvent.pointerDown(screen.getByTestId('ruler-y'), { button: 0 })
     expect(startGuideDrag).toHaveBeenCalledTimes(2)
-    const top = startGuideDrag.mock.calls[0]?.[0]
-    const left = startGuideDrag.mock.calls[1]?.[0]
+    const [[top], [left]] = startGuideDrag.mock.calls as [
+      [GuideDragStart],
+      [GuideDragStart],
+    ]
     // Identity checks: deep-equal on DOM nodes is very slow.
-    expect(top?.orientation).toBe('horizontal')
-    expect(top?.spreadEl).toBe(spread)
-    expect(top?.rulerEl).toBe(screen.getByTestId('ruler-x'))
-    expect(left?.orientation).toBe('vertical')
-    expect(left?.spreadEl).toBe(spread)
-    expect(left?.rulerEl).toBe(screen.getByTestId('ruler-y'))
+    expect(top.orientation).toBe('horizontal')
+    expect(top.spreadEl).toBe(spread)
+    expect(top.rulerEl).toBe(screen.getByTestId('ruler-x'))
+    expect(left.orientation).toBe('vertical')
+    expect(left.spreadEl).toBe(spread)
+    expect(left.rulerEl).toBe(screen.getByTestId('ruler-y'))
   })
 
   it('keeps the press from selecting text while a guide is pulled', () => {

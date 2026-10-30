@@ -96,7 +96,6 @@ export function Rulers({
   const pull = (
     e: ReactPointerEvent<HTMLDivElement>,
     orientation: GuideOrientation,
-    ruler: RefObject<HTMLDivElement | null>,
   ): void => {
     const spreadEl = activeSpread.current
     if (e.button !== 0 || spreadEl === null) return
@@ -105,7 +104,7 @@ export function Rulers({
       event: e.nativeEvent,
       spreadEl,
       orientation,
-      rulerEl: ruler.current,
+      rulerEl: e.currentTarget,
     })
   }
 
@@ -193,7 +192,7 @@ export function Rulers({
         data-testid="ruler-x"
         aria-hidden="true"
         onPointerDown={(e) => {
-          pull(e, 'horizontal', rulerX)
+          pull(e, 'horizontal')
         }}
       >
         <canvas ref={canvasX} />
@@ -206,7 +205,7 @@ export function Rulers({
         data-testid="ruler-y"
         aria-hidden="true"
         onPointerDown={(e) => {
-          pull(e, 'vertical', rulerY)
+          pull(e, 'vertical')
         }}
       >
         <canvas ref={canvasY} />
