@@ -56,6 +56,8 @@ Repo secrets / settings (operators): set `CODECOV_TOKEN` for Codecov PR comments
 
 Interactive shells: `source scripts/agent-env.sh` once (asdf + Node from `.nvmrc`); headless launcher preloads it — do not source. Unattended: `/next-roadmap-item`. Harness wiring (Cursor `.cursor/cli.json`; Claude Code `CLAUDE.md` + `.claude/`): `docs/agent-loop.md` `## Harnesses`. Prefer preflight run card / `pnpm agent instructions` over raw OpenSpec reads (denied headless). `pnpm agent stats <log>` exits 1 if peak context >300K or first-round input >400K.
 
+Headless shell style (denied otherwise): change files with the Edit / Write tools, never `sed -i`, `cat > f <<EOF` or `python3 -` heredocs; `pnpm exec <bin>`, never `npx`; one plain command per Bash call (no `bash -c`); temp files under the worktree, not `/tmp`.
+
 Happy path needs no project MCP (`git` / `gh` / `pnpm`). OpenSpec is native in `pnpm agent`. Quiet scripts are the baseline.
 
 `pnpm install` fails while `core.hooksPath` points at Cursor hooks (`prepare` → lefthook): `pnpm install --frozen-lockfile --ignore-scripts`, then `pnpm rebuild esbuild workerd lefthook`. Dev: `pnpm exec vite --host 0.0.0.0 --port 5173`.
