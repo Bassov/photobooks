@@ -91,9 +91,7 @@ test('wheel zooms, arrows nudge, drag pans, Reset to cover restores', async ({
   await openSessionEditor(page)
   await placeOnePhoto(page)
   const cover = await imageBox(page)
-  // Right panel starts collapsed; pressing outside the frame leaves crop mode,
-  // so open it through the top-bar toggle before entering crop mode.
-  await page.getByTestId('toggle-r').click()
+  // The right panel is open by default (uikit/src/sandbox/chrome.tsx:139).
   await filledFrame(page).dblclick()
   await expect(page.getByTestId('inspector-fit-crop')).toBeVisible()
   await expect(page.getByTestId('crop-reset')).toBeDisabled()
@@ -146,7 +144,6 @@ test('reload keeps the crop', async ({ page }) => {
   await placeOnePhoto(page)
   const cover = await imageBox(page)
 
-  await page.getByTestId('toggle-r').click()
   await filledFrame(page).dblclick()
   // Opening the panel refits the spread; measure the frame only once crop mode
   // and the inspector have settled, or the wheel lands on a stale position.
@@ -187,7 +184,6 @@ test('Fit & crop is driven from the inspector: Crop shows grey chrome, Done exit
   test.setTimeout(120_000)
   await openSessionEditor(page)
   await placeOnePhoto(page)
-  await page.getByTestId('toggle-r').click()
   await expect(page.getByTestId('inspector-fit-crop')).toHaveCount(0)
 
   await filledFrame(page).click()

@@ -454,7 +454,8 @@ describe('SpreadView', () => {
     expect(
       screen.getAllByTestId('sel-handle').map((h) => h.dataset.handle),
     ).toEqual(['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'])
-    expect(screen.getByTestId('rotate-handle').dataset.handle).toBe('rotate')
+    // Kit select tool has no rotate knob (uikit/src/sandbox/canvas.tsx:224,443).
+    expect(screen.queryByTestId('rotate-handle')).toBeNull()
     expect(screen.getByTestId('frame-size-tag').textContent).toMatch(
       / × .* mm$/,
     )

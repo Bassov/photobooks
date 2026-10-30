@@ -218,7 +218,8 @@ describe('SpreadView frame chrome', () => {
         frameControlFor={() => ({ ...control(), pressed: true })}
       />,
     )
-    expect(container.querySelector('.spread-frame-rotate-line')).not.toBeNull()
-    expect(screen.getByTestId('rotate-handle')).toBeTruthy()
+    // Kit select tool has no rotate knob (uikit/src/sandbox/canvas.tsx:224,443).
+    expect(container.querySelector('.spread-frame-rotate-line')).toBeNull()
+    expect(screen.queryByTestId('rotate-handle')).toBeNull()
   })
 })

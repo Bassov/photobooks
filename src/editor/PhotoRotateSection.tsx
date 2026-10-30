@@ -18,6 +18,7 @@ import {
 } from './bookStore'
 import type { CropTarget } from './cropMode'
 import {
+  flipPhoto,
   STRAIGHTEN_LIMIT_DEG,
   straightenedCrop,
   straightenPhoto,
@@ -114,9 +115,9 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
       className="flex flex-col gap-3 px-4 py-4"
       data-testid="inspector-rotate"
       data-crop-keep=""
-      aria-label="Rotate"
+      aria-label="Rotate & flip"
     >
-      <h4 className="inspector-eyebrow">Rotate</h4>
+      <h4 className="inspector-eyebrow">Rotate &amp; flip</h4>
       <div className="flex gap-2">
         <Button
           variant="secondary"
@@ -143,6 +144,35 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
         >
           <Icon name="rotateCw" />
           90° right
+        </Button>
+      </div>
+      {/* Kit Flip H / Flip V: uikit/src/sandbox/inspector.tsx:156-158. */}
+      <div className="flex gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1"
+          data-testid="flip-h"
+          aria-pressed={crop.flipH === true}
+          onPress={() => {
+            flipPhoto(target, 'h')
+          }}
+        >
+          <Icon name="flipHorizontal" />
+          Flip H
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1"
+          data-testid="flip-v"
+          aria-pressed={crop.flipV === true}
+          onPress={() => {
+            flipPhoto(target, 'v')
+          }}
+        >
+          <Icon name="flipVertical" />
+          Flip V
         </Button>
       </div>
       <Slider

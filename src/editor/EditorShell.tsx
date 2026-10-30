@@ -3,7 +3,8 @@ import { Status } from '../ui/Status'
 import { ToastRegion } from '../ui/Toast'
 import { createToastQueue } from '../ui/toastQueue'
 import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
-import { EditorFrame, type EditorPanels } from './EditorFrame'
+import { EditorFrame } from './EditorFrame'
+import { DEFAULT_EDITOR_PANELS } from './editorChromePanels'
 import { EditorTopBar } from './EditorTopBar'
 import { FilmstripDock } from './FilmstripDock'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
@@ -23,8 +24,6 @@ import { PresentationMode } from './PresentationMode'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
 
-const INITIAL_PANELS: EditorPanels = { l: true, b: true, r: false }
-
 export function EditorShell() {
   const editorStatus = useSyncExternalStore(
     subscribeEditorStatus,
@@ -38,7 +37,7 @@ export function EditorShell() {
   useEffect(() => installFrameHandleGesture(), [])
 
   const [toastQueue] = useState(() => createToastQueue())
-  const [panels, setPanels] = useState(INITIAL_PANELS)
+  const [panels, setPanels] = useState(DEFAULT_EDITOR_PANELS)
   const [presenting, setPresenting] = useState(false)
   const chromeImport = useChromeImport({
     // External store: progress ticks must not re-render Pasteboard / top bar.

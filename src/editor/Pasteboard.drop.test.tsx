@@ -197,6 +197,34 @@ describe('Pasteboard gallery drop', () => {
     expect(replaced?.assetId).toBe('b')
   })
 
+  it('selects the target frame after a drop (kit canvas.tsx:170-171)', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const [, second] = firstTargets()
+    const point = targetPoint(second)
+    expect(getFrameSource()).toBeNull()
+    startDrag('a')
+    dragOver(scroll, 'a', point.x, point.y)
+    scroll.dispatchEvent(dragEvent('drop', 'a', point))
+    expect(getFrameSource()).toEqual({
+      spreadId: second.spreadId,
+      frameId: second.frameId,
+    })
+  })
+
+  it('selects nothing when the dropped photo is not placed', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const [first] = firstTargets()
+    const point = targetPoint(first)
+    startDrag('not-in-gallery')
+    dragOver(scroll, 'not-in-gallery', point.x, point.y)
+    scroll.dispatchEvent(dragEvent('drop', 'not-in-gallery', point))
+    expect(getFrameSource()).toBeNull()
+  })
+
   it('does not edit a frame without a gallery selection', () => {
     seedGridBook()
     const before = getBookStoreSnapshot().book

@@ -323,6 +323,41 @@ describe('rotation in resolve', () => {
     expect(item?.straightenDeg).toBe(-3)
   })
 
+  it('exposes photo flips only when set', () => {
+    const plain = resolveOne(makeFrame({ assetId: 'a' }))
+    expect(plain).not.toHaveProperty('photoFlipH')
+    expect(plain).not.toHaveProperty('photoFlipV')
+    const off = resolveOne(
+      makeFrame({
+        assetId: 'a',
+        crop: {
+          zoom: 1,
+          center: { x: 0.5, y: 0.5 },
+          flipH: false,
+          flipV: false,
+        },
+      }),
+    )
+    expect(off).not.toHaveProperty('photoFlipH')
+    expect(off).not.toHaveProperty('photoFlipV')
+    const h = resolveOne(
+      makeFrame({
+        assetId: 'a',
+        crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, flipH: true },
+      }),
+    )
+    expect(h?.photoFlipH).toBe(true)
+    expect(h).not.toHaveProperty('photoFlipV')
+    const v = resolveOne(
+      makeFrame({
+        assetId: 'a',
+        crop: { zoom: 1, center: { x: 0.5, y: 0.5 }, flipV: true },
+      }),
+    )
+    expect(v?.photoFlipV).toBe(true)
+    expect(v).not.toHaveProperty('photoFlipH')
+  })
+
   it('treats quarterTurns 0 as no rotation', () => {
     const rect = { x: 0, y: 0, width: 120, height: 80 }
     const base = { zoom: 2, center: { x: 0.4, y: 0.6 } }

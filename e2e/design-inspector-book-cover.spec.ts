@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
+import { expandDisclosure } from './fixtures/expandDisclosure'
 import {
   ensurePhotoFixtures,
   photoFixturePaths,
@@ -155,6 +156,9 @@ test('Photo context labels the first spread "Page 1" (#18)', async ({
   page,
 }) => {
   await filled(page).click()
+  // The kit Photo context has no meta rows (uikit/src/sandbox/context-inspector.tsx:71-78);
+  // they live in the collapsed Details section.
+  await expandDisclosure(page, 'Details')
   await expect(
     inspector(page).getByText('Spread', { exact: true }),
   ).toBeVisible()

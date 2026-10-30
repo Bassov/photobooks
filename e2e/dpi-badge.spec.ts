@@ -63,7 +63,7 @@ test.describe('low-resolution badge on frames', () => {
     await expect(badge).toHaveCount(0)
     await page.getByTestId('dpi-topbar-toggle').click()
 
-    await page.getByTestId('toggle-r').click()
+    // Inspector is open by default (uikit/src/sandbox/chrome.tsx:139).
     await filledFrame(page).dblclick()
     await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
     const center = await frameCenter(page)
@@ -90,7 +90,7 @@ test.describe('low-resolution badge on frames', () => {
     await openSessionEditor(page)
     await placeLargePhoto(page)
     await page.getByTestId('dpi-topbar-toggle').click()
-    await page.getByTestId('toggle-r').click()
+    // Inspector is open by default (uikit/src/sandbox/chrome.tsx:139).
     await filledFrame(page).dblclick()
     const center = await frameCenter(page)
     await page.mouse.move(center.x, center.y)

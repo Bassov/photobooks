@@ -196,11 +196,6 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
               Photo
             </h2>
             <PhotoSection target={view.target} />
-            {view.rows.length === 0 ? null : (
-              <div className="px-4 pb-4">
-                <RowList rows={view.rows} />
-              </div>
-            )}
             <FitCropSection target={view.target} cropping={target !== null} />
             <PhotoRotateSection target={view.target} />
             <Disclosure
@@ -233,6 +228,17 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
             >
               <ArrangeSection target={view.target} />
             </Disclosure>
+            {/* Meta rows live in a collapsed section; the kit has none. */}
+            {view.rows.length === 0 ? null : (
+              <Disclosure
+                title="Details"
+                data-testid="inspector-details-disclosure"
+              >
+                <div className="px-4 pb-4">
+                  <RowList rows={view.rows} />
+                </div>
+              </Disclosure>
+            )}
             <DeleteFrameButton target={view.target} />
           </>
         ) : null}

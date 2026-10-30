@@ -168,12 +168,11 @@ test.describe('editor chrome', () => {
   })
 
   test('panel splitters are invisible at rest', async ({ page }) => {
-    // Kit default: inspector closed until toggled.
+    // Kit default: inspector always mounted and open (uikit/src/sandbox/chrome.tsx:139).
     await expect(page.getByTestId('panel-r')).toHaveAttribute(
       'data-open',
-      'false',
+      'true',
     )
-    await page.getByTestId('toggle-r').click()
     await page.mouse.move(0, 400)
     const splitter = page.getByTestId('resize-right')
     await expect(splitter).toBeVisible()
