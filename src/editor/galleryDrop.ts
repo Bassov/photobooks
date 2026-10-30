@@ -300,7 +300,18 @@ function gapElements(scroll: HTMLElement): Map<number, HTMLElement> {
  * Empty world margin left/top of the spread stack, measured from layout so the
  * hit-test index stays in stack coordinates (0 when nothing is laid out).
  */
-function stackInset(
+export function insetFromRects(
+  world: { width: number; top: number },
+  first: { top: number } | undefined,
+  stackWidthPx: number,
+): { insetX: number; insetY: number } {
+  return {
+    insetX: Math.max(0, (world.width - stackWidthPx) / 2),
+    insetY: first === undefined ? 0 : Math.max(0, first.top - world.top),
+  }
+}
+
+export function stackInset(
   scroll: HTMLElement,
   stackWidthPx: number,
 ): { insetX: number; insetY: number } {
@@ -310,11 +321,22 @@ function stackInset(
   if (world === null) {
     return { insetX: 0, insetY: 0 }
   }
-  const box = world.getBoundingClientRect()
-  const first = world.firstElementChild?.getBoundingClientRect()
+  return insetFromRects(
+    world.getBoundingClientRect(),
+    world.firstElementChild?.getBoundingClientRect(),
+    stackWidthPx,
+  )
+}
+
+/** Pointer position in stack coordinates (scrollport origin, scroll, inset). */
+export function stackPoint(
+  event: { clientX: number; clientY: number },
+  session: Pick<DropSessionBase, 'originX' | 'originY' | 'insetX' | 'insetY'>,
+  scroll: { scrollLeft: number; scrollTop: number },
+): { x: number; y: number } {
   return {
-    insetX: Math.max(0, (box.width - stackWidthPx) / 2),
-    insetY: first === undefined ? 0 : Math.max(0, first.top - box.top),
+    x: event.clientX - session.originX + scroll.scrollLeft - session.insetX,
+    y: event.clientY - session.originY + scroll.scrollTop - session.insetY,
   }
 }
 
@@ -416,10 +438,7 @@ export function installGalleryDrop(
       event.dataTransfer.dropEffect = current.kind === 'frame' ? 'move' : 'copy'
     }
     measureHandlerSync('dragover', () => {
-      const x =
-        event.clientX - current.originX + scroll.scrollLeft - current.insetX
-      const y =
-        event.clientY - current.originY + scroll.scrollTop - current.insetY
+      const { x, y } = stackPoint(event, current, scroll)
       const target = hitTestDrop(current.index, x, y)
       if (target !== undefined) {
         setDropHover(
@@ -445,10 +464,7 @@ export function installGalleryDrop(
     }
     event.preventDefault()
     const current = session
-    const x =
-      event.clientX - current.originX + scroll.scrollLeft - current.insetX
-    const y =
-      event.clientY - current.originY + scroll.scrollTop - current.insetY
+    const { x, y } = stackPoint(event, current, scroll)
     const target = hitTestDrop(current.index, x, y)
     session = null
     clearDropHover()

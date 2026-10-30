@@ -82,10 +82,9 @@ export function zoomLimits(
   maxZoom: number
 } {
   const fit = fitSpread > 0 && Number.isFinite(fitSpread) ? fitSpread : 1
-  let minZoom = fit * MIN_FIT_RATIO
-  if (fitStack !== undefined && fitStack > 0 && fitStack < minZoom) {
-    minZoom = fitStack
-  }
+  const stack = fitStack ?? 0
+  const minZoom =
+    stack > 0 ? Math.min(fit * MIN_FIT_RATIO, stack) : fit * MIN_FIT_RATIO
   return { minZoom, maxZoom: fit * MAX_FIT_RATIO }
 }
 
