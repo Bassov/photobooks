@@ -28,9 +28,7 @@ export function BookSettingsSection() {
       data-testid="book-settings"
       aria-label="Book settings"
     >
-      <h4 className="text-2xs font-semibold tracking-[0.12em] uppercase">
-        Book settings
-      </h4>
+      <h4 className="inspector-eyebrow">Book settings</h4>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[12.5px]">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
