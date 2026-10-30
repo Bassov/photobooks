@@ -106,6 +106,8 @@ export interface CameraCommands {
   actualSize: () => void
   /** Place (clamped, centred) an absolute zoom. */
   zoomTo: (zoom: number) => void
+  /** Zoom ×/÷ 1.25 about the viewport centre, keeping the pan. */
+  zoomStep: (direction: 1 | -1) => void
   /** Zoom at which the spread fits the pasteboard, `null` without a viewport. */
   fitSpreadZoom: () => number | null
 }

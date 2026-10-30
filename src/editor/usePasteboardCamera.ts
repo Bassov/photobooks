@@ -7,6 +7,8 @@ import {
   clampZoom,
   fitStackZoom,
   fitZoom,
+  FIT_BOTTOM_PX,
+  FIT_TOP_PX,
   physicalZoom,
   pinchZoom,
   stepZoom,
@@ -33,6 +35,7 @@ import {
   shouldHoldCameraScroll,
   stopDelayedFitFollow,
 } from './pasteboardCameraFit'
+import { PASTEBOARD_PAD_PX } from './pasteboardView'
 import { pasteboardStridePx } from './pasteboardWindow'
 
 const GESTURE_SETTLE_MS = 80
@@ -141,33 +144,51 @@ function stackMetrics(
   }
 }
 
+function fitFor(
+  metrics: StackMetrics,
+  viewportWidth: number,
+  viewportHeight: number,
+): number {
+  const viewport = fitViewportSize(viewportWidth, viewportHeight)
+  return fitZoom({
+    contentWidthPx: metrics.spreadWidth,
+    contentHeightPx: metrics.spreadHeight,
+    viewportWidth: viewport.viewportWidth,
+    viewportHeight: viewport.viewportHeight,
+    mode: 'contain',
+  })
+}
+
 function limitsFor(
   metrics: StackMetrics,
   viewportWidth: number,
   viewportHeight: number,
 ): { minZoom: number; maxZoom: number } {
-  return zoomLimits({
-    fitSpread: fitZoom({
-      contentWidthPx: metrics.spreadWidth,
-      contentHeightPx: metrics.spreadHeight,
-      viewportWidth,
-      viewportHeight,
-      mode: 'contain',
-    }),
-    fitWidth: fitZoom({
-      contentWidthPx: metrics.spreadWidth,
-      contentHeightPx: metrics.spreadHeight,
-      viewportWidth,
-      viewportHeight,
-      mode: 'width',
-    }),
-    fitStack: fitStackZoom({
+  if (!(viewportWidth > 0) || !(viewportHeight > 0)) {
+    // No layout yet: the kit's absolute clamp stands in for the Fit ratios.
+    return zoomLimits(1)
+  }
+  const limits = zoomLimits(
+    fitFor(metrics, viewportWidth, viewportHeight),
+    fitStackZoom({
       stackWidthPx: metrics.stackWidth,
       stackHeightPx: metrics.stackHeight,
       viewportWidth,
       viewportHeight,
     }),
+  )
+  const widthFit = fitZoom({
+    contentWidthPx: metrics.spreadWidth,
+    contentHeightPx: metrics.spreadHeight,
+    viewportWidth,
+    viewportHeight,
+    mode: 'width',
   })
+  return {
+    minZoom: limits.minZoom,
+    // 400% physical stays reachable on small spreads.
+    maxZoom: Math.max(limits.maxZoom, widthFit, physicalZoom() * 4),
+  }
 }
 
 function clearGesturePaint(
@@ -184,6 +205,7 @@ function clearGesturePaint(
   }
 }
 
+/** Scroll that centres the active spread in the kit band `[56, H − 48]`. */
 function placedScroll(
   metrics: StackMetrics,
   zoom: number,
@@ -193,16 +215,20 @@ function placedScroll(
 ): ScrollPosition {
   const spreadWidth = metrics.spreadWidth * zoom
   const spreadHeight = metrics.spreadHeight * zoom
-  const worldWidth = Math.max(viewportWidth, metrics.stackWidth * zoom)
   return centerSpreadScroll({
-    spreadLeftPx: Math.max(0, (worldWidth - spreadWidth) / 2),
-    spreadTopPx: activeIndex * metrics.stride * zoom,
+    spreadLeftPx:
+      PASTEBOARD_PAD_PX + (metrics.stackWidth * zoom - spreadWidth) / 2,
+    // The band centre sits (bottom − top) / 2 below the viewport centre.
+    spreadTopPx:
+      PASTEBOARD_PAD_PX +
+      activeIndex * metrics.stride * zoom -
+      (FIT_TOP_PX - FIT_BOTTOM_PX) / 2,
     spreadWidthPx: spreadWidth,
     spreadHeightPx: spreadHeight,
     viewportWidth,
     viewportHeight,
-    contentWidth: worldWidth,
-    contentHeight: metrics.stackHeight * zoom,
+    contentWidth: 2 * PASTEBOARD_PAD_PX + metrics.stackWidth * zoom,
+    contentHeight: 2 * PASTEBOARD_PAD_PX + metrics.stackHeight * zoom,
   })
 }
 
@@ -229,6 +255,8 @@ export function usePasteboardCamera({
   fitWidth: () => void
   actualSize: () => void
   zoomTo: (zoom: number) => void
+  zoomStep: (direction: 1 | -1) => void
+  refitIfFitted: () => void
   fitSpreadZoom: () => number | null
 } {
   const bookRef = useRef({
@@ -262,33 +290,7 @@ export function usePasteboardCamera({
   const settleRef = useRef(0)
   const delayedFitRef = useRef(createDelayedFitFollow())
 
-  const placeZoom = (zoom: number): void => {
-    const scroll = scrollRef.current
-    if (scroll === null) {
-      return
-    }
-    const metrics = stackMetrics(
-      trimWidthMm,
-      trimHeightMm,
-      spreadCount,
-      activeIndex,
-    )
-    const limits = limitsFor(metrics, scroll.clientWidth, scroll.clientHeight)
-    const next = clampZoom(zoom, limits.minZoom, limits.maxZoom)
-    if (next === getCommittedZoom()) {
-      return
-    }
-    const placed = placedScroll(
-      metrics,
-      next,
-      activeIndex,
-      scroll.clientWidth,
-      scroll.clientHeight,
-    )
-    commitZoom(next, placed.scrollLeft, placed.scrollTop)
-  }
-
-  const fitSpreadZoom = (): number | null => {
+  const placeZoom = (zoom: number): number | null => {
     const scroll = scrollRef.current
     if (scroll === null) {
       return null
@@ -299,28 +301,96 @@ export function usePasteboardCamera({
       spreadCount,
       activeIndex,
     )
-    // Inset absorbs subpixel / late chrome shrink so a fitted spread stays
-    // strictly inside the pasteboard (add-spread reveal relies on this).
-    const viewport = fitViewportSize(scroll.clientWidth, scroll.clientHeight)
-    return fitZoom({
-      contentWidthPx: metrics.spreadWidth,
-      contentHeightPx: metrics.spreadHeight,
-      viewportWidth: viewport.viewportWidth,
-      viewportHeight: viewport.viewportHeight,
-      mode: 'contain',
-    })
+    const limits = limitsFor(metrics, scroll.clientWidth, scroll.clientHeight)
+    const next = clampZoom(zoom, limits.minZoom, limits.maxZoom)
+    const placed = placedScroll(
+      metrics,
+      next,
+      activeIndex,
+      scroll.clientWidth,
+      scroll.clientHeight,
+    )
+    commitZoom(next, placed.scrollLeft, placed.scrollTop)
+    return next
+  }
+
+  const fitSpreadZoom = (): number | null => {
+    const scroll = scrollRef.current
+    if (scroll === null) {
+      return null
+    }
+    return fitFor(
+      stackMetrics(trimWidthMm, trimHeightMm, spreadCount, activeIndex),
+      scroll.clientWidth,
+      scroll.clientHeight,
+    )
+  }
+
+  /** Zoom of the last explicit Fit; the view follows viewport resizes while at it. */
+  const lastFitRef = useRef<number | null>(null)
+
+  const placeFit = (zoom: number): void => {
+    const placed = placeZoom(zoom)
+    if (placed !== null) {
+      lastFitRef.current = placed
+    }
   }
 
   const applyFitSpread = (): void => {
     const next = fitSpreadZoom()
     if (next !== null) {
-      placeZoom(next)
+      placeFit(next)
     }
   }
 
   const stopFollowingFit = (): void => {
     stopDelayedFitFollow(delayedFitRef.current, cancelAnimationFrame)
   }
+
+  /** Kit ×/÷ 1.25 about the viewport centre; keeps the pan (no recentre). */
+  const stepAtCentre = (direction: 1 | -1): void => {
+    const port = scrollRef.current
+    if (port === null) {
+      return
+    }
+    const book = bookRef.current
+    const limits = limitsFor(
+      stackMetrics(
+        book.trimWidthMm,
+        book.trimHeightMm,
+        book.spreadCount,
+        book.activeIndex,
+      ),
+      port.clientWidth,
+      port.clientHeight,
+    )
+    const start = getCommittedZoom()
+    const next = stepZoom(start, direction, limits.minZoom, limits.maxZoom)
+    if (next === start) {
+      return
+    }
+    stopFollowingFit()
+    const frame = blankFrame()
+    zoomAtPoint(
+      {
+        zoom: start,
+        scrollLeft: port.scrollLeft,
+        scrollTop: port.scrollTop,
+        anchorX: port.clientWidth / 2,
+        anchorY: port.clientHeight / 2,
+        factor: next / start,
+        minZoom: limits.minZoom,
+        maxZoom: limits.maxZoom,
+        originX: PASTEBOARD_PAD_PX,
+        originY: PASTEBOARD_PAD_PX,
+      },
+      frame,
+    )
+    commitZoom(frame.zoom, frame.scrollLeft, frame.scrollTop)
+  }
+
+  // Reads only refs, so the first render's closure stays valid.
+  const stepRef = useRef(stepAtCentre)
 
   useLayoutEffect(() => {
     bookRef.current = {
@@ -374,6 +444,8 @@ export function usePasteboardCamera({
             factor: requested / gesture.startZoom,
             minZoom: gesture.minZoom,
             maxZoom: gesture.maxZoom,
+            originX: PASTEBOARD_PAD_PX,
+            originY: PASTEBOARD_PAD_PX,
           },
           gesture.frame,
         )
@@ -398,7 +470,7 @@ export function usePasteboardCamera({
         return
       }
       const frame = gesture.frame
-      world.style.transformOrigin = '0 0'
+      world.style.transformOrigin = `${String(PASTEBOARD_PAD_PX)}px ${String(PASTEBOARD_PAD_PX)}px`
       world.style.transform = `translate(${String(frame.translateX)}px, ${String(frame.translateY)}px) scale(${String(frame.scale)})`
       world.style.willChange = 'transform'
       world.dataset.gesture = 'zoom'
@@ -637,6 +709,8 @@ export function usePasteboardCamera({
           currentB: gesture.currentB,
           minZoom: gesture.minZoom,
           maxZoom: gesture.maxZoom,
+          originX: PASTEBOARD_PAD_PX,
+          originY: PASTEBOARD_PAD_PX,
         },
         gesture.frame,
       )
@@ -741,44 +815,7 @@ export function usePasteboardCamera({
         return
       }
       event.preventDefault()
-      const port = scrollRef.current
-      if (port === null) {
-        return
-      }
-      const book = bookRef.current
-      const metrics = stackMetrics(
-        book.trimWidthMm,
-        book.trimHeightMm,
-        book.spreadCount,
-        book.activeIndex,
-      )
-      const limits = limitsFor(metrics, port.clientWidth, port.clientHeight)
-      const next = stepZoom(
-        getCommittedZoom(),
-        direction,
-        limits.minZoom,
-        limits.maxZoom,
-      )
-      if (next === getCommittedZoom()) {
-        return
-      }
-      stopFollowingFit()
-      const frame = blankFrame()
-      const start = getCommittedZoom()
-      zoomAtPoint(
-        {
-          zoom: start,
-          scrollLeft: port.scrollLeft,
-          scrollTop: port.scrollTop,
-          anchorX: port.clientWidth / 2,
-          anchorY: port.clientHeight / 2,
-          factor: next / start,
-          minZoom: limits.minZoom,
-          maxZoom: limits.maxZoom,
-        },
-        frame,
-      )
-      commitZoom(frame.zoom, frame.scrollLeft, frame.scrollTop)
+      stepRef.current(direction)
     }
 
     const onKeyUp = (event: KeyboardEvent): void => {
@@ -845,6 +882,22 @@ export function usePasteboardCamera({
       stopFollowingFit()
       placeZoom(zoom)
     },
+    zoomStep: stepAtCentre,
+    /**
+     * Re-fit when the view is still at Fit (never zoomed away): a resized
+     * pasteboard (panel toggle, window) keeps the spread inside it. Before any
+     * zoom was committed this is the open-time fit.
+     */
+    refitIfFitted: () => {
+      const last = lastFitRef.current
+      const atFit =
+        last === null
+          ? getCommittedCamera().epoch === 0
+          : Math.abs(getCommittedZoom() - last) <= last * 1e-6
+      if (atFit) {
+        applyFitSpread()
+      }
+    },
     fitSpreadZoom,
     fitSpread: () => {
       beginDelayedFitFollow(delayedFitRef.current)
@@ -863,7 +916,7 @@ export function usePasteboardCamera({
             getCommittedZoom(),
           )
           if (resolved.apply && resolved.zoom !== null) {
-            placeZoom(resolved.zoom)
+            placeFit(resolved.zoom)
           }
         },
       )

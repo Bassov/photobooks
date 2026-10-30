@@ -15,7 +15,9 @@ import {
   resolveTrackedScrollTop,
   selectMarkedSpreadId,
   shouldRenderSpacer,
+  PASTEBOARD_PAD_PX,
   spreadActiveIndex,
+  stackScrollTop,
   widestPageCount,
 } from './pasteboardView'
 
@@ -262,5 +264,13 @@ describe('pasteboardClickSpreadId', () => {
     const gray = document.createElement('div')
     expect(pasteboardClickSpreadId(gray, 150, [slot, other])).toBe('s2')
     expect(pasteboardClickSpreadId(gray, 50, [slot, other])).toBe('s1')
+  })
+})
+
+describe('stackScrollTop', () => {
+  it('removes the world pad and never goes negative', () => {
+    expect(stackScrollTop(0)).toBe(0)
+    expect(stackScrollTop(PASTEBOARD_PAD_PX - 1)).toBe(0)
+    expect(stackScrollTop(PASTEBOARD_PAD_PX + 300)).toBe(300)
   })
 })

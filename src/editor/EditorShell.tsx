@@ -69,7 +69,7 @@ export function EditorShell() {
       canvas={
         presenting ? null : (
           <>
-            <Pasteboard chromeImport={chromeImport} />
+            <Pasteboard fitOnOpen />
             <CoverOverlay />
             <Status
               className="editor-status-pill"

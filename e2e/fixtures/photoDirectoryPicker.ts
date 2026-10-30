@@ -199,22 +199,14 @@ export async function queuePhotoDirectoryPicker(
 export async function choosePhotoFolder(
   page: Page,
   filePaths: readonly string[],
-  options?: { button?: 'top' | 'pasteboard'; via?: 'input' | 'picker' },
+  options?: { via?: 'input' | 'picker' },
 ): Promise<void> {
-  const where = options?.button ?? 'top'
-  const via = options?.via ?? (where === 'pasteboard' ? 'picker' : 'input')
+  const via = options?.via ?? 'input'
   if (via === 'input') {
     const input = page.getByTestId('e2e-photo-folder-input')
     await input.setInputFiles([...filePaths])
     return
   }
   await queuePhotoDirectoryPicker(page, stubPhotoFilesFromPaths(filePaths))
-  if (where === 'pasteboard') {
-    await page
-      .getByTestId('pasteboard-empty-card')
-      .getByRole('button', { name: /photo folder/i })
-      .click()
-    return
-  }
   await page.getByTestId('choose-photo-folder').click()
 }

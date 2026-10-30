@@ -154,6 +154,7 @@ describe('EditorTopBar', () => {
       fitWidth: vi.fn(),
       actualSize: vi.fn(),
       zoomTo: vi.fn(),
+      zoomStep: vi.fn(),
       fitSpreadZoom: vi.fn(() => 0.5),
     }
     registerCameraCommands(commands)
@@ -213,6 +214,7 @@ describe('EditorTopBar', () => {
       fitWidth: vi.fn(),
       actualSize: vi.fn(),
       zoomTo: vi.fn(),
+      zoomStep: vi.fn(),
       fitSpreadZoom: () => null,
     })
     fireEvent.keyDown(window, { key: '0', ctrlKey: true })
@@ -493,7 +495,7 @@ describe('EditorTopBar', () => {
     await waitFor(() => {
       expect(getNoPhotosFoundHint()).toBe(true)
     })
-    expect(screen.getByText('No photos found in that folder')).toBeTruthy()
+    expect(screen.queryByText('No photos found in that folder')).toBeNull()
     expect(screen.getByTestId('editor-status').textContent).toBe(
       '1 non-image file skipped',
     )

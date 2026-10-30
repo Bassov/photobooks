@@ -61,7 +61,7 @@ test('Start editing from empty home restores empty-editor pasteboard scroll', as
   await expect(page.getByTestId('editor-shell')).toBeVisible()
   await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
   await expect(page.getByTestId('book-size')).not.toContainText(/· (un)?saved$/)
-  await expect(page.getByTestId('pasteboard-empty-card')).toBeVisible()
+  await expect(page.getByTestId('pasteboard-empty-card')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',

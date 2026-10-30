@@ -22,9 +22,7 @@ import '../ui/Toolbar.css'
 import { displayBookTitle } from '../project'
 import { formatZoomPercent, physicalZoom } from './camera'
 import {
-  commitZoom,
   getCameraCommands,
-  getCommittedCamera,
   getCommittedZoom,
   getLiveZoom,
   subscribeCommitted,
@@ -33,8 +31,6 @@ import {
 import { isChromeBusy } from './editorChromeDisabled'
 import {
   bookSizeLine,
-  nextZoomIn,
-  nextZoomOut,
   toggleEditorPanel,
   zoomChromeLabel,
   type EditorPanels,
@@ -44,6 +40,7 @@ import { PanelToggles } from './EditorFrame'
 import { EditorToolGroup } from './EditorToolGroup'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
+import { DpiToggle } from './DpiToggle'
 import { RulersToggle } from './RulersToggle'
 import {
   getBookStoreSnapshot,
@@ -231,8 +228,7 @@ function ZoomChrome() {
         size="sm"
         data-testid="zoom-out"
         onPress={() => {
-          const cam = getCommittedCamera()
-          commitZoom(nextZoomOut(zoom), cam.scrollLeft, cam.scrollTop)
+          getCameraCommands()?.zoomStep(-1)
         }}
       >
         <Icon name="zoomOut" size={16} />
@@ -274,8 +270,7 @@ function ZoomChrome() {
         size="sm"
         data-testid="zoom-in"
         onPress={() => {
-          const cam = getCommittedCamera()
-          commitZoom(nextZoomIn(zoom), cam.scrollLeft, cam.scrollTop)
+          getCameraCommands()?.zoomStep(1)
         }}
       >
         <Icon name="zoomIn" size={16} />
@@ -402,6 +397,7 @@ export function EditorTopBar({
         <GridToggle />
         <SnapToggle />
         <RulersToggle />
+        <DpiToggle />
       </div>
 
       <ZoomChrome />

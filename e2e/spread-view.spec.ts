@@ -64,20 +64,24 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
   )
   await expect(page.getByTestId('add-spread')).toBeVisible()
   await expect(page.getByTestId('template-add-spread')).toHaveCount(0)
+  // Opens fitted on the selected spread: the window mounts the first spreads,
+  // not every spread as stacked tiles.
   const slots = await readSpreadSlots(page)
-  expect(slots.map((slot) => slot.placeholders)).toEqual([1, 2, 1])
+  expect(slots.length).toBeGreaterThanOrEqual(2)
+  expect(slots.map((slot) => slot.placeholders)).toEqual(
+    [1, 2, 1].slice(0, slots.length),
+  )
   expect(slots[0]?.active).toBe(true)
-  expect(slots.map((slot) => slot.widthPx)).toEqual([150, 300, 150])
+  expect(slots.map((slot) => slot.widthPx)).toEqual(
+    [150, 300, 150].slice(0, slots.length),
+  )
   const placeholder = page.getByTestId('spread-frame-placeholder').first()
   await expect(placeholder).toBeVisible()
   const box = await placeholder.boundingBox()
   expect(box?.width ?? 0).toBeGreaterThan(40)
   expect(box?.height ?? 0).toBeGreaterThan(40)
   await expect(page.getByRole('region', { name: 'Spreads' })).toBeVisible()
-  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
-    'data-zoom-percent',
-    '13%',
-  )
+  await expect(page.getByTestId('zoom-label')).toHaveText('Fit')
   await assertDocumentFitsViewport(page)
 })
 
@@ -134,10 +138,7 @@ test('a spread added from the row menu is revealed and a later template change l
     nudgeHorizontal: false,
   })
 
-  const scroll = page.getByTestId('pasteboard-scroll')
-  await scroll.evaluate((el) => {
-    el.scrollTop = 0
-  })
+  await scrollToStackStart(page)
   await expect
     .poll(async () => {
       const first = await readSpreadSlotAt(page, 0)
@@ -187,15 +188,13 @@ test('add spread keeps the new spread inside the pasteboard', async ({
     '4',
   )
   await expect
-    .poll(async () => {
-      const slots = await readSpreadSlots(page)
-      return slots[3]?.inScrollport === true
-    })
+    .poll(async () => (await readSpreadSlotAt(page, 3))?.inScrollport === true)
     .toBe(true)
   const slots = await readSpreadSlots(page)
-  expect(slots.map((slot) => slot.placeholders)).toEqual([1, 2, 2, 1])
-  expect(slots[2]?.widthPx).toBe(300)
-  expect(slots[3]?.widthPx).toBe(150)
+  const mounted = [1, 2, 2, 1].slice(-slots.length)
+  expect(slots.map((slot) => slot.placeholders)).toEqual(mounted)
+  expect(slots.at(-2)?.widthPx).toBe(300)
+  expect(slots.at(-1)?.widthPx).toBe(150)
   await assertDocumentFitsViewport(page)
   await assertNamedScrollport(page, 'pasteboard-scroll', {
     axis: 'vertical',
@@ -313,10 +312,21 @@ test('painter fixture scrolls inside the pasteboard', async ({ page }) => {
     'data-spread-count',
     '40',
   )
-  const stackHeight = await page
-    .getByTestId('pasteboard-scroll')
-    .evaluate((el) => el.scrollHeight)
-  expect(stackHeight).toBe(40 * (300 * 0.5 + 24))
+  const metrics = await page.getByTestId('pasteboard-scroll').evaluate((el) => {
+    const slot = el.querySelector('[data-pasteboard-slot]')
+    const world = el.querySelector('[data-testid="pasteboard-world"]')
+    return {
+      scrollHeight: el.scrollHeight,
+      slotHeight: slot?.getBoundingClientRect().height ?? 0,
+      inset: Number(world?.getAttribute('data-stack-inset') ?? 0),
+    }
+  })
+  // 40 slots of one stride each, between the world's top and bottom margins.
+  expect(metrics.slotHeight).toBeGreaterThan(0)
+  expect(metrics.scrollHeight).toBeCloseTo(
+    2 * metrics.inset + 40 * metrics.slotHeight,
+    0,
+  )
   const mounted = await page.getByTestId('spread-view').count()
   expect(mounted).toBeGreaterThan(0)
   expect(mounted).toBeLessThan(40)
@@ -428,10 +438,7 @@ test('camera controls set physical size, fit width, and fit spread', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  await expect(page.getByTestId('zoom-label')).toHaveAttribute(
-    'data-zoom-percent',
-    '13%',
-  )
+  await expect(page.getByTestId('zoom-label')).toHaveText('Fit')
 
   await chooseZoom(page, '100%')
   await expect(page.getByTestId('zoom-label')).toHaveAttribute(
@@ -887,7 +894,8 @@ async function fitSpreadUntilFilled(page: Page): Promise<void> {
             const port = el.getBoundingClientRect()
             const box = view.getBoundingClientRect()
             return (
-              box.height >= port.height * 0.85 &&
+              // Kit fit band: `H − FIT_TOP − FIT_BOTTOM` (viewport.tsx L126).
+              box.height >= port.height - 56 - 48 - 2 &&
               box.width >= 1 &&
               box.top >= port.top - 1 &&
               box.bottom <= port.bottom + 1 &&
@@ -1023,35 +1031,46 @@ function tierCovers(sample: TierSample): boolean {
 }
 
 interface AnchorSample {
-  scrollLeft: number
-  scrollTop: number
+  /** Viewport centre in spread-relative units (kit: the point under the anchor). */
+  u: number
+  v: number
   width: number
+  height: number
   anchorX: number
   anchorY: number
+  boxLeft: number
+  boxTop: number
 }
 
 async function readCenterAnchor(page: Page): Promise<AnchorSample> {
   return page.getByTestId('pasteboard-scroll').evaluate((el) => {
     const port = el.getBoundingClientRect()
     const view = el.querySelector('[data-testid="spread-view"]')
-    const width =
-      view instanceof HTMLElement ? view.getBoundingClientRect().width : 0
+    const box =
+      view instanceof HTMLElement
+        ? view.getBoundingClientRect()
+        : new DOMRect(0, 0, 0, 0)
+    const anchorX = port.left + port.width / 2
+    const anchorY = port.top + port.height / 2
     return {
-      scrollLeft: el.scrollLeft,
-      scrollTop: el.scrollTop,
-      width,
-      anchorX: port.width / 2,
-      anchorY: port.height / 2,
+      u: (anchorX - box.left) / box.width,
+      v: (anchorY - box.top) / box.height,
+      width: box.width,
+      height: box.height,
+      anchorX,
+      anchorY,
+      boxLeft: box.left,
+      boxTop: box.top,
     }
   })
 }
 
+/** The content point under the viewport centre stays under it (within 1px). */
 function expectAnchorHeld(before: AnchorSample, after: AnchorSample): void {
   expect(before.width).toBeGreaterThan(0)
-  const scale = after.width / before.width
-  expect(scale).toBeGreaterThan(1)
-  const heldX = (before.scrollLeft + before.anchorX) * scale - after.scrollLeft
-  const heldY = (before.scrollTop + before.anchorY) * scale - after.scrollTop
+  expect(after.width / before.width).toBeGreaterThan(1)
+  const heldX = after.boxLeft + before.u * after.width
+  const heldY = after.boxTop + before.v * after.height
   // Subpixel scroll/layout on CI can land ~0.8px off; keep within 1 CSS px.
   expect(Math.abs(heldX - before.anchorX)).toBeLessThan(1)
   expect(Math.abs(heldY - before.anchorY)).toBeLessThan(1)
@@ -1082,4 +1101,12 @@ async function dispatchPinch(page: Page): Promise<void> {
     fire('pointerup', 2, cx + 90)
   })
   await page.waitForTimeout(200)
+}
+
+/** First spread's top-left lead at the scrollport: past the world's top margin. */
+async function scrollToStackStart(page: Page): Promise<void> {
+  await page.getByTestId('pasteboard-scroll').evaluate((el) => {
+    const world = el.querySelector('[data-testid="pasteboard-world"]')
+    el.scrollTop = Number(world?.getAttribute('data-stack-inset') ?? 0)
+  })
 }

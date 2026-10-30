@@ -63,6 +63,8 @@ export interface DropGeometry {
 interface DropSessionBase {
   originX: number
   originY: number
+  insetX: number
+  insetY: number
   index: DropIndex
   elements: ReadonlyMap<string, HTMLElement>
   /** "New spread" zone elements keyed by insert index. */
@@ -294,6 +296,28 @@ function gapElements(scroll: HTMLElement): Map<number, HTMLElement> {
   return elements
 }
 
+/**
+ * Empty world margin left/top of the spread stack, measured from layout so the
+ * hit-test index stays in stack coordinates (0 when nothing is laid out).
+ */
+function stackInset(
+  scroll: HTMLElement,
+  stackWidthPx: number,
+): { insetX: number; insetY: number } {
+  const world = scroll.querySelector<HTMLElement>(
+    '[data-testid="pasteboard-world"]',
+  )
+  if (world === null) {
+    return { insetX: 0, insetY: 0 }
+  }
+  const box = world.getBoundingClientRect()
+  const first = world.firstElementChild?.getBoundingClientRect()
+  return {
+    insetX: Math.max(0, (box.width - stackWidthPx) / 2),
+    insetY: first === undefined ? 0 : Math.max(0, first.top - box.top),
+  }
+}
+
 function beginSession(
   scroll: HTMLElement,
   readGeometry: () => DropGeometry,
@@ -308,6 +332,7 @@ function beginSession(
     ...drag,
     originX: origin.left,
     originY: origin.top,
+    ...stackInset(scroll, geometry.worldWidthPx),
     index: buildDropIndex({
       spreads: dropSpreadsFromBook(book, geometry),
       pxPerMm: geometry.pxPerMm,
@@ -391,8 +416,10 @@ export function installGalleryDrop(
       event.dataTransfer.dropEffect = current.kind === 'frame' ? 'move' : 'copy'
     }
     measureHandlerSync('dragover', () => {
-      const x = event.clientX - current.originX + scroll.scrollLeft
-      const y = event.clientY - current.originY + scroll.scrollTop
+      const x =
+        event.clientX - current.originX + scroll.scrollLeft - current.insetX
+      const y =
+        event.clientY - current.originY + scroll.scrollTop - current.insetY
       const target = hitTestDrop(current.index, x, y)
       if (target !== undefined) {
         setDropHover(
@@ -418,8 +445,10 @@ export function installGalleryDrop(
     }
     event.preventDefault()
     const current = session
-    const x = event.clientX - current.originX + scroll.scrollLeft
-    const y = event.clientY - current.originY + scroll.scrollTop
+    const x =
+      event.clientX - current.originX + scroll.scrollLeft - current.insetX
+    const y =
+      event.clientY - current.originY + scroll.scrollTop - current.insetY
     const target = hitTestDrop(current.index, x, y)
     session = null
     clearDropHover()

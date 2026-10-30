@@ -1,13 +1,17 @@
-export const FIT_VIEWPORT_INSET_PX = 24
+import { FIT_BOTTOM_PX, FIT_SIDE_PX, FIT_TOP_PX } from './camera'
 
+/**
+ * Space the fitted spread may fill: kit `viewport.tsx` L123–126
+ * (`W − 2·pad`, `H − fitTop − fitBottom`). Absorbs subpixel / late chrome
+ * shrink so a fitted spread stays strictly inside the pasteboard.
+ */
 export function fitViewportSize(
   clientWidth: number,
   clientHeight: number,
-  insetPx: number = FIT_VIEWPORT_INSET_PX,
 ): { viewportWidth: number; viewportHeight: number } {
   return {
-    viewportWidth: Math.max(1, clientWidth - insetPx),
-    viewportHeight: Math.max(1, clientHeight - insetPx),
+    viewportWidth: Math.max(1, clientWidth - 2 * FIT_SIDE_PX),
+    viewportHeight: Math.max(1, clientHeight - FIT_TOP_PX - FIT_BOTTOM_PX),
   }
 }
 

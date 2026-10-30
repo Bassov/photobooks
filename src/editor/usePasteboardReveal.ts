@@ -13,7 +13,7 @@ import {
   turnPendingReveal,
   type PendingRevealState,
 } from './pasteboardReveal'
-import { nextTrackedScroll } from './pasteboardView'
+import { PASTEBOARD_PAD_PX, nextTrackedScroll } from './pasteboardView'
 
 type TurnFn = typeof turnPendingReveal
 
@@ -153,7 +153,10 @@ export function usePasteboardReveal({
     }
     if (turn.kind === 'await-slot') {
       const epoch = getCommittedCamera().epoch
-      setTrackedScroll((current) => nextTrackedScroll(current, turn.top, epoch))
+      // Tracked scroll is raw scroll space; the stack starts after the world pad.
+      setTrackedScroll((current) =>
+        nextTrackedScroll(current, PASTEBOARD_PAD_PX + turn.top, epoch),
+      )
       return
     }
     if (turn.kind === 'retry') {

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  FIT_VIEWPORT_INSET_PX,
   beginDelayedFitFollow,
   createDelayedFitFollow,
   fitViewportSize,
@@ -12,15 +11,15 @@ import {
 } from './pasteboardCameraFit'
 
 describe('fitViewportSize', () => {
-  it('subtracts the fit inset from both axes', () => {
+  it('subtracts the kit side pads and top/bottom bands', () => {
     expect(fitViewportSize(500, 400)).toEqual({
-      viewportWidth: 500 - FIT_VIEWPORT_INSET_PX,
-      viewportHeight: 400 - FIT_VIEWPORT_INSET_PX,
+      viewportWidth: 500 - 80,
+      viewportHeight: 400 - 56 - 48,
     })
   })
 
   it('clamps each axis to at least 1px', () => {
-    expect(fitViewportSize(10, 10, 24)).toEqual({
+    expect(fitViewportSize(10, 10)).toEqual({
       viewportWidth: 1,
       viewportHeight: 1,
     })

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { PASTEBOARD_PAD_PX } from './pasteboardView'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -199,9 +200,9 @@ describe('Pasteboard view wiring', () => {
       },
     })
 
-    scroll.scrollTop = 800
+    scroll.scrollTop = PASTEBOARD_PAD_PX + 800
     fireEvent.scroll(scroll)
-    scroll.scrollTop = 900
+    scroll.scrollTop = PASTEBOARD_PAD_PX + 900
     fireEvent.scroll(scroll)
 
     expect(hooks.rafQueue).toHaveLength(1)
@@ -221,7 +222,7 @@ describe('Pasteboard view wiring', () => {
     for (let i = 0; i < 8; i += 1) {
       dispatchBookOp({ type: 'addSpread' })
     }
-    commitZoom(1, 0, 1200)
+    commitZoom(1, 0, PASTEBOARD_PAD_PX + 1200)
     stubViewport(500, 240)
     render(<Pasteboard />)
     expect(

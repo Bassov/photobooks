@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import { setDpiView } from './dpiView'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Book } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
@@ -126,10 +127,15 @@ describe('badge in the editor and Preview', () => {
   afterEach(() => {
     cleanup()
     resetBookStore()
+    setDpiView(false)
   })
 
-  it('paints in the editor view by default and not when disabled', () => {
+  it('is hidden by default and paints once the DPI view is on', () => {
     load({}, meta(1000, 1000))
+    render(<ConnectedSpreadView spreadId="s0" />)
+    expect(screen.queryByTestId('dpi-badge')).toBeNull()
+    cleanup()
+    setDpiView(true)
     render(<ConnectedSpreadView spreadId="s0" />)
     expect(screen.getByTestId('dpi-badge').textContent).toBe('100 dpi')
     cleanup()
