@@ -260,7 +260,7 @@ test('narrow fitted add spread keeps the new spread contained', async ({
   // the width-limited fit filling the pasteboard.
   await page.setViewportSize({ width: 400, height: 480 })
   await openSessionEditor(page)
-  // The inspector is open by default (uikit/src/sandbox/chrome.tsx:139); at
+  // The inspector is open by default (uikit/src/features/parts.tsx:26); at
   // 400px it would leave the pasteboard no width, so close it for this test.
   await page.getByTestId('toggle-r').click()
   await expect(page.getByTestId('panel-r')).toHaveAttribute(

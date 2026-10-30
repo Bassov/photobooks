@@ -91,7 +91,7 @@ test('wheel zooms, arrows nudge, drag pans, Reset to cover restores', async ({
   await openSessionEditor(page)
   await placeOnePhoto(page)
   const cover = await imageBox(page)
-  // The right panel is open by default (uikit/src/sandbox/chrome.tsx:139).
+  // The right panel is open by default (uikit/src/features/parts.tsx:26).
   await filledFrame(page).dblclick()
   await expect(page.getByTestId('inspector-fit-crop')).toBeVisible()
   await expect(page.getByTestId('crop-reset')).toBeDisabled()

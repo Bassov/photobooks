@@ -41,7 +41,8 @@ async function importOnePhoto(page: Page) {
 test('the inspector is open on a fresh editor with the Spread context and Layout picker (M1, M2)', async ({
   page,
 }) => {
-  // uikit/src/sandbox/chrome.tsx:139 InspectorToggle; context-inspector.tsx:59.
+  // Open by default: uikit/src/features/parts.tsx:26; toggle:
+  // uikit/src/sandbox/chrome.tsx:139; header: context-inspector.tsx:59.
   await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
   await expect(page.getByTestId('inspector-panel')).toBeVisible()
   await expect(page.getByTestId('inspector-empty')).toHaveCount(0)
@@ -58,6 +59,27 @@ test('the inspector is open on a fresh editor with the Spread context and Layout
   await expect(page.getByTestId('layout-search')).toBeVisible()
   await expect(page.getByTestId('tpl-chips')).toBeVisible()
   await expect(page.getByTestId('tpl-hint')).toBeVisible()
+})
+
+test('the Spread context has no Spread properties block (M2)', async ({
+  page,
+}) => {
+  // uikit/src/sandbox/context-inspector.tsx:56-63: header, then Layout.
+  await expect(context(page)).toHaveText('Spread')
+  await expect(page.getByTestId('inspector-spread-properties')).toHaveCount(0)
+  await expect(page.getByTestId('inspector-body').locator('dl')).toHaveCount(0)
+  await expect(page.getByTestId('panel-collapse-right')).toBeVisible()
+})
+
+// uikit/src/sandbox/context-inspector.tsx:59 labels the first spread "Page 1"
+// (moved from the Photo meta row, which the kit does not have).
+test('the first spread header reads "Page 1 · N empty" (M2)', async ({
+  page,
+}) => {
+  await page.locator('[data-testid^="spread-list-item-"]').first().click()
+  await expect(page.getByTestId('inspector-spread-summary')).toHaveText(
+    /^Page 1 · \d+ empty$/,
+  )
 })
 
 test('the panel toggle alone hides and restores the inspector (M1)', async ({
@@ -130,13 +152,12 @@ test('Photo inspector has Rotate & flip, no canvas rotate knob, no meta rows (M7
     'aria-pressed',
     'false',
   )
-  // Spread / Size / File / Used rows are not open in the panel body.
-  await expect(
-    page.getByTestId('inspector-photo').getByText('Used'),
-  ).toHaveCount(0)
-  await expect(
-    page.getByTestId('inspector-body').getByText('File'),
-  ).toBeHidden()
+  // uikit/src/sandbox/context-inspector.tsx:66-72: no meta rows, no Details.
+  const body = page.getByTestId('inspector-body')
+  await expect(page.getByTestId('inspector-details-disclosure')).toHaveCount(0)
+  await expect(body.getByText('Used', { exact: true })).toHaveCount(0)
+  await expect(body.getByText('File', { exact: true })).toHaveCount(0)
+  await expect(body.locator('dl')).toHaveCount(0)
 })
 
 test('Flip H and Flip V mirror the photo and toggle back (M7)', async ({

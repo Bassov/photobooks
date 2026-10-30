@@ -13,7 +13,7 @@ test('kit editor chrome mounts pasteboard and filmstrip', async ({ page }) => {
   await expect(page.getByTestId('panel-b')).toBeVisible()
   await expect(page.getByTestId('dock')).toBeVisible()
   await expect(page.getByTestId('filmstrip')).toBeVisible()
-  // Inspector is open by default (uikit/src/sandbox/chrome.tsx:139).
+  // Inspector is open by default (uikit/src/features/parts.tsx:26).
   await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
   await expect(page.getByTestId('inspector')).toBeVisible()
   await expect(page.getByTestId('editor-preview')).toHaveCount(0)

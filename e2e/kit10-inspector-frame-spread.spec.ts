@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expandDisclosure } from './fixtures/expandDisclosure'
@@ -22,8 +22,8 @@ test.beforeEach(async ({ page }) => {
 const eyebrow = (page: Page, name: string) =>
   page.locator('.inspector-eyebrow', { hasText: name }).first()
 
-async function paint(page: Page, testId: string) {
-  return page.getByTestId(testId).evaluate((el) => {
+async function paint(target: Locator) {
+  return target.evaluate((el) => {
     const s = getComputedStyle(el)
     return {
       bg: s.backgroundColor,
@@ -85,7 +85,7 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
     await assertDocumentFitsViewport(page)
   })
 
-  test('step 20: nothing selected shows Spread properties, Layout and Grid', async ({
+  test('step 20: nothing selected shows the Spread context, Layout and Grid', async ({
     page,
   }) => {
     await expect(page.getByTestId('inspector-panel')).toHaveAttribute(
@@ -93,8 +93,11 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
       'spread',
     )
     await expect(page.getByTestId('inspector-context')).toHaveText('Spread')
-    await expect(page.getByTestId('inspector-spread-properties')).toBeVisible()
-    expect((await paint(page, 'inspector-spread-properties')).color).toBe(MUTED)
+    // uikit/src/sandbox/context-inspector.tsx:56-63: no Spread properties
+    // block; the muted eyebrow paint is asserted on the Layout grid eyebrow.
+    await expect(page.getByTestId('inspector-spread-properties')).toHaveCount(0)
+    await expect(eyebrow(page, 'Layout grid')).toBeVisible()
+    expect((await paint(eyebrow(page, 'Layout grid'))).color).toBe(MUTED)
 
     await expect(eyebrow(page, 'Layout').first()).toBeVisible()
     await expect(page.getByTestId('layout-tile').first()).toBeVisible()

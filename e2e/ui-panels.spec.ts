@@ -69,7 +69,7 @@ test('both panels at max keep the page fit; spreads-list stays the scrollport', 
 }) => {
   await page.goto('/?fixture=painter')
   await expect(page.getByTestId('editor-shell')).toBeVisible()
-  // Inspector is open by default (uikit/src/sandbox/chrome.tsx:139).
+  // Inspector is open by default (uikit/src/features/parts.tsx:26).
   await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
 
   await page.getByTestId('resize-left').focus()

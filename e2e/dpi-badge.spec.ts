@@ -65,7 +65,7 @@ test.describe('low-resolution badge on frames', () => {
     await page.getByTestId('view-menu').click()
     await page.getByTestId('view-dpi-item').click()
 
-    // Inspector is open by default (uikit/src/sandbox/chrome.tsx:139).
+    // Inspector is open by default (uikit/src/features/parts.tsx:26).
     await filledFrame(page).dblclick()
     await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
     const center = await frameCenter(page)

@@ -134,35 +134,21 @@ describe('PhotoRotateSection', () => {
 })
 
 describe('Photo inspector meta rows', () => {
-  it('keeps Spread / Size / Used rows in a collapsed Details section', () => {
-    seed()
-    render(<Inspector />)
-    act(() => {
-      setFrameSource(TARGET)
-    })
-    const details = screen.getByTestId('inspector-details-disclosure')
-    expect(details).toBeTruthy()
-    expect(
-      screen
-        .getByRole('button', { name: 'Details' })
-        .getAttribute('aria-expanded'),
-    ).toBe('false')
-    // Hidden until expanded.
-    expect(screen.getByText('Used').closest('[hidden]')).not.toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
-    expect(screen.getByText('Used').closest('[hidden]')).toBeNull()
-    expect(screen.getByText('Spread')).toBeTruthy()
-  })
-
-  it('has no Used row for an empty frame', () => {
-    seed(false)
-    render(<Inspector />)
-    act(() => {
-      setFrameSource(TARGET)
-    })
-    expect(screen.getByTestId('inspector-details-disclosure')).toBeTruthy()
-    expect(screen.queryByText('Used')).toBeNull()
-  })
+  // Kit Photo context (context-inspector.tsx:66-72): no meta rows, no Details.
+  it.each([true, false])(
+    'has no Details section or meta rows (photo placed: %s)',
+    (placed) => {
+      seed(placed)
+      render(<Inspector />)
+      act(() => {
+        setFrameSource(TARGET)
+      })
+      expect(screen.queryByTestId('inspector-details-disclosure')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Details' })).toBeNull()
+      expect(screen.queryByText('Used')).toBeNull()
+      expect(screen.queryByText('Spread')).toBeNull()
+    },
+  )
 })
 
 describe('PhotoRotateSection straighten preview', () => {

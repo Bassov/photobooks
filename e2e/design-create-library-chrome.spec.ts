@@ -168,7 +168,7 @@ test.describe('editor chrome', () => {
   })
 
   test('panel splitters are invisible at rest', async ({ page }) => {
-    // Kit default: inspector always mounted and open (uikit/src/sandbox/chrome.tsx:139).
+    // Kit default: inspector always mounted and open (uikit/src/features/parts.tsx:26).
     await expect(page.getByTestId('panel-r')).toHaveAttribute(
       'data-open',
       'true',

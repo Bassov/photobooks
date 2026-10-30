@@ -6,7 +6,7 @@ export interface EditorPanels {
   r: boolean
 }
 
-/** Kit defaults: all panels open, inspector always mounted (uikit/src/sandbox/chrome.tsx:139). */
+/** Kit defaults: all panels open, inspector always mounted (uikit/src/features/parts.tsx:26). */
 export const DEFAULT_EDITOR_PANELS: EditorPanels = {
   l: true,
   b: true,
