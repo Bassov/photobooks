@@ -7,23 +7,64 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { fmtN, pagesOf } from './editorChromeTokens'
-import {
-  InspectorRow,
-  Swatches,
-  ToggleSwitch,
-  type SwatchOption,
-} from './InspectorControls'
+import { Select } from '../ui/Select'
+import { InspectorRow, ReadOnlyPill, ToggleSwitch } from './InspectorControls'
 
 type Unit = 'cm' | 'mm'
 
-/** Paper is the default (no stored colour); the rest are page tints. */
-const PAPER = '#ffffff'
-const PAGE_COLORS: readonly SwatchOption[] = [
-  { value: PAPER, name: 'Paper white' },
-  { value: '#f4f1ea', name: 'Cream' },
-  { value: '#e6e6e6', name: 'Light grey' },
-  { value: '#3e3c3b', name: 'Charcoal' },
+/** Kit PRESETS (uikit/src/sandbox/v7.tsx:55-57), cm. */
+const PRESETS: readonly { id: string; name: string; w: number; h: number }[] = [
+  { id: 'A6', name: 'A6', w: 10.5, h: 14.8 },
+  { id: 'A5', name: 'A5', w: 14.8, h: 21 },
+  { id: 'A4', name: 'A4', w: 21, h: 29.7 },
+  { id: 'A3', name: 'A3', w: 29.7, h: 42 },
+  { id: 'Letter', name: 'Letter', w: 21.6, h: 27.9 },
+  { id: 'sq20', name: 'Square 20×20', w: 20, h: 20 },
+  { id: 'sq30', name: 'Square 30×30', w: 30, h: 30 },
 ]
+const CUSTOM = 'custom'
+
+/** Kit presetLabel (v7.tsx:58): name · short × long cm, swapped when landscape. */
+function presetLabel(
+  preset: (typeof PRESETS)[number],
+  landscape: boolean,
+): string {
+  const swap = landscape && preset.w !== preset.h
+  return `${preset.name} · ${fmtN(swap ? preset.h : preset.w)} × ${fmtN(swap ? preset.w : preset.h)} cm`
+}
+
+function presetFor(trim: { widthMm: number; heightMm: number }): string {
+  const found = PRESETS.find((p) => {
+    const w = Math.round(p.w * 10)
+    const h = Math.round(p.h * 10)
+    return (
+      (Math.round(trim.widthMm) === w && Math.round(trim.heightMm) === h) ||
+      (Math.round(trim.widthMm) === h && Math.round(trim.heightMm) === w)
+    )
+  })
+  return found?.id ?? CUSTOM
+}
+
+/** Kit `Field` (v7.tsx:132) without a setter: label, mono value, unit. */
+function ReadOnlyField({
+  label,
+  value,
+  unit,
+  testId,
+}: {
+  label: string
+  value: string
+  unit: string
+  testId: string
+}) {
+  return (
+    <div className="insp-size-field" data-testid={testId}>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="flex-1 tabular-nums">{value}</span>
+      <span className="text-muted-foreground">{unit}</span>
+    </div>
+  )
+}
 
 function readBook() {
   return getBookStoreSnapshot().book
@@ -87,8 +128,11 @@ export function BookSettingsSection() {
     readBook,
   )
   const [unit, setUnit] = useState<Unit>('cm')
+  const [customPicked, setCustomPicked] = useState(false)
   const { trim, endpapers } = settings
   const landscape = trim.widthMm > trim.heightMm
+  const matched = presetFor(trim)
+  const presetValue = customPicked ? CUSTOM : matched
   return (
     <section
       className="flex flex-col gap-3 px-4 py-4"
@@ -104,6 +148,31 @@ export function BookSettingsSection() {
         </p>
       </div>
       <h4 className="inspector-eyebrow">Page size</h4>
+      {/* Kit SizeEditor select (v7.tsx:172-174), presets plus "Custom". */}
+      <Select
+        aria-label="Page size"
+        data-testid="size-preset"
+        value={presetValue}
+        options={[
+          ...PRESETS.map((p) => ({
+            value: p.id,
+            label: presetLabel(p, landscape),
+          })),
+          { value: CUSTOM, label: 'Custom' },
+        ]}
+        onChange={(value) => {
+          const preset = PRESETS.find((p) => p.id === value)
+          setCustomPicked(preset === undefined)
+          if (preset !== undefined) {
+            const swap = landscape && preset.w !== preset.h
+            dispatchBookOp({
+              type: 'setTrim',
+              widthMm: Math.round((swap ? preset.h : preset.w) * 10),
+              heightMm: Math.round((swap ? preset.w : preset.h) * 10),
+            })
+          }
+        }}
+      />
       <div data-testid="size-orientation">
         <SegmentedControl
           label="Orientation"
@@ -124,20 +193,22 @@ export function BookSettingsSection() {
           }}
         />
       </div>
-      <div data-testid="size-unit">
-        <SegmentedControl
-          label="Units"
-          size="sm"
-          items={[
-            { id: 'cm', label: 'cm' },
-            { id: 'mm', label: 'mm' },
-          ]}
-          value={unit}
-          onChange={(value) => {
-            setUnit(value === 'mm' ? 'mm' : 'cm')
-          }}
-        />
-      </div>
+      {presetValue === CUSTOM ? (
+        <div data-testid="size-unit">
+          <SegmentedControl
+            label="Units"
+            size="sm"
+            items={[
+              { id: 'cm', label: 'cm' },
+              { id: 'mm', label: 'mm' },
+            ]}
+            value={unit}
+            onChange={(value) => {
+              setUnit(value === 'mm' ? 'mm' : 'cm')
+            }}
+          />
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-2">
         <SizeField axis="widthMm" label="W" unit={unit} mm={trim.widthMm} />
         <SizeField axis="heightMm" label="H" unit={unit} mm={trim.heightMm} />
@@ -147,15 +218,13 @@ export function BookSettingsSection() {
       </p>
       <h4 className="inspector-eyebrow">Binding</h4>
       <InspectorRow label="Style">
-        <span>
-          Hardcover
-          <span
-            className="ml-1.5 text-2xs text-muted-foreground"
-            data-testid="binding-readonly"
-          >
-            read-only
-          </span>
-        </span>
+        {/* Kit v7.tsx:205: disabled Val pill + "read-only" note. */}
+        <ReadOnlyPill
+          value="Hardcover"
+          note="read-only"
+          testId="binding-style"
+          noteTestId="binding-readonly"
+        />
       </InspectorRow>
       <InspectorRow label="Endpapers">
         <ToggleSwitch
@@ -167,32 +236,49 @@ export function BookSettingsSection() {
           }}
         />
       </InspectorRow>
+      {/* Kit v7.tsx:207-208: pages pill and the spreads-of-2 note. */}
       <InspectorRow label="Pages">
-        <span className="tabular-nums" data-testid="book-pages">
-          {String(pagesOf(spreads.length))}
+        <span data-testid="book-pages">
+          <ReadOnlyPill value={String(pagesOf(spreads.length))} />
         </span>
       </InspectorRow>
+      <p
+        className="text-2xs text-muted-foreground"
+        data-testid="book-pages-note"
+      >
+        Pages are added in spreads of 2
+      </p>
       <h4 className="inspector-eyebrow">Print</h4>
-      <InspectorRow label="Bleed">
-        <span className="tabular-nums">{fmtN(settings.bleedMm)} mm</span>
-      </InspectorRow>
-      <InspectorRow label="Safe margin">
-        <span className="tabular-nums">{fmtN(settings.safeMarginMm)} mm</span>
+      {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}
+      <div className="grid grid-cols-2 gap-2">
+        <ReadOnlyField
+          label="B"
+          value={fmtN(settings.bleedMm)}
+          unit="mm"
+          testId="book-bleed"
+        />
+        <ReadOnlyField
+          label="S"
+          value={fmtN(settings.safeMarginMm)}
+          unit="mm"
+          testId="book-safe-margin"
+        />
+      </div>
+      <InspectorRow label="Paper">
+        <ReadOnlyPill value="Matte 200 g" />
       </InspectorRow>
       <h4 className="inspector-eyebrow">Defaults</h4>
+      {/* Kit v7.tsx:201,210: default master and page colour (coming later). */}
+      <InspectorRow label="Default master">
+        <ReadOnlyPill value="Master A" />
+      </InspectorRow>
       <InspectorRow label="Page colour">
-        <Swatches
-          label="Page colour"
-          options={PAGE_COLORS}
-          value={settings.pageColor ?? PAPER}
-          testId="book-page-colour"
-          onChange={(value) => {
-            dispatchBookOp({
-              type: 'setPageColor',
-              color: value === PAPER ? undefined : value,
-            })
-          }}
-        />
+        <span
+          className="text-sm text-muted-foreground"
+          data-testid="page-colour-readonly"
+        >
+          Paper white · coming later
+        </span>
       </InspectorRow>
     </section>
   )

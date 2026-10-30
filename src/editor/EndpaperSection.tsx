@@ -5,7 +5,7 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import type { EndpaperSide } from './endpaperSelection'
-import { InspectorRow, ToggleSwitch } from './InspectorControls'
+import { InspectorRow, ReadOnlyPill, ToggleSwitch } from './InspectorControls'
 import { useCoverPhotoUrl } from './useCoverPhotoUrl'
 import './EndpaperCanvas.css'
 
@@ -34,8 +34,14 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
         </p>
       </div>
       <h4 className="inspector-eyebrow">Fill</h4>
+      {/* Kit v7.tsx:220: Style is a "Pattern" pill with a "coming later" note. */}
       <InspectorRow label="Style">
-        <span>{assetId === undefined ? 'Pattern' : 'Photo'}</span>
+        <ReadOnlyPill
+          value={assetId === undefined ? 'Pattern' : 'Photo'}
+          note="coming later"
+          testId="endpaper-style"
+          noteTestId="endp-fill-readonly"
+        />
       </InspectorRow>
       <InspectorRow label={assetId === undefined ? 'Pattern' : 'Photo'}>
         <span
@@ -47,11 +53,7 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
           }
         />
       </InspectorRow>
-      {assetId === undefined ? (
-        <p className="text-2xs text-muted-foreground">
-          Drag a photo from the filmstrip onto the endpaper
-        </p>
-      ) : (
+      {assetId === undefined ? null : (
         <button
           type="button"
           className="e7-ghost h-8 rounded-md text-sm"

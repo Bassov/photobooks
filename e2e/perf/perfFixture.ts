@@ -201,6 +201,7 @@ declare global {
       setAccessPhaseForTests: (
         phase: 'idle' | 'permission-required' | 'locked-elsewhere',
       ) => void
+      setBookGridForTests: (patch: Record<string, number>) => void
       holdExternalBookLockForTests: (
         bookId: string,
       ) => Promise<{ ok: boolean; code?: string }>

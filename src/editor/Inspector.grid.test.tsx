@@ -45,10 +45,10 @@ describe('Inspector layout grid contexts', () => {
     act(() => {
       setBookSettingsSelected(true)
     })
-    expect(screen.getByTestId('grid-section-book')).toBeTruthy()
+    // Kit book settings (uikit/src/sandbox/v7.tsx:202-210) have no Layout grid section.
+    expect(screen.queryByTestId('grid-section-book')).toBeNull()
     expect(screen.queryByTestId('grid-section-spread')).toBeNull()
-    expect(screen.getByText('Layout grid')).toBeTruthy()
-    expect(screen.getByTestId('grid-summary').textContent).toBe('2×2')
+    expect(screen.queryByText('Layout grid')).toBeNull()
   })
 
   it('switches back from Book settings to the spread', () => {

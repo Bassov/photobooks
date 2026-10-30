@@ -3,7 +3,6 @@
   position: relative;
   display: flex;
   width: 100%;
-  max-height: 100%;
   container-type: inline-size;
   box-shadow: var(--cover-shadow);
 }
@@ -51,18 +50,14 @@
   background: color-mix(in srgb, black 18%, transparent);
 }
 
-.endpaper-label {
+/* Caption under the spread (kit shows "Endpaper" under it, no inner label). */
+.endpaper-caption {
   position: absolute;
-  top: 0.5rem;
+  top: 100%;
+  left: 50%;
+  margin-top: 0.5rem;
+  transform: translateX(-50%);
   pointer-events: none;
-  color: var(--cover-title-ink);
-  font-size: var(--text-2xs);
-}
-
-.endpaper-label[data-side='front'] {
-  left: 10px;
-}
-
-.endpaper-label[data-side='back'] {
-  right: 10px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
 }

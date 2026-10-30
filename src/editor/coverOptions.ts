@@ -35,11 +35,3 @@ export const FINISH_OPTIONS: readonly {
   { value: 'gloss', label: 'Gloss laminate' },
   { value: 'soft-touch', label: 'Soft touch' },
 ]
-
-/** Back-panel fills: charcoal (default), paper white, kraft, navy. */
-export const BACK_FILL_OPTIONS: readonly { value: string; name: string }[] = [
-  { value: '#3e3c3b', name: 'Charcoal' },
-  { value: '#f4f1ea', name: 'Paper white' },
-  { value: '#c9b79c', name: 'Kraft' },
-  { value: '#1f2a44', name: 'Navy' },
-]
