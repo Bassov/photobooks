@@ -136,11 +136,12 @@ describe('CreateBookDialog', () => {
       target: { value: 'custom' },
     })
     const width = screen.getByTestId('create-custom-w')
-    fireEvent.change(width, { target: { value: '0' } })
-    expect(width).toHaveProperty('value', '18')
+    fireEvent.change(width, { target: { value: 'abc' } })
+    fireEvent.blur(width)
+    expect(width).toHaveProperty('value', '18.0')
     fireEvent.change(width, { target: { value: '50' } })
     fireEvent.blur(width)
-    expect(width).toHaveProperty('value', '42')
+    expect(width).toHaveProperty('value', '42.0')
   })
 
   it('updates orientation labels and disables confirm when createDisabled', () => {
