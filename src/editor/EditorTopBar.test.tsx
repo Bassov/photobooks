@@ -29,6 +29,9 @@ import {
   resetCameraStore,
 } from './cameraStore'
 import { EditorShell } from './EditorShell'
+import { getDpiView, setDpiView } from './dpiView'
+import { getGuidesVisible, setGuidesVisible } from './guidesView'
+import { getRulersVisible, setRulersVisible } from './rulersView'
 import * as importPhotos from './importPhotos'
 import {
   attachMemoryLibraryForTests,
@@ -129,6 +132,40 @@ describe('EditorTopBar', () => {
     expect(getCommittedZoom()).toBeCloseTo(1.25)
     fireEvent.click(screen.getByTestId('zoom-out'))
     expect(getCommittedZoom()).toBeCloseTo(1)
+  })
+
+  it('keeps rulers, guides and DPI badges out of the bar, in a checkable View menu', () => {
+    render(<EditorShell />)
+    for (const id of ['rulers', 'guides', 'dpi']) {
+      expect(screen.queryByTestId(`${id}-topbar-toggle`)).toBeNull()
+    }
+    const open = (): void => {
+      fireEvent.click(screen.getByTestId('view-menu'))
+    }
+    open()
+    expect(
+      screen.getAllByRole('menuitemcheckbox').map((item) => item.textContent),
+    ).toEqual(['RulersShift+R', 'GuidesCtrl+;', 'DPI badges'])
+    expect(
+      screen.getByTestId('view-guides-item').getAttribute('aria-checked'),
+    ).toBe('true')
+    expect(getGuidesVisible()).toBe(true)
+    fireEvent.click(screen.getByTestId('view-guides-item'))
+    expect(getGuidesVisible()).toBe(false)
+    open()
+    expect(
+      screen.getByTestId('view-guides-item').getAttribute('aria-checked'),
+    ).toBe('false')
+    fireEvent.click(screen.getByTestId('view-rulers-item'))
+    expect(getRulersVisible()).toBe(true)
+    open()
+    fireEvent.click(screen.getByTestId('view-dpi-item'))
+    expect(getDpiView()).toBe(true)
+    act(() => {
+      setGuidesVisible(true)
+      setRulersVisible(false)
+      setDpiView(false)
+    })
   })
 
   it('has no placeholder buttons and a Preview pill that presents', () => {

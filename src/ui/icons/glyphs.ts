@@ -5,6 +5,8 @@ export const ICON_NAMES = [
   'redo',
   'zoomIn',
   'zoomOut',
+  'plus',
+  'minus',
   'fit',
   'addSpread',
   'duplicate',
@@ -91,6 +93,12 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['line', { x1: '21', x2: '16.65', y1: '21', y2: '16.65' }],
     ['line', { x1: '8', x2: '14', y1: '11', y2: '11' }],
   ],
+  // Kit zoom buttons use Minus / Plus (uikit/src/sandbox/chrome.tsx:177-179).
+  plus: [
+    ['path', { d: 'M5 12h14' }],
+    ['path', { d: 'M12 5v14' }],
+  ],
+  minus: [['path', { d: 'M5 12h14' }]],
   fit: [
     ['path', { d: 'M8 3H5a2 2 0 0 0-2 2v3' }],
     ['path', { d: 'M21 8V5a2 2 0 0 0-2-2h-3' }],
