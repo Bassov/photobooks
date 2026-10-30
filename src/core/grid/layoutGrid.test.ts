@@ -89,7 +89,7 @@ describe('resolveLayoutGrid', () => {
 
     const narrow = makeBook({
       spreads: [a, b, c],
-      settings: { trim: { widthMm: 200 } },
+      settings: { trim: { widthMm: 200, heightMm: 300 } },
     })
     expect(resolveLayoutGrid(narrow, 1).pages[0].page.width).toBe(200)
 
