@@ -110,29 +110,46 @@ const spreadSchema = z.object({
   frames: z.array(frameSchema),
 })
 
-/** One cover panel (front / spine / back): optional photo plus text. */
-const coverPanelSchema = z.object({
-  assetId: nonEmptyString.optional(),
-  crop: cropSchema.optional(),
-  text: z.string(),
-})
+/*
+ * Cover / endpaper shapes are built per parse (not at module load) so that
+ * their mutants are reachable by per-test mutant switching.
+ */
+function makeCoverSchema() {
+  /** One cover panel (front / spine / back): optional photo plus text. */
+  const panel = z.object({
+    assetId: nonEmptyString.optional(),
+    crop: cropSchema.optional(),
+    text: z.string(),
+  })
+  return z.object({ front: panel, spine: panel, back: panel })
+}
 
-const coverSchema = z.object({
-  front: coverPanelSchema,
-  spine: coverPanelSchema,
-  back: coverPanelSchema,
-})
+function makeEndpapersSchema() {
+  /** One endpaper: optional photo only. */
+  const endpaper = z.object({
+    assetId: nonEmptyString.optional(),
+    crop: cropSchema.optional(),
+  })
+  return z.object({ front: endpaper, back: endpaper })
+}
 
-/** One endpaper: optional photo only. */
-const endpaperSchema = z.object({
-  assetId: nonEmptyString.optional(),
-  crop: cropSchema.optional(),
-})
-
-const endpapersSchema = z.object({
-  front: endpaperSchema,
-  back: endpaperSchema,
-})
+/** Defers building `make()` to parse time, forwarding its issues. */
+function atParseTime<S extends z.ZodType>(make: () => S) {
+  return z.unknown().transform((value, ctx): z.output<S> => {
+    const result = make().safeParse(value)
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        ctx.addIssue({
+          code: 'custom',
+          message: issue.message,
+          path: issue.path,
+        })
+      }
+      return z.NEVER
+    }
+    return result.data
+  })
+}
 
 const bookSettingsSchema = z.object({
   trim: z.object({
@@ -148,8 +165,8 @@ export const bookSchema = z.object({
   id: nonEmptyString,
   title: z.string().optional(),
   settings: bookSettingsSchema,
-  cover: coverSchema,
-  endpapers: endpapersSchema,
+  cover: atParseTime(makeCoverSchema),
+  endpapers: atParseTime(makeEndpapersSchema),
   layoutGrid: layoutGridSchema,
   guides: z.array(guideSchema),
   assets: z.record(nonEmptyString, assetSchema),
@@ -173,8 +190,8 @@ export const bookSchema = z.object({
 export type Asset = z.infer<typeof assetSchema>
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
-export type CoverPanel = z.infer<typeof coverPanelSchema>
-export type Cover = z.infer<typeof coverSchema>
-export type Endpaper = z.infer<typeof endpaperSchema>
-export type Endpapers = z.infer<typeof endpapersSchema>
+export type Cover = z.output<ReturnType<typeof makeCoverSchema>>
+export type CoverPanel = Cover['front']
+export type Endpapers = z.output<ReturnType<typeof makeEndpapersSchema>>
+export type Endpaper = Endpapers['front']
 export type Book = z.infer<typeof bookSchema>
