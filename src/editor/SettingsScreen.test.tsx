@@ -53,43 +53,17 @@ describe('SettingsScreen', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 
-  it('shows coming-later copy for deferred sections without fake inputs', () => {
+  it('hides sections without backing behavior (no stubs, no inputs)', () => {
     render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
-    fireEvent.click(screen.getByTestId('settings-nav-hosting'))
-    expect(screen.getByTestId('settings-section-title').textContent).toBe(
-      'Hosting',
-    )
-    expect(
-      screen.getByTestId('settings-nav-hosting').getAttribute('aria-current'),
-    ).toBe('page')
-    expect(
-      screen.getByTestId('settings-nav-library').getAttribute('aria-current'),
-    ).toBeNull()
-    expect(screen.getByTestId('settings-nav-hosting').className).toMatch(
-      /\bfont-medium\b/,
-    )
-    expect(screen.getByTestId('settings-nav-library').className).not.toMatch(
-      /\bfont-medium\b/,
-    )
-    expect(screen.getByTestId('settings-deferred-hosting').textContent).toMatch(
-      /come later/i,
-    )
+    for (const id of ['hosting', 'site', 'print', 'interface']) {
+      expect(screen.queryByTestId(`settings-nav-${id}`)).toBeNull()
+      expect(screen.queryByTestId(`settings-deferred-${id}`)).toBeNull()
+    }
     expect(screen.queryByRole('textbox')).toBeNull()
-    fireEvent.click(screen.getByTestId('settings-nav-site'))
-    expect(screen.getByTestId('settings-section-title').textContent).toBe(
-      'Site',
-    )
-    expect(screen.getByTestId('settings-deferred-site')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('settings-nav-print'))
-    expect(screen.getByTestId('settings-section-title').textContent).toBe(
-      'Print presets',
-    )
-    expect(screen.getByTestId('settings-deferred-print')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('settings-nav-interface'))
-    expect(screen.getByTestId('settings-section-title').textContent).toBe(
-      'Interface',
-    )
-    expect(screen.getByTestId('settings-deferred-interface')).toBeTruthy()
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Library',
+      'Change library folder…',
+    ])
   })
 
   it('Change library cancel leaves path and closes confirm', () => {
