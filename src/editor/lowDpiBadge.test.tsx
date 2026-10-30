@@ -4,7 +4,6 @@ import type { Book } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import {
-  awaitPendingGalleryFlush,
   getSpreadPaintSnapshot,
   resetBookStore,
   setAssetSessionMeta,
@@ -100,14 +99,12 @@ describe('low-dpi from the paint snapshot', () => {
     expect(lowDpi()).toBeUndefined()
   })
 
-  it('repaints when decoded dimensions arrive or change', async () => {
+  it('repaints when decoded dimensions arrive or change', () => {
     load({}, meta(1, 1))
     expect(lowDpi()).toBeUndefined()
     setAssetSessionMeta('a', meta(1000, 1000))
-    await awaitPendingGalleryFlush()
     expect(lowDpi()).toEqual({ dpi: 100, level: 'min' })
     setAssetSessionMeta('a', meta(1900, 1900))
-    await awaitPendingGalleryFlush()
     expect(lowDpi()).toEqual({ dpi: 190, level: 'warn' })
   })
 

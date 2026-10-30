@@ -166,7 +166,7 @@ button.spread-frame[data-crop-active='true']::after {
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  border-radius: var(--radius-sm, 2px);
+  border-radius: var(--radius-md);
   background: var(--field);
   color: var(--ink-warning);
   font-size: var(--text-2xs);
