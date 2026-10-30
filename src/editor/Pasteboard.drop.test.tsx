@@ -1,4 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { addToGallery, applyTemplate, placeAsset } from '../core'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
@@ -197,7 +204,7 @@ describe('Pasteboard gallery drop', () => {
     expect(replaced?.assetId).toBe('b')
   })
 
-  it('selects the target frame after a drop (kit canvas.tsx:170-171)', () => {
+  it('selects the target frame after a drop (kit canvas.tsx:170-171)', async () => {
     seedGridBook()
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
@@ -207,9 +214,12 @@ describe('Pasteboard gallery drop', () => {
     startDrag('a')
     dragOver(scroll, 'a', point.x, point.y)
     scroll.dispatchEvent(dragEvent('drop', 'a', point))
-    expect(getFrameSource()).toEqual({
-      spreadId: second.spreadId,
-      frameId: second.frameId,
+    // Selection lands one task after the drop commit (frame-budget gate).
+    await waitFor(() => {
+      expect(getFrameSource()).toEqual({
+        spreadId: second.spreadId,
+        frameId: second.frameId,
+      })
     })
   })
 
