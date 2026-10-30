@@ -110,6 +110,14 @@ describe('bookHistory', () => {
     )
     expect(isUndoableOp({ type: 'removeSpread', spreadId: 's' })).toBe(true)
     expect(coalesceKey({ type: 'setTitle', title: 'x' })).toBe('setTitle')
+    expect(
+      coalesceKey({ type: 'setCoverText', panel: 'spine', text: 'x' }),
+    ).toBe('cover:spine')
+    expect(coalesceKey({ type: 'setCoverPhoto', assetId: 'a' })).toBeUndefined()
+    expect(opLabel({ type: 'setCoverText', panel: 'back', text: 'x' })).toBe(
+      'Edit cover text',
+    )
+    expect(opLabel({ type: 'setCoverPhoto', assetId: 'a' })).toBe('Cover photo')
     expect(coalesceKey({ type: 'removeSpread', spreadId: 's' })).toBeUndefined()
     expect(
       coalesceKey({ type: 'resetCrop', spreadId: 's', frameId: 'f' }),

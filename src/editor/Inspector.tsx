@@ -13,6 +13,12 @@ import {
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
+import { CoverSection } from './CoverSection'
+import {
+  isCoverSelected,
+  setCoverSelected,
+  subscribeCoverSelection,
+} from './coverSelection'
 import { BookSettingsSection } from './BookSettingsSection'
 import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
@@ -71,6 +77,11 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
     getCropTargetKey,
     getCropTargetKey,
   )
+  const coverSelected = useSyncExternalStore(
+    subscribeCoverSelection,
+    isCoverSelected,
+    isCoverSelected,
+  )
   const target = cropKey === '' ? null : getCropTarget()
   // Esc drops the spread view to the empty hint until another spread is picked.
   const [dismissed, setDismissed] = useState<string | null>(null)
@@ -124,8 +135,9 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
     >
       <Tabs
         className="flex min-h-0 flex-1 flex-col"
-        selectedKey={tab}
+        selectedKey={coverSelected ? 'frame' : tab}
         onSelectionChange={(key) => {
+          setCoverSelected(false)
           if (isInspectorTab(key)) {
             setTab(key)
           }
@@ -169,7 +181,8 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
           className="scroll-thin min-h-0 flex-1 overflow-y-auto"
           data-testid="inspector-panel-frame"
         >
-          {panel.kind === 'frame' ? (
+          {coverSelected ? <CoverSection /> : null}
+          {!coverSelected && panel.kind === 'frame' ? (
             <>
               <h2
                 className="inspector-context-title"
@@ -182,7 +195,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
               </div>
             </>
           ) : null}
-          {panel.kind === 'spread' ? (
+          {!coverSelected && panel.kind === 'spread' ? (
             <>
               <h2
                 className="inspector-context-title"
@@ -201,11 +214,13 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
               </div>
             </>
           ) : null}
-          {panel.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
-          {panel.kind === 'spread' && section === null ? (
+          {!coverSelected && panel.kind === 'empty' ? (
+            <Hint>{EMPTY_HINT}</Hint>
+          ) : null}
+          {!coverSelected && panel.kind === 'spread' && section === null ? (
             <Hint>{FRAME_HINT}</Hint>
           ) : null}
-          {section === null ? null : (
+          {coverSelected || section === null ? null : (
             <>
               <GeometrySection target={section} />
               <FitCropSection target={section} cropping={target !== null} />

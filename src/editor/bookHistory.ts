@@ -1,7 +1,7 @@
 import type { Book, BookOp } from '../core'
 
 /**
- * Undoable slice of the document: layout (incl. the book grid) and title only. Gallery, assets and
+ * Undoable slice of the document: layout (incl. the book grid), title and cover. Gallery, assets and
  * session meta are transient (import keeps landing while the user edits), so
  * undo never rolls them back.
  */
@@ -9,6 +9,7 @@ export interface HistorySnapshot {
   spreads: Book['spreads']
   title: Book['title']
   layoutGrid: Book['layoutGrid']
+  cover: Book['cover']
 }
 
 export interface History {
@@ -36,6 +37,7 @@ export function snapshotOf(book: Book): HistorySnapshot {
     spreads: book.spreads,
     title: book.title,
     layoutGrid: book.layoutGrid,
+    cover: book.cover,
   }
 }
 
@@ -77,6 +79,8 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   alignFrames: 'Align frames',
   distributeFrames: 'Distribute frames',
   setTitle: 'Rename book',
+  setCoverText: 'Edit cover text',
+  setCoverPhoto: 'Cover photo',
   setBookGrid: 'Change grid',
   setSpreadGrid: 'Change grid',
   resetSpreadGrid: 'Reset grid',
@@ -92,6 +96,8 @@ export function coalesceKey(op: BookOp): string | undefined {
   switch (op.type) {
     case 'setTitle':
       return 'setTitle'
+    case 'setCoverText':
+      return `cover:${op.panel}`
     case 'setCrop':
     case 'resetCrop':
       return `crop:${op.spreadId}:${op.frameId}`

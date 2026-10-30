@@ -22,6 +22,7 @@ import { reorderFrame, setFrameLocked, type ZMove } from './arrange'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
+import { setCoverPhoto, setCoverText, type CoverPanelName } from '../cover'
 import { addSpread, duplicateSpread, moveSpread, removeSpread } from './spreads'
 
 export type BookOp =
@@ -140,6 +141,8 @@ export type BookOp =
       axis: DistributeAxis
     }
   | { type: 'setTitle'; title: string }
+  | { type: 'setCoverText'; panel: CoverPanelName; text: string }
+  | { type: 'setCoverPhoto'; assetId: string }
   | { type: 'setBookGrid'; patch: GridPatch }
   | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
   | { type: 'resetSpreadGrid'; spreadId: string }
@@ -201,6 +204,10 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       )
     case 'moveSpread':
       return moveSpread(book, op.spreadId, op.toIndex)
+    case 'setCoverText':
+      return setCoverText(book, op.panel, op.text)
+    case 'setCoverPhoto':
+      return setCoverPhoto(book, op.assetId)
     case 'setBookGrid':
       return setBookGrid(book, op.patch)
     case 'setSpreadGrid':

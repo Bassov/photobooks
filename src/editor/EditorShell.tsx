@@ -7,6 +7,7 @@ import { EditorFrame, type EditorPanels } from './EditorFrame'
 import { EditorTopBar } from './EditorTopBar'
 import { FilmstripDock } from './FilmstripDock'
 import { ImportErrorsPanel } from './ImportErrorsPanel'
+import { CoverOverlay } from './CoverOverlay'
 import { Inspector } from './Inspector'
 import { LeftPanel } from './LeftPanel'
 import { installCropGesture } from './cropGesture'
@@ -69,6 +70,7 @@ export function EditorShell() {
         presenting ? null : (
           <>
             <Pasteboard chromeImport={chromeImport} />
+            <CoverOverlay />
             <Status
               className="editor-status-pill"
               data-testid="editor-status"

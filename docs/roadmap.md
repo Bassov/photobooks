@@ -29,17 +29,17 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-library-books](roadmap/P1/kit10-library-books.md) — Your books grid: kit v0.10 look
 - [x] [feature] [kit10-create-book](roadmap/P1/kit10-create-book.md) — Create book dialog: kit v0.10 look (title, page size, custom size)
 - [x] [feature] [kit10-editor-chrome](roadmap/P1/kit10-editor-chrome.md) — Editor top bar and panels: kit v0.10 look
-- [ ] [feature] [kit10-filmstrip](roadmap/P1/kit10-filmstrip.md) — Photos dock and filmstrip: kit v0.10 look (Photos only)
-- [ ] [feature] [kit10-spread-list](roadmap/P1/kit10-spread-list.md) — Spread list panel: kit v0.10 look (cover, endpapers, spreads, Pages / Masters)
+- [x] [feature] [kit10-filmstrip](roadmap/P1/kit10-filmstrip.md) — Photos dock and filmstrip: kit v0.10 look (Photos only)
+- [x] [feature] [kit10-spread-list](roadmap/P1/kit10-spread-list.md) — Spread list panel: kit v0.10 look (cover, endpapers, spreads, Pages / Masters)
 - [x] [feature] [kit10-canvas](roadmap/P1/kit10-canvas.md) — Canvas and pasteboard: kit v0.10 look
-- [ ] [feature] [kit10-place-replace](roadmap/P1/kit10-place-replace.md) — Drag place and replace: kit v0.10 look
-- [ ] [feature] [kit10-frame-selection](roadmap/P1/kit10-frame-selection.md) — Frame selection and move: kit v0.10 look
-- [ ] [feature] [kit10-crop](roadmap/P1/kit10-crop.md) — Crop in frame: kit v0.10 look
-- [ ] [feature] [kit10-inspector-frame-spread](roadmap/P1/kit10-inspector-frame-spread.md) — Inspector frame and spread: kit v0.10 look
-- [ ] [feature] [kit10-inspector-book-endpaper](roadmap/P1/kit10-inspector-book-endpaper.md) — Inspector book settings and endpaper: kit v0.10 look
-- [ ] [feature] [kit10-grid-snap](roadmap/P1/kit10-grid-snap.md) — Layout grid and snap: kit v0.10 look
-- [ ] [feature] [kit10-masters](roadmap/P1/kit10-masters.md) — Masters mode: kit v0.10 look
-- [ ] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
+- [x] [feature] [kit10-place-replace](roadmap/P1/kit10-place-replace.md) — Drag place and replace: kit v0.10 look
+- [x] [feature] [kit10-frame-selection](roadmap/P1/kit10-frame-selection.md) — Frame selection and move: kit v0.10 look
+- [x] [feature] [kit10-crop](roadmap/P1/kit10-crop.md) — Crop in frame: kit v0.10 look
+- [x] [feature] [kit10-inspector-frame-spread](roadmap/P1/kit10-inspector-frame-spread.md) — Inspector frame and spread: kit v0.10 look
+- [x] [feature] [kit10-inspector-book-endpaper](roadmap/P1/kit10-inspector-book-endpaper.md) — Inspector book settings and endpaper: kit v0.10 look
+- [x] [feature] [kit10-grid-snap](roadmap/P1/kit10-grid-snap.md) — Layout grid and snap: kit v0.10 look
+- [x] [feature] [kit10-masters](roadmap/P1/kit10-masters.md) — Masters mode: kit v0.10 look
+- [x] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
 - [x] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)

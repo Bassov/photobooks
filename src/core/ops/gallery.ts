@@ -1,4 +1,5 @@
 import type { Book, Frame } from '../schema'
+import { clearRemovedCoverAssets } from '../cover'
 import { updateSpread } from '../update'
 
 export function addToGallery(book: Book, assetIds: readonly string[]): Book {
@@ -50,7 +51,7 @@ export function removeManyFromGallery(
     Object.entries(book.assets).filter(([id]) => !remove.has(id)),
   )
 
-  let next: Book = { ...book, assets, gallery }
+  let next: Book = clearRemovedCoverAssets({ ...book, assets, gallery }, remove)
   for (const spread of book.spreads) {
     next = updateSpread(next, spread.id, (current) => {
       const frames = current.frames.map((frame) => {

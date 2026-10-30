@@ -1,0 +1,110 @@
+/* Kit v7 CoverSpread. Panel fills are book content (paper), not UI tokens. */
+.cover-stage {
+  position: absolute;
+  inset: 0;
+  /* Above the pasteboard overlays (empty guidance is 30, DOM order wins), under the status pill. */
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 48px;
+  container-type: size;
+  background: var(--canvas);
+}
+
+.cover-spread {
+  position: relative;
+  display: flex;
+  container-type: inline-size;
+  box-shadow: var(--cover-shadow);
+}
+
+.cover-back {
+  position: relative;
+  height: 100%;
+  background: var(--cover-back);
+}
+
+.cover-spine {
+  position: relative;
+  display: grid;
+  height: 100%;
+  place-items: center;
+  background: var(--cover-spine);
+}
+
+.cover-front {
+  position: relative;
+  height: 100%;
+  background-color: var(--cover-front-empty);
+  background-position: 45% 50%;
+  background-size: cover;
+}
+
+.cover-back-text {
+  position: absolute;
+  right: 12%;
+  bottom: 10%;
+  left: 12%;
+  color: var(--cover-ink);
+  font-size: 1.2cqw;
+  white-space: pre-wrap;
+}
+
+.cover-spine-text {
+  color: var(--cover-ink);
+  font-size: 1.3cqw;
+  white-space: nowrap;
+  transform: rotate(90deg);
+}
+
+.cover-front-text {
+  position: absolute;
+  top: 9%;
+  right: 10%;
+  left: 10%;
+  color: var(--cover-title-ink);
+  font-size: 3.6cqw;
+  text-shadow: var(--cover-title-shadow);
+  overflow-wrap: anywhere;
+}
+
+.cover-front-text em,
+.cover-spine-text em {
+  font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+  font-style: italic;
+}
+
+/* Kit CoverTxt: FIELD fill, no border; Inspector front thumbnail. */
+.cover-text-input {
+  display: flex;
+  height: 2rem;
+  width: 100%;
+  align-items: center;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  padding: 0 0.625rem;
+  border: 0;
+  box-shadow: none;
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.cover-text-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.cover-text-input:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+}
+
+.cover-thumb {
+  width: 2.625rem;
+  height: 3.25rem;
+  flex: none;
+  border-radius: var(--radius-xs);
+  background-color: var(--cover-front-empty);
+  background-position: 45% 50%;
+  background-size: cover;
+}
