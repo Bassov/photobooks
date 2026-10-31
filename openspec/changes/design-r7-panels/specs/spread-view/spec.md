@@ -9,6 +9,11 @@ The Spread inspector's Layout section SHALL follow kit `#/demo`: a collapsible "
 - **WHEN** the Spread inspector shows the Full bleed tile for any spread
 - **THEN** every slot of its thumbnail lies inside the thumbnail's box
 
+#### Scenario: Hover previews slots
+
+- **WHEN** the user hovers a layout tile and then moves away
+- **THEN** the active spread shows that layout's slots as a preview, and the preview disappears afterwards
+
 #### Scenario: One per page is suggested for a one-photo page
 
 - **WHEN** page 1 (a single page on One per page) is selected
