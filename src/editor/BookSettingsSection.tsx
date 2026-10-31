@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore } from 'react'
-import { TRIM_MAX_MM, TRIM_MIN_MM } from '../core'
+import { PAGE_STEP, TRIM_MAX_MM, TRIM_MIN_MM } from '../core'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   dispatchBookOp,
@@ -8,12 +8,14 @@ import {
 } from './bookStore'
 import {
   bookSettingsSubtitle,
+  FIELD,
   fmtN,
   PAGE_MAX,
   PAGE_MIN,
   pagesNote,
   pagesOf,
   SUB,
+  T,
 } from './editorChromeTokens'
 import { Select } from '../ui/Select'
 import { InspectorRow, ReadOnlyPill, ToggleSwitch } from './InspectorControls'
@@ -125,6 +127,50 @@ function SizeField({
       />
       <span className="text-muted-foreground">{unit}</span>
     </label>
+  )
+}
+
+/**
+ * Rendered #/demo step 24: compact filled number box (kit `Val` metrics, no
+ * spin arrows). A typed count commits on Enter / blur, clamped to 20–120 in
+ * steps of 2, and adds or removes spreads at the end (one undo step).
+ */
+function PagesField({ pages }: { pages: number }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const shown = draft ?? String(pages)
+  const commit = () => {
+    if (draft !== null) {
+      dispatchBookOp({ type: 'setPageCount', pages: Number.parseFloat(draft) })
+    }
+    setDraft(null)
+  }
+  return (
+    <input
+      type="number"
+      className="insp-pages-field rounded-sm px-2 py-1 text-sm"
+      aria-label="Pages"
+      data-testid="book-pages-input"
+      min={PAGE_MIN}
+      max={PAGE_MAX}
+      step={PAGE_STEP}
+      value={shown}
+      style={{
+        width: `calc(${String(Math.max(2, shown.length))}ch + 1rem)`,
+        background: FIELD,
+        color: T,
+      }}
+      onChange={(event) => {
+        setDraft(event.currentTarget.value)
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          commit()
+        } else if (event.key === 'Escape') {
+          setDraft(null)
+        }
+      }}
+      onBlur={commit}
+    />
   )
 }
 
@@ -248,10 +294,10 @@ export function BookSettingsSection() {
           }}
         />
       </InspectorRow>
-      {/* Kit v7.tsx:207-208: pages pill, range hint and the spreads note. */}
+      {/* Rendered #/demo step 24: pages box, range hint and the spreads note. */}
       <InspectorRow label="Pages">
         <span className="flex items-center gap-1" data-testid="book-pages">
-          <ReadOnlyPill value={String(pages)} />
+          <PagesField pages={pages} />
           <span
             className="text-2xs"
             style={{ color: SUB }}

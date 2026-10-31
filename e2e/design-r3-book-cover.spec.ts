@@ -1,7 +1,7 @@
+import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { clearProjectSession } from './fixtures/clearProjectSession'
 import { createBookViaLibrary } from './fixtures/createBookViaLibrary'
-import { addSpreads } from './fixtures/layoutTiles'
 
 // Design review r3: the rendered kit v0.10.0 `#/demo` (steps 13, 24) is the
 // reference; source uikit/src/sandbox/v7.tsx:65-70,199-216.
@@ -24,7 +24,7 @@ test.afterEach(async ({ page }) => {
   await clearProjectSession(page)
 })
 
-const rect = (page: import('@playwright/test').Page, id: string) =>
+const rect = (page: Page, id: string) =>
   page
     .getByTestId(id)
     .evaluate((el) => el.getBoundingClientRect().toJSON() as DOMRect)
@@ -56,47 +56,138 @@ test('M5: a new book shows its title as back text, bottom-left on the back cover
   )
 })
 
-test('Spine width: read-only mm text that matches the canvas spine', async ({
+const spreadCount = (page: Page) =>
+  page.getByTestId('pasteboard-scroll').getAttribute('data-spread-count')
+
+async function typePages(page: Page, value: string): Promise<void> {
+  const field = page.getByTestId('book-pages-input')
+  await field.fill(value)
+  await field.press('Enter')
+}
+
+async function trimWidthMm(page: Page): Promise<number> {
+  await page.getByTestId('book-title').click()
+  return Number(await page.getByTestId('size-w').inputValue()) * 10
+}
+
+/** Inspector text and canvas spine / back ratio both follow `mm`. */
+async function expectSpine(page: Page, mm: number, trimMm: number) {
+  await page.getByTestId('cover-list-item').click()
+  await expect(page.getByTestId('cover-spine-width')).toHaveText(
+    `${String(mm)} mm`,
+  )
+  await expect
+    .poll(async () => {
+      const [back, spine] = await Promise.all([
+        rect(page, 'cover-back'),
+        rect(page, 'cover-spine'),
+      ])
+      return spine.width / back.width
+    })
+    .toBeCloseTo(mm / trimMm, 2)
+}
+
+test('Spine width: read-only mm text computed from the page count, drawn on the canvas', async ({
   page,
 }) => {
-  await page.getByTestId('book-title').click()
-  const trimWidthMm = Number(await page.getByTestId('size-w').inputValue()) * 10
-  expect(trimWidthMm).toBeGreaterThan(0)
+  const trimMm = await trimWidthMm(page)
+  expect(trimMm).toBeGreaterThan(0)
 
   await page.getByTestId('cover-list-item').click()
   const spineWidth = page.getByTestId('cover-spine-width')
-  await expect(spineWidth).toHaveText('12 mm')
   await expect(spineWidth).toHaveCSS('font-family', /mono/i)
   await expect(spineWidth.locator('input')).toHaveCount(0)
   await expect(page.getByTestId('insp-cover').getByRole('slider')).toHaveCount(
     0,
   )
-  // The stored 12 mm drives the canvas: spine / back = 12 / trim width.
-  const [back, spine] = await Promise.all([
-    rect(page, 'cover-back'),
-    rect(page, 'cover-spine'),
-  ])
-  expect(spine.width / back.width).toBeCloseTo(12 / trimWidthMm, 2)
+  // 6 pages print padded to the 20-page minimum: 8 + 20 × 0.2 = 12 mm (kit).
+  await expectSpine(page, 12, trimMm)
+
+  await page.getByTestId('book-title').click()
+  await typePages(page, '40')
+  await expectSpine(page, 16, trimMm)
+
+  await page.getByTestId('book-title').click()
+  await typePages(page, '120')
+  await expectSpine(page, 32, trimMm)
 })
 
-test('Pages: read-only count, 20–120 hint and a spreads note that follows the book', async ({
+test('Pages: kit number box without arrows, 20–120 hint and spreads note', async ({
   page,
 }) => {
   await page.getByTestId('book-title').click()
-  const pages = page.getByTestId('book-pages')
+  const field = page.getByTestId('book-pages-input')
   const note = page.getByTestId('book-pages-note')
-  await expect(pages).toHaveText('620–120')
+  await expect(field).toHaveValue('6')
+  await expect(field).toHaveAttribute('step', '2')
   await expect(page.getByTestId('book-pages-range')).toHaveText('20–120')
-  await expect(pages.locator('input, button')).toHaveCount(0)
   await expect(note).toHaveText('Add 7 spreads to reach the 20-page minimum')
+  // Rendered #/demo step 24 `Val` box: FIELD fill, 6 px radius, 4 / 8 px pad.
+  await expect(field).toHaveCSS('background-color', 'rgb(215, 215, 215)')
+  await expect(field).toHaveCSS('border-radius', '6px')
+  await expect(field).toHaveCSS('padding', '4px 8px')
+  await expect(field).toHaveCSS('appearance', 'textfield')
+  const box = await rect(page, 'book-pages-input')
+  expect(box.height).toBeGreaterThan(25)
+  expect(box.height).toBeLessThan(29)
+  expect(box.width).toBeLessThan(40)
 
-  await addSpreads(page, 6)
-  await page.getByTestId('book-title').click()
-  await expect(pages).toHaveText('1820–120')
-  await expect(note).toHaveText('Add 1 spread to reach the 20-page minimum')
-
-  await addSpreads(page, 1)
-  await page.getByTestId('book-title').click()
-  await expect(pages).toHaveText('2020–120')
+  await typePages(page, '20')
+  await expect(field).toHaveValue('20')
+  expect(await spreadCount(page)).toBe('10')
   await expect(note).toHaveText('Pages are added in spreads of 2')
+})
+
+test('Pages: typed values clamp to 20–120, round to step 2 and edit the spreads', async ({
+  page,
+}) => {
+  await page.getByTestId('book-title').click()
+  const field = page.getByTestId('book-pages-input')
+
+  await typePages(page, '10')
+  await expect(field).toHaveValue('20')
+  await expect.poll(() => spreadCount(page)).toBe('10')
+
+  await typePages(page, '200')
+  await expect(field).toHaveValue('120')
+  await expect.poll(() => spreadCount(page)).toBe('60')
+
+  await typePages(page, '33')
+  await expect(field).toHaveValue('34')
+  await expect.poll(() => spreadCount(page)).toBe('17')
+
+  // Blur commits too; the arrow key steps by 2 natively.
+  await field.press('ArrowDown')
+  await field.blur()
+  await expect(field).toHaveValue('32')
+  await expect.poll(() => spreadCount(page)).toBe('16')
+
+  // One undo step per commit.
+  await expect(page.getByTestId('undo')).toHaveAttribute(
+    'aria-label',
+    /Page count/,
+  )
+  await page.getByTestId('undo').click()
+  await expect(field).toHaveValue('34')
+  await expect.poll(() => spreadCount(page)).toBe('17')
+})
+
+test('Pages: the typed count persists across reload', async ({ page }) => {
+  test.setTimeout(60_000)
+  await page.getByTestId('book-title').click()
+  await typePages(page, '24')
+  await expect.poll(() => spreadCount(page)).toBe('12')
+  await expect(page.getByTestId('editor-status')).toHaveText('Book saved', {
+    timeout: 15_000,
+  })
+
+  await page.reload()
+  await expect(page.getByTestId('editor-status')).toHaveText('Book restored', {
+    timeout: 20_000,
+  })
+  await expect.poll(() => spreadCount(page)).toBe('12')
+  await page.getByTestId('book-title').click()
+  await expect(page.getByTestId('book-pages-input')).toHaveValue('24')
+  await page.getByTestId('cover-list-item').click()
+  await expect(page.getByTestId('cover-spine-width')).toHaveText('12.8 mm')
 })

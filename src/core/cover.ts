@@ -8,10 +8,11 @@ import {
 } from './schema'
 import { omitKey } from './omitKey'
 
-/** Kit cover defaults: serif italic title, 12 mm spine, paper-white back, printed matte. */
+/** Kit cover defaults: serif italic title, paper-white back, printed matte. */
 export function defaultCoverStyle(): CoverStyle {
   return {
     titleFont: 'serif-italic',
+    // Legacy, ignored: the drawn spine is `bookSpineWidthMm` (pages.ts).
     spineWidthMm: 12,
     spineDirection: 'top-to-bottom',
     // The kit canvas paints the back charcoal (`--cover-back`).

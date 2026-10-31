@@ -234,7 +234,11 @@ describe('BookSettingsSection', () => {
     for (const el of screen.getAllByRole('heading', { level: 4 })) {
       expect(el.className).toBe('inspector-eyebrow')
     }
-    expect(screen.getByTestId('book-pages').textContent).toBe('420–120')
+    expect(screen.getByTestId('book-pages').textContent).toBe('20–120')
+    expect(screen.getByRole('spinbutton', { name: 'Pages' })).toHaveProperty(
+      'value',
+      '4',
+    )
     expect(screen.getByTestId('book-pages-range').textContent).toBe('20–120')
     expect(screen.getByTestId('book-pages-note').textContent).toBe(
       'Add 8 spreads to reach the 20-page minimum',

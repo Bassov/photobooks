@@ -250,15 +250,20 @@ describe('InspectorControls', () => {
 })
 
 describe('CoverSection spine and direction', () => {
-  it('shows the stored spine width as read-only mm text (rendered #/demo step 13)', () => {
+  it('shows the spine width computed from the page count as read-only mm text (rendered #/demo step 13)', () => {
     seed()
+    // The stored width is legacy: the inspector ignores it.
     dispatchBookOp({ type: 'setCoverStyle', patch: { spineWidthMm: 20.5 } })
     render(<CoverSection />)
     const spine = screen.getByTestId('cover-spine-width')
-    expect(spine.textContent).toBe('20.5 mm')
+    expect(spine.textContent).toBe('12 mm')
     expect(spine.className).toBe('font-mono text-sm tabular-nums')
     expect(within(spine).queryByRole('slider')).toBeNull()
     expect(within(spine).queryByRole('spinbutton')).toBeNull()
+    act(() => {
+      dispatchBookOp({ type: 'setPageCount', pages: 42 })
+    })
+    expect(spine.textContent).toBe('16.4 mm')
   })
 
   it('shows the direction as a read-only pill (uikit/src/sandbox/v7.tsx:215)', () => {

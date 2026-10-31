@@ -1,4 +1,7 @@
+import { PAGE_MAX, PAGE_MIN, pagesOf } from '../core'
 import { formatZoomPercent } from './camera'
+
+export { PAGE_MAX, PAGE_MIN, pagesOf }
 
 export interface EditorPanels {
   l: boolean
@@ -56,14 +59,6 @@ export function pageLabel(i: number): string {
   if (i === 0) return '1'
   return `${String(i * 2)}–${String(i * 2 + 1)}`
 }
-
-export function pagesOf(spreads: number): number {
-  return spreads * 2
-}
-
-/** Kit v7.tsx:27 printable page range. */
-export const PAGE_MIN = 20
-export const PAGE_MAX = 120
 
 /** Kit v7.tsx:208 note under Pages; spreads add 2 pages each. */
 export function pagesNote(pages: number): string {

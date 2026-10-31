@@ -142,11 +142,65 @@ describe('Book settings header and pages', () => {
     expect(screen.getByTestId('book-settings-subtitle').textContent).toBe(
       'Lake trip · applies to the whole book',
     )
-    expect(screen.getByTestId('book-pages').textContent).toBe('2020–120')
+    expect(screen.getByTestId('book-pages').textContent).toBe('20–120')
+    expect(screen.getByTestId<HTMLInputElement>('book-pages-input').value).toBe(
+      '20',
+    )
     expect(screen.getByTestId('book-pages-range').style.color).toBe(SUB)
     expect(screen.getByTestId('book-pages-note').textContent).toBe(
       'Pages are added in spreads of 2',
     )
+  })
+})
+
+describe('Book settings Pages field (rendered #/demo step 24)', () => {
+  const spreads = () => getBookStoreSnapshot().book.spreads.length
+  const field = () => screen.getByTestId<HTMLInputElement>('book-pages-input')
+
+  it('is a kit Val box number input: 20–120, step 2', () => {
+    seed(200, 300)
+    render(<BookSettingsSection />)
+    const input = field()
+    expect(input.type).toBe('number')
+    expect([input.min, input.max, input.step]).toEqual(['20', '120', '2'])
+    expect(input.className).toBe(
+      'insp-pages-field rounded-sm px-2 py-1 text-sm',
+    )
+    expect(input.style.background).toBe(FIELD)
+    expect(input.style.color).toBe(T)
+    expect(input.style.width).toBe('calc(2ch + 1rem)')
+    fireEvent.change(input, { target: { value: '120' } })
+    expect(input.style.width).toBe('calc(3ch + 1rem)')
+  })
+
+  it('commits a typed count on Enter or blur, clamped to whole spreads', () => {
+    seed(200, 300)
+    render(<BookSettingsSection />)
+    fireEvent.change(field(), { target: { value: '9' } })
+    expect(spreads()).toBe(1)
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(spreads()).toBe(10)
+    expect(field().value).toBe('20')
+    fireEvent.change(field(), { target: { value: '27' } })
+    fireEvent.keyDown(field(), { key: 'a' })
+    expect(spreads()).toBe(10)
+    fireEvent.blur(field())
+    expect(spreads()).toBe(14)
+    expect(field().value).toBe('28')
+  })
+
+  it('Escape and empty input keep the spreads', () => {
+    seed(200, 300)
+    render(<BookSettingsSection />)
+    fireEvent.change(field(), { target: { value: '40' } })
+    fireEvent.keyDown(field(), { key: 'Escape' })
+    expect(field().value).toBe('2')
+    fireEvent.blur(field())
+    expect(spreads()).toBe(1)
+    fireEvent.change(field(), { target: { value: '' } })
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(spreads()).toBe(1)
+    expect(field().value).toBe('2')
   })
 })
 

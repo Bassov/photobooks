@@ -1,4 +1,5 @@
 import { useSyncExternalStore, type DragEvent } from 'react'
+import { bookSpineWidthMm } from '../core'
 import {
   getBookStoreSnapshot,
   dispatchBookOp,
@@ -36,7 +37,7 @@ export function CoverCanvas({ mini = false }: { mini?: boolean }) {
   const layout = coverLayout(
     settings.trim.widthMm,
     settings.trim.heightMm,
-    look.spineWidthMm,
+    bookSpineWidthMm(book),
   )
   const onDragOver = (event: DragEvent<HTMLElement>): void => {
     if (event.dataTransfer.types.includes(ASSET_DRAG_MIME)) {

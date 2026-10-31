@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { type CoverPanelName, type CoverStyle } from '../core'
+import { bookSpineWidthMm, type CoverPanelName, type CoverStyle } from '../core'
 import { Select } from '../ui/Select'
 import {
   DIRECTION_OPTIONS,
@@ -53,6 +53,10 @@ function readStyle(): CoverStyle {
 
 function useStyle(): CoverStyle {
   return useSyncExternalStore(subscribeBookStore, readStyle, readStyle)
+}
+
+function readSpineWidth(): number {
+  return bookSpineWidthMm(readBook())
 }
 
 function setStyle(patch: Partial<CoverStyle>): void {
@@ -129,6 +133,11 @@ export function CoverSection() {
   )
   const ppi = useSyncExternalStore(subscribeBookStore, frontPpi, frontPpi)
   const style = useStyle()
+  const spineMm = useSyncExternalStore(
+    subscribeBookStore,
+    readSpineWidth,
+    readSpineWidth,
+  )
   return (
     <section
       className="flex flex-col gap-3 px-4 py-4"
@@ -182,7 +191,7 @@ export function CoverSection() {
           className="font-mono text-sm tabular-nums"
           data-testid="cover-spine-width"
         >
-          {fmtN(style.spineWidthMm)} mm
+          {fmtN(spineMm)} mm
         </span>
       </InspectorRow>
       {/* Kit v7.tsx:215: Direction is a read-only Val pill. */}
