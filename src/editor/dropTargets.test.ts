@@ -53,10 +53,11 @@ describe('dropTargets', () => {
   })
 
   it('offsets later spreads by stride', () => {
+    // Two pages wide: the single last page s1 ends at the centre line (M45).
     const index = indexFor({
       pxPerMm: 2,
       stridePx: 50,
-      worldWidthPx: 40,
+      worldWidthPx: 80,
       spreads: [
         { spreadId: 's0', spreadWidthPx: 40, items: [] },
         {
@@ -232,10 +233,11 @@ describe('dropTargets', () => {
       ],
     }
 
+    // Two pages wide: the single last page s1 ends at the centre line (M45).
     const index = indexFor({
       pxPerMm: 1,
       stridePx: 20,
-      worldWidthPx: 10,
+      worldWidthPx: 20,
       spreads,
     })
 

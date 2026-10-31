@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { addToGallery, applyTemplate } from '../core'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
-import { resetCameraStore } from './cameraStore'
+import { commitZoom, resetCameraStore } from './cameraStore'
 import { clearDropHover } from './dropHover'
 import {
   ASSET_DRAG_MIME,
@@ -18,22 +18,33 @@ import { getEditorStatus } from './editorStatus'
 import { dropSpreadsFromBook, type DropGeometry } from './galleryDrop'
 import { resetGallerySelection } from './gallerySelection'
 import { Pasteboard } from './Pasteboard'
-import { pasteboardStridePx } from './pasteboardWindow'
+import { newSpreadPillFits } from './pageLabelsModel'
+import { pasteboardGapPx, pasteboardStridePx } from './pasteboardWindow'
 
 const IDS = ['a', 'b', 'c', 'd', 'e']
 
-function geometry(): DropGeometry {
+function geometry(zoom = 1): DropGeometry {
   const book = getBookStoreSnapshot().book
+  const pxPerMm = SPREAD_PX_PER_MM * zoom
   return {
-    pxPerMm: SPREAD_PX_PER_MM,
-    stridePx: pasteboardStridePx(
-      book.settings.trim.heightMm * SPREAD_PX_PER_MM,
-    ),
+    pxPerMm,
+    stridePx: pasteboardStridePx(book.settings.trim.heightMm * pxPerMm),
     worldWidthPx:
-      book.settings.trim.widthMm *
-      (book.spreads.length >= 2 ? 2 : 1) *
-      SPREAD_PX_PER_MM,
+      book.settings.trim.widthMm * (book.spreads.length >= 2 ? 2 : 1) * pxPerMm,
   }
+}
+
+/** Zoom at which the seeded gap holds the new-spread pill (newSpreadPillFits). */
+const PILL_ZOOM = 4
+
+function seedAtPillZoom(): void {
+  seed()
+  commitZoom(PILL_ZOOM, 0, 0)
+  const trimHeightPx =
+    getBookStoreSnapshot().book.settings.trim.heightMm *
+    SPREAD_PX_PER_MM *
+    PILL_ZOOM
+  assert(newSpreadPillFits(pasteboardGapPx(trimHeightPx)))
 }
 
 function seed(): void {
@@ -126,10 +137,10 @@ describe('Pasteboard multi-photo drop', () => {
   })
 
   it('inserts a new spread when dropped in the gap under a spread (one undo step)', () => {
-    seed()
+    seedAtPillZoom()
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
-    const y = geometry().stridePx - 4
+    const y = geometry(PILL_ZOOM).stridePx - 4
     const count = getBookStoreSnapshot().book.spreads.length
     const carried = ['a', 'b']
     document.dispatchEvent(dragEvent('dragstart', carried))
@@ -152,7 +163,7 @@ describe('Pasteboard multi-photo drop', () => {
   })
 
   it('renders one labelled, hidden-from-AT gap zone per spread with its insert index', () => {
-    seed()
+    seedAtPillZoom()
     render(<Pasteboard />)
     const zones = screen.getAllByTestId('pasteboard-gap')
     expect(
@@ -166,7 +177,7 @@ describe('Pasteboard multi-photo drop', () => {
   })
 
   it('only highlights a gap zone while the pointer is over it', () => {
-    seed()
+    seedAtPillZoom()
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
     const carried = ['a', 'b']
@@ -174,7 +185,10 @@ describe('Pasteboard multi-photo drop', () => {
     scroll.dispatchEvent(dragEvent('dragover', carried, { x: 5, y: 1 }))
     expect(scroll.querySelector('[data-drop-hover="true"]')).toBeNull()
     scroll.dispatchEvent(
-      dragEvent('dragover', carried, { x: 5, y: geometry().stridePx - 4 }),
+      dragEvent('dragover', carried, {
+        x: 5,
+        y: geometry(PILL_ZOOM).stridePx - 4,
+      }),
     )
     expect(scroll.querySelectorAll('[data-drop-hover="true"]')).toHaveLength(1)
     scroll.dispatchEvent(dragEvent('dragover', carried, { x: 5, y: 1 }))

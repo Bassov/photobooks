@@ -303,10 +303,15 @@ function readPills(): PillRead {
     ...port.querySelectorAll<HTMLElement>('[data-testid="pasteboard-gap"]'),
   ].map((pill) => {
     const style = getComputedStyle(pill)
-    const range = document.createRange()
-    range.selectNodeContents(pill)
+    // Line boxes of the label text only (the icon is a separate box).
     const lineTops = new Set(
-      [...range.getClientRects()]
+      [...pill.childNodes]
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .flatMap((node) => {
+          const range = document.createRange()
+          range.selectNodeContents(node)
+          return [...range.getClientRects()]
+        })
         .filter((r) => r.width > 0 && r.height > 0)
         .map((r) => Math.round(r.top + r.height / 2)),
     )

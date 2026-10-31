@@ -9,12 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { flushSync } from 'react-dom'
-import {
-  bookSpineWidthMm,
-  getSinglePageSide,
-  getSpreadPageCount,
-  getSpreadSlotPageCount,
-} from '../core'
+import { bookSpineWidthMm, getSinglePageSide } from '../core'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import {
@@ -65,6 +60,7 @@ import './SpreadsPanel.css'
 import {
   canDeleteSpread,
   coverCardRatio,
+  firstSlotAspect,
   neighbourAfterDelete,
   scrollPasteboardToSpread,
   scrollTopToReveal,
@@ -135,19 +131,11 @@ function run(
   scrollPasteboardToSpread(getSpreadIdsSnapshot()[at] ?? id)
 }
 
-/**
- * Slot width / height of the first spread (page 1 keeps a spread-wide slot in
- * a book of two spreads or more), or the 2:1 default while the book has none.
- */
-function firstSlotAspect(spreadIds: readonly string[]): number {
-  const resolved = getSpreadPaintSnapshot(spreadIds[0] ?? '')?.resolved
-  if (resolved === undefined) {
-    return 2
-  }
-  const widen =
-    getSpreadSlotPageCount(0, spreadIds.length) /
-    getSpreadPageCount(0, spreadIds.length)
-  return (resolved.spreadWidthMm * widen) / resolved.spreadHeightMm
+function listAspect(spreadIds: readonly string[]): number {
+  return firstSlotAspect(
+    getSpreadPaintSnapshot(spreadIds[0] ?? '')?.resolved,
+    spreadIds.length,
+  )
 }
 
 interface DragState {
@@ -208,8 +196,8 @@ export function SpreadsPanel({
   const [headPx, setHeadPx] = useState(0)
   const aspect = useSyncExternalStore(
     (listener) => subscribeSpread(spreadIds[0] ?? '', listener),
-    () => firstSlotAspect(spreadIds),
-    () => firstSlotAspect(spreadIds),
+    () => listAspect(spreadIds),
+    () => listAspect(spreadIds),
   )
   const geometry = spreadsRowGeometry(listWidth, aspect)
   const rowPx = geometry.rowPx
