@@ -1,4 +1,4 @@
-import { getSpreadPageCount, getSpreadSlotPageCount } from '../core'
+import { getSinglePageSide } from '../core'
 import { PANEL_DEFAULTS } from '../ui/panelSize'
 import { pasteboardWindow, type PasteboardWindow } from './pasteboardWindow'
 import { requestSpreadReveal } from './photoRootSession'
@@ -85,8 +85,7 @@ export function firstSlotAspect(
   if (first === undefined) {
     return 2
   }
-  const widen =
-    getSpreadSlotPageCount(0, spreadCount) / getSpreadPageCount(0, spreadCount)
+  const widen = getSinglePageSide(0, spreadCount) === null ? 1 : 2
   return (first.spreadWidthMm * widen) / first.spreadHeightMm
 }
 

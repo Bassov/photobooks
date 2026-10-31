@@ -178,6 +178,29 @@ describe('SpreadsPanel list', () => {
     )
   })
 
+  it('puts single pages on their side and page 1’s label under its half (M45)', () => {
+    seedSpreads(3)
+    render(<SpreadsPanel />)
+    const rows = ['s0', 's1', 's2'].map((id) =>
+      screen.getByTestId(`spread-list-item-${id}`),
+    )
+    expect(rows.map((row) => row.dataset.pageSide)).toEqual([
+      'right',
+      undefined,
+      'left',
+    ])
+    expect(
+      rows.map(
+        (row) =>
+          row.querySelector<HTMLElement>('[data-label]')?.parentElement?.style
+            .paddingLeft,
+      ),
+    ).toEqual(['50%', '', ''])
+    expect(
+      rows.map((row) => row.querySelector('[data-label]')?.textContent),
+    ).toEqual(['1', '2–3', '4'])
+  })
+
   it('re-derives the row height when the spread aspect changes', () => {
     seedSpreads(2)
     render(<SpreadsPanel />)
