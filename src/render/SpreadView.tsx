@@ -115,9 +115,13 @@ function FrameGlyph({
 /** Gap between the frame and its caption (kit: 1.5 mm under the frame). */
 const CAPTION_GAP_MM = 1.5
 
-function sizeLabel(item: ResolvedItem): string {
-  const round = (mm: number) => String(Math.round(mm * 10) / 10)
-  return `${round(item.rectMm.width)} × ${round(item.rectMm.height)} mm`
+/**
+ * In-world chrome kept at screen px through a live zoom: the pasteboard camera
+ * writes `--cam-scale` on `[data-camera-frame]` in the world-transform rAF and
+ * the CSS undoes it (thumbs never need it).
+ */
+function cameraFrame(thumb: boolean): { 'data-camera-frame'?: '' } {
+  return thumb ? {} : { 'data-camera-frame': '' }
 }
 
 export function SpreadView({
@@ -200,6 +204,7 @@ export function SpreadView({
             className="spread-page-cut"
             data-testid={thumb ? undefined : 'spread-page-cut'}
             data-orientation={line.orientation}
+            {...cameraFrame(thumb)}
             aria-hidden="true"
             style={
               vertical
@@ -311,49 +316,45 @@ function SpreadFrame({
   const showHints = control !== undefined
   const showIcon = showHints && box.width > FRAME_ICON_MIN_PX
   const showLabel = showHints && box.width > FRAME_LABEL_MIN_PX
+  const hints = missing ? (
+    <>
+      <FrameGlyph nodes={ICON_GLYPHS.warning} size={16} name="warning" />
+      {showLabel ? (
+        <span
+          className="spread-frame-hint spread-frame-hint--missing"
+          data-testid="frame-missing-label"
+        >
+          {assetName ?? 'Photo'} not found
+        </span>
+      ) : null}
+    </>
+  ) : (
+    <>
+      {showIcon ? (
+        <FrameGlyph nodes={IMAGE_PLUS_GLYPH} size={16} name="image-plus" />
+      ) : null}
+      {showLabel ? (
+        <span className="spread-frame-hint" data-testid="frame-empty-label">
+          Drop photo
+        </span>
+      ) : null}
+    </>
+  )
   const image =
     previewUrl === undefined ? (
       <div
         className={missingPlaceholderClass(missing)}
         data-testid={thumb ? undefined : missingPlaceholderTestId(missing)}
       >
-        {missing ? (
-          <>
-            {showHints ? (
-              <FrameGlyph
-                nodes={ICON_GLYPHS.warning}
-                size={16}
-                name="warning"
-              />
-            ) : null}
-            {showLabel ? (
-              <span
-                className="spread-frame-hint spread-frame-hint--missing"
-                data-testid="frame-missing-label"
-              >
-                {assetName ?? 'Photo'} not found
-              </span>
-            ) : null}
-          </>
-        ) : (
-          <>
-            {showIcon ? (
-              <FrameGlyph
-                nodes={IMAGE_PLUS_GLYPH}
-                size={16}
-                name="image-plus"
-              />
-            ) : null}
-            {showLabel ? (
-              <span
-                className="spread-frame-hint"
-                data-testid="frame-empty-label"
-              >
-                Drop photo
-              </span>
-            ) : null}
-          </>
-        )}
+        {(missing ? showHints : showIcon) ? (
+          <span
+            className="spread-frame-hints"
+            data-testid="frame-hints"
+            data-camera-frame=""
+          >
+            {hints}
+          </span>
+        ) : null}
       </div>
     ) : (
       layer(
@@ -446,7 +447,11 @@ function SpreadFrame({
       {body}
       {captionNode}
       {cropActive ? (
-        <span className="spread-frame-crop-tag" data-testid="crop-overlay-tag">
+        <span
+          className="spread-frame-crop-tag"
+          data-testid="crop-overlay-tag"
+          data-camera-frame=""
+        >
           Crop · {Math.round((control.cropZoom ?? 1) * 100)}%
         </span>
       ) : null}
@@ -454,6 +459,7 @@ function SpreadFrame({
         <span
           className="spread-frame-lock"
           data-testid="frame-lock-badge"
+          data-camera-frame=""
           aria-hidden
         >
           <FrameGlyph nodes={ICON_GLYPHS.lock} size={12} name="lock" />
@@ -464,6 +470,7 @@ function SpreadFrame({
           className="spread-frame-dpi"
           data-testid="dpi-badge"
           data-level={item.lowDpi.level}
+          data-camera-frame=""
           aria-label={`Low resolution, ${String(item.lowDpi.dpi)} dpi`}
         >
           <FrameGlyph nodes={ICON_GLYPHS.warning} size={10} name="warning" />
@@ -471,30 +478,21 @@ function SpreadFrame({
         </span>
       ) : null}
       {selected && item.locked !== true ? (
-        <>
-          <span
-            className="spread-frame-handles"
-            data-testid="spread-frame-handles"
-            aria-hidden
-          >
-            {HANDLE_POINTS.map(([id, x, y]) => (
-              <span
-                key={id}
-                className="spread-frame-handle"
-                data-handle={id}
-                data-testid="sel-handle"
-                style={{ left: x, top: y }}
-              />
-            ))}
-          </span>
-          <span
-            className="spread-frame-size-tag"
-            data-testid="frame-size-tag"
-            aria-hidden
-          >
-            {sizeLabel(item)}
-          </span>
-        </>
+        <span
+          className="spread-frame-handles"
+          data-testid="spread-frame-handles"
+          aria-hidden
+        >
+          {HANDLE_POINTS.map(([id, x, y]) => (
+            <span
+              key={id}
+              className="spread-frame-handle"
+              data-handle={id}
+              data-testid="sel-handle"
+              style={{ left: x, top: y }}
+            />
+          ))}
+        </span>
       ) : null}
     </button>
   )

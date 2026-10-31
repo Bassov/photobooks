@@ -108,6 +108,28 @@ describe('SpreadView frame chrome', () => {
     expect(screen.getByText('IMG_1.jpg not found')).toBeTruthy()
   })
 
+  it('wraps the hints in one camera-framed group, none without hints', () => {
+    const wide = renderEmptyAt(200)
+    const hints = screen.getByTestId('frame-hints')
+    expect(hints.dataset.cameraFrame).toBe('')
+    expect(hints.querySelector('[data-glyph="image-plus"]')).not.toBeNull()
+    expect(hints.textContent).toBe('Drop photo')
+    wide.unmount()
+    const narrow = renderEmptyAt(46)
+    expect(screen.queryByTestId('frame-hints')).toBeNull()
+    narrow.unmount()
+    renderEmptyAt(300, false)
+    expect(screen.queryByTestId('frame-hints')).toBeNull()
+  })
+
+  it('a narrow missing frame keeps its warning in the camera-framed group', () => {
+    renderMissingAt(40)
+    const hints = screen.getByTestId('frame-hints')
+    expect(hints.dataset.cameraFrame).toBe('')
+    expect(hints.querySelector('[data-glyph="warning"]')).not.toBeNull()
+    expect(hints.textContent).toBe('')
+  })
+
   it('missing frame without a known name falls back to "Photo"', () => {
     renderMissingAt(200)
     expect(screen.getByText('Photo not found')).toBeTruthy()
@@ -134,7 +156,7 @@ describe('SpreadView frame chrome', () => {
     expect(screen.queryByTestId('frame-lock-badge')).toBeNull()
     first.unmount()
     render(view(true))
-    expect(screen.getByTestId('frame-lock-badge')).toBeTruthy()
+    expect(screen.getByTestId('frame-lock-badge').dataset.cameraFrame).toBe('')
   })
 
   it('empty placeholder rule carries no dashed outline', () => {
