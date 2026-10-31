@@ -49,7 +49,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - Shell hygiene (each of these is a permission denial otherwise; deny rules stay as they are):
   - Scratch files go under `.cache/agent/` (gitignored; `Write` creates it, or `mkdir -p .cache/agent`), never `/tmp`.
   - No `timeout` wrapper on any command (`stryker:diff`, dev-server waits, scripts), and no `sh -c` / `until … sleep` polling loops; the Bash tool `timeout` is the limit. To wait for a background dev server, check its log with `Grep` (e.g. for `Local`) and retry in a later call.
-  - Edit files with `Edit`/`Write`, not `sed -i` or `python3`.
+  - Edit files with `Edit`/`Write`, not `sed -i` or `python3`, including inside a chain (`sed -i … ; pnpm exec vitest …` is denied as a whole): make the edit with `Edit`, then run the test as its own Bash call.
   - No `cd` / `git -C`: run from the worktree root and pass paths.
   - No inline `node -e` / `node --input-type=module -e` (or `python3 -c`) scripts, even read-only: the auto-mode classifier denies them. Read JSON reports (e.g. `reports/mutation/mutation.json`) with `Read`/`Grep`, and take Stryker counts from the `pnpm stryker:diff` output.
 - Clean tree; `feat|fix/<slug>` from `origin/main`.

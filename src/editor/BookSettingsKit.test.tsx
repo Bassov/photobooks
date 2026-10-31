@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { makeBook } from '../core/testing/fixtures'
+import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { BookSettingsSection } from './BookSettingsSection'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { FIELD, SUB, T } from './editorChromeTokens'
@@ -118,9 +118,89 @@ describe('Book settings read-only rows', () => {
     expect(screen.getByText('Default master')).toBeTruthy()
     expect(screen.getByText('Master A')).toBeTruthy()
     expect(screen.getByTestId('book-pages-note').textContent).toBe(
-      'Pages are added in spreads of 2',
+      'Add 9 spreads to reach the 20-page minimum',
     )
     expect(screen.getByTestId('binding-style').textContent).toBe('Hardcover')
+  })
+})
+
+// Kit v7.tsx:202,207-208: meta line names the book; Pages follows the spreads.
+describe('Book settings header and pages', () => {
+  it('names the book by its back text and counts pages from spreads', () => {
+    resetBookStore({
+      book: makeBook({
+        title: 'Lake trip',
+        spreads: Array.from({ length: 10 }, (_, i) =>
+          makeSpread({ id: `s${String(i)}` }),
+        ),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<BookSettingsSection />)
+    expect(screen.getByTestId('book-settings-subtitle').textContent).toBe(
+      'Lake trip · applies to the whole book',
+    )
+    expect(screen.getByTestId('book-pages').textContent).toBe('20–120')
+    expect(screen.getByTestId<HTMLInputElement>('book-pages-input').value).toBe(
+      '20',
+    )
+    expect(screen.getByTestId('book-pages-range').style.color).toBe(SUB)
+    expect(screen.getByTestId('book-pages-note').textContent).toBe(
+      'Pages are added in spreads of 2',
+    )
+  })
+})
+
+describe('Book settings Pages field (rendered #/demo step 24)', () => {
+  const spreads = () => getBookStoreSnapshot().book.spreads.length
+  const field = () => screen.getByTestId<HTMLInputElement>('book-pages-input')
+
+  it('is a kit Val box number input: 20–120, step 2', () => {
+    seed(200, 300)
+    render(<BookSettingsSection />)
+    const input = field()
+    expect(input.type).toBe('number')
+    expect([input.min, input.max, input.step]).toEqual(['20', '120', '2'])
+    expect(input.className).toBe(
+      'insp-pages-field rounded-sm px-2 py-1 text-sm',
+    )
+    expect(input.style.background).toBe(FIELD)
+    expect(input.style.color).toBe(T)
+    expect(input.style.width).toBe('calc(2ch + 1rem)')
+    fireEvent.change(input, { target: { value: '120' } })
+    expect(input.style.width).toBe('calc(3ch + 1rem)')
+  })
+
+  it('commits a typed count on Enter or blur, clamped to whole spreads', () => {
+    seed(200, 300)
+    render(<BookSettingsSection />)
+    fireEvent.change(field(), { target: { value: '9' } })
+    expect(spreads()).toBe(1)
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(spreads()).toBe(10)
+    expect(field().value).toBe('20')
+    fireEvent.change(field(), { target: { value: '27' } })
+    fireEvent.keyDown(field(), { key: 'a' })
+    expect(spreads()).toBe(10)
+    fireEvent.blur(field())
+    expect(spreads()).toBe(14)
+    expect(field().value).toBe('28')
+  })
+
+  it('Escape and empty input keep the spreads', () => {
+    seed(200, 300)
+    render(<BookSettingsSection />)
+    fireEvent.change(field(), { target: { value: '40' } })
+    fireEvent.keyDown(field(), { key: 'Escape' })
+    expect(field().value).toBe('2')
+    fireEvent.blur(field())
+    expect(spreads()).toBe(1)
+    fireEvent.change(field(), { target: { value: '' } })
+    fireEvent.keyDown(field(), { key: 'Enter' })
+    expect(spreads()).toBe(1)
+    expect(field().value).toBe('2')
   })
 })
 

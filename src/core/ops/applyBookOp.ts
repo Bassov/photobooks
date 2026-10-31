@@ -45,7 +45,13 @@ import {
   setFrameCaption,
 } from './frameLook'
 import { addGuide, moveGuide, removeGuide } from './guides'
-import { addSpread, duplicateSpread, moveSpread, removeSpread } from './spreads'
+import {
+  addSpread,
+  duplicateSpread,
+  moveSpread,
+  removeSpread,
+  setPageCount,
+} from './spreads'
 
 export type BookOp =
   | { type: 'addToGallery'; assetIds: readonly string[] }
@@ -102,6 +108,7 @@ export type BookOp =
     }
   | { type: 'addSpread'; index?: number; id?: string; templateId?: string }
   | { type: 'removeSpread'; spreadId: string }
+  | { type: 'setPageCount'; pages: number }
   | { type: 'duplicateSpread'; spreadId: string; id?: string }
   | { type: 'moveSpread'; spreadId: string; toIndex: number }
   | {
@@ -266,6 +273,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
     }
     case 'removeSpread':
       return removeSpread(book, op.spreadId)
+    case 'setPageCount':
+      return setPageCount(book, op.pages)
     case 'duplicateSpread':
       return duplicateSpread(
         book,

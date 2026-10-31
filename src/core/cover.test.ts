@@ -13,11 +13,11 @@ import {
 import { makeBook, makeBookWithAsset } from './testing/fixtures'
 
 describe('cover ops', () => {
-  it('a new book cover text is its title; the back starts blank', () => {
+  it('a new book cover text is its title on front, spine and back', () => {
     expect(defaultCover('Lake trip')).toEqual({
       front: { text: 'Lake trip' },
       spine: { text: 'Lake trip' },
-      back: { text: '' },
+      back: { text: 'Lake trip' },
       style: defaultCoverStyle(),
     })
   })

@@ -1,12 +1,22 @@
 import { useState, useSyncExternalStore } from 'react'
-import { TRIM_MAX_MM, TRIM_MIN_MM } from '../core'
+import { PAGE_STEP, TRIM_MAX_MM, TRIM_MIN_MM } from '../core'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { fmtN, pagesOf } from './editorChromeTokens'
+import {
+  bookSettingsSubtitle,
+  FIELD,
+  fmtN,
+  PAGE_MAX,
+  PAGE_MIN,
+  pagesNote,
+  pagesOf,
+  SUB,
+  T,
+} from './editorChromeTokens'
 import { Select } from '../ui/Select'
 import { InspectorRow, ReadOnlyPill, ToggleSwitch } from './InspectorControls'
 
@@ -120,13 +130,60 @@ function SizeField({
   )
 }
 
+/**
+ * Rendered #/demo step 24: compact filled number box (kit `Val` metrics, no
+ * spin arrows). A typed count commits on Enter / blur, clamped to 20–120 in
+ * steps of 2, and adds or removes spreads at the end (one undo step).
+ */
+function PagesField({ pages }: { pages: number }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const shown = draft ?? String(pages)
+  const commit = () => {
+    // No draft ("null") or a non-number parses to NaN: the book is kept.
+    dispatchBookOp({
+      type: 'setPageCount',
+      pages: Number.parseFloat(String(draft)),
+    })
+    setDraft(null)
+  }
+  return (
+    <input
+      type="number"
+      className="insp-pages-field rounded-sm px-2 py-1 text-sm"
+      aria-label="Pages"
+      data-testid="book-pages-input"
+      min={PAGE_MIN}
+      max={PAGE_MAX}
+      step={PAGE_STEP}
+      value={shown}
+      style={{
+        width: `calc(${String(Math.max(2, shown.length))}ch + 1rem)`,
+        background: FIELD,
+        color: T,
+      }}
+      onChange={(event) => {
+        setDraft(event.currentTarget.value)
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          commit()
+        } else if (event.key === 'Escape') {
+          setDraft(null)
+        }
+      }}
+      onBlur={commit}
+    />
+  )
+}
+
 /** Kit "Book settings" (uikit/src/sandbox/v7.tsx:200-210) on the document. */
 export function BookSettingsSection() {
-  const { settings, spreads } = useSyncExternalStore(
+  const { settings, spreads, cover } = useSyncExternalStore(
     subscribeBookStore,
     readBook,
     readBook,
   )
+  const pages = pagesOf(spreads.length)
   const [unit, setUnit] = useState<Unit>('cm')
   const [customPicked, setCustomPicked] = useState(false)
   const { trim, endpapers } = settings
@@ -143,8 +200,11 @@ export function BookSettingsSection() {
         <h2 className="text-sm font-semibold" data-testid="inspector-context">
           Book settings
         </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Applies to the whole book
+        <p
+          className="mt-0.5 text-xs text-muted-foreground"
+          data-testid="book-settings-subtitle"
+        >
+          {bookSettingsSubtitle(cover.back.text, cover.front.text)}
         </p>
       </div>
       <h4 className="inspector-eyebrow">Page size</h4>
@@ -236,17 +296,24 @@ export function BookSettingsSection() {
           }}
         />
       </InspectorRow>
-      {/* Kit v7.tsx:207-208: pages pill and the spreads-of-2 note. */}
+      {/* Rendered #/demo step 24: pages box, range hint and the spreads note. */}
       <InspectorRow label="Pages">
-        <span data-testid="book-pages">
-          <ReadOnlyPill value={String(pagesOf(spreads.length))} />
+        <span className="flex items-center gap-1" data-testid="book-pages">
+          <PagesField pages={pages} />
+          <span
+            className="text-2xs"
+            style={{ color: SUB }}
+            data-testid="book-pages-range"
+          >
+            {PAGE_MIN}–{PAGE_MAX}
+          </span>
         </span>
       </InspectorRow>
       <p
         className="text-2xs text-muted-foreground"
         data-testid="book-pages-note"
       >
-        Pages are added in spreads of 2
+        {pagesNote(pages)}
       </p>
       <h4 className="inspector-eyebrow">Print</h4>
       {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}

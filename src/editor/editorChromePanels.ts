@@ -1,4 +1,7 @@
+import { PAGE_MAX, PAGE_MIN, pagesOf } from '../core'
 import { formatZoomPercent } from './camera'
+
+export { PAGE_MAX, PAGE_MIN, pagesOf }
 
 export interface EditorPanels {
   l: boolean
@@ -57,8 +60,24 @@ export function pageLabel(i: number): string {
   return `${String(i * 2)}–${String(i * 2 + 1)}`
 }
 
-export function pagesOf(spreads: number): number {
-  return spreads * 2
+/** Kit v7.tsx:208 note under Pages; spreads add 2 pages each. */
+export function pagesNote(pages: number): string {
+  if (pages < PAGE_MIN) {
+    const short = PAGE_MIN - pages
+    const spreads = String(Math.ceil(short / 2))
+    return `Add ${spreads} spread${short > 2 ? 's' : ''} to reach the ${String(PAGE_MIN)}-page minimum`
+  }
+  if (pages > PAGE_MAX) {
+    const spreads = String(Math.ceil((pages - PAGE_MAX) / 2))
+    return `Remove ${spreads} spreads to stay within ${String(PAGE_MAX)} pages`
+  }
+  return 'Pages are added in spreads of 2'
+}
+
+/** Kit v7.tsx:202 Book settings meta line: back text, else front title. */
+export function bookSettingsSubtitle(back: string, front: string): string {
+  const name = back || front || 'Untitled book'
+  return `${name} · applies to the whole book`
 }
 
 export function fmtN(n: number): string {

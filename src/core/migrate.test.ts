@@ -313,7 +313,7 @@ describe('migrateToCurrent', () => {
       expect(result.book.cover).toEqual({
         front: { text: 'Summer' },
         spine: { text: 'Summer' },
-        back: { text: '' },
+        back: { text: 'Summer' },
         style: defaultCoverStyle(),
       })
       expect(result.book.endpapers).toEqual({ front: {}, back: {} })
@@ -461,7 +461,7 @@ describe('migrateToCurrent', () => {
   it('a new book cover text is its title', () => {
     expect(makeBook({ title: 'Trip' }).cover.front.text).toBe('Trip')
     expect(defaultCover('Trip').spine.text).toBe('Trip')
-    expect(defaultCover('Trip').back.text).toBe('')
+    expect(defaultCover('Trip').back.text).toBe('Trip')
     expect(defaultEndpapers()).toEqual({ front: {}, back: {} })
   })
 
@@ -479,6 +479,7 @@ describe('migrateToCurrent', () => {
       expect(result.book.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
       expect(result.book.cover.front.text).toBe(title)
       expect(result.book.cover.spine.text).toBe(title)
+      expect(result.book.cover.back.text).toBe(title)
     },
   )
 

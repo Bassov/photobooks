@@ -72,6 +72,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   applyTemplate: 'Apply layout',
   addSpread: 'Add spread',
   removeSpread: 'Delete spread',
+  setPageCount: 'Page count',
   duplicateSpread: 'Duplicate spread',
   moveSpread: 'Move spread',
   addFrame: 'Add frame',
