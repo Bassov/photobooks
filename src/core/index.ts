@@ -133,7 +133,17 @@ export {
   duplicateSpread,
   moveSpread,
   resolveAddSpreadTemplateId,
+  setPageCount,
 } from './ops/spreads'
+export {
+  bookSpineWidthMm,
+  clampPageCount,
+  PAGE_MAX,
+  PAGE_MIN,
+  PAGE_STEP,
+  pagesOf,
+  spineWidthForPages,
+} from './pages'
 export {
   MIN_FRAME_EDGE_MM,
   addFrame,

@@ -11,7 +11,16 @@ export const TOGGLE_ON = '#A8A8A8'
 export const TOGGLE_OFF = '#CACACA'
 export const SWATCH_RING = '#8E8E8E'
 
-export { fmtN, mmToCm, pageLabel, pagesOf } from './editorChromePanels'
+export {
+  bookSettingsSubtitle,
+  fmtN,
+  mmToCm,
+  PAGE_MAX,
+  PAGE_MIN,
+  pageLabel,
+  pagesNote,
+  pagesOf,
+} from './editorChromePanels'
 
 export const EDITOR_CHROME_CSS = `
 .e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10); --toggle-on: ${TOGGLE_ON}; --toggle-off: ${TOGGLE_OFF}; --swatch-ring: ${SWATCH_RING} }

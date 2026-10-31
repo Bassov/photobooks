@@ -1,4 +1,5 @@
 import { getSpreadPageCount } from '../geometry/spreadSize'
+import { clampPageCount, PAGE_STEP } from '../pages'
 import type { Book, Spread } from '../schema'
 import { applyTemplate } from '../templates/apply'
 import { isTemplateId, type TemplateId } from '../templates/types'
@@ -82,6 +83,25 @@ export function removeSpread(book: Book, spreadId: string): Book {
     return book
   }
   return reapplyChangedPageRoles(book, { ...book, spreads })
+}
+
+/**
+ * Book settings "Pages": clamp to 20–120 in steps of 2, then add empty
+ * spreads at the end or remove the last ones until `pagesOf` matches.
+ */
+export function setPageCount(book: Book, pages: number): Book {
+  const target = clampPageCount(pages) / PAGE_STEP
+  if (!Number.isFinite(target)) {
+    return book
+  }
+  let next = book
+  while (next.spreads.length < target) {
+    next = addSpread(next)
+  }
+  for (const spread of book.spreads.slice(target)) {
+    next = removeSpread(next, spread.id)
+  }
+  return next
 }
 
 export function moveSpread(

@@ -106,13 +106,11 @@ test('Cover inspector style controls change the cover (#14)', async ({
   // Kit v7.tsx:215-216: Direction and Back fill are read-only pills.
   await expect(cover.getByTestId('cover-direction')).toHaveText('Top to bottom')
   await expect(cover.getByTestId('cover-back-fill')).toHaveText('Paper white')
-  const spine = page.getByTestId('cover-spine')
-  const before = (await spine.boundingBox())?.width ?? 0
-  await cover.getByTestId('cover-spine-width').getByRole('slider').focus()
-  await page.keyboard.press('End')
-  await expect
-    .poll(async () => (await spine.boundingBox())?.width ?? 0)
-    .toBeGreaterThan(before)
+  // Rendered #/demo step 13 (design-r3-book-cover): Spine width is read-only
+  // mono text; design-r3-book-cover.spec.ts checks the canvas spine width.
+  const spineWidth = cover.getByTestId('cover-spine-width')
+  await expect(spineWidth).toHaveText('12 mm')
+  await expect(spineWidth.locator('input')).toHaveCount(0)
 })
 
 // Spread list: uikit/src/sandbox/chrome.tsx:275,278; inspector v7.tsx:218-222.

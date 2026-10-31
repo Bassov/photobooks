@@ -66,13 +66,13 @@ describe('cover row in the pages list', () => {
     seed()
     dispatchBookOp({ type: 'setEndpapersEnabled', enabled: true })
     render(<SpreadsPanel />)
-    const { cover, settings } = getBookStoreSnapshot().book
+    const { settings } = getBookStoreSnapshot().book
     const { widthMm, heightMm } = settings.trim
     const paper = (testId: string): HTMLElement | null =>
       screen.getByTestId(testId).querySelector('[data-thumb-paper]')
     // jsdom serialises `aspect-ratio: r` as `r / 1`.
     expect(paper('cover-list-item')?.style.aspectRatio).toBe(
-      `${String((2 * widthMm + cover.style.spineWidthMm) / heightMm)} / 1`,
+      `${String((2 * widthMm + 12) / heightMm)} / 1`,
     )
     expect(paper('endpaper-list-item-front')?.style.aspectRatio).toBe(
       `${String((2 * widthMm) / heightMm)} / 1`,
@@ -86,6 +86,20 @@ describe('cover row in the pages list', () => {
       listbox.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(screen.getByTestId('spreads-list').contains(back)).toBe(true)
+  })
+
+  it('widens the cover card with the computed spine when pages are added', () => {
+    seed()
+    render(<SpreadsPanel />)
+    act(() => {
+      dispatchBookOp({ type: 'setPageCount', pages: 120 })
+    })
+    const { widthMm, heightMm } = getBookStoreSnapshot().book.settings.trim
+    expect(
+      screen
+        .getByTestId('cover-list-item')
+        .querySelector<HTMLElement>('[data-thumb-paper]')?.style.aspectRatio,
+    ).toBe(`${String((2 * widthMm + 32) / heightMm)} / 1`)
   })
 
   it('clicking a page row leaves the cover', () => {

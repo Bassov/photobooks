@@ -151,9 +151,8 @@ test('#14: the cover inspector lists the kit rows without fake inputs', async ({
   await expect(inspector.getByTestId('cover-back-fill')).toHaveText(
     'Paper white',
   )
-  await expect(
-    inspector.getByTestId('cover-spine-width').getByRole('slider'),
-  ).toBeVisible()
+  // Rendered #/demo step 13: Spine width is read-only mono text.
+  await expect(inspector.getByTestId('cover-spine-width')).toHaveText('12 mm')
   // Kit v7.tsx:215: Direction is a Val pill.
   await expect(inspector.getByTestId('cover-direction')).toHaveText(
     'Top to bottom',

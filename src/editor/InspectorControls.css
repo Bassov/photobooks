@@ -77,6 +77,25 @@
   outline: none;
 }
 
+/* Rendered #/demo step 24 Pages box: the kit `Val` pill as a number input,
+   no border and no spin arrows. */
+.insp-pages-field {
+  border: 0;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+
+.insp-pages-field::-webkit-inner-spin-button,
+.insp-pages-field::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.insp-pages-field:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 2px;
+}
+
 /* Kit SliderValueField: `w-16 rounded-xs bg-transparent text-right`, the
    focus ring `outline-2 outline-offset-1` in the muted ink. */
 .insp-slider-value {

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { flushSync } from 'react-dom'
+import { bookSpineWidthMm } from '../core'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import {
@@ -73,8 +74,8 @@ function endpapersEnabled(): boolean {
 }
 
 function coverRatio(): number {
-  const { cover, settings } = getBookStoreSnapshot().book
-  return coverCardRatio(settings.trim, cover.style.spineWidthMm)
+  const { book } = getBookStoreSnapshot()
+  return coverCardRatio(book.settings.trim, bookSpineWidthMm(book))
 }
 
 type RowAction = 'add' | 'duplicate' | 'delete'
