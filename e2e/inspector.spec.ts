@@ -66,7 +66,8 @@ test.describe('inspector numeric properties', () => {
     await x.fill('12.5')
     await x.press('Enter')
     await expect(x).toHaveValue('12.5')
-    await expect(frame.getByTestId('frame-size-tag')).toContainText('60 ×')
+    // Owner design change (round 7, M52): no size tag exists.
+    await expect(frame.getByTestId('frame-size-tag')).toHaveCount(0)
   })
 
   test('values follow a resize drag live and settle on the committed numbers', async ({
@@ -85,9 +86,9 @@ test.describe('inspector numeric properties', () => {
     await expect
       .poll(async () => number(await width.inputValue()))
       .toBeLessThan(before)
-    const tag = await frame.getByTestId('frame-size-tag').textContent()
+    // Owner design change (round 7, M52): no size tag exists mid-drag.
+    await expect(frame.getByTestId('frame-size-tag')).toHaveCount(0)
     const liveWidth = number(await width.inputValue())
-    expect(number(tag ?? '')).toBeCloseTo(liveWidth, 0)
     await page.mouse.up()
     await expect
       .poll(async () => number(await width.inputValue()))

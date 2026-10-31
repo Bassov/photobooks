@@ -73,9 +73,6 @@ function mount() {
   const button = document.createElement('button')
   button.className = 'spread-frame'
   button.setAttribute('data-frame-id', 'a')
-  const tag = document.createElement('span')
-  tag.setAttribute('data-testid', 'frame-size-tag')
-  button.append(tag)
   const handles = new Map<string, HTMLElement>()
   for (const id of ['nw', 'se', 'rotate', 'bogus']) {
     const el = document.createElement('span')
@@ -343,9 +340,8 @@ describe('frameHandleGesture', () => {
       fire('pointerdown', se, 150, 150)
       fire('pointermove', window, 170, 160)
       expect(dom.button.style.width).not.toBe('')
-      expect(
-        dom.button.querySelector('[data-testid="frame-size-tag"]')?.textContent,
-      ).toBe('70 × 60 mm')
+      // Owner design change (round 7, M52): the preview writes no size tag.
+      expect(dom.button.textContent).toBe('')
       fire('pointerup', window, 170, 160)
       expect(frame().rect).toEqual({ x: 100, y: 100, width: 70, height: 60 })
       undoBook()
@@ -541,9 +537,6 @@ describe('frameHandleGesture', () => {
       setup()
     })
 
-    const tagText = () =>
-      dom.button.querySelector('[data-testid="frame-size-tag"]')?.textContent
-
     it('needs 2 px of travel before it starts', () => {
       const se = dom.handles.get('se')
       assert(se !== undefined)
@@ -624,7 +617,6 @@ describe('frameHandleGesture', () => {
       expect(dom.button.style.width).toBe('30%')
       expect(dom.button.style.height).toBe('40%')
       expect(dom.button.style.transform).toBe('rotate(5deg)')
-      expect(tagText()).toBe('50 × 50 mm')
     })
 
     it('previews the live rotation and restores it after', () => {
@@ -671,19 +663,18 @@ describe('frameHandleGesture', () => {
       expect(frame().rotationDeg).toBe(40.1)
     })
 
-    it('Escape restores the styles and the size tag', () => {
+    it('Escape restores the styles', () => {
       const se = dom.handles.get('se')
       assert(se !== undefined)
       dom.button.style.width = '30%'
       fire('pointerdown', se, 150, 150)
       fire('pointermove', window, 170, 170)
-      expect(tagText()).toBe('70 × 70 mm')
+      expect(dom.button.style.width).not.toBe('30%')
       const seen = vi.fn()
       document.addEventListener('keydown', seen)
       key('Escape')
       document.removeEventListener('keydown', seen)
       expect(dom.button.style.width).toBe('30%')
-      expect(tagText()).toBe('50 × 50 mm')
       expect(seen).not.toHaveBeenCalled()
     })
 
@@ -695,7 +686,6 @@ describe('frameHandleGesture', () => {
       fire('pointermove', window, 170, 170)
       fire('pointercancel', window, 170, 170)
       expect(dom.button.style.width).toBe('30%')
-      expect(tagText()).toBe('50 × 50 mm')
       fire('pointerup', window, 170, 170)
       expect(frame().rect.width).toBe(50)
     })
@@ -703,17 +693,12 @@ describe('frameHandleGesture', () => {
     it('pointercancel before any movement leaves the styles alone', () => {
       const se = dom.handles.get('se')
       assert(se !== undefined)
-      tagSet('keep')
+      dom.button.style.width = '30%'
       fire('pointerdown', se, 150, 150)
+      dom.button.style.width = '33%'
       fire('pointercancel', window, 150, 150)
-      expect(tagText()).toBe('keep')
+      expect(dom.button.style.width).toBe('33%')
     })
-
-    function tagSet(text: string) {
-      const tag = dom.button.querySelector('[data-testid="frame-size-tag"]')
-      assert(tag !== null)
-      tag.textContent = text
-    }
 
     it('Escape with no gesture does not swallow the key', () => {
       const seen = vi.fn()

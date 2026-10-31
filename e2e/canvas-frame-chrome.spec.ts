@@ -37,13 +37,14 @@ test.describe('look parity: canvas frame chrome', () => {
       .not.toMatch(/^(rgba\(.*, 0\)|transparent|rgba\(0, 0, 0, 0\))$/)
   })
 
-  test('selecting a frame shows the size tag and the rotate handle', async ({
+  test('selecting a frame shows no size tag and no rotate handle', async ({
     page,
   }) => {
     const frame = page.getByTestId('spread-frame').first()
     await frame.click()
     await expect(frame).toHaveAttribute('aria-pressed', 'true')
-    await expect(frame.getByTestId('frame-size-tag')).toBeVisible()
+    // Owner design change (round 7, M52): no size tag exists in any mode.
+    await expect(page.getByTestId('frame-size-tag')).toHaveCount(0)
     // Kit select tool has no rotate knob (uikit/src/sandbox/canvas.tsx:224,443).
     await expect(frame.getByTestId('rotate-handle')).toHaveCount(0)
     await expect(frame.locator('.spread-frame-rotate-line')).toHaveCount(0)

@@ -38,6 +38,8 @@ Menus (`src/ui/Menu`): kit rows `py-1.5 text-sm` at `--leading-menu` 1.45 (30.84
 
 Page numbers: 8 screen px under each page, 11 px, at every zoom. Designer-accepted deviation (2026-10-31): page numbers hidden when the gap cannot hold 8 px + 11 px label.
 
+In-canvas chrome (empty / missing hints, crop tag, dpi and lock badges, the 1 px fold) keeps its screen px through a live zoom: `[data-camera-frame]` + `--cam-scale` undo the world scale in the same rAF as the page numbers. No frame size pill (Owner, round 7).
+
 UI ref: `uikit#/feature/design-tokens`.
 
 ## Semantic color roles
