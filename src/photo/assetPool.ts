@@ -634,6 +634,24 @@ export function getVisibleAssetIds(): readonly string[] {
   return [...visibleAssetIds]
 }
 
+/** True when the asset is in now (filmstrip window ∪ painted spreads ∪ book-used). */
+export function isNowAssetId(assetId: string): boolean {
+  return nowAssetIds.has(assetId)
+}
+
+/**
+ * True while a thumb320 decode for the asset is deferred, queued, or in
+ * flight (import-owned); working/zoom tier jobs do not count.
+ */
+export function hasPendingThumbDecode(assetId: string): boolean {
+  if (deferredLazyByAsset.has(assetId)) {
+    return true
+  }
+  const matches = (job: DecodeQueueItem): boolean =>
+    job.assetId === assetId && job.maxEdge === THUMB_MAX_EDGE
+  return queue.some(matches) || [...inFlightJobs].some(matches)
+}
+
 /** Painted-spread asset ids for one spread (unioned across spreads + filmstrip). */
 export function setSpreadVisibleAssetIds(
   spreadId: string,
