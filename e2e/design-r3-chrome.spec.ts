@@ -76,41 +76,6 @@ for (const width of [1440, 1280]) {
   })
 }
 
-/** Kit Button data-[disabled]: opacity .5 over the quiet #D7D7D7 h-8 pill. */
-async function expectKitDisabledPill(button: Locator): Promise<void> {
-  await expect(button).toBeDisabled()
-  await expect(button).toHaveCSS('opacity', '0.5')
-  await expect(button).toHaveCSS('background-color', 'rgb(215, 215, 215)')
-  await expect(button).toHaveCSS('height', '32px')
-}
-
-test('M11 Print and Publish close the right group, disabled in the kit style', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await openSessionEditor(page)
-  const print = page.getByTestId('editor-print')
-  const publish = page.getByTestId('editor-publish')
-
-  await expect(print).toBeVisible()
-  await expect(publish).toBeVisible()
-  await expect(print).toHaveText('Print')
-  await expect(publish).toHaveText('Publish')
-  await expectKitDisabledPill(print)
-  await expectKitDisabledPill(publish)
-
-  const order = await Promise.all(
-    ['present', 'editor-settings-open', 'editor-print', 'editor-publish'].map(
-      async (id) => spanOf(page.getByTestId(id)),
-    ),
-  )
-  const lefts = order.map((s) => s.left)
-  expect(lefts).toEqual([...lefts].sort((a, b) => a - b))
-  const bar = await spanOf(page.getByTestId('editor-bar'))
-  // Publish is the last control: 12 px (px-3) from the bar's right edge.
-  expect(bar.right - (order[3]?.right ?? 0)).toBeCloseTo(12, 0)
-})
-
 test('M26 empty dock is the kit 160 px and the 19 × 23 Fit spread is 588', async ({
   page,
 }) => {

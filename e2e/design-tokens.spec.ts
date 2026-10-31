@@ -195,13 +195,13 @@ test('editor top bar follows kit v0.10 structure and tokens', async ({
   const present = page.getByTestId('present')
   await expect(present).toHaveText('Preview')
   await expect(present).toHaveCSS('background-color', 'rgb(215, 215, 215)')
-  // Kit toolbar ends with Preview · Settings · Print · Publish
-  // (uikit/src/demo-parts/editor.tsx:95-100); Print / Publish have no feature
-  // yet, so they are disabled (design-r3-chrome M11).
+  // Print / Publish are not wired in the editor: hidden, not stubbed.
+  for (const name of ['Print', 'Publish']) {
+    await expect(bar.getByRole('button', { name })).toHaveCount(0)
+  }
+  // Kit toolbar ends with Preview · Settings (uikit/src/demo-parts/editor.tsx:97).
   await expect(
     bar.getByRole('button', { name: 'Settings', exact: true }),
   ).toBeVisible()
-  await expect(bar.getByRole('button', { name: 'Print' })).toBeDisabled()
-  await expect(bar.getByRole('button', { name: 'Publish' })).toBeDisabled()
   await assertDocumentFitsViewport(page)
 })

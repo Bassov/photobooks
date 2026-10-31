@@ -18,8 +18,7 @@ test('kit editor chrome mounts pasteboard and filmstrip', async ({ page }) => {
   await expect(page.getByTestId('inspector')).toBeVisible()
   await expect(page.getByTestId('editor-preview')).toHaveCount(0)
   await expect(page.getByTestId('export')).toHaveCount(0)
-  // Kit Publish is present but disabled (no publish feature yet).
-  await expect(page.getByTestId('editor-publish')).toBeDisabled()
+  await expect(page.getByTestId('editor-publish')).toHaveCount(0)
   await expect(page.getByTestId('camera-bar')).toHaveCount(0)
   await expect(page.getByTestId('spreads-list')).toHaveAttribute(
     'data-scrollport',

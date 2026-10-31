@@ -4,7 +4,7 @@ Roadmap: `docs/roadmap/P1/design-r3-chrome.md` (scope / Done when / Browser / Pe
 
 ### Scope out
 
-- Print / Publish features (look-only per `editor-shell`); Settings pill restyle.
+- Print / Publish buttons (M11 remainder, dropped by the Designer: features not shipped); Settings pill restyle.
 - Camera / initial-fit code (`usePasteboardCamera.ts`, owned by design-r3-canvas-fit).
 
 ### Delta / Risk
