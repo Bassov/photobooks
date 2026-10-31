@@ -1,0 +1,13 @@
+## Decisions
+
+1. **Back text default in core.** `defaultCover(title)` sets `back.text = title` (kit `blankExtras`). `CoverCanvas` already draws it, and `.cover-back-text` already matches the rendered kit (`--cover-ink`, insets 12 % / 10 %), so no CSS change. Stored books keep their text; `migrateV4ToV5` reuses `defaultCover`, so v4 documents now get back = title (intended).
+2. **Spine width is computed** (`src/core/pages.ts` `spineWidthForPages` / `bookSpineWidthMm`): 8 mm boards + 0.2 mm per page (Paper "Matte 200 g", 0.4 mm per sheet), page count clamped to 20–120 (short books print padded to 20 pages). 12 mm at 20 pages = kit "12 mm"; 32 mm at 120 (inside the schema's 4–40). Used by the inspector text, `CoverCanvas` (`coverLayout`) and `SpreadsPanel` cover card ratio. The stored `cover.style.spineWidthMm` stays in the schema so old documents parse; it is ignored. Formula documented in `docs/design.md`.
+3. **Pages is editable.** Core op `setPageCount` (`src/core/ops/spreads.ts`, `BookOp`): `clampPageCount` rounds to the nearest even number and clamps to 20–120; spreads are added at the end through `addSpread` or the last ones removed through `removeSpread`, so page roles are reapplied as for the list's own add / delete. One `BookOp` = one undo step ("Page count"). `PAGE_MIN` / `PAGE_MAX` / `pagesOf` move to core; `editorChromePanels.ts` re-exports them.
+4. **Pages field** (`BookSettingsSection` `PagesField`): number input with kit `Val` metrics (`rounded-sm px-2 py-1 text-sm`, `FIELD` fill, `T` ink, width by digits), spin arrows hidden (`.insp-pages-field`), `min 20 max 120 step 2`. Commits on Enter / blur so typing "1" on the way to "10" does not delete spreads; Escape reverts; non-numbers are a no-op.
+5. **Book settings subtitle** (step 24): `back || front || "Untitled book"` + " · applies to the whole book".
+
+## Touch-set & Test Plan
+
+- Files: `src/core/{cover,pages,index}.ts`, `src/core/ops/{spreads,applyBookOp}.ts`, `src/editor/{CoverSection,CoverCanvas,SpreadsPanel,BookSettingsSection,editorChromePanels,editorChromeTokens,bookHistory,InspectorControls.css}`, their tests, `migrate.test.ts`; e2e `design-r3-book-cover.spec.ts`; `docs/design.md`.
+- Unit: `pages.test.ts` (clamp/round edges, NaN, spine at 0/20/22/42/120/140, add/remove/no-op); field commit on Enter/blur, Escape, empty; spine text follows `setPageCount`; cover card ratio at 120 pages.
+- e2e: back text; spine 12 → 16 → 32 mm text + canvas ratio; Pages box metrics (FIELD, 6 px radius, 4/8 px pad, `appearance: textfield`); clamp 10 → 20, 200 → 120, 33 → 34, ArrowDown + blur, undo; reload persistence. Skill `ui-review` before push.
