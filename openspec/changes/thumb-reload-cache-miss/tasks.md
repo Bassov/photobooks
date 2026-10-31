@@ -1,7 +1,7 @@
 ## Implementation
 
-- [ ] 1. e2e repro `e2e/thumb-reload-cache-miss.spec.ts` (fails on main).
-- [ ] 2. `src/editor/thumbMissDecode.ts` + `ensureThumb` cache-miss branch: resolve File (retained or registered `AssetSource`), decode thumb320 through the pool, publish + cache, restore aspect; unit tests for the miss branch.
+- [x] 1. e2e repro `e2e/thumb-reload-cache-miss.spec.ts` (fails on main: 14/14 mounted tail tiles gray after 60 s; passes with the fix).
+- [x] 2. `src/editor/thumbMissDecode.ts` + `ensureThumb` cache-miss branch: resolve File (retained or registered `AssetSource`), decode thumb320 through the pool, publish + cache, restore aspect; unit tests for the miss branch (`src/editor/thumbMissDecode.test.ts`, `thumbCache.test.ts`; stryker:diff 100%).
 
 ## Manual test scenarios
 
