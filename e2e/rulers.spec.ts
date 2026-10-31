@@ -32,47 +32,29 @@ async function expectAligned(page: Page): Promise<void> {
     .toBeLessThan(1.5)
 }
 
-test('rulers are off by default; the Rulers toggle and Shift+R show / hide them', async ({
+test('rulers are off by default; Shift+R shows / hides them (no bar control)', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  // Kit bar has no Rulers toggle (uikit/src/sandbox/chrome.tsx:168-180): View menu item.
-  const item = page.getByTestId('view-rulers-item')
-  const openMenu = async (): Promise<void> => {
-    await page.getByTestId('view-menu').click()
-    await expect(item).toBeVisible()
-  }
-  const expectChecked = async (checked: 'true' | 'false'): Promise<void> => {
-    await openMenu()
-    await expect(item).toHaveAttribute('aria-checked', checked)
-    await page.keyboard.press('Escape')
-    await expect(item).toHaveCount(0)
-  }
+  await expect(page.getByTestId('view-menu')).toHaveCount(0)
   await expect(page.getByTestId('ruler-x')).toHaveCount(0)
   await expect(page.getByTestId('ruler-y')).toHaveCount(0)
-  await expectChecked('false')
 
-  await openMenu()
-  await item.click()
+  await page.keyboard.press('Shift+R')
   await expect(page.getByTestId('ruler-x')).toBeVisible()
   await expect(page.getByTestId('ruler-y')).toBeVisible()
   await expect(page.getByTestId('ruler-corner')).toHaveText('mm')
-  await expectChecked('true')
   const x = await page.getByTestId('ruler-x').boundingBox()
   expect(Math.round(x?.height ?? 0)).toBe(22)
   const y = await page.getByTestId('ruler-y').boundingBox()
   expect(Math.round(y?.width ?? 0)).toBe(22)
 
-  await openMenu()
-  await item.click()
-  await expect(page.getByTestId('ruler-x')).toHaveCount(0)
-
-  await page.keyboard.press('Shift+R')
-  await expect(page.getByTestId('ruler-x')).toBeVisible()
-  await expectChecked('true')
   await page.keyboard.press('Shift+R')
   await expect(page.getByTestId('ruler-x')).toHaveCount(0)
   await expect(page.getByTestId('ruler-y')).toHaveCount(0)
+
+  await page.keyboard.press('Shift+R')
+  await expect(page.getByTestId('ruler-x')).toBeVisible()
 })
 
 test('rulers follow the active spread through scroll and zoom; the page never scrolls', async ({

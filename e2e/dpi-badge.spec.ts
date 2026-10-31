@@ -15,9 +15,6 @@ import {
 import { PERF_BUDGETS } from './perf/budgets'
 import { applyCpuThrottling, clearPerfScenario } from './perf/perfFixture'
 
-const INK_WARNING = 'rgb(57, 55, 56)' // --ink-warning #393738
-const FIELD = 'rgb(215, 215, 215)' // #D7D7D7
-
 test.beforeAll(() => {
   ensurePhotoFixtures()
 })
@@ -53,7 +50,7 @@ async function frameCenter(page: Page) {
 }
 
 test.describe('low-resolution badge on frames', () => {
-  test('appears when zoomed past the default threshold, clears on reset', async ({
+  test('stays off in the editor even when zoomed past the threshold (no bar control)', async ({
     page,
   }) => {
     test.setTimeout(180_000)
@@ -61,9 +58,7 @@ test.describe('low-resolution badge on frames', () => {
     await placeLargePhoto(page)
     const badge = page.getByTestId('dpi-badge')
     await expect(badge).toHaveCount(0)
-    // Kit bar has no DPI toggle (uikit/src/sandbox/chrome.tsx:168-180): View menu.
-    await page.getByTestId('view-menu').click()
-    await page.getByTestId('view-dpi-item').click()
+    await expect(page.getByTestId('view-menu')).toHaveCount(0)
 
     // Inspector is open by default (uikit/src/features/parts.tsx:26).
     await filledFrame(page).dblclick()
@@ -71,34 +66,75 @@ test.describe('low-resolution badge on frames', () => {
     const center = await frameCenter(page)
     await page.mouse.move(center.x, center.y)
     await page.mouse.wheel(0, -1500)
-
-    await expect(badge).toHaveCount(1)
-    const dpi = Number.parseInt((await badge.textContent()) ?? '', 10)
-    expect(dpi).toBeLessThan(200)
-    await expect(badge).toHaveText(`${String(dpi)} dpi`)
-    const paint = await badge.evaluate((el) => {
-      const s = getComputedStyle(el)
-      return { bg: s.backgroundColor, color: s.color }
-    })
-    expect(paint).toEqual({ bg: FIELD, color: INK_WARNING })
-    await assertDocumentFitsViewport(page)
-
-    await page.getByTestId('crop-reset').click()
+    await expect(page.getByTestId('crop-reset')).toBeEnabled()
     await expect(badge).toHaveCount(0)
+    await assertDocumentFitsViewport(page)
+  })
+
+  // Kit #/demo (Designer ruling 2026-10-31): low-res shows only as the ppi chip
+  // in the Photo inspector header (filename / px / ppi), in the warn tone.
+  test('low resolution shows as the warn-tone ppi chip in the Photo inspector', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000)
+    await openSessionEditor(page)
+    await placeLargePhoto(page)
+    // Inspector is open by default (uikit/src/features/parts.tsx:26).
+    await expect(page.getByTestId('panel-r')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
+    await filledFrame(page).click()
+    const chip = page
+      .getByTestId('inspector-photo')
+      .getByTestId('inspector-photo-dpi')
+    await expect(chip).toHaveAttribute('data-color', 'success')
+    const sharp = Number.parseInt((await chip.textContent()) ?? '', 10)
+    expect(sharp).toBeGreaterThanOrEqual(200)
+
+    await filledFrame(page).dblclick()
+    await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
+    const center = await frameCenter(page)
+    await page.mouse.move(center.x, center.y)
+    await page.mouse.wheel(0, -1500)
+    await expect(chip).toHaveAttribute('data-color', /^(warning|error)$/)
+    const soft = Number.parseInt((await chip.textContent()) ?? '', 10)
+    expect(soft).toBeLessThan(200)
+    await expect(chip).toHaveText(`${String(soft)} ppi`)
+    const tone = await chip.getAttribute('data-color')
+    const paint = await chip.evaluate((el, t) => {
+      const s = getComputedStyle(el)
+      const root = getComputedStyle(document.documentElement)
+      const probe = document.createElement('span')
+      probe.style.color = root.getPropertyValue(`--badge-${String(t)}-fg`)
+      probe.style.backgroundColor = root.getPropertyValue(
+        `--badge-${String(t)}-bg`,
+      )
+      document.body.append(probe)
+      const p = getComputedStyle(probe)
+      const want = { bg: p.backgroundColor, color: p.color }
+      probe.remove()
+      return { got: { bg: s.backgroundColor, color: s.color }, want }
+    }, tone)
+    expect(paint.want.color).not.toBe('')
+    expect(paint.got).toEqual(paint.want)
+    await expect(page.getByTestId('dpi-badge')).toHaveCount(0)
   })
 
   test('never paints in Preview', async ({ page }) => {
     test.setTimeout(180_000)
     await openSessionEditor(page)
     await placeLargePhoto(page)
-    await page.getByTestId('view-menu').click()
-    await page.getByTestId('view-dpi-item').click()
     // Inspector is open by default (uikit/src/features/parts.tsx:26).
+    await expect(page.getByTestId('panel-r')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
     await filledFrame(page).dblclick()
     const center = await frameCenter(page)
     await page.mouse.move(center.x, center.y)
     await page.mouse.wheel(0, -1500)
-    await expect(page.getByTestId('dpi-badge')).toHaveCount(1)
+    await expect(page.getByTestId('dpi-badge')).toHaveCount(0)
     await page.keyboard.press('Escape')
 
     await expect(page.getByTestId('present')).toBeEnabled()
