@@ -13,6 +13,7 @@ import { getSpreadPageCount } from '../core'
 import { setFrameSource } from './frameSelection'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
+  getActiveSpreadId,
   setActiveSpreadId,
   subscribeSpreadRevealRequest,
 } from './photoRootSession'
@@ -359,8 +360,16 @@ export const Pasteboard = memo(function Pasteboard({
     if (viewport.width === 0 || viewport.height === 0) {
       return
     }
+    // A trim change (book opened after mount) refits too: Fit is per trim.
     cameraRef.current.refitIfFitted()
-  }, [fitOnOpen, spreadIds.length, viewport.width, viewport.height])
+  }, [
+    fitOnOpen,
+    spreadIds.length,
+    trimWidthMm,
+    trimHeightMm,
+    viewport.width,
+    viewport.height,
+  ])
   useEffect(
     () =>
       registerCameraCommands({
@@ -427,6 +436,7 @@ export const Pasteboard = memo(function Pasteboard({
               ratio: entry.ratio,
               index: entry.index,
             })),
+            getActiveSpreadId(),
           )
         if (nextId !== null) {
           startTransition(() => {
@@ -495,6 +505,10 @@ export const Pasteboard = memo(function Pasteboard({
           className="pasteboard-scroll"
           data-testid="pasteboard-scroll"
           data-spread-count={spreadIds.length}
+          // Size the camera last followed: the Fit refit runs in the same
+          // commit, so a match with clientWidth/Height means it has landed.
+          data-viewport-width={viewport.width}
+          data-viewport-height={viewport.height}
           role="region"
           aria-label="Spreads"
           tabIndex={0}

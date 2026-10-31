@@ -30,6 +30,7 @@ import {
   openSpreadTab,
 } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { waitForPasteboardSettled } from './fixtures/pasteboardSettled'
 import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
 test.beforeEach(async ({ page }) => {
@@ -337,7 +338,10 @@ test('painter fixture scrolls inside the pasteboard', async ({ page }) => {
     const world = el.querySelector('[data-testid="pasteboard-world"]')
     return {
       scrollHeight: el.scrollHeight,
-      slotHeight: slot?.getBoundingClientRect().height ?? 0,
+      // The declared stride: the box is floored to 1/64 px per slot, which
+      // drifts by up to 40/64 px over the stack.
+      slotHeight:
+        slot instanceof HTMLElement ? Number.parseFloat(slot.style.height) : 0,
       inset: Number(world?.getAttribute('data-stack-inset') ?? 0),
     }
   })
@@ -581,6 +585,9 @@ test('Space activates focused filmstrip tile with pointer over pasteboard (PB-04
   const tile = page.getByTestId('filmstrip-item').first()
   await expect(tile).toBeVisible({ timeout: 30_000 })
   await expect(tile).toHaveAttribute('aria-selected', 'false')
+  // The import status line leaves after the tile shows; Fit then refits the
+  // taller pasteboard. Read the camera only once that refit has landed.
+  await waitForPasteboardSettled(page)
 
   const scroll = page.getByTestId('pasteboard-scroll')
   const topBefore = await scroll.evaluate((el) => el.scrollTop)
@@ -913,9 +920,18 @@ async function fitSpreadUntilFilled(page: Page): Promise<void> {
             }
             const port = el.getBoundingClientRect()
             const box = view.getBoundingClientRect()
+            // Kit Fit contains the two-page spread `SW` (viewport.tsx L124):
+            // it touches the band height `H − FIT_TOP − FIT_BOTTOM` or the
+            // band width `W − 2·pad`; the widest mounted spread is `SW`.
+            const widest = Math.max(
+              ...Array.from(
+                el.querySelectorAll('[data-testid="spread-view"]'),
+                (node) => node.getBoundingClientRect().width,
+              ),
+            )
             return (
-              // Kit fit band: `H − FIT_TOP − FIT_BOTTOM` (viewport.tsx L126).
-              box.height >= port.height - 56 - 48 - 2 &&
+              (box.height >= port.height - 56 - 48 - 2 ||
+                widest >= el.clientWidth - 2 * 40 - 2) &&
               box.width >= 1 &&
               box.top >= port.top - 1 &&
               box.bottom <= port.bottom + 1 &&
