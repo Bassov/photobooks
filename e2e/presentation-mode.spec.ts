@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures/coverage'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   browserAssertNoLoaf,
@@ -51,14 +52,15 @@ test.describe('frame-budget gates', () => {
   }, testInfo) => {
     test.setTimeout(180_000)
     await enablePerfScenario(page, '/?perf=1')
-    const add = page.getByTestId('add-spread')
-    for (let i = 0; i < 37; i += 1) {
-      await add.click()
-    }
+    await addSpreads(page, 37)
     await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
       'data-spread-count',
       '40',
     )
+    // Row Add after selects the new spread; start the show from spread 1.
+    const firstRow = page.getByTestId(/^spread-list-item-/).first()
+    await firstRow.click()
+    await expect(firstRow).toHaveAttribute('aria-selected', 'true')
     await page.getByTestId('present').click()
     await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
     const flip = async (key: 'ArrowLeft' | 'ArrowRight'): Promise<void> => {

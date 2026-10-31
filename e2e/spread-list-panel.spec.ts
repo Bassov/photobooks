@@ -3,6 +3,7 @@ import {
   assertDocumentFitsViewport,
   assertNamedScrollport,
 } from './fixtures/assertDocumentFitsViewport'
+import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 const rows = (page: import('@playwright/test').Page) =>
@@ -60,10 +61,7 @@ test('long list is windowed, scrolls inside spreads-list and navigates far', asy
   page,
 }) => {
   await openSessionEditor(page)
-  const add = page.getByTestId('add-spread')
-  for (let i = 0; i < 37; i += 1) {
-    await add.click()
-  }
+  await addSpreads(page, 37)
   await expect(rows(page).first()).toBeVisible()
   const mounted = await rows(page).count()
   expect(mounted).toBeGreaterThan(0)

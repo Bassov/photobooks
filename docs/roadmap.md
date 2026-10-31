@@ -43,6 +43,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
 - [ ] [feature] [design-r2-inspector](roadmap/P1/design-r2-inspector.md) — Bug: design-r2-inspector: inspector always visible, Spread+LAYOUT context, select on drop, Photo inspector
+- [ ] [feature] [design-r2-spread-list](roadmap/P1/design-r2-spread-list.md) — Bug: design-r2-spread-list - spread-list panel parity (M17-M19, M23, M24)
 - [ ] [feature] [design-r2-toolbar-kitset](roadmap/P1/design-r2-toolbar-kitset.md) — Bug: design-r2-toolbar-kitset - top bar = kit #/demo tool set, centered, Hand pans (M11 widened, M20, M22)
 - [ ] [feature] [design-r2-cover-book](roadmap/P1/design-r2-cover-book.md) — Bug: design-r2-cover-book: cover labels/inspector, endpaper view, fit insets, spread-list overlap, book settings
 - [ ] [feature] [design-r2-canvas-toolbar](roadmap/P1/design-r2-canvas-toolbar.md) — Bug: design-r2-canvas-toolbar: drag hint + re-select, toolbar set, create-book custom size fields
@@ -55,6 +56,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [ ] [feature] [design-frame-crop-masters](roadmap/P1/design-frame-crop-masters.md) — Bug: design-frame-crop-masters: prod parity design fixes
 - [ ] [feature] [design-create-library-chrome](roadmap/P1/design-create-library-chrome.md) — Bug: design-create-library-chrome: prod parity design fixes
 - [x] [feature] [kit10-demo-expose-hidden](roadmap/P1/kit10-demo-expose-hidden.md) — Kit #/demo: expose hidden sandbox features (views, spread menu, parent edit, missing photo, relink)
+- [ ] [lite] [e2e-photo-fixture-race](roadmap/P1/e2e-photo-fixture-race.md) — Fix: e2e photo fixtures are rewritten while other workers import them
 
 ## P2 — Missing features, iterative
 

@@ -444,11 +444,38 @@ describe('SpreadsPanel list', () => {
     expect(getSpreadIdsSnapshot()).toEqual(['s0'])
   })
 
-  it('appends from the footer button without changing the selection', () => {
+  it('has no footer Add spread button; the row menu adds after', async () => {
     seedSpreads(2)
     render(<SpreadsPanel />)
-    fireEvent.click(screen.getByTestId('add-spread'))
+    expect(screen.queryByTestId('add-spread')).toBeNull()
+    fireEvent.click(screen.getByTestId('spread-menu-s1'))
+    fireEvent.click(await screen.findByTestId('spread-menu-add'))
     expect(getSpreadIdsSnapshot()).toHaveLength(3)
-    expect(getActiveSpreadId()).toBeNull()
+    expect(getSpreadIdsSnapshot().slice(0, 2)).toEqual(['s0', 's1'])
+  })
+
+  it('offsets the window and the reveal by the Cover / Endpaper head', () => {
+    seedSpreads(200)
+    stubViewport(300)
+    const head = 2.5 * rowPx()
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(
+      function (this: HTMLElement) {
+        return this.dataset.testid === 'cover-list' ? head : 0
+      },
+    )
+    render(<SpreadsPanel />)
+    const list = screen.getByTestId('spreads-list')
+    list.scrollTop = head
+    fireEvent.scroll(list)
+    expect(renderedIds()[0]).toBe('s0')
+    // Row 100 at the top: the window starts 3 overscan rows above it.
+    list.scrollTop = head + 100 * rowPx()
+    fireEvent.scroll(list)
+    expect(renderedIds()[0]).toBe('s97')
+    expect(renderedIds()).toContain('s100')
+    act(() => {
+      setActiveSpreadId('s150')
+    })
+    expect(list.scrollTop).toBeCloseTo(head + 151 * rowPx() - 300, 3)
   })
 })

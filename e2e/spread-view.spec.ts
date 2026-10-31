@@ -47,7 +47,8 @@ test('editor chrome bars wrap without page scroll at 320px and 4K', async ({
     await page.setViewportSize(size)
     await expect(page.getByRole('toolbar', { name: 'Editor' })).toBeVisible()
     await expect(page.getByTestId('zoom-menu')).toBeVisible()
-    await expect(page.getByTestId('add-spread')).toBeVisible()
+    // design-r2-spread-list M17: no Add spread button (row "…" → Add after).
+    await expect(page.getByTestId('add-spread')).toHaveCount(0)
     await assertDocumentFitsViewport(page)
   }
 })
@@ -62,7 +63,7 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
     'data-spread-count',
     '3',
   )
-  await expect(page.getByTestId('add-spread')).toBeVisible()
+  await expect(page.getByTestId('add-spread')).toHaveCount(0)
   await expect(page.getByTestId('template-add-spread')).toHaveCount(0)
   // Opens fitted on the selected spread: the window mounts the first spreads,
   // not every spread as stacked tiles.
