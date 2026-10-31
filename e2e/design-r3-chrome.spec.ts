@@ -10,7 +10,7 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
-import { expectKitGapRatio, spreadBoxes } from './fixtures/stackGap'
+import { expectStackGapRatio, spreadBoxes } from './fixtures/stackGap'
 import { chooseZoom } from './fixtures/zoomMenu'
 
 // Designer round 3 (2026-10-31) against the rendered kit #/demo at 1440 × 900.
@@ -101,7 +101,7 @@ test('M26 empty dock is the kit 160 px and the 19 × 23 Fit spread is 588', asyn
   await expect
     .poll(async () => (await spreadBoxes(page))[0]?.height ?? 0)
     .toBeCloseTo(588, 0)
-  await expectKitGapRatio(page)
+  await expectStackGapRatio(page)
 })
 
 test.beforeAll(() => {

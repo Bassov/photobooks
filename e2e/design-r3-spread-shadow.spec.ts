@@ -7,7 +7,8 @@ import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
 // Owner 2026-10-31 (design-r3-spread-shadow):
 // M35 the page shadow is the kit --page-shadow in screen px at every zoom
-//     (the slot's paint containment cut it into a hard band down the gap);
+//     (the slot's paint containment cut it into a hard band down the gap),
+//     drawn on an unscaled layer that tracks each page through a live zoom;
 // M36 the stack gap is 72 / 588 of the spread height;
 // M37 page numbers sit a constant 8 screen px under their page, 11 px font,
 //     centred under it, with no drift while a zoom gesture scales the world.
@@ -18,8 +19,12 @@ const KIT_SHADOW =
 interface StackProbe {
   gesture: string | null
   scale: number
+  shadowCss: string
   shadow: number[][]
-  clipMarginPx: number
+  /** Page shadows painted inside the zoom-scaled world (must be none). */
+  worldShadows: number
+  /** Largest edge offset between a spread and its shadow box, screen px. */
+  shadowRectDelta: number
   spreads: { top: number; bottom: number; height: number }[]
   labels: {
     text: string
@@ -31,9 +36,10 @@ interface StackProbe {
 
 /**
  * One-frame read of the first mounted spreads in SCREEN px: the effective
- * world scale (1 at rest, the gesture scale mid-zoom), the shadow layers as
- * [x, y, blur, alpha] × scale, the slot clip margin, and each shown page
- * number against its own page (single page = whole spread view).
+ * world scale (1 at rest, the gesture scale mid-zoom), the first page
+ * shadow's layers as [x, y, blur, alpha] (its layer is never scaled), how far
+ * each shadow box sits off its spread, and each shown page number against
+ * its own page (single page = whole spread view).
  */
 function probeStack(): StackProbe {
   const world = document.querySelector<HTMLElement>(
@@ -45,31 +51,47 @@ function probeStack(): StackProbe {
   const views = slots.map((slot) =>
     slot.querySelector<HTMLElement>('[data-testid="spread-view"]'),
   )
+  const boxes = slots.map((slot) =>
+    document.querySelector<HTMLElement>(
+      `[data-testid="pasteboard-page-shadow"][data-spread-id="${slot.dataset.spreadId ?? ''}"]`,
+    ),
+  )
   const first = views[0]
-  if (world === null || slots[0] === undefined || !first) {
+  const firstBox = boxes[0]
+  if (world === null || !first || !firstBox) {
     throw new Error('no mounted spread')
   }
   const scale = first.getBoundingClientRect().height / first.offsetHeight
-  const shadow = getComputedStyle(first)
-    .boxShadow.split(/,(?![^(]*\))/)
-    .map((layer) => {
-      const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(layer)?.[1] ?? '1'
-      const lengths = [
-        ...layer.replace(/rgba?\([^)]*\)/, '').matchAll(/-?[\d.]+px/g),
-      ]
-        .slice(0, 3)
-        .map((m) => Number.parseFloat(m[0]) * scale)
-      return [...lengths, Number(alpha)]
-    })
-  // Paint containment clips at the slot box plus overflow-clip-margin
-  // (content-visibility: auto implies it); without it nothing is clipped.
-  const slotStyle = getComputedStyle(slots[0])
-  const paintClipped =
-    /paint|content|strict/.test(slotStyle.contain) ||
-    slotStyle.contentVisibility === 'auto'
-  const clipMarginPx = paintClipped
-    ? Number.parseFloat(slotStyle.overflowClipMargin) * scale
-    : Number.MAX_SAFE_INTEGER
+  const shadowCss = getComputedStyle(firstBox).boxShadow
+  const shadow = shadowCss.split(/,(?![^(]*\))/).map((layer) => {
+    const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(layer)?.[1] ?? '1'
+    const lengths = [
+      ...layer.replace(/rgba?\([^)]*\)/, '').matchAll(/-?[\d.]+px/g),
+    ]
+      .slice(0, 3)
+      .map((m) => Number.parseFloat(m[0]))
+    return [...lengths, Number(alpha)]
+  })
+  const worldShadows = [
+    world,
+    ...world.querySelectorAll<HTMLElement>(
+      '[data-pasteboard-slot], [data-testid="spread-view"]',
+    ),
+  ].filter((el) => getComputedStyle(el).boxShadow !== 'none').length
+  let shadowRectDelta = 0
+  views.forEach((view, i) => {
+    const box = boxes[i]
+    if (!view || !box) {
+      shadowRectDelta = Number.POSITIVE_INFINITY
+      return
+    }
+    const a = view.getBoundingClientRect()
+    const b = box.getBoundingClientRect()
+    for (const d of [a.left - b.left, a.top - b.top, a.right - b.right]) {
+      shadowRectDelta = Math.max(shadowRectDelta, Math.abs(d))
+    }
+    shadowRectDelta = Math.max(shadowRectDelta, Math.abs(a.bottom - b.bottom))
+  })
   const spreads = views.flatMap((view) => {
     if (!view) return []
     const r = view.getBoundingClientRect()
@@ -97,8 +119,10 @@ function probeStack(): StackProbe {
   return {
     gesture: world.dataset.gesture ?? null,
     scale,
+    shadowCss,
     shadow,
-    clipMarginPx,
+    worldShadows,
+    shadowRectDelta,
     spreads,
     labels,
   }
@@ -121,6 +145,7 @@ function visibleLayers(boxShadow: string): string {
 }
 
 function expectKitShadow(probe: StackProbe): void {
+  expect(probe.shadowCss).toBe(KIT_SHADOW)
   expect(probe.shadow).toHaveLength(KIT_LAYERS.length)
   probe.shadow.forEach((layer, i) => {
     layer.forEach((value, k) => {
@@ -129,8 +154,10 @@ function expectKitShadow(probe: StackProbe): void {
       )
     })
   })
-  // The slot no longer clips the soft shadow into a hard band.
-  expect(probe.clipMarginPx).toBeGreaterThanOrEqual(KIT_REACH_PX)
+  // Nothing in the scaled (and slot-clipped) world paints a shadow; the
+  // unscaled shadow box follows each page edge.
+  expect(probe.worldShadows).toBe(0)
+  expect(probe.shadowRectDelta).toBeLessThanOrEqual(1)
 }
 
 function expectPageNumbers(probe: StackProbe): void {
@@ -277,11 +304,60 @@ test.describe('design-r3-spread-shadow', () => {
     expectPageNumbers(after)
   })
 
+  test('M35: through 8 Ctrl+wheel steps in and 8 out the shadow tracks the page and never changes', async ({
+    page,
+  }) => {
+    await settledProbe(page)
+    await page.evaluate(`window.__probeStack = ${probeStack.toString()}`)
+    const samples = await page
+      .getByTestId('pasteboard-scroll')
+      .evaluate(async (scroll) => {
+        const probe = (window as unknown as { __probeStack: () => StackProbe })
+          .__probeStack
+        const r = scroll.getBoundingClientRect()
+        const frame = (): Promise<void> =>
+          new Promise((resolve) => {
+            requestAnimationFrame(() => {
+              resolve()
+            })
+          })
+        const out: StackProbe[] = []
+        for (const deltaY of [...Array(8).fill(-60), ...Array(8).fill(60)]) {
+          scroll.dispatchEvent(
+            new WheelEvent('wheel', {
+              deltaY: deltaY as number,
+              ctrlKey: true,
+              clientX: r.x + r.width / 2,
+              clientY: r.y + r.height / 3,
+              bubbles: true,
+              cancelable: true,
+            }),
+          )
+          await frame()
+          out.push(probe())
+        }
+        return out
+      })
+    expect(samples).toHaveLength(16)
+    // The samples catch the live gesture scaling the world (a slow frame may
+    // let it settle between steps; the shadow must hold either way).
+    const live = samples.filter((s) => s.gesture === 'zoom')
+    expect(Math.max(...live.map((s) => s.scale))).toBeGreaterThan(1.2)
+    for (const sample of samples) {
+      expectKitShadow(sample)
+      expectPageNumbers(sample)
+    }
+    expect(new Set(samples.map((s) => s.shadowCss)).size).toBe(1)
+
+    const after = await settledProbe(page)
+    expectKitShadow(after)
+  })
+
   test('M35: the product shadow is the rendered kit #/demo spread shadow', async ({
     page,
   }) => {
     const product = await page
-      .locator('[data-pasteboard-slot] [data-testid="spread-view"]')
+      .getByTestId('pasteboard-page-shadow')
       .first()
       .evaluate((el) => getComputedStyle(el).boxShadow)
     expect(product).toBe(KIT_SHADOW)

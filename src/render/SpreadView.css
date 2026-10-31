@@ -5,16 +5,6 @@
   box-shadow: var(--page-shadow);
 }
 
-/* A live zoom gesture scales the whole world; keep the kit --page-shadow
-   (0 2px 6px near, 0 12px 32px far) in screen px meanwhile. */
-.pasteboard-world[data-gesture='zoom'] .spread-view {
-  box-shadow:
-    0 calc(2px / var(--cam-scale, 1)) calc(6px / var(--cam-scale, 1))
-      var(--page-shadow-near),
-    0 calc(12px / var(--cam-scale, 1)) calc(32px / var(--cam-scale, 1))
-      var(--page-shadow-far);
-}
-
 .spread-view--thumb {
   pointer-events: none;
   box-shadow: none;

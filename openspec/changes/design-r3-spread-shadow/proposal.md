@@ -10,4 +10,4 @@ Roadmap: `docs/roadmap/P1/design-r3-spread-shadow.md` (scope / Browser SoT). UI 
 ### Delta / Risk
 
 - UI: happy/interact per spec scenario; empty = numbers hide under a 19 px gap. No page-level H/V scroll; only `pasteboard-scroll` scrolls.
-- Risk: gesture-only `--cam-scale` costs a style recalc per gesture frame (perf gates).
+- Risk: gesture-only `--cam-*` frame vars on the scroller cost a style recalc per gesture frame (perf gates); the shadow layer adds one positioned box per mounted spread.

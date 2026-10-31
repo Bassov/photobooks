@@ -159,16 +159,42 @@
   margin-inline: auto;
   contain: layout paint style;
   content-visibility: auto;
-  /* Paint containment clips at the slot box (spread width, down to the next
-     spread), which cut the soft --page-shadow into a hard band. Let the whole
-     shadow reach (12 px offset + 32 px blur) paint. Chromium takes no calc()
-     here, so a live zoom gesture drops the paint clip instead (below). */
-  overflow-clip-margin: 48px;
 }
 
 .pasteboard-world[data-gesture='zoom'] .pasteboard-slot {
-  contain: layout style;
   content-visibility: visible;
+}
+
+/* The slot clips paint and the world scales during a zoom gesture, so the
+   page shadow lives on an unscaled layer under the world (PageShadows). */
+.pasteboard-slot .spread-view {
+  box-shadow: none;
+}
+
+.pasteboard-scroll,
+.pasteboard-world {
+  position: relative;
+}
+
+.pasteboard-shadows {
+  position: absolute;
+  inset: 0 auto auto 0;
+  pointer-events: none;
+}
+
+/* World-local page rect (--u/--v from the transform origin) mapped through
+   the live camera frame; the box-shadow itself never scales. */
+.pasteboard-page-shadow {
+  position: absolute;
+  left: calc(
+    var(--cam-origin) + var(--cam-tx, 0px) + var(--cam-scale, 1) * var(--u)
+  );
+  top: calc(
+    var(--cam-origin) + var(--cam-ty, 0px) + var(--cam-scale, 1) * var(--v)
+  );
+  width: calc(var(--cam-scale, 1) * var(--w));
+  height: calc(var(--cam-scale, 1) * var(--h));
+  box-shadow: var(--page-shadow);
 }
 
 .photo-file-input {

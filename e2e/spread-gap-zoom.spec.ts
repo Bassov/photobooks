@@ -79,7 +79,7 @@ test.describe('stack gap scales with zoom', () => {
     await assertDocumentFitsViewport(page)
   })
 
-  test('page numbers sit in the gap at Fit and at the floor', async ({
+  test('page numbers sit in the gap at Fit and hide once it is too short', async ({
     page,
   }) => {
     const slots = page.locator('[data-pasteboard-slot]')
@@ -96,10 +96,11 @@ test.describe('stack gap scales with zoom', () => {
     ).toBeLessThanOrEqual(0.5)
     expect(label.y + label.height).toBeLessThanOrEqual(second.y)
 
-    // A 3-spread floor keeps a gap of at least 8 px + the 11 px line.
+    // The 3-spread floor leaves less than 8 px + the 11 px line: no labels.
     await zoomOutToFloor(page)
-    expect(await firstGapPx(page)).toBeGreaterThanOrEqual(19)
-    await expect(slots.first().getByTestId('page-labels')).toBeVisible()
+    expect(await firstGapPx(page)).toBeLessThan(19)
+    await expect(page.getByTestId('page-labels')).toHaveCount(0)
+    expect(await readGapRatios(page)).not.toHaveLength(0)
   })
 })
 

@@ -45,6 +45,8 @@ import {
 import { Icon } from '../ui/Icon'
 import { PageLabels } from './PageLabels'
 import { pageLabelsFit } from './pageLabelsModel'
+import { PageShadows } from './PageShadows'
+import { pageShadowRects } from './pageShadowModel'
 import { RelinkHost } from './relink'
 import { Rulers } from './Rulers'
 import { getRulersVisible, subscribeRulersVisible } from './rulersView'
@@ -501,6 +503,18 @@ export const Pasteboard = memo(function Pasteboard({
           onScroll={onScroll}
           onPointerDown={onPointerDown}
         >
+          <PageShadows
+            originPx={PASTEBOARD_PAD_PX}
+            rects={pageShadowRects({
+              mounted,
+              start: range.start,
+              spreadCount: spreadIds.length,
+              stride,
+              spreadHeightPx: trimHeightMm * pxPerMm,
+              pageWidthPx: trimWidthMm * pxPerMm,
+              worldWidthPx: worldWidth,
+            })}
+          />
           <div
             ref={worldRef}
             className="pasteboard-world"
