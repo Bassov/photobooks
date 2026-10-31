@@ -7,7 +7,7 @@ import {
 } from 'react'
 import { clearDropHover, setDropHover } from './dropHover'
 import { setEditorStatus } from './editorStatus'
-import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+import { FILMSTRIP_EMPTY_HEIGHT, FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
 import {
   isExternalFilesDrag,
   resolveDroppedFolder,
@@ -105,6 +105,7 @@ export function FilmstripDock({
       style={
         {
           '--film-thumb-h': `${String(FILMSTRIP_THUMB_HEIGHT)}px`,
+          '--film-empty-h': `${String(FILMSTRIP_EMPTY_HEIGHT)}px`,
         } as CSSProperties
       }
       onDragOver={(event) => {
