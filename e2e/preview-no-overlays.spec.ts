@@ -56,6 +56,11 @@ test('Preview shows no selection, handles, pills, grid, guides or hover chrome; 
   await page.getByTestId('present').click()
   const stage = page.getByTestId('presentation')
   await expect(stage).toBeVisible()
+  // Owner design change (round 7, M53): Preview opens on the cover; Next
+  // shows the spread with the selected frame.
+  await expect(page.getByTestId('pager-position')).toHaveText('Cover')
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByTestId('pager-position')).toHaveText('1 / 3')
   await expect(stage.getByTestId('spread-frame').first()).toBeVisible()
   const counts: Record<string, number> = {}
   for (const [name, selector] of Object.entries(EDITOR_OVERLAYS)) {

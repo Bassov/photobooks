@@ -19,6 +19,9 @@ test('present opens fullscreen without editor chrome; keys, click and Esc work',
 
   const stage = page.getByTestId('presentation')
   await expect(stage).toBeVisible()
+  // Owner design change (round 7, M53): Preview opens on the cover.
+  await expect(page.getByTestId('pager-position')).toHaveText('Cover')
+  await page.keyboard.press('ArrowRight')
   await expect(page.getByTestId('pager-position')).toHaveText('1 / 3')
   const barCovered = await page.getByTestId('editor-bar').evaluate((bar) => {
     const r = bar.getBoundingClientRect()
