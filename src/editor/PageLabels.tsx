@@ -13,6 +13,7 @@ export function PageLabels({
       className="page-labels"
       data-testid="page-labels"
       data-pages={pages}
+      data-camera-frame=""
       aria-hidden="true"
     >
       <span className="page-label">{left}</span>

@@ -9,7 +9,7 @@ import { ASSET_DRAG_MIME } from './fixtures/dropAssetOnFrame'
 import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
-  KIT_GAP_RATIO,
+  STACK_GAP_RATIO,
   readGapRatios,
   spreadBoxes,
   zoomOutToFloor,
@@ -18,7 +18,7 @@ import { readZoomPercent } from './fixtures/zoomMenu'
 
 // Owner bug 2026-10-31: the gap between spreads jumped with zoom (smallest
 // zoomed in, largest zoomed out). It is now a fixed share of the spread
-// height: kit #/demo at 1440 × 900 has 44 px under its 588 px Fit spread.
+// height: 72 px under a 588 px spread (kit #/demo has 44; design-r3-spread-shadow).
 
 const SAME = 0.02
 
@@ -57,16 +57,16 @@ test.describe('stack gap scales with zoom', () => {
     await sessionBookWithThreeSpreads(page)
   })
 
-  test('gap / spread height is the kit share at the floor, Fit and zoomed in', async ({
+  test('gap / spread height is the stack share at the floor, Fit and zoomed in', async ({
     page,
   }) => {
     const fit = await readGapRatios(page)
-    expectSameRatio(fit, KIT_GAP_RATIO)
+    expectSameRatio(fit, STACK_GAP_RATIO)
     const fitGap = await firstGapPx(page)
 
     for (let i = 0; i < 3; i += 1) await stepZoom(page, 'zoom-in')
-    expectSameRatio(await readGapRatios(page), KIT_GAP_RATIO)
-    // The gap grew with the spreads instead of staying 44 screen px.
+    expectSameRatio(await readGapRatios(page), STACK_GAP_RATIO)
+    // The gap grew with the spreads instead of staying fixed in screen px.
     expect(await firstGapPx(page)).toBeGreaterThan(fitGap * 1.5)
     // Zoomed in, only the pasteboard scrolls; the document does not.
     await assertNamedScrollport(page, 'pasteboard-scroll', {
@@ -74,7 +74,7 @@ test.describe('stack gap scales with zoom', () => {
     })
 
     await zoomOutToFloor(page)
-    expectSameRatio(await readGapRatios(page), KIT_GAP_RATIO)
+    expectSameRatio(await readGapRatios(page), STACK_GAP_RATIO)
     expect(await firstGapPx(page)).toBeLessThan(fitGap / 2)
     await assertDocumentFitsViewport(page)
   })
@@ -92,14 +92,32 @@ test.describe('stack gap scales with zoom', () => {
       .boundingBox()
     assert(label !== null)
     expect(
-      Math.abs(label.y - (first.y + first.height) - 6),
-    ).toBeLessThanOrEqual(1)
+      Math.abs(label.y - (first.y + first.height) - 8),
+    ).toBeLessThanOrEqual(0.5)
     expect(label.y + label.height).toBeLessThanOrEqual(second.y)
 
+    // The 3-spread floor leaves less than 8 px + the 11 px line: no labels.
     await zoomOutToFloor(page)
+    expect(await firstGapPx(page)).toBeLessThan(19)
     await expect(page.getByTestId('page-labels')).toHaveCount(0)
     expect(await readGapRatios(page)).not.toHaveLength(0)
   })
+})
+
+test('page numbers hide once the gap is shorter than 8 px + the 11 px line', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/?fixture=painter')
+  await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+    'data-spread-count',
+    '40',
+  )
+  await expect(page.getByTestId('page-labels').first()).toBeVisible()
+  await zoomOutToFloor(page)
+  expect(await firstGapPx(page)).toBeLessThan(19)
+  await expect(page.getByTestId('page-labels')).toHaveCount(0)
+  expect(await readGapRatios(page)).not.toHaveLength(0)
 })
 
 test('an asset drag shows the drop pill inside the scaled gap', async ({

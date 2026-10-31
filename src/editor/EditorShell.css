@@ -165,6 +165,44 @@
   content-visibility: visible;
 }
 
+/* The slot clips paint and the world scales during a zoom gesture, so the
+   page shadow lives on an unscaled layer under the world (PageShadows). */
+.pasteboard-slot .spread-view {
+  box-shadow: none;
+}
+
+.pasteboard-scroll,
+.pasteboard-world {
+  position: relative;
+}
+
+/* A zero-size layout root: per-frame shadow moves never relayout the port.
+   No own compositor layer: one spanning every mounted shadow re-rasters on
+   each zoom frame and settle (continuous zoom-out LoAF gate). */
+.pasteboard-shadows {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 0;
+  height: 0;
+  contain: size layout style;
+  pointer-events: none;
+}
+
+/* World-local page rect (--u/--v from the transform origin) mapped through
+   the live camera frame; the box-shadow itself never scales. */
+.pasteboard-page-shadow {
+  position: absolute;
+  left: calc(
+    var(--cam-origin) + var(--cam-tx, 0px) + var(--cam-scale, 1) * var(--u)
+  );
+  top: calc(
+    var(--cam-origin) + var(--cam-ty, 0px) + var(--cam-scale, 1) * var(--v)
+  );
+  width: calc(var(--cam-scale, 1) * var(--w));
+  height: calc(var(--cam-scale, 1) * var(--h));
+  box-shadow: var(--page-shadow);
+}
+
 .photo-file-input {
   position: absolute;
   width: 1px;
@@ -272,19 +310,19 @@
   color: var(--foreground);
 }
 
-/* Kit PageLabels: one centred number under each page, 6 px under the spread
-   inside the zoom-scaled gap (no stride change). A single page has one number.
+/* Kit PageLabels: one centred number under each page, anchored to the page's
+   bottom edge (slot height minus the gap) at a constant 8 screen px with an
+   11 px line; --cam-scale undoes a live zoom gesture's world scale, so labels
+   never drift while zooming (pageLabelsModel). A single page has one number.
    Hidden while the gap pill shows. */
 .page-labels {
   position: absolute;
-  inset: auto 0 0;
-  height: var(--slot-pad, 44px);
+  inset-inline: 0;
+  top: calc(100% - var(--slot-pad, 0px) + 8px / var(--cam-scale, 1));
   display: flex;
-  padding-top: 6px;
-  box-sizing: border-box;
   color: var(--muted-foreground);
-  font-size: var(--text-xs);
-  line-height: 16px;
+  font-size: calc(var(--text-2xs) / var(--cam-scale, 1));
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }

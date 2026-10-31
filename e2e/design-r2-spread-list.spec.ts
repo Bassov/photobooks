@@ -8,7 +8,7 @@ import {
 import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
-  expectKitGapRatio,
+  expectStackGapRatio,
   spreadBoxes,
   zoomOutToFloor,
 } from './fixtures/stackGap'
@@ -127,7 +127,7 @@ test('M19: the Cover card is the kit card at the cover ratio', async ({
   }
 })
 
-test('M23: the gap is the kit share of the spread at Fit and after zoom; labels 6 px under', async ({
+test('M23: the gap is the stack share of the spread at Fit and after zoom; labels 8 px under', async ({
   page,
 }) => {
   const port = await box(page.getByTestId('pasteboard-scroll'))
@@ -135,14 +135,14 @@ test('M23: the gap is the kit share of the spread at Fit and after zoom; labels 
   assert(first !== undefined)
   // Kit Fit band [56, H - 48]: at least pt-14 air above page 1.
   expect(first.y - port.y).toBeGreaterThanOrEqual(55.5)
-  await expectKitGapRatio(page)
+  await expectStackGapRatio(page)
 
   const slot = page.locator('[data-pasteboard-slot]').first()
   const spread = await box(slot.getByTestId('spread-view'))
   const label = await box(slot.locator('.page-label:not(:empty)'))
   expect(
-    Math.abs(label.y - (spread.y + spread.height) - 6),
-  ).toBeLessThanOrEqual(1)
+    Math.abs(label.y - (spread.y + spread.height) - 8),
+  ).toBeLessThanOrEqual(0.5)
 
   // The gap scales with the spread (Owner bug fix-spread-gap-zoom), down to
   // the kit Stack floor 0.5 × Fit (Fit / 1.25³ = 0.512 × Fit).
@@ -156,12 +156,12 @@ test('M23: the gap is the kit share of the spread at Fit and after zoom; labels 
     const before = await readZoomPercent(page)
     await page.getByTestId(step).click()
     await expect.poll(() => readZoomPercent(page)).not.toBe(before)
-    await expectKitGapRatio(page)
+    await expectStackGapRatio(page)
   }
 
   // The smallest reachable zoom keeps the same share too.
   await zoomOutToFloor(page)
-  await expectKitGapRatio(page)
+  await expectStackGapRatio(page)
 })
 
 test('M23: a 40-spread book at the zoom-out floor keeps the gap share and mounts every spread', async ({
@@ -174,7 +174,7 @@ test('M23: a 40-spread book at the zoom-out floor keeps the gap share and mounts
   )
   await zoomOutToFloor(page)
   await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
-  await expectKitGapRatio(page)
+  await expectStackGapRatio(page)
   await assertDocumentFitsViewport(page)
 })
 
