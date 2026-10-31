@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r3-chrome: top-bar centring, filmstrip dock height
+Status: done
 
 ## Scope
 
