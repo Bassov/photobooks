@@ -17,6 +17,17 @@ import { readZoomPercent } from './fixtures/zoomMenu'
 // dist) at 1440 × 900 with the demo-capture walk and the DOM reads below
 // (getBoundingClientRect / getComputedStyle):
 //
+// M47 kit `tpl-suggested` (context-inspector.tsx:143): the first three kit
+//     catalogue layouts whose slot count equals the photo count; tiles
+//     131 × 88.625, thumbs 123 × 61.5. Kit 1-photo lists: p0 (Framed single)
+//     [Full bleed, Panorama], p1 (Full bleed) [Panorama, Framed single]. The
+//     kit "One per page" (data.ts t-pair) is one frame per page: page-relative
+//     10 % insets (p0 after apply: 339.19 × 481.30 at 42.39 / 60.16 in a
+//     424 × 601.61 page). The app's page 1 is a single page, where One per
+//     page is that one framed photo; the Owner Must keeps it listed in its
+//     catalogue place (2nd) even as the current layout, so page 1 reads
+//     [Full bleed, One per page, Panorama]. App insets follow the book's
+//     layout-grid margins (21.19 px of a 424 px page), not the kit's fixed 10 %.
 // M48 step 26 (editor-endpaper-selected): the inspector (left 1140, top 48)
 //     opens on `inspector-head` (px-4 pt-4 pb-1 → padding 16 16 4), height
 //     57.64; title "Endpaper · front" at 1156 / 64, 268 × 18.84 (13 px / 18.85,
@@ -31,6 +42,11 @@ import { readZoomPercent } from './fixtures/zoomMenu'
 //     removes it. The top-bar toggle `inspector-toggle` stays.
 
 const KIT = {
+  suggested: {
+    labels: ['Full bleed', 'One per page', 'Panorama'],
+    tile: { width: 131, height: 88.625 },
+    thumb: { width: 123, height: 61.5 },
+  },
   endpaper: {
     panelTop: 48,
     head: { height: 57.640625, padding: '16px 16px 4px' },
@@ -70,6 +86,76 @@ async function rectOf(locator: Locator) {
     }
   })
 }
+
+test.describe('M47 "One per page" is suggested for 1 photo', () => {
+  async function pageFrame(page: Page) {
+    const view = page.locator(
+      '[data-testid="spread-view"][data-spread-id="spread-1"]',
+    )
+    const pageBox = await rectOf(view)
+    const frame = await rectOf(view.locator('[data-frame-id]').first())
+    return {
+      page: pageBox,
+      x: frame.left - pageBox.left,
+      y: frame.top - pageBox.top,
+      width: frame.width,
+      height: frame.height,
+    }
+  }
+
+  test('page 1 lists it in kit order and kit tile size; applying it restores the framed page', async ({
+    page,
+  }) => {
+    await openSessionEditor(page)
+    await page.locator('[data-testid^="spread-list-item-"]').first().click()
+    const suggested = page.getByTestId('tpl-suggested')
+    await expect(suggested).toContainText('Suggested for 1 photo')
+    const tiles = suggested.getByTestId('layout-suggested-tile')
+    await expect(tiles).toHaveCount(KIT.suggested.labels.length)
+    expect(
+      await tiles.evaluateAll((els) =>
+        els.map((el) => el.getAttribute('aria-label')),
+      ),
+    ).toEqual(
+      KIT.suggested.labels.map((label) => `Apply suggested layout ${label}`),
+    )
+    await expect(tiles.getByTestId('tpl-name')).toHaveText(KIT.suggested.labels)
+    // The default page layout stays listed, pressed like its All-grid tile.
+    await expect(tiles.nth(1)).toHaveAttribute('aria-pressed', 'true')
+    for (let i = 0; i < KIT.suggested.labels.length; i++) {
+      const tile = await rectOf(tiles.nth(i))
+      near(tile.width, KIT.suggested.tile.width, 0.5)
+      near(tile.height, KIT.suggested.tile.height, 0.5)
+      const thumb = await rectOf(tiles.nth(i).getByTestId('layout-thumb'))
+      near(thumb.width, KIT.suggested.thumb.width, 0.5)
+      near(thumb.height, KIT.suggested.thumb.height, 0.5)
+    }
+
+    const framed = await pageFrame(page)
+    await page
+      .getByRole('button', { name: 'Apply layout Full bleed', exact: true })
+      .click()
+    await expect(tiles.nth(1)).toHaveAttribute('aria-pressed', 'false')
+    expect((await pageFrame(page)).x).toBeLessThan(0)
+
+    await page
+      .getByRole('button', {
+        name: 'Apply suggested layout One per page',
+        exact: true,
+      })
+      .click()
+    await expect(tiles.nth(1)).toHaveAttribute('aria-pressed', 'true')
+    const applied = await pageFrame(page)
+    // One frame inset by the page margins on every side.
+    for (const key of ['x', 'y', 'width', 'height'] as const) {
+      near(applied[key], framed[key], 0.5)
+    }
+    expect(applied.x).toBeGreaterThan(0)
+    near(applied.y, applied.x, 0.5)
+    near(applied.x + applied.width + applied.x, applied.page.width, 0.5)
+    near(applied.y + applied.height + applied.y, applied.page.height, 0.5)
+  })
+})
 
 test.describe('M48 the Endpaper inspector opens on its own head', () => {
   test('title, padding and head height equal the kit; nothing above', async ({
