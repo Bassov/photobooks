@@ -43,6 +43,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
 - [ ] [feature] [design-r3-canvas-fit](roadmap/P1/design-r3-canvas-fit.md) — Bug: design-r3-canvas-fit: canvas Fit on spread change + click on a selected frame
+- [ ] [feature] [design-r3-library-forms](roadmap/P1/design-r3-library-forms.md) — Bug: design-r3-library-forms: rename field pill, quiet focus rings
 - [ ] [feature] [design-r2-layout-picker](roadmap/P1/design-r2-layout-picker.md) — Bug: design-r2-layout-picker - Spread inspector Layout picker = kit (M21)
 - [x] [feature] [fix-spread-gap-zoom](roadmap/P1/fix-spread-gap-zoom.md) — Bug: fix-spread-gap-zoom — gap between spreads must scale with zoom (Owner bug, 2026-10-31)
 - [ ] [feature] [design-r2-inspector](roadmap/P1/design-r2-inspector.md) — Bug: design-r2-inspector: inspector always visible, Spread+LAYOUT context, select on drop, Photo inspector

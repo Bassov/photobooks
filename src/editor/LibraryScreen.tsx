@@ -31,7 +31,7 @@ import {
   type LibrarySortKey,
 } from './libraryBookFilter'
 import { libraryBookMenuEffect } from './libraryBookMenu'
-import { shouldSkipLibraryRename } from './libraryRename'
+import { focusRenameInput, shouldSkipLibraryRename } from './libraryRename'
 import { ensureLibraryScreenStyles } from './libraryScreenStyles'
 import { LibraryBar } from './LibraryBar'
 import { LibraryEmpty } from './LibraryEmpty'
@@ -326,8 +326,8 @@ export function LibraryScreen() {
                             <input
                               aria-label="Book title"
                               defaultValue={book.displayTitle}
-                              autoFocus
-                              className="pb-lib-rename h-7 w-full rounded-md bg-field px-2 text-sm outline-hidden focus:shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--ring)]"
+                              ref={focusRenameInput}
+                              className="pb-lib-rename"
                               data-testid="rename-input"
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
