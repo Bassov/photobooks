@@ -33,7 +33,7 @@ function PresentationCover() {
 }
 
 /** Pager position: the cover, then spreads numbered from 1. */
-export function presentationPosition(index: number, spreads: number): string {
+function presentationPosition(index: number, spreads: number): string {
   return index === 0 ? 'Cover' : `${String(index)} / ${String(spreads)}`
 }
 
