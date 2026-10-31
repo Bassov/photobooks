@@ -28,11 +28,14 @@ export const SpreadThumb = memo(function SpreadThumb({
   spreadId,
   boxWidthPx,
   boxHeightPx,
+  side = null,
 }: {
   spreadId: string
   /** Paper is fitted inside this box at its own aspect (rows differ). */
   boxWidthPx: number
   boxHeightPx: number
+  /** Page 1 (`right`) or a single last page (`left`): one half of a spread-wide slot. */
+  side?: 'left' | 'right' | null
 }) {
   const snapshot = useSyncExternalStore(
     (listener) => subscribeSpread(spreadId, listener),
@@ -62,12 +65,15 @@ export const SpreadThumb = memo(function SpreadThumb({
     return null
   }
   const { resolved } = snapshot
-  const { widthPx } = fitThumbPx(
+  // A single page on its side fits a spread-wide slot and fills one half.
+  const slotPages = side === null ? 1 : 2
+  const { widthPx: slotWidthPx, heightPx } = fitThumbPx(
     boxWidthPx,
     boxHeightPx,
-    resolved.spreadWidthMm / resolved.spreadHeightMm,
+    (resolved.spreadWidthMm * slotPages) / resolved.spreadHeightMm,
   )
-  return (
+  const widthPx = slotWidthPx / slotPages
+  const view = (
     <SpreadView
       thumb
       spreadId={spreadId}
@@ -80,5 +86,22 @@ export const SpreadThumb = memo(function SpreadThumb({
         tierUrlFromKey(tierDisplayKey, assetId)
       }
     />
+  )
+  if (side === null) {
+    return view
+  }
+  return (
+    <div
+      className="spread-thumb-slot"
+      data-page-side={side}
+      style={{
+        display: 'flex',
+        justifyContent: side === 'right' ? 'flex-end' : 'flex-start',
+        width: slotWidthPx,
+        height: heightPx,
+      }}
+    >
+      {view}
+    </div>
   )
 })

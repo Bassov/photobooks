@@ -9,7 +9,8 @@ import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 // M35 the page shadow is the kit --page-shadow in screen px at every zoom
 //     (the slot's paint containment cut it into a hard band down the gap),
 //     drawn on an unscaled layer that tracks each page through a live zoom;
-// M36 the stack gap is 72 / 588 of the spread height;
+// M36 the stack gap is 104 / 588 of the spread height (was 72 / 588; Owner
+//     design change, round 7, M49, design-r7-spreads);
 // M37 page numbers sit a constant 8 screen px under their page, 11 px font,
 //     centred under it, with no drift while a zoom gesture scales the world.
 
@@ -229,7 +230,7 @@ test.describe('design-r3-spread-shadow', () => {
     await chooseZoom(page, 'Fit spread')
   })
 
-  test('M35–M37: kit shadow, 72/588 gap and 8 px page numbers at 18 %, Fit and 138 %', async ({
+  test('M35–M37: kit shadow, 104/588 gap and 8 px page numbers at 18 %, Fit and 138 %', async ({
     page,
   }) => {
     const fit = await settledProbe(page)

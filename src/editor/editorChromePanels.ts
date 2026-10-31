@@ -55,8 +55,13 @@ export function isPanelToggleChord(mod: boolean, key: string): boolean {
   return key === '.'
 }
 
-export function pageLabel(i: number): string {
+/**
+ * Kit list label of spread `i`: `1`, then `2–3`, `4–5`…; with the book's
+ * `spreadCount`, a single last page reads its own number (`8`, not `8–9`).
+ */
+export function pageLabel(i: number, spreadCount?: number): string {
   if (i === 0) return '1'
+  if (spreadCount !== undefined && i === spreadCount - 1) return String(i * 2)
   return `${String(i * 2)}–${String(i * 2 + 1)}`
 }
 

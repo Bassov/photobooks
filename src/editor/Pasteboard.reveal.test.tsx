@@ -101,7 +101,7 @@ describe('Pasteboard reveal of an added spread', () => {
     expect(getBookStoreSnapshot().book.spreads).toHaveLength(4)
     expect(getCommittedZoom()).toBe(2)
     expect(scroll.scrollTop).not.toBe(900)
-    // One-stride overscan above the revealed spread (72 / 588 gap stride).
+    // One-stride overscan above the revealed spread (104 / 588 gap stride).
     expect(
       scroll
         .querySelector('[data-pasteboard-slot]')

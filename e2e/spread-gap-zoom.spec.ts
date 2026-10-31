@@ -18,7 +18,8 @@ import { readZoomPercent } from './fixtures/zoomMenu'
 
 // Owner bug 2026-10-31: the gap between spreads jumped with zoom (smallest
 // zoomed in, largest zoomed out). It is now a fixed share of the spread
-// height: 72 px under a 588 px spread (kit #/demo has 44; design-r3-spread-shadow).
+// height: 104 px under a 588 px spread (kit #/demo has 44; Owner design
+// change, round 7, M49, design-r7-spreads).
 
 const SAME = 0.02
 

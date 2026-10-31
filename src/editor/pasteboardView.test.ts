@@ -126,14 +126,14 @@ describe('world / stride helpers', () => {
   })
 
   it('scales the whole stride (spread and gap) with zoom', () => {
-    // 100 mm × 0.5 px/mm = 50 px at zoom 1; gap = spread × 72 / 588.
+    // 100 mm × 0.5 px/mm = 50 px at zoom 1; gap = spread × 104 / 588.
     const ratio = 1 + STACK_GAP_RATIO
     expect(pasteboardStrideAtZoom(100, 1)).toBeCloseTo(50 * ratio, 9)
     expect(pasteboardStrideAtZoom(100, 2)).toBeCloseTo(100 * ratio, 9)
     expect(pasteboardStrideAtZoom(100, 6)).toBeCloseTo(300 * ratio, 9)
     expect(pasteboardStrideAtZoom(100, 0.32)).toBeCloseTo(16 * ratio, 9)
-    // A 588 px spread (the #/demo Fit height) has a 72 px gap.
-    expect(pasteboardStrideAtZoom(588, 2)).toBeCloseTo(588 + 72, 9)
+    // A 588 px spread (the #/demo Fit height) has a 104 px gap (round 7, M49).
+    expect(pasteboardStrideAtZoom(588, 2)).toBeCloseTo(588 + 104, 9)
   })
 
   it('joins mounted ids for the window key', () => {

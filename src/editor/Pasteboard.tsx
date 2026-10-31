@@ -10,7 +10,7 @@ import {
   type PointerEvent,
   type UIEvent,
 } from 'react'
-import { getSpreadPageCount } from '../core'
+import { getSinglePageSide, getSpreadPageCount } from '../core'
 import { setFrameSource } from './frameSelection'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
@@ -46,7 +46,7 @@ import {
 } from './pasteboardWindow'
 import { Icon } from '../ui/Icon'
 import { PageLabels } from './PageLabels'
-import { pageLabelsFit } from './pageLabelsModel'
+import { newSpreadPillFits, pageLabelsFit } from './pageLabelsModel'
 import { PageShadows } from './PageShadows'
 import { pageShadowRects } from './pageShadowModel'
 import { RelinkHost } from './relink'
@@ -564,44 +564,53 @@ export const Pasteboard = memo(function Pasteboard({
                 style={{ height: range.leadPx }}
               />
             ) : null}
-            {mounted.map((spreadId, index) => (
-              <div
-                key={spreadId}
-                className="pasteboard-slot"
-                data-pasteboard-slot=""
-                data-testid="pasteboard-slot"
-                data-spread-id={spreadId}
-                data-slot-index={range.start + index}
-                data-active={markedId === spreadId ? 'true' : 'false'}
-                style={{
-                  height: stride,
-                  paddingBottom: gapPx,
-                  containIntrinsicBlockSize: `auto ${String(stride)}px`,
-                  ['--slot-pad' as string]: `${String(gapPx)}px`,
-                }}
-              >
-                <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
-                {pageLabelsFit(gapPx) ? (
-                  <PageLabels
-                    gapPx={gapPx}
-                    spreadIndex={range.start + index}
-                    pages={getSpreadPageCount(
-                      range.start + index,
-                      spreadIds.length,
-                    )}
-                  />
-                ) : null}
+            {mounted.map((spreadId, index) => {
+              const slotIndex = range.start + index
+              const side = getSinglePageSide(slotIndex, spreadIds.length)
+              return (
                 <div
-                  className="pasteboard-gap"
-                  data-testid="pasteboard-gap"
-                  data-gap-insert-index={range.start + index + 1}
-                  aria-hidden="true"
+                  key={spreadId}
+                  className="pasteboard-slot"
+                  data-pasteboard-slot=""
+                  data-testid="pasteboard-slot"
+                  data-spread-id={spreadId}
+                  data-slot-index={slotIndex}
+                  data-active={markedId === spreadId ? 'true' : 'false'}
+                  data-page-side={side ?? undefined}
+                  style={{
+                    height: stride,
+                    // A single page keeps a spread-wide slot (kit #/demo).
+                    width:
+                      side === null ? undefined : 2 * trimWidthMm * pxPerMm,
+                    paddingBottom: gapPx,
+                    containIntrinsicBlockSize: `auto ${String(stride)}px`,
+                    ['--slot-pad' as string]: `${String(gapPx)}px`,
+                  }}
                 >
-                  <Icon name="addSpread" size={14} />
-                  Drop here for a new spread
+                  <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
+                  {pageLabelsFit(gapPx) ? (
+                    <PageLabels
+                      gapPx={gapPx}
+                      spreadIndex={slotIndex}
+                      pages={getSpreadPageCount(slotIndex, spreadIds.length)}
+                      side={side}
+                    />
+                  ) : null}
+                  {newSpreadPillFits(gapPx) ? (
+                    <div
+                      className="pasteboard-gap"
+                      data-testid="pasteboard-gap"
+                      data-gap-insert-index={slotIndex + 1}
+                      data-camera-frame=""
+                      aria-hidden="true"
+                    >
+                      <Icon name="addSpread" size={14} />
+                      Drop here for a new spread
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            ))}
+              )
+            })}
             {shouldRenderSpacer(range.tailPx) ? (
               <div
                 className="pasteboard-spacer"
