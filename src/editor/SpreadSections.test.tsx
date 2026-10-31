@@ -167,6 +167,9 @@ describe('MasterSpacingSection', () => {
     }
     window.addEventListener('error', onError)
     focus(field)
+    fireEvent.keyDown(field, { key: 'Escape' })
+    expect(field.value).toBe(`${String(start)} mm`)
+    focus(field)
     fireEvent.change(field, { target: { value: '9' } })
     fireEvent.keyDown(field, { key: 'a' })
     expect(field.value).toBe('9')

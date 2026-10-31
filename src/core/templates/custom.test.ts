@@ -106,6 +106,9 @@ describe('applyCustomLayout', () => {
     // Other spreads are shared, untouched.
     expect(next.spreads[0]).toBe(book.spreads[0])
     expect(next.spreads[2]).toBe(book.spreads[2])
+    // The single-page first spread scales the slots to one page.
+    const first = applyCustomLayout(book, 'a', 'user-opener', OPENER)
+    expect(first.spreads[0]?.frames[0]?.rect.width).toBe(186)
   })
 
   it('names new frames after the spread when it had fewer', () => {

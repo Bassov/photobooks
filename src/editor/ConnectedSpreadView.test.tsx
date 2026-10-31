@@ -202,8 +202,14 @@ describe('per-spread paint subscription', () => {
     const frame = screen.getByTestId('spread-frame')
     const body = frame.querySelector('.spread-frame-body')
     expect(body?.getAttribute('draggable')).toBe('false')
+    const frameId = frame.getAttribute('data-frame-id') ?? ''
+    act(() => {
+      setFrameSource({ spreadId: 's0', frameId })
+    })
     fireEvent.doubleClick(frame)
     expect(getCropTarget()).toBeNull()
+    // The empty frame stays selected.
+    expect(getFrameSource()).toMatchObject({ spreadId: 's0', frameId })
   })
 
   it('dims the dragged frame after dragstart and restores it at dragend', () => {
