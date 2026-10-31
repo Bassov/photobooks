@@ -269,6 +269,33 @@ describe('SpreadView', () => {
     expect(cut.style.left).toBe(
       `${String(book.settings.trim.widthMm * SPREAD_PX_PER_MM)}px`,
     )
+    // The fold keeps 1 screen px through a live zoom (--cam-scale).
+    expect(cut.dataset.cameraFrame).toBe('')
+  })
+
+  it('never marks a thumbnail page cut for the camera', () => {
+    const book = makeBook({
+      spreads: [
+        { id: 's0', frames: [] },
+        { id: 's1', frames: [] },
+        { id: 's2', frames: [] },
+      ],
+    })
+    const resolved = resolveSpread(book, 's1')
+    assert(resolved !== undefined, 'expected resolved spread')
+
+    const { container } = render(
+      <SpreadView
+        spreadId="s1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        thumb
+      />,
+    )
+
+    const cut = container.querySelector('.spread-page-cut')
+    assert(cut !== null, 'expected a page cut')
+    expect(cut.hasAttribute('data-camera-frame')).toBe(false)
   })
 
   it('sizes frames with the camera px per mm', () => {
@@ -459,7 +486,7 @@ describe('SpreadView', () => {
     ])
   })
 
-  it('selected frame shows 8 resize handles, a rotate handle and a size tag', () => {
+  it('selected frame shows 8 resize handles and no size tag', () => {
     const resolved = resolveSpread(makeBookWithAsset(), 'spread-1')
     assert(resolved !== undefined, 'expected resolved spread')
     render(
@@ -479,33 +506,9 @@ describe('SpreadView', () => {
     ).toEqual(['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'])
     // Kit select tool has no rotate knob (uikit/src/sandbox/canvas.tsx:224,443).
     expect(screen.queryByTestId('rotate-handle')).toBeNull()
-    expect(screen.getByTestId('frame-size-tag').textContent).toMatch(
-      / × .* mm$/,
-    )
-  })
-
-  it('rounds the size tag to 0.1 mm', () => {
-    const book = makeBookWithAsset()
-    const frame = book.spreads[0]?.frames[0]
-    assert(frame !== undefined, 'expected a frame')
-    frame.rect = { x: 10, y: 10, width: 33.37, height: 20.04 }
-    const resolved = resolveSpread(book, 'spread-1')
-    assert(resolved !== undefined, 'expected resolved spread')
-    render(
-      <SpreadView
-        spreadId="spread-1"
-        resolved={resolved}
-        previewUrlFor={previewUrlFor}
-        frameControlFor={() => ({
-          label: 'Sel',
-          pressed: true,
-          onActivate: vi.fn(),
-        })}
-      />,
-    )
-    expect(screen.getByTestId('frame-size-tag').textContent).toBe(
-      '33.4 × 20 mm',
-    )
+    // Owner design change (round 7, M52): no size tag in any mode.
+    expect(screen.queryByTestId('frame-size-tag')).toBeNull()
+    expect(screen.getByTestId('spread-frame').textContent).not.toMatch(/mm/)
   })
 
   it('rotates a rotated frame about its centre and leaves others upright', () => {
@@ -637,6 +640,7 @@ describe('SpreadView', () => {
     expect(screen.getByTestId('crop-overlay-tag').textContent).toBe(
       'Crop · 150%',
     )
+    expect(screen.getByTestId('crop-overlay-tag').dataset.cameraFrame).toBe('')
     expect(screen.queryByTestId('spread-frame-handles')).toBeNull()
     expect(frame.getAttribute('data-crop-active')).toBe('true')
     expect(screen.getByTestId('spread-frame-ghost')).toBeTruthy()
