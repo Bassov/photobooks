@@ -19,7 +19,9 @@ describe('spreadChromeStyles', () => {
 
 describe('SpreadView.css selection-only chrome', () => {
   it('paints ring/outline only for the pressed frame; no unselected edge', () => {
-    expect(css).toContain("button.spread-frame[aria-pressed='true']::after")
+    expect(css).toContain(
+      "button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after",
+    )
     expect(css).toContain('outline: 2px solid var(--select)')
     expect(css).toContain('outline-offset: 1px')
     expect(css).toContain('var(--shadow-ring-white)')

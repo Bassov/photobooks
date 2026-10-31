@@ -31,8 +31,10 @@ button.spread-frame {
 /* Kit selection (FrameView/Selection): chrome on the selected frame only.
    Unselected frames carry no ring, outline or edge, so photos sit flush.
    Painted on ::after above the photo in CSS px so it stays visible at every
-   layout zoom and is not scaled by a pasteboard transform. */
-button.spread-frame[aria-pressed='true']::after {
+   layout zoom and is not scaled by a pasteboard transform. A drop target
+   (the drag source included, kit step 17) gives ::after to the drop chip;
+   its ::before outline marks the frame instead. */
+button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -44,7 +46,9 @@ button.spread-frame[aria-pressed='true']::after {
 }
 
 /* Active crop: grey --crop outline and tag replace the black selection chrome. */
-button.spread-frame[data-crop-active='true']::after {
+button.spread-frame[data-crop-active='true']:not(
+    [data-drop-hover='true']
+  )::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -247,7 +251,7 @@ button.spread-frame:not(
   color: var(--foreground);
   font-size: var(--text-2xs);
   font-weight: 500;
-  line-height: 16px;
+  line-height: var(--text-2xs--line-height);
   white-space: nowrap;
   box-shadow: var(--shadow-sm);
   pointer-events: none;

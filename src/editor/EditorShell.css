@@ -123,6 +123,13 @@
   grid-column: 1 / 3;
   justify-self: start;
 }
+/* Kit TopBar Library link `gap-1 pl-1.5 pr-2.5`: the layered utilities lose
+   to `.pb-button`, so inset and gap are set here (chevron 18, label 38). */
+.editor-top-start > .editor-library-link {
+  gap: var(--spacing);
+  padding-left: calc(var(--spacing) * 1.5);
+  padding-right: calc(var(--spacing) * 2.5);
+}
 .editor-top-grid > .editor-top-bar {
   grid-column: 3;
   margin-inline: calc(var(--spacing) * 2);
