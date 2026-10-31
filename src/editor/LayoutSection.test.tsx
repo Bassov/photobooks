@@ -151,18 +151,26 @@ describe('Inspector Spread / Book settings sections', () => {
     resetBookStore()
   })
 
-  it('Spread: Layout comes before Layout grid; no Background', () => {
+  it('Spread: kit order Layout, Master & spacing, Background, Grid', () => {
     seed()
     act(() => {
       setActiveSpreadId('s1')
     })
     render(<Inspector />)
-    const layout = screen.getByTestId('layout-section')
-    const grid = screen.getByTestId('grid-section-spread')
-    expect(
-      layout.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(screen.queryByText('Background')).toBeNull()
+    const order = [
+      screen.getByTestId('layout-section'),
+      screen.getByTestId('spread-spacing'),
+      screen.getByTestId('bg-swatches'),
+      screen.getByTestId('grid-section-spread'),
+    ]
+    for (const [prev, next] of order.slice(1).map((el, i) => [order[i], el])) {
+      expect(
+        prev &&
+          next &&
+          prev.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
+    expect(screen.queryByText('Layout grid')).toBeNull()
   })
 
   it('Without a spread, no Layout section; shows no Layout section', () => {

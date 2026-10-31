@@ -1,9 +1,8 @@
-import type { FixedTemplateId } from '../core'
-
 /** Kit `setTemplatePreview`: the layout tile under the pointer / focus. */
 export interface TemplatePreview {
   spreadId: string
-  templateId: FixedTemplateId
+  /** A catalog template id or a saved layout id (`user-…`). */
+  templateId: string
 }
 
 let preview: TemplatePreview | null = null
@@ -30,6 +29,6 @@ export function subscribeTemplatePreview(listener: () => void): () => void {
 }
 
 /** Previewed template on `spreadId`, else `''` (other spreads stay quiet). */
-export function templatePreviewOn(spreadId: string): FixedTemplateId | '' {
+export function templatePreviewOn(spreadId: string): string {
   return preview?.spreadId === spreadId ? preview.templateId : ''
 }

@@ -41,6 +41,7 @@ import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import { PhotoSection } from './PhotoSection'
 import { GridSection } from './GridSection'
 import { LayoutSection } from './LayoutSection'
+import { BackgroundSection, MasterSpacingSection } from './SpreadSections'
 import {
   inspectorView,
   sameInspectorPanel,
@@ -243,7 +244,10 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         ) : null}
         {view.kind === 'spread' ? (
           <>
+            {/* Kit spread context order (context-inspector.tsx:58-63). */}
             <LayoutSection spreadId={view.spreadId} />
+            <MasterSpacingSection spreadId={view.spreadId} />
+            <BackgroundSection spreadId={view.spreadId} />
             <GridSection scope="spread" spreadId={view.spreadId} />
           </>
         ) : null}

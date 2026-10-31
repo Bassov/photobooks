@@ -1,0 +1,68 @@
+/* Kit SpreadPageSection (uikit/src/sandbox/context-inspector.tsx:245-255):
+   Margin `mt-3` below Master, Gap `mt-2` below Margin. */
+.spread-spacing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Kit SliderRow: 16.8 px label row over an 11 px track (27.8 px rows). */
+.spread-spacing .fit-crop-slider {
+  gap: 0;
+}
+
+.spread-spacing .fit-crop-slider > div:first-child {
+  line-height: 1.4;
+}
+
+.spread-spacing .fit-crop-track {
+  height: 11px;
+}
+
+.spread-spacing .fit-crop-track::before {
+  inset: 4px 0;
+}
+
+.spread-spacing .fit-crop-fill {
+  top: 4px;
+}
+
+/* Kit Segmented (components/app/controls.tsx:56-59): medium weight, the
+   selected pill on the raised surface with no shadow. */
+.spread-segmented .pb-segmented__segment {
+  font-weight: 500;
+}
+
+.spread-segmented .pb-segmented__segment--selected,
+.spread-segmented .pb-segmented__segment--selected:hover {
+  background: var(--t-raised);
+  box-shadow: none;
+}
+
+.spread-spacing-note {
+  margin: 6px 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+
+/* Kit SpreadBgSection swatch (uikit/src/sandbox/sections.tsx:62):
+   `size-7 rounded-md shadow-hairline`, the current one `swatch-on`. */
+.spread-bg-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08);
+  outline-offset: 2px;
+  cursor: pointer;
+}
+
+.spread-bg-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--swatch-ring);
+}
+
+.spread-bg-swatch:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+}

@@ -29,6 +29,13 @@ function field(name: string) {
   ).getByRole<HTMLInputElement>('textbox')
 }
 
+/** A "Use master" / "Custom" choice of the spread Grid section. */
+function source(name: string) {
+  return within(
+    screen.getByRole('radiogroup', { name: 'Grid source' }),
+  ).getByRole<HTMLInputElement>('radio', { name })
+}
+
 function commit(name: string, value: string) {
   const input = field(name)
   fireEvent.change(input, { target: { value } })
@@ -88,36 +95,90 @@ describe('GridSection', () => {
     expect(getBookStoreSnapshot().book.layoutGrid.rows).toBe(2)
   })
 
-  it('spread: BOOK labels and a disabled reset when clean', () => {
+  it('spread: kit Grid section inherits the master when clean (no reset left to press)', () => {
     seed()
     render(<GridSection scope="spread" spreadId="s1" />)
-    expect(screen.getByTestId('grid-source-columns').textContent).toBe('book')
-    expect(screen.getByTestId<HTMLButtonElement>('grid-reset').disabled).toBe(
-      true,
+    expect(screen.getByText('Grid')).toBeTruthy()
+    expect(screen.queryByText('Layout grid')).toBeNull()
+    expect(source('Use master').checked).toBe(true)
+    expect(source('Custom').checked).toBe(false)
+    expect(screen.getByTestId('spread-grid-inherit').textContent).toBe(
+      'Master A · 2 × 2 · gutter 5 mm · margins 15/15/15/15 mm',
     )
-    expect(screen.getByTestId('grid-reset').textContent).toBe(
-      'Reset to book grid',
+    expect(screen.queryByTestId('grid-fields')).toBeNull()
+    // Custom shows the fields, all still from the book; nothing is written.
+    const before = getBookStoreSnapshot().book
+    fireEvent.click(source('Custom'))
+    expect(screen.getByTestId('grid-source-columns').textContent).toBe('book')
+    expect(getBookStoreSnapshot().book).toBe(before)
+  })
+
+  it('spread: an override flips only that field to SPREAD; Use master resets it', () => {
+    seed()
+    render(<GridSection scope="spread" spreadId="s1" />)
+    fireEvent.click(source('Custom'))
+    commit('columns', '7')
+    expect(screen.getByTestId('grid-source-columns').textContent).toBe('spread')
+    expect(screen.getByTestId('grid-source-rows').textContent).toBe('book')
+    let book = getBookStoreSnapshot().book
+    expect(book.layoutGrid.columns).toBe(2)
+    expect(book.spreads[0]?.layoutGrid).toEqual({ columns: 7 })
+    expect(book.spreads[1]?.layoutGrid).toBeUndefined()
+    expect(source('Custom').checked).toBe(true)
+    fireEvent.click(source('Use master'))
+    book = getBookStoreSnapshot().book
+    expect(book.spreads[0]?.layoutGrid).toBeUndefined()
+    expect(source('Use master').checked).toBe(true)
+    expect(screen.getByTestId('spread-grid-inherit').textContent).toContain(
+      '2 × 2',
+    )
+    expect(screen.queryByTestId('grid-source-columns')).toBeNull()
+  })
+
+  it('spread: an overridden spread opens on Custom', () => {
+    resetBookStore({
+      book: makeBook({
+        spreads: [makeSpread({ id: 's1', layoutGrid: { rows: 3 } })],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<GridSection scope="spread" spreadId="s1" />)
+    expect(source('Custom').checked).toBe(true)
+    expect(screen.getByTestId('grid-source-rows').textContent).toBe('spread')
+  })
+
+  it('spread: with no master the source reads "Use book" and the book grid', () => {
+    resetBookStore({
+      book: makeBook({
+        spreads: [makeSpread({ id: 's1', masterId: 'none' })],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<GridSection scope="spread" spreadId="s1" />)
+    expect(source('Use book').checked).toBe(true)
+    expect(screen.getByTestId('spread-grid-inherit').textContent).toMatch(
+      /^Book grid · 2 × 2 · /,
     )
   })
 
-  it('spread: an override flips only that field to SPREAD and enables reset', () => {
+  it('spread: the Show grid switch drives the shared overlay flag', () => {
     seed()
     render(<GridSection scope="spread" spreadId="s1" />)
-    commit('columns', '7')
-    expect(screen.getByTestId('grid-summary').textContent).toBe('7×2')
-    expect(screen.getByTestId('grid-source-columns').textContent).toBe('spread')
-    expect(screen.getByTestId('grid-source-rows').textContent).toBe('book')
-    const book = getBookStoreSnapshot().book
-    expect(book.layoutGrid.columns).toBe(2)
-    expect(book.spreads[1]?.layoutGrid).toBeUndefined()
-    const reset = screen.getByTestId<HTMLButtonElement>('grid-reset')
-    expect(reset.disabled).toBe(false)
-    fireEvent.click(reset)
-    expect(screen.getByTestId('grid-summary').textContent).toBe('2×2')
-    expect(screen.getByTestId('grid-source-columns').textContent).toBe('book')
-    expect(screen.getByTestId<HTMLButtonElement>('grid-reset').disabled).toBe(
-      true,
-    )
+    const toggle = screen.getByRole('switch', { name: 'Show grid' })
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(toggle)
+    expect(getGridVisible()).toBe(true)
+    expect(
+      screen
+        .getByRole('switch', { name: 'Show grid' })
+        .getAttribute('aria-checked'),
+    ).toBe('true')
+    fireEvent.click(screen.getByRole('switch', { name: 'Show grid' }))
+    expect(getGridVisible()).toBe(false)
   })
 
   it('the header toggle shows / hides the grid overlay flag', () => {
@@ -176,6 +237,7 @@ describe('GridSection', () => {
   it('links each source label to its field for assistive tech', () => {
     seed()
     render(<GridSection scope="spread" spreadId="s1" />)
+    fireEvent.click(source('Custom'))
     const root = field('top')
     const sourceId = screen.getByTestId('grid-source-top').id
     expect(sourceId).not.toBe('')

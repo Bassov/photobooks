@@ -1,6 +1,11 @@
-import type { Book, Frame } from '../schema'
+import type { Book, Frame, Spread } from '../schema'
 import { updateSpread } from '../update'
-import { generateTemplateFrames } from './catalog'
+import { frameIdFor, generateTemplateFrames } from './catalog'
+import {
+  customLayoutRects,
+  isCustomLayoutId,
+  type LayoutSlotPct,
+} from './custom'
 import type { TemplateId } from './types'
 
 export function applyTemplate(
@@ -20,15 +25,48 @@ export function applyTemplate(
       spreadIndex,
       spread,
     )
-    const frames = rebindFrames(generated, spread.frames)
-    if (
-      spread.templateId === templateId &&
-      framesEqualByContent(frames, spread.frames)
-    ) {
-      return spread
-    }
-    return { ...spread, templateId, frames }
+    return withLayout(spread, templateId, generated)
   })
+}
+
+/** Kit applyTemplate for a saved layout: its slots scaled to this spread. */
+export function applyCustomLayout(
+  book: Book,
+  spreadId: string,
+  templateId: string,
+  slots: readonly LayoutSlotPct[],
+): Book {
+  const spreadIndex = book.spreads.findIndex((spread) => spread.id === spreadId)
+  if (spreadIndex < 0 || slots.length === 0 || !isCustomLayoutId(templateId)) {
+    return book
+  }
+  const rects = customLayoutRects(book, spreadIndex, slots)
+  return updateSpread(book, spreadId, (spread) =>
+    withLayout(
+      spread,
+      templateId,
+      rects.map((rect, index) => ({
+        id: frameIdFor(spread.id, index),
+        rect,
+        z: index,
+      })),
+    ),
+  )
+}
+
+function withLayout(
+  spread: Spread,
+  templateId: string,
+  generated: Frame[],
+): Spread {
+  const frames = rebindFrames(generated, spread.frames)
+  if (
+    spread.templateId === templateId &&
+    framesEqualByContent(frames, spread.frames)
+  ) {
+    return spread
+  }
+  return { ...spread, templateId, frames }
 }
 
 function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {

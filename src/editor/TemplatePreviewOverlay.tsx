@@ -1,11 +1,7 @@
 import { useSyncExternalStore } from 'react'
-import {
-  generateTemplateFrames,
-  getSpreadSizeMm,
-  type FixedTemplateId,
-} from '../core'
+import { getSpreadSizeMm } from '../core'
 import { getBookStoreSnapshot } from './bookStore'
-import { TEMPLATE_NAMES } from './layoutCatalog'
+import { layoutRects, templateName } from './layoutCatalog'
 import { percentStyle, thumbSlots } from './layoutThumb'
 import { subscribeTemplatePreview, templatePreviewOn } from './templatePreview'
 import './TemplatePreviewOverlay.css'
@@ -31,18 +27,17 @@ function PreviewLayer({
   templateId,
 }: {
   spreadId: string
-  templateId: FixedTemplateId
+  templateId: string
 }) {
   const { book } = getBookStoreSnapshot()
   const index = book.spreads.findIndex((item) => item.id === spreadId)
   const spread = book.spreads[index]
-  if (spread === undefined) {
+  const rects =
+    spread === undefined ? null : layoutRects(templateId, book, index, spread)
+  if (rects === null) {
     return null
   }
   const { widthMm, heightMm } = getSpreadSizeMm(book, index)
-  const rects = generateTemplateFrames(templateId, book, index, spread).map(
-    (frame) => frame.rect,
-  )
   return (
     <div
       className="template-preview"
@@ -59,7 +54,7 @@ function PreviewLayer({
         />
       ))}
       <div className="template-preview-label">
-        Preview · {TEMPLATE_NAMES[templateId]}
+        Preview · {templateName(templateId)}
       </div>
     </div>
   )

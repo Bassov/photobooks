@@ -12,7 +12,9 @@ export {
   type Spread,
   type TextContent,
   type TextStyleId,
+  type SpreadMasterId,
   TEXT_STYLE_IDS,
+  SPREAD_MASTERS,
 } from './schema'
 export {
   isTextFrame,
@@ -110,7 +112,14 @@ export {
 } from './templates/aspect'
 export { bestTemplateId } from './templates/best'
 export { generateTemplateFrames, frameIdFor } from './templates/catalog'
-export { applyTemplate } from './templates/apply'
+export { applyCustomLayout, applyTemplate } from './templates/apply'
+export {
+  customLayoutRects,
+  isCustomLayoutId,
+  spreadLayoutSlots,
+  type LayoutSlotPct,
+} from './templates/custom'
+export { setSpreadBackground, setSpreadMaster } from './ops/spreadLook'
 
 export {
   addToGallery,

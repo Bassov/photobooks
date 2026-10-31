@@ -1,13 +1,15 @@
 import { memo, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { Input, NumberField } from 'react-aria-components'
+import { Button as AriaButton, Input, NumberField } from 'react-aria-components'
 import {
   CONTACT_MAX_COLS,
   CONTACT_MAX_ROWS,
   contactSheetId,
+  customLayoutRects,
   generateTemplateFrames,
   getSpreadPageCount,
   getSpreadSizeMm,
   parseContactSheetId,
+  spreadLayoutSlots,
   type Book,
   type FixedTemplateId,
   type RectMm,
@@ -17,11 +19,32 @@ import { Button } from '../ui/Button'
 import { Disclosure } from '../ui/Disclosure'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
+import {
+  Menu,
+  MenuItem,
+  MenuPopover,
+  MenuSeparator,
+  MenuTrigger,
+} from '../ui/Menu'
 import { LAYOUT_CHIPS, matchesChip, type LayoutChipId } from './layoutChips'
-import { LAYOUT_PICKER, TEMPLATE_NAMES, templateName } from './layoutCatalog'
+import {
+  LAYOUT_PICKER,
+  TEMPLATE_NAMES,
+  applyLayout,
+  templateName,
+} from './layoutCatalog'
 import { percentStyle, thumbPaperBox, thumbSlots } from './layoutThumb'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import {
+  addSavedTemplate,
+  deleteSavedTemplate,
+  duplicateSavedTemplate,
+  getSavedTemplates,
+  nextTemplateName,
+  renameSavedTemplate,
+  subscribeSavedTemplates,
+} from './savedTemplates'
 import { setTemplatePreview } from './templatePreview'
 import './LayoutSection.css'
 
@@ -30,6 +53,14 @@ const MAX_SUGGESTED = 3
 
 function readBook() {
   return getBookStoreSnapshot().book
+}
+
+/** One tile: a kit builtin (`saved: false`) or one of the user's templates. */
+interface LayoutItem {
+  id: string
+  name: string
+  rects: readonly RectMm[]
+  saved: boolean
 }
 
 /** Kit TemplateThumb (uikit/src/sandbox/chrome.tsx:241): 2:1 paper, slots, spine. */
@@ -139,11 +170,17 @@ function LayoutPicker({
 }) {
   const current = spread.templateId
   const contact = current === undefined ? null : parseContactSheetId(current)
+  const mine = useSyncExternalStore(
+    subscribeSavedTemplates,
+    getSavedTemplates,
+    getSavedTemplates,
+  )
   const [cols, setCols] = useState(3)
   const [rows, setRows] = useState(2)
   const [tab, setTab] = useState<'all' | 'mine'>('all')
   const [chip, setChip] = useState<LayoutChipId>('all')
   const [query, setQuery] = useState('')
+  const [renaming, setRenaming] = useState<string | null>(null)
   // A contact-sheet spread shows its own grid in the fields.
   const contactKey = contact === null ? '' : `${spreadId}/${current ?? ''}`
   const [syncedKey, setSyncedKey] = useState('')
@@ -159,17 +196,19 @@ function LayoutPicker({
   const spreadGrid = spread.layoutGrid
   const geometry = useMemo(() => {
     const size = getSpreadSizeMm(book, spreadIndex)
-    const rects = {} as Record<FixedTemplateId, readonly RectMm[]>
-    for (const id of LAYOUT_PICKER) {
-      rects[id] = generateTemplateFrames(id, book, spreadIndex, spread).map(
+    const builtins: LayoutItem[] = LAYOUT_PICKER.map((id: FixedTemplateId) => ({
+      id,
+      name: TEMPLATE_NAMES[id],
+      rects: generateTemplateFrames(id, book, spreadIndex, spread).map(
         (frame) => frame.rect,
-      )
-    }
+      ),
+      saved: false,
+    }))
     return {
       widthMm: size.widthMm,
       heightMm: size.heightMm,
       spine: getSpreadPageCount(spreadIndex, book.spreads.length) === 2,
-      rects,
+      builtins,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [
@@ -179,64 +218,158 @@ function LayoutPicker({
     spreadIndex,
     spreadGrid,
   ])
+  const saved = useMemo(
+    () =>
+      mine.map((t): LayoutItem => ({
+        id: t.id,
+        name: t.name,
+        rects: customLayoutRects(book, spreadIndex, t.slots),
+        saved: true,
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- trim + spread count only
+    [mine, book.settings, book.spreads.length, spreadIndex],
+  )
+  const all = [...geometry.builtins, ...saved]
   const summary = templateName(current) ?? undefined
-  const slotCount = (id: FixedTemplateId) => geometry.rects[id].length
   // Kit: filled photo frames, else every frame of the spread.
   const filled = spread.frames.filter((f) => f.assetId !== undefined).length
   const photos = filled > 0 ? filled : spread.frames.length
   const wanted = query.trim().toLowerCase()
-  // "My templates" has no saved templates yet: the tab lists nothing.
-  const list =
-    tab === 'mine'
-      ? []
-      : LAYOUT_PICKER.filter(
-          (id) =>
-            matchesChip(slotCount(id), chip) &&
-            TEMPLATE_NAMES[id].toLowerCase().includes(wanted),
-        )
+  const list = (tab === 'mine' ? saved : all).filter(
+    (item) =>
+      matchesChip(item.rects.length, chip) &&
+      item.name.toLowerCase().includes(wanted),
+  )
   const suggested =
     tab === 'all' && chip === 'all' && wanted === ''
-      ? LAYOUT_PICKER.filter(
-          (id) => slotCount(id) === photos && id !== current,
-        ).slice(0, MAX_SUGGESTED)
+      ? geometry.builtins
+          .filter((item) => item.rects.length === photos && item.id !== current)
+          .slice(0, MAX_SUGGESTED)
       : []
-  const tile = (id: FixedTemplateId, testId: string) => (
-    <button
-      key={id}
-      type="button"
-      className="layout-tile"
-      data-testid={testId}
-      data-template={id}
-      aria-pressed={current === id}
-      aria-label={`${testId === 'layout-tile' ? 'Apply layout' : 'Apply suggested layout'} ${TEMPLATE_NAMES[id]}`}
-      title={`${TEMPLATE_NAMES[id]} · ${photoLabel(slotCount(id))} — hover to preview, click to apply`}
-      onMouseEnter={() => {
-        setTemplatePreview({ spreadId, templateId: id })
-      }}
-      onMouseLeave={() => {
-        setTemplatePreview(null)
-      }}
-      onFocus={() => {
-        setTemplatePreview({ spreadId, templateId: id })
-      }}
-      onBlur={() => {
-        setTemplatePreview(null)
-      }}
-      onClick={() => {
-        setTemplatePreview(null)
-        applyMarkedSpreadTemplate(spreadId, id)
-      }}
-    >
-      <TemplateThumb
-        widthMm={geometry.widthMm}
-        heightMm={geometry.heightMm}
-        rects={geometry.rects[id]}
-        spine={geometry.spine}
-      />
-      <span className="layout-tile-name" data-testid="tpl-name">
-        {TEMPLATE_NAMES[id]}
-      </span>
-    </button>
+  // Kit `save`: the spread's photo frames become "My layout N", named inline.
+  const save = () => {
+    const slots = spreadLayoutSlots(readBook(), spreadId)
+    if (slots.length === 0) {
+      return
+    }
+    const added = addSavedTemplate(nextTemplateName(), slots)
+    setTab('mine')
+    setChip('all')
+    setQuery('')
+    setRenaming(added.id)
+  }
+  const canSave = spread.frames.some((frame) => frame.kind !== 'text')
+  const tile = (item: LayoutItem, testId: string) => (
+    <div key={item.id} className="layout-tile-cell">
+      <button
+        type="button"
+        className="layout-tile"
+        data-testid={testId}
+        data-template={item.id}
+        aria-pressed={current === item.id}
+        aria-label={`${testId === 'layout-tile' ? 'Apply layout' : 'Apply suggested layout'} ${item.name}`}
+        title={`${item.name} · ${photoLabel(item.rects.length)} — hover to preview, click to apply`}
+        onMouseEnter={() => {
+          setTemplatePreview({ spreadId, templateId: item.id })
+        }}
+        onMouseLeave={() => {
+          setTemplatePreview(null)
+        }}
+        onFocus={() => {
+          setTemplatePreview({ spreadId, templateId: item.id })
+        }}
+        onBlur={() => {
+          setTemplatePreview(null)
+        }}
+        onClick={() => {
+          setTemplatePreview(null)
+          applyLayout(spreadId, item.id)
+        }}
+      >
+        <TemplateThumb
+          widthMm={geometry.widthMm}
+          heightMm={geometry.heightMm}
+          rects={item.rects}
+          spine={geometry.spine}
+        />
+        {renaming === item.id ? null : (
+          <span className="layout-tile-name" data-testid="tpl-name">
+            {item.name}
+          </span>
+        )}
+      </button>
+      {renaming === item.id ? (
+        <input
+          // Kit: the new template's name field takes focus right away.
+          autoFocus
+          className="layout-rename"
+          defaultValue={item.name}
+          aria-label="Template name"
+          data-testid="tpl-rename-input"
+          onFocus={(event) => {
+            event.currentTarget.select()
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              renameSavedTemplate(item.id, event.currentTarget.value)
+              setRenaming(null)
+            } else if (event.key === 'Escape') {
+              event.stopPropagation()
+              setRenaming(null)
+            }
+          }}
+          onBlur={(event) => {
+            if (renaming === item.id) {
+              renameSavedTemplate(item.id, event.currentTarget.value)
+              setRenaming(null)
+            }
+          }}
+        />
+      ) : null}
+      {item.saved && renaming !== item.id ? (
+        <MenuTrigger>
+          <AriaButton
+            className="layout-tile-menu"
+            aria-label={`${item.name} options`}
+            data-testid="tpl-menu"
+          >
+            <Icon name="moreHorizontal" size={14} />
+          </AriaButton>
+          <MenuPopover placement="bottom end" className="w-44">
+            <Menu
+              aria-label={`${item.name} options`}
+              onAction={(key) => {
+                if (key === 'rename') {
+                  setRenaming(item.id)
+                } else if (key === 'duplicate') {
+                  duplicateSavedTemplate(item.id)
+                } else {
+                  deleteSavedTemplate(item.id)
+                }
+              }}
+            >
+              <MenuItem id="rename" data-testid="tpl-rename">
+                <Icon name="pencil" size={14} />
+                Rename…
+              </MenuItem>
+              <MenuItem id="duplicate" data-testid="tpl-duplicate">
+                <Icon name="copy" size={14} />
+                Duplicate
+              </MenuItem>
+              <MenuSeparator />
+              <MenuItem
+                id="delete"
+                variant="destructive"
+                data-testid="tpl-delete"
+              >
+                <Icon name="delete" size={14} />
+                Delete
+              </MenuItem>
+            </Menu>
+          </MenuPopover>
+        </MenuTrigger>
+      ) : null}
+    </div>
   )
   return (
     <Disclosure
@@ -245,12 +378,12 @@ function LayoutPicker({
       summary={summary}
       data-testid="layout"
       right={
-        // Kit "Save as template"; saving custom layouts is not built yet.
         <IconButton
           label="Save as template"
           size="sm"
-          isDisabled
+          isDisabled={!canSave}
           data-testid="tpl-save"
+          onPress={save}
         >
           <Icon name="plus" />
         </IconButton>
@@ -278,7 +411,7 @@ function LayoutPicker({
               setTab('all')
             }}
           >
-            All <span className="layout-muted">{LAYOUT_PICKER.length}</span>
+            All <span className="layout-muted">{all.length}</span>
           </button>
           <button
             type="button"
@@ -288,7 +421,7 @@ function LayoutPicker({
               setTab('mine')
             }}
           >
-            My templates <span className="layout-muted">0</span>
+            My templates <span className="layout-muted">{saved.length}</span>
           </button>
         </div>
         <label className="layout-search">
@@ -333,7 +466,7 @@ function LayoutPicker({
               Suggested for {photoLabel(photos)}
             </div>
             <div className="grid grid-cols-2 gap-1.5">
-              {suggested.map((id) => tile(id, 'layout-suggested-tile'))}
+              {suggested.map((item) => tile(item, 'layout-suggested-tile'))}
             </div>
           </div>
         ) : null}
@@ -343,15 +476,20 @@ function LayoutPicker({
           ) : null}
           {list.length > 0 ? (
             <div className="grid grid-cols-2 gap-1.5" data-testid="tpl-grid">
-              {list.map((id) => tile(id, 'layout-tile'))}
+              {list.map((item) => tile(item, 'layout-tile'))}
             </div>
           ) : (
             <p
               className="layout-empty text-center text-xs"
               data-testid="tpl-empty"
             >
-              {query === '' && chip === 'all'
-                ? 'No templates yet.'
+              <Icon
+                name="layoutTemplate"
+                size={16}
+                className="layout-empty-icon"
+              />
+              {tab === 'mine' && query === '' && chip === 'all'
+                ? 'No templates yet. Save a spread you like.'
                 : 'No layouts match.'}
             </p>
           )}
@@ -360,6 +498,17 @@ function LayoutPicker({
           Hover a layout to preview it on the spread; click to apply. Photos are
           kept in order.
         </p>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          isDisabled={!canSave}
+          data-testid="tpl-save-button"
+          onPress={save}
+        >
+          <Icon name="plus" size={14} />
+          Save as template
+        </Button>
         <div
           className="flex items-center gap-1.5"
           role="group"

@@ -1,15 +1,18 @@
-import { useId, useSyncExternalStore } from 'react'
+import { useId, useState, useSyncExternalStore } from 'react'
 import { Input, Label, NumberField } from 'react-aria-components'
 import {
   GRID_COUNT_MAX,
   GRID_COUNT_MIN,
   effectiveGrid,
   hasGridOverride,
+  type Book,
   type GridField,
+  type Spread,
 } from '../core'
-import { Button } from '../ui/Button'
+import { Disclosure } from '../ui/Disclosure'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -17,9 +20,11 @@ import {
 } from './bookStore'
 import {
   getGridVisible,
+  setGridVisible,
   subscribeGridVisible,
   toggleGridVisible,
 } from './gridView'
+import { ToggleSwitch } from './InspectorControls'
 import './GridSection.css'
 
 const FIELDS: readonly { field: GridField; label: string; unit: 'mm' | '' }[] =
@@ -38,9 +43,17 @@ function readBook() {
   return getBookStoreSnapshot().book
 }
 
+function useGridShown() {
+  return useSyncExternalStore(
+    subscribeGridVisible,
+    getGridVisible,
+    getGridVisible,
+  )
+}
+
 /**
- * Kit GridSection: book grid (`scope="book"`) or per-field override of one
- * spread (`scope="spread"`) with BOOK | SPREAD source labels and a reset.
+ * Kit grid sections: the book grid (`scope="book"`), or the spread's kit
+ * Grid section (`scope="spread"`, context-inspector.tsx:215-236).
  */
 export function GridSection({
   scope,
@@ -49,39 +62,21 @@ export function GridSection({
   scope: 'book' | 'spread'
   spreadId?: string
 }) {
-  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
-  const shown = useSyncExternalStore(
-    subscribeGridVisible,
-    getGridVisible,
-    getGridVisible,
+  return scope === 'spread' ? (
+    <SpreadGridSection spreadId={spreadId} />
+  ) : (
+    <BookGridSection />
   )
-  const spread =
-    scope === 'spread'
-      ? book.spreads.find((item) => item.id === spreadId)
-      : undefined
-  if (scope === 'spread' && spread === undefined) {
-    return null
-  }
-  const { values, source } = effectiveGrid(book, spread)
-  const overridden = spread !== undefined && hasGridOverride(spread)
-  const commit = (field: GridField, value: number) => {
-    if (Number.isNaN(value)) {
-      return
-    }
-    dispatchBookOp(
-      spread === undefined
-        ? { type: 'setBookGrid', patch: { [field]: value } }
-        : {
-            type: 'setSpreadGrid',
-            spreadId: spread.id,
-            patch: { [field]: value },
-          },
-    )
-  }
+}
+
+function BookGridSection() {
+  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const shown = useGridShown()
+  const { values } = effectiveGrid(book)
   return (
     <section
       className="grid-section flex flex-col gap-3 px-4 py-4"
-      data-testid={`grid-section-${scope}`}
+      data-testid="grid-section-book"
       aria-label="Layout grid"
     >
       <header className="flex items-center gap-2">
@@ -103,42 +98,126 @@ export function GridSection({
           <Icon name="eye" />
         </IconButton>
       </header>
-      <div
-        className="grid grid-cols-2 gap-x-2 gap-y-2"
-        data-testid="grid-fields"
-      >
-        {FIELDS.map(({ field, label, unit }) => (
-          <GridFieldInput
-            key={field}
-            field={field}
-            label={label}
-            unit={unit}
-            value={values[field]}
-            source={spread === undefined ? undefined : source[field]}
-            onCommit={(value) => {
-              commit(field, value)
-            }}
-          />
-        ))}
-      </div>
-      {spread === undefined ? null : (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full"
-          data-testid="grid-reset"
-          isDisabled={!overridden}
-          onPress={() => {
-            dispatchBookOp({ type: 'resetSpreadGrid', spreadId: spread.id })
-          }}
-        >
-          Reset to book grid
-        </Button>
-      )}
+      <GridFields book={book} />
       <p className="grid-section-muted text-xs leading-snug">
         Facing pages are mirrored: inside = spine side.
       </p>
     </section>
+  )
+}
+
+/** Kit spread grid name (context-inspector.tsx:222): master or book grid. */
+function gridOwner(spread: Spread): { name: string; source: string } {
+  const masterId = spread.masterId ?? 'A'
+  return masterId === 'none'
+    ? { name: 'Book grid', source: 'Use book' }
+    : { name: `Master ${masterId}`, source: 'Use master' }
+}
+
+/**
+ * Kit SpreadGridSection: "Use master" (inherit) or Custom (per-field spread
+ * override with BOOK | SPREAD labels), and the shared Show grid switch.
+ */
+function SpreadGridSection({ spreadId }: { spreadId: string | undefined }) {
+  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const shown = useGridShown()
+  // Custom with no field changed yet: the fields show, nothing is written.
+  const [customFor, setCustomFor] = useState<string | null>(null)
+  const spread = book.spreads.find((item) => item.id === spreadId)
+  if (spread === undefined) {
+    return null
+  }
+  const { values } = effectiveGrid(book, spread)
+  const custom = hasGridOverride(spread) || customFor === spread.id
+  const owner = gridOwner(spread)
+  return (
+    <Disclosure
+      title="Grid"
+      defaultExpanded
+      summary={`${String(values.columns)}×${String(values.rows)}`}
+      data-testid="grid"
+    >
+      <div
+        className="grid-section px-4 pt-0.5 pb-3"
+        data-testid="grid-section-spread"
+        role="group"
+        aria-label="Grid"
+      >
+        <SegmentedControl
+          label="Grid source"
+          className="grid-source"
+          value={custom ? 'custom' : 'inherit'}
+          onChange={(next) => {
+            if (next === 'custom') {
+              setCustomFor(spread.id)
+              return
+            }
+            setCustomFor(null)
+            dispatchBookOp({ type: 'resetSpreadGrid', spreadId: spread.id })
+          }}
+          items={[
+            { id: 'inherit', label: owner.source },
+            { id: 'custom', label: 'Custom' },
+          ]}
+        />
+        <div className="mt-3">
+          {custom ? (
+            <GridFields book={book} spread={spread} />
+          ) : (
+            <p
+              className="grid-section-muted m-0 text-sm"
+              data-testid="spread-grid-inherit"
+            >
+              {`${owner.name} · ${String(values.columns)} × ${String(values.rows)} · gutter ${String(values.columnGutterMm)} mm · margins ${String(values.top)}/${String(values.bottom)}/${String(values.inside)}/${String(values.outside)} mm`}
+            </p>
+          )}
+        </div>
+        <div className="mt-3 flex items-center justify-between text-sm">
+          <span className="grid-section-muted">Show grid</span>
+          <ToggleSwitch
+            label="Show grid"
+            on={shown}
+            onChange={setGridVisible}
+            testId="grid-toggle"
+          />
+        </div>
+      </div>
+    </Disclosure>
+  )
+}
+
+function GridFields({ book, spread }: { book: Book; spread?: Spread }) {
+  const { values, source } = effectiveGrid(book, spread)
+  const commit = (field: GridField, value: number) => {
+    if (Number.isNaN(value)) {
+      return
+    }
+    dispatchBookOp(
+      spread === undefined
+        ? { type: 'setBookGrid', patch: { [field]: value } }
+        : {
+            type: 'setSpreadGrid',
+            spreadId: spread.id,
+            patch: { [field]: value },
+          },
+    )
+  }
+  return (
+    <div className="grid grid-cols-2 gap-x-2 gap-y-2" data-testid="grid-fields">
+      {FIELDS.map(({ field, label, unit }) => (
+        <GridFieldInput
+          key={field}
+          field={field}
+          label={label}
+          unit={unit}
+          value={values[field]}
+          source={spread === undefined ? undefined : source[field]}
+          onCommit={(value) => {
+            commit(field, value)
+          }}
+        />
+      ))}
+    </div>
   )
 }
 

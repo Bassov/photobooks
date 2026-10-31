@@ -68,6 +68,7 @@ export const ICON_NAMES = [
   'flipVertical',
   'panelRightClose',
   'sparkles',
+  'layoutTemplate',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -536,5 +537,10 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['path', { d: 'M20 2v4' }],
     ['path', { d: 'M22 4h-4' }],
     ['circle', { cx: '4', cy: '20', r: '2' }],
+  ],
+  layoutTemplate: [
+    ['rect', { width: '18', height: '7', x: '3', y: '3', rx: '1' }],
+    ['rect', { width: '9', height: '7', x: '3', y: '14', rx: '1' }],
+    ['rect', { width: '5', height: '7', x: '16', y: '14', rx: '1' }],
   ],
 }

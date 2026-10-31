@@ -40,6 +40,23 @@
   background: var(--toggle-on);
 }
 
+/* Kit SegC (uikit/src/sandbox/v7.tsx): h-[26px] text-sm medium segments. */
+/* Kit SegC buttons sit edge to edge (no track gap). */
+.pb-segmented.grid-source {
+  gap: 0;
+}
+
+.pb-segmented.grid-source .pb-segmented__segment {
+  height: 26px;
+  font-weight: 500;
+}
+
+.grid-source .pb-segmented__segment--selected,
+.grid-source .pb-segmented__segment--selected:hover {
+  background: var(--t-raised);
+  box-shadow: 0 1px 2px rgb(35 34 35 / 0.14);
+}
+
 /* Top-bar view toggles: ghost at rest, #CACACA (--sel) fill when on; no black. */
 .pb-button.pb-view-toggle[aria-pressed='true'] {
   background: var(--sel);

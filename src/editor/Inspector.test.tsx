@@ -196,7 +196,7 @@ describe('Inspector', () => {
         [...panel.querySelectorAll('.inspector-eyebrow')].map(
           (el) => el.textContent,
         ),
-      ).toEqual(['Layout', 'Layout grid'])
+      ).toEqual(['Layout', 'Master & spacing', 'Background', 'Grid'])
     })
 
     // Kit Photo context (context-inspector.tsx:66-72) has no meta rows.

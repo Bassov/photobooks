@@ -1,8 +1,17 @@
 import {
+  customLayoutRects,
+  generateTemplateFrames,
+  isTemplateId,
   parseContactSheetId,
   TEMPLATE_IDS,
+  type Book,
   type FixedTemplateId,
+  type RectMm,
+  type Spread,
 } from '../core'
+import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
+import { dispatchBookOp } from './bookStore'
+import { findSavedTemplate } from './savedTemplates'
 
 /** Display names for every fixed template (kit names where the kit has one). */
 export const TEMPLATE_NAMES: Record<FixedTemplateId, string> = {
@@ -48,5 +57,43 @@ export function templateName(templateId: string | undefined): string | null {
     return `Contact sheet ${String(contact.cols)}×${String(contact.rows)}`
   }
   const fixed = TEMPLATE_IDS.find((id) => id === templateId)
-  return fixed === undefined ? null : TEMPLATE_NAMES[fixed]
+  if (fixed !== undefined) {
+    return TEMPLATE_NAMES[fixed]
+  }
+  return findSavedTemplate(templateId)?.name ?? null
+}
+
+/** Slot rects (mm) of a catalog template or saved layout on a spread; null if unknown. */
+export function layoutRects(
+  templateId: string,
+  book: Book,
+  spreadIndex: number,
+  spread: Spread,
+): RectMm[] | null {
+  if (isTemplateId(templateId)) {
+    return generateTemplateFrames(templateId, book, spreadIndex, spread).map(
+      (frame) => frame.rect,
+    )
+  }
+  const saved = findSavedTemplate(templateId)
+  return saved === undefined
+    ? null
+    : customLayoutRects(book, spreadIndex, saved.slots)
+}
+
+/** Apply a catalog template or a saved layout to a spread. */
+export function applyLayout(spreadId: string, templateId: string): void {
+  if (isTemplateId(templateId)) {
+    applyMarkedSpreadTemplate(spreadId, templateId)
+    return
+  }
+  const saved = findSavedTemplate(templateId)
+  if (saved !== undefined) {
+    dispatchBookOp({
+      type: 'applyCustomLayout',
+      spreadId,
+      templateId,
+      slots: saved.slots,
+    })
+  }
 }

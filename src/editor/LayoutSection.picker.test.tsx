@@ -4,6 +4,7 @@ import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { resetBookStore } from './bookStore'
 import { matchesChip } from './layoutChips'
 import { LayoutSection } from './LayoutSection'
+import { resetSavedTemplatesForTests } from './savedTemplates'
 
 function seed(frames = [makeFrame({ id: 'f1' })], templateId?: string) {
   resetBookStore({
@@ -41,6 +42,8 @@ const chip = (id: string): HTMLElement => {
 afterEach(() => {
   cleanup()
   resetBookStore()
+  window.localStorage.clear()
+  resetSavedTemplatesForTests()
 })
 
 describe('matchesChip (kit context-inspector.tsx:94)', () => {
@@ -142,7 +145,7 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     )
   })
 
-  it('My templates lists none yet', () => {
+  it('My templates lists none yet (a new user has no saved templates)', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     fireEvent.click(screen.getByTestId('tab-mine'))
@@ -153,8 +156,9 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
       'false',
     )
     expect(listed()).toEqual([])
+    expect(screen.getByTestId('tab-mine').textContent).toBe('My templates 0')
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
-      'No templates yet.',
+      'No templates yet. Save a spread you like.',
     )
     expect(screen.queryByTestId('tpl-suggested')).toBeNull()
     fireEvent.change(screen.getByTestId('layout-search'), {

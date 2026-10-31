@@ -40,7 +40,11 @@ export function Disclosure({
           <div className="pb-disclosure__header">
             <Heading className="pb-disclosure__heading">
               <Button slot="trigger" className="pb-disclosure__trigger">
-                <Icon name="chevronRight" className="pb-disclosure__chevron" />
+                <Icon
+                  name="chevronRight"
+                  size={14}
+                  className="pb-disclosure__chevron"
+                />
                 <span className="inspector-eyebrow">{title}</span>
                 {!isExpanded && summary !== undefined ? (
                   <span
@@ -58,7 +62,9 @@ export function Disclosure({
             </Heading>
             {isExpanded ? right : null}
           </div>
-          <DisclosurePanel>{children}</DisclosurePanel>
+          <DisclosurePanel className="pb-disclosure__panel">
+            {children}
+          </DisclosurePanel>
         </>
       )}
     </AriaDisclosure>
