@@ -57,6 +57,10 @@ test.describe('frame-budget gates', () => {
       'data-spread-count',
       '40',
     )
+    // Row Add after selects the new spread; start the show from spread 1.
+    const firstRow = page.getByTestId(/^spread-list-item-/).first()
+    await firstRow.click()
+    await expect(firstRow).toHaveAttribute('aria-selected', 'true')
     await page.getByTestId('present').click()
     await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
     const flip = async (key: 'ArrowLeft' | 'ArrowRight'): Promise<void> => {
