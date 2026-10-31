@@ -166,8 +166,15 @@ test('M23: spreads are 44 px apart at Fit and after zoom; labels 6 px under', as
     Math.abs(label.y - (spread.y + spread.height) - 6),
   ).toBeLessThanOrEqual(1)
 
-  // The gap does not scale with zoom (kit stackGap is screen px).
-  for (const step of ['zoom-in', 'zoom-out', 'zoom-out'] as const) {
+  // The gap does not scale with zoom (kit stackGap is screen px), down to
+  // the kit Stack floor 0.5 × Fit (Fit / 1.25³ = 0.512 × Fit).
+  for (const step of [
+    'zoom-in',
+    'zoom-out',
+    'zoom-out',
+    'zoom-out',
+    'zoom-out',
+  ] as const) {
     const before = await readZoomPercent(page)
     await page.getByTestId(step).click()
     await expect.poll(() => readZoomPercent(page)).not.toBe(before)
