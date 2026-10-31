@@ -116,6 +116,26 @@ test('the spread inspector: kit header, no Spread properties, sections in order 
   ])
 })
 
+test('My templates shows a readable one-line empty state', async ({ page }) => {
+  await page.getByTestId('tab-mine').click()
+  await expect(allTiles(page)).toHaveCount(0)
+  const empty = page.getByTestId('tpl-empty')
+  await expect(empty).toHaveText('No templates yet.')
+  // Kit tpl-empty is a p-4 box; its text sits on one line.
+  const text = await empty.evaluate((el) => {
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    const rect = range.getBoundingClientRect()
+    return {
+      width: rect.width,
+      height: rect.height,
+      lineHeight: parseFloat(getComputedStyle(el).lineHeight),
+    }
+  })
+  expect(text.width).toBeGreaterThan(80)
+  expect(text.height).toBeLessThanOrEqual(text.lineHeight + 0.5)
+})
+
 test('All layouts lists the kit layouts in kit order', async ({ page }) => {
   await expect(allTiles(page).getByTestId('tpl-name')).toHaveText(KIT_LAYOUTS)
   await selectSecondSpread(page)
