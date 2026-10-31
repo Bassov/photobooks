@@ -183,13 +183,19 @@ describe('MasterSpacingSection', () => {
     expect(slider('spread-margin').getAttribute('min')).toBe('0')
   })
 
-  it('notes the re-flow only for a spread without a template', () => {
+  it('notes the re-flow only for a spread without a catalog template', () => {
     seed()
     const { unmount } = render(<MasterSpacingSection spreadId="s1" />)
     expect(
       screen.getByText('Margin and gap re-flow template layouts'),
     ).toBeTruthy()
     unmount()
+    seed({ templateId: 'user-abc' })
+    const saved = render(<MasterSpacingSection spreadId="s1" />)
+    expect(
+      screen.getByText('Margin and gap re-flow template layouts'),
+    ).toBeTruthy()
+    saved.unmount()
     seed({ templateId: 'full-bleed' })
     render(<MasterSpacingSection spreadId="s1" />)
     expect(

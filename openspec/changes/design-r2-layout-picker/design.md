@@ -8,7 +8,7 @@
 6. **Inspector header (M2).** One 48 px row: icon + title + meta + "Hide inspector (I)" with new glyphs `panelRightClose`, `sparkles`.
 
 7. **Saved templates.** `savedTemplates.ts`: a localStorage list (Zod-checked on load, bad data → empty) of `{id: user-…, name, slots %}`; core `spreadLayoutSlots` / `customLayoutRects` / `applyCustomLayout` turn a spread into percent slots and back (photos by index), so saved ids never enter `TEMPLATE_IDS`. `?templates=kit` seeds on the first read, gated on `DEV || VITE_TEST_FIXTURES`.
-8. **Spread sections.** `Spread.masterId` (optional enum, absent = A) + `setSpreadMaster` / `setSpreadBackground` ops (one history step); Margin / Gap write the spread grid override, so templates re-flow; `InspectorSlider editableValue` = kit `SliderValueField` (draft in a ref so the synchronous blur after Enter / Escape sees it cleared).
+8. **Spread sections.** `Spread.masterId` (optional enum, absent = A; stored, undoable and persisted only, no painter reads it until a master-page requirement exists) + `setSpreadMaster` / `setSpreadBackground` ops (one history step); Margin / Gap write the spread grid override, so catalog templates re-flow (saved `user-…` layouts are fixed percent slots and show the re-flow note); `InspectorSlider editableValue` = kit `SliderValueField` (draft in a ref so the synchronous blur after Enter / Escape sees it cleared).
 
 ## Touch-set & Test Plan
 

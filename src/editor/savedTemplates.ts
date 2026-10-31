@@ -27,7 +27,8 @@ const listeners = new Set<() => void>()
 function load(): readonly SavedTemplate[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    const parsed = storedSchema.safeParse(raw === null ? [] : JSON.parse(raw))
+    // A missing key parses as `null`, which fails the schema: no templates.
+    const parsed = storedSchema.safeParse(JSON.parse(String(raw)))
     return parsed.success ? parsed.data : []
   } catch {
     return []

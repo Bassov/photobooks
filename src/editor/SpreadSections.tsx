@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { effectiveGrid, type SpreadMasterId } from '../core'
+import { effectiveGrid, isTemplateId, type SpreadMasterId } from '../core'
 import { Disclosure } from '../ui/Disclosure'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
@@ -63,11 +63,8 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
           size="sm"
           className="spread-segmented"
           value={spread.masterId ?? 'A'}
-          onChange={(next) => {
-            const masterId = MASTERS.find((m) => m.id === next)?.id
-            if (masterId !== undefined) {
-              dispatchBookOp({ type: 'setSpreadMaster', spreadId, masterId })
-            }
+          onChange={(masterId) => {
+            dispatchBookOp({ type: 'setSpreadMaster', spreadId, masterId })
           }}
           items={MASTERS}
         />
@@ -105,7 +102,7 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
             }}
           />
         </div>
-        {spread.templateId === undefined ? (
+        {spread.templateId === undefined || !isTemplateId(spread.templateId) ? (
           <p className="spread-spacing-note">
             Margin and gap re-flow template layouts
           </p>

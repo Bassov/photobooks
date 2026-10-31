@@ -12,14 +12,11 @@ import './TemplatePreviewOverlay.css'
  * re-renders; the book is read once per preview, not subscribed.
  */
 export function TemplatePreviewOverlay({ spreadId }: { spreadId: string }) {
-  const templateId = useSyncExternalStore(
-    subscribeTemplatePreview,
-    () => templatePreviewOn(spreadId),
-    () => templatePreviewOn(spreadId),
+  const templateId = useSyncExternalStore(subscribeTemplatePreview, () =>
+    templatePreviewOn(spreadId),
   )
-  return templateId === '' ? null : (
-    <PreviewLayer spreadId={spreadId} templateId={templateId} />
-  )
+  // No preview ('') resolves to no layout rects, so the layer renders nothing.
+  return <PreviewLayer spreadId={spreadId} templateId={templateId} />
 }
 
 function PreviewLayer({
