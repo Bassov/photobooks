@@ -180,6 +180,48 @@ test('M23: spreads are 44 px apart at Fit and after zoom; labels 6 px under', as
     await expect.poll(() => readZoomPercent(page)).not.toBe(before)
     await expectStackGap(page)
   }
+
+  // The smallest reachable zoom keeps the 44 px gap too.
+  await zoomOutToFloor(page)
+  await expectStackGap(page)
+})
+
+async function firstSpreadHeight(page: Page): Promise<number> {
+  return (await spreadBoxes(page))[0]?.height ?? 0
+}
+
+/**
+ * Zoom out with the toolbar until the painted spread stops shrinking (the
+ * rounded zoom percent can stall above the floor).
+ */
+async function zoomOutToFloor(page: Page): Promise<void> {
+  for (let guard = 0; guard < 40; guard += 1) {
+    const before = await firstSpreadHeight(page)
+    await page.getByTestId('zoom-out').click()
+    const changed = await expect
+      .poll(() => firstSpreadHeight(page), { timeout: 1_000 })
+      .not.toBe(before)
+      .then(
+        () => true,
+        () => false,
+      )
+    if (!changed) return
+  }
+  throw new Error('zoom-out never reached the floor')
+}
+
+test('M23: a 40-spread book at the zoom-out floor keeps 44 px gaps and mounts every spread', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter')
+  await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
+    'data-spread-count',
+    '40',
+  )
+  await zoomOutToFloor(page)
+  await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+  await expectStackGap(page)
+  await assertDocumentFitsViewport(page)
 })
 
 /**

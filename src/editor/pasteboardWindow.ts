@@ -35,26 +35,34 @@ export interface PasteboardWindow {
   readonly tailPx: number
 }
 
-/** Gap per spread px once the spread is too small for the full kit gap. */
-export const PASTEBOARD_GAP_RATIO = 0.5
-
 /**
- * Kit `stackGap`: 44 screen px under a spread at any zoom of the kit range.
- * Below 88 px spread height (zoomed out past the kit's 0.25 × Fit floor) it
- * shrinks with the spread, so a long book can still fit the port whole.
+ * Smallest spread height of the zoomed-out stack. A book too long to fit the
+ * port with 44 px gaps stops here and scrolls; the gap never shrinks.
  */
-export function pasteboardGapPx(spreadHeightPx: number): number {
-  if (!Number.isFinite(spreadHeightPx) || spreadHeightPx <= 0) {
-    return PASTEBOARD_GAP_PX
-  }
-  return Math.min(PASTEBOARD_GAP_PX, spreadHeightPx * PASTEBOARD_GAP_RATIO)
-}
+export const STACK_MIN_SPREAD_PX = 16
 
+/** Kit `stackGap`: the gap under a spread is 44 screen px at every zoom. */
 export function pasteboardStridePx(spreadHeightPx: number): number {
   if (!Number.isFinite(spreadHeightPx) || spreadHeightPx <= 0) {
     return PASTEBOARD_GAP_PX
   }
-  return spreadHeightPx + pasteboardGapPx(spreadHeightPx)
+  return spreadHeightPx + PASTEBOARD_GAP_PX
+}
+
+/**
+ * Overscan of the mounted window: one stride, or the whole stack once the
+ * spreads are at the zoom-out floor (the whole-book overview mounts every
+ * spread even when the 44 px gaps make it taller than the port).
+ */
+export function pasteboardOverscanPx(
+  count: number,
+  spreadHeightPx: number,
+): number {
+  const stride = pasteboardStridePx(spreadHeightPx)
+  if (spreadHeightPx > 0 && spreadHeightPx <= STACK_MIN_SPREAD_PX + 0.5) {
+    return Math.max(0, count) * stride
+  }
+  return stride
 }
 
 export function pasteboardWindow(input: {

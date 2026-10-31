@@ -3,10 +3,11 @@ import { fc, test } from '@fast-check/vitest'
 import {
   PASTEBOARD_GAP_PX,
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  STACK_MIN_SPREAD_PX,
   applyForceMountIndex,
   clearForceMountIndex,
   pacePasteboardWindow,
-  pasteboardGapPx,
+  pasteboardOverscanPx,
   pasteboardStridePx,
   pasteboardWindow,
   pasteboardWindowsEqual,
@@ -25,22 +26,48 @@ describe('pasteboardStridePx', () => {
   })
 })
 
-describe('pasteboardGapPx', () => {
-  it('is the kit 44 px down to an 88 px spread', () => {
-    expect(pasteboardGapPx(600)).toBe(44)
-    expect(pasteboardGapPx(88)).toBe(44)
+describe('pasteboard stack gap', () => {
+  it('stays the kit 44 px under a spread of any height', () => {
+    expect(PASTEBOARD_GAP_PX).toBe(44)
+    expect(pasteboardStridePx(600)).toBe(644)
+    expect(pasteboardStridePx(20)).toBe(64)
+    expect(pasteboardStridePx(STACK_MIN_SPREAD_PX)).toBe(16 + 44)
+  })
+})
+
+describe('pasteboardOverscanPx', () => {
+  it('overscans one stride above the zoom-out floor', () => {
+    expect(pasteboardOverscanPx(40, 600)).toBe(644)
+    expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX + 0.6)).toBe(
+      STACK_MIN_SPREAD_PX + 0.6 + 44,
+    )
   })
 
-  it('is half the spread below 88 px', () => {
-    expect(pasteboardGapPx(87)).toBe(43.5)
-    expect(pasteboardGapPx(20)).toBe(10)
-    expect(pasteboardStridePx(20)).toBe(30)
+  it('covers the whole stack at the floor (whole-book overview)', () => {
+    expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX)).toBe(40 * 60)
+    expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX + 0.5)).toBe(
+      40 * (STACK_MIN_SPREAD_PX + 0.5 + 44),
+    )
+    expect(pasteboardOverscanPx(3, 4)).toBe(3 * 48)
+    expect(pasteboardOverscanPx(-2, 4)).toBe(0)
   })
 
-  it('falls back to 44 px for an unusable spread height', () => {
-    expect(pasteboardGapPx(0)).toBe(44)
-    expect(pasteboardGapPx(-5)).toBe(44)
-    expect(pasteboardGapPx(Number.POSITIVE_INFINITY)).toBe(44)
+  it('falls back to one gap for an unusable spread height', () => {
+    expect(pasteboardOverscanPx(40, 0)).toBe(44)
+    expect(pasteboardOverscanPx(40, -5)).toBe(44)
+    expect(pasteboardOverscanPx(40, Number.NaN)).toBe(44)
+  })
+
+  it('lets the window mount every spread at the floor', () => {
+    const stride = pasteboardStridePx(STACK_MIN_SPREAD_PX)
+    const window = pasteboardWindow({
+      count: 40,
+      stridePx: stride,
+      scrollTop: 20 * stride,
+      viewportPx: 700,
+      overscanPx: pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX),
+    })
+    expect(window).toEqual({ start: 0, end: 40, leadPx: 0, tailPx: 0 })
   })
 })
 

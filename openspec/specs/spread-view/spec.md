@@ -151,7 +151,8 @@ page-level horizontal or vertical scroll.
 ### Requirement: Pointer, keyboard zoom, and space pan
 
 Wheel (with or without Ctrl/Cmd) and pinch SHALL zoom around the pointer; `+`/`-`
-SHALL zoom around the viewport center. Zoom MUST NOT go below whole-stack fit and
+SHALL zoom around the viewport center. Zoom MUST NOT go below the pasteboard
+zoom-out floor (whole-stack fit with 44 px gaps, or 16 px spreads for a long book) and
 MUST reach at least 400% of physical size. Opening the app MUST keep the current
 layout scale. Holding Space and dragging on the pasteboard SHALL pan the pasteboard
 scrollport whenever the pointer is over the pasteboard and focus is not in a text
@@ -174,7 +175,7 @@ viewport.
 
 - **WHEN** the user presses `+`, or zooms out until the stack fits the port
 - **THEN** the stack grows about the viewport center (and the zoom indicator updates),
-  or further zoom-out does not shrink below whole-book fit
+  or further zoom-out does not shrink below the zoom-out floor
 
 #### Scenario: Space drag moves the stack
 
@@ -210,7 +211,8 @@ viewport.
 ### Requirement: Whole-book zoom mounts the visible stack
 
 When the painter fixture is zoomed so the full stack fits in the pasteboard port,
-the mounted window MUST include every spread in that stack.
+or out to the zoom-out floor, the mounted window MUST include every spread in that
+stack.
 
 ### Requirement: Placed frames show the covering tier
 

@@ -31,10 +31,12 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import {
+  PASTEBOARD_GAP_PX,
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
   applyForceMountIndex,
   clearForceMountIndex,
   pacePasteboardWindow,
+  pasteboardOverscanPx,
   pasteboardWindow,
   pasteboardWindowsEqual,
   pickActiveSpread,
@@ -53,7 +55,6 @@ import {
   nextViewportSize,
   PASTEBOARD_PAD_PX,
   pasteboardClickSpreadId,
-  pasteboardSlotPaddingBottom,
   pasteboardStrideAtZoom,
   pasteboardWindowKey,
   pasteboardWorldWidthPx,
@@ -108,7 +109,6 @@ export const Pasteboard = memo(function Pasteboard({
   const committedZoom = cameraFrame.zoom
   const pxPerMm = SPREAD_PX_PER_MM * committedZoom
   const stride = pasteboardStrideAtZoom(trimHeightMm, committedZoom)
-  const slotPad = pasteboardSlotPaddingBottom(trimHeightMm, committedZoom)
   const [trackedScroll, setTrackedScroll] = useState({ top: 0, epoch: 0 })
   const scrollTop = stackScrollTop(
     resolveTrackedScrollTop(trackedScroll, cameraFrame),
@@ -175,7 +175,7 @@ export const Pasteboard = memo(function Pasteboard({
     stridePx: stride,
     scrollTop,
     viewportPx: viewport.height,
-    overscanPx: stride,
+    overscanPx: pasteboardOverscanPx(spreadIds.length, trimHeightMm * pxPerMm),
   })
   const viewportCover = pasteboardWindow({
     count: spreadIds.length,
@@ -529,9 +529,9 @@ export const Pasteboard = memo(function Pasteboard({
                 data-active={markedId === spreadId ? 'true' : 'false'}
                 style={{
                   height: stride,
-                  paddingBottom: slotPad,
+                  paddingBottom: PASTEBOARD_GAP_PX,
                   containIntrinsicBlockSize: `auto ${String(stride)}px`,
-                  ['--slot-pad' as string]: `${String(slotPad)}px`,
+                  ['--slot-pad' as string]: `${String(PASTEBOARD_GAP_PX)}px`,
                 }}
               >
                 <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />

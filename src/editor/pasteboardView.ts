@@ -1,8 +1,7 @@
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   PASTEBOARD_GAP_PX,
-  PASTEBOARD_GAP_RATIO,
-  pasteboardGapPx,
+  STACK_MIN_SPREAD_PX,
   pasteboardStridePx,
 } from './pasteboardWindow'
 
@@ -99,17 +98,10 @@ export function pasteboardStrideAtZoom(
   return pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM * zoom)
 }
 
-export function pasteboardSlotPaddingBottom(
-  trimHeightMm: number,
-  zoom: number,
-): number {
-  return pasteboardGapPx(trimHeightMm * SPREAD_PX_PER_MM * zoom)
-}
-
 /**
  * Stack y (px below the first spread's top) at zoom `to` of the point at `y`
  * at zoom `from`: a point on a spread keeps its place on that spread, a point
- * in a gap keeps its share of the gap. Above the stack it scales.
+ * in a gap keeps its offset in the 44 px gap. Above the stack it scales.
  */
 export function stackContentYAtZoom(
   y: number,
@@ -119,26 +111,24 @@ export function stackContentYAtZoom(
 ): number {
   const scale = to / from
   const fromSpread = spreadHeightPx * from
-  const fromGap = pasteboardGapPx(fromSpread)
-  const stride = fromSpread + fromGap
   if (!(y > 0) || !(fromSpread > 0) || !Number.isFinite(scale)) {
     return y * scale
   }
-  const toSpread = spreadHeightPx * to
-  const toGap = pasteboardGapPx(toSpread)
-  const index = Math.floor(y / stride)
-  const local = y - index * stride
+  const index = Math.floor(y / (fromSpread + PASTEBOARD_GAP_PX))
+  const local = y - index * (fromSpread + PASTEBOARD_GAP_PX)
   const onSpread = Math.min(local, fromSpread)
   return (
-    index * (toSpread + toGap) +
+    index * (spreadHeightPx * to + PASTEBOARD_GAP_PX) +
     onSpread * scale +
-    ((local - onSpread) * toGap) / fromGap
+    (local - onSpread)
   )
 }
 
 /**
- * Largest zoom at which `count` spreads (`spreadHeightPx` tall at zoom 1)
- * and their gaps fit `viewportPx`; Infinity when there is nothing to fit.
+ * Zoom-out floor of the stack height: the largest zoom at which `count`
+ * spreads (`spreadHeightPx` tall at zoom 1) and their 44 px gaps fit
+ * `viewportPx`, but never below `STACK_MIN_SPREAD_PX` spreads (a long book
+ * then scrolls). Infinity when there is nothing to fit.
  */
 export function stackHeightFitZoom(
   count: number,
@@ -148,13 +138,8 @@ export function stackHeightFitZoom(
   if (!(count > 0) || !(spreadHeightPx > 0) || !(viewportPx > 0)) {
     return Number.POSITIVE_INFINITY
   }
-  const perSpread = viewportPx / count
-  // Small spreads: the gap is a share of the spread, the stride is linear.
-  const linear = perSpread / (spreadHeightPx * (1 + PASTEBOARD_GAP_RATIO))
-  if (spreadHeightPx * linear * PASTEBOARD_GAP_RATIO <= PASTEBOARD_GAP_PX) {
-    return linear
-  }
-  return (perSpread - PASTEBOARD_GAP_PX) / spreadHeightPx
+  const fit = (viewportPx / count - PASTEBOARD_GAP_PX) / spreadHeightPx
+  return Math.max(fit, STACK_MIN_SPREAD_PX / spreadHeightPx)
 }
 
 export function pasteboardWindowKey(mountedIds: readonly string[]): string {
