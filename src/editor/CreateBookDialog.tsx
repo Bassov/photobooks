@@ -153,9 +153,7 @@ export function CreateBookDialog({
             <SegmentedControl
               label="Orientation"
               value={orientation}
-              onChange={(v) => {
-                setOrientation(v as 'portrait' | 'landscape')
-              }}
+              onChange={setOrientation}
               items={[
                 { id: 'portrait', label: 'Portrait' },
                 { id: 'landscape', label: 'Landscape' },
