@@ -42,6 +42,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
+- [ ] [feature] [design-r2-layout-picker](roadmap/P1/design-r2-layout-picker.md) — Bug: design-r2-layout-picker - Spread inspector Layout picker = kit (M21)
 - [ ] [feature] [design-r2-inspector](roadmap/P1/design-r2-inspector.md) — Bug: design-r2-inspector: inspector always visible, Spread+LAYOUT context, select on drop, Photo inspector
 - [ ] [feature] [design-r2-toolbar-kitset](roadmap/P1/design-r2-toolbar-kitset.md) — Bug: design-r2-toolbar-kitset - top bar = kit #/demo tool set, centered, Hand pans (M11 widened, M20, M22)
 - [ ] [feature] [design-r2-cover-book](roadmap/P1/design-r2-cover-book.md) — Bug: design-r2-cover-book: cover labels/inspector, endpaper view, fit insets, spread-list overlap, book settings
