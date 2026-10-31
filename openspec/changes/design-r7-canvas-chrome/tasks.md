@@ -10,3 +10,7 @@
 
 1. 1440×900, empty spread: ctrl-wheel zoom in and out; the "Drop photo" icon and label never grow, shrink or jump and stay centred; the fold stays on the spread centre.
 2. Select a frame, resize it with a handle and enter crop: no "mm" pill under the frame.
+
+- 1: OK via e2e `design-r7-canvas-chrome.spec.ts` M51 (per-rAF samples; fails with the hints counter-scale removed: label 0.6 px off at zoom ×0.963).
+- 2: OK via e2e `design-r7-canvas-chrome.spec.ts` M52 and the flipped `canvas-frame-chrome` / `inspector` / `preview-no-overlays` specs.
+- `pnpm agent manual-qa`: problem (harness entry, not reached): the welcome header intercepts `start-session`, inherited from main.
