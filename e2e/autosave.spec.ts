@@ -66,7 +66,7 @@ test('autosave persists edits across reload without manual Save', async ({
     timeout: 30_000,
   })
 
-  await applyLayout(page, '2-up')
+  await applyLayout(page, 'Two portraits')
   await expect(page.getByTestId('book-size')).toHaveText(/· (unsaved|saving…)$/)
 
   await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
@@ -85,7 +85,10 @@ test('autosave persists edits across reload without manual Save', async ({
   })
   await expectMissingHatchAfterRestore(page, 1)
   await openSpreadTab(page)
-  await expect(layoutTile(page, '2-up')).toHaveAttribute('aria-pressed', 'true')
+  await expect(layoutTile(page, 'Two portraits')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   await expect(page.getByTestId('book-size')).toHaveText(/· saved$/)
 
   await assertDocumentFitsViewport(page)

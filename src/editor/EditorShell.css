@@ -234,9 +234,16 @@
 
 /* Kit InspectorShell header: context title (Photo / Spread). */
 .inspector-context-title {
-  padding: 4px 16px 0;
+  overflow: hidden;
+  margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector-context-icon {
+  display: flex;
 }
 
 /* "Drop here for a new spread" band; hit-testing is dropTargets.hitTestGap. */

@@ -39,6 +39,35 @@ export async function applyLayout(
   }
 }
 
+/**
+ * Apply a `cols × rows` contact sheet from the Layout section fields. On the
+ * single-page first spread, 2 × 2 is the old `4-grid` and 2 × 1 the old
+ * `2-up` (same rects and frame ids); the picker lists only the kit layouts.
+ */
+export async function applyContactSheet(
+  page: Page,
+  cols: number,
+  rows: number,
+): Promise<void> {
+  await openSpreadTab(page)
+  const fields = [
+    [page.getByTestId('layout-contact-cols'), cols],
+    [page.getByTestId('layout-contact-rows'), rows],
+  ] as const
+  for (const [field, value] of fields) {
+    await field.fill(String(value))
+    await field.blur()
+  }
+  await page.getByTestId('layout-contact-apply').click()
+  // The fields follow the spread's contact sheet once it is applied.
+  for (const [field, value] of fields) {
+    await expect(field).toHaveValue(String(value))
+  }
+  await expect(
+    page.getByTestId('layout-tile').and(page.locator('[aria-pressed="true"]')),
+  ).toHaveCount(0)
+}
+
 /** Add a spread after the last one (row "Add after", Ctrl+Enter; reveals it). */
 export async function addSpreadAfterLast(page: Page): Promise<void> {
   const toggle = page.getByTestId('toggle-l')

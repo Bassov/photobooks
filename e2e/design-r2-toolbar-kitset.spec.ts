@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
-import { applyLayout } from './fixtures/layoutTiles'
+import { applyContactSheet } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.use({ viewport: { width: 1440, height: 900 } })
@@ -85,7 +85,7 @@ test('tool group sits mx-auto centered between the left and right groups', async
 
 async function openWithFrames(page: Page) {
   await openSessionEditor(page)
-  await applyLayout(page, '4-grid')
+  await applyContactSheet(page, 2, 2)
   for (let i = 0; i < 3; i++) await page.getByTestId('zoom-in').click()
   const port = page.getByTestId('pasteboard-scroll')
   await port.evaluate((el) => {

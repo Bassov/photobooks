@@ -5,7 +5,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
-import { applyLayout } from './fixtures/layoutTiles'
+import { applyContactSheet } from './fixtures/layoutTiles'
 import { pointOf } from './fixtures/locatorBox'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
@@ -30,7 +30,7 @@ async function openWithPlacedPhoto(page: Page) {
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
     timeout: 30_000,
   })
-  await applyLayout(page, '4-grid')
+  await applyContactSheet(page, 2, 2)
   const active = page.getByTestId('spread-view').first()
   const assetId = await page
     .getByTestId('filmstrip-item')

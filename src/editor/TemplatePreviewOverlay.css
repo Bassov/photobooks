@@ -1,0 +1,28 @@
+/* Kit TemplatePreview: scrim, dashed mark slots, "Preview · name" chip. */
+.template-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: var(--template-preview-scrim);
+  pointer-events: none;
+}
+
+.template-preview-slot {
+  position: absolute;
+  border-radius: var(--radius-2xs);
+  background: color-mix(in srgb, var(--select) 15%, transparent);
+  outline: 2px dashed var(--color-mark);
+  outline-offset: -2px;
+}
+
+.template-preview-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  color: var(--foreground);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}

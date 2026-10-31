@@ -545,7 +545,7 @@ test.describe('frame-budget gates', () => {
       })
 
       // Dirty the book so autosave debounce arms, then drag longer than 1s.
-      await applyLayout(page, '2-up')
+      await applyLayout(page, 'Two portraits')
       await expect(page.getByTestId('book-size')).toHaveText(/· unsaved$/)
 
       const points = await page.evaluate((mime) => {

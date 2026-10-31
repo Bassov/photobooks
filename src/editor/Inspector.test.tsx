@@ -96,6 +96,8 @@ describe('Inspector', () => {
       /Select a spread or a photo/,
     )
     expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+    // No context and no collapse button: no empty header bar.
+    expect(screen.queryByTestId('inspector-header')).toBeNull()
   })
 
   it('shows the Spread context for the active spread, Esc returns to empty', () => {
@@ -184,9 +186,19 @@ describe('Inspector', () => {
       const panel = screen.getByTestId('inspector-body')
       expect(panel.querySelector('dl')).toBeNull()
       expect(within(panel).queryByText('Spread properties')).toBeNull()
-      expect(within(panel).getByTestId('inspector-context').textContent).toBe(
+      // Kit InspectorShell header (context-inspector.tsx:35-42) sits above the body.
+      const header = screen.getByTestId('inspector-header')
+      expect(within(header).getByTestId('inspector-context').textContent).toBe(
         'Spread',
       )
+      expect(
+        within(header).getByTestId('inspector-spread-summary').textContent,
+      ).toBe('Page 1 · 0 empty')
+      expect(
+        [...panel.querySelectorAll('.inspector-eyebrow')].map(
+          (el) => el.textContent,
+        ),
+      ).toEqual(['Layout', 'Master & spacing', 'Background', 'Grid'])
     })
 
     // Kit Photo context (context-inspector.tsx:66-72) has no meta rows.
@@ -201,9 +213,21 @@ describe('Inspector', () => {
       expect(within(panel).queryByText('Used')).toBeNull()
       expect(within(panel).queryByText('Details')).toBeNull()
       expect(within(panel).queryByText('Spread properties')).toBeNull()
-      expect(within(panel).getByTestId('inspector-context').textContent).toBe(
+      const header = screen.getByTestId('inspector-header')
+      expect(within(header).getByTestId('inspector-context').textContent).toBe(
         'Photo',
       )
+      // The pages / empty-frames line belongs to the Spread context only.
+      expect(
+        within(header).queryByTestId('inspector-spread-summary'),
+      ).toBeNull()
+      // Kit header icon is the muted SUB colour.
+      const probe = document.createElement('span')
+      probe.style.color = SUB
+      expect(
+        header.querySelector<HTMLElement>('.inspector-context-icon')?.style
+          .color,
+      ).toBe(probe.style.color)
     })
 
     it('lists layout and grid for a spread', () => {

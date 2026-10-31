@@ -6,6 +6,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { Icon } from '../ui/Icon'
+import type { IconName } from '../ui/icons/glyphs'
 import { IconButton } from '../ui/IconButton'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { CoverSection } from './CoverSection'
@@ -40,6 +41,7 @@ import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import { PhotoSection } from './PhotoSection'
 import { GridSection } from './GridSection'
 import { LayoutSection } from './LayoutSection'
+import { BackgroundSection, MasterSpacingSection } from './SpreadSections'
 import {
   inspectorView,
   sameInspectorPanel,
@@ -63,6 +65,14 @@ type InspectorContext =
 
 function readBook() {
   return getBookStoreSnapshot().book
+}
+
+/** Kit META (context-inspector.tsx:26-29) for the contexts with a shell header. */
+const CONTEXT_HEADER: Partial<
+  Record<InspectorContext['kind'], { title: string; icon: IconName }>
+> = {
+  spread: { title: 'Spread', icon: 'bookOpen' },
+  photo: { title: 'Photo', icon: 'image' },
 }
 
 /** Kit InspectorPanel: BAR surface, quiet header, rows follow the selection. */
@@ -139,6 +149,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         : section === null
           ? panel
           : { kind: 'photo', target: section }
+  const context = CONTEXT_HEADER[view.kind] ?? null
   return (
     <section
       className="editor-inspector-panel flex h-full min-h-0 flex-col"
@@ -147,20 +158,43 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
       data-inspector-view={view.kind === 'photo' ? 'frame' : view.kind}
       style={{ color: T }}
     >
-      {onCollapse ? (
+      {onCollapse || context !== null ? (
+        // Kit InspectorShell header (uikit/src/sandbox/context-inspector.tsx:35-42).
         <div
-          className="flex h-12 shrink-0 items-center justify-end pr-1.5 pl-2"
-          style={{ color: SUB }}
+          className="flex h-12 shrink-0 items-center gap-2 pr-2 pl-4"
+          data-testid="inspector-header"
         >
-          <IconButton
-            label="Hide inspector (I)"
-            size="sm"
-            placement="left"
-            onPress={onCollapse}
-            data-testid="panel-collapse-right"
-          >
-            <Icon name="panelRight" />
-          </IconButton>
+          {context === null ? null : (
+            <>
+              <span className="inspector-context-icon" style={{ color: SUB }}>
+                <Icon name={context.icon} />
+              </span>
+              <div className="flex min-w-0 flex-col leading-tight">
+                <h2
+                  className="inspector-context-title"
+                  data-testid="inspector-context"
+                >
+                  {context.title}
+                </h2>
+                {view.kind === 'spread' ? (
+                  <SpreadSummary spreadId={view.spreadId} />
+                ) : null}
+              </div>
+            </>
+          )}
+          {onCollapse ? (
+            <span className="ml-auto flex" style={{ color: SUB }}>
+              <IconButton
+                label="Hide inspector (I)"
+                size="sm"
+                placement="left"
+                onPress={onCollapse}
+                data-testid="panel-collapse-right"
+              >
+                <Icon name="panelRightClose" />
+              </IconButton>
+            </span>
+          ) : null}
         </div>
       ) : null}
       <div
@@ -172,12 +206,6 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         {view.kind === 'book' ? <BookSettingsSection /> : null}
         {view.kind === 'photo' ? (
           <>
-            <h2
-              className="inspector-context-title"
-              data-testid="inspector-context"
-            >
-              Photo
-            </h2>
             <PhotoSection target={view.target} />
             <FitCropSection target={view.target} cropping={target !== null} />
             <PhotoRotateSection target={view.target} />
@@ -216,14 +244,10 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         ) : null}
         {view.kind === 'spread' ? (
           <>
-            <h2
-              className="inspector-context-title"
-              data-testid="inspector-context"
-            >
-              Spread
-            </h2>
-            <SpreadSummary spreadId={view.spreadId} />
+            {/* Kit spread context order (context-inspector.tsx:58-63). */}
             <LayoutSection spreadId={view.spreadId} />
+            <MasterSpacingSection spreadId={view.spreadId} />
+            <BackgroundSection spreadId={view.spreadId} />
             <GridSection scope="spread" spreadId={view.spreadId} />
           </>
         ) : null}
@@ -239,7 +263,7 @@ function SpreadSummary({ spreadId }: { spreadId: string }) {
   const line = useSyncExternalStore(subscribeBookStore, read, read)
   return (
     <p
-      className="px-4 pt-0.5 text-xs"
+      className="m-0 truncate text-2xs"
       style={{ color: SUB }}
       data-testid="inspector-spread-summary"
     >

@@ -76,3 +76,23 @@
   font-variant-numeric: tabular-nums;
   outline: none;
 }
+
+/* Kit SliderValueField: `w-16 rounded-xs bg-transparent text-right`, the
+   focus ring `outline-2 outline-offset-1` in the muted ink. */
+.insp-slider-value {
+  width: 64px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  line-height: inherit;
+  text-align: right;
+  outline: none;
+}
+
+.insp-slider-value:focus-visible {
+  outline: 2px solid var(--muted-foreground);
+  outline-offset: 1px;
+}

@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import {
   Label,
   Slider,
   SliderOutput,
   SliderThumb,
   SliderTrack,
+  type SliderState,
 } from 'react-aria-components'
 import { FIELD, SUB, T } from './editorChromeTokens'
 import './FitCropSection.css'
@@ -133,7 +134,77 @@ export function Swatches({
   )
 }
 
-/** Kit `SliderRow` on slider B (fit-crop-*): label, value readout, track. */
+/**
+ * Kit `SliderValueField` (uikit components/ui/slider.tsx): the slider value as
+ * a text field. Focus shows the bare number; Enter / blur commits it clamped to
+ * the range, Escape restores the formatted value.
+ */
+function SliderValueField({
+  label,
+  state,
+}: {
+  label: string
+  state: SliderState
+}) {
+  const [draft, setDraftState] = useState<string | null>(null)
+  // Enter / Escape blur synchronously: the blur handler must see the cleared
+  // draft, not this render's copy, or Escape would commit the typed value.
+  const draftRef = useRef<string | null>(null)
+  const setDraft = (next: string | null) => {
+    draftRef.current = next
+    setDraftState(next)
+  }
+  const commit = () => {
+    const current = draftRef.current
+    if (current === null) return
+    const n = parseFloat(current.replace(',', '.'))
+    if (Number.isFinite(n)) {
+      state.setThumbValue(
+        0,
+        Math.min(
+          state.getThumbMaxValue(0),
+          Math.max(state.getThumbMinValue(0), n),
+        ),
+      )
+    }
+    setDraft(null)
+  }
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label={`${label} value`}
+      data-testid="slider-value"
+      className="insp-slider-value font-medium tabular-nums"
+      value={draft ?? state.getThumbValueLabel(0)}
+      onFocus={(event) => {
+        const bare = String(state.getThumbValue(0))
+        setDraft(bare)
+        // Swap in the bare number now: the re-render would drop the selection.
+        event.target.value = bare
+        event.target.select()
+      }}
+      onChange={(event) => {
+        setDraft(event.target.value)
+      }}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          // Leaving the field commits (onBlur).
+          event.currentTarget.blur()
+        } else if (event.key === 'Escape') {
+          setDraft(null)
+          event.currentTarget.blur()
+        }
+      }}
+    />
+  )
+}
+
+/**
+ * Kit `SliderRow` on slider B (fit-crop-*): label, value readout, track.
+ * `editableValue`: the kit SliderValueField instead of a read-only output.
+ */
 export function InspectorSlider({
   label,
   value,
@@ -143,6 +214,7 @@ export function InspectorSlider({
   unit,
   onChange,
   testId,
+  editableValue = false,
 }: {
   label: string
   value: number
@@ -152,6 +224,7 @@ export function InspectorSlider({
   unit?: Intl.NumberFormatOptions['unit']
   onChange: (value: number) => void
   testId?: string
+  editableValue?: boolean
 }) {
   return (
     <Slider
@@ -172,26 +245,30 @@ export function InspectorSlider({
             } satisfies Intl.NumberFormatOptions,
           })}
     >
-      <div className="flex items-center justify-between text-xs">
-        <Label className="fit-crop-label">{label}</Label>
-        <SliderOutput className="font-medium tabular-nums" />
-      </div>
-      <SliderTrack
-        className="fit-crop-track"
-        onDoubleClick={() => {
-          onChange(0)
-        }}
-      >
-        {({ state }) => (
-          <>
+      {({ state }) => (
+        <>
+          <div className="flex items-center justify-between text-xs">
+            <Label className="fit-crop-label">{label}</Label>
+            {editableValue ? (
+              <SliderValueField label={label} state={state} />
+            ) : (
+              <SliderOutput className="font-medium tabular-nums" />
+            )}
+          </div>
+          <SliderTrack
+            className="fit-crop-track"
+            onDoubleClick={() => {
+              onChange(0)
+            }}
+          >
             <div
               className="fit-crop-fill"
               style={{ width: `${String(state.getThumbPercent(0) * 100)}%` }}
             />
             <SliderThumb className="fit-crop-thumb" />
-          </>
-        )}
-      </SliderTrack>
+          </SliderTrack>
+        </>
+      )}
     </Slider>
   )
 }

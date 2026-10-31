@@ -98,6 +98,9 @@ const assetSchema = z.object({
 /** Built-in text styles (kit `TextStyle`); the type scale lives with the painter. */
 export const TEXT_STYLE_IDS = ['title', 'caption', 'body'] as const
 
+/** Spread master pages (kit `Spread.master`); `none` → no master. */
+export const SPREAD_MASTERS = ['A', 'B', 'none'] as const
+
 const textContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('static'), text: z.string() }),
   /** `{title}`, `{caption}`, `{spread}` tokens resolved by `resolveTextItems`. */
@@ -174,6 +177,8 @@ const spreadSchema = z.object({
   guides: z.array(guideSchema).optional(),
   /** Spread background; absent → the paper default. */
   backgroundColor: atParseTime(makeSrgbHexSchema).optional(),
+  /** Master page of the spread (kit Master & spacing); absent → Master A. */
+  masterId: z.enum(SPREAD_MASTERS).optional(),
   frames: z.array(frameSchema),
 })
 
@@ -279,6 +284,7 @@ export const bookSchema = z.object({
 export type Asset = z.infer<typeof assetSchema>
 export type TextContent = z.infer<typeof textContentSchema>
 export type TextStyleId = (typeof TEXT_STYLE_IDS)[number]
+export type SpreadMasterId = (typeof SPREAD_MASTERS)[number]
 export type FrameStyle = z.output<ReturnType<typeof makeFrameStyleSchema>>
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>

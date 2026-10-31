@@ -4,27 +4,27 @@ import './SegmentedControl.css'
 
 type SegmentedControlSize = 'sm' | 'md'
 
-interface SegmentedControlItem {
-  id: string
+interface SegmentedControlItem<T extends string> {
+  id: T
   label: ReactNode
   /** Accessible name when `label` is not plain text. */
   ariaLabel?: string
 }
 
-export interface SegmentedControlProps {
-  items: SegmentedControlItem[]
+export interface SegmentedControlProps<T extends string = string> {
+  items: SegmentedControlItem<T>[]
   /** Accessible name for the group. */
   label: string
-  value?: string
-  defaultValue?: string
-  onChange?: (value: string) => void
+  value?: T
+  defaultValue?: T
+  onChange?: (value: T) => void
   size?: SegmentedControlSize
   className?: string
   isDisabled?: boolean
 }
 
 /** Single-select segmented control (muted track, raised selected pill). */
-export function SegmentedControl({
+export function SegmentedControl<T extends string = string>({
   items,
   label,
   value,
@@ -33,7 +33,7 @@ export function SegmentedControl({
   size = 'md',
   className,
   isDisabled = false,
-}: SegmentedControlProps) {
+}: SegmentedControlProps<T>) {
   if (items.length === 0) {
     throw new Error('SegmentedControl requires at least one item')
   }

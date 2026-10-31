@@ -12,6 +12,10 @@ export interface DisclosureProps {
   title: string
   /** Collapsed by default, like the kit's secondary inspector sections. */
   defaultExpanded?: boolean
+  /** Muted value at the trigger's end, shown only while collapsed. */
+  summary?: string | undefined
+  /** Header action(s) right of the trigger, shown only while expanded. */
+  right?: ReactNode
   'data-testid'?: string
   children: ReactNode
 }
@@ -20,6 +24,8 @@ export interface DisclosureProps {
 export function Disclosure({
   title,
   defaultExpanded = false,
+  summary,
+  right,
   'data-testid': dataTestId,
   children,
 }: DisclosureProps) {
@@ -29,13 +35,38 @@ export function Disclosure({
       defaultExpanded={defaultExpanded}
       data-testid={dataTestId}
     >
-      <Heading className="pb-disclosure__heading">
-        <Button slot="trigger" className="pb-disclosure__trigger">
-          <Icon name="chevronRight" className="pb-disclosure__chevron" />
-          <span className="inspector-eyebrow">{title}</span>
-        </Button>
-      </Heading>
-      <DisclosurePanel>{children}</DisclosurePanel>
+      {({ isExpanded }) => (
+        <>
+          <div className="pb-disclosure__header">
+            <Heading className="pb-disclosure__heading">
+              <Button slot="trigger" className="pb-disclosure__trigger">
+                <Icon
+                  name="chevronRight"
+                  size={14}
+                  className="pb-disclosure__chevron"
+                />
+                <span className="inspector-eyebrow">{title}</span>
+                {!isExpanded && summary !== undefined ? (
+                  <span
+                    className="pb-disclosure__summary"
+                    data-testid={
+                      dataTestId === undefined
+                        ? undefined
+                        : `${dataTestId}-summary`
+                    }
+                  >
+                    {summary}
+                  </span>
+                ) : null}
+              </Button>
+            </Heading>
+            {isExpanded ? right : null}
+          </div>
+          <DisclosurePanel className="pb-disclosure__panel">
+            {children}
+          </DisclosurePanel>
+        </>
+      )}
     </AriaDisclosure>
   )
 }

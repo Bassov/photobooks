@@ -49,6 +49,31 @@ export function generateTemplateFrames(
         return twoPortraitsRects(boxes, cg)
       case 'landscape-two-portraits':
         return landscapeTwoPortraitsRects(boxes, cg, rg)
+      case 'hero-two': {
+        const [hero, rest] = halves(boxes, cg)
+        return [hero, ...splitRows(rest, rg)]
+      }
+      case 'hero-grid': {
+        const [hero, rest] = halves(boxes, cg)
+        return [hero, ...fourGridRects(rest, cg, rg)]
+      }
+      case 'panorama':
+        // A 7:2 strip across the content box.
+        return [fitAspect(spanBox(boxes), 7 / 2)]
+      case 'three-across':
+        return threeColumns(spanBox(boxes), cg).map((cell) =>
+          fitAspect(cell, 1),
+        )
+      case 'framed-single':
+        return [halves(boxes, cg)[1]]
+      case 'offset-pair': {
+        const [left, right] = halves(boxes, cg)
+        const height = left.height * OFFSET_SHARE
+        return [
+          { ...left, height },
+          { ...right, y: right.y + right.height - height, height },
+        ]
+      }
     }
   })()
 
@@ -113,6 +138,8 @@ function fourGridRects(
 
 const PORTRAIT_RATIO = 3 / 4
 const LANDSCAPE_RATIO = 3 / 2
+/** Offset pair: each frame takes this share of its half's height. */
+const OFFSET_SHARE = 0.7
 
 function splitColumns(box: RectMm, gutterMm: number): [RectMm, RectMm] {
   const width = (box.width - gutterMm) / 2
@@ -120,6 +147,28 @@ function splitColumns(box: RectMm, gutterMm: number): [RectMm, RectMm] {
     { ...box, width },
     { ...box, x: box.x + width + gutterMm, width },
   ]
+}
+
+function splitRows(box: RectMm, gutterMm: number): [RectMm, RectMm] {
+  const height = (box.height - gutterMm) / 2
+  return [
+    { ...box, height },
+    { ...box, y: box.y + height + gutterMm, height },
+  ]
+}
+
+function threeColumns(box: RectMm, gutterMm: number): RectMm[] {
+  const width = (box.width - 2 * gutterMm) / 3
+  return [0, 1, 2].map((i) => ({
+    ...box,
+    x: box.x + i * (width + gutterMm),
+    width,
+  }))
+}
+
+/** Kit left / right halves: the page boxes, or one page split in two columns. */
+function halves(boxes: Boxes, columnGutterMm: number): [RectMm, RectMm] {
+  return boxes.length === 2 ? boxes : splitColumns(boxes[0], columnGutterMm)
 }
 
 function fitAspect(cell: RectMm, ratio: number): RectMm {
@@ -134,9 +183,9 @@ function fitAspect(cell: RectMm, ratio: number): RectMm {
 }
 
 function twoPortraitsRects(boxes: Boxes, columnGutterMm: number): RectMm[] {
-  const cells =
-    boxes.length === 2 ? boxes : splitColumns(boxes[0], columnGutterMm)
-  return cells.map((cell) => fitAspect(cell, PORTRAIT_RATIO))
+  return halves(boxes, columnGutterMm).map((cell) =>
+    fitAspect(cell, PORTRAIT_RATIO),
+  )
 }
 
 function landscapeTwoPortraitsRects(

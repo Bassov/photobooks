@@ -1,7 +1,10 @@
 import type { Book, Frame } from '../schema'
 import type { GridPatch } from '../grid/layoutGrid'
-import { applyTemplate } from '../templates/apply'
+import { applyCustomLayout, applyTemplate } from '../templates/apply'
+import type { LayoutSlotPct } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
+import type { SpreadMasterId } from '../schema'
+import { setSpreadBackground, setSpreadMaster } from './spreadLook'
 import {
   addToGallery,
   removeFromGallery,
@@ -205,6 +208,14 @@ export type BookOp =
     }
   | { type: 'moveGuide'; spreadId: string; guideId: string; offsetMm: number }
   | { type: 'removeGuide'; spreadId: string; guideId: string }
+  | {
+      type: 'applyCustomLayout'
+      spreadId: string
+      templateId: string
+      slots: readonly LayoutSlotPct[]
+    }
+  | { type: 'setSpreadBackground'; spreadId: string; color: string | undefined }
+  | { type: 'setSpreadMaster'; spreadId: string; masterId: SpreadMasterId }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -305,6 +316,12 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return moveGuide(book, op.spreadId, op.guideId, op.offsetMm)
     case 'removeGuide':
       return removeGuide(book, op.spreadId, op.guideId)
+    case 'applyCustomLayout':
+      return applyCustomLayout(book, op.spreadId, op.templateId, op.slots)
+    case 'setSpreadBackground':
+      return setSpreadBackground(book, op.spreadId, op.color)
+    case 'setSpreadMaster':
+      return setSpreadMaster(book, op.spreadId, op.masterId)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
     case 'removeFrames':

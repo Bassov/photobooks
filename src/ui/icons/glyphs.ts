@@ -66,6 +66,9 @@ export const ICON_NAMES = [
   'rotateCw',
   'flipHorizontal',
   'flipVertical',
+  'panelRightClose',
+  'sparkles',
+  'layoutTemplate',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -518,5 +521,26 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['path', { d: 'M10 12H8' }],
     ['path', { d: 'M16 12h-2' }],
     ['path', { d: 'M22 12h-2' }],
+  ],
+  panelRightClose: [
+    ['rect', { width: '18', height: '18', x: '3', y: '3', rx: '2' }],
+    ['path', { d: 'M15 3v18' }],
+    ['path', { d: 'm8 9 3 3-3 3' }],
+  ],
+  sparkles: [
+    [
+      'path',
+      {
+        d: 'M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z',
+      },
+    ],
+    ['path', { d: 'M20 2v4' }],
+    ['path', { d: 'M22 4h-4' }],
+    ['circle', { cx: '4', cy: '20', r: '2' }],
+  ],
+  layoutTemplate: [
+    ['rect', { width: '18', height: '7', x: '3', y: '3', rx: '1' }],
+    ['rect', { width: '9', height: '7', x: '3', y: '14', rx: '1' }],
+    ['rect', { width: '5', height: '7', x: '16', y: '14', rx: '1' }],
   ],
 }

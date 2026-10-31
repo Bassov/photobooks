@@ -9,7 +9,7 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
-import { applyLayout } from './fixtures/layoutTiles'
+import { applyContactSheet } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
@@ -37,7 +37,7 @@ test('a placement is one step: toolbar and shortcuts undo and redo it', async ({
   await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
     timeout: 30_000,
   })
-  await applyLayout(page, '4-grid')
+  await applyContactSheet(page, 2, 2)
   await dragPlaceFirstFilmstripItem(page, 0)
   const images = page.getByTestId('spread-frame-image')
   await expect(images).toHaveCount(1, { timeout: 30_000 })

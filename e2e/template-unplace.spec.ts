@@ -12,7 +12,7 @@ import {
   dragPlaceFirstFilmstripItem,
   dropAssetOnFrame,
 } from './fixtures/dropAssetOnFrame'
-import { applyLayout } from './fixtures/layoutTiles'
+import { applyContactSheet, applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 
 test.beforeAll(() => {
@@ -30,7 +30,7 @@ test('empty gallery template change leaves status empty and shows no Placed badg
 
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
   await expect(page.getByTestId('editor-status')).toHaveText('')
-  await applyLayout(page, '4-grid')
+  await applyLayout(page, 'Hero + grid')
 
   await expect(page.getByTestId('filmstrip-placed')).toHaveCount(0)
   await expect(page.getByTestId('editor-status')).toHaveText('')
@@ -52,7 +52,7 @@ test.describe('template change with photos', () => {
       timeout: 30_000,
     })
 
-    await applyLayout(page, '4-grid')
+    await applyContactSheet(page, 2, 2)
     const active = page.getByTestId('spread-view').first()
     await dragPlaceFirstFilmstripItem(page, 0)
     await expect(page.getByTestId('spread-frame-image')).toHaveCount(1, {

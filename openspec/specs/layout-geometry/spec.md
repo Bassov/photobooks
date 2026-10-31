@@ -8,7 +8,7 @@ Defines pure layout geometry for photobooks: template frame generation on the la
 
 ### Requirement: Layout templates on the grid
 
-The system SHALL provide a template catalog — full-bleed, one-per-page, 2-up, 4-grid, two-portraits, landscape-two-portraits, and contact sheets `contact-CxR` (C 1..5, R 1..4) — each generating frames in millimeters. Spread coordinates originate at the top-left trim corner. Effective layout grid is the spread override when present, otherwise the book-level grid. Applying a template SHALL replace frames, set `templateId`, rebind `assetId`/crop by frame index order, preserve existing frame ids by index (mint only for extras; drop unused ids), and use these layouts: full-bleed is one frame from `(-bleed,-bleed)` sized to spread width/height plus twice bleed on each axis; one-per-page is one margin-inset frame per page (left/right halves on two-page spreads); 2-up is two equal columns in the whole-spread margin-inset box separated by the column gutter; 4-grid is a 2×2 grid in that same box using column and row gutters; two-portraits is a centered 3:4 frame per page on two-page spreads (two side by side on one-page spreads); landscape-two-portraits is a 3:2 landscape frame in the left page box and two 3:4 frames side by side in the right page box (top half / bottom half on one-page spreads); a contact sheet is a C×R grid per page in that page's margin-inset box using column and row gutters, page by page, row-major.
+The system SHALL provide a template catalog — full-bleed, one-per-page, 2-up, 4-grid, two-portraits, landscape-two-portraits, hero-two, hero-grid, panorama, three-across, framed-single, offset-pair, and contact sheets `contact-CxR` (C 1..5, R 1..4) — each generating frames in millimeters. Spread coordinates originate at the top-left trim corner. Effective layout grid is the spread override when present, otherwise the book-level grid. Applying a template SHALL replace frames, set `templateId`, rebind `assetId`/crop by frame index order, preserve existing frame ids by index (mint only for extras; drop unused ids), and use these layouts: full-bleed is one frame from `(-bleed,-bleed)` sized to spread width/height plus twice bleed on each axis; one-per-page is one margin-inset frame per page (left/right halves on two-page spreads); 2-up is two equal columns in the whole-spread margin-inset box separated by the column gutter; 4-grid is a 2×2 grid in that same box using column and row gutters; two-portraits is a centered 3:4 frame per page on two-page spreads (two side by side on one-page spreads); landscape-two-portraits is a 3:2 landscape frame in the left page box and two 3:4 frames side by side in the right page box (top half / bottom half on one-page spreads); a contact sheet is a C×R grid per page in that page's margin-inset box using column and row gutters, page by page, row-major. The kit layouts use the left / right halves (the page content boxes on two-page spreads; the content box split by the column gutter on one-page spreads): hero-two is the left half plus the right half split into two rows by the row gutter; hero-grid is the left half plus a 2×2 grid in the right half; panorama is a centered 7:2 frame in the whole-spread content box; three-across is three centered squares in three gutter-separated columns of that box; framed-single is the right half; offset-pair is the top 70% of the left half and the bottom 70% of the right half.
 
 #### Scenario: Full-bleed covers trim plus bleed
 
@@ -39,6 +39,11 @@ The system SHALL provide a template catalog — full-bleed, one-per-page, 2-up, 
 
 - **WHEN** `contact-3x4` is applied to a two-page spread
 - **THEN** the spread has 24 frames, all inside the page margin boxes and non-overlapping
+
+#### Scenario: Kit layouts stay inside the margins
+
+- **WHEN** hero-two, hero-grid, panorama, three-across, framed-single or offset-pair is applied to a one- or two-page spread
+- **THEN** the spread has 3, 5, 1, 3, 1 or 2 frames respectively, all inside the margin-inset content area and non-overlapping
 
 ### Requirement: Slot aspect classes and best template
 
@@ -143,3 +148,12 @@ A resolved item's `rotation` SHALL equal the frame `rotationDeg` (0 when absent)
 
 - **WHEN** a frame crop has `quarterTurns` 1
 - **THEN** the item has `photoQuarterTurns` 1 and a source crop rect inside the unit square
+
+### Requirement: Saved layouts apply from percent slots
+
+A saved layout SHALL be stored as slots in percent of the spread trim (the image frames of a spread, top-down in z order) and applied by scaling them to the target spread's trim, keeping photos by index and setting the spread's template id to the saved id. Saved ids MUST never clash with catalog template ids.
+
+#### Scenario: Apply a saved layout to a wider spread
+
+- **WHEN** a single-slot layout `{x 0, y 0, w 62, h 100}` is applied to a 600 × 300 mm spread holding one photo
+- **THEN** the spread has one frame of 372 × 300 mm at the origin with that photo

@@ -21,6 +21,18 @@ async function openInspectorTab(
   }
 }
 
+/** Kit Section: the Layout summary shows only while the section is collapsed. */
+async function toggleLayoutSection(
+  page: import('@playwright/test').Page,
+  expanded: boolean,
+) {
+  const trigger = page
+    .getByTestId('layout')
+    .getByRole('button', { name: /^Layout/ })
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', String(expanded))
+}
+
 test('applying a layout tile in the Spread tab re-flows the spread', async ({
   page,
 }) => {
@@ -30,11 +42,13 @@ test('applying a layout tile in the Spread tab re-flows the spread', async ({
     .getByTestId('spread-view')
     .first()
     .getByTestId('spread-frame')
-  const tile = page.getByRole('button', { name: 'Apply layout 4-grid' })
+  const tile = page.getByRole('button', { name: 'Apply layout Hero + grid' })
   await tile.click()
   await expect(tile).toHaveAttribute('aria-pressed', 'true')
-  await expect(frames).toHaveCount(4)
-  await expect(page.getByTestId('layout-summary')).toHaveText('4-grid')
+  await expect(frames).toHaveCount(5)
+  await toggleLayoutSection(page, false)
+  await expect(page.getByTestId('layout-summary')).toHaveText('Hero + grid')
+  await toggleLayoutSection(page, true)
   await page.getByRole('button', { name: 'Apply layout Full bleed' }).click()
   await expect(frames).toHaveCount(1)
 })
@@ -45,6 +59,7 @@ test('a contact sheet applies from the Spread tab Layout section', async ({
   test.setTimeout(90_000)
   await openInspectorTab(page, 'spread')
   await page.getByTestId('layout-contact-apply').click()
+  await toggleLayoutSection(page, false)
   await expect(page.getByTestId('layout-summary')).toHaveText(
     'Contact sheet 3×2',
   )
@@ -55,10 +70,14 @@ test('the Spread tab grid eye toggles the overlay', async ({ page }) => {
   await openInspectorTab(page, 'spread')
   const eye = page.getByTestId('grid-section-spread').getByTestId('grid-toggle')
   await expect(page.getByTestId('grid-overlay')).toHaveCount(0)
+  // Kit Grid section "Show grid" is a Toggle (role=switch → aria-checked).
+  await expect(eye).toHaveAttribute('role', 'switch')
+  await expect(eye).toHaveAttribute('aria-checked', 'false')
   await eye.click()
-  await expect(eye).toHaveAttribute('aria-pressed', 'true')
+  await expect(eye).toHaveAttribute('aria-checked', 'true')
   await expect(page.getByTestId('grid-overlay').first()).toBeVisible()
   await eye.click()
+  await expect(eye).toHaveAttribute('aria-checked', 'false')
   await expect(page.getByTestId('grid-overlay')).toHaveCount(0)
 })
 

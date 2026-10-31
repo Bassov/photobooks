@@ -3,6 +3,13 @@
   color: var(--muted-foreground);
 }
 
+/* Kit inspector body type: `text-sm` 13 / 18.85 px (line-height 1.45),
+   inherited by the summary line and the Show grid row. */
+.grid-section-spread,
+.grid-section-spread .text-sm {
+  line-height: 1.45;
+}
+
 .grid-field {
   display: flex;
   min-width: 0;
@@ -38,6 +45,23 @@
 
 .grid-eye[aria-pressed='true'] {
   background: var(--toggle-on);
+}
+
+/* Kit SegC (uikit/src/sandbox/v7.tsx): h-[26px] text-sm medium segments. */
+/* Kit SegC buttons sit edge to edge (no track gap). */
+.pb-segmented.grid-source {
+  gap: 0;
+}
+
+.pb-segmented.grid-source .pb-segmented__segment {
+  height: 26px;
+  font-weight: 500;
+}
+
+.grid-source .pb-segmented__segment--selected,
+.grid-source .pb-segmented__segment--selected:hover {
+  background: var(--t-raised);
+  box-shadow: var(--shadow-segment);
 }
 
 /* Top-bar view toggles: ghost at rest, #CACACA (--sel) fill when on; no black. */

@@ -29,7 +29,13 @@ test('dock header has kit chips and Add folder, no size slider', async ({
   await expect(head.getByTestId('film-add-folder')).toHaveText('Add folder…')
   await expect(head.getByTestId('film-unplaced-only')).toHaveText('Unplaced')
   await expect(head.getByTestId('film-sort')).toHaveText('Added order')
-  await expect(page.getByRole('slider')).toHaveCount(0)
+  // No thumbnail size slider: the page's only sliders are the spread
+  // inspector's kit Margin / Gap (context-inspector.tsx:245 Master & spacing).
+  await expect(page.locator('.editor-dock').getByRole('slider')).toHaveCount(0)
+  await expect(page.getByRole('slider')).toHaveCount(2)
+  await expect(
+    page.getByTestId('spread-master-spacing').getByRole('slider'),
+  ).toHaveCount(2)
   await expect(page.getByText('Assets', { exact: true })).toHaveCount(0)
 })
 
