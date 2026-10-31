@@ -809,6 +809,37 @@ describe('pickActiveSpread', () => {
     ).toBe('spread-2')
   })
 
+  it('keeps the current spread while it is still tied for most visible', () => {
+    const whole = [
+      { id: 'spread-1', ratio: 1, index: 0 },
+      { id: 'spread-2', ratio: 1, index: 1 },
+      { id: 'spread-4', ratio: 0.985, index: 3 },
+    ]
+    expect(pickActiveSpread(whole, 'spread-4')).toBe('spread-4')
+    expect(pickActiveSpread(whole, 'spread-2')).toBe('spread-2')
+    // No current spread, or one not on screen: the earlier tie wins.
+    expect(pickActiveSpread(whole)).toBe('spread-1')
+    expect(pickActiveSpread(whole, 'spread-9')).toBe('spread-1')
+  })
+
+  it('hands the mark over once the current spread is clearly less visible', () => {
+    expect(
+      pickActiveSpread(
+        [
+          { id: 'spread-1', ratio: 1, index: 0 },
+          { id: 'spread-2', ratio: 0.97, index: 1 },
+        ],
+        'spread-2',
+      ),
+    ).toBe('spread-1')
+  })
+
+  it('never keeps a current spread when nothing intersects', () => {
+    expect(
+      pickActiveSpread([{ id: 'spread-1', ratio: 0, index: 0 }], 'spread-1'),
+    ).toBe(null)
+  })
+
   it('returns null when nothing intersects', () => {
     expect(pickActiveSpread([{ id: 'spread-1', ratio: 0, index: 0 }])).toBe(
       null,

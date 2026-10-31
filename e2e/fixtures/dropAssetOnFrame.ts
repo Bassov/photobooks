@@ -5,15 +5,16 @@ export const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
 /**
  * A drop selects the target frame (kit: uikit/src/sandbox/canvas.tsx:170-171).
- * Most specs start from "placed, nothing selected": clear it with the frame's
- * own click toggle (Esc would also dismiss the inspector's Spread context).
+ * Most specs start from "placed, nothing selected": clear it with Enter on the
+ * frame ("Cancel move" toggle). A pointer click keeps the selection (kit), and
+ * Esc would also dismiss the inspector's Spread context.
  */
 export async function clearDropSelection(page: Page): Promise<void> {
   const selected = page.locator(
     '[data-testid="spread-frame"][aria-pressed="true"]',
   )
   await expect(selected).toHaveCount(1)
-  await selected.click()
+  await selected.press('Enter')
   await expect(selected).toHaveCount(0)
 }
 

@@ -13,6 +13,7 @@ import { getSpreadPageCount } from '../core'
 import { setFrameSource } from './frameSelection'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
+  getActiveSpreadId,
   setActiveSpreadId,
   subscribeSpreadRevealRequest,
 } from './photoRootSession'
@@ -427,6 +428,7 @@ export const Pasteboard = memo(function Pasteboard({
               ratio: entry.ratio,
               index: entry.index,
             })),
+            getActiveSpreadId(),
           )
         if (nextId !== null) {
           startTransition(() => {

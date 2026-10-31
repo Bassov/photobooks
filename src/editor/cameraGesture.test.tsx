@@ -330,7 +330,8 @@ describe('pasteboard camera gestures', () => {
       })
       fireEvent.click(screen.getByRole('button', { name: /Fit spread/ }))
       const afterImmediate = screen.getByTestId('zoom-indicator').textContent
-      height = 400
+      // Book-wide Fit is width-bound at 640 × 520; shrink until height binds.
+      height = 300
       const batch1 = rafQueue.splice(0, rafQueue.length)
       act(() => {
         for (const cb of batch1) {

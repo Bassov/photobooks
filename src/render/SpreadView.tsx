@@ -12,7 +12,8 @@ import type { ResolvedItem, ResolvedSpread } from '../core'
 export interface FrameControl {
   label: string
   pressed?: boolean
-  onActivate: () => void
+  /** `event.detail` tells a pointer click (≥ 1) from Enter / Space (0). */
+  onActivate: (event?: { detail: number }) => void
   onDragStart?: (event: ReactDragEvent<HTMLDivElement>) => void
   /** Crop mode: unclipped dim ghost, no drag; the editor owns the gestures. */
   cropActive?: boolean

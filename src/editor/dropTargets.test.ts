@@ -13,6 +13,7 @@ import {
   hitTestGap,
   isAssetDrag,
   isFrameDrag,
+  isPointerActivation,
   resolveFrameActivation,
   type DropFrameInput,
   type DropIndexInput,
@@ -312,6 +313,47 @@ describe('dropTargets', () => {
     expect(resolveFrameActivation({ source: null, target: empty })).toEqual({
       type: 'select-source',
     })
+  })
+
+  it('keeps the selected frame on a pointer click; the keyboard still clears it', () => {
+    const source = { spreadId: 's0', frameId: 'f0' }
+    const same = { ...source, filled: true }
+    expect(
+      resolveFrameActivation({ source, target: same, pointer: true }),
+    ).toEqual({ type: 'noop' })
+    expect(
+      resolveFrameActivation({
+        source,
+        sourceFilled: false,
+        target: { ...source, filled: false },
+        pointer: true,
+      }),
+    ).toEqual({ type: 'noop' })
+    expect(
+      resolveFrameActivation({ source, target: same, pointer: false }),
+    ).toEqual({ type: 'clear-source' })
+    // Pointer clicks elsewhere behave as before.
+    expect(
+      resolveFrameActivation({
+        source: null,
+        target: same,
+        pointer: true,
+      }),
+    ).toEqual({ type: 'select-source' })
+    expect(
+      resolveFrameActivation({
+        source,
+        target: { spreadId: 's0', frameId: 'f1', filled: true },
+        pointer: true,
+      }),
+    ).toEqual({ type: 'swap', source })
+  })
+
+  it('tells a pointer click from a keyboard activation by event.detail', () => {
+    expect(isPointerActivation()).toBe(false)
+    expect(isPointerActivation({ detail: 0 })).toBe(false)
+    expect(isPointerActivation({ detail: 1 })).toBe(true)
+    expect(isPointerActivation({ detail: 2 })).toBe(true)
   })
 
   it('misses outside every frame and ignores a non-finite point', () => {

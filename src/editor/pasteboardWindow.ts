@@ -10,9 +10,30 @@ export const STACK_GAP_RATIO = 44 / 588
 /** Subpixel clipping must not steal "active" from the spread above. */
 const ACTIVE_RATIO_EPSILON = 0.02
 
+/**
+ * Most visible spread; ties go to the lower index. The `current` active spread
+ * keeps the mark while it is still tied for most visible: at a small Fit
+ * several spreads are whole on screen, and a resize must not hand the mark
+ * (and the refit centre) to the first of them.
+ */
 export function pickActiveSpread(
   entries: readonly { id: string; ratio: number; index: number }[],
+  current: string | null = null,
 ): string | null {
+  const best = mostVisibleSpread(entries)
+  if (best === null) {
+    return null
+  }
+  const kept = entries.find((entry) => entry.id === current)
+  if (kept !== undefined && kept.ratio >= best.ratio - ACTIVE_RATIO_EPSILON) {
+    return kept.id
+  }
+  return best.id
+}
+
+function mostVisibleSpread(
+  entries: readonly { id: string; ratio: number; index: number }[],
+): { id: string; ratio: number } | null {
   let bestId: string | null = null
   let bestRatio = -1
   let bestIndex = Number.POSITIVE_INFINITY
@@ -30,7 +51,7 @@ export function pickActiveSpread(
   if (bestId === null || bestRatio <= 0) {
     return null
   }
-  return bestId
+  return { id: bestId, ratio: bestRatio }
 }
 
 export interface PasteboardWindow {
