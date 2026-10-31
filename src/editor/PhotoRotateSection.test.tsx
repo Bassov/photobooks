@@ -68,6 +68,48 @@ describe('PhotoRotateSection', () => {
     expect(crop()?.quarterTurns).toBeUndefined()
   })
 
+  it('is titled Rotate & flip (kit inspector.tsx:151)', () => {
+    seed()
+    render(<PhotoRotateSection target={TARGET} />)
+    expect(screen.getByRole('heading').textContent).toBe('Rotate & flip')
+  })
+
+  it('Flip H / Flip V toggle the mirror, show it pressed, and undo', () => {
+    seed()
+    render(<PhotoRotateSection target={TARGET} />)
+    const h = screen.getByTestId('flip-h')
+    const v = screen.getByTestId('flip-v')
+    expect(h.getAttribute('aria-pressed')).toBe('false')
+    expect(v.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(h)
+    expect(crop()?.flipH).toBe(true)
+    expect(crop()?.flipV).toBeUndefined()
+    expect(h.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(v)
+    expect(crop()?.flipV).toBe(true)
+    expect(crop()?.flipH).toBe(true)
+    expect(v.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(h)
+    expect(crop()?.flipH).toBeUndefined()
+    expect(h.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(v)
+    expect(crop()?.flipV).toBeUndefined()
+    fireEvent.click(h)
+    act(() => {
+      undoBook()
+    })
+    expect(crop()?.flipH).toBeUndefined()
+  })
+
+  it('a quarter turn keeps the flip', () => {
+    seed()
+    render(<PhotoRotateSection target={TARGET} />)
+    fireEvent.click(screen.getByTestId('flip-h'))
+    fireEvent.click(screen.getByTestId('rot-right'))
+    expect(crop()?.flipH).toBe(true)
+    expect(crop()?.quarterTurns).toBe(1)
+  })
+
   it('keyboard on the straighten slider commits the angle', () => {
     seed()
     render(<PhotoRotateSection target={TARGET} />)
@@ -89,6 +131,24 @@ describe('PhotoRotateSection', () => {
       fit.compareDocumentPosition(rotate) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
   })
+})
+
+describe('Photo inspector meta rows', () => {
+  // Kit Photo context (context-inspector.tsx:66-72): no meta rows, no Details.
+  it.each([true, false])(
+    'has no Details section or meta rows (photo placed: %s)',
+    (placed) => {
+      seed(placed)
+      render(<Inspector />)
+      act(() => {
+        setFrameSource(TARGET)
+      })
+      expect(screen.queryByTestId('inspector-details-disclosure')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Details' })).toBeNull()
+      expect(screen.queryByText('Used')).toBeNull()
+      expect(screen.queryByText('Spread')).toBeNull()
+    },
+  )
 })
 
 describe('PhotoRotateSection straighten preview', () => {

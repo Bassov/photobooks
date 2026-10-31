@@ -60,7 +60,7 @@ test.describe('low-resolution badge on frames', () => {
     await expect(badge).toHaveCount(0)
     await expect(page.getByTestId('view-menu')).toHaveCount(0)
 
-    await page.getByTestId('toggle-r').click()
+    // Inspector is open by default (uikit/src/features/parts.tsx:26).
     await filledFrame(page).dblclick()
     await expect(filledFrame(page)).toHaveAttribute('data-crop-active', 'true')
     const center = await frameCenter(page)
@@ -79,7 +79,11 @@ test.describe('low-resolution badge on frames', () => {
     test.setTimeout(180_000)
     await openSessionEditor(page)
     await placeLargePhoto(page)
-    await page.getByTestId('toggle-r').click()
+    // Inspector is open by default (uikit/src/features/parts.tsx:26).
+    await expect(page.getByTestId('panel-r')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
     await filledFrame(page).click()
     const chip = page
       .getByTestId('inspector-photo')
@@ -121,7 +125,11 @@ test.describe('low-resolution badge on frames', () => {
     test.setTimeout(180_000)
     await openSessionEditor(page)
     await placeLargePhoto(page)
-    await page.getByTestId('toggle-r').click()
+    // Inspector is open by default (uikit/src/features/parts.tsx:26).
+    await expect(page.getByTestId('panel-r')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
     await filledFrame(page).dblclick()
     const center = await frameCenter(page)
     await page.mouse.move(center.x, center.y)

@@ -231,3 +231,46 @@ describe('photo rotation in crop ops', () => {
     })
   })
 })
+
+describe('setCrop flip', () => {
+  it('keeps flipH / flipV only when true, and treats a flip change as an edit', () => {
+    const book = makeBookWithAsset()
+    const flipped = setCrop(book, 'spread-1', 'frame-1', {
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      flipH: true,
+    })
+    expect(flipped).not.toBe(book)
+    expect(cropOf(flipped)).toEqual({
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      flipH: true,
+    })
+    const both = setCrop(flipped, 'spread-1', 'frame-1', {
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      flipH: true,
+      flipV: true,
+    })
+    expect(cropOf(both)).toEqual({
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      flipH: true,
+      flipV: true,
+    })
+    const same = setCrop(both, 'spread-1', 'frame-1', {
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      flipH: true,
+      flipV: true,
+    })
+    expect(same).toBe(both)
+    const off = setCrop(both, 'spread-1', 'frame-1', {
+      zoom: 1,
+      center: { x: 0.5, y: 0.5 },
+      flipH: false,
+      flipV: false,
+    })
+    expect(cropOf(off)).toEqual({ zoom: 1, center: { x: 0.5, y: 0.5 } })
+  })
+})

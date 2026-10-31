@@ -4,12 +4,28 @@ import { expect, type Locator, type Page } from '@playwright/test'
 export const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
 /**
+ * A drop selects the target frame (kit: uikit/src/sandbox/canvas.tsx:170-171).
+ * Most specs start from "placed, nothing selected": clear it with the frame's
+ * own click toggle (Esc would also dismiss the inspector's Spread context).
+ */
+export async function clearDropSelection(page: Page): Promise<void> {
+  const selected = page.locator(
+    '[data-testid="spread-frame"][aria-pressed="true"]',
+  )
+  await expect(selected).toHaveCount(1)
+  await selected.click()
+  await expect(selected).toHaveCount(0)
+}
+
+/**
  * Synthesize a gallery asset drop onto a spread frame (kit hard-no: drag place only).
+ * The drop's selection is cleared unless `keepSelection` is set.
  */
 export async function dropAssetOnFrame(
   page: Page,
   assetId: string,
   frame: Locator,
+  { keepSelection = false }: { keepSelection?: boolean } = {},
 ): Promise<void> {
   // A panel toggle just before the drop animates the spread; wait for the
   // frame to hold still so the synthetic point lands inside it.
@@ -64,12 +80,16 @@ export async function dropAssetOnFrame(
     },
     { mime: ASSET_DRAG_MIME, id: assetId, point },
   )
+  if (!keepSelection) {
+    await clearDropSelection(page)
+  }
 }
 
 /** Wait for a filmstrip tile's asset id, then drag-place it onto the first empty frame. */
 export async function dragPlaceFirstFilmstripItem(
   page: Page,
   itemIndex = 0,
+  options: { keepSelection?: boolean } = {},
 ): Promise<string> {
   const item = page.getByTestId('filmstrip-item').nth(itemIndex)
   await expect
@@ -85,6 +105,6 @@ export async function dragPlaceFirstFilmstripItem(
   const frame = page
     .getByRole('button', { name: 'Place photo', exact: true })
     .first()
-  await dropAssetOnFrame(page, assetId, frame)
+  await dropAssetOnFrame(page, assetId, frame, options)
   return assetId
 }

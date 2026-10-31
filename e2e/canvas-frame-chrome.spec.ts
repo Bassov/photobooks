@@ -44,7 +44,8 @@ test.describe('look parity: canvas frame chrome', () => {
     await frame.click()
     await expect(frame).toHaveAttribute('aria-pressed', 'true')
     await expect(frame.getByTestId('frame-size-tag')).toBeVisible()
-    await expect(frame.getByTestId('rotate-handle')).toBeVisible()
-    await expect(frame.locator('.spread-frame-rotate-line')).toBeVisible()
+    // Kit select tool has no rotate knob (uikit/src/sandbox/canvas.tsx:224,443).
+    await expect(frame.getByTestId('rotate-handle')).toHaveCount(0)
+    await expect(frame.locator('.spread-frame-rotate-line')).toHaveCount(0)
   })
 })

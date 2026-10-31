@@ -7,7 +7,12 @@ import { SpreadView } from './SpreadView'
 
 afterEach(cleanup)
 
-function view(crop?: { quarterTurns?: 1 | 2 | 3; straightenDeg?: number }) {
+function view(crop?: {
+  quarterTurns?: 1 | 2 | 3
+  straightenDeg?: number
+  flipH?: boolean
+  flipV?: boolean
+}) {
   const book = makeBook({
     assets: { a: {} },
     spreads: [
@@ -48,6 +53,26 @@ describe('SpreadView turned photos', () => {
     expect(img.style.transform).toContain('rotate(10deg)')
     expect(img.parentElement?.hasAttribute(PHOTO_LAYER_ATTR)).toBe(true)
     expect(container.querySelectorAll(`[${PHOTO_LAYER_ATTR}]`)).toHaveLength(1)
+  })
+
+  it('mirrors a flipped photo inside a preview layer (kit canvas.tsx:35)', () => {
+    const { container } = view({ flipH: true })
+    const img = screen.getByTestId('spread-frame-image')
+    expect(img.style.transform).toContain('scale(-1, 1)')
+    expect(img.parentElement?.hasAttribute(PHOTO_LAYER_ATTR)).toBe(true)
+    expect(container.querySelectorAll(`[${PHOTO_LAYER_ATTR}]`)).toHaveLength(1)
+  })
+
+  it('mirrors vertically and on both axes', () => {
+    const { unmount } = view({ flipV: true })
+    expect(screen.getByTestId('spread-frame-image').style.transform).toContain(
+      'scale(1, -1)',
+    )
+    unmount()
+    view({ flipH: true, flipV: true })
+    expect(screen.getByTestId('spread-frame-image').style.transform).toContain(
+      'scale(-1, -1)',
+    )
   })
 
   it('lays a quarter-turned photo out in source orientation', () => {

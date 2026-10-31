@@ -69,7 +69,8 @@ test('both panels at max keep the page fit; spreads-list stays the scrollport', 
 }) => {
   await page.goto('/?fixture=painter')
   await expect(page.getByTestId('editor-shell')).toBeVisible()
-  await page.getByTestId('toggle-r').click()
+  // Inspector is open by default (uikit/src/features/parts.tsx:26).
+  await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
 
   await page.getByTestId('resize-left').focus()
   for (let i = 0; i < 6; i += 1) await page.keyboard.press('Shift+ArrowRight')
@@ -111,7 +112,6 @@ test('specimen panels demo resizes, collapses and expands', async ({
 
 test('inspector header collapses the right panel', async ({ page }) => {
   await openSessionEditor(page)
-  await page.getByTestId('toggle-r').click()
   await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
   await page.getByTestId('panel-collapse-right').click()
   await expect(page.getByTestId('panel-r')).toHaveAttribute(

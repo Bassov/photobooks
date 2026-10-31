@@ -6,11 +6,11 @@ export interface EditorPanels {
   r: boolean
 }
 
-/** Kit defaults: spreads + filmstrip open; inspector closed until toggled. */
+/** Kit defaults: all panels open, inspector always mounted (uikit/src/features/parts.tsx:26). */
 export const DEFAULT_EDITOR_PANELS: EditorPanels = {
   l: true,
   b: true,
-  r: false,
+  r: true,
 }
 
 export function toggleEditorPanel(

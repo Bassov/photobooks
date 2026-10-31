@@ -481,6 +481,16 @@ export function installGalleryDrop(
         { type: 'frame', spreadId: target.spreadId, frameId: target.frameId },
         current.assetIds,
       )
+      // Kit select on drop (uikit/src/sandbox/canvas.tsx:170-171): the target
+      // frame becomes the selection and the Photo inspector follows.
+      // Deferred one task: mounting the Photo inspector in the same frame as
+      // the drop commit blows the frame budget (multi-drop-fill perf gate).
+      const { spreadId, frameId } = target
+      if (frameFilledInBook(getBookStoreSnapshot().book, spreadId, frameId)) {
+        setTimeout(() => {
+          setFrameSource({ spreadId, frameId })
+        }, 0)
+      }
       return
     }
     const book = getBookStoreSnapshot().book

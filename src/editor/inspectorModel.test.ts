@@ -1,73 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import type { Book } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
-  framePhotoRows,
   inspectorView,
   sameInspectorPanel,
   spreadLabel,
-  spreadRows,
   spreadSummary,
-  spreadTitle,
   type InspectorPanel,
 } from './inspectorModel'
 
 describe('sameInspectorPanel', () => {
-  const base: InspectorPanel = {
-    kind: 'frame',
-    spreadId: 's1',
-    rows: [{ label: 'Size', value: '1 × 2' }],
-    spreadRows: [{ label: 'Frames', value: '2' }],
-  }
-  const spread: InspectorPanel = {
-    kind: 'spread',
-    spreadId: 's1',
-    spreadRows: [{ label: 'Frames', value: '2' }],
-  }
+  const base: InspectorPanel = { kind: 'frame', spreadId: 's1' }
+  const spread: InspectorPanel = { kind: 'spread', spreadId: 's1' }
   const empty: InspectorPanel = { kind: 'empty' }
 
-  it('is true for an equal copy with new row objects', () => {
-    expect(
-      sameInspectorPanel(base, {
-        ...base,
-        rows: [{ label: 'Size', value: '1 × 2' }],
-      }),
-    ).toBe(true)
-    expect(
-      sameInspectorPanel(spread, {
-        ...spread,
-        spreadRows: [{ label: 'Frames', value: '2' }],
-      }),
-    ).toBe(true)
+  it('is true for an equal copy', () => {
+    expect(sameInspectorPanel(base, { ...base })).toBe(true)
+    expect(sameInspectorPanel(spread, { ...spread })).toBe(true)
     expect(sameInspectorPanel(empty, { kind: 'empty' })).toBe(true)
   })
 
-  it.each<[string, Partial<Extract<InspectorPanel, { kind: 'frame' }>>]>([
-    ['spread row value', { spreadRows: [{ label: 'Frames', value: '3' }] }],
-    ['spread row label', { spreadRows: [{ label: 'Photos', value: '2' }] }],
-    ['spread row count', { spreadRows: [] }],
-    ['spread id', { spreadId: 's2' }],
-    ['row count', { rows: [] }],
-    ['row label', { rows: [{ label: 'Pixels', value: '1 × 2' }] }],
-    ['row value', { rows: [{ label: 'Size', value: '3 × 4' }] }],
-  ])('is false when %s differs', (_, patch) => {
-    expect(sameInspectorPanel(base, { ...base, ...patch })).toBe(false)
-  })
-
-  it('does not merge rows across label/value boundaries', () => {
-    const row = (label: string, value: string) => [{ label, value }]
-    expect(
-      sameInspectorPanel(
-        { ...base, rows: row('a', 'b') },
-        { ...base, rows: row('ab', '') },
-      ),
-    ).toBe(false)
-    expect(
-      sameInspectorPanel(
-        { ...base, rows: [...row('a', 'b'), ...row('c', 'd')] },
-        { ...base, rows: [...row('a', 'b\u0001c'), ...row('', 'd')] },
-      ),
-    ).toBe(false)
+  it('is false when the frame panel spread id differs', () => {
+    expect(sameInspectorPanel(base, { ...base, spreadId: 's2' })).toBe(false)
   })
 
   it('is false across kinds in either order', () => {
@@ -83,11 +36,8 @@ describe('sameInspectorPanel', () => {
     }
   })
 
-  it('compares spread panels by id and rows', () => {
+  it('compares spread panels by id', () => {
     expect(sameInspectorPanel(spread, { ...spread, spreadId: 's2' })).toBe(
-      false,
-    )
-    expect(sameInspectorPanel(spread, { ...spread, spreadRows: [] })).toBe(
       false,
     )
   })
@@ -156,98 +106,36 @@ describe('inspectorView', () => {
   })
 })
 
-describe('rows', () => {
-  it('titles the cover and page spreads', () => {
-    expect(spreadTitle(0)).toBe('Cover')
-    expect(spreadTitle(1)).toBe('Pages 2–3')
-  })
-
-  it('labels the first spread "Page 1" like the kit and shows it on the Photo Spread row', () => {
+describe('spreadLabel', () => {
+  // uikit/src/sandbox/context-inspector.tsx:59 labels the first spread "Page 1".
+  it('labels the first spread "Page 1" like the kit', () => {
     expect(spreadLabel(0)).toBe('Page 1')
+    expect(spreadLabel(1)).toBe('Pages 2–3')
     expect(spreadLabel(2)).toBe('Pages 4–5')
-    const spreadRow = (index: number) =>
-      framePhotoRows(book, f2, index, 0).find((r) => r.label === 'Spread')
-    expect(spreadRow(0)?.value).toBe('Page 1')
-    expect(spreadRow(1)?.value).toBe('Pages 2–3')
-  })
-
-  it('describes a spread', () => {
-    expect(spreadRows(s1)).toEqual([
-      { label: 'Template', value: 'Free layout' },
-      { label: 'Frames', value: '2' },
-      { label: 'Photos', value: '1' },
-    ])
-    expect(spreadRows(s2)[0]?.value).toBe('two up')
-  })
-
-  it('names templates by stripping only the leading t- and all dashes', () => {
-    const named = (templateId: string) =>
-      spreadRows(makeSpread({ templateId }))[0]?.value
-    expect(named('t-three-up-wide')).toBe('three up wide')
-    expect(named('split-two')).toBe('split two')
-  })
-
-  it('counts only frames that hold a photo', () => {
-    const three = makeSpread({
-      frames: [
-        makeFrame({ id: 'x1', assetId: 'a' }),
-        makeFrame({ id: 'x2', assetId: 'b' }),
-        makeFrame({ id: 'x3' }),
-      ],
-    })
-    const rows = spreadRows(three)
-    expect(rows[1]?.value).toBe('3')
-    expect(rows[2]?.value).toBe('2')
-  })
-
-  it('does not look up an asset for an empty frame', () => {
-    const odd = makeBook({
-      assets: { undefined: { widthPx: 1, heightPx: 2, relativePath: 'u.jpg' } },
-    })
-    expect(framePhotoRows(odd, f2, 0, 0).map((r) => r.label)).toEqual([
-      'Spread',
-      'Size',
-    ])
-  })
-
-  it('shows pixels only when both dimensions are known', () => {
-    const labels = (asset: Book['assets'][string]) =>
-      framePhotoRows(makeBook({ assets: { a: asset } }), f1, 0, 1).map(
-        (r) => r.label,
-      )
-    expect(labels({ widthPx: 10 })).toEqual(['Spread', 'Size', 'Used'])
-    expect(labels({ heightPx: 10 })).toEqual(['Spread', 'Size', 'Used'])
-    expect(labels({ widthPx: 10, heightPx: 20 })).toContain('Pixels')
-  })
-
-  it('describes a placed photo and an empty frame', () => {
-    const placed = framePhotoRows(book, f1, 0, 2).map((r) => r.label)
-    expect(placed).toEqual(['Spread', 'Size', 'Pixels', 'File', 'Used'])
-    expect(framePhotoRows(book, f2, 0, 0).map((r) => r.label)).toEqual([
-      'Spread',
-      'Size',
-    ])
   })
 })
 
 describe('spreadSummary', () => {
   const book = makeBook({
     spreads: [
-      makeSpread({ id: 'cover', frames: [makeFrame({ id: 'c1' })] }),
+      makeSpread({ id: 'first', frames: [makeFrame({ id: 'c1' })] }),
       makeSpread({
         id: 'mid',
         frames: [
           makeFrame({ id: 'a', assetId: 'x' }),
           makeFrame({ id: 'b' }),
           makeFrame({ id: 'c' }),
+          makeFrame({ id: 't', kind: 'text' }),
         ],
       }),
     ],
   })
 
-  it('names the pages and counts empty frames (kit Spread header)', () => {
+  // uikit/src/sandbox/context-inspector.tsx:56-59: "Page 1" first, image
+  // frames without a photo count as empty.
+  it('names the pages and counts empty photo frames (kit Spread header)', () => {
     expect(spreadSummary(book, 'mid')).toBe('Pages 2–3 · 2 empty')
-    expect(spreadSummary(book, 'cover')).toBe('Cover · 1 empty')
+    expect(spreadSummary(book, 'first')).toBe('Page 1 · 1 empty')
   })
 
   it('is blank for an unknown spread', () => {

@@ -98,7 +98,7 @@ describe('Inspector', () => {
     expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
   })
 
-  it('shows spread properties for the active spread, Esc returns to empty', () => {
+  it('shows the Spread context for the active spread, Esc returns to empty', () => {
     seed()
     render(<Inspector />)
     act(() => {
@@ -106,11 +106,12 @@ describe('Inspector', () => {
     })
     const panel = screen.getByTestId('inspector-panel')
     expect(panel.getAttribute('data-inspector-view')).toBe('spread')
-    expect(screen.getByText('Spread properties')).toBeTruthy()
-    expect(screen.getByText('Frames')).toBeTruthy()
-    // Kit: a spread shows its summary line, Layout and Grid; no frame hint.
+    // Kit (context-inspector.tsx:56-63): summary line, Layout and Grid; no
+    // Spread properties block and no frame hint.
+    expect(screen.queryByTestId('inspector-spread-properties')).toBeNull()
+    expect(screen.queryByText('Frames')).toBeNull()
     expect(screen.getByTestId('inspector-spread-summary').textContent).toBe(
-      'Cover · 0 empty',
+      'Page 1 · 0 empty',
     )
     expect(screen.queryByTestId('inspector-empty')).toBeNull()
     expect(screen.getByTestId('inspector-spread-summary').style.color).not.toBe(
@@ -121,7 +122,7 @@ describe('Inspector', () => {
     expect(panel.getAttribute('data-inspector-view')).toBe('empty')
   })
 
-  it('shows photo identity for a selected frame', () => {
+  it('shows the Photo context for a selected frame', () => {
     seed()
     render(<Inspector />)
     act(() => {
@@ -130,7 +131,7 @@ describe('Inspector', () => {
     expect(
       screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
     ).toBe('frame')
-    expect(screen.getByText('Used')).toBeTruthy()
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
   })
 
   it('collapses through the header button', () => {
@@ -173,48 +174,46 @@ describe('Inspector', () => {
       ).toBeNull()
     })
 
-    it('shows the spread rows once and a muted heading for a spread', () => {
+    // Kit Spread context (context-inspector.tsx:56-63) has no row list.
+    it('shows no row list and no Spread properties for a spread', () => {
       seed()
       act(() => {
         setActiveSpreadId('spread-1')
       })
       render(<Inspector />)
       const panel = screen.getByTestId('inspector-body')
-      expect(panel.querySelectorAll('dl')).toHaveLength(1)
-      expect(within(panel).getByText('Frames')).toBeTruthy()
-      // The muted colour comes from the kit eyebrow class (asserted in e2e).
-      expect(within(panel).getByText('Spread properties').className).toContain(
-        'inspector-eyebrow',
-      )
+      expect(panel.querySelector('dl')).toBeNull()
+      expect(within(panel).queryByText('Spread properties')).toBeNull()
       expect(within(panel).getByTestId('inspector-context').textContent).toBe(
         'Spread',
       )
     })
 
-    it('shows photo rows and no spread heading for a frame', () => {
+    // Kit Photo context (context-inspector.tsx:66-72) has no meta rows.
+    it('shows no meta rows and no Details section for a frame', () => {
       seed()
       act(() => {
         setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
       })
       render(<Inspector />)
       const panel = screen.getByTestId('inspector-body')
-      expect(panel.querySelectorAll('dl')).toHaveLength(1)
-      expect(within(panel).getByText('Used')).toBeTruthy()
+      expect(panel.querySelector('dl')).toBeNull()
+      expect(within(panel).queryByText('Used')).toBeNull()
+      expect(within(panel).queryByText('Details')).toBeNull()
       expect(within(panel).queryByText('Spread properties')).toBeNull()
-      expect(within(panel).queryByText('Frames')).toBeNull()
       expect(within(panel).getByTestId('inspector-context').textContent).toBe(
         'Photo',
       )
     })
 
-    it('lists the spread rows, layout and grid for a spread', () => {
+    it('lists layout and grid for a spread', () => {
       seed()
       act(() => {
         setActiveSpreadId('spread-1')
       })
       render(<Inspector />)
       const panel = screen.getByTestId('inspector-body')
-      expect(within(panel).getByText('Template')).toBeTruthy()
+      expect(within(panel).getByTestId('layout-section')).toBeTruthy()
       expect(within(panel).getByTestId('grid-section-spread')).toBeTruthy()
       expect(within(panel).queryByTestId('grid-section-book')).toBeNull()
       expect(within(panel).queryByTestId('inspector-empty')).toBeNull()
@@ -415,35 +414,6 @@ describe('Inspector', () => {
     expect(screen.getByTestId<HTMLButtonElement>('crop-reset').disabled).toBe(
       false,
     )
-  })
-
-  it('names an empty frame and counts uses of a placed photo', () => {
-    seedBook(
-      makeBook({
-        assets: { a: {} },
-        gallery: ['a'],
-        spreads: [
-          makeSpread({
-            id: 'spread-1',
-            frames: [
-              makeFrame({ id: 'frame-1', assetId: 'a' }),
-              makeFrame({ id: 'frame-2' }),
-            ],
-          }),
-        ],
-      }),
-    )
-    render(<Inspector />)
-    act(() => {
-      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-2' })
-    })
-    expect(screen.getByText('Size')).toBeTruthy()
-    expect(screen.queryByText('Used')).toBeNull()
-
-    act(() => {
-      setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
-    })
-    expect(screen.getByText('Used').nextElementSibling?.textContent).toBe('1×')
   })
 
   it('shows Fit & crop for a selected photo frame and toggles Crop / Done', () => {
