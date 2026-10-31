@@ -1,10 +1,10 @@
 ## Implementation
 
-- [ ] 1. M38 hint pill: `isStatusPillVisible` + `data-pill` kit `StatusLine` CSS; filled frames always photo-drag, move gesture empty-frame only.
-- [ ] 2. M39 top-bar grid centred on the panel widths.
-- [ ] 3. M40/M41 shared Menu: `--leading-menu` rows, `circle` dot for single selection.
-- [ ] 4. M42 live-gap label hiding mid gesture; boundary unit tests; `docs/design.md` deviation line.
-- [ ] 5. e2e `design-r4-polish.spec.ts`; M20 specs moved to the canvas-centre rule.
+- [x] 1. M38 hint pill: `isStatusPillVisible` + `data-pill` kit `StatusLine` CSS; filled frames always photo-drag, move gesture empty-frame only.
+- [x] 2. M39 top-bar grid centred on the panel widths.
+- [x] 3. M40/M41 shared Menu: `--leading-menu` rows, `circle` dot for single selection.
+- [x] 4. M42 live-gap label hiding mid gesture; boundary unit tests; `docs/design.md` deviation line.
+- [x] 5. e2e `design-r4-polish.spec.ts`; M20 specs moved to the canvas-centre rule.
 
 ## Manual test scenarios
 
