@@ -4,7 +4,6 @@ import type { CSSProperties } from 'react'
 export const filmstripEmptyStyle: CSSProperties = {
   border: 0,
   background: 'transparent',
-  padding: 0,
   gap: 0,
   maxWidth: '100%',
   width: '100%',
