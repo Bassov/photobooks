@@ -42,7 +42,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
-- [ ] [feature] [design-r3-spread-shadow](roadmap/P1/design-r3-spread-shadow.md) — Bug: design-r3-spread-shadow: soft constant-px spread shadow (M35) + 72/588 stack gap (M36)
+- [x] [feature] [design-r3-spread-shadow](roadmap/P1/design-r3-spread-shadow.md) — Bug: design-r3-spread-shadow: soft constant-px spread shadow (M35) + 72/588 stack gap (M36)
 - [ ] [feature] [design-r3-book-cover](roadmap/P1/design-r3-book-cover.md) — Bug: design-r3-book-cover: back-cover text, spine width, Pages row
 - [x] [feature] [design-r3-chrome](roadmap/P1/design-r3-chrome.md) — Bug: design-r3-chrome: top-bar centring, filmstrip dock height
 - [ ] [feature] [design-r3-library-forms](roadmap/P1/design-r3-library-forms.md) — Bug: design-r3-library-forms: rename field pill, quiet focus rings
