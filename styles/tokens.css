@@ -270,7 +270,12 @@
   --shadow-book-hover:
     0 2px 3px rgb(0 0 0 / 0.12), 0 8px 16px rgb(0 0 0 / 0.12),
     0 18px 36px rgb(0 0 0 / 0.14);
-  --page-shadow: 0 2px 6px rgb(0 0 0 / 0.1), 0 12px 32px rgb(0 0 0 / 0.14);
+  /* Kit --page-shadow layers; the colours also feed the live-zoom copy in
+     SpreadView.css (lengths divided by --cam-scale there). */
+  --page-shadow-near: rgb(0 0 0 / 0.1);
+  --page-shadow-far: rgb(0 0 0 / 0.14);
+  --page-shadow:
+    0 2px 6px var(--page-shadow-near), 0 12px 32px var(--page-shadow-far);
 
   /* Grayscale status (kit P1-4) */
   --destructive: #393738;

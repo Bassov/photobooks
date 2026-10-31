@@ -200,6 +200,7 @@ function clearGesturePaint(
   if (world !== null) {
     world.style.transform = ''
     world.style.willChange = ''
+    world.style.removeProperty('--cam-scale')
     delete world.dataset.gesture
   }
   if (scroll !== null) {
@@ -476,6 +477,8 @@ export function usePasteboardCamera({
       world.style.transformOrigin = `${String(PASTEBOARD_PAD_PX)}px ${String(PASTEBOARD_PAD_PX)}px`
       world.style.transform = `translate(${String(frame.translateX)}px, ${String(frame.translateY)}px) scale(${String(frame.scale)})`
       world.style.willChange = 'transform'
+      // Screen-px chrome (page shadow, page numbers) divides by this.
+      world.style.setProperty('--cam-scale', String(frame.scale))
       world.dataset.gesture = 'zoom'
       setLiveZoom(gesture.liveZoom)
     }

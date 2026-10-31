@@ -159,9 +159,15 @@
   margin-inline: auto;
   contain: layout paint style;
   content-visibility: auto;
+  /* Paint containment clips at the slot box (spread width, down to the next
+     spread), which cut the soft --page-shadow into a hard band. Let the whole
+     shadow reach (12 px offset + 32 px blur) paint. Chromium takes no calc()
+     here, so a live zoom gesture drops the paint clip instead (below). */
+  overflow-clip-margin: 48px;
 }
 
 .pasteboard-world[data-gesture='zoom'] .pasteboard-slot {
+  contain: layout style;
   content-visibility: visible;
 }
 
@@ -272,19 +278,19 @@
   color: var(--foreground);
 }
 
-/* Kit PageLabels: one centred number under each page, 6 px under the spread
-   inside the zoom-scaled gap (no stride change). A single page has one number.
+/* Kit PageLabels: one centred number under each page, anchored to the page's
+   bottom edge (slot height minus the gap) at a constant 8 screen px with an
+   11 px line; --cam-scale undoes a live zoom gesture's world scale, so labels
+   never drift while zooming (pageLabelsModel). A single page has one number.
    Hidden while the gap pill shows. */
 .page-labels {
   position: absolute;
-  inset: auto 0 0;
-  height: var(--slot-pad, 44px);
+  inset-inline: 0;
+  top: calc(100% - var(--slot-pad, 0px) + 8px / var(--cam-scale, 1));
   display: flex;
-  padding-top: 6px;
-  box-sizing: border-box;
   color: var(--muted-foreground);
-  font-size: var(--text-xs);
-  line-height: 16px;
+  font-size: calc(var(--text-2xs) / var(--cam-scale, 1));
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }

@@ -433,6 +433,29 @@ describe('pasteboard camera gestures', () => {
     expect(indicator.textContent).not.toBe(before)
   })
 
+  it('exposes the live gesture scale as --cam-scale and clears it on settle', async () => {
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const world = screen.getByTestId('pasteboard-world')
+
+    wheel(scroll, { deltaY: -240, ctrlKey: true })
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    })
+    expect(world.dataset.gesture).toBe('zoom')
+    const scale = Number(world.style.getPropertyValue('--cam-scale'))
+    expect(scale).toBeGreaterThan(1)
+    expect(world.style.transform).toContain(`scale(${String(scale)})`)
+
+    await flushGesture()
+    expect(world.dataset.gesture).toBeUndefined()
+    expect(world.style.getPropertyValue('--cam-scale')).toBe('')
+  })
+
   it('ignores zoom keys on text fields and commits nothing when unmounted mid-gesture', async () => {
     const view = render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
