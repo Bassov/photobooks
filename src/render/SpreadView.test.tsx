@@ -328,6 +328,29 @@ describe('SpreadView', () => {
     expect(onActivate).toHaveBeenCalledOnce()
   })
 
+  it('passes the click detail so a pointer click differs from Enter', () => {
+    const book = makeBook()
+    const resolved = resolveSpread(book, 'spread-1')
+    assert(resolved !== undefined, 'expected resolved spread')
+    const onActivate = vi.fn<(event?: { detail: number }) => void>()
+
+    render(
+      <SpreadView
+        spreadId="spread-1"
+        resolved={resolved}
+        previewUrlFor={previewUrlFor}
+        frameControlFor={() => ({ label: 'Place photo', onActivate })}
+      />,
+    )
+
+    const frame = screen.getByRole('button', { name: 'Place photo' })
+    fireEvent.click(frame, { detail: 1 })
+    fireEvent.click(frame, { detail: 0 })
+    expect(onActivate.mock.calls.map(([event]) => event?.detail)).toEqual([
+      1, 0,
+    ])
+  })
+
   it('labels the drop chip place / replace on controlled and plain frames, none on thumbs', () => {
     const empty = resolveSpread(makeBook(), 'spread-1')
     const filled = resolveSpread(makeBookWithAsset(), 'spread-1')

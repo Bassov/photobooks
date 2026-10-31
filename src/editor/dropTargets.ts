@@ -49,11 +49,18 @@ export function decodeFrameDrag(payload: string): FrameDragSource | null {
   }
 }
 
+/** A mouse / pen / touch click reports `detail ≥ 1`; Enter / Space report 0. */
+export function isPointerActivation(event?: { detail: number }): boolean {
+  return event !== undefined && event.detail > 0
+}
+
 export function resolveFrameActivation(input: {
   source: FrameDragSource | null
   target: FrameDragSource & { filled: boolean }
   /** False when the selected source is an empty frame (nothing to move). */
   sourceFilled?: boolean
+  /** Pointer click: the selected frame stays selected (kit canvas). */
+  pointer?: boolean
 }): FrameActivation {
   const source = input.source
   if (source === null) {
@@ -63,7 +70,8 @@ export function resolveFrameActivation(input: {
     source.spreadId === input.target.spreadId &&
     source.frameId === input.target.frameId
   ) {
-    return { type: 'clear-source' }
+    // Keyboard keeps the aria-pressed toggle ("Cancel move").
+    return input.pointer === true ? { type: 'noop' } : { type: 'clear-source' }
   }
   if (input.sourceFilled === false) {
     return { type: 'select-source' }

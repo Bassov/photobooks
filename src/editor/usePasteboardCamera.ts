@@ -29,7 +29,7 @@ import { getEditorTool } from './editorToolStore'
 import {
   beginDelayedFitFollow,
   createDelayedFitFollow,
-  fitViewportSize,
+  fitSpreadZoomFor,
   resolveDelayedFitFrame,
   scheduleDelayedFitDoubleRaf,
   shouldHoldCameraScroll,
@@ -146,13 +146,11 @@ function fitFor(
   viewportWidth: number,
   viewportHeight: number,
 ): number {
-  const viewport = fitViewportSize(viewportWidth, viewportHeight)
-  return fitZoom({
-    contentWidthPx: metrics.spreadWidth,
-    contentHeightPx: metrics.spreadHeight,
-    viewportWidth: viewport.viewportWidth,
-    viewportHeight: viewport.viewportHeight,
-    mode: 'contain',
+  return fitSpreadZoomFor({
+    widestSpreadWidthPx: metrics.stackWidth,
+    spreadHeightPx: metrics.spreadHeight,
+    clientWidth: viewportWidth,
+    clientHeight: viewportHeight,
   })
 }
 

@@ -42,6 +42,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [x] [feature] [kit10-cover](roadmap/P1/kit10-cover.md) — Cover on canvas and in the inspector: kit v0.10 look
 - [x] [feature] [kit10-settings](roadmap/P1/kit10-settings.md) — Settings screen: kit v0.10 look
 - [ ] [feature] [kit10-stage5-pixel-fixes](roadmap/P1/kit10-stage5-pixel-fixes.md) — Kit stage-5 pixel fixes in product (Low-res chip gray, contrast, >=20 pages)
+- [ ] [feature] [design-r3-canvas-fit](roadmap/P1/design-r3-canvas-fit.md) — Bug: design-r3-canvas-fit: canvas Fit on spread change + click on a selected frame
 - [ ] [feature] [design-r3-book-cover](roadmap/P1/design-r3-book-cover.md) — Bug: design-r3-book-cover: back-cover text, spine width, Pages row
 - [x] [feature] [design-r3-chrome](roadmap/P1/design-r3-chrome.md) — Bug: design-r3-chrome: top-bar centring, filmstrip dock height
 - [ ] [feature] [fix-flaky-node-tests](roadmap/P1/fix-flaky-node-tests.md) — Bug: fix-flaky-node-tests: make 2 flaky node tests deterministic (root cause, no loosening)

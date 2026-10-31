@@ -137,12 +137,14 @@ export function activateFrame(
   spreadId: string,
   frameId: string,
   filled: boolean,
+  pointer = false,
 ): void {
   if (takeFrameDragClick()) {
     return
   }
   const source = getFrameSource()
   const action = resolveFrameActivation({
+    pointer,
     source,
     sourceFilled:
       source === null ||

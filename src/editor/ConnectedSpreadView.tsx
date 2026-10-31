@@ -22,7 +22,11 @@ import {
   setEditorStatus,
   STATUS_FRAME_DRAG,
 } from './editorStatus'
-import { encodeFrameDrag, FRAME_DRAG_MIME } from './dropTargets'
+import {
+  encodeFrameDrag,
+  FRAME_DRAG_MIME,
+  isPointerActivation,
+} from './dropTargets'
 import { enterCropMode, getCropTarget, subscribeCropMode } from './cropMode'
 import {
   frameControlLabel,
@@ -194,8 +198,13 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
           frameSourceKey === '' ||
           sourceFrameFilled(frameSource),
       ),
-      onActivate: () => {
-        activateFrame(spreadId, item.frameId, filled)
+      onActivate: (event) => {
+        activateFrame(
+          spreadId,
+          item.frameId,
+          filled,
+          isPointerActivation(event),
+        )
       },
     }
     if (pressed) {
