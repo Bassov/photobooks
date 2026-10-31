@@ -27,7 +27,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [e2e-photo-fixture-race](roadmap/P1/e2e-photo-fixture-race.md) — Fix: e2e photo fixtures are rewritten while other workers import them
 - [x] [feature] [design-r3-canvas-fit](roadmap/P1/design-r3-canvas-fit.md) — Bug: design-r3-canvas-fit: canvas Fit on spread change + click on a selected frame
 - [x] [feature] [design-r4-polish](roadmap/P1/design-r4-polish.md) — Bug: design-r4-polish: drag hint, canvas-centred tool group, 31 px menu rows, sort dot, floor page-number rule
-- [ ] [feature] [design-r5-polish](roadmap/P1/design-r5-polish.md) — Bug: design-r5-polish: drag source keeps its photo, top-bar Library inset
+- [x] [feature] [design-r5-polish](roadmap/P1/design-r5-polish.md) — Bug: design-r5-polish: drag source keeps its photo, top-bar Library inset
 
 ## P2 — Missing features, iterative
 
