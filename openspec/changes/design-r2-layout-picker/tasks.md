@@ -26,3 +26,10 @@ Results (headless, 1440×900, 4× CPU; `pnpm agent manual-qa` stopped at its own
 - OK Preview: 0 handles / size tag / grid / pressed frames.
 - OK Esc → the frame (spread-2-f0) still selected with 8 handles; inspector still Photo.
 - Problem (pre-existing, not this change): after Preview the canvas is back at spread 1, since `EditorShell` unmounts the Pasteboard while presenting and it re-fits on mount.
+
+Round 2 (saved templates, spread sections; Chromium 1440×900 against `#/demo` on the kit dev server and the product dev / test build):
+
+- OK empty: new user → "My templates 0"; My templates tab → "No templates yet. Save a spread you like." on one line (e2e bounding box).
+- OK happy: `?templates=kit` → "All 13 / My templates 3", kit order; section titles Layout, Master & spacing, Background, Grid; section boxes = kit (Master & spacing 300 × 170.59, Background 300 × 95, Grid 300 × 176.53; value field 64 × 16.8, track 268 × 3 at +24.8 px).
+- OK interact: `+` on spread 2–3 → inline name, Enter → My templates 1 / All 11 → reload keeps it; Margin 12 → four margins 12 mm; Gap 99 → 20 mm; dark swatch → spread 2–3 paints rgb(42, 41, 39).
+- Note: the product's Contact sheet row (layout-geometry spec) stays under "Save as template"; it is the only product-only row (+44 px vs the kit).

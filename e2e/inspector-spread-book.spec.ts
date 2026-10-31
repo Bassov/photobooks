@@ -70,10 +70,14 @@ test('the Spread tab grid eye toggles the overlay', async ({ page }) => {
   await openInspectorTab(page, 'spread')
   const eye = page.getByTestId('grid-section-spread').getByTestId('grid-toggle')
   await expect(page.getByTestId('grid-overlay')).toHaveCount(0)
+  // Kit Grid section "Show grid" is a Toggle (role=switch → aria-checked).
+  await expect(eye).toHaveAttribute('role', 'switch')
+  await expect(eye).toHaveAttribute('aria-checked', 'false')
   await eye.click()
-  await expect(eye).toHaveAttribute('aria-pressed', 'true')
+  await expect(eye).toHaveAttribute('aria-checked', 'true')
   await expect(page.getByTestId('grid-overlay').first()).toBeVisible()
   await eye.click()
+  await expect(eye).toHaveAttribute('aria-checked', 'false')
   await expect(page.getByTestId('grid-overlay')).toHaveCount(0)
 })
 

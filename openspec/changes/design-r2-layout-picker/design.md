@@ -7,7 +7,12 @@
 5. **Preview (M25).** With `editorLayer={false}` `ConnectedSpreadView` passes no `frameControlFor` and no overlay, so frames are inert divs; selection state is untouched.
 6. **Inspector header (M2).** One 48 px row: icon + title + meta + "Hide inspector (I)" with new glyphs `panelRightClose`, `sparkles`.
 
+7. **Saved templates.** `savedTemplates.ts`: a localStorage list (Zod-checked on load, bad data → empty) of `{id: user-…, name, slots %}`; core `spreadLayoutSlots` / `customLayoutRects` / `applyCustomLayout` turn a spread into percent slots and back (photos by index), so saved ids never enter `TEMPLATE_IDS`. `?templates=kit` seeds on the first read, gated on `DEV || VITE_TEST_FIXTURES`.
+8. **Spread sections.** `Spread.masterId` (optional enum, absent = A) + `setSpreadMaster` / `setSpreadBackground` ops (one history step); Margin / Gap write the spread grid override, so templates re-flow; `InspectorSlider editableValue` = kit `SliderValueField` (draft in a ref so the synchronous blur after Enter / Escape sees it cleared).
+
 ## Touch-set & Test Plan
+
+- `src/core/{schema.ts,ops/spreadLook.ts,ops/applyBookOp.ts,templates/custom.ts,templates/apply.ts}` + unit tests; `src/editor/{savedTemplates.ts,SpreadSections.tsx,.css,GridSection.tsx,.css,InspectorControls.tsx,.css}` + unit tests; e2e `design-r2-layout-picker.spec.ts` (kit section order, seed, save → reload, section boxes / writes).
 
 - `src/core/templates/{types,catalog}.ts`: exact rects + inside / non-overlap tests per layout.
 - `src/editor/{LayoutSection.tsx,.css,layoutCatalog.ts,layoutThumb.ts,templatePreview.ts,TemplatePreviewOverlay.tsx,ConnectedSpreadView.tsx,Inspector.tsx}`, `src/ui/{Disclosure.tsx,.css,icons/glyphs.ts}`: unit tests.

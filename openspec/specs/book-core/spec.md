@@ -234,3 +234,12 @@ A frame MAY carry `rotationDeg` (number, degrees about its center; absent = 0) a
 
 - **WHEN** a valid schemaVersion 3 document is migrated
 - **THEN** the result has `schemaVersion` 4, every frame has `rotationDeg` 0 and no `locked`, and the document parses as the current shape
+
+### Requirement: Spread master and background
+
+A spread MAY store `masterId` (`A`, `B` or `none`; absent means Master A) and `backgroundColor` (sRGB hex; absent means the book page colour). Setting Master A or clearing the colour SHALL remove the field. Each change MUST be one history step touching only that spread. Parse MUST refuse an unknown master id.
+
+#### Scenario: Master round-trip
+
+- **WHEN** spread 1 is set to Master B, then None, then Master A
+- **THEN** it stores `B`, then `none`, then no `masterId`, and other spreads are unchanged
