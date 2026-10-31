@@ -1,10 +1,10 @@
 /**
  * Builds a small JPEG with EXIF Orientation=6 (90° CW → swapped display size).
  */
-import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import jpeg from 'jpeg-js'
+import { writeFixtureFile } from './writeFixtureFile.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const width = 40
@@ -58,7 +58,7 @@ const withExif = Buffer.concat([
 ])
 
 const out = join(__dirname, 'sample-orient6.jpg')
-writeFileSync(out, withExif)
+writeFixtureFile(out, withExif)
 console.log(
   `wrote ${out} (${width}x${height}, Orientation=${String(orientation)})`,
 )

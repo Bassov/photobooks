@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeFixtureFile } from './writeFixtureFile.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -25,9 +25,9 @@ const lossyPath = join(__dirname, 'sample-lossy-3x2.webp')
 const losslessPath = join(__dirname, 'sample-lossless-3x2.webp')
 const corruptPath = join(__dirname, 'sample-corrupt.webp')
 
-writeFileSync(lossyPath, lossy)
-writeFileSync(losslessPath, lossless)
-writeFileSync(corruptPath, corrupt)
+writeFixtureFile(lossyPath, lossy)
+writeFixtureFile(losslessPath, lossless)
+writeFixtureFile(corruptPath, corrupt)
 
 console.log(
   `wrote ${lossyPath} sha=${createHash('sha256').update(lossy).digest('hex').slice(0, 12)}`,

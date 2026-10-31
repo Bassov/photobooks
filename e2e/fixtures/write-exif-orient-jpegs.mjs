@@ -3,10 +3,10 @@
  * display as 40x20 landscape) plus an unrotated 5x10 IFD1 thumbnail, like a
  * camera file. Also an orientation 3 file (raw 40x20, displays 40x20).
  */
-import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import jpeg from 'jpeg-js'
+import { writeFixtureFile } from './writeFixtureFile.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -72,7 +72,7 @@ function write(name, orientation, width, height) {
   const body = encode(width, height)
   const thumb = encode(width / 4, height / 4)
   const out = join(__dirname, name)
-  writeFileSync(
+  writeFixtureFile(
     out,
     Buffer.concat([
       body.subarray(0, 2),
