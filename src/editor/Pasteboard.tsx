@@ -505,6 +505,10 @@ export const Pasteboard = memo(function Pasteboard({
           className="pasteboard-scroll"
           data-testid="pasteboard-scroll"
           data-spread-count={spreadIds.length}
+          // Size the camera last followed: the Fit refit runs in the same
+          // commit, so a match with clientWidth/Height means it has landed.
+          data-viewport-width={viewport.width}
+          data-viewport-height={viewport.height}
           role="region"
           aria-label="Spreads"
           tabIndex={0}

@@ -30,6 +30,7 @@ import {
   openSpreadTab,
 } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import { waitForPasteboardSettled } from './fixtures/pasteboardSettled'
 import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
 test.beforeEach(async ({ page }) => {
@@ -584,6 +585,9 @@ test('Space activates focused filmstrip tile with pointer over pasteboard (PB-04
   const tile = page.getByTestId('filmstrip-item').first()
   await expect(tile).toBeVisible({ timeout: 30_000 })
   await expect(tile).toHaveAttribute('aria-selected', 'false')
+  // The import status line leaves after the tile shows; Fit then refits the
+  // taller pasteboard. Read the camera only once that refit has landed.
+  await waitForPasteboardSettled(page)
 
   const scroll = page.getByTestId('pasteboard-scroll')
   const topBefore = await scroll.evaluate((el) => el.scrollTop)
