@@ -65,6 +65,9 @@ test.describe('frame-budget gates', () => {
     await firstRow.click()
     await expect(firstRow).toHaveAttribute('aria-selected', 'true')
     await page.getByTestId('present').click()
+    // Owner design change (round 7, M53): Preview opens on the cover.
+    await expect(page.getByTestId('pager-position')).toHaveText('Cover')
+    await page.keyboard.press('ArrowRight')
     await expect(page.getByTestId('pager-position')).toHaveText('1 / 40')
     const flip = async (key: 'ArrowLeft' | 'ArrowRight'): Promise<void> => {
       await page.keyboard.press(key)
