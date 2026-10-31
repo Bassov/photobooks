@@ -82,20 +82,32 @@ test.describe('kit v0.10 grid and snap (demo steps 14, 20)', () => {
     await assertDocumentFitsViewport(page)
   })
 
-  test('step 20: spread Layout grid section has kit structure and tokens', async ({
+  test('step 20: spread Grid section has kit structure and tokens', async ({
     page,
   }) => {
+    // Kit Section title="Grid" summary="cols×rows" (uikit/src/sandbox/
+    // context-inspector.tsx:224); the summary shows while collapsed.
+    const disclosure = page.getByTestId('grid')
     const section = page.getByTestId('grid-section-spread')
     await expect(section).toBeVisible()
-    const heading = section.locator('.inspector-eyebrow')
-    await expect(heading).toHaveText('Layout grid')
+    const heading = disclosure.locator('.inspector-eyebrow')
+    await expect(heading).toHaveText('Grid')
     expect(
       await heading.evaluate((el) => {
         const s = getComputedStyle(el)
         return { color: s.color, transform: s.textTransform }
       }),
     ).toEqual({ color: MUTED, transform: 'uppercase' })
-    await expect(section.getByTestId('grid-summary')).toHaveText('2×2')
+    await heading.click()
+    await expect(disclosure.locator('.pb-disclosure__summary')).toHaveText(
+      '2×2',
+    )
+    await heading.click()
+    await expect(section).toBeVisible()
+    await expect(section.getByTestId('spread-grid-inherit')).toContainText(
+      '2 × 2',
+    )
+    await section.getByText('Custom', { exact: true }).click()
 
     for (const label of [
       'Top',
@@ -127,13 +139,21 @@ test.describe('kit v0.10 grid and snap (demo steps 14, 20)', () => {
 
   test('step 20: out-of-range column count clamps', async ({ page }) => {
     const section = page.getByTestId('grid-section-spread')
+    const summary = page.getByTestId('grid').locator('.pb-disclosure__summary')
+    const heading = page.getByTestId('grid').locator('.inspector-eyebrow')
+    await section.getByText('Custom', { exact: true }).click()
     const columns = section.getByRole('textbox', { name: 'Columns' })
     await columns.fill('99')
     await columns.press('Enter')
-    await expect(section.getByTestId('grid-summary')).toHaveText('12×2')
+    await expect(columns).toHaveValue('12')
+    await heading.click()
+    await expect(summary).toHaveText('12×2')
+    await heading.click()
     await columns.fill('0')
     await columns.press('Enter')
-    await expect(section.getByTestId('grid-summary')).toHaveText('1×2')
+    await expect(columns).toHaveValue('1')
+    await heading.click()
+    await expect(summary).toHaveText('1×2')
     await assertDocumentFitsViewport(page)
   })
 })

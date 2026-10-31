@@ -83,6 +83,8 @@
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
+  /* Kit preflight: buttons inherit Inter, not the UA's Arial (the caption wrap depends on it). */
+  font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -194,6 +196,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
+  font: inherit;
   font-size: var(--text-xs);
   cursor: pointer;
 }
@@ -237,6 +240,7 @@
   border-radius: var(--radius-full);
   background: var(--field);
   color: var(--muted-foreground);
+  font: inherit;
   font-size: var(--text-xs);
   cursor: pointer;
 }

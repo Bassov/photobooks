@@ -7,6 +7,8 @@ import { installPhotoDirectoryPickerStub } from './fixtures/photoDirectoryPicker
 
 // uikit/src/index.css: --muted-foreground #535152, --field #D7D7D7.
 const MUTED = 'rgb(83, 81, 82)'
+// --foreground (--t-text #393738).
+const FOREGROUND = 'rgb(57, 55, 56)'
 const FIELD = 'rgb(215, 215, 215)'
 
 test.beforeEach(async ({ page }) => {
@@ -19,7 +21,9 @@ test.beforeEach(async ({ page }) => {
   }
 })
 
-const eyebrow = (page: Page, name: string) =>
+const GRID = /^Grid$/
+
+const eyebrow = (page: Page, name: string | RegExp) =>
   page.locator('.inspector-eyebrow', { hasText: name }).first()
 
 async function paint(target: Locator) {
@@ -43,6 +47,11 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
     // Kit disclosures start collapsed; the headings are the triggers.
     await expandDisclosure(page, 'Position & size')
     await expandDisclosure(page, 'Arrange')
+    // Kit SectionHeader (uikit/src/components/app/ui.tsx:51): the eyebrow is
+    // muted at rest and turns foreground while its trigger is hovered.
+    await eyebrow(page, 'Arrange').hover()
+    await expect(eyebrow(page, 'Arrange')).toHaveCSS('color', FOREGROUND)
+    await page.getByTestId('inspector-context').hover()
 
     for (const name of ['Position & size', 'Arrange']) {
       const heading = eyebrow(page, name)
@@ -94,16 +103,24 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
     )
     await expect(page.getByTestId('inspector-context')).toHaveText('Spread')
     // uikit/src/sandbox/context-inspector.tsx:56-63: no Spread properties
-    // block; the muted eyebrow paint is asserted on the Layout grid eyebrow.
+    // block; the muted eyebrow paint is asserted on the Grid eyebrow (kit
+    // Section title="Grid", context-inspector.tsx:224).
     await expect(page.getByTestId('inspector-spread-properties')).toHaveCount(0)
-    await expect(eyebrow(page, 'Layout grid')).toBeVisible()
-    expect((await paint(eyebrow(page, 'Layout grid'))).color).toBe(MUTED)
+    await expect(eyebrow(page, GRID)).toBeVisible()
+    expect((await paint(eyebrow(page, GRID))).color).toBe(MUTED)
 
     await expect(eyebrow(page, 'Layout').first()).toBeVisible()
     await expect(page.getByTestId('layout-tile').first()).toBeVisible()
-    await expect(eyebrow(page, 'Layout grid')).toBeVisible()
-    // The grid override (Use master / Custom) is P2 layout-grids-parent-inherit.
-    await expect(page.getByText('Use master')).toHaveCount(0)
+    await expect(eyebrow(page, GRID)).toBeVisible()
+    // Kit grid override switch (context-inspector.tsx:227): Use master / Custom.
+    const source = page
+      .getByTestId('grid-section-spread')
+      .getByRole('radiogroup', { name: 'Grid source' })
+    await expect(source.getByRole('radio')).toHaveCount(2)
+    await expect(source.locator('label')).toHaveText(['Use master', 'Custom'])
+    await expect(
+      source.getByRole('radio', { name: 'Use master' }),
+    ).toBeChecked()
     await assertDocumentFitsViewport(page)
   })
 

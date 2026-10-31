@@ -146,6 +146,27 @@ test('My templates shows a readable one-line empty state', async ({ page }) => {
   expect(text.height).toBeLessThanOrEqual(text.lineHeight + 0.5)
 })
 
+test('every spread inspector text renders in the kit Inter face', async ({
+  page,
+}) => {
+  // Kit preflight makes buttons inherit Inter; without it the section
+  // triggers, tabs, chips and tile captions fall back to the UA's Arial.
+  const offFace = await page
+    .getByTestId('inspector-panel')
+    .evaluate((root) =>
+      [...root.querySelectorAll('*')]
+        .filter(
+          (el) =>
+            [...el.childNodes].some(
+              (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim(),
+            ) &&
+            !getComputedStyle(el).fontFamily.startsWith('"Inter Variable"'),
+        )
+        .map((el) => el.textContent.trim()),
+    )
+  expect(offFace).toEqual([])
+})
+
 test('All layouts lists the kit layouts in kit order', async ({ page }) => {
   await expect(allTiles(page).getByTestId('tpl-name')).toHaveText(KIT_LAYOUTS)
   await selectSecondSpread(page)
@@ -155,6 +176,14 @@ test('All layouts lists the kit layouts in kit order', async ({ page }) => {
 test('tiles, thumbs, grid and captions match the kit boxes and type', async ({
   page,
 }) => {
+  // The caption wrap depends on Inter's metrics: measure after the
+  // self-hosted face (font-display: swap) has replaced the fallback.
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.fonts.check('11px "Inter Variable"')),
+    )
+    .toBe(true)
+  await page.evaluate(() => document.fonts.ready)
   for (const select of [stayOnFirstSpread, selectSecondSpread]) {
     await select(page)
     const tiles = allTiles(page)
@@ -201,6 +230,7 @@ test('tiles, thumbs, grid and captions match the kit boxes and type', async ({
     .evaluate((el) => {
       const s = getComputedStyle(el)
       return {
+        family: s.fontFamily,
         size: s.fontSize,
         lineHeight: s.lineHeight,
         weight: s.fontWeight,
@@ -210,6 +240,8 @@ test('tiles, thumbs, grid and captions match the kit boxes and type', async ({
       }
     })
   expect(caption).toEqual({
+    // Kit preflight: the tile button inherits Inter (UA default is Arial).
+    family: '"Inter Variable", Inter, sans-serif',
     size: '11px',
     lineHeight: '15.125px',
     weight: '400',
@@ -226,11 +258,15 @@ test('the selected tile is filled; hover fills an idle tile', async ({
   const bg = () => tile.evaluate((el) => getComputedStyle(el).backgroundColor)
   expect(await bg()).toBe('rgba(0, 0, 0, 0)')
   await tile.hover()
+  // The fill fades in (transition: background-color); wait for it to land
+  // on the kit tokens: hover --field #d7d7d7, selected --sel #cacaca.
+  await expect.poll(bg).toBe('rgb(215, 215, 215)')
   const hovered = await bg()
   expect(hovered).not.toBe('rgba(0, 0, 0, 0)')
   await tile.click()
   await expect(tile).toHaveAttribute('aria-pressed', 'true')
   await page.mouse.move(0, 899)
+  await expect.poll(bg).toBe('rgb(202, 202, 202)')
   const selected = await bg()
   expect(selected).not.toBe('rgba(0, 0, 0, 0)')
   await expect(tile.getByTestId('tpl-name')).toHaveCSS('font-weight', '600')

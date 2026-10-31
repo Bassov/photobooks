@@ -33,6 +33,8 @@
   padding: 0 calc(var(--spacing) * 1) 0 calc(var(--spacing) * 3);
   border: 0;
   background: transparent;
+  /* Kit preflight: the trigger inherits Inter, not the UA's Arial. */
+  font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;

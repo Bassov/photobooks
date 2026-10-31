@@ -27,8 +27,19 @@ test('Masters mode shows the kit switch and a quiet empty note', async ({
     'rgb(225, 225, 225)',
   )
   await expect(track).toHaveCSS('border-radius', '8px')
-  // No master A / B entries, no stub controls, no card chrome.
-  await expect(page.getByText(/Master [AB]/)).toHaveCount(0)
+  // No master A / B entries, no stub controls, no card chrome. The only
+  // "Master A/B" texts on the page are the spread inspector's kit Master &
+  // spacing switch and Grid inherit line (context-inspector.tsx:222, 245).
+  await expect(panel.getByText(/Master [AB]/)).toHaveCount(0)
+  const inspectorMasters = page
+    .getByTestId('inspector-panel')
+    .getByText(/Master [AB]/)
+  await expect(page.getByText(/Master [AB]/)).toHaveCount(
+    await inspectorMasters.count(),
+  )
+  await expect(
+    page.getByTestId('spread-master-spacing').getByText(/^Master [AB]$/),
+  ).toHaveText(['Master A', 'Master B'])
   await expect(page.getByRole('button', { name: /New master/ })).toHaveCount(0)
   await expect(page.getByTestId('masters-stub')).toHaveCSS(
     'border-top-width',
