@@ -11,3 +11,9 @@
 1. Library → book menu → Rename: rounded pill with ring, typing works without a click; Enter saves, Escape cancels.
 2. Type in library search: no dark ring, fill stays `#D7D7D7`.
 3. Create book → Custom size → focus Width, then Height: no dark border.
+
+`pnpm agent manual-qa`: blocked before any scenario (harness `start-session` click intercepted by the welcome header; welcome screen untouched here). Scripted browser check instead (Playwright, 1440×900, test-API library, values vs rendered `#/demo`):
+
+- 1 OK: focus stays in `rename-input` after Rename; radius 8px, border 0, padding 8px, height 28px, fill `rgb(215,215,215)`, ring `0 0 0 2px rgb(225,225,225), 0 0 0 4px rgb(58,56,57)` = kit; Enter / Escape in e2e.
+- 2 OK: `lib-search` focused: outline none, box-shadow none, fill `rgb(215,215,215)` = kit.
+- 3 OK: Width / Height focused: outline none, box-shadow none, border `rgb(215,215,215)` (field tone), fill `rgb(215,215,215)` = kit.
