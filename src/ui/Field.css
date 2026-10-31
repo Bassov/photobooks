@@ -86,7 +86,8 @@
   outline: none;
 }
 
-/* Kit stepper field (uikit numberfield.tsx:27-55): no heavy focus box. */
+/* Kit stepper field (uikit numberfield.tsx:27-55; create-book.tsx:33 as
+   rendered on #/demo): quiet focus, flat field fill, no ring or dark border. */
 .pb-field__unit-wrap[data-steppers='true'] {
   position: relative;
   padding-right: 0;
@@ -94,7 +95,6 @@
 
 .pb-field__unit-wrap[data-steppers='true']:focus-within {
   outline: none;
-  border-color: var(--muted-foreground);
 }
 
 .pb-field__steppers {
