@@ -1,5 +1,4 @@
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
-import { stackContentYAtZoom } from './pasteboardView'
 
 const CSS_PX_PER_INCH = 96
 const MM_PER_INCH = 25.4
@@ -102,12 +101,6 @@ export function zoomAtPoint(
     /** Scroll coords of the content origin (constant world padding). */
     originX?: number | undefined
     originY?: number | undefined
-    /**
-     * Spread height at zoom 1 of a stack with a constant screen gap: the
-     * committed `scrollTop` keeps the stack point under the anchor. The
-     * gesture transform stays a plain scale.
-     */
-    stackSpreadHeightPx?: number | undefined
   },
   out: ZoomFrame,
 ): ZoomFrame {
@@ -123,11 +116,7 @@ export function zoomAtPoint(
   out.zoom = zoom
   out.scale = scale
   out.scrollLeft = originX + contentX * scale - input.anchorX
-  const stackY =
-    input.stackSpreadHeightPx === undefined
-      ? contentY * scale
-      : stackContentYAtZoom(contentY, input.stackSpreadHeightPx, start, zoom)
-  out.scrollTop = originY + stackY - input.anchorY
+  out.scrollTop = originY + contentY * scale - input.anchorY
   out.translateX = contentX * (1 - scale)
   out.translateY = contentY * (1 - scale)
   return out
@@ -150,7 +139,6 @@ export function pinchZoom(
     maxZoom: number
     originX?: number | undefined
     originY?: number | undefined
-    stackSpreadHeightPx?: number | undefined
   },
   out: ZoomFrame,
 ): ZoomFrame {
@@ -169,7 +157,6 @@ export function pinchZoom(
       maxZoom: input.maxZoom,
       originX: input.originX,
       originY: input.originY,
-      stackSpreadHeightPx: input.stackSpreadHeightPx,
     },
     out,
   )

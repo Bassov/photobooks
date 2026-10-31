@@ -403,8 +403,12 @@ describe('Pasteboard view wiring', () => {
       screen.getAllByTestId('pasteboard-slot')[0]?.style.height ?? '0',
     )
     expect(stride).toBeGreaterThan(0)
-    expect(spacerHeight('pasteboard-lead')).toBe(start * stride)
-    expect(spacerHeight('pasteboard-tail')).toBe((total - end) * stride)
+    // The stride is fractional; inline styles keep 6 decimals.
+    expect(spacerHeight('pasteboard-lead')).toBeCloseTo(start * stride, 3)
+    expect(spacerHeight('pasteboard-tail')).toBeCloseTo(
+      (total - end) * stride,
+      3,
+    )
   })
 
   it('runs only one pace step when the watchdog fires before a stale rAF', () => {
@@ -485,9 +489,11 @@ describe('Pasteboard view wiring', () => {
     const indicesAfterForce = slotIndices()
     const forceStart = Math.min(...indicesAfterForce)
     const forceEnd = Math.max(...indicesAfterForce) + 1
-    expect(spacerHeight('pasteboard-lead')).toBe(forceStart * stride)
-    expect(spacerHeight('pasteboard-tail')).toBe(
+    // The stride is fractional; inline styles keep 6 decimals.
+    expect(spacerHeight('pasteboard-lead')).toBeCloseTo(forceStart * stride, 3)
+    expect(spacerHeight('pasteboard-tail')).toBeCloseTo(
       (getSpreadIdsSnapshot().length - forceEnd) * stride,
+      3,
     )
   })
 

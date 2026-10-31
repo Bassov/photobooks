@@ -15,6 +15,7 @@ import {
   zoomPercent,
   type ZoomFrame,
 } from './camera'
+import { pasteboardStridePx } from './pasteboardWindow'
 
 function blankFrame(): ZoomFrame {
   return {
@@ -83,46 +84,61 @@ describe('zoomAtPoint', () => {
     expect(frame.translateX).toBeCloseTo((10 + 30) * (1 - 1.5))
   })
 
-  it('keeps the stack point under the anchor with a constant gap', () => {
-    // Spread 100 px at zoom 1 (stride 144): anchor on spread 1, 50 px down.
-    const frame = zoomAtPoint(
-      {
-        zoom: 1,
-        scrollLeft: 0,
-        scrollTop: 1000 + 144,
-        anchorX: 0,
-        anchorY: 50,
-        factor: 2,
-        minZoom: 0.1,
-        maxZoom: 40,
-        originY: 1000,
-        stackSpreadHeightPx: 100,
-      },
-      blankFrame(),
-    )
-    // Zoom 2: spread 1 starts at 244; the point sits 100 px into it.
-    expect(frame.scrollTop + 50).toBe(1000 + 244 + 100)
-    // The gesture preview is still a plain scale about the anchor.
-    expect(frame.translateY).toBe((144 + 50) * (1 - 2))
-  })
+  test.prop([
+    fc.integer({ min: 0, max: 40 }),
+    fc.double({ min: 0, max: 1, noNaN: true }),
+    fc.double({ min: 10, max: 2000, noNaN: true }),
+    fc.double({ min: 0.05, max: 8, noNaN: true }),
+    fc.double({ min: 0.05, max: 8, noNaN: true }),
+  ])(
+    'keeps a stack point (on a spread or in a gap) at its place in the stride',
+    (index, f, spreadHeight, from, factor) => {
+      // Stack y of spread `index`, fraction `f` of its stride (f > 0.93 is
+      // in the gap under it), anchored 50 px below the port top.
+      const stride = pasteboardStridePx(spreadHeight * from)
+      const y = index * stride + f * stride
+      const frame = zoomAtPoint(
+        {
+          zoom: from,
+          scrollLeft: 0,
+          scrollTop: 1000 + y - 50,
+          anchorX: 0,
+          anchorY: 50,
+          factor,
+          minZoom: 0.01,
+          maxZoom: 100,
+          originY: 1000,
+        },
+        blankFrame(),
+      )
+      const after = pasteboardStridePx(spreadHeight * frame.zoom)
+      const mapped = frame.scrollTop + 50 - 1000
+      expect(Math.abs(mapped - (index + f) * after)).toBeLessThan(
+        1e-6 * (1 + mapped),
+      )
+    },
+  )
 
-  it('pinch passes the stack spread height through', () => {
+  it('keeps a point 30% into a gap 30% into it after a pinch', () => {
+    // Spread 588 px, gap 44 px at zoom 1; pinch to zoom 2.
+    const y = 588 + 0.3 * 44
     const frame = pinchZoom(
       {
         zoom: 1,
         scrollLeft: 0,
-        scrollTop: 144,
+        scrollTop: y - 50,
         startA: { x: 0, y: 40 },
         startB: { x: 0, y: 60 },
         currentA: { x: 0, y: 30 },
         currentB: { x: 0, y: 70 },
         minZoom: 0.1,
         maxZoom: 40,
-        stackSpreadHeightPx: 100,
       },
       blankFrame(),
     )
-    expect(frame.scrollTop + 50).toBe(244 + 100)
+    expect(frame.zoom).toBe(2)
+    expect(frame.scrollTop + 50).toBeCloseTo(2 * 588 + 0.3 * 88, 9)
+    expect(frame.translateY).toBeCloseTo(-y, 9)
   })
 
   it('ignores a non-positive factor', () => {

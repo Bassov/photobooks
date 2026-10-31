@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { dropChipLabel } from '../render/dropChip'
 import { PageLabels } from './PageLabels'
 import {
-  PAGE_LABELS_MIN_ZOOM,
+  PAGE_LABELS_MIN_GAP_PX,
   pageLabelsFit,
   pageLabelTexts,
 } from './pageLabelsModel'
@@ -38,9 +38,12 @@ describe('page labels', () => {
     expect([...root.children].map((c) => c.textContent)).toEqual(['4', '5'])
   })
 
-  it('hides when the slot padding would clip them', () => {
-    expect(pageLabelsFit(PAGE_LABELS_MIN_ZOOM)).toBe(true)
-    expect(pageLabelsFit(PAGE_LABELS_MIN_ZOOM - 0.01)).toBe(false)
+  it('hides when the gap is shorter than 6 px offset + 16 px line', () => {
+    expect(PAGE_LABELS_MIN_GAP_PX).toBe(22)
+    expect(pageLabelsFit(44)).toBe(true)
+    expect(pageLabelsFit(22)).toBe(true)
+    expect(pageLabelsFit(21.9)).toBe(false)
+    expect(pageLabelsFit(0)).toBe(false)
   })
 })
 
