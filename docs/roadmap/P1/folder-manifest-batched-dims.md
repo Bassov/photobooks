@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: Folder manifest: batch dimension patches, no lost updates
+Status: done
 
 ## Scope
 
