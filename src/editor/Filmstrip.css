@@ -165,12 +165,14 @@
   background: var(--muted);
 }
 
-.filmstrip-empty {
+/* Kit: the strip's p-1 pb-2 around a px-2 row of h-(--thumb), text left. */
+.pb-empty.filmstrip-empty {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  height: var(--film-thumb-h, 96px);
+  height: calc(var(--film-empty-h, 104px) + 12px);
   margin: 0;
-  padding: 0 calc(var(--spacing) * 2);
+  padding: 4px 12px 8px;
   font-family: var(--font-ui);
   color: var(--muted-foreground);
   width: 100%;

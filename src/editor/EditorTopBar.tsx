@@ -405,27 +405,47 @@ export function EditorTopBar({
           onPanelsChange(toggleEditorPanel(panels, key))
         }}
       />
-      <ChromeButton
-        className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
-        style={{ background: FIELD, color: T }}
-        data-testid="present"
-        disabled={spreadCount === 0}
-        title="Preview"
-        onClick={onPresent}
-      >
-        <Icon name="eye" size={16} />
-        Preview
-      </ChromeButton>
-      <IconButton
-        label="Settings"
-        size="sm"
-        data-testid="editor-settings-open"
-        onPress={() => {
-          setSettingsOpen(true)
-        }}
-      >
-        <Icon name="settings" size={16} />
-      </IconButton>
+      <div className="flex items-center gap-1.5">
+        <ChromeButton
+          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="present"
+          disabled={spreadCount === 0}
+          title="Preview"
+          onClick={onPresent}
+        >
+          <Icon name="eye" size={16} />
+          Preview
+        </ChromeButton>
+        <IconButton
+          label="Settings"
+          size="sm"
+          data-testid="editor-settings-open"
+          onPress={() => {
+            setSettingsOpen(true)
+          }}
+        >
+          <Icon name="settings" size={16} />
+        </IconButton>
+        {/* Kit #/demo right group; no print / publish feature yet → kit disabled look. */}
+        <ChromeButton
+          className="editor-soon h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="editor-print"
+          disabled
+        >
+          <Icon name="printer" size={16} />
+          Print
+        </ChromeButton>
+        <ChromeButton
+          className="editor-soon e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="editor-publish"
+          disabled
+        >
+          Publish
+        </ChromeButton>
+      </div>
       {settingsOpen ? (
         <EditorSettings
           libraryPath={project.libraryLabel ?? 'Library'}

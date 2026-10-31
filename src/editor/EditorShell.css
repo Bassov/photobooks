@@ -81,8 +81,14 @@
   cursor: wait;
 }
 
+/* Kit Button data-[disabled]: dimmed in place, no hover. */
+.editor-soon:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* prettier-ignore */
-.editor-top-bar.pb-toolbar { flex: 1 1 auto; flex-wrap: wrap; min-width: 0; gap: calc(var(--spacing) * 2); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.editor-top-bar.pb-toolbar { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; gap: calc(var(--spacing) * 2); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 
 .book-lock-banner {
   margin: 0;

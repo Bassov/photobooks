@@ -6,8 +6,8 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 test.use({ viewport: { width: 1440, height: 900 } })
 
 // Kit #/demo bar (uikit/src/sandbox/chrome.tsx TopBar, demo-parts/editor.tsx),
-// minus the controls the Owner removed (rulers, guides, bleed/safe, DPI) and
-// minus Print / Publish (known gaps: the product has no such actions).
+// minus the controls the Owner removed (rulers, guides, bleed/safe, DPI).
+// Print / Publish are present but disabled until those features land.
 const BAR_CONTROLS = [
   'Library',
   'Book settings',
@@ -27,6 +27,8 @@ const BAR_CONTROLS = [
   'Hide inspector',
   'Preview',
   'Settings',
+  'Print',
+  'Publish',
 ]
 
 async function barControlNames(page: Page): Promise<string[]> {

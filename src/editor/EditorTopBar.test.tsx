@@ -164,17 +164,36 @@ describe('EditorTopBar', () => {
     )
   })
 
-  it('has no placeholder buttons and a Preview pill that presents', () => {
+  it('has no fake actions and a Preview pill that presents', () => {
     render(<EditorShell />)
     expect(screen.queryByTestId('editor-preview')).toBeNull()
     expect(screen.queryByTestId('export')).toBeNull()
-    expect(screen.queryByTestId('editor-publish')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Export' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Publish' })).toBeNull()
     expect(screen.queryByTestId('camera-bar')).toBeNull()
     expect(screen.queryByRole('toolbar', { name: 'Camera' })).toBeNull()
     const preview = screen.getByTestId('present')
     expect(preview.textContent).toBe('Preview')
+  })
+
+  it('ends the right group with kit Print and Publish, disabled until those features exist', () => {
+    render(<EditorShell />)
+    const print = screen.getByRole('button', { name: 'Print' })
+    const publish = screen.getByRole('button', { name: 'Publish' })
+    expect(print).toHaveProperty('disabled', true)
+    expect(publish).toHaveProperty('disabled', true)
+    expect(print.classList.contains('editor-soon')).toBe(true)
+    expect(publish.classList.contains('editor-soon')).toBe(true)
+    const group = screen.getByTestId('present').parentElement
+    const ids = [...(group?.children ?? [])].map((el) =>
+      el.getAttribute('data-testid'),
+    )
+    expect(ids).toEqual([
+      'present',
+      'editor-settings-open',
+      'editor-print',
+      'editor-publish',
+    ])
+    expect(group?.lastElementChild).toBe(publish)
   })
 
   it('labels undo / redo tooltips with the step name', () => {
