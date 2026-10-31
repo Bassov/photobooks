@@ -58,7 +58,8 @@ export function generateTemplateFrames(
         return [hero, ...fourGridRects(rest, cg, rg)]
       }
       case 'panorama':
-        return [fitAspect(spanBox(boxes), PANORAMA_RATIO)]
+        // A 7:2 strip across the content box.
+        return [fitAspect(spanBox(boxes), 7 / 2)]
       case 'three-across':
         return threeColumns(spanBox(boxes), cg).map((cell) =>
           fitAspect(cell, 1),
@@ -137,7 +138,6 @@ function fourGridRects(
 
 const PORTRAIT_RATIO = 3 / 4
 const LANDSCAPE_RATIO = 3 / 2
-const PANORAMA_RATIO = 7 / 2
 /** Offset pair: each frame takes this share of its half's height. */
 const OFFSET_SHARE = 0.7
 

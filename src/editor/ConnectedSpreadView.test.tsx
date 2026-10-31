@@ -190,6 +190,22 @@ describe('per-spread paint subscription', () => {
     expect(frame.getAttribute('data-crop-active')).toBeNull()
   })
 
+  it('an empty frame neither enters crop mode nor drags', () => {
+    resetBookStore({
+      book: addSpread(makeBook({ id: 'empty', spreads: [] }), { id: 's0' }),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const frame = screen.getByTestId('spread-frame')
+    const body = frame.querySelector('.spread-frame-body')
+    expect(body?.getAttribute('draggable')).toBe('false')
+    fireEvent.doubleClick(frame)
+    expect(getCropTarget()).toBeNull()
+  })
+
   it('dims the dragged frame after dragstart and restores it at dragend', () => {
     vi.useFakeTimers()
     resetBookStore({

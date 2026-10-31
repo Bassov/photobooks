@@ -89,6 +89,25 @@ describe('LayoutSection', () => {
     ).toHaveLength(3)
   })
 
+  it('draws the spine only on two-page spread thumbs', () => {
+    resetBookStore({
+      book: makeBook({
+        spreads: ['a', 'b', 'c'].map((id) => makeSpread({ id })),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const spines = () => document.querySelectorAll('.layout-thumb-spine')
+    const thumbs = () => screen.getAllByTestId('layout-thumb')
+    const single = render(<LayoutSection spreadId="a" />)
+    expect(thumbs().length).toBeGreaterThan(0)
+    expect(spines()).toHaveLength(0)
+    single.unmount()
+    render(<LayoutSection spreadId="b" />)
+    expect(spines()).toHaveLength(thumbs().length)
+  })
+
   it('applies a template to the spread on click', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)

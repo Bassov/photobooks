@@ -67,10 +67,8 @@ export function findSavedTemplate(id: string): SavedTemplate | undefined {
   return getSavedTemplates().find((t) => t.id === id)
 }
 
-let seq = 0
 function newId(): string {
-  seq += 1
-  return `user-${Date.now().toString(36)}-${String(seq)}`
+  return `user-${crypto.randomUUID()}`
 }
 
 /** Kit `nextCustomName`: the first free "My layout N". */

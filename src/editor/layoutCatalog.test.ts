@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { TEMPLATE_IDS } from '../core'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
+import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import {
   LAYOUT_PICKER,
   TEMPLATE_NAMES,
+  applyLayout,
   layoutRects,
   templateName,
 } from './layoutCatalog'
@@ -59,5 +61,28 @@ describe('layoutRects', () => {
       { x: 0, y: 0, width: 186, height: 300 },
     ])
     expect(layoutRects('user-missing', book, 0, spread)).toBeNull()
+  })
+})
+
+describe('applyLayout', () => {
+  afterEach(() => {
+    resetBookStore()
+    window.localStorage.clear()
+    resetSavedTemplatesForTests()
+  })
+
+  it('applies a saved layout and ignores a deleted one', () => {
+    resetBookStore({
+      book: makeBook({ spreads: [makeSpread({ id: 's1' })] }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const before = getBookStoreSnapshot().book
+    applyLayout('s1', 'user-missing')
+    expect(getBookStoreSnapshot().book).toBe(before)
+    const saved = addSavedTemplate('Mine', [{ x: 0, y: 0, w: 62, h: 100 }])
+    applyLayout('s1', saved.id)
+    expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBe(saved.id)
   })
 })

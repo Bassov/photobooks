@@ -102,7 +102,8 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
             }}
           />
         </div>
-        {spread.templateId === undefined || !isTemplateId(spread.templateId) ? (
+        {/* No template (`'undefined'`) and saved layouts do not re-flow. */}
+        {!isTemplateId(String(spread.templateId)) ? (
           <p className="spread-spacing-note">
             Margin and gap re-flow template layouts
           </p>

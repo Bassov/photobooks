@@ -68,6 +68,14 @@ describe('LayoutSection: save as template (kit context-inspector.tsx:145-150)', 
     const input = screen.getByTestId<HTMLInputElement>('tpl-rename-input')
     expect(document.activeElement).toBe(input)
     expect(input.value).toBe('My layout 1')
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 11])
+    // While renaming, the field replaces the caption and the tile menu.
+    expect(screen.queryByTestId('tpl-name')).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'My layout 1 options' }),
+    ).toBeNull()
+    fireEvent.keyDown(input, { key: 'a' })
+    expect(screen.getByTestId('tpl-rename-input')).toBe(input)
     fireEvent.change(input, { target: { value: 'Trip opener' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(screen.queryByTestId('tpl-rename-input')).toBeNull()
@@ -84,6 +92,41 @@ describe('LayoutSection: save as template (kit context-inspector.tsx:145-150)', 
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(screen.queryByTestId('tpl-rename-input')).toBeNull()
     expect(names()).toEqual(['My layout 1'])
+  })
+
+  it('Escape in the name field stays there (the inspector does not see it)', () => {
+    seed()
+    const keys: string[] = []
+    render(
+      <div
+        onKeyDown={(event) => {
+          keys.push(event.key)
+        }}
+      >
+        <LayoutSection spreadId="s1" />
+      </div>,
+    )
+    fireEvent.click(screen.getByTestId('tpl-save'))
+    const input = screen.getByTestId('tpl-rename-input')
+    fireEvent.keyDown(input, { key: 'a' })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(keys).toEqual(['a'])
+  })
+
+  it('saving clears the photo chip and search so the new template shows', () => {
+    seed()
+    render(<LayoutSection spreadId="s1" />)
+    const chips = screen.getByTestId('tpl-chips')
+    fireEvent.click(within(chips).getByRole('button', { name: '1' }))
+    fireEvent.change(screen.getByTestId('layout-search'), {
+      target: { value: 'grid' },
+    })
+    fireEvent.click(screen.getByTestId('tpl-save'))
+    expect(
+      chips.querySelector('[aria-pressed="true"]')?.getAttribute('data-chip'),
+    ).toBe('all')
+    expect(screen.getByTestId<HTMLInputElement>('layout-search').value).toBe('')
+    expect(screen.getAllByTestId('tpl-rename-input')).toHaveLength(1)
   })
 
   it('blur commits the typed name', () => {

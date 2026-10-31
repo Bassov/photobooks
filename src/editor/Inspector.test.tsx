@@ -96,6 +96,8 @@ describe('Inspector', () => {
       /Select a spread or a photo/,
     )
     expect(screen.queryByTestId('inspector-fit-crop')).toBeNull()
+    // No context and no collapse button: no empty header bar.
+    expect(screen.queryByTestId('inspector-header')).toBeNull()
   })
 
   it('shows the Spread context for the active spread, Esc returns to empty', () => {
@@ -211,11 +213,21 @@ describe('Inspector', () => {
       expect(within(panel).queryByText('Used')).toBeNull()
       expect(within(panel).queryByText('Details')).toBeNull()
       expect(within(panel).queryByText('Spread properties')).toBeNull()
+      const header = screen.getByTestId('inspector-header')
+      expect(within(header).getByTestId('inspector-context').textContent).toBe(
+        'Photo',
+      )
+      // The pages / empty-frames line belongs to the Spread context only.
       expect(
-        within(screen.getByTestId('inspector-header')).getByTestId(
-          'inspector-context',
-        ).textContent,
-      ).toBe('Photo')
+        within(header).queryByTestId('inspector-spread-summary'),
+      ).toBeNull()
+      // Kit header icon is the muted SUB colour.
+      const probe = document.createElement('span')
+      probe.style.color = SUB
+      expect(
+        header.querySelector<HTMLElement>('.inspector-context-icon')?.style
+          .color,
+      ).toBe(probe.style.color)
     })
 
     it('lists layout and grid for a spread', () => {

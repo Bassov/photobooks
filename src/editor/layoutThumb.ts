@@ -14,8 +14,8 @@ const THUMB_RATIO = 2
 /** The paper inside the 2:1 thumb: the spread aspect, centered (contain). */
 export function thumbPaperBox(widthMm: number, heightMm: number): PercentBox {
   const r = widthMm / heightMm / THUMB_RATIO
-  const width = r >= 1 ? 100 : 100 * r
-  const height = r >= 1 ? 100 / r : 100
+  const width = 100 * Math.min(1, r)
+  const height = 100 * Math.min(1, 1 / r)
   return {
     left: (100 - width) / 2,
     top: (100 - height) / 2,

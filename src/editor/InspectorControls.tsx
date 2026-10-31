@@ -178,7 +178,10 @@ function SliderValueField({
       className="insp-slider-value font-medium tabular-nums"
       value={draft ?? state.getThumbValueLabel(0)}
       onFocus={(event) => {
-        setDraft(String(state.getThumbValue(0)))
+        const bare = String(state.getThumbValue(0))
+        setDraft(bare)
+        // Swap in the bare number now: the re-render would drop the selection.
+        event.target.value = bare
         event.target.select()
       }}
       onChange={(event) => {
@@ -187,7 +190,7 @@ function SliderValueField({
       onBlur={commit}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
-          commit()
+          // Leaving the field commits (onBlur).
           event.currentTarget.blur()
         } else if (event.key === 'Escape') {
           setDraft(null)

@@ -37,7 +37,8 @@ export function applyCustomLayout(
   slots: readonly LayoutSlotPct[],
 ): Book {
   const spreadIndex = book.spreads.findIndex((spread) => spread.id === spreadId)
-  if (spreadIndex < 0 || slots.length === 0 || !isCustomLayoutId(templateId)) {
+  // An unknown spread falls through: `updateSpread` returns the book as is.
+  if (slots.length === 0 || !isCustomLayoutId(templateId)) {
     return book
   }
   const rects = customLayoutRects(book, spreadIndex, slots)

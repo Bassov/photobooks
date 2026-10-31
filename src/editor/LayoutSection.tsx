@@ -317,10 +317,8 @@ function LayoutPicker({
             }
           }}
           onBlur={(event) => {
-            if (renaming === item.id) {
-              renameSavedTemplate(item.id, event.currentTarget.value)
-              setRenaming(null)
-            }
+            renameSavedTemplate(item.id, event.currentTarget.value)
+            setRenaming(null)
           }}
         />
       ) : null}
@@ -488,7 +486,8 @@ function LayoutPicker({
                 size={16}
                 className="layout-empty-icon"
               />
-              {tab === 'mine' && query === '' && chip === 'all'
+              {/* Unfiltered, only My templates can be empty. */}
+              {query === '' && chip === 'all'
                 ? 'No templates yet. Save a spread you like.'
                 : 'No layouts match.'}
             </p>

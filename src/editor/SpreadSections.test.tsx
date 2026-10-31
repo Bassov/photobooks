@@ -125,6 +125,10 @@ describe('MasterSpacingSection', () => {
     expect(before).toMatch(/^\d+ mm$/)
     focus(field)
     expect(field.value).toBe(before.replace(' mm', ''))
+    expect([field.selectionStart, field.selectionEnd]).toEqual([
+      0,
+      field.value.length,
+    ])
     fireEvent.change(field, { target: { value: '12,6' } })
     fireEvent.keyDown(field, { key: 'Enter' })
     expect(document.activeElement).not.toBe(field)
@@ -157,6 +161,11 @@ describe('MasterSpacingSection', () => {
       effectiveGrid(getBookStoreSnapshot().book, spread(0)).values
         .columnGutterMm
     const start = gap()
+    const errors: unknown[] = []
+    const onError = (event: ErrorEvent) => {
+      errors.push(event.error)
+    }
+    window.addEventListener('error', onError)
     focus(field)
     fireEvent.change(field, { target: { value: '9' } })
     fireEvent.keyDown(field, { key: 'a' })
@@ -173,6 +182,9 @@ describe('MasterSpacingSection', () => {
     fireEvent.blur(field)
     expect(gap()).toBe(start)
     expect(field.value).toBe(`${String(start)} mm`)
+    window.removeEventListener('error', onError)
+    // A blur with no draft (after Escape) is a no-op, not a crash.
+    expect(errors).toEqual([])
   })
 
   it('the slider ranges are the kit 0–30 mm margin and 0–20 mm gap', () => {
