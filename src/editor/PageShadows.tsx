@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { PageShadowRect } from './pageShadowModel'
 
 /**
@@ -5,7 +6,7 @@ import type { PageShadowRect } from './pageShadowModel'
  * transform: a live gesture moves and sizes the boxes through the camera
  * frame vars, so blur and offset stay in screen px.
  */
-export function PageShadows({
+export const PageShadows = memo(function PageShadows({
   originPx,
   rects,
 }: {
@@ -16,6 +17,7 @@ export function PageShadows({
     <div
       className="pasteboard-shadows"
       data-testid="pasteboard-shadows"
+      data-camera-frame=""
       aria-hidden="true"
       style={{ ['--cam-origin' as string]: `${String(originPx)}px` }}
     >
@@ -35,4 +37,4 @@ export function PageShadows({
       ))}
     </div>
   )
-}
+})

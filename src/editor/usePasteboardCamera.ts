@@ -195,6 +195,26 @@ function limitsFor(
 
 const CAMERA_FRAME_VARS = ['--cam-tx', '--cam-ty', '--cam-scale'] as const
 
+/**
+ * Screen-px chrome reads the live frame (the unscaled page-shadow layer maps
+ * page rects through it, page numbers divide by the scale). The vars go on
+ * those few elements only: on the port they would restyle every spread per
+ * gesture frame.
+ */
+function writeCameraFrame(port: HTMLElement, frame: ZoomFrame | null): void {
+  for (const el of port.querySelectorAll<HTMLElement>('[data-camera-frame]')) {
+    if (frame === null) {
+      for (const name of CAMERA_FRAME_VARS) {
+        el.style.removeProperty(name)
+      }
+    } else {
+      el.style.setProperty('--cam-tx', `${String(frame.translateX)}px`)
+      el.style.setProperty('--cam-ty', `${String(frame.translateY)}px`)
+      el.style.setProperty('--cam-scale', String(frame.scale))
+    }
+  }
+}
+
 function clearGesturePaint(
   world: HTMLElement | null,
   scroll: HTMLElement | null,
@@ -205,9 +225,7 @@ function clearGesturePaint(
     delete world.dataset.gesture
   }
   if (scroll !== null) {
-    for (const name of CAMERA_FRAME_VARS) {
-      scroll.style.removeProperty(name)
-    }
+    writeCameraFrame(scroll, null)
     scroll.style.touchAction = ''
   }
 }
@@ -481,11 +499,9 @@ export function usePasteboardCamera({
       world.style.transformOrigin = `${String(PASTEBOARD_PAD_PX)}px ${String(PASTEBOARD_PAD_PX)}px`
       world.style.transform = `translate(${String(frame.translateX)}px, ${String(frame.translateY)}px) scale(${String(frame.scale)})`
       world.style.willChange = 'transform'
-      // Screen-px chrome reads the same frame: the unscaled page-shadow layer
-      // maps page rects through it, page numbers divide by the scale.
-      port?.style.setProperty('--cam-tx', `${String(frame.translateX)}px`)
-      port?.style.setProperty('--cam-ty', `${String(frame.translateY)}px`)
-      port?.style.setProperty('--cam-scale', String(frame.scale))
+      if (port !== null) {
+        writeCameraFrame(port, frame)
+      }
       world.dataset.gesture = 'zoom'
       setLiveZoom(gesture.liveZoom)
     }

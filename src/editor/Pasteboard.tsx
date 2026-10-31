@@ -3,6 +3,7 @@ import {
   startTransition,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -321,7 +322,10 @@ export const Pasteboard = memo(function Pasteboard({
           leadPx: paced.start * stride,
           tailPx: (spreadIds.length - paced.end) * stride,
         }
-  const mounted = spreadIds.slice(range.start, range.end)
+  const mounted = useMemo(
+    () => spreadIds.slice(range.start, range.end),
+    [spreadIds, range.start, range.end],
+  )
   const windowKey = pasteboardWindowKey(mounted)
   const markedId = selectMarkedSpreadId(activeId, mounted)
   const activeIndex = spreadActiveIndex(markedId, spreadIds)
@@ -331,6 +335,30 @@ export const Pasteboard = memo(function Pasteboard({
     spreadCount: spreadIds.length,
     pxPerMm,
   })
+  // Stable across renders that keep the window and zoom, so the memoised
+  // shadow layer skips them (scroll ticks, selection, gesture indicator).
+  const shadowRects = useMemo(
+    () =>
+      pageShadowRects({
+        mounted,
+        start: range.start,
+        spreadCount: spreadIds.length,
+        stride,
+        spreadHeightPx: trimHeightMm * pxPerMm,
+        pageWidthPx: trimWidthMm * pxPerMm,
+        worldWidthPx: worldWidth,
+      }),
+    [
+      mounted,
+      range.start,
+      spreadIds.length,
+      stride,
+      trimHeightMm,
+      trimWidthMm,
+      pxPerMm,
+      worldWidth,
+    ],
+  )
   geometryRef.current.pxPerMm = pxPerMm
   geometryRef.current.stridePx = stride
   geometryRef.current.worldWidthPx = worldWidth
@@ -503,18 +531,7 @@ export const Pasteboard = memo(function Pasteboard({
           onScroll={onScroll}
           onPointerDown={onPointerDown}
         >
-          <PageShadows
-            originPx={PASTEBOARD_PAD_PX}
-            rects={pageShadowRects({
-              mounted,
-              start: range.start,
-              spreadCount: spreadIds.length,
-              stride,
-              spreadHeightPx: trimHeightMm * pxPerMm,
-              pageWidthPx: trimWidthMm * pxPerMm,
-              worldWidthPx: worldWidth,
-            })}
-          />
+          <PageShadows originPx={PASTEBOARD_PAD_PX} rects={shadowRects} />
           <div
             ref={worldRef}
             className="pasteboard-world"

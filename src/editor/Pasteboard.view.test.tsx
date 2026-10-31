@@ -785,6 +785,17 @@ describe('Pasteboard view wiring', () => {
       's-0': ['50px', '75px'],
       's-1': ['100px', '75px'],
     })
+
+    // The memoised rects follow a committed zoom change.
+    act(() => {
+      commitZoom(1, 0, 0)
+    })
+    const cover = screen
+      .getAllByTestId('pasteboard-page-shadow')
+      .find((box) => box.getAttribute('data-spread-id') === 's-0')
+    assert(cover !== undefined)
+    expect(cover.style.getPropertyValue('--w')).toBe('100px')
+    expect(cover.style.getPropertyValue('--h')).toBe('150px')
   })
 
   it('fits the selected spread once the viewport is measured when asked to', () => {
