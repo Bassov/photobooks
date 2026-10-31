@@ -50,7 +50,8 @@ test('Preview shows no selection, handles, pills, grid, guides or hover chrome; 
   await frame.click()
   await expect(frame).toHaveAttribute('aria-pressed', 'true')
   await expect(frame.getByTestId('sel-handle')).toHaveCount(8)
-  await expect(frame.getByTestId('frame-size-tag')).toHaveCount(1)
+  // Owner design change (round 7, M52): no size tag exists in any mode.
+  await expect(page.getByTestId('frame-size-tag')).toHaveCount(0)
   await frame.hover()
 
   await page.getByTestId('present').click()
@@ -83,7 +84,7 @@ test('Preview shows no selection, handles, pills, grid, guides or hover chrome; 
   await expect(stage).toHaveCount(0)
   await expect(frame).toHaveAttribute('aria-pressed', 'true')
   await expect(frame.getByTestId('sel-handle')).toHaveCount(8)
-  await expect(frame.getByTestId('frame-size-tag')).toBeVisible()
+  await expect(page.getByTestId('frame-size-tag')).toHaveCount(0)
   await expect(page.getByTestId('guide-line')).toHaveCount(1)
   await expect(
     page.locator(ACTIVE_SPREAD).getByTestId('grid-overlay'),
