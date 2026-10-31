@@ -1,7 +1,10 @@
 import { expect, type Page } from '@playwright/test'
 
-/** Kit `#/demo` at 1440 × 900: 44 px gap under the 588 px Fit spread. */
-export const KIT_GAP_RATIO = 44 / 588
+/**
+ * Stack gap / spread height: 72 px under a 588 px spread (wider than the kit
+ * `#/demo` 44 / 588; design-r3-spread-shadow).
+ */
+export const STACK_GAP_RATIO = 72 / 588
 
 export interface SpreadBox {
   x: number
@@ -43,13 +46,13 @@ export async function readGapRatios(page: Page): Promise<number[]> {
   return gapRatios(await spreadBoxes(page))
 }
 
-/** Every gap is the kit ratio of its spread height, within `tolerance`. */
-export async function expectKitGapRatio(
+/** Every gap is the stack ratio of its spread height, within `tolerance`. */
+export async function expectStackGapRatio(
   page: Page,
   tolerance = 0.02,
 ): Promise<void> {
   for (const ratio of await readGapRatios(page)) {
-    expect(Math.abs(ratio / KIT_GAP_RATIO - 1)).toBeLessThanOrEqual(tolerance)
+    expect(Math.abs(ratio / STACK_GAP_RATIO - 1)).toBeLessThanOrEqual(tolerance)
   }
 }
 

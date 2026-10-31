@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { dropChipLabel } from '../render/dropChip'
 import { PageLabels } from './PageLabels'
 import {
+  PAGE_LABEL_LINE_PX,
+  PAGE_LABEL_OFFSET_PX,
   PAGE_LABELS_MIN_GAP_PX,
   pageLabelsFit,
   pageLabelTexts,
@@ -38,11 +40,13 @@ describe('page labels', () => {
     expect([...root.children].map((c) => c.textContent)).toEqual(['4', '5'])
   })
 
-  it('hides when the gap is shorter than 6 px offset + 16 px line', () => {
-    expect(PAGE_LABELS_MIN_GAP_PX).toBe(22)
-    expect(pageLabelsFit(44)).toBe(true)
-    expect(pageLabelsFit(22)).toBe(true)
-    expect(pageLabelsFit(21.9)).toBe(false)
+  it('hides when the gap is shorter than the 8 px offset + 11 px line', () => {
+    expect(PAGE_LABEL_OFFSET_PX).toBe(8)
+    expect(PAGE_LABEL_LINE_PX).toBe(11)
+    expect(PAGE_LABELS_MIN_GAP_PX).toBe(19)
+    expect(pageLabelsFit(72)).toBe(true)
+    expect(pageLabelsFit(19)).toBe(true)
+    expect(pageLabelsFit(18.9)).toBe(false)
     expect(pageLabelsFit(0)).toBe(false)
   })
 })

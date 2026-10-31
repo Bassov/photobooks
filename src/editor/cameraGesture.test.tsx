@@ -433,6 +433,52 @@ describe('pasteboard camera gestures', () => {
     expect(indicator.textContent).not.toBe(before)
   })
 
+  it('exposes the live gesture frame as --cam-* vars and clears them on settle', async () => {
+    // A spread whose 200 % gap fits page labels: both frame readers mount.
+    dispatchBookOp({ type: 'addSpread' })
+    commitZoom(2, 0, 0)
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const world = screen.getByTestId('pasteboard-world')
+
+    wheel(scroll, { deltaY: -240, ctrlKey: true })
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve()
+        })
+      })
+    })
+    expect(world.dataset.gesture).toBe('zoom')
+    const shadows = screen.getByTestId('pasteboard-shadows')
+    const scale = Number(shadows.style.getPropertyValue('--cam-scale'))
+    expect(scale).toBeGreaterThan(1)
+    const tx = shadows.style.getPropertyValue('--cam-tx')
+    const ty = shadows.style.getPropertyValue('--cam-ty')
+    expect(world.style.transform).toBe(
+      `translate(${tx}, ${ty}) scale(${String(scale)})`,
+    )
+    // Only the screen-px chrome carries the frame, never the port subtree.
+    const labels = screen.getAllByTestId('page-labels')
+    expect(labels.length).toBeGreaterThan(0)
+    for (const el of labels) {
+      expect(el.style.getPropertyValue('--cam-scale')).toBe(String(scale))
+      expect(el.style.getPropertyValue('--cam-tx')).toBe(tx)
+      expect(el.style.getPropertyValue('--cam-ty')).toBe(ty)
+    }
+    for (const el of [scroll, world]) {
+      expect(el.style.getPropertyValue('--cam-scale')).toBe('')
+    }
+
+    await flushGesture()
+    expect(world.dataset.gesture).toBeUndefined()
+    for (const el of [shadows, ...labels]) {
+      for (const name of ['--cam-tx', '--cam-ty', '--cam-scale']) {
+        expect(el.style.getPropertyValue(name)).toBe('')
+      }
+    }
+  })
+
   it('ignores zoom keys on text fields and commits nothing when unmounted mid-gesture', async () => {
     const view = render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')

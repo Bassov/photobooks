@@ -22,6 +22,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 
 **Review cut:** product screens look like kit v0.10.0 `#/demo`; stubs allowed, no fake controls. Done when: product screens match `#/demo` baseline steps 01–20, 23–26 and 39–49 by Designer review (21–22 land with P2 `parent-spreads`, 27–31 with P4 `pdf-export`, 32–38 with P3).
 
+- [x] [feature] [design-r3-spread-shadow](roadmap/P1/design-r3-spread-shadow.md) — Bug: design-r3-spread-shadow: soft constant-px spread shadow (M35) + 72/588 stack gap (M36)
 - [ ] [feature] [fix-flaky-node-tests](roadmap/P1/fix-flaky-node-tests.md) — Bug: fix-flaky-node-tests: make 2 flaky node tests deterministic (root cause, no loosening)
 - [ ] [lite] [e2e-photo-fixture-race](roadmap/P1/e2e-photo-fixture-race.md) — Fix: e2e photo fixtures are rewritten while other workers import them
 
