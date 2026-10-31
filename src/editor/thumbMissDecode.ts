@@ -33,12 +33,11 @@ async function sourceFileFor(assetId: string): Promise<File | undefined> {
     return undefined
   }
   const resolved = await source.resolveFile(rootId, relativePath)
-  // Stryker disable next-line ConditionalExpression,BlockStatement: a failure result has no value; retaining undefined is unobservable
-  if (!resolved.ok) {
-    return undefined
+  if (resolved.ok) {
+    retainAssetSource(assetId, resolved.value)
+    return resolved.value
   }
-  retainAssetSource(assetId, resolved.value)
-  return resolved.value
+  return undefined
 }
 
 /**
