@@ -586,6 +586,7 @@ test.describe('M42 page numbers at the zoom floor (Designer-accepted deviation)'
     for (const gap of floor.gaps) expect(gap).toBeLessThan(19)
     expect(floor.labels).toHaveLength(0)
     await expect(page.getByTestId('page-labels')).toHaveCount(0)
+    await assertDocumentFitsViewport(page)
   })
 
   test('8 wheel steps out then in: every label is absent or exactly 8 px / 11 px', async ({
