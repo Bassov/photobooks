@@ -28,6 +28,16 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r3-canvas-fit](roadmap/P1/design-r3-canvas-fit.md) — Bug: design-r3-canvas-fit: canvas Fit on spread change + click on a selected frame
 - [x] [feature] [design-r4-polish](roadmap/P1/design-r4-polish.md) — Bug: design-r4-polish: drag hint, canvas-centred tool group, 31 px menu rows, sort dot, floor page-number rule
 - [x] [feature] [design-r5-polish](roadmap/P1/design-r5-polish.md) — Bug: design-r5-polish: drag source keeps its photo, top-bar Library inset
+- [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
+- [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
+- [ ] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates
+- [ ] [prep] [decode-slot-busy-until-reply](roadmap/P1/decode-slot-busy-until-reply.md) — Decode pool: keep in-flight thumbs, never double-book a worker
+- [ ] [feature] [thumb-hot-cache](roadmap/P1/thumb-hot-cache.md) — Filmstrip: a thumb that loaded once never goes gray again
+- [ ] [prep] [thumb-scaled-decode](roadmap/P1/thumb-scaled-decode.md) — Decode thumbs with ImageDecoder at reduced scale
+- [ ] [feature] [thumb-bulk-hydrate](roadmap/P1/thumb-bulk-hydrate.md) — On book open, load all cached thumbs before the user scrolls
+- [ ] [contingency] [thumb-pack-storage](roadmap/P1/thumb-pack-storage.md) — Store a folder's thumbs in one IndexedDB store (only if hydrate is slow)
+- [ ] [feature] [thumb-background-warm](roadmap/P1/thumb-background-warm.md) — Thumbs for the whole folder in the background
+- [ ] [prep] [rescan-cheap-verify](roadmap/P1/rescan-cheap-verify.md) — Folder rescan on open: no per-file re-resolve, O(n) diff, parallel scan
 
 ## P2 — Missing features, iterative
 
