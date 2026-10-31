@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
-import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import {
+  assertDocumentFitsViewport,
+  assertNamedScrollport,
+} from './fixtures/assertDocumentFitsViewport'
 import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { readZoomPercent } from './fixtures/zoomMenu'
@@ -73,6 +76,8 @@ test('M18: Cover and Endpaper rows scroll with spreads-list', async ({
   // Still rows, not spreads: no reorder handle, no panel-order id.
   await expect(cover).not.toHaveAttribute('data-item')
   await expect(front).not.toHaveAttribute('data-item')
+  // Mid-list, spreads-list is still the vertical scrollport (it scrolls on).
+  await assertNamedScrollport(page, 'spreads-list', { axis: 'vertical' })
 
   // The back Endpaper is the list's last row, after the last page.
   await list.evaluate((el) => {
@@ -82,6 +87,11 @@ test('M18: Cover and Endpaper rows scroll with spreads-list', async ({
   await expect(back).toBeVisible()
   const last = await box(page.getByTestId(/^spread-list-item-/).last())
   expect((await box(back)).y).toBeGreaterThanOrEqual(last.y + last.height)
+  // At the end there is nothing left to nudge; it must still overflow.
+  await assertNamedScrollport(page, 'spreads-list', {
+    axis: 'vertical',
+    nudgeHorizontal: false,
+  })
   await assertDocumentFitsViewport(page)
 })
 
