@@ -104,10 +104,13 @@ test('M26 empty dock is the kit 160 px and the 19 × 23 Fit spread is 588', asyn
   await expectKitGapRatio(page)
 })
 
+test.beforeAll(() => {
+  ensurePhotoFixtures({ includeLargeJpeg: false })
+})
+
 test('M26 dock with photos stays the kit 132 px (76 px thumbs)', async ({
   page,
 }) => {
-  ensurePhotoFixtures({ includeLargeJpeg: false })
   await installPhotoDirectoryPickerStub(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await openSessionEditor(page)
@@ -116,7 +119,11 @@ test('M26 dock with photos stays the kit 132 px (76 px thumbs)', async ({
     timeout: 30_000,
   })
 
-  const dock = await spanOf(page.getByTestId('dock'))
-  expect(dock.bottom - dock.top).toBe(132)
-  expect(dock.bottom).toBe(900)
+  // Settled layout: the first thumb row lays out a frame after the item mounts.
+  await expect
+    .poll(async () => {
+      const dock = await spanOf(page.getByTestId('dock'))
+      return [dock.bottom - dock.top, dock.bottom]
+    })
+    .toEqual([132, 900])
 })

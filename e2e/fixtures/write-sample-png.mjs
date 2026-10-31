@@ -1,6 +1,6 @@
 import { deflateSync } from 'node:zlib'
 import { createHash } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -99,16 +99,23 @@ function createTransparentCornersPng(size = 32, corner = 8) {
   ])
 }
 
+// Parallel workers re-run this; rewriting an identical file bumps its mtime and
+// Chrome then fails reads of a File picked before the bump (NotReadableError).
+function writeIfChanged(path, bytes) {
+  if (existsSync(path) && readFileSync(path).equals(bytes)) return
+  writeFileSync(path, bytes)
+}
+
 const out = join(__dirname, 'sample-3x2.png')
 const rgb = createPng(30, 20)
-writeFileSync(out, rgb)
+writeIfChanged(out, rgb)
 console.log(
   `wrote ${out} sha=${createHash('sha256').update(rgb).digest('hex').slice(0, 12)}`,
 )
 
 const transparentOut = join(__dirname, 'transparent_corners.png')
 const rgba = createTransparentCornersPng()
-writeFileSync(transparentOut, rgba)
+writeIfChanged(transparentOut, rgba)
 console.log(
   `wrote ${transparentOut} sha=${createHash('sha256').update(rgba).digest('hex').slice(0, 12)}`,
 )
