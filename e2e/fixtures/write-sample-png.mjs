@@ -1,8 +1,8 @@
 import { deflateSync } from 'node:zlib'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeIfChanged } from './writeIfChanged.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -97,13 +97,6 @@ function createTransparentCornersPng(size = 32, corner = 8) {
     chunk('IDAT', idat),
     chunk('IEND', Buffer.alloc(0)),
   ])
-}
-
-// Parallel workers re-run this; rewriting an identical file bumps its mtime and
-// Chrome then fails reads of a File picked before the bump (NotReadableError).
-function writeIfChanged(path, bytes) {
-  if (existsSync(path) && readFileSync(path).equals(bytes)) return
-  writeFileSync(path, bytes)
 }
 
 const out = join(__dirname, 'sample-3x2.png')
