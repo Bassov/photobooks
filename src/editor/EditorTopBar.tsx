@@ -44,17 +44,6 @@ import { EditorSettings } from './EditorSettings'
 import { EditorToolGroup } from './EditorToolGroup'
 import { GridToggle } from './GridToggle'
 import { SnapToggle } from './SnapToggle'
-import { getDpiView, subscribeDpiView, toggleDpiView } from './dpiView'
-import {
-  getGuidesVisible,
-  subscribeGuidesVisible,
-  toggleGuidesVisible,
-} from './guidesView'
-import {
-  getRulersVisible,
-  subscribeRulersVisible,
-  toggleRulersVisible,
-} from './rulersView'
 import {
   getBookStoreSnapshot,
   getHistorySnapshot,
@@ -142,6 +131,7 @@ function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
         className="e7-title-button text-md"
         style={{ fontFamily: 'var(--font-heading)', color: T }}
         data-testid="book-title"
+        aria-label="Book settings"
         title={title}
         onClick={() => {
           setCoverSelected(false)
@@ -196,75 +186,6 @@ function HistoryChrome() {
         <Icon name="redo" size={16} />
       </IconButton>
     </div>
-  )
-}
-
-/**
- * View toggles the kit bar does not show (kit chrome.tsx:168-180 has only
- * grid · snap) stay reachable from one checkable menu (kit Menu pattern,
- * uikit menu.tsx) instead of three bar buttons.
- */
-const VIEW_ITEMS = [
-  {
-    id: 'rulers',
-    label: 'Rulers',
-    shortcut: 'Shift+R',
-    toggle: toggleRulersVisible,
-  },
-  {
-    id: 'guides',
-    label: 'Guides',
-    shortcut: 'Ctrl+;',
-    toggle: toggleGuidesVisible,
-  },
-  {
-    id: 'dpi',
-    label: 'DPI badges',
-    shortcut: undefined,
-    toggle: toggleDpiView,
-  },
-] as const
-
-function ViewMenu() {
-  const on = {
-    rulers: useSyncExternalStore(
-      subscribeRulersVisible,
-      getRulersVisible,
-      getRulersVisible,
-    ),
-    guides: useSyncExternalStore(
-      subscribeGuidesVisible,
-      getGuidesVisible,
-      getGuidesVisible,
-    ),
-    dpi: useSyncExternalStore(subscribeDpiView, getDpiView, getDpiView),
-  }
-  const selected = VIEW_ITEMS.filter(({ id }) => on[id]).map(({ id }) => id)
-  return (
-    <MenuTrigger>
-      <IconButton label="View options" size="sm" data-testid="view-menu">
-        <Icon name="slidersHorizontal" size={16} />
-      </IconButton>
-      <MenuPopover placement="bottom end" className="w-48">
-        <Menu
-          selectionMode="multiple"
-          shouldCloseOnSelect
-          selectedKeys={selected}
-          onAction={(key) => {
-            VIEW_ITEMS.find(({ id }) => id === key)?.toggle()
-          }}
-        >
-          {VIEW_ITEMS.map(({ id, label, shortcut }) => (
-            <MenuItem key={id} id={id} data-testid={`view-${id}-item`}>
-              {label}
-              {shortcut === undefined ? null : (
-                <MenuKeyboard>{shortcut}</MenuKeyboard>
-              )}
-            </MenuItem>
-          ))}
-        </Menu>
-      </MenuPopover>
-    </MenuTrigger>
   )
 }
 
@@ -473,12 +394,11 @@ export function EditorTopBar({
         ) : null}
         {chromeImport.inputs}
         <EditorToolGroup />
-        <GridToggle />
         <SnapToggle />
+        <GridToggle />
       </div>
 
       <ZoomChrome />
-      <ViewMenu />
       <PanelToggles
         panels={panels}
         onToggle={(key) => {
