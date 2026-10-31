@@ -20,7 +20,7 @@ describe('editorChromePanels', () => {
     expect(toggleEditorPanel(DEFAULT_EDITOR_PANELS, 'l')).toEqual({
       l: false,
       b: true,
-      r: false,
+      r: true,
     })
     expect(toggleAllEditorPanels({ l: true, b: false, r: false })).toEqual({
       l: false,

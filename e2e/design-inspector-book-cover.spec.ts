@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
-import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
+import {
+  clearDropSelection,
+  dragPlaceFirstFilmstripItem,
+} from './fixtures/dropAssetOnFrame'
 import {
   ensurePhotoFixtures,
   photoFixturePaths,
@@ -146,19 +149,24 @@ test('Spread list has front and back Endpaper rows with an inspector (#12)', asy
 })
 
 // uikit/src/sandbox/context-inspector.tsx:59 labels the first spread "Page 1".
-test('Photo context labels the first spread "Page 1" (#18)', async ({
+test('the first spread header reads "Page 1", not Cover (#18)', async ({
   page,
 }) => {
   await filled(page).click()
-  await expect(
-    inspector(page).getByText('Spread', { exact: true }),
-  ).toBeVisible()
-  await expect(
-    inspector(page).getByText('Page 1', { exact: true }),
-  ).toBeVisible()
-  await expect(inspector(page).getByText('Cover', { exact: true })).toHaveCount(
-    0,
+  // The kit Photo context has no meta rows (context-inspector.tsx:66-72), so
+  // "Page 1" is read from the Spread header of the first spread instead.
+  await expect(inspector(page).getByTestId('inspector-context')).toHaveText(
+    'Photo',
   )
+  await page.locator('[data-testid^="spread-list-item-"]').first().click()
+  await clearDropSelection(page)
+  await expect(inspector(page).getByTestId('inspector-context')).toHaveText(
+    'Spread',
+  )
+  await expect(page.getByTestId('inspector-spread-summary')).toHaveText(
+    /^Page 1 · \d+ empty$/,
+  )
+  await expect(inspector(page).getByText(/^Cover/)).toHaveCount(0)
 })
 
 // Photo sections: uikit/src/sandbox/context-inspector.tsx:71.

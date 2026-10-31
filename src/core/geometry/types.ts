@@ -39,6 +39,9 @@ export interface ResolvedItem {
   photoQuarterTurns?: 1 | 2 | 3
   /** Photo fine rotation in degrees; omitted when 0. */
   straightenDeg?: number
+  /** Photo mirrored left-right / top-bottom; omitted when false. */
+  photoFlipH?: true
+  photoFlipV?: true
   /** Omitted when the frame has no (or a dangling) `frameStyleId`. */
   style?: ResolvedFrameStyle
   /** Printed under the frame; omitted when empty. */

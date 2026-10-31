@@ -13,13 +13,21 @@ function unit(value: number): number {
 
 /** The photo-rotation fields of a crop; zero turns / angle stay absent. */
 function rotationOf(
-  crop: Pick<NonNullable<Frame['crop']>, 'quarterTurns' | 'straightenDeg'>,
-): Pick<NonNullable<Frame['crop']>, 'quarterTurns' | 'straightenDeg'> {
+  crop: Pick<
+    NonNullable<Frame['crop']>,
+    'quarterTurns' | 'straightenDeg' | 'flipH' | 'flipV'
+  >,
+): Pick<
+  NonNullable<Frame['crop']>,
+  'quarterTurns' | 'straightenDeg' | 'flipH' | 'flipV'
+> {
   const quarterTurns = (((crop.quarterTurns ?? 0) % 4) + 4) % 4
   const straightenDeg = Math.min(45, Math.max(-45, crop.straightenDeg ?? 0))
   return {
     ...(quarterTurns === 0 ? {} : { quarterTurns }),
     ...(straightenDeg === 0 ? {} : { straightenDeg }),
+    ...(crop.flipH === true ? { flipH: true } : {}),
+    ...(crop.flipV === true ? { flipV: true } : {}),
   }
 }
 
@@ -45,7 +53,9 @@ export function setCrop(
       prev.center.x === next.center.x &&
       prev.center.y === next.center.y &&
       prev.quarterTurns === next.quarterTurns &&
-      prev.straightenDeg === next.straightenDeg
+      prev.straightenDeg === next.straightenDeg &&
+      prev.flipH === next.flipH &&
+      prev.flipV === next.flipV
     ) {
       return frame
     }

@@ -101,6 +101,24 @@ export function turnPhoto(target: CropTarget, direction: 1 | -1): void {
   })
 }
 
+/** Toggle the mirror of the frame's photo (kit Flip H / Flip V). */
+export function flipPhoto(target: CropTarget, axis: 'h' | 'v'): void {
+  const frame = findFrame(target)
+  if (frame?.assetId === undefined) {
+    return
+  }
+  const crop = frame.crop ?? COVER_CROP
+  dispatchBookOp({
+    type: 'setCrop',
+    spreadId: target.spreadId,
+    frameId: target.frameId,
+    crop:
+      axis === 'h'
+        ? { ...crop, flipH: crop.flipH !== true }
+        : { ...crop, flipV: crop.flipV !== true },
+  })
+}
+
 /** Commit the straighten angle of the frame's photo. */
 export function straightenPhoto(target: CropTarget, deg: number): void {
   const frame = findFrame(target)

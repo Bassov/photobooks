@@ -70,3 +70,26 @@ describe('photo preview helpers', () => {
     expect(bare?.style.transformOrigin).toBe('')
   })
 })
+
+describe('turnedPhotoStyle flip', () => {
+  it('appends a scale for each mirrored axis (kit canvas.tsx:35)', () => {
+    expect(turnedPhotoStyle(FRAME, FULL, 0, 0, { h: true }).transform).toBe(
+      'rotate(0deg) translate(0px, 0px) scale(-1, 1)',
+    )
+    expect(turnedPhotoStyle(FRAME, FULL, 0, 0, { v: true }).transform).toBe(
+      'rotate(0deg) translate(0px, 0px) scale(1, -1)',
+    )
+    expect(
+      turnedPhotoStyle(FRAME, FULL, 0, 0, { h: true, v: true }).transform,
+    ).toBe('rotate(0deg) translate(0px, 0px) scale(-1, -1)')
+  })
+
+  it('adds no scale when nothing is mirrored', () => {
+    expect(turnedPhotoStyle(FRAME, FULL, 0, 0, {}).transform).not.toContain(
+      'scale',
+    )
+    expect(
+      turnedPhotoStyle(FRAME, FULL, 0, 0, { h: false, v: false }).transform,
+    ).not.toContain('scale')
+  })
+})

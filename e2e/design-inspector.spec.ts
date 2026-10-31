@@ -64,7 +64,8 @@ test('the Spread context shows Pages summary, Layout and Grid (#16)', async ({
 }) => {
   await expect(context(page)).toHaveText('Spread')
   await expect(page.getByTestId('inspector-spread-summary')).toHaveText(
-    /^(Cover|Pages \d+–\d+) · \d+ empty$/,
+    // uikit/src/sandbox/context-inspector.tsx:59: "Page 1" for the first spread.
+    /^(Page 1|Pages \d+–\d+) · \d+ empty$/,
   )
   await expect(page.getByTestId('layout-section')).toBeVisible()
   await expect(page.getByTestId('layout-tile').first()).toBeVisible()

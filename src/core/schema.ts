@@ -57,6 +57,9 @@ const cropSchema = z.object({
   quarterTurns: z.number().int().min(0).max(3).optional(),
   /** Fine rotation of the photo in degrees; absent → 0. */
   straightenDeg: z.number().min(-45).max(45).optional(),
+  /** Mirror the photo left-right / top-bottom (uikit/src/sandbox/inspector.tsx:151-158); absent → false. */
+  flipH: z.boolean().optional(),
+  flipV: z.boolean().optional(),
 })
 
 const assetMetaSchema = z.object({

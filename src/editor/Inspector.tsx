@@ -7,11 +7,7 @@ import {
 } from 'react'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
-import {
-  getBookStoreSnapshot,
-  getPlacementCountSnapshot,
-  subscribeBookStore,
-} from './bookStore'
+import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { CoverSection } from './CoverSection'
 import { isCoverSelected, subscribeCoverSelection } from './coverSelection'
 import {
@@ -45,13 +41,10 @@ import { PhotoSection } from './PhotoSection'
 import { GridSection } from './GridSection'
 import { LayoutSection } from './LayoutSection'
 import {
-  framePhotoRows,
   inspectorView,
   sameInspectorPanel,
-  spreadRows,
   spreadSummary,
   type InspectorPanel,
-  type InspectorRow,
 } from './inspectorModel'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 
@@ -66,7 +59,6 @@ type InspectorContext =
   | {
       kind: 'photo'
       target: NonNullable<ReturnType<typeof getFrameSource>>
-      rows: readonly InspectorRow[]
     }
 
 function readBook() {
@@ -146,11 +138,7 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
         ? { kind: 'book' }
         : section === null
           ? panel
-          : {
-              kind: 'photo',
-              target: section,
-              rows: panel.kind === 'frame' ? panel.rows : [],
-            }
+          : { kind: 'photo', target: section }
   return (
     <section
       className="editor-inspector-panel flex h-full min-h-0 flex-col"
@@ -191,11 +179,6 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
               Photo
             </h2>
             <PhotoSection target={view.target} />
-            {view.rows.length === 0 ? null : (
-              <div className="px-4 pb-4">
-                <RowList rows={view.rows} />
-              </div>
-            )}
             <FitCropSection target={view.target} cropping={target !== null} />
             <PhotoRotateSection target={view.target} />
             <Disclosure
@@ -240,15 +223,6 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
               Spread
             </h2>
             <SpreadSummary spreadId={view.spreadId} />
-            <div className="px-4 py-4">
-              <div
-                className="inspector-eyebrow mb-3"
-                data-testid="inspector-spread-properties"
-              >
-                Spread properties
-              </div>
-              <RowList rows={view.spreadRows} />
-            </div>
             <LayoutSection spreadId={view.spreadId} />
             <GridSection scope="spread" spreadId={view.spreadId} />
           </>
@@ -286,54 +260,13 @@ function Hint({ children }: { children: string }) {
   )
 }
 
-function RowList({ rows }: { rows: readonly InspectorRow[] }) {
-  return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[12.5px]">
-      {rows.map((row) => (
-        <Row key={row.label} row={row} />
-      ))}
-    </dl>
-  )
-}
-
 function inspectorPanel(
   frameSource: ReturnType<typeof getFrameSource>,
   activeId: ReturnType<typeof getActiveSpreadId>,
   dismissed: string | null,
 ): InspectorPanel {
-  const book = readBook()
-  const view = inspectorView(book, frameSource, activeId, dismissed)
-  if (view.kind === 'spread') {
-    return {
-      kind: view.kind,
-      spreadId: view.spread.id,
-      spreadRows: spreadRows(view.spread),
-    }
-  }
-  if (view.kind === 'frame') {
-    const assetId = view.frame.assetId
-    return {
-      kind: view.kind,
-      spreadId: view.spread.id,
-      spreadRows: spreadRows(view.spread),
-      rows: framePhotoRows(
-        book,
-        view.frame,
-        view.spreadIndex,
-        assetId === undefined ? 0 : getPlacementCountSnapshot(assetId),
-      ),
-    }
-  }
-  return { kind: view.kind }
-}
-
-function Row({ row }: { row: InspectorRow }) {
-  return (
-    <>
-      <dt style={{ color: SUB }}>{row.label}</dt>
-      <dd className="truncate text-right tabular-nums" title={row.value}>
-        {row.value}
-      </dd>
-    </>
-  )
+  const view = inspectorView(readBook(), frameSource, activeId, dismissed)
+  return view.kind === 'empty'
+    ? { kind: view.kind }
+    : { kind: view.kind, spreadId: view.spread.id }
 }

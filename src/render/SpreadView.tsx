@@ -251,7 +251,9 @@ function SpreadFrame({
   // The committed crop replaces the rAF preview transform.
   const quarterTurns = item.photoQuarterTurns ?? 0
   const straightenDeg = item.straightenDeg ?? 0
-  const turned = quarterTurns > 0 || straightenDeg !== 0
+  const flipH = item.photoFlipH === true
+  const flipV = item.photoFlipV === true
+  const turned = quarterTurns > 0 || straightenDeg !== 0 || flipH || flipV
   useLayoutEffect(() => {
     if (bodyRef.current !== null) {
       clearPhotoPreview(bodyRef.current)
@@ -263,6 +265,8 @@ function SpreadFrame({
     crop.height,
     quarterTurns,
     straightenDeg,
+    flipH,
+    flipV,
   ])
   const style = {
     left: box.left,
@@ -283,6 +287,7 @@ function SpreadFrame({
           item.sourceCropRect ?? FULL_CROP,
           quarterTurns,
           straightenDeg,
+          { h: flipH, v: flipV },
         )
       : {
           left: crop.left,
@@ -480,12 +485,6 @@ function SpreadFrame({
                 style={{ left: x, top: y }}
               />
             ))}
-            <span className="spread-frame-rotate-line" />
-            <span
-              className="spread-frame-handle spread-frame-rotate"
-              data-handle="rotate"
-              data-testid="rotate-handle"
-            />
           </span>
           <span
             className="spread-frame-size-tag"

@@ -33,7 +33,9 @@ test.describe('kit v0.10 frame selection (demo steps 16–18)', () => {
         return { bg: s.backgroundColor, shadow: s.boxShadow }
       }),
     )
-    expect(paint).toHaveLength(9)
+    // 8 resize handles; the kit select tool has no rotate knob
+    // (uikit/src/sandbox/canvas.tsx:224,443).
+    expect(paint).toHaveLength(8)
     for (const p of paint) {
       expect(p.bg).toBe(WHITE)
       expect(p.shadow).toContain(INK)

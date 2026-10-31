@@ -15,6 +15,7 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
+import { clearDropSelection } from './fixtures/dropAssetOnFrame'
 import { applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
@@ -71,6 +72,7 @@ async function dropAssetOnFrame(
     },
     { mime: ASSET_DRAG_MIME, id: assetId, point },
   )
+  await clearDropSelection(page)
 }
 
 test.beforeAll(() => {

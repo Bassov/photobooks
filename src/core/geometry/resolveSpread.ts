@@ -93,6 +93,8 @@ export function resolveSpread(
         ? { photoQuarterTurns: quarterTurns as 1 | 2 | 3 }
         : {}),
       ...(straightenDeg === 0 ? {} : { straightenDeg }),
+      ...(frame.crop?.flipH === true ? { photoFlipH: true as const } : {}),
+      ...(frame.crop?.flipV === true ? { photoFlipV: true as const } : {}),
       sourceCropRect,
       ...(low === undefined ? {} : { lowDpi: low }),
     }

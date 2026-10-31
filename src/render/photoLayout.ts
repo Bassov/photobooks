@@ -24,6 +24,7 @@ export function turnedPhotoStyle(
   window: NormalizedRect,
   quarterTurns: number,
   straightenDeg: number,
+  flip: { h?: boolean; v?: boolean } = {},
 ): TurnedPhotoStyle {
   const odd = quarterTurns % 2 === 1
   const width = (odd ? framePx.height : framePx.width) / window.width
@@ -35,7 +36,8 @@ export function turnedPhotoStyle(
     top: round(framePx.height / 2 - height / 2),
     width: round(width),
     height: round(height),
-    transform: `rotate(${String(round(quarterTurns * 90 + straightenDeg))}deg) translate(${String(round(shiftX))}px, ${String(round(shiftY))}px)`,
+    // Flip is innermost, as in the kit (uikit/src/sandbox/canvas.tsx:35).
+    transform: `rotate(${String(round(quarterTurns * 90 + straightenDeg))}deg) translate(${String(round(shiftX))}px, ${String(round(shiftY))}px)${flip.h === true || flip.v === true ? ` scale(${flip.h === true ? '-1' : '1'}, ${flip.v === true ? '-1' : '1'})` : ''}`,
   }
 }
 

@@ -199,12 +199,28 @@ test('reorder in an overflowing list scrolls only inside spreads-list', async ({
   await list.evaluate((el) => {
     el.scrollTop = el.scrollHeight
   })
+  // The windowed list re-mounts rows after the scroll: until it does, the last
+  // mounted row is from the old top window and unmounts under the drag. Wait
+  // for the last mounted row to sit inside the scrolled viewport.
+  let lastId = ''
   await expect
-    .poll(async () => (await panelOrder(page)).length)
-    .toBeGreaterThan(0)
-  const lastId = (await panelOrder(page)).at(-1) ?? ''
-  // The windowed list may re-mount rows after the scroll; drag only once the
-  // last row is attached (same precondition dragItemTo requires).
+    .poll(async () => {
+      lastId = await list.evaluate((el) => {
+        const rows = el.querySelectorAll<HTMLElement>('[data-item]')
+        const row = rows[rows.length - 1]
+        if (row === undefined) {
+          return ''
+        }
+        const box = row.getBoundingClientRect()
+        const port = el.getBoundingClientRect()
+        return box.bottom > port.top && box.top < port.bottom
+          ? (row.dataset.item ?? '')
+          : ''
+      })
+      return lastId
+    })
+    .not.toBe('')
+  // Same precondition dragItemTo requires.
   await expect(page.locator(`[data-item="${lastId}"]`)).toBeAttached()
   const listBox = await list.boundingBox()
   expect(listBox).not.toBeNull()

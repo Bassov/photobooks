@@ -64,6 +64,8 @@ export const ICON_NAMES = [
   'arrowDownUp',
   'rotateCcw',
   'rotateCw',
+  'flipHorizontal',
+  'flipVertical',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -500,5 +502,21 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
   rotateCw: [
     ['path', { d: 'M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8' }],
     ['path', { d: 'M21 3v5h-5' }],
+  ],
+  flipHorizontal: [
+    ['path', { d: 'm3 7 5 5-5 5V7' }],
+    ['path', { d: 'm21 7-5 5 5 5V7' }],
+    ['path', { d: 'M12 20v2' }],
+    ['path', { d: 'M12 14v2' }],
+    ['path', { d: 'M12 8v2' }],
+    ['path', { d: 'M12 2v2' }],
+  ],
+  flipVertical: [
+    ['path', { d: 'm17 3-5 5-5-5h10' }],
+    ['path', { d: 'm17 21-5-5-5 5h10' }],
+    ['path', { d: 'M4 12H2' }],
+    ['path', { d: 'M10 12H8' }],
+    ['path', { d: 'M16 12h-2' }],
+    ['path', { d: 'M22 12h-2' }],
   ],
 }
