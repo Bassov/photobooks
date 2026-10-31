@@ -31,11 +31,11 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import {
-  PASTEBOARD_GAP_PX,
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
   applyForceMountIndex,
   clearForceMountIndex,
   pacePasteboardWindow,
+  pasteboardGapPx,
   pasteboardOverscanPx,
   pasteboardWindow,
   pasteboardWindowsEqual,
@@ -109,6 +109,7 @@ export const Pasteboard = memo(function Pasteboard({
   const committedZoom = cameraFrame.zoom
   const pxPerMm = SPREAD_PX_PER_MM * committedZoom
   const stride = pasteboardStrideAtZoom(trimHeightMm, committedZoom)
+  const gapPx = pasteboardGapPx(trimHeightMm * pxPerMm)
   const [trackedScroll, setTrackedScroll] = useState({ top: 0, epoch: 0 })
   const scrollTop = stackScrollTop(
     resolveTrackedScrollTop(trackedScroll, cameraFrame),
@@ -529,13 +530,13 @@ export const Pasteboard = memo(function Pasteboard({
                 data-active={markedId === spreadId ? 'true' : 'false'}
                 style={{
                   height: stride,
-                  paddingBottom: PASTEBOARD_GAP_PX,
+                  paddingBottom: gapPx,
                   containIntrinsicBlockSize: `auto ${String(stride)}px`,
-                  ['--slot-pad' as string]: `${String(PASTEBOARD_GAP_PX)}px`,
+                  ['--slot-pad' as string]: `${String(gapPx)}px`,
                 }}
               >
                 <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
-                {pageLabelsFit(committedZoom) ? (
+                {pageLabelsFit(gapPx) ? (
                   <PageLabels
                     spreadIndex={range.start + index}
                     pages={getSpreadPageCount(

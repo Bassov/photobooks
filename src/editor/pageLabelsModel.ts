@@ -11,9 +11,13 @@ export function pageLabelTexts(
   return pages === 1 ? [left, ''] : [left, String(spreadIndex * 2 + 1)]
 }
 
-/** Labels live in the slot's bottom padding (44 px); hidden below this zoom. */
-export const PAGE_LABELS_MIN_ZOOM = 0.85
+/**
+ * Labels live in the slot's bottom padding (the gap): 6 px under the spread
+ * plus a 16 px line. A shorter gap hides them rather than overlap the next
+ * spread.
+ */
+export const PAGE_LABELS_MIN_GAP_PX = 22
 
-export function pageLabelsFit(zoom: number): boolean {
-  return zoom >= PAGE_LABELS_MIN_ZOOM
+export function pageLabelsFit(gapPx: number): boolean {
+  return gapPx >= PAGE_LABELS_MIN_GAP_PX
 }
