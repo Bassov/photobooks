@@ -12,3 +12,5 @@
 2. Top bar: tool group centred over the canvas; close the inspector: group stays; widen the left panel: group follows.
 3. Library: Sort menu rows ≈31 px (kit 30.84) with a dot on the current choice; book card menu rows 31 px; filmstrip sort menu the same.
 4. Zoom to the floor: no page numbers; back to Fit: numbers 8 px under each page, 11 px.
+
+`pnpm agent manual-qa` (2026-10-31), 1–4: problem (harness entry, not reached): `start-session` click times out, the welcome `<header>` intercepts the pointer (`WelcomeScreen.tsx` unchanged on this branch). Covered in a real browser by `e2e/design-r4-polish.spec.ts` (×30 green) and the PR evidence shots (pill mid-drag, top bar, sort and book menus).
