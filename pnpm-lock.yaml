@@ -248,7 +248,7 @@ packages:
 
   '@albasov/ts-agent-rig@https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ec325b24591680dbd36a1c86446454f1aafbff5f':
     resolution: {tarball: https://codeload.github.com/Bassov/ts-agent-rig/tar.gz/ec325b24591680dbd36a1c86446454f1aafbff5f}
-    version: 0.2.19
+    version: 0.2.20
     engines: {node: ^22.0.0}
     hasBin: true
 
