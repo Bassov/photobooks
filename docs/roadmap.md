@@ -31,7 +31,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r7-canvas-chrome](roadmap/P1/design-r7-canvas-chrome.md) — Bug: design-r7-canvas-chrome: in-canvas chrome locked to zoom, no frame size pill
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
-- [ ] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates
+- [x] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates
 - [ ] [prep] [decode-slot-busy-until-reply](roadmap/P1/decode-slot-busy-until-reply.md) — Decode pool: keep in-flight thumbs, never double-book a worker
 - [ ] [feature] [thumb-hot-cache](roadmap/P1/thumb-hot-cache.md) — Filmstrip: a thumb that loaded once never goes gray again
 - [ ] [prep] [thumb-scaled-decode](roadmap/P1/thumb-scaled-decode.md) — Decode thumbs with ImageDecoder at reduced scale
