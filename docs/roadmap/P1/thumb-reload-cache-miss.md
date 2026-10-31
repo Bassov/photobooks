@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: gallery photos without a cached thumb stay gray after reload
+Status: done
 
 ## Scope
 
