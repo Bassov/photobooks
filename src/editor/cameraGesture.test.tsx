@@ -11,6 +11,7 @@ import {
   isEditorGestureActive,
   resetEditorGestureForTests,
 } from './editorGesture'
+import { PAGE_LABELS_MIN_GAP_PX } from './pageLabelsModel'
 import { PasteboardWithCameraBar as Pasteboard } from './testing/PasteboardWithCameraBar'
 
 async function flushGesture(): Promise<void> {
@@ -477,6 +478,55 @@ describe('pasteboard camera gestures', () => {
       for (const name of ['--cam-tx', '--cam-ty', '--cam-scale']) {
         expect(el.style.getPropertyValue(name)).toBe('')
       }
+    }
+  })
+
+  it('hides page labels mid-zoom only while the live gap cannot hold them', async () => {
+    dispatchBookOp({ type: 'addSpread' })
+    commitZoom(2, 0, 0)
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const labels = () => screen.getAllByTestId('page-labels')
+    const nextFrame = () =>
+      act(async () => {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            resolve()
+          })
+        })
+      })
+    const liveGaps = () =>
+      labels().map(
+        (el) =>
+          Number(el.dataset.gapPx) *
+          Number(el.style.getPropertyValue('--cam-scale')),
+      )
+
+    // Zoom in: the live gap only grows, the labels stay.
+    wheel(scroll, { deltaY: -240, ctrlKey: true })
+    await nextFrame()
+    for (const [index, el] of labels().entries()) {
+      expect(liveGaps()[index]).toBeGreaterThanOrEqual(PAGE_LABELS_MIN_GAP_PX)
+      expect(el.hasAttribute('data-gap-short')).toBe(false)
+    }
+
+    // Far out in the same gesture: the live gap drops under 8 + 11 px.
+    for (let index = 0; index < 12; index += 1) {
+      wheel(scroll, { deltaY: 600, ctrlKey: true })
+    }
+    await nextFrame()
+    for (const [index, el] of labels().entries()) {
+      expect(liveGaps()[index]).toBeLessThan(PAGE_LABELS_MIN_GAP_PX)
+      expect(el.hasAttribute('data-gap-short')).toBe(true)
+    }
+
+    // A committed camera change drops the live frame: no stale hiding.
+    act(() => {
+      commitZoom(2.5, 0, 0)
+    })
+    expect(labels().length).toBeGreaterThan(0)
+    for (const el of labels()) {
+      expect(el.hasAttribute('data-gap-short')).toBe(false)
     }
   })
 

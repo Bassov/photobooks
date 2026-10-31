@@ -52,7 +52,7 @@ async function toolControlsSpan(page: Page): Promise<Span> {
 }
 
 for (const width of [1440, 1280]) {
-  test(`M20 tool group is kit-centred between the left and right groups at ${String(width)}`, async ({
+  test(`M20/M39 tool group is centred on the canvas area at ${String(width)}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 })
@@ -62,13 +62,18 @@ for (const width of [1440, 1280]) {
     const controls = await toolControlsSpan(page)
     const leftEnd = (await spanOf(page.getByTestId('redo'))).right
     const rightStart = (await spanOf(page.getByTestId('zoom-out'))).left
+    const canvasLeft = (await spanOf(page.getByTestId('panel-l'))).right
+    const canvasRight = (await spanOf(page.getByTestId('panel-r'))).left
 
     // The group hugs its tools (prod bug: it stretched and its tools sat left).
     expect(Math.abs(group.left - controls.left)).toBeLessThanOrEqual(1)
     expect(Math.abs(group.right - controls.right)).toBeLessThanOrEqual(1)
-    // Kit `mx-auto`: centred in the free space between history and zoom.
+    // Designer round 4 (M39 reopens M20): centred between the left panel and
+    // the inspector (design-r4-polish.spec.ts has the kit numbers).
     const centre = (controls.left + controls.right) / 2
-    expect(Math.abs(centre - (leftEnd + rightStart) / 2)).toBeLessThanOrEqual(1)
+    expect(
+      Math.abs(centre - (canvasLeft + canvasRight) / 2),
+    ).toBeLessThanOrEqual(1)
     // No overlap with the left or right groups, and still on one row.
     expect(controls.left).toBeGreaterThan(leftEnd)
     expect(controls.right).toBeLessThan(rightStart)

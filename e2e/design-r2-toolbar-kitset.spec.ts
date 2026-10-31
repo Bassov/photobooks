@@ -63,7 +63,7 @@ test('top bar holds exactly the kit tool set, left to right', async ({
   }
 })
 
-test('tool group sits mx-auto centered between the left and right groups', async ({
+test('tool group sits centred on the canvas area, clear of the side groups', async ({
   page,
 }) => {
   await openSessionEditor(page)
@@ -76,11 +76,17 @@ test('tool group sits mx-auto centered between the left and right groups', async
   const group = await box(page.getByRole('toolbar', { name: 'Editor' }))
   const redo = await box(page.getByTestId('redo'))
   const zoomOut = await box(page.getByTestId('zoom-out'))
-  // Equal free space on both sides of the group (kit `mx-auto`, chrome.tsx:169).
+  const left = await box(page.getByTestId('panel-l'))
+  const inspector = await box(page.getByTestId('panel-r'))
+  // Designer round 4 (M39): centred between the left panel and the inspector.
   const spaceLeft = group.x - (redo.x + redo.width)
   const spaceRight = zoomOut.x - (group.x + group.width)
   expect(spaceLeft).toBeGreaterThan(0)
-  expect(Math.abs(spaceLeft - spaceRight)).toBeLessThanOrEqual(2)
+  expect(spaceRight).toBeGreaterThan(0)
+  const canvasCentre = (left.x + left.width + inspector.x) / 2
+  expect(
+    Math.abs(group.x + group.width / 2 - canvasCentre),
+  ).toBeLessThanOrEqual(1)
 })
 
 async function openWithFrames(page: Page) {

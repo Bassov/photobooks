@@ -13,6 +13,14 @@ export const STATUS_FRAME_LOCKED =
 export const STATUS_FRAME_DRAG =
   'Drag onto another frame to swap, or onto the filmstrip to take the photo back'
 
+/**
+ * Statuses the kit StatusLine pill paints at the canvas bottom-left. Every
+ * other status stays a live-region announcement only (no status chips).
+ */
+export function isStatusPillVisible(status: string): boolean {
+  return status === STATUS_FRAME_DRAG
+}
+
 export const STATUS_SWAPPED = 'Photos swapped'
 
 export const STATUS_MOVED = 'Photo moved'

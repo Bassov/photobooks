@@ -51,7 +51,7 @@ describe('Menu selected item', () => {
     cleanup()
   })
 
-  it('shows a check on the selected item only', async () => {
+  it('marks the single choice with a dot on the selected item only', async () => {
     render(
       <MenuTrigger>
         <Button>Sort</Button>
@@ -65,9 +65,34 @@ describe('Menu selected item', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Sort' }))
     const b = await screen.findByRole('menuitemradio', { name: 'B' })
-    expect(b.querySelector('.pb-menu-item__check svg')).not.toBeNull()
+    expect(b.getAttribute('aria-checked')).toBe('true')
+    const marker = b.querySelector('.pb-menu-item__check svg')
+    expect(marker?.getAttribute('data-icon')).toBe('circle')
+    expect(marker?.classList.contains('pb-menu-item__dot')).toBe(true)
     const a = screen.getByRole('menuitemradio', { name: 'A' })
+    expect(a.getAttribute('aria-checked')).toBe('false')
     expect(a.querySelector('.pb-menu-item__check svg')).toBeNull()
+  })
+
+  it('marks multiple choices with a check', async () => {
+    render(
+      <MenuTrigger>
+        <Button>Show</Button>
+        <MenuPopover>
+          <Menu selectionMode="multiple" selectedKeys={['a']}>
+            <MenuItem id="a">A</MenuItem>
+            <MenuItem id="b">B</MenuItem>
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }))
+    const a = await screen.findByRole('menuitemcheckbox', { name: 'A' })
+    const marker = a.querySelector('.pb-menu-item__check svg')
+    expect(marker?.getAttribute('data-icon')).toBe('check')
+    expect(marker?.classList.contains('pb-menu-item__dot')).toBe(false)
+    const b = screen.getByRole('menuitemcheckbox', { name: 'B' })
+    expect(b.querySelector('.pb-menu-item__check svg')).toBeNull()
   })
 
   it('has no check slot in a plain action menu', async () => {

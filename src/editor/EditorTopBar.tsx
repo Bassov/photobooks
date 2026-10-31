@@ -338,30 +338,32 @@ export function EditorTopBar({
 
   return (
     <header
-      className="editor-chrome relative z-10 flex h-12 shrink-0 items-center gap-2 px-3"
+      className="editor-chrome editor-top-grid relative z-10 h-12 shrink-0 items-center px-3"
       style={{ background: BAR, color: T }}
       data-testid="editor-bar"
     >
-      <ChromeButton
-        className="h-8 gap-1 pl-1.5 pr-2.5 text-sm"
-        style={{ color: SUB, background: 'transparent' }}
-        data-testid="go-library"
-        aria-label="Library"
-        onClick={() => {
-          void leaveEditorForLibrary()
-        }}
-        disabled={chromeBusy}
-      >
-        <Icon name="chevronLeft" size={16} />
-        Library
-      </ChromeButton>
-      <BookMetaChrome saveLabel={saveMeta} />
-      <HistoryChrome />
+      <div className="editor-top-start flex items-center gap-2">
+        <ChromeButton
+          className="h-8 gap-1 pl-1.5 pr-2.5 text-sm"
+          style={{ color: SUB, background: 'transparent' }}
+          data-testid="go-library"
+          aria-label="Library"
+          onClick={() => {
+            void leaveEditorForLibrary()
+          }}
+          disabled={chromeBusy}
+        >
+          <Icon name="chevronLeft" size={16} />
+          Library
+        </ChromeButton>
+        <BookMetaChrome saveLabel={saveMeta} />
+        <HistoryChrome />
+      </div>
 
       <div
         role="toolbar"
         aria-label="Editor"
-        className="editor-top-bar pb-toolbar mx-auto flex min-w-0 items-center gap-1"
+        className="editor-top-bar pb-toolbar flex min-w-0 items-center gap-1"
       >
         {project.accessPhase === 'permission-required' ? (
           <Button
@@ -398,34 +400,36 @@ export function EditorTopBar({
         <GridToggle />
       </div>
 
-      <ZoomChrome />
-      <PanelToggles
-        panels={panels}
-        onToggle={(key) => {
-          onPanelsChange(toggleEditorPanel(panels, key))
-        }}
-      />
-      <ChromeButton
-        className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
-        style={{ background: FIELD, color: T }}
-        data-testid="present"
-        disabled={spreadCount === 0}
-        title="Preview"
-        onClick={onPresent}
-      >
-        <Icon name="eye" size={16} />
-        Preview
-      </ChromeButton>
-      <IconButton
-        label="Settings"
-        size="sm"
-        data-testid="editor-settings-open"
-        onPress={() => {
-          setSettingsOpen(true)
-        }}
-      >
-        <Icon name="settings" size={16} />
-      </IconButton>
+      <div className="editor-top-end flex items-center gap-2">
+        <ZoomChrome />
+        <PanelToggles
+          panels={panels}
+          onToggle={(key) => {
+            onPanelsChange(toggleEditorPanel(panels, key))
+          }}
+        />
+        <ChromeButton
+          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
+          style={{ background: FIELD, color: T }}
+          data-testid="present"
+          disabled={spreadCount === 0}
+          title="Preview"
+          onClick={onPresent}
+        >
+          <Icon name="eye" size={16} />
+          Preview
+        </ChromeButton>
+        <IconButton
+          label="Settings"
+          size="sm"
+          data-testid="editor-settings-open"
+          onPress={() => {
+            setSettingsOpen(true)
+          }}
+        >
+          <Icon name="settings" size={16} />
+        </IconButton>
+      </div>
       {settingsOpen ? (
         <EditorSettings
           libraryPath={project.libraryLabel ?? 'Library'}

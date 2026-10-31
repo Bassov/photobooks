@@ -2,7 +2,11 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Status } from '../ui/Status'
 import { ToastRegion } from '../ui/Toast'
 import { createToastQueue } from '../ui/toastQueue'
-import { getEditorStatus, subscribeEditorStatus } from './editorStatus'
+import {
+  getEditorStatus,
+  isStatusPillVisible,
+  subscribeEditorStatus,
+} from './editorStatus'
 import { EditorFrame } from './EditorFrame'
 import { DEFAULT_EDITOR_PANELS } from './editorChromePanels'
 import { EditorTopBar } from './EditorTopBar'
@@ -77,6 +81,7 @@ export function EditorShell() {
             <Status
               className="editor-status-pill"
               data-testid="editor-status"
+              data-pill={isStatusPillVisible(editorStatus) ? 'true' : undefined}
               politeness="polite"
             >
               {editorStatus}

@@ -32,7 +32,11 @@ Values resolve from kit CSS variables (Theme B). Prefer tokens over raw hex in a
 | Z-layer   | overlays (popover/dialog/toast) above chrome; pasteboard content below chrome; no ad-hoc z-index races — stack: content → chrome → modal → toast                                                                                                                                    |
 | Motion    | short press scale (~0.98), disclosure chevron 200 ms; honor `prefers-reduced-motion` (non-essential motion off)                                                                                                                                                                     |
 
-Chrome geometry: `--panel-left` / `--panel-right` / `--topbar` / `--thumb` / `--rail` (kit demo may tighten these).
+Chrome geometry: `--panel-left` / `--panel-right` / `--topbar` / `--thumb` / `--rail` (kit demo may tighten these). The top-bar tool group centres on the canvas area between `--panel-left` and `--panel-right` (not the window).
+
+Menus (`src/ui/Menu`): kit rows `py-1.5 text-sm` at `--leading-menu` 1.45 (30.84 px); a single choice is marked with the 8 px `circle` dot, a multiple choice with the check. Status pill: kit `StatusLine` (bottom-left, `text-xs`, `--radius-md`, popover/95) for the frame-drag hint only; other statuses are live-region only.
+
+Page numbers: 8 screen px under each page, 11 px, at every zoom. Designer-accepted deviation (2026-10-31): page numbers hidden when the gap cannot hold 8 px + 11 px label.
 
 UI ref: `uikit#/feature/design-tokens`.
 

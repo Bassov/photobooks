@@ -69,6 +69,7 @@ export const ICON_NAMES = [
   'panelRightClose',
   'sparkles',
   'layoutTemplate',
+  'circle',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -543,4 +544,6 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
     ['rect', { width: '9', height: '7', x: '3', y: '14', rx: '1' }],
     ['rect', { width: '5', height: '7', x: '16', y: '14', rx: '1' }],
   ],
+  /** Lucide `circle`: the kit single-choice menu marker (filled via CSS). */
+  circle: [['circle', { cx: '12', cy: '12', r: '10' }]],
 }

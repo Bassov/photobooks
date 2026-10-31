@@ -68,8 +68,20 @@ export function MenuItem({
         (content, { isSelected, selectionMode }) => (
           <>
             {selectionMode === 'none' ? null : (
+              // Kit menu.tsx: a single choice is marked with a dot, a
+              // multiple choice with a check.
               <span className="pb-menu-item__check" aria-hidden="true">
-                {isSelected ? <Icon name="check" size={16} /> : null}
+                {isSelected ? (
+                  selectionMode === 'single' ? (
+                    <Icon
+                      name="circle"
+                      size={16}
+                      className="pb-menu-item__dot"
+                    />
+                  ) : (
+                    <Icon name="check" size={16} />
+                  )
+                ) : null}
               </span>
             )}
             {content}
