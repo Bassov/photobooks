@@ -344,7 +344,7 @@ export function EditorTopBar({
     >
       <div className="editor-top-start flex items-center gap-2">
         <ChromeButton
-          className="h-8 gap-1 pl-1.5 pr-2.5 text-sm"
+          className="editor-library-link h-8 text-sm"
           style={{ color: SUB, background: 'transparent' }}
           data-testid="go-library"
           aria-label="Library"
