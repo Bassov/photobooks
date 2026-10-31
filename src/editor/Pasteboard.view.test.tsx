@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { PASTEBOARD_PAD_PX } from './pasteboardView'
-import { makeBook } from '../core/testing/fixtures'
+import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -754,6 +754,37 @@ describe('Pasteboard view wiring', () => {
     expect(Number.parseFloat(world.style.width)).toBeGreaterThan(
       2 * PASTEBOARD_PAD_PX,
     )
+  })
+
+  it('sizes each page shadow to its spread pages in px at the committed zoom', () => {
+    resetBookStore({
+      book: makeBook({
+        settings: { trim: { widthMm: 200, heightMm: 300 } },
+        spreads: ['s-0', 's-1', 's-2'].map((id) => makeSpread({ id })),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    commitZoom(0.5, 0, 0)
+    stubViewport(800, 600)
+    render(<Pasteboard />)
+    const sizes = Object.fromEntries(
+      screen
+        .getAllByTestId('pasteboard-page-shadow')
+        .map((box) => [
+          box.getAttribute('data-spread-id'),
+          [
+            box.style.getPropertyValue('--w'),
+            box.style.getPropertyValue('--h'),
+          ],
+        ]),
+    )
+    // First pace frame mounts the single-page cover and a two-page spread.
+    expect(sizes).toMatchObject({
+      's-0': ['50px', '75px'],
+      's-1': ['100px', '75px'],
+    })
   })
 
   it('fits the selected spread once the viewport is measured when asked to', () => {

@@ -233,6 +233,15 @@ test.describe('design-r3-spread-shadow', () => {
     page,
   }) => {
     const fit = await settledProbe(page)
+    // The wider gap keeps the kit Fit band: at least pt-14 air above page 1.
+    const portTop = await page
+      .getByTestId('pasteboard-scroll')
+      .evaluate((el) => el.getBoundingClientRect().top)
+    const firstTop = await page
+      .getByTestId('spread-view')
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().top)
+    expect(firstTop - portTop).toBeGreaterThanOrEqual(55.5)
     expectKitShadow(fit)
     expectStackGap(fit)
     expectPageNumbers(fit)
