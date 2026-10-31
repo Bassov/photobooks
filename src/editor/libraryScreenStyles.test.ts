@@ -22,6 +22,17 @@ describe('ensureLibraryScreenStyles', () => {
     expect(nodes[0]?.textContent).toMatch(/pb-lib-book-actions/)
   })
 
+  it('styles the rename pill with the kit ring and keeps search focus quiet', () => {
+    ensureLibraryScreenStyles()
+    const css =
+      document.querySelector('style[data-pb-library]')?.textContent ?? ''
+    expect(css).toMatch(
+      /\.pb-lib-rename:focus \{\s*box-shadow: 0 0 0 2px var\(--background\), 0 0 0 4px var\(--ring\);/,
+    )
+    expect(css).toMatch(/\.pb-lib-rename \{[^}]*border: 0;/)
+    expect(css).not.toMatch(/\.pb-lib-quiet:focus/)
+  })
+
   it('no-ops when document is unavailable', () => {
     const held = globalThis.document
     Object.defineProperty(globalThis, 'document', {
