@@ -1,8 +1,8 @@
 ## Implementation
 
-- [ ] 1. M9: `fitSpreadZoomFor` (book-wide Fit on the widest spread) in `pasteboardCameraFit.ts` + unit tests; `usePasteboardCamera` uses it for Fit spread; pasteboard spec delta.
-- [ ] 2. M3/M4: `resolveFrameActivation` + `isPointerActivation` (`dropTargets.ts`) keep the selected frame on a pointer click; `activateFrame` (`galleryDrop.ts`) ← `ConnectedSpreadView.tsx` ← `SpreadView.tsx` click detail; unit tests (`dropTargets`, `ConnectedSpreadView`, `SpreadView`); spread-view spec delta.
-- [ ] 3. e2e `design-r3-canvas-fit.spec.ts` (Fit across spreads, manual zoom kept; drop/click/click selection, Escape, empty pasteboard, double-click crop); existing specs updated only where they encode the old behaviour.
+- [x] 1. M9: `fitSpreadZoomFor` (book-wide Fit on the widest spread) in `pasteboardCameraFit.ts` + unit tests; `usePasteboardCamera` uses it for Fit spread; pasteboard spec delta.
+- [x] 2. M3/M4: `resolveFrameActivation` + `isPointerActivation` (`dropTargets.ts`) keep the selected frame on a pointer click; `activateFrame` (`galleryDrop.ts`) ← `ConnectedSpreadView.tsx` ← `SpreadView.tsx` click detail; unit tests (`dropTargets`, `ConnectedSpreadView`, `SpreadView`); spread-view spec delta.
+- [x] 3. e2e `design-r3-canvas-fit.spec.ts` (Fit across spreads, manual zoom kept; drop/click/click selection, Escape, empty pasteboard, double-click crop); existing specs updated only where they encode the old behaviour.
 
 ## Manual test scenarios
 
