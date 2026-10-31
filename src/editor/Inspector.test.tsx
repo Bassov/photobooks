@@ -184,9 +184,19 @@ describe('Inspector', () => {
       const panel = screen.getByTestId('inspector-body')
       expect(panel.querySelector('dl')).toBeNull()
       expect(within(panel).queryByText('Spread properties')).toBeNull()
-      expect(within(panel).getByTestId('inspector-context').textContent).toBe(
+      // Kit InspectorShell header (context-inspector.tsx:35-42) sits above the body.
+      const header = screen.getByTestId('inspector-header')
+      expect(within(header).getByTestId('inspector-context').textContent).toBe(
         'Spread',
       )
+      expect(
+        within(header).getByTestId('inspector-spread-summary').textContent,
+      ).toBe('Page 1 · 0 empty')
+      expect(
+        [...panel.querySelectorAll('.inspector-eyebrow')].map(
+          (el) => el.textContent,
+        ),
+      ).toEqual(['Layout', 'Layout grid'])
     })
 
     // Kit Photo context (context-inspector.tsx:66-72) has no meta rows.
@@ -201,9 +211,11 @@ describe('Inspector', () => {
       expect(within(panel).queryByText('Used')).toBeNull()
       expect(within(panel).queryByText('Details')).toBeNull()
       expect(within(panel).queryByText('Spread properties')).toBeNull()
-      expect(within(panel).getByTestId('inspector-context').textContent).toBe(
-        'Photo',
-      )
+      expect(
+        within(screen.getByTestId('inspector-header')).getByTestId(
+          'inspector-context',
+        ).textContent,
+      ).toBe('Photo')
     })
 
     it('lists layout and grid for a spread', () => {

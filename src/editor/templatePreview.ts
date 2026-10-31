@@ -9,10 +9,6 @@ export interface TemplatePreview {
 let preview: TemplatePreview | null = null
 const listeners = new Set<() => void>()
 
-export function getTemplatePreview(): TemplatePreview | null {
-  return preview
-}
-
 export function setTemplatePreview(next: TemplatePreview | null): void {
   if (
     next?.spreadId === preview?.spreadId &&

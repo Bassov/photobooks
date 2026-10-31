@@ -31,6 +31,11 @@ function seed(templateId?: string) {
   })
 }
 
+/** Kit Section shows its summary only while collapsed. */
+function collapseLayout() {
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+}
+
 const spreadTemplate = () => getBookStoreSnapshot().book.spreads[0]?.templateId
 
 describe('LayoutSection', () => {
@@ -40,15 +45,19 @@ describe('LayoutSection', () => {
     resetBookStore()
   })
 
-  it('lists the six catalog templates and marks the current one', () => {
-    seed('2-up')
+  it('lists the kit layouts in kit order and marks the current one', () => {
+    seed('hero-two')
     render(<LayoutSection spreadId="s1" />)
     const tiles = screen.getAllByTestId('layout-tile')
     expect(tiles.map((t) => t.getAttribute('data-template'))).toEqual([
       'full-bleed',
       'one-per-page',
-      '2-up',
-      '4-grid',
+      'hero-two',
+      'hero-grid',
+      'panorama',
+      'three-across',
+      'framed-single',
+      'offset-pair',
       'two-portraits',
       'landscape-two-portraits',
     ])
@@ -59,16 +68,34 @@ describe('LayoutSection', () => {
       'false',
       'false',
       'false',
+      'false',
+      'false',
+      'false',
+      'false',
     ])
-    expect(screen.getByTestId('layout-summary').textContent).toBe('2-up')
-    expect(tiles[0]?.querySelectorAll('rect')).toHaveLength(1)
+    collapseLayout()
+    expect(screen.getByTestId('layout-summary').textContent).toBe('Hero + two')
+  })
+
+  it('draws one slot per frame in each tile thumb', () => {
+    seed()
+    render(<LayoutSection spreadId="s1" />)
+    const [fullBleed, , heroTwo] = screen.getAllByTestId('layout-tile')
+    expect(
+      fullBleed?.querySelectorAll('[data-testid="layout-thumb-slot"]'),
+    ).toHaveLength(1)
+    expect(
+      heroTwo?.querySelectorAll('[data-testid="layout-thumb-slot"]'),
+    ).toHaveLength(3)
   })
 
   it('applies a template to the spread on click', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
-    fireEvent.click(screen.getByRole('button', { name: 'Apply layout 4-grid' }))
-    expect(spreadTemplate()).toBe('4-grid')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Apply layout Hero + grid' }),
+    )
+    expect(spreadTemplate()).toBe('hero-grid')
   })
 
   it('applies a contact sheet from the columns × rows fields', () => {
@@ -85,6 +112,7 @@ describe('LayoutSection', () => {
   it('shows a contact-sheet spread in the fields and the summary', () => {
     seed('contact-5x3')
     render(<LayoutSection spreadId="s1" />)
+    collapseLayout()
     expect(screen.getByTestId('layout-summary').textContent).toBe(
       'Contact sheet 5×3',
     )
@@ -105,10 +133,12 @@ describe('LayoutSection', () => {
   it('shows no summary for an unset or unknown template', () => {
     seed()
     const { unmount } = render(<LayoutSection spreadId="s1" />)
+    collapseLayout()
     expect(screen.queryByTestId('layout-summary')).toBeNull()
     unmount()
     seed('custom-x')
     render(<LayoutSection spreadId="s1" />)
+    collapseLayout()
     expect(screen.queryByTestId('layout-summary')).toBeNull()
   })
 })

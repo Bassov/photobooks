@@ -245,7 +245,7 @@ function LayoutPicker({
       summary={summary}
       data-testid="layout"
       right={
-        // Saving custom layouts lands with roadmap item my-templates.
+        // Kit "Save as template"; saving custom layouts is not built yet.
         <IconButton
           label="Save as template"
           size="sm"

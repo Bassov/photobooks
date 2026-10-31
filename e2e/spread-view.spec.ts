@@ -88,7 +88,7 @@ test('normal visit paints three empty spreads on the pasteboard', async ({
   await assertDocumentFitsViewport(page)
 })
 
-test('choosing 4-grid paints four placeholders on the active spread only', async ({
+test('choosing Hero + grid paints five placeholders on the active spread only', async ({
   page,
 }) => {
   await openSessionEditor(page)
@@ -96,12 +96,12 @@ test('choosing 4-grid paints four placeholders on the active spread only', async
   const activeIndex = before.findIndex((slot) => slot.active)
   expect(activeIndex).toBe(0)
   await openSpreadTab(page)
-  const tile = layoutTile(page, '4-grid')
+  const tile = layoutTile(page, 'Hero + grid')
   await tile.focus()
   await page.keyboard.press('Enter')
   await expect(tile).toHaveAttribute('aria-pressed', 'true')
   const slots = await readSpreadSlots(page)
-  expect(slots[activeIndex]?.placeholders).toBe(4)
+  expect(slots[activeIndex]?.placeholders).toBe(5)
   expect(
     slots
       .filter((_, index) => index !== activeIndex)
@@ -121,8 +121,8 @@ test('a spread added from the row menu is revealed and a later template change l
   // active-pin release path is exercised (not only full leave-viewport).
   await page.setViewportSize({ width: 1280, height: 800 })
   await openSessionEditor(page)
-  await applyLayout(page, '4-grid')
-  const tile = layoutTile(page, '4-grid')
+  await applyLayout(page, 'Hero + grid')
+  const tile = layoutTile(page, 'Hero + grid')
   await addSpreadAfterLast(page)
   await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
     'data-spread-count',
@@ -158,7 +158,7 @@ test('a spread added from the row menu is revealed and a later template change l
       return (
         first !== null &&
         first.active &&
-        first.placeholders === 4 &&
+        first.placeholders === 5 &&
         checked &&
         // Fitted on one spread, the added spread may be windowed out (kit demo
         // shows a single spread); either way it is not the active one.
@@ -171,7 +171,7 @@ test('a spread added from the row menu is revealed and a later template change l
     nudgeHorizontal: false,
   })
 
-  await applyLayout(page, '2-up')
+  await applyLayout(page, 'Two portraits')
   await expect
     .poll(async () => {
       const first = await readSpreadSlotAt(page, 0)
@@ -646,10 +646,10 @@ test.describe('frame-budget gates', () => {
     test.setTimeout(120_000)
     await enablePerfScenario(page, '/?perf=1')
     await openSpreadTab(page)
-    await expect(layoutTile(page, '4-grid')).toBeVisible()
+    await expect(layoutTile(page, 'Hero + grid')).toBeVisible()
     await clearPerfScenario(page)
 
-    await layoutTile(page, '4-grid').click()
+    await layoutTile(page, 'Hero + grid').click()
     await addSpreadAfterLast(page)
     await expect(page.getByTestId('pasteboard-scroll')).toHaveAttribute(
       'data-spread-count',

@@ -60,7 +60,7 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     expect(screen.getByTestId('tab-all').textContent).toContain('All')
-    expect(screen.getByTestId('tab-all').textContent).toContain('6')
+    expect(screen.getByTestId('tab-all').textContent).toContain('10')
     expect(screen.getByTestId('tab-mine').textContent).toContain('My templates')
     expect(screen.getByTestId('tab-all').getAttribute('aria-pressed')).toBe(
       'true',
@@ -74,8 +74,8 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
         (b) => b.textContent,
       ),
     ).toEqual(['Any', '1', '2', '3', '4+'])
-    expect(screen.getByTestId('tpl-hint').textContent).toContain(
-      'Click a layout to apply',
+    expect(screen.getByTestId('tpl-hint').textContent).toBe(
+      'Hover a layout to preview it on the spread; click to apply. Photos are kept in order.',
     )
     expect(screen.queryByRole('tablist')).toBeNull()
   })
@@ -89,12 +89,9 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
   it('regenerates thumbnails when the trim size changes', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
-    const viewBox = () =>
-      screen
-        .getAllByTestId('layout-tile')[0]
-        ?.querySelector('svg')
-        ?.getAttribute('viewBox')
-    const before = viewBox()
+    const paper = () =>
+      screen.getAllByTestId('layout-thumb-paper')[0]?.getAttribute('style')
+    const before = paper()
     act(() => {
       resetBookStore({
         book: makeBook({
@@ -109,21 +106,27 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
         importExpectedCount: 0,
       })
     })
-    expect(before).not.toBe(viewBox())
-    expect(viewBox()).toBe('0 0 200 100')
+    expect(before).toBe('left: 25%; top: 0%; width: 50%; height: 100%;')
+    expect(paper()).not.toBe(before)
+    expect(paper()).toBe('left: 0%; top: 0%; width: 100%; height: 100%;')
   })
 
   it('filters by photo count chip and returns on Any', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     fireEvent.click(chip('1'))
-    expect(listed()).toEqual(['full-bleed', 'one-per-page'])
+    expect(listed()).toEqual([
+      'full-bleed',
+      'one-per-page',
+      'panorama',
+      'framed-single',
+    ])
     expect(chip('1').getAttribute('aria-pressed')).toBe('true')
     expect(chip('all').getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(chip('4'))
-    expect(listed()).toEqual(['4-grid'])
+    expect(listed()).toEqual(['hero-grid'])
     fireEvent.click(chip('all'))
-    expect(listed()).toHaveLength(6)
+    expect(listed()).toHaveLength(10)
   })
 
   it('searches layouts by name, case-insensitively, and reports no match', () => {
@@ -131,7 +134,7 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     render(<LayoutSection spreadId="s1" />)
     const search = screen.getByTestId('layout-search')
     fireEvent.change(search, { target: { value: '  GRID ' } })
-    expect(listed()).toEqual(['4-grid'])
+    expect(listed()).toEqual(['hero-grid'])
     fireEvent.change(search, { target: { value: 'zzz' } })
     expect(listed()).toEqual([])
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
@@ -171,7 +174,7 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(listed().length).toBeGreaterThan(0)
   })
 
-  it('suggests layouts for the photo count, singular, excluding the current one', () => {
+  it('suggests up to three layouts for the photo count, singular', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     const suggested = screen.getByTestId('tpl-suggested')
@@ -186,7 +189,12 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(
       screen.getByRole('button', { name: 'Apply layout Full bleed' }),
     ).toBeTruthy()
-    expect(screen.getAllByTestId('layout-suggested-tile')).toHaveLength(2)
+    // Kit caps Suggested at three tiles (framed-single also fits one photo).
+    expect(
+      screen
+        .getAllByTestId('layout-suggested-tile')
+        .map((tile) => tile.getAttribute('data-template')),
+    ).toEqual(['full-bleed', 'one-per-page', 'panorama'])
   })
 
   it('counts filled photo frames, pluralises, and hides suggestions when filtering', () => {
@@ -216,7 +224,7 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
       screen
         .getAllByTestId('layout-suggested-tile')
         .map((tile) => tile.getAttribute('data-template')),
-    ).toEqual(['one-per-page'])
+    ).toEqual(['one-per-page', 'panorama', 'framed-single'])
   })
 
   it('a suggested tile applies its layout', () => {

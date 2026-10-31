@@ -4,8 +4,7 @@ Roadmap: `docs/roadmap/P1/design-r2-layout-picker.md` (SoT). UI ref: `uikit#/dem
 
 ### Scope out
 
-- My templates: `my-templates` (`+` ships disabled).
-- Master & spacing / Background / Grid parity: `design-r2-spread-sections`.
+- My templates (`+` ships disabled) and Master & spacing / Background / Grid parity: open gaps vs `#/demo`, raised to the Owner in the PR (no item without Owner approval).
 - `bestTemplateId` candidates unchanged.
 
 ### Delta / Risk

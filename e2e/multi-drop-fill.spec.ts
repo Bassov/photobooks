@@ -17,7 +17,7 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import { pointOf } from './fixtures/locatorBox'
-import { applyLayout } from './fixtures/layoutTiles'
+import { applyContactSheet } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import type { Page } from '@playwright/test'
 
@@ -125,12 +125,12 @@ test.describe('multi-select and multi-drop', () => {
     await assertDocumentFitsViewport(page)
   })
 
-  test('four photos dropped on a 4-grid fill all frames in order, one undo step', async ({
+  test('four photos dropped on a 2×2 contact sheet fill all frames in order, one undo step', async ({
     page,
   }) => {
     test.setTimeout(120_000)
     const ids = await importFour(page)
-    await applyLayout(page, '4-grid')
+    await applyContactSheet(page, 2, 2)
     const frame = page
       .getByRole('button', { name: 'Place photo', exact: true })
       .first()

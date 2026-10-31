@@ -47,6 +47,9 @@ import {
   subscribeSpread,
 } from './bookStore'
 import { resetThumbCache, setThumbUrl } from './thumbCache'
+import { setGridVisible } from './gridView'
+import { setGuidesVisible } from './guidesView'
+import { setTemplatePreview } from './templatePreview'
 
 function twoSpreadBook() {
   let book = makeBook({
@@ -815,6 +818,73 @@ describe('per-spread paint subscription', () => {
     expect(
       spread.getAllByRole('button', { name: 'Select photo to move' }),
     ).toHaveLength(1)
+  })
+})
+
+describe('Preview render (editorLayer off)', () => {
+  afterEach(() => {
+    cleanup()
+    setGridVisible(false)
+    setGuidesVisible(false)
+    setTemplatePreview(null)
+    resetFrameSelection()
+    resetBookStore()
+  })
+
+  function selectFrameWithEditorChrome(): string {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id ?? ''
+    act(() => {
+      setFrameSource({ spreadId: 's0', frameId })
+      setGridVisible(true)
+      setGuidesVisible(true)
+      setTemplatePreview({ spreadId: 's0', templateId: 'full-bleed' })
+    })
+    return frameId
+  }
+
+  const editorChrome = () => ({
+    controls: screen.queryAllByRole('button').length,
+    handles: screen.queryAllByTestId('sel-handle').length,
+    sizeTag: screen.queryAllByTestId('frame-size-tag').length,
+    grid: screen.queryAllByTestId('grid-overlay').length,
+    guides: screen.queryAllByTestId('guides-layer').length,
+    templatePreview: screen.queryAllByTestId('tpl-preview').length,
+  })
+
+  it('mounts no frame controls, handles, grid, guides or template preview', () => {
+    const frameId = selectFrameWithEditorChrome()
+    render(<ConnectedSpreadView spreadId="s0" editorLayer={false} />)
+    expect(editorChrome()).toEqual({
+      controls: 0,
+      handles: 0,
+      sizeTag: 0,
+      grid: 0,
+      guides: 0,
+      templatePreview: 0,
+    })
+    expect(screen.getByTestId('spread-frame').tagName).toBe('DIV')
+    // Selection is untouched: the editor shows it again after Preview.
+    expect(getFrameSource()).toEqual({ spreadId: 's0', frameId })
+  })
+
+  it('the editor render of the same state shows the editor layer', () => {
+    selectFrameWithEditorChrome()
+    render(<ConnectedSpreadView spreadId="s0" />)
+    expect(editorChrome()).toEqual({
+      controls: 1,
+      handles: 8,
+      sizeTag: 1,
+      grid: 1,
+      guides: 1,
+      templatePreview: 1,
+    })
   })
 })
 

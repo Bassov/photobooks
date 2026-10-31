@@ -9,7 +9,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
-import { applyLayout } from './fixtures/layoutTiles'
+import { applyContactSheet, applyLayout } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   choosePhotoFolder,
@@ -140,7 +140,7 @@ test('switching a template keeps photos in order and unplaces extras', async ({
   })
   await page.bringToFront()
 
-  await applyLayout(page, '4-grid')
+  await applyContactSheet(page, 2, 2)
   const active = page.getByTestId('spread-view').first()
   const empty = active.getByRole('button', {
     name: 'Place photo',
@@ -161,7 +161,7 @@ test('switching a template keeps photos in order and unplaces extras', async ({
     .locator('button[data-filled="true"]')
     .evaluateAll((els) => els.map((el) => el.getAttribute('data-asset-id')))
 
-  await applyLayout(page, '2-up')
+  await applyLayout(page, 'Two portraits')
   await expect(active.getByRole('button', { name: 'Place photo' })).toHaveCount(
     0,
   )

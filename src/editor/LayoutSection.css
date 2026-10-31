@@ -11,6 +11,8 @@
 /* Kit TemplateTile button (uikit/src/sandbox/context-inspector.tsx:104-106). */
 .layout-tile {
   display: block;
+  /* Kit tiles keep their own height beside a two-line caption. */
+  align-self: start;
   width: 100%;
   min-width: 0;
   padding: 4px;

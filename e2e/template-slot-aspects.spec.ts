@@ -17,8 +17,8 @@ test('portrait and contact-sheet templates apply and switch back', async ({
     .first()
     .getByTestId('spread-frame-placeholder')
 
-  await applyLayout(page, '2 portraits')
-  const twoPortraits = layoutTile(page, '2 portraits')
+  await applyLayout(page, 'Two portraits')
+  const twoPortraits = layoutTile(page, 'Two portraits')
   await expect(frames).toHaveCount(2)
 
   await page.getByTestId('layout-contact-cols').fill('3')
@@ -32,7 +32,7 @@ test('portrait and contact-sheet templates apply and switch back', async ({
   await page.getByTestId('layout-contact-cols').press('Tab')
   await expect(page.getByTestId('layout-contact-cols')).toHaveValue('5')
 
-  await applyLayout(page, '2-up')
+  await applyLayout(page, 'Offset pair')
   await expect(frames).toHaveCount(2)
   await assertDocumentFitsViewport(page)
 })
