@@ -45,6 +45,7 @@ M3 and M4 below keep finished items until the owner archives them (M4 is fully d
 - [ ] [feature] [design-r3-canvas-fit](roadmap/P1/design-r3-canvas-fit.md) — Bug: design-r3-canvas-fit: canvas Fit on spread change + click on a selected frame
 - [ ] [feature] [design-r3-book-cover](roadmap/P1/design-r3-book-cover.md) — Bug: design-r3-book-cover: back-cover text, spine width, Pages row
 - [x] [feature] [design-r3-chrome](roadmap/P1/design-r3-chrome.md) — Bug: design-r3-chrome: top-bar centring, filmstrip dock height
+- [ ] [feature] [fix-flaky-node-tests](roadmap/P1/fix-flaky-node-tests.md) — Bug: fix-flaky-node-tests: make 2 flaky node tests deterministic (root cause, no loosening)
 - [ ] [feature] [design-r3-library-forms](roadmap/P1/design-r3-library-forms.md) — Bug: design-r3-library-forms: rename field pill, quiet focus rings
 - [ ] [feature] [design-r2-layout-picker](roadmap/P1/design-r2-layout-picker.md) — Bug: design-r2-layout-picker - Spread inspector Layout picker = kit (M21)
 - [x] [feature] [fix-spread-gap-zoom](roadmap/P1/fix-spread-gap-zoom.md) — Bug: fix-spread-gap-zoom — gap between spreads must scale with zoom (Owner bug, 2026-10-31)
