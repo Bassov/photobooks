@@ -822,6 +822,18 @@ describe('pickActiveSpread', () => {
     expect(pickActiveSpread(whole, 'spread-9')).toBe('spread-1')
   })
 
+  it('still keeps the current spread exactly at the tie margin', () => {
+    expect(
+      pickActiveSpread(
+        [
+          { id: 'spread-1', ratio: 1, index: 0 },
+          { id: 'spread-2', ratio: 1 - 0.02, index: 1 },
+        ],
+        'spread-2',
+      ),
+    ).toBe('spread-2')
+  })
+
   it('hands the mark over once the current spread is clearly less visible', () => {
     expect(
       pickActiveSpread(
