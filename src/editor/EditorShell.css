@@ -176,9 +176,9 @@
   position: relative;
 }
 
-/* Own compositor layer: spread mounts and template switches would otherwise
-   re-raster the blurred shadows with the scroll content (LoAF gates). A
-   zero-size layout root: per-frame shadow moves never relayout the port. */
+/* A zero-size layout root: per-frame shadow moves never relayout the port.
+   No own compositor layer: one spanning every mounted shadow re-rasters on
+   each zoom frame and settle (continuous zoom-out LoAF gate). */
 .pasteboard-shadows {
   position: absolute;
   inset: 0 auto auto 0;
@@ -186,7 +186,6 @@
   height: 0;
   contain: size layout style;
   pointer-events: none;
-  will-change: transform;
 }
 
 /* World-local page rect (--u/--v from the transform origin) mapped through
