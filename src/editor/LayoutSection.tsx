@@ -461,7 +461,7 @@ function LayoutPicker({
         </div>
         {suggested.length > 0 ? (
           <div data-testid="tpl-suggested">
-            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium">
+            <div className="layout-group-label mb-1.5 flex items-center gap-1.5 text-xs font-medium">
               <Icon name="sparkles" size={14} className="layout-muted" />
               Suggested for {photoLabel(photos)}
             </div>
@@ -472,7 +472,9 @@ function LayoutPicker({
         ) : null}
         <div>
           {suggested.length > 0 ? (
-            <div className="mb-1.5 text-xs font-medium">All layouts</div>
+            <div className="layout-group-label mb-1.5 text-xs font-medium">
+              All layouts
+            </div>
           ) : null}
           {list.length > 0 ? (
             <div className="grid grid-cols-2 gap-1.5" data-testid="tpl-grid">
@@ -494,7 +496,7 @@ function LayoutPicker({
             </p>
           )}
         </div>
-        <p className="layout-muted layout-caption" data-testid="tpl-hint">
+        <p className="layout-muted layout-caption m-0" data-testid="tpl-hint">
           Hover a layout to preview it on the spread; click to apply. Photos are
           kept in order.
         </p>

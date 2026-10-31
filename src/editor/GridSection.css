@@ -3,6 +3,13 @@
   color: var(--muted-foreground);
 }
 
+/* Kit inspector body type: `text-sm` 13 / 18.85 px (line-height 1.45),
+   inherited by the summary line and the Show grid row. */
+.grid-section-spread,
+.grid-section-spread .text-sm {
+  line-height: 1.45;
+}
+
 .grid-field {
   display: flex;
   min-width: 0;

@@ -138,7 +138,7 @@ function SpreadGridSection({ spreadId }: { spreadId: string | undefined }) {
       data-testid="grid"
     >
       <div
-        className="grid-section px-4 pt-0.5 pb-3"
+        className="grid-section grid-section-spread px-4 pt-0.5 pb-3"
         data-testid="grid-section-spread"
         role="group"
         aria-label="Grid"

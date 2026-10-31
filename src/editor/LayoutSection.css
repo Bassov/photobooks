@@ -3,6 +3,11 @@
   color: var(--muted-foreground);
 }
 
+/* Kit group label (`mb-1.5 text-xs font-medium`): 12 / 16.8 px. */
+.layout-group-label {
+  line-height: 1.4;
+}
+
 .layout-caption {
   font-size: var(--text-2xs);
   line-height: var(--text-2xs--line-height);
@@ -242,11 +247,14 @@
   font-weight: 600;
 }
 
+/* Kit tpl-empty: `rounded-md bg-field/60 p-4 text-xs` (12 / 16.8 px). */
 .layout-empty {
+  margin: 0;
   padding: 16px;
   border-radius: var(--radius-md);
-  background: var(--field);
+  background: color-mix(in srgb, var(--field) 60%, transparent);
   color: var(--muted-foreground);
+  line-height: 1.4;
 }
 
 /* Kit LayoutTemplate glyph: `mx-auto mb-1.5 size-4`. */

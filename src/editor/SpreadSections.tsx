@@ -79,6 +79,7 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
             max={MARGIN_MAX_MM}
             unit="millimeter"
             testId="spread-margin"
+            editableValue
             onChange={(mm) => {
               dispatchBookOp({
                 type: 'setSpreadGrid',
@@ -94,6 +95,7 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
             max={GAP_MAX_MM}
             unit="millimeter"
             testId="spread-gap"
+            editableValue
             onChange={(mm) => {
               dispatchBookOp({
                 type: 'setSpreadGrid',

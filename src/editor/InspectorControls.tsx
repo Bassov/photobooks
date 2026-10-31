@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
+import { useContext, useState, type ReactNode } from 'react'
 import {
   Label,
   Slider,
   SliderOutput,
+  SliderStateContext,
   SliderThumb,
   SliderTrack,
 } from 'react-aria-components'
@@ -133,7 +134,64 @@ export function Swatches({
   )
 }
 
-/** Kit `SliderRow` on slider B (fit-crop-*): label, value readout, track. */
+/**
+ * Kit `SliderValueField` (uikit components/ui/slider.tsx): the slider value as
+ * a text field. Focus shows the bare number; Enter / blur commits it clamped to
+ * the range, Escape restores the formatted value.
+ */
+function SliderValueField({ label }: { label: string }) {
+  const state = useContext(SliderStateContext)
+  const [draft, setDraft] = useState<string | null>(null)
+  if (state === null) {
+    return null
+  }
+  const commit = () => {
+    if (draft === null) return
+    const n = parseFloat(draft.replace(',', '.'))
+    if (Number.isFinite(n)) {
+      state.setThumbValue(
+        0,
+        Math.min(
+          state.getThumbMaxValue(0),
+          Math.max(state.getThumbMinValue(0), n),
+        ),
+      )
+    }
+    setDraft(null)
+  }
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label={`${label} value`}
+      data-testid="slider-value"
+      className="insp-slider-value font-medium tabular-nums"
+      value={draft ?? state.getThumbValueLabel(0)}
+      onFocus={(event) => {
+        setDraft(String(state.getThumbValue(0)))
+        event.target.select()
+      }}
+      onChange={(event) => {
+        setDraft(event.target.value)
+      }}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          commit()
+          event.currentTarget.blur()
+        } else if (event.key === 'Escape') {
+          setDraft(null)
+          event.currentTarget.blur()
+        }
+      }}
+    />
+  )
+}
+
+/**
+ * Kit `SliderRow` on slider B (fit-crop-*): label, value readout, track.
+ * `editableValue`: the kit SliderValueField instead of a read-only output.
+ */
 export function InspectorSlider({
   label,
   value,
@@ -143,6 +201,7 @@ export function InspectorSlider({
   unit,
   onChange,
   testId,
+  editableValue = false,
 }: {
   label: string
   value: number
@@ -152,6 +211,7 @@ export function InspectorSlider({
   unit?: Intl.NumberFormatOptions['unit']
   onChange: (value: number) => void
   testId?: string
+  editableValue?: boolean
 }) {
   return (
     <Slider
@@ -174,7 +234,11 @@ export function InspectorSlider({
     >
       <div className="flex items-center justify-between text-xs">
         <Label className="fit-crop-label">{label}</Label>
-        <SliderOutput className="font-medium tabular-nums" />
+        {editableValue ? (
+          <SliderValueField label={label} />
+        ) : (
+          <SliderOutput className="font-medium tabular-nums" />
+        )}
       </div>
       <SliderTrack
         className="fit-crop-track"

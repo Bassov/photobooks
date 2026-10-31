@@ -7,25 +7,22 @@
   margin-top: 12px;
 }
 
-/* Kit SliderRow: 16.8 px label row over an 11 px track (27.8 px rows). */
-.spread-spacing .fit-crop-slider {
-  gap: 0;
-}
-
+/* Kit SliderRow (`flex-col gap-2`): 16.8 px label row, 8 px gap, 3 px
+   track (`h-0.75`), so 27.8 px rows; the thumb overhangs the track. */
 .spread-spacing .fit-crop-slider > div:first-child {
   line-height: 1.4;
 }
 
 .spread-spacing .fit-crop-track {
-  height: 11px;
+  height: 3px;
 }
 
 .spread-spacing .fit-crop-track::before {
-  inset: 4px 0;
+  inset: 0;
 }
 
 .spread-spacing .fit-crop-fill {
-  top: 4px;
+  top: 0;
 }
 
 /* Kit Segmented (components/app/controls.tsx:56-59): medium weight, the

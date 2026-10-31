@@ -108,23 +108,33 @@ test('the spread inspector: kit header, no Spread properties, sections in order 
   )
   const body = page.getByTestId('inspector-body')
   await expect(body.getByText('Spread properties')).toHaveCount(0)
-  // Kit `#/demo` continues Master & spacing, Background, Grid: not built yet
-  // (gap raised to the Owner in the design-r2-layout-picker PR).
-  await expect(body.locator('.inspector-eyebrow')).toHaveText([
+  // Kit `#/demo` spread context (Step 0): Layout, Master & spacing,
+  // Background, Grid, each an uppercase Section header.
+  const titles = body.locator('.inspector-eyebrow')
+  await expect(titles).toHaveText([
     'Layout',
-    'Layout grid',
+    'Master & spacing',
+    'Background',
+    'Grid',
   ])
+  for (const title of await titles.all()) {
+    await expect(title).toHaveCSS('text-transform', 'uppercase')
+  }
 })
 
 test('My templates shows a readable one-line empty state', async ({ page }) => {
   await page.getByTestId('tab-mine').click()
   await expect(allTiles(page)).toHaveCount(0)
   const empty = page.getByTestId('tpl-empty')
-  await expect(empty).toHaveText('No templates yet.')
+  // Kit tpl-empty copy (context-inspector.tsx:191).
+  await expect(empty).toHaveText('No templates yet. Save a spread you like.')
   // Kit tpl-empty is a p-4 box; its text sits on one line.
   const text = await empty.evaluate((el) => {
+    // The copy only: the kit LayoutTemplate glyph sits on its own row above.
+    const copy = [...el.childNodes].find((n) => n.nodeType === Node.TEXT_NODE)
+    if (copy === undefined) throw new Error('no copy')
     const range = document.createRange()
-    range.selectNodeContents(el)
+    range.selectNodeContents(copy)
     const rect = range.getBoundingClientRect()
     return {
       width: rect.width,
@@ -337,4 +347,142 @@ test('hovering a tile previews its slots on the spread; leaving clears it', asyn
     'true',
   )
   await expect(preview).toHaveCount(0)
+})
+
+/** Kit `#/demo` "My templates" (uikit sandbox `templates.ts`), in kit order. */
+const KIT_SAVED = ['Travel opener', 'Polaroid pair', 'Quote + photo']
+
+/** Reload into the session editor; `search` may carry the `?templates=kit` seed. */
+async function reopenEditor(page: Page, search = '') {
+  await page.goto(`/${search}`)
+  await expect(page.getByTestId('welcome-screen')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.evaluate(() => {
+    window.__photobooksProject?.startSessionEditor()
+  })
+  await expect(page.getByTestId('layout-section')).toBeVisible({
+    timeout: 15_000,
+  })
+  await page.mouse.move(0, 899)
+}
+
+test('the kit fixture shows All 13 / My templates 3 in kit order', async ({
+  page,
+}) => {
+  await reopenEditor(page, '?templates=kit')
+  await expect(page.getByTestId('tab-all')).toHaveText('All 13')
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 3')
+  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([
+    ...KIT_LAYOUTS,
+    ...KIT_SAVED,
+  ])
+  await page.getByTestId('tab-mine').click()
+  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText(KIT_SAVED)
+})
+
+test('a new user has My templates 0; a saved spread appears in My templates and All and persists', async ({
+  page,
+}) => {
+  await expect(page.getByTestId('tab-all')).toHaveText('All 10')
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 0')
+  await selectSecondSpread(page)
+  await page.getByTestId('tpl-save').click()
+  const input = page.getByTestId('tpl-rename-input')
+  await expect(input).toBeFocused()
+  await expect(input).toHaveValue('My layout 1')
+  await input.fill('Trip opener')
+  await input.press('Enter')
+  await expect(input).toHaveCount(0)
+  await expect(page.getByTestId('tab-mine')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')
+  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([
+    'Trip opener',
+  ])
+  await page.getByTestId('tab-all').click()
+  await expect(page.getByTestId('tab-all')).toHaveText('All 11')
+  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([
+    ...KIT_LAYOUTS,
+    'Trip opener',
+  ])
+
+  await reopenEditor(page)
+  await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')
+  await page.getByTestId('tab-mine').click()
+  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([
+    'Trip opener',
+  ])
+})
+
+test('Master & spacing, Background and Grid match the kit boxes', async ({
+  page,
+}) => {
+  await selectSecondSpread(page)
+  // Kit #/demo, spread 2–3 at 1440 × 900 (Step 0 DOM measurements).
+  const sections = [
+    ['spread-master-spacing', 170.59],
+    ['spread-background', 95],
+    ['grid', 176.53],
+  ] as const
+  for (const [testId, height] of sections) {
+    const b = await box(page.getByTestId(testId))
+    expect(b.width).toBeCloseTo(300, 0)
+    expect(Math.abs(b.height - height)).toBeLessThanOrEqual(0.5)
+  }
+  const masters = page.getByRole('radiogroup', { name: 'Master' })
+  for (const name of ['Master A', 'Master B', 'None']) {
+    const b = await box(masters.getByRole('radio', { name }))
+    expect(Math.abs(b.width - 86.66)).toBeLessThanOrEqual(0.5)
+    expect(b.height).toBeCloseTo(24, 0)
+  }
+  for (const testId of ['spread-margin', 'spread-gap']) {
+    const row = page.getByTestId(testId)
+    const value = await box(row.getByTestId('slider-value'))
+    const track = await box(row.locator('.fit-crop-track'))
+    expect(value.width).toBeCloseTo(64, 0)
+    expect(Math.abs(value.height - 16.8)).toBeLessThanOrEqual(0.5)
+    expect(track.width).toBeCloseTo(268, 0)
+    expect(track.height).toBeCloseTo(3, 0)
+    expect(Math.abs(track.y - value.y - 24.8)).toBeLessThanOrEqual(0.5)
+  }
+  const swatches = page.getByTestId('bg-swatches').getByRole('button')
+  await expect(swatches).toHaveCount(6)
+  const first = await box(swatches.nth(0))
+  const second = await box(swatches.nth(1))
+  expect([first.width, first.height]).toEqual([28, 28])
+  expect(second.x - first.x).toBeCloseTo(34, 0)
+})
+
+test('Margin, Gap and Background write the spread', async ({ page }) => {
+  await selectSecondSpread(page)
+  const margin = page.getByTestId('spread-margin').getByTestId('slider-value')
+  await margin.click()
+  await margin.fill('12')
+  await margin.press('Enter')
+  await expect(margin).toHaveValue('12 mm')
+  // The spread grid now overrides all four margins (Grid shows Custom).
+  for (const field of ['top', 'bottom', 'inside', 'outside']) {
+    await expect(
+      page.getByTestId(`grid-field-${field}`).getByRole('textbox'),
+    ).toHaveValue('12')
+  }
+  const gap = page.getByTestId('spread-gap').getByTestId('slider-value')
+  await gap.fill('99')
+  await gap.press('Enter')
+  await expect(gap).toHaveValue('20 mm')
+  await page
+    .getByTestId('bg-swatches')
+    .getByRole('button', { name: 'Background #2a2927' })
+    .click()
+  await expect(
+    page
+      .getByTestId('bg-swatches')
+      .getByRole('button', { name: 'Background #2a2927' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    page.locator('[data-testid="spread-view"][data-spread-id="spread-2"]'),
+  ).toHaveCSS('background-color', 'rgb(42, 41, 39)')
 })
