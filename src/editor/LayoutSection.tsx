@@ -1,76 +1,67 @@
-import { memo, useMemo, useState, useSyncExternalStore } from 'react'
+import { memo, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Input, NumberField } from 'react-aria-components'
 import {
   CONTACT_MAX_COLS,
   CONTACT_MAX_ROWS,
-  TEMPLATE_IDS,
   contactSheetId,
   generateTemplateFrames,
+  getSpreadPageCount,
   getSpreadSizeMm,
   parseContactSheetId,
   type Book,
-  type Frame,
+  type FixedTemplateId,
+  type RectMm,
   type Spread,
 } from '../core'
 import { Button } from '../ui/Button'
+import { Disclosure } from '../ui/Disclosure'
 import { Icon } from '../ui/Icon'
+import { IconButton } from '../ui/IconButton'
 import { LAYOUT_CHIPS, matchesChip, type LayoutChipId } from './layoutChips'
+import { LAYOUT_PICKER, TEMPLATE_NAMES, templateName } from './layoutCatalog'
+import { percentStyle, thumbPaperBox, thumbSlots } from './layoutThumb'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
+import { setTemplatePreview } from './templatePreview'
 import './LayoutSection.css'
 
-type FixedTemplateId = (typeof TEMPLATE_IDS)[number]
-
-const TEMPLATE_NAMES: Record<FixedTemplateId, string> = {
-  'full-bleed': 'Full bleed',
-  'one-per-page': 'One per page',
-  '2-up': '2-up',
-  '4-grid': '4-grid',
-  'two-portraits': '2 portraits',
-  'landscape-two-portraits': 'Landscape + 2 portraits',
-}
+/** Kit LayoutSection shows at most three suggestions (context-inspector.tsx:143). */
+const MAX_SUGGESTED = 3
 
 function readBook() {
   return getBookStoreSnapshot().book
 }
 
-function templateName(templateId: string | undefined): string | null {
-  if (templateId === undefined) {
-    return null
-  }
-  const contact = parseContactSheetId(templateId)
-  if (contact !== null) {
-    return `Contact sheet ${String(contact.cols)}×${String(contact.rows)}`
-  }
-  const fixed = TEMPLATE_IDS.find((id) => id === templateId)
-  return fixed === undefined ? null : TEMPLATE_NAMES[fixed]
-}
-
+/** Kit TemplateThumb (uikit/src/sandbox/chrome.tsx:241): 2:1 paper, slots, spine. */
 const TemplateThumb = memo(function TemplateThumb({
   widthMm,
   heightMm,
-  frames,
+  rects,
+  spine,
 }: {
   widthMm: number
   heightMm: number
-  frames: readonly Frame[]
+  rects: readonly RectMm[]
+  spine: boolean
 }) {
   return (
-    <svg
-      className="layout-thumb"
-      viewBox={`0 0 ${String(widthMm)} ${String(heightMm)}`}
-      aria-hidden="true"
-    >
-      {frames.map((frame) => (
-        <rect
-          key={frame.id}
-          x={frame.rect.x}
-          y={frame.rect.y}
-          width={frame.rect.width}
-          height={frame.rect.height}
-        />
-      ))}
-    </svg>
+    <div className="layout-thumb" data-testid="layout-thumb" aria-hidden="true">
+      <div
+        className="layout-thumb-paper"
+        data-testid="layout-thumb-paper"
+        style={percentStyle(thumbPaperBox(widthMm, heightMm))}
+      >
+        {thumbSlots(widthMm, heightMm, rects).map((slot, index) => (
+          <div
+            key={index}
+            className="layout-thumb-slot"
+            data-testid="layout-thumb-slot"
+            style={percentStyle(slot)}
+          />
+        ))}
+        {spine ? <div className="layout-thumb-spine" /> : null}
+      </div>
+    </div>
   )
 })
 
@@ -106,11 +97,18 @@ function CountField({
   )
 }
 
-/** Kit LayoutSection: template tiles (fixed catalog) + contact sheet. */
+/** Kit LayoutSection: template tiles (kit catalog order) + contact sheet. */
 export function LayoutSection({ spreadId }: { spreadId: string }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const spreadIndex = book.spreads.findIndex((item) => item.id === spreadId)
   const spread = book.spreads[spreadIndex]
+  // Kit ContextInspector drops the canvas preview when the picker goes away.
+  useEffect(
+    () => () => {
+      setTemplatePreview(null)
+    },
+    [],
+  )
   if (spread === undefined) {
     return null
   }
@@ -122,6 +120,10 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
       spreadIndex={spreadIndex}
     />
   )
+}
+
+function photoLabel(count: number): string {
+  return `${String(count)} photo${count === 1 ? '' : 's'}`
 }
 
 function LayoutPicker({
@@ -157,11 +159,18 @@ function LayoutPicker({
   const spreadGrid = spread.layoutGrid
   const geometry = useMemo(() => {
     const size = getSpreadSizeMm(book, spreadIndex)
-    const frames = {} as Record<FixedTemplateId, readonly Frame[]>
-    for (const id of TEMPLATE_IDS) {
-      frames[id] = generateTemplateFrames(id, book, spreadIndex, spread)
+    const rects = {} as Record<FixedTemplateId, readonly RectMm[]>
+    for (const id of LAYOUT_PICKER) {
+      rects[id] = generateTemplateFrames(id, book, spreadIndex, spread).map(
+        (frame) => frame.rect,
+      )
     }
-    return { widthMm: size.widthMm, heightMm: size.heightMm, frames }
+    return {
+      widthMm: size.widthMm,
+      heightMm: size.heightMm,
+      spine: getSpreadPageCount(spreadIndex, book.spreads.length) === 2,
+      rects,
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [
     book.layoutGrid,
@@ -170,8 +179,8 @@ function LayoutPicker({
     spreadIndex,
     spreadGrid,
   ])
-  const summary = templateName(current)
-  const slotCount = (id: FixedTemplateId) => geometry.frames[id].length
+  const summary = templateName(current) ?? undefined
+  const slotCount = (id: FixedTemplateId) => geometry.rects[id].length
   // Kit: filled photo frames, else every frame of the spread.
   const filled = spread.frames.filter((f) => f.assetId !== undefined).length
   const photos = filled > 0 ? filled : spread.frames.length
@@ -180,14 +189,16 @@ function LayoutPicker({
   const list =
     tab === 'mine'
       ? []
-      : TEMPLATE_IDS.filter(
+      : LAYOUT_PICKER.filter(
           (id) =>
             matchesChip(slotCount(id), chip) &&
             TEMPLATE_NAMES[id].toLowerCase().includes(wanted),
         )
   const suggested =
     tab === 'all' && chip === 'all' && wanted === ''
-      ? TEMPLATE_IDS.filter((id) => slotCount(id) === photos && id !== current)
+      ? LAYOUT_PICKER.filter(
+          (id) => slotCount(id) === photos && id !== current,
+        ).slice(0, MAX_SUGGESTED)
       : []
   const tile = (id: FixedTemplateId, testId: string) => (
     <button
@@ -198,165 +209,192 @@ function LayoutPicker({
       data-template={id}
       aria-pressed={current === id}
       aria-label={`${testId === 'layout-tile' ? 'Apply layout' : 'Apply suggested layout'} ${TEMPLATE_NAMES[id]}`}
+      title={`${TEMPLATE_NAMES[id]} · ${photoLabel(slotCount(id))} — hover to preview, click to apply`}
+      onMouseEnter={() => {
+        setTemplatePreview({ spreadId, templateId: id })
+      }}
+      onMouseLeave={() => {
+        setTemplatePreview(null)
+      }}
+      onFocus={() => {
+        setTemplatePreview({ spreadId, templateId: id })
+      }}
+      onBlur={() => {
+        setTemplatePreview(null)
+      }}
       onClick={() => {
+        setTemplatePreview(null)
         applyMarkedSpreadTemplate(spreadId, id)
       }}
     >
       <TemplateThumb
         widthMm={geometry.widthMm}
         heightMm={geometry.heightMm}
-        frames={geometry.frames[id]}
+        rects={geometry.rects[id]}
+        spine={geometry.spine}
       />
-      <span className="layout-tile-name">{TEMPLATE_NAMES[id]}</span>
+      <span className="layout-tile-name" data-testid="tpl-name">
+        {TEMPLATE_NAMES[id]}
+      </span>
     </button>
   )
   return (
-    <section
-      className="flex flex-col gap-3 px-4 py-4"
-      data-testid="layout-section"
-      aria-label="Layout"
+    <Disclosure
+      title="Layout"
+      defaultExpanded
+      summary={summary}
+      data-testid="layout"
+      right={
+        // Saving custom layouts lands with roadmap item my-templates.
+        <IconButton
+          label="Save as template"
+          size="sm"
+          isDisabled
+          data-testid="tpl-save"
+        >
+          <Icon name="plus" />
+        </IconButton>
+      }
     >
-      <header className="flex items-center gap-2">
-        <h4 className="inspector-eyebrow">Layout</h4>
-        {summary === null ? null : (
-          <span
-            className="layout-muted truncate text-xs"
-            data-testid="layout-summary"
-          >
-            {summary}
-          </span>
-        )}
-      </header>
-      {/* Kit tabs / search / chips: uikit/src/sandbox/context-inspector.tsx:163-175.
-          Toggle buttons, not role=tablist: the inspector itself has no tabs. */}
       <div
-        className="layout-tabs"
+        className="flex flex-col gap-3 px-4 pt-0.5 pb-3"
+        data-testid="layout-section"
         role="group"
-        aria-label="Template source"
-        data-testid="layout-tabs"
+        aria-label="Layout"
       >
-        <button
-          type="button"
-          aria-pressed={tab === 'all'}
-          data-testid="tab-all"
-          onClick={() => {
-            setTab('all')
-          }}
+        {/* Kit tabs / search / chips: uikit/src/sandbox/context-inspector.tsx:163-175.
+            Toggle buttons, not role=tablist: the inspector itself has no tabs. */}
+        <div
+          className="layout-tabs"
+          role="group"
+          aria-label="Template source"
+          data-testid="layout-tabs"
         >
-          All <span className="layout-muted">{TEMPLATE_IDS.length}</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={tab === 'mine'}
-          data-testid="tab-mine"
-          onClick={() => {
-            setTab('mine')
-          }}
-        >
-          My templates <span className="layout-muted">0</span>
-        </button>
-      </div>
-      <label className="layout-search">
-        <Icon name="search" size={14} />
-        <input
-          type="search"
-          aria-label="Search layouts"
-          placeholder="Search layouts"
-          data-testid="layout-search"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value)
-          }}
-        />
-      </label>
-      <div
-        className="flex items-center gap-1"
-        role="group"
-        aria-label="Photos per layout"
-        data-testid="tpl-chips"
-      >
-        <span className="layout-muted mr-1 text-xs">Photos</span>
-        {LAYOUT_CHIPS.map(([id, text]) => (
           <button
-            key={id}
             type="button"
-            className="layout-chip"
-            aria-pressed={chip === id}
-            data-chip={id}
+            aria-pressed={tab === 'all'}
+            data-testid="tab-all"
             onClick={() => {
-              setChip(id)
+              setTab('all')
             }}
           >
-            {text}
+            All <span className="layout-muted">{LAYOUT_PICKER.length}</span>
           </button>
-        ))}
-      </div>
-      {suggested.length > 0 ? (
-        <div data-testid="tpl-suggested">
-          <div className="mb-1.5 text-xs font-medium">
-            Suggested for {photos} photo{photos === 1 ? '' : 's'}
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {suggested.map((id) => tile(id, 'layout-suggested-tile'))}
-          </div>
-        </div>
-      ) : null}
-      <div>
-        {suggested.length > 0 ? (
-          <div className="mb-1.5 text-xs font-medium">All layouts</div>
-        ) : null}
-        {list.length > 0 ? (
-          <div className="grid grid-cols-2 gap-1.5">
-            {list.map((id) => tile(id, 'layout-tile'))}
-          </div>
-        ) : (
-          <p
-            className="layout-empty text-center text-xs"
-            data-testid="tpl-empty"
+          <button
+            type="button"
+            aria-pressed={tab === 'mine'}
+            data-testid="tab-mine"
+            onClick={() => {
+              setTab('mine')
+            }}
           >
-            {query === '' && chip === 'all'
-              ? 'No templates yet.'
-              : 'No layouts match.'}
-          </p>
-        )}
-      </div>
-      <p className="layout-muted text-xs" data-testid="tpl-hint">
-        Click a layout to apply it to the spread. Photos are kept in order.
-      </p>
-      <div
-        className="flex items-center gap-1.5"
-        role="group"
-        aria-label="Contact sheet"
-      >
-        <CountField
-          label="Columns"
-          max={CONTACT_MAX_COLS}
-          value={cols}
-          onChange={setCols}
-          testId="layout-contact-cols"
-        />
-        <span className="layout-muted text-xs" aria-hidden="true">
-          ×
-        </span>
-        <CountField
-          label="Rows"
-          max={CONTACT_MAX_ROWS}
-          value={rows}
-          onChange={setRows}
-          testId="layout-contact-rows"
-        />
-        <Button
-          variant="secondary"
-          size="sm"
-          className="ml-auto"
-          data-testid="layout-contact-apply"
-          onPress={() => {
-            applyMarkedSpreadTemplate(spreadId, contactSheetId(cols, rows))
-          }}
+            My templates <span className="layout-muted">0</span>
+          </button>
+        </div>
+        <label className="layout-search">
+          <Icon name="search" size={14} />
+          <input
+            type="search"
+            aria-label="Search layouts"
+            placeholder="Search layouts"
+            data-testid="layout-search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value)
+            }}
+          />
+        </label>
+        <div
+          className="flex items-center gap-1"
+          role="group"
+          aria-label="Photos per layout"
+          data-testid="tpl-chips"
         >
-          Contact sheet
-        </Button>
+          <span className="layout-muted layout-caption mr-1">Photos</span>
+          {LAYOUT_CHIPS.map(([id, text]) => (
+            <button
+              key={id}
+              type="button"
+              className="layout-chip"
+              aria-pressed={chip === id}
+              data-chip={id}
+              onClick={() => {
+                setChip(id)
+              }}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+        {suggested.length > 0 ? (
+          <div data-testid="tpl-suggested">
+            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium">
+              <Icon name="sparkles" size={14} className="layout-muted" />
+              Suggested for {photoLabel(photos)}
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {suggested.map((id) => tile(id, 'layout-suggested-tile'))}
+            </div>
+          </div>
+        ) : null}
+        <div>
+          {suggested.length > 0 ? (
+            <div className="mb-1.5 text-xs font-medium">All layouts</div>
+          ) : null}
+          {list.length > 0 ? (
+            <div className="grid grid-cols-2 gap-1.5" data-testid="tpl-grid">
+              {list.map((id) => tile(id, 'layout-tile'))}
+            </div>
+          ) : (
+            <p
+              className="layout-empty text-center text-xs"
+              data-testid="tpl-empty"
+            >
+              {query === '' && chip === 'all'
+                ? 'No templates yet.'
+                : 'No layouts match.'}
+            </p>
+          )}
+        </div>
+        <p className="layout-muted layout-caption" data-testid="tpl-hint">
+          Hover a layout to preview it on the spread; click to apply. Photos are
+          kept in order.
+        </p>
+        <div
+          className="flex items-center gap-1.5"
+          role="group"
+          aria-label="Contact sheet"
+        >
+          <CountField
+            label="Columns"
+            max={CONTACT_MAX_COLS}
+            value={cols}
+            onChange={setCols}
+            testId="layout-contact-cols"
+          />
+          <span className="layout-muted text-xs" aria-hidden="true">
+            ×
+          </span>
+          <CountField
+            label="Rows"
+            max={CONTACT_MAX_ROWS}
+            value={rows}
+            onChange={setRows}
+            testId="layout-contact-rows"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            className="ml-auto"
+            data-testid="layout-contact-apply"
+            onPress={() => {
+              applyMarkedSpreadTemplate(spreadId, contactSheetId(cols, rows))
+            }}
+          >
+            Contact sheet
+          </Button>
+        </div>
       </div>
-    </section>
+    </Disclosure>
   )
 }

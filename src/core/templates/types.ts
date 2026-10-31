@@ -5,6 +5,12 @@ export const TEMPLATE_IDS = [
   '4-grid',
   'two-portraits',
   'landscape-two-portraits',
+  'hero-two',
+  'hero-grid',
+  'panorama',
+  'three-across',
+  'framed-single',
+  'offset-pair',
 ] as const
 
 export type FixedTemplateId = (typeof TEMPLATE_IDS)[number]

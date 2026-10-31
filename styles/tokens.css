@@ -320,6 +320,14 @@
   --placeholder-border: #c6c6c6;
   --placeholder-fg: #5e5c5d;
   --placeholder-block: #d5d5d5;
+  /* Kit TemplateThumb spine (bg-black/10). */
+  --thumb-spine: rgb(0 0 0 / 0.1);
+  /* Kit TemplatePreview scrim (bg-background/70). */
+  --template-preview-scrim: color-mix(
+    in srgb,
+    var(--background) 70%,
+    transparent
+  );
   --parent: #6b696a;
   --parent-soft: #a3a1a2;
   --dpi-low: #393738;

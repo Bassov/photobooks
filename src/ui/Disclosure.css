@@ -1,6 +1,27 @@
+/* Kit SectionHeader: flex items-center gap-1 pr-2 around the trigger. */
+.pb-disclosure__header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1);
+  padding-right: calc(var(--spacing) * 2);
+}
+
 .pb-disclosure__heading {
   display: flex;
+  flex: 1;
+  min-width: 0;
   margin: 0;
+}
+
+.pb-disclosure__summary {
+  overflow: hidden;
+  margin-left: auto;
+  padding-left: calc(var(--spacing) * 2);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pb-disclosure__trigger {
@@ -16,6 +37,10 @@
   text-align: left;
   cursor: pointer;
   outline: none;
+}
+
+.pb-disclosure__trigger[data-hovered] .inspector-eyebrow {
+  color: var(--foreground);
 }
 
 .pb-disclosure__trigger[data-focus-visible] {

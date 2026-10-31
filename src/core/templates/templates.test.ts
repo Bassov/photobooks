@@ -13,6 +13,8 @@ describe('isTemplateId', () => {
     expect(isTemplateId('one-per-page')).toBe(true)
     expect(isTemplateId('2-up')).toBe(true)
     expect(isTemplateId('4-grid')).toBe(true)
+    expect(isTemplateId('hero-grid')).toBe(true)
+    expect(isTemplateId('offset-pair')).toBe(true)
     expect(isTemplateId('other')).toBe(false)
     expect(isTemplateId('')).toBe(false)
   })
@@ -133,6 +135,126 @@ describe('template generators', () => {
     expect(frames[1]?.rect).toEqual({ x: 102, y: 10, width: 88, height: 87 })
     expect(frames[2]?.rect).toEqual({ x: 10, y: 103, width: 88, height: 87 })
     expect(frames[3]?.rect).toEqual({ x: 102, y: 103, width: 88, height: 87 })
+  })
+
+  describe('kit layouts on a one-page spread (halves = content split by the gutter)', () => {
+    // 200×200 page, 10 mm margins: content 180×180; halves 88 wide at x 10 / 102.
+    const book = makeBook({
+      layoutGrid: {
+        margins: { top: 10, bottom: 10, inside: 10, outside: 10 },
+        columns: 2,
+        rows: 2,
+        columnGutterMm: 4,
+        rowGutterMm: 6,
+      },
+      settings: { trim: { widthMm: 200, heightMm: 200 } },
+    })
+    const rects = (id: Parameters<typeof generateTemplateFrames>[0]) =>
+      generateTemplateFrames(id, book, 0).map((frame) => frame.rect)
+    const left = { x: 10, y: 10, width: 88, height: 180 }
+    const right = { x: 102, y: 10, width: 88, height: 180 }
+
+    it('hero-two: left half plus the right half in two rows', () => {
+      expect(rects('hero-two')).toEqual([
+        left,
+        { x: 102, y: 10, width: 88, height: 87 },
+        { x: 102, y: 103, width: 88, height: 87 },
+      ])
+    })
+
+    it('hero-grid: left half plus a 2×2 grid in the right half', () => {
+      expect(rects('hero-grid')).toEqual([
+        left,
+        { x: 102, y: 10, width: 42, height: 87 },
+        { x: 148, y: 10, width: 42, height: 87 },
+        { x: 102, y: 103, width: 42, height: 87 },
+        { x: 148, y: 103, width: 42, height: 87 },
+      ])
+    })
+
+    it('panorama: a centered 7:2 frame across the content box', () => {
+      const [pano, ...rest] = rects('panorama')
+      expect(rest).toEqual([])
+      expect(pano?.x).toBe(10)
+      expect(pano?.width).toBe(180)
+      expect(pano?.height).toBeCloseTo(180 / 3.5)
+      expect(pano?.y).toBeCloseTo(10 + (180 - 180 / 3.5) / 2)
+    })
+
+    it('three-across: three centered squares in gutter-separated columns', () => {
+      const cells = rects('three-across')
+      const side = (180 - 2 * 4) / 3
+      expect(cells).toHaveLength(3)
+      cells.forEach((cell, i) => {
+        expect(cell.x).toBeCloseTo(10 + i * (side + 4))
+        expect(cell.width).toBeCloseTo(side)
+        expect(cell.height).toBeCloseTo(side)
+        expect(cell.y).toBeCloseTo(10 + (180 - side) / 2)
+      })
+    })
+
+    it('framed-single: the right half', () => {
+      expect(rects('framed-single')).toEqual([right])
+    })
+
+    it('offset-pair: top 70% of the left half, bottom 70% of the right', () => {
+      const [top, bottom, ...rest] = rects('offset-pair')
+      expect(rest).toEqual([])
+      expect(top).toMatchObject({ x: 10, y: 10, width: 88 })
+      expect(top?.height).toBeCloseTo(126)
+      expect(bottom).toMatchObject({ x: 102, width: 88 })
+      expect(bottom?.y).toBeCloseTo(64)
+      expect(bottom?.height).toBeCloseTo(126)
+    })
+  })
+
+  it('kit layouts stay inside the content box without overlaps on both spread kinds', () => {
+    const book = makeBook({
+      spreads: [
+        makeSpread({ id: 'a' }),
+        makeSpread({ id: 'b' }),
+        makeSpread({ id: 'c' }),
+      ],
+    })
+    const m = book.layoutGrid.margins
+    const H = book.settings.trim.heightMm
+    const counts = {
+      'hero-two': 3,
+      'hero-grid': 5,
+      panorama: 1,
+      'three-across': 3,
+      'framed-single': 1,
+      'offset-pair': 2,
+    } as const
+    for (const spreadIndex of [0, 1]) {
+      const W = book.settings.trim.widthMm * (spreadIndex === 1 ? 2 : 1)
+      for (const [id, count] of Object.entries(counts)) {
+        const frames = generateTemplateFrames(
+          id as keyof typeof counts,
+          book,
+          spreadIndex,
+        )
+        expect(frames, id).toHaveLength(count)
+        for (const { rect } of frames) {
+          expect(rect.x).toBeGreaterThanOrEqual(Math.min(m.inside, m.outside))
+          expect(rect.y).toBeGreaterThanOrEqual(m.top)
+          expect(rect.x + rect.width).toBeLessThanOrEqual(
+            W - Math.min(m.inside, m.outside) + 1e-9,
+          )
+          expect(rect.y + rect.height).toBeLessThanOrEqual(H - m.bottom + 1e-9)
+        }
+        frames.forEach((a, i) => {
+          frames.slice(i + 1).forEach((b) => {
+            const apart =
+              a.rect.x + a.rect.width <= b.rect.x + 1e-9 ||
+              b.rect.x + b.rect.width <= a.rect.x + 1e-9 ||
+              a.rect.y + a.rect.height <= b.rect.y + 1e-9 ||
+              b.rect.y + b.rect.height <= a.rect.y + 1e-9
+            expect(apart, `${id} ${a.id}/${b.id}`).toBe(true)
+          })
+        })
+      }
+    }
   })
 
   it('4-grid on interior spread uses double width', () => {

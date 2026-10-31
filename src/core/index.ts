@@ -99,6 +99,7 @@ export {
   contactSheetId,
   isTemplateId,
   parseContactSheetId,
+  type FixedTemplateId,
   type TemplateId,
 } from './templates/types'
 export {
