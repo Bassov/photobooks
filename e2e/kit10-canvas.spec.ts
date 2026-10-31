@@ -13,7 +13,12 @@ test.describe('kit v0.10 canvas and pasteboard', () => {
     const board = page.locator('.editor-workspace')
     await expect(board).toHaveCSS('background-color', 'rgb(200, 202, 203)')
     await expect(board).toHaveCSS('background-image', /radial-gradient/)
-    const spread = await spreadView.boundingBox()
+    // A single page sits on its half of a spread-wide slot (round 7, M45):
+    // the slot is what is centred.
+    const spread = await page
+      .locator('[data-pasteboard-slot][data-active="true"]')
+      .first()
+      .boundingBox()
     const scroll = await page.getByTestId('pasteboard-scroll').boundingBox()
     expect(spread).not.toBeNull()
     expect(scroll).not.toBeNull()
