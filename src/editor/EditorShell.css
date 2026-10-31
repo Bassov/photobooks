@@ -176,10 +176,13 @@
   position: relative;
 }
 
+/* Own compositor layer: spread mounts and template switches would otherwise
+   re-raster the blurred shadows with the scroll content (LoAF gates). */
 .pasteboard-shadows {
   position: absolute;
   inset: 0 auto auto 0;
   pointer-events: none;
+  will-change: transform;
 }
 
 /* World-local page rect (--u/--v from the transform origin) mapped through
