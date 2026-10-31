@@ -51,6 +51,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
   - No `timeout` wrapper on `stryker:diff` or other long commands; the Bash tool `timeout` is the limit.
   - Edit files with `Edit`/`Write`, not `sed -i` or `python3`.
   - No `cd` / `git -C`: run from the worktree root and pass paths.
+  - No inline `node -e` / `node --input-type=module -e` (or `python3 -c`) scripts, even read-only: the auto-mode classifier denies them. Read JSON reports (e.g. `reports/mutation/mutation.json`) with `Read`/`Grep`, and take Stryker counts from the `pnpm stryker:diff` output.
 - Clean tree; `feat|fix/<slug>` from `origin/main`.
 - Do **not** merge/rebase `origin/main` on the happy path (behind + unique commits → warn only).
 
