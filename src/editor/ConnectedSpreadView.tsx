@@ -247,7 +247,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     return control
   }
   // Preview mounts no editor layer at all: no frame controls (selection,
-  // handles, size tag, crop, drag), grid, guides or template preview.
+  // handles, crop, drag), grid, guides or template preview.
   const editorProps = editorLayer
     ? {
         overlay: (

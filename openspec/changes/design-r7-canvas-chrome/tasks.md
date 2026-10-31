@@ -1,10 +1,10 @@
 ## Implementation
 
-- [ ] 1. M52: remove the size tag span, `sizeLabel`, `writeSizeTag` and `.spread-frame-size-tag`; unit tests assert no size tag.
-- [ ] 2. M51: wrap the empty / missing hints in `.spread-frame-hints` with `data-camera-frame`; counter-scale it about its centre with `--cam-scale`.
-- [ ] 3. M51: crop tag, dpi and lock badges carry `data-camera-frame` and counter-scale about their frame corner.
-- [ ] 4. M51: page cuts carry `data-camera-frame`, centred on the cut and 1 screen px at every zoom; never on thumbs.
-- [ ] 5. e2e `design-r7-canvas-chrome.spec.ts` (per-rAF zoom samples; select / drag / resize / crop without size tag) and the three size-tag specs flipped to "no size tag exists" (Owner design change, round 7, M52).
+- [x] 1. M52: remove the size tag span, `sizeLabel`, `writeSizeTag` and `.spread-frame-size-tag`; unit tests assert no size tag.
+- [x] 2. M51: wrap the empty / missing hints in `.spread-frame-hints` with `data-camera-frame`; counter-scale it about its centre with `--cam-scale`.
+- [x] 3. M51: crop tag, dpi and lock badges carry `data-camera-frame` and counter-scale about their frame corner.
+- [x] 4. M51: page cuts carry `data-camera-frame`, centred on the cut and 1 screen px at every zoom; never on thumbs.
+- [x] 5. e2e `design-r7-canvas-chrome.spec.ts` (per-rAF zoom samples; select / drag / resize / crop without size tag) and the three size-tag specs flipped to "no size tag exists" (Owner design change, round 7, M52).
 
 ## Manual test scenarios
 
