@@ -812,6 +812,24 @@ function writeBulkImportFixtures(count: number): string[] {
   return writeBulkImportFixtureSet(count).files
 }
 
+/** `count` copies of the 24 MP JPEG under distinct names (one folder). */
+function writeLargeJpegFolder(count: number): string[] {
+  ensurePhotoFixtures()
+  const dir = join(
+    tmpdir(),
+    `photobooks-large-${String(process.pid)}-${String(count)}-${String(Date.now())}`,
+  )
+  mkdirSync(dir, { recursive: true })
+  const jpeg = readFileSync(photoFixturePaths.largeJpeg)
+  const files: string[] = []
+  for (let i = 0; i < count; i += 1) {
+    const path = join(dir, `large-${String(i).padStart(2, '0')}.jpg`)
+    writeFileSync(path, jpeg)
+    files.push(path)
+  }
+  return files
+}
+
 /** CRC-32 for PNG chunk trailers. */
 function pngCrc32(data: Buffer): number {
   let crc = 0xffffffff
@@ -1457,6 +1475,53 @@ test.describe('frame-budget gates', () => {
     })
 
     await assertCiPerfGates(page)
+    await collectFrameStatsArtifact(page, testInfo)
+  })
+
+  test('24 MP folder import while scrolling stays at 0 LoAF', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(180_000)
+    const files = writeLargeJpegFolder(16)
+    await enablePerfScenario(page)
+    await clearPerfScenario(page)
+
+    await expect(page.getByTestId('film-add-folder')).toBeEnabled()
+    await choosePhotoFolder(page, files)
+
+    // List-first rows land before decode; off-screen JPEGs decode as the
+    // scroll reveals them, so the window below overlaps thumb decodes.
+    await expect(page.getByTestId('filmstrip')).toHaveAttribute(
+      'data-gallery-count',
+      '16',
+      { timeout: 60_000 },
+    )
+
+    await beginFilmstripLoafScrollWindow(page)
+    const placeholdersAtStart = await page
+      .getByTestId('filmstrip-placeholder')
+      .count()
+    await scrollFilmstripLoafWindow(page)
+
+    // Observed window numbers for the PR before/after record.
+    const loaf = await page.evaluate(() => {
+      const entries = (window.__photobooksPerf?.getLoafEntries() ??
+        []) as readonly { blockingDuration: number }[]
+      const blocking = entries.filter((entry) => entry.blockingDuration > 0)
+      return {
+        count: blocking.length,
+        blockingMs: Math.round(
+          blocking.reduce((sum, entry) => sum + entry.blockingDuration, 0),
+        ),
+      }
+    })
+    testInfo.annotations.push({
+      type: 'loaf-window',
+      description: `entries=${String(loaf.count)} blockingMs=${String(loaf.blockingMs)} placeholdersAtStart=${String(placeholdersAtStart)}`,
+    })
+    await page.evaluate(browserAssertNoLoaf, 0)
+
+    await expect(page.getByTestId('filmstrip-thumb').first()).toBeVisible()
     await collectFrameStatsArtifact(page, testInfo)
   })
 })

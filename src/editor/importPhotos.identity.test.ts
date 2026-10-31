@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetScanWorker } from '../assets'
+import { createMemoryAssetSource, resetScanWorker } from '../assets'
 import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
 import {
   createMemoryLibraryStorage,
@@ -19,6 +19,7 @@ import {
   attachLibraryForTests,
   createBookInLibrary,
   getRegisteredAssetSource,
+  registerAssetSource,
   resetProjectSessionForTests,
 } from './projectSession'
 import { getThumbUrl, resetThumbCache } from './thumbCache'
@@ -935,9 +936,160 @@ describe('importPhotoFiles library identity', () => {
     await vi.waitFor(() => {
       expect(seedSpy).toHaveBeenCalled()
     })
-    expect(
-      seedSpy.mock.calls.every((call) => call[0].bytes === undefined),
-    ).toBe(true)
+    for (const call of seedSpy.mock.calls) {
+      expect(call[0]).not.toHaveProperty('bytes')
+    }
+  })
+
+  it('FSA root: decode asks for no source body and never seeds memory', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    registerAssetSource('root-fsa', {
+      scanRoot: () => Promise.resolve({ ok: true as const, value: [] }),
+      resolveFile: () =>
+        Promise.resolve({ ok: false as const, code: 'not-found' as const }),
+      readForHash: () =>
+        Promise.resolve({ ok: false as const, code: 'not-found' as const }),
+    })
+    const memorySpy = vi.spyOn(seedLibraryImport, 'memorySourceForRoot')
+    const seedSpy = vi.spyOn(seedLibraryImport, 'seedAndHashEntry')
+    let bodyReads = 0
+    const file = neverResolvingFile('fsa.jpg', () => {
+      bodyReads += 1
+    })
+    const requested: (boolean | undefined)[] = []
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File; returnSource?: boolean }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+          }) => void
+        },
+      ) => {
+        for (const item of items) {
+          requested.push(item.returnSource)
+          // Worker reply for a request without returnSource: no sourceBuffer.
+          options?.onResult?.({
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 10,
+            correctedHeight: 10,
+            orientation: 1,
+            previewBuffer: new Uint8Array([1]).buffer,
+            previewMimeType: 'image/webp',
+          })
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
+
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-fsa',
+    })
+
+    expect(requested).toEqual([false])
+    await vi.waitFor(() => {
+      expect(seedSpy).toHaveBeenCalledOnce()
+    })
+    expect(seedSpy.mock.calls[0]?.[0]).not.toHaveProperty('memorySource')
+    expect(seedSpy.mock.calls[0]?.[0]).not.toHaveProperty('bytes')
+    expect(memorySpy).not.toHaveBeenCalled()
+    expect(bodyReads).toBe(0)
+  })
+
+  it('memory root: seeds once from the decode bytes without a second read', async () => {
+    const storage = createMemoryLibraryStorage()
+    await attachLibraryForTests({
+      storage,
+      session: createMemorySessionState(),
+    })
+    await createBookInLibrary()
+    const memory = createMemoryAssetSource()
+    registerAssetSource('root-mem', memory)
+    const seedFileSpy = vi.spyOn(memory, 'seedFile')
+    let bodyReads = 0
+    const file = neverResolvingFile('mem.jpg', () => {
+      bodyReads += 1
+    })
+    const sourceBuffer = new Uint8Array([4, 5, 6]).buffer
+    const requested: (boolean | undefined)[] = []
+    runImportBatch.mockImplementation(
+      (
+        items: { assetId: string; file: File; returnSource?: boolean }[],
+        options?: {
+          onResult?: (result: {
+            assetId: string
+            name: string
+            correctedWidth: number
+            correctedHeight: number
+            orientation: number
+            previewBuffer: ArrayBuffer
+            previewMimeType: string
+            sourceBuffer?: ArrayBuffer
+          }) => void
+        },
+      ) => {
+        for (const item of items) {
+          requested.push(item.returnSource)
+          options?.onResult?.({
+            assetId: item.assetId,
+            name: item.file.name,
+            correctedWidth: 10,
+            correctedHeight: 10,
+            orientation: 1,
+            previewBuffer: new Uint8Array([1]).buffer,
+            previewMimeType: 'image/webp',
+            sourceBuffer,
+          })
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
+
+    await importPhotoFiles([file], {
+      libraryBacked: true,
+      sourceRootId: 'root-mem',
+    })
+
+    expect(requested).toEqual([true])
+    await vi.waitFor(() => {
+      expect(seedFileSpy).toHaveBeenCalledOnce()
+    })
+    expect(seedFileSpy).toHaveBeenCalledWith(
+      'root-mem',
+      'mem.jpg',
+      sourceBuffer,
+      file.lastModified,
+    )
+    expect(bodyReads).toBe(0)
+  })
+
+  it('session import without a source root asks for no source body', async () => {
+    const requested: (boolean | undefined)[] = []
+    runImportBatch.mockImplementation(
+      (items: { assetId: string; file: File; returnSource?: boolean }[]) => {
+        for (const item of items) {
+          requested.push(item.returnSource)
+        }
+        return Promise.resolve({ results: [], errors: [] })
+      },
+    )
+
+    await importPhotoFiles([tinyJpeg('session.jpg')], { libraryBacked: false })
+
+    expect(requested).toEqual([false])
   })
 
   it('does not seed deferred HEIC body reads during prefetch import', async () => {

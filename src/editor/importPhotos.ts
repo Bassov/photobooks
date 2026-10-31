@@ -39,7 +39,11 @@ import {
 import { tryPatchManifestFromAsset } from './folderManifestWrite'
 import { isLibraryBacked } from './projectSession'
 import { seedWorkingPreview } from '../photo/tierCache'
-import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
+import {
+  isMemoryBackedRoot,
+  memorySourceForRoot,
+  seedAndHashEntry,
+} from './seedLibraryImport'
 import { trackHashJob } from './pendingHashes'
 import { setThumbUrl } from './thumbCache'
 
@@ -187,7 +191,8 @@ function applyImportResult(result: {
       ),
     )
   }
-  // Library seed once decode lands — reuse worker body when present (no second read).
+  // Library seed once decode lands — memory roots reuse the worker body (no
+  // second read); FSA roots only put identity-keyed caches.
   const asset = getBookStoreSnapshot().book.assets[result.assetId]
   const file = getAssetSource(result.assetId)
   const sourceRootId = asset?.sourceRootId
@@ -202,13 +207,21 @@ function applyImportResult(result: {
       file,
       relativePath,
       sourceRootId,
-      memorySource: memorySourceForRoot(sourceRootId),
     }
-    if (result.sourceBuffer !== undefined) {
-      seedOptions.bytes = result.sourceBuffer
+    if (isMemoryBackedRoot(sourceRootId)) {
+      seedOptions.memorySource = memorySourceForRoot(sourceRootId)
+      if (result.sourceBuffer !== undefined) {
+        seedOptions.bytes = result.sourceBuffer
+      }
     }
     void seedAndHashEntry(seedOptions)
   }
+}
+
+/** Ask the worker for the original body only when library seed keeps it. */
+function wantsSourceBytes(assetId: string): boolean {
+  const sourceRootId = getBookStoreSnapshot().book.assets[assetId]?.sourceRootId
+  return sourceRootId !== undefined && isMemoryBackedRoot(sourceRootId)
 }
 
 function discardFailedImport(assetId: string): void {
@@ -417,9 +430,14 @@ async function importPhotoFilesInner(
     }
 
     // Library seed runs from applyImportResult with worker sourceBuffer (single
-    // body read). Deferred JPEG/HEIC seed when they later decode into now.
+    // body read, memory roots only). Deferred JPEG/HEIC seed when they later
+    // decode into now.
     const immediateOutcome = await runImportBatch(
-      immediate,
+      immediate.map((entry) => ({
+        assetId: entry.assetId,
+        file: entry.file,
+        returnSource: wantsSourceBytes(entry.assetId),
+      })),
       importDecodeBatchOptions(report, heicAssetIds, options.onDecodeError),
     )
 
