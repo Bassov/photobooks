@@ -1,4 +1,4 @@
-import { FIT_BOTTOM_PX, FIT_SIDE_PX, FIT_TOP_PX } from './camera'
+import { FIT_BOTTOM_PX, FIT_SIDE_PX, FIT_TOP_PX, fitZoom } from './camera'
 
 /**
  * Space the fitted spread may fill: kit `viewport.tsx` L123–126
@@ -13,6 +13,27 @@ export function fitViewportSize(
     viewportWidth: Math.max(1, clientWidth - 2 * FIT_SIDE_PX),
     viewportHeight: Math.max(1, clientHeight - FIT_TOP_PX - FIT_BOTTOM_PX),
   }
+}
+
+/**
+ * Fit spread zoom for the whole book: the widest spread (kit `viewport.tsx`
+ * fits `SW`, two pages, for every spread) contained in the fit band. One zoom
+ * per book, so a single page and a two-page spread both fit and read "Fit".
+ */
+export function fitSpreadZoomFor(input: {
+  widestSpreadWidthPx: number
+  spreadHeightPx: number
+  clientWidth: number
+  clientHeight: number
+}): number {
+  const viewport = fitViewportSize(input.clientWidth, input.clientHeight)
+  return fitZoom({
+    contentWidthPx: input.widestSpreadWidthPx,
+    contentHeightPx: input.spreadHeightPx,
+    viewportWidth: viewport.viewportWidth,
+    viewportHeight: viewport.viewportHeight,
+    mode: 'contain',
+  })
 }
 
 export function shouldHoldCameraScroll(

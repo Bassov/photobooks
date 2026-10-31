@@ -76,7 +76,7 @@ for (const width of [1440, 1280]) {
   })
 }
 
-test('M26 empty dock is the kit 160 px and the 19 × 23 Fit spread is 588', async ({
+test('M26 empty dock is the kit 160 px and the 19 × 23 Fit page is 513.25', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -96,11 +96,14 @@ test('M26 empty dock is the kit 160 px and the 19 × 23 Fit spread is 588', asyn
   )
   expect(text.left - dock.left).toBeCloseTo(20, 0)
 
-  // Kit pasteboard 900 − 48 − 160 = 692 → Fit 692 − 104 = 588 (not 616).
+  // Kit pasteboard 900 − 48 − 160 = 692; Fit is min((928 − 80) / SW,
+  // (692 − 104) / SH): the 38 cm two-page width wins, so the page is
+  // 848 × 230 / 380 = 513.25 tall (rendered #/demo, design-r3-canvas-fit).
   await chooseZoom(page, 'Fit spread')
   await expect
     .poll(async () => (await spreadBoxes(page))[0]?.height ?? 0)
-    .toBeCloseTo(588, 0)
+    .toBeCloseTo(513.25, 0)
+  // M36 gap is a share of the spread height, so it holds at any Fit height.
   await expectStackGapRatio(page)
 })
 

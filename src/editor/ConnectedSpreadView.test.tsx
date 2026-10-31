@@ -190,6 +190,27 @@ describe('per-spread paint subscription', () => {
     expect(frame.getAttribute('data-crop-active')).toBeNull()
   })
 
+  it('a pointer click keeps the selected frame; Enter on it cancels the move', () => {
+    resetBookStore({
+      book: twoSpreadBook(),
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const frame = screen.getByTestId('spread-frame')
+    const frameId = frame.getAttribute('data-frame-id') ?? ''
+    fireEvent.click(frame, { detail: 1 })
+    expect(getFrameSource()).toEqual({ spreadId: 's0', frameId })
+    fireEvent.click(frame, { detail: 1 })
+    expect(getFrameSource()).toEqual({ spreadId: 's0', frameId })
+    expect(frame.getAttribute('aria-pressed')).toBe('true')
+    // Keyboard activation (detail 0) keeps the aria-pressed toggle.
+    fireEvent.click(frame, { detail: 0 })
+    expect(getFrameSource()).toBeNull()
+  })
+
   it('an empty frame neither enters crop mode nor drags', () => {
     resetBookStore({
       book: addSpread(makeBook({ id: 'empty', spreads: [] }), { id: 's0' }),

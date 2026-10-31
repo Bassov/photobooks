@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   beginDelayedFitFollow,
   createDelayedFitFollow,
+  fitSpreadZoomFor,
   fitViewportSize,
   resolveDelayedFitFrame,
   scheduleDelayedFitDoubleRaf,
@@ -23,6 +24,59 @@ describe('fitViewportSize', () => {
       viewportWidth: 1,
       viewportHeight: 1,
     })
+  })
+})
+
+describe('fitSpreadZoomFor', () => {
+  // Port 928 × 732 → fit band 848 × 628 (kit pads 40 / 56 / 48).
+  const port = { clientWidth: 928, clientHeight: 732 }
+
+  it('contains the widest spread by width when it is the tighter axis', () => {
+    // 30 × 30 cm pages: the two-page spread is 600 × 300 at 1 px/mm.
+    expect(
+      fitSpreadZoomFor({
+        widestSpreadWidthPx: 600,
+        spreadHeightPx: 300,
+        ...port,
+      }),
+    ).toBeCloseTo(848 / 600, 10)
+  })
+
+  it('contains the widest spread by height when it is the tighter axis', () => {
+    expect(
+      fitSpreadZoomFor({
+        widestSpreadWidthPx: 380,
+        spreadHeightPx: 400,
+        ...port,
+      }),
+    ).toBeCloseTo(628 / 400, 10)
+  })
+
+  it('fits a single page at the two-page zoom, not its own', () => {
+    const book = {
+      widestSpreadWidthPx: 600,
+      spreadHeightPx: 300,
+      ...port,
+    }
+    const zoom = fitSpreadZoomFor(book)
+    // The single page (300 wide) would fit taller on its own; Fit keeps the
+    // book-wide zoom so the two-page spreads still fit.
+    expect(zoom).toBeLessThan(
+      fitSpreadZoomFor({ ...book, widestSpreadWidthPx: 300 }),
+    )
+    expect(600 * zoom).toBeLessThanOrEqual(848)
+    expect(300 * zoom).toBeLessThanOrEqual(628)
+  })
+
+  it('subtracts the fit band before containing', () => {
+    expect(
+      fitSpreadZoomFor({
+        widestSpreadWidthPx: 100,
+        spreadHeightPx: 1000,
+        clientWidth: 2000,
+        clientHeight: 1104,
+      }),
+    ).toBeCloseTo(1, 10)
   })
 })
 
