@@ -1,8 +1,8 @@
 import { deflateSync } from 'node:zlib'
 import { createHash } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeIfChanged } from './writeIfChanged.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -101,14 +101,14 @@ function createTransparentCornersPng(size = 32, corner = 8) {
 
 const out = join(__dirname, 'sample-3x2.png')
 const rgb = createPng(30, 20)
-writeFileSync(out, rgb)
+writeIfChanged(out, rgb)
 console.log(
   `wrote ${out} sha=${createHash('sha256').update(rgb).digest('hex').slice(0, 12)}`,
 )
 
 const transparentOut = join(__dirname, 'transparent_corners.png')
 const rgba = createTransparentCornersPng()
-writeFileSync(transparentOut, rgba)
+writeIfChanged(transparentOut, rgba)
 console.log(
   `wrote ${transparentOut} sha=${createHash('sha256').update(rgba).digest('hex').slice(0, 12)}`,
 )
