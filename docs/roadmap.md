@@ -16,12 +16,13 @@ Owner priorities (2026-10-29), kit **v0.10.0**:
 4. **P4 — print.**
 5. **P5 — let other people make their own personal site** (kit-first).
 
-Finished items are deleted from the index (git history is the record); M3 and M4 were retired. Items whose kit page was removed in v0.10 with no replacement, and kit-first items whose UI is absent from `uikit/src/sandbox` (Designer call B1, 2026-10-30), are held in `docs/backlog/`; Owner re-adds them with `pnpm roadmap add` once their kit page lands. "In the kit" means present in `uikit/src/sandbox` and wired into the `#/demo` editor, even if reachable only through a flag or shortcut (RULES.md); such items are scheduled with sandbox `file:line` refs and marked `kit: sandbox, not shown in #/demo` (Designer kit-first audit, 2026-10-30). Counts: P1 1, P2 12, P3 13, P4 10, P5 3 open; held in `docs/backlog/`: 3 kit-first (`guides-precise`, `kit2-undo-history` history list, `onboarding-others`) and 5 with their kit page removed (incl. `preflight-fixes`).
+Finished items are deleted from the index (git history is the record); M3 and M4 were retired. Items whose kit page was removed in v0.10 with no replacement, and kit-first items whose UI is absent from `uikit/src/sandbox` (Designer call B1, 2026-10-30), are held in `docs/backlog/`; Owner re-adds them with `pnpm roadmap add` once their kit page lands. "In the kit" means present in `uikit/src/sandbox` and wired into the `#/demo` editor, even if reachable only through a flag or shortcut (RULES.md); such items are scheduled with sandbox `file:line` refs and marked `kit: sandbox, not shown in #/demo` (Designer kit-first audit, 2026-10-30). Counts: P1 2, P2 12, P3 13, P4 10, P5 3 open; held in `docs/backlog/`: 3 kit-first (`guides-precise`, `kit2-undo-history` history list, `onboarding-others`) and 5 with their kit page removed (incl. `preflight-fixes`).
 
 ## P1 — Align the editor to the kit (v0.10.0)
 
 **Review cut:** product screens look like kit v0.10.0 `#/demo`; stubs allowed, no fake controls. Done when: product screens match `#/demo` baseline steps 01–20, 23–26 and 39–49 by Designer review (21–22 land with P2 `parent-spreads`, 27–31 with P4 `pdf-export`, 32–38 with P3).
 
+- [ ] [feature] [fix-flaky-node-tests](roadmap/P1/fix-flaky-node-tests.md) — Bug: fix-flaky-node-tests: make 2 flaky node tests deterministic (root cause, no loosening)
 - [ ] [lite] [e2e-photo-fixture-race](roadmap/P1/e2e-photo-fixture-race.md) — Fix: e2e photo fixtures are rewritten while other workers import them
 
 ## P2 — Missing features, iterative
