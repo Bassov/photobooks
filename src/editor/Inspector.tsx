@@ -7,7 +7,6 @@ import {
 } from 'react'
 import { Icon } from '../ui/Icon'
 import type { IconName } from '../ui/icons/glyphs'
-import { IconButton } from '../ui/IconButton'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { CoverSection } from './CoverSection'
 import { isCoverSelected, subscribeCoverSelection } from './coverSelection'
@@ -76,7 +75,7 @@ const CONTEXT_HEADER: Partial<
 }
 
 /** Kit InspectorPanel: BAR surface, quiet header, rows follow the selection. */
-export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
+export function Inspector() {
   const frameSource = useSyncExternalStore(
     subscribeFrameSelection,
     getFrameSource,
@@ -158,45 +157,31 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void }) {
       data-inspector-view={view.kind === 'photo' ? 'frame' : view.kind}
       style={{ color: T }}
     >
-      {onCollapse || context !== null ? (
-        // Kit InspectorShell header (uikit/src/sandbox/context-inspector.tsx:35-42).
+      {context === null ? null : (
+        // Kit InspectorShell header (uikit/src/sandbox/context-inspector.tsx:35-42)
+        // without its "Hide inspector" button: Owner Must M54 (round 7) keeps
+        // only the top-bar toggle, so Cover / Endpaper / Book open on their
+        // own section heads (M48).
         <div
           className="flex h-12 shrink-0 items-center gap-2 pr-2 pl-4"
           data-testid="inspector-header"
         >
-          {context === null ? null : (
-            <>
-              <span className="inspector-context-icon" style={{ color: SUB }}>
-                <Icon name={context.icon} />
-              </span>
-              <div className="flex min-w-0 flex-col leading-tight">
-                <h2
-                  className="inspector-context-title"
-                  data-testid="inspector-context"
-                >
-                  {context.title}
-                </h2>
-                {view.kind === 'spread' ? (
-                  <SpreadSummary spreadId={view.spreadId} />
-                ) : null}
-              </div>
-            </>
-          )}
-          {onCollapse ? (
-            <span className="ml-auto flex" style={{ color: SUB }}>
-              <IconButton
-                label="Hide inspector (I)"
-                size="sm"
-                placement="left"
-                onPress={onCollapse}
-                data-testid="panel-collapse-right"
-              >
-                <Icon name="panelRightClose" />
-              </IconButton>
-            </span>
-          ) : null}
+          <span className="inspector-context-icon" style={{ color: SUB }}>
+            <Icon name={context.icon} />
+          </span>
+          <div className="flex min-w-0 flex-col leading-tight">
+            <h2
+              className="inspector-context-title"
+              data-testid="inspector-context"
+            >
+              {context.title}
+            </h2>
+            {view.kind === 'spread' ? (
+              <SpreadSummary spreadId={view.spreadId} />
+            ) : null}
+          </div>
         </div>
-      ) : null}
+      )}
       <div
         className="scroll-thin min-h-0 flex-1 overflow-y-auto"
         data-testid="inspector-body"
