@@ -1,10 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import {
-  SPINE_WIDTH_MAX_MM,
-  SPINE_WIDTH_MIN_MM,
-  type CoverPanelName,
-  type CoverStyle,
-} from '../core'
+import { type CoverPanelName, type CoverStyle } from '../core'
 import { Select } from '../ui/Select'
 import {
   DIRECTION_OPTIONS,
@@ -12,18 +7,14 @@ import {
   MATERIAL_OPTIONS,
   TITLE_FONT_OPTIONS,
 } from './coverOptions'
-import {
-  InspectorRow,
-  InspectorSlider,
-  ReadOnlyPill,
-} from './InspectorControls'
+import { InspectorRow, ReadOnlyPill } from './InspectorControls'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
 import { COVER_WRAP_MM, coverPanelPpi } from './coverLayout'
-import { SUB } from './editorChromeTokens'
+import { SUB, fmtN } from './editorChromeTokens'
 import './CoverCanvas.css'
 import { useCoverPhotoUrl } from './useCoverPhotoUrl'
 
@@ -185,17 +176,15 @@ export function CoverSection() {
       />
       <h4 className="inspector-eyebrow">Spine</h4>
       <CoverText panel="spine" label="Spine text" />
-      <InspectorSlider
-        label="Spine width"
-        value={style.spineWidthMm}
-        min={SPINE_WIDTH_MIN_MM}
-        max={SPINE_WIDTH_MAX_MM}
-        unit="millimeter"
-        testId="cover-spine-width"
-        onChange={(spineWidthMm) => {
-          setStyle({ spineWidthMm })
-        }}
-      />
+      {/* Rendered #/demo step 13: Spine width is read-only mono text. */}
+      <InspectorRow label="Spine width">
+        <span
+          className="font-mono text-sm tabular-nums"
+          data-testid="cover-spine-width"
+        >
+          {fmtN(style.spineWidthMm)} mm
+        </span>
+      </InspectorRow>
       {/* Kit v7.tsx:215: Direction is a read-only Val pill. */}
       <InspectorRow label="Direction">
         <ReadOnlyPill

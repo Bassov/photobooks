@@ -21,12 +21,12 @@ export function defaultCoverStyle(): CoverStyle {
   }
 }
 
-/** A new book's cover text is its title (front and spine); the back starts blank. */
+/** A new book's cover text is its title on the front, spine and back (kit `blankExtras`). */
 export function defaultCover(title: string): Cover {
   return {
     front: { text: title },
     spine: { text: title },
-    back: { text: '' },
+    back: { text: title },
     style: defaultCoverStyle(),
   }
 }

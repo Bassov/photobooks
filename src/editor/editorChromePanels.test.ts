@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { formatZoomPercent } from './camera'
 import {
+  bookSettingsSubtitle,
   bookSizeLine,
   DEFAULT_EDITOR_PANELS,
   isPanelToggleChord,
   isSpacePanCode,
   nextZoomIn,
   nextZoomOut,
+  PAGE_MAX,
+  PAGE_MIN,
   pageLabel,
+  pagesNote,
   pagesOf,
   panelHotkeyAction,
   toggleAllEditorPanels,
@@ -52,6 +56,32 @@ describe('editorChromePanels', () => {
     expect(isPanelToggleChord(true, '.')).toBe(true)
     expect(isPanelToggleChord(true, ',')).toBe(false)
     expect(isPanelToggleChord(false, '.')).toBe(false)
+  })
+
+  it('notes the kit 20–120 page range in spreads of 2', () => {
+    expect([PAGE_MIN, PAGE_MAX]).toEqual([20, 120])
+    expect(pagesNote(0)).toBe('Add 10 spreads to reach the 20-page minimum')
+    expect(pagesNote(6)).toBe('Add 7 spreads to reach the 20-page minimum')
+    expect(pagesNote(17)).toBe('Add 2 spreads to reach the 20-page minimum')
+    expect(pagesNote(18)).toBe('Add 1 spread to reach the 20-page minimum')
+    expect(pagesNote(19)).toBe('Add 1 spread to reach the 20-page minimum')
+    expect(pagesNote(20)).toBe('Pages are added in spreads of 2')
+    expect(pagesNote(120)).toBe('Pages are added in spreads of 2')
+    expect(pagesNote(121)).toBe('Remove 1 spreads to stay within 120 pages')
+    expect(pagesNote(122)).toBe('Remove 1 spreads to stay within 120 pages')
+    expect(pagesNote(123)).toBe('Remove 2 spreads to stay within 120 pages')
+  })
+
+  it('names the book in the Book settings meta line', () => {
+    expect(bookSettingsSubtitle('Back', 'Front')).toBe(
+      'Back · applies to the whole book',
+    )
+    expect(bookSettingsSubtitle('', 'Front')).toBe(
+      'Front · applies to the whole book',
+    )
+    expect(bookSettingsSubtitle('', '')).toBe(
+      'Untitled book · applies to the whole book',
+    )
   })
 
   it('formats kit page and zoom chrome labels', () => {

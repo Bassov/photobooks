@@ -6,7 +6,15 @@ import {
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
-import { fmtN, pagesOf } from './editorChromeTokens'
+import {
+  bookSettingsSubtitle,
+  fmtN,
+  PAGE_MAX,
+  PAGE_MIN,
+  pagesNote,
+  pagesOf,
+  SUB,
+} from './editorChromeTokens'
 import { Select } from '../ui/Select'
 import { InspectorRow, ReadOnlyPill, ToggleSwitch } from './InspectorControls'
 
@@ -122,11 +130,12 @@ function SizeField({
 
 /** Kit "Book settings" (uikit/src/sandbox/v7.tsx:200-210) on the document. */
 export function BookSettingsSection() {
-  const { settings, spreads } = useSyncExternalStore(
+  const { settings, spreads, cover } = useSyncExternalStore(
     subscribeBookStore,
     readBook,
     readBook,
   )
+  const pages = pagesOf(spreads.length)
   const [unit, setUnit] = useState<Unit>('cm')
   const [customPicked, setCustomPicked] = useState(false)
   const { trim, endpapers } = settings
@@ -143,8 +152,11 @@ export function BookSettingsSection() {
         <h2 className="text-sm font-semibold" data-testid="inspector-context">
           Book settings
         </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Applies to the whole book
+        <p
+          className="mt-0.5 text-xs text-muted-foreground"
+          data-testid="book-settings-subtitle"
+        >
+          {bookSettingsSubtitle(cover.back.text, cover.front.text)}
         </p>
       </div>
       <h4 className="inspector-eyebrow">Page size</h4>
@@ -236,17 +248,24 @@ export function BookSettingsSection() {
           }}
         />
       </InspectorRow>
-      {/* Kit v7.tsx:207-208: pages pill and the spreads-of-2 note. */}
+      {/* Kit v7.tsx:207-208: pages pill, range hint and the spreads note. */}
       <InspectorRow label="Pages">
-        <span data-testid="book-pages">
-          <ReadOnlyPill value={String(pagesOf(spreads.length))} />
+        <span className="flex items-center gap-1" data-testid="book-pages">
+          <ReadOnlyPill value={String(pages)} />
+          <span
+            className="text-2xs"
+            style={{ color: SUB }}
+            data-testid="book-pages-range"
+          >
+            {PAGE_MIN}–{PAGE_MAX}
+          </span>
         </span>
       </InspectorRow>
       <p
         className="text-2xs text-muted-foreground"
         data-testid="book-pages-note"
       >
-        Pages are added in spreads of 2
+        {pagesNote(pages)}
       </p>
       <h4 className="inspector-eyebrow">Print</h4>
       {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}

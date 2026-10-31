@@ -250,14 +250,15 @@ describe('InspectorControls', () => {
 })
 
 describe('CoverSection spine and direction', () => {
-  it('writes the spine width slider', () => {
+  it('shows the stored spine width as read-only mm text (rendered #/demo step 13)', () => {
     seed()
+    dispatchBookOp({ type: 'setCoverStyle', patch: { spineWidthMm: 20.5 } })
     render(<CoverSection />)
-    const slider = within(screen.getByTestId('cover-spine-width')).getByRole(
-      'slider',
-    )
-    fireEvent.change(slider, { target: { value: '20' } })
-    expect(getBookStoreSnapshot().book.cover.style.spineWidthMm).toBe(20)
+    const spine = screen.getByTestId('cover-spine-width')
+    expect(spine.textContent).toBe('20.5 mm')
+    expect(spine.className).toBe('font-mono text-sm tabular-nums')
+    expect(within(spine).queryByRole('slider')).toBeNull()
+    expect(within(spine).queryByRole('spinbutton')).toBeNull()
   })
 
   it('shows the direction as a read-only pill (uikit/src/sandbox/v7.tsx:215)', () => {

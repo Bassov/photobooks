@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { makeBook } from '../core/testing/fixtures'
+import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { BookSettingsSection } from './BookSettingsSection'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { FIELD, SUB, T } from './editorChromeTokens'
@@ -118,9 +118,35 @@ describe('Book settings read-only rows', () => {
     expect(screen.getByText('Default master')).toBeTruthy()
     expect(screen.getByText('Master A')).toBeTruthy()
     expect(screen.getByTestId('book-pages-note').textContent).toBe(
-      'Pages are added in spreads of 2',
+      'Add 9 spreads to reach the 20-page minimum',
     )
     expect(screen.getByTestId('binding-style').textContent).toBe('Hardcover')
+  })
+})
+
+// Kit v7.tsx:202,207-208: meta line names the book; Pages follows the spreads.
+describe('Book settings header and pages', () => {
+  it('names the book by its back text and counts pages from spreads', () => {
+    resetBookStore({
+      book: makeBook({
+        title: 'Lake trip',
+        spreads: Array.from({ length: 10 }, (_, i) =>
+          makeSpread({ id: `s${String(i)}` }),
+        ),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<BookSettingsSection />)
+    expect(screen.getByTestId('book-settings-subtitle').textContent).toBe(
+      'Lake trip · applies to the whole book',
+    )
+    expect(screen.getByTestId('book-pages').textContent).toBe('2020–120')
+    expect(screen.getByTestId('book-pages-range').style.color).toBe(SUB)
+    expect(screen.getByTestId('book-pages-note').textContent).toBe(
+      'Pages are added in spreads of 2',
+    )
   })
 })
 

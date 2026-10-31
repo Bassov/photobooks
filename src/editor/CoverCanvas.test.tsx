@@ -75,7 +75,7 @@ describe('CoverCanvas', () => {
     render(<CoverCanvas />)
     expect(screen.getByTestId('cover-front-text').textContent).toBe('Lake trip')
     expect(screen.getByTestId('cover-spine-text').textContent).toBe('Lake trip')
-    expect(screen.getByTestId('cover-back-text').textContent).toBe('')
+    expect(screen.getByTestId('cover-back-text').textContent).toBe('Lake trip')
     // makeBook trims to 300 mm; spine is the display-only 12 mm of 612 mm.
     const pct = (id: string) =>
       Number.parseFloat(screen.getByTestId(id).style.width)
