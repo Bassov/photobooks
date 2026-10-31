@@ -10,7 +10,11 @@ import {
   type PointerEvent,
   type UIEvent,
 } from 'react'
-import { getSinglePageSide, getSpreadPageCount } from '../core'
+import {
+  getSinglePageSide,
+  getSpreadPageCount,
+  getSpreadSlotPageCount,
+} from '../core'
 import { setFrameSource } from './frameSelection'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
@@ -580,8 +584,12 @@ export const Pasteboard = memo(function Pasteboard({
                   style={{
                     height: stride,
                     // A single page keeps a spread-wide slot (kit #/demo).
+                    // Explicit: a skipped content-visibility slot has no
+                    // intrinsic width to fit.
                     width:
-                      side === null ? undefined : 2 * trimWidthMm * pxPerMm,
+                      getSpreadSlotPageCount(slotIndex, spreadIds.length) *
+                      trimWidthMm *
+                      pxPerMm,
                     paddingBottom: gapPx,
                     containIntrinsicBlockSize: `auto ${String(stride)}px`,
                     ['--slot-pad' as string]: `${String(gapPx)}px`,
