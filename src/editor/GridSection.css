@@ -54,7 +54,7 @@
 .grid-source .pb-segmented__segment--selected,
 .grid-source .pb-segmented__segment--selected:hover {
   background: var(--t-raised);
-  box-shadow: 0 1px 2px rgb(35 34 35 / 0.14);
+  box-shadow: var(--shadow-segment);
 }
 
 /* Top-bar view toggles: ghost at rest, #CACACA (--sel) fill when on; no black. */
