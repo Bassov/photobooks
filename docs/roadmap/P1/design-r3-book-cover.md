@@ -3,7 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r3-book-cover: back-cover text, spine width, Pages row
-Status: in progress
+Status: done
 
 ## Scope
 
