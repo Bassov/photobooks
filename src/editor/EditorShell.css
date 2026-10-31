@@ -266,7 +266,7 @@
 }
 
 /* Kit PageLabels: one centred number under each page, 6 px under the spread
-   inside the 44 px gap (no stride change). A single page has one number.
+   inside the zoom-scaled gap (no stride change). A single page has one number.
    Hidden while the gap pill shows. */
 .page-labels {
   position: absolute;

@@ -20,7 +20,10 @@ import {
 } from './intersectionObserver.test-helpers'
 import { Pasteboard } from './Pasteboard'
 import { REVEAL_TRY_CEILING } from './pasteboardReveal'
-import { PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME } from './pasteboardWindow'
+import {
+  PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  STACK_GAP_RATIO,
+} from './pasteboardWindow'
 import {
   getActiveSpreadId,
   requestSpreadReveal,
@@ -381,6 +384,26 @@ describe('Pasteboard view wiring', () => {
     })
     expect(screen.getAllByTestId('pasteboard-slot')).toHaveLength(atTarget)
     expect(hooks.rafQueue).toHaveLength(0)
+  })
+
+  it('pads each slot with the gap share of its spread at any zoom', () => {
+    for (const zoom of [0.5, 3]) {
+      cleanup()
+      resetBookStore()
+      dispatchBookOp({ type: 'addSpread' })
+      commitZoom(zoom, 0, 0)
+      stubViewport(500, 240)
+      render(<Pasteboard />)
+      const slot = screen.getAllByTestId('pasteboard-slot')[0]
+      assert(slot !== undefined)
+      const stride = Number.parseFloat(slot.style.height)
+      const gap = (stride * STACK_GAP_RATIO) / (1 + STACK_GAP_RATIO)
+      expect(stride).toBeGreaterThan(0)
+      expect(Number.parseFloat(slot.style.paddingBottom)).toBeCloseTo(gap, 3)
+      expect(
+        Number.parseFloat(slot.style.getPropertyValue('--slot-pad')),
+      ).toBeCloseTo(gap, 3)
+    }
   })
 
   it('keeps lead and tail spacer heights equal to index extents times stride', () => {

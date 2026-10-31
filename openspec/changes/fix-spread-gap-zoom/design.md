@@ -9,4 +9,4 @@
 
 - Files: `src/editor/pasteboardWindow.ts`, `pasteboardView.ts`, `camera.ts`, `usePasteboardCamera.ts`, `Pasteboard.tsx`, `pageLabelsModel.ts`; tests beside them incl. `PageLabels.test.tsx`; `e2e/design-r2-spread-list.spec.ts` (M23 → ratio), new `e2e/spread-gap-zoom.spec.ts`; specs `pasteboard`, `spread-view`.
 - Unit/PBT: stride = h × (1 + ratio); overscan floor; fit-zoom stack fits the port; zoomAtPoint keeps a gap point's relative offset; label threshold.
-- e2e: ratio within 2% at floor / Fit / zoomed in (session + 40-spread); one-spread book has no gap; drop pill inside the gap; no page scroll. Skill `ui-review` before push.
+- e2e: ratio within 2% at floor / Fit / zoomed in (session + 40-spread); labels in the gap at Fit, hidden at the floor; drop pill inside the gap; no page scroll. Skill `ui-review` before push.

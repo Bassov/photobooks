@@ -4,7 +4,7 @@
 - [x] 2. Camera: drop `stackContentYAtZoom` / `stackSpreadHeightPx`; plain-scale anchoring keeps a gap point's relative offset (unit). Evidence: `camera.test.ts` PBT + pinch case.
 - [x] 3. Pasteboard slot padding + `--slot-pad` from the scaled gap; page labels gated on gap px (unit). Evidence: `PageLabels.test.tsx`, `Pasteboard.view.test.tsx`.
 - [x] 4. e2e: `spread-gap-zoom.spec.ts` (ratio constant at floor / Fit / zoomed-in, ≈ kit ratio at Fit); M23 tests move to the ratio contract. Evidence: 270/270 at `--repeat-each=30 --retries=0`; spread-view, look-parity-page-labels, design-canvas-camera, multi-drop-fill 780/780 at 30×.
-- [ ] 5. Spec sync: `pasteboard` Stack spacing, `spread-view` zoom-out floor wording.
+- [x] 5. Spec sync: `pasteboard` Stack spacing, `spread-view` zoom-out floor wording. Evidence: deltas synced into `openspec/specs/{pasteboard,spread-view}/spec.md`.
 
 ## Manual test scenarios
 

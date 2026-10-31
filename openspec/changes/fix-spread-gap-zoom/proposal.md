@@ -10,4 +10,4 @@ Roadmap: `docs/roadmap/P1/fix-spread-gap-zoom.md` (scope SoT). UI ref: uikit#/de
 ### Delta / Risk
 
 - Owner contract change: gap scales with the spread (was 44 screen px).
-- Observables: empty = one-spread book has no gap; happy = gap/spread ratio constant at floor, Fit, zoomed in; interact = gap drop pill. No page-level H/V scroll; scrolling only inside `pasteboard-scroll`.
+- Observables: empty = N/A (a gap needs two spreads); happy = gap/spread ratio constant at floor, Fit, zoomed in; interact = gap drop pill. No page-level H/V scroll; scrolling only inside `pasteboard-scroll`.
