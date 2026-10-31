@@ -200,21 +200,6 @@ export function fitZoom(input: {
   return widthZoom < heightZoom ? widthZoom : heightZoom
 }
 
-export function fitStackZoom(input: {
-  stackWidthPx: number
-  stackHeightPx: number
-  viewportWidth: number
-  viewportHeight: number
-}): number {
-  return fitZoom({
-    contentWidthPx: input.stackWidthPx,
-    contentHeightPx: input.stackHeightPx,
-    viewportWidth: input.viewportWidth,
-    viewportHeight: input.viewportHeight,
-    mode: 'contain',
-  })
-}
-
 export function stepZoom(
   zoom: number,
   direction: 1 | -1,

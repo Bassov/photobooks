@@ -1,6 +1,6 @@
 import fc from 'fast-check'
 import { describe, expect, it, vi } from 'vitest'
-import { PASTEBOARD_GAP_PX } from './pasteboardWindow'
+import { PASTEBOARD_GAP_PX, pasteboardStridePx } from './pasteboardWindow'
 import {
   bindGalleryDrop,
   cancelPendingScrollFrame,
@@ -19,6 +19,7 @@ import {
   PASTEBOARD_PAD_PX,
   spreadActiveIndex,
   stackContentYAtZoom,
+  stackHeightFitZoom,
   stackScrollTop,
   widestPageCount,
 } from './pasteboardView'
@@ -124,9 +125,16 @@ describe('world / stride helpers', () => {
 
   it('scales the spread part of the stride by zoom; the gap stays 44 px', () => {
     // 100 mm × 0.5 px/mm = 50 px at zoom 1.
-    expect(pasteboardStrideAtZoom(100, 1)).toBe(50 + PASTEBOARD_GAP_PX)
-    expect(pasteboardStrideAtZoom(100, 3)).toBe(150 + PASTEBOARD_GAP_PX)
-    expect(pasteboardSlotPaddingBottom()).toBe(44)
+    expect(pasteboardStrideAtZoom(100, 2)).toBe(100 + PASTEBOARD_GAP_PX)
+    expect(pasteboardStrideAtZoom(100, 6)).toBe(300 + PASTEBOARD_GAP_PX)
+    expect(pasteboardSlotPaddingBottom(100, 2)).toBe(44)
+    expect(pasteboardSlotPaddingBottom(100, 6)).toBe(44)
+  })
+
+  it('shrinks the gap with a spread under 88 px', () => {
+    expect(pasteboardStrideAtZoom(100, 1.76)).toBeCloseTo(88 + 44, 9)
+    expect(pasteboardStrideAtZoom(100, 1)).toBe(50 + 25)
+    expect(pasteboardSlotPaddingBottom(100, 1)).toBe(25)
   })
 
   it('joins mounted ids for the window key', () => {
@@ -286,6 +294,13 @@ describe('stackContentYAtZoom', () => {
     expect(stackContentYAtZoom(2 * 144, 100, 1, 2)).toBe(2 * 244)
   })
 
+  it('keeps a gap point at its share of a shrunk gap', () => {
+    // Zoom 0.5: 50 px spread, 25 px gap (stride 75); zoom 1: 100 + 44.
+    expect(stackContentYAtZoom(50 + 12.5, 100, 0.5, 1)).toBe(100 + 22)
+    expect(stackContentYAtZoom(75 + 25, 100, 0.5, 1)).toBe(144 + 50)
+    expect(stackContentYAtZoom(100 + 22, 100, 1, 0.5)).toBe(50 + 12.5)
+  })
+
   it('scales points above the stack', () => {
     expect(stackContentYAtZoom(0, 100, 1, 2)).toBe(0)
     expect(stackContentYAtZoom(-40, 100, 1, 2)).toBe(-80)
@@ -304,12 +319,48 @@ describe('stackContentYAtZoom', () => {
         fc.double({ min: 0.05, max: 8, noNaN: true }),
         fc.double({ min: 0.05, max: 8, noNaN: true }),
         (index, f, h, from, to) => {
-          const y = index * (h * from + PASTEBOARD_GAP_PX) + f * h * from
+          const y = index * pasteboardStridePx(h * from) + f * h * from
           const mapped = stackContentYAtZoom(y, h, from, to)
-          const expected = index * (h * to + PASTEBOARD_GAP_PX) + f * h * to
+          const expected = index * pasteboardStridePx(h * to) + f * h * to
           expect(Math.abs(mapped - expected)).toBeLessThan(1e-6 * (1 + y))
           const back = stackContentYAtZoom(mapped, h, to, from)
           expect(Math.abs(back - y)).toBeLessThan(1e-6 * (1 + y))
+        },
+      ),
+    )
+  })
+})
+
+describe('stackHeightFitZoom', () => {
+  it('fits a long book with gaps shrunk to half a spread', () => {
+    // 40 × 150 px spreads in 800 px: 20 px per stride, 13.3 px spread.
+    const zoom = stackHeightFitZoom(40, 150, 800)
+    expect(zoom).toBeCloseTo(20 / (150 * 1.5), 9)
+    expect(40 * pasteboardStridePx(150 * zoom)).toBeCloseTo(800, 6)
+  })
+
+  it('fits a short book with the full 44 px gap', () => {
+    const zoom = stackHeightFitZoom(2, 150, 800)
+    expect(zoom).toBeCloseTo((400 - 44) / 150, 9)
+    expect(2 * pasteboardStridePx(150 * zoom)).toBeCloseTo(800, 6)
+  })
+
+  it('is unbounded with nothing to fit', () => {
+    expect(stackHeightFitZoom(0, 150, 800)).toBe(Number.POSITIVE_INFINITY)
+    expect(stackHeightFitZoom(3, 0, 800)).toBe(Number.POSITIVE_INFINITY)
+    expect(stackHeightFitZoom(3, 150, 0)).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('fills the port exactly at the returned zoom (PBT)', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 200 }),
+        fc.double({ min: 10, max: 2000, noNaN: true }),
+        fc.double({ min: 100, max: 4000, noNaN: true }),
+        (count, h, port) => {
+          const zoom = stackHeightFitZoom(count, h, port)
+          const height = count * pasteboardStridePx(h * zoom)
+          expect(Math.abs(height - port)).toBeLessThan(1e-6 * port)
         },
       ),
     )

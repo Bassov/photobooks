@@ -35,11 +35,26 @@ export interface PasteboardWindow {
   readonly tailPx: number
 }
 
-export function pasteboardStridePx(spreadHeightPx: number): number {
-  if (!Number.isFinite(spreadHeightPx) || spreadHeightPx < 0) {
+/** Gap per spread px once the spread is too small for the full kit gap. */
+export const PASTEBOARD_GAP_RATIO = 0.5
+
+/**
+ * Kit `stackGap`: 44 screen px under a spread at any zoom of the kit range.
+ * Below 88 px spread height (zoomed out past the kit's 0.25 × Fit floor) it
+ * shrinks with the spread, so a long book can still fit the port whole.
+ */
+export function pasteboardGapPx(spreadHeightPx: number): number {
+  if (!Number.isFinite(spreadHeightPx) || spreadHeightPx <= 0) {
     return PASTEBOARD_GAP_PX
   }
-  return spreadHeightPx + PASTEBOARD_GAP_PX
+  return Math.min(PASTEBOARD_GAP_PX, spreadHeightPx * PASTEBOARD_GAP_RATIO)
+}
+
+export function pasteboardStridePx(spreadHeightPx: number): number {
+  if (!Number.isFinite(spreadHeightPx) || spreadHeightPx <= 0) {
+    return PASTEBOARD_GAP_PX
+  }
+  return spreadHeightPx + pasteboardGapPx(spreadHeightPx)
 }
 
 export function pasteboardWindow(input: {

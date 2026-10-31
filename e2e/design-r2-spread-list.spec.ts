@@ -165,34 +165,45 @@ test('M23: spreads are 44 px apart at Fit and after zoom; labels 6 px under', as
   }
 })
 
-async function expectCentred(label: Locator, page: Box): Promise<void> {
-  const text = await box(label)
-  expect(
-    Math.abs(text.x + text.width / 2 - (page.x + page.width / 2)),
-  ).toBeLessThanOrEqual(1)
+/**
+ * Shown page numbers of a slot, each with |label centre x − its page centre x|
+ * (a single page is the whole spread view, a spread has two halves). Both
+ * boxes are read in one frame so a settling camera cannot skew them.
+ */
+async function labelOffsets(slot: Locator): Promise<[string, number][]> {
+  return slot.evaluate((el) => {
+    const view = el
+      .querySelector('[data-testid="spread-view"]')
+      ?.getBoundingClientRect()
+    if (view === undefined) return []
+    const shown = [...el.querySelectorAll('.page-label')].filter(
+      (label) => label.textContent !== '',
+    )
+    const pageWidth = view.width / shown.length
+    return shown.map((label, i): [string, number] => {
+      const r = label.getBoundingClientRect()
+      const pageCentre = view.x + pageWidth * (i + 0.5)
+      return [label.textContent, Math.abs(r.x + r.width / 2 - pageCentre)]
+    })
+  })
+}
+
+async function expectCentred(slot: Locator, texts: string[]): Promise<void> {
+  await expect
+    .poll(async () =>
+      (await labelOffsets(slot)).map(([text, dx]) => [text, dx <= 1]),
+    )
+    .toEqual(texts.map((text) => [text, true]))
 }
 
 test('M24: page numbers sit centred under single and spread pages', async ({
   page,
 }) => {
   const slots = page.locator('[data-pasteboard-slot]')
-  const first = slots.first()
   // Page 1 is a single right page: its number centres under it.
-  await expectCentred(
-    first.locator('.page-label:not(:empty)'),
-    await box(first.getByTestId('spread-view')),
-  )
-  await expect(first.locator('.page-label:not(:empty)')).toHaveText('1')
-
+  await expectCentred(slots.first(), ['1'])
   // A two-page spread: each number under its own half.
-  const second = slots.nth(1)
-  const view = await box(second.getByTestId('spread-view'))
-  const half = { ...view, width: view.width / 2 }
-  await expectCentred(second.locator('.page-label').nth(0), half)
-  await expectCentred(second.locator('.page-label').nth(1), {
-    ...half,
-    x: view.x + view.width / 2,
-  })
+  await expectCentred(slots.nth(1), ['2', '3'])
 
   // The single last page (session book: 3 spreads) has one centred number.
   const ids = await page
@@ -204,9 +215,5 @@ test('M24: page numbers sit centred under single and spread pages', async ({
     `[data-pasteboard-slot][data-spread-id="${lastId}"]`,
   )
   await expect(last).toHaveAttribute('data-active', 'true')
-  await expect(last.locator('.page-label:not(:empty)')).toHaveText('4')
-  await expectCentred(
-    last.locator('.page-label:not(:empty)'),
-    await box(last.getByTestId('spread-view')),
-  )
+  await expectCentred(last, ['4'])
 })

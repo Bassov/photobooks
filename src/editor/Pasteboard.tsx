@@ -108,6 +108,7 @@ export const Pasteboard = memo(function Pasteboard({
   const committedZoom = cameraFrame.zoom
   const pxPerMm = SPREAD_PX_PER_MM * committedZoom
   const stride = pasteboardStrideAtZoom(trimHeightMm, committedZoom)
+  const slotPad = pasteboardSlotPaddingBottom(trimHeightMm, committedZoom)
   const [trackedScroll, setTrackedScroll] = useState({ top: 0, epoch: 0 })
   const scrollTop = stackScrollTop(
     resolveTrackedScrollTop(trackedScroll, cameraFrame),
@@ -528,9 +529,9 @@ export const Pasteboard = memo(function Pasteboard({
                 data-active={markedId === spreadId ? 'true' : 'false'}
                 style={{
                   height: stride,
-                  paddingBottom: pasteboardSlotPaddingBottom(),
+                  paddingBottom: slotPad,
                   containIntrinsicBlockSize: `auto ${String(stride)}px`,
-                  ['--slot-pad' as string]: `${String(pasteboardSlotPaddingBottom())}px`,
+                  ['--slot-pad' as string]: `${String(slotPad)}px`,
                 }}
               >
                 <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />

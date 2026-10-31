@@ -28,9 +28,14 @@ The editor SHALL offer keyboard-reachable controls to set the active spread’s 
 
 ### Requirement: Stack spacing and page labels
 
-Consecutive spreads on the pasteboard SHALL be 44 screen px apart (bottom edge to next top edge) at every committed zoom; page numbers sit 6 px under the spread inside that gap. A single page (page 1, a single last page) SHALL have its number centred under it; a two-page spread centres each number under its page. Window spacers, reveal and zoom anchoring MUST use the same stride.
+Consecutive spreads on the pasteboard SHALL be 44 screen px apart (bottom edge to next top edge) at every committed zoom where a spread is at least 88 px tall; page numbers sit 6 px under the spread inside that gap. Below 88 px (zoomed out past the kit's 0.25 × Fit floor) the gap MUST be half the spread height, so whole-stack fit still shows every spread. A single page (page 1, a single last page) SHALL have its number centred under it; a two-page spread centres each number under its page. Window spacers, reveal, the whole-stack zoom floor and zoom anchoring MUST use the same stride.
 
 #### Scenario: Gap holds after zoom
 
 - **WHEN** the user zooms in or out and the zoom commits
 - **THEN** the gap between consecutive spreads is still 44 px and the spread under the pointer keeps its screen position
+
+#### Scenario: Whole book still fits
+
+- **WHEN** a 40-spread book is zoomed out to the floor
+- **THEN** the whole stack fits the port and every spread is mounted

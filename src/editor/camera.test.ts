@@ -3,7 +3,6 @@ import { fc, test } from '@fast-check/vitest'
 import {
   centerSpreadScroll,
   clampZoom,
-  fitStackZoom,
   fitZoom,
   formatZoomPercent,
   physicalZoom,
@@ -242,19 +241,6 @@ describe('fitZoom', () => {
         mode: 'contain',
       }),
     ).toBe(1)
-  })
-})
-
-describe('fitStackZoom', () => {
-  it('contains the whole stack', () => {
-    expect(
-      fitStackZoom({
-        stackWidthPx: 400,
-        stackHeightPx: 800,
-        viewportWidth: 200,
-        viewportHeight: 200,
-      }),
-    ).toBe(0.25)
   })
 })
 

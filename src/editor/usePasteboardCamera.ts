@@ -5,7 +5,6 @@ import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   centerSpreadScroll,
   clampZoom,
-  fitStackZoom,
   fitZoom,
   FIT_BOTTOM_PX,
   FIT_TOP_PX,
@@ -35,7 +34,7 @@ import {
   shouldHoldCameraScroll,
   stopDelayedFitFollow,
 } from './pasteboardCameraFit'
-import { PASTEBOARD_PAD_PX } from './pasteboardView'
+import { PASTEBOARD_PAD_PX, stackHeightFitZoom } from './pasteboardView'
 import { pasteboardStridePx } from './pasteboardWindow'
 
 const GESTURE_SETTLE_MS = 80
@@ -71,8 +70,6 @@ interface StackMetrics {
   spreadWidth: number
   spreadHeight: number
   stackWidth: number
-  /** Zoom-1 stack height (gap included) for the whole-stack zoom floor. */
-  stackHeight: number
   count: number
 }
 
@@ -135,12 +132,10 @@ function stackMetrics(
 ): StackMetrics {
   const pages = getSpreadPageCount(activeIndex, spreadCount)
   const widest = spreadCount >= 2 ? 2 : 1
-  const stride = pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM)
   return {
     spreadWidth: trimWidthMm * pages * SPREAD_PX_PER_MM,
     spreadHeight: trimHeightMm * SPREAD_PX_PER_MM,
     stackWidth: trimWidthMm * widest * SPREAD_PX_PER_MM,
-    stackHeight: Math.max(spreadCount, 0) * stride,
     count: Math.max(spreadCount, 0),
   }
 }
@@ -171,12 +166,17 @@ function limitsFor(
   }
   const limits = zoomLimits(
     fitFor(metrics, viewportWidth, viewportHeight),
-    fitStackZoom({
-      stackWidthPx: metrics.stackWidth,
-      stackHeightPx: metrics.stackHeight,
-      viewportWidth,
-      viewportHeight,
-    }),
+    // Whole-stack fit: the gap is not a plain scale of the stack (kit 44 px).
+    Math.min(
+      fitZoom({
+        contentWidthPx: metrics.stackWidth,
+        contentHeightPx: 0,
+        viewportWidth,
+        viewportHeight,
+        mode: 'width',
+      }),
+      stackHeightFitZoom(metrics.count, metrics.spreadHeight, viewportHeight),
+    ),
   )
   const widthFit = fitZoom({
     contentWidthPx: metrics.spreadWidth,

@@ -6,6 +6,7 @@ import {
   applyForceMountIndex,
   clearForceMountIndex,
   pacePasteboardWindow,
+  pasteboardGapPx,
   pasteboardStridePx,
   pasteboardWindow,
   pasteboardWindowsEqual,
@@ -20,6 +21,26 @@ describe('pasteboardStridePx', () => {
   it('returns the gap when the spread height is not usable', () => {
     expect(pasteboardStridePx(Number.NaN)).toBe(PASTEBOARD_GAP_PX)
     expect(pasteboardStridePx(-1)).toBe(PASTEBOARD_GAP_PX)
+    expect(pasteboardStridePx(0)).toBe(PASTEBOARD_GAP_PX)
+  })
+})
+
+describe('pasteboardGapPx', () => {
+  it('is the kit 44 px down to an 88 px spread', () => {
+    expect(pasteboardGapPx(600)).toBe(44)
+    expect(pasteboardGapPx(88)).toBe(44)
+  })
+
+  it('is half the spread below 88 px', () => {
+    expect(pasteboardGapPx(87)).toBe(43.5)
+    expect(pasteboardGapPx(20)).toBe(10)
+    expect(pasteboardStridePx(20)).toBe(30)
+  })
+
+  it('falls back to 44 px for an unusable spread height', () => {
+    expect(pasteboardGapPx(0)).toBe(44)
+    expect(pasteboardGapPx(-5)).toBe(44)
+    expect(pasteboardGapPx(Number.POSITIVE_INFINITY)).toBe(44)
   })
 })
 
