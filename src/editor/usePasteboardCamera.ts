@@ -25,6 +25,7 @@ import {
   setLiveZoom,
 } from './cameraStore'
 import { setEditorGestureActive } from './editorGesture'
+import { getEditorTool } from './editorToolStore'
 import {
   beginDelayedFitFollow,
   createDelayedFitFollow,
@@ -633,7 +634,12 @@ export function usePasteboardCamera({
       if (port === null) {
         return
       }
-      if (spaceRef.current) {
+      // Hand tool pans on a plain primary drag (kit canvas hand tool); Space
+      // is the temporary hand from any other tool.
+      if (
+        spaceRef.current ||
+        (getEditorTool() === 'hand' && event.button === 0)
+      ) {
         event.preventDefault()
         // A real pasteboard drag wins over deferred chrome Space activation.
         pendingSpaceActivationRef.current = null

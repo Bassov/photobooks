@@ -200,6 +200,8 @@ test('editor top bar follows kit v0.10 structure and tokens', async ({
     await expect(bar.getByRole('button', { name })).toHaveCount(0)
   }
   // Kit toolbar ends with Preview · Settings (uikit/src/demo-parts/editor.tsx:97).
-  await expect(bar.getByRole('button', { name: 'Settings' })).toBeVisible()
+  await expect(
+    bar.getByRole('button', { name: 'Settings', exact: true }),
+  ).toBeVisible()
   await assertDocumentFitsViewport(page)
 })

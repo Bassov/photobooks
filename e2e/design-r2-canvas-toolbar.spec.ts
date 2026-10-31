@@ -71,7 +71,7 @@ test('frame drag shows the hint; Esc clears it and a click re-selects with handl
 })
 
 // Kit: uikit/src/sandbox/chrome.tsx:168-180 (grid · snap, − Fit +).
-test('bar holds tools, grid · snap and Minus / Plus zoom; extra views live in the zoom menu', async ({
+test('bar holds tools, snap · grid and Minus / Plus zoom; no View menu, Shift+R still toggles rulers', async ({
   page,
 }) => {
   await openSessionEditor(page)
@@ -83,18 +83,12 @@ test('bar holds tools, grid · snap and Minus / Plus zoom; extra views live in t
   await expect(page.getByTestId('zoom-out').locator('svg path')).toHaveCount(1)
   await expect(page.getByTestId('zoom-in').locator('svg path')).toHaveCount(2)
 
-  await page.getByTestId('view-menu').click()
-  await expect(page.getByTestId('view-rulers-item')).toHaveAttribute(
-    'aria-checked',
-    'false',
-  )
-  await page.getByTestId('view-rulers-item').click()
+  await expect(page.getByTestId('view-menu')).toHaveCount(0)
+  await expect(page.getByTestId('ruler-x')).toHaveCount(0)
+  await page.keyboard.press('Shift+R')
   await expect(page.getByTestId('ruler-x')).toBeVisible()
-  await page.getByTestId('view-menu').click()
-  await expect(page.getByTestId('view-rulers-item')).toHaveAttribute(
-    'aria-checked',
-    'true',
-  )
+  await page.keyboard.press('Shift+R')
+  await expect(page.getByTestId('ruler-x')).toHaveCount(0)
 })
 
 test('selecting an endpaper leaves the Select tool active, not Text', async ({

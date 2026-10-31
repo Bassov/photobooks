@@ -11,7 +11,6 @@ import {
   getSpreadPaintSnapshot,
   subscribeSpread,
 } from './bookStore'
-import { getDpiView, subscribeDpiView } from './dpiView'
 import { GridOverlay } from './GridOverlay'
 import { GuidesOverlay } from './GuidesOverlay'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
@@ -92,7 +91,6 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     () => getSpreadPaintSnapshot(spreadId),
     () => getSpreadPaintSnapshot(spreadId),
   )
-  const dpiView = useSyncExternalStore(subscribeDpiView, getDpiView, getDpiView)
   const zoom = useSyncExternalStore(
     subscribeCommitted,
     getCommittedZoom,
@@ -184,7 +182,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       spreadId={spreadId}
       resolved={snapshot.resolved}
       pxPerMm={pxPerMm}
-      lowDpiBadge={lowDpiBadge ?? dpiView}
+      lowDpiBadge={lowDpiBadge ?? false}
       overlay={
         <>
           <GridOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
