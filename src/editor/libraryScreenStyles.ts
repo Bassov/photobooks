@@ -78,12 +78,23 @@ const STYLE_TEXT = `
 .pb-lib-quiet[data-hovered] {
   background: var(--accent);
 }
-/* kit features/library.tsx:127 — focus-within:outline-2 outline-offset-2 outline-[#3A3839] */
-.pb-lib-quiet:focus-visible,
-.pb-lib-quiet[data-focus-visible],
-.pb-lib-quiet:focus-within {
-  outline: 2px solid #3A3839;
-  outline-offset: 2px;
+/* kit demo-parts/library.tsx:53-54 — rename Input (h-7 px-2 py-2 rounded-md bg-field, focus ring-2 ring-offset-2) */
+.pb-lib-rename {
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(var(--spacing) * 7);
+  margin: 0;
+  padding: calc(var(--spacing) * 2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+}
+.pb-lib-rename:focus {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
 }
 .pb-lib-book {
   background: none;
