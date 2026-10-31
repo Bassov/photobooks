@@ -77,6 +77,8 @@ One theme only (Theme B light on `:root`). No `data-theme` switching, no `prefer
 
 Selection / focus rings use `--ring` / `--select`; never confuse focus ring with selection fill.
 
+**Pages and spine width.** Book settings Pages is an editable kit `Val` box (no spin arrows) with the "20–120" hint: a typed count rounds to the nearest even number, clamps to 20–120 and adds empty spreads at the end or removes the last ones (one undo step). Pages = 2 × spreads (kit `pagesOf`). Spine width is computed, never stored: **8 mm (hardcover boards + hinge) + 0.2 mm per page** (Paper "Matte 200 g", 0.4 mm per sheet), with the page count clamped to 20–120 because short books print padded to the 20-page block — 12 mm at 20 pages (the kit's "12 mm"), 32 mm at 120. The inspector text, cover canvas spine and cover card ratio all use it; the legacy `cover.style.spineWidthMm` is kept for old documents and ignored (`src/core/pages.ts`).
+
 UI ref: `uikit#/full/editor`, `uikit#/screen/editor`, `uikit#/feature/editor-chrome-toolbar`.
 
 ## Component inventory

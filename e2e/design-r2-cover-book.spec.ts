@@ -113,8 +113,10 @@ test('M12: book settings follow the kit fields', async ({ page }) => {
   ).toHaveText('Custom')
   await expect(panel.getByTestId('binding-style')).toHaveText('Hardcover')
   await expect(panel.getByTestId('binding-readonly')).toHaveText('read-only')
+  // Kit v7.tsx:207-208: the note is computed from the spread count (6 pages).
+  await expect(panel.getByTestId('book-pages-range')).toHaveText('20–120')
   await expect(panel.getByTestId('book-pages-note')).toHaveText(
-    'Pages are added in spreads of 2',
+    'Add 7 spreads to reach the 20-page minimum',
   )
   await expect(panel.getByTestId('book-bleed')).toContainText('mm')
   await expect(panel.getByTestId('book-safe-margin')).toContainText('mm')

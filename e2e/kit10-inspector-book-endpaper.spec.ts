@@ -24,7 +24,10 @@ test('step 24: Book tab shows kit Book settings head, rows and book grid', async
   await expect(settings.getByTestId('inspector-context')).toHaveText(
     'Book settings',
   )
-  await expect(settings).toContainText('Applies to the whole book')
+  // Kit v7.tsx:202: back text, else front title, else "Untitled book".
+  await expect(settings.getByTestId('book-settings-subtitle')).toHaveText(
+    'Untitled book · applies to the whole book',
+  )
   const eyebrow = settings.locator('.inspector-eyebrow').first()
   await expect(eyebrow).toHaveCSS('text-transform', 'uppercase')
   await expect(eyebrow).toHaveCSS('color', MUTED)
