@@ -6,7 +6,7 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import jpeg from 'jpeg-js'
-import { writeFixtureFile } from './writeFixtureFile.mjs'
+import { writeIfChanged } from './writeIfChanged.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -72,7 +72,7 @@ function write(name, orientation, width, height) {
   const body = encode(width, height)
   const thumb = encode(width / 4, height / 4)
   const out = join(__dirname, name)
-  writeFixtureFile(
+  writeIfChanged(
     out,
     Buffer.concat([
       body.subarray(0, 2),

@@ -4,7 +4,7 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import jpeg from 'jpeg-js'
-import { writeFixtureFile } from './writeFixtureFile.mjs'
+import { writeIfChanged } from './writeIfChanged.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const width = 40
@@ -58,7 +58,7 @@ const withExif = Buffer.concat([
 ])
 
 const out = join(__dirname, 'sample-orient6.jpg')
-writeFixtureFile(out, withExif)
+writeIfChanged(out, withExif)
 console.log(
   `wrote ${out} (${width}x${height}, Orientation=${String(orientation)})`,
 )
