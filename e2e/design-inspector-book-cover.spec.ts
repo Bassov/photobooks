@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
-import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
+import {
+  clearDropSelection,
+  dragPlaceFirstFilmstripItem,
+} from './fixtures/dropAssetOnFrame'
 import {
   ensurePhotoFixtures,
   photoFixturePaths,
@@ -146,7 +149,7 @@ test('Spread list has front and back Endpaper rows with an inspector (#12)', asy
 })
 
 // uikit/src/sandbox/context-inspector.tsx:59 labels the first spread "Page 1".
-test('Photo context labels the first spread "Page 1" (#18)', async ({
+test('the first spread header reads "Page 1", not Cover (#18)', async ({
   page,
 }) => {
   await filled(page).click()
@@ -156,6 +159,7 @@ test('Photo context labels the first spread "Page 1" (#18)', async ({
     'Photo',
   )
   await page.locator('[data-testid^="spread-list-item-"]').first().click()
+  await clearDropSelection(page)
   await expect(inspector(page).getByTestId('inspector-context')).toHaveText(
     'Spread',
   )
