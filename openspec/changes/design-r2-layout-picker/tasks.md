@@ -8,6 +8,10 @@
 - [x] 6. Preview mode mounts no frame controls / overlays (M25).
 - [x] 7. Inspector header row = kit `InspectorShell` (icon, title, meta, PanelRightClose).
 - [x] 8. e2e `design-r2-layout-picker.spec.ts` + `preview-no-overlays.spec.ts`; move existing specs off `2-up` / `4-grid`.
+- [x] 9. Core: `customLayoutRects` / `spreadLayoutSlots` / `applyCustomLayout`; `Spread.masterId` + `setSpreadMaster` / `setSpreadBackground` ops, with unit tests.
+- [x] 10. `savedTemplates.ts` store (localStorage, `?templates=kit` DEV / test-fixture seed); `+` and "Save as template" enabled, inline rename, tile menu, real tab counts.
+- [x] 11. `SpreadSections.tsx`: Master & spacing (kit SliderValueField) and Background; Grid renamed; Inspector order = kit.
+- [x] 12. e2e: kit section order, All 13 / My templates 3, save → My templates + All → reload, section boxes and writes.
 
 ## Manual test scenarios
 

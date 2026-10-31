@@ -38,3 +38,14 @@ The system SHALL provide a template catalog — full-bleed, one-per-page, 2-up, 
 
 - **WHEN** hero-two, hero-grid, panorama, three-across, framed-single or offset-pair is applied to a one- or two-page spread
 - **THEN** the spread has 3, 5, 1, 3, 1 or 2 frames respectively, all inside the margin-inset content area and non-overlapping
+
+## ADDED Requirements
+
+### Requirement: Saved layouts apply from percent slots
+
+A saved layout SHALL be stored as slots in percent of the spread trim (the image frames of a spread, top-down in z order) and applied by scaling them to the target spread's trim, keeping photos by index and setting the spread's template id to the saved id. Saved ids MUST never clash with catalog template ids.
+
+#### Scenario: Apply a saved layout to a wider spread
+
+- **WHEN** a single-slot layout `{x 0, y 0, w 62, h 100}` is applied to a 600 × 300 mm spread holding one photo
+- **THEN** the spread has one frame of 372 × 300 mm at the origin with that photo

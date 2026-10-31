@@ -6,7 +6,6 @@ import { WelcomeScreen } from './editor/WelcomeScreen'
 import { getBrowserSupport } from './editor/browserSupport'
 import { loadPainterFixture } from './editor/bookStore'
 import { isPainterFixtureQuery } from './editor/painterFixtureQuery'
-import { seedSavedTemplatesFromQuery } from './editor/savedTemplates'
 import {
   attachOpfsTestLibrary,
   exposeProjectSessionTestApi,
@@ -41,7 +40,6 @@ function App() {
 
   useEffect(() => {
     exposeProjectSessionTestApi()
-    seedSavedTemplatesFromQuery()
     if (isPainterFixtureQuery()) {
       startSessionEditor()
       loadPainterFixture()

@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { TEMPLATE_IDS } from '../core'
-import { LAYOUT_PICKER, TEMPLATE_NAMES, templateName } from './layoutCatalog'
+import { makeBook, makeSpread } from '../core/testing/fixtures'
+import {
+  LAYOUT_PICKER,
+  TEMPLATE_NAMES,
+  layoutRects,
+  templateName,
+} from './layoutCatalog'
+import { addSavedTemplate, resetSavedTemplatesForTests } from './savedTemplates'
 
 describe('layoutCatalog', () => {
   it('offers the kit layouts in kit order, all valid template ids', () => {
@@ -34,5 +41,23 @@ describe('layoutCatalog', () => {
     expect(templateName('contact-5x3')).toBe('Contact sheet 5×3')
     expect(templateName(undefined)).toBeNull()
     expect(templateName('custom-x')).toBeNull()
+  })
+})
+
+describe('layoutRects', () => {
+  afterEach(() => {
+    window.localStorage.clear()
+    resetSavedTemplatesForTests()
+  })
+
+  it('lays out a catalog id, a saved layout and nothing for an unknown id', () => {
+    const spread = makeSpread({ id: 's1' })
+    const book = makeBook({ spreads: [spread] })
+    expect(layoutRects('full-bleed', book, 0, spread)?.length).toBe(1)
+    const saved = addSavedTemplate('Mine', [{ x: 0, y: 0, w: 62, h: 100 }])
+    expect(layoutRects(saved.id, book, 0, spread)).toEqual([
+      { x: 0, y: 0, width: 186, height: 300 },
+    ])
+    expect(layoutRects('user-missing', book, 0, spread)).toBeNull()
   })
 })

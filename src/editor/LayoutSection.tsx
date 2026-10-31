@@ -248,10 +248,8 @@ function LayoutPicker({
       : []
   // Kit `save`: the spread's photo frames become "My layout N", named inline.
   const save = () => {
+    // Only reachable while `canSave`: the spread has at least one image frame.
     const slots = spreadLayoutSlots(readBook(), spreadId)
-    if (slots.length === 0) {
-      return
-    }
     const added = addSavedTemplate(nextTemplateName(), slots)
     setTab('mine')
     setChip('all')

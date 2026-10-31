@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -36,6 +37,13 @@ function master(name: string) {
 
 function slider(testId: string) {
   return within(screen.getByTestId(testId)).getByRole('slider')
+}
+
+/** Real focus, so the field's own `blur()` on Enter / Escape fires onBlur. */
+function focus(el: HTMLElement) {
+  act(() => {
+    el.focus()
+  })
 }
 
 function swatch(color: string) {
@@ -115,21 +123,23 @@ describe('MasterSpacingSection', () => {
     ).getByRole<HTMLInputElement>('textbox', { name: 'Margin value' })
     const before = field.value
     expect(before).toMatch(/^\d+ mm$/)
-    fireEvent.focus(field)
+    focus(field)
     expect(field.value).toBe(before.replace(' mm', ''))
     fireEvent.change(field, { target: { value: '12,6' } })
     fireEvent.keyDown(field, { key: 'Enter' })
+    expect(document.activeElement).not.toBe(field)
+    expect(field.value).toBe('13 mm')
     expect(
       effectiveGrid(getBookStoreSnapshot().book, spread(0)).values.top,
     ).toBe(13)
-    fireEvent.focus(field)
+    focus(field)
     fireEvent.change(field, { target: { value: '99' } })
     fireEvent.blur(field)
     expect(
       effectiveGrid(getBookStoreSnapshot().book, spread(0)).values.top,
     ).toBe(30)
     expect(field.value).toBe('30 mm')
-    fireEvent.focus(field)
+    focus(field)
     fireEvent.change(field, { target: { value: '-4' } })
     fireEvent.keyDown(field, { key: 'Enter' })
     expect(
@@ -147,17 +157,18 @@ describe('MasterSpacingSection', () => {
       effectiveGrid(getBookStoreSnapshot().book, spread(0)).values
         .columnGutterMm
     const start = gap()
-    fireEvent.focus(field)
+    focus(field)
     fireEvent.change(field, { target: { value: '9' } })
     fireEvent.keyDown(field, { key: 'a' })
     expect(field.value).toBe('9')
     expect(gap()).toBe(start)
     fireEvent.keyDown(field, { key: 'Escape' })
+    expect(document.activeElement).not.toBe(field)
     expect(gap()).toBe(start)
     expect(field.value).toBe(`${String(start)} mm`)
     fireEvent.blur(field)
     expect(gap()).toBe(start)
-    fireEvent.focus(field)
+    focus(field)
     fireEvent.change(field, { target: { value: 'abc' } })
     fireEvent.blur(field)
     expect(gap()).toBe(start)

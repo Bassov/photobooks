@@ -70,6 +70,9 @@ describe('saved templates store (kit My templates)', () => {
     const copy2 = duplicateSavedTemplate(a.id)
     expect(copy?.name).toBe('A copy')
     expect(copy2?.name).toBe('A copy 2')
+    const copy3 = duplicateSavedTemplate(a.id)
+    expect(copy3?.name).toBe('A copy 3')
+    deleteSavedTemplate(copy3?.id ?? '')
     expect(getSavedTemplates().map((t) => t.name)).toEqual([
       'A',
       'A copy 2',
@@ -124,8 +127,13 @@ describe('saved templates store (kit My templates)', () => {
 
 describe('?templates=kit seed (dev / test builds only)', () => {
   it('adds the kit #/demo templates once', () => {
+    const listener = vi.fn()
+    const off = subscribeSavedTemplates(listener)
     seedSavedTemplatesFromQuery('?templates=kit')
     seedSavedTemplatesFromQuery('?templates=kit')
+    off()
+    // The second seed finds all three and neither writes nor notifies.
+    expect(listener).toHaveBeenCalledTimes(1)
     expect(reload().map((t) => t.name)).toEqual([
       'Travel opener',
       'Polaroid pair',
@@ -134,6 +142,29 @@ describe('?templates=kit seed (dev / test builds only)', () => {
     expect(getSavedTemplates().map((t) => t.slots)).toEqual(
       KIT_TEMPLATES.map((t) => t.slots),
     )
+  })
+
+  it('the first read of the page seeds from its own URL', () => {
+    window.history.replaceState(null, '', '/?templates=kit')
+    try {
+      expect(reload().map((t) => t.id)).toEqual(KIT_TEMPLATES.map((t) => t.id))
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('a production build ignores the query; a VITE_TEST_FIXTURES build honours it', () => {
+    vi.stubEnv('DEV', false)
+    try {
+      vi.stubEnv('VITE_TEST_FIXTURES', '')
+      seedSavedTemplatesFromQuery('?templates=kit')
+      expect(reload()).toEqual([])
+      vi.stubEnv('VITE_TEST_FIXTURES', '1')
+      seedSavedTemplatesFromQuery('?templates=kit')
+      expect(reload().map((t) => t.id)).toEqual(KIT_TEMPLATES.map((t) => t.id))
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('does nothing without the query', () => {

@@ -2,7 +2,7 @@
 
 1. **Catalog.** `TEMPLATE_IDS` + `hero-two`, `hero-grid`, `panorama`, `three-across`, `framed-single`, `offset-pair`, derived from page content boxes and gutters (kit ratios only for 7:2 / 70%). `2-up` / `4-grid` stay for stored books and `bestTemplateId`. Picker order (kit `data.ts` + `templates.ts` `EXTRA`) and names: `src/editor/layoutCatalog.ts`.
 2. **Thumb.** Kit `TemplateThumb` markup replaces the SVG: 2:1 box, paper box at the spread aspect, slots clamped to trim (`layoutThumb.ts`, pure) with `overflow: hidden`, spine on two-page spreads — fixes the Full bleed letterbox lines.
-3. **Header.** `ui/Disclosure` gains kit `SectionHeader` `summary` (collapsed only) and `right` (expanded only); Layout passes a disabled "Save as template" `+`.
+3. **Header.** `ui/Disclosure` gains kit `SectionHeader` `summary` (collapsed only) and `right` (expanded only); Layout passes the "Save as template" `+`.
 4. **Hover preview.** Store `templatePreview.ts` (`{spreadId, templateId}`), set on tile hover / focus, cleared on leave / blur / apply / unmount; `TemplatePreviewOverlay` subscribes per spread.
 5. **Preview (M25).** With `editorLayer={false}` `ConnectedSpreadView` passes no `frameControlFor` and no overlay, so frames are inert divs; selection state is untouched.
 6. **Inspector header (M2).** One 48 px row: icon + title + meta + "Hide inspector (I)" with new glyphs `panelRightClose`, `sparkles`.

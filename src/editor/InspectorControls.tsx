@@ -1,11 +1,11 @@
-import { useContext, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import {
   Label,
   Slider,
   SliderOutput,
-  SliderStateContext,
   SliderThumb,
   SliderTrack,
+  type SliderState,
 } from 'react-aria-components'
 import { FIELD, SUB, T } from './editorChromeTokens'
 import './FitCropSection.css'
@@ -139,15 +139,25 @@ export function Swatches({
  * a text field. Focus shows the bare number; Enter / blur commits it clamped to
  * the range, Escape restores the formatted value.
  */
-function SliderValueField({ label }: { label: string }) {
-  const state = useContext(SliderStateContext)
-  const [draft, setDraft] = useState<string | null>(null)
-  if (state === null) {
-    return null
+function SliderValueField({
+  label,
+  state,
+}: {
+  label: string
+  state: SliderState
+}) {
+  const [draft, setDraftState] = useState<string | null>(null)
+  // Enter / Escape blur synchronously: the blur handler must see the cleared
+  // draft, not this render's copy, or Escape would commit the typed value.
+  const draftRef = useRef<string | null>(null)
+  const setDraft = (next: string | null) => {
+    draftRef.current = next
+    setDraftState(next)
   }
   const commit = () => {
-    if (draft === null) return
-    const n = parseFloat(draft.replace(',', '.'))
+    const current = draftRef.current
+    if (current === null) return
+    const n = parseFloat(current.replace(',', '.'))
     if (Number.isFinite(n)) {
       state.setThumbValue(
         0,
@@ -232,30 +242,30 @@ export function InspectorSlider({
             } satisfies Intl.NumberFormatOptions,
           })}
     >
-      <div className="flex items-center justify-between text-xs">
-        <Label className="fit-crop-label">{label}</Label>
-        {editableValue ? (
-          <SliderValueField label={label} />
-        ) : (
-          <SliderOutput className="font-medium tabular-nums" />
-        )}
-      </div>
-      <SliderTrack
-        className="fit-crop-track"
-        onDoubleClick={() => {
-          onChange(0)
-        }}
-      >
-        {({ state }) => (
-          <>
+      {({ state }) => (
+        <>
+          <div className="flex items-center justify-between text-xs">
+            <Label className="fit-crop-label">{label}</Label>
+            {editableValue ? (
+              <SliderValueField label={label} state={state} />
+            ) : (
+              <SliderOutput className="font-medium tabular-nums" />
+            )}
+          </div>
+          <SliderTrack
+            className="fit-crop-track"
+            onDoubleClick={() => {
+              onChange(0)
+            }}
+          >
             <div
               className="fit-crop-fill"
               style={{ width: `${String(state.getThumbPercent(0) * 100)}%` }}
             />
             <SliderThumb className="fit-crop-thumb" />
-          </>
-        )}
-      </SliderTrack>
+          </SliderTrack>
+        </>
+      )}
     </Slider>
   )
 }

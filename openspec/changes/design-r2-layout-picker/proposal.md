@@ -2,10 +2,15 @@
 
 Roadmap: `docs/roadmap/P1/design-r2-layout-picker.md` (SoT). UI ref: `uikit#/demo` 14 / 23.
 
+### Scope in (Owner, 2026-10-31)
+
+- Saved templates: `+` / "Save as template", per-browser store, "My templates N" with real counts, tile menu; `?templates=kit` fixture in test builds only.
+- Spread sections in kit order: Layout, Master & spacing (new `Spread.masterId`), Background, Grid.
+
 ### Scope out
 
-- My templates (`+` ships disabled) and Master & spacing / Background / Grid parity: open gaps vs `#/demo`, raised to the Owner in the PR (no item without Owner approval).
 - `bestTemplateId` candidates unchanged.
+- The Contact sheet row under the tiles stays (spec'd in layout-geometry; not in the kit).
 
 ### Delta / Risk
 

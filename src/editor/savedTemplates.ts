@@ -48,7 +48,10 @@ function commit(next: readonly SavedTemplate[]): void {
 
 /** The user's saved layouts in save order (persisted across reloads). */
 export function getSavedTemplates(): readonly SavedTemplate[] {
-  templates ??= load()
+  if (templates === null) {
+    templates = load()
+    seedSavedTemplatesFromQuery()
+  }
   return templates
 }
 
