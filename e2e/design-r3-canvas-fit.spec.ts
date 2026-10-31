@@ -43,6 +43,53 @@ async function activeSpreadInPort(page: Page, index: number): Promise<boolean> {
   }, index)
 }
 
+interface Box {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  width: number
+  height: number
+}
+
+/** Port and drawn spread rects of pasteboard slot `index`. */
+async function activeSpreadRect(
+  page: Page,
+  index: number,
+): Promise<{ port: Box; view: Box }> {
+  return page.getByTestId('pasteboard-scroll').evaluate((port, slotIndex) => {
+    const view = port.querySelector(
+      `[data-slot-index="${String(slotIndex)}"] [data-testid="spread-view"]`,
+    )
+    if (!(view instanceof HTMLElement)) throw new Error('missing spread view')
+    const box = (rect: DOMRect) => ({
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    })
+    return {
+      port: box(port.getBoundingClientRect()),
+      view: box(view.getBoundingClientRect()),
+    }
+  }, index)
+}
+
+// Rendered kit `#/demo` (19 × 23 cm, 1440 × 900, Fit), measured with
+// getBoundingClientRect on `spread-layer` and its page halves.
+const KIT_SPREAD = { width: 848, height: 513.25 }
+const KIT_PAGE = { width: 424, height: 513.25 }
+
+function expectRectSize(
+  rect: Box,
+  kit: { width: number; height: number },
+): void {
+  expect(Math.abs(rect.width - kit.width)).toBeLessThanOrEqual(1)
+  expect(Math.abs(rect.height - kit.height)).toBeLessThanOrEqual(1)
+}
+
 async function spreadCount(page: Page): Promise<number> {
   const count = await page
     .getByTestId('pasteboard-scroll')
@@ -100,6 +147,37 @@ test.describe('M9: Fit follows the active spread', () => {
       await assertDocumentFitsViewport(page)
     })
   }
+
+  test('step 14: Fit keeps the kit margins and single pages land on the #/demo rects (new 19 × 23 book)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openNineteenByTwentyThree(page)
+    await expect(zoomLabel(page)).toHaveText('Fit')
+    const last = (await spreadCount(page)) - 1
+
+    await rows(page).nth(1).click()
+    await expect
+      .poll(() => activeSpreadInPort(page, 1), { timeout: 10_000 })
+      .toBe(true)
+    await expect(zoomLabel(page)).toHaveText('Fit')
+    const spread = await activeSpreadRect(page, 1)
+    // Kit Viewport bands: FIT_TOP 56, FIT_BOTTOM 48, pad 40.
+    expect(spread.view.top - spread.port.top).toBeGreaterThanOrEqual(56)
+    expect(spread.port.bottom - spread.view.bottom).toBeGreaterThanOrEqual(48)
+    expect(spread.view.left - spread.port.left).toBeGreaterThanOrEqual(40)
+    expect(spread.port.right - spread.view.right).toBeGreaterThanOrEqual(40)
+    expectRectSize(spread.view, KIT_SPREAD)
+
+    for (const index of [0, last]) {
+      await rows(page).nth(index).click()
+      await expect
+        .poll(() => activeSpreadInPort(page, index), { timeout: 10_000 })
+        .toBe(true)
+      await expect(zoomLabel(page)).toHaveText('Fit')
+      expectRectSize((await activeSpreadRect(page, index)).view, KIT_PAGE)
+    }
+  })
 
   test('a manual zoom is kept on a spread change and is not labelled Fit', async ({
     page,
