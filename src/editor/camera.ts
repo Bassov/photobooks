@@ -1,4 +1,5 @@
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
+import { stackContentYAtZoom } from './pasteboardView'
 
 const CSS_PX_PER_INCH = 96
 const MM_PER_INCH = 25.4
@@ -101,6 +102,12 @@ export function zoomAtPoint(
     /** Scroll coords of the content origin (constant world padding). */
     originX?: number | undefined
     originY?: number | undefined
+    /**
+     * Spread height at zoom 1 of a stack with a constant screen gap: the
+     * committed `scrollTop` keeps the stack point under the anchor. The
+     * gesture transform stays a plain scale.
+     */
+    stackSpreadHeightPx?: number | undefined
   },
   out: ZoomFrame,
 ): ZoomFrame {
@@ -116,7 +123,11 @@ export function zoomAtPoint(
   out.zoom = zoom
   out.scale = scale
   out.scrollLeft = originX + contentX * scale - input.anchorX
-  out.scrollTop = originY + contentY * scale - input.anchorY
+  const stackY =
+    input.stackSpreadHeightPx === undefined
+      ? contentY * scale
+      : stackContentYAtZoom(contentY, input.stackSpreadHeightPx, start, zoom)
+  out.scrollTop = originY + stackY - input.anchorY
   out.translateX = contentX * (1 - scale)
   out.translateY = contentY * (1 - scale)
   return out
@@ -139,6 +150,7 @@ export function pinchZoom(
     maxZoom: number
     originX?: number | undefined
     originY?: number | undefined
+    stackSpreadHeightPx?: number | undefined
   },
   out: ZoomFrame,
 ): ZoomFrame {
@@ -157,6 +169,7 @@ export function pinchZoom(
       maxZoom: input.maxZoom,
       originX: input.originX,
       originY: input.originY,
+      stackSpreadHeightPx: input.stackSpreadHeightPx,
     },
     out,
   )
@@ -185,21 +198,6 @@ export function fitZoom(input: {
   }
   const heightZoom = viewportHeight / height
   return widthZoom < heightZoom ? widthZoom : heightZoom
-}
-
-export function fitStackZoom(input: {
-  stackWidthPx: number
-  stackHeightPx: number
-  viewportWidth: number
-  viewportHeight: number
-}): number {
-  return fitZoom({
-    contentWidthPx: input.stackWidthPx,
-    contentHeightPx: input.stackHeightPx,
-    viewportWidth: input.viewportWidth,
-    viewportHeight: input.viewportHeight,
-    mode: 'contain',
-  })
 }
 
 export function stepZoom(

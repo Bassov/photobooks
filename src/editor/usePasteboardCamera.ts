@@ -5,7 +5,6 @@ import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   centerSpreadScroll,
   clampZoom,
-  fitStackZoom,
   fitZoom,
   FIT_BOTTOM_PX,
   FIT_TOP_PX,
@@ -36,7 +35,7 @@ import {
   shouldHoldCameraScroll,
   stopDelayedFitFollow,
 } from './pasteboardCameraFit'
-import { PASTEBOARD_PAD_PX } from './pasteboardView'
+import { PASTEBOARD_PAD_PX, stackHeightFitZoom } from './pasteboardView'
 import { pasteboardStridePx } from './pasteboardWindow'
 
 const GESTURE_SETTLE_MS = 80
@@ -72,8 +71,7 @@ interface StackMetrics {
   spreadWidth: number
   spreadHeight: number
   stackWidth: number
-  stackHeight: number
-  stride: number
+  count: number
 }
 
 function blankFrame(): ZoomFrame {
@@ -135,13 +133,11 @@ function stackMetrics(
 ): StackMetrics {
   const pages = getSpreadPageCount(activeIndex, spreadCount)
   const widest = spreadCount >= 2 ? 2 : 1
-  const stride = pasteboardStridePx(trimHeightMm * SPREAD_PX_PER_MM)
   return {
     spreadWidth: trimWidthMm * pages * SPREAD_PX_PER_MM,
     spreadHeight: trimHeightMm * SPREAD_PX_PER_MM,
     stackWidth: trimWidthMm * widest * SPREAD_PX_PER_MM,
-    stackHeight: Math.max(spreadCount, 0) * stride,
-    stride,
+    count: Math.max(spreadCount, 0),
   }
 }
 
@@ -171,12 +167,17 @@ function limitsFor(
   }
   const limits = zoomLimits(
     fitFor(metrics, viewportWidth, viewportHeight),
-    fitStackZoom({
-      stackWidthPx: metrics.stackWidth,
-      stackHeightPx: metrics.stackHeight,
-      viewportWidth,
-      viewportHeight,
-    }),
+    // Whole-stack fit: the gap is not a plain scale of the stack (kit 44 px).
+    Math.min(
+      fitZoom({
+        contentWidthPx: metrics.stackWidth,
+        contentHeightPx: 0,
+        viewportWidth,
+        viewportHeight,
+        mode: 'width',
+      }),
+      stackHeightFitZoom(metrics.count, metrics.spreadHeight, viewportHeight),
+    ),
   )
   const widthFit = fitZoom({
     contentWidthPx: metrics.spreadWidth,
@@ -216,20 +217,22 @@ function placedScroll(
 ): ScrollPosition {
   const spreadWidth = metrics.spreadWidth * zoom
   const spreadHeight = metrics.spreadHeight * zoom
+  // The gap stays 44 screen px: only the spread part of the stride scales.
+  const stride = pasteboardStridePx(spreadHeight)
   return centerSpreadScroll({
     spreadLeftPx:
       PASTEBOARD_PAD_PX + (metrics.stackWidth * zoom - spreadWidth) / 2,
     // The band centre sits (bottom − top) / 2 below the viewport centre.
     spreadTopPx:
       PASTEBOARD_PAD_PX +
-      activeIndex * metrics.stride * zoom -
+      activeIndex * stride -
       (FIT_TOP_PX - FIT_BOTTOM_PX) / 2,
     spreadWidthPx: spreadWidth,
     spreadHeightPx: spreadHeight,
     viewportWidth,
     viewportHeight,
     contentWidth: 2 * PASTEBOARD_PAD_PX + metrics.stackWidth * zoom,
-    contentHeight: 2 * PASTEBOARD_PAD_PX + metrics.stackHeight * zoom,
+    contentHeight: 2 * PASTEBOARD_PAD_PX + metrics.count * stride,
   })
 }
 
@@ -384,6 +387,7 @@ export function usePasteboardCamera({
         maxZoom: limits.maxZoom,
         originX: PASTEBOARD_PAD_PX,
         originY: PASTEBOARD_PAD_PX,
+        stackSpreadHeightPx: book.trimHeightMm * SPREAD_PX_PER_MM,
       },
       frame,
     )
@@ -447,6 +451,8 @@ export function usePasteboardCamera({
             maxZoom: gesture.maxZoom,
             originX: PASTEBOARD_PAD_PX,
             originY: PASTEBOARD_PAD_PX,
+            stackSpreadHeightPx:
+              bookRef.current.trimHeightMm * SPREAD_PX_PER_MM,
           },
           gesture.frame,
         )
@@ -717,6 +723,7 @@ export function usePasteboardCamera({
           maxZoom: gesture.maxZoom,
           originX: PASTEBOARD_PAD_PX,
           originY: PASTEBOARD_PAD_PX,
+          stackSpreadHeightPx: bookRef.current.trimHeightMm * SPREAD_PX_PER_MM,
         },
         gesture.frame,
       )

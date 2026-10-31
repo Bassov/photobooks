@@ -54,9 +54,11 @@ import {
 import { SpreadRowEmpty } from './SpreadRowEmpty'
 import { SpreadRowMissing } from './SpreadRowMissing'
 import { SpreadThumb } from './SpreadThumb'
+import { ThumbCard } from './ThumbCard'
 import './SpreadsPanel.css'
 import {
   canDeleteSpread,
+  coverCardRatio,
   neighbourAfterDelete,
   scrollPasteboardToSpread,
   scrollTopToReveal,
@@ -70,14 +72,25 @@ function endpapersEnabled(): boolean {
   return getBookStoreSnapshot().book.settings.endpapers.enabled
 }
 
+function coverRatio(): number {
+  const { cover, settings } = getBookStoreSnapshot().book
+  return coverCardRatio(settings.trim, cover.style.spineWidthMm)
+}
+
 type RowAction = 'add' | 'duplicate' | 'delete'
 
-function revealRow(list: HTMLElement, index: number, rowPx: number): void {
+function revealRow(
+  list: HTMLElement,
+  index: number,
+  rowPx: number,
+  headPx: number,
+): void {
   const next = scrollTopToReveal(
     index,
     list.scrollTop,
     list.clientHeight,
     rowPx,
+    headPx,
   )
   if (next !== null) {
     list.scrollTop = next
@@ -163,6 +176,11 @@ export function SpreadsPanel({
     getSelectedEndpaper,
     getSelectedEndpaper,
   )
+  const coverCard = useSyncExternalStore(
+    subscribeBookStore,
+    coverRatio,
+    coverRatio,
+  )
   const selected =
     coverSelected || endpaperPicked !== null
       ? null
@@ -173,6 +191,8 @@ export function SpreadsPanel({
   const [firstRow, setFirstRow] = useState(0)
   const [viewport, setViewport] = useState(0)
   const [listWidth, setListWidth] = useState(0)
+  // Cover / front Endpaper rows above the spreads, inside the same scroller.
+  const [headPx, setHeadPx] = useState(0)
   const aspect = useSyncExternalStore(
     (listener) => subscribeSpread(spreadIds[0] ?? '', listener),
     () => spreadAspect(spreadIds[0] ?? ''),
@@ -181,16 +201,24 @@ export function SpreadsPanel({
   const geometry = spreadsRowGeometry(listWidth, aspect)
   const rowPx = geometry.rowPx
 
+  const headRef = useRef<HTMLDivElement>(null)
+
   // React 19 ref callback: `node` is never null here; the cleanup runs on detach.
+  // Child refs attach first, so the head is already in `headRef`.
   const attachList = useCallback((node: HTMLDivElement) => {
     setListNode(node)
+    const head = headRef.current
     const measure = (): void => {
       setViewport(node.clientHeight)
       setListWidth(node.clientWidth)
+      setHeadPx(head?.offsetHeight ?? 0)
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(node)
+    if (head !== null) {
+      observer.observe(head)
+    }
     return () => {
       observer.disconnect()
     }
@@ -201,8 +229,8 @@ export function SpreadsPanel({
     if (listNode === null) {
       return
     }
-    revealRow(listNode, spreadIds.indexOf(selected ?? ''), rowPx)
-  }, [listNode, selected, spreadIds, rowPx])
+    revealRow(listNode, spreadIds.indexOf(selected ?? ''), rowPx, headPx)
+  }, [listNode, selected, spreadIds, rowPx, headPx])
 
   const win = spreadsListWindow(
     spreadIds.length,
@@ -284,11 +312,13 @@ export function SpreadsPanel({
     event.preventDefault()
     event.dataTransfer.dropEffect = 'move'
     const scroller = event.currentTarget
-    const y = contentY(
-      event.clientY,
-      scroller.getBoundingClientRect().top,
-      scroller.scrollTop,
-    )
+    // Spans start at the first spread row, below the Cover / Endpaper head.
+    const y =
+      contentY(
+        event.clientY,
+        scroller.getBoundingClientRect().top,
+        scroller.scrollTop,
+      ) - headPx
     const target = reorderTargetIndex(session.spans, session.from, y)
     setSession({ ...session, target })
   }
@@ -329,7 +359,7 @@ export function SpreadsPanel({
     flushSync(() => {
       dispatchBookOp({ type: 'moveSpread', spreadId: id, toIndex: to })
     })
-    revealRow(event.currentTarget, to, rowPx)
+    revealRow(event.currentTarget, to, rowPx, headPx)
     event.currentTarget
       .querySelector<HTMLElement>(`[data-item="${CSS.escape(id)}"]`)
       ?.focus()
@@ -351,42 +381,19 @@ export function SpreadsPanel({
           </div>
         )}
       </div>
-      <div className="shrink-0 pb-1 pl-3 pr-1" data-testid="cover-list">
-        <button
-          type="button"
-          aria-pressed={coverSelected}
-          aria-label="Cover"
-          className="e7-item rounded-md p-2"
-          data-item="cover"
-          data-testid="cover-list-item"
-          onClick={() => {
-            setCoverSelected(true)
-          }}
-        >
-          <div className="mx-auto w-16">
-            <CoverCanvas mini />
-          </div>
-          <div className="mt-1.5 flex text-2xs tabular-nums">
-            <span
-              data-label
-              className={coverSelected ? 'font-semibold' : 'font-normal'}
-            >
-              Cover
-            </span>
-          </div>
-        </button>
-        {endpapersOn ? <EndpaperRow side="front" /> : null}
-      </div>
+      {/* Kit chrome.tsx:272-277: Cover, Endpaper, pages, Endpaper are one scrolling list. */}
       <div
         ref={attachList}
         className="e7 scroll-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pl-3 pr-1 [contain:layout_paint]"
         data-testid="spreads-list"
         data-scrollport="spreads-list"
-        role="listbox"
-        aria-label="Pages"
         onKeyDown={onKeyDown}
         onScroll={(event) => {
-          setFirstRow(Math.floor(event.currentTarget.scrollTop / rowPx))
+          setFirstRow(
+            Math.floor(
+              Math.max(0, event.currentTarget.scrollTop - headPx) / rowPx,
+            ),
+          )
         }}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
@@ -395,7 +402,33 @@ export function SpreadsPanel({
           setSession(null)
         }}
       >
-        <div className="relative">
+        <div ref={headRef} className="flex flex-col" data-testid="cover-list">
+          <button
+            type="button"
+            aria-pressed={coverSelected}
+            aria-label="Cover"
+            className="e7-item relative mb-1 rounded-md p-2"
+            data-cover-row=""
+            data-testid="cover-list-item"
+            onClick={() => {
+              setCoverSelected(true)
+            }}
+          >
+            <ThumbCard ratio={coverCard}>
+              <CoverCanvas mini />
+            </ThumbCard>
+            <div className="mt-1.5 flex text-2xs tabular-nums">
+              <span
+                data-label
+                className={coverSelected ? 'font-semibold' : 'font-normal'}
+              >
+                Cover
+              </span>
+            </div>
+          </button>
+          {endpapersOn ? <EndpaperRow side="front" /> : null}
+        </div>
+        <div className="relative" role="listbox" aria-label="Pages">
           {lineY === null ? null : (
             <div
               aria-hidden="true"
@@ -529,26 +562,13 @@ export function SpreadsPanel({
             data-testid="spreads-tail"
             aria-hidden
           />
-          {/* Kit chrome.tsx:268-278: the back Endpaper stacks after the pages in the one list. */}
-          {endpapersOn ? (
-            <div data-testid="endpaper-back-list">
-              <EndpaperRow side="back" />
-            </div>
-          ) : null}
         </div>
-      </div>
-      <div className="flex items-center gap-1 p-1">
-        <button
-          type="button"
-          className="e7-ghost editor-add-spread flex flex-1 items-center justify-start gap-2 rounded-md px-2 text-sm"
-          data-testid="add-spread"
-          onClick={() => {
-            dispatchBookOp({ type: 'addSpread' })
-          }}
-        >
-          <Icon name="addSpread" size={14} />
-          Add spread
-        </button>
+        {/* Kit chrome.tsx:268-278: the back Endpaper stacks after the pages in the one list. */}
+        {endpapersOn ? (
+          <div className="flex flex-col" data-testid="endpaper-back-list">
+            <EndpaperRow side="back" />
+          </div>
+        ) : null}
       </div>
     </aside>
   )

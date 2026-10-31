@@ -83,3 +83,21 @@ export async function addSpreadAfterLast(page: Page): Promise<void> {
     await toggle.click()
   }
 }
+
+/**
+ * Add `count` spreads with the row shortcut (Ctrl+Enter, the kit "Add after";
+ * the list has no Add spread button). Each lands after the first spread, whose
+ * row stays mounted in the windowed list; waits for every add on the canvas.
+ */
+export async function addSpreads(page: Page, count: number): Promise<void> {
+  const scroll = page.getByTestId('pasteboard-scroll')
+  const first = page.getByTestId(/^spread-list-item-/).first()
+  for (let i = 0; i < count; i += 1) {
+    const before = Number(await scroll.getAttribute('data-spread-count'))
+    await first.press('Control+Enter')
+    await expect(scroll).toHaveAttribute(
+      'data-spread-count',
+      String(before + 1),
+    )
+  }
+}

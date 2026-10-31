@@ -272,14 +272,15 @@
   color: var(--foreground);
 }
 
-/* Kit PageLabels: one centred number under each page half, inside the slot's
-   bottom padding (no stride change). Hidden while the gap pill shows. */
+/* Kit PageLabels: one centred number under each page, 6 px under the spread
+   inside the 44 px gap (no stride change). A single page has one number.
+   Hidden while the gap pill shows. */
 .page-labels {
   position: absolute;
   inset: auto 0 0;
-  height: var(--slot-pad, 24px);
+  height: var(--slot-pad, 44px);
   display: flex;
-  padding-top: 4px;
+  padding-top: 6px;
   box-sizing: border-box;
   color: var(--muted-foreground);
   font-size: var(--text-xs);
@@ -288,9 +289,12 @@
   pointer-events: none;
 }
 .page-label {
-  width: 50%;
+  flex: 1 1 0;
   text-align: center;
   white-space: nowrap;
+}
+.page-label:empty {
+  display: none;
 }
 .pasteboard-scroll[data-asset-drag='true'] .page-labels {
   visibility: hidden;

@@ -9,6 +9,7 @@ import {
   type PointerEvent,
   type UIEvent,
 } from 'react'
+import { getSpreadPageCount } from '../core'
 import { setFrameSource } from './frameSelection'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
@@ -30,10 +31,12 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import {
+  PASTEBOARD_GAP_PX,
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
   applyForceMountIndex,
   clearForceMountIndex,
   pacePasteboardWindow,
+  pasteboardOverscanPx,
   pasteboardWindow,
   pasteboardWindowsEqual,
   pickActiveSpread,
@@ -52,7 +55,6 @@ import {
   nextViewportSize,
   PASTEBOARD_PAD_PX,
   pasteboardClickSpreadId,
-  pasteboardSlotPaddingBottom,
   pasteboardStrideAtZoom,
   pasteboardWindowKey,
   pasteboardWorldWidthPx,
@@ -173,7 +175,7 @@ export const Pasteboard = memo(function Pasteboard({
     stridePx: stride,
     scrollTop,
     viewportPx: viewport.height,
-    overscanPx: stride,
+    overscanPx: pasteboardOverscanPx(spreadIds.length, trimHeightMm * pxPerMm),
   })
   const viewportCover = pasteboardWindow({
     count: spreadIds.length,
@@ -527,14 +529,20 @@ export const Pasteboard = memo(function Pasteboard({
                 data-active={markedId === spreadId ? 'true' : 'false'}
                 style={{
                   height: stride,
-                  paddingBottom: pasteboardSlotPaddingBottom(committedZoom),
+                  paddingBottom: PASTEBOARD_GAP_PX,
                   containIntrinsicBlockSize: `auto ${String(stride)}px`,
-                  ['--slot-pad' as string]: `${String(pasteboardSlotPaddingBottom(committedZoom))}px`,
+                  ['--slot-pad' as string]: `${String(PASTEBOARD_GAP_PX)}px`,
                 }}
               >
                 <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
                 {pageLabelsFit(committedZoom) ? (
-                  <PageLabels spreadIndex={range.start + index} />
+                  <PageLabels
+                    spreadIndex={range.start + index}
+                    pages={getSpreadPageCount(
+                      range.start + index,
+                      spreadIds.length,
+                    )}
+                  />
                 ) : null}
                 <div
                   className="pasteboard-gap"

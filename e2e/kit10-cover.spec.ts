@@ -38,7 +38,7 @@ test('step 09: selecting the cover shows back · spine · front and the Cover in
   page,
 }) => {
   await expect(page.getByTestId('canvas-cover')).toHaveCount(0)
-  const row = page.locator('[data-item="cover"]')
+  const row = page.getByTestId('cover-list-item')
   await expect(row).toHaveAttribute('aria-pressed', 'false')
   await row.click()
   await expect(row).toHaveAttribute('aria-pressed', 'true')
@@ -107,7 +107,7 @@ test('step 13: drop a photo on the front and edit the title in the inspector', a
   ])
   const items = page.getByTestId('filmstrip-item')
   await expect(items).toHaveCount(2, { timeout: 30_000 })
-  await page.locator('[data-item="cover"]').click()
+  await page.getByTestId('cover-list-item').click()
   const assetId = String(
     await page
       .locator('[data-testid="filmstrip"] [data-asset-id]')

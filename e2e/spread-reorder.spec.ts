@@ -9,7 +9,11 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
-import { applyContactSheet, applyLayout } from './fixtures/layoutTiles'
+import {
+  addSpreads,
+  applyContactSheet,
+  applyLayout,
+} from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   choosePhotoFolder,
@@ -184,9 +188,7 @@ test('reorder in an overflowing list scrolls only inside spreads-list', async ({
   page,
 }) => {
   await openSessionEditor(page)
-  for (let i = 0; i < 12; i += 1) {
-    await page.getByTestId('add-spread').click()
-  }
+  await addSpreads(page, 12)
   const list = page.getByTestId('spreads-list')
   // The list is windowed: only the rows near the viewport are mounted.
   await expect

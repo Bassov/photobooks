@@ -26,13 +26,19 @@ describe('SpreadsPanel', () => {
     resetActiveSpreadIdForTests()
   })
 
-  it('lists spreads and add-spread appends one', () => {
-    const before = getSpreadIdsSnapshot().length
+  it('lists spreads without an Add spread button; Ctrl+Enter on the last row appends one', () => {
+    const before = getSpreadIdsSnapshot()
     render(<SpreadsPanel />)
     expect(screen.getByTestId('spreads-panel')).toBeTruthy()
     expect(screen.getByTestId('spreads-list')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('add-spread'))
-    expect(getSpreadIdsSnapshot().length).toBe(before + 1)
+    expect(screen.queryByTestId('add-spread')).toBeNull()
+    expect(screen.queryByText('Add spread')).toBeNull()
+    fireEvent.keyDown(
+      screen.getByTestId(`spread-list-item-${before.at(-1) ?? ''}`),
+      { key: 'Enter', ctrlKey: true },
+    )
+    expect(getSpreadIdsSnapshot().length).toBe(before.length + 1)
+    expect(getSpreadIdsSnapshot().slice(0, -1)).toEqual(before)
   })
 
   it('duplicates, adds after and deletes the selected spread by keyboard', () => {
@@ -261,6 +267,34 @@ describe('SpreadsPanel reorder', () => {
     fireDrag('dragOver', list, dt, 10)
     fireDrag('drop', list, dt)
     expect(getSpreadIdsSnapshot()).toEqual([a, c, b])
+  })
+
+  it('measures the pointer from the first spread row, below the Cover / Endpaper head', () => {
+    const [a, b, c] = getSpreadIdsSnapshot()
+    const head = 3 * spreadsRowPx()
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(
+      function (this: HTMLElement) {
+        return this.dataset.testid === 'cover-list' ? head : 0
+      },
+    )
+    render(<SpreadsPanel />)
+    const list = screen.getByTestId('spreads-list')
+    list.scrollTop = 0
+    const dt = transfer()
+    fireDrag('dragStart', item(c), dt)
+    fireDrag('dragOver', list, dt, head + spreadsRowPx() * 0.9)
+    fireDrag('drop', list, dt)
+    expect(getSpreadIdsSnapshot()).toEqual([a, c, b])
+  })
+
+  it('ignores row shortcuts on the Cover row', () => {
+    const before = getSpreadIdsSnapshot()
+    render(<SpreadsPanel />)
+    const cover = screen.getByTestId('cover-list-item')
+    fireEvent.keyDown(cover, { key: 'Enter', ctrlKey: true })
+    fireEvent.keyDown(cover, { key: 'Delete' })
+    fireEvent.keyDown(cover, { key: 'ArrowDown', altKey: true })
+    expect(getSpreadIdsSnapshot()).toEqual(before)
   })
 
   it('dragend without a drop clears the drag and keeps the order', () => {

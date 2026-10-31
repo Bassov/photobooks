@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function dropFirstPhotoOnCover(page: Page): Promise<string> {
-  await page.locator('[data-item="cover"]').click()
+  await page.getByTestId('cover-list-item').click()
   const attr = await page
     .locator('[data-testid="filmstrip"] [data-asset-id]')
     .first()
@@ -97,7 +97,7 @@ test('#9: a cover photo counts as used and shows the placed check', async ({
 test('#13: the cover canvas names its panels and shows the wrap guide', async ({
   page,
 }) => {
-  await page.locator('[data-item="cover"]').click()
+  await page.getByTestId('cover-list-item').click()
   await expect(page.getByTestId('cover-label-back')).toHaveText('Back')
   await expect(page.getByTestId('cover-label-spine')).toHaveText('Spine')
   await expect(page.getByTestId('cover-label-front')).toHaveText('Front')
@@ -122,7 +122,7 @@ test('#13: the cover canvas names its panels and shows the wrap guide', async ({
 test('#14: the cover inspector lists the kit rows without fake inputs', async ({
   page,
 }) => {
-  await page.locator('[data-item="cover"]').click()
+  await page.getByTestId('cover-list-item').click()
   const inspector = page.getByTestId('insp-cover')
   await expect(inspector).toContainText(
     'Hardcover · back, spine, front · wrap 15 mm',
@@ -184,7 +184,7 @@ test('#12: rows caption empty frames and the cover row takes the selected block'
   const empty = page.getByTestId('spread-row-empty').first()
   await expect(empty).toBeVisible()
   await expect(empty).toHaveText(/^\d+ empty$/)
-  const row = page.locator('[data-item="cover"]')
+  const row = page.getByTestId('cover-list-item')
   await row.click()
   await expect(row).toHaveCSS('background-color', 'rgb(202, 202, 202)')
 })
