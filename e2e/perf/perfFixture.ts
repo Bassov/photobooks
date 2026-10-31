@@ -164,7 +164,10 @@ declare global {
       ) => Promise<{ ok: boolean; code?: string }>
       adoptCurrentBookInLibrary: () => Promise<{ ok: boolean; code?: string }>
       saveBookNow: () => void
-      createBookInLibrary: () => Promise<{
+      createBookInLibrary: (
+        title?: string,
+        options?: { trim?: { widthMm: number; heightMm: number } },
+      ) => Promise<{
         ok: boolean
         code?: string
         value?: { id: string }
