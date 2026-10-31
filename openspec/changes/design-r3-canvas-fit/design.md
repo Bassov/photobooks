@@ -9,6 +9,7 @@
 ## Touch-set & Test Plan
 
 - Files: `src/editor/pasteboardCameraFit.ts`, `usePasteboardCamera.ts`, `Pasteboard.tsx`, `pasteboardWindow.ts`, `dropTargets.ts`, `galleryDrop.ts`, `ConnectedSpreadView.tsx`, `src/render/SpreadView.tsx`; specs `pasteboard`, `spread-view`.
+- e2e helpers: `fixtures/dropAssetOnFrame.ts` (clears with Enter: a click now keeps the selection), `perf/perfFixture.ts` (trim option type), `spread-view.spec.ts` (Fit may be width-bound), `fixtures/writeFixtureFile.mjs` + `write-*.mjs` (skip identical fixtures: a rewrite failed another worker's picked `File` with NotReadableError in the full suite).
 - Reuse: `fitZoom` / `fitViewportSize`, existing `noop` activation.
 - Unit: `pasteboardCameraFit.test.ts`, `pasteboardWindow.test.ts` (tie rule), `Pasteboard.view.test.tsx` (trim refit), `dropTargets.test.ts`, `ConnectedSpreadView.test.tsx` / `SpreadView.test.tsx` (click detail wiring).
 - e2e `design-r3-canvas-fit.spec.ts`: Fit across spreads + manual zoom kept; click/click selection; Escape; double-click crop. Skill `ui-review` before push.
