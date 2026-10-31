@@ -26,6 +26,7 @@ import {
 } from './cameraStore'
 import { setEditorGestureActive } from './editorGesture'
 import { getEditorTool } from './editorToolStore'
+import { pageLabelsFit } from './pageLabelsModel'
 import {
   beginDelayedFitFollow,
   createDelayedFitFollow,
@@ -201,14 +202,23 @@ const CAMERA_FRAME_VARS = ['--cam-tx', '--cam-ty', '--cam-scale'] as const
  */
 function writeCameraFrame(port: HTMLElement, frame: ZoomFrame | null): void {
   for (const el of port.querySelectorAll<HTMLElement>('[data-camera-frame]')) {
+    const gapPx = el.dataset.gapPx
     if (frame === null) {
       for (const name of CAMERA_FRAME_VARS) {
         el.style.removeProperty(name)
       }
+      el.removeAttribute('data-gap-short')
     } else {
       el.style.setProperty('--cam-tx', `${String(frame.translateX)}px`)
       el.style.setProperty('--cam-ty', `${String(frame.translateY)}px`)
       el.style.setProperty('--cam-scale', String(frame.scale))
+      // Page numbers: the live gap is the layout gap times the gesture scale.
+      if (gapPx !== undefined) {
+        el.toggleAttribute(
+          'data-gap-short',
+          !pageLabelsFit(Number(gapPx) * frame.scale),
+        )
+      }
     }
   }
 }

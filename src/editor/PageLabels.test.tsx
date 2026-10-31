@@ -26,14 +26,14 @@ describe('page labels', () => {
   })
 
   it('marks the page count for the single-page centring', () => {
-    render(<PageLabels spreadIndex={2} pages={1} />)
+    render(<PageLabels spreadIndex={2} pages={1} gapPx={72} />)
     const root = screen.getByTestId('page-labels')
     expect(root.dataset.pages).toBe('1')
     expect([...root.children].map((c) => c.textContent)).toEqual(['4', ''])
   })
 
   it('renders two aria-hidden halves', () => {
-    render(<PageLabels spreadIndex={2} />)
+    render(<PageLabels spreadIndex={2} gapPx={72} />)
     const root = screen.getByTestId('page-labels')
     expect(root.getAttribute('aria-hidden')).toBe('true')
     expect(root.dataset.pages).toBe('2')
@@ -45,9 +45,17 @@ describe('page labels', () => {
     expect(PAGE_LABEL_LINE_PX).toBe(11)
     expect(PAGE_LABELS_MIN_GAP_PX).toBe(19)
     expect(pageLabelsFit(72)).toBe(true)
+    // Designer-accepted (2026-10-31): just above, at and just below 8 + 11.
+    expect(pageLabelsFit(PAGE_LABELS_MIN_GAP_PX + 0.01)).toBe(true)
     expect(pageLabelsFit(19)).toBe(true)
-    expect(pageLabelsFit(18.9)).toBe(false)
+    expect(pageLabelsFit(PAGE_LABELS_MIN_GAP_PX - 0.01)).toBe(false)
+    expect(pageLabelsFit(16)).toBe(false)
     expect(pageLabelsFit(0)).toBe(false)
+  })
+
+  it('carries its layout gap for the live-zoom check', () => {
+    render(<PageLabels spreadIndex={1} gapPx={62.5} />)
+    expect(screen.getByTestId('page-labels').dataset.gapPx).toBe('62.5')
   })
 })
 

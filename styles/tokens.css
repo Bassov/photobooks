@@ -145,6 +145,8 @@
   --text-2xs: 11px;
   --text-xs: 12px;
   --text-sm: 13px;
+  /* Kit --text-sm--line-height for menu rows (kit MenuItem py-1.5 text-sm = 30.85 px). */
+  --leading-menu: 1.45;
   --text-base: 14px;
   --text-lg: 18px;
   --text-xl: 21px;

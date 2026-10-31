@@ -430,10 +430,10 @@ describe('SpreadView', () => {
         })}
       />,
     )
-    // A selected frame moves by its body (pointer gesture), not photo drag.
+    // A selected filled frame keeps the photo drag (kit #/demo step 17).
     expect(
       document.querySelector('.spread-frame-body')?.getAttribute('draggable'),
-    ).toBe('false')
+    ).toBe('true')
     const selected = screen.getByRole('button', {
       name: 'Select photo to move',
     })

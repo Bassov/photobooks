@@ -583,6 +583,7 @@ export const Pasteboard = memo(function Pasteboard({
                 <ConnectedSpreadView spreadId={spreadId} pxPerMm={pxPerMm} />
                 {pageLabelsFit(gapPx) ? (
                   <PageLabels
+                    gapPx={gapPx}
                     spreadIndex={range.start + index}
                     pages={getSpreadPageCount(
                       range.start + index,

@@ -663,8 +663,14 @@ describe('frameGesture · move', () => {
     })
   })
 
-  it('moves a selected filled frame by its body', () => {
+  it('leaves a selected filled frame to photo drag-and-drop (kit step 17)', () => {
     button.setAttribute('data-filled', 'true')
+    button.setAttribute('aria-pressed', 'true')
+    drag(40, 25, ALT)
+    expect(frames()[1]?.rect).toEqual(rect(10, 10, 40, 40))
+  })
+
+  it('moves a selected empty frame by its body', () => {
     button.setAttribute('aria-pressed', 'true')
     drag(40, 25, ALT)
     expect(frames()[1]?.rect).toEqual(rect(50, 35, 40, 40))

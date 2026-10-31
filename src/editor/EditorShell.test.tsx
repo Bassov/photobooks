@@ -16,7 +16,11 @@ import { addSpread, placeAsset } from '../core'
 import { makeBook } from '../core/testing/fixtures'
 import { enterCropMode, getCropTarget } from './cropMode'
 import { EditorShell } from './EditorShell'
-import { setEditorStatus } from './editorStatus'
+import {
+  STATUS_FRAME_DRAG,
+  STATUS_SWAPPED,
+  setEditorStatus,
+} from './editorStatus'
 import { resetEditorToolForTests } from './editorToolStore'
 import { seedGallery } from './gallery.test-helpers'
 import {
@@ -292,11 +296,36 @@ describe('EditorShell viewport containment', () => {
       setEditorStatus('Book saved')
     })
     expect(screen.getByTestId('editor-status').textContent).toBe('Book saved')
+    expect(screen.getByTestId('editor-status').hasAttribute('data-pill')).toBe(
+      false,
+    )
 
     act(() => {
       setEditorStatus('')
     })
     expect(screen.getByTestId('editor-status').textContent).toBe('')
+  })
+
+  it('paints the frame drag hint as the kit pill, and only that status', () => {
+    render(<EditorShell />)
+    act(() => {
+      setEditorStatus(STATUS_FRAME_DRAG)
+    })
+    const pill = screen.getByTestId('editor-status')
+    expect(pill.textContent).toBe(STATUS_FRAME_DRAG)
+    expect(pill.getAttribute('data-pill')).toBe('true')
+    expect(editorShellCss).toMatch(
+      /\.editor-status-pill\[data-pill='true'\]\s*\{[^}]*clip-path:\s*none/s,
+    )
+
+    act(() => {
+      setEditorStatus(STATUS_SWAPPED)
+    })
+    expect(pill.hasAttribute('data-pill')).toBe(false)
+    act(() => {
+      setEditorStatus('')
+    })
+    expect(pill.hasAttribute('data-pill')).toBe(false)
   })
 
   it('hides the status pill in Presentation', () => {

@@ -279,10 +279,10 @@ export function installFrameGesture(): () => void {
       tool === 'select' &&
       frameEl instanceof HTMLButtonElement &&
       event.target.closest('[data-handle]') === null &&
-      // A selected filled frame moves by its body; unselected filled ones
-      // keep the photo drag-and-drop.
-      (frameEl.getAttribute('data-filled') === 'false' ||
-        frameEl.getAttribute('aria-pressed') === 'true')
+      // Only an empty frame moves by its body. A filled frame, selected or
+      // not, keeps the photo drag-and-drop (kit #/demo step 17: the swap
+      // drag and its hint win over the move).
+      frameEl.getAttribute('data-filled') === 'false'
     ) {
       const frameId = frameEl.getAttribute('data-frame-id') ?? ''
       const ctx = spreadContext(spreadEl, frameId)

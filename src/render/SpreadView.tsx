@@ -376,7 +376,7 @@ function SpreadFrame({
       className="spread-frame-body"
       style={frameStyleCss(item.style, pxPerMm)}
       data-frame-style={item.style === undefined ? undefined : 'true'}
-      draggable={!cropActive && !selected && control?.onDragStart !== undefined}
+      draggable={!cropActive && control?.onDragStart !== undefined}
       onDragStart={control?.onDragStart}
     >
       {cropActive && previewUrl !== undefined ? (
