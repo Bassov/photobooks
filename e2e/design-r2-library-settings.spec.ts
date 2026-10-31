@@ -69,15 +69,18 @@ test('library: heading row, create button and card sit on the kit offsets', asyn
   expect(m.card.y).toBe(m.btn.bottom + 8)
 })
 
-test('library: search focus is the kit 2px #3A3839 offset outline', async ({
+// Rendered #/demo: the kit's focus-within outline is cancelled by outline-hidden,
+// so focus is the flat field fill with no ring (design-r3-library-forms).
+test('library: search focus is the kit flat fill without a ring', async ({
   page,
 }) => {
   await openLibraryWithBook(page)
-  await page.getByTestId('lib-search-input').click()
+  await page.getByTestId('lib-search-input').focus()
+  await expect(page.getByTestId('lib-search-input')).toBeFocused()
   const search = page.getByTestId('lib-search')
-  await expect(search).toHaveCSS('outline-width', '2px')
-  await expect(search).toHaveCSS('outline-offset', '2px')
-  await expect(search).toHaveCSS('outline-color', 'rgb(58, 56, 57)')
+  await expect(search).toHaveCSS('outline-style', 'none')
+  await expect(search).toHaveCSS('box-shadow', 'none')
+  await expect(search).toHaveCSS('background-color', 'rgb(215, 215, 215)')
 })
 
 test('library: rename input is the field pill with the kit focus ring', async ({
