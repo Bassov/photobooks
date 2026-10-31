@@ -139,9 +139,11 @@ function PagesField({ pages }: { pages: number }) {
   const [draft, setDraft] = useState<string | null>(null)
   const shown = draft ?? String(pages)
   const commit = () => {
-    if (draft !== null) {
-      dispatchBookOp({ type: 'setPageCount', pages: Number.parseFloat(draft) })
-    }
+    // No draft ("null") or a non-number parses to NaN: the book is kept.
+    dispatchBookOp({
+      type: 'setPageCount',
+      pages: Number.parseFloat(String(draft)),
+    })
     setDraft(null)
   }
   return (
