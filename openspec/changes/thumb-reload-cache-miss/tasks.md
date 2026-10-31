@@ -5,4 +5,4 @@
 
 ## Manual test scenarios
 
-1. Folder with 200+ JPEGs: look only at the first screen, save, reload, scroll to the end: every tile fills in, none stays gray.
+1. Folder with 200+ JPEGs: look only at the first screen, save, reload, scroll to the end: every tile fills in, none stays gray.: harness problem / `pnpm agent manual-qa` timed out on `start-session` (welcome header intercepts pointer events), no product verdict; covered by `e2e/thumb-reload-cache-miss.spec.ts` "reload: never-shown JPEG tail tiles decode upright thumbs on scroll" (green locally).
