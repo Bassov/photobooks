@@ -51,6 +51,8 @@ describe('SpreadView dpi badge', () => {
     const badge = screen.getByTestId('dpi-badge')
     expect(badge.textContent).toBe('127 dpi')
     expect(badge.dataset.level).toBe('min')
+    // Screen px through a live zoom (usePasteboardCamera --cam-scale).
+    expect(badge.dataset.cameraFrame).toBe('')
   })
 
   it('shows the warn level between min and warn', () => {

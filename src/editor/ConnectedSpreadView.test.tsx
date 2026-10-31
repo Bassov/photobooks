@@ -923,7 +923,8 @@ describe('Preview render (editorLayer off)', () => {
     expect(editorChrome()).toEqual({
       controls: 1,
       handles: 8,
-      sizeTag: 1,
+      // Owner design change (round 7, M52): no size tag in any mode.
+      sizeTag: 0,
       grid: 1,
       guides: 1,
       templatePreview: 1,

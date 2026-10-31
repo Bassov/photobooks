@@ -73,6 +73,9 @@ button.spread-frame[data-crop-active='true']:not(
   line-height: 16px;
   white-space: nowrap;
   pointer-events: none;
+  /* Screen px through a live zoom, about the frame's top-left corner. */
+  transform-origin: 0 24px;
+  scale: calc(1 / var(--cam-scale, 1));
 }
 
 .spread-frame-handles {
@@ -142,24 +145,6 @@ button.spread-frame[data-crop-active='true']:not(
   cursor: grab;
 }
 
-.spread-frame-size-tag {
-  position: absolute;
-  left: 50%;
-  bottom: -28px;
-  z-index: 3;
-  transform: translateX(-50%);
-  padding: 2px 6px;
-  border-radius: var(--radius-md);
-  background: var(--color-tag);
-  color: var(--paper);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  line-height: 16px;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
 /* Kit frame dpi badge (sandbox canvas.tsx): field chip, bottom-left. */
 .spread-frame-dpi {
   position: absolute;
@@ -179,6 +164,9 @@ button.spread-frame[data-crop-active='true']:not(
   line-height: 16px;
   white-space: nowrap;
   pointer-events: none;
+  /* Screen px through a live zoom, about the frame's bottom-left corner. */
+  transform-origin: -4px calc(100% + 4px);
+  scale: calc(1 / var(--cam-scale, 1));
 }
 
 .spread-frame-dpi[data-level='min'] {
@@ -199,6 +187,9 @@ button.spread-frame[data-crop-active='true']:not(
   background: color-mix(in srgb, black 55%, transparent);
   color: var(--paper);
   pointer-events: none;
+  /* Screen px through a live zoom, about the frame's top-right corner. */
+  transform-origin: calc(100% + 4px) -4px;
+  scale: calc(1 / var(--cam-scale, 1));
 }
 
 /* Kit hover outline: unselected frames only; selection / crop / drop own
@@ -291,13 +282,23 @@ button.spread-frame:not(
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   background: var(--placeholder);
   color: var(--placeholder-fg);
   font-size: var(--text-2xs);
+}
+
+/* Screen-px chrome inside the zoom-scaled world: --cam-scale (written on
+   [data-camera-frame] in the camera's world-transform rAF, like the page
+   numbers) undoes a live zoom about the chrome's anchor; 1 at rest. Hints
+   scale about their centre, so they stay centred in the frame. */
+.spread-frame-hints {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  scale: calc(1 / var(--cam-scale, 1));
 }
 
 .spread-frame-placeholder .spread-frame-glyph {
@@ -327,6 +328,18 @@ button.spread-frame:not(
   position: absolute;
   pointer-events: none;
   background: color-mix(in srgb, var(--foreground) 28%, transparent);
+}
+
+/* The fold is centred on the cut (kit gutter: left-1/2 -translate-x-1/2) and
+   stays 1 screen px through a live zoom. */
+.spread-page-cut[data-orientation='vertical'] {
+  translate: -50% 0;
+  scale: calc(1 / var(--cam-scale, 1)) 1;
+}
+
+.spread-page-cut[data-orientation='horizontal'] {
+  translate: 0 -50%;
+  scale: 1 calc(1 / var(--cam-scale, 1));
 }
 
 .spread-frame-missing {
