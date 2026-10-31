@@ -167,7 +167,7 @@ function limitsFor(
   }
   const limits = zoomLimits(
     fitFor(metrics, viewportWidth, viewportHeight),
-    // Whole-stack fit: the gap is not a plain scale of the stack (kit 44 px).
+    // Whole-stack fit: the narrower of the stack width and the stack height.
     Math.min(
       fitZoom({
         contentWidthPx: metrics.stackWidth,
@@ -217,7 +217,6 @@ function placedScroll(
 ): ScrollPosition {
   const spreadWidth = metrics.spreadWidth * zoom
   const spreadHeight = metrics.spreadHeight * zoom
-  // The gap stays 44 screen px: only the spread part of the stride scales.
   const stride = pasteboardStridePx(spreadHeight)
   return centerSpreadScroll({
     spreadLeftPx:
@@ -387,7 +386,6 @@ export function usePasteboardCamera({
         maxZoom: limits.maxZoom,
         originX: PASTEBOARD_PAD_PX,
         originY: PASTEBOARD_PAD_PX,
-        stackSpreadHeightPx: book.trimHeightMm * SPREAD_PX_PER_MM,
       },
       frame,
     )
@@ -451,8 +449,6 @@ export function usePasteboardCamera({
             maxZoom: gesture.maxZoom,
             originX: PASTEBOARD_PAD_PX,
             originY: PASTEBOARD_PAD_PX,
-            stackSpreadHeightPx:
-              bookRef.current.trimHeightMm * SPREAD_PX_PER_MM,
           },
           gesture.frame,
         )
@@ -723,7 +719,6 @@ export function usePasteboardCamera({
           maxZoom: gesture.maxZoom,
           originX: PASTEBOARD_PAD_PX,
           originY: PASTEBOARD_PAD_PX,
-          stackSpreadHeightPx: bookRef.current.trimHeightMm * SPREAD_PX_PER_MM,
         },
         gesture.frame,
       )

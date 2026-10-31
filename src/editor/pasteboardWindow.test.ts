@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { fc, test } from '@fast-check/vitest'
 import {
-  PASTEBOARD_GAP_PX,
   PASTEBOARD_MAX_NEW_MOUNTS_PER_FRAME,
+  STACK_GAP_RATIO,
   STACK_MIN_SPREAD_PX,
   applyForceMountIndex,
   clearForceMountIndex,
   pacePasteboardWindow,
+  pasteboardGapPx,
   pasteboardOverscanPx,
   pasteboardStridePx,
   pasteboardWindow,
@@ -14,48 +15,63 @@ import {
   pickActiveSpread,
 } from './pasteboardWindow'
 
-describe('pasteboardStridePx', () => {
-  it('adds the gap under a painted spread', () => {
-    expect(pasteboardStridePx(150)).toBe(150 + PASTEBOARD_GAP_PX)
-  })
-
-  it('returns the gap when the spread height is not usable', () => {
-    expect(pasteboardStridePx(Number.NaN)).toBe(PASTEBOARD_GAP_PX)
-    expect(pasteboardStridePx(-1)).toBe(PASTEBOARD_GAP_PX)
-    expect(pasteboardStridePx(0)).toBe(PASTEBOARD_GAP_PX)
-  })
-})
-
 describe('pasteboard stack gap', () => {
-  it('stays the kit 44 px under a spread of any height', () => {
-    expect(PASTEBOARD_GAP_PX).toBe(44)
-    expect(pasteboardStridePx(600)).toBe(644)
-    expect(pasteboardStridePx(20)).toBe(64)
-    expect(pasteboardStridePx(STACK_MIN_SPREAD_PX)).toBe(16 + 44)
+  it('is the kit 44 px under the 588 px #/demo Fit spread', () => {
+    expect(pasteboardGapPx(588)).toBeCloseTo(44, 9)
+    expect(pasteboardStridePx(588)).toBeCloseTo(632, 9)
+  })
+
+  it('scales with the spread: half the spread, half the gap', () => {
+    expect(pasteboardGapPx(294)).toBeCloseTo(22, 9)
+    expect(pasteboardStridePx(1176)).toBeCloseTo(1264, 9)
+    expect(pasteboardStridePx(STACK_MIN_SPREAD_PX)).toBeCloseTo(
+      16 + (16 * 44) / 588,
+      9,
+    )
+  })
+
+  test.prop([fc.double({ min: 1, max: 20_000, noNaN: true })])(
+    'gap / spread is the same ratio at every spread height',
+    (height) => {
+      expect(pasteboardGapPx(height) / height).toBeCloseTo(STACK_GAP_RATIO, 12)
+      expect(pasteboardStridePx(height)).toBeCloseTo(
+        height + pasteboardGapPx(height),
+        9,
+      )
+    },
+  )
+
+  it('has no gap and no stride without a usable spread height', () => {
+    for (const height of [Number.NaN, Number.POSITIVE_INFINITY, -1, 0]) {
+      expect(pasteboardGapPx(height)).toBe(0)
+      expect(pasteboardStridePx(height)).toBe(0)
+    }
   })
 })
 
 describe('pasteboardOverscanPx', () => {
   it('overscans one stride above the zoom-out floor', () => {
-    expect(pasteboardOverscanPx(40, 600)).toBe(644)
+    expect(pasteboardOverscanPx(40, 588)).toBeCloseTo(632, 9)
     expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX + 0.6)).toBe(
-      STACK_MIN_SPREAD_PX + 0.6 + 44,
+      pasteboardStridePx(STACK_MIN_SPREAD_PX + 0.6),
     )
   })
 
   it('covers the whole stack at the floor (whole-book overview)', () => {
-    expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX)).toBe(40 * 60)
-    expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX + 0.5)).toBe(
-      40 * (STACK_MIN_SPREAD_PX + 0.5 + 44),
+    expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX)).toBe(
+      40 * pasteboardStridePx(STACK_MIN_SPREAD_PX),
     )
-    expect(pasteboardOverscanPx(3, 4)).toBe(3 * 48)
+    expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX + 0.5)).toBe(
+      40 * pasteboardStridePx(STACK_MIN_SPREAD_PX + 0.5),
+    )
+    expect(pasteboardOverscanPx(3, 4)).toBe(3 * pasteboardStridePx(4))
     expect(pasteboardOverscanPx(-2, 4)).toBe(0)
   })
 
-  it('falls back to one gap for an unusable spread height', () => {
-    expect(pasteboardOverscanPx(40, 0)).toBe(44)
-    expect(pasteboardOverscanPx(40, -5)).toBe(44)
-    expect(pasteboardOverscanPx(40, Number.NaN)).toBe(44)
+  it('is empty for an unusable spread height', () => {
+    expect(pasteboardOverscanPx(40, 0)).toBe(0)
+    expect(pasteboardOverscanPx(40, -5)).toBe(0)
+    expect(pasteboardOverscanPx(40, Number.NaN)).toBe(0)
   })
 
   it('lets the window mount every spread at the floor', () => {

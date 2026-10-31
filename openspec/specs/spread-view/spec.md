@@ -152,7 +152,8 @@ page-level horizontal or vertical scroll.
 
 Wheel (with or without Ctrl/Cmd) and pinch SHALL zoom around the pointer; `+`/`-`
 SHALL zoom around the viewport center. Zoom MUST NOT go below the pasteboard
-zoom-out floor (whole-stack fit with 44 px gaps, or 16 px spreads for a long book) and
+zoom-out floor (whole-stack fit with spread-proportional gaps, or 16 px spreads for
+a long book) and
 MUST reach at least 400% of physical size. Opening the app MUST keep the current
 layout scale. Holding Space and dragging on the pasteboard SHALL pan the pasteboard
 scrollport whenever the pointer is over the pasteboard and focus is not in a text

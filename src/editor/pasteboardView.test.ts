@@ -1,7 +1,7 @@
 import fc from 'fast-check'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  PASTEBOARD_GAP_PX,
+  STACK_GAP_RATIO,
   STACK_MIN_SPREAD_PX,
   pasteboardStridePx,
 } from './pasteboardWindow'
@@ -21,7 +21,6 @@ import {
   shouldRenderSpacer,
   PASTEBOARD_PAD_PX,
   spreadActiveIndex,
-  stackContentYAtZoom,
   stackHeightFitZoom,
   stackScrollTop,
   widestPageCount,
@@ -126,15 +125,15 @@ describe('world / stride helpers', () => {
     ).toBe(400)
   })
 
-  it('scales the spread part of the stride by zoom; the gap stays 44 px', () => {
-    // 100 mm × 0.5 px/mm = 50 px at zoom 1.
-    expect(pasteboardStrideAtZoom(100, 2)).toBe(100 + PASTEBOARD_GAP_PX)
-    expect(pasteboardStrideAtZoom(100, 6)).toBe(300 + PASTEBOARD_GAP_PX)
-  })
-
-  it('keeps the 44 px gap under a small spread', () => {
-    expect(pasteboardStrideAtZoom(100, 1)).toBe(50 + 44)
-    expect(pasteboardStrideAtZoom(100, 0.32)).toBeCloseTo(16 + 44, 9)
+  it('scales the whole stride (spread and gap) with zoom', () => {
+    // 100 mm × 0.5 px/mm = 50 px at zoom 1; gap = spread × 44 / 588.
+    const ratio = 1 + STACK_GAP_RATIO
+    expect(pasteboardStrideAtZoom(100, 1)).toBeCloseTo(50 * ratio, 9)
+    expect(pasteboardStrideAtZoom(100, 2)).toBeCloseTo(100 * ratio, 9)
+    expect(pasteboardStrideAtZoom(100, 6)).toBeCloseTo(300 * ratio, 9)
+    expect(pasteboardStrideAtZoom(100, 0.32)).toBeCloseTo(16 * ratio, 9)
+    // The #/demo Fit spread (588 px) has the kit 44 px gap.
+    expect(pasteboardStrideAtZoom(588, 2)).toBeCloseTo(588 + 44, 9)
   })
 
   it('joins mounted ids for the window key', () => {
@@ -285,71 +284,26 @@ describe('stackScrollTop', () => {
   })
 })
 
-describe('stackContentYAtZoom', () => {
-  // Zoom-1 spread height 100 px: stride 144 at zoom 1, 244 at zoom 2.
-  it('keeps a point on its spread and a gap offset in px', () => {
-    expect(stackContentYAtZoom(50, 100, 1, 2)).toBe(100)
-    expect(stackContentYAtZoom(120, 100, 1, 2)).toBe(220)
-    expect(stackContentYAtZoom(144 + 50, 100, 1, 2)).toBe(244 + 100)
-    expect(stackContentYAtZoom(2 * 144, 100, 1, 2)).toBe(2 * 244)
-  })
-
-  it('keeps the gap 44 px when zooming out to a small spread', () => {
-    // Zoom 0.5: 50 px spread + 44 px gap (stride 94); zoom 1: 100 + 44.
-    expect(stackContentYAtZoom(50 + 12, 100, 0.5, 1)).toBe(100 + 12)
-    expect(stackContentYAtZoom(94 + 25, 100, 0.5, 1)).toBe(144 + 50)
-    expect(stackContentYAtZoom(100 + 22, 100, 1, 0.5)).toBe(50 + 22)
-    // 43 px into the gap under spread 4 stays 43 px into it at a 16 px spread.
-    expect(stackContentYAtZoom(3 * 144 + 100 + 43, 100, 1, 0.16)).toBeCloseTo(
-      3 * 60 + 16 + 43,
-      9,
-    )
-  })
-
-  it('scales points above the stack', () => {
-    expect(stackContentYAtZoom(0, 100, 1, 2)).toBe(0)
-    expect(stackContentYAtZoom(-40, 100, 1, 2)).toBe(-80)
-  })
-
-  it('scales linearly when the stride is not usable', () => {
-    expect(stackContentYAtZoom(30, -100, 1, 2)).toBe(60)
-  })
-
-  it('maps spread i, fraction f to the same spread and fraction (PBT)', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 40 }),
-        fc.double({ min: 0, max: 1, noNaN: true }),
-        fc.double({ min: 10, max: 2000, noNaN: true }),
-        fc.double({ min: 0.05, max: 8, noNaN: true }),
-        fc.double({ min: 0.05, max: 8, noNaN: true }),
-        (index, f, h, from, to) => {
-          const y = index * pasteboardStridePx(h * from) + f * h * from
-          const mapped = stackContentYAtZoom(y, h, from, to)
-          const expected = index * pasteboardStridePx(h * to) + f * h * to
-          expect(Math.abs(mapped - expected)).toBeLessThan(1e-6 * (1 + y))
-          const back = stackContentYAtZoom(mapped, h, to, from)
-          expect(Math.abs(back - y)).toBeLessThan(1e-6 * (1 + y))
-        },
-      ),
-    )
-  })
-})
-
 describe('stackHeightFitZoom', () => {
-  it('fits a short book with the full 44 px gap', () => {
+  it('fits a short book, gaps scaled with the spreads', () => {
     const zoom = stackHeightFitZoom(2, 150, 800)
-    expect(zoom).toBeCloseTo((400 - 44) / 150, 9)
+    expect(zoom).toBeCloseTo(400 / (150 * (1 + STACK_GAP_RATIO)), 9)
     expect(2 * pasteboardStridePx(150 * zoom)).toBeCloseTo(800, 6)
   })
 
-  it('stops a long book at the minimum spread height; the gap stays 44 px', () => {
-    // 40 strides in 800 px leave no room for a spread: floor at 16 px.
-    const zoom = stackHeightFitZoom(40, 150, 800)
+  it('stops a long book at the minimum spread height', () => {
+    // 60 strides in 800 px would be 12.4 px spreads: floor at 16 px.
+    const zoom = stackHeightFitZoom(60, 150, 800)
     expect(zoom).toBe(STACK_MIN_SPREAD_PX / 150)
-    expect(pasteboardStridePx(150 * zoom)).toBeCloseTo(16 + 44, 9)
-    // 13 strides in 800 px: 17.5 px spreads still fit whole.
-    expect(stackHeightFitZoom(13, 150, 800) * 150).toBeCloseTo(800 / 13 - 44, 9)
+    expect(pasteboardStridePx(150 * zoom)).toBeCloseTo(
+      16 * (1 + STACK_GAP_RATIO),
+      9,
+    )
+    // 40 strides in 800 px: 18.6 px spreads still fit whole.
+    expect(stackHeightFitZoom(40, 150, 800) * 150).toBeCloseTo(
+      800 / 40 / (1 + STACK_GAP_RATIO),
+      9,
+    )
   })
 
   it('is unbounded with nothing to fit', () => {

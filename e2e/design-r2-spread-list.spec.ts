@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { Locator, Page } from '@playwright/test'
+import type { Locator } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import {
   assertDocumentFitsViewport,
@@ -7,6 +7,11 @@ import {
 } from './fixtures/assertDocumentFitsViewport'
 import { addSpreads } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
+import {
+  expectKitGapRatio,
+  spreadBoxes,
+  zoomOutToFloor,
+} from './fixtures/stackGap'
 import { readZoomPercent } from './fixtures/zoomMenu'
 
 // Owner prod shot 2026-10-31 vs kit #/demo: uikit/src/sandbox/chrome.tsx
@@ -122,34 +127,7 @@ test('M19: the Cover card is the kit card at the cover ratio', async ({
   }
 })
 
-async function spreadBoxes(page: Page): Promise<Box[]> {
-  return page
-    .getByTestId('pasteboard-scroll')
-    .locator('[data-pasteboard-slot] [data-testid="spread-view"]')
-    .evaluateAll((els) =>
-      els.map((el) => {
-        const r = el.getBoundingClientRect()
-        return { x: r.x, y: r.y, width: r.width, height: r.height }
-      }),
-    )
-}
-
-async function expectStackGap(page: Page): Promise<void> {
-  await expect
-    .poll(async () => (await spreadBoxes(page)).length)
-    .toBeGreaterThanOrEqual(2)
-  const boxes = await spreadBoxes(page)
-  for (let i = 1; i < boxes.length; i += 1) {
-    const prev = boxes[i - 1]
-    const next = boxes[i]
-    assert(prev !== undefined && next !== undefined)
-    expect(Math.abs(next.y - (prev.y + prev.height) - 44)).toBeLessThanOrEqual(
-      1,
-    )
-  }
-}
-
-test('M23: spreads are 44 px apart at Fit and after zoom; labels 6 px under', async ({
+test('M23: the gap is the kit share of the spread at Fit and after zoom; labels 6 px under', async ({
   page,
 }) => {
   const port = await box(page.getByTestId('pasteboard-scroll'))
@@ -157,7 +135,7 @@ test('M23: spreads are 44 px apart at Fit and after zoom; labels 6 px under', as
   assert(first !== undefined)
   // Kit Fit band [56, H - 48]: at least pt-14 air above page 1.
   expect(first.y - port.y).toBeGreaterThanOrEqual(55.5)
-  await expectStackGap(page)
+  await expectKitGapRatio(page)
 
   const slot = page.locator('[data-pasteboard-slot]').first()
   const spread = await box(slot.getByTestId('spread-view'))
@@ -166,7 +144,7 @@ test('M23: spreads are 44 px apart at Fit and after zoom; labels 6 px under', as
     Math.abs(label.y - (spread.y + spread.height) - 6),
   ).toBeLessThanOrEqual(1)
 
-  // The gap does not scale with zoom (kit stackGap is screen px), down to
+  // The gap scales with the spread (Owner bug fix-spread-gap-zoom), down to
   // the kit Stack floor 0.5 × Fit (Fit / 1.25³ = 0.512 × Fit).
   for (const step of [
     'zoom-in',
@@ -178,39 +156,15 @@ test('M23: spreads are 44 px apart at Fit and after zoom; labels 6 px under', as
     const before = await readZoomPercent(page)
     await page.getByTestId(step).click()
     await expect.poll(() => readZoomPercent(page)).not.toBe(before)
-    await expectStackGap(page)
+    await expectKitGapRatio(page)
   }
 
-  // The smallest reachable zoom keeps the 44 px gap too.
+  // The smallest reachable zoom keeps the same share too.
   await zoomOutToFloor(page)
-  await expectStackGap(page)
+  await expectKitGapRatio(page)
 })
 
-async function firstSpreadHeight(page: Page): Promise<number> {
-  return (await spreadBoxes(page))[0]?.height ?? 0
-}
-
-/**
- * Zoom out with the toolbar until the painted spread stops shrinking (the
- * rounded zoom percent can stall above the floor).
- */
-async function zoomOutToFloor(page: Page): Promise<void> {
-  for (let guard = 0; guard < 40; guard += 1) {
-    const before = await firstSpreadHeight(page)
-    await page.getByTestId('zoom-out').click()
-    const changed = await expect
-      .poll(() => firstSpreadHeight(page), { timeout: 1_000 })
-      .not.toBe(before)
-      .then(
-        () => true,
-        () => false,
-      )
-    if (!changed) return
-  }
-  throw new Error('zoom-out never reached the floor')
-}
-
-test('M23: a 40-spread book at the zoom-out floor keeps 44 px gaps and mounts every spread', async ({
+test('M23: a 40-spread book at the zoom-out floor keeps the gap share and mounts every spread', async ({
   page,
 }) => {
   await page.goto('/?fixture=painter')
@@ -220,7 +174,7 @@ test('M23: a 40-spread book at the zoom-out floor keeps 44 px gaps and mounts ev
   )
   await zoomOutToFloor(page)
   await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
-  await expectStackGap(page)
+  await expectKitGapRatio(page)
   await assertDocumentFitsViewport(page)
 })
 
