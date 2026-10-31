@@ -316,11 +316,19 @@ test.describe('M39 tool group centred on the canvas area', () => {
     const splitter = page.getByRole('separator', { name: 'Resize left panel' })
     await splitter.focus()
     await page.keyboard.press('Shift+ArrowRight')
+    // The panel animates its width; measure once it has settled.
+    await expect
+      .poll(async () => (await rectOf(page.getByTestId('panel-l'))).width)
+      .toBe(244)
     const left = await rectOf(page.getByTestId('panel-l'))
-    expect(left.width).toBe(244)
     const inspector = await rectOf(page.getByTestId('panel-r'))
-    const group = await groupSpan(page)
-    near((group.left + group.right) / 2, (left.right + inspector.left) / 2, 1)
+    const canvasCentre = (left.right + inspector.left) / 2
+    await expect
+      .poll(async () => {
+        const group = await groupSpan(page)
+        return Math.abs((group.left + group.right) / 2 - canvasCentre)
+      })
+      .toBeLessThanOrEqual(1)
   })
 })
 
