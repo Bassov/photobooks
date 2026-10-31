@@ -764,6 +764,32 @@ describe('Pasteboard view wiring', () => {
     expect(getCommittedZoom()).not.toBe(1)
   })
 
+  it('refits at Fit when the book trim changes after mount', () => {
+    // Same spreads, only the trim differs.
+    const withTrim = (widthMm: number, heightMm: number) => ({
+      book: makeBook({ settings: { trim: { widthMm, heightMm } } }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const portrait = () => withTrim(190, 230)
+    resetBookStore(portrait())
+    commitZoom(1, 0, 0)
+    stubViewport(800, 600)
+    render(<Pasteboard fitOnOpen />)
+    const portraitFit = getCommittedZoom()
+    cleanup()
+
+    resetBookStore(withTrim(300, 300))
+    resetCameraStore()
+    render(<Pasteboard fitOnOpen />)
+    expect(getCommittedZoom()).not.toBe(portraitFit)
+    act(() => {
+      resetBookStore(portrait())
+    })
+    expect(getCommittedZoom()).toBe(portraitFit)
+  })
+
   it('leaves the zoom alone without fitOnOpen', () => {
     resetBookStore()
     commitZoom(1, 0, 0)

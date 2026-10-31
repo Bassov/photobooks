@@ -360,8 +360,16 @@ export const Pasteboard = memo(function Pasteboard({
     if (viewport.width === 0 || viewport.height === 0) {
       return
     }
+    // A trim change (book opened after mount) refits too: Fit is per trim.
     cameraRef.current.refitIfFitted()
-  }, [fitOnOpen, spreadIds.length, viewport.width, viewport.height])
+  }, [
+    fitOnOpen,
+    spreadIds.length,
+    trimWidthMm,
+    trimHeightMm,
+    viewport.width,
+    viewport.height,
+  ])
   useEffect(
     () =>
       registerCameraCommands({

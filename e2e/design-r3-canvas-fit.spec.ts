@@ -12,7 +12,7 @@ import {
   choosePhotoFolder,
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
-import { readZoomPercent } from './fixtures/zoomMenu'
+import { chooseZoom, readZoomPercent } from './fixtures/zoomMenu'
 
 // Design review r3 (2026-10-31) vs kit `#/demo`: Fit draws every spread at the
 // two-page width (uikit/src/sandbox/viewport.tsx `SW`), and a click on the
@@ -91,6 +91,12 @@ test.describe('M9: Fit follows the active spread', () => {
           .toBe(true)
         await expect(zoomLabel(page)).toHaveText('Fit')
       }
+      // "Fit" is the real fit for this trim, not a stale one from before the
+      // book opened: an explicit Fit spread keeps the zoom.
+      const fitted = await readZoomPercent(page)
+      await chooseZoom(page, 'Fit spread')
+      await expect(zoomLabel(page)).toHaveText('Fit')
+      expect(await readZoomPercent(page)).toBe(fitted)
       await assertDocumentFitsViewport(page)
     })
   }

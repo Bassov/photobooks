@@ -13,3 +13,13 @@ Keyboard-reachable fit spread, fit width, and 100% physical size (96 CSS px/inch
 
 - **WHEN** at Fit the user selects page 1, then spread 2–3, then the last page in the spreads list
 - **THEN** each active spread lies inside the pasteboard and the indicator reads "Fit"
+
+#### Scenario: Fit after the book's trim changes
+
+- **WHEN** the camera is at Fit and the open book's trim changes (a 19 × 23 cm book opens in a mounted editor)
+- **THEN** the camera refits for the new trim, so an explicit Fit spread leaves the zoom unchanged
+
+#### Scenario: Tied spreads keep the active mark
+
+- **WHEN** at Fit several spreads are whole on screen and the pasteboard resizes
+- **THEN** the active spread stays active while its visible ratio is within 0.02 of the most visible spread
