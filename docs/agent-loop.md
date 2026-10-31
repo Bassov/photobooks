@@ -113,6 +113,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - `pnpm -s agent finish --title "…" --body-file …` — push + create/update PR only.
 - No happy-path merge of `origin/main`; no C2 in finish; skip A/C1 in pre-push when stamp matches.
 - After push/PR: print the PR URL and exit. The orchestrator owns CI wait, sole-flake re-runs and merge. `pnpm agent ci-wait` only when the brief asks for it (never `gh pr checks --watch`).
+- CI evidence: read failures with `gh run view <id> --log-failed` (or `pnpm agent ci-brief`) and fetch artifacts with `gh run download <id> -n <name> -D .cache/agent/ci`. Never call `gh api` from an agent run; headless permissions deny it.
 - **How (precedence):** `.cursor/rules/git-finish.mdc`.
 
 ### 13 · CI fix (fresh session)
