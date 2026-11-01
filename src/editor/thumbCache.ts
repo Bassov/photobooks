@@ -601,6 +601,9 @@ export async function hydrateGalleryThumbs(): Promise<void> {
   } catch {
     // DerivedCache unavailable: misses stay with the mount path.
   } finally {
+    // Ids left by the byte-budget stop or a throw; nothing reads them now.
+    // Stryker disable next-line BlockStatement,MethodExpression: the set is only ever deleted from, so leftovers are unobservable
+    inflight.clear()
     if (current()) {
       bulkStats.state = 'done'
       bulkStats.ms = performance.now() - started
