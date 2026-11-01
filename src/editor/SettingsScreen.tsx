@@ -7,11 +7,14 @@ import { Button } from '../ui/Button'
 import { cn } from '../ui/cn'
 import { FeaturedIcon } from '../ui/FeaturedIcon'
 import { Icon } from '../ui/Icon'
+import { ensureKitTypeStyles } from './kitTypeStyles'
 import { changeLibraryFolder } from './projectSession'
 import {
   SETTINGS_SECTIONS,
   settingsNavActiveClass,
 } from './settingsScreenModel'
+
+ensureKitTypeStyles()
 
 const ROW =
   'flex min-h-13 items-center gap-4 px-4 py-2' /* v0.9.1: no card border; chrome surface only */
@@ -37,7 +40,8 @@ export function SettingsScreen({
       className="grid h-full min-h-0 grid-cols-[220px_1fr] bg-background"
       data-testid="settings"
     >
-      <nav className="flex flex-col gap-0.5 bg-chrome p-3">
+      {/* Kit settings.tsx:28 invisible 1 px `border-r` as padding: rows 195 wide, no rule. */}
+      <nav className="flex flex-col gap-0.5 bg-chrome p-3 pr-[13px]">
         <div className="mb-3 flex items-center gap-2 px-2 pt-1">
           <div className="grid size-6 place-items-center rounded-md bg-field text-foreground">
             <Icon name="bookOpen" size={14} className="size-3" />
@@ -52,7 +56,7 @@ export function SettingsScreen({
               aria-current="page"
               data-testid={`settings-nav-${section.id}`}
               className={cn(
-                'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
+                'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm leading-[1.45] shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
                 settingsNavActiveClass(),
               )}
             >
@@ -68,12 +72,12 @@ export function SettingsScreen({
       </nav>
       <main
         id="settings-scroll"
-        className="min-h-0 overflow-auto px-8 py-6"
+        className="pb-kit-type min-h-0 overflow-auto px-8 py-6"
         data-scrollport="settings"
         data-testid="settings-scroll"
       >
         <h1
-          className="heading m-0 text-2xl"
+          className="heading m-0 text-2xl leading-[1.2]" /* kit .heading text-2xl = 31.2px */
           data-testid="settings-section-title"
         >
           Library
@@ -141,7 +145,7 @@ export function SettingsScreen({
             />
             <div className={ROW}>
               <div className="min-w-0 flex-1 text-sm">Folder access</div>
-              <Badge color="gray" dot>
+              <Badge color="success" dot>
                 Allowed · read and write
               </Badge>
             </div>

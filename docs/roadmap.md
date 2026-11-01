@@ -34,6 +34,13 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r8-polish](roadmap/P1/design-r8-polish.md) — Bug: design-r8-polish: endpaper inspector spacing, single-page list rows, new-spread pill centring
 - [ ] [feature] [design-r9-letter-spacing](roadmap/P1/design-r9-letter-spacing.md) — Bug: design-r9-letter-spacing: uppercase section titles match the kit
 - [ ] [feature] [design-r10-chrome](roadmap/P1/design-r10-chrome.md) — Bug: design-r10-chrome: button font, layout picker and Create dialog match the kit
+- [ ] [feature] [design-r10-inspectors](roadmap/P1/design-r10-inspectors.md) — Bug: design-r10-inspectors: Cover/Book/Photo inspectors and segmented controls match the kit
+- [ ] [feature] [design-r10-library](roadmap/P1/design-r10-library.md) — Bug: design-r10-library: Welcome, Library and Settings match the kit
+- [ ] [feature] [design-r11-controls](roadmap/P1/design-r11-controls.md) — Bug: design-r11-controls: input font, secondary/pill buttons and Settings match the kit
+- [ ] [feature] [design-r11-topbar](roadmap/P1/design-r11-topbar.md) — Bug: design-r11-topbar: editor top bar controls match the kit
+- [ ] [feature] [cover-hires](roadmap/P1/cover-hires.md) — Bug: /next-roadmap-item cover-hires
+- [ ] [feature] [design-r11-photo](roadmap/P1/design-r11-photo.md) — Bug: design-r11-photo: Photo inspector expanded sections match the kit
+- [ ] [feature] [design-r11-canvas](roadmap/P1/design-r11-canvas.md) — Bug: design-r11-canvas: spine fold, spread-list thumbnail shadow and cover text match the kit
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
 - [x] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates
@@ -43,6 +50,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [thumb-bulk-hydrate](roadmap/P1/thumb-bulk-hydrate.md) — On book open, load all cached thumbs before the user scrolls
 - [ ] [contingency] [thumb-pack-storage](roadmap/P1/thumb-pack-storage.md) — Store a folder's thumbs in one IndexedDB store (only if hydrate is slow)
 - [ ] [feature] [thumb-background-warm](roadmap/P1/thumb-background-warm.md) — Thumbs for the whole folder in the background
+- [ ] [feature] [thumb-warm-slice](roadmap/P1/thumb-warm-slice.md) — Bug: /next-roadmap-item thumb-warm-slice
 - [x] [prep] [rescan-cheap-verify](roadmap/P1/rescan-cheap-verify.md) — Folder rescan on open: no per-file re-resolve, O(n) diff, parallel scan
 
 ## P2 — Missing features, iterative

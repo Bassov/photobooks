@@ -13,6 +13,25 @@
   height: 14px;
 }
 
+/* Kit SliderRow (uikit/src/components/app/controls.tsx:21, `flex-col gap-2`):
+   a 16.8 px label row, 8 px gap and a 3 px track, so 27.8 px rows. The 14 px
+   track keeps its hit area but lays out 3 px tall (Owner Must M60, round 10). */
+.fit-crop-slider--row > div:first-child {
+  line-height: 1.4;
+}
+
+.fit-crop-slider--row .fit-crop-track {
+  margin: -5.5px 0;
+}
+
+/* Kit `text-xs text-muted-foreground` note: 12 / 16.8 px, muted ink. */
+.fit-crop-note {
+  margin-bottom: 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
 .fit-crop-track::before {
   content: '';
   position: absolute;
@@ -53,13 +72,16 @@
   outline-offset: 2px;
 }
 
+/* Kit MmField (uikit/src/sandbox/inspector.tsx:24): px-3, gap-1.5, a
+   `min-w-3` prefix and the value left-aligned right after it (Owner Must M72,
+   round 11). */
 .fit-crop-field {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 32px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: var(--radius-sm);
   background: var(--field);
   font-size: var(--text-sm);
@@ -73,12 +95,16 @@
 .fit-crop-input {
   min-width: 0;
   flex: 1;
+  /* Kit preflight: no UA padding, so the value starts at the input edge. */
+  padding: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: right;
+  /* Kit text-sm leading: an 18.84 px value box. */
+  line-height: 1.45;
+  text-align: start;
   font-variant-numeric: tabular-nums;
 }
 
@@ -90,4 +116,9 @@
 .fit-crop-affix {
   flex-shrink: 0;
   font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.fit-crop-affix:first-child {
+  min-width: 12px;
 }

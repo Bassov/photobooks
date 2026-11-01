@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -17,6 +17,8 @@ export interface DisclosureProps {
   /** Header action(s) right of the trigger, shown only while expanded. */
   right?: ReactNode
   'data-testid'?: string
+  /** Presses inside (trigger included) keep crop mode alive. */
+  'data-crop-keep'?: string
   children: ReactNode
 }
 
@@ -27,46 +29,63 @@ export function Disclosure({
   summary,
   right,
   'data-testid': dataTestId,
+  'data-crop-keep': cropKeep,
   children,
 }: DisclosureProps) {
+  const id = useId()
   return (
     <AriaDisclosure
       className="pb-disclosure"
       defaultExpanded={defaultExpanded}
       data-testid={dataTestId}
+      data-crop-keep={cropKeep}
     >
-      {({ isExpanded }) => (
-        <>
-          <div className="pb-disclosure__header">
-            <Heading className="pb-disclosure__heading">
-              <Button slot="trigger" className="pb-disclosure__trigger">
-                <Icon
-                  name="chevronRight"
-                  size={14}
-                  className="pb-disclosure__chevron"
-                />
-                <span className="inspector-eyebrow">{title}</span>
-                {!isExpanded && summary !== undefined ? (
-                  <span
-                    className="pb-disclosure__summary"
-                    data-testid={
-                      dataTestId === undefined
-                        ? undefined
-                        : `${dataTestId}-summary`
-                    }
-                  >
-                    {summary}
+      {({ isExpanded }) => {
+        const summarized = !isExpanded && summary !== undefined
+        return (
+          <>
+            <div className="pb-disclosure__header">
+              <Heading className="pb-disclosure__heading">
+                {/* Named by the title; the summary is its description. */}
+                <Button
+                  slot="trigger"
+                  className="pb-disclosure__trigger"
+                  aria-labelledby={`${id}-title`}
+                  {...(summarized
+                    ? { 'aria-describedby': `${id}-summary` }
+                    : {})}
+                >
+                  <Icon
+                    name="chevronRight"
+                    size={14}
+                    className="pb-disclosure__chevron"
+                  />
+                  <span id={`${id}-title`} className="inspector-eyebrow">
+                    {title}
                   </span>
-                ) : null}
-              </Button>
-            </Heading>
-            {isExpanded ? right : null}
-          </div>
-          <DisclosurePanel className="pb-disclosure__panel">
-            {children}
-          </DisclosurePanel>
-        </>
-      )}
+                  {summarized ? (
+                    <span
+                      id={`${id}-summary`}
+                      className="pb-disclosure__summary"
+                      data-testid={
+                        dataTestId === undefined
+                          ? undefined
+                          : `${dataTestId}-summary`
+                      }
+                    >
+                      {summary}
+                    </span>
+                  ) : null}
+                </Button>
+              </Heading>
+              {isExpanded ? right : null}
+            </div>
+            <DisclosurePanel className="pb-disclosure__panel">
+              {children}
+            </DisclosurePanel>
+          </>
+        )
+      }}
     </AriaDisclosure>
   )
 }

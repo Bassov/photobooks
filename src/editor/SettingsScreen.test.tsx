@@ -60,7 +60,7 @@ describe('SettingsScreen', () => {
         .getByText('Allowed · read and write')
         .closest('[data-color]')
         ?.getAttribute('data-color'),
-    ).toBe('gray')
+    ).toBe('success') // kit demo-parts/settings.tsx:48 (round 10, M66)
     expect(screen.getByTestId('settings-nav-library').className).not.toMatch(
       /\bring-/,
     )
@@ -68,8 +68,13 @@ describe('SettingsScreen', () => {
       screen.getByTestId('settings-nav-library').getAttribute('aria-current'),
     ).toBe('page')
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
-      /bg-\[#CACACA\]/,
+      /\bbg-accent\b/,
     )
+    // Kit settings.tsx:28: invisible 1 px right edge (as padding) keeps rows 195 px wide.
+    expect(screen.getByRole('navigation').className.split(' ')).toEqual(
+      expect.arrayContaining(['p-3', 'pr-[13px]']),
+    )
+    expect(screen.getByRole('navigation').className).not.toContain('border')
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
       /\bborder-0\b/,
     )
@@ -125,5 +130,14 @@ describe('SettingsScreen', () => {
     const scroll = screen.getByTestId('settings-scroll')
     expect(scroll.getAttribute('data-scrollport')).toBe('settings')
     expect(scroll.id).toBe('settings-scroll')
+  })
+
+  it('sets kit line-heights on the content (round 10, M66)', () => {
+    render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    const classes = (id: string) =>
+      screen.getByTestId(id).className.split(/\s+/)
+    expect(classes('settings-scroll')).toContain('pb-kit-type')
+    expect(classes('settings-section-title')).toContain('leading-[1.2]')
+    expect(document.querySelector('style[data-pb-kit-type]')).not.toBeNull()
   })
 })

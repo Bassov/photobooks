@@ -50,10 +50,14 @@ a {
   color: var(--foreground);
 }
 
-/* Kit preflight subset (r10 M58): buttons take the app font and ink, not the UA
-   Arial 13.33 / buttontext. Base layer, so utilities and component CSS still win. */
+/* Kit preflight subset (r10 M58, r11 M68): form controls take the app font and
+   ink, not the UA Arial 13.33 / buttontext / fieldtext. Base layer, so utilities
+   and component CSS still win. */
 @layer base {
-  button {
+  button,
+  input,
+  select,
+  textarea {
     font: inherit;
     font-feature-settings: inherit;
     font-variation-settings: inherit;

@@ -122,6 +122,27 @@ describe('Book settings read-only rows', () => {
     )
     expect(screen.getByTestId('binding-style').textContent).toBe('Hardcover')
   })
+
+  // Kit v7.tsx:170,209: W / H and the PRINT B / S values are ui-monospace (r11 M68).
+  it('sets W / H inputs and the bleed / safe values in the mono face', () => {
+    seed(200, 300)
+    render(<BookSettingsSection />)
+    for (const id of ['size-w', 'size-h']) {
+      expect(screen.getByTestId(id).className.split(' ')).toContain('font-mono')
+    }
+    const { bleedMm } = getBookStoreSnapshot().book.settings
+    for (const id of ['book-bleed', 'book-safe-margin']) {
+      const mono = screen.getByTestId(id).querySelectorAll('.font-mono')
+      expect(mono).toHaveLength(1)
+      expect(mono[0]?.textContent).toMatch(/\d/)
+    }
+    expect(
+      screen.getByTestId('book-bleed').querySelector('.font-mono')?.textContent,
+    ).toContain(String(bleedMm))
+    expect(screen.getByTestId('book-pages-input').className).not.toContain(
+      'font-mono',
+    )
+  })
 })
 
 // Kit v7.tsx:202,207-208: meta line names the book; Pages follows the spreads.

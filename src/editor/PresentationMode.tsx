@@ -27,7 +27,7 @@ function PresentationCover() {
       data-testid="presentation-cover"
       style={{ width: widthMm * SPREAD_PX_PER_MM }}
     >
-      <CoverCanvas mini />
+      <CoverCanvas mini tierSlot="cover:preview" />
     </div>
   )
 }

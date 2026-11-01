@@ -121,9 +121,13 @@ describe('EndpaperCanvas', () => {
     }
     expect(over([ASSET_DRAG_MIME])).toBe(true)
     expect(over(['text/plain'])).toBe(false)
+    expect(canvas.hasAttribute('data-mini')).toBe(false)
     rerender(<EndpaperCanvas side="back" mini />)
     expect(screen.queryByTestId('canvas-endpaper')).toBeNull()
     expect(document.querySelector('.endpaper-caption')).toBeNull()
+    // The mini takes the kit shadowSm (Owner Must M74, round 11).
+    const mini = document.querySelector('.endpaper-spread')
+    expect(mini?.getAttribute('data-mini')).toBe('true')
   })
 })
 

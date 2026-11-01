@@ -10,7 +10,7 @@ import { Icon } from '../ui/Icon'
 import { PanelSplitter } from '../ui/PanelSplitter'
 import { loadPanelWidth, savePanelWidth } from '../ui/panelSize'
 import { DEFAULT_EDITOR_PANELS, type EditorPanels } from './editorChromePanels'
-import { ensureEditorChromeStyles } from './editorChromeTokens'
+import { ensureEditorChromeStyles, SUB } from './editorChromeTokens'
 import {
   getEditorTool,
   subscribeEditorTool,
@@ -236,7 +236,8 @@ export function PanelToggles({
       <button
         key={k}
         type="button"
-        className="e7-ghost e7-tip e7-tog grid size-8 place-items-center rounded-md"
+        className="e7-ghost e7-tip e7-tog grid size-8 place-items-center rounded-md p-0"
+        style={{ color: SUB }}
         aria-expanded={on}
         aria-label={`${on ? 'Hide' : 'Show'} ${name}`}
         data-testid={`toggle-${k}`}

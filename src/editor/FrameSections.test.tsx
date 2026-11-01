@@ -12,6 +12,7 @@ import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import {
   ArrangeSection,
   DeleteFrameButton,
+  FrameLockButton,
   GeometrySection,
 } from './FrameSections'
 import { enterCropMode, exitCropMode } from './cropMode'
@@ -339,6 +340,7 @@ describe('Inspector frame sections', () => {
       const { container } = render(
         <>
           <GeometrySection target={target} />
+          <FrameLockButton target={target} />
           <ArrangeSection target={target} />
           <DeleteFrameButton target={target} />
         </>,
@@ -369,7 +371,7 @@ describe('Inspector frame sections', () => {
     render(<ArrangeSection target={{ spreadId: 's2', frameId: 'f2' }} />)
     expect(screen.getByTestId('frame-layer').textContent).toBe('layer 2 of 2')
     cleanup()
-    render(<GeometrySection target={{ spreadId: 's2', frameId: 'f2' }} />)
+    render(<FrameLockButton target={{ spreadId: 's2', frameId: 'f2' }} />)
     fireEvent.click(screen.getByTestId('frame-lock'))
     const spreads = getBookStoreSnapshot().book.spreads
     expect(spreads[1]?.frames.map((f) => f.locked)).toEqual([undefined, true])

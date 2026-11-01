@@ -33,6 +33,23 @@ describe('Disclosure', () => {
     ).toBe('true')
   })
 
+  it('marks the whole section, trigger included, as crop-keep when asked', () => {
+    render(
+      <Disclosure title="Fit & crop" data-testid="d" data-crop-keep="">
+        <p>body</p>
+      </Disclosure>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Fit & crop' })
+    expect(trigger.closest('[data-crop-keep]')).toBe(screen.getByTestId('d'))
+    cleanup()
+    render(
+      <Disclosure title="Arrange" data-testid="d">
+        <p>body</p>
+      </Disclosure>,
+    )
+    expect(screen.getByTestId('d').hasAttribute('data-crop-keep')).toBe(false)
+  })
+
   // Kit SectionHeader: summary while collapsed, header actions while open.
   it('shows the summary only collapsed and the right slot only expanded', () => {
     render(
@@ -62,5 +79,19 @@ describe('Disclosure', () => {
     const summary = screen.getByText('Off')
     expect(summary.className).toBe('pb-disclosure__summary')
     expect(summary.hasAttribute('data-testid')).toBe(false)
+  })
+
+  it('names the trigger by the title; the summary only describes it', () => {
+    render(
+      <Disclosure title="Arrange" summary="z 1">
+        <p>body</p>
+      </Disclosure>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Arrange' })
+    const describedBy = trigger.getAttribute('aria-describedby') ?? ''
+    expect(document.getElementById(describedBy)?.textContent).toBe('z 1')
+    fireEvent.click(trigger)
+    expect(screen.queryByText('z 1')).toBeNull()
+    expect(trigger.hasAttribute('aria-describedby')).toBe(false)
   })
 })

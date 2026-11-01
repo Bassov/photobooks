@@ -112,17 +112,11 @@ function FrameGlyph({
   )
 }
 
+/** Kit spine fold: 3 % of the spread across, centred on the page cut. */
+const FOLD_SHARE = '3%'
+
 /** Gap between the frame and its caption (kit: 1.5 mm under the frame). */
 const CAPTION_GAP_MM = 1.5
-
-/**
- * In-world chrome kept at screen px through a live zoom: the pasteboard camera
- * writes `--cam-scale` on `[data-camera-frame]` in the world-transform rAF and
- * the CSS undoes it (thumbs never need it).
- */
-function cameraFrame(thumb: boolean): { 'data-camera-frame'?: '' } {
-  return thumb ? {} : { 'data-camera-frame': '' }
-}
 
 export function SpreadView({
   spreadId,
@@ -198,27 +192,29 @@ export function SpreadView({
       {resolved.pageCuts.map((cut) => {
         const line = pageCutLine(cut, pxPerMm)
         const vertical = line.orientation === 'vertical'
+        // Thumbs keep the kit MiniSpread hairline; the canvas draws the kit
+        // fold, a world child that scales with the zoom (Owner Must M73).
+        const across = thumb ? 1 : FOLD_SHARE
         return (
           <div
             key={`${line.orientation}:${String(line.offsetPx)}`}
-            className="spread-page-cut"
+            className={thumb ? 'spread-page-cut' : 'spread-fold'}
             data-testid={thumb ? undefined : 'spread-page-cut'}
             data-orientation={line.orientation}
-            {...cameraFrame(thumb)}
             aria-hidden="true"
             style={
               vertical
                 ? {
                     left: line.offsetPx,
                     top: 0,
-                    width: 1,
+                    width: across,
                     height: '100%',
                   }
                 : {
                     left: 0,
                     top: line.offsetPx,
                     width: '100%',
-                    height: 1,
+                    height: across,
                   }
             }
           />

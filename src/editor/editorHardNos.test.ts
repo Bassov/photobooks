@@ -7,9 +7,9 @@ describe('editor hard-nos (kit v0.9.3)', () => {
     expect(EDITOR_CHROME_CSS).toContain(
       '.filmstrip-item[aria-selected=true] { background: #CACACA }',
     )
-    expect(EDITOR_CHROME_CSS).toContain(
-      '.pb-segmented__segment--selected { background: #CACACA',
-    )
+    // Owner design change (round 10, M67): the selected segment is the kit
+    // raised chrome pill (SegmentedControl.css), not a #CACACA tone fill.
+    expect(EDITOR_CHROME_CSS).not.toContain('.pb-segmented__segment--selected')
     expect(EDITOR_CHROME_CSS).toContain(
       '.filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }',
     )

@@ -3,11 +3,9 @@ import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { SpreadView, type FrameControl } from '../render/SpreadView'
 import type { ResolvedItem } from '../core'
 import { setSpreadVisibleAssetIds } from '../photo/assetPool'
-import { IMAGE_TIERS, selectImageTier } from '../photo/imageTiers'
-import { getTierUrl, requestTier, subscribeTier } from '../photo/tierCache'
+import { selectImageTier } from '../photo/imageTiers'
 import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import {
-  getAssetCacheKey,
   getBookStoreSnapshot,
   getSpreadPaintSnapshot,
   subscribeSpread,
@@ -38,13 +36,10 @@ import {
 } from './frameSelection'
 import {
   clearSpreadTiers,
-  clearStaleDisplayedPreview,
   getTierDisplaySnapshot,
-  maxDesiredTier,
-  queueTierSwap,
-  setSpreadTiers,
   subscribeTierDisplay,
 } from './tierDisplay'
+import { holdDisplayTiers } from './holdDisplayTiers'
 import { getThumbUrl, subscribeThumb } from './thumbCache'
 import {
   getProblemRevisionSnapshot,
@@ -56,8 +51,6 @@ import {
   desiredTiersForItems,
   isFramePressed,
   positiveDevicePixelRatio,
-  queueCachedLadderTiers,
-  resolveMaxDesiredTier,
   resolveSpreadPreviewUrl,
   subscribeAssetIds,
   thumbSnapshotFor,
@@ -149,34 +142,10 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       SPREAD_PX_PER_MM,
       selectImageTier,
     )
-    setSpreadTiers(spreadId, tiers)
-    const unsubs: (() => void)[] = []
-    for (const [assetId, spreadTier] of tiers) {
-      const tier = resolveMaxDesiredTier(assetId, spreadTier, maxDesiredTier)
-      clearStaleDisplayedPreview(assetId, getTierUrl)
-      unsubs.push(
-        subscribeTier(assetId, tier, () => {
-          const url = getTierUrl(assetId, tier)
-          if (url !== undefined) {
-            queueTierSwap(assetId, tier, url)
-          }
-        }),
-      )
-      requestTier(assetId, tier, getAssetCacheKey(assetId))
-      queueCachedLadderTiers(
-        assetId,
-        tier,
-        IMAGE_TIERS,
-        getTierUrl,
-        queueTierSwap,
-      )
-    }
+    const releaseTiers = holdDisplayTiers(spreadId, tiers)
     return () => {
-      clearSpreadTiers(spreadId)
+      releaseTiers()
       setSpreadVisibleAssetIds(spreadId, [])
-      for (const unsub of unsubs) {
-        unsub()
-      }
     }
   }, [snapshot, spreadId, zoom])
 

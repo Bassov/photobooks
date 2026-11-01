@@ -1,4 +1,38 @@
 /* Kit v7 CoverSpread. Panel fills are book content (paper), not UI tokens. */
+
+/* Upright-only Lora (the public/fonts/fonts.css normal faces) for the cover
+   title and spine: italic is synthesised from it, as in the kit. */
+@font-face {
+  font-family: 'Lora Cover';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url('/fonts/lora-cyrillic-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora Cover';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url('/fonts/lora-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora Cover';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url('/fonts/lora-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
 .cover-stage {
   position: absolute;
   inset: 0;
@@ -16,7 +50,16 @@
   position: relative;
   display: flex;
   container-type: inline-size;
+  /* Kit CoverSpread big: back 11, spine 12 and front 34 px on its 848 px
+     Fit-wide cover at 1440 x 900; cqw keeps that ratio at any zoom (M75). */
+  --cover-kit-fit-px: 848;
   box-shadow: var(--cover-shadow);
+}
+
+/* Kit CoverSpread `big ? shadowBig : shadowSm`: the list thumbnail takes the
+   small shadow only (Owner Must M74, round 11). */
+.cover-spread[data-mini] {
+  box-shadow: var(--cover-shadow-mini);
 }
 
 .cover-back {
@@ -58,13 +101,16 @@
   font-size: var(--text-2xs);
 }
 
-/* Kit v7.tsx:67-71 captions: Back / Spine / Front sit under the cover, centred on their panel. */
+/* Kit viewport.tsx PageLabels: Back / Spine / Front sit 10 px (pt-2.5) under
+   the cover in a panel-wide centred cell; a label wider than its panel (Spine)
+   starts at the panel's left edge (Owner Must M75, round 11). */
 .cover-panel-label {
   position: absolute;
   top: 100%;
-  left: 50%;
-  margin-top: 0.5rem;
-  transform: translateX(-50%);
+  right: 0;
+  left: 0;
+  margin-top: 0.625rem;
+  text-align: center;
   pointer-events: none;
   color: var(--muted-foreground);
   font-size: var(--text-xs);
@@ -77,13 +123,13 @@
   bottom: 10%;
   left: 12%;
   color: var(--cover-ink);
-  font-size: 1.2cqw;
+  font-size: calc(100cqw * 11 / var(--cover-kit-fit-px));
   white-space: pre-wrap;
 }
 
 .cover-spine-text {
   color: var(--cover-ink);
-  font-size: 1.3cqw;
+  font-size: calc(100cqw * 12 / var(--cover-kit-fit-px));
   white-space: nowrap;
   transform: rotate(90deg);
 }
@@ -94,15 +140,19 @@
   right: 10%;
   left: 10%;
   color: var(--cover-title-ink);
-  font-size: 3.6cqw;
+  font-size: calc(100cqw * 34 / var(--cover-kit-fit-px));
   text-shadow: var(--cover-title-shadow);
   overflow-wrap: anywhere;
 }
 
+/* Kit `serif` sets the family only: the cover text keeps weight 400. The kit
+   ships upright Lora only, so its cover italic is synthesised from the upright
+   face; prod's global Lora italic face (book text, export) is narrower. The
+   cover reads an upright-only alias of the same files first (Owner Must M75). */
 .cover-front-text em,
 .cover-spine-text em {
-  font-family: var(--font-heading);
-  font-weight: var(--heading-weight);
+  font-family: 'Lora Cover', var(--font-heading);
+  font-weight: 400;
   font-style: italic;
 }
 
@@ -128,6 +178,18 @@
 
 .cover-text-input:focus-visible {
   outline: 2px solid var(--muted-foreground);
+}
+
+/* Kit Cover Front text (v7.tsx:213): text-sm 13 / 18.85 px lines, the hint
+   text-2xs 11 / 14.85 px (Owner Must M59, round 10). */
+.cover-front-info {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.cover-front-hint {
+  font-size: var(--text-2xs);
+  line-height: 1.35;
 }
 
 .cover-thumb {

@@ -44,6 +44,7 @@ const EYEBROW_TRACKING = 0.66
 const KIT = {
   spread: ['Layout', 'Master & spacing', 'Background', 'Grid'],
   photo: [
+    'Photo',
     'Fit & crop',
     'Rotate & flip',
     'Adjust',

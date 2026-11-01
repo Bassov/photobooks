@@ -1,4 +1,5 @@
 /** Kit empty-library motion + layout (injected so patch-coverage stays on TS). */
+import { ensureKitTypeStyles, KIT_DISPLAY_FONT } from './kitTypeStyles'
 
 const STYLE_TEXT = `
 @keyframes pb-lib-rise {
@@ -17,6 +18,7 @@ const STYLE_TEXT = `
 }
 .pb-lib-rise--d15 { animation-delay: 0.15s; }
 .pb-library .pb-button.pb-lib-create {
+  margin-top: calc(var(--spacing) * 8); /* kit mt-8; .pb-button margin: 0 beats the utility */
   height: calc(var(--spacing) * 12);
   border-radius: var(--radius-full);
   padding-inline: calc(var(--spacing) * 7);
@@ -30,28 +32,37 @@ const STYLE_TEXT = `
   font-size: var(--text-base);
   box-shadow: var(--shadow-ink-sm);
 }
+/* Kit library bar "Change library folder…" (r11 M71): 24 px full pill, px-2.5;
+   the unlayered .pb-button--sm box beats the h-6 / rounded-full utilities. */
+.pb-button.pb-lib-change {
+  height: calc(var(--spacing) * 6);
+  border-radius: var(--radius-full);
+  padding-inline: calc(var(--spacing) * 2.5);
+}
 .pb-button.pb-lib-change[data-hovered] {
   background: var(--field);
   color: var(--foreground);
 }
+/* Kit Lora display text is inline \`font-family\` only, so it renders at 400 (not --heading-weight). */
 .pb-library-headline {
-  font-family: var(--font-heading);
-  font-weight: var(--heading-weight);
+  margin-bottom: 0; /* no preflight: the UA h1 margin (0.67em) pushed the paragraph ~19px down */
+  font-family: ${KIT_DISPLAY_FONT};
+  font-weight: 400;
   font-size: clamp(44px, 4vw, 64px);
   line-height: 0.98;
   letter-spacing: -0.035em;
 }
 .pb-library-heading {
   margin: 0; /* kit uses a margin-free h2 (library.tsx:238); a UA h1 margin pushed the page ~40px down */
-  font-family: var(--font-heading);
-  font-weight: var(--heading-weight);
+  font-family: ${KIT_DISPLAY_FONT};
+  font-weight: 400;
   font-size: var(--text-display);
   line-height: 1;
-  letter-spacing: -0.025em;
+  letter-spacing: normal;
 }
 .pb-book-object-title {
-  font-family: var(--font-heading);
-  font-weight: var(--heading-weight);
+  font-family: ${KIT_DISPLAY_FONT};
+  font-weight: 400;
 }
 .pb-book-object-title em {
   font-style: italic;
@@ -142,6 +153,14 @@ const STYLE_TEXT = `
   .pb-lib-book .pb-lib-obj,
   .pb-lib-floor { transition: none; }
 }
+/* kit demo-parts/settings.tsx:84 back button box (h-8 gap-1 pl-1.5 pr-2.5);
+   .pb-button gap/padding beat the utilities. Font: design-r10-chrome; kit ink (r11 M71). */
+.pb-button.pb-settings-back {
+  gap: calc(var(--spacing) * 1);
+  padding-left: calc(var(--spacing) * 1.5);
+  padding-right: calc(var(--spacing) * 2.5);
+  color: var(--foreground);
+}
 `
 
 /** Idempotent inject for library kit chrome. */
@@ -149,6 +168,7 @@ export function ensureLibraryScreenStyles(): void {
   if (typeof document === 'undefined') {
     return
   }
+  ensureKitTypeStyles()
   if (document.querySelector('style[data-pb-library]')) {
     return
   }

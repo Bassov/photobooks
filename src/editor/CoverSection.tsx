@@ -7,7 +7,12 @@ import {
   MATERIAL_OPTIONS,
   TITLE_FONT_OPTIONS,
 } from './coverOptions'
-import { InspectorRow, ReadOnlyPill } from './InspectorControls'
+import {
+  InspectorHead,
+  InspectorRow,
+  InspectorSec,
+  ReadOnlyPill,
+} from './InspectorControls'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -138,97 +143,98 @@ export function CoverSection() {
     readSpineWidth,
     readSpineWidth,
   )
+  // Kit Cover part (v7.tsx:212-217): Head plus Sec / Row blocks, the
+  // Endpaper rhythm (Owner Must M59, round 10). The three style choices stay
+  // native selects (open Owner question), so their rows are taller than a Val.
   return (
-    <section
-      className="flex flex-col gap-3 px-4 py-4"
-      data-testid="insp-cover"
-      aria-label="Cover"
-    >
-      <div>
-        <h2 className="text-sm font-semibold" data-testid="inspector-context">
-          Cover
-        </h2>
-        <p className="mt-0.5 text-xs" style={{ color: SUB }}>
-          Hardcover · back, spine, front · wrap {COVER_WRAP_MM} mm
-        </p>
-      </div>
-      <h4 className="inspector-eyebrow inspector-sec-title">Front</h4>
-      <div className="flex items-center gap-3">
-        <div
-          className="cover-thumb"
-          data-testid="cover-front-thumb"
-          data-photo-id={assetId}
-          style={{
-            backgroundImage: url === undefined ? undefined : `url(${url})`,
-          }}
-        />
-        <div className="min-w-0 text-sm">
-          <div className="truncate">
-            {assetId === undefined ? 'No photo yet' : (name ?? assetId)}
-          </div>
-          <div className="mt-0.5" style={{ color: SUB }}>
-            {ppi === undefined
-              ? 'Full bleed'
-              : `Full bleed · ${String(ppi)} ppi`}
-          </div>
-          <div className="mt-0.5 text-[11px]" style={{ color: SUB }}>
-            Drag a photo from the filmstrip onto the cover
+    <section data-testid="insp-cover" aria-label="Cover">
+      <InspectorHead
+        title="Cover"
+        sub={`Hardcover · back, spine, front · wrap ${String(COVER_WRAP_MM)} mm`}
+      />
+      <InspectorSec title="Front">
+        <div className="flex items-center gap-3">
+          <div
+            className="cover-thumb"
+            data-testid="cover-front-thumb"
+            data-photo-id={assetId}
+            style={{
+              backgroundImage: url === undefined ? undefined : `url(${url})`,
+            }}
+          />
+          <div className="cover-front-info min-w-0">
+            <div className="truncate">
+              {assetId === undefined ? 'No photo yet' : (name ?? assetId)}
+            </div>
+            <div className="mt-0.5" style={{ color: SUB }}>
+              {ppi === undefined
+                ? 'Full bleed'
+                : `Full bleed · ${String(ppi)} ppi`}
+            </div>
+            <div className="cover-front-hint mt-0.5" style={{ color: SUB }}>
+              Drag a photo from the filmstrip onto the cover
+            </div>
           </div>
         </div>
-      </div>
-      <CoverText panel="front" label="Front title" />
-      <ChoiceRow
-        label="Title font"
-        field="titleFont"
-        options={TITLE_FONT_OPTIONS}
-        testId="cover-title-font"
-      />
-      <h4 className="inspector-eyebrow inspector-sec-title">Spine</h4>
-      <CoverText panel="spine" label="Spine text" />
-      {/* Rendered #/demo step 13: Spine width is read-only mono text. */}
-      <InspectorRow label="Spine width">
-        <span
-          className="font-mono text-sm tabular-nums"
-          data-testid="cover-spine-width"
-        >
-          {fmtN(spineMm)} mm
-        </span>
-      </InspectorRow>
-      {/* Kit v7.tsx:215: Direction is a read-only Val pill. */}
-      <InspectorRow label="Direction">
-        <ReadOnlyPill
-          value={
-            DIRECTION_OPTIONS.find(
-              (item) => item.value === style.spineDirection,
-            )?.label ?? ''
-          }
-          testId="cover-direction"
+        <div className="mt-3">
+          <CoverText panel="front" label="Front title" />
+        </div>
+        <ChoiceRow
+          label="Title font"
+          field="titleFont"
+          options={TITLE_FONT_OPTIONS}
+          testId="cover-title-font"
         />
-      </InspectorRow>
-      <h4 className="inspector-eyebrow inspector-sec-title">Back</h4>
-      <CoverText panel="back" label="Back text" />
-      {/* Kit v7.tsx:216: Fill is a "Paper white" pill with a "coming later" note. */}
-      <InspectorRow label="Fill">
-        <ReadOnlyPill
-          value="Paper white"
-          note="coming later"
-          testId="cover-back-fill"
-          noteTestId="fill-readonly"
+      </InspectorSec>
+      <InspectorSec title="Spine">
+        <CoverText panel="spine" label="Spine text" />
+        {/* Rendered #/demo step 13: Spine width is read-only mono text. */}
+        <InspectorRow label="Spine width">
+          <span
+            className="font-mono text-sm tabular-nums"
+            data-testid="cover-spine-width"
+          >
+            {fmtN(spineMm)} mm
+          </span>
+        </InspectorRow>
+        {/* Kit v7.tsx:215: Direction is a read-only Val pill. */}
+        <InspectorRow label="Direction">
+          <ReadOnlyPill
+            value={
+              DIRECTION_OPTIONS.find(
+                (item) => item.value === style.spineDirection,
+              )?.label ?? ''
+            }
+            testId="cover-direction"
+          />
+        </InspectorRow>
+      </InspectorSec>
+      <InspectorSec title="Back">
+        <CoverText panel="back" label="Back text" />
+        {/* Kit v7.tsx:216: Fill is a "Paper white" pill with a "coming later" note. */}
+        <InspectorRow label="Fill">
+          <ReadOnlyPill
+            value="Paper white"
+            note="coming later"
+            testId="cover-back-fill"
+            noteTestId="fill-readonly"
+          />
+        </InspectorRow>
+      </InspectorSec>
+      <InspectorSec title="Material">
+        <ChoiceRow
+          label="Cover"
+          field="material"
+          options={MATERIAL_OPTIONS}
+          testId="cover-material"
         />
-      </InspectorRow>
-      <h4 className="inspector-eyebrow inspector-sec-title">Material</h4>
-      <ChoiceRow
-        label="Cover"
-        field="material"
-        options={MATERIAL_OPTIONS}
-        testId="cover-material"
-      />
-      <ChoiceRow
-        label="Finish"
-        field="finish"
-        options={FINISH_OPTIONS}
-        testId="cover-finish"
-      />
+        <ChoiceRow
+          label="Finish"
+          field="finish"
+          options={FINISH_OPTIONS}
+          testId="cover-finish"
+        />
+      </InspectorSec>
     </section>
   )
 }

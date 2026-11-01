@@ -7,6 +7,11 @@
   box-shadow: var(--cover-shadow);
 }
 
+/* Kit EndpaperSpread `big ? shadowBig : shadowSm` (Owner Must M74, round 11). */
+.endpaper-spread[data-mini] {
+  box-shadow: var(--cover-shadow-mini);
+}
+
 .endpaper-page,
 .endpaper-swatch {
   background-color: var(--endpaper);
