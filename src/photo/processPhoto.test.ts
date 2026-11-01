@@ -20,7 +20,11 @@ vi.mock('exifr', () => ({
   },
 }))
 
-import { bitmapResizeOptions, processPhotoRequest } from './processPhoto'
+import {
+  bitmapResizeOptions,
+  photoWorkerTransferList,
+  processPhotoRequest,
+} from './processPhoto'
 
 function samplePngFile(): File {
   ensurePhotoFixtures({ includeLargeJpeg: false })
@@ -590,7 +594,71 @@ describe('processPhotoRequest', () => {
     expect(result.previewMimeType).toBe('image/webp')
     expect(result.workingMimeType).toBe('image/webp')
     expect(result.workingBuffer?.byteLength).toBeGreaterThan(0)
-    expect(result.sourceBuffer?.byteLength).toBeGreaterThan(0)
+    expect(Object.hasOwn(result, 'sourceBuffer')).toBe(false)
+  })
+
+  it('keeps the original body in the worker unless returnSource is set', async () => {
+    stubImageDecodeApis({ width: 40, height: 20 })
+
+    const thumb = await processPhotoRequest({
+      id: 'req-no-src',
+      file: sampleOrient6File(),
+    })
+
+    assert.equal(thumb.ok, true)
+    expect(Object.hasOwn(thumb, 'sourceBuffer')).toBe(false)
+  })
+
+  it('returns the original body as sourceBuffer when returnSource is set', async () => {
+    const file = sampleOrient6File()
+    const expected = new Uint8Array(await file.arrayBuffer())
+    stubImageDecodeApis({ width: 40, height: 20 })
+
+    const thumb = await processPhotoRequest({
+      id: 'req-src',
+      file,
+      returnSource: true,
+    })
+    const dual = await processPhotoRequest({
+      id: 'req-src-dual',
+      file,
+      dualTiers: true,
+      returnSource: true,
+    })
+
+    assert.equal(thumb.ok, true)
+    assert.equal(dual.ok, true)
+    expect(new Uint8Array(thumb.sourceBuffer ?? new ArrayBuffer(0))).toEqual(
+      expected,
+    )
+    expect(new Uint8Array(dual.sourceBuffer ?? new ArrayBuffer(0))).toEqual(
+      expected,
+    )
+  })
+
+  it('photoWorkerTransferList hands over preview and source buffers', () => {
+    const previewBuffer = new ArrayBuffer(2)
+    const sourceBuffer = new ArrayBuffer(8)
+    const base = {
+      id: 't',
+      ok: true as const,
+      name: 'a.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: 8,
+      width: 1,
+      height: 1,
+      correctedWidth: 1,
+      correctedHeight: 1,
+      orientation: 1 as const,
+      previewBuffer,
+      previewMimeType: 'image/webp',
+    }
+
+    expect(photoWorkerTransferList(base)).toEqual([previewBuffer])
+    const withSource = photoWorkerTransferList({ ...base, sourceBuffer })
+    expect(withSource).toHaveLength(2)
+    expect(withSource[0]).toBe(previewBuffer)
+    expect(withSource[1]).toBe(sourceBuffer)
   })
 
   it('encodes WebP sources as image/webp and reports blob type', async () => {

@@ -17,7 +17,6 @@ const config = {
     '!src/**/*.d.ts',
     '!src/**/*.test-helpers.ts',
     '!src/core/testing/**',
-    '!src/photo/photo.worker.ts',
     '!src/project/fsa/bookLoad.worker.ts',
     '!src/App.tsx',
     '!src/editor/previewAspect.ts',
