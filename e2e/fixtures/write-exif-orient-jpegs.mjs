@@ -1,7 +1,9 @@
 /**
  * Builds raw 20x40 (portrait pixels) JPEGs with EXIF Orientation 6 and 8 (both
  * display as 40x20 landscape) plus an unrotated 5x10 IFD1 thumbnail, like a
- * camera file. Also an orientation 3 file (raw 40x20, displays 40x20).
+ * camera file. Also orientation 3 and 1 files (raw 40x20, display 40x20).
+ * Raw quadrants: top-left red, top-right dark, bottom-left magenta,
+ * bottom-right blue.
  */
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -88,3 +90,4 @@ function write(name, orientation, width, height) {
 write('sample-orient6-landscape.jpg', 6, 20, 40)
 write('sample-orient8-landscape.jpg', 8, 20, 40)
 write('sample-orient3-landscape.jpg', 3, 40, 20)
+write('sample-orient1-landscape.jpg', 1, 40, 20)

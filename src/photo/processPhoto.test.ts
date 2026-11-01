@@ -5,7 +5,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from '../../e2e/fixtures/ensurePhotoFixtures'
-import { stubImageDecodeApis } from './photo.test-helpers'
+import { stubImageDecodeApis, stubImageDecoder } from './photo.test-helpers'
 
 const exifrApi = vi.hoisted(() => ({
   orientation: vi.fn(),
@@ -809,5 +809,152 @@ describe('processPhotoRequest', () => {
       error: 'OffscreenCanvas 2d context unavailable',
     })
     expect(bitmap.close).toHaveBeenCalledOnce()
+  })
+})
+
+describe('processPhotoRequest with ImageDecoder', () => {
+  beforeEach(() => {
+    exifrApi.orientation.mockReset()
+    exifrApi.parse.mockReset()
+    exifrApi.orientation.mockResolvedValue(6)
+    exifrApi.parse.mockResolvedValue({})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('draws the browser-oriented frame without a full-file read', async () => {
+    const file = sampleOrient6File()
+    const fullRead = vi.spyOn(file, 'arrayBuffer')
+    const canvases: [number, number][] = []
+    const { createImageBitmap, ctx } = stubImageDecodeApis({
+      onCanvas: (w, h) => canvases.push([w, h]),
+    })
+    const { frame } = stubImageDecoder({
+      displayWidth: 20,
+      displayHeight: 40,
+      rotation: 90,
+    })
+
+    const result = await processPhotoRequest({
+      id: 'req-scaled',
+      file,
+      maxEdge: 320,
+    })
+
+    expect(createImageBitmap).not.toHaveBeenCalled()
+    expect(fullRead).not.toHaveBeenCalled()
+    expect(ctx.drawImage).toHaveBeenCalledWith(frame, 0, 0)
+    expect(ctx.rotate).toHaveBeenCalledWith(0)
+    expect(canvases).toEqual([[20, 40]])
+    expect(frame.close).toHaveBeenCalledOnce()
+    assert.equal(result.ok, true)
+    expect(result).toMatchObject({
+      id: 'req-scaled',
+      name: 'sample-orient6.jpg',
+      mimeType: 'image/jpeg',
+      byteLength: file.size,
+      width: 40,
+      height: 20,
+      correctedWidth: 20,
+      correctedHeight: 40,
+      orientation: 6,
+      previewMimeType: 'image/webp',
+    })
+    expect(Object.hasOwn(result, 'workingBuffer')).toBe(false)
+    expect(Object.hasOwn(result, 'sourceBuffer')).toBe(false)
+  })
+
+  it('builds 1280 and thumb tiers from one decoded frame', async () => {
+    const canvases: [number, number][] = []
+    const { createImageBitmap, convertToBlob } = stubImageDecodeApis({
+      onCanvas: (w, h) => canvases.push([w, h]),
+    })
+    const { inits } = stubImageDecoder({
+      displayWidth: 20,
+      displayHeight: 40,
+      rotation: 90,
+    })
+
+    const result = await processPhotoRequest({
+      id: 'req-scaled-dual',
+      file: sampleOrient6File(),
+      dualTiers: true,
+      cover: true,
+    })
+
+    expect(inits).toHaveLength(1)
+    expect(createImageBitmap).not.toHaveBeenCalled()
+    expect(convertToBlob).toHaveBeenCalledTimes(2)
+    expect(canvases).toEqual([
+      [640, 1280],
+      [160, 320],
+    ])
+    assert.equal(result.ok, true)
+    expect(result.workingMimeType).toBe('image/webp')
+    expect(result.workingBuffer?.byteLength).toBeGreaterThan(0)
+  })
+
+  it('applies the EXIF transform once when the frame is not oriented', async () => {
+    const canvases: [number, number][] = []
+    const { ctx } = stubImageDecodeApis({
+      onCanvas: (w, h) => canvases.push([w, h]),
+    })
+    stubImageDecoder({ displayWidth: 40, displayHeight: 20, rotation: 0 })
+
+    await processPhotoRequest({ id: 'req-manual', file: sampleOrient6File() })
+
+    expect(ctx.rotate).toHaveBeenCalledOnce()
+    expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2)
+    expect(canvases).toEqual([[20, 40]])
+  })
+
+  it('returns the original body when returnSource is set', async () => {
+    const file = sampleOrient6File()
+    const expected = new Uint8Array(await file.arrayBuffer())
+    const { createImageBitmap } = stubImageDecodeApis()
+    stubImageDecoder({ rotation: 90, displayWidth: 20, displayHeight: 40 })
+
+    const result = await processPhotoRequest({
+      id: 'req-scaled-src',
+      file,
+      returnSource: true,
+    })
+
+    expect(createImageBitmap).not.toHaveBeenCalled()
+    assert.equal(result.ok, true)
+    expect(new Uint8Array(result.sourceBuffer ?? new ArrayBuffer(0))).toEqual(
+      expected,
+    )
+  })
+
+  it('falls back to createImageBitmap when ImageDecoder throws', async () => {
+    const { createImageBitmap } = stubImageDecodeApis()
+    stubImageDecoder({ decodeError: new Error('decode failed') })
+
+    const result = await processPhotoRequest({
+      id: 'req-fallback',
+      file: sampleOrient6File(),
+    })
+
+    expect(createImageBitmap).toHaveBeenCalledOnce()
+    assert.equal(result.ok, true)
+    expect(result.orientation).toBe(6)
+  })
+
+  it('keeps PNG on the createImageBitmap path', async () => {
+    const { createImageBitmap } = stubImageDecodeApis()
+    const { inits } = stubImageDecoder()
+
+    const result = await processPhotoRequest({
+      id: 'req-png',
+      file: samplePngFile(),
+    })
+
+    expect(inits).toHaveLength(0)
+    expect(createImageBitmap).toHaveBeenCalledOnce()
+    expect(result.ok).toBe(true)
   })
 })

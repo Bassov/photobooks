@@ -1,4 +1,8 @@
 import type { AssetSource } from '../assets'
+import type {
+  PhotoWorkerRequest,
+  PhotoWorkerResponse,
+} from '../photo/processPhoto'
 import {
   addSpread,
   CURRENT_SCHEMA_VERSION,
@@ -1408,6 +1412,9 @@ export function exposeProjectSessionTestApi(
         photoRoot.setFolderRescanProgressForTests
     }
   })
+  void import('../photo/processPhoto').then((photo) => {
+    win.__photobooksDecode = { processPhotoRequest: photo.processPhotoRequest }
+  })
 }
 
 declare global {
@@ -1457,6 +1464,12 @@ declare global {
     }
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
+    }
+    /** Worker decode entry on the main thread (e2e/perf thumb-decode bench). */
+    __photobooksDecode?: {
+      processPhotoRequest: (
+        request: PhotoWorkerRequest,
+      ) => Promise<PhotoWorkerResponse>
     }
     __photobooksRelink?: {
       detectMissingAssets: (options?: { openDialog?: boolean }) => {
