@@ -13,13 +13,13 @@ export function LibraryEmpty({
 }) {
   return (
     <div
-      className="pb-kit-type relative flex min-h-[520px] flex-1 items-center justify-center px-10 pb-10"
+      className="relative flex min-h-[520px] flex-1 items-center justify-center px-10 pb-10"
       style={{ gap: 'clamp(48px, 6vw, 110px)' }}
       data-testid="library-empty"
       data-home-empty=""
     >
       <figure
-        className="pb-lib-rise m-0 shrink-0"
+        className="pb-lib-rise shrink-0"
         aria-label="Example book"
         data-testid="example-book"
       >
@@ -48,7 +48,7 @@ export function LibraryEmpty({
           <br />
           <em>starts here.</em>
         </h1>
-        <p className="mt-5 mb-0 max-w-[380px] text-subhead leading-7 text-muted-foreground [text-wrap:pretty]">
+        <p className="mt-5 max-w-[380px] text-subhead leading-7 text-muted-foreground [text-wrap:pretty]">
           Create a book, then add a folder of photos in the editor and arrange
           the spreads your way.
         </p>

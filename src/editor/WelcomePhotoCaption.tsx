@@ -16,12 +16,10 @@ export function WelcomePhotoCaption({
     return null
   }
   const licenseHref = LICENSE_URL[credit.license]
-  // Inline: the unlayered global `a { color }` beats the layered `[&_a]:text-inherit`.
-  const linkStyle = { color: 'inherit' }
   return (
     <p
       className={cn(
-        'm-0 text-2xs leading-4 text-muted-foreground [&_a]:rounded-xs [&_a]:text-inherit [&_a]:no-underline [&_a]:outline-hidden [&_a:hover]:underline [&_a:hover]:underline-offset-2 [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-ring',
+        'text-2xs leading-4 text-muted-foreground [&_a]:rounded-xs [&_a]:text-inherit [&_a]:no-underline [&_a]:outline-hidden [&_a:hover]:underline [&_a:hover]:underline-offset-2 [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-ring',
         className,
       )}
       data-testid={testid}
@@ -29,22 +27,12 @@ export function WelcomePhotoCaption({
       title={credit.title}
     >
       Photo:{' '}
-      <a
-        href={credit.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={linkStyle}
-      >
+      <a href={credit.url} target="_blank" rel="noopener noreferrer">
         {credit.author}
       </a>{' '}
       ·{' '}
       {licenseHref ? (
-        <a
-          href={licenseHref}
-          target="_blank"
-          rel="noopener noreferrer license"
-          style={linkStyle}
-        >
+        <a href={licenseHref} target="_blank" rel="noopener noreferrer license">
           {credit.license}
         </a>
       ) : (

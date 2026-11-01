@@ -512,7 +512,7 @@ export function LibraryScreen() {
             <Button
               variant="ghost"
               size="sm"
-              className="pb-settings-back h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4"
+              className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4"
               onPress={() => {
                 setSettingsOpen(false)
               }}

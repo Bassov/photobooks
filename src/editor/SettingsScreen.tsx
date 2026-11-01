@@ -7,14 +7,11 @@ import { Button } from '../ui/Button'
 import { cn } from '../ui/cn'
 import { FeaturedIcon } from '../ui/FeaturedIcon'
 import { Icon } from '../ui/Icon'
-import { ensureKitTypeStyles } from './kitTypeStyles'
 import { changeLibraryFolder } from './projectSession'
 import {
   SETTINGS_SECTIONS,
   settingsNavActiveClass,
 } from './settingsScreenModel'
-
-ensureKitTypeStyles()
 
 const ROW =
   'flex min-h-13 items-center gap-4 px-4 py-2' /* v0.9.1: no card border; chrome surface only */
@@ -71,12 +68,12 @@ export function SettingsScreen({
       </nav>
       <main
         id="settings-scroll"
-        className="pb-kit-type min-h-0 overflow-auto px-8 py-6"
+        className="min-h-0 overflow-auto px-8 py-6"
         data-scrollport="settings"
         data-testid="settings-scroll"
       >
         <h1
-          className="heading m-0 text-2xl leading-[1.2]" /* kit .heading text-2xl = 31.2px */
+          className="heading m-0 text-2xl"
           data-testid="settings-section-title"
         >
           Library
@@ -144,7 +141,7 @@ export function SettingsScreen({
             />
             <div className={ROW}>
               <div className="min-w-0 flex-1 text-sm">Folder access</div>
-              <Badge color="success" dot>
+              <Badge color="gray" dot>
                 Allowed · read and write
               </Badge>
             </div>

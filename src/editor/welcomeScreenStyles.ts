@@ -1,5 +1,4 @@
 /** Kit first-run Welcome motion + wash (injected so patch-coverage stays on TS). */
-import { ensureKitTypeStyles, KIT_DISPLAY_FONT } from './kitTypeStyles'
 
 const STYLE_TEXT = `
 @keyframes pb-welcome-drift {
@@ -54,8 +53,7 @@ const STYLE_TEXT = `
   box-shadow: var(--shadow-ink);
 }
 .pb-welcome-headline {
-  margin-bottom: 0; /* no preflight: the UA h1 margin (0.67em = 61px) pushed the paragraph down */
-  font-family: ${KIT_DISPLAY_FONT};
+  font-family: var(--font-heading);
   font-size: var(--text-welcome-display);
   font-weight: 400;
 }
@@ -73,7 +71,6 @@ export function ensureWelcomeScreenStyles(): void {
   if (typeof document === 'undefined') {
     return
   }
-  ensureKitTypeStyles()
   if (document.querySelector('style[data-pb-welcome]')) {
     return
   }
