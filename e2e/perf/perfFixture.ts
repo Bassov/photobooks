@@ -154,6 +154,11 @@ declare global {
         encoded: number
         inFlight: number
       }
+      getThumbCacheStatsForTests: () => {
+        entries: number
+        bytes: number
+        pending: number
+      }
     }
     __photobooksProject?: {
       attachMemoryLibraryForTests: () => Promise<{

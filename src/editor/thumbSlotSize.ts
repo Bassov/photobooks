@@ -122,6 +122,64 @@ export function windowCountForCover(
   return end - start
 }
 
+/** Filmstrip scroll direction: 1 toward the end, -1 toward the start. */
+export type FilmstripScrollDirection = 1 | -1
+
+/** Half-open item index range `[start, end)`. */
+export interface FilmstripIndexRange {
+  start: number
+  end: number
+}
+
+/** Slots kept mounted behind the scroll direction. */
+const WINDOW_BEHIND_SLOTS = 2
+
+/** Items that intersect the scrollport `[scrollLeft, scrollLeft + viewportWidth)`. */
+export function scrollportIndexRange(
+  prefix: readonly number[],
+  scrollLeft: number,
+  viewportWidth: number,
+): FilmstripIndexRange {
+  if (prefix.length <= 1) {
+    return { start: 0, end: 0 }
+  }
+  const lastPx = scrollLeft + Math.max(viewportWidth, 1) - 1
+  return {
+    start: indexFromScrollOffset(scrollLeft, prefix, 0),
+    end: indexFromScrollOffset(lastPx, prefix, 0) + 1,
+  }
+}
+
+/**
+ * Mounted filmstrip window: the scrollport plus `aheadPx` in the scroll
+ * direction (so `<img>` decode starts before a tile enters the view) and
+ * WINDOW_BEHIND_SLOTS slots behind it.
+ */
+export function filmstripWindowRange(
+  prefix: readonly number[],
+  scrollLeft: number,
+  viewportWidth: number,
+  direction: FilmstripScrollDirection,
+  aheadPx: number,
+): FilmstripIndexRange {
+  const view = scrollportIndexRange(prefix, scrollLeft, viewportWidth)
+  const count = prefix.length - 1
+  if (count <= 0) {
+    return view
+  }
+  if (direction === 1) {
+    const aheadPxEnd = scrollLeft + Math.max(viewportWidth, 1) + aheadPx
+    return {
+      start: Math.max(0, view.start - WINDOW_BEHIND_SLOTS),
+      end: indexFromScrollOffset(aheadPxEnd, prefix, 0) + 1,
+    }
+  }
+  return {
+    start: indexFromScrollOffset(scrollLeft - aheadPx, prefix, 0),
+    end: Math.min(count, view.end + WINDOW_BEHIND_SLOTS),
+  }
+}
+
 export function spacerWidthPx(
   aspects: readonly number[],
   reservedCount: number,

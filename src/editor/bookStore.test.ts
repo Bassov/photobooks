@@ -27,6 +27,7 @@ import {
   resetBookStore,
   setAssetSessionMeta,
   setImportRunning,
+  subscribeAssetRemovals,
   subscribeBookStore,
   subscribeGallery,
   dispatchBookOp,
@@ -429,6 +430,29 @@ describe('bookStore', () => {
     expect(getBookStoreSnapshot().sessionMeta.has('batch-a')).toBe(false)
     expect(getBookStoreSnapshot().sessionMeta.has('batch-b')).toBe(false)
     expect(getBookStoreSnapshot().sessionMeta.has('batch-keep')).toBe(true)
+  })
+
+  it('removeFailedImportAssets tells removal subscribers the unique ids until they unsubscribe', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    enqueueGalleryAssets([
+      { assetId: 'gone-a', meta: sessionFile('a.jpg') },
+      { assetId: 'gone-b', meta: sessionFile('b.jpg') },
+    ])
+    const listener = vi.fn()
+    const unsubscribe = subscribeAssetRemovals(listener)
+
+    removeFailedImportAssets(['gone-a', 'gone-a'])
+    unsubscribe()
+    removeFailedImportAssets(['gone-b'])
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith(['gone-a'])
   })
 
   it('removeFailedImportAssets is a no-op for an empty id list', () => {
