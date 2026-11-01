@@ -14,6 +14,7 @@ import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import { EndpaperCanvas } from './EndpaperCanvas'
 import { EndpaperRow } from './EndpaperRow'
 import { EndpaperSection } from './EndpaperSection'
+import { FIELD, SUB, T } from './editorChromeTokens'
 import {
   getSelectedEndpaper,
   setEndpaperSelected,
@@ -168,8 +169,53 @@ describe('EndpaperSection', () => {
     expect(
       screen.getByTestId('endpaper-fill').getAttribute('data-photo-id'),
     ).toBe('a1')
+    expect(screen.getByTestId('endpaper-style').textContent).toBe('Photo')
+    expect(
+      screen
+        .getByTestId('endpaper-sec-fill')
+        .querySelectorAll('.endpaper-row')[1]?.firstElementChild?.textContent,
+    ).toBe('Photo')
     fireEvent.click(screen.getByTestId('endpaper-clear'))
     expect(getBookStoreSnapshot().book.endpapers.back).toEqual({})
+  })
+
+  it('lays out the kit Fill and Apply sections (Owner Must M48, round 8)', () => {
+    seed()
+    render(<EndpaperSection side="front" />)
+    const fill = screen.getByTestId('endpaper-sec-fill')
+    const apply = screen.getByTestId('endpaper-sec-apply')
+    expect(fill.className).toBe('px-4 py-4')
+    expect(apply.className).toBe('px-4 py-4')
+    expect(
+      [...document.querySelectorAll('.endpaper-sec-title')].map((title) => [
+        title.tagName,
+        title.textContent,
+        title.parentElement?.className,
+      ]),
+    ).toEqual([
+      ['H3', 'Fill', 'mb-3 flex items-center justify-between'],
+      ['H3', 'Apply', 'mb-3 flex items-center justify-between'],
+    ])
+    // Kit Row: label, "Pattern" chip, "coming later" as three row children.
+    const style = screen.getByTestId('endpaper-style-row')
+    expect(style.className).toBe('endpaper-row')
+    expect([...style.children].map((child) => child.textContent)).toEqual([
+      'Style',
+      'Pattern',
+      'coming later',
+    ])
+    const chip = screen.getByTestId('endpaper-style')
+    expect(chip.className).toBe('rounded-sm px-2 py-1')
+    expect(chip.style.background).toBe(FIELD)
+    expect(chip.style.color).toBe(T)
+    const note = screen.getByTestId('endp-fill-readonly')
+    expect(note.className).toBe('ml-1.5 text-2xs')
+    expect(note.style.color).toBe(SUB)
+    expect(apply.querySelectorAll('.endpaper-row')).toHaveLength(1)
+    expect(fill.querySelectorAll('.endpaper-row')).toHaveLength(2)
+    for (const row of document.querySelectorAll('.endpaper-row')) {
+      expect((row.firstElementChild as HTMLElement).style.color).toBe(SUB)
+    }
   })
 })
 

@@ -499,7 +499,9 @@ test.describe('M49: new-spread pill and the 104 / 588 gap', () => {
       expect(pill.radius).toBe(KIT.pill.radius)
       near(pill.height, KIT.pill.height)
       near(pill.x + pill.width / 2, gap.centreX)
-      near(pill.y + pill.height / 2, (gap.top + gap.bottom) / 2)
+      // Owner design change (round 8, M56): centred between the page-number
+      // line bottom (8 + 11 px under the page) and the next spread's top.
+      near(pill.y + pill.height / 2, (gap.top + 19 + gap.bottom) / 2)
       expect(read.labels.length).toBeGreaterThan(0)
       for (const p of read.pills) {
         for (const label of read.labels) {

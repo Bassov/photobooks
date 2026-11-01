@@ -695,15 +695,20 @@ async function verifyRef(
     scanned !== undefined &&
     prev.byteSize === scanned.byteSize &&
     prev.mtimeMs === scanned.mtimeMs
-  // Size+mtime match (and changed/missing scan meta): reattach a live File via
-  // resolveFile / getFile only. Never call readForHash / file.arrayBuffer() /
-  // new File([buffer]) on this priority path — body reads belong to decode /
-  // import.
-  const resolved = await source.resolveFile(sourceRootId, ref.relativePath)
-  if (!resolved.ok) {
-    return
+  // Size+mtime match (and changed/missing scan meta): reattach a live File.
+  // The walk already ran getFile per path, so retain its File; resolveFile
+  // only when the scan carries none. Never call readForHash /
+  // file.arrayBuffer() / new File([buffer]) on this priority path — body reads
+  // belong to decode / import.
+  let file = scanned?.file
+  if (file === undefined) {
+    const resolved = await source.resolveFile(sourceRootId, ref.relativePath)
+    if (!resolved.ok) {
+      return
+    }
+    file = resolved.value
   }
-  retainAssetSource(ref.assetId, resolved.value)
+  retainAssetSource(ref.assetId, file)
   // Patch identity from the cheap scan when present (no content-hash).
   // Size/mtime change ⇒ new identity cache key; clear legacy contentHash field.
   if (scanned !== undefined) {
@@ -831,14 +836,16 @@ export async function startFolderRescan(options: {
     })
     // Prefer re-verify for metadata-changed paths even when already in gallery.
     const priorityWithChanges = [...prioritized]
+    const priorityPaths = new Set(prioritized.map((ref) => ref.relativePath))
+    // Reversed so the first gallery id per path wins (as `find` did).
+    const galleryIdByPath = new Map(
+      book.gallery
+        .map((id) => [book.assets[id]?.relativePath, id] as const)
+        .reverse(),
+    )
     for (const path of indexDiff.changedPaths) {
-      if (priorityWithChanges.some((ref) => ref.relativePath === path)) {
-        continue
-      }
-      const assetId = book.gallery.find(
-        (id) => book.assets[id]?.relativePath === path,
-      )
-      if (assetId === undefined) {
+      const assetId = galleryIdByPath.get(path)
+      if (priorityPaths.has(path) || assetId === undefined) {
         continue
       }
       priorityWithChanges.push({ assetId, relativePath: path })
@@ -850,19 +857,20 @@ export async function startFolderRescan(options: {
       priorityWithChanges,
     )
     // New paths (not in gallery before list-enqueue) + non-priority remainder.
+    const newPathSet = new Set(indexDiff.newPaths)
     const missingEntries = [
       ...indexDiff.newPaths.flatMap((path) => {
         if (!isAcceptedPhotoPath(path) || changedPathSet.has(path)) {
           return []
         }
-        if (priorityWithChanges.some((ref) => ref.relativePath === path)) {
+        if (priorityPaths.has(path)) {
           return []
         }
         const entry = scannedByPath.get(path)
         return entry === undefined ? [] : [entry]
       }),
       ...lazyPaths.flatMap((path) => {
-        if (indexDiff.newPaths.includes(path)) {
+        if (newPathSet.has(path)) {
           return []
         }
         const entry = scannedByPath.get(path)

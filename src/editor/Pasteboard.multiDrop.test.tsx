@@ -173,6 +173,8 @@ describe('Pasteboard multi-photo drop', () => {
     for (const zone of zones) {
       expect(zone.textContent).toBe('Drop here for a new spread')
       expect(zone.getAttribute('aria-hidden')).toBe('true')
+      // Centred under the page numbers: 19 / 2 px under the gap centre (M56).
+      expect(zone.style.getPropertyValue('--pill-shift')).toBe('9.5px')
     }
   })
 

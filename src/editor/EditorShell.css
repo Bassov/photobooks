@@ -346,14 +346,18 @@
 }
 
 /* "Drop here for a new spread" pill (kit GapDrop: h-8, text-xs, 8 px radius,
-   gap-1.5): one line at a constant screen size, centred in the gap;
-   --cam-scale undoes a live zoom gesture's world scale. Rendered only while
-   the gap holds it plus the label clearance (newSpreadPillFits). Hit-testing
-   is dropTargets.hitTestGap. */
+   gap-1.5): one line at a constant screen size, centred between the
+   page-number line bottom and the next spread (--pill-shift screen px under
+   the gap centre, NEW_SPREAD_PILL_SHIFT_PX); --cam-scale undoes a live zoom
+   gesture's world scale. Rendered only while the gap holds it plus the label
+   clearance (newSpreadPillFits). Hit-testing is dropTargets.hitTestGap. */
 .pasteboard-gap {
   position: absolute;
   left: 50%;
-  top: calc(100% - var(--slot-pad, 0px) / 2);
+  top: calc(
+    100% - var(--slot-pad, 0px) / 2 + var(--pill-shift, 0px) /
+      var(--cam-scale, 1)
+  );
   transform: translate(-50%, -50%) scale(calc(1 / var(--cam-scale, 1)));
   box-sizing: border-box;
   height: 32px;

@@ -31,6 +31,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r7-canvas-chrome](roadmap/P1/design-r7-canvas-chrome.md) — Bug: design-r7-canvas-chrome: in-canvas chrome locked to zoom, no frame size pill
 - [ ] [feature] [design-r7-spreads](roadmap/P1/design-r7-spreads.md) — Bug: design-r7-spreads: single pages on their side, spread-list labels, new-spread drop pill and 104/588 gap
 - [x] [feature] [design-r7-panels](roadmap/P1/design-r7-panels.md) — Bug: design-r7-panels: One per page layout, endpaper inspector top, filmstrip wheel, preview from cover, no inspector hide button
+- [ ] [feature] [design-r8-polish](roadmap/P1/design-r8-polish.md) — Bug: design-r8-polish: endpaper inspector spacing, single-page list rows, new-spread pill centring
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
 - [x] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates
@@ -40,7 +41,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [thumb-bulk-hydrate](roadmap/P1/thumb-bulk-hydrate.md) — On book open, load all cached thumbs before the user scrolls
 - [ ] [contingency] [thumb-pack-storage](roadmap/P1/thumb-pack-storage.md) — Store a folder's thumbs in one IndexedDB store (only if hydrate is slow)
 - [ ] [feature] [thumb-background-warm](roadmap/P1/thumb-background-warm.md) — Thumbs for the whole folder in the background
-- [ ] [prep] [rescan-cheap-verify](roadmap/P1/rescan-cheap-verify.md) — Folder rescan on open: no per-file re-resolve, O(n) diff, parallel scan
+- [x] [prep] [rescan-cheap-verify](roadmap/P1/rescan-cheap-verify.md) — Folder rescan on open: no per-file re-resolve, O(n) diff, parallel scan
 
 ## P2 — Missing features, iterative
 

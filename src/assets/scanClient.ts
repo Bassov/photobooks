@@ -1,7 +1,7 @@
 import type { AssetDirectoryHandle } from './fsa/handles'
 import type { ScanWorkerRequest, ScanWorkerResponse } from './scan.worker'
 import { walkAssetDirectory } from './scanWalk'
-import type { ScannedEntry } from './types'
+import type { ScannedEntry, WalkedEntry } from './types'
 
 function isDataCloneError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'DataCloneError'
@@ -63,13 +63,14 @@ function nextScanId(): string {
  */
 export async function scanDirectoryInWorker(
   directory: AssetDirectoryHandle | FileSystemDirectoryHandle,
-): Promise<ScannedEntry[]> {
+): Promise<WalkedEntry[]> {
   try {
-    return await requestScan({
+    // Directory requests answer with walkAssetDirectory output (Files cloned).
+    return (await requestScan({
       id: nextScanId(),
       kind: 'directory',
       directory: directory as AssetDirectoryHandle,
-    })
+    })) as WalkedEntry[]
   } catch (error) {
     if (isDataCloneError(error)) {
       return walkAssetDirectory(directory)
