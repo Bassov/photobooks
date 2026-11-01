@@ -83,4 +83,20 @@ describe('Button', () => {
       /\.pb-button\[data-disabled\],\s*\.pb-button\[data-pending\]\s*\{[^}]*opacity:\s*0\.5/s,
     )
   })
+
+  // Kit button.tsx box model (r11 M70): no border, md px-4, sm px-3;
+  // secondary = kit outline + shadow-xs, no border ring.
+  it('matches the kit box model and the borderless secondary variant', () => {
+    expect(buttonCss).toMatch(/\.pb-button\s*\{[^}]*border:\s*0 solid/s)
+    expect(buttonCss).toMatch(
+      /\.pb-button--md\s*\{[^}]*padding:\s*0 calc\(var\(--spacing\) \* 4\)/s,
+    )
+    expect(buttonCss).toMatch(
+      /\.pb-button--sm\s*\{[^}]*padding:\s*0 calc\(var\(--spacing\) \* 3\)/s,
+    )
+    const secondary = /\.pb-button--secondary\s*\{([^}]*)\}/s.exec(buttonCss)
+    expect(secondary?.[1]).toMatch(/box-shadow:\s*var\(--shadow-xs\)/)
+    expect(secondary?.[1]).not.toMatch(/border/)
+    expect(buttonCss).not.toMatch(/border-color:\s*var\(--border\)/)
+  })
 })

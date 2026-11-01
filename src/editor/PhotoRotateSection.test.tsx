@@ -79,6 +79,15 @@ describe('PhotoRotateSection', () => {
     render(<PhotoRotateSection target={TARGET} />)
     const h = screen.getByTestId('flip-h')
     const v = screen.getByTestId('flip-v')
+    // Kit inspector.tsx:157: Flip is plain outline; the 90° turns add shadow-xs (r11 M70).
+    for (const flip of [h, v]) {
+      expect(flip.classList.contains('pb-button--outline')).toBe(true)
+    }
+    for (const id of ['rot-left', 'rot-right']) {
+      expect(
+        screen.getByTestId(id).classList.contains('pb-button--secondary'),
+      ).toBe(true)
+    }
     expect(h.getAttribute('aria-pressed')).toBe('false')
     expect(v.getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(h)
