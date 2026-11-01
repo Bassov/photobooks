@@ -339,23 +339,9 @@ The Spread inspector's Layout section SHALL follow kit `#/demo`: a collapsible "
 - **WHEN** the user hovers a layout tile and then moves away
 - **THEN** the active spread shows that layout's slots as a preview, and the preview disappears afterwards
 
-#### Scenario: One per page is suggested for a one-photo page
-
-- **WHEN** page 1 (a single page on One per page) is selected
-- **THEN** "Suggested for 1 photo" lists Full bleed, One per page (pressed), Panorama, and applying One per page after Full bleed restores the framed page
-
-### Requirement: Preview starts on the cover
-
-Opening Preview SHALL show the cover first (position "Cover"); Next SHALL go to the first spread.
-
-#### Scenario: Preview opens on the cover
-
-- **WHEN** the user opens Preview
-- **THEN** the cover is shown, and Next shows page 1
-
 ### Requirement: Preview paints book content only
 
-Preview (presentation) SHALL render spreads without any editor layer: no frame controls, selection outline, handles, size tag, grid, guides or drop / hover chrome. Leaving Preview SHALL restore the editor with its selection unchanged.
+Preview (presentation) SHALL render spreads without any editor layer: no frame controls, selection outline, handles, size tag, grid, guides or drop / hover chrome. Preview SHALL open on the cover (position "Cover"); Next goes to the first spread. Leaving Preview SHALL restore the editor with its selection unchanged.
 
 #### Scenario: Selected frame in Preview
 
@@ -370,11 +356,6 @@ For a spread or a photo the inspector SHALL open with one kit `InspectorShell` h
 
 - **WHEN** a spread is selected and no frame
 - **THEN** the header row reads "Spread" over "Pages … · N empty" and the inspector has no hide button
-
-#### Scenario: Endpaper head at the top
-
-- **WHEN** the front endpaper is selected
-- **THEN** the head "Endpaper · front" starts at the top of the inspector panel
 
 ### Requirement: Saved layout templates
 
