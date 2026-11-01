@@ -123,6 +123,53 @@ async function mountedTiles(
   )
 }
 
+/**
+ * Scroll the strip end to end; at each stop every mounted JPEG tile shows a
+ * thumb and only the HEIC a placeholder. Returns name → placeholder.
+ */
+async function walkStrip(
+  page: Page,
+  total: number,
+): Promise<Map<string, boolean>> {
+  const scroll = page.getByTestId('filmstrip-scroll')
+  const seen = new Map<string, boolean>()
+  let remaining = 1
+  // scrollWidth grows as tiles get measured, and the tail window commits
+  // after scroll quiet: keep stepping until every tile was mounted.
+  for (let step = 0; step < 200; step += 1) {
+    await expect
+      .poll(async () => {
+        const tiles = await mountedTiles(page)
+        for (const tile of tiles) {
+          seen.set(tile.name, tile.placeholder)
+        }
+        return tiles.filter(
+          (tile) => tile.placeholder !== (tile.name === HEIC_NAME),
+        )
+      })
+      .toEqual([])
+    if (remaining <= 0 && seen.size >= total) {
+      break
+    }
+    remaining = await scroll.evaluate(async (node) => {
+      const max = node.scrollWidth - node.clientWidth
+      // The window only re-commits when its start index moves; hydrate
+      // widens tiles under a parked strip. At the end, step back a viewport
+      // so the tail window re-commits on the way forward.
+      node.scrollLeft =
+        node.scrollLeft >= max
+          ? max - node.clientWidth
+          : node.scrollLeft + node.clientWidth / 2
+      // Window commits on rAF: let it land before reading mounted tiles.
+      for (let frame = 0; frame < 3; frame += 1) {
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+      }
+      return node.scrollWidth - node.clientWidth - node.scrollLeft
+    })
+  }
+  return seen
+}
+
 async function warmStats(
   page: Page,
 ): Promise<{ encoded: number; inFlight: number }> {
@@ -188,35 +235,7 @@ test('idle folder: every JPEG gets a stored thumb without scrolling; HEIC keeps 
   // HEIC: unsupported decode, no thumb row, placeholder tile at the tail.
   // Walk the strip end to end: every JPEG tile fills from DerivedCache; only
   // the HEIC stays gray.
-  const scroll = page.getByTestId('filmstrip-scroll')
-  const seen = new Map<string, boolean>()
-  const { step, max } = await scroll.evaluate((node) => ({
-    step: node.clientWidth / 2,
-    max: node.scrollWidth - node.clientWidth,
-  }))
-  const stops = Array.from({ length: Math.ceil(max / step) + 1 }, (_, i) =>
-    Math.min(i * step, max),
-  )
-  for (const left of stops) {
-    // Window commits on rAF: let it land before reading mounted tiles.
-    await scroll.evaluate(async (node, next) => {
-      node.scrollLeft = next
-      for (let frame = 0; frame < 3; frame += 1) {
-        await new Promise((resolve) => requestAnimationFrame(resolve))
-      }
-    }, left)
-    await expect
-      .poll(async () => {
-        const tiles = await mountedTiles(page)
-        for (const tile of tiles) {
-          seen.set(tile.name, tile.placeholder)
-        }
-        return tiles.filter(
-          (tile) => tile.placeholder !== (tile.name === HEIC_NAME),
-        )
-      })
-      .toEqual([])
-  }
+  const seen = await walkStrip(page, COUNT + 1)
   expect(seen.size).toBe(COUNT + 1)
   expect(seen.get(HEIC_NAME)).toBe(true)
   expect(await derivedThumbCount(page)).toBe(COUNT)

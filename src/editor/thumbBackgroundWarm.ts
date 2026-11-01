@@ -108,17 +108,16 @@ async function encodeWarmThumb(
   assetId: string,
   cacheKey: string,
 ): Promise<boolean> {
-  const promoted = promoteDeferredLazyToWarm(assetId)
-  // The import owner publishes + stores a promoted result.
-  const job = promoted ?? (await startOwnJob(assetId, cacheKey))
-  if (job === 'stored') {
-    return true
-  }
-  if (job === 'taken') {
-    return false
-  }
   try {
-    const result = await job
+    // The import owner publishes + stores a promoted result.
+    const promoted = promoteDeferredLazyToWarm(assetId)
+    const result = await (promoted ?? runOwnJob(assetId, cacheKey))
+    if (result === 'stored') {
+      return true
+    }
+    if (result === 'taken') {
+      return false
+    }
     if (promoted === undefined) {
       restoreAspectFromDecode(
         assetId,
@@ -144,10 +143,10 @@ async function encodeWarmThumb(
  * `stored`: nothing left to encode (cached already, or no source file).
  * `taken`: a now-lane decode owns it meanwhile (it publishes + stores).
  */
-async function startOwnJob(
+async function runOwnJob(
   assetId: string,
   cacheKey: string,
-): Promise<Promise<AssetProcessResult> | 'stored' | 'taken'> {
+): Promise<AssetProcessResult | 'stored' | 'taken'> {
   const cache = await getDerivedCache()
   if (await cache.has(cacheKey, THUMB_PRESET_ID)) {
     return 'stored'
@@ -198,15 +197,13 @@ function runWarmPass(): void {
   for (const assetId of ordered.slice(0, cap - inFlight.size)) {
     const cacheKey = getAssetCacheKey(assetId) ?? ''
     inFlight.add(assetId)
-    void encodeWarmThumb(assetId, cacheKey)
-      .catch(() => false)
-      .then((done) => {
-        if (done) {
-          settled.add(settledKey(assetId, cacheKey))
-        }
-        inFlight.delete(assetId)
-        requestWarmPass()
-      })
+    void encodeWarmThumb(assetId, cacheKey).then((done) => {
+      if (done) {
+        settled.add(settledKey(assetId, cacheKey))
+      }
+      inFlight.delete(assetId)
+      requestWarmPass()
+    })
   }
 }
 

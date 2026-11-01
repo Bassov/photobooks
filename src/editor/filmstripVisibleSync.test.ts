@@ -156,6 +156,28 @@ describe('scheduleFilmstripVisibleSync', () => {
     expect(setVisible).toHaveBeenCalledWith(windowAt(4))
   })
 
+  it('waits for quiet end alone when it comes before the next throttle slot', () => {
+    fakeClock(20_000)
+    noteFilmstripScrollActivity()
+    const setVisible = vi.fn()
+    tick(120)
+    // Throttle slot open (no publish yet): lands on the next tick.
+    const first = scheduleFilmstripVisibleSync(['b'], setVisible)
+    tick(0)
+    expect(setVisible).toHaveBeenCalledWith(['b'])
+    first()
+    tick(10)
+    // Quiet ends in 70 ms, the next throttle slot in 90 ms.
+    const stale = scheduleFilmstripVisibleSync(['c'], setVisible)
+    stale()
+    scheduleFilmstripVisibleSync(['d'], setVisible)
+    tick(69)
+    expect(setVisible).toHaveBeenCalledTimes(1)
+    tick(200)
+    expect(setVisible).toHaveBeenCalledTimes(2)
+    expect(setVisible).toHaveBeenLastCalledWith(['d'])
+  })
+
   it('keeps the last direction when the window holds still', () => {
     fakeClock(15_000)
     const setVisible = vi.fn()

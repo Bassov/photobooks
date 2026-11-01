@@ -5,7 +5,7 @@ import {
 import { getFilmstripWindow, setFilmstripWindow } from './filmstripWindow'
 
 /** Now-set publish interval while the filmstrip scrolls. */
-export const VISIBLE_SYNC_THROTTLE_MS = 100
+const VISIBLE_SYNC_THROTTLE_MS = 100
 /** How far ahead (in time) a running scroll extends the published window. */
 const VELOCITY_LOOKAHEAD_MS = 200
 
