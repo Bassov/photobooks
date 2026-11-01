@@ -17,11 +17,6 @@ import {
 import { BookSettingsSection } from './BookSettingsSection'
 import { EndpaperSection } from './EndpaperSection'
 import {
-  AdjustSection,
-  CaptionSection,
-  FrameStyleSection,
-} from './FrameLookSections'
-import {
   getSelectedEndpaper,
   subscribeEndpaperSelection,
   type EndpaperSide,
@@ -29,12 +24,7 @@ import {
 import { getCropTarget, getCropTargetKey, subscribeCropMode } from './cropMode'
 import { SUB, T } from './editorChromeTokens'
 import { FitCropSection } from './FitCropSection'
-import {
-  ArrangeSection,
-  DeleteFrameButton,
-  GeometrySection,
-} from './FrameSections'
-import { Disclosure } from '../ui/Disclosure'
+import { PhotoFrameSections } from './PhotoFrameSections'
 import { PhotoRotateSection } from './PhotoRotateSection'
 import { getFrameSource, subscribeFrameSelection } from './frameSelection'
 import { PhotoSection } from './PhotoSection'
@@ -194,37 +184,7 @@ export function Inspector() {
             <PhotoSection target={view.target} />
             <FitCropSection target={view.target} cropping={target !== null} />
             <PhotoRotateSection target={view.target} />
-            <Disclosure
-              title="Adjust"
-              data-testid="inspector-adjust-disclosure"
-            >
-              <AdjustSection target={view.target} />
-            </Disclosure>
-            <Disclosure
-              title="Caption"
-              data-testid="inspector-caption-disclosure"
-            >
-              <CaptionSection target={view.target} />
-            </Disclosure>
-            <Disclosure
-              title="Position & size"
-              data-testid="inspector-geometry-disclosure"
-            >
-              <GeometrySection target={view.target} />
-            </Disclosure>
-            <Disclosure
-              title="Frame style"
-              data-testid="inspector-style-disclosure"
-            >
-              <FrameStyleSection target={view.target} />
-            </Disclosure>
-            <Disclosure
-              title="Arrange"
-              data-testid="inspector-arrange-disclosure"
-            >
-              <ArrangeSection target={view.target} />
-            </Disclosure>
-            <DeleteFrameButton target={view.target} />
+            <PhotoFrameSections target={view.target} />
           </>
         ) : null}
         {view.kind === 'spread' ? (
