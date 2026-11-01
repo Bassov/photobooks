@@ -41,6 +41,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [cover-hires](roadmap/P1/cover-hires.md) — Bug: /next-roadmap-item cover-hires
 - [ ] [feature] [design-r11-photo](roadmap/P1/design-r11-photo.md) — Bug: design-r11-photo: Photo inspector expanded sections match the kit
 - [ ] [feature] [design-r11-canvas](roadmap/P1/design-r11-canvas.md) — Bug: design-r11-canvas: spine fold, spread-list thumbnail shadow and cover text match the kit
+- [ ] [feature] [design-r12-surfaces](roadmap/P1/design-r12-surfaces.md) — Bug: /next-roadmap-item design-r12-surfaces
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
 - [x] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates
