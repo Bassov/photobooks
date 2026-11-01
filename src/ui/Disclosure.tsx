@@ -17,6 +17,8 @@ export interface DisclosureProps {
   /** Header action(s) right of the trigger, shown only while expanded. */
   right?: ReactNode
   'data-testid'?: string
+  /** Presses inside (trigger included) keep crop mode alive. */
+  'data-crop-keep'?: string
   children: ReactNode
 }
 
@@ -27,6 +29,7 @@ export function Disclosure({
   summary,
   right,
   'data-testid': dataTestId,
+  'data-crop-keep': cropKeep,
   children,
 }: DisclosureProps) {
   return (
@@ -34,6 +37,7 @@ export function Disclosure({
       className="pb-disclosure"
       defaultExpanded={defaultExpanded}
       data-testid={dataTestId}
+      data-crop-keep={cropKeep}
     >
       {({ isExpanded }) => (
         <>

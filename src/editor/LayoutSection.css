@@ -189,27 +189,30 @@
   grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--field);
 }
 
 .layout-tabs button {
   height: 28px;
+  padding: 0 12px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   /* Kit: the unselected tab is muted, the selected one ink (r10 M62). */
   color: var(--muted-foreground);
   font: inherit;
-  font-size: var(--text-xs);
+  /* Kit Tabs labels: 13 px medium in both states (Owner Must M61, round 10). */
+  font-size: var(--text-sm);
+  font-weight: 500;
   cursor: pointer;
 }
 
+/* Kit Tabs pill: chrome on the field track (Owner Must M67, round 10). */
 .layout-tabs button[aria-pressed='true'] {
   color: var(--foreground);
-  background: var(--paper);
-  font-weight: 600;
-  box-shadow: var(--shadow-sm);
+  background: var(--background);
+  box-shadow: var(--shadow-pill);
 }
 
 .layout-search {
