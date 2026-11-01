@@ -80,4 +80,18 @@ describe('Disclosure', () => {
     expect(summary.className).toBe('pb-disclosure__summary')
     expect(summary.hasAttribute('data-testid')).toBe(false)
   })
+
+  it('names the trigger by the title; the summary only describes it', () => {
+    render(
+      <Disclosure title="Arrange" summary="z 1">
+        <p>body</p>
+      </Disclosure>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Arrange' })
+    const describedBy = trigger.getAttribute('aria-describedby') ?? ''
+    expect(document.getElementById(describedBy)?.textContent).toBe('z 1')
+    fireEvent.click(trigger)
+    expect(screen.queryByText('z 1')).toBeNull()
+    expect(trigger.hasAttribute('aria-describedby')).toBe(false)
+  })
 })
