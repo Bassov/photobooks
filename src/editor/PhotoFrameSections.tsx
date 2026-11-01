@@ -1,11 +1,4 @@
 import { useSyncExternalStore } from 'react'
-import {
-  frameStyleName,
-  isAdjusted,
-  layerOf,
-  type Frame,
-  type Spread,
-} from '../core'
 import { Disclosure } from '../ui/Disclosure'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import type { CropTarget } from './cropMode'
@@ -20,30 +13,10 @@ import {
   FrameLockButton,
   GeometrySection,
 } from './FrameSections'
-
-export interface FrameSectionSummaries {
-  adjust: string | undefined
-  style: string
-  arrange: string
-}
-
-/**
- * Collapsed-row summaries of the kit frame sections: Adjust "Edited",
- * Frame style name (`cur.name`), Arrange `z <layer>` (bottom = 1).
- */
-export function frameSectionSummaries(
-  spread: Spread,
-  frame: Frame,
-): FrameSectionSummaries {
-  return {
-    adjust: isAdjusted(frame.adjust) ? 'Edited' : undefined,
-    style:
-      frame.frameStyleId === undefined
-        ? 'None'
-        : frameStyleName(frame.frameStyleId),
-    arrange: `z ${String(layerOf(spread, frame.id)?.layer)}`,
-  }
-}
+import {
+  frameSectionSummaries,
+  type FrameSectionSummaries,
+} from './frameSectionSummaries'
 
 function readBook() {
   return getBookStoreSnapshot().book

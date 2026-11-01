@@ -13,7 +13,7 @@ import { dispatchBookOp, resetBookStore } from './bookStore'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
 import { setActiveSpreadId } from './photoRootSession'
-import { frameSectionSummaries } from './PhotoFrameSections'
+import { frameSectionSummaries } from './frameSectionSummaries'
 
 const spread = makeSpread({
   id: 'spread-1',

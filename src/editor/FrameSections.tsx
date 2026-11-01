@@ -86,7 +86,6 @@ function MmField({
   )
 }
 
-/** Kit GeometrySection: X / Y / W / H in mm, rotation slider + degrees, lock. */
 /** Kit GeometrySection `right`: the lock sits on the section title row. */
 export function FrameLockButton({ target }: { target: CropTarget }) {
   const found = useTarget(target)
@@ -114,6 +113,7 @@ export function FrameLockButton({ target }: { target: CropTarget }) {
   )
 }
 
+/** Kit GeometrySection: X / Y / W / H in mm, rotation slider + degrees. */
 export function GeometrySection({ target }: { target: CropTarget }) {
   const found = useTarget(target)
   const liveAll = useSyncExternalStore(
