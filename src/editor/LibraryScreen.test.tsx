@@ -113,6 +113,10 @@ describe('LibraryScreen', () => {
         .getByTestId('library-bar')
         .parentElement?.getAttribute('aria-hidden'),
     ).toBe('true')
+    // kit back bar padding/gap/ink (round 10, M66)
+    expect(
+      screen.getByTestId('settings-back').className.split(/\s+/),
+    ).toContain('pb-settings-back')
     fireEvent.click(screen.getByTestId('settings-back'))
     await waitFor(() => {
       expect(screen.getByTestId('library-books')).toBeTruthy()
@@ -643,6 +647,7 @@ describe('LibraryScreen', () => {
     render(<LibraryScreen />)
     await waitFor(() => {
       expect(screen.getByTestId('change-library')).toBeTruthy()
+      expect(screen.getByTestId('new-book')).toBeTruthy()
     })
     const change = screen.getByTestId('change-library')
     expect(

@@ -72,7 +72,7 @@ export function WelcomeScreen() {
         <header className="absolute inset-x-0 top-0 flex items-center px-14 py-9">
           <Mark />
         </header>
-        <div className="absolute left-14 top-1/2 w-[min(780px,46%)] -translate-y-1/2">
+        <div className="pb-kit-type absolute left-14 top-1/2 w-[min(780px,46%)] -translate-y-1/2">
           {project.restorePending ? (
             <p
               className="pb-welcome-rise text-sm text-muted-foreground"
@@ -127,7 +127,7 @@ export function WelcomeScreen() {
                   Create Library
                 </Button>
               </div>
-              <p className="pb-welcome-rise pb-welcome-rise--d5 mt-4 pl-1 text-sm text-muted-foreground">
+              <p className="pb-welcome-rise pb-welcome-rise--d5 mt-4 mb-0 pl-1 text-sm text-muted-foreground">
                 You’ll choose a folder on your disk.
               </p>
             </>
