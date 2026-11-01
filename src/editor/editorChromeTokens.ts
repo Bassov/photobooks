@@ -56,6 +56,8 @@ export const EDITOR_CHROME_CSS = `
 .film-chip { color: ${SUB}; background: transparent; border: 0; border-radius: var(--radius-md); height: 28px; padding: 0 8px; font-size: var(--text-xs); box-shadow: none; transition: background-color .12s }
 .film-chip:hover, .film-chip[data-hovered], .film-chip[data-selected] { background: ${FIELD}; color: ${T} }
 .film-chip:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
+.film-chip.film-add-folder { color: ${T}; font-weight: 500; padding: 0 10px }
+.film-chip.film-add-folder[data-disabled] { opacity: .5 }
 .pb-segmented__segment input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer }
 .pb-segmented__segment input:disabled { cursor: wait }
 .e7-title { transition: background-color .12s; border: 0; background: transparent; cursor: pointer }

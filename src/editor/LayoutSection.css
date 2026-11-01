@@ -149,6 +149,9 @@
   line-clamp: 2;
 }
 
+/* Kit group-hover: the Section wrapper carries `group`, so every caption inks
+   while the pointer is over the Layout section (r10 M62). */
+.pb-disclosure:hover .layout-tile-name,
 .layout-tile:hover .layout-tile-name,
 .layout-tile[aria-pressed='true'] .layout-tile-name {
   color: var(--foreground);
@@ -196,7 +199,8 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: inherit;
+  /* Kit: the unselected tab is muted, the selected one ink (r10 M62). */
+  color: var(--muted-foreground);
   font: inherit;
   /* Kit Tabs labels: 13 px medium in both states (Owner Must M61, round 10). */
   font-size: var(--text-sm);
@@ -206,6 +210,7 @@
 
 /* Kit Tabs pill: chrome on the field track (Owner Must M67, round 10). */
 .layout-tabs button[aria-pressed='true'] {
+  color: var(--foreground);
   background: var(--background);
   box-shadow: var(--shadow-pill);
 }

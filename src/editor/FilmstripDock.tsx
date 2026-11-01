@@ -207,7 +207,7 @@ export function FilmstripDock({
           </MenuTrigger>
           {onChoosePhotoFolder === undefined ? null : (
             <AriaButton
-              className="film-chip inline-flex cursor-default items-center gap-1.5 rounded-full"
+              className="film-chip film-add-folder inline-flex cursor-default items-center gap-1.5 rounded-full"
               isDisabled={importDisabled}
               onPress={() => {
                 void onChoosePhotoFolder()

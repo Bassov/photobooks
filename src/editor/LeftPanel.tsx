@@ -28,7 +28,7 @@ export function LeftPanel({
     <div
       role="tablist"
       aria-label="Left panel"
-      className="editor-left-tabs flex h-6.5 items-center rounded-md text-sm font-medium"
+      className="editor-left-tabs flex items-center rounded-md text-sm font-medium"
     >
       {TABS.map((item) => (
         <button
@@ -36,7 +36,7 @@ export function LeftPanel({
           type="button"
           role="tab"
           aria-selected={tab === item.id}
-          className="editor-left-tab flex h-full flex-1 items-center justify-center rounded-sm"
+          className="editor-left-tab flex h-6.5 flex-1 items-center justify-center rounded-sm"
           data-testid={`left-tab-${item.id}`}
           onClick={() => {
             setLeftPanelTab(item.id)
