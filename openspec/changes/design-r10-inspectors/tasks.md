@@ -12,3 +12,5 @@
 1. Select the cover, then the book title: head, section titles and rows sit at the kit rhythm; selects unchanged.
 2. Select a filled frame: PHOTO, FIT & CROP, ROTATE & FLIP open with ▾ chevrons; collapse PHOTO and reopen it; crop mode survives a Fit & crop header click.
 3. Book settings / layout picker / Create dialog segmented labels read 13 px medium in both states.
+
+manual-qa (2026-11-01): problem 1–3, harness problem: the `start-session` click times out (welcome header intercepts pointer events) before any scenario step; covered by `e2e/design-r10-inspectors.spec.ts` (M59 :164 / :201, M60 :244 / :306 / :320 / :336, M61 :351 / :379 / :397), all passed.
