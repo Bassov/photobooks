@@ -19,6 +19,7 @@ import {
   countBusySlots,
   dualTiersDefaultForImport,
   ensureActiveAbortController,
+  keepsInFlightOnLeaveNow,
   pendingRetryFromJob,
   queueHasBackgroundLane,
   relabelQueueLanes,
@@ -125,6 +126,8 @@ interface DecodeQueueItem {
   dualTiers: boolean
   returnSource: boolean
   signal?: AbortSignal
+  /** In-flight thumb whose asset left now: ignores the abort and publishes. */
+  keptThroughLeaveNow?: boolean
   resolve: (result: AssetProcessResult) => void
   reject: (error: Error) => void
 }
@@ -281,6 +284,11 @@ function abortAssetJobs(assetId: string, registerRetry: boolean): void {
       pendingRetryByAsset.set(assetId, pendingRetryFromJob(job))
     }
     job.reject(new DOMException('Aborted', 'AbortError'))
+  }
+  for (const job of inFlightJobs) {
+    if (job.assetId === assetId && keepsInFlightOnLeaveNow(job)) {
+      job.keptThroughLeaveNow = true
+    }
   }
   let controller = abortByAsset.get(assetId)
   if (controller === undefined) {
@@ -462,19 +470,35 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   let settled = false
   inFlightJobs.add(job)
 
+  // The job promise settles once (abort may come first); the slot stays busy
+  // until the worker answers this request id — it cannot cancel a decode.
   const settle = (fn: () => void): void => {
     if (settled) {
       return
     }
     settled = true
     inFlightJobs.delete(job)
-    cleanup()
-    slot.busy = false
+    // Stryker disable next-line OptionalChaining: queued jobs always carry the pool signal
+    job.signal?.removeEventListener('abort', onAbort)
     fn()
+  }
+
+  const finish = (fn: () => void): void => {
+    settle(fn)
+    worker.removeEventListener('message', onMessage)
+    worker.removeEventListener('error', onError)
+    slot.busy = false
     pumpNowThenBackground()
   }
 
+  const aborted = (): boolean =>
+    // Stryker disable next-line OptionalChaining: queued jobs always carry the pool signal
+    job.signal?.aborted === true && job.keptThroughLeaveNow !== true
+
   const onAbort = (): void => {
+    if (!aborted()) {
+      return
+    }
     pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
     settle(() => {
       job.reject(new DOMException('Aborted', 'AbortError'))
@@ -486,21 +510,22 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
     if (event.data.id !== job.requestId) {
       return
     }
-    if (job.signal?.aborted) {
-      settle(() => {
+    // An early-settled job left inFlightJobs before any keep mark, so it still reads aborted.
+    if (aborted()) {
+      finish(() => {
         job.reject(new DOMException('Aborted', 'AbortError'))
       })
       return
     }
     const response = event.data
     if (!response.ok) {
-      settle(() => {
+      finish(() => {
         job.reject(new Error(response.error))
       })
       return
     }
     pendingRetryByAsset.delete(job.assetId)
-    settle(() => {
+    finish(() => {
       const result: AssetProcessResult = {
         assetId: job.assetId,
         name: response.name,
@@ -520,15 +545,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   }
 
   const onError = (event: ErrorEvent) => {
-    settle(() => {
+    finish(() => {
       job.reject(new Error(event.message || 'Photo worker failed'))
     })
-  }
-
-  const cleanup = (): void => {
-    worker.removeEventListener('message', onMessage)
-    worker.removeEventListener('error', onError)
-    job.signal?.removeEventListener('abort', onAbort)
   }
 
   worker.addEventListener('message', onMessage)
