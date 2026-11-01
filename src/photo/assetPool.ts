@@ -113,6 +113,11 @@ export interface ProcessAssetOptions {
   dualTiers?: boolean
   /** Worker returns the original body (`sourceBuffer`) for memory-root seed. */
   returnSource?: boolean
+  /**
+   * Caller re-requests after an abort (e.g. on tile remount): register no
+   * pool retry, whose result would have no owner.
+   */
+  noPoolRetry?: boolean
 }
 
 interface DecodeQueueItem {
@@ -125,6 +130,7 @@ interface DecodeQueueItem {
   cover: boolean
   dualTiers: boolean
   returnSource: boolean
+  noPoolRetry: boolean
   signal?: AbortSignal
   /** In-flight thumb whose asset left now: ignores the abort and publishes. */
   keptThroughLeaveNow?: boolean
@@ -276,12 +282,19 @@ function enqueueDecodeJob(item: DecodeQueueItem): void {
   scheduleBackgroundPump()
 }
 
+/** Re-run an aborted job when its asset re-enters now (unless caller-owned). */
+function registerPoolRetry(job: DecodeQueueItem): void {
+  if (!job.noPoolRetry) {
+    pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
+  }
+}
+
 function abortAssetJobs(assetId: string, registerRetry: boolean): void {
   const queued = queue.filter((job) => job.assetId === assetId)
   queue = queue.filter((job) => job.assetId !== assetId)
   for (const job of queued) {
     if (registerRetry) {
-      pendingRetryByAsset.set(assetId, pendingRetryFromJob(job))
+      registerPoolRetry(job)
     }
     job.reject(new DOMException('Aborted', 'AbortError'))
   }
@@ -359,6 +372,7 @@ function promoteDeferredLazy(): void {
       cover: deferred.options.cover === true,
       dualTiers,
       returnSource: deferred.options.returnSource === true,
+      noPoolRetry: deferred.options.noPoolRetry === true,
       resolve: deferred.resolve,
       reject: deferred.reject,
     }
@@ -444,7 +458,7 @@ function pump(options: { allowBackground?: boolean } = {}): void {
       allowBackground,
       nowAssetIds,
       (aborted) => {
-        pendingRetryByAsset.set(aborted.assetId, pendingRetryFromJob(aborted))
+        registerPoolRetry(aborted)
         aborted.reject(new DOMException('Aborted', 'AbortError'))
       },
     )
@@ -497,7 +511,7 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
     if (job.keptThroughLeaveNow === true) {
       return
     }
-    pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
+    registerPoolRetry(job)
     settle(() => {
       job.reject(new DOMException('Aborted', 'AbortError'))
     })
@@ -662,6 +676,24 @@ export function getVisibleAssetIds(): readonly string[] {
   return [...visibleAssetIds]
 }
 
+/** True when the asset is in now (filmstrip window ∪ painted spreads ∪ book-used). */
+export function isNowAssetId(assetId: string): boolean {
+  return nowAssetIds.has(assetId)
+}
+
+/**
+ * True while a thumb320 decode for the asset is deferred, queued, or in
+ * flight (import-owned); working/zoom tier jobs do not count.
+ */
+export function hasPendingThumbDecode(assetId: string): boolean {
+  if (deferredLazyByAsset.has(assetId)) {
+    return true
+  }
+  const matches = (job: DecodeQueueItem): boolean =>
+    job.assetId === assetId && job.maxEdge === THUMB_MAX_EDGE
+  return queue.some(matches) || [...inFlightJobs].some(matches)
+}
+
 /** Painted-spread asset ids for one spread (unioned across spreads + filmstrip). */
 export function setSpreadVisibleAssetIds(
   spreadId: string,
@@ -743,10 +775,12 @@ export function processAsset(
   const promise = new Promise<AssetProcessResult>((resolve, reject) => {
     const signal = combinedAbortSignal(options.assetId, options.signal)
     if (signal.aborted) {
-      pendingRetryByAsset.set(options.assetId, {
-        ...options,
-        priority: 'visible',
-      })
+      if (options.noPoolRetry !== true) {
+        pendingRetryByAsset.set(options.assetId, {
+          ...options,
+          priority: 'visible',
+        })
+      }
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
@@ -770,6 +804,7 @@ export function processAsset(
       cover: options.cover === true,
       dualTiers,
       returnSource: options.returnSource === true,
+      noPoolRetry: options.noPoolRetry === true,
       signal,
       resolve,
       reject,

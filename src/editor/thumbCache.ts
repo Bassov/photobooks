@@ -9,6 +9,7 @@ import {
 } from './filmstripScrollQuiet'
 import { trackHashJob } from './pendingHashes'
 import { restoreAspectFromPreview } from './previewAspect'
+import { decodeThumbOnCacheMiss } from './thumbMissDecode'
 
 const DEFAULT_CAPACITY = 256
 /** Cap React notifies per frame so bulk import+scroll stays within LoAF. */
@@ -244,7 +245,16 @@ export function ensureThumb(assetId: string, cacheKey?: string): void {
         return
       }
       const got = await cache.get(cacheKey, THUMB_PRESET_ID)
-      if (hydrateInflight.get(assetId) !== controller || !got.ok) {
+      if (hydrateInflight.get(assetId) !== controller) {
+        return
+      }
+      if (!got.ok) {
+        // Reset aborts `controller`, so a non-null result is still current.
+        const decoded = await decodeThumbOnCacheMiss(assetId, controller.signal)
+        if (decoded === null) {
+          return
+        }
+        setThumbUrl(assetId, decoded.buffer, decoded.mimeType, cacheKey)
         return
       }
       if (lru.has(assetId)) {
