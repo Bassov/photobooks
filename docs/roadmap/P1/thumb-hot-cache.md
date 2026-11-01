@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Filmstrip: a thumb that loaded once never goes gray again
+Status: done
 
 ## Scope
 
