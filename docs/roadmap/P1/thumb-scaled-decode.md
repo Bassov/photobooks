@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: Decode thumbs with ImageDecoder at reduced scale
+Status: done
 
 ## Scope
 
