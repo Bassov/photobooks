@@ -87,7 +87,7 @@ When durable identity (`sourceRootId`, `relativePath`, `byteSize`, `mtimeMs`) is
 
 ### Requirement: Restore hydrates cached gallery thumbs
 
-On restore with a granted photo root, right after the manifest-first gallery enqueue, the system SHALL read every gallery asset's DerivedCache thumb into the hot thumb cache in the background: at most 8 reads at a time, nearest to the filmstrip window first, yielding between batches, stopping at the byte budget without evicting. Tiles mounted later MUST render the hydrated thumb with no placeholder.
+On restore with a granted photo root, right after the manifest-first gallery enqueue, the system SHALL read every gallery asset's DerivedCache thumb into the hot thumb cache in the background: at most 24 reads in flight, nearest to the filmstrip window first (while the strip scrolls, ahead of it first), storing in main-thread slices of at most 3 ms (only at frame start while the strip scrolls), stopping at the byte budget without evicting. Tiles mounted later MUST render the hydrated thumb with no placeholder.
 
 #### Scenario: Reset cancels the pass
 
