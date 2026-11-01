@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r12-surfaces: cover text positions, spread-list page cards and popover menus match the kit
+Status: done
 
 ## Scope
 
