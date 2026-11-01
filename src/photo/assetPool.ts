@@ -470,33 +470,31 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   let settled = false
   inFlightJobs.add(job)
 
-  // The job promise settles once (abort may come first); the slot stays busy
-  // until the worker answers this request id — it cannot cancel a decode.
+  // The job promise settles once (an abort rejects at once); the slot stays
+  // busy until the worker answers this request id — it cannot cancel a decode.
   const settle = (fn: () => void): void => {
     if (settled) {
       return
     }
     settled = true
     inFlightJobs.delete(job)
-    // Stryker disable next-line OptionalChaining: queued jobs always carry the pool signal
-    job.signal?.removeEventListener('abort', onAbort)
     fn()
   }
 
-  const finish = (fn: () => void): void => {
-    settle(fn)
-    worker.removeEventListener('message', onMessage)
-    worker.removeEventListener('error', onError)
+  const release = (): void => {
+    cleanup()
     slot.busy = false
     pumpNowThenBackground()
   }
 
-  const aborted = (): boolean =>
-    // Stryker disable next-line OptionalChaining: queued jobs always carry the pool signal
-    job.signal?.aborted === true && job.keptThroughLeaveNow !== true
+  const finish = (fn: () => void): void => {
+    settle(fn)
+    release()
+  }
 
   const onAbort = (): void => {
-    if (!aborted()) {
+    // A thumb kept through leave-now ignores the (shared) abort and publishes.
+    if (job.keptThroughLeaveNow === true) {
       return
     }
     pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
@@ -510,11 +508,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
     if (event.data.id !== job.requestId) {
       return
     }
-    // An early-settled job left inFlightJobs before any keep mark, so it still reads aborted.
-    if (aborted()) {
-      finish(() => {
-        job.reject(new DOMException('Aborted', 'AbortError'))
-      })
+    // Only an abort settles before the reply; its late result is discarded.
+    if (settled) {
+      release()
       return
     }
     const response = event.data
@@ -548,6 +544,12 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
     finish(() => {
       job.reject(new Error(event.message || 'Photo worker failed'))
     })
+  }
+
+  const cleanup = (): void => {
+    worker.removeEventListener('message', onMessage)
+    worker.removeEventListener('error', onError)
+    job.signal?.removeEventListener('abort', onAbort)
   }
 
   worker.addEventListener('message', onMessage)

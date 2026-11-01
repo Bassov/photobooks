@@ -228,6 +228,25 @@ describe('assetPool in-flight decode across aborts', () => {
     expect(getPendingRetryAssetIdsForTests()).toEqual([])
   })
 
+  it('a thumb kept through leave-now ignores a later caller abort', async () => {
+    const worker = onlyWorker()
+    const controller = new AbortController()
+    setVisibleAssetIds(['kept'])
+    const thumb = processAsset({
+      assetId: 'kept',
+      file: png('kept.png'),
+      priority: 'zoom',
+      signal: controller.signal,
+    })
+
+    setVisibleAssetIds([])
+    controller.abort()
+    worker.reply(lastRequestId(worker))
+
+    await expect(thumb).resolves.toMatchObject({ assetId: 'kept' })
+    expect(worker.listenerCount()).toBe(0)
+  })
+
   it('drops queued off-now thumbs, keeps the in-flight one, re-enqueues on return', async () => {
     const worker = onlyWorker()
     setVisibleAssetIds(['first', 'second'])
