@@ -10,3 +10,4 @@
 ## Manual test scenarios
 
 1. New folder with 1000+ large JPEGs, wait ~1 min, fling the strip end to end: no gray tiles; scroll and canvas pan stay smooth while thumbs are made.
+   - problem (harness): manual-qa blocked at welcome (start-session click intercepted by header); not driven. Covered by e2e `thumb-background-warm.spec.ts` (200 JPEGs idle → all stored, end-to-end strip walk with every JPEG tile filled; scroll + pan while encoding: 0 LoAF).
