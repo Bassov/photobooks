@@ -65,6 +65,10 @@ const putCacheKeys = new Set<string>()
 
 subscribeAssetRemovals((assetIds) => {
   for (const assetId of assetIds) {
+    // A read in flight for a removed asset must not store it again.
+    hydrateQueue.delete(assetId)
+    hydrateInflight.get(assetId)?.abort()
+    hydrateInflight.delete(assetId)
     const entry = entries.get(assetId)
     if (entry !== undefined) {
       removeEntry(assetId, entry)

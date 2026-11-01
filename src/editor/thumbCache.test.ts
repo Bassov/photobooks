@@ -764,5 +764,41 @@ describe('thumbCache', () => {
       expect(get).toHaveBeenCalledTimes(4)
       expect(get.mock.calls.map((call) => call[0])).not.toContain(keyFor(4))
     })
+
+    it('asset removal drops its running and queued reads', async () => {
+      mockObjectUrls('gone')
+      const { cache, gates, get } = gatedCache()
+      const ids = Array.from({ length: 5 }, (_, i) => `g${String(i)}`)
+      for (const [i, id] of ids.entries()) {
+        listen(id)
+        await cache.put(keyFor(i), 'thumb', {
+          bytes: bytes(i),
+          mimeType: 'image/png',
+        })
+      }
+      for (const [i, id] of ids.entries()) {
+        ensureThumb(id, keyFor(i))
+      }
+      await vi.waitFor(() => {
+        expect(get).toHaveBeenCalledTimes(4)
+      })
+
+      // g0 is reading, g4 still queued; both tiles stay subscribed.
+      removeFailedImportAsset('g0')
+      removeFailedImportAsset('g4')
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await vi.waitFor(() => {
+        expect(getThumbCacheStatsForTests()).toMatchObject({
+          entries: 3,
+          pending: 0,
+        })
+      })
+
+      expect(hasThumbData('g0')).toBe(false)
+      expect(hasThumbData('g4')).toBe(false)
+      expect(get.mock.calls.map((call) => call[0])).not.toContain(keyFor(4))
+    })
   })
 })
