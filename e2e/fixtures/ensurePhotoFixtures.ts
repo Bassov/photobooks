@@ -13,6 +13,7 @@ export const photoFixturePaths = {
   sampleOrient6Landscape: join(fixturesDir, 'sample-orient6-landscape.jpg'),
   sampleOrient8Landscape: join(fixturesDir, 'sample-orient8-landscape.jpg'),
   sampleOrient3Landscape: join(fixturesDir, 'sample-orient3-landscape.jpg'),
+  sampleOrient1Landscape: join(fixturesDir, 'sample-orient1-landscape.jpg'),
   sampleLossyWebp: join(fixturesDir, 'sample-lossy-3x2.webp'),
   sampleLosslessWebp: join(fixturesDir, 'sample-lossless-3x2.webp'),
   sampleCorruptWebp: join(fixturesDir, 'sample-corrupt.webp'),

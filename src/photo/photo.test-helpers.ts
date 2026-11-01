@@ -206,3 +206,56 @@ export function stubImageDecodeApis(options?: {
   vi.stubGlobal('OffscreenCanvas', MockOffscreenCanvas)
   return { createImageBitmap, ctx, getContext, convertToBlob }
 }
+
+/**
+ * WebCodecs `ImageDecoder` double: `decode()` yields one frame with the given
+ * display size and `rotation`/`flip` (omit `rotation` for a runtime that does
+ * not report it). `decodeError` makes `decode()` reject.
+ */
+export function stubImageDecoder(options?: {
+  supported?: boolean
+  displayWidth?: number
+  displayHeight?: number
+  rotation?: number
+  flip?: boolean
+  decodeError?: Error
+}): {
+  inits: ImageDecoderInit[]
+  decoderClose: ReturnType<typeof vi.fn>
+  frame: { close: ReturnType<typeof vi.fn> }
+} {
+  const inits: ImageDecoderInit[] = []
+  const decoderClose = vi.fn()
+  const frame: Record<string, unknown> & { close: ReturnType<typeof vi.fn> } = {
+    displayWidth: options?.displayWidth ?? 40,
+    displayHeight: options?.displayHeight ?? 20,
+    close: vi.fn(),
+  }
+  if (options?.rotation !== undefined) {
+    frame.rotation = options.rotation
+    frame.flip = options.flip ?? false
+  }
+
+  class MockImageDecoder {
+    static isTypeSupported(): Promise<boolean> {
+      return Promise.resolve(options?.supported ?? true)
+    }
+
+    constructor(init: ImageDecoderInit) {
+      inits.push(init)
+    }
+
+    decode(): Promise<{ image: typeof frame; complete: boolean }> {
+      return options?.decodeError === undefined
+        ? Promise.resolve({ image: frame, complete: true })
+        : Promise.reject(options.decodeError)
+    }
+
+    close(): void {
+      decoderClose()
+    }
+  }
+
+  vi.stubGlobal('ImageDecoder', MockImageDecoder)
+  return { inits, decoderClose, frame }
+}
