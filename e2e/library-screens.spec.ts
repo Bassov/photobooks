@@ -791,9 +791,10 @@ test('kit v0.10 settings (step 49): back bar, Library only, tokens, confirm firs
 
   // Hosting / Site / Print presets / Interface have no backing behavior: hidden.
   await expect(page.locator('[data-testid^="settings-nav-"]')).toHaveCount(1)
+  // Owner design change (round 11, M71): kit `bg-accent` selected row.
   await expect(page.getByTestId('settings-nav-library')).toHaveCSS(
     'background-color',
-    'rgb(202, 202, 202)',
+    'rgb(207, 207, 207)',
   )
   await expect(page.getByTestId('settings-section-title')).toHaveText('Library')
   await assertDocumentFitsViewport(page)
