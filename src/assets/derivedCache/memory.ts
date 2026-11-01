@@ -42,6 +42,10 @@ export function createMemoryDerivedCache(): MemoryDerivedCache {
       )
     },
 
+    has(assetHash, presetId) {
+      return Promise.resolve(entries.has(cacheKey(assetHash, presetId)))
+    },
+
     put(assetHash, presetId, entry) {
       entries.set(cacheKey(assetHash, presetId), {
         bytes: entry.bytes.slice(0),

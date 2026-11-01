@@ -106,6 +106,8 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   const committedWindowStart = useRef(0)
   const prefixRef = useRef<readonly number[]>([0])
   const scrollLeftRef = useRef(0)
+  const galleryRef = useRef(gallery)
+  galleryRef.current = gallery
   const total = gallery.length
   const thumbHeight = FILMSTRIP_THUMB_HEIGHT
 
@@ -183,6 +185,8 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     return scheduleFilmstripVisibleSync(
       items.map((item) => item.id),
       setFilmstripVisibleAssetIds,
+      // Refs: a gallery flush alone must not re-publish the same window.
+      { order: galleryRef.current, start: committedWindowStart.current },
     )
   }, [items])
 

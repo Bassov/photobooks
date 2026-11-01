@@ -150,6 +150,10 @@ declare global {
     __photobooksPerf?: PhotobooksPerfApi
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
+      getBackgroundWarmStatsForTests: () => {
+        encoded: number
+        inFlight: number
+      }
     }
     __photobooksProject?: {
       attachMemoryLibraryForTests: () => Promise<{

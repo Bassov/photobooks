@@ -43,6 +43,7 @@ import {
 } from './editorGesture'
 import { setEditorStatus } from './editorStatus'
 import { clearThumbsAndDerivedCacheForTests } from './clearThumbsForTests'
+import { getBackgroundWarmStatsForTests } from './thumbBackgroundWarm'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
   createAutosaveController,
@@ -1366,7 +1367,10 @@ export function exposeProjectSessionTestApi(
   if (win === undefined) {
     return
   }
-  win.__photobooksThumbs = { clearThumbsAndDerivedCacheForTests }
+  win.__photobooksThumbs = {
+    clearThumbsAndDerivedCacheForTests,
+    getBackgroundWarmStatsForTests,
+  }
   win.__photobooksProject = {
     attachLibraryForTests,
     attachMemoryLibraryForTests,
@@ -1464,6 +1468,10 @@ declare global {
     }
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
+      getBackgroundWarmStatsForTests: () => {
+        encoded: number
+        inFlight: number
+      }
     }
     /** Worker decode entry on the main thread (e2e/perf thumb-decode bench). */
     __photobooksDecode?: {

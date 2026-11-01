@@ -22,6 +22,8 @@ export interface DerivedCache {
     assetHash: string,
     presetId: string,
   ) => Promise<DerivedCacheResult<DerivedCacheEntry>>
+  /** Existence check without reading the entry bytes. */
+  has: (assetHash: string, presetId: string) => Promise<boolean>
   put: (
     assetHash: string,
     presetId: string,

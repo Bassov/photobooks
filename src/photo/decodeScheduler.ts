@@ -116,6 +116,22 @@ export function takeNextDecodeJob<T extends RankedDecodeJob>(
 }
 
 /**
+ * Scroll-quiet exception: take the first queued, non-aborted background-warm
+ * job (queue already sorted by `takeNextDecodeJob`).
+ */
+export function takeScrollWarmJob<
+  T extends { backgroundWarm: boolean; signal?: AbortSignal },
+>(queue: T[]): T | undefined {
+  const index = queue.findIndex(
+    (job) => job.backgroundWarm && job.signal?.aborted !== true,
+  )
+  if (index < 0) {
+    return undefined
+  }
+  return queue.splice(index, 1)[0]
+}
+
+/**
  * Leave-now keeps an in-flight thumb320 decode: the worker cannot cancel, so
  * dropping it only throws the result away. Working previews (1280) still abort.
  */

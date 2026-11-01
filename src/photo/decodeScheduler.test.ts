@@ -19,6 +19,7 @@ import {
   shouldScheduleBackgroundDrain,
   sortDecodeJobs,
   takeNextDecodeJob,
+  takeScrollWarmJob,
 } from './decodeScheduler'
 import { PREVIEW_MAX_EDGE, THUMB_MAX_EDGE } from './photoEdges'
 
@@ -364,5 +365,21 @@ describe('decodeScheduler', () => {
         value: original,
       })
     }
+  })
+
+  it('takeScrollWarmJob removes the first live warm job only', () => {
+    const aborted = new AbortController()
+    aborted.abort()
+    const queue = [
+      { id: 'plain', backgroundWarm: false },
+      { id: 'dead-warm', backgroundWarm: true, signal: aborted.signal },
+      { id: 'warm', backgroundWarm: true },
+      { id: 'warm-2', backgroundWarm: true },
+    ]
+    expect(takeScrollWarmJob(queue)?.id).toBe('warm')
+    expect(queue.map((job) => job.id)).toEqual(['plain', 'dead-warm', 'warm-2'])
+    expect(takeScrollWarmJob([{ id: 'p', backgroundWarm: false }])).toBe(
+      undefined,
+    )
   })
 })
