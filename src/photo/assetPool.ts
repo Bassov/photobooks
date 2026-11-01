@@ -112,6 +112,11 @@ export interface ProcessAssetOptions {
   dualTiers?: boolean
   /** Worker returns the original body (`sourceBuffer`) for memory-root seed. */
   returnSource?: boolean
+  /**
+   * Caller re-requests after an abort (e.g. on tile remount): register no
+   * pool retry, whose result would have no owner.
+   */
+  noPoolRetry?: boolean
 }
 
 interface DecodeQueueItem {
@@ -124,6 +129,7 @@ interface DecodeQueueItem {
   cover: boolean
   dualTiers: boolean
   returnSource: boolean
+  noPoolRetry: boolean
   signal?: AbortSignal
   resolve: (result: AssetProcessResult) => void
   reject: (error: Error) => void
@@ -273,12 +279,19 @@ function enqueueDecodeJob(item: DecodeQueueItem): void {
   scheduleBackgroundPump()
 }
 
+/** Re-run an aborted job when its asset re-enters now (unless caller-owned). */
+function registerPoolRetry(job: DecodeQueueItem): void {
+  if (!job.noPoolRetry) {
+    pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
+  }
+}
+
 function abortAssetJobs(assetId: string, registerRetry: boolean): void {
   const queued = queue.filter((job) => job.assetId === assetId)
   queue = queue.filter((job) => job.assetId !== assetId)
   for (const job of queued) {
     if (registerRetry) {
-      pendingRetryByAsset.set(assetId, pendingRetryFromJob(job))
+      registerPoolRetry(job)
     }
     job.reject(new DOMException('Aborted', 'AbortError'))
   }
@@ -351,6 +364,7 @@ function promoteDeferredLazy(): void {
       cover: deferred.options.cover === true,
       dualTiers,
       returnSource: deferred.options.returnSource === true,
+      noPoolRetry: deferred.options.noPoolRetry === true,
       resolve: deferred.resolve,
       reject: deferred.reject,
     }
@@ -436,7 +450,7 @@ function pump(options: { allowBackground?: boolean } = {}): void {
       allowBackground,
       nowAssetIds,
       (aborted) => {
-        pendingRetryByAsset.set(aborted.assetId, pendingRetryFromJob(aborted))
+        registerPoolRetry(aborted)
         aborted.reject(new DOMException('Aborted', 'AbortError'))
       },
     )
@@ -475,7 +489,7 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   }
 
   const onAbort = (): void => {
-    pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
+    registerPoolRetry(job)
     settle(() => {
       job.reject(new DOMException('Aborted', 'AbortError'))
     })
@@ -740,10 +754,12 @@ export function processAsset(
   const promise = new Promise<AssetProcessResult>((resolve, reject) => {
     const signal = combinedAbortSignal(options.assetId, options.signal)
     if (signal.aborted) {
-      pendingRetryByAsset.set(options.assetId, {
-        ...options,
-        priority: 'visible',
-      })
+      if (options.noPoolRetry !== true) {
+        pendingRetryByAsset.set(options.assetId, {
+          ...options,
+          priority: 'visible',
+        })
+      }
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
@@ -767,6 +783,7 @@ export function processAsset(
       cover: options.cover === true,
       dualTiers,
       returnSource: options.returnSource === true,
+      noPoolRetry: options.noPoolRetry === true,
       signal,
       resolve,
       reject,

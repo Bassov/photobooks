@@ -62,6 +62,9 @@ export async function decodeThumbOnCacheMiss(
       file,
       priority: isNowAssetId(assetId) ? 'visible' : 'prefetch',
       signal,
+      // Leaving now unmounts the tile; its remount re-requests via ensureThumb.
+      // A pool retry would decode with no owner and block that re-request.
+      noPoolRetry: true,
     })
     restoreAspectFromDecode(
       assetId,

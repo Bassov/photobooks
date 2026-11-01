@@ -396,6 +396,29 @@ describe('ensureThumb DerivedCache miss decode', () => {
     })
   })
 
+  it('a tile that leaves now mid-decode and remounts publishes its own decode', async () => {
+    setFilmstripVisibleAssetIds(['a1'])
+    retainAssetSource('a1', jpeg('a1.jpg'))
+
+    ensureThumb('a1', KEY)
+    await vi.waitFor(() => {
+      expect(posted).toHaveLength(1)
+    })
+    setFilmstripVisibleAssetIds([])
+    await flush()
+    setFilmstripVisibleAssetIds(['a1'])
+    ensureThumb('a1', KEY)
+    await vi.waitFor(() => {
+      expect(posted).toHaveLength(2)
+    })
+
+    answer(1)
+    await vi.waitFor(() => {
+      expect(getThumbUrl('a1')).toBe('blob:decoded')
+    })
+    expect(posted).toHaveLength(2)
+  })
+
   it('reset aborts an in-flight miss decode without publishing', async () => {
     setFilmstripVisibleAssetIds(['a1'])
     retainAssetSource('a1', jpeg('a1.jpg'))
