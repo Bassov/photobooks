@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r11-topbar: editor top bar controls match the kit
+Status: done
 
 ## Scope
 
