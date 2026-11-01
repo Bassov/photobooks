@@ -994,6 +994,39 @@ describe('thumbCache', () => {
       })
     })
 
+    it('reads an id whose queued mount read was dropped by an unmount', async () => {
+      mockObjectUrls('dropped')
+      const { gates, readIds } = await cachedGallery(5, { gated: true })
+      const unsubscribes = ['b0', 'b1', 'b2', 'b3', 'b4'].map((id) =>
+        subscribeThumb(id, vi.fn()),
+      )
+      cleanups.push(...unsubscribes)
+      for (const id of ['b0', 'b1', 'b2', 'b3', 'b4']) {
+        ensureThumb(id, getAssetCacheKey(id))
+      }
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(4)
+      })
+      // b4 waits in the mount queue; its tile leaves before a slot frees.
+      unsubscribes[4]?.()
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(5)
+      })
+      expect(readIds()[4]).toBe('b4')
+      for (let round = 0; round < 3; round += 1) {
+        for (const release of gates.splice(0)) {
+          release()
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+      await pass
+
+      expect(hasThumbData('b4')).toBe(true)
+      expect(getThumbBulkHydrateStatsForTests().hydrated).toBe(1)
+    })
+
     it('keeps the mount path thumb that landed during the read', async () => {
       mockObjectUrls('race')
       const { gates, readIds } = await cachedGallery(3, { gated: true })

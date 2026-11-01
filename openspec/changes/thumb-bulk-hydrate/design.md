@@ -1,7 +1,7 @@
 ## Decisions
 
 1. `hydrateGalleryThumbs()` in `src/editor/thumbCache.ts`: one background pass over the gallery, started by `startFolderRescan` (`photoRootSession.ts`) right after the manifest-first enqueue. A new pass or `resetThumbCache` cancels the running one (generation counter).
-2. Each batch takes up to 8 ids nearest the current filmstrip window (window first, then alternating outward; recomputed per batch). Skips ids already hot, on the mount path, or without a cache key.
+2. Each batch takes up to 8 ids nearest the current filmstrip window (window first, then alternating outward; recomputed per batch). Skips ids already hot, with a started mount read, or without a cache key (a queued mount read drops on unmount, so the pass still reads it).
 3. A batch is 8 parallel `DerivedCache.get` reads; hits use the mount path's store (`restoreAspectFromPreview` + `storeThumb`); misses stay with the mount path. `setTimeout(0)` yield between batches.
 4. A hit past the byte budget ends the pass (no eviction); an asset removed mid-read is dropped.
 5. Seam `getThumbBulkHydrateStatsForTests()` (`state`, `hydrated`, `missed`, `ms`) on `window.__photobooksThumbs`.

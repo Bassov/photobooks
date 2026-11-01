@@ -487,7 +487,7 @@ function filmstripWindow(gallery: readonly string[]): {
 
 /**
  * Next bulk batch: the window first, then alternating right / left outward.
- * Every id it passes is `visited`; hot, mount-path and keyless ids are skipped.
+ * Every id it passes is `visited`; hot, mount-read and keyless ids are skipped.
  */
 function nextBulkBatch(
   visited: Set<string>,
@@ -502,10 +502,10 @@ function nextBulkBatch(
     }
     visited.add(assetId)
     const cacheKey = getAssetCacheKey(assetId)
+    // A started mount read always stores; a queued one drops on unmount.
     if (
       cacheKey !== undefined &&
       !entries.has(assetId) &&
-      !hydrateQueue.has(assetId) &&
       !hydrateInflight.has(assetId)
     ) {
       batch.push({ assetId, cacheKey })
