@@ -3,7 +3,6 @@
 Tag: contingency
 Milestone: P1
 Title: Store a folder's thumbs in one IndexedDB store (only if hydrate is slow)
-Status: done
 
 ## Scope
 
@@ -13,7 +12,3 @@ Status: done
 - **Done when:** hydrate of 1000 cached thumbs ≤ 1 s on the same fixture; identity semantics unchanged (size or mtime change ⇒ miss); existing derived-cache contract tests green for both backends.
 - **Test:** derived-cache contract tests on the new backend + unit
 - **Depends:** thumb-bulk-hydrate
-
-## Done note
-
-not needed (gate passed in thumb-bulk-hydrate)

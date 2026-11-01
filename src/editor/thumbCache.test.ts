@@ -1185,26 +1185,24 @@ describe('thumbCache', () => {
       expect(getThumbBulkHydrateStatsForTests().state).toBe('idle')
     })
 
-    it('yields to the next frame once a batch store passes the frame slice', async () => {
+    it('yields a task once a batch store passes the frame slice', async () => {
       mockObjectUrls('sliced')
       await cachedGallery(8)
-      const rafQueue = queueRaf()
+      vi.useFakeTimers({ toFake: ['setTimeout'] })
       // Every clock read costs 1 ms, so a batch outruns the 3 ms slice.
       let clock = 0
       vi.spyOn(performance, 'now').mockImplementation(() => (clock += 1))
 
       const pass = hydrateGalleryThumbs()
-      await vi.waitFor(() => {
-        expect(rafQueue).toHaveLength(1)
-      })
+      // Reads settle on microtasks; the first timer is the pass's yield.
+      for (let i = 0; i < 100 && vi.getTimerCount() === 0; i += 1) {
+        await Promise.resolve()
+      }
+      expect(vi.getTimerCount()).toBe(1)
       const { hydrated } = getThumbBulkHydrateStatsForTests()
       expect(hydrated).toBeGreaterThan(0)
       expect(hydrated).toBeLessThan(8)
-      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-        cb(0)
-        return 0
-      })
-      rafQueue.shift()?.(0)
+      await vi.runAllTimersAsync()
       await pass
 
       expect(getThumbBulkHydrateStatsForTests()).toMatchObject({

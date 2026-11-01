@@ -464,14 +464,6 @@ export function ensureThumb(assetId: string, cacheKey?: string): void {
   pumpHydrate()
 }
 
-function nextFrame(): Promise<void> {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => {
-      resolve()
-    })
-  })
-}
-
 /**
  * Gallery index range of the filmstrip scrollport. None in view: -1 / -1,
  * so the outward walk starts at the gallery head.
@@ -579,7 +571,7 @@ export async function hydrateGalleryThumbs(): Promise<void> {
       let slice = performance.now()
       for (const { assetId, got } of results) {
         if (performance.now() - slice >= FLUSH_MAX_MS) {
-          await nextFrame()
+          await yieldForPaint()
           await scrollSettled()
           slice = performance.now()
         }
