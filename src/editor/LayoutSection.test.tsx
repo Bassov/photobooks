@@ -232,7 +232,8 @@ describe('BookSettingsSection', () => {
       .map((el) => el.textContent)
     expect(eyebrows).toEqual(['Page size', 'Binding', 'Print', 'Defaults'])
     for (const el of screen.getAllByRole('heading', { level: 4 })) {
-      expect(el.className).toBe('inspector-eyebrow')
+      // Kit `Sec` title tracking 0.12em (Owner design change, round 9, M57).
+      expect(el.className).toBe('inspector-eyebrow inspector-sec-title')
     }
     expect(screen.getByTestId('book-pages').textContent).toBe('20–120')
     expect(screen.getByRole('spinbutton', { name: 'Pages' })).toHaveProperty(
