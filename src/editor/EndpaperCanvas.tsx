@@ -53,7 +53,6 @@ export function EndpaperCanvas({
     <div
       className="endpaper-spread"
       data-testid={mini ? undefined : 'canvas-endpaper'}
-      data-mini={mini ? 'true' : undefined}
       data-side={side}
       data-photo-id={assetId}
       style={{
