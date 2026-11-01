@@ -76,3 +76,22 @@
   font-size: var(--text-xs);
   line-height: 1.4;
 }
+
+/* Kit `Sec` title (v7.tsx:131): text-2xs 11 / 14.85 px, tracking 0.12em, no
+   heading margins (Owner Must M48, round 8). */
+.endpaper-sec-title {
+  margin: 0;
+  line-height: 1.35;
+  letter-spacing: 0.12em;
+}
+
+/* Kit `Row` (v7.tsx:145): mt-3, label · control(s) justify-between, text-sm
+   at the kit 13 / 18.85 px line. */
+.endpaper-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}

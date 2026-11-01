@@ -50,7 +50,11 @@ import {
 } from './pasteboardWindow'
 import { Icon } from '../ui/Icon'
 import { PageLabels } from './PageLabels'
-import { newSpreadPillFits, pageLabelsFit } from './pageLabelsModel'
+import {
+  NEW_SPREAD_PILL_SHIFT_PX,
+  newSpreadPillFits,
+  pageLabelsFit,
+} from './pageLabelsModel'
 import { PageShadows } from './PageShadows'
 import { pageShadowRects } from './pageShadowModel'
 import { RelinkHost } from './relink'
@@ -611,6 +615,9 @@ export const Pasteboard = memo(function Pasteboard({
                       data-gap-insert-index={slotIndex + 1}
                       data-camera-frame=""
                       aria-hidden="true"
+                      style={{
+                        ['--pill-shift' as string]: `${String(NEW_SPREAD_PILL_SHIFT_PX)}px`,
+                      }}
                     >
                       <Icon name="addSpread" size={14} />
                       Drop here for a new spread

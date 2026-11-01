@@ -5,7 +5,8 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import type { EndpaperSide } from './endpaperSelection'
-import { InspectorRow, ReadOnlyPill, ToggleSwitch } from './InspectorControls'
+import { FIELD, SUB, T } from './editorChromeTokens'
+import { ToggleSwitch } from './InspectorControls'
 import { useCoverPhotoUrl } from './useCoverPhotoUrl'
 import './EndpaperCanvas.css'
 
@@ -31,18 +32,33 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
           Pastedown and free leaf, printed full bleed
         </p>
       </div>
-      <div className="flex flex-col gap-3 px-4 py-4">
-        <h4 className="inspector-eyebrow">Fill</h4>
-        {/* Kit v7.tsx:220: Style is a "Pattern" pill with a "coming later" note. */}
-        <InspectorRow label="Style">
-          <ReadOnlyPill
-            value={assetId === undefined ? 'Pattern' : 'Photo'}
-            note="coming later"
-            testId="endpaper-style"
-            noteTestId="endp-fill-readonly"
-          />
-        </InspectorRow>
-        <InspectorRow label={assetId === undefined ? 'Pattern' : 'Photo'}>
+      {/* Kit `Sec` / `Row` (v7.tsx:130,145; Owner Must M48, round 8):
+          px-4 py-4 sections, an mb-3 title row, rows mt-3. */}
+      <div className="px-4 py-4" data-testid="endpaper-sec-fill">
+        <SecTitle title="Fill" />
+        {/* Kit v7.tsx:220: label, "Pattern" chip and "coming later" spread
+            across the row (justify-between of three). */}
+        <div className="endpaper-row" data-testid="endpaper-style-row">
+          <span style={{ color: SUB }}>Style</span>
+          <span
+            className="rounded-sm px-2 py-1"
+            style={{ background: FIELD, color: T }}
+            data-testid="endpaper-style"
+          >
+            {assetId === undefined ? 'Pattern' : 'Photo'}
+          </span>
+          <span
+            className="ml-1.5 text-2xs"
+            style={{ color: SUB }}
+            data-testid="endp-fill-readonly"
+          >
+            coming later
+          </span>
+        </div>
+        <div className="endpaper-row">
+          <span style={{ color: SUB }}>
+            {assetId === undefined ? 'Pattern' : 'Photo'}
+          </span>
           <span
             className="endpaper-swatch"
             data-testid="endpaper-fill"
@@ -51,11 +67,11 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
               url === undefined ? undefined : { backgroundImage: `url(${url})` }
             }
           />
-        </InspectorRow>
+        </div>
         {assetId === undefined ? null : (
           <button
             type="button"
-            className="e7-ghost h-8 rounded-md text-sm"
+            className="e7-ghost mt-3 h-8 w-full rounded-md text-sm"
             data-testid="endpaper-clear"
             onClick={() => {
               dispatchBookOp({
@@ -68,8 +84,11 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
             Back to pattern
           </button>
         )}
-        <h4 className="inspector-eyebrow">Apply</h4>
-        <InspectorRow label="Same on back endpaper">
+      </div>
+      <div className="px-4 py-4" data-testid="endpaper-sec-apply">
+        <SecTitle title="Apply" />
+        <div className="endpaper-row">
+          <span style={{ color: SUB }}>Same on back endpaper</span>
           <ToggleSwitch
             label="Same on back endpaper"
             testId="endpaper-same"
@@ -78,8 +97,17 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
               dispatchBookOp({ type: 'setEndpapersSame', same: next })
             }}
           />
-        </InspectorRow>
+        </div>
       </div>
     </section>
+  )
+}
+
+/** Kit `Sec` title row: mb-3, 11 px semibold uppercase eyebrow. */
+function SecTitle({ title }: { title: string }) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <h3 className="inspector-eyebrow endpaper-sec-title">{title}</h3>
+    </div>
   )
 }
