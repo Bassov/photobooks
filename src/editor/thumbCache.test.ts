@@ -816,11 +816,17 @@ describe('thumbCache', () => {
 
     /**
      * Gallery `b0…b{count-1}` with identity records; `cached` ids get a
-     * `size`-byte thumb in a memory DerivedCache. `get` maps reads to ids.
+     * `size`-byte thumb in a memory DerivedCache; `failing` ids reject the
+     * read. `get` maps reads to ids.
      */
     async function cachedGallery(
       count: number,
-      options: { gated?: boolean; size?: number; uncached?: string[] } = {},
+      options: {
+        gated?: boolean
+        size?: number
+        uncached?: string[]
+        failing?: string[]
+      } = {},
     ) {
       const ids = Array.from({ length: count }, (_, i) => `b${String(i)}`)
       resetBookStore({
@@ -863,6 +869,9 @@ describe('thumbCache', () => {
           await new Promise<void>((resolve) => {
             gates.push(resolve)
           })
+        }
+        if ((options.failing ?? []).includes(idByKey.get(args[0]) ?? '')) {
+          throw new Error('idb closed')
         }
         return realGet(...args)
       })
@@ -1165,6 +1174,7 @@ describe('thumbCache', () => {
       const { readIds } = await cachedGallery(10)
       // A still clock keeps the scroll-quiet window open.
       vi.useFakeTimers({ toFake: ['performance'] })
+      vi.advanceTimersByTime(1000)
       const rafQueue = queueRaf()
       noteFilmstripScroll()
 
@@ -1174,6 +1184,9 @@ describe('thumbCache', () => {
       expect(readIds()).toHaveLength(10)
       expect(getThumbBulkHydrateStatsForTests().hydrated).toBe(0)
       rafQueue.shift()?.(0)
+      // Within the 3 ms slice one frame stores them all.
+      await settle(() => getThumbBulkHydrateStatsForTests().state === 'done')
+      expect(rafQueue).toHaveLength(0)
       await pass
 
       expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
@@ -1207,29 +1220,53 @@ describe('thumbCache', () => {
       expect(getThumbBulkHydrateStatsForTests().state).toBe('idle')
     })
 
-    it('while the filmstrip scrolls, reads ahead of it before the trail side', async () => {
+    /**
+     * 60 gated reads, the strip scrolling at b40 (still clock): the first 24
+     * reads are b29…b52. `advance` finishes `count` reads, runs the queued
+     * frames, and returns the ids picked in their place, one per read.
+     */
+    async function scrollingPassAtB40() {
       mockObjectUrls('ahead')
       const { gates, readIds } = await cachedGallery(60, { gated: true })
       vi.useFakeTimers({ toFake: ['performance'] })
       const rafQueue = queueRaf()
       noteFilmstripScroll()
       viewport(['b40'])
-
+      // `vi.waitFor` would advance the still clock past the scroll.
       const pass = hydrateGalleryThumbs()
-      await vi.waitFor(() => {
-        expect(readIds()).toHaveLength(IN_FLIGHT)
-      })
-      // b40 ± 12: b29…b52. The strip moves right by two tiles.
-      viewport(['b42'])
-      for (const release of gates.splice(0, 6)) {
-        release()
+      await drainTasks()
+      expect(readIds()).toHaveLength(IN_FLIGHT)
+      const advance = async (count: number) => {
+        const before = readIds().length
+        for (const release of gates.splice(0, count)) {
+          release()
+        }
+        await drainTasks()
+        expect(readIds()).toHaveLength(before + count)
+        // Store what finished, so waiting results never pause the reads.
+        for (const frame of rafQueue.splice(0)) {
+          frame(0)
+        }
+        await drainTasks()
+        return readIds().slice(before)
       }
-      await vi.waitFor(() => {
-        expect(readIds()).toHaveLength(IN_FLIGHT + 6)
-      })
+      const finish = async (): Promise<void> => {
+        resetThumbCache()
+        await releaseAll(gates)
+        for (const frame of rafQueue.splice(0)) {
+          frame(0)
+        }
+        await pass
+      }
+      return { advance, finish }
+    }
+
+    it('while the filmstrip scrolls right, reads ahead of it before the trail side', async () => {
+      const { advance, finish } = await scrollingPassAtB40()
+      viewport(['b42'])
 
       // Outward from b42 the trail side would come in at b28.
-      expect(readIds().slice(IN_FLIGHT)).toEqual([
+      expect(await advance(6)).toEqual([
         'b53',
         'b54',
         'b55',
@@ -1237,12 +1274,114 @@ describe('thumbCache', () => {
         'b57',
         'b58',
       ])
-      resetThumbCache()
-      await releaseAll(gates)
-      for (const frame of rafQueue.splice(0)) {
-        frame(0)
+      await finish()
+    })
+
+    it('while the filmstrip scrolls left, reads ahead of it down to the gallery head', async () => {
+      const { advance, finish } = await scrollingPassAtB40()
+      viewport(['b38', 'b39'])
+
+      // Outward from b38…b39 the trail side would come in at b53.
+      expect(await advance(6)).toEqual([
+        'b28',
+        'b27',
+        'b26',
+        'b25',
+        'b24',
+        'b23',
+      ])
+      expect((await advance(23)).at(-1)).toBe('b0')
+      expect(await advance(1)).toEqual(['b53'])
+      await finish()
+    })
+
+    it('once the filmstrip stops, reads both sides again', async () => {
+      const { advance, finish } = await scrollingPassAtB40()
+      viewport(['b42'])
+      expect(await advance(2)).toEqual(['b53', 'b54'])
+
+      // Past the scroll-quiet window: outward from b42 again.
+      vi.advanceTimersByTime(1000)
+      expect(await advance(4)).toEqual(['b55', 'b56', 'b28', 'b57'])
+      await finish()
+    })
+
+    /** Lets every pending memory-cache read and refill settle. */
+    async function drainTasks(): Promise<void> {
+      for (let round = 0; round < 3; round += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+    }
+
+    it('while stores wait for a frame, reads pause at 24 waiting results and resume as they store', async () => {
+      mockObjectUrls('capped')
+      const { readIds } = await cachedGallery(60)
+      vi.useFakeTimers({ toFake: ['performance'] })
+      const rafQueue = queueRaf()
+      noteFilmstripScroll()
+
+      const pass = hydrateGalleryThumbs()
+      await drainTasks()
+      // The first 23 finished reads each start one more; then 24 wait.
+      expect(readIds()).toHaveLength(2 * IN_FLIGHT - 1)
+      expect(getThumbBulkHydrateStatsForTests().hydrated).toBe(0)
+      for (let frame = 0; frame < 5 && rafQueue.length > 0; frame += 1) {
+        rafQueue.shift()?.(0)
+        await drainTasks()
       }
       await pass
+
+      expect(readIds()).toHaveLength(60)
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 60,
+      })
+    })
+
+    it('a read failing mid-pass ends it at once; finished reads start none', async () => {
+      mockObjectUrls('fail-mid')
+      const { gates, readIds } = await cachedGallery(30, {
+        gated: true,
+        failing: ['b0'],
+      })
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(IN_FLIGHT)
+      })
+      gates.shift()?.()
+      await settle(() => getThumbBulkHydrateStatsForTests().state === 'done')
+      expect(getThumbBulkHydrateStatsForTests().state).toBe('done')
+      await releaseAll(gates)
+      await pass
+
+      expect(readIds()).toHaveLength(IN_FLIGHT)
+      expect(getThumbCacheStatsForTests().entries).toBe(0)
+    })
+
+    it('reads that finish after the byte-budget stop start none', async () => {
+      mockObjectUrls('budget-late')
+      const { gates, readIds } = await cachedGallery(30, {
+        gated: true,
+        size: 4,
+      })
+      setThumbCacheByteBudgetForTests(8)
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(IN_FLIGHT)
+      })
+      for (const release of gates.splice(0, 3)) {
+        release()
+      }
+      await vi.waitFor(() => {
+        expect(getThumbBulkHydrateStatsForTests().state).toBe('done')
+      })
+      await releaseAll(gates)
+      await pass
+
+      expect(readIds()).toHaveLength(IN_FLIGHT + 3)
+      expect(getThumbCacheStatsForTests().entries).toBe(2)
     })
 
     it('while the filmstrip scrolls a store slice past FLUSH_MAX_MS waits a frame', async () => {

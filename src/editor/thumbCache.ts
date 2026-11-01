@@ -501,9 +501,7 @@ function nextBulkBatch(
   limit: number,
 ): { assetId: string; cacheKey: string }[] {
   const batch: { assetId: string; cacheKey: string }[] = []
-  if (limit <= 0) {
-    return batch
-  }
+  const room = (): boolean => batch.length < limit
   const gallery = getGalleryIdsSnapshot()
   const { lo, hi } = filmstripWindow(gallery)
   if (!isFilmstripScrollQuiet()) {
@@ -529,28 +527,19 @@ function nextBulkBatch(
       batch.push({ assetId, cacheKey })
     }
   }
-  for (let index = lo; index <= hi; index += 1) {
+  for (let index = lo; index <= hi && room(); index += 1) {
     take(index)
-    if (batch.length === limit) {
-      return batch
-    }
   }
+  // The window is visited by now, so walking from `lo` passes it.
   if (direction !== 0) {
-    const edge = direction > 0 ? hi : lo
-    for (let step = 1; step <= gallery.length; step += 1) {
-      take(edge + direction * step)
-      if (batch.length === limit) {
-        return batch
-      }
+    for (let step = 1; step <= gallery.length && room(); step += 1) {
+      take(lo + direction * step)
     }
   }
-  for (let step = 1; step <= gallery.length; step += 1) {
+  for (let step = 1; step <= gallery.length && room(); step += 1) {
     take(hi + step)
-    if (batch.length < limit) {
+    if (room()) {
       take(lo - step)
-    }
-    if (batch.length === limit) {
-      return batch
     }
   }
   return batch
@@ -614,7 +603,8 @@ export async function hydrateGalleryThumbs(): Promise<void> {
   let reading = 0
   // Set by a failed read (in `fill`) or the end of the pass.
   let stopped = false as boolean
-  let wake: (() => void) | undefined
+  // Resolves the loop's wait for a finished read.
+  let wake = (): void => undefined
   try {
     const cache = await getDerivedCache()
     const walk: BulkWalk = {
@@ -637,13 +627,12 @@ export async function hydrateGalleryThumbs(): Promise<void> {
             reading -= 1
             ready.push({ assetId, got })
             fill()
-            wake?.()
+            wake()
           },
           () => {
             // DerivedCache unavailable: misses stay with the mount path.
-            reading -= 1
             stopped = true
-            wake?.()
+            wake()
           },
         )
       }
@@ -659,10 +648,10 @@ export async function hydrateGalleryThumbs(): Promise<void> {
         if (stopped || reading === 0) {
           break
         }
+        // A stale `wake` resolves a settled promise: a no-op.
         await new Promise<void>((resolve) => {
           wake = resolve
         })
-        wake = undefined
         // While the strip scrolls, stores run only at the start of a frame.
         if (isFilmstripScrollQuiet()) {
           await nextSlice()
