@@ -276,13 +276,14 @@
   border: 0;
 }
 
+/* Kit SegC (v7.tsx:138): p-0.5 track, flush h-6.5 segments, no gap (r10 M58). */
 .editor-left-tabs {
   background: var(--field);
   padding: 2px;
-  gap: 2px;
 }
 
 .editor-left-tab {
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--muted-foreground);
