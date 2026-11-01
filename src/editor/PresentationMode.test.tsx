@@ -6,8 +6,9 @@ import {
   screen,
   within,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bookSpineWidthMm } from '../core'
+import * as tierCache from '../photo/tierCache'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   dispatchBookOp,
@@ -20,6 +21,7 @@ import {
   resetActiveSpreadIdForTests,
   setActiveSpreadId,
 } from './photoRootSession'
+import { resetTierDisplay } from './tierDisplay'
 
 const position = () => screen.getByTestId('pager-position').textContent
 
@@ -28,6 +30,9 @@ describe('PresentationMode', () => {
     cleanup()
     resetBookStore()
     resetActiveSpreadIdForTests()
+    resetTierDisplay()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('disables Present when the book has no spreads', () => {
@@ -84,6 +89,45 @@ describe('PresentationMode', () => {
     const widthMm = 2 * book.settings.trim.widthMm + bookSpineWidthMm(book)
     expect(cover.style.width).toBe(`${String(widthMm * SPREAD_PX_PER_MM)}px`)
     expect(cover.querySelector('.cover-spread')).not.toBeNull()
+  })
+
+  it('shows the cover photo at the working preview', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    vi.spyOn(tierCache, 'getTierUrl').mockImplementation((id, tier) =>
+      id === 'cover-photo' && tier === 1280 ? 'blob:cover-1280' : undefined,
+    )
+    vi.spyOn(tierCache, 'requestTier').mockImplementation(() => undefined)
+    vi.spyOn(tierCache, 'subscribeTier').mockImplementation(
+      () => () => undefined,
+    )
+    const { book, sessionMeta } = getBookStoreSnapshot()
+    resetBookStore({
+      book: {
+        ...book,
+        cover: {
+          ...book.cover,
+          front: { ...book.cover.front, assetId: 'cover-photo' },
+        },
+      },
+      sessionMeta,
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<EditorShell />)
+    fireEvent.click(screen.getByTestId('present'))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const front = screen
+      .getByTestId('presentation-cover')
+      .querySelector<HTMLElement>('[data-photo-id="cover-photo"]')
+    expect(front?.style.backgroundImage).toContain('blob:cover-1280')
   })
 
   it('never draws guides, which the editor canvas does draw', () => {

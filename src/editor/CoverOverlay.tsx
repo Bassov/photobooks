@@ -9,5 +9,5 @@ export function CoverOverlay() {
     isCoverSelected,
     isCoverSelected,
   )
-  return selected ? <CoverCanvas /> : null
+  return selected ? <CoverCanvas tierSlot="cover:canvas" /> : null
 }
