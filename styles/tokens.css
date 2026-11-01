@@ -244,6 +244,9 @@
     0 1px 2px rgb(35 34 35 / 0.2), 0 30px 60px -30px rgb(35 34 35 / 0.55);
   /* Kit v7 shadowSm: Cover / Endpaper list thumbnails. */
   --cover-shadow-mini: 0 1px 2px rgb(35 34 35 / 0.18);
+  /* Kit spread-list page card (MiniSpread): white, 2 px corners. */
+  --spread-card-shadow: 0 1px 2px rgb(0 0 0 / 0.14);
+  --spread-card-radius: 2px;
   /* Kit canvas spine fold: via-black/[0.06] at the cut. */
   --spread-fold-ink: oklab(0 0 0 / 0.06);
   /* Kit v7 inspector Toggle / Swatches and the endpaper pastedown. */

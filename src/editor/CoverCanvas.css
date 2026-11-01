@@ -117,6 +117,9 @@
   white-space: nowrap;
 }
 
+/* Kit cover text inherits the page line-height 1.5: back 16.5 px and front
+   51 px boxes at Fit, unitless so it scales with the cqw size (Owner Must
+   M75, round 12). */
 .cover-back-text {
   position: absolute;
   right: 12%;
@@ -124,6 +127,7 @@
   left: 12%;
   color: var(--cover-ink);
   font-size: calc(100cqw * 11 / var(--cover-kit-fit-px));
+  line-height: 1.5;
   white-space: pre-wrap;
 }
 
@@ -141,6 +145,7 @@
   left: 10%;
   color: var(--cover-title-ink);
   font-size: calc(100cqw * 34 / var(--cover-kit-fit-px));
+  line-height: 1.5;
   text-shadow: var(--cover-title-shadow);
   overflow-wrap: anywhere;
 }
