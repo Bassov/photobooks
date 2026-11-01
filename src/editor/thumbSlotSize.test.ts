@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { test, fc } from '@fast-check/vitest'
 import {
   buildStridePrefix,
+  filmstripWindowRange,
   indexFromScrollOffset,
   itemOriginOffsets,
+  scrollportIndexRange,
   spacerWidthPx,
   THUMB_HEIGHT,
   THUMB_WIDTH_DEFAULT,
@@ -136,3 +138,92 @@ test.prop([fc.double({ min: 0.01, max: 20, noNaN: true })], {
   expect(width).toBeGreaterThanOrEqual(THUMB_WIDTH_MIN)
   expect(width).toBeLessThanOrEqual(THUMB_WIDTH_MAX)
 })
+
+describe('filmstrip window ranges', () => {
+  // Square slots at THUMB_HEIGHT: stride 104 px.
+  const prefix = buildStridePrefix(Array.from({ length: 40 }, () => 1))
+
+  it('scrollport range covers the items intersecting the view', () => {
+    expect(scrollportIndexRange(prefix, 0, 400)).toEqual({ start: 0, end: 4 })
+    expect(scrollportIndexRange(prefix, 520, 416)).toEqual({
+      start: 5,
+      end: 9,
+    })
+    expect(scrollportIndexRange([0], 0, 400)).toEqual({ start: 0, end: 0 })
+  })
+
+  it('forward: one scrollport ahead to the right, 2 slots behind', () => {
+    // View [10, 14); ahead reaches 1040 + 416 + 416 = 1872 → item 18.
+    expect(filmstripWindowRange(prefix, 1040, 416, 1, 416)).toEqual({
+      start: 8,
+      end: 19,
+    })
+  })
+
+  it('backward: one scrollport ahead to the left, 2 slots behind', () => {
+    // Ahead reaches 1040 - 416 = 624 → item 6.
+    expect(filmstripWindowRange(prefix, 1040, 416, -1, 416)).toEqual({
+      start: 6,
+      end: 16,
+    })
+  })
+
+  it('clamps to the gallery at both ends', () => {
+    expect(filmstripWindowRange(prefix, 0, 416, -1, 416)).toEqual({
+      start: 0,
+      end: 6,
+    })
+    const atEnd = (prefix[40] ?? 0) - 416
+    expect(filmstripWindowRange(prefix, atEnd, 416, 1, 416)).toEqual({
+      start: 34,
+      end: 40,
+    })
+    expect(filmstripWindowRange([0], 0, 416, 1, 416)).toEqual({
+      start: 0,
+      end: 0,
+    })
+  })
+})
+
+test.prop(
+  [
+    fc.array(fc.double({ min: 0.2, max: 4, noNaN: true }), {
+      minLength: 1,
+      maxLength: 60,
+    }),
+    fc.nat({ max: 8000 }),
+    fc.integer({ min: 1, max: 2000 }),
+    fc.constantFrom<1 | -1>(1, -1),
+  ],
+  { numRuns: Number(process.env.FC_NUM_RUNS ?? 100) },
+)(
+  'window holds the scrollport, ahead cover and 2 slots behind',
+  (aspects, scrollLeft, viewportWidth, direction) => {
+    const prefix = buildStridePrefix(aspects)
+    const count = aspects.length
+    const view = scrollportIndexRange(prefix, scrollLeft, viewportWidth)
+    const range = filmstripWindowRange(
+      prefix,
+      scrollLeft,
+      viewportWidth,
+      direction,
+      viewportWidth,
+    )
+    expect(range.start).toBeGreaterThanOrEqual(0)
+    expect(range.end).toBeLessThanOrEqual(count)
+    expect(range.start).toBeLessThanOrEqual(view.start)
+    expect(range.end).toBeGreaterThanOrEqual(view.end)
+    const behind =
+      direction === 1 ? view.start - range.start : range.end - view.end
+    const behindRoom = direction === 1 ? view.start : count - view.end
+    expect(behind).toBe(Math.min(2, behindRoom))
+    // Ahead edge reaches one scrollport past the view (or the gallery edge).
+    const aheadOk =
+      direction === 1
+        ? range.end === count ||
+          (prefix[range.end] ?? 0) > scrollLeft + 2 * viewportWidth
+        : range.start === 0 ||
+          (prefix[range.start] ?? 0) <= scrollLeft - viewportWidth
+    expect(aheadOk).toBe(true)
+  },
+)

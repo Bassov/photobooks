@@ -38,17 +38,34 @@ import * as thumbCache from './thumbCache'
 import { resetThumbCache } from './thumbCache'
 import {
   buildStridePrefix,
-  indexFromScrollOffset,
+  filmstripWindowRange,
   spacerWidthPx,
   thumbSlotSize,
-  windowCountForCover,
   thumbWidthMax,
   THUMB_HEIGHT,
+  type FilmstripScrollDirection,
 } from './thumbSlotSize'
 import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
 
-/** Window overscan at the fixed filmstrip height (two widest slots). */
+/** Minimum window cover ahead at the fixed filmstrip height (two widest slots). */
 const OVERSCAN = thumbWidthMax(FILMSTRIP_THUMB_HEIGHT) * 2
+
+/** Window the strip should mount: one scrollport (≥ OVERSCAN) ahead. */
+function expectedWindow(
+  prefix: readonly number[],
+  scrollLeft: number,
+  width: number,
+  direction: FilmstripScrollDirection = 1,
+): { start: number; count: number } {
+  const range = filmstripWindowRange(
+    prefix,
+    scrollLeft,
+    width,
+    direction,
+    Math.max(width, OVERSCAN),
+  )
+  return { start: range.start, count: range.end - range.start }
+}
 
 const filmstripCss = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), 'Filmstrip.css'),
@@ -330,8 +347,8 @@ describe('Filmstrip aspect cards', () => {
 
       const aspects = Array.from({ length: 40 }, () => 0.5)
       const prefix = buildStridePrefix(aspects, FILMSTRIP_THUMB_HEIGHT)
-      const coverPx = 1200 + OVERSCAN
-      const expected = windowCountForCover(prefix, 0, coverPx)
+      const { start, count: expected } = expectedWindow(prefix, 0, 1200)
+      expect(start).toBe(0)
       expect(expected).toBeGreaterThan(16)
 
       const windowEl = screen.getByTestId('filmstrip-window')
@@ -374,9 +391,7 @@ describe('Filmstrip aspect cards', () => {
         }
       })
 
-      const windowStart = indexFromScrollOffset(scrollLeft, prefix)
-      const coverPx = 1000 + OVERSCAN
-      const expected = windowCountForCover(prefix, windowStart, coverPx)
+      const { count: expected } = expectedWindow(prefix, scrollLeft, 1000)
       expect(expected).toBeGreaterThan(16)
       expect(
         Number(
@@ -385,6 +400,70 @@ describe('Filmstrip aspect cards', () => {
             .getAttribute('data-window-count'),
         ),
       ).toBe(expected)
+    } finally {
+      globalThis.requestAnimationFrame = previousRaf
+      restore()
+    }
+  })
+
+  it('reaches one scrollport ahead in the scroll direction and reports scrollport ids', () => {
+    const restore = stubScrollportWidth(1000)
+    const callbacks: FrameRequestCallback[] = []
+    const previousRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+      callbacks.push(cb)
+      return callbacks.length
+    }
+    const register = vi.spyOn(thumbCache, 'setThumbViewportProvider')
+
+    try {
+      const ids = seedGallery(60, 0.5)
+      render(<Filmstrip />)
+      const provider = register.mock.calls[0]?.[0]
+      assert(provider !== undefined)
+
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const prefix = buildStridePrefix(
+        Array.from({ length: 60 }, () => 0.5),
+        FILMSTRIP_THUMB_HEIGHT,
+      )
+      const scrollTo = (left: number): void => {
+        act(() => {
+          Object.defineProperty(scroll, 'scrollLeft', {
+            configurable: true,
+            value: left,
+            writable: true,
+          })
+          scroll.dispatchEvent(new Event('scroll'))
+          for (const cb of callbacks.splice(0, callbacks.length)) {
+            cb(0)
+          }
+        })
+      }
+      const windowEl = screen.getByTestId('filmstrip-window')
+      const mounted = (): { start: number; count: number } => ({
+        start: ids.indexOf(
+          screen.getAllByTestId('filmstrip-item')[0]?.dataset.assetId ?? '',
+        ),
+        count: Number(windowEl.getAttribute('data-window-count')),
+      })
+
+      scrollTo(prefix[30] ?? 0)
+      expect(mounted()).toEqual(expectedWindow(prefix, prefix[30] ?? 0, 1000))
+      expect(mounted().start).toBe(28)
+
+      const back = prefix[24] ?? 0
+      scrollTo(back)
+      const backward = expectedWindow(prefix, back, 1000, -1)
+      expect(mounted()).toEqual(backward)
+      // A forward window would start 2 slots behind the view (22).
+      expect(backward.start).toBeLessThan(22)
+      expect(prefix[backward.start] ?? 0).toBeLessThanOrEqual(back - 1000)
+
+      const view = provider()
+      expect(view[0]).toBe(ids[24])
+      expect(view.length).toBeGreaterThan(10)
+      expect(view.length).toBeLessThan(backward.count)
     } finally {
       globalThis.requestAnimationFrame = previousRaf
       restore()
@@ -457,9 +536,11 @@ describe('Filmstrip aspect cards', () => {
         Array.from({ length: allIds.length }, () => 0.5),
         FILMSTRIP_THUMB_HEIGHT,
       )
-      const windowStart = indexFromScrollOffset(scrollLeft, portPrefix)
-      const coverPx = 900 + OVERSCAN
-      const expected = windowCountForCover(portPrefix, windowStart, coverPx)
+      const { start: windowStart, count: expected } = expectedWindow(
+        portPrefix,
+        scrollLeft,
+        900,
+      )
       expect(expected).toBeGreaterThan(14)
 
       const windowEl = screen.getByTestId('filmstrip-window')
@@ -482,7 +563,7 @@ describe('Filmstrip aspect cards', () => {
       expect(overlap).toBeGreaterThan(900 * 0.9)
 
       // Without prefix sync, windowStart would stay at the pre-refine index.
-      expect(indexFromScrollOffset(scrollLeft, landPrefix)).not.toBe(
+      expect(expectedWindow(landPrefix, scrollLeft, 900).start).not.toBe(
         windowStart,
       )
     } finally {
