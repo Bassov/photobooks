@@ -8,6 +8,7 @@ import {
   canDeleteSpread,
   coverCardRatio,
   endpaperCardRatio,
+  firstSlotAspect,
   neighbourAfterDelete,
   scrollPasteboardToSpread,
   scrollTopToReveal,
@@ -155,5 +156,14 @@ describe('spreadsPanelModel', () => {
       spreadsKeyAction({ key: 'D', ctrlKey: false, metaKey: true }),
     ).toEqual({ kind: 'duplicate' })
     expect(spreadsKeyAction(key('a'))).toEqual({ kind: 'none' })
+  })
+
+  it('sizes the list from the first slot: page 1 keeps a spread-wide slot', () => {
+    const page = { spreadWidthMm: 190, spreadHeightMm: 230 }
+    expect(firstSlotAspect(undefined, 0)).toBe(2)
+    // A one-spread book has no side: the page alone.
+    expect(firstSlotAspect(page, 1)).toBeCloseTo(190 / 230, 9)
+    expect(firstSlotAspect(page, 2)).toBeCloseTo(380 / 230, 9)
+    expect(firstSlotAspect(page, 5)).toBeCloseTo(380 / 230, 9)
   })
 })

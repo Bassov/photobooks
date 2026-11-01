@@ -14,6 +14,34 @@ export function getSpreadPageCount(
   return 2
 }
 
+/**
+ * Half of a spread-wide slot that a single page sits on (kit `#/demo`): page 1
+ * on the right, a single last page on the left. Two-page spreads and the only
+ * spread of a one-spread book have no side.
+ */
+export function getSinglePageSide(
+  spreadIndex: number,
+  spreadCount: number,
+): 'left' | 'right' | null {
+  if (spreadCount <= 1) {
+    return null
+  }
+  if (spreadIndex === 0) {
+    return 'right'
+  }
+  return spreadIndex === spreadCount - 1 ? 'left' : null
+}
+
+/** Pages a spread's slot spans: a single page on its side keeps a spread-wide slot. */
+export function getSpreadSlotPageCount(
+  spreadIndex: number,
+  spreadCount: number,
+): 1 | 2 {
+  return getSinglePageSide(spreadIndex, spreadCount) === null
+    ? getSpreadPageCount(spreadIndex, spreadCount)
+    : 2
+}
+
 export function getSpreadSizeMm(
   book: Book,
   spreadIndex: number,

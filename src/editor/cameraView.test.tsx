@@ -73,10 +73,17 @@ describe('pasteboard camera', () => {
     act(() => {
       commands?.fitWidth()
     })
+    // Page 1 sits on the right half of a spread-wide slot (M45): the slot
+    // fills the port width, the page half of it.
     const width = Number.parseFloat(
-      screen.getAllByTestId('spread-view')[0]?.style.width ?? '',
+      screen.getAllByTestId('pasteboard-slot')[0]?.style.width ?? '',
     )
     expect(width).toBeCloseTo(640, 0)
+    expect(
+      Number.parseFloat(
+        screen.getAllByTestId('spread-view')[0]?.style.width ?? '',
+      ),
+    ).toBeCloseTo(320, 0)
 
     const fit = commands?.fitSpreadZoom() ?? 0
     expect(fit).toBeGreaterThan(0)

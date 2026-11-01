@@ -1,3 +1,4 @@
+import { getSinglePageSide } from '../core'
 import { PANEL_DEFAULTS } from '../ui/panelSize'
 import { pasteboardWindow, type PasteboardWindow } from './pasteboardWindow'
 import { requestSpreadReveal } from './photoRootSession'
@@ -71,6 +72,21 @@ export interface SpreadsRowGeometry {
   boxHeightPx: number
   /** Fixed row stride (row + gap) so the list can be windowed. */
   rowPx: number
+}
+
+/**
+ * Slot width / height of the first spread (page 1 keeps a spread-wide slot in
+ * a book of two spreads or more), or the 2:1 default while the book has none.
+ */
+export function firstSlotAspect(
+  first: { spreadWidthMm: number; spreadHeightMm: number } | undefined,
+  spreadCount: number,
+): number {
+  if (first === undefined) {
+    return 2
+  }
+  const widen = getSinglePageSide(0, spreadCount) === null ? 1 : 2
+  return (first.spreadWidthMm * widen) / first.spreadHeightMm
 }
 
 /**

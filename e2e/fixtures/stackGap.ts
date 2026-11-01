@@ -1,10 +1,10 @@
 import { expect, type Page } from '@playwright/test'
 
 /**
- * Stack gap / spread height: 72 px under a 588 px spread (wider than the kit
- * `#/demo` 44 / 588; design-r3-spread-shadow).
+ * Stack gap / spread height: 104 px under a 588 px spread (wider than the kit
+ * `#/demo` 44 / 588; Owner design change, round 7, M49, design-r7-spreads).
  */
-export const STACK_GAP_RATIO = 72 / 588
+export const STACK_GAP_RATIO = 104 / 588
 
 export interface SpreadBox {
   x: number

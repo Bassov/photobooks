@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { flushSync } from 'react-dom'
-import { bookSpineWidthMm } from '../core'
+import { bookSpineWidthMm, getSinglePageSide } from '../core'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import {
@@ -60,6 +60,7 @@ import './SpreadsPanel.css'
 import {
   canDeleteSpread,
   coverCardRatio,
+  firstSlotAspect,
   neighbourAfterDelete,
   scrollPasteboardToSpread,
   scrollTopToReveal,
@@ -130,12 +131,11 @@ function run(
   scrollPasteboardToSpread(getSpreadIdsSnapshot()[at] ?? id)
 }
 
-/** Spread width / height, or the 2:1 default while the book has no spread. */
-function spreadAspect(spreadId: string): number {
-  const resolved = getSpreadPaintSnapshot(spreadId)?.resolved
-  return resolved === undefined
-    ? 2
-    : resolved.spreadWidthMm / resolved.spreadHeightMm
+function listAspect(spreadIds: readonly string[]): number {
+  return firstSlotAspect(
+    getSpreadPaintSnapshot(spreadIds[0] ?? '')?.resolved,
+    spreadIds.length,
+  )
 }
 
 interface DragState {
@@ -196,8 +196,8 @@ export function SpreadsPanel({
   const [headPx, setHeadPx] = useState(0)
   const aspect = useSyncExternalStore(
     (listener) => subscribeSpread(spreadIds[0] ?? '', listener),
-    () => spreadAspect(spreadIds[0] ?? ''),
-    () => spreadAspect(spreadIds[0] ?? ''),
+    () => listAspect(spreadIds),
+    () => listAspect(spreadIds),
   )
   const geometry = spreadsRowGeometry(listWidth, aspect)
   const rowPx = geometry.rowPx
@@ -446,7 +446,8 @@ export function SpreadsPanel({
           {visible.map((id, offset) => {
             const i = win.start + offset
             const sel = id === selected
-            const label = pageLabel(i)
+            const label = pageLabel(i, spreadIds.length)
+            const side = getSinglePageSide(i, spreadIds.length)
             const shift =
               drag === null
                 ? 0
@@ -474,6 +475,7 @@ export function SpreadsPanel({
                   data-item={id}
                   data-dragging={drag?.from === i ? 'true' : undefined}
                   data-first={i === 0 ? 'true' : 'false'}
+                  data-page-side={side ?? undefined}
                   data-testid={`spread-list-item-${id}`}
                   draggable={canReorder}
                   aria-keyshortcuts={
@@ -492,9 +494,16 @@ export function SpreadsPanel({
                       spreadId={id}
                       boxWidthPx={geometry.boxWidthPx}
                       boxHeightPx={geometry.boxHeightPx}
+                      side={side}
                     />
                   </div>
-                  <div className="mt-1.5 flex text-2xs tabular-nums">
+                  {/* Kit: page 1's label starts under its (right) half. */}
+                  <div
+                    className="mt-1.5 flex text-2xs tabular-nums"
+                    style={
+                      side === 'right' ? { paddingLeft: '50%' } : undefined
+                    }
+                  >
                     <span
                       data-label
                       className={sel ? 'font-semibold' : 'font-normal'}
