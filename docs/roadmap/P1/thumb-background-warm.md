@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Thumbs for the whole folder in the background
+Status: done
 
 ## Scope
 
