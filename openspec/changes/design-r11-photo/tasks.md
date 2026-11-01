@@ -10,3 +10,5 @@
 
 1. 1440 × 900, filled frame selected, collapsed: no summary (ADJUST, POSITION & SIZE), "None" (FRAME STYLE), "z 1" (ARRANGE); expand each: rows at the kit pitch, lock on the title row, values left-aligned.
 2. Draw two frames, select the back one, Bring forward: ARRANGE collapsed reads "z 2"; pick "White mat": FRAME STYLE reads "White mat".
+
+manual-qa: problems 1–2 are a harness problem. The `start-session` click times out because the welcome header intercepts it, before any step runs. Both are covered by `e2e/design-r11-photo.spec.ts` ("collapsed rows carry the kit summaries", "POSITION & SIZE: lock on the title row", "FRAME STYLE … its summary names the style", "ARRANGE reads z of the layer after Send to back and Bring forward"; 300/300 at `--repeat-each=30`).

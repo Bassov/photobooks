@@ -1,5 +1,9 @@
 import type { Locator, Page } from '@playwright/test'
 import { existsSync } from 'node:fs'
+import {
+  assertDocumentFitsViewport,
+  assertNamedScrollport,
+} from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
 import {
@@ -146,17 +150,6 @@ async function selectFilledFrame(page: Page, photo: string) {
   await page.getByTestId('spread-frame').first().click()
   await expect(page.getByTestId('inspector-context')).toHaveText('Photo')
   await page.mouse.move(0, 899)
-}
-
-async function expectNoPageScroll(page: Page) {
-  const overflow = await page.evaluate(() => {
-    const root = document.scrollingElement ?? document.documentElement
-    return {
-      h: root.scrollWidth - root.clientWidth,
-      v: root.scrollHeight - root.clientHeight,
-    }
-  })
-  expect(overflow).toEqual({ h: 0, v: 0 })
 }
 
 test.describe('M72: Photo inspector sections match the kit', () => {
@@ -371,14 +364,11 @@ test.describe('M72: Photo inspector sections match the kit', () => {
     for (const id of ['adjust', 'caption', 'geometry', 'style', 'arrange']) {
       await toggle(page, id, true)
     }
-    await expectNoPageScroll(page)
-    const scroll = await body(page).evaluate(
-      (el) => el.scrollHeight > el.clientHeight,
-    )
-    expect(scroll).toBe(true)
+    await assertDocumentFitsViewport(page)
+    await assertNamedScrollport(page, 'inspector-body', { axis: 'vertical' })
     await page.getByTestId('frame-delete').scrollIntoViewIfNeeded()
     await expect(page.getByTestId('frame-delete')).toBeInViewport()
-    await expectNoPageScroll(page)
+    await assertDocumentFitsViewport(page)
   })
 
   test('the too-low ppi chip keeps the kit error ink', async ({ page }) => {
