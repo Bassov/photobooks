@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r9-letter-spacing: uppercase section titles match the kit
+Status: done
 
 ## Scope
 
