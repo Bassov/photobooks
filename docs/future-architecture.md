@@ -206,7 +206,7 @@ The app depends on domain-level interfaces only; file layout, format, `.bak` rot
 
 - All decode/resize/encode in Web Workers (existing `photo.worker` grows into the prioritized, cancellable asset worker pool — see "Performance model").
 - Import/reload/rescan never whole-file content-hash for cache keys; identity (path/size/mtime/root) is enough for match and DerivedCache.
-- Decode: `createImageBitmap`; resize: OffscreenCanvas; JPEG/WebP encode: native `convertToBlob`; AVIF: WASM encoder (e.g. `@jsquash/avif`) in a worker.
+- Decode: JPEG via `ImageDecoder` at reduced scale (1/8–1/2 DCT step covering the tier), else `createImageBitmap`; resize: OffscreenCanvas; JPEG/WebP encode: native `convertToBlob`; AVIF: WASM encoder (e.g. `@jsquash/avif`) in a worker.
 - Site derivatives are a config, not code: `sizes` (start 400 / 2000 / 3840 long edge) and quality. Final sizes are decided by viewing tests on phone and 27″ 4K.
 - One modern format (AVIF) plus a fallback only where it matters (likely the screen size) — do not double every size by default.
 - Convert to sRGB for the web. HEIC input needs a WASM decoder (libheif) — deferred.
