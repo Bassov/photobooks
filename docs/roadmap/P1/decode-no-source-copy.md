@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: Decode worker: stop copying the original file to the main thread
+Status: done
 
 ## Scope
 

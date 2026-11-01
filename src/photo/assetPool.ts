@@ -110,6 +110,8 @@ export interface ProcessAssetOptions {
   cover?: boolean
   /** Decode once → thumb320 + working 1280 WebP. */
   dualTiers?: boolean
+  /** Worker returns the original body (`sourceBuffer`) for memory-root seed. */
+  returnSource?: boolean
 }
 
 interface DecodeQueueItem {
@@ -121,6 +123,7 @@ interface DecodeQueueItem {
   maxEdge: number
   cover: boolean
   dualTiers: boolean
+  returnSource: boolean
   signal?: AbortSignal
   resolve: (result: AssetProcessResult) => void
   reject: (error: Error) => void
@@ -347,6 +350,7 @@ function promoteDeferredLazy(): void {
       maxEdge: deferred.options.maxEdge ?? THUMB_MAX_EDGE,
       cover: deferred.options.cover === true,
       dualTiers,
+      returnSource: deferred.options.returnSource === true,
       resolve: deferred.resolve,
       reject: deferred.reject,
     }
@@ -540,6 +544,9 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
   }
   if (job.dualTiers) {
     request.dualTiers = true
+  }
+  if (job.returnSource) {
+    request.returnSource = true
   }
   worker.postMessage(request)
 }
@@ -759,6 +766,7 @@ export function processAsset(
       maxEdge: options.maxEdge ?? THUMB_MAX_EDGE,
       cover: options.cover === true,
       dualTiers,
+      returnSource: options.returnSource === true,
       signal,
       resolve,
       reject,
@@ -786,7 +794,7 @@ function notifyImportDecodeError(
  * Caller filters MIME before enqueue when rejecting unsupported types as errors.
  */
 export async function runImportBatch(
-  items: readonly { assetId: string; file: File }[],
+  items: readonly { assetId: string; file: File; returnSource?: boolean }[],
   options: {
     onProgress?: ImportBatchListener
     onResult?: (result: AssetProcessResult) => void
@@ -837,6 +845,9 @@ export async function runImportBatch(
           }
           if (options.maxEdge !== undefined) {
             processOptions.maxEdge = options.maxEdge
+          }
+          if (item.returnSource === true) {
+            processOptions.returnSource = true
           }
           // Off-screen JPEG/HEIC: register deferred decode without blocking the batch.
           if (shouldDeferLazyDecode(item.assetId, item.file, priority)) {

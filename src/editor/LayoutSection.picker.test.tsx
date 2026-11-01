@@ -221,14 +221,21 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(screen.queryByTestId('tpl-suggested')).toBeNull()
   })
 
-  it('does not suggest the layout the spread already uses', () => {
-    seed([makeFrame({ id: 'f1' })], 'full-bleed')
+  // Owner design change (round 7, M47): the current layout stays suggested.
+  it('keeps the layout the spread already uses, pressed, in catalogue order', () => {
+    seed([makeFrame({ id: 'f1' })], 'one-per-page')
     render(<LayoutSection spreadId="s1" />)
-    expect(
-      screen
-        .getAllByTestId('layout-suggested-tile')
-        .map((tile) => tile.getAttribute('data-template')),
-    ).toEqual(['one-per-page', 'panorama', 'framed-single'])
+    const tiles = screen.getAllByTestId('layout-suggested-tile')
+    expect(tiles.map((tile) => tile.getAttribute('data-template'))).toEqual([
+      'full-bleed',
+      'one-per-page',
+      'panorama',
+    ])
+    expect(tiles.map((tile) => tile.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'true',
+      'false',
+    ])
   })
 
   it('a suggested tile applies its layout', () => {

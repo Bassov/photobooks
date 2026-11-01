@@ -8,6 +8,9 @@ import {
 } from 'react'
 import { halfDelta, stepIndex, swipeDelta } from './pagerIndex'
 
+const defaultPosition = (index: number, count: number): string =>
+  `${String(index + 1)} / ${String(count)}`
+
 /**
  * Fullscreen one-spread-at-a-time pager (presentation mode; reusable by a
  * site lightbox). Neighbours stay mounted at opacity 0 so their images are
@@ -19,12 +22,15 @@ export function SpreadPager({
   onIndexChange,
   onExit,
   renderSpread,
+  position = defaultPosition,
 }: {
   count: number
   index: number
   onIndexChange: (next: number) => void
   onExit: () => void
   renderSpread: (index: number) => ReactNode
+  /** Position line text for a non-empty pager (default `i / n`). */
+  position?: (index: number, count: number) => string
 }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const fitRef = useRef<HTMLDivElement>(null)
@@ -176,7 +182,7 @@ export function SpreadPager({
       })}
       <div className="pointer-events-none absolute inset-x-0 bottom-4 text-center text-xs">
         <span className="tabular-nums" data-testid="pager-position">
-          {count === 0 ? '' : `${String(index + 1)} / ${String(count)}`}
+          {count === 0 ? '' : position(index, count)}
         </span>
       </div>
       <button

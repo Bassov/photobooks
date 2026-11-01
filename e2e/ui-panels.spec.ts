@@ -110,10 +110,13 @@ test('specimen panels demo resizes, collapses and expands', async ({
   await assertDocumentFitsViewport(page)
 })
 
-test('inspector header collapses the right panel', async ({ page }) => {
+// Owner design change (round 7, M54): the inspector header lost its own
+// collapse button; the top-bar toggle collapses the right panel.
+test('the top-bar toggle collapses the right panel', async ({ page }) => {
   await openSessionEditor(page)
   await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
-  await page.getByTestId('panel-collapse-right').click()
+  await expect(page.getByTestId('panel-collapse-right')).toHaveCount(0)
+  await page.getByTestId('toggle-r').click()
   await expect(page.getByTestId('panel-r')).toHaveAttribute(
     'data-open',
     'false',

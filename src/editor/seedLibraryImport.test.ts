@@ -11,7 +11,11 @@ import {
   registerAssetSource,
   resetProjectSessionForTests,
 } from './projectSession'
-import { memorySourceForRoot, seedAndHashEntry } from './seedLibraryImport'
+import {
+  isMemoryBackedRoot,
+  memorySourceForRoot,
+  seedAndHashEntry,
+} from './seedLibraryImport'
 import { resetPendingHashesForTests, awaitPendingHashes } from './pendingHashes'
 
 const putCachedThumbForHash = vi.hoisted(() => vi.fn(() => Promise.resolve()))
@@ -71,6 +75,65 @@ describe('seedLibraryImport', () => {
     const created = memorySourceForRoot('root-plain')
     expect(typeof created.seedFile).toBe('function')
     expect(getRegisteredAssetSource('root-plain')).toBe(fsaLike)
+  })
+
+  it('isMemoryBackedRoot is true for memory or unregistered roots only', () => {
+    registerAssetSource('root-mem', createMemoryAssetSource())
+    registerAssetSource('root-fsa', {
+      scanRoot: () => Promise.resolve({ ok: true as const, value: [] }),
+      resolveFile: () =>
+        Promise.resolve({ ok: false as const, code: 'not-found' as const }),
+      readForHash: () =>
+        Promise.resolve({ ok: false as const, code: 'not-found' as const }),
+    })
+    expect(isMemoryBackedRoot('root-mem')).toBe(true)
+    expect(isMemoryBackedRoot('root-unregistered')).toBe(true)
+    expect(isMemoryBackedRoot('root-fsa')).toBe(false)
+  })
+
+  it('seedAndHashEntry without a memory source only puts identity caches', async () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    const file = new File([new Uint8Array([1, 2])], 'f.jpg', {
+      type: 'image/jpeg',
+    })
+    const expectedKey = cacheKeyFromIdentity({
+      sourceRootId: 'root-fsa',
+      relativePath: 'f.jpg',
+      byteSize: file.size,
+      mtimeMs: file.lastModified,
+    })
+    const arrayBufferSpy = vi.spyOn(file, 'arrayBuffer')
+    await seedAndHashEntry({
+      assetId: 'asset-fsa',
+      file,
+      relativePath: 'f.jpg',
+      sourceRootId: 'root-fsa',
+    })
+    await awaitPendingHashes()
+    expect(arrayBufferSpy).not.toHaveBeenCalled()
+    expect(putCachedThumbForHash).toHaveBeenCalledWith('asset-fsa', expectedKey)
+    expect(putCachedTierForHash).toHaveBeenCalledWith('asset-fsa', expectedKey)
+  })
+
+  it('seedAndHashEntry skips identity puts when the asset has no cache key', async () => {
+    const file = new File([new Uint8Array([1])], 'nokey.jpg', {
+      type: 'image/jpeg',
+    })
+    await seedAndHashEntry({
+      assetId: 'asset-nokey',
+      file,
+      relativePath: '',
+      sourceRootId: 'root-fsa',
+    })
+    await awaitPendingHashes()
+    expect(putCachedThumbForHash).not.toHaveBeenCalled()
+    expect(putCachedTierForHash).not.toHaveBeenCalled()
   })
 
   it('seedAndHashEntry seeds bytes and puts caches under identity key', async () => {

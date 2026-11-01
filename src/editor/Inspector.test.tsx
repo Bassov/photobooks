@@ -22,6 +22,7 @@ import {
   getCropTargetKey,
 } from './cropMode'
 import { SUB } from './editorChromeTokens'
+import { setEndpaperSelected } from './endpaperSelection'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
 import { setActiveSpreadId } from './photoRootSession'
@@ -136,13 +137,35 @@ describe('Inspector', () => {
     expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
   })
 
-  it('collapses through the header button', () => {
-    const onCollapse = vi.fn()
-    render(<Inspector onCollapse={onCollapse} />)
-    const btn = screen.getByTestId('panel-collapse-right')
-    expect(btn.getAttribute('aria-label')).toBe('Hide inspector (I)')
-    fireEvent.click(btn)
-    expect(onCollapse).toHaveBeenCalledTimes(1)
+  // Owner Must M54 (round 7): only the top-bar toggle hides the inspector.
+  it('has no Hide inspector button in any context', () => {
+    seed()
+    render(<Inspector />)
+    act(() => {
+      setActiveSpreadId('spread-1')
+    })
+    expect(screen.getByTestId('inspector-header')).toBeTruthy()
+    expect(screen.queryByTestId('panel-collapse-right')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Hide inspector/ })).toBeNull()
+  })
+
+  // Owner Must M48 (round 7): the endpaper head is the panel's first block.
+  it('opens the endpaper context on its own head, with no header bar', () => {
+    seed()
+    render(<Inspector />)
+    act(() => {
+      setEndpaperSelected('front')
+    })
+    try {
+      const body = screen.getByTestId('inspector-body')
+      expect(screen.queryByTestId('inspector-header')).toBeNull()
+      expect(body.previousElementSibling).toBeNull()
+      expect(body.textContent).toContain('Endpaper · front')
+    } finally {
+      act(() => {
+        setEndpaperSelected(null)
+      })
+    }
   })
 
   describe('context panel (no tabs)', () => {
@@ -158,14 +181,19 @@ describe('Inspector', () => {
       expect(screen.queryByTestId('inspector-tab-frame')).toBeNull()
     })
 
-    it('paints the collapse wrapper and hints in the muted colour', () => {
-      render(<Inspector onCollapse={() => undefined} />)
+    it('paints the context icon and hints in the muted colour', () => {
+      seed()
+      render(<Inspector />)
       const muted = cssColor(SUB)
       expect(muted).not.toBe('')
-      expect(
-        screen.getByTestId('panel-collapse-right').parentElement?.style.color,
-      ).toBe(muted)
       expect(screen.getByTestId('inspector-empty').style.color).toBe(muted)
+      act(() => {
+        setActiveSpreadId('spread-1')
+      })
+      const icon = screen
+        .getByTestId('inspector-header')
+        .querySelector<HTMLElement>('.inspector-context-icon')
+      expect(icon?.style.color).toBe(muted)
     })
 
     it('renders no row list with nothing selected', () => {
