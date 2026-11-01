@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r11-canvas: spine fold, spread-list thumbnail shadow and cover text match the kit
+Status: done
 
 ## Scope
 
