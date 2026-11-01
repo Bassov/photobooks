@@ -1,10 +1,10 @@
 ## Implementation
 
-- [ ] 1. `e2e/design-r10-chrome.spec.ts` against kit values (fails on main): every M58 / M62 / M63 item plus the "no Arial button" audit over the walked states.
-- [ ] 2. M58 root: base-layer `button` font / colour inherit in `styles/app.css`.
-- [ ] 3. M58 per element: Pages/Masters kit `SegC` geometry; "Add folder…" ink / 500 / 10 px; Settings nav via the root rule.
-- [ ] 4. M62: layout tab colours; captions ink while the pointer is over the Layout section.
-- [ ] 5. M63: Create book dialog gap, title, label line boxes, margins, Cancel ink; `ListSelect` 30.84 px rows and popover border.
+- [x] 1. `e2e/design-r10-chrome.spec.ts` against kit values (fails on main): every M58 / M62 / M63 item plus the "no Arial button" audit over the walked states.
+- [x] 2. M58 root: base-layer `button` font / colour inherit in `styles/app.css`.
+- [x] 3. M58 per element: Pages/Masters kit `SegC` geometry; "Add folder…" ink / 500 / 10 px; Settings nav via the root rule.
+- [x] 4. M62: layout tab colours; captions ink while the pointer is over the Layout section.
+- [x] 5. M63: Create book dialog gap, title, label line boxes, margins, Cancel ink; `ListSelect` 30.84 px rows and popover border.
 
 ## Manual test scenarios
 

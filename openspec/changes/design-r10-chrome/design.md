@@ -8,6 +8,6 @@
 
 ## Touch-set & Test Plan
 
-- Files: `styles/app.css`, `src/editor/{CreateBookDialog.tsx,LeftPanel.tsx,EditorShell.css,FilmstripDock.tsx,editorChromeTokens.ts,LayoutSection.css}`, `src/ui/ListSelect.css`, `docs/design.md`, new `e2e/design-r10-chrome.spec.ts`.
+- Files: `styles/app.css`, `src/editor/{CreateBookDialog.tsx,LeftPanel.tsx,EditorShell.css,FilmstripDock.tsx,editorChromeTokens.ts,LayoutSection.css}`, `src/ui/ListSelect.css`, `docs/design.md` (records the button preflight rule and the ListSelect menu rows), new `e2e/design-r10-chrome.spec.ts`.
 - Reuse: `--leading-menu`, `--foreground`, `--muted-foreground`, `--border`, `--text-xl`.
-- Tests: the e2e spec's header records the kit values. It covers the dialog rows, menu pitch, Custom row and Cancel ink; the toggle, list, Add folder and Settings fonts; caption colours at rest and on hover, and the tab colours; and the Arial audit over the walked states. The `CreateBookDialog`, `LeftPanel`, `FilmstripDock` and `LayoutSection` unit tests stay green.
+- Tests: the e2e spec's header records the kit values. It covers the dialog rows, menu pitch, Custom row and Cancel ink; the toggle, list, Add folder and Settings fonts; caption colours at rest and on hover, and the tab colours; and the Arial audit over the walked states. The `CreateBookDialog`, `LeftPanel`, `FilmstripDock` and `LayoutSection` unit tests stay green. A `ui-review` pass covers the touched chrome.
