@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: Folder rescan on open: no per-file re-resolve, O(n) diff, parallel scan
+Status: done
 
 ## Scope
 
