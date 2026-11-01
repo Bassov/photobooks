@@ -50,6 +50,18 @@ a {
   color: var(--foreground);
 }
 
+/* Kit preflight subset (r10 M58): buttons take the app font and ink, not the UA
+   Arial 13.33 / buttontext. Base layer, so utilities and component CSS still win. */
+@layer base {
+  button {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+  }
+}
+
 /* Kit v0.9.3 create-book panel: centered by the overlay, no outer padding
    (unlayered .pb-dialog padding would beat Tailwind utilities), footer always in view. */
 .pb-dialog.pb-create-dialog {
@@ -60,6 +72,36 @@ a {
   max-height: calc(100vh - 2rem);
   padding: 0;
   border: 0;
+  /* r10 M63: kit header, body and footer sit 16px apart. */
+  gap: calc(var(--spacing) * 4);
+}
+
+/* r10 M63: kit title is a 21px Lora heading with no margin; kit labels are
+   text-xs (line-height 1.4), the Title label leading-none with an 8px gap. */
+.pb-create-dialog .pb-dialog-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
+
+.pb-create-dialog .pb-field__label {
+  line-height: 1.4;
+}
+
+.pb-create-dialog .pb-field:has(> [data-testid='create-title']) {
+  gap: calc(var(--spacing) * 2);
+}
+
+.pb-create-dialog
+  .pb-field:has(> [data-testid='create-title'])
+  > .pb-field__label {
+  line-height: 1;
+}
+
+/* r10 M63: kit Cancel is ink, not the muted ghost. */
+.pb-create-dialog .pb-create-footer .pb-button--ghost {
+  color: var(--foreground);
 }
 
 .pb-create-dialog .pb-create-body {
