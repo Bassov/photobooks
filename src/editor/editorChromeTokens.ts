@@ -63,8 +63,7 @@ export const EDITOR_CHROME_CSS = `
 .e7-title { transition: background-color .12s; border: 0; background: transparent; cursor: pointer }
 .e7-title:hover { background: rgb(57 55 56/.08) }
 .e7-title:active { background: #CDCDCD }
-.e7-tog[aria-pressed=true] { background: ${FIELD} }
-.e7-sec:hover { background: #CDCDCD !important }
+.e7-tog[aria-expanded=true] { background: ${FIELD} }
 .e7-pan { transition: width .18s cubic-bezier(.2,.7,.2,1), height .18s cubic-bezier(.2,.7,.2,1) }
 @media (prefers-reduced-motion: reduce) { .e7-pan { transition: none } }
 .e7-tip { position: relative }
