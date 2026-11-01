@@ -60,7 +60,7 @@ describe('SettingsScreen', () => {
         .getByText('Allowed · read and write')
         .closest('[data-color]')
         ?.getAttribute('data-color'),
-    ).toBe('gray')
+    ).toBe('success') // kit demo-parts/settings.tsx:48 (round 10, M66)
     expect(screen.getByTestId('settings-nav-library').className).not.toMatch(
       /\bring-/,
     )
@@ -125,5 +125,14 @@ describe('SettingsScreen', () => {
     const scroll = screen.getByTestId('settings-scroll')
     expect(scroll.getAttribute('data-scrollport')).toBe('settings')
     expect(scroll.id).toBe('settings-scroll')
+  })
+
+  it('sets kit line-heights on the content (round 10, M66)', () => {
+    render(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    const classes = (id: string) =>
+      screen.getByTestId(id).className.split(/\s+/)
+    expect(classes('settings-scroll')).toContain('pb-kit-type')
+    expect(classes('settings-section-title')).toContain('leading-[1.2]')
+    expect(document.querySelector('style[data-pb-kit-type]')).not.toBeNull()
   })
 })
