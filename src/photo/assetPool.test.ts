@@ -36,6 +36,7 @@ import {
   mockWorkerRuntimeError,
   mockWorkerSuccess,
 } from './photo.test-helpers'
+import { PREVIEW_MAX_EDGE } from './photoEdges'
 
 function hangWorker(): void {
   class HangWorker {
@@ -656,7 +657,13 @@ describe('assetPool', () => {
     })
     setVisibleAssetIds(['a', 'b'])
     void processAsset({ assetId: 'a', file, priority: 'visible' })
-    void processAsset({ assetId: 'b', file, priority: 'visible' })
+    // In-flight 1280 aborts on leave-now (an in-flight thumb320 would be kept).
+    void processAsset({
+      assetId: 'b',
+      file,
+      priority: 'visible',
+      maxEdge: PREVIEW_MAX_EDGE,
+    })
     setVisibleAssetIds(['a'])
     expect(getPendingRetryAssetIdsForTests()).toContain('b')
     resetAssetPool()
