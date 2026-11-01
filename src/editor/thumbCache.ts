@@ -1,7 +1,10 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
 import { noteDecodeScrollActivity } from '../photo/decodeScrollQuiet'
-import type { DerivedCacheEntry } from '../assets/derivedCache/types'
+import type {
+  DerivedCacheEntry,
+  DerivedCacheResult,
+} from '../assets/derivedCache/types'
 import {
   getAssetCacheKey,
   getGalleryIdsSnapshot,
@@ -26,8 +29,8 @@ const FLUSH_MAX_MS = 3
 const FLUSH_RAF_WATCHDOG_MS = 32
 /** Parallel DerivedCache reads on mount. */
 const HYDRATE_CONCURRENCY = 4
-/** Parallel DerivedCache reads per batch of the restore bulk pass. */
-const BULK_HYDRATE_CONCURRENCY = 8
+/** DerivedCache reads the restore bulk pass keeps in flight. */
+const BULK_HYDRATE_CONCURRENCY = 24
 
 /** One hot thumb: the object URL lives as long as the entry. */
 interface ThumbEntry {
@@ -478,15 +481,38 @@ function filmstripWindow(gallery: readonly string[]): {
 }
 
 /**
- * Next bulk batch: the window first, then alternating right / left outward.
- * Every id it passes is `visited`; hot, mount-read and keyless ids are skipped.
+ * Where the bulk walk stands: ids it passed, and the window start and scroll
+ * direction at its last pick.
+ */
+interface BulkWalk {
+  visited: Set<string>
+  lo: number
+  direction: -1 | 0 | 1
+}
+
+/**
+ * Next `limit` bulk reads: the window first, then, while the strip scrolls,
+ * everything ahead of it (the trail end was just on screen), then
+ * alternating right / left outward. Every id it passes is `visited`; hot,
+ * mount-read and keyless ids are skipped.
  */
 function nextBulkBatch(
-  visited: Set<string>,
+  walk: BulkWalk,
+  limit: number,
 ): { assetId: string; cacheKey: string }[] {
+  const batch: { assetId: string; cacheKey: string }[] = []
+  if (limit <= 0) {
+    return batch
+  }
   const gallery = getGalleryIdsSnapshot()
   const { lo, hi } = filmstripWindow(gallery)
-  const batch: { assetId: string; cacheKey: string }[] = []
+  if (!isFilmstripScrollQuiet()) {
+    walk.direction = 0
+  } else if (lo !== walk.lo) {
+    walk.direction = lo > walk.lo ? 1 : -1
+  }
+  walk.lo = lo
+  const { visited, direction } = walk
   const take = (index: number): void => {
     const assetId = gallery[index]
     if (assetId === undefined || visited.has(assetId)) {
@@ -505,20 +531,56 @@ function nextBulkBatch(
   }
   for (let index = lo; index <= hi; index += 1) {
     take(index)
-    if (batch.length === BULK_HYDRATE_CONCURRENCY) {
+    if (batch.length === limit) {
       return batch
+    }
+  }
+  if (direction !== 0) {
+    const edge = direction > 0 ? hi : lo
+    for (let step = 1; step <= gallery.length; step += 1) {
+      take(edge + direction * step)
+      if (batch.length === limit) {
+        return batch
+      }
     }
   }
   for (let step = 1; step <= gallery.length; step += 1) {
     take(hi + step)
-    if (batch.length < BULK_HYDRATE_CONCURRENCY) {
+    if (batch.length < limit) {
       take(lo - step)
     }
-    if (batch.length === BULK_HYDRATE_CONCURRENCY) {
+    if (batch.length === limit) {
       return batch
     }
   }
   return batch
+}
+
+interface BulkRead {
+  assetId: string
+  got: DerivedCacheResult<DerivedCacheEntry>
+}
+
+/**
+ * Store one finished bulk read into the hot cache. False at the byte budget:
+ * the pass stops there and never evicts.
+ */
+function storeBulkRead(inflight: Set<string>, read: BulkRead): boolean {
+  const { assetId, got } = read
+  // Removed mid-read: drop the bytes.
+  if (!inflight.delete(assetId)) {
+    return true
+  }
+  if (!got.ok) {
+    bulkStats.missed += 1
+  } else if (!entries.has(assetId)) {
+    if (totalBytes + got.value.bytes.byteLength > byteBudget) {
+      return false
+    }
+    storeCachedThumb(assetId, got.value)
+    bulkStats.hydrated += 1
+  }
+  return true
 }
 
 /** Next store slice: the next frame while the strip scrolls, else the next task. */
@@ -537,8 +599,8 @@ function nextSlice(): Promise<void> {
  * Restore: read every gallery thumb from DerivedCache into the hot cache in
  * the background, nearest the filmstrip window first, so tiles mounted later
  * need no placeholder. Stops at the byte budget (never evicts); misses stay
- * with the mount path. Stores run in FLUSH_MAX_MS slices, one per frame while
- * the strip scrolls. A new pass or reset cancels this one.
+ * with the mount path. Stores run in FLUSH_MAX_MS slices, only at the start
+ * of a frame while the strip scrolls. A new pass or reset cancels this one.
  */
 export async function hydrateGalleryThumbs(): Promise<void> {
   bulkGeneration += 1
@@ -548,60 +610,80 @@ export async function hydrateGalleryThumbs(): Promise<void> {
   bulkInflight = inflight
   bulkStats = { ...idleBulkStats(), state: 'running' }
   const started = performance.now()
-  const visited = new Set<string>()
+  const ready: BulkRead[] = []
+  let reading = 0
+  // Set by a failed read (in `fill`) or the end of the pass.
+  let stopped = false as boolean
+  let wake: (() => void) | undefined
   try {
     const cache = await getDerivedCache()
+    const walk: BulkWalk = {
+      visited: new Set(),
+      lo: filmstripWindow(getGalleryIdsSnapshot()).lo,
+      direction: 0,
+    }
+    // No batch barrier: each finished read starts the next one, so reads
+    // stay in flight while the stores wait for their slice.
+    const fill = (): void => {
+      if (stopped || !current() || ready.length >= BULK_HYDRATE_CONCURRENCY) {
+        return
+      }
+      const picks = nextBulkBatch(walk, BULK_HYDRATE_CONCURRENCY - reading)
+      for (const { assetId, cacheKey } of picks) {
+        inflight.add(assetId)
+        reading += 1
+        void cache.get(cacheKey, THUMB_PRESET_ID).then(
+          (got) => {
+            reading -= 1
+            ready.push({ assetId, got })
+            fill()
+            wake?.()
+          },
+          () => {
+            // DerivedCache unavailable: misses stay with the mount path.
+            reading -= 1
+            stopped = true
+            wake?.()
+          },
+        )
+      }
+    }
+    fill()
+    let slice = performance.now()
     for (;;) {
       if (!current()) {
         return
       }
-      const batch = nextBulkBatch(visited)
-      if (batch.length === 0) {
-        break
-      }
-      for (const { assetId } of batch) {
-        inflight.add(assetId)
-      }
-      const results = await Promise.all(
-        batch.map(async ({ assetId, cacheKey }) => ({
-          assetId,
-          got: await cache.get(cacheKey, THUMB_PRESET_ID),
-        })),
-      )
-      let full = false
-      let slice = performance.now()
-      for (const { assetId, got } of results) {
-        if (performance.now() - slice >= FLUSH_MAX_MS) {
+      const read = stopped ? undefined : ready.shift()
+      if (read === undefined) {
+        if (stopped || reading === 0) {
+          break
+        }
+        await new Promise<void>((resolve) => {
+          wake = resolve
+        })
+        wake = undefined
+        // While the strip scrolls, stores run only at the start of a frame.
+        if (isFilmstripScrollQuiet()) {
           await nextSlice()
-          slice = performance.now()
         }
-        if (!current()) {
-          return
-        }
-        // Removed mid-read: drop the bytes.
-        if (!inflight.delete(assetId)) {
-          continue
-        }
-        if (!got.ok) {
-          bulkStats.missed += 1
-        } else if (!entries.has(assetId)) {
-          if (totalBytes + got.value.bytes.byteLength > byteBudget) {
-            full = true
-            break
-          }
-          storeCachedThumb(assetId, got.value)
-          bulkStats.hydrated += 1
-        }
+        slice = performance.now()
+        continue
       }
-      if (full) {
+      if (!storeBulkRead(inflight, read)) {
         break
       }
-      await nextSlice()
+      fill()
+      if (performance.now() - slice >= FLUSH_MAX_MS) {
+        await nextSlice()
+        slice = performance.now()
+      }
     }
   } catch {
     // DerivedCache unavailable: misses stay with the mount path.
   } finally {
-    // Ids left by the byte-budget stop or a throw; nothing reads them now.
+    stopped = true
+    // Ids left by the byte-budget stop or a failed read; nothing reads them now.
     inflight.clear()
     if (current()) {
       bulkStats.state = 'done'

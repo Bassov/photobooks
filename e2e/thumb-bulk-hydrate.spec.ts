@@ -15,6 +15,8 @@ import {
   applyCpuThrottling,
   browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
+  browserStartLoafScripts,
+  browserTakeLoafScripts,
 } from './perf/perfFixture'
 
 const COUNT = 400
@@ -54,71 +56,6 @@ async function pickOpfsPhotoFolder(page: Page): Promise<void> {
     { count: COUNT, base64 },
   )
   await page.getByTestId('film-add-folder').click()
-}
-
-interface LoafScriptRow {
-  start: number
-  blocking: number
-  scripts: {
-    url: string
-    fn: string
-    /** Char offset of `fn` in the (minified) bundle. */
-    pos: number
-    invoker: string
-    duration: number
-  }[]
-}
-
-type LoafScriptWindow = Window & {
-  __takeLoafScripts?: () => LoafScriptRow[]
-}
-
-/**
- * Live LoAF observer with per-script attribution (the perf module keeps only
- * timings). Not buffered: the throttled reload could fill the 200-entry
- * buffer before the scenario window opens.
- */
-function browserStartLoafScripts(): void {
-  interface ScriptTiming {
-    sourceURL?: string
-    sourceFunctionName?: string
-    sourceCharPosition?: number
-    invoker?: string
-    duration: number
-  }
-  interface LoafTiming extends PerformanceEntry {
-    blockingDuration?: number
-    scripts?: ScriptTiming[]
-  }
-  const rows: LoafScriptRow[] = []
-  const ingest = (entries: PerformanceEntryList) => {
-    for (const entry of entries as LoafTiming[]) {
-      rows.push({
-        start: Math.round(entry.startTime),
-        blocking: Math.round(entry.blockingDuration ?? 0),
-        scripts: (entry.scripts ?? []).map((script) => ({
-          url: script.sourceURL ?? '',
-          fn: script.sourceFunctionName ?? '',
-          pos: script.sourceCharPosition ?? -1,
-          invoker: script.invoker ?? '',
-          duration: Math.round(script.duration),
-        })),
-      })
-    }
-  }
-  const observer = new PerformanceObserver((list) => {
-    ingest(list.getEntries())
-  })
-  observer.observe({ type: 'long-animation-frame' })
-  ;(window as LoafScriptWindow).__takeLoafScripts = () => {
-    ingest(observer.takeRecords())
-    observer.disconnect()
-    return rows
-  }
-}
-
-function browserTakeLoafScripts(): LoafScriptRow[] {
-  return (window as LoafScriptWindow).__takeLoafScripts?.() ?? []
 }
 
 function thumbStats(page: Page) {
