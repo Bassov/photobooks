@@ -1240,6 +1240,19 @@ test.describe('library re-import async', () => {
       await expect(page.getByTestId('book-size')).toHaveText(/· saved$/, {
         timeout: 60_000,
       })
+      // The background warm lane re-checks every asset after import; a warm
+      // job still in flight at the clear would re-encode and publish a thumb.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              () =>
+                window.__photobooksThumbs?.getBackgroundWarmStatsForTests()
+                  .settledCount ?? -1,
+            ),
+          { timeout: 60_000 },
+        )
+        .toBeGreaterThanOrEqual(files.length)
 
       await page.evaluate(async () => {
         const api = window.__photobooksThumbs
