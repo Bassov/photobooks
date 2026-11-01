@@ -13,3 +13,7 @@
 3. Create → editor: Pages/Masters 92 × 26 in Inter 13 / 500; "Add folder…" Inter 12 / 500 ink.
 4. Pointer over the Layout section: captions ink; pointer on the top bar: captions muted.
 5. Library → Settings: nav "Library" Inter ink; back to the library.
+
+manual-qa (2026-11-01): harness problem on every scenario. The Welcome header intercepts the start-session click, then the preview server refuses connections (`ERR_CONNECTION_REFUSED`). This is not a product finding. `e2e/design-r10-chrome.spec.ts` covers each scenario: 1–2 in "M63: Create book rows…", 3 in "M58: Pages / Masters…", 4 in "M62: layout tabs and captions…", 5 in "M58: no Arial button…". It passes `--repeat-each=30` (120/120).
+
+ui-review (2026-11-01): one fix. "Add folder…" now uses ink at rest, so it got the kit Button `data-[disabled]:opacity-50` (`.film-add-folder[data-disabled]`). Otherwise pass: tokens only, focus rings unchanged (the base rule inherits only font and colour), and the e2e spec covers the empty (fresh book), happy, hover and walked states. No scrollport changed.

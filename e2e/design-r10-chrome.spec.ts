@@ -7,8 +7,9 @@ import { expect, test } from './fixtures/coverage'
 //
 // M58 buttons: no `<button>` on any walked step computes Arial or 13.3333px
 //     (the UA default). Pages / Masters: 92 × 26 at y 62, Inter 13px / 500,
-//     selected rgb(57, 55, 56), other rgb(83, 81, 82). Spread list labels
-//     (Cover, Endpaper, 1, 2–3): Inter 11px. "Add folder…": Inter 12px / 500,
+//     selected rgb(57, 55, 56), other rgb(83, 81, 82). Spread list item
+//     buttons (Cover, Endpaper, 1, 2–3) inherit the panel Inter 13px (their
+//     label spans set Inter 11px themselves). "Add folder…": Inter 12px / 500,
 //     rgb(57, 55, 56). Settings nav "Library": Inter 13px / 500,
 //     rgb(57, 55, 56).
 // M62 layout picker (editor-new-blank-book, editor-spread-1): "All" tab
