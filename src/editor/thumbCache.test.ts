@@ -1149,40 +1149,85 @@ describe('thumbCache', () => {
       await second
     })
 
-    it('reads nothing while the filmstrip scrolls, then resumes once it settles', async () => {
-      mockObjectUrls('paused')
+    /** Memory-cache reads settle on microtasks: spin until `done()`. */
+    async function settle(done: () => boolean): Promise<void> {
+      for (let i = 0; i < 100 && !done(); i += 1) {
+        await Promise.resolve()
+      }
+    }
+
+    it('waits a frame between batches while the filmstrip scrolls', async () => {
+      mockObjectUrls('paced')
       const { readIds } = await cachedGallery(10)
-      vi.useFakeTimers({ toFake: ['setTimeout', 'performance'] })
+      // A still clock keeps the scroll-quiet window open.
+      vi.useFakeTimers({ toFake: ['performance'] })
+      const rafQueue = queueRaf()
       noteFilmstripScroll()
 
       const pass = hydrateGalleryThumbs()
-      await vi.advanceTimersByTimeAsync(150)
-      expect(readIds()).toHaveLength(0)
+      await settle(() => rafQueue.length === 1)
+      expect(rafQueue).toHaveLength(1)
+      expect(readIds()).toHaveLength(8)
+      expect(getThumbBulkHydrateStatsForTests().hydrated).toBe(8)
+      rafQueue.shift()?.(0)
+      await settle(() => rafQueue.length === 1)
+      expect(rafQueue).toHaveLength(1)
+      expect(readIds()).toHaveLength(10)
       expect(getThumbBulkHydrateStatsForTests().state).toBe('running')
-      await vi.runAllTimersAsync()
+      rafQueue.shift()?.(0)
       await pass
 
-      expect(readIds()).toHaveLength(10)
       expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
         state: 'done',
         hydrated: 10,
       })
     })
 
-    it('reset while paused for a scroll reads nothing', async () => {
-      mockObjectUrls('reset-paused')
+    it('reset during the scroll frame wait reads no further batch', async () => {
+      mockObjectUrls('reset-frame')
       const { readIds } = await cachedGallery(10)
-      vi.useFakeTimers({ toFake: ['setTimeout', 'performance'] })
+      vi.useFakeTimers({ toFake: ['performance'] })
+      const rafQueue = queueRaf()
       noteFilmstripScroll()
 
       const pass = hydrateGalleryThumbs()
-      await vi.advanceTimersByTimeAsync(50)
+      await settle(() => rafQueue.length === 1)
+      expect(rafQueue).toHaveLength(1)
       resetThumbCache()
-      await vi.runAllTimersAsync()
+      rafQueue.shift()?.(0)
       await pass
 
-      expect(readIds()).toHaveLength(0)
+      expect(readIds()).toHaveLength(8)
       expect(getThumbBulkHydrateStatsForTests().state).toBe('idle')
+    })
+
+    it('while the filmstrip scrolls a store slice past FLUSH_MAX_MS waits a frame', async () => {
+      mockObjectUrls('frame-sliced')
+      await cachedGallery(8)
+      const rafQueue = queueRaf()
+      // Every clock read costs 1 ms: the batch outruns the 3 ms slice, and
+      // the 200 ms scroll-quiet window outlasts the batch.
+      let clock = 0
+      vi.spyOn(performance, 'now').mockImplementation(() => (clock += 1))
+      noteFilmstripScroll()
+
+      const pass = hydrateGalleryThumbs()
+      await settle(() => rafQueue.length === 1)
+      expect(rafQueue).toHaveLength(1)
+      const { hydrated } = getThumbBulkHydrateStatsForTests()
+      expect(hydrated).toBeGreaterThan(0)
+      expect(hydrated).toBeLessThan(8)
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        cb(0)
+        return 0
+      })
+      rafQueue.shift()?.(0)
+      await pass
+
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 8,
+      })
     })
 
     it('yields a task once a batch store passes the frame slice', async () => {
@@ -1194,10 +1239,8 @@ describe('thumbCache', () => {
       vi.spyOn(performance, 'now').mockImplementation(() => (clock += 1))
 
       const pass = hydrateGalleryThumbs()
-      // Reads settle on microtasks; the first timer is the pass's yield.
-      for (let i = 0; i < 100 && vi.getTimerCount() === 0; i += 1) {
-        await Promise.resolve()
-      }
+      // The first timer is the pass's yield.
+      await settle(() => vi.getTimerCount() > 0)
       expect(vi.getTimerCount()).toBe(1)
       const { hydrated } = getThumbBulkHydrateStatsForTests()
       expect(hydrated).toBeGreaterThan(0)

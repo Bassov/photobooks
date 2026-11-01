@@ -521,22 +521,24 @@ function nextBulkBatch(
   return batch
 }
 
-/** Resolves once the filmstrip scroll-quiet window has closed. */
-async function scrollSettled(): Promise<void> {
-  while (isFilmstripScrollQuiet()) {
-    await new Promise((resolve) => {
-      setTimeout(resolve, filmstripScrollQuietRemainingMs())
-    })
+/** Next store slice: the next frame while the strip scrolls, else the next task. */
+function nextSlice(): Promise<void> {
+  if (!isFilmstripScrollQuiet()) {
+    return yieldForPaint()
   }
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      resolve()
+    })
+  })
 }
 
 /**
  * Restore: read every gallery thumb from DerivedCache into the hot cache in
  * the background, nearest the filmstrip window first, so tiles mounted later
  * need no placeholder. Stops at the byte budget (never evicts); misses stay
- * with the mount path. Pauses while the strip scrolls (the mount path serves
- * the scrollport) and stores at most FLUSH_MAX_MS per frame. A new pass or
- * reset cancels this one.
+ * with the mount path. Stores run in FLUSH_MAX_MS slices, one per frame while
+ * the strip scrolls. A new pass or reset cancels this one.
  */
 export async function hydrateGalleryThumbs(): Promise<void> {
   bulkGeneration += 1
@@ -550,7 +552,6 @@ export async function hydrateGalleryThumbs(): Promise<void> {
   try {
     const cache = await getDerivedCache()
     for (;;) {
-      await scrollSettled()
       if (!current()) {
         return
       }
@@ -571,8 +572,7 @@ export async function hydrateGalleryThumbs(): Promise<void> {
       let slice = performance.now()
       for (const { assetId, got } of results) {
         if (performance.now() - slice >= FLUSH_MAX_MS) {
-          await yieldForPaint()
-          await scrollSettled()
+          await nextSlice()
           slice = performance.now()
         }
         if (!current()) {
@@ -596,7 +596,7 @@ export async function hydrateGalleryThumbs(): Promise<void> {
       if (full) {
         break
       }
-      await yieldForPaint()
+      await nextSlice()
     }
   } catch {
     // DerivedCache unavailable: misses stay with the mount path.
