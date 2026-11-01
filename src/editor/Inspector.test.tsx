@@ -493,6 +493,10 @@ describe('Inspector', () => {
         .getByTestId('crop-toggle')
         .classList.contains('pb-button--default'),
     ).toBe(true)
+    // Kit Done keeps shadow-xs (r12 M77).
+    expect(
+      screen.getByTestId('crop-toggle').classList.contains('fit-crop-toggle'),
+    ).toBe(true)
 
     fireEvent.click(screen.getByTestId('crop-toggle'))
     expect(getCropTarget()).toBeNull()

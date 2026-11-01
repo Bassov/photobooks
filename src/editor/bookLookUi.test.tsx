@@ -258,6 +258,8 @@ describe('Adjust / Caption / Frame style sections', () => {
     seed()
     render(<CaptionSection target={target} />)
     const input = screen.getByTestId<HTMLInputElement>('caption-input')
+    // Kit Section panel padding (r12 M76).
+    expect(input.parentElement?.className).toBe('px-4 pt-0.5 pb-3')
     fireEvent.change(input, { target: { value: 'Sea' } })
     expect(frameNow()?.caption).toBe('Sea')
     expect(input.value).toBe('Sea')
