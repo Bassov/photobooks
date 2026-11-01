@@ -643,6 +643,7 @@ describe('LibraryScreen', () => {
     render(<LibraryScreen />)
     await waitFor(() => {
       expect(screen.getByTestId('change-library')).toBeTruthy()
+      expect(screen.getByTestId('new-book')).toBeTruthy()
     })
     const change = screen.getByTestId('change-library')
     expect(
