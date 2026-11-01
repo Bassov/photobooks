@@ -31,8 +31,16 @@ export function pageLabelsFit(gapPx: number): boolean {
 export const NEW_SPREAD_PILL_HEIGHT_PX = 32
 
 /**
- * The pill is centred in the gap at a constant screen size and clears the
- * page numbers above it (and the same room below): a shorter gap hides it.
+ * Screen px the pill centre sits below the gap's centre: it is centred
+ * between the page-number line bottom and the next spread's top, i.e.
+ * 19 + (gap − 19) / 2 = gap / 2 + 19 / 2 under the page (Owner Must M56,
+ * round 8).
+ */
+export const NEW_SPREAD_PILL_SHIFT_PX = PAGE_LABELS_MIN_GAP_PX / 2
+
+/**
+ * The pill keeps a constant screen size and clears the page numbers above
+ * it (and the same room below): a shorter gap hides it.
  */
 export const NEW_SPREAD_PILL_MIN_GAP_PX =
   NEW_SPREAD_PILL_HEIGHT_PX + 2 * PAGE_LABELS_MIN_GAP_PX
