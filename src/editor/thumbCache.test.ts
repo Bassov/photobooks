@@ -534,6 +534,26 @@ describe('thumbCache', () => {
     expect(hasThumbData('a1')).toBe(false)
   })
 
+  it('ensureThumb skips the DerivedCache read when reset lands before the cache opens', async () => {
+    mockObjectUrls('blob:early-reset')
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    await cache.put(SAMPLE_HASH, 'thumb', {
+      bytes: bytes(3, 4, 5),
+      mimeType: 'image/png',
+    })
+    const get = vi.spyOn(cache, 'get')
+
+    ensureThumb('a1', SAMPLE_HASH)
+    resetThumbCache()
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+    }
+
+    expect(get).not.toHaveBeenCalled()
+    expect(hasThumbData('a1')).toBe(false)
+  })
+
   it('ensureThumb restores landscape aspect from hydrated JPEG', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'requestAnimationFrame'] })
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:aspect-thumb')
