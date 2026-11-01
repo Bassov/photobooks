@@ -357,11 +357,6 @@ For a spread or a photo the inspector SHALL open with one kit `InspectorShell` h
 - **WHEN** a spread is selected and no frame
 - **THEN** the header row reads "Spread" over "Pages … · N empty" and the inspector has no hide button
 
-#### Scenario: Collapse the Photo section
-
-- **WHEN** a filled frame is selected and the user presses the PHOTO title twice
-- **THEN** FIT & CROP first moves up to 37 px below PHOTO with the file name hidden, then the file name shows again
-
 ### Requirement: Saved layout templates
 
 "Save as template" (header `+` or the button under the tiles) SHALL save the selected spread's layout under an inline-editable name. Saved layouts SHALL persist per browser, be listed under "My templates" and after the builtins under "All", apply like builtins, and offer Rename / Duplicate / Delete from a tile menu.
