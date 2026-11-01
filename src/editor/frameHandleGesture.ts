@@ -72,14 +72,6 @@ function findFrame(spreadId: string, frameId: string): Frame | undefined {
     ?.frames.find((frame) => frame.id === frameId)
 }
 
-/** Keep the size tag in step with the live preview. */
-function writeSizeTag(button: HTMLElement, rect: Rect): void {
-  const tag = button.querySelector('[data-testid="frame-size-tag"]')
-  if (tag !== null) {
-    tag.textContent = `${String(round(rect.width))} × ${String(round(rect.height))} mm`
-  }
-}
-
 /**
  * Selection handles on the selected frame: resize (8 handles), rotate (round
  * handle), arrow-key nudges and click-empty deselect. Previews are direct DOM
@@ -106,7 +98,6 @@ export function installFrameHandleGesture(): () => void {
     style.width = current.saved.width
     style.height = current.saved.height
     style.transform = current.savedTransform
-    writeSizeTag(current.button, current.rect0)
   }
 
   const finish = (): Session | null => {
@@ -250,7 +241,6 @@ export function installFrameHandleGesture(): () => void {
     paintSnapLines(ctx, snapped?.lines ?? [])
     setSnapHint(snapped?.hint ?? null, ctx.spreadId)
     placeBox(current.button, ctx, current.rect)
-    writeSizeTag(current.button, current.rect)
   }
 
   function snapResizedRect(
