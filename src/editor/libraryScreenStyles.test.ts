@@ -26,10 +26,14 @@ describe('ensureLibraryScreenStyles', () => {
     ensureLibraryScreenStyles()
     const css =
       document.querySelector('style[data-pb-library]')?.textContent ?? ''
-    const rule = (sel: string) =>
-      new RegExp(`\\n${sel.replace(/\./g, '\\.')} \\{([^}]*)\\}`).exec(
-        css,
-      )?.[1] ?? ''
+    const rule = (sel: string) => {
+      const start = css.indexOf(`\n${sel} {`)
+      if (start < 0) {
+        return ''
+      }
+      const open = css.indexOf('{', start)
+      return css.slice(open + 1, css.indexOf('}', open))
+    }
     const family = "font-family: 'Lora Upright', var(--font-heading);"
     expect(rule('.pb-library-headline')).toContain('margin-bottom: 0;')
     expect(rule('.pb-library-headline')).toContain(family)
