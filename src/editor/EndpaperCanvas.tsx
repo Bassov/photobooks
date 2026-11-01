@@ -6,7 +6,7 @@ import {
 } from './bookStore'
 import { ASSET_DRAG_MIME } from './dropTargets'
 import type { EndpaperSide } from './endpaperSelection'
-import { useCoverPhotoUrl } from './useCoverPhotoUrl'
+import { useTierPreviewUrl } from './useTierPreviewUrl'
 import './EndpaperCanvas.css'
 
 function readBook() {
@@ -15,19 +15,23 @@ function readBook() {
 
 /**
  * Kit EndpaperSpread (uikit/src/sandbox/v7.tsx:78-85): two pastedown pages and
- * the gutter. A photo dropped from the filmstrip replaces the pattern.
+ * the gutter. A photo dropped from the filmstrip replaces the pattern. With
+ * `tierSlot` the photo upgrades to the working preview like the cover front;
+ * without it (spread-list row) it stays on the filmstrip thumb.
  */
 export function EndpaperCanvas({
   side,
   mini = false,
+  tierSlot,
 }: {
   side: EndpaperSide
   mini?: boolean
+  tierSlot?: string
 }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const { widthMm, heightMm } = book.settings.trim
   const assetId = book.endpapers[side].assetId
-  const url = useCoverPhotoUrl(assetId)
+  const { url, tier } = useTierPreviewUrl(assetId, tierSlot)
   const onDragOver = (event: DragEvent<HTMLElement>): void => {
     if (event.dataTransfer.types.includes(ASSET_DRAG_MIME)) {
       event.preventDefault()
@@ -46,6 +50,7 @@ export function EndpaperCanvas({
   const paper = (
     <div
       className="endpaper-page"
+      data-tier={tier}
       style={url === undefined ? undefined : { backgroundImage: `url(${url})` }}
     />
   )

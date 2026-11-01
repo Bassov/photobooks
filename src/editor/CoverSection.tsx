@@ -21,7 +21,7 @@ import {
 import { COVER_WRAP_MM, coverPanelPpi } from './coverLayout'
 import { SUB, fmtN } from './editorChromeTokens'
 import './CoverCanvas.css'
-import { useCoverPhotoUrl } from './useCoverPhotoUrl'
+import { useThumbUrl } from './useThumbUrl'
 
 function readBook() {
   return getBookStoreSnapshot().book
@@ -127,7 +127,7 @@ export function CoverSection() {
     () => readBook().cover.front.assetId,
     () => readBook().cover.front.assetId,
   )
-  const url = useCoverPhotoUrl(assetId)
+  const url = useThumbUrl(assetId)
   const name = useSyncExternalStore(
     subscribeBookStore,
     () =>

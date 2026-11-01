@@ -30,8 +30,8 @@ import { InspectorSlider, Swatches } from './InspectorControls'
 import { SpreadsPanel } from './SpreadsPanel'
 import { ASSET_DRAG_MIME } from './dropTargets'
 
-vi.mock('./useCoverPhotoUrl', () => ({
-  useCoverPhotoUrl: (assetId: string | undefined) =>
+vi.mock('./useThumbUrl', () => ({
+  useThumbUrl: (assetId: string | undefined) =>
     assetId === undefined ? undefined : `blob:${assetId}`,
 }))
 

@@ -12,7 +12,7 @@ import {
 } from './bookStore'
 import type { CropTarget } from './cropMode'
 import { SUB } from './editorChromeTokens'
-import { useCoverPhotoUrl } from './useCoverPhotoUrl'
+import { useThumbUrl } from './useThumbUrl'
 import './PhotoSection.css'
 
 /**
@@ -29,7 +29,7 @@ export function PhotoSection({ target }: { target: CropTarget }) {
     .find((spread) => spread.id === target.spreadId)
     ?.frames.find((item) => item.id === target.frameId)
   const assetId = frame?.assetId
-  const url = useCoverPhotoUrl(assetId)
+  const url = useThumbUrl(assetId)
   if (frame === undefined) {
     return null
   }

@@ -1,4 +1,5 @@
 import type { Book } from '../schema'
+import { setCoverPhoto, setEndpaperPhoto } from '../cover'
 import { addToGallery } from '../ops/gallery'
 import { placeAsset } from '../ops/place'
 import { addSpread } from '../ops/spreads'
@@ -29,6 +30,9 @@ export function makePainterFixture(): PainterFixture {
     assets: {},
   })
   book = addToGallery(book, PAINTER_ASSET_IDS)
+  // Every canvas photo surface (cover front, endpapers) carries a photo too.
+  book = setCoverPhoto(book, 'painter-a')
+  book = setEndpaperPhoto(book, 'front', 'painter-b')
 
   for (let index = 0; index < PAINTER_SPREAD_COUNT; index += 1) {
     book = addSpread(book, { id: `painter-spread-${String(index)}` })
