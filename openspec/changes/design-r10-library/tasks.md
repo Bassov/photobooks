@@ -11,3 +11,7 @@
 1. 1440 × 900 Welcome: text block centred like the kit; credit top-right at 24 px.
 2. Empty library: example book + text column; Create book opens the dialog.
 3. Library with one book → Settings → back to Library.
+
+`pnpm agent manual-qa --change design-r10-library` (2026-11-01):
+
+- 1–3: expected pass / observed locator.click timeout (30s) on getByTestId('start-session'): the welcome `<header>` intercepts the click (harness problem, not a product mismatch). Covered by `e2e/design-r10-library.spec.ts` (M65 welcome, M64 empty and one-book library, M66 settings → back; 120 passed at repeat-each=30) and `e2e/library-screens.spec.ts`.
