@@ -684,13 +684,21 @@ test.describe('frame-budget gates', () => {
       .poll(async () => percentOf(await readZoomPercent(page)))
       .toBeGreaterThanOrEqual(400)
     await expect.poll(async () => gestureLabel(page)).toBe('')
-    await expect
-      .poll(async () => tierCovers(await readFilledTier(page)), {
-        timeout: 30_000,
-      })
-      .toBe(true)
+    // Failing polls print the samples (tier / longEdge / src) of the surface.
+    const covers = async (selector: string) => {
+      const samples = await readTiers(page, selector)
+      return tierCovers(samples) || samples
+    }
+    const settled = { timeout: 30_000 }
+    await expect.poll(() => covers(FRAME_IMAGE), settled).toBe(true)
     await assertDocumentFitsViewport(page)
     await assertNamedScrollport(page, 'pasteboard-scroll', { axis: 'vertical' })
+
+    // Cover front and both endpaper pages are canvas photo surfaces too.
+    await page.getByTestId('cover-list-item').click()
+    await expect.poll(() => covers(COVER_FRONT), settled).toBe(true)
+    await page.getByTestId('endpaper-list-item-front').click()
+    await expect.poll(() => covers(ENDPAPER_PAGES), settled).toBe(true)
   })
 
   test.describe('continuous zoom settle remount (stabilized)', () => {
@@ -715,12 +723,8 @@ test.describe('frame-budget gates', () => {
       await expect
         .poll(
           async () => {
-            const sample = await readFilledTier(page)
-            return (
-              sample.tier === 1280 &&
-              sample.src.length > 0 &&
-              tierCovers(sample)
-            )
+            const first = (await readTiers(page, FRAME_IMAGE)).slice(0, 1)
+            return first[0]?.tier === 1280 && tierCovers(first)
           },
           { timeout: 30_000 },
         )
@@ -778,12 +782,8 @@ test.describe('frame-budget gates', () => {
       await expect
         .poll(
           async () => {
-            const sample = await readFilledTier(page)
-            return (
-              sample.tier === 1280 &&
-              sample.src.length > 0 &&
-              tierCovers(sample)
-            )
+            const first = (await readTiers(page, FRAME_IMAGE)).slice(0, 1)
+            return first[0]?.tier === 1280 && tierCovers(first)
           },
           { timeout: 30_000 },
         )
@@ -1048,29 +1048,32 @@ interface TierSample {
   src: string
 }
 
-async function readFilledTier(page: Page): Promise<TierSample> {
-  return page.evaluate(() => {
-    const image = document.querySelector('[data-testid="spread-frame-image"]')
-    if (!(image instanceof HTMLImageElement)) {
-      return { tier: null, longEdge: 0, src: '' }
-    }
-    const box = image.getBoundingClientRect()
-    const raw = image.dataset.tier
-    const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1
-    return {
-      tier: raw === undefined || raw === '' ? null : Number(raw),
-      longEdge: Math.max(box.width, box.height) * ratio,
-      src: image.getAttribute('src') ?? '',
-    }
-  })
+const FRAME_IMAGE = '[data-testid="spread-frame-image"]'
+const COVER_FRONT = '[data-testid="cover-front"]'
+const ENDPAPER_PAGES = '[data-testid="canvas-endpaper"] .endpaper-page'
+
+/** One sample per photo surface: `<img>` src, else its background image. */
+async function readTiers(page: Page, selector: string): Promise<TierSample[]> {
+  return page.locator(selector).evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect()
+      const raw = node.getAttribute('data-tier')
+      const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1
+      return {
+        tier: raw === null || raw === '' ? null : Number(raw),
+        longEdge: Math.max(box.width, box.height) * ratio,
+        src: node.getAttribute('src') ?? getComputedStyle(node).backgroundImage,
+      }
+    }),
+  )
 }
 
-function tierCovers(sample: TierSample): boolean {
-  if (sample.tier === null || !(sample.src.length > 0)) {
-    return false
-  }
-  return sample.tier >= sample.longEdge || sample.tier === 1280
-}
+const tierCovers = (samples: TierSample[]): boolean =>
+  samples.length > 0 &&
+  samples.every(
+    ({ tier, longEdge, src }) =>
+      tier !== null && src.length > 0 && (tier >= longEdge || tier === 1280),
+  )
 
 interface AnchorSample {
   /** Viewport centre in spread-relative units (kit: the point under the anchor). */

@@ -7,7 +7,7 @@ import {
 import type { EndpaperSide } from './endpaperSelection'
 import { FIELD, SUB, T } from './editorChromeTokens'
 import { ToggleSwitch } from './InspectorControls'
-import { useCoverPhotoUrl } from './useCoverPhotoUrl'
+import { useThumbUrl } from './useThumbUrl'
 import './EndpaperCanvas.css'
 
 function readBook() {
@@ -18,7 +18,7 @@ function readBook() {
 export function EndpaperSection({ side }: { side: EndpaperSide }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const assetId = book.endpapers[side].assetId
-  const url = useCoverPhotoUrl(assetId)
+  const url = useThumbUrl(assetId)
   const { same } = book.settings.endpapers
   return (
     <section data-testid="insp-endpaper" aria-label="Endpaper">

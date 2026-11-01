@@ -4,10 +4,11 @@ import { getThumbUrl, subscribeThumb } from './thumbCache'
 const noUnsubscribe = (): void => undefined
 const subscribeNothing = (): (() => void) => noUnsubscribe
 
-/** Filmstrip thumb URL of the cover photo; undefined until it is published. */
-export function useCoverPhotoUrl(
-  assetId: string | undefined,
-): string | undefined {
+/**
+ * Filmstrip thumb URL of a photo; undefined until it is published. Inspector
+ * thumbnails only: canvas surfaces go through `useTierPreviewUrl`.
+ */
+export function useThumbUrl(assetId: string | undefined): string | undefined {
   return useSyncExternalStore(
     assetId === undefined
       ? subscribeNothing
