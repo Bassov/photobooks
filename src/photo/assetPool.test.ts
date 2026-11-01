@@ -590,6 +590,169 @@ describe('assetPool', () => {
     expect(getQueuedDecodeAssetIds()).toContain('scroll-me')
   })
 
+  describe('noPoolRetry', () => {
+    const jpegFile = (): File =>
+      new File([new Uint8Array([1])], 'own.jpg', { type: 'image/jpeg' })
+
+    it('a queued job leaving now registers no retry and stays gone on return', async () => {
+      hangWorker()
+      warmAssetPool()
+      const holders = Array.from(
+        { length: DECODE_POOL_CAP },
+        (_, i) => `hold-${String(i)}`,
+      )
+      setVisibleAssetIds([...holders, 'own', 'pool'])
+      for (const id of holders) {
+        void processAsset({
+          assetId: id,
+          file: jpegFile(),
+          priority: 'visible',
+        })
+      }
+      const own = processAsset({
+        assetId: 'own',
+        file: jpegFile(),
+        priority: 'visible',
+        noPoolRetry: true,
+      })
+      const pool = processAsset({
+        assetId: 'pool',
+        file: jpegFile(),
+        priority: 'visible',
+      })
+      setVisibleAssetIds(holders)
+      await expect(own).rejects.toMatchObject({ name: 'AbortError' })
+      await expect(pool).rejects.toMatchObject({ name: 'AbortError' })
+      expect(getPendingRetryAssetIdsForTests()).toEqual(['pool'])
+
+      setVisibleAssetIds([...holders, 'own', 'pool'])
+      expect(getQueuedDecodeAssetIds()).toContain('pool')
+      expect(getQueuedDecodeAssetIds()).not.toContain('own')
+    })
+
+    it('an in-flight job aborted mid-decode registers no retry', async () => {
+      hangWorker()
+      warmAssetPool()
+      setVisibleAssetIds(['own', 'pool'])
+      const controller = new AbortController()
+      const own = processAsset({
+        assetId: 'own',
+        file: jpegFile(),
+        priority: 'visible',
+        signal: controller.signal,
+        noPoolRetry: true,
+      })
+      const pool = processAsset({
+        assetId: 'pool',
+        file: jpegFile(),
+        priority: 'visible',
+        signal: controller.signal,
+      })
+      expect(getQueuedDecodeAssetIds()).toEqual([])
+      controller.abort()
+      await expect(own).rejects.toMatchObject({ name: 'AbortError' })
+      await expect(pool).rejects.toMatchObject({ name: 'AbortError' })
+      expect(getPendingRetryAssetIdsForTests()).toEqual(['pool'])
+    })
+
+    it('a queued job aborted before it starts registers no retry', async () => {
+      mockWorkerSuccess({
+        ok: true,
+        name: 'own.jpg',
+        mimeType: 'image/jpeg',
+        byteLength: 1,
+        width: 1,
+        height: 1,
+        correctedWidth: 1,
+        correctedHeight: 1,
+        orientation: 1,
+        previewBuffer: new Uint8Array([1]).buffer,
+        previewMimeType: 'image/jpeg',
+      })
+      warmAssetPool()
+      const holders = Array.from(
+        { length: DECODE_POOL_CAP },
+        (_, i) => `hold-${String(i)}`,
+      )
+      setVisibleAssetIds([...holders, 'own', 'pool'])
+      const held = holders.map((id) =>
+        processAsset({ assetId: id, file: jpegFile(), priority: 'visible' }),
+      )
+      const controller = new AbortController()
+      const own = processAsset({
+        assetId: 'own',
+        file: jpegFile(),
+        priority: 'visible',
+        signal: controller.signal,
+        noPoolRetry: true,
+      })
+      const pool = processAsset({
+        assetId: 'pool',
+        file: jpegFile(),
+        priority: 'visible',
+        signal: controller.signal,
+      })
+      expect(getQueuedDecodeAssetIds()).toEqual(
+        expect.arrayContaining(['own', 'pool']),
+      )
+      controller.abort()
+      await Promise.all(held)
+      await expect(own).rejects.toMatchObject({ name: 'AbortError' })
+      await expect(pool).rejects.toMatchObject({ name: 'AbortError' })
+      expect(getPendingRetryAssetIdsForTests()).toEqual(['pool'])
+    })
+
+    it('an already-aborted signal registers no retry', async () => {
+      hangWorker()
+      const controller = new AbortController()
+      controller.abort()
+      const own = processAsset({
+        assetId: 'own',
+        file: jpegFile(),
+        signal: controller.signal,
+        noPoolRetry: true,
+      })
+      const pool = processAsset({
+        assetId: 'pool',
+        file: jpegFile(),
+        signal: controller.signal,
+      })
+      await expect(own).rejects.toMatchObject({ name: 'AbortError' })
+      await expect(pool).rejects.toMatchObject({ name: 'AbortError' })
+      expect(getPendingRetryAssetIdsForTests()).toEqual(['pool'])
+    })
+
+    it('a deferred off-now JPEG keeps the flag once it enters now', async () => {
+      hangWorker()
+      warmAssetPool()
+      // Busy slots keep `own` queued: an in-flight thumb survives leave-now.
+      const holders = Array.from(
+        { length: DECODE_POOL_CAP },
+        (_, i) => `hold-${String(i)}`,
+      )
+      setVisibleAssetIds(holders)
+      for (const id of holders) {
+        void processAsset({
+          assetId: id,
+          file: jpegFile(),
+          priority: 'visible',
+        })
+      }
+      const own = processAsset({
+        assetId: 'own',
+        file: jpegFile(),
+        noPoolRetry: true,
+      })
+      expect(getDeferredLazyAssetIds()).toEqual(['own'])
+      setVisibleAssetIds([...holders, 'own'])
+      expect(getDeferredLazyAssetIds()).toEqual([])
+      expect(getQueuedDecodeAssetIds()).toContain('own')
+      setVisibleAssetIds(holders)
+      await expect(own).rejects.toMatchObject({ name: 'AbortError' })
+      expect(getPendingRetryAssetIdsForTests()).toEqual([])
+    })
+  })
+
   it('noteDecodePressure lowers effective concurrency via backoff', () => {
     expect(decodeWorkerCount(8)).toBe(4)
     expect(decodeWorkerCount(9, { importActive: true })).toBe(DECODE_POOL_CAP)
