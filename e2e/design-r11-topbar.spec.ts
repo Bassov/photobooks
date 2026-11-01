@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { openLibraryBook } from './fixtures/openLibraryBook'
 
@@ -127,6 +128,7 @@ test.describe('design-r11-topbar M69', () => {
     const bar = await box(page.getByTestId('editor-bar'))
     near(bar.y, 0, 'bar y')
     near(bar.height, KIT.barHeight, 'bar height')
+    await assertDocumentFitsViewport(page)
 
     const library = await box(page.getByTestId('go-library'))
     near(library.x, KIT.libraryX, 'library x')
@@ -247,5 +249,6 @@ test.describe('design-r11-topbar M69', () => {
       KIT.barHeight,
       'bar height',
     )
+    await assertDocumentFitsViewport(page)
   })
 })
