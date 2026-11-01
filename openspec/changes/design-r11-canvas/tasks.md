@@ -1,9 +1,9 @@
 ## Implementation
 
-- [ ] 1. M73: canvas spine fold (3 % kit gradient, world-scaled) replaces the 1 px cut; thumbs keep the hairline.
-- [ ] 2. M74: `--cover-shadow-mini` on the list Cover / Endpaper minis.
-- [ ] 3. M75: cover title / spine / back cqw sizes and weight 400, upright `Lora Cover` alias, kit label cell.
-- [ ] 4. e2e `design-r11-canvas.spec.ts` with kit values; r7 M51 fold width updated (Owner design change, round 11, M73); spread-view spec delta; `docs/design.md`.
+- [x] 1. M73: canvas spine fold (3 % kit gradient, world-scaled) replaces the 1 px cut; thumbs keep the hairline.
+- [x] 2. M74: `--cover-shadow-mini` on the list Cover / Endpaper minis.
+- [x] 3. M75: cover title / spine / back cqw sizes and weight 400, upright `Lora Cover` alias, kit label cell.
+- [x] 4. e2e `design-r11-canvas.spec.ts` with kit values; r7 M51 fold width updated (Owner design change, round 11, M73); spread-view spec delta; `docs/design.md`.
 
 ## Manual test scenarios
 
