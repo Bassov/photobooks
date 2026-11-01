@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r12-inspector: Photo inspector field boxes, Caption offset and Crop "Done" button match the kit
+Status: done
 
 ## Scope
 
