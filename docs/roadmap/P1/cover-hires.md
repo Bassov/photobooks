@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: /next-roadmap-item cover-hires
+Status: done
 
 ## Scope
 
