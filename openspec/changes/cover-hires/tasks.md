@@ -9,3 +9,7 @@
 
 1. Drop a large photo on the cover: it sharpens like a page frame with the same photo.
 2. Back to the library: the book tile cover is sharp (not the thumb).
+
+manual-qa (`pnpm agent manual-qa --change cover-hires`): harness problem for both scenarios: `start-session` click intercepted by the welcome header (`locator.click: Timeout 30000ms exceeded`). Product behavior is locked by `e2e/cover-hires.spec.ts` (cover 1280 = page frame 1280; library tile 1280), green on this branch.
+
+ui-review: no findings (image source only; no tokens, controls, states or scrollports changed; empty front plain in `CoverCanvas.test.tsx`).
