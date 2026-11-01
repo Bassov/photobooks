@@ -5,7 +5,7 @@
   justify-content: center;
   gap: calc(var(--spacing) * 1.5);
   margin: 0;
-  border: 1px solid transparent;
+  border: 0 solid transparent; /* kit box model (r11 M70): no border */
   border-radius: var(--radius-md);
   font-family: var(--font-ui);
   font-weight: 500;
@@ -21,15 +21,16 @@
   outline: none;
 }
 
+/* Kit sizes md px-4 / sm px-3 (uikit button.tsx). */
 .pb-button--md {
   height: calc(var(--spacing) * 9);
-  padding: 0 calc(var(--spacing) * 3.5);
+  padding: 0 calc(var(--spacing) * 4);
   font-size: var(--text-sm);
 }
 
 .pb-button--sm {
   height: calc(var(--spacing) * 8);
-  padding: 0 calc(var(--spacing) * 2.5);
+  padding: 0 calc(var(--spacing) * 3);
   font-size: var(--text-sm);
 }
 
@@ -42,10 +43,10 @@
   background: color-mix(in srgb, var(--primary) 90%, var(--foreground));
 }
 
+/* Kit outline + shadow-xs (90° turns, Crop, Change library folder…). */
 .pb-button--secondary {
   color: var(--foreground);
   background: var(--secondary);
-  border-color: var(--border);
   box-shadow: var(--shadow-xs);
 }
 
@@ -97,16 +98,10 @@
 .pb-button[data-pending] {
   color: var(--muted-foreground);
   background: var(--muted);
-  border-color: var(--border);
   box-shadow: none;
   cursor: not-allowed;
   pointer-events: none;
   transform: none;
-}
-
-.pb-button--ghost[data-disabled],
-.pb-button--outline[data-disabled] {
-  border-color: transparent;
 }
 
 /* Ghost stays unboxed when disabled (kit: dimmed only). */

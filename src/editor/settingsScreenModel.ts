@@ -7,7 +7,7 @@ export const SETTINGS_SECTIONS: readonly {
   icon: IconName
 }[] = [{ id: 'library', label: 'Library', icon: 'hardDrive' }]
 
-/** The single visible section is always the current one. */
+/** The single visible section is always the current one (kit `bg-accent`, r11 M71). */
 export function settingsNavActiveClass(): string {
-  return 'bg-[#CACACA] font-medium'
+  return 'bg-accent font-medium'
 }

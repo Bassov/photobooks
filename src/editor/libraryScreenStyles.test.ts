@@ -55,7 +55,16 @@ describe('ensureLibraryScreenStyles', () => {
       /\.pb-library \.pb-button\.pb-lib-create \{\s*margin-top: calc\(var\(--spacing\) \* 8\);/,
     )
     expect(css).toMatch(
-      /\.pb-button\.pb-settings-back \{\s*border-width: 0;\s*gap: calc\(var\(--spacing\) \* 1\);\s*padding-left: calc\(var\(--spacing\) \* 1\.5\);\s*padding-right: calc\(var\(--spacing\) \* 2\.5\);\s*\}/,
+      /\.pb-button\.pb-settings-back \{\s*gap: calc\(var\(--spacing\) \* 1\);\s*padding-left: calc\(var\(--spacing\) \* 1\.5\);\s*padding-right: calc\(var\(--spacing\) \* 2\.5\);\s*color: var\(--foreground\);\s*\}/,
+    )
+  })
+
+  it('gives the library bar folder action the kit 24 px pill (round 11, M71)', () => {
+    ensureLibraryScreenStyles()
+    const css =
+      document.querySelector('style[data-pb-library]')?.textContent ?? ''
+    expect(css).toMatch(
+      /\.pb-button\.pb-lib-change \{\s*height: calc\(var\(--spacing\) \* 6\);\s*border-radius: var\(--radius-full\);\s*padding-inline: calc\(var\(--spacing\) \* 2\.5\);\s*\}/,
     )
   })
 

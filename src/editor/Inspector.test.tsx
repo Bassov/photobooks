@@ -478,6 +478,8 @@ describe('Inspector', () => {
     expect(screen.getByText('Fit & crop')).toBeTruthy()
     const toggle = screen.getByTestId('crop-toggle')
     expect(toggle.textContent).toBe('Crop')
+    // Kit inspector.tsx:139 outline + shadow-xs = app `secondary` (r11 M70).
+    expect(toggle.classList.contains('pb-button--secondary')).toBe(true)
     expect(getCropTarget()).toBeNull()
 
     fireEvent.click(toggle)
@@ -486,6 +488,11 @@ describe('Inspector', () => {
       frameId: 'frame-1',
     })
     expect(screen.getByTestId('crop-toggle').textContent).toBe('Done')
+    expect(
+      screen
+        .getByTestId('crop-toggle')
+        .classList.contains('pb-button--default'),
+    ).toBe(true)
 
     fireEvent.click(screen.getByTestId('crop-toggle'))
     expect(getCropTarget()).toBeNull()

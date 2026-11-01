@@ -11,6 +11,6 @@ describe('settingsScreenModel', () => {
   })
 
   it('returns the active nav class', () => {
-    expect(settingsNavActiveClass()).toBe('bg-[#CACACA] font-medium')
+    expect(settingsNavActiveClass()).toBe('bg-accent font-medium')
   })
 })

@@ -40,7 +40,8 @@ export function SettingsScreen({
       className="grid h-full min-h-0 grid-cols-[220px_1fr] bg-background"
       data-testid="settings"
     >
-      <nav className="flex flex-col gap-0.5 bg-chrome p-3">
+      {/* Kit settings.tsx:28 invisible 1 px `border-r` as padding: rows 195 wide, no rule. */}
+      <nav className="flex flex-col gap-0.5 bg-chrome p-3 pr-[13px]">
         <div className="mb-3 flex items-center gap-2 px-2 pt-1">
           <div className="grid size-6 place-items-center rounded-md bg-field text-foreground">
             <Icon name="bookOpen" size={14} className="size-3" />
@@ -55,7 +56,7 @@ export function SettingsScreen({
               aria-current="page"
               data-testid={`settings-nav-${section.id}`}
               className={cn(
-                'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
+                'flex items-center gap-2 rounded-md border-0 px-2 py-2 text-left text-sm leading-[1.45] shadow-none outline-hidden hover:bg-[#D7D7D7] focus-visible:bg-[#D7D7D7]',
                 settingsNavActiveClass(),
               )}
             >

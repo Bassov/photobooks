@@ -75,8 +75,8 @@ function ReadOnlyField({
 }) {
   return (
     <div className="insp-size-field" data-testid={testId}>
-      <span className="text-muted-foreground">{label}</span>
-      <span className="flex-1 tabular-nums">{value}</span>
+      <span className="text-center text-muted-foreground">{label}</span>
+      <span className="flex-1 font-mono tabular-nums">{value}</span>
       <span className="text-muted-foreground">{unit}</span>
     </div>
   )
@@ -117,6 +117,7 @@ function SizeField({
       <span className="text-muted-foreground">{label}</span>
       <input
         type="number"
+        className="font-mono"
         aria-label={`${axis === 'widthMm' ? 'Width' : 'Height'} (${unit})`}
         data-testid={axis === 'widthMm' ? 'size-w' : 'size-h'}
         step={unit === 'mm' ? 1 : 0.1}

@@ -32,6 +32,13 @@ const STYLE_TEXT = `
   font-size: var(--text-base);
   box-shadow: var(--shadow-ink-sm);
 }
+/* Kit library bar "Change library folder…" (r11 M71): 24 px full pill, px-2.5;
+   the unlayered .pb-button--sm box beats the h-6 / rounded-full utilities. */
+.pb-button.pb-lib-change {
+  height: calc(var(--spacing) * 6);
+  border-radius: var(--radius-full);
+  padding-inline: calc(var(--spacing) * 2.5);
+}
 .pb-button.pb-lib-change[data-hovered] {
   background: var(--field);
   color: var(--foreground);
@@ -147,12 +154,12 @@ const STYLE_TEXT = `
   .pb-lib-floor { transition: none; }
 }
 /* kit demo-parts/settings.tsx:84 back button box (h-8 gap-1 pl-1.5 pr-2.5);
-   .pb-button gap/padding/1px border beat the utilities. Ink/font: design-r10-chrome. */
+   .pb-button gap/padding beat the utilities. Font: design-r10-chrome; kit ink (r11 M71). */
 .pb-button.pb-settings-back {
-  border-width: 0;
   gap: calc(var(--spacing) * 1);
   padding-left: calc(var(--spacing) * 1.5);
   padding-right: calc(var(--spacing) * 2.5);
+  color: var(--foreground);
 }
 `
 
