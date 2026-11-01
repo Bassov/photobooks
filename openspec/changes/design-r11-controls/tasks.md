@@ -11,3 +11,7 @@
 2. Create book dialog ("Lake trip"): Cancel / Create book padding 16; title input Inter 13.
 3. Book settings, Cover, Photo inspector (+ Crop): inputs Inter (W/H mono), 90° / Crop shadow, Flip flat.
 4. Settings from library: ink "Library" crumb, selected nav row #CFCFCF 195 px.
+
+`pnpm agent manual-qa --change design-r11-controls` (2026-11-01):
+
+- 1–4: problem (harness). `start-session` click times out: the header in `welcome-screen` intercepts it, so no scenario was reached. These are covered by e2e instead, `e2e/design-r11-controls.spec.ts` 5/5 (×30 = 150/150): scenarios 1–2 at :166, scenario 3 at :302 / :341 / :359, scenario 4 at :238.
