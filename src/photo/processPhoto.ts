@@ -5,6 +5,7 @@ import { normalizeOrientation } from './normalizeOrientation'
 import { PREVIEW_MAX_EDGE, THUMB_MAX_EDGE } from './photoEdges'
 import { readExifImageSize } from './readExifImageSize'
 import { readExifOrientation } from './readExifOrientation'
+import { decodeJpegScaled } from './scaledDecode'
 import type { ExifOrientation } from './types'
 
 /** WebP encode quality for disposable thumb + working preview tiers. */
@@ -114,14 +115,22 @@ function applyOrientationTransform(
   ctx.translate(-width / 2, -height / 2)
 }
 
+/** Decoded pixels to draw; `orientation` is what is still to apply by hand. */
+interface PreviewSource {
+  image: ImageBitmap | VideoFrame
+  width: number
+  height: number
+  orientation: ExifOrientation
+}
+
 async function buildPreview(
-  bitmap: ImageBitmap,
-  orientation: ExifOrientation,
+  source: PreviewSource,
   maxEdge: number,
   cover: boolean,
 ): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
-  const rawW = bitmap.width
-  const rawH = bitmap.height
+  const { image, orientation } = source
+  const rawW = source.width
+  const rawH = source.height
   const { correctedW, correctedH } = normalizeOrientation(
     orientation,
     rawW,
@@ -141,7 +150,7 @@ async function buildPreview(
 
   ctx.scale(scale, scale)
   applyOrientationTransform(ctx, orientation, rawW, rawH)
-  ctx.drawImage(bitmap, 0, 0)
+  ctx.drawImage(image, 0, 0)
 
   const blob = await canvas.convertToBlob({
     type: 'image/webp',
@@ -153,8 +162,106 @@ async function buildPreview(
   }
 }
 
+type EncodedTiers = Pick<
+  PhotoWorkerSuccess,
+  'previewBuffer' | 'previewMimeType' | 'workingBuffer' | 'workingMimeType'
+>
+
+/** One decoded source → thumb (or `maxEdge` preview), plus 1280 when dual. */
+async function encodeTiers(
+  source: PreviewSource,
+  dualTiers: boolean,
+  maxEdge: number,
+  cover: boolean,
+): Promise<EncodedTiers> {
+  if (!dualTiers) {
+    const preview = await buildPreview(source, maxEdge, cover)
+    return { previewBuffer: preview.buffer, previewMimeType: preview.mimeType }
+  }
+  const working = await buildPreview(source, PREVIEW_MAX_EDGE, cover)
+  const thumb = await buildPreview(source, THUMB_MAX_EDGE, cover)
+  return {
+    previewBuffer: thumb.buffer,
+    previewMimeType: thumb.mimeType,
+    workingBuffer: working.buffer,
+    workingMimeType: working.mimeType,
+  }
+}
+
+/**
+ * JPEG via ImageDecoder at reduced scale (no full-file read unless
+ * `returnSource`); undefined when that path does not apply.
+ */
+async function processScaledJpeg(
+  request: PhotoWorkerRequest,
+  dualTiers: boolean,
+  maxEdge: number,
+  cover: boolean,
+): Promise<PhotoWorkerSuccess | undefined> {
+  const scaled = await decodeJpegScaled(request.file, maxEdge)
+  if (scaled === undefined) {
+    return undefined
+  }
+  const { frame, width, height, orientation } = scaled
+  try {
+    const tiers = await encodeTiers(
+      {
+        image: frame,
+        width: frame.displayWidth,
+        height: frame.displayHeight,
+        orientation: scaled.residualOrientation,
+      },
+      dualTiers,
+      maxEdge,
+      cover,
+    )
+    const transform = normalizeOrientation(orientation, width, height)
+    const success: PhotoWorkerSuccess = {
+      id: request.id,
+      ok: true,
+      name: request.file.name,
+      mimeType: request.file.type,
+      byteLength: request.file.size,
+      width,
+      height,
+      correctedWidth: transform.correctedW,
+      correctedHeight: transform.correctedH,
+      orientation,
+      ...tiers,
+    }
+    if (request.returnSource === true) {
+      success.sourceBuffer = await request.file.arrayBuffer()
+    }
+    return success
+  } finally {
+    frame.close()
+  }
+}
+
 export async function processPhotoRequest(
   request: PhotoWorkerRequest,
+): Promise<PhotoWorkerResponse> {
+  const dualTiers = request.dualTiers === true
+  const maxEdge = dualTiers
+    ? PREVIEW_MAX_EDGE
+    : (request.maxEdge ?? PREVIEW_MAX_EDGE)
+  const cover = request.cover === true
+  try {
+    const scaled = await processScaledJpeg(request, dualTiers, maxEdge, cover)
+    if (scaled !== undefined) {
+      return scaled
+    }
+  } catch {
+    // ImageDecoder failed: the createImageBitmap path decodes or reports it.
+  }
+  return processWithBitmap(request, dualTiers, maxEdge, cover)
+}
+
+async function processWithBitmap(
+  request: PhotoWorkerRequest,
+  dualTiers: boolean,
+  maxEdge: number,
+  cover: boolean,
 ): Promise<PhotoWorkerResponse> {
   let buffer: ArrayBuffer | undefined
   try {
@@ -184,11 +291,6 @@ export async function processPhotoRequest(
     const blob = new Blob([new Uint8Array(decodeBuffer)], {
       type: mimeType,
     })
-    const dualTiers = request.dualTiers === true
-    const maxEdge = dualTiers
-      ? PREVIEW_MAX_EDGE
-      : (request.maxEdge ?? PREVIEW_MAX_EDGE)
-    const cover = request.cover === true
     const knownWidth = sof?.width ?? parsed.ImageWidth ?? parsed.ExifImageWidth
     const knownHeight =
       sof?.height ?? parsed.ImageHeight ?? parsed.ExifImageHeight
@@ -212,52 +314,29 @@ export async function processPhotoRequest(
       const height = knownHeight ?? bitmap.height
 
       const transform = normalizeOrientation(orientation, width, height)
-      let success: PhotoWorkerSuccess
-      if (dualTiers) {
-        const working = await buildPreview(
-          bitmap,
+      const tiers = await encodeTiers(
+        {
+          image: bitmap,
+          width: bitmap.width,
+          height: bitmap.height,
           orientation,
-          PREVIEW_MAX_EDGE,
-          cover,
-        )
-        const thumb = await buildPreview(
-          bitmap,
-          orientation,
-          THUMB_MAX_EDGE,
-          cover,
-        )
-        success = {
-          id: request.id,
-          ok: true,
-          name,
-          mimeType,
-          byteLength,
-          width,
-          height,
-          correctedWidth: transform.correctedW,
-          correctedHeight: transform.correctedH,
-          orientation,
-          previewBuffer: thumb.buffer,
-          previewMimeType: thumb.mimeType,
-          workingBuffer: working.buffer,
-          workingMimeType: working.mimeType,
-        }
-      } else {
-        const preview = await buildPreview(bitmap, orientation, maxEdge, cover)
-        success = {
-          id: request.id,
-          ok: true,
-          name,
-          mimeType,
-          byteLength,
-          width,
-          height,
-          correctedWidth: transform.correctedW,
-          correctedHeight: transform.correctedH,
-          orientation,
-          previewBuffer: preview.buffer,
-          previewMimeType: preview.mimeType,
-        }
+        },
+        dualTiers,
+        maxEdge,
+        cover,
+      )
+      const success: PhotoWorkerSuccess = {
+        id: request.id,
+        ok: true,
+        name,
+        mimeType,
+        byteLength,
+        width,
+        height,
+        correctedWidth: transform.correctedW,
+        correctedHeight: transform.correctedH,
+        orientation,
+        ...tiers,
       }
       // FSA roots re-resolve from the folder handle: keep the body in the worker.
       if (request.returnSource === true) {
