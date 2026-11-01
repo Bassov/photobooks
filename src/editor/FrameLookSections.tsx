@@ -11,6 +11,7 @@ import {
   getBookStoreSnapshot,
   subscribeBookStore,
 } from './bookStore'
+import { Button } from '../ui/Button'
 import type { CropTarget } from './cropMode'
 import { InspectorSlider } from './InspectorControls'
 import './FrameSections.css'
@@ -41,7 +42,7 @@ export function AdjustSection({ target }: { target: CropTarget }) {
   }
   const adjust = found.frame.adjust
   return (
-    <div className="flex flex-col gap-2 px-4 pb-4" data-testid="adjust">
+    <div className="flex flex-col gap-2 px-4 pt-0.5 pb-3" data-testid="adjust">
       {ADJUST_ROWS.map(({ key, label }) => (
         <InspectorSlider
           key={key}
@@ -50,6 +51,7 @@ export function AdjustSection({ target }: { target: CropTarget }) {
           max={100}
           value={adjust?.[key] ?? 0}
           testId={`adjust-${key}`}
+          className="fit-crop-slider--row"
           onChange={(value) => {
             dispatchBookOp({
               type: 'setFrameAdjust',
@@ -59,17 +61,18 @@ export function AdjustSection({ target }: { target: CropTarget }) {
           }}
         />
       ))}
-      <button
-        type="button"
-        className="e7-ghost h-8 w-full rounded-md text-sm text-muted-foreground"
-        disabled={!isAdjusted(adjust)}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="w-full"
+        isDisabled={!isAdjusted(adjust)}
         data-testid="adjust-reset"
-        onClick={() => {
+        onPress={() => {
           dispatchBookOp({ type: 'setFrameAdjust', ...target, patch: null })
         }}
       >
         Reset adjustments
-      </button>
+      </Button>
     </div>
   )
 }
@@ -162,7 +165,7 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
     }
   }
   return (
-    <div className="flex flex-col gap-3 px-4 pb-4" data-testid="frame-style">
+    <div className="flex flex-col px-4 pt-0.5 pb-3" data-testid="frame-style">
       <div className="grid grid-cols-4 gap-1.5" data-testid="style-list">
         {options.map((option) => (
           <button
@@ -192,7 +195,7 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
         ))}
       </div>
       {currentId === undefined || current === undefined ? null : (
-        <div className="flex flex-col gap-2">
+        <div className="mt-6 flex flex-col gap-2">
           <InspectorSlider
             label="Mat"
             min={0}
@@ -237,7 +240,7 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
       )}
       <button
         type="button"
-        className="e7-ghost h-8 w-full rounded-md text-sm"
+        className="e7-ghost mt-2 h-8 w-full rounded-md text-sm"
         data-testid="style-new"
         onClick={() => {
           dispatchBookOp({ type: 'newFrameStyle', ...target })

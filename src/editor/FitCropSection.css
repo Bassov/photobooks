@@ -72,13 +72,16 @@
   outline-offset: 2px;
 }
 
+/* Kit MmField (uikit/src/sandbox/inspector.tsx:24): px-3, gap-1.5, a
+   `min-w-3` prefix and the value left-aligned right after it (Owner Must M72,
+   round 11). */
 .fit-crop-field {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 32px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: var(--radius-sm);
   background: var(--field);
   font-size: var(--text-sm);
@@ -92,12 +95,16 @@
 .fit-crop-input {
   min-width: 0;
   flex: 1;
+  /* Kit preflight: no UA padding, so the value starts at the input edge. */
+  padding: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: right;
+  /* Kit text-sm leading: an 18.84 px value box. */
+  line-height: 1.45;
+  text-align: start;
   font-variant-numeric: tabular-nums;
 }
 
@@ -109,4 +116,9 @@
 .fit-crop-affix {
   flex-shrink: 0;
   font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.fit-crop-affix:first-child {
+  min-width: 12px;
 }

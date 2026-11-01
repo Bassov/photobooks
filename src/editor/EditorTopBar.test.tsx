@@ -177,6 +177,41 @@ describe('EditorTopBar', () => {
     expect(preview.textContent).toBe('Preview')
   })
 
+  it('draws the kit top bar controls: field pills, 32 px history, open toggles, an inset zoom menu', () => {
+    render(<EditorShell />)
+    const preview = screen.getByTestId('present')
+    const settings = screen.getByTestId('editor-settings-open')
+    for (const pill of [preview, settings]) {
+      expect(pill.className).toContain('editor-top-pill')
+      expect(pill.className).not.toContain('e7-sec')
+      expect(pill.style.background).toBe('#D7D7D7')
+      expect(pill.style.color).toBe('#393738')
+    }
+    expect(settings.getAttribute('aria-label')).toBe('Settings')
+    expect(preview.parentElement).toBe(settings.parentElement)
+    expect(preview.parentElement?.className).toContain('gap-1.5')
+    fireEvent.click(settings)
+    expect(screen.getByTestId('editor-settings')).toBeTruthy()
+
+    const undo = screen.getByTestId('undo')
+    expect(undo.className).toContain('pb-icon-button--md')
+    expect(screen.getByTestId('redo').className).toContain('pb-icon-button--md')
+    expect(undo.parentElement?.className).not.toContain('gap-')
+
+    const menu = screen.getByTestId('zoom-menu')
+    expect(menu.className).toContain('editor-zoom-menu')
+    expect(menu.className).not.toContain('min-w-')
+    expect(menu.style.background).toBe('')
+    expect(menu.style.color).toBe('')
+
+    for (const k of ['l', 'b', 'r']) {
+      const toggle = screen.getByTestId(`toggle-${k}`)
+      expect(toggle.getAttribute('aria-expanded')).toBe('true')
+      expect(toggle.className).toContain('p-0')
+      expect(toggle.style.color).toBe('#535152')
+    }
+  })
+
   it('labels undo / redo tooltips with the step name', () => {
     render(<EditorShell />)
     expect(screen.getByTestId('undo').getAttribute('aria-label')).toBe(

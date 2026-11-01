@@ -86,7 +86,34 @@ function MmField({
   )
 }
 
-/** Kit GeometrySection: X / Y / W / H in mm, rotation slider + degrees, lock. */
+/** Kit GeometrySection `right`: the lock sits on the section title row. */
+export function FrameLockButton({ target }: { target: CropTarget }) {
+  const found = useTarget(target)
+  if (found === null) {
+    return null
+  }
+  const locked = found.frame.locked === true
+  return (
+    <IconButton
+      label={locked ? 'Unlock frame' : 'Lock frame'}
+      size="sm"
+      placement="left"
+      aria-pressed={locked}
+      data-testid="frame-lock"
+      onPress={() => {
+        dispatchBookOp({
+          type: 'setFrameLocked',
+          ...target,
+          locked: !locked,
+        })
+      }}
+    >
+      <Icon name={locked ? 'lock' : 'unlock'} />
+    </IconButton>
+  )
+}
+
+/** Kit GeometrySection: X / Y / W / H in mm, rotation slider + degrees. */
 export function GeometrySection({ target }: { target: CropTarget }) {
   const found = useTarget(target)
   const liveAll = useSyncExternalStore(
@@ -127,25 +154,6 @@ export function GeometrySection({ target }: { target: CropTarget }) {
       data-testid="inspector-geometry"
       aria-label="Position and size"
     >
-      <div className="flex items-center justify-end">
-        <IconButton
-          label={locked ? 'Unlock frame' : 'Lock frame'}
-          size="sm"
-          placement="left"
-          aria-pressed={locked}
-          data-testid="frame-lock"
-          onPress={() => {
-            dispatchBookOp({
-              type: 'setFrameLocked',
-              spreadId,
-              frameId,
-              locked: !locked,
-            })
-          }}
-        >
-          <Icon name={locked ? 'lock' : 'unlock'} />
-        </IconButton>
-      </div>
       <div className="grid grid-cols-2 gap-2">
         <MmField
           label="X"
@@ -200,7 +208,7 @@ export function GeometrySection({ target }: { target: CropTarget }) {
       </div>
       <div className="grid grid-cols-[1fr_96px] items-end gap-2">
         <Slider
-          className="fit-crop-slider"
+          className="fit-crop-slider fit-crop-slider--row"
           data-testid="frame-rotation"
           aria-label="Frame rotation"
           minValue={ROT_MIN}
