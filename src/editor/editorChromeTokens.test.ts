@@ -22,6 +22,15 @@ describe('editorChromeTokens', () => {
     expect(mmToCm(210)).toBe(21)
   })
 
+  it('styles "Add folder…" as the kit ink 500 chip, half opacity when disabled', () => {
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.film-chip.film-add-folder { color: #393738; font-weight: 500; padding: 0 10px }',
+    )
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.film-chip.film-add-folder[data-disabled] { opacity: .5 }',
+    )
+  })
+
   it('injects chrome CSS once and reuses a pre-existing style node', () => {
     expect(EDITOR_CHROME_CSS).toContain('#CACACA')
     expect(EDITOR_CHROME_CSS).toContain('data-panning')
