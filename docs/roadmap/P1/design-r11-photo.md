@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r11-photo: Photo inspector expanded sections match the kit
+Status: done
 
 ## Scope
 
