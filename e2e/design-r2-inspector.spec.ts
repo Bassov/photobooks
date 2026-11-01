@@ -68,7 +68,8 @@ test('the Spread context has no Spread properties block (M2)', async ({
   await expect(context(page)).toHaveText('Spread')
   await expect(page.getByTestId('inspector-spread-properties')).toHaveCount(0)
   await expect(page.getByTestId('inspector-body').locator('dl')).toHaveCount(0)
-  await expect(page.getByTestId('panel-collapse-right')).toBeVisible()
+  // Owner design change (round 7, M54): no inspector hide button.
+  await expect(page.getByTestId('panel-collapse-right')).toHaveCount(0)
 })
 
 // uikit/src/sandbox/context-inspector.tsx:59 labels the first spread "Page 1"

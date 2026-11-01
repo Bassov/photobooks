@@ -54,6 +54,8 @@
 .filmstrip-scroll {
   overflow-x: auto;
   overflow-y: hidden;
+  /* M50: a wheel over the strip never chains to the page. */
+  overscroll-behavior: contain;
   width: 100%;
   max-width: 100%;
   min-width: 0;

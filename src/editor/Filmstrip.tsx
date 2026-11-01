@@ -13,6 +13,7 @@ import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
 import { shouldCommitFilmstripScroll } from './filmstripScrollCommit'
 import { noteFilmstripScroll } from './thumbCache'
 import { installFilmstripUnplaceWhenMounted } from './filmstripUnplaceMount'
+import { installFilmstripWheel } from './filmstripWheel'
 import { scheduleFilmstripVisibleSync } from './filmstripVisibleSync'
 import { EmptyState } from '../ui/EmptyState'
 import {
@@ -239,6 +240,10 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
 
   useEffect(() => {
     return installFilmstripUnplaceWhenMounted(scrollRef.current)
+  }, [])
+
+  useEffect(() => {
+    return installFilmstripWheel(scrollRef.current)
   }, [])
 
   return (
