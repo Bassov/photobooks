@@ -155,10 +155,11 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
             90° right
           </Button>
         </div>
-        {/* Kit Flip H / Flip V: uikit/src/sandbox/inspector.tsx:156-158. */}
+        {/* Kit Flip H / Flip V: uikit/src/sandbox/inspector.tsx:156-158,
+            plain outline (no shadow-xs, unlike the 90° turns). */}
         <div className="mt-2 flex gap-2">
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
             className="flex-1"
             data-testid="flip-h"
@@ -171,7 +172,7 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
             Flip H
           </Button>
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
             className="flex-1"
             data-testid="flip-v"

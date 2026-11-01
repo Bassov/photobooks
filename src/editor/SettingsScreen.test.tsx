@@ -68,7 +68,11 @@ describe('SettingsScreen', () => {
       screen.getByTestId('settings-nav-library').getAttribute('aria-current'),
     ).toBe('page')
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
-      /bg-\[#CACACA\]/,
+      /\bbg-accent\b/,
+    )
+    // Kit settings.tsx:28: invisible 1 px right edge keeps rows 195 px wide.
+    expect(screen.getByRole('navigation').className.split(' ')).toEqual(
+      expect.arrayContaining(['border-r', 'border-transparent']),
     )
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
       /\bborder-0\b/,

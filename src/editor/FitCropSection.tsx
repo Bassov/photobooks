@@ -137,7 +137,8 @@ export function FitCropSection({
         </div>
         <div className="flex gap-2">
           <Button
-            variant={cropping ? 'default' : 'outline'}
+            // Kit inspector.tsx:139: outline + shadow-xs = app `secondary`.
+            variant={cropping ? 'default' : 'secondary'}
             size="sm"
             className="flex-1"
             data-testid="crop-toggle"

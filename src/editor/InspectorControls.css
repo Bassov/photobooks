@@ -63,6 +63,13 @@
   border-radius: var(--radius-md);
   background: var(--field);
   font-size: var(--text-sm);
+  line-height: var(--leading-menu); /* kit text-sm line-height 1.45 (r11 M68) */
+}
+
+/* Kit 12 px label column (SizeEditor `w-3`, Field `min-w-3`). */
+.insp-size-field > span:first-child {
+  width: 0.75rem;
+  flex-shrink: 0;
 }
 
 .insp-size-field input {
