@@ -61,3 +61,18 @@
   color: var(--muted-foreground);
   font-size: var(--text-xs);
 }
+
+/* Kit `Head` type (v7.tsx:219, uikit index.css:137-138): title text-sm
+   13 / 18.85 px medium, subline text-xs 12 / 16.8 px, 2 px apart. */
+.endpaper-head-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.endpaper-head-sub {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}

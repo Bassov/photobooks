@@ -3,6 +3,7 @@ import {
   type ExtractedAssetMetadata,
 } from '../assets/extractAssetMetadata'
 import {
+  photoWorkerTransferList,
   processPhotoRequest,
   type PhotoWorkerRequest,
   type PhotoWorkerResponse,
@@ -67,7 +68,9 @@ workerScope.onmessage = (event: MessageEvent<WorkerRequest>) => {
   }
   void processPhotoRequest(request).then((response) => {
     if (response.ok) {
-      workerScope.postMessage(response, { transfer: [response.previewBuffer] })
+      workerScope.postMessage(response, {
+        transfer: photoWorkerTransferList(response),
+      })
     } else {
       workerScope.postMessage(response)
     }

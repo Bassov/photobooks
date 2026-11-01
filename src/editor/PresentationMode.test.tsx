@@ -7,6 +7,8 @@ import {
   within,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { bookSpineWidthMm } from '../core'
+import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   dispatchBookOp,
   getBookStoreSnapshot,
@@ -45,9 +47,14 @@ describe('PresentationMode', () => {
     expect(screen.queryByTestId('presentation')).toBeNull()
     fireEvent.click(screen.getByTestId('present'))
     expect(screen.getByTestId('presentation')).toBeTruthy()
+    expect(position()).toBe('Cover')
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
     expect(position()).toBe('1 / 3')
     fireEvent.keyDown(window, { key: 'ArrowRight' })
     expect(position()).toBe('2 / 3')
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(position()).toBe('Cover')
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByTestId('presentation')).toBeNull()
     expect(screen.getByTestId('canvas')).toBeTruthy()
@@ -56,12 +63,27 @@ describe('PresentationMode', () => {
   it('renders the connected spread views of the current window', () => {
     render(<EditorShell />)
     fireEvent.click(screen.getByTestId('present'))
-    // First of three: current + next.
-    const views = () =>
-      within(screen.getByTestId('presentation')).getAllByTestId('spread-view')
+    // The cover, then three spreads: current + neighbours.
+    const stage = () => within(screen.getByTestId('presentation'))
+    const views = () => stage().getAllByTestId('spread-view')
+    expect(stage().getAllByTestId('presentation-cover')).toHaveLength(1)
+    expect(views()).toHaveLength(1)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(stage().getAllByTestId('presentation-cover')).toHaveLength(1)
     expect(views()).toHaveLength(2)
     fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(stage().queryAllByTestId('presentation-cover')).toHaveLength(0)
     expect(views()).toHaveLength(3)
+  })
+
+  it('draws the cover at the spreads px / mm', () => {
+    const { book } = getBookStoreSnapshot()
+    render(<EditorShell />)
+    fireEvent.click(screen.getByTestId('present'))
+    const cover = screen.getByTestId('presentation-cover')
+    const widthMm = 2 * book.settings.trim.widthMm + bookSpineWidthMm(book)
+    expect(cover.style.width).toBe(`${String(widthMm * SPREAD_PX_PER_MM)}px`)
+    expect(cover.querySelector('.cover-spread')).not.toBeNull()
   })
 
   it('never draws guides, which the editor canvas does draw', () => {
@@ -79,32 +101,33 @@ describe('PresentationMode', () => {
     ).toHaveLength(0)
   })
 
-  it('opens at the active spread', () => {
+  // Owner Must M53 (round 7): Preview opens on the cover, not the active spread.
+  it('opens on the cover even with an active spread', () => {
     const ids = getBookStoreSnapshot().book.spreads.map((s) => s.id)
     render(<EditorShell />)
     act(() => {
       setActiveSpreadId(ids[2] ?? null)
     })
     fireEvent.click(screen.getByTestId('present'))
-    expect(position()).toBe('3 / 3')
+    expect(position()).toBe('Cover')
   })
 
-  it('opens at the first spread when no spread is active', () => {
+  it('opens on the cover when no spread is active', () => {
     render(<EditorShell />)
     act(() => {
       setActiveSpreadId(null)
     })
     fireEvent.click(screen.getByTestId('present'))
-    expect(position()).toBe('1 / 3')
+    expect(position()).toBe('Cover')
   })
 
   it('clamps to the last spread when spreads are removed while presenting', () => {
-    const ids = getBookStoreSnapshot().book.spreads.map((s) => s.id)
     render(<EditorShell />)
-    act(() => {
-      setActiveSpreadId(ids[2] ?? null)
-    })
     fireEvent.click(screen.getByTestId('present'))
+    for (let i = 0; i < 3; i += 1) {
+      fireEvent.keyDown(window, { key: 'ArrowRight' })
+    }
+    expect(position()).toBe('3 / 3')
     const { book, sessionMeta } = getBookStoreSnapshot()
     act(() => {
       resetBookStore({

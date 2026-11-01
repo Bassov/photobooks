@@ -22,6 +22,11 @@ export interface PhotoWorkerRequest {
    * `previewBuffer` is the thumb; `workingBuffer` is the 1280 tier.
    */
   dualTiers?: boolean
+  /**
+   * When true, the success response carries the original body as
+   * `sourceBuffer` (memory-root library seed). Otherwise it stays in the worker.
+   */
+  returnSource?: boolean
 }
 
 export interface PhotoWorkerSuccess {
@@ -41,10 +46,20 @@ export interface PhotoWorkerSuccess {
   workingBuffer?: ArrayBuffer
   workingMimeType?: string
   /**
-   * Original file body read for this job — returned to the main thread
-   * (structured clone) so library seed can skip a second full-file `arrayBuffer`.
+   * Original file body read for this job — present only for `returnSource`
+   * requests and transferred (not cloned) so library seed can skip a second
+   * full-file `arrayBuffer`.
    */
   sourceBuffer?: ArrayBuffer
+}
+
+/** Buffers the worker hands over with the success reply (no structured clone). */
+export function photoWorkerTransferList(
+  response: PhotoWorkerSuccess,
+): Transferable[] {
+  return response.sourceBuffer === undefined
+    ? [response.previewBuffer]
+    : [response.previewBuffer, response.sourceBuffer]
 }
 
 export interface PhotoWorkerFailure {
@@ -197,6 +212,7 @@ export async function processPhotoRequest(
       const height = knownHeight ?? bitmap.height
 
       const transform = normalizeOrientation(orientation, width, height)
+      let success: PhotoWorkerSuccess
       if (dualTiers) {
         const working = await buildPreview(
           bitmap,
@@ -210,7 +226,7 @@ export async function processPhotoRequest(
           THUMB_MAX_EDGE,
           cover,
         )
-        return {
+        success = {
           id: request.id,
           ok: true,
           name,
@@ -225,27 +241,29 @@ export async function processPhotoRequest(
           previewMimeType: thumb.mimeType,
           workingBuffer: working.buffer,
           workingMimeType: working.mimeType,
-          sourceBuffer: buffer,
+        }
+      } else {
+        const preview = await buildPreview(bitmap, orientation, maxEdge, cover)
+        success = {
+          id: request.id,
+          ok: true,
+          name,
+          mimeType,
+          byteLength,
+          width,
+          height,
+          correctedWidth: transform.correctedW,
+          correctedHeight: transform.correctedH,
+          orientation,
+          previewBuffer: preview.buffer,
+          previewMimeType: preview.mimeType,
         }
       }
-
-      const preview = await buildPreview(bitmap, orientation, maxEdge, cover)
-
-      return {
-        id: request.id,
-        ok: true,
-        name,
-        mimeType,
-        byteLength,
-        width,
-        height,
-        correctedWidth: transform.correctedW,
-        correctedHeight: transform.correctedH,
-        orientation,
-        previewBuffer: preview.buffer,
-        previewMimeType: preview.mimeType,
-        sourceBuffer: buffer,
+      // FSA roots re-resolve from the folder handle: keep the body in the worker.
+      if (request.returnSource === true) {
+        success.sourceBuffer = buffer
       }
+      return success
     } finally {
       bitmap.close()
     }

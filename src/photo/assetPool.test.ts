@@ -1898,6 +1898,106 @@ describe('assetPool', () => {
     setBookUsedAssetIds(['heic-no-cover'])
     expect(posted).toHaveLength(1)
     expect(posted[0]).not.toHaveProperty('cover')
+    expect(posted[0]).not.toHaveProperty('returnSource')
+    resetAssetPool()
+  })
+
+  it('runImportBatch asks for the source body only on returnSource items', async () => {
+    const posted: PhotoWorkerRequest[] = []
+    class CaptureWorker {
+      private onMessage: ((event: MessageEvent) => void) | undefined
+
+      addEventListener(
+        type: string,
+        listener: (event: MessageEvent) => void,
+      ): void {
+        if (type === 'message') {
+          this.onMessage = listener
+        }
+      }
+      removeEventListener(): void {
+        this.onMessage = undefined
+      }
+      postMessage(data: PhotoWorkerRequest): void {
+        posted.push(data)
+        queueMicrotask(() => {
+          this.onMessage?.({
+            data: {
+              id: data.id,
+              ok: true,
+              name: data.file.name,
+              mimeType: 'image/png',
+              byteLength: 1,
+              width: 1,
+              height: 1,
+              correctedWidth: 1,
+              correctedHeight: 1,
+              orientation: 1,
+              previewBuffer: new Uint8Array([1]).buffer,
+              previewMimeType: 'image/webp',
+            },
+          } as MessageEvent)
+        })
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', CaptureWorker)
+    warmAssetPool()
+    await runImportBatch(
+      [
+        {
+          assetId: 'memory-root',
+          file: new File([new Uint8Array([1])], 'm.png', {
+            type: 'image/png',
+          }),
+          returnSource: true,
+        },
+        {
+          assetId: 'fsa-root',
+          file: new File([new Uint8Array([1])], 'f.png', {
+            type: 'image/png',
+          }),
+        },
+      ],
+      { priority: 'visible' },
+    )
+    expect(posted).toHaveLength(2)
+    const byName = new Map(posted.map((post) => [post.file.name, post]))
+    expect(byName.get('m.png')?.returnSource).toBe(true)
+    expect(byName.get('f.png')).not.toHaveProperty('returnSource')
+    resetAssetPool()
+  })
+
+  it('promoted deferred HEIC keeps returnSource on the worker request', () => {
+    const posted: PhotoWorkerRequest[] = []
+    class CaptureWorker {
+      addEventListener(): void {
+        // hang
+      }
+      removeEventListener(): void {
+        // no-op
+      }
+      postMessage(data: PhotoWorkerRequest): void {
+        posted.push(data)
+      }
+      terminate(): void {
+        // no-op
+      }
+    }
+    vi.stubGlobal('Worker', CaptureWorker)
+    warmAssetPool()
+    void processAsset({
+      assetId: 'heic-src',
+      file: new File([new Uint8Array([1])], 'src.heic', {
+        type: 'image/heic',
+      }),
+      priority: 'prefetch',
+      returnSource: true,
+    }).catch(() => undefined)
+    setBookUsedAssetIds(['heic-src'])
+    expect(posted).toEqual([expect.objectContaining({ returnSource: true })])
     resetAssetPool()
   })
 
