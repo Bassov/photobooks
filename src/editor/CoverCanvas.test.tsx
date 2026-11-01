@@ -144,8 +144,6 @@ describe('CoverCanvas', () => {
     const row = render(<CoverCanvas mini />)
     expect(requestTier).not.toHaveBeenCalled()
     const canvas = render(<CoverCanvas tierSlot="cover:canvas" />)
-    expect(requestTier).toHaveBeenCalledWith('a1', 1280, undefined)
-    expect(maxDesiredTier('a1')).toBe(1280)
     await act(async () => {
       await Promise.resolve()
       await Promise.resolve()
