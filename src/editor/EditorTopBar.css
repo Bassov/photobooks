@@ -3,7 +3,8 @@
    here. Preview and Settings: full pills, 12 px inset (Settings 40 × 32).
    Zoom menu: 8 px inset, no border and no min width (49 wide at "Fit"). */
 .editor-top-pill.pb-button {
-  border-radius: calc(infinity * 1px);
+  /* Kit `rounded-full` is `calc(infinity * 1px)`: the same clamped radius. */
+  border-radius: calc(infinity * var(--radius-full));
   padding: 0 calc(var(--spacing) * 3);
 }
 .editor-zoom-menu.pb-button {
