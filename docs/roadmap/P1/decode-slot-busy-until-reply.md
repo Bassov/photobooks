@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P1
 Title: Decode pool: keep in-flight thumbs, never double-book a worker
+Status: done
 
 ## Scope
 
