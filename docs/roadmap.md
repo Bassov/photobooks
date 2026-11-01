@@ -37,6 +37,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r10-inspectors](roadmap/P1/design-r10-inspectors.md) — Bug: design-r10-inspectors: Cover/Book/Photo inspectors and segmented controls match the kit
 - [ ] [feature] [design-r10-library](roadmap/P1/design-r10-library.md) — Bug: design-r10-library: Welcome, Library and Settings match the kit
 - [ ] [feature] [design-r11-topbar](roadmap/P1/design-r11-topbar.md) — Bug: design-r11-topbar: editor top bar controls match the kit
+- [ ] [feature] [cover-hires](roadmap/P1/cover-hires.md) — Bug: /next-roadmap-item cover-hires
 - [ ] [feature] [design-r11-photo](roadmap/P1/design-r11-photo.md) — Bug: design-r11-photo: Photo inspector expanded sections match the kit
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
