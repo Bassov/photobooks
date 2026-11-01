@@ -21,7 +21,7 @@ import { clearProjectSession } from './fixtures/clearProjectSession'
 //     Create book y 601.83; credit y 723, links rgb(83, 81, 82).
 // M64 library with a book: "Your books" y 102; cover title "Lake trip" <em>
 //     26px / 400 / -0.52px, 103.33 wide.
-// M66 Settings: back button x 12, 78 wide [79.73], ink rgb(57, 55, 56); crumb
+// M66 Settings: back button x 12, 78 wide [79.73] (ink: design-r10-chrome); crumb
 //     "Settings" x 98 [99.73]; section title y 72, line-height 31.2px;
 //     paragraph y 107.19; "Library folder" y 179.61 [text 180.61]; "Allowed ·
 //     read and write" rgb(57, 55, 56), y 295.44.
@@ -249,7 +249,6 @@ test('M66 settings: crumb x, content offset and badge ink match the kit', async 
 
   const back = page.getByTestId('settings-back')
   await expectAt(back, { x: 12, width: 78 })
-  await expect(back).toHaveCSS('color', INK)
   await expectAt(back.locator('xpath=following-sibling::span[1]'), { x: 98 })
 
   const title = page.getByTestId('settings-section-title')

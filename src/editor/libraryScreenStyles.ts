@@ -146,14 +146,13 @@ const STYLE_TEXT = `
   .pb-lib-book .pb-lib-obj,
   .pb-lib-floor { transition: none; }
 }
-/* kit demo-parts/settings.tsx:84 back button (h-8 gap-1 pl-1.5 pr-2.5, foreground ink);
-   .pb-button gap/padding/1px border and the muted ghost ink beat the utilities. */
+/* kit demo-parts/settings.tsx:84 back button box (h-8 gap-1 pl-1.5 pr-2.5);
+   .pb-button gap/padding/1px border beat the utilities. Ink/font: design-r10-chrome. */
 .pb-button.pb-settings-back {
   border-width: 0;
   gap: calc(var(--spacing) * 1);
   padding-left: calc(var(--spacing) * 1.5);
   padding-right: calc(var(--spacing) * 2.5);
-  color: var(--foreground);
 }
 `
 
