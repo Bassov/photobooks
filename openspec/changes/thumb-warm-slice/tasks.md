@@ -8,3 +8,4 @@
 ## Manual test scenarios
 
 1. Reopen a book with a large photo folder; right after "Book restored" fling the filmstrip end to end and back: no hitch while the warm lane runs (LoAF log shows no warm-pass script).
+   - OK (real path, `e2e/thumb-warm-slice.spec.ts`, 1000 photos, 2× throttle, 9 runs): 0 LoAF with a warm-pass script, gate green 9/9; `manual-qa` not run (no UI change).

@@ -2,7 +2,7 @@
 
 Tag: feature
 Milestone: P1
-Title: Background warm pass never blocks the main thread
+Title: Bug: /next-roadmap-item thumb-warm-slice
 
 ## Scope
 
