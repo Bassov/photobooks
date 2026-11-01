@@ -6,6 +6,11 @@
   font-family: var(--font-ui);
 }
 
+/* Kit SelectRow label: text-xs, line-height 1.4. */
+.pb-list-select > .pb-field__label {
+  line-height: 1.4;
+}
+
 .pb-list-select__trigger {
   display: flex;
   align-items: center;
@@ -21,6 +26,7 @@
   color: var(--foreground);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
+  line-height: var(--leading-menu);
   box-shadow: var(--shadow-xs);
   cursor: default;
   outline: none;
@@ -42,6 +48,7 @@
 .pb-list-select__popover {
   z-index: 60;
   width: var(--trigger-width);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--popover);
   color: var(--foreground);
@@ -64,6 +71,8 @@
     calc(var(--spacing) * 1.5) calc(var(--spacing) * 8);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
+  /* Kit SelectItem py-1.5 text-sm: 6 + 18.85 + 6 = 30.84px rows (r10 M63). */
+  line-height: var(--leading-menu);
   cursor: default;
   outline: none;
 }

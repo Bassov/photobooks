@@ -34,7 +34,7 @@ Values resolve from kit CSS variables (Theme B). Prefer tokens over raw hex in a
 
 Chrome geometry: `--panel-left` / `--panel-right` / `--topbar` / `--thumb` / `--rail` (kit demo may tighten these). The top-bar tool group centres on the canvas area between `--panel-left` and `--panel-right` (not the window).
 
-Menus (`src/ui/Menu`): kit rows `py-1.5 text-sm` at `--leading-menu` 1.45 (30.84 px); a single choice is marked with the 8 px `circle` dot, a multiple choice with the check. Status pill: kit `StatusLine` (bottom-left, `text-xs`, `--radius-md`, popover/95) for the frame-drag hint only; other statuses are live-region only.
+Menus (`src/ui/Menu`, `src/ui/ListSelect` options): kit rows `py-1.5 text-sm` at `--leading-menu` 1.45 (30.84 px); a single choice is marked with the 8 px `circle` dot, a multiple choice with the check. Status pill: kit `StatusLine` (bottom-left, `text-xs`, `--radius-md`, popover/95) for the frame-drag hint only; other statuses are live-region only.
 
 Page numbers: 8 screen px under each page, 11 px, at every zoom. Designer-accepted deviation (2026-10-31): page numbers hidden when the gap cannot hold 8 px + 11 px label.
 
@@ -52,7 +52,7 @@ Editor: `--select` (canvas frame selection / handles — ink/black), tone select
 Status: `--success`, `--warning`, `--destructive` (text/icon); `--destructive-solid` (+ hover) only for AlertDialog confirm.  
 Badges: `--badge-{gray,brand,success,warning,error}-{fg,bg,ring,dot}`.
 
-App Tailwind 4 bridge: `@theme` tokens in `styles/tokens.css` (entry `styles/app.css` from `src/main.tsx`; no `uikit/src` imports); utilities via `@tailwindcss/vite`; preflight omitted until screen ports. Helpers: `src/ui/cn.ts` (`cn` / `cva`).
+App Tailwind 4 bridge: `@theme` tokens in `styles/tokens.css` (entry `styles/app.css` from `src/main.tsx`; no `uikit/src` imports); utilities via `@tailwindcss/vite`; preflight omitted until screen ports, except its `button` font / color inherit rule (`@layer base`, never the UA Arial 13.33). Helpers: `src/ui/cn.ts` (`cn` / `cva`).
 
 Library quiet controls (search/sort): kit v0.9.1 tone-only field fill `#D7D7D7` on `--chrome` (no border); focus ring `#3A3839` (same ink as kit `--ring` companion). Hover uses `--accent`.
 
