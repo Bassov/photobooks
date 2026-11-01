@@ -117,10 +117,6 @@
   --color-warning: var(--warning);
   --font-sans: var(--font-ui);
   --font-display: var(--font-heading);
-  /* Kit index.css:261 mono stack (r11 M68), so mono values fall back alike. */
-  --font-mono:
-    ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas,
-    'DejaVu Sans Mono', monospace;
 }
 
 /* Kit v0.9.3 Procreate-light (grayscale chrome; no blue brand fills). */
