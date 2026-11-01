@@ -84,7 +84,7 @@ export function CreateBookDialog({
     >
       <div className="px-6 pb-3 pt-5">
         <DialogTitle className="text-xl leading-tight">Create book</DialogTitle>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 mb-0 text-sm leading-[1.45] text-muted-foreground">
           A title and a page size — both can change later.
         </p>
       </div>
@@ -137,7 +137,7 @@ export function CreateBookDialog({
                 }}
               />
             ))}
-            <p className="col-span-2 text-xs text-muted-foreground">
+            <p className="col-span-2 m-0 text-xs leading-[1.4] text-muted-foreground">
               {CUSTOM_CM_MIN}–{CUSTOM_CM_MAX} cm per side ·{' '}
               {fmtCm(clampCustomCm(customW))} × {fmtCm(clampCustomCm(customH))}{' '}
               cm
@@ -149,7 +149,9 @@ export function CreateBookDialog({
             className="flex flex-col gap-1.5"
             data-testid="create-orientation"
           >
-            <span className="text-xs text-muted-foreground">Orientation</span>
+            <span className="text-xs leading-[1.4] text-muted-foreground">
+              Orientation
+            </span>
             <SegmentedControl
               label="Orientation"
               value={orientation}
@@ -161,7 +163,7 @@ export function CreateBookDialog({
             />
           </div>
         ) : null}
-        <p className="text-xs text-muted-foreground">
+        <p className="m-0 text-xs leading-[1.4] text-muted-foreground">
           Size of one page. To print 2 pages per A4 sheet, choose A5.
         </p>
       </div>
