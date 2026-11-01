@@ -51,6 +51,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [thumb-bulk-hydrate](roadmap/P1/thumb-bulk-hydrate.md) — On book open, load all cached thumbs before the user scrolls
 - [ ] [contingency] [thumb-pack-storage](roadmap/P1/thumb-pack-storage.md) — Store a folder's thumbs in one IndexedDB store (only if hydrate is slow)
 - [ ] [feature] [thumb-background-warm](roadmap/P1/thumb-background-warm.md) — Thumbs for the whole folder in the background
+- [ ] [feature] [thumb-warm-slice](roadmap/P1/thumb-warm-slice.md) — Bug: /next-roadmap-item thumb-warm-slice
 - [x] [prep] [rescan-cheap-verify](roadmap/P1/rescan-cheap-verify.md) — Folder rescan on open: no per-file re-resolve, O(n) diff, parallel scan
 
 ## P2 — Missing features, iterative
