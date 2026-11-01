@@ -75,9 +75,12 @@ export function createFsaAssetSource(options: {
         return failure('not-found')
       }
       try {
-        const entries: ScannedEntry[] =
-          await scanDirectoryInWorker(scanDirectory)
-        return success(entries)
+        const entries = await scanDirectoryInWorker(scanDirectory)
+        // Same File shape as resolveFile, so verify can retain it directly.
+        for (const entry of entries) {
+          entry.file = fileWithRelativePath(entry.file, entry.relativePath)
+        }
+        return success<ScannedEntry[]>(entries)
       } catch {
         return failure('corrupted')
       }

@@ -73,7 +73,14 @@ describe('scanRoot worker dispatch', () => {
     ])
     expect(scanned).toEqual({
       ok: true,
-      value: [{ relativePath: 'a.jpg', byteSize: 1, mtimeMs: 10 }],
+      value: [
+        {
+          relativePath: 'a.jpg',
+          byteSize: 1,
+          mtimeMs: 10,
+          file: expect.any(File),
+        },
+      ],
     })
   })
 

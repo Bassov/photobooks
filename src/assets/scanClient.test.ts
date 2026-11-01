@@ -71,8 +71,18 @@ describe('scanClient', () => {
     tree.putFile('z.jpg', new Uint8Array([1]), 3)
     tree.putFile('a.jpg', new Uint8Array([1, 2]), 1)
     await expect(scanDirectoryInWorker(tree.root)).resolves.toEqual([
-      { relativePath: 'a.jpg', byteSize: 2, mtimeMs: 1 },
-      { relativePath: 'z.jpg', byteSize: 1, mtimeMs: 3 },
+      {
+        relativePath: 'a.jpg',
+        byteSize: 2,
+        mtimeMs: 1,
+        file: expect.any(File),
+      },
+      {
+        relativePath: 'z.jpg',
+        byteSize: 1,
+        mtimeMs: 3,
+        file: expect.any(File),
+      },
     ])
 
     await expect(
@@ -105,7 +115,12 @@ describe('scanClient', () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('a.jpg', new Uint8Array([1]), 1)
     await expect(scanDirectoryInWorker(tree.root)).resolves.toEqual([
-      { relativePath: 'a.jpg', byteSize: 1, mtimeMs: 1 },
+      {
+        relativePath: 'a.jpg',
+        byteSize: 1,
+        mtimeMs: 1,
+        file: expect.any(File),
+      },
     ])
   })
 

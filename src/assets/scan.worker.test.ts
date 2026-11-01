@@ -16,7 +16,14 @@ describe('scan.worker shell', () => {
   })
 
   it('posts directory walk entries on success', async () => {
-    const entries = [{ relativePath: 'a.jpg', byteSize: 1, mtimeMs: 1 }]
+    const entries = [
+      {
+        relativePath: 'a.jpg',
+        byteSize: 1,
+        mtimeMs: 1,
+        file: new File([new Uint8Array(1)], 'a.jpg'),
+      },
+    ]
     vi.mocked(walkAssetDirectory).mockResolvedValue(entries)
 
     const postMessage = vi.fn()

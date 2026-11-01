@@ -45,6 +45,22 @@ describe('createFsaAssetSource', () => {
     }
   })
 
+  it('scan entries carry the walk File tagged with its relative path', async () => {
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('album/a.jpg', new Uint8Array([1, 2, 3]), 7)
+    const source = createFsaAssetSource({ rootId: 'r', directory: tree.root })
+
+    const scanned = await source.scanRoot('r')
+
+    const file = scanned.ok ? scanned.value[0]?.file : undefined
+    expect(file).toBeInstanceOf(File)
+    expect(file?.size).toBe(3)
+    expect(file?.lastModified).toBe(7)
+    expect(
+      (file as File & { webkitRelativePath: string }).webkitRelativePath,
+    ).toBe('album/a.jpg')
+  })
+
   it('returns corrupted when the scan worker rejects', async () => {
     resetScanWorker()
     class FailWorker {

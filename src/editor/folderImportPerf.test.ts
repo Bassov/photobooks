@@ -5,8 +5,10 @@ import {
   resetScanWorker,
 } from '../assets'
 import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
+import type { Asset } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { PERF_BUDGETS } from '../perf/budgets'
+import * as assetSources from '../photo/assetSources'
 import {
   clearRegisteredAssetSources,
   registerAssetSource,
@@ -146,6 +148,77 @@ describe('folder import / re-scan responsiveness', () => {
     expect(phases.includes('priority')).toBe(true)
     expect(phases.includes('lazy')).toBe(false)
     expect(cancelledDuringPriority).toBe(true)
+  }, 60_000)
+
+  it('reopen re-scan takes live Files from the walk and verifies used-in-book first', async () => {
+    const sourceRootId = 'root-large-full'
+    const tree = createMemoryAssetDirectory()
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
+    // Reopen: the saved gallery already lists every file in the folder.
+    const unusedIds: string[] = []
+    const unusedAssets: Record<string, Asset> = {}
+    for (let i = 0; i < LARGE_FOLDER_COUNT; i += 1) {
+      const relativePath = `img-${String(i).padStart(4, '0')}.jpg`
+      const mtimeMs = 1_700_000_000_000 + i
+      tree.putFile(relativePath, bytes, mtimeMs)
+      unusedIds.push(`img-${String(i)}`)
+      unusedAssets[`img-${String(i)}`] = {
+        sourceRootId,
+        relativePath,
+        byteSize: bytes.byteLength,
+        mtimeMs,
+      }
+    }
+    tree.putFile('used-visible.jpg', bytes, 1)
+    tree.putFile('used-other.jpg', bytes, 2)
+    const source = createFsaAssetSource({
+      rootId: sourceRootId,
+      directory: tree.root,
+    })
+    registerAssetSource(sourceRootId, source)
+    const resolveSpy = vi.spyOn(source, 'resolveFile')
+    const retainSpy = vi.spyOn(assetSources, 'retainAssetSource')
+    resetBookStore({
+      book: makeBook({
+        spreads: [
+          makeSpread({
+            id: 'spread-0',
+            frames: [makeFrame({ id: 'f0', assetId: 'asset-visible' })],
+          }),
+        ],
+        gallery: ['asset-other', ...unusedIds, 'asset-visible'],
+        assets: {
+          ...unusedAssets,
+          'asset-visible': {
+            sourceRootId,
+            relativePath: 'used-visible.jpg',
+            byteSize: bytes.byteLength,
+            mtimeMs: 1,
+          },
+          'asset-other': {
+            sourceRootId,
+            relativePath: 'used-other.jpg',
+            byteSize: bytes.byteLength,
+            mtimeMs: 2,
+          },
+        },
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    await startFolderRescan({
+      sourceRootId,
+      visibleSpreadId: 'spread-0',
+      runLazy: true,
+    })
+    await awaitFolderRescanForTests()
+
+    const retained = retainSpy.mock.calls.map(([assetId]) => assetId)
+    expect(retained.slice(0, 2)).toEqual(['asset-visible', 'asset-other'])
+    expect(new Set(retained).size).toBe(LARGE_FOLDER_COUNT + 2)
+    expect(resolveSpy).not.toHaveBeenCalled()
   }, 60_000)
 
   it('cancelFolderRescan stops a subsequent idle remainder', async () => {

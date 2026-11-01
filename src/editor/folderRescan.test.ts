@@ -3,11 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createFsaAssetSource,
   createMemoryAssetDirectory,
+  createMemoryAssetSource,
   resetScanWorker,
 } from '../assets'
 import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getAssetSource, resetAssetSources } from '../photo/assetSources'
+import * as assetSources from '../photo/assetSources'
 import {
   clearRegisteredAssetSources,
   registerAssetSource,
@@ -210,6 +212,57 @@ describe('startFolderRescan', () => {
     await startFolderRescan({ sourceRootId, runLazy: false })
     await awaitFolderRescanForTests()
     expect(getBookStoreSnapshot().sessionMeta.get('a1')?.aspect).toBe(1)
+  })
+
+  it('verifies each changed path once, taking the first gallery id per path', async () => {
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('shot.jpg', new Uint8Array([1, 2, 3]), 99)
+    tree.putFile('other.jpg', new Uint8Array([4, 5, 6]), 98)
+    const sourceRootId = 'root-changed-once'
+    registerAssetSource(
+      sourceRootId,
+      createFsaAssetSource({ rootId: sourceRootId, directory: tree.root }),
+    )
+    await putSourceRootEntryIndex(sourceRootId, {
+      version: 1,
+      entries: {
+        'shot.jpg': { byteSize: 2, mtimeMs: 10 },
+        'other.jpg': { byteSize: 2, mtimeMs: 11 },
+      },
+    })
+    resetBookStore({
+      book: makeBook({
+        gallery: ['in-root', 'loose-first', 'loose-second'],
+        assets: {
+          'in-root': {
+            sourceRootId,
+            relativePath: 'shot.jpg',
+            byteSize: 2,
+            mtimeMs: 10,
+          },
+          // Not tied to this root, so only the changed-path pass verifies it.
+          'loose-first': { relativePath: 'other.jpg' },
+          'loose-second': { relativePath: 'other.jpg' },
+        },
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const retainSpy = vi.spyOn(assetSources, 'retainAssetSource')
+
+    await startFolderRescan({ sourceRootId, runLazy: false })
+    await awaitFolderRescanForTests()
+
+    expect(retainSpy.mock.calls.map(([assetId]) => assetId)).toEqual([
+      'in-root',
+      'loose-first',
+    ])
+    expect(getBookStoreSnapshot().book.assets['loose-first']).toMatchObject({
+      sourceRootId,
+      byteSize: 3,
+      mtimeMs: 98,
+    })
   })
 
   it('always walks scanRoot even when a matching entry index already exists', async () => {
@@ -491,9 +544,9 @@ describe('startFolderRescan', () => {
     }
   })
 
-  it('verifies priority refs with import-cap concurrency', async () => {
+  it('falls back to resolveFile with import-cap concurrency when the scan has no Files', async () => {
     const fileCount = 32
-    const tree = createMemoryAssetDirectory()
+    const source = createMemoryAssetSource()
     const gallery: string[] = []
     const assets: Record<
       string,
@@ -506,7 +559,7 @@ describe('startFolderRescan', () => {
     > = {}
     for (let i = 0; i < fileCount; i += 1) {
       const path = `p-${String(i)}.jpg`
-      tree.putFile(path, new Uint8Array([i]), i)
+      source.seedFile('root-conc', path, new Uint8Array([i]).buffer, i)
       const assetId = `p${String(i)}`
       gallery.push(assetId)
       assets[assetId] = {
@@ -517,10 +570,6 @@ describe('startFolderRescan', () => {
       }
     }
     const sourceRootId = 'root-conc'
-    const source = createFsaAssetSource({
-      rootId: sourceRootId,
-      directory: tree.root,
-    })
     registerAssetSource(sourceRootId, source)
 
     let inFlight = 0
@@ -551,6 +600,7 @@ describe('startFolderRescan', () => {
 
     expect(peak).toBeGreaterThanOrEqual(8)
     expect(peak).toBeLessThanOrEqual(16)
+    expect(gallery.filter((id) => getAssetSource(id) === undefined)).toEqual([])
   })
 
   it('flushes list-first gallery before priority plan so new paths are not lazy-imported', async () => {
