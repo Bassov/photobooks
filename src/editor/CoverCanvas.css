@@ -130,6 +130,18 @@
   outline: 2px solid var(--muted-foreground);
 }
 
+/* Kit Cover Front text (v7.tsx:213): text-sm 13 / 18.85 px lines, the hint
+   text-2xs 11 / 14.85 px (Owner Must M59, round 10). */
+.cover-front-info {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.cover-front-hint {
+  font-size: var(--text-2xs);
+  line-height: 1.35;
+}
+
 .cover-thumb {
   width: 2.625rem;
   height: 3.25rem;

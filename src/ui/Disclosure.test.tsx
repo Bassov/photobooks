@@ -33,6 +33,23 @@ describe('Disclosure', () => {
     ).toBe('true')
   })
 
+  it('marks the whole section, trigger included, as crop-keep when asked', () => {
+    render(
+      <Disclosure title="Fit & crop" data-testid="d" data-crop-keep="">
+        <p>body</p>
+      </Disclosure>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Fit & crop' })
+    expect(trigger.closest('[data-crop-keep]')).toBe(screen.getByTestId('d'))
+    cleanup()
+    render(
+      <Disclosure title="Arrange" data-testid="d">
+        <p>body</p>
+      </Disclosure>,
+    )
+    expect(screen.getByTestId('d').hasAttribute('data-crop-keep')).toBe(false)
+  })
+
   // Kit SectionHeader: summary while collapsed, header actions while open.
   it('shows the summary only collapsed and the right slot only expanded', () => {
     render(

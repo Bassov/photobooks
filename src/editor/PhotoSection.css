@@ -1,0 +1,23 @@
+/* Kit PhotoSection (uikit/src/sandbox/inspector.tsx:109-122; Owner Must M60,
+   round 10): a 72 × 48 rounded-md thumb, the name on the text-sm 18.85 px
+   line, pixels on the text-xs 16.8 px line. */
+.inspector-photo-thumb {
+  width: 72px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background-color: var(--field);
+  background-position: center;
+  background-size: cover;
+  box-shadow: var(--shadow-hairline);
+}
+
+.inspector-photo-info {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.inspector-photo-px {
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}

@@ -146,7 +146,9 @@ test('Photo inspector has Rotate & flip, no canvas rotate knob, no meta rows (M7
   await expect(page.locator('.spread-frame-rotate-line')).toHaveCount(0)
   // uikit/src/sandbox/inspector.tsx:151-158.
   const rotate = page.getByTestId('inspector-rotate')
-  await expect(rotate.getByRole('heading')).toHaveText('Rotate & flip')
+  await expect(
+    page.getByTestId('inspector-rotate-disclosure').getByRole('heading'),
+  ).toHaveText('Rotate & flip')
   await expect(rotate.getByTestId('rot-left')).toBeVisible()
   await expect(rotate.getByTestId('rot-right')).toBeVisible()
   await expect(rotate.getByTestId('flip-h')).toHaveAttribute(

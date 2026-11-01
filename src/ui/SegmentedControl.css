@@ -1,8 +1,10 @@
-/* Kit Segmented: field track, raised pill on the selected item; the radio itself is invisible. */
+/* Kit Segmented: field track, raised pill on the selected item; the radio itself is invisible.
+   Labels are medium (500) whether selected or not (kit controls.tsx Toggle, v7 SegC;
+   Owner Must M61, round 10). */
 /* prettier-ignore */
 .pb-segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: center; gap: calc(var(--spacing) * 0.5); padding: calc(var(--spacing) * 0.5); border-radius: var(--radius-lg); background: var(--field); }
 /* prettier-ignore */
-.pb-segmented__segment { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1.5); margin: 0; padding: 0 calc(var(--spacing) * 2); border-radius: var(--radius-sm); font-family: var(--font-ui); font-size: var(--text-sm); line-height: 1; color: var(--muted-foreground); cursor: pointer; transition: background-color 0.12s; }
+.pb-segmented__segment { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1.5); margin: 0; padding: 0 calc(var(--spacing) * 2); border-radius: var(--radius-sm); font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 500; line-height: 1; color: var(--muted-foreground); cursor: pointer; transition: background-color 0.12s; }
 .pb-segmented--md .pb-segmented__segment {
   height: calc(var(--spacing) * 7);
 }
@@ -10,14 +12,29 @@
   height: calc(var(--spacing) * 6);
   font-size: var(--text-xs);
 }
+/* Kit v7 SegC (uikit/src/sandbox/v7.tsx:138): rounded-md p-0.5 track,
+   h-6.5 text-sm segments edge to edge. */
+.pb-segmented--inspector {
+  gap: 0;
+  border-radius: var(--radius-md);
+}
+.pb-segmented--inspector .pb-segmented__segment {
+  height: 26px;
+  padding: 0;
+}
 .pb-segmented__segment:hover {
   color: var(--foreground);
 }
+/* Kit raised pill: chrome #E1E1E1 on the #D7D7D7 field track, never darker
+   than the track (Owner Must M67, round 10). */
 .pb-segmented__segment--selected,
 .pb-segmented__segment--selected:hover {
   background: var(--background);
   color: var(--foreground);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-pill);
+}
+.pb-segmented--inspector .pb-segmented__segment--selected {
+  box-shadow: var(--shadow-segment);
 }
 .pb-segmented__segment input {
   position: absolute;

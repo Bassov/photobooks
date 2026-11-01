@@ -51,6 +51,13 @@
   padding-bottom: calc(var(--spacing) * 4);
 }
 
+/* A collapsed panel stays in the box tree (hidden="until-found"); the kit's
+   pb-4 sits inside it, so a closed section is the 36 px trigger plus its
+   1 px border: a 37 px row pitch (Owner Must M60, round 10). */
+.pb-disclosure:not([data-expanded]) > .pb-disclosure__panel {
+  padding-bottom: 0;
+}
+
 /* Kit eyebrow inherits the trigger's 1.5 leading: a 16.5 px line box. */
 .pb-disclosure__trigger .inspector-eyebrow {
   line-height: 1.5;
