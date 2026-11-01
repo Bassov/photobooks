@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r10-inspectors: Cover/Book/Photo inspectors and segmented controls match the kit
+Status: done
 
 ## Scope
 
