@@ -216,6 +216,12 @@
   content-visibility: auto;
 }
 
+/* Kit #/demo: page 1 is the right half of a spread-wide slot, a single last
+   page the left half; the other half has no paper. */
+.pasteboard-slot[data-page-side='right'] > .spread-view {
+  margin-left: auto;
+}
+
 .pasteboard-world[data-gesture='zoom'] .pasteboard-slot {
   content-visibility: visible;
 }
@@ -339,18 +345,26 @@
   display: flex;
 }
 
-/* "Drop here for a new spread" band; hit-testing is dropTargets.hitTestGap. */
+/* "Drop here for a new spread" pill (kit GapDrop: h-8, text-xs, 8 px radius,
+   gap-1.5): one line at a constant screen size, centred in the gap;
+   --cam-scale undoes a live zoom gesture's world scale. Rendered only while
+   the gap holds it plus the label clearance (newSpreadPillFits). Hit-testing
+   is dropTargets.hitTestGap. */
 .pasteboard-gap {
   position: absolute;
-  bottom: 0;
-  left: 20%;
-  width: 60%;
-  height: min(32px, var(--slot-pad, 32px));
+  left: 50%;
+  top: calc(100% - var(--slot-pad, 0px) / 2);
+  transform: translate(-50%, -50%) scale(calc(1 / var(--cam-scale, 1)));
+  box-sizing: border-box;
+  height: 32px;
+  padding-inline: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: var(--radius-lg);
+  white-space: nowrap;
+  line-height: 1;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, white 50%, transparent);
   color: var(--muted-foreground);
   font-size: var(--text-xs);
@@ -368,8 +382,9 @@
 /* Kit PageLabels: one centred number under each page, anchored to the page's
    bottom edge (slot height minus the gap) at a constant 8 screen px with an
    11 px line; --cam-scale undoes a live zoom gesture's world scale, so labels
-   never drift while zooming (pageLabelsModel). A single page has one number.
-   Hidden while the gap pill shows. */
+   never drift while zooming (pageLabelsModel). A single page has one number;
+   on its side of a spread-wide slot the empty half keeps its place. Shown
+   with the new-spread pill, which clears them. */
 .page-labels {
   position: absolute;
   inset-inline: 0;
@@ -386,15 +401,12 @@
   text-align: center;
   white-space: nowrap;
 }
-.page-label:empty {
+.page-labels:not([data-page-side]) .page-label:empty {
   display: none;
 }
 /* Mid-zoom the live gap can drop below pageLabelsFit: hide, never squeeze. */
 .page-labels[data-gap-short] {
   display: none;
-}
-.pasteboard-scroll[data-asset-drag='true'] .page-labels {
-  visibility: hidden;
 }
 
 /* Idle hint: other empty frames while an asset is dragged. */

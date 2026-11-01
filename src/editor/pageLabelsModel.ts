@@ -26,3 +26,17 @@ export const PAGE_LABELS_MIN_GAP_PX = PAGE_LABEL_OFFSET_PX + PAGE_LABEL_LINE_PX
 export function pageLabelsFit(gapPx: number): boolean {
   return gapPx >= PAGE_LABELS_MIN_GAP_PX
 }
+
+/** "Drop here for a new spread" pill height in screen px (kit `GapDrop` `h-8`). */
+export const NEW_SPREAD_PILL_HEIGHT_PX = 32
+
+/**
+ * The pill is centred in the gap at a constant screen size and clears the
+ * page numbers above it (and the same room below): a shorter gap hides it.
+ */
+export const NEW_SPREAD_PILL_MIN_GAP_PX =
+  NEW_SPREAD_PILL_HEIGHT_PX + 2 * PAGE_LABELS_MIN_GAP_PX
+
+export function newSpreadPillFits(gapPx: number): boolean {
+  return gapPx >= NEW_SPREAD_PILL_MIN_GAP_PX
+}

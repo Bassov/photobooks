@@ -482,7 +482,9 @@ test('camera controls set physical size, fit width, and fit spread', async ({
     .evaluate((el) => el.clientWidth)
   const fittedWidth = await readSpreadSlots(page)
   const activeWidth = fittedWidth.find((slot) => slot.active)
-  expect(activeWidth?.widthPx).toBeCloseTo(portWidth, 0)
+  // Page 1 sits on its half of a spread-wide slot (round 7, M45): Fit width
+  // fits the slot.
+  expect(activeWidth?.slotWidthPx).toBeCloseTo(portWidth, 0)
 
   await chooseZoom(page, 'Fit spread')
   await expect
@@ -814,6 +816,8 @@ test.describe('frame-budget gates', () => {
 interface SpreadSlotSnapshot {
   placeholders: number
   widthPx: number
+  /** Slot width: spread-wide for a single page on its side (round 7, M45). */
+  slotWidthPx: number
   inScrollport: boolean
   active: boolean
 }
@@ -832,6 +836,7 @@ async function readSpreadSlots(page: Page): Promise<SpreadSlotSnapshot[]> {
             '[data-testid="spread-frame-placeholder"]',
           ).length,
           widthPx,
+          slotWidthPx: box.width,
           inScrollport: box.bottom > port.top && box.top < port.bottom,
           active: slot.getAttribute('data-active') === 'true',
         }
@@ -859,6 +864,7 @@ async function readSpreadSlotAt(
         '[data-testid="spread-frame-placeholder"]',
       ).length,
       widthPx,
+      slotWidthPx: box.width,
       inScrollport: box.bottom > port.top && box.top < port.bottom,
       active: slot.getAttribute('data-active') === 'true',
     }

@@ -21,11 +21,12 @@ describe('pageShadowRects', () => {
     expect(rects).toEqual([
       { spreadId: 'b', u: 0, v: 660, w: 800, h: 588 },
       { spreadId: 'c', u: 0, v: 1320, w: 800, h: 588 },
-      { spreadId: 'd', u: 200, v: 1980, w: 400, h: 588 },
+      // The single last page ends at the centre line (M45).
+      { spreadId: 'd', u: 0, v: 1980, w: 400, h: 588 },
     ])
   })
 
-  it('gives the cover spread a single centred page', () => {
+  it('puts the single page 1 on the right half, from the centre line', () => {
     const [cover] = pageShadowRects({
       mounted: ['a'],
       start: 0,
@@ -36,6 +37,6 @@ describe('pageShadowRects', () => {
       worldWidthPx: 120,
     })
 
-    expect(cover).toEqual({ spreadId: 'a', u: 30, v: 0, w: 60, h: 80 })
+    expect(cover).toEqual({ spreadId: 'a', u: 60, v: 0, w: 60, h: 80 })
   })
 })

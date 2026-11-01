@@ -89,7 +89,7 @@ export const EDITOR_CHROME_CSS = `
 .filmstrip-empty, .filmstrip-empty * { color: ${SUB} }
 .editor-spreads { background: var(--chrome); color: var(--foreground) }
 .editor-spreads-mode { background: var(--chrome); color: var(--foreground); box-shadow: var(--shadow-sm) }
-.editor-spread-thumb { overflow: hidden; background: var(--paper); box-shadow: var(--shadow-sm) }
+.editor-spread-thumb { overflow: hidden; box-shadow: var(--shadow-sm) }
 `
 
 const STYLE_ID = 'pb-editor-chrome-v93'

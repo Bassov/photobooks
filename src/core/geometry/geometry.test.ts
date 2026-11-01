@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { test, fc } from '@fast-check/vitest'
 import {
   getPageCuts,
+  getSinglePageSide,
   getSpreadPageCount,
   getSpreadSizeMm,
+  getSpreadSlotPageCount,
   moveSpread,
   removeSpread,
   resolveSpread,
@@ -21,6 +23,31 @@ describe('spread size and page cuts', () => {
     expect(getSpreadPageCount(1, 3)).toBe(2)
     expect(getSpreadPageCount(2, 3)).toBe(1)
   })
+
+  it('puts page 1 on the right half and a single last page on the left', () => {
+    expect(getSinglePageSide(0, 4)).toBe('right')
+    expect(getSinglePageSide(1, 4)).toBeNull()
+    expect(getSinglePageSide(2, 4)).toBeNull()
+    expect(getSinglePageSide(3, 4)).toBe('left')
+    expect(getSinglePageSide(0, 2)).toBe('right')
+    expect(getSinglePageSide(1, 2)).toBe('left')
+  })
+
+  it('gives the only spread of a one-spread book no side and a one-page slot', () => {
+    expect(getSinglePageSide(0, 1)).toBeNull()
+    expect(getSpreadSlotPageCount(0, 1)).toBe(1)
+    expect(getSinglePageSide(0, 0)).toBeNull()
+  })
+
+  test.prop([fc.integer({ min: 2, max: 60 }), fc.nat(59)])(
+    'every slot of a book with two spreads or more is two pages wide',
+    (count, raw) => {
+      const index = raw % count
+      expect(getSpreadSlotPageCount(index, count)).toBe(2)
+      const side = getSinglePageSide(index, count)
+      expect(side === null).toBe(getSpreadPageCount(index, count) === 2)
+    },
+  )
 
   it('sizes interior spreads to twice trim width', () => {
     const book = makeBook({

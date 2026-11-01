@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
-import { getSpreadPageCount } from '../core'
+import { getSpreadSlotPageCount } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
@@ -132,7 +132,8 @@ function stackMetrics(
   spreadCount: number,
   activeIndex: number,
 ): StackMetrics {
-  const pages = getSpreadPageCount(activeIndex, spreadCount)
+  // A single page sits on its side of a spread-wide slot (design-r7-spreads).
+  const pages = getSpreadSlotPageCount(activeIndex, spreadCount)
   const widest = spreadCount >= 2 ? 2 : 1
   return {
     spreadWidth: trimWidthMm * pages * SPREAD_PX_PER_MM,

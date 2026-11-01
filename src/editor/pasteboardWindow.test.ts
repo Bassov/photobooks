@@ -16,16 +16,17 @@ import {
 } from './pasteboardWindow'
 
 describe('pasteboard stack gap', () => {
-  it('is 72 px under a 588 px spread (wider than the kit 44 px)', () => {
-    expect(pasteboardGapPx(588)).toBeCloseTo(72, 9)
-    expect(pasteboardStridePx(588)).toBeCloseTo(660, 9)
+  // Owner design change (round 7, M49): 104 / 588, was 72 / 588.
+  it('is 104 px under a 588 px spread (wider than the kit 44 px)', () => {
+    expect(pasteboardGapPx(588)).toBeCloseTo(104, 9)
+    expect(pasteboardStridePx(588)).toBeCloseTo(692, 9)
   })
 
   it('scales with the spread: half the spread, half the gap', () => {
-    expect(pasteboardGapPx(294)).toBeCloseTo(36, 9)
-    expect(pasteboardStridePx(1176)).toBeCloseTo(1320, 9)
+    expect(pasteboardGapPx(294)).toBeCloseTo(52, 9)
+    expect(pasteboardStridePx(1176)).toBeCloseTo(1384, 9)
     expect(pasteboardStridePx(STACK_MIN_SPREAD_PX)).toBeCloseTo(
-      16 + (16 * 72) / 588,
+      16 + (16 * 104) / 588,
       9,
     )
   })
@@ -51,7 +52,7 @@ describe('pasteboard stack gap', () => {
 
 describe('pasteboardOverscanPx', () => {
   it('overscans one stride above the zoom-out floor', () => {
-    expect(pasteboardOverscanPx(40, 588)).toBeCloseTo(660, 9)
+    expect(pasteboardOverscanPx(40, 588)).toBeCloseTo(692, 9)
     expect(pasteboardOverscanPx(40, STACK_MIN_SPREAD_PX + 0.6)).toBe(
       pasteboardStridePx(STACK_MIN_SPREAD_PX + 0.6),
     )

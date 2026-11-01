@@ -69,8 +69,10 @@ export {
 
 export {
   getPageCuts,
+  getSinglePageSide,
   getSpreadPageCount,
   getSpreadSizeMm,
+  getSpreadSlotPageCount,
 } from './geometry/spreadSize'
 export { DPI_MIN, DPI_WARN, frameDpi, lowDpi } from './geometry/dpi'
 export {

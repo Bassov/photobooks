@@ -3,8 +3,10 @@ import { PASTEBOARD_PAD_PX } from './pasteboardView'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   dispatchBookOp,
+  getBookStoreSnapshot,
   getSpreadIdsSnapshot,
   resetBookStore,
 } from './bookStore'
@@ -303,6 +305,18 @@ describe('Pasteboard view wiring', () => {
     const slots = screen.getAllByTestId('pasteboard-slot')
     expect(slots[0]?.getAttribute('data-active')).toBe('true')
     expect(slots[0]?.style.containIntrinsicBlockSize).toMatch(/^auto /)
+    // Every slot is spread-wide and sized explicitly (a content-visibility
+    // skipped slot has no intrinsic width): single pages and spreads alike.
+    expect(slots.map((slot) => slot.dataset.pageSide)).toEqual([
+      'right',
+      undefined,
+      'left',
+    ])
+    const spreadPx =
+      2 * getBookStoreSnapshot().book.settings.trim.widthMm * SPREAD_PX_PER_MM
+    for (const slot of slots) {
+      expect(Number.parseFloat(slot.style.width)).toBeCloseTo(spreadPx, 6)
+    }
     const inactive = slots.filter(
       (slot) => slot.getAttribute('data-active') === 'false',
     )

@@ -156,24 +156,49 @@ describe('SpreadsPanel list', () => {
     render(<SpreadsPanel />)
     const box = document.querySelector<HTMLElement>('.editor-spread-thumb')
     const view = document.querySelector<HTMLElement>('.spread-view--thumb')
-    const spreadAspect =
+    const pageAspect =
       Number.parseFloat(view?.style.width ?? '') /
       Number.parseFloat(view?.style.height ?? '')
+    // Page 1 sits on the right half of a spread-wide slot (M45).
+    const slotAspect = 2 * pageAspect
     // 220 - list inset 16 - row padding 16.
-    const geometry = spreadsRowGeometry(220, spreadAspect)
+    const geometry = spreadsRowGeometry(220, slotAspect)
     expect(Number.parseFloat(view?.style.width ?? '')).toBeCloseTo(
-      geometry.thumbWidthPx,
+      geometry.thumbWidthPx / 2,
       3,
     )
     expect(Number.parseFloat(box?.style.height ?? '')).toBeCloseTo(
-      188 / Math.max(spreadAspect, 1.6),
+      188 / Math.max(slotAspect, 1.6),
       3,
     )
     const row = screen.getByTestId('spread-list-item-s0').parentElement
     expect(Number.parseFloat(row?.style.height ?? '')).toBeCloseTo(
-      spreadsRowGeometry(220, spreadAspect).rowPx,
+      geometry.rowPx,
       3,
     )
+  })
+
+  it('puts single pages on their side and page 1’s label under its half (M45)', () => {
+    seedSpreads(3)
+    render(<SpreadsPanel />)
+    const rows = ['s0', 's1', 's2'].map((id) =>
+      screen.getByTestId(`spread-list-item-${id}`),
+    )
+    expect(rows.map((row) => row.dataset.pageSide)).toEqual([
+      'right',
+      undefined,
+      'left',
+    ])
+    expect(
+      rows.map(
+        (row) =>
+          row.querySelector<HTMLElement>('[data-label]')?.parentElement?.style
+            .paddingLeft,
+      ),
+    ).toEqual(['50%', '', ''])
+    expect(
+      rows.map((row) => row.querySelector('[data-label]')?.textContent),
+    ).toEqual(['1', '2–3', '4'])
   })
 
   it('re-derives the row height when the spread aspect changes', () => {
@@ -225,9 +250,10 @@ describe('SpreadsPanel list', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(220)
     render(<SpreadsPanel />)
     const resolved = getSpreadPaintSnapshot('s0')?.resolved
+    // Page 1 keeps a spread-wide slot (M45): twice the page aspect.
     const aspect =
-      (resolved?.spreadWidthMm ?? 1) / (resolved?.spreadHeightMm ?? 1)
-    expect(aspect).toBeGreaterThan(2.5)
+      (2 * (resolved?.spreadWidthMm ?? 1)) / (resolved?.spreadHeightMm ?? 1)
+    expect(aspect).toBeGreaterThan(5)
     const row = screen.getByTestId('spread-list-item-s0').parentElement
     expect(Number.parseFloat(row?.style.height ?? '')).toBeCloseTo(
       spreadsRowGeometry(220, aspect).rowPx,
