@@ -151,6 +151,22 @@ describe('Book settings header and pages', () => {
       'Pages are added in spreads of 2',
     )
   })
+
+  it('titles each section with the kit Sec eyebrow (Owner Must M57, round 9)', () => {
+    seed(190, 230)
+    render(<BookSettingsSection />)
+    expect(
+      [...document.querySelectorAll('.inspector-eyebrow')].map((title) => [
+        title.textContent,
+        title.className,
+      ]),
+    ).toEqual(
+      ['Page size', 'Binding', 'Print', 'Defaults'].map((name) => [
+        name,
+        'inspector-eyebrow inspector-sec-title',
+      ]),
+    )
+  })
 })
 
 describe('Book settings Pages field (rendered #/demo step 24)', () => {

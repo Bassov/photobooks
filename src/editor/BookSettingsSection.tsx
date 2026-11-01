@@ -207,7 +207,7 @@ export function BookSettingsSection() {
           {bookSettingsSubtitle(cover.back.text, cover.front.text)}
         </p>
       </div>
-      <h4 className="inspector-eyebrow">Page size</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Page size</h4>
       {/* Kit SizeEditor select (v7.tsx:172-174), presets plus "Custom". */}
       <Select
         aria-label="Page size"
@@ -276,7 +276,7 @@ export function BookSettingsSection() {
       <p className="text-2xs leading-4 text-muted-foreground">
         Size of one page. To print 2 pages per A4 sheet, choose A5.
       </p>
-      <h4 className="inspector-eyebrow">Binding</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Binding</h4>
       <InspectorRow label="Style">
         {/* Kit v7.tsx:205: disabled Val pill + "read-only" note. */}
         <ReadOnlyPill
@@ -315,7 +315,7 @@ export function BookSettingsSection() {
       >
         {pagesNote(pages)}
       </p>
-      <h4 className="inspector-eyebrow">Print</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Print</h4>
       {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}
       <div className="grid grid-cols-2 gap-2">
         <ReadOnlyField
@@ -334,7 +334,7 @@ export function BookSettingsSection() {
       <InspectorRow label="Paper">
         <ReadOnlyPill value="Matte 200 g" />
       </InspectorRow>
-      <h4 className="inspector-eyebrow">Defaults</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Defaults</h4>
       {/* Kit v7.tsx:201,210: default master and page colour (coming later). */}
       <InspectorRow label="Default master">
         <ReadOnlyPill value="Master A" />

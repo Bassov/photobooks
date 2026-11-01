@@ -103,11 +103,13 @@ export function EndpaperSection({ side }: { side: EndpaperSide }) {
   )
 }
 
-/** Kit `Sec` title row: mb-3, 11 px semibold uppercase eyebrow. */
+/** Kit `Sec` title row: mb-3, 11 px semibold uppercase eyebrow at 0.12em. */
 function SecTitle({ title }: { title: string }) {
   return (
     <div className="mb-3 flex items-center justify-between">
-      <h3 className="inspector-eyebrow endpaper-sec-title">{title}</h3>
+      <h3 className="inspector-eyebrow inspector-sec-title endpaper-sec-title">
+        {title}
+      </h3>
     </div>
   )
 }

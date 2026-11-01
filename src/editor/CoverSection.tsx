@@ -152,7 +152,7 @@ export function CoverSection() {
           Hardcover · back, spine, front · wrap {COVER_WRAP_MM} mm
         </p>
       </div>
-      <h4 className="inspector-eyebrow">Front</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Front</h4>
       <div className="flex items-center gap-3">
         <div
           className="cover-thumb"
@@ -183,7 +183,7 @@ export function CoverSection() {
         options={TITLE_FONT_OPTIONS}
         testId="cover-title-font"
       />
-      <h4 className="inspector-eyebrow">Spine</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Spine</h4>
       <CoverText panel="spine" label="Spine text" />
       {/* Rendered #/demo step 13: Spine width is read-only mono text. */}
       <InspectorRow label="Spine width">
@@ -205,7 +205,7 @@ export function CoverSection() {
           testId="cover-direction"
         />
       </InspectorRow>
-      <h4 className="inspector-eyebrow">Back</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Back</h4>
       <CoverText panel="back" label="Back text" />
       {/* Kit v7.tsx:216: Fill is a "Paper white" pill with a "coming later" note. */}
       <InspectorRow label="Fill">
@@ -216,7 +216,7 @@ export function CoverSection() {
           noteTestId="fill-readonly"
         />
       </InspectorRow>
-      <h4 className="inspector-eyebrow">Material</h4>
+      <h4 className="inspector-eyebrow inspector-sec-title">Material</h4>
       <ChoiceRow
         label="Cover"
         field="material"
