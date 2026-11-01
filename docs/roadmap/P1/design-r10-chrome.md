@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r10-chrome: button font, layout picker and Create dialog match the kit
+Status: done
 
 ## Scope
 
