@@ -83,6 +83,40 @@ describe('SpreadThumb', () => {
     expect(view.querySelector('[data-frame-id]')).toBeNull()
   })
 
+  it.each([
+    ['right', 'flex-end'],
+    ['left', 'flex-start'],
+  ] as const)(
+    'puts a single page on its %s half of a spread-wide slot (M45)',
+    (side, justify) => {
+      seed()
+      const { container } = render(
+        <SpreadThumb
+          spreadId="s0"
+          boxWidthPx={400}
+          boxHeightPx={60}
+          side={side}
+        />,
+      )
+      const slot = container.firstElementChild as HTMLElement
+      const view = slot.firstElementChild as HTMLElement
+      expect(slot.dataset.pageSide).toBe(side)
+      expect(slot.style.display).toBe('flex')
+      expect(slot.style.justifyContent).toBe(justify)
+      expect(view.classList.contains('spread-view--thumb')).toBe(true)
+      const px = (value: string): number => Number.parseFloat(value)
+      // The slot fits the box (height-bound here) at twice the page aspect;
+      // the page fills one half.
+      expect(px(slot.style.height)).toBeCloseTo(60, 6)
+      expect(px(slot.style.width)).toBeCloseTo(2 * px(view.style.width), 6)
+      expect(px(view.style.height)).toBeCloseTo(60, 6)
+      expect(px(slot.style.width) / px(slot.style.height)).toBeCloseTo(
+        (2 * px(view.style.width)) / px(view.style.height),
+        6,
+      )
+    },
+  )
+
   it('shows the filmstrip thumb, and picks up one that arrives later', () => {
     seed()
     const { container } = render(

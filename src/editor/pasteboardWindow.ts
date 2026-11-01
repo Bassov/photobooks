@@ -1,12 +1,12 @@
 import { clamp } from '../lib/clamp'
 
 /**
- * Stack gap as a share of the spread height: 72 px under a 588 px spread
- * (wider than the kit's 44 / 588 so the page shadow and page numbers have
- * room; see design-r3-spread-shadow). The gap scales with zoom, so it looks
- * the same relative to the pages at every zoom.
+ * Stack gap as a share of the spread height: 104 px under a 588 px spread
+ * (wider than the kit's 44 / 588 so the page numbers and the new-spread pill
+ * have room; Owner design change, design-r7-spreads M49). The gap scales with
+ * zoom, so it looks the same relative to the pages at every zoom.
  */
-export const STACK_GAP_RATIO = 72 / 588
+export const STACK_GAP_RATIO = 104 / 588
 
 /** Subpixel clipping must not steal "active" from the spread above. */
 const ACTIVE_RATIO_EPSILON = 0.02

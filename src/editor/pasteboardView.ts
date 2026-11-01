@@ -86,6 +86,22 @@ export function pasteboardWorldWidthPx(input: {
   return Math.max(input.viewportWidth, stackWidth)
 }
 
+/**
+ * Left edge of a spread's paper in a world `worldWidthPx` wide whose stack is
+ * centred: a two-page spread is centred, page 1 starts at the centre line and
+ * a single last page ends there (kit `#/demo`).
+ */
+export function slotPageLeftPx(input: {
+  worldWidthPx: number
+  paperWidthPx: number
+  side: 'left' | 'right' | null
+}): number {
+  const centre = input.worldWidthPx / 2
+  if (input.side === 'right') return centre
+  if (input.side === 'left') return centre - input.paperWidthPx
+  return centre - input.paperWidthPx / 2
+}
+
 /** Spread and gap both scale with zoom, so the stride does too. */
 export function pasteboardStrideAtZoom(
   trimHeightMm: number,

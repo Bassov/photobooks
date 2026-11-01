@@ -19,6 +19,9 @@ test.describe('look parity: page labels and drop-target visuals', () => {
   test('an asset drag shows the gap pill and the chip on the hovered frame', async ({
     page,
   }) => {
+    // The pill renders only while the gap holds it plus the label clearance
+    // (round 7, M49): the kit 1440 × 900 port at Fit does.
+    await page.setViewportSize({ width: 1440, height: 900 })
     const frame = page.getByTestId('spread-frame').first()
     const gap = page.getByTestId('pasteboard-gap').first()
     await expect(gap).toHaveCSS('opacity', '0')
@@ -51,9 +54,10 @@ test.describe('look parity: page labels and drop-target visuals', () => {
     )
 
     await expect(gap).toHaveCSS('opacity', '1')
+    // The pill clears the page numbers, which stay shown (round 7, M49).
     await expect(page.getByTestId('page-labels').first()).toHaveCSS(
       'visibility',
-      'hidden',
+      'visible',
     )
     await expect(frame).toHaveAttribute('data-drop-hover', 'true')
     await expect(frame).toHaveAttribute(

@@ -6,6 +6,9 @@ import {
   PAGE_LABEL_LINE_PX,
   PAGE_LABEL_OFFSET_PX,
   PAGE_LABELS_MIN_GAP_PX,
+  NEW_SPREAD_PILL_HEIGHT_PX,
+  NEW_SPREAD_PILL_MIN_GAP_PX,
+  newSpreadPillFits,
   pageLabelsFit,
   pageLabelTexts,
 } from './pageLabelsModel'
@@ -30,6 +33,25 @@ describe('page labels', () => {
     const root = screen.getByTestId('page-labels')
     expect(root.dataset.pages).toBe('1')
     expect([...root.children].map((c) => c.textContent)).toEqual(['4', ''])
+  })
+
+  it('marks the side of a single page on a spread-wide slot', () => {
+    render(<PageLabels spreadIndex={3} pages={1} side="left" gapPx={104} />)
+    const root = screen.getByTestId('page-labels')
+    expect(root.dataset.pageSide).toBe('left')
+    expect([...root.children].map((c) => c.textContent)).toEqual(['6', ''])
+    cleanup()
+    render(<PageLabels spreadIndex={1} gapPx={104} />)
+    expect(screen.getByTestId('page-labels').dataset.pageSide).toBeUndefined()
+  })
+
+  it('shows the new-spread pill only when the gap holds it and both label clearances', () => {
+    expect(NEW_SPREAD_PILL_HEIGHT_PX).toBe(32)
+    expect(NEW_SPREAD_PILL_MIN_GAP_PX).toBe(32 + 19 + 19)
+    expect(newSpreadPillFits(70)).toBe(true)
+    expect(newSpreadPillFits(70.01)).toBe(true)
+    expect(newSpreadPillFits(69.99)).toBe(false)
+    expect(newSpreadPillFits(0)).toBe(false)
   })
 
   it('renders two aria-hidden halves', () => {

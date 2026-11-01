@@ -1,5 +1,6 @@
-import type { RectMm } from '../core'
+import { getSinglePageSide, type RectMm } from '../core'
 import { frameBox } from '../render/frameBox'
+import { slotPageLeftPx } from './pasteboardView'
 
 export const ASSET_DRAG_MIME = 'application/x-photobooks-asset'
 
@@ -150,7 +151,11 @@ export function buildDropIndex(input: DropIndexInput): DropIndex {
     const spreadWidth = Number.isFinite(spread.spreadWidthPx)
       ? spread.spreadWidthPx
       : 0
-    const offsetX = (worldWidth - spreadWidth) / 2
+    const offsetX = slotPageLeftPx({
+      worldWidthPx: worldWidth,
+      paperWidthPx: spreadWidth,
+      side: getSinglePageSide(index, input.spreads.length),
+    })
     const originY = index * stride
     gaps.push({
       top: originY + zoneTop,

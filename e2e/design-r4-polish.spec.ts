@@ -607,7 +607,9 @@ test.describe('M42 page numbers at the zoom floor (Designer-accepted deviation)'
             })
           })
         const out: LabelSample[] = []
-        for (const deltaY of [...Array(8).fill(160), ...Array(8).fill(-160)]) {
+        // 240-px steps: the 104 / 588 gap (round 7, M49) holds the labels
+        // down to a shorter spread, so the walk goes further out to cross.
+        for (const deltaY of [...Array(8).fill(240), ...Array(8).fill(-240)]) {
           scroll.dispatchEvent(
             new WheelEvent('wheel', {
               deltaY: deltaY as number,
