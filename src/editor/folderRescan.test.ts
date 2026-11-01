@@ -1,11 +1,15 @@
+import assert from 'node:assert/strict'
 import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createFsaAssetSource,
   createMemoryAssetDirectory,
   createMemoryAssetSource,
+  createMemoryDerivedCache,
   resetScanWorker,
+  setDerivedCacheForTests,
 } from '../assets'
+import { tryCacheKeyFromAsset } from '../assets/cacheKey'
 import { stubScanWorker } from '../assets/scanWorkerMock.test-helpers'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getAssetSource, resetAssetSources } from '../photo/assetSources'
@@ -26,6 +30,7 @@ import {
 import * as importPhotos from './importPhotos'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import * as pendingHashes from './pendingHashes'
+import { getThumbUrl, resetThumbCache } from './thumbCache'
 import {
   persistScannedEntryIndex,
   getSourceRootEntryIndex,
@@ -151,6 +156,62 @@ describe('startFolderRescan', () => {
     )
     expect(paths).toEqual(expect.arrayContaining(['early.jpg', 'late.jpg']))
     expect(paths).not.toContain('gone.jpg')
+  })
+
+  it('hydrates cached gallery thumbs before scanRoot resolves', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:restored')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const tree = createMemoryAssetDirectory()
+    tree.putFile('kept.png', new Uint8Array([1, 2]), 10)
+    const sourceRootId = 'root-bulk-hydrate'
+    const source = createFsaAssetSource({
+      rootId: sourceRootId,
+      directory: tree.root,
+    })
+    registerAssetSource(sourceRootId, source)
+    const identity = {
+      sourceRootId,
+      relativePath: 'kept.png',
+      byteSize: 2,
+      mtimeMs: 10,
+    }
+    const cacheKey = tryCacheKeyFromAsset(identity)
+    assert(cacheKey !== undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    await cache.put(cacheKey, 'thumb', {
+      bytes: new Uint8Array([7, 7, 7]).buffer,
+      mimeType: 'image/png',
+    })
+    let releaseScan!: () => void
+    const scanGate = new Promise<void>((resolve) => {
+      releaseScan = resolve
+    })
+    const realScan = source.scanRoot.bind(source)
+    vi.spyOn(source, 'scanRoot').mockImplementation(async (rootId) => {
+      await scanGate
+      return realScan(rootId)
+    })
+    resetBookStore({
+      book: makeBook({ gallery: ['k'], assets: { k: identity } }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    try {
+      const pending = startFolderRescan({ sourceRootId, runLazy: false })
+      await vi.waitFor(() => {
+        expect(getThumbUrl('k')).toBe('blob:restored')
+      })
+      expect(source.scanRoot).toHaveBeenCalledTimes(1)
+      releaseScan()
+      await pending
+      await awaitFolderRescanForTests()
+    } finally {
+      resetThumbCache()
+      setDerivedCacheForTests(undefined)
+    }
   })
 
   it('resets aspect for size/mtime-changed paths after scan', async () => {

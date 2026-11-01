@@ -5,8 +5,11 @@ import {
   isDecodeScrollQuiet,
   resetDecodeScrollQuietForTests,
 } from '../photo/decodeScrollQuiet'
+import { makeBook } from '../core/testing/fixtures'
 import {
   getAssetAspectSnapshot,
+  getAssetCacheKey,
+  patchAssetRecord,
   removeFailedImportAsset,
   resetBookStore,
 } from './bookStore'
@@ -14,10 +17,12 @@ import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import { resetFilmstripScrollQuietForTests } from './filmstripScrollQuiet'
 import {
   ensureThumb,
+  getThumbBulkHydrateStatsForTests,
   getThumbCacheStatsForTests,
   getThumbPublishGeneration,
   getThumbUrl,
   hasThumbData,
+  hydrateGalleryThumbs,
   noteFilmstripScroll,
   putCachedThumbForHash,
   resetThumbCache,
@@ -88,9 +93,11 @@ describe('thumbCache', () => {
     resetPendingHashesForTests()
     resetBookStore()
     setDerivedCacheForTests(undefined)
+    // Restore spies first: a `setTimeout` spy taken under fake timers would
+    // otherwise put the fake timer back after `useRealTimers`.
+    vi.restoreAllMocks()
     vi.useRealTimers()
     vi.unstubAllGlobals()
-    vi.restoreAllMocks()
   })
 
   function listen(assetId: string) {
@@ -799,6 +806,376 @@ describe('thumbCache', () => {
       expect(hasThumbData('g0')).toBe(false)
       expect(hasThumbData('g4')).toBe(false)
       expect(get.mock.calls.map((call) => call[0])).not.toContain(keyFor(4))
+    })
+  })
+
+  describe('restore bulk hydrate', () => {
+    /**
+     * Gallery `b0…b{count-1}` with identity records; `cached` ids get a
+     * `size`-byte thumb in a memory DerivedCache. `get` maps reads to ids.
+     */
+    async function cachedGallery(
+      count: number,
+      options: { gated?: boolean; size?: number; uncached?: string[] } = {},
+    ) {
+      const ids = Array.from({ length: count }, (_, i) => `b${String(i)}`)
+      resetBookStore({
+        book: makeBook({
+          gallery: ids,
+          assets: Object.fromEntries(
+            ids.map((id, i) => [
+              id,
+              {
+                sourceRootId: 'root',
+                relativePath: `${id}.png`,
+                byteSize: 10,
+                mtimeMs: i,
+              },
+            ]),
+          ),
+        }),
+        sessionMeta: new Map(),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+      const cache = createMemoryDerivedCache()
+      setDerivedCacheForTests(cache)
+      const idByKey = new Map<string, string>()
+      for (const id of ids) {
+        const key = getAssetCacheKey(id)
+        assert(key !== undefined)
+        idByKey.set(key, id)
+        if (!(options.uncached ?? []).includes(id)) {
+          await cache.put(key, 'thumb', {
+            bytes: new ArrayBuffer(options.size ?? 1),
+            mimeType: 'image/png',
+          })
+        }
+      }
+      const gates: (() => void)[] = []
+      const realGet = cache.get.bind(cache)
+      const get = vi.spyOn(cache, 'get').mockImplementation(async (...args) => {
+        if (options.gated === true) {
+          await new Promise<void>((resolve) => {
+            gates.push(resolve)
+          })
+        }
+        return realGet(...args)
+      })
+      const readIds = (): (string | undefined)[] =>
+        get.mock.calls.map((call) => idByKey.get(call[0]))
+      return { ids, gates, readIds }
+    }
+
+    it('reads 8 at a time outward from the filmstrip window, then the rest', async () => {
+      const create = vi
+        .spyOn(URL, 'createObjectURL')
+        .mockReturnValue('blob:bulk')
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+      const { ids, gates, readIds } = await cachedGallery(12, { gated: true })
+      viewport(['b5'])
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(8)
+      })
+      expect(getThumbBulkHydrateStatsForTests().state).toBe('running')
+      expect(readIds()).toEqual([
+        'b5',
+        'b6',
+        'b4',
+        'b7',
+        'b3',
+        'b8',
+        'b2',
+        'b9',
+      ])
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(12)
+      })
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await pass
+
+      // b1 was the next pick when the first batch filled on b9.
+      expect(readIds().slice(8)).toEqual(['b1', 'b10', 'b0', 'b11'])
+      expect(ids.every((id) => getThumbUrl(id) !== undefined)).toBe(true)
+      const blob = create.mock.calls[0]?.[0]
+      expect(blob).toBeInstanceOf(Blob)
+      expect((blob as Blob).type).toBe('image/png')
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 12,
+        missed: 0,
+      })
+    })
+
+    it('fills a batch from a window wider than 8 before going outward', async () => {
+      mockObjectUrls('wide8')
+      const { gates, readIds } = await cachedGallery(12, { gated: true })
+      viewport(['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9'])
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(8)
+      })
+      expect(readIds()).toEqual([
+        'b1',
+        'b2',
+        'b3',
+        'b4',
+        'b5',
+        'b6',
+        'b7',
+        'b8',
+      ])
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(12)
+      })
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await pass
+
+      expect(readIds().slice(8)).toEqual(['b9', 'b10', 'b0', 'b11'])
+    })
+
+    it('starts at the gallery head and widens the window when several tiles show', async () => {
+      mockObjectUrls('head')
+      const head = await cachedGallery(3)
+      await hydrateGalleryThumbs()
+      expect(head.readIds()).toEqual(['b0', 'b1', 'b2'])
+
+      resetThumbCache()
+      const wide = await cachedGallery(10)
+      viewport(['b6', 'b4'])
+      await hydrateGalleryThumbs()
+      expect(wide.readIds()).toEqual([
+        'b4',
+        'b5',
+        'b6',
+        'b7',
+        'b3',
+        'b8',
+        'b2',
+        'b9',
+        'b1',
+        'b0',
+      ])
+    })
+
+    it('skips hot and keyless ids and counts misses without storing them', async () => {
+      mockObjectUrls('skip')
+      const { readIds } = await cachedGallery(4, { uncached: ['b3'] })
+      setThumbUrl('b1', bytes(1), 'image/png')
+      patchAssetRecord('b2', { mtimeMs: Number.NaN })
+      // Pass start at 1000; every later clock read (scroll check, end) 1250.
+      vi.spyOn(performance, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValue(1250)
+
+      await hydrateGalleryThumbs()
+
+      expect(readIds()).toEqual(['b0', 'b3'])
+      expect(hasThumbData('b0')).toBe(true)
+      expect(hasThumbData('b3')).toBe(false)
+      expect(getThumbBulkHydrateStatsForTests()).toEqual({
+        state: 'done',
+        hydrated: 1,
+        missed: 1,
+        ms: 250,
+      })
+    })
+
+    it('keeps the mount path thumb that landed during the read', async () => {
+      mockObjectUrls('race')
+      const { gates, readIds } = await cachedGallery(3, { gated: true })
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(3)
+      })
+      setThumbUrl('b1', bytes(9, 9), 'image/png')
+      const mounted = getThumbUrl('b1')
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await pass
+
+      expect(getThumbUrl('b1')).toBe(mounted)
+      expect(getThumbCacheStatsForTests().bytes).toBe(4)
+      expect(getThumbBulkHydrateStatsForTests().hydrated).toBe(2)
+    })
+
+    it('stops at the byte budget without evicting hot thumbs', async () => {
+      const revoke = mockObjectUrls('budget')
+      const { readIds } = await cachedGallery(12, { size: 4 })
+      setThumbUrl('older', bytes(1, 2, 3, 4), 'image/png')
+      setThumbCacheByteBudgetForTests(12)
+
+      await hydrateGalleryThumbs()
+
+      // The batch that hit the budget is the last one read.
+      expect(readIds()).toHaveLength(8)
+      expect(hasThumbData('older')).toBe(true)
+      expect(revoke).not.toHaveBeenCalled()
+      expect(['b0', 'b1', 'b2'].map((id) => hasThumbData(id))).toEqual([
+        true,
+        true,
+        false,
+      ])
+      expect(getThumbCacheStatsForTests().bytes).toBe(12)
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 2,
+      })
+    })
+
+    it('reset mid-read cancels the pass and stores nothing', async () => {
+      mockObjectUrls('cancel')
+      const { gates, readIds } = await cachedGallery(10, { gated: true })
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(8)
+      })
+      resetThumbCache()
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await pass
+
+      expect(readIds()).toHaveLength(8)
+      expect(getThumbCacheStatsForTests().entries).toBe(0)
+      expect(getThumbBulkHydrateStatsForTests().state).toBe('idle')
+    })
+
+    it('a new pass supersedes a running one', async () => {
+      mockObjectUrls('again')
+      const { gates, readIds } = await cachedGallery(10, { gated: true })
+
+      const first = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(8)
+      })
+      const second = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(16)
+      })
+      for (const release of gates.splice(0, 8)) {
+        release()
+      }
+      await first
+      expect(getThumbCacheStatsForTests().entries).toBe(0)
+
+      for (let round = 0; round < 3; round += 1) {
+        for (const release of gates.splice(0)) {
+          release()
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+      await second
+      expect(getThumbCacheStatsForTests().entries).toBe(10)
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 10,
+      })
+    })
+
+    it('a pass cancelled by reset stays cancelled when the next pass starts', async () => {
+      mockObjectUrls('reset-again')
+      const { gates, readIds } = await cachedGallery(10, { gated: true })
+
+      const first = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(8)
+      })
+      resetThumbCache()
+      const second = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(16)
+      })
+      for (const release of gates.splice(0, 8)) {
+        release()
+      }
+      await first
+
+      expect(getThumbCacheStatsForTests().entries).toBe(0)
+      resetThumbCache()
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await second
+    })
+
+    it('reset during the scroll frame wait reads no further batch', async () => {
+      mockObjectUrls('reset-frame')
+      const { readIds } = await cachedGallery(10)
+      const rafQueue = queueRaf()
+      noteFilmstripScroll()
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(rafQueue).toHaveLength(1)
+      })
+      resetThumbCache()
+      rafQueue.shift()?.(0)
+      await pass
+
+      expect(readIds()).toHaveLength(8)
+      expect(getThumbBulkHydrateStatsForTests().state).toBe('idle')
+    })
+
+    it('waits a frame between batches while the filmstrip scrolls', async () => {
+      mockObjectUrls('paced')
+      const { readIds } = await cachedGallery(10)
+      const rafQueue = queueRaf()
+      noteFilmstripScroll()
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(rafQueue).toHaveLength(1)
+      })
+      expect(readIds()).toHaveLength(8)
+      rafQueue.shift()?.(0)
+      await vi.waitFor(() => {
+        expect(rafQueue).toHaveLength(1)
+      })
+      expect(readIds()).toHaveLength(10)
+      expect(getThumbBulkHydrateStatsForTests().state).toBe('running')
+      rafQueue.shift()?.(0)
+      await pass
+
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 10,
+      })
+    })
+
+    it('drops a thumb whose asset is removed mid-read', async () => {
+      mockObjectUrls('removed')
+      const { gates, readIds } = await cachedGallery(3, { gated: true })
+
+      const pass = hydrateGalleryThumbs()
+      await vi.waitFor(() => {
+        expect(readIds()).toHaveLength(3)
+      })
+      removeFailedImportAsset('b1')
+      for (const release of gates.splice(0)) {
+        release()
+      }
+      await pass
+
+      expect(hasThumbData('b0')).toBe(true)
+      expect(hasThumbData('b1')).toBe(false)
+      expect(hasThumbData('b2')).toBe(true)
     })
   })
 })

@@ -1,7 +1,12 @@
 import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
 import { noteDecodeScrollActivity } from '../photo/decodeScrollQuiet'
-import { subscribeAssetRemovals } from './bookStore'
+import type { DerivedCacheEntry } from '../assets/derivedCache/types'
+import {
+  getAssetCacheKey,
+  getGalleryIdsSnapshot,
+  subscribeAssetRemovals,
+} from './bookStore'
 import {
   filmstripScrollQuietRemainingMs,
   isFilmstripScrollQuiet,
@@ -9,6 +14,7 @@ import {
 } from './filmstripScrollQuiet'
 import { trackHashJob } from './pendingHashes'
 import { restoreAspectFromPreview } from './previewAspect'
+import { yieldForPaint } from './relink/yieldForPaint'
 import { decodeThumbOnCacheMiss } from './thumbMissDecode'
 
 /** Hot thumb bytes kept this session; LRU past the budget (mounted stay). */
@@ -20,6 +26,8 @@ const FLUSH_MAX_MS = 3
 const FLUSH_RAF_WATCHDOG_MS = 32
 /** Parallel DerivedCache reads on mount. */
 const HYDRATE_CONCURRENCY = 4
+/** Parallel DerivedCache reads per batch of the restore bulk pass. */
+const BULK_HYDRATE_CONCURRENCY = 8
 
 /** One hot thumb: the object URL lives as long as the entry. */
 interface ThumbEntry {
@@ -63,9 +71,28 @@ const hydrateInflight = new Map<string, AbortController>()
 /** Identity digests already written to DerivedCache this session (skip re-puts). */
 const putCacheKeys = new Set<string>()
 
+export interface ThumbBulkHydrateStats {
+  state: 'idle' | 'running' | 'done'
+  hydrated: number
+  missed: number
+  /** Wall time of the finished pass. */
+  ms: number
+}
+
+function idleBulkStats(): ThumbBulkHydrateStats {
+  return { state: 'idle', hydrated: 0, missed: 0, ms: 0 }
+}
+
+/** A new pass or reset bumps it; a stale pass stops at its next await. */
+let bulkGeneration = 0
+let bulkStats = idleBulkStats()
+/** Ids the current bulk pass is reading; removal deletes so the read drops. */
+let bulkInflight = new Set<string>()
+
 subscribeAssetRemovals((assetIds) => {
   for (const assetId of assetIds) {
     // A read in flight for a removed asset must not store it again.
+    bulkInflight.delete(assetId)
     hydrateQueue.delete(assetId)
     hydrateInflight.get(assetId)?.abort()
     hydrateInflight.delete(assetId)
@@ -381,11 +408,16 @@ async function readCachedThumb(request: HydrateRequest): Promise<boolean> {
     return true
   }
   if (!entries.has(assetId)) {
-    const { bytes, mimeType } = got.value
-    restoreAspectFromPreview(assetId, bytes, mimeType)
-    storeThumb(assetId, new Blob([bytes], { type: mimeType }))
+    storeCachedThumb(assetId, got.value)
   }
   return false
+}
+
+/** Hot-store DerivedCache bytes; aspect from them when dims are unknown. */
+function storeCachedThumb(assetId: string, entry: DerivedCacheEntry): void {
+  const { bytes, mimeType } = entry
+  restoreAspectFromPreview(assetId, bytes, mimeType)
+  storeThumb(assetId, new Blob([bytes], { type: mimeType }))
 }
 
 async function runHydrate(request: HydrateRequest): Promise<void> {
@@ -432,6 +464,139 @@ export function ensureThumb(assetId: string, cacheKey?: string): void {
   pumpHydrate()
 }
 
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      resolve()
+    })
+  })
+}
+
+/**
+ * Gallery index range of the filmstrip scrollport. None in view: -1 / -1,
+ * so the outward walk starts at the gallery head.
+ */
+function filmstripWindow(gallery: readonly string[]): {
+  lo: number
+  hi: number
+} {
+  const viewport = viewportIds()
+  const inView = (assetId: string): boolean => viewport.has(assetId)
+  return { lo: gallery.findIndex(inView), hi: gallery.findLastIndex(inView) }
+}
+
+/**
+ * Next bulk batch: the window first, then alternating right / left outward.
+ * Every id it passes is `visited`; hot, mount-path and keyless ids are skipped.
+ */
+function nextBulkBatch(
+  visited: Set<string>,
+): { assetId: string; cacheKey: string }[] {
+  const gallery = getGalleryIdsSnapshot()
+  const { lo, hi } = filmstripWindow(gallery)
+  const batch: { assetId: string; cacheKey: string }[] = []
+  const take = (index: number): void => {
+    const assetId = gallery[index]
+    if (assetId === undefined || visited.has(assetId)) {
+      return
+    }
+    visited.add(assetId)
+    const cacheKey = getAssetCacheKey(assetId)
+    if (
+      cacheKey !== undefined &&
+      !entries.has(assetId) &&
+      !hydrateQueue.has(assetId) &&
+      !hydrateInflight.has(assetId)
+    ) {
+      batch.push({ assetId, cacheKey })
+    }
+  }
+  for (let index = lo; index <= hi; index += 1) {
+    take(index)
+    if (batch.length === BULK_HYDRATE_CONCURRENCY) {
+      return batch
+    }
+  }
+  for (let step = 1; step <= gallery.length; step += 1) {
+    take(hi + step)
+    if (batch.length < BULK_HYDRATE_CONCURRENCY) {
+      take(lo - step)
+    }
+    if (batch.length === BULK_HYDRATE_CONCURRENCY) {
+      return batch
+    }
+  }
+  return batch
+}
+
+/**
+ * Restore: read every gallery thumb from DerivedCache into the hot cache in
+ * the background, nearest the filmstrip window first, so tiles mounted later
+ * need no placeholder. Stops at the byte budget (never evicts); misses stay
+ * with the mount path. A new pass or reset cancels this one.
+ */
+export async function hydrateGalleryThumbs(): Promise<void> {
+  bulkGeneration += 1
+  const generation = bulkGeneration
+  const current = (): boolean => generation === bulkGeneration
+  const inflight = new Set<string>()
+  bulkInflight = inflight
+  bulkStats = { ...idleBulkStats(), state: 'running' }
+  const started = performance.now()
+  const visited = new Set<string>()
+  const cache = await getDerivedCache()
+  for (;;) {
+    if (!current()) {
+      return
+    }
+    const batch = nextBulkBatch(visited)
+    if (batch.length === 0) {
+      break
+    }
+    for (const { assetId } of batch) {
+      inflight.add(assetId)
+    }
+    const results = await Promise.all(
+      batch.map(async ({ assetId, cacheKey }) => ({
+        assetId,
+        got: await cache.get(cacheKey, THUMB_PRESET_ID),
+      })),
+    )
+    if (!current()) {
+      return
+    }
+    let full = false
+    for (const { assetId, got } of results) {
+      // Removed mid-read: drop the bytes.
+      if (!inflight.delete(assetId)) {
+        continue
+      }
+      if (!got.ok) {
+        bulkStats.missed += 1
+      } else if (!entries.has(assetId)) {
+        if (totalBytes + got.value.bytes.byteLength > byteBudget) {
+          full = true
+          break
+        }
+        storeCachedThumb(assetId, got.value)
+        bulkStats.hydrated += 1
+      }
+    }
+    if (full) {
+      break
+    }
+    // While the strip scrolls, at most one batch per frame.
+    await (isFilmstripScrollQuiet() ? nextFrame() : yieldForPaint())
+  }
+  bulkStats.state = 'done'
+  bulkStats.ms = performance.now() - started
+}
+
+/** Test seam: progress of the last restore bulk pass. */
+export function getThumbBulkHydrateStatsForTests(): ThumbBulkHydrateStats {
+  return { ...bulkStats }
+}
+
 /** Test seam: shrink the byte budget (undefined restores the default). */
 export function setThumbCacheByteBudgetForTests(bytes?: number): void {
   byteBudget = bytes ?? DEFAULT_BYTE_BUDGET
@@ -452,6 +617,8 @@ export function getThumbCacheStatsForTests(): {
 }
 
 export function resetThumbCache(): void {
+  bulkGeneration += 1
+  bulkStats = idleBulkStats()
   putCacheKeys.clear()
   pendingNotify.clear()
   flushScheduled = false
