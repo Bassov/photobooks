@@ -57,6 +57,19 @@ describe('WelcomeScreen', () => {
     expect(credit.textContent).toMatch(/modified/)
   })
 
+  it('scopes kit line-heights to the text block and drops the last UA p margin (round 10, M65)', () => {
+    render(<WelcomeScreen />)
+    const headline = screen.getByRole('heading', { level: 1 })
+    expect(headline.parentElement?.className.split(/\s+/)).toContain(
+      'pb-kit-type',
+    )
+    expect(
+      screen
+        .getByText('You’ll choose a folder on your disk.')
+        .className.split(/\s+/),
+    ).toContain('mb-0')
+  })
+
   it('exposes start-session harness for manual-qa entry', () => {
     const start = vi.spyOn(projectSession, 'startSessionEditor')
     render(<WelcomeScreen />)
