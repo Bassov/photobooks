@@ -9,4 +9,5 @@
 
 ## Manual test scenarios
 
-1. 1440 × 900, open a book, select spread 1: toggles on read rgb(215) / rgb(83, 81, 82); hide photos, toggle off reads transparent; hover each control.
+1. 1440 × 900, open a book, select spread 1: toggles on read rgb(215) / rgb(83, 81, 82); hide photos, toggle off reads transparent.
+2. Hover: ON toggle stays rgb(215); Preview / Settings stay rgb(215) / rgb(57, 55, 56); Zoom menu and zoom ± read rgb(207) / rgb(57, 55, 56); Undo / Redo are 32 × 32.
