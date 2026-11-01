@@ -152,11 +152,13 @@ describe('CoverCanvas', () => {
     expect(screen.getByTestId('cover-front').style.backgroundImage).toContain(
       'blob:a1-1280',
     )
+    expect(screen.getByTestId('cover-front').dataset.tier).toBe('1280')
     const rowFront = must(
       row.container.querySelector<HTMLElement>('[data-photo-id="a1"]'),
     )
     expect(rowFront.style.backgroundImage).toContain('blob:a1')
     expect(rowFront.style.backgroundImage).not.toContain('1280')
+    expect(rowFront.hasAttribute('data-tier')).toBe(false)
     canvas.unmount()
     expect(maxDesiredTier('a1')).toBeUndefined()
   })
@@ -167,6 +169,9 @@ describe('CoverCanvas', () => {
       .mockImplementation(() => undefined)
     render(<CoverCanvas tierSlot="cover:canvas" />)
     expect(screen.getByTestId('cover-front').style.backgroundImage).toBe('')
+    expect(screen.getByTestId('cover-front').hasAttribute('data-tier')).toBe(
+      false,
+    )
     expect(requestTier).not.toHaveBeenCalled()
   })
 

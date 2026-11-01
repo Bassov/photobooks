@@ -40,7 +40,7 @@ export function CoverCanvas({
 }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const { cover, settings } = book
-  const url = useTierPreviewUrl(cover.front.assetId, tierSlot)
+  const { url, tier } = useTierPreviewUrl(cover.front.assetId, tierSlot)
   const { style: look } = cover
   const layout = coverLayout(
     settings.trim.widthMm,
@@ -106,6 +106,7 @@ export function CoverCanvas({
         className="cover-front"
         data-testid={id('cover-front')}
         data-photo-id={cover.front.assetId}
+        data-tier={tier}
         style={{
           width: `${String(layout.pagePct)}%`,
           backgroundImage: url === undefined ? undefined : `url(${url})`,

@@ -12,5 +12,7 @@ export function EndpaperOverlay() {
     getSelectedEndpaper,
     getSelectedEndpaper,
   )
-  return side === null ? null : <EndpaperCanvas side={side} />
+  return side === null ? null : (
+    <EndpaperCanvas side={side} tierSlot="endpaper:canvas" />
+  )
 }

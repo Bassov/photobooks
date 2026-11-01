@@ -21,6 +21,9 @@ describe('makePainterFixture', () => {
     expect(book.spreads[0]?.frames[0]?.assetId).toBeUndefined()
     expect(book.spreads[0]?.frames[1]?.assetId).toBe('painter-b')
     expect(book.spreads[1]?.frames[0]?.assetId).toBe('painter-a')
+    expect(book.cover.front.assetId).toBe('painter-a')
+    expect(book.endpapers.front.assetId).toBe('painter-b')
+    expect(book.endpapers.back.assetId).toBe('painter-b')
     expect(checkBookInvariants(book).ok).toBe(true)
     expect([...previewUrls.keys()]).toEqual([...PAINTER_ASSET_IDS])
 

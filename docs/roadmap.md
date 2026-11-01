@@ -39,6 +39,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r11-controls](roadmap/P1/design-r11-controls.md) — Bug: design-r11-controls: input font, secondary/pill buttons and Settings match the kit
 - [ ] [feature] [design-r11-topbar](roadmap/P1/design-r11-topbar.md) — Bug: design-r11-topbar: editor top bar controls match the kit
 - [ ] [feature] [cover-hires](roadmap/P1/cover-hires.md) — Bug: /next-roadmap-item cover-hires
+- [ ] [feature] [endpaper-hires](roadmap/P1/endpaper-hires.md) — Bug: /next-roadmap-item endpaper-hires
 - [ ] [feature] [design-r11-photo](roadmap/P1/design-r11-photo.md) — Bug: design-r11-photo: Photo inspector expanded sections match the kit
 - [ ] [feature] [design-r11-canvas](roadmap/P1/design-r11-canvas.md) — Bug: design-r11-canvas: spine fold, spread-list thumbnail shadow and cover text match the kit
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
