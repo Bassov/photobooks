@@ -11,3 +11,5 @@
 
 1. 1440 × 900, open a book, select spread 1: toggles on read rgb(215) / rgb(83, 81, 82); hide photos, toggle off reads transparent.
 2. Hover: ON toggle stays rgb(215); Preview / Settings stay rgb(215) / rgb(57, 55, 56); Zoom menu and zoom ± read rgb(207) / rgb(57, 55, 56); Undo / Redo are 32 × 32.
+
+`pnpm agent manual-qa` (2026-11-01): problem (harness) on 1 and 2. The `start-session` click on the welcome screen is intercepted by the welcome header, so the editor never opens. Both scenarios are covered by `e2e/design-r11-topbar.spec.ts`, which opens the book through `openLibraryBook` (60/60 green).
