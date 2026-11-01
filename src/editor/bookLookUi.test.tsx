@@ -196,6 +196,15 @@ describe('EndpaperSection', () => {
       ['H3', 'Fill', 'mb-3 flex items-center justify-between'],
       ['H3', 'Apply', 'mb-3 flex items-center justify-between'],
     ])
+    // Kit `Sec` tracking 0.12em via the shared class (Owner Must M57, round 9).
+    expect(
+      [...document.querySelectorAll('.inspector-eyebrow')].map(
+        (title) => title.className,
+      ),
+    ).toEqual([
+      'inspector-eyebrow inspector-sec-title endpaper-sec-title',
+      'inspector-eyebrow inspector-sec-title endpaper-sec-title',
+    ])
     // Kit Row: label, "Pattern" chip, "coming later" as three row children.
     const style = screen.getByTestId('endpaper-style-row')
     expect(style.className).toBe('endpaper-row')

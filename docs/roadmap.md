@@ -32,6 +32,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r7-spreads](roadmap/P1/design-r7-spreads.md) — Bug: design-r7-spreads: single pages on their side, spread-list labels, new-spread drop pill and 104/588 gap
 - [x] [feature] [design-r7-panels](roadmap/P1/design-r7-panels.md) — Bug: design-r7-panels: One per page layout, endpaper inspector top, filmstrip wheel, preview from cover, no inspector hide button
 - [ ] [feature] [design-r8-polish](roadmap/P1/design-r8-polish.md) — Bug: design-r8-polish: endpaper inspector spacing, single-page list rows, new-spread pill centring
+- [ ] [feature] [design-r9-letter-spacing](roadmap/P1/design-r9-letter-spacing.md) — Bug: design-r9-letter-spacing: uppercase section titles match the kit
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
 - [x] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates

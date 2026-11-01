@@ -130,6 +130,22 @@ describe('CoverSection kit rows', () => {
     })
   })
 
+  it('titles each section with the kit Sec eyebrow (Owner Must M57, round 9)', () => {
+    seed(null)
+    render(<CoverSection />)
+    expect(
+      [...document.querySelectorAll('.inspector-eyebrow')].map((title) => [
+        title.textContent,
+        title.className,
+      ]),
+    ).toEqual(
+      ['Front', 'Spine', 'Back', 'Material'].map((name) => [
+        name,
+        'inspector-eyebrow inspector-sec-title',
+      ]),
+    )
+  })
+
   it('shows Full bleed alone without a decoded photo', () => {
     seed(null)
     render(<CoverSection />)

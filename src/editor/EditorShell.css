@@ -331,6 +331,12 @@
   color: var(--muted-foreground);
 }
 
+/* Kit v7 `Sec` title (v7.tsx:131): the eyebrow at tracking 0.12em (Owner
+   Must M57, round 9). Collapsible Disclosure titles keep the 0.06em eyebrow. */
+.inspector-eyebrow.inspector-sec-title {
+  letter-spacing: 0.12em;
+}
+
 /* Kit InspectorShell header: context title (Photo / Spread). */
 .inspector-context-title {
   overflow: hidden;
