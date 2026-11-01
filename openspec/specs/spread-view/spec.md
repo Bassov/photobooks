@@ -393,3 +393,17 @@ Editor chrome painted inside a spread (the empty-frame "Drop photo" and missing-
 
 - **WHEN** the user zooms out and back in with the wheel, then with a ctrl-wheel burst, over a spread with an empty frame
 - **THEN** on every animation frame the placeholder icon is 16 × 16 screen px and the label 11 px, both centred in the frame within 0.5 px, and the fold centre equals the spread centre within 0.5 px
+
+### Requirement: Collapsible Photo inspector sections
+
+With a frame selected, the inspector SHALL open on a collapsible Photo section, followed by collapsible Fit & crop and Rotate & flip sections; these three SHALL open expanded. A closed inspector section SHALL be only its 36 px title row (37 px apart). Photo SHALL show the file name, pixel size, resolution chip and "Remove from frame", or "Empty — drag a photo" for an empty frame. Collapsing Fit & crop or Rotate & flip SHALL NOT leave crop mode.
+
+#### Scenario: Collapse the Photo section
+
+- **WHEN** a filled frame is selected and the user presses the PHOTO title, then presses it again
+- **THEN** the file name hides while FIT & CROP moves up to 37 px below PHOTO, and the second press shows the file name again
+
+#### Scenario: Empty frame
+
+- **WHEN** an empty frame is selected
+- **THEN** the PHOTO section is open and reads "Empty — drag a photo"
