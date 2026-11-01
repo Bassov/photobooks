@@ -70,10 +70,11 @@ describe('SettingsScreen', () => {
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
       /\bbg-accent\b/,
     )
-    // Kit settings.tsx:28: invisible 1 px right edge keeps rows 195 px wide.
+    // Kit settings.tsx:28: invisible 1 px right edge (as padding) keeps rows 195 px wide.
     expect(screen.getByRole('navigation').className.split(' ')).toEqual(
-      expect.arrayContaining(['border-r', 'border-transparent']),
+      expect.arrayContaining(['p-3', 'pr-[13px]']),
     )
+    expect(screen.getByRole('navigation').className).not.toContain('border')
     expect(screen.getByTestId('settings-nav-library').className).toMatch(
       /\bborder-0\b/,
     )

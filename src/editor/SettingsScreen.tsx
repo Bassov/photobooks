@@ -40,8 +40,8 @@ export function SettingsScreen({
       className="grid h-full min-h-0 grid-cols-[220px_1fr] bg-background"
       data-testid="settings"
     >
-      {/* Kit settings.tsx:28 `border-r`: an invisible 1 px edge, rows 195 wide. */}
-      <nav className="flex flex-col gap-0.5 border-r border-transparent bg-chrome p-3">
+      {/* Kit settings.tsx:28 invisible 1 px `border-r` as padding: rows 195 wide, no rule. */}
+      <nav className="flex flex-col gap-0.5 bg-chrome p-3 pr-[13px]">
         <div className="mb-3 flex items-center gap-2 px-2 pt-1">
           <div className="grid size-6 place-items-center rounded-md bg-field text-foreground">
             <Icon name="bookOpen" size={14} className="size-3" />
