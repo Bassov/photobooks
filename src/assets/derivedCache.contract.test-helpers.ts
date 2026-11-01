@@ -53,6 +53,30 @@ export function runDerivedCacheContract(
       })
     })
 
+    it('has reports existence per key across put and delete', async () => {
+      const harness = await createHarness()
+      expect(await harness.cache.has(SAMPLE_HASH, SAMPLE_PRESET)).toBe(false)
+      await harness.cache.put(SAMPLE_HASH, SAMPLE_PRESET, sampleEntry())
+      expect(await harness.cache.has(SAMPLE_HASH, SAMPLE_PRESET)).toBe(true)
+      expect(await harness.cache.has(OTHER_HASH, SAMPLE_PRESET)).toBe(false)
+      expect(await harness.cache.has(SAMPLE_HASH, 'working-preview')).toBe(
+        false,
+      )
+      await harness.cache.delete(SAMPLE_HASH, SAMPLE_PRESET)
+      expect(await harness.cache.has(SAMPLE_HASH, SAMPLE_PRESET)).toBe(false)
+    })
+
+    it('has sees an entry stored by an earlier instance', async () => {
+      const harness = await createHarness()
+      await harness.cache.put(SAMPLE_HASH, SAMPLE_PRESET, sampleEntry())
+      const next =
+        harness.recreate === undefined
+          ? harness.cache
+          : await harness.recreate()
+      expect(await next.has(SAMPLE_HASH, SAMPLE_PRESET)).toBe(true)
+      expect(await next.has(OTHER_HASH, SAMPLE_PRESET)).toBe(false)
+    })
+
     it('returns corrupted for a seeded bad entry', async () => {
       const harness = await createHarness()
       await harness.seedCorrupted(SAMPLE_HASH, SAMPLE_PRESET)

@@ -17,7 +17,9 @@ export interface DecodedThumb {
  * Session File for a gallery asset. After reload, restore verify may not have
  * retained it yet: resolve through the granted root's registered AssetSource.
  */
-async function sourceFileFor(assetId: string): Promise<File | undefined> {
+export async function sourceFileFor(
+  assetId: string,
+): Promise<File | undefined> {
   const retained = getAssetSource(assetId)
   if (retained !== undefined) {
     return retained

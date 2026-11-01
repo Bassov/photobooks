@@ -441,6 +441,7 @@ describe('thumbCache', () => {
     })
     setDerivedCacheForTests({
       get: (hash, preset) => inner.get(hash, preset),
+      has: (hash, preset) => inner.has(hash, preset),
       put: async (hash, preset, entry) => {
         await putGate
         return inner.put(hash, preset, entry)
