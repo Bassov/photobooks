@@ -24,11 +24,11 @@ export function runAssetSourceContract(
       expect(scanned).toEqual({
         ok: true,
         value: [
-          {
+          expect.objectContaining({
             relativePath: harness.relativePath,
             byteSize: harness.fileBytes.byteLength,
             mtimeMs: harness.mtimeMs,
-          },
+          }),
         ],
       })
     })

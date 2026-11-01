@@ -3,7 +3,15 @@ export interface ScannedEntry {
   byteSize: number
   mtimeMs: number
   contentHash?: string
+  /**
+   * Live `File` from the walk's `getFile()` (directory walks only). Session-only:
+   * never persisted; cloning it across the worker boundary copies no bytes.
+   */
+  file?: File
 }
+
+/** Directory-walk entry: always carries the `File` its `getFile()` returned. */
+export type WalkedEntry = ScannedEntry & { file: File }
 
 export type AssetSourceFailureCode =
   'permission-required' | 'not-found' | 'corrupted'
