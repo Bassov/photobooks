@@ -167,13 +167,26 @@ describe('orderWarmCandidates', () => {
     ])
   })
 
-  it('keeps input order for ids outside the window order', () => {
-    const window = { order: [], start: 0, end: 0, direction: 0 } as const
-    expect(orderWarmCandidates(['y', 'x', 'z'], window, new Set())).toEqual([
-      'y',
-      'x',
-      'z',
+  it('takes the side ahead first when the direction is unknown', () => {
+    const window = { order: ORDER, start: 4, end: 6, direction: 0 } as const
+    expect(orderWarmCandidates(['a3', 'a6'], window, new Set())).toEqual([
+      'a6',
+      'a3',
     ])
+  })
+
+  it('orders the mounted window by position', () => {
+    const window = { order: ORDER, start: 0, end: 10, direction: 1 } as const
+    expect(
+      orderWarmCandidates([...ORDER].reverse(), window, new Set()),
+    ).toEqual(ORDER)
+  })
+
+  it('keeps input order for ids outside the window order, after known ids', () => {
+    const window = { order: ORDER, start: 0, end: 2, direction: 1 } as const
+    expect(
+      orderWarmCandidates(['y', 'x', 'a1', 'z'], window, new Set()),
+    ).toEqual(['a1', 'y', 'x', 'z'])
   })
 })
 
@@ -256,11 +269,15 @@ describe('thumb background warm lane', () => {
 
   it('never retries an unsupported file; retries an aborted one', async () => {
     addPhoto('phone.heic')
+    addPhoto('corrupt')
     addPhoto('aborted')
     let aborts = 0
     processAsset.mockImplementation((options: { assetId: string }) => {
       if (options.assetId === 'phone.heic') {
         return Promise.reject(new Error('unsupported'))
+      }
+      if (options.assetId === 'corrupt') {
+        return Promise.reject(new DOMException('bad', 'EncodingError'))
       }
       aborts += 1
       return aborts === 1
@@ -269,12 +286,17 @@ describe('thumb background warm lane', () => {
     })
     uninstall = installThumbBackgroundWarm()
     await drain()
-    expect(warmedIds().sort()).toEqual(['aborted', 'aborted', 'phone.heic'])
+    expect(warmedIds().sort()).toEqual([
+      'aborted',
+      'aborted',
+      'corrupt',
+      'phone.heic',
+    ])
     expect(getBackgroundWarmStatsForTests().encoded).toBe(1)
 
     emitGallery()
     await drain()
-    expect(processAsset).toHaveBeenCalledTimes(3)
+    expect(processAsset).toHaveBeenCalledTimes(4)
   })
 
   it('promotes an import-deferred decode instead of starting its own', async () => {
@@ -300,6 +322,8 @@ describe('thumb background warm lane', () => {
     uninstall = installThumbBackgroundWarm()
     await drain()
     expect(processAsset).not.toHaveBeenCalled()
+    // Idle: no pass keeps re-trying an asset the now lane owns.
+    expect(lane.tasks).toEqual([])
 
     // The now-lane decode failed: the lane picks the asset up again.
     lane.pending.clear()
@@ -341,10 +365,72 @@ describe('thumb background warm lane', () => {
     expect(warmedIds()).toEqual(['a6', 'a7'])
   })
 
+  it('coalesces pass requests until the pass runs', async () => {
+    addPhoto('one')
+    uninstall = installThumbBackgroundWarm()
+    emitGallery()
+    setFilmstripWindow({ order: ['one'], start: 0, end: 1, direction: 0 })
+    expect(lane.tasks).toHaveLength(1)
+    await drain()
+    expect(warmedIds()).toEqual(['one'])
+  })
+
+  it('refills only free slots and starts none once the cap drops below in-flight', async () => {
+    for (const id of ORDER) {
+      addPhoto(id)
+    }
+    const running = new Map<string, (result: AssetProcessResult) => void>()
+    processAsset.mockImplementation(
+      (options: { assetId: string }) =>
+        new Promise<AssetProcessResult>((resolve) => {
+          running.set(options.assetId, resolve)
+        }),
+    )
+    uninstall = installThumbBackgroundWarm()
+    await drain()
+    expect(warmedIds()).toEqual(['a0', 'a1', 'a2', 'a3'])
+
+    running.get('a0')?.(decoded('a0'))
+    await drain()
+    expect(warmedIds()).toEqual(['a0', 'a1', 'a2', 'a3', 'a4'])
+
+    setEditorGestureActive(true)
+    emitGallery()
+    await drain()
+    expect(processAsset).toHaveBeenCalledTimes(5)
+  })
+
+  it('reset forgets progress, in-flight jobs and settled assets', async () => {
+    addPhoto('done')
+    addPhoto('hang')
+    processAsset.mockImplementation((options: { assetId: string }) =>
+      options.assetId === 'hang'
+        ? new Promise<AssetProcessResult>(() => undefined)
+        : Promise.resolve(decoded(options.assetId)),
+    )
+    uninstall = installThumbBackgroundWarm()
+    await drain()
+    expect(getBackgroundWarmStatsForTests()).toEqual({
+      encoded: 1,
+      inFlight: 1,
+    })
+    uninstall()
+    resetThumbBackgroundWarmForTests()
+    expect(getBackgroundWarmStatsForTests()).toEqual({
+      encoded: 0,
+      inFlight: 0,
+    })
+
+    uninstall = installThumbBackgroundWarm()
+    await drain()
+    expect(warmedIds().sort()).toEqual(['done', 'done', 'hang', 'hang'])
+  })
+
   it('stops scheduling passes once uninstalled', async () => {
     addPhoto('late')
     uninstall = installThumbBackgroundWarm()
     uninstall()
+    expect(lane.galleryListeners.size).toBe(0)
     await drain()
     emitGallery()
     setFilmstripWindow({ order: ['late'], start: 0, end: 1, direction: 0 })
