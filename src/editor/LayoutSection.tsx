@@ -240,10 +240,12 @@ function LayoutPicker({
       matchesChip(item.rects.length, chip) &&
       item.name.toLowerCase().includes(wanted),
   )
+  // Owner Must M47 (round 7): the current layout stays listed (pressed), so a
+  // one-photo page always offers "One per page" in its kit catalogue place.
   const suggested =
     tab === 'all' && chip === 'all' && wanted === ''
       ? geometry.builtins
-          .filter((item) => item.rects.length === photos && item.id !== current)
+          .filter((item) => item.rects.length === photos)
           .slice(0, MAX_SUGGESTED)
       : []
   // Kit `save`: the spread's photo frames become "My layout N", named inline.

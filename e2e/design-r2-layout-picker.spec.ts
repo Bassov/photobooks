@@ -103,9 +103,9 @@ test('the spread inspector: kit header, no Spread properties, sections in order 
 }) => {
   const header = page.getByTestId('inspector-header')
   await expect(header.getByTestId('inspector-context')).toHaveText('Spread')
-  await expect(header.getByTestId('panel-collapse-right')).toHaveAccessibleName(
-    'Hide inspector (I)',
-  )
+  // Owner design change (round 7, M54): the inspector has no hide button of
+  // its own; the top-bar toggle stays.
+  await expect(header.getByTestId('panel-collapse-right')).toHaveCount(0)
   const body = page.getByTestId('inspector-body')
   await expect(body.getByText('Spread properties')).toHaveCount(0)
   // Kit `#/demo` spread context (Step 0): Layout, Master & spacing,

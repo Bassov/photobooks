@@ -75,6 +75,40 @@ describe('SpreadPager', () => {
     expect(position()).toBe('2 / 3')
   })
 
+  it('writes the position line with a custom label', () => {
+    const label = vi.fn(
+      (i: number, n: number) => `item ${String(i)} of ${String(n)}`,
+    )
+    render(
+      <SpreadPager
+        count={4}
+        index={2}
+        onIndexChange={() => undefined}
+        onExit={() => undefined}
+        renderSpread={() => null}
+        position={label}
+      />,
+    )
+    expect(position()).toBe('item 2 of 4')
+    expect(label).toHaveBeenCalledWith(2, 4)
+  })
+
+  it('leaves the position line empty without spreads', () => {
+    const label = vi.fn(() => 'never')
+    render(
+      <SpreadPager
+        count={0}
+        index={0}
+        onIndexChange={() => undefined}
+        onExit={() => undefined}
+        renderSpread={() => null}
+        position={label}
+      />,
+    )
+    expect(position()).toBe('')
+    expect(label).not.toHaveBeenCalled()
+  })
+
   it('exits on Escape and on the exit button', () => {
     const onExit = vi.fn()
     render(<Harness onExit={onExit} />)

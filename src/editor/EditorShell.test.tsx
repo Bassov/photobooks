@@ -237,14 +237,18 @@ describe('EditorShell viewport containment', () => {
     )
   })
 
-  it('collapses the inspector from its panel header', () => {
+  // Owner Must M54 (round 7): the inspector has no hide button of its own;
+  // the top-bar toggle hides and shows it.
+  it('hides the inspector only from the top-bar toggle', () => {
     render(<EditorShell />)
     // Open by default (uikit/src/sandbox/chrome.tsx:139).
     expect(screen.getByTestId('resize-right')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('panel-collapse-right'))
+    expect(screen.queryByTestId('panel-collapse-right')).toBeNull()
+    fireEvent.click(screen.getByTestId('toggle-r'))
     expect(screen.queryByTestId('resize-right')).toBeNull()
     expect(screen.getByTestId('panel-l').getAttribute('data-open')).toBe('true')
-    expect(document.activeElement).toBe(screen.getByTestId('toggle-r'))
+    fireEvent.click(screen.getByTestId('toggle-r'))
+    expect(screen.getByTestId('resize-right')).toBeTruthy()
   })
 
   it('shows Grant access only when permission is required', () => {

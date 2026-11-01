@@ -299,6 +299,160 @@ function copyDimsIfComplete(
   next.orientation = orientation
 }
 
+/** One decoded-dims patch for a folder-manifest entry. */
+export interface ManifestDimensionsPatch {
+  relativePath: string
+  byteSize: number
+  mtimeMs: number
+  width: number
+  height: number
+  orientation: number
+}
+
+/** Pending patches that start a flush without waiting for idle. */
+const PATCH_FLUSH_BATCH = 64
+/** Upper bound (ms) an idle flush may wait for the main thread. */
+const PATCH_FLUSH_IDLE_TIMEOUT_MS = 500
+
+/**
+ * Per-root write queue: decode patches coalesce in `pending` (latest per
+ * path) and every read-merge-write (flush or walk persist) runs on `tail`,
+ * so at most one is in flight and none reads a stale manifest.
+ */
+interface RootWriteQueue {
+  options: SourceRootEntryIndexOptions | undefined
+  pending: Map<string, ManifestDimensionsPatch>
+  waiters: ((result: StorageResult<void>) => void)[]
+  tail: Promise<void>
+  flushQueued: boolean
+  cancelIdle: (() => void) | null
+}
+
+/** Queues keyed by IDB handle (default IDB shares one key), then root id. */
+const DEFAULT_IDB_KEY = {}
+const writeQueues = new WeakMap<object, Map<string, RootWriteQueue>>()
+
+function rootWriteQueue(
+  sourceRootId: string,
+  options: SourceRootEntryIndexOptions | undefined,
+): RootWriteQueue {
+  const idbKey = options?.entryIndexIdb ?? DEFAULT_IDB_KEY
+  let roots = writeQueues.get(idbKey)
+  if (roots === undefined) {
+    roots = new Map()
+    writeQueues.set(idbKey, roots)
+  }
+  let queue = roots.get(sourceRootId)
+  if (queue === undefined) {
+    queue = {
+      options,
+      pending: new Map(),
+      waiters: [],
+      tail: Promise.resolve(),
+      flushQueued: false,
+      cancelIdle: null,
+    }
+    roots.set(sourceRootId, queue)
+  }
+  return queue
+}
+
+function runSerialized<T>(
+  queue: RootWriteQueue,
+  op: () => Promise<T>,
+): Promise<T> {
+  const run = queue.tail.then(op)
+  queue.tail = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
+function scheduleIdle(run: () => void): () => void {
+  if (typeof globalThis.requestIdleCallback === 'function') {
+    const handle = globalThis.requestIdleCallback(run, {
+      timeout: PATCH_FLUSH_IDLE_TIMEOUT_MS,
+    })
+    return () => {
+      globalThis.cancelIdleCallback(handle)
+    }
+  }
+  const handle = setTimeout(run, 0)
+  return () => {
+    clearTimeout(handle)
+  }
+}
+
+/** Take pending patches + their waiters and cancel any idle flush. */
+function takePending(queue: RootWriteQueue): {
+  patches: ManifestDimensionsPatch[]
+  waiters: ((result: StorageResult<void>) => void)[]
+} {
+  queue.cancelIdle?.()
+  queue.cancelIdle = null
+  const patches = [...queue.pending.values()]
+  const waiters = queue.waiters
+  queue.pending = new Map()
+  queue.waiters = []
+  return { patches, waiters }
+}
+
+/** Apply patches whose size+mtime match (or whose path is new). */
+function mergePatches(
+  entries: SourceRootEntryIndex['entries'],
+  patches: readonly ManifestDimensionsPatch[],
+): void {
+  for (const patch of patches) {
+    const prior = entries[patch.relativePath]
+    if (
+      prior !== undefined &&
+      (prior.byteSize !== patch.byteSize || prior.mtimeMs !== patch.mtimeMs)
+    ) {
+      continue
+    }
+    entries[patch.relativePath] = {
+      byteSize: patch.byteSize,
+      mtimeMs: patch.mtimeMs,
+      width: patch.width,
+      height: patch.height,
+      orientation: patch.orientation,
+    }
+  }
+}
+
+async function flushPatches(
+  sourceRootId: string,
+  queue: RootWriteQueue,
+): Promise<void> {
+  queue.flushQueued = false
+  const { patches, waiters } = takePending(queue)
+  if (patches.length === 0) {
+    // A walk persist already merged them.
+    return
+  }
+  const got = await getSourceRootEntryIndex(sourceRootId, queue.options)
+  // Missing manifest → seed one so later scans can merge.
+  const entries = got.ok ? got.value.entries : {}
+  mergePatches(entries, patches)
+  const result = await putSourceRootEntryIndex(
+    sourceRootId,
+    { version: FOLDER_MANIFEST_VERSION, entries },
+    queue.options,
+  )
+  for (const resolve of waiters) {
+    resolve(result)
+  }
+}
+
+function requestFlush(sourceRootId: string, queue: RootWriteQueue): void {
+  if (queue.flushQueued) {
+    return
+  }
+  queue.flushQueued = true
+  void runSerialized(queue, () => flushPatches(sourceRootId, queue))
+}
+
 /** Persist the latest cheap-scan metadata after a full walk (batched merge). */
 export async function persistScannedEntryIndex(
   sourceRootId: string,
@@ -307,85 +461,69 @@ export async function persistScannedEntryIndex(
     yieldFn?: YieldFn
   },
 ): Promise<StorageResult<void>> {
-  const got = await getSourceRootEntryIndex(sourceRootId, options)
-  const prior = got.ok ? got.value : null
-  const yieldFn = options?.yieldFn ?? (() => Promise.resolve())
-  const manifest = await buildManifestFromScannedChunked(
-    scanned,
-    prior,
-    yieldFn,
-  )
-  await yieldFn()
-  return putSourceRootEntryIndex(sourceRootId, manifest, options)
+  const queue = rootWriteQueue(sourceRootId, options)
+  return runSerialized(queue, async () => {
+    const got = await getSourceRootEntryIndex(sourceRootId, options)
+    const prior = got.ok ? got.value : null
+    const yieldFn = options?.yieldFn ?? (() => Promise.resolve())
+    const manifest = await buildManifestFromScannedChunked(
+      scanned,
+      prior,
+      yieldFn,
+    )
+    await yieldFn()
+    // Patches queued before this write land in it, never under it.
+    const { patches, waiters } = takePending(queue)
+    mergePatches(manifest.entries, patches)
+    const result = await putSourceRootEntryIndex(
+      sourceRootId,
+      manifest,
+      options,
+    )
+    for (const resolve of waiters) {
+      resolve(result)
+    }
+    return result
+  })
 }
 
 /**
- * Patch display dimensions for one path when decode completes.
- * No-op when the path is missing or size/mtime no longer match.
+ * Queue display dimensions for one path when decode completes. Patches
+ * coalesce per root: one read-merge-write on idle (≤ 500 ms) or every 64
+ * patches. Resolves once the write holding this patch settles; no-op merge
+ * when the path's size/mtime no longer match.
  */
-export async function patchManifestDimensions(
+export function patchManifestDimensions(
   sourceRootId: string,
-  entry: {
-    relativePath: string
-    byteSize: number
-    mtimeMs: number
-    width: number
-    height: number
-    orientation: number
-  },
+  entry: ManifestDimensionsPatch,
   options?: SourceRootEntryIndexOptions,
 ): Promise<StorageResult<void>> {
   if (sourceRootId === '' || entry.relativePath === '') {
-    return failure('not-found')
+    return Promise.resolve(failure('not-found'))
   }
   if (
     !isPositiveInt(entry.width) ||
     !isPositiveInt(entry.height) ||
     parseOrientation(entry.orientation) === undefined
   ) {
-    return failure('not-found')
+    return Promise.resolve(failure('not-found'))
   }
-  const got = await getSourceRootEntryIndex(sourceRootId, options)
-  if (!got.ok) {
-    // Seed a single-entry manifest so later scans can merge.
-    return putSourceRootEntryIndex(
-      sourceRootId,
-      {
-        version: FOLDER_MANIFEST_VERSION,
-        entries: {
-          [entry.relativePath]: {
-            byteSize: entry.byteSize,
-            mtimeMs: entry.mtimeMs,
-            width: entry.width,
-            height: entry.height,
-            orientation: entry.orientation,
-          },
-        },
-      },
-      options,
-    )
+  const queue = rootWriteQueue(sourceRootId, options)
+  const done = new Promise<StorageResult<void>>((resolve) => {
+    queue.waiters.push(resolve)
+  })
+  // Latest patch per path+identity: a stale patch never evicts a match.
+  queue.pending.set(
+    `${entry.relativePath}\0${String(entry.byteSize)}\0${String(entry.mtimeMs)}`,
+    { ...entry },
+  )
+  if (queue.pending.size >= PATCH_FLUSH_BATCH) {
+    requestFlush(sourceRootId, queue)
+  } else if (queue.cancelIdle === null && !queue.flushQueued) {
+    queue.cancelIdle = scheduleIdle(() => {
+      queue.cancelIdle = null
+      requestFlush(sourceRootId, queue)
+    })
   }
-  const prior = got.value.entries[entry.relativePath]
-  if (prior !== undefined) {
-    if (prior.byteSize !== entry.byteSize) {
-      return success(undefined)
-    }
-    if (prior.mtimeMs !== entry.mtimeMs) {
-      return success(undefined)
-    }
-  }
-  const next: SourceRootEntryIndex = {
-    version: FOLDER_MANIFEST_VERSION,
-    entries: {
-      ...got.value.entries,
-      [entry.relativePath]: {
-        byteSize: entry.byteSize,
-        mtimeMs: entry.mtimeMs,
-        width: entry.width,
-        height: entry.height,
-        orientation: entry.orientation,
-      },
-    },
-  }
-  return putSourceRootEntryIndex(sourceRootId, next, options)
+  return done
 }
