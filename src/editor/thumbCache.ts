@@ -529,11 +529,22 @@ function nextBulkBatch(
   return batch
 }
 
+/** Resolves once the filmstrip scroll-quiet window has closed. */
+async function scrollSettled(): Promise<void> {
+  while (isFilmstripScrollQuiet()) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, filmstripScrollQuietRemainingMs())
+    })
+  }
+}
+
 /**
  * Restore: read every gallery thumb from DerivedCache into the hot cache in
  * the background, nearest the filmstrip window first, so tiles mounted later
  * need no placeholder. Stops at the byte budget (never evicts); misses stay
- * with the mount path. A new pass or reset cancels this one.
+ * with the mount path. Pauses while the strip scrolls (the mount path serves
+ * the scrollport) and stores at most FLUSH_MAX_MS per frame. A new pass or
+ * reset cancels this one.
  */
 export async function hydrateGalleryThumbs(): Promise<void> {
   bulkGeneration += 1
@@ -544,52 +555,65 @@ export async function hydrateGalleryThumbs(): Promise<void> {
   bulkStats = { ...idleBulkStats(), state: 'running' }
   const started = performance.now()
   const visited = new Set<string>()
-  const cache = await getDerivedCache()
-  for (;;) {
-    if (!current()) {
-      return
-    }
-    const batch = nextBulkBatch(visited)
-    if (batch.length === 0) {
-      break
-    }
-    for (const { assetId } of batch) {
-      inflight.add(assetId)
-    }
-    const results = await Promise.all(
-      batch.map(async ({ assetId, cacheKey }) => ({
-        assetId,
-        got: await cache.get(cacheKey, THUMB_PRESET_ID),
-      })),
-    )
-    if (!current()) {
-      return
-    }
-    let full = false
-    for (const { assetId, got } of results) {
-      // Removed mid-read: drop the bytes.
-      if (!inflight.delete(assetId)) {
-        continue
+  try {
+    const cache = await getDerivedCache()
+    for (;;) {
+      await scrollSettled()
+      if (!current()) {
+        return
       }
-      if (!got.ok) {
-        bulkStats.missed += 1
-      } else if (!entries.has(assetId)) {
-        if (totalBytes + got.value.bytes.byteLength > byteBudget) {
-          full = true
-          break
+      const batch = nextBulkBatch(visited)
+      if (batch.length === 0) {
+        break
+      }
+      for (const { assetId } of batch) {
+        inflight.add(assetId)
+      }
+      const results = await Promise.all(
+        batch.map(async ({ assetId, cacheKey }) => ({
+          assetId,
+          got: await cache.get(cacheKey, THUMB_PRESET_ID),
+        })),
+      )
+      let full = false
+      let slice = performance.now()
+      for (const { assetId, got } of results) {
+        if (performance.now() - slice >= FLUSH_MAX_MS) {
+          await nextFrame()
+          await scrollSettled()
+          slice = performance.now()
         }
-        storeCachedThumb(assetId, got.value)
-        bulkStats.hydrated += 1
+        if (!current()) {
+          return
+        }
+        // Removed mid-read: drop the bytes.
+        if (!inflight.delete(assetId)) {
+          continue
+        }
+        if (!got.ok) {
+          bulkStats.missed += 1
+        } else if (!entries.has(assetId)) {
+          if (totalBytes + got.value.bytes.byteLength > byteBudget) {
+            full = true
+            break
+          }
+          storeCachedThumb(assetId, got.value)
+          bulkStats.hydrated += 1
+        }
       }
+      if (full) {
+        break
+      }
+      await yieldForPaint()
     }
-    if (full) {
-      break
+  } catch {
+    // DerivedCache unavailable: misses stay with the mount path.
+  } finally {
+    if (current()) {
+      bulkStats.state = 'done'
+      bulkStats.ms = performance.now() - started
     }
-    // While the strip scrolls, at most one batch per frame.
-    await (isFilmstripScrollQuiet() ? nextFrame() : yieldForPaint())
   }
-  bulkStats.state = 'done'
-  bulkStats.ms = performance.now() - started
 }
 
 /** Test seam: progress of the last restore bulk pass. */

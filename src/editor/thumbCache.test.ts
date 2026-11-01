@@ -1149,48 +1149,83 @@ describe('thumbCache', () => {
       await second
     })
 
-    it('reset during the scroll frame wait reads no further batch', async () => {
-      mockObjectUrls('reset-frame')
+    it('reads nothing while the filmstrip scrolls, then resumes once it settles', async () => {
+      mockObjectUrls('paused')
       const { readIds } = await cachedGallery(10)
-      const rafQueue = queueRaf()
+      vi.useFakeTimers({ toFake: ['setTimeout', 'performance'] })
       noteFilmstripScroll()
 
       const pass = hydrateGalleryThumbs()
-      await vi.waitFor(() => {
-        expect(rafQueue).toHaveLength(1)
-      })
-      resetThumbCache()
-      rafQueue.shift()?.(0)
+      await vi.advanceTimersByTimeAsync(150)
+      expect(readIds()).toHaveLength(0)
+      expect(getThumbBulkHydrateStatsForTests().state).toBe('running')
+      await vi.runAllTimersAsync()
       await pass
 
-      expect(readIds()).toHaveLength(8)
+      expect(readIds()).toHaveLength(10)
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 10,
+      })
+    })
+
+    it('reset while paused for a scroll reads nothing', async () => {
+      mockObjectUrls('reset-paused')
+      const { readIds } = await cachedGallery(10)
+      vi.useFakeTimers({ toFake: ['setTimeout', 'performance'] })
+      noteFilmstripScroll()
+
+      const pass = hydrateGalleryThumbs()
+      await vi.advanceTimersByTimeAsync(50)
+      resetThumbCache()
+      await vi.runAllTimersAsync()
+      await pass
+
+      expect(readIds()).toHaveLength(0)
       expect(getThumbBulkHydrateStatsForTests().state).toBe('idle')
     })
 
-    it('waits a frame between batches while the filmstrip scrolls', async () => {
-      mockObjectUrls('paced')
-      const { readIds } = await cachedGallery(10)
+    it('yields to the next frame once a batch store passes the frame slice', async () => {
+      mockObjectUrls('sliced')
+      await cachedGallery(8)
       const rafQueue = queueRaf()
-      noteFilmstripScroll()
+      // Every clock read costs 1 ms, so a batch outruns the 3 ms slice.
+      let clock = 0
+      vi.spyOn(performance, 'now').mockImplementation(() => (clock += 1))
 
       const pass = hydrateGalleryThumbs()
       await vi.waitFor(() => {
         expect(rafQueue).toHaveLength(1)
       })
-      expect(readIds()).toHaveLength(8)
-      rafQueue.shift()?.(0)
-      await vi.waitFor(() => {
-        expect(rafQueue).toHaveLength(1)
+      const { hydrated } = getThumbBulkHydrateStatsForTests()
+      expect(hydrated).toBeGreaterThan(0)
+      expect(hydrated).toBeLessThan(8)
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        cb(0)
+        return 0
       })
-      expect(readIds()).toHaveLength(10)
-      expect(getThumbBulkHydrateStatsForTests().state).toBe('running')
       rafQueue.shift()?.(0)
       await pass
 
       expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
         state: 'done',
-        hydrated: 10,
+        hydrated: 8,
       })
+    })
+
+    it('a failing DerivedCache read ends the pass instead of rejecting', async () => {
+      await cachedGallery(3)
+      const broken = createMemoryDerivedCache()
+      vi.spyOn(broken, 'get').mockRejectedValue(new Error('idb closed'))
+      setDerivedCacheForTests(broken)
+
+      await expect(hydrateGalleryThumbs()).resolves.toBeUndefined()
+
+      expect(getThumbBulkHydrateStatsForTests()).toMatchObject({
+        state: 'done',
+        hydrated: 0,
+      })
+      expect(getThumbCacheStatsForTests().entries).toBe(0)
     })
 
     it('drops a thumb whose asset is removed mid-read', async () => {
