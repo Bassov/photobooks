@@ -8,6 +8,7 @@ import {
   PAGE_LABELS_MIN_GAP_PX,
   NEW_SPREAD_PILL_HEIGHT_PX,
   NEW_SPREAD_PILL_MIN_GAP_PX,
+  NEW_SPREAD_PILL_SHIFT_PX,
   newSpreadPillFits,
   pageLabelsFit,
   pageLabelTexts,
@@ -52,6 +53,18 @@ describe('page labels', () => {
     expect(newSpreadPillFits(70.01)).toBe(true)
     expect(newSpreadPillFits(69.99)).toBe(false)
     expect(newSpreadPillFits(0)).toBe(false)
+  })
+
+  it('centres the pill between the page-number line and the next spread', () => {
+    // Pill centre under the page = 19 + (gap − 19) / 2 = gap / 2 + shift.
+    expect(NEW_SPREAD_PILL_SHIFT_PX).toBe(9.5)
+    const gap = 90.78
+    const centre = gap / 2 + NEW_SPREAD_PILL_SHIFT_PX
+    const above =
+      centre - NEW_SPREAD_PILL_HEIGHT_PX / 2 - PAGE_LABELS_MIN_GAP_PX
+    const below = gap - centre - NEW_SPREAD_PILL_HEIGHT_PX / 2
+    expect(above).toBeCloseTo(below, 9)
+    expect(above).toBeCloseTo(19.89, 9)
   })
 
   it('renders two aria-hidden halves', () => {
