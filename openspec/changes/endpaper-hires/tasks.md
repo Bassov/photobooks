@@ -10,3 +10,10 @@
 
 1. Painter fixture, select the front endpaper → both pages show the photo with `data-tier="1280"`.
 2. Book without an endpaper photo, select the endpaper → pattern, no `data-tier`.
+
+manual-qa (2026-11-02): `pnpm agent manual-qa --change endpaper-hires` exits 1 at `start-session`, because the welcome `<header>` intercepts the click. The rig also never loads `?fixture=painter`. Both scenarios are therefore unverified by manual-qa (harness problem).
+
+- Scenario 1: problem (harness). Covered by `e2e/spread-view.spec.ts` "zoomed fixture photos keep a covering tier" (3/3). The logged samples showed both endpaper pages at `data-tier` 1280, longEdge 344, `url("blob:…")`.
+- Scenario 2: problem (harness). Covered by the unit test `src/editor/EndpaperCanvas.test.tsx` (no photo → empty inline background, no `data-tier`, no tier request) and by `e2e/design-r2-cover-book.spec.ts` M13 (Pattern pill).
+
+ui-review: no chrome, token or control change. The e2e covers the happy and interact paths and the `assertDocumentFitsViewport` / `assertNamedScrollport` invariants; the unit test covers the empty path. No findings.
