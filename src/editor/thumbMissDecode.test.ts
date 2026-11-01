@@ -396,7 +396,7 @@ describe('ensureThumb DerivedCache miss decode', () => {
     })
   })
 
-  it('a tile that leaves now mid-decode and remounts publishes its own decode', async () => {
+  it('an in-flight miss decode survives leave-now and publishes on remount', async () => {
     setFilmstripVisibleAssetIds(['a1'])
     retainAssetSource('a1', jpeg('a1.jpg'))
 
@@ -408,15 +408,44 @@ describe('ensureThumb DerivedCache miss decode', () => {
     await flush()
     setFilmstripVisibleAssetIds(['a1'])
     ensureThumb('a1', KEY)
-    await vi.waitFor(() => {
-      expect(posted).toHaveLength(2)
-    })
 
-    answer(1)
+    answer(0)
     await vi.waitFor(() => {
       expect(getThumbUrl('a1')).toBe('blob:decoded')
     })
-    expect(posted).toHaveLength(2)
+    expect(posted).toHaveLength(1)
+  })
+
+  it('a queued miss decode that leaves now and remounts publishes its own decode', async () => {
+    const limit = getEffectiveDecodeSlotLimitForTests()
+    const busy = Array.from({ length: limit }, (_, i) => `busy-${String(i)}`)
+    setFilmstripVisibleAssetIds([...busy, 'a1'])
+    for (const id of busy) {
+      void processAsset({ assetId: id, file: png(`${id}.png`) })
+    }
+    retainAssetSource('a1', jpeg('a1.jpg'))
+
+    ensureThumb('a1', KEY)
+    await vi.waitFor(() => {
+      expect(getQueuedDecodeAssetIds()).toContain('a1')
+    })
+    setFilmstripVisibleAssetIds(busy)
+    await flush()
+    setFilmstripVisibleAssetIds([...busy, 'a1'])
+    ensureThumb('a1', KEY)
+    await vi.waitFor(() => {
+      expect(getQueuedDecodeAssetIds()).toEqual(['a1'])
+    })
+
+    answer(0)
+    await vi.waitFor(() => {
+      expect(posted).toHaveLength(limit + 1)
+    })
+    answer(limit)
+    await vi.waitFor(() => {
+      expect(getThumbUrl('a1')).toBe('blob:decoded')
+    })
+    expect(posted).toHaveLength(limit + 1)
   })
 
   it('reset aborts an in-flight miss decode without publishing', async () => {

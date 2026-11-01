@@ -36,6 +36,7 @@ import {
   mockWorkerRuntimeError,
   mockWorkerSuccess,
 } from './photo.test-helpers'
+import { PREVIEW_MAX_EDGE } from './photoEdges'
 
 function hangWorker(): void {
   class HangWorker {
@@ -724,16 +725,29 @@ describe('assetPool', () => {
     it('a deferred off-now JPEG keeps the flag once it enters now', async () => {
       hangWorker()
       warmAssetPool()
-      setVisibleAssetIds([])
+      // Busy slots keep `own` queued: an in-flight thumb survives leave-now.
+      const holders = Array.from(
+        { length: DECODE_POOL_CAP },
+        (_, i) => `hold-${String(i)}`,
+      )
+      setVisibleAssetIds(holders)
+      for (const id of holders) {
+        void processAsset({
+          assetId: id,
+          file: jpegFile(),
+          priority: 'visible',
+        })
+      }
       const own = processAsset({
         assetId: 'own',
         file: jpegFile(),
         noPoolRetry: true,
       })
       expect(getDeferredLazyAssetIds()).toEqual(['own'])
-      setVisibleAssetIds(['own'])
+      setVisibleAssetIds([...holders, 'own'])
       expect(getDeferredLazyAssetIds()).toEqual([])
-      setVisibleAssetIds([])
+      expect(getQueuedDecodeAssetIds()).toContain('own')
+      setVisibleAssetIds(holders)
       await expect(own).rejects.toMatchObject({ name: 'AbortError' })
       expect(getPendingRetryAssetIdsForTests()).toEqual([])
     })
@@ -806,7 +820,13 @@ describe('assetPool', () => {
     })
     setVisibleAssetIds(['a', 'b'])
     void processAsset({ assetId: 'a', file, priority: 'visible' })
-    void processAsset({ assetId: 'b', file, priority: 'visible' })
+    // In-flight 1280 aborts on leave-now (an in-flight thumb320 would be kept).
+    void processAsset({
+      assetId: 'b',
+      file,
+      priority: 'visible',
+      maxEdge: PREVIEW_MAX_EDGE,
+    })
     setVisibleAssetIds(['a'])
     expect(getPendingRetryAssetIdsForTests()).toContain('b')
     resetAssetPool()

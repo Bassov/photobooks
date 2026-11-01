@@ -4,6 +4,7 @@ import {
   type DecodeJobPriority,
   type DecodeLane,
 } from './decodeQueuePolicy'
+import { THUMB_MAX_EDGE } from './photoEdges'
 
 /** Priority rank within a lane (higher first). */
 export function priorityRank(priority: DecodeJobPriority): number {
@@ -112,6 +113,14 @@ export function takeNextDecodeJob<T extends RankedDecodeJob>(
     return job
   }
   return undefined
+}
+
+/**
+ * Leave-now keeps an in-flight thumb320 decode: the worker cannot cancel, so
+ * dropping it only throws the result away. Working previews (1280) still abort.
+ */
+export function keepsInFlightOnLeaveNow(job: { maxEdge: number }): boolean {
+  return job.maxEdge === THUMB_MAX_EDGE
 }
 
 export function pendingRetryFromJob(job: {

@@ -10,6 +10,7 @@ import {
   decodeJobRank,
   dualTiersDefaultForImport,
   ensureActiveAbortController,
+  keepsInFlightOnLeaveNow,
   pendingRetryFromJob,
   priorityRank,
   queueHasBackgroundLane,
@@ -19,6 +20,7 @@ import {
   sortDecodeJobs,
   takeNextDecodeJob,
 } from './decodeScheduler'
+import { PREVIEW_MAX_EDGE, THUMB_MAX_EDGE } from './photoEdges'
 
 describe('decodeScheduler', () => {
   afterEach(() => {
@@ -216,6 +218,12 @@ describe('decodeScheduler', () => {
       onAborted,
     )
     expect(next).toBeUndefined()
+  })
+
+  it('keepsInFlightOnLeaveNow keeps thumb320 only, not 1280 or other edges', () => {
+    expect(keepsInFlightOnLeaveNow({ maxEdge: THUMB_MAX_EDGE })).toBe(true)
+    expect(keepsInFlightOnLeaveNow({ maxEdge: PREVIEW_MAX_EDGE })).toBe(false)
+    expect(keepsInFlightOnLeaveNow({ maxEdge: 64 })).toBe(false)
   })
 
   it('pendingRetryFromJob always re-enters as visible', () => {
