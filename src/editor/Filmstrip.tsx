@@ -214,6 +214,8 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     return scheduleFilmstripVisibleSync(
       items.map((item) => item.id),
       setFilmstripVisibleAssetIds,
+      // Refs: a gallery flush alone must not re-publish the same window.
+      { order: galleryRef.current, start: committedWindow.current.start },
     )
   }, [items])
 

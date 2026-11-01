@@ -26,6 +26,7 @@ import {
   scheduleWhenNowEmpty,
   shouldScheduleBackgroundDrain,
   takeNextDecodeJob,
+  takeScrollWarmJob,
 } from './decodeScheduler'
 
 export { noteDecodeScrollActivity } from './decodeScrollQuiet'
@@ -118,6 +119,11 @@ export interface ProcessAssetOptions {
    * pool retry, whose result would have no owner.
    */
   noPoolRetry?: boolean
+  /**
+   * Background thumb warm job: skips the off-now JPEG/HEIC defer; one may
+   * start while the filmstrip scrolls (other background work waits).
+   */
+  backgroundWarm?: boolean
 }
 
 interface DecodeQueueItem {
@@ -131,6 +137,7 @@ interface DecodeQueueItem {
   dualTiers: boolean
   returnSource: boolean
   noPoolRetry: boolean
+  backgroundWarm: boolean
   signal?: AbortSignal
   /** In-flight thumb whose asset left now: ignores the abort and publishes. */
   keptThroughLeaveNow?: boolean
@@ -248,6 +255,11 @@ export function getDecodeImportActiveForTests(): boolean {
   return decodeImportActive
 }
 
+/** Effective slot limit after import-active + longtask / memory backoff. */
+export function getEffectiveDecodeSlotLimit(): number {
+  return effectiveSlotLimit()
+}
+
 /** Test seam: effective slot limit after import-active + backoff. */
 export function getEffectiveDecodeSlotLimitForTests(): number {
   return effectiveSlotLimit()
@@ -352,35 +364,81 @@ function promoteDeferredLazy(): void {
     }
   }
   for (const deferred of ready) {
-    const signal =
-      deferred.options.signal ??
-      abortByAsset.get(deferred.options.assetId)?.signal
-    if (signal?.aborted) {
-      deferred.reject(new DOMException('Aborted', 'AbortError'))
-      continue
-    }
-    const requestId = `asset-${String((requestCounter += 1))}`
-    const priority: DecodeJobPriority = 'visible'
-    const dualTiers = deferred.options.dualTiers === true
-    const item: DecodeQueueItem = {
-      requestId,
-      assetId: deferred.options.assetId,
-      file: deferred.options.file,
-      priority,
-      lane: decodeLaneFor(priority, deferred.options.assetId, nowAssetIds),
-      maxEdge: deferred.options.maxEdge ?? THUMB_MAX_EDGE,
-      cover: deferred.options.cover === true,
-      dualTiers,
-      returnSource: deferred.options.returnSource === true,
-      noPoolRetry: deferred.options.noPoolRetry === true,
-      resolve: deferred.resolve,
-      reject: deferred.reject,
-    }
-    if (signal) {
-      item.signal = signal
-    }
-    enqueueDecodeJob(item)
+    enqueueDeferredLazy(deferred, 'visible', false)
   }
+}
+
+function enqueueDeferredLazy(
+  deferred: DeferredLazyItem,
+  priority: DecodeJobPriority,
+  backgroundWarm: boolean,
+): void {
+  const signal =
+    deferred.options.signal ??
+    abortByAsset.get(deferred.options.assetId)?.signal
+  if (signal?.aborted) {
+    deferred.reject(new DOMException('Aborted', 'AbortError'))
+    return
+  }
+  const requestId = `asset-${String((requestCounter += 1))}`
+  const item: DecodeQueueItem = {
+    requestId,
+    assetId: deferred.options.assetId,
+    file: deferred.options.file,
+    priority,
+    lane: decodeLaneFor(priority, deferred.options.assetId, nowAssetIds),
+    maxEdge: deferred.options.maxEdge ?? THUMB_MAX_EDGE,
+    cover: deferred.options.cover === true,
+    dualTiers: deferred.options.dualTiers === true,
+    returnSource: deferred.options.returnSource === true,
+    noPoolRetry: deferred.options.noPoolRetry === true,
+    backgroundWarm,
+    resolve: deferred.resolve,
+    reject: deferred.reject,
+  }
+  if (signal) {
+    item.signal = signal
+  }
+  enqueueDecodeJob(item)
+}
+
+/** True while an import-deferred JPEG/HEIC decode waits for now. */
+export function hasDeferredLazyDecode(assetId: string): boolean {
+  return deferredLazyByAsset.has(assetId)
+}
+
+/**
+ * Background warm lane: move an import-deferred JPEG/HEIC onto the
+ * background lane. The original owner still receives the result; the
+ * returned promise settles with it. Undefined when nothing is deferred.
+ */
+export function promoteDeferredLazyToWarm(
+  assetId: string,
+): Promise<AssetProcessResult> | undefined {
+  const deferred = deferredLazyByAsset.get(assetId)
+  if (deferred === undefined) {
+    return undefined
+  }
+  deferredLazyByAsset.delete(assetId)
+  const promise = new Promise<AssetProcessResult>((resolve, reject) => {
+    enqueueDeferredLazy(
+      {
+        options: deferred.options,
+        resolve: (result) => {
+          deferred.resolve(result)
+          resolve(result)
+        },
+        reject: (error) => {
+          deferred.reject(error)
+          reject(error)
+        },
+      },
+      'background',
+      true,
+    )
+  })
+  void promise.catch(() => undefined)
+  return promise
 }
 
 function rebuildVisibleAssetIds(): void {
@@ -436,10 +494,22 @@ function effectiveSlotLimit(): number {
   })
 }
 
+function warmJobInFlight(): boolean {
+  for (const job of inFlightJobs) {
+    if (job.backgroundWarm) {
+      return true
+    }
+  }
+  return false
+}
+
 function pump(options: { allowBackground?: boolean } = {}): void {
-  // Background lane stays idle while the filmstrip scroll quiet window is open.
-  const allowBackground =
-    options.allowBackground === true && !isDecodeScrollQuiet()
+  // Background lane stays idle while the filmstrip scroll quiet window is
+  // open, except one background-warm thumb job at a time.
+  const backgroundRequested = options.allowBackground === true
+  const scrollQuiet = isDecodeScrollQuiet()
+  const allowBackground = backgroundRequested && !scrollQuiet
+  let warmSlotFree = backgroundRequested && scrollQuiet && !warmJobInFlight()
   if (queue.length === 0) {
     return
   }
@@ -453,7 +523,7 @@ function pump(options: { allowBackground?: boolean } = {}): void {
     if (slot.busy) {
       continue
     }
-    const job = takeNextDecodeJob(
+    let job = takeNextDecodeJob(
       queue,
       allowBackground,
       nowAssetIds,
@@ -462,6 +532,10 @@ function pump(options: { allowBackground?: boolean } = {}): void {
         aborted.reject(new DOMException('Aborted', 'AbortError'))
       },
     )
+    if (!job && warmSlotFree) {
+      warmSlotFree = false
+      job = takeScrollWarmJob(queue)
+    }
     if (!job) {
       if (
         shouldScheduleBackgroundDrain(
@@ -784,7 +858,11 @@ export function processAsset(
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
-    if (shouldDeferLazyDecode(options.assetId, options.file, priority)) {
+    const backgroundWarm = options.backgroundWarm === true
+    if (
+      !backgroundWarm &&
+      shouldDeferLazyDecode(options.assetId, options.file, priority)
+    ) {
       deferredLazyByAsset.set(options.assetId, {
         options: { ...options, priority },
         resolve,
@@ -805,6 +883,7 @@ export function processAsset(
       dualTiers,
       returnSource: options.returnSource === true,
       noPoolRetry: options.noPoolRetry === true,
+      backgroundWarm,
       signal,
       resolve,
       reject,

@@ -25,6 +25,7 @@ import { setImportProgress } from './importProgressStore'
 import { MastersCanvasStub } from './MastersCanvasStub'
 import { Pasteboard } from './Pasteboard'
 import { PresentationMode } from './PresentationMode'
+import { installThumbBackgroundWarm } from './thumbBackgroundWarm'
 import { useChromeImport } from './useChromeImport'
 import './EditorShell.css'
 
@@ -39,6 +40,7 @@ export function EditorShell() {
   useEffect(() => installCropGesture(), [])
   useEffect(() => installFrameGesture(), [])
   useEffect(() => installFrameHandleGesture(), [])
+  useEffect(() => installThumbBackgroundWarm(), [])
 
   const [toastQueue] = useState(() => createToastQueue())
   const [panels, setPanels] = useState(DEFAULT_EDITOR_PANELS)

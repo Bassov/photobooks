@@ -77,12 +77,11 @@
   line-height: 1.4;
 }
 
-/* Kit `Sec` title (v7.tsx:131): text-2xs 11 / 14.85 px, tracking 0.12em, no
-   heading margins (Owner Must M48, round 8). */
+/* Kit `Sec` title (v7.tsx:131): text-2xs 11 / 14.85 px, no heading margins
+   (Owner Must M48, round 8); tracking from `.inspector-sec-title`. */
 .endpaper-sec-title {
   margin: 0;
   line-height: 1.35;
-  letter-spacing: 0.12em;
 }
 
 /* Kit `Row` (v7.tsx:145): mt-3, label · control(s) justify-between, text-sm

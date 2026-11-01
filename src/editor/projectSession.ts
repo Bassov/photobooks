@@ -43,6 +43,7 @@ import {
 } from './editorGesture'
 import { setEditorStatus } from './editorStatus'
 import { clearThumbsAndDerivedCacheForTests } from './clearThumbsForTests'
+import { getBackgroundWarmStatsForTests } from './thumbBackgroundWarm'
 import {
   getThumbBulkHydrateStatsForTests,
   getThumbCacheStatsForTests,
@@ -1373,6 +1374,7 @@ export function exposeProjectSessionTestApi(
   }
   win.__photobooksThumbs = {
     clearThumbsAndDerivedCacheForTests,
+    getBackgroundWarmStatsForTests,
     getThumbCacheStatsForTests,
     getThumbBulkHydrateStatsForTests,
   }
@@ -1473,6 +1475,10 @@ declare global {
     }
     __photobooksThumbs?: {
       clearThumbsAndDerivedCacheForTests: () => Promise<void>
+      getBackgroundWarmStatsForTests: () => {
+        encoded: number
+        inFlight: number
+      }
       getThumbCacheStatsForTests: () => {
         entries: number
         bytes: number

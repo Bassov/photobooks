@@ -83,6 +83,19 @@ export async function createOpfsDerivedCache(
       }
     },
 
+    async has(assetHash, presetId) {
+      const key = fileNameFor(assetHash, presetId)
+      if (writtenKeys.has(key) || inflightPuts.has(key)) {
+        return true
+      }
+      try {
+        await openFile(assetHash, presetId, false)
+        return true
+      } catch {
+        return false
+      }
+    },
+
     async put(assetHash, presetId, entry) {
       const key = fileNameFor(assetHash, presetId)
       if (writtenKeys.has(key)) {
