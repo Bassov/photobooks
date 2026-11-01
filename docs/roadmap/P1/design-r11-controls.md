@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r11-controls: input font, secondary/pill buttons and Settings match the kit
+Status: done
 
 ## Scope
 
