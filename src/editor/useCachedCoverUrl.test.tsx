@@ -3,17 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { setDerivedCacheForTests } from '../assets/derivedCache/instance'
 import { createMemoryDerivedCache } from '../assets/derivedCache/memory'
-import { THUMB_PRESET_ID } from '../assets/derivedCache/presets'
-import { useCachedThumbUrl } from './useCachedThumbUrl'
+import { THUMB_PRESET_ID, tierPresetId } from '../assets/derivedCache/presets'
+import { useCachedCoverUrl } from './useCachedCoverUrl'
 
 const KEY = 'a'.repeat(64)
 
 function Probe({ cacheKey }: { cacheKey: string | undefined }) {
-  const url = useCachedThumbUrl(cacheKey)
+  const url = useCachedCoverUrl(cacheKey)
   return <span data-testid="url">{url ?? 'none'}</span>
 }
 
-describe('useCachedThumbUrl', () => {
+describe('useCachedCoverUrl', () => {
   const revokeObjectURL = vi.fn()
   const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:thumb')
 
@@ -74,6 +74,26 @@ describe('useCachedThumbUrl', () => {
     const blob = createObjectURL.mock.calls[0]?.[0]
     expect(blob?.size).toBe(3)
     expect(blob?.type).toBe('image/webp')
+  })
+
+  it('prefers the cached 1280 working preview over the thumb', async () => {
+    const cache = createMemoryDerivedCache()
+    await cache.put(KEY, THUMB_PRESET_ID, {
+      bytes: new Uint8Array([1]).buffer,
+      mimeType: 'image/webp',
+    })
+    await cache.put(KEY, tierPresetId(1280), {
+      bytes: new Uint8Array([1, 2, 3, 4]).buffer,
+      mimeType: 'image/jpeg',
+    })
+    setDerivedCacheForTests(cache)
+    render(<Probe cacheKey={KEY} />)
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalledTimes(1)
+    })
+    const blob = createObjectURL.mock.calls[0]?.[0]
+    expect(blob?.size).toBe(4)
+    expect(blob?.type).toBe('image/jpeg')
   })
 
   it('does not publish a thumb that lands after unmount', async () => {

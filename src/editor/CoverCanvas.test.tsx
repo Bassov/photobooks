@@ -2,6 +2,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultCover } from '../core'
 import { makeBookWithAsset } from '../core/testing/fixtures'
+import * as tierCache from '../photo/tierCache'
+import { maxDesiredTier, resetTierDisplay } from './tierDisplay'
 import { CoverCanvas } from './CoverCanvas'
 import { CoverOverlay } from './CoverOverlay'
 import { CoverSection } from './CoverSection'
@@ -69,6 +71,9 @@ describe('CoverCanvas', () => {
     listeners.clear()
     setCoverSelected(false)
     resetBookStore()
+    resetTierDisplay()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('draws back · spine · front from the page size with the title text', () => {
@@ -107,6 +112,64 @@ describe('CoverCanvas', () => {
     const front = screen.getByTestId('cover-front')
     expect(front.style.backgroundImage).toContain('blob:a1')
     expect(front.getAttribute('data-photo-id')).toBe('a1')
+  })
+
+  it('the canvas front swaps to the working preview; the list row stays on the thumb', async () => {
+    vi.spyOn(HTMLImageElement.prototype, 'decode').mockResolvedValue()
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    vi.spyOn(tierCache, 'getTierUrl').mockImplementation((id, tier) =>
+      id === 'a1' && tier === 1280 ? 'blob:a1-1280' : undefined,
+    )
+    const requestTier = vi
+      .spyOn(tierCache, 'requestTier')
+      .mockImplementation(() => undefined)
+    vi.spyOn(tierCache, 'subscribeTier').mockImplementation(
+      () => () => undefined,
+    )
+    thumbs.set('a1', 'blob:a1')
+    const { book } = getBookStoreSnapshot()
+    resetBookStore({
+      book: {
+        ...book,
+        cover: { ...book.cover, front: { ...book.cover.front, assetId: 'a1' } },
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    const row = render(<CoverCanvas mini />)
+    expect(requestTier).not.toHaveBeenCalled()
+    const canvas = render(<CoverCanvas tierSlot="cover:canvas" />)
+    expect(requestTier).toHaveBeenCalledWith('a1', 1280, undefined)
+    expect(maxDesiredTier('a1')).toBe(1280)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screen.getByTestId('cover-front').style.backgroundImage).toContain(
+      'blob:a1-1280',
+    )
+    const rowFront = must(
+      row.container.querySelector<HTMLElement>('[data-photo-id="a1"]'),
+    )
+    expect(rowFront.style.backgroundImage).toContain('blob:a1')
+    expect(rowFront.style.backgroundImage).not.toContain('1280')
+    canvas.unmount()
+    expect(maxDesiredTier('a1')).toBeUndefined()
+  })
+
+  it('an empty front stays plain and requests no tier', () => {
+    const requestTier = vi
+      .spyOn(tierCache, 'requestTier')
+      .mockImplementation(() => undefined)
+    render(<CoverCanvas tierSlot="cover:canvas" />)
+    expect(screen.getByTestId('cover-front').style.backgroundImage).toBe('')
+    expect(requestTier).not.toHaveBeenCalled()
   })
 
   it('a filmstrip photo dropped on the front becomes the cover photo', () => {

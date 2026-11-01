@@ -6,7 +6,7 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { ASSET_DRAG_MIME } from './dropTargets'
-import { useCoverPhotoUrl } from './useCoverPhotoUrl'
+import { useTierPreviewUrl } from './useTierPreviewUrl'
 import { COVER_WRAP_MM, coverLayout } from './coverLayout'
 import './CoverCanvas.css'
 
@@ -28,11 +28,19 @@ function PanelLabel({ text }: { text: string }) {
 /**
  * Kit CoverSpread: back · spine · front on the canvas. Dropping a filmstrip
  * photo on the front sets the cover photo; the title text comes from the book.
+ * With `tierSlot` the front photo upgrades to the working preview like a page
+ * frame; without it (spread-list row) it stays on the filmstrip thumb.
  */
-export function CoverCanvas({ mini = false }: { mini?: boolean }) {
+export function CoverCanvas({
+  mini = false,
+  tierSlot,
+}: {
+  mini?: boolean
+  tierSlot?: string
+}) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const { cover, settings } = book
-  const url = useCoverPhotoUrl(cover.front.assetId)
+  const url = useTierPreviewUrl(cover.front.assetId, tierSlot)
   const { style: look } = cover
   const layout = coverLayout(
     settings.trim.widthMm,

@@ -8,7 +8,7 @@ import {
 import { BookObject } from './BookObject'
 import type { LibraryGridBook } from './libraryBookFilter'
 import { formatLibraryBookMeta } from './libraryEditedLabel'
-import { useCachedThumbUrl } from './useCachedThumbUrl'
+import { useCachedCoverUrl } from './useCachedCoverUrl'
 
 const DEFAULT_H = 236
 const SHELF_FMT = 'portrait' as const
@@ -29,7 +29,7 @@ export function BookTile({
   title?: ReactNode
   nowMs?: number
 }) {
-  const coverUrl = useCachedThumbUrl(book.coverCacheKey)
+  const coverUrl = useCachedCoverUrl(book.coverCacheKey)
   // Shelf draws every book vertical (kit look), whatever the trim.
   const objectH = bookObjectDisplayHeight(H, SHELF_FMT)
   const captionW = bookObjectWidthForHeight(objectH, SHELF_FMT)
