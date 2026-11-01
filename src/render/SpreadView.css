@@ -324,22 +324,40 @@ button.spread-frame:not(
   pointer-events: none;
 }
 
-.spread-page-cut {
+.spread-page-cut,
+.spread-fold {
   position: absolute;
   pointer-events: none;
+}
+
+.spread-page-cut {
   background: color-mix(in srgb, var(--foreground) 28%, transparent);
 }
 
-/* The fold is centred on the cut (kit gutter: left-1/2 -translate-x-1/2) and
-   stays 1 screen px through a live zoom. */
-.spread-page-cut[data-orientation='vertical'] {
-  translate: -50% 0;
-  scale: calc(1 / var(--cam-scale, 1)) 1;
+/* Kit spine fold (canvas.tsx: left-1/2 w-[3%] -translate-x-1/2, via-black/6):
+   centred on the cut, 3 % of the spread; a world child, so it scales with the
+   zoom in the same transform as the page (Owner Must M73, round 11). The
+   stops ride a custom property like the kit's Tailwind gradient vars, so the
+   minifier keeps `to right` (it rewrites a literal one to 90deg). */
+.spread-fold {
+  --spread-fold-stops:
+    transparent 0%, var(--spread-fold-ink) 50%, transparent 100%;
+  --spread-fold-image: linear-gradient(to right, var(--spread-fold-stops));
+  background-image: var(--spread-fold-image);
 }
 
-.spread-page-cut[data-orientation='horizontal'] {
+.spread-fold[data-orientation='horizontal'] {
+  --spread-fold-image: linear-gradient(to bottom, var(--spread-fold-stops));
+}
+
+.spread-page-cut[data-orientation='vertical'],
+.spread-fold[data-orientation='vertical'] {
+  translate: -50% 0;
+}
+
+.spread-page-cut[data-orientation='horizontal'],
+.spread-fold[data-orientation='horizontal'] {
   translate: 0 -50%;
-  scale: 1 calc(1 / var(--cam-scale, 1));
 }
 
 .spread-frame-missing {

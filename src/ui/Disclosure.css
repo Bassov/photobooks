@@ -19,6 +19,8 @@
   padding-left: calc(var(--spacing) * 2);
   font-size: var(--text-xs);
   font-weight: 400;
+  /* Kit text-xs leading: a 16.8 px box centred on the eyebrow row. */
+  line-height: 1.4;
   color: var(--muted-foreground);
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -285,6 +285,7 @@ export function InspectorSlider({
   onChange,
   testId,
   editableValue = false,
+  className,
 }: {
   label: string
   value: number
@@ -295,10 +296,16 @@ export function InspectorSlider({
   onChange: (value: number) => void
   testId?: string
   editableValue?: boolean
+  /** Extra slider classes, e.g. `fit-crop-slider--row` for the kit pitch. */
+  className?: string
 }) {
   return (
     <Slider
-      className="fit-crop-slider"
+      className={
+        className === undefined
+          ? 'fit-crop-slider'
+          : `fit-crop-slider ${className}`
+      }
       data-testid={testId}
       minValue={min}
       maxValue={max}

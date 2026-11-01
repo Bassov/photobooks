@@ -24,6 +24,8 @@ import { chooseZoom } from './fixtures/zoomMenu'
 // and label centred in the frame (dx -0.008, dy 0); the gutter fold centred
 // on the spread (mid -0.008). Selecting the frame shows the kit "296 x 210 mm"
 // pill, which the Owner removed (M52).
+// Owner design change (round 11, M73): the fold is the kit 3 % gradient
+// (design-r11-canvas), so its width tracks 3 % of the spread every frame.
 
 const KIT_ICON_PX = 16
 const KIT_LABEL_PX = 11
@@ -37,7 +39,7 @@ interface ChromeSample {
   gap: number
   /** Icon / label centre x and the hint group's centre y off the frame's. */
   offCentre: number[]
-  fold: { dx: number; width: number }
+  fold: { dx: number; width: number; spreadWidth: number }
 }
 
 /**
@@ -84,7 +86,11 @@ function sampleChrome(spreadId: string, frameId: string): ChromeSample {
       l.left + l.width / 2 - midX,
       h.top + h.height / 2 - (b.top + b.height / 2),
     ],
-    fold: { dx: c.left + c.width / 2 - (v.left + v.width / 2), width: c.width },
+    fold: {
+      dx: c.left + c.width / 2 - (v.left + v.width / 2),
+      width: c.width,
+      spreadWidth: v.width,
+    },
   }
 }
 
@@ -99,7 +105,12 @@ function expectLocked(sample: ChromeSample): void {
     expect(Math.abs(off), at).toBeLessThanOrEqual(0.5)
   }
   expect(Math.abs(sample.fold.dx), at).toBeLessThanOrEqual(0.5)
-  expect(Math.abs(sample.fold.width - 1), at).toBeLessThanOrEqual(0.05)
+  // Owner design change (round 11, M73): the kit fold is 3 % of the spread
+  // (was 1 screen px) and scales in the same frame as the spread.
+  expect(
+    Math.abs(sample.fold.width - sample.fold.spreadWidth * 0.03),
+    at,
+  ).toBeLessThanOrEqual(0.05)
 }
 
 function boxOf<T>(value: T | null): T {

@@ -22,6 +22,7 @@ import {
 import { IconButton } from '../ui/IconButton'
 import { Status } from '../ui/Status'
 import '../ui/Toolbar.css'
+import './EditorTopBar.css'
 import { displayBookTitle } from '../project'
 import { formatZoomPercent, physicalZoom } from './camera'
 import {
@@ -158,14 +159,13 @@ function HistoryChrome() {
     getHistorySnapshot,
   )
   return (
-    <div className="ml-2 flex items-center gap-0.5" style={{ color: SUB }}>
+    <div className="ml-2 flex items-center" style={{ color: SUB }}>
       <IconButton
         label={
           undoLabel !== null
             ? `Undo “${undoLabel}” (Ctrl+Z)`
             : 'Nothing to undo'
         }
-        size="sm"
         data-testid="undo"
         isDisabled={!canUndo}
         onPress={undoBook}
@@ -178,7 +178,6 @@ function HistoryChrome() {
             ? `Redo “${redoLabel}” (Shift+Ctrl+Z)`
             : 'Nothing to redo'
         }
-        size="sm"
         data-testid="redo"
         isDisabled={!canRedo}
         onPress={redoBook}
@@ -245,8 +244,7 @@ function ZoomChrome() {
         <Button
           variant="ghost"
           size="sm"
-          className="min-w-[4.75rem] justify-center gap-1 px-2 text-sm tabular-nums"
-          style={{ color: SUB, background: 'transparent' }}
+          className="editor-zoom-menu gap-1 px-2 text-sm tabular-nums"
           aria-label="Zoom"
           data-testid="zoom-menu"
         >
@@ -408,27 +406,31 @@ export function EditorTopBar({
             onPanelsChange(toggleEditorPanel(panels, key))
           }}
         />
-        <ChromeButton
-          className="e7-sec h-8 gap-1.5 rounded-full px-3 text-sm font-medium"
-          style={{ background: FIELD, color: T }}
-          data-testid="present"
-          disabled={spreadCount === 0}
-          title="Preview"
-          onClick={onPresent}
-        >
-          <Icon name="eye" size={16} />
-          Preview
-        </ChromeButton>
-        <IconButton
-          label="Settings"
-          size="sm"
-          data-testid="editor-settings-open"
-          onPress={() => {
-            setSettingsOpen(true)
-          }}
-        >
-          <Icon name="settings" size={16} />
-        </IconButton>
+        <div className="flex items-center gap-1.5">
+          <ChromeButton
+            className="editor-top-pill h-8 gap-1.5 text-sm font-medium"
+            style={{ background: FIELD, color: T }}
+            data-testid="present"
+            disabled={spreadCount === 0}
+            title="Preview"
+            onClick={onPresent}
+          >
+            <Icon name="eye" size={16} />
+            Preview
+          </ChromeButton>
+          <ChromeButton
+            className="editor-top-pill h-8 text-sm font-medium"
+            style={{ background: FIELD, color: T }}
+            data-testid="editor-settings-open"
+            aria-label="Settings"
+            title="Settings"
+            onClick={() => {
+              setSettingsOpen(true)
+            }}
+          >
+            <Icon name="settings" size={16} />
+          </ChromeButton>
+        </div>
       </div>
       {settingsOpen ? (
         <EditorSettings

@@ -31,6 +31,14 @@ describe('editorChromeTokens', () => {
     )
   })
 
+  it('fills an open panel toggle with the kit field, hover keeps it', () => {
+    const on = EDITOR_CHROME_CSS.indexOf(
+      '.e7-tog[aria-expanded=true] { background: #D7D7D7 }',
+    )
+    expect(on).toBeGreaterThan(EDITOR_CHROME_CSS.indexOf('.e7-ghost:hover'))
+    expect(EDITOR_CHROME_CSS).not.toContain('.e7-sec')
+  })
+
   it('injects chrome CSS once and reuses a pre-existing style node', () => {
     expect(EDITOR_CHROME_CSS).toContain('#CACACA')
     expect(EDITOR_CHROME_CSS).toContain('data-panning')
