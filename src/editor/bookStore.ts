@@ -620,6 +620,18 @@ export function mintAssetId(fileName: string): string {
   return `asset-${String(assetSeq)}-${safe}`
 }
 
+const assetRemovalListeners = new Set<(assetIds: readonly string[]) => void>()
+
+/** Assets leaving the session (gallery removal, failed import); not reset. */
+export function subscribeAssetRemovals(
+  listener: (assetIds: readonly string[]) => void,
+): () => void {
+  assetRemovalListeners.add(listener)
+  return () => {
+    assetRemovalListeners.delete(listener)
+  }
+}
+
 /**
  * Drop a failed import everywhere: still-pending queues, or flushed gallery
  * (cascading placements), plus session meta. Marks the id so a late hash
@@ -668,6 +680,9 @@ export function removeFailedImportAssets(assetIds: readonly string[]): void {
     invalidateGalleryAspectsCache()
     notifyAffectedSpreads(prev, state)
     emit()
+  }
+  for (const listener of assetRemovalListeners) {
+    listener(unique)
   }
 }
 

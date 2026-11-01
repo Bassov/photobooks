@@ -10,8 +10,11 @@ import {
 } from 'react'
 import { GridList, type Selection } from 'react-aria-components'
 import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
-import { shouldCommitFilmstripScroll } from './filmstripScrollCommit'
-import { noteFilmstripScroll } from './thumbCache'
+import {
+  filmstripScrollDirection,
+  shouldCommitFilmstripScroll,
+} from './filmstripScrollCommit'
+import { noteFilmstripScroll, setThumbViewportProvider } from './thumbCache'
 import { installFilmstripUnplaceWhenMounted } from './filmstripUnplaceMount'
 import { installFilmstripWheel } from './filmstripWheel'
 import { scheduleFilmstripVisibleSync } from './filmstripVisibleSync'
@@ -62,10 +65,11 @@ import {
 } from './filmstripSelection'
 import {
   buildStridePrefix,
-  indexFromScrollOffset,
+  filmstripWindowRange,
+  scrollportIndexRange,
   spacerWidthPx,
   thumbWidthMax,
-  windowCountForCover,
+  type FilmstripScrollDirection,
 } from './thumbSlotSize'
 import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
 import './Filmstrip.css'
@@ -75,9 +79,12 @@ interface FilmstripRow {
   name: string
 }
 
-/** Extra cover beyond the scrollport so fast scroll does not flash holes. */
-function windowOverscanPx(thumbHeight: number): number {
-  return thumbWidthMax(thumbHeight) * 2
+/**
+ * Cover ahead of the scrollport in the scroll direction (about one scrollport
+ * width) so fast scroll does not flash holes and `<img>` decode starts early.
+ */
+function windowOverscanPx(thumbHeight: number, viewportWidth: number): number {
+  return Math.max(viewportWidth, thumbWidthMax(thumbHeight) * 2)
 }
 
 /**
@@ -99,13 +106,18 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   galleryEmpty: boolean
 }) {
   const [scrollLeft, setScrollLeft] = useState(0)
+  const [scrollDir, setScrollDir] = useState<FilmstripScrollDirection>(1)
   const [viewportWidth, setViewportWidth] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pendingScrollLeft = useRef(0)
   const scrollRaf = useRef(0)
-  const committedWindowStart = useRef(0)
+  const committedWindow = useRef({ start: 0, end: 0 })
   const prefixRef = useRef<readonly number[]>([0])
   const scrollLeftRef = useRef(0)
+  const lastScrollLeft = useRef(0)
+  const scrollDirRef = useRef<FilmstripScrollDirection>(1)
+  const viewportWidthRef = useRef(0)
+  const galleryRef = useRef(gallery)
   const total = gallery.length
   const thumbHeight = FILMSTRIP_THUMB_HEIGHT
 
@@ -115,6 +127,8 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
   )
   prefixRef.current = prefix
   scrollLeftRef.current = scrollLeft
+  viewportWidthRef.current = viewportWidth
+  galleryRef.current = gallery
 
   const spacerWidth = useMemo(
     () => spacerWidthPx(aspects, spacerCount, 1, thumbHeight),
@@ -140,17 +154,34 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     }
   }, [])
 
-  const windowStart = useMemo(
-    () => indexFromScrollOffset(scrollLeft, prefix),
-    [prefix, scrollLeft],
+  // Thumb publishes / DerivedCache reads serve the scrollport tiles first.
+  useEffect(
+    () =>
+      setThumbViewportProvider(() => {
+        const view = scrollportIndexRange(
+          prefixRef.current,
+          pendingScrollLeft.current,
+          viewportWidthRef.current,
+        )
+        return galleryRef.current.slice(view.start, view.end)
+      }),
+    [],
   )
-  committedWindowStart.current = windowStart
 
-  const coverPx = Math.max(viewportWidth, 1) + windowOverscanPx(thumbHeight)
-  const windowSize = Math.max(
-    windowCountForCover(prefix, windowStart, coverPx),
-    1,
+  const windowRange = useMemo(
+    () =>
+      filmstripWindowRange(
+        prefix,
+        scrollLeft,
+        viewportWidth,
+        scrollDir,
+        windowOverscanPx(thumbHeight, viewportWidth),
+      ),
+    [prefix, scrollLeft, viewportWidth, scrollDir, thumbHeight],
   )
+  committedWindow.current = windowRange
+  const windowStart = windowRange.start
+  const windowSize = Math.max(windowRange.end - windowRange.start, 1)
   const windowKey = gallery
     .slice(windowStart, windowStart + windowSize)
     .join('\0')
@@ -214,13 +245,23 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
       const nextLeft = pendingScrollLeft.current
-      if (
-        shouldCommitFilmstripScroll(
-          nextLeft,
-          prefixRef.current,
-          committedWindowStart.current,
-        )
-      ) {
+      const dir = filmstripScrollDirection(
+        nextLeft,
+        lastScrollLeft.current,
+        scrollDirRef.current,
+      )
+      lastScrollLeft.current = nextLeft
+      scrollDirRef.current = dir
+      const width = viewportWidthRef.current
+      const next = filmstripWindowRange(
+        prefixRef.current,
+        nextLeft,
+        width,
+        dir,
+        windowOverscanPx(thumbHeight, width),
+      )
+      if (shouldCommitFilmstripScroll(next, committedWindow.current)) {
+        setScrollDir(dir)
         setScrollLeft(nextLeft)
       }
     })
