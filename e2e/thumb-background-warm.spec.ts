@@ -134,8 +134,8 @@ async function walkStrip(
   const scroll = page.getByTestId('filmstrip-scroll')
   const seen = new Map<string, boolean>()
   let remaining = 1
-  // scrollWidth grows as tiles get measured, and the tail window commits
-  // after scroll quiet: keep stepping until every tile was mounted.
+  // scrollWidth grows as hydrate restores tile aspects: re-read the extent
+  // every step and stop once at the end with every tile seen.
   for (let step = 0; step < 200; step += 1) {
     await expect
       .poll(async () => {
@@ -152,14 +152,7 @@ async function walkStrip(
       break
     }
     remaining = await scroll.evaluate(async (node) => {
-      const max = node.scrollWidth - node.clientWidth
-      // The window only re-commits when its start index moves; hydrate
-      // widens tiles under a parked strip. At the end, step back a viewport
-      // so the tail window re-commits on the way forward.
-      node.scrollLeft =
-        node.scrollLeft >= max
-          ? max - node.clientWidth
-          : node.scrollLeft + node.clientWidth / 2
+      node.scrollLeft += node.clientWidth / 2
       // Window commits on rAF: let it land before reading mounted tiles.
       for (let frame = 0; frame < 3; frame += 1) {
         await new Promise((resolve) => requestAnimationFrame(resolve))
