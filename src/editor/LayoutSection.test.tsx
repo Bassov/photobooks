@@ -227,11 +227,13 @@ describe('BookSettingsSection', () => {
     expect(screen.getByTestId('book-settings-subtitle').textContent).toBe(
       'Untitled book · applies to the whole book',
     )
+    // Kit `Sec` titles are h3 under the h2 `Head` (Owner design change,
+    // round 10, M59).
     const eyebrows = screen
-      .getAllByRole('heading', { level: 4 })
+      .getAllByRole('heading', { level: 3 })
       .map((el) => el.textContent)
     expect(eyebrows).toEqual(['Page size', 'Binding', 'Print', 'Defaults'])
-    for (const el of screen.getAllByRole('heading', { level: 4 })) {
+    for (const el of screen.getAllByRole('heading', { level: 3 })) {
       // Kit `Sec` title tracking 0.12em (Owner design change, round 9, M57).
       expect(el.className).toBe('inspector-eyebrow inspector-sec-title')
     }

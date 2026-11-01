@@ -18,7 +18,13 @@ import {
   T,
 } from './editorChromeTokens'
 import { Select } from '../ui/Select'
-import { InspectorRow, ReadOnlyPill, ToggleSwitch } from './InspectorControls'
+import {
+  InspectorHead,
+  InspectorRow,
+  InspectorSec,
+  ReadOnlyPill,
+  ToggleSwitch,
+} from './InspectorControls'
 
 type Unit = 'cm' | 'mm'
 
@@ -190,163 +196,160 @@ export function BookSettingsSection() {
   const landscape = trim.widthMm > trim.heightMm
   const matched = presetFor(trim)
   const presetValue = customPicked ? CUSTOM : matched
+  // Kit Book settings part (v7.tsx:202-210): Head plus Sec / Row blocks, the
+  // Endpaper rhythm (Owner Must M59, round 10).
   return (
-    <section
-      className="flex flex-col gap-3 px-4 py-4"
-      data-testid="book-settings"
-      aria-label="Book settings"
-    >
-      <div>
-        <h2 className="text-sm font-semibold" data-testid="inspector-context">
-          Book settings
-        </h2>
-        <p
-          className="mt-0.5 text-xs text-muted-foreground"
-          data-testid="book-settings-subtitle"
-        >
-          {bookSettingsSubtitle(cover.back.text, cover.front.text)}
-        </p>
-      </div>
-      <h4 className="inspector-eyebrow inspector-sec-title">Page size</h4>
-      {/* Kit SizeEditor select (v7.tsx:172-174), presets plus "Custom". */}
-      <Select
-        aria-label="Page size"
-        data-testid="size-preset"
-        value={presetValue}
-        options={[
-          ...PRESETS.map((p) => ({
-            value: p.id,
-            label: presetLabel(p, landscape),
-          })),
-          { value: CUSTOM, label: 'Custom' },
-        ]}
-        onChange={(value) => {
-          const preset = PRESETS.find((p) => p.id === value)
-          setCustomPicked(preset === undefined)
-          if (preset !== undefined) {
-            const swap = landscape && preset.w !== preset.h
-            dispatchBookOp({
-              type: 'setTrim',
-              widthMm: Math.round((swap ? preset.h : preset.w) * 10),
-              heightMm: Math.round((swap ? preset.w : preset.h) * 10),
-            })
-          }
-        }}
+    <section data-testid="book-settings" aria-label="Book settings">
+      <InspectorHead
+        title="Book settings"
+        sub={bookSettingsSubtitle(cover.back.text, cover.front.text)}
+        subTestId="book-settings-subtitle"
       />
-      <div data-testid="size-orientation">
-        <SegmentedControl
-          label="Orientation"
-          size="sm"
-          items={[
-            { id: 'portrait', label: 'Portrait' },
-            { id: 'landscape', label: 'Landscape' },
+      <InspectorSec title="Page size">
+        {/* Kit SizeEditor select (v7.tsx:172-174), presets plus "Custom". */}
+        <Select
+          aria-label="Page size"
+          data-testid="size-preset"
+          className="insp-size-select"
+          value={presetValue}
+          options={[
+            ...PRESETS.map((p) => ({
+              value: p.id,
+              label: presetLabel(p, landscape),
+            })),
+            { value: CUSTOM, label: 'Custom' },
           ]}
-          value={landscape ? 'landscape' : 'portrait'}
           onChange={(value) => {
-            if ((value === 'landscape') !== landscape) {
+            const preset = PRESETS.find((p) => p.id === value)
+            setCustomPicked(preset === undefined)
+            if (preset !== undefined) {
+              const swap = landscape && preset.w !== preset.h
               dispatchBookOp({
                 type: 'setTrim',
-                widthMm: trim.heightMm,
-                heightMm: trim.widthMm,
+                widthMm: Math.round((swap ? preset.h : preset.w) * 10),
+                heightMm: Math.round((swap ? preset.w : preset.h) * 10),
               })
             }
           }}
         />
-      </div>
-      {presetValue === CUSTOM ? (
-        <div data-testid="size-unit">
+        <div className="mt-3" data-testid="size-orientation">
           <SegmentedControl
-            label="Units"
-            size="sm"
+            label="Orientation"
+            size="inspector"
             items={[
-              { id: 'cm', label: 'cm' },
-              { id: 'mm', label: 'mm' },
+              { id: 'portrait', label: 'Portrait' },
+              { id: 'landscape', label: 'Landscape' },
             ]}
-            value={unit}
+            value={landscape ? 'landscape' : 'portrait'}
             onChange={(value) => {
-              setUnit(value === 'mm' ? 'mm' : 'cm')
+              if ((value === 'landscape') !== landscape) {
+                dispatchBookOp({
+                  type: 'setTrim',
+                  widthMm: trim.heightMm,
+                  heightMm: trim.widthMm,
+                })
+              }
             }}
           />
         </div>
-      ) : null}
-      <div className="grid grid-cols-2 gap-2">
-        <SizeField axis="widthMm" label="W" unit={unit} mm={trim.widthMm} />
-        <SizeField axis="heightMm" label="H" unit={unit} mm={trim.heightMm} />
-      </div>
-      <p className="text-2xs leading-4 text-muted-foreground">
-        Size of one page. To print 2 pages per A4 sheet, choose A5.
-      </p>
-      <h4 className="inspector-eyebrow inspector-sec-title">Binding</h4>
-      <InspectorRow label="Style">
-        {/* Kit v7.tsx:205: disabled Val pill + "read-only" note. */}
-        <ReadOnlyPill
-          value="Hardcover"
-          note="read-only"
-          testId="binding-style"
-          noteTestId="binding-readonly"
-        />
-      </InspectorRow>
-      <InspectorRow label="Endpapers">
-        <ToggleSwitch
-          label="Endpapers"
-          testId="book-endpapers"
-          on={endpapers.enabled}
-          onChange={(enabled) => {
-            dispatchBookOp({ type: 'setEndpapersEnabled', enabled })
-          }}
-        />
-      </InspectorRow>
-      {/* Rendered #/demo step 24: pages box, range hint and the spreads note. */}
-      <InspectorRow label="Pages">
-        <span className="flex items-center gap-1" data-testid="book-pages">
-          <PagesField pages={pages} />
-          <span
-            className="text-2xs"
-            style={{ color: SUB }}
-            data-testid="book-pages-range"
-          >
-            {PAGE_MIN}–{PAGE_MAX}
+        {presetValue === CUSTOM ? (
+          <div className="mt-3" data-testid="size-unit">
+            <SegmentedControl
+              label="Units"
+              size="inspector"
+              items={[
+                { id: 'cm', label: 'cm' },
+                { id: 'mm', label: 'mm' },
+              ]}
+              value={unit}
+              onChange={(value) => {
+                setUnit(value === 'mm' ? 'mm' : 'cm')
+              }}
+            />
+          </div>
+        ) : null}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <SizeField axis="widthMm" label="W" unit={unit} mm={trim.widthMm} />
+          <SizeField axis="heightMm" label="H" unit={unit} mm={trim.heightMm} />
+        </div>
+        <div className="mt-1.5 text-2xs leading-4 text-muted-foreground">
+          Size of one page. To print 2 pages per A4 sheet, choose A5.
+        </div>
+      </InspectorSec>
+      <InspectorSec title="Binding">
+        <InspectorRow label="Style">
+          {/* Kit v7.tsx:205: disabled Val pill + "read-only" note. */}
+          <ReadOnlyPill
+            value="Hardcover"
+            note="read-only"
+            testId="binding-style"
+            noteTestId="binding-readonly"
+          />
+        </InspectorRow>
+        <InspectorRow label="Endpapers">
+          <ToggleSwitch
+            label="Endpapers"
+            testId="book-endpapers"
+            on={endpapers.enabled}
+            onChange={(enabled) => {
+              dispatchBookOp({ type: 'setEndpapersEnabled', enabled })
+            }}
+          />
+        </InspectorRow>
+        {/* Rendered #/demo step 24: pages box, range hint and the spreads note. */}
+        <InspectorRow label="Pages">
+          <span className="flex items-center gap-1" data-testid="book-pages">
+            <PagesField pages={pages} />
+            <span
+              className="text-2xs"
+              style={{ color: SUB }}
+              data-testid="book-pages-range"
+            >
+              {PAGE_MIN}–{PAGE_MAX}
+            </span>
           </span>
-        </span>
-      </InspectorRow>
-      <p
-        className="text-2xs text-muted-foreground"
-        data-testid="book-pages-note"
-      >
-        {pagesNote(pages)}
-      </p>
-      <h4 className="inspector-eyebrow inspector-sec-title">Print</h4>
-      {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}
-      <div className="grid grid-cols-2 gap-2">
-        <ReadOnlyField
-          label="B"
-          value={fmtN(settings.bleedMm)}
-          unit="mm"
-          testId="book-bleed"
-        />
-        <ReadOnlyField
-          label="S"
-          value={fmtN(settings.safeMarginMm)}
-          unit="mm"
-          testId="book-safe-margin"
-        />
-      </div>
-      <InspectorRow label="Paper">
-        <ReadOnlyPill value="Matte 200 g" />
-      </InspectorRow>
-      <h4 className="inspector-eyebrow inspector-sec-title">Defaults</h4>
-      {/* Kit v7.tsx:201,210: default master and page colour (coming later). */}
-      <InspectorRow label="Default master">
-        <ReadOnlyPill value="Master A" />
-      </InspectorRow>
-      <InspectorRow label="Page colour">
-        <span
-          className="text-sm text-muted-foreground"
-          data-testid="page-colour-readonly"
+        </InspectorRow>
+        <div
+          className="mt-1.5 text-2xs text-muted-foreground"
+          data-testid="book-pages-note"
         >
-          Paper white · coming later
-        </span>
-      </InspectorRow>
+          {pagesNote(pages)}
+        </div>
+      </InspectorSec>
+      <InspectorSec title="Print">
+        {/* Kit v7.tsx:209: bleed / safe margin Fields, paper pill. */}
+        <div className="grid grid-cols-2 gap-2">
+          <ReadOnlyField
+            label="B"
+            value={fmtN(settings.bleedMm)}
+            unit="mm"
+            testId="book-bleed"
+          />
+          <ReadOnlyField
+            label="S"
+            value={fmtN(settings.safeMarginMm)}
+            unit="mm"
+            testId="book-safe-margin"
+          />
+        </div>
+        <InspectorRow label="Paper">
+          <ReadOnlyPill value="Matte 200 g" />
+        </InspectorRow>
+      </InspectorSec>
+      <InspectorSec title="Defaults">
+        {/* Kit v7.tsx:201,210: default master and page colour (coming later). */}
+        <InspectorRow label="Default master">
+          <ReadOnlyPill value="Master A" />
+        </InspectorRow>
+        <InspectorRow label="Page colour">
+          <span
+            className="text-sm text-muted-foreground"
+            data-testid="page-colour-readonly"
+          >
+            Paper white · coming later
+          </span>
+        </InspectorRow>
+      </InspectorSec>
     </section>
   )
 }

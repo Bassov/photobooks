@@ -10,6 +10,7 @@ import {
 } from 'react-aria-components'
 import { COVER_CROP, clampCrop, type Frame } from '../core'
 import { Button } from '../ui/Button'
+import { Disclosure } from '../ui/Disclosure'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
   dispatchBookOp,
@@ -72,95 +73,103 @@ export function FitCropSection({
       crop: clampCrop(frame.rect, next, aspect, frame.fit),
     })
   }
+  // Kit `Section title="Fit & crop"` (uikit/src/sandbox/inspector.tsx:131):
+  // open by default, collapsible (Owner Must M60, round 10).
   return (
-    <section
-      className="fit-crop flex flex-col gap-3 px-4 py-4"
-      data-testid="inspector-fit-crop"
+    <Disclosure
+      title="Fit & crop"
+      defaultExpanded
+      data-testid="inspector-fit-crop-disclosure"
       data-crop-keep=""
-      aria-label="Fit and crop"
     >
-      <h4 className="inspector-eyebrow">Fit &amp; crop</h4>
-      <SegmentedControl
-        label="Photo fit"
-        size="sm"
-        value={fit}
-        onChange={(next) => {
-          dispatchBookOp({
-            type: 'setFit',
-            spreadId: target.spreadId,
-            frameId: target.frameId,
-            fit: next === 'fit' ? 'fit' : 'fill',
-          })
-        }}
-        items={[
-          { id: 'fill', label: 'Fill' },
-          { id: 'fit', label: 'Fit' },
-        ]}
-      />
-      <ZoomSlider
-        value={crop.zoom}
-        onChange={(zoom) => {
-          commit({ ...crop, zoom })
-        }}
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <PanField
-          label="Pan X"
-          prefix="↔"
-          value={centerToPan(crop.center.x)}
-          onChange={(percent) => {
-            commit({
-              ...crop,
-              center: { x: panToCenter(percent), y: crop.center.y },
-            })
-          }}
-        />
-        <PanField
-          label="Pan Y"
-          prefix="↕"
-          value={centerToPan(crop.center.y)}
-          onChange={(percent) => {
-            commit({
-              ...crop,
-              center: { x: crop.center.x, y: panToCenter(percent) },
-            })
-          }}
-        />
-      </div>
-      <div className="flex gap-2">
-        <Button
-          variant={cropping ? 'default' : 'outline'}
+      <section
+        className="fit-crop flex flex-col gap-3 px-4 pt-0.5 pb-3"
+        data-testid="inspector-fit-crop"
+        data-crop-keep=""
+        aria-label="Fit and crop"
+      >
+        <SegmentedControl
+          label="Photo fit"
           size="sm"
-          className="flex-1"
-          data-testid="crop-toggle"
-          onPress={() => {
-            if (cropping) {
-              exitCropMode()
-            } else {
-              enterCropMode(target.spreadId, target.frameId)
-            }
-          }}
-        >
-          {cropping ? 'Done' : 'Crop'}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="flex-1"
-          data-testid="crop-reset"
-          isDisabled={atCover}
-          onPress={() => {
+          value={fit}
+          onChange={(next) => {
             dispatchBookOp({
-              type: 'resetCrop',
+              type: 'setFit',
               spreadId: target.spreadId,
               frameId: target.frameId,
+              fit: next === 'fit' ? 'fit' : 'fill',
             })
           }}
-        >
-          Reset to cover
-        </Button>
-      </div>
-    </section>
+          items={[
+            { id: 'fill', label: 'Fill' },
+            { id: 'fit', label: 'Fit' },
+          ]}
+        />
+        <ZoomSlider
+          value={crop.zoom}
+          onChange={(zoom) => {
+            commit({ ...crop, zoom })
+          }}
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <PanField
+            label="Pan X"
+            prefix="↔"
+            value={centerToPan(crop.center.x)}
+            onChange={(percent) => {
+              commit({
+                ...crop,
+                center: { x: panToCenter(percent), y: crop.center.y },
+              })
+            }}
+          />
+          <PanField
+            label="Pan Y"
+            prefix="↕"
+            value={centerToPan(crop.center.y)}
+            onChange={(percent) => {
+              commit({
+                ...crop,
+                center: { x: crop.center.x, y: panToCenter(percent) },
+              })
+            }}
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={cropping ? 'default' : 'outline'}
+            size="sm"
+            className="flex-1"
+            data-testid="crop-toggle"
+            onPress={() => {
+              if (cropping) {
+                exitCropMode()
+              } else {
+                enterCropMode(target.spreadId, target.frameId)
+              }
+            }}
+          >
+            {cropping ? 'Done' : 'Crop'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1"
+            data-testid="crop-reset"
+            isDisabled={atCover}
+            onPress={() => {
+              dispatchBookOp({
+                type: 'resetCrop',
+                spreadId: target.spreadId,
+                frameId: target.frameId,
+              })
+            }}
+          >
+            Reset to cover
+          </Button>
+        </div>
+      </section>
+    </Disclosure>
   )
 }
 
@@ -262,7 +271,7 @@ function ZoomSlider({
   return (
     <Slider
       ref={setElement}
-      className="fit-crop-slider"
+      className="fit-crop-slider fit-crop-slider--row"
       data-testid="crop-zoom"
       minValue={ZOOM_MIN}
       maxValue={ZOOM_MAX}

@@ -197,13 +197,14 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: var(--text-xs);
+  /* Kit Tabs labels: 13 px medium in both states (Owner Must M61, round 10). */
+  font-size: var(--text-sm);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .layout-tabs button[aria-pressed='true'] {
   background: var(--paper);
-  font-weight: 600;
   box-shadow: var(--shadow-sm);
 }
 

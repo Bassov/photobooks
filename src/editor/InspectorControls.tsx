@@ -11,16 +11,86 @@ import { FIELD, SUB, T } from './editorChromeTokens'
 import './FitCropSection.css'
 import './InspectorControls.css'
 
-/** Kit `Row`: muted label left, control right. */
-export function InspectorRow({
-  label,
+/**
+ * Kit `Head` (uikit/src/sandbox/v7.tsx:150): the panel's first block, px-4
+ * pt-4 pb-1, a 13 px medium title over a muted subline (Owner Musts M48, M59).
+ */
+export function InspectorHead({
+  title,
+  sub,
+  subTestId,
+}: {
+  title: ReactNode
+  sub: ReactNode
+  subTestId?: string
+}) {
+  return (
+    <div className="px-4 pt-4 pb-1" data-testid="inspector-head">
+      <h2 className="inspector-head-title" data-testid="inspector-context">
+        {title}
+      </h2>
+      <p
+        className="inspector-head-sub text-muted-foreground"
+        data-testid={subTestId}
+      >
+        {sub}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Kit `Sec` (v7.tsx:130): a px-4 py-4 block, an mb-3 title row with the 11 px
+ * uppercase Sec title, then the rows (Owner Musts M48, M57, M59).
+ */
+export function InspectorSec({
+  title,
+  titleClassName,
+  testId,
   children,
 }: {
-  label: string
+  title: string
+  titleClassName?: string
+  testId?: string
   children: ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
+    <section className="px-4 py-4" data-testid={testId}>
+      <div className="mb-3 flex items-center justify-between">
+        <h3
+          className={
+            titleClassName === undefined
+              ? 'inspector-eyebrow inspector-sec-title'
+              : `inspector-eyebrow inspector-sec-title ${titleClassName}`
+          }
+        >
+          {title}
+        </h3>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/** Kit `Row` (v7.tsx:145): mt-3, muted label left, control(s) right. */
+export function InspectorRow({
+  label,
+  className,
+  testId,
+  children,
+}: {
+  label: string
+  className?: string
+  testId?: string
+  children: ReactNode
+}) {
+  return (
+    <div
+      className={
+        className === undefined ? 'inspector-row' : `inspector-row ${className}`
+      }
+      data-testid={testId}
+    >
       <span style={{ color: SUB }}>{label}</span>
       {children}
     </div>
@@ -42,7 +112,7 @@ export function ReadOnlyPill({
   return (
     <span className="flex items-center">
       <span
-        className="rounded-sm px-2 py-1 text-sm"
+        className="insp-val rounded-sm px-2 py-1 text-sm"
         style={{ background: FIELD, color: T }}
         data-testid={testId}
       >

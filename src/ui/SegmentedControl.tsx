@@ -2,7 +2,8 @@ import { useId, useState, type ReactNode } from 'react'
 import { cx } from './className'
 import './SegmentedControl.css'
 
-type SegmentedControlSize = 'sm' | 'md'
+/** `inspector`: the kit v7 `SegC` row (26 px, 13 px, edge-to-edge segments). */
+type SegmentedControlSize = 'sm' | 'md' | 'inspector'
 
 interface SegmentedControlItem<T extends string> {
   id: T

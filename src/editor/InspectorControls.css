@@ -1,5 +1,5 @@
-/* Kit v7 Toggle / Swatches / Row (uikit/src/sandbox/v7.tsx). Fills are the
-   Owner 2026-10-29 toggle and swatch-ring tokens. */
+/* Kit v7 Head / Sec / Row / Toggle / Swatches (uikit/src/sandbox/v7.tsx).
+   Fills are the Owner 2026-10-29 toggle and swatch-ring tokens. */
 .insp-toggle {
   position: relative;
   width: 2rem;
@@ -114,4 +114,50 @@
 .insp-slider-value:focus-visible {
   outline: 2px solid var(--muted-foreground);
   outline-offset: 1px;
+}
+
+/* Kit `Head` type (v7.tsx:150, uikit index.css:137-138): title text-sm
+   13 / 18.85 px medium, subline text-xs 12 / 16.8 px, 2 px apart. */
+.inspector-head-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.inspector-head-sub {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+/* Kit `Sec` title (v7.tsx:131): text-2xs 11 / 14.85 px, no heading margins;
+   tracking from `.inspector-eyebrow.inspector-sec-title`. */
+.inspector-sec-title {
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Kit `Row` (v7.tsx:145): mt-3, label · control(s) justify-between, text-sm
+   at the kit 13 / 18.85 px line. */
+.inspector-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+/* Kit `Val` and the Pages box: text-sm on the kit 18.85 px line, so the
+   pill is 26.85 px tall. */
+.insp-val,
+.insp-pages-field {
+  line-height: 1.45;
+}
+
+/* Kit SizeEditor select (v7.tsx:173): `e7-sel h-8`. */
+.pb-select.insp-size-select {
+  height: 2rem;
 }

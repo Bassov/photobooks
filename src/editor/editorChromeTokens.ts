@@ -57,7 +57,7 @@ export const EDITOR_CHROME_CSS = `
 .film-chip:hover, .film-chip[data-hovered], .film-chip[data-selected] { background: ${FIELD}; color: ${T} }
 .film-chip:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .pb-segmented__segment { position: relative; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2); border-radius: var(--radius-sm); background: transparent; transition: background-color .12s }
-.pb-segmented__segment--selected { background: ${SEL}; font-weight: 600 }
+.pb-segmented__segment--selected { background: ${SEL} }
 .pb-segmented__segment input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer }
 .pb-segmented__segment input:disabled { cursor: wait }
 .e7-title { transition: background-color .12s; border: 0; background: transparent; cursor: pointer }

@@ -10,6 +10,7 @@ import { COVER_CROP } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { clearPhotoPreview, paintPhotoPreview } from '../render/photoLayout'
 import { Button } from '../ui/Button'
+import { Disclosure } from '../ui/Disclosure'
 import { Icon } from '../ui/Icon'
 import {
   getAssetAspectSnapshot,
@@ -110,115 +111,126 @@ export function PhotoRotateSection({ target }: { target: CropTarget }) {
       }
     }
   }
+  // Kit `Section title="Rotate & flip"` (uikit/src/sandbox/inspector.tsx:151):
+  // open by default, collapsible; two button rows mt-2 apart, the Straighten
+  // SliderRow mt-3 and the muted quarter-turn note mt-2 (Owner Must M60).
   return (
-    <section
-      className="flex flex-col gap-3 px-4 py-4"
-      data-testid="inspector-rotate"
+    <Disclosure
+      title="Rotate & flip"
+      defaultExpanded
+      data-testid="inspector-rotate-disclosure"
       data-crop-keep=""
-      aria-label="Rotate & flip"
     >
-      <h4 className="inspector-eyebrow">Rotate &amp; flip</h4>
-      <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          className="flex-1"
-          data-testid="rot-left"
-          aria-keyshortcuts=","
-          onPress={() => {
-            turnPhoto(target, -1)
-          }}
-        >
-          <Icon name="rotateCcw" />
-          90° left
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="flex-1"
-          data-testid="rot-right"
-          aria-keyshortcuts="."
-          onPress={() => {
-            turnPhoto(target, 1)
-          }}
-        >
-          <Icon name="rotateCw" />
-          90° right
-        </Button>
-      </div>
-      {/* Kit Flip H / Flip V: uikit/src/sandbox/inspector.tsx:156-158. */}
-      <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          className="flex-1"
-          data-testid="flip-h"
-          aria-pressed={crop.flipH === true}
-          onPress={() => {
-            flipPhoto(target, 'h')
-          }}
-        >
-          <Icon name="flipHorizontal" />
-          Flip H
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="flex-1"
-          data-testid="flip-v"
-          aria-pressed={crop.flipV === true}
-          onPress={() => {
-            flipPhoto(target, 'v')
-          }}
-        >
-          <Icon name="flipVertical" />
-          Flip V
-        </Button>
-      </div>
-      <Slider
-        className="fit-crop-slider"
-        data-testid="photo-straighten"
-        minValue={-STRAIGHTEN_LIMIT_DEG}
-        maxValue={STRAIGHTEN_LIMIT_DEG}
-        step={STEP_DEG}
-        value={live ?? stored}
-        onChange={(next) => {
-          measureHandlerSync('straighten', () => {
-            setLive(next)
-            paint(next)
-          })
-        }}
-        onChangeEnd={end}
-        formatOptions={{
-          style: 'unit',
-          unit: 'degree',
-          unitDisplay: 'narrow',
-        }}
+      <section
+        className="px-4 pt-0.5 pb-3"
+        data-testid="inspector-rotate"
+        data-crop-keep=""
+        aria-label="Rotate & flip"
       >
-        <div className="flex items-center justify-between text-xs">
-          <Label className="fit-crop-label">Straighten</Label>
-          <SliderOutput className="font-medium tabular-nums" />
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex-1"
+            data-testid="rot-left"
+            aria-keyshortcuts=","
+            onPress={() => {
+              turnPhoto(target, -1)
+            }}
+          >
+            <Icon name="rotateCcw" />
+            90° left
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex-1"
+            data-testid="rot-right"
+            aria-keyshortcuts="."
+            onPress={() => {
+              turnPhoto(target, 1)
+            }}
+          >
+            <Icon name="rotateCw" />
+            90° right
+          </Button>
         </div>
-        <SliderTrack
-          className="fit-crop-track"
-          onDoubleClick={() => {
-            end(0)
+        {/* Kit Flip H / Flip V: uikit/src/sandbox/inspector.tsx:156-158. */}
+        <div className="mt-2 flex gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex-1"
+            data-testid="flip-h"
+            aria-pressed={crop.flipH === true}
+            onPress={() => {
+              flipPhoto(target, 'h')
+            }}
+          >
+            <Icon name="flipHorizontal" />
+            Flip H
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="flex-1"
+            data-testid="flip-v"
+            aria-pressed={crop.flipV === true}
+            onPress={() => {
+              flipPhoto(target, 'v')
+            }}
+          >
+            <Icon name="flipVertical" />
+            Flip V
+          </Button>
+        </div>
+        <Slider
+          className="fit-crop-slider fit-crop-slider--row mt-3"
+          data-testid="photo-straighten"
+          minValue={-STRAIGHTEN_LIMIT_DEG}
+          maxValue={STRAIGHTEN_LIMIT_DEG}
+          step={STEP_DEG}
+          value={live ?? stored}
+          onChange={(next) => {
+            measureHandlerSync('straighten', () => {
+              setLive(next)
+              paint(next)
+            })
+          }}
+          onChangeEnd={end}
+          formatOptions={{
+            style: 'unit',
+            unit: 'degree',
+            unitDisplay: 'narrow',
           }}
         >
-          {({ state }) => (
-            <>
-              <div
-                className="fit-crop-fill"
-                style={{ width: `${String(state.getThumbPercent(0) * 100)}%` }}
-              />
-              <SliderThumb className="fit-crop-thumb" />
-            </>
-          )}
-        </SliderTrack>
-      </Slider>
-      <p className="text-xs" data-testid="rotate-summary">
-        Quarter turn: {quarterTurns * 90}° · cover fit recomputed
-      </p>
-    </section>
+          <div className="flex items-center justify-between text-xs">
+            <Label className="fit-crop-label">Straighten</Label>
+            <SliderOutput className="font-medium tabular-nums" />
+          </div>
+          <SliderTrack
+            className="fit-crop-track"
+            onDoubleClick={() => {
+              end(0)
+            }}
+          >
+            {({ state }) => (
+              <>
+                <div
+                  className="fit-crop-fill"
+                  style={{
+                    width: `${String(state.getThumbPercent(0) * 100)}%`,
+                  }}
+                />
+                <SliderThumb className="fit-crop-thumb" />
+              </>
+            )}
+          </SliderTrack>
+        </Slider>
+        <p className="fit-crop-note mt-2" data-testid="rotate-summary">
+          Quarter turn: {quarterTurns * 90}° · cover fit recomputed
+        </p>
+      </section>
+    </Disclosure>
   )
 }
