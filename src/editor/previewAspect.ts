@@ -25,6 +25,28 @@ function applyDims(
   setAssetSessionMeta(assetId, meta)
 }
 
+function hasRealDims(assetId: string): boolean {
+  const existing = getBookStoreSnapshot().sessionMeta.get(assetId)
+  return (
+    existing !== undefined &&
+    existing.correctedWidth > 1 &&
+    existing.correctedHeight > 1
+  )
+}
+
+/** Restore session aspect from a worker decode's corrected (upright) size. */
+export function restoreAspectFromDecode(
+  assetId: string,
+  width: number,
+  height: number,
+): void {
+  if (hasRealDims(assetId)) {
+    return
+  }
+  const name = getBookStoreSnapshot().sessionMeta.get(assetId)?.name ?? assetId
+  applyDims(assetId, width, height, name)
+}
+
 /**
  * Restore session aspect after DerivedCache hydrate.
  * JPEG: pure SOF parse. Otherwise: existing photo worker (no main-thread decode).
@@ -35,15 +57,11 @@ export function restoreAspectFromPreview(
   mimeType: string,
 ): void {
   try {
-    const existing = getBookStoreSnapshot().sessionMeta.get(assetId)
-    if (
-      existing !== undefined &&
-      existing.correctedWidth > 1 &&
-      existing.correctedHeight > 1
-    ) {
+    if (hasRealDims(assetId)) {
       return
     }
-    const name = existing?.name ?? assetId
+    const name =
+      getBookStoreSnapshot().sessionMeta.get(assetId)?.name ?? assetId
     const isJpeg =
       mimeType === 'image/jpeg' ||
       mimeType === 'image/jpg' ||

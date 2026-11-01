@@ -461,6 +461,38 @@ describe('thumbCache', () => {
     expect(getThumbUrl('a1')).toBe('blob:hydrated-thumb')
   })
 
+  it('ensureThumb drops a DerivedCache read that lands after reset', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:stale')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const cache = createMemoryDerivedCache()
+    setDerivedCacheForTests(cache)
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const realGet = cache.get.bind(cache)
+    const get = vi.spyOn(cache, 'get').mockImplementation(async (...args) => {
+      await gate
+      return realGet(...args)
+    })
+    await cache.put(SAMPLE_HASH, 'thumb', {
+      bytes: new Uint8Array([3, 4, 5]).buffer,
+      mimeType: 'image/png',
+    })
+
+    ensureThumb('a1', SAMPLE_HASH)
+    await vi.waitFor(() => {
+      expect(get).toHaveBeenCalledTimes(1)
+    })
+    resetThumbCache()
+    release?.()
+    for (let step = 0; step < 10; step += 1) {
+      await Promise.resolve()
+    }
+    expect(getThumbUrl('a1')).toBeUndefined()
+    expect(hasThumbData('a1')).toBe(false)
+  })
+
   it('ensureThumb restores landscape aspect from hydrated JPEG', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'requestAnimationFrame'] })
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:aspect-thumb')
