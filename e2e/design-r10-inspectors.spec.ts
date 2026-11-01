@@ -46,6 +46,22 @@ import {
 //     (editor-new-blank-book) 13px / 500; Create dialog Portrait / Landscape
 //     (create-book-dialog) 13px / 500; Photo Fill / Fit (editor-frame-selected)
 //     12px / 500.
+// M67 segmented look (addendum 2026-11-01): every track is the field
+//     rgb(215, 215, 215) with 2 px padding; the selected segment is the chrome
+//     rgb(225, 225, 225), 6 px radius, lighter than the track; idle segments
+//     are transparent with no shadow. Shadows below are the kit's visible
+//     layers (the kit adds four transparent Tailwind ring layers before them).
+//     Book Portrait / Landscape and cm / mm (v7 SegC): track 30 px, radius
+//     8px, no gap; segment 26 px, padding 0, shadow rgba(35, 34, 35, 0.14)
+//     0px 1px 2px 0px.
+//     Create dialog Portrait / Landscape (Segmented md): track 32 px, radius
+//     10px, gap 2px; segment 28 px, padding 0px 8px, shadow PILL.
+//     Photo Fill / Fit (Segmented sm): track 28 px, radius 10px, gap 2px;
+//     segment 24 px, padding 0px 8px, shadow PILL.
+//     Layout picker All / My templates (Tabs): track 32 px, radius 10px, gap
+//     2px; tab 28 px, padding 0px 12px, shadow PILL.
+//     PILL = rgba(20, 20, 19, 0.08) 0px 1px 2px 0px, rgba(20, 20, 19, 0.06)
+//     0px 0px 0px 0.5px.
 
 const INK = 'rgb(57, 55, 56)'
 const MUTED = 'rgb(83, 81, 82)'
@@ -100,6 +116,90 @@ const KIT = {
     quarterTurn: 643.23,
   },
 } as const
+
+const FIELD = 'rgb(215, 215, 215)'
+const CHROME = 'rgb(225, 225, 225)'
+const PILL =
+  'rgba(20, 20, 19, 0.08) 0px 1px 2px 0px, rgba(20, 20, 19, 0.06) 0px 0px 0px 0.5px'
+const SEGC_SHADOW = 'rgba(35, 34, 35, 0.14) 0px 1px 2px 0px'
+
+interface SegmentLook {
+  track: { height: number; radius: string; gap: string }
+  segment: { height: number; padding: string; shadow: string }
+}
+
+const KIT_SEG = {
+  segC: {
+    track: { height: 30, radius: '8px', gap: '0px' },
+    segment: { height: 26, padding: '0px', shadow: SEGC_SHADOW },
+  },
+  md: {
+    track: { height: 32, radius: '10px', gap: '2px' },
+    segment: { height: 28, padding: '0px 8px', shadow: PILL },
+  },
+  sm: {
+    track: { height: 28, radius: '10px', gap: '2px' },
+    segment: { height: 24, padding: '0px 8px', shadow: PILL },
+  },
+  tabs: {
+    track: { height: 32, radius: '10px', gap: '2px' },
+    segment: { height: 28, padding: '0px 12px', shadow: PILL },
+  },
+} as const satisfies Record<string, SegmentLook>
+
+async function look(locator: Locator) {
+  return locator.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return {
+      bg: s.backgroundColor,
+      shadow: s.boxShadow,
+      radius: s.borderRadius,
+      padding: s.padding,
+      gap: s.gap,
+      height: el.getBoundingClientRect().height,
+    }
+  })
+}
+
+/** M67: track, selected and idle segment against the kit, exact. */
+async function expectSegmentLook(
+  track: Locator,
+  selected: Locator,
+  idle: Locator,
+  kit: SegmentLook,
+) {
+  // Segments fade their background for 0.12 s after a click.
+  await expect(selected).toHaveCSS('background-color', CHROME)
+  await expect(idle).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  expect(await look(track)).toEqual({
+    bg: FIELD,
+    shadow: 'none',
+    radius: kit.track.radius,
+    padding: '2px',
+    gap: kit.track.gap,
+    height: kit.track.height,
+  })
+  const pill = await look(selected)
+  expect([
+    pill.bg,
+    pill.shadow,
+    pill.radius,
+    pill.padding,
+    pill.height,
+  ]).toEqual([
+    CHROME,
+    kit.segment.shadow,
+    '6px',
+    kit.segment.padding,
+    kit.segment.height,
+  ])
+  const rest = await look(idle)
+  expect([rest.bg, rest.shadow, rest.height]).toEqual([
+    'rgba(0, 0, 0, 0)',
+    'none',
+    kit.segment.height,
+  ])
+}
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox()
@@ -369,19 +469,64 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
     const fit = page.getByRole('radiogroup', { name: 'Photo fit' })
     await expectSegmentType(fit, ['Fill', 'Fit'], '12px')
   })
+
+  test('M67: Book and Photo segments are the kit raised pill', async ({
+    page,
+  }) => {
+    await page.getByTestId('book-title').click()
+    await page.mouse.move(0, 899)
+    for (const [id, on, off] of [
+      ['size-orientation', 'Portrait', 'Landscape'],
+      ['size-unit', 'cm', 'mm'],
+    ] as const) {
+      const track = page.getByTestId(id).getByRole('radiogroup')
+      await expectSegmentLook(
+        track,
+        track.locator('label', { hasText: on }),
+        track.locator('label', { hasText: off }),
+        KIT_SEG.segC,
+      )
+    }
+    const orientation = page.getByTestId('size-orientation')
+    await orientation.getByText('Landscape').click()
+    await page.mouse.move(0, 899)
+    const track = orientation.getByRole('radiogroup')
+    await expectSegmentLook(
+      track,
+      track.locator('label', { hasText: 'Landscape' }),
+      track.locator('label', { hasText: 'Portrait' }),
+      KIT_SEG.segC,
+    )
+
+    await selectFilledFrame(page)
+    const fit = page.getByRole('radiogroup', { name: 'Photo fit' })
+    await expectSegmentLook(
+      fit,
+      fit.locator('label', { hasText: 'Fill' }),
+      fit.locator('label', { hasText: 'Fit' }),
+      KIT_SEG.sm,
+    )
+  })
 })
 
-test.describe('M61: layout tabs and Create dialog segments', () => {
+test.describe('M61 / M67: layout tabs and Create dialog segments', () => {
   test.afterEach(async ({ page }) => {
     await clearProjectSession(page)
   })
 
-  test('layout picker All / My templates are 13 px medium', async ({
+  test('layout picker All / My templates are 13 px medium kit tabs', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await openSessionEditor(page)
     await expect(page.getByTestId('layout-section')).toBeVisible()
+    await page.mouse.move(0, 899)
+    await expectSegmentLook(
+      page.getByTestId('layout-tabs'),
+      page.getByTestId('tab-all'),
+      page.getByTestId('tab-mine'),
+      KIT_SEG.tabs,
+    )
     for (const id of ['tab-all', 'tab-mine']) {
       const read = await type(page.getByTestId(id))
       expect({ size: read.size, weight: read.weight }, id).toEqual({
@@ -394,7 +539,7 @@ test.describe('M61: layout tabs and Create dialog segments', () => {
     expect([mine.size, mine.weight]).toEqual(['13px', '500'])
   })
 
-  test('Create dialog Portrait / Landscape are 13 px medium', async ({
+  test('Create dialog Portrait / Landscape are 13 px medium kit pills', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -415,5 +560,13 @@ test.describe('M61: layout tabs and Create dialog segments', () => {
     const group = page.getByTestId('create-orientation')
     await expect(group).toBeVisible()
     await expectSegmentType(group, ['Portrait', 'Landscape'], '13px')
+    await page.mouse.move(0, 899)
+    const track = group.getByRole('radiogroup')
+    await expectSegmentLook(
+      track,
+      track.locator('label', { hasText: 'Portrait' }),
+      track.locator('label', { hasText: 'Landscape' }),
+      KIT_SEG.md,
+    )
   })
 })

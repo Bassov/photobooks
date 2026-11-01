@@ -186,12 +186,13 @@
   grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--field);
 }
 
 .layout-tabs button {
   height: 28px;
+  padding: 0 12px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -203,9 +204,10 @@
   cursor: pointer;
 }
 
+/* Kit Tabs pill: chrome on the field track (Owner Must M67, round 10). */
 .layout-tabs button[aria-pressed='true'] {
-  background: var(--paper);
-  box-shadow: var(--shadow-sm);
+  background: var(--background);
+  box-shadow: var(--shadow-pill);
 }
 
 .layout-search {

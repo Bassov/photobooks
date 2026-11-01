@@ -140,12 +140,12 @@ describe('kit inspector primitives', () => {
   })
 })
 
-// Owner Must M61: segmented labels keep one weight; the chrome only tints.
+// Owner Musts M61 / M67: the shared control owns its label weight and its
+// raised kit pill; the editor chrome no longer re-tints or re-pads segments.
 describe('segmented selection in the editor chrome', () => {
-  it('fills the selected segment without changing its weight', () => {
-    expect(EDITOR_CHROME_CSS).toContain(
-      '.pb-segmented__segment--selected { background: #CACACA }\n',
-    )
+  it('leaves the segment look to the shared control', () => {
+    expect(EDITOR_CHROME_CSS).not.toContain('.pb-segmented__segment {')
+    expect(EDITOR_CHROME_CSS).not.toContain('.pb-segmented__segment--selected')
   })
 })
 

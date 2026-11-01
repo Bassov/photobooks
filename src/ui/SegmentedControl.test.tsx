@@ -38,7 +38,7 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledWith('fit')
   })
 
-  // Tone fill for --selected lives in editorChromeTokens (kit hard-no #CACACA).
+  // The raised kit pill for --selected lives in SegmentedControl.css (M67).
 
   it('supports controlled value, sm size, and item ariaLabel', () => {
     const onChange = vi.fn()
