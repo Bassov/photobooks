@@ -244,7 +244,7 @@ describe('SpreadView', () => {
     expect(screen.queryByTestId('spread-frame-missing')).toBeNull()
   })
 
-  it('paints a vertical page cut on an interior spread', () => {
+  it('paints the kit spine fold on an interior spread', () => {
     const book = makeBook({
       spreads: [
         { id: 's0', frames: [] },
@@ -263,17 +263,21 @@ describe('SpreadView', () => {
       />,
     )
 
-    const cut = screen.getByTestId('spread-page-cut')
-    expect(cut.getAttribute('data-orientation')).toBe('vertical')
-    expect(cut.getAttribute('aria-hidden')).toBe('true')
-    expect(cut.style.left).toBe(
+    const fold = screen.getByTestId('spread-page-cut')
+    expect(fold.className).toBe('spread-fold')
+    expect(fold.getAttribute('data-orientation')).toBe('vertical')
+    expect(fold.getAttribute('aria-hidden')).toBe('true')
+    expect(fold.style.left).toBe(
       `${String(book.settings.trim.widthMm * SPREAD_PX_PER_MM)}px`,
     )
-    // The fold keeps 1 screen px through a live zoom (--cam-scale).
-    expect(cut.dataset.cameraFrame).toBe('')
+    expect(fold.style.top).toBe('0px')
+    // 3 % of the spread, scaling with the zoom: no screen-px camera hook.
+    expect(fold.style.width).toBe('3%')
+    expect(fold.style.height).toBe('100%')
+    expect(fold.hasAttribute('data-camera-frame')).toBe(false)
   })
 
-  it('never marks a thumbnail page cut for the camera', () => {
+  it('keeps the hairline page cut on a thumbnail', () => {
     const book = makeBook({
       spreads: [
         { id: 's0', frames: [] },
@@ -293,9 +297,51 @@ describe('SpreadView', () => {
       />,
     )
 
-    const cut = container.querySelector('.spread-page-cut')
+    const cut = container.querySelector<HTMLElement>('.spread-page-cut')
     assert(cut !== null, 'expected a page cut')
+    expect(container.querySelector('.spread-fold')).toBeNull()
+    expect(cut.hasAttribute('data-testid')).toBe(false)
+    expect(cut.style.width).toBe('1px')
+    expect(cut.style.height).toBe('100%')
     expect(cut.hasAttribute('data-camera-frame')).toBe(false)
+  })
+
+  it('lays a horizontal fold and hairline across the spread', () => {
+    const book = makeBook()
+    const spread = book.spreads[0]
+    assert(spread !== undefined, 'expected spread')
+    const base = resolveSpread(book, spread.id)
+    assert(base !== undefined, 'expected resolved spread')
+    const resolved = {
+      ...base,
+      pageCuts: [{ orientation: 'horizontal' as const, offsetMm: 10 }],
+    }
+
+    const { container } = render(
+      <>
+        <SpreadView
+          spreadId={spread.id}
+          resolved={resolved}
+          previewUrlFor={previewUrlFor}
+        />
+        <SpreadView
+          spreadId={spread.id}
+          resolved={resolved}
+          previewUrlFor={previewUrlFor}
+          thumb
+        />
+      </>,
+    )
+
+    const fold = container.querySelector<HTMLElement>('.spread-fold')
+    const cut = container.querySelector<HTMLElement>('.spread-page-cut')
+    assert(fold !== null && cut !== null, 'expected a fold and a cut')
+    const top = `${String(10 * SPREAD_PX_PER_MM)}px`
+    expect(fold.dataset.orientation).toBe('horizontal')
+    expect([fold.style.left, fold.style.top]).toEqual(['0px', top])
+    expect([fold.style.width, fold.style.height]).toEqual(['100%', '3%'])
+    expect([cut.style.left, cut.style.top]).toEqual(['0px', top])
+    expect([cut.style.width, cut.style.height]).toEqual(['100%', '1px'])
   })
 
   it('sizes frames with the camera px per mm', () => {
