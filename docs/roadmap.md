@@ -40,8 +40,6 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [thumb-background-warm](roadmap/P1/thumb-background-warm.md) — Thumbs for the whole folder in the background
 - [ ] [prep] [rescan-cheap-verify](roadmap/P1/rescan-cheap-verify.md) — Folder rescan on open: no per-file re-resolve, O(n) diff, parallel scan
 
-> > > > > > > origin/main
-
 ## P2 — Missing features, iterative
 
 **Review cut:** features removed or held in kit v0.10 come back one by one; items whose UI is in the kit sandbox carry sandbox refs (`rulers`, `guides`, `dpi-badge`, `text-blocks`, `live-captions`, `parent-guides`, `parent-overrides`, `page-numbers`); P1 `kit10-demo-expose-hidden` makes the hidden ones visible in `#/demo`. Only UI absent from the sandbox stays held in `docs/backlog/` until Designer adds the kit page. Owner and Designer decide the order.

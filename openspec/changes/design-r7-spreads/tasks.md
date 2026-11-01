@@ -1,12 +1,12 @@
 ## Implementation
 
-- [ ] 1. Core `getSinglePageSide` / `getSpreadSlotPageCount` with unit tests.
-- [ ] 2. M45 canvas: spread-wide slot with the page on its side; page labels in halves; shadows, drop index and camera centring follow the side.
-- [ ] 3. M45 list: slot-aspect row box, `SpreadThumb` on its half, page-1 label at 50 %.
-- [ ] 4. M46 `pageLabel(i, count)` for the single last page; unit tests.
-- [ ] 5. M49 gap 104 / 588 (`STACK_GAP_RATIO`, `e2e/fixtures/stackGap.ts`, M26/M36 spec text).
-- [ ] 6. M49 pill: one line, constant size, centred, `newSpreadPillFits` threshold; labels stay visible during a drag.
-- [ ] 7. `e2e/design-r7-spreads.spec.ts` (M45 rects vs kit, M46 labels, M49 pill and gap).
+- [x] 1. Core `getSinglePageSide` / `getSpreadSlotPageCount` with unit tests.
+- [x] 2. M45 canvas: spread-wide slot with the page on its side; page labels in halves; shadows, drop index and camera centring follow the side. Every slot has an explicit width (a `content-visibility`-skipped slot has no intrinsic width to fit).
+- [x] 3. M45 list: slot-aspect row box (`firstSlotAspect`), `SpreadThumb` on its half, page-1 label at 50 %.
+- [x] 4. M46 `pageLabel(i, count)` for the single last page; unit tests.
+- [x] 5. M49 gap 104 / 588 (`STACK_GAP_RATIO`, `e2e/fixtures/stackGap.ts`, M26/M36 spec text).
+- [x] 6. M49 pill: one line, constant size, centred, `newSpreadPillFits` threshold; labels stay visible during a drag.
+- [x] 7. `e2e/design-r7-spreads.spec.ts` (M45 rects vs kit, M46 labels, M49 pill and gap).
 
 ## Manual test scenarios
 
