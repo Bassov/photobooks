@@ -10,5 +10,5 @@ Roadmap: `docs/roadmap/P2/parent-spreads-perf.md` (scope / Done when / Perf SoT)
 
 ### Delta / Risk
 
-- Paint cache becomes invalidation-driven in `notifyAffectedSpreads` (keyed on spread, parent object = revision, index; string keys only when shared paint inputs change). A missed transition would paint stale; every store transition already runs it.
+- Paint cache becomes invalidation-driven in `notifyAffectedSpreads`; a missed transition would paint stale.
 - Painter fixture gains `&parent=a` (Master A as book default) for the 40-spread gate.
