@@ -91,6 +91,40 @@ describe('folderImportBatches', () => {
     expect(onFirstBatchYielded).toHaveBeenCalledOnce()
   })
 
+  it('importScannedEntriesInBatches imports every batch when the first-batch hook fails, then rethrows', async () => {
+    const tree = createMemoryAssetDirectory()
+    const fileCount = IMPORT_BODY_READ_CAP + 5
+    for (let i = 0; i < fileCount; i += 1) {
+      tree.putFile(`f${String(i)}.jpg`, new Uint8Array([i + 1]), i + 1)
+    }
+    const source = createFsaAssetSource({
+      rootId: 'root',
+      directory: tree.root,
+    })
+    const scanned = await source.scanRoot('root')
+    const entries = scanned.ok ? scanned.value : []
+    const batchSizes: number[] = []
+    vi.spyOn(importPhotos, 'importPhotoFiles').mockImplementation((files) => {
+      batchSizes.push(files.length)
+      return Promise.resolve({ imported: files.length, errors: [], skipped: 0 })
+    })
+    const onProgress = vi.fn()
+    const hookError = new Error('Could not remember photo folder handle')
+
+    await expect(
+      importScannedEntriesInBatches(tree.root, entries, {
+        sourceRootId: 'root',
+        onProgress,
+        onErrors: vi.fn(),
+        onFirstBatchYielded: () => Promise.reject(hookError),
+      }),
+    ).rejects.toBe(hookError)
+
+    expect(batchSizes).toEqual([IMPORT_BODY_READ_CAP, 5])
+    expect(onProgress).toHaveBeenLastCalledWith(null)
+    expect(getBookStoreSnapshot().importRunning).toBe(false)
+  })
+
   it('importScannedEntriesInBatches resolves then imports per batch', async () => {
     const tree = createMemoryAssetDirectory()
     tree.putFile('a.jpg', new Uint8Array([1]), 1)
