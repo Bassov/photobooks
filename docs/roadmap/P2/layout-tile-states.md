@@ -1,0 +1,37 @@
+# layout-tile-states
+
+Tag: feature
+Milestone: P2
+Title: Bug: Layout tiles: hover/selected on the paper, thumb box follows the trim
+Status: done
+
+## Scope
+
+Owner design decision (INBOX 2026-11-02, approved mockup) for the inspector Layout section tiles. Files:
+`src/editor/LayoutSection.tsx`, `LayoutSection.css`, `layoutThumb.ts` (+ tests), one shadow token in `styles/tokens.css`.
+Owner 2026-11-02: the kit is the design source, so the same PR updates the kit too.
+
+- [x] `.layout-tile` stays transparent on hover / selected; state is drawn on `.layout-thumb-paper`: hover
+      `0 0 0 1px rgb(0 0 0 / .22), 0 2px 6px rgb(0 0 0 / .12)` + `translateY(-1px)`; selected `0 0 0 2px var(--select)`,
+      no transform; focus-visible `0 0 0 2px var(--background), 0 0 0 4px var(--ring)` on the paper only;
+      `transition: box-shadow, transform var(--motion-duration-fast)`. Caption rules unchanged.
+- [x] `.layout-thumb` aspect-ratio = clamp(2/3, trim w/h, 2/1); `thumbPaperBox` fills that box (no side areas).
+- [x] Single-page trims (ratio < 1.2): 3 columns (gap-1.5); spreads keep 2 columns.
+- [x] Full-bleed thumbs stay readable via the ring (no grey-on-grey).
+- [x] Kit port: `uikit/src/sandbox/context-inspector.tsx` `LayoutSection()` (also the `#/demo` inspector) shows the same
+      tiles (transparent tile, `--shadow-tile-*` rings on the paper, trim-shaped thumb box, page 1 in 3 columns); kit QA
+      smoke pins it.
+- **Browser check:** 1440×900 fixture: page 1 (single page) shows 3 columns, paper width = thumb box width ±1 px;
+  spread 2–3 shows 2 columns, unchanged 123×61.5 thumbs; hover / selected / keyboard focus rings on the paper.
+
+## Done when
+
+1. Single-page trim: 3 columns; paper width = thumb box width ±1px. Spread: 2 columns, unchanged size.
+2. Hover: tile background transparent, paper box-shadow as spec, translateY(-1px). Selected: 2px `--select` ring, no
+   transform. Keyboard focus shows the gapped ring on the paper only.
+3. Unit + affected e2e green; full e2e once at the end; stryker-diff green.
+4. PR body: before/after DOM numbers (tile bg, paper box, column count) for one single-page and one spread trim.
+5. Kit: same numbers on `uikit#/demo` (page 1: 3 columns, paper = thumb box; spread: 2 columns), `uikit:qa:quick`
+   green; kit before/after in the PR body.
+
+Out: `uikit/` beyond the Layout section tiles, painter / fixtures, FrameSections / frameArrange (arrange-lock lane).
