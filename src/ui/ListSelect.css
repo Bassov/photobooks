@@ -48,7 +48,8 @@
 .pb-list-select__popover {
   z-index: 60;
   width: var(--trigger-width);
-  border: 1px solid var(--border);
+  /* Kit Popover: 1 px border with no colour (Owner Must M80, round 12). */
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--popover);
   color: var(--foreground);

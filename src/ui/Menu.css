@@ -1,7 +1,8 @@
+/* Kit Popover: the border keeps its 1 px but has no colour (surfaces separate
+   by tone); the width comes from each menu's class (Owner Must M80, round 12). */
 .pb-menu-popover {
   z-index: 50;
-  min-width: 10rem;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--popover);
   color: var(--foreground);

@@ -31,6 +31,12 @@ describe('editorChromeTokens', () => {
     )
   })
 
+  it('draws spread-list thumbs as the kit card (M79)', () => {
+    expect(EDITOR_CHROME_CSS).toContain(
+      '.editor-spread-thumb { overflow: hidden; border-radius: var(--spread-card-radius); box-shadow: var(--spread-card-shadow) }',
+    )
+  })
+
   it('fills an open panel toggle with the kit field, hover keeps it', () => {
     const on = EDITOR_CHROME_CSS.indexOf(
       '.e7-tog[aria-expanded=true] { background: #D7D7D7 }',
