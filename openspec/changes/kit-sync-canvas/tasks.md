@@ -10,3 +10,8 @@
 
 1. `#/demo` editor at Fit: spreads stacked, gap ≈ 90.78 px, page numbers 11 px 8 px under the page; zoom ×3 and to the floor (numbers hide only under 19 px gap).
 2. Drag a filmstrip photo between spreads: pill shows, gap height unchanged; drag a frame, press Esc: no "Release to replace" chip.
+
+`pnpm agent manual-qa` drives the prod app (no `src/` change here): N/A. Kit evidence instead:
+
+- OK 1: demo-capture probe (1440×900) Fit 513.25 / gap 90.76, ×3 1002.45 / 177.30, floor 128.31 / 22.69; labels 11 px, dy 8 at every zoom (shown at floor, gap 22.69 ≥ 19); screenshot 20-editor-spread-selected shows the stack.
+- OK 2: probe drag at Fit pill 199.23 × 32, r 8, 19.88 / 19.89, ×2 45.42 / 45.42, gap unchanged; chip count 0 on frame-drag-cancelled, crop-mode, spread-selected; kit qa "kit-sync K1" mid 1 → after 0.
