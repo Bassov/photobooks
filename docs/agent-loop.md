@@ -6,7 +6,7 @@ Headless workers read this section only (it ends at `## Reference`). The rest is
 
 **Flow** (numbers = `### N` headings below):
 
-- **0 Prep:** `pnpm -s agent preflight [--slug <slug>]` prints a compact run card (`--verbose` / `--json` only for full rules or a machine field). Clean tree; `feat|fix/<slug>` from `origin/main`; never merge/rebase `origin/main` on the happy path.
+- **0 Prep:** `pnpm -s agent preflight [--slug <slug>]` prints the run card; read it once and do not re-run it (`--json` only when you need a machine field). Clean tree; `feat|fix/<slug>` from `origin/main`; never merge/rebase `origin/main` on the happy path.
 - **1–2 Plan:** artifacts via `pnpm -s agent instructions <artifact>`; `openspec-planning-reviewer` once. `[lite]`: no change dir, no plan review, no archive; item + PR body are the plan; past ~200 lines or a spec delta → re-tag `[feature]`.
 - **3–4 Apply:** loop **A** (`pnpm check:fast`) to green, no commit; then **B** once (`pnpm test:e2e:changed:quiet`, then `pnpm stryker:diff` on `src/` changes, ≤2 runs → `## Stryker C-session`).
 - **5** phase commit. **6** `openspec-implementation-reviewer` once (lite and docs-only too); rework via A, +1 delta review if code changed. **7–8** B again only if prod/tests/UI changed; commit.
@@ -70,7 +70,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ### 0 · Prep
 
-- `pnpm -s agent preflight` [`--slug <slug>`]: compact run card (≤40 lines); `--verbose` adds rules/skips/full goal, `--json` is the full machine record. Headless: the launcher preloads the env — **do not** `source scripts/agent-env.sh` (interactive shells still source it once).
+- `pnpm -s agent preflight` [`--slug <slug>`]: run card as text; `--json` is the full machine record (launcher only, or Grep a field from a redirect). Headless: the launcher preloads the env — **do not** `source scripts/agent-env.sh` (interactive shells still source it once).
 - Shell hygiene (each of these is a permission denial otherwise; deny rules stay as they are):
   - Scratch files go under `.cache/agent/` (gitignored; `Write` creates it, or `mkdir -p .cache/agent`), never `/tmp`.
   - No `timeout` wrapper on any command (`stryker:diff`, dev-server waits, scripts), and no `sh -c` / `until … sleep` polling loops; the Bash tool `timeout` is the limit. To wait for a background dev server, check its log with `Grep` (e.g. for `Local`) and retry in a later call.
