@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: photo import stalls at 16 / 21 and a relink dialog opens during import
+Status: done
 
 ## Scope
 
