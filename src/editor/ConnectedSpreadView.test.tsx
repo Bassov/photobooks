@@ -19,6 +19,7 @@ import * as tierCache from '../photo/tierCache'
 import { resetTierCache } from '../photo/tierCache'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
+import { lockOp, zOrderOp } from './frameArrange'
 import {
   getEditorStatus,
   setEditorStatus,
@@ -765,6 +766,55 @@ describe('per-spread paint subscription', () => {
     const swapped = screen.getByTestId('spread-frame-image')
     expect(swapped.getAttribute('src')).toBe('blob:tier')
     expect(swapped.getAttribute('data-tier')).toBe(String(selectImageTier()))
+  })
+
+  it('a z-order change re-renders only its spread', () => {
+    let book = twoSpreadBook()
+    book = applyTemplate(book, 's0', '4-grid')
+    const frameId = book.spreads[0]?.frames[0]?.id
+    assert(frameId !== undefined, 'expected a frame')
+    const renders = mountSiblingPaint(book)
+    const [spreadA] = screen.getAllByTestId('spread-view')
+    assert(spreadA !== undefined, 'expected spread A')
+    const stack = () =>
+      [...spreadA.querySelectorAll('[data-testid="spread-frame"]')]
+        .map((el) => [
+          el.getAttribute('data-frame-id'),
+          getComputedStyle(el).zIndex,
+        ])
+        .find(([id]) => id === frameId)?.[1]
+    const before = stack()
+
+    act(() => {
+      dispatchBookOp(zOrderOp({ spreadId: 's0', frameId }, 'front'))
+    })
+
+    expect(stack()).not.toBe(before)
+    expect(renders.selfCount).toBeGreaterThan(renders.selfBefore)
+    expect(renders.count).toBe(renders.before)
+  })
+
+  it('a locked filled frame does not start a photo drag', () => {
+    const book = twoSpreadBook()
+    const frameId = book.spreads[0]?.frames[0]?.id
+    assert(frameId !== undefined, 'expected a frame')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const body = () =>
+      screen.getByTestId('spread-frame').querySelector('.spread-frame-body')
+    expect(body()?.getAttribute('draggable')).toBe('true')
+
+    act(() => {
+      dispatchBookOp(lockOp({ spreadId: 's0', frameId }, true))
+    })
+
+    expect(body()?.getAttribute('draggable')).toBe('false')
   })
 
   it('re-renders a spread for selection only when its labels change', () => {
