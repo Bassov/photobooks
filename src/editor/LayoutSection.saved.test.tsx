@@ -113,19 +113,15 @@ describe('LayoutSection: save as template (kit context-inspector.tsx:145-150)', 
     expect(keys).toEqual(['a'])
   })
 
-  it('saving clears the photo chip and search so the new template shows', () => {
+  it('saving clears the photo chip so the new template shows', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     const chips = screen.getByTestId('tpl-chips')
     fireEvent.click(within(chips).getByRole('button', { name: '1' }))
-    fireEvent.change(screen.getByTestId('layout-search'), {
-      target: { value: 'grid' },
-    })
     fireEvent.click(screen.getByTestId('tpl-save'))
     expect(
       chips.querySelector('[aria-pressed="true"]')?.getAttribute('data-chip'),
     ).toBe('all')
-    expect(screen.getByTestId<HTMLInputElement>('layout-search').value).toBe('')
     expect(screen.getAllByTestId('tpl-rename-input')).toHaveLength(1)
   })
 
@@ -156,9 +152,11 @@ describe('LayoutSection: save as template (kit context-inspector.tsx:145-150)', 
 })
 
 describe('LayoutSection: saved templates in the lists', () => {
-  it('All = kit builtins then saved; My templates = saved only', () => {
-    addSavedTemplate('Travel opener', [{ x: 0, y: 0, w: 62, h: 100 }])
-    addSavedTemplate('Polaroid pair', [
+  it('All = builtins and saved by photo count; My templates = saved only', () => {
+    const travel = addSavedTemplate('Travel opener', [
+      { x: 0, y: 0, w: 62, h: 100 },
+    ])
+    const polaroid = addSavedTemplate('Polaroid pair', [
       { x: 10, y: 14, w: 30, h: 60 },
       { x: 60, y: 24, w: 30, h: 60 },
     ])
@@ -166,16 +164,30 @@ describe('LayoutSection: saved templates in the lists', () => {
     render(<LayoutSection spreadId="s1" />)
     expect(screen.getByTestId('tab-all').textContent).toBe('All 12')
     expect(screen.getByTestId('tab-mine').textContent).toBe('My templates 2')
-    expect(names().slice(-3)).toEqual([
-      'Landscape + 2 portraits',
+    // Saved layouts follow the builtins of their photo count.
+    expect(
+      screen
+        .getAllByTestId('layout-tile')
+        .map((tile) => tile.getAttribute('data-template')),
+    ).toEqual([
+      'full-bleed',
+      'one-per-page',
+      'panorama',
+      'framed-single',
+      travel.id,
+      'offset-pair',
+      'two-portraits',
+      polaroid.id,
+      'hero-two',
+      'three-across',
+      'landscape-two-portraits',
+      'hero-grid',
+    ])
+    // Only the user's templates carry a visible caption.
+    expect(names().filter((name) => name !== '')).toEqual([
       'Travel opener',
       'Polaroid pair',
     ])
-    // Suggestions come from the builtins only (kit ALL_TEMPLATES).
-    const suggested = within(screen.getByTestId('tpl-suggested'))
-      .getAllByTestId('layout-suggested-tile')
-      .map((tile) => tile.textContent)
-    expect(suggested).not.toContain('Polaroid pair')
     fireEvent.click(screen.getByTestId('tab-mine'))
     expect(names()).toEqual(['Travel opener', 'Polaroid pair'])
     fireEvent.click(
@@ -184,15 +196,17 @@ describe('LayoutSection: saved templates in the lists', () => {
         .querySelector<HTMLElement>('[data-chip="2"]') ?? document.body,
     )
     expect(names()).toEqual(['Polaroid pair'])
-    fireEvent.change(screen.getByTestId('layout-search'), {
-      target: { value: 'zzz' },
-    })
+    fireEvent.click(
+      screen
+        .getByTestId('tpl-chips')
+        .querySelector<HTMLElement>('[data-chip="3"]') ?? document.body,
+    )
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
       'No layouts match.',
     )
   })
 
-  it('a saved tile applies its slots, shows as selected and names the summary', () => {
+  it('a saved tile applies its slots, shows as selected and names the header', () => {
     const saved = addSavedTemplate('Travel opener', [
       { x: 0, y: 0, w: 62, h: 100 },
     ])
@@ -215,10 +229,9 @@ describe('LayoutSection: saved templates in the lists', () => {
         .getByRole('button', { name: 'Apply layout Travel opener' })
         .getAttribute('aria-pressed'),
     ).toBe('true')
-    // Collapsed header summary = the saved layout's name.
-    fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
-    expect(screen.getByTestId('layout-summary').textContent).toBe(
-      'Travel opener',
+    // Header note = the saved layout's name.
+    expect(screen.getByTestId('layout-note').textContent).toBe(
+      '· Travel opener',
     )
   })
 

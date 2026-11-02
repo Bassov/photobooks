@@ -7,25 +7,38 @@ import { openSessionEditor } from './fixtures/openSessionEditor'
 // (uikit/src/sandbox/context-inspector.tsx:92-195, chrome.tsx:241). Kit values
 // below were measured from `#/demo` at 1440×900 (Step 0, 2026-10-31).
 
-/** Kit builtin layouts in kit order (uikit `data.ts` templates + `templates.ts` EXTRA). */
-const KIT_LAYOUTS = [
+/**
+ * Kit builtin layouts on the one-page first spread, Owner 2026-11-02 order:
+ * by photo count, kit order (uikit `data.ts` templates + `templates.ts` EXTRA)
+ * inside a count.
+ */
+const FIRST_SPREAD_LAYOUTS = [
   'Full bleed',
   'One per page',
-  'Hero + two',
-  'Hero + grid',
   'Panorama',
-  'Three across',
   'Framed single',
   'Offset pair',
   'Two portraits',
+  'Hero + two',
+  'Three across',
   'Landscape + 2 portraits',
+  'Hero + grid',
+]
+/** Spread 2–3: One per page holds two photos; Two portraits merges into it. */
+const SPREAD_2_3_LAYOUTS = [
+  'Full bleed',
+  'Panorama',
+  'Framed single',
+  'One per page',
+  'Offset pair',
+  'Hero + two',
+  'Three across',
+  'Landscape + 2 portraits',
+  'Hero + grid',
 ]
 const KIT_TILE_WIDTH = 131
-/** Kit tile heights in KIT_LAYOUTS order: the two-line caption is 15.125 px taller. */
-const KIT_TILE_HEIGHTS = [
-  88.625, 88.625, 88.625, 88.625, 88.625, 88.625, 88.625, 88.625, 88.625,
-  103.75,
-]
+/** Uncaptioned builtin tile: 4 px padding around the 61.5 px thumb. */
+const TILE_HEIGHT = 69.5
 const KIT_THUMB = { width: 123, height: 61.5 }
 /** Kit tile column step: 131 px tile + 6 px gap (grid-cols-2 gap-1.5). */
 const KIT_COLUMN_STEP = 137
@@ -41,6 +54,12 @@ test.beforeEach(async ({ page }) => {
 
 const allTiles = (page: Page) =>
   page.getByTestId('layout-section').getByTestId('layout-tile')
+
+/** Tile names (their tooltips) in list order. */
+const tileNames = (page: Page) =>
+  allTiles(page).evaluateAll((tiles) =>
+    tiles.map((tile) => tile.getAttribute('title')),
+  )
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox()
@@ -62,7 +81,7 @@ async function selectSecondSpread(page: Page) {
   await page.mouse.move(0, 899)
 }
 
-test('the Layout header is the kit Section: uppercase LAYOUT, + action, summary when collapsed', async ({
+test('the Layout header is the kit Section: uppercase LAYOUT, + action, selected name expanded and collapsed', async ({
   page,
 }) => {
   const layout = page.getByTestId('layout')
@@ -89,13 +108,16 @@ test('the Layout header is the kit Section: uppercase LAYOUT, + action, summary 
   await expect(layout.getByTestId('tpl-save')).toHaveAccessibleName(
     'Save as template',
   )
+  // Owner 2026-11-02: the header names the selected layout, open or closed.
   await layoutTile(page, 'Hero + two').click()
+  await expect(page.getByTestId('layout-note')).toHaveText('· Hero + two')
   await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByTestId('layout-summary')).toHaveText('Hero + two')
+  await expect(page.getByTestId('layout-note')).toHaveText('· Hero + two')
+  await expect(page.getByTestId('layout-summary')).toHaveCount(0)
   await expect(layout.getByTestId('tpl-save')).toHaveCount(0)
   await trigger.click()
-  await expect(page.getByTestId('layout-summary')).toHaveCount(0)
+  await expect(page.getByTestId('layout-note')).toHaveText('· Hero + two')
 })
 
 test('the spread inspector: kit header, no Spread properties, sections in order (M2)', async ({
@@ -167,33 +189,29 @@ test('every spread inspector text renders in the kit Inter face', async ({
   expect(offFace).toEqual([])
 })
 
-test('All layouts lists the kit layouts in kit order', async ({ page }) => {
-  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText(KIT_LAYOUTS)
-  await selectSecondSpread(page)
-  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText(KIT_LAYOUTS)
-})
-
-test('tiles, thumbs, grid and captions match the kit boxes and type', async ({
+test('the list holds the kit layouts by photo count, merged on spread 2–3', async ({
   page,
 }) => {
-  // The caption wrap depends on Inter's metrics: measure after the
-  // self-hosted face (font-display: swap) has replaced the fallback.
-  await expect
-    .poll(() =>
-      page.evaluate(() => document.fonts.check('11px "Inter Variable"')),
-    )
-    .toBe(true)
-  await page.evaluate(() => document.fonts.ready)
-  for (const select of [stayOnFirstSpread, selectSecondSpread]) {
+  await expect.poll(() => tileNames(page)).toEqual(FIRST_SPREAD_LAYOUTS)
+  await selectSecondSpread(page)
+  await expect.poll(() => tileNames(page)).toEqual(SPREAD_2_3_LAYOUTS)
+})
+
+test('uncaptioned tiles, thumbs and grid match the kit boxes', async ({
+  page,
+}) => {
+  for (const [select, count] of [
+    [stayOnFirstSpread, FIRST_SPREAD_LAYOUTS.length],
+    [selectSecondSpread, SPREAD_2_3_LAYOUTS.length],
+  ] as const) {
     await select(page)
     const tiles = allTiles(page)
-    await expect(tiles).toHaveCount(KIT_LAYOUTS.length)
-    for (let i = 0; i < KIT_LAYOUTS.length; i += 1) {
+    await expect(tiles).toHaveCount(count)
+    await expect(tiles.getByTestId('tpl-name')).toHaveCount(0)
+    for (let i = 0; i < count; i += 1) {
       const tile = await box(tiles.nth(i))
       expect(Math.abs(tile.width - KIT_TILE_WIDTH)).toBeLessThanOrEqual(0.5)
-      expect(
-        Math.abs(tile.height - (KIT_TILE_HEIGHTS[i] ?? 0)),
-      ).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(tile.height - TILE_HEIGHT)).toBeLessThanOrEqual(0.5)
       const thumb = await box(tiles.nth(i).getByTestId('layout-thumb'))
       expect(Math.abs(thumb.width - KIT_THUMB.width)).toBeLessThanOrEqual(0.5)
       expect(Math.abs(thumb.height - KIT_THUMB.height)).toBeLessThanOrEqual(0.5)
@@ -205,9 +223,9 @@ test('tiles, thumbs, grid and captions match the kit boxes and type', async ({
       0.5,
     )
     expect(Math.abs(third.x - first.x)).toBeLessThanOrEqual(0.5)
-    expect(
-      Math.abs(third.y - first.y - (KIT_TILE_HEIGHTS[0] ?? 0) - 6),
-    ).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(third.y - first.y - TILE_HEIGHT - 6)).toBeLessThanOrEqual(
+      0.5,
+    )
   }
   const tileStyle = await allTiles(page)
     .first()
@@ -224,6 +242,22 @@ test('tiles, thumbs, grid and captions match the kit boxes and type', async ({
     radius: '8px',
     bg: 'rgba(0, 0, 0, 0)',
   })
+})
+
+test('My templates keep the kit caption box and type', async ({ page }) => {
+  await reopenEditor(page, '?templates=kit')
+  // The caption wrap depends on Inter's metrics: measure after the
+  // self-hosted face (font-display: swap) has replaced the fallback.
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.fonts.check('11px "Inter Variable"')),
+    )
+    .toBe(true)
+  await page.evaluate(() => document.fonts.ready)
+  await page.getByTestId('tab-mine').click()
+  await expect(allTiles(page).getByTestId('tpl-name')).toHaveCount(
+    KIT_SAVED.length,
+  )
   const caption = await allTiles(page)
     .getByTestId('tpl-name')
     .first()
@@ -269,7 +303,7 @@ test('the selected tile is filled; hover fills an idle tile', async ({
   await expect.poll(bg).toBe('rgb(202, 202, 202)')
   const selected = await bg()
   expect(selected).not.toBe('rgba(0, 0, 0, 0)')
-  await expect(tile.getByTestId('tpl-name')).toHaveCSS('font-weight', '600')
+  await expect(tile.getByTestId('tpl-name')).toHaveCount(0)
 })
 
 /**
@@ -403,18 +437,40 @@ async function reopenEditor(page: Page, search = '') {
   await page.mouse.move(0, 899)
 }
 
-test('the kit fixture shows All 13 / My templates 3 in kit order', async ({
+test('the kit fixture shows All 13 / My templates 3 by photo count', async ({
   page,
 }) => {
   await reopenEditor(page, '?templates=kit')
   await expect(page.getByTestId('tab-all')).toHaveText('All 13')
   await expect(page.getByTestId('tab-mine')).toHaveText('My templates 3')
+  // Saved layouts follow the builtins of their photo count (1, 2, 2).
+  await expect
+    .poll(() => tileNames(page))
+    .toEqual([
+      'Full bleed',
+      'One per page',
+      'Panorama',
+      'Framed single',
+      'Quote + photo',
+      'Offset pair',
+      'Two portraits',
+      'Travel opener',
+      'Polaroid pair',
+      'Hero + two',
+      'Three across',
+      'Landscape + 2 portraits',
+      'Hero + grid',
+    ])
+  // Only the user's templates carry a visible caption.
   await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([
-    ...KIT_LAYOUTS,
-    ...KIT_SAVED,
+    'Quote + photo',
+    'Travel opener',
+    'Polaroid pair',
   ])
   await page.getByTestId('tab-mine').click()
-  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText(KIT_SAVED)
+  await expect
+    .poll(() => tileNames(page))
+    .toEqual(['Quote + photo', 'Travel opener', 'Polaroid pair'])
 })
 
 test('a new user has My templates 0; a saved spread appears in My templates and All and persists', async ({
@@ -439,11 +495,23 @@ test('a new user has My templates 0; a saved spread appears in My templates and 
     'Trip opener',
   ])
   await page.getByTestId('tab-all').click()
-  await expect(page.getByTestId('tab-all')).toHaveText('All 11')
-  await expect(allTiles(page).getByTestId('tpl-name')).toHaveText([
-    ...KIT_LAYOUTS,
-    'Trip opener',
-  ])
+  // Spread 2–3 lists 9 builtins (Two portraits merged) + the saved one, which
+  // follows the 2-photo builtins (the spread has two frames).
+  await expect(page.getByTestId('tab-all')).toHaveText('All 10')
+  await expect
+    .poll(() => tileNames(page))
+    .toEqual([
+      'Full bleed',
+      'Panorama',
+      'Framed single',
+      'One per page',
+      'Offset pair',
+      'Trip opener',
+      'Hero + two',
+      'Three across',
+      'Landscape + 2 portraits',
+      'Hero + grid',
+    ])
 
   await reopenEditor(page)
   await expect(page.getByTestId('tab-mine')).toHaveText('My templates 1')

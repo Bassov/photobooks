@@ -24,9 +24,32 @@ function seed(frames = [makeFrame({ id: 'f1' })], templateId?: string) {
   })
 }
 
+/** Three spreads: `s2` is a two-page spread (Two portraits merges there). */
+function seedTwoPage(templateId?: string) {
+  resetBookStore({
+    book: makeBook({
+      spreads: ['s1', 's2', 's3'].map((id) =>
+        makeSpread({
+          id,
+          ...(id === 's2' && templateId !== undefined ? { templateId } : {}),
+        }),
+      ),
+    }),
+    sessionMeta: new Map(),
+    importRunning: false,
+    importExpectedCount: 0,
+  })
+}
+
 const listed = () =>
   screen
     .queryAllByTestId('layout-tile')
+    .map((tile) => tile.getAttribute('data-template'))
+
+const pressed = () =>
+  screen
+    .queryAllByTestId('layout-tile')
+    .filter((tile) => tile.getAttribute('aria-pressed') === 'true')
     .map((tile) => tile.getAttribute('data-template'))
 
 const chip = (id: string): HTMLElement => {
@@ -59,7 +82,7 @@ describe('matchesChip (kit context-inspector.tsx:94)', () => {
 })
 
 describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
-  it('shows tabs with counts, search, chips and the hint', () => {
+  it('shows tabs with counts, chips and the hint, and no search field', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     expect(screen.getByTestId('tab-all').textContent).toContain('All')
@@ -71,7 +94,7 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(screen.getByTestId('tab-mine').getAttribute('aria-pressed')).toBe(
       'false',
     )
-    expect(screen.getByTestId('layout-search')).toBeTruthy()
+    expect(screen.queryByRole('searchbox')).toBeNull()
     expect(
       [...screen.getByTestId('tpl-chips').querySelectorAll('button')].map(
         (b) => b.textContent,
@@ -114,6 +137,28 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(paper()).toBe('left: 0%; top: 0%; width: 100%; height: 100%;')
   })
 
+  // Owner 2026-11-02: one list from one photo up, no Suggested / All split.
+  it('lists every layout in one grid by photo count, kit order inside a count', () => {
+    seed()
+    render(<LayoutSection spreadId="s1" />)
+    expect(listed()).toEqual([
+      'full-bleed',
+      'one-per-page',
+      'panorama',
+      'framed-single',
+      'offset-pair',
+      'two-portraits',
+      'hero-two',
+      'three-across',
+      'landscape-two-portraits',
+      'hero-grid',
+    ])
+    expect(screen.getAllByTestId('tpl-grid')).toHaveLength(1)
+    expect(screen.getByTestId('layout-section').textContent).not.toMatch(
+      /Suggested|All layouts/,
+    )
+  })
+
   it('filters by photo count chip and returns on Any', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
@@ -132,19 +177,6 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(listed()).toHaveLength(10)
   })
 
-  it('searches layouts by name, case-insensitively, and reports no match', () => {
-    seed()
-    render(<LayoutSection spreadId="s1" />)
-    const search = screen.getByTestId('layout-search')
-    fireEvent.change(search, { target: { value: '  GRID ' } })
-    expect(listed()).toEqual(['hero-grid'])
-    fireEvent.change(search, { target: { value: 'zzz' } })
-    expect(listed()).toEqual([])
-    expect(screen.getByTestId('tpl-empty').textContent).toBe(
-      'No layouts match.',
-    )
-  })
-
   it('My templates lists none yet (a new user has no saved templates)', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
@@ -160,16 +192,6 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
       'No templates yet. Save a spread you like.',
     )
-    expect(screen.queryByTestId('tpl-suggested')).toBeNull()
-    fireEvent.change(screen.getByTestId('layout-search'), {
-      target: { value: 'x' },
-    })
-    expect(screen.getByTestId('tpl-empty').textContent).toBe(
-      'No layouts match.',
-    )
-    fireEvent.change(screen.getByTestId('layout-search'), {
-      target: { value: '' },
-    })
     fireEvent.click(chip('2'))
     expect(screen.getByTestId('tpl-empty').textContent).toBe(
       'No layouts match.',
@@ -178,76 +200,47 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
     expect(listed().length).toBeGreaterThan(0)
   })
 
-  it('suggests up to three layouts for the photo count, singular', () => {
+  it('builtin tiles carry the name as tooltip and accessible name, no caption', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
-    const suggested = screen.getByTestId('tpl-suggested')
-    expect(suggested.textContent).toContain('Suggested for 1 photo')
-    expect(suggested.textContent).not.toContain('photos')
-    expect(suggested.textContent).toContain('Full bleed')
-    expect(screen.getByText('All layouts')).toBeTruthy()
-    // Suggested tiles keep their own accessible name and test id.
-    expect(
-      screen.getByRole('button', { name: 'Apply suggested layout Full bleed' }),
-    ).toBeTruthy()
-    expect(
-      screen.getByRole('button', { name: 'Apply layout Full bleed' }),
-    ).toBeTruthy()
-    // Kit caps Suggested at three tiles (framed-single also fits one photo).
-    expect(
-      screen
-        .getAllByTestId('layout-suggested-tile')
-        .map((tile) => tile.getAttribute('data-template')),
-    ).toEqual(['full-bleed', 'one-per-page', 'panorama'])
+    const tile = screen.getByRole('button', { name: 'Apply layout Full bleed' })
+    expect(tile.getAttribute('title')).toBe('Full bleed')
+    expect(tile.textContent).toBe('')
+    expect(screen.queryAllByTestId('tpl-name')).toEqual([])
   })
 
-  it('counts filled photo frames, pluralises, and hides suggestions when filtering', () => {
-    seed([
-      makeFrame({ id: 'f1', assetId: 'a' }),
-      makeFrame({ id: 'f2', assetId: 'a', z: 1 }),
-      makeFrame({ id: 'f3', z: 2 }),
-    ])
-    render(<LayoutSection spreadId="s1" />)
-    expect(screen.getByTestId('tpl-suggested').textContent).toContain(
-      'Suggested for 2 photos',
-    )
-    fireEvent.click(chip('1'))
-    expect(screen.queryByTestId('tpl-suggested')).toBeNull()
-    expect(screen.queryByText('All layouts')).toBeNull()
-    fireEvent.click(chip('all'))
-    fireEvent.change(screen.getByTestId('layout-search'), {
-      target: { value: 'a' },
-    })
-    expect(screen.queryByTestId('tpl-suggested')).toBeNull()
-  })
-
-  // Owner design change (round 7, M47): the current layout stays suggested.
-  it('keeps the layout the spread already uses, pressed, in catalogue order', () => {
+  it('heads the section with the selected layout, expanded and collapsed', () => {
     seed([makeFrame({ id: 'f1' })], 'one-per-page')
     render(<LayoutSection spreadId="s1" />)
-    const tiles = screen.getAllByTestId('layout-suggested-tile')
-    expect(tiles.map((tile) => tile.getAttribute('data-template'))).toEqual([
-      'full-bleed',
-      'one-per-page',
-      'panorama',
-    ])
-    expect(tiles.map((tile) => tile.getAttribute('aria-pressed'))).toEqual([
-      'false',
-      'true',
-      'false',
-    ])
+    expect(screen.getByTestId('layout-note').textContent).toBe('· One per page')
+    expect(pressed()).toEqual(['one-per-page'])
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+    expect(screen.getByTestId('layout-note').textContent).toBe('· One per page')
   })
 
-  it('a suggested tile applies its layout', () => {
+  it('merges Two portraits into One per page on a two-page spread', () => {
+    seedTwoPage('two-portraits')
+    render(<LayoutSection spreadId="s2" />)
+    expect(listed()).not.toContain('two-portraits')
+    expect(listed()).toHaveLength(9)
+    expect(screen.getByTestId('tab-all').textContent).toBe('All 9')
+    expect(pressed()).toEqual(['one-per-page'])
+    expect(screen.getByTestId('layout-note').textContent).toBe('· One per page')
+  })
+
+  it('names and presses an unmerged stored layout as itself', () => {
+    seedTwoPage('hero-two')
+    render(<LayoutSection spreadId="s2" />)
+    expect(pressed()).toEqual(['hero-two'])
+    expect(screen.getByTestId('layout-note').textContent).toBe('· Hero + two')
+  })
+
+  it('a tile applies its layout', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
     fireEvent.click(
-      screen.getByRole('button', { name: 'Apply suggested layout Full bleed' }),
+      screen.getByRole('button', { name: 'Apply layout Full bleed' }),
     )
-    expect(
-      screen
-        .getByTestId('layout-section')
-        .querySelector('[aria-pressed="true"][data-template="full-bleed"]'),
-    ).not.toBeNull()
+    expect(pressed()).toEqual(['full-bleed'])
   })
 })
