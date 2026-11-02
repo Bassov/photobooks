@@ -47,8 +47,10 @@ const KIT = {
   suggested: {
     // Owner 2026-11-02: the first 1-photo tiles of the one list, uncaptioned.
     labels: ['Full bleed', 'One per page', 'Panorama'],
-    tile: { width: 131, height: 69.5 },
-    thumb: { width: 123, height: 61.5 },
+    // layout-tile-states: page 1 is a square page, so the 268 px grid has 3
+    // columns (gap 6) of square tiles around square thumbs (4 px padding).
+    tile: { width: 256 / 3, height: 256 / 3 },
+    thumb: { width: 256 / 3 - 8, height: 256 / 3 - 8 },
   },
   endpaper: {
     panelTop: 48,
@@ -106,7 +108,7 @@ test.describe('M47 "One per page" is listed for 1 photo', () => {
     }
   }
 
-  test('page 1 lists it in kit order and kit tile size; applying it restores the framed page', async ({
+  test('page 1 lists it in kit order and square-page tile size; applying it restores the framed page', async ({
     page,
   }) => {
     await openSessionEditor(page)

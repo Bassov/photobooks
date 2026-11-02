@@ -36,7 +36,13 @@ import {
   templateName,
   type LayoutItem,
 } from './layoutCatalog'
-import { percentStyle, thumbPaperBox, thumbSlots } from './layoutThumb'
+import {
+  percentStyle,
+  thumbAspect,
+  thumbColumns,
+  thumbPaperBox,
+  thumbSlots,
+} from './layoutThumb'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import {
@@ -55,7 +61,10 @@ function readBook() {
   return getBookStoreSnapshot().book
 }
 
-/** Kit TemplateThumb (uikit/src/sandbox/chrome.tsx:241): 2:1 paper, slots, spine. */
+/**
+ * Kit TemplateThumb (uikit/src/sandbox/chrome.tsx:241): paper, slots, spine.
+ * Owner 2026-11-02: the box takes the clamped trim aspect, not the kit's 2:1.
+ */
 const TemplateThumb = memo(function TemplateThumb({
   widthMm,
   heightMm,
@@ -68,7 +77,12 @@ const TemplateThumb = memo(function TemplateThumb({
   spine: boolean
 }) {
   return (
-    <div className="layout-thumb" data-testid="layout-thumb" aria-hidden="true">
+    <div
+      className="layout-thumb"
+      data-testid="layout-thumb"
+      aria-hidden="true"
+      style={{ aspectRatio: thumbAspect(widthMm, heightMm) }}
+    >
       <div
         className="layout-thumb-paper"
         data-testid="layout-thumb-paper"
@@ -434,7 +448,14 @@ function LayoutPicker({
           ))}
         </div>
         {list.length > 0 ? (
-          <div className="grid grid-cols-2 gap-1.5" data-testid="tpl-grid">
+          <div
+            className={`grid gap-1.5 ${
+              thumbColumns(geometry.widthMm, geometry.heightMm) === 3
+                ? 'grid-cols-3'
+                : 'grid-cols-2'
+            }`}
+            data-testid="tpl-grid"
+          >
             {list.map(tile)}
           </div>
         ) : (

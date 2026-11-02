@@ -84,27 +84,14 @@
   text-align: left;
   cursor: pointer;
   outline: none;
-  transition: background-color var(--motion-duration-fast);
 }
 
-.layout-tile:hover {
-  background: var(--field);
-}
-
-.layout-tile[aria-pressed='true'] {
-  background: var(--sel);
-}
-
-.layout-tile:focus-visible {
-  box-shadow: 0 0 0 2px var(--ring);
-}
-
-/* Kit TemplateThumb (chrome.tsx:244): the 2:1 box; the paper keeps the spread
-   aspect and clips its slots, so bleed never draws past the tile. */
+/* Kit TemplateThumb (chrome.tsx:244); Owner 2026-11-02: the box takes the
+   clamped trim aspect inline (layoutThumb.ts), so the paper fills it. The
+   paper clips its slots, so bleed never draws past the tile. */
 .layout-thumb {
   position: relative;
   width: 100%;
-  aspect-ratio: 2 / 1;
 }
 
 .layout-thumb-paper {
@@ -113,6 +100,26 @@
   border-radius: var(--radius-2xs);
   background: var(--paper);
   box-shadow: var(--shadow-hairline);
+  transition:
+    box-shadow var(--motion-duration-fast),
+    transform var(--motion-duration-fast);
+}
+
+/* Owner 2026-11-02: tile states are rings on the paper, never a tile fill. */
+.layout-tile:hover .layout-thumb-paper {
+  box-shadow: var(--shadow-tile-hover);
+  transform: translateY(-1px);
+}
+
+.layout-tile[aria-pressed='true'] .layout-thumb-paper {
+  box-shadow: 0 0 0 2px var(--select);
+  transform: none;
+}
+
+.layout-tile:focus-visible .layout-thumb-paper {
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
 }
 
 .layout-thumb-slot {
