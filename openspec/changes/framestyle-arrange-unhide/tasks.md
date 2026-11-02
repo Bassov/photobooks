@@ -10,3 +10,6 @@
 
 1. 1440 × 900, give all photos a white 5 mm mat via one style, change it to 3 mm: every spread updates; the inspector has no layout shift.
 2. Two overlapping frames: Send to back on the top one puts it behind the other.
+
+- 1: problem (harness): `pnpm agent manual-qa` timed out on `start-session` (click intercepted by the welcome header) before the scenario ran. Covered by e2e `framestyle-arrange.spec.ts` "a style edit restyles every frame that uses it" (3 mm ↔ 5 mm on 3 frames) and `design-r14-hide-framestyle.spec.ts` "every section open … no layout shift".
+- 2: problem (harness): same `start-session` blocker. Covered by e2e `framestyle-arrange.spec.ts` "Send to back puts the top frame behind the one it overlaps" (`elementFromPoint` stacking).
