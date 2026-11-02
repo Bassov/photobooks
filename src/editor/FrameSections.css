@@ -58,5 +58,11 @@
   display: block;
   width: 2.25rem;
   height: 1.75rem;
-  background: var(--cover-front-empty);
+  /* Kit `bg-cover` photo swatch; the inline frame thumb wins over the grey. */
+  background: var(--cover-front-empty) center / cover no-repeat;
+}
+
+/* Kit `mt-2` on "New style from this frame"; `.pb-button` zeroes margins. */
+.frame-style-new.pb-button {
+  margin-top: calc(var(--spacing) * 2);
 }

@@ -105,24 +105,26 @@ describe('Inspector frame sections', () => {
     expect(screen.queryByTestId('frame-lock')).toBeNull()
   })
 
-  it('orders Fit & crop, Geometry, Delete for a selected photo frame', () => {
+  it('orders Fit & crop, Geometry, Arrange, Delete for a selected photo frame', () => {
     // Kit sandbox/inspector.tsx: Photo → Fit & crop → Rotate, then the
-    // collapsed Position & size; Arrange is hidden (Owner Q8, M78).
+    // collapsed Position & size and Arrange disclosures.
     seed()
     render(<Inspector />)
     select()
     const expected = [
       'inspector-fit-crop',
       'inspector-geometry',
+      'inspector-arrange',
       'frame-delete',
     ]
     const panel = screen.getByTestId('inspector-body')
-    const ids = ['inspector-fit-crop', 'inspector-geometry', 'frame-delete']
+    const ids = [
+      'inspector-fit-crop',
+      'inspector-geometry',
+      'inspector-arrange',
+      'frame-delete',
+    ]
     expect(order()).toEqual(expected)
-    // Kit context-inspector `p-4` around DeleteFrameButton's `p-3`.
-    expect(screen.getByTestId('frame-delete').parentElement?.className).toBe(
-      'p-7',
-    )
     ids.slice(1).forEach((id, at) => {
       const before = within(panel).getByTestId(ids[at] ?? '')
       expect(
@@ -130,13 +132,21 @@ describe('Inspector frame sections', () => {
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy()
     })
+    // Kit context-inspector `p-4` around DeleteFrameButton's `p-3`.
+    expect(screen.getByTestId('frame-delete').parentElement?.className).toBe(
+      'p-7',
+    )
   })
 
   it('omits Crop for an empty frame and never renders Align', () => {
     seed()
     render(<Inspector />)
     select('f2')
-    expect(order()).toEqual(['inspector-geometry', 'frame-delete'])
+    expect(order()).toEqual([
+      'inspector-geometry',
+      'inspector-arrange',
+      'frame-delete',
+    ])
     expect(screen.queryByText(/align/i)).toBeNull()
   })
 
@@ -232,9 +242,9 @@ describe('Inspector frame sections', () => {
   })
 
   it('arranges: the layer label follows the z buttons', () => {
-    // Hidden in the Inspector (Owner Q8, M78); the section itself stays.
     seed()
-    render(<ArrangeSection target={{ spreadId: 'spread-1', frameId: 'f1' }} />)
+    render(<Inspector />)
+    select()
     const label = () => screen.getByTestId('frame-layer').textContent
     expect(label()).toBe('layer 1 of 3')
     fireEvent.click(screen.getByTestId('z-front'))
@@ -320,7 +330,8 @@ describe('Inspector frame sections', () => {
 
   it('mutes the layer label', () => {
     seed()
-    render(<ArrangeSection target={{ spreadId: 'spread-1', frameId: 'f1' }} />)
+    render(<Inspector />)
+    select()
     expect(screen.getByTestId('frame-layer').className).toContain('frame-layer')
   })
 

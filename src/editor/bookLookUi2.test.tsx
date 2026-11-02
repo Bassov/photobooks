@@ -525,9 +525,47 @@ describe('FrameStyleSection chips', () => {
     expect(pressed).toEqual(['style-style-1'])
     expect(screen.getAllByTestId('style-white-mat')).toHaveLength(1)
     expect(screen.getAllByTestId('style-style-1')).toHaveLength(1)
-    expect(screen.getByTestId('style-uses').className).toContain(SUB_INK)
-    expect(screen.getByTestId('style-uses').textContent).toContain('Style 1')
-    expect(screen.getByTestId('style-uses').textContent).toContain('1 frames')
+    // Kit `text-xs text-muted-foreground` note with a foreground count.
+    const uses = screen.getByTestId('style-uses')
+    expect(uses.className).toBe('fit-crop-note')
+    expect(uses.querySelector('b')?.className).toBe('text-foreground')
+    expect(uses.textContent).toContain('Style 1')
+    expect(uses.textContent).toContain('1 frames')
+  })
+
+  it('offers the kit outline "New style" button with a plus icon', () => {
+    seed()
+    render(<FrameStyleSection target={target} />)
+    const add = screen.getByTestId('style-new')
+    expect(add.className).toContain('pb-button--secondary')
+    expect(add.className).toContain('pb-button--sm')
+    expect(add.textContent).toBe('New style from this frame')
+    expect(add.querySelector('[data-size="14"]')).not.toBeNull()
+    fireEvent.click(add)
+    expect(
+      screen.getByRole('button', { name: 'Style 1', pressed: true }),
+    ).toBeTruthy()
+  })
+
+  it('lays out the style sliders on the kit row pitch', () => {
+    seed()
+    dispatchBookOp({ type: 'applyFrameStyle', ...target, styleId: 'white-mat' })
+    render(<FrameStyleSection target={target} />)
+    for (const id of ['style-mat', 'style-stroke', 'style-radius']) {
+      expect(screen.getByTestId(id).className).toContain('fit-crop-slider--row')
+    }
+  })
+
+  it('shows the frame photo in every swatch, none for an empty frame', () => {
+    seed()
+    render(<FrameStyleSection target={target} />)
+    for (const id of ['style-none', 'style-white-mat', 'style-soft-corners']) {
+      expect(shadow(id).style.backgroundImage).toBe('url("blob:a1")')
+    }
+    cleanup()
+    dispatchBookOp({ type: 'unplace', ...target })
+    render(<FrameStyleSection target={target} />)
+    expect(shadow('style-none').style.backgroundImage).toBe('')
   })
 
   it('counts only frames that use the style', () => {

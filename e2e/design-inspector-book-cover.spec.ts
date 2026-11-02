@@ -167,9 +167,8 @@ test('the first spread header reads "Page 1", not Cover (#18)', async ({
   await expect(inspector(page).getByText(/^Cover/)).toHaveCount(0)
 })
 
-// Photo sections: uikit/src/sandbox/context-inspector.tsx:71. Owner design
-// change (Q8, M78 hidden, 2026-11-02): Frame style is not rendered.
-test('Photo inspector has Adjust and Caption, no Frame style (#19)', async ({
+// Photo sections: uikit/src/sandbox/context-inspector.tsx:71.
+test('Photo inspector has Adjust, Caption and Frame style (#19)', async ({
   page,
 }) => {
   await filled(page).click()
@@ -196,9 +195,9 @@ test('Photo inspector has Adjust and Caption, no Frame style (#19)', async ({
   await inspector(page).getByTestId('caption-input').fill('By the sea')
   await expect(page.getByTestId('frame-caption')).toHaveText('By the sea')
 
-  await expect(
-    inspector(page).getByRole('button', { name: 'Frame style' }),
-  ).toHaveCount(0)
-  await expect(inspector(page).getByTestId('style-new')).toHaveCount(0)
-  await expect(inspector(page).getByTestId('style-uses')).toHaveCount(0)
+  await inspector(page).getByRole('button', { name: 'Frame style' }).click()
+  await inspector(page).getByRole('button', { name: 'White mat' }).click()
+  await expect(inspector(page).getByTestId('style-mat')).toBeVisible()
+  await inspector(page).getByTestId('style-new').click()
+  await expect(inspector(page).getByTestId('style-uses')).toContainText('1')
 })

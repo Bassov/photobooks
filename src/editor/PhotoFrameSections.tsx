@@ -31,20 +31,8 @@ function useSummaries(target: CropTarget): FrameSectionSummaries | undefined {
     : frameSectionSummaries(spread, frame)
 }
 
-/**
- * Owner Q8 (2026-11-02, M78 hidden): Frame style and Arrange stay out of the
- * Photo inspector until their roadmap item flips this switch.
- */
-export const FRAME_STYLE_AND_ARRANGE_VISIBLE = false
-
 /** Kit photo-frame sections below Rotate & flip, collapsed by default. */
-export function PhotoFrameSections({
-  target,
-  styleAndArrange = FRAME_STYLE_AND_ARRANGE_VISIBLE,
-}: {
-  target: CropTarget
-  styleAndArrange?: boolean
-}) {
+export function PhotoFrameSections({ target }: { target: CropTarget }) {
   const summaries = useSummaries(target)
   return (
     <>
@@ -65,24 +53,20 @@ export function PhotoFrameSections({
       >
         <GeometrySection target={target} />
       </Disclosure>
-      {styleAndArrange && (
-        <>
-          <Disclosure
-            title="Frame style"
-            summary={summaries?.style}
-            data-testid="inspector-style-disclosure"
-          >
-            <FrameStyleSection target={target} />
-          </Disclosure>
-          <Disclosure
-            title="Arrange"
-            summary={summaries?.arrange}
-            data-testid="inspector-arrange-disclosure"
-          >
-            <ArrangeSection target={target} />
-          </Disclosure>
-        </>
-      )}
+      <Disclosure
+        title="Frame style"
+        summary={summaries?.style}
+        data-testid="inspector-style-disclosure"
+      >
+        <FrameStyleSection target={target} />
+      </Disclosure>
+      <Disclosure
+        title="Arrange"
+        summary={summaries?.arrange}
+        data-testid="inspector-arrange-disclosure"
+      >
+        <ArrangeSection target={target} />
+      </Disclosure>
       <DeleteFrameButton target={target} />
     </>
   )

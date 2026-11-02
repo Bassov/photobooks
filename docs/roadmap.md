@@ -65,7 +65,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 
 **Review cut:** features removed or held in kit v0.10 come back one by one; items whose UI is in the kit sandbox carry sandbox refs (`rulers`, `guides`, `dpi-badge`, `text-blocks`, `live-captions`, `parent-guides`, `parent-overrides`, `page-numbers`); P1 `kit10-demo-expose-hidden` makes the hidden ones visible in `#/demo`. Only UI absent from the sandbox stays held in `docs/backlog/` until Designer adds the kit page. Owner and Designer decide the order.
 
-- [ ] [feature] [framestyle-arrange-unhide](roadmap/P2/framestyle-arrange-unhide.md) — Show Frame style and Arrange in the Photo inspector again, kit look (M78)
+- [x] [feature] [framestyle-arrange-unhide](roadmap/P2/framestyle-arrange-unhide.md) — Show Frame style and Arrange in the Photo inspector again, kit look (M78)
 - [ ] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
 - [ ] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
