@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item remove-cursor-support
+Status: done
 
 Owner PLAN item 4 (2026-11-02): the repo drops Cursor IDE/CLI support; Claude Code is the only harness and loses nothing. Undo the Cursor↔Claude compat compromises (SoT in `.cursor/`, symlinks, thin wrappers, `.mdc` format, dual docs) so Claude reads one direct copy.
 
