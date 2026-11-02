@@ -72,6 +72,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
 - [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
+- [ ] [feature] [filmstrip-stuck-thumbs](roadmap/P2/filmstrip-stuck-thumbs.md) — Bug: after a fling back and forth some filmstrip tiles never get a thumb
 - [x] [feature] [warm-slice-scheduler-loaf](roadmap/P2/warm-slice-scheduler-loaf.md) — Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
 - [x] [feature] [layout-picker-simplify](roadmap/P2/layout-picker-simplify.md) — Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
