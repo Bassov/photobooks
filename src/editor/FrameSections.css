@@ -17,9 +17,20 @@
   color: var(--muted-foreground);
 }
 
+/* Kit `destructive-ghost`: --destructive ink, a 7 % / 11 % tint on hover / press. */
 .frame-delete.pb-button {
   justify-content: flex-start;
   gap: 6px;
+  color: var(--destructive);
+}
+
+.frame-delete.pb-button[data-hovered] {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 7%, transparent);
+}
+
+.frame-delete.pb-button[data-pressed] {
+  background: color-mix(in srgb, var(--destructive) 11%, transparent);
 }
 
 /* Kit FrameStyleSection chips (uikit/src/sandbox/sections.tsx:112). */
