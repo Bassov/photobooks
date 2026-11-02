@@ -18,6 +18,7 @@ import type { ImportFileError } from '../photo/assetPool'
 import { IMPORT_BODY_READ_CAP, mapWithConcurrency } from './importBodyReads'
 import type { ImportPhotoResult, ImportProgress } from './importPhotos'
 import { runChromeImport } from './runChromeImport'
+import { hydrateGalleryThumbs } from './thumbCache'
 import {
   clearBookPhotoRoot,
   clearSourceRootHandle,
@@ -756,6 +757,8 @@ export async function startFolderRescan(options: {
       })
       await yieldForPaint()
     }
+    // Every cached gallery thumb goes hot before the user scrolls.
+    void hydrateGalleryThumbs()
     // Always cheap full walk — never skip via count/max-mtime/manifest.
     const scannedResult = await source.scanRoot(options.sourceRootId)
     if (!scannedResult.ok) {
