@@ -7,7 +7,12 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { addToGallery, applyTemplate, placeAsset } from '../core'
+import {
+  addToGallery,
+  applyTemplate,
+  placeAsset,
+  type TemplateId,
+} from '../core'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import * as bookStore from './bookStore'
@@ -67,14 +72,14 @@ function fireDragReleaseAfterStart(release: 'pointerdown' | 'keydown'): void {
   }
 }
 
-function seedGridBook(): void {
+function seedGridBook(template: TemplateId = '4-grid'): void {
   resetCameraStore()
   resetBookStore()
   let book = getBookStoreSnapshot().book
   book = addToGallery(book, ['a', 'b'])
   const spreadId = book.spreads[0]?.id
   assert(spreadId !== undefined, 'expected a spread')
-  book = applyTemplate(book, spreadId, '4-grid')
+  book = applyTemplate(book, spreadId, template)
   resetBookStore({
     book,
     sessionMeta: new Map(),
@@ -184,14 +189,15 @@ describe('Pasteboard gallery drop', () => {
   })
 
   it('starts the dragged photo tier on dragstart and raises it for the hovered frame', () => {
-    seedGridBook()
+    // A wide frame: the tier follows its long edge, not the short one.
+    seedGridBook('panorama')
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
     const [first] = firstTargets()
-    const longEdge = Math.max(
-      first.right - first.left,
-      first.bottom - first.top,
-    )
+    const width = first.right - first.left
+    const height = first.bottom - first.top
+    expect(width).toBeGreaterThan(height * 1.1)
+    const longEdge = width
     const point = targetPoint(first)
     startDrag('a')
     expect(maxDesiredTier('a')).toBe(1280)
