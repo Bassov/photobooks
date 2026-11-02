@@ -103,7 +103,7 @@ describe('NumberField', () => {
       />,
     )
     const input = screen.getByRole('spinbutton', { name: /Gap/ })
-    expect(input.getAttribute('aria-valuetext')).toBe('1.0 mm')
+    expect(input.getAttribute('aria-valuetext')).toBe('1 mm')
     expect(input.getAttribute('aria-valuemax')).toBe('3')
     fireEvent.keyDown(input, { key: 'ArrowUp' })
     expect(onChange).toHaveBeenLastCalledWith(1.5)
@@ -298,13 +298,13 @@ describe('NumberField details', () => {
     expect(onChange).toHaveBeenLastCalledWith(-0.5)
   })
 
-  it('steps from the typed draft and shows step decimals', () => {
+  it('steps from the typed draft and drops trailing zeros', () => {
     const onChange = vi.fn()
     render(
       <NumberField ariaLabel="x" value={1} step={0.5} onChange={onChange} />,
     )
     const input = screen.getByRole<HTMLInputElement>('spinbutton')
-    expect(input.value).toBe('1.0')
+    expect(input.value).toBe('1')
     fireEvent.change(input, { target: { value: '4' } })
     fireEvent.keyDown(input, { key: 'ArrowUp' })
     expect(onChange).toHaveBeenLastCalledWith(4.5)
@@ -376,6 +376,45 @@ describe('NumberField details', () => {
     expect(onChange).not.toHaveBeenCalled()
     fireEvent.change(input, { target: { value: '7' } })
     expect(input.value).toBe('7')
+    // Without `live` the typed text waits for blur / Enter.
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('live: reports each parseable keystroke clamped, keeps the typed text', () => {
+    const seen: number[] = []
+    function Live() {
+      const [value, setValue] = useState(19)
+      return (
+        <>
+          <NumberField
+            ariaLabel="x"
+            value={value}
+            min={10}
+            max={42}
+            step={0.1}
+            live
+            onChange={(v) => {
+              seen.push(v)
+              setValue(v)
+            }}
+          />
+          <output data-testid="live-value">{value}</output>
+        </>
+      )
+    }
+    render(<Live />)
+    const input = screen.getByRole<HTMLInputElement>('spinbutton')
+    fireEvent.change(input, { target: { value: '2' } })
+    expect(input.value).toBe('2')
+    expect(screen.getByTestId('live-value').textContent).toBe('10')
+    fireEvent.change(input, { target: { value: '23' } })
+    expect(screen.getByTestId('live-value').textContent).toBe('23')
+    fireEvent.change(input, { target: { value: '23.' } })
+    fireEvent.change(input, { target: { value: 'abc' } })
+    expect(seen).toEqual([10, 23])
+    fireEvent.blur(input)
+    expect(input.value).toBe('23')
+    expect(seen).toEqual([10, 23])
   })
 
   it('accepts a decimal comma on Enter', () => {

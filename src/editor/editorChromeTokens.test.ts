@@ -31,6 +31,12 @@ describe('editorChromeTokens', () => {
     )
   })
 
+  it('draws every filmstrip header chip as a kit pill (P2)', () => {
+    expect(EDITOR_CHROME_CSS).toMatch(
+      /\.film-chip \{[^}]*border-radius: calc\(infinity \* var\(--radius-full\)\);/,
+    )
+  })
+
   it('draws spread-list thumbs as the kit card (M79)', () => {
     expect(EDITOR_CHROME_CSS).toContain(
       '.editor-spread-thumb { overflow: hidden; border-radius: var(--spread-card-radius); box-shadow: var(--spread-card-shadow) }',

@@ -53,7 +53,7 @@ export const EDITOR_CHROME_CSS = `
 .filmstrip-item[aria-selected=true][data-focused] { background: ${SEL}; box-shadow: 0 0 0 2px #535152 }
 .filmstrip-placed { border-radius: 9999px; background: rgb(0 0 0/.55); color: #fff }
 .filmstrip-placed svg { stroke-width: 3 }
-.film-chip { color: ${SUB}; background: transparent; border: 0; border-radius: var(--radius-md); height: 28px; padding: 0 8px; font-size: var(--text-xs); box-shadow: none; transition: background-color .12s }
+.film-chip { color: ${SUB}; background: transparent; border: 0; border-radius: calc(infinity * var(--radius-full)); height: 28px; padding: 0 8px; font-size: var(--text-xs); box-shadow: none; transition: background-color .12s }
 .film-chip:hover, .film-chip[data-hovered], .film-chip[data-selected] { background: ${FIELD}; color: ${T} }
 .film-chip:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .film-chip.film-add-folder { color: ${T}; font-weight: 500; padding: 0 10px }
