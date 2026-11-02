@@ -331,6 +331,8 @@
   --placeholder-block: #d5d5d5;
   /* Kit TemplateThumb spine (bg-black/10). */
   --thumb-spine: rgb(0 0 0 / 0.1);
+  /* Layout tile hover on the paper (Owner 2026-11-02, layout-tile-states). */
+  --shadow-tile-hover: 0 0 0 1px rgb(0 0 0 / 0.22), 0 2px 6px rgb(0 0 0 / 0.12);
   /* Kit TemplatePreview scrim (bg-background/70). */
   --template-preview-scrim: color-mix(
     in srgb,

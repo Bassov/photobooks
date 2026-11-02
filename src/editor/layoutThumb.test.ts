@@ -1,17 +1,52 @@
 import { describe, expect, it } from 'vitest'
-import { percentStyle, thumbPaperBox, thumbSlots } from './layoutThumb'
+import {
+  percentStyle,
+  thumbAspect,
+  thumbColumns,
+  thumbPaperBox,
+  thumbSlots,
+} from './layoutThumb'
 
-describe('thumbPaperBox (kit TemplateThumb 2:1 box)', () => {
-  it('fills the box for an exact 2:1 spread', () => {
-    expect(thumbPaperBox(400, 200)).toEqual({
-      left: 0,
-      top: 0,
-      width: 100,
-      height: 100,
-    })
+const FULL = { left: 0, top: 0, width: 100, height: 100 }
+
+// Owner 2026-11-02: the thumb box follows the trim, clamped to 2:3–2:1.
+describe('thumbAspect', () => {
+  it('is the trim aspect inside the clamp', () => {
+    expect(thumbAspect(200, 200)).toBe(1)
+    expect(thumbAspect(300, 200)).toBe(1.5)
+    expect(thumbAspect(400, 200)).toBe(2)
+    expect(thumbAspect(200, 300)).toBe(200 / 300)
   })
 
-  it('letterboxes a wider spread top and bottom', () => {
+  it('clamps a tall page to 2:3 and a wide spread to 2:1', () => {
+    expect(thumbAspect(150, 300)).toBe(2 / 3)
+    expect(thumbAspect(400, 100)).toBe(2)
+  })
+})
+
+describe('thumbColumns', () => {
+  it('lays single pages narrower than 1.2:1 out in 3 columns', () => {
+    expect(thumbColumns(200, 200)).toBe(3)
+    expect(thumbColumns(150, 300)).toBe(3)
+    expect(thumbColumns(239, 200)).toBe(3)
+  })
+
+  it('keeps 2 columns from 1.2:1 up (landscape pages, spreads)', () => {
+    expect(thumbColumns(240, 200)).toBe(2)
+    expect(thumbColumns(300, 200)).toBe(2)
+    expect(thumbColumns(400, 200)).toBe(2)
+  })
+})
+
+describe('thumbPaperBox (box in the clamped trim aspect)', () => {
+  it('fills the box for a cover square, a landscape page and a 2:1 spread', () => {
+    expect(thumbPaperBox(200, 200)).toEqual(FULL)
+    expect(thumbPaperBox(300, 200)).toEqual(FULL)
+    expect(thumbPaperBox(400, 200)).toEqual(FULL)
+    expect(thumbPaperBox(200, 300)).toEqual(FULL)
+  })
+
+  it('letterboxes a spread wider than 2:1 top and bottom', () => {
     expect(thumbPaperBox(400, 100)).toEqual({
       left: 0,
       top: 25,
@@ -20,13 +55,12 @@ describe('thumbPaperBox (kit TemplateThumb 2:1 box)', () => {
     })
   })
 
-  it('pillarboxes a narrower spread left and right', () => {
-    expect(thumbPaperBox(200, 200)).toEqual({
-      left: 25,
-      top: 0,
-      width: 50,
-      height: 100,
-    })
+  it('pillarboxes a page taller than 2:3 left and right', () => {
+    const box = thumbPaperBox(150, 300)
+    expect(box.top).toBe(0)
+    expect(box.height).toBe(100)
+    expect(box.width).toBeCloseTo(75, 9)
+    expect(box.left).toBeCloseTo(12.5, 9)
   })
 })
 
