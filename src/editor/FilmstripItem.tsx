@@ -212,15 +212,12 @@ export const FilmstripItemView = memo(function FilmstripItemView({
       data-selected={selected || undefined}
       data-focused={(focus & ROW_FOCUSED) === 0 ? undefined : true}
       data-focus-visible={(focus & ROW_FOCUS_VISIBLE) === 0 ? undefined : true}
+      // The row has no focusable descendants, so focus events are its own.
       onFocus={(event) => {
-        if (event.target === event.currentTarget) {
-          noteFilmstripRowFocus(id, matchesFocusVisible(event.currentTarget))
-        }
+        noteFilmstripRowFocus(id, matchesFocusVisible(event.currentTarget))
       }}
-      onBlur={(event) => {
-        if (event.target === event.currentTarget) {
-          noteFilmstripRowBlur(id)
-        }
+      onBlur={() => {
+        noteFilmstripRowBlur(id)
       }}
       data-testid="filmstrip-item"
       data-asset-id={id}

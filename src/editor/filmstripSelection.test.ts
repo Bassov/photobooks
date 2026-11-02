@@ -41,6 +41,11 @@ describe('pickFilmstripItem', () => {
       anchor: 'd',
     })
     expect(pickFilmstripItem(input(['c'], 'c'), 'c', shift).ids).toEqual(['c'])
+    expect(pickFilmstripItem(input(['a'], 'a'), 'c', shift).ids).toEqual([
+      'a',
+      'b',
+      'c',
+    ])
   })
 
   it('falls back to a plain pick on Shift without a usable anchor', () => {
@@ -106,6 +111,9 @@ describe('filmstripNavTarget', () => {
 
   it('has no target in an empty view', () => {
     expect(filmstripNavTarget([], 'a', 'Home')).toBeNull()
+    expect(filmstripNavTarget([], 'a', 'End')).toBeNull()
+    expect(filmstripNavTarget([], null, 'ArrowRight')).toBeNull()
+    expect(filmstripNavTarget([], null, 'ArrowLeft')).toBeNull()
   })
 })
 

@@ -43,6 +43,10 @@ function row(id: string): HTMLElement {
 }
 
 function stubScrollportWidth(width: number): () => void {
+  const own = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    'clientWidth',
+  )
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
     configurable: true,
     get() {
@@ -53,7 +57,11 @@ function stubScrollportWidth(width: number): () => void {
     },
   })
   return () => {
-    Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+    if (own === undefined) {
+      Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+    } else {
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', own)
+    }
   }
 }
 
@@ -260,6 +268,177 @@ describe('Filmstrip grid', () => {
       frames.flush()
 
       expect(document.activeElement).toBe(row('seed-59'))
+    } finally {
+      frames.restore()
+      restoreWidth()
+    }
+  })
+
+  it('prefers the roving row over the selection when the grid takes focus', () => {
+    seedGallery(3)
+    render(<Filmstrip />)
+    act(() => {
+      row('seed-0').focus()
+    })
+    act(() => {
+      row('seed-0').blur()
+    })
+    setSelectedAssetIds(['seed-2'])
+
+    act(() => {
+      screen.getByRole('grid').focus()
+    })
+
+    expect(document.activeElement).toBe(row('seed-0'))
+  })
+
+  it('marks a keyboard (focus-visible) row and leaves a pointer focus plain', () => {
+    seedGallery(2)
+    render(<Filmstrip />)
+    // Rows read `:focus-visible` on themselves; stub it per row.
+    vi.spyOn(row('seed-0'), 'matches').mockReturnValue(false)
+    vi.spyOn(row('seed-1'), 'matches').mockReturnValue(true)
+
+    act(() => {
+      row('seed-0').focus()
+    })
+    expect(row('seed-0').dataset.focused).toBe('true')
+    expect(row('seed-0').dataset.focusVisible).toBeUndefined()
+
+    act(() => {
+      row('seed-1').focus()
+    })
+    expect(row('seed-1').dataset.focusVisible).toBe('true')
+    expect(row('seed-0').dataset.focused).toBeUndefined()
+  })
+
+  it('reads a row as not focus-visible when the selector is unsupported', () => {
+    seedGallery(1)
+    render(<Filmstrip />)
+    vi.spyOn(row('seed-0'), 'matches').mockImplementation((selector) => {
+      if (selector === ':focus-visible') {
+        throw new SyntaxError('unsupported selector')
+      }
+      return false
+    })
+
+    act(() => {
+      row('seed-0').focus()
+    })
+
+    expect(row('seed-0').dataset.focused).toBe('true')
+    expect(row('seed-0').dataset.focusVisible).toBeUndefined()
+  })
+
+  it('navigates from the roving row when a key reaches the grid itself', () => {
+    seedGallery(3)
+    render(<Filmstrip />)
+    act(() => {
+      row('seed-1').focus()
+    })
+
+    fireEvent.keyDown(screen.getByRole('grid'), { key: 'ArrowRight' })
+
+    expect(document.activeElement).toBe(row('seed-2'))
+    expect(getSelectedAssetIds()).toEqual(['seed-2'])
+  })
+
+  it('drops a stale anchor once the selection is cleared', () => {
+    seedGallery(4)
+    render(<Filmstrip />)
+    fireEvent.click(row('seed-1'))
+    setSelectedAssetIds([])
+
+    fireEvent.click(row('seed-3'), { shiftKey: true })
+
+    expect(getSelectedAssetIds()).toEqual(['seed-3'])
+  })
+
+  it('consumes grid keys and focuses rows without native scroll', () => {
+    seedGallery(3)
+    render(<Filmstrip />)
+    const outer = vi.fn()
+    document.addEventListener('keydown', outer)
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+    try {
+      act(() => {
+        row('seed-0').focus()
+      })
+
+      expect(fireEvent.keyDown(row('seed-0'), { key: 'ArrowRight' })).toBe(
+        false,
+      )
+      expect(
+        fireEvent.keyDown(row('seed-1'), { key: 'a', metaKey: true }),
+      ).toBe(false)
+
+      expect(outer).not.toHaveBeenCalled()
+      expect(focus).toHaveBeenLastCalledWith({ preventScroll: true })
+    } finally {
+      focus.mockRestore()
+      document.removeEventListener('keydown', outer)
+    }
+  })
+
+  it('scrolls only for rows outside the scrollport', () => {
+    const restoreWidth = stubScrollportWidth(1000)
+    const frames = captureFrames()
+    try {
+      seedGallery(60, 0.5)
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const prefix = buildStridePrefix(
+        Array.from({ length: 60 }, () => 0.5),
+        FILMSTRIP_THUMB_HEIGHT,
+      )
+      act(() => {
+        row('seed-0').focus()
+      })
+
+      fireEvent.keyDown(row('seed-0'), { key: 'ArrowRight' })
+      expect(scroll.scrollLeft).toBe(0)
+
+      scrollTo(scroll, prefix[20] ?? 0)
+      frames.flush()
+      act(() => {
+        row('seed-21').focus()
+      })
+      fireEvent.keyDown(row('seed-21'), { key: 'ArrowRight' })
+      expect(scroll.scrollLeft).toBe(prefix[20])
+
+      fireEvent.keyDown(row('seed-22'), { key: 'Home' })
+      expect(scroll.scrollLeft).toBe(0)
+      expect(getSelectedAssetIds()).toEqual(['seed-0'])
+    } finally {
+      frames.restore()
+      restoreWidth()
+    }
+  })
+
+  it('hands the tab stop back to the grid when the roving row leaves the window', () => {
+    const restoreWidth = stubScrollportWidth(1000)
+    const frames = captureFrames()
+    try {
+      seedGallery(60, 0.5)
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const prefix = buildStridePrefix(
+        Array.from({ length: 60 }, () => 0.5),
+        FILMSTRIP_THUMB_HEIGHT,
+      )
+      act(() => {
+        row('seed-0').focus()
+      })
+      act(() => {
+        row('seed-0').blur()
+      })
+      expect(screen.getByRole('grid').tabIndex).toBe(-1)
+
+      scrollTo(scroll, prefix[40] ?? 0)
+      frames.flush()
+
+      expect(rows().map((item) => item.dataset.assetId)).not.toContain('seed-0')
+      expect(screen.getByRole('grid').tabIndex).toBe(0)
     } finally {
       frames.restore()
       restoreWidth()

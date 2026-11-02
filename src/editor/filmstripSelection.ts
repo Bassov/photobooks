@@ -80,16 +80,14 @@ export function filmstripNavTarget(
   key: FilmstripNavKey,
 ): string | null {
   const last = order.length - 1
-  if (last < 0) {
-    return null
-  }
-  const at = current === null ? -1 : order.indexOf(current)
-  if (key === 'Home' || at < 0) {
-    return key === 'End' ? (order[last] ?? null) : (order[0] ?? null)
+  if (key === 'Home') {
+    return order[0] ?? null
   }
   if (key === 'End') {
     return order[last] ?? null
   }
+  // No focused row (-1): either arrow lands on the first row.
+  const at = current === null ? -1 : order.indexOf(current)
   const step = key === 'ArrowRight' ? 1 : -1
   return order[Math.min(Math.max(at + step, 0), last)] ?? null
 }
