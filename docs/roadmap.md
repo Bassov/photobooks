@@ -72,7 +72,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
 - [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
-- [ ] [feature] [filmstrip-stuck-thumbs](roadmap/P2/filmstrip-stuck-thumbs.md) — Bug: /next-roadmap-item filmstrip-stuck-thumbs
+- [ ] [feature] [filmstrip-stuck-thumbs](roadmap/P2/filmstrip-stuck-thumbs.md) — Bug: after a fling back and forth some filmstrip tiles never get a thumb
 - [ ] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
