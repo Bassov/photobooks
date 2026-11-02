@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Kit sync W1: canvas strip, page numbers, new-spread pill, size pill, K1 (Designer kit-sync Spec)
+Status: done
 
 ## Scope
 
