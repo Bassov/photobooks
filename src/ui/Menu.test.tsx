@@ -48,4 +48,31 @@ describe('Menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More' }))
     expect(await screen.findByTestId('menu-sep')).toBeTruthy()
   })
+
+  it('opens the popover 4 px under its trigger, as the kit Popover', async () => {
+    const placed = (offset?: number) => {
+      render(
+        <MenuTrigger>
+          <Button>Sort</Button>
+          <MenuPopover
+            placement="bottom"
+            {...(offset === undefined ? {} : { offset })}
+          >
+            <Menu>
+              <MenuItem id="a">A</MenuItem>
+            </Menu>
+          </MenuPopover>
+        </MenuTrigger>,
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Sort' }))
+    }
+    placed()
+    const kit = (await screen.findByRole('menu')).closest('.pb-menu-popover')
+    const kitTop = Number.parseFloat((kit as HTMLElement).style.top)
+    cleanup()
+    placed(0)
+    const flush = (await screen.findByRole('menu')).closest('.pb-menu-popover')
+    const flushTop = Number.parseFloat((flush as HTMLElement).style.top)
+    expect(kitTop - flushTop).toBe(4)
+  })
 })

@@ -47,13 +47,19 @@
 
 /* Page 1 / a single last page (kit LastPage, clipped SpreadSurface): only the
    page is painted, the empty half shows the list. The thumb shadow moves from
-   the spread-wide box to the page (Owner Must M55, round 8). */
+   the spread-wide box to the page (Owner Must M55, round 8). Page 1 keeps the
+   kit card (MiniSpread clipped at 50 %); the last page is the kit LastPage,
+   shadowSm and square (Owner Must M79, round 12). */
 .e7-item[data-page-side] .editor-spread-thumb {
   overflow: visible;
   box-shadow: none;
 }
-.e7-item[data-page-side] .spread-view--thumb {
-  box-shadow: var(--shadow-sm);
+.e7-item[data-page-side='right'] .spread-view--thumb {
+  border-radius: var(--spread-card-radius);
+  box-shadow: var(--spread-card-shadow);
+}
+.e7-item[data-page-side='left'] .spread-view--thumb {
+  box-shadow: var(--cover-shadow-mini);
 }
 
 /* Kit SpreadMenu trigger: hidden until the row is hovered / selected / focused. */

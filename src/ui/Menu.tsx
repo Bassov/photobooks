@@ -27,7 +27,7 @@ export interface MenuPopoverProps extends Omit<PopoverProps, 'className'> {
 
 export function MenuPopover({
   className,
-  offset = 6,
+  offset = 4,
   ...props
 }: MenuPopoverProps) {
   return (
