@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
+Status: done
 
 ## Scope
 
