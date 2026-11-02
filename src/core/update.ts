@@ -1,4 +1,35 @@
-import type { Book, Frame, Spread } from './schema'
+import { parentAsSpread, updateParentSpread } from './parentSpreads'
+import type { Book, Frame, ParentSpread, Spread } from './schema'
+
+/**
+ * A parent id edits the parent through its spread view: items, guides and the
+ * partial grid are written back, anything else a spread op changes is not.
+ */
+function updateParent(
+  book: Book,
+  parentId: string,
+  updater: (spread: Spread) => Spread,
+): Book {
+  return updateParentSpread(book, parentId, (current) => {
+    const view = parentAsSpread(current)
+    const next = updater(view)
+    const guides = next.guides ?? []
+    if (
+      next.frames === view.frames &&
+      guides === view.guides &&
+      next.layoutGrid === view.layoutGrid
+    ) {
+      return current
+    }
+    const parent: ParentSpread = { ...current, frames: next.frames, guides }
+    if (next.layoutGrid === undefined) {
+      delete parent.layoutGrid
+    } else {
+      parent.layoutGrid = next.layoutGrid
+    }
+    return parent
+  })
+}
 
 export function updateSpread(
   book: Book,
@@ -7,7 +38,7 @@ export function updateSpread(
 ): Book {
   const index = book.spreads.findIndex((spread) => spread.id === spreadId)
   if (index < 0) {
-    return book
+    return updateParent(book, spreadId, updater)
   }
   const current = book.spreads[index]
   if (current === undefined) {

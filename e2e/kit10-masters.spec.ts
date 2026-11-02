@@ -14,7 +14,12 @@ test('Masters mode shows the kit switch and a quiet empty note', async ({
   await page.getByTestId('left-tab-masters').click()
   const panel = page.getByTestId('masters-panel')
   await expect(panel).toBeVisible()
-  await expect(page.getByTestId('masters-stub')).toContainText('No masters yet')
+  await expect(page.getByTestId('masters-empty')).toContainText(
+    'No masters yet',
+  )
+  await expect(page.getByTestId('masters-canvas-empty')).toContainText(
+    'No masters yet',
+  )
   await expect(page.getByTestId('left-tab-masters')).toHaveAttribute(
     'aria-selected',
     'true',
@@ -27,16 +32,32 @@ test('Masters mode shows the kit switch and a quiet empty note', async ({
     'rgb(225, 225, 225)',
   )
   await expect(track).toHaveCSS('border-radius', '8px')
-  // No master A / B entries, no stub controls, no card chrome. A new book has
-  // no parents (parent-spreads), so no "Master A/B" text anywhere and the
-  // inspector Master switch is hidden, not stubbed.
+  // A new book has no parents (parent-spreads), so no "Master A/B" text
+  // anywhere and the inspector Master switch is hidden, not stubbed; the
+  // real "New master" action sits under the list (kit chrome.tsx:321).
   await expect(page.getByText(/Master [AB]/)).toHaveCount(0)
   await expect(page.getByRole('radiogroup', { name: 'Master' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /New master/ })).toHaveCount(0)
-  await expect(page.getByTestId('masters-stub')).toHaveCSS(
+  await expect(page.getByRole('button', { name: 'New master' })).toBeEnabled()
+  await expect(page.getByTestId('masters-empty')).toHaveCSS(
     'border-top-width',
     '0px',
   )
+  const newMaster = page.getByRole('button', { name: 'New master' })
+  const note = await page.getByTestId('masters-empty').boundingBox()
+  const action = await newMaster.boundingBox()
+  expect(note?.width).toBeGreaterThan(150)
+  expect(action?.height).toBe(32)
+  await assertDocumentFitsViewport(page)
+
+  // New master: one row, picked, shown on the canvas; the notes go away.
+  await newMaster.click()
+  await expect(
+    page.getByRole('listbox', { name: 'Masters' }).getByRole('option'),
+  ).toHaveText(['Master A'])
+  await expect(page.getByTestId('masters-empty')).toHaveCount(0)
+  await expect(
+    page.getByTestId('masters-canvas').getByTestId('spread-view'),
+  ).toBeVisible()
   await assertDocumentFitsViewport(page)
 
   // Step 23: back to Pages restores the book spreads.

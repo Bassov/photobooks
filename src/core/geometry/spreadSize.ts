@@ -5,6 +5,10 @@ export function getSpreadPageCount(
   spreadIndex: number,
   spreadCount: number,
 ): 1 | 2 {
+  // A parent (PARENT_SPREAD_INDEX) is always a two-page spread.
+  if (spreadIndex < 0) {
+    return 2
+  }
   if (spreadCount <= 1) {
     return 1
   }

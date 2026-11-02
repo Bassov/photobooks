@@ -1,3 +1,4 @@
+import { editableSpread, type Frame } from '../core'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { setCoverSelected } from './coverSelection'
 import type { FrameDragSource } from './dropTargets'
@@ -131,11 +132,16 @@ function emit(): void {
   }
 }
 
+/** The frame on its spread or parent (Masters canvas) in the current book. */
+export function sourceFrame(current: FrameSource): Frame | undefined {
+  return editableSpread(
+    getBookStoreSnapshot().book,
+    current.spreadId,
+  )?.spread.frames.find((item) => item.id === current.frameId)
+}
+
 export function sourceFrameFilled(current: FrameSource): boolean {
-  const book = getBookStoreSnapshot().book
-  const spread = book.spreads.find((item) => item.id === current.spreadId)
-  const frame = spread?.frames.find((item) => item.id === current.frameId)
-  return frame?.assetId !== undefined
+  return sourceFrame(current)?.assetId !== undefined
 }
 
 /** Whether the selected frame held a photo when it was selected. */
@@ -147,16 +153,12 @@ subscribeBookStore(() => {
     return
   }
   // A frame that vanished, or gained / lost its photo, ends the selection.
-  if (frameExists(current) && sourceFrameFilled(current) === sourceWasFilled) {
+  if (
+    sourceFrame(current) !== undefined &&
+    sourceFrameFilled(current) === sourceWasFilled
+  ) {
     return
   }
   setFrameSource(null)
   setEditorStatus('')
 })
-
-function frameExists(current: FrameSource): boolean {
-  const spread = getBookStoreSnapshot().book.spreads.find(
-    (item) => item.id === current.spreadId,
-  )
-  return spread?.frames.some((item) => item.id === current.frameId) ?? false
-}

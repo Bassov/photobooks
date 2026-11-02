@@ -1,10 +1,10 @@
 import { MIN_FRAME_EDGE_MM, type Frame } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
-import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
+import { dispatchBookOp } from './bookStore'
 import { getCropTarget } from './cropMode'
 import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { getEditorTool } from './editorToolStore'
-import { getFrameSource, setFrameSource } from './frameSelection'
+import { getFrameSource, setFrameSource, sourceFrame } from './frameSelection'
 import {
   clearSnapLines,
   gridSnapActive,
@@ -64,12 +64,6 @@ interface Session {
 
 function isResizeHandle(id: string): id is ResizeHandle {
   return (RESIZE_HANDLES as readonly string[]).includes(id)
-}
-
-function findFrame(spreadId: string, frameId: string): Frame | undefined {
-  return getBookStoreSnapshot()
-    .book.spreads.find((spread) => spread.id === spreadId)
-    ?.frames.find((frame) => frame.id === frameId)
 }
 
 /**
@@ -137,7 +131,7 @@ export function installFrameHandleGesture(): () => void {
     }
     const frameId = button.getAttribute('data-frame-id') ?? ''
     const ctx = spreadContext(spreadEl, frameId)
-    const frame = ctx === null ? undefined : findFrame(ctx.spreadId, frameId)
+    const frame = ctx?.spread.frames.find((item) => item.id === frameId)
     if (ctx === null || frame === undefined) {
       return
     }
@@ -362,7 +356,7 @@ export function installFrameHandleGesture(): () => void {
     ) {
       return
     }
-    const frame = findFrame(source.spreadId, source.frameId)
+    const frame = sourceFrame(source)
     if (frame === undefined) {
       return
     }

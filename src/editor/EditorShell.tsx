@@ -22,7 +22,7 @@ import { installFrameGesture } from './frameGesture'
 import { installFrameHandleGesture } from './frameHandleGesture'
 import { installEditorKeys } from './galleryDrop'
 import { setImportProgress } from './importProgressStore'
-import { MastersCanvasStub } from './MastersCanvasStub'
+import { MastersCanvas } from './MastersCanvas'
 import { Pasteboard } from './Pasteboard'
 import { PresentationMode } from './PresentationMode'
 import { installThumbBackgroundWarm } from './thumbBackgroundWarm'
@@ -79,7 +79,7 @@ export function EditorShell() {
             <Pasteboard fitOnOpen />
             <CoverOverlay />
             <EndpaperOverlay />
-            <MastersCanvasStub />
+            <MastersCanvas />
             <Status
               className="editor-status-pill"
               data-testid="editor-status"

@@ -42,6 +42,13 @@ export {
   type ParentSpread,
 } from './schema'
 export {
+  PARENT_SPREAD_INDEX,
+  addParent,
+  editableSpread,
+  nextParentId,
+  parentAsSpread,
+  removeParent,
+  renameParent,
   resolveParentFrames,
   resolveParentGrid,
   resolveParentGuides,
