@@ -1,8 +1,3 @@
----
-description: Architecture constraints for photobook editor
-alwaysApply: true
----
-
 # Architecture
 
 - Local-first: prefer on-device file APIs and client-side processing.
