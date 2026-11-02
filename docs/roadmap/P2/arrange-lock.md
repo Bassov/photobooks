@@ -15,5 +15,6 @@ Title: stacking and locking
 - **Hard nos:** no fake, dead or disabled-stub controls (a control the product cannot do yet is hidden; D2); no blue / teal; no layout shift or page-level H/V scroll
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
-- **Depends:** kit10-inspector-frame-spread
+- **Depends:** kit10-inspector-frame-spread, framestyle-arrange-unhide
+- **Audit 2026-11-02:** on main the lock toggle (`FrameSections.tsx:95`) and locked-frame drag guard (`frameGesture.ts:366`) ship; the ARRANGE section is hidden since #389 until `framestyle-arrange-unhide`; context menu + shortcuts are not built.
 - **UI kit:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); `ArrangeSection` + lock button in `GeometrySection` (`uikit/src/sandbox/inspector.tsx`)

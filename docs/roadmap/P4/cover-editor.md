@@ -16,4 +16,5 @@ Title: cover in the editor
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
 - **Depends:** kit10-cover, print-model-schema, print-profiles
+- **Audit 2026-11-02:** back / spine / front on the canvas and a page-count spine (`spineWidthForPages`, `src/core/pages.ts:29`, #346) ship; left: spine from the print profile, hinge and wrap overlays.
 - **UI kit:** `uikit#/feature/cover-editor` (`uikit/src/features/pages.tsx` page `cover-editor`); parts: `uikit/src/demo-parts/editor.tsx` (`CanvasPart, InspectorPart`)
