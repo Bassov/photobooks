@@ -1,8 +1,3 @@
----
-description: Testing and verify loop requirements
-alwaysApply: true
----
-
 # Testing
 
 Orchestration (when A vs B, phase commits): `docs/agent-loop.md`.
