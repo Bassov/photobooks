@@ -46,6 +46,10 @@ import {
 //     error chip (too low) uses the kit `--badge-error-fg` rgb(35, 34, 35).
 // M60 (unchanged): PHOTO 105.75, FIT & CROP 272.39, ROTATE & FLIP 495.19,
 //     Straighten 607.44, Quarter turn 643.23.
+// Owner design change (Q8, M78 hidden, 2026-11-02): FRAME STYLE and ARRANGE
+//     are not rendered until their roadmap item, so their rows, summaries
+//     and open values above are asserted absent (design-r14-hide-framestyle).
+//     The summary look is held on the ADJUST "Edited" summary instead.
 
 const MUTED = 'rgb(83, 81, 82)'
 const INK = 'rgb(57, 55, 56)'
@@ -57,12 +61,8 @@ const KIT = {
     adjust: 698.78,
     caption: 735.78,
     geometry: 772.78,
-    style: 809.78,
-    arrange: 846.78,
   },
   summaryRight: 1428,
-  styleSummary: 809.63,
-  arrangeSummary: 846.63,
   adjust: {
     rows: [727.03, 762.83, 798.63],
     reset: 834.42,
@@ -81,8 +81,6 @@ const KIT = {
     height: 183,
   },
   pan: { x: [1186, 1324], y: 387.02 },
-  style: { chip: 838.03, chipHeight: 62.84, newStyle: 908.88, height: 169.84 },
-  arrange: { buttons: 875.03, firstX: 1156, layer: 882.63, height: 99 },
   m60: {
     photo: 105.75,
     fitCrop: 272.39,
@@ -174,31 +172,15 @@ test.describe('M72: Photo inspector sections match the kit', () => {
       await near(title(page, id), kit)
       await near(title(page, id), KIT.titleX, 'x')
     }
-    await expect(summary(page, 'style')).toHaveText('None')
-    await expect(summary(page, 'arrange')).toHaveText('z 1')
+    // Owner design change (Q8, M78 hidden): no FRAME STYLE / ARRANGE rows.
+    for (const id of ['style', 'arrange']) {
+      await expect(disclosure(page, id)).toHaveCount(0)
+      await expect(summary(page, id)).toHaveCount(0)
+    }
     await expect(summary(page, 'adjust')).toHaveCount(0)
     await expect(summary(page, 'geometry')).toHaveCount(0)
     await expect(summary(page, 'caption')).toHaveCount(0)
     await expect(page.getByTestId('frame-lock')).toHaveCount(0)
-    for (const [id, kit] of [
-      ['style', KIT.styleSummary],
-      ['arrange', KIT.arrangeSummary],
-    ] as const) {
-      const b = await box(summary(page, id))
-      expectNear(b.y, kit, `${id} summary y`)
-      expectNear(b.x + b.width, KIT.summaryRight, `${id} summary right`)
-      expectNear(b.height, 16.8, `${id} summary height`)
-      const read = await look(summary(page, id))
-      expect({
-        size: read.size,
-        weight: read.weight,
-        color: read.color,
-      }).toEqual({ size: '12px', weight: '400', color: MUTED })
-    }
-    // Names stay the titles; the summary is the trigger's description.
-    await expect(
-      page.getByRole('button', { name: 'Arrange', exact: true }),
-    ).toHaveAccessibleDescription('z 1')
 
     const m60 = body(page).locator('.pb-disclosure__trigger .inspector-eyebrow')
     await near(m60.nth(0), KIT.m60.photo)
@@ -244,6 +226,22 @@ test.describe('M72: Photo inspector sections match the kit', () => {
     expect((await look(reset)).opacity).toBe('1')
     await toggle(page, 'adjust', false)
     await expect(summary(page, 'adjust')).toHaveText('Edited')
+    // Kit summary look (was held on FRAME STYLE / ARRANGE, now hidden):
+    // right edge 1428, 16.8 px box, 12px / 400 muted, title row y.
+    const edited = await box(summary(page, 'adjust'))
+    expectNear(edited.y, KIT.collapsed.adjust - 0.15, 'adjust summary y')
+    expectNear(edited.x + edited.width, KIT.summaryRight, 'summary right')
+    expectNear(edited.height, 16.8, 'summary height')
+    const read = await look(summary(page, 'adjust'))
+    expect({
+      size: read.size,
+      weight: read.weight,
+      color: read.color,
+    }).toEqual({ size: '12px', weight: '400', color: MUTED })
+    // Names stay the titles; the summary is the trigger's description.
+    await expect(
+      page.getByRole('button', { name: 'Adjust', exact: true }),
+    ).toHaveAccessibleDescription('Edited')
     await toggle(page, 'adjust', true)
     await reset.click()
     await toggle(page, 'adjust', false)
@@ -317,51 +315,26 @@ test.describe('M72: Photo inspector sections match the kit', () => {
     }
   })
 
-  test('FRAME STYLE opens on the kit chips; its summary names the style', async ({
-    page,
-  }) => {
-    await toggle(page, 'style', true)
-    const none = page.getByTestId('style-none')
-    await near(none, KIT.style.chip)
-    expectNear((await box(none)).height, KIT.style.chipHeight, 'chip height')
-    await near(page.getByTestId('style-new'), KIT.style.newStyle)
-    expectNear(
-      (await box(disclosure(page, 'style'))).height,
-      KIT.style.height,
-      'FRAME STYLE height',
-    )
-    await expect(summary(page, 'style')).toHaveCount(0)
-
-    await page.getByRole('button', { name: 'White mat', exact: true }).click()
-    await toggle(page, 'style', false)
-    await expect(summary(page, 'style')).toHaveText('White mat')
-  })
-
-  test('ARRANGE opens on the kit toolbar row', async ({ page }) => {
-    await toggle(page, 'arrange', true)
-    for (const [at, move] of [
-      'back',
-      'backward',
-      'forward',
-      'front',
-    ].entries()) {
-      const button = page.getByTestId(`z-${move}`)
-      await near(button, KIT.arrange.buttons)
-      await near(button, KIT.arrange.firstX + at * 36, 'x')
+  // Owner design change (Q8, M78 hidden): FRAME STYLE has no chips or "New
+  // style from this frame" and ARRANGE no z toolbar in the DOM.
+  test('FRAME STYLE and ARRANGE are hidden (Owner Q8)', async ({ page }) => {
+    for (const name of ['Frame style', 'Arrange']) {
+      await expect(page.getByRole('button', { name, exact: true })).toHaveCount(
+        0,
+      )
     }
-    await near(page.getByTestId('frame-layer'), KIT.arrange.layer)
-    expectNear(
-      (await box(disclosure(page, 'arrange'))).height,
-      KIT.arrange.height,
-      'ARRANGE height',
-    )
-    await expect(summary(page, 'arrange')).toHaveCount(0)
+    for (const id of ['style-none', 'style-new', 'frame-layer']) {
+      await expect(page.getByTestId(id)).toHaveCount(0)
+    }
+    for (const move of ['back', 'backward', 'forward', 'front']) {
+      await expect(page.getByTestId(`z-${move}`)).toHaveCount(0)
+    }
   })
 
   test('every section open: the inspector body scrolls, the page does not', async ({
     page,
   }) => {
-    for (const id of ['adjust', 'caption', 'geometry', 'style', 'arrange']) {
+    for (const id of ['adjust', 'caption', 'geometry']) {
       await toggle(page, id, true)
     }
     await assertDocumentFitsViewport(page)
@@ -423,7 +396,9 @@ test.describe('M72: summaries follow state', () => {
     })
   })
 
-  test('ARRANGE reads z of the layer after Send to back and Bring forward', async ({
+  // Owner design change (Q8, M78 hidden): a drawn second frame still opens
+  // without ARRANGE / FRAME STYLE rows or their summaries.
+  test('ARRANGE and FRAME STYLE stay hidden for a drawn frame', async ({
     page,
   }) => {
     test.setTimeout(90_000)
@@ -454,19 +429,13 @@ test.describe('M72: summaries follow state', () => {
       await page.mouse.up()
     }
     await expect(frames).toHaveCount(2)
-    await expect(summary(page, 'arrange')).toHaveText('z 2')
-
-    await toggle(page, 'arrange', true)
-    await page.getByTestId('z-back').click()
-    await expect(page.getByTestId('frame-layer')).toHaveText('layer 1 of 2')
-    await toggle(page, 'arrange', false)
-    await expect(summary(page, 'arrange')).toHaveText('z 1')
-
-    await toggle(page, 'arrange', true)
-    await page.getByTestId('z-forward').click()
-    await expect(page.getByTestId('frame-layer')).toHaveText('layer 2 of 2')
-    await toggle(page, 'arrange', false)
-    await expect(summary(page, 'arrange')).toHaveText('z 2')
-    await expect(summary(page, 'style')).toHaveText('None')
+    await expect(page.getByTestId('inspector-context')).toHaveText('Photo')
+    await expect(disclosure(page, 'geometry')).toBeVisible()
+    for (const id of ['arrange', 'style']) {
+      await expect(disclosure(page, id)).toHaveCount(0)
+      await expect(summary(page, id)).toHaveCount(0)
+    }
+    await expect(page.getByTestId('z-back')).toHaveCount(0)
+    await expect(page.getByTestId('frame-layer')).toHaveCount(0)
   })
 })

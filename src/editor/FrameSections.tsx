@@ -324,8 +324,9 @@ export function DeleteFrameButton({ target }: { target: CropTarget }) {
   if (found === null) {
     return null
   }
+  // Kit context-inspector `p-4` around DeleteFrameButton's own `p-3`.
   return (
-    <div className="px-4 pb-4">
+    <div className="p-7">
       <Button
         variant="ghost"
         size="sm"

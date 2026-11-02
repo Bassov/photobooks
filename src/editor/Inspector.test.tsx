@@ -311,14 +311,15 @@ describe('Inspector', () => {
         .map((b) => b.textContent)
       const at = (label: string) => names.findIndex((n) => n.includes(label))
       expect(at('Position & size')).toBeGreaterThan(at('Reset to cover'))
-      expect(at('Arrange')).toBeGreaterThan(at('Position & size'))
-      for (const label of ['Position & size', 'Arrange']) {
-        expect(
-          screen
-            .getByRole('button', { name: label })
-            .getAttribute('aria-expanded'),
-        ).toBe('false')
-      }
+      // Owner Q8 (M78 hidden): no Frame style / Arrange rows.
+      expect(at('Arrange')).toBe(-1)
+      expect(at('Frame style')).toBe(-1)
+      expect(at('Delete frame')).toBeGreaterThan(at('Position & size'))
+      expect(
+        screen
+          .getByRole('button', { name: 'Position & size' })
+          .getAttribute('aria-expanded'),
+      ).toBe('false')
     })
 
     it('removes the photo from its frame', () => {
