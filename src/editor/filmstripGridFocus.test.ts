@@ -102,6 +102,15 @@ describe('filmstripGridFocus', () => {
     expect(takeFilmstripPendingFocus('z')).toBe(false)
   })
 
+  it('drops a pending focus once another row takes focus', () => {
+    noteFilmstripRowFocus('a', false)
+    requestFilmstripRowFocus('z')
+
+    noteFilmstripRowFocus('a', false)
+
+    expect(takeFilmstripPendingFocus('z')).toBe(false)
+  })
+
   it('reset clears row, anchor and pending focus and notifies', () => {
     noteFilmstripRowFocus('a', true)
     setFilmstripAnchor('a')

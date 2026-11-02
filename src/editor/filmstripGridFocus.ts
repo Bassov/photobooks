@@ -50,6 +50,8 @@ export function getFilmstripRowFocus(id: string): number {
 
 /** `id` gained DOM focus (`focusVisible` per `:focus-visible`). */
 export function noteFilmstripRowFocus(id: string, focusVisible: boolean): void {
+  // A row took focus: an older pending focus must not steal it later.
+  pending = null
   if (current === id && hasFocus && visible === focusVisible) {
     return
   }

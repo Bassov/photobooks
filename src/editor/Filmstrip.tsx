@@ -51,6 +51,7 @@ import {
   getFilmstripAnchor,
   getFilmstripCurrentRow,
   requestFilmstripRowFocus,
+  resetFilmstripGridFocus,
   setFilmstripAnchor,
   subscribeFilmstripFocus,
 } from './filmstripGridFocus'
@@ -149,6 +150,8 @@ const FilmstripGrid = memo(function FilmstripGrid({
     getFilmstripCurrentRow,
   )
   const hasTabStop = current !== null && items.some((row) => row.id === current)
+  // Roving row, anchor and pending focus belong to this grid instance.
+  useEffect(() => resetFilmstripGridFocus, [])
 
   const focusRow = (grid: Element, id: string): void => {
     revealRow(id)
@@ -201,24 +204,37 @@ const FilmstripGrid = memo(function FilmstripGrid({
           applyPick(selectAllFilmstrip(selectionInput(order)))
           return
         }
+        const from = rowIdOf(event.target) ?? getFilmstripCurrentRow()
+        if (event.key === ' ') {
+          // Space selects the focused row; Ctrl / Meta toggles it.
+          event.preventDefault()
+          event.stopPropagation()
+          if (from !== null) {
+            applyPick(
+              pickFilmstripItem(selectionInput(order), from, {
+                shift: event.shiftKey,
+                toggle,
+              }),
+            )
+          }
+          return
+        }
         if (!isFilmstripNavKey(event.key)) {
           return
         }
         event.preventDefault()
         event.stopPropagation()
-        const move = navigateFilmstrip(
-          selectionInput(order),
-          rowIdOf(event.target) ?? getFilmstripCurrentRow(),
-          event.key,
-          { shift: event.shiftKey, toggle },
-        )
-        if (move === null) {
-          return
+        // The grid only renders for a non-empty view, so a move exists.
+        const move = navigateFilmstrip(selectionInput(order), from, event.key, {
+          shift: event.shiftKey,
+          toggle,
+        })
+        if (move !== null) {
+          if (move.pick !== null) {
+            applyPick(move.pick)
+          }
+          focusRow(event.currentTarget, move.focus)
         }
-        if (move.pick !== null) {
-          applyPick(move.pick)
-        }
-        focusRow(event.currentTarget, move.focus)
       }}
     >
       {items.map((row) => (
@@ -416,13 +432,13 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     const index = galleryRef.current.indexOf(id)
     const left = prefixRef.current[index]
     const right = prefixRef.current[index + 1]
-    if (node === null || left === undefined || right === undefined) {
-      return
-    }
-    if (left < node.scrollLeft) {
-      node.scrollLeft = left
-    } else if (right > node.scrollLeft + node.clientWidth) {
-      node.scrollLeft = right - node.clientWidth
+    // `id` comes from the view, so its slot and the scrollport exist.
+    if (node !== null && left !== undefined && right !== undefined) {
+      if (left < node.scrollLeft) {
+        node.scrollLeft = left
+      } else if (right > node.scrollLeft + node.clientWidth) {
+        node.scrollLeft = right - node.clientWidth
+      }
     }
   }, [])
   const isEmpty = total === 0

@@ -227,7 +227,7 @@ describe('Filmstrip grid', () => {
     ])
   })
 
-  it('leaves other keys to the editor', () => {
+  it('leaves other keys alone; Escape still clears the selection', () => {
     seedGallery(2)
     setSelectedAssetIds(['seed-0'])
     render(<Filmstrip />)
@@ -235,11 +235,59 @@ describe('Filmstrip grid', () => {
       row('seed-0').focus()
     })
 
-    fireEvent.keyDown(row('seed-0'), { key: 'Escape' })
-    fireEvent.keyDown(row('seed-0'), { key: 'ArrowLeft' })
-
-    expect(document.activeElement).toBe(row('seed-0'))
+    expect(fireEvent.keyDown(row('seed-0'), { key: 'x' })).toBe(true)
     expect(getSelectedAssetIds()).toEqual(['seed-0'])
+
+    fireEvent.keyDown(row('seed-0'), { key: 'Escape' })
+    expect(getSelectedAssetIds()).toEqual([])
+    expect(document.activeElement).toBe(row('seed-0'))
+  })
+
+  it('selects the focused row on Space and toggles it on Ctrl / Meta+Space', () => {
+    seedGallery(3)
+    render(<Filmstrip />)
+    act(() => {
+      row('seed-0').focus()
+    })
+
+    expect(fireEvent.keyDown(row('seed-0'), { key: ' ' })).toBe(false)
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+
+    fireEvent.keyDown(row('seed-0'), { key: 'ArrowRight', ctrlKey: true })
+    fireEvent.keyDown(row('seed-1'), { key: ' ', ctrlKey: true })
+    expect(getSelectedAssetIds()).toEqual(['seed-0', 'seed-1'])
+
+    fireEvent.keyDown(row('seed-1'), { key: ' ', metaKey: true })
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+
+    fireEvent.keyDown(row('seed-1'), { key: 'ArrowRight', ctrlKey: true })
+    // The last toggle anchored at seed-1.
+    fireEvent.keyDown(row('seed-2'), { key: ' ', shiftKey: true })
+    expect(getSelectedAssetIds()).toEqual(['seed-1', 'seed-2'])
+  })
+
+  it('ignores Space on the grid before any row had focus', () => {
+    seedGallery(2)
+    setSelectedAssetIds(['seed-1'])
+    render(<Filmstrip />)
+
+    fireEvent.keyDown(screen.getByRole('grid'), { key: ' ' })
+
+    expect(getSelectedAssetIds()).toEqual(['seed-1'])
+  })
+
+  it('starts a remounted strip without the old roving row', () => {
+    seedGallery(2)
+    const first = render(<Filmstrip />)
+    act(() => {
+      row('seed-1').focus()
+    })
+    first.unmount()
+
+    render(<Filmstrip />)
+
+    expect(screen.getByRole('grid').tabIndex).toBe(0)
+    expect(rows().map((item) => item.tabIndex)).toEqual([-1, -1])
   })
 
   it('End past the window scrolls to the last row and focuses it on mount', () => {
@@ -264,10 +312,13 @@ describe('Filmstrip grid', () => {
         FILMSTRIP_THUMB_HEIGHT,
       )
       expect(scroll.scrollLeft).toBe((prefix[60] ?? 0) - 1000)
+      const focus = vi.spyOn(HTMLElement.prototype, 'focus')
       scrollTo(scroll, scroll.scrollLeft)
       frames.flush()
 
       expect(document.activeElement).toBe(row('seed-59'))
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+      focus.mockRestore()
     } finally {
       frames.restore()
       restoreWidth()
@@ -371,6 +422,7 @@ describe('Filmstrip grid', () => {
       expect(
         fireEvent.keyDown(row('seed-1'), { key: 'a', metaKey: true }),
       ).toBe(false)
+      expect(fireEvent.keyDown(row('seed-1'), { key: ' ' })).toBe(false)
 
       expect(outer).not.toHaveBeenCalled()
       expect(focus).toHaveBeenLastCalledWith({ preventScroll: true })
