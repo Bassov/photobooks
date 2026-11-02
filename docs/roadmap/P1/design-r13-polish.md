@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: design-r13-polish: book menu position and Caption section height match the kit
+Status: done
 
 ## Scope
 
