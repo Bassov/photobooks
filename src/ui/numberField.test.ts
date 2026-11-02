@@ -27,7 +27,15 @@ describe('numberField helpers', () => {
   it('counts decimals and formats', () => {
     expect(decimalsOf(1)).toBe(0)
     expect(decimalsOf(0.25)).toBe(2)
-    expect(formatNumber(5, 1)).toBe('5.0')
+    // Kit maximumFractionDigits: no trailing zeros.
+    expect(formatNumber(5, 1)).toBe('5')
+    expect(formatNumber(19, 1)).toBe('19')
+    expect(formatNumber(12.5, 1)).toBe('12.5')
+    expect(formatNumber(12.25, 1)).toBe('12.3')
+    expect(formatNumber(1.2, 2)).toBe('1.2')
+    expect(formatNumber(1.04, 1)).toBe('1')
+    expect(formatNumber(-0.04, 1)).toBe('0')
+    expect(formatNumber(120, 0)).toBe('120')
   })
 
   it('handles non-finite input, long fractions and multi-digit fractions', () => {

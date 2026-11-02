@@ -62,6 +62,22 @@ describe('editor top bar Settings', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('labels the back bar like the kit and shares the library back styles', () => {
+    render(
+      <EditorSettings
+        libraryPath="Photobooks"
+        changeDisabled={false}
+        onClose={() => undefined}
+      />,
+    )
+    const back = screen.getByTestId('editor-settings-back')
+    expect(back.textContent).toBe('Back to the book')
+    expect(back.className).toContain('pb-settings-back')
+    expect(
+      document.querySelector('style[data-pb-library]')?.textContent,
+    ).toContain('.pb-button.pb-settings-back')
+  })
+
   it('keeps the count at 0 when listing fails', async () => {
     const spy = vi
       .spyOn(projectSession, 'listLibraryBooks')
