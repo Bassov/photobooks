@@ -186,17 +186,37 @@ const FilmstripGrid = memo(function FilmstripGrid({
         if (event.target !== event.currentTarget) {
           return
         }
-        // Tab onto the grid: hand focus to the roving / selected / first row.
+        // Tab onto the grid: hand focus to the roving row. Without one,
+        // GridList `replace` parity: focus and select the first selected
+        // (else the first) row.
+        const roving = items.find((row) => row.id === current)
         const selected = getSelectedAssetIds()
         const target =
-          items.find((row) => row.id === current) ??
-          items.find((row) => selected.includes(row.id)) ??
-          items[0]
-        if (target !== undefined) {
-          rowElement(event.currentTarget, target.id)?.focus()
+          roving ?? items.find((row) => selected.includes(row.id)) ?? items[0]
+        if (target === undefined) {
+          return
         }
+        if (roving === undefined && !selected.includes(target.id)) {
+          applyPick(
+            pickFilmstripItem(selectionInput(order), target.id, {
+              shift: false,
+              toggle: false,
+            }),
+          )
+        }
+        rowElement(event.currentTarget, target.id)?.focus()
       }}
       onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          // GridList parity: Escape clears a selection and stops here; with
+          // nothing selected it reaches the editor (Inspector dismiss).
+          if (getSelectedAssetIds().length > 0) {
+            event.preventDefault()
+            event.stopPropagation()
+            setSelectedAssetIds([])
+          }
+          return
+        }
         const toggle = event.ctrlKey || event.metaKey
         if (toggle && event.key.toLowerCase() === 'a') {
           event.preventDefault()
