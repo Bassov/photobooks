@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Show Frame style and Arrange in the Photo inspector again, kit look (M78)
+Status: done
 
 ## Scope
 
