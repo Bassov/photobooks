@@ -110,7 +110,7 @@ function LayoutThumb({ id, single, className }: { id: string; single: boolean; c
   const r = trimRatio(single)
   return (
     <div className="relative w-full" style={{ aspectRatio: thumbAspect(r) }} data-testid="tpl-thumb">
-      <div className={cn("absolute overflow-hidden rounded-2xs bg-paper shadow-hairline transition-[box-shadow,transform] duration-(--duration-fast)", className)} style={paperBox(r)} data-testid="tpl-paper">
+      <div className={cn("absolute overflow-hidden rounded-2xs bg-paper shadow-hairline transition-[box-shadow,translate] duration-(--duration-fast)", className)} style={paperBox(r)} data-testid="tpl-paper">
         {TT(id).frames.map((b, i) => (
           <div key={i} className="absolute overflow-hidden rounded-2xs bg-placeholder-block"
             style={single ? { left: pct(2 * b.x - 100), top: pct(b.y), width: pct(2 * b.w), height: pct(b.h) } : { left: pct(b.x), top: pct(b.y), width: pct(b.w), height: pct(b.h) }} />
