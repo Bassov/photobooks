@@ -1,4 +1,5 @@
-import type { Book, FrameStyle, Spread } from '../schema'
+import { resolveParentFrames, spreadParent } from '../parentSpreads'
+import type { Book, Frame, FrameStyle, ParentSpread, Spread } from '../schema'
 import { sourceCropRect as computeSourceCropRect } from './cropRect'
 import { frameDpi, lowDpi } from './dpi'
 import { getPageCuts, getSpreadSizeMm } from './spreadSize'
@@ -12,6 +13,7 @@ import type {
 interface StructuralCache {
   settings: Book['settings']
   frameStyles: Book['frameStyles']
+  parent: ParentSpread | undefined
   spreadCount: number
   spreadIndex: number
   entries: StructuralEntry[]
@@ -116,10 +118,12 @@ function getStructural(
   index: number,
 ): StructuralCache {
   const spreadCount = book.spreads.length
+  const parent = spreadParent(book, spread)
   const cached = structuralMemo.get(spread)
   if (
     cached?.settings === book.settings &&
     cached.frameStyles === book.frameStyles &&
+    cached.parent === parent &&
     cached.spreadCount === spreadCount &&
     cached.spreadIndex === index
   ) {
@@ -128,38 +132,19 @@ function getStructural(
 
   const size = getSpreadSizeMm(book, index)
   const pageCuts = getPageCuts(book, index)
-  const entries: StructuralEntry[] = spread.frames.map((frame) => {
-    const base: Omit<ResolvedItem, 'sourceCropRect'> = {
-      frameId: frame.id,
-      rectMm: { ...frame.rect },
-      z: frame.z,
-      rotation: frame.rotationDeg ?? 0,
-    }
-    if (frame.locked === true) {
-      base.locked = true
-    }
-    const style =
-      frame.frameStyleId === undefined
-        ? undefined
-        : book.frameStyles[frame.frameStyleId]
-    if (style !== undefined) {
-      base.style = resolveFrameStyle(style)
-    }
-    if (frame.caption !== undefined) {
-      base.caption = frame.caption
-    }
-    if (frame.adjust !== undefined) {
-      base.adjust = frame.adjust
-    }
-    if (frame.assetId !== undefined) {
-      return { item: { ...base, assetId: frame.assetId }, frame }
-    }
-    return { item: base, frame }
-  })
+  // Parent layer first (painted beneath), then the spread's frames as stored.
+  const inherited = resolveParentFrames(book, spread).filter(
+    ({ layer }) => layer !== 'spread',
+  )
+  const entries: StructuralEntry[] = [
+    ...inherited.map(({ frame }) => structuralEntry(book, frame, true)),
+    ...spread.frames.map((frame) => structuralEntry(book, frame, false)),
+  ]
 
   const next: StructuralCache = {
     settings: book.settings,
     frameStyles: book.frameStyles,
+    parent,
     spreadCount,
     spreadIndex: index,
     entries,
@@ -169,6 +154,42 @@ function getStructural(
   }
   structuralMemo.set(spread, next)
   return next
+}
+
+function structuralEntry(
+  book: Book,
+  frame: Frame,
+  parent: boolean,
+): StructuralEntry {
+  const base: Omit<ResolvedItem, 'sourceCropRect'> = {
+    frameId: frame.id,
+    rectMm: { ...frame.rect },
+    z: frame.z,
+    rotation: frame.rotationDeg ?? 0,
+  }
+  if (parent) {
+    base.parent = true
+  }
+  if (frame.locked === true) {
+    base.locked = true
+  }
+  const style =
+    frame.frameStyleId === undefined
+      ? undefined
+      : book.frameStyles[frame.frameStyleId]
+  if (style !== undefined) {
+    base.style = resolveFrameStyle(style)
+  }
+  if (frame.caption !== undefined) {
+    base.caption = frame.caption
+  }
+  if (frame.adjust !== undefined) {
+    base.adjust = frame.adjust
+  }
+  if (frame.assetId !== undefined) {
+    return { item: { ...base, assetId: frame.assetId }, frame }
+  }
+  return { item: base, frame }
 }
 
 /** Fills the defaults of a stored style; colors stay absent when unset. */

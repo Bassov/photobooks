@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resetAssetSources } from '../photo/assetSources'
-import { makeBook, makePlacedTemplateBook } from '../core/testing/fixtures'
+import {
+  makeBook,
+  makeFrame,
+  makePlacedTemplateBook,
+} from '../core/testing/fixtures'
 import { loadPainterFixture } from '../testFixtures/loadPainterFixture'
 import type { ResolvedItem } from '../core/geometry/types'
 import {
@@ -1442,6 +1446,58 @@ describe('bookStore crop window follows real dims', () => {
       frameAspect,
       5,
     )
+  })
+})
+
+describe('bookStore spread paint covers the parent layer', () => {
+  afterEach(() => {
+    resetBookStore()
+    vi.unstubAllGlobals()
+  })
+
+  it('repaints a parent photo when its real aspect arrives', () => {
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      (cb: FrameRequestCallback): number => {
+        cb(0)
+        return 1
+      },
+    )
+    resetBookStore({
+      book: makeBook({
+        parents: [
+          {
+            id: 'p1',
+            name: 'Master A',
+            frames: [
+              makeFrame({
+                id: 'logo',
+                assetId: 'logo-asset',
+                rect: { x: 10, y: 10, width: 40, height: 10 },
+              }),
+            ],
+            guides: [],
+          },
+        ],
+        defaultParentId: 'p1',
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const logo = () => getSpreadPaintSnapshot('spread-1')?.resolved.items[0]
+    const before = logo()
+
+    setAssetSessionMeta('logo-asset', {
+      name: 'logo.png',
+      correctedWidth: 400,
+      correctedHeight: 100,
+      orientation: 1,
+      aspect: 4,
+    })
+
+    expect(before?.parent).toBe(true)
+    expect(logo()?.sourceCropRect).not.toEqual(before?.sourceCropRect)
   })
 })
 
