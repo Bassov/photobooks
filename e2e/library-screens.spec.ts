@@ -752,6 +752,16 @@ test('kit v0.10 create book: dialog, size menu, custom size tokens', async ({
     )
   }
   await expect(custom).toContainText('cm')
+  // Designer kit-sync P3: the hint follows typing (was on blur, "19 × 24"),
+  // and a whole cm reads "19", not "19.0".
+  await page.getByTestId('create-custom-w').fill('19')
+  const height = page.getByTestId('create-custom-h')
+  await height.click()
+  await height.fill('')
+  await height.pressSequentially('23')
+  await expect(custom).toContainText('19 × 23 cm')
+  await expect(height).toBeFocused()
+  await expect(page.getByTestId('create-custom-w')).toHaveValue('19')
   await expect(page.getByTestId('create-orientation')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
   await page.getByRole('button', { name: 'Cancel' }).click()
