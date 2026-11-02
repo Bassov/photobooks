@@ -1,4 +1,8 @@
-import { resolveParentFrames, spreadParent } from '../parentSpreads'
+import {
+  editableSpread,
+  resolveParentFrames,
+  spreadParent,
+} from '../parentSpreads'
 import type { Book, Frame, FrameStyle, ParentSpread, Spread } from '../schema'
 import { sourceCropRect as computeSourceCropRect } from './cropRect'
 import { frameDpi, lowDpi } from './dpi'
@@ -47,14 +51,11 @@ export function resolveSpread(
   spreadId: string,
   options: ResolveSpreadOptions = {},
 ): ResolvedSpread | undefined {
-  const index = book.spreads.findIndex((spread) => spread.id === spreadId)
-  if (index < 0) {
+  const found = editableSpread(book, spreadId)
+  if (found === undefined) {
     return undefined
   }
-  const spread = book.spreads[index]
-  if (spread === undefined) {
-    return undefined
-  }
+  const { spread, index } = found
 
   const getAspectRatio = options.getAspectRatio ?? defaultAspect
   const structural = getStructural(book, spread, index)

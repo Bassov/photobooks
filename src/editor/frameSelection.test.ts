@@ -226,6 +226,39 @@ describe('frameSelection', () => {
     expect(getFrameSource()).toBeNull()
   })
 
+  it('keeps a parent item selected while it moves, drops it when it goes', () => {
+    resetBookStore({
+      book: makeBook({
+        parents: [
+          {
+            id: 'p1',
+            name: 'Master A',
+            frames: [makeFrame({ id: 'logo', assetId: 'a' })],
+            guides: [],
+          },
+        ],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const logo = { spreadId: 'p1', frameId: 'logo' }
+    setFrameSource(logo)
+
+    dispatchBookOp({
+      type: 'moveFrame',
+      spreadId: 'p1',
+      frameId: 'logo',
+      dx: 5,
+      dy: 0,
+    })
+    const afterMove = getFrameSource()
+    dispatchBookOp({ type: 'removeFrames', spreadId: 'p1', frameIds: ['logo'] })
+
+    expect(afterMove).toEqual(logo)
+    expect(getFrameSource()).toBeNull()
+  })
+
   it('clears a source when the book is reset without that frame', () => {
     setFrameSource({ spreadId: 'gone', frameId: 'gone' })
     resetBookStore()

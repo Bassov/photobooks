@@ -37,13 +37,17 @@ import {
   spreadSummary,
   type InspectorPanel,
 } from './inspectorModel'
+import { getLeftPanelTab, subscribeLeftPanelTab } from './leftPanelTabStore'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 
 const EMPTY_HINT = 'Select a spread or a photo to see its properties.'
+const MASTERS_HINT =
+  'Master items show on every spread that uses the master. Add, move and resize them on the canvas.'
 
 /** What the panel shows: the selection-driven context (kit InspectorPanel). */
 type InspectorContext =
   | InspectorPanel
+  | { kind: 'masters' }
   | { kind: 'cover' }
   | { kind: 'book' }
   | { kind: 'endpaper'; side: EndpaperSide }
@@ -96,6 +100,11 @@ export function Inspector() {
     getSelectedEndpaper,
     getSelectedEndpaper,
   )
+  const leftTab = useSyncExternalStore(
+    subscribeLeftPanelTab,
+    getLeftPanelTab,
+    getLeftPanelTab,
+  )
   const target = cropKey === '' ? null : getCropTarget()
   // Esc drops the spread view to the empty hint until another spread is picked.
   const [dismissed, setDismissed] = useState<string | null>(null)
@@ -129,15 +138,19 @@ export function Inspector() {
     coverSelected || bookSelected || endpaperSide !== null
       ? null
       : (target ?? frameSource)
-  const view: InspectorContext = coverSelected
-    ? { kind: 'cover' }
-    : endpaperSide !== null
-      ? { kind: 'endpaper', side: endpaperSide }
-      : bookSelected
-        ? { kind: 'book' }
-        : section === null
-          ? panel
-          : { kind: 'photo', target: section }
+  // The master inspector (grid, items) is roadmap parent-spreads-inspector.
+  const view: InspectorContext =
+    leftTab === 'masters'
+      ? { kind: 'masters' }
+      : coverSelected
+        ? { kind: 'cover' }
+        : endpaperSide !== null
+          ? { kind: 'endpaper', side: endpaperSide }
+          : bookSelected
+            ? { kind: 'book' }
+            : section === null
+              ? panel
+              : { kind: 'photo', target: section }
   const context = CONTEXT_HEADER[view.kind] ?? null
   return (
     <section
@@ -197,6 +210,7 @@ export function Inspector() {
           </>
         ) : null}
         {view.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
+        {view.kind === 'masters' ? <Hint>{MASTERS_HINT}</Hint> : null}
       </div>
     </section>
   )

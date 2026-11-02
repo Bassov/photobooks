@@ -31,27 +31,17 @@ import {
   STATUS_UNPLACED,
   setEditorStatus,
 } from './editorStatus'
-import { getFrameSource, setFrameSource } from './frameSelection'
+import {
+  getFrameSource,
+  setFrameSource,
+  sourceFrameFilled,
+} from './frameSelection'
 import { setSelectedAssetId } from './gallerySelection'
 
 function clearDropSession(): void {
   session = null
   localFrameDrag = null
   frameDragSeen = false
-}
-
-function frameFilledInBook(
-  book: Book,
-  spreadId: string,
-  frameId: string,
-): boolean {
-  return book.spreads.some(
-    (spread) =>
-      spread.id === spreadId &&
-      spread.frames.some(
-        (frame) => frame.id === frameId && frame.assetId !== undefined,
-      ),
-  )
 }
 
 export interface DropGeometry {
@@ -149,13 +139,7 @@ export function activateFrame(
   const action = resolveFrameActivation({
     pointer,
     source,
-    sourceFilled:
-      source === null ||
-      frameFilledInBook(
-        getBookStoreSnapshot().book,
-        source.spreadId,
-        source.frameId,
-      ),
+    sourceFilled: source === null || sourceFrameFilled(source),
     target: { spreadId, frameId, filled },
   })
   if (action.type === 'select-source') {
@@ -211,14 +195,7 @@ function unplaceFrame(source: FrameDragSource): void {
 /** Delete on a selected empty frame removes it (the spread leaves its template). */
 function removeSelectedEmptyFrame(): boolean {
   const selected = getFrameSource()
-  if (
-    selected === null ||
-    frameFilledInBook(
-      getBookStoreSnapshot().book,
-      selected.spreadId,
-      selected.frameId,
-    )
-  ) {
+  if (selected === null || sourceFrameFilled(selected)) {
     return false
   }
   // The book change also ends the selection (the frame is gone).
@@ -491,15 +468,14 @@ export function installGalleryDrop(
       // Deferred one task: mounting the Photo inspector in the same frame as
       // the drop commit blows the frame budget (multi-drop-fill perf gate).
       const { spreadId, frameId } = target
-      if (frameFilledInBook(getBookStoreSnapshot().book, spreadId, frameId)) {
+      if (sourceFrameFilled({ spreadId, frameId })) {
         setTimeout(() => {
           setFrameSource({ spreadId, frameId })
         }, 0)
       }
       return
     }
-    const book = getBookStoreSnapshot().book
-    const filled = frameFilledInBook(book, target.spreadId, target.frameId)
+    const filled = sourceFrameFilled(target)
     const action = resolveFrameActivation({
       source: current.source,
       target: {
