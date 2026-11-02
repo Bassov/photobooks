@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 import { dropAssetOnFrame } from './fixtures/dropAssetOnFrame'
 import {
@@ -103,6 +104,7 @@ test.describe('Arrange menu, shortcuts and lock', () => {
 
     await page.mouse.click(overlap.x, overlap.y, { button: 'right' })
     await expect(menu(page)).toBeVisible()
+    await assertDocumentFitsViewport(page)
     // Already on top: only the moves that can change the stack are offered.
     await expect(menu(page).getByRole('menuitem')).toHaveText([
       /Send backward/,
