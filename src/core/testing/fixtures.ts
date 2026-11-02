@@ -46,6 +46,7 @@ export function makeBook(overrides: BookOverrides = {}): Book {
     assets = {},
     gallery = [],
     spreads = [makeSpread()],
+    ...parentFields
   } = overrides
 
   const settings: Book['settings'] = {
@@ -87,6 +88,8 @@ export function makeBook(overrides: BookOverrides = {}): Book {
     assets,
     gallery,
     spreads,
+    /** `parents`, `defaultParentId`, `pageNumbering` when given. */
+    ...parentFields,
   }
 }
 

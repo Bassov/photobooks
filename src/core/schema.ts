@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CURRENT_SCHEMA_VERSION = 9 as const
+export const CURRENT_SCHEMA_VERSION = 10 as const
 
 const nonNegativeMm = z.number().nonnegative()
 const positiveMm = z.number().positive()
@@ -170,9 +170,61 @@ const frameSchema = z.object({
   adjust: atParseTime(makeAdjustSchema).optional(),
 })
 
+/*
+ * Parent spread shapes are built per parse (like cover) so that their mutants
+ * are reachable by per-test mutant switching.
+ */
+
+/** Parent spreads (kit `Parent`): items and guides shared by every spread using one. */
+function makeParentSpreadsSchema() {
+  /** Auto page number; the number comes from the page it lands on. */
+  const pageNumberItem = z.object({
+    id: nonEmptyString,
+    rect: rectMmSchema,
+    align: z.enum(['left', 'center', 'right']).optional(),
+  })
+  const parent = z.object({
+    id: nonEmptyString,
+    name: z.string(),
+    frames: z.array(frameSchema),
+    guides: z.array(guideSchema),
+    /** Partial grid between the book grid and the spread override. */
+    layoutGrid: layoutGridOverrideSchema.optional(),
+    pageNumbers: z.array(pageNumberItem).optional(),
+  })
+  return z.array(parent)
+}
+
+/** Spread-local copies replacing the parent item / guide with id `overridesId`. */
+function makeParentOverridesSchema() {
+  const overridesId = nonEmptyString
+  return z.object({
+    hiddenIds: z.array(nonEmptyString).optional(),
+    frames: z.array(frameSchema.extend({ overridesId })).optional(),
+    guides: z.array(guideSchema.extend({ overridesId })).optional(),
+  })
+}
+
+export const PAGE_NUMBER_FORMATS = [
+  'decimal',
+  'lower-roman',
+  'upper-roman',
+] as const
+
+function makePageNumberingSchema() {
+  return z.object({
+    start: z.number().int().nonnegative(),
+    skipFirst: z.boolean(),
+    format: z.enum(PAGE_NUMBER_FORMATS),
+  })
+}
+
 const spreadSchema = z.object({
   id: nonEmptyString,
   templateId: nonEmptyString.optional(),
+  /** Parent spread id; absent → the book default parent, `null` → None. */
+  parentId: nonEmptyString.nullable().optional(),
+  parentOverrides: atParseTime(makeParentOverridesSchema).optional(),
   layoutGrid: layoutGridOverrideSchema.optional(),
   guides: z.array(guideSchema).optional(),
   /** Spread background; absent → the paper default. */
@@ -279,6 +331,11 @@ export const bookSchema = z.object({
     }
   }),
   spreads: z.array(spreadSchema).min(1),
+  parents: atParseTime(makeParentSpreadsSchema).optional(),
+  /** Parent of spreads without `parentId`; absent → None. */
+  defaultParentId: nonEmptyString.optional(),
+  /** Absent → start 1, first page numbered, decimal. */
+  pageNumbering: atParseTime(makePageNumberingSchema).optional(),
 })
 
 export type Asset = z.infer<typeof assetSchema>
@@ -288,6 +345,15 @@ export type SpreadMasterId = (typeof SPREAD_MASTERS)[number]
 export type FrameStyle = z.output<ReturnType<typeof makeFrameStyleSchema>>
 export type Frame = z.infer<typeof frameSchema>
 export type Spread = z.infer<typeof spreadSchema>
+export type ParentSpread = z.output<
+  ReturnType<typeof makeParentSpreadsSchema>
+>[number]
+export type ParentOverrides = z.output<
+  ReturnType<typeof makeParentOverridesSchema>
+>
+export type PageNumberItem = NonNullable<ParentSpread['pageNumbers']>[number]
+export type PageNumbering = z.output<ReturnType<typeof makePageNumberingSchema>>
+export type PageNumberFormat = (typeof PAGE_NUMBER_FORMATS)[number]
 export type Cover = z.output<ReturnType<typeof makeCoverSchema>>
 export type CoverPanel = Cover['front']
 export type CoverStyle = Cover['style']

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
-import { bookSchema, migrateToCurrent, parseBook, resolveSpread } from './index'
+import {
+  bookSchema,
+  CURRENT_SCHEMA_VERSION,
+  migrateToCurrent,
+  parseBook,
+  resolveSpread,
+} from './index'
 import { defaultCoverStyle } from './cover'
 import {
   frameStyleName,
@@ -91,7 +97,7 @@ describe('v8 to v9 migration shapes', () => {
     const result = migrateToCurrent(input)
     assert.equal(result.ok, true)
     const value = result.value as ReturnType<typeof makeBook>
-    expect(value.schemaVersion).toBe(9)
+    expect(value.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(value.cover.style).toEqual(defaultCoverStyle())
     expect(value.settings.endpapers).toEqual({ enabled: true, same: true })
     expect(value.settings.trim).toEqual(makeBook().settings.trim)
