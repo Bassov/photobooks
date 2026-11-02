@@ -3,11 +3,6 @@
   color: var(--muted-foreground);
 }
 
-/* Kit group label (`mb-1.5 text-xs font-medium`): 12 / 16.8 px. */
-.layout-group-label {
-  line-height: 1.4;
-}
-
 .layout-caption {
   font-size: var(--text-2xs);
   line-height: var(--text-2xs--line-height);
@@ -213,31 +208,6 @@
   color: var(--foreground);
   background: var(--background);
   box-shadow: var(--shadow-pill);
-}
-
-.layout-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: var(--radius-md);
-  background: var(--field);
-  color: var(--muted-foreground);
-}
-
-.layout-search input {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: var(--text-sm);
-}
-
-.layout-search input:focus-visible {
-  outline: none;
 }
 
 .layout-chip {

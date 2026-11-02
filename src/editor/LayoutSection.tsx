@@ -31,7 +31,10 @@ import {
   LAYOUT_PICKER,
   TEMPLATE_NAMES,
   applyLayout,
+  mergeLayouts,
+  sortByPhotoCount,
   templateName,
+  type LayoutItem,
 } from './layoutCatalog'
 import { percentStyle, thumbPaperBox, thumbSlots } from './layoutThumb'
 import { applyMarkedSpreadTemplate } from './applyMarkedSpreadTemplate'
@@ -48,19 +51,8 @@ import {
 import { setTemplatePreview } from './templatePreview'
 import './LayoutSection.css'
 
-/** Kit LayoutSection shows at most three suggestions (context-inspector.tsx:143). */
-const MAX_SUGGESTED = 3
-
 function readBook() {
   return getBookStoreSnapshot().book
-}
-
-/** One tile: a kit builtin (`saved: false`) or one of the user's templates. */
-interface LayoutItem {
-  id: string
-  name: string
-  rects: readonly RectMm[]
-  saved: boolean
 }
 
 /** Kit TemplateThumb (uikit/src/sandbox/chrome.tsx:241): 2:1 paper, slots, spine. */
@@ -128,7 +120,10 @@ function CountField({
   )
 }
 
-/** Kit LayoutSection: template tiles (kit catalog order) + contact sheet. */
+/**
+ * Kit LayoutSection with the Owner's 2026-11-02 simplification: one list by
+ * photo count, uncaptioned builtins, no search / Suggested; + contact sheet.
+ */
 export function LayoutSection({ spreadId }: { spreadId: string }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const spreadIndex = book.spreads.findIndex((item) => item.id === spreadId)
@@ -153,10 +148,6 @@ export function LayoutSection({ spreadId }: { spreadId: string }) {
   )
 }
 
-function photoLabel(count: number): string {
-  return `${String(count)} photo${count === 1 ? '' : 's'}`
-}
-
 function LayoutPicker({
   spreadId,
   book,
@@ -179,7 +170,6 @@ function LayoutPicker({
   const [rows, setRows] = useState(2)
   const [tab, setTab] = useState<'all' | 'mine'>('all')
   const [chip, setChip] = useState<LayoutChipId>('all')
-  const [query, setQuery] = useState('')
   const [renaming, setRenaming] = useState<string | null>(null)
   // A contact-sheet spread shows its own grid in the fields.
   const contactKey = contact === null ? '' : `${spreadId}/${current ?? ''}`
@@ -196,19 +186,23 @@ function LayoutPicker({
   const spreadGrid = spread.layoutGrid
   const geometry = useMemo(() => {
     const size = getSpreadSizeMm(book, spreadIndex)
-    const builtins: LayoutItem[] = LAYOUT_PICKER.map((id: FixedTemplateId) => ({
-      id,
-      name: TEMPLATE_NAMES[id],
-      rects: generateTemplateFrames(id, book, spreadIndex, spread).map(
-        (frame) => frame.rect,
-      ),
-      saved: false,
-    }))
+    const { items: builtins, aliases } = mergeLayouts(
+      LAYOUT_PICKER.map((id: FixedTemplateId): LayoutItem => ({
+        id,
+        name: TEMPLATE_NAMES[id],
+        rects: generateTemplateFrames(id, book, spreadIndex, spread).map(
+          (frame) => frame.rect,
+        ),
+        saved: false,
+      })),
+      size,
+    )
     return {
       widthMm: size.widthMm,
       heightMm: size.heightMm,
       spine: getSpreadPageCount(spreadIndex, book.spreads.length) === 2,
       builtins,
+      aliases,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [
@@ -230,24 +224,18 @@ function LayoutPicker({
     [mine, book.settings, book.spreads.length, spreadIndex],
   )
   const all = [...geometry.builtins, ...saved]
-  const summary = templateName(current) ?? undefined
-  // Kit: filled photo frames, else every frame of the spread.
-  const filled = spread.frames.filter((f) => f.assetId !== undefined).length
-  const photos = filled > 0 ? filled : spread.frames.length
-  const wanted = query.trim().toLowerCase()
-  const list = (tab === 'mine' ? saved : all).filter(
-    (item) =>
-      matchesChip(item.rects.length, chip) &&
-      item.name.toLowerCase().includes(wanted),
+  // A merged-away builtin (Two portraits on a two-page spread) presses and
+  // names the tile that stands for it; the stored id and frames stay as is.
+  const selected =
+    current === undefined
+      ? undefined
+      : (geometry.aliases.get(current) ?? current)
+  const note = templateName(selected) ?? undefined
+  const list = sortByPhotoCount(
+    (tab === 'mine' ? saved : all).filter((item) =>
+      matchesChip(item.rects.length, chip),
+    ),
   )
-  // Owner Must M47 (round 7): the current layout stays listed (pressed), so a
-  // one-photo page always offers "One per page" in its kit catalogue place.
-  const suggested =
-    tab === 'all' && chip === 'all' && wanted === ''
-      ? geometry.builtins
-          .filter((item) => item.rects.length === photos)
-          .slice(0, MAX_SUGGESTED)
-      : []
   // Kit `save`: the spread's photo frames become "My layout N", named inline.
   const save = () => {
     // Only reachable while `canSave`: the spread has at least one image frame.
@@ -255,20 +243,20 @@ function LayoutPicker({
     const added = addSavedTemplate(nextTemplateName(), slots)
     setTab('mine')
     setChip('all')
-    setQuery('')
     setRenaming(added.id)
   }
   const canSave = spread.frames.some((frame) => frame.kind !== 'text')
-  const tile = (item: LayoutItem, testId: string) => (
+  const tile = (item: LayoutItem) => (
     <div key={item.id} className="layout-tile-cell">
       <button
         type="button"
         className="layout-tile"
-        data-testid={testId}
+        data-testid="layout-tile"
         data-template={item.id}
-        aria-pressed={current === item.id}
-        aria-label={`${testId === 'layout-tile' ? 'Apply layout' : 'Apply suggested layout'} ${item.name}`}
-        title={`${item.name} · ${photoLabel(item.rects.length)} — hover to preview, click to apply`}
+        aria-pressed={selected === item.id}
+        aria-label={`Apply layout ${item.name}`}
+        // Owner 2026-11-02: builtins carry no caption, the name is the tooltip.
+        title={item.name}
         onMouseEnter={() => {
           setTemplatePreview({ spreadId, templateId: item.id })
         }}
@@ -292,7 +280,7 @@ function LayoutPicker({
           rects={item.rects}
           spine={geometry.spine}
         />
-        {renaming === item.id ? null : (
+        {!item.saved || renaming === item.id ? null : (
           <span className="layout-tile-name" data-testid="tpl-name">
             {item.name}
           </span>
@@ -373,7 +361,7 @@ function LayoutPicker({
     <Disclosure
       title="Layout"
       defaultExpanded
-      summary={summary}
+      note={note}
       data-testid="layout"
       right={
         <IconButton
@@ -393,8 +381,9 @@ function LayoutPicker({
         role="group"
         aria-label="Layout"
       >
-        {/* Kit tabs / search / chips: uikit/src/sandbox/context-inspector.tsx:163-175.
-            Toggle buttons, not role=tablist: the inspector itself has no tabs. */}
+        {/* Kit tabs / chips: uikit/src/sandbox/context-inspector.tsx:163-175
+            (Owner 2026-11-02: no search field). Toggle buttons, not
+            role=tablist: the inspector itself has no tabs. */}
         <div
           className="layout-tabs"
           role="group"
@@ -422,19 +411,6 @@ function LayoutPicker({
             My templates <span className="layout-muted">{saved.length}</span>
           </button>
         </div>
-        <label className="layout-search">
-          <Icon name="search" size={14} />
-          <input
-            type="search"
-            aria-label="Search layouts"
-            placeholder="Search layouts"
-            data-testid="layout-search"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-            }}
-          />
-        </label>
         <div
           className="flex items-center gap-1"
           role="group"
@@ -457,44 +433,26 @@ function LayoutPicker({
             </button>
           ))}
         </div>
-        {suggested.length > 0 ? (
-          <div data-testid="tpl-suggested">
-            <div className="layout-group-label mb-1.5 flex items-center gap-1.5 text-xs font-medium">
-              <Icon name="sparkles" size={14} className="layout-muted" />
-              Suggested for {photoLabel(photos)}
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {suggested.map((item) => tile(item, 'layout-suggested-tile'))}
-            </div>
+        {list.length > 0 ? (
+          <div className="grid grid-cols-2 gap-1.5" data-testid="tpl-grid">
+            {list.map(tile)}
           </div>
-        ) : null}
-        <div>
-          {suggested.length > 0 ? (
-            <div className="layout-group-label mb-1.5 text-xs font-medium">
-              All layouts
-            </div>
-          ) : null}
-          {list.length > 0 ? (
-            <div className="grid grid-cols-2 gap-1.5" data-testid="tpl-grid">
-              {list.map((item) => tile(item, 'layout-tile'))}
-            </div>
-          ) : (
-            <p
-              className="layout-empty text-center text-xs"
-              data-testid="tpl-empty"
-            >
-              <Icon
-                name="layoutTemplate"
-                size={16}
-                className="layout-empty-icon"
-              />
-              {/* Unfiltered, only My templates can be empty. */}
-              {query === '' && chip === 'all'
-                ? 'No templates yet. Save a spread you like.'
-                : 'No layouts match.'}
-            </p>
-          )}
-        </div>
+        ) : (
+          <p
+            className="layout-empty text-center text-xs"
+            data-testid="tpl-empty"
+          >
+            <Icon
+              name="layoutTemplate"
+              size={16}
+              className="layout-empty-icon"
+            />
+            {/* Unfiltered, only My templates can be empty. */}
+            {chip === 'all'
+              ? 'No templates yet. Save a spread you like.'
+              : 'No layouts match.'}
+          </p>
+        )}
         <p className="layout-muted layout-caption m-0" data-testid="tpl-hint">
           Hover a layout to preview it on the spread; click to apply. Photos are
           kept in order.
