@@ -17,6 +17,7 @@
 | `src/editor/layoutThumb.test.ts`           | unit            |
 | `src/editor/LayoutSection.picker.test.tsx` | unit            |
 | `e2e/design-r2-layout-picker.spec.ts`      | e2e             |
+| `e2e/design-r7-panels.spec.ts`             | e2e             |
 | `docs/roadmap.md`                          | title           |
 | `docs/roadmap/P2/layout-tile-states.md`    | scope           |
 
