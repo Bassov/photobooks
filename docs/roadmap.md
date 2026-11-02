@@ -85,6 +85,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [remove-cursor-support](roadmap/P2/remove-cursor-support.md) — Bug: /next-roadmap-item remove-cursor-support
 - [ ] [feature] [parent-spreads-inspector](roadmap/P2/parent-spreads-inspector.md) — parent spreads: master inspector (grid, guides, items)
 - [x] [feature] [parent-spreads-perf](roadmap/P2/parent-spreads-perf.md) — parent spreads: edit perf gate
+- [ ] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: /next-roadmap-item kit-sync-inspector
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
