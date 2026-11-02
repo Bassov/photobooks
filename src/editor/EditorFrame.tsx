@@ -16,6 +16,8 @@ import {
   subscribeEditorTool,
   type EditorTool,
 } from './editorToolStore'
+import { FrameContextMenu } from './FrameContextMenu'
+import { installArrangeKeys } from './frameArrange'
 import { installEditorChromeKeys } from './installEditorChromeKeys'
 import { installEditorGridKeys } from './installEditorGridKeys'
 import { installEditorRotateKeys } from './installEditorRotateKeys'
@@ -93,11 +95,13 @@ export function EditorFrame({
     const offTool = installEditorToolKeys()
     const offGrid = installEditorGridKeys()
     const offRotate = installEditorRotateKeys()
+    const offArrange = installArrangeKeys()
     return () => {
       offChrome()
       offTool()
       offGrid()
       offRotate()
+      offArrange()
     }
   }, [setPn])
 
@@ -202,6 +206,7 @@ export function EditorFrame({
         </div>
         {overlay}
       </div>
+      <FrameContextMenu />
     </div>
   )
 }

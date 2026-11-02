@@ -70,7 +70,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ### 0 · Prep
 
-- `pnpm -s agent preflight` [`--slug <slug>`]: run card as text; `--json` is the full machine record (launcher only, or Grep a field from a redirect). Headless: the launcher preloads the env — **do not** `source scripts/agent-env.sh` (interactive shells still source it once).
+- `pnpm -s agent preflight` [`--slug <slug>`]: compact text run card (≤40 lines: goal clipped, skips counted, artifact rules via `pnpm -s agent instructions <id>`); `--verbose` prints the full text card; `--json` is the full machine record (launcher only, or Grep a field from a redirect). Headless: the launcher preloads the env — **do not** `source scripts/agent-env.sh` (interactive shells still source it once).
 - Shell hygiene (each of these is a permission denial otherwise; deny rules stay as they are):
   - Scratch files go under `.cache/agent/` (gitignored; `Write` creates it, or `mkdir -p .cache/agent`), never `/tmp`.
   - No `timeout` wrapper on any command (`stryker:diff`, dev-server waits, scripts), and no `sh -c` / `until … sleep` polling loops; the Bash tool `timeout` is the limit. To wait for a background dev server, check its log with `Grep` (e.g. for `Local`) and retry in a later call.
