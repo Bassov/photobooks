@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: a photo in a frame is stretched instead of cover-cropped
+Status: done
 
 ## Scope
 
