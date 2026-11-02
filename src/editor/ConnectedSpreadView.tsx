@@ -189,7 +189,8 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       control.cropActive = true
       control.cropZoom = cropZoomOf(spreadId, item.frameId)
     }
-    if (filled) {
+    // A locked frame keeps its photo: no drag to swap or unplace.
+    if (filled && item.locked !== true) {
       control.onDragStart = (event) => {
         event.dataTransfer.setData(FRAME_DRAG_MIME, encodeFrameDrag(frame))
         event.dataTransfer.effectAllowed = 'move'

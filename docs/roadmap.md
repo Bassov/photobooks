@@ -66,19 +66,20 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 **Review cut:** features removed or held in kit v0.10 come back one by one; items whose UI is in the kit sandbox carry sandbox refs (`rulers`, `guides`, `dpi-badge`, `text-blocks`, `live-captions`, `parent-guides`, `parent-overrides`, `page-numbers`); P1 `kit10-demo-expose-hidden` makes the hidden ones visible in `#/demo`. Only UI absent from the sandbox stays held in `docs/backlog/` until Designer adds the kit page. Owner and Designer decide the order.
 
 - [x] [feature] [framestyle-arrange-unhide](roadmap/P2/framestyle-arrange-unhide.md) — Show Frame style and Arrange in the Photo inspector again, kit look (M78)
-- [ ] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
+- [x] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
 - [ ] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
 - [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
-- [ ] [feature] [filmstrip-stuck-thumbs](roadmap/P2/filmstrip-stuck-thumbs.md) — Bug: after a fling back and forth some filmstrip tiles never get a thumb
+- [x] [feature] [filmstrip-stuck-thumbs](roadmap/P2/filmstrip-stuck-thumbs.md) — Bug: after a fling back and forth some filmstrip tiles never get a thumb
 - [x] [feature] [warm-slice-scheduler-loaf](roadmap/P2/warm-slice-scheduler-loaf.md) — Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
 - [x] [feature] [layout-picker-simplify](roadmap/P2/layout-picker-simplify.md) — Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
 - [ ] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
 - [ ] [feature] [kit-sync-book](roadmap/P2/kit-sync-book.md) — Kit sync W4: pastedown caption, cover inspector, library card title
+- [ ] [lite] [rig-bump-0-2-21](roadmap/P2/rig-bump-0-2-21.md) — rig-bump-0-2-21: bump ts-agent-rig to v0.2.21 (compact preflight run card)
 - [ ] [feature] [remove-cursor-support](roadmap/P2/remove-cursor-support.md) — Bug: /next-roadmap-item remove-cursor-support
 - [ ] [feature] [parent-spreads-inspector](roadmap/P2/parent-spreads-inspector.md) — parent spreads: master inspector (grid, guides, items)
 - [ ] [feature] [parent-spreads-perf](roadmap/P2/parent-spreads-perf.md) — parent spreads: edit perf gate
