@@ -4,14 +4,16 @@ import {
   CURRENT_SCHEMA_VERSION,
   defaultCover,
   defaultEndpapers,
-  editableSpread,
   bookHasAnyPlacement,
+  PARENT_SPREAD_INDEX,
+  parentAsSpread,
   placementCountByAsset,
   resolveSpread,
   spreadParent,
   type Asset,
   type Book,
   type BookOp,
+  type ParentSpread,
   type ResolvedSpread,
   type Spread,
 } from '../core'
@@ -120,12 +122,8 @@ let state: BookStoreState = {
 const listeners = new Set<Listener>()
 const spreadListeners = new Map<string, Set<Listener>>()
 
-interface CachedSpreadPaint extends SpreadPaintSnapshot {
-  spread: Spread
-  inputKey: string
-}
-
-const paintCache = new Map<string, CachedSpreadPaint>()
+/** Only `notifyAffectedSpreads` drops entries: every state transition runs it. */
+const paintCache = new Map<string, SpreadPaintSnapshot>()
 let assetSeq = 0
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
@@ -969,19 +967,8 @@ function sessionPixelSize(
 export function getSpreadPaintSnapshot(
   spreadId: string,
 ): SpreadPaintSnapshot | undefined {
-  // A parent id paints the parent (Masters canvas and list).
-  const spread = editableSpread(state.book, spreadId)?.spread
-  if (spread === undefined) {
-    return undefined
-  }
-  const inputKey = paintInputKey(
-    state.book,
-    spread,
-    state.sessionMeta,
-    state.previewUrls,
-  )
   const cached = paintCache.get(spreadId)
-  if (cached?.spread === spread && cached.inputKey === inputKey) {
+  if (cached !== undefined) {
     return cached
   }
   const urls = state.previewUrls
@@ -993,9 +980,7 @@ export function getSpreadPaintSnapshot(
   if (resolved === undefined) {
     return undefined
   }
-  const next: CachedSpreadPaint = {
-    spread,
-    inputKey,
+  const next: SpreadPaintSnapshot = {
     resolved,
     previewUrlFor: (assetId) => urls.get(assetId),
   }
@@ -1031,22 +1016,70 @@ export function getSpreadIdsSnapshot(): readonly string[] {
   return spreadIdsSnapshot
 }
 
+/** What an id paints from: the spread (or parent view), its parent and index. */
+interface PaintSource {
+  spread: Spread
+  parent: ParentSpread | undefined
+  index: number
+}
+
+const paintSourcesByBook = new WeakMap<Book, ReadonlyMap<string, PaintSource>>()
+
+/** Every paintable id of the book, built once per book object (O(spreads)). */
+function paintSources(book: Book): ReadonlyMap<string, PaintSource> {
+  const cached = paintSourcesByBook.get(book)
+  if (cached !== undefined) {
+    return cached
+  }
+  const sources = new Map<string, PaintSource>()
+  // A parent paints as itself on the Masters canvas and list; a spread with
+  // the same id wins, as in `editableSpread`.
+  for (const parent of book.parents ?? []) {
+    sources.set(parent.id, {
+      spread: parentAsSpread(parent),
+      parent: undefined,
+      index: PARENT_SPREAD_INDEX,
+    })
+  }
+  book.spreads.forEach((spread, index) => {
+    sources.set(spread.id, {
+      spread,
+      parent: spreadParent(book, spread),
+      index,
+    })
+  })
+  paintSourcesByBook.set(book, sources)
+  return sources
+}
+
+/** Inputs every spread paints with; when all are the same object, keys match. */
+function sharedPaintInputsSame(
+  prev: BookStoreState,
+  next: BookStoreState,
+): boolean {
+  return (
+    prev.sessionMeta === next.sessionMeta &&
+    prev.previewUrls === next.previewUrls &&
+    prev.book.settings === next.book.settings &&
+    prev.book.frameStyles === next.book.frameStyles &&
+    prev.book.assets === next.book.assets &&
+    prev.book.spreads.length === next.book.spreads.length
+  )
+}
+
+/** Shared paint inputs one source reads (its own objects compare by identity). */
 function paintInputKey(
   book: Book,
-  spread: Spread | undefined,
+  { spread, parent }: PaintSource,
   sessionMeta: BookStoreState['sessionMeta'],
   previewUrls: BookStoreState['previewUrls'],
 ): string {
-  if (spread === undefined) {
-    return ''
-  }
-  const index = book.spreads.indexOf(spread)
   const { trim, bleedMm, safeMarginMm } = book.settings
-  let key = `${String(index)}:${String(book.spreads.length)}:${String(trim.widthMm)}:${String(trim.heightMm)}:${String(bleedMm)}:${String(safeMarginMm)}`
+  let key = `${String(book.spreads.length)}:${String(trim.widthMm)}:${String(trim.heightMm)}:${String(bleedMm)}:${String(safeMarginMm)}`
   key += `:${book.settings.pageColor ?? ''}`
   // Parent-layer frames paint on the spread too (their photos need previews).
   const layers = [
-    spreadParent(book, spread)?.frames ?? [],
+    parent?.frames ?? [],
     spread.parentOverrides?.frames ?? [],
     spread.frames,
   ]
@@ -1081,43 +1114,39 @@ function notifySpread(spreadId: string): void {
   }
 }
 
+/**
+ * Parents are immutable, so the parent object is its revision: a parent edit
+ * repaints only the parent and the spreads using it.
+ */
+function paintChanged(
+  prev: BookStoreState,
+  next: BookStoreState,
+  before: PaintSource | undefined,
+  after: PaintSource | undefined,
+  sharedSame: boolean,
+): boolean {
+  if (before === undefined || after === undefined) {
+    return true
+  }
+  return (
+    before.spread !== after.spread ||
+    before.parent !== after.parent ||
+    before.index !== after.index ||
+    (!sharedSame &&
+      paintInputKey(prev.book, before, prev.sessionMeta, prev.previewUrls) !==
+        paintInputKey(next.book, after, next.sessionMeta, next.previewUrls))
+  )
+}
+
 function notifyAffectedSpreads(
   prev: BookStoreState,
   next: BookStoreState,
 ): void {
-  const ids = new Set<string>()
-  for (const book of [prev.book, next.book]) {
-    for (const spread of book.spreads) {
-      ids.add(spread.id)
-    }
-    // A parent paints as itself on the Masters canvas and list.
-    book.parents?.forEach((parent) => ids.add(parent.id))
-  }
-  for (const id of ids) {
-    const before = editableSpread(prev.book, id)?.spread
-    const after = editableSpread(next.book, id)?.spread
-    // Only spreads whose parent object changed repaint for a parent edit.
-    const parentBefore =
-      before === undefined ? undefined : spreadParent(prev.book, before)
-    const parentAfter =
-      after === undefined ? undefined : spreadParent(next.book, after)
-    const beforeKey = paintInputKey(
-      prev.book,
-      before,
-      prev.sessionMeta,
-      prev.previewUrls,
-    )
-    const afterKey = paintInputKey(
-      next.book,
-      after,
-      next.sessionMeta,
-      next.previewUrls,
-    )
-    if (
-      before !== after ||
-      parentBefore !== parentAfter ||
-      beforeKey !== afterKey
-    ) {
+  const before = paintSources(prev.book)
+  const after = paintSources(next.book)
+  const sharedSame = sharedPaintInputsSame(prev, next)
+  for (const id of new Set([...before.keys(), ...after.keys()])) {
+    if (paintChanged(prev, next, before.get(id), after.get(id), sharedSame)) {
       paintCache.delete(id)
       notifySpread(id)
     }
