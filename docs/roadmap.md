@@ -72,8 +72,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
 - [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
-- [ ] [feature] [warm-slice-scheduler-loaf](roadmap/P2/warm-slice-scheduler-loaf.md) — Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
-- [ ] [feature] [layout-picker-simplify](roadmap/P2/layout-picker-simplify.md) — Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
+- [x] [feature] [warm-slice-scheduler-loaf](roadmap/P2/warm-slice-scheduler-loaf.md) — Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
+- [x] [feature] [layout-picker-simplify](roadmap/P2/layout-picker-simplify.md) — Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
 - [ ] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
