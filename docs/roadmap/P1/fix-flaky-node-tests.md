@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P1
 Title: Bug: fix-flaky-node-tests: make 2 flaky node tests deterministic (root cause, no loosening)
+Status: done
 
 ## Scope
 
@@ -11,3 +12,7 @@ Title: Bug: fix-flaky-node-tests: make 2 flaky node tests deterministic (root ca
 - [ ] Photobooks pins the rig tag with both fixes; drop the moved `testdata/test-weakening-inventory/` and its eslint ignore
 - **Done when:** root cause per flake named with CI evidence; before/after 200-run loops (sequential and under parallel load) show 0/200 after for both tests from any cwd; no retries, raised timeouts, skips or weakened asserts; photobooks pins the tagged rig
 - **Browser check:** N/A (test harness only)
+
+## Done note
+
+done: shipped in #351 (a165fd2): rig v0.2.20 pinned (package.json:74), testdata/test-weakening-inventory removed; closed by roadmap-audit
