@@ -56,7 +56,10 @@ test('the inspector is open on a fresh editor with the Spread context and Layout
     'true',
   )
   await expect(page.getByTestId('tab-mine')).toBeVisible()
-  await expect(page.getByTestId('layout-search')).toBeVisible()
+  // Owner 2026-11-02: no search field.
+  await expect(
+    page.getByTestId('layout-section').getByRole('searchbox'),
+  ).toHaveCount(0)
   await expect(page.getByTestId('tpl-chips')).toBeVisible()
   await expect(page.getByTestId('tpl-hint')).toBeVisible()
 })
@@ -96,28 +99,24 @@ test('the panel toggle alone hides and restores the inspector (M1)', async ({
   await expect(context(page)).toHaveText('Spread')
 })
 
-test('layout picker filters by photo count and search, and suggests layouts (M2)', async ({
+test('layout picker filters by photo count in one list (M2, Owner 2026-11-02)', async ({
   page,
 }) => {
-  // uikit/src/sandbox/context-inspector.tsx:163-195.
+  // uikit/src/sandbox/context-inspector.tsx:163-195, minus search / Suggested.
   const tiles = page.getByTestId('layout-tile')
   await expect(tiles).toHaveCount(10)
   await page.getByTestId('tpl-chips').locator('[data-chip="1"]').click()
   await expect(tiles.first()).toHaveAttribute('data-template', 'full-bleed')
   await expect(tiles).not.toHaveCount(10)
-  await page.getByTestId('tpl-chips').locator('[data-chip="all"]').click()
-  await page.getByTestId('layout-search').fill('grid')
+  await page.getByTestId('tpl-chips').locator('[data-chip="4"]').click()
   await expect(tiles).toHaveCount(1)
   await expect(layoutTile(page, 'Hero + grid')).toBeVisible()
-  await page.getByTestId('layout-search').fill('zzz')
-  await expect(page.getByTestId('tpl-empty')).toHaveText('No layouts match.')
-  await page.getByTestId('layout-search').fill('')
+  await page.getByTestId('tpl-chips').locator('[data-chip="all"]').click()
   await page.getByTestId('tab-mine').click()
   await expect(page.getByTestId('tpl-empty')).toBeVisible()
   await page.getByTestId('tab-all').click()
-  await expect(page.getByTestId('tpl-suggested')).toContainText(
-    /Suggested for \d+ photos?/,
-  )
+  await expect(tiles).toHaveCount(10)
+  await expect(page.getByTestId('tpl-suggested')).toHaveCount(0)
 })
 
 test('dropping a photo selects the frame and opens the Photo inspector (M4)', async ({

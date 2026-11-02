@@ -1,102 +1,167 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  getSelectedAssetId,
-  getSelectedAssetIds,
-  resetGallerySelection,
-  setSelectedAssetIds,
-} from './gallerySelection'
-import {
-  applyFilmstripSelectionChange,
-  filmstripSelectionHandler,
-  matchingSelection,
+  filmstripNavTarget,
+  isFilmstripNavKey,
+  navigateFilmstrip,
+  pickFilmstripItem,
+  selectAllFilmstrip,
+  type FilmstripSelectionInput,
 } from './filmstripSelection'
 
-const keysOf = (...values: unknown[]) => ({
-  values: () => values[Symbol.iterator](),
-})
+const order = ['a', 'b', 'c', 'd', 'e']
+const plain = { shift: false, toggle: false }
+const shift = { shift: true, toggle: false }
+const toggle = { shift: false, toggle: true }
 
-describe('applyFilmstripSelectionChange', () => {
-  afterEach(() => {
-    resetGallerySelection()
+function input(
+  selected: readonly string[],
+  anchor: string | null,
+): FilmstripSelectionInput {
+  return { order, selected, anchor }
+}
+
+describe('pickFilmstripItem', () => {
+  it('replaces the selection on a plain click and anchors there', () => {
+    expect(pickFilmstripItem(input(['a', 'b'], 'a'), 'd', plain)).toEqual({
+      ids: ['d'],
+      primary: 'd',
+      anchor: 'd',
+    })
   })
 
-  it('selects every view id for the all-keys sentinel', () => {
-    const setSelected = vi.fn()
-    applyFilmstripSelectionChange('all', setSelected, ['a', 'b', 'c'], [])
-    expect(setSelected).toHaveBeenCalledWith(['a', 'b', 'c'], 'c')
-    applyFilmstripSelectionChange('all', setSelected, [], [])
-    expect(setSelected).toHaveBeenLastCalledWith([], null)
+  it('selects the anchor→id range in view order on Shift, either way', () => {
+    expect(pickFilmstripItem(input(['b'], 'b'), 'd', shift)).toEqual({
+      ids: ['b', 'c', 'd'],
+      primary: 'd',
+      anchor: 'b',
+    })
+    expect(pickFilmstripItem(input(['d'], 'd'), 'a', shift)).toEqual({
+      ids: ['a', 'b', 'c', 'd'],
+      primary: 'a',
+      anchor: 'd',
+    })
+    expect(pickFilmstripItem(input(['c'], 'c'), 'c', shift).ids).toEqual(['c'])
+    expect(pickFilmstripItem(input(['a'], 'a'), 'c', shift).ids).toEqual([
+      'a',
+      'b',
+      'c',
+    ])
   })
 
-  it('selects a string asset id from a key set', () => {
-    const setSelected = vi.fn()
-    applyFilmstripSelectionChange(keysOf('asset-1'), setSelected, [], [])
-    expect(setSelected).toHaveBeenCalledWith(['asset-1'], 'asset-1')
+  it('falls back to a plain pick on Shift without a usable anchor', () => {
+    const fresh = { ids: ['c'], primary: 'c', anchor: 'c' }
+    expect(pickFilmstripItem(input([], null), 'c', shift)).toEqual(fresh)
+    expect(pickFilmstripItem(input(['x'], 'x'), 'c', shift)).toEqual(fresh)
+    expect(pickFilmstripItem(input(['a'], 'a'), 'gone', shift).ids).toEqual([
+      'gone',
+    ])
   })
 
-  it('picks the newly added key as primary', () => {
-    const setSelected = vi.fn()
-    applyFilmstripSelectionChange(
-      keysOf('a', 'b', 'c'),
-      setSelected,
-      [],
-      ['a', 'c'],
+  it('adds an unselected photo on Ctrl / Meta and makes it primary', () => {
+    expect(pickFilmstripItem(input(['a'], 'a'), 'c', toggle)).toEqual({
+      ids: ['a', 'c'],
+      primary: 'c',
+      anchor: 'c',
+    })
+  })
+
+  it('removes a selected photo on Ctrl / Meta; primary is the last left', () => {
+    expect(pickFilmstripItem(input(['a', 'b', 'c'], 'a'), 'b', toggle)).toEqual(
+      { ids: ['a', 'c'], primary: 'c', anchor: 'b' },
     )
-    expect(setSelected).toHaveBeenCalledWith(['a', 'b', 'c'], 'b')
-  })
-
-  it('falls back to the last key when nothing was added', () => {
-    const setSelected = vi.fn()
-    applyFilmstripSelectionChange(
-      keysOf('a', 'b'),
-      setSelected,
-      [],
-      ['a', 'b', 'c'],
-    )
-    expect(setSelected).toHaveBeenCalledWith(['a', 'b'], 'b')
-  })
-
-  it('drops non-string keys and clears on an empty set', () => {
-    const setSelected = vi.fn()
-    applyFilmstripSelectionChange(keysOf(42), setSelected, [], [])
-    expect(setSelected).toHaveBeenCalledWith([], null)
+    expect(pickFilmstripItem(input(['b'], 'b'), 'b', toggle)).toEqual({
+      ids: [],
+      primary: null,
+      anchor: 'b',
+    })
   })
 })
 
-describe('filmstripSelectionHandler', () => {
-  afterEach(() => {
-    resetGallerySelection()
-  })
-
-  it('writes the store, remembers the raw selection and diffs against it', () => {
-    const remember = vi.fn()
-    const handler = filmstripSelectionHandler(['x', 'y', 'z'], remember)
-    setSelectedAssetIds(['x'])
-    const range = new Set(['x', 'y', 'z'])
-    handler(range)
-    expect(remember).toHaveBeenCalledWith(range)
-    expect(getSelectedAssetIds()).toEqual(['x', 'y', 'z'])
-    expect(getSelectedAssetId()).toBe('z')
-    handler('all')
-    expect(getSelectedAssetIds()).toEqual(['x', 'y', 'z'])
-    handler(new Set())
-    expect(getSelectedAssetId()).toBeNull()
-    expect(getSelectedAssetIds()).toEqual([])
+describe('selectAllFilmstrip', () => {
+  it('selects the whole view and keeps the anchor', () => {
+    expect(selectAllFilmstrip(input(['b'], 'b'))).toEqual({
+      ids: order,
+      primary: 'e',
+      anchor: 'b',
+    })
+    expect(
+      selectAllFilmstrip({ order: [], selected: [], anchor: null }).primary,
+    ).toBeNull()
   })
 })
 
-describe('matchingSelection', () => {
-  it('hands back the raw selection while it matches the store ids', () => {
-    const raw = new Set(['a', 'b'])
-    expect(matchingSelection(raw, ['b', 'a'])).toBe(raw)
+describe('filmstripNavTarget', () => {
+  it('steps one row and clamps at both ends', () => {
+    expect(filmstripNavTarget(order, 'c', 'ArrowRight')).toBe('d')
+    expect(filmstripNavTarget(order, 'c', 'ArrowLeft')).toBe('b')
+    expect(filmstripNavTarget(order, 'e', 'ArrowRight')).toBe('e')
+    expect(filmstripNavTarget(order, 'a', 'ArrowLeft')).toBe('a')
   })
 
-  it('falls back to the ids for no, all, or a different selection', () => {
-    const ids = ['a', 'b']
-    expect(matchingSelection(null, ids)).toBe(ids)
-    expect(matchingSelection('all', ids)).toBe(ids)
-    expect(matchingSelection(new Set(['a']), ids)).toBe(ids)
-    expect(matchingSelection(new Set(['a', 'c']), ids)).toBe(ids)
-    expect(matchingSelection(new Set(['a', 'b', 'c']), ids)).toBe(ids)
+  it('jumps to the first / last row on Home / End', () => {
+    expect(filmstripNavTarget(order, 'c', 'Home')).toBe('a')
+    expect(filmstripNavTarget(order, 'c', 'End')).toBe('e')
+  })
+
+  it('starts from the first row without a focused one (End: last)', () => {
+    expect(filmstripNavTarget(order, null, 'ArrowRight')).toBe('a')
+    expect(filmstripNavTarget(order, 'gone', 'ArrowLeft')).toBe('a')
+    expect(filmstripNavTarget(order, null, 'End')).toBe('e')
+  })
+
+  it('has no target in an empty view', () => {
+    expect(filmstripNavTarget([], 'a', 'Home')).toBeNull()
+    expect(filmstripNavTarget([], 'a', 'End')).toBeNull()
+    expect(filmstripNavTarget([], null, 'ArrowRight')).toBeNull()
+    expect(filmstripNavTarget([], null, 'ArrowLeft')).toBeNull()
+  })
+})
+
+describe('navigateFilmstrip', () => {
+  it('moves focus and selects the target', () => {
+    expect(
+      navigateFilmstrip(input(['b'], 'b'), 'b', 'ArrowRight', plain),
+    ).toEqual({
+      focus: 'c',
+      pick: { ids: ['c'], primary: 'c', anchor: 'c' },
+    })
+  })
+
+  it('extends from the anchor (else the focused row) on Shift', () => {
+    expect(
+      navigateFilmstrip(input(['b'], 'b'), 'c', 'ArrowRight', shift)?.pick?.ids,
+    ).toEqual(['b', 'c', 'd'])
+    expect(
+      navigateFilmstrip(input([], null), 'c', 'ArrowRight', shift)?.pick,
+    ).toEqual({ ids: ['c', 'd'], primary: 'd', anchor: 'c' })
+  })
+
+  it('moves focus only on Ctrl / Meta', () => {
+    expect(navigateFilmstrip(input(['b'], 'b'), 'b', 'End', toggle)).toEqual({
+      focus: 'e',
+      pick: null,
+    })
+  })
+
+  it('does nothing in an empty view', () => {
+    expect(
+      navigateFilmstrip(
+        { order: [], selected: [], anchor: null },
+        null,
+        'Home',
+        plain,
+      ),
+    ).toBeNull()
+  })
+})
+
+describe('isFilmstripNavKey', () => {
+  it('accepts arrows left / right, Home and End only', () => {
+    for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) {
+      expect(isFilmstripNavKey(key)).toBe(true)
+    }
+    for (const key of ['ArrowUp', 'ArrowDown', 'Enter', ' ', 'a']) {
+      expect(isFilmstripNavKey(key)).toBe(false)
+    }
   })
 })

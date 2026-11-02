@@ -242,6 +242,10 @@ test.describe('design-r10-chrome (M58 / M62 / M63)', () => {
   }) => {
     await openLibrary(page)
     await createBook(page)
+    // Owner 2026-11-02: only My templates keep a caption; save one to measure.
+    await page.getByTestId('tpl-save').click()
+    await page.getByTestId('tpl-rename-input').press('Enter')
+    await page.getByTestId('tab-all').click()
     const captions = page.locator(
       ".layout-tile:not([aria-pressed='true']) .layout-tile-name",
     )

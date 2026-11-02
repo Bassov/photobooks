@@ -62,6 +62,28 @@ export function makePainterFixture(): PainterFixture {
     }
   }
 
+  // Kit Masters A / B; no default, so no spread paints a parent until applied.
+  // Master A's one item is a logo in the top margin, clear of the 4-grid frames.
+  book = {
+    ...book,
+    parents: [
+      {
+        id: 'painter-parent-a',
+        name: 'Master A',
+        frames: [
+          {
+            id: 'painter-parent-logo',
+            rect: { x: 20, y: 4, width: 24, height: 8 },
+            z: 1,
+            assetId: 'painter-c',
+          },
+        ],
+        guides: [],
+      },
+      { id: 'painter-parent-b', name: 'Master B', frames: [], guides: [] },
+    ],
+  }
+
   const previewUrls = new Map<string, string>()
   for (let index = 0; index < PAINTER_ASSET_IDS.length; index += 1) {
     const assetId = PAINTER_ASSET_IDS[index]

@@ -53,6 +53,10 @@ export function folderSkippedStatusText(skipped: number): string {
     : `${String(skipped)} non-image files skipped`
 }
 
+/** Folder imported but its handle/binding could not be written to IDB. */
+export const PHOTO_FOLDER_NOT_REMEMBERED_STATUS =
+  'Photos added; the folder will need to be added again after reload'
+
 export interface ChromeImportApi {
   onChoosePhotoFolder: () => Promise<void>
   /** Desktop folder dropped on the filmstrip; same path as Choose folder. */
@@ -131,10 +135,21 @@ export function useChromeImport(options: {
         sourceRootId,
         createFsaAssetSource({ rootId: sourceRootId, directory }),
       )
+      let rootPersist: Promise<boolean> | null = null
+      const persistRoot = (): Promise<boolean> => {
+        rootPersist ??= (async () => {
+          await priorRootCleared
+          const remembered = await persistBoundPhotoFolder(
+            sourceRootId,
+            directory,
+          )
+          registerBoundPhotoFolderSource(sourceRootId, directory)
+          return remembered
+        })()
+        return rootPersist
+      }
       const persistRootAfterFirstBatch = async (): Promise<void> => {
-        await priorRootCleared
-        await persistBoundPhotoFolder(sourceRootId, directory)
-        registerBoundPhotoFolderSource(sourceRootId, directory)
+        await persistRoot()
       }
       try {
         let result
@@ -216,16 +231,15 @@ export function useChromeImport(options: {
           knownFiles?.length ?? result.imported + result.skipped,
         )
       } finally {
-        // Idempotent if onFirstBatchYielded already persisted for mid-import reload.
-        await priorRootCleared
-        await persistBoundPhotoFolder(sourceRootId, directory)
-        registerBoundPhotoFolderSource(sourceRootId, directory)
+        // No-op when onFirstBatchYielded already persisted for mid-import reload.
+        if (!(await persistRoot())) {
+          setEditorStatus(PHOTO_FOLDER_NOT_REMEMBERED_STATUS)
+        }
       }
     } catch (error) {
-      if (earlyProgress) {
-        setImportRunning(false)
-        options.onImportProgress(null)
-      }
+      // Any abort (not only replace) must not leave "Importing x / y" up.
+      setImportRunning(false)
+      options.onImportProgress(null)
       throw error
     } finally {
       setPickerBusy(false)

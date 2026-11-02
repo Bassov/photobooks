@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type Book,
   type Frame,
+  CURRENT_SCHEMA_VERSION,
   migrateToCurrent,
   parseBook,
   resolveTextItems,
@@ -67,7 +68,10 @@ describe('v5 to v6', () => {
       spreads: 'none',
     })
     assert.equal(result.ok, true)
-    expect(result.value).toMatchObject({ schemaVersion: 9, spreads: 'none' })
+    expect(result.value).toMatchObject({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      spreads: 'none',
+    })
   })
 
   it('parses into a valid current book', () => {

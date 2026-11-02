@@ -14,6 +14,8 @@ export interface DisclosureProps {
   defaultExpanded?: boolean
   /** Muted value at the trigger's end, shown only while collapsed. */
   summary?: string | undefined
+  /** Muted " · note" right after the title, shown expanded and collapsed. */
+  note?: string | undefined
   /** Header action(s) right of the trigger, shown only while expanded. */
   right?: ReactNode
   'data-testid'?: string
@@ -27,6 +29,7 @@ export function Disclosure({
   title,
   defaultExpanded = false,
   summary,
+  note,
   right,
   'data-testid': dataTestId,
   'data-crop-keep': cropKeep,
@@ -42,6 +45,10 @@ export function Disclosure({
     >
       {({ isExpanded }) => {
         const summarized = !isExpanded && summary !== undefined
+        const described = [
+          ...(note === undefined ? [] : [`${id}-note`]),
+          ...(summarized ? [`${id}-summary`] : []),
+        ]
         return (
           <>
             <div className="pb-disclosure__header">
@@ -51,8 +58,8 @@ export function Disclosure({
                   slot="trigger"
                   className="pb-disclosure__trigger"
                   aria-labelledby={`${id}-title`}
-                  {...(summarized
-                    ? { 'aria-describedby': `${id}-summary` }
+                  {...(described.length > 0
+                    ? { 'aria-describedby': described.join(' ') }
                     : {})}
                 >
                   <Icon
@@ -63,6 +70,19 @@ export function Disclosure({
                   <span id={`${id}-title`} className="inspector-eyebrow">
                     {title}
                   </span>
+                  {note === undefined ? null : (
+                    <span
+                      id={`${id}-note`}
+                      className="pb-disclosure__note"
+                      data-testid={
+                        dataTestId === undefined
+                          ? undefined
+                          : `${dataTestId}-note`
+                      }
+                    >
+                      · {note}
+                    </span>
+                  )}
                   {summarized ? (
                     <span
                       id={`${id}-summary`}

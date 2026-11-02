@@ -27,7 +27,7 @@ vi.mock('./photoRootSession', async (original) => {
           })
         : real.getPhotoRootSessionSnapshot(),
     bindPhotoFolder: () => Promise.resolve({ sourceRootId: 'root-test' }),
-    persistBoundPhotoFolder: () => Promise.resolve(),
+    persistBoundPhotoFolder: () => Promise.resolve(true),
     registerBoundPhotoFolderSource: () => undefined,
     clearBoundPhotoFolderForReplace: () => Promise.resolve(),
   }

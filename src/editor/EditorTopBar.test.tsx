@@ -63,7 +63,7 @@ function stubFolderPick(files: File[]): FileSystemDirectoryHandle {
   vi.spyOn(photoRootSession, 'bindPhotoFolder').mockResolvedValue({
     sourceRootId: 'root-test',
   })
-  vi.spyOn(photoRootSession, 'persistBoundPhotoFolder').mockResolvedValue()
+  vi.spyOn(photoRootSession, 'persistBoundPhotoFolder').mockResolvedValue(true)
   vi.spyOn(
     photoRootSession,
     'registerBoundPhotoFolderSource',
@@ -520,7 +520,9 @@ describe('EditorTopBar', () => {
     vi.spyOn(photoRootSession, 'bindPhotoFolder').mockResolvedValue({
       sourceRootId: 'root-test',
     })
-    vi.spyOn(photoRootSession, 'persistBoundPhotoFolder').mockResolvedValue()
+    vi.spyOn(photoRootSession, 'persistBoundPhotoFolder').mockResolvedValue(
+      true,
+    )
     vi.spyOn(
       photoRootSession,
       'registerBoundPhotoFolderSource',

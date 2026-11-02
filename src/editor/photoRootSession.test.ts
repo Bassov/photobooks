@@ -142,6 +142,53 @@ describe('photoRootSession bind/restore', () => {
     })
   })
 
+  it('persistBoundPhotoFolder keeps the session binding when IDB writes fail', async () => {
+    const directory = createFakeBrowserDirectory({ name: 'Unsaved' })
+    const { sourceRootId } = await bindPhotoFolder({
+      directory,
+      persist: false,
+      registerSource: false,
+    })
+    const bindBook = vi.spyOn(sourceRootHandles, 'setBookPhotoRoot')
+    vi.spyOn(sourceRootHandles, 'rememberSourceRootHandle').mockResolvedValue({
+      ok: false,
+      code: 'storage-unavailable',
+    })
+
+    await expect(
+      persistBoundPhotoFolder(sourceRootId, directory),
+    ).resolves.toBe(false)
+
+    expect(bindBook).not.toHaveBeenCalled()
+    expect(getPhotoRootSessionSnapshot()).toMatchObject({
+      hasPhotoFolder: true,
+      photoFolderLabel: 'Unsaved',
+      photoAccessPhase: 'idle',
+    })
+  })
+
+  it('persistBoundPhotoFolder reports a failed book binding write', async () => {
+    const directory = createFakeBrowserDirectory({ name: 'Half' })
+    const { sourceRootId } = await bindPhotoFolder({
+      directory,
+      persist: false,
+      registerSource: false,
+    })
+    vi.spyOn(sourceRootHandles, 'rememberSourceRootHandle').mockResolvedValue({
+      ok: true,
+      value: undefined,
+    })
+    vi.spyOn(sourceRootHandles, 'setBookPhotoRoot').mockResolvedValue({
+      ok: false,
+      code: 'storage-unavailable',
+    })
+
+    await expect(
+      persistBoundPhotoFolder(sourceRootId, directory),
+    ).resolves.toBe(false)
+    expect(getPhotoRootSessionSnapshot().photoFolderLabel).toBe('Half')
+  })
+
   it('restore with prompt then regrant rehydrates session files', async () => {
     const directory = createFakeBrowserDirectory({
       name: 'Trip',

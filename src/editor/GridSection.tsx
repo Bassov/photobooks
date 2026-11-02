@@ -5,6 +5,7 @@ import {
   GRID_COUNT_MIN,
   effectiveGrid,
   hasGridOverride,
+  spreadParent,
   type Book,
   type GridField,
   type Spread,
@@ -107,11 +108,14 @@ function BookGridSection() {
 }
 
 /** Kit spread grid name (context-inspector.tsx:222): master or book grid. */
-function gridOwner(spread: Spread): { name: string; source: string } {
-  const masterId = spread.masterId ?? 'A'
-  return masterId === 'none'
+function gridOwner(
+  book: Book,
+  spread: Spread,
+): { name: string; source: string } {
+  const parent = spreadParent(book, spread)
+  return parent === undefined
     ? { name: 'Book grid', source: 'Use book' }
-    : { name: `Master ${masterId}`, source: 'Use master' }
+    : { name: parent.name, source: 'Use master' }
 }
 
 /**
@@ -129,7 +133,7 @@ function SpreadGridSection({ spreadId }: { spreadId: string | undefined }) {
   }
   const { values } = effectiveGrid(book, spread)
   const custom = hasGridOverride(spread) || customFor === spread.id
-  const owner = gridOwner(spread)
+  const owner = gridOwner(book, spread)
   return (
     <Disclosure
       title="Grid"

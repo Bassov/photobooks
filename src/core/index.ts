@@ -12,9 +12,7 @@ export {
   type Spread,
   type TextContent,
   type TextStyleId,
-  type SpreadMasterId,
   TEXT_STYLE_IDS,
-  SPREAD_MASTERS,
 } from './schema'
 export {
   isTextFrame,
@@ -36,7 +34,22 @@ export {
   SPINE_WIDTH_MIN_MM,
   type CoverStyle,
   type FrameAdjust,
+  PAGE_NUMBER_FORMATS,
+  type PageNumberFormat,
+  type PageNumberItem,
+  type PageNumbering,
+  type ParentOverrides,
+  type ParentSpread,
 } from './schema'
+export {
+  resolveParentFrames,
+  resolveParentGrid,
+  resolveParentGuides,
+  spreadParent,
+  type ParentLayer,
+  type ResolvedFrame,
+  type ResolvedGuide,
+} from './parentSpreads'
 export { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
 export {
   frameStylePresets,
@@ -121,7 +134,7 @@ export {
   spreadLayoutSlots,
   type LayoutSlotPct,
 } from './templates/custom'
-export { setSpreadBackground, setSpreadMaster } from './ops/spreadLook'
+export { setSpreadBackground, setSpreadParent } from './ops/spreadLook'
 
 export {
   addToGallery,

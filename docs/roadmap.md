@@ -47,6 +47,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r13-polish](roadmap/P1/design-r13-polish.md) — Bug: design-r13-polish: book menu position and Caption section height match the kit
 - [x] [feature] [design-r14-hide-framestyle](roadmap/P1/design-r14-hide-framestyle.md) — Bug: hide Frame style and Arrange in the Photo inspector (M78, Owner Q8)
 - [x] [feature] [roadmap-audit](roadmap/P1/roadmap-audit.md) — Bug: /next-roadmap-item roadmap-audit
+- [x] [feature] [import-relink-stall](roadmap/P1/import-relink-stall.md) — Bug: photo import stalls at 16 / 21 and a relink dialog opens during import
 - [x] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [x] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
 - [x] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates
@@ -54,6 +55,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [thumb-hot-cache](roadmap/P1/thumb-hot-cache.md) — Filmstrip: a thumb that loaded once never goes gray again
 - [x] [prep] [thumb-scaled-decode](roadmap/P1/thumb-scaled-decode.md) — Decode thumbs with ImageDecoder at reduced scale
 - [x] [feature] [thumb-bulk-hydrate](roadmap/P1/thumb-bulk-hydrate.md) — On book open, load all cached thumbs before the user scrolls
+- [x] [feature] [perf-gate-short-loaf](roadmap/P1/perf-gate-short-loaf.md) — Bug: /next-roadmap-item perf-gate-short-loaf
 - [x] [contingency] [thumb-pack-storage](roadmap/P1/thumb-pack-storage.md) — Store a folder's thumbs in one IndexedDB store (only if hydrate is slow)
 - [x] [feature] [thumb-background-warm](roadmap/P1/thumb-background-warm.md) — Thumbs for the whole folder in the background
 - [x] [feature] [thumb-warm-slice](roadmap/P1/thumb-warm-slice.md) — Bug: /next-roadmap-item thumb-warm-slice
@@ -69,8 +71,12 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
-- [ ] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
-- [ ] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
+- [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
+- [x] [feature] [warm-slice-scheduler-loaf](roadmap/P2/warm-slice-scheduler-loaf.md) — Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
+- [x] [feature] [layout-picker-simplify](roadmap/P2/layout-picker-simplify.md) — Simpler Layout picker in the spread inspector (Owner product decision 2026-11-02)
+- [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
+- [ ] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
+- [ ] [feature] [parent-spreads-perf](roadmap/P2/parent-spreads-perf.md) — parent spreads: edit perf gate
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent

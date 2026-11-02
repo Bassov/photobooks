@@ -83,7 +83,11 @@ function gridOverrides(spread: Spread | undefined): GridOverride[] {
   return spread?.layoutGrid === undefined ? [] : [spread.layoutGrid]
 }
 
-function mergeLevels(base: Grid, overrides: readonly GridOverride[]): Grid {
+/** `base` with each override level applied per field, later levels winning. */
+export function mergeGridLevels(
+  base: Grid,
+  overrides: readonly (GridOverride | undefined)[],
+): Grid {
   const pick = (field: GridField): number =>
     overrides.reduce(
       (value, level) => readOverrideField(level, field) ?? value,
@@ -108,7 +112,7 @@ export function mergeLayoutGrid(book: Book, spread?: Spread): Grid {
   const overrides = gridOverrides(spread)
   return overrides.length === 0
     ? book.layoutGrid
-    : mergeLevels(book.layoutGrid, overrides)
+    : mergeGridLevels(book.layoutGrid, overrides)
 }
 
 export function effectiveGrid(

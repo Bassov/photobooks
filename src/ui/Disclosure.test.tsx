@@ -70,6 +70,41 @@ describe('Disclosure', () => {
     expect(screen.queryByTestId('action')).toBeNull()
   })
 
+  it('shows a note after the title expanded and collapsed, describing the trigger', () => {
+    render(
+      <Disclosure
+        title="Layout"
+        defaultExpanded
+        note="One per page"
+        data-testid="layout"
+      >
+        <p>body</p>
+      </Disclosure>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Layout' })
+    const note = screen.getByTestId('layout-note')
+    expect(note.textContent).toBe('· One per page')
+    expect(note.className).toBe('pb-disclosure__note')
+    expect(trigger.getAttribute('aria-describedby')).toBe(note.id)
+    fireEvent.click(trigger)
+    expect(screen.getByTestId('layout-note').textContent).toBe('· One per page')
+  })
+
+  it('describes a collapsed trigger by its note and summary', () => {
+    render(
+      <Disclosure title="Grid" note="Custom" summary="Off">
+        <p>body</p>
+      </Disclosure>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Grid' })
+    const note = screen.getByText('· Custom')
+    const summary = screen.getByText('Off')
+    expect(note.getAttribute('data-testid')).toBeNull()
+    expect(trigger.getAttribute('aria-describedby')).toBe(
+      `${note.id} ${summary.id}`,
+    )
+  })
+
   it('renders a summary without a test id when the section has none', () => {
     render(
       <Disclosure title="Grid" summary="Off">

@@ -47,7 +47,7 @@ test('applying a layout tile in the Spread tab re-flows the spread', async ({
   await expect(tile).toHaveAttribute('aria-pressed', 'true')
   await expect(frames).toHaveCount(5)
   await toggleLayoutSection(page, false)
-  await expect(page.getByTestId('layout-summary')).toHaveText('Hero + grid')
+  await expect(page.getByTestId('layout-note')).toHaveText('· Hero + grid')
   await toggleLayoutSection(page, true)
   await page.getByRole('button', { name: 'Apply layout Full bleed' }).click()
   await expect(frames).toHaveCount(1)
@@ -60,8 +60,8 @@ test('a contact sheet applies from the Spread tab Layout section', async ({
   await openInspectorTab(page, 'spread')
   await page.getByTestId('layout-contact-apply').click()
   await toggleLayoutSection(page, false)
-  await expect(page.getByTestId('layout-summary')).toHaveText(
-    'Contact sheet 3×2',
+  await expect(page.getByTestId('layout-note')).toHaveText(
+    '· Contact sheet 3×2',
   )
 })
 
