@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: consistent frames across the book
+Status: done
 
 ## Scope
 
@@ -18,3 +19,7 @@ Title: consistent frames across the book
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
 - **Depends:** book-styles-schema
 - **UI kit:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); `FrameStyleSection`, `SpreadBgSection` (`uikit/src/sandbox/sections.tsx`)
+
+## Done note
+
+superseded: styles create/edit/apply (FrameStyleSection, editFrameStyle; #327, #336, #380) and spread background (SpreadSections.tsx BackgroundSection) ship on main; un-hiding them (#389 switch) moved to framestyle-arrange-unhide; closed by roadmap-audit

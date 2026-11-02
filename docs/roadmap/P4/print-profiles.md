@@ -16,3 +16,4 @@ Title: printer data
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit + PBT on the pure module; no e2e (no UI); perf scenario only where Scope names one
 - **Depends:** print-model-schema
+- **Audit 2026-11-02:** the effective-DPI function ships as `frameDpi` (`src/core/geometry/dpi.ts:21`, #317) with fixed `DPI_WARN` / `DPI_MIN`; reuse it and feed the thresholds from the profile.
