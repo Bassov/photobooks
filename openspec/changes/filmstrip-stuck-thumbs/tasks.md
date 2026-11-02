@@ -1,0 +1,11 @@
+## Implementation
+
+- [ ] 1. Tests first: e2e `e2e/filmstrip-stuck-thumbs.spec.ts` (fling during / after import of 1000 JPEGs, stop, walk) and unit `src/photo/assetPool.retry.test.ts`; both fail on `origin/main`
+- [ ] 2. Pool retry delivers to its owner (`onRetryResult`; import batch wires `onResult`)
+- [ ] 3. Retry seeds drop a stale aborted signal (pre-aborted call, deferred promotion); a retry for an asset already in now runs at once
+- [ ] 4. Only a same-tier decode clears a parked retry
+
+## Manual test scenarios
+
+1. Import a 1000-JPEG folder, fling the strip back and forth during the import, stop: every tile in view shows its thumb within 5 s.
+2. Same after the import has finished.
