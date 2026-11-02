@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: stacking and locking
+Status: done
 
 ## Scope
 
