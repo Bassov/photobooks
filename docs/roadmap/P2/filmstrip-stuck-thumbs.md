@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: after a fling back and forth some filmstrip tiles never get a thumb
+Status: done
 
 ## Scope
 
