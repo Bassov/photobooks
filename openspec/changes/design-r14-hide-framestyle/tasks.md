@@ -10,3 +10,5 @@
 
 1. 1440 × 900, open a book, place a photo, select the frame: inspector ends ADJUST, CAPTION, POSITION & SIZE, Delete frame; no Frame style / Arrange rows or "New style from this frame"; Delete frame ink is dark (not muted).
 2. Select an empty frame: same list, no Frame style / Arrange.
+
+manual-qa (2026-11-02): problem (harness, not product): both scenarios time out on `start-session` click, intercepted by the welcome header; no editor reached. Covered by `e2e/design-r14-hide-framestyle.spec.ts` "filled frame…", "empty frame…", "every section open…" (1380/1380 with the changed specs at `--repeat-each=30`).

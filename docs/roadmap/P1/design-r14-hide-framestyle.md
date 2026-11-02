@@ -2,7 +2,7 @@
 
 Tag: feature
 Milestone: P1
-Title: Bug: /next-roadmap-item design-r14-hide-framestyle
+Title: Bug: hide Frame style and Arrange in the Photo inspector (M78, Owner Q8)
 
 ## Scope
 
