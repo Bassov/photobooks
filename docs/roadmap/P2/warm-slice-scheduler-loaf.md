@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: CI perf red on main (thumb warm slice / bulk hydrate fling LoAF)
+Status: done
 
 ## Scope
 
