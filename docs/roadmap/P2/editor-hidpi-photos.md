@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: photos in the book editor look soft on 4K / HiDPI screens and visibly upgrade after a drop
+Status: done
 
 ## Scope
 
