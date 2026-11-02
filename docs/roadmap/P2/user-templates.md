@@ -16,4 +16,5 @@ Title: your own layouts
 - **Tokens:** Grayscale product tokens (RULES.md): field `#D7D7D7`, bar `#E1E1E1`, list / film selection `#CACACA`, canvas selection `#232223` with white handles, crop `--crop` `#6b696a`; values from `uikit/src/index.css`, mapped to `src/ui/` tokens. No blue, no teal.
 - **Test:** unit / PBT for the pure logic; Playwright e2e for the interaction on the `?fixture=` editor; perf scenario per RULES
 - **Depends:** kit10-inspector-frame-spread, library-json-schema
+- **Audit 2026-11-02:** Save as template + My templates (rename / duplicate / delete) ship in #344 (`src/editor/savedTemplates.ts`, `LayoutSection.tsx:255`) but persist in `localStorage`; left: `library.json` storage, trim-normalized slot aspects check, `multi-drop-fill` best fit.
 - **UI kit:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); `LayoutSection` Save as template / My templates (`uikit/src/sandbox/context-inspector.tsx`)
