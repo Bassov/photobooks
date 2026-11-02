@@ -109,14 +109,19 @@ When the editor publishes a thumb URL and then puts encoded bytes into DerivedCa
 - **WHEN** import, reload, or prioritized rescan runs for assets with complete path/size/mtime identity
 - **THEN** DerivedCache put/get uses the identity digest and does not require `hashContent` of file bodies
 
-### Requirement: Preview presets are thumb and working only
+### Requirement: Preview presets are thumb and the working ladder
 
-Derived-cache preset ids for interactive previews SHALL be limited to the filmstrip thumbnail preset and the working pasteboard preview preset (long edge 1280). The system MUST NOT write or require obsolete ladder presets for 640 or 2560. New puts for those presets MUST store `image/webp` bytes; gets MUST return the stored MIME so legacy `image/jpeg` rows remain usable.
+Derived-cache preset ids for interactive previews SHALL be limited to the filmstrip thumbnail preset and the working pasteboard ladder presets (long edge 1280 and 2560). The system MUST NOT write or require an obsolete 640 preset. New puts for those presets MUST store `image/webp` bytes; gets MUST return the stored MIME so legacy `image/jpeg` rows remain usable.
 
 #### Scenario: Working preview uses the 1280 preset
 
 - **WHEN** a hashed asset's working preview is stored in the derived cache
-- **THEN** the preset id identifies the 1280 working size (not 640 or 2560)
+- **THEN** the preset id identifies the 1280 working size (not 640)
+
+#### Scenario: HiDPI step uses the 2560 preset
+
+- **WHEN** a hashed asset's 2560 step is stored in the derived cache
+- **THEN** the preset id identifies the 2560 size, distinct from the 1280 preset
 
 #### Scenario: Thumbnail preset remains distinct
 
