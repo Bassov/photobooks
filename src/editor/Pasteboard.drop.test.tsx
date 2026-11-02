@@ -29,6 +29,7 @@ import {
 } from './frameSelection'
 import { getEditorStatus, STATUS_SWAPPED } from './editorStatus'
 import { Filmstrip } from './Filmstrip'
+import { lockOp } from './frameArrange'
 import {
   dropSpreadsFromBook,
   unplaceSelectedFrame,
@@ -266,6 +267,70 @@ describe('Pasteboard gallery drop', () => {
       )?.assetId,
     ).toBeUndefined()
     expect(screen.queryByRole('button', { name: 'Replace photo' })).toBeNull()
+  })
+
+  it('a locked frame refuses a photo drop until it is unlocked', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const [first] = firstTargets()
+    const point = targetPoint(first)
+    act(() => {
+      bookStore.dispatchBookOp(lockOp(first, true))
+    })
+
+    startDrag('a')
+    const over = dragEvent('dragover', 'a', point)
+    scroll.dispatchEvent(over)
+    expect(over.dataTransfer?.dropEffect).toBe('none')
+    expect(scroll.querySelector('[data-drop-hover="true"]')).toBeNull()
+    scroll.dispatchEvent(dragEvent('drop', 'a', point))
+    expect(assetIn(first.frameId)).toBeUndefined()
+
+    act(() => {
+      bookStore.dispatchBookOp(lockOp(first, false))
+    })
+    startDrag('a')
+    scroll.dispatchEvent(dragEvent('dragover', 'a', point))
+    expect(
+      scroll
+        .querySelector('[data-drop-hover="true"]')
+        ?.getAttribute('data-frame-id'),
+    ).toBe(first.frameId)
+    scroll.dispatchEvent(dragEvent('drop', 'a', point))
+    expect(assetIn(first.frameId)).toBe('a')
+  })
+
+  it('a frame photo dropped on a locked filled frame does not swap', () => {
+    seedGridBook()
+    const [first, second] = firstTargets()
+    let book = placeAsset(
+      getBookStoreSnapshot().book,
+      first.spreadId,
+      first.frameId,
+      'a',
+    )
+    book = placeAsset(book, second.spreadId, second.frameId, 'b')
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    act(() => {
+      bookStore.dispatchBookOp(lockOp(second, true))
+    })
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const source: FrameDragSource = first
+    const point = targetPoint(second)
+
+    document.dispatchEvent(frameDragEvent('dragstart', source))
+    scroll.dispatchEvent(frameDragEvent('dragover', source, point))
+    expect(scroll.querySelector('[data-drop-hover="true"]')).toBeNull()
+    scroll.dispatchEvent(frameDragEvent('drop', source, point))
+    expect(assetIn(first.frameId)).toBe('a')
+    expect(assetIn(second.frameId)).toBe('b')
   })
 
   it('swaps on a frame drop, moves onto an empty frame, and ignores a self-drop', () => {

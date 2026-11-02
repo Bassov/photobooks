@@ -23,6 +23,7 @@ import {
   type DropSpreadInput,
   type FrameDragSource,
 } from './dropTargets'
+import { frameLocked } from './frameArrange'
 import { dropAssets } from './multiDrop'
 import {
   STATUS_MOVED,
@@ -445,6 +446,17 @@ export function installGalleryDrop(
     measureHandlerSync('dragover', () => {
       const { x, y } = stackPoint(event, current, scroll)
       const target = hitTestDrop(current.index, x, y)
+      if (
+        target !== undefined &&
+        frameLocked(getBookStoreSnapshot().book, target)
+      ) {
+        // A locked frame refuses the drop: no highlight, no-drop cursor.
+        if (event.dataTransfer !== null) {
+          event.dataTransfer.dropEffect = 'none'
+        }
+        setDropHover(null)
+        return
+      }
       if (target !== undefined) {
         setDropHover(
           current.elements.get(`${target.spreadId}\n${target.frameId}`) ?? null,
@@ -473,6 +485,12 @@ export function installGalleryDrop(
     const target = hitTestDrop(current.index, x, y)
     session = null
     clearDropHover()
+    if (
+      target !== undefined &&
+      frameLocked(getBookStoreSnapshot().book, target)
+    ) {
+      return
+    }
     if (target === undefined) {
       const insertIndex =
         current.kind === 'asset' ? hitTestGap(current.index, y) : undefined
