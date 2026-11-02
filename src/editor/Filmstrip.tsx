@@ -1,5 +1,6 @@
 import {
   memo,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,7 +9,6 @@ import {
   type CSSProperties,
   type UIEvent,
 } from 'react'
-import { GridList, type Selection } from 'react-aria-components'
 import { setFilmstripVisibleAssetIds } from '../photo/assetPool'
 import {
   filmstripScrollDirection,
@@ -45,8 +45,16 @@ import {
 import {
   getSelectedAssetIds,
   setSelectedAssetId,
-  subscribeGallerySelection,
+  setSelectedAssetIds,
 } from './gallerySelection'
+import {
+  getFilmstripAnchor,
+  getFilmstripCurrentRow,
+  requestFilmstripRowFocus,
+  resetFilmstripGridFocus,
+  setFilmstripAnchor,
+  subscribeFilmstripFocus,
+} from './filmstripGridFocus'
 import {
   applyFilmstripJumpScroll,
   filmstripJumpScrollPlan,
@@ -60,8 +68,12 @@ import {
 } from './galleryView'
 import { FilmstripStatus } from './FilmstripStatus'
 import {
-  filmstripSelectionHandler,
-  matchingSelection,
+  isFilmstripNavKey,
+  navigateFilmstrip,
+  pickFilmstripItem,
+  selectAllFilmstrip,
+  type FilmstripPick,
+  type FilmstripSelectionInput,
 } from './filmstripSelection'
 import {
   buildStridePrefix,
@@ -86,6 +98,170 @@ interface FilmstripRow {
 function windowOverscanPx(thumbHeight: number, viewportWidth: number): number {
   return Math.max(viewportWidth, thumbWidthMax(thumbHeight) * 2)
 }
+
+function rowIdOf(target: EventTarget): string | null {
+  return target instanceof Element
+    ? (target.closest('.filmstrip-item')?.getAttribute('data-asset-id') ?? null)
+    : null
+}
+
+function rowElement(grid: Element, id: string): HTMLElement | undefined {
+  for (const child of grid.children) {
+    if (child instanceof HTMLElement && child.dataset.assetId === id) {
+      return child
+    }
+  }
+  return undefined
+}
+
+function selectionInput(order: readonly string[]): FilmstripSelectionInput {
+  const selected = getSelectedAssetIds()
+  return {
+    order,
+    selected,
+    anchor: selected.length === 0 ? null : getFilmstripAnchor(),
+  }
+}
+
+function applyPick(pick: FilmstripPick): void {
+  setFilmstripAnchor(pick.anchor)
+  setSelectedAssetIds(pick.ids, pick.primary)
+}
+
+/**
+ * Book gallery grid (react-aria GridList roles and `replace` selection).
+ * Rows are memoized and read their own selection / focus, so a window shift
+ * renders only entering rows: GridList re-rendered every mounted row, and
+ * that garbage forced major GCs into fling frames.
+ */
+const FilmstripGrid = memo(function FilmstripGrid({
+  items,
+  order,
+  revealRow,
+}: {
+  items: readonly FilmstripRow[]
+  /** View order (the whole gallery view, not just the window). */
+  order: readonly string[]
+  revealRow: (id: string) => void
+}) {
+  const current = useSyncExternalStore(
+    subscribeFilmstripFocus,
+    getFilmstripCurrentRow,
+    getFilmstripCurrentRow,
+  )
+  const hasTabStop = current !== null && items.some((row) => row.id === current)
+  // Roving row, anchor and pending focus belong to this grid instance.
+  useEffect(() => resetFilmstripGridFocus, [])
+
+  const focusRow = (grid: Element, id: string): void => {
+    revealRow(id)
+    const row = rowElement(grid, id)
+    if (row === undefined) {
+      requestFilmstripRowFocus(id)
+      return
+    }
+    row.focus({ preventScroll: true })
+  }
+
+  return (
+    <div
+      role="grid"
+      aria-label="Book gallery"
+      aria-multiselectable="true"
+      tabIndex={hasTabStop ? -1 : 0}
+      className="filmstrip-list"
+      onClick={(event) => {
+        const id = rowIdOf(event.target)
+        if (id === null) {
+          return
+        }
+        applyPick(
+          pickFilmstripItem(selectionInput(order), id, {
+            shift: event.shiftKey,
+            toggle: event.ctrlKey || event.metaKey,
+          }),
+        )
+      }}
+      onFocus={(event) => {
+        if (event.target !== event.currentTarget) {
+          return
+        }
+        // Tab onto the grid: hand focus to the roving row. Without one,
+        // GridList `replace` parity: focus and select the first selected
+        // (else the first) row.
+        const roving = items.find((row) => row.id === current)
+        const selected = getSelectedAssetIds()
+        const target =
+          roving ?? items.find((row) => selected.includes(row.id)) ?? items[0]
+        if (target !== undefined) {
+          if (roving === undefined && !selected.includes(target.id)) {
+            applyPick(
+              pickFilmstripItem(selectionInput(order), target.id, {
+                shift: false,
+                toggle: false,
+              }),
+            )
+          }
+          rowElement(event.currentTarget, target.id)?.focus()
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          // GridList parity: Escape clears a selection and stops here; with
+          // nothing selected it reaches the editor (Inspector dismiss).
+          if (getSelectedAssetIds().length > 0) {
+            event.preventDefault()
+            event.stopPropagation()
+            setSelectedAssetIds([])
+          }
+          return
+        }
+        const toggle = event.ctrlKey || event.metaKey
+        if (toggle && event.key.toLowerCase() === 'a') {
+          event.preventDefault()
+          event.stopPropagation()
+          applyPick(selectAllFilmstrip(selectionInput(order)))
+          return
+        }
+        const from = rowIdOf(event.target) ?? getFilmstripCurrentRow()
+        if (event.key === ' ') {
+          // Space selects the focused row; Ctrl / Meta toggles it.
+          event.preventDefault()
+          event.stopPropagation()
+          if (from !== null) {
+            applyPick(
+              pickFilmstripItem(selectionInput(order), from, {
+                shift: event.shiftKey,
+                toggle,
+              }),
+            )
+          }
+          return
+        }
+        if (!isFilmstripNavKey(event.key)) {
+          return
+        }
+        event.preventDefault()
+        event.stopPropagation()
+        // The grid only renders for a non-empty view, so a move exists.
+        const move = navigateFilmstrip(selectionInput(order), from, event.key, {
+          shift: event.shiftKey,
+          toggle,
+        })
+        if (move !== null) {
+          if (move.pick !== null) {
+            applyPick(move.pick)
+          }
+          focusRow(event.currentTarget, move.focus)
+        }
+      }}
+    >
+      {items.map((row) => (
+        <FilmstripItemView key={row.id} id={row.id} name={row.name} />
+      ))}
+    </div>
+  )
+})
 
 /**
  * Owns scrollLeft / virtualizer state so status + unplace chrome are not
@@ -269,16 +445,21 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
     })
   }
 
-  const selectedIds = useSyncExternalStore(
-    subscribeGallerySelection,
-    getSelectedAssetIds,
-    getSelectedAssetIds,
-  )
-  const lastSelection = useRef<Selection | null>(null)
-  const onSelectionChange = filmstripSelectionHandler(gallery, (keys) => {
-    lastSelection.current = keys
-  })
-  const selectedKeys = matchingSelection(lastSelection.current, selectedIds)
+  // Brings `id` into the scrollport; its row mounts on the window commit.
+  const revealRow = useCallback((id: string): void => {
+    const node = scrollRef.current
+    const index = galleryRef.current.indexOf(id)
+    const left = prefixRef.current[index]
+    const right = prefixRef.current[index + 1]
+    // `id` comes from the view, so its slot and the scrollport exist.
+    if (node !== null && left !== undefined && right !== undefined) {
+      if (left < node.scrollLeft) {
+        node.scrollLeft = left
+      } else if (right > node.scrollLeft + node.clientWidth) {
+        node.scrollLeft = right - node.clientWidth
+      }
+    }
+  }, [])
   const isEmpty = total === 0
 
   useEffect(() => {
@@ -332,18 +513,11 @@ const FilmstripScrollTrack = memo(function FilmstripScrollTrack({
               } as CSSProperties
             }
           >
-            <GridList
-              aria-label="Book gallery"
-              orientation="horizontal"
-              selectionMode="multiple"
-              selectionBehavior="replace"
-              selectedKeys={selectedKeys}
-              onSelectionChange={onSelectionChange}
+            <FilmstripGrid
               items={items}
-              className="filmstrip-list"
-            >
-              {(item) => <FilmstripItemView id={item.id} name={item.name} />}
-            </GridList>
+              order={gallery}
+              revealRow={revealRow}
+            />
           </div>
         </div>
       )}
