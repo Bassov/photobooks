@@ -3,6 +3,7 @@
 Tag: prep
 Milestone: P2
 Title: Bug: perf lane — a scenario red on main does not fail PRs that leave it alone
+Status: done
 
 Kind: process (P-20261103-0148-1). Main `perf` was red about 8 h on 2026-11-02 (warm-slice LoAF, fixed by #396); approved PRs #394 and #398 were blocked only by that same red, and workers / reviewers spent turns proving "red on main too". Root cause: `scripts/perf-lane.mjs` judges a PR head alone and cannot know a failing scenario already fails on the base.
 
