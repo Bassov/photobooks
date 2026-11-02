@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: parent spreads: edit in Masters mode
+Status: done
 
 ## Scope
 
