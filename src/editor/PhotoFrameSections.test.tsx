@@ -160,7 +160,9 @@ describe('PhotoFrameSections in the Inspector', () => {
     expect(screen.getByTestId('frame-style').className).toBe(
       'flex flex-col px-4 pt-0.5 pb-3',
     )
-    expect(screen.getByTestId('style-new').className).toContain('mt-2 ')
+    expect(screen.getByTestId('style-new').className).toContain(
+      'pb-button--secondary pb-button--sm frame-style-new w-full',
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Position & size' }))
     expect(screen.getByTestId('frame-rotation').className).toContain(
