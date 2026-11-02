@@ -12,3 +12,5 @@
 1. `?fixture=painter`: select spread 2–3, Master → "Master A": a small logo shows in the top margin; same on spread 4–5; the spread list thumbs show it too.
 2. Click the logo on the canvas: no frame gets selection handles; the inspector stays on the spread.
 3. Spread 2–3 → "None": the logo disappears there, stays on 4–5; no layout shift in the inspector.
+
+manual-qa (2026-11-02): 1–3 harness problem — `start-session` click intercepted by the welcome header (30 s timeout), no product verdict. Evidence instead: `e2e/parent-spreads.spec.ts` covers 1–3 (logo on 2 canvas spreads + list thumbs, click selects nothing, None on one only, kit box height unchanged) — 1 passed.
