@@ -140,10 +140,34 @@ describe('CreateBookDialog', () => {
     const width = screen.getByTestId('create-custom-w')
     fireEvent.change(width, { target: { value: 'abc' } })
     fireEvent.blur(width)
-    expect(width).toHaveProperty('value', '18.0')
+    expect(width).toHaveProperty('value', '18')
     fireEvent.change(width, { target: { value: '50' } })
     fireEvent.blur(width)
-    expect(width).toHaveProperty('value', '42.0')
+    expect(width).toHaveProperty('value', '42')
+  })
+
+  it('updates the custom size hint while typing, without blur', async () => {
+    render(
+      <CreateBookDialog
+        isOpen
+        onCancel={() => undefined}
+        onCreate={() => undefined}
+      />,
+    )
+    await choosePreset('Custom size…')
+    const width = screen.getByTestId('create-custom-w')
+    const height = screen.getByTestId('create-custom-h')
+    const hint = () => screen.getByTestId('create-custom').textContent
+    fireEvent.change(width, { target: { value: '19' } })
+    fireEvent.blur(width)
+    // Kit step 0.1 but no trailing zero: 19, not 19.0.
+    expect(width).toHaveProperty('value', '19')
+    fireEvent.focus(height)
+    fireEvent.change(height, { target: { value: '2' } })
+    expect(hint()).toContain('19 × 10 cm')
+    fireEvent.change(height, { target: { value: '23' } })
+    expect(hint()).toContain('19 × 23 cm')
+    expect(height).toHaveProperty('value', '23')
   })
 
   it('updates orientation labels and disables confirm when createDisabled', async () => {

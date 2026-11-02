@@ -24,8 +24,9 @@ export function parseNumberText(text: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** At most `decimals` digits, no trailing zeros (kit `maximumFractionDigits`): `19`, `12.5`. */
 export function formatNumber(value: number, decimals: number): string {
-  return value.toFixed(decimals)
+  return String(Number(value.toFixed(decimals)))
 }
 
 export interface StepInput {
