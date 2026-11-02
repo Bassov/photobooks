@@ -12,3 +12,10 @@
 2. Book settings: Binding "Hardcover · read-only" sits at the right edge.
 3. Endpapers on → select an endpaper: no «Pastedown» caption on the canvas.
 4. Library: card titles over the photo are light (#F5F5F5).
+
+`pnpm agent manual-qa` drives the prod app; this change is kit-only, so the scenarios ran as the kit qa `#/demo` walk (headless Chrome, 1440×900):
+
+- OK 1: selects Title font x 1318 w 106 / Cover x 1309 w 115 / Finish x 1289 w 135, h 36, r 8, rgb(215, 215, 215), right 1424; Cover → Linen kept; row tops = Spec (±1).
+- OK 2: Hardcover text x 1295.45 (was 1237.2 text / Spec "kit" 1245.20 pill-padded).
+- OK 3: endpaper canvas has no «Pastedown» text.
+- OK 4: library card title rgb(245, 245, 245); readable over the cover photo (demo baseline 56-library-one-book).
