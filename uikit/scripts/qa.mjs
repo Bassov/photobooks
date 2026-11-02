@@ -1756,7 +1756,17 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
       return { key: l.dataset.stackItem, inView: lr.top >= root.getBoundingClientRect().top && lr.bottom <= root.getBoundingClientRect().bottom, left: paper.left - lr.left, w: paper.width / lr.width, gap: lr.top - pr.bottom, h: lr.height, t: lab.textContent, lcx: lb.left + lb.width / 2 - (paper.left + paper.width / 2), dy: lb.top - lr.bottom, fs: getComputedStyle(lab).fontSize }
     })
     ok("kit-sync KS2: the stack ends with the last page alone on the left, its number under it; the last row stays stacked", !!e && e.key === "last" && e.inView && e.left === 0 && e.w === 0.5 && Math.abs(e.gap - e.h * 104 / 588) <= 1 && e.t === "20" && Math.abs(e.lcx) <= 1 && Math.abs(e.dy - 8) <= 0.5 && e.fs === "11px", JSON.stringify(e))
+    // a click on the last page on the canvas selects it like the `last` row and keeps the view (prod: scrollTop unchanged)
+    await c('[data-item="p9"]'); await page.waitForTimeout(400)
+    const pbl = page.locator(`${demo} [data-testid="pasteboard"]`)
+    await pbl.evaluate((el) => { el.scrollTop = el.scrollHeight }); await page.waitForTimeout(150)
+    const t0 = await pbl.evaluate((el) => el.scrollTop)
+    await page.locator(`${demo} [data-stack-item="last"] [data-paper]`).click(); await page.waitForTimeout(400)
+    const t1 = await pbl.evaluate((el) => el.scrollTop), lsel = await page.locator(`${demo} [data-testid="panel-l"] [data-item="last"]`).getAttribute("aria-selected")
+    ok("kit-sync KS2: a canvas click on the last page selects it (the `last` row) and keeps the view", t0 > 0 && Math.abs(t1 - t0) <= 2 && lsel === "true", `scrollTop ${t0} → ${t1}, last row selected ${lsel}`)
     // 11 px / 8 px is for page numbers only: cover labels keep 12 px, 10 px under the cover
+    // the list is scrolled to `last`; bring the cover row into view first (Playwright's own scroll-and-click misses the row there)
+    await page.locator('[data-item="cover"]').evaluate((el) => el.scrollIntoView({ block: "nearest" })); await page.waitForTimeout(150)
     await c('[data-item="cover"]'); await page.waitForTimeout(400)
     const cl = await page.evaluate(() => { const v = document.querySelector('[data-testid="demo"] [data-testid="node-view"]').getBoundingClientRect(); return [...document.querySelectorAll('[data-testid="demo"] [data-testid="page-labels"] span')].map((s) => ({ t: s.textContent, fs: getComputedStyle(s).fontSize, dy: +(s.getBoundingClientRect().top - v.bottom).toFixed(2) })) })
     ok("kit-sync KS3: cover labels Back / Spine / Front keep 12 px, 10 px under the cover", cl.map((x) => x.t).join() === "Back,Spine,Front" && cl.every((x) => x.fs === "12px" && Math.abs(x.dy - 10) <= 0.5), JSON.stringify(cl))
