@@ -16,7 +16,7 @@ test('left panel has a Pages | Masters switcher and no Assets tab', async ({
   await expect(page.getByText('Assets', { exact: true })).toHaveCount(0)
 
   await page.getByTestId('left-tab-masters').click()
-  await expect(page.getByTestId('masters-stub')).toBeVisible()
+  await expect(page.getByTestId('masters-panel')).toBeVisible()
   await expect(page.getByTestId('spreads-list')).toHaveCount(0)
   await expect(page.getByText('Assets', { exact: true })).toHaveCount(0)
 

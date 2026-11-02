@@ -223,7 +223,7 @@ describe('Pasteboard gallery drop', () => {
     })
   })
 
-  it('selects nothing when the dropped photo is not placed', () => {
+  it('selects nothing when the dropped photo is not placed', async () => {
     seedGridBook()
     render(<Pasteboard />)
     const scroll = screen.getByTestId('pasteboard-scroll')
@@ -232,6 +232,8 @@ describe('Pasteboard gallery drop', () => {
     startDrag('not-in-gallery')
     dragOver(scroll, 'not-in-gallery', point.x, point.y)
     scroll.dispatchEvent(dragEvent('drop', 'not-in-gallery', point))
+    // Past the one-task deferral a placed drop would select after.
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(getFrameSource()).toBeNull()
   })
 

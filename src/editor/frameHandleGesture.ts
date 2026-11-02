@@ -131,8 +131,11 @@ export function installFrameHandleGesture(): () => void {
     }
     const frameId = button.getAttribute('data-frame-id') ?? ''
     const ctx = spreadContext(spreadEl, frameId)
-    const frame = ctx?.spread.frames.find((item) => item.id === frameId)
-    if (ctx === null || frame === undefined) {
+    if (ctx === null) {
+      return
+    }
+    const frame = ctx.spread.frames.find((item) => item.id === frameId)
+    if (frame === undefined) {
       return
     }
     // The press belongs to the handle: no frame move, no click toggle.

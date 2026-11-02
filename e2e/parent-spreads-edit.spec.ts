@@ -1,5 +1,8 @@
 import type { Locator, Page } from '@playwright/test'
-import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
+import {
+  assertDocumentFitsViewport,
+  assertNamedScrollport,
+} from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
 
 // parent-spreads-edit: the painter fixture has parents "Master A" (a logo)
@@ -214,5 +217,20 @@ test('Masters list: rename and delete a master; its spreads fall back to None', 
       .getByRole('radiogroup', { name: 'Master' })
       .getByRole('radio', { name: 'None', exact: true }),
   ).toBeChecked()
+  await assertDocumentFitsViewport(page)
+})
+
+test('Masters list: many masters scroll inside the list, the page does not', async ({
+  page,
+}) => {
+  await openPainterWithTenSpreads(page)
+  await page.getByTestId('left-tab-masters').click()
+  // 2 fixture masters + 16 new rows of ~100 px thumbs overflow any viewport.
+  for (let added = 0; added < 16; added += 1) {
+    await page.getByTestId('new-master').click()
+  }
+  await expect(masterRows(page)).toHaveCount(18)
+  await assertNamedScrollport(page, 'masters-list', { axis: 'vertical' })
+  await expect(page.getByTestId('new-master')).toBeInViewport()
   await assertDocumentFitsViewport(page)
 })
