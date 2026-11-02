@@ -1506,64 +1506,123 @@ describe('bookStore spread paint covers the parent layer', () => {
     expect(repaint).toHaveBeenCalled()
   })
 
-  it('a parent edit repaints the parent and only the spreads using it', () => {
+  // Spreads 1–3 on the default Master A, one on Master B, one on None.
+  const ids = ['pA', 'pB', 'a1', 'a2', 'a3', 'b1', 'none'] as const
+  const master = (id: string) => ({
+    id,
+    name: id,
+    frames: [makeFrame({ id: `${id}-logo` })],
+    guides: [],
+  })
+
+  function loadMasters(): void {
     resetBookStore({
       book: makeBook({
         spreads: [
-          makeSpread({ id: 'uses', parentId: 'p1' }),
-          makeSpread({ id: 'other' }),
+          makeSpread({ id: 'a1' }),
+          makeSpread({ id: 'a2' }),
+          makeSpread({ id: 'b1', parentId: 'pB' }),
+          makeSpread({ id: 'a3', parentId: 'pA' }),
+          makeSpread({ id: 'none', parentId: null }),
         ],
-        parents: [
-          {
-            id: 'p1',
-            name: 'Master A',
-            frames: [makeFrame({ id: 'logo' })],
-            guides: [],
-          },
-        ],
+        parents: [master('pA'), master('pB')],
+        defaultParentId: 'pA',
       }),
       sessionMeta: new Map(),
       importRunning: false,
       importExpectedCount: 0,
     })
-    const ids = ['p1', 'uses', 'other'] as const
-    const logoRect = (id: string) =>
-      getSpreadPaintSnapshot(id)?.resolved.items.find(
-        (item) => item.frameId === 'logo',
-      )?.rectMm
-    const before = ids.map((id) => getSpreadPaintSnapshot(id))
+  }
+
+  /** Ids notified by `act` and ids whose cached paint was replaced. */
+  function repaintsFor(act: () => void): {
+    notified: string[]
+    invalidated: string[]
+  } {
+    const before = new Map(ids.map((id) => [id, getSpreadPaintSnapshot(id)]))
     const notified: string[] = []
     const stops = ids.map((id) =>
       subscribeSpread(id, () => {
         notified.push(id)
       }),
     )
-
-    dispatchBookOp({
-      type: 'moveFrame',
-      spreadId: 'p1',
-      frameId: 'logo',
-      dx: 10,
-      dy: 0,
-    })
-    const afterParentEdit = [...notified]
-    const otherAfterParentEdit = getSpreadPaintSnapshot('other')
-    dispatchBookOp({
-      type: 'moveFrame',
-      spreadId: 'other',
-      frameId: 'frame-1',
-      dx: 5,
-      dy: 0,
-    })
+    act()
     stops.forEach((stop) => {
       stop()
     })
+    const invalidated = ids.filter(
+      (id) => getSpreadPaintSnapshot(id) !== before.get(id),
+    )
+    return { notified: notified.toSorted(), invalidated }
+  }
 
-    expect(afterParentEdit).toEqual(['uses', 'p1'])
-    expect(notified).toEqual(['uses', 'p1', 'other'])
-    expect(logoRect('p1')?.x).toBe(20)
-    expect(logoRect('uses')?.x).toBe(20)
-    expect(otherAfterParentEdit).toBe(before[2])
+  it('a parent edit invalidates only that parent and the spreads using it', () => {
+    loadMasters()
+    const logoX = (id: string) =>
+      getSpreadPaintSnapshot(id)?.resolved.items.find(
+        (item) => item.frameId === 'pA-logo',
+      )?.rectMm.x
+
+    const parentEdit = repaintsFor(() => {
+      dispatchBookOp({
+        type: 'moveFrame',
+        spreadId: 'pA',
+        frameId: 'pA-logo',
+        dx: 10,
+        dy: 0,
+      })
+    })
+
+    expect(parentEdit.notified).toEqual(['a1', 'a2', 'a3', 'pA'])
+    expect(parentEdit.invalidated).toEqual(['pA', 'a1', 'a2', 'a3'])
+    expect(['pA', 'a1', 'a2', 'a3'].map(logoX)).toEqual([20, 20, 20, 20])
+    expect(logoX('b1')).toBeUndefined()
+  })
+
+  it('a spread edit or parent switch repaints that spread only', () => {
+    loadMasters()
+
+    const spreadEdit = repaintsFor(() => {
+      dispatchBookOp({
+        type: 'moveFrame',
+        spreadId: 'b1',
+        frameId: 'frame-1',
+        dx: 5,
+        dy: 0,
+      })
+    })
+    const parentSwitch = repaintsFor(() => {
+      dispatchBookOp({
+        type: 'setSpreadParent',
+        spreadId: 'none',
+        parentId: 'pB',
+      })
+    })
+
+    expect(spreadEdit).toEqual({ notified: ['b1'], invalidated: ['b1'] })
+    expect(parentSwitch).toEqual({ notified: ['none'], invalidated: ['none'] })
+  })
+
+  it('a shared paint input repaints every id; an unused one none', () => {
+    loadMasters()
+
+    const pageColor = repaintsFor(() => {
+      dispatchBookOp({ type: 'setPageColor', color: '#e6e6e6' })
+    })
+    const reloadSameBook = repaintsFor(() => {
+      const { book, sessionMeta } = getBookStoreSnapshot()
+      resetBookStore({
+        book,
+        sessionMeta,
+        previewUrls: new Map([['unused', 'blob:unused']]),
+        importRunning: false,
+        importExpectedCount: 0,
+      })
+    })
+
+    expect(pageColor.notified).toHaveLength(ids.length)
+    expect(pageColor.invalidated).toHaveLength(ids.length)
+    expect(reloadSameBook.notified).toEqual([])
   })
 })
 
