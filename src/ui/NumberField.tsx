@@ -30,6 +30,11 @@ export interface NumberFieldProps {
    * down chevrons and a quiet focus state instead of the heavy ring.
    */
   steppers?: boolean
+  /**
+   * Report each parseable keystroke (clamped) while keeping the typed text, so
+   * a derived hint follows typing; blur / Enter still normalise the text.
+   */
+  live?: boolean
   isDisabled?: boolean
   className?: string
   'data-testid'?: string
@@ -52,6 +57,7 @@ export function NumberField({
   shiftStep = step * 10,
   unit = 'mm',
   steppers = false,
+  live = false,
   isDisabled = false,
   className,
   'data-testid': testId,
@@ -124,6 +130,13 @@ export function NumberField({
           data-testid={testId}
           onChange={(e) => {
             setDraft(e.target.value)
+            const parsed = live ? parseNumberText(e.target.value) : null
+            if (parsed !== null) {
+              const clamped = clampNumber(parsed, min, max)
+              if (clamped !== value) {
+                onChange(clamped)
+              }
+            }
           }}
           onBlur={commitDraft}
           onKeyDown={(e) => {

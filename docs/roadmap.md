@@ -79,6 +79,8 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
 - [ ] [feature] [editor-hidpi-photos](roadmap/P2/editor-hidpi-photos.md) — Bug: photos in the book editor look soft on 4K / HiDPI screens and visibly upgrade after a drop
+- [ ] [feature] [prod-kit-fixes](roadmap/P2/prod-kit-fixes.md) — Bug: prod differs from kit in 3 places (Designer kit-sync Spec P1–P3)
+- [ ] [feature] [kit-sync-book](roadmap/P2/kit-sync-book.md) — Kit sync W4: pastedown caption, cover inspector, library card title
 - [ ] [lite] [rig-bump-0-2-21](roadmap/P2/rig-bump-0-2-21.md) — rig-bump-0-2-21: bump ts-agent-rig to v0.2.21 (compact preflight run card)
 - [ ] [feature] [remove-cursor-support](roadmap/P2/remove-cursor-support.md) — Bug: /next-roadmap-item remove-cursor-support
 - [ ] [feature] [parent-spreads-inspector](roadmap/P2/parent-spreads-inspector.md) — parent spreads: master inspector (grid, guides, items)

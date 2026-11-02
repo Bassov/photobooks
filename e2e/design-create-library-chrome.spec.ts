@@ -157,7 +157,21 @@ test.describe('editor chrome', () => {
     }
     await page.getByTestId('editor-settings-open').click()
     await expect(page.getByTestId('editor-settings')).toBeVisible()
-    await page.getByTestId('editor-settings-back').click()
+    // Designer kit-sync P1 (kit demo-parts/settings.tsx:84): was "Back",
+    // rgb(83, 81, 82), label x 46.
+    const back = page.getByTestId('editor-settings-back')
+    await expect(back).toHaveText('Back to the book')
+    await expect(back).toHaveCSS('color', 'rgb(57, 55, 56)')
+    const labelX = await back.evaluate((el) => {
+      const text = [...el.childNodes].find(
+        (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim(),
+      )
+      const range = document.createRange()
+      range.selectNodeContents(text ?? el)
+      return range.getBoundingClientRect().x
+    })
+    expect(labelX).toBeCloseTo(38, 0)
+    await back.click()
     await expect(page.getByTestId('editor-settings')).toHaveCount(0)
   })
 
