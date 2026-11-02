@@ -263,52 +263,52 @@
   "agentRules": {
     "budgets": [
       {
-        "path": ".cursor/agents/openspec-implementation-reviewer.md",
+        "path": ".claude/agents/openspec-implementation-reviewer.md",
         "maxLines": 60,
         "maxChars": 5046
       },
       {
-        "path": ".cursor/agents/openspec-planning-reviewer.md",
+        "path": ".claude/agents/openspec-planning-reviewer.md",
         "maxLines": 70,
         "maxChars": 4509
       },
       {
-        "path": ".cursor/agents/manual-qa.md",
+        "path": ".claude/agents/manual-qa.md",
         "maxLines": 40,
         "maxChars": 2500
       },
       {
-        "path": ".cursor/commands/next-roadmap-item.md",
+        "path": ".claude/commands/next-roadmap-item.md",
         "maxLines": 77,
         "maxChars": 5186
       },
       {
-        "path": ".cursor/rules/architecture.mdc",
+        "path": ".claude/rules/architecture.md",
         "maxLines": 13,
         "maxChars": 673
       },
       {
-        "path": ".cursor/rules/design.mdc",
+        "path": ".claude/rules/design.md",
         "maxLines": 14,
         "maxChars": 520
       },
       {
-        "path": ".cursor/rules/data-model.mdc",
+        "path": ".claude/rules/data-model.md",
         "maxLines": 17,
         "maxChars": 1366
       },
       {
-        "path": ".cursor/rules/git-finish.mdc",
+        "path": ".claude/rules/git-finish.md",
         "maxLines": 19,
         "maxChars": 2532
       },
       {
-        "path": ".cursor/rules/overview.mdc",
+        "path": ".claude/rules/overview.md",
         "maxLines": 15,
         "maxChars": 557
       },
       {
-        "path": ".cursor/rules/testing.mdc",
+        "path": ".claude/rules/testing.md",
         "maxLines": 22,
         "maxChars": 1061
       },
@@ -316,36 +316,6 @@
         "path": "CLAUDE.md",
         "maxLines": 18,
         "maxChars": 900
-      },
-      {
-        "path": ".claude/agents/manual-qa.md",
-        "maxLines": 12,
-        "maxChars": 450
-      },
-      {
-        "path": ".claude/agents/openspec-implementation-reviewer.md",
-        "maxLines": 13,
-        "maxChars": 560
-      },
-      {
-        "path": ".claude/agents/openspec-planning-reviewer.md",
-        "maxLines": 13,
-        "maxChars": 560
-      },
-      {
-        "path": ".claude/commands/next-roadmap-item.md",
-        "maxLines": 10,
-        "maxChars": 260
-      },
-      {
-        "path": ".claude/rules/data-model.md",
-        "maxLines": 8,
-        "maxChars": 120
-      },
-      {
-        "path": ".claude/rules/design.md",
-        "maxLines": 8,
-        "maxChars": 120
       },
       {
         "path": "AGENTS.md",
