@@ -1,5 +1,32 @@
 # Agent loop
 
+## Must-read
+
+Headless workers read this section only (it ends at `## Reference`). The rest is reference: when a stage needs detail, `Grep` its heading (e.g. `^### 6`) and `Read` that range — never the whole file.
+
+**Flow** (numbers = `### N` headings below):
+
+- **0 Prep:** `pnpm -s agent preflight [--slug <slug>]` prints a compact run card (`--verbose` / `--json` only for full rules or a machine field). Clean tree; `feat|fix/<slug>` from `origin/main`; never merge/rebase `origin/main` on the happy path.
+- **1–2 Plan:** artifacts via `pnpm -s agent instructions <artifact>`; `openspec-planning-reviewer` once. `[lite]`: no change dir, no plan review, no archive; item + PR body are the plan; past ~200 lines or a spec delta → re-tag `[feature]`.
+- **3–4 Apply:** loop **A** (`pnpm check:fast`) to green, no commit; then **B** once (`pnpm test:e2e:changed:quiet`, then `pnpm stryker:diff` on `src/` changes, ≤2 runs → `## Stryker C-session`).
+- **5** phase commit. **6** `openspec-implementation-reviewer` once (lite and docs-only too); rework via A, +1 delta review if code changed. **7–8** B again only if prod/tests/UI changed; commit.
+- **9 QA:** UI in scope → `pnpm agent manual-qa` + skill `ui-review`; security surface → Security Review.
+- **10–11:** `pnpm -s agent finalize <slug>`; fix what it prints, re-run, commit.
+- **12:** `pnpm -s agent finish --title "…" --body-file …`, print the PR URL, exit. CI wait and merge belong to the orchestrator.
+
+Reviewer briefs: `pnpm agent review-brief --out <file> --base origin/main`; pass the brief path only. Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict. Else record assumptions and continue.
+
+**Output caps** (every byte a tool prints stays in context for the rest of the run):
+
+- Files: `Grep -n` first (≤30 hits), then `Read` with offset/limit ≤60 lines. Never Read a whole file over ~100 lines, never `cat` a directory or several files, no `sed -n` sweeps, no re-read of the item, a rule file or a file you just edited.
+- Specs and JSON reports (Stryker, Playwright, coverage): Grep the field you need; never dump them.
+- Commands: `pnpm -s`, the `:quiet` scripts, vitest `--reporter=dot`; pipe long output through `| tail -40` or redirect to `.cache/agent/<name>.log` and Grep it.
+- No TodoWrite in `-p`. Claude Code runs prettier after each Edit/Write; do not run it by hand.
+
+**Shell** (denied otherwise; details in `### 0 · Prep`): Edit/Write for every change (no `sed -i`, heredocs, `python3` / `node -e`); one plain command per call, no `timeout` / `sh -c` / polling loops; no `cd` / `git -C`; scratch in `.cache/agent/`, never `/tmp`; no extra worktrees (`git show origin/main:<path>`); no `gh api`; `pnpm exec`, never `npx`.
+
+## Reference
+
 Procedural SoT for unattended and interactive agents. **Enforcement** (inventories, stamp, thin finish, pre-push) lives in `@albasov/ts-agent-rig`, `lefthook.yml`, and `quality/gates.json` — this file is what/when/stop only.
 
 How for each stage lives elsewhere (do not duplicate here):
@@ -15,8 +42,6 @@ How for each stage lives elsewhere (do not duplicate here):
 | Commit/PR harness precedence                             | `.cursor/rules/git-finish.mdc`                                          |
 | Unattended runner                                        | `.cursor/commands/next-roadmap-item.md` (Claude: `.claude/commands/`)   |
 | Harness wiring                                           | `## Harnesses` below                                                    |
-
-Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict. Else record assumptions and continue.
 
 ## Buckets (entry commands)
 
@@ -45,7 +70,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 
 ### 0 · Prep
 
-- `pnpm -s agent preflight --json` [`--slug <slug>`]. Headless: the launcher preloads the env — **do not** `source scripts/agent-env.sh` (interactive shells still source it once).
+- `pnpm -s agent preflight` [`--slug <slug>`]: compact run card (≤40 lines); `--verbose` adds rules/skips/full goal, `--json` is the full machine record. Headless: the launcher preloads the env — **do not** `source scripts/agent-env.sh` (interactive shells still source it once).
 - Shell hygiene (each of these is a permission denial otherwise; deny rules stay as they are):
   - Scratch files go under `.cache/agent/` (gitignored; `Write` creates it, or `mkdir -p .cache/agent`), never `/tmp`.
   - No `timeout` wrapper on any command (`stryker:diff`, dev-server waits, scripts), and no `sh -c` / `until … sleep` polling loops; the Bash tool `timeout` is the limit. To wait for a background dev server, check its log with `Grep` (e.g. for `Local`) and retry in a later call.
