@@ -3,8 +3,7 @@ import type { GridPatch } from '../grid/layoutGrid'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
 import type { LayoutSlotPct } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
-import type { SpreadMasterId } from '../schema'
-import { setSpreadBackground, setSpreadMaster } from './spreadLook'
+import { setSpreadBackground, setSpreadParent } from './spreadLook'
 import {
   addToGallery,
   removeFromGallery,
@@ -222,7 +221,7 @@ export type BookOp =
       slots: readonly LayoutSlotPct[]
     }
   | { type: 'setSpreadBackground'; spreadId: string; color: string | undefined }
-  | { type: 'setSpreadMaster'; spreadId: string; masterId: SpreadMasterId }
+  | { type: 'setSpreadParent'; spreadId: string; parentId: string | null }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -329,8 +328,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return applyCustomLayout(book, op.spreadId, op.templateId, op.slots)
     case 'setSpreadBackground':
       return setSpreadBackground(book, op.spreadId, op.color)
-    case 'setSpreadMaster':
-      return setSpreadMaster(book, op.spreadId, op.masterId)
+    case 'setSpreadParent':
+      return setSpreadParent(book, op.spreadId, op.parentId)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
     case 'removeFrames':

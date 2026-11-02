@@ -117,15 +117,14 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
     await expect(eyebrow(page, 'Layout').first()).toBeVisible()
     await expect(page.getByTestId('layout-tile').first()).toBeVisible()
     await expect(eyebrow(page, GRID)).toBeVisible()
-    // Kit grid override switch (context-inspector.tsx:227): Use master / Custom.
+    // Kit grid override switch (context-inspector.tsx:227): Use master /
+    // Custom; a new book has no parent, so the inherit choice is "Use book".
     const source = page
       .getByTestId('grid-section-spread')
       .getByRole('radiogroup', { name: 'Grid source' })
     await expect(source.getByRole('radio')).toHaveCount(2)
-    await expect(source.locator('label')).toHaveText(['Use master', 'Custom'])
-    await expect(
-      source.getByRole('radio', { name: 'Use master' }),
-    ).toBeChecked()
+    await expect(source.locator('label')).toHaveText(['Use book', 'Custom'])
+    await expect(source.getByRole('radio', { name: 'Use book' })).toBeChecked()
     await assertDocumentFitsViewport(page)
   })
 

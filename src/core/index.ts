@@ -12,9 +12,7 @@ export {
   type Spread,
   type TextContent,
   type TextStyleId,
-  type SpreadMasterId,
   TEXT_STYLE_IDS,
-  SPREAD_MASTERS,
 } from './schema'
 export {
   isTextFrame,
@@ -136,7 +134,7 @@ export {
   spreadLayoutSlots,
   type LayoutSlotPct,
 } from './templates/custom'
-export { setSpreadBackground, setSpreadMaster } from './ops/spreadLook'
+export { setSpreadBackground, setSpreadParent } from './ops/spreadLook'
 
 export {
   addToGallery,

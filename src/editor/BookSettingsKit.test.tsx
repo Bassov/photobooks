@@ -115,8 +115,9 @@ describe('Book settings read-only rows', () => {
     )
     expect(screen.getByTestId('book-safe-margin').textContent).toContain('S')
     expect(screen.getByText('Matte 200 g')).toBeTruthy()
-    expect(screen.getByText('Default master')).toBeTruthy()
-    expect(screen.getByText('Master A')).toBeTruthy()
+    expect(screen.getByTestId('default-master').textContent).toBe(
+      'Default masterNone',
+    )
     expect(screen.getByTestId('book-pages-note').textContent).toBe(
       'Add 9 spreads to reach the 20-page minimum',
     )
@@ -146,6 +147,26 @@ describe('Book settings read-only rows', () => {
 })
 
 // Kit v7.tsx:202,207-208: meta line names the book; Pages follows the spreads.
+describe('Book settings default master', () => {
+  it('reads the book default parent by name', () => {
+    resetBookStore({
+      book: makeBook({
+        parents: [{ id: 'pa', name: 'Logo page', frames: [], guides: [] }],
+        defaultParentId: 'pa',
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    render(<BookSettingsSection />)
+
+    expect(screen.getByTestId('default-master').textContent).toBe(
+      'Default masterLogo page',
+    )
+  })
+})
+
 describe('Book settings header and pages', () => {
   it('names the book by its back text and counts pages from spreads', () => {
     resetBookStore({

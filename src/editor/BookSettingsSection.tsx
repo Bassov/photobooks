@@ -185,11 +185,9 @@ function PagesField({ pages }: { pages: number }) {
 
 /** Kit "Book settings" (uikit/src/sandbox/v7.tsx:200-210) on the document. */
 export function BookSettingsSection() {
-  const { settings, spreads, cover } = useSyncExternalStore(
-    subscribeBookStore,
-    readBook,
-    readBook,
-  )
+  const { settings, spreads, cover, parents, defaultParentId } =
+    useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const defaultParent = parents?.find((parent) => parent.id === defaultParentId)
   const pages = pagesOf(spreads.length)
   const [unit, setUnit] = useState<Unit>('cm')
   const [customPicked, setCustomPicked] = useState(false)
@@ -339,8 +337,8 @@ export function BookSettingsSection() {
       </InspectorSec>
       <InspectorSec title="Defaults">
         {/* Kit v7.tsx:201,210: default master and page colour (coming later). */}
-        <InspectorRow label="Default master">
-          <ReadOnlyPill value="Master A" />
+        <InspectorRow label="Default master" testId="default-master">
+          <ReadOnlyPill value={defaultParent?.name ?? 'None'} />
         </InspectorRow>
         <InspectorRow label="Page colour">
           <span

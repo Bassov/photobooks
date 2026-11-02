@@ -95,6 +95,9 @@ export function dropSpreadsFromBook(
     }
     const items = []
     for (const item of resolved.items) {
+      if (item.parent === true) {
+        continue
+      }
       items.push({
         frameId: item.frameId,
         z: item.z,
