@@ -1,10 +1,10 @@
 import {
   memo,
   useEffect,
+  useRef,
   useSyncExternalStore,
   type CSSProperties,
 } from 'react'
-import { GridListItem } from 'react-aria-components'
 import { Icon } from '../ui/Icon'
 import {
   getAssetAspectSnapshot,
@@ -22,7 +22,21 @@ import {
   getFilmstripJumpHighlightId,
   subscribeFilmstripJump,
 } from './filmstripJump'
-import { getSelectedAssetIds, setSelectedAssetId } from './gallerySelection'
+import {
+  getFilmstripRowFocus,
+  noteFilmstripRowBlur,
+  noteFilmstripRowFocus,
+  ROW_FOCUS_VISIBLE,
+  ROW_FOCUSED,
+  ROW_TAB_STOP,
+  subscribeFilmstripFocus,
+  takeFilmstripPendingFocus,
+} from './filmstripGridFocus'
+import {
+  getSelectedAssetIds,
+  setSelectedAssetId,
+  subscribeGallerySelection,
+} from './gallerySelection'
 import { getRelinkStatus, subscribeRelink } from './relink/statusStore'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotAspect } from './thumbSlotSize'
@@ -111,12 +125,46 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
   )
 })
 
+function matchesFocusVisible(element: Element): boolean {
+  try {
+    return element.matches(':focus-visible')
+  } catch {
+    return false
+  }
+}
+
 /**
  * Slot geometry is CSS-only: height and width follow `--film-slot-h` on the
  * filmstrip window and origins come from the flex row, so a committed resize
  * commits one style on the window instead of re-rendering every item.
+ * Memoized grid row: selection and focus are per-row booleans, so a window
+ * shift renders only the rows that enter it.
  */
-export function FilmstripItemView({ id, name }: { id: string; name: string }) {
+export const FilmstripItemView = memo(function FilmstripItemView({
+  id,
+  name,
+}: {
+  id: string
+  name: string
+}) {
+  const readSelected = () => getSelectedAssetIds().includes(id)
+  const selected = useSyncExternalStore(
+    subscribeGallerySelection,
+    readSelected,
+    readSelected,
+  )
+  const readFocus = () => getFilmstripRowFocus(id)
+  const focus = useSyncExternalStore(
+    subscribeFilmstripFocus,
+    readFocus,
+    readFocus,
+  )
+  const rowRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (takeFilmstripPendingFocus(id)) {
+      rowRef.current?.focus({ preventScroll: true })
+    }
+  }, [id])
   const thumbUrl = useSyncExternalStore(
     (listener) => subscribeThumb(id, listener),
     () => getThumbUrl(id),
@@ -152,10 +200,28 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
     ensureThumb(id, cacheKey)
   }, [id, cacheKey])
   return (
-    <GridListItem
-      id={id}
-      textValue={name}
+    <div
+      ref={rowRef}
+      role="row"
+      aria-label={name}
+      aria-selected={selected}
+      tabIndex={(focus & ROW_TAB_STOP) === 0 ? -1 : 0}
       className="filmstrip-item"
+      data-key={id}
+      data-selection-mode="multiple"
+      data-selected={selected || undefined}
+      data-focused={(focus & ROW_FOCUSED) === 0 ? undefined : true}
+      data-focus-visible={(focus & ROW_FOCUS_VISIBLE) === 0 ? undefined : true}
+      onFocus={(event) => {
+        if (event.target === event.currentTarget) {
+          noteFilmstripRowFocus(id, matchesFocusVisible(event.currentTarget))
+        }
+      }}
+      onBlur={(event) => {
+        if (event.target === event.currentTarget) {
+          noteFilmstripRowBlur(id)
+        }
+      }}
       data-testid="filmstrip-item"
       data-asset-id={id}
       data-aspect={String(aspect)}
@@ -168,13 +234,17 @@ export function FilmstripItemView({ id, name }: { id: string; name: string }) {
         } as CSSProperties
       }
     >
-      <FilmstripItemBody
-        id={id}
-        name={name}
-        thumbUrl={thumbUrl}
-        placed={placementCount > 0}
-        missing={missing}
-      />
-    </GridListItem>
+      <div role="gridcell" style={gridCellStyle}>
+        <FilmstripItemBody
+          id={id}
+          name={name}
+          thumbUrl={thumbUrl}
+          placed={placementCount > 0}
+          missing={missing}
+        />
+      </div>
+    </div>
   )
-}
+})
+
+const gridCellStyle: CSSProperties = { display: 'contents' }
