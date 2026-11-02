@@ -787,6 +787,19 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     if (r.frames >= 2) { await fr.nth(0).click({ force: true }); await fr.nth(1).click({ modifiers: ["Shift"], force: true }); await page.waitForTimeout(200); r.multi = await E('[data-testid="sel-outline"]').count() }
     return [r.tb >= 1 && r.params === 1 && r.tpl >= 4 && r.search >= 1 && r.film >= 4 && (r.multi ?? 0) >= 2, JSON.stringify(r)]
   })
+  await smokeS("layout-tile-states (Owner 2026-11-02): the tile stays transparent, hover rings the paper, the paper fills a trim-shaped box, page 1 goes 3 columns", "canvas", async () => {
+    const tile = () => E('[data-testid="layout-section"] [data-testid="tpl-tile"]').nth(1)
+    const read = () => tile().evaluate((t) => {
+      const th = t.querySelector('[data-testid="tpl-thumb"]').getBoundingClientRect(), p = t.querySelector('[data-testid="tpl-paper"]')
+      const ps = getComputedStyle(p), liftProp = ps.translate !== "none" ? "translate" : "transform" // the lift eases only if the transition lists the property that moves
+      return { bg: getComputedStyle(t.querySelector("button")).backgroundColor, shadow: ps.boxShadow, lift: ps.translate !== "none" ? ps.translate : ps.transform, eased: ps.transitionProperty.split(", ").includes(liftProp) && parseFloat(ps.transitionDuration) > 0, fill: Math.abs(th.width - p.getBoundingClientRect().width) <= 1, cols: getComputedStyle(t.parentElement).gridTemplateColumns.split(" ").length }
+    })
+    const open = async (k) => { await E(`[data-item="${k}"]`).scrollIntoViewIfNeeded(); await E(`[data-item="${k}"]`).click(); await page.waitForTimeout(250) }
+    await open("p3"); const spread = await read()
+    await tile().locator("button").hover(); await page.waitForTimeout(250); const hover = await read()
+    await open("p0"); const page1 = await read()
+    return [spread.cols === 2 && spread.fill && page1.cols === 3 && page1.fill && hover.bg === "rgba(0, 0, 0, 0)" && hover.shadow.includes("rgba(0, 0, 0, 0.22) 0px 0px 0px 1px") && hover.lift !== "none" && hover.eased, JSON.stringify({ spread, hover, page1 })]
+  })
   // P2 #5 Home not clipped
   await go(feat("recents-home"), 900)
   { const r = await page.evaluate(() => [...document.querySelectorAll('[data-testid="demo"] *')].filter((e) => e.scrollHeight > e.clientHeight + 2 && /auto|scroll|hidden/.test(getComputedStyle(e).overflowY) && e.clientHeight > 200).map((e) => `${e.tagName} ${e.clientHeight}/${e.scrollHeight}`))
