@@ -74,7 +74,6 @@ function sourceLongEdge(assetId: string): number | undefined {
 }
 
 let dragHold: { assetId: string; tier: number; release: () => void } | undefined
-let dragSlot = 0
 
 /**
  * While an asset is dragged, hold the tier a frame of `edgeCssPx` needs on
@@ -87,10 +86,8 @@ export function holdDragTier(assetId: string, edgeCssPx: number): void {
   if (dragHold?.assetId === assetId && dragHold.tier >= tier) {
     return
   }
-  // Stryker disable next-line AssignmentOperator: any step keeps slot ids unique
-  dragSlot += 1
   const release = holdDisplayTiers(
-    `drag-tier:${String(dragSlot)}`,
+    `drag-tier:${crypto.randomUUID()}`,
     new Map([[assetId, tier]]),
   )
   dragHold?.release()
