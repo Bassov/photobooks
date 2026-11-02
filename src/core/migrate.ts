@@ -176,6 +176,13 @@ function migrateV8ToV9(
   }
 }
 
+/** v10: parent spreads; every new field is optional, so only the version moves. */
+function migrateV9ToV10(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...input, schemaVersion: 10 }
+}
+
 /**
  * Pure migration: reject newer versions; upgrade supported older versions
  * before Zod validation of the current shape.
@@ -237,6 +244,10 @@ export function migrateToCurrent(input: unknown): MigrateResult {
   }
   if (version === 8) {
     value = migrateV8ToV9(value as Record<string, unknown>)
+    version = 9
+  }
+  if (version === 9) {
+    value = migrateV9ToV10(value as Record<string, unknown>)
   }
   return { ok: true, value }
 }

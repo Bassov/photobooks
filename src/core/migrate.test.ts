@@ -9,8 +9,16 @@ import {
   defaultEndpapers,
   migrateToCurrent,
   parseBook,
+  serializeBook,
 } from './index'
-import { makeBook } from './testing/fixtures'
+import {
+  largeBook,
+  makeBook,
+  makeBookWithAsset,
+  makeFrame,
+  makePlacedTemplateBook,
+  makeSpread,
+} from './testing/fixtures'
 
 /** A pre-v5 document: the current fixture minus the v5 fields. */
 function withoutCover(book: Book): Record<string, unknown> {
@@ -96,7 +104,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 9,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       title: '',
       assets: { a: {}, b: {} },
       gallery: ['a', 'b'],
@@ -131,7 +139,7 @@ describe('migrateToCurrent', () => {
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
     expect(result.value).toMatchObject({
-      schemaVersion: 9,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       title: '',
       assets: { a: identity },
     })
@@ -164,7 +172,10 @@ describe('migrateToCurrent', () => {
       const result = migrateToCurrent(v2)
       expect(result.ok).toBe(true)
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 9, title: '' })
+      expect(result.value).toMatchObject({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        title: '',
+      })
     },
   )
 
@@ -175,7 +186,10 @@ describe('migrateToCurrent', () => {
     })
     expect(result.ok).toBe(true)
     assert.equal(result.ok, true)
-    expect(result.value).toMatchObject({ schemaVersion: 9, title: 'Summer' })
+    expect(result.value).toMatchObject({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      title: 'Summer',
+    })
   })
 
   it('rejects non-finite schemaVersion', () => {
@@ -208,7 +222,10 @@ describe('migrateToCurrent', () => {
       expect(
         (result.value as { assets: Record<string, unknown> }).assets,
       ).toEqual({})
-      expect(result.value).toMatchObject({ schemaVersion: 9, title: '' })
+      expect(result.value).toMatchObject({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        title: '',
+      })
     },
   )
 
@@ -232,7 +249,9 @@ describe('migrateToCurrent', () => {
       ).spreads[0]?.frames[0]
       expect(frame).toEqual({ ...frameV3, rotationDeg: 0, kind: 'image' })
       expect(frame).not.toHaveProperty('locked')
-      expect(result.value).toMatchObject({ schemaVersion: 9 })
+      expect(result.value).toMatchObject({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+      })
     })
 
     it('migrates a v3 book into a valid current book', () => {
@@ -242,14 +261,14 @@ describe('migrateToCurrent', () => {
       expect(result.book.spreads[0]?.frames[0]?.rotationDeg).toBe(0)
     })
 
-    it('chains v1 through v9', () => {
+    it('chains v1 through the current version', () => {
       const result = migrateToCurrent({
         ...v3Book([frameV3]),
         schemaVersion: 1,
       })
       expect(result).toMatchObject({
         ok: true,
-        value: { schemaVersion: 9 },
+        value: { schemaVersion: CURRENT_SCHEMA_VERSION },
       })
     })
 
@@ -296,7 +315,10 @@ describe('migrateToCurrent', () => {
         schemaVersion: 3,
       })
       assert.equal(result.ok, true)
-      expect(result.value).toMatchObject({ schemaVersion: 9, spreads: 'none' })
+      expect(result.value).toMatchObject({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        spreads: 'none',
+      })
     })
   })
 
@@ -355,7 +377,7 @@ describe('migrateToCurrent', () => {
       assert.equal(result.ok, true)
       expect(result.value).toEqual({
         ...input,
-        schemaVersion: 9,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
         frameStyles: {},
         cover: { ...(input.cover as object), style: defaultCoverStyle() },
         settings: {
@@ -431,7 +453,7 @@ describe('migrateToCurrent', () => {
       })
       assert.equal(result.ok, true)
       expect(result.value).toMatchObject({
-        schemaVersion: 9,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
         layoutGrid: { margins: 'odd' },
         spreads: [null, { id: 'x', layoutGrid: 'odd' }],
       })
@@ -490,5 +512,224 @@ describe('migrateToCurrent', () => {
       code: 'invalid-shape',
       message: 'Unsupported schemaVersion 0',
     })
+  })
+})
+
+describe('v9 to v10 (parent spreads)', () => {
+  /** A v9 book using every optional field that existed in v9. */
+  const richBook = makeBook({
+    title: 'Summer',
+    settings: { pageColor: '#f0eee9' },
+    guides: [{ id: 'bg1', orientation: 'vertical', offsetMm: 40 }],
+    frameStyles: { thin: { strokeMm: 0.5, strokeColor: '#232223' } },
+    assets: { a1: { widthPx: 4000, heightPx: 3000, orientation: 6 } },
+    gallery: ['a1'],
+    spreads: [
+      makeSpread({
+        id: 's1',
+        templateId: 'two-up',
+        masterId: 'B',
+        backgroundColor: '#e1e1e1',
+        layoutGrid: { columns: 3, margins: { top: 20 } },
+        guides: [
+          { id: 'g1', orientation: 'horizontal', offsetMm: 12, locked: true },
+        ],
+        frames: [
+          makeFrame({
+            id: 'f1',
+            assetId: 'a1',
+            crop: { zoom: 2, center: { x: 0.3, y: 0.7 }, quarterTurns: 1 },
+            fit: 'fit',
+            rotationDeg: 5,
+            locked: true,
+            frameStyleId: 'thin',
+            caption: 'Beach',
+            adjust: { brightness: 10, contrast: -5, saturation: 0 },
+          }),
+          makeFrame({
+            id: 't1',
+            z: 1,
+            kind: 'text',
+            content: { type: 'template', template: '{caption}' },
+            anchorFrameId: 'f1',
+            styleId: 'caption',
+            align: 'center',
+          }),
+        ],
+      }),
+      makeSpread({ id: 's2', masterId: 'none', frames: [] }),
+    ],
+  })
+  const v9Fixtures: Record<string, Book> = {
+    'empty book': makeBook(),
+    'rich book': richBook,
+    'book with asset': makeBookWithAsset(),
+    'placed template': makePlacedTemplateBook('4-grid', ['a', 'b', 'c']),
+    'large book': largeBook(8, 40),
+  }
+  const asV9 = (book: Book) => ({ ...book, schemaVersion: 9 })
+
+  it.each(Object.entries(v9Fixtures))(
+    '%s: only the version moves',
+    (_name, book) => {
+      const input = asV9(book)
+      const result = migrateToCurrent(input)
+      assert.equal(result.ok, true)
+      expect(result.value).toEqual({ ...input, schemaVersion: 10 })
+    },
+  )
+
+  it.each(Object.entries(v9Fixtures))(
+    '%s: loads unchanged and round-trips',
+    (_name, book) => {
+      const loaded = parseBook(structuredClone(asV9(book)))
+      assert.equal(loaded.ok, true)
+      expect(loaded.book).toEqual({ ...book, schemaVersion: 10 })
+      const again = parseBook(serializeBook(loaded.book))
+      assert.equal(again.ok, true)
+      expect(again.book).toEqual(loaded.book)
+    },
+  )
+
+  it.each([
+    ['left', 'decimal'],
+    ['center', 'lower-roman'],
+    ['right', 'upper-roman'],
+  ] as const)(
+    'round-trips parents, overrides, %s / %s numbering',
+    (align, format) => {
+      const frame = makeFrame({ id: 'pf1' })
+      const book = makeBook({
+        parents: [
+          {
+            id: 'p1',
+            name: 'Folios',
+            frames: [frame],
+            guides: [{ id: 'pg1', orientation: 'vertical', offsetMm: 20 }],
+            layoutGrid: { rows: 3 },
+            pageNumbers: [
+              {
+                id: 'pn1',
+                rect: { x: 5, y: 290, width: 10, height: 5 },
+                align,
+              },
+            ],
+          },
+        ],
+        defaultParentId: 'p1',
+        pageNumbering: { start: 0, skipFirst: true, format },
+        spreads: [
+          makeSpread({
+            id: 's1',
+            parentId: 'p1',
+            parentOverrides: {
+              hiddenIds: ['pg1'],
+              frames: [{ ...frame, id: 'local', overridesId: 'pf1' }],
+              guides: [
+                {
+                  id: 'lg',
+                  orientation: 'vertical',
+                  offsetMm: 25,
+                  overridesId: 'pg1',
+                },
+              ],
+            },
+          }),
+          makeSpread({ id: 's2', parentId: null }),
+        ],
+      })
+      const loaded = parseBook(serializeBook(book))
+      assert.equal(loaded.ok, true)
+      expect(loaded.book).toEqual(book)
+    },
+  )
+
+  it.each([
+    ['an empty parent id', { spreads: [{ ...makeSpread(), parentId: '' }] }],
+    [
+      'a negative start',
+      { pageNumbering: { start: -1, skipFirst: false, format: 'decimal' } },
+    ],
+    [
+      'an unknown format',
+      { pageNumbering: { start: 1, skipFirst: false, format: 'alpha' } },
+    ],
+    [
+      'a fractional start',
+      { pageNumbering: { start: 1.5, skipFirst: false, format: 'decimal' } },
+    ],
+    [
+      'a local copy without overridesId',
+      {
+        spreads: [
+          makeSpread({ parentOverrides: { frames: [makeFrame() as never] } }),
+        ],
+      },
+    ],
+    [
+      'an empty overridesId on a guide copy',
+      {
+        spreads: [
+          makeSpread({
+            parentOverrides: {
+              guides: [
+                {
+                  id: 'g',
+                  orientation: 'vertical',
+                  offsetMm: 1,
+                  overridesId: '',
+                },
+              ],
+            },
+          }),
+        ],
+      },
+    ],
+    [
+      'an empty hidden id',
+      { spreads: [makeSpread({ parentOverrides: { hiddenIds: [''] } })] },
+    ],
+    [
+      'a parent without a name',
+      { parents: [{ id: 'p', frames: [], guides: [] }] },
+    ],
+    [
+      'a parent page number with an empty id',
+      {
+        parents: [
+          {
+            id: 'p',
+            name: 'A',
+            frames: [],
+            guides: [],
+            pageNumbers: [
+              { id: '', rect: { x: 0, y: 0, width: 1, height: 1 } },
+            ],
+          },
+        ],
+      },
+    ],
+    [
+      'a parent page number with an unknown align',
+      {
+        parents: [
+          {
+            id: 'p',
+            name: 'A',
+            frames: [],
+            guides: [],
+            pageNumbers: [
+              {
+                id: 'n',
+                rect: { x: 0, y: 0, width: 1, height: 1 },
+                align: 'justify',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  ])('rejects %s', (_name, patch) => {
+    expect(parseBook({ ...makeBook(), ...patch }).ok).toBe(false)
   })
 })

@@ -36,7 +36,22 @@ export {
   SPINE_WIDTH_MIN_MM,
   type CoverStyle,
   type FrameAdjust,
+  PAGE_NUMBER_FORMATS,
+  type PageNumberFormat,
+  type PageNumberItem,
+  type PageNumbering,
+  type ParentOverrides,
+  type ParentSpread,
 } from './schema'
+export {
+  resolveParentFrames,
+  resolveParentGrid,
+  resolveParentGuides,
+  spreadParent,
+  type ParentLayer,
+  type ResolvedFrame,
+  type ResolvedGuide,
+} from './parentSpreads'
 export { TRIM_MAX_MM, TRIM_MIN_MM } from './ops/bookSettings'
 export {
   frameStylePresets,
