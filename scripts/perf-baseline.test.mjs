@@ -26,6 +26,7 @@ describe('classify', () => {
     ['its spec', WARM.spec],
     ['its sources', 'src/photo/assetPool.ts'],
     ['a shared perf source', 'src/perf/loafObserver.ts'],
+    ['the gate itself', 'scripts/perf-lane.mjs'],
   ])('fails when the PR touches %s', (_, file) => {
     expect(classify(WARM, BASE_RED, [...UNRELATED, file])).toBe('touched')
   })

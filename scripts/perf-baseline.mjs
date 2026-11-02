@@ -5,8 +5,10 @@
  */
 import fs from 'node:fs'
 
-/** Paths that feed every frame-budget scenario (harness, app shell, build). */
+/** Paths that feed every frame-budget scenario (harness, app shell, build, gate). */
 const SHARED_SOURCES = [
+  /^scripts\/perf-(lane|baseline)\.mjs$/,
+  /^\.github\/workflows\/perf\.yml$/,
   /^src\/(perf|ui|testFixtures)\//,
   /^e2e\/(perf|fixtures)\//,
   /^src\/(main|App)\.tsx$/,

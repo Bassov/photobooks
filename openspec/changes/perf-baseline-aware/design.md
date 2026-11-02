@@ -16,3 +16,4 @@
 | `.github/workflows/perf.yml`     | gate config: verdict upload, base download, `actions: read`; thresholds and runs unchanged |
 | `scripts/perf-baseline.test.mjs` | 4 decision cases + dry-run fixture (vitest)                                                |
 | `docs/agent-loop.md`             | one sentence on the pre-existing rule                                                      |
+| `scripts/perf-lane.test.mjs`     | `collectScenarios` rows carry the spec path                                                |
