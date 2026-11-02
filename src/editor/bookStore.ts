@@ -7,6 +7,7 @@ import {
   bookHasAnyPlacement,
   placementCountByAsset,
   resolveSpread,
+  spreadParent,
   type Asset,
   type Book,
   type BookOp,
@@ -1043,20 +1044,29 @@ function paintInputKey(
   const { trim, bleedMm, safeMarginMm } = book.settings
   let key = `${String(index)}:${String(book.spreads.length)}:${String(trim.widthMm)}:${String(trim.heightMm)}:${String(bleedMm)}:${String(safeMarginMm)}`
   key += `:${book.settings.pageColor ?? ''}`
-  for (const frame of spread.frames) {
-    if (frame.frameStyleId !== undefined) {
-      key += `#${JSON.stringify(book.frameStyles[frame.frameStyleId] ?? null)}`
+  // Parent-layer frames paint on the spread too (their photos need previews).
+  const layers = [
+    spreadParent(book, spread)?.frames ?? [],
+    spread.parentOverrides?.frames ?? [],
+    spread.frames,
+  ]
+  for (const frames of layers) {
+    key += '/'
+    for (const frame of frames) {
+      if (frame.frameStyleId !== undefined) {
+        key += `#${JSON.stringify(book.frameStyles[frame.frameStyleId] ?? null)}`
+      }
+      const assetId = frame.assetId
+      if (assetId === undefined) {
+        key += '|'
+        continue
+      }
+      const aspect = sessionMeta.get(assetId)?.aspect ?? 1
+      const url = previewUrls.get(assetId) ?? ''
+      const asset = book.assets[assetId]
+      const size = sessionPixelSize(sessionMeta.get(assetId))
+      key += `|${assetId}:${String(aspect)}:${url}:${String(size?.widthPx ?? asset?.widthPx)}x${String(size?.heightPx ?? asset?.heightPx)}`
     }
-    const assetId = frame.assetId
-    if (assetId === undefined) {
-      key += '|'
-      continue
-    }
-    const aspect = sessionMeta.get(assetId)?.aspect ?? 1
-    const url = previewUrls.get(assetId) ?? ''
-    const asset = book.assets[assetId]
-    const size = sessionPixelSize(sessionMeta.get(assetId))
-    key += `|${assetId}:${String(aspect)}:${url}:${String(size?.widthPx ?? asset?.widthPx)}x${String(size?.heightPx ?? asset?.heightPx)}`
   }
   return key
 }

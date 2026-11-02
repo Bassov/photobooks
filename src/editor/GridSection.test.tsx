@@ -12,10 +12,13 @@ import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import { GridSection } from './GridSection'
 import { getGridVisible, setGridVisible } from './gridView'
 
+/** Two spreads using the book default parent "Master A". */
 function seed() {
   resetBookStore({
     book: makeBook({
       spreads: [makeSpread({ id: 's1' }), makeSpread({ id: 's2' })],
+      parents: [{ id: 'pa', name: 'Master A', frames: [], guides: [] }],
+      defaultParentId: 'pa',
     }),
     sessionMeta: new Map(),
     importRunning: false,
@@ -152,7 +155,7 @@ describe('GridSection', () => {
   it('spread: with no master the source reads "Use book" and the book grid', () => {
     resetBookStore({
       book: makeBook({
-        spreads: [makeSpread({ id: 's1', masterId: 'none' })],
+        spreads: [makeSpread({ id: 's1' })],
       }),
       sessionMeta: new Map(),
       importRunning: false,

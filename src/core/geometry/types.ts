@@ -33,6 +33,8 @@ export interface ResolvedItem {
   z: number
   /** Frame rotation in degrees about the rect center. */
   rotation: number
+  /** Parent-layer item (inherited or a local copy): painted beneath the spread's frames, inert. */
+  parent?: true
   /** Locked frame: no move / resize / rotate; omitted when unlocked. */
   locked?: true
   /** Photo quarter turns (clockwise) inside the frame; omitted when 0. */

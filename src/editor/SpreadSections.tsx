@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { effectiveGrid, isTemplateId, type SpreadMasterId } from '../core'
+import { effectiveGrid, isTemplateId, spreadParent } from '../core'
 import { Disclosure } from '../ui/Disclosure'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import {
@@ -10,12 +10,8 @@ import {
 import { InspectorSlider } from './InspectorControls'
 import './SpreadSections.css'
 
-/** Kit SpreadPageSection Master choices (context-inspector.tsx:246-247). */
-const MASTERS: { id: SpreadMasterId; label: string }[] = [
-  { id: 'A', label: 'Master A' },
-  { id: 'B', label: 'Master B' },
-  { id: 'none', label: 'None' },
-]
+/** Master choice for None (parent ids are never empty). */
+const NO_PARENT = ''
 
 /** Kit SpreadBgSection swatches (uikit/src/sandbox/sections.tsx:54). */
 const BACKGROUNDS = [
@@ -51,6 +47,7 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
     return null
   }
   const { values } = effectiveGrid(book, spread)
+  const parents = book.parents ?? []
   return (
     <Disclosure
       title="Master & spacing"
@@ -58,16 +55,29 @@ export function MasterSpacingSection({ spreadId }: { spreadId: string }) {
       data-testid="spread-master-spacing"
     >
       <div className="px-4 pt-0.5 pb-3">
-        <SegmentedControl
-          label="Master"
-          size="sm"
-          className="spread-segmented"
-          value={spread.masterId ?? 'A'}
-          onChange={(masterId) => {
-            dispatchBookOp({ type: 'setSpreadMaster', spreadId, masterId })
-          }}
-          items={MASTERS}
-        />
+        {/* Kit SpreadPageSection Master choices (context-inspector.tsx:246-247): the book's parents + None. */}
+        {parents.length > 0 ? (
+          <SegmentedControl
+            label="Master"
+            size="sm"
+            className="spread-segmented"
+            value={spreadParent(book, spread)?.id ?? NO_PARENT}
+            onChange={(id) => {
+              dispatchBookOp({
+                type: 'setSpreadParent',
+                spreadId,
+                parentId: id === NO_PARENT ? null : id,
+              })
+            }}
+            items={[
+              ...parents.map((parent) => ({
+                id: parent.id,
+                label: parent.name,
+              })),
+              { id: NO_PARENT, label: 'None' },
+            ]}
+          />
+        ) : null}
         <div className="spread-spacing" data-testid="spread-spacing">
           <InspectorSlider
             label="Margin"

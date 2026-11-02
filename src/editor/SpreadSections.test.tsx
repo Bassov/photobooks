@@ -9,15 +9,20 @@ import {
 import { afterEach, describe, expect, it } from 'vitest'
 import { effectiveGrid } from '../core/grid/layoutGrid'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
-import type { Spread } from '../core'
+import type { Book, Spread } from '../core'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import { BackgroundSection, MasterSpacingSection } from './SpreadSections'
 
-function seed(first: Partial<Spread> = {}, pageColor?: string) {
+function seed(
+  first: Partial<Spread> = {},
+  pageColor?: string,
+  rest: Pick<Book, 'parents' | 'defaultParentId'> = {},
+) {
   resetBookStore({
     book: makeBook({
       spreads: [makeSpread({ id: 's1', ...first }), makeSpread({ id: 's2' })],
       ...(pageColor === undefined ? {} : { settings: { pageColor } }),
+      ...rest,
     }),
     sessionMeta: new Map(),
     importRunning: false,
@@ -54,9 +59,16 @@ function swatch(color: string) {
 
 afterEach(cleanup)
 
+const PARENTS: Pick<Book, 'parents'> = {
+  parents: [
+    { id: 'pa', name: 'Master A', frames: [], guides: [] },
+    { id: 'pb', name: 'Master B', frames: [], guides: [] },
+  ],
+}
+
 describe('MasterSpacingSection', () => {
-  it('is the kit "Master & spacing" section, Master A by default', () => {
-    seed()
+  it('is the kit "Master & spacing" section: the book parents + None, the book default checked', () => {
+    seed({}, undefined, { ...PARENTS, defaultParentId: 'pa' })
     render(<MasterSpacingSection spreadId="s1" />)
     expect(
       within(screen.getByTestId('spread-master-spacing')).getByText(
@@ -66,27 +78,35 @@ describe('MasterSpacingSection', () => {
     const radios = within(
       screen.getByRole('radiogroup', { name: 'Master' }),
     ).getAllByRole('radio')
-    expect(radios.map((r) => r.getAttribute('value'))).toEqual([
-      'A',
-      'B',
-      'none',
-    ])
+    expect(radios.map((r) => r.getAttribute('value'))).toEqual(['pa', 'pb', ''])
     expect(master('Master A').checked).toBe(true)
     expect(master('Master B').checked).toBe(false)
   })
 
-  it('the Master choice writes the spread master; A clears it back', () => {
+  it('hides the Master switch when the book has no parents, keeping the sliders', () => {
     seed()
+
     render(<MasterSpacingSection spreadId="s1" />)
-    fireEvent.click(master('None'))
-    expect(spread(0)?.masterId).toBe('none')
+
+    expect(screen.queryByRole('radiogroup', { name: 'Master' })).toBeNull()
+    expect(screen.getByTestId('spread-margin')).toBeTruthy()
+  })
+
+  it('the Master choice applies a parent to this spread only; None clears it back', () => {
+    seed({}, undefined, PARENTS)
+    render(<MasterSpacingSection spreadId="s1" />)
     expect(master('None').checked).toBe(true)
-    expect(spread(1)).not.toHaveProperty('masterId')
     fireEvent.click(master('Master B'))
-    expect(spread(0)?.masterId).toBe('B')
-    fireEvent.click(master('Master A'))
+    expect(spread(0)?.parentId).toBe('pb')
+    expect(master('Master B').checked).toBe(true)
+    expect(spread(1)).not.toHaveProperty('parentId')
+    fireEvent.click(master('None'))
     expect(spread(0)).toBeDefined()
-    expect(spread(0)).not.toHaveProperty('masterId')
+    expect(spread(0)).not.toHaveProperty('parentId')
+    act(() => {
+      undoBook()
+    })
+    expect(spread(0)?.parentId).toBe('pb')
   })
 
   it('Margin sets all four spread margins, Gap both gutters', () => {

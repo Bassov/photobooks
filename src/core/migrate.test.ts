@@ -528,7 +528,6 @@ describe('v9 to v10 (parent spreads)', () => {
       makeSpread({
         id: 's1',
         templateId: 'two-up',
-        masterId: 'B',
         backgroundColor: '#e1e1e1',
         layoutGrid: { columns: 3, margins: { top: 20 } },
         guides: [
@@ -557,7 +556,7 @@ describe('v9 to v10 (parent spreads)', () => {
           }),
         ],
       }),
-      makeSpread({ id: 's2', masterId: 'none', frames: [] }),
+      makeSpread({ id: 's2', frames: [] }),
     ],
   })
   const v9Fixtures: Record<string, Book> = {
