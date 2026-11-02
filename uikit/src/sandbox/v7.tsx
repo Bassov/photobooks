@@ -33,7 +33,7 @@ export const endpBg = `radial-gradient(circle at 25% 25%, rgb(255 255 255/.10) 1
 export const V7CSS = `
 .e7 ::-webkit-scrollbar-thumb { background-color: #A8A8A8 } .e7 *:hover::-webkit-scrollbar-thumb { background-color: #969696 } .e7 ::-webkit-scrollbar-thumb:hover { background-color: #7E7E7E }
 .e7-ghost { color: ${T}; border: 0; outline: none; transition: background-color .15s } .e7-ghost:hover { background: rgb(57 55 56/.08) }
-.e7-ghost:focus-visible, .e7-item:focus-visible, .e7-title:focus-visible, .e7-sel:focus-visible, .e7-canvas:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
+.e7-ghost:focus-visible, .e7-item:focus-visible, .e7-title:focus-visible, .e7-sel:focus-visible, .e7-csel:focus-visible, .e7-canvas:focus-visible { outline: 2px solid #535152; outline-offset: 2px }
 .e7-canvas[data-panning], .e7-canvas[data-panning]:focus-visible { outline: none }
 .cursor-tool-frame { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M12%201v22M1%2012h22%22%20stroke%3D%22%23232223%22%20stroke-width%3D%223.2%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20d%3D%22M12%201v22M1%2012h22%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22square%22%2F%3E%3C%2Fsvg%3E") 12 12, crosshair }
 .cursor-tool-text { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2224%22%20viewBox%3D%220%200%2016%2024%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M3%202.5h10M8%202.5v19M3%2021.5h10%22%20stroke%3D%22%23232223%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20d%3D%22M3%202.5h10M8%202.5v19M3%2021.5h10%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%221.3%22%20stroke-linecap%3D%22square%22%2F%3E%3C%2Fsvg%3E") 7 11, text }
@@ -43,6 +43,7 @@ export const V7CSS = `
 .e7-title { transition: background-color .12s } .e7-title:hover { background: rgb(57 55 56/.08) } .e7-title:active { background: #CDCDCD } .e7-title[aria-pressed=true] { background: ${FIELD} }
 .e7-tg { background: #CACACA } .e7-tg[data-on] { background: #A8A8A8 } .e7-tg[data-on]:hover { background: #8E8E8E }
 .e7-tog[aria-pressed=true] { background: ${FIELD} } .e7-sec:hover { background: #CDCDCD !important }
+.e7-csel { -webkit-appearance: none; appearance: none; padding: 0 33px 0 11px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b696a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 9px center; background-size: 16px 16px; background-repeat: no-repeat }
 .e7-sel { -webkit-appearance: none; appearance: none; background-image: linear-gradient(45deg, transparent 50%, ${SUB} 50%), linear-gradient(135deg, ${SUB} 50%, transparent 50%); background-position: calc(100% - 13px) 12px, calc(100% - 9px) 12px; background-size: 4px 4px; background-repeat: no-repeat }
 .e7-pan { transition: width .18s cubic-bezier(.2,.7,.2,1), height .18s cubic-bezier(.2,.7,.2,1) } @media (prefers-reduced-motion: reduce) { .e7-pan { transition: none } }
 .e7-tip { position: relative } .e7-tip > .e7-tt { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s .25s; z-index: 50; background: #535152; color: ${ON_INK}; font-size: 11px; line-height: 16px; padding: 3px 7px; border-radius: 5px }
@@ -80,7 +81,6 @@ export function EndpaperSpread({ big, which }: { big?: boolean; which: "front" |
   return (
     <div className="relative flex h-full w-full" style={{ boxShadow: big ? shadowBig : shadowSm }} data-testid={big ? "canvas-endpaper" : undefined}>
       {paste}{paste}<Gutter />
-      {big && <span className="pointer-events-none absolute top-2 text-2xs" style={{ color: "#535152", [which === "front" ? "left" : "right"]: 10 }}>Pastedown · glued to {which} board</span>}
     </div>)
 }
 /** `guides` unset = the built-in master guides; `pn` feeds Parent.pageNumbers of every spread on this master */
@@ -147,6 +147,14 @@ export const Toggle = ({ on, onClick, label }: { on: boolean; onClick?: () => vo
   <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick} className="e7-tg relative h-4.5 w-8 rounded-full border-0 p-0" data-on={on || undefined}>
     <span className="e7-knob absolute top-0.5 size-3.5 rounded-full transition-[left]" style={{ left: on ? 16 : 2 }} /></button>)
 export const Val = ({ v }: { v: string }) => <span className="rounded-sm px-2 py-1 text-sm" style={{ background: FIELD, color: T }}>{v}</span>
+/** kit-sync KS10: read-only pill + note as one right-aligned group (prod ReadOnlyPill) */
+const ReadOnly = ({ v, note, tid }: { v: string; note: string; tid: string }) => <span className="flex items-center"><Val v={v} /><span className="ml-1.5 text-2xs" style={{ color: SUB }} data-testid={tid}>{note}</span></span>
+/** kit-sync KS10: cover style choice — native select like prod Select (h 36, r 8, chevron 16), right-aligned in its Row */
+function CoverSel({ l, opts, tid }: { l: string; opts: string[]; tid: string }) {
+  const [v, setV] = React.useState(opts[0])
+  return <Row l={l}><select aria-label={l} data-testid={tid} value={v} onChange={(e) => setV(e.target.value)}
+    className="e7-csel h-9 rounded-md border-0 text-sm outline-none" style={{ backgroundColor: FIELD, color: T }}>{opts.map((o) => <option key={o}>{o}</option>)}</select></Row>
+}
 export const Swatches = ({ cs, on }: { cs: string[]; on: number }) => <div className="flex gap-1.5">{cs.map((c, i) => <span key={c} className={i === on ? "swatch-on size-5 rounded-full" : "size-5 rounded-full"} data-swatch-on={i === on || undefined} style={{ background: c, boxShadow: "0 1px 2px rgb(0 0 0/.15)" }} />)}</div>
 export const Head = ({ t, s }: { t: string; s: string }) => <div className="px-4 pt-4 pb-1" data-testid="inspector-head"><div className="text-sm font-medium">{t}</div><div className="mt-0.5 text-xs" style={{ color: SUB }}>{s}</div></div>
 export const Txt = ({ v, ph: p }: { v?: string; ph?: string }) => <div className="flex h-8 items-center rounded-md px-2.5 text-sm" style={{ background: FIELD, color: v ? T : SUB }}>{v ?? p}</div>
@@ -202,7 +210,7 @@ export function BookInspector() {
   if (sel.k === "book") return <div data-testid="insp-book">
     <Head t="Book settings" s={`${ct.back || ct.front || "Untitled book"} · applies to the whole book`} />
     <Sec title="Page size"><SizeEditor book={book} setBook={setBook} /></Sec>
-    <Sec title="Binding"><Row l="Style"><Val v="Hardcover" /><span className="ml-1.5 text-2xs" style={{ color: SUB }} data-testid="binding-readonly">read-only</span></Row>
+    <Sec title="Binding"><Row l="Style"><ReadOnly v="Hardcover" note="read-only" tid="binding-readonly" /></Row>
       <Row l="Endpapers"><Toggle label="Endpapers" on={book.endp} onClick={() => setBook({ ...book, endp: !book.endp })} /></Row>
       <Row l="Pages"><span className="flex items-center gap-1" data-testid="book-pages"><Val v={`${pages}`} /><span className="text-2xs" style={{ color: SUB }}>{PAGE_MIN}–{PAGE_MAX}</span></span></Row>
       <div className="mt-1.5 text-2xs" style={{ color: SUB }} data-testid="book-pages-note">{pages < PAGE_MIN ? `Add ${Math.ceil((PAGE_MIN - pages) / 2)} spread${PAGE_MIN - pages > 2 ? "s" : ""} to reach the ${PAGE_MIN}-page minimum` : pages > PAGE_MAX ? `Remove ${Math.ceil((pages - PAGE_MAX) / 2)} spreads to stay within ${PAGE_MAX} pages` : "Pages are added in spreads of 2"}</div></Sec>
@@ -211,10 +219,10 @@ export function BookInspector() {
   if (sel.k === "cover") return <div data-testid="insp-cover">
     <Head t="Cover" s="Hardcover · back, spine, front · wrap 15 mm" />
     <Sec title="Front"><div className="flex items-center gap-3"><div className="h-13 w-10.5 rounded-xs bg-cover" style={{ backgroundImage: cov ? ph(cov) : undefined, backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid="cover-front-thumb" data-photo-id={cov} /><div className="text-sm"><div>{!cov ? "No photo yet" : cov === "p01" ? "IMG_P01.jpg" : P(cov).name}</div><div className="mt-0.5" style={{ color: SUB }}>Full bleed · 288 ppi</div><div className="mt-0.5 text-2xs" style={{ color: SUB }}>Drag a photo from the filmstrip onto the cover</div></div></div>
-      <div className="mt-3"><CoverTxt k="front" label="Front title" /></div><Row l="Title font"><Val v="Serif italic" /></Row></Sec>
+      <div className="mt-3"><CoverTxt k="front" label="Front title" /></div><CoverSel l="Title font" opts={["Serif italic", "Serif", "Sans"]} tid="cover-title-font" /></Sec>
     <Sec title="Spine"><CoverTxt k="spine" label="Spine text" /><Row l="Spine width"><span className="font-mono text-sm tabular-nums">12 mm</span></Row><Row l="Direction"><Val v="Top to bottom" /></Row></Sec>
-    <Sec title="Back"><CoverTxt k="back" label="Back text" /><Row l="Fill"><Val v="Paper white" /><span className="ml-1.5 text-2xs" style={{ color: SUB }} data-testid="fill-readonly">coming later</span></Row></Sec>
-    <Sec title="Material"><Row l="Cover"><Val v="Printed" /><span className="ml-1.5 text-2xs" style={{ color: SUB }} data-testid="material-readonly">coming later</span></Row><Row l="Finish"><Val v="Matte laminate" /></Row></Sec></div>
+    <Sec title="Back"><CoverTxt k="back" label="Back text" /><Row l="Fill"><ReadOnly v="Paper white" note="coming later" tid="fill-readonly" /></Row></Sec>
+    <Sec title="Material"><CoverSel l="Cover" opts={["Printed", "Linen", "Leatherette"]} tid="cover-material" /><CoverSel l="Finish" opts={["Matte laminate", "Gloss laminate", "Soft touch"]} tid="cover-finish" /></Sec></div>
   if (sel.k === "endpaper") return <div data-testid="insp-endpaper">
     <Head t={`Endpaper · ${sel.w}`} s="Pastedown and free leaf, printed full bleed" />
     <Sec title="Fill"><Row l="Style"><Val v="Pattern" /><span className="ml-1.5 text-2xs" style={{ color: SUB }} data-testid="endp-fill-readonly">coming later</span></Row>
