@@ -14,11 +14,11 @@ import {
   installPhotoDirectoryPickerStub,
 } from './fixtures/photoDirectoryPicker'
 import {
-  browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
   clearPerfScenario,
   enablePerfScenario,
 } from './perf/perfFixture'
+import { assertFlingLoafBudget } from './perf/flingLoafGate'
 
 const COUNT = 400
 
@@ -113,7 +113,7 @@ test.describe('frame-budget gates', () => {
       () => window.__photobooksPerf?.getLoafEntries().length ?? -1,
     )
     console.log(`thumb-hot-cache perf loaf: ${String(loaf)}`)
-    await page.evaluate(browserAssertNoLoaf, 0)
+    await assertFlingLoafBudget(page)
     expect(probe.placeholderFrames).toBe(0)
   })
 })

@@ -13,11 +13,11 @@ import {
 import { browserFlingAndProbe, FLING_STEP_PX } from './fixtures/filmstripFling'
 import {
   applyCpuThrottling,
-  browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
   browserStartLoafScripts,
   browserTakeLoafScripts,
 } from './perf/perfFixture'
+import { assertFlingLoafBudget } from './perf/flingLoafGate'
 
 const COUNT = 400
 
@@ -170,7 +170,7 @@ test.describe('frame-budget gates', () => {
     console.log(
       `thumb-bulk-hydrate perf loaf scripts: ${JSON.stringify(attribution)}`,
     )
-    await page.evaluate(browserAssertNoLoaf, 0)
+    await assertFlingLoafBudget(page)
     // The pass still finishes after the scroll.
     await expect
       .poll(() => thumbStats(page), { timeout: 60_000 })

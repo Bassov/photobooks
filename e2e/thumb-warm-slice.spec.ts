@@ -8,11 +8,11 @@ import {
 } from './fixtures/ensurePhotoFixtures'
 import {
   applyCpuThrottling,
-  browserAssertNoLoaf,
   browserBeginLoafScenarioWindow,
   browserStartLoafScripts,
   browserTakeLoafScripts,
 } from './perf/perfFixture'
+import { assertFlingLoafBudget } from './perf/flingLoafGate'
 
 /**
  * Gallery size where one unsliced warm pass (sync identity digest + queue
@@ -158,7 +158,7 @@ test.describe('frame-budget gates', () => {
       `thumb-warm-slice loaf: ${String(rows.length)} entries ${JSON.stringify(rows)}`,
     )
     expect(frames).toBeGreaterThan(10)
-    await page.evaluate(browserAssertNoLoaf, 0)
+    await assertFlingLoafBudget(page)
 
     await expect
       .poll(async () => (await warmStats(page)).settledCount, {
