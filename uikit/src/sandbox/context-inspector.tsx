@@ -93,7 +93,8 @@ export function ContextInspector() {
 const CHIPS = [["all", "Any"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4+"]] as const
 const matches = (t: Template, chip: string) => chip === "all" || (chip === "4" ? slotCount(t) >= 4 : slotCount(t) === +chip)
 
-/* Owner 2026-11-02 (layout-tile-states): the thumb box takes the trim aspect clamped to 2:3…2:1 and the paper fills it;
+/* Owner 2026-11-02 (layout-tile-states; prod twin: src/editor/layoutThumb.ts, keep the numbers in step):
+   the thumb box takes the trim aspect clamped to 2:3…2:1 and the paper fills it;
    page 1 is a single page (the right half of spread 0), so its trim is PAGE × SH and its grid goes 3 columns below 1.2:1 */
 const trimRatio = (single: boolean) => (single ? PAGE / SH : SW / SH)
 const thumbAspect = (r: number) => Math.min(2, Math.max(2 / 3, r))
