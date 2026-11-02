@@ -39,6 +39,30 @@ test('dock header has kit chips and Add folder, no size slider', async ({
   await expect(page.getByText('Assets', { exact: true })).toHaveCount(0)
 })
 
+// Designer kit-sync P2: the kit's header chips are pills (radius 8 before),
+// 28 px high, at rest and on hover.
+test('dock header chips are kit pills at rest and on hover', async ({
+  page,
+}) => {
+  await openSessionEditor(page)
+  const head = page.locator('.editor-dock-head')
+  const box = (id: string) =>
+    head.getByTestId(id).evaluate((el) => {
+      const s = getComputedStyle(el)
+      return {
+        radius: Number.parseFloat(s.borderTopLeftRadius),
+        height: el.getBoundingClientRect().height,
+      }
+    })
+  for (const id of ['film-add-folder', 'film-unplaced-only', 'film-sort']) {
+    const rest = await box(id)
+    expect(rest.radius, id).toBeGreaterThanOrEqual(9999)
+    expect(rest.height, id).toBe(28)
+    await head.getByTestId(id).hover()
+    expect((await box(id)).radius, id).toBeGreaterThanOrEqual(9999)
+  }
+})
+
 test('Add folder fills the filmstrip; tiles show the file name on hover; used badge is black', async ({
   page,
 }) => {

@@ -126,6 +126,7 @@ export function CreateBookDialog({
                 label={`${label} (cm)`}
                 unit={null}
                 steppers
+                live
                 min={CUSTOM_CM_MIN}
                 max={CUSTOM_CM_MAX}
                 step={0.1}

@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
+import { ensureLibraryScreenStyles } from './libraryScreenStyles'
 import { listLibraryBooks } from './projectSession'
 import { SettingsScreen } from './SettingsScreen'
 
-/** Settings opened from the editor top bar ⚙: full-window page with a back bar. */
+// Back bar box and ink: `.pb-settings-back`, shared with the library Settings.
+ensureLibraryScreenStyles()
+
+/**
+ * Settings opened from the editor top bar ⚙: full-window page with the kit
+ * back bar "Back to the book" (uikit demo-parts/settings.tsx:84).
+ */
 export function EditorSettings({
   libraryPath,
   changeDisabled,
@@ -35,12 +42,12 @@ export function EditorSettings({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4"
+          className="pb-settings-back h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4"
           onPress={onClose}
           data-testid="editor-settings-back"
         >
           <Icon name="chevronLeft" size={16} />
-          Back
+          Back to the book
         </Button>
         <span className="text-sm font-medium">Settings</span>
       </div>
