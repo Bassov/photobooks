@@ -48,6 +48,17 @@ import './SpreadView.css'
 /** Keeps the crop-mode frame (and its ghost) above neighbouring frames. */
 const CROP_Z_BOOST = 1000
 
+/**
+ * Parent items: a stacking context at z 0 painted before the spread frames
+ * (ops write z ≥ 0), so any parent `z` stays beneath them; clicks fall through.
+ */
+const PARENT_LAYER_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  zIndex: 0,
+  pointerEvents: 'none',
+}
+
 const FULL_CROP = { x: 0, y: 0, width: 1, height: 1 } as const
 
 /** Kit selection handles: corners + edge midpoints, % of the frame. */
@@ -151,6 +162,33 @@ export function SpreadView({
   /** Editor-only low-resolution badge on controlled frames (off in Preview). */
   lowDpiBadge?: boolean
 }) {
+  const parentItems = resolved.items.filter((item) => item.parent === true)
+  const spreadItems = resolved.items.filter((item) => item.parent !== true)
+  const paintFrame = (item: ResolvedItem) => {
+    const inert = thumb || item.parent === true
+    const missingId = missingAssetId(item.assetId, isMissingAsset)
+    const missing = missingId !== undefined
+    return (
+      <SpreadFrame
+        key={item.frameId}
+        item={item}
+        pxPerMm={pxPerMm}
+        thumb={inert}
+        lowDpiBadge={lowDpiBadge}
+        missing={missing}
+        assetName={
+          missingId === undefined ? undefined : assetNameFor?.(missingId)
+        }
+        previewUrl={previewUrlUnlessMissing(
+          missing,
+          item.assetId,
+          previewUrlFor,
+        )}
+        tier={tierUnlessMissing(missing, item.assetId, tierFor)}
+        control={item.parent === true ? undefined : frameControlFor?.(item)}
+      />
+    )
+  }
   return (
     <div
       className={thumb ? 'spread-view spread-view--thumb' : 'spread-view'}
@@ -165,30 +203,18 @@ export function SpreadView({
           : { background: resolved.backgroundColor }),
       }}
     >
-      {resolved.items.map((item) => {
-        const missingId = missingAssetId(item.assetId, isMissingAsset)
-        const missing = missingId !== undefined
-        return (
-          <SpreadFrame
-            key={item.frameId}
-            item={item}
-            pxPerMm={pxPerMm}
-            thumb={thumb}
-            lowDpiBadge={lowDpiBadge}
-            missing={missing}
-            assetName={
-              missingId === undefined ? undefined : assetNameFor?.(missingId)
-            }
-            previewUrl={previewUrlUnlessMissing(
-              missing,
-              item.assetId,
-              previewUrlFor,
-            )}
-            tier={tierUnlessMissing(missing, item.assetId, tierFor)}
-            control={frameControlFor?.(item)}
-          />
-        )
-      })}
+      {parentItems.length > 0 ? (
+        // Own stacking context below every spread frame; inert markup, so
+        // parent items are never selected, dragged or hit as drop targets.
+        <div
+          className="spread-view-parent-layer"
+          data-testid={thumb ? undefined : 'parent-layer'}
+          style={PARENT_LAYER_STYLE}
+        >
+          {parentItems.map(paintFrame)}
+        </div>
+      ) : null}
+      {spreadItems.map(paintFrame)}
       {resolved.pageCuts.map((cut) => {
         const line = pageCutLine(cut, pxPerMm)
         const vertical = line.orientation === 'vertical'

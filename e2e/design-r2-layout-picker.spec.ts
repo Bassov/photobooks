@@ -525,9 +525,11 @@ test('Master & spacing, Background and Grid match the kit boxes', async ({
   page,
 }) => {
   await selectSecondSpread(page)
-  // Kit #/demo, spread 2–3 at 1440 × 900 (Step 0 DOM measurements).
+  // Kit #/demo, spread 2–3 at 1440 × 900 (Step 0 DOM measurements). A new
+  // book has no parents, so Master & spacing drops the kit Master switch
+  // (24 px + 4 px gap; measured with parents in parent-spreads.spec.ts).
   const sections = [
-    ['spread-master-spacing', 170.59],
+    ['spread-master-spacing', 170.59 - 28],
     ['spread-background', 95],
     ['grid', 176.53],
   ] as const
@@ -536,12 +538,7 @@ test('Master & spacing, Background and Grid match the kit boxes', async ({
     expect(b.width).toBeCloseTo(300, 0)
     expect(Math.abs(b.height - height)).toBeLessThanOrEqual(0.5)
   }
-  const masters = page.getByRole('radiogroup', { name: 'Master' })
-  for (const name of ['Master A', 'Master B', 'None']) {
-    const b = await box(masters.getByRole('radio', { name }))
-    expect(Math.abs(b.width - 86.66)).toBeLessThanOrEqual(0.5)
-    expect(b.height).toBeCloseTo(24, 0)
-  }
+  await expect(page.getByRole('radiogroup', { name: 'Master' })).toHaveCount(0)
   for (const testId of ['spread-margin', 'spread-gap']) {
     const row = page.getByTestId(testId)
     const value = await box(row.getByTestId('slider-value'))
