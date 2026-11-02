@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: prod differs from kit in 3 places (Designer kit-sync Spec P1–P3)
+Status: done
 
 ## Scope
 
