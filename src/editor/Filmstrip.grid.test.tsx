@@ -6,7 +6,10 @@ import { resetCameraStore } from './cameraStore'
 import { clearDropHover } from './dropHover'
 import { Filmstrip } from './Filmstrip'
 import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
-import { resetFilmstripGridFocus } from './filmstripGridFocus'
+import {
+  resetFilmstripGridFocus,
+  setFilmstripAnchor,
+} from './filmstripGridFocus'
 import { seedGallery } from './gallery.test-helpers'
 import {
   getSelectedAssetIds,
@@ -225,6 +228,20 @@ describe('Filmstrip grid', () => {
       'seed-2',
       'seed-3',
     ])
+  })
+
+  it('replaces the selection with the first row when Tab enters a grid without a selected row', () => {
+    seedGallery(3)
+    setSelectedAssetIds(['off-strip'])
+    setFilmstripAnchor('seed-2')
+    render(<Filmstrip />)
+
+    act(() => {
+      screen.getByRole('grid').focus()
+    })
+
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+    expect(document.activeElement).toBe(row('seed-0'))
   })
 
   it('leaves other keys alone; Escape still clears the selection', () => {

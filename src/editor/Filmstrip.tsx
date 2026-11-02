@@ -193,18 +193,17 @@ const FilmstripGrid = memo(function FilmstripGrid({
         const selected = getSelectedAssetIds()
         const target =
           roving ?? items.find((row) => selected.includes(row.id)) ?? items[0]
-        if (target === undefined) {
-          return
+        if (target !== undefined) {
+          if (roving === undefined && !selected.includes(target.id)) {
+            applyPick(
+              pickFilmstripItem(selectionInput(order), target.id, {
+                shift: false,
+                toggle: false,
+              }),
+            )
+          }
+          rowElement(event.currentTarget, target.id)?.focus()
         }
-        if (roving === undefined && !selected.includes(target.id)) {
-          applyPick(
-            pickFilmstripItem(selectionInput(order), target.id, {
-              shift: false,
-              toggle: false,
-            }),
-          )
-        }
-        rowElement(event.currentTarget, target.id)?.focus()
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
