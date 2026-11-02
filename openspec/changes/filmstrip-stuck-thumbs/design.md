@@ -2,7 +2,7 @@
 
 1. **Retry owner.** `ProcessAssetOptions.onRetryResult` names who gets a pool retry's result. A leave-now abort still rejects the call (the import batch counts it done); the retry run on re-entry calls `onRetryResult`, which `runImportBatch` sets to its own `onResult` (thumb, aspect, seed). Parking the job instead was rejected: the batch awaits it and would never finish.
 2. **No stale signal in a retry seed.** A call rejected for an already-aborted signal (an import chunk reaching an asset that left now earlier) seeds its retry without that signal; the pool controller still cancels it. A deferred JPEG promoted with an aborted signal also parks a retry. A retry for an asset already in now runs at once.
-3. **Tier-scoped retry clear.** Only a same-tier decode (enqueue or success) clears a parked retry; a working-preview job no longer drops a thumb retry.
+3. **Tier-scoped retry clear.** Only a same-tier decode (enqueue or success) clears a parked ownerless retry; a working-preview job no longer drops a thumb retry. An owned retry runs only on re-entry: its rejected owner hears from nothing else.
 4. **`thumbMissDecode`** keeps deferring to a pending thumb decode: safe now that every thumb320 owner publishes. Other callers: reasons in the PR body.
 5. **UI:** no visual change; `ui-review` N/A. The e2e covers the scroll path.
 
