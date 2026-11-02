@@ -69,7 +69,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
-- [ ] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
+- [x] [prep] [parent-spreads-schema](roadmap/P2/parent-spreads-schema.md) — parent spreads in the document
 - [ ] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads

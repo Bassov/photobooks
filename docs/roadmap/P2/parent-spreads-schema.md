@@ -7,9 +7,9 @@ Status: done
 
 ## Scope
 
-- [ ] Schema version bump with migration: parent spreads with shared items, an optional partial layout grid and guides; `spread.parentId?` and a book default parent; page-number items on parents (auto page number) with the book's numbering options (start number, skip first page, format)
-- [ ] Per-spread parent overrides: `spread.parentOverrides?` with hidden parent item / guide ids and local copies linked to the parent item or guide they override (`overridesId`); the spread's own items and guides are added on top
-- [ ] Resolver: grid chain book grid → parent → spread override (the book grid applies to parent "None"); guides = parent guides minus hidden / overridden + spread guides; parent items beneath spread items minus hidden / overridden; PBT
+- [x] Schema version bump with migration: parent spreads with shared items, an optional partial layout grid and guides; `spread.parentId?` and a book default parent; page-number items on parents (auto page number) with the book's numbering options (start number, skip first page, format)
+- [x] Per-spread parent overrides: `spread.parentOverrides?` with hidden parent item / guide ids and local copies linked to the parent item or guide they override (`overridesId`); the spread's own items and guides are added on top
+- [x] Resolver: grid chain book grid → parent → spread override (the book grid applies to parent "None"); guides = parent guides minus hidden / overridden + spread guides; parent items beneath spread items minus hidden / overridden; PBT
 - **Done when:** vN migrates every v(N-1) fixture; parent resolution PBT green
 - **Kit components:** none (prep, no UI); reference model: sandbox `uikit/src/sandbox/model.ts:43-70,181` (`Parent{frames,guides,grid,pageNumbers}`, `Frame.overrides` and `allGuides`)
 - **Demo:** n/a (prep)
