@@ -21,7 +21,10 @@ import {
   encodeFrameDrag,
   type DropTarget,
   type FrameDragSource,
+  type IndexedFrame,
 } from './dropTargets'
+import { DRAG_TIER_LINGER_MS } from './holdDisplayTiers'
+import { maxDesiredTier, resetTierDisplay } from './tierDisplay'
 import {
   getFrameSource,
   resetFrameSelection,
@@ -96,7 +99,7 @@ function targetPoint(target: DropTarget): { x: number; y: number } {
   return { x: frame.left + 1, y: frame.top + 1 }
 }
 
-function firstTargets(): [DropTarget, DropTarget] {
+function firstTargets(): [IndexedFrame, IndexedFrame] {
   const geometry = geometryForCurrentBook()
   const index = buildDropIndex({
     spreads: dropSpreadsFromBook(getBookStoreSnapshot().book, geometry),
@@ -148,6 +151,7 @@ describe('Pasteboard gallery drop', () => {
     resetFrameSelection()
     resetBookStore()
     resetCameraStore()
+    resetTierDisplay()
   })
 
   it('moves drop hover between frames and clears it off a frame', () => {
@@ -177,6 +181,39 @@ describe('Pasteboard gallery drop', () => {
 
     dragOver(scroll, 'a', -20, -20)
     expect(scroll.querySelector('[data-drop-hover="true"]')).toBeNull()
+  })
+
+  it('starts the dragged photo tier on dragstart and raises it for the hovered frame', () => {
+    seedGridBook()
+    render(<Pasteboard />)
+    const scroll = screen.getByTestId('pasteboard-scroll')
+    const [first] = firstTargets()
+    const longEdge = Math.max(
+      first.right - first.left,
+      first.bottom - first.top,
+    )
+    const point = targetPoint(first)
+    startDrag('a')
+    expect(maxDesiredTier('a')).toBe(1280)
+
+    // Just under 1280 device px on the frame's long edge keeps 1280 …
+    vi.stubGlobal('devicePixelRatio', (1280 / longEdge) * 0.99)
+    dragOver(scroll, 'a', point.x, point.y)
+    expect(maxDesiredTier('a')).toBe(1280)
+    // … just over it starts 2560 before the drop.
+    vi.stubGlobal('devicePixelRatio', (1280 / longEdge) * 1.01)
+    dragOver(scroll, 'a', point.x, point.y)
+    expect(maxDesiredTier('a')).toBe(2560)
+
+    vi.useFakeTimers()
+    try {
+      document.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
+      vi.advanceTimersByTime(DRAG_TIER_LINGER_MS)
+      expect(maxDesiredTier('a')).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('places on drop and replaces a filled frame', () => {
