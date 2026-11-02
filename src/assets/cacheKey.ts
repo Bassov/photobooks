@@ -16,9 +16,31 @@ export function identityKeyString(identity: AssetIdentityKey): string {
   return `${identity.sourceRootId}\n${identity.relativePath}\n${String(identity.byteSize)}\n${String(identity.mtimeMs)}`
 }
 
+/** Digests kept by identity string; the oldest is dropped past this size. */
+export const CACHE_KEY_MEMO_MAX = 16_384
+
+/**
+ * Rows and the warm lane read keys on every render / pass; one SHA-256 per
+ * identity keeps that work and its garbage off the scroll path.
+ */
+const digests = new Map<string, string>()
+
 /** Sync 64-hex digest for DerivedCache `assetHash` (not file-byte SHA-256). */
 export function cacheKeyFromIdentity(identity: AssetIdentityKey): string {
-  return sha256HexSync(identityKeyString(identity))
+  const canonical = identityKeyString(identity)
+  const known = digests.get(canonical)
+  if (known !== undefined) {
+    return known
+  }
+  const digest = sha256HexSync(canonical)
+  if (digests.size >= CACHE_KEY_MEMO_MAX) {
+    for (const oldest of digests.keys()) {
+      digests.delete(oldest)
+      break
+    }
+  }
+  digests.set(canonical, digest)
+  return digest
 }
 
 export function tryCacheKeyFromAsset(asset: {
