@@ -236,27 +236,29 @@ export async function bindPhotoFolder(options: {
   return { sourceRootId }
 }
 
-/** Write handle + book→root map to IDB after import (or when persist was skipped). */
+/**
+ * Write handle + book→root map to IDB after import (or when persist was skipped).
+ * Never throws: a failed write (full/blocked storage, uncloneable handle) must
+ * not abort an in-flight import. The folder stays bound for this session;
+ * resolves `false` so the caller can say it will not survive a reload.
+ */
 export async function persistBoundPhotoFolder(
   sourceRootId: string,
   directory: FileSystemDirectoryHandle,
-): Promise<void> {
+): Promise<boolean> {
   const remembered = await rememberSourceRootHandle(sourceRootId, directory)
-  if (!remembered.ok) {
-    throw new Error('Could not remember photo folder handle')
-  }
   const binding: BookPhotoRoot = {
     sourceRootId,
     label: directory.name,
   }
-  const set = await setBookPhotoRoot(bookKey(), binding)
-  if (!set.ok) {
-    throw new Error('Could not bind photo folder to book')
-  }
+  const set = remembered.ok
+    ? await setBookPhotoRoot(bookKey(), binding)
+    : remembered
   boundSourceRootId = sourceRootId
   photoFolderLabel = directory.name
   photoAccessPhase = 'idle'
   emit()
+  return set.ok
 }
 
 /** Register the durable FSA AssetSource after import seeding finishes. */
@@ -1093,6 +1095,7 @@ export async function importScannedEntriesInBatches(
   let awaitPriorHashes = true
   let resolvedAny = false
   let firstBatchYielded = false
+  let hookFailed: { error: unknown } | null = null
   try {
     for (
       let offset = 0;
@@ -1157,11 +1160,21 @@ export async function importScannedEntriesInBatches(
       await yieldForPaint()
       if (!firstBatchYielded) {
         firstBatchYielded = true
-        await options.onFirstBatchYielded?.()
+        // A failing side hook must not strand the remaining list-first
+        // placeholders (they would read as missing once importRunning drops).
+        try {
+          await options.onFirstBatchYielded?.()
+        } catch (error) {
+          hookFailed = { error }
+        }
       }
     }
   } finally {
     setImportRunning(false)
+  }
+  if (hookFailed !== null) {
+    options.onProgress(null)
+    throw hookFailed.error
   }
   if (!resolvedAny) {
     options.onProgress(null)
