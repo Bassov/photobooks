@@ -2,6 +2,9 @@
  * Perf lane helpers (frame-budget / LoAF scenarios run apart from functional e2e).
  *   node scripts/perf-lane.mjs scope <base-ref>   → prints in_scope=true|false
  *   node scripts/perf-lane.mjs verdict <report.json>...   → exit 1 when red
+ *     --out <f>   write `{ red: [scenario key] }` (main push runs)
+ *     --base <f> --base-url <u> --base-ref <r>   forgive scenarios red on that
+ *       main run and untouched by the PR (scripts/perf-baseline.mjs)
  * Thresholds live in `e2e/perf/budgets.ts` / `src/perf/loafObserver.ts`; this
  * file only aggregates repeated runs (never relaxes a single assertion).
  */
@@ -9,6 +12,8 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
+import { classify, readBaseVerdict } from './perf-baseline.mjs'
 
 export const GATE_TITLE = 'frame-budget gates'
 /** A run with a frame blocking longer than this is red regardless of other runs. */
@@ -53,10 +58,13 @@ export function worstBlockingMs(message) {
   return worst
 }
 
-/** Flatten a Playwright JSON report to `{ key, failed, messages }[]`. */
+/**
+ * Flatten a Playwright JSON report to `{ key, spec, failed, messages }[]`;
+ * `spec` is the repo path of the file (top-level suite, relative to `e2e/`).
+ */
 export function collectScenarios(report) {
   const out = []
-  const walk = (suite, trail) => {
+  const walk = (suite, trail, file) => {
     const here = suite.title ? [...trail, suite.title] : trail
     for (const spec of suite.specs ?? []) {
       for (const test of spec.tests ?? []) {
@@ -67,12 +75,20 @@ export function collectScenarios(report) {
         const messages = results.flatMap((r) =>
           (r.errors ?? (r.error ? [r.error] : [])).map((e) => e.message ?? ''),
         )
-        out.push({ key: [...here, spec.title].join(' › '), failed, messages })
+        out.push({
+          key: [...here, spec.title].join(' › '),
+          spec: file,
+          failed,
+          messages,
+        })
       }
     }
-    for (const child of suite.suites ?? []) walk(child, here)
+    for (const child of suite.suites ?? []) walk(child, here, file)
   }
-  for (const suite of report.suites ?? []) walk(suite, [])
+  for (const suite of report.suites ?? []) {
+    const top = suite.file ?? suite.title
+    walk(suite, [], top ? `e2e/${top}` : '')
+  }
   return out
 }
 
@@ -81,7 +97,11 @@ export function judge(reports) {
   const byKey = new Map()
   reports.forEach((report, run) => {
     for (const s of collectScenarios(report)) {
-      const row = byKey.get(s.key) ?? { failedRuns: [], worstMs: 0 }
+      const row = byKey.get(s.key) ?? {
+        spec: s.spec,
+        failedRuns: [],
+        worstMs: 0,
+      }
       if (s.failed) row.failedRuns.push(run + 1)
       for (const msg of s.messages) {
         row.worstMs = Math.max(row.worstMs, worstBlockingMs(msg))
@@ -89,25 +109,31 @@ export function judge(reports) {
       byKey.set(s.key, row)
     }
   })
-  const problems = []
+  /** @type {{ key: string, spec: string, problem: string }[]} */
+  const red = []
   const notes = []
   for (const [key, row] of byKey) {
     if (row.failedRuns.length >= MAX_FAILED_RUNS) {
-      problems.push(
-        `${key}: failed in runs ${row.failedRuns.join(', ')} of ${String(reports.length)}`,
-      )
+      red.push({
+        key,
+        spec: row.spec,
+        problem: `${key}: failed in runs ${row.failedRuns.join(', ')} of ${String(reports.length)}`,
+      })
     } else if (row.worstMs > HARD_BLOCKING_MS) {
-      problems.push(
-        `${key}: blocking ${String(row.worstMs)}ms > ${String(HARD_BLOCKING_MS)}ms in run ${row.failedRuns.join(', ')}`,
-      )
+      red.push({
+        key,
+        spec: row.spec,
+        problem: `${key}: blocking ${String(row.worstMs)}ms > ${String(HARD_BLOCKING_MS)}ms in run ${row.failedRuns.join(', ')}`,
+      })
     } else if (row.failedRuns.length > 0) {
       notes.push(
         `${key}: tolerated single failure in run ${row.failedRuns.join(', ')}`,
       )
     }
   }
+  const problems = red.map((s) => s.problem)
   if (byKey.size === 0) problems.push('no scenarios found in reports')
-  return { pass: problems.length === 0, problems, notes }
+  return { pass: problems.length === 0, problems, notes, red }
 }
 
 function changedFiles(base) {
@@ -135,26 +161,74 @@ export function main(argv) {
     console.log(`in_scope=${String(inScope)}`)
     return 0
   }
-  if (cmd === 'verdict') {
-    const present = rest.filter((p) => fs.existsSync(p))
-    const reports = present.map((p) => JSON.parse(fs.readFileSync(p, 'utf8')))
-    const verdict = judge(reports)
-    // A run that produced no report (crash / build failure) counts as red.
-    const missing = rest.filter((p) => !present.includes(p))
-    const problems = [
-      ...verdict.problems,
-      ...missing.map((p) => `missing report ${p}`),
-    ]
-    const pass = problems.length === 0
-    for (const n of verdict.notes) console.log(`note: ${n}`)
-    for (const p of problems) console.error(`perf: ${p}`)
-    console.log(
-      pass ? `perf lane ok (${String(reports.length)} runs)` : 'perf lane RED',
-    )
-    return pass ? 0 : 1
-  }
-  console.error('usage: perf-lane.mjs scope <base> | verdict <report.json>...')
+  if (cmd === 'verdict') return verdictCommand(rest)
+  console.error(
+    'usage: perf-lane.mjs scope <base> | verdict [--out f] [--base f --base-url u --base-ref r] <report.json>...',
+  )
   return 2
+}
+
+function verdictCommand(args) {
+  const { values: opts, positionals: paths } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: {
+      out: { type: 'string' },
+      base: { type: 'string' },
+      'base-url': { type: 'string' },
+      'base-ref': { type: 'string' },
+    },
+  })
+  const present = paths.filter((p) => fs.existsSync(p))
+  const reports = present.map((p) => JSON.parse(fs.readFileSync(p, 'utf8')))
+  const verdict = judge(reports)
+  if (opts.out) {
+    const red = verdict.red.map((s) => s.key)
+    fs.writeFileSync(opts.out, `${JSON.stringify({ red }, null, 2)}\n`)
+  }
+  const base = opts.base ? readBaseVerdict(opts.base) : null
+  const changed = base ? prChangedFiles(opts['base-ref']) : null
+  const baseUrl = opts['base-url'] || 'latest main perf run'
+  const forgiven = new Set()
+  const lines = []
+  for (const s of verdict.red) {
+    const why = classify(s, base, changed)
+    if (why === 'pre-existing') {
+      forgiven.add(s.problem)
+      lines.push(`pre-existing on main (${baseUrl}): ${s.problem}`)
+    } else if (opts.base) {
+      lines.push(`red (${why}): ${s.problem}`)
+    }
+  }
+  // A run that produced no report (crash / build failure) counts as red.
+  const missing = paths.filter((p) => !present.includes(p))
+  const problems = [
+    ...verdict.problems.filter((p) => !forgiven.has(p)),
+    ...missing.map((p) => `missing report ${p}`),
+  ]
+  const pass = problems.length === 0
+  for (const n of verdict.notes) console.log(`note: ${n}`)
+  for (const line of lines) console.log(`perf: ${line}`)
+  for (const p of problems) console.error(`perf: ${p}`)
+  const status = pass
+    ? `perf lane ok (${String(reports.length)} runs)`
+    : 'perf lane RED'
+  console.log(status)
+  if (lines.length > 0 && process.env.GITHUB_STEP_SUMMARY) {
+    const summary = [status, ...lines.map((l) => `- ${l}`)].join('\n')
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`)
+  }
+  return pass ? 0 : 1
+}
+
+/** Files the PR changes against `baseRef`, or null when unknown. */
+function prChangedFiles(baseRef) {
+  if (!baseRef) return null
+  try {
+    return changedFiles(baseRef)
+  } catch {
+    return null
+  }
 }
 
 const isMain =
