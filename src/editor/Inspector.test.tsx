@@ -25,6 +25,7 @@ import { SUB } from './editorChromeTokens'
 import { setEndpaperSelected } from './endpaperSelection'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
+import { resetLeftPanelTabForTests, setLeftPanelTab } from './leftPanelTabStore'
 import { setActiveSpreadId } from './photoRootSession'
 
 // Pass-through so a test can hand the panel a stale crop target.
@@ -82,6 +83,7 @@ describe('Inspector', () => {
     vi.mocked(getCropTarget).mockImplementation(realCrop.getCropTarget)
     vi.mocked(getCropTargetKey).mockImplementation(realCrop.getCropTargetKey)
     cleanup()
+    resetLeftPanelTabForTests()
     setBookSettingsSelected(false)
     exitCropMode()
     resetFrameSelection()
@@ -135,6 +137,25 @@ describe('Inspector', () => {
       screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
     ).toBe('frame')
     expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
+  })
+
+  it('shows only the Masters hint in Masters mode, whatever is selected', () => {
+    seed()
+    setActiveSpreadId('spread-1')
+    setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
+    render(<Inspector />)
+
+    act(() => {
+      setLeftPanelTab('masters')
+    })
+
+    expect(
+      screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
+    ).toBe('masters')
+    expect(screen.getByTestId('inspector-body').textContent).toBe(
+      'Master items show on every spread that uses the master. Add, move and resize them on the canvas.',
+    )
+    expect(screen.queryByTestId('inspector-header')).toBeNull()
   })
 
   // Owner Must M54 (round 7): only the top-bar toggle hides the inspector.

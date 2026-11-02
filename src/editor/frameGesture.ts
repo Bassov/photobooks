@@ -1,5 +1,6 @@
 import {
   MIN_FRAME_EDGE_MM,
+  editableSpread,
   getSpreadPageCount,
   getSpreadSizeMm,
   nextFrameId,
@@ -85,11 +86,12 @@ export function spreadContext(
 ): SpreadContext | null {
   const spreadId = element.getAttribute('data-spread-id')
   const book = getBookStoreSnapshot().book
-  const spreadIndex = book.spreads.findIndex((item) => item.id === spreadId)
-  const spread = book.spreads[spreadIndex]
-  if (spread === undefined) {
+  // A parent on the Masters canvas edits like a spread.
+  const found = editableSpread(book, spreadId ?? '')
+  if (found === undefined) {
     return null
   }
+  const { spread, index: spreadIndex } = found
   const box = element.getBoundingClientRect()
   const { widthMm, heightMm } = getSpreadSizeMm(book, spreadIndex)
   if (box.width <= 0 || box.height <= 0) {
@@ -286,9 +288,7 @@ export function installFrameGesture(): () => void {
     ) {
       const frameId = frameEl.getAttribute('data-frame-id') ?? ''
       const ctx = spreadContext(spreadEl, frameId)
-      const frame = getBookStoreSnapshot()
-        .book.spreads.find((item) => item.id === ctx?.spreadId)
-        ?.frames.find((item) => item.id === frameId)
+      const frame = ctx?.spread.frames.find((item) => item.id === frameId)
       if (ctx === null || frame === undefined) {
         return
       }

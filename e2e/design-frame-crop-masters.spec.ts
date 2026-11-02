@@ -42,9 +42,9 @@ test('Masters mode hides the book pages on the canvas and Pages brings them back
   await openSessionEditor(page)
   await expect(page.getByTestId('spread-view').first()).toBeVisible()
   await page.getByTestId('left-tab-masters').click()
-  const stub = page.getByTestId('masters-canvas-stub')
-  await expect(stub).toBeVisible()
-  await expect(stub).toContainText('No masters yet')
+  const empty = page.getByTestId('masters-canvas-empty')
+  await expect(empty).toBeVisible()
+  await expect(empty).toContainText('No masters yet')
   const covered = await page
     .getByTestId('spread-view')
     .first()
@@ -54,13 +54,13 @@ test('Masters mode hides the book pages on the canvas and Pages brings them back
         box.left + box.width / 2,
         box.top + box.height / 2,
       )
-      return top?.closest('[data-testid="masters-canvas-stub"]') !== null
+      return top?.closest('[data-testid="masters-canvas-empty"]') !== null
     })
   expect(covered).toBe(true)
   await assertDocumentFitsViewport(page)
 
   await page.getByTestId('left-tab-pages').click()
-  await expect(stub).toHaveCount(0)
+  await expect(empty).toHaveCount(0)
   await assertDocumentFitsViewport(page)
 })
 

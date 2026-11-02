@@ -468,6 +468,14 @@ describe('frameHandleGesture', () => {
       expect(down.defaultPrevented).toBe(false)
     })
 
+    it('ignores a handle on a spread or master the book does not have', () => {
+      const se = dom.handles.get('se')
+      assert(se !== undefined)
+      dom.spread.setAttribute('data-spread-id', 'gone')
+      const down = fire('pointerdown', se, 150, 150)
+      expect(down.defaultPrevented).toBe(false)
+    })
+
     it('ignores a handle press while another tool is active', () => {
       const se = dom.handles.get('se')
       assert(se !== undefined)

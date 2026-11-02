@@ -6,6 +6,8 @@ import {
   subscribeLeftPanelTab,
   type LeftPanelTab,
 } from './leftPanelTabStore'
+import { setFrameSource } from './frameSelection'
+import { MastersPanel } from './MastersPanel'
 import { SpreadsPanel } from './SpreadsPanel'
 
 const TABS: readonly { id: LeftPanelTab; label: string }[] = [
@@ -13,7 +15,7 @@ const TABS: readonly { id: LeftPanelTab; label: string }[] = [
   { id: 'masters', label: 'Masters' },
 ]
 
-/** Left panel: Pages | Masters switcher; Masters is a placeholder until masters ship. */
+/** Left panel: Pages | Masters switcher (kit `chrome.tsx:302`). */
 export function LeftPanel({
   toastQueue,
 }: {
@@ -39,6 +41,10 @@ export function LeftPanel({
           className="editor-left-tab flex h-6.5 flex-1 items-center justify-center rounded-sm"
           data-testid={`left-tab-${item.id}`}
           onClick={() => {
+            // A picked frame belongs to the other mode's canvas.
+            if (item.id !== tab) {
+              setFrameSource(null)
+            }
             setLeftPanelTab(item.id)
           }}
         >
@@ -48,20 +54,7 @@ export function LeftPanel({
     </div>
   )
   return tab === 'masters' ? (
-    <aside
-      className="editor-spreads flex h-full min-h-0 flex-col"
-      data-testid="masters-panel"
-    >
-      <div className="shrink-0 px-3 pb-2 pt-3" data-testid="mode-seg">
-        {modeSwitch}
-      </div>
-      <div className="editor-masters-empty" data-testid="masters-stub">
-        <div className="editor-masters-empty-title">No masters yet</div>
-        <div className="editor-masters-empty-description">
-          Masters are page templates shared across spreads.
-        </div>
-      </div>
-    </aside>
+    <MastersPanel modeSwitch={modeSwitch} />
   ) : (
     <SpreadsPanel toastQueue={toastQueue} modeSwitch={modeSwitch} />
   )

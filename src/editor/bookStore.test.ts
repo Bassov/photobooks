@@ -5,6 +5,7 @@ import {
   makeBook,
   makeFrame,
   makePlacedTemplateBook,
+  makeSpread,
 } from '../core/testing/fixtures'
 import { loadPainterFixture } from '../testFixtures/loadPainterFixture'
 import type { ResolvedItem } from '../core/geometry/types'
@@ -34,6 +35,7 @@ import {
   subscribeAssetRemovals,
   subscribeBookStore,
   subscribeGallery,
+  subscribeSpread,
   dispatchBookOp,
   type AssetSessionMeta,
 } from './bookStore'
@@ -1487,6 +1489,8 @@ describe('bookStore spread paint covers the parent layer', () => {
     })
     const logo = () => getSpreadPaintSnapshot('spread-1')?.resolved.items[0]
     const before = logo()
+    const repaint = vi.fn()
+    const stop = subscribeSpread('spread-1', repaint)
 
     setAssetSessionMeta('logo-asset', {
       name: 'logo.png',
@@ -1495,9 +1499,71 @@ describe('bookStore spread paint covers the parent layer', () => {
       orientation: 1,
       aspect: 4,
     })
+    stop()
 
     expect(before?.parent).toBe(true)
     expect(logo()?.sourceCropRect).not.toEqual(before?.sourceCropRect)
+    expect(repaint).toHaveBeenCalled()
+  })
+
+  it('a parent edit repaints the parent and only the spreads using it', () => {
+    resetBookStore({
+      book: makeBook({
+        spreads: [
+          makeSpread({ id: 'uses', parentId: 'p1' }),
+          makeSpread({ id: 'other' }),
+        ],
+        parents: [
+          {
+            id: 'p1',
+            name: 'Master A',
+            frames: [makeFrame({ id: 'logo' })],
+            guides: [],
+          },
+        ],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const ids = ['p1', 'uses', 'other'] as const
+    const logoRect = (id: string) =>
+      getSpreadPaintSnapshot(id)?.resolved.items.find(
+        (item) => item.frameId === 'logo',
+      )?.rectMm
+    const before = ids.map((id) => getSpreadPaintSnapshot(id))
+    const notified: string[] = []
+    const stops = ids.map((id) =>
+      subscribeSpread(id, () => {
+        notified.push(id)
+      }),
+    )
+
+    dispatchBookOp({
+      type: 'moveFrame',
+      spreadId: 'p1',
+      frameId: 'logo',
+      dx: 10,
+      dy: 0,
+    })
+    const afterParentEdit = [...notified]
+    const otherAfterParentEdit = getSpreadPaintSnapshot('other')
+    dispatchBookOp({
+      type: 'moveFrame',
+      spreadId: 'other',
+      frameId: 'frame-1',
+      dx: 5,
+      dy: 0,
+    })
+    stops.forEach((stop) => {
+      stop()
+    })
+
+    expect(afterParentEdit).toEqual(['uses', 'p1'])
+    expect(notified).toEqual(['uses', 'p1', 'other'])
+    expect(logoRect('p1')?.x).toBe(20)
+    expect(logoRect('uses')?.x).toBe(20)
+    expect(otherAfterParentEdit).toBe(before[2])
   })
 })
 

@@ -4,6 +4,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   defaultCover,
   defaultEndpapers,
+  editableSpread,
   bookHasAnyPlacement,
   placementCountByAsset,
   resolveSpread,
@@ -968,9 +969,8 @@ function sessionPixelSize(
 export function getSpreadPaintSnapshot(
   spreadId: string,
 ): SpreadPaintSnapshot | undefined {
-  const spread = state.book.spreads.find(
-    (candidate) => candidate.id === spreadId,
-  )
+  // A parent id paints the parent (Masters canvas and list).
+  const spread = editableSpread(state.book, spreadId)?.spread
   if (spread === undefined) {
     return undefined
   }
@@ -1086,15 +1086,21 @@ function notifyAffectedSpreads(
   next: BookStoreState,
 ): void {
   const ids = new Set<string>()
-  for (const spread of prev.book.spreads) {
-    ids.add(spread.id)
-  }
-  for (const spread of next.book.spreads) {
-    ids.add(spread.id)
+  for (const book of [prev.book, next.book]) {
+    for (const spread of book.spreads) {
+      ids.add(spread.id)
+    }
+    // A parent paints as itself on the Masters canvas and list.
+    book.parents?.forEach((parent) => ids.add(parent.id))
   }
   for (const id of ids) {
-    const before = prev.book.spreads.find((spread) => spread.id === id)
-    const after = next.book.spreads.find((spread) => spread.id === id)
+    const before = editableSpread(prev.book, id)?.spread
+    const after = editableSpread(next.book, id)?.spread
+    // Only spreads whose parent object changed repaint for a parent edit.
+    const parentBefore =
+      before === undefined ? undefined : spreadParent(prev.book, before)
+    const parentAfter =
+      after === undefined ? undefined : spreadParent(next.book, after)
     const beforeKey = paintInputKey(
       prev.book,
       before,
@@ -1107,7 +1113,11 @@ function notifyAffectedSpreads(
       next.sessionMeta,
       next.previewUrls,
     )
-    if (before !== after || beforeKey !== afterKey) {
+    if (
+      before !== after ||
+      parentBefore !== parentAfter ||
+      beforeKey !== afterKey
+    ) {
       paintCache.delete(id)
       notifySpread(id)
     }

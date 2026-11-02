@@ -1,53 +1,13 @@
 # Next roadmap item (unattended)
 
-Run ONE roadmap item end to end. Optional `/next-roadmap-item <slug>` →
-preflight `--slug <slug>`. Without slug: bare `roadmap next` + claimed set.
-This message authorizes plan → apply → manual → archive → PR (CI fix only
-in a CI-fix brief).
+Run ONE roadmap item end to end. `/next-roadmap-item <slug>` → `pnpm -s agent preflight --slug <slug>`; no slug → bare preflight (roadmap next + claimed set). This message authorizes plan → apply → manual → archive → PR (CI fix only in a CI-fix brief).
 
-**SoT:** execute [`docs/agent-loop.md`](../../docs/agent-loop.md) stages 0–13.
-Artifact how: `openspec/config.yaml`. Reviewers: `.cursor/agents` (Claude:
-subagents of the same name). Roadmap:
-skill `roadmap`. Finish precedence: `.cursor/rules/git-finish.mdc`.
+**Read first, and only:** [`docs/agent-loop.md`](../../docs/agent-loop.md) `## Must-read` (Read lines 1–28): flow, stop rules, output caps, shell rules. Open other loop headings by range on demand. Do not re-read this command, `AGENTS.md`, always-on rules, the item after preflight, `openspec/config.yaml` or `.cursor/agents`: rules and templates come from the run card or `pnpm -s agent instructions <artifact>`. Roadmap: skill `roadmap`. Finish precedence: `.cursor/rules/git-finish.mdc`. Ignore `openspec/changes/archive/**`.
 
-Token hygiene: do not re-read this command, alwaysApply rules, or `AGENTS.md`.
-Do not re-read the item after `roadmap next` / preflight. Take rules/template
-from the run card or `pnpm agent instructions <artifact>` (native; do not
-re-read openspec/config.yaml or .cursor/agents). Specs: `rg` + ranges — never
-dump whole specs. Grep ≤30 hits; offset/limit if >400 lines; no re-read; no
-TodoWrite in `-p`. Edits via Edit/Write only (no `sed -i`, no
-python/node heredocs); Claude Code runs prettier after each Edit/Write, so
-do not run it by hand. Pipes only through allowlisted tools. Tick checkboxes with targeted edits. Brief via
-`pnpm agent review-brief --out <file> --base origin/main` (Task: skill set +
-brief path only). Ignore `openspec/changes/archive/**` in search.
+- Batch independent reads in parallel; one Write per OpenSpec artifact; validate once per stage.
+- Contingency: only when its gate failed (`pnpm -s roadmap show <slug>`). Prep/contingency fast-track and oversize → `pnpm roadmap add … --after`.
+- Out-of-scope fails: fix here unless the same failure is on unmodified `origin/main`; else `pnpm roadmap add … --after` or a bug issue — filing never greens a red PR.
+- Security-tagged: Security Review before archive. Gate-config edits must be stricter and touch-set listed. New/changed deps: `pnpm audit:ci` + Security Review.
+- After the PR URL: exit. `ci-wait` only if the brief asks; never `gh pr checks --watch`.
 
-Batch: parallel independent reads; dependent shell with `&&`. One Write per
-OpenSpec artifact; validate once per stage.
-
-1. Preflight (env is preloaded by the launcher; do not source
-   `scripts/agent-env.sh`; scratch in `.cache/agent/`, not `/tmp`; no `timeout`
-   wrapper, no `cd`/`git -C` — see `docs/agent-loop.md` stage 0):
-   `pnpm -s agent preflight --json` (or `… --slug <slug> --json`). Clean tree.
-   Without `--slug`, syncs `main` and skips claimed slugs. With `--slug`,
-   branches from `origin/main` (worktrees OK). Creates `feat|fix/<slug>`.
-   Contingency: only when its gate failed (`pnpm -s roadmap show <slug>`).
-   `[lite]` item → lite track (`docs/agent-loop.md` Stage 1): no OpenSpec
-   change or archive; escalate to the normal track past ~200 lines.
-2. Execute `docs/agent-loop.md` from plan through thin finish (stage 12);
-   stages 10–11: `pnpm -s agent finalize <slug>`, fix what it prints.
-   Prep/contingency fast-track and oversize → `roadmap add --after` per
-   `openspec/config.yaml` / loop SoT. Out-of-scope fails: fix in this PR unless
-   same failure on unmodified `origin/main`; else `pnpm roadmap add … --after`
-   or a bug issue — filing never greens a red PR. Code after review → re-run
-   implementation reviewer on the delta.
-3. After the PR URL: exit (stage 12). Orchestrator waits on CI and merges;
-   CI red → it launches a fresh stage-13 brief. `ci-wait` only if the brief
-   asks. Never `gh pr checks --watch`.
-
-Stop only for: dirty tree, milestone review cut, intent vs spec/issue conflict.
-Security-tagged: Security Review before archive. Gate-config edits must be
-stricter and touch-set listed. New/changed deps need `pnpm audit:ci` + Security
-Review until dependency-policy is re-added. Else record assumptions and continue.
-`stryker:diff` ≤2 runs, then defer survivors: `docs/agent-loop.md` `## Stryker C-session`.
-Final reply in Russian: item, PR URL, required-check status, reviewer
-verdicts, skipped survivors, assumptions.
+Final reply in Russian: item, PR URL, required-check status, reviewer verdicts, skipped survivors, assumptions.
