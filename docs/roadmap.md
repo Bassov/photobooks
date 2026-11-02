@@ -78,7 +78,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [ ] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
-- [ ] [feature] [kit-sync-canvas](roadmap/P2/kit-sync-canvas.md) — Kit sync W1: canvas strip, page numbers, new-spread pill, size pill, K1 (Designer kit-sync Spec)
+- [ ] [feature] [kit-sync-canvas](roadmap/P2/kit-sync-canvas.md) — Bug: Kit sync W1: canvas strip, page numbers, new-spread pill, size pill, K1 (Designer kit-sync Spec)
 - [ ] [lite] [rig-bump-0-2-21](roadmap/P2/rig-bump-0-2-21.md) — rig-bump-0-2-21: bump ts-agent-rig to v0.2.21 (compact preflight run card)
 - [ ] [feature] [remove-cursor-support](roadmap/P2/remove-cursor-support.md) — Bug: /next-roadmap-item remove-cursor-support
 - [ ] [feature] [parent-spreads-inspector](roadmap/P2/parent-spreads-inspector.md) — parent spreads: master inspector (grid, guides, items)
