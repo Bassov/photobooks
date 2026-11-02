@@ -119,5 +119,14 @@ describe('loadPainterFixture', () => {
       expect(getAssetSource(assetId)?.name).toBe(`${assetId}.png`)
       expect(assetSourceCovers(assetId)).toBe(true)
     }
+    expect(snap.book.defaultParentId).toBeUndefined()
+  })
+
+  it('makes Master A the book default with parent=a only', () => {
+    loadPainterFixture('?fixture=painter&parent=a')
+    expect(getBookStoreSnapshot().book.defaultParentId).toBe('painter-parent-a')
+
+    loadPainterFixture('?fixture=painter&parent=b')
+    expect(getBookStoreSnapshot().book.defaultParentId).toBeUndefined()
   })
 })
