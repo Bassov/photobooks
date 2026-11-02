@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Kit sync W4: pastedown caption, cover inspector, library card title
+Status: done
 
 ## Scope
 
