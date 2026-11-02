@@ -8,9 +8,9 @@ import {
   SliderThumb,
   SliderTrack,
 } from 'react-aria-components'
-import { MIN_FRAME_EDGE_MM, layerOf, type Frame, type ZMove } from '../core'
+import { MIN_FRAME_EDGE_MM, layerOf, type Frame } from '../core'
 import { Button } from '../ui/Button'
-import { Icon, type IconProps } from '../ui/Icon'
+import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
 import {
   dispatchBookOp,
@@ -18,6 +18,7 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import type { CropTarget } from './cropMode'
+import { lockOp, Z_MOVES, zOrderOp } from './frameArrange'
 import {
   getLiveGeometry,
   liveGeometryFor,
@@ -101,11 +102,7 @@ export function FrameLockButton({ target }: { target: CropTarget }) {
       aria-pressed={locked}
       data-testid="frame-lock"
       onPress={() => {
-        dispatchBookOp({
-          type: 'setFrameLocked',
-          ...target,
-          locked: !locked,
-        })
+        dispatchBookOp(lockOp(target, !locked))
       }}
     >
       <Icon name={locked ? 'lock' : 'unlock'} />
@@ -260,16 +257,8 @@ export function GeometrySection({ target }: { target: CropTarget }) {
   )
 }
 
-const Z_BUTTONS: readonly {
-  move: ZMove
-  label: string
-  icon: IconProps['name']
-}[] = [
-  { move: 'back', label: 'Send to back', icon: 'sendToBack' },
-  { move: 'backward', label: 'Send backward', icon: 'arrowDown' },
-  { move: 'forward', label: 'Bring forward', icon: 'arrowUp' },
-  { move: 'front', label: 'Bring to front', icon: 'bringToFront' },
-]
+/** Kit order: back → front. */
+const Z_BUTTONS = [...Z_MOVES].reverse()
 
 /** Kit ArrangeSection: z-order buttons and the "layer N of M" label. */
 export function ArrangeSection({ target }: { target: CropTarget }) {
@@ -296,12 +285,7 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
             className="frame-z-button"
             data-testid={`z-${move}`}
             onPress={() => {
-              dispatchBookOp({
-                type: 'reorderFrame',
-                spreadId: target.spreadId,
-                frameId: target.frameId,
-                move,
-              })
+              dispatchBookOp(zOrderOp(target, move))
             }}
           >
             <Icon name={icon} />
