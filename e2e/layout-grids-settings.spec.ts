@@ -31,8 +31,8 @@ test('Book settings hold no Layout grid section', async ({ page }) => {
 
 // Kit Grid section (uikit/src/sandbox/context-inspector.tsx:224-231): the
 // "Use master / Custom" switch replaces the Reset to book grid button; the
-// fields show only in Custom.
-test('Spread override shows SPREAD; Use master resets to the inherited grid', async ({
+// fields show only in Custom. A new book has no parent, so it reads "Use book".
+test('Spread override shows SPREAD; Use book resets to the inherited grid', async ({
   page,
 }) => {
   await openSessionEditor(page)
@@ -43,7 +43,7 @@ test('Spread override shows SPREAD; Use master resets to the inherited grid', as
     .click({ position: { x: 4, y: 4 } })
 
   const section = page.getByTestId('grid-section-spread')
-  const inherit = section.getByRole('radio', { name: 'Use master' })
+  const inherit = section.getByRole('radio', { name: 'Use book' })
   const custom = section.getByRole('radio', { name: 'Custom' })
   await expect(section).toBeVisible()
   await expect(inherit).toBeChecked()
@@ -58,7 +58,7 @@ test('Spread override shows SPREAD; Use master resets to the inherited grid', as
   await expect(page.getByTestId('grid-source-columns')).toHaveText('spread')
   await expect(custom).toBeChecked()
 
-  await section.getByText('Use master', { exact: true }).click()
+  await section.getByText('Use book', { exact: true }).click()
   await expect(inherit).toBeChecked()
   await expect(section.getByTestId('spread-grid-inherit')).toContainText(
     '2 × 2',
