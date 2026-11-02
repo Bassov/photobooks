@@ -36,11 +36,11 @@ How for each stage lives elsewhere (do not duplicate here):
 | Proposal / design / tasks / specs shape                  | `openspec/config.yaml` `rules.*`                                        |
 | Change-quality during implement (UI smoke, survivors, …) | `openspec/config.yaml` `operations.apply` (no stryker item in tasks.md) |
 | Spec sync / archive / roadmap done                       | `openspec/config.yaml` `operations.archive`                             |
-| Plan / impl review                                       | `.cursor/agents/openspec-*-reviewer.md` (Claude: `.claude/agents/`)     |
+| Plan / impl review                                       | `.claude/agents/openspec-*-reviewer.md`                                 |
 | Tests                                                    | skill `write-tests`                                                     |
 | UI review                                                | skill `ui-review`                                                       |
-| Commit/PR harness precedence                             | `.cursor/rules/git-finish.mdc`                                          |
-| Unattended runner                                        | `.cursor/commands/next-roadmap-item.md` (Claude: `.claude/commands/`)   |
+| Commit/PR harness precedence                             | `.claude/rules/git-finish.md`                                           |
+| Unattended runner                                        | `.claude/commands/next-roadmap-item.md`                                 |
 | Harness wiring                                           | `## Harnesses` below                                                    |
 
 ## Buckets (entry commands)
@@ -91,7 +91,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 ### 2 · Plan review
 
 - `pnpm agent review-brief --out <file>`; `openspec-planning-reviewer` once (≤1 re-review). Skip on fast-track and lite; docs-only skips design checklist.
-- **How:** `.cursor/agents/openspec-planning-reviewer.md`.
+- **How:** `.claude/agents/openspec-planning-reviewer.md`.
 
 ### 3 · Apply (cheap)
 
@@ -112,7 +112,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 ### 6 · Implementation review
 
 - `openspec-implementation-reviewer` once (incl. docs-only). Rework via A (patch vs `origin/main`); +1 delta re-review if code changed.
-- **How:** `.cursor/agents/openspec-implementation-reviewer.md`.
+- **How:** `.claude/agents/openspec-implementation-reviewer.md`.
 
 ### 7 · B after review (if needed)
 
@@ -139,7 +139,7 @@ No commit in stages 3–4. Local patch coverage always scores vs branch base (`o
 - No happy-path merge of `origin/main`; no C2 in finish; skip A/C1 in pre-push when stamp matches.
 - After push/PR: print the PR URL and exit. The orchestrator owns CI wait, sole-flake re-runs and merge. `pnpm agent ci-wait` only when the brief asks for it (never `gh pr checks --watch`).
 - CI evidence: read failures with `gh run view <id> --log-failed` (or `pnpm agent ci-brief`) and fetch artifacts with `gh run download <id> -n <name> -D .cache/agent/ci`. Never call `gh api` from an agent run; headless permissions deny it.
-- **How (precedence):** `.cursor/rules/git-finish.mdc`.
+- **How (precedence):** `.claude/rules/git-finish.md`.
 
 ### 13 · CI fix (fresh session)
 
@@ -158,11 +158,10 @@ Any open slug, out of order: `/next-roadmap-item <slug>` (preflight `--slug`). C
 
 ## Harnesses
 
-Same loop, same rules; harness files only wire it up. SoT text stays in `.cursor/`; `.claude/` holds wrappers and symlinks.
+Claude Code is the only harness. Agents, the runner command, rules and skills live in `.claude/` as real files (no wrappers, no symlinks).
 
-| Harness     | Headless launch                                                                        | Permissions / settings                                              |
-| ----------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Cursor      | `cursor-agent -p --trust --force` with env preloaded (`source scripts/agent-env.sh`)   | `.cursor/cli.json`                                                  |
-| Claude Code | `claude -p --settings .claude/settings.headless.json` with env preloaded (same script) | `.claude/settings.json` (shared) + `.claude/settings.headless.json` |
+| Harness     | Headless launch                                                                                   | Permissions / settings                                              |
+| ----------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Claude Code | `claude -p --settings .claude/settings.headless.json` with env preloaded (`scripts/agent-env.sh`) | `.claude/settings.json` (shared) + `.claude/settings.headless.json` |
 
-Claude Code entry: `CLAUDE.md` (imports `AGENTS.md` + always-on rules). Token stats: `pnpm agent stats <log>` reads `--output-format stream-json --verbose` logs.
+Claude Code entry: `CLAUDE.md` (imports `AGENTS.md`); always-on rules load natively from `.claude/rules/`. Token stats: `pnpm agent stats <log>` reads `--output-format stream-json --verbose` logs.
