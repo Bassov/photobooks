@@ -6,6 +6,6 @@
 
 ## Touch-set & Test Plan
 
-- Files: `src/ui/Button.css`, `src/editor/FrameLookSections.tsx`, `e2e/design-r13-polish.spec.ts`, roadmap item.
+- Files: `src/ui/Button.css`, `src/editor/FrameLookSections.tsx`, `e2e/design-r13-polish.spec.ts`, roadmap item, `docs/design.md` (Motion row: no scale on an open menu trigger).
 - Reuse: `openLibraryBook`, photo picker fixtures, `dragPlaceFirstFilmstripItem` (as in `design-r12-*` specs). Tokens: `--motion-press-scale`, `text-xs`, `text-muted-foreground`.
 - Tests: e2e `design-r13-polish.spec.ts`: book menu trigger 28 × 28 / `transform: none` / menu y 476 / gap 4 / Open y; spread-row and Zoom triggers `transform: none` while open; plain button still scales while pressed; Caption hint tag / margin / line-height and Position & size dy 121.8. Unit: `Button.test.tsx` is CSS-blind under jsdom, so the CSS is locked by e2e.
