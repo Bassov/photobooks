@@ -10,3 +10,5 @@
 
 1. Import a folder with a portrait and an EXIF-6 photo, place both, reload the book → the photos are never stretched, before and after they sharpen.
 2. Replace a placed photo by dropping another one on the filled frame → the new photo keeps its aspect.
+
+manual-qa: harness problem — `start-session` click intercepted by the welcome header (both scenarios not reached). Covered by `e2e/place-fit-aspect.spec.ts` (tier swap + replace on canvas and Pages thumbs) and `src/editor/photoSlotAspect.test.tsx` (placeholder aspect = the reload state).
