@@ -28,6 +28,8 @@ import { readZoomPercent } from './fixtures/zoomMenu'
 //     catalogue place (2nd) even as the current layout, so page 1 reads
 //     [Full bleed, One per page, Panorama]. App insets follow the book's
 //     layout-grid margins (21.19 px of a 424 px page), not the kit's fixed 10 %.
+//     Superseded by the Owner decision 2026-11-02 (layout-picker-simplify): no
+//     Suggested list; One per page is the 2nd 1-photo tile of the one sorted grid.
 // M48 step 26 (editor-endpaper-selected): the inspector (left 1140, top 48)
 //     opens on `inspector-head` (px-4 pt-4 pb-1 → padding 16 16 4), height
 //     57.64; title "Endpaper · front" at 1156 / 64, 268 × 18.84 (13 px / 18.85,
