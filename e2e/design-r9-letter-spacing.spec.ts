@@ -26,8 +26,7 @@ import {
 //     rgb(83, 81, 82), letter-spacing 0.66px (0.06em). Steps: editor-pages-mode
 //     spread context (LAYOUT, MASTER & SPACING, BACKGROUND, GRID),
 //     editor-frame-selected photo context (FIT & CROP, ROTATE & FLIP, ADJUST,
-//     CAPTION, POSITION & SIZE, FRAME STYLE, ARRANGE). Owner design change
-//     (Q8, M78 hidden, 2026-11-02): prod drops FRAME STYLE and ARRANGE.
+//     CAPTION, POSITION & SIZE, FRAME STYLE, ARRANGE).
 // No other uppercase element renders in the kit editor: the spread list,
 //     filmstrip, top bar and menus have no uppercase section titles.
 // r8 M48 (editor-endpaper-selected) row tops: FILL 121.64, Style 148.48,
@@ -51,7 +50,8 @@ const KIT = {
     'Adjust',
     'Caption',
     'Position & size',
-    // Owner design change (Q8, M78 hidden): no Frame style / Arrange.
+    'Frame style',
+    'Arrange',
   ],
   cover: ['Front', 'Spine', 'Back', 'Material'],
   book: ['Page size', 'Binding', 'Print', 'Defaults'],

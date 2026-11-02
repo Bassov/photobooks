@@ -41,8 +41,6 @@ import {
 //     frame 201.64, Fill 302.64, Zoom label 340.64, Crop 424.44, 90° left
 //     523.44, Flip H 563.44, Straighten label 607.44, Quarter turn note 643.23
 //     (12px / 400 / rgb(83, 81, 82)).
-// Owner design change (Q8, M78 hidden, 2026-11-02): FRAME STYLE and ARRANGE
-//     are not rendered, so the Photo list ends at POSITION & SIZE.
 // M61 segmented labels, both states: Book Portrait / Landscape and cm / mm
 //     (editor-inspector-book) 13px / 500; layout picker All / My templates
 //     (editor-new-blank-book) 13px / 500; Create dialog Portrait / Landscape
@@ -105,7 +103,7 @@ const KIT = {
   },
   photo: {
     titleX: 1172,
-    titles: [105.75, 272.39, 495.19, 698.78, 735.78, 772.78],
+    titles: [105.75, 272.39, 495.19, 698.78, 735.78, 772.78, 809.78, 846.78],
     nameX: 1240,
     name: 134,
     remove: 201.64,
@@ -356,6 +354,8 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
       'Adjust',
       'Caption',
       'Position & size',
+      'Frame style',
+      'Arrange',
     ])
     const p = KIT.photo
     for (const [at, kit] of p.titles.entries()) {
@@ -364,8 +364,8 @@ test.describe('M59–M61: Cover, Book and Photo inspectors match the kit', () =>
     }
     // ▾ on the three open sections, › on the closed ones.
     const triggers = body.locator('.pb-disclosure__trigger')
-    await expect(triggers).toHaveCount(6)
-    for (let at = 0; at < 6; at += 1) {
+    await expect(triggers).toHaveCount(8)
+    for (let at = 0; at < 8; at += 1) {
       await expect(triggers.nth(at)).toHaveAttribute(
         'aria-expanded',
         at < 3 ? 'true' : 'false',

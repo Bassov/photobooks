@@ -120,6 +120,11 @@ export interface ProcessAssetOptions {
    */
   noPoolRetry?: boolean
   /**
+   * Owner of the pool retry's result: a leave-now abort rejects this call,
+   * and the retry run on re-entry delivers here instead.
+   */
+  onRetryResult?: (result: AssetProcessResult) => void
+  /**
    * Background thumb warm job: skips the off-now JPEG/HEIC defer; one may
    * start while the filmstrip scrolls (other background work waits).
    */
@@ -137,6 +142,7 @@ interface DecodeQueueItem {
   dualTiers: boolean
   returnSource: boolean
   noPoolRetry: boolean
+  onRetryResult?: (result: AssetProcessResult) => void
   backgroundWarm: boolean
   signal?: AbortSignal
   /** In-flight thumb whose asset left now: ignores the abort and publishes. */
@@ -297,7 +303,46 @@ function enqueueDecodeJob(item: DecodeQueueItem): void {
 /** Re-run an aborted job when its asset re-enters now (unless caller-owned). */
 function registerPoolRetry(job: DecodeQueueItem): void {
   if (!job.noPoolRetry) {
-    pendingRetryByAsset.set(job.assetId, pendingRetryFromJob(job))
+    pendingRetryByAsset.set(job.assetId, {
+      ...pendingRetryFromJob(job),
+      returnSource: job.returnSource,
+      ...(job.onRetryResult ? { onRetryResult: job.onRetryResult } : {}),
+    })
+  }
+}
+
+/**
+ * A decode of the same tier makes an ownerless parked retry moot; a
+ * working-preview job must not drop a parked thumb retry (the tile would
+ * never get its thumb). An owned retry waits for re-entry: its rejected
+ * owner hears only from the retry.
+ */
+function clearRetryForTier(assetId: string, maxEdge: number): void {
+  const retry = pendingRetryByAsset.get(assetId)
+  if (
+    retry &&
+    retry.onRetryResult === undefined &&
+    (retry.maxEdge ?? THUMB_MAX_EDGE) === maxEdge
+  ) {
+    pendingRetryByAsset.delete(assetId)
+  }
+}
+
+/**
+ * Retry seed of a call rejected before it queued: never its (aborted) signal,
+ * or the retry would reject at once again; the pool controller still aborts.
+ * An asset already in now (its signal went stale on an earlier leave) runs
+ * the retry at once: no now-set change may follow once the strip stops.
+ */
+function registerRetryFromOptions(options: ProcessAssetOptions): void {
+  if (options.noPoolRetry === true) {
+    return
+  }
+  const seed: ProcessAssetOptions = { ...options, priority: 'visible' }
+  delete seed.signal
+  pendingRetryByAsset.set(options.assetId, seed)
+  if (nowAssetIds.has(options.assetId)) {
+    runParkedRetry(options.assetId)
   }
 }
 
@@ -332,23 +377,26 @@ function applyNowSetTransition(previous: ReadonlySet<string>): void {
     abortAssetJobs(assetId, true)
   }
   for (const assetId of next) {
-    const retry = pendingRetryByAsset.get(assetId)
-    if (retry === undefined) {
-      continue
-    }
-    pendingRetryByAsset.delete(assetId)
-    abortByAsset.set(
-      assetId,
-      ensureActiveAbortController(abortByAsset.get(assetId)),
-    )
-    void processAsset({
-      ...retry,
-      priority: 'visible',
-    }).catch(() => {
-      // Retry failures surface via import/onError paths when applicable.
-    })
+    runParkedRetry(assetId)
   }
   relabelQueueLanes(queue, nowAssetIds)
+}
+
+function runParkedRetry(assetId: string): void {
+  const retry = pendingRetryByAsset.get(assetId)
+  if (retry === undefined) {
+    return
+  }
+  pendingRetryByAsset.delete(assetId)
+  // The aborted call was rejected: its owner gets the retry's result.
+  void processAsset({
+    ...retry,
+    priority: 'visible',
+  })
+    .then(retry.onRetryResult)
+    .catch(() => {
+      // Retry failures surface via import/onError paths when applicable.
+    })
 }
 
 function promoteDeferredLazy(): void {
@@ -377,6 +425,7 @@ function enqueueDeferredLazy(
     deferred.options.signal ??
     abortByAsset.get(deferred.options.assetId)?.signal
   if (signal?.aborted) {
+    registerRetryFromOptions(deferred.options)
     deferred.reject(new DOMException('Aborted', 'AbortError'))
     return
   }
@@ -392,6 +441,9 @@ function enqueueDeferredLazy(
     dualTiers: deferred.options.dualTiers === true,
     returnSource: deferred.options.returnSource === true,
     noPoolRetry: deferred.options.noPoolRetry === true,
+    ...(deferred.options.onRetryResult
+      ? { onRetryResult: deferred.options.onRetryResult }
+      : {}),
     backgroundWarm,
     resolve: deferred.resolve,
     reject: deferred.reject,
@@ -608,7 +660,7 @@ function runDecodeOnSlot(slot: WorkerSlot, job: DecodeQueueItem): void {
       })
       return
     }
-    pendingRetryByAsset.delete(job.assetId)
+    clearRetryForTier(job.assetId, job.maxEdge)
     finish(() => {
       const result: AssetProcessResult = {
         assetId: job.assetId,
@@ -849,12 +901,7 @@ export function processAsset(
   const promise = new Promise<AssetProcessResult>((resolve, reject) => {
     const signal = combinedAbortSignal(options.assetId, options.signal)
     if (signal.aborted) {
-      if (options.noPoolRetry !== true) {
-        pendingRetryByAsset.set(options.assetId, {
-          ...options,
-          priority: 'visible',
-        })
-      }
+      registerRetryFromOptions(options)
       reject(new DOMException('Aborted', 'AbortError'))
       return
     }
@@ -870,7 +917,7 @@ export function processAsset(
       })
       return
     }
-    pendingRetryByAsset.delete(options.assetId)
+    clearRetryForTier(options.assetId, options.maxEdge ?? THUMB_MAX_EDGE)
     const requestId = `asset-${String((requestCounter += 1))}`
     const item: DecodeQueueItem = {
       requestId,
@@ -883,6 +930,9 @@ export function processAsset(
       dualTiers,
       returnSource: options.returnSource === true,
       noPoolRetry: options.noPoolRetry === true,
+      ...(options.onRetryResult
+        ? { onRetryResult: options.onRetryResult }
+        : {}),
       backgroundWarm,
       signal,
       resolve,
@@ -955,6 +1005,9 @@ export async function runImportBatch(
             priority,
             // Bulk import: thumb320 only; 1280 via requestTier when needed.
             dualTiers: dualTiersDefaultForImport(),
+            // A leave-now abort rejects this call; the retry run when the
+            // tile re-enters now publishes through the same result path.
+            ...(options.onResult ? { onRetryResult: options.onResult } : {}),
           }
           const signal = abortByAsset.get(item.assetId)?.signal
           if (signal) {

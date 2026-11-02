@@ -115,29 +115,26 @@ test('Photo sections follow the kit order; the rest is collapsed (#19)', async (
   await filled(page).click()
   const body = page.getByTestId('inspector-body')
   await expect(page.getByTestId('inspector-photo')).toBeVisible()
-  // Owner design change (Q8, M78 hidden): Arrange / Frame style are not
-  // rendered; Delete frame follows Position & size.
   const wanted = [
     'inspector-photo',
     'inspector-fit-crop',
     'inspector-rotate',
     'inspector-geometry-disclosure',
-    'frame-delete',
+    'inspector-arrange-disclosure',
   ]
   const seen = await body.evaluate(
     (el, ids) =>
       [...el.querySelectorAll('[data-testid]')]
         .map((node) => node.getAttribute('data-testid') ?? '')
         .filter((id) => ids.includes(id)),
-    [...wanted, 'inspector-arrange-disclosure', 'inspector-style-disclosure'],
+    wanted,
   )
   expect(seen).toEqual(wanted)
-  await expect(
-    page.getByRole('button', { name: 'Position & size', exact: true }),
-  ).toHaveAttribute('aria-expanded', 'false')
-  await expect(
-    page.getByRole('button', { name: 'Arrange', exact: true }),
-  ).toHaveCount(0)
+  for (const name of ['Position & size', 'Arrange']) {
+    await expect(
+      page.getByRole('button', { name, exact: true }),
+    ).toHaveAttribute('aria-expanded', 'false')
+  }
   await assertDocumentFitsViewport(page)
 })
 

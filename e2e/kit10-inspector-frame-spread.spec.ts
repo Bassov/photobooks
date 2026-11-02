@@ -46,18 +46,14 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
     await expect(page.getByTestId('inspector-context')).toHaveText('Photo')
     // Kit disclosures start collapsed; the headings are the triggers.
     await expandDisclosure(page, 'Position & size')
+    await expandDisclosure(page, 'Arrange')
     // Kit SectionHeader (uikit/src/components/app/ui.tsx:51): the eyebrow is
     // muted at rest and turns foreground while its trigger is hovered.
-    // Owner design change (Q8, M78 hidden): Arrange is gone, so the hover is
-    // read on Position & size.
-    await eyebrow(page, 'Position & size').hover()
-    await expect(eyebrow(page, 'Position & size')).toHaveCSS(
-      'color',
-      FOREGROUND,
-    )
+    await eyebrow(page, 'Arrange').hover()
+    await expect(eyebrow(page, 'Arrange')).toHaveCSS('color', FOREGROUND)
     await page.getByTestId('inspector-context').hover()
 
-    for (const name of ['Position & size', 'Adjust']) {
+    for (const name of ['Position & size', 'Arrange']) {
       const heading = eyebrow(page, name)
       await expect(heading).toBeVisible()
       const style = await heading.evaluate((el) => {
@@ -80,12 +76,11 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
       await field.evaluate((el) => getComputedStyle(el).backgroundColor),
     ).toBe(FIELD)
 
-    // Caption and Adjust now show (uikit/src/sandbox/context-inspector.tsx:71;
-    // e2e/design-inspector-book-cover.spec.ts #19). Align has no behavior yet
-    // and stays hidden (D2); Frame style and Arrange are hidden by the Owner
-    // design change (Q8, M78 hidden).
+    // Caption, Frame style and Adjust now show (uikit/src/sandbox/
+    // context-inspector.tsx:71; e2e/design-inspector-book-cover.spec.ts #19).
+    // Align has no behavior yet and stays hidden (D2).
     const panel = page.getByTestId('inspector-panel')
-    for (const hidden of ['Align', 'Frame style', 'Arrange']) {
+    for (const hidden of ['Align']) {
       await expect(panel.getByText(hidden, { exact: true })).toHaveCount(0)
     }
     await expect(page.getByTestId('frame-delete')).toBeVisible()
@@ -95,7 +90,7 @@ test.describe('kit v0.10 inspector (demo steps 16, 20)', () => {
     await expect(page.getByRole('textbox', { name: 'Width' })).toBeDisabled()
     await page.getByTestId('frame-lock').click()
     await expect(page.getByRole('textbox', { name: 'Width' })).toBeEnabled()
-    await expect(page.getByTestId('z-front')).toHaveCount(0)
+    await expect(page.getByTestId('z-front')).toBeVisible()
     await assertDocumentFitsViewport(page)
   })
 

@@ -14,10 +14,6 @@ import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
 import { setActiveSpreadId } from './photoRootSession'
 import { frameSectionSummaries } from './frameSectionSummaries'
-import {
-  FRAME_STYLE_AND_ARRANGE_VISIBLE,
-  PhotoFrameSections,
-} from './PhotoFrameSections'
 
 const spread = makeSpread({
   id: 'spread-1',
@@ -79,27 +75,13 @@ describe('PhotoFrameSections in the Inspector', () => {
     resetBookStore()
   })
 
-  function seedBook() {
+  function seed() {
     resetBookStore({
       book: makeBook({ assets: { a: {} }, gallery: ['a'], spreads: [spread] }),
       sessionMeta: new Map(),
       importRunning: false,
       importExpectedCount: 0,
     })
-  }
-
-  /** Inspector as shipped, or the sections alone with Frame style / Arrange on. */
-  function seed(styleAndArrange?: true) {
-    seedBook()
-    if (styleAndArrange) {
-      render(
-        <PhotoFrameSections
-          target={{ spreadId: 'spread-1', frameId: 'f1' }}
-          styleAndArrange
-        />,
-      )
-      return
-    }
     render(<Inspector />)
     act(() => {
       setFrameSource({ spreadId: 'spread-1', frameId: 'f1' })
@@ -108,35 +90,8 @@ describe('PhotoFrameSections in the Inspector', () => {
 
   const summary = (id: string) => screen.queryByTestId(`${id}-summary`)
 
-  it('hides Frame style and Arrange behind the Owner Q8 switch', () => {
-    expect(FRAME_STYLE_AND_ARRANGE_VISIBLE).toBe(false)
-    seed()
-    const body = screen.getByTestId('inspector-body')
-    const sections = [...body.querySelectorAll('.pb-disclosure')].map((el) =>
-      el.getAttribute('data-testid'),
-    )
-    expect(sections.slice(-3)).toEqual([
-      'inspector-adjust-disclosure',
-      'inspector-caption-disclosure',
-      'inspector-geometry-disclosure',
-    ])
-    for (const name of ['Frame style', 'Arrange']) {
-      expect(screen.queryByRole('button', { name })).toBeNull()
-    }
-    for (const id of ['frame-style', 'inspector-arrange', 'z-front']) {
-      expect(screen.queryByTestId(id)).toBeNull()
-    }
-    expect(screen.queryByText('New style from this frame')).toBeNull()
-    expect(summary('inspector-style-disclosure')).toBeNull()
-    expect(summary('inspector-arrange-disclosure')).toBeNull()
-    const geometry = screen.getByTestId('inspector-geometry-disclosure')
-    expect(geometry.nextElementSibling).toBe(
-      screen.getByTestId('frame-delete').parentElement,
-    )
-  })
-
   it('shows the Frame style and Arrange summaries from book state', () => {
-    seed(true)
+    seed()
     expect(summary('inspector-style-disclosure')?.textContent).toBe('None')
     expect(summary('inspector-arrange-disclosure')?.textContent).toBe('z 1')
     expect(summary('inspector-adjust-disclosure')).toBeNull()
@@ -176,25 +131,8 @@ describe('PhotoFrameSections in the Inspector', () => {
     expect(summary('inspector-adjust-disclosure')?.textContent).toBe('Edited')
   })
 
-  it('keeps the switched-on rows without summaries for a frame that is gone', () => {
-    seedBook()
-    render(
-      <PhotoFrameSections
-        target={{ spreadId: 'spread-1', frameId: 'nope' }}
-        styleAndArrange
-      />,
-    )
-    for (const name of ['Frame style', 'Arrange']) {
-      expect(
-        screen.getByRole('button', { name }).hasAttribute('aria-describedby'),
-      ).toBe(false)
-    }
-    expect(summary('inspector-style-disclosure')).toBeNull()
-    expect(summary('inspector-arrange-disclosure')).toBeNull()
-  })
-
   it('names triggers by title and describes them with the summary', () => {
-    seed(true)
+    seed()
     const arrange = screen.getByRole('button', { name: 'Arrange' })
     const described = arrange.getAttribute('aria-describedby') ?? ''
     expect(document.getElementById(described)?.textContent).toBe('z 1')
@@ -204,7 +142,7 @@ describe('PhotoFrameSections in the Inspector', () => {
   })
 
   it('lays Adjust and Frame style out on the kit Section rhythm', () => {
-    seed(true)
+    seed()
     fireEvent.click(screen.getByRole('button', { name: 'Adjust' }))
     expect(screen.getByTestId('adjust').className).toBe(
       'flex flex-col gap-2 px-4 pt-0.5 pb-3',
@@ -222,7 +160,9 @@ describe('PhotoFrameSections in the Inspector', () => {
     expect(screen.getByTestId('frame-style').className).toBe(
       'flex flex-col px-4 pt-0.5 pb-3',
     )
-    expect(screen.getByTestId('style-new').className).toContain('mt-2 ')
+    expect(screen.getByTestId('style-new').className).toContain(
+      'pb-button--secondary pb-button--sm frame-style-new w-full',
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Position & size' }))
     expect(screen.getByTestId('frame-rotation').className).toContain(
@@ -231,7 +171,7 @@ describe('PhotoFrameSections in the Inspector', () => {
   })
 
   it('opens the style sliders 24 px under the chips', () => {
-    seed(true)
+    seed()
     act(() => {
       dispatchBookOp({
         type: 'applyFrameStyle',

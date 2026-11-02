@@ -12,8 +12,10 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import { Button } from '../ui/Button'
+import { Icon } from '../ui/Icon'
 import type { CropTarget } from './cropMode'
 import { InspectorSlider } from './InspectorControls'
+import { useThumbUrl } from './useThumbUrl'
 import './FrameSections.css'
 
 function readBook() {
@@ -131,6 +133,8 @@ function styleSwatchShadow(style: FrameStyle): string {
 /** Kit FrameStyleSection (uikit/src/sandbox/sections.tsx:107-134). */
 export function FrameStyleSection({ target }: { target: CropTarget }) {
   const found = useImageFrame(target)
+  // Kit swatches show a photo (`bg-cover`): the frame's own thumb, grey when empty.
+  const swatchPhoto = useThumbUrl(found?.frame.assetId)
   if (found === null) {
     return null
   }
@@ -190,6 +194,9 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
               style={{
                 borderRadius: `${String(option.style.cornerRadiusMm ?? 0)}px`,
                 boxShadow: styleSwatchShadow(option.style),
+                ...(swatchPhoto === undefined
+                  ? {}
+                  : { backgroundImage: `url("${swatchPhoto}")` }),
               }}
             />
             <span className="w-full truncate text-center">{option.name}</span>
@@ -206,6 +213,7 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
             unit="millimeter"
             value={current.matMm ?? 0}
             testId="style-mat"
+            className="fit-crop-slider--row"
             onChange={(matMm) => {
               edit({ matMm })
             }}
@@ -218,6 +226,7 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
             unit="millimeter"
             value={current.strokeMm ?? 0}
             testId="style-stroke"
+            className="fit-crop-slider--row"
             onChange={(strokeMm) => {
               edit({ strokeMm: Math.round(strokeMm * 10) / 10 })
             }}
@@ -230,26 +239,31 @@ export function FrameStyleSection({ target }: { target: CropTarget }) {
             unit="millimeter"
             value={current.cornerRadiusMm ?? 0}
             testId="style-radius"
+            className="fit-crop-slider--row"
             onChange={(cornerRadiusMm) => {
               edit({ cornerRadiusMm })
             }}
           />
-          <p className="text-xs text-muted-foreground" data-testid="style-uses">
+          <div className="fit-crop-note" data-testid="style-uses">
             Editing “{frameStyleName(currentId)}” updates all{' '}
-            <b>{String(uses)}</b> frames that use it.
-          </p>
+            <b className="text-foreground">{String(uses)}</b> frames that use
+            it.
+          </div>
         </div>
       )}
-      <button
-        type="button"
-        className="e7-ghost mt-2 h-8 w-full rounded-md text-sm"
+      {/* Kit outline + shadow-xs sm button: our `secondary` (as the 90° turns). */}
+      <Button
+        variant="secondary"
+        size="sm"
+        className="frame-style-new w-full"
         data-testid="style-new"
-        onClick={() => {
+        onPress={() => {
           dispatchBookOp({ type: 'newFrameStyle', ...target })
         }}
       >
+        <Icon name="plus" size={14} />
         New style from this frame
-      </button>
+      </Button>
     </div>
   )
 }
