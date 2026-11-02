@@ -4,7 +4,7 @@
 - [x] 2. Pure filmstrip selection rules (click, Shift range, Ctrl toggle, select all, keyboard focus moves) in `filmstripSelection.ts`, with unit tests.
 - [x] 3. Grid focus store (`filmstripGridFocus.ts`): focused id, focus-visible flag, pending focus for unmounted rows.
 - [x] 4. Filmstrip renders its own `role=grid` with memoized `role=row` items in place of `GridList` / `GridListItem`, with the same attributes, selection and keyboard behaviour.
-- [ ] 5. Component tests for roles, click / Ctrl / Shift selection, arrows, Home / End, Ctrl+A, and a window shift that renders only the entering rows.
+- [x] 5. Component tests for roles, click / Ctrl / Shift selection, arrows, Home / End, Ctrl+A, and a window shift that renders only the entering rows.
 
 ## Manual test scenarios
 

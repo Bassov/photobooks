@@ -1,0 +1,299 @@
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { resetAssetPool } from '../photo/assetPool'
+import { resetBookStore } from './bookStore'
+import { resetCameraStore } from './cameraStore'
+import { clearDropHover } from './dropHover'
+import { Filmstrip } from './Filmstrip'
+import { FILMSTRIP_THUMB_HEIGHT } from './filmstripSize'
+import { resetFilmstripGridFocus } from './filmstripGridFocus'
+import { seedGallery } from './gallery.test-helpers'
+import {
+  getSelectedAssetIds,
+  resetGallerySelection,
+  setSelectedAssetIds,
+} from './gallerySelection'
+import { resetThumbCache } from './thumbCache'
+import { buildStridePrefix } from './thumbSlotSize'
+
+/** Row renders per asset id (each row render reads its focus once). */
+const rowRenders = vi.hoisted(() => new Map<string, number>())
+
+vi.mock('./filmstripGridFocus', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./filmstripGridFocus')>()
+  return {
+    ...actual,
+    getFilmstripRowFocus: (id: string) => {
+      rowRenders.set(id, (rowRenders.get(id) ?? 0) + 1)
+      return actual.getFilmstripRowFocus(id)
+    },
+  }
+})
+
+function rows(): HTMLElement[] {
+  return screen.getAllByRole('row')
+}
+
+function row(id: string): HTMLElement {
+  const match = rows().find((item) => item.dataset.assetId === id)
+  if (match === undefined) {
+    throw new Error(`row ${id} not mounted`)
+  }
+  return match
+}
+
+function stubScrollportWidth(width: number): () => void {
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get() {
+      return (this as HTMLElement).getAttribute('data-testid') ===
+        'filmstrip-scroll'
+        ? width
+        : 0
+    },
+  })
+  return () => {
+    Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth')
+  }
+}
+
+/** Runs queued rAF callbacks inside `act` (the window commits on rAF). */
+function captureFrames(): { flush: () => void; restore: () => void } {
+  const callbacks: FrameRequestCallback[] = []
+  const previous = globalThis.requestAnimationFrame
+  globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+    callbacks.push(cb)
+    return callbacks.length
+  }
+  return {
+    flush: () => {
+      act(() => {
+        for (const cb of callbacks.splice(0, callbacks.length)) {
+          cb(0)
+        }
+      })
+    },
+    restore: () => {
+      globalThis.requestAnimationFrame = previous
+    },
+  }
+}
+
+function scrollTo(scroll: HTMLElement, left: number): void {
+  act(() => {
+    Object.defineProperty(scroll, 'scrollLeft', {
+      configurable: true,
+      value: left,
+      writable: true,
+    })
+    scroll.dispatchEvent(new Event('scroll'))
+  })
+}
+
+describe('Filmstrip grid', () => {
+  afterEach(() => {
+    cleanup()
+    clearDropHover()
+    resetCameraStore()
+    resetBookStore()
+    resetThumbCache()
+    resetAssetPool()
+    resetGallerySelection()
+    resetFilmstripGridFocus()
+    rowRenders.clear()
+  })
+
+  it('exposes a multiselectable grid of named rows', () => {
+    seedGallery(3, 1.5, 'photo.jpg')
+    setSelectedAssetIds(['seed-1'])
+    render(<Filmstrip />)
+
+    const grid = screen.getByRole('grid', { name: 'Book gallery' })
+    expect(grid.getAttribute('aria-multiselectable')).toBe('true')
+    expect(grid.tabIndex).toBe(0)
+    expect(rows().map((item) => item.getAttribute('aria-selected'))).toEqual([
+      'false',
+      'true',
+      'false',
+    ])
+    expect(row('seed-1').dataset.selected).toBe('true')
+    expect(rows().map((item) => item.tabIndex)).toEqual([-1, -1, -1])
+  })
+
+  it('replaces on click, toggles on Ctrl / Meta click, ranges on Shift click', () => {
+    seedGallery(4)
+    render(<Filmstrip />)
+
+    fireEvent.click(row('seed-1'))
+    expect(getSelectedAssetIds()).toEqual(['seed-1'])
+
+    fireEvent.click(row('seed-3'), { shiftKey: true })
+    expect(getSelectedAssetIds()).toEqual(['seed-1', 'seed-2', 'seed-3'])
+
+    fireEvent.click(row('seed-2'), { ctrlKey: true })
+    expect(getSelectedAssetIds()).toEqual(['seed-1', 'seed-3'])
+
+    fireEvent.click(row('seed-3'), { metaKey: true })
+    expect(getSelectedAssetIds()).toEqual(['seed-1'])
+
+    fireEvent.click(row('seed-0'))
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+  })
+
+  it('ignores clicks on the grid outside any row', () => {
+    seedGallery(2)
+    setSelectedAssetIds(['seed-0'])
+    render(<Filmstrip />)
+
+    fireEvent.click(screen.getByRole('grid'))
+
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+  })
+
+  it('hands grid focus to the selected row and makes it the tab stop', () => {
+    seedGallery(3)
+    setSelectedAssetIds(['seed-2'])
+    render(<Filmstrip />)
+
+    act(() => {
+      screen.getByRole('grid').focus()
+    })
+
+    expect(document.activeElement).toBe(row('seed-2'))
+    expect(row('seed-2').tabIndex).toBe(0)
+    expect(row('seed-2').dataset.focused).toBe('true')
+    expect(screen.getByRole('grid').tabIndex).toBe(-1)
+
+    act(() => {
+      row('seed-2').blur()
+    })
+    expect(row('seed-2').dataset.focused).toBeUndefined()
+    expect(row('seed-2').tabIndex).toBe(0)
+  })
+
+  it('moves focus and selection with arrows; Shift extends, Ctrl only moves focus', () => {
+    seedGallery(4)
+    render(<Filmstrip />)
+    act(() => {
+      row('seed-0').focus()
+    })
+
+    fireEvent.keyDown(row('seed-0'), { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(row('seed-1'))
+    expect(getSelectedAssetIds()).toEqual(['seed-1'])
+
+    fireEvent.keyDown(row('seed-1'), { key: 'ArrowRight', shiftKey: true })
+    expect(document.activeElement).toBe(row('seed-2'))
+    expect(getSelectedAssetIds()).toEqual(['seed-1', 'seed-2'])
+
+    fireEvent.keyDown(row('seed-2'), { key: 'ArrowRight', ctrlKey: true })
+    expect(document.activeElement).toBe(row('seed-3'))
+    expect(getSelectedAssetIds()).toEqual(['seed-1', 'seed-2'])
+
+    fireEvent.keyDown(row('seed-3'), { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(row('seed-2'))
+    expect(getSelectedAssetIds()).toEqual(['seed-2'])
+  })
+
+  it('jumps to the ends with Home / End and selects all with Ctrl+A', () => {
+    seedGallery(4)
+    render(<Filmstrip />)
+    act(() => {
+      row('seed-1').focus()
+    })
+
+    fireEvent.keyDown(row('seed-1'), { key: 'End' })
+    expect(document.activeElement).toBe(row('seed-3'))
+    expect(getSelectedAssetIds()).toEqual(['seed-3'])
+
+    fireEvent.keyDown(row('seed-3'), { key: 'Home' })
+    expect(document.activeElement).toBe(row('seed-0'))
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+
+    fireEvent.keyDown(row('seed-0'), { key: 'a', ctrlKey: true })
+    expect(getSelectedAssetIds()).toEqual([
+      'seed-0',
+      'seed-1',
+      'seed-2',
+      'seed-3',
+    ])
+  })
+
+  it('leaves other keys to the editor', () => {
+    seedGallery(2)
+    setSelectedAssetIds(['seed-0'])
+    render(<Filmstrip />)
+    act(() => {
+      row('seed-0').focus()
+    })
+
+    fireEvent.keyDown(row('seed-0'), { key: 'Escape' })
+    fireEvent.keyDown(row('seed-0'), { key: 'ArrowLeft' })
+
+    expect(document.activeElement).toBe(row('seed-0'))
+    expect(getSelectedAssetIds()).toEqual(['seed-0'])
+  })
+
+  it('End past the window scrolls to the last row and focuses it on mount', () => {
+    const restoreWidth = stubScrollportWidth(1000)
+    const frames = captureFrames()
+    try {
+      seedGallery(60, 0.5)
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      act(() => {
+        row('seed-0').focus()
+      })
+
+      fireEvent.keyDown(row('seed-0'), { key: 'End' })
+      expect(rows().map((item) => item.dataset.assetId)).not.toContain(
+        'seed-59',
+      )
+      expect(getSelectedAssetIds()).toEqual(['seed-59'])
+
+      const prefix = buildStridePrefix(
+        Array.from({ length: 60 }, () => 0.5),
+        FILMSTRIP_THUMB_HEIGHT,
+      )
+      expect(scroll.scrollLeft).toBe((prefix[60] ?? 0) - 1000)
+      scrollTo(scroll, scroll.scrollLeft)
+      frames.flush()
+
+      expect(document.activeElement).toBe(row('seed-59'))
+    } finally {
+      frames.restore()
+      restoreWidth()
+    }
+  })
+
+  it('a window shift renders only the rows that enter it', () => {
+    const restoreWidth = stubScrollportWidth(1000)
+    const frames = captureFrames()
+    try {
+      seedGallery(60, 0.5)
+      setSelectedAssetIds(['seed-1'])
+      render(<Filmstrip />)
+      const scroll = screen.getByTestId('filmstrip-scroll')
+      const before = new Set(rows().map((item) => item.dataset.assetId))
+      const prefix = buildStridePrefix(
+        Array.from({ length: 60 }, () => 0.5),
+        FILMSTRIP_THUMB_HEIGHT,
+      )
+      rowRenders.clear()
+
+      scrollTo(scroll, prefix[4] ?? 0)
+      frames.flush()
+
+      const after = rows().map((item) => item.dataset.assetId ?? '')
+      const entering = after.filter((id) => !before.has(id))
+      const staying = after.filter((id) => before.has(id))
+      expect(entering.length).toBeGreaterThan(0)
+      expect(staying.length).toBeGreaterThan(0)
+      expect(staying.filter((id) => rowRenders.has(id))).toEqual([])
+      expect(entering.every((id) => rowRenders.has(id))).toBe(true)
+    } finally {
+      frames.restore()
+      restoreWidth()
+    }
+  })
+})
