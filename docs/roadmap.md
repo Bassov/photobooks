@@ -44,7 +44,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [design-r12-inspector](roadmap/P1/design-r12-inspector.md) — Bug: design-r12-inspector: Photo inspector field boxes, Caption offset and Crop "Done" button match the kit
 - [ ] [feature] [design-r11-canvas](roadmap/P1/design-r11-canvas.md) — Bug: design-r11-canvas: spine fold, spread-list thumbnail shadow and cover text match the kit
 - [ ] [feature] [design-r12-surfaces](roadmap/P1/design-r12-surfaces.md) — Bug: design-r12-surfaces: cover text positions, spread-list page cards and popover menus match the kit
-- [ ] [feature] [design-r13-polish](roadmap/P1/design-r13-polish.md) — Bug: /next-roadmap-item design-r13-polish
+- [ ] [feature] [design-r13-polish](roadmap/P1/design-r13-polish.md) — Bug: design-r13-polish: book menu position and Caption section height match the kit
 - [ ] [prep] [decode-no-source-copy](roadmap/P1/decode-no-source-copy.md) — Decode worker: stop copying the original file to the main thread
 - [ ] [feature] [thumb-reload-cache-miss](roadmap/P1/thumb-reload-cache-miss.md) — Bug: gallery photos without a cached thumb stay gray after reload
 - [x] [prep] [folder-manifest-batched-dims](roadmap/P1/folder-manifest-batched-dims.md) — Folder manifest: batch dimension patches, no lost updates

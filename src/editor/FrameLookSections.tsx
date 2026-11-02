@@ -104,9 +104,10 @@ export function CaptionSection({ target }: { target: CropTarget }) {
           })
         }}
       />
-      <p className="mt-1.5 text-xs text-muted-foreground">
+      {/* Kit hint is a div with --text-xs--line-height 1.4 (M81, round 13). */}
+      <div className="mt-1.5 text-xs leading-[1.4] text-muted-foreground">
         Printed 1.5 mm under the frame, Caption style
-      </p>
+      </div>
     </div>
   )
 }

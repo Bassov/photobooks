@@ -88,6 +88,12 @@
   transform: scale(var(--motion-press-scale));
 }
 
+/* React Aria keeps an open menu trigger pressed; the kit trigger stays 1:1
+   so the menu sits 4 px below it (M80, round 13). */
+.pb-button[data-pressed][aria-expanded='true'] {
+  transform: none;
+}
+
 .pb-button[data-focus-visible] {
   box-shadow:
     0 0 0 2px var(--background),
