@@ -35,7 +35,7 @@ const config = {
   ],
   ignorePatterns: [
     '.local_dev',
-    '.claude', // dir symlinks into .cursor/skills crash the sandbox copy (EISDIR)
+    '.claude', // agent harness config: nothing to mutate
     'dist',
     'coverage',
     'reports',

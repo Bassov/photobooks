@@ -1,8 +1,3 @@
----
-description: Photobooks product overview and repo conventions
-alwaysApply: true
----
-
 # Photobooks overview
 
 Local-first photobook editor (Vite + React 19 + TypeScript + pnpm).
