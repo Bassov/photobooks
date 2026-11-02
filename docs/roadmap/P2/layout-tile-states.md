@@ -11,13 +11,13 @@ Owner design decision (INBOX 2026-11-02, approved mockup): an Owner-approved dev
 Layout section tiles. Files: `src/editor/LayoutSection.tsx`, `LayoutSection.css`, `layoutThumb.ts` (+ tests),
 one shadow token in `styles/tokens.css`.
 
-- [ ] `.layout-tile` stays transparent on hover / selected; state is drawn on `.layout-thumb-paper`: hover
+- [x] `.layout-tile` stays transparent on hover / selected; state is drawn on `.layout-thumb-paper`: hover
       `0 0 0 1px rgb(0 0 0 / .22), 0 2px 6px rgb(0 0 0 / .12)` + `translateY(-1px)`; selected `0 0 0 2px var(--select)`,
       no transform; focus-visible `0 0 0 2px var(--background), 0 0 0 4px var(--ring)` on the paper only;
       `transition: box-shadow, transform var(--motion-duration-fast)`. Caption rules unchanged.
-- [ ] `.layout-thumb` aspect-ratio = clamp(2/3, trim w/h, 2/1); `thumbPaperBox` fills that box (no side areas).
-- [ ] Single-page trims (ratio < 1.2): 3 columns (gap-1.5); spreads keep 2 columns.
-- [ ] Full-bleed thumbs stay readable via the ring (no grey-on-grey).
+- [x] `.layout-thumb` aspect-ratio = clamp(2/3, trim w/h, 2/1); `thumbPaperBox` fills that box (no side areas).
+- [x] Single-page trims (ratio < 1.2): 3 columns (gap-1.5); spreads keep 2 columns.
+- [x] Full-bleed thumbs stay readable via the ring (no grey-on-grey).
 - **Browser check:** 1440×900 fixture: page 1 (single page) shows 3 columns, paper width = thumb box width ±1 px;
   spread 2–3 shows 2 columns, unchanged 123×61.5 thumbs; hover / selected / keyboard focus rings on the paper.
 
