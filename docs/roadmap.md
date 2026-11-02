@@ -52,6 +52,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [thumb-hot-cache](roadmap/P1/thumb-hot-cache.md) — Filmstrip: a thumb that loaded once never goes gray again
 - [ ] [prep] [thumb-scaled-decode](roadmap/P1/thumb-scaled-decode.md) — Decode thumbs with ImageDecoder at reduced scale
 - [ ] [feature] [thumb-bulk-hydrate](roadmap/P1/thumb-bulk-hydrate.md) — On book open, load all cached thumbs before the user scrolls
+- [ ] [feature] [perf-gate-short-loaf](roadmap/P1/perf-gate-short-loaf.md) — Bug: /next-roadmap-item perf-gate-short-loaf
 - [ ] [contingency] [thumb-pack-storage](roadmap/P1/thumb-pack-storage.md) — Store a folder's thumbs in one IndexedDB store (only if hydrate is slow)
 - [ ] [feature] [thumb-background-warm](roadmap/P1/thumb-background-warm.md) — Thumbs for the whole folder in the background
 - [ ] [feature] [thumb-warm-slice](roadmap/P1/thumb-warm-slice.md) — Bug: /next-roadmap-item thumb-warm-slice
