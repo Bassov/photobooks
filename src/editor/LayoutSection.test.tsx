@@ -31,7 +31,7 @@ function seed(templateId?: string) {
   })
 }
 
-/** Kit Section shows its summary only while collapsed. */
+/** The Layout header names the selected layout expanded and collapsed. */
 function collapseLayout() {
   fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
 }
@@ -45,47 +45,53 @@ describe('LayoutSection', () => {
     resetBookStore()
   })
 
-  it('lists the kit layouts in kit order and marks the current one', () => {
+  it('lists the kit layouts by photo count and marks the current one', () => {
     seed('hero-two')
     render(<LayoutSection spreadId="s1" />)
     const tiles = screen.getAllByTestId('layout-tile')
     expect(tiles.map((t) => t.getAttribute('data-template'))).toEqual([
       'full-bleed',
       'one-per-page',
-      'hero-two',
-      'hero-grid',
       'panorama',
-      'three-across',
       'framed-single',
       'offset-pair',
       'two-portraits',
+      'hero-two',
+      'three-across',
       'landscape-two-portraits',
+      'hero-grid',
     ])
     expect(tiles.map((t) => t.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'false',
+      'false',
+      'false',
       'false',
       'false',
       'true',
       'false',
       'false',
       'false',
-      'false',
-      'false',
-      'false',
-      'false',
     ])
     collapseLayout()
-    expect(screen.getByTestId('layout-summary').textContent).toBe('Hero + two')
+    expect(screen.getByTestId('layout-note').textContent).toBe('· Hero + two')
+    expect(screen.queryByTestId('layout-summary')).toBeNull()
   })
 
   it('draws one slot per frame in each tile thumb', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
-    const [fullBleed, , heroTwo] = screen.getAllByTestId('layout-tile')
+    const fullBleed = screen.getByRole('button', {
+      name: 'Apply layout Full bleed',
+    })
+    const heroTwo = screen.getByRole('button', {
+      name: 'Apply layout Hero + two',
+    })
     expect(
-      fullBleed?.querySelectorAll('[data-testid="layout-thumb-slot"]'),
+      fullBleed.querySelectorAll('[data-testid="layout-thumb-slot"]'),
     ).toHaveLength(1)
     expect(
-      heroTwo?.querySelectorAll('[data-testid="layout-thumb-slot"]'),
+      heroTwo.querySelectorAll('[data-testid="layout-thumb-slot"]'),
     ).toHaveLength(3)
   })
 
@@ -131,9 +137,8 @@ describe('LayoutSection', () => {
   it('shows a contact-sheet spread in the fields and the summary', () => {
     seed('contact-5x3')
     render(<LayoutSection spreadId="s1" />)
-    collapseLayout()
-    expect(screen.getByTestId('layout-summary').textContent).toBe(
-      'Contact sheet 5×3',
+    expect(screen.getByTestId('layout-note').textContent).toBe(
+      '· Contact sheet 5×3',
     )
     expect(
       screen.getByTestId<HTMLInputElement>('layout-contact-cols').value,
@@ -149,16 +154,16 @@ describe('LayoutSection', () => {
     expect(screen.queryByTestId('layout-section')).toBeNull()
   })
 
-  it('shows no summary for an unset or unknown template', () => {
+  it('shows no header name for an unset or unknown template', () => {
     seed()
     const { unmount } = render(<LayoutSection spreadId="s1" />)
+    expect(screen.queryByTestId('layout-note')).toBeNull()
     collapseLayout()
-    expect(screen.queryByTestId('layout-summary')).toBeNull()
+    expect(screen.queryByTestId('layout-note')).toBeNull()
     unmount()
     seed('custom-x')
     render(<LayoutSection spreadId="s1" />)
-    collapseLayout()
-    expect(screen.queryByTestId('layout-summary')).toBeNull()
+    expect(screen.queryByTestId('layout-note')).toBeNull()
   })
 })
 

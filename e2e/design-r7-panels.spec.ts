@@ -43,8 +43,9 @@ import { readZoomPercent } from './fixtures/zoomMenu'
 
 const KIT = {
   suggested: {
+    // Owner 2026-11-02: the first 1-photo tiles of the one list, uncaptioned.
     labels: ['Full bleed', 'One per page', 'Panorama'],
-    tile: { width: 131, height: 88.625 },
+    tile: { width: 131, height: 69.5 },
     thumb: { width: 123, height: 61.5 },
   },
   endpaper: {
@@ -87,7 +88,7 @@ async function rectOf(locator: Locator) {
   })
 }
 
-test.describe('M47 "One per page" is suggested for 1 photo', () => {
+test.describe('M47 "One per page" is listed for 1 photo', () => {
   async function pageFrame(page: Page) {
     const view = page.locator(
       '[data-testid="spread-view"][data-spread-id="spread-1"]',
@@ -108,21 +109,28 @@ test.describe('M47 "One per page" is suggested for 1 photo', () => {
   }) => {
     await openSessionEditor(page)
     await page.locator('[data-testid^="spread-list-item-"]').first().click()
-    const suggested = page.getByTestId('tpl-suggested')
-    await expect(suggested).toContainText('Suggested for 1 photo')
-    const tiles = suggested.getByTestId('layout-suggested-tile')
-    await expect(tiles).toHaveCount(KIT.suggested.labels.length)
+    // Owner 2026-11-02: no Suggested group; the one list opens on the
+    // 1-photo layouts, uncaptioned (name = tooltip + accessible name).
+    await expect(page.getByTestId('tpl-suggested')).toHaveCount(0)
+    const tiles = page.getByTestId('layout-section').getByTestId('layout-tile')
+    await expect(tiles).toHaveCount(10)
+    const labels = KIT.suggested.labels
     expect(
-      await tiles.evaluateAll((els) =>
-        els.map((el) => el.getAttribute('aria-label')),
+      await tiles.evaluateAll(
+        (els, count) =>
+          els
+            .slice(0, count)
+            .map((el) => [
+              el.getAttribute('aria-label'),
+              el.getAttribute('title'),
+            ]),
+        labels.length,
       ),
-    ).toEqual(
-      KIT.suggested.labels.map((label) => `Apply suggested layout ${label}`),
-    )
-    await expect(tiles.getByTestId('tpl-name')).toHaveText(KIT.suggested.labels)
-    // The default page layout stays listed, pressed like its All-grid tile.
+    ).toEqual(labels.map((label) => [`Apply layout ${label}`, label]))
+    await expect(tiles.getByTestId('tpl-name')).toHaveCount(0)
+    // The default page layout stays listed and pressed in its place.
     await expect(tiles.nth(1)).toHaveAttribute('aria-pressed', 'true')
-    for (let i = 0; i < KIT.suggested.labels.length; i++) {
+    for (let i = 0; i < labels.length; i++) {
       const tile = await rectOf(tiles.nth(i))
       near(tile.width, KIT.suggested.tile.width, 0.5)
       near(tile.height, KIT.suggested.tile.height, 0.5)
@@ -140,7 +148,7 @@ test.describe('M47 "One per page" is suggested for 1 photo', () => {
 
     await page
       .getByRole('button', {
-        name: 'Apply suggested layout One per page',
+        name: 'Apply layout One per page',
         exact: true,
       })
       .click()
