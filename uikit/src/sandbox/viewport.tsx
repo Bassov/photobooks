@@ -13,7 +13,7 @@ import type { Node } from "./store"
 /* Stack gap = 104 / 588 of the spread height (prod M49), so it scales with zoom. Page labels keep 11 px on screen,
    8 px under the page, and hide in a gap < 19 px; the new-spread pill (32 px) sits centred between the labels and the
    next spread and hides when it does not fit with the same 19 px clearance on both sides (M37/M42/M56). */
-export const STACK_GAP = 104 / 588, LABELS_MIN_GAP = 8 + 11, PILL_H = 32, PILL_MIN_GAP = PILL_H + 2 * LABELS_MIN_GAP
+export const STACK_GAP = 104 / 588, STACK_TOP = 56, LABELS_MIN_GAP = 8 + 11, PILL_H = 32, PILL_MIN_GAP = PILL_H + 2 * LABELS_MIN_GAP
 
 /* v0.7.1: page labels live in the canvas layer under the spread and move with zoom and pan */
 function PageLabels({ nd, si }: { nd: Node; si: number }) {
@@ -21,7 +21,9 @@ function PageLabels({ nd, si }: { nd: Node; si: number }) {
   const labels: [string, number][] = nd?.k === "cover" ? [["Back", b.w / cw], ["Spine", SPINE / cw], ["Front", b.w / cw]]
     : nd?.k === "endpaper" ? [["Endpaper", 1]] : nd?.k === "master" ? [[`Master ${nd.id}`, 1]] : nd?.k === "last" ? [[`${pagesOf(n)}`, .5], ["", .5]]
     : si === 0 ? [["", .5], ["1", .5]] : [[`${si * 2}`, .5], [`${si * 2 + 1}`, .5]]
-  return <div className="pointer-events-none absolute inset-x-0 top-full mt-2 flex text-2xs leading-none tabular-nums" style={{ color: SUB }} aria-hidden data-testid="page-labels">
+  // page numbers are 11 px, 8 px under the page (M37); cover / endpaper / master labels keep 12 px, 10 px under it
+  const pageNo = !nd || nd.k === "last"
+  return <div className={cn("pointer-events-none absolute inset-x-0 top-full flex tabular-nums", pageNo ? "mt-2 text-2xs leading-none" : "pt-2.5 text-xs")} style={{ color: SUB }} aria-hidden data-testid="page-labels">
     {labels.map(([t, w], i) => <span key={i} className="whitespace-nowrap text-center" style={{ width: `${w * 100}%` }}>{t}</span>)}</div>
 }
 
@@ -122,8 +124,8 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
   const { view } = st
   useEditorKeys()
   const nd = st.node && ["cover", "endpaper", "master", "last"].includes(st.node.k) ? st.node : st.mode === "masters" ? { k: "master" as const, id: "A" as const } : null
-  // Q3: pages stack on the pasteboard; cover / endpaper / master / last page and the rulers (guide drawing) keep the single-spread camera
-  const stacked = !!st.features.stack && !nd && !view.rulers
+  // Q3: pages stack on the pasteboard, the single last page at the end (M45); cover / endpaper / master and the rulers (guide drawing) keep the single-spread camera
+  const stacked = !!st.features.stack && (!nd || nd.k === "last") && !view.rulers
   const [ref, size] = useSize<HTMLDivElement>(stacked)
   const [pan, setPan] = React.useState({ x: 0, y: 0 })
   const [cursor, setCursor] = React.useState<{ x: number; y: number } | null>(null)
@@ -284,13 +286,35 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
   const st = useStudio()
   const [ref, size] = useSize<HTMLDivElement>()
   const sc = fitScale(size.w, size.h, pad) * st.view.zoom, gap = SH * sc * STACK_GAP
+  const last = st.node?.k === "last", ready = size.w > 0
   React.useEffect(() => {
-    // a current spread not fully in view is centred in the viewport (prod centerSpreadScroll)
-    const el = ref.current?.querySelector(`[data-stack-item="${st.cur}"]`) as HTMLElement | null
+    // a current spread (or the last page) not fully in view is centred in the viewport (prod centerSpreadScroll)
+    const el = ref.current?.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
     if (!el || !ref.current) return
     const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2
     if (el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top })
-  }, [st.cur, sc])
+  }, [st.cur, last, ready])
+  // prod usePasteboardCamera: a zoom keeps the content point under the cursor (wheel) or the pasteboard centre (keys, menu) fixed.
+  // Everything but the padding scales with sc: x from the stack's centre line, y from the top padding.
+  const anchor = React.useRef<{ x: number; y: number } | null>(null)
+  const cam = React.useRef({ sc: 0, l: 0, t: 0, cx: 0 })
+  React.useLayoutEffect(() => {
+    const c = ref.current, inner = c?.firstElementChild as HTMLElement | null
+    if (!c || !inner) return
+    const p = cam.current, k = sc / p.sc, cx = inner.offsetWidth / 2
+    const it = c.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
+    if (p.sc > 0 && k !== 1 && st.view.zoom === 1 && !anchor.current && it) {
+      // Fit (Ctrl+0, menu) centres the current spread again (prod placedScroll)
+      c.scrollLeft = 0; c.scrollTop = it.offsetTop + it.offsetHeight / 2 - c.clientHeight / 2
+    } else if (p.sc > 0 && k !== 1) {
+      const a = anchor.current ?? { x: c.clientWidth / 2, y: c.clientHeight / 2 }
+      c.scrollLeft = cx + (p.l + a.x - p.cx) * k - a.x
+      c.scrollTop = STACK_TOP + (p.t + a.y - STACK_TOP) * k - a.y
+    }
+    anchor.current = null
+    cam.current = { sc: ready ? sc : 0, l: c.scrollLeft, t: c.scrollTop, cx }
+  }, [sc, ready])
+  const onScroll = () => { const c = ref.current; if (c) { cam.current.l = c.scrollLeft; cam.current.t = c.scrollTop } }
   // proto: scrollbars are hidden, so panning is explicit — wheel / trackpad scrolls, Space+drag, the Hand tool or middle-drag pan
   const [space, setSpace] = React.useState(false)
   React.useEffect(() => {
@@ -318,6 +342,7 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
     const el = ref.current; if (!el) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
+      const r = el.getBoundingClientRect(); anchor.current = { x: e.clientX - r.left, y: e.clientY - r.top }
       st.setView({ zoom: round(clamp(st.view.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.25, 8), 3) })
     }
     el.addEventListener("wheel", onWheel, { passive: false })
@@ -325,7 +350,7 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
   }, [st.view.zoom])
   return (
     <div className={cn("relative min-h-0 flex-1", className)}>
-      <div ref={ref} onPointerDownCapture={onPanDown} className={cn("canvas-dots no-scrollbar absolute inset-0 overflow-auto",
+      <div ref={ref} onPointerDownCapture={onPanDown} onScroll={onScroll} className={cn("canvas-dots no-scrollbar absolute inset-0 overflow-auto",
           (st.view.tool === "hand" || space) && "cursor-grab",
           !space && st.view.tool === "frame" && "cursor-tool-frame",
           !space && st.view.tool === "text" && "cursor-tool-text")} data-testid="pasteboard">
@@ -339,6 +364,12 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
               <GapDrop index={i + 1} h={gap} />
             </React.Fragment>
           ))}
+          {ready && (
+            <div data-stack-item="last" className="relative" style={{ width: SW * sc, height: SH * sc }} onPointerDown={() => st.setNode({ k: "last" })}>
+              <LastPage big />
+              {!st.view.preview && gap >= LABELS_MIN_GAP && <PageLabels nd={{ k: "last" }} si={-1} />}
+            </div>
+          )}
         </div>
       </div>
       {children}
