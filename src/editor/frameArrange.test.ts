@@ -1,6 +1,12 @@
 import { fc, test } from '@fast-check/vitest'
 import { afterEach, describe, expect, it } from 'vitest'
-import { applyBookOp, layerOf, type Book, type ZMove } from '../core'
+import {
+  applyBookOp,
+  layerOf,
+  parentAsSpread,
+  type Book,
+  type ZMove,
+} from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import {
@@ -41,6 +47,16 @@ function stackBook(count: number, lockedId?: string): Book {
 }
 
 const at = (frameId: string) => ({ spreadId: 's', frameId })
+
+/** The same stack on parent spread `m` (Masters canvas), no book spreads. */
+function parentBook(count: number, lockedId?: string): Book {
+  const frames = stackBook(count, lockedId).spreads[0]?.frames ?? []
+  return makeBook({
+    parents: [{ id: 'm', name: 'Master A', frames, guides: [] }],
+  })
+}
+
+const onParent = (frameId: string) => ({ spreadId: 'm', frameId })
 
 describe('arrangeShortcut', () => {
   it.each([
@@ -143,6 +159,19 @@ describe('arrangeOp and frameLocked', () => {
     expect(frameLocked(stackBook(2, 'f1'), at('f0'))).toBe(false)
     expect(frameLocked(stackBook(2), at('nope'))).toBe(false)
   })
+
+  it('finds parent-spread frames, so a locked one refuses a drop', () => {
+    // galleryDrop refuses dragover and drop on a target frameLocked reports.
+    expect(frameLocked(parentBook(2, 'f1'), onParent('f1'))).toBe(true)
+    expect(frameLocked(parentBook(2, 'f1'), onParent('f0'))).toBe(false)
+    expect(zMovesFor(parentBook(2), onParent('f0'))).toEqual([
+      'front',
+      'forward',
+    ])
+    expect(
+      arrangeOp(parentBook(2, 'f1'), onParent('f1'), { kind: 'lock' }),
+    ).toEqual(lockOp(onParent('f1'), false))
+  })
 })
 
 function seed(book: Book) {
@@ -196,6 +225,25 @@ describe('installArrangeKeys', () => {
     off()
     press({ code: 'KeyL', ctrlKey: true, shiftKey: true })
     expect(frameLocked(getBookStoreSnapshot().book, at('f0'))).toBe(true)
+  })
+
+  it('restacks and locks a selected parent-spread frame', () => {
+    seed(parentBook(2))
+    setFrameSource(onParent('f0'))
+    const off = installArrangeKeys()
+    const parentLayer = () => {
+      const parent = getBookStoreSnapshot().book.parents?.[0]
+      return parent === undefined
+        ? null
+        : layerOf(parentAsSpread(parent), 'f0')?.layer
+    }
+
+    const front = press({ code: 'BracketRight', ctrlKey: true, shiftKey: true })
+    expect(front.defaultPrevented).toBe(true)
+    expect(parentLayer()).toBe(2)
+    press({ code: 'KeyL', ctrlKey: true, shiftKey: true })
+    expect(frameLocked(getBookStoreSnapshot().book, onParent('f0'))).toBe(true)
+    off()
   })
 
   it('leaves the key to the browser without a selected frame or in a text field', () => {

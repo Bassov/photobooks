@@ -36,8 +36,9 @@ function readBook() {
 }
 
 /**
- * The editor frame a `contextmenu` lands on. Only editor frames are buttons:
- * preview and parent-spread frames never open the menu. The keyboard path
+ * The editor frame a `contextmenu` lands on. Only editor frames (book spread
+ * or Masters canvas) are buttons: previews and the parent layer under a book
+ * spread are inert and never open the menu. The keyboard path
  * (Shift+F10, ContextMenu key) reports 0,0 and opens at the frame corner.
  */
 function frameMenuAt(event: MouseEvent): MenuAt | null {

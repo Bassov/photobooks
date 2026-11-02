@@ -36,9 +36,15 @@ function seed(book: Book) {
 }
 
 /** Editor frames are buttons inside their spread, as `SpreadView` paints them. */
-function Canvas({ frameIds }: { frameIds: string[] }) {
+function Canvas({
+  frameIds,
+  spreadId = 's',
+}: {
+  frameIds: string[]
+  spreadId?: string
+}) {
   return (
-    <div data-spread-id="s">
+    <div data-spread-id={spreadId}>
       {frameIds.map((id) => (
         <button
           key={id}
@@ -190,6 +196,36 @@ describe('FrameContextMenu', () => {
     expect([anchor.style.left, anchor.style.top]).toEqual(['30px', '40px'])
     fireEvent.keyDown(screen.getByTestId('frame-menu'), { key: 'Escape' })
     expect(screen.queryByTestId('frame-menu')).toBeNull()
+  })
+
+  it('stays open on a Masters-canvas parent frame and restacks it', () => {
+    const frames = stackBook(2).spreads[0]?.frames ?? []
+    seed(
+      makeBook({
+        parents: [{ id: 'm', name: 'Master A', frames, guides: [] }],
+      }),
+    )
+    render(
+      <>
+        <Canvas frameIds={['f0', 'f1']} spreadId="m" />
+        <FrameContextMenu />
+      </>,
+    )
+    openMenu('f0')
+    expect(getFrameSource()).toEqual({ spreadId: 'm', frameId: 'f0' })
+    expect(screen.getByTestId('frame-menu')).toBeTruthy()
+    const dispatch = vi.spyOn(bookStore, 'dispatchBookOp')
+    fireEvent.click(screen.getByTestId('frame-menu-front'))
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'reorderFrame',
+      spreadId: 'm',
+      frameId: 'f0',
+      move: 'front',
+    })
+    const after = bookStore.getBookStoreSnapshot().book.parents?.[0]?.frames
+    expect(after?.find((frame) => frame.id === 'f0')?.z).toBeGreaterThan(
+      after?.find((frame) => frame.id === 'f1')?.z ?? Infinity,
+    )
   })
 
   it('closes when its frame is removed', () => {

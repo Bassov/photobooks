@@ -1,4 +1,5 @@
 import {
+  editableSpread,
   layerOf,
   type Book,
   type BookOp,
@@ -93,14 +94,14 @@ export function arrangeShortcut(key: {
   return null
 }
 
-/** The spread's own frame (parent-spread frames are not editable here). */
+/** The frame on its book or parent spread (both take the same frame ops). */
 export function findTargetFrame(
   book: Book,
   target: FrameTarget,
 ): Frame | undefined {
-  return book.spreads
-    .find((spread) => spread.id === target.spreadId)
-    ?.frames.find((frame) => frame.id === target.frameId)
+  return editableSpread(book, target.spreadId)?.spread.frames.find(
+    (frame) => frame.id === target.frameId,
+  )
 }
 
 export function frameLocked(book: Book, target: FrameTarget): boolean {
@@ -109,7 +110,7 @@ export function frameLocked(book: Book, target: FrameTarget): boolean {
 
 /** Z moves that change the frame's place in the stack, front first. */
 export function zMovesFor(book: Book, target: FrameTarget): ZMove[] {
-  const spread = book.spreads.find((item) => item.id === target.spreadId)
+  const spread = editableSpread(book, target.spreadId)?.spread
   const layer = spread === undefined ? null : layerOf(spread, target.frameId)
   if (layer === null) {
     return []
