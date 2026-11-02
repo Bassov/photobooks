@@ -66,22 +66,20 @@ test('typing W in the Frame tab resizes the selected frame', async ({
     .toBeLessThan((before?.width ?? 0) * 0.75)
 })
 
-// Owner design change (Q8, M78 hidden): Arrange is not rendered until its
-// roadmap item, so a drawn frame offers no z buttons or layer label.
-test('Arrange is hidden for a drawn frame', async ({ page }) => {
+test('Arrange "front" updates the layer label', async ({ page }) => {
   test.setTimeout(90_000)
   await selectFirstFrame(page)
   await emptySpread(page)
   await drawFrame(page, 0.1, 0.4)
   await drawFrame(page, 0.5, 0.8)
   await expect(frames(page)).toHaveCount(2)
-  await expect(page.getByTestId('inspector-geometry-disclosure')).toBeVisible()
-  await expect(
-    page.getByRole('button', { name: 'Arrange', exact: true }),
-  ).toHaveCount(0)
-  await expect(page.getByTestId('frame-layer')).toHaveCount(0)
-  await expect(page.getByTestId('z-back')).toHaveCount(0)
-  await expect(page.getByTestId('z-front')).toHaveCount(0)
+  await expandDisclosure(page, 'Arrange')
+  const label = page.getByTestId('frame-layer')
+  await expect(label).toHaveText('layer 2 of 2')
+  await page.getByTestId('z-back').click()
+  await expect(label).toHaveText('layer 1 of 2')
+  await page.getByTestId('z-front').click()
+  await expect(label).toHaveText('layer 2 of 2')
 })
 
 test('Delete in the Frame tab removes the frame', async ({ page }) => {
