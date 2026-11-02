@@ -74,7 +74,7 @@
 
 /* Kit MmField (uikit/src/sandbox/inspector.tsx:24): px-3, gap-1.5, a
    `min-w-3` prefix and the value left-aligned right after it (Owner Must M72,
-   round 11). */
+   round 11); the kit FieldGroup `rounded-md shadow-xs` box (M76, round 12). */
 .fit-crop-field {
   display: flex;
   min-width: 0;
@@ -82,9 +82,15 @@
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--field);
+  box-shadow: var(--shadow-xs);
   font-size: var(--text-sm);
+}
+
+/* Kit crop toggle: `shadow-xs` on Crop and on Done (M77, round 12). */
+.fit-crop-toggle {
+  box-shadow: var(--shadow-xs);
 }
 
 .fit-crop-field:focus-within {

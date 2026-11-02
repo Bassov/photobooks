@@ -84,7 +84,8 @@ export function CaptionSection({ target }: { target: CropTarget }) {
     return null
   }
   return (
-    <div className="px-4 pb-4">
+    // Kit Section panel padding (M76, round 12).
+    <div className="px-4 pt-0.5 pb-3">
       <input
         type="text"
         aria-label="Caption"
