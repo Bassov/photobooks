@@ -3,6 +3,7 @@
 Tag: lite
 Milestone: P2
 Title: rig-bump-0-2-21: bump ts-agent-rig to v0.2.21 (compact preflight run card)
+Status: done
 
 Process item P-20261102-1617-ctx, rig part (docs part: #397 worker-ctx-trim). Bassov/ts-agent-rig#11 → tag v0.2.21 (97941e0).
 
