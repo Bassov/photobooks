@@ -44,7 +44,11 @@ import {
 import { setEditorStatus } from './editorStatus'
 import { clearThumbsAndDerivedCacheForTests } from './clearThumbsForTests'
 import { getBackgroundWarmStatsForTests } from './thumbBackgroundWarm'
-import { getThumbCacheStatsForTests } from './thumbCache'
+import {
+  getThumbBulkHydrateStatsForTests,
+  getThumbCacheStatsForTests,
+  type ThumbBulkHydrateStats,
+} from './thumbCache'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import {
   createAutosaveController,
@@ -1372,6 +1376,7 @@ export function exposeProjectSessionTestApi(
     clearThumbsAndDerivedCacheForTests,
     getBackgroundWarmStatsForTests,
     getThumbCacheStatsForTests,
+    getThumbBulkHydrateStatsForTests,
   }
   win.__photobooksProject = {
     attachLibraryForTests,
@@ -1479,6 +1484,7 @@ declare global {
         bytes: number
         pending: number
       }
+      getThumbBulkHydrateStatsForTests: () => ThumbBulkHydrateStats
     }
     /** Worker decode entry on the main thread (e2e/perf thumb-decode bench). */
     __photobooksDecode?: {

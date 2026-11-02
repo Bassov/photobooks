@@ -19,7 +19,12 @@ import {
 } from './bookStore'
 import { isEditorGestureActive, setEditorGestureActive } from './editorGesture'
 import { getEditorStatus } from './editorStatus'
-import { ensureThumb, getThumbUrl, resetThumbCache } from './thumbCache'
+import {
+  ensureThumb,
+  getThumbBulkHydrateStatsForTests,
+  getThumbUrl,
+  resetThumbCache,
+} from './thumbCache'
 import {
   adoptCurrentBookInLibrary,
   attachLibraryForTests,
@@ -725,6 +730,9 @@ describe('projectSession', () => {
     expect(
       window.__photobooksThumbs?.clearThumbsAndDerivedCacheForTests,
     ).toBeTypeOf('function')
+    expect(window.__photobooksThumbs?.getThumbBulkHydrateStatsForTests).toBe(
+      getThumbBulkHydrateStatsForTests,
+    )
   })
 
   it('setBookGridForTests patches the book-wide layout grid', () => {

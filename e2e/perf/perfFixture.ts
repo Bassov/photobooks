@@ -227,6 +227,12 @@ declare global {
         bytes: number
         pending: number
       }
+      getThumbBulkHydrateStatsForTests: () => {
+        state: 'idle' | 'running' | 'done'
+        hydrated: number
+        missed: number
+        ms: number
+      }
     }
     __photobooksProject?: {
       attachMemoryLibraryForTests: () => Promise<{
