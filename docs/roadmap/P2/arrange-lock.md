@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Delta only (z-order and lock already ship in the inspector, `FrameSections.tsx`): context menu + shortcuts for z-order / lock; a locked frame ignores drag and drop
+- [x] Delta only (z-order and lock already ship in the inspector, `FrameSections.tsx`): context menu + shortcuts for z-order / lock; a locked frame ignores drag and drop
 - **Perf:** a z-order change re-renders only its spread.
 - **Browser check:** send a frame behind another and lock it; a locked frame ignores drag and drop.
 - **Kit components:** `uikit#/feature/inspector` (`uikit/src/features/pages.tsx` page `inspector`); `ArrangeSection` + lock button in `GeometrySection` (`uikit/src/sandbox/inspector.tsx`)
