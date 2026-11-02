@@ -3,7 +3,6 @@
 Tag: feature
 Milestone: P1
 Title: On book open, load all cached thumbs before the user scrolls
-Status: done
 
 ## Scope
 
