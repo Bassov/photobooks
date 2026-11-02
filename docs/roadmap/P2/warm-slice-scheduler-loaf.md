@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Fling LoAF in `thumb-warm-slice` / `thumb-bulk-hydrate` frame-budget gates: attribute, then remove our cause (no gate or PERF_BUDGETS change)
+- [x] Fling LoAF in `thumb-warm-slice` / `thumb-bulk-hydrate` frame-budget gates: attribute, then remove our cause (no gate or PERF_BUDGETS change)
 - **Attribution (main 426a38c):** every gated entry is one React scheduler task (`D`, `MessagePort.onmessage`, 45–101 ms) holding a V8 major GC finalize (27–53 ms). Garbage: react-aria `GridList` re-renders every mounted filmstrip row on each window shift (~2.3 MB per fling frame) and `getAssetCacheKey` re-hashes SHA-256 on every call (rows, warm lane).
 - **Perf:** a filmstrip window shift renders only the rows that enter; a cache key is hashed once per identity.
 - **Browser check:** fling the 1000-photo strip after reopen: thumbs fill, click / Ctrl / Shift selection, arrow keys, drag of a multi-selection work as before.
