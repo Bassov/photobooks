@@ -2,7 +2,7 @@
 
 Tag: feature
 Milestone: P2
-Title: Layout tiles: hover/selected on the paper, thumb box follows the trim
+Title: Bug: Layout tiles: hover/selected on the paper, thumb box follows the trim
 Status: done
 
 ## Scope
