@@ -22,11 +22,11 @@ context: |
   - NEVER weaken a quality gate. Only budgeted `// Stryker disable next-line …: <reason>` within mutation.disableBudget
   - Necessary minimum (artifacts + prod code): reuse ladder exists → codebase → platform → installed dep → new code. Tests are exempt
   - UI in scope: tokens/primitives from docs/design.md (add new ones in the same change); evidenced browser smoke + skill `ui-review` before push/archive
-  - Scripts/CI/.cursor/.claude-only changes: always `skip_specs: true` (no product-spec deltas)
+  - Scripts/CI/.claude-only changes: always `skip_specs: true` (no product-spec deltas)
 
   Doc budget:
-  - Artifact mandates (rules + operations) live in this file. Loop orchestration lives only in `docs/agent-loop.md`. Do not duplicate either in AGENTS.md or alwaysApply Cursor rules.
-  - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI behavior: @albasov/ts-agent-rig, quality/gates.json, .cursor/, .claude/ — not openspec/specs prose mirrors.
+  - Artifact mandates (rules + operations) live in this file. Loop orchestration lives only in `docs/agent-loop.md`. Do not duplicate either in AGENTS.md or always-on `.claude/rules`.
+  - AGENTS.md is a navigation map. Product specs under openspec/specs/ are behavior SoT for `src/` capabilities. Tooling/CI behavior: @albasov/ts-agent-rig, quality/gates.json, .claude/ — not openspec/specs prose mirrors.
   - Durable docs: docs/agent-loop.md; docs/design.md; docs/future-architecture.md; docs/roadmap.md + docs/roadmap/ via `pnpm roadmap` (skill `roadmap`)
 
   Security surface (tag changes that touch these):
@@ -84,7 +84,7 @@ operations:
       - Archive only after openspec-implementation-reviewer returned pass.
       - 'Archive only after blocking critical/high findings are fixed or scheduled (verdicts: tasks.md / reviewer output).'
       - 'Archive only after Manual check and docs/rules sync are done (orchestration: `docs/agent-loop.md`).'
-      - 'Before moving the change, grep README.md, AGENTS.md, .cursor/rules, docs/ for terms the change touched; fix drift or note "No doc changes".'
+      - 'Before moving the change, grep README.md, AGENTS.md, .claude/rules, docs/ for terms the change touched; fix drift or note "No doc changes".'
       - ALWAYS sync delta specs into main openspec/specs/ before archiving (inline sync, then verify merge).
       - NEVER skip-sync when delta specs exist.
       - If sync is blocked or verification fails, STOP — do not archive until fixed.

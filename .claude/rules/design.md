@@ -3,4 +3,9 @@ paths:
   - 'src/**/*.{css,tsx}'
 ---
 
-@.cursor/rules/design.mdc
+# Design language
+
+- Visual SoT: `docs/design.md` (kit at `/uikit/` when this doc and `src/` disagree — kit wins).
+- Use semantic tokens and named primitives from that doc; add new ones there in the same change.
+- Photo is the anchor; neutral Theme B chrome; one primary action per view.
+- Do not invent parallel button/colour systems in feature CSS.
