@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Apply a parent to the selected spread in the spread inspector, or "None"; parent items render beneath spread items (canvas, spread list, presentation) and are not selectable or draggable on the spread
+- [x] Apply a parent to the selected spread in the spread inspector, or "None"; parent items render beneath spread items (canvas, spread list, presentation) and are not selectable or draggable on the spread
 - **Split (Owner brief 2026-11-02):** editing parents in Masters mode → `parent-spreads-edit`; the 40-spread edit perf gate → `parent-spreads-perf`.
 - **Browser check:** apply a parent with one item to 2 spreads → the item shows on both and clicking it selects nothing; switch one to "None" → gone there only.
 - **Kit components:** `uikit#/feature/parent-spreads` (`uikit/src/features/pages.tsx` page `parent-spreads`); parts: `uikit/src/demo-parts/editor.tsx` (`SpreadListPart, InspectorPart`)
