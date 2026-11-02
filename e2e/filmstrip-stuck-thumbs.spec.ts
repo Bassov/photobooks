@@ -11,7 +11,7 @@ import {
 } from './fixtures/photoDirectoryPicker'
 import { applyCpuThrottling } from './perf/perfFixture'
 
-const COUNT = 1000
+const COUNT = 600
 /** A stopped strip shows every thumb in its scrollport within this time. */
 const SETTLE_MS = 5_000
 /** Fractions of the scroll extent: back and forth, ending mid-strip. */

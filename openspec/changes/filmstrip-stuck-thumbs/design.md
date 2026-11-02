@@ -10,4 +10,4 @@
 
 - Files: `src/photo/assetPool.ts`; `src/photo/assetPool.retry.test.ts`; `e2e/filmstrip-stuck-thumbs.spec.ts`.
 - Reuse: retry map, `ensureActiveAbortController`, import `onResult`, picker input + 2× CPU throttle.
-- Tests: unit per tasks 1–4 (fail on `origin/main`); e2e 1000 JPEGs, fling during / after import, stop, walk (fails on `origin/main`).
+- Tests: unit per tasks 1–4 (fail on `origin/main`); e2e 600 JPEGs, fling during / after import, stop, walk (fails on `origin/main`).

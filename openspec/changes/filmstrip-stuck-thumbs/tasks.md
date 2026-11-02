@@ -1,6 +1,6 @@
 ## Implementation
 
-- [x] 1. Tests first: unit `src/photo/assetPool.retry.test.ts` and e2e `e2e/filmstrip-stuck-thumbs.spec.ts` (fling during / after import of 1000 JPEGs, stop, walk); both fail on `origin/main`
+- [x] 1. Tests first: unit `src/photo/assetPool.retry.test.ts` and e2e `e2e/filmstrip-stuck-thumbs.spec.ts` (fling during / after import of 600 JPEGs, stop, walk); both fail on `origin/main`
 - [x] 2. Pool retry delivers to its owner (`onRetryResult`; import batch wires `onResult`)
 - [x] 3. Retry seeds drop a stale aborted signal (pre-aborted call, deferred promotion); a retry for an asset already in now runs at once
 - [x] 4. Only a same-tier decode clears a parked retry
