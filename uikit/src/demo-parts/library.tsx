@@ -47,7 +47,7 @@ export function DemoLibrary({ init = {} }: { init?: LibraryInit } = {}) {
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-x-10 gap-y-2 pb-12" data-testid="book-grid">
               {shown.map((b) => (
-                <BookTile key={b.id} b={{ id: b.id, title: b.title, src: coverOf(b) ? P(coverOf(b)!).src : undefined, fmt: fmtOf(b.book), spreads: b.doc?.spreads.length ?? 10, edited: "just now", status: b.published ? "published" : undefined }}
+                <BookTile key={b.id} b={{ id: b.id, title: b.title, src: coverOf(b) ? P(coverOf(b)!).src : undefined, fmt: fmtOf(b.book), ink: "#F5F5F5", spreads: b.doc?.spreads.length ?? 10, edited: "just now", status: b.published ? "published" : undefined }}
                   onOpen={() => set({ stage: "editor", open: b.id })}
                   title={renaming === b.id ? (
                     <TextField aria-label="Book title" defaultValue={b.title} autoFocus onKeyDown={(e) => { if (e.key === "Enter") rename(b.id, (e.target as HTMLInputElement).value); if (e.key === "Escape") setRenaming(null) }} onBlur={(e) => rename(b.id, (e.target as HTMLInputElement).value)}>

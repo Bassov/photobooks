@@ -1815,6 +1815,38 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit10: no console errors in the new flows", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
+// kit-sync W4 (Designer kit-sync Spec 9–11, = prod): no Pastedown caption, cover inspector selects + row tops, read-only pills flush right, light library card title
+{
+  const e0 = errs.length
+  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
+  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
+  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
+  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip"); await c('[data-testid="create-book"]'); await c('[data-item="cover"]')
+  // text-node boxes (Spec measures glyph runs, not padded pills)
+  const textBox = (sel, t) => page.evaluate(([sel, t]) => { const e = [...document.querySelectorAll(sel)].find((x) => x.textContent.trim().toLowerCase() === t.toLowerCase()); if (!e) return null; const g = document.createRange(); g.selectNodeContents(e); const b = g.getBoundingClientRect(); return { x: b.x, top: b.top } }, [sel, t])
+  const near = (a, b) => a != null && Math.abs(a - b) <= 1
+  const TOPS = { "Title font": 285.44, Spine: 343.86, "Spine width": 415.70, Direction: 450.55, Back: 504.39, Fill: 580.23, Material: 634.08, Finish: 718.50 }
+  const tops = {}; for (const t of Object.keys(TOPS)) tops[t] = (await textBox('[data-testid="insp-cover"] :is(h3, span)', t))?.top
+  ok("kit-sync KS10: cover inspector row tops = prod (±1)", Object.entries(TOPS).every(([t, v]) => near(tops[t], v)), JSON.stringify(tops))
+  const sels = await page.locator(`${demo} [data-testid="insp-cover"] select`).evaluateAll((els) => els.map((e) => { const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return { l: e.getAttribute("aria-label"), x: b.x, w: b.width, h: b.height, right: b.right, r: cs.borderRadius, bg: cs.backgroundColor, chev: /svg/.test(cs.backgroundImage) && cs.backgroundSize === "16px 16px" } }))
+  const SELS = { "Title font": [1318, 106], Cover: [1309, 115], Finish: [1289, 135] }
+  ok("kit-sync KS10: Title font / Cover / Finish are selects h 36, r 8, #D7D7D7, chevron 16, right edge 1424", sels.length === 3 && sels.every((s) => SELS[s.l] && near(s.x, SELS[s.l][0]) && near(s.w, SELS[s.l][1]) && s.h === 36 && s.r === "8px" && s.bg === "rgb(215, 215, 215)" && s.chev && near(s.right, 1424)), JSON.stringify(sels))
+  await page.locator(`${demo} [data-testid="cover-material"]`).selectOption("Linen")
+  ok("kit-sync KS10: Cover is editable (no coming-later note)", (await page.locator(`${demo} [data-testid="cover-material"]`).inputValue()) === "Linen" && (await page.locator(`${demo} [data-testid="material-readonly"]`).count()) === 0)
+  const pw = await textBox('[data-testid="insp-cover"] span', "Paper white")
+  await c('[data-testid="book-title"]')
+  const hc = await textBox('[data-testid="insp-book"] span', "Hardcover")
+  ok("kit-sync KS10: read-only pills flush right next to their note — Paper white x 1272.72, Hardcover x 1295.45", near(pw?.x, 1272.72) && near(hc?.x, 1295.45), `paper ${pw?.x} hardcover ${hc?.x}`)
+  if ((await page.locator(`${demo} [role=switch][aria-label="Endpapers"]`).getAttribute("aria-checked")) !== "true") await c('[role=switch][aria-label="Endpapers"]')
+  await c('[data-item="ef"]')
+  const ep = page.locator(`${demo} [data-testid="canvas-endpaper"]`)
+  ok("kit-sync KS9: endpaper canvas has no «Pastedown · glued to … board» caption", (await ep.count()) === 1 && !/Pastedown/.test(await ep.textContent()))
+  await c('[data-testid="editor-library"]')
+  const ink = await page.locator(`${demo} [data-testid="book-cover"] .lib-obj div[style*="color"]`).first().evaluate((e) => getComputedStyle(e).color)
+  ok("kit-sync KS11: library card title over the photo rgb(245, 245, 245)", ink === "rgb(245, 245, 245)", ink)
+  ok("kit-sync W4: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
+
 
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")
 console.log(res.join("\n")); console.log(`\n${res.length - fails} passed, ${fails} failed; console errors/warnings: ${errs.length}`); if (errs.length) console.log(errs.slice(0, 20).join("\n"))
