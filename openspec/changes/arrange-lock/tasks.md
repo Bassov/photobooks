@@ -12,3 +12,5 @@
 1. Draw two overlapping frames, right-click the top one → Send to back: the other frame is on top; Ctrl+Shift+] brings it back.
 2. Right-click → Lock: frame shows the lock badge, drag does not move it, no handles, a filmstrip photo dropped on it is refused; Ctrl+Shift+L unlocks and drag moves it again.
 3. Shift+F10 on a focused frame opens the same menu; Escape closes it.
+
+manual-qa (`pnpm agent manual-qa --change arrange-lock`): harness problem — all three time out clicking `start-session` (welcome `<header>` intercepts pointer events), before any arrange step. Covered instead by `e2e/arrange-lock.spec.ts` (1, 2: menu Send to back + z-index order, Ctrl+Shift+], Lock, locked drag / handles / drop, unlock; Escape closes the menu) and `FrameContextMenu.test.tsx` (3: keyboard `contextmenu` at 0,0 anchors at the frame corner, Escape closes).
