@@ -28,31 +28,52 @@ async function logoLefts(page: Page): Promise<number[]> {
   )
 }
 
+/** Zoom out so all 40 spreads mount, then select the Master A logo in Masters mode. */
+async function selectMasterLogo(page: Page): Promise<number[]> {
+  await expect(page.getByTestId('spread-view').first()).toBeVisible()
+  await dispatchCtrlWheel(page, 500, 24)
+  await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
+  await expect(pasteboardLogos(page)).toHaveCount(40)
+  await expect
+    .poll(async () =>
+      page.getByTestId('pasteboard-world').getAttribute('data-gesture'),
+    )
+    .toBeNull()
+
+  await page.getByTestId('left-tab-masters').click()
+  const logo = page
+    .getByTestId('masters-canvas')
+    .locator('button.spread-frame')
+    .first()
+  await logo.click()
+  await expect(logo).toHaveAttribute('aria-pressed', 'true')
+  return logoLefts(page)
+}
+
+/** Spreads whose pasteboard logo sits right of where it was. */
+async function movedLogoCount(page: Page, before: number[]): Promise<number> {
+  const after = await logoLefts(page)
+  return after.filter((left, i) => left > (before[i] ?? left)).length
+}
+
+test('a master nudge repaints the logo on all 40 spreads using it', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter&parent=a')
+  const before = await selectMasterLogo(page)
+
+  await page.keyboard.press('Shift+ArrowRight')
+
+  await expect.poll(async () => movedLogoCount(page, before)).toBe(40)
+})
+
 test.describe('frame-budget gates', () => {
   test('nudging a master item used by 40 spreads stays within budget', async ({
     page,
   }, testInfo) => {
     test.setTimeout(120_000)
     await enablePerfScenario(page, '/?fixture=painter&perf=1&parent=a')
-    await expect(page.getByTestId('spread-view').first()).toBeVisible()
-    // Zoomed out, every spread (and its parent layer) is mounted.
-    await dispatchCtrlWheel(page, 500, 24)
-    await expect(page.getByTestId('pasteboard-slot')).toHaveCount(40)
-    await expect(pasteboardLogos(page)).toHaveCount(40)
-    await expect
-      .poll(async () =>
-        page.getByTestId('pasteboard-world').getAttribute('data-gesture'),
-      )
-      .toBeNull()
-
-    await page.getByTestId('left-tab-masters').click()
-    const logo = page
-      .getByTestId('masters-canvas')
-      .locator('button.spread-frame')
-      .first()
-    await logo.click()
-    await expect(logo).toHaveAttribute('aria-pressed', 'true')
-    const before = await logoLefts(page)
+    const before = await selectMasterLogo(page)
     await clearPerfScenario(page)
 
     // Attribution first, so every entry the gate counts is also logged.
@@ -62,12 +83,7 @@ test.describe('frame-budget gates', () => {
       await page.keyboard.press('Shift+ArrowRight')
     }
     // Every spread repaints the moved logo; then two frames settle.
-    await expect
-      .poll(async () => {
-        const after = await logoLefts(page)
-        return after.filter((left, i) => left > (before[i] ?? left)).length
-      })
-      .toBe(40)
+    await expect.poll(async () => movedLogoCount(page, before)).toBe(40)
     await page.evaluate(
       () =>
         new Promise<void>((resolve) => {
