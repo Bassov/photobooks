@@ -312,12 +312,18 @@ function registerPoolRetry(job: DecodeQueueItem): void {
 }
 
 /**
- * A decode of the same tier makes a parked retry moot; a working-preview job
- * must not drop a parked thumb retry (the tile would never get its thumb).
+ * A decode of the same tier makes an ownerless parked retry moot; a
+ * working-preview job must not drop a parked thumb retry (the tile would
+ * never get its thumb). An owned retry waits for re-entry: its rejected
+ * owner hears only from the retry.
  */
 function clearRetryForTier(assetId: string, maxEdge: number): void {
   const retry = pendingRetryByAsset.get(assetId)
-  if (retry && (retry.maxEdge ?? THUMB_MAX_EDGE) === maxEdge) {
+  if (
+    retry &&
+    retry.onRetryResult === undefined &&
+    (retry.maxEdge ?? THUMB_MAX_EDGE) === maxEdge
+  ) {
     pendingRetryByAsset.delete(assetId)
   }
 }
@@ -382,10 +388,6 @@ function runParkedRetry(assetId: string): void {
     return
   }
   pendingRetryByAsset.delete(assetId)
-  abortByAsset.set(
-    assetId,
-    ensureActiveAbortController(abortByAsset.get(assetId)),
-  )
   // The aborted call was rejected: its owner gets the retry's result.
   void processAsset({
     ...retry,
@@ -1005,10 +1007,7 @@ export async function runImportBatch(
             dualTiers: dualTiersDefaultForImport(),
             // A leave-now abort rejects this call; the retry run when the
             // tile re-enters now publishes through the same result path.
-            onRetryResult: (result) => {
-              results.push(result)
-              options.onResult?.(result)
-            },
+            ...(options.onResult ? { onRetryResult: options.onResult } : {}),
           }
           const signal = abortByAsset.get(item.assetId)?.signal
           if (signal) {

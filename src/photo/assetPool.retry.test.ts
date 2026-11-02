@@ -212,5 +212,73 @@ describe('assetPool retry ownership (filmstrip-stuck-thumbs)', () => {
         expect.objectContaining({ assetId: 'imported' }),
       )
     })
+    expect(onResult).toHaveBeenCalledTimes(1)
+  })
+
+  it('a promoted JPEG dropped from the queue on leave-now decodes for its owner on re-entry', async () => {
+    mockDecodeSuccess()
+    warmAssetPool()
+    setVisibleAssetIds(holders)
+    const held = holdAllSlots()
+    const owner = vi.fn()
+    const lazy = processAsset({
+      assetId: 'lazy-queued',
+      file: new File([new Uint8Array([1])], 'lazy-queued.jpg', {
+        type: 'image/jpeg',
+      }),
+      onRetryResult: owner,
+    })
+    setVisibleAssetIds([...holders, 'lazy-queued'])
+    expect(getQueuedDecodeAssetIds()).toContain('lazy-queued')
+
+    setVisibleAssetIds(holders)
+    await expect(lazy).rejects.toMatchObject({ name: 'AbortError' })
+    await Promise.all(held)
+
+    setVisibleAssetIds([...holders, 'lazy-queued'])
+    await vi.waitFor(() => {
+      expect(owner).toHaveBeenCalledWith(
+        expect.objectContaining({ assetId: 'lazy-queued' }),
+      )
+    })
+  })
+
+  it('a same-tier decode clears an ownerless parked retry; an owned one waits for its tile', async () => {
+    mockDecodeSuccess()
+    warmAssetPool()
+    const stale = new AbortController()
+    stale.abort()
+    const owner = vi.fn()
+    const inFlight = processAsset({
+      assetId: 'free',
+      file: pngFile('free.png'),
+    })
+    await expect(
+      processAsset({
+        assetId: 'free',
+        file: pngFile('free.png'),
+        signal: stale.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    await expect(
+      processAsset({
+        assetId: 'owned',
+        file: pngFile('owned.png'),
+        signal: stale.signal,
+        onRetryResult: owner,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    expect(getPendingRetryAssetIdsForTests()).toEqual(['free', 'owned'])
+
+    await inFlight
+    await processAsset({ assetId: 'owned', file: pngFile('owned.png') })
+    expect(getPendingRetryAssetIdsForTests()).toEqual(['owned'])
+    expect(owner).not.toHaveBeenCalled()
+
+    setVisibleAssetIds(['owned'])
+    expect(getPendingRetryAssetIdsForTests()).toEqual([])
+    await vi.waitFor(() => {
+      expect(owner).toHaveBeenCalledTimes(1)
+    })
   })
 })
