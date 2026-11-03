@@ -459,7 +459,8 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
                 {miss ? <div className="grid size-full place-items-center bg-muted text-muted-foreground"><ImageOff className="size-4" /></div>
                   : <img src={p.src} className="size-full object-cover" draggable={false} alt="" />}
                 {placed.has(p.id) && <span className="absolute bottom-1 right-1 grid size-4 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm" title="Placed in the book"><Check className="size-2.5" strokeWidth={3} /></span>}
-                {p.lowres && <span className="absolute left-1 top-1 inline-flex items-center gap-1 rounded-xs bg-field px-1 py-px text-2xs font-medium text-ink-warning" data-testid="lowres-chip"><AlertTriangle className="size-2.5" />Low-res</span>}
+                {/* Thumb narrower than the chip + 8 px (73.33): icon only; the zero-width label keeps the 16.84 px line box. */}
+                {p.lowres && <span role="img" aria-label="Low-res" title="Low-res" className={cn('absolute left-1 top-1 inline-flex items-center whitespace-nowrap rounded-xs bg-field px-1 py-px text-2xs font-medium text-ink-warning', w < 73.33 ? 'gap-0' : 'gap-1')} data-testid="lowres-chip"><AlertTriangle className="size-2.5" /><span className={w < 73.33 ? 'w-0 overflow-hidden' : undefined}>Low-res</span></span>}
                 {removable && (
                   <button type="button" aria-label={`Remove ${p.name} from gallery`} onClick={(e) => { e.stopPropagation(); onRemove?.(p.id) }} onPointerDown={(e) => e.stopPropagation()}
                     className="absolute right-1 top-1 hidden size-5 place-items-center rounded-full bg-black/60 text-white group-hover/th:grid"><X className="size-3" /></button>
