@@ -6,7 +6,6 @@ import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { getEditorTool } from './editorToolStore'
 import {
   getFrameSelection,
-  getFrameSource,
   setFrameSource,
   sourceFrame,
 } from './frameSelection'
@@ -135,7 +134,7 @@ export function installFrameHandleGesture(): () => void {
       return
     }
     const frameId = button.getAttribute('data-frame-id') ?? ''
-    const ctx = spreadContext(spreadEl, frameId)
+    const ctx = spreadContext(spreadEl, [frameId])
     if (ctx === null) {
       return
     }
@@ -348,10 +347,10 @@ export function installFrameHandleGesture(): () => void {
       return
     }
     const arrow = ARROW_DELTAS[event.key]
-    const source = getFrameSource()
+    const selection = getFrameSelection()
     if (
       arrow === undefined ||
-      source === null ||
+      selection === null ||
       session !== null ||
       event.ctrlKey ||
       event.metaKey ||
@@ -364,20 +363,27 @@ export function installFrameHandleGesture(): () => void {
     ) {
       return
     }
-    const frame = sourceFrame(source)
-    if (frame === undefined) {
+    const { spreadId } = selection
+    const frames = selection.frameIds.flatMap((frameId) => {
+      const frame = sourceFrame({ spreadId, frameId })
+      return frame === undefined ? [] : [frame]
+    })
+    if (frames.length === 0) {
       return
     }
+    // A set must not fall through to the pasteboard's arrow scroll either.
     event.preventDefault()
-    if (frame.locked === true) {
+    const unlocked = frames.filter((frame) => frame.locked !== true)
+    if (unlocked.length === 0) {
       setEditorStatus(STATUS_FRAME_LOCKED)
       return
     }
     const step = event.shiftKey ? NUDGE_SHIFT_MM : NUDGE_MM
+    // One step per press for one frame or a set ("Move frame" / "Move N frames").
     dispatchBookOp({
-      type: 'moveFrame',
-      spreadId: source.spreadId,
-      frameId: source.frameId,
+      type: 'moveFrames',
+      spreadId,
+      frameIds: unlocked.map((frame) => frame.id),
       dx: arrow[0] * step,
       dy: arrow[1] * step,
     })

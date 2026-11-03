@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MIN_FRAME_EDGE_MM, type Frame } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  getHistorySnapshot,
+  resetBookStore,
+  undoBook,
+} from './bookStore'
 import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
 import { resetEditorToolForTests, setEditorTool } from './editorToolStore'
@@ -183,6 +189,15 @@ describe('frameHandleGesture', () => {
     it('Alt leaves the pointer result and draws no line', () => {
       dragSe({ altKey: true })
       expect(lines()).toHaveLength(0)
+    })
+
+    it('never snaps a dragged edge back to the frame’s own start edges', () => {
+      const nw = dom.handles.get('nw')
+      assert(nw !== undefined)
+      fire('pointerdown', nw, 100, 100)
+      fire('pointermove', window, 102, 102)
+      fire('pointerup', window, 102, 102)
+      expect(frame().rect).toMatchObject({ x: 102, y: 102, width: 48 })
     })
 
     it('snap off draws no line and keeps the raw rect', () => {
@@ -975,6 +990,53 @@ describe('frameHandleGesture', () => {
     it('arrow keys report the lock and do not move', () => {
       key('ArrowRight')
       expect(frame().rect.x).toBe(100)
+      expect(getEditorStatus()).toMatch(/locked/i)
+    })
+  })
+
+  describe('a set of frames', () => {
+    const spreadId = () => getBookStoreSnapshot().book.spreads[0]?.id ?? ''
+    const xs = () =>
+      getBookStoreSnapshot().book.spreads[0]?.frames.map((f) => f.rect.x)
+
+    function setupSet(extra: FrameExtra = {}) {
+      setup(extra, { x: 10, y: 20, width: 30, height: 30 })
+      toggleFrameSelection({ spreadId: spreadId(), frameId: 'n' })
+    }
+
+    it('arrows nudge every selected frame in one undo step per press', () => {
+      setupSet()
+      const event = key('ArrowRight', {}, dom.button)
+      expect(event.defaultPrevented).toBe(true)
+      expect(xs()).toEqual([101, 11])
+      key('ArrowLeft', { shiftKey: true })
+      expect(xs()).toEqual([91, 1])
+      expect(getHistorySnapshot().undoLabel).toBe('Move 2 frames')
+      undoBook()
+      expect(xs()).toEqual([101, 11])
+      expect(getFrameSelection()?.frameIds).toEqual(['a', 'n'])
+    })
+
+    it('a locked frame of the set stays put', () => {
+      setupSet({ locked: true })
+      key('ArrowDown')
+      const [a, n] = getBookStoreSnapshot().book.spreads[0]?.frames ?? []
+      expect(a?.rect.y).toBe(100)
+      expect(n?.rect.y).toBe(21)
+      expect(getHistorySnapshot().undoLabel).toBe('Move frame')
+    })
+
+    it('all locked: the lock status, no move, the key still consumed', () => {
+      setupSet({ locked: true })
+      dispatchBookOp({
+        type: 'setFrameLocked',
+        spreadId: spreadId(),
+        frameId: 'n',
+        locked: true,
+      })
+      const event = key('ArrowRight')
+      expect(event.defaultPrevented).toBe(true)
+      expect(xs()).toEqual([100, 10])
       expect(getEditorStatus()).toMatch(/locked/i)
     })
   })

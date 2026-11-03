@@ -16,6 +16,7 @@ import {
   alignFrames,
   distributeFrames,
   moveFrame,
+  moveFrames,
   resizeFrame,
   rotateFrame,
   type AlignEdge,
@@ -128,6 +129,13 @@ export type BookOp =
       type: 'moveFrame'
       spreadId: string
       frameId: string
+      dx: number
+      dy: number
+    }
+  | {
+      type: 'moveFrames'
+      spreadId: string
+      frameIds: readonly string[]
       dx: number
       dy: number
     }
@@ -348,6 +356,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setFrameRect(book, op.spreadId, op.frameId, op.rect)
     case 'moveFrame':
       return moveFrame(book, op.spreadId, op.frameId, op.dx, op.dy)
+    case 'moveFrames':
+      return moveFrames(book, op.spreadId, op.frameIds, op.dx, op.dy)
     case 'resizeFrame':
       return resizeFrame(book, op.spreadId, op.frameId, op.rect)
     case 'rotateFrame':

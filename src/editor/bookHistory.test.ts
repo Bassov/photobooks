@@ -204,6 +204,19 @@ describe('step label bookkeeping', () => {
     expect(opLabel(remove(['a', 'b', 'c']))).toBe('Delete 3 frames')
   })
 
+  it('counts the frames of a group move', () => {
+    const move = (frameIds: string[]): BookOp => ({
+      type: 'moveFrames',
+      spreadId: 's',
+      frameIds,
+      dx: 1,
+      dy: 0,
+    })
+    expect(opLabel(move(['a']))).toBe('Move frame')
+    expect(opLabel(move(['a', 'b']))).toBe('Move 2 frames')
+    expect(opLabel(move(['a', 'b', 'c']))).toBe('Move 3 frames')
+  })
+
   it('keeps the newest labels when over the limit', () => {
     const h = labelled(['a', 'b', 'c', 'd', 'e'], 3)
     expect(h.past).toHaveLength(3)

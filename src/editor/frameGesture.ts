@@ -4,6 +4,7 @@ import {
   getSpreadPageCount,
   getSpreadSizeMm,
   nextFrameId,
+  type Frame,
   type RectMm,
   type Spread,
 } from '../core'
@@ -13,7 +14,7 @@ import { getCropTarget } from './cropMode'
 import { isSpacePanCode } from './editorChromePanels'
 import { getEditorTool, setEditorTool } from './editorToolStore'
 import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
-import { setFrameSource } from './frameSelection'
+import { getFrameSelection, setFrameSource } from './frameSelection'
 import { buildGridAnchors } from './gridSnap'
 import { getGridVisible, getSnapOn } from './gridView'
 import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
@@ -70,7 +71,38 @@ interface MoveSession {
   saved: { left: string; top: string }
 }
 
-type Session = DrawSession | MoveSession
+interface GroupMember {
+  button: HTMLElement
+  /** Inline transform before the gesture (a rotation, or ''). */
+  saved: string
+}
+
+interface GroupSession {
+  kind: 'group'
+  pointerId: number
+  ctx: SpreadContext
+  startX: number
+  startY: number
+  started: boolean
+  /** Unlocked selected frames: the ones that move. */
+  frameIds: string[]
+  members: GroupMember[]
+  /**
+   * Union of the moving frames' rects and of their painted boxes (rotated
+   * corners included); null when every selected frame is locked.
+   */
+  moving: { union: RectMm; painted: RectMm } | null
+  /** Painted boxes of the locked selected frames. */
+  staying: RectMm[]
+  box: HTMLElement | null
+  savedBox: string
+  /** Layout px per mm: the frames' own box, before the camera scale. */
+  layoutPxPerMm: number
+  dx: number
+  dy: number
+}
+
+type Session = DrawSession | MoveSession | GroupSession
 
 export function round(mm: number): number {
   return Math.round(mm * 10) / 10
@@ -80,9 +112,134 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.min(Math.max(value, lo), hi)
 }
 
+/** Axis-aligned box of a frame as painted, rotated corners included (mm). */
+function paintedBox(frame: Frame): RectMm {
+  const { x, y, width, height } = frame.rect
+  const turn = ((frame.rotationDeg ?? 0) * Math.PI) / 180
+  const cos = Math.abs(Math.cos(turn))
+  const sin = Math.abs(Math.sin(turn))
+  const w = width * cos + height * sin
+  const h = width * sin + height * cos
+  return {
+    x: x + (width - w) / 2,
+    y: y + (height - h) / 2,
+    width: w,
+    height: h,
+  }
+}
+
+function unionOf(first: RectMm, others: readonly RectMm[]): RectMm {
+  const rects = [first, ...others]
+  const left = Math.min(...rects.map((rect) => rect.x))
+  const top = Math.min(...rects.map((rect) => rect.y))
+  const right = Math.max(...rects.map((rect) => rect.x + rect.width))
+  const bottom = Math.max(...rects.map((rect) => rect.y + rect.height))
+  return { x: left, y: top, width: right - left, height: bottom - top }
+}
+
+/** Keep the span [start, start + size] inside [0, total]; one already outside may stay put. */
+function clampDelta(
+  delta: number,
+  start: number,
+  size: number,
+  total: number,
+): number {
+  return clamp(delta, Math.min(-start, 0), Math.max(total - start - size, 0))
+}
+
+/**
+ * A body press on a frame of a 2+ selection on its spread starts a group
+ * move (filled or empty: the photo drag is off for a set).
+ */
+function groupSession(
+  event: PointerEvent,
+  spreadEl: HTMLElement,
+  frameEl: HTMLElement,
+): GroupSession | null {
+  const selection = getFrameSelection()
+  if (
+    selection === null ||
+    selection.frameIds.length < 2 ||
+    selection.spreadId !== spreadEl.getAttribute('data-spread-id') ||
+    !selection.frameIds.includes(frameEl.getAttribute('data-frame-id') ?? '')
+  ) {
+    return null
+  }
+  const ctx = spreadContext(spreadEl, selection.frameIds)
+  if (ctx === null) {
+    return null
+  }
+  const picked = ctx.spread.frames.filter((frame) =>
+    selection.frameIds.includes(frame.id),
+  )
+  const moving = picked.filter((frame) => frame.locked !== true)
+  const [first, ...rest] = moving
+  const movingIds = new Set<string | undefined>(moving.map((frame) => frame.id))
+  const box = spreadEl.querySelector<HTMLElement>('.spread-group-box')
+  const layoutWidth = spreadEl.offsetWidth
+  return {
+    kind: 'group',
+    pointerId: event.pointerId,
+    ctx,
+    startX: event.clientX,
+    startY: event.clientY,
+    started: false,
+    frameIds: moving.map((frame) => frame.id),
+    members: Array.from(
+      spreadEl.querySelectorAll<HTMLElement>('button.spread-frame'),
+    )
+      .filter((button) => movingIds.has(button.dataset.frameId))
+      .map((button) => ({ button, saved: button.style.transform })),
+    moving:
+      first === undefined
+        ? null
+        : {
+            union: unionOf(
+              first.rect,
+              rest.map((frame) => frame.rect),
+            ),
+            painted: unionOf(paintedBox(first), rest.map(paintedBox)),
+          },
+    staying: picked.filter((frame) => frame.locked === true).map(paintedBox),
+    box,
+    savedBox: box?.style.cssText ?? '',
+    layoutPxPerMm: layoutWidth > 0 ? layoutWidth / ctx.widthMm : ctx.pxPerMm,
+    dx: 0,
+    dy: 0,
+  }
+}
+
+/** One translate per moving frame and the group box, in the same frame. */
+function paintGroup(group: GroupSession, painted: RectMm): void {
+  const scale = group.layoutPxPerMm
+  const shift = `translate(${String(group.dx * scale)}px, ${String(group.dy * scale)}px)`
+  for (const member of group.members) {
+    member.button.style.transform = `${shift} ${member.saved}`
+  }
+  const union = unionOf(
+    { ...painted, x: painted.x + group.dx, y: painted.y + group.dy },
+    group.staying,
+  )
+  if (group.box !== null) {
+    group.box.style.left = `${String(union.x * scale)}px`
+    group.box.style.top = `${String(union.y * scale)}px`
+    group.box.style.width = `${String(union.width * scale)}px`
+    group.box.style.height = `${String(union.height * scale)}px`
+  }
+}
+
+function restoreGroup(group: GroupSession): void {
+  for (const member of group.members) {
+    member.button.style.transform = member.saved
+  }
+  if (group.box !== null) {
+    group.box.style.cssText = group.savedBox
+  }
+}
+
 export function spreadContext(
   element: HTMLElement,
-  excludeFrameId: string | null,
+  excludeFrameIds: readonly string[],
 ): SpreadContext | null {
   const spreadId = element.getAttribute('data-spread-id')
   const book = getBookStoreSnapshot().book
@@ -108,7 +265,7 @@ export function spreadContext(
     pxPerMm: box.width / widthMm,
     index: buildSnapIndex(
       spread.frames
-        .filter((frame) => frame.id !== excludeFrameId)
+        .filter((frame) => !excludeFrameIds.includes(frame.id))
         .map((frame) => frame.rect),
       [...book.guides, ...(spread.guides ?? [])],
       {
@@ -190,7 +347,8 @@ export function clearSnapLines(ctx: SpreadContext): void {
  * Frame tool + free move.
  * - Frame tool: dragging on an empty spread draws an image frame (≥ 5 mm both
  *   edges), selects it and returns to Select.
- * - Select tool: dragging an empty frame moves it.
+ * - Select tool: dragging an empty frame moves it; dragging any frame of a
+ *   2+ selection moves its unlocked frames together (one `moveFrames`).
  * Both snap to other frames / guides / equal gaps through the anchor index
  * built at gesture start; Alt suppresses it. The preview is direct DOM writes;
  * one op is committed at gesture end (one undo step).
@@ -247,11 +405,16 @@ export function installFrameGesture(): () => void {
     }
     const tool = getEditorTool()
     const frameEl = event.target.closest<HTMLElement>('.spread-frame')
+    // A set shows no handles: any press on a member's button is its body.
+    const group =
+      tool === 'select' && frameEl instanceof HTMLButtonElement
+        ? groupSession(event, spreadEl, frameEl)
+        : null
     if (
       tool === 'frame' &&
       (frameEl === null || event.target.closest('[data-handle]') !== null)
     ) {
-      const ctx = spreadContext(spreadEl, null)
+      const ctx = spreadContext(spreadEl, [])
       if (ctx === null) {
         return
       }
@@ -277,6 +440,8 @@ export function installFrameGesture(): () => void {
         rect: null,
         draft,
       }
+    } else if (group !== null) {
+      session = group
     } else if (
       tool === 'select' &&
       frameEl instanceof HTMLButtonElement &&
@@ -287,7 +452,7 @@ export function installFrameGesture(): () => void {
       frameEl.getAttribute('data-filled') === 'false'
     ) {
       const frameId = frameEl.getAttribute('data-frame-id') ?? ''
-      const ctx = spreadContext(spreadEl, frameId)
+      const ctx = spreadContext(spreadEl, [frameId])
       const frame = ctx?.spread.frames.find((item) => item.id === frameId)
       if (ctx === null || frame === undefined) {
         return
@@ -322,6 +487,8 @@ export function installFrameGesture(): () => void {
     measureHandlerSync('frame-gesture', () => {
       if (current.kind === 'draw') {
         drawMove(current, event)
+      } else if (current.kind === 'group') {
+        groupMove(current, event)
       } else {
         moveMove(current, event)
       }
@@ -405,6 +572,54 @@ export function installFrameGesture(): () => void {
     })
   }
 
+  function groupMove(group: GroupSession, event: PointerEvent): void {
+    const { ctx, moving } = group
+    if (
+      !group.started &&
+      Math.hypot(event.clientX - group.startX, event.clientY - group.startY) <
+        MOVE_SLOP_PX
+    ) {
+      return
+    }
+    if (!group.started && moving === null) {
+      setEditorStatus(STATUS_FRAME_LOCKED)
+    }
+    group.started = true
+    if (moving === null) {
+      return
+    }
+    const { union } = moving
+    let rawX = (event.clientX - group.startX) / ctx.pxPerMm
+    let rawY = (event.clientY - group.startY) / ctx.pxPerMm
+    // Shift locks the dominant axis; snapping must not move the other one.
+    const lock = !event.shiftKey
+      ? null
+      : Math.abs(rawX) >= Math.abs(rawY)
+        ? 'y'
+        : 'x'
+    if (lock === 'y') {
+      rawY = 0
+    } else if (lock === 'x') {
+      rawX = 0
+    }
+    const moved = {
+      ...union,
+      x: union.x + clampDelta(rawX, union.x, union.width, ctx.widthMm),
+      y: union.y + clampDelta(rawY, union.y, union.height, ctx.heightMm),
+    }
+    const snap = snapRect(ctx.index, moved, {
+      pxPerMm: ctx.pxPerMm,
+      altKey: snapBypassed(event),
+      grid: gridSnapActive(event),
+    })
+    const lines = snap.lines.filter((line) => line.axis !== lock)
+    group.dx = moved.x + (lock === 'x' ? 0 : snap.dx) - union.x
+    group.dy = moved.y + (lock === 'y' ? 0 : snap.dy) - union.y
+    paintGroup(group, moving.painted)
+    paintSnapLines(ctx, lines)
+    setSnapHint(snap.hint, ctx.spreadId)
+  }
+
   function onUp(event: PointerEvent): void {
     const current = session
     if (current?.pointerId !== event.pointerId) {
@@ -413,9 +628,28 @@ export function installFrameGesture(): () => void {
     finish()
     if (current.kind === 'draw') {
       commitDraw(current)
+    } else if (current.kind === 'group') {
+      commitGroup(current)
     } else {
       commitMove(current)
     }
+  }
+
+  function commitGroup(group: GroupSession): void {
+    if (!group.started) {
+      return
+    }
+    armSwallow()
+    restoreGroup(group)
+    // One step for the set (none when all are locked: no ids, no delta); the
+    // selection outlives the book change.
+    dispatchBookOp({
+      type: 'moveFrames',
+      spreadId: group.ctx.spreadId,
+      frameIds: group.frameIds,
+      dx: round(group.dx),
+      dy: round(group.dy),
+    })
   }
 
   function commitDraw(draw: DrawSession): void {
@@ -479,6 +713,16 @@ export function installFrameGesture(): () => void {
       current.button.style.left = current.saved.left
       current.button.style.top = current.saved.top
     }
+    if (current?.kind === 'group' && current.started) {
+      restoreGroup(current)
+    }
+  }
+
+  // A group press on a filled frame must never become a native image drag.
+  const onDragStart = (event: DragEvent): void => {
+    if (session?.kind === 'group') {
+      event.preventDefault()
+    }
   }
 
   const onKey = (event: KeyboardEvent): void => {
@@ -511,6 +755,7 @@ export function installFrameGesture(): () => void {
 
   document.addEventListener('pointerdown', onDown, true)
   document.addEventListener('click', onClick, true)
+  document.addEventListener('dragstart', onDragStart, true)
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('keydown', onSpace, true)
   window.addEventListener('keyup', onSpace, true)
@@ -519,6 +764,7 @@ export function installFrameGesture(): () => void {
     finish()
     document.removeEventListener('pointerdown', onDown, true)
     document.removeEventListener('click', onClick, true)
+    document.removeEventListener('dragstart', onDragStart, true)
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('keydown', onSpace, true)
     window.removeEventListener('keyup', onSpace, true)
