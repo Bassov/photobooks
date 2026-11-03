@@ -160,13 +160,17 @@ export function TopBar({ tools = true, history = true, views = ["snap", "grid"],
   const isBook = st.node?.k === "book"
   const exportBtn = <Button variant="ghost" size="sm" isDisabled={empty} disabledReason={empty ? "Add a photo folder first — the book is empty" : undefined} className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium [&_svg]:size-4" style={{ background: FIELD, color: T }} data-testid="export"><Upload />Export</Button>
   return (
-    <header className="relative z-10 flex h-12 shrink-0 items-center gap-2 px-3" style={{ background: BAR, color: T }} data-testid="editor-bar">
+    // M39 (prod EditorShell.css .editor-top-grid): panel-wide side columns (212 / 300 less the bar padding) and two equal fr tracks
+    // centre the tools on the canvas; the side groups span into the fr tracks and only shift the tools when they need the room
+    <header className="relative z-10 grid h-12 shrink-0 items-center gap-2 px-3" style={{ background: BAR, color: T, gridTemplateColumns: "minmax(0, 200px) 1fr auto 1fr minmax(0, 288px)" }} data-testid="editor-bar">
+      <div className="col-[1/3] flex min-w-0 items-center gap-2 justify-self-start">
       <Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" style={{ color: SUB }} onPress={onLibrary} data-testid="editor-library"><ChevronLeft />Library</Button>
       <button type="button" className="e7-title ml-1 flex h-8 items-baseline gap-2 rounded-md border-0 px-2.5 pt-1.5" aria-pressed={isBook} aria-label="Book settings" title="Book settings" data-testid="book-title" onClick={() => st.setNode(isBook ? null : { k: "book" })}>
         <span className="text-md" style={{ fontFamily: "var(--font-heading)", color: T }}><em>{title}</em></span>
         <span className="text-sm tabular-nums" style={{ color: SUB }} data-testid="book-size">{fmtN(st.book.w)} × {fmtN(st.book.h)} cm · {pages} pages{save ? ` · ${st.saveState === "saving" ? "saving" : st.saveState === "error" ? "not saved" : "saved"}` : ""}</span></button>
       {history && <div className="ml-2 flex items-center"><HistoryButtons /></div>}
-      <div className="mx-auto flex items-center">
+      </div>
+      <div className="col-[3] flex items-center">
         {center ?? (
           <Toolbar aria-label="Tools" className="items-center gap-1">
             {tools && <ToolGroup tools={Array.isArray(tools) ? tools : undefined} />}
@@ -174,6 +178,7 @@ export function TopBar({ tools = true, history = true, views = ["snap", "grid"],
           </Toolbar>
         )}
       </div>
+      <div className="col-[4/6] flex items-center gap-2 justify-self-end">
       {zoom && <div className="flex items-center gap-0.5 text-sm" style={{ color: SUB }}>
         <IconButton label="Zoom out (Ctrl −)" size="sm" onPress={() => st.setView({ zoom: Math.max(0.25, st.view.zoom / 1.25) })} data-testid="zoom-out"><Minus /></IconButton>
         <ZoomMenu />
@@ -201,6 +206,7 @@ export function TopBar({ tools = true, history = true, views = ["snap", "grid"],
           ) : exportBtn}
         </div>
       ))}
+      </div>
     </header>
   )
 }
@@ -319,7 +325,6 @@ export function SpreadsPanel({ reorder = false, actions = false, onCollapse }: {
         )}
       </ThumbGrid>
       {st.mode === "masters" && <button type="button" className="e7-ghost mx-3 mb-3 flex h-8 items-center gap-1.5 rounded-md px-2 text-sm [&_svg]:size-3.5" style={{ color: SUB }}><Plus />New master</button>}
-      {actions && st.mode === "pages" && <SpreadActions />}
     </aside>
   )
 }
@@ -360,20 +365,6 @@ function SpreadItemMenu({ i }: { i: number }) {
         </Menu>
       </MenuPopover>
     </MenuTrigger>
-  )
-}
-export function SpreadActions() {
-  const st = useStudio()
-  const add = () => {
-    const i = st.cur + 1
-    st.update((d) => ({ ...d, spreads: [...d.spreads.slice(0, i), spread("t-pair"), ...d.spreads.slice(i)] }), "Add spread")
-    st.setCur(i); st.setStatus(`Added spread ${i + 1}`)
-  }
-  return (
-    <div className="flex items-center gap-1 p-1">
-      <Button variant="ghost" size="sm" onPress={add} className="flex-1 justify-start gap-2 px-2 text-sm text-muted-foreground [&_svg]:size-4" data-testid="add-spread"><Plus />Add spread</Button>
-      <Kbd className="mr-1">Ctrl+↵</Kbd>
-    </div>
   )
 }
 
