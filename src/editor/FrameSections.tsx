@@ -8,7 +8,7 @@ import {
   SliderThumb,
   SliderTrack,
 } from 'react-aria-components'
-import { MIN_FRAME_EDGE_MM, layerOf, type Frame } from '../core'
+import { MIN_FRAME_EDGE_MM, layerOf, type Frame, type ZMove } from '../core'
 import { Button } from '../ui/Button'
 import { Icon } from '../ui/Icon'
 import { IconButton } from '../ui/IconButton'
@@ -18,7 +18,15 @@ import {
   subscribeBookStore,
 } from './bookStore'
 import type { CropTarget } from './cropMode'
-import { lockOp, Z_MOVES, zOrderOp } from './frameArrange'
+import {
+  findSetFrames,
+  lockOp,
+  runSetArrangeAction,
+  setLayerRange,
+  Z_MOVES,
+  zOrderOp,
+  type FrameSetTarget,
+} from './frameArrange'
 import {
   getLiveGeometry,
   liveGeometryFor,
@@ -268,6 +276,43 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
     return null
   }
   return (
+    <ArrangeRow
+      label={`layer ${String(layer.layer)} of ${String(layer.count)}`}
+      onMove={(move) => {
+        dispatchBookOp(zOrderOp(target, move))
+      }}
+    />
+  )
+}
+
+/**
+ * Kit ArrangeSection on a multi-selection: one `reorderFrames` step per press
+ * and "layers a–b of M" (lowest to highest selected layer).
+ */
+export function SetArrangeSection({ set }: { set: FrameSetTarget }) {
+  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const range = setLayerRange(book, set)
+  if (range === null) {
+    return null
+  }
+  return (
+    <ArrangeRow
+      label={`layers ${String(range.first)}–${String(range.last)} of ${String(range.count)}`}
+      onMove={(move) => {
+        runSetArrangeAction(set, { kind: 'z', move })
+      }}
+    />
+  )
+}
+
+function ArrangeRow({
+  label,
+  onMove,
+}: {
+  label: string
+  onMove: (move: ZMove) => void
+}) {
+  return (
     <section
       className="flex flex-col gap-3 px-4 pt-0.5 pb-3"
       data-testid="inspector-arrange"
@@ -278,14 +323,14 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
         aria-label="Arrange"
         className="flex items-center gap-1"
       >
-        {Z_BUTTONS.map(({ move, label, icon }) => (
+        {Z_BUTTONS.map(({ move, label: name, icon }) => (
           <IconButton
             key={move}
-            label={label}
+            label={name}
             className="frame-z-button"
             data-testid={`z-${move}`}
             onPress={() => {
-              dispatchBookOp(zOrderOp(target, move))
+              onMove(move)
             }}
           >
             <Icon name={icon} />
@@ -295,7 +340,7 @@ export function ArrangeSection({ target }: { target: CropTarget }) {
           className="frame-layer ml-auto text-xs tabular-nums"
           data-testid="frame-layer"
         >
-          layer {layer.layer} of {layer.count}
+          {label}
         </span>
       </div>
     </section>
@@ -308,6 +353,25 @@ export function DeleteFrameButton({ target }: { target: CropTarget }) {
   if (found === null) {
     return null
   }
+  return <DeleteButton spreadId={target.spreadId} frameIds={[target.frameId]} />
+}
+
+/** Kit DeleteFrameButton on a multi-selection: "Delete N frames", one step. */
+export function DeleteFramesButton({ set }: { set: FrameSetTarget }) {
+  const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
+  const frameIds = findSetFrames(book, set).map((frame) => frame.id)
+  return frameIds.length === 0 ? null : (
+    <DeleteButton spreadId={set.spreadId} frameIds={frameIds} />
+  )
+}
+
+function DeleteButton({
+  spreadId,
+  frameIds,
+}: {
+  spreadId: string
+  frameIds: readonly string[]
+}) {
   // Kit context-inspector `p-4` around DeleteFrameButton's own `p-3`.
   return (
     <div className="p-7">
@@ -317,15 +381,13 @@ export function DeleteFrameButton({ target }: { target: CropTarget }) {
         className="frame-delete w-full"
         data-testid="frame-delete"
         onPress={() => {
-          dispatchBookOp({
-            type: 'removeFrames',
-            spreadId: target.spreadId,
-            frameIds: [target.frameId],
-          })
+          dispatchBookOp({ type: 'removeFrames', spreadId, frameIds })
         }}
       >
         <Icon name="delete" />
-        Delete frame
+        {frameIds.length > 1
+          ? `Delete ${String(frameIds.length)} frames`
+          : 'Delete frame'}
         <span className="ml-auto text-xs">Del</span>
       </Button>
     </div>

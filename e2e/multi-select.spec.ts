@@ -600,7 +600,216 @@ test.describe('multi-select part 3: marquee', () => {
   })
 })
 
+// multi-select part 4 (Designer Spec "Inspector, multi context"): with 2+
+// selected the inspector shows Multiple selection, Align & distribute (core
+// alignFrames / distributeFrames, unlocked only), Arrange on the set and
+// Delete N frames.
+
+/** The frame's stored rect in mm, from the painter's inline px (0.5 px/mm). */
+async function rectMm(page: Page, index: number) {
+  return frames(page)
+    .nth(index)
+    .evaluate((el: HTMLElement) => {
+      const mm = (value: string) => Number.parseFloat(value) / 0.5
+      return { x: mm(el.style.left), width: mm(el.style.width) }
+    })
+}
+
+async function openInspector(page: Page): Promise<void> {
+  if (
+    (await page.getByTestId('panel-r').getAttribute('data-open')) !== 'true'
+  ) {
+    await page.getByTestId('toggle-r').click()
+  }
+  await expect(page.getByTestId('panel-r')).toHaveAttribute('data-open', 'true')
+}
+
+async function shiftSelect(page: Page, indexes: number[]): Promise<void> {
+  const [first, ...rest] = indexes
+  await frames(page)
+    .nth(first ?? 0)
+    .click()
+  for (const index of rest) {
+    await frames(page)
+      .nth(index)
+      .click({ modifiers: ['Shift'] })
+  }
+  await expect(pressed(page)).toHaveCount(indexes.length)
+}
+
+test.describe('multi-select part 4: inspector align, distribute, arrange, delete', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?fixture=painter')
+    await expect(frames(page)).toHaveCount(4)
+    await openInspector(page)
+    await frames(page).first().scrollIntoViewIfNeeded()
+  })
+
+  test('two frames: Multiple selection header, Distribute disabled but focusable with its reason', async ({
+    page,
+  }) => {
+    await shiftSelect(page, [0, 1])
+    const inspector = page.getByTestId('inspector-panel')
+    await expect(inspector).toHaveAttribute('data-inspector-view', 'multi')
+    await expect(page.getByTestId('inspector-context')).toHaveText(
+      'Multiple selection',
+    )
+    await expect(page.getByTestId('inspector-multi-summary')).toHaveText(
+      '2 frames · 2 photos',
+    )
+    const left = page.getByTestId('align-left')
+    await expect(left).toHaveAttribute('aria-label', 'Align left edges')
+    const box = await boxOf(left)
+    expect([box.width, box.height]).toEqual([28, 28])
+    const distribute = page.getByTestId('distribute-h')
+    await expect(distribute).toHaveAttribute('aria-disabled', 'true')
+    // Keyboard: the toolbar's arrow keys reach the dimmed button.
+    await page.getByTestId('align-bottom').focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(distribute).toBeFocused()
+    await expect(
+      page.getByRole('tooltip', { name: 'Select 3 or more unlocked frames' }),
+    ).toBeVisible()
+    await expect(page.getByTestId('align-caption')).toHaveText(
+      /^Selection [\d.]+ × [\d.]+ mm$/,
+    )
+    await assertDocumentFitsViewport(page)
+  })
+
+  test('three frames: Distribute horizontally gives equal gaps in one undo step', async ({
+    page,
+  }) => {
+    // Frames 0 and 2 share a left edge, frame 1 is to the right: uneven gaps.
+    await shiftSelect(page, [0, 1, 2])
+    const before = await Promise.all([0, 1, 2].map((i) => rectMm(page, i)))
+
+    await page.getByTestId('distribute-h').click()
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Distribute frames” (Ctrl+Z)',
+    )
+    const after = await Promise.all([0, 1, 2].map((i) => rectMm(page, i)))
+    const sorted = [...after].sort((a, b) => a.x - b.x)
+    const gaps = sorted
+      .slice(1)
+      .map(
+        (rect, i) => rect.x - ((sorted[i]?.x ?? 0) + (sorted[i]?.width ?? 0)),
+      )
+    expect(gaps).toHaveLength(2)
+    expect(Math.abs((gaps[0] ?? 0) - (gaps[1] ?? 0))).toBeLessThanOrEqual(0.01)
+    // The outer two stay; the middle one moved.
+    expect(after[0]).toEqual(before[0])
+    expect(after[1]).toEqual(before[1])
+    expect(after[2]?.x).not.toBe(before[2]?.x)
+    await expect(pressed(page)).toHaveCount(3)
+
+    await page.getByTestId('undo').click()
+    await expect
+      .poll(() => Promise.all([0, 1, 2].map((i) => rectMm(page, i))))
+      .toEqual(before)
+  })
+
+  test('align left with a locked frame in the set leaves it in place; one Undo restores', async ({
+    page,
+  }) => {
+    // Lock frame 1 (top right), then select 0, 1 and 3.
+    await frames(page).nth(1).click()
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(frames(page).nth(1)).toHaveAttribute('data-locked', 'true')
+    await shiftSelect(page, [1, 0, 3])
+    await expect(page.getByTestId('align-caption')).toHaveText(
+      /· 1 locked, skipped$/,
+    )
+    const before = await Promise.all([0, 1, 3].map((i) => rectMm(page, i)))
+
+    await page.getByTestId('align-left').click()
+    const [a0, a1, a3] = await Promise.all(
+      [0, 1, 3].map((i) => rectMm(page, i)),
+    )
+    expect(a1).toEqual(before[1])
+    expect(a3?.x).toBe(a0?.x)
+    expect(a0).toEqual(before[0])
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Align frames” (Ctrl+Z)',
+    )
+    await page.getByTestId('undo').click()
+    await expect
+      .poll(() => Promise.all([0, 1, 3].map((i) => rectMm(page, i))))
+      .toEqual(before)
+  })
+
+  test('Arrange moves the set in one step; Delete 3 frames removes all three', async ({
+    page,
+  }) => {
+    await shiftSelect(page, [0, 1, 2])
+    await expect(page.getByTestId('frame-layer')).toHaveText('layers 1–3 of 4')
+    await page.getByTestId('z-front').click()
+    await expect(page.getByTestId('frame-layer')).toHaveText('layers 2–4 of 4')
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Reorder frames” (Ctrl+Z)',
+    )
+
+    const remaining = await frames(page).nth(3).getAttribute('data-frame-id')
+    const remove = page.getByTestId('frame-delete')
+    await expect(remove).toContainText('Delete 3 frames')
+    await remove.click()
+    await expect(frames(page)).toHaveCount(1)
+    await expect(frames(page).first()).toHaveAttribute(
+      'data-frame-id',
+      remaining ?? '',
+    )
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Delete 3 frames” (Ctrl+Z)',
+    )
+  })
+
+  test('the context menu on a selected frame keeps the set and acts on it', async ({
+    page,
+  }) => {
+    await shiftSelect(page, [0, 1])
+    await frames(page).nth(1).click({ button: 'right' })
+    await expect(pressed(page)).toHaveCount(2)
+    await expect(page.getByTestId('frame-menu-delete')).toHaveText(
+      /Delete 2 frames/,
+    )
+    await page.getByTestId('frame-menu-lock').click()
+    await expect(frames(page).nth(0)).toHaveAttribute('data-locked', 'true')
+    await expect(frames(page).nth(1)).toHaveAttribute('data-locked', 'true')
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Lock 2 frames” (Ctrl+Z)',
+    )
+    // Both locked: Align says why and stays focusable.
+    await expect(page.getByTestId('align-left')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+})
+
 test.describe('Multi-select frame-budget gates', () => {
+  test('a Distribute click logs no LoAF', async ({ page }) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1')
+    await expect(frames(page)).toHaveCount(4)
+    await openInspector(page)
+    await shiftSelect(page, [0, 1, 2])
+
+    await page.evaluate(browserBeginLoafScenarioWindow)
+    await clearPerfScenario(page)
+    await page.getByTestId('distribute-h').click()
+    await page.getByTestId('align-top').click()
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Align frames” (Ctrl+Z)',
+    )
+    await page.waitForTimeout(300)
+    await page.evaluate(browserAssertNoLoafThenClear)
+  })
+
   test('a marquee over a full spread logs no LoAF and keeps the handler p95', async ({
     page,
   }, testInfo) => {

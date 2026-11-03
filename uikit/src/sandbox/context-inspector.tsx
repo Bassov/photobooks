@@ -78,9 +78,11 @@ export function ContextInspector() {
       <div className="p-4"><DeleteFrameButton /></div>
     </InspectorShell>
   )
-  const imgs = sel.filter((f) => f.kind === "image").length
+  // multi-select Spec meta rule: "N frames · " + the non-zero parts of photos / empty / text
+  const photos = sel.filter((f) => f.kind === "image" && f.photo).length, texts = sel.filter((f) => f.kind === "text").length, empty = sel.length - photos - texts
+  const parts = [photos ? `${photos} photo${photos === 1 ? "" : "s"}` : "", empty ? `${empty} empty` : "", texts ? `${texts} text` : ""].filter(Boolean)
   return (
-    <InspectorShell ctx="multi" meta={`${sel.length} items · ${imgs} photo${imgs === 1 ? "" : "s"}, ${sel.length - imgs} text`}>
+    <InspectorShell ctx="multi" meta={`${sel.length} frames · ${parts.join(", ")}`}>
       <AlignSection />
       <ArrangeSection />
       <div className="p-4"><DeleteFrameButton /></div>

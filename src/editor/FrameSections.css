@@ -12,6 +12,48 @@
   background: var(--field);
 }
 
+/* Kit AlignSection (Designer Spec "Inspector, multi context"): three groups
+   that wrap, 4 px inside a group, 12 px between groups. */
+.frame-align-row {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: calc(var(--spacing) * 3);
+  row-gap: calc(var(--spacing) * 1);
+}
+
+.frame-align-group {
+  display: flex;
+  gap: calc(var(--spacing) * 1);
+}
+
+/* Kit Button `outline` `icon-xs`: 28 px, --field fill, shadow-xs, 14 px ink
+   icon; --sel on hover / press. */
+.frame-align-button.pb-button {
+  width: var(--control-xs);
+  height: var(--control-xs);
+  color: var(--foreground);
+  background: var(--field);
+}
+
+.frame-align-button.pb-button:not([data-focus-visible]) {
+  box-shadow: var(--shadow-xs);
+}
+
+.frame-align-button.pb-button[data-hovered],
+.frame-align-button.pb-button[data-pressed] {
+  color: var(--foreground);
+  background: var(--sel);
+}
+
+/* Kit caption: 12 / 16.8, 8 px below the row. */
+.frame-align-caption {
+  margin: calc(var(--spacing) * 2) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
 .frame-layer {
   line-height: 1.4;
   color: var(--muted-foreground);
