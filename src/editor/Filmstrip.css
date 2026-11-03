@@ -122,6 +122,7 @@
   flex: 1 1 0;
   min-height: 0;
   width: 100%;
+  container-type: inline-size;
 }
 
 .filmstrip-thumb {
@@ -158,12 +159,26 @@
   font-size: var(--text-2xs);
   line-height: var(--text-2xs--line-height);
   font-weight: 500;
+  white-space: nowrap;
   pointer-events: none;
 }
 
 .filmstrip-lowres > .pb-icon[data-size] {
   width: 10px;
   height: 10px;
+}
+
+/* Thumb narrower than the chip + 8 px: icon only. The zero-width label keeps
+   the text line box, so the chip stays 16.84 px tall. */
+@container (width < 73.33px) {
+  .filmstrip-lowres {
+    gap: 0;
+  }
+
+  .filmstrip-lowres-label {
+    width: 0;
+    overflow: hidden;
+  }
 }
 
 /* Missing file mark (kit sandbox `miss`): muted tile with an image-off glyph. */

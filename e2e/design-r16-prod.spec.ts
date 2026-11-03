@@ -28,6 +28,11 @@ import {
 //     left + 4 / top + 4, 65.33 × 16.84 (the "Low-res" text run is 43.33
 //     wide), 11px / 14.85px weight 500, rgb(132, 85, 16) on rgb(215, 215,
 //     215), radius 4px, padding 1px 4px, gap 4, warning icon 10 × 10.
+//     Designer decision (RESUME 1): the chip never wraps; on a thumb
+//     narrower than 73.33 (chip + 8) it is icon-only, 18 × 16.84 at the same
+//     4/4 offset, icon centred vertically, title / aria-label "Low-res". The
+//     kit gets the same rule in uikit/src/sandbox/chrome.tsx (its only
+//     low-res demo photo is landscape, so no kit portrait measurement).
 
 const FIELD = 'rgb(215, 215, 215)'
 const MUTED = 'rgb(83, 81, 82)'
@@ -50,6 +55,8 @@ const KIT = {
   chipWidth: 65.33,
   chipHeight: 16.84,
   chipIcon: 10,
+  narrowChipWidth: 18,
+  narrowThumbMax: 73.33,
 }
 
 interface Box {
@@ -142,7 +149,18 @@ test.describe('design-r16-prod M83 title bar', () => {
     await expect(button).toHaveCSS('background-color', FIELD)
     await expect(page.getByTestId('book-pages-input')).toBeVisible()
 
+    // Kit toggle (chrome.tsx:170): a second click closes Book settings.
+    await button.click()
+    await parkPointer(page)
+    await expect(button).toHaveAttribute('aria-pressed', 'false')
+    await expect(button).toHaveCSS('background-color', CLEAR)
+    await expect(page.getByTestId('inspector-context')).toHaveText('Spread')
+    await expect(page.getByTestId('book-pages-input')).toHaveCount(0)
+
     // Picking a spread closes Book settings and releases the button.
+    await button.click()
+    await parkPointer(page)
+    await expect(button).toHaveAttribute('aria-pressed', 'true')
     await page
       .getByTestId(/^spread-list-item-/)
       .nth(1)
@@ -276,6 +294,56 @@ test.describe('design-r16-prod M85 low-res chip', () => {
       gap: '4px',
       font: '11px/14.85px 500',
       icon: 'warning',
+    })
+  })
+
+  test('a portrait thumb carries an icon-only Low-res chip on one line, inside the thumb', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await installPhotoDirectoryPickerStub(page)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openLibraryBook(page)
+    await choosePhotoFolder(page, [photoFixturePaths.sampleOrient6])
+    await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(1, {
+      timeout: 60_000,
+    })
+    await parkPointer(page)
+
+    const chip = page.getByTestId('lowres-chip')
+    await expect(chip).toHaveCount(1)
+    await expect(chip).toHaveAttribute('aria-label', 'Low-res')
+    await expect(chip).toHaveAttribute('title', 'Low-res')
+    const thumb = await box(page.locator('.filmstrip-drag'))
+    expect(thumb.width).toBeLessThan(KIT.narrowThumbMax)
+    const c = await box(chip)
+    near(c.x, thumb.x + KIT.chipInset, 'chip x')
+    near(c.y, thumb.y + KIT.chipInset, 'chip y')
+    near(c.width, KIT.narrowChipWidth, 'chip width')
+    near(c.height, KIT.chipHeight, 'chip height')
+    expect(c.right).toBeLessThanOrEqual(thumb.right)
+    const icon = await box(chip.locator('svg'))
+    near(icon.width, KIT.chipIcon, 'icon width')
+    near(icon.height, KIT.chipIcon, 'icon height')
+    near(icon.x, c.x + 4, 'icon x')
+    near(icon.y + icon.height / 2, c.y + c.height / 2, 'icon centre y')
+
+    const look = await chip.evaluate((el) => {
+      const s = getComputedStyle(el)
+      return {
+        color: s.color,
+        bg: s.backgroundColor,
+        radius: s.borderRadius,
+        padding: s.padding,
+        whiteSpace: s.whiteSpace,
+      }
+    })
+    expect(look).toEqual({
+      color: WARNING_INK,
+      bg: FIELD,
+      radius: '4px',
+      padding: '1px 4px',
+      whiteSpace: 'nowrap',
     })
   })
 })

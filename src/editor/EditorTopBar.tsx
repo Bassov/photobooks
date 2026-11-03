@@ -144,6 +144,11 @@ function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
       aria-label="Book settings"
       title="Book settings"
       onClick={() => {
+        // Kit toggle: a second click while open closes Book settings.
+        if (open) {
+          setBookSettingsSelected(false)
+          return
+        }
         setCoverSelected(false)
         setBookSettingsSelected(true)
       }}

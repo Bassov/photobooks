@@ -133,13 +133,15 @@ describe('EditorTopBar', () => {
     expect(button.getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(button)
     expect(button.getAttribute('aria-pressed')).toBe('true')
-    // A click while open keeps Book settings open.
+    // Kit toggle: a click while open closes Book settings.
     fireEvent.click(button)
-    expect(button.getAttribute('aria-pressed')).toBe('true')
-    act(() => {
-      setBookSettingsSelected(false)
-    })
     expect(button.getAttribute('aria-pressed')).toBe('false')
+    expect(isBookSettingsSelected()).toBe(false)
+    act(() => {
+      setBookSettingsSelected(true)
+    })
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    setBookSettingsSelected(false)
   })
 
   it('zooms in and out from the chrome controls', () => {

@@ -127,9 +127,15 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
         </span>
       ) : null}
       {lowRes ? (
-        <span className="filmstrip-lowres" data-testid="lowres-chip">
+        <span
+          className="filmstrip-lowres"
+          role="img"
+          aria-label="Low-res"
+          title="Low-res"
+          data-testid="lowres-chip"
+        >
           <Icon name="warning" size={14} />
-          Low-res
+          <span className="filmstrip-lowres-label">Low-res</span>
         </span>
       ) : null}
     </div>
