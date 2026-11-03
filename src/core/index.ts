@@ -114,6 +114,7 @@ export type {
   ResolvedFrameStyle,
   ResolvedItem,
   ResolvedSpread,
+  ResolvedText,
 } from './geometry/types'
 
 export {
@@ -168,10 +169,15 @@ export {
 } from './pages'
 export {
   MIN_FRAME_EDGE_MM,
+  MIN_TEXT_FRAME_MM,
   addFrame,
+  addTextFrame,
+  editText,
   nextFrameId,
   removeFrames,
   setFrameRect,
+  setTextAlign,
+  setTextStyle,
 } from './ops/frames'
 export {
   layerOf,

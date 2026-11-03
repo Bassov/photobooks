@@ -67,3 +67,21 @@ export async function loadBookFonts(
   await fontSet.ready
   return { files }
 }
+
+interface FontLoaderLike {
+  load(font: string): Promise<unknown>
+  ready: Promise<unknown>
+}
+
+/**
+ * Loads the faces behind CSS `font` shorthands (e.g. Lora 500 for the Title
+ * text style). Browsers fetch a face lazily on first paint, so a text measure
+ * awaits this first. Resolves after `fonts.ready` settled.
+ */
+export async function loadFonts(
+  fonts: readonly string[],
+  fontSet: FontLoaderLike = document.fonts,
+): Promise<void> {
+  await Promise.all(fonts.map((font) => fontSet.load(font)))
+  await fontSet.ready
+}
