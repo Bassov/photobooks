@@ -186,11 +186,25 @@ describe('step label bookkeeping', () => {
       setBookGrid: 'Change grid',
       setSpreadGrid: 'Change grid',
       resetSpreadGrid: 'Reset grid',
+      resetSpreadGridFields: 'Reset grid value',
     }
     for (const [type, text] of Object.entries(expected)) {
       expect(opLabel({ type, frameIds: ['f'] } as unknown as BookOp)).toBe(text)
     }
     expect(opLabel({ type: 'nope' } as unknown as BookOp)).toBe('Edit')
+  })
+
+  it('makes each re-aligning grid op one undo step of its own', () => {
+    const ops: BookOp[] = [
+      { type: 'setSpreadGrid', spreadId: 'ma', patch: { columns: 4 } },
+      { type: 'setBookGrid', patch: { columns: 4 } },
+      { type: 'setSpreadParent', spreadId: 'a', parentId: 'ma' },
+      { type: 'resetSpreadGridFields', spreadId: 'a', fields: ['top'] },
+    ]
+    for (const op of ops) {
+      expect(isUndoableOp(op)).toBe(true)
+      expect(coalesceKey(op)).toBeUndefined()
+    }
   })
 
   it('counts the frames of a multi-frame delete', () => {

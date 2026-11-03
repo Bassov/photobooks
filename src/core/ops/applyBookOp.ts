@@ -1,5 +1,5 @@
 import type { Book, Frame } from '../schema'
-import type { GridPatch } from '../grid/layoutGrid'
+import type { GridField, GridPatch } from '../grid/layoutGrid'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
 import type { LayoutSlotPct } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
@@ -24,7 +24,12 @@ import {
 import { reorderFrame, setFrameLocked, type ZMove } from './arrange'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
-import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
+import {
+  resetSpreadGrid,
+  resetSpreadGridFields,
+  setBookGrid,
+  setSpreadGrid,
+} from './grid'
 import {
   setCoverPhoto,
   setCoverStyle,
@@ -207,6 +212,11 @@ export type BookOp =
   | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
   | { type: 'resetSpreadGrid'; spreadId: string }
   | {
+      type: 'resetSpreadGridFields'
+      spreadId: string
+      fields: readonly GridField[]
+    }
+  | {
       type: 'addGuide'
       spreadId: string
       orientation: 'horizontal' | 'vertical'
@@ -318,6 +328,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setSpreadGrid(book, op.spreadId, op.patch)
     case 'resetSpreadGrid':
       return resetSpreadGrid(book, op.spreadId)
+    case 'resetSpreadGridFields':
+      return resetSpreadGridFields(book, op.spreadId, op.fields)
     case 'addGuide':
       return addGuide(book, op.spreadId, {
         orientation: op.orientation,
