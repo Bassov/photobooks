@@ -9,3 +9,10 @@
 1. `uikit#/demo` → library → new book: dock header reads Unplaced · Added order ⌄ · Add folder…
 2. Add folder… → place a photo → Unplaced on: the strip drops the placed photo, head "Photos · N of M · K used"; off restores all.
 3. Sort chip → menu above the chip with Date taken / File name / Added order; pick File name → chip relabels, strip re-sorts.
+
+Evidence (kit-only; agent manual-qa drives prod, not the kit): full kit qa `node uikit/scripts/qa.mjs` 313 passed / 0 failed / 0 console errors; `demo-baseline` walk 64 steps, no page errors.
+
+- OK 1 — kit qa "dock header = Unplaced · Added order · Add folder…"; x / w 783.92 / 90.75, 882.67 / 127.08, 1017.75 / 110.25.
+- OK 2 — kit qa "Photos · 19 of 20 · 1 used", off → 20; all placed → "Every photo is placed…"; 0 photos → "No photos yet…".
+- OK 3 — kit qa menu above the chip (bottom 760 < chip top 764), 160 wide, Added order checked; File name relabels and sorts.
+- ui-review: tokens `text-muted-foreground` / `bg-field` / `text-foreground`, kit primitives; labelled controls, `aria-pressed`; no blocking findings.
