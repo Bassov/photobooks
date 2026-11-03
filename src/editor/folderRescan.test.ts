@@ -28,6 +28,10 @@ import {
   subscribeFolderRescanProgress,
 } from './photoRootSession'
 import * as importPhotos from './importPhotos'
+import {
+  getImportErrors,
+  resetImportErrorsStoreForTests,
+} from './importErrorsStore'
 import { awaitPendingHashes, resetPendingHashesForTests } from './pendingHashes'
 import * as pendingHashes from './pendingHashes'
 import { getThumbUrl, resetThumbCache } from './thumbCache'
@@ -46,6 +50,7 @@ describe('startFolderRescan', () => {
     resetAssetSources()
     resetFolderRescanForTests()
     resetPendingHashesForTests()
+    resetImportErrorsStoreForTests()
   })
 
   afterEach(() => {
@@ -756,5 +761,80 @@ describe('startFolderRescan', () => {
     await startFolderRescan({ sourceRootId, runLazy: true })
     await awaitFolderRescanForTests()
     expect(phases.includes('lazy')).toBe(false)
+  })
+
+  it('drops hidden and known decode-failed tiles and re-reports failures once', async () => {
+    const tree = createMemoryAssetDirectory()
+    const bytes = new Uint8Array([1, 2, 3])
+    tree.putFile('ok.jpg', bytes, 5)
+    tree.putFile('broken.jpg', bytes, 5)
+    tree.putFile('trip/broken2.jpg', bytes, 5)
+    tree.putFile('changed.jpg', new Uint8Array([1, 2, 3, 4]), 5)
+    tree.putFile('._ok.jpg', bytes, 5)
+    tree.putFile('._placed.jpg', bytes, 5)
+    const sourceRootId = 'root-known-failures'
+    registerAssetSource(
+      sourceRootId,
+      createFsaAssetSource({ rootId: sourceRootId, directory: tree.root }),
+    )
+    const failed = { byteSize: 3, mtimeMs: 5, decodeFailed: true as const }
+    await putSourceRootEntryIndex(sourceRootId, {
+      version: 1,
+      entries: {
+        'ok.jpg': { byteSize: 3, mtimeMs: 5 },
+        'broken.jpg': failed,
+        'trip/broken2.jpg': failed,
+        // Size changed since the failure → retried, so it gets a tile again.
+        'changed.jpg': failed,
+        // Gone from disk → nothing to report.
+        'gone.jpg': failed,
+      },
+    })
+    const asset = (relativePath: string) => ({
+      sourceRootId,
+      relativePath,
+      byteSize: 3,
+      mtimeMs: 5,
+    })
+    resetBookStore({
+      book: makeBook({
+        spreads: [
+          makeSpread({
+            id: 's0',
+            frames: [makeFrame({ assetId: 'g-placed' })],
+          }),
+        ],
+        gallery: ['g-ok', 'g-hidden', 'g-broken', 'g-placed'],
+        assets: {
+          'g-ok': asset('ok.jpg'),
+          'g-hidden': asset('._ok.jpg'),
+          'g-broken': asset('broken.jpg'),
+          'g-placed': asset('._placed.jpg'),
+        },
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    await startFolderRescan({ sourceRootId, runLazy: false })
+    await awaitFolderRescanForTests()
+
+    const { book } = getBookStoreSnapshot()
+    const galleryPaths = book.gallery
+      .map((id) => book.assets[id]?.relativePath)
+      .sort()
+    // Placed tiles stay (the frame still references them).
+    expect(galleryPaths).toEqual(['._placed.jpg', 'changed.jpg', 'ok.jpg'])
+    const decodeErrors = () =>
+      getImportErrors()
+        .filter((error) => error.reason === 'decode-failed')
+        .map((error) => error.name)
+        .sort()
+    expect(decodeErrors()).toEqual(['broken.jpg', 'broken2.jpg'])
+
+    await startFolderRescan({ sourceRootId, runLazy: false })
+    await awaitFolderRescanForTests()
+    expect(decodeErrors()).toEqual(['broken.jpg', 'broken2.jpg'])
   })
 })

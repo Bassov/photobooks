@@ -14,7 +14,8 @@ import { setCoverSelected } from './coverSelection'
 import { yieldForPaint } from './relink/yieldForPaint'
 import { resolveRelativeFile } from '../assets/resolveRelativeFile'
 import type { AssetDirectoryHandle } from '../assets/fsa/handles'
-import type { ImportFileError } from '../photo/assetPool'
+import { createImportFileError, type ImportFileError } from '../photo/assetPool'
+import { appendImportErrors, getImportErrors } from './importErrorsStore'
 import { IMPORT_BODY_READ_CAP, mapWithConcurrency } from './importBodyReads'
 import type { ImportPhotoResult, ImportProgress } from './importPhotos'
 import { runChromeImport } from './runChromeImport'
@@ -39,7 +40,7 @@ import {
   enqueueManifestGalleryList,
   enqueueScannedGalleryList,
 } from './enqueueScannedGalleryList'
-import { isAcceptedPhotoPath } from '../photo/pickPhotos'
+import { isAcceptedPhotoPath, isHiddenPhotoPath } from '../photo/pickPhotos'
 import {
   getRegisteredAssetSource,
   registerAssetSource,
@@ -673,6 +674,31 @@ export function setFolderRescanProgressForTests(
   emitProgress(state)
 }
 
+/** Re-surface manifest-remembered decode failures once per file name. */
+function reportKnownDecodeFailures(paths: ReadonlySet<string>): void {
+  const listed = new Set(
+    getImportErrors()
+      .filter((error) => error.reason === 'decode-failed')
+      .map((error) => error.name),
+  )
+  const errors: ImportFileError[] = []
+  for (const path of paths) {
+    const name = path.slice(path.lastIndexOf('/') + 1)
+    if (listed.has(name)) {
+      continue
+    }
+    listed.add(name)
+    errors.push(
+      createImportFileError({
+        name,
+        message: 'Could not decode this photo on an earlier import',
+        reason: 'decode-failed',
+      }),
+    )
+  }
+  appendImportErrors(errors)
+}
+
 function assetRecordFor(ref: RescanAssetRef): Asset {
   const existing = getBookStoreSnapshot().book.assets[ref.assetId]
   if (existing !== undefined) {
@@ -753,10 +779,22 @@ export async function startFolderRescan(options: {
     // Manifest-first: paint slots + identity thumbs before the walk finishes.
     const prior = await getSourceRootEntryIndex(options.sourceRootId)
     const priorManifest = prior.ok ? prior.value : null
+    // Paths whose import decode failed stay out of the gallery (no gray tile).
+    const failedPaths = new Set(
+      Object.entries(priorManifest?.entries ?? {})
+        .filter(([, entry]) => entry.decodeFailed === true)
+        .map(([path]) => path),
+    )
     if (priorManifest !== null) {
-      enqueueManifestGalleryList(options.sourceRootId, priorManifest.entries, {
-        markImportRunning: false,
-      })
+      enqueueManifestGalleryList(
+        options.sourceRootId,
+        Object.fromEntries(
+          Object.entries(priorManifest.entries).filter(
+            ([path]) => !failedPaths.has(path),
+          ),
+        ),
+        { markImportRunning: false },
+      )
       await yieldForPaint()
     }
     // Every cached gallery thumb goes hot before the user scrolls.
@@ -780,6 +818,12 @@ export async function startFolderRescan(options: {
     // List-first: placeholders for accepted images not yet in gallery.
     // Omit size/mtime-changed paths so stale manifest dims do not stick.
     const changedPathSet = new Set(indexDiff.changedPaths)
+    // A changed or vanished file is no longer a known failure (retry it).
+    for (const path of failedPaths) {
+      if (changedPathSet.has(path) || !scannedByPath.has(path)) {
+        failedPaths.delete(path)
+      }
+    }
     const dimsByPath =
       priorManifest === null
         ? null
@@ -788,10 +832,12 @@ export async function startFolderRescan(options: {
               ([path]) => !changedPathSet.has(path),
             ),
           )
-    enqueueScannedGalleryList(options.sourceRootId, scanned, {
-      markImportRunning: false,
-      dimsByPath,
-    })
+    enqueueScannedGalleryList(
+      options.sourceRootId,
+      scanned.filter((entry) => !failedPaths.has(entry.relativePath)),
+      { markImportRunning: false, dimsByPath },
+    )
+    reportKnownDecodeFailures(failedPaths)
     // Finish list-first gallery writes before priority planning so newly
     // enqueued placeholders are not misclassified into lazy "Scanning folder".
     await awaitPendingGalleryFlush(yieldForPaint)
@@ -815,8 +861,9 @@ export async function startFolderRescan(options: {
         })
       }
     }
-    // Drop gallery tiles whose paths disappeared from disk (keep placed).
-    if (indexDiff.removedPaths.length > 0) {
+    // Drop gallery tiles whose paths disappeared from disk, are hidden
+    // metadata (`._*`) or failed decode before (keep placed).
+    {
       const { book } = getBookStoreSnapshot()
       const placedCounts = placementCountByAsset(book)
       const removedSet = new Set(indexDiff.removedPaths)
@@ -825,7 +872,12 @@ export async function startFolderRescan(options: {
           return false
         }
         const path = book.assets[assetId]?.relativePath
-        return typeof path === 'string' && removedSet.has(path)
+        return (
+          typeof path === 'string' &&
+          (removedSet.has(path) ||
+            failedPaths.has(path) ||
+            isHiddenPhotoPath(path))
+        )
       })
       if (toRemove.length > 0) {
         removeFailedImportAssets(toRemove)
@@ -857,7 +909,11 @@ export async function startFolderRescan(options: {
     }
     const lazyPaths = remainingScannedPaths(
       scanned
-        .filter((entry) => isAcceptedPhotoPath(entry.relativePath))
+        .filter(
+          (entry) =>
+            isAcceptedPhotoPath(entry.relativePath) &&
+            !failedPaths.has(entry.relativePath),
+        )
         .map((entry) => entry.relativePath),
       priorityWithChanges,
     )

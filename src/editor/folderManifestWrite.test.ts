@@ -2,7 +2,10 @@ import { IDBFactory } from 'fake-indexeddb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getSourceRootEntryIndex } from '../project/session/sourceRootEntryIndex'
-import { tryPatchManifestFromAsset } from './folderManifestWrite'
+import {
+  tryMarkManifestDecodeFailed,
+  tryPatchManifestFromAsset,
+} from './folderManifestWrite'
 
 beforeEach(() => {
   vi.stubGlobal('indexedDB', new IDBFactory())
@@ -76,5 +79,35 @@ describe('tryPatchManifestFromAsset', () => {
     ],
   ] as const)('rejects incomplete identity or dims %#', (asset, dims) => {
     expect(tryPatchManifestFromAsset(asset, dims)).toBe(false)
+  })
+})
+
+describe('tryMarkManifestDecodeFailed', () => {
+  it('marks the identity as decode-failed in the folder manifest', async () => {
+    const scheduled = tryMarkManifestDecodeFailed({
+      sourceRootId: 'root-bad',
+      relativePath: 'broken.jpg',
+      byteSize: 12,
+      mtimeMs: 3,
+    })
+    expect(scheduled).toBe(true)
+    await vi.waitFor(async () => {
+      const got = await getSourceRootEntryIndex('root-bad')
+      expect(got.ok && got.value.entries['broken.jpg']).toEqual({
+        byteSize: 12,
+        mtimeMs: 3,
+        decodeFailed: true,
+      })
+    })
+  })
+
+  it.each([
+    undefined,
+    {},
+    { sourceRootId: '', relativePath: 'a.jpg', byteSize: 1, mtimeMs: 1 },
+    { sourceRootId: 'r', relativePath: '', byteSize: 1, mtimeMs: 1 },
+    { sourceRootId: 'r', relativePath: 'a.jpg', mtimeMs: 1 },
+  ] as const)('skips an incomplete identity %#', (asset) => {
+    expect(tryMarkManifestDecodeFailed(asset)).toBe(false)
   })
 })
