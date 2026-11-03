@@ -6,6 +6,7 @@ import {
   ensurePhotoFixtures,
   photoFixturePaths,
 } from './fixtures/ensurePhotoFixtures'
+import { applyContactSheet } from './fixtures/layoutTiles'
 import { openSessionEditor } from './fixtures/openSessionEditor'
 import {
   choosePhotoFolder,
@@ -183,6 +184,66 @@ test.describe('Arrange menu, shortcuts and lock', () => {
     await expect.poll(async () => (await boxOf(frame)).x).not.toBe(before.x)
     await dropAssetOnFrame(page, assetId, frame, { keepSelection: true })
     await expect(frame).toHaveAttribute('data-filled', 'true')
+  })
+
+  test('a locked frame refuses the click swap as source and target', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await choosePhotoFolder(page, [
+      photoFixturePaths.samplePng,
+      photoFixturePaths.sampleOrient6,
+    ])
+    const items = page.getByTestId('filmstrip-item')
+    await expect(items).toHaveCount(2, { timeout: 30_000 })
+    await applyContactSheet(page, 2, 1)
+    const active = page.getByTestId('spread-view').first()
+    const frames = active.getByTestId('spread-frame')
+    await expect(frames).toHaveCount(2)
+    const ids = await frames.evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-frame-id') ?? ''),
+    )
+    const frameA = active.locator(`button[data-frame-id="${ids[0] ?? ''}"]`)
+    const frameB = active.locator(`button[data-frame-id="${ids[1] ?? ''}"]`)
+    const assetA = (await items.nth(0).getAttribute('data-asset-id')) ?? ''
+    const assetB = (await items.nth(1).getAttribute('data-asset-id')) ?? ''
+    await dropAssetOnFrame(page, assetA, frameA)
+    await dropAssetOnFrame(page, assetB, frameB)
+    await expect(frameA).toHaveAttribute('data-asset-id', assetA)
+    await expect(frameB).toHaveAttribute('data-asset-id', assetB)
+    const status = page.getByTestId('editor-status')
+    const lockedStatus = 'Frame is locked. Unlock it to move, resize or rotate.'
+    const select = async (frame: Locator) => {
+      await page.keyboard.press('Escape')
+      await frame.click()
+    }
+
+    // Locked source: the click on B is refused, both photos and the lock stay.
+    await select(frameA)
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(frameA).toHaveAttribute('data-locked', 'true')
+    await frameB.click()
+    await expect.poll(() => status.textContent()).toBe(lockedStatus)
+    await expect(frameA).toHaveAttribute('data-asset-id', assetA)
+    await expect(frameB).toHaveAttribute('data-asset-id', assetB)
+    await expect(frameA).toHaveAttribute('data-locked', 'true')
+
+    // Locked target: same.
+    await select(frameB)
+    await frameA.click()
+    await expect.poll(() => status.textContent()).toBe(lockedStatus)
+    await expect(frameA).toHaveAttribute('data-asset-id', assetA)
+    await expect(frameB).toHaveAttribute('data-asset-id', assetB)
+    await expect(frameA).toHaveAttribute('data-locked', 'true')
+
+    // Unlocked, the pair swaps again.
+    await select(frameA)
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(frameA).not.toHaveAttribute('data-locked', 'true')
+    await frameB.click()
+    await expect.poll(() => status.textContent()).toBe('Photos swapped')
+    await expect(frameA).toHaveAttribute('data-asset-id', assetB)
+    await expect(frameB).toHaveAttribute('data-asset-id', assetA)
   })
 })
 

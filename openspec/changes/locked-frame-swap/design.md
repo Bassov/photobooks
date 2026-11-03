@@ -17,5 +17,5 @@
 | `src/editor/dropTargets.test.ts`, `galleryDrop.activate.test.ts` | editor unit                        |
 
 - Reuse: `frameLocked` (import only), `STATUS_FRAME_LOCKED`, `updateFrame`.
-- Unit: locked source / target swap → same book; unlocked pair swaps keeping rotation, style; unplace / gallery removal keep `locked`; fill skips locked frames; `activateFrame` locked → status, book, history unchanged. e2e: N/A.
+- Unit: locked source / target swap → same book; unlocked pair swaps keeping rotation, style; unplace / gallery removal keep `locked`; fill skips locked frames; `activateFrame` locked → status, book, history unchanged. e2e: `arrange-lock.spec.ts` locked source / target click swap refused, unlocked pair swaps.
 - PR body: caller table for `swapFrames`, `placeAsset`, `replaceAsset`, `fillSpread`, `unplace` (context menu, Inspector: other lanes).
