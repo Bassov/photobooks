@@ -20,3 +20,13 @@
 .pb-icon-button .pb-icon {
   pointer-events: none;
 }
+
+/* Kit Button v4.2 disabledReason: dimmed, focusable, presses ignored. */
+.pb-icon-button[data-disabled-reason] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pb-icon-button[data-disabled-reason][data-pressed] {
+  transform: none;
+}

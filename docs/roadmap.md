@@ -67,12 +67,12 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 
 - [x] [feature] [framestyle-arrange-unhide](roadmap/P2/framestyle-arrange-unhide.md) — Show Frame style and Arrange in the Photo inspector again, kit look (M78)
 - [x] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
-- [ ] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
+- [x] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
 - [x] [feature] [multi-select-move](roadmap/P2/multi-select-move.md) — group move
 - [x] [feature] [multi-select-marquee](roadmap/P2/multi-select-marquee.md) — marquee selection
 - [ ] [feature] [locked-frame-swap](roadmap/P2/locked-frame-swap.md) — Bug: /next-roadmap-item locked-frame-swap
 - [x] [feature] [unsupported-browser](roadmap/P2/unsupported-browser.md) — Bug: /next-roadmap-item unsupported-browser
-- [ ] [feature] [multi-select-inspector](roadmap/P2/multi-select-inspector.md) — multi-selection inspector: align, distribute, arrange, delete
+- [x] [feature] [multi-select-inspector](roadmap/P2/multi-select-inspector.md) — multi-selection inspector: align, distribute, arrange, delete
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book
@@ -103,6 +103,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r16-kit-inspector](roadmap/P2/design-r16-kit-inspector.md) — Bug: /next-roadmap-item design-r16-kit-inspector
 - [ ] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
 - [x] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
+- [x] [feature] [parent-realign-gaps](roadmap/P2/parent-realign-gaps.md) — Bug: /next-roadmap-item parent-realign-gaps
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent

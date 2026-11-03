@@ -323,6 +323,23 @@ describe('distributeFrames', () => {
     expect(frameOf(run(f, 'vertical'), 'b').rect.y).toBe(35)
   })
 
+  it('skips a locked frame: it stays and the unlocked three even out', () => {
+    const locked = makeFrame({
+      id: 'l',
+      rect: rectOf(90, 0, 10, 10),
+      locked: true,
+    })
+    const next = applyBookOp(book([...f, locked]), {
+      type: 'distributeFrames',
+      spreadId: 'spread-1',
+      frameIds: ['a', 'b', 'c', 'l'],
+      axis: 'horizontal',
+    })
+    expect(frameOf(next, 'b').rect.x).toBe(25)
+    expect(frameOf(next, 'c').rect.x).toBe(50)
+    expect(frameOf(next, 'l')).toEqual(locked)
+  })
+
   it('a locked middle frame leaves two targets → unchanged', () => {
     const before = book([fa, { ...fb, locked: true }, fc])
     expect(

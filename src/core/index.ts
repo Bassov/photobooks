@@ -176,7 +176,9 @@ export {
 export {
   layerOf,
   reorderFrame,
+  reorderFrames,
   setFrameLocked,
+  setFramesLocked,
   type ZMove,
 } from './ops/arrange'
 export {

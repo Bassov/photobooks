@@ -344,6 +344,7 @@
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
+  line-height: var(--text-sm--line-height);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

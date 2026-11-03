@@ -218,6 +218,25 @@ describe('step label bookkeeping', () => {
     expect(opLabel(remove(['a', 'b', 'c']))).toBe('Delete 3 frames')
   })
 
+  it('names set reorder and set lock / unlock steps', () => {
+    expect(
+      opLabel({
+        type: 'reorderFrames',
+        spreadId: 's',
+        frameIds: ['a', 'b'],
+        move: 'front',
+      }),
+    ).toBe('Reorder frames')
+    const lock = (locked: boolean): BookOp => ({
+      type: 'setFramesLocked',
+      spreadId: 's',
+      frameIds: ['a', 'b', 'c'],
+      locked,
+    })
+    expect(opLabel(lock(true))).toBe('Lock 3 frames')
+    expect(opLabel(lock(false))).toBe('Unlock 3 frames')
+  })
+
   it('counts the frames of a group move', () => {
     const move = (frameIds: string[]): BookOp => ({
       type: 'moveFrames',

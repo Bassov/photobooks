@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Button, type ButtonProps } from './Button'
 import { cx } from './className'
 import { Tooltip, TooltipTrigger } from './Tooltip'
@@ -19,7 +19,15 @@ export interface IconButtonProps extends Omit<
   placement?: 'top' | 'bottom' | 'left' | 'right'
   /** Controlled tooltip open (tests / static specimens). */
   isOpen?: boolean
+  /**
+   * Kit Button v4.2: why the button is disabled. With `isDisabled` it stays
+   * focusable (`aria-disabled`), ignores presses, and the tooltip and the
+   * description give the reason.
+   */
+  disabledReason?: string | undefined
 }
+
+const ignorePress = () => undefined
 
 /** Ghost icon-only control; tooltip shows `label` (shortcut included by caller). */
 export function IconButton({
@@ -30,11 +38,23 @@ export function IconButton({
   placement = 'bottom',
   isOpen,
   className,
+  disabledReason,
   ...rest
 }: IconButtonProps) {
+  const reasonId = useId()
+  const reason = rest.isDisabled === true ? disabledReason : undefined
   const button = (
     <Button
-      {...rest}
+      {...(reason === undefined
+        ? rest
+        : {
+            ...rest,
+            isDisabled: false,
+            onPress: ignorePress,
+            'aria-disabled': true,
+            'aria-describedby': reasonId,
+            'data-disabled-reason': '',
+          })}
       variant="ghost"
       size={size}
       aria-label={label}
@@ -43,15 +63,28 @@ export function IconButton({
       {children}
     </Button>
   )
+  // The reason lives outside the button: the name stays the label and the
+  // reason is announced once, as the description.
+  const described =
+    reason === undefined ? (
+      button
+    ) : (
+      <>
+        {button}
+        <span id={reasonId} hidden>
+          {reason}
+        </span>
+      </>
+    )
 
   if (tooltip) {
     return (
       <TooltipTrigger delay={400} {...(isOpen === undefined ? {} : { isOpen })}>
-        {button}
-        <Tooltip placement={placement}>{label}</Tooltip>
+        {described}
+        <Tooltip placement={placement}>{reason ?? label}</Tooltip>
       </TooltipTrigger>
     )
   }
 
-  return button
+  return described
 }

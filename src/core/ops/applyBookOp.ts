@@ -3,7 +3,12 @@ import type { GridField, GridPatch } from '../grid/layoutGrid'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
 import type { LayoutSlotPct } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
-import { addParent, removeParent, renameParent } from '../parentSpreads'
+import {
+  addParent,
+  removeParent,
+  renameParent,
+  setDefaultParent,
+} from '../parentSpreads'
 import { setSpreadBackground, setSpreadParent } from './spreadLook'
 import {
   addToGallery,
@@ -22,7 +27,13 @@ import {
   type AlignEdge,
   type DistributeAxis,
 } from './transform'
-import { reorderFrame, setFrameLocked, type ZMove } from './arrange'
+import {
+  reorderFrame,
+  reorderFrames,
+  setFrameLocked,
+  setFramesLocked,
+  type ZMove,
+} from './arrange'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
 import {
@@ -165,9 +176,21 @@ export type BookOp =
       move: ZMove
     }
   | {
+      type: 'reorderFrames'
+      spreadId: string
+      frameIds: readonly string[]
+      move: ZMove
+    }
+  | {
       type: 'setFrameLocked'
       spreadId: string
       frameId: string
+      locked: boolean
+    }
+  | {
+      type: 'setFramesLocked'
+      spreadId: string
+      frameIds: readonly string[]
       locked: boolean
     }
   | {
@@ -244,6 +267,7 @@ export type BookOp =
   | { type: 'addParent'; id?: string }
   | { type: 'renameParent'; parentId: string; name: string }
   | { type: 'removeParent'; parentId: string }
+  | { type: 'setDefaultParent'; parentId: string | null }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -360,6 +384,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return renameParent(book, op.parentId, op.name)
     case 'removeParent':
       return removeParent(book, op.parentId)
+    case 'setDefaultParent':
+      return setDefaultParent(book, op.parentId)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
     case 'removeFrames':
@@ -376,8 +402,12 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return rotateFrame(book, op.spreadId, op.frameId, op.rotationDeg)
     case 'reorderFrame':
       return reorderFrame(book, op.spreadId, op.frameId, op.move)
+    case 'reorderFrames':
+      return reorderFrames(book, op.spreadId, op.frameIds, op.move)
     case 'setFrameLocked':
       return setFrameLocked(book, op.spreadId, op.frameId, op.locked)
+    case 'setFramesLocked':
+      return setFramesLocked(book, op.spreadId, op.frameIds, op.locked)
     case 'alignFrames':
       return alignFrames(book, op.spreadId, op.frameIds, op.edge)
     case 'distributeFrames':
