@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addToGallery, placeAsset } from '../core'
+import { addToGallery, placeAsset, setFrameLocked } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
 import {
+  getBookStoreSnapshot,
+  getHistorySnapshot,
+  resetBookStore,
+} from './bookStore'
+import {
+  STATUS_FRAME_LOCKED,
   STATUS_MOVED,
   STATUS_SELECTED,
+  STATUS_SWAPPED,
   getEditorStatus,
   setEditorStatus,
 } from './editorStatus'
@@ -17,7 +23,7 @@ import { activateFrame } from './galleryDrop'
 
 const ID = 'spread-1'
 
-function load(): void {
+function load(locked: readonly string[] = []): void {
   let book = makeBook({
     spreads: [
       makeSpread({
@@ -33,6 +39,9 @@ function load(): void {
   book = addToGallery(book, ['a', 'b'])
   book = placeAsset(book, ID, 'filled-a', 'a')
   book = placeAsset(book, ID, 'filled-b', 'b')
+  for (const frameId of locked) {
+    book = setFrameLocked(book, ID, frameId, true)
+  }
   resetBookStore({
     book,
     sessionMeta: new Map(),
@@ -126,5 +135,33 @@ describe('activateFrame', () => {
     expect(assetOf('filled-a')).toBe('a')
     expect(assetOf('filled-b')).toBe('b')
     expect(getEditorStatus()).toBe(STATUS_SELECTED)
+  })
+
+  it.each([
+    ['source', 'filled-a', 'filled-b'],
+    ['target', 'filled-a', 'filled-b'],
+    ['target (empty)', 'filled-a', 'empty-a'],
+  ])('a locked %s refuses the click swap', (which, from, to) => {
+    const lockedId = which === 'source' ? from : to
+    load([lockedId])
+    const before = getBookStoreSnapshot().book
+    activateFrame(ID, from, true, true)
+    activateFrame(ID, to, to.startsWith('filled'), true)
+    expect(getBookStoreSnapshot().book).toBe(before)
+    expect(getHistorySnapshot().canUndo).toBe(false)
+    expect(getEditorStatus()).toBe(STATUS_FRAME_LOCKED)
+    expect(getFrameSource()).toEqual({ spreadId: ID, frameId: from })
+    const frames = getBookStoreSnapshot().book.spreads[0]?.frames ?? []
+    expect(frames.filter((f) => f.locked === true).map((f) => f.id)).toEqual([
+      lockedId,
+    ])
+  })
+
+  it('an unlocked pair still swaps', () => {
+    activateFrame(ID, 'filled-a', true, true)
+    activateFrame(ID, 'filled-b', true, true)
+    expect(assetOf('filled-a')).toBe('b')
+    expect(assetOf('filled-b')).toBe('a')
+    expect(getEditorStatus()).toBe(STATUS_SWAPPED)
   })
 })

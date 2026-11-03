@@ -118,6 +118,27 @@ describe('fillSpread details', () => {
     ])
     expect(placed(next, 1).slice(0, 2)).toEqual(['a', 'b'])
   })
+
+  it('skips locked frames and refuses a locked target', () => {
+    const book = gridBook(['a', 'b', 'c'])
+    const frames = book.spreads[0]?.frames ?? []
+    const locked = applyBookOp(book, {
+      type: 'setFrameLocked',
+      spreadId: 'spread-1',
+      frameId: frames[1]?.id ?? '',
+      locked: true,
+    })
+    const next = fillSpread(locked, 'spread-1', frames[0]?.id ?? '', [
+      'a',
+      'b',
+      'c',
+    ])
+    expect(placed(next)).toEqual(['a', undefined, 'b', 'c'])
+    expect(next.spreads[0]?.frames[1]).toBe(locked.spreads[0]?.frames[1])
+    expect(fillSpread(locked, 'spread-1', frames[1]?.id ?? '', ['a'])).toBe(
+      locked,
+    )
+  })
 })
 
 describe('insertSpreadWithAssets', () => {

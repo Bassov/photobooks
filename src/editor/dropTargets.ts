@@ -31,6 +31,8 @@ export type FrameActivation =
   | { type: 'swap'; source: FrameDragSource }
   | { type: 'noop' }
   | { type: 'toggle' }
+  /** The swap would take or give a locked frame's photo: refused. */
+  | { type: 'locked' }
 
 export function encodeFrameDrag(source: FrameDragSource): string {
   return `${source.spreadId}\n${source.frameId}`
@@ -59,9 +61,10 @@ export function isPointerActivation(event?: { detail: number }): boolean {
 export function resolveFrameActivation(input: {
   /** The single selected frame; null when none or 2 or more are selected. */
   source: FrameDragSource | null
-  target: FrameDragSource & { filled: boolean }
+  target: FrameDragSource & { filled: boolean; locked?: boolean }
   /** False when the selected source is an empty frame (nothing to move). */
   sourceFilled?: boolean
+  sourceLocked?: boolean
   /** Pointer click: the selected frame stays selected (kit canvas). */
   pointer?: boolean
   /** Shift held: toggle the target in the selection, never swap. */
@@ -83,6 +86,9 @@ export function resolveFrameActivation(input: {
   }
   if (input.sourceFilled === false) {
     return { type: 'select-source' }
+  }
+  if (input.sourceLocked === true || input.target.locked === true) {
+    return { type: 'locked' }
   }
   return { type: 'swap', source }
 }

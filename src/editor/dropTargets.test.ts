@@ -317,6 +317,41 @@ describe('dropTargets', () => {
     })
   })
 
+  it('refuses the swap when the source or the target is locked', () => {
+    const source = { spreadId: 's0', frameId: 'f0' }
+    const target = { spreadId: 's0', frameId: 'f1', filled: true }
+    expect(
+      resolveFrameActivation({ source, sourceLocked: true, target }),
+    ).toEqual({ type: 'locked' })
+    expect(
+      resolveFrameActivation({ source, target: { ...target, locked: true } }),
+    ).toEqual({ type: 'locked' })
+    expect(
+      resolveFrameActivation({
+        source,
+        sourceLocked: false,
+        target: { ...target, locked: false },
+      }),
+    ).toEqual({ type: 'swap', source })
+    // Nothing to move from an empty locked frame: the target is selected.
+    expect(
+      resolveFrameActivation({
+        source,
+        sourceFilled: false,
+        sourceLocked: true,
+        target,
+      }),
+    ).toEqual({ type: 'select-source' })
+    // The locked frame itself still selects and clears as before.
+    expect(
+      resolveFrameActivation({
+        source,
+        sourceLocked: true,
+        target: { ...source, filled: true, locked: true },
+      }),
+    ).toEqual({ type: 'clear-source' })
+  })
+
   it('keeps the selected frame on a pointer click; the keyboard still clears it', () => {
     const source = { spreadId: 's0', frameId: 'f0' }
     const same = { ...source, filled: true }

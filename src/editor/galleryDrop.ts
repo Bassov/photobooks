@@ -27,6 +27,7 @@ import {
 import { frameLocked } from './frameArrange'
 import { dropAssets } from './multiDrop'
 import {
+  STATUS_FRAME_LOCKED,
   STATUS_MOVED,
   STATUS_SELECTED,
   STATUS_SWAPPED,
@@ -143,12 +144,19 @@ export function activateFrame(
     return
   }
   const source = getFrameSource()
+  const { book } = getBookStoreSnapshot()
   const action = resolveFrameActivation({
     pointer,
     shift,
     source,
     sourceFilled: source === null || sourceFrameFilled(source),
-    target: { spreadId, frameId, filled },
+    sourceLocked: source !== null && frameLocked(book, source),
+    target: {
+      spreadId,
+      frameId,
+      filled,
+      locked: frameLocked(book, { spreadId, frameId }),
+    },
   })
   if (action.type === 'toggle') {
     toggleFrameSelection({ spreadId, frameId })
@@ -167,6 +175,10 @@ export function activateFrame(
   if (action.type === 'clear-source') {
     setFrameSource(null)
     setEditorStatus('')
+    return
+  }
+  if (action.type === 'locked') {
+    setEditorStatus(STATUS_FRAME_LOCKED)
     return
   }
   if (action.type === 'swap') {
