@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -64,15 +65,26 @@ describe('UnsupportedBrowserScreen', () => {
     expect(screen.getByTestId('get-chrome').getAttribute('rel')).toBe(
       'noopener noreferrer',
     )
-    expect(screen.getByTestId('get-chrome').className).toMatch(/bg-primary/)
+    expect(screen.getByTestId('get-chrome').className).toBe(
+      'ub-btn ub-btn--primary',
+    )
+    expect(
+      screen.getByTestId('unsupported-browser').hasAttribute('data-narrow'),
+    ).toBe(false)
     expect(screen.getByTestId('browser-list')).toBeTruthy()
+    expect(
+      [...screen.getByTestId('browser-list').querySelectorAll('a')].map(
+        (a) => a.className,
+      ),
+    ).toEqual(Array.from({ length: 5 }, () => 'ub-pill'))
     expect(screen.getByTestId('browser-link-Microsoft Edge')).toBeTruthy()
     expect(screen.getByTestId('browser-link-Brave')).toBeTruthy()
-    expect(screen.getByText(/brave:\/\/flags/i)).toBeTruthy()
-    const noteSpans = screen
-      .getByTestId('browser-list')
-      .querySelectorAll('.text-2xs')
-    expect(noteSpans).toHaveLength(1)
+    const notes = screen
+      .getByTestId('unsupported')
+      .querySelectorAll('p.ub-note')
+    expect([...notes].map((n) => n.textContent)).toEqual([
+      'Brave: turn on brave://flags/#file-system-access-api, then relaunch.',
+    ])
     expect(screen.getByTestId('copy-link')).toBeTruthy()
 
     expect(
@@ -106,7 +118,15 @@ describe('UnsupportedBrowserScreen', () => {
     expect(screen.getByTestId('unsupported-title').textContent).toMatch(
       /Folder access is turned off/i,
     )
-    expect(screen.getByTestId('get-chrome').className).toMatch(/border-border/)
+    expect(screen.getByTestId('get-chrome').className).toBe(
+      'ub-btn ub-btn--secondary',
+    )
+    expect(screen.getByTestId('reload-after-enable').className).toBe(
+      'ub-btn ub-btn--primary',
+    )
+    expect(
+      screen.getByTestId('unsupported').querySelectorAll('ol.ub-tips > li'),
+    ).toHaveLength(3)
     expect(
       screen
         .getByTestId('unsupported')
@@ -150,7 +170,20 @@ describe('UnsupportedBrowserScreen', () => {
         .querySelector('[data-icon="monitorSmartphone"]'),
     ).toBeTruthy()
     expect(screen.getByTestId('copy-link')).toBeTruthy()
+    expect(screen.getByTestId('copy-link').className).toBe(
+      'ub-btn ub-btn--secondary',
+    )
+    expect(
+      screen.getByTestId('unsupported-browser').hasAttribute('data-narrow'),
+    ).toBe(true)
     expect(screen.queryByTestId('get-chrome')).toBeNull()
+    expect(screen.queryByTestId('browser-list')).toBeNull()
+  })
+
+  it('keeps the kit copy of the screen CSS byte-identical', () => {
+    expect(readFileSync('uikit/src/features/unsupported.css', 'utf8')).toBe(
+      readFileSync('src/editor/UnsupportedBrowserScreen.css', 'utf8'),
+    )
   })
 
   it('copies the share URL when Copy link is pressed', async () => {

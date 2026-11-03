@@ -71,6 +71,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [multi-select-move](roadmap/P2/multi-select-move.md) — group move
 - [x] [feature] [multi-select-marquee](roadmap/P2/multi-select-marquee.md) — marquee selection
 - [ ] [feature] [locked-frame-swap](roadmap/P2/locked-frame-swap.md) — Bug: /next-roadmap-item locked-frame-swap
+- [x] [feature] [unsupported-browser](roadmap/P2/unsupported-browser.md) — Bug: /next-roadmap-item unsupported-browser
 - [x] [feature] [multi-select-inspector](roadmap/P2/multi-select-inspector.md) — multi-selection inspector: align, distribute, arrange, delete
 - [x] [feature] [inspector-empty-after-grey](roadmap/P2/inspector-empty-after-grey.md) — Bug: /next-roadmap-item inspector-empty-after-grey
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions

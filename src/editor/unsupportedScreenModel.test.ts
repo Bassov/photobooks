@@ -28,7 +28,7 @@ describe('unsupportedScreenModel', () => {
       showBrowserList: true,
       showCopyInActions: true,
       showReload: false,
-      chromeOutline: false,
+      chromeSecondary: false,
       showMobileLayout: false,
     })
   })
@@ -45,7 +45,7 @@ describe('unsupportedScreenModel', () => {
       variant: 'no-api',
       browserName: 'Brave',
       showReload: true,
-      chromeOutline: true,
+      chromeSecondary: true,
       showBrowserList: false,
       showCopyInActions: false,
     })

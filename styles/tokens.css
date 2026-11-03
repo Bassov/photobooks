@@ -41,7 +41,6 @@
   --shadow-inset-hairline: inset 0 0 0 1px rgb(0 0 0 / 0.07);
   --shadow-page: var(--page-shadow);
   --radius-2xs: 2px;
-  --radius-device: 34px;
 }
 
 @custom-variant dark (&:where([data-theme=__no-dark-theme__], [data-theme=__no-dark-theme__] *));

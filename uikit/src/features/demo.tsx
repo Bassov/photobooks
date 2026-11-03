@@ -6,9 +6,12 @@ import { DemoWelcome } from "@/demo-parts/welcome"
 import { DemoEditor } from "@/demo-parts/editor"
 import { DemoSettings } from "@/demo-parts/settings"
 import { DemoSite } from "@/demo-parts/site"
+import { UnsupportedScreen, type UnsupportedVariant } from "@/features/unsupported"
 
 const { S, set, useDemo } = DEMO_SESSION
-;(window as unknown as { __demo: object }).__demo = { go: (stage: Stage) => set({ stage }), state: () => S, reset: () => set({ stage: "welcome", path: "", books: [], open: null, nonce: S.nonce + 1, siteEntry: "catalog" }), missing: (n = 2) => seedMissing(n), openSite: (entry: "catalog" | "book" = "catalog") => set({ stage: "site", siteEntry: entry }) }
+;(window as unknown as { __demo: object }).__demo = { go: (stage: Stage) => set({ stage }), state: () => S, reset: () => set({ stage: "welcome", path: "", books: [], open: null, nonce: S.nonce + 1, siteEntry: "catalog" }), missing: (n = 2) => seedMissing(n), openSite: (entry: "catalog" | "book" = "catalog") => set({ stage: "site", siteEntry: entry }),
+  /** the blocking unsupported-browser screen (prod shows it instead of the app); `__demo.go("welcome")` leaves it */
+  unsupported: (variant: UnsupportedVariant = "other", browserName = "Safari") => set({ stage: "unsupported", unsupported: { variant, browserName } }) }
 
 /** Capture / QA seed: the first `n` placed photos of the open book (else its gallery) can't be found any more. */
 function seedMissing(n: number) {
@@ -28,6 +31,7 @@ export function DemoApp() {
       {d.stage === "editor" && d.open && <DemoEditor key={d.open} id={d.open} />}
       {d.stage === "settings" && <DemoSettings />}
       {d.stage === "site" && d.open && <DemoSite key={`${d.open}-${d.siteEntry}`} id={d.open} />}
+      {d.stage === "unsupported" && <UnsupportedScreen variant={d.unsupported?.variant ?? "other"} browserName={d.unsupported?.browserName} />}
     </div>
   )
 }

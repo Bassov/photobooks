@@ -44,8 +44,15 @@ test('unsupported browser blocks when directory picker is missing', async ({
   await expect(page.getByTestId('unsupported-title')).toBeVisible()
   await expect(page.getByTestId('browser-list')).toBeVisible()
   await expect(page.getByTestId('browser-link-Microsoft Edge')).toBeVisible()
-  await page.getByTestId('copy-link').click()
+  const copyLink = page.getByTestId('copy-link')
+  const copyWidth = async () =>
+    copyLink.evaluate((el) => el.getBoundingClientRect().width)
+  const widthBefore = await copyWidth()
+  await copyLink.click()
   await expect(page.getByText('Link copied')).toBeVisible()
+  expect(await copyWidth()).toBe(widthBefore)
+  await expect(copyLink).toHaveText('Copy link', { timeout: 5_000 })
+  expect(await copyWidth()).toBe(widthBefore)
   await expect(page.getByTestId('welcome-screen')).toHaveCount(0)
   await expect(page.getByTestId('library-screen')).toHaveCount(0)
   await expect(page.getByTestId('editor-shell')).toHaveCount(0)
@@ -58,6 +65,132 @@ test('unsupported browser blocks when directory picker is missing', async ({
     scroll.style.maxHeight = '160px'
   })
   await assertNamedScrollport(page, 'unsupported-scroll', { axis: 'vertical' })
+  await assertDocumentFitsViewport(page)
+})
+
+const SAFARI_MAC_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15'
+const IPHONE_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+
+/** Safari / iPhone double: no picker, no UA brands, the given UA string. */
+async function openAsBrowser(
+  page: import('@playwright/test').Page,
+  userAgent: string,
+) {
+  await page.addInitScript((ua) => {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: undefined,
+    })
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: undefined,
+    })
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      get: () => ua,
+    })
+  }, userAgent)
+  await page.goto('/')
+  await expect(page.getByTestId('unsupported-browser')).toBeVisible({
+    timeout: 15_000,
+  })
+}
+
+function computed(
+  page: import('@playwright/test').Page,
+  testId: string,
+  props: string[],
+) {
+  return page.getByTestId(testId).evaluate((el, keys) => {
+    const cs = getComputedStyle(el)
+    return Object.fromEntries(keys.map((k) => [k, cs.getPropertyValue(k)]))
+  }, props)
+}
+
+test('unsupported browser page matches the kit spec on Safari at 1440×900', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openAsBrowser(page, SAFARI_MAC_UA)
+
+  await expect(page.getByTestId('unsupported')).toHaveAttribute(
+    'data-variant',
+    'other',
+  )
+  await expect(page.getByTestId('browser-name')).toHaveText('Safari')
+  expect(
+    await computed(page, 'get-chrome', [
+      'color',
+      'background-color',
+      'text-decoration-line',
+      'height',
+    ]),
+  ).toEqual({
+    color: 'rgb(242, 242, 242)',
+    'background-color': 'rgb(35, 34, 35)',
+    'text-decoration-line': 'none',
+    height: '40px',
+  })
+  expect(
+    await computed(page, 'browser-list', [
+      'list-style-type',
+      'margin-left',
+      'padding-left',
+    ]),
+  ).toEqual({
+    'list-style-type': 'none',
+    'margin-left': '0px',
+    'padding-left': '0px',
+  })
+  expect(
+    await computed(page, 'browser-link-Brave', [
+      'color',
+      'text-decoration-line',
+      'height',
+    ]),
+  ).toEqual({
+    color: 'rgb(57, 55, 56)',
+    'text-decoration-line': 'none',
+    height: '32px',
+  })
+  expect(
+    await computed(page, 'unsupported-title', [
+      'font-weight',
+      'font-size',
+      'margin-top',
+    ]),
+  ).toEqual({ 'font-weight': '400', 'font-size': '32px', 'margin-top': '0px' })
+  const mark = await page.locator('.ub-mark').boundingBox()
+  expect(mark).toMatchObject({ x: 56, y: 36, width: 24, height: 24 })
+
+  await page.setViewportSize({ width: 320, height: 640 })
+  await assertDocumentFitsViewport(page)
+  const scroll = await page
+    .getByTestId('unsupported-scroll')
+    .evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth }))
+  expect(scroll.sw).toBeLessThanOrEqual(scroll.cw)
+})
+
+test('unsupported browser shows the mobile variant on an iPhone at 390×844', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openAsBrowser(page, IPHONE_UA)
+
+  await expect(page.getByTestId('unsupported')).toHaveAttribute(
+    'data-variant',
+    'mobile',
+  )
+  await expect(page.getByTestId('unsupported-title')).toHaveText(
+    'Photobooks needs a desktop computer',
+  )
+  await expect(page.getByTestId('get-chrome')).toHaveCount(0)
+  const copy = await page.getByTestId('copy-link').boundingBox()
+  expect(copy).toMatchObject({ x: 20, width: 350, height: 44 })
+  await page.getByTestId('copy-link').click()
+  await expect(page.getByText('Link copied')).toBeVisible()
   await assertDocumentFitsViewport(page)
 })
 
