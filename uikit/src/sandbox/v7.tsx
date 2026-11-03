@@ -81,7 +81,9 @@ export function EndpaperSpread({ big, which }: { big?: boolean; which: "front" |
   const paste = <div className="h-full flex-1" style={{ background: endpBg }} />
   return (
     <div className="relative flex h-full w-full" style={{ boxShadow: big ? shadowBig : shadowSm }} data-testid={big ? "canvas-endpaper" : undefined}>
-      {paste}{paste}<Gutter />
+      {paste}{paste}
+      {/* M91: prod .endpaper-gutter — a 1 px hard line at the spine, not the master gradient */}
+      <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px" style={{ background: "color-mix(in srgb, black 18%, transparent)" }} data-testid={big ? "endpaper-spine" : undefined} />
     </div>)
 }
 /** `guides` unset = the built-in master guides; `pn` feeds Parent.pageNumbers of every spread on this master */
@@ -230,7 +232,7 @@ export function BookInspector() {
     <Sec title="Defaults"><Row l="Default master"><Val v="Master A" /></Row><Row l="Page colour">{pc}</Row></Sec></div>
   if (sel.k === "cover") return <div data-testid="insp-cover">
     <Head t="Cover" s="Hardcover · back, spine, front · wrap 15 mm" />
-    <Sec title="Front"><div className="flex items-center gap-3"><div className="h-13 w-10.5 rounded-xs bg-cover" style={{ backgroundImage: cov ? ph(cov) : undefined, backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid="cover-front-thumb" data-photo-id={cov} /><div className="text-sm"><div>{!cov ? "No photo yet" : cov === "p01" ? "IMG_P01.jpg" : P(cov).name}</div><div className="mt-0.5" style={{ color: SUB }}>Full bleed · 288 ppi</div><div className="mt-0.5 text-2xs" style={{ color: SUB }}>Drag a photo from the filmstrip onto the cover</div></div></div>
+    <Sec title="Front"><div className="flex items-center gap-3"><div className="h-13 w-10.5 shrink-0 rounded-xs bg-cover" style={{ backgroundImage: cov ? ph(cov) : undefined, backgroundColor: cov ? undefined : "#8E8E8E" }} data-testid="cover-front-thumb" data-photo-id={cov} /><div className="text-sm"><div>{!cov ? "No photo yet" : cov === "p01" ? "IMG_P01.jpg" : P(cov).name}</div><div className="mt-0.5" style={{ color: SUB }}>Full bleed · 288 ppi</div><div className="mt-0.5 text-2xs" style={{ color: SUB }}>Drag a photo from the filmstrip onto the cover</div></div></div>
       <div className="mt-3"><CoverTxt k="front" label="Front title" /></div><CoverSel l="Title font" opts={["Serif italic", "Serif", "Sans"]} tid="cover-title-font" /></Sec>
     <Sec title="Spine"><CoverTxt k="spine" label="Spine text" /><Row l="Spine width"><span className="font-mono text-sm tabular-nums">12 mm</span></Row><Row l="Direction"><Val v="Top to bottom" /></Row></Sec>
     <Sec title="Back"><CoverTxt k="back" label="Back text" /><Row l="Fill"><ReadOnly v="Paper white" note="coming later" tid="fill-readonly" /></Row></Sec>

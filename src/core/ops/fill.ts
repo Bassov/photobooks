@@ -45,7 +45,12 @@ function fillFrames(
     const first = spread.frames.findIndex((frame) => frame.id === firstFrameId)
     const order: number[] = first < 0 ? [] : [first]
     spread.frames.forEach((frame, index) => {
-      if (index !== first && frame.assetId === undefined) {
+      // A locked frame never takes a photo.
+      if (
+        index !== first &&
+        frame.assetId === undefined &&
+        frame.locked !== true
+      ) {
         order.push(index)
       }
     })
@@ -59,7 +64,8 @@ function fillFrames(
 
 /**
  * Place photos in order: the target frame first (replaced if filled), then the
- * remaining empty frames in frame order. Extra photos are ignored.
+ * remaining empty unlocked frames in frame order. Extra photos are ignored; a
+ * locked target leaves the book as is.
  */
 export function fillSpread(
   book: Book,
@@ -68,7 +74,8 @@ export function fillSpread(
   assetIds: readonly string[],
 ): Book {
   const spread = book.spreads.find((candidate) => candidate.id === spreadId)
-  if (spread?.frames.some((frame) => frame.id === frameId) !== true) {
+  const target = spread?.frames.find((frame) => frame.id === frameId)
+  if (target === undefined || target.locked === true) {
     return book
   }
   const usable = usableAssets(book, assetIds)

@@ -1951,6 +1951,10 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const TOPS = { "Title font": 285.44, Spine: 343.86, "Spine width": 415.70, Direction: 450.55, Back: 504.39, Fill: 580.23, Material: 634.08, Finish: 718.50 }
   const tops = {}; for (const t of Object.keys(TOPS)) tops[t] = (await textBox('[data-testid="insp-cover"] :is(h3, span)', t))?.top
   ok("kit-sync KS10: cover inspector row tops = prod (±1)", Object.entries(TOPS).every(([t, v]) => near(tops[t], v)), JSON.stringify(tops))
+  // r15 M90 (prod .cover-thumb 2.625 × 3.25 rem, flex none): the front thumb keeps 42 × 52, its copy starts 12 px right of it
+  const th = await page.locator(`${demo} [data-testid="cover-front-thumb"]`).evaluate((e) => { const b = e.getBoundingClientRect(); return { w: b.width, h: b.height, right: b.right } })
+  const np = await textBox('[data-testid="insp-cover"] div', "No photo yet"), dg = await textBox('[data-testid="insp-cover"] div', "Drag a photo from the filmstrip onto the cover")
+  ok("r15 M90: cover front thumb 42 × 52 (no shrink), «No photo yet» / «Drag a photo…» at x 1210 (thumb right + 12)", th.w === 42 && th.h === 52 && near(np?.x, 1210) && near(dg?.x, 1210) && Math.abs(np.x - th.right - 12) <= 0.5, `thumb ${JSON.stringify(th)} copy ${np?.x} / ${dg?.x}`)
   const sels = await page.locator(`${demo} [data-testid="insp-cover"] select`).evaluateAll((els) => els.map((e) => { const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return { l: e.getAttribute("aria-label"), x: b.x, w: b.width, h: b.height, right: b.right, r: cs.borderRadius, bg: cs.backgroundColor, chev: /svg/.test(cs.backgroundImage) && cs.backgroundSize === "16px 16px" } }))
   const SELS = { "Title font": [1318, 106], Cover: [1309, 115], Finish: [1289, 135] }
   ok("kit-sync KS10: Title font / Cover / Finish are selects h 36, r 8, #D7D7D7, chevron 16, right edge 1424", sels.length === 3 && sels.every((s) => SELS[s.l] && near(s.x, SELS[s.l][0]) && near(s.w, SELS[s.l][1]) && s.h === 36 && s.r === "8px" && s.bg === "rgb(215, 215, 215)" && s.chev && near(s.right, 1424)), JSON.stringify(sels))
@@ -1964,6 +1968,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await c('[data-item="ef"]')
   const ep = page.locator(`${demo} [data-testid="canvas-endpaper"]`)
   ok("kit-sync KS9: endpaper canvas has no «Pastedown · glued to … board» caption", (await ep.count()) === 1 && !/Pastedown/.test(await ep.textContent()))
+  // r15 M89 (prod .endpaper-caption margin-top 0.5rem): the "Endpaper" caption is 12 px, 8 px under the endpaper bottom
+  const epc = await page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'), v = d.querySelector('[data-testid="canvas-endpaper"]').getBoundingClientRect(), s = [...d.querySelectorAll('[data-testid="page-labels"] span')].find((x) => x.textContent === "Endpaper"); return s && { fs: getComputedStyle(s).fontSize, dy: +(s.getBoundingClientRect().top - v.bottom).toFixed(2) } })
+  ok("r15 M89: endpaper caption 12 px, 8 px under the endpaper bottom (±0.5)", epc?.fs === "12px" && Math.abs(epc.dy - 8) <= 0.5, JSON.stringify(epc))
+  // r15 M91 (prod .endpaper-gutter): the spine is a 1 px hard line, black 18 %, centred on the spread — no gradient band
+  const sp = await page.evaluate(() => { const v = document.querySelector('[data-testid="demo"] [data-testid="canvas-endpaper"]'), l = v.querySelector('[data-testid="endpaper-spine"]'), vb = v.getBoundingClientRect(), b = l?.getBoundingClientRect(), cs = l && getComputedStyle(l); return l && { w: b.width, h: b.height, vh: vb.height, dx: +(b.x - (vb.x + vb.width / 2)).toFixed(2), bg: cs.backgroundColor, img: cs.backgroundImage, grads: [...v.querySelectorAll("div")].filter((e) => /linear-gradient/.test(getComputedStyle(e).backgroundImage)).length } })
+  ok("r15 M91: endpaper spine 1 px line at the centre, rgb(0 0 0 / 0.18), no gradient", sp?.w === 1 && sp.h === sp.vh && Math.abs(sp.dx) <= 0.5 && /^(rgba\(0, 0, 0, 0\.18\)|color\(srgb 0 0 0 \/ 0\.18\))$/.test(sp.bg) && sp.img === "none" && sp.grads === 0, JSON.stringify(sp))
   await c('[data-testid="editor-library"]')
   const ink = await page.locator(`${demo} [data-testid="book-cover"] .lib-obj div[style*="color"]`).first().evaluate((e) => getComputedStyle(e).color)
   ok("kit-sync KS11: library card title over the photo rgb(245, 245, 245)", ink === "rgb(245, 245, 245)", ink)
@@ -2015,6 +2025,22 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS7: builtin tiles h 69.5 (2:1 spread), 2 columns, no caption (tooltip + aria-label), saved templates keep theirs", pick.h.length > 0 && pick.h.every((h) => near(h, 69.5)) && pick.cols === 2 && pick.titles && pick.captions.every((id) => id.startsWith("c-")) && pick.captions.length === 3, JSON.stringify({ h: pick.h.slice(0, 4), cols: pick.cols, captions: pick.captions }))
   ok("kit-sync KS7: one list by photo count, Two portraits merged into One per page, no search / Suggested / All layouts", pick.slots.every((n, i) => i === 0 || n >= pick.slots[i - 1]) && !pick.ids.includes("t-2port") && pick.ids.includes("t-pair") && pick.search === 0 && !pick.heads, JSON.stringify({ ids: pick.ids, slots: pick.slots }))
   ok("kit-sync KS7: header LAYOUT · <current name>; hint under the tiles", pick.note === `· ${pick.pressed}` && pick.hintBelow && pick.hint === "Hover a layout to preview it on the spread; click to apply. Photos are kept in order.", `note ${pick.note} pressed ${pick.pressed}`)
+  // r15 M86–M88 (prod LayoutSection is the reference): first text run of an element, measured without the scrollbar gutter
+  const r15 = (sec) => page.evaluate((sec) => {
+    const s = document.querySelector(sec), scroller = s.closest(".overflow-y-auto"); if (scroller) scroller.style.scrollbarWidth = "none"
+    const run = (el) => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n = w.nextNode(); while (n && !n.textContent.trim()) n = w.nextNode(); const g = document.createRange(); g.selectNodeContents(n); const b = g.getBoundingClientRect(); return { x: +b.x.toFixed(2), y: +b.y.toFixed(2) } }
+    const save = s.querySelector('[data-testid="tpl-save-button"]'), icon = save.querySelector("svg").getBoundingClientRect()
+    const out = {
+      icon: [icon.width, icon.height], saveX: run(save).x, mineX: run(s.querySelector('[data-testid="tab-mine"]')).x,
+      chipDy: [...s.querySelectorAll("[data-chip]")].map((b) => +(run(b).y - b.getBoundingClientRect().top).toFixed(2)),
+    }
+    if (scroller) scroller.style.scrollbarWidth = ""
+    return out
+  }, sec)
+  const m86 = await r15(sec)
+  ok("design-r16 M86: Save as template icon 14 × 14 (prod <Icon size={14}>, was 24), label x 1247.06 (±0.5, was 1252.06)", m86.icon.join() === "14,14" && Math.abs(m86.saveX - 1247.06) <= 0.5, JSON.stringify(m86))
+  ok("design-r16 M87: All / My templates — one space before the count, “My templates” label x 1308.56 (±0.5, was 1305.41)", Math.abs(m86.mineX - 1308.56) <= 0.5, String(m86.mineX))
+  ok("design-r16 M88: Layout Photos chips — text 4.5 below the pill top (±0.5, prod .layout-chip line-height normal: 76.75 at top 72.25; was 3.59)", m86.chipDy.length > 0 && m86.chipDy.every((d) => Math.abs(d - 4.5) <= 0.5), JSON.stringify(m86.chipDy))
   const row = await page.evaluate((sec) => {
     const s = document.querySelector(sec), g = s.querySelector('[role=group][aria-label="Contact sheet"]'), save = s.querySelector('[data-testid="tpl-save-button"]')
     if (!g) return null
@@ -2029,6 +2055,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await c(`${sec} [data-testid="tab-mine"]`); await c(`${sec} [data-chip="4"]`)
   const empty = await page.locator(`${sec} [data-testid="tpl-empty"]`).textContent().catch(() => null)
   ok("kit-sync KS7: My templates + 4+ → empty state", empty?.trim() === "No layouts match.", String(empty))
+  const m87 = await r15(sec)
+  ok("design-r16 M87/M88: My templates selected + 4+ chip on — label x stays 1308.56, chip text stays 4.5 below the pill top (±0.5)", Math.abs(m87.mineX - 1308.56) <= 0.5 && m87.chipDy.every((d) => Math.abs(d - 4.5) <= 0.5), JSON.stringify(m87))
   await c(`${sec} [data-chip="all"]`); await c('[data-item="p0"]')
   const cols1 = await page.locator(`${sec} [data-testid="tpl-grid"]`).first().evaluate((g) => getComputedStyle(g).gridTemplateColumns.split(" ").length).catch(() => null)
   ok("kit-sync KS7: single page (page 1) → 3 columns", cols1 === 3, String(cols1))
@@ -2081,6 +2109,16 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   }
   const glyphs = await page.locator(S).evaluate((el) => [...el.querySelectorAll("svg")].map((v) => v.getAttribute("class")))
   ok("kit-sync KS13: sort chip = arrow-up-down icon + label + chevron-down", glyphs.length === 2 && /arrow-down-up/.test(glyphs[0]) && /chevron-down/.test(glyphs[1]), JSON.stringify(glyphs))
+  // r15 M88: label text y at prod's line-height (chip's own text run vs its top; prod at top 774: Unplaced 780.0, sort / Add folder… 780.5)
+  const runY = (sel) => page.locator(sel).evaluate((el) => { const tn = [...el.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim()), g = document.createRange(); g.selectNodeContents(tn); return { y: +g.getBoundingClientRect().y.toFixed(2), top: el.getBoundingClientRect().top } })
+  const filmDy = { Unplaced: [U, 6], "Added order": [S, 6.5], "Add folder…": [A, 6.5] }
+  // the filmstrip's scrollbar gutter (qa shows scrollbars, demo-capture does not) lifts the dock 10 px: drop it while measuring
+  const gutter = (v) => page.locator(`${dock} [data-testid="filmstrip"]`).evaluate((e, v) => { e.style.scrollbarWidth = v }, v)
+  const chipsAt = async (top) => { await gutter("none"); const o = {}; for (const [name, [sel, dy]] of Object.entries(filmDy)) { const m = await runY(sel); o[name] = { ...m, ok: (top == null || m.top === top) && Math.abs(m.y - m.top - dy) <= 0.5 } } await gutter(""); return o }
+  const fy0 = await chipsAt()
+  ok("design-r16 M88: empty book — film chip text sits 6.0 (Unplaced) / 6.5 (Added order, Add folder…) below the chip top (±0.5, prod line-height 1 / normal)", Object.values(fy0).every((m) => m.ok), JSON.stringify(fy0))
+  const emptyY = await page.locator(`${dock} [data-testid="film-panel"]`).evaluate((p) => { const e = [...p.querySelectorAll("span")].find((s) => /^No photos yet/.test(s.textContent)); if (!e) return null; const g = document.createRange(); g.selectNodeContents(e); return +g.getBoundingClientRect().y.toFixed(2) })
+  ok("design-r16 M88: empty strip “No photos yet…” text y 829.3 (±0.5, prod .pb-empty-title 18 px / 1.3 around 13 px / 1.35; was 827.58)", emptyY != null && Math.abs(emptyY - 829.3) <= 0.5, String(emptyY))
   // empty: no photos → the filter keeps the plain empty copy (prod shows the all-placed copy only with photos)
   const h0 = await head()
   await page.click(U); await page.waitForTimeout(200)
@@ -2092,12 +2130,16 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await page.locator("[role=dialog]").getByRole("button", { name: /Select/i }).last().click(); await page.waitForTimeout(500)
   const rows = () => page.locator(`${dock} [data-testid="filmstrip"] [role="row"]`).evaluateAll((rs) => rs.map((r) => r.dataset.key))
   const all = await rows()
+  const fy1 = await chipsAt(774)
+  ok("design-r16 M88: with photos the chips sit at top 774 — text y Unplaced 780.0, Added order / Add folder… 780.5 (±0.5; was 779.59)", Object.values(fy1).every((m) => m.ok), JSON.stringify(fy1))
   await page.click(`${demo} [data-item="cover"]`); await page.waitForTimeout(300)
   await page.locator(`${dock} [data-testid="filmstrip"] [role="row"][data-key="${all[0]}"]`).dragTo(page.locator(`${demo} [data-testid="cover-front"]`)); await page.waitForTimeout(450)
   const used = +((await head()).match(/(\d+) used/) || [])[1]
   await page.click(U); await page.waitForTimeout(250)
   const on = await rows(), hOn = await head(), pressed = await page.locator(U).getAttribute("aria-pressed")
   const bgOn = await page.locator(U).evaluate((el) => getComputedStyle(el).backgroundColor)
+  const uOn = await runY(U)
+  ok("design-r16 M88: Unplaced on keeps its text 6.0 below the chip top (±0.5)", Math.abs(uOn.y - uOn.top - 6) <= 0.5, JSON.stringify(uOn))
   await page.click(U); await page.waitForTimeout(250)
   const off = await rows()
   ok("kit-sync KS13: Unplaced on → the strip shows only unplaced photos, head Photos · N of M · K used; off → all photos again", all.length > 1 && used === 1 && !on.includes(all[0]) && on.length === all.length - 1 && hOn === `Photos · ${all.length - 1} of ${all.length} · 1 used` && off.length === all.length && pressed === "true",

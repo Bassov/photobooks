@@ -446,7 +446,8 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
       <ThumbGrid aria-label="Photos" layout="grid" selectionMode="multiple" selectionBehavior="replace" items={items} dependencies={[placed]}
         selectedKeys={st.filmSel} onSelectionChange={(k) => st.setFilmSel(k === "all" ? items.map((p) => p.id) : [...k].map(String))}
         dragAndDropHooks={dragAndDropHooks}
-        renderEmptyState={() => <div className="flex h-(--thumb) items-center px-2 text-sm text-muted-foreground">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</div>}
+        // r15 M88: prod `.pb-empty-title` (18 px / 1.3) around a 13 px / 1.35 span — the 18 px strut sets the baseline
+        renderEmptyState={() => <div className="flex h-(--thumb) items-center px-2 text-sm text-muted-foreground"><div className="text-lg leading-[1.3]"><span className="text-sm leading-[1.35]">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</span></div></div>}
         className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2" data-testid="filmstrip">
         {(p) => {
           const h = st.view.thumb
@@ -479,13 +480,14 @@ const SORTS = { date: "Date taken", name: "File name", added: "Added order" } as
 /** KS13: filmstrip header chips = prod `.film-chip` (src/editor/FilmstripDock.tsx): pill h 28, pad 0 8, 12 px #535152; hover / on #D7D7D7 + #393738.
  *  No pressed fill: prod keeps the sort chip transparent while its menu is open. */
 const filmChip = "h-7 gap-1.5 rounded-full bg-transparent px-2 text-xs text-muted-foreground shadow-none transition-colors [&_svg]:size-3.5 data-[hovered]:bg-field data-[hovered]:text-foreground data-[selected]:bg-field data-[selected]:text-foreground"
-/** Filmstrip dock "Unplaced" filter + sort menu (prod order Date taken · File name · Added order, opens above the chip). */
+/** Filmstrip dock "Unplaced" filter + sort menu (prod order Date taken · File name · Added order, opens above the chip).
+ *  r15 M88: line-height as prod — Unplaced = ToggleButton (line-height 1), sort = raw button (normal). */
 export function FilmChips() {
   const st = useStudio()
   return <>
-    <Toggle size="sm" isSelected={st.view.unplacedOnly} onChange={(v) => st.setView({ unplacedOnly: v })} className={cn(filmChip, "font-medium")} data-testid="film-unplaced-only"><Filter />Unplaced</Toggle>
+    <Toggle size="sm" isSelected={st.view.unplacedOnly} onChange={(v) => st.setView({ unplacedOnly: v })} className={cn(filmChip, "font-medium leading-none")} data-testid="film-unplaced-only"><Filter />Unplaced</Toggle>
     <MenuTrigger>
-      <Button variant="ghost" size="sm" className={cn(filmChip, "font-normal")} aria-label={`Sort photos: ${SORTS[st.view.sort]}`} data-testid="film-sort"><ArrowDownUp />{SORTS[st.view.sort]}<ChevronDown /></Button>
+      <Button variant="ghost" size="sm" className={cn(filmChip, "font-normal leading-[normal]")} aria-label={`Sort photos: ${SORTS[st.view.sort]}`} data-testid="film-sort"><ArrowDownUp />{SORTS[st.view.sort]}<ChevronDown /></Button>
       <MenuPopover placement="top end" className="min-w-40">
         <Menu selectionMode="single" selectedKeys={[st.view.sort]} onSelectionChange={(k) => { const v = [...k][0]; if (v) st.setView({ sort: v as keyof typeof SORTS }) }} data-testid="film-sort-menu">
           {(Object.keys(SORTS) as (keyof typeof SORTS)[]).map((id) => <MenuItem key={id} id={id}>{SORTS[id]}</MenuItem>)}
