@@ -421,6 +421,103 @@ describe('master grid edits re-align its spreads', () => {
   })
 })
 
+describe('parent changes re-align the spreads whose grid changes', () => {
+  /** `bookWithMasters` with Master B's gutter at 30, `d` aligned to it. */
+  const withGriddedB = (book: Book) =>
+    applyBookOp(book, {
+      type: 'setSpreadGrid',
+      spreadId: 'mb',
+      patch: { columnGutterMm: 30 },
+    })
+
+  it('deleting the default master re-aligns its spreads to the book grid', () => {
+    const book = bookWithMasters({ columnGutterMm: 20, margins: { top: 25 } })
+    const next = applyBookOp(book, { type: 'removeParent', parentId: 'ma' })
+    // `c` overrides the gutter but reads Master A's top.
+    expect(changedIds(book, next)).toEqual(['a', 'b', 'c'])
+    expect(spreadOf(next, 'a')?.frames[0]?.rect).not.toEqual(
+      spreadOf(book, 'a')?.frames[0]?.rect,
+    )
+    expect(spreadOf(next, 'a')?.frames[0]?.assetId).toBe('p')
+    expect(spreadOf(next, 'c')?.layoutGrid).toEqual({ columnGutterMm: 12 })
+    for (const id of ['a', 'b', 'c']) {
+      expect(isAligned(next, id)).toBe(true)
+    }
+  })
+
+  it('deleting a stored master re-aligns only the spreads that stored it', () => {
+    const book = withGriddedB(bookWithMasters())
+    const next = applyBookOp(book, { type: 'removeParent', parentId: 'mb' })
+    expect(changedIds(book, next)).toEqual(['d'])
+    expect(spreadOf(next, 'd')?.parentId).toBeNull()
+    expect(spreadOf(next, 'd')?.frames[0]?.rect).not.toEqual(
+      spreadOf(book, 'd')?.frames[0]?.rect,
+    )
+    expect(isAligned(next, 'd')).toBe(true)
+  })
+
+  it('deleting a master without a grid of its own re-aligns nothing', () => {
+    const book = offGrid(bookWithMasters())
+    const next = applyBookOp(book, { type: 'removeParent', parentId: 'ma' })
+    expect(next).not.toBe(book)
+    expect(changedIds(book, next)).toEqual([])
+  })
+
+  it('a new default re-aligns only the spreads with no stored parent', () => {
+    // Off-grid frames would move on any re-align; `c` overrides the gutter.
+    const book = offGrid(withGriddedB(bookWithMasters()))
+    const next = applyBookOp(book, {
+      type: 'setDefaultParent',
+      parentId: 'mb',
+    })
+    expect(next.defaultParentId).toBe('mb')
+    expect(changedIds(book, next)).toEqual(['a', 'b'])
+    expect(isAligned(next, 'a') && isAligned(next, 'b')).toBe(true)
+    expect(spreadOf(next, 'a')?.frames[0]?.assetId).toBe('p')
+    expect(spreadOf(next, 'c')?.layoutGrid).toEqual({ columnGutterMm: 12 })
+  })
+
+  it('clearing the default re-aligns the unset spreads to the book grid', () => {
+    const book = bookWithMasters({ margins: { top: 25 } })
+    const next = applyBookOp(book, { type: 'setDefaultParent', parentId: null })
+    expect(next).not.toHaveProperty('defaultParentId')
+    expect(changedIds(book, next)).toEqual(['a', 'b', 'c'])
+    expect(isAligned(next, 'c')).toBe(true)
+  })
+
+  it('the current default, an unknown id or null without a default is a no-op', () => {
+    const book = bookWithMasters({ columnGutterMm: 20 })
+    for (const parentId of ['ma', 'gone']) {
+      expect(applyBookOp(book, { type: 'setDefaultParent', parentId })).toBe(
+        book,
+      )
+    }
+    const none = applyBookOp(book, { type: 'setDefaultParent', parentId: null })
+    expect(
+      applyBookOp(none, { type: 'setDefaultParent', parentId: null }),
+    ).toBe(none)
+  })
+
+  it('switching to or deleting the default master re-aligns all 40 painter spreads', () => {
+    const { book: painter } = makePainterFixture()
+    const gridded = applyBookOp(painter, {
+      type: 'setSpreadGrid',
+      spreadId: 'painter-parent-a',
+      patch: { columnGutterMm: 20 },
+    })
+    const withDefault = applyBookOp(gridded, {
+      type: 'setDefaultParent',
+      parentId: 'painter-parent-a',
+    })
+    expect(changedIds(gridded, withDefault)).toHaveLength(40)
+    const removed = applyBookOp(withDefault, {
+      type: 'removeParent',
+      parentId: 'painter-parent-a',
+    })
+    expect(changedIds(withDefault, removed)).toHaveLength(40)
+  })
+})
+
 describe('setBookGrid re-aligns only book-sourced spreads', () => {
   it('skips spreads that read the field from their master or override it', () => {
     const book = offGrid(bookWithMasters({ columnGutterMm: 20 }))
@@ -546,6 +643,14 @@ describe('grid ops keep every templated spread aligned', () => {
       type: fc.constant('setSpreadParent' as const),
       spreadId: fc.constantFrom(...ids),
       parentId: fc.constantFrom('ma', 'mb', null),
+    }),
+    fc.record({
+      type: fc.constant('setDefaultParent' as const),
+      parentId: fc.constantFrom('ma', 'mb', 'gone', null),
+    }),
+    fc.record({
+      type: fc.constant('removeParent' as const),
+      parentId: fc.constantFrom('ma', 'mb'),
     }),
   )
 
