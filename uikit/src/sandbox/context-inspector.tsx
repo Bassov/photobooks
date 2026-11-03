@@ -2,11 +2,11 @@
    nothing → Spread · one image → Photo · one text → Text · several → Multiple.
    Frequent controls first; rare ones start folded (SectionsCollapsed). Cards are reusable kit-style sections. */
 import * as React from "react"
-import { PanelRightClose, Search, Plus, MoreHorizontal, Pencil, Trash2, Copy, Sparkles, LayoutTemplate, Image as ImageIcon, Type, Layers, BookOpen } from "lucide-react"
+import { Plus, MoreHorizontal, Pencil, Trash2, Copy, LayoutTemplate, Image as ImageIcon, Type, Layers, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabList, Tab } from "@/components/ui/tabs"
-import { SearchField, SearchFieldInput, SearchFieldClear, SearchFieldGroup } from "@/components/ui/searchfield"
+import { NumberField, NumberFieldInput } from "@/components/ui/numberfield"
 import { MenuTrigger, MenuPopover, Menu, MenuItem, MenuSeparator } from "@/components/ui/menu"
 import { IconButton, Section, SectionsCollapsed } from "@/components/app/ui"
 import type { Template } from "@/data"
@@ -14,8 +14,7 @@ import { useStudio } from "./store"
 import { segList, segTab, applyTemplate } from "./chrome"
 import { PhotoSection, CropSection, PhotoRotateSection, AdjustSection, CaptionSection, GeometrySection, ArrangeSection, AlignSection, DeleteFrameButton } from "./inspector"
 import { SpreadBgSection, TextSection, FrameStyleSection } from "./sections"
-import { ALL_TEMPLATES, slotCount, setTemplatePreview, useCustomTemplates, addCustom, renameCustom, duplicateCustom, deleteCustom, nextCustomName } from "./templates"
-import { setInspectorOpen } from "./inspectorState"
+import { slotCount, setTemplatePreview, useCustomTemplates, addCustom, renameCustom, duplicateCustom, deleteCustom, nextCustomName, pickerTemplates, pickerAlias, sortByPhotoCount, pageId } from "./templates"
 import { PAGE, SW, SH, effectiveGrid, type Spread, type Grid } from "./model"
 import { TT } from "./templates"
 import { SliderRow, Segmented } from "@/components/app/controls"
@@ -28,7 +27,8 @@ const META: Record<Ctx, { title: string; icon: React.ReactNode }> = {
   text: { title: "Text", icon: <Type /> }, multi: { title: "Multiple selection", icon: <Layers /> },
 }
 
-/** Reusable inspector shell: context header (icon + title + meta + collapse) and a scrolling body of sections. */
+/** Reusable inspector shell: context header (icon + title + meta) and a scrolling body of sections.
+    kit-sync KS6 (M54): no Hide inspector button here — the top-bar toggle (I) owns it. */
 export function InspectorShell({ ctx, meta, children }: { ctx: Ctx; meta?: React.ReactNode; children: React.ReactNode }) {
   return (
     <aside className="flex h-full min-h-0 w-full flex-col" data-testid="ctx-inspector" data-ctx={ctx}>
@@ -38,7 +38,6 @@ export function InspectorShell({ ctx, meta, children }: { ctx: Ctx; meta?: React
           <h2 className="truncate text-sm font-semibold">{META[ctx].title}</h2>
           {meta && <span className="truncate text-2xs text-muted-foreground" data-testid="inspector-meta">{meta}</span>}
         </div>
-        <IconButton label="Hide inspector (I)" size="sm" className="ml-auto" onPress={() => setInspectorOpen(false)}><PanelRightClose /></IconButton>
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">{children}</div>
     </aside>
@@ -91,7 +90,9 @@ export function ContextInspector() {
 
 /* ----------------------------------------------------------------- Layout (templates) */
 const CHIPS = [["all", "Any"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4+"]] as const
-const matches = (t: Template, chip: string) => chip === "all" || (chip === "4" ? slotCount(t) >= 4 : slotCount(t) === +chip)
+/** contact-sheet ids are t-cs-<c>x<r> with one digit per axis */
+const CONTACT_MAX = 6
+const matches = (t: Template, chip: string, single: boolean) => chip === "all" || (chip === "4" ? slotCount(t, single) >= 4 : slotCount(t, single) === +chip)
 
 /* Owner 2026-11-02 (layout-tile-states; prod twin: src/editor/layoutThumb.ts, keep the numbers in step):
    the thumb box takes the trim aspect clamped to 2:3…2:1 and the paper fills it;
@@ -100,6 +101,8 @@ const trimRatio = (single: boolean) => (single ? PAGE / SH : SW / SH)
 const thumbAspect = (r: number) => Math.min(2, Math.max(2 / 3, r))
 const thumbColumns = (r: number) => (r < 1.2 ? 3 : 2)
 const pct = (v: number) => `${v}%`
+/** kit-sync KS7: a single page draws, previews and applies the page variant of a template (templates.ts pageFrames) */
+const onPage = (id: string, single: boolean) => (single ? pageId(id) : id)
 function paperBox(r: number) {
   const k = r / thumbAspect(r), w = 100 * Math.min(1, k), h = 100 * Math.min(1, 1 / k)
   return { left: pct((100 - w) / 2), top: pct((100 - h) / 2), width: pct(w), height: pct(h) }
@@ -111,7 +114,7 @@ function LayoutThumb({ id, single, className }: { id: string; single: boolean; c
   return (
     <div className="relative w-full" style={{ aspectRatio: thumbAspect(r) }} data-testid="tpl-thumb">
       <div className={cn("absolute overflow-hidden rounded-2xs bg-paper shadow-hairline transition-[box-shadow,translate] duration-(--duration-fast)", className)} style={paperBox(r)} data-testid="tpl-paper">
-        {TT(id).frames.map((b, i) => (
+        {TT(onPage(id, single)).frames.map((b, i) => (
           <div key={i} className="absolute overflow-hidden rounded-2xs bg-placeholder-block"
             style={single ? { left: pct(2 * b.x - 100), top: pct(b.y), width: pct(2 * b.w), height: pct(b.h) } : { left: pct(b.x), top: pct(b.y), width: pct(b.w), height: pct(b.h) }} />
         ))}
@@ -126,12 +129,13 @@ function TemplateTile({ t, onApply, single, custom, current, renaming, onStartRe
   renaming?: boolean; onStartRename?: () => void; onEndRename?: (name: string | null) => void; onDuplicate?: () => void; onDelete?: () => void
 }) {
   return (
-    <div className="group relative min-w-0" data-testid="tpl-tile" data-tid={t.id}>
-      <button type="button" onClick={onApply} onMouseEnter={() => setTemplatePreview(t.id)} onMouseLeave={() => setTemplatePreview(null)}
-        onFocus={() => setTemplatePreview(t.id)} onBlur={() => setTemplatePreview(null)} aria-label={`Apply layout ${t.name}`} aria-pressed={!!current} title={`${t.name} · ${slotCount(t)} photo${slotCount(t) === 1 ? "" : "s"} — hover to preview, click to apply`}
+    <div className="group relative min-w-0 self-start" data-testid="tpl-tile" data-tid={t.id}>
+      <button type="button" onClick={onApply} onMouseEnter={() => setTemplatePreview(onPage(t.id, single))} onMouseLeave={() => setTemplatePreview(null)}
+        onFocus={() => setTemplatePreview(onPage(t.id, single))} onBlur={() => setTemplatePreview(null)} aria-label={`Apply layout ${t.name}`} aria-pressed={!!current} title={t.name}
         className="group/tile block w-full rounded-md p-1 text-left outline-none">
         <LayoutThumb id={t.id} single={single} className={cn(current ? "shadow-tile-select" : "group-hover/tile:-translate-y-px group-hover/tile:shadow-tile-hover", "group-focus-visible/tile:shadow-tile-focus")} />
-        {!renaming && <div className={cn("mt-1 line-clamp-2 text-2xs leading-snug text-muted-foreground group-hover:text-foreground", current && "font-semibold text-foreground")} title={t.name} data-testid="tpl-name">{t.name}</div>}
+        {/* kit-sync KS7 (Owner 2026-11-02): builtins carry no caption, the name is the tooltip; saved templates keep theirs */}
+        {custom && !renaming && <div className={cn("mt-1 line-clamp-2 text-2xs leading-snug text-muted-foreground group-hover:text-foreground", current && "font-semibold text-foreground")} title={t.name} data-testid="tpl-name">{t.name}</div>}
       </button>
       {renaming && (
         <input autoFocus defaultValue={t.name} aria-label="Template name" data-testid="tpl-rename-input" onFocus={(e) => e.currentTarget.select()}
@@ -162,34 +166,39 @@ export function LayoutSection() {
   const mine = useCustomTemplates()
   const [tab, setTab] = React.useState<"all" | "mine">("all")
   const [chip, setChip] = React.useState<string>("all")
-  const [q, setQ] = React.useState("")
   const [renaming, setRenaming] = React.useState<string | null>(null)
-  const photos = s.frames.filter((f) => f.kind === "image" && f.photo).length || s.frames.filter((f) => f.kind === "image").length
-  const all = [...ALL_TEMPLATES, ...mine]
-  const pool = tab === "mine" ? mine : all
-  const list = pool.filter((t) => matches(t, chip) && t.name.toLowerCase().includes(q.trim().toLowerCase()))
-  const suggested = tab === "all" && chip === "all" && !q ? ALL_TEMPLATES.filter((t) => slotCount(t) === photos && t.id !== s.template).slice(0, 3) : []
-  const apply = (id: string) => { setTemplatePreview(null); applyTemplate(st, id) }
+  const [cols, setCols] = React.useState(3)
+  const [rows, setRows] = React.useState(2)
+  const single = st.cur === 0
+  /* kit-sync KS7 (Owner 2026-11-02, prod LayoutSection): no search / Suggested, one list by photo count */
+  const all = [...pickerTemplates(single), ...mine]
+  const list = sortByPhotoCount((tab === "mine" ? mine : all).filter((t) => matches(t, chip, single)), single)
+  const current = pickerAlias(s.template, single)
+  const apply = (id: string) => { setTemplatePreview(null); applyTemplate(st, onPage(id, single)) }
   const save = () => {
     const frames = s.frames.filter((f) => f.kind === "image").map((f) => ({ x: f.x / SW * 100, y: f.y / SH * 100, w: f.w / SW * 100, h: f.h / SH * 100 }))
     if (!frames.length) { st.setStatus("Nothing to save — the spread has no photo frames"); return }
     const t = addCustom(nextCustomName(), frames)
-    setTab("mine"); setChip("all"); setQ(""); setRenaming(t.id); st.setStatus(`Saved “${t.name}” to My templates`)
+    setTab("mine"); setChip("all"); setRenaming(t.id); st.setStatus(`Saved “${t.name}” to My templates`)
   }
   const isMine = (id: string) => mine.some((t) => t.id === id)
-  const single = st.cur === 0
   const grid = (ts: Template[]) => (
     <div className={cn("grid gap-1.5", thumbColumns(trimRatio(single)) === 3 ? "grid-cols-3" : "grid-cols-2")} data-testid="tpl-grid">
-      {ts.map((t) => <TemplateTile key={t.id} t={t} single={single} current={t.id === s.template} onApply={() => apply(t.id)} custom={isMine(t.id)}
+      {ts.map((t) => <TemplateTile key={t.id} t={t} single={single} current={t.id === current} onApply={() => apply(t.id)} custom={isMine(t.id)}
         renaming={renaming === t.id} onStartRename={() => setRenaming(t.id)}
         onEndRename={(n) => { if (n !== null && n.trim() && n.trim() !== t.name) { renameCustom(t.id, n); st.setStatus(`Renamed to “${n.trim()}”`) } setRenaming(null) }}
         onDuplicate={() => { const d = duplicateCustom(t.id); if (d) st.setStatus(`Duplicated as “${d.name}”`) }}
         onDelete={() => { deleteCustom(t.id); st.setStatus(`Deleted “${t.name}”`) }} />)}
     </div>
   )
-  const curName = all.find((t) => t.id === s.template)?.name
+  const curName = current ? (all.find((t) => t.id === current) ?? TT(current)).name : undefined
+  const count = (label: string, value: number, set: (n: number) => void, tid: string) => (
+    <NumberField aria-label={label} value={value} minValue={1} maxValue={CONTACT_MAX} step={1} onChange={(n) => { if (!Number.isNaN(n)) set(n) }} className="w-11">
+      <NumberFieldInput data-testid={tid} className="h-8 w-full flex-none rounded-sm px-2 text-center text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-muted-foreground" />
+    </NumberField>
+  )
   return (
-    <Section title="Layout" summary={curName} right={<IconButton label="Save as template" size="sm" onPress={save} data-testid="tpl-save"><Plus /></IconButton>}>
+    <Section title="Layout" note={curName} right={<IconButton label="Save as template" size="sm" onPress={save} data-testid="tpl-save"><Plus /></IconButton>}>
       <div className="flex flex-col gap-3" data-testid="layout-section">
         <Tabs selectedKey={tab} onSelectionChange={(k) => setTab(k as "all")}>
           <TabList aria-label="Template source" className={cn(segList, "grid grid-cols-2")}>
@@ -197,9 +206,6 @@ export function LayoutSection() {
             <Tab id="mine" className={segTab} data-testid="tab-mine">My templates <span className="ml-1 text-muted-foreground">{mine.length}</span></Tab>
           </TabList>
         </Tabs>
-        <SearchField aria-label="Search layouts" value={q} onChange={setQ}>
-          <SearchFieldGroup className="h-8"><Search aria-hidden className="size-3.5 text-muted-foreground" /><SearchFieldInput placeholder="Search layouts" /><SearchFieldClear /></SearchFieldGroup>
-        </SearchField>
         <div className="flex items-center gap-1" role="group" aria-label="Photos per layout" data-testid="tpl-chips">
           <span className="mr-1 text-2xs text-muted-foreground">Photos</span>
           {CHIPS.map(([id, l]) => (
@@ -207,22 +213,20 @@ export function LayoutSection() {
               className={cn("h-6 min-w-7 rounded-full bg-field px-2 text-xs transition-colors", chip === id ? "bg-sel font-semibold text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>{l}</button>
           ))}
         </div>
-        {suggested.length > 0 && (
-          <div data-testid="tpl-suggested">
-            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium"><Sparkles className="size-3.5 text-muted-foreground" />Suggested for {photos} photo{photos === 1 ? "" : "s"}</div>
-            {grid(suggested)}
+        {list.length ? grid(list) : (
+          <div className="rounded-md bg-field/60 p-4 text-center text-xs text-muted-foreground" data-testid="tpl-empty">
+            <LayoutTemplate className="mx-auto mb-1.5 size-4" />{chip === "all" ? "No templates yet. Save a spread you like." : "No layouts match."}
           </div>
         )}
-        <div>
-          {suggested.length > 0 && <div className="mb-1.5 text-xs font-medium">All layouts</div>}
-          {list.length ? grid(list) : (
-            <div className="rounded-md bg-field/60 p-4 text-center text-xs text-muted-foreground" data-testid="tpl-empty">
-              <LayoutTemplate className="mx-auto mb-1.5 size-4" />{tab === "mine" && !q && chip === "all" ? "No templates yet. Save a spread you like." : "No layouts match."}
-            </div>
-          )}
-        </div>
         <p className="text-2xs text-muted-foreground" data-testid="tpl-hint">Hover a layout to preview it on the spread; click to apply. Photos are kept in order.</p>
-        <Button variant="secondary" size="sm" onPress={save} className="w-full" data-testid="tpl-save-button"><Plus />Save as template</Button>
+        <Button variant="secondary" size="sm" onPress={save} className="w-full shadow-xs" data-testid="tpl-save-button"><Plus />Save as template</Button>
+        {/* kit-sync KS7 (prod LayoutSection contact sheet): Columns × Rows, then apply */}
+        <div className="flex items-center gap-1.5" role="group" aria-label="Contact sheet" data-testid="tpl-contact">
+          {count("Columns", cols, setCols, "tpl-contact-cols")}
+          <span className="text-xs text-muted-foreground" aria-hidden>×</span>
+          {count("Rows", rows, setRows, "tpl-contact-rows")}
+          <Button variant="secondary" size="sm" className="ml-auto shadow-xs" onPress={() => apply(`t-cs-${cols}x${rows}`)} data-testid="tpl-contact-apply">Contact sheet</Button>
+        </div>
       </div>
     </Section>
   )

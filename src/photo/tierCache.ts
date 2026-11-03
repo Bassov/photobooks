@@ -2,6 +2,7 @@ import { getDerivedCache } from '../assets/derivedCache/instance'
 import { THUMB_PRESET_ID, tierPresetId } from '../assets/derivedCache/presets'
 import { processAsset } from './assetPool'
 import { assetSourceCovers, getAssetSource } from './assetSources'
+import type { DecodeJobPriority } from './decodeQueuePolicy'
 import { WORKING_PREVIEW_EDGE } from './imageTiers'
 import { ObjectUrlLru } from './objectUrlLru'
 
@@ -118,7 +119,7 @@ export function requestTier(
         const result = await processAsset({
           assetId,
           file,
-          priority: 'zoom',
+          priority: tierJobPriority(tier),
           maxEdge: tier,
           signal: controller.signal,
           cover,
@@ -166,6 +167,11 @@ export function requestTier(
       }
     }
   })()
+}
+
+/** Steps above the working preview rank below visible 1280 jobs. */
+export function tierJobPriority(tier: number): DecodeJobPriority {
+  return tier > WORKING_PREVIEW_EDGE ? 'prefetch' : 'zoom'
 }
 
 export function cancelTier(assetId: string, tier: number): void {

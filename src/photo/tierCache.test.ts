@@ -16,8 +16,9 @@ import {
   selectTierEncodeBuffers,
   shouldSeedThumbFromDual,
   subscribeTier,
+  tierJobPriority,
 } from './tierCache'
-import { WORKING_PREVIEW_EDGE } from './imageTiers'
+import { HIDPI_PREVIEW_EDGE, WORKING_PREVIEW_EDGE } from './imageTiers'
 import { tierPresetId } from '../assets/derivedCache/presets'
 
 const SAMPLE_HASH =
@@ -1004,5 +1005,10 @@ describe('tierCache', () => {
 
     expect(getTierUrl('fb', WORKING_PREVIEW_EDGE)).toBe('blob:fallback')
     expect(blobType).toBe('image/jpeg')
+  })
+
+  it('ranks the 2560 step below working-preview jobs', () => {
+    expect(tierJobPriority(WORKING_PREVIEW_EDGE)).toBe('zoom')
+    expect(tierJobPriority(HIDPI_PREVIEW_EDGE)).toBe('prefetch')
   })
 })

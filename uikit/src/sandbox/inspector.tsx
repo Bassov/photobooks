@@ -1,10 +1,9 @@
 /* Sandbox inspector: controlled numeric fields and sections bound to the selected frame(s). */
 import * as React from "react"
-import { setInspectorOpen } from "./inspectorState"
 import {
   Lock, Unlock, RotateCcw, RotateCw, BringToFront, SendToBack, ArrowUp, ArrowDown, Crop,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Trash2, PanelRightClose, MousePointerClick, FlipHorizontal2, FlipVertical2,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Trash2, MousePointerClick,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -54,7 +53,7 @@ export function EmptyInspector({ hint = DEFAULT_HINT }: { hint?: string }) {
   const s = st?.doc.spreads[st.cur]
   const rows: [string, React.ReactNode][] = s ? [
     ["Spread", st.cur === 0 ? "Cover" : `Pages ${st.cur * 2}–${st.cur * 2 + 1}`],
-    ["Template", s.template ? s.template.replace(/^t-/, "").replace(/-/g, " ") : "Free layout"],
+    ["Template", s.template ? s.template.replace(/^t-|@page$/g, "").replace(/-/g, " ") : "Free layout"],
     ["Background", <span key="bg" className="inline-flex items-center gap-1.5"><span className="size-3 rounded-2xs shadow-hairline" style={{ background: s.bg ?? "#ffffff" }} />{s.bg && s.bg !== "#ffffff" ? s.bg : "Paper white"}</span>],
     ["Frames", String(s.frames.length)],
     ["Grid", st.view.grid ? "On" : "Off"],
@@ -143,6 +142,15 @@ export function CropSection() {
   )
 }
 
+/* kit-sync KS12 (Q5): prod's Flip H / Flip V glyphs (src/ui/icons/glyphs.ts flipHorizontal / flipVertical) */
+const Glyph = ({ d }: { d: string[] }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {d.map((p) => <path key={p} d={p} />)}
+  </svg>
+)
+const FlipH = () => <Glyph d={["m3 7 5 5-5 5V7", "m21 7-5 5 5 5V7", "M12 20v2", "M12 14v2", "M12 8v2", "M12 2v2"]} />
+const FlipV = () => <Glyph d={["m17 3-5 5-5-5h10", "m17 21-5-5-5 5h10", "M4 12H2", "M10 12H8", "M16 12h-2", "M22 12h-2"]} />
+
 export function PhotoRotateSection() {
   const { f, set } = useSelected()
   if (!f || f.kind !== "image" || !f.photo) return null
@@ -154,8 +162,8 @@ export function PhotoRotateSection() {
         <Button variant="outline" size="sm" className="flex-1 gap-1.5 text-sm shadow-xs [&_svg]:size-4" onPress={() => turn(90)} data-testid="rot-right"><RotateCw />90° right</Button>
       </div>
       <div className="mt-2 flex gap-2">
-        <Button variant="outline" size="sm" aria-pressed={!!f.flipH} className="flex-1 gap-1.5 text-sm aria-pressed:bg-sel [&_svg]:size-4" onPress={() => set((x) => ({ flipH: !x.flipH }), "Flip horizontal")} data-testid="flip-h"><FlipHorizontal2 />Flip H</Button>
-        <Button variant="outline" size="sm" aria-pressed={!!f.flipV} className="flex-1 gap-1.5 text-sm aria-pressed:bg-sel [&_svg]:size-4" onPress={() => set((x) => ({ flipV: !x.flipV }), "Flip vertical")} data-testid="flip-v"><FlipVertical2 />Flip V</Button>
+        <Button variant="outline" size="sm" aria-pressed={!!f.flipH} className="flex-1 gap-1.5 text-sm aria-pressed:bg-sel [&_svg]:size-4" onPress={() => set((x) => ({ flipH: !x.flipH }), "Flip horizontal")} data-testid="flip-h"><FlipH />Flip H</Button>
+        <Button variant="outline" size="sm" aria-pressed={!!f.flipV} className="flex-1 gap-1.5 text-sm aria-pressed:bg-sel [&_svg]:size-4" onPress={() => set((x) => ({ flipV: !x.flipV }), "Flip vertical")} data-testid="flip-v"><FlipV />Flip V</Button>
       </div>
       <SliderRow label="Straighten" resetValue={0} value={f.straighten} onChange={(v) => set({ straighten: v as number }, "Straighten", `str-${f.id}`)} minValue={-45} maxValue={45} step={0.5}
         formatOptions={{ style: "unit", unit: "degree", unitDisplay: "narrow" }} className="mt-3" />
@@ -238,7 +246,8 @@ export function DeleteFrameButton() {
 }
 
 /** Right panel shell: Frame / Spread / Book tabs (inspector feature) */
-export function InspectorPanel({ frame, spread, book, defaultTab = "frame", onCollapse }: { frame?: React.ReactNode; spread?: React.ReactNode; book?: React.ReactNode; defaultTab?: string; onCollapse?: () => void }) {
+/* kit-sync KS6 (M54): no Hide inspector button in the header — the top-bar toggle (I) owns it */
+export function InspectorPanel({ frame, spread, book, defaultTab = "frame" }: { frame?: React.ReactNode; spread?: React.ReactNode; book?: React.ReactNode; defaultTab?: string }) {
   // v4.2: with nothing selected the frame tab shows the spread's properties, so it is labelled "Spread" (unless a separate Spread tab exists).
   const st = useStudio()
   const none = !!st && st.sel.length === 0
@@ -250,7 +259,6 @@ export function InspectorPanel({ frame, spread, book, defaultTab = "frame", onCo
           {/* proto: a single section gets a plain panel header, not a lone tab that reads as a button */}
           <div className="flex h-12 shrink-0 items-center gap-2 pl-4 pr-2" data-testid="inspector-header">
             <h2 className="flex-1 truncate text-sm font-semibold">{tabs[0][1]}</h2>
-            <IconButton label="Hide inspector (I)" size="sm" onPress={onCollapse ?? (() => setInspectorOpen(false))}><PanelRightClose /></IconButton>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">{tabs[0][2]}</div>
         </>
@@ -260,7 +268,6 @@ export function InspectorPanel({ frame, spread, book, defaultTab = "frame", onCo
           <TabList aria-label="Inspector" className={cn(segList, "grid flex-1")} style={{ gridTemplateColumns: `repeat(${tabs.length},minmax(0,1fr))` }}>
             {tabs.map(([id, l]) => <Tab key={id} id={id} className={segTab}>{l}</Tab>)}
           </TabList>
-          <IconButton label="Hide inspector (I)" size="sm" onPress={onCollapse ?? (() => setInspectorOpen(false))}><PanelRightClose /></IconButton>
         </div>
         {tabs.map(([id, , c]) => <TabPanel key={id} id={id} className="mt-0 min-h-0 overflow-y-auto">{c}</TabPanel>)}
       </Tabs>
