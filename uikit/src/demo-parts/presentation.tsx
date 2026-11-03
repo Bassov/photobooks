@@ -17,7 +17,7 @@ const caption = (i: number, n: number) => (i === 0 ? "Cover" : `${i} / ${n - 1}`
 export function Presentation({ onExit }: { onExit: () => void }) {
   const st = useStudio(), bk = st.book
   const spreads = st.doc.spreads.length
-  const n = spreads + 2 // cover · page 1 · spreads 2–3 … · last page
+  const n = spreads ? spreads + 2 : 1 // cover · page 1 · spreads 2–3 … · last page
   const [i, setI] = React.useState(0)
   const [box, setBox] = React.useState({ w: 0, h: 0 })
   const ref = React.useRef<HTMLDivElement>(null)
