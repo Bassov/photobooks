@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: parent spreads: master guides and rulers on the master canvas
+Status: done
 
 ## Scope
 
