@@ -227,7 +227,7 @@ The Settings shell SHALL match kit settings chrome: a section nav (Library, Host
 #### Scenario: Live book count
 
 - **WHEN** Settings Library is open with N books in the granted library
-- **THEN** the settings book count shows N
+- **THEN** the settings book count shows N (0 for an empty library), and a muted "—", never a number, while the current library's list is pending or failed
 
 #### Scenario: Change library from Settings
 
