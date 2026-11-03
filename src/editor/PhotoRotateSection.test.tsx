@@ -68,6 +68,31 @@ describe('PhotoRotateSection', () => {
     expect(crop()?.quarterTurns).toBeUndefined()
   })
 
+  it('resolves the target frame on a master (parent) by its id', () => {
+    resetBookStore({
+      book: makeBook({
+        assets: { a: {} },
+        parents: [
+          {
+            id: 'pa',
+            name: 'Master A',
+            frames: [
+              makeFrame({ id: 'empty' }),
+              makeFrame({ id: 'logo', assetId: 'a' }),
+            ],
+            guides: [],
+          },
+        ],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<PhotoRotateSection target={{ spreadId: 'pa', frameId: 'logo' }} />)
+    // The first master frame is empty: only the photo frame shows the section.
+    expect(screen.getByTestId('inspector-rotate')).toBeTruthy()
+  })
+
   it('is titled Rotate & flip (kit inspector.tsx:151)', () => {
     seed()
     render(<PhotoRotateSection target={TARGET} />)

@@ -1,5 +1,6 @@
-import { useSyncExternalStore } from 'react'
+import { useSyncExternalStore, type PointerEvent } from 'react'
 import type { ParentSpread } from '../core'
+import { setFrameSource } from './frameSelection'
 import { useClientSize, type ClientSize } from './useClientSize'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
@@ -62,6 +63,7 @@ export function MastersCanvas() {
     return null
   }
   const parentId = shownParentId(parents, picked)
+  const name = parents?.find((parent) => parent.id === parentId)?.name ?? ''
   return parentId === null ? (
     <div className="editor-masters-canvas" data-testid="masters-canvas-empty">
       <div className="editor-masters-empty-title">No masters yet</div>
@@ -70,11 +72,22 @@ export function MastersCanvas() {
       </div>
     </div>
   ) : (
-    <MasterStage parentId={parentId} />
+    <MasterStage parentId={parentId} name={name} />
   )
 }
 
-function MasterStage({ parentId }: { parentId: string }) {
+/** A primary press on the stage outside a frame (or other control) drops the frame selection. */
+function onStagePointerDown(event: PointerEvent<HTMLDivElement>): void {
+  if (
+    event.button === 0 &&
+    event.target instanceof Element &&
+    event.target.closest('button, a, input, textarea, [role="button"]') === null
+  ) {
+    setFrameSource(null)
+  }
+}
+
+function MasterStage({ parentId, name }: { parentId: string; name: string }) {
   const widthMm = useSyncExternalStore(
     subscribeBookStore,
     readTrimWidth,
@@ -94,9 +107,20 @@ function MasterStage({ parentId }: { parentId: string }) {
       className="cover-stage"
       data-testid="masters-canvas"
       data-parent-id={parentId}
+      onPointerDown={onStagePointerDown}
     >
       {pxPerMm > 0 ? (
-        <ConnectedSpreadView spreadId={parentId} pxPerMm={pxPerMm} />
+        <div className="masters-spread">
+          <ConnectedSpreadView
+            spreadId={parentId}
+            pxPerMm={pxPerMm}
+            gridVariant="master"
+          />
+          {/* Kit viewport master label: under the spread, screen px (M37 rule). */}
+          <span className="masters-caption" data-testid="master-label">
+            {name}
+          </span>
+        </div>
       ) : null}
     </div>
   )
