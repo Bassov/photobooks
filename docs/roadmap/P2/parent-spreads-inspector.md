@@ -3,10 +3,12 @@
 Tag: feature
 Milestone: P2
 Title: parent spreads: master inspector (grid, guides, items)
+Status: done
 
 ## Scope
 
-- [ ] Master inspector in Masters mode: with a master selected the inspector shows its name and layout grid (columns, rows, margins, gutter; the canvas redraws the grid), guides on the master canvas, and the frame sections for a selected master item
+- [x] Master inspector in Masters mode: with a master selected the inspector shows its name and layout grid (columns, rows, margins, gutter; the canvas redraws the grid), and the frame sections for a selected master item
+- Owner-approved scope change: guides on the master canvas (Designer Spec MS10) moved to `parent-spreads-inspector-guides` (Owner brief 2026-11-03).
 - **Browser check:** select Master A, set its grid to 5 columns — the master canvas and every spread using it show 5 columns.
 - **Kit components:** `uikit#/feature/parent-spreads`, `uikit#/feature/layout-grids-settings` (grid "Master grid"); parts: `uikit/src/demo-parts/editor.tsx` (`InspectorPart`)
 - **Demo:** `uikit#/demo` step 22 `editor-master-grid-5-cols`
