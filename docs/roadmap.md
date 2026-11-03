@@ -92,7 +92,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [remove-cursor-support](roadmap/P2/remove-cursor-support.md) — Bug: /next-roadmap-item remove-cursor-support
 - [x] [feature] [parent-spreads-inspector](roadmap/P2/parent-spreads-inspector.md) — parent spreads: master inspector (grid, guides, items)
 - [x] [feature] [parent-spreads-inspector-guides](roadmap/P2/parent-spreads-inspector-guides.md) — parent spreads: master guides and rulers on the master canvas
-- [ ] [feature] [layout-grids-parent-inherit-core](roadmap/P2/layout-grids-parent-inherit-core.md) — Bug: /next-roadmap-item layout-grids-parent-inherit-core
+- [x] [feature] [layout-grids-parent-inherit-core](roadmap/P2/layout-grids-parent-inherit-core.md) — Bug: /next-roadmap-item layout-grids-parent-inherit-core
 - [x] [feature] [parent-spreads-perf](roadmap/P2/parent-spreads-perf.md) — parent spreads: edit perf gate
 - [ ] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
