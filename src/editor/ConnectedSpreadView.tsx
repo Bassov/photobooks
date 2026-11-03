@@ -176,6 +176,7 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
           item.frameId,
           filled,
           isPointerActivation(event),
+          event?.shiftKey === true,
         )
       },
     }
@@ -183,7 +184,11 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       control.pressed = true
     }
     if (filled) {
-      control.onDoubleActivate = () => {
+      control.onDoubleActivate = (event) => {
+        // A double Shift+click only toggles; it never enters crop.
+        if (event?.shiftKey === true) {
+          return
+        }
         setFrameSource(null)
         enterCropMode(spreadId, item.frameId)
       }
@@ -192,8 +197,9 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
       control.cropActive = true
       control.cropZoom = cropZoomOf(spreadId, item.frameId)
     }
-    // A locked frame keeps its photo: no drag to swap or unplace.
-    if (filled && item.locked !== true) {
+    // A locked frame keeps its photo: no drag to swap or unplace. Frames in a
+    // selection of 2 or more (pressed with no single source) do not either.
+    if (filled && item.locked !== true && !(pressed && frameSource === null)) {
       control.onDragStart = (event) => {
         event.dataTransfer.setData(FRAME_DRAG_MIME, encodeFrameDrag(frame))
         event.dataTransfer.effectAllowed = 'move'

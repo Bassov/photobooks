@@ -126,7 +126,10 @@ export function desiredTiersForItems(
   return tiers
 }
 
-/** Whether this frame is the pressed move-source on this spread. */
+/**
+ * Whether this frame is selected on this spread; the key joins the selected
+ * frame ids with `\n` (`getSpreadFrameSourceKey`).
+ */
 export function isFramePressed(
   frameSourceKey: string | null,
   frameId: string,
@@ -134,7 +137,7 @@ export function isFramePressed(
   return (
     frameSourceKey !== null &&
     frameSourceKey !== '' &&
-    frameSourceKey === frameId
+    frameSourceKey.split('\n').includes(frameId)
   )
 }
 

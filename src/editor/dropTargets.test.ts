@@ -351,6 +351,47 @@ describe('dropTargets', () => {
     ).toEqual({ type: 'swap', source })
   })
 
+  it('toggles on Shift, never swapping, whatever is selected', () => {
+    const source = { spreadId: 's0', frameId: 'f0' }
+    const other = { spreadId: 's0', frameId: 'f1', filled: true }
+    for (const pointer of [true, false]) {
+      expect(
+        resolveFrameActivation({ source, target: other, pointer, shift: true }),
+      ).toEqual({ type: 'toggle' })
+      expect(
+        resolveFrameActivation({
+          source,
+          target: { ...source, filled: true },
+          pointer,
+          shift: true,
+        }),
+      ).toEqual({ type: 'toggle' })
+      expect(
+        resolveFrameActivation({
+          source: null,
+          target: other,
+          pointer,
+          shift: true,
+        }),
+      ).toEqual({ type: 'toggle' })
+    }
+    expect(
+      resolveFrameActivation({ source, target: other, shift: false }),
+    ).toEqual({ type: 'swap', source })
+  })
+
+  it('collapses a multi-selection (no single source) to the clicked frame', () => {
+    // With 2 or more selected, getFrameSource() is null: a plain click or
+    // Enter on any frame selects it alone, never swaps.
+    const target = { spreadId: 's0', frameId: 'f1', filled: true }
+    expect(
+      resolveFrameActivation({ source: null, target, pointer: true }),
+    ).toEqual({ type: 'select-source' })
+    expect(
+      resolveFrameActivation({ source: null, target, pointer: false }),
+    ).toEqual({ type: 'select-source' })
+  })
+
   it('tells a pointer click from a keyboard activation by event.detail', () => {
     expect(isPointerActivation()).toBe(false)
     expect(isPointerActivation({ detail: 0 })).toBe(false)

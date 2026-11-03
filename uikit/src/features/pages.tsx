@@ -6,6 +6,7 @@ import {
   DemoRoot, EditorView, PrintDialog, PublishDialog, SLOT, type RootInit,
 } from "@/demo-parts"
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
+import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
 import type { FeatureDef, Notes } from "./types"
 
@@ -31,6 +32,11 @@ const onSite = (site: RootInit["site"], entry: "catalog" | "book" = "catalog"): 
 }
 /* editor seeds (EditorView = the #/demo editor with an explicit studio state) */
 const ed = (p: React.ComponentProps<typeof EditorView>) => () => <EditorView book={LAKE_BOOK} {...p} />
+/** docFilled with the third frame of spread 2 (three frames) locked. */
+const docThreeOneLocked = (): Doc => {
+  const d = docFilled()
+  return { ...d, spreads: d.spreads.map((s, i) => (i === 2 ? { ...s, frames: s.frames.map((f, j) => (j === 2 ? { ...f, locked: true } : f)) } : s)) }
+}
 
 export const PAGES: Record<string, FeatureDef> = {
   /* ------------------------------------------------------------ library */
@@ -113,12 +119,13 @@ export const PAGES: Record<string, FeatureDef> = {
   }),
   "frame-selection-handles": page([
     ["one", "Frame selected", ed({ doc: docFilled, cur: 1, pick: 0 })],
-    ["multi", "Two frames", ed({ doc: docFilled, cur: 1, pick: [0, 1] })],
+    ["multi", "Two frames", ed({ doc: docFilled, cur: 2, pick: [0, 1] })],
+    ["locked", "Three frames, one locked", ed({ doc: docThreeOneLocked, cur: 2, pick: [0, 1, 2] })],
   ], {
-    what: "Click a frame to select it: handles on the frame, frame properties in the inspector. Drag moves the frame; Esc during a drag cancels it.",
+    what: "Click a frame to select it: handles on the frame, frame properties in the inspector. Drag moves the frame; Esc during a drag cancels it. Shift+click adds or removes a frame: with two or more selected, every frame keeps its outline, a dashed group box surrounds them and no frame shows handles.",
     where: "#/demo steps 16–18.",
-    keys: [["Esc", "cancel the drag / clear the selection"]],
-    edge: ["Esc mid-drag puts the frame back where it was"],
+    keys: [["Shift+click", "add / remove a frame"], ["Esc", "cancel the drag / clear the selection"]],
+    edge: ["Esc mid-drag puts the frame back where it was", "Shift+click never swaps photos", "A plain click inside the selection selects that frame alone", "Locked frames can be selected"],
   }),
   "crop-in-frame": page([
     ["crop", "Crop mode", ed({ doc: docFilled, cur: 1, pick: 0, crop: true })],

@@ -114,6 +114,9 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
 
 /** Short name of the step an op creates, for the undo / redo tooltip. */
 export function opLabel(op: BookOp): string {
+  if (op.type === 'removeFrames' && op.frameIds.length > 1) {
+    return `Delete ${String(op.frameIds.length)} frames`
+  }
   return OP_LABELS[op.type] ?? 'Edit'
 }
 

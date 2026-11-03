@@ -30,6 +30,7 @@ export type FrameActivation =
   | { type: 'clear-source' }
   | { type: 'swap'; source: FrameDragSource }
   | { type: 'noop' }
+  | { type: 'toggle' }
 
 export function encodeFrameDrag(source: FrameDragSource): string {
   return `${source.spreadId}\n${source.frameId}`
@@ -56,13 +57,19 @@ export function isPointerActivation(event?: { detail: number }): boolean {
 }
 
 export function resolveFrameActivation(input: {
+  /** The single selected frame; null when none or 2 or more are selected. */
   source: FrameDragSource | null
   target: FrameDragSource & { filled: boolean }
   /** False when the selected source is an empty frame (nothing to move). */
   sourceFilled?: boolean
   /** Pointer click: the selected frame stays selected (kit canvas). */
   pointer?: boolean
+  /** Shift held: toggle the target in the selection, never swap. */
+  shift?: boolean
 }): FrameActivation {
+  if (input.shift === true) {
+    return { type: 'toggle' }
+  }
   const source = input.source
   if (source === null) {
     return { type: 'select-source' }
