@@ -72,7 +72,7 @@ export function AddFolder() {
   const st = useStudio()
   const [open, setOpen] = React.useState(false)
   return <>
-    <Button variant="ghost" size="sm" className="h-7 gap-1.5 rounded-full px-2.5 text-xs [&_svg]:size-3.5" onPress={() => setOpen(true)} data-testid="demo-add-folder"><FolderPlus />Add folder…</Button>
+    <Button variant="ghost" size="sm" className="h-7 gap-1.5 rounded-full px-2.5 text-xs [&_svg]:size-3.5 data-[hovered]:bg-field data-[pressed]:bg-field data-[hovered]:text-foreground" onPress={() => setOpen(true)} data-testid="demo-add-folder"><FolderPlus />Add folder…</Button>
     <FolderPicker isOpen={open} title="Add a photo folder" onCancel={() => setOpen(false)} onPick={(p) => {
       setOpen(false)
       const add = ALL_PHOTOS.map((x) => x.id).filter((x) => !st.doc.gallery.includes(x))

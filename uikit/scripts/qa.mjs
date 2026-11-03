@@ -2087,10 +2087,23 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const menu = await page.locator('[data-testid="film-sort-menu"]').evaluate((m) => { const b = (m.closest("[data-placement]") ?? m).getBoundingClientRect(); return { bottom: b.bottom, w: b.width, items: [...m.querySelectorAll("[role=menuitemradio]")].map((i) => `${i.textContent.trim()}${i.getAttribute("aria-checked") === "true" ? "*" : ""}`) } }).catch(() => null)
   const chipTop = await page.locator(S).evaluate((el) => el.getBoundingClientRect().top)
   ok("kit-sync KS13: sort chip aria-label Sort photos: Added order; menu above the chip, ≥ 160 wide, Date taken · File name · Added order (checked)", label0 === "Sort photos: Added order" && menu && menu.bottom <= chipTop && menu.w >= 160 && menu.items.join("|") === "Date taken|File name|Added order*", JSON.stringify({ label0, menu, chipTop }))
+  const bgc = (sel) => page.locator(sel).evaluate((el) => { const s = getComputedStyle(el); return { bg: s.backgroundColor, c: s.color } })
+  const openSt = await bgc(S)
+  ok("kit-sync KS13: sort chip stays transparent with text rgb(83, 81, 82) while its menu is open (prod .film-chip has no pressed fill)", openSt.bg === "rgba(0, 0, 0, 0)" && openSt.c === "rgb(83, 81, 82)", JSON.stringify(openSt))
   await page.getByRole("menuitemradio", { name: "File name" }).click(); await page.waitForTimeout(300)
   const names = await page.locator(`${dock} [data-testid="filmstrip"] [role="row"]`).evaluateAll((rs) => rs.map((r) => r.getAttribute("aria-label") ?? r.textContent.trim()))
   const label1 = (await page.locator(S).textContent()).trim()
   ok("kit-sync KS13: File name relabels the chip and sorts the strip by name", label1 === "File name" && names.length === all.length && names.every((n, i) => i === 0 || names[i - 1].localeCompare(n, undefined, { numeric: true }) <= 0), JSON.stringify({ label1, names: names.slice(0, 4) }))
+  // hover: all three header chips fill rgb(215, 215, 215) with text rgb(57, 55, 56) (prod .film-chip:hover); Add folder… pressed too
+  const hov = {}
+  for (const [name, sel] of [["Unplaced", U], ["File name", S], ["Add folder…", A]]) { await page.hover(sel); await page.waitForTimeout(250); hov[name] = await bgc(sel) }
+  await page.mouse.move(0, 0); await page.waitForTimeout(250)
+  ok("kit-sync KS13: hover fills Unplaced · sort · Add folder… rgb(215, 215, 215), text rgb(57, 55, 56)", Object.values(hov).every((s) => s.bg === "rgb(215, 215, 215)" && s.c === "rgb(57, 55, 56)"), JSON.stringify(hov))
+  const ab = await page.locator(A).boundingBox()
+  await page.mouse.move(ab.x + ab.width / 2, ab.y + ab.height / 2); await page.mouse.down(); await page.waitForTimeout(250)
+  const pressA = await bgc(A)
+  await page.mouse.move(0, 0); await page.mouse.up(); await page.waitForTimeout(250)
+  ok("kit-sync KS13: Add folder… pressed fills rgb(215, 215, 215), text rgb(57, 55, 56)", pressA.bg === "rgb(215, 215, 215)" && pressA.c === "rgb(57, 55, 56)", JSON.stringify(pressA))
   // all placed: the gallery keeps only the cover photo → Unplaced on shows prod's all-placed copy
   await page.evaluate((id) => { const d = window.__demo, b = d.state().books[0]; b.doc = { ...b.doc, gallery: [id] }; d.go("library") }, all[0]); await page.waitForTimeout(300)
   await page.evaluate(() => window.__demo.go("editor")); await page.waitForTimeout(700)

@@ -475,8 +475,9 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
   )
 }
 const SORTS = { date: "Date taken", name: "File name", added: "Added order" } as const
-/** KS13: filmstrip header chips = prod `.film-chip` (src/editor/FilmstripDock.tsx): pill h 28, pad 0 8, 12 px #535152; hover / on #D7D7D7 + #393738. */
-const filmChip = "h-7 gap-1.5 rounded-full bg-transparent px-2 text-xs text-muted-foreground shadow-none transition-colors [&_svg]:size-3.5 data-[hovered]:bg-field data-[hovered]:text-foreground data-[selected]:bg-field data-[selected]:text-foreground data-[pressed]:bg-field"
+/** KS13: filmstrip header chips = prod `.film-chip` (src/editor/FilmstripDock.tsx): pill h 28, pad 0 8, 12 px #535152; hover / on #D7D7D7 + #393738.
+ *  No pressed fill: prod keeps the sort chip transparent while its menu is open. */
+const filmChip = "h-7 gap-1.5 rounded-full bg-transparent px-2 text-xs text-muted-foreground shadow-none transition-colors [&_svg]:size-3.5 data-[hovered]:bg-field data-[hovered]:text-foreground data-[selected]:bg-field data-[selected]:text-foreground"
 /** Filmstrip dock "Unplaced" filter + sort menu (prod order Date taken · File name · Added order, opens above the chip). */
 export function FilmChips() {
   const st = useStudio()
