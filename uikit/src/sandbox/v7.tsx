@@ -60,17 +60,18 @@ export const presetLabel = (p: { name: string; w: number; h: number }, land = fa
 export const coverW = (b: Book) => 2 * b.w + SPINE
 export const fmtN = (n: number) => (Math.round(n * 10) / 10).toString()
 export const useBook = () => useStudio().book
-export function CoverSpread({ big }: { big?: boolean }) {
+/** `slide`: the canvas text sizes × slide without the canvas chrome (no safe line, no wrap note, no test ids) — the presentation cover */
+export function CoverSpread({ big, slide }: { big?: boolean; slide?: number }) {
   const cov = useCoverPhoto(), ct = useCoverText()
-  const bk = useBook(), CW = coverW(bk)
+  const bk = useBook(), CW = coverW(bk), k = big ? 1 : slide
   return (
-    <div className="relative flex h-full w-full" style={{ boxShadow: big ? shadowBig : shadowSm }} data-testid={big ? "canvas-cover" : undefined}>
+    <div className="relative flex h-full w-full" style={{ boxShadow: big ? shadowBig : slide ? undefined : shadowSm }} data-testid={big ? "canvas-cover" : undefined}>
       <div className="relative h-full" style={{ width: `${(bk.w / CW) * 100}%`, background: "#3E3C3B" }}>
-        <div className="absolute right-[12%] bottom-[10%] left-[12%]" style={{ color: "#E8E6E3", fontSize: big ? 11 : 3 }} data-testid={big ? "cover-back-text" : undefined}>{ct.back}</div></div>
+        <div className="absolute right-[12%] bottom-[10%] left-[12%]" style={{ color: "#E8E6E3", fontSize: k ? 11 * k : 3 }} data-testid={big ? "cover-back-text" : undefined}>{ct.back}</div></div>
       <div className="relative grid h-full place-items-center" style={{ width: `${(SPINE / CW) * 100}%`, background: "#353332" }} data-testid={big ? "cover-spine" : undefined}>
-        <span className="whitespace-nowrap" style={{ ...serif, color: "#E8E6E3", fontSize: big ? 12 : 3, transform: "rotate(90deg)" }}><em>{ct.spine}</em></span></div>
+        <span className="whitespace-nowrap" style={{ ...serif, color: "#E8E6E3", fontSize: k ? 12 * k : 3, transform: "rotate(90deg)" }}><em>{ct.spine}</em></span></div>
       <div className="relative h-full bg-cover" style={{ width: `${(bk.w / CW) * 100}%`, backgroundImage: cov ? ph(cov) : undefined, backgroundColor: cov ? undefined : "#8E8E8E", backgroundPosition: "45% 50%" }} data-testid={big ? "cover-front" : undefined} data-photo-id={cov || undefined}>
-        <div className="absolute top-[9%] right-[10%] left-[10%] text-white" style={{ ...serif, fontSize: big ? 34 : 7, textShadow: "0 1px 8px rgb(0 0 0/.35)" }} data-testid={big ? "cover-front-text" : undefined}><em>{ct.front}</em></div></div>
+        <div className="absolute top-[9%] right-[10%] left-[10%] text-white" style={{ ...serif, fontSize: k ? 34 * k : 7, textShadow: "0 1px 8px rgb(0 0 0/.35)" }} data-testid={big ? "cover-front-text" : undefined}><em>{ct.front}</em></div></div>
       {big && <>
         <div data-allow-border data-testid={big ? "cover-safe" : undefined} className="pointer-events-none absolute" style={{ inset: `${(1.5 / bk.h) * 100}% ${(1.5 / CW) * 100}%`, outline: "1px dashed rgb(255 255 255/.45)" }} />
         <span className="pointer-events-none absolute top-1.5 right-2 text-2xs" style={{ color: "rgb(255 255 255/.92)" }}>Wrap 15 mm</span></>}

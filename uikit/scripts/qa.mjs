@@ -1510,9 +1510,33 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
       esc: [esc.textContent, eb.top - rr.top, rr.right - eb.right, eb.height, cs(esc).fontSize, cs(esc).backgroundColor, cs(esc).color, cs(esc).paddingLeft, parseFloat(cs(esc).borderTopLeftRadius) >= eb.height / 2, esc.getAttribute("aria-label")],
       cap: [cap.textContent, rr.bottom - cb.bottom, cs(cap).fontSize, cs(cap).color, cs(cap.parentElement).textAlign, Math.round((r(cap).left + r(cap).right) / 2 - (rr.left + rr.width / 2))],
       fit: fit ? +Math.min(rr.width * 0.94 - fit.width, (rr.height - 64) * 0.96 - fit.height).toFixed(2) : null,
+      // rework: prod line boxes are 16 (leading-4) — caption text top = 900 − 32 = 868 at 1440 × 900
+      lh: [cs(cap.parentElement).lineHeight, cs(esc).lineHeight, +(innerHeight - r(cap).top).toFixed(2)],
+      // rework: the cover is the kit's own CoverSpread at prod's 0.5 px / mm, texts × cover / 848 (prod: front 61.15 tall, spine vertical 22.93 wide, back 22.93 tall)
+      text: (() => { const c = root.querySelector('[data-testid="presentation-cover"]'), b = (i) => c.children[0].children[i], h = (e) => +r(e).height.toFixed(2)
+        const sp = () => r(b(1).firstElementChild.firstElementChild)
+        return c ? [h(b(2).firstElementChild.firstElementChild), +sp().width.toFixed(2), sp().height > sp().width, h(b(0).firstElementChild)] : null })(),
+      slide: (() => { const s = root.querySelector('[data-testid="presentation-slide"][data-active="true"]'); return [cs(s).transitionProperty, cs(s).transitionDuration, cs(s).transitionTimingFunction, root.querySelectorAll('[data-testid="presentation-slide"]').length] })(),
     }
   })
-  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(150)
+  // rework: the slides follow the spread list after the cover — page 1 alone, the spreads, the last page alone (one page wide, centred)
+  const seq = []
+  for (let k = 0; k < 40; k++) {
+    seq.push(await page.evaluate(() => { const root = document.querySelector('[data-testid="presentation"]'), b = root.querySelector('[data-testid="presentation-slide"][data-active="true"]').firstElementChild.getBoundingClientRect()
+      return { cap: root.querySelector('[data-testid="pager-position"]').textContent, w: +b.width.toFixed(2), cx: Math.round(b.left + b.width / 2 - innerWidth / 2), page: !!root.querySelector('[data-testid="presentation-slide"][data-active="true"] [data-testid="presentation-page"]') } }))
+    if (k > 0 && seq[k].cap === seq[k - 1].cap) { seq.pop(); break }
+    await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
+  }
+  const mid = seq.slice(2, -1), N = seq.length - 1
+  ok("kit-sync KS14 rework: Preview walks Cover, 1 / N (page 1 alone), the spreads, N / N (the last page alone) — single pages half a spread wide, every slide centred",
+    seq.map((s) => s.cap).join() === ["Cover", ...Array.from({ length: N }, (_, j) => `${j + 1} / ${N}`)].join() && N >= 3 && seq[1].page && seq[N].page && !mid.some((s) => s.page)
+      && mid.every((s) => s.w === mid[0].w) && Math.abs(seq[1].w - mid[0].w / 2) <= 0.5 && Math.abs(seq[N].w - mid[0].w / 2) <= 0.5 && seq.every((s) => Math.abs(s.cx) <= 0.5), JSON.stringify(seq.map((s) => `${s.cap}:${s.w}${s.page ? "p" : ""}@${s.cx}`)))
+  ok("kit-sync KS14 rework: cover slide = the kit cover at prod's sizes (front title 61.15 tall, spine text vertical 22.93 wide, back text 22.93 tall, ±0.5)",
+    !!pm?.text && Math.abs(pm.text[0] - 61.15) <= 0.5 && Math.abs(pm.text[1] - 22.93) <= 0.5 && pm.text[2] && Math.abs(pm.text[3] - 22.93) <= 0.5, JSON.stringify(pm?.text))
+  ok("kit-sync KS14 rework: slides move sideways + fade 200 ms cubic-bezier(0.2, 0.7, 0.3, 1), neighbours mounted (2 at the cover); caption + Esc line height 16, caption text top 868",
+    JSON.stringify(pm?.slide) === JSON.stringify(["transform, opacity", "0.2s", "cubic-bezier(0.2, 0.7, 0.3, 1)", 2]) && JSON.stringify(pm?.lh) === JSON.stringify(["16px", "16px", 32]), JSON.stringify([pm?.slide, pm?.lh]))
+  for (let k = 1; k < seq.length; k++) await page.keyboard.press("ArrowLeft")
+  await page.waitForTimeout(260); await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
   const next = await page.locator('[data-testid="presentation"] [data-testid="pager-position"]').textContent().catch(() => null)
   await page.keyboard.press("Escape"); await page.waitForTimeout(300)
   const afterEsc = await page.locator('[data-testid="presentation"]').count(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
@@ -1816,6 +1840,19 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     return { w: t.width, cx: t.x + t.width / 2, canvas: (d.querySelector('[data-testid="panel-l"]').getBoundingClientRect().right + d.querySelector('[data-testid="panel-r"]').getBoundingClientRect().left) / 2 }
   })
   ok("kit-sync KS1 (M39): the tools toolbar is 210 wide, its centre = the canvas centre", Math.abs(tb.w - 210) <= 0.5 && Math.abs(tb.cx - tb.canvas) <= 0.5, `w ${tb.w} cx ${tb.cx} canvas ${tb.canvas}`)
+  // rework (prod SnapToggle / GridToggle .pb-view-toggle): 28 × 28, 8 apart, #CACACA when on, x 717 / 753 at 1440
+  await page.mouse.move(0, 899)
+  const vt = await page.evaluate(() => ["snap", "grid"].map((k) => { const e = document.querySelector(`[data-testid="demo"] [data-testid="toggle-${k}"]`), b = e.getBoundingClientRect(); return [+b.x.toFixed(2), b.width, b.height, e.getAttribute("aria-pressed") === "true" || e.dataset.selected !== undefined, getComputedStyle(e).backgroundColor] }))
+  ok("kit-sync KS1 rework: Snap / Grid toggles 28 × 28 at x 717 / 753, on = rgb(202, 202, 202)", vt.every(([x, w, h, on, bg], i) => Math.abs(x - [717, 753][i]) <= 0.5 && w === 28 && h === 28 && bg === (on ? "rgb(202, 202, 202)" : "rgba(0, 0, 0, 0)")) && vt.some((t) => t[3]), JSON.stringify(vt))
+  // rework: the side groups never overlap the tools; the right group reserves its width and moves the tools aside when room runs out
+  const bars = []
+  for (const w of [1024, 1100, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 }); await page.waitForTimeout(250)
+    bars.push(await page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'), r = (s) => d.querySelector(s).getBoundingClientRect(), s = r('[data-testid="editor-bar-start"]'), t = r('[data-testid="editor-bar"] [role=toolbar][aria-label="Tools"]'), e = r('[data-testid="editor-bar-end"]'), bar = r('[data-testid="editor-bar"]')
+      return [innerWidth, +(t.left - s.right).toFixed(2), +(e.left - t.right).toFixed(2), +(bar.right - e.right).toFixed(2), +t.width.toFixed(2)] }))
+  }
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300)
+  ok("kit-sync KS1 rework: top bar at 1024 / 1100 / 1280 — start · tools · end never overlap (gaps ≥ 8), end stays inside the bar, tools 210", bars.every(([, a, b, c, w]) => a >= 7.5 && b >= 7.5 && c >= 0 && Math.abs(w - 210) <= 0.5), JSON.stringify(bars))
   const defs = await page.evaluate(() => ["[data-guide]", '[data-testid^="ruler-"]', '[data-testid="print-overlay"]'].map((s) => document.querySelectorAll(`[data-testid="demo"] ${s}`).length))
   ok("kit-sync KS1: the #/demo canvas opens with 0 guides, 0 rulers, 0 bleed / trim / safe overlays (no dashed safe lines)", defs.join() === "0,0,0", defs.join())
   await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(1).dragTo(page.locator(`${demo} [data-testid="canvas"] [data-current] [data-testid="frame"]`).first()); await page.waitForTimeout(400) // p02 = the 800 px low-res photo

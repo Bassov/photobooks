@@ -29,7 +29,8 @@ import { ALL_TEMPLATES, TT } from "./templates"
 import { metaOf } from "./meta"
 
 export const toolToggle = "size-8 px-0 text-muted-foreground data-[hovered]:bg-accent/70 data-[hovered]:text-foreground data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-sm [&_svg]:size-4"
-export const viewToggle = cn(toolToggle, "data-[selected]:bg-accent data-[selected]:shadow-none")
+/** prod .pb-view-toggle (IconButton sm): 28 × 28, ghost at rest, #CACACA (--sel) when on */
+export const viewToggle = cn(toolToggle, "size-7 data-[selected]:bg-[#CACACA] data-[selected]:shadow-none")
 /* v3: Tabs carry their own geometry (ui/tabs.tsx); these stay as hooks for layout-only overrides */
 export const segList = ""
 export const segTab = ""
@@ -161,24 +162,25 @@ export function TopBar({ tools = true, history = true, views = ["snap", "grid"],
   const exportBtn = <Button variant="ghost" size="sm" isDisabled={empty} disabledReason={empty ? "Add a photo folder first — the book is empty" : undefined} className="e7-sec h-8 gap-1.5 rounded-full px-3.5 text-sm font-medium [&_svg]:size-4" style={{ background: FIELD, color: T }} data-testid="export"><Upload />Export</Button>
   return (
     // M39 (prod EditorShell.css .editor-top-grid): panel-wide side columns (212 / 300 less the bar padding) and two equal fr tracks
-    // centre the tools on the canvas; the side groups span into the fr tracks and only shift the tools when they need the room
-    <header className="relative z-10 grid h-12 shrink-0 items-center gap-2 px-3" style={{ background: BAR, color: T, gridTemplateColumns: "minmax(0, 200px) 1fr auto 1fr minmax(0, 288px)" }} data-testid="editor-bar">
-      <div className="col-[1/3] flex min-w-0 items-center gap-2 justify-self-start">
-      <Button variant="ghost" size="sm" className="h-8 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" style={{ color: SUB }} onPress={onLibrary} data-testid="editor-library"><ChevronLeft />Library</Button>
-      <button type="button" className="e7-title ml-1 flex h-8 items-baseline gap-2 rounded-md border-0 px-2.5 pt-1.5" aria-pressed={isBook} aria-label="Book settings" title="Book settings" data-testid="book-title" onClick={() => st.setNode(isBook ? null : { k: "book" })}>
-        <span className="text-md" style={{ fontFamily: "var(--font-heading)", color: T }}><em>{title}</em></span>
-        <span className="text-sm tabular-nums" style={{ color: SUB }} data-testid="book-size">{fmtN(st.book.w)} × {fmtN(st.book.h)} cm · {pages} pages{save ? ` · ${st.saveState === "saving" ? "saving" : st.saveState === "error" ? "not saved" : "saved"}` : ""}</span></button>
-      {history && <div className="ml-2 flex items-center"><HistoryButtons /></div>}
+    // centre the tools on the canvas; the side groups span into the fr tracks and only shift the tools when they need the room:
+    // the right group keeps its full width (min-w-max grows its fr track past the fixed 288), the left group fits its area and truncates
+    <header className="relative z-10 grid h-12 shrink-0 items-center gap-2 px-3" style={{ background: BAR, color: T, gridTemplateColumns: "minmax(0, 200px) 1fr auto 1fr 288px" }} data-testid="editor-bar">
+      <div className="col-[1/3] flex min-w-0 max-w-full items-center gap-2 justify-self-start" data-testid="editor-bar-start">
+      <Button variant="ghost" size="sm" className="h-8 shrink-0 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" style={{ color: SUB }} onPress={onLibrary} data-testid="editor-library"><ChevronLeft />Library</Button>
+      <button type="button" className="e7-title ml-1 flex h-8 min-w-0 items-baseline gap-2 overflow-hidden rounded-md border-0 px-2.5 pt-1.5" aria-pressed={isBook} aria-label="Book settings" title="Book settings" data-testid="book-title" onClick={() => st.setNode(isBook ? null : { k: "book" })}>
+        <span className="shrink-0 text-md" style={{ fontFamily: "var(--font-heading)", color: T }}><em>{title}</em></span>
+        <span className="min-w-0 truncate text-sm tabular-nums" style={{ color: SUB }} data-testid="book-size">{fmtN(st.book.w)} × {fmtN(st.book.h)} cm · {pages} pages{save ? ` · ${st.saveState === "saving" ? "saving" : st.saveState === "error" ? "not saved" : "saved"}` : ""}</span></button>
+      {history && <div className="ml-2 flex shrink-0 items-center"><HistoryButtons /></div>}
       </div>
       <div className="col-[3] flex items-center">
         {center ?? (
-          <Toolbar aria-label="Tools" className="items-center gap-1">
+          <Toolbar aria-label="Tools" className="items-center gap-2">
             {tools && <ToolGroup tools={Array.isArray(tools) ? tools : undefined} />}
             {views.map((k) => <ViewToggle key={k} k={k} />)}
           </Toolbar>
         )}
       </div>
-      <div className="col-[4/6] flex items-center gap-2 justify-self-end">
+      <div className="col-[4/6] flex min-w-max items-center gap-2 justify-self-end" data-testid="editor-bar-end">
       {zoom && <div className="flex items-center gap-0.5 text-sm" style={{ color: SUB }}>
         <IconButton label="Zoom out (Ctrl −)" size="sm" onPress={() => st.setView({ zoom: Math.max(0.25, st.view.zoom / 1.25) })} data-testid="zoom-out"><Minus /></IconButton>
         <ZoomMenu />
