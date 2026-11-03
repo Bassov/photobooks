@@ -7,7 +7,8 @@
 5. The painter adds a `.spread-frame-text` node clipped to whole lines. `Empty text` shows only with a control.
 6. A new `loadFonts(textStyleFonts())` calls `fontSet.load` for each style, so Lora 500 is ready before a measure. `fitTextHeightMm` and `loadFonts` are intentional scaffolding for `text-frames-editor` (the brief lists `loadBookFonts.ts`): unit-tested, no caller yet.
 7. E2E has no Text tool yet, so a dev / fixture-only seam `dispatchBookOpForTests` (next to `setBookGridForTests`) creates text frames.
-8. Security / workers: N/A. This is pure resolve plus DOM paint; the seam is compiled out of the deploy build.
+8. ui-review: a controlled text frame is labelled `Text frame`, never the photo-move wording (`Place photo`).
+9. Security / workers: N/A. This is pure resolve plus DOM paint; the seam is compiled out of the deploy build.
 
 ## Touch-set & Test Plan
 
@@ -22,6 +23,7 @@
 | `src/core/ops/fill.ts`               | skip text      |
 | `src/core/templates/apply.ts`        | images only    |
 | `src/editor/bookHistory.ts`          | labels         |
+| `src/editor/ConnectedSpreadView.tsx` | a11y label     |
 | `src/editor/projectSession.ts`       | test seam      |
 | `src/render/textStyles.ts`           | new            |
 | `src/render/SpreadView.tsx`          | text node      |
