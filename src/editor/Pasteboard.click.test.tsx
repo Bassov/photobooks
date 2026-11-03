@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getSpreadSizeMm } from '../core'
 import {
   dispatchBookOp,
+  getBookStoreSnapshot,
   getSpreadIdsSnapshot,
   resetBookStore,
 } from './bookStore'
 import { commitZoom, resetCameraStore } from './cameraStore'
+import { resetEditorToolForTests, setEditorTool } from './editorToolStore'
+import { installFrameGesture } from './frameGesture'
 import {
+  getFrameSelection,
   getFrameSource,
   resetFrameSelection,
   setFrameSource,
@@ -170,5 +175,282 @@ describe('Pasteboard click selects the spread', () => {
       })
     })
     expect(getFrameSource()).toEqual({ spreadId: first, frameId: 'f1' })
+  })
+})
+
+describe('Pasteboard marquee from the gray', () => {
+  /** Spread 2 at 1 client px per mm, its left edge 50 px into the port. */
+  const LEFT = 50
+  const TOP = 100
+  const GAP = 40
+  let ids: readonly string[]
+  let stop: () => void
+  let target: string
+  let frameIds: string[]
+  let topLeft: { id: string; cx: number; cy: number }
+
+  beforeEach(() => {
+    resetBookStore()
+    resetFrameSelection()
+    dispatchBookOp({ type: 'addSpread' })
+    dispatchBookOp({ type: 'addSpread' })
+    ids = getSpreadIdsSnapshot()
+    const second = ids[1]
+    assert.ok(second)
+    target = second
+    dispatchBookOp({
+      type: 'applyTemplate',
+      spreadId: target,
+      templateId: '4-grid',
+    })
+    commitZoom(1, 0, 0)
+    stubViewport(500, 2000)
+    render(<Pasteboard />)
+    const book = getBookStoreSnapshot().book
+    const { widthMm, heightMm } = getSpreadSizeMm(book, 1)
+    const frames = book.spreads[1]?.frames ?? []
+    frameIds = frames.map((frame) => frame.id)
+    const first = [...frames].sort(
+      (a, b) => a.rect.x + a.rect.y - (b.rect.x + b.rect.y),
+    )[0]
+    assert.ok(first)
+    topLeft = {
+      id: first.id,
+      cx: LEFT + first.rect.x + first.rect.width / 2,
+      cy: TOP + first.rect.y + first.rect.height / 2,
+    }
+    // Stacked slots: paper, then a GAP px label row that belongs to the slot.
+    for (const slot of screen.getAllByTestId('pasteboard-slot')) {
+      const index = ids.indexOf(slot.getAttribute('data-spread-id') ?? '')
+      const top = TOP + (index - 1) * (heightMm + GAP)
+      slot.getBoundingClientRect = () =>
+        ({ top, bottom: top + heightMm + GAP }) as DOMRect
+      const view = slot.querySelector<HTMLElement>(
+        '[data-testid="spread-view"]',
+      )
+      assert.ok(view)
+      view.getBoundingClientRect = () =>
+        ({
+          left: LEFT,
+          top,
+          right: LEFT + widthMm,
+          bottom: top + heightMm,
+          width: widthMm,
+          height: heightMm,
+        }) as DOMRect
+    }
+    stop = installFrameGesture()
+  })
+
+  afterEach(() => {
+    stop()
+    cleanup()
+    resetBookStore()
+    resetCameraStore()
+    resetFrameSelection()
+    resetActiveSpreadIdForTests()
+    resetEditorToolForTests()
+    vi.unstubAllGlobals()
+  })
+
+  function port(): HTMLElement {
+    return screen.getByTestId('pasteboard-scroll')
+  }
+
+  function fire(type: string, x: number, y: number, init = {}): Event {
+    const event = new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: x,
+      clientY: y,
+      ...init,
+    })
+    Object.defineProperty(event, 'pointerId', { value: 1 })
+    act(() => {
+      ;(type === 'pointerdown' ? port() : window).dispatchEvent(event)
+    })
+    return event
+  }
+
+  const box = () => document.querySelector<HTMLElement>('.marquee-box')
+  const pressed = () =>
+    screen
+      .getAllByTestId('spread-frame')
+      .filter((el) => el.getAttribute('aria-pressed') === 'true')
+      .map((el) => el.getAttribute('data-frame-id'))
+
+  it('a press under 3 px stays the spread click: active spread, selection cleared', () => {
+    act(() => {
+      setFrameSource({ spreadId: target, frameId: topLeft.id })
+    })
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', 12, topLeft.cy)
+    fire('pointerup', 12, topLeft.cy)
+    expect(box()).toBeNull()
+    expect(getActiveSpreadId()).toBe(target)
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it('a drag from the gray beside the spread selects the frames it touches', () => {
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 1)
+    expect(box()?.style.width).toBe(`${String(topLeft.cx - 10)}px`)
+    fire('pointerup', topLeft.cx, topLeft.cy + 1)
+    expect(getActiveSpreadId()).toBe(target)
+    expect(getFrameSelection()).toEqual({
+      spreadId: target,
+      frameIds: [topLeft.id],
+    })
+    expect(pressed()).toEqual([topLeft.id])
+
+    // Over the whole spread: every frame (count = the template's four).
+    fire('pointerdown', 10, TOP + 1)
+    fire('pointermove', 490, 1990)
+    fire('pointerup', 490, 1990)
+    expect(frameIds).toHaveLength(4)
+    expect([...(getFrameSelection()?.frameIds ?? [])].sort()).toEqual(
+      [...frameIds].sort(),
+    )
+  })
+
+  it('Shift unions with the previous set; Esc mid-drag restores it', () => {
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 1)
+    fire('pointerup', topLeft.cx, topLeft.cy + 1)
+    fire('pointerdown', 10, TOP + 1, { shiftKey: true })
+    fire('pointermove', 490, 1990)
+    fire('pointerup', 490, 1990)
+    const all = getFrameSelection()?.frameIds ?? []
+    expect(all).toHaveLength(4)
+    expect(all[0]).toBe(topLeft.id)
+
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 1)
+    // The click part already cleared it; the marquee shows only its hits.
+    expect(getFrameSelection()).toBeNull()
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      )
+    })
+    expect(getFrameSelection()?.frameIds).toEqual(all)
+    expect(box()).toBeNull()
+    fire('pointerup', topLeft.cx, topLeft.cy + 1)
+    expect(getFrameSelection()?.frameIds).toEqual(all)
+  })
+
+  it('targets the nearest paper from the gap above it and activates it past the slop', () => {
+    const above = ids[0]
+    assert.ok(above)
+    // 10 px above the target paper: the slot above holds the press.
+    fire('pointerdown', topLeft.cx, TOP - 10)
+    expect(getActiveSpreadId()).toBe(above)
+    fire('pointermove', topLeft.cx + 1, TOP - 9)
+    expect(box()).toBeNull()
+    fire('pointermove', topLeft.cx, topLeft.cy)
+    expect(getActiveSpreadId()).toBe(target)
+    fire('pointerup', topLeft.cx, topLeft.cy)
+    expect(getFrameSelection()).toEqual({
+      spreadId: target,
+      frameIds: [topLeft.id],
+    })
+
+    // Under the slop it stays the click on the slot above.
+    fire('pointerdown', topLeft.cx, TOP - 10)
+    fire('pointerup', topLeft.cx + 2, TOP - 10)
+    expect(getActiveSpreadId()).toBe(above)
+  })
+
+  it('on a tie the spread whose slot holds the press wins', () => {
+    const above = ids[0]
+    assert.ok(above)
+    // A paper that is no editable spread never wins, even under the press.
+    const ghost = document.createElement('div')
+    ghost.setAttribute('data-testid', 'spread-view')
+    ghost.setAttribute('data-spread-id', 'ghost')
+    ghost.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 2000, bottom: 2000 }) as DOMRect
+    port().append(ghost)
+    // Midway in the gap: GAP / 2 from both papers, inside the slot above.
+    fire('pointerdown', topLeft.cx, TOP - GAP / 2)
+    fire('pointermove', topLeft.cx, topLeft.cy)
+    expect(getActiveSpreadId()).toBe(above)
+    fire('pointerup', topLeft.cx, topLeft.cy)
+    expect(getFrameSelection()?.spreadId).toBe(above)
+  })
+
+  it('a marquee on a master leaves the active book spread alone', () => {
+    dispatchBookOp({ type: 'addParent', id: 'master-a' })
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointerup', 10, topLeft.cy)
+    expect(getActiveSpreadId()).toBe(target)
+    const canvas = document.createElement('div')
+    canvas.setAttribute('data-testid', 'masters-canvas')
+    const paper = document.createElement('div')
+    paper.setAttribute('data-testid', 'spread-view')
+    paper.setAttribute('data-spread-id', 'master-a')
+    paper.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 400, height: 300 }) as DOMRect
+    canvas.append(paper)
+    document.body.append(canvas)
+    const down = new MouseEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+    })
+    Object.defineProperty(down, 'pointerId', { value: 1 })
+    act(() => {
+      paper.dispatchEvent(down)
+    })
+    fire('pointermove', 200, 200)
+    expect(box()).not.toBeNull()
+    expect(getActiveSpreadId()).toBe(target)
+    fire('pointerup', 200, 200)
+    canvas.remove()
+  })
+
+  it('keeps the box inside the scrollport; scrollbars start none', () => {
+    // Client box: borders 4 / 6 px, 500 × 300 inside, so x 4..504, y 6..306.
+    for (const [key, value] of Object.entries({
+      clientLeft: 4,
+      clientTop: 6,
+      clientWidth: 500,
+      clientHeight: 300,
+    })) {
+      Object.defineProperty(port(), key, { configurable: true, value })
+    }
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', -50, 0)
+    expect(box()?.style.cssText).toBe(
+      `left: 4px; top: 6px; width: 6px; height: ${String(topLeft.cy - 6)}px;`,
+    )
+    fire('pointermove', 900, 900)
+    expect(box()?.style.width).toBe('494px')
+    expect(box()?.style.height).toBe(`${String(306 - topLeft.cy)}px`)
+    fire('pointerup', 900, 900)
+    // The scrollbars (x ≥ 504 or y ≥ 306).
+    for (const [x, y] of [
+      [504, topLeft.cy],
+      [300, 306],
+    ] as const) {
+      fire('pointerdown', x, y)
+      fire('pointermove', 200, y - 40)
+      expect(box()).toBeNull()
+      fire('pointerup', 200, y - 40)
+    }
+  })
+
+  it('pans with the Hand tool instead', () => {
+    act(() => {
+      setEditorTool('hand')
+    })
+    port().setPointerCapture = vi.fn()
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 40)
+    expect(box()).toBeNull()
+    fire('pointerup', topLeft.cx, topLeft.cy + 40)
+    expect(getFrameSelection()).toBeNull()
   })
 })

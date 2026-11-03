@@ -16,6 +16,7 @@ import {
   getSpreadSlotPageCount,
 } from '../core'
 import { setFrameSource } from './frameSelection'
+import { subscribeMarqueeStart } from './marquee'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import {
   getActiveSpreadId,
@@ -444,6 +445,22 @@ export const Pasteboard = memo(function Pasteboard({
         reveal.beginRevealForNewSpread(spreadId)
       }),
     [reveal],
+  )
+
+  // A gray marquee may target a spread other than the press's click spread.
+  useEffect(
+    () =>
+      subscribeMarqueeStart((spreadId) => {
+        // Master canvas marquees target masters, not book spreads.
+        if (!getSpreadIdsSnapshot().includes(spreadId)) {
+          return
+        }
+        preferredActiveRef.current = spreadId
+        startTransition(() => {
+          setActiveId(spreadId)
+        })
+      }),
+    [],
   )
 
   useEffect(() => {
