@@ -10,3 +10,8 @@
 
 1. Library book → Add folder with `._X.JPG`, `.DS_Store`, `.Trashes/x.jpg`, 3 real JPGs → 3 tiles, no Import errors; reload twice → 3 decoded tiles; Add folder again → no errors.
 2. Folder with 2 JPGs + truncated `broken.jpg` → 2 tiles + "Couldn't decode (1)"; reload → still 2 tiles and `broken.jpg` under Couldn't decode.
+
+No UI code changed, so `pnpm agent manual-qa` was not run; both scenarios are automated in `e2e/filmstrip-appledouble-skip.spec.ts`:
+
+- OK scenario 1: 3 tiles / 0 gray / 0 errors after import, after reload ×2, after re-add (e2e pass)
+- OK scenario 2: 2 tiles / 0 gray / `broken.jpg` listed after import and after reload ×2 (e2e pass)
