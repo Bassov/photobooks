@@ -53,7 +53,7 @@ export function EmptyInspector({ hint = DEFAULT_HINT }: { hint?: string }) {
   const s = st?.doc.spreads[st.cur]
   const rows: [string, React.ReactNode][] = s ? [
     ["Spread", st.cur === 0 ? "Cover" : `Pages ${st.cur * 2}–${st.cur * 2 + 1}`],
-    ["Template", s.template ? s.template.replace(/^t-/, "").replace(/-/g, " ") : "Free layout"],
+    ["Template", s.template ? s.template.replace(/^t-|@page$/g, "").replace(/-/g, " ") : "Free layout"],
     ["Background", <span key="bg" className="inline-flex items-center gap-1.5"><span className="size-3 rounded-2xs shadow-hairline" style={{ background: s.bg ?? "#ffffff" }} />{s.bg && s.bg !== "#ffffff" ? s.bg : "Paper white"}</span>],
     ["Frames", String(s.frames.length)],
     ["Grid", st.view.grid ? "On" : "Off"],

@@ -14,7 +14,7 @@ import { useStudio } from "./store"
 import { segList, segTab, applyTemplate } from "./chrome"
 import { PhotoSection, CropSection, PhotoRotateSection, AdjustSection, CaptionSection, GeometrySection, ArrangeSection, AlignSection, DeleteFrameButton } from "./inspector"
 import { SpreadBgSection, TextSection, FrameStyleSection } from "./sections"
-import { slotCount, setTemplatePreview, useCustomTemplates, addCustom, renameCustom, duplicateCustom, deleteCustom, nextCustomName, pickerTemplates, pickerAlias, sortByPhotoCount } from "./templates"
+import { slotCount, setTemplatePreview, useCustomTemplates, addCustom, renameCustom, duplicateCustom, deleteCustom, nextCustomName, pickerTemplates, pickerAlias, sortByPhotoCount, pageId } from "./templates"
 import { PAGE, SW, SH, effectiveGrid, type Spread, type Grid } from "./model"
 import { TT } from "./templates"
 import { SliderRow, Segmented } from "@/components/app/controls"
@@ -101,6 +101,8 @@ const trimRatio = (single: boolean) => (single ? PAGE / SH : SW / SH)
 const thumbAspect = (r: number) => Math.min(2, Math.max(2 / 3, r))
 const thumbColumns = (r: number) => (r < 1.2 ? 3 : 2)
 const pct = (v: number) => `${v}%`
+/** kit-sync KS7: a single page draws, previews and applies the page variant of a template (templates.ts pageFrames) */
+const onPage = (id: string, single: boolean) => (single ? pageId(id) : id)
 function paperBox(r: number) {
   const k = r / thumbAspect(r), w = 100 * Math.min(1, k), h = 100 * Math.min(1, 1 / k)
   return { left: pct((100 - w) / 2), top: pct((100 - h) / 2), width: pct(w), height: pct(h) }
@@ -112,7 +114,7 @@ function LayoutThumb({ id, single, className }: { id: string; single: boolean; c
   return (
     <div className="relative w-full" style={{ aspectRatio: thumbAspect(r) }} data-testid="tpl-thumb">
       <div className={cn("absolute overflow-hidden rounded-2xs bg-paper shadow-hairline transition-[box-shadow,translate] duration-(--duration-fast)", className)} style={paperBox(r)} data-testid="tpl-paper">
-        {TT(id).frames.map((b, i) => (
+        {TT(onPage(id, single)).frames.map((b, i) => (
           <div key={i} className="absolute overflow-hidden rounded-2xs bg-placeholder-block"
             style={single ? { left: pct(2 * b.x - 100), top: pct(b.y), width: pct(2 * b.w), height: pct(b.h) } : { left: pct(b.x), top: pct(b.y), width: pct(b.w), height: pct(b.h) }} />
         ))}
@@ -128,8 +130,8 @@ function TemplateTile({ t, onApply, single, custom, current, renaming, onStartRe
 }) {
   return (
     <div className="group relative min-w-0 self-start" data-testid="tpl-tile" data-tid={t.id}>
-      <button type="button" onClick={onApply} onMouseEnter={() => setTemplatePreview(t.id)} onMouseLeave={() => setTemplatePreview(null)}
-        onFocus={() => setTemplatePreview(t.id)} onBlur={() => setTemplatePreview(null)} aria-label={`Apply layout ${t.name}`} aria-pressed={!!current} title={t.name}
+      <button type="button" onClick={onApply} onMouseEnter={() => setTemplatePreview(onPage(t.id, single))} onMouseLeave={() => setTemplatePreview(null)}
+        onFocus={() => setTemplatePreview(onPage(t.id, single))} onBlur={() => setTemplatePreview(null)} aria-label={`Apply layout ${t.name}`} aria-pressed={!!current} title={t.name}
         className="group/tile block w-full rounded-md p-1 text-left outline-none">
         <LayoutThumb id={t.id} single={single} className={cn(current ? "shadow-tile-select" : "group-hover/tile:-translate-y-px group-hover/tile:shadow-tile-hover", "group-focus-visible/tile:shadow-tile-focus")} />
         {/* kit-sync KS7 (Owner 2026-11-02): builtins carry no caption, the name is the tooltip; saved templates keep theirs */}
@@ -172,7 +174,7 @@ export function LayoutSection() {
   const all = [...pickerTemplates(single), ...mine]
   const list = sortByPhotoCount((tab === "mine" ? mine : all).filter((t) => matches(t, chip, single)), single)
   const current = pickerAlias(s.template, single)
-  const apply = (id: string) => { setTemplatePreview(null); applyTemplate(st, id) }
+  const apply = (id: string) => { setTemplatePreview(null); applyTemplate(st, onPage(id, single)) }
   const save = () => {
     const frames = s.frames.filter((f) => f.kind === "image").map((f) => ({ x: f.x / SW * 100, y: f.y / SH * 100, w: f.w / SW * 100, h: f.h / SH * 100 }))
     if (!frames.length) { st.setStatus("Nothing to save — the spread has no photo frames"); return }

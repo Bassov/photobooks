@@ -12,7 +12,18 @@ export const EXTRA: Template[] = [
   { id: "t-land2port", name: "Landscape + 2 portraits", count: 3, group: "3", frames: [{ x: 4, y: 14, w: 42, h: 56 }, { x: 54, y: 8, w: 20, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
 ]
 export const ALL_TEMPLATES: Template[] = [...BASE, ...EXTRA]
-export const TT = (id: string) => ALL_TEMPLATES.find((t) => t.id === id) ?? custom.find((t) => t.id === id) ?? contactSheet(id)
+export const TT = (id: string): Template => (isPageId(id) ? pageTemplate(TT(basePageId(id))) : ALL_TEMPLATES.find((t) => t.id === id) ?? custom.find((t) => t.id === id) ?? contactSheet(id))
+
+/* kit-sync KS7 (prod catalog.ts generateTemplateFrames, boxes = [page]): a single page lays the template out inside that page.
+   One per page and contact sheets keep their right-page frames; every other template squashes the spread into the right page.
+   The page variant id `<id>@page` lets apply and the canvas hover preview resolve the same frames through TT() */
+const PAGE_ID = "@page"
+const isPageId = (id: string) => id.endsWith(PAGE_ID)
+export const pageId = (id: string) => (isPageId(id) ? id : id + PAGE_ID)
+export const basePageId = (id: string) => (isPageId(id) ? id.slice(0, -PAGE_ID.length) : id)
+export const pageFrames = (t: Template) =>
+  t.id === "t-pair" || t.id.startsWith("t-cs-") ? t.frames.filter((b) => b.x >= 50) : t.frames.map((b) => ({ x: 50 + b.x / 2, y: b.y, w: b.w / 2, h: b.h }))
+function pageTemplate(t: Template): Template { const frames = pageFrames(t); return { ...t, id: pageId(t.id), count: frames.length, frames } }
 export const slotClasses = (t: Template) => t.frames.map((b) => aspectClass(b.w * SW / 100, b.h * SH / 100))
 
 export function contactSheet(id: string): Template {
@@ -43,16 +54,15 @@ export function bestTemplate(photoIds: string[], pool: Template[] = ALL_TEMPLATE
 /* v5: ~10 standard layouts (8 base + 2 aspect extras) plus "My templates" — the user's own layouts.
    Custom templates live in their own reactive store; TT() resolves both. */
 export const BUILTIN = () => ALL_TEMPLATES
-/* kit-sync KS7 (prod LayoutSection counts the page's rects): a single page counts only the frames the tile draws,
-   the ones reaching into the right half of the spread */
-export const slotCount = (t: Template, single = false) => (single ? t.frames.filter((b) => b.x + b.w > 50).length : t.frames.length)
+/* kit-sync KS7 (prod LayoutSection counts the page's rects): a single page counts its page frames, the ones the tile draws */
+export const slotCount = (t: Template, single = false) => (single ? pageFrames(t).length : t.frames.length)
 
 /* kit-sync KS7 (Owner 2026-11-02; prod twin: src/editor/layoutCatalog.ts PICKER_MERGES / sortByPhotoCount):
    on a two-page spread Two portraits is only a margin variant of One per page, so the picker shows one tile;
    a stored t-2port stays valid and presses / names the tile that stands for it */
 const PICKER_MERGES: Record<string, string> = { "t-2port": "t-pair" }
 export const pickerTemplates = (single: boolean) => (single ? ALL_TEMPLATES : ALL_TEMPLATES.filter((t) => !PICKER_MERGES[t.id]))
-export const pickerAlias = (id: string | null | undefined, single: boolean) => (id && !single && PICKER_MERGES[id]) || id
+export const pickerAlias = (id: string | null | undefined, single: boolean) => { const b = id && basePageId(id); return (b && !single && PICKER_MERGES[b]) || b }
 /** one list from one photo up; the sort is stable, so catalogue order holds inside a count */
 export const sortByPhotoCount = (ts: Template[], single = false) => [...ts].sort((a, b) => slotCount(a, single) - slotCount(b, single))
 let custom: Template[] = [

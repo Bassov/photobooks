@@ -1923,7 +1923,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
       shadows: [save, g.querySelector('[data-testid="tpl-contact-apply"]')].map((e) => getComputedStyle(e).boxShadow) }
   }, sec)
   await c(`${sec} [data-testid="tpl-contact-apply"]`)
-  const applied = { note: await page.locator(`${demo} [data-testid="section-note"]`).textContent(), frames: await page.locator(`${demo} [data-testid="canvas"] [data-testid="frame"]`).count() }
+  const applied = { note: await page.locator(`${demo} [data-testid="section-note"]`).textContent(), frames: await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="frame"]`).count() }
   ok("kit-sync KS7: Contact sheet row under Save as template — Columns 3 × Rows 2 (44×32) + Contact sheet at the right edge; applies 3×2", row && row.below && row.inputs.join() === "Columns=3 44x32,Rows=2 44x32" && row.btn === "Contact sheet" && near(row.right, row.saveRight) && applied.note === "· Contact sheet 3×2" && applied.frames === 12, JSON.stringify({ row, applied }))
   ok("kit-sync KS7: Save as template + Contact sheet buttons carry shadow-xs (prod 0 1px 2px rgba(20,20,19,.06))", row && row.shadows.every((s) => s.endsWith("rgba(20, 20, 19, 0.06) 0px 1px 2px 0px")), JSON.stringify(row?.shadows))
   await c(`${sec} [data-testid="tab-mine"]`); await c(`${sec} [data-chip="4"]`)
@@ -1937,10 +1937,21 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const tids = () => page.locator(`${sec} [data-testid="tpl-tile"]`).evaluateAll((ts) => ts.map((t) => t.dataset.tid))
   // built-ins only: the kit's sample saved templates have no prod twin
   const p1Order = (await page.locator(`${sec} [data-testid="tpl-tile"]:not([data-tid^="c-"]) button[title]`).evaluateAll((bs) => bs.map((b) => b.title))).slice(0, 7)
-  await c(`${sec} [data-chip="1"]`)
-  const p1One = (await tids()).filter((id) => !id.startsWith("c-"))
+  const chipIds = async (n) => { await c(`${sec} [data-chip="${n}"]`); return (await tids()).filter((id) => !id.startsWith("c-")).join() }
+  const p1One = await chipIds("1"), p1Two = await chipIds("2"), p1Three = await chipIds("3")
   await c(`${sec} [data-chip="all"]`)
-  ok("kit-sync KS7: page 1 counts only its own frames — order = prod, \"1\" chip shows 6 built-ins", p1Order.join("|") === "Full bleed|One per page|Panorama|Framed single|Offset pair|Two portraits|Hero + two" && p1One.length === 6, JSON.stringify({ p1Order, p1One }))
+  ok("kit-sync KS7: page 1 lays each template out in the page (prod generateTemplateFrames) — order = prod, \"1\" chip shows 4 built-ins", p1Order.join("|") === "Full bleed|One per page|Panorama|Framed single|Offset pair|Two portraits|Hero + two" && p1One === "t-full,t-pair,t-pano,t-margin", JSON.stringify({ p1Order, p1One }))
+  ok("kit-sync KS7: page 1 \"2\" chip = Offset pair, Two portraits; \"3\" chip = Hero + two, Three across, Landscape + 2 portraits", p1Two === "t-offset,t-2port" && p1Three === "t-hero2,t-three,t-land2port", JSON.stringify({ p1Two, p1Three }))
+  // tile, hover preview and canvas agree on page 1: same frame count, every frame inside the right page (none clipped at the page edge)
+  const inside = (boxes, o) => boxes.every((r) => r.left >= o.left + o.width / 2 - 1 && r.right <= o.right + 1 && r.top >= o.top - 1 && r.bottom <= o.bottom + 1)
+  const hero = `${sec} [data-testid="tpl-tile"][data-tid="t-hero2"]`
+  const tile = await page.locator(`${hero} [data-testid="tpl-paper"]`).evaluate((p) => { const o = p.getBoundingClientRect(); return [...p.children].map((f) => f.getBoundingClientRect()).every((r) => r.left >= o.left - 1 && r.right <= o.right + 1) ? p.children.length : -1 })
+  await page.locator(`${hero} button`).hover(); await page.waitForTimeout(300)
+  const prev = await page.locator(`${demo} [data-testid="tpl-preview"]`).first().evaluate((o) => ({ o: o.getBoundingClientRect().toJSON(), boxes: [...o.querySelectorAll(".outline-dashed")].map((b) => b.getBoundingClientRect().toJSON()) })).catch(() => null)
+  await c(`${hero} button`)
+  const cv = await page.locator(`${demo} [data-testid="spread"][data-current]`).first().evaluate((s) => ({ o: s.getBoundingClientRect().toJSON(), boxes: [...s.querySelectorAll('[data-testid="frame"]')].map((f) => f.getBoundingClientRect().toJSON()) })).catch(() => null)
+  const note1 = await page.locator(`${demo} [data-testid="section-note"]`).textContent().catch(() => null)
+  ok("kit-sync KS7: page 1 Hero + two — tile, hover preview and canvas all show 3 frames inside the page", tile === 3 && prev && prev.boxes.length === 3 && inside(prev.boxes, prev.o) && cv && cv.boxes.length === 3 && inside(cv.boxes, cv.o) && note1 === "· Hero + two", JSON.stringify({ tile, preview: prev?.boxes.length, prevInside: prev && inside(prev.boxes, prev.o), canvas: cv?.boxes.length, canvasInside: cv && inside(cv.boxes, cv.o), note1 }))
   ok("kit-sync W3: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
