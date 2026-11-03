@@ -89,10 +89,10 @@ describe('Inspector layout grid contexts', () => {
     })
   })
 
-  it('shows no spread grid with nothing selected', () => {
+  it('shows the first spread grid while no spread is active (never empty)', () => {
     seed()
     render(<Inspector />)
-    expect(screen.queryByTestId('grid-section-spread')).toBeNull()
+    expect(screen.getByTestId('grid-section-spread')).toBeTruthy()
   })
 })
 

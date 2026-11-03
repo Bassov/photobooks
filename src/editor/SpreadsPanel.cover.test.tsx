@@ -126,12 +126,14 @@ describe('Inspector with the cover selected', () => {
     seed()
     render(<Inspector />)
     expect(screen.queryByTestId('insp-cover')).toBeNull()
-    expect(screen.getByTestId('inspector-empty')).toBeTruthy()
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Spread')
     act(() => {
       setCoverSelected(true)
     })
     expect(screen.getByTestId('insp-cover')).toBeTruthy()
-    expect(screen.queryByTestId('inspector-empty')).toBeNull()
+    expect(
+      screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
+    ).toBe('cover')
   })
 
   it('picking Book settings leaves the cover', () => {
