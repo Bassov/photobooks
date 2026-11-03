@@ -2,14 +2,21 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { addToGallery, placeAsset } from '../core'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  getHistorySnapshot,
+  resetBookStore,
+  undoBook,
+} from './bookStore'
 import { resetCameraStore } from './cameraStore'
 import { getEditorStatus } from './editorStatus'
 import assert from 'node:assert/strict'
 import {
+  getFrameSelection,
   getFrameSource,
   resetFrameSelection,
   setFrameSource,
+  toggleFrameSelection,
 } from './frameSelection'
 import { installEditorKeys } from './galleryDrop'
 import {
@@ -140,6 +147,57 @@ describe('editor keys', () => {
         count - 2,
       )
       note.remove()
+    } finally {
+      stop()
+    }
+  })
+
+  it('deletes a set of 2+ frames, locked ones too, in one undo step; Esc clears a set', () => {
+    resetBookStore({
+      book: makeBook({
+        gallery: ['a'],
+        spreads: [
+          makeSpread({
+            frames: [
+              makeFrame({ id: 'f1', assetId: 'a' }),
+              makeFrame({ id: 'f2', locked: true }),
+              makeFrame({ id: 'f3' }),
+              makeFrame({ id: 'f4' }),
+            ],
+          }),
+        ],
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const spreadId = getBookStoreSnapshot().book.spreads[0]?.id ?? ''
+    const ids = () =>
+      getBookStoreSnapshot().book.spreads[0]?.frames.map((f) => f.id)
+    const stop = installEditorKeys()
+    try {
+      toggleFrameSelection({ spreadId, frameId: 'f1' })
+      toggleFrameSelection({ spreadId, frameId: 'f2' })
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(getFrameSelection()).toBeNull()
+
+      for (const frameId of ['f1', 'f2', 'f3']) {
+        toggleFrameSelection({ spreadId, frameId })
+      }
+      // Focus on a filled frame does not turn the set's Delete into unplace.
+      const focused = document.createElement('button')
+      focused.className = 'spread-frame'
+      focused.setAttribute('data-filled', 'true')
+      document.body.append(focused)
+      const event = fireEvent.keyDown(focused, { key: 'Delete' })
+      expect(event).toBe(false)
+      expect(ids()).toEqual(['f4'])
+      expect(getFrameSelection()).toBeNull()
+      expect(getHistorySnapshot().undoLabel).toBe('Delete 3 frames')
+
+      undoBook()
+      expect(ids()).toEqual(['f1', 'f2', 'f3', 'f4'])
+      focused.remove()
     } finally {
       stop()
     }

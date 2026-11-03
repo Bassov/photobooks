@@ -8,7 +8,11 @@ import {
   getEditorStatus,
   setEditorStatus,
 } from './editorStatus'
-import { getFrameSource, resetFrameSelection } from './frameSelection'
+import {
+  getFrameSelection,
+  getFrameSource,
+  resetFrameSelection,
+} from './frameSelection'
 import { activateFrame } from './galleryDrop'
 
 const ID = 'spread-1'
@@ -94,5 +98,33 @@ describe('activateFrame', () => {
     expect(assetOf('filled-a')).toBeUndefined()
     expect(getFrameSource()).toBeNull()
     expect(getEditorStatus()).toBe(STATUS_MOVED)
+  })
+
+  it('Shift toggles frames into a set without swapping photos', () => {
+    activateFrame(ID, 'filled-a', true, true)
+    activateFrame(ID, 'filled-b', true, true, true)
+    expect(assetOf('filled-a')).toBe('a')
+    expect(assetOf('filled-b')).toBe('b')
+    expect(getFrameSource()).toBeNull()
+    expect(getFrameSelection()?.frameIds).toEqual(['filled-a', 'filled-b'])
+    expect(getEditorStatus()).toBe('')
+
+    // Shift+Enter (keyboard) toggles too; back to one is the single selection.
+    activateFrame(ID, 'filled-b', true, false, true)
+    expect(getFrameSource()).toEqual({ spreadId: ID, frameId: 'filled-a' })
+    expect(getEditorStatus()).toBe(STATUS_SELECTED)
+    activateFrame(ID, 'filled-a', true, true, true)
+    expect(getFrameSelection()).toBeNull()
+  })
+
+  it('a plain click inside a set collapses it to that frame, no swap', () => {
+    activateFrame(ID, 'filled-a', true, true, true)
+    activateFrame(ID, 'filled-b', true, true, true)
+    activateFrame(ID, 'empty-a', false, true, true)
+    activateFrame(ID, 'filled-b', true, true)
+    expect(getFrameSource()).toEqual({ spreadId: ID, frameId: 'filled-b' })
+    expect(assetOf('filled-a')).toBe('a')
+    expect(assetOf('filled-b')).toBe('b')
+    expect(getEditorStatus()).toBe(STATUS_SELECTED)
   })
 })

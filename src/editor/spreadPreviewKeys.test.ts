@@ -170,6 +170,13 @@ describe('spreadPreviewKeys', () => {
     expect(isFramePressed('f2', 'f1')).toBe(false)
   })
 
+  it('detects every frame of a multi-selection key', () => {
+    expect(isFramePressed('f1\nf2', 'f1')).toBe(true)
+    expect(isFramePressed('f1\nf2', 'f2')).toBe(true)
+    expect(isFramePressed('f1\nf2', 'f3')).toBe(false)
+    expect(isFramePressed('\n', 'f1')).toBe(false)
+  })
+
   it('resolves max desired tier with a spread fallback', () => {
     expect(resolveMaxDesiredTier('a', 320, () => 640)).toBe(640)
     expect(resolveMaxDesiredTier('a', 320, () => undefined)).toBe(320)

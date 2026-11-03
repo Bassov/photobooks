@@ -212,6 +212,46 @@ describe('per-spread paint subscription', () => {
     expect(getFrameSource()).toBeNull()
   })
 
+  it('Shift+click builds a set: pressed frames lose the photo drag and handles', () => {
+    let book = applyTemplate(twoSpreadBook(), 's0', '4-grid')
+    const ids = book.spreads[0]?.frames.map((f) => f.id) ?? []
+    for (const id of ids) {
+      book = placeAsset(book, 's0', id, 'a')
+    }
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      previewUrls: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<ConnectedSpreadView spreadId="s0" />)
+    const frames = screen.getAllByTestId('spread-frame')
+    const [first, second, third] = frames
+    assert(first !== undefined && second !== undefined && third !== undefined)
+    const draggable = (el: HTMLElement) =>
+      el.querySelector('.spread-frame-body')?.getAttribute('draggable')
+    fireEvent.click(first, { detail: 1 })
+    expect(screen.getAllByTestId('spread-frame-handles')).toHaveLength(1)
+    expect(draggable(first)).toBe('true')
+
+    fireEvent.click(second, { detail: 1, shiftKey: true })
+    expect(first.getAttribute('aria-pressed')).toBe('true')
+    expect(second.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryAllByTestId('spread-frame-handles')).toHaveLength(0)
+    expect(screen.getByTestId('group-box')).toBeTruthy()
+    expect(draggable(first)).toBe('false')
+    expect(draggable(second)).toBe('false')
+    expect(draggable(third)).toBe('true')
+    expect(first.getAttribute('aria-label')).toBe('Select photo to move')
+
+    // Shift+Enter (detail 0) toggles back to one frame with handles.
+    fireEvent.click(second, { detail: 0, shiftKey: true })
+    expect(getFrameSource()).toEqual({ spreadId: 's0', frameId: ids[0] })
+    expect(screen.getAllByTestId('spread-frame-handles')).toHaveLength(1)
+    expect(screen.queryByTestId('group-box')).toBeNull()
+  })
+
   it('an empty frame neither enters crop mode nor drags', () => {
     resetBookStore({
       book: addSpread(makeBook({ id: 'empty', spreads: [] }), { id: 's0' }),

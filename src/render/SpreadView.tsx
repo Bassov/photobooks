@@ -12,8 +12,11 @@ import type { ResolvedItem, ResolvedSpread } from '../core'
 export interface FrameControl {
   label: string
   pressed?: boolean
-  /** `event.detail` tells a pointer click (≥ 1) from Enter / Space (0). */
-  onActivate: (event?: { detail: number }) => void
+  /**
+   * `event.detail` tells a pointer click (≥ 1) from Enter / Space (0);
+   * `shiftKey` is set for Shift+click and Shift+Enter / Space.
+   */
+  onActivate: (event?: { detail: number; shiftKey?: boolean }) => void
   onDragStart?: (event: ReactDragEvent<HTMLDivElement>) => void
   /** Crop mode: unclipped dim ghost, no drag; the editor owns the gestures. */
   cropActive?: boolean
@@ -33,6 +36,7 @@ import {
   imageCropBox,
   pageCutLine,
   SPREAD_PX_PER_MM,
+  type PxBox,
 } from './frameBox'
 import {
   missingAssetId,
@@ -129,6 +133,43 @@ const FOLD_SHARE = '3%'
 /** Gap between the frame and its caption (kit: 1.5 mm under the frame). */
 const CAPTION_GAP_MM = 1.5
 
+/** Kit group box: 4 screen px outside the selected frames' union. */
+const GROUP_BOX_GAP_PX = 4
+
+/**
+ * Axis-aligned union of the frames as painted (rotated corners included),
+ * grown by `GROUP_BOX_GAP_PX`; layout px are screen px at the committed zoom.
+ */
+function groupBoxPx(
+  items: readonly Pick<ResolvedItem, 'rectMm' | 'rotation'>[],
+  pxPerMm: number,
+): PxBox {
+  let left = Infinity
+  let top = Infinity
+  let right = -Infinity
+  let bottom = -Infinity
+  for (const item of items) {
+    const box = frameBox(item.rectMm, pxPerMm)
+    const turn = (item.rotation * Math.PI) / 180
+    const cos = Math.abs(Math.cos(turn))
+    const sin = Math.abs(Math.sin(turn))
+    const halfW = (box.width * cos + box.height * sin) / 2
+    const halfH = (box.width * sin + box.height * cos) / 2
+    const cx = box.left + box.width / 2
+    const cy = box.top + box.height / 2
+    left = Math.min(left, cx - halfW)
+    top = Math.min(top, cy - halfH)
+    right = Math.max(right, cx + halfW)
+    bottom = Math.max(bottom, cy + halfH)
+  }
+  return {
+    left: left - GROUP_BOX_GAP_PX,
+    top: top - GROUP_BOX_GAP_PX,
+    width: right - left + GROUP_BOX_GAP_PX * 2,
+    height: bottom - top + GROUP_BOX_GAP_PX * 2,
+  }
+}
+
 export function SpreadView({
   spreadId,
   resolved,
@@ -164,6 +205,19 @@ export function SpreadView({
 }) {
   const parentItems = resolved.items.filter((item) => item.parent === true)
   const spreadItems = resolved.items.filter((item) => item.parent !== true)
+  const controls = new Map(
+    spreadItems.map((item) => [item.frameId, frameControlFor?.(item)]),
+  )
+  const pressedItems = spreadItems.filter(
+    (item) => controls.get(item.frameId)?.pressed === true,
+  )
+  const cropping = spreadItems.some(
+    (item) => controls.get(item.frameId)?.cropActive === true,
+  )
+  const groupBox =
+    pressedItems.length > 1 && !cropping
+      ? groupBoxPx(pressedItems, pxPerMm)
+      : null
   const paintFrame = (item: ResolvedItem) => {
     const inert = thumb || item.parent === true
     const missingId = missingAssetId(item.assetId, isMissingAsset)
@@ -185,7 +239,8 @@ export function SpreadView({
           previewUrlFor,
         )}
         tier={tierUnlessMissing(missing, item.assetId, tierFor)}
-        control={item.parent === true ? undefined : frameControlFor?.(item)}
+        control={item.parent === true ? undefined : controls.get(item.frameId)}
+        handles={pressedItems.length === 1}
       />
     )
   }
@@ -246,6 +301,14 @@ export function SpreadView({
           />
         )
       })}
+      {groupBox === null || thumb ? null : (
+        <div
+          className="spread-group-box"
+          data-testid="group-box"
+          aria-hidden="true"
+          style={groupBox}
+        />
+      )}
       {thumb ? null : overlay}
     </div>
   )
@@ -261,7 +324,10 @@ function SpreadFrame({
   assetName,
   thumb,
   lowDpiBadge,
+  handles,
 }: {
+  /** False while 2 or more frames are selected: the group box replaces handles. */
+  handles: boolean
   assetName: string | undefined
   thumb: boolean
   lowDpiBadge: boolean
@@ -499,7 +565,7 @@ function SpreadFrame({
           {item.lowDpi.dpi} dpi
         </span>
       ) : null}
-      {selected && item.locked !== true ? (
+      {selected && handles && item.locked !== true ? (
         <span
           className="spread-frame-handles"
           data-testid="spread-frame-handles"

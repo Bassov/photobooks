@@ -12,6 +12,7 @@ import {
 import { Filmstrip } from './Filmstrip'
 import {
   frameControlLabel,
+  getFrameSelection,
   getFrameSource,
   getSpreadFrameSourceKey,
   resetFrameSelection,
@@ -19,6 +20,7 @@ import {
   sourceFromKey,
   subscribeFrameSelection,
   subscribeSpreadFrameSource,
+  toggleFrameSelection,
   withSelectionSync,
 } from './frameSelection'
 import {
@@ -332,5 +334,93 @@ describe('frameSelection', () => {
     setFrameSource({ spreadId: 's1', frameId: 'g' })
     expect(calls).toBe(3)
     expect(ownCalls).toBe(4)
+  })
+
+  it('toggles a set on one spread; one frame left is the single source', () => {
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f0' })
+    expect(getFrameSource()).toEqual({ spreadId: 's0', frameId: 'f0' })
+
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f1' })
+    expect(getFrameSource()).toBeNull()
+    expect(getFrameSelection()).toEqual({
+      spreadId: 's0',
+      frameIds: ['f0', 'f1'],
+    })
+
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f0' })
+    expect(getFrameSource()).toEqual({ spreadId: 's0', frameId: 'f1' })
+    expect(getFrameSelection()).toEqual({ spreadId: 's0', frameIds: ['f1'] })
+
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f1' })
+    expect(getFrameSelection()).toBeNull()
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it('selects a frame on another spread alone and collapses a set on setFrameSource', () => {
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f0' })
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f1' })
+    toggleFrameSelection({ spreadId: 's1', frameId: 'g' })
+    expect(getFrameSelection()).toEqual({ spreadId: 's1', frameIds: ['g'] })
+
+    toggleFrameSelection({ spreadId: 's1', frameId: 'h' })
+    setFrameSource({ spreadId: 's1', frameId: 'h' })
+    expect(getFrameSelection()).toEqual({ spreadId: 's1', frameIds: ['h'] })
+    expect(getFrameSource()).toEqual({ spreadId: 's1', frameId: 'h' })
+  })
+
+  it('keys a set by its ids here and as multi elsewhere; labels see no source', () => {
+    let calls = 0
+    const unsubscribe = subscribeSpreadFrameSource('s1', () => {
+      calls += 1
+    })
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f0' })
+    expect(getSpreadFrameSourceKey('s1')).toBe('')
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f1' })
+    expect(getSpreadFrameSourceKey('s0')).toBe('f0\nf1')
+    expect(getSpreadFrameSourceKey('s1')).toBe('\n')
+    expect(calls).toBe(2)
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f2' })
+    expect(calls).toBe(2)
+    expect(sourceFromKey('s0', 'f0\nf1')).toBeNull()
+    expect(sourceFromKey('s1', '\n')).toBeNull()
+    unsubscribe()
+  })
+
+  it('clears the gallery asset when a set starts', () => {
+    setSelectedAssetId('a')
+    toggleFrameSelection({ spreadId: 's0', frameId: 'f0' })
+    expect(getSelectedAssetId()).toBeNull()
+  })
+
+  it('keeps a set through photo edits and clears it when a selected frame goes', () => {
+    resetBookStore()
+    let book = addToGallery(getBookStoreSnapshot().book, ['a'])
+    const spreadId = book.spreads[0]?.id
+    assert(spreadId !== undefined, 'expected a spread')
+    book = applyTemplate(book, spreadId, '4-grid')
+    const frames = book.spreads[0]?.frames.map((f) => f.id) ?? []
+    resetBookStore({
+      book,
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    toggleFrameSelection({ spreadId, frameId: frames[0] ?? '' })
+    toggleFrameSelection({ spreadId, frameId: frames[1] ?? '' })
+
+    dispatchBookOp({
+      type: 'place',
+      spreadId,
+      frameId: frames[0] ?? '',
+      assetId: 'a',
+    })
+    expect(getFrameSelection()?.frameIds).toHaveLength(2)
+
+    dispatchBookOp({
+      type: 'removeFrames',
+      spreadId,
+      frameIds: [frames[1] ?? ''],
+    })
+    expect(getFrameSelection()).toBeNull()
   })
 })

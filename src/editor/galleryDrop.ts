@@ -33,9 +33,11 @@ import {
   setEditorStatus,
 } from './editorStatus'
 import {
+  getFrameSelection,
   getFrameSource,
   setFrameSource,
   sourceFrameFilled,
+  toggleFrameSelection,
 } from './frameSelection'
 import { setSelectedAssetId } from './gallerySelection'
 
@@ -132,6 +134,8 @@ export function activateFrame(
   frameId: string,
   filled: boolean,
   pointer = false,
+  /** Shift+click / Shift+Enter: toggle the frame in the selection. */
+  shift = false,
 ): void {
   if (takeFrameDragClick()) {
     return
@@ -139,10 +143,19 @@ export function activateFrame(
   const source = getFrameSource()
   const action = resolveFrameActivation({
     pointer,
+    shift,
     source,
     sourceFilled: source === null || sourceFrameFilled(source),
     target: { spreadId, frameId, filled },
   })
+  if (action.type === 'toggle') {
+    toggleFrameSelection({ spreadId, frameId })
+    const single = getFrameSource()
+    setEditorStatus(
+      single !== null && sourceFrameFilled(single) ? STATUS_SELECTED : '',
+    )
+    return
+  }
   if (action.type === 'select-source') {
     setFrameSource({ spreadId, frameId })
     // An empty frame has no photo to announce as selected.
@@ -191,6 +204,23 @@ function unplaceFrame(source: FrameDragSource): void {
     setFrameSource(null)
   }
   setEditorStatus(STATUS_UNPLACED)
+}
+
+/**
+ * Delete with 2 or more frames selected removes them all in one step, locked
+ * ones too (as the Delete frame button); the book change ends the selection.
+ */
+function removeSelectedFrames(): boolean {
+  const selection = getFrameSelection()
+  if (selection === null || selection.frameIds.length < 2) {
+    return false
+  }
+  dispatchBookOp({
+    type: 'removeFrames',
+    spreadId: selection.spreadId,
+    frameIds: selection.frameIds,
+  })
+  return true
 }
 
 /** Delete on a selected empty frame removes it (the spread leaves its template). */
@@ -577,6 +607,10 @@ export function installEditorKeys(): () => void {
     if (thumbId !== '') {
       event.preventDefault()
       requestGalleryRemove(thumbId, getAssetDisplayName(thumbId))
+      return
+    }
+    if (removeSelectedFrames()) {
+      event.preventDefault()
       return
     }
     const button = event.target.closest('button.spread-frame')

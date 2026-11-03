@@ -45,6 +45,15 @@ button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after {
   outline-offset: 1px;
 }
 
+/* Kit group box (2+ frames selected): a dashed mark outline around the union,
+   above every frame (frame z stays below the crop boost), no fill, no hits. */
+.spread-group-box {
+  position: absolute;
+  z-index: 999;
+  pointer-events: none;
+  outline: 1px dashed var(--color-mark);
+}
+
 /* Active crop: grey --crop outline and tag replace the black selection chrome. */
 button.spread-frame[data-crop-active='true']:not(
     [data-drop-hover='true']
