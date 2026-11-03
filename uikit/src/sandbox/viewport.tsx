@@ -5,7 +5,7 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
 import { useStudio, mapSpread, useKeys } from "./store"
-import { SpreadSurface, GuideLine, PHOTO_TYPE, readItems } from "./canvas"
+import { SpreadSurface, GuideLine, PHOTO_TYPE, readItems, marqueeStarters } from "./canvas"
 import { bestTemplate } from "./templates"
 import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, SPINE, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
@@ -16,6 +16,21 @@ import type { Node } from "./store"
 export const STACK_GAP = 104 / 588, STACK_TOP = 56, LABELS_MIN_GAP = 8 + 11, PILL_H = 32, PILL_MIN_GAP = PILL_H + 2 * LABELS_MIN_GAP
 
 /* v0.7.1: page labels live in the canvas layer under the spread and move with zoom and pan */
+/* Select drag on the pasteboard gray (gaps included): a marquee on the spread whose paper is nearest to the press
+   (point-to-rect; a tie keeps the upper one, whose slot holds the gap) — prod src/editor/marquee.ts nearestPaper.
+   Hand / Space / middle-drag pan in the capture phase and never get here. */
+function grayMarquee(e: React.PointerEvent, root: HTMLElement | null) {
+  const t = e.target as HTMLElement
+  if (e.button !== 0 || !root || t.closest('[data-testid="spread"], button, input, textarea, [role="button"], [data-testid^="ruler"], [data-stack-item="last"]')) return
+  let best: { si: number; d: number } | null = null
+  for (const el of root.querySelectorAll<HTMLElement>('[data-testid="spread"]')) {
+    const r = el.getBoundingClientRect()
+    const d = Math.hypot(Math.max(r.left - e.clientX, 0, e.clientX - r.right), Math.max(r.top - e.clientY, 0, e.clientY - r.bottom))
+    if (!best || d < best.d) best = { si: Number(el.dataset.spread), d }
+  }
+  if (best) marqueeStarters.get(best.si)?.(e)
+}
+
 function PageLabels({ nd, si }: { nd: Node; si: number }) {
   const st = useStudio(), b = st.book, cw = coverW(b), n = st.doc.spreads.length
   const labels: [string, number][] = nd?.k === "cover" ? [["Back", b.w / cw], ["Spine", SPINE / cw], ["Front", b.w / cw]]
@@ -225,7 +240,7 @@ export function Viewport({ className, children, pad = 40 }: { className?: string
 
   if (stacked) return <Stack className={className} pad={pad}>{children}</Stack>
   return (
-    <div ref={ref} onPointerDownCapture={onPanDown} onPointerMove={(e) => view.rulers && setCursor(local(e))} onPointerLeave={() => setCursor(null)}
+    <div ref={ref} onPointerDownCapture={onPanDown} onPointerDown={(e) => grayMarquee(e, ref.current)} onPointerMove={(e) => view.rulers && setCursor(local(e))} onPointerLeave={() => setCursor(null)}
       className={cn("canvas-dots relative min-h-0 flex-1 overflow-hidden",
         (view.tool === "hand" || space) && "cursor-grab",
         !space && view.tool === "frame" && "cursor-tool-frame",
@@ -350,7 +365,7 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
   }, [st.view.zoom])
   return (
     <div className={cn("relative min-h-0 flex-1", className)}>
-      <div ref={ref} onPointerDownCapture={onPanDown} onScroll={onScroll} className={cn("canvas-dots no-scrollbar absolute inset-0 overflow-auto",
+      <div ref={ref} onPointerDownCapture={onPanDown} onPointerDown={(e) => grayMarquee(e, ref.current)} onScroll={onScroll} className={cn("canvas-dots no-scrollbar absolute inset-0 overflow-auto",
           (st.view.tool === "hand" || space) && "cursor-grab",
           !space && st.view.tool === "frame" && "cursor-tool-frame",
           !space && st.view.tool === "text" && "cursor-tool-text")} data-testid="pasteboard">

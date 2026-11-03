@@ -16,6 +16,7 @@ import {
   getFrameSource,
   getSpreadFrameSourceKey,
   resetFrameSelection,
+  setFrameSelection,
   setFrameSource,
   sourceFromKey,
   subscribeFrameSelection,
@@ -354,6 +355,24 @@ describe('frameSelection', () => {
     toggleFrameSelection({ spreadId: 's0', frameId: 'f1' })
     expect(getFrameSelection()).toBeNull()
     expect(getFrameSource()).toBeNull()
+  })
+
+  it('sets a whole set at once; one id is the single source, none clears', () => {
+    setFrameSelection({ spreadId: 's0', frameIds: ['f0', 'f1'] })
+    expect(getFrameSelection()).toEqual({
+      spreadId: 's0',
+      frameIds: ['f0', 'f1'],
+    })
+    expect(getFrameSource()).toBeNull()
+
+    setFrameSelection({ spreadId: 's0', frameIds: ['f1'] })
+    expect(getFrameSource()).toEqual({ spreadId: 's0', frameId: 'f1' })
+
+    setFrameSelection({ spreadId: 's0', frameIds: [] })
+    expect(getFrameSelection()).toBeNull()
+    setFrameSource({ spreadId: 's0', frameId: 'f0' })
+    setFrameSelection(null)
+    expect(getFrameSelection()).toBeNull()
   })
 
   it('selects a frame on another spread alone and collapses a set on setFrameSource', () => {

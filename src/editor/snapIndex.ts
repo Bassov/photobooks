@@ -1,4 +1,4 @@
-import type { RectMm } from '../core'
+import type { Frame, RectMm } from '../core'
 import { GRID_SNAP_PULL_PX, type GridAnchors } from './gridSnap'
 
 /** Pull distance in CSS px for frame / guide / gap snapping. */
@@ -350,4 +350,68 @@ function snapProbes(
 /** Grid bands snap edges, not centers. */
 function edgeProbes(probes: readonly Probe[]): Probe[] {
   return probes.filter((probe) => probe.edge !== 'center')
+}
+
+/** Axis-aligned box of a frame as painted, rotated corners included (mm). */
+export function paintedBox(frame: Pick<Frame, 'rect' | 'rotationDeg'>): RectMm {
+  const { x, y, width, height } = frame.rect
+  const turn = ((frame.rotationDeg ?? 0) * Math.PI) / 180
+  const cos = Math.abs(Math.cos(turn))
+  const sin = Math.abs(Math.sin(turn))
+  const w = width * cos + height * sin
+  const h = width * sin + height * cos
+  return {
+    x: x + (width - w) / 2,
+    y: y + (height - h) / 2,
+    width: w,
+    height: h,
+  }
+}
+
+interface HitBox {
+  id: string
+  box: RectMm
+}
+
+/** Frames' painted boxes sorted by left edge, for marquee hit tests. */
+export interface FrameHitIndex {
+  boxes: readonly HitBox[]
+}
+
+export function buildFrameHitIndex(
+  frames: readonly Pick<Frame, 'id' | 'rect' | 'rotationDeg'>[],
+): FrameHitIndex {
+  return {
+    boxes: frames
+      .map((frame) => ({ id: frame.id, box: paintedBox(frame) }))
+      .sort((a, b) => a.box.x - b.box.x),
+  }
+}
+
+/** Ids of the frames whose painted box overlaps or touches `rect`, in left-edge order. */
+export function hitFrames(index: FrameHitIndex, rect: RectMm): string[] {
+  const right = rect.x + rect.width
+  const bottom = rect.y + rect.height
+  // Boxes starting right of the rect cannot touch it.
+  let lo = 0
+  let hi = index.boxes.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if ((index.boxes[mid]?.box.x ?? Infinity) <= right) {
+      lo = mid + 1
+    } else {
+      hi = mid
+    }
+  }
+  const hits: string[] = []
+  for (const { id, box } of index.boxes.slice(0, lo)) {
+    if (
+      box.x + box.width >= rect.x &&
+      box.y <= bottom &&
+      box.y + box.height >= rect.y
+    ) {
+      hits.push(id)
+    }
+  }
+  return hits
 }
