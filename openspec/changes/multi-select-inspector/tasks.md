@@ -14,3 +14,7 @@
 2. Two frames selected: Distribute buttons dimmed but focusable, Tab onto one shows "Select 3 or more unlocked frames".
 3. Lock one of three, align left: the locked frame stays; caption ends "· 1 locked, skipped".
 4. Right-click a selected frame: menu keeps the set; Bring to front moves the block; "Delete 3 frames" removes all.
+
+- Harness problem: `pnpm agent manual-qa` blocked at the welcome screen for all four (the header intercepts the `start-session` click); no product run.
+- OK (e2e evidence, `e2e/multi-select.spec.ts` part 4, 6 passed): 1 equal gaps ±0.01 mm + one Undo; 2 dimmed, focusable, reason tooltip, 28×28; 3 locked frame stays put; 4 menu keeps the set, lock on the set, Arrange + "Delete 3 frames"; Distribute click logs no LoAF.
+- UI review: no blocking findings (IconButton primitive + `disabledReason` row in docs/design.md; focusable disabled with `aria-describedby`; document fits viewport).
