@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Multi inspector for 2 or more selected frames (Designer Spec `shared/design/multi-select/spec.md` "Inspector, multi context" and prod Item 2): header "Multiple selection" + meta rule, Align & distribute (core `alignFrames` / `distributeFrames`, unlocked only, disabled reasons, caption), Arrange on the set (new op `reorderFrames`), "Delete N frames"; the #401 context menu and arrange / lock shortcuts act on the set
+- [x] Multi inspector for 2 or more selected frames (Designer Spec `shared/design/multi-select/spec.md` "Inspector, multi context" and prod Item 2): header "Multiple selection" + meta rule, Align & distribute (core `alignFrames` / `distributeFrames`, unlocked only, disabled reasons, caption), Arrange on the set (new op `reorderFrames`), "Delete N frames"; the #401 context menu and arrange / lock shortcuts act on the set
 - **Prod:** `src/editor/inspectorModel.ts` + `Inspector.tsx` (`multi` view), `FrameSections.tsx` (AlignSection, Arrange set, DeleteFrameButton count), `src/core/ops/arrange.ts` + `applyBookOp.ts` (`reorderFrames`), `src/ui/icons/glyphs.ts` (lucide align / distribute / layers glyphs), `FrameContextMenu.tsx`, `frameArrange.ts`
 - **Kit:** `uikit/src/sandbox/inspector.tsx` (AlignSection labels, testids, 3-group layout, unlocked-only semantics, caption; ArrangeSection set label), `uikit/src/sandbox/context-inspector.tsx` (multi meta rule)
 - **Perf:** an align / distribute click is one book commit; no long task.
