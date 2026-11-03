@@ -12,11 +12,10 @@ import { useStudio, StudioProvider, BOOK0, type Book, type Features, type Node }
 import { reflowDoc, type Doc } from "@/sandbox/model"
 import { useCoverPhoto, useCoverText, useMasters, setEditorExtras } from "@/sandbox/v7"
 import type { View } from "@/sandbox/store"
-import { FolderPicker, BOOKS } from "@/features/screens"
-import { SiteViewer } from "@/features/site-viewer"
-import { useSession, blankDoc, blankExtras, coverOf, fmtOf, type Extras } from "./session"
+import { FolderPicker } from "@/features/screens"
+import { useSession, blankDoc, blankExtras, type Extras } from "./session"
 import { PrintDialog, PublishDialog, RelinkDialog } from "./dialogs"
-import { SiteCover } from "./site"
+import { Presentation } from "./presentation"
 import { SLOT } from "./layout"
 
 /** The editor features #/demo enables. `overrides`: Alt+click a parent item on a spread to make a local copy. Guides on a master are edited in the Masters view (see Viewport).
@@ -86,8 +85,11 @@ export function AddFolder() {
 /** #/demo filmstrip dock (photos only + Add folder…). Needs a studio (Std or PartStudio). */
 export function PhotosDock() { return <Dock right={<><RelinkControl /><AddFolder /></>} /> }
 
-const DEMO_VIEWS: ComponentProps<typeof TopBar>["views"] = ["snap", "grid", "guides", "rulers", "overlays", "dpi"]
-/** #/demo editor top bar: tools, history, view toggles (snap, grid, guides, rulers, bleed / trim / safe, DPI badges), zoom, save, title (→ Book settings) and Preview · Settings · Print · Publish. */
+/** KS1 (M11 widened): the top bar toggles snap and grid only, as prod; guides (Ctrl+;) and rulers (Shift+R) stay on their keys. */
+const DEMO_VIEWS: ComponentProps<typeof TopBar>["views"] = ["snap", "grid"]
+/** KS1: the #/demo canvas opens with no guides, rulers or bleed / trim / safe lines. */
+const DEMO_VIEW: Partial<View> = { guides: false, rulers: false, overlays: false }
+/** #/demo editor top bar: tools, history, view toggles (snap, grid), zoom, save, title (→ Book settings) and Preview · Settings · Print · Publish. */
 export function EditorTopBar({ title, onLibrary, onPreview, onSettings, onPrint, onPublish }: {
   title: string; onLibrary?: () => void; onPreview?: () => void; onSettings?: () => void; onPrint?: () => void; onPublish?: () => void
 }) {
@@ -110,15 +112,14 @@ export function DemoEditor({ id, initialDialog = null, initialPreview = false }:
   React.useState(() => { setEditorExtras(b.extras ?? blankExtras(b.title)); return 0 }) // restore before Std mounts (Std keep)
   const [dlg, setDlg] = React.useState<null | "publish" | "print">(initialDialog)
   const [preview, setPreview] = React.useState(initialPreview)
-  const card = { ...BOOKS[0], id: b.id, title: b.title, cover: coverOf(b) ?? "", spreads: b.doc?.spreads.length ?? 10, format: fmtOf(b.book), status: "draft" as const }
   const openSite = () => { const oid = S.open; set({ books: S.books.map((x) => (x.id === oid ? { ...x, published: true } : x)), stage: "site", back: "editor", siteEntry: "catalog" }) }
   return (
     <div className="h-full" data-testid="demo-editor">
-      <Std keep init={() => b.doc ?? blankDoc()} book={b.book} cur={0} features={DEMO_FEATURES} missing={b.missing} left={<SpreadsPanel reorder actions />}
+      <Std keep init={() => b.doc ?? blankDoc()} book={b.book} cur={0} features={DEMO_FEATURES} view={DEMO_VIEW} missing={b.missing} left={<SpreadsPanel reorder actions />}
         top={<EditorTopBar title={b.title} onLibrary={() => set({ stage: "library", open: null })} onPreview={() => setPreview(true)} onSettings={() => set({ stage: "settings", back: "editor" })} onPrint={() => setDlg("print")} onPublish={() => setDlg("publish")} />}
         dock={<PhotosDock />}
         overlay={<><DocSpy id={id} /><MissingSync id={id} />
-          {preview && <div className="fixed inset-0 z-[80]" data-testid="book-preview"><SiteViewer single onClose={() => setPreview(false)} books={[card]} initial={{ page: "book", book: b.id }} cover={(w) => <SiteCover w={w} />} /></div>}
+          {preview && <Presentation onExit={() => setPreview(false)} />}
           {dlg === "publish" && <PublishDialog title={b.title} onClose={() => setDlg(null)} onOpenSite={openSite} />}{dlg === "print" && <PrintDialog book={b.book} spreads={b.doc?.spreads.length ?? 10} title={b.title} onClose={() => setDlg(null)} />}</>} />
     </div>
   )
