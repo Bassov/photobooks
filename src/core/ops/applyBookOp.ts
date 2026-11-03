@@ -3,7 +3,12 @@ import type { GridField, GridPatch } from '../grid/layoutGrid'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
 import type { LayoutSlotPct } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
-import { addParent, removeParent, renameParent } from '../parentSpreads'
+import {
+  addParent,
+  removeParent,
+  renameParent,
+  setDefaultParent,
+} from '../parentSpreads'
 import { setSpreadBackground, setSpreadParent } from './spreadLook'
 import {
   addToGallery,
@@ -244,6 +249,7 @@ export type BookOp =
   | { type: 'addParent'; id?: string }
   | { type: 'renameParent'; parentId: string; name: string }
   | { type: 'removeParent'; parentId: string }
+  | { type: 'setDefaultParent'; parentId: string | null }
 
 export function applyBookOp(book: Book, op: BookOp): Book {
   switch (op.type) {
@@ -360,6 +366,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return renameParent(book, op.parentId, op.name)
     case 'removeParent':
       return removeParent(book, op.parentId)
+    case 'setDefaultParent':
+      return setDefaultParent(book, op.parentId)
     case 'addFrame':
       return addFrame(book, op.spreadId, op.rect, op.id)
     case 'removeFrames':

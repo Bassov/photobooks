@@ -2,6 +2,7 @@ import {
   GRID_FIELDS,
   clearGridOverrideFields,
   gridFieldSource,
+  mergeLayoutGrid,
   overridesGridField,
   patchBookGrid,
   patchGridOverride,
@@ -46,6 +47,25 @@ export function realign(book: Book, spreadIds: readonly string[]): Book {
   return spreads.some((spread, index) => spread !== book.spreads[index])
     ? { ...book, spreads }
     : book
+}
+
+/**
+ * Re-aligns the spreads of `after` whose resolved margins or gutters differ
+ * from `before` (a parent deleted or a new book default); both books keep
+ * the same spread order.
+ */
+export function realignResolvedGrids(before: Book, after: Book): Book {
+  const moved = after.spreads.filter((spread, index) => {
+    const from = mergeLayoutGrid(before, before.spreads[index])
+    const to = mergeLayoutGrid(after, spread)
+    return [...FRAME_FIELDS].some(
+      (field) => readGridField(from, field) !== readGridField(to, field),
+    )
+  })
+  return realign(
+    after,
+    moved.map((spread) => spread.id),
+  )
 }
 
 export function setBookGrid(book: Book, patch: GridPatch): Book {

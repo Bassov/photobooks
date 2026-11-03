@@ -1,5 +1,6 @@
 import { mergeGridLevels } from './grid/layoutGrid'
 import { omitKey } from './omitKey'
+import { realignResolvedGrids } from './ops/grid'
 import type { Guide } from './ops/guides'
 import type { Book, Frame, ParentSpread, Spread } from './schema'
 import { spreadParent } from './spreadParent'
@@ -132,7 +133,7 @@ export function renameParent(book: Book, id: string, name: string): Book {
 
 /**
  * Delete a parent: spreads that stored its id and a matching book default
- * fall back to None.
+ * fall back to None, and the spreads whose grid changes re-align.
  */
 export function removeParent(book: Book, id: string): Book {
   const parents = book.parents
@@ -154,7 +155,26 @@ export function removeParent(book: Book, id: string): Book {
   next.spreads = book.spreads.map((spread) =>
     spread.parentId === id ? none(spread) : spread,
   )
-  return next
+  return realignResolvedGrids(book, next)
+}
+
+/**
+ * The book default parent (`null` = none); an unknown id or the current
+ * default leaves the book. Stored `parentId` values stay; the spreads
+ * whose grid changes re-align.
+ */
+export function setDefaultParent(book: Book, id: string | null): Book {
+  if (
+    (id ?? undefined) === book.defaultParentId ||
+    (id !== null && !book.parents?.some((parent) => parent.id === id))
+  ) {
+    return book
+  }
+  const next =
+    id === null
+      ? omitKey(book, 'defaultParentId')
+      : { ...book, defaultParentId: id }
+  return realignResolvedGrids(book, next)
 }
 
 /** Grid chain: book grid → parent partial grid → spread override. */

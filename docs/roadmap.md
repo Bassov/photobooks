@@ -102,6 +102,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [design-r16-kit-inspector](roadmap/P2/design-r16-kit-inspector.md) — Bug: /next-roadmap-item design-r16-kit-inspector
 - [ ] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
 - [x] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
+- [x] [feature] [parent-realign-gaps](roadmap/P2/parent-realign-gaps.md) — Bug: /next-roadmap-item parent-realign-gaps
 - [x] [feature] [design-r16-kit-book](roadmap/P2/design-r16-kit-book.md) — Bug: /next-roadmap-item design-r16-kit-book
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
 - [ ] [feature] [parent-overrides](roadmap/P2/parent-overrides.md) — change one spread without touching the parent
