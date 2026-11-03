@@ -5,7 +5,7 @@ import { Settings, FolderPlus, Printer, Eye, ImageOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { photos as ALL_PHOTOS } from "@/data"
 import { Std } from "@/features/parts"
-import { TopBar, Dock, SpreadsPanel, StatusLine, EditorFrame } from "@/sandbox/chrome"
+import { TopBar, Dock, FilmChips, SpreadsPanel, StatusLine, EditorFrame } from "@/sandbox/chrome"
 import { ContextInspector } from "@/sandbox/context-inspector"
 import { Viewport } from "@/sandbox/viewport"
 import { useStudio, StudioProvider, BOOK0, type Book, type Features, type Node } from "@/sandbox/store"
@@ -82,13 +82,13 @@ export function AddFolder() {
     }} />
   </>
 }
-/** #/demo filmstrip dock (photos only + Add folder…). Needs a studio (Std or PartStudio). */
-export function PhotosDock() { return <Dock right={<><RelinkControl /><AddFolder /></>} /> }
+/** #/demo filmstrip dock (photos only; KS13: Unplaced · sort · Add folder… as prod). Needs a studio (Std or PartStudio). */
+export function PhotosDock() { return <Dock right={<><RelinkControl /><FilmChips /><AddFolder /></>} /> }
 
 /** KS1 (M11 widened): the top bar toggles snap and grid only, as prod; guides (Ctrl+;) and rulers (Shift+R) stay on their keys. */
 const DEMO_VIEWS: ComponentProps<typeof TopBar>["views"] = ["snap", "grid"]
-/** KS1: the #/demo canvas opens with no guides, rulers or bleed / trim / safe lines. */
-const DEMO_VIEW: Partial<View> = { guides: false, rulers: false, overlays: false }
+/** KS1: the #/demo canvas opens with no guides, rulers or bleed / trim / safe lines. KS13: the filmstrip starts on Added order (prod default). */
+const DEMO_VIEW: Partial<View> = { guides: false, rulers: false, overlays: false, sort: "added" }
 /** #/demo editor top bar: tools, history, view toggles (snap, grid), zoom, save, title (→ Book settings) and Preview · Settings · Print · Publish. */
 export function EditorTopBar({ title, onLibrary, onPreview, onSettings, onPrint, onPublish }: {
   title: string; onLibrary?: () => void; onPreview?: () => void; onSettings?: () => void; onPrint?: () => void; onPublish?: () => void
