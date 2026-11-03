@@ -12,3 +12,5 @@
 2. Select a spread → Contact sheet sits at the right edge of the Layout row.
 3. Add a small photo → "Low-res" chip at its thumb's top-left; a 24 MP photo has none.
 4. Resize to 1024 px → title block stays on one line with `…`.
+
+`pnpm agent manual-qa` (2026-11-03): problem (harness) for 1–4: the click on `start-session` timed out (30 s) because the welcome header intercepts pointer events, so the editor was never reached. Covered by `e2e/design-r16-prod.spec.ts` (scenario 1: M83 pressed test; 2: M84; 3: M85; 4: 1024 / 1233 px tests), 150/150 with `--repeat-each=30`.
