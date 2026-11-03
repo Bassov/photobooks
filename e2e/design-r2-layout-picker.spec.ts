@@ -641,9 +641,9 @@ test('Margin, Gap and Background write the spread', async ({ page }) => {
   await expect(margin).toHaveValue('12 mm')
   // The spread grid now overrides all four margins (Grid shows Custom).
   for (const field of ['top', 'bottom', 'inside', 'outside']) {
-    await expect(
-      page.getByTestId(`grid-field-${field}`).getByRole('textbox'),
-    ).toHaveValue('12')
+    await expect(page.getByTestId(`spread-grid-field-${field}`)).toHaveValue(
+      '12',
+    )
   }
   const gap = page.getByTestId('spread-gap').getByTestId('slider-value')
   await gap.fill('99')

@@ -244,22 +244,37 @@ export function relayout(sp: Spread, margin: number, gap: number): Spread {
   })
   return { ...sp, frames, margin, gap }
 }
-/** v0.8 §3.4: per-spread grid — "Use master" (inherit) or Custom (own copy, editable). The view toggle only shows/hides it. */
+const MARGIN_KEYS: (keyof Grid)[] = ["top", "bottom", "inside", "outside"]
+/** v0.8 §3.4 + layout-grids-parent-inherit GP2–GP6: per-spread grid — "Use master" (inherit) or Custom (per-field overrides on top of the master:
+    grey = follows the master, dark + ↺ = set on this spread). Custom alone writes nothing; ↺ deletes one key (all four margins while linked). */
 function SpreadGridSection() {
   const st = useStudio(); useMasters()
-  const [link, setLink] = React.useState(false)
+  const [customFor, setCustomFor] = React.useState<string | null>(null)
+  const [linkFor, setLinkFor] = React.useState<{ id: string; on: boolean } | null>(null)
   const sp = st.doc.spreads[st.cur]
   if (!sp) return null
-  const custom = !!sp.grid && Object.keys(sp.grid).length > 0
-  const { src: _src, ...g } = effectiveGrid(st.doc, sp)
-  const mName = sp.master === "none" ? "Book grid" : `Master ${sp.master ?? "A"}`
+  const { src, ...g } = effectiveGrid(st.doc, sp)
+  const custom = (!!sp.grid && Object.keys(sp.grid).length > 0) || customFor === sp.id
+  const none = sp.master === "none", mName = none ? "Book grid" : `Master ${sp.master ?? "A"}`
+  const link = linkFor?.id === sp.id ? linkFor.on : g.top === g.bottom && g.top === g.inside && g.top === g.outside
+  const write = (ng: Grid) => {
+    const changed = (Object.keys(ng) as (keyof Grid)[]).filter((k) => ng[k] !== g[k])
+    if (changed.length) st.update((d) => mapSpread(d, st.cur, (x) => ({ ...x, grid: { ...x.grid, ...Object.fromEntries(changed.map((k) => [k, ng[k]])) } })), "Spread grid", `sgrid-${sp.id}`)
+  }
+  const reset = (k: keyof Grid) => {
+    const keys = link && MARGIN_KEYS.includes(k) ? MARGIN_KEYS : [k]
+    setCustomFor(sp.id)
+    st.update((d) => mapSpread(d, st.cur, (x) => { const rest = Object.fromEntries(Object.entries(x.grid ?? {}).filter(([key]) => !keys.includes(key as keyof Grid))); return { ...x, grid: Object.keys(rest).length ? rest : undefined } }), "Reset grid value")
+  }
   return (
     <Section title="Grid" summary={`${g.cols}×${g.rows}`}>
       <div data-testid="spread-grid">
-        <SegC items={[`Use ${sp.master === "none" ? "book" : "master"}`, "Custom"]} on={custom ? 1 : 0}
-          set={(i) => st.update((d) => mapSpread(d, st.cur, (x) => ({ ...x, grid: i ? { ...g } : undefined })), i ? "Custom spread grid" : "Use master grid")} />
+        <SegC items={[`Use ${none ? "book" : "master"}`, "Custom"]} on={custom ? 1 : 0}
+          set={(i) => { setCustomFor(i ? sp.id : null); if (!i) st.update((d) => mapSpread(d, st.cur, (x) => ({ ...x, grid: undefined })), "Use master grid") }} />
         <div className="mt-3">
-          {custom ? <GridFields g={g as Grid} tid="spread-grid" link={link} setLink={setLink} set={(ng) => st.update((d) => mapSpread(d, st.cur, (x) => ({ ...x, grid: ng })), "Spread grid", `sgrid-${sp.id}`)} />
+          {custom ? <>
+            <GridFields g={g as Grid} tid="spread-grid" link={link} setLink={(on) => setLinkFor({ id: sp.id, on })} set={write} src={src} parentName={none ? "book grid" : mName} onReset={reset} />
+            <div className="mt-1.5 text-2xs leading-4 text-muted-foreground" data-testid="spread-grid-hint">Grey values follow {none ? "the book grid" : mName}.</div></>
             : <div className="text-sm text-muted-foreground" data-testid="spread-grid-inherit">{mName} · {g.cols} × {g.rows} · gutter {g.colGutter} mm · margins {g.top}/{g.bottom}/{g.inside}/{g.outside} mm</div>}
         </div>
         <div className="mt-3 flex items-center justify-between text-sm"><span className="text-muted-foreground">Show grid</span><Toggle label="Show grid" on={st.view.grid} onClick={() => st.setView({ grid: !st.view.grid })} /></div>

@@ -244,7 +244,7 @@ export function Inspector() {
             <LayoutSection spreadId={view.spreadId} />
             <MasterSpacingSection spreadId={view.spreadId} />
             <BackgroundSection spreadId={view.spreadId} />
-            <GridSection scope="spread" spreadId={view.spreadId} />
+            <GridSection spreadId={view.spreadId} />
           </>
         ) : null}
         {view.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}

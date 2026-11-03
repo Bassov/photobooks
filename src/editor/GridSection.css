@@ -10,41 +10,46 @@
   line-height: 1.45;
 }
 
-.grid-field {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  background: var(--field);
-  font-size: var(--text-sm);
+/* Spread grid Custom (Designer Spec GP2): grey 400 follows the parent,
+   dark 600 is set on this spread. The master fields carry no data-source. */
+.insp-grid-field[data-source='book'] input,
+.insp-grid-field[data-source='master'] input {
+  color: var(--muted-foreground);
+  font-weight: 400;
 }
 
-.grid-field:focus-within {
+.insp-grid-field[data-source='spread'] input {
+  color: var(--t-text);
+  font-weight: 600;
+}
+
+/* GP3 reset to parent: 16 px `.e7-ghost` (hover fill) after the unit; the
+   value box shrinks inside the fixed field, so nothing shifts when it appears.
+   Two classes beat the runtime `.e7-ghost` colour and focus offset. */
+.insp-grid-field .insp-grid-reset {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  place-items: center;
+  margin-left: -4px;
+  padding: 0;
+  border-radius: var(--radius-xs);
+  color: var(--muted-foreground);
+}
+
+.insp-grid-field .insp-grid-reset:hover {
+  color: var(--t-text);
+}
+
+.insp-grid-field .insp-grid-reset:focus-visible {
   outline: 2px solid var(--muted-foreground);
   outline-offset: 1px;
 }
 
-.grid-field-input {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.grid-eye {
-  background: var(--toggle-off);
-}
-
-.grid-eye[aria-pressed='true'] {
-  background: var(--toggle-on);
+.insp-grid-reset .pb-icon {
+  width: 12px;
+  height: 12px;
 }
 
 /* Kit SegC (uikit/src/sandbox/v7.tsx): h-[26px] text-sm medium segments. */

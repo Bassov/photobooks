@@ -5,7 +5,7 @@ import { useStudio, type Book } from "./store"
 import { Slider as USlider, SliderTrack, SliderFillTrack, SliderThumb } from "@/components/ui/slider"
 import { P } from "@/data"
 import { MASTER_GRIDS, MASTER_GUIDES, MASTER_PN, builtinMaster, type Grid, type Guide } from "./model"
-import { Link2, Unlink2 } from "lucide-react"
+import { Link2, RotateCcw, Unlink2 } from "lucide-react"
 
 export const T = "#393738", SUB = "#535152", INK = "#232223", ON_INK = "#F2F2F2", SURROUND = "#C8CACB", BAR = "#E1E1E1", FIELD = "#D7D7D7", PAPER = "#FFFFFF"
 const serif = { fontFamily: "var(--font-heading)" } as const
@@ -130,12 +130,18 @@ export function LastPage({ big }: { big?: boolean }) {
 
 export const Sec = ({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) => (
   <section className="px-4 py-4"><div className="mb-3 flex items-center justify-between"><h3 className="text-2xs font-semibold tracking-[0.12em] uppercase" style={{ color: SUB }}>{title}</h3>{right}</div>{children}</section>)
-export const Field = ({ l, v, u, set, min = 0, max = 99, cap, name, tid = "master-field" }: { l: string; v: string; u?: string; set?: (n: number) => void; min?: number; max?: number; cap?: string; name?: string; tid?: string }) => (
+/** layout-grids-parent-inherit GP2/GP3: with `src` (tooltip + description) the value reads grey 400 when inherited, dark 600 + ↺ when `own` */
+export const Field = ({ l, v, u, set, min = 0, max = 99, cap, name, tid = "master-field", own, src, onReset, resetLabel }: { l: string; v: string; u?: string; set?: (n: number) => void; min?: number; max?: number; cap?: string; name?: string; tid?: string; own?: boolean; src?: string; onReset?: () => void; resetLabel?: string }) => {
+  const descId = React.useId(), shade = src === undefined ? { color: T } : { color: own ? T : SUB, fontWeight: own ? 600 : 400 }
   /* v0.9 §5: always show the short label (`l`) so the number + unit stay visible; long name goes on title/aria */
-  <label className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm has-[input:focus-visible]:shadow-field-focus" style={{ background: FIELD }} title={cap ?? name ?? l}><span className="min-w-3 shrink-0 text-center" style={{ color: SUB }}>{l}</span>
-    {set ? <input type="number" inputMode="numeric" aria-label={name ?? cap ?? l} value={v} min={min} max={max} data-testid={`${tid}-${l}`} onChange={(e) => { const n = +e.target.value; if (Number.isFinite(n)) set(Math.min(max, Math.max(min, n))) }}
-        className="w-0 min-w-0 flex-1 bg-transparent font-mono tabular-nums outline-none [appearance:textfield] focus-visible:underline" style={{ color: T }} />
-      : <span className="flex-1 font-mono tabular-nums" style={{ color: T }}>{v}</span>}{u && <span className="shrink-0" style={{ color: SUB }}>{u}</span>}</label>)
+  return <label className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm has-[input:focus-visible]:shadow-field-focus" style={{ background: FIELD }} title={src ?? cap ?? name ?? l}><span className="min-w-3 shrink-0 text-center" style={{ color: SUB }}>{l}</span>
+    {set ? <input type="number" inputMode="numeric" aria-label={name ?? cap ?? l} aria-describedby={src === undefined ? undefined : descId} value={v} min={min} max={max} data-testid={`${tid}-${l}`} onChange={(e) => { const n = +e.target.value; if (Number.isFinite(n)) set(Math.min(max, Math.max(min, n))) }}
+        className="w-0 min-w-0 flex-1 bg-transparent font-mono tabular-nums outline-none [appearance:textfield] focus-visible:underline" style={shade} />
+      : <span className="flex-1 font-mono tabular-nums" style={shade}>{v}</span>}{u && <span className="shrink-0" style={{ color: SUB }}>{u}</span>}
+    {src !== undefined && <span id={descId} className="sr-only">{src}</span>}
+    {own && onReset && <button type="button" aria-label={resetLabel} title={resetLabel} data-testid={`${tid}-reset-${l}`} onClick={(e) => { e.preventDefault(); onReset() }}
+      className="-ml-1 grid size-4 shrink-0 place-items-center rounded-xs border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[rgb(57_55_56/.08)] hover:text-[#393738] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#535152] [&_svg]:size-3"><RotateCcw /></button>}</label>
+}
 export const SegC = ({ items, on, set }: { items: React.ReactNode[]; on: number; set?: (i: number) => void }) => (
   <div className="flex rounded-md p-0.5" style={{ background: FIELD }}>
     {items.map((it, i) => <button key={i} type="button" aria-pressed={i === on} onClick={() => set?.(i)} className="e7-ghost flex h-6.5 flex-1 items-center justify-center rounded-sm text-sm font-medium [&_svg]:size-3.5" style={i === on ? { background: BAR, color: T, boxShadow: "0 1px 2px rgb(35 34 35/.14)" } : { color: SUB }}>{it}</button>)}
@@ -189,9 +195,14 @@ export function SizeEditor({ book, setBook }: { book: Book; setBook: (b: Book) =
 }
 
 /** v0.8 §3.4: the grid editor — Columns, Rows, Gutter, Row gap, Margins T/B/I/O with a link toggle, all mm. Shared by Masters and the spread inspector. */
-export function GridFields({ g, set, link, setLink, tid = "master-field" }: { g: Grid; set: (g: Grid) => void; link: boolean; setLink: (v: boolean) => void; tid?: string }) {
-  const f = (k: keyof Grid, l: string, cap: string, name: string, u: string | undefined, min: number, max: number) =>
-    <Field l={l} cap={cap} name={name} tid={tid} v={`${g[k]}`} u={u} min={min} max={max} set={(n) => set(link && ["top", "bottom", "inside", "outside"].includes(k) ? { ...g, top: n, bottom: n, inside: n, outside: n } : { ...g, [k]: n })} />
+/** layout-grids-parent-inherit: `src` (per-field source) + `parentName` ("Master A" / "book grid") + `onReset` show grey / own values and ↺; without `src` it renders as before (masters). */
+export function GridFields({ g, set, link, setLink, tid = "master-field", src, parentName = "book grid", onReset }: { g: Grid; set: (g: Grid) => void; link: boolean; setLink: (v: boolean) => void; tid?: string; src?: Record<keyof Grid, "book" | "parent" | "spread">; parentName?: string; onReset?: (k: keyof Grid) => void }) {
+  const f = (k: keyof Grid, l: string, cap: string, name: string, u: string | undefined, min: number, max: number) => {
+    const own = src?.[k] === "spread", label = name.replace(" (mm)", "")
+    const tip = src && `${name} · ${own ? "set on this spread" : src[k] === "parent" ? `from ${parentName}` : "from book grid"}`
+    return <Field l={l} cap={cap} name={name} tid={tid} v={`${g[k]}`} u={u} min={min} max={max} own={own} src={tip} onReset={onReset && (() => onReset(k))} resetLabel={`Reset ${label} to ${parentName}`}
+      set={(n) => set(link && ["top", "bottom", "inside", "outside"].includes(k) ? { ...g, top: n, bottom: n, inside: n, outside: n } : { ...g, [k]: n })} />
+  }
   return <div data-testid={`${tid}-grid`}>
     <div className="grid grid-cols-2 gap-2">{f("cols", "C", "Columns", "Columns", undefined, 1, 12)}{f("rows", "R", "Rows", "Rows", undefined, 1, 12)}{f("colGutter", "G", "Gutter", "Gutter (mm)", "mm", 0, 30)}{f("rowGutter", "RG", "Row gap", "Row gap (mm)", "mm", 0, 30)}</div>
     <div className="mt-3 flex items-center justify-between text-sm"><span style={{ color: SUB }}>Margins</span>
