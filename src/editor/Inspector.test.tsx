@@ -105,7 +105,8 @@ describe('Inspector', () => {
     resetBookStore()
   })
 
-  it('shows the empty hint and no crop section with nothing selected', () => {
+  it('shows the empty hint and no crop section for a book without spreads', () => {
+    seedBook(makeBook({ spreads: [] }))
     render(<Inspector />)
     const panel = screen.getByTestId('inspector-panel')
     expect(panel.getAttribute('data-inspector-view')).toBe('empty')
@@ -117,7 +118,7 @@ describe('Inspector', () => {
     expect(screen.queryByTestId('inspector-header')).toBeNull()
   })
 
-  it('shows the Spread context for the active spread, Esc returns to empty', () => {
+  it('shows the Spread context for the active spread; Esc and a re-pick keep it (kit)', () => {
     seed()
     render(<Inspector />)
     act(() => {
@@ -137,8 +138,23 @@ describe('Inspector', () => {
       '',
     )
 
+    // Repro 3 (inspector-empty-after-grey): Esc, then the same spread again.
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(panel.getAttribute('data-inspector-view')).toBe('empty')
+    expect(panel.getAttribute('data-inspector-view')).toBe('spread')
+    act(() => {
+      setActiveSpreadId('spread-1')
+    })
+    expect(panel.getAttribute('data-inspector-view')).toBe('spread')
+    expect(screen.queryByTestId('inspector-empty')).toBeNull()
+  })
+
+  it('shows the first spread while no spread is active yet', () => {
+    seed()
+    render(<Inspector />)
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Spread')
+    expect(screen.getByTestId('inspector-spread-summary').textContent).toBe(
+      'Page 1 · 0 empty',
+    )
   })
 
   it('shows the Photo context for a selected frame', () => {
@@ -283,12 +299,13 @@ describe('Inspector', () => {
     })
 
     it('paints the context icon and hints in the muted colour', () => {
-      seed()
+      seedBook(makeBook({ spreads: [] }))
       render(<Inspector />)
       const muted = cssColor(SUB)
       expect(muted).not.toBe('')
       expect(screen.getByTestId('inspector-empty').style.color).toBe(muted)
       act(() => {
+        seed()
         setActiveSpreadId('spread-1')
       })
       const icon = screen

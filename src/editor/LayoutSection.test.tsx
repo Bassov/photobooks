@@ -198,7 +198,12 @@ describe('Inspector Spread / Book settings sections', () => {
   })
 
   it('Without a spread, no Layout section; shows no Layout section', () => {
-    seed()
+    resetBookStore({
+      book: makeBook({ spreads: [] }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
     render(<Inspector />)
     expect(screen.queryByTestId('layout-section')).toBeNull()
   })

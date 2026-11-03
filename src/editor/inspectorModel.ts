@@ -49,13 +49,13 @@ export function sameInspectorPanel(
 
 /**
  * 2 or more selected frames on a book spread win, then one frame, then the
- * active spread (unless Esc dismissed it), else empty.
+ * active spread (the first one while none is active, as the kit's clamped
+ * `cur`). Empty only for a book without spreads.
  */
 export function inspectorView(
   book: Book,
   frameSource: FrameSource | null,
   activeSpreadId: string | null,
-  dismissedSpreadId: string | null,
   selection: FrameSelection | null = null,
 ): InspectorView {
   const multi = multiView(book, selection)
@@ -72,12 +72,14 @@ export function inspectorView(
   if (pickedSpread && frame) {
     return { kind: 'frame', spread: pickedSpread, spreadIndex: picked, frame }
   }
-  const at = book.spreads.findIndex((spread) => spread.id === activeSpreadId)
+  const at = Math.max(
+    0,
+    book.spreads.findIndex((spread) => spread.id === activeSpreadId),
+  )
   const spread = book.spreads[at]
-  if (spread && activeSpreadId !== dismissedSpreadId) {
-    return { kind: 'spread', spread, spreadIndex: at }
-  }
-  return { kind: 'empty' }
+  return spread
+    ? { kind: 'spread', spread, spreadIndex: at }
+    : { kind: 'empty' }
 }
 
 function multiView(

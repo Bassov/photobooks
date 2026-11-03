@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { useCallback, useRef, useSyncExternalStore } from 'react'
 import { Icon } from '../ui/Icon'
 import type { IconName } from '../ui/icons/glyphs'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
@@ -156,31 +150,18 @@ export function Inspector() {
     readParents,
   )
   const target = cropKey === '' ? null : getCropTarget()
-  // Esc drops the spread view to the empty hint until another spread is picked.
-  const [dismissed, setDismissed] = useState<string | null>(null)
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setDismissed(getActiveSpreadId())
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [])
   // Crop pans commit the book every pointermove; keep the previous snapshot
   // while header and rows are unchanged so the (often hidden) panel skips it.
   const lastPanel = useRef<InspectorPanel | null>(null)
   const readPanel = useCallback(() => {
-    const next = inspectorPanel(frameSource, activeId, dismissed, selection)
+    const next = inspectorPanel(frameSource, activeId, selection)
     const prev = lastPanel.current
     if (prev !== null && sameInspectorPanel(prev, next)) {
       return prev
     }
     lastPanel.current = next
     return next
-  }, [frameSource, activeId, dismissed, selection])
+  }, [frameSource, activeId, selection])
   const panel = useSyncExternalStore(subscribeBookStore, readPanel, readPanel)
   // Crop mode keeps its frame (double-click drops the selection); else the
   // selected frame. Empty frames render nothing inside the section.
@@ -318,16 +299,9 @@ function Hint({ children }: { children: string }) {
 function inspectorPanel(
   frameSource: ReturnType<typeof getFrameSource>,
   activeId: ReturnType<typeof getActiveSpreadId>,
-  dismissed: string | null,
   selection: FrameSelection | null,
 ): InspectorPanel {
-  const view = inspectorView(
-    readBook(),
-    frameSource,
-    activeId,
-    dismissed,
-    selection,
-  )
+  const view = inspectorView(readBook(), frameSource, activeId, selection)
   if (view.kind === 'multi') {
     return { kind: view.kind, spreadId: view.spread.id, set: view.set }
   }
