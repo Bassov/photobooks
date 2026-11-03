@@ -386,15 +386,40 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
       }, (m) => { if (m) { st.commit(kind === "text" ? "Add text frame" : "Add frame"); st.setSel([id]); st.setView({ tool: "select" }) } })
       return
     }
+    startMarquee(e)
+  }
+  /* Marquee (paper or, via viewport.tsx, the pasteboard): hits = own frames whose rotated AABB it touches,
+     outlined live; release selects them (∪ the previous set with Shift at the press); Esc restores it. */
+  const hitsOf = (m: Rect) => s.frames.filter((f) => { const b = aabb(f); return b.x <= m.x + m.w && b.x + b.w >= m.x && b.y <= m.y + m.h && b.y + b.h >= m.y }).map((f) => f.id)
+  const startMarquee = (e: { clientX: number; clientY: number; shiftKey: boolean }) => {
+    const prev = st.sel, keep = e.shiftKey ? prev : []
     if (!e.shiftKey) st.setSel([])
     if (!ft.marquee) return
-    const start = gesture(e, (p) => setMarquee({ x: Math.min(p.x, start.x), y: Math.min(p.y, start.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) }), () => {
-      setMarquee((m) => {
-        if (m) st.setSel(s.frames.filter((f) => f.x < m.x + m.w && f.x + f.w > m.x && f.y < m.y + m.h && f.y + f.h > m.y).map((f) => f.id))
-        return null
-      })
-    })
+    const start = pt(e); let box: Rect | null = null
+    const end = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key, true); setMarquee(null) }
+    const mv = (ev: PointerEvent) => {
+      const p = pt(ev)
+      if (!box && Math.hypot(p.x - start.x, p.y - start.y) * sc < 3) return
+      box = { x: Math.min(p.x, start.x), y: Math.min(p.y, start.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) }
+      setMarquee(box)
+    }
+    const up = () => { end(); if (box) st.setSel([...new Set([...keep, ...hitsOf(box)])]) }
+    const key = (ev: KeyboardEvent) => { if (ev.key !== "Escape") return; ev.stopPropagation(); end(); if (box) st.setSel(prev) }
+    window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); window.addEventListener("keydown", key, true)
   }
+  const onGrayDown = React.useRef((_: { clientX: number; clientY: number; shiftKey: boolean }) => { })
+  onGrayDown.current = (e) => {
+    if (view.tool !== "select" || view.preview) return
+    st.setCur(si)
+    if (st.cropId) { st.setCropId(null); return }
+    startMarquee(e)
+  }
+  React.useEffect(() => {
+    const start = (e: { clientX: number; clientY: number; shiftKey: boolean }) => onGrayDown.current(e)
+    marqueeStarters.set(si, start)
+    return () => { if (marqueeStarters.get(si) === start) marqueeStarters.delete(si) }
+  }, [si])
+  const live = marquee ? hitsOf(marquee).filter((id) => !st.sel.includes(id)) : []
   const onDouble = (f: Frame) => {
     if (f.kind === "text" && ft.textEdit) { setEditing(f.id); return }
     if (f.kind === "image" && f.photo && ft.crop) { st.setCropId(f.id); st.setSel([f.id]); st.setStatus("Crop: drag to move the photo, wheel or slider to zoom, Esc to finish") }
@@ -452,7 +477,10 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
           <span className="pointer-events-none absolute z-50 whitespace-nowrap rounded-xs bg-field px-1.5 py-px text-2xs font-semibold text-foreground" style={l.axis === "v" ? { left: l.pos * sc + 4, top: -22 } : { top: l.pos * sc + 3, left: -8, transform: "translateX(-100%)" }} data-testid="snap-line">snap · {l.kind}</span>
         </React.Fragment>
       ))}
-      {marquee && <div className="pointer-events-none absolute z-50 bg-select/10 outline-1 outline-mark [outline-style:solid]" style={{ left: marquee.x * sc, top: marquee.y * sc, width: marquee.w * sc, height: marquee.h * sc }} />}
+      {marquee && <div data-testid="marquee" className="pointer-events-none absolute z-50 bg-select/10 outline-1 outline-mark [outline-style:solid]" style={{ left: marquee.x * sc, top: marquee.y * sc, width: marquee.w * sc, height: marquee.h * sc }} />}
+      {s.frames.filter((f) => live.includes(f.id)).map((f) => (
+        <div key={f.id} data-testid="marquee-hit" className="pointer-events-none absolute z-40 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
+      ))}
       {showSel && single && ft.handles && !single.locked && <Handles r={single} sc={sc} rotate={!!ft.rotateHandle} onHandle={onHandle} />}
       {showSel && (!ft.handles || selFrames.length > 1 || single?.locked) && selFrames.map((f) => (
         <div key={f.id} data-testid="sel-outline" className="pointer-events-none absolute z-40 shadow-ring-white outline-2 outline-offset-1 outline-select [outline-style:solid]" style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined }} />
@@ -464,6 +492,14 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     </div>
   )
 }
+/** Axis-aligned box of a frame as painted, rotated corners included (prod snapIndex `paintedBox`). */
+export function aabb(f: Rect & { rot?: number }): Rect {
+  const t = (f.rot ?? 0) * Math.PI / 180, c = Math.abs(Math.cos(t)), s = Math.abs(Math.sin(t))
+  const w = f.w * c + f.h * s, h = f.w * s + f.h * c
+  return { x: f.x + (f.w - w) / 2, y: f.y + (f.h - h) / 2, w, h }
+}
+/** Pasteboard-started marquees (viewport.tsx): spread index → its SpreadSurface starter. */
+export const marqueeStarters = new Map<number, (e: { clientX: number; clientY: number; shiftKey: boolean }) => void>()
 export function bbox(fs: Rect[]): Rect {
   const x = Math.min(...fs.map((f) => f.x)), y = Math.min(...fs.map((f) => f.y))
   return { x, y, w: Math.max(...fs.map((f) => f.x + f.w)) - x, h: Math.max(...fs.map((f) => f.y + f.h)) - y }

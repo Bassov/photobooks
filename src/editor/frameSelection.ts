@@ -101,6 +101,11 @@ export function setFrameSource(next: FrameSource | null): void {
   setSelection({ spreadId: next.spreadId, frameIds: [next.frameId] })
 }
 
+/** Select a whole set (marquee); an empty set or null clears the selection. */
+export function setFrameSelection(next: FrameSelection | null): void {
+  setSelection(next === null || next.frameIds.length === 0 ? null : next)
+}
+
 /**
  * Shift+click: toggle the frame in a selection on its spread; a selection on
  * another spread gives way to the frame alone. Removing the last frame clears.

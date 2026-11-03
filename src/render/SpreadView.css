@@ -33,8 +33,10 @@ button.spread-frame {
    Painted on ::after above the photo in CSS px so it stays visible at every
    layout zoom and is not scaled by a pasteboard transform. A drop target
    (the drag source included, kit step 17) gives ::after to the drop chip;
-   its ::before outline marks the frame instead. */
-button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after {
+   its ::before outline marks the frame instead. A live marquee hit
+   (editor/marquee.ts) wears the same outline before the release selects it. */
+button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after,
+button.spread-frame[data-marquee-hit='true']::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -70,6 +72,17 @@ button.spread-frame[aria-pressed='true']:not([data-drop-hover='true'])::after {
   transform-origin: 0 0;
   scale: calc(1 / var(--cam-scale, 1));
   outline: 1px dashed var(--color-mark);
+}
+
+/* Kit marquee (Select drag on paper or the pasteboard gray): fixed on <body>
+   in screen px, so zoom never scales it; above the pasteboard and its group
+   box, square, no hits. */
+.marquee-box {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--select) 10%, transparent);
+  outline: 1px solid var(--color-mark);
 }
 
 /* Active crop: grey --crop outline and tag replace the black selection chrome. */
