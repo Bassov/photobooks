@@ -221,6 +221,8 @@ declare global {
         inFlight: number
         settledCount: number
         longestSliceMs: number
+        passCount: number
+        passTotalMs: number
       }
       getThumbCacheStatsForTests: () => {
         entries: number
