@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
+Status: done
 
 ## Scope
 
