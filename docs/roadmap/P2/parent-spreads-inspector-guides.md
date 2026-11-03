@@ -3,10 +3,11 @@
 Tag: feature
 Milestone: P2
 Title: parent spreads: master guides and rulers on the master canvas
+Status: done
 
 ## Scope
 
-- [ ] Master guides on the master canvas (Designer Spec parent-spreads-inspector MS10): the master's `guides` render with the spread guide style (`.guide-line`, `--guide`, 1 px, ±24 px past the page); drag moves a guide (transform in rAF, commit at gesture end, one history step), drag onto its ruler removes it; with rulers on (Shift+R) the master stage shows the rulers and a drag from a ruler adds a guide to `parent.guides` (`addGuide` with the parent id)
+- [x] Master guides on the master canvas (Designer Spec parent-spreads-inspector MS10): the master's `guides` render with the spread guide style (`.guide-line`, `--guide`, 1 px, ±24 px past the page); drag moves a guide (transform in rAF, commit at gesture end, one history step), drag onto its ruler removes it; with rulers on (Shift+R) the master stage shows the rulers and a drag from a ruler adds a guide to `parent.guides` (`addGuide` with the parent id)
 - **Browser check:** Masters mode, Shift+R, drag a guide from the top ruler onto Master A — it lands in `parent.guides` and survives a reload.
 - **Kit components:** `uikit#/feature/parent-spreads` (master guides); kit `viewport.tsx:224`
 - **Demo:** `uikit#/demo` steps 74–75 (`editor-master-guides-edit`); regenerate their baselines

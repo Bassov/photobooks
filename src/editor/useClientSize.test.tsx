@@ -73,4 +73,27 @@ describe('useClientSize', () => {
     expect(observers).toBe(1)
     expect(FakeObserver.all[0]?.nodes.size).toBe(0)
   })
+
+  it('exposes the attached element through its ref', () => {
+    vi.stubGlobal('ResizeObserver', FakeObserver)
+    let seen: HTMLDivElement | null = null
+    function RefProbe() {
+      const [, attach, ref] = useClientSize()
+      return (
+        <div
+          ref={attach}
+          data-testid="probe"
+          onClick={() => {
+            seen = ref.current
+          }}
+        />
+      )
+    }
+    render(<RefProbe />)
+    const probe = screen.getByTestId('probe')
+
+    probe.click()
+
+    expect(seen).toBe(probe)
+  })
 })

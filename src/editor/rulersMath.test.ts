@@ -38,16 +38,31 @@ const base = { axis: 'x', origin: 0, sc: 1, len: 100, pageMm: 200 } as const
 
 describe('rulerStepMm', () => {
   it.each([
-    [3, 5],
-    [2.4001, 5],
-    [2.4, 10],
-    [1.2001, 10],
-    [1.2, 20],
-    [0.5, 50],
-    [0.2, 200],
+    [10, 5],
+    [6.8, 5],
+    [6.79, 10],
+    [3.4, 10],
+    [3.39, 20],
+    [2.695, 20],
+    [1.7, 20],
+    [1.69, 50],
+    [0.68, 50],
+    [0.67, 100],
+    [0.34, 100],
+    [0.33, 200],
+    [0.17, 200],
+    [0.169, 500],
+    [0.068, 500],
+    [0.067, 1000],
     [0.001, 1000],
   ])('scale %f gives %i mm', (sc, step) => {
     expect(rulerStepMm(sc)).toBe(step)
+  })
+
+  it('keeps majors at least 34 px apart down to the 1000 mm step', () => {
+    for (let sc = 0.034; sc <= 12; sc += 0.013) {
+      expect(rulerStepMm(sc) * sc).toBeGreaterThanOrEqual(34)
+    }
   })
 })
 
@@ -61,14 +76,14 @@ describe('pageLocalMm', () => {
 
 describe('rulerTicks', () => {
   it('puts a tick every step/5 mm at mm * sc past the origin', () => {
-    const ticks = rulerTicks({ ...base, sc: 3, origin: 10, len: 50 })
+    const ticks = rulerTicks({ ...base, sc: 8, origin: 24, len: 50 })
     expect(ticks.map((t) => t.mm).slice(0, 5)).toEqual([-3, -2, -1, 0, 1])
-    expect(ticks.find((t) => t.mm === 0)?.p).toBe(10)
-    expect(ticks.find((t) => t.mm === 1)?.p).toBe(13)
+    expect(ticks.find((t) => t.mm === 0)?.p).toBe(24)
+    expect(ticks.find((t) => t.mm === 1)?.p).toBe(32)
   })
 
   it('marks majors on the step and labels only them', () => {
-    const ticks = rulerTicks({ ...base, sc: 1.2, len: 55 })
+    const ticks = rulerTicks({ ...base, sc: 1.8, len: 82 })
     const majors = ticks.filter((t) => t.major)
     expect(majors.map((t) => t.mm)).toEqual([0, 20, 40])
     expect(majors.map((t) => t.label)).toEqual([0, 20, 40])
@@ -79,8 +94,8 @@ describe('rulerTicks', () => {
   })
 
   it('culls ticks outside [0, len]', () => {
-    const ticks = rulerTicks({ ...base, origin: -36, sc: 1.2, len: 72 })
-    expect(ticks.every((t) => t.p >= 0 && t.p <= 72)).toBe(true)
+    const ticks = rulerTicks({ ...base, origin: -54, sc: 1.8, len: 108 })
+    expect(ticks.every((t) => t.p >= 0 && t.p <= 108)).toBe(true)
     expect(ticks[0]?.mm).toBe(32)
     expect(ticks.at(-1)?.mm).toBe(88)
   })
@@ -89,8 +104,8 @@ describe('rulerTicks', () => {
     const ticks = rulerTicks({
       ...base,
       origin: 0,
-      sc: 1.2,
-      len: 200,
+      sc: 1.8,
+      len: 400,
       pageMm: 100,
     })
     const label = (mm: number) => ticks.find((t) => t.mm === mm)?.label
@@ -103,8 +118,8 @@ describe('rulerTicks', () => {
     const ticks = rulerTicks({
       axis: 'y',
       origin: 40,
-      sc: 1.2,
-      len: 100,
+      sc: 1.8,
+      len: 120,
       pageMm: 100,
     })
     expect(ticks.find((t) => t.mm === -20)?.label).toBe(-20)
@@ -112,32 +127,32 @@ describe('rulerTicks', () => {
   })
 
   it('uses a coarser step when zoomed far out', () => {
-    const ticks = rulerTicks({ ...base, sc: 0.5, len: 60 })
+    const ticks = rulerTicks({ ...base, sc: 0.7, len: 72 })
     expect(ticks.filter((t) => t.major).map((t) => t.mm)).toEqual([0, 50, 100])
     expect(ticks.find((t) => t.mm === 10)?.major).toBe(false)
   })
 
   it('uses the denser step at higher scale', () => {
-    const ticks = rulerTicks({ ...base, sc: 3, len: 40 })
+    const ticks = rulerTicks({ ...base, sc: 8, len: 80 })
     expect(ticks.filter((t) => t.major).map((t) => t.mm)).toEqual([0, 5, 10])
   })
 
   it('includes ticks exactly on both ends and nothing past them', () => {
-    const ticks = rulerTicks({ ...base, sc: 3, origin: 0, len: 15 })
+    const ticks = rulerTicks({ ...base, sc: 8, origin: 0, len: 40 })
     expect(ticks.map((t) => [t.mm, t.p])).toEqual([
       [0, 0],
-      [1, 3],
-      [2, 6],
-      [3, 9],
-      [4, 12],
-      [5, 15],
+      [1, 8],
+      [2, 16],
+      [3, 24],
+      [4, 32],
+      [5, 40],
     ])
-    const shifted = rulerTicks({ ...base, sc: 3, origin: 10, len: 20 })
+    const shifted = rulerTicks({ ...base, sc: 8, origin: 24, len: 48 })
     expect(shifted.map((t) => t.mm)).toEqual([-3, -2, -1, 0, 1, 2, 3])
   })
 
   it('rounds labels to 0.01 mm and keeps majors every fifth tick', () => {
-    const ticks = rulerTicks({ ...base, sc: 3, origin: 0, len: 31 })
+    const ticks = rulerTicks({ ...base, sc: 8, origin: 0, len: 83 })
     expect(ticks.filter((t) => t.major).map((t) => t.label)).toEqual([0, 5, 10])
     expect(ticks.filter((t) => t.major)).toHaveLength(3)
   })
