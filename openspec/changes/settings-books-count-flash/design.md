@@ -2,7 +2,7 @@
 
 1. `SettingsScreen` takes `bookCount: number | null`; `null` renders "—" in the same muted `tabular-nums` span, exactly as Preview cache does for `cacheBytes === null` (`SettingsScreen.tsx`). No new token or primitive (`docs/design.md` muted-foreground ink).
 2. `EditorSettings` starts at `null` and sets the count only on `listed.ok`; failure stays `null`.
-3. `LibraryScreen` keeps `listedFor: string | null`, the library id whose listing produced `books` (`null` before the first listing or after a failure, set in the effect and in `refreshBooks`). Settings gets `books.length` only when `listedFor` equals the current `project.libraryId`, so a changed library shows "—" until its own listing lands. The grid keeps its `booksListed` gate unchanged.
+3. `LibraryScreen` keeps `listedFor: string | null | undefined`, the library id whose listing produced `books` (`undefined` before the first listing or after a failure, set in the effect and in `refreshBooks`). Settings gets `books.length` only when `listedFor` equals the current `project.libraryId`, so a changed library shows "—" until its own listing lands. The grid keeps its `booksListed` gate unchanged.
 
 ## Touch-set & Test Plan
 

@@ -9,3 +9,5 @@
 
 1. Library with one book → open the book → gear: the Books row reads "—" or "1", never "0"; Back returns to the book.
 2. Library → Settings: Books row shows the library's count.
+
+- problem (harness): `pnpm agent manual-qa` blocked at welcome for 1 and 2 — `start-session` click intercepted by the welcome header (30 s timeout); no product behavior observed. Covered instead by `e2e/settings-books-count.spec.ts` (editor → Settings, 500 ms DOM probe: only "—" / listed count, ends at the count) and the `LibraryScreen.test.tsx` Settings count tests.
