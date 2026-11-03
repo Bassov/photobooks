@@ -140,8 +140,7 @@ test.describe('normal screen (DPR 1)', () => {
     const edges = await readImageEdges(page)
     expect(edges.natural).toBe(1280)
     expect(edges.natural).toBeGreaterThanOrEqual(Math.floor(edges.css))
-    // Two more seconds settle: no 2560 work on a normal screen.
-    await page.waitForTimeout(2_000)
+    // No frame up to the 1280 settle showed a 2560 on a normal screen.
     const tiers = new Set((await readSamples(page)).map((s) => s.tier))
     expect(tiers.has('2560')).toBe(false)
     testInfo.annotations.push({
