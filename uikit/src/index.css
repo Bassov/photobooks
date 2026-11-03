@@ -27,6 +27,10 @@
   /* v4.1 named shadows (audit 2.1: no shadow-[…] literals) */
   --shadow-hairline: 0 0 0 1px rgb(0 0 0 / .08);
   --shadow-thumb: 0 1px 2px rgb(0 0 0 / .14);
+  /* Owner 2026-11-02 (layout-tile-states): layout tile states are rings on the paper, never a tile fill */
+  --shadow-tile-hover: 0 0 0 1px rgb(0 0 0 / .22), 0 2px 6px rgb(0 0 0 / .12);
+  --shadow-tile-select: 0 0 0 2px var(--select);
+  --shadow-tile-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
   /* v4.2: role shadows alias the base scale so depth changes in one place */
   /* proto: layered soft shadow for cards on the app surface (hairline + contact + ambient) */
   /* proto-4: book cover mockup (physical object) */

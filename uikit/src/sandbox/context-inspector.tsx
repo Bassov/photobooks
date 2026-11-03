@@ -11,12 +11,12 @@ import { MenuTrigger, MenuPopover, Menu, MenuItem, MenuSeparator } from "@/compo
 import { IconButton, Section, SectionsCollapsed } from "@/components/app/ui"
 import type { Template } from "@/data"
 import { useStudio } from "./store"
-import { segList, segTab, TemplateThumb, applyTemplate } from "./chrome"
+import { segList, segTab, applyTemplate } from "./chrome"
 import { PhotoSection, CropSection, PhotoRotateSection, AdjustSection, CaptionSection, GeometrySection, ArrangeSection, AlignSection, DeleteFrameButton } from "./inspector"
 import { SpreadBgSection, TextSection, FrameStyleSection } from "./sections"
 import { ALL_TEMPLATES, slotCount, setTemplatePreview, useCustomTemplates, addCustom, renameCustom, duplicateCustom, deleteCustom, nextCustomName } from "./templates"
 import { setInspectorOpen } from "./inspectorState"
-import { SW, SH, effectiveGrid, type Spread, type Grid } from "./model"
+import { PAGE, SW, SH, effectiveGrid, type Spread, type Grid } from "./model"
 import { TT } from "./templates"
 import { SliderRow, Segmented } from "@/components/app/controls"
 import { mapSpread } from "./store"
@@ -93,16 +93,44 @@ export function ContextInspector() {
 const CHIPS = [["all", "Any"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4+"]] as const
 const matches = (t: Template, chip: string) => chip === "all" || (chip === "4" ? slotCount(t) >= 4 : slotCount(t) === +chip)
 
-function TemplateTile({ t, onApply, custom, current, renaming, onStartRename, onEndRename, onDuplicate, onDelete }: {
-  t: Template; onApply: () => void; custom?: boolean; current?: boolean
+/* Owner 2026-11-02 (layout-tile-states; prod twin: src/editor/layoutThumb.ts, keep the numbers in step):
+   the thumb box takes the trim aspect clamped to 2:3…2:1 and the paper fills it;
+   page 1 is a single page (the right half of spread 0), so its trim is PAGE × SH and its grid goes 3 columns below 1.2:1 */
+const trimRatio = (single: boolean) => (single ? PAGE / SH : SW / SH)
+const thumbAspect = (r: number) => Math.min(2, Math.max(2 / 3, r))
+const thumbColumns = (r: number) => (r < 1.2 ? 3 : 2)
+const pct = (v: number) => `${v}%`
+function paperBox(r: number) {
+  const k = r / thumbAspect(r), w = 100 * Math.min(1, k), h = 100 * Math.min(1, 1 / k)
+  return { left: pct((100 - w) / 2), top: pct((100 - h) / 2), width: pct(w), height: pct(h) }
+}
+
+/** Layout tile thumb: the paper in a trim-shaped box; tile states ring the paper (state classes come from the tile). */
+function LayoutThumb({ id, single, className }: { id: string; single: boolean; className?: string }) {
+  const r = trimRatio(single)
+  return (
+    <div className="relative w-full" style={{ aspectRatio: thumbAspect(r) }} data-testid="tpl-thumb">
+      <div className={cn("absolute overflow-hidden rounded-2xs bg-paper shadow-hairline transition-[box-shadow,translate] duration-(--duration-fast)", className)} style={paperBox(r)} data-testid="tpl-paper">
+        {TT(id).frames.map((b, i) => (
+          <div key={i} className="absolute overflow-hidden rounded-2xs bg-placeholder-block"
+            style={single ? { left: pct(2 * b.x - 100), top: pct(b.y), width: pct(2 * b.w), height: pct(b.h) } : { left: pct(b.x), top: pct(b.y), width: pct(b.w), height: pct(b.h) }} />
+        ))}
+        {!single && <div className="absolute inset-y-0 left-1/2 w-px bg-black/10" />}
+      </div>
+    </div>
+  )
+}
+
+function TemplateTile({ t, onApply, single, custom, current, renaming, onStartRename, onEndRename, onDuplicate, onDelete }: {
+  t: Template; onApply: () => void; single: boolean; custom?: boolean; current?: boolean
   renaming?: boolean; onStartRename?: () => void; onEndRename?: (name: string | null) => void; onDuplicate?: () => void; onDelete?: () => void
 }) {
   return (
     <div className="group relative min-w-0" data-testid="tpl-tile" data-tid={t.id}>
       <button type="button" onClick={onApply} onMouseEnter={() => setTemplatePreview(t.id)} onMouseLeave={() => setTemplatePreview(null)}
-        onFocus={() => setTemplatePreview(t.id)} onBlur={() => setTemplatePreview(null)} aria-label={`Apply layout ${t.name}`} title={`${t.name} · ${slotCount(t)} photo${slotCount(t) === 1 ? "" : "s"} — hover to preview, click to apply`}
-        className={cn("block w-full rounded-md p-1 text-left outline-none transition-colors hover:bg-field focus-visible:ring-2 focus-visible:ring-ring", current && "bg-sel")}>
-        <TemplateThumb id={t.id} width={74} className="mx-auto w-full! h-auto! aspect-[2/1]" />
+        onFocus={() => setTemplatePreview(t.id)} onBlur={() => setTemplatePreview(null)} aria-label={`Apply layout ${t.name}`} aria-pressed={!!current} title={`${t.name} · ${slotCount(t)} photo${slotCount(t) === 1 ? "" : "s"} — hover to preview, click to apply`}
+        className="group/tile block w-full rounded-md p-1 text-left outline-none">
+        <LayoutThumb id={t.id} single={single} className={cn(current ? "shadow-tile-select" : "group-hover/tile:-translate-y-px group-hover/tile:shadow-tile-hover", "group-focus-visible/tile:shadow-tile-focus")} />
         {!renaming && <div className={cn("mt-1 line-clamp-2 text-2xs leading-snug text-muted-foreground group-hover:text-foreground", current && "font-semibold text-foreground")} title={t.name} data-testid="tpl-name">{t.name}</div>}
       </button>
       {renaming && (
@@ -149,9 +177,10 @@ export function LayoutSection() {
     setTab("mine"); setChip("all"); setQ(""); setRenaming(t.id); st.setStatus(`Saved “${t.name}” to My templates`)
   }
   const isMine = (id: string) => mine.some((t) => t.id === id)
+  const single = st.cur === 0
   const grid = (ts: Template[]) => (
-    <div className="grid grid-cols-2 gap-1.5">
-      {ts.map((t) => <TemplateTile key={t.id} t={t} current={t.id === s.template} onApply={() => apply(t.id)} custom={isMine(t.id)}
+    <div className={cn("grid gap-1.5", thumbColumns(trimRatio(single)) === 3 ? "grid-cols-3" : "grid-cols-2")} data-testid="tpl-grid">
+      {ts.map((t) => <TemplateTile key={t.id} t={t} single={single} current={t.id === s.template} onApply={() => apply(t.id)} custom={isMine(t.id)}
         renaming={renaming === t.id} onStartRename={() => setRenaming(t.id)}
         onEndRename={(n) => { if (n !== null && n.trim() && n.trim() !== t.name) { renameCustom(t.id, n); st.setStatus(`Renamed to “${n.trim()}”`) } setRenaming(null) }}
         onDuplicate={() => { const d = duplicateCustom(t.id); if (d) st.setStatus(`Duplicated as “${d.name}”`) }}

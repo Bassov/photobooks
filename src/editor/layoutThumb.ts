@@ -8,12 +8,31 @@ export interface PercentBox {
   height: number
 }
 
-/** Kit TemplateThumb is a 2:1 box (uikit/src/sandbox/chrome.tsx:244). */
-const THUMB_RATIO = 2
+/** Thumb box aspect bounds: a tall page stops at 2:3, a wide spread at 2:1. */
+const MIN_THUMB_ASPECT = 2 / 3
+const MAX_THUMB_ASPECT = 2
+/** Trims narrower than this are single pages laid out in 3 columns. */
+const THREE_COLUMN_MAX_ASPECT = 1.2
 
-/** The paper inside the 2:1 thumb: the spread aspect, centered (contain). */
+/**
+ * Owner 2026-11-02 (deviates from the kit's fixed 2:1 TemplateThumb): the
+ * thumb box takes the trim aspect, clamped, so the paper fills it.
+ */
+export function thumbAspect(widthMm: number, heightMm: number): number {
+  return Math.min(
+    MAX_THUMB_ASPECT,
+    Math.max(MIN_THUMB_ASPECT, widthMm / heightMm),
+  )
+}
+
+/** Layout grid columns: 3 for single pages narrower than 1.2:1, else 2. */
+export function thumbColumns(widthMm: number, heightMm: number): 2 | 3 {
+  return widthMm / heightMm < THREE_COLUMN_MAX_ASPECT ? 3 : 2
+}
+
+/** The paper inside the thumb box: the trim aspect, centered (contain). */
 export function thumbPaperBox(widthMm: number, heightMm: number): PercentBox {
-  const r = widthMm / heightMm / THUMB_RATIO
+  const r = widthMm / heightMm / thumbAspect(widthMm, heightMm)
   const width = 100 * Math.min(1, r)
   const height = 100 * Math.min(1, 1 / r)
   return {
