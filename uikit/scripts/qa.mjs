@@ -782,7 +782,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     await E('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await E('[data-item="p3"]').click(); await page.waitForTimeout(200) // the spread list is a drag source (reorder): scroll first, then click
     r.tpl = await E('[data-testid="tpl-tile"]').count(); r.search = await E('[data-testid="inspector"] input[type=search], [data-testid="inspector"] [role=searchbox]').count()
     r.film = await E('[data-testid="filmstrip"] [role=row]').count()
-    const fr = E('[data-testid="spread"] [data-testid="frame"]')
+    const fr = E('[data-testid="spread"][data-current] [data-testid="frame"]')
     r.frames = await fr.count()
     if (r.frames >= 2) { await fr.nth(0).click({ force: true }); await fr.nth(1).click({ modifiers: ["Shift"], force: true }); await page.waitForTimeout(200); r.multi = await E('[data-testid="sel-outline"]').count() }
     return [r.tb >= 1 && r.params === 1 && r.tpl >= 4 && r.search >= 1 && r.film >= 4 && (r.multi ?? 0) >= 2, JSON.stringify(r)]
@@ -1010,7 +1010,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
 {
   // P1 master A/B/None renders on the canvas
   { await go("#/full/canvas", 1500)
-    const snap = () => page.evaluate(() => { const sp = document.querySelector('[data-testid="spread"]'); const q = (s) => sp ? sp.querySelectorAll(s).length : -1
+    const snap = () => page.evaluate(() => { const sp = document.querySelector('[data-testid="spread"][data-current]'); const q = (s) => sp ? sp.querySelectorAll(s).length : -1
       const cs = sp ? getComputedStyle(sp) : null
       return { a: q('[data-frame^="mA-"]'), b: q('[data-frame^="mB-"]'), ga: q('[data-guide^="mA-"]'), gb: q('[data-guide^="mB-"]'), outline: cs ? (cs.outlineStyle !== "none" && cs.outlineWidth !== "0px") : true } })
     const pick = async (name) => { await page.getByRole("radio", { name, exact: true }).first().evaluate((b) => b.click()); await page.waitForTimeout(350) }
@@ -1161,7 +1161,7 @@ await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 ro
   const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
   await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
   if (!(await D('[data-testid="grid-col"]').count())) { await sg.getByLabel("Show grid").click(); await page.waitForTimeout(250) }
-  const c = await D('[data-testid="grid-col"]').count(), r = await D('[data-testid="grid-row"]').count()
+  const c = await D('[data-current] [data-testid="grid-col"]').count(), r = await D('[data-current] [data-testid="grid-row"]').count()
   return [c === 8 && r === 6, `cols=${c} rows=${r} (2 pages)`]
 })
 {
@@ -1346,8 +1346,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await sg.locator('[data-testid="spread-grid-C"]').fill("4"); await sg.locator('[data-testid="spread-grid-R"]').fill("3"); await page.waitForTimeout(200)
   if (!(await D('[data-testid="grid-col"]').count())) { await sg.getByLabel("Show grid").click(); await page.waitForTimeout(250) }
   const ab = await D('[data-testid="grid-col"], [data-testid="grid-row"]').evaluateAll((es) => es.length > 0 && es.every((e) => e.hasAttribute("data-allow-border")))
-  const fr = D('[data-testid="frame"]').first(); const b = await fr.boundingBox()
-  const edges = await D('[data-testid="grid-col"]').evaluateAll((es) => es.flatMap((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right] }))
+  const fr = D('[data-current] [data-testid="frame"]').first(); const b = await fr.boundingBox()
+  const edges = await D('[data-current] [data-testid="grid-col"]').evaluateAll((es) => es.flatMap((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right] }))
   const tx = edges.map((x) => x - b.x).filter((d) => Math.abs(d) > 4).sort((a, c) => Math.abs(a) - Math.abs(c))[0] ?? 20
   const sx = b.x + b.width / 2, sy = b.y + b.height / 2
   await page.mouse.move(sx, sy); await page.mouse.down(); await page.mouse.move(sx + tx / 2, sy + 3, { steps: 4 }); await page.mouse.move(sx + tx + 5, sy + 2, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(250)
@@ -1441,7 +1441,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const cursors = {}
   for (const [key, label] of [["Select", "Select (V)"], ["Frame", "Frame (F)"], ["Text", "Text (T)"], ["Hand", "Pan (H)"]]) {
     await page.locator(`[data-testid="demo"] button[aria-label="${label}"]`).click(); await page.waitForTimeout(120)
-    cursors[key] = await page.locator('[data-testid="demo"] [data-testid="viewport"]').evaluate((vp) => getComputedStyle(vp).cursor)
+    cursors[key] = await page.locator('[data-testid="demo"] :is([data-testid="viewport"], [data-testid="pasteboard"])').evaluate((vp) => getComputedStyle(vp).cursor)
   }
   const curOk = (v, fb) => typeof v === "string" && (v === fb || v.includes(fb) || (v.startsWith("url(") && v.includes(fb)))
   ok("v0.9 §7 / v0.9.3 tool cursors: Frame/Text outlined url (or crosshair/text), Hand=grab, Select=default",
@@ -1456,7 +1456,7 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await go(scr("canvas"), 700); await scen("Photo").catch(() => {}); await page.waitForTimeout(200)
   await page.locator(`[data-testid="demo"] button[aria-label="Select (V)"]`).click().catch(() => {})
   const z0 = (await page.locator('[data-testid="demo"] [data-testid="zoom-menu"]').innerText()).trim()
-  const box = await page.locator('[data-testid="demo"] [data-testid="viewport"]').boundingBox()
+  const box = await page.locator('[data-testid="demo"] :is([data-testid="viewport"], [data-testid="pasteboard"])').boundingBox()
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   await page.mouse.wheel(0, -240); await page.waitForTimeout(300)
   const z1 = (await page.locator('[data-testid="demo"] [data-testid="zoom-menu"]').innerText()).trim()
@@ -1720,12 +1720,87 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await c(`${demo} [data-testid="new-book"]`); await page.waitForTimeout(300); await c('[data-testid="create-book"]'); await page.waitForTimeout(500)
   await c('[data-testid="demo-add-folder"]'); await page.locator("[role=dialog]").getByRole("button", { name: /Choose|Select|Use|Add/i }).last().click(); await page.waitForTimeout(400)
   await c('[data-item="p1"]'); await page.waitForTimeout(250)
+  // kit-sync-canvas (KS2–KS5, K1): #/demo stacks the pages as prod — gap 104/588 of the spread height, 11 px page numbers 8 px under the page,
+  // a content-wide new-spread pill centred between the numbers and the next spread, no frame size pill, Esc clears the "Release to replace" chip
+  {
+    const cur = `${demo} [data-testid="spread"][data-current]`
+    const m = await page.evaluate((sel) => {
+      const el = document.querySelector(sel), c = el.getBoundingClientRect()
+      const n = document.querySelector(`[data-testid="demo"] [data-testid="spread"][data-spread="${+el.dataset.spread + 1}"]`).getBoundingClientRect()
+      const l = [...el.closest("[data-stack-item]").querySelectorAll('[data-testid="page-labels"] span')].find((s) => s.textContent.trim()), lb = l.getBoundingClientRect()
+      return { n: document.querySelectorAll('[data-testid="demo"] [data-testid="pasteboard"] [data-testid="spread"]').length, h: c.height, gap: n.top - c.bottom, dy: lb.top - c.bottom, lh: lb.height, fs: getComputedStyle(l).fontSize }
+    }, cur)
+    // absolute Fit numbers (513.25 / 90.78 at 1440×900) are the demo-capture walk's; here the ratios hold at any window size
+    ok("kit-sync KS2: #/demo stacks the spreads; gap = 104/588 of the spread height", m.n > 1 && Math.abs(m.gap - m.h * 104 / 588) <= 1, `${m.n} spreads, h ${m.h.toFixed(2)} gap ${m.gap.toFixed(2)}`)
+    ok("kit-sync KS3: page numbers 11 px on screen, 8 px under the page", m.fs === "11px" && Math.abs(m.lh - 11) <= 0.5 && Math.abs(m.dy - 8) <= 0.5, `${m.fs} h ${m.lh} dy ${m.dy.toFixed(2)}`)
+    const row = await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(2).boundingBox(), sb = await page.locator(cur).boundingBox()
+    await page.mouse.move(row.x + row.width / 2, row.y + row.height / 2); await page.mouse.down()
+    for (let i = 1; i <= 8; i++) await page.mouse.move(row.x + (sb.x + sb.width / 2 - row.x) * i / 8, row.y + (sb.y + sb.height + 30 - row.y) * i / 8)
+    await page.waitForTimeout(400)
+    const p = await page.evaluate((sel) => {
+      const c = document.querySelector(sel).getBoundingClientRect(), pills = [...document.querySelectorAll('[data-testid="demo"] [data-testid="gap-pill"]')]
+      const e = pills.find((x) => x.getBoundingClientRect().top > c.bottom); if (!e) return null
+      const b = e.getBoundingClientRect(), s = getComputedStyle(e), n = [...document.querySelectorAll('[data-testid="demo"] [data-testid="spread"]')].map((x) => x.getBoundingClientRect()).find((x) => x.top > b.top)
+      return { w: b.width, h: b.height, fs: s.fontSize, r: s.borderRadius, ws: s.whiteSpace, up: b.top - c.bottom - 19, down: n.top - b.bottom, gapH: e.parentElement.getBoundingClientRect().height }
+    }, cur)
+    await page.keyboard.press("Escape"); await page.mouse.up(); await page.waitForTimeout(300)
+    ok("kit-sync KS4: new-spread pill 32 px, 12 px nowrap, width by content, radius 8, centred under the page numbers; the gap does not grow", !!p && p.h === 32 && p.fs === "12px" && p.ws === "nowrap" && p.r === "8px" && Math.abs(p.w - 199.23) <= 1 && Math.abs(p.up - p.down) <= 1 && Math.abs(p.up - (m.gap - 19 - 32) / 2) <= 1 && Math.abs(p.gapH - m.gap) <= 1, JSON.stringify(p))
+    await page.locator(`${cur} [data-testid="frame"]`).first().click(); await page.waitForTimeout(200)
+    const sizePill = await page.locator(`${demo} [data-testid="handles"]`).filter({ hasText: / × \d+ mm/ }).count()
+    ok("kit-sync KS5: a selected frame shows no size pill (380 × 230 mm)", (await page.locator(`${demo} [data-testid="handles"]`).count()) === 1 && sizePill === 0, `size pills ${sizePill}`)
+    await page.keyboard.press("Escape"); await page.waitForTimeout(200); await c('[data-item="p1"]'); await page.waitForTimeout(250)
+    // prod usePasteboardCamera: the wheel zooms about the cursor, Ctrl+= / Ctrl+- about the pasteboard centre
+    const r0 = await page.locator(cur).boundingBox(), mx = Math.round(r0.x + r0.width * 0.6), my = Math.round(r0.y + r0.height * 0.3)
+    await page.mouse.move(mx, my); for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(90) } await page.waitForTimeout(400)
+    const r1 = await page.locator(cur).boundingBox(), drift = [((mx - r1.x) / r1.width - (mx - r0.x) / r0.width) * r1.width, ((my - r1.y) / r1.height - (my - r0.y) / r0.height) * r1.height]
+    ok("kit-sync KS2: wheel zoom keeps the point under the cursor (≤ 2 px after 3 notches)", r1.width > r0.width && drift.every((d) => Math.abs(d) <= 2), drift.map((d) => d.toFixed(1)).join(" / "))
+    await page.keyboard.press("Control+0"); await page.waitForTimeout(250)
+    const pb = await page.locator(`${demo} [data-testid="pasteboard"]`).boundingBox(), cx0 = (await page.locator(cur).boundingBox()).x + r0.width / 2
+    for (let i = 0; i < 2; i++) { await page.keyboard.press("Control+Equal"); await page.waitForTimeout(150) }
+    const rk = await page.locator(cur).boundingBox(), kcx = rk.x + rk.width / 2
+    ok("kit-sync KS2: Ctrl+= zooms about the pasteboard centre (spread centre stays at the centre ±2 px)", rk.width > r0.width && Math.abs(kcx - (pb.x + pb.width / 2)) <= 2 && Math.abs(cx0 - kcx) <= 2, `centre ${kcx.toFixed(1)} vs ${(pb.x + pb.width / 2).toFixed(1)}`)
+    await page.keyboard.press("Control+0"); await page.waitForTimeout(250)
+    // M45 + Q3: the stack ends with the single last page on the left, its number under it, the stack gap before it; the `last` row scrolls to it
+    await c('[data-item="last"]'); await page.waitForTimeout(400)
+    const e = await page.evaluate(() => {
+      const root = document.querySelector('[data-testid="demo"] [data-testid="pasteboard"]'); if (!root) return null
+      const items = [...root.querySelectorAll("[data-stack-item]")], l = items.at(-1), lr = l.getBoundingClientRect(), pr = items.at(-2).getBoundingClientRect(), paper = l.querySelector("[data-paper]").getBoundingClientRect()
+      const lab = [...l.querySelectorAll('[data-testid="page-labels"] span')].find((s) => s.textContent.trim()), lb = lab.getBoundingClientRect()
+      return { key: l.dataset.stackItem, inView: lr.top >= root.getBoundingClientRect().top && lr.bottom <= root.getBoundingClientRect().bottom, left: paper.left - lr.left, w: paper.width / lr.width, gap: lr.top - pr.bottom, h: lr.height, t: lab.textContent, lcx: lb.left + lb.width / 2 - (paper.left + paper.width / 2), dy: lb.top - lr.bottom, fs: getComputedStyle(lab).fontSize }
+    })
+    ok("kit-sync KS2: the stack ends with the last page alone on the left, its number under it; the last row stays stacked", !!e && e.key === "last" && e.inView && e.left === 0 && e.w === 0.5 && Math.abs(e.gap - e.h * 104 / 588) <= 1 && e.t === "20" && Math.abs(e.lcx) <= 1 && Math.abs(e.dy - 8) <= 0.5 && e.fs === "11px", JSON.stringify(e))
+    // a click on the last page on the canvas selects it like the `last` row and keeps the view (prod: scrollTop unchanged)
+    await c('[data-item="p9"]'); await page.waitForTimeout(400)
+    const pbl = page.locator(`${demo} [data-testid="pasteboard"]`)
+    await pbl.evaluate((el) => { el.scrollTop = el.scrollHeight }); await page.waitForTimeout(150)
+    const t0 = await pbl.evaluate((el) => el.scrollTop)
+    await page.locator(`${demo} [data-stack-item="last"] [data-paper]`).click(); await page.waitForTimeout(400)
+    const t1 = await pbl.evaluate((el) => el.scrollTop), lsel = await page.locator(`${demo} [data-testid="panel-l"] [data-item="last"]`).getAttribute("aria-selected")
+    ok("kit-sync KS2: a canvas click on the last page selects it (the `last` row) and keeps the view", t0 > 0 && Math.abs(t1 - t0) <= 2 && lsel === "true", `scrollTop ${t0} → ${t1}, last row selected ${lsel}`)
+    // 11 px / 8 px is for page numbers only: cover labels keep 12 px, 10 px under the cover
+    // the list is scrolled to `last`; bring the cover row into view first (Playwright's own scroll-and-click misses the row there)
+    await page.locator('[data-item="cover"]').evaluate((el) => el.scrollIntoView({ block: "nearest" })); await page.waitForTimeout(150)
+    await c('[data-item="cover"]'); await page.waitForTimeout(400)
+    const cl = await page.evaluate(() => { const v = document.querySelector('[data-testid="demo"] [data-testid="node-view"]').getBoundingClientRect(); return [...document.querySelectorAll('[data-testid="demo"] [data-testid="page-labels"] span')].map((s) => ({ t: s.textContent, fs: getComputedStyle(s).fontSize, dy: +(s.getBoundingClientRect().top - v.bottom).toFixed(2) })) })
+    ok("kit-sync KS3: cover labels Back / Spine / Front keep 12 px, 10 px under the cover", cl.map((x) => x.t).join() === "Back,Spine,Front" && cl.every((x) => x.fs === "12px" && Math.abs(x.dy - 10) <= 0.5), JSON.stringify(cl))
+    await c('[data-item="p1"]'); await page.waitForTimeout(250)
+  }
   const views = await Promise.all(["snap", "grid", "guides", "rulers", "overlays", "dpi"].map((k) => page.locator(`${demo} [data-testid="toggle-${k}"]`).count()))
   ok("kit10: #/demo top bar has all six view toggles (snap, grid, guides, rulers, bleed / trim / safe, DPI)", views.every((n) => n === 1), views.join())
-  await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(1).dragTo(page.locator(`${demo} [data-testid="canvas"] [data-testid="frame"]`).first()); await page.waitForTimeout(400) // p02 = the 800 px low-res photo
+  await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(1).dragTo(page.locator(`${demo} [data-testid="canvas"] [data-current] [data-testid="frame"]`).first()); await page.waitForTimeout(400) // p02 = the 800 px low-res photo
   await c('[data-testid="toggle-dpi"]'); await page.waitForTimeout(200)
   ok("kit10: DPI toggle shows the frame dpi badge", (await page.locator(`${demo} [data-testid="canvas"] [data-frame]`).filter({ hasText: /dpi/ }).count()) >= 1)
   await c('[data-testid="toggle-dpi"]')
+  // kit-sync K1 (prod M43): Esc during a frame drag clears the "Release to replace" chip and the dimmed drag source
+  {
+    const fb = await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="frame"]`).first().boundingBox(), x = fb.x + fb.width / 2, y = fb.y + fb.height / 2
+    await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i)
+    const mid = await page.locator(`${demo} [data-testid="canvas"]`).getByText("Release to replace").count()
+    await page.keyboard.press("Escape"); await page.mouse.up(); await page.waitForTimeout(250)
+    const after = await page.locator(`${demo} [data-testid="canvas"]`).getByText("Release to replace").count(), dim = await page.locator(`${demo} [data-frame].opacity-40`).count()
+    ok("kit-sync K1: Esc during a frame drag clears the Release to replace chip and the dimmed source", mid === 1 && after === 0 && dim === 0, `mid ${mid} after ${after} dimmed ${dim}`)
+    await page.keyboard.press("Escape"); await page.waitForTimeout(200)
+  }
   await c('[data-testid="toggle-rulers"]'); await page.waitForTimeout(200)
   const g0 = await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()
   const rx = await page.locator(`${demo} [data-testid="ruler-x"]`).boundingBox(), sp = await page.locator(`${demo} [data-testid="spread"]`).first().boundingBox()
@@ -1747,9 +1822,9 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await c('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]'); await page.waitForTimeout(200)
   await page.locator(`${demo} [data-testid="mode-seg"]`).getByText("Pages", { exact: true }).click(); await page.waitForTimeout(250); await c('[data-item="p1"]'); await page.waitForTimeout(250)
   ok("kit10: a guide dragged on a master is kept and inherited (dashed) by its spreads", m1 === m0 + 1 && (await page.locator(`${demo} [data-testid="spread"] [data-guide]`).count()) >= m1, `master ${m0}→${m1}`)
-  ok("kit10: master Page numbers toggle wires Parent.pageNumbers — spreads show page numbers", (await page.locator(`${demo} [data-testid="spread"] [data-testid="page-number"]`).count()) === 2)
-  await page.locator(`${demo} [data-testid="master-frame"]`).first().click({ modifiers: ["Alt"], force: true }); await page.waitForTimeout(250)
-  ok("kit10: Alt+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"]`).first().getByText("override", { exact: true }).count()) === 1)
+  ok("kit10: master Page numbers toggle wires Parent.pageNumbers — spreads show page numbers", (await page.locator(`${demo} [data-testid="spread"][data-current] [data-testid="page-number"]`).count()) === 2)
+  await page.locator(`${demo} [data-current] [data-testid="master-frame"]`).first().click({ modifiers: ["Alt"], force: true }); await page.waitForTimeout(250)
+  ok("kit10: Alt+click on a parent item makes an override copy", (await page.locator(`${demo} [data-testid="spread"][data-current]`).getByText("override", { exact: true }).count()) === 1)
   // missing photo + Relink
   await page.evaluate(() => window.__demo.missing(1)); await page.waitForTimeout(400)
   ok("kit10: a missing photo hatches its frame and the dock offers Relink…", (await page.locator(`${demo} [data-testid="demo-relink"]`).count()) === 1 && (await page.locator(`${demo} [data-testid="canvas"] .hatch-missing`).count()) >= 1)
