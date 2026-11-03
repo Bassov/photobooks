@@ -7,8 +7,11 @@ import { chromePath } from "./chrome.mjs"
 export const URL_ = "file://" + new URL("../dist/index.html", import.meta.url).pathname + "?theme=procreate-light#/demo"
 const CSS = `*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:0s!important;transition-delay:0s!important;caret-color:transparent!important;scroll-behavior:auto!important}`
 const FIXED = Date.UTC(2026, 9, 29, 12, 0, 0)
+// a frame on the current spread: the pages stack on the pasteboard, so the first frame in the canvas may be another spread's
+const FRAME = '[data-testid="canvas"] [data-current] [data-testid="frame"]'
 
-export async function capture(out, { log = console.log } = {}) {
+// `probe(name, page)` runs after each shot (DOM measurements on the same walk); its result is kept in `probes[name]`.
+export async function capture(out, { log = console.log, probe } = {}) {
   fs.mkdirSync(out, { recursive: true })
   for (const f of fs.readdirSync(out)) if (f.endsWith(".png")) fs.unlinkSync(`${out}/${f}`)
   const browser = await chromium.launch({ executablePath: chromePath(), args: ["--no-sandbox", "--font-render-hinting=none", "--disable-lcd-text", "--force-color-profile=srgb"] })
@@ -26,8 +29,8 @@ export async function capture(out, { log = console.log } = {}) {
   const park = () => page.mouse.move(1439, 899)
   const c = (sel) => page.locator(sel).first().click()
   const dlgBtn = (re) => page.locator("[role=dialog]").getByRole("button", { name: re }).last()
-  const shots = []; let n = 0
-  const shot = async (name, keep) => { if (!keep) await park(); const wait = undefined; await settle(wait); n++; const f = `${String(n).padStart(2, "0")}-${name}.png`; await page.screenshot({ path: `${out}/${f}` }); shots.push(f); log(f) }
+  const shots = [], probes = {}; let n = 0
+  const shot = async (name, keep) => { if (!keep) await park(); const wait = undefined; await settle(wait); n++; const f = `${String(n).padStart(2, "0")}-${name}.png`; await page.screenshot({ path: `${out}/${f}` }); shots.push(f); log(f); if (probe) probes[name] = await probe(name, page) }
 
   await page.goto(URL_); await page.addStyleTag({ content: CSS })
   await page.evaluate(() => window.__demo.reset()); await settle(600)
@@ -53,10 +56,10 @@ export async function capture(out, { log = console.log } = {}) {
       if (!(await page.locator('[data-testid="cover-text-front"]').count())) { await c('[data-item="cover"]'); await settle(250) }
       await page.fill('[data-testid="cover-text-front"]', "Lake trip 2026"); await page.locator('[data-testid="cover-text-front"]').blur() }],
     ["editor-spread-1", () => c('[data-item="p1"]')],
-    ["editor-photo-dropped-in-frame", () => page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).dragTo(page.locator('[data-testid="canvas"] [data-testid="frame"]').first())],
-    ["editor-frame-selected", () => c('[data-testid="canvas"] [data-testid="frame"]')],
-    ["editor-frame-mid-drag", async () => { const b = await page.locator('[data-testid="canvas"] [data-testid="frame"]').first().boundingBox(); const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
-    ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await c('[data-testid="canvas"] [data-testid="frame"]') }],
+    ["editor-photo-dropped-in-frame", () => page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).dragTo(page.locator(FRAME).first())],
+    ["editor-frame-selected", () => c(FRAME)],
+    ["editor-frame-mid-drag", async () => { const b = await page.locator(FRAME).first().boundingBox(); const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2); await page.mouse.move(x, y); await page.mouse.down(); for (let i = 1; i <= 6; i++) await page.mouse.move(x - 10 * i, y + 6 * i); return "keep" }],
+    ["editor-frame-drag-cancelled", async () => { await page.keyboard.press("Escape"); await page.mouse.up(); await settle(200); await c(FRAME) }],
     ["editor-crop-mode", () => c('[data-testid="crop-toggle"]')],
     ["editor-spread-selected", async () => { await page.keyboard.press("Escape"); await settle(200); await page.keyboard.press("Escape"); await settle(200); await page.locator('[data-testid="canvas"]').click({ position: { x: 20, y: 20 } }) }],
     ["editor-masters-mode", () => page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click()],
@@ -66,7 +69,7 @@ export async function capture(out, { log = console.log } = {}) {
     ["editor-endpaper-selected", async () => { await c('[data-testid="book-title"]'); await settle(200); await c('[data-item="ef"]') }],
     // kit10: the views, spread menu / reorder, master guides + Page numbers, overrides, missing photo and Relink that #/demo used to hide
     ["editor-view-rulers-guide", async () => { await c('[data-item="p1"]'); await settle(250); await c('[data-testid="toggle-rulers"]'); await settle(200); const r = await page.locator('[data-testid="ruler-x"]').boundingBox(); const t = await page.locator('[data-testid="spread"]').first().boundingBox(); await page.mouse.move(Math.round(r.x + r.width / 2), Math.round(r.y + 10)); await page.mouse.down(); await page.mouse.move(Math.round(r.x + r.width / 2), Math.round(t.y + t.height * 0.4), { steps: 6 }); await page.mouse.up(); return "keep" }],
-    ["editor-view-dpi-badge", async () => { await page.locator('[data-testid="filmstrip"] [role="row"]').nth(1).dragTo(page.locator('[data-testid="canvas"] [data-testid="frame"]').first()); await settle(400); await c('[data-testid="toggle-dpi"]') }], // p02 is the 800 px low-res photo
+    ["editor-view-dpi-badge", async () => { await page.locator('[data-testid="filmstrip"] [role="row"]').nth(1).dragTo(page.locator(FRAME).first()); await settle(400); await c('[data-testid="toggle-dpi"]') }], // p02 is the 800 px low-res photo
     ["editor-view-bleed-trim-safe", async () => { await c('[data-testid="toggle-overlays"]') }],
     ["editor-spread-row-menu", async () => { await c('[data-testid="toggle-overlays"]'); await c('[data-testid="toggle-dpi"]'); await c('[data-testid="toggle-rulers"]'); await page.locator('[data-item="p1"]').hover(); await c('[data-item="p1"] [data-testid="spread-menu"]') }],
     ["editor-spread-duplicated", async () => { await page.getByRole("menuitem", { name: /Duplicate/ }).click() }],
@@ -74,7 +77,7 @@ export async function capture(out, { log = console.log } = {}) {
     ["editor-master-guides-edit", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Masters", { exact: true }).click(); await settle(250); await c('[data-testid="toggle-rulers"]'); await settle(200); const r = await page.locator('[data-testid="ruler-y"]').boundingBox(); const t = await page.locator('[data-testid="canvas-master"]').boundingBox(); await page.mouse.move(Math.round(r.x + 10), Math.round(r.y + r.height / 2)); await page.mouse.down(); await page.mouse.move(Math.round(t.x + t.width * 0.3), Math.round(r.y + r.height / 2), { steps: 6 }); await page.mouse.up(); return "keep" }],
     ["editor-master-page-numbers-on", async () => { await c('[data-testid="insp-master"] [role=switch][aria-label="Page numbers"]') }],
     ["editor-spread-inherits-master", async () => { await page.locator('[data-testid="mode-seg"]').getByText("Pages", { exact: true }).click(); await settle(250); await c('[data-item="p1"]') }],
-    ["editor-parent-item-overridden", async () => { await page.locator('[data-testid="master-frame"]').first().click({ modifiers: ["Alt"], force: true }) }],
+    ["editor-parent-item-overridden", async () => { await page.locator('[data-current] [data-testid="master-frame"]').first().click({ modifiers: ["Alt"], force: true }) }],
     ["editor-missing-photos", async () => { await page.evaluate(() => window.__demo.missing(2)); await settle(400) }],
     ["editor-relink-dialog", () => c('[data-testid="demo-relink"]')],
     ["editor-relink-rescan-picker", () => c('[data-testid="relink-rescan"]')],
@@ -109,5 +112,5 @@ export async function capture(out, { log = console.log } = {}) {
     try { const r = await act(); await shot(name, r === "keep") } catch (e) { await browser.close(); throw new Error(`step ${n + 1} ${name}: ${e.message.split("\n")[0]}`) }
   }
   await browser.close()
-  return { shots, errs }
+  return { shots, errs, probes }
 }
