@@ -302,6 +302,7 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
   const [ref, size] = useSize<HTMLDivElement>()
   const sc = fitScale(size.w, size.h, pad) * st.view.zoom, gap = SH * sc * STACK_GAP
   const last = st.node?.k === "last", ready = size.w > 0
+  const centred = React.useRef(false)
   React.useEffect(() => {
     // a current spread (or the last page) not fully in view is centred in the viewport (prod centerSpreadScroll);
     // a grey-press activation keeps the scroll (r16 M92, prod pasteboardClickSpreadId)
@@ -309,8 +310,10 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
     if (picked) return
     const el = ref.current?.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
     if (!el || !ref.current) return
-    const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2
-    if (el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top })
+    // Designer r17: a remount (Masters → Pages) centres the current spread even when it is fully in view, as prod does
+    const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2, mount = !centred.current
+    centred.current = true
+    if (mount || el.offsetTop < c.scrollTop || el.offsetTop + el.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTo({ top })
   }, [st.cur, last, ready])
   // prod usePasteboardCamera: a zoom keeps the content point under the cursor (wheel) or the pasteboard centre (keys, menu) fixed.
   // Everything but the padding scales with sc: x from the stack's centre line, y from the top padding.
