@@ -37,6 +37,8 @@ import {
   subscribeGallery,
   subscribeSpread,
   dispatchBookOp,
+  redoBook,
+  undoBook,
   type AssetSessionMeta,
 } from './bookStore'
 import {
@@ -1455,6 +1457,52 @@ describe('bookStore spread paint covers the parent layer', () => {
   afterEach(() => {
     resetBookStore()
     vi.unstubAllGlobals()
+  })
+
+  it('undo / redo restore the parents and the book default', () => {
+    resetBookStore({
+      book: makeBook({
+        parents: [
+          {
+            id: 'p1',
+            name: 'Master A',
+            frames: [makeFrame({ id: 'logo' })],
+            guides: [],
+          },
+        ],
+        defaultParentId: 'p1',
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    const original = getBookStoreSnapshot().book
+    const parentItems = () =>
+      getSpreadPaintSnapshot('spread-1')?.resolved.items.filter(
+        (item) => item.parent === true,
+      ).length
+    expect(parentItems()).toBe(1)
+
+    dispatchBookOp({ type: 'removeParent', parentId: 'p1' })
+    expect(getBookStoreSnapshot().book.parents).toEqual([])
+    expect(getBookStoreSnapshot().book.defaultParentId).toBeUndefined()
+    expect(parentItems()).toBe(0)
+
+    undoBook()
+    expect(getBookStoreSnapshot().book.parents).toBe(original.parents)
+    expect(getBookStoreSnapshot().book.defaultParentId).toBe('p1')
+    expect(parentItems()).toBe(1)
+
+    redoBook()
+    expect(getBookStoreSnapshot().book.parents).toEqual([])
+    expect('defaultParentId' in getBookStoreSnapshot().book).toBe(false)
+
+    // A book that never had parents gets none back.
+    resetBookStore()
+    dispatchBookOp({ type: 'addParent' })
+    expect(getBookStoreSnapshot().book.parents).toHaveLength(1)
+    undoBook()
+    expect('parents' in getBookStoreSnapshot().book).toBe(false)
   })
 
   it('repaints a parent photo when its real aspect arrives', () => {

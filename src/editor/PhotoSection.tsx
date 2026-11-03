@@ -1,5 +1,5 @@
 import { useSyncExternalStore, type ReactNode } from 'react'
-import { frameDpi, lowDpi, sourceCropRect } from '../core'
+import { editableSpread, frameDpi, lowDpi, sourceCropRect } from '../core'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Disclosure } from '../ui/Disclosure'
@@ -25,9 +25,9 @@ export function PhotoSection({ target }: { target: CropTarget }) {
     getBookStoreSnapshot,
     getBookStoreSnapshot,
   )
-  const frame = book.spreads
-    .find((spread) => spread.id === target.spreadId)
-    ?.frames.find((item) => item.id === target.frameId)
+  const frame = editableSpread(book, target.spreadId)?.spread.frames.find(
+    (item) => item.id === target.frameId,
+  )
   const assetId = frame?.assetId
   const url = useThumbUrl(assetId)
   if (frame === undefined) {

@@ -37,17 +37,23 @@ import {
   spreadSummary,
   type InspectorPanel,
 } from './inspectorModel'
-import { getLeftPanelTab, subscribeLeftPanelTab } from './leftPanelTabStore'
+import {
+  getLeftPanelTab,
+  getPickedParentId,
+  shownParentId,
+  subscribeLeftPanelTab,
+} from './leftPanelTabStore'
+import { MasterSection } from './MasterSection'
 import { getActiveSpreadId, subscribeActiveSpreadId } from './photoRootSession'
 
 const EMPTY_HINT = 'Select a spread or a photo to see its properties.'
-const MASTERS_HINT =
-  'Master items show on every spread that uses the master. Add, move and resize them on the canvas.'
+const NO_MASTERS_HINT = 'Create a master with New master to set its grid.'
 
 /** What the panel shows: the selection-driven context (kit InspectorPanel). */
 type InspectorContext =
   | InspectorPanel
   | { kind: 'masters' }
+  | { kind: 'master'; parentId: string }
   | { kind: 'cover' }
   | { kind: 'book' }
   | { kind: 'endpaper'; side: EndpaperSide }
@@ -58,6 +64,26 @@ type InspectorContext =
 
 function readBook() {
   return getBookStoreSnapshot().book
+}
+
+function readParents() {
+  return getBookStoreSnapshot().book.parents
+}
+
+/**
+ * Masters tab (Designer MS7, MS8): a frame on the shown parent opens the
+ * Photo view, else the parent's master inspector; no parents → the hint.
+ */
+function mastersContext(
+  parentId: string | null,
+  section: NonNullable<ReturnType<typeof getFrameSource>> | null,
+): InspectorContext {
+  if (parentId === null) {
+    return { kind: 'masters' }
+  }
+  return section?.spreadId === parentId
+    ? { kind: 'photo', target: section }
+    : { kind: 'master', parentId }
 }
 
 /** Kit META (context-inspector.tsx:26-29) for the contexts with a shell header. */
@@ -105,6 +131,16 @@ export function Inspector() {
     getLeftPanelTab,
     getLeftPanelTab,
   )
+  const pickedParentId = useSyncExternalStore(
+    subscribeLeftPanelTab,
+    getPickedParentId,
+    getPickedParentId,
+  )
+  const parents = useSyncExternalStore(
+    subscribeBookStore,
+    readParents,
+    readParents,
+  )
   const target = cropKey === '' ? null : getCropTarget()
   // Esc drops the spread view to the empty hint until another spread is picked.
   const [dismissed, setDismissed] = useState<string | null>(null)
@@ -138,10 +174,12 @@ export function Inspector() {
     coverSelected || bookSelected || endpaperSide !== null
       ? null
       : (target ?? frameSource)
-  // The master inspector (grid, items) is roadmap parent-spreads-inspector.
   const view: InspectorContext =
     leftTab === 'masters'
-      ? { kind: 'masters' }
+      ? mastersContext(
+          shownParentId(parents, pickedParentId),
+          target ?? frameSource,
+        )
       : coverSelected
         ? { kind: 'cover' }
         : endpaperSide !== null
@@ -210,7 +248,10 @@ export function Inspector() {
           </>
         ) : null}
         {view.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
-        {view.kind === 'masters' ? <Hint>{MASTERS_HINT}</Hint> : null}
+        {view.kind === 'master' ? (
+          <MasterSection key={view.parentId} parentId={view.parentId} />
+        ) : null}
+        {view.kind === 'masters' ? <Hint>{NO_MASTERS_HINT}</Hint> : null}
       </div>
     </section>
   )

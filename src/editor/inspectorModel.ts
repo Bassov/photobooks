@@ -1,4 +1,12 @@
-import type { Book, Frame, Spread } from '../core'
+import {
+  getSpreadPageCount,
+  spreadParent,
+  type Book,
+  type Frame,
+  type GridField,
+  type GridPatch,
+  type Spread,
+} from '../core'
 import { pageLabel } from './editorChromePanels'
 import type { FrameSource } from './frameSelection'
 
@@ -48,6 +56,43 @@ export function inspectorView(
     return { kind: 'spread', spread, spreadIndex: at }
   }
   return { kind: 'empty' }
+}
+
+/** Pages of every spread resolving to the parent: 2 per spread, 1 for a lone first / last page. */
+export function parentUsage(book: Book, parentId: string): number {
+  let pages = 0
+  book.spreads.forEach((spread, index) => {
+    if (spreadParent(book, spread)?.id === parentId) {
+      pages += getSpreadPageCount(index, book.spreads.length)
+    }
+  })
+  return pages
+}
+
+const MARGIN_FIELDS: ReadonlySet<GridField> = new Set([
+  'top',
+  'bottom',
+  'inside',
+  'outside',
+])
+
+/** One committed master grid value as a patch; a linked margin writes all four. */
+export function masterGridPatch(
+  field: GridField,
+  value: number,
+  linked: boolean,
+): GridPatch {
+  return linked && MARGIN_FIELDS.has(field)
+    ? { top: value, bottom: value, inside: value, outside: value }
+    : { [field]: value }
+}
+
+/** Master head subline (Designer MS1): "Used by N pages" / "Used by 1 page" / "Not used yet". */
+export function parentUsageLabel(pages: number): string {
+  if (pages === 0) {
+    return 'Not used yet'
+  }
+  return pages === 1 ? 'Used by 1 page' : `Used by ${String(pages)} pages`
 }
 
 /** Kit spread label (uikit/src/sandbox/context-inspector.tsx:59): "Page 1" first. */

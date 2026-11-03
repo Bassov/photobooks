@@ -62,6 +62,26 @@
   box-shadow: var(--cover-shadow-mini);
 }
 
+/* Masters canvas: the master spread plus its name 8 px below (Designer MS9,
+   page-number rule M37), absolute so the spread does not move. */
+.masters-spread {
+  position: relative;
+}
+
+.masters-caption {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 0.5rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  color: var(--muted-foreground);
+  font-size: var(--text-2xs);
+  font-weight: 400;
+  line-height: var(--text-2xs--line-height);
+}
+
 .cover-back {
   position: relative;
   height: 100%;
