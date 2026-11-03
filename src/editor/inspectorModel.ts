@@ -5,6 +5,7 @@ import {
   type Frame,
   type GridField,
   type GridPatch,
+  type GridValues,
   type Spread,
 } from '../core'
 import { pageLabel } from './editorChromePanels'
@@ -69,12 +70,16 @@ export function parentUsage(book: Book, parentId: string): number {
   return pages
 }
 
-const MARGIN_FIELDS: ReadonlySet<GridField> = new Set([
+const MARGIN_FIELDS: readonly GridField[] = [
   'top',
   'bottom',
   'inside',
   'outside',
-])
+]
+
+function isMargin(field: GridField): boolean {
+  return MARGIN_FIELDS.includes(field)
+}
 
 /** One committed master grid value as a patch; a linked margin writes all four. */
 export function masterGridPatch(
@@ -82,9 +87,32 @@ export function masterGridPatch(
   value: number,
   linked: boolean,
 ): GridPatch {
-  return linked && MARGIN_FIELDS.has(field)
+  return linked && isMargin(field)
     ? { top: value, bottom: value, inside: value, outside: value }
     : { [field]: value }
+}
+
+/** The margin link starts on when all four margins match. */
+export function marginsEqual(values: GridValues): boolean {
+  return MARGIN_FIELDS.every((field) => values[field] === values.top)
+}
+
+/** Spread link-on (Designer GP5): only margins that differ from Top; null when none. */
+export function linkMarginsPatch(values: GridValues): GridPatch | null {
+  const differing = MARGIN_FIELDS.filter(
+    (field) => values[field] !== values.top,
+  )
+  return differing.length === 0
+    ? null
+    : Object.fromEntries(differing.map((field) => [field, values.top]))
+}
+
+/** The fields one ↺ resets (Designer GP3): all four margins while linked. */
+export function resetGridFields(
+  field: GridField,
+  linked: boolean,
+): readonly GridField[] {
+  return linked && isMargin(field) ? MARGIN_FIELDS : [field]
 }
 
 /** Master head subline (Designer MS1): "Used by N pages" / "Used by 1 page" / "Not used yet". */

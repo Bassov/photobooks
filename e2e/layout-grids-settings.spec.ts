@@ -11,9 +11,14 @@ async function openRightPanel(page: Page): Promise<void> {
 }
 
 async function setField(page: Page, name: string, value: string) {
-  const input = page.getByTestId(`grid-field-${name}`).getByRole('textbox')
+  const input = page.getByTestId(`spread-grid-field-${name}`)
   await input.fill(value)
   await input.blur()
+}
+
+/** The field box carrying `data-source` around one spread grid input. */
+function fieldBox(page: Page, name: string) {
+  return page.getByTestId(`spread-grid-field-${name}`).locator('..')
 }
 
 test('Book settings hold no Layout grid section', async ({ page }) => {
@@ -29,10 +34,10 @@ test('Book settings hold no Layout grid section', async ({ page }) => {
   await assertDocumentFitsViewport(page)
 })
 
-// Kit Grid section (uikit/src/sandbox/context-inspector.tsx:224-231): the
-// "Use master / Custom" switch replaces the Reset to book grid button; the
-// fields show only in Custom. A new book has no parent, so it reads "Use book".
-test('Spread override shows SPREAD; Use book resets to the inherited grid', async ({
+// Kit Grid section (uikit/src/sandbox/context-inspector.tsx SpreadGridSection):
+// "Use book / Custom"; the fields show only in Custom, grey until overridden.
+// A new book has no parent, so it reads "Use book".
+test('Spread override reads source spread; Use book resets to the inherited grid', async ({
   page,
 }) => {
   await openSessionEditor(page)
@@ -45,17 +50,22 @@ test('Spread override shows SPREAD; Use book resets to the inherited grid', asyn
   const section = page.getByTestId('grid-section-spread')
   const inherit = section.getByRole('radio', { name: 'Use book' })
   const custom = section.getByRole('radio', { name: 'Custom' })
+  const columns = fieldBox(page, 'columns')
   await expect(section).toBeVisible()
   await expect(inherit).toBeChecked()
   await expect(section.getByTestId('spread-grid-inherit')).toBeVisible()
-  await expect(page.getByTestId('grid-source-columns')).toHaveCount(0)
+  await expect(page.getByTestId('spread-grid-field-columns')).toHaveCount(0)
 
   await section.getByText('Custom', { exact: true }).click()
   await expect(custom).toBeChecked()
-  await expect(page.getByTestId('grid-source-columns')).toHaveText('book')
+  await expect(columns).toHaveAttribute('data-source', 'book')
+  await expect(section.getByTestId('spread-grid-hint')).toHaveText(
+    'Grey values follow the book grid.',
+  )
 
   await setField(page, 'columns', '4')
-  await expect(page.getByTestId('grid-source-columns')).toHaveText('spread')
+  await expect(columns).toHaveAttribute('data-source', 'spread')
+  await expect(page.getByTestId('spread-grid-reset-columns')).toBeVisible()
   await expect(custom).toBeChecked()
 
   await section.getByText('Use book', { exact: true }).click()
@@ -64,5 +74,5 @@ test('Spread override shows SPREAD; Use book resets to the inherited grid', asyn
     '2 × 2',
   )
   await section.getByText('Custom', { exact: true }).click()
-  await expect(page.getByTestId('grid-source-columns')).toHaveText('book')
+  await expect(columns).toHaveAttribute('data-source', 'book')
 })

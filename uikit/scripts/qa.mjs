@@ -1164,6 +1164,28 @@ await smokeS("v8 §3.4 grid: per-spread custom 4 × 3 renders 4 columns and 3 ro
   const c = await D('[data-current] [data-testid="grid-col"]').count(), r = await D('[data-current] [data-testid="grid-row"]').count()
   return [c === 8 && r === 6, `cols=${c} rows=${r} (2 pages)`]
 })
+await smokeS("layout-grids-parent-inherit GP2/GP3: Custom is grey and writes nothing; G 8 is own (600 + ↺); ↺ restores it and Custom stays", "canvas", async () => {
+  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
+  const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
+  const g = sg.locator('[data-testid="spread-grid-G"]'), w = () => g.evaluate((e) => getComputedStyle(e).fontWeight)
+  const g0 = await g.inputValue(), w0 = await w(), hint = await sg.locator('[data-testid="spread-grid-hint"]').textContent(), r0 = await sg.locator('[data-testid="spread-grid-reset-G"]').count()
+  const box0 = await g.locator("..").boundingBox()
+  await g.fill("8"); await page.waitForTimeout(200)
+  const w1 = await w(), reset = sg.locator('[data-testid="spread-grid-reset-G"]'), label = await reset.getAttribute("aria-label"), box1 = await g.locator("..").boundingBox()
+  await reset.click(); await page.waitForTimeout(200)
+  const g2 = await g.inputValue(), r2 = await sg.locator('[data-testid="spread-grid-reset-G"]').count(), custom = await sg.getByRole("button", { name: "Custom" }).getAttribute("aria-pressed")
+  const still = box0.width === box1.width && box0.height === box1.height
+  return [w0 === "400" && r0 === 0 && w1 === "600" && g2 === g0 && r2 === 0 && custom === "true" && still && /^Grey values follow /.test(hint ?? ""), `G ${g0} w${w0} → 8 w${w1} "${label}" → ${g2}; ↺ ${r0}/${r2}; Custom ${custom}; box ${box1.width}x${box1.height}; "${hint}"`]
+})
+await smokeS("layout-grids-parent-inherit GP5: link on writes only the margins ≠ T as spread overrides, in one undo step", "canvas", async () => {
+  await D('[data-item="p3"]').scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await D('[data-item="p3"]').click(); await page.waitForTimeout(200)
+  const sg = D('[data-testid="spread-grid"]'); await sg.getByText("Custom", { exact: true }).click(); await page.waitForTimeout(200)
+  const read = () => Promise.all(["T", "B", "I", "O"].map(async (k) => { const i = sg.locator(`[data-testid="spread-grid-${k}"]`); return `${await i.inputValue()}${await i.evaluate((e) => getComputedStyle(e).fontWeight) === "600" ? "*" : ""}` })).then((v) => v.join("/"))
+  const m0 = await read(); await sg.locator('[data-testid="spread-grid-link"]').click(); await page.waitForTimeout(200)
+  const m1 = await read(); await page.keyboard.press("Control+z"); await page.waitForTimeout(200)
+  const m2 = await read(); const t = m0.split("/")[0], diff = m0.split("/").map((v, i) => i && v !== t ? `${t}*` : v).join("/")
+  return [m0 !== `${t}/${t}/${t}/${t}` && m1 === diff && m2 === m0, `${m0} → link ${m1} (want ${diff}) → undo ${m2}  (* = own, 600)`]
+})
 {
   await go(feat("site-lightbox"), 600)
   const e0 = errs.length

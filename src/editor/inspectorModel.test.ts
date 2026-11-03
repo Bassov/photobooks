@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
   inspectorView,
+  linkMarginsPatch,
+  marginsEqual,
   masterGridPatch,
   parentUsage,
+  resetGridFields,
   parentUsageLabel,
   sameInspectorPanel,
   spreadLabel,
@@ -190,6 +193,49 @@ describe('parentUsage', () => {
       inside: 3,
       outside: 3,
     })
+  })
+
+  const grid = {
+    columns: 2,
+    rows: 2,
+    columnGutterMm: 5,
+    rowGutterMm: 5,
+    top: 15,
+    bottom: 15,
+    inside: 15,
+    outside: 15,
+  }
+
+  it('marginsEqual: only all four margins equal (counts ignored)', () => {
+    expect(marginsEqual(grid)).toBe(true)
+    expect(marginsEqual({ ...grid, columns: 9 })).toBe(true)
+    for (const field of ['top', 'bottom', 'inside', 'outside'] as const) {
+      expect(marginsEqual({ ...grid, [field]: 9 })).toBe(false)
+    }
+  })
+
+  it('linkMarginsPatch: writes only margins that differ from Top (GP5)', () => {
+    expect(linkMarginsPatch(grid)).toBeNull()
+    expect(linkMarginsPatch({ ...grid, bottom: 9, outside: 4 })).toEqual({
+      bottom: 15,
+      outside: 15,
+    })
+    expect(linkMarginsPatch({ ...grid, top: 7 })).toEqual({
+      bottom: 7,
+      inside: 7,
+      outside: 7,
+    })
+  })
+
+  it('resetGridFields: a linked margin resets all four, else just the field (GP3)', () => {
+    expect(resetGridFields('inside', true)).toEqual([
+      'top',
+      'bottom',
+      'inside',
+      'outside',
+    ])
+    expect(resetGridFields('inside', false)).toEqual(['inside'])
+    expect(resetGridFields('columnGutterMm', true)).toEqual(['columnGutterMm'])
   })
 
   it('labels 0, 1 and N pages', () => {

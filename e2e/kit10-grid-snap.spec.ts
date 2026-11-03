@@ -116,8 +116,8 @@ test.describe('kit v0.10 grid and snap (demo steps 14, 20)', () => {
       'Outside',
       'Columns',
       'Rows',
-      'Column gutter',
-      'Row gutter',
+      'Gutter (mm)',
+      'Row gap (mm)',
     ]) {
       await expect(section.getByRole('textbox', { name: label })).toBeVisible()
     }
