@@ -5,8 +5,9 @@
 3. `addTextFrame` keeps `templateId`, because layouts only lay out image frames.
 4. `rebindFrames` binds slots to image frames by index and appends the text frames above them.
 5. The painter adds a `.spread-frame-text` node clipped to whole lines. `Empty text` shows only with a control.
-6. A new `loadFonts(textStyleFonts())` calls `fontSet.load` for each style, so Lora 500 is ready before a measure.
-7. Security / workers: N/A. This is pure resolve plus DOM paint.
+6. A new `loadFonts(textStyleFonts())` calls `fontSet.load` for each style, so Lora 500 is ready before a measure. `fitTextHeightMm` and `loadFonts` are intentional scaffolding for `text-frames-editor` (the brief lists `loadBookFonts.ts`): unit-tested, no caller yet.
+7. E2E has no Text tool yet, so a dev / fixture-only seam `dispatchBookOpForTests` (next to `setBookGridForTests`) creates text frames.
+8. Security / workers: N/A. This is pure resolve plus DOM paint; the seam is compiled out of the deploy build.
 
 ## Touch-set & Test Plan
 
@@ -21,9 +22,12 @@
 | `src/core/ops/fill.ts`               | skip text      |
 | `src/core/templates/apply.ts`        | images only    |
 | `src/editor/bookHistory.ts`          | labels         |
+| `src/editor/projectSession.ts`       | test seam      |
 | `src/render/textStyles.ts`           | new            |
 | `src/render/SpreadView.tsx`          | text node      |
 | `src/render/SpreadView.css`          | text node      |
 | `src/fonts/loadBookFonts.ts`         | style fonts    |
+| `e2e/perf/perfFixture.ts`            | seam type      |
+| `e2e/text-frames-core.spec.ts`       | new            |
 
-Tests (unit only): ops + growth, layout apply, style table + whole lines, text render, caption size, fonts. The full e2e suite runs unchanged.
+Tests: unit tests for ops + growth, layout apply, style table + whole lines, text render, caption size and fonts. E2E `text-frames-core.spec.ts` covers the canvas, the list thumbnail, Preview, a layout apply that keeps the text, the caption at 3.1 mm × px/mm, `Empty text` shown only in the editor, and the viewport fit.

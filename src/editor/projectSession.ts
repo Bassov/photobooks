@@ -9,6 +9,7 @@ import {
   defaultCover,
   defaultEndpapers,
   type Book,
+  type BookOp,
   type GridPatch,
 } from '../core'
 import {
@@ -1255,6 +1256,11 @@ export function setBookGridForTests(patch: GridPatch): void {
   dispatchBookOp({ type: 'setBookGrid', patch })
 }
 
+/** Test seam: one book op with no UI yet (e.g. text frames before the Text tool). */
+function dispatchBookOpForTests(op: BookOp): void {
+  dispatchBookOp(op)
+}
+
 /** Test seam: force access chrome phase without a real FSA denial. */
 export function setSurfaceForTests(next: ProjectSessionSurface): void {
   surface = next
@@ -1405,6 +1411,7 @@ export function exposeProjectSessionTestApi(
     regrantLibraryWithHandleForTests,
     setAccessPhaseForTests,
     setBookGridForTests,
+    dispatchBookOpForTests,
     holdExternalBookLockForTests,
     tryActivateLibraryBookForTests,
     configureProjectSession,
@@ -1457,6 +1464,7 @@ declare global {
       regrantLibraryWithHandleForTests: typeof regrantLibraryWithHandleForTests
       setAccessPhaseForTests: typeof setAccessPhaseForTests
       setBookGridForTests: typeof setBookGridForTests
+      dispatchBookOpForTests: typeof dispatchBookOpForTests
       holdExternalBookLockForTests: typeof holdExternalBookLockForTests
       tryActivateLibraryBookForTests: typeof tryActivateLibraryBookForTests
       configureProjectSession: typeof configureProjectSession
