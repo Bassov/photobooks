@@ -10,7 +10,7 @@ import {
   getSpreadPaintSnapshot,
   subscribeSpread,
 } from './bookStore'
-import { GridOverlay } from './GridOverlay'
+import { GridOverlay, type GridOverlayVariant } from './GridOverlay'
 import { GuidesOverlay } from './GuidesOverlay'
 import { TemplatePreviewOverlay } from './TemplatePreviewOverlay'
 import { armFrameDragClick, activateFrame } from './galleryDrop'
@@ -77,11 +77,14 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   pxPerMm = SPREAD_PX_PER_MM,
   lowDpiBadge,
   editorLayer = true,
+  gridVariant = 'spread',
 }: {
   spreadId: string
   pxPerMm?: number
   /** Editor layer (frame controls, grid, guides, template preview); off in Preview. */
   editorLayer?: boolean
+  /** `master`: the Masters canvas grid, drawn whatever the Grid toggle says. */
+  gridVariant?: GridOverlayVariant
   /** Overrides the DPI view flag (Preview passes `false`). */
   lowDpiBadge?: boolean
 }) {
@@ -228,7 +231,11 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
     ? {
         overlay: (
           <>
-            <GridOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
+            <GridOverlay
+              spreadId={spreadId}
+              pxPerMm={pxPerMm}
+              variant={gridVariant}
+            />
             <GuidesOverlay spreadId={spreadId} pxPerMm={pxPerMm} />
             <TemplatePreviewOverlay spreadId={spreadId} />
           </>

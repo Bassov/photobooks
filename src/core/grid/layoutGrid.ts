@@ -1,6 +1,7 @@
 import type { RectMm } from '../geometry/types'
 import { getSpreadPageCount } from '../geometry/spreadSize'
 import type { Book, Spread } from '../schema'
+import { spreadParent } from '../spreadParent'
 
 /** Inspector-facing grid fields; `inside` is the spine side, `outside` the fore-edge. */
 export const GRID_FIELDS = [
@@ -17,7 +18,7 @@ export const GRID_FIELDS = [
 export type GridField = (typeof GRID_FIELDS)[number]
 export type GridValues = Record<GridField, number>
 export type GridPatch = Partial<GridValues>
-export type GridSource = 'book' | 'spread'
+export type GridSource = 'book' | 'master' | 'spread'
 
 export const GRID_COUNT_MIN = 1
 export const GRID_COUNT_MAX = 12
@@ -75,12 +76,21 @@ export function hasGridOverride(spread: Spread): boolean {
   return GRID_FIELDS.some((field) => overridesGridField(spread, field))
 }
 
-/**
- * Override levels above the book grid, lowest priority first. A parent
- * (master) level slots in before the spread override.
- */
-function gridOverrides(spread: Spread | undefined): GridOverride[] {
-  return spread?.layoutGrid === undefined ? [] : [spread.layoutGrid]
+/** The partial grid of the spread's parent (master), if it has one. */
+function parentGridOf(
+  book: Book,
+  spread: Spread | undefined,
+): GridOverride | undefined {
+  return spread === undefined
+    ? undefined
+    : spreadParent(book, spread)?.layoutGrid
+}
+
+/** Override levels above the book grid, lowest priority first: parent, then spread. */
+function gridOverrides(book: Book, spread: Spread | undefined): GridOverride[] {
+  return [parentGridOf(book, spread), spread?.layoutGrid].filter(
+    (level) => level !== undefined,
+  )
 }
 
 /** `base` with each override level applied per field, later levels winning. */
@@ -107,12 +117,23 @@ export function mergeGridLevels(
   }
 }
 
-/** The book grid with the spread's per-field overrides applied. */
+/** The book grid with the parent's, then the spread's per-field overrides applied. */
 export function mergeLayoutGrid(book: Book, spread?: Spread): Grid {
-  const overrides = gridOverrides(spread)
+  const overrides = gridOverrides(book, spread)
   return overrides.length === 0
     ? book.layoutGrid
     : mergeGridLevels(book.layoutGrid, overrides)
+}
+
+function fieldSource(
+  field: GridField,
+  spread: Spread | undefined,
+  parentGrid: GridOverride | undefined,
+): GridSource {
+  if (spread !== undefined && overridesGridField(spread, field)) {
+    return 'spread'
+  }
+  return readOverrideField(parentGrid, field) === undefined ? 'book' : 'master'
 }
 
 export function effectiveGrid(
@@ -120,14 +141,12 @@ export function effectiveGrid(
   spread?: Spread,
 ): { values: GridValues; source: Record<GridField, GridSource> } {
   const grid = mergeLayoutGrid(book, spread)
+  const parentGrid = parentGridOf(book, spread)
   const values = {} as GridValues
   const source = {} as Record<GridField, GridSource>
   for (const field of GRID_FIELDS) {
     values[field] = readGridField(grid, field)
-    source[field] =
-      spread !== undefined && overridesGridField(spread, field)
-        ? 'spread'
-        : 'book'
+    source[field] = fieldSource(field, spread, parentGrid)
   }
   return { values, source }
 }
@@ -216,6 +235,7 @@ function computeLayoutGrid(
 
 interface CacheEntry {
   grid: Grid
+  parentGrid: GridOverride | undefined
   trim: Book['settings']['trim']
   spreadCount: number
   spreadIndex: number
@@ -226,8 +246,9 @@ const cache = new WeakMap<Spread, CacheEntry>()
 
 /**
  * Per-page content box, column and row rects of one spread, after the
- * inheritance chain book grid → spread override. Memoized by spread reference
- * (the entry is reused while the book grid, trim, spread count and index match).
+ * inheritance chain book grid → parent grid → spread override. Memoized by
+ * spread reference (the entry is reused while the book grid, parent grid, trim,
+ * spread count and index match).
  * `spread` defaults to the book's spread at `spreadIndex`; pass a candidate to
  * resolve a spread that is not stored yet.
  */
@@ -240,8 +261,10 @@ export function resolveLayoutGrid(
     return computeLayoutGrid(book, spreadIndex, undefined)
   }
   const hit = cache.get(spread)
+  const parentGrid = parentGridOf(book, spread)
   if (
     hit?.grid === book.layoutGrid &&
+    hit.parentGrid === parentGrid &&
     hit.trim === book.settings.trim &&
     hit.spreadCount === book.spreads.length &&
     hit.spreadIndex === spreadIndex
@@ -251,6 +274,7 @@ export function resolveLayoutGrid(
   const result = computeLayoutGrid(book, spreadIndex, spread)
   cache.set(spread, {
     grid: book.layoutGrid,
+    parentGrid,
     trim: book.settings.trim,
     spreadCount: book.spreads.length,
     spreadIndex,

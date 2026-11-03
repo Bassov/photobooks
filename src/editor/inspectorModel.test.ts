@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
   inspectorView,
+  masterGridPatch,
+  parentUsage,
+  parentUsageLabel,
   sameInspectorPanel,
   spreadLabel,
   spreadSummary,
@@ -140,5 +143,58 @@ describe('spreadSummary', () => {
 
   it('is blank for an unknown spread', () => {
     expect(spreadSummary(book, 'nope')).toBe('')
+  })
+})
+
+describe('parentUsage', () => {
+  const parents = [
+    { id: 'pa', name: 'Master A', frames: [], guides: [] },
+    { id: 'pb', name: 'Master B', frames: [], guides: [] },
+  ]
+
+  it('counts the default parent: 1 + 2 + 2 + 1 pages', () => {
+    const book = makeBook({
+      parents,
+      defaultParentId: 'pa',
+      spreads: ['a', 'b', 'c', 'd'].map((id) => makeSpread({ id })),
+    })
+    expect(parentUsage(book, 'pa')).toBe(6)
+    expect(parentUsage(book, 'pb')).toBe(0)
+  })
+
+  it('counts explicit parents; None and a lone spread are 0 and 1', () => {
+    const book = makeBook({
+      parents,
+      defaultParentId: 'pa',
+      spreads: [
+        makeSpread({ id: 'a', parentId: null }),
+        makeSpread({ id: 'b', parentId: 'pb' }),
+        makeSpread({ id: 'c' }),
+      ],
+    })
+    expect(parentUsage(book, 'pa')).toBe(1)
+    expect(parentUsage(book, 'pb')).toBe(2)
+    const lone = makeBook({
+      parents,
+      spreads: [makeSpread({ parentId: 'pb' })],
+    })
+    expect(parentUsage(lone, 'pb')).toBe(1)
+  })
+
+  it('masterGridPatch: a linked margin writes all four, a count stays single', () => {
+    expect(masterGridPatch('columns', 3, true)).toEqual({ columns: 3 })
+    expect(masterGridPatch('top', 3, false)).toEqual({ top: 3 })
+    expect(masterGridPatch('bottom', 3, true)).toEqual({
+      top: 3,
+      bottom: 3,
+      inside: 3,
+      outside: 3,
+    })
+  })
+
+  it('labels 0, 1 and N pages', () => {
+    expect(parentUsageLabel(0)).toBe('Not used yet')
+    expect(parentUsageLabel(1)).toBe('Used by 1 page')
+    expect(parentUsageLabel(10)).toBe('Used by 10 pages')
   })
 })

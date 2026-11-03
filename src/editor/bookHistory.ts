@@ -1,12 +1,15 @@
 import type { Book, BookOp } from '../core'
 
 /**
- * Undoable slice of the document: layout (incl. the book grid), title and cover. Gallery, assets and
- * session meta are transient (import keeps landing while the user edits), so
- * undo never rolls them back.
+ * Undoable slice of the document: layout (incl. the book grid and the parents
+ * with their items and grids), title and cover. Gallery, assets and session
+ * meta are transient (import keeps landing while the user edits), so undo
+ * never rolls them back.
  */
 export interface HistorySnapshot {
   spreads: Book['spreads']
+  parents: Book['parents']
+  defaultParentId: Book['defaultParentId']
   title: Book['title']
   layoutGrid: Book['layoutGrid']
   cover: Book['cover']
@@ -38,6 +41,8 @@ export const EMPTY_HISTORY: History = {
 export function snapshotOf(book: Book): HistorySnapshot {
   return {
     spreads: book.spreads,
+    parents: book.parents,
+    defaultParentId: book.defaultParentId,
     title: book.title,
     layoutGrid: book.layoutGrid,
     cover: book.cover,
