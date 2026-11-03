@@ -182,17 +182,18 @@ describe('Rulers', () => {
     expect(screen.getByTestId('ruler-y').dataset.origin).toBe('50')
     expect([canvasX?.width, canvasX?.height]).toEqual([500, 22])
     expect([canvasY?.width, canvasY?.height]).toEqual([22, 300])
-    // origin X = 122 - 22, origin Y = 72 - 22, scale 2 px/mm, step 10 mm.
+    // origin X = 122 - 22, origin Y = 72 - 22, scale 2 px/mm, step 20 mm (40 px ≥ 34).
     expect(ctx.fillRect).toHaveBeenCalledWith(100, 13, 1, 9)
-    expect(ctx.fillRect).toHaveBeenCalledWith(104, 18, 1, 4)
+    expect(ctx.fillRect).toHaveBeenCalledWith(108, 18, 1, 4)
     expect(ctx.fillRect).toHaveBeenCalledWith(13, 50, 9, 1)
     expect(ctx.fillText).toHaveBeenCalledWith('0', 102, 1)
-    expect(ctx.fillText).toHaveBeenCalledWith('10', 122, 1)
+    expect(ctx.fillText).toHaveBeenCalledWith('20', 142, 1)
+    expect(ctx.fillText).not.toHaveBeenCalledWith('10', 122, 1)
     // X labels reset at the page edge (200 mm → 0); Y labels keep counting.
     expect(ctx.fillText).toHaveBeenCalledWith('0', 502, 1)
     expect(ctx.translate).toHaveBeenCalledWith(2, 62)
     expect(ctx.rotate).toHaveBeenCalledWith(-Math.PI / 2)
-    expect(ctx.fillText).toHaveBeenCalledWith('10', 0, 0)
+    expect(ctx.fillText).toHaveBeenCalledWith('20', 0, 0)
   })
 
   it('places the spine marker for a two-page spread and hides it for one page', () => {
