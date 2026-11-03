@@ -1,7 +1,8 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, assert, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame } from '../core/testing/fixtures'
 import { resetBookStore } from './bookStore'
+import { getFrameSource, setFrameSource } from './frameSelection'
 import { MastersCanvas } from './MastersCanvas'
 import {
   resetLeftPanelTabForTests,
@@ -48,6 +49,13 @@ describe('MastersCanvas', () => {
     expect(screen.queryByTestId('masters-canvas')).toBeNull()
   })
 
+  it('shows the empty note for a book that never had parents', () => {
+    resetBookStore()
+    setLeftPanelTab('masters')
+    render(<MastersCanvas />)
+    expect(screen.getByTestId('masters-canvas-empty')).toBeTruthy()
+  })
+
   it('shows the picked parent as an editable spread, else the first', () => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
@@ -64,11 +72,50 @@ describe('MastersCanvas', () => {
 
     expect(first).toBe('p1')
     expect(shown()).toBe('p2')
+    expect(screen.getByTestId('master-label').textContent).toBe('p2')
     const view = screen.getByTestId('spread-view')
     expect(view.getAttribute('data-spread-id')).toBe('p2')
     expect(
       view.querySelector('button.spread-frame[data-frame-id="p2-logo"]'),
     ).not.toBeNull()
+  })
+
+  it('draws the master grid with the Grid toggle off and labels the spread', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+    loadParents(['p1'])
+    setLeftPanelTab('masters')
+    render(<MastersCanvas />)
+
+    const overlay = screen.getByTestId('grid-overlay')
+    expect(overlay.getAttribute('data-variant')).toBe('master')
+    // Fixture book grid 2 × 2 on both pages.
+    expect(screen.getAllByTestId('grid-overlay-cell')).toHaveLength(8)
+    expect(screen.getByTestId('master-label').textContent).toBe('p1')
+  })
+
+  it('a press on the empty stage drops the frame selection; a frame press keeps it', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+    loadParents(['p1'])
+    setLeftPanelTab('masters')
+    render(<MastersCanvas />)
+    const selected = { spreadId: 'p1', frameId: 'p1-logo' }
+    act(() => {
+      setFrameSource(selected)
+    })
+    const frame = screen
+      .getByTestId('masters-canvas')
+      .querySelector('button.spread-frame')
+    assert(frame !== null)
+
+    fireEvent.pointerDown(frame, { button: 0 })
+    expect(getFrameSource()).toEqual(selected)
+    fireEvent.pointerDown(screen.getByTestId('spread-view'), { button: 2 })
+    expect(getFrameSource()).toEqual(selected)
+
+    fireEvent.pointerDown(screen.getByTestId('spread-view'), { button: 0 })
+    expect(getFrameSource()).toBeNull()
   })
 })
 

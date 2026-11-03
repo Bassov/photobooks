@@ -2,6 +2,7 @@ import { mergeGridLevels } from './grid/layoutGrid'
 import { omitKey } from './omitKey'
 import type { Guide } from './ops/guides'
 import type { Book, Frame, ParentSpread, Spread } from './schema'
+import { spreadParent } from './spreadParent'
 
 /** Where a resolved item comes from: the parent, a spread-local copy of a parent item, or the spread itself. */
 export type ParentLayer = 'parent' | 'override' | 'spread'
@@ -16,18 +17,7 @@ export interface ResolvedGuide {
   layer: ParentLayer
 }
 
-/**
- * The spread's parent: `parentId` when set, else the book default; `null`
- * (None) or an id with no parent resolves to none.
- */
-export function spreadParent(
-  book: Book,
-  spread: Spread,
-): ParentSpread | undefined {
-  const id =
-    spread.parentId === undefined ? book.defaultParentId : spread.parentId
-  return book.parents?.find((parent) => parent.id === id)
-}
+export { spreadParent }
 
 /** Spread index a parent edits and paints at: any value below 0 is two pages. */
 export const PARENT_SPREAD_INDEX = -1

@@ -115,9 +115,9 @@ test('Browser check: a logo added to a master and moved once moves on every spre
   ])
   await expect(masterRows(page).nth(2)).toHaveAttribute('aria-selected', 'true')
   await expect(masterFrames(page)).toHaveCount(0)
-  await expect(page.getByTestId('inspector-empty')).toContainText(
-    'Master items show on every spread',
-  )
+  const head = page.getByTestId('insp-master').getByTestId('inspector-head')
+  await expect(head.getByTestId('inspector-context')).toHaveText('Master C')
+  await expect(head.getByTestId('master-usage')).toHaveText('Not used yet')
 
   // Add the logo: the Frame tool draws on the master like on a spread.
   const master = await box(masterCanvas(page))

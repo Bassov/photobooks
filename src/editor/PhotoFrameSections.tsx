@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { editableSpread } from '../core'
 import { Disclosure } from '../ui/Disclosure'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import type { CropTarget } from './cropMode'
@@ -24,7 +25,8 @@ function readBook() {
 
 function useSummaries(target: CropTarget): FrameSectionSummaries | undefined {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
-  const spread = book.spreads.find((item) => item.id === target.spreadId)
+  // A master item (Masters canvas) resolves through its parent's spread view.
+  const spread = editableSpread(book, target.spreadId)?.spread
   const frame = spread?.frames.find((item) => item.id === target.frameId)
   return spread === undefined || frame === undefined
     ? undefined

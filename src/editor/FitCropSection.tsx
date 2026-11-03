@@ -8,7 +8,7 @@ import {
   SliderThumb,
   SliderTrack,
 } from 'react-aria-components'
-import { COVER_CROP, clampCrop, type Frame } from '../core'
+import { COVER_CROP, clampCrop, editableSpread, type Frame } from '../core'
 import { Button } from '../ui/Button'
 import { Disclosure } from '../ui/Disclosure'
 import { SegmentedControl } from '../ui/SegmentedControl'
@@ -34,9 +34,9 @@ function readBook() {
 
 function useFrame(target: CropTarget) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
-  return book.spreads
-    .find((spread) => spread.id === target.spreadId)
-    ?.frames.find((item) => item.id === target.frameId)
+  return editableSpread(book, target.spreadId)?.spread.frames.find(
+    (item) => item.id === target.frameId,
+  )
 }
 
 /** Pan percent (±100) → normalized crop center; 0 is the image center. */

@@ -8,6 +8,7 @@ import {
   spreadParent,
   type Book,
   type GridField,
+  type GridSource,
   type Spread,
 } from '../core'
 import { Disclosure } from '../ui/Disclosure'
@@ -237,7 +238,7 @@ function GridFieldInput({
   label: string
   unit: 'mm' | ''
   value: number
-  source: 'book' | 'spread' | undefined
+  source: GridSource | undefined
   onCommit: (value: number) => void
 }) {
   const counted = field === 'columns' || field === 'rows'

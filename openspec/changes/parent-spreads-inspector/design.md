@@ -7,32 +7,34 @@
 
 ## Touch-set & Test Plan
 
-| Path                                                 | Why                      |
-| ---------------------------------------------------- | ------------------------ |
-| `src/core/grid/layoutGrid.ts`                        | chain, source, cache     |
-| `src/core/spreadParent.ts`                           | helper                   |
-| `src/core/parentSpreads.ts`                          | re-export                |
-| `src/editor/GridOverlay.tsx`                         | snapshot, variant        |
-| `src/editor/ConnectedSpreadView.tsx`                 | prop                     |
-| `src/editor/MastersCanvas.tsx`                       | overlay, label, deselect |
-| `src/editor/CoverCanvas.css`                         | label                    |
-| `src/editor/editorChromeTokens.ts`                   | master grid tokens       |
-| `docs/design.md`                                     | tokens                   |
-| `src/editor/Inspector.tsx`                           | routing                  |
-| `src/editor/MasterSection.tsx`                       | MS1–MS4                  |
-| `src/editor/InspectorControls.css`                   | focus ring               |
-| `src/editor/inspectorModel.ts`                       | `parentUsage`            |
-| `src/editor/GridSection.tsx`                         | source type              |
-| `src/editor/PhotoSection.tsx`                        | parent frames            |
-| `src/editor/FitCropSection.tsx`                      | parent frames            |
-| `src/editor/PhotoRotateSection.tsx`                  | parent frames            |
-| `src/editor/PhotoFrameSections.tsx`                  | parent frames            |
-| `src/ui/icons/glyphs.ts`                             | glyphs                   |
-| `uikit/src/sandbox/v7.tsx`                           | kit sync                 |
-| `e2e/parent-spreads-inspector.spec.ts`               | new e2e + gate           |
-| `e2e/parent-spreads-edit.spec.ts`                    | hint → head              |
-| `docs/roadmap/P2/parent-spreads-inspector.md`        | scope narrowed           |
-| `docs/roadmap/P2/parent-spreads-inspector-guides.md` | MS10                     |
+| Path                                                 | Why                                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| `src/core/grid/layoutGrid.ts`                        | chain, source, cache                                                      |
+| `src/core/spreadParent.ts`                           | helper                                                                    |
+| `src/core/parentSpreads.ts`                          | re-export                                                                 |
+| `src/editor/GridOverlay.tsx`                         | snapshot, variant                                                         |
+| `src/editor/ConnectedSpreadView.tsx`                 | prop                                                                      |
+| `src/editor/MastersCanvas.tsx`                       | overlay, label, deselect                                                  |
+| `src/editor/CoverCanvas.css`                         | label                                                                     |
+| `src/editor/editorChromeTokens.ts`                   | master grid tokens                                                        |
+| `docs/design.md`                                     | tokens                                                                    |
+| `src/editor/Inspector.tsx`                           | routing                                                                   |
+| `src/editor/MasterSection.tsx`                       | MS1–MS4                                                                   |
+| `src/editor/InspectorControls.css`                   | focus ring                                                                |
+| `src/editor/bookHistory.ts`                          | undo snapshot holds `parents` / `defaultParentId` (MS4 one undoable step) |
+| `src/editor/bookStore.ts`                            | restore them on undo / redo                                               |
+| `src/editor/inspectorModel.ts`                       | `parentUsage`                                                             |
+| `src/editor/GridSection.tsx`                         | source type                                                               |
+| `src/editor/PhotoSection.tsx`                        | parent frames                                                             |
+| `src/editor/FitCropSection.tsx`                      | parent frames                                                             |
+| `src/editor/PhotoRotateSection.tsx`                  | parent frames                                                             |
+| `src/editor/PhotoFrameSections.tsx`                  | parent frames                                                             |
+| `src/ui/icons/glyphs.ts`                             | glyphs                                                                    |
+| `uikit/src/sandbox/v7.tsx`                           | kit sync                                                                  |
+| `e2e/parent-spreads-inspector.spec.ts`               | new e2e + gate                                                            |
+| `e2e/parent-spreads-edit.spec.ts`                    | hint → head                                                               |
+| `docs/roadmap/P2/parent-spreads-inspector.md`        | scope narrowed                                                            |
+| `docs/roadmap/P2/parent-spreads-inspector-guides.md` | MS10                                                                      |
 
 - Unit: layoutGrid (master source, cache, PBT ≥1000), MasterSection, parentUsage, Inspector, GridOverlay, GridSection.
 - e2e: browser check, None spread, MS2 rects, MS7, no-masters hint, no page scroll, 40-spread gate.

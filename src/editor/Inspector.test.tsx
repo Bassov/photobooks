@@ -25,7 +25,11 @@ import { SUB } from './editorChromeTokens'
 import { setEndpaperSelected } from './endpaperSelection'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
 import { Inspector } from './Inspector'
-import { resetLeftPanelTabForTests, setLeftPanelTab } from './leftPanelTabStore'
+import {
+  resetLeftPanelTabForTests,
+  setLeftPanelTab,
+  setPickedParentId,
+} from './leftPanelTabStore'
 import { setActiveSpreadId } from './photoRootSession'
 
 // Pass-through so a test can hand the panel a stale crop target.
@@ -139,8 +143,16 @@ describe('Inspector', () => {
     expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
   })
 
-  it('shows only the Masters hint in Masters mode, whatever is selected', () => {
-    seed()
+  it('shows the master inspector in Masters mode while a spread frame is selected', () => {
+    seedBook(
+      makeBook({
+        defaultParentId: 'p-a',
+        parents: [
+          { id: 'p-a', name: 'Master A', frames: [], guides: [] },
+          { id: 'p-b', name: 'Master B', frames: [], guides: [] },
+        ],
+      }),
+    )
     setActiveSpreadId('spread-1')
     setFrameSource({ spreadId: 'spread-1', frameId: 'frame-1' })
     render(<Inspector />)
@@ -151,9 +163,67 @@ describe('Inspector', () => {
 
     expect(
       screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
+    ).toBe('master')
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Master A')
+    expect(screen.getByTestId('master-usage').textContent).toBe(
+      'Used by 1 page',
+    )
+    expect(screen.queryByTestId('inspector-header')).toBeNull()
+
+    act(() => {
+      setPickedParentId('p-b')
+    })
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Master B')
+    expect(screen.getByTestId('master-usage').textContent).toBe('Not used yet')
+  })
+
+  it('opens the Photo view for a frame on the shown master; clearing it returns to the master', () => {
+    seedBook(
+      makeBook({
+        parents: [
+          {
+            id: 'p-a',
+            name: 'Master A',
+            frames: [makeFrame({ id: 'logo' })],
+            guides: [],
+          },
+        ],
+      }),
+    )
+    setLeftPanelTab('masters')
+    render(<Inspector />)
+
+    act(() => {
+      setFrameSource({ spreadId: 'p-a', frameId: 'logo' })
+    })
+    expect(
+      screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
+    ).toBe('frame')
+    expect(screen.getByTestId('inspector-context').textContent).toBe('Photo')
+    // The parent frame resolves: an empty frame shows the empty Photo row.
+    expect(screen.getByTestId('inspector-photo-empty')).toBeTruthy()
+
+    act(() => {
+      setFrameSource(null)
+    })
+    expect(
+      screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
+    ).toBe('master')
+  })
+
+  it('shows the no-masters hint in Masters mode when the book has none', () => {
+    seed()
+    render(<Inspector />)
+
+    act(() => {
+      setLeftPanelTab('masters')
+    })
+
+    expect(
+      screen.getByTestId('inspector-panel').getAttribute('data-inspector-view'),
     ).toBe('masters')
     expect(screen.getByTestId('inspector-body').textContent).toBe(
-      'Master items show on every spread that uses the master. Add, move and resize them on the canvas.',
+      'Create a master with New master to set its grid.',
     )
     expect(screen.queryByTestId('inspector-header')).toBeNull()
   })
