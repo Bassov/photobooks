@@ -207,7 +207,7 @@
 }
 
 .ub-btn.ub-btn--secondary {
-  min-width: 128px;
+  min-width: 140px;
   background: var(--field);
   color: var(--foreground);
   box-shadow: var(--shadow-xs);
