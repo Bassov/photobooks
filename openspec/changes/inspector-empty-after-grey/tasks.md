@@ -11,3 +11,5 @@
 2. Double-click a filled frame (crop), Esc ×2 → "Spread" for that spread.
 3. Esc with nothing selected, then the page-1 row → "Spread", "Page 1 · …".
 4. Click a frame, Esc, H, short drag on the pasteboard → "Spread".
+
+Stage-9 `manual-qa`: problem (harness). All 4 scenarios were blocked at the welcome screen: the `start-session` click is intercepted by the welcome header, so no scenario ran. Coverage is `e2e/inspector-context-paths.spec.ts`, which drives the same 4 paths (4/4 pass on this branch, 4/4 fail on main), plus a Playwright DOM dump of the inspector title per step (PR body table).
