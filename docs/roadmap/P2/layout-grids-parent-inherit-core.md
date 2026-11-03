@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item layout-grids-parent-inherit-core
+Status: done
 
 ## Scope
 
