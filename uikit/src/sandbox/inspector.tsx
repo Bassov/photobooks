@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { NumberField, NumberFieldInput } from "@/components/ui/numberfield"
 import { FieldGroup, Label } from "@/components/ui/field"
 import { Toolbar } from "@/components/ui/toolbar"
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/uui/Badge"
 import { Section, IconButton } from "@/components/app/ui"
 import { SliderRow, Segmented } from "@/components/app/controls"
@@ -180,54 +181,82 @@ export function ArrangeSection() {
     const sel = a.filter((x) => ids.includes(x.id)), rest = a.filter((x) => !ids.includes(x.id))
     if (kind === "front") return { ...s, frames: [...rest, ...sel] }
     if (kind === "back") return { ...s, frames: [...sel, ...rest] }
-    const i = a.findIndex((x) => x.id === f.id); const j = kind === "fwd" ? Math.min(a.length - 1, i + 1) : Math.max(0, i - 1)
-    const [x] = a.splice(i, 1); a.splice(j, 0, x); return { ...s, frames: a }
+    // prod reorderFrames: from the moving end, each selected frame steps past the next unselected one
+    const step = kind === "fwd" ? 1 : -1
+    for (let i = kind === "fwd" ? a.length - 2 : 1; i >= 0 && i < a.length; i -= step) {
+      if (ids.includes(a[i].id) && !ids.includes(a[i + step].id)) [a[i], a[i + step]] = [a[i + step], a[i]]
+    }
+    return { ...s, frames: a }
   }), { front: "Bring to front", back: "Send to back", fwd: "Bring forward", bwd: "Send backward" }[kind])
-  const z = st.doc.spreads[st.cur].frames.findIndex((x) => x.id === f.id)
+  const all = st.doc.spreads[st.cur].frames
+  const zs = frames.map((x) => all.findIndex((y) => y.id === x.id) + 1)
+  const z = zs[0], lo = Math.min(...zs), hi = Math.max(...zs)
+  const layerLabel = frames.length > 1 ? `layers ${lo}–${hi} of ${all.length}` : `layer ${z} of ${all.length}`
   const b = "size-8 [&_svg]:size-4"
   return (
-    <Section title="Arrange" summary={`z ${z + 1}`}>
+    <Section title="Arrange" summary={frames.length > 1 ? `z ${lo}–${hi}` : `z ${z}`}>
       <Toolbar aria-label="Arrange" className="flex gap-1">
         {([["back", SendToBack, "Send to back (Shift+Ctrl+[)"], ["bwd", ArrowDown, "Send backward (Ctrl+[)"], ["fwd", ArrowUp, "Bring forward (Ctrl+])"], ["front", BringToFront, "Bring to front (Shift+Ctrl+])"]] as const).map(([k, I, l]) => (
           <IconButton key={k} label={l} className={cn(b, "bg-field")} onPress={() => move(k)} data-testid={`z-${k}`}><I /></IconButton>
         ))}
-        <span className="ml-auto self-center text-xs tabular-nums text-muted-foreground">layer {z + 1} of {st.doc.spreads[st.cur].frames.length}</span>
+        <span className="ml-auto self-center text-xs tabular-nums text-muted-foreground">{layerLabel}</span>
       </Toolbar>
     </Section>
   )
+}
+
+/* multi-select Spec "Inspector, multi context": 3 groups (align x · align y · distribute), name = aria-label = tooltip */
+const ALIGN_GROUPS = [
+  [["l", "Align left edges", "align-left", AlignStartVertical], ["cx", "Align horizontal centers", "align-center-x", AlignCenterVertical], ["r", "Align right edges", "align-right", AlignEndVertical]],
+  [["t", "Align top edges", "align-top", AlignStartHorizontal], ["cy", "Align vertical centers", "align-center-y", AlignCenterHorizontal], ["b", "Align bottom edges", "align-bottom", AlignEndHorizontal]],
+  [["x", "Distribute horizontally", "distribute-h", AlignHorizontalDistributeCenter], ["y", "Distribute vertically", "distribute-v", AlignVerticalDistributeCenter]],
+] as const
+
+/** Enabled: the name as tooltip; disabled: focusable, the reason as tooltip (Button disabledReason). */
+function AlignButton({ label, why, testId, onPress, children }: { label: string; why?: string; testId: string; onPress: () => void; children: React.ReactNode }) {
+  const b = <Button variant="outline" size="icon-xs" aria-label={label} className="shadow-xs [&_svg]:size-3.5" isDisabled={!!why} disabledReason={why} onPress={onPress} data-testid={testId}>{children}</Button>
+  return why ? b : <TooltipTrigger delay={400}>{b}<Tooltip placement="bottom" className="px-2 py-1 text-xs">{label}</Tooltip></TooltipTrigger>
 }
 
 export function AlignSection() {
   const { frames, st } = useSelected()
   if (frames.length < 2) return <Section title="Align & distribute" summary="select 2+ frames" defaultExpanded={false}><div className="text-xs text-muted-foreground">Shift+click or drag a marquee to select several frames.</div></Section>
   const bb = bbox(frames)
-  const al = (k: string) => st.update((d) => mapFrames(d, st.cur, frames.filter((f) => !f.locked).map((f) => f.id), (f) => {
+  // prod core semantics: only unlocked frames move, against the bounds of the unlocked frames
+  const free = frames.filter((f) => !f.locked), locked = frames.length - free.length
+  const fb = free.length ? bbox(free) : bb
+  const al = (k: string) => st.update((d) => mapFrames(d, st.cur, free.map((f) => f.id), (f) => {
     switch (k) {
-      case "l": return { ...f, x: bb.x }; case "cx": return { ...f, x: round(bb.x + bb.w / 2 - f.w / 2, 2) }; case "r": return { ...f, x: round(bb.x + bb.w - f.w, 2) }
-      case "t": return { ...f, y: bb.y }; case "cy": return { ...f, y: round(bb.y + bb.h / 2 - f.h / 2, 2) }; case "b": return { ...f, y: round(bb.y + bb.h - f.h, 2) }
+      case "l": return { ...f, x: fb.x }; case "cx": return { ...f, x: round(fb.x + fb.w / 2 - f.w / 2, 2) }; case "r": return { ...f, x: round(fb.x + fb.w - f.w, 2) }
+      case "t": return { ...f, y: fb.y }; case "cy": return { ...f, y: round(fb.y + fb.h / 2 - f.h / 2, 2) }; case "b": return { ...f, y: round(fb.y + fb.h - f.h, 2) }
     }
     return f
   }), "Align")
   const dist = (axis: "x" | "y") => st.update((d) => {
-    const fs = [...frames].sort((a, b) => a[axis] - b[axis])
+    const fs = [...free].sort((a, b) => a[axis] - b[axis])
     const size = axis === "x" ? "w" : "h"
     const total = fs.reduce((a, f) => a + f[size], 0)
-    const span = (axis === "x" ? bb.w : bb.h) - total, gap = span / (fs.length - 1)
-    let p = axis === "x" ? bb.x : bb.y
+    const span = (axis === "x" ? fb.w : fb.h) - total, gap = span / (fs.length - 1)
+    let p = axis === "x" ? fb.x : fb.y
     const pos: Record<string, number> = {}
     for (const f of fs) { pos[f.id] = round(p, 2); p += f[size] + gap }
     return mapFrames(d, st.cur, fs.map((f) => f.id), (f) => ({ ...f, [axis]: pos[f.id] }))
   }, "Distribute")
+  const alignWhy = free.length < 2 ? "Needs 2 unlocked frames" : undefined
+  const distWhy = free.length < 3 ? "Select 3 or more unlocked frames" : undefined
   return (
     <Section title="Align & distribute" summary={`${frames.length} frames`}>
-      <Toolbar aria-label="Align" className="grid grid-cols-8 gap-1">
-        {([["l", AlignStartVertical], ["cx", AlignCenterVertical], ["r", AlignEndVertical], ["t", AlignStartHorizontal], ["cy", AlignCenterHorizontal], ["b", AlignEndHorizontal]] as const).map(([k, I]) => (
-          <Button key={k} variant="outline" size="icon-xs" aria-label={`Align ${k}`} className="shadow-xs [&_svg]:size-3.5" onPress={() => al(k)} data-testid={`align-${k}`}><I /></Button>
+      <Toolbar aria-label="Align" className="flex flex-wrap gap-x-3 gap-y-1">
+        {ALIGN_GROUPS.map((g) => (
+          <div key={g[0][2]} role="group" className="flex gap-1">
+            {g.map(([k, label, testId, I]) => {
+              const d = k === "x" || k === "y"
+              return <AlignButton key={k} label={label} testId={testId} why={d ? distWhy : alignWhy} onPress={() => (d ? dist(k) : al(k))}><I /></AlignButton>
+            })}
+          </div>
         ))}
-        <Button variant="outline" size="icon-xs" aria-label="Distribute horizontally" className="shadow-xs [&_svg]:size-3.5" isDisabled={frames.length < 3} onPress={() => dist("x")}><AlignHorizontalDistributeCenter /></Button>
-        <Button variant="outline" size="icon-xs" aria-label="Distribute vertically" className="shadow-xs [&_svg]:size-3.5" isDisabled={frames.length < 3} onPress={() => dist("y")}><AlignVerticalDistributeCenter /></Button>
       </Toolbar>
-      <div className="mt-2 text-xs tabular-nums text-muted-foreground">Selection {round(bb.w)} × {round(bb.h)} mm · locked frames are skipped</div>
+      <div className="mt-2 text-xs tabular-nums text-muted-foreground">Selection {round(bb.w)} × {round(bb.h)} mm{locked > 0 ? ` · ${locked} locked, skipped` : ""}</div>
     </Section>
   )
 }

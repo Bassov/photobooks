@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
 import {
+  ALIGN_REASON,
+  alignState,
+  DISTRIBUTE_REASON,
   inspectorView,
+  multiSummary,
+  selectionCaption,
   linkMarginsPatch,
   marginsEqual,
   masterGridPatch,
@@ -109,6 +114,105 @@ describe('inspectorView', () => {
       null,
     )
     expect(view.kind).toBe('empty')
+  })
+
+  it('shows multi for 2 or more selected frames on a book spread', () => {
+    const view = inspectorView(book, null, 's2', null, {
+      spreadId: 's1',
+      frameIds: ['f2', 'f1'],
+    })
+    expect(view).toMatchObject({ kind: 'multi', spreadIndex: 0 })
+    expect(view.kind === 'multi' ? view.frames : []).toEqual([f1, f2])
+  })
+
+  it('falls back when fewer than 2 selected frames still exist or the spread is not a book spread', () => {
+    const one = { spreadId: 's1', frameIds: ['f1'] }
+    const stale = { spreadId: 's1', frameIds: ['f1', 'gone'] }
+    const parent = { spreadId: 'm', frameIds: ['f1', 'f2'] }
+    expect(inspectorView(book, null, 's2', null, one).kind).toBe('spread')
+    expect(inspectorView(book, null, 's2', null, stale).kind).toBe('spread')
+    expect(inspectorView(book, null, null, null, parent).kind).toBe('empty')
+  })
+})
+
+describe('sameInspectorPanel, multi', () => {
+  it('is the same only for the same selection object', () => {
+    const set = { spreadId: 's1', frameIds: ['f1', 'f2'] }
+    const multi: InspectorPanel = { kind: 'multi', spreadId: 's1', set }
+    expect(sameInspectorPanel(multi, { ...multi })).toBe(true)
+    expect(
+      sameInspectorPanel(multi, {
+        ...multi,
+        set: { spreadId: 's1', frameIds: ['f1', 'f2', 'f3'] },
+      }),
+    ).toBe(false)
+    expect(sameInspectorPanel(multi, { kind: 'spread', spreadId: 's1' })).toBe(
+      false,
+    )
+    expect(sameInspectorPanel({ kind: 'frame', spreadId: 's1' }, multi)).toBe(
+      false,
+    )
+  })
+})
+
+describe('multiSummary', () => {
+  const photo = makeFrame({ id: 'p', assetId: 'a' })
+  const empty = makeFrame({ id: 'e' })
+  const text = makeFrame({ id: 't', kind: 'text' })
+
+  it('counts frames, then only the non-zero parts', () => {
+    expect(multiSummary([photo, photo])).toBe('2 frames · 2 photos')
+    expect(multiSummary([photo, photo, empty])).toBe(
+      '3 frames · 2 photos, 1 empty',
+    )
+    expect(multiSummary([photo, empty, text, text])).toBe(
+      '4 frames · 1 photo, 1 empty, 2 text',
+    )
+    expect(multiSummary([empty, text])).toBe('2 frames · 1 empty, 1 text')
+  })
+})
+
+describe('alignState', () => {
+  const free = makeFrame({ id: 'a' })
+  const locked = makeFrame({ id: 'l', locked: true })
+
+  it('needs 2 unlocked frames to align and 3 to distribute', () => {
+    expect(alignState([free, free, free])).toEqual({
+      locked: 0,
+      alignReason: undefined,
+      distributeReason: undefined,
+    })
+    expect(alignState([free, free, locked])).toEqual({
+      locked: 1,
+      alignReason: undefined,
+      distributeReason: DISTRIBUTE_REASON,
+    })
+    expect(alignState([free, locked])).toEqual({
+      locked: 1,
+      alignReason: ALIGN_REASON,
+      distributeReason: DISTRIBUTE_REASON,
+    })
+    expect(ALIGN_REASON).toBe('Needs 2 unlocked frames')
+    expect(DISTRIBUTE_REASON).toBe('Select 3 or more unlocked frames')
+  })
+})
+
+describe('selectionCaption', () => {
+  const at = (x: number, y: number, locked = false) =>
+    makeFrame({
+      id: `${String(x)}-${String(y)}`,
+      rect: { x, y, width: 40.04, height: 30 },
+      ...(locked ? { locked: true } : {}),
+    })
+
+  it('sizes the box of every selected frame, locked ones included', () => {
+    expect(selectionCaption([at(10, 10), at(204.9, 190)])).toBe(
+      'Selection 234.9 × 210 mm',
+    )
+    expect(selectionCaption([at(10, 10), at(50, 10), at(100, 40, true)])).toBe(
+      'Selection 130 × 60 mm · 1 locked, skipped',
+    )
+    expect(selectionCaption([])).toBe('')
   })
 })
 

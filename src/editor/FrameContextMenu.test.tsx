@@ -7,7 +7,12 @@ import { resetBookStore } from './bookStore'
 import { FrameContextMenu } from './FrameContextMenu'
 import { installArrangeKeys } from './frameArrange'
 import { ArrangeSection, FrameLockButton } from './FrameSections'
-import { getFrameSource, resetFrameSelection } from './frameSelection'
+import {
+  getFrameSelection,
+  getFrameSource,
+  resetFrameSelection,
+  setFrameSelection,
+} from './frameSelection'
 
 function stackBook(count: number, locked = false): Book {
   return makeBook({
@@ -246,5 +251,123 @@ describe('FrameContextMenu', () => {
       })
     })
     expect(screen.queryByTestId('frame-menu')).toBeNull()
+  })
+})
+
+describe('FrameContextMenu on a multi-selection', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    resetFrameSelection()
+    resetBookStore()
+  })
+
+  const set = { spreadId: 's', frameIds: ['f0', 'f1'] }
+  const layerOrder = () =>
+    [...(bookStore.getBookStoreSnapshot().book.spreads[0]?.frames ?? [])]
+      .sort((a, b) => a.z - b.z)
+      .map((frame) => frame.id)
+
+  function renderSet(book: Book) {
+    seed(book)
+    setFrameSelection(set)
+    render(
+      <>
+        <Canvas frameIds={['f0', 'f1', 'f2', 'f3']} />
+        <FrameContextMenu />
+      </>,
+    )
+  }
+
+  it('a right-click inside the set keeps it; z and lock act on the set; Delete N frames', () => {
+    renderSet(stackBook(4))
+    openMenu('f1')
+    expect(getFrameSelection()).toEqual(set)
+    expect(
+      screen
+        .getAllByRole('menuitem')
+        .map((item) => item.getAttribute('data-testid')),
+    ).toEqual([
+      'frame-menu-front',
+      'frame-menu-forward',
+      'frame-menu-lock',
+      'frame-menu-delete',
+    ])
+    expect(screen.getByTestId('frame-menu-delete').textContent).toContain(
+      'Delete 2 frames',
+    )
+
+    fireEvent.click(screen.getByTestId('frame-menu-front'))
+    expect(layerOrder()).toEqual(['f2', 'f3', 'f0', 'f1'])
+    expect(bookStore.getHistorySnapshot().undoLabel).toBe('Reorder frames')
+    expect(document.querySelector('.pb-menu-popover')).toBeNull()
+
+    openMenu('f0')
+    expect(screen.getByTestId('frame-menu-lock').textContent).toContain('Lock')
+    fireEvent.click(screen.getByTestId('frame-menu-lock'))
+    const frames = bookStore.getBookStoreSnapshot().book.spreads[0]?.frames
+    expect(frames?.map((frame) => frame.locked === true)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ])
+    expect(bookStore.getHistorySnapshot().undoLabel).toBe('Lock 2 frames')
+
+    openMenu('f0')
+    expect(screen.getByTestId('frame-menu-lock').textContent).toContain(
+      'Unlock',
+    )
+    fireEvent.click(screen.getByTestId('frame-menu-delete'))
+    expect(layerOrder()).toEqual(['f2', 'f3'])
+    expect(bookStore.getHistorySnapshot().undoLabel).toBe('Delete 2 frames')
+    expect(screen.queryByTestId('frame-menu')).toBeNull()
+  })
+
+  it('offers Lock while any selected frame is unlocked', () => {
+    renderSet(stackBook(4, false))
+    act(() => {
+      bookStore.dispatchBookOp({
+        type: 'setFrameLocked',
+        spreadId: 's',
+        frameId: 'f1',
+        locked: true,
+      })
+    })
+    openMenu('f0')
+    expect(screen.getByTestId('frame-menu-lock').textContent).toContain('Lock')
+    expect(screen.getByTestId('frame-menu-lock').textContent).not.toContain(
+      'Unlock',
+    )
+  })
+
+  it('a right-click outside the set selects that frame alone', () => {
+    renderSet(stackBook(4))
+    openMenu('f3')
+    expect(getFrameSource()).toEqual({ spreadId: 's', frameId: 'f3' })
+    expect(screen.queryByTestId('frame-menu-delete')).toBeNull()
+  })
+
+  it('a frame with a selected id on another spread is outside the set', () => {
+    renderSet(stackBook(4))
+    render(<Canvas frameIds={['other']} spreadId="o" />)
+    const twin = screen.getByText('other')
+    twin.setAttribute('data-frame-id', 'f0')
+    fireEvent.contextMenu(twin, { clientX: 40, clientY: 50 })
+    expect(getFrameSource()).toEqual({ spreadId: 'o', frameId: 'f0' })
+  })
+
+  it('closes when the whole set is removed', () => {
+    renderSet(stackBook(4))
+    openMenu('f0')
+    act(() => {
+      bookStore.dispatchBookOp({
+        type: 'removeFrames',
+        spreadId: 's',
+        frameIds: ['f0', 'f1'],
+      })
+    })
+    expect(screen.queryByTestId('frame-menu')).toBeNull()
+    expect(document.querySelector('.pb-menu-popover')).toBeNull()
   })
 })

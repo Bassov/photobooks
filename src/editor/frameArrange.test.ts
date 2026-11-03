@@ -16,10 +16,18 @@ import {
   installArrangeKeys,
   lockOp,
   runArrangeAction,
+  runSetArrangeAction,
+  setArrangeOp,
+  setLayerRange,
+  setZMovesFor,
   zMovesFor,
   zOrderOp,
 } from './frameArrange'
-import { resetFrameSelection, setFrameSource } from './frameSelection'
+import {
+  resetFrameSelection,
+  setFrameSelection,
+  setFrameSource,
+} from './frameSelection'
 
 const KEY = {
   code: '',
@@ -275,5 +283,128 @@ describe('installArrangeKeys', () => {
     expect(getBookStoreSnapshot().book).toBe(before)
     expect(runArrangeAction(at('f1'), { kind: 'z', move: 'back' })).toBe(true)
     expect(layer('f1')).toBe(1)
+  })
+})
+
+const set = (...frameIds: string[]) => ({ spreadId: 's', frameIds })
+
+describe('set actions (2 or more selected)', () => {
+  afterEach(() => {
+    resetFrameSelection()
+    resetBookStore()
+  })
+
+  it('setZMovesFor lists the moves that change the stack of the set', () => {
+    const book = stackBook(4)
+    expect(setZMovesFor(book, set('f0', 'f1'))).toEqual(['front', 'forward'])
+    expect(setZMovesFor(book, set('f0', 'f3'))).toEqual([
+      'front',
+      'forward',
+      'backward',
+      'back',
+    ])
+    expect(setZMovesFor(book, set('f2', 'f3'))).toEqual(['backward', 'back'])
+    expect(setZMovesFor(book, set('nope', 'gone'))).toEqual([])
+  })
+
+  it('setArrangeOp: lock all when any is unlocked, else unlock all; null for a no-op', () => {
+    expect(
+      setArrangeOp(stackBook(3, 'f1'), set('f0', 'f1'), { kind: 'lock' }),
+    ).toEqual({
+      type: 'setFramesLocked',
+      spreadId: 's',
+      frameIds: ['f0', 'f1'],
+      locked: true,
+    })
+    const allLocked = applyBookOp(stackBook(3, 'f1'), {
+      type: 'setFramesLocked',
+      spreadId: 's',
+      frameIds: ['f0', 'f1'],
+      locked: true,
+    })
+    expect(
+      setArrangeOp(allLocked, set('f0', 'f1', 'gone'), { kind: 'lock' }),
+    ).toEqual({
+      type: 'setFramesLocked',
+      spreadId: 's',
+      frameIds: ['f0', 'f1'],
+      locked: false,
+    })
+    expect(
+      setArrangeOp(stackBook(3), set('gone', 'nope'), { kind: 'lock' }),
+    ).toBeNull()
+    expect(
+      setArrangeOp(
+        stackBook(3),
+        { spreadId: 'x', frameIds: ['f0', 'f1'] },
+        { kind: 'lock' },
+      ),
+    ).toBeNull()
+    expect(
+      setArrangeOp(stackBook(3), set('f1', 'f2'), { kind: 'z', move: 'front' }),
+    ).toBeNull()
+    expect(
+      setArrangeOp(stackBook(3), set('f1', 'f2'), { kind: 'z', move: 'back' }),
+    ).toEqual({
+      type: 'reorderFrames',
+      spreadId: 's',
+      frameIds: ['f1', 'f2'],
+      move: 'back',
+    })
+  })
+
+  it('setLayerRange spans the lowest to the highest selected layer', () => {
+    expect(setLayerRange(stackBook(4), set('f3', 'f1'))).toEqual({
+      first: 2,
+      last: 4,
+      count: 4,
+    })
+    expect(setLayerRange(stackBook(4), set('gone'))).toBeNull()
+    expect(
+      setLayerRange(stackBook(4), { spreadId: 'x', frameIds: ['f0'] }),
+    ).toBeNull()
+  })
+
+  it('shortcuts act on the whole set in one step each', () => {
+    seed(stackBook(4))
+    setFrameSelection(set('f0', 'f1'))
+    const off = installArrangeKeys()
+
+    const front = press({ code: 'BracketRight', ctrlKey: true, shiftKey: true })
+    expect(front.defaultPrevented).toBe(true)
+    expect([layer('f0'), layer('f1')]).toEqual([3, 4])
+    press({ code: 'BracketLeft', ctrlKey: true })
+    expect([layer('f0'), layer('f1')]).toEqual([2, 3])
+    press({ code: 'KeyL', ctrlKey: true, shiftKey: true })
+    const book = getBookStoreSnapshot().book
+    expect(frameLocked(book, at('f0'))).toBe(true)
+    expect(frameLocked(book, at('f1'))).toBe(true)
+    expect(frameLocked(book, at('f2'))).toBe(false)
+    press({ code: 'KeyL', ctrlKey: true, shiftKey: true })
+    expect(frameLocked(getBookStoreSnapshot().book, at('f0'))).toBe(false)
+    off()
+  })
+
+  it('leaves the key to the browser when the selected frames are gone', () => {
+    seed(stackBook(2))
+    setFrameSelection(set('gone', 'nope'))
+    const off = installArrangeKeys()
+    expect(
+      press({ code: 'BracketRight', ctrlKey: true }).defaultPrevented,
+    ).toBe(false)
+    off()
+  })
+
+  it('runSetArrangeAction reports a move that changes nothing', () => {
+    seed(stackBook(3))
+    const before = getBookStoreSnapshot().book
+    expect(
+      runSetArrangeAction(set('f1', 'f2'), { kind: 'z', move: 'forward' }),
+    ).toBe(false)
+    expect(getBookStoreSnapshot().book).toBe(before)
+    expect(
+      runSetArrangeAction(set('f1', 'f2'), { kind: 'z', move: 'backward' }),
+    ).toBe(true)
+    expect([layer('f0'), layer('f1'), layer('f2')]).toEqual([3, 1, 2])
   })
 })

@@ -88,6 +88,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   resizeFrame: 'Resize frame',
   rotateFrame: 'Rotate frame',
   reorderFrame: 'Reorder frame',
+  reorderFrames: 'Reorder frames',
   setFrameLocked: 'Lock frame',
   alignFrames: 'Align frames',
   distributeFrames: 'Distribute frames',
@@ -121,6 +122,9 @@ export function opLabel(op: BookOp): string {
   }
   if (op.type === 'moveFrames' && op.frameIds.length > 1) {
     return `Move ${String(op.frameIds.length)} frames`
+  }
+  if (op.type === 'setFramesLocked') {
+    return `${op.locked ? 'Lock' : 'Unlock'} ${String(op.frameIds.length)} frames`
   }
   return OP_LABELS[op.type] ?? 'Edit'
 }

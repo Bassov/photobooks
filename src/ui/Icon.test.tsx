@@ -32,6 +32,16 @@ describe('Icon', () => {
     expect(paths?.[0]?.getAttribute('d')).toBe('M20 6 9 17l-5-5')
   })
 
+  it('renders the lucide align glyphs with their rects and edge line', () => {
+    const { container } = render(<Icon name="alignStartVertical" />)
+    const rects = container.querySelectorAll('rect')
+    expect(rects).toHaveLength(2)
+    expect(rects[0]?.getAttribute('width')).toBe('9')
+    expect(container.querySelector('path')?.getAttribute('d')).toBe('M2 2v20')
+    const layers = render(<Icon name="layers" />).container
+    expect(layers.querySelectorAll('path')).toHaveLength(3)
+  })
+
   it('exposes an accessible name when label is set', () => {
     render(<Icon name="settings" label="Settings" />)
     expect(screen.getByRole('img', { name: 'Settings' })).toBeTruthy()
@@ -45,7 +55,7 @@ describe('Icon', () => {
   })
 
   it('ships the named glyphs from the roadmap set', () => {
-    expect(ICON_NAMES.length).toBe(71)
+    expect(ICON_NAMES.length).toBe(80)
     expect(ICON_NAMES).toEqual(
       expect.arrayContaining([
         'link2',
@@ -107,6 +117,15 @@ describe('Icon', () => {
         'sendToBack',
         'arrowUp',
         'arrowDown',
+        'alignStartVertical',
+        'alignCenterVertical',
+        'alignEndVertical',
+        'alignStartHorizontal',
+        'alignCenterHorizontal',
+        'alignEndHorizontal',
+        'alignHorizontalDistributeCenter',
+        'alignVerticalDistributeCenter',
+        'layers',
       ]),
     )
   })

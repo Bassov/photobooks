@@ -14,7 +14,13 @@ import {
   makeSpread,
 } from '../core/testing/fixtures'
 import { setBookSettingsSelected } from './bookSettingsSelection'
-import { getBookStoreSnapshot, resetBookStore } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  getHistorySnapshot,
+  resetBookStore,
+  subscribeBookStore,
+  undoBook,
+} from './bookStore'
 import {
   enterCropMode,
   exitCropMode,
@@ -23,7 +29,11 @@ import {
 } from './cropMode'
 import { SUB } from './editorChromeTokens'
 import { setEndpaperSelected } from './endpaperSelection'
-import { resetFrameSelection, setFrameSource } from './frameSelection'
+import {
+  resetFrameSelection,
+  setFrameSelection,
+  setFrameSource,
+} from './frameSelection'
 import { Inspector } from './Inspector'
 import {
   resetLeftPanelTabForTests,
@@ -751,5 +761,212 @@ describe('Inspector', () => {
     fireEvent.change(panX, { target: { value: '' } })
     fireEvent.blur(panX)
     expect(crop()?.center.x).toBeCloseTo(0.6)
+  })
+})
+
+describe('Inspector, multi context', () => {
+  afterEach(() => {
+    cleanup()
+    resetFrameSelection()
+    setActiveSpreadId(null)
+    resetBookStore()
+  })
+
+  /** Three 40 × 30 frames in a row at x 10 / 60 / 150 (uneven gaps). */
+  function seedRow(lockedId?: string) {
+    seedBook(
+      makeBook({
+        spreads: [
+          makeSpread({
+            id: 's',
+            frames: [
+              ['a', 10, 'p1'],
+              ['b', 60, undefined],
+              ['c', 150, 'p2'],
+            ].map(([id, x, assetId], index) =>
+              makeFrame({
+                id: String(id),
+                rect: {
+                  x: Number(x),
+                  y: 20 + index * 5,
+                  width: 40,
+                  height: 30,
+                },
+                z: index + 1,
+                ...(assetId === undefined ? {} : { assetId: String(assetId) }),
+                ...(id === lockedId ? { locked: true } : {}),
+              }),
+            ),
+          }),
+        ],
+      }),
+    )
+  }
+
+  function select(...frameIds: string[]) {
+    act(() => {
+      setFrameSelection({ spreadId: 's', frameIds })
+    })
+  }
+
+  const rect = (id: string) =>
+    getBookStoreSnapshot().book.spreads[0]?.frames.find((f) => f.id === id)
+      ?.rect
+
+  it('shows the Multiple selection header, meta, and only the set sections', () => {
+    seedRow()
+    render(<Inspector />)
+    select('a', 'b', 'c')
+
+    const panel = screen.getByTestId('inspector-panel')
+    expect(panel.getAttribute('data-inspector-view')).toBe('multi')
+    expect(screen.getByTestId('inspector-context').textContent).toBe(
+      'Multiple selection',
+    )
+    expect(
+      screen
+        .getByTestId('inspector-header')
+        .querySelector('[data-icon="layers"]'),
+    ).not.toBeNull()
+    expect(screen.getByTestId('inspector-multi-summary').textContent).toBe(
+      '3 frames · 2 photos, 1 empty',
+    )
+    expect(screen.getByTestId('inspector-align')).toBeTruthy()
+    expect(screen.getByTestId('frame-layer').textContent).toBe(
+      'layers 1–3 of 3',
+    )
+    expect(screen.getByTestId('frame-delete').textContent).toContain(
+      'Delete 3 frames',
+    )
+    for (const single of [
+      'inspector-photo',
+      'crop-zoom',
+      'inspector-geometry-disclosure',
+      'inspector-style-disclosure',
+      'layout-section',
+    ]) {
+      expect(screen.queryByTestId(single)).toBeNull()
+    }
+
+    const probe = document.createElement('div')
+    probe.style.color = SUB
+    expect(screen.getByTestId('inspector-multi-summary').style.color).toBe(
+      probe.style.color,
+    )
+
+    // Down to one frame: the Photo context again.
+    select('a')
+    expect(panel.getAttribute('data-inspector-view')).toBe('frame')
+    expect(screen.queryByTestId('inspector-multi-summary')).toBeNull()
+    expect(screen.queryByTestId('inspector-align')).toBeNull()
+  })
+
+  it('labels the 8 buttons in 3 groups and enables them by unlocked count', () => {
+    seedRow()
+    render(<Inspector />)
+    select('a', 'b')
+
+    const groups = screen
+      .getByRole('toolbar', { name: 'Align' })
+      .querySelectorAll('[role="group"]')
+    expect(
+      Array.from(groups, (group) => group.querySelectorAll('button').length),
+    ).toEqual([3, 3, 2])
+    const names = [
+      ['align-left', 'Align left edges'],
+      ['align-center-x', 'Align horizontal centers'],
+      ['align-right', 'Align right edges'],
+      ['align-top', 'Align top edges'],
+      ['align-center-y', 'Align vertical centers'],
+      ['align-bottom', 'Align bottom edges'],
+      ['distribute-h', 'Distribute horizontally'],
+      ['distribute-v', 'Distribute vertically'],
+    ]
+    for (const [testId, name] of names) {
+      expect(screen.getByTestId(testId ?? '').getAttribute('aria-label')).toBe(
+        name,
+      )
+    }
+    expect(screen.getByTestId('align-left').hasAttribute('aria-disabled')).toBe(
+      false,
+    )
+    // Two frames: Distribute stays focusable and says why.
+    const distribute = screen.getByTestId('distribute-h')
+    expect(distribute.getAttribute('aria-disabled')).toBe('true')
+    expect((distribute as HTMLButtonElement).disabled).toBe(false)
+    expect(
+      screen.getByRole('button', {
+        name: 'Distribute horizontally',
+        description: 'Select 3 or more unlocked frames',
+      }),
+    ).toBe(distribute)
+    expect(screen.getByTestId('align-caption').textContent).toBe(
+      'Selection 90 × 35 mm',
+    )
+  })
+
+  it('with a locked frame: Align needs 2 unlocked, the caption counts it', () => {
+    seedRow('c')
+    render(<Inspector />)
+    select('a', 'c')
+    expect(screen.getByTestId('align-left').getAttribute('aria-disabled')).toBe(
+      'true',
+    )
+    expect(
+      screen.getByRole('button', {
+        name: 'Align left edges',
+        description: 'Needs 2 unlocked frames',
+      }),
+    ).toBeTruthy()
+    expect(screen.getByTestId('align-caption').textContent).toBe(
+      'Selection 180 × 40 mm · 1 locked, skipped',
+    )
+    const before = getBookStoreSnapshot().book
+    fireEvent.click(screen.getByTestId('align-left'))
+    expect(getBookStoreSnapshot().book).toBe(before)
+  })
+
+  it('distribute is one book commit and one undo step', () => {
+    seedRow()
+    render(<Inspector />)
+    select('a', 'b', 'c')
+    let commits = 0
+    const off = subscribeBookStore(() => {
+      commits += 1
+    })
+    fireEvent.click(screen.getByTestId('distribute-h'))
+    off()
+    expect(commits).toBe(1)
+    // Span 10…190, frames 120 wide: two 30 mm gaps.
+    expect(rect('b')?.x).toBe(80)
+    expect(getHistorySnapshot().undoLabel).toBe('Distribute frames')
+    act(() => {
+      undoBook()
+    })
+    expect(rect('b')?.x).toBe(60)
+  })
+
+  it('align left skips the locked frame', () => {
+    seedRow('a')
+    render(<Inspector />)
+    select('a', 'b', 'c')
+    fireEvent.click(screen.getByTestId('align-left'))
+    expect([rect('a')?.x, rect('b')?.x, rect('c')?.x]).toEqual([10, 60, 60])
+  })
+
+  it('arranges the set in one step and deletes it', () => {
+    seedRow()
+    render(<Inspector />)
+    select('a', 'b')
+    fireEvent.click(screen.getByTestId('z-front'))
+    expect(screen.getByTestId('frame-layer').textContent).toBe(
+      'layers 2–3 of 3',
+    )
+    expect(getHistorySnapshot().undoLabel).toBe('Reorder frames')
+    fireEvent.click(screen.getByTestId('frame-delete'))
+    expect(
+      getBookStoreSnapshot().book.spreads[0]?.frames.map((f) => f.id),
+    ).toEqual(['c'])
+    expect(getHistorySnapshot().undoLabel).toBe('Delete 2 frames')
   })
 })
