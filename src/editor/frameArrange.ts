@@ -1,4 +1,5 @@
 import {
+  applyBookOp,
   editableSpread,
   layerOf,
   type Book,
@@ -9,7 +10,7 @@ import {
 import type { IconProps } from '../ui/Icon'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import type { FrameDragSource } from './dropTargets'
-import { getFrameSource } from './frameSelection'
+import { getFrameSelection, getFrameSource } from './frameSelection'
 import { isTypingTarget } from './isTypingTarget'
 
 /**
@@ -153,11 +154,113 @@ export function runArrangeAction(
   return true
 }
 
-/** Arrange shortcuts on the selected frame; without one the key stays the browser's. */
+/** 2 or more frames selected together on one spread (see `FrameSelection`). */
+export interface FrameSetTarget {
+  spreadId: string
+  frameIds: readonly string[]
+}
+
+/** The set's frames on its book or parent spread, in spread order. */
+export function findSetFrames(book: Book, set: FrameSetTarget): Frame[] {
+  return (
+    editableSpread(book, set.spreadId)?.spread.frames.filter((frame) =>
+      set.frameIds.includes(frame.id),
+    ) ?? []
+  )
+}
+
+function setZOrderOp(set: FrameSetTarget, move: ZMove): BookOp {
+  return {
+    type: 'reorderFrames',
+    spreadId: set.spreadId,
+    frameIds: set.frameIds,
+    move,
+  }
+}
+
+/** Z moves that change the set's place in the stack, front first. */
+export function setZMovesFor(book: Book, set: FrameSetTarget): ZMove[] {
+  return Z_MOVES.map((entry) => entry.move).filter(
+    (move) => applyBookOp(book, setZOrderOp(set, move)) !== book,
+  )
+}
+
+/**
+ * The op an action dispatches on a set; null when it cannot change the book.
+ * Lock locks every frame when any is unlocked, else unlocks them all.
+ */
+export function setArrangeOp(
+  book: Book,
+  set: FrameSetTarget,
+  action: ArrangeAction,
+): BookOp | null {
+  const frames = findSetFrames(book, set)
+  if (frames.length === 0) {
+    return null
+  }
+  if (action.kind === 'lock') {
+    return {
+      type: 'setFramesLocked',
+      spreadId: set.spreadId,
+      frameIds: frames.map((frame) => frame.id),
+      locked: frames.some((frame) => frame.locked !== true),
+    }
+  }
+  return setZMovesFor(book, set).includes(action.move)
+    ? setZOrderOp(set, action.move)
+    : null
+}
+
+/** Dispatch an action on a set; false when it would change nothing. */
+export function runSetArrangeAction(
+  set: FrameSetTarget,
+  action: ArrangeAction,
+): boolean {
+  const op = setArrangeOp(getBookStoreSnapshot().book, set, action)
+  if (op === null) {
+    return false
+  }
+  dispatchBookOp(op)
+  return true
+}
+
+/** Lowest and highest layer of the set (1 = bottom) and the layer count. */
+export function setLayerRange(
+  book: Book,
+  set: FrameSetTarget,
+): { first: number; last: number; count: number } | null {
+  const spread = editableSpread(book, set.spreadId)?.spread
+  const layers = set.frameIds.flatMap((frameId) => {
+    const layer = spread === undefined ? null : layerOf(spread, frameId)
+    return layer === null ? [] : [layer]
+  })
+  const first = layers[0]
+  if (first === undefined) {
+    return null
+  }
+  const at = layers.map((layer) => layer.layer)
+  return { first: Math.min(...at), last: Math.max(...at), count: first.count }
+}
+
+/** The selection as a set when 2 or more frames are selected, else null. */
+export function selectedSet(): FrameSetTarget | null {
+  const selection = getFrameSelection()
+  return selection !== null && selection.frameIds.length > 1 ? selection : null
+}
+
+/** Arrange shortcuts on the selected frame(s); without one the key stays the browser's. */
 export function installArrangeKeys(): () => void {
   const onKey = (event: KeyboardEvent) => {
     const action = arrangeShortcut(event)
     if (action === null || isTypingTarget(event.target)) return
+    const set = selectedSet()
+    if (set !== null) {
+      if (findSetFrames(getBookStoreSnapshot().book, set).length > 0) {
+        event.preventDefault()
+        runSetArrangeAction(set, action)
+      }
+      return
+    }
     const target = getFrameSource()
     if (
       target === null ||

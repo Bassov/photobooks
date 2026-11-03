@@ -12,8 +12,10 @@ import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
 import {
   ArrangeSection,
   DeleteFrameButton,
+  DeleteFramesButton,
   FrameLockButton,
   GeometrySection,
+  SetArrangeSection,
 } from './FrameSections'
 import { enterCropMode, exitCropMode } from './cropMode'
 import { resetFrameSelection, setFrameSource } from './frameSelection'
@@ -352,6 +354,32 @@ describe('Inspector frame sections', () => {
       expect(container.innerHTML).toBe('')
       cleanup()
     }
+  })
+
+  it('renders no set Arrange or Delete N frames once the set is gone', () => {
+    seed()
+    for (const set of [
+      { spreadId: 'nope', frameIds: ['f1', 'f2'] },
+      { spreadId: 'spread-1', frameIds: ['nope', 'gone'] },
+    ]) {
+      const { container } = render(
+        <>
+          <SetArrangeSection set={set} />
+          <DeleteFramesButton set={set} />
+        </>,
+      )
+      expect(container.innerHTML).toBe('')
+      cleanup()
+    }
+  })
+
+  it('labels one frame "Delete frame" and a set "Delete N frames"', () => {
+    seed()
+    const frameId = getBookStoreSnapshot().book.spreads[0]?.frames[0]?.id ?? ''
+    render(<DeleteFrameButton target={{ spreadId: 'spread-1', frameId }} />)
+    expect(screen.getByTestId('frame-delete').textContent).toBe(
+      'Delete frameDel',
+    )
   })
 
   it('edits the targeted frame, not the first or another spread', () => {

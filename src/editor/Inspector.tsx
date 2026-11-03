@@ -26,13 +26,21 @@ import { SUB, T } from './editorChromeTokens'
 import { FitCropSection } from './FitCropSection'
 import { PhotoFrameSections } from './PhotoFrameSections'
 import { PhotoRotateSection } from './PhotoRotateSection'
-import { getFrameSource, subscribeFrameSelection } from './frameSelection'
+import {
+  getFrameSelection,
+  getFrameSource,
+  subscribeFrameSelection,
+  type FrameSelection,
+} from './frameSelection'
+import { findSetFrames } from './frameArrange'
+import { MultiSections } from './MultiSections'
 import { PhotoSection } from './PhotoSection'
 import { GridSection } from './GridSection'
 import { LayoutSection } from './LayoutSection'
 import { BackgroundSection, MasterSpacingSection } from './SpreadSections'
 import {
   inspectorView,
+  multiSummary,
   sameInspectorPanel,
   spreadSummary,
   type InspectorPanel,
@@ -92,6 +100,7 @@ const CONTEXT_HEADER: Partial<
 > = {
   spread: { title: 'Spread', icon: 'bookOpen' },
   photo: { title: 'Photo', icon: 'image' },
+  multi: { title: 'Multiple selection', icon: 'layers' },
 }
 
 /** Kit InspectorPanel: BAR surface, quiet header, rows follow the selection. */
@@ -100,6 +109,11 @@ export function Inspector() {
     subscribeFrameSelection,
     getFrameSource,
     getFrameSource,
+  )
+  const selection = useSyncExternalStore(
+    subscribeFrameSelection,
+    getFrameSelection,
+    getFrameSelection,
   )
   const activeId = useSyncExternalStore(
     subscribeActiveSpreadId,
@@ -159,14 +173,14 @@ export function Inspector() {
   // while header and rows are unchanged so the (often hidden) panel skips it.
   const lastPanel = useRef<InspectorPanel | null>(null)
   const readPanel = useCallback(() => {
-    const next = inspectorPanel(frameSource, activeId, dismissed)
+    const next = inspectorPanel(frameSource, activeId, dismissed, selection)
     const prev = lastPanel.current
     if (prev !== null && sameInspectorPanel(prev, next)) {
       return prev
     }
     lastPanel.current = next
     return next
-  }, [frameSource, activeId, dismissed])
+  }, [frameSource, activeId, dismissed, selection])
   const panel = useSyncExternalStore(subscribeBookStore, readPanel, readPanel)
   // Crop mode keeps its frame (double-click drops the selection); else the
   // selected frame. Empty frames render nothing inside the section.
@@ -220,6 +234,7 @@ export function Inspector() {
             {view.kind === 'spread' ? (
               <SpreadSummary spreadId={view.spreadId} />
             ) : null}
+            {view.kind === 'multi' ? <MultiSummary set={view.set} /> : null}
           </div>
         </div>
       )}
@@ -247,6 +262,7 @@ export function Inspector() {
             <GridSection spreadId={view.spreadId} />
           </>
         ) : null}
+        {view.kind === 'multi' ? <MultiSections set={view.set} /> : null}
         {view.kind === 'empty' ? <Hint>{EMPTY_HINT}</Hint> : null}
         {view.kind === 'master' ? (
           <MasterSection key={view.parentId} parentId={view.parentId} />
@@ -254,6 +270,21 @@ export function Inspector() {
         {view.kind === 'masters' ? <Hint>{NO_MASTERS_HINT}</Hint> : null}
       </div>
     </section>
+  )
+}
+
+/** Kit Multiple selection header line: "3 frames · 2 photos, 1 empty". */
+function MultiSummary({ set }: { set: FrameSelection }) {
+  const read = () => multiSummary(findSetFrames(readBook(), set))
+  const line = useSyncExternalStore(subscribeBookStore, read, read)
+  return (
+    <p
+      className="m-0 truncate text-2xs"
+      style={{ color: SUB }}
+      data-testid="inspector-multi-summary"
+    >
+      {line}
+    </p>
   )
 }
 
@@ -288,8 +319,18 @@ function inspectorPanel(
   frameSource: ReturnType<typeof getFrameSource>,
   activeId: ReturnType<typeof getActiveSpreadId>,
   dismissed: string | null,
+  selection: FrameSelection | null,
 ): InspectorPanel {
-  const view = inspectorView(readBook(), frameSource, activeId, dismissed)
+  const view = inspectorView(
+    readBook(),
+    frameSource,
+    activeId,
+    dismissed,
+    selection,
+  )
+  if (view.kind === 'multi') {
+    return { kind: view.kind, spreadId: view.spread.id, set: view.set }
+  }
   return view.kind === 'empty'
     ? { kind: view.kind }
     : { kind: view.kind, spreadId: view.spread.id }
