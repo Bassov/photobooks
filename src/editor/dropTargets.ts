@@ -115,7 +115,8 @@ export interface DropTarget {
   filled: boolean
 }
 
-interface IndexedFrame extends DropTarget {
+/** A hit frame with its stack rect (CSS px at the current zoom). */
+export interface IndexedFrame extends DropTarget {
   left: number
   top: number
   right: number
@@ -204,7 +205,7 @@ export function hitTestDrop(
   index: DropIndex,
   x: number,
   y: number,
-): DropTarget | undefined {
+): IndexedFrame | undefined {
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     return undefined
   }

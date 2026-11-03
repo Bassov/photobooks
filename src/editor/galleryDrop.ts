@@ -7,6 +7,7 @@ import {
 } from './bookStore'
 import { requestGalleryRemove } from './galleryRemoveRequest'
 import { clearDropHover, setDropHover } from './dropHover'
+import { holdDragTier, releaseDragTier } from './holdDisplayTiers'
 import {
   ASSET_DRAG_MIME,
   ASSET_MULTI_MIME,
@@ -42,6 +43,7 @@ import {
 import { setSelectedAssetId } from './gallerySelection'
 
 function clearDropSession(): void {
+  releaseDragTier()
   session = null
   localFrameDrag = null
   frameDragSeen = false
@@ -405,6 +407,8 @@ export function installGalleryDrop(
         assetId,
         assetIds: multi.includes(assetId) ? multi : [assetId],
       })
+      // Start the working preview now so the drop lands on a decoded tier.
+      holdDragTier(assetId, 0)
       scroll.dataset.assetDrag = 'true'
       return
     }
@@ -465,6 +469,12 @@ export function installGalleryDrop(
         return
       }
       if (target !== undefined) {
+        if (current.kind === 'asset') {
+          holdDragTier(
+            current.assetId,
+            Math.max(target.right - target.left, target.bottom - target.top),
+          )
+        }
         setDropHover(
           current.elements.get(`${target.spreadId}\n${target.frameId}`) ?? null,
         )

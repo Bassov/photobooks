@@ -81,6 +81,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [x] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
+- [ ] [feature] [editor-hidpi-photos](roadmap/P2/editor-hidpi-photos.md) — Bug: photos in the book editor look soft on 4K / HiDPI screens and visibly upgrade after a drop
 - [ ] [feature] [kit-sync-canvas](roadmap/P2/kit-sync-canvas.md) — Bug: Kit sync W1: canvas strip, page numbers, new-spread pill, size pill, K1 (Designer kit-sync Spec)
 - [ ] [feature] [photo-slot-stretch](roadmap/P2/photo-slot-stretch.md) — Bug: a photo in a frame is stretched instead of cover-cropped
 - [x] [feature] [layout-tile-states](roadmap/P2/layout-tile-states.md) — Bug: Layout tiles: hover/selected on the paper, thumb box follows the trim
