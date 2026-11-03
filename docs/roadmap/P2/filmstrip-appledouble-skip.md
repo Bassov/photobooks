@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: filmstrip gray tiles from `._*` AppleDouble files; decode-failed photos return as blank tiles after reload
+Status: done
 
 ## Scope
 
