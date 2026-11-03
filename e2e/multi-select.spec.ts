@@ -1,10 +1,13 @@
 import type { Locator, Page } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
+import { PERF_BUDGETS } from './perf/budgets'
 import {
+  browserAssertNoLoafAndHandlerP95,
   browserAssertNoLoafThenClear,
   browserBeginLoafScenarioWindow,
   clearPerfScenario,
+  collectFrameStatsArtifact,
   enablePerfScenario,
 } from './perf/perfFixture'
 
@@ -263,7 +266,213 @@ test.describe('multi-select: Shift+click, group box, Esc, Delete', () => {
   })
 })
 
+/** Painter trim is 300 mm tall: client px per mm of spread 1. */
+async function pxPerMm(page: Page): Promise<number> {
+  return (await boxOf(spread(page))).height / 300
+}
+
+/** Lock frame 1, then Shift+click frames 0 and 2: three selected, one locked. */
+async function selectThreeOneLocked(page: Page): Promise<void> {
+  await frames(page).nth(1).click()
+  await page.keyboard.press('Control+Shift+KeyL')
+  await expect(frames(page).nth(1)).toHaveAttribute('data-locked', 'true')
+  await frames(page)
+    .nth(0)
+    .click({ modifiers: ['Shift'] })
+  await frames(page)
+    .nth(2)
+    .click({ modifiers: ['Shift'] })
+  await expect(pressed(page)).toHaveCount(3)
+}
+
+async function frameBoxes(page: Page) {
+  return Promise.all([0, 1, 2].map((index) => boxOf(frames(page).nth(index))))
+}
+
+/** Press frame 0's centre and move by (dxMm, 0) with Alt (no snapping), button still down. */
+async function pressAndMove(page: Page, dxMm: number): Promise<void> {
+  const start = await boxOf(frames(page).nth(0))
+  const x = start.x + start.width / 2
+  const y = start.y + start.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.keyboard.down('Alt')
+  await page.mouse.move(x + dxMm * (await pxPerMm(page)), y, { steps: 12 })
+}
+
+test.describe('multi-select part 2: group move, Esc, arrows', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?fixture=painter')
+    await expect(frames(page)).toHaveCount(4)
+    await frames(page).first().scrollIntoViewIfNeeded()
+    await selectThreeOneLocked(page)
+  })
+
+  test('dragging a set moves the unlocked frames by one delta in one undo step; the locked one stays', async ({
+    page,
+  }) => {
+    const scale = await pxPerMm(page)
+    const before = await frameBoxes(page)
+    await pressAndMove(page, 20)
+    await page.mouse.up()
+    await page.keyboard.up('Alt')
+
+    const after = await frameBoxes(page)
+    for (const index of [0, 2]) {
+      const dx = ((after[index]?.x ?? 0) - (before[index]?.x ?? 0)) / scale
+      const dy = ((after[index]?.y ?? 0) - (before[index]?.y ?? 0)) / scale
+      expect(Math.abs(dx - 20)).toBeLessThanOrEqual(0.1)
+      expect(Math.abs(dy)).toBeLessThanOrEqual(0.1)
+    }
+    expect(after[1]).toEqual(before[1])
+    await expect(pressed(page)).toHaveCount(3)
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Move 2 frames” (Ctrl+Z)',
+    )
+
+    await page.getByTestId('undo').click()
+    await expect.poll(() => frameBoxes(page)).toEqual(before)
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Lock frame” (Ctrl+Z)',
+    )
+    await assertDocumentFitsViewport(page)
+  })
+
+  test('Esc mid-move puts every frame back and keeps the three selected', async ({
+    page,
+  }) => {
+    const before = await frameBoxes(page)
+    await pressAndMove(page, 20)
+    expect((await frameBoxes(page))[0]?.x).not.toBe(before[0]?.x)
+    await page.keyboard.press('Escape')
+    expect(await frameBoxes(page)).toEqual(before)
+    await page.mouse.up()
+    await page.keyboard.up('Alt')
+    expect(await frameBoxes(page)).toEqual(before)
+    await expect(pressed(page)).toHaveCount(3)
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Lock frame” (Ctrl+Z)',
+    )
+  })
+
+  test('ArrowRight nudges the set 1 mm and does not scroll the pasteboard', async ({
+    page,
+  }) => {
+    const scale = await pxPerMm(page)
+    const scroll = page.getByTestId('pasteboard-scroll')
+    const left = await scroll.evaluate((el) => el.scrollLeft)
+    const before = await frameBoxes(page)
+    await page.keyboard.press('ArrowRight')
+    await expect
+      .poll(
+        async () => ((await frameBoxes(page))[0]?.x ?? 0) - (before[0]?.x ?? 0),
+      )
+      .toBeGreaterThan(0)
+    const after = await frameBoxes(page)
+    for (const index of [0, 2]) {
+      const dx = ((after[index]?.x ?? 0) - (before[index]?.x ?? 0)) / scale
+      expect(Math.abs(dx - 1)).toBeLessThanOrEqual(0.1)
+    }
+    expect(after[1]).toEqual(before[1])
+    expect(await scroll.evaluate((el) => el.scrollLeft)).toBe(left)
+    await expect(pressed(page)).toHaveCount(3)
+  })
+
+  test('the group box stays the union + 4 px on every animation frame of the drag', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const view = document.querySelector(
+        '[data-testid="spread-view"][data-spread-id="painter-spread-1"]',
+      )
+      if (view === null) throw new Error('no spread view')
+      const state = { samples: [] as number[][], stop: false }
+      Object.assign(window, { __groupSampler: state })
+      const tick = () => {
+        if (state.stop) return
+        const box = view.querySelector('[data-testid="group-box"]')
+        const picked = [
+          ...view.querySelectorAll(
+            '[data-testid="spread-frame"][aria-pressed="true"]',
+          ),
+        ].map((el) => el.getBoundingClientRect())
+        if (box !== null && picked.length === 3) {
+          const g = box.getBoundingClientRect()
+          state.samples.push([
+            Math.min(...picked.map((r) => r.left)) - g.left,
+            Math.min(...picked.map((r) => r.top)) - g.top,
+            g.right - Math.max(...picked.map((r) => r.right)),
+            g.bottom - Math.max(...picked.map((r) => r.bottom)),
+            picked[0]?.left ?? 0,
+          ])
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    })
+    await pressAndMove(page, 20)
+    await page.mouse.up()
+    await page.keyboard.up('Alt')
+    const samples = await page.evaluate(() => {
+      const state = (
+        window as unknown as {
+          __groupSampler: { samples: number[][]; stop: boolean }
+        }
+      ).__groupSampler
+      state.stop = true
+      return state.samples
+    })
+    const lefts = new Set(samples.map((s) => Math.round(s[4] ?? 0)))
+    // The drag was sampled mid-move, not only before and after.
+    expect(lefts.size).toBeGreaterThan(3)
+    for (const sample of samples) {
+      for (const gap of sample.slice(0, 4))
+        expect(Math.abs(gap - 4)).toBeLessThanOrEqual(0.5)
+    }
+  })
+})
+
 test.describe('Multi-select frame-budget gates', () => {
+  test('a 3-frame group move logs no LoAF and keeps the handler p95', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1')
+    await expect(frames(page)).toHaveCount(4)
+    await frames(page).nth(0).click()
+    for (const index of [1, 2]) {
+      await frames(page)
+        .nth(index)
+        .click({ modifiers: ['Shift'] })
+    }
+    await expect(pressed(page)).toHaveCount(3)
+
+    await page.evaluate(browserBeginLoafScenarioWindow)
+    await clearPerfScenario(page)
+    const start = await boxOf(frames(page).nth(0))
+    const x = start.x + start.width / 2
+    const y = start.y + start.height / 2
+    const scale = await pxPerMm(page)
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 30 * scale, y + 10 * scale, { steps: 40 })
+    await page.mouse.move(x + 5 * scale, y + 5 * scale, { steps: 40 })
+    await page.mouse.up()
+    await expect(page.getByTestId('undo')).toHaveAttribute(
+      'aria-label',
+      'Undo “Move 3 frames” (Ctrl+Z)',
+    )
+    await page.waitForTimeout(300)
+    await page.evaluate(browserAssertNoLoafAndHandlerP95, {
+      label: 'frame-gesture',
+      budgetMs: PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate,
+    })
+    await collectFrameStatsArtifact(page, testInfo)
+  })
+
   test('Shift+click and the group box draw log no LoAF', async ({ page }) => {
     test.setTimeout(120_000)
     await enablePerfScenario(page, '/?fixture=painter&perf=1')

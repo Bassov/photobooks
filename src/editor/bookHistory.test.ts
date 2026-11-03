@@ -186,11 +186,25 @@ describe('step label bookkeeping', () => {
       setBookGrid: 'Change grid',
       setSpreadGrid: 'Change grid',
       resetSpreadGrid: 'Reset grid',
+      resetSpreadGridFields: 'Reset grid value',
     }
     for (const [type, text] of Object.entries(expected)) {
       expect(opLabel({ type, frameIds: ['f'] } as unknown as BookOp)).toBe(text)
     }
     expect(opLabel({ type: 'nope' } as unknown as BookOp)).toBe('Edit')
+  })
+
+  it('makes each re-aligning grid op one undo step of its own', () => {
+    const ops: BookOp[] = [
+      { type: 'setSpreadGrid', spreadId: 'ma', patch: { columns: 4 } },
+      { type: 'setBookGrid', patch: { columns: 4 } },
+      { type: 'setSpreadParent', spreadId: 'a', parentId: 'ma' },
+      { type: 'resetSpreadGridFields', spreadId: 'a', fields: ['top'] },
+    ]
+    for (const op of ops) {
+      expect(isUndoableOp(op)).toBe(true)
+      expect(coalesceKey(op)).toBeUndefined()
+    }
   })
 
   it('counts the frames of a multi-frame delete', () => {
@@ -202,6 +216,19 @@ describe('step label bookkeeping', () => {
     expect(opLabel(remove(['a']))).toBe('Delete frame')
     expect(opLabel(remove(['a', 'b']))).toBe('Delete 2 frames')
     expect(opLabel(remove(['a', 'b', 'c']))).toBe('Delete 3 frames')
+  })
+
+  it('counts the frames of a group move', () => {
+    const move = (frameIds: string[]): BookOp => ({
+      type: 'moveFrames',
+      spreadId: 's',
+      frameIds,
+      dx: 1,
+      dy: 0,
+    })
+    expect(opLabel(move(['a']))).toBe('Move frame')
+    expect(opLabel(move(['a', 'b']))).toBe('Move 2 frames')
+    expect(opLabel(move(['a', 'b', 'c']))).toBe('Move 3 frames')
   })
 
   it('keeps the newest labels when over the limit', () => {

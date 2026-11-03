@@ -1,5 +1,5 @@
 import type { Book, Frame } from '../schema'
-import type { GridPatch } from '../grid/layoutGrid'
+import type { GridField, GridPatch } from '../grid/layoutGrid'
 import { applyCustomLayout, applyTemplate } from '../templates/apply'
 import type { LayoutSlotPct } from '../templates/custom'
 import type { TemplateId } from '../templates/types'
@@ -16,6 +16,7 @@ import {
   alignFrames,
   distributeFrames,
   moveFrame,
+  moveFrames,
   resizeFrame,
   rotateFrame,
   type AlignEdge,
@@ -24,7 +25,12 @@ import {
 import { reorderFrame, setFrameLocked, type ZMove } from './arrange'
 import { fillSpread, insertSpreadWithAssets } from './fill'
 import { placeAsset, replaceAsset, swapFrames, unplaceAsset } from './place'
-import { resetSpreadGrid, setBookGrid, setSpreadGrid } from './grid'
+import {
+  resetSpreadGrid,
+  resetSpreadGridFields,
+  setBookGrid,
+  setSpreadGrid,
+} from './grid'
 import {
   setCoverPhoto,
   setCoverStyle,
@@ -132,6 +138,13 @@ export type BookOp =
       dy: number
     }
   | {
+      type: 'moveFrames'
+      spreadId: string
+      frameIds: readonly string[]
+      dx: number
+      dy: number
+    }
+  | {
       type: 'resizeFrame'
       spreadId: string
       frameId: string
@@ -206,6 +219,11 @@ export type BookOp =
   | { type: 'setBookGrid'; patch: GridPatch }
   | { type: 'setSpreadGrid'; spreadId: string; patch: GridPatch }
   | { type: 'resetSpreadGrid'; spreadId: string }
+  | {
+      type: 'resetSpreadGridFields'
+      spreadId: string
+      fields: readonly GridField[]
+    }
   | {
       type: 'addGuide'
       spreadId: string
@@ -318,6 +336,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setSpreadGrid(book, op.spreadId, op.patch)
     case 'resetSpreadGrid':
       return resetSpreadGrid(book, op.spreadId)
+    case 'resetSpreadGridFields':
+      return resetSpreadGridFields(book, op.spreadId, op.fields)
     case 'addGuide':
       return addGuide(book, op.spreadId, {
         orientation: op.orientation,
@@ -348,6 +368,8 @@ export function applyBookOp(book: Book, op: BookOp): Book {
       return setFrameRect(book, op.spreadId, op.frameId, op.rect)
     case 'moveFrame':
       return moveFrame(book, op.spreadId, op.frameId, op.dx, op.dy)
+    case 'moveFrames':
+      return moveFrames(book, op.spreadId, op.frameIds, op.dx, op.dy)
     case 'resizeFrame':
       return resizeFrame(book, op.spreadId, op.frameId, op.rect)
     case 'rotateFrame':

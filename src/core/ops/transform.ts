@@ -55,13 +55,27 @@ export function moveFrame(
   dx: number,
   dy: number,
 ): Book {
+  return moveFrames(book, spreadId, [frameId], dx, dy)
+}
+
+/**
+ * Translate every listed frame by the same (dx, dy) mm (group move, one undo
+ * step). Locked frames stay; non-finite or zero delta → unchanged.
+ */
+export function moveFrames(
+  book: Book,
+  spreadId: string,
+  frameIds: readonly string[],
+  dx: number,
+  dy: number,
+): Book {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) {
     return book
   }
   return transformFrames(
     book,
     spreadId,
-    [frameId],
+    frameIds,
     (frames) =>
       new Map(
         frames.map((frame) => [

@@ -84,6 +84,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   removeFrames: 'Delete frame',
   setFrameRect: 'Edit frame',
   moveFrame: 'Move frame',
+  moveFrames: 'Move frame',
   resizeFrame: 'Resize frame',
   rotateFrame: 'Rotate frame',
   reorderFrame: 'Reorder frame',
@@ -107,6 +108,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   setBookGrid: 'Change grid',
   setSpreadGrid: 'Change grid',
   resetSpreadGrid: 'Reset grid',
+  resetSpreadGridFields: 'Reset grid value',
   addGuide: 'Add guide',
   moveGuide: 'Move guide',
   removeGuide: 'Delete guide',
@@ -116,6 +118,9 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
 export function opLabel(op: BookOp): string {
   if (op.type === 'removeFrames' && op.frameIds.length > 1) {
     return `Delete ${String(op.frameIds.length)} frames`
+  }
+  if (op.type === 'moveFrames' && op.frameIds.length > 1) {
+    return `Move ${String(op.frameIds.length)} frames`
   }
   return OP_LABELS[op.type] ?? 'Edit'
 }

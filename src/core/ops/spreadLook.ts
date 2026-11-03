@@ -2,6 +2,7 @@ import { omitKey } from '../omitKey'
 import { spreadParent } from '../parentSpreads'
 import type { Book } from '../schema'
 import { updateSpread } from '../update'
+import { realign } from './grid'
 
 /** Kit Background: the spread's own color; `undefined` → the page default. */
 export function setSpreadBackground(
@@ -34,7 +35,7 @@ export function setSpreadParent(
   ) {
     return book
   }
-  return updateSpread(book, spreadId, (spread) => {
+  const next = updateSpread(book, spreadId, (spread) => {
     if ((spreadParent(book, spread)?.id ?? null) === parentId) {
       return spread
     }
@@ -42,4 +43,6 @@ export function setSpreadParent(
     const inherited = spreadParent(book, rest)?.id ?? null
     return inherited === parentId ? rest : { ...rest, parentId }
   })
+  // The new parent's grid applies: re-align the spread's template to it.
+  return next === book ? book : realign(next, [spreadId])
 }

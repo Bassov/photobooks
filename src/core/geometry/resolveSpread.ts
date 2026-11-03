@@ -3,7 +3,7 @@ import {
   resolveParentFrames,
   spreadParent,
 } from '../parentSpreads'
-import type { Book, Frame, FrameStyle, ParentSpread, Spread } from '../schema'
+import type { Book, Frame, FrameStyle, Spread } from '../schema'
 import { sourceCropRect as computeSourceCropRect } from './cropRect'
 import { frameDpi, lowDpi } from './dpi'
 import { getPageCuts, getSpreadSizeMm } from './spreadSize'
@@ -17,7 +17,8 @@ import type {
 interface StructuralCache {
   settings: Book['settings']
   frameStyles: Book['frameStyles']
-  parent: ParentSpread | undefined
+  /** The parent layer paints its frames only; a grid / guide edit keeps them. */
+  parentFrames: Frame[] | undefined
   spreadCount: number
   spreadIndex: number
   entries: StructuralEntry[]
@@ -119,12 +120,12 @@ function getStructural(
   index: number,
 ): StructuralCache {
   const spreadCount = book.spreads.length
-  const parent = spreadParent(book, spread)
+  const parentFrames = spreadParent(book, spread)?.frames
   const cached = structuralMemo.get(spread)
   if (
     cached?.settings === book.settings &&
     cached.frameStyles === book.frameStyles &&
-    cached.parent === parent &&
+    cached.parentFrames === parentFrames &&
     cached.spreadCount === spreadCount &&
     cached.spreadIndex === index
   ) {
@@ -145,7 +146,7 @@ function getStructural(
   const next: StructuralCache = {
     settings: book.settings,
     frameStyles: book.frameStyles,
-    parent,
+    parentFrames,
     spreadCount,
     spreadIndex: index,
     entries,

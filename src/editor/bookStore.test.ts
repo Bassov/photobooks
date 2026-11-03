@@ -25,6 +25,7 @@ import {
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
   getSpreadPaintSnapshot,
+  isBulkRepaint,
   mintAssetId,
   patchAssetRecord,
   removeFailedImportAsset,
@@ -1625,6 +1626,49 @@ describe('bookStore spread paint covers the parent layer', () => {
     expect(parentEdit.invalidated).toEqual(['pA', 'a1', 'a2', 'a3'])
     expect(['pA', 'a1', 'a2', 'a3'].map(logoX)).toEqual([20, 20, 20, 20])
     expect(logoX('b1')).toBeUndefined()
+  })
+
+  it('a parent grid edit repaints only the parent: spreads paint its frames', () => {
+    loadMasters()
+
+    const gridEdit = repaintsFor(() => {
+      dispatchBookOp({
+        type: 'setSpreadGrid',
+        spreadId: 'pA',
+        patch: { columns: 5 },
+      })
+    })
+
+    expect(gridEdit).toEqual({ notified: ['pA'], invalidated: ['pA'] })
+  })
+
+  it('flags a publish repainting more than 8 spreads as a bulk repaint', () => {
+    const spread = (index: number) =>
+      makeSpread({
+        id: `s${String(index)}`,
+        frames: [makeFrame({ id: `s${String(index)}-f` })],
+      })
+    resetBookStore({
+      book: makeBook({
+        spreads: Array.from({ length: 9 }, (_, i) => spread(i)),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    dispatchBookOp({ type: 'setPageColor', color: '#e6e6e6' })
+    const afterShared = isBulkRepaint()
+    dispatchBookOp({
+      type: 'moveFrame',
+      spreadId: 's0',
+      frameId: 's0-f',
+      dx: 5,
+      dy: 0,
+    })
+
+    expect(afterShared).toBe(true)
+    expect(isBulkRepaint()).toBe(false)
   })
 
   it('a spread edit or parent switch repaints that spread only', () => {

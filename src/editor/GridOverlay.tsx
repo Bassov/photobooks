@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useDeferredValue, useSyncExternalStore } from 'react'
 import { editableSpread, resolveLayoutGrid, type PageGrid } from '../core'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { getGridVisible, subscribeGridVisible } from './gridView'
@@ -65,7 +65,11 @@ function GridOverlayLayer({
   variant: GridOverlayVariant
 }) {
   const read = useCallback(() => readGridPages(spreadId), [spreadId])
-  const pages = useSyncExternalStore(subscribeBookStore, read, read)
+  // Deferred like the spread paint: a master grid edit redraws every spread
+  // using it in a yielding pass after the urgent update.
+  const pages = useDeferredValue(
+    useSyncExternalStore(subscribeBookStore, read, read),
+  )
   if (pages === null) {
     return null
   }

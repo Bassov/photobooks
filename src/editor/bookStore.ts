@@ -124,6 +124,9 @@ const spreadListeners = new Map<string, Set<Listener>>()
 
 /** Only `notifyAffectedSpreads` drops entries: every state transition runs it. */
 const paintCache = new Map<string, SpreadPaintSnapshot>()
+/** Spreads one publish repaints above which `isBulkRepaint` holds. */
+const BULK_REPAINT_SPREADS = 8
+let bulkRepaint = false
 let assetSeq = 0
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
@@ -1127,7 +1130,9 @@ function notifySpread(spreadId: string): void {
 
 /**
  * Parents are immutable, so the parent object is its revision: a parent edit
- * repaints only the parent and the spreads using it.
+ * repaints only the parent and the spreads using it. Spreads paint the parent
+ * frames only, so a parent grid or guide edit leaves them quiet (the grid
+ * overlay subscribes on its own).
  */
 function paintChanged(
   prev: BookStoreState,
@@ -1141,7 +1146,7 @@ function paintChanged(
   }
   return (
     before.spread !== after.spread ||
-    before.parent !== after.parent ||
+    before.parent?.frames !== after.parent?.frames ||
     before.index !== after.index ||
     (!sharedSame &&
       paintInputKey(prev.book, before, prev.sessionMeta, prev.previewUrls) !==
@@ -1156,12 +1161,23 @@ function notifyAffectedSpreads(
   const before = paintSources(prev.book)
   const after = paintSources(next.book)
   const sharedSame = sharedPaintInputsSame(prev, next)
-  for (const id of new Set([...before.keys(), ...after.keys()])) {
-    if (paintChanged(prev, next, before.get(id), after.get(id), sharedSame)) {
-      paintCache.delete(id)
-      notifySpread(id)
-    }
+  const changed = [...new Set([...before.keys(), ...after.keys()])].filter(
+    (id) => paintChanged(prev, next, before.get(id), after.get(id), sharedSame),
+  )
+  bulkRepaint = changed.length > BULK_REPAINT_SPREADS
+  for (const id of changed) {
+    paintCache.delete(id)
+    notifySpread(id)
   }
+}
+
+/**
+ * True when the last publish repainted more than `BULK_REPAINT_SPREADS`
+ * spreads (a master edit re-aligning its users): views defer that repaint to
+ * a yielding render so the edit's own task stays short.
+ */
+export function isBulkRepaint(): boolean {
+  return bulkRepaint
 }
 
 /** Test helper: replace store state immediately. */

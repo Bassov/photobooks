@@ -1,3 +1,4 @@
+import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { applyBookOp, checkBookInvariants } from '../index'
 import type { Frame } from '../schema'
@@ -68,6 +69,101 @@ describe('moveFrame', () => {
         }),
       ).toBe(before)
     }
+  })
+})
+
+describe('moveFrames', () => {
+  const move = (
+    b: ReturnType<typeof book>,
+    frameIds: readonly string[],
+    dx: number,
+    dy: number,
+  ) =>
+    applyBookOp(b, {
+      type: 'moveFrames',
+      spreadId: 'spread-1',
+      frameIds,
+      dx,
+      dy,
+    })
+
+  it('moves every listed unlocked frame by the same delta, locked stay', () => {
+    const before = book([
+      makeFrame({ id: 'a', rect: rectOf(10, 10) }),
+      makeFrame({ id: 'b', rect: rectOf(50, 30), locked: true }),
+      makeFrame({ id: 'c', rect: rectOf(90, 60) }),
+      makeFrame({ id: 'd', rect: rectOf(5, 5) }),
+    ])
+    const next = move(before, ['a', 'b', 'c'], 4, -3)
+    expect(frameOf(next, 'a').rect).toEqual(rectOf(14, 7))
+    expect(frameOf(next, 'b')).toBe(frameOf(before, 'b'))
+    expect(frameOf(next, 'c').rect).toEqual(rectOf(94, 57))
+    expect(frameOf(next, 'd')).toBe(frameOf(before, 'd'))
+    expect(checkBookInvariants(next).ok).toBe(true)
+  })
+
+  it.each([
+    ['zero delta', 0, 0],
+    ['NaN', Number.NaN, 1],
+    ['Infinity', 1, Number.NEGATIVE_INFINITY],
+  ])('%s → unchanged', (_name, dx, dy) => {
+    const before = book([A])
+    expect(move(before, ['a'], dx, dy)).toBe(before)
+  })
+
+  it('all locked, none listed or unknown ids → unchanged', () => {
+    const before = book([LOCKED])
+    for (const ids of [['a'], [], ['nope']]) {
+      expect(move(before, ids, 5, 5)).toBe(before)
+    }
+  })
+
+  it('PBT: locked never move and each frame equals folding moveFrame', () => {
+    const delta = fc.double({ min: -500, max: 500, noNaN: true })
+    fc.assert(
+      fc.property(
+        fc.array(fc.tuple(fc.boolean(), fc.boolean()), {
+          minLength: 1,
+          maxLength: 6,
+        }),
+        delta,
+        delta,
+        (flags, dx, dy) => {
+          const frames = flags.map(([locked], index) =>
+            makeFrame({
+              id: `f${String(index)}`,
+              rect: rectOf(index * 7, index * 3),
+              z: index,
+              ...(locked ? { locked: true } : {}),
+            }),
+          )
+          const ids = frames
+            .filter((_, index) => flags[index]?.[1] === true)
+            .map((frame) => frame.id)
+          const before = book(frames)
+          const group = move(before, ids, dx, dy)
+          const folded = ids.reduce(
+            (acc, frameId) =>
+              applyBookOp(acc, {
+                type: 'moveFrame',
+                spreadId: 'spread-1',
+                frameId,
+                dx,
+                dy,
+              }),
+            before,
+          )
+          for (const frame of frames) {
+            expect(frameOf(group, frame.id).rect).toEqual(
+              frameOf(folded, frame.id).rect,
+            )
+            if (frame.locked === true) {
+              expect(frameOf(group, frame.id).rect).toEqual(frame.rect)
+            }
+          }
+        },
+      ),
+    )
   })
 })
 
