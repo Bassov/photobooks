@@ -1,6 +1,8 @@
 import { useSyncExternalStore, type PointerEvent } from 'react'
 import type { ParentSpread } from '../core'
 import { setFrameSource } from './frameSelection'
+import { Rulers } from './Rulers'
+import { getRulersVisible, subscribeRulersVisible } from './rulersView'
 import { useClientSize, type ClientSize } from './useClientSize'
 import { getBookStoreSnapshot, subscribeBookStore } from './bookStore'
 import { ConnectedSpreadView } from './ConnectedSpreadView'
@@ -98,29 +100,41 @@ function MasterStage({ parentId, name }: { parentId: string; name: string }) {
     readTrimHeight,
     readTrimHeight,
   )
-  const [stage, attach] = useClientSize()
+  const rulersOn = useSyncExternalStore(
+    subscribeRulersVisible,
+    getRulersVisible,
+    getRulersVisible,
+  )
+  // The fit reads the area's size; the rulers read the area as their scroll area.
+  const [area, attachArea, areaRef] = useClientSize()
   const pxPerMm =
-    stage === null ? 0 : fitParentPxPerMm(stage, { widthMm, heightMm })
+    area === null ? 0 : fitParentPxPerMm(area, { widthMm, heightMm })
   return (
     <div
-      ref={attach}
       className="cover-stage"
       data-testid="masters-canvas"
       data-parent-id={parentId}
+      data-rulers={rulersOn ? 'true' : 'false'}
       onPointerDown={onStagePointerDown}
     >
-      {pxPerMm > 0 ? (
-        <div className="masters-spread">
-          <ConnectedSpreadView
-            spreadId={parentId}
-            pxPerMm={pxPerMm}
-            gridVariant="master"
-          />
-          {/* Kit viewport master label: under the spread, screen px (M37 rule). */}
-          <span className="masters-caption" data-testid="master-label">
-            {name}
-          </span>
-        </div>
+      {/* Kit `r = RULER`: with rulers on, the spread fits inside the strips. */}
+      <div ref={attachArea} className="masters-area">
+        {pxPerMm > 0 ? (
+          <div className="masters-spread">
+            <ConnectedSpreadView
+              spreadId={parentId}
+              pxPerMm={pxPerMm}
+              gridVariant="master"
+            />
+            {/* Kit viewport master label: under the spread, screen px (M37 rule). */}
+            <span className="masters-caption" data-testid="master-label">
+              {name}
+            </span>
+          </div>
+        ) : null}
+      </div>
+      {rulersOn ? (
+        <Rulers scrollRef={areaRef} pageMm={widthMm} pxPerMm={pxPerMm} />
       ) : null}
     </div>
   )

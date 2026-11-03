@@ -62,6 +62,20 @@
   box-shadow: var(--cover-shadow-mini);
 }
 
+/* Masters canvas fit area: the `.cover-stage` band, inset by the 22 px ruler
+   strips while rulers show (kit viewport `r = RULER`, Designer MS10). */
+.masters-area {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 56px 40px 48px;
+}
+
+.cover-stage[data-rulers='true'] > .masters-area {
+  inset: 22px 0 0 22px;
+}
+
 /* Masters canvas: the master spread plus its name 8 px below (Designer MS9,
    page-number rule M37), absolute so the spread does not move. */
 .masters-spread {

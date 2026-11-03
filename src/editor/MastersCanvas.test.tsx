@@ -4,6 +4,7 @@ import { makeBook, makeFrame } from '../core/testing/fixtures'
 import { resetBookStore } from './bookStore'
 import { getFrameSource, setFrameSource } from './frameSelection'
 import { MastersCanvas } from './MastersCanvas'
+import { setRulersVisible } from './rulersView'
 import {
   resetLeftPanelTabForTests,
   setLeftPanelTab,
@@ -29,6 +30,7 @@ function loadParents(ids: readonly string[]): void {
 describe('MastersCanvas', () => {
   afterEach(() => {
     cleanup()
+    setRulersVisible(false)
     resetBookStore()
     resetLeftPanelTabForTests()
     vi.restoreAllMocks()
@@ -116,6 +118,32 @@ describe('MastersCanvas', () => {
 
     fireEvent.pointerDown(screen.getByTestId('spread-view'), { button: 0 })
     expect(getFrameSource()).toBeNull()
+  })
+
+  it('shows the rulers on the master stage only while rulers are on', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600)
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(920)
+    loadParents(['p1'])
+    setLeftPanelTab('masters')
+    render(<MastersCanvas />)
+    const stage = screen.getByTestId('masters-canvas')
+    expect(stage.dataset.rulers).toBe('false')
+    expect(screen.queryByTestId('ruler-x')).toBeNull()
+
+    act(() => {
+      setRulersVisible(true)
+    })
+
+    expect(stage.dataset.rulers).toBe('true')
+    expect(stage.contains(screen.getByTestId('ruler-x'))).toBe(true)
+    // They measure the master spread inside the stage's fit area.
+    expect(screen.getByTestId('ruler-x').dataset.origin).toBe('0')
+    expect(stage.contains(screen.getByTestId('ruler-y'))).toBe(true)
+    act(() => {
+      setRulersVisible(false)
+    })
+    expect(screen.queryByTestId('ruler-x')).toBeNull()
   })
 })
 

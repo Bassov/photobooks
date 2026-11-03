@@ -2,6 +2,7 @@ import {
   useSyncExternalStore,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { editableSpread } from '../core'
 import { getBookStoreSnapshot, subscribeSpread } from './bookStore'
 import { startGuideDrag } from './guideGesture'
 import { getGuidesVisible, subscribeGuidesVisible } from './guidesView'
@@ -14,11 +15,11 @@ type SpreadGuides = NonNullable<
 
 const NONE: SpreadGuides = []
 
+/** A spread's guides, or a parent's on the Masters canvas. */
 function guidesOf(spreadId: string): SpreadGuides {
-  const spread = getBookStoreSnapshot().book.spreads.find(
-    (item) => item.id === spreadId,
+  return (
+    editableSpread(getBookStoreSnapshot().book, spreadId)?.spread.guides ?? NONE
   )
-  return spread?.guides ?? NONE
 }
 
 function beginDrag(
@@ -32,7 +33,8 @@ function beginDrag(
   if (spreadEl === null) return
   event.preventDefault()
   event.stopPropagation()
-  const stage = spreadEl.closest('.pasteboard-stage')
+  // The pasteboard or Masters stage, whichever hosts this spread's rulers.
+  const stage = spreadEl.closest('[data-rulers]')
   const ruler = stage?.querySelector<HTMLElement>(
     orientation === 'horizontal'
       ? '[data-testid="ruler-x"]'

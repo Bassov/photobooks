@@ -1,4 +1,4 @@
-import { getSpreadSizeMm } from '../core'
+import { editableSpread, getSpreadSizeMm } from '../core'
 import { dispatchBookOp, getBookStoreSnapshot } from './bookStore'
 import { setGuidesVisible } from './guidesView'
 import {
@@ -50,10 +50,11 @@ export function startGuideDrag(start: GuideDragStart): void {
   const { spreadEl, orientation, rulerEl, existing } = start
   const spreadId = spreadEl.dataset.spreadId ?? ''
   const book = getBookStoreSnapshot().book
-  const index = book.spreads.findIndex((spread) => spread.id === spreadId)
+  // A parent on the Masters canvas resolves too (sized as two pages).
+  const target = editableSpread(book, spreadId)
   const box = spreadEl.getBoundingClientRect()
-  if (index < 0 || box.width <= 0) return
-  const size = getSpreadSizeMm(book, index)
+  if (target === undefined || box.width <= 0) return
+  const size = getSpreadSizeMm(book, target.index)
   const horizontal = orientation === 'horizontal'
   const extentMm = horizontal ? size.heightMm : size.widthMm
   const pxPerMm = box.width / size.widthMm
