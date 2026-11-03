@@ -70,6 +70,8 @@ export const ICON_NAMES = [
   'sparkles',
   'layoutTemplate',
   'circle',
+  'link2',
+  'unlink2',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]
@@ -546,4 +548,13 @@ export const ICON_GLYPHS: Record<IconName, IconNode> = {
   ],
   /** Lucide `circle`: the kit single-choice menu marker (filled via CSS). */
   circle: [['circle', { cx: '12', cy: '12', r: '10' }]],
+  /** Lucide `link-2` / `unlink-2`: the kit GridFields margin link (v7.tsx:198). */
+  link2: [
+    ['path', { d: 'M9 17H7A5 5 0 0 1 7 7h2' }],
+    ['path', { d: 'M15 7h2a5 5 0 1 1 0 10h-2' }],
+    ['line', { x1: '8', x2: '16', y1: '12', y2: '12' }],
+  ],
+  unlink2: [
+    ['path', { d: 'M15 7h2a5 5 0 0 1 0 10h-2m-6 0H7A5 5 0 0 1 7 7h2' }],
+  ],
 }

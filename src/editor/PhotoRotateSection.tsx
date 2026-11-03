@@ -6,7 +6,7 @@ import {
   SliderThumb,
   SliderTrack,
 } from 'react-aria-components'
-import { COVER_CROP } from '../core'
+import { COVER_CROP, editableSpread } from '../core'
 import { measureHandlerSync } from '../perf/measureHandler'
 import { clearPhotoPreview, paintPhotoPreview } from '../render/photoLayout'
 import { Button } from '../ui/Button'
@@ -49,9 +49,9 @@ function frameElements(frameId: string): HTMLElement[] {
  */
 export function PhotoRotateSection({ target }: { target: CropTarget }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
-  const frame = book.spreads
-    .find((spread) => spread.id === target.spreadId)
-    ?.frames.find((item) => item.id === target.frameId)
+  const frame = editableSpread(book, target.spreadId)?.spread.frames.find(
+    (item) => item.id === target.frameId,
+  )
   const [live, setLive] = useState<number | null>(null)
   const raf = useRef<number | null>(null)
   useEffect(
