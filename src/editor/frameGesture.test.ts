@@ -1,14 +1,25 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeFrame, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import {
+  getBookStoreSnapshot,
+  getHistorySnapshot,
+  resetBookStore,
+  undoBook,
+} from './bookStore'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
 import {
   getEditorTool,
   resetEditorToolForTests,
   setEditorTool,
 } from './editorToolStore'
-import { getFrameSource, resetFrameSelection } from './frameSelection'
+import {
+  getFrameSelection,
+  getFrameSource,
+  resetFrameSelection,
+  setFrameSource,
+  toggleFrameSelection,
+} from './frameSelection'
 import { installFrameGesture } from './frameGesture'
 import { setGridVisible, setSnapOn } from './gridView'
 import {
@@ -587,6 +598,11 @@ describe('frameGesture · move', () => {
     expect(getBookStoreSnapshot().book.spreads[0]?.templateId).toBeUndefined()
   })
 
+  it('never snaps back to its own start edges', () => {
+    drag(2, 0)
+    expect(frames()[1]?.rect.x).toBe(12)
+  })
+
   describe('grid snap', () => {
     beforeEach(() => {
       setGridVisible(true)
@@ -976,5 +992,346 @@ describe('frameGesture · live geometry', () => {
     pointer('pointerup', window, 200, 200)
     expect(getLiveGeometry()).toBeNull()
     resetEditorToolForTests()
+  })
+})
+
+describe('frameGesture · group move', () => {
+  let stop: () => void
+  let spread: HTMLElement
+  let buttons: HTMLElement[]
+  let box: HTMLElement
+  const BOX_CSS = 'left: 1px; top: 2px; width: 3px; height: 4px;'
+
+  /** a filled, b empty and turned 90°, c locked; d outside the set. */
+  function setup(
+    locked: readonly string[] = ['c'],
+    picked: readonly string[] = ['a', 'b', 'c'],
+    spreadGuides: Parameters<typeof load>[1] = [],
+  ) {
+    load(
+      [
+        makeFrame({ id: 'a', rect: rect(100, 100, 50, 50), assetId: 'p' }),
+        makeFrame({
+          id: 'b',
+          rect: rect(10, 10, 40, 20),
+          z: 1,
+          rotationDeg: 90,
+        }),
+        makeFrame({ id: 'c', rect: rect(200, 50, 30, 30), z: 2 }),
+        makeFrame({ id: 'd', rect: rect(250, 200, 20, 20), z: 3 }),
+      ].map((frame) =>
+        locked.includes(frame.id) ? { ...frame, locked: true } : frame,
+      ),
+      spreadGuides,
+    )
+    const mounted = mount()
+    spread = mounted.spread
+    buttons = mounted.buttons
+    button(1).style.transform = 'rotate(90deg)'
+    box = document.createElement('div')
+    box.className = 'spread-group-box'
+    box.style.cssText = BOX_CSS
+    spread.append(box)
+    setFrameSource(null)
+    for (const frameId of picked) {
+      toggleFrameSelection({ spreadId: 'spread-1', frameId })
+    }
+    stop = installFrameGesture()
+  }
+
+  function button(index: number): HTMLElement {
+    const found = buttons[index]
+    assert(found !== undefined, `expected frame ${String(index)}`)
+    return found
+  }
+
+  afterEach(() => {
+    stop()
+    spread.remove()
+    resetFrameSelection()
+    resetBookStore()
+    setEditorStatus('')
+  })
+
+  /** Press inside frame a (filled) and move by (dx, dy) mm, still pressed. */
+  function press(dx: number, dy: number, init: MouseEventInit = {}) {
+    pointer('pointerdown', button(0), 120, 120, init)
+    pointer('pointermove', window, 120 + dx, 120 + dy, init)
+  }
+
+  it('moves every unlocked selected frame by one delta in one undo step', () => {
+    setup()
+    press(20, 15, ALT)
+    pointer('pointerup', window, 140, 135, ALT)
+    expect(frames().map((frame) => frame.rect)).toEqual([
+      rect(120, 115, 50, 50),
+      rect(30, 25, 40, 20),
+      rect(200, 50, 30, 30),
+      rect(250, 200, 20, 20),
+    ])
+    expect(getHistorySnapshot().undoLabel).toBe('Move 2 frames')
+    expect(getFrameSelection()?.frameIds).toEqual(['a', 'b', 'c'])
+    undoBook()
+    expect(frames()[0]?.rect).toEqual(rect(100, 100, 50, 50))
+    expect(frames()[1]?.rect).toEqual(rect(10, 10, 40, 20))
+  })
+
+  it('previews with one translate per moving frame and the group box, no commit', () => {
+    setup()
+    const before = getBookStoreSnapshot().book
+    press(20, 15, ALT)
+    expect(button(0).style.transform).toBe('translate(40px, 30px)')
+    expect(button(1).style.transform).toBe(
+      'translate(40px, 30px) rotate(90deg)',
+    )
+    expect(button(2).style.transform).toBe('')
+    // Painted union: b turned spans x 20–40, y 0–40; c stays at 200–230.
+    expect([
+      box.style.left,
+      box.style.top,
+      box.style.width,
+      box.style.height,
+    ]).toEqual(['80px', '30px', '380px', '300px'])
+    expect(getBookStoreSnapshot().book).toBe(before)
+
+    pointer('pointerup', window, 140, 135, ALT)
+    expect(button(0).style.transform).toBe('')
+    expect(button(1).style.transform).toBe('rotate(90deg)')
+    expect(box.style.cssText).toBe(BOX_CSS)
+  })
+
+  it('Escape puts every frame back, keeps the set and swallows the release', () => {
+    setup()
+    const onClick = vi.fn()
+    document.addEventListener('click', onClick)
+    press(20, 15, ALT)
+    window.dispatchEvent(escape())
+    expect(button(0).style.transform).toBe('')
+    expect(button(1).style.transform).toBe('rotate(90deg)')
+    expect(box.style.cssText).toBe(BOX_CSS)
+    pointer('pointerup', window, 140, 135, ALT)
+    button(0).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    document.removeEventListener('click', onClick)
+    expect(onClick).not.toHaveBeenCalled()
+    expect(frames()[0]?.rect).toEqual(rect(100, 100, 50, 50))
+    expect(getFrameSelection()?.frameIds).toEqual(['a', 'b', 'c'])
+  })
+
+  it('pointercancel restores the preview and commits nothing', () => {
+    setup()
+    press(20, 15, ALT)
+    pointer('pointercancel', window, 140, 135, ALT)
+    expect(button(0).style.transform).toBe('')
+    expect(frames()[0]?.rect).toEqual(rect(100, 100, 50, 50))
+  })
+
+  it('all locked: no preview, no op, the locked status', () => {
+    setup(['a', 'b', 'c'])
+    const before = getBookStoreSnapshot().book
+    press(20, 15, ALT)
+    expect(getEditorStatus()).toMatch(/locked/i)
+    expect(button(0).style.transform).toBe('')
+    pointer('pointerup', window, 140, 135, ALT)
+    expect(getBookStoreSnapshot().book).toBe(before)
+  })
+
+  it('Shift locks the dominant axis', () => {
+    setup()
+    press(20, 4, { altKey: true, shiftKey: true })
+    pointer('pointerup', window, 140, 124, { altKey: true, shiftKey: true })
+    expect(frames()[0]?.rect).toEqual(rect(120, 100, 50, 50))
+    press(3, -8, { altKey: true, shiftKey: true })
+    pointer('pointerup', window, 123, 112, { altKey: true, shiftKey: true })
+    expect(frames()[0]?.rect).toEqual(rect(120, 92, 50, 50))
+  })
+
+  it('keeps the union of the moving frames inside the spread', () => {
+    setup()
+    press(-200, 500, ALT)
+    pointer('pointerup', window, -80, 620, ALT)
+    // Union x 10–150, y 10–150 on a 300 mm square spread.
+    expect(frames()[0]?.rect).toEqual(rect(90, 250, 50, 50))
+    expect(frames()[1]?.rect).toEqual(rect(0, 160, 40, 20))
+  })
+
+  it('snaps the union, with anchors that skip the selection', () => {
+    setup()
+    // Union right edge 150 + 48.5 lands next to the 200 mm guide.
+    press(48.5, 0)
+    pointer('pointerup', window, 168.5, 120)
+    expect(frames()[0]?.rect.x).toBe(150)
+  })
+
+  it('a locked frame of the set stays a snap anchor', () => {
+    setup()
+    // Union top 10 + 38.5 lands next to locked c's top edge at 50.
+    press(0, 38.5)
+    expect(
+      spread.querySelector('[data-axis="y"] .snap-line-label')?.textContent,
+    ).toBe('snap · frame')
+    pointer('pointerup', window, 120, 158.5)
+    expect(frames()[1]?.rect.y).toBe(50)
+    expect(frames()[2]?.rect).toEqual(rect(200, 50, 30, 30))
+  })
+
+  it('blocks the native drag of a filled frame while the set moves', () => {
+    setup()
+    // The frame's own drag handler stops the bubble: the block runs in capture.
+    button(0).addEventListener('dragstart', (event) => {
+      event.stopPropagation()
+    })
+    press(20, 15, ALT)
+    const drag = new Event('dragstart', { bubbles: true, cancelable: true })
+    button(0).dispatchEvent(drag)
+    expect(drag.defaultPrevented).toBe(true)
+    pointer('pointerup', window, 140, 135, ALT)
+    const later = new Event('dragstart', { bubbles: true, cancelable: true })
+    button(0).dispatchEvent(later)
+    expect(later.defaultPrevented).toBe(false)
+  })
+
+  it('a frame outside the set moves alone; a set elsewhere moves nothing here', () => {
+    setup()
+    // d is empty: today's single move, the set stays put.
+    pointer('pointerdown', button(3), 260, 210, ALT)
+    pointer('pointermove', window, 280, 210, ALT)
+    pointer('pointerup', window, 280, 210, ALT)
+    expect(frames().map((frame) => frame.rect.x)).toEqual([100, 10, 200, 270])
+    const before = getBookStoreSnapshot().book
+    setFrameSource({ spreadId: 'spread-2', frameId: 'x' })
+    toggleFrameSelection({ spreadId: 'spread-2', frameId: 'a' })
+    press(20, 0, ALT)
+    pointer('pointerup', window, 140, 120, ALT)
+    expect(getBookStoreSnapshot().book).toBe(before)
+  })
+
+  it('a press below the slop is a click, not a move', () => {
+    setup()
+    const onClick = vi.fn()
+    document.addEventListener('click', onClick)
+    press(0.5, 0, ALT)
+    pointer('pointerup', window, 120.5, 120, ALT)
+    button(0).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    document.removeEventListener('click', onClick)
+    expect(onClick).toHaveBeenCalledOnce()
+    expect(frames()[0]?.rect.x).toBe(100)
+  })
+
+  it('starts at the slop distance (3 px) and swallows the click after the move', () => {
+    setup()
+    const onClick = vi.fn()
+    document.addEventListener('click', onClick)
+    press(1.5, 0, ALT)
+    pointer('pointerup', window, 121.5, 120, ALT)
+    button(0).dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    document.removeEventListener('click', onClick)
+    expect(onClick).not.toHaveBeenCalled()
+    expect(frames()[0]?.rect.x).toBe(101.5)
+    expect(getEditorStatus()).toBe('')
+  })
+
+  it('a set of two moves too; one selected frame keeps its photo drag', () => {
+    setup([], ['a', 'b'])
+    press(20, 0, ALT)
+    pointer('pointerup', window, 140, 120, ALT)
+    expect(frames().map((frame) => frame.rect.x)).toEqual([120, 30, 200, 250])
+    setFrameSource({ spreadId: 'spread-1', frameId: 'a' })
+    const before = getBookStoreSnapshot().book
+    press(20, 0, ALT)
+    pointer('pointerup', window, 140, 120, ALT)
+    expect(getBookStoreSnapshot().book).toBe(before)
+    expect(button(0).style.transform).toBe('')
+  })
+
+  it('translates in the frames’ own layout px, before the camera scale', () => {
+    setup()
+    // 300 layout px over 300 mm (client box: 600 px).
+    Object.defineProperty(spread, 'offsetWidth', { value: 300 })
+    press(20, 15, ALT)
+    expect(button(0).style.transform).toBe('translate(20px, 15px)')
+    expect(box.style.left).toBe('40px')
+  })
+
+  it('moves without a group box element', () => {
+    setup()
+    box.remove()
+    press(20, 15, ALT)
+    expect(button(0).style.transform).toBe('translate(40px, 30px)')
+    window.dispatchEvent(escape())
+    expect(button(0).style.transform).toBe('')
+    press(20, 15, ALT)
+    pointer('pointerup', window, 140, 135, ALT)
+    expect(frames()[0]?.rect.x).toBe(120)
+  })
+
+  it('reports the lock once per gesture', () => {
+    setup(['a', 'b', 'c'])
+    press(20, 15, ALT)
+    setEditorStatus('')
+    pointer('pointermove', window, 150, 140, ALT)
+    expect(getEditorStatus()).toBe('')
+  })
+
+  it('stands down with the Frame tool, for a spread missing from the book and for a non-button frame', () => {
+    setup()
+    const before = getBookStoreSnapshot().book
+    setEditorTool('frame')
+    press(20, 15, ALT)
+    pointer('pointerup', window, 140, 135, ALT)
+    resetEditorToolForTests()
+    expect(button(0).style.transform).toBe('')
+
+    const stray = document.createElement('div')
+    stray.className = 'spread-frame'
+    stray.setAttribute('data-frame-id', 'a')
+    spread.append(stray)
+    pointer('pointerdown', stray, 120, 120, ALT)
+    pointer('pointermove', window, 140, 120, ALT)
+    pointer('pointerup', window, 140, 120, ALT)
+    expect(button(0).style.transform).toBe('')
+
+    spread.setAttribute('data-spread-id', 'gone')
+    setFrameSource({ spreadId: 'gone', frameId: 'a' })
+    toggleFrameSelection({ spreadId: 'gone', frameId: 'b' })
+    press(20, 15, ALT)
+    pointer('pointerup', window, 140, 135, ALT)
+    expect(button(0).style.transform).toBe('')
+    expect(getBookStoreSnapshot().book).toBe(before)
+  })
+
+  // A guide 2 mm off the union's top / left edge (both at 10 mm).
+  it.each([
+    ['y', 'horizontal', 20, 1, { x: 120, y: 100 }],
+    ['x', 'vertical', 1, 20, { x: 100, y: 120 }],
+  ] as const)(
+    'Shift keeps snapping off the locked %s axis',
+    (axis, orientation, dx, dy, at) => {
+      setup(['c'], ['a', 'b', 'c'], [{ id: 'g', orientation, offsetMm: 12 }])
+      press(dx, dy, { shiftKey: true })
+      expect(spread.querySelector(`[data-axis="${axis}"]`)).toBeNull()
+      pointer('pointerup', window, 120 + dx, 120 + dy, { shiftKey: true })
+      expect(frames()[0]?.rect).toEqual(rect(at.x, at.y, 50, 50))
+    },
+  )
+
+  it('snaps the union top onto a spread guide', () => {
+    setup(
+      ['c'],
+      ['a', 'b', 'c'],
+      [{ id: 'g', orientation: 'horizontal', offsetMm: 32 }],
+    )
+    press(0, 21.5)
+    expect(spread.querySelector('[data-axis="y"]')).not.toBeNull()
+    pointer('pointerup', window, 120, 141.5)
+    expect(frames()[0]?.rect.y).toBe(122)
+    expect(frames()[1]?.rect.y).toBe(32)
+  })
+
+  it('draws the snap line of the union', () => {
+    setup()
+    press(48.5, 0)
+    expect(spread.querySelector('[data-axis="x"]')).not.toBeNull()
+    pointer('pointerup', window, 168.5, 120)
+    expect(spread.querySelector('[data-axis="x"]')).toBeNull()
   })
 })
