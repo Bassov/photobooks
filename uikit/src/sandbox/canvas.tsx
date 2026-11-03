@@ -407,15 +407,19 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
     const key = (ev: KeyboardEvent) => { if (ev.key !== "Escape") return; ev.stopPropagation(); end(); if (box) st.setSel(prev) }
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); window.addEventListener("keydown", key, true)
   }
-  const onGrayDown = React.useRef((_: { clientX: number; clientY: number; shiftKey: boolean }) => { })
+  /* r16 M92 (Designer #421, prod pasteboardClickSpreadId): the press activates this spread (list row + inspector follow)
+     and keeps the scroll; it stops here so the shell's empty-canvas handler does not clear the node again. */
+  const onGrayDown = React.useRef((_: GrayPress) => { })
   onGrayDown.current = (e) => {
     if (view.tool !== "select" || view.preview) return
+    e.stopPropagation()
+    grayPick.si = si
     st.setCur(si)
     if (st.cropId) { st.setCropId(null); return }
     startMarquee(e)
   }
   React.useEffect(() => {
-    const start = (e: { clientX: number; clientY: number; shiftKey: boolean }) => onGrayDown.current(e)
+    const start = (e: GrayPress) => onGrayDown.current(e)
     marqueeStarters.set(si, start)
     return () => { if (marqueeStarters.get(si) === start) marqueeStarters.delete(si) }
   }, [si])
@@ -499,7 +503,10 @@ export function aabb(f: Rect & { rot?: number }): Rect {
   return { x: f.x + (f.w - w) / 2, y: f.y + (f.h - h) / 2, w, h }
 }
 /** Pasteboard-started marquees (viewport.tsx): spread index → its SpreadSurface starter. */
-export const marqueeStarters = new Map<number, (e: { clientX: number; clientY: number; shiftKey: boolean }) => void>()
+type GrayPress = { clientX: number; clientY: number; shiftKey: boolean; stopPropagation: () => void }
+export const marqueeStarters = new Map<number, (e: GrayPress) => void>()
+/** The spread a grey press just activated: the Stack keeps its scroll for it instead of centring it (viewport.tsx). */
+export const grayPick = { si: -1 }
 export function bbox(fs: Rect[]): Rect {
   const x = Math.min(...fs.map((f) => f.x)), y = Math.min(...fs.map((f) => f.y))
   return { x, y, w: Math.max(...fs.map((f) => f.x + f.w)) - x, h: Math.max(...fs.map((f) => f.y + f.h)) - y }

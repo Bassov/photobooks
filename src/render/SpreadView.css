@@ -372,8 +372,10 @@ button.spread-frame:not(
   pointer-events: none;
 }
 
+/* Kit MiniSpread hairline (chrome.tsx: w-px bg-black/10), list thumbs only
+   (Designer r16 M93). */
 .spread-page-cut {
-  background: color-mix(in srgb, var(--foreground) 28%, transparent);
+  background: var(--thumb-spine);
 }
 
 /* Kit spine fold (canvas.tsx: left-1/2 w-[3%] -translate-x-1/2, via-black/6):

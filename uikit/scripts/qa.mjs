@@ -2185,6 +2185,34 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync W5: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
+// r16 M92 (Designer #421, = prod pasteboardClickSpreadId): a grey-canvas press activates the nearest spread and keeps the scroll
+{
+  const e0 = errs.length
+  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
+  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
+  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
+  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip")
+  await page.locator("[role=dialog]").getByRole("button", { name: /A5|A4|Square|cm/ }).first().click(); await page.waitForTimeout(200)
+  await page.getByRole("option", { name: /Custom size/ }).click(); await page.waitForTimeout(200)
+  await page.fill('[data-testid="create-custom-w"]', "19"); await page.fill('[data-testid="create-custom-h"]', "23")
+  await c('[data-testid="create-book"]'); await c('[data-item="p1"]')
+  // the list grid eats Escape; the demo walk presses it from the inspector, here from the body
+  await page.evaluate(() => document.activeElement?.blur())
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200); await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const read = () => page.evaluate(() => {
+    const span = [...document.querySelectorAll('[data-stack-item="0"] [data-testid="page-labels"] span')].find((s) => s.textContent.trim() === "1")
+    const g = document.createRange(); if (span) g.selectNodeContents(span)
+    return { rows: [...document.querySelectorAll('[data-testid="list"] [aria-selected="true"]')].map((e) => e.getAttribute("data-item")), insp: document.querySelector('[data-testid="inspector"]')?.innerText.split("\n").slice(0, 2).join(" · "), y: span ? g.getBoundingClientRect().y : null }
+  })
+  const before = await read()
+  await page.locator('[data-testid="canvas"]').click({ position: { x: 20, y: 20 } }); await page.waitForTimeout(400)
+  const after = await read()
+  // the demo walk (demo-capture editor-spread-selected) reads y 66.25 before and after; this shorter walk (no photos added) lands at 52.25
+  ok("r16 M92: before the press (Esc ×2) no row and the empty inspector; page 1 above the centred spread 2–3 (label y < 100)", before.rows.length === 0 && before.insp === "Select a spread or photo" && before.y < 100, JSON.stringify(before))
+  ok("r16 M92: grey press at canvas 20,20 → row p0 (page 1) selected, inspector Spread · Page 1, page-1 label y unchanged ±0.5 (no re-centre)", after.rows.join() === "p0" && /^Spread · Page 1\b/.test(after.insp) && Math.abs(after.y - before.y) <= 0.5, JSON.stringify(after))
+  ok("r16 M92: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
+
 
 fs.writeFileSync(new URL("../qa-report.txt", import.meta.url), res.join("\n") + "\n\nCONSOLE:\n" + (errs.join("\n") || "none") + "\n")
 console.log(res.join("\n")); console.log(`\n${res.length - fails} passed, ${fails} failed; console errors/warnings: ${errs.length}`); if (errs.length) console.log(errs.slice(0, 20).join("\n"))
