@@ -36,12 +36,30 @@ const SPREAD_2_3_LAYOUTS = [
   'Landscape + 2 portraits',
   'Hero + grid',
 ]
-const KIT_TILE_WIDTH = 131
-/** Uncaptioned builtin tile: 4 px padding around the 61.5 px thumb. */
-const TILE_HEIGHT = 69.5
-const KIT_THUMB = { width: 123, height: 61.5 }
-/** Kit tile column step: 131 px tile + 6 px gap (grid-cols-2 gap-1.5). */
-const KIT_COLUMN_STEP = 137
+/**
+ * Owner 2026-11-02 (layout-tile-states): the thumb takes the trim aspect
+ * (clamped 2:3–2:1) and single pages use 3 columns. 268 px grid, gap 6 px.
+ * Spread 2–3 (2:1) keeps the kit 2-column boxes; page 1 is a square page.
+ */
+const SPREAD_TILES = {
+  columns: 2,
+  tile: { width: 131, height: 69.5 },
+  thumb: { width: 123, height: 61.5 },
+}
+const PAGE_TILES = {
+  columns: 3,
+  tile: { width: 256 / 3, height: 256 / 3 },
+  thumb: { width: 256 / 3 - 8, height: 256 / 3 - 8 },
+}
+const GRID_GAP = 6
+/** Paper box-shadows (kit tokens: --select #232223, --ring #3a3839, panel --background #e1e1e1). */
+const PAPER_IDLE = 'rgba(0, 0, 0, 0.08) 0px 0px 0px 1px'
+const PAPER_HOVER =
+  'rgba(0, 0, 0, 0.22) 0px 0px 0px 1px, rgba(0, 0, 0, 0.12) 0px 2px 6px 0px'
+const PAPER_SELECTED = 'rgb(35, 34, 35) 0px 0px 0px 2px'
+const PAPER_FOCUS =
+  'rgb(225, 225, 225) 0px 0px 0px 2px, rgb(58, 56, 57) 0px 0px 0px 4px'
+const LIFT = 'matrix(1, 0, 0, 1, 0, -1)'
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
@@ -197,35 +215,46 @@ test('the list holds the kit layouts by photo count, merged on spread 2–3', as
   await expect.poll(() => tileNames(page)).toEqual(SPREAD_2_3_LAYOUTS)
 })
 
-test('uncaptioned tiles, thumbs and grid match the kit boxes', async ({
+test('a single page lays tiles out in 3 columns, a spread in 2; the paper fills the thumb', async ({
   page,
 }) => {
-  for (const [select, count] of [
-    [stayOnFirstSpread, FIRST_SPREAD_LAYOUTS.length],
-    [selectSecondSpread, SPREAD_2_3_LAYOUTS.length],
+  for (const [select, count, want] of [
+    [stayOnFirstSpread, FIRST_SPREAD_LAYOUTS.length, PAGE_TILES],
+    [selectSecondSpread, SPREAD_2_3_LAYOUTS.length, SPREAD_TILES],
   ] as const) {
     await select(page)
     const tiles = allTiles(page)
     await expect(tiles).toHaveCount(count)
     await expect(tiles.getByTestId('tpl-name')).toHaveCount(0)
+    const columns = await page
+      .getByTestId('tpl-grid')
+      .evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' '))
+    expect(columns).toHaveLength(want.columns)
     for (let i = 0; i < count; i += 1) {
       const tile = await box(tiles.nth(i))
-      expect(Math.abs(tile.width - KIT_TILE_WIDTH)).toBeLessThanOrEqual(0.5)
-      expect(Math.abs(tile.height - TILE_HEIGHT)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(tile.width - want.tile.width)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(tile.height - want.tile.height)).toBeLessThanOrEqual(0.5)
       const thumb = await box(tiles.nth(i).getByTestId('layout-thumb'))
-      expect(Math.abs(thumb.width - KIT_THUMB.width)).toBeLessThanOrEqual(0.5)
-      expect(Math.abs(thumb.height - KIT_THUMB.height)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(thumb.width - want.thumb.width)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(thumb.height - want.thumb.height)).toBeLessThanOrEqual(
+        0.5,
+      )
+      // No side areas: the paper is the thumb box.
+      const paper = await box(tiles.nth(i).getByTestId('layout-thumb-paper'))
+      for (const k of ['x', 'y', 'width', 'height'] as const) {
+        expect(Math.abs(paper[k] - thumb[k])).toBeLessThanOrEqual(1)
+      }
     }
     const first = await box(tiles.nth(0))
     const second = await box(tiles.nth(1))
-    const third = await box(tiles.nth(2))
-    expect(Math.abs(second.x - first.x - KIT_COLUMN_STEP)).toBeLessThanOrEqual(
-      0.5,
-    )
-    expect(Math.abs(third.x - first.x)).toBeLessThanOrEqual(0.5)
-    expect(Math.abs(third.y - first.y - TILE_HEIGHT - 6)).toBeLessThanOrEqual(
-      0.5,
-    )
+    const nextRow = await box(tiles.nth(want.columns))
+    expect(
+      Math.abs(second.x - first.x - want.tile.width - GRID_GAP),
+    ).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(nextRow.x - first.x)).toBeLessThanOrEqual(0.5)
+    expect(
+      Math.abs(nextRow.y - first.y - want.tile.height - GRID_GAP),
+    ).toBeLessThanOrEqual(0.5)
   }
   const tileStyle = await allTiles(page)
     .first()
@@ -285,25 +314,64 @@ test('My templates keep the kit caption box and type', async ({ page }) => {
   })
 })
 
-test('the selected tile is filled; hover fills an idle tile', async ({
+/** Tile fill, paper ring and paper transform, once transitions settle. */
+function tileState(tile: Locator) {
+  return () =>
+    tile.evaluate((el) => {
+      const paper = el.querySelector('[data-testid="layout-thumb-paper"]')
+      if (paper === null) throw new Error('no paper')
+      const p = getComputedStyle(paper)
+      return {
+        tileBg: getComputedStyle(el).backgroundColor,
+        tileShadow: getComputedStyle(el).boxShadow,
+        ring: p.boxShadow,
+        transform: p.transform,
+      }
+    })
+}
+
+test('hover lifts the paper with a ring; the selected paper has the ink ring; the tile stays clear', async ({
   page,
 }) => {
   const tile = layoutTile(page, 'Panorama')
-  const bg = () => tile.evaluate((el) => getComputedStyle(el).backgroundColor)
-  expect(await bg()).toBe('rgba(0, 0, 0, 0)')
+  const state = tileState(tile)
+  const clear = { tileBg: 'rgba(0, 0, 0, 0)', tileShadow: 'none' }
+  expect(await state()).toEqual({
+    ...clear,
+    ring: PAPER_IDLE,
+    transform: 'none',
+  })
   await tile.hover()
-  // The fill fades in (transition: background-color); wait for it to land
-  // on the kit tokens: hover --field #d7d7d7, selected --sel #cacaca.
-  await expect.poll(bg).toBe('rgb(215, 215, 215)')
-  const hovered = await bg()
-  expect(hovered).not.toBe('rgba(0, 0, 0, 0)')
+  await expect
+    .poll(state)
+    .toEqual({ ...clear, ring: PAPER_HOVER, transform: LIFT })
   await tile.click()
   await expect(tile).toHaveAttribute('aria-pressed', 'true')
+  // Selected wins over hover: no lift under the pointer either.
+  await expect
+    .poll(state)
+    .toEqual({ ...clear, ring: PAPER_SELECTED, transform: 'none' })
   await page.mouse.move(0, 899)
-  await expect.poll(bg).toBe('rgb(202, 202, 202)')
-  const selected = await bg()
-  expect(selected).not.toBe('rgba(0, 0, 0, 0)')
+  await expect
+    .poll(state)
+    .toEqual({ ...clear, ring: PAPER_SELECTED, transform: 'none' })
   await expect(tile.getByTestId('tpl-name')).toHaveCount(0)
+})
+
+test('keyboard focus rings the paper with a panel-colour gap, not the tile', async ({
+  page,
+}) => {
+  await allTiles(page).first().focus()
+  await page.keyboard.press('Tab')
+  const tile = allTiles(page).nth(1)
+  await expect(tile).toBeFocused()
+  expect(await tile.evaluate((el) => el.matches(':focus-visible'))).toBe(true)
+  await expect.poll(tileState(tile)).toEqual({
+    tileBg: 'rgba(0, 0, 0, 0)',
+    tileShadow: 'none',
+    ring: PAPER_FOCUS,
+    transform: 'none',
+  })
 })
 
 /**
@@ -384,6 +452,13 @@ test('the Full bleed thumb is clipped to the paper with no edge lines', async ({
     expect(slot.x + slot.width).toBeLessThanOrEqual(tileBox.x + tileBox.width)
     expect(slot.y + slot.height).toBeLessThanOrEqual(tileBox.y + tileBox.height)
     expect(await edgeColumnsAreFlat(page, tile)).toEqual([])
+    // Grey slot on a clear tile: the hover state reads as the paper ring.
+    await tile.hover()
+    await expect.poll(tileState(tile)).toMatchObject({
+      tileBg: 'rgba(0, 0, 0, 0)',
+      ring: PAPER_HOVER,
+    })
+    await page.mouse.move(0, 899)
   }
 })
 

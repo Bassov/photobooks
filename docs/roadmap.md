@@ -78,6 +78,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [lite] [worker-ctx-trim](roadmap/P2/worker-ctx-trim.md) — worker-ctx-trim: compact preflight output and a short must-read for unattended workers
 - [x] [feature] [parent-spreads](roadmap/P2/parent-spreads.md) — parent spreads
 - [x] [feature] [parent-spreads-edit](roadmap/P2/parent-spreads-edit.md) — parent spreads: edit in Masters mode
+- [x] [feature] [layout-tile-states](roadmap/P2/layout-tile-states.md) — Bug: Layout tiles: hover/selected on the paper, thumb box follows the trim
 - [x] [feature] [prod-kit-fixes](roadmap/P2/prod-kit-fixes.md) — Bug: prod differs from kit in 3 places (Designer kit-sync Spec P1–P3)
 - [x] [feature] [kit-sync-book](roadmap/P2/kit-sync-book.md) — Kit sync W4: pastedown caption, cover inspector, library card title
 - [x] [lite] [rig-bump-0-2-21](roadmap/P2/rig-bump-0-2-21.md) — rig-bump-0-2-21: bump ts-agent-rig to v0.2.21 (compact preflight run card)

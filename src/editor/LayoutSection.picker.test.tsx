@@ -115,9 +115,16 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
   it('regenerates thumbnails when the trim size changes', () => {
     seed()
     render(<LayoutSection spreadId="s1" />)
+    const thumb = () =>
+      screen.getAllByTestId('layout-thumb')[0]?.getAttribute('style')
     const paper = () =>
       screen.getAllByTestId('layout-thumb-paper')[0]?.getAttribute('style')
-    const before = paper()
+    const grid = () => screen.getByTestId('tpl-grid').className
+    // A square page: square thumbs filled by the paper, 3 columns.
+    expect(thumb()).toBe('aspect-ratio: 1 / 1;')
+    expect(paper()).toBe('left: 0%; top: 0%; width: 100%; height: 100%;')
+    expect(grid()).toContain('grid-cols-3')
+    expect(grid()).not.toContain('grid-cols-2')
     act(() => {
       resetBookStore({
         book: makeBook({
@@ -132,9 +139,11 @@ describe('LayoutSection picker (kit context-inspector.tsx:131-195)', () => {
         importExpectedCount: 0,
       })
     })
-    expect(before).toBe('left: 25%; top: 0%; width: 50%; height: 100%;')
-    expect(paper()).not.toBe(before)
+    // A 2:1 page: 2:1 thumbs, still filled, 2 columns.
+    expect(thumb()).toBe('aspect-ratio: 2 / 1;')
     expect(paper()).toBe('left: 0%; top: 0%; width: 100%; height: 100%;')
+    expect(grid()).toContain('grid-cols-2')
+    expect(grid()).not.toContain('grid-cols-3')
   })
 
   // Owner 2026-11-02: one list from one photo up, no Suggested / All split.
