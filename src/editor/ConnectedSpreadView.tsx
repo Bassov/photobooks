@@ -8,6 +8,7 @@ import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import {
   getBookStoreSnapshot,
   getSpreadPaintSnapshot,
+  isBulkRepaint,
   subscribeSpread,
 } from './bookStore'
 import { GridOverlay, type GridOverlayVariant } from './GridOverlay'
@@ -88,15 +89,15 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   /** Overrides the DPI view flag (Preview passes `false`). */
   lowDpiBadge?: boolean
 }) {
-  // Deferred: a commit that repaints many spreads (a master grid edit re-aligns
-  // all its users) renders them in a yielding pass after the urgent update.
-  const snapshot = useDeferredValue(
-    useSyncExternalStore(
-      (listener) => subscribeSpread(spreadId, listener),
-      () => getSpreadPaintSnapshot(spreadId),
-      () => getSpreadPaintSnapshot(spreadId),
-    ),
+  const liveSnapshot = useSyncExternalStore(
+    (listener) => subscribeSpread(spreadId, listener),
+    () => getSpreadPaintSnapshot(spreadId),
+    () => getSpreadPaintSnapshot(spreadId),
   )
+  // A bulk repaint (a master grid edit re-aligns all its users) renders in a
+  // yielding pass after the urgent update; a single-spread edit paints now.
+  const deferredSnapshot = useDeferredValue(liveSnapshot)
+  const snapshot = isBulkRepaint() ? deferredSnapshot : liveSnapshot
   const zoom = useSyncExternalStore(
     subscribeCommitted,
     getCommittedZoom,

@@ -25,6 +25,7 @@ import {
   getGalleryIdsSnapshot,
   getSpacerCountSnapshot,
   getSpreadPaintSnapshot,
+  isBulkRepaint,
   mintAssetId,
   patchAssetRecord,
   removeFailedImportAsset,
@@ -1639,6 +1640,35 @@ describe('bookStore spread paint covers the parent layer', () => {
     })
 
     expect(gridEdit).toEqual({ notified: ['pA'], invalidated: ['pA'] })
+  })
+
+  it('flags a publish repainting more than 8 spreads as a bulk repaint', () => {
+    const spread = (index: number) =>
+      makeSpread({
+        id: `s${String(index)}`,
+        frames: [makeFrame({ id: `s${String(index)}-f` })],
+      })
+    resetBookStore({
+      book: makeBook({
+        spreads: Array.from({ length: 9 }, (_, i) => spread(i)),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+
+    dispatchBookOp({ type: 'setPageColor', color: '#e6e6e6' })
+    const afterShared = isBulkRepaint()
+    dispatchBookOp({
+      type: 'moveFrame',
+      spreadId: 's0',
+      frameId: 's0-f',
+      dx: 5,
+      dy: 0,
+    })
+
+    expect(afterShared).toBe(true)
+    expect(isBulkRepaint()).toBe(false)
   })
 
   it('a spread edit or parent switch repaints that spread only', () => {

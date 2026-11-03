@@ -124,6 +124,9 @@ const spreadListeners = new Map<string, Set<Listener>>()
 
 /** Only `notifyAffectedSpreads` drops entries: every state transition runs it. */
 const paintCache = new Map<string, SpreadPaintSnapshot>()
+/** Spreads one publish repaints above which `isBulkRepaint` holds. */
+const BULK_REPAINT_SPREADS = 8
+let bulkRepaint = false
 let assetSeq = 0
 let flushScheduled = false
 let flushWatchdogTimer: ReturnType<typeof setTimeout> | undefined
@@ -1158,12 +1161,23 @@ function notifyAffectedSpreads(
   const before = paintSources(prev.book)
   const after = paintSources(next.book)
   const sharedSame = sharedPaintInputsSame(prev, next)
-  for (const id of new Set([...before.keys(), ...after.keys()])) {
-    if (paintChanged(prev, next, before.get(id), after.get(id), sharedSame)) {
-      paintCache.delete(id)
-      notifySpread(id)
-    }
+  const changed = [...new Set([...before.keys(), ...after.keys()])].filter(
+    (id) => paintChanged(prev, next, before.get(id), after.get(id), sharedSame),
+  )
+  bulkRepaint = changed.length > BULK_REPAINT_SPREADS
+  for (const id of changed) {
+    paintCache.delete(id)
+    notifySpread(id)
   }
+}
+
+/**
+ * True when the last publish repainted more than `BULK_REPAINT_SPREADS`
+ * spreads (a master edit re-aligning its users): views defer that repaint to
+ * a yielding render so the edit's own task stays short.
+ */
+export function isBulkRepaint(): boolean {
+  return bulkRepaint
 }
 
 /** Test helper: replace store state immediately. */
