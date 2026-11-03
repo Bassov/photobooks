@@ -46,7 +46,7 @@ const src = (id: string) => (id.startsWith("hi/") ? hiPhoto(id.slice(3)) : P(id)
 const pages = (b: SiteBook) => pagesOf(b.spreads.length + 1)
 const cover = (b: SiteBook, h: number) => <BookObject src={src(b.cover)} title={b.title} fmt={b.fmt} h={h} ink={b.ink} place={b.place} />
 
-const focus = "outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#535152]"
+const focus = "outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#535152]"
 const eyebrow = "text-2xs font-semibold uppercase leading-none tracking-[.12em] text-[#535152]"
 const pill = "inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm transition-colors [&_svg]:size-4"
 // kit quietBtn (site-viewer)
@@ -81,12 +81,12 @@ function SiteSpread({ b, i, w, bare, onOpen }: { b: SiteBook; i: number; w: numb
   // content-visibility clips paint to its box: the wrapper's 48 px pad keeps the paper shadow and page numbers visible
   return (
     <div className="pointer-events-none" style={{ padding: 48, margin: -48, contentVisibility: "auto", containIntrinsicSize: `${w}px ${h}px` }}>
-      <button type="button" className="group pointer-events-auto relative block cursor-zoom-in outline-hidden focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#535152]" style={{ width: w, height: h }}
+      <button type="button" className="group pointer-events-auto relative block cursor-zoom-in outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#535152]" style={{ width: w, height: h }}
         onClick={(e) => onOpen?.(e.currentTarget)} aria-label={`${spreadLabel(i, b.spreads.length + 1)}, open fullscreen`} data-testid="ps-spread" data-index={i}>
         {art}
         {num(2 * i, pw / 2)}
         {!last && num(2 * i + 1, pw * 1.5)}
-        <span className="absolute right-3 top-3 inline-flex h-7 items-center gap-1.5 rounded-full bg-[rgb(0_0_0/.45)] px-2.5 text-xs font-medium leading-none text-white opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none [&_svg]:size-[14px]" aria-hidden><Maximize2 />Fullscreen</span>
+        <span className="absolute right-3 top-3 inline-flex h-7 items-center gap-1.5 rounded-full bg-[rgb(0_0_0/.45)] px-2.5 text-xs font-medium leading-none text-white opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none [&_svg]:size-[14px]" style={last ? { right: pw + 12 } : undefined} aria-hidden data-testid="ps-chip"><Maximize2 />Fullscreen</span>
       </button>
     </div>
   )
