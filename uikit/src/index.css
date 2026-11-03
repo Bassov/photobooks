@@ -301,6 +301,10 @@ input[type=range].e7-range:active::-webkit-slider-runnable-track { background: l
 input[type=range].e7-range::-webkit-slider-thumb { width: 14px; height: 14px; margin-top: -5.5px; background: #F7F7F7; box-shadow: 0 1px 3px rgb(0 0 0/.22); }
 input[type=range].e7-range:active::-webkit-slider-thumb { box-shadow: 0 1px 3px rgb(0 0 0/.22), 0 0 0 4px rgb(0 0 0/.06); }
 
+/* kit-sync KS15: Book settings Page size select — chevron-down 16 px like every kit menu trigger (prod .pb-select), not v7's
+   triangle caret. Unlayered and `select.` beats v7.tsx's injected `.e7-sel`. */
+select.e7-sel { padding-right: 32px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b696a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 8px center; background-size: 16px 16px; background-repeat: no-repeat; }
+
 /* v7 toggles: ON #A8A8A8 (hover #8E8E8E) · OFF #CACACA · knob #F7F7F7 soft shadow. Swatch selected: 2px #8E8E8E ring, 2px offset. */
 .sw-track { background: #CACACA; }
 .group[data-selected] .sw-track { background: #A8A8A8; }
