@@ -8,3 +8,9 @@
 1. `#/feature/site-viewer`: Tab to a book → ring; open the book, Tab to Share / Fullscreen / Next spread → 2 px solid ring; click Share with the mouse → no ring.
 2. `#/feature/recents-home`: Tab to Search and Sort → 2 px solid ring.
 3. Tab to the Credits link, the kit index demo link and `slider-value` → 2 px solid ring; numbers go in the PR.
+
+`pnpm agent manual-qa` drives the prod editor only, so the kit is checked by kit qa and Playwright DOM sweeps over `uikit/dist`:
+
+- OK 1: kit qa `site-viewer` — 10 controls `solid 2px` (catalog, book page, Fullscreen); mouse click on Next spread → `none`.
+- OK 2: kit qa `recents-home` — `lib-search-input` (ring on the label) and `lib-sort` `solid 2px`.
+- OK 3: `demo-link`, Credits links, `slider-value`, `create-custom-w/h`, `cover-text-*`, `master-field-link`, `spread-grid-reset-G` — all `solid 2px` on keyboard focus.
