@@ -12,3 +12,9 @@
 1. `/` with `showDirectoryPicker` removed, Safari Mac UA, 1440×900: other variant, "Safari", dark primary pill with light text, browser pills without bullets, Copy link → Link copied.
 2. Same at 390×844 with an iPhone UA: mobile variant, full-width Copy link, no horizontal scroll.
 3. Kit `#/demo`, `__demo.unsupported("no-api")`: Reload primary + Get Google Chrome secondary, tips list.
+
+`pnpm agent manual-qa` (2026-11-03): harness problem — its smoke clicks `start-session` on welcome (intercepted by the header) and cannot set a UA or remove the picker, so scenarios 1–3 could not run there. Evidence instead:
+
+- 1 OK — e2e `unsupported browser page matches the kit spec on Safari at 1440×900` (Safari named, Get Chrome rgb(242,242,242) on rgb(35,34,35), no underline, list-style none, title 400 / 32 px, Mark 56,36) + `unsupported browser blocks when directory picker is missing` (Copy link → Link copied).
+- 2 OK — e2e `unsupported browser shows the mobile variant on an iPhone at 390×844` (mobile, Copy link 20 / 350 × 44, docW == vw; 320 px case in test 1).
+- 3 OK — kit capture `66-unsupported-no-api.png` + DOM dump: Reload primary 440,470 200×40, Get Google Chrome secondary, three tips; kit = prod.
