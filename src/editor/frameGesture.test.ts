@@ -1382,7 +1382,7 @@ describe('frameGesture · marquee on the paper', () => {
     spread = mount().spread
     // The parent item paints inert under the own frames: a press there is paper.
     const parentItem = document.createElement('div')
-    parentItem.setAttribute('data-frame-id', 'pf')
+    parentItem.className = 'spread-frame'
     spread.prepend(parentItem)
     resetFrameSelection()
     stop = installFrameGesture()
@@ -1414,7 +1414,14 @@ describe('frameGesture · marquee on the paper', () => {
       'left: 110px; top: 100px; width: 350px; height: 170px;',
     )
     expect(box()?.getAttribute('data-testid')).toBe('marquee')
+    expect(box()?.getAttribute('aria-hidden')).toBe('true')
     expect(getFrameSelection()).toBeNull()
+    // Shallow: y 35..60 mm stops above a (from y 100).
+    pointer('pointermove', window, 120, 60)
+    expect(marked()).toEqual(['b'])
+    // A hit that leaves and comes back is outlined again.
+    pointer('pointermove', window, 210, 120)
+    expect(marked()).toEqual(['a', 'b', 'c'])
     pointer('pointermove', window, 120, 120)
     expect(marked()).toEqual(['a', 'b'])
     pointer('pointerup', window, 120, 120)
@@ -1430,12 +1437,59 @@ describe('frameGesture · marquee on the paper', () => {
   })
 
   it('starts on a parent item and never hits it or another spread', () => {
-    const parentItem = spread.querySelector('div[data-frame-id="pf"]')
+    const parentItem = spread.querySelector('div.spread-frame')
     assert(parentItem !== null)
     pointer('pointerdown', parentItem, 1, 1)
     pointer('pointermove', window, 299, 299)
     pointer('pointerup', window, 299, 299)
     expect(getFrameSelection()?.frameIds).toEqual(['b', 'a', 'c', 'd'])
+  })
+
+  it('starts at exactly 3 px, and with Shift over no selection', () => {
+    pointer('pointerdown', spread, 35, 35, { shiftKey: true })
+    // 3 client px = 1.5 mm at 2 px / mm.
+    pointer('pointermove', window, 36.5, 35)
+    expect(box()).not.toBeNull()
+    pointer('pointerup', window, 36.5, 35)
+    expect(getFrameSelection()?.frameIds).toEqual(['b'])
+  })
+
+  it('selects a frame whose button is not mounted', () => {
+    spread.querySelector('button[data-frame-id="c"]')?.remove()
+    pointer('pointerdown', spread, 190, 40)
+    pointer('pointermove', window, 210, 60)
+    expect(marked()).toEqual([])
+    pointer('pointermove', window, 290, 60)
+    pointer('pointermove', window, 210, 60)
+    pointer('pointerup', window, 210, 60)
+    expect(getFrameSelection()?.frameIds).toEqual(['c'])
+  })
+
+  it('starts nothing (no listeners) off the paper or on a spread it cannot read', () => {
+    const added = vi.spyOn(window, 'addEventListener')
+    const outside = document.createElement('div')
+    document.body.append(outside)
+    pointer('pointerdown', outside, 35, 35)
+    const unknown = document.createElement('div')
+    unknown.setAttribute('data-testid', 'spread-view')
+    unknown.setAttribute('data-spread-id', 'nope')
+    unknown.getBoundingClientRect = () => new DOMRect(40, 30, 600, 600)
+    document.body.append(unknown)
+    pointer('pointerdown', unknown, 35, 35)
+    spread.getBoundingClientRect = () => new DOMRect(40, 30, 0, 600)
+    pointer('pointerdown', spread, 35, 35)
+    // A filled-frame body press with Select is the photo drag's.
+    const frame = spread.querySelector<HTMLElement>('button[data-frame-id="a"]')
+    assert(frame !== null)
+    frame.setAttribute('data-filled', 'true')
+    pointer('pointerdown', frame, 120, 120)
+    const types = added.mock.calls.map(([type]) => type)
+    added.mockRestore()
+    outside.remove()
+    unknown.remove()
+    expect(types).not.toContain('pointermove')
+    pointer('pointermove', window, 120, 120)
+    expect(box()).toBeNull()
   })
 
   it('leaves a press under 3 px to the click', () => {
@@ -1504,6 +1558,10 @@ describe('frameGesture · marquee on the paper', () => {
     const select = new Event('selectstart', { bubbles: true, cancelable: true })
     pointer('pointerdown', spread, 35, 35)
     spread.dispatchEvent(drag)
+    // Capture: a target that stops the bubble cannot let the selection start.
+    spread.addEventListener('selectstart', (event) => {
+      event.stopPropagation()
+    })
     spread.dispatchEvent(select)
     expect(drag.defaultPrevented).toBe(true)
     expect(select.defaultPrevented).toBe(true)

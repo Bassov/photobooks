@@ -480,7 +480,9 @@ export function installFrameGesture(): () => void {
         locked: frame.locked === true,
         saved: { left: frameEl.style.left, top: frameEl.style.top },
       }
-    } else if (tool === 'select' && frameEl === null) {
+    } else if (tool === 'select') {
+      // Bare paper or a parent item (`div.spread-frame`); own frames are
+      // buttons and never start one.
       const marquee = marqueeSession(event)
       if (marquee === null) {
         return

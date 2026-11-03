@@ -329,15 +329,36 @@ describe('Pasteboard marquee from the gray', () => {
     expect(getFrameSelection()?.frameIds).toEqual(all)
   })
 
-  it('keeps the box inside the scrollport; a scrollbar press starts none', () => {
+  it('keeps the box inside the scrollport; scrollbars and empty gray start none', () => {
+    // Client box: borders 4 / 6 px, 500 × 300 inside, so x 4..504, y 6..306.
+    for (const [key, value] of Object.entries({
+      clientLeft: 4,
+      clientTop: 6,
+      clientWidth: 500,
+      clientHeight: 300,
+    })) {
+      Object.defineProperty(port(), key, { configurable: true, value })
+    }
     fire('pointerdown', 10, topLeft.cy)
-    fire('pointermove', 900, topLeft.cy)
-    expect(box()?.style.width).toBe('490px')
-    fire('pointerup', 900, topLeft.cy)
-    fire('pointerdown', 505, topLeft.cy)
-    fire('pointermove', 300, topLeft.cy + 50)
-    expect(box()).toBeNull()
-    fire('pointerup', 300, topLeft.cy + 50)
+    fire('pointermove', -50, 0)
+    expect(box()?.style.cssText).toBe(
+      `left: 4px; top: 6px; width: 6px; height: ${String(topLeft.cy - 6)}px;`,
+    )
+    fire('pointermove', 900, 900)
+    expect(box()?.style.width).toBe('494px')
+    expect(box()?.style.height).toBe(`${String(306 - topLeft.cy)}px`)
+    fire('pointerup', 900, 900)
+    // The scrollbars (x ≥ 504 or y ≥ 306) and gray outside every row.
+    for (const [x, y] of [
+      [504, topLeft.cy],
+      [300, 306],
+      [300, 50],
+    ] as const) {
+      fire('pointerdown', x, y)
+      fire('pointermove', 200, y - 40)
+      expect(box()).toBeNull()
+      fire('pointerup', 200, y - 40)
+    }
   })
 
   it('pans with the Hand tool instead', () => {

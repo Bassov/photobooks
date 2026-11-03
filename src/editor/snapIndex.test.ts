@@ -508,6 +508,10 @@ describe('frame hit index', () => {
       'left',
       'low',
     ])
+    // The rect's right edge on the left edge of `right` (x 100).
+    expect(hitFrames(index, { x: 90, y: 0, width: 10, height: 5 })).toEqual([
+      'right',
+    ])
     expect(hitFrames(index, { x: 41, y: 21, width: 58, height: 78 })).toEqual(
       [],
     )
