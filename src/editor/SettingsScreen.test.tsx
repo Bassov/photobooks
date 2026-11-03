@@ -42,6 +42,15 @@ describe('SettingsScreen', () => {
     expect(measure).toHaveBeenCalledTimes(1)
   })
 
+  it('shows a muted dash for an unknown book count and 0 for an empty library', () => {
+    const view = render(<SettingsScreen libraryPath="Lib" bookCount={null} />)
+    const count = screen.getByTestId('settings-book-count')
+    expect(count.textContent).toBe('—')
+    expect(count.className).toContain('text-muted-foreground')
+    view.rerender(<SettingsScreen libraryPath="Lib" bookCount={0} />)
+    expect(screen.getByTestId('settings-book-count').textContent).toBe('0')
+  })
+
   it('shows library path and live book count', () => {
     render(<SettingsScreen libraryPath="Summer Lib" bookCount={3} />)
     expect(screen.getByTestId('settings')).toBeTruthy()

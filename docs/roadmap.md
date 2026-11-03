@@ -74,6 +74,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [unsupported-browser](roadmap/P2/unsupported-browser.md) — Bug: /next-roadmap-item unsupported-browser
 - [x] [feature] [multi-select-inspector](roadmap/P2/multi-select-inspector.md) — multi-selection inspector: align, distribute, arrange, delete
 - [x] [feature] [inspector-empty-after-grey](roadmap/P2/inspector-empty-after-grey.md) — Bug: /next-roadmap-item inspector-empty-after-grey
+- [x] [feature] [settings-books-count-flash](roadmap/P2/settings-books-count-flash.md) — Bug: /next-roadmap-item settings-books-count-flash
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions
 - [ ] [feature] [live-captions](roadmap/P2/live-captions.md) — captions from photo metadata
 - [x] [feature] [frame-styles](roadmap/P2/frame-styles.md) — consistent frames across the book

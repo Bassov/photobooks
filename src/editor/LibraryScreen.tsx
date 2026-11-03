@@ -76,6 +76,11 @@ export function LibraryScreen() {
   // a flash of LibraryEmpty swaps its Create book for the header one mid-click.
   const [booksListed, setBooksListed] = useState(false)
   const [listFailed, setListFailed] = useState(false)
+  // Library id `books` was listed for (`undefined`: none yet or failed). The
+  // Settings count shows a dash otherwise, never another library's number.
+  const [listedFor, setListedFor] = useState<string | null | undefined>(
+    undefined,
+  )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsMounted, setSettingsMounted] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -96,6 +101,7 @@ export function LibraryScreen() {
       return
     }
     const ac = new AbortController()
+    const libraryId = project.libraryId
     void listLibraryBooks().then((listed) => {
       if (ac.signal.aborted) {
         return
@@ -104,10 +110,12 @@ export function LibraryScreen() {
       if (!listed.ok) {
         setListFailed(true)
         setBooks([])
+        setListedFor(undefined)
         return
       }
       setListFailed(false)
       setBooks(listed.value)
+      setListedFor(libraryId)
     })
     return () => {
       ac.abort()
@@ -120,14 +128,17 @@ export function LibraryScreen() {
   ])
 
   const refreshBooks = async (): Promise<void> => {
+    const libraryId = project.libraryId
     const listed = await listLibraryBooks()
     if (!listed.ok) {
       setListFailed(true)
       setBooks([])
+      setListedFor(undefined)
       return
     }
     setListFailed(false)
     setBooks(listed.value)
+    setListedFor(libraryId)
   }
 
   const gridBooks = useMemo(
@@ -526,7 +537,7 @@ export function LibraryScreen() {
           <div className="min-h-0 flex-1">
             <SettingsScreen
               libraryPath={folderName}
-              bookCount={books.length}
+              bookCount={listedFor === project.libraryId ? books.length : null}
               changeDisabled={busy}
             />
           </div>

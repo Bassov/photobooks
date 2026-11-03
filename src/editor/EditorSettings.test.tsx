@@ -78,7 +78,45 @@ describe('editor top bar Settings', () => {
     ).toContain('.pb-button.pb-settings-back')
   })
 
-  it('keeps the count at 0 when listing fails', async () => {
+  it('shows a dash while the list is pending, then the listed count', async () => {
+    let resolve: (value: Listed) => void = () => undefined
+    vi.spyOn(projectSession, 'listLibraryBooks').mockReturnValue(
+      new Promise<Listed>((r) => {
+        resolve = r
+      }),
+    )
+    render(
+      <EditorSettings
+        libraryPath="Photobooks"
+        changeDisabled={false}
+        onClose={() => undefined}
+      />,
+    )
+    expect(screen.getByTestId('settings-book-count').textContent).toBe('—')
+    resolve(twoBooks())
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-book-count').textContent).toBe('2')
+    })
+  })
+
+  it('shows 0 for a library with no books', async () => {
+    vi.spyOn(projectSession, 'listLibraryBooks').mockResolvedValue({
+      ok: true,
+      value: [],
+    })
+    render(
+      <EditorSettings
+        libraryPath="Photobooks"
+        changeDisabled={false}
+        onClose={() => undefined}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-book-count').textContent).toBe('0')
+    })
+  })
+
+  it('keeps the dash when listing fails', async () => {
     const spy = vi
       .spyOn(projectSession, 'listLibraryBooks')
       .mockResolvedValue({ ok: false, error: { kind: 'io' } } as never)
@@ -93,7 +131,7 @@ describe('editor top bar Settings', () => {
       expect(spy).toHaveBeenCalledTimes(1)
     })
     await Promise.resolve()
-    expect(screen.getByTestId('settings-book-count').textContent).toBe('0')
+    expect(screen.getByTestId('settings-book-count').textContent).toBe('—')
   })
 
   it('ignores a listing that lands after unmount', async () => {

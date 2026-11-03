@@ -214,6 +214,72 @@ describe('LibraryScreen', () => {
     expect(screen.queryByTestId('library-books')).toBeNull()
   })
 
+  it('Settings count is a dash until the current library is listed', async () => {
+    setSurfaceForTests('library')
+    type Listed = Awaited<ReturnType<typeof projectSession.listLibraryBooks>>
+    const resolvers: ((value: Listed) => void)[] = []
+    vi.spyOn(projectSession, 'listLibraryBooks').mockImplementation(
+      () =>
+        new Promise<Listed>((resolve) => {
+          resolvers.push(resolve)
+        }),
+    )
+    render(<LibraryScreen />)
+    fireEvent.click(screen.getByTestId('library-settings'))
+    const count = () => screen.getByTestId('settings-book-count').textContent
+    expect(count()).toBe('—')
+    resolvers[0]?.({ ok: true, value: [{ id: 'a', title: 'A' }] })
+    await waitFor(() => {
+      expect(count()).toBe('1')
+    })
+
+    // Another library: its own listing is pending, the old "1" must go.
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    await waitFor(() => {
+      expect(resolvers).toHaveLength(2)
+    })
+    expect(count()).toBe('—')
+    resolvers[1]?.({ ok: true, value: [] })
+    await waitFor(() => {
+      expect(count()).toBe('0')
+    })
+  })
+
+  it('Settings count is a dash after a failed listing, the count after retry', async () => {
+    const attached = await attachMemoryLibraryForTests()
+    expect(attached.ok).toBe(true)
+    setSurfaceForTests('library')
+    vi.spyOn(projectSession, 'renameBookInLibrary').mockResolvedValue({
+      ok: true,
+      value: undefined,
+    })
+    vi.spyOn(projectSession, 'listLibraryBooks')
+      .mockResolvedValueOnce({ ok: false, code: 'not-found' })
+      .mockResolvedValueOnce({ ok: true, value: [{ id: 'b1', title: 'Old' }] })
+      .mockResolvedValueOnce({ ok: false, code: 'not-found' })
+    render(<LibraryScreen />)
+    await waitFor(() => {
+      expect(screen.getByTestId('library-retry')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByTestId('library-settings'))
+    const count = () => screen.getByTestId('settings-book-count').textContent
+    expect(count()).toBe('—')
+    fireEvent.click(screen.getByTestId('library-retry'))
+    await waitFor(() => {
+      expect(count()).toBe('1')
+    })
+    // A refresh (after rename) that fails drops the count back to the dash.
+    fireEvent.click(screen.getByTestId('book-menu-b1'))
+    fireEvent.click(await screen.findByTestId('library-rename-b1'))
+    const input = await screen.findByTestId('rename-input')
+    fireEvent.change(input, { target: { value: 'New' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => {
+      expect(count()).toBe('—')
+    })
+  })
+
   it('ignores list results after unmount', async () => {
     const attached = await attachMemoryLibraryForTests()
     expect(attached.ok).toBe(true)
