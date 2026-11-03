@@ -9,6 +9,7 @@ import {
   GRID_FIELDS,
   clampGridValue,
   effectiveGrid,
+  gridFieldSource,
   patchGridOverride,
   mergeLayoutGrid,
   readGridField,
@@ -243,14 +244,18 @@ describe('master (parent) level', () => {
     ...(layoutGrid === undefined ? {} : { layoutGrid }),
   })
 
-  /** Whether a partial grid level stores `field` (margins live in `margins`). */
-  function setsField(level: GridOverride | undefined, field: GridField) {
+  /** The value a partial grid level stores for `field` (margins live in `margins`). */
+  function levelValue(level: GridOverride | undefined, field: GridField) {
     const margin =
       field === 'top' ||
       field === 'bottom' ||
       field === 'inside' ||
       field === 'outside'
-    return (margin ? level?.margins?.[field] : level?.[field]) !== undefined
+    return margin ? level?.margins?.[field] : level?.[field]
+  }
+
+  function setsField(level: GridOverride | undefined, field: GridField) {
+    return levelValue(level, field) !== undefined
   }
 
   it('a field set only by the master reads source master', () => {
@@ -369,6 +374,56 @@ describe('master (parent) level', () => {
           expect(source[field]).toBe(expected)
         }
       }),
+      runs,
+    )
+  })
+
+  const arbGrid: fc.Arbitrary<Book['layoutGrid']> = fc.record({
+    columns: fc.integer({ min: 1, max: 12 }),
+    rows: fc.integer({ min: 1, max: 12 }),
+    columnGutterMm: fc.integer({ min: 0, max: 10 }),
+    rowGutterMm: fc.integer({ min: 0, max: 10 }),
+    margins: fc.record({ top: mm, bottom: mm, inside: mm, outside: mm }),
+  })
+
+  it('every field is spread ?? master ?? book and its source names that level', () => {
+    fc.assert(
+      fc.property(
+        arbGrid,
+        fc.option(arbPartial, { nil: undefined }),
+        fc.option(arbPartial, { nil: undefined }),
+        fc.boolean(),
+        (bookGrid, masterGrid, spreadGrid, usesMaster) => {
+          const spread = makeSpread({
+            id: 's',
+            ...(usesMaster ? { parentId: 'pa' } : {}),
+            ...(spreadGrid === undefined ? {} : { layoutGrid: spreadGrid }),
+          })
+          const book = makeBook({
+            layoutGrid: bookGrid,
+            spreads: [spread],
+            parents: [master(masterGrid)],
+          })
+          const { values, source } = effectiveGrid(book, spread)
+          for (const field of GRID_FIELDS) {
+            const own = levelValue(spreadGrid, field)
+            const inherited = usesMaster
+              ? levelValue(masterGrid, field)
+              : undefined
+            expect(values[field]).toBe(
+              own ?? inherited ?? readGridField(bookGrid, field),
+            )
+            const expected =
+              own !== undefined
+                ? 'spread'
+                : inherited !== undefined
+                  ? 'master'
+                  : 'book'
+            expect(source[field]).toBe(expected)
+            expect(gridFieldSource(book, spread, field)).toBe(expected)
+          }
+        },
+      ),
       runs,
     )
   })

@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { spreadParent } from '../parentSpreads'
 import { parseBook } from '../parse'
 import type { Book, ParentSpread, Spread } from '../schema'
-import { makeBook, makeSpread } from '../testing/fixtures'
+import { applyTemplate } from '../templates/apply'
+import { makeBook, makeFrame, makeSpread } from '../testing/fixtures'
 import { applyBookOp } from './applyBookOp'
 import { setSpreadBackground, setSpreadParent } from './spreadLook'
 
@@ -170,6 +171,51 @@ describe('setSpreadParent', () => {
     const parsed = parseBook(JSON.parse(JSON.stringify(next)))
 
     expect(parsed.ok && parsed.book.spreads[1]?.parentId).toBeNull()
+  })
+
+  it('re-aligns the templated spread to its new parent grid, keeping placements', () => {
+    const raw: Book = {
+      ...makeBook({
+        assets: { p: {} },
+        gallery: ['p'],
+        spreads: [
+          makeSpread({
+            id: 'a',
+            templateId: '2-up',
+            frames: [makeFrame({ id: 'a-f0', assetId: 'p' })],
+          }),
+          makeSpread({ id: 'b', templateId: '2-up' }),
+        ],
+      }),
+      parents: [
+        { ...parent('p1'), layoutGrid: { columnGutterMm: 30 } },
+        parent('p2'),
+      ],
+    }
+    const start = ['a', 'b'].reduce(
+      (acc, id) => applyTemplate(acc, id, '2-up'),
+      raw,
+    )
+
+    const applied = applyBookOp(start, {
+      type: 'setSpreadParent',
+      spreadId: 'a',
+      parentId: 'p1',
+    })
+    const back = applyBookOp(applied, {
+      type: 'setSpreadParent',
+      spreadId: 'a',
+      parentId: null,
+    })
+
+    const rect = (b: Book) => b.spreads[0]?.frames[0]?.rect
+    expect(rect(applied)).not.toEqual(rect(start))
+    expect(applied.spreads[0]?.frames[0]?.assetId).toBe('p')
+    expect(applyTemplate(applied, 'a', '2-up')).toBe(applied)
+    expect(applied.spreads[1]).toBe(start.spreads[1])
+    expect(rect(back)).toEqual(rect(start))
+    // `raw` is not aligned yet: keeping the parent must not re-align it.
+    expect(setSpreadParent(raw, 'a', null)).toBe(raw)
   })
 
   it('drops a stored legacy masterId at load', () => {

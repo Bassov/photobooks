@@ -208,7 +208,8 @@ describe('GridOverlay', () => {
           patch: { columns: 4 },
         })
       })
-      expect(commits.get('s1')).toBe((before.get('s1') ?? 0) + 1)
+      // Urgent pass with the old pages, then the deferred pass with the new.
+      expect(commits.get('s1')).toBe((before.get('s1') ?? 0) + 2)
       expect(commits.get('s3')).toBe(before.get('s3'))
     })
 

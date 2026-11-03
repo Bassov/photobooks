@@ -49,7 +49,8 @@ export function readGridField(grid: Grid, field: GridField): number {
   return isMarginField(field) ? grid.margins[field] : grid[field]
 }
 
-function readOverrideField(
+/** The value one grid level (spread or master override) stores for `field`. */
+export function readOverrideField(
   override: GridOverride | undefined,
   field: GridField,
 ): number | undefined {
@@ -57,14 +58,6 @@ function readOverrideField(
     return undefined
   }
   return isMarginField(field) ? override.margins?.[field] : override[field]
-}
-
-/** The spread's override of one field, if any. */
-export function spreadOverrideValue(
-  spread: Spread,
-  field: GridField,
-): number | undefined {
-  return readOverrideField(spread.layoutGrid, field)
 }
 
 /** True when the spread overrides this single field. */
@@ -134,6 +127,15 @@ function fieldSource(
     return 'spread'
   }
   return readOverrideField(parentGrid, field) === undefined ? 'book' : 'master'
+}
+
+/** The level one field of the spread's effective grid comes from. */
+export function gridFieldSource(
+  book: Book,
+  spread: Spread,
+  field: GridField,
+): GridSource {
+  return fieldSource(field, spread, parentGridOf(book, spread))
 }
 
 export function effectiveGrid(
@@ -323,4 +325,21 @@ export function patchGridOverride(
     next.margins = margins
   }
   return next
+}
+
+/** `override` without `fields`; `undefined` once no field is left. */
+export function clearGridOverrideFields(
+  override: GridOverride | undefined,
+  fields: readonly GridField[],
+): GridOverride | undefined {
+  const kept: GridPatch = {}
+  for (const field of GRID_FIELDS) {
+    const value = readOverrideField(override, field)
+    if (value !== undefined && !fields.includes(field)) {
+      kept[field] = value
+    }
+  }
+  return Object.keys(kept).length === 0
+    ? undefined
+    : patchGridOverride(undefined, kept)
 }

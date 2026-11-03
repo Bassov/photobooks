@@ -108,6 +108,7 @@ const OP_LABELS: Partial<Record<BookOp['type'], string>> = {
   setBookGrid: 'Change grid',
   setSpreadGrid: 'Change grid',
   resetSpreadGrid: 'Reset grid',
+  resetSpreadGridFields: 'Reset grid value',
   addGuide: 'Add guide',
   moveGuide: 'Move guide',
   removeGuide: 'Delete guide',

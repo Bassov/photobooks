@@ -73,6 +73,38 @@ async function columnsPerPage(page: Page): Promise<Record<string, number[]>> {
     )
 }
 
+/** Width share of each mounted spread taken by its first template frame, by id. */
+async function frameShares(page: Page): Promise<Record<string, number>> {
+  return page
+    .getByTestId('pasteboard-scroll')
+    .locator('[data-testid="spread-view"]')
+    .evaluateAll((nodes) =>
+      Object.fromEntries(
+        nodes.map((node) => {
+          const id = node.getAttribute('data-spread-id') ?? ''
+          const frame = node.querySelector(`[data-frame-id="${id}-f0"]`)
+          const width = node.getBoundingClientRect().width
+          return [
+            id,
+            frame === null || width === 0
+              ? 0
+              : frame.getBoundingClientRect().width / width,
+          ]
+        }),
+      ),
+    )
+}
+
+/** Ids whose first frame share changed between two `frameShares` reads. */
+function movedSpreads(
+  before: Record<string, number>,
+  after: Record<string, number>,
+): string[] {
+  return Object.keys(before).filter(
+    (id) => Math.abs((after[id] ?? 0) - (before[id] ?? 0)) > 0.001,
+  )
+}
+
 async function setSpreadNone(page: Page, spreadId: string) {
   await page.getByTestId(`spread-list-item-${spreadId}`).click()
   const none = page
@@ -120,6 +152,26 @@ test('Browser check: Master A at 5 columns shows on the master and every spread 
   expect(columns[NONE_SPREAD]).toEqual([2, 2])
   expect(Object.keys(columns)).toHaveLength(40)
   await assertDocumentFitsViewport(page)
+})
+
+test('GP7: a Master A gutter edit re-aligns the frames of every spread using it', async ({
+  page,
+}) => {
+  await page.goto('/?fixture=painter&parent=a')
+  await mountAllSpreads(page)
+  await setSpreadNone(page, NONE_SPREAD)
+  const before = await frameShares(page)
+  expect(Object.keys(before)).toHaveLength(40)
+
+  await page.getByTestId('left-tab-masters').click()
+  await commitField(page, 'columnGutterMm', '24')
+  await page.getByTestId('left-tab-pages').click()
+
+  await expect
+    .poll(async () => movedSpreads(before, await frameShares(page)))
+    .toHaveLength(39)
+  const moved = movedSpreads(before, await frameShares(page))
+  expect(moved).not.toContain(NONE_SPREAD)
 })
 
 test('MS2: master inspector rects match the Designer Spec (±0.5 px)', async ({
@@ -262,11 +314,16 @@ test.describe('frame-budget gates', () => {
     await page.getByTestId('left-tab-masters').click()
     await expect(masterCells(page)).toHaveCount(8)
     await clearPerfScenario(page)
+    const before = await frameShares(page)
 
     await page.evaluate(browserStartLoafScripts)
     await page.evaluate(browserBeginLoafScenarioWindow)
     for (const columns of ['3', '4', '5', '6', '5']) {
       await commitField(page, 'columns', columns)
+    }
+    // GP7 / GP8: gutter edits re-align the 4-grid frames of all 40 spreads.
+    for (const gutter of ['12', '24']) {
+      await commitField(page, 'columnGutterMm', gutter)
     }
     await expect(masterCells(page)).toHaveCount(20)
     await page.evaluate(
@@ -292,5 +349,6 @@ test.describe('frame-budget gates', () => {
     expect(
       Object.values(columns).filter((pages) => pages.every((n) => n === 5)),
     ).toHaveLength(40)
+    expect(movedSpreads(before, await frameShares(page))).toHaveLength(40)
   })
 })
