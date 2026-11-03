@@ -125,7 +125,7 @@ describe('takeFocus', () => {
     expect(activeId()).toBe('opener')
   })
 
-  it('skips the hand-back when the opener left the document or is not an element', () => {
+  it('skips the hand-back when the opener left the document', () => {
     const opener = document.createElement('button')
     document.body.append(opener)
     opener.focus()
