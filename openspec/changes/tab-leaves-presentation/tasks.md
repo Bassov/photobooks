@@ -9,3 +9,5 @@
 ## Manual test scenarios
 
 1. Open a book, click Present, press Tab 10 times and Shift+Tab 10 times: focus stays inside the presentation; Esc closes it and Present is focused.
+
+problem (harness): `pnpm agent manual-qa` timed out at the welcome screen twice (`start-session` click intercepted by the welcome header), never reached the editor. Covered by e2e `presentation-mode.spec.ts` "Tab and Shift+Tab stay inside the presentation; Esc returns focus to Present" (pass) and kit qa "tab-leaves-presentation: …" (tabTrail 21 × inside, escFocus `demo-preview`).
