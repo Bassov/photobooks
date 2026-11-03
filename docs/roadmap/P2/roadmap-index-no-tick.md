@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: /next-roadmap-item roadmap-index-no-tick
+Status: done
 
 Process item P-20261104-0150-1. Item PRs stop editing the shared index `docs/roadmap.md`: adjacent tick lines conflict in git, so every merge made every other open PR DIRTY (orch JOURNAL: most DIRTY rounds were a `docs/roadmap.md` line only).
 
