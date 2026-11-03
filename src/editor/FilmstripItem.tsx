@@ -9,6 +9,8 @@ import { Icon } from '../ui/Icon'
 import {
   getAssetAspectSnapshot,
   getAssetCacheKey,
+  getAssetPixelSizeSnapshot,
+  getBookStoreSnapshot,
   getPlacementCountSnapshot,
   subscribeBookStore,
 } from './bookStore'
@@ -37,6 +39,7 @@ import {
   setSelectedAssetId,
   subscribeGallerySelection,
 } from './gallerySelection'
+import { pageFillLowRes } from './pageFillLowRes'
 import { getRelinkStatus, subscribeRelink } from './relink/statusStore'
 import { ensureThumb, getThumbUrl, subscribeThumb } from './thumbCache'
 import { thumbSlotAspect } from './thumbSlotSize'
@@ -58,12 +61,14 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
   thumbUrl,
   placed,
   missing,
+  lowRes,
 }: {
   id: string
   name: string
   thumbUrl: string | undefined
   placed: boolean
   missing: boolean
+  lowRes: boolean
 }) {
   return (
     <div
@@ -121,9 +126,24 @@ const FilmstripItemBody = memo(function FilmstripItemBody({
           <Icon name="check" size={14} />
         </span>
       ) : null}
+      {lowRes ? (
+        <span className="filmstrip-lowres" data-testid="lowres-chip">
+          <Icon name="warning" size={14} />
+          Low-res
+        </span>
+      ) : null}
     </div>
   )
 })
+
+/** Stored or decoded pixel size against the current trim; unknown → false. */
+function isAssetLowRes(id: string): boolean {
+  const size = getAssetPixelSizeSnapshot(id)
+  return (
+    size !== undefined &&
+    pageFillLowRes(getBookStoreSnapshot().book.settings.trim, size)
+  )
+}
 
 function matchesFocusVisible(element: Element): boolean {
   try {
@@ -190,6 +210,12 @@ export const FilmstripItemView = memo(function FilmstripItemView({
     getFilmstripJumpHighlightId,
     getFilmstripJumpHighlightId,
   )
+  const readLowRes = () => isAssetLowRes(id)
+  const lowRes = useSyncExternalStore(
+    subscribeBookStore,
+    readLowRes,
+    readLowRes,
+  )
   const readMissing = () => getRelinkStatus(id) === 'missing'
   const missing = useSyncExternalStore(
     subscribeRelink,
@@ -238,6 +264,7 @@ export const FilmstripItemView = memo(function FilmstripItemView({
           thumbUrl={thumbUrl}
           placed={placementCount > 0}
           missing={missing}
+          lowRes={lowRes}
         />
       </div>
     </div>

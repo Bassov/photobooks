@@ -439,21 +439,6 @@
   background: var(--select);
 }
 
-/* Book title: kit step 24, a click opens Book settings in the inspector. */
-.e7-title-button {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  outline: none;
-}
-
-.e7-title-button[data-focus-visible],
-.e7-title-button:focus-visible {
-  box-shadow: 0 0 0 2px var(--ring);
-  border-radius: var(--radius-xs);
-}
-
 /* Masters mode: covers the pasteboard so no book pages show (above empty guidance, under the status pill). */
 .editor-masters-canvas {
   position: absolute;

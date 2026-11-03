@@ -8,6 +8,7 @@ import * as assetPool from '../photo/assetPool'
 import { resetAssetPool } from '../photo/assetPool'
 import assert from 'node:assert/strict'
 import {
+  dispatchBookOp,
   getBookStoreSnapshot,
   getGalleryIdsSnapshot,
   resetBookStore,
@@ -184,6 +185,87 @@ describe('Filmstrip thumbnail file name', () => {
 
     expect(getGalleryIdsSnapshot()).toEqual(ids)
     expect(screen.getByRole('row', { name: CYRILLIC_FILE_NAME })).toBeTruthy()
+  })
+})
+
+describe('Filmstrip low-res chip (r15 M85)', () => {
+  afterEach(() => {
+    cleanup()
+    resetBookStore()
+  })
+
+  function chipOf(assetId: string): Element | null {
+    return document.querySelector(
+      `[data-asset-id="${assetId}"] [data-testid="lowres-chip"]`,
+    )
+  }
+
+  it('flags photos below the page-fill threshold and follows the trim', () => {
+    resetBookStore()
+    const snap = getBookStoreSnapshot()
+    resetBookStore({
+      book: {
+        ...snap.book,
+        settings: {
+          ...snap.book.settings,
+          trim: { widthMm: 190, heightMm: 230 },
+        },
+        // Book-record dims: 1600 × 2000 is ≈ 214 dpi on 19 × 23 cm.
+        assets: {
+          sharp: { widthPx: 1600, heightPx: 2000 },
+          soft: { widthPx: 800, heightPx: 1000 },
+          unknown: {},
+        },
+        gallery: ['sharp', 'soft', 'unknown'],
+      },
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<Filmstrip />)
+    expect(screen.getAllByTestId('filmstrip-item')).toHaveLength(3)
+    expect(chipOf('sharp')).toBeNull()
+    expect(chipOf('soft')?.textContent).toBe('Low-res')
+    expect(chipOf('unknown')).toBeNull()
+
+    // A4 pages: 2000 px over 297 mm ≈ 171 dpi.
+    act(() => {
+      dispatchBookOp({ type: 'setTrim', widthMm: 210, heightMm: 297 })
+    })
+    expect(chipOf('sharp')).not.toBeNull()
+  })
+
+  it('prefers the decoded pixel size over the book record', () => {
+    resetBookStore()
+    const snap = getBookStoreSnapshot()
+    resetBookStore({
+      book: {
+        ...snap.book,
+        settings: {
+          ...snap.book.settings,
+          trim: { widthMm: 190, heightMm: 230 },
+        },
+        assets: { photo: { widthPx: 100, heightPx: 100 } },
+        gallery: ['photo'],
+      },
+      sessionMeta: new Map([
+        [
+          'photo',
+          {
+            name: 'photo',
+            correctedWidth: 4000,
+            correctedHeight: 6000,
+            orientation: 1,
+            aspect: 4000 / 6000,
+          },
+        ],
+      ]),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+    render(<Filmstrip />)
+    expect(screen.getAllByTestId('filmstrip-item')).toHaveLength(1)
+    expect(chipOf('photo')).toBeNull()
   })
 })
 

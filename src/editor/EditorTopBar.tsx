@@ -1,4 +1,8 @@
-import { setBookSettingsSelected } from './bookSettingsSelection'
+import {
+  isBookSettingsSelected,
+  setBookSettingsSelected,
+  subscribeBookSettingsSelection,
+} from './bookSettingsSelection'
 import { setCoverSelected } from './coverSelection'
 import type { Key } from 'react-aria-components'
 import {
@@ -125,30 +129,41 @@ function BookMetaChrome({ saveLabel }: { saveLabel: string | null }) {
     spreads: book.spreads.length,
     saveLabel,
   })
+  const open = useSyncExternalStore(
+    subscribeBookSettingsSelection,
+    isBookSettingsSelected,
+    isBookSettingsSelected,
+  )
+  // Kit TopBar: the title and its size line are one button; the size line
+  // collapses first, then the title, so the block stays on one line.
   return (
-    <div className="e7-title ml-1 flex h-8 items-baseline gap-2 rounded-md border-0 px-2.5 pt-1.5">
-      <button
-        type="button"
-        className="e7-title-button text-md"
+    <button
+      type="button"
+      className="e7-title ml-1 flex h-8 min-w-0 items-baseline gap-2 overflow-hidden rounded-md border-0 px-2.5 pt-1.5 pb-0"
+      aria-pressed={open}
+      aria-label="Book settings"
+      title="Book settings"
+      onClick={() => {
+        setCoverSelected(false)
+        setBookSettingsSelected(true)
+      }}
+    >
+      <span
+        className="min-w-0 truncate text-md"
         style={{ fontFamily: 'var(--font-heading)', color: T }}
         data-testid="book-title"
-        aria-label="Book settings"
         title={title}
-        onClick={() => {
-          setCoverSelected(false)
-          setBookSettingsSelected(true)
-        }}
       >
         <em>{title}</em>
-      </button>
+      </span>
       <span
-        className="text-sm tabular-nums"
+        className="min-w-0 shrink-[999] truncate text-sm tabular-nums"
         style={{ color: SUB }}
         data-testid="book-size"
       >
         {sizeLine}
       </span>
-    </div>
+    </button>
   )
 }
 
@@ -159,7 +174,7 @@ function HistoryChrome() {
     getHistorySnapshot,
   )
   return (
-    <div className="ml-2 flex items-center" style={{ color: SUB }}>
+    <div className="ml-2 flex shrink-0 items-center" style={{ color: SUB }}>
       <IconButton
         label={
           undoLabel !== null
@@ -340,9 +355,9 @@ export function EditorTopBar({
       style={{ background: BAR, color: T }}
       data-testid="editor-bar"
     >
-      <div className="editor-top-start flex items-center gap-2">
+      <div className="editor-top-start flex min-w-0 max-w-full items-center gap-2">
         <ChromeButton
-          className="editor-library-link h-8 text-sm"
+          className="editor-library-link h-8 shrink-0 text-sm"
           style={{ color: SUB, background: 'transparent' }}
           data-testid="go-library"
           aria-label="Library"

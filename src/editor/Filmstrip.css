@@ -143,6 +143,29 @@
   pointer-events: none;
 }
 
+/* Kit sandbox filmstrip "Low-res" chip: field chip, top-left, 10 px warning. */
+.filmstrip-lowres {
+  position: absolute;
+  left: calc(var(--spacing) * 1);
+  top: calc(var(--spacing) * 1);
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1);
+  padding: 1px calc(var(--spacing) * 1);
+  border-radius: var(--radius-xs);
+  background: var(--field);
+  color: var(--ink-warning);
+  font-size: var(--text-2xs);
+  line-height: var(--text-2xs--line-height);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.filmstrip-lowres > .pb-icon[data-size] {
+  width: 10px;
+  height: 10px;
+}
+
 /* Missing file mark (kit sandbox `miss`): muted tile with an image-off glyph. */
 .filmstrip-missing {
   display: grid;

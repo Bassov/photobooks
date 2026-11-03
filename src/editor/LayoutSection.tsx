@@ -514,7 +514,8 @@ function LayoutPicker({
           <Button
             variant="secondary"
             size="sm"
-            className="ml-auto"
+            // Unlayered `.pb-button { margin: 0 }` beats a plain utility.
+            className="ml-auto!"
             data-testid="layout-contact-apply"
             onPress={() => {
               applyMarkedSpreadTemplate(spreadId, contactSheetId(cols, rows))
