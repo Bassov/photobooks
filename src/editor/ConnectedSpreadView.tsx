@@ -1,4 +1,4 @@
-import { memo, useEffect, useSyncExternalStore } from 'react'
+import { memo, useDeferredValue, useEffect, useSyncExternalStore } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { SpreadView, type FrameControl } from '../render/SpreadView'
 import type { ResolvedItem } from '../core'
@@ -88,10 +88,14 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   /** Overrides the DPI view flag (Preview passes `false`). */
   lowDpiBadge?: boolean
 }) {
-  const snapshot = useSyncExternalStore(
-    (listener) => subscribeSpread(spreadId, listener),
-    () => getSpreadPaintSnapshot(spreadId),
-    () => getSpreadPaintSnapshot(spreadId),
+  // Deferred: a commit that repaints many spreads (a master grid edit re-aligns
+  // all its users) renders them in a yielding pass after the urgent update.
+  const snapshot = useDeferredValue(
+    useSyncExternalStore(
+      (listener) => subscribeSpread(spreadId, listener),
+      () => getSpreadPaintSnapshot(spreadId),
+      () => getSpreadPaintSnapshot(spreadId),
+    ),
   )
   const zoom = useSyncExternalStore(
     subscribeCommitted,

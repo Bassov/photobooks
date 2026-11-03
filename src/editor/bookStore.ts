@@ -1127,7 +1127,9 @@ function notifySpread(spreadId: string): void {
 
 /**
  * Parents are immutable, so the parent object is its revision: a parent edit
- * repaints only the parent and the spreads using it.
+ * repaints only the parent and the spreads using it. Spreads paint the parent
+ * frames only, so a parent grid or guide edit leaves them quiet (the grid
+ * overlay subscribes on its own).
  */
 function paintChanged(
   prev: BookStoreState,
@@ -1141,7 +1143,7 @@ function paintChanged(
   }
   return (
     before.spread !== after.spread ||
-    before.parent !== after.parent ||
+    before.parent?.frames !== after.parent?.frames ||
     before.index !== after.index ||
     (!sharedSame &&
       paintInputKey(prev.book, before, prev.sessionMeta, prev.previewUrls) !==

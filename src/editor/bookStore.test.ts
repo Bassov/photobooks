@@ -1627,6 +1627,20 @@ describe('bookStore spread paint covers the parent layer', () => {
     expect(logoX('b1')).toBeUndefined()
   })
 
+  it('a parent grid edit repaints only the parent: spreads paint its frames', () => {
+    loadMasters()
+
+    const gridEdit = repaintsFor(() => {
+      dispatchBookOp({
+        type: 'setSpreadGrid',
+        spreadId: 'pA',
+        patch: { columns: 5 },
+      })
+    })
+
+    expect(gridEdit).toEqual({ notified: ['pA'], invalidated: ['pA'] })
+  })
+
   it('a spread edit or parent switch repaints that spread only', () => {
     loadMasters()
 

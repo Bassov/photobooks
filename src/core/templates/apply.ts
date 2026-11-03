@@ -18,15 +18,28 @@ export function applyTemplate(
     return book
   }
 
-  return updateSpread(book, spreadId, (spread) => {
-    const generated = generateTemplateFrames(
-      templateId,
-      book,
-      spreadIndex,
-      spread,
-    )
-    return withLayout(spread, templateId, generated)
-  })
+  return updateSpread(book, spreadId, (spread) =>
+    templatedSpread(book, spreadIndex, spread, templateId),
+  )
+}
+
+/**
+ * The spread at `spreadIndex` laid out by `templateId`; the same object (and
+ * the same frame objects) when the generated geometry is unchanged.
+ */
+export function templatedSpread(
+  book: Book,
+  spreadIndex: number,
+  spread: Spread,
+  templateId: TemplateId,
+): Spread {
+  const generated = generateTemplateFrames(
+    templateId,
+    book,
+    spreadIndex,
+    spread,
+  )
+  return withLayout(spread, templateId, generated)
 }
 
 /** Kit applyTemplate for a saved layout: its slots scaled to this spread. */
@@ -63,18 +76,23 @@ function withLayout(
   const frames = rebindFrames(generated, spread.frames)
   if (
     spread.templateId === templateId &&
-    framesEqualByContent(frames, spread.frames)
+    frames.length === spread.frames.length &&
+    frames.every((frame, index) => frame === spread.frames[index])
   ) {
     return spread
   }
   return { ...spread, templateId, frames }
 }
 
+/** Generated geometry on the previous frames; an unmoved frame stays the same object. */
 function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {
   return generated.map((frame, index) => {
     const prev = previous[index]
     if (prev === undefined) {
       return frame
+    }
+    if (prev.z === frame.z && rectsEqual(prev.rect, frame.rect)) {
+      return prev
     }
     const next: Frame = {
       id: prev.id,
@@ -91,28 +109,8 @@ function rebindFrames(generated: Frame[], previous: Frame[]): Frame[] {
   })
 }
 
-function framesEqualByContent(a: Frame[], b: Frame[]): boolean {
-  if (a.length !== b.length) {
-    return false
-  }
-  for (let i = 0; i < a.length; i += 1) {
-    const left = a[i]
-    const right = b[i]
-    if (left === undefined || right === undefined) {
-      return false
-    }
-    if (
-      left.id !== right.id ||
-      left.z !== right.z ||
-      left.assetId !== right.assetId ||
-      left.rect.x !== right.rect.x ||
-      left.rect.y !== right.rect.y ||
-      left.rect.width !== right.rect.width ||
-      left.rect.height !== right.rect.height ||
-      JSON.stringify(left.crop) !== JSON.stringify(right.crop)
-    ) {
-      return false
-    }
-  }
-  return true
+function rectsEqual(a: Frame['rect'], b: Frame['rect']): boolean {
+  return (
+    a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+  )
 }

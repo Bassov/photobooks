@@ -91,6 +91,31 @@ describe('setBookGrid', () => {
     expect(after?.rect).not.toEqual(before?.rect)
   })
 
+  it('keeps every spread on a columns / rows edit: templates read margins and gutters', () => {
+    const book = bookWithTemplates()
+    const next = applyBookOp(book, {
+      type: 'setBookGrid',
+      patch: { columns: 6, rows: 3 },
+    })
+    expect(next.layoutGrid.columns).toBe(6)
+    expect(next.spreads).toBe(book.spreads)
+  })
+
+  it('keeps the frame objects a re-align does not move', () => {
+    const raw = makeBook({
+      spreads: [makeSpread({ id: 'h', templateId: 'hero-two', frames: [] })],
+    })
+    const book = applyTemplate(raw, 'h', 'hero-two')
+    const next = applyBookOp(book, {
+      type: 'setBookGrid',
+      patch: { rowGutterMm: 20 },
+    })
+    const [hero, top] = book.spreads[0]?.frames ?? []
+    expect(next.spreads[0]?.frames[0]).toBe(hero)
+    expect(next.spreads[0]?.frames[1]).not.toBe(top)
+    expect(next.spreads[0]?.frames[1]?.id).toBe(top?.id)
+  })
+
   it('leaves free-layout spreads untouched', () => {
     const book = bookWithTemplates()
     const next = applyBookOp(book, {
