@@ -375,6 +375,14 @@ await smoke("drag photo onto frame + undo", "drag-place-replace", async () => {
 })
 await smoke("grid toggle", "layout-grids-render-snap", async () => { const g1 = await D('[data-testid="grid-overlay"]').first().isVisible(); await D('[data-testid="toggle-grid"]').click(); await page.waitForTimeout(150); return g1 && !(await D('[data-testid="grid-overlay"]').first().isVisible().catch(() => false)) })
 await smoke("site → book → lightbox", "site-viewer", async () => { await D('[data-testid="site-book"]').first().click(); await page.waitForTimeout(200); await D('[data-testid="site-spread"]').click(); await page.waitForTimeout(200); return D('[data-testid="lightbox"]').isVisible() })
+await smoke("home → book → spread fullscreen", "site-photographer", async () => {
+  await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
+  const title = await D('[data-testid="ps-title"]').textContent()
+  await D('[data-testid="ps-spread"]').first().click(); await page.waitForTimeout(200)
+  const lb = await D('[data-testid="lightbox"]').isVisible()
+  const ind = (await D('[data-testid="site-fullscreen-indicator"]').textContent()) ?? ""
+  return [title === "Lake trip" && lb && ind.startsWith("Pages 2–3"), `title ${title} · lightbox ${lb} · ${ind}`]
+})
 // ---------------------------------------------------------------- v5 checks
 const fitAir = async () => page.evaluate(() => {
   const d = document.querySelector('[data-testid="demo"]'); const sp = d.querySelector('.canvas-dots [data-testid="spread"]'); const vp = sp.parentElement.closest(".canvas-dots")
