@@ -94,6 +94,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [ ] [feature] [parent-spreads-inspector-guides](roadmap/P2/parent-spreads-inspector-guides.md) — parent spreads: master guides and rulers on the master canvas
 - [x] [feature] [parent-spreads-perf](roadmap/P2/parent-spreads-perf.md) — parent spreads: edit perf gate
 - [ ] [feature] [kit-sync-chrome](roadmap/P2/kit-sync-chrome.md) — Bug: Kit sync W2: top-bar view toggles, no Add spread row, Preview = presentation mode (Designer kit-sync Spec)
+- [ ] [feature] [kit-sync-filmstrip](roadmap/P2/kit-sync-filmstrip.md) — Bug: /next-roadmap-item kit-sync-filmstrip
 - [ ] [feature] [kit-sync-inspector](roadmap/P2/kit-sync-inspector.md) — Bug: kit sync W3 — inspector head, layout picker, flip icons, page size chevron
 - [ ] [feature] [layout-grids-parent-inherit](roadmap/P2/layout-grids-parent-inherit.md) — grids on parent spreads
 - [ ] [feature] [parent-guides](roadmap/P2/parent-guides.md) — guides on parent spreads
