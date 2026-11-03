@@ -1606,7 +1606,14 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   for (let k = 1; k < seq.length; k++) await page.keyboard.press("ArrowLeft")
   await page.waitForTimeout(260); await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
   const next = await page.locator('[data-testid="presentation"] [data-testid="pager-position"]').textContent().catch(() => null)
+  // tab-leaves-presentation: Tab ×10 / Shift+Tab ×10 keep focus inside the presentation; Esc hands it back to Preview
+  const inPm = () => page.evaluate(() => !!document.activeElement?.closest('[data-testid="presentation"]'))
+  const tabTrail = [await inPm()]
+  for (const key of [...Array(10).fill("Tab"), ...Array(10).fill("Shift+Tab")]) { await page.keyboard.press(key); tabTrail.push(await inPm()) }
   await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  const escFocus = await page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName)
+  ok("tab-leaves-presentation: Preview takes focus; Tab ×10 and Shift+Tab ×10 never leave it; Esc returns focus to Preview",
+    tabTrail.every(Boolean) && escFocus === "demo-preview", JSON.stringify({ tabTrail: tabTrail.map(Number).join(""), escFocus }))
   const afterEsc = await page.locator('[data-testid="presentation"]').count(), stageEsc = await page.locator('[data-testid="demo"]').getAttribute("data-demo-stage")
   ok("kit-sync KS14: Preview = presentation mode as prod — fixed full-screen rgb(13, 13, 13) dialog, the cover fitted, Esc chip 16 / 16 h 32 12 px white/0.1, caption 'Cover' 16 px up 12 px white/0.6, → '1 / n', Esc closes",
     !!pm && pm.box.every((v) => Math.abs(v) <= 0.5) && pm.pos === "fixed" && pm.bg === "rgb(13, 13, 13)" && pm.role === "dialog"
