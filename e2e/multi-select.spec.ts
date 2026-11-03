@@ -657,6 +657,14 @@ test.describe('multi-select part 4: inspector align, distribute, arrange, delete
     await expect(page.getByTestId('inspector-multi-summary')).toHaveText(
       '2 frames · 2 photos',
     )
+    // Kit header rows: title top 7.16, meta top 26 (Designer review).
+    const panelTop = (await boxOf(inspector)).y
+    const titleTop =
+      (await boxOf(page.getByTestId('inspector-context'))).y - panelTop
+    const metaTop =
+      (await boxOf(page.getByTestId('inspector-multi-summary'))).y - panelTop
+    expect(Math.abs(titleTop - 7.16)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(metaTop - 26)).toBeLessThanOrEqual(0.5)
     const left = page.getByTestId('align-left')
     await expect(left).toHaveAttribute('aria-label', 'Align left edges')
     const box = await boxOf(left)
