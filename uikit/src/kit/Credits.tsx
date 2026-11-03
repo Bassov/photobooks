@@ -4,7 +4,7 @@ import { HI_CREDITS, LICENSE_URL } from "./credits"
 import { photos } from "@/data"
 import { href } from "./router"
 
-const capCls = "text-2xs leading-4 text-[#535152] [&_a]:text-inherit [&_a]:no-underline [&_a:hover]:underline [&_a:hover]:underline-offset-2 [&_a]:rounded-xs [&_a]:outline-hidden [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-[#3A3839]"
+const capCls = "text-2xs leading-4 text-[#535152] [&_a]:text-inherit [&_a]:no-underline [&_a:hover]:underline [&_a:hover]:underline-offset-2 [&_a]:rounded-xs [&_a]:outline-hidden [&_a:focus-visible]:outline-solid [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-[#3A3839]"
 
 /** Exactly: “Photo: Author · CC BY-SA 4.0 · modified” — author → Commons file page, license → deed. */
 export function PhotoCaption({ id, testid = "photo-credit", className = "" }: { id: string; testid?: string; className?: string }) {
