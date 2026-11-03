@@ -11,3 +11,5 @@
 1. `?fixture=painter&parent=a`: select a spread → Grid shows `Use master` + summary; Custom shows 8 grey fields and the hint `Grey values follow Master A.`
 2. Set G to 8 → G dark 600 + ↺; ↺ restores the master gutter and Custom stays open; Undo label `Reset grid value`.
 3. Masters tab → Master A columns 4 → the spread with the gutter override keeps G 8, the others follow.
+
+manual-qa (`pnpm agent manual-qa`): problem (harness) — 1–3 never ran: the welcome `header` intercepts the `start-session` click (known harness issue). Same flows pass in `e2e/layout-grids-parent-inherit.spec.ts` (browser check: 40 spreads follow Master A 3 → 4 columns, gutter override kept, ↺ restores it; GP1 rects ±0.5 px vs kit) and `e2e/layout-grids-settings.spec.ts`.

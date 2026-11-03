@@ -198,6 +198,17 @@ describe('GridSection', () => {
     expect(spreadGrid()).toEqual({ rows: 3 })
   })
 
+  it('GP4: Custom kept after the last ↺ ends when another spread is selected', () => {
+    seed({ rows: 3 })
+    const { rerender } = render(<GridSection spreadId="s1" />)
+    fireEvent.click(screen.getByTestId('spread-grid-reset-rows'))
+    expect(source('Custom').checked).toBe(true)
+    rerender(<GridSection spreadId="s2" />)
+    expect(source('Use master').checked).toBe(true)
+    rerender(<GridSection spreadId="s1" />)
+    expect(source('Use master').checked).toBe(true)
+  })
+
   it('GP3: with linked margins ↺ on one margin resets all four', () => {
     seed({ margins: { top: 20, bottom: 20, inside: 20, outside: 20 } })
     render(<GridSection spreadId="s1" />)

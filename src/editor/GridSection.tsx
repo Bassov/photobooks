@@ -57,8 +57,14 @@ function useGridShown() {
 export function GridSection({ spreadId }: { spreadId: string | undefined }) {
   const book = useSyncExternalStore(subscribeBookStore, readBook, readBook)
   const shown = useGridShown()
-  // Custom with no override (just picked, or after ↺ on the last one).
+  // Custom with no override (just picked, or after ↺ on the last one); it
+  // lasts until another spread is selected.
   const [customFor, setCustomFor] = useState<string | null>(null)
+  const [shownFor, setShownFor] = useState(spreadId)
+  if (shownFor !== spreadId) {
+    setShownFor(spreadId)
+    setCustomFor(null)
+  }
   const spread = book.spreads.find((item) => item.id === spreadId)
   if (spread === undefined) {
     return null
