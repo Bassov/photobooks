@@ -316,6 +316,8 @@ button.spread-frame:not(
 .spread-frame-image {
   position: absolute;
   max-width: none;
+  /* Box sized for a stale aspect (thumb before its dims): crop, never stretch. */
+  object-fit: cover;
 }
 
 .spread-frame-layer {

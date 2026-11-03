@@ -1,7 +1,10 @@
 import type { Locator } from '@playwright/test'
 import { expect, test } from './fixtures/coverage'
 import { openSessionEditor } from './fixtures/openSessionEditor'
-import { dragPlaceFirstFilmstripItem } from './fixtures/dropAssetOnFrame'
+import {
+  dragPlaceFirstFilmstripItem,
+  dropAssetOnFrame,
+} from './fixtures/dropAssetOnFrame'
 import {
   ensurePhotoFixtures,
   photoFixturePaths,
@@ -63,6 +66,64 @@ test('placed portrait and landscape photos keep their aspect on canvas and in Pa
         .toBeCloseTo(1, 1)
     }
   }
+})
+
+/** Within 1 % of the bitmap aspect, and cover-fitted if the box ever drifts. */
+async function expectNotStretched(img: Locator): Promise<void> {
+  await expect
+    .poll(async () => Math.abs((await stretchRatio(img)) - 1), {
+      timeout: 15_000,
+    })
+    .toBeLessThanOrEqual(0.01)
+  expect(await img.evaluate((node) => getComputedStyle(node).objectFit)).toBe(
+    'cover',
+  )
+}
+
+test('a placed photo keeps its aspect after the preview tier swap and a replace', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await openSessionEditor(page)
+  await choosePhotoFolder(page, [
+    photoFixturePaths.samplePng,
+    photoFixturePaths.sampleOrient6,
+  ])
+  await expect(page.getByTestId('filmstrip-thumb')).toHaveCount(2, {
+    timeout: 30_000,
+  })
+  const first = await dragPlaceFirstFilmstripItem(page, 0)
+
+  const canvas = page
+    .getByTestId('pasteboard-scroll')
+    .getByTestId('spread-frame-image')
+    .first()
+  const thumb = page
+    .getByTestId('spreads-list')
+    .locator('.spread-view--thumb img')
+    .first()
+  await expect(canvas).toHaveAttribute('data-tier', '1280', { timeout: 60_000 })
+  await expectNotStretched(canvas)
+  await expectNotStretched(thumb)
+
+  const second = await page
+    .getByTestId('filmstrip-item')
+    .nth(1)
+    .getAttribute('data-asset-id')
+  expect(second).not.toBeNull()
+  expect(second).not.toBe(first)
+  const filled = page
+    .getByTestId('pasteboard-scroll')
+    .locator('[data-testid="spread-frame"][data-filled="true"]')
+    .first()
+  await dropAssetOnFrame(page, second ?? '', filled)
+
+  await expect(filled).toHaveAttribute('data-asset-id', second ?? '', {
+    timeout: 30_000,
+  })
+  await expect(canvas).toHaveAttribute('data-tier', '1280', { timeout: 60_000 })
+  await expectNotStretched(canvas)
+  await expectNotStretched(thumb)
 })
 
 /** Gap (px) by which the frame sticks out past the image; 0 = no empty bars. */

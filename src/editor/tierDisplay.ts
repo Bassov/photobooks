@@ -1,3 +1,5 @@
+import { restoreAspectFromImage } from './previewAspect'
+
 const notes = new Map<string, ReadonlyMap<string, number>>()
 const desired = new Map<string, number>()
 const shown = new Map<string, { url: string; tier: number }>()
@@ -145,6 +147,8 @@ async function pumpSwaps(): Promise<void> {
       continue
     }
     queued.delete(key)
+    // The crop box is sized for the session aspect; a placeholder would stretch.
+    restoreAspectFromImage(job.assetId, image.naturalWidth, image.naturalHeight)
     shown.set(job.assetId, { url: job.url, tier: job.tier })
     emit()
     await new Promise<void>((resolve) => {
