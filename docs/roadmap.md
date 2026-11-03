@@ -68,7 +68,7 @@ Finished items are deleted from the index (git history is the record); M3 and M4
 - [x] [feature] [framestyle-arrange-unhide](roadmap/P2/framestyle-arrange-unhide.md) — Show Frame style and Arrange in the Photo inspector again, kit look (M78)
 - [x] [feature] [arrange-lock](roadmap/P2/arrange-lock.md) — stacking and locking
 - [ ] [feature] [multi-select](roadmap/P2/multi-select.md) — group operations
-- [ ] [feature] [multi-select-move](roadmap/P2/multi-select-move.md) — group move
+- [x] [feature] [multi-select-move](roadmap/P2/multi-select-move.md) — group move
 - [ ] [feature] [multi-select-marquee](roadmap/P2/multi-select-marquee.md) — marquee selection
 - [ ] [feature] [multi-select-inspector](roadmap/P2/multi-select-inspector.md) — multi-selection inspector: align, distribute, arrange, delete
 - [ ] [feature] [text-blocks](roadmap/P2/text-blocks.md) — captions

@@ -165,14 +165,19 @@ function groupSession(
   ) {
     return null
   }
-  const ctx = spreadContext(spreadEl, selection.frameIds)
-  if (ctx === null) {
-    return null
-  }
-  const picked = ctx.spread.frames.filter((frame) =>
+  const found = editableSpread(getBookStoreSnapshot().book, selection.spreadId)
+  const picked = (found?.spread.frames ?? []).filter((frame) =>
     selection.frameIds.includes(frame.id),
   )
   const moving = picked.filter((frame) => frame.locked !== true)
+  // Only the frames that move leave the snap anchors; a locked one stays a target.
+  const ctx = spreadContext(
+    spreadEl,
+    moving.map((frame) => frame.id),
+  )
+  if (ctx === null) {
+    return null
+  }
   const [first, ...rest] = moving
   const movingIds = new Set<string | undefined>(moving.map((frame) => frame.id))
   const box = spreadEl.querySelector<HTMLElement>('.spread-group-box')

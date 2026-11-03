@@ -122,10 +122,10 @@ export const PAGES: Record<string, FeatureDef> = {
     ["multi", "Two frames", ed({ doc: docFilled, cur: 2, pick: [0, 1] })],
     ["locked", "Three frames, one locked", ed({ doc: docThreeOneLocked, cur: 2, pick: [0, 1, 2] })],
   ], {
-    what: "Click a frame to select it: handles on the frame, frame properties in the inspector. Drag moves the frame; Esc during a drag cancels it. Shift+click adds or removes a frame: with two or more selected, every frame keeps its outline, a dashed group box surrounds them and no frame shows handles.",
+    what: "Click a frame to select it: handles on the frame, frame properties in the inspector. Drag moves the frame; Esc during a drag cancels it. Shift+click adds or removes a frame: with two or more selected, every frame keeps its outline, a dashed group box surrounds them and no frame shows handles. Dragging any selected frame moves the whole group; arrows nudge the set by 1 mm, Shift+arrows by 10 mm; Del deletes the set.",
     where: "#/demo steps 16–18.",
-    keys: [["Shift+click", "add / remove a frame"], ["Esc", "cancel the drag / clear the selection"]],
-    edge: ["Esc mid-drag puts the frame back where it was", "Shift+click never swaps photos", "A plain click inside the selection selects that frame alone", "Locked frames can be selected"],
+    keys: [["Shift+click", "add / remove a frame"], ["Arrows / Shift+arrows", "nudge the selection by 1 / 10 mm"], ["Del", "delete the selected frames"], ["Esc", "cancel the move / clear the selection"]],
+    edge: ["Esc mid-move puts the frame or the whole group back where it was", "Shift+click never swaps photos", "A plain click inside the selection selects that frame alone", "Locked frames can be selected; they stay put on move and nudge", "All selected frames locked: nothing moves and the status says the frame is locked"],
   }),
   "crop-in-frame": page([
     ["crop", "Crop mode", ed({ doc: docFilled, cur: 1, pick: 0, crop: true })],

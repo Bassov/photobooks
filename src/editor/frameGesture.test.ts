@@ -1162,6 +1162,18 @@ describe('frameGesture · group move', () => {
     expect(frames()[0]?.rect.x).toBe(150)
   })
 
+  it('a locked frame of the set stays a snap anchor', () => {
+    setup()
+    // Union top 10 + 38.5 lands next to locked c's top edge at 50.
+    press(0, 38.5)
+    expect(
+      spread.querySelector('[data-axis="y"] .snap-line-label')?.textContent,
+    ).toBe('snap · frame')
+    pointer('pointerup', window, 120, 158.5)
+    expect(frames()[1]?.rect.y).toBe(50)
+    expect(frames()[2]?.rect).toEqual(rect(200, 50, 30, 30))
+  })
+
   it('blocks the native drag of a filled frame while the set moves', () => {
     setup()
     // The frame's own drag handler stops the bubble: the block runs in capture.
