@@ -654,7 +654,7 @@ export function EditorFrame({ top, left, right, dock, canvas, overlay, className
               }}
               onPointerDown={(e) => {
                 const t = e.target as HTMLElement
-                if (t.closest('[data-testid="spread"],[data-testid="node-view"],button,[role=toolbar],[role=dialog],input')) return
+                if (t.closest('[data-testid="spread"],[data-testid="node-view"],[data-stack-item="last"],button,[role=toolbar],[role=dialog],input')) return
                 if (st.sel.length) return
                 st.setNode({ k: "none" })
               }}>{canvas}</div>

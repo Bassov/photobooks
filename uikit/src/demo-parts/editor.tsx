@@ -19,8 +19,9 @@ import { PrintDialog, PublishDialog, RelinkDialog } from "./dialogs"
 import { SiteCover } from "./site"
 import { SLOT } from "./layout"
 
-/** The editor features #/demo enables. `overrides`: Alt+click a parent item on a spread to make a local copy. Guides on a master are edited in the Masters view (see Viewport). */
-export const DEMO_FEATURES: Features = { handles: true, swap: true, drop: true, multiDrop: true, crop: true, multi: true, marquee: true, textEdit: true, overrides: true }
+/** The editor features #/demo enables. `overrides`: Alt+click a parent item on a spread to make a local copy. Guides on a master are edited in the Masters view (see Viewport).
+ *  `stack`: pages stack on the pasteboard as in prod (Q3). */
+export const DEMO_FEATURES: Features = { handles: true, swap: true, drop: true, multiDrop: true, crop: true, multi: true, marquee: true, textEdit: true, overrides: true, stack: true }
 
 /** Writes the studio state back into the session book (doc, size, cover, masters). */
 export function DocSpy({ id }: { id: string }) {

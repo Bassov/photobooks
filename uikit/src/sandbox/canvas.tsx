@@ -88,6 +88,21 @@ type FrameProps = {
   onDown: (e: React.PointerEvent, f: Frame) => void; onDouble: (f: Frame) => void
   editing: boolean; onEditDone: (t: string) => void
 }
+/** K1: Esc or a release ends a frame drag even when the browser never sends dragleave / dragend,
+ *  so the "Release to replace" chip and the dimmed source clear on cancel (prod M43); a new dragstart re-arms. */
+function useDragLive(on: boolean) {
+  const [live, setLive] = React.useState(true)
+  React.useEffect(() => {
+    if (!on) return
+    setLive(true)
+    const end = (e: Event) => { if (!(e instanceof KeyboardEvent) || e.key === "Escape") setLive(false) }
+    const arm = () => setLive(true)
+    const evs = ["keydown", "pointerup", "dragend", "drop"]
+    evs.forEach((t) => window.addEventListener(t, end, true)); window.addEventListener("dragstart", arm, true)
+    return () => { evs.forEach((t) => window.removeEventListener(t, end, true)); window.removeEventListener("dragstart", arm, true) }
+  }, [on])
+  return on && live
+}
 function FrameEl(p: FrameProps) {
   const st = useStudio()
   const { f, sc } = p
@@ -105,13 +120,14 @@ function FrameEl(p: FrameProps) {
     onDragStart: () => st.setStatus("Drag onto another frame to swap, or onto the filmstrip to take the photo back"),
     onDragEnd: () => st.setStatus(""),
   })
+  const dropLive = useDragLive(isDropTarget), dragLive = useDragLive(isDragging)
   const crop = st.cropId === f.id
   const dpi = st.view.dpi && f.kind === "image" ? effectiveDpi(f) : null
   return (
     <div ref={ref} {...(canDrop ? dropProps : {})} {...(st.features.swap && f.photo && !p.inherited ? dragProps : {})}
       data-frame={f.id} data-testid={p.inherited ? "master-frame" : "frame"}
       onPointerDown={(e) => p.onDown(e, f)} onDoubleClick={() => p.onDouble(f)}
-      className={cn("group/frame absolute", p.inherited ? cn("z-10", st.features.overrides && st.view.tool === "select" && !st.view.preview ? "cursor-default" : "pointer-events-none") : "", isDragging && "opacity-40", p.hidden && "opacity-0")}
+      className={cn("group/frame absolute", p.inherited ? cn("z-10", st.features.overrides && st.view.tool === "select" && !st.view.preview ? "cursor-default" : "pointer-events-none") : "", dragLive && "opacity-40", p.hidden && "opacity-0")}
       style={{ left: f.x * sc, top: f.y * sc, width: f.w * sc, height: f.h * sc, transform: f.rot ? `rotate(${f.rot}deg)` : undefined, zIndex: crop ? 30 : undefined }}>
       {crop && <div className="pointer-events-none absolute inset-0 overflow-visible"><PhotoImg f={f} wpx={f.w * sc} hpx={f.h * sc} ghost /></div>}
       <FrameBody f={f} s={p.s} sc={sc} missing={missing} inherited={p.inherited} editing={p.editing} onEditDone={p.onEditDone} />
@@ -119,12 +135,12 @@ function FrameEl(p: FrameProps) {
       {!p.selected && !p.inherited && <div className="pointer-events-none absolute inset-0 outline-1 outline-select/0 transition-[outline-color] group-hover/frame:outline-select/70 [outline-style:solid]" />}
       {p.inherited && !st.view.preview && <div data-allow-border className="pointer-events-none absolute inset-0 outline-1 outline-offset-0 outline-parent-soft [outline-style:dashed]" />}
       {f.overrides && !st.view.preview && <span className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-1 rounded-xs bg-parent px-1 py-px text-2xs font-semibold text-white"><Link2 className="size-2.5" />override</span>}
-      {isDropTarget && (
+      {dropLive && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center bg-parent/20 pt-2 outline-2 outline-select [outline-style:solid]">
           <span className="rounded-md bg-field px-2 py-0.5 text-2xs font-medium text-foreground shadow">{f.photo ? "Release to replace" : "Release to place"}</span>
         </div>
       )}
-      {st.dragging && canDrop && !isDropTarget && !f.photo && <div className="pointer-events-none absolute inset-0 bg-parent/10 outline-1 outline-select/60 [outline-style:dashed]" />}
+      {st.dragging && canDrop && !dropLive && !f.photo && <div className="pointer-events-none absolute inset-0 bg-parent/10 outline-1 outline-select/60 [outline-style:dashed]" />}
       {f.locked && !st.view.preview && <span className="pointer-events-none absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-black/55 text-white"><Lock className="size-3" /></span>}
       {dpi !== null && dpi < 300 && !st.view.preview && (
         <span className={cn("pointer-events-none absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-xs bg-field px-1.5 py-0.5 text-2xs text-ink-warning shadow-sm", dpi < 150 ? "font-semibold" : "font-medium")} data-testid="dpi-badge">
@@ -227,9 +243,6 @@ function Handles({ r, sc, rotate, onHandle }: { r: Rect & { rot?: number }; sc: 
           <span onPointerDown={(e) => onHandle(e, "rot")} data-handle="rot" className="pointer-events-auto absolute left-1/2 top-[-28px] size-3 -translate-x-1/2 cursor-grab rounded-full bg-white" style={{ boxShadow: "0 0 0 1.5px #232223" }} />
         </>
       )}
-      <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-tag px-1.5 py-0.5 text-2xs font-medium tabular-nums text-white">
-        {round(r.w)} × {round(r.h)} mm{r.rot ? ` · ${round(r.rot)}°` : ""}
-      </span>
     </div>
   )
 }
@@ -403,7 +416,7 @@ export function SpreadSurface({ si, sc, active = true, onGuideDown, className }:
   const pn = view.pageNumbers || pageNumbersOf(par)
   const pageNo = (side: 0 | 1) => (doc.pageStart ?? 1) + si * 2 - 1 + side
   return (
-    <div ref={ref} {...dropProps} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si}
+    <div ref={ref} {...dropProps} onPointerDown={onBgDown} onWheel={onWheel} data-testid="spread" data-spread={si} data-current={si === st.cur || undefined}
       className={cn("relative shrink-0 select-none", view.preview ? "" : "shadow-page", isDropTarget && "outline-2 outline-offset-4 outline-mark [outline-style:dashed]",
         view.tool === "frame" && "cursor-tool-frame", view.tool === "text" && "cursor-tool-text", view.tool === "hand" && "cursor-grab", className)}
       style={{ width: SW * sc, height: SH * sc, background: s.bg ?? "var(--paper, #fff)", clipPath: si === 0 ? "inset(-60px -60px -60px 50%)" : undefined }}>
