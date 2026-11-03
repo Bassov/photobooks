@@ -98,6 +98,13 @@ test('pull guides from both rulers; they sit at the dropped mm', async ({
   await openWithRulers(page)
   await expect(page.getByTestId('guide-line')).toHaveCount(0)
   await assertDocumentFitsViewport(page)
+  // Kit ruler cursors (uikit viewport.tsx Ruler).
+  for (const [testId, cursor] of [
+    ['ruler-x', 's-resize'],
+    ['ruler-y', 'e-resize'],
+  ] as const) {
+    await expect(page.getByTestId(testId)).toHaveCSS('cursor', cursor)
+  }
 
   await pullHorizontal(page, 60)
   const horizontal = page.locator(
