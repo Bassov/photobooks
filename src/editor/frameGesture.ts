@@ -4,7 +4,6 @@ import {
   getSpreadPageCount,
   getSpreadSizeMm,
   nextFrameId,
-  type Frame,
   type RectMm,
   type Spread,
 } from '../core'
@@ -18,10 +17,19 @@ import { getFrameSelection, setFrameSource } from './frameSelection'
 import { buildGridAnchors } from './gridSnap'
 import { getGridVisible, getSnapOn } from './gridView'
 import { clearLiveGeometry, publishLiveGeometry } from './liveGeometry'
+import {
+  cancelMarquee,
+  clearMarquee,
+  commitMarquee,
+  marqueeSession,
+  paintMarquee,
+  type MarqueeSession,
+} from './marquee'
 import { setSnapHint } from './snapHint'
 import { isTypingTarget } from './isTypingTarget'
 import {
   buildSnapIndex,
+  paintedBox,
   snapPoint,
   snapRect,
   type SnapIndex,
@@ -102,7 +110,7 @@ interface GroupSession {
   dy: number
 }
 
-type Session = DrawSession | MoveSession | GroupSession
+type Session = DrawSession | MoveSession | GroupSession | MarqueeSession
 
 export function round(mm: number): number {
   return Math.round(mm * 10) / 10
@@ -110,22 +118,6 @@ export function round(mm: number): number {
 
 function clamp(value: number, lo: number, hi: number): number {
   return Math.min(Math.max(value, lo), hi)
-}
-
-/** Axis-aligned box of a frame as painted, rotated corners included (mm). */
-function paintedBox(frame: Frame): RectMm {
-  const { x, y, width, height } = frame.rect
-  const turn = ((frame.rotationDeg ?? 0) * Math.PI) / 180
-  const cos = Math.abs(Math.cos(turn))
-  const sin = Math.abs(Math.sin(turn))
-  const w = width * cos + height * sin
-  const h = width * sin + height * cos
-  return {
-    x: x + (width - w) / 2,
-    y: y + (height - h) / 2,
-    width: w,
-    height: h,
-  }
 }
 
 function unionOf(first: RectMm, others: readonly RectMm[]): RectMm {
@@ -354,7 +346,9 @@ export function clearSnapLines(ctx: SpreadContext): void {
  *   edges), selects it and returns to Select.
  * - Select tool: dragging an empty frame moves it; dragging any frame of a
  *   2+ selection moves its unlocked frames together (one `moveFrames`).
- * Both snap to other frames / guides / equal gaps through the anchor index
+ * - Select tool on bare paper or the pasteboard gray: past the slop, a
+ *   marquee selects the target spread's frames it touches (marquee.ts).
+ * Draw and move snap to other frames / guides / equal gaps through the anchor index
  * built at gesture start; Alt suppresses it. The preview is direct DOM writes;
  * one op is committed at gesture end (one undo step).
  */
@@ -370,6 +364,10 @@ export function installFrameGesture(): () => void {
     window.removeEventListener('pointerup', onUp)
     window.removeEventListener('pointercancel', onCancel)
     if (current === null) {
+      return
+    }
+    if (current.kind === 'marquee') {
+      clearMarquee(current)
       return
     }
     clearSnapLines(current.ctx)
@@ -405,10 +403,16 @@ export function installFrameGesture(): () => void {
       return
     }
     const spreadEl = event.target.closest<HTMLElement>(SPREAD_SELECTOR)
+    const tool = getEditorTool()
     if (spreadEl === null) {
+      // The pasteboard gray: only a Select-tool marquee starts here.
+      const marquee = tool === 'select' ? marqueeSession(event) : null
+      if (marquee !== null) {
+        session = marquee
+        listen()
+      }
       return
     }
-    const tool = getEditorTool()
     const frameEl = event.target.closest<HTMLElement>('.spread-frame')
     // A set shows no handles: any press on a member's button is its body.
     const group =
@@ -476,9 +480,19 @@ export function installFrameGesture(): () => void {
         locked: frame.locked === true,
         saved: { left: frameEl.style.left, top: frameEl.style.top },
       }
+    } else if (tool === 'select' && frameEl === null) {
+      const marquee = marqueeSession(event)
+      if (marquee === null) {
+        return
+      }
+      session = marquee
     } else {
       return
     }
+    listen()
+  }
+
+  function listen(): void {
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
@@ -494,10 +508,26 @@ export function installFrameGesture(): () => void {
         drawMove(current, event)
       } else if (current.kind === 'group') {
         groupMove(current, event)
+      } else if (current.kind === 'marquee') {
+        marqueeMove(current, event)
       } else {
         moveMove(current, event)
       }
     })
+  }
+
+  function marqueeMove(marquee: MarqueeSession, event: PointerEvent): void {
+    if (
+      !marquee.started &&
+      Math.hypot(
+        event.clientX - marquee.startX,
+        event.clientY - marquee.startY,
+      ) < MOVE_SLOP_PX
+    ) {
+      return
+    }
+    marquee.started = true
+    paintMarquee(marquee, event.clientX, event.clientY)
   }
 
   function drawMove(draw: DrawSession, event: PointerEvent): void {
@@ -635,6 +665,12 @@ export function installFrameGesture(): () => void {
       commitDraw(current)
     } else if (current.kind === 'group') {
       commitGroup(current)
+    } else if (current.kind === 'marquee') {
+      // Below the slop it was the pasteboard click; nothing to add.
+      if (current.started) {
+        armSwallow()
+        commitMarquee(current)
+      }
     } else {
       commitMove(current)
     }
@@ -721,11 +757,15 @@ export function installFrameGesture(): () => void {
     if (current?.kind === 'group' && current.started) {
       restoreGroup(current)
     }
+    if (current?.kind === 'marquee' && current.started) {
+      cancelMarquee(current)
+    }
   }
 
-  // A group press on a filled frame must never become a native image drag.
-  const onDragStart = (event: DragEvent): void => {
-    if (session?.kind === 'group') {
+  // A group press on a filled frame must never become a native image drag,
+  // and a marquee must not drag or text-select what it crosses.
+  const onDragStart = (event: Event): void => {
+    if (session?.kind === 'group' || session?.kind === 'marquee') {
       event.preventDefault()
     }
   }
@@ -761,6 +801,7 @@ export function installFrameGesture(): () => void {
   document.addEventListener('pointerdown', onDown, true)
   document.addEventListener('click', onClick, true)
   document.addEventListener('dragstart', onDragStart, true)
+  document.addEventListener('selectstart', onDragStart, true)
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('keydown', onSpace, true)
   window.addEventListener('keyup', onSpace, true)
@@ -770,6 +811,7 @@ export function installFrameGesture(): () => void {
     document.removeEventListener('pointerdown', onDown, true)
     document.removeEventListener('click', onClick, true)
     document.removeEventListener('dragstart', onDragStart, true)
+    document.removeEventListener('selectstart', onDragStart, true)
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('keydown', onSpace, true)
     window.removeEventListener('keyup', onSpace, true)

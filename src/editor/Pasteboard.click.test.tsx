@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getSpreadSizeMm } from '../core'
 import {
   dispatchBookOp,
+  getBookStoreSnapshot,
   getSpreadIdsSnapshot,
   resetBookStore,
 } from './bookStore'
 import { commitZoom, resetCameraStore } from './cameraStore'
+import { resetEditorToolForTests, setEditorTool } from './editorToolStore'
+import { installFrameGesture } from './frameGesture'
 import {
+  getFrameSelection,
   getFrameSource,
   resetFrameSelection,
   setFrameSource,
@@ -170,5 +175,180 @@ describe('Pasteboard click selects the spread', () => {
       })
     })
     expect(getFrameSource()).toEqual({ spreadId: first, frameId: 'f1' })
+  })
+})
+
+describe('Pasteboard marquee from the gray', () => {
+  /** Spread 2 at 1 client px per mm, its left edge 50 px into the port. */
+  const LEFT = 50
+  const TOP = 100
+  let ids: readonly string[]
+  let stop: () => void
+  let target: string
+  let frameIds: string[]
+  let topLeft: { id: string; cx: number; cy: number }
+
+  beforeEach(() => {
+    resetBookStore()
+    resetFrameSelection()
+    dispatchBookOp({ type: 'addSpread' })
+    dispatchBookOp({ type: 'addSpread' })
+    ids = getSpreadIdsSnapshot()
+    const second = ids[1]
+    assert.ok(second)
+    target = second
+    dispatchBookOp({
+      type: 'applyTemplate',
+      spreadId: target,
+      templateId: '4-grid',
+    })
+    commitZoom(1, 0, 0)
+    stubViewport(500, 2000)
+    render(<Pasteboard />)
+    const book = getBookStoreSnapshot().book
+    const { widthMm, heightMm } = getSpreadSizeMm(book, 1)
+    const frames = book.spreads[1]?.frames ?? []
+    frameIds = frames.map((frame) => frame.id)
+    const first = [...frames].sort(
+      (a, b) => a.rect.x + a.rect.y - (b.rect.x + b.rect.y),
+    )[0]
+    assert.ok(first)
+    topLeft = {
+      id: first.id,
+      cx: LEFT + first.rect.x + first.rect.width / 2,
+      cy: TOP + first.rect.y + first.rect.height / 2,
+    }
+    const slot = screen
+      .getAllByTestId('pasteboard-slot')
+      .find((el) => el.getAttribute('data-spread-id') === target)
+    assert.ok(slot)
+    slot.getBoundingClientRect = () =>
+      ({ top: TOP, bottom: TOP + heightMm + 40 }) as DOMRect
+    const view = slot.querySelector<HTMLElement>('[data-testid="spread-view"]')
+    assert.ok(view)
+    view.getBoundingClientRect = () =>
+      ({ left: LEFT, top: TOP, width: widthMm, height: heightMm }) as DOMRect
+    stop = installFrameGesture()
+  })
+
+  afterEach(() => {
+    stop()
+    cleanup()
+    resetBookStore()
+    resetCameraStore()
+    resetFrameSelection()
+    resetActiveSpreadIdForTests()
+    resetEditorToolForTests()
+    vi.unstubAllGlobals()
+  })
+
+  function port(): HTMLElement {
+    return screen.getByTestId('pasteboard-scroll')
+  }
+
+  function fire(type: string, x: number, y: number, init = {}): Event {
+    const event = new MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: x,
+      clientY: y,
+      ...init,
+    })
+    Object.defineProperty(event, 'pointerId', { value: 1 })
+    act(() => {
+      ;(type === 'pointerdown' ? port() : window).dispatchEvent(event)
+    })
+    return event
+  }
+
+  const box = () => document.querySelector<HTMLElement>('.marquee-box')
+  const pressed = () =>
+    screen
+      .getAllByTestId('spread-frame')
+      .filter((el) => el.getAttribute('aria-pressed') === 'true')
+      .map((el) => el.getAttribute('data-frame-id'))
+
+  it('a press under 3 px stays the spread click: active spread, selection cleared', () => {
+    act(() => {
+      setFrameSource({ spreadId: target, frameId: topLeft.id })
+    })
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', 12, topLeft.cy)
+    fire('pointerup', 12, topLeft.cy)
+    expect(box()).toBeNull()
+    expect(getActiveSpreadId()).toBe(target)
+    expect(getFrameSource()).toBeNull()
+  })
+
+  it('a drag from the gray beside the spread selects the frames it touches', () => {
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 1)
+    expect(box()?.style.width).toBe(`${String(topLeft.cx - 10)}px`)
+    fire('pointerup', topLeft.cx, topLeft.cy + 1)
+    expect(getActiveSpreadId()).toBe(target)
+    expect(getFrameSelection()).toEqual({
+      spreadId: target,
+      frameIds: [topLeft.id],
+    })
+    expect(pressed()).toEqual([topLeft.id])
+
+    // Over the whole spread: every frame (count = the template's four).
+    fire('pointerdown', 10, TOP + 1)
+    fire('pointermove', 490, 1990)
+    fire('pointerup', 490, 1990)
+    expect(frameIds).toHaveLength(4)
+    expect([...(getFrameSelection()?.frameIds ?? [])].sort()).toEqual(
+      [...frameIds].sort(),
+    )
+  })
+
+  it('Shift unions with the previous set; Esc mid-drag restores it', () => {
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 1)
+    fire('pointerup', topLeft.cx, topLeft.cy + 1)
+    fire('pointerdown', 10, TOP + 1, { shiftKey: true })
+    fire('pointermove', 490, 1990)
+    fire('pointerup', 490, 1990)
+    const all = getFrameSelection()?.frameIds ?? []
+    expect(all).toHaveLength(4)
+    expect(all[0]).toBe(topLeft.id)
+
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 1)
+    // The click part already cleared it; the marquee shows only its hits.
+    expect(getFrameSelection()).toBeNull()
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      )
+    })
+    expect(getFrameSelection()?.frameIds).toEqual(all)
+    expect(box()).toBeNull()
+    fire('pointerup', topLeft.cx, topLeft.cy + 1)
+    expect(getFrameSelection()?.frameIds).toEqual(all)
+  })
+
+  it('keeps the box inside the scrollport; a scrollbar press starts none', () => {
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', 900, topLeft.cy)
+    expect(box()?.style.width).toBe('490px')
+    fire('pointerup', 900, topLeft.cy)
+    fire('pointerdown', 505, topLeft.cy)
+    fire('pointermove', 300, topLeft.cy + 50)
+    expect(box()).toBeNull()
+    fire('pointerup', 300, topLeft.cy + 50)
+  })
+
+  it('pans with the Hand tool instead', () => {
+    act(() => {
+      setEditorTool('hand')
+    })
+    port().setPointerCapture = vi.fn()
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointermove', topLeft.cx, topLeft.cy + 40)
+    expect(box()).toBeNull()
+    fire('pointerup', topLeft.cx, topLeft.cy + 40)
+    expect(getFrameSelection()).toBeNull()
   })
 })

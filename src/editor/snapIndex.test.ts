@@ -1,7 +1,11 @@
+import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
   FRAME_SNAP_PULL_PX,
+  buildFrameHitIndex,
   buildSnapIndex,
+  hitFrames,
+  paintedBox,
   snapEdges,
   snapPoint,
   snapRect,
@@ -479,5 +483,73 @@ describe('query budget', () => {
       snapRect(index, { x: 100 + (i % 7), y: 98, width: 35, height: 40 }, OPTS)
     }
     expect((performance.now() - t0) / rounds).toBeLessThan(0.5)
+  })
+})
+
+describe('frame hit index', () => {
+  const frame = (id: string, x: number, y: number, rotationDeg?: number) => ({
+    id,
+    rect: { x, y, width: 40, height: 20 },
+    rotationDeg,
+  })
+
+  it('hits every frame the rect overlaps or touches, in left-edge order', () => {
+    const index = buildFrameHitIndex([
+      frame('right', 100, 0),
+      frame('left', 0, 0),
+      frame('low', 0, 100),
+    ])
+    expect(hitFrames(index, { x: 30, y: 10, width: 80, height: 5 })).toEqual([
+      'left',
+      'right',
+    ])
+    // Touching an edge counts: right edge of `left` at 40, top of `low` at 100.
+    expect(hitFrames(index, { x: 40, y: 20, width: 0, height: 80 })).toEqual([
+      'left',
+      'low',
+    ])
+    expect(hitFrames(index, { x: 41, y: 21, width: 58, height: 78 })).toEqual(
+      [],
+    )
+  })
+
+  it('tests a rotated frame by its painted box, not its rect', () => {
+    // 40×20 at 90° paints as 20×40 around the same centre: x 0..20, y -10..30.
+    const index = buildFrameHitIndex([frame('turned', -10, 0, 90)])
+    const box = paintedBox(frame('turned', -10, 0, 90))
+    expect(box.x).toBeCloseTo(0)
+    expect(box.y).toBeCloseTo(-10)
+    expect(box.width).toBeCloseTo(20)
+    expect(box.height).toBeCloseTo(40)
+    expect(hitFrames(index, { x: 5, y: -8, width: 2, height: 2 })).toEqual([
+      'turned',
+    ])
+    // Inside the unrotated rect, outside the painted box.
+    expect(hitFrames(index, { x: -8, y: 5, width: 2, height: 2 })).toEqual([])
+  })
+
+  it('matches a brute-force overlap scan', () => {
+    const box = fc.record({
+      x: fc.integer({ min: -50, max: 400 }),
+      y: fc.integer({ min: -50, max: 300 }),
+      width: fc.integer({ min: 0, max: 120 }),
+      height: fc.integer({ min: 0, max: 120 }),
+    })
+    fc.assert(
+      fc.property(fc.array(box, { maxLength: 20 }), box, (rects, query) => {
+        const frames = rects.map((rect, i) => ({ id: `f${String(i)}`, rect }))
+        const expected = frames
+          .filter(
+            ({ rect }) =>
+              rect.x <= query.x + query.width &&
+              rect.x + rect.width >= query.x &&
+              rect.y <= query.y + query.height &&
+              rect.y + rect.height >= query.y,
+          )
+          .map((item) => item.id)
+        const hits = hitFrames(buildFrameHitIndex(frames), query)
+        expect([...hits].sort()).toEqual([...expected].sort())
+      }),
+    )
   })
 })

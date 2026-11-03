@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { assertDocumentFitsViewport } from './fixtures/assertDocumentFitsViewport'
 import { expect, test } from './fixtures/coverage'
+import { applyLayout } from './fixtures/layoutTiles'
 import { PERF_BUDGETS } from './perf/budgets'
 import {
   browserAssertNoLoafAndHandlerP95,
@@ -435,7 +436,169 @@ test.describe('multi-select part 2: group move, Esc, arrows', () => {
   })
 })
 
+// multi-select part 3 (Designer Spec "Canvas" → Marquee): a Select drag from
+// the pasteboard gray or bare paper selects the target spread's frames it
+// touches (src/editor/marquee.ts); Shift unions, Esc restores, Hand pans.
+
+const hits = (page: Page) =>
+  spread(page).locator('[data-testid="spread-frame"][data-marquee-hit="true"]')
+
+/** Frame centres in client px, frames 0–3 of the 4-grid. */
+async function centres(page: Page): Promise<[Point, Point, Point, Point]> {
+  const centre = async (index: number) => {
+    const box = await boxOf(frames(page).nth(index))
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+  return [await centre(0), await centre(1), await centre(2), await centre(3)]
+}
+
+interface Point {
+  x: number
+  y: number
+}
+
+/** Press on the gray 20 px left of the spread at y, drag to (x2, y2), button still down. */
+async function marqueeFromGray(
+  page: Page,
+  y: number,
+  to: { x: number; y: number },
+): Promise<void> {
+  const paper = await boxOf(spread(page))
+  await page.mouse.move(paper.x - 20, y)
+  await page.mouse.down()
+  await page.mouse.move(to.x, to.y, { steps: 12 })
+}
+
+test.describe('multi-select part 3: marquee', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?fixture=painter')
+    await expect(frames(page)).toHaveCount(4)
+    await spread(page).scrollIntoViewIfNeeded()
+  })
+
+  test('a marquee from the pasteboard over a full-bleed spread selects the frame it touches', async ({
+    page,
+  }) => {
+    const paper = await boxOf(spread(page))
+    // A gray click activates spread 1 (no selection); the layout goes there.
+    await page.mouse.click(paper.x - 20, paper.y + 20)
+    await applyLayout(page, 'Full bleed', { restorePanel: true })
+    await expect(frames(page)).toHaveCount(1)
+    const bleed = await boxOf(spread(page))
+    // No free paper anywhere: the press starts on the gray beside it.
+    await marqueeFromGray(page, bleed.y + 40, {
+      x: bleed.x + 60,
+      y: bleed.y + 80,
+    })
+    await expect(hits(page)).toHaveCount(1)
+    await page.mouse.up()
+    await expect(pressed(page)).toHaveCount(1)
+    await expect(page.getByTestId('marquee')).toHaveCount(0)
+    await assertDocumentFitsViewport(page)
+  })
+
+  test('across the top row selects frames 0 and 1; Shift over the bottom row unions all four', async ({
+    page,
+  }) => {
+    const [c0, c1] = await centres(page)
+    await marqueeFromGray(page, c0.y, { x: c1.x, y: c0.y + 10 })
+    // Live outlines, nothing committed; the box is screen px, kit look.
+    await expect(hits(page)).toHaveCount(2)
+    await expect(pressed(page)).toHaveCount(0)
+    const paper = await boxOf(spread(page))
+    const marquee = page.getByTestId('marquee')
+    const look = await marquee.evaluate((el) => {
+      const style = getComputedStyle(el)
+      const rect = el.getBoundingClientRect()
+      return {
+        fill: style.backgroundColor,
+        outline: `${style.outlineWidth} ${style.outlineStyle} ${style.outlineColor}`,
+        radius: style.borderRadius,
+        width: rect.width,
+        height: rect.height,
+      }
+    })
+    // color-mix() computes to `color(srgb r g b / a)` with 0–1 channels.
+    const fill = (look.fill.match(/[\d.]+/g) ?? []).map(Number)
+    expect(fill.slice(0, 3).map((v) => Math.round(v * 255))).toEqual([
+      35, 34, 35,
+    ])
+    expect(fill[3]).toBeCloseTo(0.1)
+    expect(look).toMatchObject({
+      outline: '1px solid rgb(142, 142, 142)',
+      radius: '0px',
+    })
+    expect(Math.abs(look.width - (c1.x - (paper.x - 20)))).toBeLessThan(1)
+    expect(Math.abs(look.height - 10)).toBeLessThan(1)
+    await page.mouse.up()
+    await expect(pressed(page)).toHaveCount(2)
+    await expect(frames(page).nth(0)).toHaveAttribute('aria-pressed', 'true')
+    await expect(frames(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('group-box')).toHaveCount(1)
+
+    const [, , b2, b3] = await centres(page)
+    await page.keyboard.down('Shift')
+    await marqueeFromGray(page, b2.y, { x: b3.x, y: b2.y + 10 })
+    await expect(hits(page)).toHaveCount(4)
+    await page.mouse.up()
+    await page.keyboard.up('Shift')
+    await expect(pressed(page)).toHaveCount(4)
+  })
+
+  test('Esc mid-marquee restores the previous selection', async ({ page }) => {
+    await frames(page).nth(3).click()
+    await expect(pressed(page)).toHaveCount(1)
+    const [c0, c1] = await centres(page)
+    await marqueeFromGray(page, c0.y, { x: c1.x, y: c0.y + 10 })
+    await expect(hits(page)).toHaveCount(2)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('marquee')).toHaveCount(0)
+    await expect(hits(page)).toHaveCount(0)
+    await page.mouse.up()
+    await expect(pressed(page)).toHaveCount(1)
+    await expect(frames(page).nth(3)).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('a Hand tool drag on the gray pans and draws no marquee', async ({
+    page,
+  }) => {
+    await page.getByTestId('tool-hand').click()
+    const scroll = page.getByTestId('pasteboard-scroll')
+    const before = await scroll.evaluate((el) => el.scrollTop)
+    const [c0, c1] = await centres(page)
+    await marqueeFromGray(page, c0.y, { x: c1.x, y: c0.y - 60 })
+    await expect(page.getByTestId('marquee')).toHaveCount(0)
+    await page.mouse.up()
+    expect(await scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(before)
+    await expect(pressed(page)).toHaveCount(0)
+  })
+})
+
 test.describe('Multi-select frame-budget gates', () => {
+  test('a marquee over a full spread logs no LoAF and keeps the handler p95', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000)
+    await enablePerfScenario(page, '/?fixture=painter&perf=1')
+    await expect(frames(page)).toHaveCount(4)
+    await spread(page).scrollIntoViewIfNeeded()
+    const [c0, , , c3] = await centres(page)
+
+    await page.evaluate(browserBeginLoafScenarioWindow)
+    await clearPerfScenario(page)
+    await marqueeFromGray(page, c0.y - 20, c3)
+    await page.mouse.move(c0.x, c0.y, { steps: 40 })
+    await page.mouse.move(c3.x, c3.y, { steps: 40 })
+    await page.mouse.up()
+    await expect(pressed(page)).toHaveCount(4)
+    await page.waitForTimeout(300)
+    await page.evaluate(browserAssertNoLoafAndHandlerP95, {
+      label: 'frame-gesture',
+      budgetMs: PERF_BUDGETS.handlerP95Ms * PERF_BUDGETS.cpuThrottleRate,
+    })
+    await collectFrameStatsArtifact(page, testInfo)
+  })
+
   test('a 3-frame group move logs no LoAF and keeps the handler p95', async ({
     page,
   }, testInfo) => {
