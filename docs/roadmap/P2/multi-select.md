@@ -7,7 +7,7 @@ Status: done
 
 ## Scope
 
-- [ ] Shift+click multi-select, part 1 of the Designer Spec `shared/design/multi-select/spec.md` ("Direction", "Canvas", "Clicks and keys"): a selection set on one spread, Shift+click / Shift+Enter / Shift+Space toggle (never swap), the dashed group box with no handles, Esc clears, Delete / Backspace deletes the set in one undo step "Delete N frames"
+- [x] Shift+click multi-select, part 1 of the Designer Spec `shared/design/multi-select/spec.md` ("Direction", "Canvas", "Clicks and keys"): a selection set on one spread, Shift+click / Shift+Enter / Shift+Space toggle (never swap), the dashed group box with no handles, Esc clears, Delete / Backspace deletes the set in one undo step "Delete N frames"
 - Owner-approved scope change: the Owner brief of 2026-11-03 splits the Spec's prod Item 1 (over the item size limit); group move → `multi-select-move`, marquee → `multi-select-marquee`, align / distribute, arrange and the multi inspector → `multi-select-inspector`. With 2 or more selected the inspector keeps today's empty state.
 - **Perf:** Shift+click and the group box draw add no long task (drag-swap frame-budget gates).
 - **Browser check:** Shift+click two filled frames: both outlined, no handles, a dashed group box, photos not swapped; Delete removes both, one undo restores them.
