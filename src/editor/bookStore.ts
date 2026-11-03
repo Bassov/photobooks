@@ -857,6 +857,17 @@ function moveHistory(move: HistoryMove | null): void {
   } else {
     book.title = move.snapshot.title
   }
+  // Parents are immutable, so restoring the array restores items and grids.
+  if (move.snapshot.parents === undefined) {
+    delete book.parents
+  } else {
+    book.parents = move.snapshot.parents
+  }
+  if (move.snapshot.defaultParentId === undefined) {
+    delete book.defaultParentId
+  } else {
+    book.defaultParentId = move.snapshot.defaultParentId
+  }
   setHistory(move.history)
   publishBook(book)
 }

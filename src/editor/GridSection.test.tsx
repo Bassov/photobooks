@@ -8,7 +8,12 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
-import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import {
+  dispatchBookOp,
+  getBookStoreSnapshot,
+  resetBookStore,
+  undoBook,
+} from './bookStore'
 import { GridSection } from './GridSection'
 import { getGridVisible, setGridVisible } from './gridView'
 
@@ -136,6 +141,29 @@ describe('GridSection', () => {
       '2 × 2',
     )
     expect(screen.queryByTestId('grid-source-columns')).toBeNull()
+  })
+
+  it('spread: the master grid reaches "Use master" and tags its fields MASTER', () => {
+    seed()
+    act(() => {
+      dispatchBookOp({
+        type: 'setSpreadGrid',
+        spreadId: 'pa',
+        patch: { columns: 5, columnGutterMm: 4 },
+      })
+    })
+    render(<GridSection scope="spread" spreadId="s1" />)
+    expect(screen.getByTestId('spread-grid-inherit').textContent).toBe(
+      'Master A · 5 × 2 · gutter 4 mm · margins 15/15/15/15 mm',
+    )
+    fireEvent.click(source('Custom'))
+    commit('rows', '3')
+    expect(screen.getByTestId('grid-source-columns').textContent).toBe('master')
+    expect(screen.getByTestId('grid-source-columnGutterMm').textContent).toBe(
+      'master',
+    )
+    expect(screen.getByTestId('grid-source-rows').textContent).toBe('spread')
+    expect(screen.getByTestId('grid-source-top').textContent).toBe('book')
   })
 
   it('spread: an overridden spread opens on Custom', () => {

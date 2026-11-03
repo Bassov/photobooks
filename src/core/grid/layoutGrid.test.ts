@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { fc } from '@fast-check/vitest'
 import { assert, describe, expect, it } from 'vitest'
+import { resolveParentGrid, spreadParent } from '../parentSpreads'
+import type { Book, ParentSpread, Spread } from '../schema'
 import { makeBook, makeSpread } from '../testing/fixtures'
 import {
   GRID_FIELDS,
@@ -7,8 +11,22 @@ import {
   effectiveGrid,
   patchGridOverride,
   mergeLayoutGrid,
+  readGridField,
   resolveLayoutGrid,
+  type GridField,
 } from './layoutGrid'
+
+type GridOverride = NonNullable<Spread['layoutGrid']>
+
+const gates = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'quality/gates.json'), 'utf8'),
+) as { pbt: { seed: number } }
+
+/** Grid inheritance PBT: ≥1000 runs on the gates seed (item parent-spreads-inspector). */
+const runs = {
+  seed: gates.pbt.seed,
+  numRuns: Math.max(1000, Number(process.env.FC_NUM_RUNS ?? 1000)),
+}
 
 describe('clampGridValue non-finite input', () => {
   it.each([
@@ -212,6 +230,165 @@ describe('resolveLayoutGrid properties', () => {
         )
         expect(right.content.width).toBeCloseTo(left.content.width, 6)
       }),
+    )
+  })
+})
+
+describe('master (parent) level', () => {
+  const master = (layoutGrid?: GridOverride): ParentSpread => ({
+    id: 'pa',
+    name: 'Master A',
+    frames: [],
+    guides: [],
+    ...(layoutGrid === undefined ? {} : { layoutGrid }),
+  })
+
+  /** Whether a partial grid level stores `field` (margins live in `margins`). */
+  function setsField(level: GridOverride | undefined, field: GridField) {
+    const margin =
+      field === 'top' ||
+      field === 'bottom' ||
+      field === 'inside' ||
+      field === 'outside'
+    return (margin ? level?.margins?.[field] : level?.[field]) !== undefined
+  }
+
+  it('a field set only by the master reads source master', () => {
+    const spread = makeSpread({ parentId: 'pa', layoutGrid: { rows: 4 } })
+    const book = makeBook({
+      spreads: [spread],
+      parents: [master({ columns: 5, rows: 3, margins: { top: 7 } })],
+    })
+    const { values, source } = effectiveGrid(book, spread)
+    expect(values.columns).toBe(5)
+    expect(source.columns).toBe('master')
+    expect(values.top).toBe(7)
+    expect(source.top).toBe('master')
+    expect(values.rows).toBe(4)
+    expect(source.rows).toBe('spread')
+    expect(values.bottom).toBe(15)
+    expect(source.bottom).toBe('book')
+  })
+
+  it('None and a master without a grid keep the book grid itself', () => {
+    const none = makeSpread({ parentId: null })
+    const book = makeBook({
+      spreads: [none],
+      parents: [master({ columns: 5 })],
+      defaultParentId: 'pa',
+    })
+    expect(mergeLayoutGrid(book, none)).toBe(book.layoutGrid)
+    const plain = makeBook({ parents: [master()], defaultParentId: 'pa' })
+    expect(mergeLayoutGrid(plain, plain.spreads[0])).toBe(plain.layoutGrid)
+  })
+
+  it('a new master grid object re-resolves the cached spread grid', () => {
+    const book = makeBook({
+      spreads: [makeSpread({ id: 's0' }), makeSpread({ id: 's1' })],
+      parents: [master({ columns: 3 })],
+      defaultParentId: 'pa',
+    })
+    const first = resolveLayoutGrid(book, 1)
+    expect(first.pages[0].columns).toHaveLength(3)
+    expect(resolveLayoutGrid(book, 1)).toBe(first)
+    const next: Book = { ...book, parents: [master({ columns: 6 })] }
+    const second = resolveLayoutGrid(next, 1)
+    expect(second).not.toBe(first)
+    expect(second.pages[0].columns).toHaveLength(6)
+    expect(second.source.columns).toBe('master')
+  })
+
+  const arbPartial: fc.Arbitrary<GridOverride> = fc.record(
+    {
+      columns: fc.integer({ min: 1, max: 12 }),
+      rows: fc.integer({ min: 1, max: 12 }),
+      columnGutterMm: fc.integer({ min: 0, max: 10 }),
+      rowGutterMm: fc.integer({ min: 0, max: 10 }),
+      margins: fc.record(
+        {
+          top: fc.integer({ min: 0, max: 40 }),
+          bottom: fc.integer({ min: 0, max: 40 }),
+          inside: fc.integer({ min: 0, max: 40 }),
+          outside: fc.integer({ min: 0, max: 40 }),
+        },
+        { requiredKeys: [] },
+      ),
+    },
+    { requiredKeys: [] },
+  )
+
+  const scenario = fc.record({
+    parentGrid: fc.option(arbPartial, { nil: undefined }),
+    nextParentGrid: arbPartial,
+    spreadGrid: fc.option(arbPartial, { nil: undefined }),
+    parentId: fc.constantFrom(undefined, null, 'pa', 'ghost'),
+    defaultParentId: fc.constantFrom(undefined, 'pa'),
+    spreads: fc.integer({ min: 1, max: 4 }),
+    index: fc.nat(),
+  })
+
+  function build(s: typeof scenario extends fc.Arbitrary<infer T> ? T : never) {
+    const index = s.index % s.spreads
+    const spreads = Array.from({ length: s.spreads }, (_, i) =>
+      makeSpread({
+        id: `s${String(i)}`,
+        ...(i === index && s.parentId !== undefined
+          ? { parentId: s.parentId }
+          : {}),
+        ...(i === index && s.spreadGrid !== undefined
+          ? { layoutGrid: s.spreadGrid }
+          : {}),
+      }),
+    )
+    const book = makeBook({
+      spreads,
+      parents: [master(s.parentGrid)],
+      ...(s.defaultParentId === undefined
+        ? {}
+        : { defaultParentId: s.defaultParentId }),
+    })
+    const spread = spreads[index]
+    assert(spread !== undefined)
+    return { book, index, spread }
+  }
+
+  it('effectiveGrid values equal resolveParentGrid; sources name the winning level', () => {
+    fc.assert(
+      fc.property(scenario, (s) => {
+        const { book, spread } = build(s)
+        const chain = resolveParentGrid(book, spread)
+        const parent = spreadParent(book, spread)
+        const { values, source } = effectiveGrid(book, spread)
+        for (const field of GRID_FIELDS) {
+          expect(values[field]).toBe(readGridField(chain, field))
+          const expected = setsField(spread.layoutGrid, field)
+            ? 'spread'
+            : setsField(parent?.layoutGrid, field)
+              ? 'master'
+              : 'book'
+          expect(source[field]).toBe(expected)
+        }
+      }),
+      runs,
+    )
+  })
+
+  it('a master grid edit reaches the cached resolved grid of its spreads', () => {
+    fc.assert(
+      fc.property(scenario, (s) => {
+        const { book, index, spread } = build(s)
+        resolveLayoutGrid(book, index)
+        const next: Book = {
+          ...book,
+          parents: [master(s.nextParentGrid)],
+        }
+        const resolved = resolveLayoutGrid(next, index)
+        const chain = resolveParentGrid(next, spread)
+        for (const field of GRID_FIELDS) {
+          expect(resolved.values[field]).toBe(readGridField(chain, field))
+        }
+      }),
+      runs,
     )
   })
 })

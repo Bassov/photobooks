@@ -23,7 +23,7 @@ export {
 } from './editorChromePanels'
 
 export const EDITOR_CHROME_CSS = `
-.e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10); --toggle-on: ${TOGGLE_ON}; --toggle-off: ${TOGGLE_OFF}; --swatch-ring: ${SWATCH_RING} }
+.e7 { --grid-line: rgb(83 81 82 / .6); --grid-fill: rgb(83 81 82 / .10); --grid-master-line: #9A9A9A; --grid-master-fill: rgb(57 55 56 / .06); --toggle-on: ${TOGGLE_ON}; --toggle-off: ${TOGGLE_OFF}; --swatch-ring: ${SWATCH_RING} }
 .snap-label { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: 2px 8px; border-radius: 9999px; background: ${FIELD}; color: ${T}; font-size: 11px; white-space: nowrap }
 .frame-draft { position: absolute; z-index: 5000; pointer-events: none; outline: 1.5px dashed ${SUB}; outline-offset: -1px; background: rgb(83 81 82 / .08) }
 .snap-line { position: absolute; z-index: 5001; pointer-events: none; background: ${T} }

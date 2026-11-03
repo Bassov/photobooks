@@ -45,9 +45,11 @@ describe('Icon', () => {
   })
 
   it('ships the named glyphs from the roadmap set', () => {
-    expect(ICON_NAMES.length).toBe(69)
+    expect(ICON_NAMES.length).toBe(71)
     expect(ICON_NAMES).toEqual(
       expect.arrayContaining([
+        'link2',
+        'unlink2',
         'circle',
         'layoutTemplate',
         'panelRightClose',
