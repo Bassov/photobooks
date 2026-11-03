@@ -125,9 +125,17 @@ test('#10: no filename text under thumbnails, accessible names stay', async ({
   await expect(page.locator('.filmstrip-name')).toHaveCount(0)
   const items = page.getByTestId('filmstrip-item')
   const count = await items.count()
+  // Owner design change (round 16, M85): the kit "Low-res" chip is the only
+  // text a thumb may carry; anything else (a file name) still fails.
   for (let i = 0; i < count; i += 1) {
-    const item = items.nth(i)
-    expect((await item.innerText()).trim()).toBe('')
+    const text = await items.nth(i).evaluate((el) => {
+      const copy = el.cloneNode(true) as HTMLElement
+      for (const chip of copy.querySelectorAll('[data-testid="lowres-chip"]')) {
+        chip.remove()
+      }
+      return copy.textContent
+    })
+    expect(text.trim()).toBe('')
   }
   await expect(page.getByRole('row', { name: /\.(png|jpe?g)$/i })).toHaveCount(
     count,

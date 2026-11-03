@@ -124,6 +124,26 @@ describe('EditorTopBar', () => {
     setBookSettingsSelected(false)
   })
 
+  it('title and size line are one Book settings button, pressed while open (r15 M83)', () => {
+    setBookSettingsSelected(false)
+    render(<EditorShell />)
+    const button = screen.getByRole('button', { name: 'Book settings' })
+    expect(button.contains(screen.getByTestId('book-title'))).toBe(true)
+    expect(button.contains(screen.getByTestId('book-size'))).toBe(true)
+    expect(button.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(button)
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    // Kit toggle: a click while open closes Book settings.
+    fireEvent.click(button)
+    expect(button.getAttribute('aria-pressed')).toBe('false')
+    expect(isBookSettingsSelected()).toBe(false)
+    act(() => {
+      setBookSettingsSelected(true)
+    })
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    setBookSettingsSelected(false)
+  })
+
   it('zooms in and out from the chrome controls', () => {
     commitZoom(1, 0, 0)
     render(<EditorShell />)

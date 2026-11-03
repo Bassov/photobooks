@@ -322,7 +322,8 @@
 
   --ink: #232220;
   --ink-muted: #5e5c5d;
-  --ink-warning: #393738;
+  /* Kit v4.1 on-paper block (uikit/src/index.css): low-res / missing ink. */
+  --ink-warning: #845510;
   --hatch-missing-a: #e4e4e4;
   --hatch-missing-b: #d7d7d7;
   --placeholder: #ededed;
