@@ -446,7 +446,7 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
       <ThumbGrid aria-label="Photos" layout="grid" selectionMode="multiple" selectionBehavior="replace" items={items} dependencies={[placed]}
         selectedKeys={st.filmSel} onSelectionChange={(k) => st.setFilmSel(k === "all" ? items.map((p) => p.id) : [...k].map(String))}
         dragAndDropHooks={dragAndDropHooks}
-        renderEmptyState={() => <div className="flex h-(--thumb) items-center px-2 text-sm text-muted-foreground">{st.view.unplacedOnly ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</div>}
+        renderEmptyState={() => <div className="flex h-(--thumb) items-center px-2 text-sm text-muted-foreground">{st.view.unplacedOnly && st.doc.gallery.length ? "Every photo is placed. Turn off “Unplaced” to see all." : "No photos yet — add a folder or drop one here."}</div>}
         className="scroll-thin flex gap-2 overflow-x-auto overflow-y-hidden p-1 pb-2" data-testid="filmstrip">
         {(p) => {
           const h = st.view.thumb
@@ -474,10 +474,29 @@ export function Filmstrip({ removable = false, externalDrop = false, sortable = 
     </div>
   )
 }
+const SORTS = { date: "Date taken", name: "File name", added: "Added order" } as const
+/** KS13: filmstrip header chips = prod `.film-chip` (src/editor/FilmstripDock.tsx): pill h 28, pad 0 8, 12 px #535152; hover / on #D7D7D7 + #393738.
+ *  No pressed fill: prod keeps the sort chip transparent while its menu is open. */
+const filmChip = "h-7 gap-1.5 rounded-full bg-transparent px-2 text-xs text-muted-foreground shadow-none transition-colors [&_svg]:size-3.5 data-[hovered]:bg-field data-[hovered]:text-foreground data-[selected]:bg-field data-[selected]:text-foreground"
+/** Filmstrip dock "Unplaced" filter + sort menu (prod order Date taken · File name · Added order, opens above the chip). */
+export function FilmChips() {
+  const st = useStudio()
+  return <>
+    <Toggle size="sm" isSelected={st.view.unplacedOnly} onChange={(v) => st.setView({ unplacedOnly: v })} className={cn(filmChip, "font-medium")} data-testid="film-unplaced-only"><Filter />Unplaced</Toggle>
+    <MenuTrigger>
+      <Button variant="ghost" size="sm" className={cn(filmChip, "font-normal")} aria-label={`Sort photos: ${SORTS[st.view.sort]}`} data-testid="film-sort"><ArrowDownUp />{SORTS[st.view.sort]}<ChevronDown /></Button>
+      <MenuPopover placement="top end" className="min-w-40">
+        <Menu selectionMode="single" selectedKeys={[st.view.sort]} onSelectionChange={(k) => { const v = [...k][0]; if (v) st.setView({ sort: v as keyof typeof SORTS }) }} data-testid="film-sort-menu">
+          {(Object.keys(SORTS) as (keyof typeof SORTS)[]).map((id) => <MenuItem key={id} id={id}>{SORTS[id]}</MenuItem>)}
+        </Menu>
+      </MenuPopover>
+    </MenuTrigger>
+  </>
+}
 export function Dock({ children, left, right, templates = false, tabs = true, defaultTab = "photos" }: { children?: React.ReactNode; left?: React.ReactNode; right?: React.ReactNode; templates?: boolean | React.ReactNode; tabs?: boolean; defaultTab?: string }) {
   const st = useStudio()
   const cov = useCoverPhoto(), placed = withCover(placedSet(st.doc), cov, st.doc.gallery)
-  const chip = "h-7 gap-1.5 px-2 text-xs text-muted-foreground [&_svg]:size-3.5 data-[hovered]:bg-accent/70 data-[hovered]:text-foreground data-[selected]:bg-accent data-[selected]:text-foreground"
+  const shown = st.view.unplacedOnly ? st.doc.gallery.filter((p) => !placed.has(p)).length : null
   return (
     <div className="shrink-0" style={{ background: BAR }} data-testid="dock">
       <Tabs defaultSelectedKey={defaultTab} className="gap-0">
@@ -489,22 +508,8 @@ export function Dock({ children, left, right, templates = false, tabs = true, de
               <Tab id="templates" className={segTab}><LayoutTemplate />Templates</Tab>
             </TabList>
           )}
-          {left ?? <span className="text-sm tabular-nums" style={{ color: SUB }} data-testid="film-head"><span data-testid="placed-count">{tabs && templates !== false ? "" : "Photos · "}{st.doc.gallery.length} · {placed.size} used</span></span>}
-          <div className="ml-auto flex items-center gap-1">
-            {right ?? (
-              <>
-                <Toggle size="sm" isSelected={st.view.unplacedOnly} onChange={(v) => st.setView({ unplacedOnly: v })} className={chip}><Filter />Unplaced</Toggle>
-                <MenuTrigger>
-                  <Button variant="ghost" size="md" className={chip}><ArrowDownUp />{{ date: "Date taken", name: "File name", added: "Added order" }[st.view.sort]}</Button>
-                  <MenuPopover placement="bottom end" className="w-44">
-                    <Menu selectionMode="single" selectedKeys={[st.view.sort]} onSelectionChange={(k) => { const v = [...k][0]; if (v) st.setView({ sort: v as "date" }) }}>
-                      <MenuItem id="date">Date taken</MenuItem><MenuItem id="name">File name</MenuItem><MenuItem id="added">Added order</MenuItem>
-                    </Menu>
-                  </MenuPopover>
-                </MenuTrigger>
-              </>
-            )}
-          </div>
+          {left ?? <span className="text-sm tabular-nums" style={{ color: SUB }} data-testid="film-head"><span data-testid="placed-count">{tabs && templates !== false ? "" : "Photos · "}{shown === null ? st.doc.gallery.length : `${shown} of ${st.doc.gallery.length}`} · {placed.size} used</span></span>}
+          <div className="ml-auto flex items-center gap-2">{right ?? <FilmChips />}</div>
         </div>
         {templates === false ? <div className="mt-0 px-2 pb-1" data-testid="film-panel">{children ?? <Filmstrip />}</div> : <TabPanel id="photos" className="mt-0 px-2 pb-1">{children ?? <Filmstrip />}</TabPanel>}
         {templates !== false && <TabPanel id="templates" className="mt-0 px-3 pb-2">{templates === true ? <TemplateBar /> : templates}</TabPanel>}

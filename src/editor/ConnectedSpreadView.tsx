@@ -1,4 +1,4 @@
-import { memo, useEffect, useSyncExternalStore } from 'react'
+import { memo, useDeferredValue, useEffect, useSyncExternalStore } from 'react'
 import { SPREAD_PX_PER_MM } from '../render/frameBox'
 import { SpreadView, type FrameControl } from '../render/SpreadView'
 import type { ResolvedItem } from '../core'
@@ -8,6 +8,7 @@ import { getCommittedZoom, subscribeCommitted } from './cameraStore'
 import {
   getBookStoreSnapshot,
   getSpreadPaintSnapshot,
+  isBulkRepaint,
   subscribeSpread,
 } from './bookStore'
 import { GridOverlay, type GridOverlayVariant } from './GridOverlay'
@@ -88,11 +89,15 @@ export const ConnectedSpreadView = memo(function ConnectedSpreadView({
   /** Overrides the DPI view flag (Preview passes `false`). */
   lowDpiBadge?: boolean
 }) {
-  const snapshot = useSyncExternalStore(
+  const liveSnapshot = useSyncExternalStore(
     (listener) => subscribeSpread(spreadId, listener),
     () => getSpreadPaintSnapshot(spreadId),
     () => getSpreadPaintSnapshot(spreadId),
   )
+  // A bulk repaint (a master grid edit re-aligns all its users) renders in a
+  // yielding pass after the urgent update; a single-spread edit paints now.
+  const deferredSnapshot = useDeferredValue(liveSnapshot)
+  const snapshot = isBulkRepaint() ? deferredSnapshot : liveSnapshot
   const zoom = useSyncExternalStore(
     subscribeCommitted,
     getCommittedZoom,
