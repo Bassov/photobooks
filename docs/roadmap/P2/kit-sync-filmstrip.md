@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: Kit sync W5: filmstrip header Unplaced toggle + sort menu (Designer kit-sync Spec)
+Status: done
 
 ## Scope
 
