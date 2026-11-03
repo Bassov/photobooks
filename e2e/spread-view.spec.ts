@@ -694,7 +694,8 @@ test.describe('frame-budget gates', () => {
     await assertDocumentFitsViewport(page)
     await assertNamedScrollport(page, 'pasteboard-scroll', { axis: 'vertical' })
 
-    // Cover front and both endpaper pages are canvas photo surfaces too.
+    // Cover front and both endpaper pages are canvas photo surfaces too (they
+    // request 1280 and also show a higher tier another surface decoded).
     await page.getByTestId('cover-list-item').click()
     await expect.poll(() => covers(COVER_FRONT), settled).toBe(true)
     await page.getByTestId('endpaper-list-item-front').click()
@@ -724,12 +725,12 @@ test.describe('frame-budget gates', () => {
         .poll(
           async () => {
             const first = (await readTiers(page, FRAME_IMAGE)).slice(0, 1)
-            return first[0]?.tier === 1280 && tierCovers(first)
+            return tierCovers(first)
           },
           { timeout: 30_000 },
         )
         .toBe(true)
-      // 1280 decode paint can land right at the clear; open the window on a
+      // Covering-tier decode paint can land right at the clear; open the window on a
       // quiet frame so it only covers the zoom-out burst (budget stays zero).
       await page.evaluate(browserBeginLoafScenarioWindow)
 
@@ -778,12 +779,12 @@ test.describe('frame-budget gates', () => {
       expect(laidOutWidth).toBeGreaterThanOrEqual(300 * (96 / 25.4) * 4 - 1)
       await page.evaluate(browserAssertNoLoafThenClear)
 
-      // Phase 2: working preview (1280) after settle — no multi-step ladder.
+      // Phase 2: covering tier (2560 at 400%, via 1280) after settle.
       await expect
         .poll(
           async () => {
             const first = (await readTiers(page, FRAME_IMAGE)).slice(0, 1)
-            return first[0]?.tier === 1280 && tierCovers(first)
+            return tierCovers(first)
           },
           { timeout: 30_000 },
         )
@@ -1068,11 +1069,12 @@ async function readTiers(page: Page, selector: string): Promise<TierSample[]> {
   )
 }
 
+/** Each surface shows a tier covering its device-px long edge (2560 tops the ladder). */
 const tierCovers = (samples: TierSample[]): boolean =>
   samples.length > 0 &&
   samples.every(
     ({ tier, longEdge, src }) =>
-      tier !== null && src.length > 0 && (tier >= longEdge || tier === 1280),
+      tier !== null && src.length > 0 && (tier >= longEdge || tier === 2560),
   )
 
 interface AnchorSample {

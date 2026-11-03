@@ -135,6 +135,10 @@ describe('spreadPreviewKeys', () => {
           rectMm: { width: 10, height: 10 },
           sourceCropRect: { width: 1, height: 0.5 },
         },
+        {
+          assetId: 'c',
+          rectMm: { width: 10, height: 20 },
+        },
       ],
       1,
       1,
@@ -142,7 +146,46 @@ describe('spreadPreviewKeys', () => {
       select,
     )
     expect(tiers.get('a')).toBe(40)
-    expect(tiers.get('b')).toBe(10)
+    // Cover crop: half the source height shows, so the image is drawn 20 tall.
+    expect(tiers.get('b')).toBe(20)
+    expect(tiers.get('c')).toBe(20)
+  })
+
+  it('sizes a landscape cover crop in a portrait frame by its drawn width', () => {
+    const select = (cssPx: number): number => Math.round(cssPx)
+    // 3:2 photo covering a 20×30 frame is drawn 45×30; 20/45 of its width shows.
+    const tiers = desiredTiersForItems(
+      [
+        {
+          assetId: 'a',
+          rectMm: { width: 20, height: 30 },
+          sourceCropRect: { width: 20 / 45, height: 1 },
+        },
+      ],
+      1,
+      1,
+      1,
+      select,
+    )
+    expect(tiers.get('a')).toBe(45)
+  })
+
+  it('scales the drawn edge by px per mm and ignores a degenerate crop', () => {
+    const select = (cssPx: number): number => Math.round(cssPx)
+    const tiers = desiredTiersForItems(
+      [
+        {
+          assetId: 'a',
+          rectMm: { width: 20, height: 10 },
+          sourceCropRect: { width: 0, height: 0 },
+        },
+      ],
+      1,
+      1,
+      2,
+      select,
+    )
+    expect(tiers.get('a')).toBe(40)
   })
 
   it('resolves preview url from tier, book preview, then thumb snapshot', () => {
