@@ -117,7 +117,7 @@ const SliderValueField = ({ className, label }: { className?: string; label?: st
       onFocus={(e) => { setDraft(raw()); requestAnimationFrame(() => e.target.select()) }}
       onChange={(e) => setDraft(e.target.value)} onBlur={commit}
       onKeyDown={(e) => { if (e.key === "Enter") { commit(); (e.target as HTMLInputElement).blur() } if (e.key === "Escape") { setDraft(null); (e.target as HTMLInputElement).blur() } }}
-      className={cn("w-16 rounded-xs bg-transparent text-right outline-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#535152]", className)} />
+      className={cn("w-16 rounded-xs bg-transparent text-right outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#535152]", className)} />
   )
 }
 
