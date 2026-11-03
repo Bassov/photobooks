@@ -1523,7 +1523,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const seq = []
   for (let k = 0; k < 40; k++) {
     seq.push(await page.evaluate(() => { const root = document.querySelector('[data-testid="presentation"]'), b = root.querySelector('[data-testid="presentation-slide"][data-active="true"]').firstElementChild.getBoundingClientRect()
-      return { cap: root.querySelector('[data-testid="pager-position"]').textContent, w: +b.width.toFixed(2), cx: Math.round(b.left + b.width / 2 - innerWidth / 2), page: !!root.querySelector('[data-testid="presentation-slide"][data-active="true"] [data-testid="presentation-page"]') } }))
+      return { cap: root.querySelector('[data-testid="pager-position"]').textContent, w: +b.width.toFixed(2), cx: Math.round(b.left + b.width / 2 - innerWidth / 2), page: !!root.querySelector('[data-testid="presentation-slide"][data-active="true"] [data-testid="presentation-page"]'),
+        sq: [...root.querySelectorAll('[data-testid="presentation-slide"][data-active="true"] [data-paper]')].map((e) => { const s = getComputedStyle(e); return `${s.borderRadius}/${s.boxShadow.split(/,(?![^(]*\))/).every((l) => l === "none" || l.includes("rgba(0, 0, 0, 0)")) ? "none" : s.boxShadow}` }) } }))
     if (k > 0 && seq[k].cap === seq[k - 1].cap) { seq.pop(); break }
     await page.keyboard.press("ArrowRight"); await page.waitForTimeout(260)
   }
@@ -1531,6 +1532,9 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS14 rework: Preview walks Cover, 1 / N (page 1 alone), the spreads, N / N (the last page alone) — single pages half a spread wide, every slide centred",
     seq.map((s) => s.cap).join() === ["Cover", ...Array.from({ length: N }, (_, j) => `${j + 1} / ${N}`)].join() && N >= 3 && seq[1].page && seq[N].page && !mid.some((s) => s.page)
       && mid.every((s) => s.w === mid[0].w) && Math.abs(seq[1].w - mid[0].w / 2) <= 0.5 && Math.abs(seq[N].w - mid[0].w / 2) <= 0.5 && seq.every((s) => Math.abs(s.cx) <= 0.5), JSON.stringify(seq.map((s) => `${s.cap}:${s.w}${s.page ? "p" : ""}@${s.cx}`)))
+  // round 2: prod slides are square paper — no MiniSpread card radius, no thumbnail shadow
+  ok("kit-sync KS14 round 2: page 1, spread and last-page slides are square (border-radius 0) with no shadow",
+    seq.slice(1).every((s) => s.sq.length > 0 && s.sq.every((v) => v === "0px/none")), JSON.stringify([...new Set(seq.slice(1).flatMap((s) => s.sq))]))
   ok("kit-sync KS14 rework: cover slide = the kit cover at prod's sizes (front title 61.15 tall, spine text vertical 22.93 wide, back text 22.93 tall, ±0.5)",
     !!pm?.text && Math.abs(pm.text[0] - 61.15) <= 0.5 && Math.abs(pm.text[1] - 22.93) <= 0.5 && pm.text[2] && Math.abs(pm.text[3] - 22.93) <= 0.5, JSON.stringify(pm?.text))
   ok("kit-sync KS14 rework: slides move sideways + fade 200 ms cubic-bezier(0.2, 0.7, 0.3, 1), neighbours mounted (2 at the cover); caption + Esc line height 16, caption text top 868",
@@ -1846,13 +1850,18 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS1 rework: Snap / Grid toggles 28 × 28 at x 717 / 753, on = rgb(202, 202, 202)", vt.every(([x, w, h, on, bg], i) => Math.abs(x - [717, 753][i]) <= 0.5 && w === 28 && h === 28 && bg === (on ? "rgb(202, 202, 202)" : "rgba(0, 0, 0, 0)")) && vt.some((t) => t[3]), JSON.stringify(vt))
   // rework: the side groups never overlap the tools; the right group reserves its width and moves the tools aside when room runs out
   const bars = []
+  let title1024
   for (const w of [1024, 1100, 1280]) {
     await page.setViewportSize({ width: w, height: 900 }); await page.waitForTimeout(250)
+    if (w === 1024) title1024 = await page.evaluate(() => { const b = document.querySelector('[data-testid="demo"] [data-testid="book-title"]'), e = b.firstElementChild, r = e.getBoundingClientRect(), s = getComputedStyle(e)
+      return { to: s.textOverflow, ov: s.overflowX, cut: e.scrollWidth > e.clientWidth, w: +r.width.toFixed(2), right: +r.right.toFixed(2), box: +b.getBoundingClientRect().right.toFixed(2), size: +b.querySelector('[data-testid="book-size"]').getBoundingClientRect().width.toFixed(2) } })
     bars.push(await page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'), r = (s) => d.querySelector(s).getBoundingClientRect(), s = r('[data-testid="editor-bar-start"]'), t = r('[data-testid="editor-bar"] [role=toolbar][aria-label="Tools"]'), e = r('[data-testid="editor-bar-end"]'), bar = r('[data-testid="editor-bar"]')
       return [innerWidth, +(t.left - s.right).toFixed(2), +(e.left - t.right).toFixed(2), +(bar.right - e.right).toFixed(2), +t.width.toFixed(2)] }))
   }
   await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300)
   ok("kit-sync KS1 rework: top bar at 1024 / 1100 / 1280 — start · tools · end never overlap (gaps ≥ 8), end stays inside the bar, tools 210", bars.every(([, a, b, c, w]) => a >= 7.5 && b >= 7.5 && c >= 0 && Math.abs(w - 210) <= 0.5), JSON.stringify(bars))
+  // round 2: a clipped book title ends in "…" inside its button (was shrink-0: "Lake tri" cut by the button edge)
+  ok("kit-sync KS1 round 2: at 1024 the top-bar book title truncates with an ellipsis and stays inside its button, the size text gives way first", title1024.to === "ellipsis" && title1024.ov === "hidden" && title1024.right <= title1024.box + 0.5 && (!title1024.cut || title1024.size <= 0.5), JSON.stringify(title1024))
   const defs = await page.evaluate(() => ["[data-guide]", '[data-testid^="ruler-"]', '[data-testid="print-overlay"]'].map((s) => document.querySelectorAll(`[data-testid="demo"] ${s}`).length))
   ok("kit-sync KS1: the #/demo canvas opens with 0 guides, 0 rulers, 0 bleed / trim / safe overlays (no dashed safe lines)", defs.join() === "0,0,0", defs.join())
   await page.locator(`${demo} [data-testid="filmstrip"] [role="row"]`).nth(1).dragTo(page.locator(`${demo} [data-testid="canvas"] [data-current] [data-testid="frame"]`).first()); await page.waitForTimeout(400) // p02 = the 800 px low-res photo

@@ -168,8 +168,8 @@ export function TopBar({ tools = true, history = true, views = ["snap", "grid"],
       <div className="col-[1/3] flex min-w-0 max-w-full items-center gap-2 justify-self-start" data-testid="editor-bar-start">
       <Button variant="ghost" size="sm" className="h-8 shrink-0 gap-1 pl-1.5 pr-2.5 text-sm [&_svg]:size-4" style={{ color: SUB }} onPress={onLibrary} data-testid="editor-library"><ChevronLeft />Library</Button>
       <button type="button" className="e7-title ml-1 flex h-8 min-w-0 items-baseline gap-2 overflow-hidden rounded-md border-0 px-2.5 pt-1.5" aria-pressed={isBook} aria-label="Book settings" title="Book settings" data-testid="book-title" onClick={() => st.setNode(isBook ? null : { k: "book" })}>
-        <span className="shrink-0 text-md" style={{ fontFamily: "var(--font-heading)", color: T }}><em>{title}</em></span>
-        <span className="min-w-0 truncate text-sm tabular-nums" style={{ color: SUB }} data-testid="book-size">{fmtN(st.book.w)} × {fmtN(st.book.h)} cm · {pages} pages{save ? ` · ${st.saveState === "saving" ? "saving" : st.saveState === "error" ? "not saved" : "saved"}` : ""}</span></button>
+        <span className="min-w-0 truncate text-md" style={{ fontFamily: "var(--font-heading)", color: T }}><em>{title}</em></span>
+        <span className="min-w-0 shrink-[999] truncate text-sm tabular-nums" style={{ color: SUB }} data-testid="book-size">{fmtN(st.book.w)} × {fmtN(st.book.h)} cm · {pages} pages{save ? ` · ${st.saveState === "saving" ? "saving" : st.saveState === "error" ? "not saved" : "saved"}` : ""}</span></button>
       {history && <div className="ml-2 flex shrink-0 items-center"><HistoryButtons /></div>}
       </div>
       <div className="col-[3] flex items-center">

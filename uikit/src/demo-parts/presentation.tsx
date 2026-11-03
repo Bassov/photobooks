@@ -39,9 +39,9 @@ export function Presentation({ onExit }: { onExit: () => void }) {
   /** natural size + content of slide `j` */
   const slide = (j: number): [number, number, React.ReactNode] => {
     if (j === 0) { const cw = coverW(bk) * 10 * COVER_PX_PER_MM; return [cw, bk.h * 10 * COVER_PX_PER_MM, <div className="size-full" data-testid="presentation-cover"><CoverSpread slide={cw / COVER_FIT_PX} /></div>] }
-    if (j === 1) return [SW / 2, SH, <div className="-ml-[100%] w-[200%]" data-testid="presentation-page"><MiniSpread s={st.doc.spreads[0]} width={SW} si={0} /></div>]
+    if (j === 1) return [SW / 2, SH, <div className="-ml-[100%] w-[200%]" data-testid="presentation-page"><MiniSpread s={st.doc.spreads[0]} width={SW} si={0} className="rounded-none shadow-none!" /></div>]
     if (j === n - 1) return [SW / 2, SH, <div className="size-full" style={{ background: PAPER }} data-paper data-testid="presentation-page" />]
-    return [SW, SH, <MiniSpread s={st.doc.spreads[j - 1]} width={SW} si={j - 1} />]
+    return [SW, SH, <MiniSpread s={st.doc.spreads[j - 1]} width={SW} si={j - 1} className="rounded-none shadow-none!" />]
   }
   return (
     <div ref={ref} className="fixed inset-0 z-[80] touch-pan-y overflow-hidden bg-presentation text-[rgb(255_255_255/0.6)] select-none" role="dialog" aria-modal="true" aria-label="Presentation" data-testid="presentation"
