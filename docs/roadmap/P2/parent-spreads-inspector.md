@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: parent spreads: master inspector (grid, guides, items)
+Status: done
 
 ## Scope
 
