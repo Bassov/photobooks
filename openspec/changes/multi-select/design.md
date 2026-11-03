@@ -14,6 +14,7 @@
 | `src/editor/frameSelection.ts`       | set                        |
 | `src/editor/dropTargets.ts`          | toggle                     |
 | `src/editor/galleryDrop.ts`          | activate, Delete           |
+| `src/editor/frameHandleGesture.ts`   | bare click clears a set    |
 | `src/editor/ConnectedSpreadView.tsx` | pressed, drag              |
 | `src/editor/spreadPreviewKeys.ts`    | set-aware `isFramePressed` |
 | `src/editor/bookHistory.ts`          | label                      |

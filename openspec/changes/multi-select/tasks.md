@@ -12,3 +12,5 @@
 1. Shift+click two filled frames on a spread: both outlined, no handles, dashed group box; photos not swapped.
 2. Shift+click one of them again: single selection with handles; Esc clears it.
 3. Select three frames (one locked), press Delete: all three gone; Undo restores them in one step.
+
+manual-qa (stage 9): problem 1–3 — harness: the welcome-screen header intercepts the `start-session` click, the editor is never reached (known issue). Covered instead by `e2e/multi-select.spec.ts` on `?fixture=painter` (4 passed: scenarios 1–3 plus the LoAF gate).

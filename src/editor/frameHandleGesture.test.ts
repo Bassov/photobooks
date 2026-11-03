@@ -7,9 +7,11 @@ import { enterCropMode, exitCropMode, getCropTarget } from './cropMode'
 import { getEditorStatus, setEditorStatus } from './editorStatus'
 import { resetEditorToolForTests, setEditorTool } from './editorToolStore'
 import {
+  getFrameSelection,
   getFrameSource,
   resetFrameSelection,
   setFrameSource,
+  toggleFrameSelection,
 } from './frameSelection'
 import { installFrameHandleGesture } from './frameHandleGesture'
 import { setGridVisible, setSnapOn } from './gridView'
@@ -407,6 +409,13 @@ describe('frameHandleGesture', () => {
     it('a click on bare pasteboard clears the selection', () => {
       dom.pasteboard.dispatchEvent(new MouseEvent('click', { bubbles: true }))
       expect(getFrameSource()).toBeNull()
+    })
+
+    it('a click on bare pasteboard clears a multi-selection too', () => {
+      toggleFrameSelection({ spreadId: 'other', frameId: 'a' })
+      toggleFrameSelection({ spreadId: 'other', frameId: 'b' })
+      dom.pasteboard.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      expect(getFrameSelection()).toBeNull()
     })
 
     it('a click on the frame keeps the selection', () => {

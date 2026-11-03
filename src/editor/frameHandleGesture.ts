@@ -4,7 +4,12 @@ import { dispatchBookOp } from './bookStore'
 import { getCropTarget } from './cropMode'
 import { STATUS_FRAME_LOCKED, setEditorStatus } from './editorStatus'
 import { getEditorTool } from './editorToolStore'
-import { getFrameSource, setFrameSource, sourceFrame } from './frameSelection'
+import {
+  getFrameSelection,
+  getFrameSource,
+  setFrameSource,
+  sourceFrame,
+} from './frameSelection'
 import {
   clearSnapLines,
   gridSnapActive,
@@ -388,7 +393,7 @@ export function installFrameHandleGesture(): () => void {
     // A click on bare pasteboard / spread paper clears the selection.
     if (
       getEditorTool() === 'select' &&
-      getFrameSource() !== null &&
+      getFrameSelection() !== null &&
       event.target instanceof Element &&
       event.target.closest('[data-testid="pasteboard"]') !== null &&
       event.target.closest('.spread-frame') === null &&
