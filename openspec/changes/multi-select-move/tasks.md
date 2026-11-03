@@ -11,3 +11,5 @@
 1. Select three frames on a spread (lock one first), drag one: the two unlocked move together, the locked stays, one Undo puts them back.
 2. Mid-drag press Esc: all frames back, three still selected.
 3. ArrowRight / Shift+ArrowRight with the set: frames nudge 1 / 10 mm, the pasteboard does not scroll.
+
+`pnpm agent manual-qa --change multi-select-move`: harness problem on all three: blocked at welcome (`start-session` click intercepted by the `welcome-screen` header), editor never reached. No product verdict. Evidence: `e2e/multi-select.spec.ts` "multi-select part 2: group move, Esc, arrows" (scenarios 1–3, `/?fixture=painter`) and "a 3-frame group move logs no LoAF and keeps the handler p95" pass locally.
