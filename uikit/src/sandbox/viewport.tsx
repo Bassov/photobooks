@@ -5,7 +5,7 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SW, SH, PAGE, clamp, round, uid, spread, type Guide } from "./model"
 import { useStudio, mapSpread, useKeys } from "./store"
-import { SpreadSurface, GuideLine, PHOTO_TYPE, readItems, marqueeStarters } from "./canvas"
+import { SpreadSurface, GuideLine, PHOTO_TYPE, readItems, marqueeStarters, grayPick } from "./canvas"
 import { bestTemplate } from "./templates"
 import { CoverSpread, EndpaperSpread, MasterSpread, LastPage, MASTERS, setMaster, guidesOfMaster, useMasters, coverW, pagesOf, SPINE, SUB, setCoverPhoto } from "./v7"
 import type { Node } from "./store"
@@ -303,7 +303,10 @@ function Stack({ className, pad, children }: { className?: string; pad: number; 
   const sc = fitScale(size.w, size.h, pad) * st.view.zoom, gap = SH * sc * STACK_GAP
   const last = st.node?.k === "last", ready = size.w > 0
   React.useEffect(() => {
-    // a current spread (or the last page) not fully in view is centred in the viewport (prod centerSpreadScroll)
+    // a current spread (or the last page) not fully in view is centred in the viewport (prod centerSpreadScroll);
+    // a grey-press activation keeps the scroll (r16 M92, prod pasteboardClickSpreadId)
+    const picked = !last && grayPick.si === st.cur; grayPick.si = -1
+    if (picked) return
     const el = ref.current?.querySelector(`[data-stack-item="${last ? "last" : st.cur}"]`) as HTMLElement | null
     if (!el || !ref.current) return
     const c = ref.current, top = el.offsetTop + el.offsetHeight / 2 - c.clientHeight / 2
