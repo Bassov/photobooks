@@ -971,6 +971,18 @@ describe('Inspector, multi context', () => {
     expect([rect('a')?.x, rect('b')?.x, rect('c')?.x]).toEqual([10, 60, 60])
   })
 
+  it('names the set Arrange buttons with their kit shortcut', () => {
+    seedRow()
+    render(<Inspector />)
+    select('a', 'b')
+    expect(screen.getByTestId('z-back').getAttribute('aria-label')).toBe(
+      'Send to back (Shift+Ctrl+[)',
+    )
+    expect(screen.getByTestId('z-front').getAttribute('aria-label')).toBe(
+      'Bring to front (Shift+Ctrl+])',
+    )
+  })
+
   it('arranges the set in one step and deletes it', () => {
     seedRow()
     render(<Inspector />)

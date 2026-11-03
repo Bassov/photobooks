@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeBook, makeSpread } from '../core/testing/fixtures'
 import { getBookStoreSnapshot, resetBookStore, undoBook } from './bookStore'
+import { getEditorStatus, setEditorStatus } from './editorStatus'
 import { startGuideDrag } from './guideGesture'
 import { getGuidesVisible, setGuidesVisible } from './guidesView'
 
@@ -91,6 +92,7 @@ describe('startGuideDrag', () => {
     vi.unstubAllGlobals()
     document.body.replaceChildren()
     setGuidesVisible(true)
+    setEditorStatus('')
     resetBookStore()
   })
 
@@ -356,5 +358,76 @@ describe('startGuideDrag', () => {
       rulerEl: null,
     })
     expect(spreadEl.querySelector('.guide-line')).toBeNull()
+  })
+
+  function seedSpreads(ids: string[]) {
+    resetBookStore({
+      book: makeBook({
+        spreads: ids.map((id) =>
+          makeSpread({
+            id,
+            guides: [{ id: 'g', orientation: 'vertical', offsetMm: 100 }],
+          }),
+        ),
+      }),
+      sessionMeta: new Map(),
+      importRunning: false,
+      importExpectedCount: 0,
+    })
+  }
+
+  function drag(
+    spreadEl: HTMLElement,
+    rulerEl: HTMLElement,
+    x: number,
+    existing?: { id: string; lineEl: HTMLElement; offsetMm: number },
+  ) {
+    startGuideDrag({
+      event: pointer(90, 300),
+      spreadEl,
+      orientation: 'vertical',
+      rulerEl,
+      ...(existing === undefined ? {} : { existing }),
+    })
+    move(x, 300)
+    up(x, 300)
+  }
+
+  it('states a placed or moved guide with its page on a two-page spread', () => {
+    // s1 is the middle spread: two 300 mm pages, 1 mm = 1 client px.
+    seedSpreads(['s0', 's1', 's2'])
+    const { spreadEl, rulerY, lineEl } = mount()
+    drag(spreadEl, rulerY, 550)
+    expect(getEditorStatus()).toBe('Vertical guide at 150 mm (right page)')
+    drag(spreadEl, rulerY, 220, { id: 'g', lineEl, offsetMm: 100 })
+    expect(
+      getBookStoreSnapshot().book.spreads[1]?.guides?.map((g) => g.offsetMm),
+    ).toEqual([120, 450])
+    expect(getEditorStatus()).toBe('Vertical guide at 120 mm (left page)')
+  })
+
+  it('states a guide on a single page with its side and a horizontal one in mm', () => {
+    // s1 is page 1 of the book: one 300 mm page on the right, 1 mm = 2 px.
+    seedSpreads(['s1', 's2'])
+    const { spreadEl, rulerX, rulerY } = mount()
+    drag(spreadEl, rulerY, 184)
+    expect(getEditorStatus()).toBe('Vertical guide at 42 mm (right page)')
+    startGuideDrag({
+      event: pointer(500, 40),
+      spreadEl,
+      orientation: 'horizontal',
+      rulerEl: rulerX,
+    })
+    up(500, 250)
+    expect(getEditorStatus()).toBe('Horizontal guide at 100 mm')
+  })
+
+  it('leaves the status alone when a guide is abandoned or removed', () => {
+    const { spreadEl, rulerY, lineEl } = mount()
+    setEditorStatus('Photo moved')
+    drag(spreadEl, rulerY, 90)
+    drag(spreadEl, rulerY, 90, { id: 'g', lineEl, offsetMm: 100 })
+    expect(guidesOf()).toHaveLength(0)
+    expect(getEditorStatus()).toBe('Photo moved')
   })
 })

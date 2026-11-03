@@ -148,7 +148,7 @@ describe('FrameContextMenu', () => {
       'frame-menu-lock',
     ])
     expect(screen.getByTestId('frame-menu-back').textContent).toContain(
-      'Ctrl+Shift+[',
+      'Shift+Ctrl+[',
     )
     expect(screen.getByRole('separator')).toBeTruthy()
     expect(screen.getByTestId('frame-menu-anchor').style.left).toBe('40px')

@@ -107,11 +107,19 @@ test('pull guides from both rulers; they sit at the dropped mm', async ({
   const spread = await spreadBox(page)
   const mm = Number(await horizontal.getAttribute('data-offset-mm'))
   expect(mm).toBeCloseTo((60 / spread.height) * SPREAD_HEIGHT_MM, 0)
+  // Kit status pill (uikit viewport.tsx): the placed guide's position.
+  const status = page.getByTestId('editor-status')
+  await expect(status).toHaveText(`Horizontal guide at ${String(mm)} mm`)
+  await expect(status).toHaveAttribute('data-pill', 'true')
 
   await pullVertical(page, 80)
-  await expect(
-    page.locator('[data-testid="guide-line"][data-orientation="vertical"]'),
-  ).toHaveCount(1)
+  const vertical = page.locator(
+    '[data-testid="guide-line"][data-orientation="vertical"]',
+  )
+  await expect(vertical).toHaveCount(1)
+  const vmm = Number(await vertical.getAttribute('data-offset-mm'))
+  await expect(status).toContainText(`Vertical guide at ${String(vmm)} mm (`)
+  await expect(status).toHaveText(/ \((left|right) page\)$/)
   await expect(page.getByTestId('guide-line')).toHaveCount(2)
   await expectGuidesAligned(page)
   await assertDocumentFitsViewport(page)
