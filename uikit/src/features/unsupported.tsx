@@ -84,6 +84,8 @@ function DesktopBody({ noApi, browserName }: { noApi: boolean; browserName: stri
 /** The blocking screen shown instead of the app when the browser can't open folders (prod `UnsupportedBrowserScreen`). */
 export function UnsupportedScreen({ variant, browserName = "this browser" }: { variant: UnsupportedVariant; browserName?: string }) {
   const Glyph = ICON[variant]
+  // the screen fits phones: while it is up, the page minimum is prod's 320 px, not the kit canvas's 1280 (kit.css body)
+  React.useLayoutEffect(() => { const b = document.body.style, was = b.minWidth; b.minWidth = "320px"; return () => { b.minWidth = was } }, [])
   return (
     <main className="ub-root" data-testid="unsupported-browser" data-narrow={variant === "mobile" ? "" : undefined}>
       <div className="ub-scroll" data-testid="unsupported-scroll">

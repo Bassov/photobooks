@@ -71,12 +71,6 @@
   }
 }
 
-/* The screen fits phones: the page minimum is prod's 320 px (the kit's
-   desktop canvas sets 1280 px on body). */
-body:has(.ub-root) {
-  min-width: 320px;
-}
-
 .ub-scroll {
   flex: 1;
   min-height: 0;
