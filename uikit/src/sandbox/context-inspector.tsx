@@ -246,7 +246,8 @@ export function relayout(sp: Spread, margin: number, gap: number): Spread {
 }
 const MARGIN_KEYS: (keyof Grid)[] = ["top", "bottom", "inside", "outside"]
 /** v0.8 §3.4 + layout-grids-parent-inherit GP2–GP6: per-spread grid — "Use master" (inherit) or Custom (per-field overrides on top of the master:
-    grey = follows the master, dark + ↺ = set on this spread). Custom alone writes nothing; ↺ deletes one key (all four margins while linked). */
+    grey = follows the master, dark + ↺ = set on this spread). Custom alone writes nothing; ↺ deletes one key (all four margins while linked).
+    GP5 link on: GridFields' link button calls `set` (→ `write`) with B/I/O = T, so only the margins ≠ T become overrides, one step (prod `linkMarginsPatch`). */
 function SpreadGridSection() {
   const st = useStudio(); useMasters()
   const [customFor, setCustomFor] = React.useState<string | null>(null)
