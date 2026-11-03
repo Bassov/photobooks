@@ -44,6 +44,15 @@ export function bestTemplate(photoIds: string[], pool: Template[] = ALL_TEMPLATE
    Custom templates live in their own reactive store; TT() resolves both. */
 export const BUILTIN = () => ALL_TEMPLATES
 export const slotCount = (t: Template) => t.frames.length
+
+/* kit-sync KS7 (Owner 2026-11-02; prod twin: src/editor/layoutCatalog.ts PICKER_MERGES / sortByPhotoCount):
+   on a two-page spread Two portraits is only a margin variant of One per page, so the picker shows one tile;
+   a stored t-2port stays valid and presses / names the tile that stands for it */
+const PICKER_MERGES: Record<string, string> = { "t-2port": "t-pair" }
+export const pickerTemplates = (single: boolean) => (single ? ALL_TEMPLATES : ALL_TEMPLATES.filter((t) => !PICKER_MERGES[t.id]))
+export const pickerAlias = (id: string | null | undefined, single: boolean) => (id && !single && PICKER_MERGES[id]) || id
+/** one list from one photo up; the sort is stable, so catalogue order holds inside a count */
+export const sortByPhotoCount = (ts: Template[]) => [...ts].sort((a, b) => slotCount(a) - slotCount(b))
 let custom: Template[] = [
   { id: "c-opener", name: "Travel opener", count: 2, group: "2", frames: [{ x: 0, y: 0, w: 62, h: 100 }, { x: 68, y: 30, w: 28, h: 40 }] },
   { id: "c-polaroid", name: "Polaroid pair", count: 2, group: "2", frames: [{ x: 10, y: 14, w: 30, h: 60 }, { x: 60, y: 24, w: 30, h: 60 }] },

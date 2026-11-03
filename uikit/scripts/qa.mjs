@@ -774,7 +774,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const seg = await D('[data-testid="mode-seg"]').count(), lab = await D('[data-testid="panel-l"] [role=row] [data-label]').allInnerTexts(), bar = await D('[data-testid="editor-bar"]').count()
     return [seg === 1 && bar === 1 && lab.includes("1") && lab.includes("2–3"), `seg=${seg} bar=${bar} labels=${lab.slice(0, 5)}`]
   })
-  await smokeS("v7.1 P1 #3: v0.5.3 features live in the one editor — templates All/My + search, filmstrip drag source, inspector params, multi-select, Crop toolbar", "canvas", async () => {
+  await smokeS("v7.1 P1 #3: v0.5.3 features live in the one editor — templates All/My (no search since kit-sync KS7), filmstrip drag source, inspector params, multi-select, Crop toolbar", "canvas", async () => {
     await scen("Photo")
     const r = {}
     r.tb = await E('[role=toolbar]').count()
@@ -785,7 +785,7 @@ await page.evaluate(() => { location.hash = "#/credits" }); await page.waitForTi
     const fr = E('[data-testid="spread"] [data-testid="frame"]')
     r.frames = await fr.count()
     if (r.frames >= 2) { await fr.nth(0).click({ force: true }); await fr.nth(1).click({ modifiers: ["Shift"], force: true }); await page.waitForTimeout(200); r.multi = await E('[data-testid="sel-outline"]').count() }
-    return [r.tb >= 1 && r.params === 1 && r.tpl >= 4 && r.search >= 1 && r.film >= 4 && (r.multi ?? 0) >= 2, JSON.stringify(r)]
+    return [r.tb >= 1 && r.params === 1 && r.tpl >= 4 && r.search === 0 && r.film >= 4 && (r.multi ?? 0) >= 2, JSON.stringify(r)]
   })
   await smokeS("layout-tile-states (Owner 2026-11-02): the tile stays transparent, hover rings the paper, the paper fills a trim-shaped box, page 1 goes 3 columns", "canvas", async () => {
     const tile = () => E('[data-testid="layout-section"] [data-testid="tpl-tile"]').nth(1)
@@ -1793,6 +1793,69 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const ink = await page.locator(`${demo} [data-testid="book-cover"] .lib-obj div[style*="color"]`).first().evaluate((e) => getComputedStyle(e).color)
   ok("kit-sync KS11: library card title over the photo rgb(245, 245, 245)", ink === "rgb(245, 245, 245)", ink)
   ok("kit-sync W4: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
+}
+
+// kit-sync W3 (Designer kit-sync Spec 6, 7, 12, 15, = prod): no Hide inspector in the inspector head, prod layout picker, prod flip glyphs, Page size chevron
+{
+  const e0 = errs.length
+  await go("#/demo", 500); await page.evaluate(() => window.__demo.reset()); await page.waitForTimeout(500)
+  const c = async (sel) => { await page.locator(sel).first().click(); await page.waitForTimeout(300) }
+  const near = (a, b) => a != null && Math.abs(a - b) <= 1
+  await c('[data-testid="create-library"]'); await c('[data-testid="picker-select"]')
+  await c(`${demo} [data-testid="new-book"]`); await page.locator("[role=dialog] input").first().fill("Lake trip"); await c('[data-testid="create-book"]')
+  await c('[data-testid="demo-add-folder"]'); await page.locator("[role=dialog]").getByRole("button", { name: /Choose|Select|Use|Add/i }).last().click(); await page.waitForTimeout(500)
+  const hide = () => page.locator(`${demo} :is([data-testid="inspector-header"], [data-testid="inspector-legacy"]) [aria-label^="Hide inspector"]`).count()
+  const hideSpread = await hide(), toggle = await page.locator(`${demo} [data-testid="toggle-r"][aria-label="Hide inspector"]`).count()
+  await c('[data-item="p1"]')
+  await page.locator('[data-testid="filmstrip"] [role="row"]').nth(5).dragTo(page.locator('[data-testid="canvas"] [data-testid="frame"]').first()); await page.waitForTimeout(400)
+  await c('[data-testid="canvas"] [data-testid="frame"]')
+  const hidePhoto = await hide()
+  ok("kit-sync KS6: inspector head has no Hide inspector button (spread and photo); the top-bar toggle stays", hideSpread === 0 && hidePhoto === 0 && toggle === 1, `spread ${hideSpread} photo ${hidePhoto} toggle ${toggle}`)
+  const flips = await page.evaluate(() => ["flip-h", "flip-v"].map((id) => [...document.querySelectorAll(`[data-testid="demo"] [data-testid="${id}"] svg path`)].map((p) => p.getAttribute("d")).join(" ")))
+  ok("kit-sync KS12: Flip H / Flip V carry prod's glyphs", flips[0] === "m3 7 5 5-5 5V7 m21 7-5 5 5 5V7 M12 20v2 M12 14v2 M12 8v2 M12 2v2" && flips[1] === "m17 3-5 5-5-5h10 m17 21-5-5-5 5h10 M4 12H2 M10 12H8 M16 12h-2 M22 12h-2", JSON.stringify(flips))
+  await c('[data-testid="book-title"]')
+  const size = page.locator(`${demo} [data-testid="size-preset"]`)
+  const chev = await size.evaluate((e) => { const s = getComputedStyle(e); return { svg: /svg/.test(s.backgroundImage) && /m6 9 6 6 6-6/.test(s.backgroundImage) && /%23535152/i.test(s.backgroundImage), gradient: /gradient/.test(s.backgroundImage), size: s.backgroundSize, pos: s.backgroundPosition, pr: s.paddingRight } })
+  ok("kit-sync KS15: Page size select shows a 16 px chevron-down rgb(83,81,82), not the triangle caret", chev.svg && !chev.gradient && chev.size === "16px 16px" && chev.pos === "calc(100% - 8px) 50%" && chev.pr === "32px", JSON.stringify(chev))
+  await size.selectOption("sq20"); await page.waitForTimeout(300) // a 2:1 spread: prod's tile h 69.5
+  await c('[data-item="p1"]')
+  const sec = `${demo} [data-testid="layout-section"]`
+  // Spec / prod numbers are taken without a scrollbar gutter (demo-capture hides scrollbars; qa shows them): drop it while measuring
+  const pick = await page.evaluate((sec) => {
+    const s = document.querySelector(sec), scroller = s.closest(".overflow-y-auto"); if (scroller) scroller.style.scrollbarWidth = "none"
+    const tiles = [...s.querySelectorAll('[data-testid="tpl-tile"]')], grid = s.querySelector('[data-testid="tpl-grid"]')
+    const pressed = s.querySelector('[data-testid="tpl-tile"] button[aria-pressed="true"]')
+    const h = tiles.filter((t) => !t.dataset.tid.startsWith("c-")).map((t) => +t.getBoundingClientRect().height.toFixed(2)); if (scroller) scroller.style.scrollbarWidth = ""
+    return {
+      h,
+      cols: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+      ids: tiles.map((t) => t.dataset.tid), slots: tiles.map((t) => t.querySelectorAll('[data-testid="tpl-paper"] > div:not(.w-px)').length),
+      captions: tiles.filter((t) => t.querySelector('[data-testid="tpl-name"]')).map((t) => t.dataset.tid),
+      titles: tiles.every((t) => { const b = t.querySelector("button"); return b.title && b.getAttribute("aria-label") === `Apply layout ${b.title}` }),
+      note: document.querySelector('[data-testid="section-note"]')?.textContent, pressed: pressed?.title,
+      search: s.querySelectorAll("input[type=search], [role=searchbox]").length, heads: /Suggested for|All layouts/.test(s.textContent),
+      hint: s.querySelector('[data-testid="tpl-hint"]')?.textContent, hintBelow: s.querySelector('[data-testid="tpl-hint"]').getBoundingClientRect().top >= grid.getBoundingClientRect().bottom,
+    }
+  }, sec)
+  ok("kit-sync KS7: builtin tiles h 69.5 (2:1 spread), 2 columns, no caption (tooltip + aria-label), saved templates keep theirs", pick.h.length > 0 && pick.h.every((h) => near(h, 69.5)) && pick.cols === 2 && pick.titles && pick.captions.every((id) => id.startsWith("c-")) && pick.captions.length === 3, JSON.stringify({ h: pick.h.slice(0, 4), cols: pick.cols, captions: pick.captions }))
+  ok("kit-sync KS7: one list by photo count, Two portraits merged into One per page, no search / Suggested / All layouts", pick.slots.every((n, i) => i === 0 || n >= pick.slots[i - 1]) && !pick.ids.includes("t-2port") && pick.ids.includes("t-pair") && pick.search === 0 && !pick.heads, JSON.stringify({ ids: pick.ids, slots: pick.slots }))
+  ok("kit-sync KS7: header LAYOUT · <current name>; hint under the tiles", pick.note === `· ${pick.pressed}` && pick.hintBelow && pick.hint === "Hover a layout to preview it on the spread; click to apply. Photos are kept in order.", `note ${pick.note} pressed ${pick.pressed}`)
+  const row = await page.evaluate((sec) => {
+    const s = document.querySelector(sec), g = s.querySelector('[role=group][aria-label="Contact sheet"]'), save = s.querySelector('[data-testid="tpl-save-button"]')
+    if (!g) return null
+    const b = g.querySelector('[data-testid="tpl-contact-apply"]').getBoundingClientRect()
+    return { inputs: [...g.querySelectorAll("input")].map((i) => { const r = i.getBoundingClientRect(); return `${i.closest("[aria-label]")?.getAttribute("aria-label") ?? i.getAttribute("aria-label")}=${i.value} ${r.width}x${r.height}` }), below: g.getBoundingClientRect().top >= save.getBoundingClientRect().bottom, right: b.right, saveRight: save.getBoundingClientRect().right, btn: g.querySelector('[data-testid="tpl-contact-apply"]').textContent }
+  }, sec)
+  await c(`${sec} [data-testid="tpl-contact-apply"]`)
+  const applied = { note: await page.locator(`${demo} [data-testid="section-note"]`).textContent(), frames: await page.locator(`${demo} [data-testid="canvas"] [data-testid="frame"]`).count() }
+  ok("kit-sync KS7: Contact sheet row under Save as template — Columns 3 × Rows 2 (44×32) + Contact sheet at the right edge; applies 3×2", row && row.below && row.inputs.join() === "Columns=3 44x32,Rows=2 44x32" && row.btn === "Contact sheet" && near(row.right, row.saveRight) && applied.note === "· Contact sheet 3×2" && applied.frames === 12, JSON.stringify({ row, applied }))
+  await c(`${sec} [data-testid="tab-mine"]`); await c(`${sec} [data-chip="4"]`)
+  const empty = await page.locator(`${sec} [data-testid="tpl-empty"]`).textContent().catch(() => null)
+  ok("kit-sync KS7: My templates + 4+ → empty state", empty?.trim() === "No layouts match.", String(empty))
+  await c(`${sec} [data-chip="all"]`); await c('[data-item="p0"]')
+  const cols1 = await page.locator(`${sec} [data-testid="tpl-grid"]`).first().evaluate((g) => getComputedStyle(g).gridTemplateColumns.split(" ").length).catch(() => null)
+  ok("kit-sync KS7: single page (page 1) → 3 columns", cols1 === 3, String(cols1))
+  ok("kit-sync W3: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 
 

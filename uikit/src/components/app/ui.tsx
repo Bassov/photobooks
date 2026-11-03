@@ -41,7 +41,7 @@ export function IconButton({ label, children, tooltip = true, isOpen, placement 
 }
 
 /* Collapsible inspector section = JollyUI Disclosure + a compact, quiet header (v1-style eyebrow) */
-function SectionHeader({ title, summary, right }: { title: string; summary?: string; right?: React.ReactNode }) {
+function SectionHeader({ title, note, summary, right }: { title: string; note?: string; summary?: string; right?: React.ReactNode }) {
   const { isExpanded } = useContext(DisclosureStateContext)!
   return (
     <div className="flex items-center gap-1 pr-2">
@@ -49,6 +49,8 @@ function SectionHeader({ title, summary, right }: { title: string; summary?: str
         <AriaButton slot="trigger" className="group/sh flex h-9 w-full items-center gap-1.5 pl-3 pr-1 text-left outline-hidden data-[focus-visible]:ring-2 data-[focus-visible]:ring-inset data-[focus-visible]:ring-ring">
           <ChevronRight aria-hidden className={cn("size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-(--duration-base)", isExpanded && "rotate-90")} />
           <span className="eyebrow group-data-[hovered]/sh:text-foreground">{title}</span>
+          {/* kit-sync KS7 (prod Disclosure note): muted "· note" after the title, expanded and collapsed */}
+          {note && <span className="min-w-0 truncate text-xs font-normal text-muted-foreground" data-testid="section-note">· {note}</span>}
           {!isExpanded && summary && <span className="ml-auto truncate pl-2 text-xs font-normal text-muted-foreground">{summary}</span>}
         </AriaButton>
       </Heading>
@@ -59,14 +61,14 @@ function SectionHeader({ title, summary, right }: { title: string; summary?: str
 /** proto: wrap rare sections in <SectionsCollapsed> so they start folded without changing each section */
 export const SectionDefaultExpanded = React.createContext(true)
 export function SectionsCollapsed({ children }: { children: React.ReactNode }) { return <SectionDefaultExpanded.Provider value={false}>{children}</SectionDefaultExpanded.Provider> }
-export function Section({ title, summary, right, defaultExpanded: de, children, className }: {
-  title: string; summary?: string; right?: React.ReactNode; defaultExpanded?: boolean; children?: React.ReactNode; className?: string
+export function Section({ title, note, summary, right, defaultExpanded: de, children, className }: {
+  title: string; note?: string; summary?: string; right?: React.ReactNode; defaultExpanded?: boolean; children?: React.ReactNode; className?: string
 }) {
   const ctx = React.useContext(SectionDefaultExpanded)
   const defaultExpanded = de ?? ctx
   return (
     <Disclosure defaultExpanded={defaultExpanded} className={cn("min-w-0 border-b  last:border-b-0", className)}>
-      <SectionHeader title={title} summary={summary} right={right} />
+      <SectionHeader title={title} note={note} summary={summary} right={right} />
       <DisclosurePanel className="text-sm"><div className="px-4 pb-3 pt-0.5">{children}</div></DisclosurePanel>
     </Disclosure>
   )
