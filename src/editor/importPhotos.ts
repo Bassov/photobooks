@@ -36,7 +36,10 @@ import {
   relativePathFor,
   reuseIdentityKey,
 } from './importBodyReads'
-import { tryPatchManifestFromAsset } from './folderManifestWrite'
+import {
+  tryMarkManifestDecodeFailed,
+  tryPatchManifestFromAsset,
+} from './folderManifestWrite'
 import { isLibraryBacked } from './projectSession'
 import { seedWorkingPreview } from '../photo/tierCache'
 import {
@@ -225,6 +228,7 @@ function wantsSourceBytes(assetId: string): boolean {
 }
 
 function discardFailedImport(assetId: string): void {
+  tryMarkManifestDecodeFailed(getBookStoreSnapshot().book.assets[assetId])
   const clearSelection = getSelectedAssetId() === assetId
   removeFailedImportAsset(assetId)
   releaseAssetSource(assetId)

@@ -4,6 +4,7 @@ import {
   canUseDirectoryPicker,
   isAcceptedPhotoPath,
   isClearFolderSkipPath,
+  isHiddenPhotoPath,
   isImageLikeFile,
   isImageLikePath,
   isUnsupportedImagePath,
@@ -35,10 +36,37 @@ describe('scan path classifiers', () => {
     expect(isClearFolderSkipPath('notes.txt')).toBe(true)
     expect(isClearFolderSkipPath('Trip/README.md')).toBe(true)
     expect(isClearFolderSkipPath('IMG_0042')).toBe(false)
-    expect(isClearFolderSkipPath('.hidden')).toBe(false)
+    expect(isClearFolderSkipPath('.hidden')).toBe(true)
     expect(isClearFolderSkipPath('trailing.')).toBe(false)
     expect(isClearFolderSkipPath('photo.jpg')).toBe(false)
   })
+})
+
+describe('hidden / OS metadata paths', () => {
+  it.each([
+    '._a.jpg',
+    'dir/._a.JPG',
+    '.hidden/a.jpg',
+    '.DS_Store',
+    '.Trashes/501/IMG_1.jpeg',
+    'Trip/.Spotlight-V100/x.png',
+    '._scan.tiff',
+  ])('%s is hidden: no photo, no error, a silent folder skip', (path) => {
+    expect(isHiddenPhotoPath(path)).toBe(true)
+    expect(isAcceptedPhotoPath(path)).toBe(false)
+    expect(isImageLikePath(path)).toBe(false)
+    expect(isUnsupportedImagePath(path)).toBe(false)
+    expect(isClearFolderSkipPath(path)).toBe(true)
+  })
+
+  it.each(['a.jpg', 'dir.v2/a.jpg', 'Trip/IMG_0042.JPG', 'a.b.c/d.e.png'])(
+    '%s is a photo path',
+    (path) => {
+      expect(isHiddenPhotoPath(path)).toBe(false)
+      expect(isAcceptedPhotoPath(path)).toBe(true)
+      expect(isClearFolderSkipPath(path)).toBe(false)
+    },
+  )
 })
 
 describe('partitionImportFiles', () => {
@@ -116,16 +144,41 @@ describe('partitionImportFiles', () => {
       { source: 'folder' },
     )
     expect(accepted).toEqual([jpeg, heic])
-    expect(skipped.map((file) => file.name)).toEqual(['README.md', 'notes.txt'])
-    // Bare octet-stream (.DS_Store) stays in reject path for HEIC sniff.
-    expect(rejected.map((entry) => entry.file.name)).toEqual([
+    expect(skipped.map((file) => file.name)).toEqual([
+      'README.md',
+      'notes.txt',
       '.DS_Store',
-      'scan.tiff',
     ])
-    expect(rejected.map((entry) => entry.reason)).toEqual([
-      'unsupported-type',
-      'unsupported-type',
-    ])
+    expect(rejected.map((entry) => entry.file.name)).toEqual(['scan.tiff'])
+    expect(rejected.map((entry) => entry.reason)).toEqual(['unsupported-type'])
+  })
+
+  it('skips hidden files from any source, even with an image MIME', () => {
+    const appleDouble = new File([new Uint8Array([0, 5, 22, 7])], '._a.JPG', {
+      type: 'image/jpeg',
+    })
+    const inHiddenDir = new File([new Uint8Array([1])], 'x.jpg', {
+      type: 'image/jpeg',
+    })
+    Object.defineProperty(inHiddenDir, 'webkitRelativePath', {
+      value: 'Trip/.Trashes/x.jpg',
+    })
+    // The picked folder itself may be dot-named; only entries below it count.
+    const inDotRoot = new File([new Uint8Array([1])], 'y.jpg', {
+      type: 'image/jpeg',
+    })
+    Object.defineProperty(inDotRoot, 'webkitRelativePath', {
+      value: '.photos/y.jpg',
+    })
+    for (const source of ['files', 'folder'] as const) {
+      const { accepted, rejected, skipped } = partitionImportFiles(
+        [appleDouble, inHiddenDir, inDotRoot],
+        { source },
+      )
+      expect(accepted).toEqual([inDotRoot])
+      expect(rejected).toEqual([])
+      expect(skipped).toEqual([appleDouble, inHiddenDir])
+    }
   })
 
   it('files source still rejects README as unsupported', () => {

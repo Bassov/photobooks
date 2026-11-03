@@ -12,6 +12,8 @@ export interface FolderManifestEntry {
   width?: number
   height?: number
   orientation?: number
+  /** Import decode failed for this size+mtime; kept out of the gallery. */
+  decodeFailed?: true
 }
 
 /**
@@ -79,6 +81,7 @@ function parseEntry(meta: unknown): FolderManifestEntry | null {
     width?: unknown
     height?: unknown
     orientation?: unknown
+    decodeFailed?: unknown
   }
   if (!isFiniteNumber(row.byteSize) || !isFiniteNumber(row.mtimeMs)) {
     return null
@@ -94,6 +97,9 @@ function parseEntry(meta: unknown): FolderManifestEntry | null {
   const orientation = parseOrientation(row.orientation)
   if (orientation !== undefined) {
     entry.orientation = orientation
+  }
+  if (row.decodeFailed === true) {
+    entry.decodeFailed = true
   }
   return entry
 }
@@ -148,7 +154,7 @@ export function entryIndexFromScanned(
       mtimeMs: entry.mtimeMs,
     }
     if (prior?.byteSize === entry.byteSize && prior.mtimeMs === entry.mtimeMs) {
-      copyDimsIfComplete(prior, next)
+      copyUnchangedFacts(prior, next)
     }
     entries[entry.relativePath] = next
   }
@@ -274,17 +280,21 @@ async function buildManifestFromScannedChunked(
       mtimeMs: entry.mtimeMs,
     }
     if (prior?.byteSize === entry.byteSize && prior.mtimeMs === entry.mtimeMs) {
-      copyDimsIfComplete(prior, next)
+      copyUnchangedFacts(prior, next)
     }
     entries[entry.relativePath] = next
   }
   return { version: FOLDER_MANIFEST_VERSION, entries }
 }
 
-function copyDimsIfComplete(
+/** Same size+mtime: keep the decode-failed flag and complete dims. */
+function copyUnchangedFacts(
   prior: FolderManifestEntry,
   next: FolderManifestEntry,
 ): void {
+  if (prior.decodeFailed === true) {
+    next.decodeFailed = true
+  }
   const width = prior.width
   const height = prior.height
   if (width === undefined || height === undefined) {
@@ -309,6 +319,16 @@ export interface ManifestDimensionsPatch {
   orientation: number
 }
 
+/** Identity of a folder-manifest entry whose import decode failed. */
+export interface ManifestEntryIdentity {
+  relativePath: string
+  byteSize: number
+  mtimeMs: number
+}
+
+type ManifestEntryPatch =
+  ManifestDimensionsPatch | (ManifestEntryIdentity & { decodeFailed: true })
+
 /** Pending patches that start a flush without waiting for idle. */
 const PATCH_FLUSH_BATCH = 64
 /** Upper bound (ms) an idle flush may wait for the main thread. */
@@ -321,7 +341,7 @@ const PATCH_FLUSH_IDLE_TIMEOUT_MS = 500
  */
 interface RootWriteQueue {
   options: SourceRootEntryIndexOptions | undefined
-  pending: Map<string, ManifestDimensionsPatch>
+  pending: Map<string, ManifestEntryPatch>
   waiters: ((result: StorageResult<void>) => void)[]
   tail: Promise<void>
   flushQueued: boolean
@@ -386,7 +406,7 @@ function scheduleIdle(run: () => void): () => void {
 
 /** Take pending patches + their waiters and cancel any idle flush. */
 function takePending(queue: RootWriteQueue): {
-  patches: ManifestDimensionsPatch[]
+  patches: ManifestEntryPatch[]
   waiters: ((result: StorageResult<void>) => void)[]
 } {
   queue.cancelIdle?.()
@@ -401,7 +421,7 @@ function takePending(queue: RootWriteQueue): {
 /** Apply patches whose size+mtime match (or whose path is new). */
 function mergePatches(
   entries: SourceRootEntryIndex['entries'],
-  patches: readonly ManifestDimensionsPatch[],
+  patches: readonly ManifestEntryPatch[],
 ): void {
   for (const patch of patches) {
     const prior = entries[patch.relativePath]
@@ -411,13 +431,20 @@ function mergePatches(
     ) {
       continue
     }
-    entries[patch.relativePath] = {
-      byteSize: patch.byteSize,
-      mtimeMs: patch.mtimeMs,
-      width: patch.width,
-      height: patch.height,
-      orientation: patch.orientation,
-    }
+    entries[patch.relativePath] =
+      'decodeFailed' in patch
+        ? {
+            byteSize: patch.byteSize,
+            mtimeMs: patch.mtimeMs,
+            decodeFailed: patch.decodeFailed,
+          }
+        : {
+            byteSize: patch.byteSize,
+            mtimeMs: patch.mtimeMs,
+            width: patch.width,
+            height: patch.height,
+            orientation: patch.orientation,
+          }
   }
 }
 
@@ -508,14 +535,48 @@ export function patchManifestDimensions(
   ) {
     return Promise.resolve(failure('not-found'))
   }
+  return queuePatch(sourceRootId, { ...entry }, options)
+}
+
+/**
+ * Remember that import decode failed for this path+size+mtime, so reload
+ * keeps it out of the gallery. Same coalesced queue as dims patches; a walk
+ * that sees a new size/mtime drops the flag (retry).
+ */
+export function patchManifestDecodeFailed(
+  sourceRootId: string,
+  entry: ManifestEntryIdentity,
+  options?: SourceRootEntryIndexOptions,
+): Promise<StorageResult<void>> {
+  // An empty root id is rejected by the write itself.
+  if (entry.relativePath === '') {
+    return Promise.resolve(failure('not-found'))
+  }
+  return queuePatch(
+    sourceRootId,
+    {
+      relativePath: entry.relativePath,
+      byteSize: entry.byteSize,
+      mtimeMs: entry.mtimeMs,
+      decodeFailed: true,
+    },
+    options,
+  )
+}
+
+function queuePatch(
+  sourceRootId: string,
+  patch: ManifestEntryPatch,
+  options: SourceRootEntryIndexOptions | undefined,
+): Promise<StorageResult<void>> {
   const queue = rootWriteQueue(sourceRootId, options)
   const done = new Promise<StorageResult<void>>((resolve) => {
     queue.waiters.push(resolve)
   })
   // Latest patch per path+identity: a stale patch never evicts a match.
   queue.pending.set(
-    `${entry.relativePath}\0${String(entry.byteSize)}\0${String(entry.mtimeMs)}`,
-    { ...entry },
+    `${patch.relativePath}\0${String(patch.byteSize)}\0${String(patch.mtimeMs)}`,
+    patch,
   )
   if (queue.pending.size >= PATCH_FLUSH_BATCH) {
     requestFlush(sourceRootId, queue)
