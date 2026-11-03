@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: Bug: Kit sync W2: top-bar view toggles, no Add spread row, Preview = presentation mode (Designer kit-sync Spec)
+Status: done
 
 ## Scope
 
