@@ -69,29 +69,34 @@ const book = makeBook({
 
 describe('inspectorView', () => {
   it('prefers the selected frame', () => {
-    const view = inspectorView(
-      book,
-      { spreadId: 's1', frameId: 'f1' },
-      's2',
-      null,
-    )
+    const view = inspectorView(book, { spreadId: 's1', frameId: 'f1' }, 's2')
     expect(view.kind).toBe('frame')
   })
 
-  it('falls back to the active spread, then empty', () => {
-    expect(inspectorView(book, null, 's2', null).kind).toBe('spread')
-    expect(inspectorView(book, null, 's2', 's2').kind).toBe('empty')
-    expect(inspectorView(book, null, null, null).kind).toBe('empty')
-    expect(inspectorView(book, null, 'gone', null).kind).toBe('empty')
+  it('falls back to the active spread, else the first spread; empty only without spreads', () => {
+    expect(inspectorView(book, null, 's2')).toMatchObject({
+      kind: 'spread',
+      spread: s2,
+      spreadIndex: 1,
+    })
+    // Kit `cur` is clamped: no active id yet or a deleted one → the first spread.
+    expect(inspectorView(book, null, null)).toMatchObject({
+      kind: 'spread',
+      spread: s1,
+      spreadIndex: 0,
+    })
+    expect(inspectorView(book, null, 'gone')).toMatchObject({
+      kind: 'spread',
+      spread: s1,
+      spreadIndex: 0,
+    })
+    expect(inspectorView(makeBook({ spreads: [] }), null, null).kind).toBe(
+      'empty',
+    )
   })
 
   it('ignores a frame id that belongs to another spread', () => {
-    const view = inspectorView(
-      book,
-      { spreadId: 's2', frameId: 'f1' },
-      's2',
-      null,
-    )
+    const view = inspectorView(book, { spreadId: 's2', frameId: 'f1' }, 's2')
     expect(view.kind).toBe('spread')
   })
 
@@ -101,23 +106,17 @@ describe('inspectorView', () => {
       makeBook({ spreads: [s1, s2, other] }),
       { spreadId: 's3', frameId: 'f3' },
       null,
-      null,
     )
     expect(view).toMatchObject({ kind: 'frame', spreadIndex: 2 })
   })
 
   it('ignores a stale frame source', () => {
-    const view = inspectorView(
-      book,
-      { spreadId: 's1', frameId: 'gone' },
-      null,
-      null,
-    )
-    expect(view.kind).toBe('empty')
+    const view = inspectorView(book, { spreadId: 's1', frameId: 'gone' }, 's2')
+    expect(view).toMatchObject({ kind: 'spread', spread: s2 })
   })
 
   it('shows multi for 2 or more selected frames on a book spread', () => {
-    const view = inspectorView(book, null, 's2', null, {
+    const view = inspectorView(book, null, 's2', {
       spreadId: 's1',
       frameIds: ['f2', 'f1'],
     })
@@ -129,9 +128,9 @@ describe('inspectorView', () => {
     const one = { spreadId: 's1', frameIds: ['f1'] }
     const stale = { spreadId: 's1', frameIds: ['f1', 'gone'] }
     const parent = { spreadId: 'm', frameIds: ['f1', 'f2'] }
-    expect(inspectorView(book, null, 's2', null, one).kind).toBe('spread')
-    expect(inspectorView(book, null, 's2', null, stale).kind).toBe('spread')
-    expect(inspectorView(book, null, null, null, parent).kind).toBe('empty')
+    expect(inspectorView(book, null, 's2', one).kind).toBe('spread')
+    expect(inspectorView(book, null, 's2', stale).kind).toBe('spread')
+    expect(inspectorView(book, null, 's2', parent).kind).toBe('spread')
   })
 })
 
