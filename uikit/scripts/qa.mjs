@@ -1951,6 +1951,10 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   const TOPS = { "Title font": 285.44, Spine: 343.86, "Spine width": 415.70, Direction: 450.55, Back: 504.39, Fill: 580.23, Material: 634.08, Finish: 718.50 }
   const tops = {}; for (const t of Object.keys(TOPS)) tops[t] = (await textBox('[data-testid="insp-cover"] :is(h3, span)', t))?.top
   ok("kit-sync KS10: cover inspector row tops = prod (±1)", Object.entries(TOPS).every(([t, v]) => near(tops[t], v)), JSON.stringify(tops))
+  // r15 M90 (prod .cover-thumb 2.625 × 3.25 rem, flex none): the front thumb keeps 42 × 52, its copy starts 12 px right of it
+  const th = await page.locator(`${demo} [data-testid="cover-front-thumb"]`).evaluate((e) => { const b = e.getBoundingClientRect(); return { w: b.width, h: b.height, right: b.right } })
+  const np = await textBox('[data-testid="insp-cover"] div', "No photo yet"), dg = await textBox('[data-testid="insp-cover"] div', "Drag a photo from the filmstrip onto the cover")
+  ok("r15 M90: cover front thumb 42 × 52 (no shrink), «No photo yet» / «Drag a photo…» at x 1210 (thumb right + 12)", th.w === 42 && th.h === 52 && near(np?.x, 1210) && near(dg?.x, 1210) && Math.abs(np.x - th.right - 12) <= 0.5, `thumb ${JSON.stringify(th)} copy ${np?.x} / ${dg?.x}`)
   const sels = await page.locator(`${demo} [data-testid="insp-cover"] select`).evaluateAll((els) => els.map((e) => { const b = e.getBoundingClientRect(), cs = getComputedStyle(e); return { l: e.getAttribute("aria-label"), x: b.x, w: b.width, h: b.height, right: b.right, r: cs.borderRadius, bg: cs.backgroundColor, chev: /svg/.test(cs.backgroundImage) && cs.backgroundSize === "16px 16px" } }))
   const SELS = { "Title font": [1318, 106], Cover: [1309, 115], Finish: [1289, 135] }
   ok("kit-sync KS10: Title font / Cover / Finish are selects h 36, r 8, #D7D7D7, chevron 16, right edge 1424", sels.length === 3 && sels.every((s) => SELS[s.l] && near(s.x, SELS[s.l][0]) && near(s.w, SELS[s.l][1]) && s.h === 36 && s.r === "8px" && s.bg === "rgb(215, 215, 215)" && s.chev && near(s.right, 1424)), JSON.stringify(sels))
@@ -1964,6 +1968,12 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   await c('[data-item="ef"]')
   const ep = page.locator(`${demo} [data-testid="canvas-endpaper"]`)
   ok("kit-sync KS9: endpaper canvas has no «Pastedown · glued to … board» caption", (await ep.count()) === 1 && !/Pastedown/.test(await ep.textContent()))
+  // r15 M89 (prod .endpaper-caption margin-top 0.5rem): the "Endpaper" caption is 12 px, 8 px under the endpaper bottom
+  const epc = await page.evaluate(() => { const d = document.querySelector('[data-testid="demo"]'), v = d.querySelector('[data-testid="canvas-endpaper"]').getBoundingClientRect(), s = [...d.querySelectorAll('[data-testid="page-labels"] span')].find((x) => x.textContent === "Endpaper"); return s && { fs: getComputedStyle(s).fontSize, dy: +(s.getBoundingClientRect().top - v.bottom).toFixed(2) } })
+  ok("r15 M89: endpaper caption 12 px, 8 px under the endpaper bottom (±0.5)", epc?.fs === "12px" && Math.abs(epc.dy - 8) <= 0.5, JSON.stringify(epc))
+  // r15 M91 (prod .endpaper-gutter): the spine is a 1 px hard line, black 18 %, centred on the spread — no gradient band
+  const sp = await page.evaluate(() => { const v = document.querySelector('[data-testid="demo"] [data-testid="canvas-endpaper"]'), l = v.querySelector('[data-testid="endpaper-spine"]'), vb = v.getBoundingClientRect(), b = l?.getBoundingClientRect(), cs = l && getComputedStyle(l); return l && { w: b.width, h: b.height, vh: vb.height, dx: +(b.x - (vb.x + vb.width / 2)).toFixed(2), bg: cs.backgroundColor, img: cs.backgroundImage, grads: [...v.querySelectorAll("div")].filter((e) => /linear-gradient/.test(getComputedStyle(e).backgroundImage)).length } })
+  ok("r15 M91: endpaper spine 1 px line at the centre, rgb(0 0 0 / 0.18), no gradient", sp?.w === 1 && sp.h === sp.vh && Math.abs(sp.dx) <= 0.5 && /^(rgba\(0, 0, 0, 0\.18\)|color\(srgb 0 0 0 \/ 0\.18\))$/.test(sp.bg) && sp.img === "none" && sp.grads === 0, JSON.stringify(sp))
   await c('[data-testid="editor-library"]')
   const ink = await page.locator(`${demo} [data-testid="book-cover"] .lib-obj div[style*="color"]`).first().evaluate((e) => getComputedStyle(e).color)
   ok("kit-sync KS11: library card title over the photo rgb(245, 245, 245)", ink === "rgb(245, 245, 245)", ink)

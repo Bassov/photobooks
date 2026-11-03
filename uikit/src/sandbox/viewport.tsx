@@ -21,9 +21,9 @@ function PageLabels({ nd, si }: { nd: Node; si: number }) {
   const labels: [string, number][] = nd?.k === "cover" ? [["Back", b.w / cw], ["Spine", SPINE / cw], ["Front", b.w / cw]]
     : nd?.k === "endpaper" ? [["Endpaper", 1]] : nd?.k === "master" ? [[`Master ${nd.id}`, 1]] : nd?.k === "last" ? [[`${pagesOf(n)}`, .5], ["", .5]]
     : si === 0 ? [["", .5], ["1", .5]] : [[`${si * 2}`, .5], [`${si * 2 + 1}`, .5]]
-  // page numbers are 11 px, 8 px under the page (M37); cover / endpaper / master labels keep 12 px, 10 px under it
+  // page numbers are 11 px, 8 px under the page (M37); cover / master labels keep 12 px, 10 px under it; the endpaper caption 12 px, 8 px under it (M89, prod .endpaper-caption)
   const pageNo = !nd || nd.k === "last"
-  return <div className={cn("pointer-events-none absolute inset-x-0 top-full flex tabular-nums", pageNo ? "mt-2 text-2xs leading-none" : "pt-2.5 text-xs")} style={{ color: SUB }} aria-hidden data-testid="page-labels">
+  return <div className={cn("pointer-events-none absolute inset-x-0 top-full flex tabular-nums", pageNo ? "mt-2 text-2xs leading-none" : nd?.k === "endpaper" ? "pt-2 text-xs" : "pt-2.5 text-xs")} style={{ color: SUB }} aria-hidden data-testid="page-labels">
     {labels.map(([t, w], i) => <span key={i} className="whitespace-nowrap text-center" style={{ width: `${w * 100}%` }}>{t}</span>)}</div>
 }
 
