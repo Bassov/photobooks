@@ -375,6 +375,48 @@ await smoke("drag photo onto frame + undo", "drag-place-replace", async () => {
 })
 await smoke("grid toggle", "layout-grids-render-snap", async () => { const g1 = await D('[data-testid="grid-overlay"]').first().isVisible(); await D('[data-testid="toggle-grid"]').click(); await page.waitForTimeout(150); return g1 && !(await D('[data-testid="grid-overlay"]').first().isVisible().catch(() => false)) })
 await smoke("site → book → lightbox", "site-viewer", async () => { await D('[data-testid="site-book"]').first().click(); await page.waitForTimeout(200); await D('[data-testid="site-spread"]').click(); await page.waitForTimeout(200); return D('[data-testid="lightbox"]').isVisible() })
+await smoke("home → book → spread fullscreen", "site-photographer", async () => {
+  await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
+  const title = await D('[data-testid="ps-title"]').textContent()
+  await D('[data-testid="ps-spread"]').first().click(); await page.waitForTimeout(200)
+  const lb = await D('[data-testid="lightbox"]').isVisible()
+  const ind = (await D('[data-testid="site-fullscreen-indicator"]').textContent()) ?? ""
+  return [title === "Lake trip" && lb && ind.startsWith("Pages 2–3"), `title ${title} · lightbox ${lb} · ${ind}`]
+})
+{
+  // Tab through the page; every listed control must draw a solid focus-visible outline
+  const tabRings = async (want) => {
+    const seen = {}
+    for (let k = 0; k < 120 && want.some((t) => !(t in seen)); k++) {
+      await page.keyboard.press("Tab")
+      const r = await page.evaluate((sel) => {
+        const e = document.activeElement
+        if (!e?.closest(sel)) return null
+        const id = e.dataset.testid ?? (e.getAttribute("href")?.startsWith("mailto:") ? "mailto" : null)
+        const cs = getComputedStyle(e)
+        return id && [id, e.matches(":focus-visible") && cs.outlineStyle === "solid" ? "solid" : `${cs.outlineStyle} ${cs.outlineWidth}`]
+      }, demo)
+      if (r && !(r[0] in seen)) seen[r[0]] = r[1]
+    }
+    return want.map((t) => [t, seen[t] ?? "not reached"])
+  }
+  const rings = []
+  await smoke("focus-visible outline solid on every control", "site-photographer", async () => {
+    rings.push(...(await tabRings(["ps-home-link", "ps-nav-books", "ps-nav-about", "mailto"])))
+    await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
+    rings.push(...(await tabRings(["ps-all-books", "ps-read", "ps-share", "ps-spread"])))
+    const bad = rings.filter((x) => x[1] !== "solid")
+    return [bad.length === 0, bad.length ? bad.map((x) => x.join(": ")).join("; ") : `${rings.length} solid`]
+  })
+  await smoke("last page Fullscreen chip sits top 12 / right 12 of the left page", "site-photographer", async () => {
+    await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
+    const r = await D('[data-testid="ps-spread"]').last().evaluate((b) => {
+      const a = b.getBoundingClientRect(), c = b.querySelector('[data-testid="ps-chip"]').getBoundingClientRect()
+      return { top: c.top - a.top, right: a.right - c.right, pw: a.width / 2 }
+    })
+    return [Math.abs(r.top - 12) <= 1 && Math.abs(r.right - (r.pw + 12)) <= 1, `top ${r.top} right ${r.right} (pw ${r.pw})`]
+  })
+}
 // ---------------------------------------------------------------- v5 checks
 const fitAir = async () => page.evaluate(() => {
   const d = document.querySelector('[data-testid="demo"]'); const sp = d.querySelector('.canvas-dots [data-testid="spread"]'); const vp = sp.parentElement.closest(".canvas-dots")

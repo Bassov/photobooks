@@ -8,6 +8,7 @@ import {
 import { LAKE_BOOK, LAKE_TITLE, docBlank, docAdded, docFilled, COVER_DONE, dbook, SHELF } from "@/demo-parts/fixtures"
 import type { Doc } from "@/sandbox/model"
 import { WithScenarios } from "./parts"
+import { PhotographerSite } from "./site-photographer"
 import type { FeatureDef, Notes } from "./types"
 
 /** Stage height = the #/demo viewport height (+ the 40 px scenario strip), so every slot sits at its #/demo size. */
@@ -204,6 +205,13 @@ export const PAGES: Record<string, FeatureDef> = {
     where: "#/demo step 38.",
     keys: [["← / →", "previous / next spread"], ["Esc", "close"]],
   }),
+  "site-photographer": {
+    Demo: PhotographerSite, h: SLOT.app.h, notes: {
+      what: "Proposal for the published site as a photographer's site of books: home with the books on a shelf, one page per book with text, facts and all spreads, the kit Fullscreen viewer. Sample books and texts.",
+      where: "Standalone demo; not in #/demo yet. Full window: #/full/site-photographer.",
+      edge: ["Click a book, a spread or the closed book; Esc leaves fullscreen", "Narrow window (< 768) = one column"],
+    },
+  },
   "site-preview-mode": page([
     ["preview", "Preview", root(inEditor({ editor: { preview: true } }, dbook("lake", LAKE_TITLE, { extras: { ...dbook("x", LAKE_TITLE).extras!, ...COVER_DONE } })))],
   ], {

@@ -85,8 +85,9 @@ export function SiteViewer({ title = "Aleksandr’s photobooks", author = AUTHOR
     </div>
   )
 }
-/* Fullscreen: the spread fits the viewport with 32px padding; quiet arrows at the sides, page indicator at the bottom. */
-function Fullscreen({ i, n, title, onGo, onClose, render }: { i: number; n: number; title: string; onGo: (d: number) => void; onClose: () => void; render: (i: number, w: number) => React.ReactNode }) {
+/* Fullscreen: the spread fits the viewport with 32px padding; quiet arrows at the sides, page indicator at the bottom.
+   `ratio` = spread width / height (default: the editor spread). */
+export function Fullscreen({ i, n, title, onGo, onClose, render, ratio = SW / SH }: { i: number; n: number; title: string; onGo: (d: number) => void; onClose: () => void; render: (i: number, w: number) => React.ReactNode; ratio?: number }) {
   const [vp, setVp] = React.useState({ w: window.innerWidth, h: window.innerHeight })
   const t0 = React.useRef<number | null>(null)
   const closeRef = React.useRef<HTMLButtonElement>(null)
@@ -98,7 +99,7 @@ function Fullscreen({ i, n, title, onGo, onClose, render }: { i: number; n: numb
     window.addEventListener("keydown", k, true); return () => window.removeEventListener("keydown", k, true)
   }, [onGo, onClose])
   const PAD = 32
-  const w = Math.max(100, Math.min(vp.w - PAD * 2, ((vp.h - PAD * 2) * SW) / SH))
+  const w = Math.max(100, Math.min(vp.w - PAD * 2, (vp.h - PAD * 2) * ratio))
   const arrow = "absolute top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-black/25 text-white opacity-60 outline-hidden transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-white disabled:opacity-0 [&_svg]:size-5"
   return (
     <div ref={boxRef} className="fixed inset-0 z-50 grid place-items-center" style={{ background: "#1F1E1E" }} role="dialog" aria-modal="true" aria-label={`${title} — fullscreen`} data-testid="lightbox"
