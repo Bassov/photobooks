@@ -47,6 +47,39 @@ export function restoreAspectFromDecode(
   applyDims(assetId, width, height, name)
 }
 
+/** Relative aspect drift that tier rounding (320 / 1280 edge) stays within. */
+const ASPECT_TOLERANCE = 0.01
+
+/**
+ * Correct a placeholder session aspect from a decoded, upright display tier.
+ * Only the aspect changes: dims stay unknown so a real decode still wins and
+ * DPI never reads tier pixels.
+ */
+export function restoreAspectFromImage(
+  assetId: string,
+  width: number,
+  height: number,
+): void {
+  if (width <= 0 || height <= 0 || hasRealDims(assetId)) {
+    return
+  }
+  const existing = getBookStoreSnapshot().sessionMeta.get(assetId)
+  const aspect = width / height
+  if (
+    existing !== undefined &&
+    Math.abs(existing.aspect / aspect - 1) <= ASPECT_TOLERANCE
+  ) {
+    return
+  }
+  setAssetSessionMeta(assetId, {
+    name: existing?.name ?? assetId,
+    correctedWidth: 1,
+    correctedHeight: 1,
+    orientation: existing?.orientation ?? 1,
+    aspect,
+  })
+}
+
 /**
  * Restore session aspect after DerivedCache hydrate.
  * JPEG: pure SOF parse. Otherwise: existing photo worker (no main-thread decode).
