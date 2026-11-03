@@ -124,7 +124,7 @@ test('Browser check: Master A at 5 columns shows on the master and every spread 
 
 test('MS2: master inspector rects match the Designer Spec (±0.5 px)', async ({
   page,
-}) => {
+}, testInfo) => {
   await page.goto('/?fixture=painter&parent=a')
   await page.getByTestId('left-tab-masters').click()
   const root = page.getByTestId('insp-master')
@@ -178,6 +178,31 @@ test('MS2: master inspector rects match the Designer Spec (±0.5 px)', async ({
     'aria-pressed',
     'true',
   )
+
+  // MS3 keyboard focus: the field rings + underlines; Tab reaches the link.
+  await masterField(page, 'rowGutterMm').focus()
+  const rg = masterField(page, 'rowGutterMm')
+  await expect(rg.locator('..')).toHaveCSS(
+    'box-shadow',
+    'rgb(83, 81, 82) 0px 0px 0px 1px inset',
+  )
+  await expect(rg).toHaveCSS('text-decoration-line', 'underline')
+  await expect(masterField(page, 'columns').locator('..')).toHaveCSS(
+    'box-shadow',
+    'none',
+  )
+  await page.keyboard.press('Tab')
+  await expect(masterField(page, 'link')).toBeFocused()
+  await expect(masterField(page, 'link')).toHaveCSS(
+    'outline',
+    'rgb(83, 81, 82) solid 2px',
+  )
+  await page.keyboard.press('Enter')
+  await expect(masterField(page, 'link')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+  await root.screenshot({ path: testInfo.outputPath('insp-master.png') })
 })
 
 test('MS7: a master item opens the Photo inspector; Esc or an empty click returns', async ({

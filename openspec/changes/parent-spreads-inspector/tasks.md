@@ -12,3 +12,5 @@
 1. Masters mode, Master A: set C = 5 → master canvas shows 5 columns per page; switch to Pages with Grid on → every Master A spread shows 5 columns, a None spread keeps the book grid.
 2. Click the master logo → Photo inspector; Esc → master inspector again.
 3. Margins link: on → type T = 20 → T/B/I/O all 20; Undo restores all four in one step.
+
+manual-qa (2026-11-03): problem (harness) — scenarios 1–3 blocked at the welcome screen (`start-session` click intercepted by the welcome header; known harness issue), product unverified by the CLI. Covered instead by e2e `parent-spreads-inspector.spec.ts`: 1 → "Browser check" (10 master cells, 39 spreads × 5 columns, None spread 2 + 2), 2 → "MS7" (logo → Photo, Esc / empty click → master), 3 → `MasterSection.test.tsx` "linked … one step" + `bookStore.test.ts` undo of parents. ui-review: pass (focus ring / underline / Tab to link locked in e2e "MS2"; no blue / teal; no page scroll).
