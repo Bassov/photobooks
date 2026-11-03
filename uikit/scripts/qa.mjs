@@ -384,30 +384,46 @@ await smoke("home → book → spread fullscreen", "site-photographer", async ()
   return [title === "Lake trip" && lb && ind.startsWith("Pages 2–3"), `title ${title} · lightbox ${lb} · ${ind}`]
 })
 {
-  // Tab through the page; every listed control must draw a solid focus-visible outline
-  const tabRings = async (want) => {
+  // Tab through the page; every listed control must draw a solid 2 px focus-visible outline.
+  // A control is named by test id, else aria-label; an <input> inside a <label> rings on the label.
+  const tabRings = async (want, scope = demo) => {
     const seen = {}
     for (let k = 0; k < 120 && want.some((t) => !(t in seen)); k++) {
       await page.keyboard.press("Tab")
       const r = await page.evaluate((sel) => {
         const e = document.activeElement
         if (!e?.closest(sel)) return null
-        const id = e.dataset.testid ?? (e.getAttribute("href")?.startsWith("mailto:") ? "mailto" : null)
-        const cs = getComputedStyle(e)
-        return id && [id, e.matches(":focus-visible") && cs.outlineStyle === "solid" ? "solid" : `${cs.outlineStyle} ${cs.outlineWidth}`]
-      }, demo)
+        const id = e.dataset.testid ?? e.getAttribute("aria-label") ?? (e.getAttribute("href")?.startsWith("mailto:") ? "mailto" : null)
+        const cs = getComputedStyle((e.matches("input") && e.closest("label")) || e)
+        return id && [id, `${e.matches(":focus-visible") ? "" : "not focus-visible "}${cs.outlineStyle} ${cs.outlineWidth}`]
+      }, scope)
       if (r && !(r[0] in seen)) seen[r[0]] = r[1]
     }
     return want.map((t) => [t, seen[t] ?? "not reached"])
   }
-  const rings = []
+  const ringsOk = (rings, extra = []) => {
+    const bad = rings.filter((x) => x[1] !== "solid 2px").concat(extra)
+    return [bad.length === 0, bad.length ? bad.map((x) => x.join(": ")).join("; ") : `${rings.length} solid 2px`]
+  }
   await smoke("focus-visible outline solid on every control", "site-photographer", async () => {
-    rings.push(...(await tabRings(["ps-home-link", "ps-nav-books", "ps-nav-about", "mailto"])))
+    const rings = await tabRings(["ps-home-link", "ps-nav-books", "ps-nav-about", "mailto"])
     await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
     rings.push(...(await tabRings(["ps-all-books", "ps-read", "ps-share", "ps-spread"])))
-    const bad = rings.filter((x) => x[1] !== "solid")
-    return [bad.length === 0, bad.length ? bad.map((x) => x.join(": ")).join("; ") : `${rings.length} solid`]
+    return ringsOk(rings)
   })
+  await smoke("focus-visible outline solid on every control; mouse click draws none", "site-viewer", async () => {
+    const rings = await tabRings(["site-book"])
+    await D('[data-testid="site-book"]').first().click(); await page.waitForTimeout(200)
+    rings.push(...(await tabRings(["site-title-link", "site-all-books", "site-share", "site-fullscreen-btn", "site-spread", "Next spread"])))
+    // blur first: the last Tab stopped on this button, and a click on the focused control keeps focus-visible
+    await page.evaluate(() => document.activeElement.blur())
+    await D('[data-testid="site-pager"] [aria-label="Next spread"]').click(); await page.waitForTimeout(150)
+    const click = await page.evaluate(() => { const e = document.activeElement, cs = getComputedStyle(e); return `${e.getAttribute("aria-label")} ${cs.outlineStyle} ${cs.outlineWidth}` })
+    await D('[data-testid="site-fullscreen-btn"]').click(); await page.waitForTimeout(200)
+    rings.push(...(await tabRings(["site-fullscreen-close", "Previous spread", "Next spread"], '[data-testid="lightbox"]')).map(([t, v]) => [`lightbox ${t}`, v]))
+    return ringsOk(rings, click.startsWith("Next spread none") ? [] : [["mouse click on Next spread", click]])
+  })
+  await smoke("library bar: focus-visible outline solid on search + sort", "recents-home", async () => ringsOk(await tabRings(["lib-search-input", "lib-sort"])))
   await smoke("last page Fullscreen chip sits top 12 / right 12 of the left page", "site-photographer", async () => {
     await D('[data-testid="ps-book"]').first().click(); await page.waitForTimeout(200)
     const r = await D('[data-testid="ps-spread"]').last().evaluate((b) => {
