@@ -30,7 +30,7 @@ export function CreateBookDialog({ isOpen, onCancel, onCreate }: { isOpen: boole
         {custom && <div className="grid grid-cols-2 gap-2" data-testid="create-custom">
           {([["Width", cw, setCw], ["Height", ch, setCh]] as const).map(([l, v, sv]) => <label key={l} className="flex flex-col gap-1.5"><span className="text-xs text-muted-foreground">{l} (cm)</span>
             <input type="number" inputMode="decimal" min={10} max={42} step={0.1} value={v} aria-label={`${l} (cm)`} data-testid={`create-custom-${l === "Width" ? "w" : "h"}`} onChange={(e) => { const n = +e.target.value; if (Number.isFinite(n) && n > 0) sv(n) }} onBlur={() => sv(cl(v))}
-              className="h-9 rounded-md bg-field px-2.5 text-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-[#535152]" /></label>)}
+              className="h-9 rounded-md bg-field px-2.5 text-sm tabular-nums outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-[#535152]" /></label>)}
           <p className="col-span-2 text-xs text-muted-foreground">10–42 cm per side · {fmtN(cl(cw))} × {fmtN(cl(ch))} cm</p></div>}
         {!custom && p.w !== p.h && <div className="flex flex-col gap-1.5"><span className="text-xs text-muted-foreground">Orientation</span><Segmented label="Orientation" value={land} onChange={setLand} items={[{ id: "portrait", label: "Portrait" }, { id: "landscape", label: "Landscape" }]} /></div>}
         <p className="text-xs text-muted-foreground">Size of one page. To print 2 pages per A4 sheet, choose A5.</p>
