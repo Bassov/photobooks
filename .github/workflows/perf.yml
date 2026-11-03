@@ -5,6 +5,9 @@ name: perf
 # "not in scope". Thresholds are unchanged (PERF_BUDGETS + LoAF noise rule);
 # only the lane is repeated: 3 runs per scenario, red when a scenario fails in
 # >=2 runs or any run blocks a frame for >50 ms (scripts/perf-lane.mjs).
+# Push runs upload a per-scenario verdict; a PR scenario red on the latest
+# main push run and untouched by the PR is reported "pre-existing on main"
+# and does not fail the job (scripts/perf-baseline.mjs).
 
 on:
   push:
@@ -21,6 +24,8 @@ concurrency:
 
 permissions:
   contents: read
+  # gh run download of the base branch's perf-verdict artifact (PRs).
+  actions: read
 
 jobs:
   perf:
@@ -83,9 +88,48 @@ jobs:
               pnpm test:e2e -g "frame-budget gates" || echo "run $run: playwright exit non-zero (judged below)"
           done
 
+      - name: Base perf verdict
+        id: base
+        if: steps.scope.outputs.in_scope == 'true' && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          # Latest finished push run on the base branch (cancelled runs carry no verdict).
+          run=$(gh run list --workflow perf.yml --branch "$BASE_REF" --event push \
+            --status completed --limit 20 --json databaseId,url,conclusion \
+            --jq 'first(.[] | select(.conclusion == "success" or .conclusion == "failure")) | "\(.databaseId) \(.url)"')
+          if [ -z "$run" ]; then
+            echo "perf: no completed $BASE_REF push run; judging without a baseline"
+            exit 0
+          fi
+          gh run download "${run%% *}" --name perf-verdict --dir perf-base
+          echo "url=${run#* }" >> "$GITHUB_OUTPUT"
+
       - name: Judge runs
         if: steps.scope.outputs.in_scope == 'true'
-        run: node scripts/perf-lane.mjs verdict perf-runs/run-1.json perf-runs/run-2.json perf-runs/run-3.json
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BASE_URL: ${{ steps.base.outputs.url }}
+        run: |
+          args=()
+          if [ "$EVENT_NAME" = "push" ]; then
+            args=(--out perf-runs/verdict.json)
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            args=(--base perf-base/verdict.json --base-url "$BASE_URL" --base-ref "origin/$BASE_REF")
+          fi
+          node scripts/perf-lane.mjs verdict "${args[@]}" perf-runs/run-1.json perf-runs/run-2.json perf-runs/run-3.json
+
+      - name: Upload perf verdict (main baseline)
+        if: always() && steps.scope.outputs.in_scope == 'true' && github.event_name == 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-verdict
+          path: perf-runs/verdict.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Upload frame-pacing stats (report-only)
         if: always() && steps.scope.outputs.in_scope == 'true'

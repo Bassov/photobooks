@@ -84,6 +84,7 @@ describe('collectScenarios', () => {
       ['a.spec.ts › frame-budget gates › ok', false],
       ['a.spec.ts › frame-budget gates › bad', true],
     ])
+    expect(rows[0].spec).toBe('e2e/a.spec.ts')
   })
 
   it('accepts a legacy single `error` field', () => {
@@ -101,7 +102,9 @@ describe('collectScenarios', () => {
         },
       ],
     })
-    expect(rows).toEqual([{ key: 't', failed: true, messages: ['x'] }])
+    expect(rows).toEqual([
+      { key: 't', spec: '', failed: true, messages: ['x'] },
+    ])
   })
 })
 
