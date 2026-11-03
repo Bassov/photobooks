@@ -142,7 +142,7 @@ export const Field = ({ l, v, u, set, min = 0, max = 99, cap, name, tid = "maste
       : <span className="flex-1 font-mono tabular-nums" style={shade}>{v}</span>}{u && <span className="shrink-0" style={{ color: SUB }}>{u}</span>}
     {src !== undefined && <span id={descId} className="sr-only">{src}</span>}
     {own && onReset && <button type="button" aria-label={resetLabel} title={resetLabel} data-testid={`${tid}-reset-${l}`} onClick={(e) => { e.preventDefault(); onReset() }}
-      className="-ml-1 grid size-4 shrink-0 place-items-center rounded-xs border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[rgb(57_55_56/.08)] hover:text-[#393738] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#535152] [&_svg]:size-3"><RotateCcw /></button>}</label>
+      className="-ml-1 grid size-4 shrink-0 place-items-center rounded-xs border-0 bg-transparent p-0 text-[#535152] outline-none transition-colors hover:bg-[rgb(57_55_56/.08)] hover:text-[#393738] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#535152] [&_svg]:size-3"><RotateCcw /></button>}</label>
 }
 export const SegC = ({ items, on, set }: { items: React.ReactNode[]; on: number; set?: (i: number) => void }) => (
   <div className="flex rounded-md p-0.5" style={{ background: FIELD }}>
@@ -172,7 +172,7 @@ export const Txt = ({ v, ph: p }: { v?: string; ph?: string }) => <div className
 export function CoverTxt({ k, label }: { k: keyof CoverText; label: string }) {
   const ct = useCoverText()
   return <input type="text" aria-label={label} value={ct[k]} placeholder={label} data-testid={`cover-text-${k}`} onChange={(e) => setCoverText({ ...ct, [k]: e.target.value })}
-    className="flex h-8 w-full items-center rounded-md px-2.5 text-sm outline-none placeholder:text-[#535152] focus-visible:outline-2 focus-visible:outline-[#535152]" style={{ background: FIELD, color: T }} />
+    className="flex h-8 w-full items-center rounded-md px-2.5 text-sm outline-none placeholder:text-[#535152] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-[#535152]" style={{ background: FIELD, color: T }} />
 }
 export function SizeEditor({ book, setBook }: { book: Book; setBook: (b: Book) => void }) {
   const [unit, setUnit] = React.useState<"cm" | "mm">("cm")
@@ -209,7 +209,7 @@ export function GridFields({ g, set, link, setLink, tid = "master-field", src, p
     <div className="grid grid-cols-2 gap-2">{f("cols", "C", "Columns", "Columns", undefined, 1, 12)}{f("rows", "R", "Rows", "Rows", undefined, 1, 12)}{f("colGutter", "G", "Gutter", "Gutter (mm)", "mm", 0, 30)}{f("rowGutter", "RG", "Row gap", "Row gap (mm)", "mm", 0, 30)}</div>
     <div className="mt-3 flex items-center justify-between text-sm"><span style={{ color: SUB }}>Margins</span>
       <button type="button" aria-pressed={link} aria-label="Link margins" data-testid={`${tid}-link`} onClick={() => { if (!link) set({ ...g, bottom: g.top, inside: g.top, outside: g.top }); setLink(!link) }}
-        className="e7-ghost grid size-7 place-items-center rounded-md outline-none focus-visible:outline-2 focus-visible:outline-[#535152] [&_svg]:size-3.5" style={{ background: link ? FIELD : undefined, color: link ? T : SUB }}>{link ? <Link2 /> : <Unlink2 />}</button></div>
+        className="e7-ghost grid size-7 place-items-center rounded-md outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-[#535152] [&_svg]:size-3.5" style={{ background: link ? FIELD : undefined, color: link ? T : SUB }}>{link ? <Link2 /> : <Unlink2 />}</button></div>
     <div className="mt-2 grid grid-cols-2 gap-2">{f("top", "T", "T", "Top margin (mm)", "mm", 0, 60)}{f("bottom", "B", "B", "Bottom margin (mm)", "mm", 0, 60)}{f("inside", "I", "I", "Inside margin (mm)", "mm", 0, 60)}{f("outside", "O", "O", "Outside margin (mm)", "mm", 0, 60)}</div>
   </div>
 }

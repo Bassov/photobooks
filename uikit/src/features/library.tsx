@@ -121,10 +121,10 @@ export function LibraryEmpty({ onCreate }: { onCreate: () => void }) {
 export type SortKey = "edited" | "title" | "created"
 const SORTS: { id: SortKey; label: string }[] = [{ id: "edited", label: "Last edited" }, { id: "title", label: "Title" }, { id: "created", label: "Created" }]
 /* v6.1 quiet controls: #D7D7D7 field on #E1E1E1 chrome — tone only, no border, no black */
-const quiet = "h-9 rounded-full bg-field text-sm text-foreground outline-hidden transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
+const quiet = "h-9 rounded-full bg-field text-sm text-foreground outline-hidden transition-colors hover:bg-accent focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A3839]"
 export function LibSearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <label className={cn(quiet, "flex w-56 items-center gap-2 px-3.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#3A3839]")} data-testid="lib-search">
+    <label className={cn(quiet, "flex w-56 items-center gap-2 px-3.5 focus-within:outline-solid focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#3A3839]")} data-testid="lib-search">
       <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <input type="search" value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") onChange("") }} placeholder="Search books" aria-label="Search books by title" className="min-w-0 flex-1 bg-transparent outline-hidden placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" data-testid="lib-search-input" />
     </label>
@@ -134,7 +134,7 @@ export function LibSort({ value, onChange }: { value: SortKey; onChange: (v: Sor
   const cur = SORTS.find((x) => x.id === value)!
   return (
     <MenuTrigger>
-      <AriaButton className={cn(quiet, "inline-flex cursor-default items-center gap-1.5 px-3.5 data-[hovered]:bg-accent data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-[#3A3839]")} aria-label={`Sort books: ${cur.label}`} data-testid="lib-sort">
+      <AriaButton className={cn(quiet, "inline-flex cursor-default items-center gap-1.5 px-3.5 data-[hovered]:bg-accent data-[focus-visible]:outline-solid data-[focus-visible]:outline-2 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-[#3A3839]")} aria-label={`Sort books: ${cur.label}`} data-testid="lib-sort">
         <span className="text-muted-foreground">Sort:</span> {cur.label}<ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
       </AriaButton>
       <MenuPopover placement="bottom end" className="min-w-44">
