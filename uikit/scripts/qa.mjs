@@ -1815,8 +1815,8 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
   ok("kit-sync KS12: Flip H / Flip V carry prod's glyphs", flips[0] === "m3 7 5 5-5 5V7 m21 7-5 5 5 5V7 M12 20v2 M12 14v2 M12 8v2 M12 2v2" && flips[1] === "m17 3-5 5-5-5h10 m17 21-5-5-5 5h10 M4 12H2 M10 12H8 M16 12h-2 M22 12h-2", JSON.stringify(flips))
   await c('[data-testid="book-title"]')
   const size = page.locator(`${demo} [data-testid="size-preset"]`)
-  const chev = await size.evaluate((e) => { const s = getComputedStyle(e); return { svg: /svg/.test(s.backgroundImage) && /m6 9 6 6 6-6/.test(s.backgroundImage) && /%23535152/i.test(s.backgroundImage), gradient: /gradient/.test(s.backgroundImage), size: s.backgroundSize, pos: s.backgroundPosition, pr: s.paddingRight } })
-  ok("kit-sync KS15: Page size select shows a 16 px chevron-down rgb(83,81,82), not the triangle caret", chev.svg && !chev.gradient && chev.size === "16px 16px" && chev.pos === "calc(100% - 8px) 50%" && chev.pr === "32px", JSON.stringify(chev))
+  const chev = await size.evaluate((e) => { const s = getComputedStyle(e); return { svg: /svg/.test(s.backgroundImage) && /m6 9 6 6 6-6/.test(s.backgroundImage) && /%236b696a/i.test(s.backgroundImage), gradient: /gradient/.test(s.backgroundImage), size: s.backgroundSize, pos: s.backgroundPosition, pr: s.paddingRight } })
+  ok("kit-sync KS15: Page size select shows a 16 px chevron-down #6b696a (prod .pb-select), not the triangle caret", chev.svg && !chev.gradient && chev.size === "16px 16px" && chev.pos === "calc(100% - 8px) 50%" && chev.pr === "32px", JSON.stringify(chev))
   await size.selectOption("sq20"); await page.waitForTimeout(300) // a 2:1 spread: prod's tile h 69.5
   await c('[data-item="p1"]')
   const sec = `${demo} [data-testid="layout-section"]`
@@ -1844,17 +1844,28 @@ await smokeS("v8.1 P2-4 grid guides carry data-allow-border; P2-9 dragging a fra
     const s = document.querySelector(sec), g = s.querySelector('[role=group][aria-label="Contact sheet"]'), save = s.querySelector('[data-testid="tpl-save-button"]')
     if (!g) return null
     const b = g.querySelector('[data-testid="tpl-contact-apply"]').getBoundingClientRect()
-    return { inputs: [...g.querySelectorAll("input")].map((i) => { const r = i.getBoundingClientRect(); return `${i.closest("[aria-label]")?.getAttribute("aria-label") ?? i.getAttribute("aria-label")}=${i.value} ${r.width}x${r.height}` }), below: g.getBoundingClientRect().top >= save.getBoundingClientRect().bottom, right: b.right, saveRight: save.getBoundingClientRect().right, btn: g.querySelector('[data-testid="tpl-contact-apply"]').textContent }
+    return { inputs: [...g.querySelectorAll("input")].map((i) => { const r = i.getBoundingClientRect(); return `${i.closest("[aria-label]")?.getAttribute("aria-label") ?? i.getAttribute("aria-label")}=${i.value} ${r.width}x${r.height}` }), below: g.getBoundingClientRect().top >= save.getBoundingClientRect().bottom, right: b.right, saveRight: save.getBoundingClientRect().right, btn: g.querySelector('[data-testid="tpl-contact-apply"]').textContent,
+      shadows: [save, g.querySelector('[data-testid="tpl-contact-apply"]')].map((e) => getComputedStyle(e).boxShadow) }
   }, sec)
   await c(`${sec} [data-testid="tpl-contact-apply"]`)
   const applied = { note: await page.locator(`${demo} [data-testid="section-note"]`).textContent(), frames: await page.locator(`${demo} [data-testid="canvas"] [data-testid="frame"]`).count() }
   ok("kit-sync KS7: Contact sheet row under Save as template — Columns 3 × Rows 2 (44×32) + Contact sheet at the right edge; applies 3×2", row && row.below && row.inputs.join() === "Columns=3 44x32,Rows=2 44x32" && row.btn === "Contact sheet" && near(row.right, row.saveRight) && applied.note === "· Contact sheet 3×2" && applied.frames === 12, JSON.stringify({ row, applied }))
+  ok("kit-sync KS7: Save as template + Contact sheet buttons carry shadow-xs (prod 0 1px 2px rgba(20,20,19,.06))", row && row.shadows.every((s) => s.endsWith("rgba(20, 20, 19, 0.06) 0px 1px 2px 0px")), JSON.stringify(row?.shadows))
   await c(`${sec} [data-testid="tab-mine"]`); await c(`${sec} [data-chip="4"]`)
   const empty = await page.locator(`${sec} [data-testid="tpl-empty"]`).textContent().catch(() => null)
   ok("kit-sync KS7: My templates + 4+ → empty state", empty?.trim() === "No layouts match.", String(empty))
   await c(`${sec} [data-chip="all"]`); await c('[data-item="p0"]')
   const cols1 = await page.locator(`${sec} [data-testid="tpl-grid"]`).first().evaluate((g) => getComputedStyle(g).gridTemplateColumns.split(" ").length).catch(() => null)
   ok("kit-sync KS7: single page (page 1) → 3 columns", cols1 === 3, String(cols1))
+  // prod counts only the frames on that page (LayoutSection.tsx:207): sort and the Photos chips follow the tile
+  await c(`${sec} [role=tab]:not([data-testid="tab-mine"])`)
+  const tids = () => page.locator(`${sec} [data-testid="tpl-tile"]`).evaluateAll((ts) => ts.map((t) => t.dataset.tid))
+  // built-ins only: the kit's sample saved templates have no prod twin
+  const p1Order = (await page.locator(`${sec} [data-testid="tpl-tile"]:not([data-tid^="c-"]) button[title]`).evaluateAll((bs) => bs.map((b) => b.title))).slice(0, 7)
+  await c(`${sec} [data-chip="1"]`)
+  const p1One = (await tids()).filter((id) => !id.startsWith("c-"))
+  await c(`${sec} [data-chip="all"]`)
+  ok("kit-sync KS7: page 1 counts only its own frames — order = prod, \"1\" chip shows 6 built-ins", p1Order.join("|") === "Full bleed|One per page|Panorama|Framed single|Offset pair|Two portraits|Hero + two" && p1One.length === 6, JSON.stringify({ p1Order, p1One }))
   ok("kit-sync W3: no console errors", errs.length === e0, errs.slice(e0).join(" | ").slice(0, 300))
 }
 

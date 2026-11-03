@@ -43,7 +43,9 @@ export function bestTemplate(photoIds: string[], pool: Template[] = ALL_TEMPLATE
 /* v5: ~10 standard layouts (8 base + 2 aspect extras) plus "My templates" — the user's own layouts.
    Custom templates live in their own reactive store; TT() resolves both. */
 export const BUILTIN = () => ALL_TEMPLATES
-export const slotCount = (t: Template) => t.frames.length
+/* kit-sync KS7 (prod LayoutSection counts the page's rects): a single page counts only the frames the tile draws,
+   the ones reaching into the right half of the spread */
+export const slotCount = (t: Template, single = false) => (single ? t.frames.filter((b) => b.x + b.w > 50).length : t.frames.length)
 
 /* kit-sync KS7 (Owner 2026-11-02; prod twin: src/editor/layoutCatalog.ts PICKER_MERGES / sortByPhotoCount):
    on a two-page spread Two portraits is only a margin variant of One per page, so the picker shows one tile;
@@ -52,7 +54,7 @@ const PICKER_MERGES: Record<string, string> = { "t-2port": "t-pair" }
 export const pickerTemplates = (single: boolean) => (single ? ALL_TEMPLATES : ALL_TEMPLATES.filter((t) => !PICKER_MERGES[t.id]))
 export const pickerAlias = (id: string | null | undefined, single: boolean) => (id && !single && PICKER_MERGES[id]) || id
 /** one list from one photo up; the sort is stable, so catalogue order holds inside a count */
-export const sortByPhotoCount = (ts: Template[]) => [...ts].sort((a, b) => slotCount(a) - slotCount(b))
+export const sortByPhotoCount = (ts: Template[], single = false) => [...ts].sort((a, b) => slotCount(a, single) - slotCount(b, single))
 let custom: Template[] = [
   { id: "c-opener", name: "Travel opener", count: 2, group: "2", frames: [{ x: 0, y: 0, w: 62, h: 100 }, { x: 68, y: 30, w: 28, h: 40 }] },
   { id: "c-polaroid", name: "Polaroid pair", count: 2, group: "2", frames: [{ x: 10, y: 14, w: 30, h: 60 }, { x: 60, y: 24, w: 30, h: 60 }] },

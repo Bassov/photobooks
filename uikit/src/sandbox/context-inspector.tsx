@@ -92,7 +92,7 @@ export function ContextInspector() {
 const CHIPS = [["all", "Any"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4+"]] as const
 /** contact-sheet ids are t-cs-<c>x<r> with one digit per axis */
 const CONTACT_MAX = 6
-const matches = (t: Template, chip: string) => chip === "all" || (chip === "4" ? slotCount(t) >= 4 : slotCount(t) === +chip)
+const matches = (t: Template, chip: string, single: boolean) => chip === "all" || (chip === "4" ? slotCount(t, single) >= 4 : slotCount(t, single) === +chip)
 
 /* Owner 2026-11-02 (layout-tile-states; prod twin: src/editor/layoutThumb.ts, keep the numbers in step):
    the thumb box takes the trim aspect clamped to 2:3…2:1 and the paper fills it;
@@ -170,7 +170,7 @@ export function LayoutSection() {
   const single = st.cur === 0
   /* kit-sync KS7 (Owner 2026-11-02, prod LayoutSection): no search / Suggested, one list by photo count */
   const all = [...pickerTemplates(single), ...mine]
-  const list = sortByPhotoCount((tab === "mine" ? mine : all).filter((t) => matches(t, chip)))
+  const list = sortByPhotoCount((tab === "mine" ? mine : all).filter((t) => matches(t, chip, single)), single)
   const current = pickerAlias(s.template, single)
   const apply = (id: string) => { setTemplatePreview(null); applyTemplate(st, id) }
   const save = () => {
@@ -217,13 +217,13 @@ export function LayoutSection() {
           </div>
         )}
         <p className="text-2xs text-muted-foreground" data-testid="tpl-hint">Hover a layout to preview it on the spread; click to apply. Photos are kept in order.</p>
-        <Button variant="secondary" size="sm" onPress={save} className="w-full" data-testid="tpl-save-button"><Plus />Save as template</Button>
+        <Button variant="secondary" size="sm" onPress={save} className="w-full shadow-xs" data-testid="tpl-save-button"><Plus />Save as template</Button>
         {/* kit-sync KS7 (prod LayoutSection contact sheet): Columns × Rows, then apply */}
         <div className="flex items-center gap-1.5" role="group" aria-label="Contact sheet" data-testid="tpl-contact">
           {count("Columns", cols, setCols, "tpl-contact-cols")}
           <span className="text-xs text-muted-foreground" aria-hidden>×</span>
           {count("Rows", rows, setRows, "tpl-contact-rows")}
-          <Button variant="secondary" size="sm" className="ml-auto" onPress={() => apply(`t-cs-${cols}x${rows}`)} data-testid="tpl-contact-apply">Contact sheet</Button>
+          <Button variant="secondary" size="sm" className="ml-auto shadow-xs" onPress={() => apply(`t-cs-${cols}x${rows}`)} data-testid="tpl-contact-apply">Contact sheet</Button>
         </div>
       </div>
     </Section>
