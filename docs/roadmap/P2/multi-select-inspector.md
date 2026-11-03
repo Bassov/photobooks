@@ -3,6 +3,7 @@
 Tag: feature
 Milestone: P2
 Title: multi-selection inspector: align, distribute, arrange, delete
+Status: done
 
 ## Scope
 
