@@ -497,6 +497,32 @@ test.describe('multi-select part 3: marquee', () => {
     await assertDocumentFitsViewport(page)
   })
 
+  test('a press 10 px above spread 2–3 targets it (nearest paper) and makes it active', async ({
+    page,
+  }) => {
+    const slot = (id: string) =>
+      page.locator(`[data-testid="pasteboard-slot"][data-spread-id="${id}"]`)
+    const paper = await boxOf(spread(page))
+    const [c0] = await centres(page)
+    // The gap above spread 2–3 belongs to page 1's slot: a click goes there.
+    await page.mouse.click(c0.x, paper.y - 10)
+    await expect(slot('painter-spread-0')).toHaveAttribute(
+      'data-active',
+      'true',
+    )
+    await page.mouse.move(c0.x, paper.y - 10)
+    await page.mouse.down()
+    await page.mouse.move(c0.x, c0.y, { steps: 12 })
+    await expect(slot('painter-spread-1')).toHaveAttribute(
+      'data-active',
+      'true',
+    )
+    await expect(hits(page)).toHaveCount(1)
+    await page.mouse.up()
+    await expect(pressed(page)).toHaveCount(1)
+    await expect(frames(page).nth(0)).toHaveAttribute('aria-pressed', 'true')
+  })
+
   test('across the top row selects frames 0 and 1; Shift over the bottom row unions all four', async ({
     page,
   }) => {

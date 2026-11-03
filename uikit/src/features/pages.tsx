@@ -125,7 +125,7 @@ export const PAGES: Record<string, FeatureDef> = {
     what: "Click a frame to select it: handles on the frame, frame properties in the inspector. Drag moves the frame or the whole set; Esc cancels the move. Shift+click adds or removes a frame: with two or more selected, every frame keeps its outline, a dashed group box surrounds them and no frame shows handles.",
     where: "#/demo steps 16–18.",
     keys: [["Shift+click", "add / remove a frame"], ["Drag on paper or pasteboard", "marquee: select the frames it touches; Shift adds"], ["Arrows / Shift+arrows", "nudge the selection by 1 / 10 mm"], ["Del", "delete the selected frames"], ["Esc", "cancel the move or marquee / clear the selection"]],
-    edge: ["Esc mid-move puts the frame or the whole set back; mid-marquee, the previous selection", "Shift+click never swaps photos", "A plain click inside the selection selects that frame alone", "Locked frames can be selected and stay put on move and nudge; all locked: the status says so"],
+    edge: ["Esc mid-move puts the frame or the whole set back; mid-marquee, the previous selection", "A marquee from the gray targets the spread with the nearest paper and makes it active", "Shift+click never swaps photos", "A plain click inside the selection selects that frame alone", "Locked frames can be selected and stay put on move and nudge; all locked: the status says so"],
   }),
   "crop-in-frame": page([
     ["crop", "Crop mode", ed({ doc: docFilled, cur: 1, pick: 0, crop: true })],

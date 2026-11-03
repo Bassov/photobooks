@@ -16,8 +16,9 @@ import type { Node } from "./store"
 export const STACK_GAP = 104 / 588, STACK_TOP = 56, LABELS_MIN_GAP = 8 + 11, PILL_H = 32, PILL_MIN_GAP = PILL_H + 2 * LABELS_MIN_GAP
 
 /* v0.7.1: page labels live in the canvas layer under the spread and move with zoom and pan */
-/* Select drag on the pasteboard gray (gaps included): a marquee on the spread under the press, else the nearest
-   one (prod pasteboardClickSpreadId). Hand / Space / middle-drag pan in the capture phase and never get here. */
+/* Select drag on the pasteboard gray (gaps included): a marquee on the spread whose paper is nearest to the press
+   (point-to-rect; a tie keeps the upper one, whose slot holds the gap) — prod src/editor/marquee.ts nearestPaper.
+   Hand / Space / middle-drag pan in the capture phase and never get here. */
 function grayMarquee(e: React.PointerEvent, root: HTMLElement | null) {
   const t = e.target as HTMLElement
   if (e.button !== 0 || !root || t.closest('[data-testid="spread"], button, input, textarea, [role="button"], [data-testid^="ruler"], [data-stack-item="last"]')) return

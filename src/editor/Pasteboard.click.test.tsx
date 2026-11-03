@@ -182,6 +182,7 @@ describe('Pasteboard marquee from the gray', () => {
   /** Spread 2 at 1 client px per mm, its left edge 50 px into the port. */
   const LEFT = 50
   const TOP = 100
+  const GAP = 40
   let ids: readonly string[]
   let stop: () => void
   let target: string
@@ -218,16 +219,26 @@ describe('Pasteboard marquee from the gray', () => {
       cx: LEFT + first.rect.x + first.rect.width / 2,
       cy: TOP + first.rect.y + first.rect.height / 2,
     }
-    const slot = screen
-      .getAllByTestId('pasteboard-slot')
-      .find((el) => el.getAttribute('data-spread-id') === target)
-    assert.ok(slot)
-    slot.getBoundingClientRect = () =>
-      ({ top: TOP, bottom: TOP + heightMm + 40 }) as DOMRect
-    const view = slot.querySelector<HTMLElement>('[data-testid="spread-view"]')
-    assert.ok(view)
-    view.getBoundingClientRect = () =>
-      ({ left: LEFT, top: TOP, width: widthMm, height: heightMm }) as DOMRect
+    // Stacked slots: paper, then a GAP px label row that belongs to the slot.
+    for (const slot of screen.getAllByTestId('pasteboard-slot')) {
+      const index = ids.indexOf(slot.getAttribute('data-spread-id') ?? '')
+      const top = TOP + (index - 1) * (heightMm + GAP)
+      slot.getBoundingClientRect = () =>
+        ({ top, bottom: top + heightMm + GAP }) as DOMRect
+      const view = slot.querySelector<HTMLElement>(
+        '[data-testid="spread-view"]',
+      )
+      assert.ok(view)
+      view.getBoundingClientRect = () =>
+        ({
+          left: LEFT,
+          top,
+          right: LEFT + widthMm,
+          bottom: top + heightMm,
+          width: widthMm,
+          height: heightMm,
+        }) as DOMRect
+    }
     stop = installFrameGesture()
   })
 
@@ -329,7 +340,78 @@ describe('Pasteboard marquee from the gray', () => {
     expect(getFrameSelection()?.frameIds).toEqual(all)
   })
 
-  it('keeps the box inside the scrollport; scrollbars and empty gray start none', () => {
+  it('targets the nearest paper from the gap above it and activates it past the slop', () => {
+    const above = ids[0]
+    assert.ok(above)
+    // 10 px above the target paper: the slot above holds the press.
+    fire('pointerdown', topLeft.cx, TOP - 10)
+    expect(getActiveSpreadId()).toBe(above)
+    fire('pointermove', topLeft.cx + 1, TOP - 9)
+    expect(box()).toBeNull()
+    fire('pointermove', topLeft.cx, topLeft.cy)
+    expect(getActiveSpreadId()).toBe(target)
+    fire('pointerup', topLeft.cx, topLeft.cy)
+    expect(getFrameSelection()).toEqual({
+      spreadId: target,
+      frameIds: [topLeft.id],
+    })
+
+    // Under the slop it stays the click on the slot above.
+    fire('pointerdown', topLeft.cx, TOP - 10)
+    fire('pointerup', topLeft.cx + 2, TOP - 10)
+    expect(getActiveSpreadId()).toBe(above)
+  })
+
+  it('on a tie the spread whose slot holds the press wins', () => {
+    const above = ids[0]
+    assert.ok(above)
+    // A paper that is no editable spread never wins, even under the press.
+    const ghost = document.createElement('div')
+    ghost.setAttribute('data-testid', 'spread-view')
+    ghost.setAttribute('data-spread-id', 'ghost')
+    ghost.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 2000, bottom: 2000 }) as DOMRect
+    port().append(ghost)
+    // Midway in the gap: GAP / 2 from both papers, inside the slot above.
+    fire('pointerdown', topLeft.cx, TOP - GAP / 2)
+    fire('pointermove', topLeft.cx, topLeft.cy)
+    expect(getActiveSpreadId()).toBe(above)
+    fire('pointerup', topLeft.cx, topLeft.cy)
+    expect(getFrameSelection()?.spreadId).toBe(above)
+  })
+
+  it('a marquee on a master leaves the active book spread alone', () => {
+    dispatchBookOp({ type: 'addParent', id: 'master-a' })
+    fire('pointerdown', 10, topLeft.cy)
+    fire('pointerup', 10, topLeft.cy)
+    expect(getActiveSpreadId()).toBe(target)
+    const canvas = document.createElement('div')
+    canvas.setAttribute('data-testid', 'masters-canvas')
+    const paper = document.createElement('div')
+    paper.setAttribute('data-testid', 'spread-view')
+    paper.setAttribute('data-spread-id', 'master-a')
+    paper.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 400, height: 300 }) as DOMRect
+    canvas.append(paper)
+    document.body.append(canvas)
+    const down = new MouseEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+    })
+    Object.defineProperty(down, 'pointerId', { value: 1 })
+    act(() => {
+      paper.dispatchEvent(down)
+    })
+    fire('pointermove', 200, 200)
+    expect(box()).not.toBeNull()
+    expect(getActiveSpreadId()).toBe(target)
+    fire('pointerup', 200, 200)
+    canvas.remove()
+  })
+
+  it('keeps the box inside the scrollport; scrollbars start none', () => {
     // Client box: borders 4 / 6 px, 500 × 300 inside, so x 4..504, y 6..306.
     for (const [key, value] of Object.entries({
       clientLeft: 4,
@@ -348,11 +430,10 @@ describe('Pasteboard marquee from the gray', () => {
     expect(box()?.style.width).toBe('494px')
     expect(box()?.style.height).toBe(`${String(306 - topLeft.cy)}px`)
     fire('pointerup', 900, 900)
-    // The scrollbars (x ≥ 504 or y ≥ 306) and gray outside every row.
+    // The scrollbars (x ≥ 504 or y ≥ 306).
     for (const [x, y] of [
       [504, topLeft.cy],
       [300, 306],
-      [300, 50],
     ] as const) {
       fire('pointerdown', x, y)
       fire('pointermove', 200, y - 40)

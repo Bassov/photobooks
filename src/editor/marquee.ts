@@ -45,6 +45,18 @@ export interface MarqueeSession {
   box: HTMLElement | null
 }
 
+const startListeners = new Set<(spreadId: string) => void>()
+
+/** Called with the target spread when a marquee passes the slop. */
+export function subscribeMarqueeStart(
+  listener: (spreadId: string) => void,
+): () => void {
+  startListeners.add(listener)
+  return () => {
+    startListeners.delete(listener)
+  }
+}
+
 /** The scrollport's client box, scrollbars excluded. */
 function clientBox(port: HTMLElement): ClientBox {
   const rect = port.getBoundingClientRect()
@@ -58,10 +70,49 @@ function clientBox(port: HTMLElement): ClientBox {
   }
 }
 
+/** Client px from (x, y) to the box; 0 inside it. */
+function distanceTo(box: DOMRect, x: number, y: number): number {
+  return Math.hypot(
+    Math.max(box.left - x, 0, x - box.right),
+    Math.max(box.top - y, 0, y - box.bottom),
+  )
+}
+
+/**
+ * The editable paper nearest to a gray press; on a tie, the one whose slot
+ * holds the press (`pasteboardClickSpreadId`).
+ */
+function nearestPaper(
+  port: HTMLElement,
+  target: Element,
+  x: number,
+  y: number,
+): HTMLElement | null {
+  const book = getBookStoreSnapshot().book
+  const slots = [...port.querySelectorAll('[data-pasteboard-slot]')]
+  const own = pasteboardClickSpreadId(target, y, slots)
+  let best: { paper: HTMLElement; distance: number } | null = null
+  for (const paper of port.querySelectorAll<HTMLElement>(SPREAD_SELECTOR)) {
+    const id = paper.getAttribute('data-spread-id') ?? ''
+    if (editableSpread(book, id) === undefined) {
+      continue
+    }
+    const distance = distanceTo(paper.getBoundingClientRect(), x, y)
+    if (
+      best === null ||
+      distance < best.distance ||
+      (distance === best.distance && id === own)
+    ) {
+      best = { paper, distance }
+    }
+  }
+  return best?.paper ?? null
+}
+
 /**
  * The spread a Select-tool press targets: the paper under it (not a frame,
- * handle, guide or control), else on the pasteboard gray the spread its
- * click activates (`pasteboardClickSpreadId`); null on a scrollbar.
+ * handle, guide or control), else on the pasteboard gray the nearest
+ * editable paper; null on a scrollbar.
  */
 function marqueeSpread(event: PointerEvent): HTMLElement | null {
   const target = event.target
@@ -80,10 +131,7 @@ function marqueeSpread(event: PointerEvent): HTMLElement | null {
   if (event.clientX >= box.right || event.clientY >= box.bottom) {
     return null
   }
-  const slots = [...port.querySelectorAll('[data-pasteboard-slot]')]
-  const id = pasteboardClickSpreadId(target, event.clientY, slots)
-  const slot = slots.find((item) => item.getAttribute('data-spread-id') === id)
-  return slot?.querySelector<HTMLElement>(SPREAD_SELECTOR) ?? null
+  return nearestPaper(port, target, event.clientX, event.clientY)
 }
 
 /** A marquee press (not started until the slop): null when nothing to target. */
@@ -157,6 +205,10 @@ export function paintMarquee(
   const width = Math.max(...xs) - left
   const height = Math.max(...ys) - top
   if (marquee.box === null) {
+    // First paint: past the slop, the target spread becomes active.
+    for (const listener of startListeners) {
+      listener(marquee.spreadId)
+    }
     marquee.box = document.createElement('div')
     marquee.box.className = 'marquee-box'
     marquee.box.setAttribute('data-testid', 'marquee')
